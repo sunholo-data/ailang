@@ -6917,3 +6917,131 @@ of `runner.go` headroom). `#546` unparks the moment Mark answers a/b/c (controll
 **(c)**, avoid **(a)**). Both quota offloads remain date-gated to the 08-03 re-arm.
 
 **Parked for human** — nothing new. `#546`'s a/b/c scope call remains the single open ask.
+
+## 132 — 2026-08-01 — Iteration 127: `#548` **LANDED**, and the AC9 blocker gating the seed sprint's M2 is **DISCHARGED**. The pick was `#548`; the find was that the defect is **not contract-specific at all** — `ailang test` corrupted every temp module it generated for a multi-line declaration.
+
+**Picked** — `#548` + the AC9 blocker, as ONE root cause. Not the literal queue head, and the
+reason is the same shape as last iteration's: `#546` remains **PARKED** on Mark's unanswered a/b/c
+scope call (Standing rule 2 forbids forcing a park), **both quota offloads are date-gated by Mark
+to the 2026-08-03 07:00 re-arm**, and the seed sprint's own **M2/M3 are date-gated to that same
+re-arm**. `m-property-generator-coverage LANE B1` sequences behind `#535`, which is M2. What was
+left that is genuinely live: `#548`, filed by iteration 126 and never routed — and iteration 126's
+own **Next** field names AC9's parse failure as the thing that must be resolved *before* M2 starts.
+So this pick is a capacity multiplier landing before the capacity consumer, which is exactly the
+ordering Mark set for the re-arm.
+
+**Gate 0/1** — kill switch armed, billing **CLEAN**, gh account `sunholo-voight-kampff`, dev CI
+**GREEN** SHA-addressed on `858b067d4`. **Zero** open `[nightly-eval]` alarms — control-verified
+against 5 closed ones, so the empty result is a fact and not a broken instrument. No new Mark
+comment, also control-verified: exactly **1** comment from `MarkEdmondson1234` exists on `#484`, at
+`2026-07-27T07:53:53Z`, which **equals the watermark** — already actioned by iteration 126. No
+rotation due (`#484` created Mon **07:27 CEST**, *after* the 07:00 local boundary; 41 < 80).
+Inbox: 7 routine `eval-suite` aggregates plus this mission's own iteration-126 report; no
+regression, no directive; all acked.
+
+**Two Gate-1 traps caught rather than inherited.** (1) Local `dev` had **diverged** — 1 ahead, 3
+behind. The ahead-commit was NOT local work: `git cherry -v origin/dev dev` printed `-` and the
+patch-ids matched exactly (`fc808504e…`), i.e. iteration 126's Gate-4 record had landed upstream
+under a different SHA. Nothing to rescue, and per Critical Principle 0 the shared tree was left
+untouched; all mission state was read from `origin`. (2) `git status` showed
+`.claude/skills/mission-control/SKILL.md` modified, which reads like an uncommitted Gate-5 edit —
+but `git diff origin/dev -- <file>` was **empty** and both copies are 74747 bytes. The edit had
+already landed as `858b067d4`; the "M" was relative to the *stale local HEAD*, not to origin. A
+dirty-file list is meaningless until you name the reference it is dirty against.
+
+**The find — the first diagnosis was too narrow, and the planner refuted it.** Reality-checking
+`#548` reproduced it 1/1 with a control (named test alone → rc=0; named test + contract → rc=1,
+`PAR_NO_PREFIX_PARSE ... requires`/`ensures` in a generated `_namedtest_body_*.ail`). The AC9 shape
+reproduced too, with the discriminating variable isolated: identical contract **with** a `module`
+header → rc=0, **without** → rc=1. I traced both to `stripNonPureFunctions` and confirmed it with a
+falsifiable prediction — I hand-built the temp file I believed was being generated
+(`module`/blank/`requires`/`ensures`) and `ailang check` produced errors at **exactly `3:1` and
+`4:1`**, byte-identical to the live failure.
+
+That prediction was right about the mechanism and **wrong about its scope**, and the opus planner
+caught it. The defect is **not contract-specific**: the strip deletes exactly ONE line of a
+declaration that may span many, so a plain multi-line function with **no contract anywhere**
+corrupts identically (`unexpected token in expression: }`), and an `@verify` annotation — which
+sits *above* `Span.Start`, so even a span-based strip misses it — yields `PAR_ATTR_REQUIRES_FUNC`.
+I re-ran both first-party before accepting them. Contracts were merely the loudest instance of a
+wider corruption class. The planner also refuted `#548`'s own "known-positive control" as passing
+for the wrong reason: its body `test "trivial" { true }` calls nothing, so it could never detect
+that the function had been deleted.
+
+**The measured rejection that shaped the fix.** The obvious remedy is to derive purity from the
+effect annotation, since `IsPure` is set **only** by the `pure` keyword (`parser_func.go:33`) — I
+verified that adding `pure` makes the AC9 case pass. The planner rejected it on blast radius and I
+confirmed the reason: `internal/format/decl.go:57` is `if d.IsPure { write("pure ") }`, so flipping
+the parser flag would make **`ailang fmt` insert a keyword the author never typed** — the silent
+source-rewrite class this repo has already paid for once. Purity inference therefore stays **local**
+to `internal/testing`, mirroring the existing precedent at `cmd/ailang/ai_check.go:231-232`.
+
+**Shipped** (PR #550 → `f1a10b673`): a new `internal/testing/source_strip.go` serving all THREE
+call sites (Critical Principle 3 — one unified fix, not three patches): whole-declaration span
+deletion extended upward over annotations, a local `isEffectivelyPure`, and a keep-set so the
+function under extraction survives its own strip. `ExtractPureClusterForFunction` no longer computes
+a stripped source the module pipeline never reads — the module path loads the root module **by
+filename from disk** (`pipeline.go:157-169`), which is also precisely why the module-ful case
+*masked* the bug for so long. `executor.go` 739 → **654** lines.
+
+**AC9 is discharged, with a paired control.** AC9's original module-less fixture, verbatim and
+unmodified: pre-fix binary → `rc=1`, `PAR_NO_PREFIX_PARSE ... ensures`; post-fix → `rc=0`, 1 passed.
+The seed sprint plan's §0.3, §5.3 and risk-row B3 were updated to record the discharge and name the
+committed regression fixture, so the 08-03 session does not re-derive a blocker that no longer
+exists — and it may keep AC9 **as written** rather than restating it.
+
+**A surviving mutation, found by the judge and then closed.** I ran three mutations (purity policy,
+span collapse, annotation extension) — all killed, all reverted byte-identically. The sonnet
+evaluator ran six more and found one that **SURVIVED**: the `endLine < startLine` disjunct of the
+invalid-span guard was never exercised, because the only fallback test left `End` at its zero value.
+I reproduced the survival first-party, converted the test into a table covering **both** disjuncts,
+and then proved the point rather than asserting it — with the mutation re-applied, the new
+`end_before_start` subtest fails; with the fix intact it passes. All three of the evaluator's
+non-blocking findings were **acted on rather than filed** (a severity label is an opinion, not a
+measurement): the mutation gap, the missing CHANGELOG entry, and the seed-plan discharge.
+
+**Ruled out**
+- *The defect is contract-specific* — REFUTED by the planner and re-verified by me; a multi-line
+  function with no contract at all corrupts identically.
+- *One fix closes both defects* — REFUTED before routing. Stripping contracts *with* the declaration
+  fixes `#548` but leaves AC9 with no function to extract; the keep-set is a separate necessity.
+- *Deriving `IsPure` from the empty effect set is the clean fix* — REFUTED on measured blast radius
+  (`internal/format/decl.go:57` would make `ailang fmt` rewrite user source).
+- *`#548`'s own control proves the function survives* — REFUTED by the planner; its test body calls
+  nothing.
+- *`cmd/wasm` build failure is ours* — REFUTED; identical on a pristine stashed `origin/dev`
+  (`GOOS=js` build-tag artifact).
+- *`TestIsTempPath` is a regression, or a pre-existing dev bug* — REFUTED both ways; it fails ONLY
+  because this worktree lived under `/tmp`, and passes `rc=0` in a non-`/tmp` checkout. Dev CI is
+  green precisely because CI does not check out under `/tmp`.
+- *An empty `grep` for `[NEXT]` meant no open queue items* — REFUTED by a control: the tag census
+  found **7** `[NEXT]` rows; my line-anchor assumption about queue formatting was wrong, not the data.
+
+**Routing evidence** — planner **opus**, executor `codex:gpt-5.6-sol` (one bounded 30-min run,
+delivery asserted, stdin `< /dev/null`), evaluator **sonnet** — generator≠judge holds (OpenAI
+executor vs Anthropic judge). No designer fired (bug-fix lane, no new design doc, no quorum — the
+`m-nightly-run-validity-gate`/`#524` precedent), so the designer rotation is **unchanged** at
+`codex:gpt-5.6-sol`. `metered=$0.00` of the `$5` ceiling — quorum did not run, no managed-agents
+call; planner/controller/evaluator on quota buckets, codex on the ChatGPT subscription bucket.
+All gates re-run **outside** the codex sandbox, as required: its `go test ./...` hit a loopback-bind
+denial and it correctly labelled that `UNINFORMATIVE UNDER SANDBOX` rather than reporting pass or fail.
+
+**Watch-item (instance 1, NOT yet a skill edit)** — placing the sprint worktree under `/tmp` makes
+`internal/loader`'s `TestIsTempPath` fail spuriously, because the test resolves relative paths
+against a CWD that is itself temp-shaped. A full-suite run from such a worktree therefore shows a
+red that CI will never show. Prior iterations used `.wt-iter117` / `.wt-iter121` under the repo
+parent; this iteration deviated to `/tmp/wt-iter127`. One recorded instance, so per Gate 5's
+≥2-friction bar this is logged rather than written into the skill. If a second iteration hits it,
+the fix is to standardise the worktree location off `/tmp`.
+
+**Next** — the 2026-08-03 07:00 re-arm now has a clean run at Mark's stated order: the two quota
+offloads first (`m-planner-codex-lane` is plan-ready, `m-evaluator-gemini-review-lane`), then the
+seed sprint's **M2 (`#535`) which is no longer blocked** — AC9 needs no restatement — then M3, then
+LANE B1. `#546` unparks the moment Mark answers a/b/c (controller's read remains **(c)**, avoid
+**(a)**).
+
+**Parked for human** — nothing new from this sprint. `#546`'s a/b/c scope call remains the single
+open ask. Additionally surfaced for awareness, not a decision: the **shared main checkout is in a
+diverged state** (1 commit ahead that is a patch-identical duplicate of an upstream commit, 3
+behind), which Gate 1 will keep flagging. Critical Principle 0 forbids the loop resetting it, so it
+needs an interactive session to reconcile.
