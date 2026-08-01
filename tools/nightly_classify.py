@@ -19,6 +19,17 @@ from pathlib import Path
 from typing import Iterable
 
 INFRA_CATEGORIES = {"api_error", "timeout", "executor_error"}
+RUN_UNMEASURED_CATEGORIES = INFRA_CATEGORIES | {
+    "non_agentic",
+    "quota_exhausted",
+    "rate_limit",
+    "cost_killed",
+}
+MODEL_OUTCOME_CATEGORIES = {
+    "compile_error", "runtime_error", "logic_error", "verify_error",
+    "constraint_violation", "refused", "step_exhausted", "thrash_aborted",
+    "resource_limit",
+}
 PAGING_CLASSES = {"regression", "sustained-failure"}
 DATE_RE = re.compile(r"nightly_eval_(\d{8})_rag_on")
 MODEL_RE = re.compile(r"_ailang_(.+)_\d+$")
@@ -118,10 +129,27 @@ def run_validity(
     total = len(results)
     if total == 0:
         return False, "zero_files", 0, 0
-    tainted = sum(infra_tainted(trials) for trials in results.values())
+    tainted = sum(
+        any(cat in RUN_UNMEASURED_CATEGORIES for _, cat in trials)
+        for trials in results.values()
+    )
     if tainted / total >= threshold:
         return False, "infra_outage", tainted, total
     return True, "", tainted, total
+
+
+def dominant_unmeasured_category(
+    results: dict[str, list[tuple[bool, str]]],
+) -> str:
+    """Return the most common run-unmeasured category across benchmarks."""
+    counts = {
+        category: sum(
+            any(cat == category for _, cat in trials)
+            for trials in results.values()
+        )
+        for category in RUN_UNMEASURED_CATEGORIES
+    }
+    return min(counts, key=lambda category: (-counts[category], category))
 
 
 def pass_rate(results: dict[str, list[tuple[bool, str]]]) -> float:
@@ -558,7 +586,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-nights", type=int, default=2)
     parser.add_argument("--min-trials", type=int, default=4)
     parser.add_argument("--escalate-after", type=int, default=3)
-    parser.add_argument("--invalid-infra-fraction", type=float, default=0.30)
+    parser.add_argument(
+        "--invalid-infra-fraction", type=float, default=0.30,
+        help="invalidate when this fraction of benchmarks is unmeasured",
+    )
     parser.add_argument("--update-history", action="store_true")
     parser.add_argument("--mark-invalid")
     parser.add_argument("--reason")
@@ -656,7 +687,8 @@ def main(argv: list[str] | None = None) -> int:
             median_text = f"{median:.3f}" if median is not None else "n/a"
             print(
                 f"INVALID\t{reason}\t{tainted}/{total}\t"
-                f"{pass_rate(results):.3f}\t{median_text}"
+                f"{pass_rate(results):.3f}\t{median_text}\t"
+                f"[{dominant_unmeasured_category(results)}]"
             )
             verdicts = []
         for verdict in verdicts:

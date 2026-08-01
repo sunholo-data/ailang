@@ -36,7 +36,25 @@ improvement loop, since retro fixes must benefit all missions). What differs per
 > until synced" claim that is FALSE, because the skill is shared by symlink. That is a Gate-2
 > rule-3b **scope** error: a green check quoted for a sentence wider than it supports. Check the
 > skill path separately from the driver — `readlink` before concluding anything about copies — or
-> say "driver-only" and mean it.
+> say "driver-only" and mean it. **(c) "The instant you save it" holds only for an edit SAVED IN
+> THE MAIN CHECKOUT — a Gate-5 edit COMMITTED FROM A WORKTREE reaches origin and never reaches the
+> running skill** (added 2026-08-01 iteration 128; instance 2 of the diverged-checkout class after
+> iter-127 surfaced the divergence, and the first time the harm was measured). The symlink resolves
+> to the MAIN CHECKOUT's *working tree*, so what the loop executes is that checkout's file at its
+> own HEAD — not origin's. Iteration 128 measured its own rulebook: of the last 8 commits touching
+> this file the newest TWO (`858b067d4`, `c7fc3b954`) were `NOT-in-local-HEAD`, while every older
+> one was — the older ones had been saved in place, the new ones committed from worktrees. So the
+> loop was executing a copy **missing iter-127's own Gate-4 STATUS-rotation mass-deletion guard**,
+> a rule added because that step had already destroyed the charter's 1,571-line queue once. The
+> drift is one-way and unbounded: every sprint lands from a worktree, so every Gate-5 edit made
+> that way widens the gap — silently, while this very note promises the opposite. At Gate 1, after
+> the origin fetch, **diff the RUNNING skill against origin**:
+> `git show origin/dev:.claude/skills/mission-control/SKILL.md | cmp -s - .claude/skills/mission-control/SKILL.md`
+> — if it DIFFERS, read the delta (`git diff origin/dev -- <skill>`) BEFORE proceeding and say so
+> in the report, because the rules you are about to follow are not the rules the mission agreed on.
+> Prefer saving Gate-5 edits in the MAIN checkout when that tree is clean enough to commit from;
+> when Principle 0 forbids that, land via the worktree AND escalate the reconcile as a human
+> decision — the loop cannot fix its own rulebook by writing only to a tree nobody executes.
 
 - **Driver env** (exported by `tools/launchd/mission-control.sh`): `MISSION_NAME` (default `v1`),
   `MISSION_REPO` (default `sunholo-data/ailang`), `MISSION_DOC` (default `design_docs/v1-mission.md`);
