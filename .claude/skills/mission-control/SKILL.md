@@ -848,6 +848,34 @@ Append an entry to `design_docs/v1-mission-log.md` using its fixed template — 
 value fields: evidence drives routing-policy changes; ruled-out stops re-chasing. Update the
 mission doc's queue tags ([LANDED], [PARKED], etc.) and STATUS stamp.
 
+**WRITE THE RECORD WHERE YOU READ THE STATE — NEVER INTO A WORKING-TREE COPY YOU HAVE NOT
+RE-CONFIRMED AGAINST ORIGIN** (added 2026-08-01 iteration 129; instance 2 of the diverged-checkout
+class after iter-128's stale *skill* — this one is the stale *charter*, and its failure mode is a
+silent mass deletion). Gate 1 already tells you to READ mission state from origin when local `dev`
+is behind. Nothing said the same about WRITING it, and the two halves are not symmetric: Gate 1's
+remedy leaves you reading origin's charter while your editor still points at the working tree's.
+Measured at iteration 129: local `dev` was 1 ahead / 8 behind, and the working-tree charter carried
+STATUS stamps **123/125/126** while origin carried **126/127/128** — so an in-place "add your stamp,
+rotate the 4th out", the literal instruction above, would have committed a charter with **iterations
+127 and 128 deleted**, and the line-count assertion below would have *passed*, because that
+arithmetic is self-consistent against the wrong base. Same shape as the STATUS-rotation bug (a
+destructive edit reports success exactly like a correct one), but the corruption arrives from the
+BASE rather than from the edit, so no amount of care inside the edit can catch it. Before the first
+Gate-4 write, re-confirm the base:
+
+```bash
+git fetch origin
+git rev-parse dev origin/dev                     # differ at all? the working tree is NOT the base
+git diff --stat origin/dev -- "$MISSION_DOC" design_docs/*-mission-log.md
+```
+
+If charter/log differ from `origin/dev`, do **not** edit them in the shared checkout: write the
+record in a worktree branched from `origin/dev` (`git worktree add -b … <path> origin/dev`) and land
+it by PR. **The cheap tell, and the one to actually use:** grep the file you are about to edit for
+the PREVIOUS iteration's stamp — if the last iteration's own record is missing, you are holding a
+stale copy, not a charter awaiting your entry. One command, and it is the difference between
+appending history and erasing it.
+
 **THE STATUS ROTATION IS THE MOST DANGEROUS EDIT THIS LOOP MAKES — SCRIPT IT WITH A LINE-COUNT
 ASSERTION, NEVER A BARE `## `-HEADER SCAN** (added 2026-08-01 iteration 127; third failure of this
 same step — iter-83 hand-corrected an already-drifted N>4, iter-123 found the block drifted to 4
