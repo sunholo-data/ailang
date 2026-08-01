@@ -1,0 +1,78 @@
+{
+  "sprint_id": "M-STRIP-DECL-AWARE",
+  "created": "2026-08-01",
+  "plan_path": "design_docs/planned/v0_31_0/m-strip-contract-awareness-sprint-plan.md",
+  "design_doc": null,
+  "design_doc_rationale": "Bug-fix lane. FORUM RULE (charter L158) scopes the full quorum pipeline to FEATURE-shaped work; precedent m-nightly-run-validity-gate/#524. No new syntax, flag, or user-visible semantics. The one policy call (empty effect annotation == pure) has two in-repo precedents: cmd/ailang/verify.go:160-168 and cmd/ailang/ai_check.go:231-232.",
+  "github_issues": [
+    548
+  ],
+  "base_commit": "858b067d4",
+  "worktree": "/tmp/wt-iter127",
+  "velocity": {
+    "target_loc_per_day": 250,
+    "estimated_total_loc": 415,
+    "estimated_days": 1.75
+  },
+  "features": [
+    {
+      "id": "M1_DECL_AWARE_STRIP",
+      "description": "Move stripNonPureFunctions to new internal/testing/source_strip.go and rewrite it to delete the WHOLE declaration (leading annotations .. Span.End.Line) instead of a single signature line. Kills the source-corruption class for contracts, multi-line bodies, and annotated declarations alike.",
+      "estimated_loc": 270,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "AC1.1: ./bin/ailang test internal/testing/testdata/strip/named_test_multiline.ail -> rc=0, output has '1 passed' and '0 failed', no PAR_NO_PREFIX_PARSE (pre-fix: rc=1, 'unexpected token in expression: }')",
+        "AC1.2: ./bin/ailang test internal/testing/testdata/strip/named_test_effectful.ail -> rc=0, '0 failed', no PAR_NO_PREFIX_PARSE (proves a genuinely ! {IO} decl is removed whole)",
+        "AC1.3: ./bin/ailang test internal/testing/testdata/strip/named_test_annotated.ail -> rc=0, '0 failed', no PAR_ATTR_REQUIRES_FUNC (leading @verify removed with its decl)",
+        "AC1.4: ./bin/ailang test internal/testing/testdata/strip/named_test_contract.ail -> rc=0, '0 failed' (#548 verbatim; pre-fix rc=1 '3 tests: 1 passed, 1 failed, 1 skipped')",
+        "AC1.5: go test ./internal/testing/... -> ok (baseline at 858b067d4 is ok, measured)",
+        "AC1.6: make check-file-sizes -> exit 0; internal/testing/executor.go under 800 lines (739 today, 61 headroom)",
+        "AC1.7: ./bin/ailang test tests/record_update_regression_test.ail && ./bin/ailang test internal/pkg/testdata/multi_module/src/core_test.ail -> both rc=0 (live in-repo non-regression control)",
+        "NON-VACUITY: every table asserting ABSENCE of PAR_NO_PREFIX_PARSE must include malformed_control.ail asserting PRESENCE, in the same test function",
+        "Defensive fallback for Span.End.Line == 0 (hand-built ASTs, extern decls) has its own unit test"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_PURITY_AND_KEEPSET",
+      "description": "Add a LOCAL isEffectivelyPure predicate (f.IsPure || (f.Effects != nil && len(f.Effects) == 0)) mirroring cmd/ailang/verify.go:160-168, plus a keep-set so the function under test always survives at ExtractFunctionBinding and ExtractPureClusterForFunction. Unblocks AC9 of m-property-seed-determinism. Parser IsPure is NOT touched (internal/format/decl.go:57 would make ailang fmt insert a 'pure' keyword the author never wrote).",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M1_DECL_AWARE_STRIP"
+      ],
+      "acceptance_criteria": [
+        "AC2.1 (the AC9 blocker): ./bin/ailang test internal/testing/testdata/strip/moduleless_contract.ail -> rc=0, '0 failed', contains neither 'failed to extract function binding' nor PAR_NO_PREFIX_PARSE, and shows a passing big_property_2 (pre-fix: rc=1, 'failed to extract function binding for big: ... PAR_NO_PREFIX_PARSE ... 3:1: requires')",
+        "AC2.2 (control): ./bin/ailang test internal/testing/testdata/strip/moduleless_contract_control.ail -> rc=0, '0 failed'. Module-ful twin; passes today (measured '2 tests: 1 passed, 0 failed, 1 skipped') and must still pass",
+        "AC2.3: ./bin/ailang test internal/testing/testdata/strip/named_test_contract.ail -> rc=0, '0 failed' (#548 closed with the function present, not merely parseable)",
+        "AC2.4: go test -run TestStrip ./internal/testing/... -v -> every TestStrip* shows --- PASS, and at least one --- PASS line appears (zero-test run is a FAIL)",
+        "AC2.5: go test ./... -> clean, or ONLY 'bind: operation not permitted' lines, which are UNINFORMATIVE UNDER SANDBOX and re-run by the controller outside",
+        "AC2.6: ./bin/ailang test examples/runnable/contracts/basic.ail -> rc unchanged vs the pre-M1 baseline captured in step 1",
+        "NON-VACUITY: the AC9 unit test asserts binding != nil AND binding.Name == \"big\"; paired negative control asserts ExtractFunctionBinding(\"nonexistent\") still returns \"function 'nonexistent' not found\""
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_DEAD_STRIP_DISPOSITION",
+      "description": "ExtractPureClusterForFunction (executor.go:682) passes Filename: e.modulePath, so the module pipeline loads from disk and strippedSource is never lexed - its only observable effect is a WRONG file.size_bytes telemetry attribute (internal/pipeline/pipeline_module.go:38). Preferred (i): stop computing it, pass the real source, comment the routing (pipeline.go:163-169). Option (ii) making it live is REJECTED as scope.",
+      "estimated_loc": 15,
+      "dependencies": [
+        "M2_PURITY_AND_KEEPSET"
+      ],
+      "acceptance_criteria": [
+        "AC3.1: go test ./internal/testing/... ./internal/pipeline/... -> ok for both",
+        "AC3.2: ./bin/ailang test examples/runnable/contracts/cross_function.ail -> rc unchanged vs the pre-M1 baseline (exercises the cluster path)",
+        "Commit message states which option (i or ii) was taken and why"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}

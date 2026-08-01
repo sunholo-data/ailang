@@ -1,0 +1,9 @@
+module named_test_multiline
+
+export func big(x: int) -> bool ! {} {
+  x > 10
+}
+
+test "big works" {
+  big(20) == true
+}

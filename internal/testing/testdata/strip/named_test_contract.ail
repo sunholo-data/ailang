@@ -1,0 +1,9 @@
+module named_test_contract
+
+test "trivial" { true }
+
+export func guarded(x: int) -> bool ! {}
+requires { x > 0 }
+ensures { result == true } {
+  x > 0
+}

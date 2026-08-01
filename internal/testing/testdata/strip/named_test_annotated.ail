@@ -1,0 +1,14 @@
+module named_test_annotated
+
+import std/io (println)
+
+@verify(depth: 3)
+export func shout(s: string) -> () ! {IO} {
+  println(s)
+}
+
+export pure func big(x: int) -> bool { x > 10 }
+
+test "big works" {
+  big(20) == true
+}

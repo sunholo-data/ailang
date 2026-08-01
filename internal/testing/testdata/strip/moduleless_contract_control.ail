@@ -1,0 +1,7 @@
+module moduleless_contract_control
+
+export func big(x: int) -> bool ! {}
+requires { x >= 0 }
+ensures { result == (x > 10) } {
+  x > 10
+}

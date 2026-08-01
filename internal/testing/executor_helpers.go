@@ -238,11 +238,6 @@ func joinLines(lines []string) string {
 	return result
 }
 
-// Helper: check if line contains pattern
-func containsPattern(line, pattern string) bool {
-	return len(line) >= len(pattern) && findSubstring(line, pattern)
-}
-
 // Helper: find substring
 func findSubstring(s, substr string) bool {
 	if len(substr) == 0 {
