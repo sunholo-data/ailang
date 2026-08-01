@@ -830,6 +830,27 @@ Append an entry to `design_docs/v1-mission-log.md` using its fixed template — 
 value fields: evidence drives routing-policy changes; ruled-out stops re-chasing. Update the
 mission doc's queue tags ([LANDED], [PARKED], etc.) and STATUS stamp.
 
+**THE STATUS ROTATION IS THE MOST DANGEROUS EDIT THIS LOOP MAKES — SCRIPT IT WITH A LINE-COUNT
+ASSERTION, NEVER A BARE `## `-HEADER SCAN** (added 2026-08-01 iteration 127; third failure of this
+same step — iter-83 hand-corrected an already-drifted N>4, iter-123 found the block drifted to 4
+and applied the self-heal, and iter-127 *deleted the entire queue*). The charter is ~1,600 lines of
+which the STATUS block is ~4, so a rotation bug is a **mass-deletion bug**, and it lands in the one
+file every future iteration reads as ground truth. Iteration 127's script computed each stamp's
+extent by scanning forward to the next `## STATUS` header; for the NEWEST-3 boundary that works,
+but for the **last** stamp there is no following header, so the scan ran to EOF and moved the whole
+1,571-line queue into the archive. It exited 0 and printed a plausible `archived: [...]` line.
+Rules: **(a)** a STATUS stamp is a **single line** followed by one blank — do not model it as a
+block delimited by the next header; **(b)** assert the arithmetic *before* writing, and fail loudly
+if it does not hold — `after == before + 2 - 2*len(moved)` is the whole invariant, and it is what
+caught this on the re-run; **(c)** after any charter edit, grep for a **queue** row you know exists
+(not a STATUS row) — the damage here was invisible in the STATUS block itself and surfaced only
+because a later `grep` for a queue item came back empty and was treated as a claim (rule 3a) rather
+than as "the row must have moved"; **(d)** never `git add` the charter in the same breath as
+writing it — `git diff --stat` first, and a charter diff whose net line delta is not roughly
+`+stamp -archived` is a bug, not a formatting artifact. The generalisable point, which is rule 3a
+pointed at your own edits: **you are an instrument too, and a destructive edit reports success
+exactly like a correct one.**
+
 ## Gate 5 — RETRO + REPORT
 
 1. Scan this iteration's friction (evaluator feedback, executor corrections, your own dead ends)
