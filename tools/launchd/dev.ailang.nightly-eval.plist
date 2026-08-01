@@ -22,7 +22,7 @@
 
   Dependencies:
     - ollama serve (guarded by rig-watchdog)
-    - qwen3.5:35b-a3b-mxfp8 pulled (ollama list)
+    - qwen3.6:35b-a3b-mxfp8 pulled (ollama list)
     - ailang binary at /Users/voightkampff/go/bin/ailang
 -->
 <plist version="1.0">
