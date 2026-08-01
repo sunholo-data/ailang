@@ -3,7 +3,7 @@
 #
 # Runs the smoke + core tiers (every `tier: smoke` / `tier: core` benchmark,
 # default-core included) against the accuracy-first local Qwen model
-# (opencode-qwen3-5-35b-a3b-mxfp8). Regressions — benchmarks with a passing
+# (opencode-qwen3-6-35b-a3b-mxfp8). Regressions — benchmarks with a passing
 # baseline that now fail every trial — alert via Discord; never-passed
 # benchmarks are filed to the controlplane inbox as known gaps for the
 # gap-finder (no Discord). See eval_baselines gating below.
@@ -117,7 +117,16 @@ log "build OK: ${BUILD_VERSION} (commit ${SHORT})"
 # skip. Without it the eval-suite tries to "run" events.yml, LoadSpec rejects it
 # ("missing required field: id"), and it produces zero results — a phantom gap
 # that wasted two trial slots in the first smoke+core run.
-MODEL="opencode-qwen3-5-35b-a3b-mxfp8"
+# qwen3.5 retired from every active lane 2026-08-01 (Mark directive on #484:
+# "Remove qwen 3.5 only use qwen 3.6"). os-rotation-filler had already dropped it
+# on 2026-06-15; this was the last driver still pinning it. The swap does NOT
+# blind the regression guard: opencode-qwen3-6-35b-a3b-mxfp8 already carries 60
+# banked baselines (44 with >=5 passing trials) from the OS rotation, vs
+# qwen3.5's 61/58 — so adaptive thresholds cover 44 benchmarks from day one and
+# the other 16 fall back to the fixed THRASH ceiling below until they accrue 5
+# passing samples. qwen3.5 registry entries are deliberately KEPT in models.yml:
+# 2,438 banked pass-trials are attributed to them.
+MODEL="opencode-qwen3-6-35b-a3b-mxfp8"
 BENCH_TIERS="smoke,core"   # display label for alerts/log
 # Thrash ceiling per benchmark (M-EVAL-OS-LONGITUDINAL). When eval_baselines has
 # >=5 passing samples for a (model, benchmark), the eval-suite uses an adaptive

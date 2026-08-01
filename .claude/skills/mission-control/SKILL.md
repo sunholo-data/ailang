@@ -461,6 +461,34 @@ the Repo Profile above):
    this command still pass under, if the thing I am claiming were false?" The tell: you are about
    to write "the tests pass" or "it checks clean" while the command you actually ran carried a
    `-run`, a `-skip`, a `--version`, or a single package.
+3c. **"THE SERVICE" IS AN ASSUMPTION — a probe identifies the endpoint you REACHED, never the
+   service you NAMED** (added 2026-08-01 iteration 130; 2nd instance of this gap after iteration
+   129 recorded "ollama server is 0.31.2, up 11 days; client already 0.32.1" as a fact and built a
+   remediation on it). Rules 3a/3b cover results that come back empty or green. This one covers
+   results that are **specific, non-empty, confidently phrased, and about the wrong object**: the
+   probe answered honestly for whatever it happened to connect to, while a second copy of the same
+   service was live the whole time. That failure mode has no tell in the output — it looks exactly
+   like a clean reading, which is why it survived a full iteration.
+   Iteration 130 measured, stable 6/6: `127.0.0.1:11434/api/version` → **0.31.2**, while
+   `[::1]:11434/api/version` → **0.32.1**. Two `ollama serve` processes — one launchd-managed, one
+   app-managed — bound to the same port on different ADDRESS FAMILIES since a reboot, sharing a
+   model store but holding separate GPU state. `ollama --version` and `ollama ps` talk to the IPv4
+   one, so the CLI reported an idle GPU while a 37 GB model was resident on the other. Iteration
+   129's single-instrument reading was not wrong about what it measured; it was wrong about **what
+   it was measuring**, and the remediation it proposed ("restart to get onto 0.32.1") would have
+   restarted the wrong server and left the rig on the older one.
+   Before a probe's answer becomes a fact about a NAMED service: **(i)** ask what the client
+   RESOLVED to, not what you typed — `localhost` is TWO addresses on a dual-stack host, and Go,
+   node, curl and python order them differently, so two clients can reach two different servers
+   from one identical string; prefer a literal address in anything load-bearing; **(ii)** probe
+   each address family / socket / port explicitly and compare, instead of probing "the service"
+   once; **(iii)** when two access paths disagree about version or identity, the default
+   explanation is **TWO INSTANCES**, not one instance misreporting — enumerate processes AND their
+   parents (`ps -o pid=,ppid=`) before theorising; **(iv)** a service under two process managers
+   has no single owner, so "restart it" is underspecified — check what a watchdog PROBES against
+   what it RESTARTS, because it may heal the rig back onto the very copy you were retiring. The
+   tell: you are about to write "the server is version X", "nothing is loaded", or "the service is
+   up" on the strength of one endpoint, one CLI, or one `ps` line.
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
    the Gate-2 rebuild `-dirty` — binaries built from a half-merged tree; and a persisted `cd`

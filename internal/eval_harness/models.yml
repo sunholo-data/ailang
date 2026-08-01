@@ -1514,6 +1514,12 @@ models:
       per token. Mid-tier price; tests the "cheap MoE catches up given
       budget" hypothesis directly against the dense Gemma 4 27B above.
 
+  # RETIRED 2026-08-01 — qwen3.5 family. Mark directive on #484: "Remove qwen 3.5
+  # only use qwen 3.6". Runs in NO active lane (nightly-eval, nightly-lang-eval,
+  # embedder-ab and os-rotation-filler all pin qwen3.6). The entry is KEPT on
+  # purpose: banked eval results reference these ids for pricing/attribution
+  # (2,438 pass-trials on opencode-qwen3-5-35b-a3b-mxfp8 alone), so deleting it
+  # orphans that history. Do not re-add to any *_suite without a new directive.
   motoko-or-qwen3-5-35b-a3b:
     api_name: "qwen/qwen3.5-35b-a3b-20260224"
     provider: "openrouter"
@@ -1552,6 +1558,8 @@ models:
       locally (MLX Q4) and re-run serial on the rig to confirm tok/s + parity.
 
 
+  # RETIRED 2026-08-01 — qwen3.5 family (see the banner above the first qwen3.5
+  # entry). Kept for banked-result attribution only; not in any active lane.
   motoko-local-qwen3-5-35b-a3b-mxfp8:
     api_name: "qwen3.5:35b-a3b-mxfp8"
     provider: "ollama"
@@ -1814,6 +1822,10 @@ models:
                      (sst/opencode#971 — options silently dropped without this)
       A/B against opencode-gemma4-26b (default sampling) to quantify the improvement.
 
+  # RETIRED 2026-08-01 — qwen3.5 family (see the banner above the first qwen3.5
+  # entry). Was the nightly-eval regression-guard model until 2026-08-01; the
+  # nightly now runs opencode-qwen3-6-35b-a3b-mxfp8. Kept for attribution of its
+  # 2,438 banked pass-trials; not in any active lane.
   opencode-qwen3-5-35b-a3b-mxfp8:
     api_name: "qwen3.5:35b-a3b-mxfp8"
     provider: "ollama"
@@ -1848,6 +1860,9 @@ models:
   # OpenAI-compatible endpoint (http://localhost:11434/v1, api: openai-completions).
   # Without that file pi errors "model not found" — it's not a built-in provider.
   # See tools/setup/pi-ollama-models.json for the canonical config. Added 2026-06-05.
+  # RETIRED 2026-08-01 — qwen3.5 family (see the banner above the first qwen3.5
+  # entry). Kept for banked-result attribution only; not in any active lane. Its
+  # ollama tag is also gone from tools/setup/pi-ollama-models.json.
   pi-qwen3-5-35b-a3b-mxfp8:
     api_name: "qwen3.5:35b-a3b-mxfp8"
     provider: "ollama"
@@ -1924,6 +1939,8 @@ models:
       qwen3.6:35b-a3b-mxfp8 tag in the ~/.pi/agent/models.json ollama provider block.
       Added 2026-06-14.
 
+  # RETIRED 2026-08-01 — qwen3.5 family (see the banner above the first qwen3.5
+  # entry). Kept for banked-result attribution only; not in any active lane.
   opencode-qwen3-5-35b-a3b:
     api_name: "qwen3.5:35b-a3b-nvfp4"
     provider: "ollama"
