@@ -140,12 +140,12 @@ jobs:
 
     - name: Assert nightly classifier tests ran (no silent skips)
       run: |
-        # Floor tracks the measured suite size (74 on 2026-07-30) with a four-test rename buffer.
+        # Floor tracks the measured suite size (88 on 2026-08-01) with a four-test rename buffer.
         # It drifted to 20-vs-40 before iteration 119 caught it: a floor set
         # once and never revisited is the same vacuous-check class this suite
         # exists to prevent. Raise it whenever you add tests.
         PASSES=$(grep -c -- '--- PASS:' nightly_classifier.log || true)
-        if [ "$PASSES" -lt 70 ]; then
+        if [ "$PASSES" -lt 84 ]; then
           echo "::error::nightly classifier emitted only $PASSES PASS lines; tests were skipped, renamed, or did not run"
           exit 1
         fi

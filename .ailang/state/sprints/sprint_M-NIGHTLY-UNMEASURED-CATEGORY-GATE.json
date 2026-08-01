@@ -1,0 +1,109 @@
+{
+  "sprint_id": "M-NIGHTLY-UNMEASURED-CATEGORY-GATE",
+  "status": "completed",
+  "created": "2026-08-01T00:00:00Z",
+  "branch": "sprint/m-nightly-unmeasured-category-gate",
+  "worktree": "/tmp/wt-m-nightly-unmeasured-category-gate",
+  "base_commit": "c7fc3b954",
+  "design_doc": null,
+  "sprint_plan": "design_docs/planned/v1_0_0/m-nightly-unmeasured-category-gate-sprint-plan.md",
+  "github_issues": [551, 524],
+  "planner_model": "claude-opus-5",
+  "mission_iteration": 128,
+  "execution_environment": "EXECUTE ALL FOUR MILESTONES — sized for ONE bounded run (~5h, ~360 LOC + ~14KB fixtures). Python + shell only: tools/nightly_classify.py, tools/test_nightly_classify.py, tools/testdata/nightly_classify/, tools/launchd/nightly-eval.sh, .github/workflows/ci.yml, CHANGELOG.md. NO Go changes — internal/eval_harness/validity.go and applyValidityBackstop are OUT OF SCOPE. NO new design doc, no quorum (bug-fix lane, same as #524 and #548). RUN M3 FIRST: /tmp/nightly_eval_2026*_rag_on/agent dirs are being reaped (07-24..07-27 are ALREADY EMPTY) and CI cannot see /tmp, so freeze the fixtures and commit them before any code change. Tests: `make test-nightly-classifier` (74 tests / 74 '--- PASS:' lines / 4.0s at base). CI floor is .github/workflows/ci.yml:148, currently 70 — you MUST raise it to (new total - 4); count, do not guess. DO NOT rename --invalid-infra-fraction. DO NOT add non_agentic to INFRA_CATEGORIES (that set also drives per-bench persistent_failures — see plan R-C). DO NOT append new nights to replay_2026-07.jsonl (ReplayTests/TaintTests pin aggregates over it) — use new files. DO NOT re-mark 2026-08-01 invalid; containment is already applied. Note the results live in the agent/ SUBDIRECTORY; pointing at the parent yields a misleading 'INVALID zero_files 0/0'. Commits use 'refs #551'; final commit 'Fixes #551'.",
+  "velocity": {
+    "target_loc_per_day": 600,
+    "estimated_total_loc": 395,
+    "estimated_days": 0.6
+  },
+  "metadata": {
+    "lane": "bug-fix (tools/), no design doc, no quorum",
+    "precedent": "#524 (iter-119) built this gate; #548 (iter-127) took the same lane",
+    "planner_refutations": [
+      "Candidate (c) 'all trials duration_ms==0' REFUTED: 2026-08-01 is 22/24 zero-duration, not 24/24 (1 pass at 250668ms, 1 compile_error), so the rule does not fire on its own incident. Zero-duration is also 13-21% of trials on GOOD nights via thrash_aborted.",
+      "Candidate (b) category-concentration REFUTED: category-agnostic concentration at 0.30 marks the GOOD nights 07-28 and 07-31 INVALID (thrash_aborted = 0.31 of benches on both). Its rescuing 'unprecedented' clause would silence a genuine 42/42 verify_error or constraint_violation regression — the exact failure mode #524 rejected.",
+      "The validity_backstop_test.go:201 objection to candidate (a) is MIS-AIMED (it governs Go's per-row backstop, not the Python run gate). The real objection: INFRA_CATEGORIES also drives infra_tainted()/persistent_failures(), so (a) would permanently silence every individual non_agentic benchmark.",
+      "CONFIRMED (was flagged unverified): #524 did deliberately reject the pass-rate disjunct — sprint plan lines 204-217, registered as risk R-3 at line 477. Issue #524's own text proposes it, so reading the issue alone reintroduces the bug.",
+      "CORRECTED: only 07-28..08-01 have real /tmp trial data; 07-24..07-27 dirs exist but are EMPTY (already reaped)."
+    ],
+    "measured_gate_table": {
+      "2026-07-28": {"benches": 42, "trials": 84, "passes": 54, "unmeasured_fraction": 0.048, "today": "VALID", "proposed": "VALID"},
+      "2026-07-29": {"benches": 42, "trials": 84, "passes": 14, "unmeasured_fraction": 1.0, "today": "INVALID", "proposed": "INVALID"},
+      "2026-07-30": {"benches": 42, "trials": 84, "passes": 65, "unmeasured_fraction": 0.048, "today": "VALID", "proposed": "VALID"},
+      "2026-07-31": {"benches": 42, "trials": 84, "passes": 56, "unmeasured_fraction": 0.024, "today": "VALID", "proposed": "VALID"},
+      "2026-08-01": {"benches": 12, "trials": 24, "passes": 1, "unmeasured_fraction": 1.0, "today": "VALID (the bug)", "proposed": "INVALID"}
+    },
+    "threshold_justification": "0.30 unchanged. Worst good-night unmeasured fraction is 0.048 (6.25x margin); both incidents are 1.000 (3.3x margin). Identical separation to the one #524 justified, so no new knob and no threshold re-litigation."
+  },
+  "features": [
+    {
+      "id": "M1_SPLIT_SETS_AND_GATE_RUN",
+      "description": "In tools/nightly_classify.py, split the one overloaded set into two. Keep INFRA_CATEGORIES = {api_error, timeout, executor_error} EXACTLY as-is (it drives infra_tainted() -> persistent_failures(), i.e. per-BENCH filing suppression). Add RUN_UNMEASURED_CATEGORIES = INFRA_CATEGORIES | {non_agentic, quota_exhausted, rate_limit, cost_killed}, used ONLY by run_validity(). Discriminator, taken from the taxonomy's own comments: a category belongs in the run-level set iff it means 'the harness did not obtain a measurement of the subject' (metrics.go:180 quota_exhausted 'says nothing about the model's capability'; :181 rate_limit transient 429; :182 cost_killed eval-side budget; error_categorizer.go:5-9 non_agentic 'or a tool-delivery problem'). Categories that ARE measurements of the subject stay out and must remain gateable-through: compile_error, runtime_error, logic_error, verify_error, constraint_violation, refused, step_exhausted, thrash_aborted, resource_limit (metrics.go:186 'A model failure (unbounded allocation)'). No signature change, no history dependency, no new flag. Add tests in a new RunGateTests class.",
+      "estimated_loc": 160,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "M1.1 A 12-bench all-non_agentic run returns run_validity -> (False, 'infra_outage', 12, 12). FAILS ON MAIN (today returns (True,'',0,12)) — this is the required fail-on-main regression test. Test: test_Gate_non_agentic_wipeout_is_invalid",
+        "M1.2 Each member of RUN_UNMEASURED_CATEGORIES fires ALONE, one subTest per member, paired with logic_error — mirrors test_Taint_timeout_and_executor_error_also_taint so no member can be special-cased. FAILS ON MAIN for the four added members. Test: test_Gate_every_unmeasured_category_fires",
+        "M1.3 All nine non-unmeasured categories at 42/42 benches stay VALID and yield 42 filable benches from persistent_failures. PASSES ON MAIN — it is the anti-candidate-(b) pin; docstring must say so. Test: test_Gate_catastrophic_clean_regression_stays_valid",
+        "M1.4 A normal night (38 passing, 2 non_agentic, 2 compile_error) is VALID AND persistent_failures returns both non_agentic benches, preserving the validity_backstop_test.go:201 row-level stance. PASSES ON MAIN — anti-candidate-(a) pin; docstring must say so. Test: test_Gate_non_agentic_still_files_on_a_normal_night",
+        "M1.5 INFRA_CATEGORIES == {'api_error','timeout','executor_error'} exactly; INFRA_CATEGORIES is a strict subset of RUN_UNMEASURED_CATEGORIES (intersection == INFRA_CATEGORIES, sets not equal). PASSES ON MAIN — pin that fails if the sets are ever merged. Test: test_Gate_infra_taint_set_is_unchanged",
+        "M1.6 The 0.30 boundary is inclusive on both sides for the union set, mirroring test_Validity_boundary_is_inclusive. Test: test_Gate_union_boundary_is_inclusive",
+        "make test-nightly-classifier green"
+      ],
+      "passes": true,
+      "started": "2026-08-01T02:20:00Z",
+      "completed": "2026-08-01T02:29:52Z",
+      "notes": "Split per-benchmark INFRA_CATEGORIES from run-level RUN_UNMEASURED_CATEGORIES; added regression and boundary tests."
+    },
+    {
+      "id": "M2_INVALID_LINE_NAMES_THE_CATEGORY",
+      "description": "An operator seeing 'INVALID infra_outage 12/12 0.042 0.643' cannot tell an API outage (action: check provider) from an agent-mode misconfiguration (action: fix opencode). Worse, nightly-eval.sh:552 asserts 'infra-tainted 12/12', which on 2026-08-01 is FALSE — 0 of 12 were infra. Append a SIXTH tab-separated field to the INVALID line carrying the dominant unmeasured category, e.g. 'INVALID\\tinfra_outage\\t12/12\\t0.042\\t0.643\\t[non_agentic]'. Update nightly-eval.sh:542 to extract $6 and reword the banner from 'infra-tainted' to 'unmeasured ... [category]'. Appending is safe because the awk extraction is positional over $2..$5. Introduce NO new reason string, so validity.go stays untouched and VocabularyTests keeps passing.",
+      "estimated_loc": 65,
+      "dependencies": ["M1_SPLIT_SETS_AND_GATE_RUN"],
+      "acceptance_criteria": [
+        "M2.1 The real CLI, run against a 12-bench all-non_agentic directory, emits an INVALID line whose 6th tab field is '[non_agentic]'. FAILS ON MAIN (no 6th field exists). Test: test_Gate_invalid_line_names_dominant_category",
+        "M2.2 The shell routing harness, fed a 6-field INVALID line, produces a banner naming the category and NOT claiming 'infra-tainted' for a non-infra cause. FAILS ON MAIN. Test: test_Routing_invalid_banner_names_unmeasured_category",
+        "M2.3 The EXISTING test_Routing_invalid_run_files_nothing is left byte-identical (legacy 5-field input) and still passes: exactly 1 'messages send', 1 '--type note', zero '--type bug'/'--type feature'/'--github'/'public-feedback'. PASSES ON MAIN — back-compat guard; fails only if field order is changed rather than appended",
+        "M2.4 test_Vocabulary_every_python_reason_exists_in_validity_go still passes with no edit to internal/eval_harness/validity.go"
+      ],
+      "passes": true,
+      "started": "2026-08-01T02:25:00Z",
+      "completed": "2026-08-01T02:29:52Z",
+      "notes": "Appended dominant category to INVALID output and updated shell banner while preserving legacy five-field routing."
+    },
+    {
+      "id": "M3_FREEZE_REAL_NIGHTLY_FIXTURES",
+      "description": "RUN THIS MILESTONE FIRST — it is time-critical. /tmp/nightly_eval_2026*_rag_on/agent is being reaped (07-24..07-27 already exist but are EMPTY) and CI cannot see /tmp, so committed tests need in-repo data. Mirror the existing tools/testdata/nightly_classify/extract_history.py precedent (including its 'never regenerate after the live banks expire' warning) with a new extract_trials.py that emits one JSONL manifest per night, distilled to the fields parse_results_dir reads (compile_ok, runtime_ok, stdout_ok, error_category) plus duration_ms and the slot name. Freeze 2026-07-28, 07-29, 07-30, 07-31, 08-01. Add a test-side helper that materialises a manifest into a tmpdir using the real slot convention '<bench>[_trial2]_ailang_<model>_<timestamp>.json' so the real CLI runs against real-shaped input. Expect ~14KB total across 5 files (compare: replay_2026-07.jsonl is already 33KB). DO NOT append these rows to replay_2026-07.jsonl — ReplayTests and TaintTests pin aggregates over that file.",
+      "estimated_loc": 130,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "M3.1 The frozen 2026-08-01 corpus, through the real CLI, emits exactly one INVALID line and ZERO verdict lines. FAILS ON MAIN (today: 5 SUSPECTED-FLAKE + 6 INSUFFICIENT-HISTORY, no INVALID). Test: test_Fixture_real_0801_incident_is_invalid_and_files_nothing",
+        "M3.2 The frozen 07-28, 07-30 and 07-31 corpora stay VALID, emit no INVALID line, and still emit at least one verdict. PASSES ON MAIN — this is the false-positive guard and is exactly what fails if the threshold is lowered or category-agnostic concentration is adopted (thrash_aborted = 0.31 of benches on 07-28 and 07-31). Test: test_Fixture_real_good_nights_stay_valid",
+        "M3.3 The frozen 07-29 corpus stays INVALID (positive control for #524 preserved through the refactor). Test: test_Fixture_real_0729_outage_still_invalid",
+        "M3.4 Per-night totals pinned exactly: 07-28 (42 benches, 84 trials, 54 passes, unmeasured 0.048, thrash_aborted 13); 07-29 (42, 84, 14, 1.000, api_error 42); 07-30 (42, 84, 65, 0.048, thrash_aborted 8); 07-31 (42, 84, 56, 0.024, thrash_aborted 13); 08-01 (12, 24, 1, 1.000, non_agentic 12). Test: test_Fixture_manifests_match_recorded_totals",
+        "Fixtures committed in their own commit before any code change"
+      ],
+      "passes": true,
+      "started": "2026-08-01T02:17:00Z",
+      "completed": "2026-08-01T02:22:00Z",
+      "notes": "Ran first: froze all 360 surviving trial JSON files into five committed replay manifests and added real-CLI fixture tests."
+    },
+    {
+      "id": "M4_TAXONOMY_DRIFT_GUARD",
+      "description": "This is the SECOND filing of the same class of gap (#524 -> #551): the Go producer's error-category taxonomy and the Python consumer's classification sets drift silently, and nothing notices. Per CLAUDE.md section 3 (SYSTEMIC FIXES — AUDIT BEFORE PATCHING), fix the pattern rather than the single case. Precedent exists in-file: test_Vocabulary_every_python_reason_exists_in_validity_go already reads validity.go from Python. Harvest 'ErrorCategory[A-Za-z0-9_]* = \"...\"' from internal/eval_harness/metrics.go and internal/eval_harness/error_categorizer.go and assert every harvested value is classified in EXACTLY ONE of RUN_UNMEASURED_CATEGORIES, a new explicit MODEL_OUTCOME_CATEGORIES, or {'none'}. Verified runnable at plan time: 16 Go categories harvested, all 16 classify, 0 overlap, exactly 1 Python-only extra. That extra, 'executor_error', is a PHANTOM — no Go code anywhere in the repo emits it; it lives only in Python and design docs. Pin it in an explicit KNOWN_PYTHON_ONLY = {'executor_error'} allowlist with that comment and DO NOT remove it (behaviour change with no evidence). Finally raise the CI anti-vacuity floor.",
+      "estimated_loc": 40,
+      "dependencies": ["M1_SPLIT_SETS_AND_GATE_RUN"],
+      "acceptance_criteria": [
+        "M4.1 Every Go ErrorCategory* value is classified exactly once and the two classification sets are disjoint. Harvest must find >= 16 constants (assert a floor, so an empty regex is loud). Test: test_Taxonomy_every_go_category_is_classified",
+        "M4.2 MANDATORY known-negative mutation control: injecting a synthetic category into the harvested set makes the check fail — mirrors the mutation control in test_Vocabulary_every_label_is_routed. Without this, M4.1 would pass vacuously under an empty harvest",
+        "M4.3 Python-only extras equal {'executor_error'} exactly, documented as a phantom with no Go producer. Test: test_Taxonomy_python_only_extras_are_pinned",
+        "M4.4 .github/workflows/ci.yml anti-vacuity floor raised from 70 to (new PASS total - 4), honouring the four-test rename buffer its own comment prescribes. Baseline is 74 tests / 74 PASS lines — COUNT the new total, do not guess",
+        "CHANGELOG.md updated; make ci green"
+      ],
+      "passes": true,
+      "started": "2026-08-01T02:26:00Z",
+      "completed": "2026-08-01T02:29:52Z",
+      "notes": "Added Go/Python error-category taxonomy drift guard with mutation control and raised CI PASS floor from 70 to 84 after measuring 88 tests."
+    }
+  ]
+}

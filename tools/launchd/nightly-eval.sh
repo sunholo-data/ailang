@@ -539,7 +539,7 @@ CLASSIFIED=$(python3 "$WT/tools/nightly_classify.py" \
     --update-history)
 
 HEALTH=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="HEALTH"{sub(/^HEALTH\t/,""); print}')
-INVALID=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="INVALID"{print $2"\t"$3"\t"$4"\t"$5}')
+INVALID=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="INVALID"{print $2"\t"$3"\t"$4"\t"$5"\t"$6}')
 REGRESSIONS=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="REGRESSION"{print $2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7}' | sed '/^[[:space:]]*$/d')
 SUSTAINED=$(echo "$CLASSIFIED"   | awk -F'\t' '$1=="SUSTAINED-FAILURE"{print $2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7}' | sed '/^[[:space:]]*$/d')
 SUSPECTED=$(echo "$CLASSIFIED"   | awk -F'\t' '$1=="SUSPECTED-FLAKE"{print $2"\t"$3"\t"$4"\t"$5"\t"$6}' | sed '/^[[:space:]]*$/d')
@@ -548,8 +548,8 @@ INSUFFICIENT=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="INSUFFICIENT-HISTORY"{print
 log "$HEALTH"
 
 if [[ -n "$INVALID" ]]; then
-    IFS=$'\t' read -r INVALID_REASON INVALID_TAINT INVALID_RATE INVALID_MEDIAN <<< "$INVALID"
-    INVALID_BANNER="INVALID nightly run: ${INVALID_REASON}; infra-tainted ${INVALID_TAINT}; pass rate ${INVALID_RATE} vs trailing median ${INVALID_MEDIAN}."
+    IFS=$'\t' read -r INVALID_REASON INVALID_TAINT INVALID_RATE INVALID_MEDIAN INVALID_CATEGORY <<< "$INVALID"
+    INVALID_BANNER="INVALID nightly run: ${INVALID_REASON}; unmeasured ${INVALID_TAINT} ${INVALID_CATEGORY}; pass rate ${INVALID_RATE} vs trailing median ${INVALID_MEDIAN}."
     log "$INVALID_BANNER"
     ailang messages send controlplane \
         "${INVALID_BANNER}
