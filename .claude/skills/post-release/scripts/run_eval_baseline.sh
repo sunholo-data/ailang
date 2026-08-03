@@ -366,7 +366,10 @@ if [[ $# -eq 0 ]]; then
     echo "                      (M-EVAL-STANDARD-CONFIDENCE-GATING). frontier always stays full." >&2
     echo "                      A model with no standard-mode rating history always gets the" >&2
     echo "                      full tier. Falls open to today's full-tier behavior if the" >&2
-    echo "                      ratings DB is unseeded/unavailable. Opt-in; off by default." >&2
+    echo "                      ratings DB is unseeded/unavailable. ON BY DEFAULT for --full runs" >&2
+    echo "                      (2026-08-03); this flag is now a no-op kept for clarity." >&2
+    echo "  --no-confidence-gate  Force a full, non-gated core+stretch run — use for the periodic" >&2
+    echo "                      full-audit cadence (SKILL.md) or to hand-audit a roster change." >&2
     echo "  --budget-usd <N>    Aggregate cost ceiling for Step 1 (standard eval). Default for" >&2
     echo "                      --full runs: \$$BUDGET_USD_DEFAULT. Dev-mode runs get no cap unless" >&2
     echo "                      set explicitly. Pass 0 to disable the cap on a --full run." >&2
@@ -381,7 +384,13 @@ CROSS_HARNESS=""
 LANG_HARNESS=""
 SKIP_EXISTING=""   # when set, pass --skip-existing to eval-suite (resume runs)
 AGENT_ONLY=""      # when set, skip the standard step entirely
-CONFIDENCE_GATE=""  # when set, gate core/stretch by ELO confidence (M-EVAL-STANDARD-CONFIDENCE-GATING)
+# Default ON for --full runs as of 2026-08-03 (Mark: "I want this cost check on by
+# default") — gating still only ever applies to --full (dev mode never gates; see the
+# Step 1 branch condition below), still falls open to full-tier if the ratings DB
+# isn't seeded/usable, and frontier still always runs in full regardless. Opt out with
+# --no-confidence-gate to force a full, non-gated core+stretch run (e.g. the periodic
+# full-audit cadence documented in SKILL.md, or when auditing a roster change by hand).
+CONFIDENCE_GATE="true"
 BUDGET_USD_FLAG=""  # explicit --budget-usd override; empty = use the --full default
 
 while [[ $# -gt 0 ]]; do
@@ -400,7 +409,11 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --confidence-gate)
-            CONFIDENCE_GATE="true"
+            CONFIDENCE_GATE="true"   # explicit no-op since this is now the default; kept for clarity/back-compat
+            shift
+            ;;
+        --no-confidence-gate)
+            CONFIDENCE_GATE=""
             shift
             ;;
         --budget-usd)
@@ -481,6 +494,13 @@ else
 fi
 if [[ -n "$EFFECTIVE_BUDGET_USD" ]]; then
     echo "Standard-eval budget cap: \$$EFFECTIVE_BUDGET_USD (see \`ailang eval-suite --dry-run\` for a real per-run estimate)"
+fi
+if [[ -n "$FULL_FLAG" ]]; then
+    if [[ -n "$CONFIDENCE_GATE" ]]; then
+        echo "Confidence-gate: ON — core/stretch skip Trivial-band benchmarks for rated models; frontier always full"
+    else
+        echo "Confidence-gate: OFF (--no-confidence-gate) — full core,stretch,frontier for every model"
+    fi
 fi
 echo
 
