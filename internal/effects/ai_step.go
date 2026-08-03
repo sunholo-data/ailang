@@ -339,9 +339,9 @@ func aiStepWithStream(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 }
 
 // ============================================================================
-// aiStepWithStreamRecorded — PROTOTYPE of the proposed upstream recorded-stream
-// API (motoko_agent/.agent/projects/009_motoko_dst_execution/
-// UPSTREAM-REQUEST-ailang-recorded-stream-api.md). NOT an upstream feature.
+// aiStepWithStreamRecorded — the recorded-stream API (#546), adopted from
+// @arniwesth's prototype (arniwesth/ailang#2) and productionized in v0.32.0
+// with the fail-loud + bounded-inert-drain policy (see ai_stream_core.go).
 //
 // Identical to aiStepWithStream except the return shape: it preserves
 // immediate per-chunk callbacks AND returns the exact ordered list of observed
