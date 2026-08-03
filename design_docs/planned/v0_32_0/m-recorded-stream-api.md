@@ -7,6 +7,12 @@ sprint-planner.** [Was: PARKED — `needs-human-review` (mission iteration 124, 
 twice (R1 and R2). The design DIRECTION — adopt @arniwesth's additive sibling — survived both
 rounds and is **not** contested. The park is CLEARED; see "✅ THE DECISION" below and the
 R3 section of the Quorum verification log.
+**PLANNED — iteration 133 (sprint-planner).** Cut into two sprints; execute from
+[`m-recorded-stream-api-sprint-plan.md`](m-recorded-stream-api-sprint-plan.md). One design change
+was made by the planner under delegated authority: **the sentinel-panic abort is cancelled**
+(drain mode itself ships unchanged) — see §PLANNER RULING and §R4. Mark's option-(c) ruling is
+preserved in full; the one residual it loses (a bound on post-failure *wall-clock* as opposed to
+*work*) is the sprint's single open human question.
 **Target**: **v0.32.0** — corrected by the controller, iteration 133. The doc was written against
 `v0.31.0`, but **v0.31.0 shipped on 2026-07-29** (`gh release list` → `AILANG v0.31.0  Latest`;
 tag `1f6f7dd28`, and current dev is 58 commits past it). Every `Since: "v0.31.0"` /
@@ -94,7 +100,7 @@ and are re-verified first-party below.
 | WASM: unknown JS `kind` → nil → filtered → no callback, no record, no counter increment; loss invisible to the effects layer | Read `cmd/wasm/effects.go:238-247` and `:345-366` | **VERIFIED HERE** — `jsToStreamChunk` returns nil for unknown kinds (comment at `:347` says so explicitly); `if chunk != nil` at `:243` filters; the effects-layer `onChunk` (where any counter lives) is never invoked |
 | Existing `aiStepWithStream` silently skips an unencodable chunk (shipped), and counts before encoding | Read `internal/effects/ai_step.go:376-392` | **VERIFIED HERE** — `chunkCount++` at `:378` precedes `encodeStreamChunk`; `if encoded == nil { return }` at `:380-382`: no callback, no trace event, stream continues |
 | `encodeStreamChunk`'s unencodable path is its `default: return nil` | `grep -n 'default:' internal/effects/ai_step.go` | **VERIFIED HERE** — `447:	default:` (function begins `:422`) |
-| Anthropic adapter cleans up via `defer`, so a sentinel unwind releases the connection | `grep -n 'defer' internal/ai/anthropic/streamstep.go` | **VERIFIED HERE** — `:51 defer span.End()`, `:91 defer func() { _ = httpResp.Body.Close() }()` |
+| Anthropic adapter cleans up via `defer`, so a sentinel unwind releases the connection | `grep -n 'defer' internal/ai/anthropic/streamstep.go` | **VERIFIED HERE** — `:51 defer span.End()`, `:91 defer func() { _ = httpResp.Body.Close() }()`. **MOOT since the PLANNER RULING** — no sentinel ships, so nothing unwinds. Row retained as history |
 | Fake-handler test pattern exists; NO `onChunk(nil)` call site exists yet anywhere | `grep -rn 'StepWithStream' internal/effects/*_test.go`; `grep -rn 'onChunk(nil)' internal/ cmd/` | **VERIFIED HERE** — positives: `fakeStepHandler` at `internal/effects/ai_step_test.go:53`, `routingStubHandler` at `ai_routing_trace_test.go:48` (instrument sees positives in the same call); the `onChunk(nil)` search returned rc=1/empty |
 | Both false "open row" doc claims still live at this HEAD | `sed -n '38,44p' examples/runnable/ai_streaming.ail`; Read `std/ai.ail:315-337` | **VERIFIED HERE** — example `:40-42`: "you can wire whatever side-channel you need (a websocket, a TUI buffer, a metrics sink)"; `std/ai.ail:324`: "The callback's effect row is open"; closed `! {IO}` declaration at `:335` (matches CONTROLLER's facts 1 and 4) |
 
@@ -233,7 +239,7 @@ terminal error, so completeness is explicit rather than falsely promised. This s
 D1 for supported provider streams. If representation fails, ADR-009 must reject the turn as
 incomplete after preserving the prefix; it must not replay it as a complete stream.
 
-Retention is intentionally unbounded for v0.31.0: all chunks remain in memory until the call
+Retention is intentionally unbounded for v0.32.0: all chunks remain in memory until the call
 returns, so memory grows linearly with stream length. This is acceptable for bounded agent turns,
 but unsuitable for arbitrarily long streams. The builtin LongDesc and public docstring MUST state
 that cost; future bounded/spooled variants require a separate design.
@@ -282,29 +288,39 @@ that outlives the call:
   callback-loop iterations against a provider emitting unbounded tiny chunks; the byte count
   bounds bandwidth-proportional work against a provider emitting few enormous chunks. Neither
   bound affects memory (drain mode retains nothing); both bound wasted wall-work.
-- **On budget exhaustion the op returns**: the callback panics with a private sentinel type; a
-  `recover` scoped to the `ctx.AI.StepWithStream` call inside `aiStepWithStreamRecorded`
-  catches exactly that sentinel (any other panic is re-raised) and the op returns immediately.
-  This is the only way to stop a provider mid-stream without an interface change; it is the
-  established Go control-flow escape for callback-driven APIs (`encoding/json`, `fmt` use it
-  internally). Unwinding runs the adapters' `defer`-based cleanup — e.g. the Anthropic adapter
-  closes its response body via `defer` (`internal/ai/anthropic/streamstep.go:91`, VERIFIED
-  HERE) — so the connection is released, not leaked. The sentinel never crosses the recorded
-  op's boundary and never fires in the existing `aiStepWithStream`, whose callback has no drain
-  mode.
+- **On budget exhaustion the drain goes INERT** — ~~the callback panics with a private sentinel
+  type recovered around `ctx.AI.StepWithStream`~~. **PLANNER RULING, iteration 133: the
+  sentinel-panic abort is NOT taken** (option (i) of the controller refutation below; four
+  reasons in §PLANNER RULING). Instead a single `drainExhausted bool` is set; every later
+  callback returns on its first statement after one boolean load — no counting, no encoding, no
+  recording, no delivery, no allocation. The two counters saturate rather than continuing to
+  add. The op returns when the provider's stream ends. **No panic crosses the `onChunk`
+  boundary, so no new obligation is imposed on any `AIHandler` implementer, in-repo or
+  external, on any build target.**
+- **What this does and does not bound.** Bounded: total post-failure *work* performed by AILANG
+  (O(1) per chunk before exhaustion, one boolean load after; zero retention throughout).
+  NOT bounded: post-failure *wall-clock*, which remains the provider's stream duration. That
+  residual is stated in the LongDesc rather than papered over, and the honest fix — a
+  cancellable provider context across the whole AI surface, on its own merits and not as a
+  dependency of this — is filed as a follow-up (§Open Questions). That is also @arniwesth's own
+  recommendation (#546, 2026-08-01: *"if cancellation is worth doing, I'd suggest it's worth
+  doing on its own merits across the whole AI surface … not as a blocking dependency of this"*).
 - **The already-decided typed `Internal` error is preserved and cannot be overwritten** —
-  neither by a provider terminal success/error arriving before exhaustion nor by the sentinel
-  abort itself. The first representation failure decides `outcome`; everything after it is
-  diagnostics.
+  not by a provider terminal success/error arriving after the representation failure, and not
+  by drain exhaustion. The first representation failure decides `outcome`; everything after it
+  is diagnostics.
 - **Observability**: trace metadata records `drain_exhausted:true` when the budget tripped.
-  After an exhausted drain, `provider_chunks` is a **floor** (chunks observed until the abort),
+  After an exhausted drain, `provider_chunks` is a **floor** (chunks counted until exhaustion),
   not an exact wire count — the flag is what tells a trace consumer which reading applies.
 
-Acceptance (this row is merge-blocking and appears in M1): a fake handler that keeps emitting
-chunks after the unencodable one is cut off after exactly `recordedDrainMaxChunks` further
-callbacks (and symmetrically for the byte budget); the op returns the exact delivered prefix
-with the original typed `Internal` error; no goroutine, timer, or callback invocation survives
-the return; the existing `stepWithStream` path is bit-identical to before.
+Acceptance (this row is merge-blocking and appears in sprint 1 milestone S1-M3): a fake handler
+that keeps emitting chunks after the unencodable one stops being counted after exactly
+`recordedDrainMaxChunks` further callbacks (and symmetrically for the byte budget);
+`drain_exhausted:true` is traced; every post-exhaustion callback is observably inert (no
+encode, no append, no AILANG-callback invocation — asserted via instrumented fake); the op
+returns the exact delivered prefix with the original typed `Internal` error; no goroutine or
+timer is created at any point; the existing `stepWithStream` path is externally unchanged.
+There is no sentinel-containment test, because there is no sentinel.
 
 > ### ⚠ CONTROLLER REFUTATION — the SENTINEL-PANIC ABORT IS UNSOUND ON THE WASM TARGET
 >
@@ -354,6 +370,87 @@ the return; the existing `stepWithStream` path is bit-identical to before.
 > Whatever is chosen, the M1 acceptance row above must be rewritten to match, and any
 > containment test must declare that it does **not** cover `js && wasm`.
 
+> ### ⚖ PLANNER RULING — option (i): DRAIN MODE SHIPS, THE SENTINEL DOES NOT
+>
+> Ruled by the sprint-planner, iteration 133, at `2f12ddacd`. **The controller's refutation is
+> CONFIRMED and strengthened against a primary source.** The acceptance row and §Count invariant
+> above have been rewritten to match. Four independent reasons, in decreasing order of weight:
+>
+> **R1 — The sentinel is unsound on `js && wasm`, per Go's own contract, not an inference.**
+> Go 1.26.5 `syscall/js`, `FuncOf` doc comment (read at
+> `$(go env GOROOT)/src/syscall/js/func.go`): *"Invoking the wrapped Go function from JavaScript
+> will pause the event loop and **spawn a new goroutine**. Other wrapped functions which are
+> triggered **during a call from Go to JavaScript** get executed on the same goroutine."*
+> The exception clause is the whole question, and it does not cover us:
+> `WasmAIHandler.StepWithStream` (`cmd/wasm/effects.go:231-260`) returns from
+> `stepWithStreamCallback.Invoke(...)` with a thenable and then parks the calling goroutine in
+> `awaitPromise`'s `select` (`:53-88`). Every `funcWrapper` invocation after that arrives from
+> the JS event loop — *not* during a Go→JS call — and therefore runs on a **new goroutine**.
+> `recover` is per-goroutine. A sentinel panic there is unrecovered and fatal to the module.
+>
+> **R2 — Option (iii) is refuted, and would be unsound-by-delegation even if it weren't.**
+> (iii) needs the JS handler to deliver every chunk synchronously inside `Invoke`. The repo's own
+> `StepWithStream` doc comment (`cmd/wasm/effects.go:222-229`) says the wrapper is released
+> *"once the JS handler resolves its Promise"* — the async path is the designed path, and any
+> real streaming handler (fetch + `ReadableStream`) is async by construction. Worse: (iii) makes
+> AILANG's memory safety contingent on a third-party JS caller's implementation choice. A
+> soundness property a caller can revoke is not a soundness property.
+>
+> **R3 — Option (ii)'s gate would be enforced by nothing, and its benefit has the same trigger as
+> its hazard.**
+> (a) **PR CI never compiles the `js && wasm` target.**
+> `grep -n 'wasm' .github/workflows/ci.yml .github/workflows/build.yml` → **rc=1, zero hits**
+> (known-positive control in the same call: the identical pattern returns 20+ hits in
+> `.github/workflows/release.yml`, whose `build-wasm` job is at `:17`). A build-tag slip in a
+> WASM-gated sentinel would therefore surface at **release**, not on the PR. Gating an unsound
+> branch behind a tag that CI never exercises is a weaker instrument than not having the branch.
+> (b) **On WASM the drain branch is unreachable *by construction*, so today the gated sentinel is
+> dead code.** `jsToStreamChunk` (`cmd/wasm/effects.go:345-366`) returns exactly
+> `{StreamContentDelta, StreamThinkingDelta, StreamUsage, untyped nil}`, and `:243` filters the
+> nil before `onChunk` — so the WASM `onChunk` can only ever receive an encodable variant. This
+> is a *local structural* guarantee in the very file at risk, strictly stronger than the sealed
+> `streamChunkMarker()` argument. The only way the sentinel ever starts mattering on WASM is the
+> forward-compat scenario (a fourth variant added to `jsToStreamChunk` without a matching
+> `encodeStreamChunk` case) — and in exactly that scenario option (ii) would upgrade the
+> outcome from *"typed `Internal` + a long drain"* to *"**fatal WASM module crash**"* if the gate
+> were wrong, on a target no PR build exercises. Under (i) that same scenario yields a typed
+> error on every target.
+>
+> **R4 — The sentinel is a covert version of the interface change Mark already rejected.**
+> `AIHandler.StepWithStream` has 7 implementers — 4 production (`internal/ai/handler.go:351`,
+> `internal/effects/ai.go:246` (decorator), `internal/effects/ai.go:341` (stub),
+> `cmd/wasm/effects.go:231`) and 3 test doubles (`ai_routing_trace_test.go:48`,
+> `ai_step_test.go:53`, `ai_step_with_stream_test.go:282`) — **plus out-of-repo implementers**,
+> including @arniwesth's own driver. Panicking out of the `onChunk` we hand them imposes a new,
+> unstated requirement on all of them: be panic-transparent — `defer`-clean and carrying no
+> blanket `recover()` in the stream loop. That is a contract change with no compiler signal, no
+> interface doc, and no version bump. Mark rejected option (b) precisely because an interface
+> change reaching WASM forfeits the purely-additive property the ADOPT verdict rests on; the
+> sentinel forfeits the same property **invisibly**. If we would not take it openly we must not
+> take it covertly.
+> Our *own* adapters happen to be sentinel-safe, which is why R4 is about the contract rather
+> than about us: `grep -rn 'recover()' internal/ai/` → **rc=1, zero hits** (control: 37 hits
+> across `internal/ cmd/`, incl. `internal/effects/stream.go:751` and 4 in `cmd/wasm/main.go`);
+> `grep -rn 'go func' internal/ai/` (non-test) → **rc=1, zero hits** (control: 23 in
+> `internal/effects/`). So every native adapter calls `onChunk` synchronously on the caller's
+> goroutine — the sentinel *would* have worked natively. It is being declined on contract and
+> instrument grounds, not because it cannot work.
+>
+> **REFUTED doc argument.** §Count invariant claimed the sentinel is *"the established Go
+> control-flow escape for callback-driven APIs (`encoding/json`, `fmt` use it internally)."*
+> The analogy fails in the load-bearing respect. `encoding/json`'s only `recover` is
+> `encode.go:335` in `(*encodeState).marshal`, and the `jsonError` it catches is raised by
+> json's **own** `encodeState` recursion; a panic from a *user-supplied* `MarshalJSON` is
+> explicitly **re-raised** at `encode.go:339`. So the precedent is "a package panics through its
+> own frames", never "a package panics out of a callback it handed to foreign code" — which is
+> exactly what is proposed here. The precedent does not cover the case.
+>
+> **What survives, unchanged:** drain mode itself, both named budgets, `drain_exhausted` trace
+> metadata, the preserved typed `Internal` error, locality, and no interface change — i.e. every
+> element of Mark's option-(c) ruling. **What does not survive:** a bound on post-failure
+> wall-clock. That residual is flagged to Mark as the sprint's one open human question and is
+> written into the LongDesc, not hidden.
+
 Trace metadata uses two unambiguous counters: `provider_chunks` (all callbacks observed from the
 provider, including callbacks after the fatal representation boundary, up to drain exhaustion)
 and `delivered_chunks` (successfully encoded prefix length). `delivered_chunks == len(recorded)`
@@ -362,7 +459,7 @@ There is no `skipped_chunks` success path.
 
 **Decision: option (b), fail the call loudly.** This preserves the current public ADT and prevents
 a consumer from treating a partial log as complete. Option (a), a total `Unknown/Raw` variant, is
-rejected for v0.31.0 because the provider interface supplies typed Go chunk values, not a canonical
+rejected for v0.32.0 because the provider interface supplies typed Go chunk values, not a canonical
 raw wire payload; inventing serialization would not guarantee faithful replay and would enlarge the
 public protocol. It can be reconsidered only with a provider-level opaque-byte contract. Option (c),
 skip and call the log lossy, is rejected because it violates the repository's no-silent-fallback
@@ -491,7 +588,10 @@ means and §Sibling divergence): (1) linear unbounded retention until the call r
 log is exact with respect to chunks the provider adapter emits, not the wire — in particular,
 tool-call `input_json` stream content is never emitted as chunks by design; (3) an unencodable
 chunk terminates the op with typed `Internal` (stable message prefix `unencodable stream
-chunk`) and an explicitly incomplete prefix, with a bounded post-failure drain; (4) this
+chunk`) and an explicitly incomplete prefix; after that point AILANG records, encodes and
+delivers nothing more, and its per-chunk work is bounded by `recordedDrainMaxChunks`/
+`recordedDrainMaxBytes` — **but the call still returns only when the provider's stream ends,
+so post-failure wall-clock is the provider's, not AILANG's**; (4) this
 fail-loud behavior deliberately diverges from `stepWithStream`, which silently skips an
 unencodable chunk — the siblings are equivalent only for fully-encodable streams (every stream
 constructible today).
@@ -508,22 +608,36 @@ existing callback-bearing stream function.
 ### Stability, versioning, and credit
 
 - Keep `StabilityExperimental`.
-- Change metadata from `Since: "prototype"` to the actual release string `Since: "v0.31.0"`.
+- Change metadata from `Since: "prototype"` to the actual release string `Since: "v0.32.0"`.
 - Credit `@arniwesth` as original author in the adopting commit and changelog entry; preserve useful
   provenance in code comments without retaining “NOT an upstream feature” spike language.
 
 ## Productionization Milestones
 
+> **⚠ SUPERSEDED AS AN EXECUTION PLAN (planner, iteration 133).** M1–M4 below remain the
+> authoritative *acceptance* definitions, but they are **not** the sprint cut. At 4.5–5.75 days
+> post-ruling they exceed the mission charter's 3–4 day sprint ceiling, so the work is split
+> across two sprints. Execute from
+> **[`m-recorded-stream-api-sprint-plan.md`](m-recorded-stream-api-sprint-plan.md)**, which
+> re-cuts M1–M4 into five ≤1-day milestones for sprint 1 (merge-ready core) and a scoped
+> sprint 2 (surface truth + exhaustiveness guard).
+
 | Milestone | Estimate | Checkable acceptance |
 |---|---:|---|
-| **M1 — Shared core, fail-loud invariant, and bounded drain** | 2.5 days | Patch adopted; both stream operations use one validation/decode/dispatch core; no duplicated block remains; capture precedes callback; partial provider-error chunks survive; first unencodable chunk deterministically yields typed `Internal` (stable message prefix `unencodable stream chunk`), no later delivery occurs, counters are explicit, and legacy behavior remains unchanged. **Drain bound (Mark's option (c))**: post-failure drain mode with `recordedDrainMaxChunks`/`recordedDrainMaxBytes` budgets and sentinel-panic abort scoped to the recorded op; on exhaustion the op returns the exact prefix with the original `Internal` error preserved, `drain_exhausted:true` traced, no interface change, no surviving goroutine/timer/callback; a keeps-emitting fake handler is cut off at exactly the budget |
-| **M2 — Surface, bridge, and complete tests** | 1.0–1.5 days | `RecordedStream` and sibling registered as experimental since v0.31.0; offered four tests retained; added validation parity, callback-error, nil handler/`FnCaller`, every chunk variant, unencodable-first/middle plus provider-continues-after-failure cases (bounded per M1), drain-budget exhaustion for both budget dimensions, capability/budget/trace, registry/type-metadata, evaluator/bytecode parity, and direct ADR-009 integration tests pass |
+| **M1 — Shared core, fail-loud invariant, and bounded drain** | 2.0 days (was 2.5; −0.5 sentinel machinery dropped by the PLANNER RULING, +0.5 reallocated to the unbudgeted file-size split → see sprint plan S1-M1) | Patch adopted; both stream operations use one validation/decode/dispatch core; no duplicated block remains; capture precedes callback; partial provider-error chunks survive; first unencodable chunk deterministically yields typed `Internal` (stable message prefix `unencodable stream chunk`), no later delivery occurs, counters are explicit, and legacy behavior remains unchanged. **Drain bound (Mark's option (c), as ruled)**: post-failure drain mode with `recordedDrainMaxChunks`/`recordedDrainMaxBytes` budgets, entirely inside the recorded op; on exhaustion the drain goes **inert** (one boolean load per later callback — **no sentinel panic**, per §PLANNER RULING); the op returns the exact prefix with the original `Internal` error preserved, `drain_exhausted:true` traced, no interface change, no goroutine or timer created; a keeps-emitting fake handler stops being counted at exactly the budget and every later callback is observably inert |
+| **M2 — Surface, bridge, and complete tests** | 1.0–1.5 days | `RecordedStream` and sibling registered as experimental since v0.32.0; offered four tests retained; added validation parity, callback-error, nil handler/`FnCaller`, every chunk variant, unencodable-first/middle plus provider-continues-after-failure cases (bounded per M1), drain-budget exhaustion for both budget dimensions, capability/budget/trace, registry/type-metadata, evaluator/bytecode parity, and direct ADR-009 integration tests pass |
 | **M3 — Example, truth repair, and discovery/docs** | 1.0–1.5 days | `examples/ai_streaming_recorded.ail` checks with the freshly built target compiler and runs with `--ai-stub`; both false “open row” claims use the exact corrected wording above; CI guard added; teaching prompt and μRAG/builtin discovery entry updated; CHANGELOG and docs site updated; LongDesc states all four required items (retention, emitted-not-wire scope, fail-loud + bounded drain, sibling divergence); historical changelog untouched; @arniwesth credited |
 | **M4 — StreamChunk exhaustiveness guard** | 0.5 days | Introducing a fourth `StreamChunk` variant in `internal/ai` without an `encodeStreamChunk` case fails CI/tests at introduction time (registry-slice test and/or marker-vs-case parity check); guard covers both siblings; if @arniwesth's offered patch lands first, M4 is review-and-adopt with credit |
 
-Total: **5.5–6.0 days** (was 4.0–5.0; +0.5 in M1 for the drain-mode/sentinel machinery and its
-tests, +0.5 for M4 — both added by this R3 revision, neither absorbable for free). M1 is the
-merge-critical engineering work; the spike must not be cherry-picked without it.
+Total (planner-revised, iteration 133): **4.5–5.75 days**. Trail: R3 raised 4.0–5.0 → 5.5–6.0
+(+0.5 M1 drain machinery, +0.5 M4); the PLANNER RULING then removed the sentinel machinery
+(−0.5 from M1) and the sprint plan added the **unbudgeted** `internal/effects/ai_step.go` split
+(+0.5, absorbed into sprint 1). M1 is the merge-critical engineering work; the spike must not be
+cherry-picked without it.
+
+**This exceeds the mission charter's 3–4 day sprint ceiling, which is why it is two sprints.**
+See [`m-recorded-stream-api-sprint-plan.md`](m-recorded-stream-api-sprint-plan.md) §1 for the cut
+and for what the first PR may and may not claim.
 
 ## Test Plan
 
@@ -547,11 +661,13 @@ Merging additionally requires:
   boundary is drained under the M1 budget while `provider_chunks` remains diagnostic and
   `delivered_chunks == len(recorded)`;
 - drain-budget exhaustion, both dimensions independently: a fake handler emitting unbounded
-  post-failure chunks is cut off after exactly `recordedDrainMaxChunks` further callbacks; a
-  fake handler emitting few oversized post-failure chunks trips `recordedDrainMaxBytes`; in
-  both cases the op returns with the ORIGINAL `Internal` error, `drain_exhausted:true` is
-  traced, the sentinel does not escape the recorded op, and a non-sentinel panic from the same
-  region is re-raised unchanged;
+  post-failure chunks stops being counted after exactly `recordedDrainMaxChunks` further
+  callbacks; a fake handler emitting few oversized post-failure chunks trips
+  `recordedDrainMaxBytes`; in both cases the op returns with the ORIGINAL `Internal` error,
+  `drain_exhausted:true` is traced, and an instrumented fake asserts every post-exhaustion
+  callback is inert (no encode, no append, no AILANG-callback invocation). **No
+  sentinel-containment or panic-re-raise test exists — the PLANNER RULING dropped the
+  sentinel**;
 - **testability corollary (author's, verified here)**: because `StreamChunk` is sealed by
   unexported `streamChunkMarker()`, a test in `internal/effects` CANNOT declare a genuine
   fourth variant — the ONLY constructible inputs for every unencodable-chunk test above are a
@@ -567,7 +683,7 @@ Merging additionally requires:
 - capability denial and AI budget accounting parity;
 - trace operation name, routing metadata, final outcome, fatal provider index, `provider_chunks`,
   and `delivered_chunks` assertions;
-- builtin registry, public type, metadata (`v0.31.0`, experimental), and generated-doc coverage;
+- builtin registry, public type, metadata (`v0.32.0`, experimental), and generated-doc coverage;
 - `ailang check` of the new example with the freshly rebuilt compiler plus `--ai-stub` execution;
 - evaluator versus non-strict `--bytecode` output parity for nested `RecordedStream`; and
 - ADR-009's direct positive gate: immediate projection, exact ordered returned-log parity, success,
@@ -618,9 +734,10 @@ This change touches the type/effect/runtime path and must be rebased consciously
       typed `Internal` (stable message prefix `unencodable stream chunk`) with only the
       explicitly incomplete prefix.
 - [ ] The post-failure drain is bounded by `recordedDrainMaxChunks`/`recordedDrainMaxBytes`
-      entirely inside the recorded op: on exhaustion the op returns, the original typed error
-      is preserved, `drain_exhausted` is traced, and no interface change or surviving
-      goroutine exists (Mark's option (c), 2026-08-03).
+      entirely inside the recorded op: on exhaustion the drain goes inert, the original typed
+      error is preserved, `drain_exhausted` is traced, and no interface change, no created
+      goroutine/timer, and no panic crossing `onChunk` exists (Mark's option (c), 2026-08-03,
+      as ruled by the planner in §PLANNER RULING — work is bounded, wall-clock is not).
 - [ ] The deliberate sibling divergence on unencodable input is stated in the LongDesc, and the
       M4 exhaustiveness guard fails CI when a `StreamChunk` variant is introduced without an
       `encodeStreamChunk` case.
@@ -628,7 +745,7 @@ This change touches the type/effect/runtime path and must be rebased consciously
 - [ ] `delivered_chunks == len(recorded)` always; `provider_chunks` divergence is permitted only
       with the explicit typed representation failure and fatal index.
 - [ ] Callback row remains closed `{IO}` and both false documentation claims are corrected.
-- [ ] Experimental v0.31.0 metadata, memory warning, example, prompt/μRAG, changelog, and docs ship.
+- [ ] Experimental v0.32.0 metadata, memory warning, example, prompt/μRAG, changelog, and docs ship.
 - [ ] Evaluator, bytecode fallback, WASM build path, focused tests, full Go tests/build, and the
       ADR-009 direct positive integration gate pass in an environment that permits their fixtures.
 
@@ -639,8 +756,8 @@ This change touches the type/effect/runtime path and must be rebased consciously
 | Shared-core refactor regresses existing streaming | High | Characterization tests before refactor; legacy wrapper parity and unchanged-shape test |
 | Mid-stream error loses evidence | High | Keep `{chunks, outcome}`; partial-then-fail test is merge-blocking |
 | New provider chunk is unencodable | High | Fail with typed non-retryable `Internal`; return only the explicit prefix; bounded post-failure drain (M1); M4 guard makes the scenario fail CI at variant introduction; exhaustive/future-variant tests |
-| Provider cannot be cancelled after representation failure | Medium | Bounded drain mode (Mark's option (c)): chunk+byte budget, sentinel-panic abort scoped to the recorded op, original error preserved, `drain_exhausted` traced; adapters release resources via existing `defer` cleanup on unwind |
-| Sentinel abort unwinds through an adapter lacking `defer` cleanup | Low | One-time resource cost at a path unreachable for any chunk constructible today; anthropic adapter verified `defer`-clean (`streamstep.go:91`); M1's fake-handler unwind test proves sentinel containment; auditing every adapter's `defer` hygiene is a cheap M1 checklist item, not a test matrix |
+| Provider cannot be cancelled after representation failure | Medium | Bounded drain mode (Mark's option (c) as ruled): chunk+byte budget inside the recorded op, drain goes inert on exhaustion, original error preserved, `drain_exhausted` traced. **Residual, stated not hidden**: post-failure wall-clock is still the provider's stream duration. Fix filed as a standalone follow-up (cancellable provider context across the whole AI surface), per @arniwesth #546 |
+| ~~Sentinel abort unwinds through an adapter lacking `defer` cleanup~~ | ~~Low~~ | **RETIRED by the PLANNER RULING** — no sentinel is shipped, so no panic crosses the `onChunk` boundary and no `AIHandler` implementer (in-repo or external) acquires a panic-transparency obligation. The `defer`-hygiene audit is no longer needed |
 | Siblings diverge on unencodable input (existing op skips silently — shipped `ai_step.go:377-382`; recorded op fails loud) | Medium | Deliberate: Non-Goals forbid changing `stepWithStream`; divergence stated in LongDesc and §Sibling divergence; confined to fully-unreachable-today input; M4 guard keeps it unreachable by failing CI at variant introduction |
 | Retention exhausts memory on very long streams | Medium | Experimental marking and prominent linear/unbounded LongDesc; bounded API deferred |
 | Callback and returned log diverge | High | Encode once, append before callback, compare identical values and order in tests |
@@ -660,9 +777,16 @@ This change touches the type/effect/runtime path and must be rebased consciously
 - A bounded, iterator, spill-to-file, or caller-supplied recorder is deferred; it would change
   authority and backpressure semantics.
 - A future total `Unknown/Raw` variant is deferred until providers expose canonical opaque payload
-  bytes; v0.31.0's required behavior is the fail-loud decision above, not an implementation choice.
+  bytes; v0.32.0's required behavior is the fail-loud decision above, not an implementation choice.
 - General callback effect-row polymorphism is explicitly outside this adoption and would need a
   separate language/effect-system design.
+- **A cancellable provider context across the whole AI surface** (deadlines/cancellation on live
+  streams, `AIHandler` v2). This is the honest fix for the residual the PLANNER RULING leaves
+  open — post-failure wall-clock is the provider's, not AILANG's — and it is also the standing
+  answer to R2's `gpt5-6-sol` objection. Deliberately NOT a dependency of this sprint: it is a
+  7-implementer interface change reaching WASM, worth doing on its own merits (Mark's rejected
+  option (b); @arniwesth's own recommendation, #546 2026-08-01). **File as a standalone issue
+  during sprint 1 and link it from #546.**
 - A first-class `AIError` code for the representation failure (e.g. `IncompleteStream`) instead
   of the stable message prefix on `Internal`: cleaner for consumers, but widens the public error
   vocabulary — filed as an explicit follow-up question to @arniwesth on #546 (see §Where the
@@ -728,7 +852,8 @@ post-quorum author points folded in; see Quorum verification log §R3)
   1. Concrete drain bound specified (§Count invariant and drain bound): drain mode,
      `recordedDrainMaxChunks`/`recordedDrainMaxBytes`, sentinel-panic abort scoped to the
      recorded op, original error preserved, `drain_exhausted` traced, merge-blocking acceptance
-     row in M1.
+     row in M1. **[SUPERSEDED by the R4 planner ruling below — the sentinel-panic abort is
+     cancelled; everything else in this point stands.]**
   2. Guarantee honestly scoped to EMITTED chunks, not the wire (§What "lossless" means) — all
      three adapter-loss sites re-verified first-party here (no-default delta switch `:330-347`,
      unemitted `input_json_delta` `:336-337`, WASM nil-filter `:242-245`/`:348-366`); wording
@@ -748,3 +873,39 @@ post-quorum author points folded in; see Quorum verification log §R3)
   `struct{ ai.StreamChunk }` nil-embed — noted so the executor does not burn hours discovering
   it.
 - **Estimate updated honestly: 4.0–5.0 → 5.5–6.0 days** (+0.5 drain machinery in M1, +0.5 M4).
+
+### R4 — the planner ruling and the sprint cut (appended iteration 133, 2026-08-03, sprint-planner)
+
+- **The sentinel-panic abort is CANCELLED; drain mode ships.** Option (i) of the controller's
+  refutation. Four reasons, with commands and outputs, in §PLANNER RULING above: Go 1.26.5's own
+  `syscall/js.FuncOf` contract (new goroutine unless the callback fires *during* a Go→JS call —
+  and the WASM streaming path is Promise-async by design); option (iii) refuted; option (ii)
+  refuted because PR CI never compiles `js && wasm` (`ci.yml`/`build.yml` → rc=1 zero hits; only
+  `release.yml:17`) *and* because on WASM the drain branch is unreachable by construction
+  (`jsToStreamChunk` returns only encodable variants or a filtered untyped nil); and R4, that a
+  panic through `onChunk` is a covert version of the 7-implementer contract change Mark rejected
+  as option (b).
+- **One doc argument REFUTED**: the `encoding/json`/`fmt` precedent. json's only `recover`
+  (`encode.go:335`) catches a `jsonError` raised by json's *own* recursion and **re-raises**
+  user-callback panics at `:339`. It is not a precedent for panicking out of a callback handed to
+  foreign code.
+- **What Mark's option (c) keeps**: locality, no interface change, both named budgets,
+  `drain_exhausted` trace metadata, the preserved typed `Internal` error. **What it loses**: a
+  bound on post-failure wall-clock. Flagged to Mark as the sprint's single one-word human
+  question, and written into the LongDesc rather than hidden.
+- **Cut into two sprints** (4.5–5.75 d exceeds the charter's 3–4 d ceiling). Sprint 1 = five
+  ≤1-day milestones: the unbudgeted `internal/effects/ai_step.go` split (22 lines of headroom
+  measured against the 800-line gate), verbatim adoption + shared core, fail-loud + inert drain,
+  the test matrix, and the merge-blocking contract text (LongDesc / `Since: "v0.32.0"` /
+  CHANGELOG / @arniwesth credit). Sprint 2 = example + manifest, the two doc-truth repairs + CI
+  guard, discovery/website, and M4.
+- **M4 status checked, not assumed**: `gh issue view 546 --json comments` on 2026-08-03 → 4
+  comments, the last ours at 08:20Z. @arniwesth **offered** the exhaustiveness guard on
+  2026-08-01 but has **not** posted a patch. Budget it as write-from-scratch; re-check at the
+  start of sprint 2.
+- **Every controller fact re-verified first-party at `2f12ddacd`**, all confirmed: patch applies
+  (rc=0) and reverses (rc=1); 4/4 offered tests PASS under `SKIP_NET_TESTS=1`; post-patch
+  `internal/effects/ai_step.go` = **778** lines with `make check-file-sizes` green; the stale
+  `v0.31.0` target strings existed and are now swept to **v0.32.0**.
+- **Execution plan**: [`m-recorded-stream-api-sprint-plan.md`](m-recorded-stream-api-sprint-plan.md)
+  and `.ailang/state/sprints/sprint_M-RECORDED-STREAM-API-S1.json`.
