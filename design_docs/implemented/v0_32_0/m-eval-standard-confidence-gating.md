@@ -1,7 +1,7 @@
 # M-EVAL-STANDARD-CONFIDENCE-GATING: ELO Confidence Gating for the Cloud Standard Release Baseline
 
-**Status**: Planned
-**Target**: v0.31.x (tooling-only; no compiler/runtime change; first gated release TBD by Mark)
+**Status**: Implemented
+**Target**: v0.32.0 (tooling-only; no compiler/runtime change)
 **Priority**: P1 — every release currently spends ~$100-135 re-confirming benchmarks the roster already passes
 **Estimated**: ~4 days
 **Dependencies**: M-EVAL-RATING-EFFICIENCY (implemented v0.26.0 — provides the ELO fit + `--benchmarks-by-confidence` mechanism this reuses as-is), M-EVAL-ELO-PRIORITY-ROTATION (implemented v0.30.0 — proves the pattern on the local rig; this doc deliberately makes a different call on skip-vs-reorder, see below)
@@ -303,7 +303,98 @@ still the gate before defaulting `--confidence-gate` on, per the Design Freeze r
 - Descending-ELO ordering within the gated set (hardest-first), mirroring M-EVAL-ELO-PRIORITY-ROTATION's own noted future work
 - A cloud-side analogue of the local rig's per-cycle `elo-priority:` log line, surfaced on the dashboard, so gating decisions are visible per release without reading `run_eval_baseline.sh` output
 
+## Implementation Report
+
+**Completed**: 2026-08-03
+**Version**: v0.32.0
+
+### What Was Built
+
+All 4 planned milestones, plus two same-day follow-ups Mark asked for after reviewing the
+first live comparison: (1) `--confidence-gate` flipped from opt-in to **default-on** for
+`--full` runs (originally planned to stay opt-in pending a separate review — that review
+happened same-day instead of as a follow-up session), and (2) a `--no-confidence-gate`
+escape hatch to force the old full-tier behavior, added to make the default-on flip safe.
+
+### Code Locations
+
+**New files:**
+- `internal/eval_harness/cost_estimate.go` — sketched in the design; actually landed as
+  `cmd/ailang/eval_cost_estimate.go` (~100 LOC). Deviates from the design doc's Deferred
+  Decision on placement: `internal/eval_analysis` already imports `internal/eval_harness`
+  for the ELO fit, so a cost estimator needing both `eval_analysis.LoadResults` (historical
+  tokens) and `eval_harness` (pricing) cannot live in `eval_harness` without an import cycle.
+- `cmd/ailang/eval_cost_estimate_test.go` (~90 LOC) — 3 unit tests, pure function, no
+  filesystem/global-state dependency.
+- `cmd/ailang/eval_budget.go` (~55 LOC) — `budgetTracker`, extracted as its own testable
+  type rather than inlined in `eval_parallel.go`, so the aggregate-cap threshold logic is
+  unit-testable without running real benchmarks.
+- `cmd/ailang/eval_suite_budget_test.go` (~115 LOC) — 4 tests incl. a stubbed cost stream
+  crossing a cap mid-run and a 50-goroutine concurrent-`Add` race test (passes under `-race`).
+- `cmd/ailang/eval_benchmark_agent.go` (500 LOC) — NOT in the original plan. A same-day
+  release-readiness fix: M3's `onCost` wiring pushed `eval_benchmark.go` to 807 lines, over
+  the repo's 800-line CI gate. Fixed by mechanically extracting `runSingleBenchmark`'s
+  always-returning agent-mode branch into its own function — pure move, no logic change,
+  verified by the full `cmd/ailang` test suite passing unmodified before and after.
+
+**Modified files:**
+- `.claude/skills/post-release/scripts/run_eval_baseline.sh` (+~180 LOC across the sprint +
+  follow-up) — gating split, fail-open, self-seed, `--confidence-gate`/`--no-confidence-gate`/
+  `--budget-usd` flags, `budget_stopped()` sentinel check, `baseline.json` augmentation.
+- `tools/eval_baseline.sh` (+~25 LOC) — `BENCHMARKS` and `BUDGET_USD` env var passthrough.
+- `cmd/ailang/eval_suite.go` — `--budget-usd` flag, cost-estimate line in `--dry-run`.
+- `cmd/ailang/eval_parallel.go` — `budgetTracker` wiring, `onCost` callback threading,
+  `budget_stopped.json` sentinel write.
+- `cmd/ailang/eval_benchmark.go` — `onCost` parameter threading (2 call sites); later
+  trimmed to 341 lines by the agent-mode extraction above.
+- `.claude/skills/post-release/SKILL.md` — real banked cost figures replacing hand-guessed
+  prose; documents `--confidence-gate`, cadence, `--budget-usd` default.
+- `internal/eval_harness/models.yml` — unrelated same-day fix bundled into this release, not
+  part of this design doc's scope: repointed 3 DeepSeek V4 Flash entries to the official
+  `-0731` release (see commit `f20b5f23f`).
+
+### Test Coverage
+
+- 7 new unit tests (cost estimator: 3, budget tracker: 4), all passing, including a
+  concurrent-access test under `-race`.
+- No new integration/e2e tests — verification instead relied on running the actual shell
+  helper functions against real repo state (real `models.yml`, an `observatory.db`
+  bootstrapped from the v0.30.0 baseline, real `bin/ailang eval-suite --dry-run` calls) rather
+  than synthetic fixtures. This caught one real bug (comma-space-separated dry-run output
+  breaking a `comm -12` set intersection down to 1 match instead of 21) that a synthetic
+  fixture using pre-trimmed strings would not have exercised.
+- Full `cmd/ailang` test suite re-run clean after every milestone and after the agent-mode
+  file split (zero regressions each time, not just the new tests).
+
+### Metrics
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Standard-eval confidence gating | None — full tier every release | Default-on for `--full`, frontier always exempt |
+| `--dry-run` cost visibility | Run counts only | Real computed `$` estimate |
+| Aggregate cost cap | None (per-benchmark only) | `--budget-usd`, default $150 for `--full` |
+| First projected savings (dry-run, not yet a live release) | — | ~29% ($49.57 → $35.28) on the gated portion |
+
+### Known Limitations
+
+- The projected 29% savings is a pre-flight estimate, not yet validated against a real
+  release's actual spend — `observatory.db`'s token history predates 3 of the 18 current
+  `extended_suite` models, so roughly half the priced pairs used the flat default. The
+  numbers will sharpen automatically once this release's own standard-eval run self-seeds
+  the DB (Solution Design point 2).
+- No live release has run through `--confidence-gate` yet at time of writing — this release
+  (v0.32.0) will be the first.
+- The full-audit cadence (quarterly / on roster change) is documented but not automated —
+  nothing currently forces a periodic non-gated run; it depends on someone remembering.
+
+### Future Work
+
+Unchanged from the design doc's own Future Work section — extending gating to `agent_suite`,
+descending-ELO ordering within the gated set, a cloud-side `elo-priority:` log line on the
+dashboard. Additionally: automating the full-audit cadence check (a Known Limitation above)
+would remove its only manual dependency.
+
 ---
 
 **Document created**: 2026-08-03
-**Last updated**: 2026-08-03 (Design Freeze resolved)
+**Last updated**: 2026-08-03
