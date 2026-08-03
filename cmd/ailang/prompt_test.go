@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -297,5 +298,9 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	os.Exit(m.Run())
+	code := m.Run()
+	if ailangBinPath != "" {
+		_ = os.RemoveAll(filepath.Dir(ailangBinPath))
+	}
+	os.Exit(code)
 }

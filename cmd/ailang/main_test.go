@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/effects"
@@ -423,28 +424,53 @@ func TestSetupNetHandler(t *testing.T) {
 	}
 }
 
-// TestCLI_NetAllowHTTPFlag_Exists is a regression test ensuring the
-// --net-allow-http flag is recognized by the CLI (not just documented).
+var (
+	ailangBinOnce   sync.Once
+	ailangBinPath   string
+	ailangBinErr    error
+	ailangBinOutput []byte
+)
+
 // buildAilang builds the ailang binary once per test run and returns its path.
+// It is the package's single builder: every test that needs a real ailang
+// executable goes through here. Linking this binary costs ~5s warm, and the
+// package used to link it 16 times, which is what pushed cmd/ailang past the
+// 300s CI ceiling on the (slower) windows-latest runner.
+//
+// The shared binary lives in an os.MkdirTemp directory, not a per-test
+// t.TempDir: t.TempDir is removed when the first caller returns and would
+// delete the binary before later tests can use it. TestMain removes it after
+// m.Run() returns.
 // Uses a compiled binary instead of "go run" so exit codes propagate correctly.
 func buildAilang(t *testing.T) string {
 	t.Helper()
-	projectRoot, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatalf("Failed to get project root: %v", err)
+	ailangBinOnce.Do(func() {
+		projectRoot, err := filepath.Abs(filepath.Join("..", ".."))
+		if err != nil {
+			ailangBinErr = err
+			return
+		}
+		// Windows refuses to exec a file without the .exe suffix, failing with
+		// "executable file not found in %PATH%" — which reads like a missing
+		// toolchain rather than the naming bug it actually is.
+		binName := "ailang"
+		if runtime.GOOS == "windows" {
+			binName = "ailang.exe"
+		}
+		dir, err := os.MkdirTemp("", "ailang-test-bin")
+		if err != nil {
+			ailangBinErr = err
+			return
+		}
+		ailangBinPath = filepath.Join(dir, binName)
+		cmd := exec.Command("go", "build", "-o", ailangBinPath, "./cmd/ailang")
+		cmd.Dir = projectRoot
+		ailangBinOutput, ailangBinErr = cmd.CombinedOutput()
+	})
+	if ailangBinErr != nil {
+		t.Fatalf("Failed to build ailang: %v\n%s", ailangBinErr, ailangBinOutput)
 	}
-	binName := "ailang"
-	if runtime.GOOS == "windows" {
-		binName = "ailang.exe"
-	}
-	binPath := filepath.Join(t.TempDir(), binName)
-	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/ailang")
-	cmd.Dir = projectRoot
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to build ailang: %v\n%s", err, out)
-	}
-	return binPath
+	return ailangBinPath
 }
 
 // runAilangBin runs a pre-built ailang binary and returns stdout, stderr, exit code.
