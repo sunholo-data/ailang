@@ -24,7 +24,7 @@ Run post-release tasks for an AILANG release: evaluation baselines, dashboard up
 ```bash
 # User says: "Run post-release tasks for v0.3.14"
 # This skill will:
-# 1. Run eval baseline (extended_suite: 7 production models + lang-harness sweep) - ALWAYS USE --full FOR RELEASES
+# 1. Run eval baseline (extended_suite: 18 production models + lang-harness sweep) - ALWAYS USE --full FOR RELEASES
 # 2. Update website dashboard (JSON with history preservation)
 # 3. Update axiom scorecard KPI (if features affect axiom compliance)
 # 4. Extract metrics and UPDATE CHANGELOG.md automatically
@@ -55,25 +55,31 @@ Run evaluation baseline for a release version.
 
 **Usage:**
 ```bash
-# ✅ RECOMMENDED release baseline (standard + agent + 4-language Explorer sweep) — ~$23
+# ✅ RECOMMENDED release baseline (standard + agent + 4-language Explorer sweep)
 .claude/skills/post-release/scripts/run_eval_baseline.sh 0.15.0 --full --lang-harness
 
-# Standard + agent only (no 4-lang Explorer sweep) — ~$16
+# Standard + agent only (no 4-lang Explorer sweep)
 .claude/skills/post-release/scripts/run_eval_baseline.sh v0.15.0 --full
 
-# Major release: includes cross-harness comparison (gpt5-5 + opencode-gpt5-5 etc.) — ~$47
+# Major release: includes cross-harness comparison (gpt5-5 + opencode-gpt5-5 etc.)
 .claude/skills/post-release/scripts/run_eval_baseline.sh 0.15.0 --full --cross-harness
 
-# ❌ Dev only — 3 cheap models, AILANG lang only (quick testing/validation) — ~$3.50
+# ❌ Dev only — 3 cheap models, AILANG lang only (quick testing/validation)
 .claude/skills/post-release/scripts/run_eval_baseline.sh 0.15.0
 ```
+
+**Cost**: see the "Cost & time" table below — the per-mode figures live in ONE place there
+(and are currently flagged stale/understated). Don't duplicate cost numbers here.
 
 **Output:**
 ```
 Running eval baseline for 0.3.14...
-Mode: FULL (extended_suite: 7 production models)
-Expected cost: ~$16 (FULL) or ~$23 (FULL + lang-harness) or ~$47 (FULL + cross-harness)
-Expected time: ~30-60 minutes
+Tier scope: --tier core,stretch,frontier (56 benchmarks)
+Mode: FULL (extended_suite, 18 models incl. claude-fable-5 + claude-opus-5, + agent_suite)
+Expected cost: run `ailang eval-suite --full --tier core,stretch,frontier --dry-run` for a real
+  computed estimate — recent full releases banked $98-135 combined; see Cost & time below.
+Expected time: ~45-90 minutes
+Standard-eval budget cap: $150 (see `ailang eval-suite --dry-run` for a real per-run estimate)
 
 [Running benchmarks...]
 
@@ -84,14 +90,21 @@ Expected time: ~30-60 minutes
 
 **What it does:**
 - **Step 1**: Standard eval (0-shot + self-repair)
-  - Uses `extended_suite` (--full, 10 models): **gpt5-5**, gpt5-4-mini, **claude-opus-4-8** (Jun 2026 flagship), claude-sonnet-4-6, **gemini-3-1-pro**, gemini-3-flash, **or-glm-5-1**, **or-minimax-m3**, **or-deepseek-v4-flash**, **or-deepseek-v4-pro** (modern OS refreshed 2026-06-04)
+  - Uses `extended_suite` (--full, **18 models** — roster as of 2026-07-27; `models.yml` is the source of truth, this list is a convenience copy):
+    - OpenAI: **gpt5-6-sol** (flagship), gpt5-6-terra, gpt5-6-luna, gpt5-4-mini
+    - Anthropic: **claude-opus-5** (flagship — replaced claude-opus-4-8 2026-07-27), claude-fable-5, claude-sonnet-5, claude-sonnet-4-6 (longitudinal anchor)
+    - Google: **gemini-3-1-pro** (flagship), gemini-3-6-flash, gemini-3-flash, gemini-3-5-flash-lite (low-cost floor anchor)
+    - Open source: **or-glm-5-2** (replaced or-glm-5-1 2026-07-19), or-kimi-k3, or-kimi-k2-7-code, or-minimax-m3, or-deepseek-v4-flash, or-deepseek-v4-pro
   - Or `dev_models` (default): gpt5-4-mini, claude-haiku-4-5, gemini-3-flash
   - Both AILANG and Python; all benchmarks in selected tier(s)
-  - **Cloud-vs-OS note**: in standard mode the best OS model (glm-5.1, 90% de-flaked) MATCHES the best cloud model (gemini-3-1-pro, 90%) at ~½ the cost; minimax-m3 (87%, $0.30/1M) ties opus/gpt5-5 (87%, $5/1M) at ~1/16 the cost.
+  - **⚠️ Two suite rows intentionally drag the aggregate DOWN — read them in isolation, not folded into a suite average:**
+    - `gemini-3-5-flash-lite` is in the suite as a *language-improvement gauge*, not for capability (v0.30.0-era baseline to lift: core 14/19, stretch 9/21, frontier 1/16).
+    - `claude-fable-5` refuses a chunk of the Python side (17/53 at v0.30.0), so its Python row under-counts by design.
+  - **Cloud-vs-OS note** (v0.30.0 banked, pass@1 over 109 benchmark×lang rows): best cloud = gpt5-6-sol 92.7%, gemini-3-1-pro 91.7%; best OS = or-kimi-k3 89.0%, then or-glm-5-2 / or-kimi-k2-7-code 80.7%. OS is close but no longer *matching* the cloud top — restate this from the new baseline each release. **Do not quote cost ratios from v0.30.0**: its cost/token data is invalid (reasoning tokens went unrecorded for 16/17 standard models — see that baseline's `CAVEATS.md`).
 - **Step 2**: Agent eval — **AILANG-only** (redesigned 2026-07-11). Agent mode measures the agent-loop *uplift* on WEAK models, so the subjects are the free on-device GPU models; a small lab sample gives reference signal. It **does not** run the expensive multi-turn cloud fleet (near-ceiling cloud models add little agent signal at high $).
-  - `agent_suite` (7 cloud weak+reference models, run in parallel): `gpt5-6-luna` (codex — OpenAI weak/fast), `claude-haiku-4-5` (claude — Anthropic weak), `claude-sonnet-4-6` (claude — longitudinal anchor), `opencode-or-deepseek-v4-pro` (OS agent champion), `opencode-or-deepseek-v4-flash` (OS best-value), `opencode-or-glm-5-1` + `opencode-or-glm-5-2` (settle whether 5.2 is actually good).
+  - `agent_suite` (6 cloud weak+reference models, run in parallel): `gpt5-6-luna` (codex — OpenAI weak/fast), `claude-haiku-4-5` (claude — Anthropic weak), `claude-sonnet-4-6` (claude — longitudinal anchor), `opencode-or-deepseek-v4-pro` (OS agent champion), `opencode-or-deepseek-v4-flash` (OS best-value), `opencode-or-glm-5-2` (GLM-5.2 — SETTLED 2026-07-19: beats 5.1 in agent mode 77% vs 73%; `opencode-or-glm-5-1` retired to opt-in).
   - **On-device GPU models are NOT in this suite** — they are covered continuously by the daily rig rotation (`dev.ailang.os-rotation-filler` → `eval_results/rotation/os-rolling`, `--agent --bank-by-version`). For the on-device-vs-cloud agent table, aggregate the rotation's per-version GPU data with this suite's results.
-  - **motoko-* removed 2026-06-04**: the AILANG-native motoko/bun harness hangs on the rig (0 completions, orphans subprocesses). Pending agent-harness-instability diagnosis; re-add when reliable.
+  - **motoko-* is not in `agent_suite`, but the "it hangs" reason is obsolete**: the 2026-06-04 removal (0 completions, orphaned subprocesses) was fixed by the ollama-loop-convergence work, and motoko was re-added to `ollama_suite` 2026-06-15 (`motoko-local-qwen3-6-35b-a3b-mxfp8`, validated on the profile matrix, $0). It stays out of `agent_suite` because that suite is the *cloud* weak+reference set — local motoko is covered by `ollama_suite` + the rig rotation. See [MOTOKO.md](../../../MOTOKO.md) before touching any motoko checkout.
   - **Tier system** (v0.14.0+, frontier added v0.29.0): `smoke` (23), `core` (19), `stretch` (21), `frontier` (16), `vision` (9) — counts as of the 2026-07-11 v0.29.2 re-tier (8 stretch→frontier promotions from the ELO/frontier-model-fail audit; demotions deferred to the post-agent audit)
   - **🚫 Never run `smoke` for cloud models.** Smoke is the cheap/fast sanity tier for the *local OS-model iteration loop* (the nightly rig, Ollama, de-flaking). Cloud/API models (Anthropic, OpenAI, Google, OpenRouter) go **straight to `core,stretch,frontier`** — smoke would just spend API budget re-confirming saturated benchmarks every model already passes, with zero added signal. The only time smoke joins a cloud run is an explicit `--tier smoke,core,stretch,frontier` full audit.
   - Default scope: `core,stretch,frontier` — Core is the headline metric, Stretch is harder mixed results, Frontier is the top-end discriminator (release baselines are its only routine data source)
@@ -104,8 +117,9 @@ Expected time: ~30-60 minutes
   - Note: 4 core benchmarks are AILANG/Python-only (`contract_bst_validate`, `contract_roman_numeral`, `effect_composition`, `effect_tracking_io_fs`) and auto-skip on JS/Go runs
   - Feeds the **Agent Harness Explorer** language spread and cross-harness comparison data
   - Cost: ~$7 extra
-- **--cross-harness**: Replaces Step 2 with `harness_suite` (6 models, paired across harnesses)
-  - claude-sonnet-4-6 + opencode-sonnet-4-6, gemini-3-flash + opencode-gemini-3-flash, **gpt5-5 + opencode-gpt5-5**
+- **--cross-harness**: Replaces Step 2 with `harness_suite` (8 models, paired across harnesses)
+  - 4-way claude-sonnet-4-6 family: claude-sonnet-4-6 (Claude Code CLI) + opencode-sonnet-4-6 + pi-claude-sonnet-4-6 + motoko-claude-sonnet-4-6
+  - gemini-3-flash + opencode-gemini-3-flash, **gpt5-5 + opencode-gpt5-5** (gpt5-5 stays here pending an `opencode-gpt5-6-sol` pair)
   - Cost: ~$31 extra vs base FULL (3x)
 - Saves combined results to `eval_results/baselines/vX.X.X/`
 - Accepts version with or without 'v' prefix
@@ -350,17 +364,18 @@ curl -s https://ailang-dev-dashboard-ejjw6zt3bq-ew.a.run.app/benchmarks/os/lates
 .claude/skills/post-release/scripts/run_eval_baseline.sh X.X.X --full
 ```
 
-This runs all 7 production models (`extended_suite`) with both AILANG and Python.
+This runs all 18 production models (`extended_suite`) with both AILANG and Python.
 
 **Tier scope for releases** (counts re-centered after the v0.29.0 M-EVAL-FRONTIER-TIER
 re-tier: 7 saturated core benchmarks demoted to stretch, 8 stretch promoted to the new
 `frontier` tier):
-- Default (release): `--tier core,stretch,frontier` — 56 benchmarks (19 core + 29
-  stretch + 8 frontier). **This is the tier for every cloud/API model — never smoke.**
+- Default (release): `--tier core,stretch,frontier` — 56 benchmarks (19 core + 21
+  stretch + 16 frontier, after the 2026-07-11 v0.29.2 re-tier promoted 8 stretch→frontier).
+  **This is the tier for every cloud/API model — never smoke.**
   Smoke is the local OS-model iteration tier only (see the 🚫 note above); a cloud model
   added to a release baseline (e.g. a new Anthropic/OpenAI/Google model) goes straight to
   `core,stretch,frontier`.
-- `frontier` (8): the anti-saturation discriminator tier — a frontier benchmark's defining
+- `frontier` (16): the anti-saturation discriminator tier — a frontier benchmark's defining
   property is that at least one frontier model FAILS it in standard mode; if every frontier
   model passes it, it demotes back to stretch (CURATION.md §5). Release baselines are the
   ONLY routine source of frontier-failure data (its authoring-time failure validation was
@@ -375,14 +390,44 @@ re-tier: 7 saturated core benchmarks demoted to stretch, 8 stretch promoted to t
 Override tier via the script's `--tier` flag (see `run_eval_baseline.sh --help`). If
 unsure, the default is tuned to produce a release-ready baseline in ~30–60 minutes.
 
-**Cost & time** (default tier `core,stretch,frontier` = 56 benchmarks; ~1.5× the old
-37-benchmark `core,stretch` figures — re-center after the first v0.29.0+ baseline):
-| Mode | Cost | Time | Use for |
+**Cost & time** (default tier `core,stretch,frontier` = 56 benchmarks):
+
+**Get a real number before you spend, not a guessed one.** `ailang eval-suite --dry-run`
+(with the same `--models`/`--tier`/`--benchmarks` you're about to run) now prints a computed
+`$` estimate — historical mean tokens per benchmark from the most recent baseline × `models.yml`
+pricing (M-EVAL-STANDARD-CONFIDENCE-GATING). Pairs with no history are flagged explicitly, not
+silently folded into the total. Run it first; the table below is orientation, not a substitute.
+
+**Real banked cost** (from `cost_usd` on actual result files, not projected):
+
+| Baseline | Standard | Agent | Combined |
 |---|---|---|---|
-| `--full` | ~$24 | ~45-60 min | Standard release |
-| `--full --lang-harness` | ~$31 | ~60-80 min | **Recommended** — adds 4-lang Explorer data |
-| `--full --cross-harness` | ~$65 | ~60-80 min | Major releases (vX.0, quarterly) |
-| dev (no flags) | ~$5 | ~15-20 min | Quick validation only — never for releases |
+| v0.30.0 | $98.33 (1810 files) | $15.07 (280 files) | $113.40 |
+| v0.29.2 | $102.89 (1853 files) | $32.33 (386 files) | $135.22 |
+
+Standard-eval cost is concentrated: in v0.30.0, the top 5 of 18 models were **71%** of spend
+(`claude-fable-5` alone was 32%). `--lang-harness` adds ~$7-10; `--cross-harness` roughly
+triples the agent step (~3x its base cost). Time: ~45-90 min for `--full`, +15-20 min per
+extra step (`--lang-harness`/`--cross-harness`).
+
+**Confidence-gated standard eval (opt-in): `--confidence-gate`.** Skips re-confirming Trivial-
+band (ELO-saturated) `core`/`stretch` benchmarks per `observatory.db` ratings — `frontier`
+always stays full (its curation contract requires routine full-coverage failure data), and any
+model with no standard-mode rating history (a new/swapped flagship) always gets the full tier
+regardless. Falls open to today's exact full-tier behavior if the ratings DB is unseeded,
+missing, or corrupt — safe to try on any release. First real before/after comparison is the
+authority on actual savings, not a promised percentage here; see the M4 note in
+[m-eval-standard-confidence-gating.md](../../../design_docs/planned/m-eval-standard-confidence-gating.md)
+once it lands. **Cadence**: even once trusted, force a full (non-gated) run at least quarterly
+or on any `extended_suite` roster change — confidence-gating is benchmark-centric, not
+model-centric, so a stable model regressing on a previously-Trivial benchmark needs a periodic
+full re-audit to catch, not just the new-model rule.
+
+**Budget cap: `--budget-usd`** (`run_eval_baseline.sh` flag, defaults to **$150** for `--full`
+runs — ~15% headroom over the highest real combined baseline above; dev-mode runs are uncapped
+unless set explicitly). On breach, in-flight trials finish, no new trial is scheduled, and
+`baseline.json` gets `budget_stopped: true` — check for that key before treating a baseline as
+complete. Override with `--budget-usd <N>`, or `--budget-usd 0` to disable the cap entirely.
 
 **❌ WRONG workflow (what happened with v0.3.22):**
 ```bash
@@ -394,7 +439,7 @@ unsure, the default is tuned to produce a release-ready baseline in ~30–60 min
 
 **If baseline times out or is interrupted:**
 ```bash
-# Resume with ALL 6 models (maintains --full semantics)
+# Resume with ALL extended_suite models (maintains --full semantics)
 ailang eval-suite --full --langs python,ailang --parallel 5 \
   --output eval_results/baselines/X.X.X --skip-existing
 ```
@@ -768,7 +813,7 @@ them on the Studio rig, these must be installed and authenticated:
 | `codex` | `npm i -g @openai/codex` | one-time: `printenv OPENAI_API_KEY \| codex login --with-api-key` (env var alone gives 401 — codex defaults to ChatGPT-OAuth) | gpt5-4-mini |
 | `managed_agents` | (none — Vertex API) | `gcloud auth application-default login` | gemini agent (no gemini CLI executor exists) |
 | `pi` | `npm i -g @mariozechner/pi-coding-agent` | per-provider | optional minimal harness |
-| `motoko` | `go install …/motoko` | `OPENROUTER_API_KEY` | ⚠️ currently hangs — removed from agent_suite |
+| `motoko` | see [MOTOKO.md](../../../MOTOKO.md) — do NOT `go install` blind, the checkout matters | `OPENROUTER_API_KEY` | `ollama_suite` (local qwen3.6) + `harness_suite`; not in `agent_suite` (cloud-only suite) |
 
 **API keys** live in `~/.config/ailang/secrets.env` (sourced from `~/.zshenv`). Pull the
 cloud-managed ones with `~/.config/ailang/pull-secrets.sh` (Anthropic/OpenAI/Google from
@@ -783,6 +828,17 @@ ailang eval-suite --agent --models agent_suite --benchmarks fizzbuzz --langs ail
 ```
 
 ## Common Issues
+
+### Anthropic rows are missing or partial (quota)
+**Symptom**: `standard/` has holes for `claude-*` models, and/or `agent/` has NO `claude-*`
+rows at all (only `opencode-*`). This is what happened to the v0.30.0 baseline: 43 standard
+holes and zero Claude agent runs, from an Anthropic quota exhaustion that ran to 2026-08-01.
+**Do NOT** read the resulting low `claude-*` pass rates as a model or AILANG regression — they
+are coverage artifacts.
+**Before starting a release run**: confirm Anthropic quota headroom, since `extended_suite` now
+carries four Anthropic rows (opus-5, fable-5, sonnet-5, sonnet-4-6) and `agent_suite` two more.
+**If it happens anyway**: record it in the baseline's `CAVEATS.md`, and resume the missing rows
+with `--skip-existing` once quota returns rather than publishing the partial numbers as-is.
 
 ### Eval Baseline Times Out
 **Solution**: Use `--skip-existing` flag to resume:

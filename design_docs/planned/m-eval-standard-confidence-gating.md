@@ -265,6 +265,38 @@ The following are intentionally left open for the implementer:
 - `tools/launchd/nightly-eval.sh` — the only current caller of `--benchmarks-by-confidence`, the precedent this doc generalizes
 - `eval_results/baselines/v0.30.0/`, `eval_results/baselines/v0.29.2/` — source of the real cost figures in Key Fact 5
 
+## Verification — first live comparison (M4, 2026-08-03)
+
+Implemented and verified in one sitting (M1-M4 all landed same-day; see commits
+`2d2e45e05`, `49582b33c`, `ecbb0d7f2`). `run_eval_baseline.sh` has no `--dry-run` mode of
+its own (only `ailang eval-suite` does), so the sprint plan's planned "run
+`run_eval_baseline.sh --full --dry-run` twice" step was executed as its precise equivalent:
+`ailang eval-suite --dry-run` invoked directly with the exact model/benchmark splits
+`run_confidence_gated_standard()` computes (verified live against the real `extended_suite`
+roster and an `observatory.db` bootstrapped from the v0.30.0 baseline, per Key Fact set above).
+
+| Call | Models | Benchmarks | Estimated cost |
+|---|---|---|---|
+| Full (no gating) | 18 | 56 (core+stretch+frontier) | $49.57 |
+| Gated: new models | 3 (no rating history) | 56 (full tier) | $8.27 |
+| Gated: rated models, gated core+stretch | 15 | 21 of 40 (Trivial-band dropped) | $15.71 |
+| Gated: rated models, frontier | 15 | 16 (always full) | $11.30 |
+| **Gated total** | | | **$35.28** |
+
+**Projected savings: $14.29, ~29%** of the confidence-gated portion of standard-eval cost
+(does not include the agent step or `--lang-harness`, which this design doesn't touch).
+
+**Caveat, stated plainly:** this is a pre-flight *projection*, not a live spend comparison —
+`estimateRunCostUSDWithMeans` fell back to the flat default for roughly half the priced pairs
+in both calls (504/1008 full, ~140/315+168+240 gated), because `observatory.db`'s token-mean
+history comes from v0.30.0, which predates 3 of the current 18 `extended_suite` models and
+some tier reshuffling since. The projected 29% is directionally real (fewer benchmarks run for
+the rated-model majority, priced at the same rates either way) but the exact dollar figures
+will sharpen automatically after the first `--confidence-gate` release run self-seeds
+`observatory.db` with current data (Solution Design point 2). The Success Criteria's "actual $
+saved" review — a real spend comparison across a live release cycle, not this projection — is
+still the gate before defaulting `--confidence-gate` on, per the Design Freeze resolution.
+
 ## Future Work
 
 - Extend confidence-gating (or a lighter cadence-based rotation) to the `agent_suite` release step, once this pattern is proven safe on standard mode

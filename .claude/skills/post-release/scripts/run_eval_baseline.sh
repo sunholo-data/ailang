@@ -470,9 +470,9 @@ echo "Running eval baseline for $VERSION..."
 echo "Tier scope: $TIER_FLAG ($BENCHMARK_COUNT benchmarks)"
 if [[ -n "$FULL_FLAG" ]]; then
     echo "Mode: FULL (extended_suite, 18 models incl. claude-fable-5 + claude-opus-5, + agent_suite)"
-    echo "Expected cost: >=\$45-90 (fable ~\$24 on core,stretch,frontier; agent step adds ~\$10-20)"
-    echo "  NOTE: that range was set at an 11-model roster; extended_suite is now 18."
-    echo "  Treat it as a FLOOR. Re-center it from this run's banked cost data."
+    echo "Expected cost: run \`ailang eval-suite --full --tier $TIER_FLAG --dry-run\` for a real"
+    echo "  computed estimate (M-EVAL-STANDARD-CONFIDENCE-GATING) — recent full releases banked"
+    echo "  \$98-135 combined (standard+agent); see SKILL.md's Cost & time section for the real figures."
     echo "Expected time: ~45-90 minutes"
 else
     echo "Mode: DEV (3 dev models)"
