@@ -368,8 +368,6 @@ of forking them, so a future guard fix lands once.
 **Modified:**
 - `tools/launchd/mission-control.sh` — role-generic probe loop (Bash 3.2 form) + gated default flip (~35 LOC net)
 - `.claude/skills/mission-control/SKILL.md` — roles-table cell + derivation step + planner sub-bullet (~55 lines)
-- `~/.claude/skills/mission-control/SKILL.md` — sync copy (L15)
-- `~/dev/sunholo-data/ailang-world/tools/launchd/mission-control.sh` — sync copy (L15; see D6)
 - `.claude/skills/design-doc-creator/SKILL.md` — one-line template addition: the
   `**Planner-Lane**: codex-ok | opus-required` header field (D2 field supply)
 
@@ -378,12 +376,17 @@ of forking them, so a future guard fix lands once.
   pure text — contains no codex invocation, provable by AC-D2's grep)
 - `tools/launchd/testdata/planner-lane/` — eight tiny fixture docs for AC-D2 (rev 3, per
   gpt5-6-sol's R2 fixture list): (a) unlisted language path (declares `codex-ok`,
-  Files-to-Modify touches `internal/parser/…` — the lying-declaration case), (b) field-missing,
-  (c) clean infra `codex-ok`, (f) unknown FUTURE `internal/...` path (a dir that does not exist
+  Files-to-Modify touches internal/parser/… — the lying-declaration case), (b) field-missing,
+  (c) clean infra `codex-ok`, (f) unknown FUTURE internal/... path (a dir that does not exist
   today), (g) mixed infra + language paths, (h) malformed Files-to-Modify section, (i) duplicate
   Files-to-Modify sections
 
 **No Go code. No AILANG code.**
+
+### Landing Checklist
+
+- Sync `.claude/skills/mission-control/SKILL.md` through its `~/.claude/skills/mission-control/SKILL.md` symlink (a no-op when the verified symlink remains intact).
+- Deploy `tools/launchd/mission-control.sh` to `~/dev/sunholo-data/ailang-world/tools/launchd/mission-control.sh` when the World rollout is authorized.
 
 ---
 
