@@ -15,6 +15,11 @@
 #   LANGS=... - Languages to test (default: python,ailang)
 #   PARALLEL=N - Number of parallel jobs (default: 15)
 #   RESUME=true - Resume interrupted run (skip existing results, don't delete)
+#   TIER=... - Tier filter (smoke,core,stretch,frontier,vision); mutually exclusive with BENCHMARKS
+#   BENCHMARKS=... - Explicit comma-separated benchmark ID list (M-EVAL-STANDARD-CONFIDENCE-GATING);
+#     takes precedence over TIER when both are set. Lets a caller run a specific subset (e.g. a
+#     confidence-gated selection) into the same baseline dir as other calls — pair with RESUME=true
+#     so repeated calls into one dir don't hit the overwrite prompt.
 #
 # This script:
 # 1. Runs full benchmark suite (using ailang eval-suite)
@@ -54,6 +59,7 @@ MODELS="${MODELS:-}"  # Custom model list (comma-separated)
 LANGS="${LANGS:-python,ailang}"
 PARALLEL="${PARALLEL:-15}"
 TIER="${TIER:-}"  # Optional tier filter (smoke,core,stretch,vision); empty = all tiers
+BENCHMARKS="${BENCHMARKS:-}"  # Optional explicit benchmark ID list; overrides TIER when set
 
 BASELINE_DIR="eval_results/baselines/${VERSION}"
 
@@ -74,7 +80,11 @@ echo "  Version:     $VERSION"
 echo "  Models:      $MODEL_DESC"
 echo "  Languages:   $LANGS"
 echo "  Parallel:    $PARALLEL"
-echo "  Tier:        ${TIER:-all}"
+if [ -n "$BENCHMARKS" ]; then
+  echo "  Benchmarks:  explicit list ($(echo "$BENCHMARKS" | tr ',' '\n' | wc -l | tr -d ' ') ids)"
+else
+  echo "  Tier:        ${TIER:-all}"
+fi
 echo "  Self-repair: ENABLED (critical for agentic AI evaluation)"
 echo "  Output:      $BASELINE_DIR"
 echo ""
@@ -119,8 +129,11 @@ elif [ "$FULL_SUITE" = "true" ]; then
 fi
 # Otherwise, use default (dev models)
 
-# Add --tier filter if requested (v0.14.0+)
-if [ -n "$TIER" ]; then
+# Explicit benchmark list takes precedence over --tier (M-EVAL-STANDARD-CONFIDENCE-GATING)
+if [ -n "$BENCHMARKS" ]; then
+  CMD+=(--benchmarks "$BENCHMARKS")
+elif [ -n "$TIER" ]; then
+  # Add --tier filter if requested (v0.14.0+)
   CMD+=(--tier "$TIER")
 fi
 
