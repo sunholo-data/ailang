@@ -968,9 +968,19 @@ a charter that was byte-identical to origin. This is rule 3a's trap wearing THIS
 and it is the worst place for it: a broken tell and a genuinely stale charter produce the
 identical output, so the failure routes a healthy iteration down the stale-copy path — or, in the
 other direction, teaches you to distrust a tell you will need for real. Run it as
-`grep -c "ITERATION <N-1>"` **alongside two controls in the same breath**: a known-present one
-(`ITERATION <N-2>`, must be ≥1) and a known-absent one (`ITERATION 999`, must be 0). A `0` on the
-known-present control means your instrument is broken, not that the charter is stale.
+`grep -c "ITERATION <N-1>"` **alongside a known-present control in the same breath**
+(`ITERATION <N-2>`, must be ≥1). A `0` on the control means your instrument is broken, not that
+the charter is stale — that is the failure mode here, and the known-present control is the one
+that catches it.
+
+**Do NOT add a known-absent literal as a second control — in a file the loop WRITES ABOUT ITSELF,
+the absent token does not stay absent.** Iteration 134 shipped `ITERATION 999` as its
+known-absent control and then measured it coming back **1** within the same iteration: the STATUS
+stamp it had just written *documents the control*, so the literal is now in the charter forever.
+Any self-describing file poisons this class of control the moment a record mentions it. Where you
+want a structural second check, assert the rotation invariant instead —
+`grep -c "^## STATUS 2026"` must equal **3** — which is anchored to line-start and cannot be
+tripped by prose.
 
 **THE STATUS ROTATION IS THE MOST DANGEROUS EDIT THIS LOOP MAKES — SCRIPT IT WITH A LINE-COUNT
 ASSERTION, NEVER A BARE `## `-HEADER SCAN** (added 2026-08-01 iteration 127; third failure of this
