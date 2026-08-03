@@ -50,6 +50,12 @@ MISSION_NAME="${MISSION_NAME:-v1}"
 MISSION_REPO="${MISSION_REPO:-sunholo-data/ailang}"
 MISSION_DOC="${MISSION_DOC:-design_docs/v1-mission.md}"
 export MISSION_NAME MISSION_REPO MISSION_DOC
+# D6 rollback pin: always sourced for the RESOLVED mission name, so the documented
+# `MISSION_PLANNER_MODEL=opus` rollback works for V1 (whose plist sets no MISSION_PROFILE).
+# Convention: entries use ${VAR:-value} so a command-line env pin still wins (the AC fixtures
+# depend on that). Double-source for World is idempotent.
+[ -f "$HOME/.config/ailang/mission-${MISSION_NAME}.env" ] \
+  && . "$HOME/.config/ailang/mission-${MISSION_NAME}.env"
 STATE_DIR="$HOME/.ailang/state"
 if [ "$MISSION_NAME" = "v1" ]; then
   # LEGACY paths — bit-for-bit compat with the live V1 loop (no migration).
@@ -279,8 +285,11 @@ export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-fable-5}"
 export MISSION_METERED_BUDGET_USD="${MISSION_METERED_BUDGET_USD:-5}"
 export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-opus}"
 export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol}"
-# Codex-lane pre-flight (2026-07-27): subscription quota is invisible until it errors, so probe
-# once per fire. Any probe failure → fall back to opus THIS fire only (logged, never wedged).
+# Codex-lane pre-flight, ROLE-GENERIC (m-planner-codex-lane): probe once per DISTINCT
+# codex model, fall back per-role on ANY non-zero rc (#486: probe MUST carry --model;
+# an unusable pin is exactly as fatal as spent quota). Export AFTER fallback so the
+# EXPORTED env — what the routing-evidence row reports — stays honest.
+# BASH 3.2 (L19): ':'-delimited string sets, NOT associative arrays; no ${var,,}.
 #
 # The probe MUST carry --model (#486, 2026-07-27): without it codex exercises its DEFAULT model,
 # so a pinned-but-unreachable model false-greens the lane. Live evidence that day: codex-cli
@@ -292,20 +301,33 @@ export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol}"
 # fatal to the lane as a spent quota, and the old quota-only gate is what let #486 through. The
 # skill's Gate-3 recipe re-probes and would fall back anyway; doing it here keeps the EXPORTED
 # env honest, which is what the routing-evidence row reports.
-case "$MISSION_EXECUTOR_MODEL" in codex:*)
-  cx_model="${MISSION_EXECUTOR_MODEL#codex:}"
-  _mc_bounded "$PROBE_TIMEOUT" codex exec --skip-git-repo-check --model "$cx_model" 'reply with exactly: ok'
-  cx_rc=$?; cx_out="$MC_BOUNDED_OUT"
-  if [ $cx_rc -ne 0 ]; then
-    if [ $cx_rc -eq 124 ]; then cx_why="probe timed out after ${PROBE_TIMEOUT}s"
-    elif printf '%s' "$cx_out" | grep -qiE "$QUOTA_SIG"; then cx_why="quota-limited"
-    else cx_why="probe failed (rc=$cx_rc)"; fi
-    log "codex executor lane $cx_why for model '$cx_model' -> falling back to opus for this fire"
-    log "codex probe output: $(printf '%s' "$cx_out" | tail -3 | tr '\n' ' ')"
-    MISSION_EXECUTOR_MODEL="opus"; export MISSION_EXECUTOR_MODEL
-  fi
-  ;;
-esac
+_cx_probed=":"   # models probed this fire (dedupe: planner+executor share the default model)
+_cx_failed=":"   # models whose probe failed
+for role in PLANNER EXECUTOR; do
+  var="MISSION_${role}_MODEL"; val="${!var}"
+  case "$val" in codex:*)
+    cx_model="${val#codex:}"
+    case "$_cx_probed" in *":${cx_model}:"*) : ;; *)   # not yet probed
+      _cx_probed="${_cx_probed}${cx_model}:"
+      _mc_bounded "$PROBE_TIMEOUT" codex exec --skip-git-repo-check --model "$cx_model" 'reply with exactly: ok'
+      cx_rc=$?; cx_out="$MC_BOUNDED_OUT"
+      if [ "$cx_rc" -ne 0 ]; then
+        _cx_failed="${_cx_failed}${cx_model}:"
+        # why-classification happens ONCE, at probe time (timeout / quota-sig / other)
+        if [ "$cx_rc" -eq 124 ]; then cx_why="probe timed out after ${PROBE_TIMEOUT}s"
+        elif printf '%s' "$cx_out" | grep -qiE "$QUOTA_SIG"; then cx_why="quota-limited"
+        else cx_why="probe failed (rc=$cx_rc)"; fi
+        log "codex model '$cx_model' unusable: $cx_why"
+        log "codex probe output: $(printf '%s' "$cx_out" | tail -3 | tr '\n' ' ')"
+      fi
+    ;; esac
+    case "$_cx_failed" in *":${cx_model}:"*)
+      role_lc=$(printf '%s' "$role" | tr 'A-Z' 'a-z')   # ${role,,} is bash-4.0-only (L21)
+      log "codex ${role_lc} lane -> falling back to opus for this fire (model '$cx_model')"
+      printf -v "$var" 'opus'; export "$var"
+    ;; esac
+  ;; esac
+done
 # evaluator default = sonnet (2026-07-16, Mark directive on #399: "default can be gemini (if able
 # to git clone the codebase etc)? otherwise sonnet-5"). gemini managed_agents is NOT viable as the
 # evaluator today — VERIFIED iteration 38: (1) architecturally the request body carries only
