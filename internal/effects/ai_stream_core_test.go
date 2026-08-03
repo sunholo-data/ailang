@@ -283,7 +283,7 @@ func testStreamTrace(t *testing.T) {
 
 func testStreamSurfaceContract(t *testing.T) {
 	for path, needles := range map[string][]string{
-		"../builtins/ai_step.go": {"_ai_step_with_stream_recorded", "StabilityExperimental", "makeAIStepWithStreamRecordedType"},
+		"../builtins/ai_step.go": {"_ai_step_with_stream_recorded", `Since:     "v0.32.0"`, "StabilityExperimental", "makeAIStepWithStreamRecordedType"},
 		"../../std/ai.ail":       {"export type RecordedStream", "export func stepWithStreamRecorded"},
 	} {
 		data, err := os.ReadFile(path)

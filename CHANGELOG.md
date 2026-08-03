@@ -2,6 +2,15 @@
 
 For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-current.md).
 
+## v0.32.0 (Unreleased)
+
+- Added experimental `std/ai.stepWithStreamRecorded`, originally authored by
+  [@arniwesth](https://github.com/arniwesth). It preserves immediate stream
+  callbacks while returning the exact ordered adapter-emitted chunk log and
+  typed terminal outcome, including an explicit incomplete prefix on an
+  unencodable chunk. See [#546](https://github.com/sunholo-data/ailang/issues/546)
+  and [arniwesth/ailang#2](https://github.com/arniwesth/ailang/pull/2).
+
 ## Changelog Archives
 
 The full changelog has been split into themed files for searchability and readability:

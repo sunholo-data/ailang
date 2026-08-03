@@ -499,7 +499,19 @@ func registerAIStepWithStreamRecorded() {
 The chunks are returned on BOTH outcomes, so a stream that fails part-way
 still yields every chunk observed before the failure. Callbacks still fire
 immediately at arrival; the returned log is an exact, non-duplicating record
-of what the callback saw.`,
+of the chunks the provider adapter emits, not of the provider wire. In
+particular, tool-call input_json stream content is not emitted as chunks.
+
+The returned log is retained linearly and without a bound in memory until the
+call returns. If a chunk cannot be encoded, the outcome is a non-retryable
+Internal error whose stable message prefix is "unencodable stream chunk"; the
+returned chunks are explicitly an incomplete prefix. From that point AILANG
+records, encodes, and delivers nothing, and its per-chunk drain work is bounded,
+but the call still returns only when the provider's stream ends.
+
+This fail-loud behavior deliberately differs from _ai_step_with_stream, which
+silently skips an unencodable chunk. The siblings are equivalent only for
+fully encodable streams, which includes every stream constructible today.`,
 			Params: []ParamDoc{
 				{Name: "model", Description: "Model ID (or empty for handler default)"},
 				{Name: "messages", Description: "Conversation as list[Message]"},
@@ -509,7 +521,7 @@ of what the callback saw.`,
 			},
 			Returns:   "{ chunks: [StreamChunk], outcome: Result[StepResult, AIError] }",
 			SeeAlso:   []string{"_ai_step_with_stream", "std/ai.stepWithStreamRecorded"},
-			Since:     "prototype",
+			Since:     "v0.32.0",
 			Stability: StabilityExperimental,
 			Tags:      []string{"ai", "result", "streaming", "recorded"},
 			Category:  "ai",
