@@ -20,7 +20,15 @@ import (
 
 // runSingleBenchmark executes a single benchmark configuration
 // condition is the experimental condition name ("baseline", "contract", "z3_guided", "full", or "" for legacy)
-func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition string, trial int, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig, taskID string, evalChain *EvalChainContext) (bool, error) {
+// onCost, when non-nil, is called with the trial's banked CostUSD immediately
+// after its result is successfully logged (M-EVAL-STANDARD-CONFIDENCE-GATING
+// --budget-usd). Deliberately NOT wired into every early-return path in this
+// function — a trial that errors out before its result is ever logged has no
+// banked cost figure to report, and (for API-calling paths) typically incurred
+// little to no billable cost either. This means an aggregate budget cap fed by
+// onCost is a "sum of what got banked" gauge, not a byte-exact real-time meter
+// — consistent with the accepted graceful-stop tolerance in the design doc.
+func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition string, trial int, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig, taskID string, evalChain *EvalChainContext, onCost func(float64)) (bool, error) {
 	// Start span for this benchmark
 	// Include benchmark ID in span name for easy identification in trace viewers
 	ctx, benchSpan := evalTracer.Start(ctx, fmt.Sprintf("eval.benchmark: %s", benchmarkID),
@@ -386,6 +394,9 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			benchSpan.SetStatus(codes.Error, "failed to save result")
 			return false, fmt.Errorf("failed to save result: %w", err)
 		}
+		if onCost != nil {
+			onCost(metrics.CostUSD)
+		}
 
 		// M-EVAL-OS-LONGITUDINAL Phase 2: extend the rolling token-budget
 		// baseline ONLY on PASS outcomes (where the token count is a valid
@@ -702,6 +713,9 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 		benchSpan.RecordError(err)
 		benchSpan.SetStatus(codes.Error, "failed to save result")
 		return false, fmt.Errorf("failed to save result: %w", err)
+	}
+	if onCost != nil {
+		onCost(metrics.CostUSD)
 	}
 
 	// M-EVAL-CHAINS: Store assessment in chain stage (standard mode)

@@ -20,6 +20,8 @@
 #     takes precedence over TIER when both are set. Lets a caller run a specific subset (e.g. a
 #     confidence-gated selection) into the same baseline dir as other calls — pair with RESUME=true
 #     so repeated calls into one dir don't hit the overwrite prompt.
+#   BUDGET_USD=... - Aggregate cost ceiling passed through to `eval-suite --budget-usd`
+#     (M-EVAL-STANDARD-CONFIDENCE-GATING). Unset = no cap.
 #
 # This script:
 # 1. Runs full benchmark suite (using ailang eval-suite)
@@ -60,6 +62,7 @@ LANGS="${LANGS:-python,ailang}"
 PARALLEL="${PARALLEL:-15}"
 TIER="${TIER:-}"  # Optional tier filter (smoke,core,stretch,vision); empty = all tiers
 BENCHMARKS="${BENCHMARKS:-}"  # Optional explicit benchmark ID list; overrides TIER when set
+BUDGET_USD="${BUDGET_USD:-}"  # Optional aggregate cost ceiling passed through to eval-suite --budget-usd
 
 BASELINE_DIR="eval_results/baselines/${VERSION}"
 
@@ -135,6 +138,11 @@ if [ -n "$BENCHMARKS" ]; then
 elif [ -n "$TIER" ]; then
   # Add --tier filter if requested (v0.14.0+)
   CMD+=(--tier "$TIER")
+fi
+
+# Aggregate cost ceiling (M-EVAL-STANDARD-CONFIDENCE-GATING)
+if [ -n "$BUDGET_USD" ]; then
+  CMD+=(--budget-usd "$BUDGET_USD")
 fi
 
 # Add --skip-existing if resuming

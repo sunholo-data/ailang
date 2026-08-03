@@ -112,6 +112,7 @@ func runEvalSuite() {
 	bankByVersion := fs.Bool("bank-by-version", false, "Namespace the output dir by the AILANG build version (eval_results/.../<version>/). A new build re-evals from scratch and history accumulates per release; with --skip-existing the rotation banks per-version (M-EVAL-VERSION-BANKING)")
 	dryRun := fs.Bool("dry-run", false, "Print the planned (model, harness, benchmark) runs and exit without executing")
 	noRigLock := fs.Bool("no-rig-lock", false, "Skip the shared rig lock. The rig is a single GPU; by default eval-suite refuses to start if another rig job (nightly/lang-eval/rotation) holds the lock, to prevent thrash/model-reload hangs. Use only on an isolated box.")
+	budgetUSD := fs.Float64("budget-usd", 0, "Aggregate cost ceiling for this run (0 = no cap, default). On breach: in-flight trials finish, no new trial is scheduled, a budget_stopped.json sentinel is written to --output, and a loud warning is printed. Tracks banked cost_usd, not a real-time meter — expect some overshoot bounded by --parallel (M-EVAL-STANDARD-CONFIDENCE-GATING).")
 
 	// Agent mode flags
 	agent := fs.Bool("agent", false, "Use agent-based evaluation (Claude Code or Gemini CLI)")
@@ -760,7 +761,7 @@ func runEvalSuite() {
 
 	// Run benchmarks with concurrency control (direct mode)
 	startTime := time.Now()
-	results := runBenchmarksParallel(ctx, jobs, *seed, *outputDir, *timeout, *maxConcurrent, finalSelfRepair, *promptVersion, agentConfig, taskID, evalChain)
+	results := runBenchmarksParallel(ctx, jobs, *seed, *outputDir, *timeout, *maxConcurrent, finalSelfRepair, *promptVersion, agentConfig, taskID, evalChain, *budgetUSD)
 	duration := time.Since(startTime)
 
 	finalizeSuiteRun(suiteSummaryParams{
