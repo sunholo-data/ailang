@@ -368,22 +368,64 @@ of forking them, so a future guard fix lands once.
 **Modified:**
 - `tools/launchd/mission-control.sh` — role-generic probe loop (Bash 3.2 form) + gated default flip (~35 LOC net)
 - `.claude/skills/mission-control/SKILL.md` — roles-table cell + derivation step + planner sub-bullet (~55 lines)
-- `~/.claude/skills/mission-control/SKILL.md` — sync copy (L15)
-- `~/dev/sunholo-data/ailang-world/tools/launchd/mission-control.sh` — sync copy (L15; see D6)
 - `.claude/skills/design-doc-creator/SKILL.md` — one-line template addition: the
   `**Planner-Lane**: codex-ok | opus-required` header field (D2 field supply)
 
 **New:**
 - `tools/launchd/derive-planner-lane.sh` — D2 stage-2 derivation (~60 LOC, Bash 3.2-compatible,
   pure text — contains no codex invocation, provable by AC-D2's grep)
-- `tools/launchd/testdata/planner-lane/` — eight tiny fixture docs for AC-D2 (rev 3, per
+- `tools/launchd/testdata/planner-lane/` — twelve tiny fixture docs for AC-D2 (rev 3, per
   gpt5-6-sol's R2 fixture list): (a) unlisted language path (declares `codex-ok`,
-  Files-to-Modify touches `internal/parser/…` — the lying-declaration case), (b) field-missing,
-  (c) clean infra `codex-ok`, (f) unknown FUTURE `internal/...` path (a dir that does not exist
+  Files-to-Modify touches internal/parser/… — the lying-declaration case), (b) field-missing,
+  (c) clean infra `codex-ok`, (f) unknown FUTURE internal/... path (a dir that does not exist
   today), (g) mixed infra + language paths, (h) malformed Files-to-Modify section, (i) duplicate
-  Files-to-Modify sections
+  Files-to-Modify sections, (j) prose-first bullet, (k) alternate `## Files to Modify`
+  heading, (l) invalid Planner-Lane value, (m) `opus-required`, (n) a Files bullet carrying no
+  backticked token at all — the sentinel arm (j) does not reach
 
 **No Go code. No AILANG code.**
+
+### Landing Checklist
+
+Completed at mission iteration 136 (2026-08-04). Each row records what was actually done.
+
+- **`~/.claude` skill copy — NO-OP BY CONSTRUCTION, not skipped.** `~/.claude/skills/mission-control`
+  is a SYMLINK to this repo's `.claude/skills/mission-control` (`readlink` + same inode, measured).
+  The two "copies" are ONE FILE, so the plan's `diff -q` criterion is satisfied the moment the edit
+  reaches the MAIN checkout. It follows that a skill edit committed only from a worktree never
+  reaches the running skill — this sprint landed via PR and then fast-forwarded the main checkout.
+- **World driver sync — DECLINED, deliberately, message sent.** The plan recommended syncing
+  `tools/launchd/mission-control.sh` into `~/dev/sunholo-data/ailang-world/` and pinning World's
+  planner to opus in `mission-world.env`, on the stated premise that World was kill-switched and so
+  "verifiable with zero live risk". THAT PREMISE NO LONGER HOLDS — World is armed and ran its
+  iteration 45 the same night. Declining is strictly lower risk and costs World nothing: its planner
+  resolves to opus either way, and now every layer agrees on opus rather than relying on a pin.
+  Cost: the World driver now LAGS this one (they were byte-identical; `diff -q` was the drift
+  detector and it is now tripped by design). Surfaced to Mark as a pending ops call.
+- **`.agents/skills/mission-control/SKILL.md` — OUT OF SCOPE, stale by design**, tracked by `#544`
+  (44,067 B vs 92,077 B). Not synced; `.agents/` deliberately NOT added to the D2 allowlist.
+- **`mission-v1.env` rollback line present and COMMENTED.** Created at
+  `~/.config/ailang/mission-v1.env`; proven inert while commented, and uncommenting was exercised
+  once (`planner=ROLLBACK-PROVEN`) then reverted.
+- **`git worktree list | grep planner-wt-` — empty.** The ephemeral AC3a worktree was removed
+  (control: the sprint worktree is still listed, so the grep sees worktrees).
+
+### Engagement-rate reality (§0.5, measured at landing — do NOT oversell this lane)
+
+Of the planned design docs, **41 carry a `Files` heading** and **40 of them derive
+`opus fail-closed:planner-lane-field-missing`**. Exactly **ONE** doc declares `**Planner-Lane**`
+today: this sprint's own. So the codex planner lane engages only on NEWLY AUTHORED infra docs, and
+the doc's success metric ("`planner=codex…` appears in the evidence row on infra iterations")
+matures over weeks, not on day one. That is the fail-closed design working as intended.
+
+### The revert is three-tier — D6's "one env var" is true only for M4
+
+| Landed | Revert | Covered by D6's env var? |
+|---|---|---|
+| M1 script/fixtures/template | `rm` the script + revert 2 markdown files | n/a — zero runtime effect |
+| **M2 driver probe loop + rollback plumbing** | `git checkout <sha> -- tools/launchd/mission-control.sh` — a CODE revert. An env var cannot un-break a driver that fails to parse. | **NO** |
+| M3 skill | revert the skill (one file; the `~/.claude` copy follows by symlink) | **NO** (mitigated: derivation fails closed to opus if the script is gone) |
+| M4 default flip | uncomment `MISSION_PLANNER_MODEL` in `~/.config/ailang/mission-<name>.env` | **YES** — and only because M2 first built the delivery mechanism D6 already claimed existed |
 
 ---
 

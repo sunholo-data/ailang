@@ -441,7 +441,7 @@ The script creates a comprehensive template. Fill in:
 - Overview: High-level approach
 - Architecture: Technical design
 - Implementation plan: Break into phases with tasks
-- Files to modify: List new/changed files with LOC estimates
+- Files to modify: List new/changed files with LOC estimates. Use one repo-relative path per top-level bullet and make it the first backticked token; continuation lines and later backticks are prose.
 
 **Examples:**
 - Show before/after code or workflows

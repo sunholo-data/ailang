@@ -14,6 +14,7 @@ Complete reference for AILANG design documents.
 **Priority**: P0 (High) | P1 (Medium) | P2 (Low)
 **Estimated**: 3 days
 **Dependencies**: None | Feature X, Feature Y
+**Planner-Lane**: codex-ok | opus-required
 ```
 
 **Purpose**: Quick metadata for understanding scope and priority.
@@ -296,6 +297,8 @@ Create a central builtin registry where all builtins are registered once with:
 
 ```markdown
 ### Files to Modify/Create
+
+Use one repo-relative path per top-level bullet, with that path as the bullet's first backticked token; put explanatory prose and any later backticks after it.
 
 **New files:**
 - `internal/builtins/spec.go` (~300 LOC) - BuiltinSpec struct and registry
