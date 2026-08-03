@@ -283,7 +283,14 @@ export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-fable-5}"
 # this. Enforced by the skill's Gate-3 metered ledger; quota-bucket (subscription) spend is
 # NOT counted — this caps dollars, not tokens.
 export MISSION_METERED_BUDGET_USD="${MISSION_METERED_BUDGET_USD:-5}"
-export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-opus}"
+# THE FLIP (m-planner-codex-lane M4, mission iteration 136): the sprint-planner default
+# moves to the ChatGPT-subscription codex bucket so opus stays controller-only (Mark
+# quota-offload #1). The CONFIGURED default is not the EFFECTIVE lane: the skill's Gate-3
+# step 1b runs tools/launchd/derive-planner-lane.sh on the picked design doc and fails
+# CLOSED to opus unless that doc declares **Planner-Lane**: codex-ok AND every path it
+# declares is inside the D2 infra allowlist. Rollback = uncomment MISSION_PLANNER_MODEL
+# in ~/.config/ailang/mission-<name>.env (delivery mechanism added by M2 above).
+export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol}"
 export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol}"
 # Codex-lane pre-flight, ROLE-GENERIC (m-planner-codex-lane): probe once per DISTINCT
 # codex model, fall back per-role on ANY non-zero rc (#486: probe MUST carry --model;
