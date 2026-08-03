@@ -328,86 +328,13 @@ func aiStepWithCache(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 // without native streaming (Gemini, Ollama, configdriven) NO-OP fall back to
 // StepWithCache and fire one synthetic ContentDelta + Usage at the end.
 func aiStepWithStream(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) < 5 {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStream: expected 5 arguments, got %d", len(args))
-	}
-	model, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStream: expected string model, got %T", args[0])
-	}
-	messagesArg, ok := args[1].(*eval.ListValue)
-	if !ok {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStream: expected list[Message] messages, got %T", args[1])
-	}
-	toolsArg, ok := args[2].(*eval.ListValue)
-	if !ok {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStream: expected list[ToolSchema] tools, got %T", args[2])
-	}
-	breakpointsArg, ok := args[3].(*eval.ListValue)
-	if !ok {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStream: expected list[CacheBreakpoint] cache_breakpoints, got %T", args[3])
-	}
-	onChunkFn := args[4]
-	if onChunkFn == nil {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStream: on_chunk callback is nil")
-	}
-	if ctx.AI == nil {
-		return makeAIErrorResultRecord(ai.NewAIError(ai.CodeProviderNotFound, ErrNoAIHandler.Error(), false)), nil
-	}
-	if ctx.FnCaller == nil {
-		return makeAIErrorResultRecord(ai.NewAIError(ai.CodeInternal, "stepWithStream: FnCaller not wired (evaluator integration missing)", false)), nil
-	}
-
-	messages, conversionErr := decodeMessages(messagesArg)
-	if conversionErr != nil {
-		return makeAIErrorResultRecord(ai.NewAIError(ai.CodeSchemaValidation, conversionErr.Error(), false)), nil
-	}
-	tools, conversionErr := decodeToolSchemas(toolsArg)
-	if conversionErr != nil {
-		return makeAIErrorResultRecord(ai.NewAIError(ai.CodeSchemaValidation, conversionErr.Error(), false)), nil
-	}
-	breakpoints, conversionErr := decodeCacheBreakpoints(breakpointsArg)
-	if conversionErr != nil {
-		return makeAIErrorResultRecord(ai.NewAIError(ai.CodeSchemaValidation, conversionErr.Error(), false)), nil
-	}
-
-	// Wrap the AILANG closure in a Go callback. Errors from the AILANG
-	// callback are logged via the trace channel but DO NOT abort the SSE
-	// drain — the caller still gets a complete StepResult on success.
-	chunkCount := 0
-	onChunk := func(chunk ai.StreamChunk) {
-		chunkCount++
-		encoded := encodeStreamChunk(chunk)
-		if encoded == nil {
-			return
-		}
-		if _, err := ctx.FnCaller(onChunkFn, encoded); err != nil {
-			// Surface as a trace event so dashboards see callback failures
-			// without aborting the stream.
-			ctx.RecordAIEffect("stepWithStream.callback",
-				[]string{fmt.Sprintf("chunk:%d", chunkCount)},
-				fmt.Sprintf(errResultPrefix, err.Error()),
-				nil,
-			)
-		}
-	}
-
-	resp, err := ctx.AI.StepWithStream(model.Value, messages, tools, breakpoints, onChunk)
+	_, resp, aiErr, err := aiStreamCore(ctx, args, "stepWithStream", streamRecordPolicy{})
 	if err != nil {
-		aiErr := classifyOpError(err)
-		ctx.RecordAIEffect("stepWithStream",
-			[]string{truncateForTrace(model.Value), fmt.Sprintf("messages:%d tools:%d cache:%d chunks:%d", len(messages), len(tools), len(breakpoints), chunkCount)},
-			fmt.Sprintf(errResultPrefix, aiErr.Code),
-			ctx.AI.LastRoutingMetadata(),
-		)
+		return nil, err
+	}
+	if aiErr != nil {
 		return makeAIErrorResultRecord(aiErr), nil
 	}
-
-	ctx.RecordAIEffect("stepWithStream",
-		[]string{truncateForTrace(model.Value), fmt.Sprintf("messages:%d tools:%d cache:%d chunks:%d", len(messages), len(tools), len(breakpoints), chunkCount)},
-		fmt.Sprintf("text:%s tool_calls:%d finish:%s cache_read:%d cache_create:%d", truncateForTrace(resp.Text), len(resp.ToolCalls), resp.FinishReason, resp.CacheReadInputTokens, resp.CacheCreationInputTokens),
-		ctx.AI.LastRoutingMetadata(),
-	)
 	return makeOkStepResult(resp), nil
 }
 
@@ -428,85 +355,13 @@ func aiStepWithStream(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 // ============================================================================
 
 func aiStepWithStreamRecorded(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) < 5 {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStreamRecorded: expected 5 arguments, got %d", len(args))
-	}
-	model, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStreamRecorded: expected string model, got %T", args[0])
-	}
-	messagesArg, ok := args[1].(*eval.ListValue)
-	if !ok {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStreamRecorded: expected list[Message] messages, got %T", args[1])
-	}
-	toolsArg, ok := args[2].(*eval.ListValue)
-	if !ok {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStreamRecorded: expected list[ToolSchema] tools, got %T", args[2])
-	}
-	breakpointsArg, ok := args[3].(*eval.ListValue)
-	if !ok {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStreamRecorded: expected list[CacheBreakpoint] cache_breakpoints, got %T", args[3])
-	}
-	onChunkFn := args[4]
-	if onChunkFn == nil {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStreamRecorded: on_chunk callback is nil")
-	}
-	if ctx.AI == nil {
-		return makeRecordedStream(nil, makeAIErrorResultRecord(ai.NewAIError(ai.CodeProviderNotFound, ErrNoAIHandler.Error(), false))), nil
-	}
-	if ctx.FnCaller == nil {
-		return makeRecordedStream(nil, makeAIErrorResultRecord(ai.NewAIError(ai.CodeInternal, "stepWithStreamRecorded: FnCaller not wired (evaluator integration missing)", false))), nil
-	}
-
-	messages, conversionErr := decodeMessages(messagesArg)
-	if conversionErr != nil {
-		return makeRecordedStream(nil, makeAIErrorResultRecord(ai.NewAIError(ai.CodeSchemaValidation, conversionErr.Error(), false))), nil
-	}
-	tools, conversionErr := decodeToolSchemas(toolsArg)
-	if conversionErr != nil {
-		return makeRecordedStream(nil, makeAIErrorResultRecord(ai.NewAIError(ai.CodeSchemaValidation, conversionErr.Error(), false))), nil
-	}
-	breakpoints, conversionErr := decodeCacheBreakpoints(breakpointsArg)
-	if conversionErr != nil {
-		return makeRecordedStream(nil, makeAIErrorResultRecord(ai.NewAIError(ai.CodeSchemaValidation, conversionErr.Error(), false))), nil
-	}
-
-	// Tee every chunk to the live callback (immediate projection) and to the
-	// returned log (exact parity, no duplicate delivery).
-	recorded := make([]eval.Value, 0, 16)
-	chunkCount := 0
-	onChunk := func(chunk ai.StreamChunk) {
-		chunkCount++
-		encoded := encodeStreamChunk(chunk)
-		if encoded == nil {
-			return
-		}
-		recorded = append(recorded, encoded)
-		if _, err := ctx.FnCaller(onChunkFn, encoded); err != nil {
-			ctx.RecordAIEffect("stepWithStreamRecorded.callback",
-				[]string{fmt.Sprintf("chunk:%d", chunkCount)},
-				fmt.Sprintf(errResultPrefix, err.Error()),
-				nil,
-			)
-		}
-	}
-
-	resp, err := ctx.AI.StepWithStream(model.Value, messages, tools, breakpoints, onChunk)
+	recorded, resp, aiErr, err := aiStreamCore(ctx, args, "stepWithStreamRecorded", streamRecordPolicy{record: true, failLoud: true})
 	if err != nil {
-		aiErr := classifyOpError(err)
-		ctx.RecordAIEffect("stepWithStreamRecorded",
-			[]string{truncateForTrace(model.Value), fmt.Sprintf("messages:%d tools:%d cache:%d chunks:%d", len(messages), len(tools), len(breakpoints), chunkCount)},
-			fmt.Sprintf(errResultPrefix, aiErr.Code),
-			ctx.AI.LastRoutingMetadata(),
-		)
+		return nil, err
+	}
+	if aiErr != nil {
 		return makeRecordedStream(recorded, makeAIErrorResultRecord(aiErr)), nil
 	}
-
-	ctx.RecordAIEffect("stepWithStreamRecorded",
-		[]string{truncateForTrace(model.Value), fmt.Sprintf("messages:%d tools:%d cache:%d chunks:%d", len(messages), len(tools), len(breakpoints), chunkCount)},
-		fmt.Sprintf("text:%s tool_calls:%d finish:%s cache_read:%d cache_create:%d", truncateForTrace(resp.Text), len(resp.ToolCalls), resp.FinishReason, resp.CacheReadInputTokens, resp.CacheCreationInputTokens),
-		ctx.AI.LastRoutingMetadata(),
-	)
 	return makeRecordedStream(recorded, makeOkStepResult(resp)), nil
 }
 
