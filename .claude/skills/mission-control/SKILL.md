@@ -676,6 +676,21 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      `git -C "$WT" diff` / `git -C "$WT" status` (NOT `git log` — there's no commit yet), verify it,
      then the CONTROLLER finalizes the commit on the branch, crediting the codex executor in the
      message (`Co-Authored-By: codex <model>`). Everything else reuses the existing worktree-read.
+     **MULTI-MILESTONE RUNS: the directive must SAY commits are the controller's job, and demand
+     per-milestone SNAPSHOTS** (added 2026-08-03 iteration 135; two frictions in one iteration).
+     The paragraph above is single-commit-shaped, and a directive written from the sprint plan's
+     own language ("commit per milestone" — Standing rule 3) collides with the sandbox limit it
+     documents: iter-135's run A hit exactly that, and codex — correctly, honestly — delivered M1
+     then STOPPED rather than violate the commit ordering, burning a 30-min slot on one milestone.
+     The run-B fix, now the prescription: (a) the directive states NO git write operations at all
+     (add/commit/stash/checkout) and that the controller builds one commit per milestone; (b) after
+     finishing EACH milestone the executor snapshots every file created-or-modified-so-far into
+     `.snap/M<k>/` (cumulative, full post-milestone content — worktree-writable, so the sandbox
+     allows it); (c) the controller reconstructs commits by copying snapshots over the tree in
+     milestone order, running the relevant test package at EVERY boundary (bisectability), and
+     (d) proves the reconstruction faithful by sha256-manifesting the executor's final tree BEFORE
+     starting and `shasum -c` after the last commit — byte-identity or the reconstruction is wrong.
+     Two milestones that touch the SAME file are exactly why snapshots beat file-lists here.
   3. **generator≠judge guard (HARD, constraint #3):** before spawning the evaluator, assert the
      evaluator's PROVIDER ≠ the executor's PROVIDER. If the executor ran on codex, the evaluator MUST
      NOT be a codex `provider:model` — if `$MISSION_EVALUATOR_MODEL` collides, re-route the evaluator
