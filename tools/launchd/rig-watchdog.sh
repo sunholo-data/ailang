@@ -3,7 +3,7 @@
 # eval rig. Called every 60s by dev.ailang.rig-watchdog.plist.
 #
 # Checks two services:
-#   - ollama serve at http://localhost:11434/api/tags
+#   - ollama serve at http://127.0.0.1:11434/api/tags
 #   - ailang OTLP receiver at http://localhost:1957/health
 #
 # If either is unreachable, kickstart the corresponding launchd job.
@@ -20,8 +20,14 @@ set -u
 TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
 UID_NUMBER=$(id -u)
 
-# Check ollama
-if ! curl --max-time 2 -s http://localhost:11434/api/tags >/dev/null 2>&1; then
+# Check ollama. The probe address is PINNED to 127.0.0.1 — it must name the same
+# server this block restarts. dev.ollama.serve binds OLLAMA_HOST=127.0.0.1:11434,
+# but "localhost" is dual-stack and resolves ::1 first, so the probe and the
+# kickstart target can be DIFFERENT servers. Observed 2026-07-21..08-03 (#557):
+# a second, GUI-launched `ollama serve` held [::1]:11434 for 13 days, so this
+# watchdog probed the app's server while restarting launchd's — meaning a dead
+# dev.ollama.serve would never have been noticed. Do not relax this to localhost.
+if ! curl --max-time 2 -s http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
     echo "${TIMESTAMP} [WATCHDOG] ollama unreachable — kickstart dev.ollama.serve"
     launchctl kickstart "gui/${UID_NUMBER}/dev.ollama.serve" 2>&1
 fi
