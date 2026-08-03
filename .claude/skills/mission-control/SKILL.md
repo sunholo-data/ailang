@@ -773,6 +773,24 @@ Sonnet, inline, is fine.
 - Plan exists → **sprint-executor** as a `$MISSION_EXECUTOR_MODEL`-pinned Agent sub-agent, in an
   isolated worktree (coordinator-managed or `git worktree add` — NEVER the shared main tree;
   concurrent agents stomp uncommitted work).
+  **NEVER PLACE A WORKTREE UNDER `/tmp` — the suite goes red for the LOCATION, not the code**
+  (added 2026-08-03 iteration 133, executing the remedy iteration 127 pre-committed to on a second
+  instance: *"If a second iteration hits it, the fix is to standardise the worktree location off
+  `/tmp`."* It did, so here it is). A `/tmp`-rooted checkout fails tests that resolve paths against
+  the CWD, because the CWD is itself temp-shaped — and the resulting red is one **CI will never
+  reproduce**, so it reads as a regression the sprint caused. Two tests measured failing this way,
+  iteration 133, on an otherwise-clean `origin/dev`: `TestIsTempPath` (`internal/loader`, 4
+  subtests — `IsTempPath("./src/foo.ail")` returns **true** from `/tmp`) and
+  `TestSolve_HardTimeout_FakeSolverIgnoringT` (`internal/smt`, a `TMPDIR` child-pid path); iter-127
+  had only the first. Non-vacuous, and this is the control that matters: the identical two tests
+  from a non-`/tmp` checkout are **rc=0**, from `/tmp` **rc=1** — the only variable is location.
+  Use the established convention — a sibling of the repo, e.g.
+  `/Users/…/dev/sunholo-data/.wt-iter<N>` (as `.wt-iter117`/`.wt-iter121`/`.wt-iter133` did) —
+  and apply it to **throwaway probe worktrees too**, not just the sprint worktree: iteration 133
+  put its sprint worktree in the right place and still bought the false red twice, from two
+  `/tmp` scratch trees created to establish a baseline. The generalisable point is the one rule 3c
+  already makes about services, aimed at the filesystem: **the location you run a check FROM is
+  part of the instrument**, so a red that moves when you move the tree is a fact about the tree.
 - Execution complete → **sprint-evaluator** as a `$MISSION_EVALUATOR_MODEL`-pinned Agent sub-agent
   (distinct from the executor model → generator≠judge). Max 3 rounds; on round-3 fail →
   `needs-human-review`, park, message controlplane.
