@@ -960,6 +960,18 @@ the PREVIOUS iteration's stamp — if the last iteration's own record is missing
 stale copy, not a charter awaiting your entry. One command, and it is the difference between
 appending history and erasing it.
 
+**SPELL THE TELL IN THE CHARTER'S OWN CASE, AND PAIR IT WITH A CONTROL** (added 2026-08-03
+iteration 134). Stamps are written `ITERATION 133` — **UPPERCASE** — while the sentence above says
+"the previous iteration's stamp", so the natural transcription is `grep -c "Iteration 133"`, and
+that returns **0** on a perfectly healthy charter. Iteration 134 ran exactly that and read `0` for
+a charter that was byte-identical to origin. This is rule 3a's trap wearing THIS gate's clothes,
+and it is the worst place for it: a broken tell and a genuinely stale charter produce the
+identical output, so the failure routes a healthy iteration down the stale-copy path — or, in the
+other direction, teaches you to distrust a tell you will need for real. Run it as
+`grep -c "ITERATION <N-1>"` **alongside two controls in the same breath**: a known-present one
+(`ITERATION <N-2>`, must be ≥1) and a known-absent one (`ITERATION 999`, must be 0). A `0` on the
+known-present control means your instrument is broken, not that the charter is stale.
+
 **THE STATUS ROTATION IS THE MOST DANGEROUS EDIT THIS LOOP MAKES — SCRIPT IT WITH A LINE-COUNT
 ASSERTION, NEVER A BARE `## `-HEADER SCAN** (added 2026-08-01 iteration 127; third failure of this
 same step — iter-83 hand-corrected an already-drifted N>4, iter-123 found the block drifted to 4
