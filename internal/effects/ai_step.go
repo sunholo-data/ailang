@@ -52,6 +52,7 @@ func init() {
 	RegisterOp("AI", "step", aiStep)
 	RegisterOp("AI", "stepWithCache", aiStepWithCache)
 	RegisterOp("AI", "stepWithStream", aiStepWithStream)
+	RegisterOp("AI", "stepWithStreamRecorded", aiStepWithStreamRecorded)
 }
 
 // ============================================================================
@@ -327,339 +328,52 @@ func aiStepWithCache(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 // without native streaming (Gemini, Ollama, configdriven) NO-OP fall back to
 // StepWithCache and fire one synthetic ContentDelta + Usage at the end.
 func aiStepWithStream(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) < 5 {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStream: expected 5 arguments, got %d", len(args))
-	}
-	model, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStream: expected string model, got %T", args[0])
-	}
-	messagesArg, ok := args[1].(*eval.ListValue)
-	if !ok {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStream: expected list[Message] messages, got %T", args[1])
-	}
-	toolsArg, ok := args[2].(*eval.ListValue)
-	if !ok {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStream: expected list[ToolSchema] tools, got %T", args[2])
-	}
-	breakpointsArg, ok := args[3].(*eval.ListValue)
-	if !ok {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStream: expected list[CacheBreakpoint] cache_breakpoints, got %T", args[3])
-	}
-	onChunkFn := args[4]
-	if onChunkFn == nil {
-		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithStream: on_chunk callback is nil")
-	}
-	if ctx.AI == nil {
-		return makeAIErrorResultRecord(ai.NewAIError(ai.CodeProviderNotFound, ErrNoAIHandler.Error(), false)), nil
-	}
-	if ctx.FnCaller == nil {
-		return makeAIErrorResultRecord(ai.NewAIError(ai.CodeInternal, "stepWithStream: FnCaller not wired (evaluator integration missing)", false)), nil
-	}
-
-	messages, conversionErr := decodeMessages(messagesArg)
-	if conversionErr != nil {
-		return makeAIErrorResultRecord(ai.NewAIError(ai.CodeSchemaValidation, conversionErr.Error(), false)), nil
-	}
-	tools, conversionErr := decodeToolSchemas(toolsArg)
-	if conversionErr != nil {
-		return makeAIErrorResultRecord(ai.NewAIError(ai.CodeSchemaValidation, conversionErr.Error(), false)), nil
-	}
-	breakpoints, conversionErr := decodeCacheBreakpoints(breakpointsArg)
-	if conversionErr != nil {
-		return makeAIErrorResultRecord(ai.NewAIError(ai.CodeSchemaValidation, conversionErr.Error(), false)), nil
-	}
-
-	// Wrap the AILANG closure in a Go callback. Errors from the AILANG
-	// callback are logged via the trace channel but DO NOT abort the SSE
-	// drain — the caller still gets a complete StepResult on success.
-	chunkCount := 0
-	onChunk := func(chunk ai.StreamChunk) {
-		chunkCount++
-		encoded := encodeStreamChunk(chunk)
-		if encoded == nil {
-			return
-		}
-		if _, err := ctx.FnCaller(onChunkFn, encoded); err != nil {
-			// Surface as a trace event so dashboards see callback failures
-			// without aborting the stream.
-			ctx.RecordAIEffect("stepWithStream.callback",
-				[]string{fmt.Sprintf("chunk:%d", chunkCount)},
-				fmt.Sprintf(errResultPrefix, err.Error()),
-				nil,
-			)
-		}
-	}
-
-	resp, err := ctx.AI.StepWithStream(model.Value, messages, tools, breakpoints, onChunk)
+	_, resp, aiErr, err := aiStreamCore(ctx, args, "stepWithStream", streamRecordPolicy{})
 	if err != nil {
-		aiErr := classifyOpError(err)
-		ctx.RecordAIEffect("stepWithStream",
-			[]string{truncateForTrace(model.Value), fmt.Sprintf("messages:%d tools:%d cache:%d chunks:%d", len(messages), len(tools), len(breakpoints), chunkCount)},
-			fmt.Sprintf(errResultPrefix, aiErr.Code),
-			ctx.AI.LastRoutingMetadata(),
-		)
+		return nil, err
+	}
+	if aiErr != nil {
 		return makeAIErrorResultRecord(aiErr), nil
 	}
-
-	ctx.RecordAIEffect("stepWithStream",
-		[]string{truncateForTrace(model.Value), fmt.Sprintf("messages:%d tools:%d cache:%d chunks:%d", len(messages), len(tools), len(breakpoints), chunkCount)},
-		fmt.Sprintf("text:%s tool_calls:%d finish:%s cache_read:%d cache_create:%d", truncateForTrace(resp.Text), len(resp.ToolCalls), resp.FinishReason, resp.CacheReadInputTokens, resp.CacheCreationInputTokens),
-		ctx.AI.LastRoutingMetadata(),
-	)
 	return makeOkStepResult(resp), nil
 }
 
-// encodeStreamChunk converts a Go ai.StreamChunk variant into the matching
-// AILANG `StreamChunk` ADT. Mirrors the type definitions in std/ai.ail
-// (see M-AI-STEP-STREAMING design doc for shape contract).
+// ============================================================================
+// aiStepWithStreamRecorded — the recorded-stream API (#546), adopted from
+// @arniwesth's prototype (arniwesth/ailang#2) and productionized in v0.32.0
+// with the fail-loud + bounded-inert-drain policy (see ai_stream_core.go).
 //
-//	ai.StreamContentDelta{Text}  → ContentDelta(string)
-//	ai.StreamThinkingDelta{Text} → ThinkingDelta(string)  (v0.18.8)
-//	ai.StreamUsage{...}          → Usage({input_tokens, output_tokens,
-//	                                     cache_read_input_tokens,
-//	                                     cache_creation_input_tokens})
-func encodeStreamChunk(chunk ai.StreamChunk) eval.Value {
-	switch c := chunk.(type) {
-	case ai.StreamContentDelta:
-		return &eval.TaggedValue{
-			CtorName: "ContentDelta",
-			Fields:   []eval.Value{&eval.StringValue{Value: c.Text}},
-		}
-	case ai.StreamThinkingDelta:
-		return &eval.TaggedValue{
-			CtorName: "ThinkingDelta",
-			Fields:   []eval.Value{&eval.StringValue{Value: c.Text}},
-		}
-	case ai.StreamUsage:
-		usageRec := &eval.RecordValue{
-			Fields: map[string]eval.Value{
-				"input_tokens":                &eval.IntValue{Value: c.InputTokens},
-				"output_tokens":               &eval.IntValue{Value: c.OutputTokens},
-				"cache_read_input_tokens":     &eval.IntValue{Value: c.CacheReadInputTokens},
-				"cache_creation_input_tokens": &eval.IntValue{Value: c.CacheCreationInputTokens},
-			},
-		}
-		return &eval.TaggedValue{
-			CtorName: "Usage",
-			Fields:   []eval.Value{usageRec},
-		}
-	default:
-		return nil
-	}
-}
-
-// ============================================================================
-// Decoders — AILANG records → Go structs
+// Identical to aiStepWithStream except the return shape: it preserves
+// immediate per-chunk callbacks AND returns the exact ordered list of observed
+// chunks alongside the final outcome:
+//
+//   { chunks: [StreamChunk], outcome: Result[StepResult, AIError] }
+//
+// The chunks are returned on BOTH outcomes. That is the point of the shape: a
+// Result[{result, chunks}, AIError] discards every chunk observed before a
+// mid-stream failure, which is the case a deterministic replay most depends on.
 // ============================================================================
 
-// decodeMessages converts an AILANG list of Message records into []ai.Message.
-// Tolerates missing fields (treated as zero values) so callers can omit
-// optional fields like ToolCalls / ToolCallID. Rejects non-record entries.
-func decodeMessages(list *eval.ListValue) ([]ai.Message, error) {
-	out := make([]ai.Message, 0, len(list.Elements))
-	for i, elem := range list.Elements {
-		rec, ok := elem.(*eval.RecordValue)
-		if !ok {
-			return nil, fmt.Errorf("messages[%d]: expected record, got %T", i, elem)
-		}
-		msg := ai.Message{
-			Role:       getStringField(rec, "role"),
-			Content:    getStringField(rec, "content"),
-			ToolCallID: getStringField(rec, "tool_call_id"),
-		}
-		// tool_calls is an optional list[ToolCall]; absent or nil = no calls.
-		if tcList, ok := rec.Fields["tool_calls"].(*eval.ListValue); ok {
-			calls, err := decodeToolCalls(tcList)
-			if err != nil {
-				return nil, fmt.Errorf("messages[%d]: %w", i, err)
-			}
-			msg.ToolCalls = calls
-		}
-		// images is a list[ImagePart] (M-STD-AI-VISION-INPUT). Empty/absent =
-		// text-only message, wire-identical to pre-vision (Images stays nil).
-		if imgList, ok := rec.Fields["images"].(*eval.ListValue); ok && len(imgList.Elements) > 0 {
-			images, err := decodeImageParts(imgList)
-			if err != nil {
-				return nil, fmt.Errorf("messages[%d]: %w", i, err)
-			}
-			msg.Images = images
-		}
-		out = append(out, msg)
+func aiStepWithStreamRecorded(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	recorded, resp, aiErr, err := aiStreamCore(ctx, args, "stepWithStreamRecorded", streamRecordPolicy{record: true, failLoud: true})
+	if err != nil {
+		return nil, err
 	}
-	return out, nil
+	if aiErr != nil {
+		return makeRecordedStream(recorded, makeAIErrorResultRecord(aiErr)), nil
+	}
+	return makeRecordedStream(recorded, makeOkStepResult(resp)), nil
 }
 
-// decodeToolCalls converts an AILANG list of ToolCall records into []ai.ToolCall.
-func decodeToolCalls(list *eval.ListValue) ([]ai.ToolCall, error) {
-	out := make([]ai.ToolCall, 0, len(list.Elements))
-	for i, elem := range list.Elements {
-		rec, ok := elem.(*eval.RecordValue)
-		if !ok {
-			return nil, fmt.Errorf("tool_calls[%d]: expected record, got %T", i, elem)
-		}
-		out = append(out, ai.ToolCall{
-			ID:        getStringField(rec, "id"),
-			Name:      getStringField(rec, "name"),
-			Arguments: getStringField(rec, "arguments"),
-		})
+// makeRecordedStream builds { chunks: [StreamChunk], outcome: Result[...] }.
+func makeRecordedStream(chunks []eval.Value, outcome eval.Value) eval.Value {
+	if chunks == nil {
+		chunks = []eval.Value{}
 	}
-	return out, nil
-}
-
-// decodeImageParts decodes an AILANG list[ImagePart] into []ai.ImagePart.
-// Each element is a {source, mime} record (M-STD-AI-VISION-INPUT). An empty
-// source is rejected — the caller (decodeMessages) surfaces it as a typed
-// SchemaValidation AIError rather than silently forwarding a blank image.
-func decodeImageParts(list *eval.ListValue) ([]ai.ImagePart, error) {
-	out := make([]ai.ImagePart, 0, len(list.Elements))
-	for i, elem := range list.Elements {
-		rec, ok := elem.(*eval.RecordValue)
-		if !ok {
-			return nil, fmt.Errorf("images[%d]: expected record, got %T", i, elem)
-		}
-		source := getStringField(rec, "source")
-		if source == "" {
-			return nil, fmt.Errorf("images[%d]: empty source (expected base64 or data-URI)", i)
-		}
-		out = append(out, ai.ImagePart{
-			Source: source,
-			Mime:   getStringField(rec, "mime"),
-		})
-	}
-	return out, nil
-}
-
-// decodeCacheBreakpoints converts an AILANG list of CacheBreakpoint records
-// into []ai.CacheBreakpoint. Tolerates missing fields (treated as empty
-// strings) — provider-side validation rejects unknown positions with a
-// once-per-session warning rather than failing.
-func decodeCacheBreakpoints(list *eval.ListValue) ([]ai.CacheBreakpoint, error) {
-	if list == nil || len(list.Elements) == 0 {
-		return nil, nil
-	}
-	out := make([]ai.CacheBreakpoint, 0, len(list.Elements))
-	for i, elem := range list.Elements {
-		rec, ok := elem.(*eval.RecordValue)
-		if !ok {
-			return nil, fmt.Errorf("cache_breakpoints[%d]: expected record, got %T", i, elem)
-		}
-		out = append(out, ai.CacheBreakpoint{
-			Position: getStringField(rec, "position"),
-			TTL:      getStringField(rec, "ttl"),
-		})
-	}
-	return out, nil
-}
-
-// decodeToolSchemas converts an AILANG list of ToolSchema records into
-// []ai.ToolSchema.
-func decodeToolSchemas(list *eval.ListValue) ([]ai.ToolSchema, error) {
-	out := make([]ai.ToolSchema, 0, len(list.Elements))
-	for i, elem := range list.Elements {
-		rec, ok := elem.(*eval.RecordValue)
-		if !ok {
-			return nil, fmt.Errorf("tools[%d]: expected record, got %T", i, elem)
-		}
-		out = append(out, ai.ToolSchema{
-			Name:        getStringField(rec, "name"),
-			Description: getStringField(rec, "description"),
-			Parameters:  getStringField(rec, "parameters"),
-		})
-	}
-	return out, nil
-}
-
-// getStringField extracts a string field from a record, returning ""
-// if the field is missing or not a StringValue. Forgiving by design —
-// schema-level rigor is the type checker's job, not this layer.
-func getStringField(rec *eval.RecordValue, name string) string {
-	v, ok := rec.Fields[name]
-	if !ok {
-		return ""
-	}
-	s, ok := v.(*eval.StringValue)
-	if !ok {
-		return ""
-	}
-	return s.Value
-}
-
-// ============================================================================
-// Encoders — Go structs → AILANG Result records
-// ============================================================================
-
-// makeOkStringResult builds Ok(string) — for callResult / callJsonResult.
-func makeOkStringResult(s string) eval.Value {
-	return &eval.TaggedValue{
-		CtorName: "Ok",
-		Fields:   []eval.Value{&eval.StringValue{Value: s}},
-	}
-}
-
-// makeOkStepResult builds Ok(StepResult record) — for step.
-func makeOkStepResult(resp *ai.Response) eval.Value {
-	// Build the assistant Message record.
-	msgRec := &eval.RecordValue{
+	return &eval.RecordValue{
 		Fields: map[string]eval.Value{
-			"role":         &eval.StringValue{Value: "assistant"},
-			"content":      &eval.StringValue{Value: resp.Text},
-			"tool_calls":   encodeToolCalls(resp.ToolCalls),
-			"tool_call_id": &eval.StringValue{Value: ""},
-		},
-	}
-	stepResult := &eval.RecordValue{
-		Fields: map[string]eval.Value{
-			"message":                     msgRec,
-			"tool_calls":                  encodeToolCalls(resp.ToolCalls),
-			"finish_reason":               &eval.StringValue{Value: resp.FinishReason},
-			"input_tokens":                &eval.IntValue{Value: resp.InputTokens},
-			"output_tokens":               &eval.IntValue{Value: resp.OutputTokens},
-			"cache_read_input_tokens":     &eval.IntValue{Value: resp.CacheReadInputTokens},
-			"cache_creation_input_tokens": &eval.IntValue{Value: resp.CacheCreationInputTokens},
-		},
-	}
-	return &eval.TaggedValue{
-		CtorName: "Ok",
-		Fields:   []eval.Value{stepResult},
-	}
-}
-
-// encodeToolCalls builds an AILANG list[ToolCall] from a Go slice.
-func encodeToolCalls(calls []ai.ToolCall) eval.Value {
-	elems := make([]eval.Value, 0, len(calls))
-	for _, c := range calls {
-		elems = append(elems, &eval.RecordValue{
-			Fields: map[string]eval.Value{
-				"id":        &eval.StringValue{Value: c.ID},
-				"name":      &eval.StringValue{Value: c.Name},
-				"arguments": &eval.StringValue{Value: c.Arguments},
-			},
-		})
-	}
-	return &eval.ListValue{Elements: elems}
-}
-
-// makeAIErrorResultRecord builds Err(AIError record) for any AI op that
-// surfaces a typed failure. AIError shape: {code, message, retryable},
-// matching std/ai/streaming.AIError byte-for-byte.
-func makeAIErrorResultRecord(e *ai.AIError) eval.Value {
-	if e == nil {
-		// Defensive: should never happen, but if it does emit an
-		// internal-coded record so downstream consumers see something
-		// meaningful instead of a nil-deref.
-		e = ai.NewAIError(ai.CodeInternal, "nil AIError surfaced from effect op", false)
-	}
-	return &eval.TaggedValue{
-		CtorName: "Err",
-		Fields: []eval.Value{
-			&eval.RecordValue{
-				Fields: map[string]eval.Value{
-					"code":      &eval.StringValue{Value: e.Code},
-					"message":   &eval.StringValue{Value: e.Message},
-					"retryable": &eval.BoolValue{Value: e.Retryable},
-				},
-			},
+			"chunks":  &eval.ListValue{Elements: chunks},
+			"outcome": outcome,
 		},
 	}
 }

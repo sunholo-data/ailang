@@ -24,6 +24,7 @@ func init() {
 	registerAIStepWithCache()
 	// M-AI-STEP-STREAMING (v0.18.7) — typed-StepResult streaming variant
 	registerAIStepWithStream()
+	registerAIStepWithStreamRecorded()
 }
 
 // _ai_call: Call the AI oracle with a string input
