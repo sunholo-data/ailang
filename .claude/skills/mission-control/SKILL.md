@@ -217,6 +217,44 @@ advances origin/dev without touching the local ref, so the working-tree copies a
 pull/reset the shared main tree (Critical Principle 0 — it may hold a sibling's uncommitted work);
 treat origin as truth, and if you need the code, branch a worktree from `origin/dev`.
 
+**REPAIRING the divergence, not just routing around it** (added 2026-08-03 iteration 132, after
+THREE iterations each escalated the reconcile as a human ask instead of performing it — iter-128's
+stale *skill*, iter-129's stale *charter*, iter-131's stale *driver*, which defeated an explicit
+human instruction for two days). Everything above tells you how to SURVIVE a stale checkout; nothing
+told you how to END one, so the divergence grew monotonically — 8 behind, then 10, then 11 — and each
+iteration paid the tax again. A reconcile is **provably non-destructive** when four obligations all
+hold; measure them, do not assume them, and if ANY fails, park for human:
+
+1. **Every local ahead-commit is a duplicate of an upstream one** — compare `git patch-id --stable`,
+   not commit titles. Iterations 129–131 all asserted "the ahead-commit is a duplicate" from its
+   *subject line*; iteration 132 measured it (`fc808504e7…` on both sides). Same claim, different
+   epistemic status, and it is the fact the whole operation rests on.
+2. **No incoming commit touches any locally-modified file** —
+   `comm -12 <(git diff --name-only dev origin/dev|sort) <(dirty files|sort)` must be EMPTY, and
+   rule 3a applies: pair it with a control (the intersection against files you KNOW origin changed)
+   so an empty answer proves the instrument ran.
+3. **Back up every dirty file** outside the repo first, and re-verify byte-identity afterwards.
+4. **Use `git checkout -B dev origin/dev`, which is protective** — it updates clean files, carries
+   local modifications across, and ERRORS rather than clobbering. Its refusal is a feature: it is
+   what distinguishes this from `reset --hard`, which Principle 0 forbids precisely because it
+   cannot refuse. None of Principle 0's four named operations (branch checkout to a *different*
+   branch, pull, reset, stash) is involved.
+
+**The refusal you should expect, and its fix.** `checkout -B` compares the working tree against the
+**stale local HEAD**, not against the target — so a file whose content ALREADY EQUALS origin (e.g. a
+previous iteration's containment restore) still reads as a clobber risk and blocks the switch. Stage
+origin's blob for exactly those paths — `git checkout origin/dev -- <paths>` — then retry. Verify by
+sha256 that **no byte on disk changed**; it only updates the index. Do not "fix" this by reverting
+them to the stale version first: that briefly re-arms the very bug you are clearing, and on a rig
+where launchd fires on a timer, briefly is enough.
+
+Standing authorisation is a HUMAN decision, not a controller one — Mark authorised the 2026-08-03
+reconcile explicitly. Until he grants a standing one, ASK (a one-word DECISIONS row) and meanwhile
+route around it as above. **A one-time reconcile is not the durable fix**: every launchd entry point
+still executes from the shared checkout's *working tree*, so this recurs the moment the tree falls
+behind. Note also which gates get CHEAPER once local == origin — Gate 4 may then write the
+charter/log **in place** rather than via a worktree, since its stale-base hazard is gone.
+
 Read: the mission doc (queue, guardrails, routing policy — they may have changed), the last 1–2
 log entries (especially **Next** and **Ruled out** — do not re-chase), any parked
 `needs-human-review` items that got human answers in the inbox.
