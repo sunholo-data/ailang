@@ -12,6 +12,12 @@ type streamRecordPolicy struct {
 	failLoud bool
 }
 
+const (
+	unencodableStreamChunkErrorPrefix = "unencodable stream chunk"
+	recordedDrainMaxChunks            = 256
+	recordedDrainMaxBytes             = 1 << 20
+)
+
 // aiStreamCore is the single validation, decode, dispatch, delivery, and trace
 // implementation shared by both streaming operations. Public wrappers retain
 // responsibility for constructing their intentionally different return shapes.
@@ -45,10 +51,36 @@ func aiStreamCore(ctx *EffContext, args []eval.Value, opName string, policy stre
 		recorded = make([]eval.Value, 0, 16)
 	}
 	providerChunks := 0
+	postFailureChunks := 0
+	postFailureBytes := 0
+	fatalProviderIndex := 0
+	drainExhausted := false
+	var latchedErr *ai.AIError
 	onChunk := func(chunk ai.StreamChunk) {
+		if drainExhausted {
+			return
+		}
 		providerChunks++
+		if latchedErr != nil {
+			postFailureChunks++
+			payloadBytes := streamChunkPayloadBytes(chunk)
+			if payloadBytes >= recordedDrainMaxBytes-postFailureBytes {
+				postFailureBytes = recordedDrainMaxBytes
+			} else {
+				postFailureBytes += payloadBytes
+			}
+			if postFailureChunks >= recordedDrainMaxChunks || postFailureBytes >= recordedDrainMaxBytes {
+				drainExhausted = true
+			}
+			return
+		}
 		encoded := encodeStreamChunk(chunk)
 		if encoded == nil {
+			if policy.failLoud {
+				fatalProviderIndex = providerChunks
+				latchedErr = ai.NewAIError(ai.CodeInternal,
+					fmt.Sprintf("%s at provider index %d; recorded log is an incomplete prefix", unencodableStreamChunkErrorPrefix, fatalProviderIndex), false)
+			}
 			return
 		}
 		if policy.record {
@@ -63,11 +95,26 @@ func aiStreamCore(ctx *EffContext, args []eval.Value, opName string, policy stre
 
 	resp, stepErr := ctx.AI.StepWithStream(model.Value, messages, tools, breakpoints, onChunk)
 	var aiErr *ai.AIError
-	if stepErr != nil {
+	if latchedErr != nil {
+		aiErr = latchedErr
+	} else if stepErr != nil {
 		aiErr = classifyOpError(stepErr)
 	}
-	recordStreamTerminalTrace(ctx, opName, model.Value, len(messages), len(tools), len(breakpoints), providerChunks, len(recorded), false, resp, aiErr)
+	recordStreamTerminalTrace(ctx, opName, model.Value, len(messages), len(tools), len(breakpoints), providerChunks, len(recorded), fatalProviderIndex, drainExhausted, resp, aiErr)
 	return recorded, resp, aiErr, nil
+}
+
+// streamChunkPayloadBytes accounts for post-failure provider payload without
+// retaining or encoding it. Token usage chunks have no text/JSON payload.
+func streamChunkPayloadBytes(chunk ai.StreamChunk) int {
+	switch c := chunk.(type) {
+	case ai.StreamContentDelta:
+		return len(c.Text)
+	case ai.StreamThinkingDelta:
+		return len(c.Text)
+	default:
+		return 0
+	}
 }
 
 func validateStreamArgs(args []eval.Value, opName string) (*eval.StringValue, *eval.ListValue, *eval.ListValue, *eval.ListValue, eval.Value, error) {
@@ -100,8 +147,11 @@ func schemaAIError(err error) *ai.AIError {
 	return ai.NewAIError(ai.CodeSchemaValidation, err.Error(), false)
 }
 
-func recordStreamTerminalTrace(ctx *EffContext, opName, model string, messageCount, toolCount, cacheCount, providerChunks, deliveredChunks int, drainExhausted bool, resp *ai.Response, aiErr *ai.AIError) {
+func recordStreamTerminalTrace(ctx *EffContext, opName, model string, messageCount, toolCount, cacheCount, providerChunks, deliveredChunks, fatalProviderIndex int, drainExhausted bool, resp *ai.Response, aiErr *ai.AIError) {
 	counts := fmt.Sprintf("messages:%d tools:%d cache:%d provider_chunks:%d delivered_chunks:%d", messageCount, toolCount, cacheCount, providerChunks, deliveredChunks)
+	if fatalProviderIndex > 0 {
+		counts += fmt.Sprintf(" fatal_provider_index:%d", fatalProviderIndex)
+	}
 	if drainExhausted {
 		counts += " drain_exhausted:true"
 	}
