@@ -224,6 +224,20 @@ func (p *providerAdapter) generate(ctx context.Context, cachedPrefix, prompt str
 // getAPIKeyForProvider returns the API key for the given provider.
 // Uses ai.EnvVarForProvider as the single source of truth for provider →
 // env-var mapping.
+//
+// This is the STANDARD-mode (direct HTTP) provider path — every caller into it
+// (0-shot benchmark generation, prompt-cache warm-up) genuinely needs a real API
+// key, since a raw HTTP client has no OAuth mechanism to fall back to. Do NOT
+// generalize "ANTHROPIC_API_KEY not set" errors from here to agent mode: the
+// agent-mode Claude executor (internal/executor) is a completely different code
+// path that shells out to the `claude` CLI and authenticates via Keychain
+// OAuth/subscription — it must run with ANTHROPIC_API_KEY unset, since an
+// inherited key silently wins over OAuth there and bills the metered API
+// instead of the subscription (see reference_headless_claude_billing_rig in
+// project memory — a real billing incident already happened from this). If an
+// Anthropic model is failing THIS function specifically while also being run
+// via --agent, that's expected for the warm-up call (cmd/ailang/eval_cache_warmup.go)
+// and not evidence the agent executor itself is broken.
 func getAPIKeyForProvider(provider string, model string) (string, error) {
 	providerType := ai.ProviderFromString(provider)
 	switch providerType {
