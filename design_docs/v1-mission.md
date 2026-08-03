@@ -1490,6 +1490,19 @@ frozen; contracts projection live).
   evaluator when the gemini lane is unavailable). Rationale: the opus bucket dried Thursday
   this week at ~55% duty cycle; these two move the remaining Anthropic-heavy sub-agent roles
   off-bucket so the week stretches toward Monday-to-Monday.
+- **[NEW 2026-08-03, Mark directive (attended): TRIAGE BATCH — queue BELOW the reordered top
+  picks (#546 → planner-codex → #498 Lane B → evaluator-gemini), never above them]
+  m-github-issue-triage-batch** — 12 open issues have ZERO charter mentions (measured 2026-08-03
+  ~16:30). Highest-signal: the FIVE `[motoko_agent]` integration defects filed 2026-08-03
+  (**#572** step/stepWithStream result omits the required `images` field; **#573** effect checker
+  not transitive through function-valued record fields — potential soundness, triage FIRST;
+  **#574** `iface` pure-vs-effects contradiction on 12 std/ai exports; **#575** `iface` MOD010 on
+  package files with both suggested fixes failing; **#576** unreachable-match-arm warning gap) +
+  **#495** (contract/test trio — THIRD surfacing, repeatedly slipping triage) + **#493** (driver
+  launchd PATH omits /opt/homebrew/bin — FACT-CHECK against the live codex lane before dismissing
+  as stale) + #534/#533/#509/#494/#476. Treatment: triage-lite per issue (ghost-discipline the
+  repro, verdict comment on the issue, queue-or-close), NOT a mega-sprint; anything genuine
+  soundness (#573 candidate) may then outrank normally per the standing regression rule.
 - **[NEW 2026-07-29, Mark directive (attended)] m-outage-triage-lane** (NEW-DOC needed; P3
   resilience — design-only until a second outage recurs; does NOT gate v1.0): when ALL Anthropic
   controller probes fail with a SERVER-error signature (500 Internal / 529 Overloaded — distinct

@@ -128,7 +128,17 @@ on one rig from colliding.
    nightly) → close as transient; **genuine + persisting → comment** the triage verdict and leave
    open (it's the pick). Find them: `gh issue list --search "[nightly-eval] in:title" --state open`.
    Eleven stale alarms accumulated in 5 weeks before this rule; zero is the standard now.
-5. **The bookkeeping issue is BIDIRECTIONAL (added 2026-07-16, Mark: "I could comment on the
+5. **WEEKLY EXTERNAL-ISSUE SWEEP (Mark 2026-08-03: "does our loop include triaging github
+   issues?" — it didn't; 12 open issues had zero charter mentions when he asked).** On the FIRST
+   iteration after each Monday-07:00 rotation, list open issues and flag any whose number appears
+   NOWHERE in the mission doc: `gh issue list --repo "${MISSION_REPO:-sunholo-data/ailang}"
+   --state open --limit 50 --json number,title,author` then check each `#<n>` against the
+   charter. Zero-mention issues get triage-lite (ghost-discipline the repro → verdict comment →
+   queue-or-close), batched into ONE queue row, positioned by normal ordering — a sweep NEVER
+   outranks existing picks by itself; only a confirmed soundness/regression finding does, via the
+   standing rules. This closes the gap where issues arrive outside the three watched channels
+   (nightly-eval bot, cross-mission messages, Mark's bookkeeping comments).
+6. **The bookkeeping issue is BIDIRECTIONAL (added 2026-07-16, Mark: "I could comment on the
    issue myself and that feedback could be acted upon")** — Mark replies to iteration reports by
    commenting on #329 (it's where he reads them, by email). Check for new HUMAN comments:
    ```bash
