@@ -410,18 +410,21 @@ Standard-eval cost is concentrated: in v0.30.0, the top 5 of 18 models were **71
 triples the agent step (~3x its base cost). Time: ~45-90 min for `--full`, +15-20 min per
 extra step (`--lang-harness`/`--cross-harness`).
 
-**Confidence-gated standard eval (opt-in): `--confidence-gate`.** Skips re-confirming Trivial-
-band (ELO-saturated) `core`/`stretch` benchmarks per `observatory.db` ratings — `frontier`
-always stays full (its curation contract requires routine full-coverage failure data), and any
-model with no standard-mode rating history (a new/swapped flagship) always gets the full tier
-regardless. Falls open to today's exact full-tier behavior if the ratings DB is unseeded,
-missing, or corrupt — safe to try on any release. First real before/after comparison is the
-authority on actual savings, not a promised percentage here; see the M4 note in
-[m-eval-standard-confidence-gating.md](../../../design_docs/planned/m-eval-standard-confidence-gating.md)
-once it lands. **Cadence**: even once trusted, force a full (non-gated) run at least quarterly
-or on any `extended_suite` roster change — confidence-gating is benchmark-centric, not
-model-centric, so a stable model regressing on a previously-Trivial benchmark needs a periodic
-full re-audit to catch, not just the new-model rule.
+**Confidence-gated standard eval (default-on as of v0.32.0): `--confidence-gate` /
+`--no-confidence-gate`.** `--full` runs skip re-confirming Trivial-band (ELO-saturated)
+`core`/`stretch` benchmarks per `observatory.db` ratings — `frontier` always stays full (its
+curation contract requires routine full-coverage failure data), and any model with no
+standard-mode rating history (a new/swapped flagship) always gets the full tier regardless.
+Falls open to today's exact full-tier behavior if the ratings DB is unseeded, missing, or
+corrupt. Use `--no-confidence-gate` to force the old full-tier behavior for the periodic
+full-audit cadence below, or to hand-audit a roster change. First dry-run projection: full-tier
+$49.57 vs gated $35.28, ~29% — directional, not yet validated against a live release's actual
+spend (that validation happens automatically as releases accumulate real `observatory.db`
+history). See [m-eval-standard-confidence-gating.md](../../../design_docs/implemented/v0_32_0/m-eval-standard-confidence-gating.md)'s
+Verification section for the full caveat. **Cadence**: even once trusted, force a full
+(non-gated) run at least quarterly or on any `extended_suite` roster change — confidence-gating
+is benchmark-centric, not model-centric, so a stable model regressing on a previously-Trivial
+benchmark needs a periodic full re-audit to catch, not just the new-model rule.
 
 **Budget cap: `--budget-usd`** (`run_eval_baseline.sh` flag, defaults to **$150** for `--full`
 runs — ~15% headroom over the highest real combined baseline above; dev-mode runs are uncapped
