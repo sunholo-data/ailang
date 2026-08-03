@@ -1350,10 +1350,17 @@ frozen; contracts projection live).
   **7 implementers across 6 files including `cmd/wasm`**, so closing it destroys the "purely
   additive" property the ADOPT verdict rests on). **Deliberately NOT force-passed and NOT taken
   under the narrow-refinement carve-out** — that carve-out covers only objections leaving the
-  design DIRECTION intact, and this one changes scope; Standing rule 2 → park. **THE ASK (a/b/c in
+  design DIRECTION intact, and this one changes scope; Standing rule 2 → park. **DECIDED by Mark 2026-08-03 (attended): OPTION (c) — bound the drain LOCALLY inside the
+  recorded op, no interface change.** Endorsed independently by the AUTHOR (@arniwesth,
+  #546 comment 2026-08-01): `StreamChunk` is a SEALED interface (unexported marker,
+  exactly 3 implementers, all handled by `encodeStreamChunk`; the one variable-forwarding
+  call site is nil-guarded) → the fail-loud drain trigger is UNREACHABLE at current code,
+  so (c) is proportionate and (b) is over-engineering — the working iteration inherits
+  that evidence from the issue comment, verify the sealed-interface claim first-party
+  before relying on it. → ROUTABLE. [Was: **THE ASK (a/b/c in
   the doc header): (a) land now with a documented unbounded-drain caveat, (b) take the `AIHandler`
   cancellation change as a blocking dependency, or (c) bound the drain locally inside the recorded
-  op with no interface change — controller's read is (c), avoid (a).** Quorum metered $0.1086 of
+  op with no interface change — controller's read is (c), avoid (a).**] Quorum metered $0.1086 of
   the $5 ceiling. Was:] **[NEXT-ON-RESUME #1, Mark directive 2026-07-31 (attended): MOTOKO DEMAND — pick FIRST at the
   2026-08-03 re-arm, ahead of the offloads] m-recorded-stream-api** (`ailang#546`, filed by
   arniwesth 2026-07-31 — the STRONGEST demand class: a real external consumer with a WORKING

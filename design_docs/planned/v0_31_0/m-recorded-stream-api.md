@@ -1,6 +1,9 @@
 # M-RECORDED-STREAM-API — Productionize the offered recorded `std/ai` stream
 
-**Status**: **PARKED — `needs-human-review` (mission iteration 124, 2026-07-31).** Quorum BLOCKED
+**Status**: **DECIDED by Mark 2026-08-03 (attended): OPTION (c) — bound the drain locally in
+the recorded op, no interface change (author-endorsed, #546 comment 2026-08-01: sealed
+StreamChunk interface makes the fail-loud drain trigger unreachable today) → ROUTABLE to
+sprint-planner.** [Was: PARKED — `needs-human-review` (mission iteration 124, 2026-07-31).] Quorum BLOCKED
 twice (R1 and R2). The design DIRECTION — adopt @arniwesth's additive sibling — survived both
 rounds and is **not** what is contested. Do **not** route to sprint-planner until the scope
 question below is answered. See "Quorum verification log".
