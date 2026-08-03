@@ -9,7 +9,9 @@
   "executor_model": "codex:gpt-5.6-sol",
   "branch": "sprint/m-recorded-stream-api",
   "worktree": "/Users/voightkampff/dev/sunholo-data/.wt-iter133",
-  "github_issues": [546],
+  "github_issues": [
+    546
+  ],
   "risk_level": "medium",
   "credit": "@arniwesth is the original author of the adopted implementation (arniwesth/ailang#2). Credit is MANDATORY in the adopting commit message and the CHANGELOG entry.",
   "velocity": {
@@ -70,8 +72,8 @@
   "features": [
     {
       "id": "S1_M1_SPLIT_AI_STEP_FOR_HEADROOM",
-      "description": "Behaviour-free split of internal/effects/ai_step.go (665 lines at HEAD; 778 after the patch; 800-line CI gate = 22 lines headroom). Move decode helpers to internal/effects/ai_decode.go (decodeMessages :459, decodeToolCalls :494, decodeImageParts :514, decodeCacheBreakpoints :537, decodeToolSchemas :557, getStringField :576 ~135 LOC) and encode/result helpers to internal/effects/ai_encode.go (encodeStreamChunk :422, makeOkStringResult :593, makeOkStepResult :601, encodeToolCalls :629, makeAIErrorResultRecord :646 ~110 LOC). MUST be the first commit and MUST contain no logic change.",
-      "estimated_loc": 0,
+      "description": "Behaviour-free split of internal/effects/ai_step.go (665 lines at HEAD; 778 after the patch; 800-line CI gate = 22 lines headroom). Move decode helpers to internal/effects/ai_decode.go (decodeMessages :459, decodeToolCalls :494, decodeImageParts :514, decodeCacheBreakpoints :537, decodeToolSchemas :557, getStringField :576 ~135 LOC) and encode/result helpers to internal/effects/ai_encode.go (encodeStreamChunk :422, makeOkStringResult :593, makeOkStepResult :601, encodeToolCalls :629, makeAIErrorResultRecord :646 ~110 LOC). MUST be the first commit and MUST contain no logic change. ESTIMATED_LOC NOTE: 245 = lines MOVED (~135 decode + ~110 encode), not net-new; the net diff is ~0. Recorded as the moved-line count because the sprint-state validator rejects estimated_loc == 0 as an unfilled placeholder (iter-121 hit the same wall).",
+      "estimated_loc": 245,
       "estimated_days": 0.5,
       "dependencies": [],
       "files": [
@@ -96,7 +98,9 @@
       "description": "Two commits. (1) Apply /tmp/arni-546-dev.patch VERBATIM in its own commit crediting @arniwesth, so the refactor is reviewable as a diff against the author's code and the credit is legible in git log. (2) Extract the ~80 duplicated lines (arity/type validation, handler + FnCaller guards, message/tool-schema/cache-breakpoint decode, the single ctx.AI.StepWithStream invocation, chunk encode, callback delivery + fail-soft callback-error tracing, typed operation-error classification, final response conversion, trace metadata/count construction) into one private core in a NEW internal/effects/ai_stream_core.go, taking an explicit policy struct {record bool; failLoud bool}. aiStepWithStream = core + {false,false}; aiStepWithStreamRecorded = core + {true,true}. Prefer the core returning ([]eval.Value, *ai.Response, *ai.AIError) and letting each wrapper build its own eval.Value, rather than threading a constructor callback.",
       "estimated_loc": 200,
       "estimated_days": 1.0,
-      "dependencies": ["S1_M1_SPLIT_AI_STEP_FOR_HEADROOM"],
+      "dependencies": [
+        "S1_M1_SPLIT_AI_STEP_FOR_HEADROOM"
+      ],
       "files": [
         "internal/effects/ai_stream_core.go (NEW)",
         "internal/effects/ai_step.go (aiStepWithStream becomes a thin wrapper)",
@@ -124,7 +128,9 @@
       "description": "In the shared core, active only under failLoud: (1) first unencodable chunk (encodeStreamChunk returns nil) records nothing, delivers nothing, and latches non-retryable AIError{code:Internal, message:'unencodable stream chunk at provider index N; recorded log is an incomplete prefix'} - the prefix 'unencodable stream chunk' is PUBLIC CONTRACT and lives in a named constant; (2) the latched error cannot be overwritten by a later provider terminal success/error; (3) drain mode after the latch does no encode/record/deliver, only advances post-failure chunk count and post-failure payload bytes (no retention); (4) named constants recordedDrainMaxChunks = 256 and recordedDrainMaxBytes = 1 << 20, whichever exhausts first sets drainExhausted; (5) ON EXHAUSTION THE DRAIN GOES INERT - the callback's first statement is `if drainExhausted { return }`, counters saturate, NO PANIC, NO RECOVER, NO SENTINEL (see planner_ruling_sentinel); (6) counters provider_chunks (a floor once drain_exhausted) and delivered_chunks (== len(recorded) always), plus drain_exhausted:true in trace metadata; no skipped_chunks success path. OUT OF SCOPE: any change to aiStepWithStream's shipped silent skip (internal/effects/ai_step.go:377-382).",
       "estimated_loc": 120,
       "estimated_days": 0.75,
-      "dependencies": ["S1_M2_ADOPT_PATCH_ON_SHARED_CORE"],
+      "dependencies": [
+        "S1_M2_ADOPT_PATCH_ON_SHARED_CORE"
+      ],
       "files": [
         "internal/effects/ai_stream_core.go",
         "internal/effects/ai_step.go (unchanged behaviour - assert this)"
@@ -148,7 +154,9 @@
       "description": "New tests in internal/effects/ai_stream_core_test.go (leave ai_step_with_stream_recorded_test.go, the author's four, unmodified so the adoption stays legible). 14 rows: (1) table-driven argument/type/decode failure parity across both siblings; (2) no-handler and no-FnCaller typed errors, recorded mode returns EMPTY chunks; (3) callback failure traced, stream continues, recorded chunks exact; (4) all three chunk variants incl. full Usage field encoding and order; (5) unencodable first/middle; (6) both drain budgets independently; (7) latched error not overwritten; (8) empty stream success and error; (9) multiple chunks - stable order, no duplicate callback, callback value identical to recorded value; (10) capability denial + AI budget accounting parity; (11) trace assertions - operation name, routing metadata, outcome, fatal provider index, provider_chunks, delivered_chunks, drain_exhausted; (12) builtin registry + public type + metadata (v0.32.0, StabilityExperimental); (13) evaluator vs non-strict --bytecode parity for nested RecordedStream; (14) ADR-009 ordering gate at the Go level - immediate projection, exact ordered returned-log parity, success, partial-then-error, no duplicate delivery.",
       "estimated_loc": 350,
       "estimated_days": 1.0,
-      "dependencies": ["S1_M3_FAIL_LOUD_AND_BOUNDED_INERT_DRAIN"],
+      "dependencies": [
+        "S1_M3_FAIL_LOUD_AND_BOUNDED_INERT_DRAIN"
+      ],
       "files": [
         "internal/effects/ai_stream_core_test.go (NEW)",
         "internal/builtins/ai_step_test.go (registry/metadata rows)"
@@ -171,7 +179,9 @@
       "description": "Merge-blocking contract text, moved up from the design doc's M3. (1) Builtin LongDesc for stepWithStreamRecorded MUST state all four: linear unbounded retention until the call returns; the log is exact w.r.t. chunks the provider ADAPTER EMITS not the wire (tool-call input_json stream content is never emitted as chunks by design, internal/ai/anthropic/streamstep.go:336-337); an unencodable chunk terminates the op with typed Internal (stable prefix 'unencodable stream chunk') and an explicitly incomplete prefix, after which AILANG records/encodes/delivers nothing and per-chunk work is bounded BUT THE CALL STILL RETURNS ONLY WHEN THE PROVIDER'S STREAM ENDS; and the deliberate divergence from stepWithStream, which silently skips an unencodable chunk (siblings equivalent only for fully-encodable streams, i.e. every stream constructible today). (2) Metadata Since: 'prototype' -> Since: 'v0.32.0', keep StabilityExperimental. (3) CHANGELOG.md entry under v0.32.0 unreleased crediting @arniwesth and linking #546 + arniwesth/ailang#2; do NOT touch the historical changelog 'open row' occurrence. (4) File the follow-up issue 'cancellable provider context across the AI surface (AIHandler v2)' - the honest fix for the wall-clock residual and the standing answer to R2's gpt5-6-sol objection; link from #546; do NOT start it. (5) Ask @arniwesth on #546 whether he prefers a first-class AIError code (IncompleteStream) over the stable message prefix - do not assume the answer.",
       "estimated_loc": 60,
       "estimated_days": 0.5,
-      "dependencies": ["S1_M4_TEST_MATRIX"],
+      "dependencies": [
+        "S1_M4_TEST_MATRIX"
+      ],
       "files": [
         "internal/builtins/ai_step.go (LongDesc + Since metadata)",
         "CHANGELOG.md"
