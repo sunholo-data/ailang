@@ -374,12 +374,14 @@ of forking them, so a future guard fix lands once.
 **New:**
 - `tools/launchd/derive-planner-lane.sh` — D2 stage-2 derivation (~60 LOC, Bash 3.2-compatible,
   pure text — contains no codex invocation, provable by AC-D2's grep)
-- `tools/launchd/testdata/planner-lane/` — eight tiny fixture docs for AC-D2 (rev 3, per
+- `tools/launchd/testdata/planner-lane/` — twelve tiny fixture docs for AC-D2 (rev 3, per
   gpt5-6-sol's R2 fixture list): (a) unlisted language path (declares `codex-ok`,
   Files-to-Modify touches internal/parser/… — the lying-declaration case), (b) field-missing,
   (c) clean infra `codex-ok`, (f) unknown FUTURE internal/... path (a dir that does not exist
   today), (g) mixed infra + language paths, (h) malformed Files-to-Modify section, (i) duplicate
-  Files-to-Modify sections
+  Files-to-Modify sections, (j) prose-first bullet, (k) alternate `## Files to Modify`
+  heading, (l) invalid Planner-Lane value, (m) `opus-required`, (n) a Files bullet carrying no
+  backticked token at all — the sentinel arm (j) does not reach
 
 **No Go code. No AILANG code.**
 
