@@ -388,6 +388,21 @@ func runEvalSuite() {
 		fmt.Printf("Models:     %s\n", strings.Join(modelList, ", "))
 		fmt.Printf("Benchmarks: %s\n", strings.Join(benchmarkList, ", "))
 		fmt.Printf("Languages:  %s\n", strings.Join(langList, ", "))
+
+		// Pre-flight cost estimate (M-EVAL-STANDARD-CONFIDENCE-GATING). Historical
+		// token means come from the most recent baseline; pairs with no history
+		// fall back to a flat default and are called out explicitly below — never
+		// silently folded into the total unlabelled.
+		est := estimateRunCostUSD(modelList, benchmarkList, len(langList), trialsToRun)
+		fmt.Printf("\nEstimated cost: $%.2f", est.TotalUSD)
+		if est.NoHistoryPairs > 0 {
+			fmt.Printf(" (%d of %d model×benchmark pairs have no history — using a conservative flat default; re-run after a baseline exists for a tighter estimate)", est.NoHistoryPairs, est.Pairs)
+		}
+		fmt.Println()
+		if est.UnknownPricing > 0 {
+			fmt.Printf("  ⚠ %d model×benchmark pair(s) have no pricing in models.yml — priced as $0, excluded from the total above\n", est.UnknownPricing)
+		}
+
 		if eval_harness.GlobalModelsConfig != nil {
 			fmt.Printf("\nHarness routing (agent_cli per model):\n")
 			for _, m := range modelList {
