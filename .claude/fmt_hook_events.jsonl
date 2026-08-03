@@ -15,3 +15,9 @@
 {"status":"error","file":"/Users/voightkampff/dev/mk-ast/src/core/tool_runtime.ail","exit_code":124,"id":"toolu_01EvoVqQdGfqNDayhshz35cZ","detail":"ailang fmt timed out after 10s and was killed; file left as written (atomic --write wrote nothing).\n⚠ Binary may be stale (source files modified after build)\n  Run 'make quick-install' to rebuild"}
 {"status":"formatted","file":"/Users/voightkampff/dev/mk-ast/src/core/tool_dispatch_adapter.ail","exit_code":0,"id":"toolu_01VxKgdzNJPSCCj4PQywzShN","detail":""}
 {"status":"formatted","file":"/Users/voightkampff/dev/mk-ast/src/core/agents_md.ail","exit_code":0,"id":"toolu_018Ghu3MxyF2EW4c72W4MXj9","detail":""}
+{"status":"formatted","file":"/tmp/propgen_repro_iter121/propgen.ail","exit_code":0,"id":"toolu_01YTyipBdAVkVakHmsESYF4k","detail":""}
+{"status":"formatted","file":"/tmp/propgen_repro_iter121/propgen2.ail","exit_code":0,"id":"toolu_01DAnjJ1tsP9LtkBnTxc1ufM","detail":""}
+{"status":"formatted","file":"/tmp/prop_repro_iter121/prop_repro.ail","exit_code":0,"id":"toolu_01YVgvAkUrAhhXBeNCfcLjZM","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/ailang-packages/packages/motoko-ext-fmt/register.ail","exit_code":0,"id":"toolu_01HGCVYZr6GbSXZud81EGgCC","detail":""}
+{"status":"formatted","file":"/tmp/mc124_probe_positive.ail","exit_code":0,"id":"toolu_01LGWcU2acsQ2vj46yPFbJQ9","detail":""}
+{"status":"formatted","file":"/tmp/mc124_probe_record.ail","exit_code":0,"id":"toolu_011WARrnRrAxnrTw48Deyt3V","detail":""}
