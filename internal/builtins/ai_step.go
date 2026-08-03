@@ -451,6 +451,75 @@ func streamUsageRecordType(T *types.Builder) types.Type {
 	)
 }
 
+// ============================================================================
+// _ai_step_with_stream_recorded — PROTOTYPE of the proposed upstream
+// recorded-stream API. Preserves immediate callbacks and additionally returns
+// the exact ordered observed chunks with the final outcome, on BOTH outcomes.
+// NOT an upstream feature; see the motoko 009 spike.
+// ============================================================================
+
+func makeAIStepWithStreamRecordedType() types.Type {
+	T := types.NewBuilder()
+	onChunkType := T.Func(streamChunkType(T)).Returns(T.Unit()).Build()
+	return T.Func(
+		T.String(),
+		T.List(messageRecordType(T)),
+		T.List(toolSchemaRecordType(T)),
+		T.List(cacheBreakpointRecordType(T)),
+		onChunkType,
+	).
+		Returns(T.Record(
+			types.Field("chunks", T.List(streamChunkType(T))),
+			types.Field("outcome", T.App("Result", stepResultRecordType(T), aiErrorRecordType(T))),
+		)).
+		Effects("AI")
+}
+
+func aiStepWithStreamRecordedImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	if err := ctx.RequireCapWithBudget("AI", ""); err != nil {
+		return nil, err
+	}
+	return effects.Call(ctx, "AI", "stepWithStreamRecorded", args)
+}
+
+func registerAIStepWithStreamRecorded() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/ai",
+		Name:    "_ai_step_with_stream_recorded",
+		NumArgs: 5,
+		Effect:  "AI",
+		Type:    makeAIStepWithStreamRecordedType,
+		Impl:    aiStepWithStreamRecordedImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Streaming multi-turn AI completion that preserves immediate per-chunk callbacks and returns the exact ordered observed chunks with the final outcome",
+			LongDesc: `Identical to _ai_step_with_stream except the return shape:
+
+  { chunks: [StreamChunk], outcome: Result[StepResult, AIError] }
+
+The chunks are returned on BOTH outcomes, so a stream that fails part-way
+still yields every chunk observed before the failure. Callbacks still fire
+immediately at arrival; the returned log is an exact, non-duplicating record
+of what the callback saw.`,
+			Params: []ParamDoc{
+				{Name: "model", Description: "Model ID (or empty for handler default)"},
+				{Name: "messages", Description: "Conversation as list[Message]"},
+				{Name: "tools", Description: "Tool catalog as list[ToolSchema]"},
+				{Name: "cache_breakpoints", Description: "Opt-in cache hints as list[CacheBreakpoint]"},
+				{Name: "on_chunk", Description: "Callback (StreamChunk) -> () invoked per chunk"},
+			},
+			Returns:   "{ chunks: [StreamChunk], outcome: Result[StepResult, AIError] }",
+			SeeAlso:   []string{"_ai_step_with_stream", "std/ai.stepWithStreamRecorded"},
+			Since:     "prototype",
+			Stability: StabilityExperimental,
+			Tags:      []string{"ai", "result", "streaming", "recorded"},
+			Category:  "ai",
+		},
+	})
+	if err != nil {
+		panic("failed to register _ai_step_with_stream_recorded builtin: " + err.Error())
+	}
+}
+
 func registerAIStepWithStream() {
 	err := RegisterEffectBuiltin(BuiltinSpec{
 		Module:  "std/ai",
