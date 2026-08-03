@@ -3004,7 +3004,10 @@ agent_suite:
   - "gpt5-6-luna"                     # codex    — OpenAI newest weak/fast tier
   - "claude-haiku-4-5"                # claude   — Anthropic cheap/weak
   - "claude-sonnet-4-6"               # claude   — Anthropic longitudinal anchor
-  - "opencode-or-deepseek-v4-pro"     # opencode — OS agent champion (97%)
+  # "opencode-or-deepseek-v4-pro" removed 2026-08-03 (Mark) — unreliable via opencode this
+  # session (repeated "opencode idle for 3m0s mid-generation" mid-run timeouts on the v0.32.0
+  # release baseline). Was "OS agent champion (97%)" per the 2026-06-04 re-test; re-add once
+  # the opencode-side stall is understood, or once V4 Flash's -0731 successor lands for Pro.
   - "opencode-or-deepseek-v4-flash"   # opencode — OS best-value (weak standard 54%)
   - "opencode-or-glm-5-2"             # opencode — GLM-5.2 (SETTLED 2026-07-19: beats 5.1 in
                                       # agent mode 77% vs 73%; 5.1 retired from suite per Mark)
