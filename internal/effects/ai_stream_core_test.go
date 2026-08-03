@@ -197,6 +197,12 @@ func testStreamUnencodable(t *testing.T) {
 }
 
 func testStreamDrainBudgets(t *testing.T) {
+	// The budget values are public contract (sprint plan M3): a silent change
+	// must fail here, not ship. Self-referential feeding alone cannot catch a
+	// budget regression (a 256->2 mutation survived it — iter-135).
+	if recordedDrainMaxChunks != 256 || recordedDrainMaxBytes != 1<<20 {
+		t.Fatalf("drain budget contract changed: chunks=%d bytes=%d", recordedDrainMaxChunks, recordedDrainMaxBytes)
+	}
 	chunkBudget := make([]ai.StreamChunk, recordedDrainMaxChunks+10)
 	chunkBudget[0] = nil
 	for i := 1; i < len(chunkBudget); i++ {
@@ -211,6 +217,16 @@ func testStreamDrainBudgets(t *testing.T) {
 		if event := terminalAIEvent(t, ctx); !strings.Contains(event.Args[1], "drain_exhausted:true") {
 			t.Fatalf("trace args = %q", event.Args)
 		}
+	}
+	// Under-budget control: a drain that stays inside both budgets must NOT
+	// report exhaustion (proves the exhaustion assertions above are informative).
+	under := []ai.StreamChunk{nil, ai.StreamUsage{}, ai.StreamUsage{}}
+	ctx := streamTestContext(&scriptedStreamHandler{chunks: under, resp: streamSuccessResponse()}, &[]eval.Value{})
+	out, _ := aiStepWithStreamRecorded(ctx, recordedArgs())
+	_, outcome := splitRecorded(t, out)
+	streamErrRecord(t, outcome)
+	if event := terminalAIEvent(t, ctx); strings.Contains(event.Args[1], "drain_exhausted:true") {
+		t.Fatalf("under-budget drain reported exhaustion: %q", event.Args)
 	}
 }
 
