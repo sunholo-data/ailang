@@ -564,7 +564,7 @@ model from the driver-exported env (defaults track the charter table):
 |---|---|---|
 | Controller (this session: triage/pick/record/retro) | `$MODEL` (session) | **Opus** (opus-first since 2026-07-16, Mark: the long orchestration session is mechanical work — it must NOT ride Fable) |
 | Design-doc-creator | **ROTATION** (Mark 2026-07-17; `$MISSION_DESIGNER_MODEL` is the rotation SEED, not a fixed pin) | Rotate per new-doc iteration: `claude:claude-fable-5` → `codex:gpt-5.6-sol` → (gemini after G4) → repeat. State: `~/.ailang/state/mission-designer-rotation` holds the LAST-USED value; pick the next list entry (missing file = start at claude), write back after the designer run. Every design passes the quorum regardless of author — record `(designer, quorum outcome)` in the evidence row. A probe-failed designer falls to the NEXT in rotation (not to `$MODEL`), FLAGGED |
-| Sprint-planner | `$MISSION_PLANNER_MODEL` | Opus (down-tier A/B = M3; keep Opus until evidence) |
+| Sprint-planner | `$MISSION_PLANNER_MODEL` | `codex:gpt-5.6-sol` configured default; effective lane = `derive-planner-lane.sh` output, used VERBATIM; fail-closed to opus |
 | Sprint-executor | `$MISSION_EXECUTOR_MODEL` | Opus |
 | Sprint-evaluator | `$MISSION_EVALUATOR_MODEL` | **Sonnet** (default changed fable→sonnet 2026-07-16 iter 38, Mark directive #399: "default … gemini (if able to git clone the codebase etc)? otherwise sonnet-5"; gemini-managed_agents VERIFIED not-viable-today — server-side sandbox sees no worktree + backend timed out; sonnet ≠ opus executor → generator≠judge, and it's Agent-tool-PINNABLE unlike fable) |
 
@@ -585,6 +585,17 @@ inheritance: spawn with NO `model=` param when the controller session itself is 
 session is NOT Fable, a fable pin is unenforceable — apply the generator≠judge re-route below, never
 silently inherit. `provider:model` values (e.g. `codex:gpt-5.6-sol`) instead signal cross-provider
 routing via `provider_executor` (fleet Phase C), not the Agent tool.
+
+**Step 1b — derive the effective planner lane (MANDATORY; before ANY planner probe or spawn).**
+Run `tools/launchd/derive-planner-lane.sh <the-picked-design-doc>` with the driver-exported
+environment intact. Its output is exactly one line, `<lane> <reason-token>`; use that line
+VERBATIM. If it begins `opus `, spawn the opus Agent path directly and do **not** perform a codex
+probe or spawn for the planner role; copy the reason token VERBATIM into the Gate-4
+routing-evidence row. Only `codex declared:codex-ok` enters the codex planner recipe below. If the
+script is missing on disk, fail closed to opus **LOUDLY** and record the missing-script reason in
+the same evidence row. This rule is mission-independent and live wherever this shared skill is
+resolved: the step-0 environment pin protects missions configured for opus, and the missing-script
+rule protects missions whose checkout has no derivation script (including Ailang World).
 
 **Cross-provider spawn recipe (`provider:model`, M1b — currently `codex` only).** When a role's env
 value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER=${VAL%%:*}`,
@@ -691,6 +702,34 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      (d) proves the reconstruction faithful by sha256-manifesting the executor's final tree BEFORE
      starting and `shasum -c` after the last commit — byte-identity or the reconstruction is wrong.
      Two milestones that touch the SAME file are exactly why snapshots beat file-lists here.
+  2a. **Planner role — parameterize this executor recipe; do not fork it.** Apply every shared
+     probe, bounded-background-run, directive-delivery, stdin, sandbox, output-capture, hygiene,
+     timeout, and fallback guard above by reference (including the executor recipe's `exit 64`,
+     `< /dev/null`, and `run_in_background` guards). There are exactly four planner deltas:
+     - **Working directory:** first assert
+       `git status --porcelain -- <design-doc>` is empty. From local `HEAD`, create an ephemeral
+       detached worktree with `git worktree add --detach`, then pass its path with `-C`. The path
+       MUST be a SIBLING OF THIS MISSION'S REPO — DERIVE it, never hardcode it
+       (`"$(cd "$REPO/.." && pwd)/.planner-wt-iter<N>"`): this skill is shared by every mission on
+       the rig, so an absolute path baked in for one of them is wrong for the others. Worktrees
+       under `/tmp` are forbidden — CWD-relative path tests then fail for the LOCATION rather than
+       the code, and CI never reproduces that red.
+       Never use `-b` or base it on `origin/dev`: a committed-but-unpushed design doc must be
+       visible to the planner.
+     - **Directive:** use the per-iteration file
+       `/tmp/codex_planner_directive_iter<N>.txt`, carrying the executor recipe's identical
+       ≥200-byte delivery assertion and closed-stdin behavior on both probe and run by reference.
+     - **Sandbox directories and evidence:** keep `--add-dir "$GOCACHE" --add-dir "$GOMODCACHE"`.
+       **In-sandbox gate verdicts are NOT evidence**: socket-touching checks
+       are `UNINFORMATIVE UNDER SANDBOX`, and the controller re-verifies load-bearing premises
+       outside the sandbox before handing the plan to the executor.
+     - **Post-run controller steps:** (1) assert both artifacts exist in the worktree and are
+       well-formed (`jq -e . sprint_<id>.json`; plan non-empty and names the design doc); (2) reject
+       placeholder vacuous-passes (`MILESTONE_ID` or `auto-parse failed`); (3) copy both artifacts
+       to their main-checkout paths, refusing to overwrite unexpected existing files; (4) remove
+       the planner worktree; (5) run
+       `ailang messages import-github --labels bug,feature,ailang-message` outside the sandbox;
+       (6) commit with `Co-Authored-By: codex <model>`.
   3. **generator≠judge guard (HARD, constraint #3):** before spawning the evaluator, assert the
      evaluator's PROVIDER ≠ the executor's PROVIDER. If the executor ran on codex, the evaluator MUST
      NOT be a codex `provider:model` — if `$MISSION_EVALUATOR_MODEL` collides, re-route the evaluator
