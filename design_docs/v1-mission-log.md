@@ -7353,3 +7353,121 @@ The Fable designer specified the option-(c) bound as two budgets (`recordedDrain
 
 **Next** — `m-recorded-stream-api` **S1** (`ailang#546`), plan-ready since iteration 133, sprint JSON validated rc=0: executor `codex:gpt-5.6-sol` in a worktree **not** under `/tmp`, evaluator `sonnet`. Unchanged by this iteration.
 ## 140 — 2026-08-03 — Iteration 135: **S1 of m-recorded-stream-api LANDED.** @arniwesth's patch adopted **verbatim** (credited commit `fd838911f`), shared stream core with policy `{record, failLoud}`, fail-loud latch + bounded **inert** drain (no panic/sentinel — planner ruling honored), 14-row matrix, contract text. PR **#577** → `ab209fcbf`, evaluator sonnet **92/100 r1**. Controller mutation probe found the drain-budget test self-referential (256→2 survived) — hardened, mutation re-run caught. Plan's M1-before-M2 ordering refuted by measurement (patch context referenced the pre-split file) — reordered patch-first. Follow-up `#578` filed; `IncompleteStream` question pending with @arniwesth. S2 remains.
+
+---
+
+## 141 — 2026-08-04 — Iteration 136: **the codex planner lane is LIVE — all four milestones landed and the default is FLIPPED.** `derive-planner-lane.sh` gates it fail-closed, the driver's probe loop is role-generic, the skill's Gate 3 derives before it spawns, and AC3a proved the lane end to end with a real codex planner run the repo's own validator passed rc=0. PR **#580**.
+
+**Picked**: `m-planner-codex-lane` EXECUTION — the queue head by Mark's 2026-08-03 reorder
+(`[NEXT #2]`, "immediately after m-recorded-stream-api", which iteration 135 landed). Plan-ready
+since iteration 125, parked to the 08-03 re-arm, **no human decision owed**. Nothing outranked it:
+dev CI green per-workflow on `898e380ee`, ZERO open `[nightly-eval]` alarms (control-verified
+against 45 open issues, so the empty result is a measurement), inbox = 15 eval-suite telemetry
+messages plus one World report whose own DECISIONS row says "none", no new Mark comment
+(watermark current at `07:04:45Z`), no rotation due (`#559` created 07:08 CEST after the Monday
+boundary; 10 < 80), weekly external-issue sweep already satisfied — and the five new
+`[motoko_agent]` filings `#572`-`#576` are ALREADY charter-tracked by the queued batch row, so
+they enter by normal ordering rather than outranking.
+
+**Reality check**: doc + sprint plan + 2 quorum artifacts all present; sprint JSON validates rc=0
+(4 features, no placeholders); not already landed, proven on a FRESH origin fetch (`git log
+origin/dev --grep` returns only the doc/plan commits `e980c72d5`/`b43af2a3e`, and the PR search
+is empty). Two local `dev` commits were AHEAD of origin — pushed first, so the whole iteration ran
+from `dev == origin/dev`. Running `SKILL.md` byte-identical to origin (`cmp` silent). **The plan's
+own worktree path was stale**: it specifies `/tmp/wt-m-planner-codex-lane`, and this skill has
+forbidden `/tmp` worktrees since iteration 133 — the sprint used
+`~/dev/sunholo-data/.wt-iter136` instead.
+
+**Shipped**: PR **#580**, six commits. M1 `tools/launchd/derive-planner-lane.sh` (Bash 3.2 only,
+pure text, no network, no codex invocation; six-step contract; one line on stdout, always exit 0)
++ 12 fixtures + the `**Planner-Lane**` design-doc template field. M2 the driver's executor-only
+probe `case` → the role-generic D3 loop, verbatim, plus the two-line `mission-<name>.env` source.
+M3 mandatory Gate-3 step 1b + a planner sub-bullet that parameterizes the executor recipe rather
+than forking it. M4 the AC3a rehearsal, then the flip. Design doc + sprint plan moved to
+`implemented/v1_0_0/`. CHANGELOG entry added.
+
+**THE MUTATION THAT SURVIVED, AND WHY IT MATTERED.** Four controller mutations on M1's script,
+each PROVEN applied by `cmp` against the original before its result was read — because "the
+mutation didn't red" and "the mutation never ran" are the same exit code. Three died (allowlist
+neutered → (a)(f)(g) flip to codex-ok; duplicate-section guard `-ne 1`→`-lt 1` → (i) flips;
+step-0 env pin removed → AC8-env flips). The fourth, neutering the `__UNPARSABLE_PATH_ENTRY__`
+sentinel, **SURVIVED**. Diagnosed by relabelling the two candidate arms separately: fixture (j)'s
+first backticked token EXISTS but is not path-shaped, so (j) is caught one arm LATER by the
+path-shape check and never touches the sentinel. Both arms are correct and both emit the same
+token — which is exactly why the gap was invisible. Fixture (n) supplies the missing input class
+(a Files bullet with no backticks at all) and the mutation now dies.
+
+**THE PLAN'S OWN AC9 IS VACUOUS.** It pins `opus` via the rollback env file and expects
+`planner=opus` — but pre-flip `opus` is ALSO the built-in default, so it passes identically
+whether the file is sourced or not. Only substituting a sentinel turns it into a measurement.
+Fourth instance of this mission's vacuous-pass class.
+
+**AND I CONTAMINATED MY OWN INSTRUMENT — twice-adjacent to the same variable.** The sentinel run
+first read as "the rollback plumbing is BROKEN". It was not: this controller session's own shell
+exports `MISSION_PLANNER_MODEL=opus` (the driver exports it into every tool shell), so the file's
+`${VAR:-…}` correctly deferred to it. Every AC9 side and the post-flip AC1 are run under
+`env -u MISSION_PLANNER_MODEL`; the contaminated form is recorded beside the clean one in the M4
+commit precisely because it looks identical to a real result. A separate self-inflicted instance:
+my first mutation harness clobbered its own backup and failed to restore — recovered
+byte-identical from the executor's `.snap/M1/` snapshot, the first time that protocol has paid.
+
+**Sandbox discipline honoured in both directions.** codex correctly labelled AC1/AC2/AC9
+`UNINFORMATIVE UNDER SANDBOX` — its nested codex probes died at app-server init rather than on the
+model, and `~/.config` writes were denied outright — and the controller re-ran every one outside
+the sandbox. AC2 then came back decisive: `400 "'no-such-model' model is not supported when using
+Codex with a ChatGPT account"`, i.e. the probe fails BECAUSE it carries `--model`, with the
+model-LESS control returning rc=0 `ok`, so `#486` has not regressed and the guard is load-bearing.
+
+**Probe dedupe proven with a discriminating control**: same bad model on both roles → ONE
+"unusable" line and TWO "lane -> falling back" lines; two DIFFERENT bad models → TWO "unusable"
+lines. So the post-flip both-roles-codex default costs one probe per fire, measured rather than
+asserted.
+
+**Routing evidence**: model=claude-opus-5 (controller) task-class=execute rounds=n/a
+corrections=3 provider=codex agent=codex cost=quota-bucket:codex-chatgpt+opus.
+Executor **FIRED four times** (`codex:gpt-5.6-sol`, probe rc=0, every run bounded 30 min,
+`--sandbox workspace-write`, ChatGPT subscription confirmed with the safe `[ -n ]` form): three
+milestone runs plus the AC3a planner rehearsal. Designer/planner **NOT fired** (doc and plan
+already existed from iter-125), so the designer rotation correctly did NOT advance, staying at
+`claude:claude-fable-5`. **Evaluator NOT fired** — see Ruled out. `metered=$0.00` of the `$5`
+ceiling.
+
+**Ruled out**:
+- *"post-run step (5) `ailang messages import-github` is an invented step"* — REFUTED. It reads
+  as a non-sequitur inside a planner recipe and I took it for a hallucination; it is **verbatim
+  from the design doc's D4 step (5)** (compensating for a possibly-skipped in-sandbox sync) and
+  the subcommand exists in the CLI. Reproduced before dismissing; the executor was right.
+- *"the rollback plumbing does not work"* — REFUTED, instrument contamination (above).
+- *"awk interval expressions `{2,4}` may not work in macOS BWK awk"* — REFUTED by measurement
+  with controls in both directions (2-hash and 3-hash headings match; 1-hash and 5-hash correctly
+  rejected; `awk version 20200816`).
+- *"the plan's `diff -q` skill-copy criterion failed"* — NOT a failure. `~/.claude/skills/
+  mission-control` is a SYMLINK to the repo copy, so a worktree edit differing from it is the
+  EXPECTED reading; the criterion is satisfied by construction once the edit reaches main.
+- *AC8(i)'s expected token* — the plan contradicts itself (binding task 1 says
+  `no-files-section`, the AC8 list groups (i) under `path-not-in-codex-allowlist`). Resolved in
+  favour of task 1; both are fail-closed so the safety behaviour is identical.
+
+**Retro lane**: process-fix — the charter's queue row for this item moves to LANDED, and the
+`/tmp` worktree path baked into a parked sprint plan is recorded as a class (a plan written before
+a skill rule cannot know about it; the executing iteration must re-read the skill's constraints
+against the plan's literals). **No skill edit this iteration** — the one candidate gap (executors
+spawned into this repo run the CLAUDE.md session-start inbox triage and waste a step on
+`ailang messages ack`, which the sandbox denies anyway) has ONE recorded instance, and the bar is
+two.
+
+**Next**: `#498` Lane B (`m-mcp-exact-tool-surface`, World's sole clause-6 blocker, NEW-DOC +
+quorum), then recorded-stream S2. First iteration after this one should CHECK ITS OWN EVIDENCE
+ROW for `planner=`: the flip is live, so the row is now the loop's own regression test.
+
+**Gate 3b**: GREEN, SHA-addressed on PR #580 head `623b93700` — **20 checks, 0 failures**, plus the
+per-workflow direct confirm (`CI` and `Build and Release` both `completed/success @ 623b93700`),
+because the poll is a hint and not the verdict. Squash merge `cd76499c5`. **The gate that actually
+mattered ran AFTER the merge**: launchd executes the MAIN checkout's working tree (`#558`), so a
+green worktree proves nothing. Fast-forwarded under Mark's standing 08-03 authorisation with both
+preconditions re-asserted rather than assumed (0 ahead; incoming-vs-dirty intersection EMPTY, with
+a control proving `comm` discriminates), then `bash -n` rc=0 and the acheck dry-run printing
+`planner=codex:gpt-5.6-sol` **in the main checkout** — with an automatic driver revert to the
+pre-merge SHA armed had either failed. `diff -q` against `~/.claude/skills/mission-control/SKILL.md`
+is now silent and step 1b is present there, so the skill edit reached the RUNNING skill instead of
+dying on a worktree branch (the iter-128 trap, closed by construction).
