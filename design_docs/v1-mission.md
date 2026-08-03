@@ -308,6 +308,16 @@ invokes.
 
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
+**RATIFIED (attended, 2026-08-03 evening) — Mark's two one-word rulings on the iter-135 digest asks:**
+1. **Standing fast-forward authorization: YES** — when local dev is **0 commits ahead** AND the
+   working tree is clean apart from the known rig-synced dirty files, the controller MAY
+   `git merge --ff-only origin/dev` without a per-instance ask (safe by construction: nothing
+   local exists to lose). ANY other state still triggers Critical Principle 0. Stop re-asking.
+2. **recorded-stream S2 does NOT jump the queue: NO** — order stands `#498 Lane B` → S2
+   (S1 already covers the author's primary need; #498 remains World's sole clause-6 blocker
+   per the 2026-08-03 directive).
+
+
 **Required-for-v1 (the bar's critical path):**
 
 1. [LANDED 2026-07-10] m-named-test-blocks closeout (iteration 1a; deontic criterion deferred,
