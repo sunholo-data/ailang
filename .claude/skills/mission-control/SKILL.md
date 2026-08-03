@@ -169,7 +169,7 @@ on one rig from colliding.
    directive, never unparks anything — at most mention it in the report if substantive.
    Any allowlisted hit = a **human directive** with the same rank as an inbox directive (outranks
    the queue; an answer to a parked item UNPARKS it and makes it this iteration's pick).
-6. **BILLING TRIPWIRE (Mark 2026-07-17 — "this needs to be 100% safe"):** run
+7. **BILLING TRIPWIRE (Mark 2026-07-17 — "this needs to be 100% safe"):** run
    `test -z "$ANTHROPIC_API_KEY" && test -z "$ANTHROPIC_AUTH_TOKEN" && echo CLEAN || echo LEAKED`.
    If LEAKED, the `~/.zshenv` subscription-only guard has regressed: **all `claude:` CLI lanes are
    OFF for this iteration** (roles fall back to Agent-tool pins, FLAGGED), and send a controlplane
