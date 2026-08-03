@@ -7222,3 +7222,51 @@ I checked the coupling before acting: restoring the driver alone is *correct* pr
 **Next** — `m-planner-codex-lane` is the pick, unchanged and still plan-ready; Mark has already greenlit it, so it needs no re-asking. It should be routed **after** the reconcile, or landed with an explicit note that it is inert until then. Then `m-evaluator-gemini-review-lane`, then the seed sprint's M2 (`#535`), M3, and LANE B1.
 
 **Parked for human — the reconcile is now the blocking ask, not a hygiene note.** Reconcile the shared main checkout with `origin/dev` (1 ahead / 10 behind; the ahead-commit is a verified duplicate; 7 uncommitted files, none under `tools/` or `internal/`). It gates the quota-offload directive dated to this morning. `#557` (two ollama servers on :11434) and `#546`'s a/b/c remain open.
+
+## 137 — 2026-08-03 — Iteration 132: **both parked asks executed.** The shared main checkout is **reconciled** (`dev` == `origin/dev` == `af3bca9a5`) and the rig runs **exactly one** ollama server (`dev.ollama.serve`, **0.32.1**). The 13-day split brain (`#557`) is closed; the four-iteration Gate-1 stale-checkout streak is broken at the source.
+
+**Picked** — not a queue item. A **human directive outranks the queue** (Gate 0.5): Mark commented on `#559` at `2026-08-03T07:04:45Z` — *"Yes reconcile dev and only one ollama server"* — which answers iteration 131's blocking ask and iteration 130's deliberately-parked half-directive in a single line. Both were prerequisites for the queue head, so this is also the shortest path back to `m-planner-codex-lane`.
+
+**Gate 0/1** — kill switch armed, billing **CLEAN**, gh account `sunholo-voight-kampff`, dev CI **GREEN** per-workflow on `af3bca9a5` (CI + Build-and-Release success; Docs-Deploy success on `d84708272`, path-filtered = N/A after). **Zero** open `[nightly-eval]` alarms — control-verified: the same search returns **30** under `--state all`. Watermark advanced to `2026-08-03T07:04:45Z` **before** routing.
+
+**Rotation-week predecessor read performed** — `-prev` = `#484`, written fresh by iter-131. It surfaced 2 Mark comments (`07-27`, `08-01`), both already actioned by iterations 114 and 130. They re-appeared only because a rotation resets the watermark to epoch; correctly **not** re-run. This is the first exercise of that catch, and it worked as designed. No rotation due (`#559` created `05:08:48Z` = 07:08 CEST, *after* today's Monday 07:00 local boundary; 2 comments < 80).
+
+**The reconcile — measured before executed, and the refusal is the evidence.**
+
+Local `dev` was **1 ahead / 11 behind**. Two measurements made the operation safe rather than hopeful:
+
+1. The ahead-commit `9e742037a` is a **pure duplicate**, proven by `git patch-id`: `fc808504e7…`, byte-identical to upstream `167c55e6a`. Discarding it loses nothing. Every prior iteration asserted this from the commit *title*; this one measured it.
+2. Of 9 dirty files, **3 were already byte-identical to origin** (iter-131's containment restores plus `SKILL.md`) and **6 carried real local content** — a sibling session's `post-release` skill edits, the fmt hook log, and rig-generated benchmark JSON. **None of the 11 incoming commits touches any of those 6.** That negative was control-verified in the same call: the intersection with the 3 same-as-origin files came back **non-empty**, so the empty answer was informative rather than vacuous (rule 3a).
+
+All 9 backed up first. The first `git checkout -B dev origin/dev` **refused**, blocked by exactly the 3 containment files — git compares the working tree against the **stale local HEAD**, not the target, so a file whose content already *equals* the target still reads as a clobber risk. Staged origin's blob for just those 3, sha256-verifying that **not one byte on disk changed**, and retried: rc=0.
+
+**Principle 0 was fully respected, not narrowly evaded**: no `reset --hard`, no `clean -fd`, no `stash`, no `pull`, no branch switch. `checkout -B` is protective by construction — it *errored rather than destroying*, which is exactly why it was the right instrument for a shared tree. Old HEAD remains in the reflog.
+
+**Verified the point, not just the pointer.** Only the 6 known-local files still differ from origin; all **four** launchd entry points now match origin and are `bash -n` clean; qwen3.5 is **0 hits** in both nightly drivers (control: `qwen3-6` = 10 hits); and `#551`'s `RUN_UNMEASURED_CATEGORIES` gate — the one iter-131's per-file containment could **not** reach — is now live in the copy the rig actually executes.
+
+**The ollama consolidation — and the find is bigger than the errand.**
+
+Split brain reconfirmed live (`127.0.0.1`→**0.31.2**, `[::1]`→**0.32.1**), and both managers identified: `dev.ollama.serve` (launchd, pid 1075) held IPv4; `Ollama.app` (Electron 1340→1351) held IPv6.
+
+**The two servers were running `llama-server` with materially different inference flags.** launchd's child: `--no-mmap --cache-type-k q8_0 --cache-type-v q8_0 --flash-attn on`. The app's child (pid 5860): `--flash-attn auto`, **default f16 KV cache**, no cache-type flags. The rig's tuned plist config (`OLLAMA_FLASH_ATTENTION=1`, `KV_CACHE_TYPE=q8_0`, `KEEP_ALIVE=-1`, `MAX_LOADED_MODELS=1`) applied to **only one** of the two — and iteration 130 measured that *evals reached the other one*. So an unknown share of local-model eval data since 21 Jul was produced under **unintended inference settings**, with which server a run reached decided by dual-stack dial order. Recorded as a **confound**, explicitly **not** a claimed cause for `#554` — but a falsifiable one now, because the confound is gone.
+
+Kept the **launchd** server: it carries the tuned env, the watchdog, and survives logout; the GUI app is untuned and inappropriate for a headless rig. `SIGTERM`'d the app parent (its server exited with it), then `kickstart -k` → **0.32.1**. Verified exactly **one** server; GUI not running; `127.0.0.1` **and** `localhost` → 0.32.1 (clients fall back cleanly from the now-refused `::1` — measured, not assumed); `ollama --version` agrees with **no** client/server warning for the first time since 21 Jul; model store intact (8 models incl. qwen3.6). Disabled `com.ollama.ollama` (the Squirrel autostart) so the split brain cannot silently return.
+
+**Instrument self-catch.** My own "REAL server count" printed **2** while the list printed beside it showed **1** — the counting `grep` was matching its own command line. The list was right; the counter was the broken instrument, caught only because the two disagreed *in the same output*. Rule 3a aimed at my own probe, and an argument for always printing the evidence next to the count.
+
+**Shipped** — `87f65ff67`: `rig-watchdog.sh` pins its probe to `127.0.0.1`, so the address it **probes** is the server it **restarts**. It had probed the app's server while kickstarting launchd's for 13 days (the `::1` `GET /api/tags` rows in `~/.ollama/logs` prove it), meaning a dead `dev.ollama.serve` would never have been noticed, and a dead app server would have "healed" by restarting an already-live job. Verified with a known-positive control (dead port → `ollama unreachable` fires), so the passing probe is informative rather than vacuous.
+
+**Ruled out**
+- *That the reconcile required discarding local work.* Refuted by measurement: the ahead-commit is a patch-id duplicate and no incoming commit touches any locally-modified file. The reconcile was a strictly non-destructive operation, and the tooling proved it by refusing the unsafe form.
+- *That "restart ollama" was a one-server operation* (iteration 130's reason for parking). Confirmed correct to have parked: it was two servers under two process managers, and the naive restart would have healed the rig onto the **older** 0.31.2.
+- *That the watchdog was protecting the ollama service.* It was probing a server it does not manage. Not a latent risk — an actively false green for 13 days.
+
+**Gate-1 trap did not fire — first time since iteration 127.** Local == origin, cheap tell confirmed (`ITERATION 131` present; control `ITERATION 130` present), so Gate-4 writes were made **in place** safely for the first time in five iterations. A direct dividend of the reconcile.
+
+**Routing evidence**: model=session task-class=mechanical round1-score=n/a rounds=0 corrections=0 provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus. Designer, planner, executor and evaluator **all NOT fired** — a human-directive ops iteration. The designer rotation therefore correctly did **not** advance, remaining at `codex:gpt-5.6-sol`. `metered=$0.00` of the `$5` ceiling.
+
+**Retro lane**: none — no skill edit. The Gate-1 stale-checkout rules now have their **cause** removed rather than another guard added, which is the better lane; the rules stay because the divergence can recur. Iteration 131's watch-item ("check what the *rig* executes, not what the repo contains") remains at instance 1 — this iteration confirmed it rather than re-instancing it.
+
+**Next** — `m-planner-codex-lane` is **unblocked** and is the pick: the reconcile it was gated on is done, and `tools/launchd/mission-control.sh` edits will now actually reach the rig.
+
+**Parked for human — nothing new.** Both standing asks are closed. `#546`'s a/b/c, `#558` (durable driver self-re-exec) and `#554`'s root cause remain open from earlier iterations.
