@@ -244,6 +244,34 @@ Retire a benchmark when:
 Retired YAMLs move to `benchmarks/retired/` (not deleted) so historical
 baselines remain reproducible.
 
+### Applying tier moves — REQUIRED follow-through
+
+**Two Go tests pin the tier distribution, and a tier move that does not update
+them turns dev CI red.** They are drift detectors, not policy: they exist to make
+a distribution change a *conscious* act, so the correct response to a red is to
+re-center them with a dated rationale — **never to widen the ±3 tolerance.**
+
+| File | Check |
+|---|---|
+| `internal/eval_harness/spec_test.go` (`TestAllBenchmarksHaveTierAndTags`) | loader-side counts |
+| `cmd/ailang/eval_suite_flags_test.go` (`TestFilterBenchmarksByTier`) | CLI-filter-side counts |
+
+The two must be kept in sync with each other. After editing any `tier:` field:
+
+```bash
+go test ./internal/eval_harness -run TestAllBenchmarksHaveTierAndTags
+go test ./cmd/ailang -run TestFilterBenchmarksByTier
+```
+
+Both print the observed distribution on failure — copy those numbers into the
+`want` centers, and record *which* benchmarks moved and why in the comment above
+each check (every prior re-center did; that history is how a later reader tells a
+deliberate ladder change from silent drift).
+
+This step was missed by the v0.32.0 cycle (2026-08-04): the curation commit
+`f574c4b58` moved 12 benchmarks and touched neither gate, reddening dev on both
+ubuntu and windows for every subsequent commit until it was re-centered.
+
 ---
 
 ## 6. Sanity checks before merging a new benchmark
