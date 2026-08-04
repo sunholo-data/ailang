@@ -96,6 +96,24 @@ name → `validateMCPName` (AILANG's stricter `^[a-zA-Z0-9_-]{1,64}$`, not the S
 The doc's M1 AC only tests "a scalar input schema"; **a nil-schema case is added**, and M2 gains a
 panic-safety AC.
 
+> **UPDATE (iteration 139, after M1 landed) — a FIFTH panic case is NOT covered by M1, and it is an
+> M2 prerequisite.** M1's `validateToolDescriptor` covers nil / non-object / unmarshalable input
+> schema, unmarshalable output schema, and the name rule. It does **not** cover
+> `validateParamHeaderAnnotations`, which the SDK reaches at `mcp/server.go:312-313` and which
+> **panics** (`AddTool %q: invalid parameter header annotations`) — controller-reproduced
+> first-party, with the already-confirmed `missing input schema` panic as the known-positive
+> control in the same call. It fires on an `x-mcp-header` property annotation that is not a valid
+> HTTP header name, is applied to a non-primitive type, or is duplicated. This is invisible today
+> because M1 never calls `AddTool` (both handlers return `NotFoundHandler`); it goes live the
+> moment M2 registers per request from caller-supplied descriptors.
+> **M2 AC5 is therefore NOT sound as written unless it does both:** (a) extend
+> `validateToolDescriptor` with the same annotation check, so an invalid descriptor is rejected
+> loudly like every other invalid class, **and** (b) wrap the per-request `AddTool` in `recover()`
+> mapped to the already-frozen `-32603` envelope, as the backstop for any panic case the SDK adds
+> later. (b) alone would silently accept a descriptor class the contract calls invalid — the
+> CLAUDE.md §2 failure mode. Raised by the M1 sonnet evaluator (NB-1); reproduced by the controller
+> before adoption, per the rule that a judge's finding is a claim until measured.
+
 ### 0.6 NEW — the doc contradicts itself on WHERE resolution happens, and only one of the two options can emit the frozen envelope.
 
 Two statements cannot both hold:
