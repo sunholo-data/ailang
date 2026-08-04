@@ -7471,3 +7471,74 @@ a control proving `comm` discriminates), then `bash -n` rc=0 and the acheck dry-
 pre-merge SHA armed had either failed. `diff -q` against `~/.claude/skills/mission-control/SKILL.md`
 is now silent and step 1b is present there, so the skill edit reached the RUNNING skill instead of
 dying on a worktree branch (the iter-128 trap, closed by construction).
+
+## 142 — 2026-08-04 — Iteration 137: **the `#498` Lane B design is LANDED and quorum-cleared, and iter-136's owed evaluator finally ran.** PR **#582** → `2629ad8fa`, dev CI GREEN SHA-addressed (20 checks, 0 non-success) + per-workflow confirm.
+
+**Pick**: the queue head — `m-mcp-exact-tool-surface` Lane B (`#498`, world-DEMAND, World's sole clause-6
+external blocker) — plus the evaluator iteration 136 explicitly owed and named as this iteration's first
+task. Gate 0/1 clean throughout; `dev == origin/dev` at pick with `SKILL.md` and driver byte-identical to
+origin, so the 2026-08-03 reconcile **held for a second consecutive iteration**.
+
+**The owed evaluation was not a formality.** Iter-136 landed `m-planner-codex-lane` with no judge at all
+(`tools/launchd/` has zero CI coverage by design, so the ACs were the only gate). Sonnet returned
+**PASS 84/100 r1, zero blocking**, re-ran **five mutations — all caught** — and independently confirmed
+that fixture `(n)` genuinely kills the `__UNPARSABLE_PATH_ENTRY__` mutation iter-136 had reported as its
+one survivor. That headline find now rests on second-party verification rather than the author's word.
+Three non-blocking findings → **`#581`**. The load-bearing one I reproduced myself before filing, with a
+discriminating control: two docs differing *only* by a fenced code block containing a bullet flip
+`codex` → `opus fail-closed:path-not-in-codex-allowlist`. Its **direction** is what bounds the severity —
+the blindspot can only degrade a codex-eligible doc *to* opus, never grant codex a doc that should have
+been refused. Cost defect, not a safety hole.
+
+**The find that shrank Lane B.** The MCP Go SDK's `NewStreamableHTTPHandler(getServer func(*http.Request)
+*Server, opts)` already hands AILANG a per-request server-selection callback, and
+`internal/apiserver/mcp.go:303` calls it while **discarding the request**. So `#498` requirements 2–3
+(resolve principal before discovery; per-session exact descriptors) are supported by the dependency
+already in use — a wiring-and-authority problem, not a transport problem.
+
+**Quorum: two full rounds, both BLOCKED, neither degraded**, resolved by the ratified narrow-refinement
+carve-out. Two reviewer claims were **measured rather than forwarded**, which is the rule that keeps a
+third round from being bought: (1) *"per-request SDK servers break SSE"* — **refuted on this path**, since
+Stateless mode answers GET/DELETE with `405 Allow: POST` and there is no long-lived stream to correlate;
+but the reviewer surfaced a genuine adjacent landmine, now closed (`Stateless: true` frozen as a
+requirement, stateful/resumable MCP an explicit non-goal with the empty-registry failure mode written out,
+GET⇒405 in acceptance). (2) *"A2A timeout mapping never verified"* — process point correct, feared
+corruption impossible: `a2a.go:304` already writes HTTP 200 with a JSON-RPC envelope, so the mandate
+preserves the surface (V27); `-32603` is new to the file, recorded with a known-positive control (V28).
+R2's sharpest catch was aimed at my own R1 fix: **a deadline bounds the wait, not the resource.** Applied
+verbatim — `MaxConcurrentCallbacks`, a capacity token held until the goroutine *exits*, a frozen overload
+envelope, and the blunt admission that in-process Go callbacks cannot be forcibly terminated.
+
+**Ruled out / refuted, including three of my own facts.** The designer refuted: Lane A's squash
+`a81d66983` (that is `#517`'s Lane A, not `#498`'s — `aa02f0d9f`); `Config` having 16 fields (15); and
+`runtime` being the only importable library package — my `go list … | head -20` was **truncated** and I
+quoted it as a complete enumeration, with `testutil` past the cut. All three re-verified first-party; the
+designer was right each time. Separately my own "designer process gone" reading was **false**:
+`pgrep -f "A\|B"` is ERE, so `\|` matches a literal `|` and finds nothing (proven with controls both ways),
+and the bounded wait exited ~24 minutes early on a vacuous negative.
+
+**The STATUS rotation tried to eat the charter again — and the assertion stopped it.** The first rotation
+script used `${S[2]}`/`${S[0]}`; **zsh arrays are 1-indexed**, so it selected iteration *135* as "oldest"
+and left the insert position empty, deleting the wrong stamp and dropping the charter to 1729 lines. The
+mandated `after == before + 2 - 2*len(moved)` check failed loudly, both files were restored from git
+(verified 1731 lines / 3 stamps / archive 871), and the rotation was redone with no array indexing at all.
+This is the same zsh family as `${PIPESTATUS[0]}` already in the skill, and it is the fourth failure of
+this specific step — the assertion rule added at iter-127 is what made it a non-event.
+
+**Routing evidence**: controller opus; designer `codex:gpt-5.6-sol` fired **twice** (probe rc=0, both runs
+bounded 30 min, ChatGPT subscription bucket) → rotation advances to `codex:gpt-5.6-sol`; evaluator sonnet
+(generator≠judge holds). **Planner not fired** — the deliverable was doc+quorum, so iter-136's request to
+treat the `planner=` row as the flip's own regression test is answered "not exercised here"; the lane was
+exercised indirectly, `derive-planner-lane.sh` returning `opus declared:opus-required` on the brand-new
+doc. `metered=$0.1910` of the `$5` ceiling. Chain posted (`9a2260e0`).
+
+**Watch-item (instance 1)**: the codex `workspace-write` sandbox denies **outbound network**, not just
+loopback binds — the designer could not fetch `#498`. The directive carried the contract inline so it was
+covered, but the recipe documents only the bind denial. One more instance and it earns a skill edit.
+
+**Retro — one skill edit** (`d4a99dc29`, saved in the MAIN checkout so it reached the running skill):
+Gate 2 rule 3b gains **(v)**, the truncated-enumeration and transcribed-value shapes — three instances in
+one spawn directive, all caught by the designer rather than by me.
+
+**Next**: sprint-planner on Lane B (opus-required, ~17h, 3 milestones), then recorded-stream S2 per Mark's
+2026-08-03 order. `#554`, `#558`, `#561`, `#563`, `#578`, `#581` open.
