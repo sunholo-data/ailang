@@ -85,7 +85,7 @@ Everything else ships on the normal v0.2x road or is post-v1 — regardless of f
 The v1 hygiene bar (2026-07-10) is absorbed: its clauses are 1–2 below, both essentially done.
 
 1. **STABLE** ✅ — the 1.x surface promise (docs/docs/reference/stability.md, iteration 5;
-   tier-assignment ratification parked for Mark).
+   tier assignments RATIFIED by Mark 2026-08-04, attended — clause 1 fully CLOSED; was: ratification parked for Mark).
 2. **SOUND** — zero P0s ✅ (all four closed, iterations 1–4); residue: ~~m-check-strict-fallbacks~~
    **[LANDED iter 101, PR #479]**, m-bytecode-vm-parity-bugs (≤2d, queued).
 3. **ACCESSIBLE TO THE FLEET TIER** (strategy R1+R4): the finite, documented mid-tier footgun
