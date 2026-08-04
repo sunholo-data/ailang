@@ -274,6 +274,24 @@ invokes.
   merge commit (Gate 3b — local gates miss fmt-check/govulncheck/file-sizes/docs build), and a
   red dev CI outranks the queue at OBSERVE, including time-based reds from newly published vuln
   advisories.
+- **BENCHMARK CURATION CYCLES RUN THROUGH THE LOOP, NOT AS ATTENDED SIDE-SESSIONS** (RATIFIED
+  2026-08-04, Mark: *"Route curation through mission loop"* — his one-line answer to iteration 140's
+  DECISIONS ask). A curation cycle (tier promotion/demotion, retirement, rotation — the operations
+  `benchmarks/CURATION.md` governs) is a **queued mission item** from now on, picked and routed like
+  any other, never applied by a concurrent attended session. **The evidence is iteration 140's whole
+  iteration**: `f574c4b58` (the v0.32.0 curation cycle, run from a non-mission session) moved 12
+  benchmarks between tiers and updated **neither** of the two gates that pin the tier distribution
+  (`TestAllBenchmarksHaveTierAndTags`, `TestFilterBenchmarksByTier`) — dev CI was red on every commit
+  for ~2h, iteration 139 had already misfiled that red as a known runner flake, and v0.33.0 came
+  within minutes of shipping on a red dev. The defect was 0.5s-reproducible and the tests document
+  their own remedy; nothing about it was hard *except that nobody whose job it was ever saw it*.
+  Two consequences: (1) the curator inherits the loop's gates — Gate 2's reality-check, Gate 3b's
+  SHA-addressed CI green, and the Gate-4 record — so a tier move cannot land without the
+  distribution gates being re-centered in the same commit; (2) `benchmarks/CURATION.md` §5
+  *"Applying tier moves — REQUIRED follow-through"* (added iteration 140) stays the operative
+  checklist, and this guardrail is what guarantees somebody actually reads it. Attended curation is
+  still fine as *authoring* — writing or scoring benchmarks — but the **tier-move commit** goes
+  through the loop.
 - **A POSITIVE result from ONE confirming instance is not a general claim** (process fix, iteration
   122; the mirror-image of the skill's rule 3a, which covers *empty/negative* readings). Rule 3a
   made this loop good at distrusting silence — an empty `grep`, a failed handshake, a vacuous pass.
