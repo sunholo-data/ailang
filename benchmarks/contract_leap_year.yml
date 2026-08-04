@@ -45,5 +45,5 @@ expected_stdout: |
   28
   30
 
-tier: stretch
+tier: core # v0.32.0 curation cycle: promoted stretch->core per CURATION.md §5 (100% AILANG for 2 consecutive baselines, v0.30.0 + v0.32.0; AILANG-only benchmark by design, no Python comparison exists). See design_docs/implemented/v0_32_0/m-eval-standard-confidence-gating.md for the baseline this was audited from.
 tags: [contracts, algorithmic]

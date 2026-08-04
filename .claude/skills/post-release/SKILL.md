@@ -105,7 +105,7 @@ Standard-eval budget cap: $150 (see `ailang eval-suite --dry-run` for a real per
   - `agent_suite` (6 cloud weak+reference models, run in parallel): `gpt5-6-luna` (codex — OpenAI weak/fast), `claude-haiku-4-5` (claude — Anthropic weak), `claude-sonnet-4-6` (claude — longitudinal anchor), `opencode-or-deepseek-v4-pro` (OS agent champion), `opencode-or-deepseek-v4-flash` (OS best-value), `opencode-or-glm-5-2` (GLM-5.2 — SETTLED 2026-07-19: beats 5.1 in agent mode 77% vs 73%; `opencode-or-glm-5-1` retired to opt-in).
   - **On-device GPU models are NOT in this suite** — they are covered continuously by the daily rig rotation (`dev.ailang.os-rotation-filler` → `eval_results/rotation/os-rolling`, `--agent --bank-by-version`). For the on-device-vs-cloud agent table, aggregate the rotation's per-version GPU data with this suite's results.
   - **motoko-* is not in `agent_suite`, but the "it hangs" reason is obsolete**: the 2026-06-04 removal (0 completions, orphaned subprocesses) was fixed by the ollama-loop-convergence work, and motoko was re-added to `ollama_suite` 2026-06-15 (`motoko-local-qwen3-6-35b-a3b-mxfp8`, validated on the profile matrix, $0). It stays out of `agent_suite` because that suite is the *cloud* weak+reference set — local motoko is covered by `ollama_suite` + the rig rotation. See [MOTOKO.md](../../../MOTOKO.md) before touching any motoko checkout.
-  - **Tier system** (v0.14.0+, frontier added v0.29.0): `smoke` (23), `core` (19), `stretch` (21), `frontier` (16), `vision` (9) — counts as of the 2026-07-11 v0.29.2 re-tier (8 stretch→frontier promotions from the ELO/frontier-model-fail audit; demotions deferred to the post-agent audit)
+  - **Tier system** (v0.14.0+, frontier added v0.29.0): `smoke` (23), `core` (23), `stretch` (25), `frontier` (8), `vision` (9) — counts as of the v0.32.0 curation cycle (4 stretch→core promotions + 8 frontier→stretch demotions, both audited from the v0.32.0 baseline against CURATION.md §5; see design_docs/implemented/v0_32_0/m-eval-standard-confidence-gating.md). Frontier halved from 16→8 because exactly half no longer had any of the 3 flagship models (gpt5-6-sol/claude-opus-5/gemini-3-1-pro) failing them in standard mode — worth re-auditing again once the roster has settled for a release or two.
   - **🚫 Never run `smoke` for cloud models.** Smoke is the cheap/fast sanity tier for the *local OS-model iteration loop* (the nightly rig, Ollama, de-flaking). Cloud/API models (Anthropic, OpenAI, Google, OpenRouter) go **straight to `core,stretch,frontier`** — smoke would just spend API budget re-confirming saturated benchmarks every model already passes, with zero added signal. The only time smoke joins a cloud run is an explicit `--tier smoke,core,stretch,frontier` full audit.
   - Default scope: `core,stretch,frontier` — Core is the headline metric, Stretch is harder mixed results, Frontier is the top-end discriminator (release baselines are its only routine data source)
   - Expected: `core` 70%+ for AILANG; `vision` intentionally low
@@ -366,22 +366,21 @@ curl -s https://ailang-dev-dashboard-ejjw6zt3bq-ew.a.run.app/benchmarks/os/lates
 
 This runs all 18 production models (`extended_suite`) with both AILANG and Python.
 
-**Tier scope for releases** (counts re-centered after the v0.29.0 M-EVAL-FRONTIER-TIER
-re-tier: 7 saturated core benchmarks demoted to stretch, 8 stretch promoted to the new
-`frontier` tier):
-- Default (release): `--tier core,stretch,frontier` — 56 benchmarks (19 core + 21
-  stretch + 16 frontier, after the 2026-07-11 v0.29.2 re-tier promoted 8 stretch→frontier).
-  **This is the tier for every cloud/API model — never smoke.**
+**Tier scope for releases** (counts re-centered after the v0.32.0 curation cycle: 4
+stretch→core promotions, 8 frontier→stretch demotions, audited from the v0.32.0
+baseline against CURATION.md §5):
+- Default (release): `--tier core,stretch,frontier` — 56 benchmarks (23 core + 25
+  stretch + 8 frontier). **This is the tier for every cloud/API model — never smoke.**
   Smoke is the local OS-model iteration tier only (see the 🚫 note above); a cloud model
   added to a release baseline (e.g. a new Anthropic/OpenAI/Google model) goes straight to
   `core,stretch,frontier`.
-- `frontier` (16): the anti-saturation discriminator tier — a frontier benchmark's defining
-  property is that at least one frontier model FAILS it in standard mode; if every frontier
-  model passes it, it demotes back to stretch (CURATION.md §5). Release baselines are the
-  ONLY routine source of frontier-failure data (its authoring-time failure validation was
-  parked as API-billed), so keep it in every release run — that data doubles as the check
-  that the tier still discriminates.
-- Dev/fast mode: `--tier core` — 19 benchmarks (Core is the headline metric)
+- `frontier` (8, halved from 16 this cycle): the anti-saturation discriminator tier — a
+  frontier benchmark's defining property is that at least one frontier model FAILS it in
+  standard mode; if every frontier model passes it, it demotes back to stretch
+  (CURATION.md §5). Release baselines are the ONLY routine source of frontier-failure
+  data (its authoring-time failure validation was parked as API-billed), so keep it in
+  every release run — that data doubles as the check that the tier still discriminates.
+- Dev/fast mode: `--tier core` — 23 benchmarks (Core is the headline metric)
 - Full audit: `--tier smoke,core,stretch,frontier` — 79 benchmarks; only add smoke when you
   deliberately want the local sanity tier in the sweep, not for routine cloud baselines
 - `vision` benchmarks are research-grade and excluded by default — opt in explicitly
