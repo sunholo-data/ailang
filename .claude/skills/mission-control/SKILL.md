@@ -509,6 +509,29 @@ the Repo Profile above):
    this command still pass under, if the thing I am claiming were false?" The tell: you are about
    to write "the tests pass" or "it checks clean" while the command you actually ran carried a
    `-run`, a `-skip`, a `--version`, or a single package.
+   **(v) AN ENUMERATION YOU TRUNCATED IS NOT AN ENUMERATION, AND A VALUE YOU TRANSCRIBED IS NOT A
+   MEASUREMENT** (added 2026-08-04 iteration 137; three instances in ONE spawn directive, all three
+   caught by the DESIGNER rather than by the controller who wrote them). Everything above is aimed
+   at commands narrowed by a *flag*; these two shapes narrow the result with no flag to notice, and
+   both landed in a directive under an explicit VERIFIED-BY-ME heading — the exact laundering Gate 2
+   forbids. **(a) `| head -N` / `| tail -N` silently turns a complete-looking list into an
+   incomplete one.** Iteration 137 ran `go list ./... | grep -v /internal/ | head -20`, read those
+   20 lines back as the whole answer, and told the designer there was exactly ONE importable library
+   package. There are two — `testutil` sat past the cut. The command was right, the output was real,
+   and the sentence built on it was false. If you are about to write "the only", "all of", "there
+   are N", or "nothing else", the limiter comes OFF, or is replaced by a count (`| wc -l`) that
+   cannot lie by omission — and you quote the count beside the list. **(b) A number or SHA copied
+   out of a DOCUMENT is a claim about that document, not about the repo.** The same directive
+   asserted Lane A's squash was `a81d66983`, transcribed from an adjacent charter row; that is
+   `#517`'s Lane A, not `#498`'s (`aa02f0d9f`), and one `git log -1 --format=%s <sha>` catches it.
+   A near-identical sibling literal is precisely what makes this shape easy. The same directive also
+   said a struct had 16 fields where the listing it was quoting showed 15. Rule: anything a
+   downstream role will treat as ground truth — especially a SHA, a count, a line number, or a file
+   path — is re-derived by command at the moment you write it, never carried over from prose you
+   read earlier. The tell for both: you are quoting a *quantity* or an *identifier* and cannot name
+   the command that produced it **in this session**. (Corollary, cheap and repeatedly earned: when a
+   sub-agent refutes one of these, that is the loop WORKING — record it in Ruled out and fix the
+   provenance habit, per Gate 2's rule (d), rather than treating the refutation as noise.)
 3c. **"THE SERVICE" IS AN ASSUMPTION — a probe identifies the endpoint you REACHED, never the
    service you NAMED** (added 2026-08-01 iteration 130; 2nd instance of this gap after iteration
    129 recorded "ollama server is 0.31.2, up 11 days; client already 0.32.1" as a fact and built a
