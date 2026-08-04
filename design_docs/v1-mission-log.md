@@ -7816,3 +7816,19 @@ executor-authored vacuous assertion, the directive template gets the step.
 **Next**: **M2** — MCP request-scoped adapter and frozen wire envelopes (~8.5 h). The architecture is
 pinned in plan §0.6 (outer wrapper handler, *not* resolution inside `getServer`), and M2 AC5 must now
 absorb the `x-mcp-header` panic case above. Then M3, then recorded-stream S2.
+
+**Gate 3b addendum (post-merge, recorded before the report went out).** The PR was green — 20
+check-runs, 0 non-success, SHA-addressed, plus the per-workflow confirm. The **post-merge dev run
+then failed `Build windows-latest`**, and it was not the merge.
+`TestReferenceSolutions_JS/fizzbuzz` hit its own 60 s node-startup timeout at **60.59 s**
+(`internal/eval_harness/reference_solutions_test.go:89`), with `recursion_fibonacci` at 31.07 s and
+every other subtest at 0.06 s — interpreter cold start, not program work. Two independent disproofs:
+my docs-only child `434e3e53a` **contains the identical M1 code** (`git merge-base --is-ancestor`
+true; `git ls-tree 434e3e53a serveapi/` lists both new files) and its Windows build **passed**; and a
+concurrent session's YAML-and-markdown-only commit `f574c4b58` — **zero Go files** — failed the same
+way in the same window. Isolated with a `--- FAIL` grep paired against a **13,067**-line `--- PASS`
+control. The test's own comment records that 60 s was *already* a raise after this same class of
+failure, so the bound is chasing the runner rather than bounding a hang. Filed **`#587`** — fourth in
+the runner/third-party-verdict family after `#583`, `#494`, `#509`. Iteration 137 shipped its digest
+before an equivalent red surfaced and had to follow with a correction; this one was found and
+recorded **first**, so the report carries the caveat rather than retracting it.
