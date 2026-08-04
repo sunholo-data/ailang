@@ -7542,3 +7542,18 @@ one spawn directive, all caught by the designer rather than by me.
 
 **Next**: sprint-planner on Lane B (opus-required, ~17h, 3 milestones), then recorded-stream S2 per Mark's
 2026-08-03 order. `#554`, `#558`, `#561`, `#563`, `#578`, `#581` open.
+
+**Iteration 137 addendum — Gate 3b on the dev merge went RED, and it was not the merge.** `Build and
+Release` failed at `1af897b9b` on `TestGitCache_Resolve_RealRepo`, which clones the **live**
+`sunholo-data/ailang-packages` repo (`internal/pkg/gitcache_test.go:48`, guarded only by
+`testing.Short()`, which CI does not set): `fatal: could not read Username for 'https://github.com':
+Device not configured` → `exit status 128`. The push contains **zero Go files** (4 markdown + 1 skill
+doc) and the previous **seven consecutive** dev runs were green — including `2629ad8fa` four minutes
+earlier — so the merge cannot be the cause; a credential-helper/network condition on the macOS runner
+is. Matrix `fail-fast` then cancelled ubuntu and windows, so one network hiccup presented as three
+non-success checks, which is itself worth fixing because it obscures the diagnosis. The `--- FAIL`
+grep was paired with a known-positive control (13,115 `--- PASS` lines in the same log) so the single
+hit is a measurement rather than a lucky pattern. Failed jobs re-run; filed **`#583`** — same
+third-party-verdict class as `#561`, except this one reaches CI and gates releases. Recorded rather
+than smoothed over: the dual-channel digest went out **before** this surfaced, so a correction was
+posted to `#559` rather than letting a "LANDED, CI green" report stand unqualified.
