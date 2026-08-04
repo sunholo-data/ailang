@@ -532,6 +532,28 @@ the Repo Profile above):
    the command that produced it **in this session**. (Corollary, cheap and repeatedly earned: when a
    sub-agent refutes one of these, that is the loop WORKING — record it in Ruled out and fix the
    provenance habit, per Gate 2's rule (d), rather than treating the refutation as noise.)
+   **(vi) A DOCUMENT'S VERIFICATION LOG CAN REFUTE THAT DOCUMENT'S OWN ACCEPTANCE CRITERIA — DIFF
+   THE TWO BEFORE ROUTING, BECAUSE NOTHING ELSE DOES** (added 2026-08-04 iteration 138; 2nd instance
+   after iteration 135). Everything above polices a check at the moment you *run* it. This is the
+   same error one step later, and it is now the likelier one: the measurement was taken correctly,
+   written down honestly, and then a conclusion elsewhere in the SAME FILE was built on the version
+   of reality that predates it. Nobody re-reads a 28-row Verification Log against a 27-item AC list,
+   so the contradiction ships. Iteration 138's pick had row **V18** recording that the boundary gate
+   iterates three fixed package sets none of which contain `apiserver` — and its M3 acceptance
+   criterion was still "`make check-boundaries` passes", a gate that passes identically whether or
+   not the new code violates the boundary it is cited to protect. **Two reviewers cleared that doc
+   across two full quorum rounds and neither caught it**, which is the point: quorum reads for design
+   soundness, not for internal consistency between a doc's evidence and its claims. Iteration 135 was
+   the same shape — a planner evidence row measured at pre-split `HEAD`, then cited for an ordering
+   claim at a position that row never covered. So the cross-check is a CONTROLLER duty at pick time,
+   not something a reviewer or the designer will do for you: for each acceptance criterion that names
+   a command, find the verification row covering that command and confirm the row's measured SCOPE
+   actually reaches the thing the AC is about. Where it does not, the AC is **vacuous** — replace it
+   with one that can fail, and say so in the routing evidence. The tell: an AC of the form "`make X`
+   passes" or "the suite is green" for work that lives somewhere the doc has already measured `X` as
+   not looking. Cheap generalisation, worth more than the two instances: **a long document is an
+   instrument too, and its Verification Log is the control — if the log and the claims disagree, the
+   claims are what's wrong.**
 3c. **"THE SERVICE" IS AN ASSUMPTION — a probe identifies the endpoint you REACHED, never the
    service you NAMED** (added 2026-08-01 iteration 130; 2nd instance of this gap after iteration
    129 recorded "ollama server is 0.31.2, up 11 days; client already 0.32.1" as a fact and built a

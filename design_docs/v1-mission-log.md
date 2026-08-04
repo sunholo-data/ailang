@@ -7557,3 +7557,148 @@ hit is a measurement rather than a lucky pattern. Failed jobs re-run; filed **`#
 third-party-verdict class as `#561`, except this one reaches CI and gates releases. Recorded rather
 than smoothed over: the dual-channel digest went out **before** this surfaced, so a correction was
 posted to `#559` rather than letting a "LANDED, CI green" report stand unqualified.
+
+## 143 — 2026-08-04 — Iteration 138: **the `#498` Lane B sprint plan is LANDED, and planning refuted five of the design doc's premises — two of them acceptance criteria that could not fail.** Commit `6e82d2a1b`; planner opus per `derive-planner-lane.sh`; estimate revised 17h → **25h**; systemic gate-scope defect filed as **`#584`**.
+
+**Pick**: the queue head — `m-mcp-exact-tool-surface` Lane B (`#498`, world-DEMAND, World's sole clause-6
+external blocker) — routed to **sprint-planner**, which is exactly what iteration 137 named as next and
+what Mark's 2026-08-03 ratification ordered (`#498 Lane B` → recorded-stream S2, S2 does *not* jump).
+Gate 0/1 clean and cheap: kill switch armed, billing **CLEAN**, gh account correct, zero open
+`[nightly-eval]` alarms (control: 46 open issues total, so the zero is a measurement), no new Mark comment
+(watermark `2026-08-03T07:04:45Z`; the allowlist control fired — one Mark comment total, its `createdAt`
+equal to the watermark, so correctly excluded by `>`), no rotation due (`#559` created `05:08Z` =
+**07:08 CEST**, *after* the Monday-07:00 LOCAL boundary; 14 < 80), weekly sweep already satisfied by
+iter-136. `dev == origin/dev == 6bd8cda42` at pick, and **the running `SKILL.md`, the driver, and the
+charter were all byte-identical to origin** — the 2026-08-03 reconcile has now held for a **third**
+consecutive iteration, so Gate 4 wrote in place rather than through a worktree. Cheap tell case-correct
+with control (ITERATION 137 = 1, 136 = 2, rotation invariant 3). dev CI green at the pick SHA, confirmed
+per-workflow *and* SHA-addressed (14 success / 1 neutral), so iteration 137's `#583` re-run had cleared.
+
+**The planner refuted five premises, and I reproduced every one first-party before recording it.** A
+sub-agent finding is a claim until the controller measures it — including when the sub-agent is right,
+which it was five times out of five. New Verification Log rows **V29–V33** in the design doc:
+
+- **V29 — `make check-file-sizes` is blind to the package this sprint creates.** The gate body enumerates
+  `find internal cmd` only. Measured: **45** files seen under `internal/apiserver/`, **0** under
+  `runtime/`+`std/` where **6** `.go` files genuinely exist. The known-positive proves the instrument
+  works, so the zero is a measurement of *scope*. M3's "size gate passes" AC would have passed identically
+  with a 5,000-line `serveapi/serveapi.go`.
+- **V30 — `make check-boundaries` is blind to both `internal/apiserver` and `serveapi/`.** It iterates
+  three fixed package sets: `apiserver` **0** mentions, `serveapi` **0**, control `parser` **4**. The gate
+  passes whether or not the new public package imports the compiler core — i.e. it cannot fail for the
+  reason it was cited.
+- **V31 — the load-bearing one, and new to the design.** `mcp.Server.AddTool` **panics** on a missing or
+  non-object input schema (SDK v1.7.0 `mcp/server.go:282` and `:294`; control 16 `panic(` sites in that
+  file). The embedded design calls `AddTool` **per request**, inside a handler goroutine, from
+  **caller-supplied** descriptors, and its `ToolDescriptor` permits `InputSchema: nil` — so a host's
+  omission becomes a panic on every request. M1 had covered the *scalar* schema case and missed nil.
+- **V32 — `@nomcp` is already a second, MCP-only filter** downstream of `isExposed` (`mcp.go:94-95`; 57
+  references repo-wide including a dedicated `nomcp_test.go` whose
+  `TestNoMCP_StillServedOverHTTPAndOpenAPI` asserts the export *stays* on the other protocols). So M3's
+  instruction to restate "one filtering point" is false as written, and folding `@nomcp` into the shared
+  gate would hide those exports from A2A and OpenAPI — the opposite of the annotation's contract.
+- **V33 — favourable, and recorded so good results are not waved away.** `internal/apiserver` binds
+  **zero** sockets today; all **13** `httptest.NewServer` sites are in `cmd/` (control: 12 files in
+  `apiserver` already use `NewRecorder`). So most of this sprint is authoritative *inside* the codex
+  `workspace-write` sandbox, and M3's blanket "outside the loopback-denying sandbox" caveat applies only
+  to `./cmd/ailang`.
+
+**Two of those five are vacuous acceptance criteria — the class this mission has now shipped six times.**
+V29 and V30 are not merely inaccurate; they are ACs that *cannot fail*, which is worse than a missing AC
+because they read as coverage. Both are replaced in the doc: an explicit `find serveapi -name '*.go' |
+xargs wc -l` assertion, and a two-sided `go list` import check with a known-positive control, with
+`make check-boundaries` demoted to a non-regression check that is explicitly **not** evidence about
+`serveapi`. V31 adds a nil-schema rejection *before* any `AddTool` call plus panic-recovery in the
+per-request adapter mapped to the already-frozen `-32603` envelope — an extension of the existing
+"scalar schema produces an explicit error" requirement to the input class it missed, not a direction
+change, so no re-quorum. V32 narrows the invariant to be written ("one gateway decides *membership*;
+`@nomcp` remains an MCP-only *projection* filter applied after it").
+
+**The document had already measured the thing its own AC contradicted.** Row **V18** — written by the
+designer, cleared by two reviewers across two full quorum rounds — records that the boundary gate's
+package sets do not include `internal/apiserver`. The M3 acceptance criterion citing that gate survived
+anyway. Nobody diffs a 28-row Verification Log against the AC list, and quorum reads for design soundness
+rather than internal consistency, so the contradiction shipped through every gate the mission has. This is
+the retro finding (below) and it is the second instance: iteration 135's planner evidence row was measured
+at pre-split `HEAD` and then cited for an ordering claim at a position it never covered.
+
+**Milestone ordering CHANGED, for a bisectability reason worth keeping.** Three of M1's six ACs are
+unsatisfiable at the M1 boundary — AC2 (pointer session through a request), AC5 (its own text says it
+covers MCP POST, A2A task POST and A2A card GET) and AC6 (an overload envelope specified per-protocol) all
+need the M2 MCP handler or the M3 A2A path. Rather than drop them, the callback runner becomes
+protocol-neutral and directly unit-testable, so M1 keeps the *stronger* runner-level halves (observed
+context deadline, starts capped at N, token held until the goroutine exits, goroutine count flat under a
+burst) and the wire halves move to the transport that provides them. Separately the `isExposed` → gateway
+generalization moves **M1 → M3**: the embedded path never calls it, so nothing upstream depends on it, and
+it is the only change that can regress standalone behaviour across six production call sites in five
+files — last is the sharp bisect boundary. Same class as iteration 135's ordering defect, caught before
+execution this time instead of during it.
+
+**Estimate: 17h → 25h, and no AC cut.** The cost driver is the AC set, not LOC — test LOC runs ~70% of
+implementation LOC here. Calibration against Lane A (`aa02f0d9f`): 1,023 insertions of which **534** were
+its sprint plan, so ~490 LOC of real work for a materially smaller scope; Lane B is ~1,450 LOC across a
+new public package, a new authorization type, a concurrency-bounded callback runtime and two protocol
+adapters. If a hard 3-day box is ever imposed, the only clean cut is deferring M3's `isExposed`
+generalization (~3.5h, no embedded-path dependency).
+
+**Artifacts and their validation** (a plan is a claim too): plan
+`design_docs/planned/v1_0_0/m-mcp-exact-tool-surface-lane-b-sprint-plan.md` (631 lines, names the input
+doc); sprint `.ailang/state/sprints/sprint_M-MCP-EXACT-TOOL-SURFACE-LANE-B.json` — `jq -e .` rc=0, the
+repo's own `validate_sprint_json.sh` rc=0 "VALIDATION PASSED", placeholder sweep
+`MILESTONE_ID`/`auto-parse failed`/`TODO`/`TBD` all **0** with a known-positive control
+(`acceptance_criteria` = 3) proving the grep matches this file, `all(.features[].estimated_loc; . > 0)`
+true. `.ailang/` is gitignored (`.gitignore:77`) so the JSON needed `git add -f`, matching the 44 sprint
+JSONs already tracked. Staged diff verified **before** commit: exactly 3 files, 872 insertions, **zero
+deletions** — the rig-synced `docs/static/benchmarks/*.json` and a sibling session's untracked
+`m-eval-batch-api.md` were left alone (Critical Principle 0).
+
+**The plan encodes the executor's real constraints, which the doc could not know.** No git writes at all
+(the sandbox cannot write a linked worktree's `.git`), cumulative `.snap/M<k>/` snapshots per milestone
+with the controller reconstructing one commit each and proving byte-identity by sha256 manifest, and the
+worktree path pinned **literally** to `/Users/voightkampff/dev/sunholo-data/.wt-iter139-mcp-lane-b` —
+a sibling of the repo, never `/tmp`, because a `/tmp`-rooted checkout reds `TestIsTempPath` and
+`TestSolve_HardTimeout_FakeSolverIgnoringT` for the *location* and CI can never reproduce it. Iteration
+136 lost time to a plan whose worktree literal predated that rule; writing the path into the plan closes
+it for the executing iteration rather than relying on it to re-read this skill.
+
+**Ruled out / refuted.** My own probe for the boundary script came back empty and I nearly read it as
+"the gate has no script": the file is at `scripts/check_boundaries.sh`, not `tools/`, and the `|| find …`
+fallback I had chained after a pipe **never ran**, because `grep … | head` exits with `head`'s status —
+the pipe-exit-code trap in a new shape, where the casualty is a *fallback* silently not firing. Re-probed
+with `make -pn`, the tool that cannot miss, which printed the gate body directly. Also refuted: the
+planner's report that doc row V19 shows `./cmd/ailang` failing — that was measured in the *codex sandbox*;
+in an unsandboxed session it is rc=0 `ok 19.282s`, which is a scope qualification rather than a
+contradiction and makes controller re-runs cheap (~20s).
+
+**Routing evidence**: controller **opus** (`claude-opus-5`); task-class=**plan**; planner **opus**, fired
+once via the Agent tool — `derive-planner-lane.sh` returned `opus declared:opus-required`, so per Gate 3
+step 1b **no codex probe and no codex spawn happened for the planner role**, and the reason token is
+recorded verbatim. This is the first iteration to exercise the iter-136 flip's *opus* arm end to end, and
+the `planner=` row iteration 136 asked future iterations to check is therefore `planner=opus (declared)`,
+not the new `codex` default — the fail-closed derivation working as designed on a doc that declares its
+own lane. Designer **not fired** (doc pre-existed and is quorum-cleared), so the rotation correctly stays
+`codex:gpt-5.6-sol`. Evaluator **not fired — and not owed**: the deliverable is a plan, and the mission
+evaluates *sprints*; the plan's own gates (validator rc=0, placeholder sweep with control, jq) plus the
+controller's five first-party reproductions are the check. generator≠judge is not engaged for a planning
+iteration. `metered=$0.00` of the `$5` ceiling — every lane ran on a quota bucket.
+
+**Retro — one skill edit** (saved in the MAIN checkout; `readlink` confirms `~/.claude/skills/
+mission-control` is a symlink to the repo copy, inode `27963706` on both paths, `diff -q` silent, and the
+new rule greps present in the running copy with a known-positive control): Gate 2 rule 3b gains **(vi)** —
+*a document's Verification Log can refute that document's own acceptance criteria; diff the two before
+routing, because nothing else does.* Two recorded frictions, both in the log: iteration 138's V18-vs-M3
+contradiction (cleared by two reviewers across two quorum rounds) and iteration 135's evidence row
+measured at a position it was then cited beyond. The generalisation is the part worth keeping: a long
+document is an instrument too, and its Verification Log is the control — when the log and the claims
+disagree, the claims are what is wrong.
+
+**Also filed**: **`#584`** — both repo gates enumerate hardcoded directory/package lists, so every
+first-party Go package outside `internal/` and `cmd/` (`runtime/`, `std/`, `testutil/`, `scripts/`,
+`tools/*`) has no 800-line enforcement and no boundary enforcement at all. The per-sprint workaround is in
+the plan; the systemic fix (derive both lists from `go list ./...`, add an anti-vacuity floor, add a
+self-test fixture) is repo-wide and deliberately out of this sprint's scope. Not urgent enough to outrank
+the queue; filed so it is not re-discovered a third time.
+
+**Next**: **execute** Lane B — plan-ready, 3 milestones, ~25h, executor `codex:gpt-5.6-sol` with the
+snapshot protocol, evaluator sonnet (generator≠judge holds). Then recorded-stream S2 per Mark's
+2026-08-03 order. `#554`, `#558`, `#561`, `#563`, `#578`, `#581`, `#583`, `#584` open.
