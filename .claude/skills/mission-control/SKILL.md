@@ -1049,6 +1049,12 @@ A poll that waits on a check that cannot complete is an unbounded wait wearing a
 
 ## Gate 4 — RECORD (append-only; the log is the mission's memory)
 
+**FIRST: overwrite `design_docs/mission-dashboard.md`** (Mark 2026-08-04: the 30-second
+control context for fresh sessions — his long-lived thread was burning 14%/week of quota as
+cache-rebuild). Keep it ≤40 lines, OVERWRITE never append: latest release · in-flight/next
+picks · loop cadence+routing · parked-on-Mark · quota posture. It is a snapshot, not a record —
+history stays in the charter/log.
+
 Append an entry to `design_docs/v1-mission-log.md` using its fixed template — every section,
 "none" over omission. The **Routing evidence** row and **Ruled out** ledger are the two highest-
 value fields: evidence drives routing-policy changes; ruled-out stops re-chasing. Update the
