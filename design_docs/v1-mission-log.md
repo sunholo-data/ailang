@@ -7702,3 +7702,117 @@ the queue; filed so it is not re-discovered a third time.
 **Next**: **execute** Lane B — plan-ready, 3 milestones, ~25h, executor `codex:gpt-5.6-sol` with the
 snapshot protocol, evaluator sonnet (generator≠judge holds). Then recorded-stream S2 per Mark's
 2026-08-03 order. `#554`, `#558`, `#561`, `#563`, `#578`, `#581`, `#583`, `#584` open.
+
+---
+
+## 144 — 2026-08-04 — Iteration 139: **`#498` Lane B M1 is LANDED — and controller mutation testing found two vacuous assertions the executor shipped, one of which refutes the sprint plan's own "would this still pass if the claim were false?" answer.** PR **#585** → squash `f5ebcc0b5`, Gate 3b GREEN SHA-addressed (20 check-runs, 0 non-success); evaluator sonnet **PASS 94/100 r1, zero blocking**.
+
+**Pick**: the queue head — `m-mcp-exact-tool-surface` Lane B (`#498`, world-DEMAND, World's sole
+clause-6 external blocker) — routed straight to **sprint-executor**, which is exactly what iteration
+138 named as next. Doc and plan both pre-existed and were quorum-cleared, so **no designer and no
+planner fired**; the rotation correctly stays `codex:gpt-5.6-sol`. This is milestone **M1 of 3**;
+M2 (~8.5 h) and M3 (~10 h) remain, which is the plan's own 25 h shape, not a shortfall.
+
+Gate 0/1 clean: kill switch armed, billing **CLEAN**, gh account correct, **zero** open
+`[nightly-eval]` alarms (control: 47 open issues, so the zero is a measurement), inbox empty, no new
+Mark comment (watermark `2026-08-03T07:04:45Z`; the allowlist control fired — one Mark comment total,
+`createdAt` *equal* to the watermark and so correctly excluded by `>`), no rotation due (`#559`
+created `05:08Z` = **07:08 CEST**, after the Monday-07:00 LOCAL boundary; 16 < 80), weekly sweep
+satisfied by iter-136. `dev == origin/dev == d1b851026` at pick and the running `SKILL.md`
+byte-identical to origin (`cmp` silent) — **the 2026-08-03 reconcile has now held for a fourth
+consecutive iteration**, so Gate 4 wrote in place. Cheap tell case-correct with control
+(ITERATION 138 = 1, 137 = 2, rotation invariant 3).
+
+### The two vacuous assertions — both proven by mutation, not asserted
+
+The executor reported **6 of 6 acceptance criteria MET** and every gate green. That is a claim, and
+re-running the gates outside the sandbox confirmed all of them. What the gates did *not* show is
+whether the assertions behind them can fail. Two could not.
+
+**(1) `callbacks_test.go` — the "next callback in the chain is never entered" clause (plan AC4).**
+The follow-up call was guarded on `if err == nil`, and three lines earlier the test requires `err` to
+be `context.DeadlineExceeded`. So the branch is dead and `next.Load() != 0` held under *any*
+implementation. Proven rather than reasoned: an instrumented marker inside the branch printed **0**
+times while the test itself ran (**control: 1** PASS line in the same output). Replaced with the
+strictly stronger claim that *is* provable at the runner level — on a saturated runner (capacity 1) a
+follow-up call must return `ErrCallbackCapacity` with host code never entered, which fails precisely
+when the token is released as the handler stops waiting rather than when the goroutine **exits**.
+That is the semantics the design doc froze, and it now has a test that can fail.
+
+**(2) `authorized_surface_test.go` — the deep-copy proof (plan AC3).** It compared `surface.All()`
+against an earlier `surface.All()`. Under a shallow clone **both results alias the caller's storage
+and change together**, so the comparison holds however broken the copy is. The shallow-clone mutation
+**survived**. This is the sharper finding of the two, because **the sprint plan explicitly answered
+this case**: *"Would still pass if the claim were false? The mutation half fails on a shallow copy."*
+It does not. The plan was wrong, two reviewers and a full planning pass did not catch it, and only
+running the mutation showed it. Now compared against a materialized `json.Marshal` snapshot and a
+literal; the same mutation dies.
+
+Four controller mutations in total, **each proven applied by `cmp` before its result was read** —
+"the mutation didn't red" and "the mutation never ran" are the same exit code — and all reverted
+byte-identical. The other two (drop the nil-`InputSchema` rejection; remove the deterministic sort)
+died as intended.
+
+### The evaluator re-derived both fixes and its NB-1 is a real M2 blocker
+
+Sonnet **PASS 94/100, round 1, zero blocking**, generator≠judge holding twice over (OpenAI executor
+vs Anthropic judge; sonnet ≠ this opus controller). It independently confirmed both vacuity fixes are
+discriminating, ran its own four mutations, and separately established that the runner has no slot
+leak and that `ErrCallbackCapacity` is distinguishable from parent-context cancellation.
+
+Its **NB-1 was reproduced before adoption** and is load-bearing: a **fifth** `AddTool` panic case —
+`validateParamHeaderAnnotations` at `mcp/server.go:312-313`, firing on an `x-mcp-header` annotation
+that is invalid, duplicated, or applied to a non-primitive — is **not** covered by M1's validation
+(control: the already-confirmed `missing input schema` panic in the same call). It is invisible today
+because M1 never calls `AddTool`, and goes live the moment M2 registers per request from
+caller-supplied descriptors. **M2 AC5 is therefore not sound as written.** Recorded in the plan
+(`63e051de6`) requiring **both** loud validation *and* a `recover()` backstop — `recover()` alone
+would silently accept a descriptor class the contract calls invalid, which is the CLAUDE.md §2
+failure mode.
+
+### `go test ./...` came back rc=1 and it was not this sprint
+
+`TestNetHttpPost/httpPost_to_httpbin.org` failed against a live **httpbin.org 504**. Reproduced at
+the untouched base commit in the main checkout with zero sprint changes, already tracked as **`#561`**,
+and proven CI-safe in both directions (`CI=true` → rc=0 skip; without → rc=1). Same
+third-party-verdict class as `#583`. Diagnosed with a `--- FAIL` grep paired against a **106** `ok`
+control, so the single hit is a measurement.
+
+### Ruled out
+
+- **My own suspicion that the external-module fixture would red CI.** The plan specifies a hardcoded
+  worktree path in the `replace` directive, and a hardcoded absolute path cannot exist on a CI runner.
+  **REFUTED** — the executor derived the module root from `runtime.Caller(0)` instead, which is more
+  robust than the plan asked for. The executor improved on its instructions and I nearly filed it as a
+  defect.
+- **"`isExposed` is gone."** My control grep `func isExposed` returned empty and I briefly read that as
+  a finding. It is a **method** (`func (s *Server) isExposed`); widening the pattern found the
+  definition plus **6** production call sites, exactly as the plan states. The instrument was my
+  pattern, not the repo — and it was a *control* that failed, which is the case rule 3a exists to catch.
+- **A Go-version mismatch in the offline fixture.** The fixture pins `go 1.26.5`; repo `go.mod` and all
+  ten CI `go-version` entries are `1.26.5`. Checked before Gate 3b rather than after.
+
+### Filed
+
+**`#586`** — two latent traps in the external fixture, both reproduced first-party and both with
+**zero** current impact, so they are follow-ups rather than blockers: `runtime.Caller(0)` breaks under
+`-trimpath` (rc=1 measured, clean control rc=0; `trimpath` appears **0×** in CI against a **14×**
+`go test` control), and the fixture's `go 1.26.5` is a hardcoded literal that will drift on the next
+toolchain bump.
+
+**Routing evidence**: model=**claude-opus-5** (controller) · task-class=**execute** ·
+round1-score=**94** · rounds=1 · corrections=**2** · provider=**codex** · agent=codex ·
+planner=**not fired (plan pre-existed)** · designer=**not fired (doc pre-existed)** ·
+evaluator=**sonnet, pinned**. Executor fired **once** (`codex:gpt-5.6-sol`, probe rc=0, bounded 30 min,
+`--sandbox workspace-write`, `.snap/M1/` snapshot protocol observed and never committed).
+`metered=$0.00` of the `$5` ceiling — every lane on a quota bucket.
+
+**Retro — NO skill edit.** The candidate gap is real but has **one** clean instance and the bar is two:
+*both* vacuous assertions came from the **executor's own tests**, not from the plan, so the executor
+directive should carry a "prove each new assertion can fail" step rather than relying on the controller
+to mutation-test after the fact. Recorded as a watch-item; if a second iteration finds an
+executor-authored vacuous assertion, the directive template gets the step.
+
+**Next**: **M2** — MCP request-scoped adapter and frozen wire envelopes (~8.5 h). The architecture is
+pinned in plan §0.6 (outer wrapper handler, *not* resolution inside `getServer`), and M2 AC5 must now
+absorb the `x-mcp-header` panic case above. Then M3, then recorded-stream S2.
