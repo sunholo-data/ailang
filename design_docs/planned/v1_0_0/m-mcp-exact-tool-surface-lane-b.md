@@ -729,6 +729,49 @@ commands with narrowed scope say so.
 | V28 | `-32603` is NOT currently used in `a2a.go`, so this design introduces it (the standard JSON-RPC internal-error code) rather than redefining an existing one. Empty result paired with a known-positive control in the same check, per the negative-result rule. | `grep -c "32603" internal/apiserver/a2a.go; grep -c "32602" internal/apiserver/a2a.go` | `0` for `-32603`; control `6` for `-32602` — the instrument demonstrably matches this file, so the zero is a measurement and not a broken pattern. |
 | V26 (M5) | Stateless POST still requires both JSON and SSE Accept media types. | `moddir=$(go list -m -f '{{.Dir}}' github.com/modelcontextprotocol/go-sdk); sed -n '388,399p' "$moddir/mcp/streamable.go"` | Comment: `Accept must contain both 'application/json' and 'text/event-stream'.`; failure text repeats both types and returns `http.StatusBadRequest`. |
 
+**Rows V29–V33 added 2026-08-04 by the CONTROLLER at sprint-planning time (iteration 138).** The
+planner (opus) refuted or extended five premises; each was then reproduced first-party by the
+controller before being written here, per the mission's rule that a sub-agent finding is a claim
+until the controller measures it. V29/V30 make two of M3's acceptance criteria **vacuous as
+written** and are corrected in the AC list above; V31 adds a genuine robustness requirement the
+design's optional `InputSchema` invites.
+
+| ID | Claim | Exact command | Observed output |
+|----|-------|---------------|-----------------|
+| V29 | **`make check-file-sizes` is BLIND to a new top-level `serveapi/` package** — the gate body enumerates `find internal cmd` only, so M3's "size gate passes" AC would pass identically if `serveapi/serveapi.go` were 5,000 lines. Extends V12, which measured the gate passing without measuring its SCOPE. | `sed -n '122,128p' make/code-health.mk`; then `find internal cmd -name '*.go' \| grep -c 'internal/apiserver/'` and `find internal cmd -name '*.go' \| grep -cE '^(runtime\|std)/'` and `find runtime std -name '*.go' \| wc -l` | Gate body: `for file in $(find internal cmd -name "*.go"); do ... if [ $SIZE -gt 800 ]`. Counts: **45** files under `internal/apiserver/`; **0** under `runtime/`+`std/` — while **6** `.go` files genuinely exist there. The known-positive (45) proves the instrument works, so the 0 is a measurement of scope, not a broken pattern. |
+| V30 | **`make check-boundaries` is BLIND to both `internal/apiserver` and a new `serveapi/`** — it iterates three FIXED package sets, none containing either, so M3's boundary AC is not discriminating: it passes whether or not `serveapi` imports the compiler core. Sharpens V18 (which recorded the absence but left the AC citing the gate anyway — a rule-3b scope case inside this document). | `make -pn \| grep -A6 '^check-boundaries:'`; then `grep -c apiserver scripts/check_boundaries.sh`, `grep -c parser scripts/check_boundaries.sh`, `grep -c serveapi scripts/check_boundaries.sh`; then `bash scripts/check_boundaries.sh` | Gate body: `@bash scripts/check_boundaries.sh`. Mentions: `apiserver` **0**, `serveapi` **0**, control `parser` **4** — the instrument demonstrably matches this file, so both zeros are measurements. Gate itself: rc=0, `OK: no architecture boundary violations.` Sets are `CORE_PKGS`, `DASHBOARD_PKGS`, `CORE_SURFACE_PKGS`. |
+| V31 | **`mcp.Server.AddTool` PANICS on a host-supplied descriptor with a missing or non-object input schema.** Because the embedded design calls `AddTool` **per request** inside a handler goroutine from **caller-supplied** descriptors, a host returning `InputSchema: nil` (which this doc's `ToolDescriptor` permits) turns a host mistake into a panic on every request. M1's AC covered only the scalar case, not nil. | `SDK=$(go list -m -f '{{.Dir}}' github.com/modelcontextprotocol/go-sdk); grep -rn "missing input schema\|can't marshal input schema" "$SDK/mcp/"*.go; grep -c "panic(" "$SDK/mcp/server.go"` | `mcp/server.go:282: panic(fmt.Errorf("AddTool %q: missing input schema", t.Name))` and `mcp/server.go:294: panic(fmt.Errorf("AddTool %q: can't marshal input schema to a JSON object..."))`. Control: **16** `panic(` sites in that file, so the grep reaches it. SDK resolved at `v1.7.0`. |
+| V32 | **`@nomcp` is already a SECOND, MCP-only filter downstream of `isExposed`** — so M3's instruction to restate "one filtering point" is false as written, and folding `@nomcp` into a single `AuthorizedSurface` would silently hide those exports from A2A and OpenAPI too, which is the opposite of the annotation's documented contract. | `sed -n '88,100p' internal/apiserver/mcp.go`; `grep -rn nomcp --include='*.go' internal/ cmd/ \| wc -l` | `mcp.go:91 if !ms.server.isExposed(export) { continue }` followed by `mcp.go:94-95 if export.IsNoMCP { continue // @nomcp: served over HTTP/OpenAPI/A2A but absent from MCP }`. **57** `nomcp` references repo-wide, including a dedicated `internal/apiserver/nomcp_test.go` asserting `TestNoMCP_StillServedOverHTTPAndOpenAPI`. |
+| V33 | **`internal/apiserver` binds ZERO sockets today** — every `httptest.NewServer` site is in `cmd/`. So most of this sprint's suite is informative INSIDE the codex `workspace-write` sandbox, and M3's "outside the loopback-denying sandbox" caveat is overly pessimistic (it applies to `./cmd/ailang`, not to the new work). Favourable direction; recorded so the executor does not label good results uninformative. | `grep -rn 'httptest.NewServer' --include='*.go' internal/apiserver/ \| wc -l`; `grep -rn 'httptest.NewServer' --include='*.go' cmd/ \| wc -l`; `grep -rln 'httptest.NewRecorder' --include='*.go' internal/apiserver/ \| wc -l` | `internal/apiserver`: **0**. `cmd/`: **13**. Control — **12** files in `internal/apiserver` already use `httptest.NewRecorder`, proving the pattern-and-path combination matches when the thing is present. |
+
+### Acceptance-criteria corrections forced by V29–V33 (iteration 138)
+
+1. **M3's size-gate AC is replaced.** `make check-file-sizes` stays in the gate list (it must not
+   regress `internal/`), but the *new package* needs its own explicit assertion: every file under
+   `serveapi/` is ≤800 lines, checked by a command that actually looks there
+   (`find serveapi -name '*.go' | xargs wc -l`). Without this the doc claims size coverage it does
+   not have. **A follow-up issue should widen the repo gate itself to all first-party Go dirs** —
+   that is a repo-wide change and therefore out of this sprint's scope, but it is the systemic fix.
+2. **M3's boundary-gate AC is replaced** by a two-sided `go list` check: assert `serveapi`'s
+   transitive imports contain no compiler-core package, paired with a known-positive control
+   proving the query can see an import that IS present. `make check-boundaries` remains in the gate
+   list as a non-regression check only, explicitly NOT as evidence about `serveapi`.
+3. **M1 gains a nil-schema AC and panic-safety requirement (from V31).** Constructor/request
+   validation MUST reject a descriptor whose `InputSchema` is absent or not a JSON object, with an
+   explicit error, *before* any `AddTool` call. The per-request adapter additionally recovers from a
+   panic raised while building the request-local server and converts it to the frozen internal-error
+   envelope (`-32603`, HTTP 200 on MCP/A2A POST), because a host mistake must not take down the
+   host's process. Test both input classes (nil and scalar) and assert the process survives.
+   This EXTENDS the existing requirement that "a scalar input schema produces an explicit
+   constructor/request error" to the input class it missed; it does not change the design direction.
+4. **M3's single-filtering-point restatement is scoped (from V32).** The invariant to be written is
+   "one authorized-surface gateway decides *membership*; `@nomcp` remains an MCP-only *projection*
+   filter applied after membership" — `@nomcp` must NOT be folded into the shared gate, and
+   `TestNoMCP_StillServedOverHTTPAndOpenAPI` is the regression that proves it wasn't.
+5. **Sandbox labelling is narrowed (from V33).** Only `./cmd/ailang` results are
+   `UNINFORMATIVE UNDER SANDBOX`. Results for `./internal/apiserver` and `./serveapi` are
+   authoritative in-sandbox and must be reported as pass/fail, not waved away.
+
 ## Quorum Verification Log
 
 Reviewers: `gpt5-6-sol`, `gemini-3-1-pro`, plus the controller's in-session verdict. Designer:
