@@ -620,6 +620,47 @@ the Repo Profile above):
    what it RESTARTS, because it may heal the rig back onto the very copy you were retiring. The
    tell: you are about to write "the server is version X", "nothing is loaded", or "the service is
    up" on the strength of one endpoint, one CLI, or one `ps` line.
+3d. **A RESULT THAT CAME BACK RED IN THE DIRECTION YOU PREDICTED IS THE MOST SEDUCTIVE CLAIM OF
+   ALL — IT NEEDS A NEGATIVE CONTROL EXACTLY AS MUCH AS AN EMPTY RESULT NEEDS A POSITIVE ONE**
+   (added 2026-08-04 iteration 142; pre-registered by iteration 140 as "watch-item instance 1,
+   bar is two", and this is instance 2). Rule 3a covers results that come back **empty**; 3b
+   covers results that come back **green**. Neither covers the third shape: the check **failed,
+   exactly as you expected it to**, and you bank that as proof your mechanism works. It arrives
+   as confirmation, so nothing in you wants to test it — which is precisely why it survives
+   longer than the other two. The failure mode is always the same: **co-occurrence read as
+   causation.** Something else was also capable of producing that red, and no control separated
+   them.
+   Two instances, both this mission's own, both landing inside otherwise-careful iterations:
+   **(a)** iteration 140 — a deterministic tier-gate regression was attributed to a known runner
+   flake (`#587`) because both commits went red in the same window. Wrong platform *and* wrong
+   failing test; the real regression sat on `dev` for ~2h and was reported to the human as a
+   flake. The lesson recorded then was narrow ("two commits red in the same window is not
+   evidence they failed for the same reason") because it had one instance.
+   **(b)** iteration 141 — the controller *predicted* an acceptance criterion would be vacuous,
+   ran its poisoned-proxy command once, observed `rc=1`, and recorded that as **refuting its own
+   prediction**, crediting the poison for an HTTP error page. Iteration 142 measured it: the
+   poison never touched the request. AILANG's `Net` effect builds its transports by hand with
+   `Proxy == nil`, so the proxy is never consulted; the error page came from **`httpbin.org`
+   itself** — the known-flaky third party that the very sprint under design exists to remove.
+   The original prediction had been CORRECT. Poisoned `rc=0 ok 0.767s`, unpoisoned `rc=0
+   ok 0.724s`: **outcome-identical**. A single unpoisoned run in the same breath would have shown
+   the same red and exposed it instantly, and the AC would not have shipped into a sprint plan.
+   Before "it failed, so the mechanism works" becomes a fact you act on or hand downstream:
+   **(i) run it once with the mechanism REMOVED** — no poison, no flag, no patch, no gate — and
+   require the outcomes to DIFFER. Same outcome means you measured the environment, not the
+   mechanism, and the size of the difference is the size of your evidence;
+   **(ii) name every other thing that could produce this exact failure** before crediting the one
+   you were hoping for — a flaky third party, an outage, a cache, a runner, an unrelated
+   concurrent change. If you cannot rule them out by command, say "consistent with" rather than
+   "caused by";
+   **(iii) attribution must match on MECHANISM, not on timing** — same failing test AND same
+   platform AND same layer, never redness plus adjacency (that is (a)'s form of this rule);
+   **(iv) a prediction you set out to test is not refuted by one observation that merely
+   contradicts it** — it is refuted by an observation whose *cause* you established. Iteration
+   141's error was not the measurement; it was concluding causation from a single arm.
+   The tell: you are about to write "this proves the guard works", "the drill is non-vacuous",
+   "confirmed — it fails as expected", or "same failure as `#NNN`", and every command you ran had
+   the mechanism switched ON.
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
    the Gate-2 rebuild `-dirty` — binaries built from a half-merged tree; and a persisted `cd`
