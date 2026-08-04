@@ -1,113 +1,65 @@
 {
-  "ailang_version": "v0.31.0",
-  "generated": "2026-08-03",
+  "ailang_version": "v0.32.0",
+  "generated": "2026-08-04",
   "languages": [
-    "ailang",
-    "go",
-    "javascript",
-    "python"
+    "ailang"
   ],
   "rows": [
     {
       "harness": "motoko",
       "lang": {
-        "ailang": 0.8666666666666667,
-        "go": 1,
-        "javascript": 0.75,
-        "python": 1
+        "ailang": 0.85
       },
       "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
       "tiers": {
         "core": {
-          "ailang": 0.95,
-          "go": 1,
-          "javascript": 0,
-          "python": 1
+          "ailang": 0.8333333333333334
         },
         "frontier": {
-          "ailang": 0.8
-        },
-        "smoke": {
-          "ailang": 0,
-          "go": 1,
-          "javascript": 1,
-          "python": 1
+          "ailang": 0
         },
         "stretch": {
-          "ailang": 0.896551724137931,
-          "go": 1,
-          "javascript": 1,
-          "python": 1
+          "ailang": 1
         }
       }
     },
     {
       "harness": "opencode",
       "lang": {
-        "ailang": 0.42,
-        "go": 0.5555555555555556,
-        "javascript": 0.8,
-        "python": 1
+        "ailang": 0.55
       },
       "model": "opencode-qwen3-6-35b-a3b-mxfp8",
       "tiers": {
         "core": {
-          "ailang": 0.6333333333333333,
-          "go": 0.75,
-          "javascript": 1,
-          "python": 1
+          "ailang": 0.3333333333333333
         },
         "frontier": {
-          "ailang": 0.14285714285714285
-        },
-        "smoke": {
-          "ailang": 0,
-          "go": 0.3333333333333333,
-          "javascript": 0,
-          "python": 1
+          "ailang": 0
         },
         "stretch": {
-          "ailang": 0.5454545454545454,
-          "go": 0.5,
-          "javascript": 1,
-          "python": 1
+          "ailang": 0.75
         }
       }
     },
     {
       "harness": "pi",
       "lang": {
-        "ailang": 0.6238532110091743,
-        "go": 1,
-        "javascript": 1,
-        "python": 1
+        "ailang": 0.85
       },
       "model": "pi-qwen3-6-35b-a3b-mxfp8",
       "tiers": {
         "core": {
-          "ailang": 0.9117647058823529,
-          "go": 1,
-          "javascript": 1,
-          "python": 1
+          "ailang": 0.8333333333333334
         },
         "frontier": {
-          "ailang": 0.175
-        },
-        "smoke": {
-          "ailang": 1,
-          "go": 1,
-          "javascript": 1,
-          "python": 1
+          "ailang": 0.5
         },
         "stretch": {
-          "ailang": 0.8484848484848485,
-          "go": 1,
-          "javascript": 1,
-          "python": 1
+          "ailang": 0.9166666666666666
         }
       }
     }
   ],
-  "trials": 5,
-  "version": "rolling-20260803"
+  "trials": 3,
+  "version": "rolling-20260804"
 }

@@ -1,5 +1,69 @@
 [
   {
+    "ailang_version": "v0.32.0",
+    "generated": "2026-08-04",
+    "trials": 3,
+    "languages": [
+      "ailang"
+    ],
+    "rows": [
+      {
+        "harness": "motoko",
+        "lang": {
+          "ailang": 0.85
+        },
+        "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
+        "tiers": {
+          "core": {
+            "ailang": 0.8333333333333334
+          },
+          "frontier": {
+            "ailang": 0
+          },
+          "stretch": {
+            "ailang": 1
+          }
+        }
+      },
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 0.55
+        },
+        "model": "opencode-qwen3-6-35b-a3b-mxfp8",
+        "tiers": {
+          "core": {
+            "ailang": 0.3333333333333333
+          },
+          "frontier": {
+            "ailang": 0
+          },
+          "stretch": {
+            "ailang": 0.75
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 0.85
+        },
+        "model": "pi-qwen3-6-35b-a3b-mxfp8",
+        "tiers": {
+          "core": {
+            "ailang": 0.8333333333333334
+          },
+          "frontier": {
+            "ailang": 0.5
+          },
+          "stretch": {
+            "ailang": 0.9166666666666666
+          }
+        }
+      }
+    ]
+  },
+  {
     "ailang_version": "v0.31.0",
     "generated": "2026-08-03",
     "trials": 5,
@@ -13,24 +77,24 @@
       {
         "harness": "motoko",
         "lang": {
-          "ailang": 0.8666666666666667,
-          "go": 1,
-          "javascript": 0.75,
+          "ailang": 0.8765432098765432,
+          "go": 0.8,
+          "javascript": 0.9230769230769231,
           "python": 1
         },
         "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
             "ailang": 0.95,
-            "go": 1,
-            "javascript": 0,
+            "go": 0.4,
+            "javascript": 0.75,
             "python": 1
           },
           "frontier": {
             "ailang": 0.8
           },
           "smoke": {
-            "ailang": 0,
+            "ailang": 0.8571428571428571,
             "go": 1,
             "javascript": 1,
             "python": 1
@@ -46,27 +110,27 @@
       {
         "harness": "opencode",
         "lang": {
-          "ailang": 0.42,
-          "go": 0.5555555555555556,
-          "javascript": 0.8,
-          "python": 1
+          "ailang": 0.44339622641509435,
+          "go": 0.6111111111111112,
+          "javascript": 0.7857142857142857,
+          "python": 0.9333333333333333
         },
         "model": "opencode-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
             "ailang": 0.6333333333333333,
-            "go": 0.75,
-            "javascript": 1,
+            "go": 0.42857142857142855,
+            "javascript": 0.6,
             "python": 1
           },
           "frontier": {
             "ailang": 0.14285714285714285
           },
           "smoke": {
-            "ailang": 0,
-            "go": 0.3333333333333333,
-            "javascript": 0,
-            "python": 1
+            "ailang": 0.625,
+            "go": 0.7777777777777778,
+            "javascript": 0.8571428571428571,
+            "python": 0.8571428571428571
           },
           "stretch": {
             "ailang": 0.5454545454545454,
@@ -79,8 +143,8 @@
       {
         "harness": "pi",
         "lang": {
-          "ailang": 0.6238532110091743,
-          "go": 1,
+          "ailang": 0.6434782608695652,
+          "go": 0.8888888888888888,
           "javascript": 1,
           "python": 1
         },
@@ -88,7 +152,7 @@
         "tiers": {
           "core": {
             "ailang": 0.9117647058823529,
-            "go": 1,
+            "go": 0.7142857142857143,
             "javascript": 1,
             "python": 1
           },
