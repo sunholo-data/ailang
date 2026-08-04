@@ -567,6 +567,31 @@ the Repo Profile above):
    not looking. Cheap generalisation, worth more than the two instances: **a long document is an
    instrument too, and its Verification Log is the control — if the log and the claims disagree, the
    claims are what's wrong.**
+   **(vi-b) THE INSTRUMENT FOR (vi): SWEEP FROM THE *OLDEST* DECLARED MEASUREMENT BASE, BECAUSE THE
+   NATURAL CHOICE GIVES A FALSE ALL-CLEAR** (added 2026-08-04 iteration 141, adopted from a
+   `mission-world` proposal — World shares this skill but cannot edit it, so it proposes and V1
+   applies). Rule (vi) tells you to diff a document's Verification Log against its claims. It never
+   names a **base**, and the base *is* the whole instrument. A doc revised in place across several
+   iterations accumulates rows measured at different commits, and its header may declare more than
+   one — so the natural move (sweep from the newest base, or from the doc's last revision) silently
+   exempts every row measured before it. Measured by mission-world on
+   `design_docs/planned/w-bench-load-confound.md`, whose header declares two bases:
+   `git diff --name-only <NEWER>..HEAD -- ':!design_docs'` returned **ZERO** files — a confident
+   clean bill of health on a genuinely stale document — while `<OLDER>..HEAD` returned **8** and
+   found every stale row. Three premise rows had gone false from a single commit; one iteration
+   named two, the next repaired those two and declared the class closed, and the **planner** found
+   the third. The sweep had checked the rows someone had named rather than the commit that caused
+   them. Concretely: **(a)** parse EVERY base the Verification Log declares and sweep from the
+   **earliest**; **(b)** treat a row as unverified whenever the diff touches any file that row
+   cites — not merely when someone flagged it; **(c)** pair the diff with a known-changed file as a
+   control, so an empty result proves the instrument ran rather than that nothing moved (rule 3a,
+   applied to freshness); **(d)** re-measure rather than reason — a row's age is not evidence it is
+   still true, and neither is its author's confidence. General form: **a document is only as fresh
+   as its OLDEST measurement**, so it degrades precisely in the rows nobody has reason to re-read.
+   Two recorded frictions, both V1's own — iterations 135 and 138 — and (vi) was authored at 138
+   without an instrument. Reviewers will not close this gap for you: quorum reads for design
+   soundness, not for freshness against HEAD (five rounds and two reviewers missed all three rows
+   above).
 3c. **"THE SERVICE" IS AN ASSUMPTION — a probe identifies the endpoint you REACHED, never the
    service you NAMED** (added 2026-08-01 iteration 130; 2nd instance of this gap after iteration
    129 recorded "ollama server is 0.31.2, up 11 days; client already 0.32.1" as a fact and built a
