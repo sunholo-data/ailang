@@ -1,19 +1,21 @@
 # M-BYTECODE-VM-PARITY-BUGS — Three VM soundness bugs surfaced as "output divergences" (Lanes A + B, scope FROZEN)
 
-**Status**: Planned — **SCOPE FROZEN as A+B per Mark's attended GO, 2026-07-27**, but
-**⚠ PARKED `needs-human-review` at iteration 114: Lane A milestone A2 is BLOCKED by the quorum
-after its one permitted revision.** Lane B is no longer parked *as scope*, but nothing may be
-planned from this doc until the A2 question below is answered. This doc supersedes its own
-iter-102 refresh box (now itself drifted — see "Current state"); plan from THIS version.
+**Status**: Planned — **SPLIT by Mark's decision, 2026-08-04 (option C, see below).** The #505
+pattern-arity fix (the former Milestones B1-quicksort-half + B2) has been spun out, UNBLOCKED, into
+[m-bytecode-pattern-arity-fix.md](m-bytecode-pattern-arity-fix.md) — route that doc through
+sprint-planner/sprint-executor directly, it does not wait on this doc.
+**This doc's remaining scope (A1, A2, B1-closure-half, B3, B4) stays PARKED `needs-human-review`**
+pending a second design round that answers the A2 semantic-effect-extraction question below.
+Nothing should be planned from *this* doc's remaining scope until that round happens.
 **Revision 1 (post-quorum)**: both round-0 objections (unsafe effect replay mis-filed as benign;
 Net/Clock inventory arithmetic) confirmed first-party and fixed — see Verification Log.
 
-> ### ⚠ PARKED — one decision needed from Mark (iteration 114)
+> ### ⚠ PARKED — resolved: option C chosen (2026-08-04); doc split, see status line above
 >
-> The re-quorum **still rejects**, on two NEW objections, both aimed at **A2's file-classification
-> mechanism** (not at Lane B, not at the soundness bugs). The loop parks rather than forcing a
-> guardrail (Standing rule 2), and the narrow-refinement carve-out does **not** apply — see why
-> below.
+> The re-quorum **rejected** (at iteration 114), on two NEW objections, both aimed at **A2's
+> file-classification mechanism** (not at Lane B, not at the soundness bugs). The loop parked
+> rather than forcing a guardrail (Standing rule 2), since the narrow-refinement carve-out did
+> **not** apply — see why below.
 >
 > **gemini-3-1-pro** (narrow, verbatim-fixable): A2 item 3 claims `vmStdout == evalStdout` proves
 > "the fallback fired before any observable output". That is false — `FS` writes and `Net` calls
@@ -21,7 +23,7 @@ Net/Clock inventory arithmetic) confirmed first-party and fixed — see Verifica
 > benign bucket and is masked. Its fix is a verbatim honesty note (the check detects
 > *stdout*-visible replay only; true prevention is B4's VM-level policy).
 >
-> **gpt5-6-sol** (NOT narrow — this is what parks it): A2 swaps the drifting **filename** map for
+> **gpt5-6-sol** (NOT narrow — this is what parked it): A2 swaps the drifting **filename** map for
 > `detectCaps`, which **string-sniffs source text** for `! {Net` / `import std/clock`. That is a
 > second non-semantic heuristic — it can silently execute a live or clock-dependent program and
 > misreport its parity. It asks for **semantic** effect extraction from the compiler's resolved
@@ -36,22 +38,25 @@ Net/Clock inventory arithmetic) confirmed first-party and fixed — see Verifica
 > That is a design decision with a cost, i.e. exactly the controller-judgment case the carve-out
 > excludes.
 >
-> **Options for Mark (loop recommends C):**
+> **Options that were put to Mark (loop recommended C):**
 > - **(A)** Do it properly: A2.1 becomes semantic effect extraction via a new/reused compiler
 >   surface. Correct, but grows A2 beyond its ~0.5d and needs a feasibility spike first.
 > - **(B)** Keep the sniffer, document its limits loudly, revisit later. Cheapest — but both
 >   reviewers say it repeats the exact sin (non-semantic classification) that produced the
 >   `http_simple` drift this doc opens with.
-> - **(C) RECOMMENDED — split the doc and unblock the P0 now.** The blocked question is entirely
->   about **A2's harness classification**. The **#505 pattern-arity soundness bug (B1+B2) does not
->   depend on it at all**: its root cause is settled, its repro is minimal, and its acceptance test
->   (AC8/AC8b) is a table-driven pattern test, not a parity-harness count. Land B1+B2 as their own
->   sprint immediately; send A2 (and the A1/A2 harness lane) back for a second design round with
->   the semantic-extraction question answered. This gets a P0 silent-wrong-answer fix moving while
->   the measurement argument is settled separately.
+> - **(C) CHOSEN 2026-08-04 — split the doc and unblock the P0 now.** The blocked question is
+>   entirely about **A2's harness classification**. The **#505 pattern-arity soundness bug
+>   (B1-quicksort-half + B2) does not depend on it at all**: its root cause is settled, its repro
+>   is minimal, and its acceptance test (AC8/AC8b) is a table-driven pattern test, not a
+>   parity-harness count. B1-quicksort-half + B2 are now spun out into
+>   [m-bytecode-pattern-arity-fix.md](m-bytecode-pattern-arity-fix.md), ready to sprint
+>   immediately. **A2 (and the A1/A2 harness lane, plus B1-closure-half/B3/B4 which depend on A2's
+>   new harness buckets) still need a second design round** with the semantic-extraction question
+>   answered before anything in *this* doc can be planned.
 >
 > Quorum artifacts: `.ailang/state/mission-quorum/m-bytecode-vm-parity-bugs-*.json`
-> (round 0 and round 1). Related filed bugs: **#505** (pattern arity), **#506** (unsafe replay).
+> (round 0 and round 1). Related filed bugs: **#505** (pattern arity — now tracked in the spun-out
+> doc), **#506** (unsafe replay — stays here, part of B4, blocked on A2).
 **Target**: v1.0.0 (clause-2 soundness residue on the V1 mission queue)
 **Priority**: **P0 ×2** — (1) `recursion_quicksort.ail` is a **silent wrong result** under
 `--bytecode` (no error, no fallback, wrong list; root cause #505). (2) The VM→evaluator fallback
@@ -367,15 +372,27 @@ are separable: a Lane-B overrun cannot strand Lane A (A1+A2 land and are gate-ef
   If any of these goes green without a Lane-B fix commit, A2 is wrong.
 
 ### Milestone B1 — diagnose the VM bug families (#505 + closure-dispatch), NO fix (~1d)
-- **AC6**: minimal failing repro for the quicksort `[3]` collapse committed under
-  `tests/golden/bytecode/` + a written root-cause naming the defective codegen/VM path
-  (in the sprint notes and this doc's implementation report). "It's somewhere in lowering"
-  does not pass; a named function/opcode path does.
+
+> **The quicksort/#505 half of B1, and all of B2, are SPUN OUT** into
+> [m-bytecode-pattern-arity-fix.md](m-bytecode-pattern-arity-fix.md) (2026-08-04, Mark's option-C
+> decision) — that doc is unblocked and ready to sprint now. **Only the closure-dispatch-family
+> half of B1 (AC7) remains here**, still parked pending the A2 second design round (B3's fix and
+> AC11's whole-doc gate both need A2's harness buckets).
+
+- ~~**AC6**: minimal failing repro for the quicksort `[3]` collapse...~~ — moved to
+  m-bytecode-pattern-arity-fix.md as AC1–AC3.
 - **AC7**: same deliverable for the closure-dispatch family (`array_basic`'s `GET_TAG on
   Closure`, plus an explicit shared-or-distinct verdict covering `array_grid` and
-  `module_let_helpers`; may name the same root cause as AC6's — must say so explicitly if so).
+  `module_let_helpers`; may name the same root cause as the pattern-arity bug — must say so
+  explicitly if so). **Remains parked here.**
 
-### Milestone B2 — quicksort-class fix (P0, ~0.5–1d)
+### Milestone B2 — quicksort-class fix (P0, ~0.5–1d) — SPUN OUT, see m-bytecode-pattern-arity-fix.md
+
+> Former AC8/AC8b/AC9 now live as AC1/AC2/AC3 in
+> [m-bytecode-pattern-arity-fix.md](m-bytecode-pattern-arity-fix.md), unblocked and ready to sprint.
+> Content kept below for historical reference only — **do not plan from here**, plan from the
+> spun-out doc.
+
 - **AC8**: golden test asserting `examples/runnable/recursion_quicksort.ail` under `--bytecode`
   prints exactly `Quicksort: [1, 1, 2, 3, 4, 5, 6, 9]` and
   `sortBy:    [1, 1, 2, 3, 4, 5, 6, 9]` — fails on HEAD (`[3]`). This AC is the one a
