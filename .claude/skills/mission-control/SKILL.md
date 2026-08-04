@@ -451,7 +451,7 @@ the Repo Profile above):
    an empty result set must FAIL LOUDLY (`t.Fatal("instrument failure")`), never pass;
    **(i-b) quote anything glob-shaped** — `--include='*.go'`, not `--include=*.go`; under zsh an
    unquoted glob-shaped flag value aborts the whole command before it runs;
-   **(i-c) the SHELL is an instrument too, and zsh silently rewrites two shapes** (added
+   **(i-c) the SHELL is an instrument too, and zsh silently rewrites THREE shapes** (added
    2026-07-30 iteration 123; instances 3 and 4 of the zsh class after (i-b)'s glob and step 3's
    `PIPESTATUS`, each corroborated first-party against a `bash` control on the identical string
    before adoption). **Brace any variable followed by a colon** — in zsh, `"$rev:path"` applies
@@ -472,7 +472,20 @@ the Repo Profile above):
    controller's known-positive control appeared to emit real newlines until `od -c` showed the
    bytes `5c 6e` — the instrument hid precisely the bug under test. To read bytes use
    `printf '%s'`, `od -c`, or `cat -v`; never `echo`. (`cat -A` is GNU-only — BSD `cat` rejects
-   it, earned the same hour.) Both shapes are silent and both survive `set -euo pipefail`;
+   it, earned the same hour.) **And zsh does NOT word-split an unquoted variable** (added
+   2026-08-04 iteration 140; the 5th zsh instance, and the first to produce a vacuous pass in a
+   MUTATION TEST — the mission's own headline discipline). `FILES=$(grep -l … | head -4)` then
+   `sed -i '' … $FILES` passes ONE argument whose value is four newline-joined paths, so `sed`
+   fails `No such file or directory` on a filename that does not exist and **nothing is
+   mutated**. In bash the same two lines work, which is why the shape reads as correct. Iteration
+   140 ran exactly this to prove two re-centered CI gates could still fail; both gates returned
+   **rc=0**, and an unexamined rc=0 there says "the assertion is vacuous" in precisely the same
+   voice as "the mutation never ran". Only a *did-the-mutation-apply* control
+   (`git diff --name-only | wc -l` — expected 4, got 1) caught it. Use an ARRAY —
+   `FILES=($(…))`, then `"${FILES[@]}"` — and assert `${#FILES[@]}` before use. The general rule
+   this mission already knows, in its sharpest form: **a mutation test needs proof the mutation
+   LANDED before its result means anything**, because "the mutation didn't red" and "the mutation
+   never ran" are the same exit code. These shapes are silent and all survive `set -euo pipefail`;
    **(ii) widen once before concluding** — drop the quoting, the anchors, the file filter, and the
    directory scope (a root `Makefile` includes; a workflow calls a make target; a caller lives in
    a file type your `--include` excluded); **(iii) prefer the tool that cannot miss** — `make -pn`
