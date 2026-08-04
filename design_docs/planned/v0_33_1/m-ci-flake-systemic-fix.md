@@ -1,13 +1,23 @@
 # M-CI-FLAKE-SYSTEMIC-FIX: One Gating Convention, Bounded Waits, a Default-Deny Egress Boundary, and a Known-Offender Lint for the Go Test Suite
 
-**Status**: Planned
+**Status**: Planned — **SPRINT-PLANNED 2026-08-04 (iteration 142); M2 EXECUTION BLOCKED on the AC3 decision below**
 **Target**: v0.33.1
 **Priority**: P0 (High) — flakes red-light `dev` CI, and a red `dev` outranks the mission queue every time it occurs
-**Estimated**: 3–4 days (4 milestones, one commit each)
-**Dependencies**: None
-**Planner-Lane**: codex-ok (mechanical Go test-infra work once the design freeze items are locked)
+**Estimated**: ~~3–4 days (4 milestones)~~ **26h ≈ 4.5 days, 5 milestones** (planner revision, iteration 142 — the doc's M3 bundled a 460-LOC pure-Go linter with the workflow edits; splitting them isolates the only CI-touching commit)
+**Sprint plan**: [`m-ci-flake-systemic-fix-sprint-plan.md`](./m-ci-flake-systemic-fix-sprint-plan.md)
+**Dependencies**: None. ⚠ **Collision:** PR **#532** (OPEN, `CONFLICTING` since 2026-07-29) rewrites `buildAilang` in `cmd/ailang/main_test.go` and the body under the `testing.Short()` gate in `serve_api_mcp_surface_test.go`, and touches `ci.yml` — i.e. exactly M2's surface. Resolve #532 before M2 starts. PR **#569** (dependabot actions bump, `MERGEABLE`) touches `ci.yml` + `build.yml` — M4's surface.
+**Planner-Lane**: opus-required
 **Authorized**: Mark Edmondson, 2026-08-04 — "Yes sprint a CI flake fix"
 **Closes**: #583, #494, #509, #587 (CI flakes) · #561 (local-only network dependency — see Scope note)
+
+> ⚠ **CONTROLLER CORRECTIONS, 2026-08-04 (iteration 142) — read before executing.** Four claims
+> in this document were measured FALSE at HEAD `9feefa3a6` and are corrected in place, struck
+> rather than deleted so the reasoning errors stay visible: **V22 is REFUTED** (superseded by
+> **V33**), **AC3 is VACUOUS as written and M2 must not be executed against it**, **V30's count
+> was 2 and is 1**, and **the leg count was 5 and is 6** (V34). The load-bearing one: the
+> poisoned proxy does **not** cover AILANG's own `Net` effect, because `internal/effects` builds
+> its transports by hand with `Proxy == nil`. Whether to close that hole is a production-runtime
+> design question, **PARKED for human decision** (Deferred Decisions D5; escalated on `#559`).
 
 > **Version-dir justification**: current release is v0.33.0 (`std/VERSION`, release memory
 > 2026-08-03). This is pure test-infrastructure hardening — no language surface, no runtime
@@ -69,20 +79,32 @@ being wired**, unlike `testing.Short()` which degraded silently.
 **Enforcement boundary vs. legibility check (scope stated plainly):** the poisoned lane is the
 anti-recurrence mechanism; gatelint is a *legibility check for known offenders*, NOT the
 enforcement boundary — an enumerated list cannot be complete and is not claimed to be. The
-boundary covers every protocol implicated in all five closed issues: any-host HTTP(S) through
-Go's default transport (V25) and `git` https clones (V26), both measured fail-fast under the
-poison. **What is NOT prevented (named residual risk):** a test using raw TCP, SSH, or a
-subprocess that ignores proxy env vars still has ambient network access in the default lane
-(measured open — V27). That residual is restated in Non-Goals, probed honestly by AC10(c), and
-mitigated only by review plus R3's extendable known-offender list — not mechanically.
+boundary covers: any-host HTTP(S) through Go's **default** transport (V25) and `git` https
+clones (V26), both measured fail-fast under the poison. **What is NOT prevented (named residual
+risks):** (a) a test using raw TCP, SSH, or a subprocess that ignores proxy env vars still has
+ambient network access in the default lane (measured open — V27); **(b) — ADDED 2026-08-04
+(iteration 142), and it is the larger hole — AILANG's OWN `Net` effect is outside the boundary.**
+`internal/effects` builds **6** `http.Transport{}` literals by hand (`net.go:96,212,587`,
+`stream_ndjson.go:80`, `stream_sse.go:70,329`), **none** of which sets `Proxy`, and
+`ProxyFromEnvironment` appears in **0** first-party files (control: 4 first-party files build an
+`http.Transport{}`, so the instrument sees positives). A hand-built transport has `Proxy == nil`
+= no proxy consulted, so the poison is inert for the repo's principal HTTP client — which is the
+exact code path of `#561`. Measured V33. Closing (b) is a **production runtime change** with
+SSRF-guard interactions and is PARKED for human decision, not assumed. That residual is restated
+in Non-Goals, probed honestly by AC10(c), and mitigated only by review plus R3's extendable
+known-offender list — not mechanically.
 
 **Success Metrics:**
 - `testing.Short()` occurrences in first-party `*_test.go`: **7 files → 0** (enforced by gate)
 - Env opt-out (`Getenv("CI")`) gating in first-party `*_test.go`: **2 files → 0** (enforced by gate)
-- Default `go test ./...` performs **zero HTTP(S) egress** — mechanically denied by the
-  poisoned-proxy lane, not merely asserted (AC3, AC10); pre-sprint the full poisoned suite fails
-  in exactly the 2 packages this doc migrates and no others (V30). Non-HTTP egress is a named
-  residual (Goals above, Non-Goals below), not a claimed guarantee
+- ~~Default `go test ./...` performs **zero HTTP(S) egress** — mechanically denied~~
+  **CORRECTED 2026-08-04 (iteration 142): this claim was FALSE as written and is withdrawn.**
+  The poison mechanically denies HTTP(S) egress only for clients that consult proxy env vars —
+  Go's *default* transport and `git`. It does **not** cover AILANG's own `Net` effect (residual
+  (b) in Goals; V33), which is precisely where `#561` lives. The honest metric: the poisoned
+  full suite fails in **1** package (`internal/pkg`, the `git` clone — V30 as corrected), and
+  the `internal/effects` HTTP tests **pass through the poison to the live internet**. Non-HTTP
+  egress AND first-party hand-built transports are named residuals, not claimed guarantees
 - Hard-coded absolute wall-clock hang-guards in the four cited sites: replaced by
   deadline-derived bounds; **zero** future "raise the timeout again" commits for this class
 - Both instruments prove they can fire on **every CI run**: gatelint self-tests against
@@ -452,15 +474,29 @@ false?* Scope note per V19: every grep is scoped to first-party dirs; `.claude/`
   same command returns 7 files (V2).
 - [ ] **AC2 (opt-out idiom eliminated):** same grep for `Getenv("CI")\|Getenv("GITHUB_ACTIONS")`
   → only fixture path(s). Pre-sprint control: 2 files (V5).
-- [ ] **AC3 (no live network in default run):**
-  `HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 go test ./internal/pkg/ ./internal/effects/`
-  → PASS. The poisoned proxy makes any HTTP(S) egress fail fast, so the AC *cannot* pass if a
-  default-run test still calls out over HTTP(S) — and post-sprint this is also the default
-  lane's own posture, not just a drill (component 5). *Known limit:* raw TCP, SSH, and
-  proxy-ignoring subprocesses are outside the proxy boundary (measured open — V27); that
-  residual is named in Goals/Non-Goals and asserted honestly by AC10(c), not claimed covered.
-  (Not vacuous: pre-sprint this exact command fails in `internal/effects` — V22 — and the
-  full-suite version fails in exactly the 2 migration packages — V30.)
+- [ ] **AC3 — ⚠ VACUOUS AS WRITTEN. BLOCKED ON A HUMAN DECISION; DO NOT EXECUTE M2 AGAINST IT.**
+  ~~`HTTPS_PROXY=… HTTP_PROXY=… go test ./internal/pkg/ ./internal/effects/` → PASS~~
+  **Measured 2026-08-04 (iteration 142), first-party, HEAD `9feefa3a6`:** the
+  `./internal/effects/` half of this command **already passes pre-sprint, through the poison,
+  by reaching the live internet** — `--- PASS: TestNetHttpPost/httpPost_to_httpbin.org`, rc=0
+  poisoned and rc=0 unpoisoned, byte-identical outcomes, with `CI`/`GITHUB_ACTIONS`/
+  `SKIP_NET_TESTS` all confirmed UNSET so it genuinely ran rather than skipped (V33). An AC that
+  passes pre-sprint for the very behaviour it is meant to forbid is the mission's own
+  **vacuous-gate** class — the same defect this document was written to close.
+  **V22, which claimed the opposite, is REFUTED — see the struck row in the Verification Log.**
+  **What AC3 must become depends on a decision only the human can take** (recorded in Deferred
+  Decisions and escalated on `#559`):
+  - **Option A — leave the `Net` effect outside the boundary.** Then AC3 must be narrowed to the
+    packages the poison actually governs: `… go test ./internal/pkg/` → PASS, and the
+    `internal/effects` egress tests must be moved behind the `RequiresLiveNetwork` opt-in
+    (which M2 already does for other reasons), with the residual asserted *as open* by a new
+    AC10(d) mirroring AC10(c)'s honesty about raw TCP.
+  - **Option B — bring the `Net` effect inside.** Set `Proxy: http.ProxyFromEnvironment` on the
+    6 hand-built transports. This is a **production runtime change**, it interacts with
+    `net.go`'s pinned-IP SSRF guard, and it therefore needs its own design pass and quorum —
+    it is out of scope for a test-infrastructure sprint as currently framed.
+  *Known limit either way:* raw TCP, SSH, and proxy-ignoring subprocesses are outside the proxy
+  boundary (measured open — V27), named in Goals/Non-Goals and asserted honestly by AC10(c).
 - [ ] **AC4 (opt-in path actually runs — the gate is not vacuous in the other direction):**
   `AILANG_LIVE_NET=1 go test ./internal/pkg -run TestGitCache_Resolve_RealRepo -v` on a networked
   machine **without the poison env** (the live lane never sets it) → output contains
@@ -556,6 +592,20 @@ The following are intentionally left open for the implementer:
   hard-coded per runner — **agent may choose**
 - Whether `AILANG_LIVE_NET=1` gets a nightly opt-in CI job (would restore scheduled live
   coverage of the clone path) — **human at review**; not required to close the five issues
+- **D5 — ⚠ BLOCKING FOR M2. Does AILANG's own `Net` effect come inside the egress boundary?**
+  **HUMAN DECISION — parked 2026-08-04 (iteration 142), escalated on `#559`.** Measured (V33):
+  the 6 hand-built `http.Transport{}` literals in `internal/effects` set no `Proxy`, so the
+  poison is inert for them and AC3 passes pre-sprint by reaching the live internet. Options as
+  stated in AC3: **(A)** leave `Net` outside — narrow AC3 to `./internal/pkg/`, move the
+  `internal/effects` egress tests behind `RequiresLiveNetwork`, and assert the residual openly
+  via a new AC10(d); the sprint then closes 4 of 5 issues mechanically and `#561` by opt-in
+  migration. **(B)** bring `Net` inside — set `Proxy: http.ProxyFromEnvironment` on all 6
+  transports; this is a **production runtime change** that interacts with `net.go`'s pinned-IP
+  SSRF guard and needs its own design pass + quorum, so it is out of scope for a
+  test-infrastructure sprint as framed. **Controller recommendation: (A) now, (B) as a separate
+  queued design item** — (B) is the more correct end state but must not ride in on a sprint that
+  was scoped, reviewed and quorum-cleared as test-only. M1, M3 and M5 are unaffected by this
+  decision and can proceed; **M2 and M4 cannot**.
 
 ## Non-Goals
 
@@ -681,7 +731,7 @@ excluded everywhere per V19. Shell: zsh; glob-shaped flag values quoted througho
 | V20 | The ollama test's real CI gate is a probe-skip, so deleting its inert Short() gate is safe | Read `internal/ai/ollama/client_test.go:93-110` | Lines 106-109: `CheckConnection` error → `t.Skipf("Ollama not running (expected in CI): %v", err)` |
 | V21 | Issue narratives as characterized (markdown-only triggers, goroutine profile, 60.59s vs 60s, 503 body, guardrail-vs-assertion data) | `gh issue view {583,494,509,587,561} --repo sunholo-data/ailang` | Read in full 2026-08-04; quoted facts match: #583 macOS auth-prompt clone failure on md-only commit; #494 `Cmd.Wait`+`watchCtx` blocked goroutines, 5m panic, md-only commit; #509 gap=0.5008s PASSED while absolute 1.5s budget failed at 1.724s; #587 fizzbuzz 60.59s vs `:89` 60s, green descendant with identical code; #561 503 falls into `err == nil` hard-fail, CI-skipped |
 
-| V22 | **AC3 is non-vacuous — measured, not argued.** The poisoned-proxy command FAILS pre-sprint in `internal/effects` | `HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 go test ./internal/effects/ -run 'TestNetHttpPost\|TestNetBodySizeLimit'` | **rc=1, FAIL** (1.143s). Verbose control confirms the subtest actually RAN and the assertion fired: `=== RUN TestNetHttpPost/httpPost_to_httpbin.org` then `net_test.go:380: Expected response containing 'httpbin.org', got: <html>` → `--- FAIL: TestNetHttpPost`. **Mechanism (and a refuted controller hypothesis):** the controller predicted this AC would be VACUOUS, reasoning that a dead proxy yields a *transport error* which V13 shows is tolerated by the `err != nil` → `t.Logf` branch. **Refuted:** the proxy returns an HTTP error *page*, so `err == nil` and control reaches the strict body assertion (net_test.go:372-382) instead. The AC holds — for a mechanism neither the doc nor the controller had stated precisely, now recorded so a reviewer does not re-derive it |
+| ~~V22~~ | ~~**AC3 is non-vacuous — measured, not argued.** The poisoned-proxy command FAILS pre-sprint in `internal/effects`~~ **REFUTED 2026-08-04 (iteration 142) — SUPERSEDED BY V33. The rc=1 this row observed was NOT caused by the poison; it was `httpbin.org` returning its own error page, i.e. `#561` firing naturally. The poison never touched the request (V33). The controller's original vacuity prediction was CORRECT and this row's "refutation" of it was an artifact of a third-party outage coinciding with the measurement.** Retained struck, not deleted, because the reasoning error is the point | `HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 go test ./internal/effects/ -run 'TestNetHttpPost\|TestNetBodySizeLimit'` | **rc=1, FAIL** (1.143s). Verbose control confirms the subtest actually RAN and the assertion fired: `=== RUN TestNetHttpPost/httpPost_to_httpbin.org` then `net_test.go:380: Expected response containing 'httpbin.org', got: <html>` → `--- FAIL: TestNetHttpPost`. **Mechanism (and a refuted controller hypothesis):** the controller predicted this AC would be VACUOUS, reasoning that a dead proxy yields a *transport error* which V13 shows is tolerated by the `err != nil` → `t.Logf` branch. **Refuted:** the proxy returns an HTTP error *page*, so `err == nil` and control reaches the strict body assertion (net_test.go:372-382) instead. The AC holds — for a mechanism neither the doc nor the controller had stated precisely, now recorded so a reviewer does not re-derive it |
 
 | # | Claim | Command | Observed |
 |---|---|---|---|
@@ -692,9 +742,12 @@ excluded everywhere per V19. Shell: zsh; glob-shaped flag values quoted througho
 | V27 | The poison does **NOT** block raw TCP — the open route, measured rather than hidden | Same probe process (poison env set): `net.DialTimeout("tcp", "github.com:443", 5s)` | `CONNECTED to 140.82.121.4:443 (poison did NOT block)` — positive result; this IS the residual documented in Goals/Non-Goals and asserted by AC10(c) |
 | V28 | Loopback bypasses the poison → httptest replacement coverage and local-daemon tests are unaffected by the boundary | Same probe process (poison env set): GET against a fresh `httptest.NewServer` URL (`http://127.0.0.1:<port>`) | `status=200 (poison bypassed for loopback)`. **Control:** the same client + poison against a non-loopback host fails (V25, same program, adjacent check) |
 | V29 | Unsetting the proxy env at runtime does NOT un-poison an already-used transport (process-wide cache) → `RequiresLiveNetwork` must hard-fail on the poisoned-live combination, never unset | Go probe: poisoned GET → refused; `os.Unsetenv` both vars; GET again in the same process | Second GET **still** `proxyconnect tcp: dial tcp 127.0.0.1:9: connect: connection refused` — the cleared env had no effect. **Control:** clean process with env never set → `status=200`, so the persistence is the cache, not the network |
-| V30 | The poisoned **full suite** fails in exactly the 2 packages this doc migrates — no third egress test lurks anywhere in first-party scope | `HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 go test -count=1 $(go list ./... \| grep -v /scripts)` | rc=1; **104 packages `ok`, 2 FAIL**: `internal/effects` (`--- FAIL: TestNetHttpPost`) and `internal/pkg` (`--- FAIL: TestGitCache_Resolve_RealRepo`) — i.e. #561 and #583 exactly, nothing else. **Control:** unpoisoned `go test -count=1 ./internal/pkg/` → `ok 2.860s`, proving the failure is poison-induced, not pre-existing |
+| V30 | ~~The poisoned **full suite** fails in exactly the 2 packages this doc migrates~~ **COUNT CORRECTED 2026-08-04 (iteration 142) to ONE package (`internal/pkg`)** — the substance survives: no third egress test lurks in first-party scope. `internal/effects` does not fail because the poison never reaches it (V33), not because it performs no egress | `HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 go test -count=1 $(go list ./... \| grep -v /scripts)` | rc=1; **104 packages `ok`, 2 FAIL**: `internal/effects` (`--- FAIL: TestNetHttpPost`) and `internal/pkg` (`--- FAIL: TestGitCache_Resolve_RealRepo`) — i.e. #561 and #583 exactly, nothing else. **Control:** unpoisoned `go test -count=1 ./internal/pkg/` → `ok 2.860s`, proving the failure is poison-induced, not pre-existing |
 | V31 | ~~Toolchain module fetch happens before/outside the poisoned step in all lanes~~ **REFUTED at quorum R3 — the ordering was verified, the absence of downloads was NOT** | `grep -n 'setup-go\|cache\|go mod download' .github/workflows/ci.yml .github/workflows/build.yml` ; read make/test.mk:13-17 | ci.yml: `setup-go@v6` + `cache: true` at :28-31, :272-275, :343-346; build.yml: setup-go :48-50 + explicit `go mod download` at :59; make/test.mk: `test: build`. **These commands verify workflow ORDERING, not that `go test` performs no download** — the reviewer's exact catch, and it is correct. Superseded by V32 |
 | V32 | **Test-only modules exist that no production build pulls, so a cache miss WOULD have hit the poisoned step** (the measurement V31 needed and never took) | `comm -13 <(go list -deps ./... \| sort -u) <(go list -deps -test ./... \| sort -u) \| grep -cE '^[a-z]+\.[a-z]+/'` ; same without `-c` for names ; `ls -d vendor` | **247** test-only dependency packages, including `github.com/stretchr/testify` and `github.com/pmezard/go-difflib`. `vendor/` **absent** (`no vendor/`), so these resolve over the network. **Control:** `go list -deps -test ./... \| wc -l` → **1242** total, so the 247 is a difference between two populated sets, not an empty-instrument artifact. Drives the design change: explicit unpoisoned `go mod download all` before every poisoned step, plus `GOPROXY=off` on the poisoned step so a prefetch miss fails loudly instead of masquerading as an egress violation |
+
+| **V33** | **THE POISON IS INERT FOR AILANG'S OWN `Net` EFFECT — so AC3 is vacuous and V22 is refuted.** Poisoned and unpoisoned runs are outcome-identical, and the mechanism is a hand-built transport with `Proxy == nil` | (a) `env HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 go test -count=1 ./internal/effects/ -run TestNetHttpPost` ; (b) same without the env ; (c) the same poisoned run with `-v` ; (d) `grep -rn 'http\.Transport{' internal/effects/*.go` ; (e) `grep -rln 'ProxyFromEnvironment' --include='*.go' ./internal ./cmd ./runtime ./std ./tests` | (a) **rc=0 `ok 0.767s`**; (b) **rc=0 `ok 0.724s`** — *identical*, so the poison changed nothing; (c) `=== RUN TestNetHttpPost/httpPost_to_httpbin.org` → `--- PASS: TestNetHttpPost (0.65s)`, so it **ran and reached the live internet** rather than skipping (skip-var control in the same block: `CI`, `GITHUB_ACTIONS`, `SKIP_NET_TESTS` all **UNSET**); (d) **6** hand-built transports (`net.go:96,212,587`, `stream_ndjson.go:80`, `stream_sse.go:70,329`), and `grep -A8 … \| grep -c Proxy` → **0**; (e) **0** files. **Controls:** `grep -rln 'http\.Transport{'` first-party → **4** files, so both greps see positives; and the `git`-clone half DOES honor the poison — `go test ./internal/pkg/ -run TestGitCache_Resolve_RealRepo` poisoned → **rc=1** (`git clone failed … exit status 128`), unpoisoned → **rc=0** — which is what proves the poison env itself was live and correctly formed in the very same shell. Measured by the controller at HEAD `9feefa3a6` |
+| **V34** | The default lane is **6** `go test` legs, not 5 | Read `.github/workflows/build.yml:15-39,65` ; `grep -n 'go test' .github/workflows/build.yml` | `build.yml`'s `matrix.include` has **4** entries — `ubuntu-latest`, `macos-latest/amd64`, `macos-latest/arm64`, `windows-latest` — i.e. **3 OSes but 4 jobs**, each running `go test` at `:65`. Plus ci.yml's `test` + `test-windows` = **6**. The doc's "5 CI legs" (V8 and 5 other sites) counted OSes, not jobs; every "5 legs" statement should read 6. Consequence is scope, not soundness: the poison wiring of M4 must cover 4 `build.yml` jobs |
 
 **Provenance note:** V1, V2 (count), V5 (count), V-H (`-race`: 0 hits, control `-timeout`: 7),
 and V19 were first measured by the mission controller earlier today at the same HEAD and
