@@ -16,6 +16,9 @@ symlink for every mission the instant it is saved — small blast radius matters
    Staleness check: if its `Updated` stamp is older than ~2× the v1 cadence on its Loops
    line (90min default) while the loop claims armed, FLAG IT — Gate-4 isn't refreshing,
    which is itself a finding (wedged loop, quota dry-out, or launchd off).
+   Normalize to UTC before ANY timestamp comparison: issue comments are UTC (`Z` suffix),
+   the dashboard stamp is local time. A stamp in the future is itself suspect — the
+   2026-08-04 bootstrap wrote 14:30Z as "~16:30" via exactly this mixup.
 
 2. **Directives** — the channel the dashboard only *points* at:
    ```bash

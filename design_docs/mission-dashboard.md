@@ -5,7 +5,7 @@
 > and has full steering context. Humans steer via comments on the bookkeeping issue (directive
 > channel) or attended charter stamps — never by needing a long-lived chat thread.
 
-**Updated**: 2026-08-04 ~16:30 (attended bootstrap — first Gate-4 refresh pending)
+**Updated**: 2026-08-04 ~14:30 local / 12:30Z (attended bootstrap — first Gate-4 refresh pending)
 
 ## Now
 - **Latest release**: v0.33.0 (2026-08-04) — recorded-stream S1 (#546 closed) + #498 Lane B M1; prod MCP serving 0.33.0
