@@ -917,6 +917,31 @@ Neural search top matches (all < 0.45 → no duplicate/overlap per the coverage 
   the boundary does not depend on the list)
 - OS-level egress blocking for the non-HTTP residual (raw TCP/SSH), if that route ever
   materializes as a real flake class — would supersede AC10(c)'s documented-open assertion
+- **⚠ CLASS C2's GENERATOR SURVIVES THIS SPRINT — gatelint has NO rule for absolute timeouts,
+  and M2 has just WOKEN a test that carries one** (recorded 2026-08-05, iteration 145, from an
+  evaluator observation the controller then reproduced and quantified). This is the same shape as
+  the `exec.Command` item below, and it is recorded here with its measured number for the same
+  reason: so it is a known deferral rather than a rediscovered surprise.
+  **Measured at the M2 commit:** `context.WithTimeout(context.Background(), N)` — a *fixed*
+  budget, not one derived from the test deadline — appears at **31** call sites in first-party
+  `*_test.go`, while only **2** files use the deadline-derived `HangGuard`/`t.Deadline()` form
+  (control: both greps return positives, so neither count is a broken instrument). gatelint's
+  rules are **R1** (`testing.Short(`), **R2** (`Getenv("CI")`/`GITHUB_ACTIONS`), **R3** (host
+  list) — **none** matches this class. So the sprint hand-fixes exactly two C2 instances
+  (`eventOneBudget`, the `60 * time.Second` constant) and leaves 31 unguarded.
+  **Why it is sharper than a plain backlog note:** `cmd/ailang/serve_api_mcp_surface_test.go:60`
+  holds `context.WithTimeout(context.Background(), 30*time.Second)`, and that test was **dormant
+  behind an inert gate until M2 removed it** (task 6). It now runs on every `go test ./cmd/ailang`
+  and takes **10.34s measured on a fast local M-series machine — a 2.9× margin against its own
+  fixed budget.** CI runners, and `test-windows` in particular, are materially slower than that;
+  a fixed budget that is comfortable locally and marginal on CI is precisely the shape of `#494`
+  and `#583`. M2 did not introduce this defect — the test carried it all along — but M2 is what
+  made it live, so the risk arrives with **M4**, the commit that turns the default lanes on across
+  all 6 legs. **Watch this test on the first `dev` run after M4**, and prefer a deadline-derived
+  bound (`testutil.HangGuardContext`) over raising the constant.
+  *Not fixed here by choice, per Standing rule 2:* a gatelint **R4** for this class needs its own
+  scoping pass (31 seeds, and the legitimate-absolute-timeout question is real), exactly as §6.3
+  concluded for the 62 unbounded `exec.Command` sites.
 
 ---
 
