@@ -93,10 +93,6 @@ func TestGuessProvider(t *testing.T) {
 // TestCheckConnection is an integration test that requires Ollama running.
 // Skip if Ollama is not available.
 func TestCheckConnection(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
 	client, err := NewClient()
 	if err != nil {
 		t.Fatalf("NewClient() error = %v", err)

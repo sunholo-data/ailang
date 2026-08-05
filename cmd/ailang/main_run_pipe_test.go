@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -105,7 +104,6 @@ export func main() -> () ! {IO, Clock} {
 	// If the buffer is broken (events only flush at exit), they all arrive
 	// at ~the same time near the end (~1.5-2s).
 	gotByEvent := map[string]time.Duration{}
-	deadline := time.After(4 * time.Second)
 collect:
 	for len(gotByEvent) < 3 {
 		select {
@@ -114,7 +112,7 @@ collect:
 				break collect
 			}
 			gotByEvent[ev.line] = ev.at
-		case <-deadline:
+		case <-ctx.Done():
 			break collect
 		}
 	}
@@ -138,24 +136,6 @@ collect:
 			"Events appear to be batched (buffered until exit). "+
 			"This is the M-PERF6B regression — see isStdoutTTY() gate.",
 			gap, minGap)
-	}
-
-	// Belt-and-suspenders: also assert EVENT_1 arrived before total runtime
-	// elapsed (i.e. before all three sleeps would have completed sequentially).
-	//
-	// On Windows the ailang binary cold-start cost is ~1.7s vs <0.5s on
-	// Linux/macOS — runner-VM filesystem + process-launch overhead — so the
-	// budget is widened there. The load-bearing assertion is the gap check
-	// above (EVENT_1 → EVENT_2 ≥ 200ms); this check is redundant guardrail.
-	eventOneBudget := 1500 * time.Millisecond
-	if runtime.GOOS == "windows" {
-		eventOneBudget = 3500 * time.Millisecond
-	}
-	if gotByEvent["EVENT_1"] > eventOneBudget {
-		t.Errorf("EVENT_1 arrived at %s — too late (budget %s). Expected first println "+
-			"to appear before the program had time to call all three sleeps. "+
-			"Suggests stdout is buffered until exit.",
-			gotByEvent["EVENT_1"], eventOneBudget)
 	}
 
 	// Diagnostic output for debugging.

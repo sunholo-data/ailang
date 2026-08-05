@@ -434,9 +434,6 @@ func TestProcessExec_WaitDelay_OrphanGrandchildNoHang(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("bash test requires unix")
 	}
-	if testing.Short() {
-		t.Skip("WaitDelay timing test (~5s)")
-	}
 	ctx := newProcessCtx()
 	args := []eval.Value{
 		&eval.StringValue{Value: "bash"},

@@ -250,6 +250,10 @@ func TestScriptProvider_Execute(t *testing.T) {
 	})
 
 	t.Run("timeout kills script", func(t *testing.T) {
+		// Gatelint R2 allowlist reason: this is a Unix shell/grandchild signal
+		// semantics test, not a live-network test, so the network opt-in helper
+		// would misstate its requirement. CI runners skip the known flaky shell
+		// behavior while local Unix runs retain coverage.
 		// Skip in CI - exec.CommandContext signal handling is unreliable
 		// on Linux when using "bash -c" because the shell doesn't forward
 		// signals to child processes. This causes the test to be flaky.

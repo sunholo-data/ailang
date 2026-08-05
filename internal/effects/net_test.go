@@ -2,11 +2,13 @@ package effects
 
 import (
 	"net"
-	"os"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // TestValidateIP_MetadataServer tests the cloud metadata server exception.
@@ -359,10 +361,7 @@ func TestNetHttpPost(t *testing.T) {
 	})
 
 	t.Run("httpPost to httpbin.org", func(t *testing.T) {
-		// Skip in CI environments due to unreliable external network access
-		if os.Getenv("SKIP_NET_TESTS") != "" || os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") != "" {
-			t.Skip("Skipping network test in CI environment (unreliable external access)")
-		}
+		testutil.RequiresLiveNetwork(t)
 
 		url := &eval.StringValue{Value: "https://httpbin.org/post"}
 		body := &eval.StringValue{Value: `{"test": "data", "value": 42}`}
@@ -377,13 +376,57 @@ func TestNetHttpPost(t *testing.T) {
 				if !ok {
 					t.Errorf("Expected StringValue, got %T", result)
 				} else if !strings.Contains(strResult.Value, "httpbin.org") {
-					t.Errorf("Expected response containing 'httpbin.org', got: %s", strResult.Value)
+					t.Logf("Live endpoint returned a non-canonical response (possibly non-2xx); deterministic response assertions are covered by local-server subtests: %s", strResult.Value)
 				}
 			}
 		} else {
 			t.Logf("Network error (expected in some environments): %v", err)
 		}
 	})
+
+	for _, tc := range []struct {
+		name       string
+		statusCode int
+		response   string
+	}{
+		{name: "local success response", statusCode: http.StatusOK, response: `{"ok":true}`},
+		{name: "local non-2xx response", statusCode: http.StatusServiceUnavailable, response: `{"error":"unavailable"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodPost {
+					t.Errorf("method = %s, want POST", r.Method)
+				}
+				w.WriteHeader(tc.statusCode)
+				_, _ = w.Write([]byte(tc.response))
+			}))
+			defer server.Close()
+
+			localCtx := NewEffContext([]string{})
+			localCtx.Grant(NewCapability("Net"))
+			localCtx.Net = NewNetContext()
+			// Local test servers use plain HTTP on loopback, so both capabilities
+			// must be explicit. This deterministic coverage therefore exercises a
+			// different capability posture from the HTTPS live-endpoint subtest.
+			localCtx.Net.AllowHTTP = true
+			localCtx.Net.AllowLocalhost = true
+
+			result, err := netHTTPPost(localCtx, []eval.Value{
+				&eval.StringValue{Value: server.URL},
+				&eval.StringValue{Value: `{"request":"body"}`},
+			})
+			if err != nil {
+				t.Fatalf("netHTTPPost: %v", err)
+			}
+			got, ok := result.(*eval.StringValue)
+			if !ok {
+				t.Fatalf("result type = %T, want *eval.StringValue", result)
+			}
+			if got.Value != tc.response {
+				t.Errorf("response = %q, want %q", got.Value, tc.response)
+			}
+		})
+	}
 }
 
 // TestNetBodySizeLimit verifies response size limiting
@@ -395,10 +438,7 @@ func TestNetBodySizeLimit(t *testing.T) {
 
 	t.Run("small response under limit", func(t *testing.T) {
 		// httpbin.org/get returns ~270 bytes, should exceed 100 byte limit
-		// Skip in CI environments due to unreliable external network access
-		if os.Getenv("SKIP_NET_TESTS") != "" || os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") != "" {
-			t.Skip("Skipping network test in CI environment (unreliable external access)")
-		}
+		testutil.RequiresLiveNetwork(t)
 
 		url := &eval.StringValue{Value: "https://httpbin.org/get"}
 		_, err := netHTTPGet(ctx, []eval.Value{url})

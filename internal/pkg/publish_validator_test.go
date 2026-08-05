@@ -106,9 +106,6 @@ export func main() -> () ! {FS} =
 // TestRunSmokeInTempDir_Timeout asserts that a smoke that runs longer than
 // the timeout is killed and reported as TimedOut.
 func TestRunSmokeInTempDir_Timeout(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping timeout test in -short mode")
-	}
 	bin := findAilangBinary(t)
 
 	pkgDir := t.TempDir()
@@ -178,9 +175,6 @@ export func main() -> () ! {FS, IO} =
 // and the runner honours it. Pairs with TestRunSmokeInTempDir_Timeout which
 // exercises the default 30s case.
 func TestRunSmokeInTempDir_RespectsCustomTimeout(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping timeout test in -short mode")
-	}
 	bin := findAilangBinary(t)
 
 	pkgDir := t.TempDir()

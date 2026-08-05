@@ -16,11 +16,6 @@ import (
 // 3. Runs tests that trigger contract violations
 // 4. Verifies panics occur with correct messages
 func TestContractViolation_Integration(t *testing.T) {
-	// Skip in short mode (these tests compile and run Go code)
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
 	// Create temp directory for test
 	tmpDir, err := os.MkdirTemp("", "contract_test_*")
 	if err != nil {
@@ -246,10 +241,6 @@ func TestIncrement_EnsuresViolation(t *testing.T) {
 // TestContractViolation_NoVerify verifies that without --verify-contracts,
 // contract violations do NOT cause panics (contracts are just comments)
 func TestContractViolation_NoVerify(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
 	tmpDir, err := os.MkdirTemp("", "contract_noverify_*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)

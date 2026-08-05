@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // referenceSolution describes one benchmark/language pair.
@@ -67,6 +69,20 @@ func testReferenceSolutions(t *testing.T, lang string) {
 		t.Skipf("cannot find repo root: %v", err)
 	}
 
+	// Pay each language runtime's cold-start cost once outside the asserted
+	// cases. The warm-up result is intentionally ignored: these tests assert
+	// the checked-in reference programs, not runtime startup behavior.
+	warmupCode := `console.log("warmup")`
+	if lang == "go" {
+		warmupCode = "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"warmup\") }\n"
+	}
+	for _, rs := range referenceSolutionsTable {
+		if rs.lang == lang {
+			_, _ = rs.runner().Run(warmupCode, testutil.HangGuard(t, 120*time.Second))
+			break
+		}
+	}
+
 	for _, rs := range referenceSolutionsTable {
 		if rs.lang != lang {
 			continue
@@ -79,17 +95,8 @@ func testReferenceSolutions(t *testing.T, lang string) {
 				t.Fatalf("reference solution not found: %s: %v", srcPath, err)
 			}
 
-			// Reference solutions are tiny programs; wall-clock is dominated
-			// by interpreter startup (~slow on Windows CI runners — node alone
-			// can take >20s cold). recursion_fibonacci was getting the only
-			// 60s slot, but fizzbuzz hits the same 30s cliff on Windows. Give
-			// every benchmark the same generous slot — the only thing the
-			// shorter limit was buying was faster failure on a hang, and any
-			// real hang would still time out well before 60s of useful work.
-			timeout := 60 * time.Second
-
 			runner := rs.runner()
-			result, err := runner.Run(string(code), timeout)
+			result, err := runner.Run(string(code), testutil.HangGuard(t, 120*time.Second))
 			if err != nil {
 				t.Fatalf("runner error: %v", err)
 			}
