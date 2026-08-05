@@ -718,6 +718,42 @@ the Repo Profile above):
    The tell: you are about to write "this proves the guard works", "the drill is non-vacuous",
    "confirmed — it fails as expected", or "same failure as `#NNN`", and every command you ran had
    the mechanism switched ON.
+3e. **BASELINE EVERY ACCEPTANCE COMMAND ON A PRISTINE TREE — A GATE ALREADY RED AT BASE MEASURES
+   THE REPO, NOT YOUR CHANGE, AND A CONTROL RUN AFTER AN EARLIER STEP HAS MUTATED SHARED STATE IS
+   NOT A CONTROL** (added 2026-08-05 iteration 147). Rules 3a/3b/3d police a *result* — empty,
+   green, or red. This one polices the **base you measured against**, which nothing above names,
+   and it has two faces that look nothing alike until you see they are the same mistake.
+   **(a) The gate was already red before you touched anything.** A sprint plan's acceptance list
+   is written by someone reading the repo, not running it, so it routinely contains commands that
+   do not pass on unmodified `dev`. Iteration 145's executor found `go build ./...` — a plan gate —
+   **fails identically on untouched dev** (`cmd/wasm` and `gen/main` have no native `main`).
+   Iteration 147's plan gate `actionlint <files>` → rc=0 is **rc=1 at base**, on 5 pre-existing
+   shellcheck findings. Such a gate can only be waved through or blamed on the sprint, and both
+   happen. So: before routing, run each acceptance command on the base and record the result *as
+   part of the criterion*. If it is already red, the AC is broken — fix the AC and say so, rather
+   than "fixing" the code or quietly dropping the gate.
+   **(b) Your control was contaminated by a step of your own change.** This is the dangerous face,
+   because it produces a confident, symmetric, entirely false all-clear. Iteration 147 saw three
+   binary-gated tests SKIP locally, and ran the obvious control: the SAME assertion in its
+   *pre-change* form. Both arms skipped identically, which reads as "pre-existing, not mine" — and
+   it was recorded as a local environment artifact, with a `make quick-install` to move past it.
+   It was in fact **the change's own defect**: an earlier step, `go mod download all`, had written
+   to the tracked `go.sum`, and the binary-staleness detector compares binary mtime against the
+   newest Go source. Both arms ran in a tree that step had **already** contaminated, so the control
+   could not distinguish and the symmetry was an artifact of the shared mutation, not evidence of
+   innocence. It shipped, and CI red-lighted the milestone's own acceptance step ~40 minutes later.
+   Concretely: **(i)** a control is only a control if it runs from a tree in the state the
+   *baseline* was in — re-clone, `git stash`, a fresh worktree, or at minimum restore the mutated
+   file and its **mtime**; **(ii)** enumerate what your change WRITES, not just what it reads —
+   tracked files, caches, mtimes, env, installed binaries — and ask which later assertion consumes
+   each one; a step that mutates a tracked file mid-run is the tell; **(iii)** when two arms agree,
+   ask what they SHARE before concluding the variable does not matter — identical results across
+   arms is equally consistent with "the variable is irrelevant" and "both arms are already
+   broken"; **(iv)** if you cannot obtain a pristine base, the control is UNINFORMATIVE — say so,
+   exactly as the sandbox rule requires, rather than banking the symmetry.
+   The generalisable point, and the reason this outranks its two instances: **an environmental
+   explanation is always available for a symptom you caused**, and it is more comfortable than the
+   alternative, so it wins by default unless the base is pinned down by command.
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
    the Gate-2 rebuild `-dirty` — binaries built from a half-merged tree; and a persisted `cd`
