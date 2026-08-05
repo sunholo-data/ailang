@@ -1,11 +1,11 @@
 # M-CI-FLAKE-SYSTEMIC-FIX: One Gating Convention, Bounded Waits, a Default-Deny Egress Boundary, and a Known-Offender Lint for the Go Test Suite
 
-**Status**: Planned — **SPRINT-PLANNED 2026-08-04 (iteration 142); M2 EXECUTION BLOCKED on the AC3 decision below**
+**Status**: Planned — **SPRINT-PLANNED 2026-08-04 (iteration 142); M1 LANDED 2026-08-05 (`c440a1628`); `D5` DECIDED 2026-08-05 = Option A (Mark), so M2/M3/M4 are UNBLOCKED**
 **Target**: v0.33.1
 **Priority**: P0 (High) — flakes red-light `dev` CI, and a red `dev` outranks the mission queue every time it occurs
 **Estimated**: ~~3–4 days (4 milestones)~~ **26h ≈ 4.5 days, 5 milestones** (planner revision, iteration 142 — the doc's M3 bundled a 460-LOC pure-Go linter with the workflow edits; splitting them isolates the only CI-touching commit)
 **Sprint plan**: [`m-ci-flake-systemic-fix-sprint-plan.md`](./m-ci-flake-systemic-fix-sprint-plan.md)
-**Dependencies**: None. ⚠ **Collision:** PR **#532** (OPEN, `CONFLICTING` since 2026-07-29) rewrites `buildAilang` in `cmd/ailang/main_test.go` and the body under the `testing.Short()` gate in `serve_api_mcp_surface_test.go`, and touches `ci.yml` — i.e. exactly M2's surface. Resolve #532 before M2 starts. PR **#569** (dependabot actions bump, `MERGEABLE`) touches `ci.yml` + `build.yml` — M4's surface.
+**Dependencies**: None. ⚠ **Collision — CONTROLLER DECISION TAKEN 2026-08-05 (iteration 145), plan §6.1 option (b), not the planner's recommended (a):** PR **#532** rewrites `buildAilang` in `cmd/ailang/main_test.go` and the body under the `testing.Short()` gate in `serve_api_mcp_surface_test.go`, and touches `ci.yml` — i.e. exactly M2's surface. **M2 proceeds first; #532 rebases onto it afterwards.** Reasons, measured not assumed: (1) #532 is authored by `sunholo-voight-kampff` — *this loop's own PR*, so there is no external author to coordinate with and no review latency; (2) it has been `CONFLICTING`/`DIRTY` against `dev` since **2026-07-29** and untouched for 7 days, so **M2 does not make it any more conflicted than it already is** — the "resolve #532 first" cost is a pre-existing debt, not one M2 creates; (3) resolving a week-old conflict is a separate piece of work that would consume the iteration that Mark's `D5` answer exists to unblock. The re-application cost is symmetric either way (#532 replaces `buildAilang` wholesale; M2 wraps it — whoever goes second re-applies), so ordering was chosen on *unblocking value*, not on merge cost. **Follow-up owed:** comment on #532 recording this, so its rebase re-applies `HangGuardContext` to the new `sync.Once` body. PR **#569** (dependabot actions bump) touches `ci.yml` + `build.yml` — M4's surface, re-check before M4.
 **Planner-Lane**: opus-required
 **Authorized**: Mark Edmondson, 2026-08-04 — "Yes sprint a CI flake fix"
 **Closes**: #583, #494, #509, #587 (CI flakes) · #561 (local-only network dependency — see Scope note)
@@ -17,7 +17,22 @@
 > was 2 and is 1**, and **the leg count was 5 and is 6** (V34). The load-bearing one: the
 > poisoned proxy does **not** cover AILANG's own `Net` effect, because `internal/effects` builds
 > its transports by hand with `Proxy == nil`. Whether to close that hole is a production-runtime
-> design question, **PARKED for human decision** (Deferred Decisions D5; escalated on `#559`).
+> design question, ~~**PARKED for human decision**~~ **DECIDED 2026-08-05 — see below**
+> (Deferred Decisions D5; escalated on `#559`).
+>
+> ✅ **`D5` IS DECIDED, 2026-08-05 (iteration 145) — OPTION A, by Mark.** Exact words:
+> *"D5 - option A and then queue the B afterwards. I'm cool with 2."* So: the `Net` effect stays
+> **OUTSIDE** the egress boundary for this sprint. AC3 is replaced by **AC3′(a/b/c)** below, the
+> `internal/effects` egress tests move behind `RequiresLiveNetwork`, and the residual is asserted
+> *as open* by the new **AC10(d)**. **Option B** (`Proxy: http.ProxyFromEnvironment` on the 6
+> hand-built transports) is queued as its **own separate design item** with its own design pass and
+> quorum — it must not ride in on a sprint scoped and reviewed as test-only. **M2, M3 and M4 are
+> UNBLOCKED.**
+>
+> ✅ **The iteration-141 narrow-refinement carve-out is RATIFIED, 2026-08-05 (iteration 145).**
+> The R3 quorum fix was applied under the Gate-2 narrow-refinement carve-out with no re-quorum on
+> that fix; Mark accepted it as-is ("Carve-out disclosure … ACCEPTED as-is. No re-quorum needed").
+> **The veto window is closed** — this doc no longer carries that caveat.
 
 > **Version-dir justification**: current release is v0.33.0 (`std/VERSION`, release memory
 > 2026-08-03). This is pure test-infrastructure hardening — no language surface, no runtime
@@ -474,7 +489,8 @@ false?* Scope note per V19: every grep is scoped to first-party dirs; `.claude/`
   same command returns 7 files (V2).
 - [ ] **AC2 (opt-out idiom eliminated):** same grep for `Getenv("CI")\|Getenv("GITHUB_ACTIONS")`
   → only fixture path(s). Pre-sprint control: 2 files (V5).
-- [ ] **AC3 — ⚠ VACUOUS AS WRITTEN. BLOCKED ON A HUMAN DECISION; DO NOT EXECUTE M2 AGAINST IT.**
+- [ ] ~~**AC3**~~ — **SUPERSEDED. The original single command was VACUOUS; `D5` is now DECIDED
+  (Option A), so AC3 is replaced by AC3′(a/b/c) below.**
   ~~`HTTPS_PROXY=… HTTP_PROXY=… go test ./internal/pkg/ ./internal/effects/` → PASS~~
   **Measured 2026-08-04 (iteration 142), first-party, HEAD `9feefa3a6`:** the
   `./internal/effects/` half of this command **already passes pre-sprint, through the poison,
@@ -484,19 +500,32 @@ false?* Scope note per V19: every grep is scoped to first-party dirs; `.claude/`
   passes pre-sprint for the very behaviour it is meant to forbid is the mission's own
   **vacuous-gate** class — the same defect this document was written to close.
   **V22, which claimed the opposite, is REFUTED — see the struck row in the Verification Log.**
-  **What AC3 must become depends on a decision only the human can take** (recorded in Deferred
-  Decisions and escalated on `#559`):
-  - **Option A — leave the `Net` effect outside the boundary.** Then AC3 must be narrowed to the
-    packages the poison actually governs: `… go test ./internal/pkg/` → PASS, and the
-    `internal/effects` egress tests must be moved behind the `RequiresLiveNetwork` opt-in
-    (which M2 already does for other reasons), with the residual asserted *as open* by a new
-    AC10(d) mirroring AC10(c)'s honesty about raw TCP.
-  - **Option B — bring the `Net` effect inside.** Set `Proxy: http.ProxyFromEnvironment` on the
-    6 hand-built transports. This is a **production runtime change**, it interacts with
-    `net.go`'s pinned-IP SSRF guard, and it therefore needs its own design pass and quorum —
-    it is out of scope for a test-infrastructure sprint as currently framed.
-  *Known limit either way:* raw TCP, SSH, and proxy-ignoring subprocesses are outside the proxy
-  boundary (measured open — V27), named in Goals/Non-Goals and asserted honestly by AC10(c).
+  Retained struck, not deleted, because the reasoning error is the point.
+- [ ] **AC3′(a) — the poison is a real boundary where it actually governs (mechanical,
+  non-vacuous):**
+  `HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 go test -count=1 ./internal/pkg/`
+  → **PASS**. *Pre-sprint control, measured:* this exact command **FAILS**
+  (`--- FAIL: TestGitCache_Resolve_RealRepo`, `git clone … exit status 128`), and unpoisoned it is
+  `ok 3.189s`. Both directions observable, so the AC can fail.
+- [ ] **AC3′(b) — the `internal/effects` egress tests are behind the opt-in, not reaching the
+  internet by default.** This is the half the poison **cannot** test (V33), so it is asserted by
+  lane behaviour instead of by the poison:
+  `go test -count=1 -v ./internal/effects -run 'TestNetHttpPost|TestNetBodySizeLimit'` with
+  `AILANG_LIVE_NET` **unset** → output contains `--- SKIP: TestNetHttpPost/httpPost_to_httpbin.org`
+  and `--- SKIP: TestNetBodySizeLimit/small_response_under_limit`, **and** `--- PASS:` for the new
+  deterministic `httptest` subtests. *Pre-sprint control, measured:* the same command today shows
+  `--- PASS: TestNetHttpPost/httpPost_to_httpbin.org` in 0.41s, having genuinely reached the
+  internet. Both directions therefore observable — forgetting to gate it leaves a `PASS` where a
+  `SKIP` is required, which fails this AC.
+- [ ] **AC3′(c) — whole-surface:**
+  `HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 go test -count=1 $(go list ./... | grep -v /scripts)`
+  → rc=0. *Pre-sprint control, measured at plan time:* rc=1, **105 ok / 1 FAIL** (`internal/pkg`),
+  30 no-test-files. (The doc originally predicted 2 FAILs; the true baseline is 1 — planner
+  finding R-C, and V30 is corrected accordingly.)
+  *Known limit, and it is now asserted rather than assumed:* AILANG's own `Net` effect is
+  **outside** this boundary by decision `D5`=A — see **AC10(d)**, which measures that residual
+  openly. Raw TCP, SSH, and proxy-ignoring subprocesses are likewise outside it (measured open —
+  V27), named in Goals/Non-Goals and asserted by AC10(c).
 - [ ] **AC4 (opt-in path actually runs — the gate is not vacuous in the other direction):**
   `AILANG_LIVE_NET=1 go test ./internal/pkg -run TestGitCache_Resolve_RealRepo -v` on a networked
   machine **without the poison env** (the live lane never sets it) → output contains
@@ -534,6 +563,23 @@ false?* Scope note per V19: every grep is scoped to first-party dirs; `.claude/`
   poison — the AC asserts the **documented open route**, not a pretended closure (V27). If a
   future OS-level block closes the route, (c) fails and this doc's residual claim must be
   updated — the hole stays visible either way.
+  (d) **`AILANG_LIVE_NET=1` leg only — the `D5`=A residual, asserted as OPEN rather than
+  pretended closed.** Added 2026-08-05 (iteration 145) as the honesty half of Mark's Option A,
+  mirroring (c). Build an `http.Client` **the way `internal/effects` does** — a hand-constructed
+  `&http.Transport{}` with `Proxy` left nil — and GET a public URL with the poison env set; it
+  **SUCCEEDS**, proving the poison does not govern AILANG's own `Net` effect. The test must
+  additionally assert, in the same run, that a transport with `Proxy: http.ProxyFromEnvironment`
+  set **FAILS** with `proxyconnect … 127.0.0.1:9` — that second half is the **control**, and it
+  is what makes (d) non-vacuous: without it, a green (d) is indistinguishable from a poison env
+  that was never set in the first place (rule 3a — an empty/passing result needs a known-positive
+  in the same call). *Would (d) still pass if the claim were false?* No. If someone later sets
+  `Proxy: http.ProxyFromEnvironment` on the 6 transports (i.e. adopts **Option B**), the first
+  half starts failing and (d) reds — which is exactly the desired signal: **the residual closed,
+  so this AC and the Non-Goals text must be retired together.** (d) is therefore the tripwire
+  that will tell the Option-B design item that its work has landed.
+  *Provenance:* the residual it measures is **V33** — 6 hand-built `http.Transport{}` in
+  `internal/effects` (`net.go:96,212,587`, `stream_ndjson.go:80`, `stream_sse.go:70,329`), none
+  setting `Proxy`; `ProxyFromEnvironment` in **0** first-party files.
 - [ ] **AC11 (boundary cannot be silently dropped, and the lanes cannot cross):**
   `grep -c '127.0.0.1:9' .github/workflows/ci.yml` → ≥2 (both legs);
   `grep -c '127.0.0.1:9' .github/workflows/build.yml` → ≥1;
@@ -592,7 +638,17 @@ The following are intentionally left open for the implementer:
   hard-coded per runner — **agent may choose**
 - Whether `AILANG_LIVE_NET=1` gets a nightly opt-in CI job (would restore scheduled live
   coverage of the clone path) — **human at review**; not required to close the five issues
-- **D5 — ⚠ BLOCKING FOR M2. Does AILANG's own `Net` effect come inside the egress boundary?**
+- **D5 — ✅ DECIDED 2026-08-05 (iteration 145): OPTION A. No longer blocking; M2/M3/M4 are
+  UNBLOCKED.** *Does AILANG's own `Net` effect come inside the egress boundary?* → **No, not in
+  this sprint.** Decided by Mark, relayed through the attended session, verbatim: *"D5 - option A
+  and then queue the B afterwards. I'm cool with 2."* Consequences, all applied to this doc:
+  (1) AC3 → **AC3′(a/b/c)**, narrowed to `./internal/pkg/` where the poison actually governs;
+  (2) the `internal/effects` egress tests move behind `RequiresLiveNetwork` (AC3′(b) asserts the
+  `SKIP` in the default lane, with the pre-sprint `PASS` as its control); (3) the residual is
+  asserted **as open** by the new **AC10(d)**, which carries its own known-positive control and
+  will go RED if Option B ever lands — making it the tripwire that retires itself;
+  (4) **Option B is queued as its own design item** with its own design pass + quorum, per Mark's
+  item 2. The original parked text is retained below for provenance.
   **HUMAN DECISION — parked 2026-08-04 (iteration 142), escalated on `#559`.** Measured (V33):
   the 6 hand-built `http.Transport{}` literals in `internal/effects` set no `Proxy`, so the
   poison is inert for them and AC3 passes pre-sprint by reaching the live internet. Options as

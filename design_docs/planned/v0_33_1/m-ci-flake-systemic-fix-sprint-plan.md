@@ -9,6 +9,23 @@
 
 **Revised estimate: 26h ≈ 4.5 executor-days across 5 milestones** (design doc says 3–4 days / 4 milestones — see "Estimate verdict").
 
+> ✅ **CONTROLLER UPDATE, 2026-08-05 (iteration 145) — the two decisions §6 asked for are TAKEN.**
+> **§6.1 (PR #532 vs M2) → option (b), NOT the recommended (a):** M2 proceeds now; #532 rebases
+> onto it afterwards. #532 is *this loop's own* PR (`sunholo-voight-kampff`) and has been
+> `CONFLICTING`/`DIRTY` for 7 days, so M2 does not worsen it — the resolve cost is pre-existing
+> debt, and re-application is symmetric whichever side goes second. Rationale recorded in full in
+> the design doc's **Dependencies** line.
+> **§6.2 / `D5` (does `Net` come inside the boundary?) → OPTION A, decided by Mark:** it stays
+> outside. This plan's **AC3′(a/b/c) is now the design doc's AC3** verbatim-in-substance — the
+> planner's correction was adopted, not merely noted — and the doc gains a new **AC10(d)** that
+> measures the residual openly (with a `Proxy: http.ProxyFromEnvironment` arm as its
+> known-positive control). §6.3 (gatelint R4 for unbounded `exec.Command`) stands as recommended:
+> **not this sprint**, recorded as Future Work with its measured count of 62.
+> **M1 LANDED** `c440a1628` (iteration 143). **M2 is UNBLOCKED and is this iteration's execution
+> target.** M2's four anti-vacuity control counts were re-measured at `877fe37a3` and all hold:
+> `testing.Short()` **7** files · `Getenv("CI")` **2** · `eventOneBudget` **4** (control `minGap`
+> **3**) · `60 * time.Second` **1**. Plan is FRESH for M2.
+
 ---
 
 ## 0. Executive summary for the controller
