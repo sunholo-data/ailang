@@ -374,13 +374,3 @@ func ailangTypeToJSONSchema(ailangType string) string {
 		return "string"
 	}
 }
-
-// mcpError creates an MCP error result.
-func mcpError(msg string) *mcp.CallToolResult {
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			&mcp.TextContent{Text: msg},
-		},
-		IsError: true,
-	}
-}
