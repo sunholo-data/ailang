@@ -472,6 +472,13 @@ _mc_run_once() {
   return "$RC"
 }
 
+# Snapshot the mission log's last record heading before the run, so the rc!=0
+# notice below can tell "iteration lost" from "iteration recorded itself, then a
+# watchdog killed a lingering child" (iter-145, 2026-08-05: report landed 14:35,
+# SIGTERM 14:41, and the FAILED comment sent a human to re-check landed work).
+MISSION_LOG_FILE="${MISSION_DOC%.md}-log.md"
+pre_last_record=$(grep '^## ' "$MISSION_LOG_FILE" 2>/dev/null | tail -1)
+
 # Run with transient-retry. On a non-zero exit that is NOT a deliberate watchdog
 # kill (143/137) AND whose THIS-attempt output carries a transient signature,
 # back off and re-run — up to TRANSIENT_RETRIES total attempts.
@@ -495,12 +502,24 @@ done
 rm -f "$PIDFILE"   # this instance owns the run; yield paths above never reach here
 
 if [ "$RC" -ne 0 ]; then
-  log "iteration exited rc=$RC"
-  ailang messages send controlplane \
-    "mission-control iteration exited rc=$RC (timeout or crash). Log: $LOG" \
-    --title "Mission iteration FAILED (rc=$RC)" --from "$MSG_FROM" 2>/dev/null
-  [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-    --body "⚠️ Mission iteration **FAILED to complete** (rc=$RC — timeout or crash) at $(date '+%F %H:%M %Z'). Log on the rig: \`$LOG\`. The queue is untouched; the next interval will retry." 2>/dev/null
+  post_last_record=$(grep '^## ' "$MISSION_LOG_FILE" 2>/dev/null | tail -1)
+  if [ -n "$post_last_record" ] && [ "$post_last_record" != "$pre_last_record" ]; then
+    # The mission log gained a record during this run: the work landed and the
+    # non-zero exit is a late kill of a lingering child, not a lost iteration.
+    log "iteration exited rc=$RC AFTER recording itself — late kill, work landed"
+    ailang messages send controlplane \
+      "mission-control iteration exited rc=$RC AFTER its mission-log record landed (late watchdog kill of a lingering child, not a lost iteration). Record: ${post_last_record:0:160}. Log: $LOG" \
+      --title "Mission iteration killed post-record (rc=$RC) — work landed" --from "$MSG_FROM" 2>/dev/null
+    [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
+      --body "ℹ️ Mission iteration exited **rc=$RC after landing its record** at $(date '+%F %H:%M %Z') — the mission log gained an entry during this run, so this was a late watchdog kill of a lingering child, not a lost iteration. The queue advanced normally. Log on the rig: \`$LOG\`." 2>/dev/null
+  else
+    log "iteration exited rc=$RC"
+    ailang messages send controlplane \
+      "mission-control iteration exited rc=$RC (timeout or crash). Log: $LOG" \
+      --title "Mission iteration FAILED (rc=$RC)" --from "$MSG_FROM" 2>/dev/null
+    [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
+      --body "⚠️ Mission iteration **FAILED to complete** (rc=$RC — timeout or crash) at $(date '+%F %H:%M %Z'). Log on the rig: \`$LOG\`. The queue is untouched; the next interval will retry." 2>/dev/null
+  fi
 else
   log "iteration complete (rc=0)"
   # The skill itself sends the substantive report (Gate 5, both channels).

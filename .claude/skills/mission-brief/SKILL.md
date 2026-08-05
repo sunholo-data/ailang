@@ -22,10 +22,15 @@ symlink for every mission the instant it is saved — small blast radius matters
 
 2. **Directives** — the channel the dashboard only *points* at:
    ```bash
-   gh api "repos/sunholo-data/ailang/issues/$(cat ~/.ailang/state/mission-gh-issue)/comments" \
-     --jq 'reverse | .[0:5][] | "\(.created_at) \(.user.login): \(.body | split("\n")[0])"'
+   gh api --paginate "repos/sunholo-data/ailang/issues/$(cat ~/.ailang/state/mission-gh-issue)/comments" \
+     | jq -rs 'flatten | reverse | .[0:5][] | "\(.created_at) \(.user.login): \(.body | split("\n")[0])"'
    ```
-   (Last 5 comments, newest first, first line each.) Any comment newer than the dashboard's
+   (Last 5 comments, newest first, first line each. `--paginate` + the standalone
+   `jq -s`/`flatten` is load-bearing: the API serves comments oldest-first, 30 per page,
+   so a bare call reads page 1 only — the moment a rotation week crosses 30 comments,
+   "newest 5" goes silently stale. That is exactly how the 2026-08-05 afternoon failure
+   notices went unseen by a brief run at 12:50. gh refuses `--slurp` with `--jq`, hence
+   the pipe.) Any comment newer than the dashboard's
    `Updated` stamp is an UNPROCESSED DIRECTIVE — surface it verbatim. The pointer file
    rotates Mondays; if the issue is closed or missing, report that rather than skipping.
 
