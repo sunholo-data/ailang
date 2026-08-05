@@ -1,16 +1,17 @@
 package main
 
 import (
-	"bytes"
+	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // runCLI runs the ailang CLI with given arguments and returns stdout, stderr, and exit code
@@ -23,26 +24,7 @@ func runCLI(t *testing.T, args ...string) (stdout, stderr string, exitCode int) 
 		t.Fatalf("Failed to get project root: %v", err)
 	}
 
-	cmd := exec.Command("go", append([]string{"run", "./cmd/ailang"}, args...)...)
-	cmd.Dir = projectRoot // Run from project root so paths resolve correctly
-
-	var outBuf, errBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-
-	err = cmd.Run()
-	stdout = outBuf.String()
-	stderr = errBuf.String()
-
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitCode = exitErr.ExitCode()
-		} else {
-			t.Fatalf("Failed to run CLI: %v", err)
-		}
-	}
-
-	return stdout, stderr, exitCode
+	return testutil.RunBounded(t, projectRoot, 120*time.Second, "go", append([]string{"run", "./cmd/ailang"}, args...)...)
 }
 
 func TestCLI_Version(t *testing.T) {
@@ -428,7 +410,7 @@ var (
 	ailangBinOnce   sync.Once
 	ailangBinPath   string
 	ailangBinErr    error
-	ailangBinOutput []byte
+	ailangBinOutput string
 )
 
 // buildAilang builds the ailang binary once per test run and returns its path.
@@ -463,9 +445,11 @@ func buildAilang(t *testing.T) string {
 			return
 		}
 		ailangBinPath = filepath.Join(dir, binName)
-		cmd := exec.Command("go", "build", "-o", ailangBinPath, "./cmd/ailang")
-		cmd.Dir = projectRoot
-		ailangBinOutput, ailangBinErr = cmd.CombinedOutput()
+		stdout, stderr, exitCode := testutil.RunBounded(t, projectRoot, 120*time.Second, "go", "build", "-o", ailangBinPath, "./cmd/ailang")
+		ailangBinOutput = stdout + stderr
+		if exitCode != 0 {
+			ailangBinErr = fmt.Errorf("go build exited with code %d", exitCode)
+		}
 	})
 	if ailangBinErr != nil {
 		t.Fatalf("Failed to build ailang: %v\n%s", ailangBinErr, ailangBinOutput)
@@ -480,22 +464,7 @@ func runAilangBin(t *testing.T, binPath string, args ...string) (stdout, stderr 
 	if err != nil {
 		t.Fatalf("Failed to get project root: %v", err)
 	}
-	cmd := exec.Command(binPath, args...)
-	cmd.Dir = projectRoot
-	var outBuf, errBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-	err = cmd.Run()
-	stdout = outBuf.String()
-	stderr = errBuf.String()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitCode = exitErr.ExitCode()
-		} else {
-			t.Fatalf("Failed to run ailang: %v", err)
-		}
-	}
-	return stdout, stderr, exitCode
+	return testutil.RunBounded(t, projectRoot, 60*time.Second, binPath, args...)
 }
 
 func TestCLI_Exit_Code0(t *testing.T) {

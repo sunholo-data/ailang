@@ -52,10 +52,6 @@ func TestValidateEffects_LargeArrayPerformance(t *testing.T) {
 // TestValidateEffects_LinearScaling verifies that effect checking scales linearly with input size.
 // Note: This test uses warmup iterations and takes minimum times to be robust on CI.
 func TestValidateEffects_LinearScaling(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping performance test in short mode")
-	}
-
 	sizes := []int{10, 50, 100}
 	var times []time.Duration
 	const iterations = 5 // Run multiple times and take minimum

@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestGitCache_CacheDir_Deterministic(t *testing.T) {
@@ -46,9 +48,7 @@ func TestGitCache_Resolve_RequiresTagOrRev(t *testing.T) {
 
 // Integration test — requires git and network access
 func TestGitCache_Resolve_RealRepo(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
+	testutil.RequiresLiveNetwork(t)
 
 	cache := &GitCache{baseDir: t.TempDir()}
 

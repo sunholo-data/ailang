@@ -14,9 +14,6 @@ import (
 )
 
 func TestServeAPI_MCPToolSurface(t *testing.T) {
-	if testing.Short() {
-		t.Skip("builds and drives the serve-api stdio MCP binary")
-	}
 	binary := buildAilang(t)
 
 	moduleRoot := t.TempDir()
