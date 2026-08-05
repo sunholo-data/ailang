@@ -233,6 +233,26 @@ run_eval() {
         --max-tokens-per-bench "$MAX_TOKENS_PER_BENCH" >> "$LOG" 2>&1
 }
 
+# Count passing results in an arm dir. Both arms of an A/B MUST be counted the
+# same way — the old PASS_ON had a grep-first path whose `||` fallback could
+# never fire (the pipeline's exit status is cut's, which is 0 even when grep
+# matched nothing). It therefore yielded an EMPTY string, which `${PASS_ON:-0}`
+# turned into a literal 0 and banked as a real 0% measurement. That is exactly
+# how the 2026-07-20 row (on_pass=0, delta_pp=-73.8) entered microrag_ab.jsonl.
+# Top-level on purpose: BOTH the microRAG (Monday) and fmt (Wednesday) A/B
+# blocks call it — defined inside the microRAG block it was undefined on
+# fmt-only nights, and under `set -e` the 127 killed the whole run at the
+# comparison step (2026-08-05: 8.5h of evals died unbanked at line 477).
+count_passes() {
+    python3 -c "
+import json,glob,sys
+fs=glob.glob('$1/agent/*.json')
+if not fs: sys.exit(3)
+print(sum(1 for f in fs
+          for d in [json.load(open(f))]
+          if d.get('compile_ok') and d.get('runtime_ok') and d.get('stdout_ok')))" 2>/dev/null
+}
+
 # microRAG arm set: confidence-selected, not the smoke+core tier dump.
     RAG_BENCH_LIST="${AILANG_AB_MICRORAG_BENCHMARKS:-$(select_ab_benchmarks "$MODEL" "${AILANG_AB_MICRORAG_N:-12}")}"
     if [[ -z "$RAG_BENCH_LIST" ]]; then
@@ -256,23 +276,12 @@ if [[ "$RUN_AB_MICRORAG" == "1" ]]; then
     log "microRAG A/B night: also running microrag=off"
     run_eval "off" "${RESULTS_DIR}_rag_off"
 
-    # Compare. Both arms MUST be counted the same way — the old PASS_ON had a
-    # grep-first path whose `||` fallback could never fire (the pipeline's exit
-    # status is cut's, which is 0 even when grep matched nothing). It therefore
-    # yielded an EMPTY string, which `${PASS_ON:-0}` below turned into a literal
-    # 0 and banked as a real 0% measurement. That is exactly how the
-    # 2026-07-20 row (on_pass=0, delta_pp=-73.8) entered microrag_ab.jsonl.
-    count_passes() {
-        python3 -c "
-import json,glob,sys
-fs=glob.glob('$1/agent/*.json')
-if not fs: sys.exit(3)
-print(sum(1 for f in fs
-          for d in [json.load(open(f))]
-          if d.get('compile_ok') and d.get('runtime_ok') and d.get('stdout_ok')))" 2>/dev/null
-    }
-    PASS_ON=$(count_passes "${RESULTS_DIR}_rag_on")
-    PASS_OFF=$(count_passes "${RESULTS_DIR}_rag_off")
+    # Compare with the shared top-level count_passes (see its comment for why
+    # both arms must be counted the same way).
+    # `|| true`: under set -e a bare failing substitution kills the run before
+    # the non-numeric guard below can turn it into a refuse-to-bank.
+    PASS_ON=$(count_passes "${RESULTS_DIR}_rag_on" || true)
+    PASS_OFF=$(count_passes "${RESULTS_DIR}_rag_off" || true)
     log "A/B result: microrag_on=${PASS_ON} microrag_off=${PASS_OFF}"
     if [[ "${PASS_ON:-x}" =~ ^[0-9]+$ && "${PASS_OFF:-x}" =~ ^[0-9]+$ ]]; then
         DELTA=$(( PASS_ON - PASS_OFF ))
@@ -474,8 +483,10 @@ fi  # end microRAG A/B
         # weekly unable to conclude anything.
         FMT_PAIRED=$("$BIN" eval-paired --with-pairs=true "${RESULTS_DIR}_fmt_on" "${RESULTS_DIR}_fmt_off" 2>>"$LOG" || echo "")
 
-        FMT_ON=$(count_passes "${RESULTS_DIR}_fmt_on")
-        FMT_OFF=$(count_passes "${RESULTS_DIR}_fmt_off")
+        # `|| true`: same as the microRAG arm — let the FMT_VALID guard see an
+        # empty value instead of set -e killing the run here.
+        FMT_ON=$(count_passes "${RESULTS_DIR}_fmt_on" || true)
+        FMT_OFF=$(count_passes "${RESULTS_DIR}_fmt_off" || true)
         FMT_ON_T=$(find "${RESULTS_DIR}_fmt_on"/agent -name '*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
         FMT_OFF_T=$(find "${RESULTS_DIR}_fmt_off"/agent -name '*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
         log "fmt A/B result: on=${FMT_ON}/${FMT_ON_T} off=${FMT_OFF}/${FMT_OFF_T}"

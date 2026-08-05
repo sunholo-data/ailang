@@ -174,14 +174,17 @@ _mc_probe() {
   _mc_bounded "$PROBE_TIMEOUT" claude -p 'reply with exactly: ok' --model "$m"; rc=$?
   out="$MC_BOUNDED_OUT"
   [ "$rc" -eq 0 ] && return 0
-  [ "$rc" -eq 124 ] && log "model $m probe timed out after ${PROBE_TIMEOUT}s"
+  # Log the captured output tail on timeout: an EMPTY capture (claude -p is
+  # silent until completion) means a hang/backoff loop, error text means an
+  # actual failure — 2026-08-05's refusals were undiagnosable without this.
+  [ "$rc" -eq 124 ] && log "model $m probe timed out after ${PROBE_TIMEOUT}s — captured output: '$(printf '%s' "$out" | tail -c 200 | tr '\n' ' ')'"
   if printf '%s' "$out" | grep -qiE "$QUOTA_SIG"; then return 1; fi
   # transient? retry once
   sleep 5
   _mc_bounded "$PROBE_TIMEOUT" claude -p 'reply with exactly: ok' --model "$m"; rc=$?
   out="$MC_BOUNDED_OUT"
   [ "$rc" -eq 0 ] && return 0
-  [ "$rc" -eq 124 ] && log "model $m probe timed out after ${PROBE_TIMEOUT}s (retry)"
+  [ "$rc" -eq 124 ] && log "model $m probe timed out after ${PROBE_TIMEOUT}s (retry) — captured output: '$(printf '%s' "$out" | tail -c 200 | tr '\n' ' ')'"
   printf '%s' "$out" | grep -qiE "$QUOTA_SIG" && return 1
   return 2
 }
@@ -384,12 +387,12 @@ fi
 # 4. Select the model (probe doubles as the subscription-auth check: API keys
 #    are stripped above, so a passing probe proves keychain/token auth too).
 if ! select_model; then
-  log "NO usable model in prefs ($PREFS) — quota-exhausted across candidates or auth dead. Refusing."
+  log "NO usable model in prefs ($PREFS) — every probe failed (per-model reasons above: quota-limited, timed out, or errored). Refusing."
   ailang messages send controlplane \
-    "mission-control refused to start: no usable model in prefs ($PREFS). Either every candidate is quota-limited or subscription auth is unavailable (keychain locked / rig at login screen?). Zero tokens spent beyond probes." \
+    "mission-control refused to start: no usable model in prefs ($PREFS). Every candidate probe failed — per-model reasons (quota-limited / timed out / errored) are in the driver log; observed cause so far is probe TIMEOUTS (likely API backoff), not dead auth. Zero tokens spent beyond probes." \
     --title "Mission iteration blocked: no usable model" --from "$MSG_FROM" 2>/dev/null
   [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-    --body "⚠️ Mission iteration did not start: **no usable model** in preference list (\`$PREFS\`) — all candidates quota-limited or auth unavailable. Will retry next interval; recovery is automatic when any candidate's probe succeeds." 2>/dev/null
+    --body "⚠️ Mission iteration did not start: **no usable model** in preference list (\`$PREFS\`) — every candidate probe failed (quota-limited, timed out, or errored — per-model detail in the driver log). Will retry next interval; recovery is automatic when any candidate's probe succeeds." 2>/dev/null
   exit 1
 fi
 
