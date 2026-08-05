@@ -11,10 +11,11 @@
 - **Latest release**: v0.33.0 (2026-08-04) — recorded-stream S1 + #498 Lane B M1/M2; prod MCP on 0.33.0
 - **`#569` LANDED** (dependabot actions bump → `bc30912ea`, dev CI green): setup-go v6→v7,
   setup-uv v8.3.2→v9.0.0. Merged FIRST to clear the ci.yml/build.yml collision with M4.
-- **CI-flake M4 IN FLIGHT** — PR **#599** (`6d8fb2474`), the sprint's **only CI-touching commit**.
-  Poison wired across **6** legs + AC9 gatelint registration. First CI run went **RED on M4's own
-  AC9 step** and was fixed forward; second run polling at hand-off. **If red: `git revert --no-edit
-  <squash-sha>` is the staged remedy.**
+- **CI-flake M4 LANDED** — PR **#599** → squash `4b47f8b0a`, the sprint's **only CI-touching
+  commit**. Poison wired across **6** legs + AC9 gatelint registration (AC9/AC11/AC12). Evaluator
+  sonnet 88/100 r1 zero blocking. **Gate 3b GREEN on the dev merge: 15/15, 0 non-success**, incl.
+  all 4 build legs and `test-windows` — which closes the PowerShell guard that was unverifiable
+  locally. The first CI run went **RED on M4's own AC9 step** and was fixed forward.
 - **THE FIND**: `go mod download all` writes to the **tracked go.sum**, and the binary-staleness
   detector compares binary mtime vs newest Go source — so prefetching AFTER `Build binaries` makes
   every ailang binary read STALE and silently skips every binary-gated test. Fix = prefetch BEFORE

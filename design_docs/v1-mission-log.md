@@ -8032,4 +8032,6 @@ recorded **first**, so the report carries the caveat rather than retracting it.
 
 **Retro — one skill edit** (≥2-instance bar): Gate 2 gains **3e** — baseline every acceptance command on a **pristine** tree, because (a) a gate already red at base measures the repo, not your change (instance 1: iteration 145's `go build ./...`; instance 2: this iteration's `actionlint`), and (b) a control run after an earlier step has mutated shared state is not a control (this iteration's contaminated go.sum arm). The generalisable point: **an environmental explanation is always available for a symptom you caused**, and it is more comfortable than the alternative, so it wins by default unless the base is pinned down by command.
 
+**Gate 3b closed GREEN on the dev merge** `4b47f8b0a`: 15/15 complete, 0 non-success, with the poisoned test step and the AC9 step both `success` on dev — so the milestone is LANDED on the criterion that matters (remote CI on the merge), not merely on the PR head.
+
 **Next:** **M5** — docs/CHANGELOG/AC sweep, now owing the "5 CI legs"→6 correction in 6 places, the AC10 a/b/c→(d) reconciliation, the 5 pre-existing actionlint findings that keep the plan's own gate unpassable, and a note never to reuse `-shellcheck='-e SC2086'` as a filter. Standing alternative: `#498` Lane B M3.
