@@ -366,21 +366,25 @@ func TestEmbeddedMCPOverloadEnvelopeAndFastControl(t *testing.T) {
 		invoke:  func(context.Context, any, string, json.RawMessage) (json.RawMessage, error) { return nil, nil },
 	}
 	handler := embeddedHandler(t, blocking, 30*time.Millisecond, 4)
-	var overload atomic.Int32
+	var overload, badStatus atomic.Int32
 	var wg sync.WaitGroup
 	for i := 0; i < 40; i++ {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			result := mcpResult(t, mcpPost(handler, listRequest(id)))
+			recorder := mcpPost(handler, listRequest(id))
+			if recorder.Code != http.StatusOK {
+				badStatus.Add(1)
+			}
+			result := mcpResult(t, recorder)
 			if e, ok := result["error"].(map[string]any); ok && e["message"] == "host callback capacity exceeded" && e["code"] == float64(-32603) {
 				overload.Add(1)
 			}
 		}(i)
 	}
 	wg.Wait()
-	if overload.Load() == 0 {
-		t.Fatal("no overload envelopes")
+	if overload.Load() == 0 || badStatus.Load() != 0 {
+		t.Fatalf("overload=%d badStatus=%d", overload.Load(), badStatus.Load())
 	}
 	close(release)
 	fast := embeddedTestHost{
