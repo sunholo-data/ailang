@@ -1,0 +1,3 @@
+package fixture
+
+const inertRegistryFixture = "ailang-packages"
