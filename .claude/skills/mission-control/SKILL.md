@@ -344,6 +344,34 @@ local log and the PR search; only the planner's own fetch caught it — the spri
 re-scoped in flight rather than pre-pick). When a sibling session is active (dirty shared tree,
 fresh commits appearing), also send a controlplane CLAIM message naming the item before routing.
 
+**AND THE ITEM'S DECLARED BLOCKERS ARE CLAIMS TOO — RE-VERIFY THE BLOCKER, NOT JUST THE ITEM,
+AND CHECK WHETHER ITS *PURPOSE* WAS SOLVED UPSTREAM RATHER THAN WHETHER IT IS STILL OPEN** (added
+2026-08-05 iteration 145; second instance of the solved-upstream class after the 2026-08-04
+motoko_agent batch, where 1 of 3 "new" reports was already fixed and a 2nd was superseded). Every
+rule above points the freshness check at *the thing you are picking*. Nothing pointed it at the
+**collisions, blocking PRs and external dependencies that the doc or plan declares** — and those
+are the claims most likely to rot, because they describe *someone else's* work, which moves without
+telling you. They also feel pre-verified: a planner wrote them down, a quorum read them, and they
+carry a PR number, which reads like a citation. Iteration 142 confirmed PR `#532` first-party as a
+live collision blocking M2 — and it *was* `CONFLICTING`, which is what got checked. What was never
+checked is whether `#532` was still **needed**: its entire purpose (one shared binary build instead
+of fourteen, to escape a Windows timeout) had landed independently on `dev` as `#564`/`3c28cc322`
+two days earlier. So iterations 142, 143 and 144 each carried "resolve `#532` before M2" in the
+charter, and iteration 145 spent a real controller decision (plan §6.1: land-first vs rebase-after)
+choosing between two options for a blocker that no longer existed. Worse, the same iteration then
+posted a comment on `#532` asserting its fix was "still wanted" — inheriting the plan's description
+of the PR instead of measuring HEAD, which is rule 3b(v)(b) exactly. The tell that a blocker is
+dead is never its own state: `#532` sat `OPEN`/`CONFLICTING` for a week *because* it was superseded
+— nobody rebases a PR whose reason is gone, so **staleness looks identical to importance**.
+Concretely, at pick time, for each declared blocker/collision: **(a)** ask what problem it exists to
+solve, then check whether that problem is still present at HEAD — `git log -S '<the symbol it
+introduces>'`, or run the failing scenario — rather than reading its `state`/`mergeable`;
+**(b)** treat `OPEN` + long-untouched as *evidence toward* superseded, not evidence of blocking;
+**(c)** when it is dead, close it with the measurement and say so in the charter, so the next three
+iterations do not re-plan around it; **(d)** never quote a PR's or issue's *purpose* from a doc that
+merely cites it — re-derive it from the diff or the commit that superseded it. Cheap, and the whole
+check is two commands.
+
 **A queue row sourced from a survey/strategy review inherits that survey's verification debt —
 live-repro the claimed bug BEFORE any routing** (added 2026-07-13 iteration 25; second instance
 of the ghost class): a 10-minute `ailang check`/run probe at HEAD beats a design-doc sprint on a
