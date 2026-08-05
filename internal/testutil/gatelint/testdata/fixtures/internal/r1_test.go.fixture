@@ -1,0 +1,5 @@
+package fixture
+
+func testGate() {
+	if testing.Short() {}
+}
