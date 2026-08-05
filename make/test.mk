@@ -12,9 +12,22 @@
 # Core tests. Depends on build so integration tests that shell out to the
 # ailang binary never see a stale bin/ailang — a stale binary caused phantom
 # stdlib failures on 2026-07-10 (see internal/testutil/ailangbin.go).
+#
+# The prefetch below runs UNPOISONED so the poisoned test run cannot fail on a
+# module-cache miss. It is deliberately plain `download`, NOT `download all`:
+# `all` resolves the full transitive graph and writes checksums for modules this
+# repo never imports, adding ~394 lines to the TRACKED go.sum on every run —
+# which leaves the developer's tree dirty and stamps every later build `-dirty`
+# (Makefile:27 uses `git describe --dirty`). Measured 2026-08-05: plain
+# `download` into a cold GOMODCACHE followed by this poisoned run gives
+# rc=0 / 107 ok / zero module-resolution failures — indistinguishable from the
+# warm run, with go.sum untouched. The CI workflows keep `download all`: they
+# run on three OSes whose build constraints were not measured here, and their
+# checkout is ephemeral so the go.sum churn is harmless there.
 test: build ## Run all Go unit tests (builds bin/ailang first)
 	@echo "Running tests..."
-	@$(GOTEST) -v $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
+	@$(GOCMD) mod download
+	@HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 NO_PROXY=localhost,127.0.0.1 GOPROXY=off $(GOTEST) -v $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
 
 test-nightly-classifier: ## Run nightly variance-guard contract and replay tests
 	@python3 tools/test_nightly_classify.py -v

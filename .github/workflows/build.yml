@@ -56,13 +56,24 @@ jobs:
       uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
 
     - name: Get dependencies
-      run: go mod download
+      run: go mod download all
 
     - name: Install ailang binary for integration tests
       run: go install ./cmd/ailang
 
     - name: Run tests
-      run: go test -v $(go list ./... | grep -v /scripts | grep -v /examples/agents)
+      shell: bash
+      env:
+        HTTP_PROXY: http://127.0.0.1:9
+        HTTPS_PROXY: http://127.0.0.1:9
+        NO_PROXY: localhost,127.0.0.1
+        GOPROXY: off
+      run: |
+        [[ "$HTTP_PROXY" == "http://127.0.0.1:9" ]] || { echo "::error::HTTP_PROXY poison is not configured"; exit 1; }
+        [[ "$HTTPS_PROXY" == "http://127.0.0.1:9" ]] || { echo "::error::HTTPS_PROXY poison is not configured"; exit 1; }
+        [[ "$NO_PROXY" == "localhost,127.0.0.1" ]] || { echo "::error::NO_PROXY loopback bypass is not configured"; exit 1; }
+        [[ "$GOPROXY" == "off" ]] || { echo "::error::GOPROXY is not disabled"; exit 1; }
+        go test -v $(go list ./... | grep -v /scripts | grep -v /examples/agents)
 
     - name: Build binary
       env:
