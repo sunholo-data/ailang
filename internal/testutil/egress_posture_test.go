@@ -102,7 +102,13 @@ func assertPoisonProxyError(t *testing.T, err error) {
 		t.Fatal("request through poison proxy unexpectedly succeeded")
 	}
 	message := err.Error()
-	for _, required := range []string{"proxyconnect", "127.0.0.1:9", "connection refused"} {
+	// "refused", not "connection refused": the refusal wording is platform-specific.
+	// Unix reports `connect: connection refused`; Windows reports `connectex: No
+	// connection could be made because the target machine actively refused it.`
+	// All three tokens must match, so this stays discriminating — a direct hit or a
+	// DNS failure carries no `proxyconnect`/`127.0.0.1:9`, and a proxy that hangs
+	// rather than refusing carries no `refused`.
+	for _, required := range []string{"proxyconnect", "127.0.0.1:9", "refused"} {
 		if !strings.Contains(strings.ToLower(message), required) {
 			t.Fatalf("poison error %q does not contain %q", message, required)
 		}
