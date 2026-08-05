@@ -51,7 +51,11 @@ func TestLiveNetworkStatus_PoisonedProxyFatal(t *testing.T) {
 			if status != LiveNetworkFatal {
 				t.Fatalf("LiveNetworkStatus() status = %v, want %v (reason: %q)", status, LiveNetworkFatal, reason)
 			}
-			if !strings.Contains(reason, poisoned) {
+			// Case-insensitive on purpose. Windows environment variables are
+			// case-INSENSITIVE, so HTTP_PROXY and http_proxy are one variable there:
+			// setting the lower-cased name and then reading the list in order reports
+			// the upper-cased name, which is correct but not byte-equal to `poisoned`.
+			if !strings.Contains(strings.ToLower(reason), strings.ToLower(poisoned)) {
 				t.Fatalf("LiveNetworkStatus() reason = %q, want it to name %s", reason, poisoned)
 			}
 		})
