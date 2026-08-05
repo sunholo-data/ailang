@@ -620,6 +620,35 @@ the Repo Profile above):
    without an instrument. Reviewers will not close this gap for you: quorum reads for design
    soundness, not for freshness against HEAD (five rounds and two reviewers missed all three rows
    above).
+   **(vii) A DESIGN DOC AND ITS SPRINT PLAN ARE TWO DOCUMENTS DESCRIBING ONE SPRINT, AND REVISING
+   EITHER SILENTLY ROTS THE OTHER — DIFF THE PLAN'S MILESTONE SECTION AGAINST THE DOC'S ACCEPTANCE
+   CRITERIA AT PICK TIME** (added 2026-08-05 iteration 146). Rules (vi) and (vi-b) police
+   consistency *within* one document. This is the same error across the **file boundary**, and it
+   is more likely, because the two files are written by different roles at different times: the
+   designer writes the doc, quorum reviews the doc, the planner reads the doc **once** and emits a
+   plan — and from that moment nothing re-diffs them. Every later revision lands in exactly one of
+   the two. A mid-sprint human directive is the worst case, because it revises the doc by
+   definition and no one thinks of the plan as affected. Iteration 145 applied Mark's `D5` ruling
+   by editing the doc — AC3 → AC3′(a/b/c) plus a brand-new **AC10(d)**. Nothing touched the plan,
+   whose M3 task list still read `AC10 (a) … (b) … (c)`. Routed as written, that milestone would
+   have shipped **without the tripwire whose entire purpose is to red when the follow-up item
+   lands** — i.e. the loop would have silently dropped the mechanism connecting two queue rows.
+   Measured at iteration 146: the plan said `AC10 (a)` in **2** places while the doc carried
+   `AC10(d)` in **4**; and the rot ran BOTH ways — the doc's Implementation-Plan section still
+   bundled a milestone with workflow edits the *newer* plan had split out, and the doc still said
+   "5 CI legs" in **6** places despite its own `V34` having measured **6**. So neither file
+   dominates: whichever was edited last is fresher *in that spot only*. Concretely, at pick time:
+   **(a)** for the milestone you are about to route, list the ACs the DOC says it closes and the
+   ACs the PLAN's milestone section names, and diff those two lists — a one-minute read that the
+   executor cannot do for you, because a cross-provider executor is handed the plan and has no
+   reason to doubt it; **(b)** when they disagree, state explicitly in the executor directive
+   which document wins (normally the doc, as the reviewed artifact) and quote the delta verbatim,
+   rather than assuming the executor will notice; **(c)** treat a doc revision landed by any
+   iteration OTHER than the one that wrote the plan as positive evidence of divergence — check,
+   do not hope; **(d)** file the residue as explicit cleanup work rather than fixing it inline,
+   so the sprint's own docs milestone owns it. The tell: you are routing milestone N of a
+   multi-milestone sprint whose design doc was edited after its plan was written — which, in a
+   loop that answers human directives by editing the doc, is most of them. — a probe identifies the endpoint you REACHED, never the
 3c. **"THE SERVICE" IS AN ASSUMPTION — a probe identifies the endpoint you REACHED, never the
    service you NAMED** (added 2026-08-01 iteration 130; 2nd instance of this gap after iteration
    129 recorded "ollama server is 0.31.2, up 11 days; client already 0.32.1" as a fact and built a
