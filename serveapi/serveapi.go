@@ -58,6 +58,22 @@ type AgentInfo struct {
 	Version     string
 }
 
+// AuthorizationError maps resolver rejection to an HTTP 401 or 403 response.
+type AuthorizationError struct {
+	Status int
+	Err    error
+}
+
+func (e *AuthorizationError) Error() string {
+	if e.Err != nil {
+		return e.Err.Error()
+	}
+	return http.StatusText(e.Status)
+}
+
+func (e *AuthorizationError) Unwrap() error   { return e.Err }
+func (e *AuthorizationError) HTTPStatus() int { return e.Status }
+
 type Config struct {
 	Resolver               SessionResolver
 	Tools                  ToolSource
@@ -70,8 +86,9 @@ type Config struct {
 // Server is an embeddable protocol surface. Wire adapters are completed in
 // later milestones; M1 establishes and validates the host contract.
 type Server struct {
-	config Config
-	runner *apiserver.CallbackRunner
+	config     Config
+	runner     *apiserver.CallbackRunner
+	mcpHandler http.Handler
 }
 
 func New(cfg Config) (*Server, error) {
@@ -106,11 +123,33 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("configure callback runner: %w", err)
 	}
-	return &Server{config: cfg, runner: runner}, nil
+	s := &Server{config: cfg, runner: runner}
+	s.mcpHandler = apiserver.NewEmbeddedMCPHandler(apiserver.EmbeddedMCPConfig{
+		AgentName: cfg.Agent.Name, AgentVersion: cfg.Agent.Version, Runner: runner,
+		Resolve: func(ctx context.Context, request *http.Request) (any, error) {
+			return cfg.Resolver.ResolveSession(ctx, request)
+		},
+		Tools: func(ctx context.Context, session any) ([]apiserver.ToolDescriptor, error) {
+			descriptors, err := cfg.Tools.Tools(ctx, session)
+			if err != nil {
+				return nil, err
+			}
+			result := make([]apiserver.ToolDescriptor, len(descriptors))
+			for i, descriptor := range descriptors {
+				result[i] = apiserver.ToolDescriptor(descriptor)
+			}
+			return result, nil
+		},
+		Invoke: func(ctx context.Context, session any, name string, arguments json.RawMessage) (json.RawMessage, error) {
+			result, err := cfg.Invoker.Invoke(ctx, session, Invocation{Name: name, Arguments: arguments})
+			return result.Value, err
+		},
+	})
+	return s, nil
 }
 
-// MCPHandler returns the MCP endpoint handler. Wire behavior lands in M2.
-func (s *Server) MCPHandler() http.Handler { return http.NotFoundHandler() }
+// MCPHandler returns the request-scoped stateless MCP endpoint handler.
+func (s *Server) MCPHandler() http.Handler { return s.mcpHandler }
 
 // A2AHandler returns the A2A endpoint handler. Wire behavior lands in M3.
 func (s *Server) A2AHandler() http.Handler { return http.NotFoundHandler() }

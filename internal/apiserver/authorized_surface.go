@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // ToolDescriptor is the internal, protocol-neutral form of a host tool.
@@ -60,6 +61,9 @@ func validateToolDescriptor(tool ToolDescriptor) error {
 	if input == nil || input["type"] != "object" {
 		return fmt.Errorf("tool %q: input schema must have type object", tool.Name)
 	}
+	if err := validateHeaderAnnotations(input); err != nil {
+		return fmt.Errorf("tool %q: invalid parameter header annotations: %w", tool.Name, err)
+	}
 	if tool.OutputSchema != nil {
 		var output any
 		if err := json.Unmarshal(tool.OutputSchema, &output); err != nil {
@@ -67,6 +71,51 @@ func validateToolDescriptor(tool ToolDescriptor) error {
 		}
 	}
 	return nil
+}
+
+func validateHeaderAnnotations(schema map[string]any) error {
+	seen := make(map[string]bool)
+	var walk func(map[string]any, string) error
+	walk = func(node map[string]any, prefix string) error {
+		properties, _ := node["properties"].(map[string]any)
+		for name, value := range properties {
+			property, _ := value.(map[string]any)
+			path := name
+			if prefix != "" {
+				path = prefix + "." + name
+			}
+			if annotation, ok := property["x-mcp-header"]; ok {
+				typeName, _ := property["type"].(string)
+				if typeName != "string" && typeName != "integer" && typeName != "boolean" {
+					return fmt.Errorf("property %q: x-mcp-header requires a primitive type", path)
+				}
+				header, ok := annotation.(string)
+				if !ok || header == "" || !validHTTPFieldName(header) {
+					return fmt.Errorf("property %q: invalid x-mcp-header value", path)
+				}
+				key := strings.ToLower(header)
+				if seen[key] {
+					return fmt.Errorf("property %q: duplicate x-mcp-header value %q", path, header)
+				}
+				seen[key] = true
+			}
+			if err := walk(property, path); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return walk(schema, "")
+}
+
+func validHTTPFieldName(name string) bool {
+	for _, c := range name {
+		if !((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') ||
+			(c >= 'a' && c <= 'z') || strings.ContainsRune("!#$%&'*+-.^_`|~", c)) {
+			return false
+		}
+	}
+	return name != ""
 }
 
 func cloneToolDescriptor(tool ToolDescriptor) ToolDescriptor {
