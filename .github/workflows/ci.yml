@@ -41,6 +41,20 @@ jobs:
     - name: Install dependencies
       run: make deps
 
+    # Prefetch UNPOISONED so the poisoned `go test` step below cannot fail on a
+    # module-cache miss. This MUST run BEFORE the binaries are built: `go mod
+    # download all` writes new entries into the TRACKED go.sum, and the binary
+    # staleness detector (internal/testutil/ailangbin.go) compares binary mtime
+    # against the newest Go source file — so downloading afterwards makes every
+    # ailang binary look stale and silently SKIPS every binary-gated integration
+    # test. Measured on PR #599's first run: binaries built 21:21:03Z, go.sum
+    # touched 21:21:17Z, TestRunSmokeInTempDir_Pass / TestPromptCommand_Piping /
+    # TestZ3VerifyEndToEnd all skipped, and the no-silent-skip gate below
+    # correctly red-lighted the job. build.yml was unaffected precisely because
+    # its download already precedes `go install`.
+    - name: Download all Go modules (including test dependencies)
+      run: go mod download all
+
     - name: Build binaries
       run: make install
 
@@ -70,9 +84,6 @@ jobs:
     # 35-50s (CLI subprocess tests), so 60s was boundary-flaky on loaded
     # runners (red dev 2026-07-10: package panicked at exactly 1m0s).
     # 300s still catches genuine hangs (M-DX11's intent) without the flake.
-    - name: Download all Go modules (including test dependencies)
-      run: go mod download all
-
     - name: Run tests with timeout (M-DX11)
       env:
         HTTP_PROXY: http://127.0.0.1:9
@@ -290,6 +301,13 @@ jobs:
     - name: Set up uv (provides Python for eval-harness Python runner tests)
       uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
 
+    # Same ordering constraint as the Linux leg: prefetch BEFORE the binary is
+    # installed, because `go mod download all` touches the tracked go.sum and the
+    # staleness detector would then treat the freshly-installed ailang as stale,
+    # silently skipping every binary-gated test.
+    - name: Download all Go modules (including test dependencies)
+      run: go mod download all
+
     - name: Install ailang to PATH (mirrors `make install`)
       shell: pwsh
       # Use go install so the binary lands in $(go env GOPATH)/bin, which
@@ -320,9 +338,6 @@ jobs:
         if ($LASTEXITCODE -ne 0) { Write-Error "ailang exited $LASTEXITCODE"; exit 1 }
         if ($output -notcontains 'World') { Write-Error "expected 'World' in output, got: $output"; exit 1 }
         Write-Host "OK: -args-json - (stdin)"
-
-    - name: Download all Go modules (including test dependencies)
-      run: go mod download all
 
     - name: Run Go test suite
       shell: pwsh
