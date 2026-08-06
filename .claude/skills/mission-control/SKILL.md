@@ -785,6 +785,44 @@ the Repo Profile above):
    The generalisable point, and the reason this outranks its two instances: **an environmental
    explanation is always available for a symptom you caused**, and it is more comfortable than the
    alternative, so it wins by default unless the base is pinned down by command.
+3f. **A REVIEWER'S OBJECTION IS A CLAIM TOO — WHEN A QUORUM BLOCKS ON AN "UNVERIFIED PREMISE", THE
+   CONTROLLER'S JOB IS TO *MEASURE* IT, NOT TO FORWARD IT** (added 2026-08-06 iteration 150). Every
+   rule above polices claims flowing *downward* — from a sub-agent, a designer, a judge, a document.
+   This one polices a claim flowing *upward*, from a reviewer, and it is the one shape the loop
+   reflexively treats as authoritative: a quorum reject is a *verdict*, arrives with a
+   `proposed_fix`, and costs money, so the natural move is to route it straight to the designer.
+   But an objection of the form "the doc never established that X" is itself an **unverified
+   premise** — the reviewer did not check either; it correctly noticed that *nobody had*. Forwarding
+   it buys a revision round to answer a question one command can settle, and the answer frequently
+   **refutes the objection outright** or, better, *shrinks* the work.
+   Iteration 126 is instance 1: two quorum rounds lost to premise objections, and the fix recorded
+   then was narrow ("hand the designer the measurement rather than the objection"). Iteration 150 is
+   instance 2 and generalises it. `gpt5-6-sol` blocked a design on the grounds that the repo might
+   already contain reusable HTTP transport/RoundTripper machinery the new mechanism would duplicate.
+   The controller ran the audit itself: **0** custom `RoundTripper`s, **0** `DefaultTransport` uses,
+   **0** `Transport.Clone`, no shared factory anywhere (control: **29** inline `http.Client{}` sites,
+   so the zeros are measurements). The objection was answered, not litigated. The same pass then
+   produced a fact the doc never had — Go's `DefaultTransport` sets `Proxy: ProxyFromEnvironment`,
+   so bare clients are *already* inside the egress boundary and only hand-built nil-`Proxy`
+   transports can escape — which converted a counted claim ("we found seven sites") into a
+   **derivation** ("seven is all there can be"). No revision round could have produced that; only
+   running the check could.
+   And the same instrument works on an objection you *cannot* satisfy. R2's surviving objection
+   asked for a `go/packages` AST analyzer because textual matching cannot see aliased imports,
+   `new(http.Transport)`, post-construction assignment, factories, or custom `RoundTripper`s. Rather
+   than park a vague "is the audit complete?", the controller **tested the reviewer's own
+   hypothesis**: all five shapes are **zero at HEAD**, each with a firing control. That did not
+   resolve the objection — the reviewer's point about *future* escapes still stands — but it
+   converted an open-ended completeness dispute into a bounded, one-word human decision (cheap gate
+   now vs durable gate in-sprint), which is the difference between a useful park and a stalled one.
+   Concretely, on any quorum reject: **(a)** classify each objection as *premise* (asserts something
+   about the codebase) or *design* (disputes a choice); **(b)** run every premise objection yourself
+   before routing anything, with rule 3a's known-positive control, and hand the designer the
+   measurement; **(c)** where an objection is not satisfiable in-loop, still measure whatever part of
+   it *is* empirical, so the park carries numbers and the human decision is one word rather than an
+   investigation; **(d)** record refuted objections in Ruled out — a reviewer refuted by measurement
+   is the loop working, exactly as rule (d) already says for sub-agents. The tell: you are about to
+   forward a `proposed_fix` whose first step is "verify that…", and you have not run it.
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
    the Gate-2 rebuild `-dirty` — binaries built from a half-merged tree; and a persisted `cd`
