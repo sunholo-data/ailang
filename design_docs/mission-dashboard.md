@@ -9,8 +9,11 @@
 ## Now
 - **Latest release**: v0.33.0 (2026-08-04)
 - **⚠ GitHub Actions MAJOR OUTAGE still live** (incident 15:22Z, `investigating`, last update
-  18:46Z — 6h+). **Nothing can land.** `#608` has ZERO workflow runs created; `#606`'s re-runs were
-  accepted but 0 of 4 started in 28 min. **No revert warranted — re-run when the incident closes.**
+  19:43Z — 6h+). **Nothing can land.** `#608` has ZERO workflow runs created (GitHub never made
+  them — nothing to re-run, no instrument to poll). On `#606` the re-runs partly drained: **docs
+  went failure→success on a byte-identical tree** (the strongest control — only the environment can
+  be the variable), Build-and-Release queued, CI+CodeQL `failure` whose every job is `cancelled` at
+  **steps=0 with zero failed steps**. **No revert warranted — re-run when the incident closes.**
 - **Two PRs open and BLOCKED ON CI ONLY** — both fully reviewed, neither LANDED:
   - **`#606`** (`#603`, CodeQL reflected-xss) — evaluator PASS 91/100
   - **`#608`** (`#602`, smt pidfile race) — evaluator PASS 88/100
