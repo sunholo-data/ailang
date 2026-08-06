@@ -360,7 +360,14 @@ func decodeCheckSentinel(val eval.Value, checks []CheckInfo) (eval.Value, error)
 	}
 	for _, c := range checks {
 		if c.Ordinal == intVal.Value {
-			return nil, fmt.Errorf("assertion %d failed: `assert %s` (at %s)",
+			// Quote back exactly what the user wrote.  A trailing bare expression in
+			// an assert-bearing body is a check too, but it is not an `assert`, and
+			// showing it as one puts source in the diagnostic that is not in the file.
+			if c.IsAssert {
+				return nil, fmt.Errorf("assertion %d failed: `assert %s` (at %s)",
+					c.Ordinal, c.Source, c.Pos.String())
+			}
+			return nil, fmt.Errorf("check %d failed: `%s` (at %s)",
 				c.Ordinal, c.Source, c.Pos.String())
 		}
 	}

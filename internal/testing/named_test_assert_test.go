@@ -149,6 +149,21 @@ func TestNamedTest_Assert_FinalBareExprInAssertBody(t *testing.T) {
 		t.Errorf("false final bare expr: expected 1 failure, got %d (passed=%d)",
 			fail.FailedTests, fail.PassedTests)
 	}
+
+	// The diagnostic must quote what the user WROTE.  This check is a bare
+	// expression, not an `assert`, so reporting it as `assert (add_one(3) == 99)`
+	// would put source into the error that appears nowhere in the file.
+	// Evaluator finding NB-1, iteration 152.
+	got := firstFailureError(fail)
+	if strings.Contains(got, "assert (add_one(3) == 99)") {
+		t.Errorf("bare-expression check must not be quoted back as an `assert` — "+
+			"the user never wrote that word here; got: %s", got)
+	}
+	// Parens are the printer's (PrintAILANGSource parenthesizes binary ops), the
+	// same way the assert case reports `assert (add_one(1) == 99)`.
+	if !strings.Contains(got, "check 2 failed: `(add_one(3) == 99)`") {
+		t.Errorf("expected the bare check reported verbatim as check 2, got: %s", got)
+	}
 }
 
 // TestNamedTest_AssertFree_LegacyPathUnchanged is the stays-green guard (B3):

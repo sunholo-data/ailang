@@ -75,6 +75,10 @@ type CheckInfo struct {
 	Ordinal int     // 1-based position among the body's checks
 	Source  string  // AILANG source text of the condition, for the failure message
 	Pos     ast.Pos // original position of the check in the user's source
+	// IsAssert records whether the user actually wrote `assert`.  A trailing bare
+	// expression in an assert-bearing body is also a check, but quoting it back as
+	// `assert <expr>` would show the user source they never wrote.
+	IsAssert bool
 }
 
 // FoldTestBody folds a named test body into a single expression, lowering any
@@ -151,10 +155,12 @@ func FoldTestBody(exprs []ast.Expr) (ast.Expr, []CheckInfo) {
 		if ordinals[i] == 0 {
 			continue
 		}
+		_, isAssert := e.(*ast.AssertStmt)
 		checks = append(checks, CheckInfo{
-			Ordinal: ordinals[i],
-			Source:  PrintAILANGSource(checkCondition(e)),
-			Pos:     e.Position(),
+			Ordinal:  ordinals[i],
+			Source:   PrintAILANGSource(checkCondition(e)),
+			Pos:      e.Position(),
+			IsAssert: isAssert,
 		})
 	}
 
