@@ -1368,6 +1368,41 @@ search; **(iv)** a zero-failure count over an unfinished run is not a fact about
 fact about the clock. The tell: your poll's verdict line and its own row count disagree in size, or
 you are about to write "0 failures" for a run you have never seen COMPLETE.
 
+**AND `head_sha=` NEEDS ALL 40 CHARACTERS — A TRUNCATED SHA RETURNS `total=0`, NOT AN ERROR; AND
+WHEN THE OUTAGE ATE THE EVENT, `workflow_dispatch` IS THE LEVER, BECAUSE IT IS NOT A WEBHOOK**
+(added 2026-08-06 iteration 155; both halves are second instances). The paragraph above sends you to
+`actions/runs?head_sha=<sha>` as the trustworthy instrument. Two things it does not tell you, and
+each one silently produces a *confident wrong answer* about whether an item landed.
+
+**(a) Truncation is silent.** The endpoint matches the full 40-character SHA and returns an EMPTY
+SET — `total=0`, HTTP 200, no error — for anything shorter. Iteration 155 passed a 9-character SHA
+(the same `[0:9]` its own jq had used for display) and read `total=0` for a PR that `gh run list`
+simultaneously showed **5** runs for. Measured both ways on the identical commit: full →
+`total=5`, truncated → `total=0`. This is the same class Gate 1 already records for
+`rev-parse --short` — an abbreviated SHA quietly voiding an instrument — now on the endpoint this
+gate recommends for "maximum certainty", which is why it is worth its own line. **Never build the
+value with `[0:9]`/`--short`; get it from `gh pr view --json headRefOid` or `git rev-parse` (no
+`--short`), and validate the instrument on a known-positive before believing any zero** — a SHA
+you know has runs must come back non-empty in the same breath (rule 3a, aimed at an API call).
+
+**(b) A dispatch is a different code path from an event.** When the provider is throttling webhook
+delivery — GitHub's 2026-08-06 incident processed **~15%**, so "many events such as pushes and pull
+requests are not triggering workflow runs" — there is nothing to re-run and nothing to poll, because
+the run was never created. Iteration 154 hit exactly that (`#608`: zero runs at all) and recorded it
+as a dead end. It is not one: `gh workflow run <wf.yml> --ref <branch>` is a direct API call, not a
+webhook delivery, and it **creates the run**. Measured at iteration 155 on that same PR: `total=0` →
+`total=1` (`CI: queued`, `event=workflow_dispatch`). Caveats, both load-bearing: the workflow must
+declare `workflow_dispatch` in its `on:` block (check first — it is not universal), and any job
+needing PR context will not be equivalent — a docs/paths gate whose detector diffs against the PR
+base cannot be satisfied this way, so dispatch may reach only *some* of the required contexts. Say
+which ones it reached and which still need a real `pull_request` event; do not report a partial set
+as a green (that is rule (i) above). Prefer this over close/reopen, which is itself webhook-borne
+and can leave the PR closed if the reopen is dropped.
+
+Both halves generalise past this outage: **an instrument that takes an identifier can be voided by
+the identifier's FORMAT**, and **when an event-driven trigger is unavailable, look for the API-driven
+one before concluding the work cannot proceed.**
+
 **Poll SEVERAL workflows with THIS snippet, run once per workflow — do NOT hand-roll a
 multi-workflow loop** (added 2026-07-27 iteration 107; TWO defects in one iteration, both from
 hand-rolling a variant because Gate 3b only shipped the single-workflow form above while a real
