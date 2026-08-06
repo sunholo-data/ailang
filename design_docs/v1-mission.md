@@ -1301,9 +1301,36 @@ triage evidence = log entry 10.)*
   fixed by asserting the gateway's specific rejection messages, mutant now red. Evaluator NB-1
   (overload envelope HTTP-200 assertion) reproduced + applied (`811ac16b4`); NB-4
   (context.Canceled envelope vs the doc's "no completed wire response" prose) deferred to M3.
-  **M3 REMAINS — the FINAL Lane B milestone (~10h: A2A projection, Mount, exposure
-  generalization, docs, CHANGELOG, gates). When M3 lands, Lane B is COMPLETE → surface the
-  RELEASE ask to Mark in that iteration's DECISIONS row** (World consumes pinned releases only).]**
+  **[M3 LANDED 2026-08-06 (iter-151) — PR #601 → squash `b8c038647`. Gate 3b GREEN SHA-addressed
+  on the PR head: all FOUR required contexts (`test`/`lint`/`build`/`docs-gate`) `success`,
+  20 check-runs completed, 14 success / 5 skipped. ⚠ ONE non-required failure, NOT buried:
+  **CodeQL** `go/reflected-xss` high at `embedded_mcp.go:119` — established by measurement as a
+  SCAN-CADENCE artifact describing **M2's** already-landed code, not this diff (file byte-identical
+  between dev and PR head; CodeQL analyses dev only WEEKLY and last ran `2026-08-04T09:04`, ~22h
+  BEFORE M2 landed `2026-08-05T07:33`, so that file had never been analysed on dev). Filed as
+  **`#603`** with the true-positive question left open. The 2nd alert (`#129`) is pre-existing on
+  dev since 2026-04-21 — my first read said "0 on dev" from a `per_page=50` page against ≥100
+  alerts, corrected by paginating. Executor codex `gpt-5.6-sol`, evaluator **sonnet PASS 81/100 r1,
+  zero blocking**. **LANE B IS COMPLETE.** Shipped `embedded_a2a.go` (162 LOC — cards + `tasks/send`
+  projected from the SAME `AuthorizedSurface` as MCP, dispatch via `Lookup` so an unauthorized send
+  is `-32602` and never reaches the invoker), live `A2AHandler()`, `Mount` onto a caller-owned mux,
+  and `loadedExportMember` as the single protocol-neutral MEMBERSHIP gateway behind all 6 production
+  `isExposed` sites with `@nomcp` kept as an MCP-only PROJECTION applied after membership (the §0.7
+  hazard; controller-mutated, caught by THREE tests incl. the pre-existing
+  `TestNoMCP_StillServedOverHTTPAndOpenAPI`). **THE FIND — the 4th consecutive non-discriminating
+  test in this sprint, and the first where the REVIEWER'S PROPOSED FIX was also wrong**: the
+  evaluator caught `TestMountRecorderRoutesAndMCPStripPrefix` passing with `StripPrefix` REMOVED and
+  proposed a sub-path POST; measuring instead of applying it showed the MCP SDK's
+  `StreamableHTTPHandler` **never dispatches on path** (`URL.Path` = 0 across `go-sdk@v1.7.0/mcp`
+  non-test, `.URL` = 12 control), so the wrapper is behaviourally INERT and the AC was vacuous BY
+  CONSTRUCTION — no assertion can distinguish it. Fixed by removing the false claim (test renamed,
+  comment records the measurement and that the wrapper is deliberately uncovered) and replacing it
+  with a `/mcp/` SUBTREE assertion that IS discriminating. Executor also REFUTED the planned
+  transitive-import boundary check as impossible (`serveapi` transitively reaches 13 compiler
+  packages; the correct gate is DIRECT-import, 0 with control 1). Doc + plan →
+  `implemented/v1_0_0/`. **→ RELEASE ASK now owed to Mark** (World consumes pinned releases only).]**
+  Was: M3 REMAINS — the FINAL Lane B milestone (~10h: A2A projection, Mount, exposure
+  generalization, docs, CHANGELOG, gates).]**
   Was: NEXT — route to sprint-planner; the QUEUE HEAD after m-planner-codex-lane LANDED at iter-136.
   Was NEXT #3, REORDERED by Mark 2026-08-03 afternoon when the PLAN-READY m-planner-codex-lane
   execution jumped ahead (one ~8h mechanical sprint; every later iteration burns less opus).
