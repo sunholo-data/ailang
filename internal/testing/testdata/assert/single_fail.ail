@@ -1,0 +1,10 @@
+module single_fail
+
+-- #590: a named test body whose only check is a FAILING assert.
+-- Must fail as an assertion failure, not as a parse error.
+
+export pure func add_one(x: int) -> int { x + 1 }
+
+test "single failing assert" {
+  assert add_one(1) == 99
+}

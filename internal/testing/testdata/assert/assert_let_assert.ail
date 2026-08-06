@@ -1,0 +1,11 @@
+module assert_let_assert
+
+-- assert / let / assert: bindings must stay in scope across the chain.
+
+export pure func add_one(x: int) -> int { x + 1 }
+
+test "assert, let, assert" {
+  assert add_one(1) == 2;
+  let x = add_one(3);
+  assert x == 4
+}
