@@ -823,6 +823,31 @@ the Repo Profile above):
    investigation; **(d)** record refuted objections in Ruled out — a reviewer refuted by measurement
    is the loop working, exactly as rule (d) already says for sub-agents. The tell: you are about to
    forward a `proposed_fix` whose first step is "verify that…", and you have not run it.
+3g. **YOUR LOCAL GATE SWEEP IS A HAND-PICKED SUBSET; THE CI JOB'S OWN COMMAND LIST IS KNOWABLE, SO
+   DERIVE IT INSTEAD OF REMEMBERING IT** (added 2026-08-06 iteration 152; 2nd instance after
+   iteration 151). Rules 3a–3f police individual results. This one polices the *set* of checks you
+   chose to run before pushing — and nothing above names it, because a hand-picked sweep never looks
+   incomplete: every command in it passes, so the report reads "all gates green" right up until a
+   REQUIRED remote context goes red. The subset is chosen from memory of what usually matters, and it
+   drifts from CI silently, because CI gains steps and your habit does not.
+   Iteration 151 caught a changelog entry misfiled into the root `CHANGELOG.md` **by hand**, noting
+   that file is an INDEX and release-manager builds notes from `changelogs/*` — anything left in the
+   index is *silently dropped from the release*. Iteration 152 made the identical mistake and did
+   **not** catch it: seven local gates (`go test` on four package sets, `vet`, `build`,
+   `check-file-sizes`, `check-boundaries`, `gofmt`) all rc=0, and `make check-changelog` — which was
+   simply not in the habit — red-lighted the REQUIRED `test` context. Note the asymmetry that makes
+   this worth a rule: the gate existed the whole time and was one command away.
+   Concretely, before pushing: **(a)** derive the list rather than recall it — `make -pn`, the
+   workflow file, or most reliably the previous run's own log (`gh api
+   repos/<o>/<r>/actions/jobs/<id>/logs`, then extract the commands it echoed) — and run the ones
+   your diff can plausibly break; **(b)** pair the extraction with a control, because an empty
+   command list is rule 3a's trap wearing this gate's clothes (iteration 152's first two extraction
+   attempts returned nothing and only a `grep -c` control revealed the pattern was wrong, not the
+   log); **(c)** when a remote gate reds anyway, add that command to the local sweep in the same
+   iteration rather than noting it — a lesson recorded but not wired in is what produced instance 2;
+   **(d)** this is mission-independent: under `ailang-code` the same rule points at `ailang check` /
+   `ailang test` / `ailang ai-check` plus whatever that repo's CI adds. The tell: you are about to
+   write "all gates pass" and you assembled the gate list from memory.
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
    the Gate-2 rebuild `-dirty` — binaries built from a half-merged tree; and a persisted `cd`

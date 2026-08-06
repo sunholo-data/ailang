@@ -4,37 +4,40 @@
 > append — history lives in the charter/log). A fresh session reads THIS + MEMORY.md and has full
 > steering context. Humans steer via comments on the bookkeeping issue, never a long-lived thread.
 
-**Updated**: 2026-08-06 ~12:45 local (iteration 151)
+**Updated**: 2026-08-06 ~16:45 local (iteration 152)
 
 ## Now
 - **Latest release**: v0.33.0 (2026-08-04)
-- **`#498` LANE B IS COMPLETE** — M3 landed (PR **#601**), the final milestone. `serveapi` now
-  serves MCP *and* A2A from one caller-supplied descriptor set, with a single membership gateway
-  and `@nomcp` kept as an MCP-only projection. Evaluator sonnet PASS 81/100 r1, zero blocking.
-- **→ This unblocks Ailang World**, which consumes upstream via **pinned releases only**. A tag is
-  now the only thing between them and `w-mcp-projection`. **See DECISIONS.**
-- **Next picks**: `#545` (orphan-PR rebase) · `m-property-generator-coverage` Lane B1 · sweep `#589`/`#590`
+- **`#590` FIXED — `assert` had no working call site in the language.** `test "n" { assert c }`
+  failed 100% of the time; `assert` is a reserved keyword parseable in exactly one construct, and
+  that construct was broken. Lowered in the *fold* (not the printer) so it short-circuits. PR **#605**.
+- **Sweep row closed**: `#590` fixed · `#589` NOT reproduced at HEAD, stays open (needs the
+  reporter's 15-module closure; this repo's widest multi-test file has **1** import).
+- **Next picks**: `#602`/`#603` findings batch · `#545` (orphan-PR rebase) · `m-property-generator-coverage` Lane B1
 - **Loops**: v1 90min · world 4h · both armed
 - **Routing**: controller opus-5 · executor codex `gpt-5.6-sol` · evaluator sonnet · planner via derive-lane
 - **Designer rotation**: last-used `codex:gpt-5.6-sol` → next `claude:claude-fable-5` (not fired since iter-150)
 
 ## Parked on Mark
-- **RELEASE ASK (new, one word)**: tag a release now Lane B is complete? It would carry
-  `#510`/`#477`/Lane-A/Lane-B and unblock World. Releases are Mark's sole decision.
-- **D-6 (one word, still unanswered from iter-150)**: `m-net-effect-proxy-boundary` M4 completeness
-  gate — **(A)** grep gate now + AST analyzer as follow-up, sprint stays 3d; **(B)** `go/packages`
-  AST analyzer in-sprint, 3d→4d. Measured: all five constructions the analyzer would catch are
-  **zero at HEAD**, so (A) suffices for *present* correctness; (B) buys durability.
-- **Ratify alongside D-6**: D-1 trades target-IP SSRF pinning on **proxied** requests only
-  (preserved on direct/`NO_PROXY`; the doc is explicit, never claims equivalence).
-- Low-stakes tail: pure-prng split scope · persisted cost_status · pipe-operator · ?-op briefing
+- **⚠ CODEX QUOTA EXHAUSTED until 2026-08-08 11:24** — the pinned executor/planner lane is DOWN.
+  The 1-token probe still passes, so this is invisible until a real run. Opus fallback works but
+  costs generator≠judge cross-provider independence (executor and evaluator are both Anthropic now).
+- **RELEASE ASK (one word, from iter-151)**: tag a release now `#498` Lane B is complete? Carries
+  `#510`/`#477`/Lane-A/Lane-B and unblocks World, which consumes pinned releases only.
+- **D-6 (one word, unanswered since iter-150)**: `m-net-effect-proxy-boundary` completeness gate —
+  **(A)** grep gate now + AST analyzer as follow-up (3d) or **(B)** AST analyzer in-sprint (4d).
+  All five constructions (B) would catch are **zero at HEAD**, so (A) suffices for present correctness.
+- Low-stakes tail: D-1 SSRF ratification · pure-prng split scope · persisted cost_status · ?-op briefing
 
 ## Recently settled (don't re-ask)
 - Standing fast-forward authorization **YES** (0 ahead + clean → `merge --ff-only`, no ask)
-- recorded-stream S2 does **not** jump the queue; the 08-03 dev reconcile has held **11 iterations**
+- The 08-03 dev reconcile has held **12 iterations**; skill byte-identical to origin
 
 ## Open findings worth knowing
-- **`#602`** (filed this iteration): `TestSolve_HardTimeout_FakeSolverIgnoringT` reds `go test ./...`
-  on **clean dev** — a load-sensitive 3s pidfile race that survived the CI-flake sprint.
+- **`#604`** (filed this iteration): named test bodies check only the **LAST** expression — earlier
+  failing checks are discarded, so `{ false; true }` reports `All tests passed!`. Vacuous-pass class.
+- **`#602`**: `TestSolve_HardTimeout_FakeSolverIgnoringT` reds `go test ./...` on clean dev under
+  load — but it does **not** red on CI runners, so CI is not the instrument for it.
 - `go build ./...` is **already rc=1 at base** (`cmd/wasm`, `gen/main`) — never a usable sprint gate.
-- Four straight milestones shipped a **non-discriminating test** caught only by mutation testing.
+- **Run the CI job's OWN gate list**, not a hand-picked subset: `make check-changelog` red-lighted
+  a required context this iteration after seven local gates all passed.
