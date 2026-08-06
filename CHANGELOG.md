@@ -4,6 +4,20 @@ For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-curre
 
 ## v0.32.0 (Unreleased)
 
+### Fixed
+
+- `test "name" { assert <cond> }` now executes instead of failing 100% of the time
+  with `PAR_NO_PREFIX_PARSE`. Named test bodies are printed back to AILANG source and
+  re-run through the general pipeline, which has no `assert` prefix parselet, so the
+  keyword could never survive that round-trip. Top-level `assert` statements are now
+  lowered in `FoldTestBody` (`internal/testing/test_body_lowering.go`) into a
+  short-circuiting `if` chain over an int sentinel, so a failing assert stops the body
+  and reports **which** assertion failed, with its source text and its original
+  position — e.g. ``assertion 2 failed: `assert (add_one(3) == 99)` (at m.ail:9:3)``.
+  A non-final false assert now fails the test instead of being silently discarded.
+  Bodies containing no `assert` keep the previous code path unchanged.
+  Fixes [#590](https://github.com/sunholo-data/ailang/issues/590).
+
 - Added experimental `std/ai.stepWithStreamRecorded`, originally authored by
   [@arniwesth](https://github.com/arniwesth). It preserves immediate stream
   callbacks while returning the exact ordered adapter-emitted chunk log and

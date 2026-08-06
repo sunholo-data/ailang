@@ -1,0 +1,10 @@
+module assert_free_control
+
+-- Control: no assert anywhere, so this body must take the byte-identical
+-- legacy bool path and keep passing.
+
+export pure func add_one(x: int) -> int { x + 1 }
+
+test "assert-free control" {
+  add_one(1) == 2
+}

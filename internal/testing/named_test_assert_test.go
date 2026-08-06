@@ -1,6 +1,8 @@
 package testing
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -174,6 +176,60 @@ func TestNamedTest_AssertFree_LegacyPathUnchanged(t *testing.T) {
 	legacy := FoldBodyExprs(exprs)
 	if got, want := PrintAILANGSource(folded), PrintAILANGSource(legacy); got != want {
 		t.Errorf("assert-free fold diverged from legacy path:\n got: %s\nwant: %s", got, want)
+	}
+}
+
+// TestNamedTest_AssertFixtures drives the on-disk corpus in
+// testdata/assert/ through RunTestsFromFile — the exact entry point the
+// `ailang test` CLI uses (cmd/ailang/test.go). Each fixture is copied into a
+// temp dir first, because the named-test evaluator writes its round-trip temp
+// file alongside the source; that keeps testdata/ pristine.
+//
+// Nothing in the repo runs `ailang test` over .ail files as a gate, so this
+// table IS the gate for #590.
+func TestNamedTest_AssertFixtures(t *testing.T) {
+	tests := []struct {
+		fixture    string
+		wantPassed int
+		wantFailed int
+		wantErr    string // substring required in the failure text ("" = no failure expected)
+	}{
+		{fixture: "single_pass.ail", wantPassed: 1, wantFailed: 0},
+		{fixture: "single_fail.ail", wantPassed: 0, wantFailed: 1,
+			wantErr: "assertion 1 failed: `assert (add_one(1) == 99)`"},
+		{fixture: "second_fails.ail", wantPassed: 0, wantFailed: 1,
+			wantErr: "assertion 2 failed: `assert (add_one(3) == 99)`"},
+		{fixture: "first_fails_short_circuit.ail", wantPassed: 0, wantFailed: 1,
+			wantErr: "assertion 1 failed: `assert (add_one(1) == 99)`"},
+		{fixture: "let_then_assert.ail", wantPassed: 1, wantFailed: 0},
+		{fixture: "assert_let_assert.ail", wantPassed: 1, wantFailed: 0},
+		{fixture: "assert_free_control.ail", wantPassed: 1, wantFailed: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.fixture, func(t *testing.T) {
+			path := filepath.Join("testdata", "assert", tt.fixture)
+			src, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read %s: %v", path, err)
+			}
+
+			result := runInlineTestsOnSource(t, string(src))
+			errText := firstFailureError(result)
+
+			if result.PassedTests != tt.wantPassed || result.FailedTests != tt.wantFailed {
+				t.Errorf("%s: expected %d passed/%d failed, got %d/%d; error: %s",
+					tt.fixture, tt.wantPassed, tt.wantFailed,
+					result.PassedTests, result.FailedTests, errText)
+			}
+			// No fixture may fail because the round-tripped source did not parse.
+			if strings.Contains(errText, "PAR_NO_PREFIX_PARSE") {
+				t.Errorf("%s: failed with a parse error, not a test outcome: %s", tt.fixture, errText)
+			}
+			if tt.wantErr != "" && !strings.Contains(errText, tt.wantErr) {
+				t.Errorf("%s: expected failure text to contain %q, got: %s", tt.fixture, tt.wantErr, errText)
+			}
+		})
 	}
 }
 

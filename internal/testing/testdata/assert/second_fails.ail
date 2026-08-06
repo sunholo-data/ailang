@@ -1,0 +1,11 @@
+module second_fails
+
+-- #590 / short-circuit: the FIRST assert holds, the SECOND does not.
+-- The reported ordinal must be 2.
+
+export pure func add_one(x: int) -> int { x + 1 }
+
+test "second assert fails" {
+  assert add_one(1) == 2;
+  assert add_one(3) == 99
+}
