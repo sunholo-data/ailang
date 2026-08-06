@@ -17,8 +17,19 @@ import (
 const fakeSolverSleep = 30 * time.Second
 
 // maxRaceAttempts bounds how many times a hard-timeout test re-runs its scenario
-// when the fake solver loses its startup race. Measured at ~0.3% per spawn under
-// full-suite load (ailang#602), so three attempts leave a ~3e-8 residue.
+// when the fake solver loses its startup race (ailang#602).
+//
+// The two tests do not share a budget, and the measurement below is the smaller
+// one. TestSolve_HardTimeout gets max(Timeout, effectiveTimeout)+solverKillGrace
+// = 3s; TestZ3Version_HardTimeout gets versionProbeTimeout = 5s outright, since
+// solverKillGrace is only its WaitDelay and not part of its context deadline.
+//
+// Time from spawn to the child pidfile appearing, measured over 500 trials:
+// idle 200/200 at mean 209ms / max 232ms; under a full `go test -count=1 ./...`
+// load, 1 trial in 300 exceeded 3s (at 3.435s) and 0 exceeded 5s. So ~0.3% per
+// spawn against the 3s budget — strictly less against 5s — and three attempts
+// leave a ~3e-8 residue. Retrying is safe because a genuine process-group-kill
+// regression fails assertProcessGoneWithin on every attempt instead.
 const maxRaceAttempts = 3
 
 func TestSolve_HardTimeout_FakeSolverIgnoringT(t *testing.T) {
