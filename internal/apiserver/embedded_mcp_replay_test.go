@@ -49,7 +49,7 @@ func TestEmbeddedMCPReplayIsNeverSniffable(t *testing.T) {
 			body: `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`,
 		},
 		{
-			name: "reflected html in tool args",
+			name: "html in tool args (json-escaped on echo, so it must NOT reflect literally)",
 			body: `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"echo","arguments":{"x":"<script>alert(1)</script>"}}}`,
 		},
 		{
@@ -191,5 +191,34 @@ func TestEmbeddedMCPReplayDefaultsContentTypeWhenTransportOmitsIt(t *testing.T) 
 	}
 	if got := recorder.Header().Get("X-Content-Type-Options"); got != "nosniff" {
 		t.Fatalf("replayed response must carry nosniff, got %q", got)
+	}
+}
+
+// TestWriteMCPEnvelopeIsLabelled covers the OTHER response path out of this file.
+//
+// serveTransport is not the only writer: writeMCPEnvelope answers oversized bodies,
+// surface errors and panic recovery, and it echoes a request-controlled `id`. It set
+// Content-Type but not nosniff, so the two paths disagreed — found by the iteration-153
+// evaluator. Not exploitable (encoding/json escapes the id, asserted below as a control),
+// but the point of #603 is that this wrapper asserts its own labelling instead of
+// inheriting it, and "the encoder escapes by default" is exactly such an inheritance.
+func TestWriteMCPEnvelopeIsLabelled(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	writeMCPEnvelope(recorder, json.RawMessage(`"`+htmlPayload+`"`), "invalid MCP request body")
+
+	if got := recorder.Header().Get("Content-Type"); got != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", got)
+	}
+	if got := recorder.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("envelope path must carry nosniff like the replay path does, got %q", got)
+	}
+	// Control: the hostile id really did reach the body (so this test is not asserting
+	// over an empty response), but only in escaped form.
+	body := recorder.Body.String()
+	if !strings.Contains(body, `\u003cscript`) {
+		t.Fatalf("control failed: escaped id not found in envelope body: %q", body)
+	}
+	if strings.Contains(body, htmlPayload) {
+		t.Fatalf("request-controlled id reached the body UNESCAPED: %q", body)
 	}
 }

@@ -206,6 +206,10 @@ func writeMCPEnvelope(w http.ResponseWriter, id json.RawMessage, message string)
 		id = json.RawMessage("null")
 	}
 	w.Header().Set("Content-Type", "application/json")
+	// Same reasoning as the replay path: this envelope echoes a request-controlled `id`,
+	// so label it here rather than relying on encoding/json's HTML escaping staying on by
+	// default. Without this the two response paths out of this file disagree (#603).
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(struct {
 		JSONRPC string          `json:"jsonrpc"`
