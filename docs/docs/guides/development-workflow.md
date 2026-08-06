@@ -266,6 +266,76 @@ Fixes #42"
 - Include test writing in timeline estimates
 - Never skip tests to save time
 
+### Deterministic Test Boundaries
+
+First-party tests use one live-network gate: call `testutil.RequiresLiveNetwork(t)` and run the
+test explicitly with `AILANG_LIVE_NET=1`. The default test must be deterministic: cover the HTTP
+behavior with `httptest` first, then keep any call to the public internet as optional extra
+coverage. `testing.Short()` and gates based on `os.Getenv("CI")` or
+`os.Getenv("GITHUB_ACTIONS")` are banned; `gatelint` fails the build if they reappear.
+
+Writing one looks like this — the deterministic `httptest` case is the default, and the live call
+is the opt-in extra:
+
+```go
+func TestFetchUser(t *testing.T) {
+    // Default lane: deterministic, always runs, no egress.
+    t.Run("local_success_response", func(t *testing.T) {
+        srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            w.Write([]byte(`{"id":1}`))
+        }))
+        defer srv.Close()
+        // ... assert against srv.URL
+    })
+
+    // Live lane: SKIPs unless AILANG_LIVE_NET=1 is set.
+    t.Run("against_real_api", func(t *testing.T) {
+        testutil.RequiresLiveNetwork(t)
+        // ... assert against the real endpoint
+    })
+}
+```
+
+Run the live lane explicitly, and never together with the poison — the lanes are mutually
+exclusive and crossing them hard-fails with a named error rather than silently skipping:
+
+```bash
+go test ./internal/yourpkg                        # default: live subtest SKIPs
+AILANG_LIVE_NET=1 go test ./internal/yourpkg      # live lane: it RUNS
+```
+
+When a legitimate fixture resembles a banned pattern, either rewrite it so its intent is clear
+or add its path to the allowlist in `internal/testutil/gatelint/allowlist.go`, keyed by rule
+(`RuleR1` = `testing.Short()`, `RuleR2` = `Getenv("CI")`/`Getenv("GITHUB_ACTIONS")`,
+`RuleR3` = known third-party hosts) with a non-empty reason — `mustReason` panics on an empty
+one, so an unexplained entry cannot exist. When adding a new *rule*, extend `scan.go`, add a
+deliberately-positive fixture under `testdata/`, and update the exact-set assertion in
+`TestGateLint_SelfTest` together, so the scanner cannot regress into finding nothing. Do not
+weaken a rule merely to accommodate one explained fixture.
+
+Default `make test` and CI test lanes set `HTTP_PROXY` and `HTTPS_PROXY` to
+`http://127.0.0.1:9`. Port 9 is an intentionally unused loopback sentinel, so an error such as
+`proxyconnect ... 127.0.0.1:9 ... connection refused` means the egress boundary caught an HTTP(S)
+request; it does not mean the developer's machine is misconfigured. Loopback remains available
+for `httptest` and local daemons.
+
+The boundary is deliberately scoped. It governs clients using Go's default transport and `git`
+HTTPS operations. It does not govern raw TCP/SSH or a client that constructs its own
+`http.Transport` without `Proxy: http.ProxyFromEnvironment`. The measured residual is currently
+**seven such transports across four first-party files**: six in `internal/effects`
+(`net.go`, `stream_ndjson.go`, `stream_sse.go` — including AILANG's `Net` effect) and one in
+`internal/executor/managed_agents/client.go`. No first-party file sets
+`Proxy: http.ProxyFromEnvironment`.
+Decision D5 deliberately leaves this route open; AC10(d),
+`effects_nil_proxy_remains_open`, is the tripwire that will turn red when the separate
+`m-net-effect-proxy-boundary` follow-up adopts Option B. Reviewers must flag any new test that
+dials raw TCP/SSH or constructs its own `http.Transport`.
+
+Subprocesses and waits must also be bounded by the test deadline. Use `testutil.RunBounded` for
+commands and `testutil.HangGuard` or `testutil.HangGuardContext` for other waits. Absolute
+wall-clock timeouts are the anti-pattern these helpers replace: they become flaky on cold
+runners and do not derive from Go's package-level test deadline.
+
 ### Documentation
 
 - Update CHANGELOG.md at each milestone
