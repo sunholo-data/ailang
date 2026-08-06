@@ -291,6 +291,39 @@ allowlist/revert) IS this iteration's first deliverable. Time-based reds (new vu
 runner-image changes un-hiding latent bugs, dependabot peer-dep breaks) hit whoever observes
 next — that's the mission's job now.
 
+**BUT A RED CAN BE THE CI PROVIDER ITSELF, AND THEN THE DELIVERABLE IS THE DIAGNOSIS — NOT A FIX,
+AND EMPHATICALLY NOT A REVERT** (added 2026-08-06 V1 iteration 153; instance 1 was `mission-world`
+iteration 58 the SAME DAY, which hit the identical signature in a different repo and carried it
+into its next iteration as unfinished business). Everything above assumes the red is *about your
+code* — a latent bug, a new advisory, a stale gate. It offers exactly two dispositions, fix or
+revert, and both are WRONG when the provider is down. That matters because the rule "a RED dev
+outranks the queue" plus "the fix IS the first deliverable" reads as a standing instruction to
+*change something*, and the most available change during an outage is reverting the most recent
+merge — i.e. destroying good work to appease an unrelated infrastructure event, while the real
+green is unobtainable to confirm it either way. Rule 3d in its purest form: the red arrived right
+after a merge, in the direction you would predict, and the co-occurrence is the whole illusion.
+The discriminating signature is **that no repo command ever ran**: `steps=0` on the job, or a
+failure whose last step is `Set up job`, i.e. before checkout. Read it with
+`gh api repos/<o>/<r>/actions/runs/<id>/jobs --jq '.jobs[] | "\(.name) [\(.conclusion)]:
+steps=\(.steps|length) last=\(.steps[-1].name // "-")"'` — `--log-failed` is useless here, because
+there is no log to fail. Then establish it with controls rather than vibes, because "CI is flaky
+today" is exactly what someone says right before reverting a good commit: **(a)** the SAME jobs on
+the PARENT commit — green there, minutes earlier, is the before-arm; **(b)** the provider's own
+status API (`curl -s https://www.githubstatus.com/api/v2/summary.json`), checking that the
+incident WINDOW covers your run's `createdAt`, not merely that an incident exists; **(c)** the
+strongest control available and the one to reach for — **re-run and look for outcome divergence on
+a byte-identical tree**; iteration 153's `docs` job went cancelled→success across re-runs with no
+code change, which is only possible if the variable is the environment; **(d)** a sibling mission
+or unrelated repo hitting the same signature in the same window. Disposition: **do not revert, do
+not fix-forward, do not park the whole iteration.** Fire the re-runs (they queue and drain as
+capacity returns — Build-and-Release recovered on its own this way), record the diagnosis with its
+controls as the deliverable, and say plainly in the report that dev is red for a declared outage
+and re-running is owed once the incident closes. Then **pick something that does not need the
+landing gate**: an analysis, a triage, a decision-bearing investigation. And when the sprint work
+IS done, Gate 3b still binds — **0 failures observed is not a green**, so the item does not become
+LANDED; it becomes a resume point, named as such in the charter. The tell you are about to pay for
+this: you are reading a red run's logs and finding nothing, and reaching for `git revert`.
+
 ## Gate 2 — PICK + REALITY-CHECK
 
 Take the top `[NEXT]` queue item. **Before any work, verify the doc's claimed status against repo
