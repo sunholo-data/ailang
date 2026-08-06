@@ -306,7 +306,17 @@ The discriminating signature is **that no repo command ever ran**: `steps=0` on 
 failure whose last step is `Set up job`, i.e. before checkout. Read it with
 `gh api repos/<o>/<r>/actions/runs/<id>/jobs --jq '.jobs[] | "\(.name) [\(.conclusion)]:
 steps=\(.steps|length) last=\(.steps[-1].name // "-")"'` — `--log-failed` is useless here, because
-there is no log to fail. Then establish it with controls rather than vibes, because "CI is flaky
+there is no log to fail. **CORRECTION, measured 2026-08-06 iteration 154 on the FIRST re-use of
+this rule: the signature above is a FAMILY, and `steps=0` is only its commonest member — do not
+read it as an invariant.** Eleven of twelve failing jobs on that iteration's PR matched it exactly;
+the twelfth, `Build macos-latest`, ran **17 steps, every one `success` or `skipped` — including
+`Run tests`, `Build binary`, `Upload artifact` and `Complete job` — and the JOB still concluded
+`failure`.** A job whose every step passed is not a code failure; the platform failed it outside
+step execution. Read strictly, "no repo command ever ran" would have classed that one job as a
+genuine regression **and pointed at exactly the revert this whole rule exists to prevent** — the
+one non-matching job in a set of twelve is the one you would have blamed. So ask the question the
+signature is a proxy for: **is the failure attributable to any STEP?** If no step failed, nothing
+in the diff did, whatever `steps` counts. Then establish it with controls rather than vibes, because "CI is flaky
 today" is exactly what someone says right before reverting a good commit: **(a)** the SAME jobs on
 the PARENT commit — green there, minutes earlier, is the before-arm; **(b)** the provider's own
 status API (`curl -s https://www.githubstatus.com/api/v2/summary.json`), checking that the
@@ -1330,6 +1340,33 @@ rather than relying on the reader to notice; `// empty` plus the re-list keeps i
 run has not been created yet. **When you want maximum certainty, skip run-id selection entirely
 and read the merge commit directly** — `gh api repos/<owner>/<repo>/commits/<sha>/check-runs`
 is SHA-addressed by construction and cannot drift.
+
+**BUT `check-runs` CANNOT DRIFT AND CAN STILL COME BACK SHORT — AND EVERY AGGREGATE OVER AN
+INCOMPLETE CHECK SET IS VACUOUSLY GREEN** (added 2026-08-06 iteration 154; 2nd instance after
+iteration 153). The pin above fixes the instrument pointing at the WRONG run. It does nothing about
+the instrument pointing at the RIGHT run and returning too few rows — and the sentence immediately
+above actively recommends `check-runs` for "maximum certainty", which is precisely how this one gets
+bought. A poll that computes `pending == 0 && failures == 0` is measuring the set it was HANDED;
+when that set is short, both conditions are trivially satisfied and the verdict reads GREEN in the
+same voice as a real green. A Gate-3b verdict decides LANDED vs parked, so this is the load-bearing
+kind of wrong. Two instances, both inside the same outage window, both landing on the loop's own
+verdict: **(a)** iteration 153 recorded "0 failures observed", corrected it to 1, and it was 2
+within minutes — an aggregate over an **in-flight** run, stale the moment it is written;
+**(b)** iteration 154 fired `rerun-failed-jobs` and its poll immediately reported
+`pending=0 failures=0 SETTLED` over a `check-runs` list of **ONE** (`automerge/skipped`) where
+**18** had existed minutes earlier. **Re-running a workflow EMPTIES the `check-runs` collection**,
+while `actions/runs?head_sha=` correctly showed all four workflows `queued` — so the very re-run
+this gate tells you to fire is what breaks the instrument it tells you to trust.
+Rules: **(i)** assert COMPLETENESS before any verdict counts — enumerate the workflows EXPECTED for
+this diff (the path-filter rule below already makes you do this) and require every one to be
+PRESENT, else print `INSTRUMENT INCOMPLETE — no verdict` and keep polling; a count of what you
+found is not a count of what exists; **(ii)** during or after a re-run prefer
+`actions/runs?head_sha=<sha>`, which keeps reporting a run as `queued` rather than letting it
+vanish; **(iii)** never infer "settled" from the absence of pending rows alone — pair it with
+`present == expected`, which is rule 3a's known-positive control aimed at a POLL rather than a
+search; **(iv)** a zero-failure count over an unfinished run is not a fact about the run, it is a
+fact about the clock. The tell: your poll's verdict line and its own row count disagree in size, or
+you are about to write "0 failures" for a run you have never seen COMPLETE.
 
 **Poll SEVERAL workflows with THIS snippet, run once per workflow — do NOT hand-roll a
 multi-workflow loop** (added 2026-07-27 iteration 107; TWO defects in one iteration, both from
