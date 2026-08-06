@@ -341,10 +341,15 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 }
 
 // decodeCheckSentinel converts the int sentinel produced by FoldTestBody's
-// assert lowering back into the value the runner expects (#590).
+// assert lowering back into the runner's pass/fail contract (#590).
 //
-//	0     → *eval.BoolValue{true}  — every check passed
-//	k ≥ 1 → *eval.BoolValue{false} — check k was the first to evaluate false
+//	0     → *eval.BoolValue{true} — every check passed
+//	k ≥ 1 → error naming check k, the FIRST check to evaluate false
+//
+// The runner surfaces the returned error text verbatim as result.Error
+// (runner.go, runNamedTest), so a failing assert reports which assertion failed,
+// its source text and its ORIGINAL position — not a bare "expected true, got
+// false", and not a position inside the internal round-trip temp file.
 func decodeCheckSentinel(val eval.Value, checks []CheckInfo) (eval.Value, error) {
 	intVal, ok := val.(*eval.IntValue)
 	if !ok {
@@ -353,7 +358,16 @@ func decodeCheckSentinel(val eval.Value, checks []CheckInfo) (eval.Value, error)
 	if intVal.Value == 0 {
 		return &eval.BoolValue{Value: true}, nil
 	}
-	return &eval.BoolValue{Value: false}, nil
+	for _, c := range checks {
+		if c.Ordinal == intVal.Value {
+			return nil, fmt.Errorf("assertion %d failed: `assert %s` (at %s)",
+				c.Ordinal, c.Source, c.Pos.String())
+		}
+	}
+	// Unreachable unless the sentinel and the CheckInfo table disagree — report
+	// loudly rather than silently passing the test.
+	return nil, fmt.Errorf("assertion %d failed (no source recorded for check %d of %d)",
+		intVal.Value, intVal.Value, len(checks))
 }
 
 // EvaluateInlineTestsWithHarness evaluates inline tests using the test harness builder.

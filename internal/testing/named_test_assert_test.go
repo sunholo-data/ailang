@@ -177,6 +177,94 @@ func TestNamedTest_AssertFree_LegacyPathUnchanged(t *testing.T) {
 	}
 }
 
+// TestNamedTest_Assert_ReportsWhichAssertion is AC-7: a failing assert must say
+// WHICH assert failed, with its source text and its original position — not a
+// bare "expected true, got false".
+func TestNamedTest_Assert_ReportsWhichAssertion(t *testing.T) {
+	result := runInlineTestsOnSource(t, assertFixtureSource(
+		`  assert add_one(1) == 2;
+  assert add_one(3) == 99`))
+
+	if result.FailedTests != 1 {
+		t.Fatalf("expected 1 failure, got %d (passed=%d)", result.FailedTests, result.PassedTests)
+	}
+	errText := firstFailureError(result)
+
+	if !strings.Contains(errText, "assertion 2 failed") {
+		t.Errorf("error should name the SECOND assertion as the failing one, got: %s", errText)
+	}
+	if strings.Contains(errText, "assertion 1 failed") {
+		t.Errorf("error names the wrong assertion (1 passed), got: %s", errText)
+	}
+	// The condition's source text should be quoted back to the user.
+	if !strings.Contains(errText, "add_one(3) == 99") {
+		t.Errorf("error should quote the failing condition's source, got: %s", errText)
+	}
+	// And the original source position, not the temp round-trip file.
+	if !strings.Contains(errText, "test_input.ail") {
+		t.Errorf("error should cite the original source position, got: %s", errText)
+	}
+	if strings.Contains(errText, "_namedtest_body_") {
+		t.Errorf("error cites the internal round-trip temp file, got: %s", errText)
+	}
+}
+
+// TestNamedTest_Assert_ReportsFirstAssertion is the companion direction: when
+// the FIRST assert is the failing one, the ordinal must be 1 and the later
+// assert must not be evaluated.
+func TestNamedTest_Assert_ReportsFirstAssertion(t *testing.T) {
+	result := runInlineTestsOnSource(t, assertFixtureSource(
+		`  assert add_one(1) == 99;
+  assert add_one(3) == 4`))
+
+	if result.FailedTests != 1 {
+		t.Fatalf("expected 1 failure, got %d (passed=%d)", result.FailedTests, result.PassedTests)
+	}
+	errText := firstFailureError(result)
+	if !strings.Contains(errText, "assertion 1 failed") {
+		t.Errorf("error should name the FIRST assertion, got: %s", errText)
+	}
+	if !strings.Contains(errText, "add_one(1) == 99") {
+		t.Errorf("error should quote the failing condition's source, got: %s", errText)
+	}
+}
+
+// TestPrintAILANGSource_AssertStmtIsTripwire is AC-8, a two-directional
+// regression guard.
+//
+// Direction 1: an *ast.AssertStmt reaching PrintAILANGSource is now a
+// self-describing printer error. Before the fix it printed `assert <cond>`
+// verbatim, which parses nowhere and surfaced 200 lines away as
+// PAR_NO_PREFIX_PARSE.
+//
+// Direction 2: it must NOT emit the old verbatim form. If someone restores
+// `assert %s` printing, this goes red — so #590 cannot be reintroduced silently.
+//
+// Note this is the *executor's* source printer, not internal/format's formatter,
+// which legitimately still renders `assert x` (see internal/format's
+// node_coverage_test.go).
+func TestPrintAILANGSource_AssertStmtIsTripwire(t *testing.T) {
+	node := &ast.AssertStmt{
+		Condition: &ast.BinaryOp{
+			Op:    "==",
+			Left:  &ast.Identifier{Name: "x"},
+			Right: &ast.Literal{Kind: ast.IntLit, Value: int64(1)},
+		},
+	}
+	got := PrintAILANGSource(node)
+
+	if !strings.Contains(got, "printer-error") {
+		t.Errorf("AssertStmt reaching the printer must yield a printer-error marker, got: %q", got)
+	}
+	if !strings.Contains(got, "FoldTestBody") {
+		t.Errorf("printer error should name the function responsible for lowering, got: %q", got)
+	}
+	// Direction 2: the old verbatim rendering must not come back.
+	if got == "assert (x == 1)" || strings.HasPrefix(got, "assert ") {
+		t.Errorf("printer emitted verbatim `assert ...` again — #590 is reintroduced: %q", got)
+	}
+}
+
 // TestFoldTestBody_SentinelShape pins the exact lowered source for a two-assert
 // body. It is the unit-level counterpart to the end-to-end tests above: if the
 // short-circuit structure regresses to a per-node lowering (each assert lowered

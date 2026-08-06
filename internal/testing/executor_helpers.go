@@ -433,7 +433,15 @@ func PrintAILANGSource(expr ast.Expr) string {
 	case *ast.Error:
 		return fmt.Sprintf("<printer-error: unrepresentable *ast.Error node: %s>", e.Msg)
 	case *ast.AssertStmt:
-		return fmt.Sprintf("assert %s", PrintAILANGSource(e.Condition))
+		// TRIPWIRE (#590): `assert` has no prefix parselet in the general
+		// expression grammar, so printing it verbatim produced source that could
+		// never parse — surfacing as PAR_NO_PREFIX_PARSE from the pipeline, far
+		// from the actual cause. FoldTestBody lowers every top-level AssertStmt
+		// before printing, so reaching here means the lowering was bypassed.
+		// Say so, in the same self-describing form this file uses for other
+		// unrepresentable nodes.
+		return fmt.Sprintf("<printer-error: AssertStmt reached the printer; FoldTestBody must lower it first (condition: %s)>",
+			PrintAILANGSource(e.Condition))
 	case *ast.Send:
 		return fmt.Sprintf("%s <- %s", PrintAILANGSource(e.Channel), PrintAILANGSource(e.Value))
 	case *ast.Recv:
