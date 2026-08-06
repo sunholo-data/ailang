@@ -25,13 +25,12 @@
 - **Designer rotation**: last-used `codex:gpt-5.6-sol` → next `claude:claude-fable-5` (not fired since iter-150)
 
 ## Parked on Mark
-- **D-6 (one word, unanswered since iter-150)**: `m-net-effect-proxy-boundary` completeness gate —
-  **(A)** grep gate now + AST analyzer as follow-up (3d) or **(B)** AST analyzer in-sprint (4d).
-  All five constructions (B) would catch are **zero at HEAD**, so (A) suffices for present correctness.
-  (Explained to Mark 2026-08-06 attended, recommendation A given; answer still owed.)
 - Low-stakes tail: D-1 SSRF ratification · pure-prng split scope · persisted cost_status · ?-op briefing
 
 ## Recently settled (don't re-ask)
+- **D-6: (A)** (Mark, attended 2026-08-06): grep gate now (sprint stays 3d); AST analyzer filed
+  as a separate follow-up when the sprint resumes. `m-net-effect-proxy-boundary` is UNPARKED —
+  resume via the pre-measured R2 carve-out in its charter row.
 - **RELEASE ASK: WAIT** (Mark, attended 2026-08-06): "ailang world doesn't need a release yet
   I'm told so we can wait." Re-raise only when World actually demands a pinned release.
 - **D-7: KEEP WEEKLY** (Mark, attended 2026-08-06): CodeQL stays on the weekly `dev` cadence;
