@@ -338,6 +338,38 @@ for role in PLANNER EXECUTOR; do
     ;; esac
   ;; esac
 done
+# pi-lane pre-flight, ROLE-GENERIC (mirrors the codex loop above; added 2026-08-06,
+# Mark: DeepSeek executor lane — trial record in models.yml pi-or-deepseek-v4-flash).
+# Probe once per DISTINCT pi model, fall back per-role on ANY non-zero rc — an
+# unusable pin is exactly as fatal as a spent bucket (#486). The OpenRouter key
+# rides ~/.pi/agent/models.json (custom provider), not env, so this probe is
+# headless-safe. --no-tools keeps it ~1 reply-token; --no-session avoids polluting
+# ~/.pi/sessions. BASH 3.2 (L19): ':'-delimited string sets, NOT associative arrays.
+_pi_probed=":"   # models probed this fire (dedupe: planner+executor could share one)
+_pi_failed=":"   # models whose probe failed
+for role in PLANNER EXECUTOR; do
+  var="MISSION_${role}_MODEL"; val="${!var}"
+  case "$val" in pi:*)
+    pi_model="${val#pi:}"
+    case "$_pi_probed" in *":${pi_model}:"*) : ;; *)   # not yet probed
+      _pi_probed="${_pi_probed}${pi_model}:"
+      _mc_bounded "$PROBE_TIMEOUT" pi --mode json --no-session --no-tools --model "$pi_model" -p 'reply with exactly: ok'
+      pi_rc=$?; pi_out="$MC_BOUNDED_OUT"
+      if [ "$pi_rc" -ne 0 ]; then
+        _pi_failed="${_pi_failed}${pi_model}:"
+        if [ "$pi_rc" -eq 124 ]; then pi_why="probe timed out after ${PROBE_TIMEOUT}s"
+        else pi_why="probe failed (rc=$pi_rc)"; fi
+        log "pi model '$pi_model' unusable: $pi_why"
+        log "pi probe output: $(printf '%s' "$pi_out" | tail -3 | tr '\n' ' ')"
+      fi
+    ;; esac
+    case "$_pi_failed" in *":${pi_model}:"*)
+      role_lc=$(printf '%s' "$role" | tr 'A-Z' 'a-z')   # ${role,,} is bash-4.0-only (L21)
+      log "pi ${role_lc} lane -> falling back to opus for this fire (model '$pi_model')"
+      printf -v "$var" 'opus'; export "$var"
+    ;; esac
+  ;; esac
+done
 # evaluator default = sonnet (2026-07-16, Mark directive on #399: "default can be gemini (if able
 # to git clone the codebase etc)? otherwise sonnet-5"). gemini managed_agents is NOT viable as the
 # evaluator today — VERIFIED iteration 38: (1) architecturally the request body carries only

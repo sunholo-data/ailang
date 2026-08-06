@@ -1094,7 +1094,46 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
     the text response). Do NOT pin `MISSION_EXECUTOR_MODEL=gemini:…` expecting worktree edits — that
     is a follow-up (bridge work), not this lane. generator≠judge: gemini (Google) is a distinct
     provider from any Anthropic/OpenAI executor, so it is a valid independent evaluator/reviewer.
-- **Any other `PROVIDER`** (motoko/opencode/pi): NOT wired (motoko needs the GPU `rig.lock`, out of
+- **`PROVIDER=pi`** (executor role — added 2026-08-06, Mark: codex-quota offload after the codex
+  bucket dried; gate trial = agent smoke 23/23 + the #590 mission replay, 12/13 held-out landed
+  tests at $0.076/12.6 min — memory `project_pi_deepseek_flash_mission_trial`). pi CLI at
+  `/opt/homebrew/bin/pi` (@mariozechner/pi-coding-agent); model form
+  `pi:openrouter/deepseek/deepseek-v4-flash-0731`. The OpenRouter key rides the
+  `~/.pi/agent/models.json` custom-provider block, NOT env — headless-safe. The models.yml twin
+  is `pi-or-deepseek-v4-flash` (rate card + gate record live there).
+  1. **Probe (bounded, ~1 reply-token):** `pi --mode json --no-session --no-tools --model "$MODEL"
+     -p 'reply with exactly: ok'` under the same `date +%s` deadline shape as codex; rc=0 or fall
+     back. The driver pre-probes `pi:*` pins the same way it probes codex, so an exported pi pin
+     has already passed one probe this fire — re-probe anyway (the codex #486 lesson: the exported
+     env and the effective lane must both be proven). Live-verified 2026-08-06.
+  2. **Real executor run — reuse the codex recipe's guards BY REFERENCE** (per-iteration directive
+     file + the `exit 64` delivery asserts, `< /dev/null` stdin, backgrounded bounded 30-min
+     `date +%s` cap, output captured, NO git write operations in the directive, per-milestone
+     `.snap/M<k>/` snapshots on multi-milestone runs). pi deltas, all four:
+     - **Invocation:** `cd "$WT" && pi --mode json --no-session --model "$MODEL" -p "$PROMPT"
+       > /tmp/pi_run_iter<N>.ndjson 2> /tmp/pi_run_iter<N>.stderr` — `--mode json` is MANDATORY:
+       the NDJSON is both the transcript and the billing record; plain print mode loses both.
+     - **NO SANDBOX.** pi has no `--sandbox`; it runs with full user permissions from `$WT`.
+       Containment = the directive's scope fence + the controller's worktree-read review, which
+       MUST also check for out-of-worktree writes (`git -C <main-checkout> status --short`)
+       before any Gate-4 verdict. The codex sandbox false-green class (loopback-bind denials)
+       does NOT apply — pi-run gate results fail or pass for real — but executor-reported greens
+       are still never banked; the controller re-runs the gates (generator≠judge).
+     - **METERED $ — ledger entry MANDATORY (the one structural difference from codex: OpenRouter
+       bills real dollars, not a quota bucket).** After the run, extract spend from the NDJSON and
+       post it to the Gate-3 metered ledger before the next metered call:
+       `jq -rs 'map(select(.type=="turn_end")|.message.usage) | (map(.input)|add)*0.09 + (map(.output)|add)*0.18 + (map(.cacheRead)|add)*0.018 | ./1e6' /tmp/pi_run_iter<N>.ndjson`
+       (deepseek-v4-flash-0731 per-1M rate card: $0.09 in / $0.18 out / $0.018 cache-read — keep
+       in sync with models.yml). Reference: #590 replay = $0.076/sprint-execution; the 30-min cap
+       bounds a runaway run to well under $0.50, so the $5 iteration ceiling is ~65 such runs deep.
+     - **Credit:** the controller finalizes commits with
+       `Co-Authored-By: DeepSeek V4 Flash 0731 (pi)`.
+  3. **Fallback:** probe-fail / cap / error → `$MODEL` via the Agent tool + FLAG (same rule as
+     codex). Trial caveat stands (N=1): the replay's single miss was a discretionary refinement
+     beyond the plan's letter — this lane wants PRESCRIPTIVE, sprint-plan-shaped directives;
+     vague-plan or judgment-heavy work stays on opus until ≥3 datapoints say otherwise (the
+     charter's evidence rule, same bar as every routing change).
+- **Any other `PROVIDER`** (motoko/opencode): NOT wired (motoko needs the GPU `rig.lock`, out of
   scope). Treat as unavailable → fall back to `$MODEL` + FLAG.
 
 If a pinned model is quota-limited or unavailable/rejected, fall back to `$MODEL` for that role and
