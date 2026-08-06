@@ -1,6 +1,6 @@
 # Sprint Plan — M-MCP-EXACT-TOOL-SURFACE-LANE-B
 
-**Input design doc**: [`design_docs/planned/v1_0_0/m-mcp-exact-tool-surface-lane-b.md`](m-mcp-exact-tool-surface-lane-b.md) (785 lines)
+**Input design doc**: [`design_docs/implemented/v1_0_0/m-mcp-exact-tool-surface-lane-b.md`](m-mcp-exact-tool-surface-lane-b.md) (785 lines)
 **Milestone ID**: `M-MCP-EXACT-TOOL-SURFACE-LANE-B`
 **Planned at HEAD**: `6bd8cda4231233f14fcfff2b9ce401b494b2b5ca` (branch `dev`, local == origin/dev)
 **Planned at version**: v0.32.0 → target v1.0.0

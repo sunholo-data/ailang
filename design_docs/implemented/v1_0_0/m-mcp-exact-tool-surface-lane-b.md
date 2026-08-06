@@ -1,6 +1,6 @@
 # M-MCP Exact Tool Surface Lane B: Embeddable Session-Owned Protocol Surface
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v1.0.0
 **Priority**: P0 (Ailang World blocker; issue #498 Lane B)
 **Estimated**: 2-3 days
@@ -405,24 +405,24 @@ from core packages back into `serveapi`/dashboard packages.
 
 #### Milestone 1: Public contract and central authorized surface (~0.75 day)
 
-- [ ] Add the top-level `serveapi` API and constructor validation.
-- [ ] Add internal callback DTOs/adapters without exposing internal types publicly.
-- [ ] Implement deterministic validation/copy/sort/lookup for caller descriptors.
-- [ ] Refactor the exposure invariant into a shared authorized-surface abstraction while preserving
+- [x] Add the top-level `serveapi` API and constructor validation.
+- [x] Add internal callback DTOs/adapters without exposing internal types publicly.
+- [x] Implement deterministic validation/copy/sort/lookup for caller descriptors.
+- [x] Refactor the exposure invariant into a shared authorized-surface abstraction while preserving
   all loaded-export decisions.
 
 **M1 Acceptance Criteria:**
 
-- [ ] A temporary external Go module with a local `replace` imports `serveapi`, constructs it with
+- [x] A temporary external Go module with a local `replace` imports `serveapi`, constructs it with
   sentinels, and compiles; the same fixture's attempted import of `internal/apiserver` fails with
   `use of internal package ... not allowed`.
-- [ ] `Tools` receives pointer sentinel A for request A and pointer sentinel B for request B; a test
+- [x] `Tools` receives pointer sentinel A for request A and pointer sentinel B for request B; a test
   fails on zero, stringified, copied, or swapped sessions.
-- [ ] Descriptor input `[zeta, alpha]` yields ordered surface `[alpha, zeta]`; duplicate `alpha` and
+- [x] Descriptor input `[zeta, alpha]` yields ordered surface `[alpha, zeta]`; duplicate `alpha` and
   a scalar input schema each produce explicit constructor/request errors.
-- [ ] Existing filtering tests for `@noexpose`, `--routes-only`, and `@nomcp` pass unchanged, proving
+- [x] Existing filtering tests for `@noexpose`, `--routes-only`, and `@nomcp` pass unchanged, proving
   the refactor did not make the central gate vacuous.
-- [ ] With `CallbackTimeout: 20*time.Millisecond`, each of three table cases installs a deliberately
+- [x] With `CallbackTimeout: 20*time.Millisecond`, each of three table cases installs a deliberately
   non-returning `ResolveSession`, `Tools`, or `Invoke` callback. Using an outer 250 ms test deadline,
   the request must complete after at least 20 ms but before 250 ms with the exact timeout envelope
   specified above, and the next callback/invocation counter must remain zero. The same table covers
@@ -430,7 +430,7 @@ from core packages back into `serveapi`/dashboard packages.
   `CallbackTimeout: 0` succeeds, proving zero selects the default. This test hangs/fails its outer
   deadline if handler-side timeout selection is absent, and fails early/wrong-envelope assertions
   if the configured duration or protocol mapping is not wired.
-- [ ] **Bounded-concurrency test** (quorum R2 `gpt5-6-sol`, the reviewer's own catch: "the current
+- [x] **Bounded-concurrency test** (quorum R2 `gpt5-6-sol`, the reviewer's own catch: "the current
   250 ms response tests prove only bounded handler latency, not bounded goroutine growth"). With
   `MaxConcurrentCallbacks: N` (small, e.g. 4), install a callback that **permanently blocks** and
   never returns. Send **many more than N** additional requests. Assert: (a) the count of callback
@@ -445,47 +445,47 @@ from core packages back into `serveapi`/dashboard packages.
 
 #### Milestone 2: MCP request-scoped adapter (~0.75 day)
 
-- [ ] Create a request-local SDK server from `AuthorizedSurface` in the existing stateless
+- [x] Create a request-local SDK server from `AuthorizedSurface` in the existing stateless
   `NewStreamableHTTPHandler` factory.
-- [ ] Reuse/refactor the existing MCP descriptor and result/error codecs.
-- [ ] Route authorized calls to `Invoker` with raw arguments and the resolver session.
-- [ ] Keep SDK-owned streamable HTTP/SSE transport.
+- [x] Reuse/refactor the existing MCP descriptor and result/error codecs.
+- [x] Route authorized calls to `Invoker` with raw arguments and the resolver session.
+- [x] Keep SDK-owned streamable HTTP/SSE transport.
 
 **M2 Acceptance Criteria:**
 
-- [ ] MCP `tools/list` as A is exactly `[alpha_only, shared]`; as B it is exactly
+- [x] MCP `tools/list` as A is exactly `[alpha_only, shared]`; as B it is exactly
   `[beta_only, shared]`. Neither response contains the other principal's sentinel.
-- [ ] Calling `alpha_only` as A invokes once with `sessionA` pointer identity and argument sentinel
+- [x] Calling `alpha_only` as A invokes once with `sessionA` pointer identity and argument sentinel
   `{"nonce":"A-137"}`; calling it as B returns unknown-tool and leaves the invocation counter at
   zero.
-- [ ] Empty descriptors return zero MCP tools and exclude `submit_feedback`; an explicit
+- [x] Empty descriptors return zero MCP tools and exclude `submit_feedback`; an explicit
   `submit_feedback` descriptor makes exactly that tool appear and invokes the host callback.
-- [ ] Existing MCP protocol tests still assert initialization, `tools/list`, `tools/call`, content
+- [x] Existing MCP protocol tests still assert initialization, `tools/list`, `tools/call`, content
   type, and SSE event framing through the SDK handler; no hand-written SSE encoder is introduced.
-- [ ] The embedded MCP handler is constructed with `Stateless: true`; an in-memory GET to `/mcp/`
+- [x] The embedded MCP handler is constructed with `Stateless: true`; an in-memory GET to `/mcp/`
   returns **405 Method Not Allowed** with `Allow: POST`, while a correctly headed POST reaches the
   request-local server and its sentinel tool. This fails if the handler is stateful or bypasses the
   SDK stateless dispatch.
 
 #### Milestone 3: A2A projection, compatibility, and gates (~0.75 day + buffer)
 
-- [ ] Generate agent-card skills from `AuthorizedSurface` and route task sends by descriptor name.
-- [ ] Mount MCP and A2A routes on a caller-owned mux.
-- [ ] Update the single-filtering-point rule and public package documentation.
-- [ ] Run focused, repository-wide, boundary, formatting, and size gates.
+- [x] Generate agent-card skills from `AuthorizedSurface` and route task sends by descriptor name.
+- [x] Mount MCP and A2A routes on a caller-owned mux.
+- [x] Update the single-filtering-point rule and public package documentation.
+- [x] Run focused, repository-wide, boundary, formatting, and size gates.
 
 **M3 Acceptance Criteria:**
 
-- [ ] For the same A/B descriptor callbacks used by M2, A2A cards expose exactly
+- [x] For the same A/B descriptor callbacks used by M2, A2A cards expose exactly
   `[alpha_only, shared]` and `[beta_only, shared]`, with descriptions/tags/examples equal to the
   source descriptors; this catches a separate A2A enumeration path.
-- [ ] A2A send of `beta_only` as B invokes once with `sessionB`; the same send as A produces
+- [x] A2A send of `beta_only` as B invokes once with `sessionB`; the same send as A produces
   JSON-RPC invalid-params and leaves the invocation counter at zero.
-- [ ] `Mount` serves MCP initialization at `/mcp/`, a card at `/.well-known/agent.json`, and A2A
+- [x] `Mount` serves MCP initialization at `/mcp/`, a card at `/.well-known/agent.json`, and A2A
   JSON-RPC at `/a2a/` using `httptest.ResponseRecorder` without binding a socket.
-- [ ] Standalone sentinel tests prove default CLI/server MCP includes both `status` and
+- [x] Standalone sentinel tests prove default CLI/server MCP includes both `status` and
   `submit_feedback`, while `NoFeedbackTool:true` includes `status` and excludes feedback.
-- [ ] `go test ./...`, `make check-boundaries`, `make check-file-sizes`, and formatting/lint gates
+- [x] `go test ./...`, `make check-boundaries`, `make check-file-sizes`, and formatting/lint gates
   pass outside the loopback-denying sandbox; any sandbox bind error is reported as uninformative.
 
 ### Files to Modify/Create
@@ -605,22 +605,22 @@ deliberately changed.
 
 ## Success Criteria
 
-- [ ] External hosts can import `serveapi` and mount/obtain MCP and A2A handlers.
-- [ ] Resolver runs before every discovery or invocation and its exact session value reaches both
+- [x] External hosts can import `serveapi` and mount/obtain MCP and A2A handlers.
+- [x] Resolver runs before every discovery or invocation and its exact session value reaches both
   `Tools` and `Invoke`.
-- [ ] One descriptor callback result generates both the MCP tool list and A2A skill list.
-- [ ] Dispatch is restricted to the descriptor set used for that request's authorization.
-- [ ] Embedded empty surface exposes zero tools/skills and no `submit_feedback`.
-- [ ] Embedded explicit feedback descriptor dispatches only through the host invoker.
-- [ ] Standalone CLI default continues exposing `submit_feedback`; Lane A opt-out continues hiding it.
-- [ ] MCP transport remains SDK-owned and protocol/SSE framing tests pass.
-- [ ] Embedded MCP is explicitly stateless; GET returns 405 with `Allow: POST` and per-POST request
+- [x] One descriptor callback result generates both the MCP tool list and A2A skill list.
+- [x] Dispatch is restricted to the descriptor set used for that request's authorization.
+- [x] Embedded empty surface exposes zero tools/skills and no `submit_feedback`.
+- [x] Embedded explicit feedback descriptor dispatches only through the host invoker.
+- [x] Standalone CLI default continues exposing `submit_feedback`; Lane A opt-out continues hiding it.
+- [x] MCP transport remains SDK-owned and protocol/SSE framing tests pass.
+- [x] Embedded MCP is explicitly stateless; GET returns 405 with `Allow: POST` and per-POST request
   servers remain self-contained.
-- [ ] Every host callback is handler-time-bounded and blocking callback tests return the specified
+- [x] Every host callback is handler-time-bounded and blocking callback tests return the specified
   MCP/A2A errors within the configured interval rather than hanging.
-- [ ] `go test ./...`, `make check-boundaries`, `make check-file-sizes`, format, lint, and race-focused
+- [x] `go test ./...`, `make check-boundaries`, `make check-file-sizes`, format, lint, and race-focused
   tests pass in an environment that permits required sockets.
-- [ ] Public API documentation states AILANG/host ownership and includes a compiling mount example.
+- [x] Public API documentation states AILANG/host ownership and includes a compiling mount example.
 
 ## Non-Goals
 

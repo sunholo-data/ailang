@@ -241,18 +241,6 @@ func extractNoMCPAnnotations(modInfo *ModuleInfo, file *ast.File) {
 	}
 }
 
-// isExposed returns true if the export should be visible as an HTTP endpoint,
-// considering the server's routesOnly setting and the export's annotations.
-func (s *Server) isExposed(exp ExportInfo) bool {
-	if exp.IsNoExpose {
-		return false
-	}
-	if s.routesOnly && exp.RoutePath == "" {
-		return false
-	}
-	return true
-}
-
 // isValidJSONObjectOrArray checks if a string is a valid JSON object ({...}) or array ([...]).
 // Only these compound types are unwrapped — bare strings, numbers, and booleans are NOT.
 func isValidJSONObjectOrArray(s string) bool {

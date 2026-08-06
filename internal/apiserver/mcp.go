@@ -88,7 +88,7 @@ func (ms *MCPServer) registerTools() {
 			if export.Arity < 0 {
 				continue
 			}
-			if !ms.server.isExposed(export) {
+			if !loadedExportMember(ms.server.routesOnly, export) {
 				continue
 			}
 			if export.IsNoMCP {
