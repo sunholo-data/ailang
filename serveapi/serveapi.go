@@ -89,6 +89,7 @@ type Server struct {
 	config     Config
 	runner     *apiserver.CallbackRunner
 	mcpHandler http.Handler
+	a2aHandler http.Handler
 }
 
 func New(cfg Config) (*Server, error) {
@@ -145,21 +146,43 @@ func New(cfg Config) (*Server, error) {
 			return result.Value, err
 		},
 	})
+	s.a2aHandler = apiserver.NewEmbeddedA2AHandler(apiserver.EmbeddedA2AConfig{
+		AgentName: cfg.Agent.Name, AgentDescription: cfg.Agent.Description, AgentVersion: cfg.Agent.Version,
+		Runner: runner,
+		Resolve: func(ctx context.Context, request *http.Request) (any, error) {
+			return cfg.Resolver.ResolveSession(ctx, request)
+		},
+		Tools: func(ctx context.Context, session any) ([]apiserver.ToolDescriptor, error) {
+			descriptors, err := cfg.Tools.Tools(ctx, session)
+			if err != nil {
+				return nil, err
+			}
+			result := make([]apiserver.ToolDescriptor, len(descriptors))
+			for i, descriptor := range descriptors {
+				result[i] = apiserver.ToolDescriptor(descriptor)
+			}
+			return result, nil
+		},
+		Invoke: func(ctx context.Context, session any, name string, arguments json.RawMessage) (json.RawMessage, error) {
+			result, err := cfg.Invoker.Invoke(ctx, session, Invocation{Name: name, Arguments: arguments})
+			return result.Value, err
+		},
+	})
 	return s, nil
 }
 
 // MCPHandler returns the request-scoped stateless MCP endpoint handler.
 func (s *Server) MCPHandler() http.Handler { return s.mcpHandler }
 
-// A2AHandler returns the A2A endpoint handler. Wire behavior lands in M3.
-func (s *Server) A2AHandler() http.Handler { return http.NotFoundHandler() }
+// A2AHandler returns the request-scoped A2A endpoint handler.
+func (s *Server) A2AHandler() http.Handler { return s.a2aHandler }
 
 // Mount reserves the public protocol routes. Full routing lands in M3.
 func (s *Server) Mount(mux *http.ServeMux) {
 	if mux == nil {
 		return
 	}
-	mux.Handle("/mcp/", s.MCPHandler())
+	mux.Handle("/mcp/", http.StripPrefix("/mcp", s.MCPHandler()))
 	mux.Handle("/.well-known/agent.json", s.A2AHandler())
 	mux.Handle("/a2a/", s.A2AHandler())
 }

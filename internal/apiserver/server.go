@@ -683,7 +683,7 @@ func (s *Server) printStartupBanner() {
 			if exp.Arity < 0 {
 				continue
 			}
-			if !s.isExposed(exp) {
+			if !loadedExportMember(s.routesOnly, exp) {
 				filtered++
 				continue
 			}

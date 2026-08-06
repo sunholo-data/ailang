@@ -2,8 +2,10 @@ package serveapi
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,7 +24,7 @@ func (fixtureHost) ResolveSession(context.Context, *http.Request) (Session, erro
 }
 func (fixtureHost) Tools(context.Context, Session) ([]ToolDescriptor, error) { return nil, nil }
 func (fixtureHost) Invoke(context.Context, Session, Invocation) (InvocationResult, error) {
-	return InvocationResult{}, nil
+	return InvocationResult{Value: json.RawMessage(`{"ok":true}`)}, nil
 }
 
 func validConfig() Config {
@@ -120,6 +122,44 @@ func TestExternalModuleCanImportFacadeButNotInternal(t *testing.T) {
 		t.Fatalf("denied build error did not contain %q:\n%s", want, output)
 	}
 	t.Logf("denied internal import: nonzero rc, matched %q", want)
+}
+
+func TestMountRecorderRoutesAndMCPStripPrefix(t *testing.T) {
+	server, err := New(validConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	server.Mount(mux)
+
+	request := func(method, path, body string) *httptest.ResponseRecorder {
+		t.Helper()
+		r := httptest.NewRecorder()
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json, text/event-stream")
+		mux.ServeHTTP(r, req)
+		return r
+	}
+	initialize := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"mount-test","version":"1"}}}`
+	mcp := request(http.MethodPost, "/mcp/", initialize)
+	if mcp.Code != http.StatusOK || !strings.HasPrefix(mcp.Header().Get("Content-Type"), "text/event-stream") {
+		t.Fatalf("MCP status=%d type=%q body=%q", mcp.Code, mcp.Header().Get("Content-Type"), mcp.Body.String())
+	}
+	card := request(http.MethodGet, "/.well-known/agent.json", "")
+	if card.Code != http.StatusOK || !strings.Contains(card.Body.String(), `"name":"fixture"`) {
+		t.Fatalf("card status=%d body=%q", card.Code, card.Body.String())
+	}
+	task := request(http.MethodPost, "/a2a/", `{"jsonrpc":"2.0","id":2,"method":"tasks/get","params":{}}`)
+	if task.Code != http.StatusOK || !strings.Contains(task.Body.String(), `"code":-32601`) {
+		t.Fatalf("task status=%d body=%q", task.Code, task.Body.String())
+	}
+	if got := request(http.MethodGet, "/mcp", ""); got.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("/mcp status=%d want redirect", got.Code)
+	}
+	if got := request(http.MethodGet, "/mcp/deep/path", ""); got.Code != http.StatusMethodNotAllowed || got.Header().Get("Allow") != "POST" {
+		t.Fatalf("deep status=%d allow=%q", got.Code, got.Header().Get("Allow"))
+	}
 }
 
 func writeFixtureFile(t *testing.T, path string, contents []byte) {

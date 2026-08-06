@@ -25,6 +25,21 @@ type AuthorizedSurface struct {
 	byName map[string]int
 }
 
+// loadedExportMember is the protocol-neutral membership gateway for loaded
+// AILANG exports. Protocol projections may narrow this set (notably @nomcp).
+func loadedExportMember(routesOnly bool, export ExportInfo) bool {
+	if export.IsNoExpose {
+		return false
+	}
+	return !routesOnly || export.RoutePath != ""
+}
+
+// isExposed is retained for package tests and internal compatibility; all
+// production consumers call the generalized membership gateway directly.
+func (s *Server) isExposed(export ExportInfo) bool {
+	return loadedExportMember(s.routesOnly, export)
+}
+
 // callerSurface copies and validates descriptors supplied by an embedding host.
 func callerSurface(descriptors []ToolDescriptor) (*AuthorizedSurface, error) {
 	tools := make([]ToolDescriptor, len(descriptors))

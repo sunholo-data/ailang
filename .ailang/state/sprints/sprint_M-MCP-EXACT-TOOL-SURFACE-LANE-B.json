@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-MCP-EXACT-TOOL-SURFACE-LANE-B",
-  "status": null,
+  "status": "completed",
   "created": "2026-08-04T00:00:00Z",
   "branch": "sprint/m-mcp-exact-tool-surface-lane-b",
   "worktree": "/Users/voightkampff/dev/sunholo-data/.wt-iter139-mcp-lane-b",
@@ -9,8 +9,8 @@
   "planned_at_version": "0.32.0",
   "target_version": "v1.0.0",
   "title": "Embeddable session-owned MCP-HTTP + A2A protocol surface (public serveapi package)",
-  "design_doc": "design_docs/planned/v1_0_0/m-mcp-exact-tool-surface-lane-b.md",
-  "sprint_plan": "design_docs/planned/v1_0_0/m-mcp-exact-tool-surface-lane-b-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v1_0_0/m-mcp-exact-tool-surface-lane-b.md",
+  "sprint_plan": "design_docs/implemented/v1_0_0/m-mcp-exact-tool-surface-lane-b-sprint-plan.md",
   "github_issues": [
     498
   ],
@@ -77,10 +77,10 @@
         "AC1.6 GATES, NARROWING RECORDED. `gofmt -l` over the changed files prints nothing (report the `| wc -l` count beside it, since an empty output is otherwise indistinguishable from a broken command); `go vet ./serveapi ./internal/apiserver` rc=0; `go test ./internal/apiserver ./serveapi` rc=0 with rc captured via a file, NOT through a pipe (`cmd > /tmp/out 2>&1; echo \"rc=$?\"` — exit codes through pipes report the LAST command's status, and ${PIPESTATUS[0]} is bash-only and silently EMPTY under zsh). THIS IS NOT `go test ./...`; the narrowing travels with the finding.",
         "AC1.7 SNAPSHOT. .snap/M1/ contains the cumulative full post-milestone content of all six files above, at their repo-relative paths. Verify by `find .snap/M1 -type f | wc -l` == 6 and by diffing each against its worktree copy (must be identical)."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-08-05T00:00:00Z",
+      "completed": "2026-08-05T23:59:00Z",
+      "notes": "Landed on dev before M3 execution: public contract, authorized surface, and bounded callback runner."
     },
     {
       "id": "M2_MCP_REQUEST_SCOPED_ADAPTER_AND_FROZEN_WIRE_ENVELOPES",
@@ -108,10 +108,10 @@
         "AC2.8 (-> doc M2 AC4) STANDALONE MCP REGRESSIONS UNCHANGED. `go test ./internal/apiserver` rc=0 with protocol_test.go (14 Test funcs), mcp_schema_test.go (9), feedback_tool_surface_test.go (4), nomcp_test.go (5), filtering_test.go (8), a2a_dispatch_gate_test.go (2) all still EXECUTING — proven by listing the run test NAMES (`-v` and grep `^--- PASS`), not by an aggregate `ok` line, which would also print if the tests had been deleted. NO hand-written SSE encoder is introduced: `grep -c 'event: message' internal/apiserver/*.go` over non-test files == 0, with the SDK's own mcp/streamable.go as the known-positive control that the pattern matches at all.",
         "AC2.9 SNAPSHOT. .snap/M2/ contains the CUMULATIVE full content of the M1 files PLUS the M2 files (10 files total). Verify by count and by diff against the worktree."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-08-06T00:00:00Z",
+      "completed": "2026-08-06T08:00:00Z",
+      "notes": "Landed on dev before M3 execution: request-scoped MCP adapter and frozen envelopes."
     },
     {
       "id": "M3_A2A_PROJECTION_MOUNT_EXPOSURE_GENERALIZATION_DOCS_AND_GATES",
@@ -149,10 +149,10 @@
         "AC3.10 LANDING. Design doc moved to design_docs/implemented/v1_0_0/. CHANGELOG.md entry added under the correct version heading. The landing report states plainly which ACs were executor-authoritative and which required controller re-run, and re-states the budget finding: the design doc's ~17h estimate was low by ~1.5x against ~25h actual planning.",
         "AC3.11 SNAPSHOT. .snap/M3/ contains the CUMULATIVE full content of every file touched across M1+M2+M3. Verify by count and by diff against the worktree."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-08-06T08:00:00Z",
+      "completed": "2026-08-06T12:30:00Z",
+      "notes": "A2A projection, Mount, loaded-export membership gateway, compatibility tests, docs, and gates completed."
     }
   ],
   "verified_premises": [
@@ -194,5 +194,5 @@
     "If any new test requires httptest.NewServer to pass, STOP — the AC must be redesigned around httptest.NewRecorder or explicitly reassigned to controller re-run.",
     "If the M3 isExposed rewire turns filtering_test.go, nomcp_test.go, or mcp_schema_test.go red, revert the rewire and report; do NOT edit those test files to make them pass (coding-standards permits deleting out-of-date tests, but these encode the security invariant the refactor is required to preserve)."
   ],
-  "completed": null
+  "completed": "2026-08-06T12:30:00Z"
 }

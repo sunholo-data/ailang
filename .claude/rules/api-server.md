@@ -1,6 +1,7 @@
 ---
 paths:
   - "internal/apiserver/**"
+  - "serveapi/**"
   - "cmd/ailang/serve_api.go"
 ---
 
@@ -28,7 +29,15 @@ The parser has a hardcoded switch on annotation names. If a new annotation isn't
 
 ## Endpoint Filtering
 
-`isExposed()` in `routes.go` is the single filtering point. All endpoint enumeration (handler dispatch, OpenAPI spec, A2A agent card, MCP tools/list, startup banner) must use it. No additional filtering logic should be added in individual consumers.
+One authorized-surface gateway decides membership for every endpoint enumeration
+and dispatch path. Loaded exports use `loadedExportMember`; embedded callbacks use
+`callerSurface` and the resulting `AuthorizedSurface`. Discovery and invocation
+must consume the same authorized surface rather than reconstructing authority.
+
+`@nomcp` is the single sanctioned protocol-scoped narrowing: it is applied by the
+MCP projection only, after membership has been decided. It must remain visible to
+HTTP dispatch, OpenAPI, and A2A. Protocol consumers must not add any other
+authority filtering or fold `@nomcp` into the shared membership gateway.
 
 ## Request Headers in @route
 

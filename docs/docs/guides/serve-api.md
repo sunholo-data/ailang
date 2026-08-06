@@ -1345,6 +1345,52 @@ Router-layer errors (requests that fail **before** your AILANG code runs) return
 
 ---
 
+## Embedding MCP and A2A in a Go host
+
+Applications that already own an HTTP server can expose a session-specific MCP
+and A2A surface through the public `serveapi` package:
+
+```go
+api, err := serveapi.New(serveapi.Config{
+    Resolver: worldResolver,
+    Tools:    worldCapabilities,
+    Invoker:  worldInvoker,
+    Agent: serveapi.AgentInfo{
+        Name: "Ailang World",
+        Version: "1.0.0",
+    },
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+mux := http.NewServeMux()
+api.Mount(mux)
+server := &http.Server{Addr: ":8080", Handler: authMiddleware(mux)}
+log.Fatal(server.ListenAndServe())
+```
+
+`Mount` registers `/mcp/`, `/.well-known/agent.json`, and `/a2a/`. A host that
+needs different paths can mount `MCPHandler()` and `A2AHandler()` itself.
+
+### Ownership boundary
+
+The host owns authentication, session identity, authorization policy, callback
+implementation, middleware, listener creation, TLS, HTTP server lifecycle, and
+shutdown. `ResolveSession` runs for every discovery and invocation request;
+`Tools` returns that exact session's authorized descriptors; and `Invoke`
+receives the same opaque session value plus raw JSON arguments.
+
+AILANG owns descriptor validation and copying, deterministic ordering, MCP/A2A
+wire projection, request-scoped dispatch lookup, callback timeouts and concurrency
+capacity, and stable protocol error envelopes. `Mount` never opens a socket,
+starts a watcher, installs signal handlers, or takes ownership of the caller's
+server. Duplicate mux patterns follow the standard `http.ServeMux` panic behavior.
+
+Embedded surfaces have no ambient `submit_feedback` tool. Hosts opt in by
+returning a descriptor with that name and handling it through their `Invoker`.
+The standalone `ailang serve-api` defaults remain unchanged.
+
 ## Relationship to Go Interop
 
 `serve-api` builds on the [Go Interop embed API](./go-interop.md):
