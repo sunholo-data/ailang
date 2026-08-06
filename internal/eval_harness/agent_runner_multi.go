@@ -434,6 +434,24 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	// clause makes mandatory.
 	fmtArm := ResolveFmtArm(config.FmtHook, resolvedExtensions)
 
+	// Executors self-report cost from their own registries, and pi reports $0
+	// for ~/.pi/agent/models.json custom providers (e.g. OpenRouter lanes) —
+	// banking $0 for a metered run corrupts cost KPIs. When the executor
+	// reports zero but models.yml prices the model, recompute list-price-
+	// equivalent cost from banked tokens (same helper as standard mode).
+	// Free local lanes (pricing 0.0) still resolve to $0.
+	// KNOWN UNDERCOUNT: cache-read tokens are priced at $0 because models.yml
+	// has no cache-read rate (OpenRouter bills them at ~20% of input rate —
+	// e.g. deepseek-v4-flash-0731 $0.018/M vs $0.09/M, checked 2026-08-06).
+	// At agent-loop hit rates this understates true cost by ~25-30%; a real
+	// fix needs a cache_read_per_1k pricing field, not a guess here.
+	costUSD := result.CostUSD
+	if costUSD == 0 {
+		if c := CalculateCostWithBreakdown(lookupKey, result.InputTokens, result.OutputTokens+result.ReasonTokens); c > 0 {
+			costUSD = c
+		}
+	}
+
 	agentResult := &AgentBenchmarkResult{
 		BenchmarkID:        spec.ID,
 		ResolvedProfile:    resolvedProfile,
@@ -442,7 +460,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		Executor:           executorName,
 		Success:            success,
 		Iterations:         result.NumTurns,
-		Cost:               result.CostUSD,
+		Cost:               costUSD,
 		DurationMS:         result.DurationMS,
 		NumTurns:           result.NumTurns,
 		ToolCallCount:      result.ToolCallCount,

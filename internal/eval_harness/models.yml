@@ -2198,6 +2198,40 @@ models:
       re-tested against 0731. Pricing also dropped: $0.14/$0.28 -> $0.09/$0.18
       per 1M, confirmed live against OpenRouter 2026-08-03.
 
+  # pi-harness sibling of opencode-or-deepseek-v4-flash — added 2026-08-06 as the
+  # MISSION-FLEET TRIAL lane (codex quota offload candidate, per Mark). Opt-in
+  # only; NOT in any suite until it clears the agent smoke gate on pi.
+  pi-or-deepseek-v4-flash:
+    api_name: "deepseek/deepseek-v4-flash-0731"
+    provider: "openrouter"
+    default_thinking: "on"  # probed 2026-08-06: 75 reasoning tokens unprompted
+                            # (via Venice host) — the 0731 checkpoint THINKS by
+                            # default, unlike the April preview (probed non-thinking
+                            # 2026-07-19). Light thinker; single-host probe, N=1.
+    description: "DeepSeek V4 Flash 0731 via pi minimal harness — mission-fleet trial (codex offload candidate)"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openrouter/deepseek/deepseek-v4-flash-0731"
+    model_family: "deepseek-v4"
+    max_output_tokens: 65536  # matches or-/opencode- siblings. Declared ceilings
+                              # (endpoints API 2026-08-06): first-party DeepSeek
+                              # 384K, most hosts >=131K, min-host Venice 32768 —
+                              # routing roulette can undercut this cap on Venice.
+    pricing:
+      input_per_1k: 0.00009   # $0.09 per 1M — verified live 2026-08-06
+      output_per_1k: 0.00018  # $0.18 per 1M — verified live 2026-08-06
+    budgets:
+      max_cost_usd: 0.50      # same rationale as opencode twin: cost-gated, not time-gated
+      hard_timeout_secs: 3600
+    notes: |
+      Requires the deepseek/deepseek-v4-flash-0731 id in the ~/.pi/agent/models.json
+      openrouter provider block (pi custom provider, openai-completions API — same
+      mechanism as the local ollama block; added 2026-08-06).
+      Trial motivation: opencode twin ranked #2 agent-mode ELO overall on the
+      v0.32.0 baseline (2513, behind only claude-sonnet-4-6's 3078) at ~1/100th
+      Sonnet price; pi is the minimal-harness cross-check before wiring a
+      mission-fleet executor lane. Gate record pending.
+
   # DeepSeek V4 Pro (agent) — re-test 2026-06-04. Pro tier of the v4 line;
   # 2026-05-04 precedent had V4 Pro UNDER-performing Flash on smoke (1/3 vs 2/3),
   # but that was on the old harness — re-evaluate on current core.
