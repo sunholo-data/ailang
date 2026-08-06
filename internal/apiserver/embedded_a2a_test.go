@@ -164,8 +164,14 @@ func TestEmbeddedA2AFrozenCallbackEnvelopes(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			block := make(chan struct{})
+			started := make(chan struct{})
+			var startOnce sync.Once
 			host := embeddedTestHost{resolve: func(context.Context, *http.Request) (any, error) {
 				if tc.capacity {
+					// Signal that the capacity token is already held, so the
+					// overload request below cannot win a race with us. A sleep
+					// here would be a timing heuristic, not synchronization.
+					startOnce.Do(func() { close(started) })
 					<-block
 					return "late", nil
 				}
@@ -180,7 +186,11 @@ func TestEmbeddedA2AFrozenCallbackEnvelopes(t *testing.T) {
 					req := httptest.NewRequest(http.MethodGet, "/", nil)
 					handler.ServeHTTP(httptest.NewRecorder(), req)
 				}()
-				time.Sleep(5 * time.Millisecond)
+				select {
+				case <-started:
+				case <-time.After(5 * time.Second):
+					t.Fatal("blocking callback never acquired the capacity token")
+				}
 				defer close(block)
 			}
 			var recorder *httptest.ResponseRecorder
@@ -328,6 +338,48 @@ func TestLoadedExportMembershipAndNoMCPProjection(t *testing.T) {
 			mcp := member && !tc.export.IsNoMCP
 			if member != tc.member || mcp != tc.mcp {
 				t.Fatalf("member=%v mcp=%v", member, mcp)
+			}
+		})
+	}
+}
+
+// TestEmbeddedA2AEmptyAndInvalidResultsAreDistinguishable covers the two ways a
+// host can return an unusable result. They must NOT collapse into one message:
+// "no result" points the embedder at its Invoker, "invalid JSON" at its encoder.
+// The valid arm is the known-positive control — without it, a mutation that made
+// EVERY result an error would still satisfy the two failure arms.
+func TestEmbeddedA2AEmptyAndInvalidResultsAreDistinguishable(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		result  json.RawMessage
+		want    string
+		wantErr bool
+	}{
+		{"nil result", nil, "host callback returned no result", true},
+		{"empty result", json.RawMessage(``), "host callback returned no result", true},
+		{"malformed result", json.RawMessage(`{not json`), "host callback returned invalid JSON", true},
+		{"valid result", json.RawMessage(`{"ok":true}`), `"state":"completed"`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			host := embeddedTestHost{
+				resolve: func(_ context.Context, r *http.Request) (any, error) { return r.Header.Get("X-Session"), nil },
+				tools: func(context.Context, any) ([]ToolDescriptor, error) {
+					return []ToolDescriptor{objectTool("tool")}, nil
+				},
+				invoke: func(context.Context, any, string, json.RawMessage) (json.RawMessage, error) {
+					return tc.result, nil
+				},
+			}
+			recorder, _ := a2aSend(t, embeddedA2A(t, host, time.Second, 4), "A", "tool")
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("status=%d want 200 (A2A task POST is always 200)", recorder.Code)
+			}
+			body := recorder.Body.String()
+			if !strings.Contains(body, tc.want) {
+				t.Fatalf("body=%q want %q", body, tc.want)
+			}
+			if gotErr := strings.Contains(body, `"code":-32603`); gotErr != tc.wantErr {
+				t.Fatalf("body=%q: -32603 present=%v want=%v", body, gotErr, tc.wantErr)
 			}
 		})
 	}

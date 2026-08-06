@@ -114,6 +114,13 @@ func (h *embeddedA2AHandler) handleTask(w http.ResponseWriter, r *http.Request, 
 		h.writeCallbackError(w, r, req.ID, false, err)
 		return
 	}
+	// Fail loud and distinguishably: a host that returns no result at all is a
+	// different mistake from one that returns malformed JSON, and reporting the
+	// first as the second sends the embedder hunting for an encoding bug.
+	if len(result) == 0 {
+		a2aError(w, req.ID, -32603, "host callback returned no result")
+		return
+	}
 	var value any
 	if err := json.Unmarshal(result, &value); err != nil {
 		a2aError(w, req.ID, -32603, "host callback returned invalid JSON")

@@ -124,7 +124,22 @@ func TestExternalModuleCanImportFacadeButNotInternal(t *testing.T) {
 	t.Logf("denied internal import: nonzero rc, matched %q", want)
 }
 
-func TestMountRecorderRoutesAndMCPStripPrefix(t *testing.T) {
+// TestMountRecorderRoutes proves Mount's routing through httptest.ResponseRecorder
+// only — no socket is bound anywhere in this file.
+//
+// It deliberately does NOT claim to verify the http.StripPrefix wrapper on /mcp/.
+// That wrapper is unobservable through this handler and therefore untestable: the
+// MCP SDK's StreamableHTTPHandler never dispatches on the request path. Measured at
+// go-sdk v1.7.0 —
+//
+//	grep -rn 'URL\.Path' <sdk>/mcp/*.go | grep -v _test   -> 0 matches
+//	grep -rn '\.URL'     <sdk>/mcp/*.go | grep -v _test   -> 12 matches (control)
+//
+// so an assertion that "StripPrefix works" passes identically with the wrapper
+// removed. StripPrefix is kept as defensive correctness for a future SDK that does
+// route on path; it is not covered by a test, and this comment says so rather than
+// letting a green test imply coverage that does not exist.
+func TestMountRecorderRoutes(t *testing.T) {
 	server, err := New(validConfig())
 	if err != nil {
 		t.Fatal(err)
@@ -157,8 +172,15 @@ func TestMountRecorderRoutesAndMCPStripPrefix(t *testing.T) {
 	if got := request(http.MethodGet, "/mcp", ""); got.Code != http.StatusTemporaryRedirect {
 		t.Fatalf("/mcp status=%d want redirect", got.Code)
 	}
+	// Sub-paths under /mcp/ reach the handler rather than the mux's 404 — this is a
+	// real property of the "/mcp/" subtree registration (it fails if Mount registers
+	// the exact path "/mcp" instead of the "/mcp/" subtree).
 	if got := request(http.MethodGet, "/mcp/deep/path", ""); got.Code != http.StatusMethodNotAllowed || got.Header().Get("Allow") != "POST" {
-		t.Fatalf("deep status=%d allow=%q", got.Code, got.Header().Get("Allow"))
+		t.Fatalf("deep GET status=%d allow=%q", got.Code, got.Header().Get("Allow"))
+	}
+	if got := request(http.MethodPost, "/mcp/deep/path", initialize); got.Code != http.StatusOK ||
+		!strings.HasPrefix(got.Header().Get("Content-Type"), "text/event-stream") {
+		t.Fatalf("deep POST status=%d type=%q body=%q", got.Code, got.Header().Get("Content-Type"), got.Body.String())
 	}
 }
 
