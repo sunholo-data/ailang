@@ -25,17 +25,17 @@
 - **Designer rotation**: last-used `codex:gpt-5.6-sol` → next `claude:claude-fable-5` (not fired since iter-150)
 
 ## Parked on Mark
-- **RELEASE ASK (one word, from iter-151)**: tag a release now `#498` Lane B is complete? Carries
-  `#510`/`#477`/Lane-A/Lane-B and unblocks World, which consumes pinned releases only.
 - **D-6 (one word, unanswered since iter-150)**: `m-net-effect-proxy-boundary` completeness gate —
   **(A)** grep gate now + AST analyzer as follow-up (3d) or **(B)** AST analyzer in-sprint (4d).
   All five constructions (B) would catch are **zero at HEAD**, so (A) suffices for present correctness.
-- **D-7 (one word, NEW iter-153)**: CodeQL analyses `dev` **weekly**, so a defect landing Tuesday is
-  invisible for ~6 days and first appears as noise on an unrelated contributor's PR. Move to
-  push-on-`dev` / nightly?
+  (Explained to Mark 2026-08-06 attended, recommendation A given; answer still owed.)
 - Low-stakes tail: D-1 SSRF ratification · pure-prng split scope · persisted cost_status · ?-op briefing
 
 ## Recently settled (don't re-ask)
+- **RELEASE ASK: WAIT** (Mark, attended 2026-08-06): "ailang world doesn't need a release yet
+  I'm told so we can wait." Re-raise only when World actually demands a pinned release.
+- **D-7: KEEP WEEKLY** (Mark, attended 2026-08-06): CodeQL stays on the weekly `dev` cadence;
+  no push-on-dev/nightly change.
 - Standing fast-forward authorization **YES** (0 ahead + clean → `merge --ff-only`, no ask)
 - The 08-03 dev reconcile has held **13 iterations**; skill byte-identical to origin
 - **codex quota dry until ~2026-08-08** — the pi lane now covers executor work ($0.0057 this iteration)
