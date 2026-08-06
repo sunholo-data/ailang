@@ -442,7 +442,10 @@ immediately before committing, and keep the M2→M3 gap short (a concurrent sess
    of `https://example.com` asserts `proxyconnect … 127.0.0.1:9 … connection refused`;
    (b) loopback `httptest` GET under the lane's poison succeeds, skipping with a **named** message
    outside a poisoned lane; (c) `AILANG_LIVE_NET=1` only: raw `net.Dial` to a public host:443
-   SUCCEEDS despite the poison — the honestly-asserted open route (V27, CONFIRMED).
+   SUCCEEDS despite the poison — the honestly-asserted open route (V27, CONFIRMED); and
+   (d) `AILANG_LIVE_NET=1` only: `effects_nil_proxy_remains_open` proves AILANG's hand-built
+   effects transport still bypasses the poison under D5=Option A, with a
+   `ProxyFromEnvironment` control half that remains denied.
 
 **Anti-vacuity**
 
@@ -454,12 +457,13 @@ immediately before committing, and keep the M2→M3 gap short (a concurrent sess
 | `TestGateLint_Repo` | **manual falsification drill (AC8)**: create `internal/pipeline/scratch_gatelint_test.go` containing `testing.Short()` → `TestGateLint_Repo` FAILs naming that path → delete the file → PASS | **`grep -c 'testing.Short()' internal/pipeline/scratch_gatelint_test.go` → 1 before the failing run, and `ls` → No such file after.** The drill's rc means nothing without both |
 | AC10(a) | point the probe transport at a live proxy instead of `127.0.0.1:9` | `git diff` on the sentinel constant |
 | AC10(b) | make the poison intercept loopback (add `127.0.0.1` removal from `NO_PROXY`) | `git diff` on the test's env setup |
+| AC10(d) | set the effects transport proxy to `http.ProxyFromEnvironment` | `git diff` on the effects client constructor; the residual half turns red while the control remains denied |
 
 **Acceptance (M3)**
 ```bash
 go test -count=1 -v ./internal/testutil/gatelint    # --- PASS: TestGateLint_SelfTest  AND  --- PASS: TestGateLint_Repo
 go test -count=1 -v ./internal/testutil -run TestEgressPosture           # AC10 (a)+(b)
-AILANG_LIVE_NET=1 go test -count=1 -v ./internal/testutil -run TestEgressPosture   # AC10 (c)
+AILANG_LIVE_NET=1 go test -count=1 -v ./internal/testutil -run TestEgressPosture   # AC10 (c)+(d), including effects_nil_proxy_remains_open
 go test -count=1 $(go list ./... | grep -v /scripts)                     # rc=0 — gatelint is green against the REAL tree
 golangci-lint run ./internal/testutil/...
 # falsification drill, with the mutation-landed proof:
@@ -477,7 +481,7 @@ git status --porcelain | grep scratch_gatelint || echo "drill file removed"
 Closes **AC8, AC10**.
 
 **UNINFORMATIVE UNDER SANDBOX**: AC10(b) binds a loopback listener (`httptest.NewServer`);
-AC10(c) needs live network. `TestGateLint_*` is pure file-reading and **is** sandbox-authoritative.
+AC10(c/d) need live network or socket behavior. `TestGateLint_*` is pure file-reading and **is** sandbox-authoritative.
 **Controller re-runs AC10 outside the sandbox.**
 
 ---
@@ -496,10 +500,26 @@ and is revertable in isolation.
 |---|---|---|---|
 | G-a | Rebase onto current `origin/dev` | `git fetch origin && git log --oneline HEAD..origin/dev \| wc -l` → 0 | workflow files are the most contended in the repo |
 | G-b | Re-check in-flight workflow PRs | `gh pr list --state open --json number,files --jq '.[] \| select(.files[].path \| test("workflows/")) \| .number'` | #532 and #569 both touch these files today |
-| G-c | **Workflow syntax** | `actionlint .github/workflows/ci.yml .github/workflows/build.yml` → rc=0 | `actionlint` is installed; catches the class that reds `dev` before push |
+| G-c | **Workflow syntax** | `actionlint .github/workflows/ci.yml .github/workflows/build.yml` → rc=0 — **BROKEN AS WRITTEN, see note below** | `actionlint` is installed; catches the class that reds `dev` before push |
 | G-d | Simulate each edited step locally | run the exact `run:` body of each edited step in a shell, with the poison + `GOPROXY=off`, after an unpoisoned `go mod download all` | proves the step's own guard fires and the prefetch is sufficient |
 | G-e | **AC12 cold-cache drill, negative direction FIRST** | see task 5 | a drill that has never been seen to fail is not a drill |
 | G-f | Post-push bounded CI poll | `gh run list --branch dev --limit 3` polled against a `date +%s` deadline ≤ 30 min | red must be caught and reverted in minutes, not at the next iteration |
+
+> **G-c IS UNPASSABLE AS WRITTEN, AND THE OBVIOUS "FIX" IS A VACUOUS GATE.** Recorded by
+> iteration 147, **re-measured first-party at iteration 148** on unmodified `dev`
+> (Gate 2 rule 3e: baseline every acceptance command before trusting it):
+> - `actionlint .github/workflows/{ci,build}.yml` → **rc=1** with **5 pre-existing shellcheck
+>   findings** (3 × SC2086, 1 × SC2035, 1 × SC2046). The gate is red at base, so it measures the
+>   repo, not the change — it can only be waved through or misattributed to the sprint.
+> - **Never "filter" it with `-shellcheck='-e SC2086'`.** That flag takes an **executable path**,
+>   so the string is a bogus command name and shellcheck **silently never runs**: measured
+>   **rc=0 with 0 findings**. A gate that passes because its checker was disabled is exactly the
+>   vacuous-pass class this sprint exists to close.
+> - Control proving the instrument works: `-shellcheck="$(which shellcheck)"` → **rc=1, 5
+>   findings** — same 5, so M4 introduced **zero** new ones.
+> - `actionlint` never runs in CI; it is a local pre-commit aid only.
+>
+> **Correct form of the gate:** assert *no NEW findings vs the base count*, not `rc=0`.
 
 **Tasks**
 1. **ci.yml — Linux leg** (`test` job): before the `go test` step at `:74`, add an *unpoisoned*
@@ -554,7 +574,10 @@ and is revertable in isolation.
 
 **Acceptance (M4)**
 ```bash
-actionlint .github/workflows/ci.yml .github/workflows/build.yml     # rc=0
+# NOT `rc=0` — that is red at base on 5 pre-existing findings (see the G-c note above).
+# Assert NO NEW findings instead; never disable shellcheck with `-shellcheck='-e SC2086'`.
+actionlint -shellcheck="$(which shellcheck)" .github/workflows/ci.yml .github/workflows/build.yml \
+  2>&1 | grep -c 'SC[0-9]'                            # → 5, i.e. unchanged from base
 grep -c '127.0.0.1:9' .github/workflows/ci.yml        # → ≥2
 grep -c '127.0.0.1:9' .github/workflows/build.yml     # → ≥1
 grep -c '127.0.0.1:9' make/test.mk                    # → ≥1
@@ -589,9 +612,13 @@ first `dev` CI run after this commit**, with a revert command staged:
 3. **Restate the boundary claim honestly (this is a correction, not a doc chore).** The doc's
    Goals paragraph says the default lanes deny HTTP(S) egress as a *boundary*. Per finding R-B
    that is true only for clients using Go's **default** transport, and for `git`. Every
-   first-party `http.Transport{…}` literal (**6 of them, in 4 files, 0 setting
+   first-party `http.Transport{…}` literal (**7 of them, across 4 files, 0 setting
    `ProxyFromEnvironment`**) bypasses it — including `internal/effects/net.go`, the `Net` effect
-   itself. The guide and the design doc must both say so, and the reviewer instruction becomes:
+   itself. **COUNT CORRECTED 2026-08-06 (iteration 148), measured first-party:** the "6 in 4
+   files" written here conflated two scopes. `internal/effects` holds **6** literals in **3**
+   files (`net.go:96,212,587`, `stream_ndjson.go:80`, `stream_sse.go:70,329`); the 4th file is
+   `internal/executor/managed_agents/client.go:141`, which builds a `Proxy`-nil transport too and
+   therefore **also bypasses the poison**. First-party total: **7 across 4 files**. The guide and the design doc must both say so, and the reviewer instruction becomes:
    *flag by hand any new test that (a) dials raw TCP/SSH, **or (b) constructs its own
    `http.Transport`**.*
 4. Run the full AC1–AC12 sweep (as corrected) and paste every output into the implementation

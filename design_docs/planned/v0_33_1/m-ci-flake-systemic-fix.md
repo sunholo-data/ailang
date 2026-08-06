@@ -1,11 +1,17 @@
 # M-CI-FLAKE-SYSTEMIC-FIX: One Gating Convention, Bounded Waits, a Default-Deny Egress Boundary, and a Known-Offender Lint for the Go Test Suite
 
-**Status**: Planned — **SPRINT-PLANNED 2026-08-04 (iteration 142); M1 LANDED 2026-08-05 (`c440a1628`); `D5` DECIDED 2026-08-05 = Option A (Mark), so M2/M3/M4 are UNBLOCKED**
+**Status**: **ALL MILESTONES LANDED** — SPRINT-PLANNED 2026-08-04 (iteration 142); M1 (`c440a1628`), M2 (`368f940cf`), M3 (`13c570063`), M4 (`4b47f8b0a`), **M5 (2026-08-06, iteration 148)**; `D5` DECIDED 2026-08-05 = Option A (Mark). **Full AC1–AC12 sweep re-run out-of-sandbox at M5 — all pass**; the one full-suite red observed was `#598` (an unrelated pid-file race, poison ruled out by a 3-arm negative control, and green on re-run: rc=0 / 107 ok). Ready to move to `design_docs/implemented/v0_33_1/` once the M5 merge is CI-green.
 **Target**: v0.33.1
 **Priority**: P0 (High) — flakes red-light `dev` CI, and a red `dev` outranks the mission queue every time it occurs
 **Estimated**: ~~3–4 days (4 milestones)~~ **26h ≈ 4.5 days, 5 milestones** (planner revision, iteration 142 — the doc's M3 bundled a 460-LOC pure-Go linter with the workflow edits; splitting them isolates the only CI-touching commit)
 **Sprint plan**: [`m-ci-flake-systemic-fix-sprint-plan.md`](./m-ci-flake-systemic-fix-sprint-plan.md)
 **Dependencies**: None. ⚠ **Collision — CONTROLLER DECISION TAKEN 2026-08-05 (iteration 145), plan §6.1 option (b), not the planner's recommended (a):** PR **#532** rewrites `buildAilang` in `cmd/ailang/main_test.go` and the body under the `testing.Short()` gate in `serve_api_mcp_surface_test.go`, and touches `ci.yml` — i.e. exactly M2's surface. **M2 proceeds first; #532 rebases onto it afterwards.** Reasons, measured not assumed: (1) #532 is authored by `sunholo-voight-kampff` — *this loop's own PR*, so there is no external author to coordinate with and no review latency; (2) it has been `CONFLICTING`/`DIRTY` against `dev` since **2026-07-29** and untouched for 7 days, so **M2 does not make it any more conflicted than it already is** — the "resolve #532 first" cost is a pre-existing debt, not one M2 creates; (3) resolving a week-old conflict is a separate piece of work that would consume the iteration that Mark's `D5` answer exists to unblock. The re-application cost is symmetric either way (#532 replaces `buildAilang` wholesale; M2 wraps it — whoever goes second re-applies), so ordering was chosen on *unblocking value*, not on merge cost. **Follow-up owed:** comment on #532 recording this, so its rebase re-applies `HangGuardContext` to the new `sync.Once` body. PR **#569** (dependabot actions bump) touches `ci.yml` + `build.yml` — M4's surface, re-check before M4.
+**BOTH COLLISIONS ARE NOW RESOLVED — this Dependencies block is retained for provenance only:**
+**#532 was CLOSED as SUPERSEDED** (iteration 145, verified *by purpose* rather than by state: its
+entire reason — one shared binary build instead of fourteen, to escape the Windows timeout — had
+already landed independently as `#564`/`3c28cc322`, so it sat `OPEN`/`CONFLICTING` *because* it was
+dead, not because it was blocking). **#569 was MERGED first** (`bc30912ea`, iteration 147) to clear
+the `ci.yml`/`build.yml` collision before M4 touched those files. No open collision remains.
 **Planner-Lane**: opus-required
 **Authorized**: Mark Edmondson, 2026-08-04 — "Yes sprint a CI flake fix"
 **Closes**: #583, #494, #509, #587 (CI flakes) · #561 (local-only network dependency — see Scope note)
@@ -84,12 +90,14 @@ This doc fixes it as part of unifying idiom 2 into idiom 3, but does not claim i
 
 ## Goals
 
-**Primary Goal:** After this sprint, the default lanes (all 5 CI `go test` legs and local
+**Primary Goal:** After this sprint, the default lanes (all 6 CI `go test` legs and local
 `make test`) run behind a **poisoned proxy** (`HTTP_PROXY=HTTPS_PROXY=http://127.0.0.1:9`) — a
-protocol-level **default-deny for HTTP(S) egress**, a boundary rather than an enumerated host
-list — so no first-party test can red a default lane due to third-party uptime over HTTP(S),
-runner cold-start, or an unbounded child process; and the boundary **fails loudly if it stops
-being wired**, unlike `testing.Short()` which degraded silently.
+protocol-level **default-deny for HTTP(S) egress only for clients that consult proxy environment
+variables**, notably Go's default transport and `git`, rather than an enumerated host list. It
+does not cover raw TCP/SSH or hand-built `http.Transport` values with a nil `Proxy`. Within that
+measured scope, third-party uptime cannot red a default lane; bounded child processes and
+fail-loud wiring address the other flake classes without repeating `testing.Short()`'s silent
+degradation.
 
 **Enforcement boundary vs. legibility check (scope stated plainly):** the poisoned lane is the
 anti-recurrence mechanism; gatelint is a *legibility check for known offenders*, NOT the
@@ -105,9 +113,10 @@ ambient network access in the default lane (measured open — V27); **(b) — AD
 `http.Transport{}`, so the instrument sees positives). A hand-built transport has `Proxy == nil`
 = no proxy consulted, so the poison is inert for the repo's principal HTTP client — which is the
 exact code path of `#561`. Measured V33. Closing (b) is a **production runtime change** with
-SSRF-guard interactions and is PARKED for human decision, not assumed. That residual is restated
-in Non-Goals, probed honestly by AC10(c), and mitigated only by review plus R3's extendable
-known-offender list — not mechanically.
+SSRF-guard interactions. Decision `D5` = Option A deliberately leaves it open in this sprint;
+AC10(d) asserts the residual, and the separate `m-net-effect-proxy-boundary` follow-up (Option B)
+will close it. AC10(d) is the tripwire that goes red when that follow-up lands. Reviewers must
+flag by hand any new test that dials raw TCP/SSH or constructs its own `http.Transport`.
 
 **Success Metrics:**
 - `testing.Short()` occurrences in first-party `*_test.go`: **7 files → 0** (enforced by gate)
@@ -133,9 +142,9 @@ known-offender list — not mechanically.
 |----------|-----------------|-----------|----------|-------------|
 | **Ban `testing.Short()` and env opt-out gating; standardize on explicit opt-in via one `internal/testutil` helper** (do NOT start passing `-short` in CI) | Passing `-short` would instead flip 7 inert gates to *silent mass-skipping* in CI — trading a flake for invisible coverage loss. Six of the 7 gated tests are proven CI-safe by months of green runs (V2, V3); only explicit opt-in is legible | human | design | med |
 | **Hang-guards are derived from `t.Deadline()` (minus grace), never hard-coded** — and are distinguished from *assertion* bounds, which must be relative, never absolute | Every hard-coded bound in the repo has already been raised at least once chasing runners (V10, V12, ci.yml comments). Derivation ends the class; it also guarantees a hung subtest fails *before* the package-wide panic that reds every test in the package (#494's amplification) | human | design | med |
-| **The lint gate (`gatelint`) = a plain Go test, not a shell script or workflow step** | A Go test runs automatically on all 5 CI legs that run `go test ./...` — ci.yml `test` + `test-windows` AND build.yml's 3-OS matrix (V8) — with zero workflow edits. Shell gates would need per-workflow wiring and can't run on the Windows legs uniformly (rig bash is 3.2; scripts/ has zero Windows coverage) | human | design | med |
+| **The lint gate (`gatelint`) = a plain Go test, not a shell script or workflow step** | A Go test runs automatically on all 6 CI legs that run `go test ./...` — ci.yml `test` + `test-windows` AND build.yml's 4-entry matrix (ubuntu, macOS amd64, macOS arm64, Windows; V34) — with zero workflow edits. Shell gates would need per-workflow wiring and can't run on the Windows legs uniformly (rig bash is 3.2; scripts/ has zero Windows coverage) | human | design | med |
 | **Anti-vacuity floor**: gatelint self-tests against known-positive fixtures every run, and its PASS is asserted by name in ci.yml's existing "no silent skips" step | Without this, gatelint is the next `testing.Short()` — an assertion nobody notices has stopped firing. The repo already invented this pattern once (ci.yml:76-90 asserts `--- PASS:` per gated integration test — V9); reuse it, don't reinvent | human | design | low |
-| **The enforcement boundary is a poisoned proxy in every default lane** (`HTTP_PROXY=HTTPS_PROXY=http://127.0.0.1:9` on the 5 CI `go test` steps + `make test`'s `$(GOTEST)` line); gatelint R3 is thereby demoted to a legibility/known-offender lint | An enumerated denylist cannot be complete (quorum objection, upheld): a test using a new hostname would pass R3 and every prior AC. The poison is a *boundary* for the protocols behind all five issues: any-host HTTP(S) via Go's default transport (V25) and `git` https clones (V26) fail in ~0ms with no listener on port 9; loopback is bypassed so httptest/local-daemon tests are untouched (V28); the full poisoned suite pre-sprint fails in exactly the 2 known packages and no others (V30). Measured NOT closed: raw TCP (V27) — documented residual, never claimed | human | design | med |
+| **The enforcement boundary is a poisoned proxy in every default lane** (`HTTP_PROXY=HTTPS_PROXY=http://127.0.0.1:9` on the 6 CI `go test` legs + `make test`'s `$(GOTEST)` line); gatelint R3 is thereby demoted to a legibility/known-offender lint | An enumerated denylist cannot be complete (quorum objection, upheld). The poison is a boundary for HTTP(S) through Go's default transport (V25) and `git` HTTPS clones (V26). Measured, deliberately open residuals are raw TCP/SSH and hand-built transports with nil `Proxy`, including AILANG's `Net` effect (V27, V33, D5=A); AC10(c/d) keep them visible and reviewers flag new instances by hand | human | design | med |
 | **gatelint R3 (legibility lint, not the boundary): narrow host list + checked-in allowlist, scoped to `*_test.go` only** | Measured FP surface: `https://github.com/` appears in **14** first-party test files, nearly all inert string fixtures (V16). A generic rule would either drown in false positives or grow escape hatches until vacuous. Narrow list ({`httpbin.org`, `ailang-packages`}) + allowlist = zero current FPs in test scope. Scoping to `*_test.go` is measured-necessary, not stylistic: R3's tokens appear in **6 production `.go` files** plus gatelint's own source once written (V23) — an unrestricted rule would red CI on the commit introducing it | human | design | low |
 | Subprocess bounding uses `exec.CommandContext` + `cmd.WaitDelay` (Go 1.26.5 — V17) | `WaitDelay` is precisely the fix for #494's observed goroutine profile (`Cmd.Wait` + `watchCtx` both blocked); without it, ctx cancellation can still leave `Wait` blocked on I/O pipes | agent | implementation | low |
 
@@ -278,7 +287,7 @@ cannot silently rot the way `testing.Short()` did.
      (component 5).
 
 5. **Default-lane poison wiring** — the enforcement boundary itself:
-   - ci.yml's two `go test` steps (Linux ~:74, Windows ~:318), build.yml's 3-OS `go test` step,
+   - ci.yml's two `go test` steps (Linux ~:74, Windows ~:318), build.yml's **4-entry matrix** `go test` step (one step, 4 legs),
      and the `$(GOTEST)` invocation line of `make test` (make/test.mk:15-17) all gain
      `HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 NO_PROXY=localhost,127.0.0.1`.
      Port 9 (discard) has no listener: any proxied egress fails in ~0ms (V25, V26). `NO_PROXY`
@@ -376,25 +385,31 @@ changes; a human habit of `-short` for speed should become package selection.
       the whole migration surface
 - [ ] Commit
 
-**M3: gatelint + default-lane poison wiring** (~1 day)
+**M3: gatelint + egress-posture probe (pure Go, no workflow edits)** (~1 day)
 - [ ] `internal/testutil/gatelint/{scan.go,allowlist.go}` + `testdata/fixtures/` (walker:
       `*_test.go` only, own package excluded; 5-entry seed allowlist per V16+V24)
 - [ ] `gatelint_test.go`: `TestGateLint_SelfTest` (fixtures incl. the non-test R3-token fixture,
       exact-set assertion) + `TestGateLint_Repo` (real tree, zero violations)
-- [ ] Poison env + in-step guard on ci.yml's two `go test` steps and build.yml's matrix step
-- [ ] make/test.mk: poison env on the `$(GOTEST)` line only (`build` prerequisite stays
-      unpoisoned — module fetch, V31)
-- [ ] `internal/testutil/egress_posture_test.go` (AC10 a/b/c)
+- [ ] `internal/testutil/egress_posture_test.go` (AC10 a/b/c/d), including the deliberately-open
+      `effects_nil_proxy_remains_open` subtest for D5=A
+- [ ] Run AC10(c) and AC10(d) in the `AILANG_LIVE_NET=1` acceptance leg
+- [ ] Commit (landed as `13c570063`)
+
+**M4: default-lane poison wiring — the only CI-touching commit** (~1 day)
+- [ ] Poison env + in-step guard on ci.yml's two `go test` steps and build.yml's 4-entry matrix step
+- [ ] make/test.mk: poison env on the `$(GOTEST)` line only; prefetch modules unpoisoned and use
+      `GOPROXY=off` during the poisoned test step
 - [ ] ci.yml: add `TestGateLint_SelfTest` + package path to BOTH no-silent-skip steps
       (Linux ~line 84, PowerShell ~line 327)
-- [ ] Commit
+- [ ] Run the AC12 cold-cache drill and verify all 6 CI legs
+- [ ] Commit (landed as `4b47f8b0a`)
 
-**M4: docs + verification sweep** (~0.5 day)
+**M5: docs + verification sweep** (~0.5 day)
 - [ ] `changelogs/` entry (v0.33.1); note the `-short` local behavior change
 - [ ] `docs/docs/guides/development-workflow.md` (or debugging.md): the one-idiom convention,
       `AILANG_LIVE_NET`, how to write a live test, how to satisfy/extend gatelint, the poisoned
-      default lanes and their **named residual** (raw TCP/SSH/proxy-ignoring subprocesses are
-      not blocked — reviewers should flag them by hand)
+      default lanes and their **named residual** (raw TCP/SSH and hand-built transports are not
+      blocked — reviewers should flag them by hand)
 - [ ] Run every AC command below; paste outputs into the implementation report
 - [ ] Comment-and-close #583/#494/#509/#587/#561 referencing the ACs (controller commits/closes)
 - [ ] Commit
@@ -427,7 +442,7 @@ changes; a human habit of `-short` for speed should become package selection.
 - `internal/coordinator/provider_script_test.go` (audit; migrate or allowlist)
 - `.github/workflows/ci.yml` (+10/−2) — register `TestGateLint_SelfTest` in both no-silent-skip
   steps; poison env + in-step guard on both `go test` steps
-- `.github/workflows/build.yml` (+5) — poison env + in-step guard on the 3-OS `go test` step
+- `.github/workflows/build.yml` (+5) — poison env + in-step guard on the **4-entry matrix** `go test` step (one step, 4 legs)
 - `make/test.mk` (+1/−1) — poison env on the `$(GOTEST)` line of `test:` only
 
 ## Examples
@@ -487,8 +502,11 @@ false?* Scope note per V19: every grep is scoped to first-party dirs; `.claude/`
   → only `internal/testutil/gatelint/testdata/` fixture path(s).
   *Falsifiable?* Yes — any surviving or new gate adds a path. Instrument control: pre-sprint the
   same command returns 7 files (V2).
-- [ ] **AC2 (opt-out idiom eliminated):** same grep for `Getenv("CI")\|Getenv("GITHUB_ACTIONS")`
-  → only fixture path(s). Pre-sprint control: 2 files (V5).
+- [ ] **AC2 (opt-out idiom eliminated except the reviewed escape hatch):** same grep for
+  `Getenv("CI")\|Getenv("GITHUB_ACTIONS")` → only
+  `internal/coordinator/provider_script_test.go`, the allowlisted-with-reason Unix
+  shell/grandchild signal-semantics exception recorded by M2; no live-network gate may use the
+  idiom. Pre-sprint control: 2 files (V5).
 - [ ] ~~**AC3**~~ — **SUPERSEDED. The original single command was VACUOUS; `D5` is now DECIDED
   (Option A), so AC3 is replaced by AC3′(a/b/c) below.**
   ~~`HTTPS_PROXY=… HTTP_PROXY=… go test ./internal/pkg/ ./internal/effects/` → PASS~~
@@ -580,6 +598,17 @@ false?* Scope note per V19: every grep is scoped to first-party dirs; `.claude/`
   *Provenance:* the residual it measures is **V33** — 6 hand-built `http.Transport{}` in
   `internal/effects` (`net.go:96,212,587`, `stream_ndjson.go:80`, `stream_sse.go:70,329`), none
   setting `Proxy`; `ProxyFromEnvironment` in **0** first-party files.
+  **WIDENED 2026-08-06 (iteration 148), measured first-party — the residual is larger than V33
+  recorded.** V33's scope is `internal/effects`; a repo-wide sweep
+  (`grep -rn 'http\.Transport{' --include='*.go' ./internal ./cmd ./runtime`, 11 hits, control
+  firing) finds a **7th** proxy-ignoring literal outside it:
+  `internal/executor/managed_agents/client.go:141`, which sets only `ResponseHeaderTimeout` and
+  `IdleConnTimeout` and therefore bypasses the poison identically. First-party total: **7
+  literals across 4 files** (`internal/effects` contributes 6 across **3** files — the doc and
+  plan previously said "6 in 4 files", conflating the two scopes). AC10(d) is unaffected: it
+  asserts the *mechanism* (a `Proxy`-nil transport bypasses the poison), which is
+  file-independent, so it remains the correct Option-B tripwire. What changes is the documented
+  EXTENT of the residual, which Option B must therefore close in 4 files, not 3.
 - [ ] **AC11 (boundary cannot be silently dropped, and the lanes cannot cross):**
   `grep -c '127.0.0.1:9' .github/workflows/ci.yml` → ≥2 (both legs);
   `grep -c '127.0.0.1:9' .github/workflows/build.yml` → ≥1;
@@ -605,8 +634,8 @@ false?* Scope note per V19: every grep is scoped to first-party dirs; `.claude/`
       this AC fails. Pre-sprint, the equivalent run without the prefetch is expected to FAIL —
       run it once in that form first and record it, so the AC is demonstrated non-vacuous
       against a known-positive rather than assumed.
-- [ ] All tests passing on all 5 CI legs (ci.yml test, test-windows; build.yml ubuntu/macos/windows)
-- [ ] Documentation updated (M4); CHANGELOG entry
+- [ ] All tests passing on all 6 CI legs (ci.yml test, test-windows; build.yml ubuntu, macOS amd64, macOS arm64, Windows)
+- [ ] Documentation updated (M5); CHANGELOG entry
 
 ## Testing Strategy
 
@@ -615,7 +644,7 @@ math edge cases: no deadline, deadline < grace), `subproc.go` (normal exit codes
 capture, hung-child kill), `gatelint` (fixture exact-set, clean-file zero, allowlist honored,
 dot-dir exclusion — fixture under a fake `.hidden/` must NOT be flagged — and non-test-file
 exclusion — the R3-token non-test fixture must NOT be flagged), `egress_posture_test.go`
-(AC10 a/b always, c in the live lane).
+(AC10 a/b always, c/d in the live lane).
 
 **Integration:** the migrated tests themselves on all CI legs — every leg now runs *behind the
 boundary*, so the poisoned posture is exercised on every CI run, not just in a drill; AC3's
@@ -675,13 +704,14 @@ The following are intentionally left open for the implementer:
   contain `https://github.com/` innocently). R3's narrow-list+allowlist is the honest bounded
   version; the bound is documented, not silent — and R3 is a legibility lint, NOT the
   enforcement boundary (the poisoned lane is; component 5).
-- **Blocking non-HTTP egress (raw TCP, SSH, proxy-ignoring subprocesses)** — the poisoned proxy
-  denies HTTP(S) and git-https only; a raw TCP dial connects fine underneath it (measured —
-  V27). OS-level egress blocking (packet filters, network namespaces) across 5 CI legs
+- **Blocking proxy-bypassing egress (raw TCP, SSH, proxy-ignoring subprocesses, and hand-built
+  `http.Transport` values)** — the poisoned proxy denies HTTP(S) only when the client consults
+  proxy environment variables; raw TCP connects and a nil-`Proxy` transport bypasses it
+  (measured V27/V33). OS-level egress blocking (packet filters, network namespaces) across 6 CI legs
   including macOS and Windows runners would be its own design and is out of scope this sprint.
-  **This is the doc's one deliberate enforcement gap**: it is stated in Goals, kept visible by
-  AC10(c)'s live-lane probe, and mitigated only by review plus R3's extendable known-offender
-  list. A future test that dials raw TCP is *not* mechanically prevented.
+  **These are deliberately open residual routes under D5=Option A**, stated in Goals and kept
+  visible by AC10(c/d). Reviewers must flag any new test that dials raw TCP/SSH or constructs its
+  own `http.Transport`. AC10(d) will turn red when `m-net-effect-proxy-boundary` adopts Option B.
 - **Process-group (grandchild) cleanup on Windows** — #494's observed failure is the direct
   child; `WaitDelay` addresses it. Unix procgroup precedent exists if ever needed.
 - **Unifying `buildAilang` with `testutil.FindAilangBinary`** — real overlap (V14), but
@@ -697,12 +727,18 @@ The following are intentionally left open for the implementer:
 
 ## Timeline
 
-**Day 1:** M1 (helpers + unit tests) — commit
-**Day 2 → 2.5:** M2 (migrations, poisoned-proxy green) — commit
-**Day 3:** M3 (gatelint + poison wiring: ci.yml, build.yml, make/test.mk, posture test) — commit
-**Day 3.5–4:** M4 (docs, AC sweep, issue closes) — commit
+**CORRECTED 2026-08-06 (iteration 148)** to the 5-milestone split that actually shipped — this
+section previously carried the stale 4-milestone structure and contradicted the Implementation
+Plan above (found by the M5 evaluator, reproduced first-party before the fix).
 
-**Total: 3–4 days** (matches sprint authorization)
+**Day 1:** M1 (helpers + unit tests) — landed `c440a1628`
+**Day 2 → 2.5:** M2 (migrations, poisoned-proxy green) — landed `368f940cf`
+**Day 3:** M3 (gatelint + egress posture probe — **pure Go, zero workflow edits**) — landed `13c570063`
+**Day 3.5–4:** M4 (default-lane poison wiring — **the ONLY CI-touching commit**) — landed `4b47f8b0a`
+**Day 4.5:** M5 (docs, CHANGELOG, AC sweep, issue closes) — landed 2026-08-06
+
+**Total: planner-revised 26h ≈ 4.5 days, 5 milestones** (the original "3–4 days, 4 milestones"
+estimate is superseded — see the Estimated field in the header).
 
 ## Risks & Mitigations
 
@@ -715,7 +751,7 @@ The following are intentionally left open for the implementer:
 | Warm-up run masks a *real* interpreter-startup regression | Low | Warm-up is unasserted by design — startup performance was never what this test asserts (V12); eval-harness benchmarks (`make/eval.mk:169`) remain the perf instrument |
 | `provider_script_test.go` (R2's second match) turns out to genuinely need CI detection | Low | M2 audits it; allowlist-with-reason is the sanctioned escape, so the sprint cannot wedge on it |
 | Poisoned lane breaks a test that legitimately talks HTTP to a non-loopback local service | Low | Loopback is bypassed (V28) and the full poisoned suite already passes everywhere except the 2 known migration packages (V30); `NO_PROXY` is extendable per-lane if a LAN-daemon case ever appears |
-| A future test dials raw TCP/SSH and reintroduces class C1 outside the boundary | Med | The named residual (Goals, Non-Goals); AC10(c) keeps the hole visible on every live-lane run; R3's host list extends in one line; workflow doc (M4) tells reviewers to flag non-HTTP egress by hand |
+| A future test dials raw TCP/SSH or constructs a proxy-bypassing `http.Transport` and reintroduces class C1 outside the boundary | Med | The named residual (Goals, Non-Goals); AC10(c/d) keep both holes visible on every live-lane run; R3's host list extends in one line; the workflow doc tells reviewers to flag both forms by hand |
 
 ## Conflict Surface
 
@@ -735,7 +771,7 @@ concretely (G4):
    dependency-light: `gate.go`/`subproc.go` import only stdlib + `testing`, so no
    `check-boundaries` (make/code-health.mk:139) implication. gatelint's walker likewise reads
    files as bytes — it imports no compiler packages.
-4. **`go test ./...` runs in 5 CI legs and `make test`** (V8). gatelint adds one fast package
+4. **`go test ./...` runs in 6 CI legs and `make test`** (V34). gatelint adds one fast package
    (~ms — it reads ~937 test files' bytes once); no timeout budget concern. Anything gatelint
    flags blocks ALL of those legs at once — which is the point, but means an FP is
    maximum-visibility; hence the allowlist escape and reason strings.
@@ -772,7 +808,7 @@ excluded everywhere per V19. Shell: zsh; glob-shaped flag values quoted througho
 | V5 | Exactly 2 first-party test files use env opt-out gating; net_test already skips in CI (so #561 is local-only) | `grep -rln 'Getenv("CI")\|Getenv("GITHUB_ACTIONS")' --include='*_test.go' <first-party scope>` + read `internal/effects/net_test.go:361-401` | 2 files: `internal/coordinator/provider_script_test.go`, `internal/effects/net_test.go`. net_test lines 363-365: skip when `SKIP_NET_TESTS`/`CI`/`GITHUB_ACTIONS` set — GitHub Actions always sets `GITHUB_ACTIONS` |
 | V6 | 6 first-party `*_live_test.go` files use the reliable opt-in idiom | `find ./internal ./cmd ./runtime ./std ./tests -name '*_live_test.go'` | 6 files (notify/discord, ai/anthropic/cache, 3× executor/managed_agents, cmd/ailang/chains) |
 | V7 | Build tags are a near-unused gating convention; `integration` tag has a make entry | `grep -rn '//go:build' --include='*_test.go' <first-party scope>` ; `grep -n 'tags integration' Makefile` | 11 lines total; exactly 2 are `integration` (`internal/feedback/integration_test.go:1`, `internal/telemetry/gcp_integration_test.go:1`); rest are `!js`/`!windows`/`darwin` (+2 string-content matches in `debug_test.go`). `Makefile:264` runs `go test -tags integration ./internal/feedback/` |
-| V8 | `go test` runs in 5 CI legs + make test; build.yml (the workflow #583/#587/#509 red-lit) is one of them | `grep -rn 'go test' .github/workflows/ make/ Makefile` ; read `build.yml:15-26,65` | ci.yml:74 & :318 (`go test -timeout 300s ./...`, Linux + Windows jobs); ci.yml:84 & :327 (gated re-runs); build.yml:65 (`go test -v $(go list ./... \| grep -v /scripts …)`) under a 3-OS matrix (ubuntu/macos/windows); make/test.mk:15-17 |
+| V8 | `go test` runs in 6 CI legs + make test; build.yml (the workflow #583/#587/#509 red-lit) is one of them | `grep -rn 'go test' .github/workflows/ make/ Makefile` ; read `build.yml:15-39,65` | ci.yml:74 & :318 (`go test -timeout 300s ./...`, Linux + Windows jobs); ci.yml:84 & :327 (gated re-runs); build.yml's 4-entry matrix runs ubuntu, macOS amd64, macOS arm64, and Windows; make/test.mk:15-17 |
 | V9 | An anti-silent-skip CI gate pattern already exists to reuse | Read ci.yml:76-91 and :320-331 | Both jobs re-run named tests `-v` and `grep -q -- "--- PASS: $t"`, failing with `::error::` if absent — the exact anti-vacuity mechanism gatelint plugs into |
 | V10 | #509's failing check is self-described as redundant; the load-bearing assertion is relative; a correct bounded-subprocess pattern already exists in the same file | Read `cmd/ailang/main_run_pipe_test.go:55-168` | Lines 148-149: "The load-bearing assertion is the gap check above (EVENT_1 → EVENT_2 ≥ 200ms); this check is redundant guardrail." Absolute check lines 150-159 (`eventOneBudget` 1500ms/3500ms). Free-standing `time.After(4 * time.Second)` line 108; 10s ctx line 67; `exec.CommandContext` + deferred `Process.Kill()` lines 69, 78-81 |
 | V11 | #494's helpers are unbounded | Read `cmd/ailang/main_test.go:427-499` | `buildAilang` (line 445): `exec.Command("go","build",…)` no ctx; `runAilangBin` (line 477): `exec.Command(binPath, args...)` + `cmd.Run()` no ctx; `TestCLI_Exit_Code42` at line 531 uses it (line 542) |
