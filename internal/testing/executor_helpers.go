@@ -261,58 +261,6 @@ func findSubstring(s, substr string) bool {
 	return false
 }
 
-// FoldBodyExprs collapses a slice of AST expressions — as produced by parsing a
-// named test block where semicolons separate statements — into a single nested
-// expression.  The parser emits standalone `let x = val` nodes (Body == nil)
-// for each binding; this function re-chains them:
-//
-//	[let x = val, let y = ..., finalExpr]
-//	  → let x = val in (let y = ... in finalExpr)
-//
-// Non-let expressions that are not the last item are dropped (they were
-// evaluated for side-effects in the original source, which is meaningless for
-// pure bodies, so stripping them is safe).
-func FoldBodyExprs(exprs []ast.Expr) ast.Expr {
-	if len(exprs) == 0 {
-		return nil
-	}
-	// Walk in reverse, threading each let-binding around the accumulated tail.
-	result := exprs[len(exprs)-1]
-	for i := len(exprs) - 2; i >= 0; i-- {
-		switch e := exprs[i].(type) {
-		case *ast.Let:
-			// Clone to avoid mutating the parser's AST in place.
-			result = &ast.Let{
-				Name:  e.Name,
-				Type:  e.Type,
-				Value: e.Value,
-				Body:  result,
-				Pos:   e.Pos,
-			}
-		case *ast.LetRec:
-			result = &ast.LetRec{
-				Name:  e.Name,
-				Type:  e.Type,
-				Value: e.Value,
-				Body:  result,
-				Pos:   e.Pos,
-			}
-		default:
-			// Side-effect expression before the final value — wrap in a let_ binding.
-			// AILANG has no sequencing operator, so we emit "let _ = expr in rest".
-			// This is the closest approximation; pure bodies shouldn't have real side
-			// effects anyway, so semantics are preserved.
-			result = &ast.Let{
-				Name:  "_seq",
-				Value: exprs[i],
-				Body:  result,
-				Pos:   exprs[i].Position(),
-			}
-		}
-	}
-	return result
-}
-
 // PrintAILANGSource converts an AST expression to valid AILANG source text.
 //
 // This is needed because ast.FuncCall.String() uses prefix notation

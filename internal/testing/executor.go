@@ -203,9 +203,15 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 	// Named test blocks use semicolons to separate bindings (let x = ...; let y = ...)
 	// which the parser emits as separate ast.Let nodes with Body==nil.  We must
 	// chain them before printing so we produce valid AILANG ("let x = ... in ...").
-	folded := FoldBodyExprs(bodyExprs)
+	//
+	// FoldTestBody additionally lowers top-level `assert` statements into a
+	// short-circuiting `if` chain over an int sentinel (#590) — `assert` has no
+	// prefix parselet in the general grammar, so it cannot survive the round-trip
+	// verbatim. `checks` is empty for assert-free bodies, which keep the legacy
+	// bool path unchanged.
+	folded, checks := FoldTestBody(bodyExprs)
 	if folded == nil {
-		return nil, fmt.Errorf("named test block: FoldBodyExprs returned nil")
+		return nil, fmt.Errorf("named test block: FoldTestBody returned nil")
 	}
 
 	// Append the folded body expression.
@@ -325,7 +331,29 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 	if err != nil {
 		return nil, fmt.Errorf("evaluation error: %w", err)
 	}
+
+	// Assert-bearing bodies evaluate to an int sentinel rather than a bool;
+	// translate it back into the runner's bool pass/fail contract.
+	if len(checks) > 0 {
+		return decodeCheckSentinel(val, checks)
+	}
 	return val, nil
+}
+
+// decodeCheckSentinel converts the int sentinel produced by FoldTestBody's
+// assert lowering back into the value the runner expects (#590).
+//
+//	0     → *eval.BoolValue{true}  — every check passed
+//	k ≥ 1 → *eval.BoolValue{false} — check k was the first to evaluate false
+func decodeCheckSentinel(val eval.Value, checks []CheckInfo) (eval.Value, error) {
+	intVal, ok := val.(*eval.IntValue)
+	if !ok {
+		return nil, fmt.Errorf("named test assert lowering: expected int sentinel, got %T", val)
+	}
+	if intVal.Value == 0 {
+		return &eval.BoolValue{Value: true}, nil
+	}
+	return &eval.BoolValue{Value: false}, nil
 }
 
 // EvaluateInlineTestsWithHarness evaluates inline tests using the test harness builder.
