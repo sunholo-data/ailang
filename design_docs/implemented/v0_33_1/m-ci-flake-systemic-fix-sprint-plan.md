@@ -746,5 +746,5 @@ Claude-agent session at plan time: full poisoned suite ≈ 12 min; `./internal/e
 
 ---
 
-**SPRINT_PLAN_PATH**: `design_docs/planned/v0_33_1/m-ci-flake-systemic-fix-sprint-plan.md`
+**SPRINT_PLAN_PATH**: `design_docs/implemented/v0_33_1/m-ci-flake-systemic-fix-sprint-plan.md`
 **SPRINT_JSON_PATH**: `.ailang/state/sprints/sprint_M-CI-FLAKE-SYSTEMIC-FIX.json`

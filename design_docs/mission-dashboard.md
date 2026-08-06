@@ -4,17 +4,16 @@
 > append — history lives in the charter/log). A fresh session reads THIS + MEMORY.md and has full
 > steering context. Humans steer via comments on the bookkeeping issue, never a long-lived thread.
 
-**Updated**: 2026-08-06 ~00:15 local (iteration 147)
+**Updated**: 2026-08-06 ~04:30 local (iteration 149)
 
 ## Now
 - **Latest release**: v0.33.0 (2026-08-04) — recorded-stream S1 + #498 Lane B M1/M2
-- **CI-flake M4 LANDED** — PR #599 → `4b47f8b0a`, the sprint's **only CI-touching commit**. Poison
-  across **6** legs + AC9 gatelint registration (AC9/AC11/AC12). Evaluator sonnet 88/100 r1, zero
-  blocking. **Gate 3b GREEN on the dev merge: 15/15, 0 non-success**, incl. all 4 build legs and
-  `test-windows` — closing the PowerShell guard that was unverifiable locally.
-- **`#569` landed first** (`bc30912ea`, actions bump) to clear the ci.yml/build.yml collision.
-- **Next**: **M5** — docs/CHANGELOG/AC sweep. Standing alternative: **#498 Lane B M3** (final Lane B
-  milestone → then the release ask to Mark).
+- **M-CI-FLAKE-SYSTEMIC-FIX IS COMPLETE** — M5 landed (PR #600 → `c9e1a4f98`); all 5 milestones in,
+  doc + plan moved to `design_docs/implemented/v0_33_1/`. Closed #583/#494/#509/#587/#561.
+- **M5 was done by an UNRECORDED iteration 148** that died between opening PR #600 and merging it —
+  green, mergeable, and invisible to the charter. Found by the Gate-2 already-landed PR search.
+- **Next**: **`m-net-effect-proxy-boundary`** (D5 Option B) — now unblocked, NEW-DOC + quorum.
+  Standing alternative: **#498 Lane B M3** (final Lane B milestone → then the release ask to Mark).
 - **Loops**: v1 90min · world 4h · both armed
 - **Routing**: controller opus-5 · executor codex `gpt-5.6-sol` · evaluator sonnet · planner via derive-lane
 - **Designer rotation**: last-used `claude:claude-fable-5` → next `codex:gpt-5.6-sol`
@@ -25,22 +24,17 @@
 
 ## Recently settled (don't re-ask)
 - **D5 = Option A**; Option B queued as `m-net-effect-proxy-boundary`, gated on AC10(d), which exists
-- **#532 closed as SUPERSEDED** · **standing fast-forward** ratified (applied again this iteration)
+- **#532 closed as SUPERSEDED** · **standing fast-forward** ratified (held a 13th iteration)
 
 ## Known-deferred (measured, not forgotten)
+- **Option B's scope is 7 transports across 4 files, not 6 across 3** — the 7th is
+  `internal/executor/managed_agents/client.go:141`, OUTSIDE `internal/effects`. Re-measured iter-149.
 - **`go mod download all` writes to the TRACKED go.sum** — prefetch must precede binary building or
   the staleness detector silently skips every binary-gated test. Cost iter-147 a red CI run.
-- **`-shellcheck='-e SC2086'` DISABLES shellcheck entirely** (the flag takes an executable path).
-  Never reuse it as a filter. 5 pre-existing findings keep `actionlint → rc=0` unpassable.
-- **`#598`**: `TestSolve_HardTimeout_FakeSolverIgnoringT` pid-file race — 1 observation, **0/12** on
-  a stress arm, so the mechanism is code-reading, not proven.
-- **C2 watch-item is WEAKER than recorded**: the 30s budget wraps only `probeServeAPIMCPTools`
-  (subtests 0.75s/0.03s), so the margin is ~40×, not 2.9×.
-- **M5 owes**: "5 CI legs"→6 in 6 places; AC10 a/b/c→(d) reconciliation; the actionlint findings above.
+- **`-shellcheck='-e SC2086'` DISABLES shellcheck** (flag takes an executable path); 5 pre-existing
+  findings keep `actionlint → rc=0` unpassable at base. **`#598`** pid-file race: 0/12 on a stress arm.
 
-## Quota posture (week of 2026-08-03)
-- **Metered**: iter-147 spent **$0.00** of the $5/iteration ceiling (codex on subscription, no quorum)
-
-## Bookkeeping
+## Quota posture (week of 2026-08-03) · Bookkeeping
+- **Metered**: iter-149 spent **$0.00** of the $5/iteration ceiling (controller-only; no spawns)
 - Issue: `~/.ailang/state/mission-gh-issue` (rotates Mondays) — Mark's comments there = directives
 - Full state: `v1-mission.md` (charter) · `v1-mission-log.md` (history) · this file = snapshot only

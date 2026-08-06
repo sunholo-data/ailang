@@ -344,6 +344,37 @@ local log and the PR search; only the planner's own fetch caught it — the spri
 re-scoped in flight rather than pre-pick). When a sibling session is active (dirty shared tree,
 fresh commits appearing), also send a controlplane CLAIM message naming the item before routing.
 
+**AND CHECK FOR AN ITERATION THAT DIED MID-FLIGHT — ITS WORK IS INVISIBLE TO EVERY CHECK
+ABOVE, IN EXACTLY THE WINDOW WHERE IT IS MOST NEARLY DONE** (added 2026-08-06 iteration 149;
+2nd instance after iteration 121). Every check above looks for work that FINISHED: a merged
+PR, a direct-to-dev commit, an origin queue tag. None of them sees an iteration that was
+killed BETWEEN doing the work and landing it — and that is not a rare case, because the loop
+runs headless on a timer under a 6h watchdog, so a slot can expire at any point. The traces
+it leaves all sit outside the surfaces the checks search. Iteration 121's attempt died
+leaving a 453-line design doc on an **unmerged branch**, invisible to a `design_docs/` grep
+and to the origin/merged-PR checks. Iteration 149 found the sharper form: iteration 148 had
+completed the ENTIRE inner loop for the queue head — executor, evaluator **PASS 88/100 r1
+zero blocking**, a full out-of-sandbox acceptance sweep — opened PR **#600**, watched it go
+green and MERGEABLE, then died before Gate 3b. It left **zero** charter rows, **zero** log
+entries and **zero** STATUS stamps (`grep -c 'ITERATION 148'` = 0 in both files), so the
+charter still read `[NEXT]` for a milestone that was finished, reviewed and ready. Acting on
+that tag would have re-run a completed milestone and opened a duplicate PR against a green
+one. Concretely, add two cheap searches to the ones above, at pick time: **(a)** open PRs
+authored by this loop — `gh pr list --repo "$MISSION_REPO" --state open --author
+sunholo-voight-kampff --json number,title,headRefName,mergeable` — matched against the item
+you are about to pick; an open PR from your OWN account is either mid-flight work or
+abandoned work, and both change the pick. **(b)** stale sprint worktrees — `git worktree
+list` — whose branch names encode the item and the iteration (`.wt-iter148-ci-flake` on
+`sprint/m-ci-flake-m5` was the corroborating trace here, and it is what upgraded "an open PR
+exists" into "iteration 148 ran"). When you find one, the iteration's deliverable is to
+VERIFY AND LAND it, not to redo it — but verify it exactly as any other inherited claim
+(rule 3b(v)): re-derive its load-bearing counts and confirm its claimed edits actually landed,
+because nobody has reviewed that work since the agent which wrote it stopped existing.
+Iteration 149 did precisely that and the PR held up, but the check is what made merging it a
+measurement rather than a hope. Finally, **record the orphaned iteration inside your own log
+entry and credit it** — otherwise the log silently skips a number and no later reader can
+tell whether that iteration ran, crashed, or never fired at all.
+
 **AND THE ITEM'S DECLARED BLOCKERS ARE CLAIMS TOO — RE-VERIFY THE BLOCKER, NOT JUST THE ITEM,
 AND CHECK WHETHER ITS *PURPOSE* WAS SOLVED UPSTREAM RATHER THAN WHETHER IT IS STILL OPEN** (added
 2026-08-05 iteration 145; second instance of the solved-upstream class after the 2026-08-04
