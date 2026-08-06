@@ -4,7 +4,11 @@
 **Target**: v0.33.1
 **Priority**: P0 (High) — the default-deny test lane has a measured first-party HTTP(S) escape
 **Estimated**: 3 days (2–4 day range; 4 milestones)
-**Dependencies**: M-CI-FLAKE-SYSTEMIC-FIX (implemented); human D5 decision selecting Option B
+**Dependencies**: M-CI-FLAKE-SYSTEMIC-FIX (implemented — M1–M5 all landed, `c440a1628`…`c9e1a4f98`,
+so the AC10(d) tripwire this item flips already exists); human D5 decision selecting Option B;
+human D-6 decision selecting the M4 gate (**ANSWERED = Option A**, 2026-08-06)
+**Quorum**: 2 rounds, both blocked → **both objections resolved 2026-08-06 (iteration 155)**; cleared
+for sprint planning, no third round required
 **Planner-Lane**: opus-required — production networking and an SSRF control change together
 
 ---
@@ -285,6 +289,14 @@ Handling policy:
 - [ ] Replace the development-workflow guide's seven-transport residual paragraph with the new
       proxy behavior, `NO_PROXY` direct-pin behavior, and proxy-mode pinning limitation.
 - [ ] Add the v0.33.1 changelog entry and update the effects reference.
+- [x] **File the `go/packages` AST/type analyzer as a separate follow-up item** — **DONE: filed as
+      [#612](https://github.com/sunholo-data/ailang/issues/612) (iteration 155)**, carrying the five
+      shapes a textual gate cannot see, V21's measurement that all five are zero today, and both
+      instrument caveats. **This filing is part of D-6 Option A's definition of done** — option A is
+      "cheap gate now *and* the durable gate filed", not "cheap gate instead of". Filed at resume
+      time rather than during M4 so it cannot be lost if the sprint slips.
+- [ ] Link `#612` from the M4 gate's source comment, so the next reader of the textual scanner finds
+      the durable replacement rather than re-deriving the objection.
 
 **Acceptance criteria:**
 
@@ -536,6 +548,8 @@ uninformative are not code defects and are not accepted as implementation result
 | V17 | Existing production HTTP construction/routing abstractions were audited; negative classes use the 29 inline-client hits from the same matcher as a known-positive control | `find internal cmd runtime std -name '*.go' ! -name '*_test.go' -type f -print0 \| xargs -0 grep -nH -E 'RoundTripper\|RoundTrip\(\|DefaultTransport\|http\.Client\{\|Transport\.Clone\|DialContext\|ProxyFromEnvironment\|httpproxy' \| grep -v '/\.claude/' \| sort`; per-pattern counts using the same `find ... \| xargs ... grep -nH -E "$p" \| wc -l` for `RoundTripper\|RoundTrip\(`, `DefaultTransport`, `Transport\.Clone`, `http\.Client\{`, `DialContext`, `ProxyFromEnvironment`, and `httpproxy`; `find internal cmd runtime std -name '*.go' ! -name '*_test.go' -type f -print0 \| xargs -0 grep -nH -E 'Transport:[[:space:]]' \| sort` | 29 `http.Client{` hits: `cmd/ailang/{chains_live,coordinator_browse,coordinator_lifecycle,dashboard,eval_events,messages_send,pkg_info,pkg_publish,pkg_unpublish,server}.go`; `internal/ai/configdriven/provider.go`, `internal/ai/gemini/client.go`, `internal/ai/ollama/step.go`, `internal/auth/gcp/adc.go`, `internal/coordinator/http_broadcaster.go`, `internal/effects/net.go` (3), `internal/effects/stream_ndjson.go`, `internal/effects/stream_sse.go` (2), `internal/eval_harness/telemetry_reporter.go`, `internal/executor/managed_agents/client.go`, `internal/mcp_client/client.go`, `internal/messaging/{embedder_gemini,embedder_openai}.go`, `internal/pipeline/metrics.go`, `internal/pkg/registry.go`, and `internal/secrets/cloud_approver.go`. Counts: custom `RoundTripper`/`RoundTrip(` 0; `DefaultTransport` 0; `Transport.Clone` 0; `http.Client{` 29 (known-positive control); `DialContext` 13: six functional validated-IP references plus one descriptive comment in `net.go`, two ordinary dialer references in `stream_ndjson.go`, and four ordinary dialer references in `stream_sse.go`; `ProxyFromEnvironment` 0; `httpproxy` 0. The `Transport:` audit finds the same seven client assignments in `net.go` (3), `stream_ndjson.go` (1), `stream_sse.go` (2), and Managed Agents (1), plus one unrelated comment in `cmd/ailang-microrag-mcp/main.go`. No shared factory appears: all client constructions are inline. |
 | V18 | A client with nil `Transport` inherits a proxy-aware default transport | `go version; goroot=$(go env GOROOT); printf 'GOROOT=%s\n' "$goroot"; nl -ba "$goroot/src/net/http/client.go" \| sed -n '204,209p'; nl -ba "$goroot/src/net/http/transport.go" \| sed -n '40,55p'` | `go version go1.26.5 darwin/arm64`; GOROOT `/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.5.darwin-arm64`; `client.go:204-208` returns `c.Transport` when non-nil and otherwise `DefaultTransport`; `transport.go:46-48` defines `var DefaultTransport RoundTripper = &Transport{` followed by `Proxy: ProxyFromEnvironment` and the default dialer. |
 | V19 | Today `resolveAndValidateIP` is called in three initial preflight paths and once in redirect validation | `rg -n 'resolveAndValidateIP' internal/effects/net.go internal/effects --glob '*.go'` | Calls at `internal/effects/net.go:85` (legacy GET preflight), `:201` (legacy POST preflight), `:317` (`validateRedirect`), and `:565` (shared structured-request preflight); definition/comments at `internal/effects/net_security.go:62,78`. |
+| V20 | The `E_NET_DNS_FAILED`/`E_NET_IP_BLOCKED`/`Err(Transport)` surfaces this design claims to preserve are produced at known, enumerated sites today — so the error-mapping change has a definite set of call sites to update (answers the round-2 `gemini-3-1-pro` unverified-premise objection) | `grep -nH 'E_NET_IP_BLOCKED' internal/effects/net_security.go`; `grep -nH 'E_NET_DNS_FAILED' internal/effects/net_security.go`; `grep -nH 'makeResultErr("Transport"' internal/effects/net.go`; control `grep -c 'makeResultErr(' internal/effects/net.go` and `grep -c 'func makeResultErr(' internal/effects/net.go` | `E_NET_IP_BLOCKED` returned at `net_security.go:27` (localhost), `:34` (private), `:46` (link-local), `:51` (unspecified), `:56` (multicast), plus a doc comment at `:22`. `E_NET_DNS_FAILED` at `:90` (resolver error, `%w`-wrapped) and `:94` (empty answer). Both reach AILANG programs through `makeResultErr("Transport", …)` at `net.go:551,556,567,605,631,639`. **Control:** 12 total `makeResultErr(` occurrences = **11 call sites + 1 definition** at `:773`, and the six non-Transport call sites (`InvalidMethod` `:545`, `DisallowedHost` `:561`, `InvalidHeader` `:573,617`, `BodyTooLarge` `:646`) prove the matcher discriminates constructor names rather than matching everything. **The two sites this design must update are `:567`** — the preflight `resolveAndValidateIP` path being moved into the RoundTripper — **and `:631`**, the post-`client.Do` path where a proxy-route failure now arrives wrapped in a `*url.Error`. Re-derived first-party at iteration 155 (`291142de3`); iteration 150's banked figures reproduced exactly. |
+| V21 | The five construction shapes a *textual* completeness gate cannot see are all absent from production today — the measurement that justifies D-6 Option A (cheap gate now, AST analyzer as a filed follow-up) | Production scope `find internal cmd runtime std tests -name '*.go' ! -name '*_test.go'` piped to `grep -nHE` per shape, each paired with a known-positive control (see output) | **All five zero at `291142de3`.** (1) aliased `net/http` import **0** — control: real aliased imports found, e.g. `internal/feedbackgate/classifier.go:6` `_ "embed"`. (2) `new(http.Transport)` **0**. (3) post-construction `.Transport =` **0** — control: **8** `Transport:` struct-literal fields. (4) func returning `*http.Transport`/`http.RoundTripper` **0** — control: **2** funcs returning `*http.Client`. (5) custom `RoundTrip(` method **0** — control: **4506** method declarations. ⚠ **Two instrument caveats, both recorded rather than smoothed over.** (a) The naive alias matcher `^\s*\w+\s+"net/http"` returns **1** false hit — it matches the `import` keyword in single-line `import "net/http"` (`internal/apiserver/errors.go:3`); the corrected matcher excludes a leading `import` token and returns 0. Iteration 150 hit this identical defect, and iteration 155 reproduced it before correcting, so it is a property of the pattern, not of one author. (b) **The `new(` control does NOT fire in production scope**: repo-wide there are exactly **4** `new(` hits and all four are in `internal/testing/source_strip_test.go`, a *test* file. So shape (2)'s production zero rests on a control demonstrated only under the widened (test-inclusive) scope — iteration 150 banked "control: 4 `new(` hits" against a production-scope claim, which is a scope mismatch (rule 3b(i)). The zero is still the best available reading, but it is the weakest of the five, and that is itself an argument **for** the filed AST follow-up rather than against it. |
 
 ## Axiom Compliance
 
@@ -595,8 +609,22 @@ high SimHash matches were unrelated topics and no neural similarity score is ass
 
 ## Quorum Verification Log (mission iteration 150, 2026-08-06)
 
-**Status: PARKED `needs-human-review`.** Two quorum rounds, both BLOCKED. Round 2's remaining
-objection needs a scope decision that is not the controller's to make (see D-6 below).
+**Status: RESUMED — CLEARED FOR SPRINT PLANNING (mission iteration 155, 2026-08-06).** Two quorum
+rounds, both BLOCKED; both round-2 objections are now resolved without a third round:
+
+- **`gemini-3-1-pro` (unverified premise)** — SATISFIED by measurement, not by argument. The row it
+  asked for is written as **V20**, re-derived first-party at `291142de3` and naming the exact two
+  call sites the error-mapping change must update (`net.go:567` preflight, `net.go:631`
+  post-`client.Do`). This is the narrow-refinement carve-out used as intended: a concrete,
+  reviewer-authored fix with no dispute about design direction.
+- **`gpt5-6-sol` (AST analyzer in-sprint)** — resolved by **human ruling D-6 = Option A**
+  (Mark, attended 2026-08-06). The grep/source gate stays in-sprint; the `go/packages` analyzer is
+  filed as a separate follow-up, and **that filing is part of Option A's definition of done**
+  (M4 checklist). The reviewer's point was never refuted — it is about the gate's *durability*
+  against future escapes, not about present correctness, and **V21** re-confirms all five
+  unseeable shapes are zero at HEAD.
+
+No third quorum round is required: no remaining objection disputes the design direction.
 
 ### Round 1 — BLOCKED (`m-net-effect-proxy-boundary-2026-08-06T04-38-48Z.json`)
 - **`gpt5-6-sol` reject** — the conflict surface never audited existing HTTP construction/routing
@@ -646,7 +674,22 @@ future escape via one of those shapes.
 is the post-`client.Do` path where a `url.Error` would arrive — so those two are exactly the sites
 the error-mapping change must update.
 
-### D-6 — THE PARKED DECISION (for the human)
+### D-6 — ANSWERED 2026-08-06 (Mark, attended): **OPTION A**
+
+**Ruling:** the M4 completeness gate is the **grep/source scanner**, in-sprint, and the sprint stays
+at 3 days. The `go/packages` AST/type analyzer is **filed as a separate follow-up item**, and that
+filing is part of Option A's definition of done — Option A is "cheap gate now *and* the durable gate
+filed", never "cheap gate instead of". Option B declined. Justification of record: **V21** — every
+one of the five shapes the textual gate cannot see is zero at HEAD, so the cheap gate is sufficient
+for *present correctness*, while the reviewer's durability concern survives intact and is what the
+follow-up owns.
+
+**Still owed to the human (non-blocking, does not gate the sprint):** **D-1** — this design knowingly
+trades target-IP SSRF pinning on **proxied** requests (pinning is preserved on direct/`NO_PROXY`
+routes, and the doc never claims equivalence). It is a real security-boundary change and deserves
+explicit ratification; it is carried as an open ask on the bookkeeping issue.
+
+**The decision as originally posed:**
 
 **What should the M4 completeness gate be?**
 - **Option A — grep/source scanner now** (as designed), with the AST analyzer filed as a separate
