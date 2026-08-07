@@ -924,6 +924,41 @@ the Repo Profile above):
    **(d)** this is mission-independent: under `ailang-code` the same rule points at `ailang check` /
    `ailang test` / `ailang ai-check` plus whatever that repo's CI adds. The tell: you are about to
    write "all gates pass" and you assembled the gate list from memory.
+3h. **AN EXECUTOR'S DEVIATION FROM THE PLAN IS A CLAIM IN *BOTH* DIRECTIONS — ADJUDICATE IT BY
+   MEASUREMENT, AND NEVER BY A "DEVIATIONS ARE SUSPECT" PRIOR, WHICH GETS MOST OF THEM BACKWARDS**
+   (added 2026-08-07 iteration 159; pre-registered by iteration 158 after `mission-world` delivered
+   the third instance, and corroborated first-party in V1 before adoption — sibling-claim ghost
+   discipline). Rules 3a–3g police claims you or a reviewer produced. This one polices the claim an
+   executor hands you when it did something other than what the plan said, and it is the one shape
+   with no safe default: **the executor's own report cannot distinguish the good case from the bad
+   one, because in both the executor states a reason and the reason is usually TRUE.** Only running
+   the check separates them.
+   Three cross-mission instances, and note which way they point: World iter-58 **better than the
+   plan** (the plan was wrong; the judge scored it −5 anyway), World iter-60 **vacuous** — and it
+   was easy to wave through precisely *because* its stated reason was true — and World iter-61
+   **better than the plan**, self-reported (the executor was told to route writes through
+   `confinedWrite`, did so, then volunteered that this collides with a landed assertion the
+   directive never mentioned, and raised an exact-count from 42 to 43 while keeping it an equality).
+   Two of three came out in the executor's favour, so a "deviations are suspect" heuristic would
+   have discarded the two best outcomes. V1's own record carries the same shape three times
+   (`v1-mission-log.md`: the M2 direct-SQLite deviation, the cohort/baseline hash-mismatch
+   deviation adjudicated ACCEPTABLE, and the `consec >= K` escalation deviation APPROVED) — each
+   one adjudicated ad hoc, by a different argument, with no written rule; that absence is the gap
+   this closes, not the deviations themselves.
+   Concretely, on any deviation: **(a)** restate it as a checkable proposition — "this is strict,
+   not a weakening", "the plan's step was impossible", "this is equivalent" — and find the command
+   that would come out differently if it were false; a deviation you cannot phrase this way is not
+   yet understood; **(b)** run that command **in both arms**, exactly as rule 3d requires for a red
+   you predicted: World iter-61's "strict, not a weakening" was checkable because the count stayed
+   an *equality*, so dropping either write still reds; **(c)** hand the deviation to the evaluator
+   as a **named target to attack**, rather than hoping it notices — an independent judge that agrees
+   after being pointed at it is evidence, one that never looked is not; **(d)** treat a self-reported
+   deviation as *better* evidence than a silent one, never worse — an executor that names which of
+   your instructions was under-specified has done Gate-2 work for you, and the plan is what needs
+   fixing; **(e)** record the verdict in Gate 4's evidence row with the command, because "adjudicated
+   acceptable" with no measurement is exactly the vacuous pass this mission keeps closing elsewhere.
+   The tell: you are about to write "sound deviation", "adjudicated acceptable", or "the executor's
+   reasoning is correct" and every word of your justification came from the executor's own report.
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
    the Gate-2 rebuild `-dirty` — binaries built from a half-merged tree; and a persisted `cd`
