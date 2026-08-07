@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -64,6 +65,52 @@ func TestPackageAndFileAggregatesBothCarrySeedMetadata(t *testing.T) {
 		t.Fatalf("package mode exit = %d, want 0\nstderr:\n%s", pkgExit, pkgErr)
 	}
 	assertSeedMetadataJSON(t, pkgOut, "package-mode aggregate (runPackageTests)")
+}
+
+// S18 — the --seed/--random-seed mutual exclusion (D2) is a REFUSAL BRANCH, and
+// until this test existed nothing in the repo re-checked it: the plan's AC6(d)
+// grep of conflict.err is a one-shot acceptance command in §5.11, wired into no
+// make target and no CI job, and no *_test.go mentioned the flag at all.
+//
+// The exit code alone cannot discriminate. §5.11's own AC6-M2 baseline records
+// that rc == 2 ALREADY passes on pristine dev, because Go's flag.ExitOnError
+// exits 2 on the then-unknown -seed. So the stderr substring is the whole
+// assertion; asserting only the exit status would be vacuous by construction.
+func TestSeedAndRandomSeedAreMutuallyExclusive(t *testing.T) {
+	bin := buildAilang(t)
+
+	file := filepath.Join(t.TempDir(), "prop_test.ail")
+	if err := os.WriteFile(file, []byte(seedAggFixtureSource), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr, exit := runAilangBin(t, bin, "test", "--seed", "1", "--random-seed", file)
+	if exit != 2 {
+		t.Errorf("exit = %d, want 2\nstdout:\n%s\nstderr:\n%s", exit, stdout, stderr)
+	}
+	if !strings.Contains(stderr, "cannot be used together") {
+		t.Errorf("stderr missing the D2 substring %q — this is the only discriminating arm\nstderr:\n%s",
+			"cannot be used together", stderr)
+	}
+
+	// Control: neither flag alone may trip the refusal. Without this arm a
+	// mutual exclusion that fires unconditionally would still pass above.
+	for _, arg := range []string{"--seed", "--random-seed"} {
+		args := []string{"test", "--format", "json", "--no-color"}
+		if arg == "--seed" {
+			args = append(args, "--seed", "1")
+		} else {
+			args = append(args, "--random-seed")
+		}
+		args = append(args, file)
+		_, soloErr, soloExit := runAilangBin(t, bin, args...)
+		if soloExit != 0 {
+			t.Errorf("%s alone: exit = %d, want 0\nstderr:\n%s", arg, soloExit, soloErr)
+		}
+		if strings.Contains(soloErr, "cannot be used together") {
+			t.Errorf("%s alone tripped the mutual-exclusion refusal", arg)
+		}
+	}
 }
 
 // assertSeedMetadataJSON verifies the three top-level seed fields that the

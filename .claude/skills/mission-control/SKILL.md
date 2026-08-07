@@ -1036,6 +1036,48 @@ the Repo Profile above):
    sampling), record the residual explicitly in the code and the AC rather than letting arm-count
    arithmetic imply coverage; a named gap is cheap, an assumed one is not. The tell: a test-plan row
    says "kills X" and you are about to accept it because the test is green.
+3j. **WHEN A MILESTONE'S DELIVERABLE IS A REFUSAL, THE UNIT OF MUTATION IS THE *BRANCH*, NOT THE
+   MILESTONE — AND A ONE-SHOT ACCEPTANCE COMMAND IS NOT A GUARD** (added 2026-08-08 iteration 164;
+   proposed by `mission-world` iter-63 with three first-party instances, corroborated here on V1's
+   own freshly-landed milestone before adoption — sibling-claim ghost discipline). Every mutation
+   discipline this skill has aims at a mutation someone NAMED: the plan's `named_mutations`, the
+   doc's mutation table, rule 3i's "kills which mutation" column. None points at the refusal
+   branches of a validator or a flag guard the executor writes *during* the sprint. Those ship with
+   a green suite and no pin, and the green is what makes the gap invisible — a function whose
+   contract is "refuse X" can have N distinct refusal branches and pins for none of them.
+   **Rule:** for any function added or modified by a milestone whose contract is a refusal,
+   enumerate its refusal branches (`grep -c 'return .*fmt.Errorf(.*%w'` over the function is a fair
+   mechanical first cut) and require **one neutering mutation per branch** before the milestone
+   closes. Neuter with `if false && <cond>` rather than deleting the block, so every import stays
+   used and "the mutant does not build" cannot masquerade as "the guard fired" (the class the
+   mutation-BUILDS rule above already names). A genuinely unreachable branch is an acceptable
+   outcome **when declared in the code and in the AC**; an undeclared one is a guard nobody is
+   protecting. World's three instances, one iteration, three roles: a refusal term satisfiable by
+   nothing an operator can mint (two quorum rounds read past it); its replacement left the ENTIRE
+   `host/broker` package green under `if false && …`; and once the evaluator was handed that as a
+   named target per rule 3h(c) it found six more, the executor's own audit twelve, and `AC9` ended
+   at 20 negative arms.
+   **V1's corroborating instance, measured on the milestone landed the same hour** — and note it is
+   *not* the shape you would look for, because the branch was not unguarded by oversight, it was
+   guarded by something that never runs again. M2C's `--seed`/`--random-seed` mutual exclusion
+   (`cmd/ailang/main.go:148`) was covered only by the sprint plan's `AC6(d)` shell grep of
+   `conflict.err` — wired into **no** make target and **no** CI job (control: `check-golden-drift`
+   appears in both `make/test.mk` and `ci.yml`), and **zero** `*_test.go` mentioned either flag
+   (control: `--seed` appears in ten test files). Measured: `if false && seedSet && randomSet`
+   LANDED (sha256), BUILDS (`go build` rc=0), and the **entire rest of `cmd/ailang` is rc=0 with
+   the defect present** (`-skip` the new test, `ok 19.000s`). So the generalisation worth more than
+   either instance: **a guard is not a gate until something reds when you remove it** — an
+   executor's one-shot acceptance command proves the branch worked *once*, on a tree that no longer
+   exists, and reads in the plan exactly like coverage.
+   **Corollary, which nearly cost World the finding: read WHICH TEST failed, never the exit code
+   alone.** One controller probe returned rc=1 in exactly the predicted direction and its only FAIL
+   was a pre-existing load flake (measured 2/5 by the evaluator) — banking the exit code would have
+   recorded a pin that did not exist. This is rule 3d aimed at a mutation run rather than at a CI
+   red, and it is why the drill above scopes with `-run` and quotes the assertion text. Pair it
+   with the inverse arm this iteration used: run the suite `-skip`-ing your new test under the same
+   mutant, and require rc=0 — that is what proves *your* test is the killer rather than a
+   bystander. The tell: a milestone's headline verb is "reject", "refuse", "validate" or "exit
+   non-zero", and your mutation list has one entry.
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
    the Gate-2 rebuild `-dirty` — binaries built from a half-merged tree; and a persisted `cd`
