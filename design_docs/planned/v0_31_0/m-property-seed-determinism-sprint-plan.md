@@ -579,40 +579,589 @@ lower the cap; the 1,000 bound is a frozen design decision.
 
 ---
 
-## 5. M2 and M3 — parked to the 2026-08-03 re-arm
+## 5. M2 and M3 — the 2026-08-07 re-arm (mission iteration 159)
 
-Specified so the re-arm does not re-plan. **Do not execute tonight.**
+**This section replaces the ~20-line M2/M3 stub written in iteration 126.** That stub was a seed,
+not a plan: it had no task decomposition, no unit-test plan, and no restated-runnable acceptance
+criteria. §0.4 records what happens when that pass is skipped — when M1's ACs were finally checked,
+*every one of them was unrunnable*. The same audit has now been done for M2/M3 and it found four
+more defects (§5.11).
 
-### 5.1 M2 — seed policy (#535), ~280 net LOC, 0.6 d
+**Planner**: claude-opus-5, mission iteration 159, 2026-08-07.
+**Re-arm base**: `086902493` (local `dev` HEAD at planning time; `origin/dev` is one commit behind
+at `c30d2cb1b`, and the only delta is `.claude/skills/mission-control/SKILL.md` —
+`git diff --name-only c30d2cb1b HEAD -- internal/ cmd/` is **empty**, so every measurement below is
+valid at either SHA).
 
-Per the design doc §M2, unchanged: new `internal/testing/config.go` with
-`TestConfig{WorkspaceRoot, SeedMode, MasterSeed}`; `derive_v1` = SHA-256 of
-`"ailang-property-seed-v1\x00" + decimalMaster + "\x00" + moduleIdentity + "\x00" + propertyName`,
-bytes 0:8 little-endian as signed int64; remove the `seed == 0` wall-clock branch from `newRNG`;
-`--seed N` / `--random-seed` mutually exclusive (exit 2); one `crypto/rand` read; `os.Getwd()`
-captured once in `cmd/ailang/main.go` before path walking.
+### 5.0 Re-arm verification summary — measured first-hand at HEAD, 2026-08-07
 
-**M2 file-size note**: `runner.go` will be 669 after M1, but M2 threads config through
-`RunTestsFromFile`/`NewRunner` (both in `runner.go`). Keep the derivation helper in
-`internal/testing/config.go`, not in `runner.go`.
+Nothing in §5 is inherited from §0–§4 or from the design doc. Each row is a command re-run now.
 
-### 5.2 M3 — integration gates, ~180 net LOC, 0.4 d
+| # | Claim | Command | Result |
+|---|---|---|---|
+| Q1 | `WorkspaceRoot` / `TestConfig` still absent | `grep -rnE 'workspaceRoot\|WorkspaceRoot\|type GenConfig\|type TestConfig\|type Config' internal/testing/*.go cmd/ailang/test.go` | **CONFIRMED**: sole hit `internal/testing/generator.go:17:type GenConfig struct {` — the known-positive control fires, so the empty `WorkspaceRoot` result is a fact |
+| Q2 | No `internal/testing/config.go` | `ls internal/testing/config.go` | **CONFIRMED**: No such file. `ls internal/testing/*.go \| wc -l` → **36** |
+| Q3 | Three live `newRNG` call sites — **but not where the design doc says** | `grep -rnE 'newRNG\(' internal/testing/*.go` | `contract_domain.go:89`, `runner.go:261`, `runner.go:384`, plus the definition at `runner.go:665` |
+| Q4 | Wall-clock branch location | `grep -rnE 'func newRNG\|time\.Now\(\)\.UnixNano' internal/testing/*.go` | `runner.go:665` (def), `runner.go:667` (`seed = time.Now().UnixNano()`) |
+| Q5 | `runner.go` size vs the 800 cap | `wc -l internal/testing/runner.go`; `grep -n -A 20 'check-file-sizes:' make/code-health.mk` | **670** lines; cap is `wc -l > 800` over `find internal cmd -name "*.go"`, wired at `.github/workflows/ci.yml:121`. **130 lines of headroom** |
+| Q6 | Other files M2 grows | `wc -l cmd/ailang/main.go cmd/ailang/reporter…` | `main.go` **526**, `cmd/ailang/test.go` **246**, `reporter.go` **296**, `result.go` **135**, `contract_domain.go` **194**. None is near the cap |
+| Q7 | `ailang test` still has no seed flags | `./bin/ailang test --help` | Options are exactly `--format`, `--no-color`, `--package`, `--allow-skips` |
+| Q8 | #535 open, #547 closed | `gh issue view 535/547 --json number,state` | **535 OPEN**, **547 CLOSED** — M2 is what closes #535 |
+| Q9 | Repo gates green on pristine `dev` | `go test ./internal/testing/... -count=1`; `go test ./cmd/ailang/... -count=1`; `make lint`; `make verify-examples` | rc=**0**, **0**, **0**, **0** |
+| Q10 | Worst-case runtime of the M1 loop | `/usr/bin/time -p ./bin/ailang test --format json --no-color examples/runnable/contracts/list_recursive_verify.ail` | **real 0.65 s**. §4's AC13-M1 60 s bound has ~90x headroom; M2 adds no attempts |
+| Q11 | M1's deferred CLI e2e file was never written | `ls cmd/ailang/test_contract_domain_test.go` | **No such file** — §3.4 item 3 was exercised. M3 owes it |
+| Q12 | `list_recursive_verify.ail` is module-**bearing** | `grep -n '^module' examples/runnable/contracts/list_recursive_verify.ail` | `5:module examples/runnable/contracts/list_recursive_verify`. So AC5 exercises the *declared-module* identity branch, **not** `WorkspaceRoot`. AC9 remains the only `WorkspaceRoot` criterion |
+| Q13 | M1's checked-in fixtures use canonical repo module paths | `grep -n '^module' internal/testing/testdata/contracts/precond2.ail` | `module internal/testing/testdata/contracts/precond2` — any new in-repo fixture must do the same or `check` fails MOD010 |
 
-Design-doc AC5, AC6, AC7 verbatim, plus the `--seed 42` forms of AC1/AC3/AC8 restored.
+### 5.1 The design doc's Conflict Surface is STALE on the one line M2 turns on
 
-### 5.3 M2/M3 blocker to resolve at re-arm — ✅ RESOLVED 2026-08-01, NOTHING OWED
+Design doc, *Conflict Surface*: “`internal/testing/runner.go`: ensures loop, lowered-contract
+lookup, **three RNG call sites**.”
 
-**This blocker is discharged; M2 starts unblocked.** Iteration 127 landed the declaration-aware
-strip (`internal/testing/source_strip.go`), and AC9's original module-less fixture now parses and
-exits 0 — verified with a paired pre-fix/post-fix control (§0.3). **Keep AC9 as written**; do not
-spend re-arm time producing a substitute fixture or restating it over a module-bearing file.
-Regression cover: `internal/testing/testdata/strip/moduleless_contract.ail`.
+**That sentence is false at HEAD** (Q3). M1 moved `runEnsuresProperty` into
+`internal/testing/contract_domain.go`, so the three seeded paths are now split across **two** files:
 
-Historical statement of the blocker, retained: AC9 was **unimplementable as written** (§0.3), and
-M2 was not to start until it was resolved, it being the only criterion proving `WorkspaceRoot`
-actually reached the derivation.
+```
+internal/testing/contract_domain.go:89   rng := newRNG(config.Seed)   # ensures  (moved by M1)
+internal/testing/runner.go:261           rng := newRNG(config.Seed)   # forall
+internal/testing/runner.go:384           rng := newRNG(config.Seed)   # requires
+```
 
-### 5.4 What "M1 only" leaves in the tree — precisely
+Each of the three builds its own `config := DefaultConfig()` **locally** (`contract_domain.go:88`,
+`runner.go:260`, `runner.go:383`). Threading `TestConfig` therefore has to reach `contract_domain.go`
+too — not just `runner.go`. **This repo's recurring failure shape is guarding the helper and missing
+a call site** (see the mission memory on `--system-prompt`), so §5.4 makes the sweep an explicit,
+grep-checkable step and AC-SEED-SWEEP-M2 (§5.11) pins it.
+
+The stub's own line numbers are stale too: it says the wall-clock branch is at `runner.go:786-788`
+(it is **667**) and that `runner.go` is 669 lines (it is **670**).
+
+**There is a fourth call-site class the design doc never mentions.** The top-level JSON fields
+(`seed_mode`, `seed`, `seed_derivation`) are emitted from the **aggregate** `SuiteResult`, not from
+the per-file one. `cmd/ailang/test.go` has **two** hand-written aggregation blocks that merge
+per-file results field by field — `runTestsV2` (lines 50–63) and `runPackageTests` (lines 190–203) —
+and neither would carry a new field. Both must be updated; §5.5 pre-decides a single
+`SetSeedMetadata` mutator so the two sites cannot drift.
+
+### 5.2 Pre-decided choices — the executor MUST NOT re-decide these
+
+This lane is `pi:openrouter/deepseek/deepseek-v4-flash-0731`. Every judgment call below is decided
+here. If the executor finds a decision it thinks is wrong, it **stops and reports**; it does not
+substitute its own.
+
+| # | Question | **Decision** | Why it is not obvious |
+|---|---|---|---|
+| D1 | How to tell `--seed 0` from “no flag”? | `testFlags.Visit(func(f *flag.Flag){…})` after `Parse`. `Visit` iterates **only flags that were set**. | Both cases leave the `int64` at `0`, and both derive the *same* stream. The **only** observable difference is `seed_mode`. Comparing values silently reports `derived` for an explicit `--seed 0`. |
+| D2 | Where does the mutual-exclusion error go, and with what exit code? | `fmt.Fprintln(os.Stderr, "Error: --seed and --random-seed cannot be used together")` then `os.Exit(2)`. **stderr, and the substring `cannot be used together` is load-bearing.** | AC6 greps `conflict.err`. Also see §5.11 AC6-M2 baseline: `rc == 2` **already passes on pristine `dev`** because Go's `flag.ExitOnError` exits 2 on the unknown `-seed`. The grep is the only discriminating arm. |
+| D3 | Is `filepath.Rel(cfg.WorkspaceRoot, inputPath)` (the doc's literal formula) correct? | **No — make the input absolute first.** `abs, err := filepath.Abs(inputPath)`, then `filepath.Rel(cfg.WorkspaceRoot, abs)`. Error on either → loud failure, no fallback. | `WorkspaceRoot` is absolute (`os.Getwd`) and the CLI input is typically relative (`cases/stable.ail`). `filepath.Rel(abs, rel)` returns `can't make … relative to …`. The doc's formula errors on exactly the AC9 case it was written for. |
+| D4 | Where is `WorkspaceRoot` consumed? | Exactly once, in `ResolveModuleIdentity`, called from `RunTestsFromFileWithConfig` **before** the Runner exists. The Runner still **retains the whole `TestConfig`** (design doc, §M2) but never re-reads `WorkspaceRoot`. | One consumption point is one place for AC9 to pin. Re-deriving it per property is how the checkout path becomes ambient again. |
+| D5 | Does `NewRunner(modulePath)` survive? | **Yes**, as a documented convenience wrapper. It builds an **explicit** `TestConfig{WorkspaceRoot: filepath.Dir(abs(modulePath)), SeedMode: SeedModeDerived, MasterSeed: 0}`. CLI code must **not** call it. | `grep -rn 'NewRunner('` finds **16 in-package test call sites**. Deleting it is a 16-file blast radius for zero benefit, and the design doc explicitly says to keep the convenience entry point. |
+| D6 | Same for `RunTestsFromFile(filePath, ast)`? | **Yes**, kept as a wrapper over the new `RunTestsFromFileWithConfig`. Callers: `internal/testing/executor_regression_test.go:27`, `internal/testing/named_test_test.go:418`, and `cmd/ailang/test.go:119`. **`cmd/ailang/test.go:119` MUST switch to the configured form**; the two test callers may stay. | Design doc: “CLI code must use the configured entry point and may not silently infer a workspace root inside `internal/testing`.” |
+| D7 | Where is entropy read, so the failure path is testable? | `internal/testing/config.go`: `var EntropyReader io.Reader = crand.Reader` + `func NewRandomMasterSeed() (int64, error)`. The CLI calls it once. Tests swap `EntropyReader`. | The doc puts the read “at the CLI boundary”. A read literally inside `cmd/ailang/main.go` is not injectable, and the doc *also* requires an injected-reader negative test. Helper in `internal/testing`, call site in the CLI, satisfies both. |
+| D8 | Which properties get a `seed` in JSON? | **All of them, always**, including `skip`. Set `result.Seed` in `runProperty` (`runner.go:219`) **before** the `switch`, so one assignment covers all three paths and every early return. | AC5 asserts `[.properties[] \| select(.seed != null)] \| length > 0`; AC6 asserts `>= 2`. A `no_generator` skip that returns before the RNG is built would otherwise emit `null`. One site, not three. |
+| D9 | What is the `replay` field, and where does it live? | A per-property JSON key emitted **only when `prop.Status == StatusFail`**, computed *in the reporter* as `ailang test --seed <MasterSeed> <ModulePath>` from the `SuiteResult`. No new struct field. | `PropertyResult` does not know the invocation path or the master. Adding a field would require filling it at three more sites. |
+| D10 | Human-output wording | Free (design doc, *Deferred Decisions*), **but** mode, master seed, derivation version and the copy/paste replay command are mandatory and must appear in `reportSummaryHuman`. | Punctuation is explicitly the implementer's call; the *content* is not. |
+| D11 | Do the `--seed 42` forms of AC1/AC3/AC8 come back? | **Yes, as M3 criteria**, in addition to the seed-free §4 forms — not replacing them. | §4's forms are the landed M1 record and remain the regression for the filter itself. |
+
+### 5.3 M2A — `TestConfig` + the v1 derivation core (internal only)
+
+**~230 net LOC (impl ~120 / test ~110). No CLI change, no behavior change.** Independently
+verifiable with `go test ./internal/testing/... -count=1`; the binary behaves identically after M2A.
+
+New file **`internal/testing/config.go`** (nothing else is touched by M2A):
+
+```go
+package testing
+
+type SeedMode string
+
+const (
+    SeedModeDerived SeedMode = "derived" // no seed flag; master is int64(0)
+    SeedModeMaster  SeedMode = "master"  // --seed N (incl. 0) or --random-seed
+)
+
+// SeedDerivationV1 is a REPRODUCIBILITY CONTRACT. Changing the framing, hash,
+// byte order or identity below is a breaking change and REQUIRES a new tag.
+const SeedDerivationV1 = "ailang-property-seed-v1"
+
+type TestConfig struct {
+    WorkspaceRoot string   // absolute; the CLI's initial os.Getwd()
+    SeedMode      SeedMode
+    MasterSeed    int64
+}
+
+func (c TestConfig) Validate() error            // non-empty + filepath.IsAbs root; SeedMode is one of the two
+func DeriveSeedV1(master int64, moduleIdentity, propertyName string) int64
+func ResolveModuleIdentity(workspaceRoot, inputPath, declaredModule string) (string, error)
+func NewRandomMasterSeed() (int64, error)
+var EntropyReader io.Reader = crand.Reader
+```
+
+**`DeriveSeedV1` — frozen, byte-exact:**
+
+```go
+var b bytes.Buffer
+b.WriteString(SeedDerivationV1); b.WriteByte(0)
+b.WriteString(strconv.FormatInt(master, 10)); b.WriteByte(0)
+b.WriteString(moduleIdentity); b.WriteByte(0)
+b.WriteString(propertyName)
+sum := sha256.Sum256(b.Bytes())
+return int64(binary.LittleEndian.Uint64(sum[0:8]))
+```
+
+**`ResolveModuleIdentity` — the only consumer of `WorkspaceRoot` (D3, D4):**
+
+```go
+if declaredModule != "" { return declaredModule, nil }        // module-bearing: path-independent
+abs, err := filepath.Abs(inputPath); if err != nil { return "", fmt.Errorf(...) }
+rel, err := filepath.Rel(workspaceRoot, abs); if err != nil { return "", fmt.Errorf(...) }
+return filepath.ToSlash(filepath.Clean(rel)), nil
+```
+
+No fallback on either error (CLAUDE.md §2: this value decides a seed, so a wrong-but-plausible
+answer is worse than a failure).
+
+**`NewRandomMasterSeed`**: `io.ReadFull(EntropyReader, b[:8])`; on error return
+`fmt.Errorf("--random-seed: failed to read 8 bytes of entropy: %w", err)` — **never** a clock,
+constant or per-property fallback. Value is `int64(binary.LittleEndian.Uint64(b[:]))`.
+
+### 5.4 M2B — thread the config to all three RNG sites; delete the wall clock
+
+**~140 net LOC (impl ~55/−5, test ~85).** This is the milestone that closes #535's mechanism.
+
+1. `Runner` (`runner.go:15-18`) gains two fields: `config TestConfig` and `moduleIdentity string`.
+2. Add `func NewRunnerWithConfig(modulePath string, cfg TestConfig, moduleIdentity string) *Runner`.
+   It cannot fail — identity is already resolved (D4).
+3. Rewrite `NewRunner(modulePath string) *Runner` as the D5 wrapper. **Signature unchanged**, so all
+   16 in-package callers keep compiling.
+4. Add `func (r *Runner) propertySeed(name string) int64 { return DeriveSeedV1(r.config.MasterSeed, r.moduleIdentity, name) }`.
+5. **Sweep all three sites.** At each, delete the local `config := DefaultConfig()` (it was used only
+   for `.Seed`) and replace `newRNG(config.Seed)` with `newRNG(r.propertySeed(propCase.Name))`:
+   - `internal/testing/contract_domain.go:88-89` (ensures) — **the one the design doc's stale
+     Conflict Surface omits**
+   - `internal/testing/runner.go:260-261` (forall)
+   - `internal/testing/runner.go:383-384` (requires)
+   Leave the *other* `DefaultConfig()` uses alone: `runner.go:521,524,529,540,551` are inside
+   `createGeneratorForType` and read `MinInt`/`MaxInt`/`MaxSize`, not `Seed`.
+6. `newRNG` (`runner.go:665-670`) loses its wall-clock branch entirely:
+   `func newRNG(seed int64) *rand.Rand { return rand.New(rand.NewSource(seed)) }`. Drop the now-unused
+   `time` import **only if** nothing else in `runner.go` uses it (it does — `time.Since`; leave it).
+7. Set `result.Seed = r.propertySeed(propCase.Name)` in `runProperty` (`runner.go:219`) **before** the
+   `switch` (D8). Add `Seed int64` to `PropertyResult` (`result.go:33-44`).
+8. Add `RunTestsFromFileWithConfig(filePath string, file *ast.File, cfg TestConfig) (*SuiteResult, error)`
+   next to the existing `RunTestsFromFile` (`runner.go:501`). It: validates the config; computes
+   `declared := ""` / `file.Module.Path` (`internal/ast/ast.go:139` `Module *ModuleDecl`, `:150` `Path string`);
+   calls `ResolveModuleIdentity`; builds the Runner via `NewRunnerWithConfig`; and stamps
+   `SeedMode`/`MasterSeed`/`SeedDerivation` onto the returned `SuiteResult`.
+9. Add to `SuiteResult` (`result.go:47-57`): `SeedMode SeedMode`, `MasterSeed int64`,
+   `SeedDerivation string`, plus `func (sr *SuiteResult) SetSeedMetadata(cfg TestConfig)` — the single
+   mutator both CLI aggregates will call (§5.1).
+
+**After M2B the default run is already deterministic**, but nothing is reported yet and there are no
+flags. That intermediate state is coherent (strictly better than a hidden wall clock) but it is
+**not landable on its own** — see §5.9.
+
+### 5.5 M2C — CLI flags, propagation through both aggregates, reporting
+
+**~200 net LOC (impl ~145, test ~55).**
+
+**(a) `cmd/ailang/main.go`, `case "test"` (lines 111-136).** Add to `testFlags`:
+
+```go
+seedFlag       := testFlags.Int64("seed", 0, "Master seed for property generation (signed int64)")
+randomSeedFlag := testFlags.Bool("random-seed", false, "Read one master seed from crypto/rand and report it")
+```
+
+After `testFlags.Parse`, detect *presence* with `Visit` (D1), then:
+
+```go
+if seedSet && randomSet {                       // D2
+    fmt.Fprintln(os.Stderr, "Error: --seed and --random-seed cannot be used together")
+    os.Exit(2)
+}
+cwd, err := os.Getwd()                          // captured ONCE, before any path walking
+if err != nil { fmt.Fprintf(os.Stderr, "Error: cannot determine working directory: %v\n", err); os.Exit(1) }
+cfg := ailangTesting.TestConfig{WorkspaceRoot: cwd, SeedMode: ailangTesting.SeedModeDerived, MasterSeed: 0}
+switch {
+case seedSet:   cfg.SeedMode, cfg.MasterSeed = ailangTesting.SeedModeMaster, *seedFlag
+case randomSet:
+    m, err := ailangTesting.NewRandomMasterSeed()
+    if err != nil { fmt.Fprintf(os.Stderr, "Error: %v\n", err); os.Exit(1) }   // BEFORE any property runs
+    cfg.SeedMode, cfg.MasterSeed = ailangTesting.SeedModeMaster, m
+}
+```
+
+`cfg` is then passed to `runPackageTests` / `runTestsV2`.
+
+**(b) `cmd/ailang/test.go`.** Thread `cfg ailangTesting.TestConfig` through
+`runTestsV2` (line 17), `runPackageTests` (line 136) and `runTestFile` (line 93); `runTestFile:119`
+switches from `RunTestsFromFile(filename, file)` to `RunTestsFromFileWithConfig(filename, file, cfg)`.
+**In BOTH aggregation blocks**, immediately after `NewSuiteResult(...)` (line 48 and line 185), call
+`aggregateResults.SetSeedMetadata(cfg)`. Missing either one silently emits an empty `seed_mode` for
+that mode — this is the §5.1 fourth call-site class.
+
+**(c) `printTestHelp` (`cmd/ailang/test.go:225-246`).** Add two Options lines. The literal strings
+`--seed N` and `--random-seed` **must appear verbatim** — AC6 greps for them with `grep -F`:
+
+```
+  --seed N           Master seed for property generation (signed int64; replayable)
+  --random-seed      Read one master seed from crypto/rand and report it for replay
+```
+
+**(d) `internal/testing/reporter.go`.** In `reportJSON` (line 47) add three top-level keys:
+`"seed_mode": string(result.SeedMode)`, `"seed": strconv.FormatInt(result.MasterSeed, 10)` — a
+**decimal string**, not a number — and `"seed_derivation": result.SeedDerivation`. In
+`formatPropertiesJSON` (line 85) always add `"seed": strconv.FormatInt(prop.Seed, 10)`, and when
+`prop.Status == StatusFail` also `"replay"` (D9). In `reportSummaryHuman` (line 213) print mode,
+master, derivation version and the replay command (D10).
+
+### 5.6 M2 test plan
+
+New file `internal/testing/config_test.go` (M2A), additions to
+`internal/testing/runner_seed_test.go` (new, M2B) and `internal/testing/reporter_test.go` (M2C).
+
+| ID | Test | Asserts | Kills which mutation |
+|---|---|---|---|
+| S1 | `TestDeriveSeedV1_GoldenVectors` | ≥3 hard-coded `(master, identity, property) -> int64` triples, written as literals | any change to framing/hash/byte-order silently altering v1 |
+| S2 | `TestDeriveSeedV1_ZeroAndNegativeMaster` | master `0`, `-1`, `math.MinInt64` all derive without panic and differ from each other | treating 0 as “unset” |
+| S3 | `TestDeriveSeedV1_IdentityFieldsAreFramed` | `derive(0,"ab","c") != derive(0,"a","bc")` | dropping the `\x00` separators |
+| S4 | `TestResolveModuleIdentity_DeclaredModuleWins` | non-empty `declaredModule` returned verbatim; `workspaceRoot` ignored | reading the path when a module is declared |
+| S5 | `TestResolveModuleIdentity_ModulelessIsWorkspaceRelative` | root `/w`, input `/w/cases/s.ail` → `cases/s.ail`; **and** relative input `cases/s.ail` with `os.Chdir`-free `filepath.Abs` semantics resolves identically | D3 — the doc's literal `Rel(root, inputPath)` |
+| S6 | `TestResolveModuleIdentity_ErrorsAreLoud` | unrelated root (e.g. root `/w`, abs input on another volume prefix) returns a **non-nil error** and empty string | a silent `""` or basename fallback |
+| S7 | `TestTestConfig_Validate` | empty root, relative root, and unknown `SeedMode` each error; a valid config does not | validation that always returns nil |
+| S8 | `TestNewRandomMasterSeed_InjectedFailure` | `EntropyReader = iotest.ErrReader(...)` → non-nil error, seed `0`, **and no clock read** | any fallback path |
+| S9 | `TestNewRandomMasterSeed_ShortRead` | a 4-byte reader errors (`io.ReadFull` semantics) rather than zero-padding | partial-read acceptance |
+| S10 | `TestNewRNG_HasNoWallClockBranch` | `newRNG(0)` called twice yields the **same** first `Int63()`; `newRNG(1)` differs | leaving the `seed == 0` sentinel in place |
+| S11 | `TestRunner_AllThreePropertyPathsUseDerivedSeed` | one fixture with a `forall`, a `requires` and an `ensures` property, run **twice** through `RunTestsFromFileWithConfig`; every `PropertyResult.Seed` is non-zero, the three differ from each other, and both runs agree field-for-field | §5.1: guarding two sites and missing `contract_domain.go:89` |
+| S12 | `TestRunner_MasterSeedChangesEveryStream` | same fixture at master `0` vs `42`: all three `Seed` values differ | a hard-coded or ignored master |
+| S13 | `TestRunProperty_SeedSetEvenOnSkip` | a `no_generator` property (reuse `TestRunContractProperties_SkipKinds`' fixture shape) still has `Seed != 0` | D8 — setting the seed after the early return |
+| S14 | `TestSuiteResult_SetSeedMetadata` | copies all three fields from a `TestConfig` | a partial copy |
+| S15 | `TestReporter_JSONSeedFieldsAreDecimalStrings` | top-level `seed` and per-property `seed` decode as **strings** matching `^-?[0-9]+$`; `seed_derivation == "ailang-property-seed-v1"`; a negative master round-trips exactly | emitting a JSON number (float64 precision loss above 2^53) |
+| S16 | `TestReporter_ReplayOnlyOnFailure` | `replay` present on a `fail` property, **absent** on pass/skip, and equal to `ailang test --seed <master> <module_path>` | emitting `replay` unconditionally (would break AC6 byte-identity only if it varied — assert the text) |
+
+### 5.7 M3 — integration, CLI end-to-end, and repository gates
+
+**~280 net LOC (must-ship ~170).**
+
+1. **New `cmd/ailang/test_seed_e2e_test.go` (~150)** — builds/locates the binary the same way
+   `cmd/ailang/test_json_output_test.go` already does (read it first; do not invent a second
+   harness). Covers: default determinism (AC5-M2), `--seed`/`--random-seed` mutual exclusion on
+   **stderr** with exit 2, random→explicit replay byte-identity (AC6-M2), and `--help` containing
+   both literals.
+2. **New `cmd/ailang/test_contract_domain_test.go` (~110)** — the file §3.4 deferred from M1 and Q11
+   confirms was never written. CLI-level JSON assertions for AC1/AC2/AC3 over the four checked-in
+   fixtures in `internal/testing/testdata/contracts/`. **Descopable** (§5.9).
+3. **Config-propagation coverage for all three entry modes** — direct (`RunTestsFromFileWithConfig`),
+   ordinary (`runTestsV2`), package (`runPackageTests`). The package-mode arm needs a temp package
+   with an `ailang.toml` plus one `*_test.ail`; assert the JSON top-level `seed_mode`/`seed` are
+   present there too (this is the arm that catches a missed `SetSeedMetadata` in `runPackageTests`).
+4. **`changelogs/v0.18-current.md`** — entry under Unreleased → Fixed naming #535, the new flags, the
+   additive JSON fields, and the three intentional incompatibilities from the design doc
+   (out-of-contract ensures failures became discards; default samples change once then stabilise;
+   `GenConfig.Seed == 0` now means exact zero). Root `CHANGELOG.md` is an index — `make check-changelog`
+   enforces that; do not write the entry there.
+5. **Record honestly** that `make verify-examples` passes the `run` subcommand
+   (`scripts/verify_examples.go:104-115`) and is therefore **not** evidence any contract property ran.
+
+### 5.8 Descope valve (bounded execution)
+
+Ship in this order and stop only at a numbered boundary:
+
+1. **Must**: M2A complete (§5.3) + S1–S9.
+2. **Must**: M2B complete (§5.4) **including all three RNG sites** + S10–S14.
+3. **Must**: M2C (a)(b)(c)(d) (§5.5) + S15–S16 + AC5-M2, AC6-M2, AC9-M2, AC-SEED-SWEEP-M2.
+4. **Should**: M3 items 1, 3, 4.
+5. **May defer**: M3 item 2 (`test_contract_domain_test.go`) to a follow-up.
+
+**Never stop between 2 and 3.** After step 2 the wall clock is gone but nothing reports a seed, so a
+failure cannot be replayed — the exact half-state the design doc's *Rollback* section calls unsafe.
+If time runs out inside step 3, finish (d) at minimum: the JSON fields are what make step 2 useful.
+
+### 5.9 Landing shape and rollback
+
+M2A/M2B/M2C/M3 are **commit boundaries inside one PR**, not four landable PRs. The PR is landable
+only from step 3 of §5.8 onward. Rollback is `git revert` of the whole M2+M3 series; per the design
+doc, keeping M2 while dropping M1 is the unsafe direction, and M1 is already landed in
+`a9e26ffd6`, so it is not at risk here.
+
+`Fixes #535` goes on the **final** commit only. `#547` is already CLOSED (Q8) — it must **not**
+appear with any closing keyword.
+
+### 5.10 Files touched by M2 + M3
+
+| File | Milestone | Change | LOC |
+|---|---|---|---:|
+| `internal/testing/config.go` (NEW) | M2A | `TestConfig`, `SeedMode`, `SeedDerivationV1`, `DeriveSeedV1`, `ResolveModuleIdentity`, `NewRandomMasterSeed`, `EntropyReader`, `Validate` | +120 |
+| `internal/testing/config_test.go` (NEW) | M2A | S1–S9 | +110 |
+| `internal/testing/runner.go` | M2B | `Runner` fields, `NewRunnerWithConfig`, `NewRunner` wrapper, `propertySeed`, 2 RNG sites, `newRNG` wall clock removed, `runProperty` seed stamp, `RunTestsFromFileWithConfig` | +55 / −5 |
+| `internal/testing/contract_domain.go` | M2B | 1 RNG site (**the one the doc omits**) | +1 / −2 |
+| `internal/testing/result.go` | M2B | `PropertyResult.Seed`; `SuiteResult.{SeedMode,MasterSeed,SeedDerivation}`; `SetSeedMetadata` | +18 |
+| `internal/testing/runner_seed_test.go` (NEW) | M2B | S10–S14 | +85 |
+| `cmd/ailang/main.go` | M2C | two flags, `Visit` detection, conflict exit 2 on stderr, single `os.Getwd`, entropy read, config construction | +45 |
+| `cmd/ailang/test.go` | M2C | config threading through 3 funcs, `SetSeedMetadata` at **both** aggregates, configured entry point, help text | +55 |
+| `internal/testing/reporter.go` | M2C | 3 top-level keys, per-property `seed`, conditional `replay`, human seed/replay block | +45 |
+| `internal/testing/reporter_test.go` | M2C | S15–S16 | +55 |
+| `cmd/ailang/test_seed_e2e_test.go` (NEW) | M3 | AC5/AC6 end-to-end + help literals | +150 |
+| `cmd/ailang/test_contract_domain_test.go` (NEW, descopable) | M3 | M1's deferred AC1/AC2/AC3 CLI e2e | +110 |
+| package-mode propagation test | M3 | temp `ailang.toml` package, asserts top-level seed fields | +40 |
+| `changelogs/v0.18-current.md` | M3 | Unreleased → Fixed | +15 |
+
+**Net ≈ +850 (must-ship ≈ +700).** File-size headroom after M2+M3 (cap 800, Q5/Q6):
+`runner.go` 670→~720, `main.go` 526→~571, `cmd/ailang/test.go` 246→~301, `reporter.go` 296→~341,
+`contract_domain.go` 194→~193. **No file approaches the cap; no relocation commit is needed.**
+
+**Velocity**: §1's sustained rate is 350–450 net LOC/day for test-heavy Go here, so M2+M3 is
+**≈ 2.0–2.4 days**. The design doc estimates M2 at ~0.5 d and M3 at ~0.25–0.5 d; that is
+**too low by roughly 2x** — it predates M1 landing 670 insertions against a whole-feature estimate of
+650–830, and it does not account for the fourth call-site class (§5.1), the entropy-injection
+seam (D7) or the deferred M1 e2e file (Q11). Recorded here rather than force-fitted.
+
+### 5.11 M2 / M3 acceptance criteria — restated runnable, each with its pristine-`dev` baseline
+
+**Rule applied throughout**: an AC that already passes on unmodified `dev` proves nothing. Every arm
+below is annotated with what it does *at baseline*, measured 2026-08-07. Arms marked **VACUOUS** were
+in the design doc and are replaced or supplemented here.
+
+All commands run from the worktree root after `make build`.
+
+#### AC5-M2 — default and exact-seed results reproduce (design-doc AC5, repaired)
+
+```bash
+set -u
+tmp=$(mktemp -d)
+ex=examples/runnable/contracts/list_recursive_verify.ail
+for run in a b c; do
+  ./bin/ailang test --format json --no-color "$ex" >"$tmp/$run.json" 2>"$tmp/$run.err"
+  printf '%s\n' "$?" >"$tmp/$run.rc"
+  jq 'del(.total_duration) | .tests |= map(del(.duration)) | .properties |= map(del(.duration))' \
+     "$tmp/$run.json" >"$tmp/$run.norm"
+  jq -S -c '[.properties[] | {name,status,skip_kind,tests_run,generated_inputs,discarded_inputs}]' \
+     "$tmp/$run.json" >"$tmp/$run.shape"
+done
+cmp "$tmp/a.rc"    "$tmp/b.rc"     # (i)
+cmp "$tmp/a.shape" "$tmp/b.shape"  # (ii)  <-- the discriminating arm
+cmp "$tmp/a.shape" "$tmp/c.shape"  # (ii)
+cmp "$tmp/a.norm"  "$tmp/b.norm"   # (iii)
+jq -e '.seed_mode == "derived" and .seed == "0"
+       and .seed_derivation == "ailang-property-seed-v1"
+       and ([.properties[] | select(.seed != null)] | length > 0)' "$tmp/a.json"   # (iv)
+```
+
+**Baseline on pristine `dev`** (5 runs measured):
+- (i) **VACUOUS** — `rc=1` in all 5 runs, so `cmp a.rc b.rc` already passes. M1 stabilised the
+  verdict *class* of this file: 0 passed / 0 failed / 6 skipped every time, and `Success()` requires
+  `passed+failed > 0`, so the suite exits 1 permanently. **Keep the arm, but it is not evidence.**
+- (ii) **DISCRIMINATES — this is the arm that replaces (i)**. `tests_run` is still nondeterministic:
+  `containsImpliesNonEmpty_property_2` measured **31, 16, 29, 26, 25** across five runs and
+  `extractBounded_property_1` measured **1, 3, 5, 5, 3**. This is #535, live, at HEAD, *after* M1.
+- (iii) DISCRIMINATES (`cmp` of the normalised JSON returns 1 at baseline).
+- (iv) DISCRIMINATES (`seed_mode` is absent → `jq -e` returns 1).
+
+**Note (Q12)**: this fixture declares `module examples/runnable/contracts/list_recursive_verify`, so
+it exercises the *declared-module* identity branch. It says nothing about `WorkspaceRoot` — only
+AC9-M2 does.
+
+#### AC6-M2 — multi-property random invocation replays exactly (design-doc AC6, **REPAIRED — see §5.12 D-2 and D-3**)
+
+```bash
+set -u
+tmp=$(mktemp -d)
+cat >"$tmp/multi.ail" <<'EOF'
+module random_replay_multi
+
+export func ok(x: int) -> bool ! {}
+ensures { result == true } { true }
+
+export func broken(x: int) -> bool ! {}
+ensures { result == true } { false }
+EOF
+
+./bin/ailang check --relax-modules "$tmp/multi.ail"                  # (a)  REPAIRED
+./bin/ailang test --help | grep -F -- '--seed N'                     # (b)
+./bin/ailang test --help | grep -F -- '--random-seed'                # (b)
+
+./bin/ailang test --seed 1 --random-seed "$tmp/multi.ail" >"$tmp/conflict.out" 2>"$tmp/conflict.err"
+rc=$?; echo "conflict rc=$rc"
+test "$rc" -eq 2                                                     # (c)  VACUOUS at baseline
+grep -F 'cannot be used together' "$tmp/conflict.err"                # (d)  the discriminating arm
+
+./bin/ailang test --random-seed --format json --no-color "$tmp/multi.ail" \
+  >"$tmp/random.json" 2>"$tmp/random.err"
+random_rc=$?
+seed=$(jq -er '.seed | select(type == "string") | select(test("^-?[0-9]+$"))' "$tmp/random.json")
+test "$(jq '[.properties[] | select(.seed != null)] | length' "$tmp/random.json")" -ge 2   # (e)
+
+./bin/ailang test "--seed=${seed}" --format json --no-color "$tmp/multi.ail" \
+  >"$tmp/replay.json" 2>"$tmp/replay.err"
+replay_rc=$?
+
+for run in random replay; do
+  jq 'del(.total_duration) | .tests |= map(del(.duration)) | .properties |= map(del(.duration))' \
+     "$tmp/$run.json" >"$tmp/$run.norm"
+done
+test "$random_rc" -eq "$replay_rc"                                   # (f)
+cmp "$tmp/random.norm" "$tmp/replay.norm"                            # (g)
+jq -e --arg s "$seed" '.seed_mode == "master" and .seed == $s
+       and .seed_derivation == "ailang-property-seed-v1"' "$tmp/replay.json"   # (h)
+```
+
+**Baselines on pristine `dev`:**
+- (a) **REPAIRED — and the doc's version is worse than "broken", it is *environment-dependent*.**
+  The design doc's `./bin/ailang check "$tmp/multi.ail"` **exits 0 here**, not 1: `mktemp -d` on this
+  machine returns `/var/folders/…/T/tmp.XXXX`, `loader.IsTempPath` matches it
+  (`internal/loader/loader.go:626`, used at `internal/pipeline/pipeline_module.go:740-741`), and
+  MOD010 is auto-relaxed to a **WARNING**. Measured: `rc=0`, `✓ No errors found!`. The *same* fixture
+  in a non-temp directory (`$HOME/...`) gives `rc=1` and
+  `Error MOD010: module 'random_replay_multi' doesn't match file path '…'` — that is the
+  known-positive control proving the instrument works. So this arm passes or fails **depending on
+  `$TMPDIR`**. `--relax-modules` makes it deterministic in both: measured `rc=0` under `/var/folders`,
+  under `/tmp`, and under `$HOME`.
+- (b) DISCRIMINATES: `rc=1` for both greps at baseline (Q7).
+- (c) **VACUOUS**: measured `rc=2` on pristine `dev` — Go's `flag.ExitOnError` already exits 2 on
+  `flag provided but not defined: -seed`. Keep the arm; it is not evidence.
+- (d) DISCRIMINATES: `grep rc=1` at baseline; stderr says `flag provided but not defined: -seed`.
+  **This is why D2 pins the message to stderr and pins the substring.**
+- (e)(g)(h) DISCRIMINATE: at baseline `--random-seed` exits 2 with an empty `random.json`.
+- **Substance CONFIRMED**: `./bin/ailang test --format json --no-color "$tmp/multi.ail"` on this
+  fixture already returns `rc=1` with `ok_property_1 pass tests_run=100` and
+  `broken_property_1 fail tests_run=1` — two properties, failing suite, exactly as AC6 assumes.
+- `--seed=${seed}` uses the `=` form deliberately: the master can be negative and the `=` form is
+  unambiguous.
+
+#### AC9-M2 — derived seed is independent of the absolute checkout path (**REPAIRED — see §5.12 D-4**)
+
+```bash
+set -u
+bin=$(pwd)/bin/ailang
+tmp=$(mktemp -d)
+mkdir -p "$tmp/machine-a/repo/cases" "$tmp/machine-b/repo/cases"
+cat >"$tmp/machine-a/repo/cases/stable.ail" <<'EOF'
+export func stable(x: int) -> bool ! {}
+ensures { result == true } { true }
+EOF
+cp "$tmp/machine-a/repo/cases/stable.ail" "$tmp/machine-b/repo/cases/stable.ail"
+(cd "$tmp/machine-a/repo" && "$bin" test --format json --no-color cases/stable.ail) >"$tmp/a.json"
+(cd "$tmp/machine-b/repo" && "$bin" test --format json --no-color cases/stable.ail) >"$tmp/b.json"
+jq -e '.seed_mode == "derived"' "$tmp/a.json"
+jq -e '.seed_mode == "derived"' "$tmp/b.json"
+# REPAIRED: select(type=="string") — a missing key yields the STRING "null" under `jq -r`
+a=$(jq -er '.properties[] | select(.name=="stable_property_1") | .seed | select(type=="string")' "$tmp/a.json")
+b=$(jq -er '.properties[] | select(.name=="stable_property_1") | .seed | select(type=="string")' "$tmp/b.json")
+test -n "$a"
+test "$a" = "$b"
+# NEGATIVE CONTROL: the derivation must not be a constant.
+c=$(jq -er '.properties[] | select(.name=="stable_property_1") | .seed | select(type=="string")' \
+    <((cd "$tmp/machine-a/repo" && "$bin" test --seed=7 --format json --no-color cases/stable.ail)))
+test "$a" != "$c"
+```
+
+**Baseline on pristine `dev`:**
+- The fixture itself **works** — §0.3's blocker really is discharged. Re-measured, not inherited:
+  `rc=0`, one property `stable_property_1 pass tests_run=100`, `location` already
+  `cases/stable.ail:2:11` (workspace-relative). Note *why* it survives where AC6 does not: AC9 never
+  runs `ailang check`. A module-less file fails `check` with `MOD014: no 'module' declaration`
+  (measured), but `ailang test` synthesises a temp module — stderr shows
+  `WARNING MOD010 (temp-path): module '_test/stable' …  Auto-relaxed`.
+- **The doc's own assertions are 2/5 VACUOUS.** `jq -r` prints the four-character string `null` for a
+  missing key, so `test -s "$tmp/a.seed"` **passes at baseline** (measured: `od -c` shows
+  `n u l l \n`, `test -s` → rc 0) and `cmp a.seed b.seed` **also passes** (both files are `null`).
+  Only `jq -e '.seed_mode == "derived"'` discriminates. Verified fix: with
+  `select(type=="string")`, `jq -er` returns **rc=4** on the null/absent case and **rc=0** with the
+  value on the string case.
+- **§5.3's instruction to “keep AC9 exactly as written” is therefore REFUTED** on runnability
+  (not on substance — the fixture and the claim are both fine).
+- The `--seed=7` negative control is new: without it, a derivation hard-coded to a constant passes
+  every other arm.
+
+#### AC-SEED-SWEEP-M2 — every RNG path went through the derivation (§5.1's failure shape)
+
+```bash
+grep -rn 'time\.Now()\.UnixNano' internal/testing/ ; test $? -ne 0        # (a)
+test "$(grep -rnE 'newRNG\(' internal/testing/*.go | grep -vc 'func newRNG')" -eq 3   # (b)
+grep -rnE 'newRNG\(' internal/testing/*.go | grep -v 'func newRNG' \
+  | grep -c 'propertySeed' | grep -qx 3                                    # (c)
+go test ./internal/testing -run 'TestRunner_AllThreePropertyPathsUseDerivedSeed' -count=1  # (d)
+```
+
+**Baseline**: (a) fails (the sentinel is at `runner.go:667`); (b) **passes at baseline** (there are
+already exactly 3 sites) — it is a *count guard* against a fourth appearing, not evidence; (c) fails
+(zero sites mention `propertySeed`); (d) fails (test does not exist). (c) and (d) are the
+discriminating arms, and (d) is the one that catches `contract_domain.go:89` specifically.
+
+#### AC-SCOPE-M2 — no scope creep
+
+```bash
+git diff --stat -- internal/parser internal/types internal/elaborate internal/eval \
+                   internal/core internal/pipeline internal/link internal/effects   # must be EMPTY
+git diff --stat -- internal/testing/executor.go internal/testing/harness.go \
+                   internal/testing/source_strip.go                                  # must be EMPTY
+grep -n 'requiredAccepted = 100' internal/testing/contract_domain.go                 # M1's bounds intact
+grep -n 'maxAttempts      = 1000' internal/testing/contract_domain.go
+```
+
+**Baseline**: the two `git diff --stat` arms are empty on a clean tree (vacuous until the executor
+edits — they are *stop* conditions checked at the end, not evidence of progress). The two greps pass
+at baseline and must **still** pass at the end: M2 must not touch M1's frozen 100/1000 bounds.
+
+#### AC7-M3 — repository gates (design-doc AC7, with its measured baseline)
+
+```bash
+go test ./internal/testing/... -count=1
+go test ./cmd/ailang/... -count=1
+make lint
+make verify-examples
+```
+
+**Baseline on pristine `dev`, measured 2026-08-07: all four rc=0** (Q9). This is therefore a
+legitimate “did I break anything” gate.
+
+**Expected pre-existing warning noise in `make verify-examples` — 6 lines, not 1.** An executor told
+to expect one will report five false regressions:
+
+```
+⚠ bugs/concat_operator_list_inference.ail: unparseable (covered by verify-examples): PAR_IMPORT_PLACEMENT …
+⚠ experimental/ai_agent_integration.ail: unparseable … PAR_UNEXPECTED_TOKEN …
+⚠ experimental/concurrent_pipeline.ail: unparseable … PAR_NO_PREFIX_PARSE …
+⚠ experimental/factorial.ail: unparseable … expected => after forall binders
+⚠ experimental/web_api.ail: unparseable … IMP012_UNSUPPORTED_NAMESPACE …
+⚠ lambda_expressions.ail: file not found on disk (stale manifest entry)
+```
+
+The run still ends `186 modules checked, 0 drift, 1 missing-on-disk` and
+`✅ verify-examples: all examples pass and manifest is in sync`, rc=0. **None of these is this
+sprint's.** `make lint` similarly reports `1 issues: * unused: 1` and still exits 0.
+
+`make verify-examples` passes the **`run`** subcommand (`scripts/verify_examples.go:104-115`), so a
+green result is **not** evidence that any contract property executed. Record it that way.
+
+#### AC-DOC-SEED-M3 — the `--seed 42` forms of AC1 / AC3 / AC8 return (design doc, D11)
+
+Re-run §4's `AC1-M1`, `AC3-M1` and `AC8-M1` commands with `--seed=42` inserted, and additionally
+assert that the seeded and unseeded runs of `requires_unreachable.ail` agree on
+`generated_inputs == 1000 and discarded_inputs == 1000` (that fixture accepts with p = 0, so it is
+seed-invariant by construction — §0.4).
+
+**Baseline**: fails; `--seed` does not exist (Q7).
+
+### 5.12 Divergences — which document wins, per item
+
+Per the controller's standing rule: **the design doc wins on design; a measured refutation wins on
+AC runnability.**
+
+| # | Divergence | Established by | Winner |
+|---|---|---|---|
+| D-1 | Doc's *Conflict Surface* says all three RNG sites are in `runner.go`. They are at `contract_domain.go:89`, `runner.go:261`, `runner.go:384`. | `grep -rnE 'newRNG\(' internal/testing/*.go` | **HEAD wins.** M1 moved the ensures path; the doc predates `a9e26ffd6`. §5.4 sweeps both files. |
+| D-2 | Doc AC6 line 1 is `./bin/ailang check "$tmp/multi.ail"`. | Measured `rc=0` under `mktemp -d` (temp-path auto-relax) and `rc=1` under `$HOME` — i.e. **`$TMPDIR`-dependent**, not simply broken | **Measurement wins on runnability.** Repaired to `check --relax-modules`, measured `rc=0` in all three locations. Doc's *intent* (the fixture type-checks) is preserved. |
+| D-3 | Doc AC6 asserts `test "$rc" -eq 2` for the flag conflict. | Measured `rc=2` on pristine `dev` (`flag.ExitOnError` on an unknown flag) | **Measurement wins.** Arm kept but labelled vacuous; the `grep -F 'cannot be used together'` arm carries the criterion, and D2 pins the message to **stderr**. |
+| D-4 | §5.3 of this plan said “keep AC9 exactly as written”. | `jq -r` emits the literal string `null` for a missing key, so `test -s` (rc 0) and `cmp` both pass at baseline; only `seed_mode` discriminates | **Measurement wins on runnability; §5.3 wins on substance.** The *fixture* is unblocked as §5.3 says; the *assertions* are 2/5 vacuous and are repaired with `select(type=="string")` plus a `--seed=7` negative control. |
+| D-5 | Doc's module-less identity formula is `filepath.Rel(config.WorkspaceRoot, inputPath)`. | `WorkspaceRoot` is absolute (`os.Getwd`) and AC9 passes a **relative** input (`cases/stable.ail`); `filepath.Rel(abs, rel)` errors | **Doc wins on design, measurement wins on the call.** Same semantics, one added `filepath.Abs` (D3). Covered by S5. |
+| D-6 | Doc's *Files to Modify* omits `cmd/ailang/test.go`'s two aggregation blocks. | Read `cmd/ailang/test.go:50-63` and `:190-203`; the top-level JSON comes from the **aggregate** `SuiteResult` | **Additive to the doc.** §5.5(b) + `SetSeedMetadata` (D8/§5.4 step 9). |
+| D-7 | Doc estimates M2 ≈ 0.5 d, M3 ≈ 0.25–0.5 d, whole feature 650–830 LOC. | M1 alone landed **670 insertions / 136 deletions** (`git show --stat a9e26ffd6`); §5.10 puts M2+M3 at ≈850 net | **Measurement wins.** Revised to ≈2.0–2.4 d. The doc's *scope* is unchanged; only the estimate is. |
+| D-8 | §6 pins the worktree to `/tmp/wt-m-property-seed-determinism` at base `386cf6d15`. | `/tmp`-rooted checkouts red `TestIsTempPath` (`internal/loader`) and `TestSolve_HardTimeout_FakeSolverIgnoringT` (`internal/smt`) for the **location**, not the code; base is 226 non-`design_docs` files stale | **Controller wins.** §6 updated to `/Users/voightkampff/dev/sunholo-data/.wt-iter159` at `086902493`. |
+| D-9 | §6 carries codex sandbox language (“UNINFORMATIVE UNDER SANDBOX”). | The iteration-159 executor is `pi:…deepseek-v4-flash-0731`, which has **no sandbox** | **Controller wins.** §6 rewritten; a gate result from this lane is real. |
+| D-10 | Doc: "The Runner retains the config and passes its master **and workspace root** to the single seed-derivation helper." | — | **Doc wins on design.** The Runner does retain the whole `TestConfig`. D4 only says `WorkspaceRoot` is *consumed* once, at identity resolution, before the Runner is built — that is a narrowing, not a contradiction. |
+
+### 5.13 (historical) What "M1 only" left in the tree — precisely
 
 **Present and complete after M1:**
 - `internal/testing/contract_domain.go` with the full requires filter; `runner.go` at 669 lines.
@@ -648,19 +1197,35 @@ the safe direction and is exactly what tonight ships.
 
 ## 6. Executor operating notes
 
-- **Worktree**: `/tmp/wt-m-property-seed-determinism`, branch `sprint/m-property-seed-determinism`,
-  base `386cf6d15`. `internal/` there is byte-identical to `01c36db8d`.
-- **Design doc is UNTRACKED in the worktree** (`git status` shows `?? design_docs/planned/v0_31_0/
-  m-property-seed-determinism.md`); the tracked copy landed on `dev` in `01c36db8d`. Content is
-  identical (`shasum` = `c9f51414cf59dfe758d64a0bfab4da7aa8b61096` on both). **Do not `git add` it**
-  — it would create a spurious both-added on merge. Only add this sprint plan and the sprint JSON.
+> **§6 was rewritten by the controller at iteration 159, 2026-08-07.** §5.12 rows **D-8** and
+> **D-9** asserted this section had already been updated; it had **not** — the iteration-159
+> planner fire wrote the divergence table and ended before applying the two edits it promised
+> there. Verified at the point of the fix: `sed -n '1198,1214p'` on the pre-fix file still matched
+> `/tmp/wt-`, `386cf6d15`, `codex sandbox` and `Codex cannot`. That is Gate-2 rule 3b(vi) in its
+> exact form — a document's own log refuting its operative section — and it was load-bearing,
+> because §6 is the one section an executor reads to learn *where to work*. The M1-era text below
+> is preserved only where it is still true. §7 and §8 are **historical M1 records**; they are not
+> operative for M2/M3, whose acceptance criteria are §5.11 and whose descope valve is §5.8.
+
+- **Worktree**: `/Users/voightkampff/dev/sunholo-data/.wt-iter159`, branch
+  `sprint/iter159-property-seed-m2m3`, base `086902493` (= `origin/dev` at spawn time).
+  **NEVER `/tmp`** — a `/tmp`-rooted checkout reds `TestIsTempPath` (`internal/loader`) and
+  `TestSolve_HardTimeout_FakeSolverIgnoringT` (`internal/smt`) for the **location**, not the code,
+  and CI never reproduces that red. A sibling of the repo is the standing convention.
+- The design doc `design_docs/planned/v0_31_0/m-property-seed-determinism.md` is **tracked on
+  `dev`** as of `01c36db8d`, so the M1-era "untracked, do not `git add`" note no longer applies.
+  Do not edit the design doc; it is the reviewed artifact and it wins on design (§5.12).
 - **Never create branches in the main checkout.** All work stays in the worktree.
-- The codex sandbox **cannot bind loopback sockets**. Any test failure of that shape is
-  **UNINFORMATIVE UNDER SANDBOX**; record it verbatim and let the controller re-run outside.
-- Codex cannot `git commit` in a linked worktree; the controller finalizes commits.
-- Commit messages: `refs #547` on development commits. Use `Fixes #547` only on the final commit
-  **if and only if** M1 is judged to close it — M1 does close #547; **#535 stays open** and must
-  **not** appear with a closing keyword.
+- **This lane is `pi:openrouter/deepseek/deepseek-v4-flash-0731`, which has NO sandbox.** The
+  codex `UNINFORMATIVE UNDER SANDBOX` caveat does **not** apply: a gate result from this lane is
+  real, and a loopback-bind failure here is a genuine failure, not an infrastructure denial.
+  Because there is no sandbox, containment is the scope fence in this section plus the
+  controller's diff review — the executor performs **no git write operations at all** (no `add`,
+  `commit`, `stash`, `checkout`, `branch`) and touches nothing outside the worktree. The
+  controller builds one commit per milestone from `.snap/M<k>/` snapshots.
+- Commit messages (controller-authored): `refs #535` on development commits; `Fixes #535` on the
+  **final** commit only. **`#547` is already CLOSED** (§5.0 Q8) and must **not** appear with any
+  closing keyword.
 - After every edit: `make fmt && go build ./... && make check-file-sizes`.
 - **Do not** fix the named-test stripper bug (§0.2) or touch `internal/testing/executor.go`.
 
