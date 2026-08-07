@@ -74,7 +74,11 @@ func TestResolveModuleIdentity_DeclaredModuleWins(t *testing.T) {
 // S5 — a moduleless input is workspace-relative, and a relative input resolves
 // identically via filepath.Abs semantics.
 func TestResolveModuleIdentity_ModulelessIsWorkspaceRelative(t *testing.T) {
-	got, err := ResolveModuleIdentity("/w", "/w/cases/s.ail", "")
+	// t.TempDir(), not a "/w" literal: filepath.IsAbs("/w") is FALSE on Windows
+	// (an absolute path there needs a volume), so a POSIX literal makes this row
+	// measure the host OS rather than the derivation.
+	root := t.TempDir()
+	got, err := ResolveModuleIdentity(root, filepath.Join(root, "cases", "s.ail"), "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -92,8 +96,8 @@ func TestResolveModuleIdentity_ModulelessIsWorkspaceRelative(t *testing.T) {
 	if err != nil {
 		t.Fatalf("filepath.Abs: %v", err)
 	}
-	root := filepath.Dir(filepath.Dir(abs))
-	gotRel, err := ResolveModuleIdentity(root, "cases/s.ail", "")
+	cwdRoot := filepath.Dir(filepath.Dir(abs))
+	gotRel, err := ResolveModuleIdentity(cwdRoot, "cases/s.ail", "")
 	if err != nil {
 		t.Fatalf("unexpected error for relative input: %v", err)
 	}
@@ -107,14 +111,17 @@ func TestResolveModuleIdentity_ModulelessIsWorkspaceRelative(t *testing.T) {
 //
 // The plan's §5.6 S6 row proposed "root /w, abs input on another volume prefix".
 // That trigger does not exist on POSIX: filepath.Rel relates ANY two absolute
-// paths by walking up, so Rel("/w", "/other/cases/s.ail") returns
-// "../other/cases/s.ail" with a nil error. Since D3 makes the input absolute
-// before the Rel call, the one reachable error shape is a RELATIVE workspace
-// root — which is also what TestConfig.Validate rejects, and which
-// ResolveModuleIdentity must refuse rather than paper over, because this value
-// decides a seed.
+// paths by walking up, so Rel(root, sibling) returns a "../"-prefixed path with
+// a nil error. Since D3 makes the input absolute before the Rel call, the one
+// reachable error shape on every platform is a RELATIVE workspace root — which
+// is also what TestConfig.Validate rejects, and which ResolveModuleIdentity must
+// refuse rather than paper over, because this value decides a seed.
+//
+// Paths are built from t.TempDir() rather than "/w" literals so the row measures
+// the derivation and not filepath.IsAbs's platform rules (see S5).
 func TestResolveModuleIdentity_ErrorsAreLoud(t *testing.T) {
-	got, err := ResolveModuleIdentity("w", "/abs/cases/s.ail", "")
+	base := t.TempDir()
+	got, err := ResolveModuleIdentity("relative-root", filepath.Join(base, "cases", "s.ail"), "")
 	if err == nil {
 		t.Fatalf("expected an error, got nil (identity %q)", got)
 	}
@@ -124,7 +131,7 @@ func TestResolveModuleIdentity_ErrorsAreLoud(t *testing.T) {
 
 	// An out-of-workspace input is NOT an error: it is workspace-relative like
 	// any other, and stays independent of the absolute checkout path (AC9).
-	esc, err := ResolveModuleIdentity("/w", "/other/cases/s.ail", "")
+	esc, err := ResolveModuleIdentity(filepath.Join(base, "w"), filepath.Join(base, "other", "cases", "s.ail"), "")
 	if err != nil {
 		t.Fatalf("out-of-workspace input should resolve, got error: %v", err)
 	}
@@ -136,7 +143,11 @@ func TestResolveModuleIdentity_ErrorsAreLoud(t *testing.T) {
 // S7 — empty root, relative root, and unknown SeedMode each error; a valid
 // config does not.
 func TestTestConfig_Validate(t *testing.T) {
-	valid := TestConfig{WorkspaceRoot: "/w", SeedMode: SeedModeDerived}
+	// An absolute root on EVERY platform. "/w" is not absolute on Windows, which
+	// would make the valid case fail and the bogus-SeedMode case below pass for
+	// the wrong reason (rejected on the root, never reaching the mode switch).
+	absRoot := t.TempDir()
+	valid := TestConfig{WorkspaceRoot: absRoot, SeedMode: SeedModeDerived}
 	if err := valid.Validate(); err != nil {
 		t.Errorf("valid config returned error: %v", err)
 	}
@@ -144,7 +155,7 @@ func TestTestConfig_Validate(t *testing.T) {
 	bad := []TestConfig{
 		{WorkspaceRoot: "", SeedMode: SeedModeDerived},
 		{WorkspaceRoot: "relative/root", SeedMode: SeedModeDerived},
-		{WorkspaceRoot: "/w", SeedMode: SeedMode("bogus")},
+		{WorkspaceRoot: absRoot, SeedMode: SeedMode("bogus")},
 	}
 	for i, c := range bad {
 		if err := c.Validate(); err == nil {
