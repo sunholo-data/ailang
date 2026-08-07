@@ -4,6 +4,9 @@ import (
 	"bufio"
 	"context"
 	"io"
+	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -196,6 +199,17 @@ type NetContext struct {
 	AllowMetadata  bool          // Allow cloud metadata server at 169.254.169.254 (default: false)
 	AllowedDomains []string      // Domain allowlist (empty = all allowed)
 	UserAgent      string        // User-Agent header
+
+	// The following hooks are unexported and nil in production. They let
+	// package-internal tests inject resolver/dial/proxy-selection behavior so
+	// the proxied-vs-direct routing guarantees (exactly-once direct resolution;
+	// zero proxy-route resolution; proxy address never fed to the target-IP
+	// substitution) are falsifiable with call counters and are order-independent
+	// in-process. When nil, the real net.LookupIP / net.Dialer /
+	// http.ProxyFromEnvironment are used.
+	lookupIP      func(hostname string) ([]net.IP, error)
+	dialContext   func(ctx context.Context, network, addr string) (net.Conn, error)
+	proxySelector func(req *http.Request) (*url.URL, error)
 }
 
 // NewNetContext creates a new net context with secure defaults

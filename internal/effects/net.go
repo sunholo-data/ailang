@@ -2,10 +2,8 @@ package effects
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -81,36 +79,18 @@ func netHTTPGet(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return nil, fmt.Errorf("E_NET_DOMAIN_BLOCKED: domain not in allowlist: %s", u.Hostname())
 	}
 
-	// Step 4: DNS resolution + IP validation (prevent DNS rebinding)
-	validatedIP, err := resolveAndValidateIP(u.Hostname(), ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Step 5: Build HTTP client with security config
+	// Step 4: Build HTTP client with security config. Route selection (direct
+	// IP-pinned vs proxied) and target resolution+validation happen inside the
+	// request-aware RoundTripper, once per round trip (see net_proxy.go).
 	client := &http.Client{
 		Timeout: ctx.Net.Timeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return validateRedirect(req, via, ctx)
 		},
-		Transport: &http.Transport{
-			// Force connection to validated IP (prevent DNS rebinding mid-request)
-			DialContext: func(ctxDial context.Context, network, addr string) (net.Conn, error) {
-				// Replace hostname with validated IP in dial address
-				_, port, _ := net.SplitHostPort(addr)
-				if port == "" {
-					port = "443" // Default HTTPS port
-					if u.Scheme == "http" {
-						port = "80"
-					}
-				}
-				dialAddr := net.JoinHostPort(validatedIP, port)
-				return (&net.Dialer{}).DialContext(ctxDial, network, dialAddr)
-			},
-		},
+		Transport: &netProxyRoundTripper{ctx: ctx},
 	}
 
-	// Step 6: Make request with proper headers
+	// Step 5: Make request with proper headers
 	req, err := http.NewRequest("GET", urlStr.Value, nil)
 	if err != nil {
 		return nil, fmt.Errorf("E_NET_REQUEST_FAILED: %w", err)
@@ -120,6 +100,9 @@ func netHTTPGet(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
+		if orig := unwrapTargetValidation(err); orig != nil {
+			return nil, orig
+		}
 		return nil, fmt.Errorf("E_NET_REQUEST_FAILED: %w", err)
 	}
 	defer resp.Body.Close()
@@ -197,34 +180,17 @@ func netHTTPPost(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return nil, fmt.Errorf("E_NET_DOMAIN_BLOCKED: domain not in allowlist: %s", u.Hostname())
 	}
 
-	// Step 4: DNS resolution + IP validation
-	validatedIP, err := resolveAndValidateIP(u.Hostname(), ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Step 5: Build HTTP client with security config
+	// Step 4: Build HTTP client with security config (see net_proxy.go for
+	// direct/proxy routing and once-per-round-trip target resolution).
 	client := &http.Client{
 		Timeout: ctx.Net.Timeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return validateRedirect(req, via, ctx)
 		},
-		Transport: &http.Transport{
-			DialContext: func(ctxDial context.Context, network, addr string) (net.Conn, error) {
-				_, port, _ := net.SplitHostPort(addr)
-				if port == "" {
-					port = "443"
-					if u.Scheme == "http" {
-						port = "80"
-					}
-				}
-				dialAddr := net.JoinHostPort(validatedIP, port)
-				return (&net.Dialer{}).DialContext(ctxDial, network, dialAddr)
-			},
-		},
+		Transport: &netProxyRoundTripper{ctx: ctx},
 	}
 
-	// Step 6: Make POST request
+	// Step 5: Make POST request
 	req, err := http.NewRequest("POST", urlStr.Value, strings.NewReader(bodyStr.Value))
 	if err != nil {
 		return nil, fmt.Errorf("E_NET_REQUEST_FAILED: %w", err)
@@ -235,6 +201,9 @@ func netHTTPPost(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
+		if orig := unwrapTargetValidation(err); orig != nil {
+			return nil, orig
+		}
 		return nil, fmt.Errorf("E_NET_REQUEST_FAILED: %w", err)
 	}
 	defer resp.Body.Close()
@@ -313,9 +282,11 @@ func validateRedirect(req *http.Request, via []*http.Request, ctx *EffContext) e
 		return err
 	}
 
-	// Re-validate IP for redirect target (prevent DNS rebinding via redirect)
-	_, err := resolveAndValidateIP(req.URL.Hostname(), ctx)
-	return err
+	// NB: redirect target resolution + IP validation is deliberately NOT done
+	// here. It happens per round trip inside the request-aware RoundTripper
+	// (net_proxy.go): proxied redirects resolve nothing; direct redirects
+	// resolve+validate the new target exactly once before dialing it.
+	return nil
 }
 
 // isAllowedDomain checks if a hostname is in the domain allowlist
@@ -561,11 +532,10 @@ func buildSecureRequest(
 		return nil, nil, makeResultErr("DisallowedHost", u.Hostname())
 	}
 
-	// DNS resolution + IP validation (prevent DNS rebinding)
-	validatedIP, err := resolveAndValidateIP(u.Hostname(), ctx)
-	if err != nil {
-		return nil, nil, makeResultErr("Transport", err.Error())
-	}
+	// NB: DNS resolution + IP validation is NOT done here as preflight. It
+	// happens exactly once per direct round trip inside the request-aware
+	// RoundTripper before dialing (see net_proxy.go). Proxied round trips
+	// perform no local target resolution at all.
 
 	// Parse and validate headers
 	userHeaders, err := parseHeaders(headersList)
@@ -573,7 +543,8 @@ func buildSecureRequest(
 		return nil, nil, makeResultErr("InvalidHeader", err.Error())
 	}
 
-	// Build HTTP client with security config (DialContext pinned to validated IP)
+	// Build HTTP client with security config (direct/proxy routing lives in the
+	// request-aware RoundTripper, net_proxy.go).
 	originalHost := u.Host // Save for cross-origin detection
 	client := &http.Client{
 		Timeout: ctx.Net.Timeout,
@@ -584,19 +555,7 @@ func buildSecureRequest(
 			}
 			return validateRedirect(req, via, ctx)
 		},
-		Transport: &http.Transport{
-			DialContext: func(ctxDial context.Context, network, addr string) (net.Conn, error) {
-				_, port, _ := net.SplitHostPort(addr)
-				if port == "" {
-					port = "443"
-					if u.Scheme == "http" {
-						port = "80"
-					}
-				}
-				dialAddr := net.JoinHostPort(validatedIP, port)
-				return (&net.Dialer{}).DialContext(ctxDial, network, dialAddr)
-			},
-		},
+		Transport: &netProxyRoundTripper{ctx: ctx},
 	}
 
 	// Build request
@@ -628,7 +587,10 @@ func buildSecureRequest(
 func executeAndBuildResponse(ctx *EffContext, client *http.Client, req *http.Request) (eval.Value, error) {
 	resp, err := client.Do(req)
 	if err != nil {
-		return makeResultErr("Transport", err.Error()), nil
+		// transportMessage unwraps the typed target-validation error out of the
+		// *url.Error wrapper to preserve the original E_NET_DNS_FAILED /
+		// E_NET_IP_BLOCKED category text from the direct route.
+		return makeResultErr("Transport", transportMessage(err)), nil
 	}
 	defer resp.Body.Close()
 
