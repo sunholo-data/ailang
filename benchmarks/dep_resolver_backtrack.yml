@@ -10,7 +10,7 @@ entrypoint: "main"
 caps: ["IO"]
 difficulty: "very_hard"
 expected_gain: "medium"
-tier: frontier # M-EVAL-FRONTIER-TIER (v0.29.0): re-tiered stretch->frontier per design-doc 2026-07-08 authoring update. Frontier-FAILURE validation (must fail >=1 frontier model in standard mode) is PARKED (API-billed, headless mission loop) - see design_docs/planned/v0_29_0/m-eval-frontier-tier.md parked_out_of_scope.
+tier: stretch # v0.32.0 curation cycle: demoted frontier->stretch per CURATION.md §5 (all 3 flagships -- gpt5-6-sol, claude-opus-5, gemini-3-1-pro -- passed in standard mode; no longer defeats the frontier). See design_docs/implemented/v0_32_0/m-eval-standard-confidence-gating.md for the baseline this was audited from.
 tags: [algorithmic, recursion, error_handling]
 task_prompt: |
   Write a program in <LANG> that implements a package dependency resolver with

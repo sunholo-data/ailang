@@ -1,0 +1,12 @@
+module internal/testing/testdata/contracts/ordered
+
+export func g(x: int, y: int) -> bool ! {}
+
+requires { x > 0, y > 0 }
+ensures { result == true } { x > 0 }
+
+
+export func h(x: int) -> bool ! {}
+
+
+ensures { result == true } { true }

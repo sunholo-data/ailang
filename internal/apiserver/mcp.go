@@ -88,7 +88,7 @@ func (ms *MCPServer) registerTools() {
 			if export.Arity < 0 {
 				continue
 			}
-			if !ms.server.isExposed(export) {
+			if !loadedExportMember(ms.server.routesOnly, export) {
 				continue
 			}
 			if export.IsNoMCP {
@@ -372,15 +372,5 @@ func ailangTypeToJSONSchema(ailangType string) string {
 		return "string" // base64 or file path
 	default:
 		return "string"
-	}
-}
-
-// mcpError creates an MCP error result.
-func mcpError(msg string) *mcp.CallToolResult {
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			&mcp.TextContent{Text: msg},
-		},
-		IsError: true,
 	}
 }

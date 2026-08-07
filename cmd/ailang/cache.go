@@ -99,6 +99,18 @@ func getProjectBrainPath() string {
 	dir, _ := os.Getwd()
 	for {
 		if _, err := os.Stat(filepath.Join(dir, ".ailang")); err == nil {
+			// A linked git worktree materialises .ailang/state/ from tracked
+			// files (evaluations/, sprints/), so the walk stops at the worktree
+			// and opens an EMPTY brain that shadows the main checkout's. Agent
+			// work is deliberately worktree-isolated here, so that silently
+			// gave a cold brain to exactly the sessions that most need a warm
+			// one. The brain is a project-knowledge cache and worktrees are
+			// transient branches of the same project — sharing the main brain
+			// is also the only way accumulated learning isn't fragmented
+			// per-branch and lost when the worktree is removed.
+			if main := mainWorktreeRoot(dir); main != "" {
+				return filepath.Join(main, ".ailang", "state", "brain.db")
+			}
 			return filepath.Join(dir, ".ailang", "state", "brain.db")
 		}
 		parent := filepath.Dir(dir)
@@ -109,6 +121,35 @@ func getProjectBrainPath() string {
 	}
 	// Fallback: use cwd
 	return filepath.Join(".ailang", "state", "brain.db")
+}
+
+// mainWorktreeRoot returns the main worktree's root path when dir is the root of
+// a LINKED git worktree, or "" when it isn't one (including the main worktree
+// itself, where .git is a directory rather than a file).
+//
+// A linked worktree's .git is a file holding:
+//
+//	gitdir: /path/to/main/.git/worktrees/<name>
+func mainWorktreeRoot(dir string) string {
+	b, err := os.ReadFile(filepath.Join(dir, ".git"))
+	if err != nil {
+		// .git is a directory (main worktree), absent, or unreadable.
+		return ""
+	}
+	line := strings.TrimSpace(string(b))
+	rest, ok := strings.CutPrefix(line, "gitdir:")
+	if !ok {
+		return ""
+	}
+	gitDir := filepath.Clean(strings.TrimSpace(rest))
+	sep := string(filepath.Separator)
+	marker := sep + ".git" + sep + "worktrees" + sep
+	i := strings.Index(gitDir, marker)
+	if i <= 0 {
+		// Not a worktree gitdir (e.g. a plain submodule pointer).
+		return ""
+	}
+	return gitDir[:i]
 }
 
 func parseScope(s string) effects.BrainScope {

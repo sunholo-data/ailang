@@ -54,6 +54,29 @@ For larger changes, use the **Design Discussion** issue template. If accepted, t
 
 You don't need to write AILANG code to make a significant design contribution.
 
+### Claude Code plugins (LSP) — one-time developer setup
+
+This repo ships a local Claude Code marketplace at
+[.claude-plugin/marketplace.json](.claude-plugin/marketplace.json):
+
+- **ailang-go-lsp** — runs `gopls` so Claude gets real-time Go diagnostics,
+  go-to-definition, find-references, and hover types instead of grepping.
+  Requires `gopls` on PATH (`go install golang.org/x/tools/gopls@latest`).
+- **ailang-lsp** — runs `ailang lsp --stdio` for the same capabilities on
+  `.ail` files (diagnostics, hover types with effect rows, go-to-def,
+  references, document symbols). Requires `ailang` on PATH (`make install`).
+
+Install once per developer, from an interactive `claude` terminal:
+
+```
+/plugin marketplace add /Users/mark/dev/sunholo/ailang
+/plugin install ailang-go-lsp@ailang-tools
+/plugin install ailang-lsp@ailang-tools
+```
+
+Verify with `/plugin` — both should show under Installed, nothing under Errors.
+User guide: [docs/docs/guides/lsp.md](docs/docs/guides/lsp.md).
+
 ### AI Agent Contributors
 
 If you're an AI agent (or operating one) and want to contribute, the preferred path is programmatic issue creation via the `gh` CLI. This feeds directly into our auto-triage pipeline.

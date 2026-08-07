@@ -3,7 +3,7 @@
 #
 # Runs the smoke + core tiers (every `tier: smoke` / `tier: core` benchmark,
 # default-core included) against the accuracy-first local Qwen model
-# (opencode-qwen3-5-35b-a3b-mxfp8). Regressions — benchmarks with a passing
+# (opencode-qwen3-6-35b-a3b-mxfp8). Regressions — benchmarks with a passing
 # baseline that now fail every trial — alert via Discord; never-passed
 # benchmarks are filed to the controlplane inbox as known gaps for the
 # gap-finder (no Discord). See eval_baselines gating below.
@@ -117,7 +117,16 @@ log "build OK: ${BUILD_VERSION} (commit ${SHORT})"
 # skip. Without it the eval-suite tries to "run" events.yml, LoadSpec rejects it
 # ("missing required field: id"), and it produces zero results — a phantom gap
 # that wasted two trial slots in the first smoke+core run.
-MODEL="opencode-qwen3-5-35b-a3b-mxfp8"
+# qwen3.5 retired from every active lane 2026-08-01 (Mark directive on #484:
+# "Remove qwen 3.5 only use qwen 3.6"). os-rotation-filler had already dropped it
+# on 2026-06-15; this was the last driver still pinning it. The swap does NOT
+# blind the regression guard: opencode-qwen3-6-35b-a3b-mxfp8 already carries 60
+# banked baselines (44 with >=5 passing trials) from the OS rotation, vs
+# qwen3.5's 61/58 — so adaptive thresholds cover 44 benchmarks from day one and
+# the other 16 fall back to the fixed THRASH ceiling below until they accrue 5
+# passing samples. qwen3.5 registry entries are deliberately KEPT in models.yml:
+# 2,438 banked pass-trials are attributed to them.
+MODEL="opencode-qwen3-6-35b-a3b-mxfp8"
 BENCH_TIERS="smoke,core"   # display label for alerts/log
 # Thrash ceiling per benchmark (M-EVAL-OS-LONGITUDINAL). When eval_baselines has
 # >=5 passing samples for a (model, benchmark), the eval-suite uses an adaptive
@@ -180,12 +189,42 @@ RUN_AB_FMT=0
 [[ "${AILANG_AB_MICRORAG:-1}" == "0" ]] && RUN_AB_MICRORAG=0
 [[ "${AILANG_AB_FMT:-1}" == "0" ]] && RUN_AB_FMT=0
 
+# select_ab_benchmarks <model> <max> -- echo a comma-separated benchmark set chosen
+# by CONFIDENCE from the ratings DB, or nothing if selection is unavailable.
+#
+# WHY THIS EXISTS. Both A/Bs used to pick their benchmarks by hand:
+# microRAG took every smoke+core benchmark (tier is a proxy for "cheap", not for
+# "informative"), and fmt used a list frozen at selection time. Measured against
+# the seeded agent ratings on 2026-07-31, 17 of the 32 rated smoke+core
+# benchmarks sit in the Trivial band -- every model passes, so the pair is always
+# concordant and contributes exactly ZERO to McNemar. That is over half the
+# night's GPU buying no information, and it is the mechanism behind the recurring
+# "both arms ~100%, 0 discordant pairs, no p-value" nulls.
+#
+# `--benchmarks-by-confidence` drops the saturated band and ranks the rest by
+# proximity to the field's median rating, which is where discordance -- the thing
+# McNemar actually consumes -- is maximised. It only became usable once
+# `eval-elo --persist` stopped being a silent no-op (see cmd/ailang/eval_elo.go);
+# before that the ratings DB had zero agent rows and this path could not run.
+#
+# NO SILENT FALLBACK: if selection fails, the caller SKIPS its A/B rather than
+# quietly running a stale or saturated set. A null from the wrong benchmarks is
+# indistinguishable from a null from a working treatment, and we have already
+# spent weeks on that ambiguity.
+select_ab_benchmarks() {
+    local model="$1" max="$2"
+    "$BIN" eval-suite --agent --models "$model" \
+        --benchmarks-by-confidence auto --max-benchmarks "$max" \
+        --langs ailang --dry-run 2>/dev/null \
+        | grep '^Benchmarks:' | sed 's/^Benchmarks:[[:space:]]*//' | tr -d ' '
+}
+
 run_eval() {
     local mode="$1" outdir="$2"
     log "running smoke: microrag=${mode} → ${outdir}"
     "$BIN" eval-suite --agent \
         --models "$MODEL" \
-        --benchmarks "$BENCH_LIST" \
+        --benchmarks "${RAG_BENCH_LIST:-$BENCH_LIST}" \
         --langs ailang \
         --microrag "$mode" \
         --output "$outdir" \
@@ -193,6 +232,37 @@ run_eval() {
         --trials 2 \
         --max-tokens-per-bench "$MAX_TOKENS_PER_BENCH" >> "$LOG" 2>&1
 }
+
+# Count passing results in an arm dir. Both arms of an A/B MUST be counted the
+# same way — the old PASS_ON had a grep-first path whose `||` fallback could
+# never fire (the pipeline's exit status is cut's, which is 0 even when grep
+# matched nothing). It therefore yielded an EMPTY string, which `${PASS_ON:-0}`
+# turned into a literal 0 and banked as a real 0% measurement. That is exactly
+# how the 2026-07-20 row (on_pass=0, delta_pp=-73.8) entered microrag_ab.jsonl.
+# Top-level on purpose: BOTH the microRAG (Monday) and fmt (Wednesday) A/B
+# blocks call it — defined inside the microRAG block it was undefined on
+# fmt-only nights, and under `set -e` the 127 killed the whole run at the
+# comparison step (2026-08-05: 8.5h of evals died unbanked at line 477).
+count_passes() {
+    python3 -c "
+import json,glob,sys
+fs=glob.glob('$1/agent/*.json')
+if not fs: sys.exit(3)
+print(sum(1 for f in fs
+          for d in [json.load(open(f))]
+          if d.get('compile_ok') and d.get('runtime_ok') and d.get('stdout_ok')))" 2>/dev/null
+}
+
+# microRAG arm set: confidence-selected, not the smoke+core tier dump.
+    RAG_BENCH_LIST="${AILANG_AB_MICRORAG_BENCHMARKS:-$(select_ab_benchmarks "$MODEL" "${AILANG_AB_MICRORAG_N:-12}")}"
+    if [[ -z "$RAG_BENCH_LIST" ]]; then
+        log "microRAG A/B SKIPPED: confidence selection returned nothing (seed ratings: go run ./tools/eval-elo --mode agent --persist ~/.ailang/state/observatory.db <results_dir>)"
+        ailang messages send controlplane \
+            "microRAG A/B skipped (${DATE}): no agent benchmark ratings, so the arm set could not be chosen by headroom. Running the saturated tier set would produce another uninterpretable null." \
+            --title "microRAG A/B skipped (${DATE})" --from "nightly-eval" 2>/dev/null || true
+        RUN_AB_MICRORAG=0
+    fi
+    log "microRAG arm set (confidence-selected): ${RAG_BENCH_LIST}"
 
 run_eval "on"  "${RESULTS_DIR}_rag_on"
 
@@ -206,23 +276,12 @@ if [[ "$RUN_AB_MICRORAG" == "1" ]]; then
     log "microRAG A/B night: also running microrag=off"
     run_eval "off" "${RESULTS_DIR}_rag_off"
 
-    # Compare. Both arms MUST be counted the same way — the old PASS_ON had a
-    # grep-first path whose `||` fallback could never fire (the pipeline's exit
-    # status is cut's, which is 0 even when grep matched nothing). It therefore
-    # yielded an EMPTY string, which `${PASS_ON:-0}` below turned into a literal
-    # 0 and banked as a real 0% measurement. That is exactly how the
-    # 2026-07-20 row (on_pass=0, delta_pp=-73.8) entered microrag_ab.jsonl.
-    count_passes() {
-        python3 -c "
-import json,glob,sys
-fs=glob.glob('$1/agent/*.json')
-if not fs: sys.exit(3)
-print(sum(1 for f in fs
-          for d in [json.load(open(f))]
-          if d.get('compile_ok') and d.get('runtime_ok') and d.get('stdout_ok')))" 2>/dev/null
-    }
-    PASS_ON=$(count_passes "${RESULTS_DIR}_rag_on")
-    PASS_OFF=$(count_passes "${RESULTS_DIR}_rag_off")
+    # Compare with the shared top-level count_passes (see its comment for why
+    # both arms must be counted the same way).
+    # `|| true`: under set -e a bare failing substitution kills the run before
+    # the non-numeric guard below can turn it into a refuse-to-bank.
+    PASS_ON=$(count_passes "${RESULTS_DIR}_rag_on" || true)
+    PASS_OFF=$(count_passes "${RESULTS_DIR}_rag_off" || true)
     log "A/B result: microrag_on=${PASS_ON} microrag_off=${PASS_OFF}"
     if [[ "${PASS_ON:-x}" =~ ^[0-9]+$ && "${PASS_OFF:-x}" =~ ^[0-9]+$ ]]; then
         DELTA=$(( PASS_ON - PASS_OFF ))
@@ -382,7 +441,20 @@ fi  # end microRAG A/B
         #
         #   config_file_parser .55 | parse_prec_climb .47 | legal_obligation .44
         #   ssa_constant_fold  .35 | bytecode_vm_trace .68
-        FMT_BENCH_LIST="${AILANG_AB_FMT_BENCHMARKS:-config_file_parser,parse_prec_climb,legal_obligation_engine,ssa_constant_fold,bytecode_vm_trace}"
+        # Confidence-selected, not frozen. The list below WAS hand-picked by the
+        # ELO rule above, against subject ELO 2196 -- but a hardcoded set silently
+        # goes stale the moment the subject's rating moves, which is exactly the
+        # failure this comment warns about one paragraph earlier. Selecting at run
+        # time from the ratings DB makes the rule self-applying instead of a
+        # snapshot someone has to remember to redo.
+        FMT_BENCH_LIST="${AILANG_AB_FMT_BENCHMARKS:-$(select_ab_benchmarks "motoko-local-qwen3-6-fmt" "${AILANG_AB_FMT_N:-6}")}"
+        if [[ -z "$FMT_BENCH_LIST" ]]; then
+            log "fmt A/B SKIPPED: confidence selection returned nothing (seed ratings: go run ./tools/eval-elo --mode agent --persist ~/.ailang/state/observatory.db <results_dir>)"
+            ailang messages send controlplane \
+                "fmt A/B skipped (${DATE}): no agent benchmark ratings, so the arm set could not be chosen by headroom. Running a stale set would produce another uninterpretable null." \
+                --title "fmt A/B skipped (${DATE})" --from "nightly-eval" 2>/dev/null || true
+            RUN_AB_FMT=0
+        fi
         # N>=5 per the prereg. The previous 2 was inherited from the microRAG
         # block, not chosen for this experiment.
         FMT_TRIALS="${AILANG_AB_FMT_TRIALS:-5}"
@@ -411,8 +483,10 @@ fi  # end microRAG A/B
         # weekly unable to conclude anything.
         FMT_PAIRED=$("$BIN" eval-paired --with-pairs=true "${RESULTS_DIR}_fmt_on" "${RESULTS_DIR}_fmt_off" 2>>"$LOG" || echo "")
 
-        FMT_ON=$(count_passes "${RESULTS_DIR}_fmt_on")
-        FMT_OFF=$(count_passes "${RESULTS_DIR}_fmt_off")
+        # `|| true`: same as the microRAG arm — let the FMT_VALID guard see an
+        # empty value instead of set -e killing the run here.
+        FMT_ON=$(count_passes "${RESULTS_DIR}_fmt_on" || true)
+        FMT_OFF=$(count_passes "${RESULTS_DIR}_fmt_off" || true)
         FMT_ON_T=$(find "${RESULTS_DIR}_fmt_on"/agent -name '*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
         FMT_OFF_T=$(find "${RESULTS_DIR}_fmt_off"/agent -name '*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
         log "fmt A/B result: on=${FMT_ON}/${FMT_ON_T} off=${FMT_OFF}/${FMT_OFF_T}"
@@ -485,7 +559,7 @@ CLASSIFIED=$(python3 "$WT/tools/nightly_classify.py" \
     --update-history)
 
 HEALTH=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="HEALTH"{sub(/^HEALTH\t/,""); print}')
-INVALID=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="INVALID"{print $2"\t"$3"\t"$4"\t"$5}')
+INVALID=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="INVALID"{print $2"\t"$3"\t"$4"\t"$5"\t"$6}')
 REGRESSIONS=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="REGRESSION"{print $2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7}' | sed '/^[[:space:]]*$/d')
 SUSTAINED=$(echo "$CLASSIFIED"   | awk -F'\t' '$1=="SUSTAINED-FAILURE"{print $2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7}' | sed '/^[[:space:]]*$/d')
 SUSPECTED=$(echo "$CLASSIFIED"   | awk -F'\t' '$1=="SUSPECTED-FLAKE"{print $2"\t"$3"\t"$4"\t"$5"\t"$6}' | sed '/^[[:space:]]*$/d')
@@ -494,8 +568,8 @@ INSUFFICIENT=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="INSUFFICIENT-HISTORY"{print
 log "$HEALTH"
 
 if [[ -n "$INVALID" ]]; then
-    IFS=$'\t' read -r INVALID_REASON INVALID_TAINT INVALID_RATE INVALID_MEDIAN <<< "$INVALID"
-    INVALID_BANNER="INVALID nightly run: ${INVALID_REASON}; infra-tainted ${INVALID_TAINT}; pass rate ${INVALID_RATE} vs trailing median ${INVALID_MEDIAN}."
+    IFS=$'\t' read -r INVALID_REASON INVALID_TAINT INVALID_RATE INVALID_MEDIAN INVALID_CATEGORY <<< "$INVALID"
+    INVALID_BANNER="INVALID nightly run: ${INVALID_REASON}; unmeasured ${INVALID_TAINT} ${INVALID_CATEGORY}; pass rate ${INVALID_RATE} vs trailing median ${INVALID_MEDIAN}."
     log "$INVALID_BANNER"
     ailang messages send controlplane \
         "${INVALID_BANNER}

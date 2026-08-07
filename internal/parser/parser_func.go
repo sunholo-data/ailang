@@ -391,15 +391,57 @@ func (p *Parser) parseFunctionBody() ast.Expr {
 // It is deliberately conservative — it requires BOTH:
 //   - peek is on a LATER line than cur (`p.peekToken.Line > p.curToken.Line`), the
 //     same line-awareness the M-GAP2 LPAREN fix uses; AND
-//   - peek is an unambiguous statement-starter (let/letrec/if/match/identifier), via
-//     peekStartsBlockStatement.
+//   - peek is an unambiguous statement-starter: the PAR020 set
+//     (let/letrec/if/match/identifier) or a LITERAL (peekIsLiteralStatementStart).
 //
-// Because operators, literals, `(`, etc. are NOT statement-starters, a multi-line
+// Because operators and `(`/`[`/`{` are NOT statement-starters, a multi-line
 // expression (`= 1\n+ 2`, `{ 1\n+ 2 }`) is never split. Same-line adjacency
 // (`{ let x = 1 let y = 2 }`) fails the line check and still yields the PAR020
 // "missing ;" error at the guard sites.
 func (p *Parser) peekStartsNewlineBlockStatement() bool {
-	return p.peekToken.Line > p.curToken.Line && p.peekStartsBlockStatement()
+	if p.peekToken.Line <= p.curToken.Line {
+		return false
+	}
+	return p.peekStartsBlockStatement() || p.peekIsLiteralStatementStart()
+}
+
+// peekIsLiteralStatementStart reports whether the peek token is a literal that can
+// only begin a new statement, never continue the previous one.
+//
+// # WHY THIS IS SEPARATE FROM peekStartsBlockStatement
+//
+// R2 originally excluded every literal, on the reasoning that a literal after a
+// newline is more likely a mid-expression parse error than a dropped `;`. For the
+// SAME-LINE PAR020 hint that still holds, so peekStartsBlockStatement keeps the
+// narrow set. Across a newline it does not, and the omission was a real gap: a
+// block whose last statement begins with a literal simply did not parse.
+//
+//	export func f() -> string {
+//	  let a = "x"
+//	  "${a} y"        -- PAR_UNEXPECTED_TOKEN: expected }, got STRING_PART
+//	}
+//
+// That is the exact shape `ailang fmt` emits (it drops `;`, and re-sugars
+// interpolation as of M-FMT-DIALECT-ALIGNMENT), and the exact shape a model writes
+// when the prompt teaches both newline separators and `"${x}"`. It failed for every
+// literal kind — string, interpolated string, int, float, bool — not just strings.
+//
+// # WHY THESE TOKENS AND NOT `(` / `[` / `{`
+//
+// AILANG has no juxtaposition application, so no literal can ever appear in infix
+// or postfix position: `expr "s"` and `expr 42` are not expressions. A newline
+// followed by one of these is therefore unambiguously a new statement. `(`, `[`
+// and `{` are excluded because they DO continue an expression — call, indexing
+// (precCall), and record-update respectively — which is the M-GAP2 ambiguity R2
+// was built around. Prefix operators (`-`, `not`, `\`) are likewise excluded:
+// `-` is infix, and the others have no measured need.
+func (p *Parser) peekIsLiteralStatementStart() bool {
+	switch p.peekToken.Type {
+	case lexer.STRING, lexer.STRING_PART, lexer.INT, lexer.FLOAT, lexer.TRUE, lexer.FALSE:
+		return true
+	default:
+		return false
+	}
 }
 
 // parseEquationBody parses the body of an equation-form function (`func f() = ...`).

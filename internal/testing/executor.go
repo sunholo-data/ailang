@@ -203,9 +203,15 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 	// Named test blocks use semicolons to separate bindings (let x = ...; let y = ...)
 	// which the parser emits as separate ast.Let nodes with Body==nil.  We must
 	// chain them before printing so we produce valid AILANG ("let x = ... in ...").
-	folded := FoldBodyExprs(bodyExprs)
+	//
+	// FoldTestBody additionally lowers top-level `assert` statements into a
+	// short-circuiting `if` chain over an int sentinel (#590) — `assert` has no
+	// prefix parselet in the general grammar, so it cannot survive the round-trip
+	// verbatim. `checks` is empty for assert-free bodies, which keep the legacy
+	// bool path unchanged.
+	folded, checks := FoldTestBody(bodyExprs)
 	if folded == nil {
-		return nil, fmt.Errorf("named test block: FoldBodyExprs returned nil")
+		return nil, fmt.Errorf("named test block: FoldTestBody returned nil")
 	}
 
 	// Append the folded body expression.
@@ -325,7 +331,50 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 	if err != nil {
 		return nil, fmt.Errorf("evaluation error: %w", err)
 	}
+
+	// Assert-bearing bodies evaluate to an int sentinel rather than a bool;
+	// translate it back into the runner's bool pass/fail contract.
+	if len(checks) > 0 {
+		return decodeCheckSentinel(val, checks)
+	}
 	return val, nil
+}
+
+// decodeCheckSentinel converts the int sentinel produced by FoldTestBody's
+// assert lowering back into the runner's pass/fail contract (#590).
+//
+//	0     → *eval.BoolValue{true} — every check passed
+//	k ≥ 1 → error naming check k, the FIRST check to evaluate false
+//
+// The runner surfaces the returned error text verbatim as result.Error
+// (runner.go, runNamedTest), so a failing assert reports which assertion failed,
+// its source text and its ORIGINAL position — not a bare "expected true, got
+// false", and not a position inside the internal round-trip temp file.
+func decodeCheckSentinel(val eval.Value, checks []CheckInfo) (eval.Value, error) {
+	intVal, ok := val.(*eval.IntValue)
+	if !ok {
+		return nil, fmt.Errorf("named test assert lowering: expected int sentinel, got %T", val)
+	}
+	if intVal.Value == 0 {
+		return &eval.BoolValue{Value: true}, nil
+	}
+	for _, c := range checks {
+		if c.Ordinal == intVal.Value {
+			// Quote back exactly what the user wrote.  A trailing bare expression in
+			// an assert-bearing body is a check too, but it is not an `assert`, and
+			// showing it as one puts source in the diagnostic that is not in the file.
+			if c.IsAssert {
+				return nil, fmt.Errorf("assertion %d failed: `assert %s` (at %s)",
+					c.Ordinal, c.Source, c.Pos.String())
+			}
+			return nil, fmt.Errorf("check %d failed: `%s` (at %s)",
+				c.Ordinal, c.Source, c.Pos.String())
+		}
+	}
+	// Unreachable unless the sentinel and the CheckInfo table disagree — report
+	// loudly rather than silently passing the test.
+	return nil, fmt.Errorf("assertion %d failed (no source recorded for check %d of %d)",
+		intVal.Value, intVal.Value, len(checks))
 }
 
 // EvaluateInlineTestsWithHarness evaluates inline tests using the test harness builder.
@@ -398,7 +447,7 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 	}
 
 	// Strip out non-pure functions
-	strippedSource := e.stripNonPureFunctions(string(sourceCode), sourceFile)
+	strippedSource := e.stripNonPureFunctions(string(sourceCode), sourceFile, functionName)
 
 	pipelineFilename := e.modulePath
 	if sourceFile.Module == nil {
@@ -465,92 +514,6 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 	}
 
 	return nil, fmt.Errorf("function '%s' not found in Core program", functionName)
-}
-
-// stripNonPureFunctions removes functions with effects and test/property
-// declaration blocks from source code.  Test blocks (test "name" { ... }) are
-// stripped because they are already collected into TestCase.Body and would
-// otherwise be re-elaborated as duplicate Core declarations — causing
-// evaluation of the wrong expression or type conflicts in EvalCoreProgram.
-func (e *Executor) stripNonPureFunctions(source string, file *ast.File) string {
-	var nonPureFunctions []string
-	for _, f := range file.Funcs {
-		if !f.IsPure {
-			nonPureFunctions = append(nonPureFunctions, f.Name)
-		}
-	}
-
-	// Collect line ranges occupied by test/property declarations.
-	// We use a brace-depth counter to find the closing } of each block.
-	type lineRange struct{ start, end int }
-	var skipRanges []lineRange
-
-	sourceLines := splitLines(source)
-	for _, decl := range file.Decls {
-		var startLine int
-		switch d := decl.(type) {
-		case *ast.TestDecl:
-			startLine = d.Pos.Line
-		case *ast.PropertyDecl:
-			startLine = d.Pos.Line
-		default:
-			continue
-		}
-
-		// Find the closing brace by scanning from startLine.
-		depth := 0
-		endLine := startLine
-		for i := startLine - 1; i < len(sourceLines); i++ {
-			for _, ch := range sourceLines[i] {
-				if ch == '{' {
-					depth++
-				} else if ch == '}' {
-					depth--
-					if depth == 0 {
-						endLine = i + 1 // 1-based
-						goto foundEnd
-					}
-				}
-			}
-		}
-	foundEnd:
-		skipRanges = append(skipRanges, lineRange{startLine, endLine})
-	}
-
-	inSkipRange := func(lineNum int) bool {
-		for _, r := range skipRanges {
-			if lineNum >= r.start && lineNum <= r.end {
-				return true
-			}
-		}
-		return false
-	}
-
-	lines := []string{}
-	for i, line := range sourceLines {
-		lineNum := i + 1 // 1-based
-		skip := false
-
-		// Skip lines inside test/property declaration blocks.
-		if inSkipRange(lineNum) {
-			skip = true
-		}
-
-		if !skip {
-			for _, funcName := range nonPureFunctions {
-				if containsPattern(line, "export func "+funcName) || containsPattern(line, "func "+funcName) {
-					skip = true
-					break
-				}
-			}
-		}
-
-		if !skip {
-			lines = append(lines, line)
-		}
-	}
-
-	return joinLines(lines)
 }
 
 // EvaluateLiteral converts an AST literal expression to an eval.Value.
@@ -679,13 +642,14 @@ func (e *Executor) ExtractPureClusterForFunction(
 		return nil, nil, fmt.Errorf("failed to read source file: %w", err)
 	}
 
-	strippedSource := e.stripNonPureFunctions(string(sourceCode), sourceFile)
-
 	cfg := pipeline.Config{
 		Mode: pipeline.ModeEval,
 	}
 	src := pipeline.Source{
-		Code:     strippedSource,
+		// With a filename, the module pipeline reloads source from disk
+		// (internal/pipeline/pipeline.go), so an in-memory strip here would be dead.
+		// Keep Code truthful for the file.size_bytes telemetry attribute.
+		Code:     string(sourceCode),
 		Filename: e.modulePath,
 		IsREPL:   false,
 	}

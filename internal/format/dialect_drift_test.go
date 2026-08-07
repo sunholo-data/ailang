@@ -73,24 +73,54 @@ func TestFmtDoesNotDriftFromTeachingPrompt(t *testing.T) {
 		if sameTokenMultiset(before, after) {
 			continue
 		}
-		if knownDivergence(before, after) {
-			continue
-		}
 		drifted = append(drifted, b.name)
 	}
 
 	if compared < 10 {
 		t.Fatalf("only %d blocks were parseable; the gate is not actually comparing anything", compared)
 	}
-	// RATCHET, not a clean gate. There is existing debt: as of 2026-07-31 the
-	// active prompt has 9 examples fmt rewrites, dominated by string
-	// interpolation (see knownDivergence) plus one internal row-variable name
-	// (`_r0`) leaking into output. Triaging each is real work and was not
-	// finished; recording the count stops NEW drift landing in the meantime,
-	// which is the property that actually protects the evals.
+	// RATCHET, not a clean gate. When you fix one, LOWER this number; it must
+	// never rise.
 	//
-	// When you fix one, LOWER this number. It must never rise.
-	const knownDrift = 9
+	// 2026-07-31, M-FMT-DIALECT-ALIGNMENT: 9 → 4. What was fixed, and why each
+	// was safe — in every case the two spellings parse to the IDENTICAL AST, so
+	// re-emitting the taught one round-trips exactly:
+	//
+	//	interpolation   concat_String(concat_String(show(a)," x"),…) → "${a} x…"  (interp.go)
+	//	function type   (int) -> int                                 → int -> int (types.go)
+	//	unit call       now(())                                      → now()      (expr.go)
+	//	record pattern  {name: name, age: age}                       → {name, age}(pattern.go)
+	//	open record     { email: string | _r0 }                      → { email: string, ... }
+	//
+	// The previous count of 9 was measured with a `knownDivergence` allowlist that
+	// excused any block whose output gained a concat_String. That hid COMPOUND
+	// cases: blocks drifting for interpolation AND for another reason were waved
+	// through on the interpolation alone, so the true residual was 16, not 9. The
+	// allowlist is gone — it now excuses nothing, and an allowlist that excuses
+	// nothing is a rubber stamp.
+	//
+	// 2026-07-31, second pass: 4 → 2. Two of those four were the PROMPT being
+	// wrong, not fmt, and were fixed by cutting prompt v0.16.4:
+	//
+	//	#19  v0.16.3 taught that `letrec` with a `= ...` body is a PARSE ERROR. It
+	//	     type-checks AND runs (verified with `ailang check` + `ailang run`);
+	//	     the claim went stale when M-SYNTAX-AI-FORGIVING R1 made an equation
+	//	     body a `;`-separated statement sequence. Teaching a model to avoid
+	//	     valid syntax is the same failure class as fmt contradicting the prompt.
+	//	#71  `Result[List[string], string]` → `Result[[string], string]`. `[T]` is
+	//	     taught 64 times and is what fmt emits, so `List[T]` was a spelling fmt
+	//	     would rewrite. Both parse to the identical TypeApp.
+	//
+	// The 2 that remain are diagnosed, and neither is fixable in the formatter:
+	//
+	//	#63  `=> { -- comment \n expr }` unwraps to `=> expr`. The block existed
+	//	     only to host a comment; Source() drops comments by construction, so
+	//	     the wrapper has nothing left to hold.
+	//	#86  `price - (price * pct) / 100` → `price - price * pct / 100`. The AST
+	//	     has no ParenExpr node (design V20), so redundant source parens are
+	//	     simply absent from the tree and cannot be recovered. Unfixable without
+	//	     changing the AST; semantically identical.
+	const knownDrift = 2
 	if len(drifted) > knownDrift {
 		t.Errorf("`ailang fmt` now rewrites %d teaching-prompt examples into a different dialect, up from %d: %v\n\n"+
 			"A NEW divergence has landed. Every one of these tells a model its correct code is\n"+
@@ -103,28 +133,6 @@ func TestFmtDoesNotDriftFromTeachingPrompt(t *testing.T) {
 		t.Errorf("drift is down to %d from %d — good. Lower knownDrift to %d to lock it in.",
 			len(drifted), knownDrift, len(drifted))
 	}
-}
-
-// knownDivergence allowlists differences we have diagnosed and consciously not
-// fixed yet. Everything else fails. Keep this list SHORT and each entry
-// justified — it is the difference between a gate and a rubber stamp.
-func knownDivergence(before, after string) bool {
-	// String interpolation. `"a ${x} b"` desugars to a concat_String chain with
-	// show()-wrapped holes (parser_literals.go) and NOTHING in the AST records
-	// that it was written as an interpolation, so the formatter cannot recover
-	// it without re-sugaring the call chain.
-	//
-	// This is the largest remaining divergence (~25 of 30 real differences in
-	// the 2026-07-31 audit) and it is NOT benign: the prompt uses `"${x}"` in
-	// nearly every example, and fmt answers with
-	//   concat_String(concat_String(show(name), " is "), show(show(age)))
-	//
-	// A re-sugaring implementation exists but regressed 7 corpus files'
-	// round-trip (polymorphic_adt, serve_api_webhook, effectful_list_t8_string_list,
-	// wasm_friendly_patterns, +3) for reasons not yet understood, so it was not
-	// shipped. Until it is, this entry keeps the gate honest about scope rather
-	// than silently green.
-	return !strings.Contains(before, "concat_String") && strings.Contains(after, "concat_String")
 }
 
 type promptBlock struct {
@@ -227,11 +235,4 @@ func sameTokenMultiset(a, b string) bool {
 		}
 	}
 	return true
-}
-
-func first(xs []string, n int) []string {
-	if len(xs) > n {
-		return xs[:n]
-	}
-	return xs
 }

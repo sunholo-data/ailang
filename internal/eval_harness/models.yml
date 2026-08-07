@@ -1530,19 +1530,19 @@ models:
   # hard_timeout_secs is a pure network-hang safety net, NOT a cost proxy.
 
   motoko-or-deepseek-v4-flash:
-    api_name: "deepseek/deepseek-v4-flash"
+    api_name: "deepseek/deepseek-v4-flash-0731"
     provider: "openrouter"
     default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
-    description: "DeepSeek V4 Flash via motoko_agent — cheap-but-slow sweet-spot probe"
+    description: "DeepSeek V4 Flash 0731 (official release, superseded the April preview 2026-07-31) via motoko_agent — cheap-but-slow sweet-spot probe"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
     motoko_profile: "cloud"                            # .motoko/config/cloud — compaction_ai+context_mode+ailang_docs+microrag, DP7 gate = `ailang check`
-    agent_model_name: "openrouter/deepseek/deepseek-v4-flash"
+    agent_model_name: "openrouter/deepseek/deepseek-v4-flash-0731"
     model_family: "deepseek-v4"
     max_output_tokens: 65536
     pricing:
-      input_per_1k: 0.00014
-      output_per_1k: 0.00028
+      input_per_1k: 0.00009
+      output_per_1k: 0.00018
     budgets:
       max_cost_usd: 0.50      # generous: validates "more $ → more passes" hypothesis
       hard_timeout_secs: 3600 # 1 hour safety net only; cost is the real gate
@@ -1551,6 +1551,13 @@ models:
       opencode-or-deepseek-v4-flash to compare motoko vs opencode harness
       on the same cheap model. Expected to land in slow_pass bucket on
       easy benchmarks and budget_blocked on hard ones.
+
+      Repointed 2026-08-03 from the April preview slug (deepseek/deepseek-v4-flash)
+      to the official 0731 release: same 284B-total/13B-active architecture,
+      re-post-trained checkpoint, "substantially enhanced agentic capabilities"
+      per DeepSeek's release notes, native OpenAI Responses API support (Codex-
+      compatible request layer). Pricing dropped too: $0.14/$0.28 -> $0.09/$0.18
+      per 1M (input/output), confirmed live against OpenRouter 2026-08-03.
 
   motoko-or-kimi-k2-6:
     api_name: "moonshotai/kimi-k2.6"
@@ -1624,6 +1631,12 @@ models:
       per token. Mid-tier price; tests the "cheap MoE catches up given
       budget" hypothesis directly against the dense Gemma 4 27B above.
 
+  # RETIRED 2026-08-01 — qwen3.5 family. Mark directive on #484: "Remove qwen 3.5
+  # only use qwen 3.6". Runs in NO active lane (nightly-eval, nightly-lang-eval,
+  # embedder-ab and os-rotation-filler all pin qwen3.6). The entry is KEPT on
+  # purpose: banked eval results reference these ids for pricing/attribution
+  # (2,438 pass-trials on opencode-qwen3-5-35b-a3b-mxfp8 alone), so deleting it
+  # orphans that history. Do not re-add to any *_suite without a new directive.
   motoko-or-qwen3-5-35b-a3b:
     api_name: "qwen/qwen3.5-35b-a3b-20260224"
     provider: "openrouter"
@@ -1662,6 +1675,8 @@ models:
       locally (MLX Q4) and re-run serial on the rig to confirm tok/s + parity.
 
 
+  # RETIRED 2026-08-01 — qwen3.5 family (see the banner above the first qwen3.5
+  # entry). Kept for banked-result attribution only; not in any active lane.
   motoko-local-qwen3-5-35b-a3b-mxfp8:
     api_name: "qwen3.5:35b-a3b-mxfp8"
     provider: "ollama"
@@ -1924,6 +1939,10 @@ models:
                      (sst/opencode#971 — options silently dropped without this)
       A/B against opencode-gemma4-26b (default sampling) to quantify the improvement.
 
+  # RETIRED 2026-08-01 — qwen3.5 family (see the banner above the first qwen3.5
+  # entry). Was the nightly-eval regression-guard model until 2026-08-01; the
+  # nightly now runs opencode-qwen3-6-35b-a3b-mxfp8. Kept for attribution of its
+  # 2,438 banked pass-trials; not in any active lane.
   opencode-qwen3-5-35b-a3b-mxfp8:
     api_name: "qwen3.5:35b-a3b-mxfp8"
     provider: "ollama"
@@ -1958,6 +1977,9 @@ models:
   # OpenAI-compatible endpoint (http://localhost:11434/v1, api: openai-completions).
   # Without that file pi errors "model not found" — it's not a built-in provider.
   # See tools/setup/pi-ollama-models.json for the canonical config. Added 2026-06-05.
+  # RETIRED 2026-08-01 — qwen3.5 family (see the banner above the first qwen3.5
+  # entry). Kept for banked-result attribution only; not in any active lane. Its
+  # ollama tag is also gone from tools/setup/pi-ollama-models.json.
   pi-qwen3-5-35b-a3b-mxfp8:
     api_name: "qwen3.5:35b-a3b-mxfp8"
     provider: "ollama"
@@ -2034,6 +2056,8 @@ models:
       qwen3.6:35b-a3b-mxfp8 tag in the ~/.pi/agent/models.json ollama provider block.
       Added 2026-06-14.
 
+  # RETIRED 2026-08-01 — qwen3.5 family (see the banner above the first qwen3.5
+  # entry). Kept for banked-result attribution only; not in any active lane.
   opencode-qwen3-5-35b-a3b:
     api_name: "qwen3.5:35b-a3b-nvfp4"
     provider: "ollama"
@@ -2148,24 +2172,26 @@ models:
       AILANG at 91%, de-flaked ~90%). Enables glm-5 vs glm-5.1 AND standard vs
       agent comparison on the newest z-ai model.
 
-  # GLM-5.2 (released 2026-06-16) — newest z-ai model, evaluated as a REPLACEMENT
-  # for GLM-5.1 and REJECTED (standard-mode core regression — see or-glm-5-2 notes).
+  # GLM-5.2 (released 2026-06-16) — newest z-ai model. REPLACED GLM-5.1 in
+  # agent_suite 2026-07-19 (Mark) after the June "core regression" verdict was
+  # RETRACTED as a harness truncation artifact — full record in or-glm-5-2 notes.
   # Reasoning model (always-thinking, like Kimi K2.7); 1M context (5x GLM-5.1's 203k).
-  # Pricing UP vs 5.1: $1.40/$4.40 per 1M (vs $0.98/$3.08) — ~43% more, plus reasoning
-  # tokens count as output, so effective cost is higher still. Kept as opt-in only.
+  # Pricing: OpenRouter cut z-ai/glm-5.2 to $0.56/$1.76 per 1M (verified live
+  # 2026-08-06 via /api/v1/models; launched at $1.40/$4.40) — now CHEAPER than
+  # GLM-5.1 ($0.95/$2.99), though always-on reasoning still bills as output tokens.
   opencode-or-glm-5-2:
     api_name: "z-ai/glm-5.2"
     provider: "openrouter"
     default_thinking: "always_on"
-    description: "GLM-5.2 (z.ai, newest 2026-06-16) via opencode+OpenRouter — replacement candidate for GLM-5.1"
+    description: "GLM-5.2 (z.ai, newest 2026-06-16) via opencode+OpenRouter — replaced GLM-5.1 in agent_suite 2026-07-19"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "opencode"
     agent_model_name: "openrouter/z-ai/glm-5.2"
     model_family: "glm-5"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
-      input_per_1k: 0.0014   # $1.40 per 1M
-      output_per_1k: 0.0044  # $4.40 per 1M
+      input_per_1k: 0.00056  # $0.56 per 1M — OpenRouter price cut, verified live 2026-08-06 (was $1.40)
+      output_per_1k: 0.00176 # $1.76 per 1M — verified live 2026-08-06 (was $4.40)
     budgets:
       # WORK GATE (2026-07-31, Mark): one shared 3.0M blended-token ceiling across
       # agent_suite, so every model gets the same number of iterations. A dollar cap
@@ -2179,12 +2205,13 @@ models:
       max_cost_usd: 0.30
       hard_timeout_secs: 600
     notes: |
-      Agent-mode companion to standard or-glm-5-2. Was a candidate to replace
-      GLM-5.1 in extended_suite/agent_suite — REJECTED on standard-mode core
-      (GLM-5.2 20/26 vs GLM-5.1 26/26; see or-glm-5-2 notes). Reasoning model,
-      1M context. Agent-mode comparison on the Studio rig NOT run — standard-mode
-      core regression is decisive; only re-evaluate if a future GLM-5.2 revision
-      closes the core gap. Kept as opt-in only; not in any suite.
+      Agent-mode companion to standard or-glm-5-2. IN agent_suite since
+      2026-07-19, replacing opencode-or-glm-5-1: the June standard-mode
+      "core regression" verdict (20/26 vs 26/26) was RETRACTED as a harness
+      truncation artifact — our old max_output_tokens=32768 guillotined its
+      always-on thinking phase; see or-glm-5-2 notes for the full record.
+      Agent-mode re-verdict (v0.30.0 baseline, 64K headroom): GLM-5.2 beats
+      GLM-5.1 77% vs 73%. Reasoning model, 1M context.
 
   opencode-or-minimax-m3:
     api_name: "minimax/minimax-m3"
@@ -2258,18 +2285,18 @@ models:
       v0.19.0: timeout bumped to 3600s (network-hang net only) — cost gates.
 
   opencode-or-deepseek-v4-flash:
-    api_name: "deepseek/deepseek-v4-flash"
+    api_name: "deepseek/deepseek-v4-flash-0731"
     provider: "openrouter"
     default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
-    description: "DeepSeek V4 Flash via opencode+OpenRouter (NEAR-MISS: 0/3 std → 2/3 agent)"
+    description: "DeepSeek V4 Flash 0731 (official release) via opencode+OpenRouter (NEAR-MISS on the April preview: 0/3 std → 2/3 agent — re-gate after this repoint)"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "opencode"
-    agent_model_name: "openrouter/deepseek/deepseek-v4-flash"
+    agent_model_name: "openrouter/deepseek/deepseek-v4-flash-0731"
     model_family: "deepseek-v4"
     max_output_tokens: 65536
     pricing:
-      input_per_1k: 0.00014
-      output_per_1k: 0.00028
+      input_per_1k: 0.00009
+      output_per_1k: 0.00018
     # M-EVAL-SWEET-SPOT (v0.19.0): bumped from 600s to cost-only gating.
     # Cheap model (~$0.003/benchmark) — 50¢ cap is 150x typical cost.
     # hard_timeout_secs is a network-hang safety net, not a cost proxy.
@@ -2290,6 +2317,56 @@ models:
       uplift in the spread — multi-turn iteration recovered fizzbuzz and
       adt_option that single-shot couldn't. csv_to_json still fails.
       Re-test 2026-06-04 on full core (harness + api_call_json improved).
+
+      Repointed 2026-08-03 from the April preview slug to the official 0731
+      release (deepseek/deepseek-v4-flash-0731) — "substantially enhanced
+      agentic capabilities" per DeepSeek's own release notes, native OpenAI
+      Responses API support. All standard/agent pass-rate notes above are
+      pre-repoint (preview model) and should be treated as stale until
+      re-tested against 0731. Pricing also dropped: $0.14/$0.28 -> $0.09/$0.18
+      per 1M, confirmed live against OpenRouter 2026-08-03.
+
+  # pi-harness sibling of opencode-or-deepseek-v4-flash — added 2026-08-06 as the
+  # MISSION-FLEET TRIAL lane (codex quota offload candidate, per Mark). Opt-in
+  # only; smoke gate CLEARED (see notes) — suite promotion still pending a
+  # core-tier ranking run + Mark's decision (smoke is a floor, not a ranking).
+  pi-or-deepseek-v4-flash:
+    api_name: "deepseek/deepseek-v4-flash-0731"
+    provider: "openrouter"
+    default_thinking: "on"  # probed 2026-08-06: 75 reasoning tokens unprompted
+                            # (via Venice host) — the 0731 checkpoint THINKS by
+                            # default, unlike the April preview (probed non-thinking
+                            # 2026-07-19). Light thinker; single-host probe, N=1.
+    description: "DeepSeek V4 Flash 0731 via pi minimal harness — mission-fleet trial (codex offload candidate)"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openrouter/deepseek/deepseek-v4-flash-0731"
+    model_family: "deepseek-v4"
+    max_output_tokens: 65536  # matches or-/opencode- siblings. Declared ceilings
+                              # (endpoints API 2026-08-06): first-party DeepSeek
+                              # 384K, most hosts >=131K, min-host Venice 32768 —
+                              # routing roulette can undercut this cap on Venice.
+    pricing:
+      input_per_1k: 0.00009   # $0.09 per 1M — verified live 2026-08-06
+      output_per_1k: 0.00018  # $0.18 per 1M — verified live 2026-08-06
+    budgets:
+      max_cost_usd: 0.50      # same rationale as opencode twin: cost-gated, not time-gated
+      hard_timeout_secs: 3600
+    notes: |
+      Requires the deepseek/deepseek-v4-flash-0731 id in the ~/.pi/agent/models.json
+      openrouter provider block (pi custom provider, openai-completions API — same
+      mechanism as the local ollama block; added 2026-08-06).
+      Trial motivation: opencode twin ranked #2 agent-mode ELO overall on the
+      v0.32.0 baseline (2513, behind only claude-sonnet-4-6's 3078) at ~1/100th
+      Sonnet price; pi is the minimal-harness cross-check before wiring a
+      mission-fleet executor lane.
+      GATE RECORD 2026-08-06: agent smoke 23/23 CLEAN PASS (full derived
+      tier:smoke set), $0.128 metered total (~$0.16-0.17 true incl. the
+      documented cache-read undercount), median 18s/benchmark, max 255s.
+      First run of this lane; N=1. The April-preview checkpoint was a 2/3
+      agent near-miss via opencode — the 0731 checkpoint is a different
+      animal. Floor cleared; ranking (core tier) + mission Go-task replay
+      trial still open.
 
   # DeepSeek V4 Pro (agent) — re-test 2026-06-04. Pro tier of the v4 line;
   # 2026-05-04 precedent had V4 Pro UNDER-performing Flash on smoke (1/3 vs 2/3),
@@ -2326,21 +2403,25 @@ models:
   # DeepSeek V4 standard-mode entries (2026-06-04) — companions to the opencode
   # agent entries so V4 Flash/Pro can be compared standard vs agent like glm/minimax.
   or-deepseek-v4-flash:
-    api_name: "deepseek/deepseek-v4-flash"
+    api_name: "deepseek/deepseek-v4-flash-0731"
     provider: "openrouter"
     default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
-    description: "DeepSeek V4 Flash via OpenRouter (standard) — cheapest viable model ($0.10/$0.20 per 1M)"
+    description: "DeepSeek V4 Flash 0731 (official release, 2026-07-31) via OpenRouter (standard) — cheapest viable model ($0.09/$0.18 per 1M)"
     env_var: "OPENROUTER_API_KEY"
     model_family: "deepseek-v4"
     max_output_tokens: 65536
     pricing:
-      input_per_1k: 0.00014
-      output_per_1k: 0.00028
+      input_per_1k: 0.00009
+      output_per_1k: 0.00018
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 600
     notes: |
       Standard companion to opencode-or-deepseek-v4-flash. Added 2026-06-04.
+
+      Repointed 2026-08-03 from the April preview slug (deepseek/deepseek-v4-flash)
+      to the official 0731 release — see opencode-or-deepseek-v4-flash's notes for
+      the full rationale. Pricing dropped $0.14/$0.28 -> $0.09/$0.18 per 1M.
 
   or-deepseek-v4-pro:
     api_name: "deepseek/deepseek-v4-pro"
@@ -2825,7 +2906,7 @@ models:
     api_name: "z-ai/glm-5.2"
     provider: "openrouter"
     default_thinking: "always_on"
-    description: "GLM-5.2 via OpenRouter (standard mode) — newest z-ai (2026-06-16), replacement candidate for GLM-5.1"
+    description: "GLM-5.2 via OpenRouter (standard mode) — newest z-ai (2026-06-16), replaced GLM-5.1 in extended_suite 2026-07-19"
     env_var: "OPENROUTER_API_KEY"
     max_output_tokens: 65536  # always-thinking model; at 32768 its thinking phase (observed
                               # 28-32K tokens) hit OUR cap and truncated: 6 finish=length
@@ -2836,16 +2917,18 @@ models:
                               # thinking + content at worst-case ~$0.29/run.
     model_family: "glm-5"
     pricing:
-      input_per_1k: 0.0014   # $1.40 per 1M
-      output_per_1k: 0.0044  # $4.40 per 1M
+      input_per_1k: 0.00056  # $0.56 per 1M — OpenRouter price cut, verified live 2026-08-06 (was $1.40)
+      output_per_1k: 0.00176 # $1.76 per 1M — verified live 2026-08-06 (was $4.40)
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 600
     notes: |
-      Standard-mode companion to opencode-or-glm-5-2. Candidate to replace
-      or-glm-5-1 in extended_suite. Reasoning model (always-thinking), 1M
+      Standard-mode companion to opencode-or-glm-5-2. IN extended_suite since
+      2026-07-19, replacing or-glm-5-1. Reasoning model (always-thinking), 1M
       context. API verified 2026-06-16 (resolves z-ai/glm-5.2-20260616).
-      Pricing UP ~43% vs GLM-5.1 ($1.40/$4.40 vs $0.98/$3.08 per 1M).
+      Pricing: $0.56/$1.76 per 1M — OpenRouter price cut, verified live
+      2026-08-06 via /api/v1/models. Launched at $1.40/$4.40 (~43% over
+      GLM-5.1); now CHEAPER than GLM-5.1's $0.95/$2.99.
       Smoke (floor) 2026-06-16: PASSED 22/23, tied GLM-5.1 (smoke is saturated,
       so a tie is expected and carries no ranking info).
       CORE (discriminator) 2026-06-16 (AILANG, N=1, 26 benchmarks): GLM-5.2 20/26
@@ -2856,7 +2939,8 @@ models:
       failures were finish=length, 3 with ZERO content tokens).
       RE-VERDICT 2026-07-19 (v0.30.0 baseline, core+stretch+frontier, 64K
       headroom): GLM-5.2 45/56 (80%) AILANG / 43/53 (81%) Python BEATS GLM-5.1
-      43/56 (77%) / 42/53 (79%) on both, at ~+43% price. Residual limit:
+      43/56 (77%) / 42/53 (79%) on both — then at ~+43% launch price, since
+      cut below 5.1 (see Pricing above). Residual limit:
       gauntlet_10 + quine overthink to ANY ceiling (finish=length at 65K).
       DECIDED 2026-07-19 (Mark): 5.2 REPLACES 5.1 in extended_suite; opencode
       twin replaces opencode-or-glm-5-1 in agent_suite. 5.1 retired to opt-in.
@@ -3105,7 +3189,10 @@ agent_suite:
   - "gpt5-6-luna"                     # codex    — OpenAI newest weak/fast tier
   - "claude-haiku-4-5"                # claude   — Anthropic cheap/weak
   - "claude-sonnet-4-6"               # claude   — Anthropic longitudinal anchor
-  - "opencode-or-deepseek-v4-pro"     # opencode — OS agent champion (97%)
+  # "opencode-or-deepseek-v4-pro" removed 2026-08-03 (Mark) — unreliable via opencode this
+  # session (repeated "opencode idle for 3m0s mid-generation" mid-run timeouts on the v0.32.0
+  # release baseline). Was "OS agent champion (97%)" per the 2026-06-04 re-test; re-add once
+  # the opencode-side stall is understood, or once V4 Flash's -0731 successor lands for Pro.
   - "opencode-or-deepseek-v4-flash"   # opencode — OS best-value (weak standard 54%)
   - "opencode-or-glm-5-2"             # opencode — GLM-5.2 (SETTLED 2026-07-19: beats 5.1 in
                                       # agent mode 77% vs 73%; 5.1 retired from suite per Mark)

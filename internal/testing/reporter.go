@@ -86,12 +86,14 @@ func (r *Reporter) formatPropertiesJSON(properties []PropertyResult) []map[strin
 	output := make([]map[string]interface{}, len(properties))
 	for i, prop := range properties {
 		output[i] = map[string]interface{}{
-			"name":      prop.Name,
-			"status":    string(prop.Status),
-			"duration":  prop.Duration.String(),
-			"tests_run": prop.TestsRun,
-			"location":  prop.Location,
-			"skip_kind": prop.SkipKind,
+			"name":             prop.Name,
+			"status":           string(prop.Status),
+			"duration":         prop.Duration.String(),
+			"tests_run":        prop.TestsRun,
+			"generated_inputs": prop.GeneratedInputs,
+			"discarded_inputs": prop.DiscardedInputs,
+			"location":         prop.Location,
+			"skip_kind":        prop.SkipKind,
 		}
 		if prop.Error != "" {
 			output[i]["error"] = prop.Error
@@ -178,6 +180,10 @@ func (r *Reporter) reportPropertyHuman(prop PropertyResult) {
 	}
 
 	fmt.Fprintln(r.writer)
+	if prop.DiscardedInputs > 0 || prop.SkipKind == SkipKindOutOfContract {
+		fmt.Fprintf(r.writer, "      accepted %d, discarded %d, generated %d\n",
+			prop.TestsRun, prop.DiscardedInputs, prop.GeneratedInputs)
+	}
 
 	// Show error details for failed and skipped properties.
 	if prop.Status == StatusFail || prop.Status == StatusSkip {

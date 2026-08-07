@@ -22,7 +22,7 @@ source "$(dirname "$0")/rig-lock.sh"
 LOG=/tmp/ailang-nightly-lang-eval.log
 DATE=$(date +%Y%m%d)
 RESULTS_DIR="/tmp/lang_eval_${DATE}"
-MODEL="${LANG_EVAL_MODEL:-opencode-qwen3-5-35b-a3b-mxfp8}"
+MODEL="${LANG_EVAL_MODEL:-opencode-qwen3-6-35b-a3b-mxfp8}"
 LANGS="${LANG_EVAL_LANGS:-ailang,python,javascript,go}"
 
 log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG"; }

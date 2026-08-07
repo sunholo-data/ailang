@@ -357,21 +357,29 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 	// 14 → 22 (now re-tiered to frontier, above).
 	// Prior re-center 2026-06-06: 6 benchmarks promoted into smoke (the
 	// local-ollama nightly set), moving smoke 17 → 23 and core 31 → 26.
-	// Centers now 23/19/29/8/9 ("experimental" diagnostic probes are excluded —
+	// Re-centered 2026-08-04 (v0.32.0 curation cycle, commit f574c4b58): 4
+	// promoted stretch -> core (float_eq, effect_composition, merge_sort,
+	// contract_leap_year) and 8 demoted frontier -> stretch (bytecode_vm_trace,
+	// dep_resolver_backtrack, effect_txn_rollback, emit_exact_bytes,
+	// glob_match_spec, lfu_cache_trace, parse_prec_climb, stream_lcg_topk —
+	// all 3 flagships now pass them in standard mode, so they no longer satisfy
+	// frontier's defining property). core 19 -> 23, stretch 21 -> 25,
+	// frontier 16 -> 8. Pure redistribution: core+stretch+frontier stays 56.
+	// Centers now 23/23/25/8/9 ("experimental" diagnostic probes are excluded —
 	// they measure language gaps, not score capability, so their growth is
 	// independent of the smoke/core/stretch/frontier/vision budget). Tolerance
 	// ±3 kept so future drift still trips this check.
 	if smoke := tierCounts["smoke"]; smoke < 20 || smoke > 26 {
 		t.Errorf("smoke count = %d, want 23±3", smoke)
 	}
-	if core := tierCounts["core"]; core < 16 || core > 22 {
-		t.Errorf("core count = %d, want 19±3", core)
+	if core := tierCounts["core"]; core < 20 || core > 26 {
+		t.Errorf("core count = %d, want 23±3", core)
 	}
-	if stretch := tierCounts["stretch"]; stretch < 18 || stretch > 24 {
-		t.Errorf("stretch count = %d, want 21±3", stretch)
+	if stretch := tierCounts["stretch"]; stretch < 22 || stretch > 28 {
+		t.Errorf("stretch count = %d, want 25±3", stretch)
 	}
-	if frontier := tierCounts["frontier"]; frontier < 13 || frontier > 19 {
-		t.Errorf("frontier count = %d, want 16±3", frontier)
+	if frontier := tierCounts["frontier"]; frontier < 5 || frontier > 11 {
+		t.Errorf("frontier count = %d, want 8±3", frontier)
 	}
 	if vision := tierCounts["vision"]; vision < 6 || vision > 12 {
 		t.Errorf("vision count = %d, want 9±3", vision)

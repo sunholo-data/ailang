@@ -1,0 +1,7 @@
+module internal/testing/testdata/contracts/precond2
+export func big(x: int) -> bool ! {}
+requires { x > 100 }
+ensures { result == true } {
+  x > 100
+}
+export func main() -> int ! {} { if big(500) then 1 else 0 }

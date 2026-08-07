@@ -384,20 +384,40 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		}
 	}
 
+	// The executor's own session log, when it keeps one (motoko does). Carries
+	// tool RESULTS, which the banked agent_transcript does not — see
+	// AgentBenchmarkResult.SessionJSONLPath. Extracted BEFORE the failure
+	// returns below, because a run that crashed or thrashed is precisely the one
+	// whose transcript you need, and both of those paths used to discard it.
+	sessionJSONLPath, _ := result.ProviderData["motoko_session_jsonl"].(string)
+
+	// diagnosticsOnly carries the session log out ALONGSIDE an error return so
+	// the caller can still bank the transcript of a run that produced no usable
+	// measurement. Every other field is deliberately zero: this value is NOT a
+	// result and must never be counted as one.
+	diagnosticsOnly := func() *AgentBenchmarkResult {
+		return &AgentBenchmarkResult{
+			BenchmarkID:      spec.ID,
+			Executor:         executorName,
+			SessionID:        result.SessionID,
+			SessionJSONLPath: sessionJSONLPath,
+		}
+	}
+
 	// Check for executor-level failure (crash, timeout, non-zero exit).
 	// Executors return (Result{Success:false}, nil) on these failures --
 	// the error is in Result.Error, NOT the Go error return value.
 	// We check this BEFORE agentic validation to provide clear "executor crashed"
 	// errors instead of misleading "non-agentic result" messages.
 	if !result.Success && result.Error != "" {
-		return nil, fmt.Errorf("executor %q failed for model %q: %s",
+		return diagnosticsOnly(), fmt.Errorf("executor %q failed for model %q: %s",
 			executorName, modelName, result.Error)
 	}
 
 	// Validate agent behavior - NO SILENT FALLBACKS
 	// Agent mode must produce multi-turn agentic behavior, not 0-shot text generation
 	if result.NumTurns <= 1 && result.ToolCallCount == 0 {
-		return nil, fmt.Errorf("executor %q produced non-agentic result: "+
+		return diagnosticsOnly(), fmt.Errorf("executor %q produced non-agentic result: "+
 			"%d turns, %d tool calls. This looks like 0-shot generation, not agent mode. "+
 			"Check that the CLI is configured for agentic coding (tool use, file editing). "+
 			"Model: %s", executorName, result.NumTurns, result.ToolCallCount, modelName)
@@ -429,14 +449,33 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	// clause makes mandatory.
 	fmtArm := ResolveFmtArm(config.FmtHook, resolvedExtensions)
 
+	// Executors self-report cost from their own registries, and pi reports $0
+	// for ~/.pi/agent/models.json custom providers (e.g. OpenRouter lanes) —
+	// banking $0 for a metered run corrupts cost KPIs. When the executor
+	// reports zero but models.yml prices the model, recompute list-price-
+	// equivalent cost from banked tokens (same helper as standard mode).
+	// Free local lanes (pricing 0.0) still resolve to $0.
+	// KNOWN UNDERCOUNT: cache-read tokens are priced at $0 because models.yml
+	// has no cache-read rate (OpenRouter bills them at ~20% of input rate —
+	// e.g. deepseek-v4-flash-0731 $0.018/M vs $0.09/M, checked 2026-08-06).
+	// At agent-loop hit rates this understates true cost by ~25-30%; a real
+	// fix needs a cache_read_per_1k pricing field, not a guess here.
+	costUSD := result.CostUSD
+	if costUSD == 0 {
+		if c := CalculateCostWithBreakdown(lookupKey, result.InputTokens, result.OutputTokens+result.ReasonTokens); c > 0 {
+			costUSD = c
+		}
+	}
+
 	agentResult := &AgentBenchmarkResult{
 		BenchmarkID:        spec.ID,
 		ResolvedProfile:    resolvedProfile,
 		ResolvedExtensions: resolvedExtensions,
+		SessionJSONLPath:   sessionJSONLPath,
 		Executor:           executorName,
 		Success:            success,
 		Iterations:         result.NumTurns,
-		Cost:               result.CostUSD,
+		Cost:               costUSD,
 		CostProvenance:     string(result.CostProvenance),
 		DurationMS:         result.DurationMS,
 		NumTurns:           result.NumTurns,

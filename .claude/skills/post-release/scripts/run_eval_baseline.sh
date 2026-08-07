@@ -14,6 +14,24 @@ set -euo pipefail
 OLLAMA_EVAL_KEEPALIVE="${OLLAMA_EVAL_KEEPALIVE:-60m}"
 OLLAMA_API="${OLLAMA_HOST:-http://localhost:11434}"
 
+# ELO ratings DB (M-EVAL-STANDARD-CONFIDENCE-GATING). Same path
+# cmd/ailang/eval_confidence.go's defaultObservatoryDB() resolves to.
+OBSERVATORY_DB="${OBSERVATORY_DB:-$HOME/.ailang/state/observatory.db}"
+
+# Default aggregate budget for --full standard-eval runs (M-EVAL-STANDARD-CONFIDENCE-GATING
+# Design Freeze: ~15% headroom over the highest real combined baseline seen,
+# v0.29.2's $135). Dev-mode runs get no cap unless --budget-usd is passed explicitly.
+BUDGET_USD_DEFAULT=150
+
+# True if a prior Step 1 invocation into $RESULTS_DIR hit its --budget-usd cap
+# (cmd/ailang/eval_parallel.go writes this sentinel on breach). Checked between
+# each call in the confidence-gated sequence so a cap hit during, say, the
+# new-models call stops the rated-models calls from starting at all — and
+# after Step 1 completes, to mark baseline.json as a partial run.
+budget_stopped() {
+    [[ -f "$RESULTS_DIR/budget_stopped.json" ]]
+}
+
 # Extract Ollama model names from the models.yml for a given comma-separated
 # list of model IDs. Returns newline-separated "ollama/<model>" strings.
 # Usage: get_ollama_models "opencode-gemma4-e4b,claude-sonnet-4-5"
@@ -143,6 +161,142 @@ resolve_benchmarks_in_tiers() {
     echo "${ids[*]}"
 }
 
+# --- Confidence gating (M-EVAL-STANDARD-CONFIDENCE-GATING) ---
+#
+# Extends the ELO confidence-select mechanism already shipped for the local rig
+# (M-EVAL-RATING-EFFICIENCY, --benchmarks-by-confidence) to the cloud standard
+# baseline. Gating is opt-in (--confidence-gate) and applies ONLY to core+stretch;
+# frontier always runs in full for every model, every release — its curation
+# contract (see SKILL.md) requires routine full-coverage failure data. A model in
+# extended_suite with no standard-mode rating history always gets the full tier,
+# regardless of gating state, since the selector has nothing to gate it against.
+
+# Extract the extended_suite model ID list from models.yml. Returns
+# newline-separated model IDs. Empty output on any parse failure (fail-open —
+# caller treats "no models" the same as "everything is new").
+extended_suite_models() {
+    local yml="internal/eval_harness/models.yml"
+    [[ -f "$yml" ]] || return 0
+    awk '
+        /^extended_suite:/ { insuite=1; next }
+        insuite && /^[a-zA-Z]/ { exit }
+        insuite && /^  - "/ { gsub(/^  - "|".*$/, ""); print }
+    ' "$yml"
+    return 0
+}
+
+# Query observatory.db for models with standard-mode rating coverage. Returns
+# newline-separated model IDs, or nothing if sqlite3/the DB is unavailable —
+# fail-open (caller treats "no coverage data" as "every model is new", which
+# only matters once the confidence-gate probe below has already succeeded;
+# if the probe fails the whole gated path is abandoned before this is used).
+rated_standard_models() {
+    command -v sqlite3 >/dev/null 2>&1 || return 0
+    [[ -f "$OBSERVATORY_DB" ]] || return 0
+    sqlite3 "$OBSERVATORY_DB" "SELECT model_id FROM model_ratings WHERE mode='standard';" 2>/dev/null || true
+}
+
+# Probe whether standard-mode confidence gating is usable at all, and if so,
+# print the confidence-selected benchmark list intersected with core+stretch
+# (frontier is excluded here — it's handled by a separate, always-full call).
+# Prints nothing and returns 1 if the ratings DB has no standard-mode data
+# (selectBenchmarksByConfidence's own error — this is the fail-open path);
+# prints a possibly-empty benchmark list and returns 0 otherwise. An empty
+# (but successful) list means core+stretch is fully saturated for the
+# population — the caller should skip that call entirely, not pass "" through
+# (an empty --benchmarks string would auto-discover ALL benchmarks instead).
+confidence_gated_core_stretch() {
+    local probe
+    if ! probe=$(bin/ailang eval-suite --benchmarks-by-confidence auto --max-benchmarks 0 --dry-run 2>&1); then
+        return 1
+    fi
+    local selected
+    selected=$(echo "$probe" | grep "^Benchmarks:" | sed 's/^Benchmarks: *//')
+    local core_stretch
+    core_stretch="$(resolve_benchmarks_in_tiers "core,stretch")"
+    # Intersect selected (comma-space-separated, per eval_suite.go's dry-run
+    # printer) with core,stretch (plain comma-separated) — sorted-set
+    # intersection via comm. Both sides MUST be trimmed of whitespace before
+    # sorting: comma-space splitting leaves a leading space on every token
+    # after the first, which silently breaks comm's exact-match comparison
+    # down to just the first (unindented) entry.
+    comm -12 \
+        <(echo "$selected" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sort -u) \
+        <(echo "$core_stretch" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sort -u) \
+        | paste -sd ',' -
+    return 0
+}
+
+# Runs the confidence-gated standard eval sequence: models with no standard-mode
+# rating history get the full tier (nothing to gate them against yet); rated
+# models get the confidence-gated core+stretch selection plus an always-full
+# frontier call. Falls open to today's single full-tier call if the ratings DB
+# isn't seeded/usable. Checks budget_stopped() between each call so a cap hit
+# partway through the sequence stops the remaining calls from starting.
+# Usage: run_confidence_gated_standard <version_normalized> <tier_flag> <budget_usd>
+run_confidence_gated_standard() {
+    local version_normalized="$1"
+    local tier_flag="$2"
+    local budget_usd="$3"
+
+    # bin/ailang must reflect current source before the dry-run probe below —
+    # normally `make eval-baseline`'s own `build` prerequisite handles this,
+    # but the probe calls bin/ailang directly, ahead of any make invocation.
+    make -s build
+
+    local gated_core_stretch
+    if ! gated_core_stretch="$(confidence_gated_core_stretch)"; then
+        echo "confidence-gate: standard ratings unavailable — falling back to full tier"
+        TIER="$tier_flag" BUDGET_USD="$budget_usd" make eval-baseline EVAL_VERSION="v$version_normalized" FULL=true
+        return 0
+    fi
+
+    local ext_models rated_models new_models rated_subset
+    ext_models="$(extended_suite_models)"
+    rated_models="$(rated_standard_models)"
+    new_models=""
+    rated_subset=""
+    while IFS= read -r m; do
+        [[ -z "$m" ]] && continue
+        if echo "$rated_models" | grep -qx "$m" 2>/dev/null; then
+            rated_subset="${rated_subset:+$rated_subset,}$m"
+        else
+            new_models="${new_models:+$new_models,}$m"
+        fi
+    done <<< "$ext_models"
+
+    local new_count rated_count
+    new_count=$(echo "$new_models" | tr ',' '\n' | grep -c . || true)
+    rated_count=$(echo "$rated_subset" | tr ',' '\n' | grep -c . || true)
+    echo "confidence-gate: $new_count new model(s) (no standard rating history), $rated_count rated model(s)"
+
+    if [[ -n "$new_models" ]]; then
+        echo "confidence-gate: new models get the full tier — $tier_flag"
+        MODELS="$new_models" TIER="$tier_flag" RESUME=true BUDGET_USD="$budget_usd" make eval-baseline EVAL_VERSION="v$version_normalized"
+        if budget_stopped; then
+            echo "confidence-gate: budget cap hit during the new-models call — stopping the sequence here"
+            return 0
+        fi
+    fi
+
+    if [[ -n "$rated_subset" ]]; then
+        if [[ -n "$gated_core_stretch" ]]; then
+            local gated_count
+            gated_count=$(echo "$gated_core_stretch" | tr ',' '\n' | grep -c . || true)
+            echo "confidence-gate: rated models — gated core+stretch ($gated_count of $(count_benchmarks_in_tiers "core,stretch") benchmarks)"
+            MODELS="$rated_subset" BENCHMARKS="$gated_core_stretch" RESUME=true BUDGET_USD="$budget_usd" make eval-baseline EVAL_VERSION="v$version_normalized"
+            if budget_stopped; then
+                echo "confidence-gate: budget cap hit during the gated core+stretch call — stopping the sequence here (frontier skipped)"
+                return 0
+            fi
+        else
+            echo "confidence-gate: core+stretch fully saturated for rated models — skipping (max savings case, not an error)"
+        fi
+        echo "confidence-gate: rated models — frontier (always full, every release)"
+        MODELS="$rated_subset" TIER=frontier RESUME=true BUDGET_USD="$budget_usd" make eval-baseline EVAL_VERSION="v$version_normalized"
+    fi
+}
+
 # Validation mode: check configuration without running full eval
 if [[ "${1:-}" == "--validate" ]]; then
     echo "Validating agent eval configuration..."
@@ -207,6 +361,18 @@ if [[ $# -eq 0 ]]; then
     echo "  --skip-existing     Pass --skip-existing to eval-suite (resume an interrupted run)" >&2
     echo "  --agent-only        Skip Step 1 (standard); run only the agent step. Implies" >&2
     echo "                      --skip-existing. Use when the standard baseline is already done." >&2
+    echo "  --confidence-gate   Standard eval only: skip re-confirming Trivial-band (saturated)" >&2
+    echo "                      core/stretch benchmarks per ELO ratings in observatory.db" >&2
+    echo "                      (M-EVAL-STANDARD-CONFIDENCE-GATING). frontier always stays full." >&2
+    echo "                      A model with no standard-mode rating history always gets the" >&2
+    echo "                      full tier. Falls open to today's full-tier behavior if the" >&2
+    echo "                      ratings DB is unseeded/unavailable. ON BY DEFAULT for --full runs" >&2
+    echo "                      (2026-08-03); this flag is now a no-op kept for clarity." >&2
+    echo "  --no-confidence-gate  Force a full, non-gated core+stretch run — use for the periodic" >&2
+    echo "                      full-audit cadence (SKILL.md) or to hand-audit a roster change." >&2
+    echo "  --budget-usd <N>    Aggregate cost ceiling for Step 1 (standard eval). Default for" >&2
+    echo "                      --full runs: \$$BUDGET_USD_DEFAULT. Dev-mode runs get no cap unless" >&2
+    echo "                      set explicitly. Pass 0 to disable the cap on a --full run." >&2
     exit 1
 fi
 
@@ -218,6 +384,14 @@ CROSS_HARNESS=""
 LANG_HARNESS=""
 SKIP_EXISTING=""   # when set, pass --skip-existing to eval-suite (resume runs)
 AGENT_ONLY=""      # when set, skip the standard step entirely
+# Default ON for --full runs as of 2026-08-03 (Mark: "I want this cost check on by
+# default") — gating still only ever applies to --full (dev mode never gates; see the
+# Step 1 branch condition below), still falls open to full-tier if the ratings DB
+# isn't seeded/usable, and frontier still always runs in full regardless. Opt out with
+# --no-confidence-gate to force a full, non-gated core+stretch run (e.g. the periodic
+# full-audit cadence documented in SKILL.md, or when auditing a roster change by hand).
+CONFIDENCE_GATE="true"
+BUDGET_USD_FLAG=""  # explicit --budget-usd override; empty = use the --full default
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -232,6 +406,26 @@ while [[ $# -gt 0 ]]; do
         --agent-only)
             AGENT_ONLY="true"
             SKIP_EXISTING="--skip-existing"
+            shift
+            ;;
+        --confidence-gate)
+            CONFIDENCE_GATE="true"   # explicit no-op since this is now the default; kept for clarity/back-compat
+            shift
+            ;;
+        --no-confidence-gate)
+            CONFIDENCE_GATE=""
+            shift
+            ;;
+        --budget-usd)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: --budget-usd requires an argument" >&2
+                exit 1
+            fi
+            BUDGET_USD_FLAG="$2"
+            shift 2
+            ;;
+        --budget-usd=*)
+            BUDGET_USD_FLAG="${1#--budget-usd=}"
             shift
             ;;
         --tier)
@@ -265,6 +459,18 @@ done
 VERSION_NORMALIZED="${VERSION#v}"
 RESULTS_DIR="eval_results/baselines/v$VERSION_NORMALIZED"
 
+# Resolve the effective standard-eval budget (M-EVAL-STANDARD-CONFIDENCE-GATING
+# Design Freeze): explicit --budget-usd always wins. Otherwise --full runs
+# default to BUDGET_USD_DEFAULT; dev-mode runs get no cap (empty = unset,
+# matching eval-suite's own "0 or empty = no cap" semantics downstream).
+if [[ -n "$BUDGET_USD_FLAG" ]]; then
+    EFFECTIVE_BUDGET_USD="$BUDGET_USD_FLAG"
+elif [[ -n "$FULL_FLAG" ]]; then
+    EFFECTIVE_BUDGET_USD="$BUDGET_USD_DEFAULT"
+else
+    EFFECTIVE_BUDGET_USD=""
+fi
+
 # Compute expected benchmark count for the selected tier(s)
 BENCHMARK_COUNT=$(count_benchmarks_in_tiers "$TIER_FLAG")
 if [[ "$BENCHMARK_COUNT" -eq 0 ]]; then
@@ -276,13 +482,25 @@ fi
 echo "Running eval baseline for $VERSION..."
 echo "Tier scope: $TIER_FLAG ($BENCHMARK_COUNT benchmarks)"
 if [[ -n "$FULL_FLAG" ]]; then
-    echo "Mode: FULL (extended_suite, 11 models incl. claude-fable-5, + agent_suite)"
-    echo "Expected cost: ~\$45-90 (fable ~\$24 on core,stretch,frontier; agent step adds ~\$10-20)"
+    echo "Mode: FULL (extended_suite, 18 models incl. claude-fable-5 + claude-opus-5, + agent_suite)"
+    echo "Expected cost: run \`ailang eval-suite --full --tier $TIER_FLAG --dry-run\` for a real"
+    echo "  computed estimate (M-EVAL-STANDARD-CONFIDENCE-GATING) — recent full releases banked"
+    echo "  \$98-135 combined (standard+agent); see SKILL.md's Cost & time section for the real figures."
     echo "Expected time: ~45-90 minutes"
 else
     echo "Mode: DEV (3 dev models)"
     echo "Expected cost: ~\$0.10-0.20"
     echo "Expected time: ~5-10 minutes"
+fi
+if [[ -n "$EFFECTIVE_BUDGET_USD" ]]; then
+    echo "Standard-eval budget cap: \$$EFFECTIVE_BUDGET_USD (see \`ailang eval-suite --dry-run\` for a real per-run estimate)"
+fi
+if [[ -n "$FULL_FLAG" ]]; then
+    if [[ -n "$CONFIDENCE_GATE" ]]; then
+        echo "Confidence-gate: ON — core/stretch skip Trivial-band benchmarks for rated models; frontier always full"
+    else
+        echo "Confidence-gate: OFF (--no-confidence-gate) — full core,stretch,frontier for every model"
+    fi
 fi
 echo
 
@@ -301,12 +519,39 @@ else
 
     monitor_progress "$RESULTS_DIR" "$EXPECTED_STANDARD" "Standard" &
     MONITOR_PID=$!
-    if [[ -n "$FULL_FLAG" ]]; then
-        TIER="$TIER_FLAG" make eval-baseline EVAL_VERSION="v$VERSION_NORMALIZED" FULL=true
+    if [[ -n "$CONFIDENCE_GATE" && -n "$FULL_FLAG" ]]; then
+        run_confidence_gated_standard "$VERSION_NORMALIZED" "$TIER_FLAG" "$EFFECTIVE_BUDGET_USD"
+    elif [[ -n "$FULL_FLAG" ]]; then
+        TIER="$TIER_FLAG" BUDGET_USD="$EFFECTIVE_BUDGET_USD" make eval-baseline EVAL_VERSION="v$VERSION_NORMALIZED" FULL=true
     else
-        TIER="$TIER_FLAG" make eval-baseline EVAL_VERSION="v$VERSION_NORMALIZED"
+        TIER="$TIER_FLAG" BUDGET_USD="$EFFECTIVE_BUDGET_USD" make eval-baseline EVAL_VERSION="v$VERSION_NORMALIZED"
     fi
     kill $MONITOR_PID 2>/dev/null || true
+
+    # Mark baseline.json as a partial run if the budget cap fired at any point
+    # during Step 1 (mirrors the .agent metadata augmentation pattern below).
+    if budget_stopped; then
+        echo "⚠️  Budget cap hit during Step 1 — baseline.json will be marked budget_stopped: true"
+        BASELINE_METADATA_STD="$RESULTS_DIR/baseline.json"
+        if [[ -f "$BASELINE_METADATA_STD" ]]; then
+            SENTINEL="$RESULTS_DIR/budget_stopped.json"
+            tmp=$(mktemp)
+            jq --slurpfile sentinel "$SENTINEL" \
+               '.budget_stopped = true | .budget_stopped_detail = $sentinel[0]' \
+               "$BASELINE_METADATA_STD" > "$tmp" && mv "$tmp" "$BASELINE_METADATA_STD"
+        fi
+    fi
+
+    # Self-seed standard-mode ratings from this release's own results, so the
+    # NEXT release's gating reflects the most current data (closes the loop —
+    # same self-refreshing pattern the local rig already uses for agent mode).
+    # Only on --full runs: dev mode's 3 cheap models would otherwise pollute
+    # release-grade ratings with noise from a tiny, non-representative run.
+    if [[ -n "$FULL_FLAG" ]]; then
+        echo "confidence-gate: re-fitting standard ratings from this release's results..."
+        go run ./tools/eval-elo --mode standard --persist "$OBSERVATORY_DB" "$RESULTS_DIR" \
+            || echo "confidence-gate: WARNING — ratings re-fit failed, next release will not see this data until it's re-run manually"
+    fi
 fi
 
 # Step 2: Run agent eval on tier-selected benchmarks

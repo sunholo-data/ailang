@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -25,8 +26,14 @@ type EvalBenchmarkJob struct {
 	SuiteTaskID string `json:"suite_task_id"`
 }
 
-// runBenchmarksParallel executes benchmarks with concurrency control
-func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDir string, timeout time.Duration, maxConcurrent int, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig, taskID string, evalChain *EvalChainContext) []SuiteResult {
+// runBenchmarksParallel executes benchmarks with concurrency control.
+// budgetUSD is an aggregate cost ceiling (M-EVAL-STANDARD-CONFIDENCE-GATING):
+// 0 = no cap, preserving today's unconstrained behavior. On breach, already
+// in-flight trials finish (never hard-killed mid-call) but no NEW trial is
+// scheduled, and a budget_stopped.json sentinel is written to outputDir so
+// callers (e.g. run_eval_baseline.sh) can detect a partial run and label it
+// rather than silently treat it as complete.
+func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDir string, timeout time.Duration, maxConcurrent int, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig, taskID string, evalChain *EvalChainContext, budgetUSD float64) []SuiteResult {
 
 	if maxConcurrent <= 0 {
 		maxConcurrent = 1 // Sequential
@@ -49,6 +56,25 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 		failureCount int                                  // Track consecutive failures
 		aborted      bool                                 // Early abort flag
 	)
+
+	// budgetTracker accumulates banked cost against budgetUSD
+	// (M-EVAL-STANDARD-CONFIDENCE-GATING); budgetUSD<=0 means it never trips.
+	// onCost is invoked from within runSingleBenchmark once a trial's result
+	// is banked. A race between this check and concurrent in-flight trials
+	// finishing is accepted: this is a graceful-stop gauge (sum of what got
+	// banked), not a byte-exact real-time meter — see the design doc's Risks
+	// section. maxConcurrent bounds how far over budgetUSD a breach can run.
+	tracker := newBudgetTracker(budgetUSD)
+	onCost := func(costUSD float64) {
+		if !tracker.Add(costUSD) {
+			return
+		}
+		mu.Lock()
+		aborted = true
+		mu.Unlock()
+		fmt.Printf("\n%s Budget exceeded: $%.2f spent >= $%.2f cap — stopping new trials (in-flight trials finish)\n",
+			red("🚨"), tracker.Spent(), budgetUSD)
+	}
 
 	completed := 0
 	totalJobs := len(jobs)
@@ -93,7 +119,7 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 				cyan(j.Benchmark), green(j.Model), j.Language, condLabel)
 
 			// Run the benchmark
-			success, err := runSingleBenchmark(ctx, j.Model, j.Benchmark, j.Language, j.Condition, j.Trial, seed, outputDir, timeout, selfRepair, promptVersion, agentConfig, taskID, evalChain)
+			success, err := runSingleBenchmark(ctx, j.Model, j.Benchmark, j.Language, j.Condition, j.Trial, seed, outputDir, timeout, selfRepair, promptVersion, agentConfig, taskID, evalChain, onCost)
 
 			results[idx] = SuiteResult{
 				BenchmarkID: j.Benchmark,
@@ -126,7 +152,34 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 	}
 
 	wg.Wait()
+
+	if tracker.Exceeded() {
+		writeBudgetStoppedSentinel(outputDir, budgetUSD, tracker.Spent())
+	}
+
 	return results
+}
+
+// budgetStoppedSentinel is written to outputDir when an aggregate --budget-usd
+// cap stops a run early, so callers (e.g. run_eval_baseline.sh) can detect a
+// partial baseline and label it rather than silently present it as complete.
+type budgetStoppedSentinel struct {
+	BudgetUSD float64   `json:"budget_usd"`
+	SpentUSD  float64   `json:"spent_usd"`
+	StoppedAt time.Time `json:"stopped_at"`
+}
+
+func writeBudgetStoppedSentinel(outputDir string, budgetUSD, spentUSD float64) {
+	sentinel := budgetStoppedSentinel{BudgetUSD: budgetUSD, SpentUSD: spentUSD, StoppedAt: time.Now()}
+	data, err := json.MarshalIndent(sentinel, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not marshal budget_stopped sentinel: %v\n", err)
+		return
+	}
+	path := filepath.Join(outputDir, "budget_stopped.json")
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not write %s: %v\n", path, err)
+	}
 }
 
 // runBenchmarksViaQueue submits benchmarks as messages to the specified inbox.

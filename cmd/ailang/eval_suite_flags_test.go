@@ -96,10 +96,15 @@ func TestFilterBenchmarksByTier(t *testing.T) {
 	// 8 stretch->frontier (docx/markdown reimplement, contract_sorted_merge,
 	// contract_rle_roundtrip, quine, emit_exact_bytes, gauntlet_10,
 	// legal_obligation_engine) — stretch 29->21, frontier 8->16.
+	// v0.32.0 curation cycle (2026-08-04, commit f574c4b58): 4 promoted
+	// stretch->core (float_eq, effect_composition, merge_sort,
+	// contract_leap_year), 8 demoted frontier->stretch (all 3 flagships now
+	// pass them in standard mode) — core 19->23, stretch 21->25, frontier
+	// 16->8. Pure redistribution; core+stretch+frontier unchanged at 56.
 	checkTierCount(t, "smoke", len(smoke), 23, 3)
-	checkTierCount(t, "core", len(core), 19, 3)
-	checkTierCount(t, "stretch", len(stretch), 21, 3)
-	checkTierCount(t, "frontier", len(frontier), 16, 3)
+	checkTierCount(t, "core", len(core), 23, 3)
+	checkTierCount(t, "stretch", len(stretch), 25, 3)
+	checkTierCount(t, "frontier", len(frontier), 8, 3)
 	checkTierCount(t, "vision", len(vision), 9, 3)
 
 	// Combined filter returns the union.

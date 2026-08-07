@@ -27,7 +27,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Go
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v7
       with:
         go-version: '1.26.5'
         cache: true
@@ -37,7 +37,7 @@ jobs:
     # rather than a system `python3`. Update PinnedPythonVersion in
     # internal/eval_harness/python.go if the target moves.
     - name: Set up uv
-      uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+      uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
 
     - name: Install dependencies
       run: make deps

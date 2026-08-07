@@ -139,7 +139,7 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 	// Check if function is hidden from HTTP via @noexpose or --routes-only.
 	// Intentionally use the same FUNCTION_NOT_FOUND code so @noexpose stays
 	// indistinguishable from a genuinely missing function.
-	if !s.isExposed(*foundExport) {
+	if !loadedExportMember(s.routesOnly, *foundExport) {
 		writeRouterErrorWithDispatch(w, http.StatusNotFound,
 			ErrCodeFunctionNotFound,
 			fmt.Sprintf("function %q not found in module %q", funcName, modulePath),

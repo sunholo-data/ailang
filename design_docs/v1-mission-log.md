@@ -6567,3 +6567,1691 @@ once: whatever lands should add a `tokens_total`/`cost_unknown` representation *
 then the ledger's authoritative record for this iteration is the **log entry above**, not the chain.
 
 ---
+
+## 129 — 2026-07-31 — Iteration 124: dev CI was **RED before I picked anything** (8 govulncheck allowlist entries all expired at midnight) — **FIXED and green**; and `#546` is **NOT a ghost**: the design doc landed with an ADOPT verdict but is **PARKED**, because the quorum found an unbounded wait whose only real fix breaks the one property the adoption argument rests on.
+
+**Picked**: Mark's `[NEXT-ON-RESUME #1]` directive item `m-recorded-stream-api` (`ailang#546`,
+motoko-DEMAND, offered implementation from @arniwesth). But Gate 1 found something that outranks
+the queue first, so this iteration has **two** deliverables.
+
+**The red that outranked the queue.** `govulncheck (vuln gate)` was `completed/failure` on dev.
+Root cause: all **8** allowlist entries in `.govulncheck-allow.yml` carried `expires: 2026-07-31`
+and fired together at midnight. Confirmed it was NOT fallout from any merge by checking the same
+gate across five recent SHAs — it fails on **docs-only** commits (`b9d7ea79c`, `71c0a103c`) too,
+which is the signature of a time-bomb rather than a regression. This is the class the skill warns
+about: time-based reds hit whoever observes next.
+
+**I did not blanket-bump the dates.** The expiry mechanism exists to force a re-review, so I did
+the review, first-party: (1) `govulncheck -format json ./...` reports those 8 as the **complete**
+reachable set — the allowlist matches reality exactly, no drift, nothing new hiding behind it;
+(2) all 8 report **no fixed version** in their OSV ranges, i.e. still genuinely unpatched upstream,
+so there is no fix to take; (3) `go.mod` is already on `ollama v0.32.5`, which `go list -m
+-versions` confirms is the newest published release. The original reason therefore still holds
+verbatim, so the entries were re-armed 90 days with that evidence recorded inline and an
+instruction to the next reviewer to re-run the three checks. **Non-vacuous before/after against the
+same real scan JSON**: old allowlist → rc=1 reproducing CI's exact "8 expired allowlist entr(ies)";
+new → rc=0, "8 finding(s), all allowlisted and unexpired." Commit `73f4e38bf`; `govulncheck (vuln
+gate): completed/success` observed SHA-addressed on the pushed commit.
+
+**Ghost discipline on `#546` — REAL, and understated.** Rebuilt both binaries first (both were
+stale: `bf10f6017`/`7ce83f299` vs HEAD) and probed with a positive control beside the negative:
+an `{IO}` rendering callback checks rc=0; an `{FS}` callback that appends chunks to a file — the
+cheapest way to record while still streaming — fails rc=1 with `incompatible closed rows: r1 has
+extra labels [IO], r2 has extra labels [FS]`. `StepResult` carries no chunks and `std/io` has no
+file write, so there is no `{IO}`-legal side-channel either. Live-streaming and recording ARE
+mutually exclusive. **ADR-009 line 134 independently reproduces this against v0.30.0** with its own
+negative probes — two parties, same conclusion, which is the strongest demand evidence this queue
+has seen.
+
+**BONUS DEFECT (found while verifying, not while looking for it).** The repo actively teaches the
+workaround that cannot work: `std/ai.ail:324` says "the callback's effect row is open (`!{IO}` is
+typical but not required)" — sitting **directly above** the closed-row declaration that contradicts
+it — and `examples/runnable/ai_streaming.ail:40-42` promises websocket/TUI/metrics side-channels,
+all of which need `{Net}`/`{FS}` and none of which type-check. Adopting the recorded sibling does
+**not** widen the row, so these stay false unless explicitly fixed; folded into the design doc as a
+required milestone rather than shipped separately, because the adoption patch touches the same file.
+
+**Why it is PARKED.** Doc `d85934df4`, verdict **ADOPT with productionization**, routing judged
+**core, not extension**. Quorum blocked twice and the design **direction was never contested** in
+either round. R1: gemini caught an UNVERIFIED premise (the "4 offered tests pass" claim was
+pre-read hearsay after a sandbox port-bind denial) — a fair hit, resolved by me running them
+outside the sandbox with `-run` isolation, all 4 PASS; gpt5-6-sol caught that silently skipping
+unencodable chunks contradicts "lossless" and Critical Principle 2 — accepted, designer moved to
+FAIL-LOUD. R2: gemini caught that **my own** `-run` isolation was too narrow to prove the patch
+breaks nothing existing — resolved, `go test ./internal/effects -skip
+TestNetHTTPRequestBytes_RoundTripSHA` → rc=0, **658 PASS**. The survivor is gpt5-6-sol's: the
+fail-loud drain is **unbounded**. Its proposed fix is conditional — *"if `AIHandler.StepWithStream`
+cannot be cancelled or bounded, make that provider-interface change a blocking dependency"* — and
+**the conditional fires**: `internal/effects/ai.go:87` takes no `context.Context` (known-positive
+control: the same search finds `context.Context` freely in `internal/notify/`, so the absence is
+real), with **7 implementers across 6 files including `cmd/wasm/effects.go`**.
+
+**Ruled out**: (a) that the CI red came from a sprint or merge — refuted, it fails on docs-only
+commits; (b) that a dependency upgrade could fix the vulns — refuted, we are already on the newest
+ollama and none has a published fix; (c) that "mutually exclusive" might be overstated because an
+`{FS}`/`{Net}` side-channel could record — refuted live by the closed-row unification error;
+(d) that the **narrow-refinement carve-out** could close R2 — refuted deliberately: both objections
+carry concrete reviewer-authored `proposed_fix` text, but gpt5-6-sol's changes SCOPE (it destroys
+the "purely additive, no existing line modified" property that the ADOPT verdict and the 1.x
+stability claim rest on), and the carve-out covers only objections leaving the design DIRECTION
+intact. Standing rule 2 → park, do not force through.
+
+**Routing evidence**: controller=**opus** (session) quota-bucket:weekly-opus — triage/pick/probe/
+verify/record; designer=**`codex:gpt-5.6-sol`** per the ROTATION (probe rc=0, two bounded runs —
+initial + one revision — directive delivery asserted at 6,733 B and 4,645 B, per-iteration
+filenames, `< /dev/null`), rotation state advanced to `codex:gpt-5.6-sol`; quorum reviewers
+`gpt5-6-sol` + `gemini-3-1-pro` + controller, **metered $0.0508 (R1) + $0.0578 (R2) = $0.1086** of
+the `$5` ceiling; planner/executor/evaluator **NOT fired** — deliberate and recorded, since the item
+parked at the design gate and never reached a sprint. Fable billed **zero**. generator≠judge is
+moot this iteration (no executor ran). The codex designer correctly self-labelled its blocked
+`internal/effects` run as a **sandbox denial rather than a failure**, and the controller re-ran
+every gate outside the sandbox — the documented false-green #3 behaved exactly as the recipe says.
+
+**Gate 3b GREEN**: all 15 checks complete on `73f4e38bf`, **0 failures**, `govulncheck (vuln gate):
+completed/success` — SHA-addressed, so the CI fix is LANDED and verified, not merely pushed. The
+sprint worktree was removed and its branch deleted, since the doc landed on `dev` directly (an
+unmerged branch holding a design doc is invisible to Gate 2's already-landed check — the iter-121
+war story).
+
+**Next**: Mark answers the a/b/c scope call in the doc header (controller's read: **(c)** bound the
+drain locally, no interface change; avoid **(a)**). On an answer this unparks straight to
+sprint-planner — the doc is otherwise plan-ready and the patch is verified green. If Mark prefers,
+`#539 m-dialect-keyword-diagnostics` and the two quota-offload items are untouched and pickable.
+
+## 130 — 2026-07-31 — Iteration 125: `m-planner-codex-lane` **doc + sprint plan LANDED, execution PARKED to Mark's 08-03 re-arm**. The quorum caught a `declare -A` that would have **wedged the loop on the next launchd fire** — then the planner refuted the fix's own rollback, and one of my commit-message claims.
+
+**Picked** — Mark's quota-offload #1. `#546` (`m-recorded-stream-api`) stayed **PARKED**: his a/b/c
+scope call from iteration 124 is still unanswered, and Standing rule 2 forbids forcing a park.
+Gate 0 found nothing outranking the queue — dev CI 12/13 complete / **0 failures** SHA-addressed,
+**zero** open `[nightly-eval]` alarms, billing CLEAN, no thread rotation due (`#484` was created
+Mon 07:27 **CEST**, i.e. *after* the 07:00 local boundary — the timezone that iteration 114
+stamped as load-bearing). Both "nothing found" readings were run with known-positive controls:
+the nightly search returned 5 CLOSED issues, and Mark's single `#484` comment sits **exactly at**
+the watermark, so its exclusion is correct rather than a broken query.
+
+**Feasibility probed BEFORE spending a designer run.** `codex exec --model gpt-5.6-sol` rc=0;
+the driver's codex probe/fallback is `case "$MISSION_EXECUTOR_MODEL"` — **executor-only**, the
+planner gets none; codex authenticates via ChatGPT **subscription**, so the offload is a genuine
+quota move at $0 metered; and `sprint-planner` needs **zero** `gh`/`curl`, so iteration 122's
+measured "`gh auth` fails inside the codex sandbox" blocker does **not** apply to this role.
+
+**THE FIND — a loop-wedging defect, caught by a reviewer and confirmed stronger than filed.**
+`gemini-3-1-pro` rejected R1 because the proposed driver loop used `declare -A`. Verified
+first-party rather than taken on trust: the driver's `#!/usr/bin/env bash` resolves to
+`/bin/bash` **3.2.57**, and **no 4.x bash exists on this rig at all** — `/opt/homebrew/bin/bash`
+and `/usr/local/bin/bash` are both absent, which is *exactly why* the launchd `PATH` listing
+those two dirs looked safe. Live repro emits both `declare: -A: invalid option` **and** bash 3.2
+arithmetic-evaluating the model name (`gpt-5.6-sol: syntax error: invalid arithmetic operator
+(error token is ".6-sol")`); a script carrying the driver's own shebang prints
+`ASSOC UNSUPPORTED`. It would have died **before any role spawned**, with no self-recovery.
+Second `declare -A` defect in this loop after iteration 107. The designer, given the confirmation,
+then found a **second** Bash-4.0-ism neither reviewer caught — `${role,,}` → `bad substitution` —
+which I also reproduced.
+
+**Quorum BLOCKED ×2; the design DIRECTION was never contested in either round.** R1: gemini as
+above; `gpt5-6-sol` that D2's independence carve-out was enforced by *controller judgement*, not
+deterministically. I added a constraint neither reviewer could have known — **the driver exports
+roles once per fire, BEFORE a queue item is picked**, so no driver-side classifier can see the
+sprint's doc — which forced a genuine two-stage design instead of a paper fix. R2: `gpt5-6-sol`
+that the new classifier was **denylist-, not allowlist-based** (so unlisted or future language
+paths silently got the same-model planner+executor pairing D2 claims to prohibit), and gemini
+that `derive-planner-lane.sh` ignored `$MISSION_PLANNER_MODEL`, **breaking the doc's own D6
+rollback**. Both carried concrete reviewer-authored `proposed_fix` text and neither touched the
+direction → **narrow-refinement carve-out**: their verbatim fixes applied, no controller-invented
+resolution substituted. The designer correctly **flagged rather than resolved** a contradiction
+the new allowlist created (it fail-closes this very doc, whose Files-to-Modify lists `~/.claude/`
+and the World copy); my ruling was to fix the *declaration*, never weaken the allowlist.
+
+**Then the opus planner refuted FIVE premises — the two decisive ones controller-verified.**
+**R1: D6's "rollback is one env var" is a NO-OP FOR V1, and BOTH quorum rounds accepted it.**
+`~/.config/ailang/mission-v1.env` does not exist (control: `mission-world.env` does, so the path
+is right), and the driver sources the profile file only under `$MISSION_PROFILE`, which the V1
+plist never sets — it works for World, the mission the doc called insulated. **R4: "World blast
+radius = zero until synced" is FALSE** — `ailang-world` has **no repo-local `.claude/skills/`
+directory at all**, so it loads the GLOBAL skill copy D4 mandates editing, reaching World at its
+next fire. R2: AC1/AC2/AC7 are unrunnable as written (the overlap guard at line 334 yields
+*before* the dry-run exit at 351, so the ACs reproduce the very vacuous-pass class D5 exists to
+kill). R3: AC4 can never pass (the main checkout is chronically rig-dirty). R5: my
+Files-to-Modify ruling is necessary but not sufficient (fixture prose backticks
+`internal/parser/...`).
+
+**My own error, recorded rather than quietly fixed.** R4 refutes a sentence in *my* commit
+message for `e980c72d5`. I verified the **driver** was byte-identical (true) and cited that fact
+for a broader **blast-radius** claim (false) — a **rule-3b SCOPE error**, committed in the same
+iteration I was applying that rule to others' evidence. The instrument was green and honest; the
+sentence it was attached to was wider than the command supported.
+
+**Ruled out**: (a) that `#546` could proceed — refuted, the human decision is genuinely
+outstanding and Standing rule 2 governs; (b) that the codex sandbox's `gh` block would obstruct
+the planner — refuted by measurement, `sprint-planner` uses no `gh`; (c) that a green Gate 3b
+would evidence this change — refuted, `tools/launchd/` has **zero** CI coverage (no workflow, no
+shellcheck/`bash -n` gate, no test file; control-verified, since the same grep DID find `tools/`
+in two workflows); (d) that AC3a's placeholder guard was tripping on a real defect — refuted by
+measurement, it **false-positives on its own description** (1 hit whole-file, **0** scoped,
+`validate_sprint_json.sh` rc=0), and the executor was handed the scoped form.
+
+**Why execution is PARKED — a scheduling call on evidence, not caution.** With no CI over the
+driver, the ACs are the only real gate, and the point of no return is **M2, not M4**: it edits
+the file launchd fires every 5400 s, and its revert is a *code* revert, because an env var cannot
+un-break a driver that fails to parse. Landing that unattended on a Friday before a quiet weekend
+buys **zero** capacity — the offload exists to stretch the week Monday-to-Monday, which is the
+date Mark set. The plan is written to be picked up cold; **no `plan_ready` handoff was sent**, so
+no executor is armed.
+
+**Also surfaced**: only **1 of 102** planned docs carries a `Planner-Lane` field and 8 heading
+spellings exist, so the lane engages only on newly authored infra docs — stated plainly rather
+than sold as immediate; the header template lives in
+`design-doc-creator/resources/design_doc_structure.md`, not its `SKILL.md`; and a **third**
+git-tracked skill copy (`.agents/`, 44067 B vs 70544 B) is already drifted, corroborating
+iteration 123's `#544`.
+
+**Routing evidence**: controller=**opus** (session) quota-bucket — triage/pick/probe/verify/
+record; designer=**`claude:claude-fable-5`** per the ROTATION (probe rc=0; **three** bounded runs
+— initial, revision, carve-out — directive delivery asserted at 8,459 B / 8,431 B / 5,389 B, all
+per-iteration filenames with `< /dev/null`), rotation state advanced; planner=**opus**, fired and
+decisive; quorum reviewers `gpt5-6-sol` + `gemini-3-1-pro` + controller across two rounds,
+**metered $0.0777 (R1) + $0.1108 (R2) = $0.189** of the `$5` ceiling. Executor and evaluator
+**NOT fired** — deliberate and recorded, since the item parked at the sprint gate; generator≠judge
+is therefore moot this iteration. Fable billed **zero metered** (subscription wrapper only).
+
+**Next**: at the 2026-08-03 re-arm, `m-planner-codex-lane` goes straight to sprint-executor —
+plan-ready, validator rc=0, **no human decision owed**. Offload (2)
+`m-evaluator-gemini-review-lane` follows. `#546` unparks the moment Mark answers a/b/c
+(controller's read remains **(c)**, avoid **(a)**).
+
+---
+
+## 131 — 2026-07-31 — Iteration 126: `m-property-test-trust` **M1 LANDED**. The pick was `#535`; the find was **`#547`** — `ailang test` has been reporting `ensures violated` for inputs the contract's own `requires` **excludes**. A vacuous FAILURE, the mirror of the vacuous-pass class `#517` closed.
+
+**Picked** — `m-property-test-trust`, covering `#535` + the new `#547`. Not the literal queue
+head, and the reason matters: `#546` is **PARKED** on Mark's a/b/c scope call (Standing rule 2
+forbids forcing a park), and **both quota offloads are date-gated by Mark to the 2026-08-03
+re-arm**. That left `m-property-generator-coverage LANE B1` as the live `[NEXT]` — and B1's own
+queue row names `#535` as the thing that must land **first or alongside**, because B1 multiplies
+the number of properties executing and every one would inherit a non-reproducible verdict.
+
+**Gate 0/1** — kill switch armed, billing **CLEAN**, gh account `sunholo-voight-kampff`, dev in
+sync with origin, dev CI **GREEN** SHA-addressed on `386cf6d15` (Docs-Deploy on an older SHA =
+path-filtered N/A, not pending). **Zero** open `[nightly-eval]` alarms, control-verified against
+closed ones. No new Mark comment — and that negative was **control-verified** rather than
+assumed: exactly **1** comment from `MarkEdmondson1234` exists on `#484`, at
+`2026-07-27T07:53:53Z`, which **equals the watermark**, i.e. already processed. No rotation due
+(`#484` created Mon **07:27 CEST**, after the 07:00 local boundary; 40 comments < 80).
+
+**Ghost discipline → the find.** `#535` reproduced 5/5 at HEAD on a freshly built binary: same
+binary, same file, exit codes **1,0,0,1,1**. Chasing *which* property was flipping produced the
+real defect. `containsImpliesNonEmpty` was failing with `ensures violated for input: xs=[],
+elem=379` — but its precondition is `requires { _list_contains(xs, elem) == true }`, and `[]`
+contains nothing. Reading `runEnsuresProperty` (runner.go:388-427) confirmed it: the loop
+generates values, evaluates the postcondition, and **never evaluates the `requires` predicate at
+all**. No discard step exists.
+
+**The decisive argument is an asymmetry inside the same file.** `runRequiresProperty`
+(runner.go:540-543) meets the *identical* condition — a generated input violating `requires` —
+and reports `skip`, with its own comment stating such inputs "aren't a function bug". Same
+condition, opposite verdict. The skip side already established the intended semantics, so this
+was not a design question. Minimal repro, 6/6 deterministic: `requires { x > 100 }` with body
+`x > 100` reported counterexamples at x=-416/-700/-522/-17/-527/-405 — **every one excluded by
+the precondition**. Filed **`#547`**.
+
+**This corrected a standing read.** `list_recursive_verify.ail`'s ~50% failure was a **false
+positive**, not a genuine contract violation. The designer reached that conclusion
+**independently, before being told** — two parties, same finding.
+
+**Coupling, and why it is load-bearing.** Pinning the seed (`#535`) *without* the discard filter
+would have frozen the false positive into a **permanent deterministic failure**. So `#547` is M1
+and `#535` stays **OPEN** as M2. The randomness was the only thing making the bug intermittent.
+
+**Quorum — BLOCKED ×2, direction NEVER contested, resolved under the narrow-refinement carve-out**
+with both reviewers' verbatim fixes (no controller-invented resolution).
+- R1 `gpt5-6-sol`: unverified metadata-enumeration premise. The controller **ran the requested
+  check first-party**, and it came back **better than the objection assumed and SHRANK scope** —
+  repeated `requires` blocks are **impossible by construction** (`PAR_DUPLICATE_REQUIRES`: "only
+  one requires block per function"), and comma-separated conditions enumerate in **source order**
+  (measured `g_property_1` col 12, `g_property_2` col 19; zero-requires `h` unaffected and passing).
+- R1 `gemini-3-1-pro`: deriving the seed from an **absolute path** breaks cross-machine
+  determinism. Genuinely decisive — it would have reintroduced the exact class the doc exists to
+  remove. Fixed to workspace-relative, per the reviewer's own option.
+- R2 `gpt5-6-sol`: `--random-seed`'s per-property seeds are **not replayable** by any single
+  `--seed N`. Took the reviewer's option 2 — one reported master seed, one versioned derivation,
+  all three modes identical.
+- R2 `gemini-3-1-pro`: `TestConfig.WorkspaceRoot` asserted as existing. **Controller measured it
+  does NOT exist** (zero matches in `internal/testing/` and `cmd/ailang/test.go`; known-positive
+  control `GenConfig` fired; no `config.go`). Premise FALSE; the field is now designed in.
+
+**PROCESS FINDING — both quorum rounds blocked on the SAME root cause.** Not two unrelated
+objections: R1 and R2 were each *a codebase premise asserted rather than measured*. The designer
+wrote "the metadata can enumerate…" and then "the CLI defines `workspaceRoot`…", neither with a
+verification row. This is the inherited-verification-debt class aimed at the **designer** rather
+than the controller. The round-3 directive named the pattern explicitly rather than just handing
+over the two fixes, and the result was 21 verification rows with commands and outputs. Recorded
+here because one more instance makes it a skill edit.
+
+**Planner (opus) refuted THREE doc premises, one fatal.** (1) AC1/AC3/AC8 were written against a
+`--seed 42` flag **M1 does not add** — as written, **none of M1's acceptance criteria could have
+run**, silently breaking the "M1 must be independently landable" constraint. (2) AC3's fixture
+cannot pass: `assert` is a reserved keyword, and even corrected it fails because of a
+**pre-existing unreported bug** the planner isolated with four one-variable fixtures — filed as
+**`#548`**. (3) AC9's module-less fixture does not parse, which blocks M2 (it is the only
+criterion proving `WorkspaceRoot` reaches the derivation). All 11 controller premises were
+**confirmed**, including an independent `#547` repro 3/3.
+
+**`#548`** — a named `test` block beside a contract-bearing function breaks the named-test path:
+`stripNonPureFunctions` leaves orphaned `requires`/`ensures` at top level in the generated
+`_namedtest_body_*.ail`, so it dies on `PAR_NO_PREFIX_PARSE` against a file the user never wrote.
+Reproduced first-party (control: a test block alone passes). **Blast radius honestly bounded at
+0 in-repo files** (control: 5 files have named test blocks, none also carry a contract) — a
+latent user trap, not a live breakage, which is presumably why it went unnoticed.
+
+**Gates re-run OUTSIDE the codex sandbox — mandatory, and it mattered.** The executor's
+`go test ./cmd/ailang/...` was denied a loopback bind and it **correctly labelled the result
+`UNINFORMATIVE UNDER SANDBOX`** rather than reporting pass or fail. Outside the sandbox: **rc=0
+in 214.9s**. Infrastructure, not a regression — exactly what that label exists to prevent.
+Also outside: `go test ./internal/testing/...` rc=0, `make check-file-sizes` rc=0.
+`runner.go` **790 → 670**, which **relieves LANE B1's 10-lines-from-the-cap constraint**.
+
+**Mutation testing.** Controller: filter-never-discards → **RED** (4 named tests); a first attempt
+that merely broke the build (`requiresHold` unused) was **discarded as an uninformative red** —
+a compile failure is not evidence a guard works. Evaluator ran 8 independent mutations, 7 killed.
+
+**A SURVIVING mutation, recorded not buried.** Relaxing the guard to `TestsRun < requiredAccepted-1`
+— accepting exactly 99 as a pass — **SURVIVED**. The test named
+`TestEnsuresNinetyNineAcceptedIsNotAPass` claimed to pin that boundary but uses `x > 900`, ~5%
+acceptance, so `TestsRun` settles near 50 and **never reaches 99**. Renamed
+`TestEnsuresSparseDomainIsSkipNotPass` with the gap and its cause written into the test. Pinning
+the exact boundary requires landing on exactly 99 accepted, which is **not constructible while
+generation is wall-clock seeded** — so it is genuinely blocked on `#535`/M2. Same rule-3b shape
+as the sprint plan's own row, which described it as "mutation guard on the accepted < 100
+boundary".
+
+**Evaluator sonnet PASS 95/100 r1, zero blocking. Its NON-BLOCKING F1 was ACTED ON anyway** — a
+severity label is the judge's opinion, not a measurement. The negative control
+(`TestEnsuresGenuineViolationStillFails`) only rejected negatives and `"0"`, so a counterexample
+of `50` would have passed an assertion whose **own failure message claimed to prove `x > 100`**.
+Strengthened to parse and compare, then **proven to catch** the evaluator's mutation 8 (flip the
+discard so out-of-contract inputs are accepted) → fails with `counterexample x=-612`. The
+evaluator had measured that the old assertion did **not** catch that mutation. Source restored
+sha256-identical.
+
+**Behaviour change, surfaced not buried.** `list_recursive_verify.ail` goes from flaky
+`1,0,0,1,1` to a stable **0 pass / 0 fail / 6 skip**. The false failure is gone; `extractBounded`
+is now honestly reported **unverified** rather than passing on out-of-domain inputs. **No CI
+impact** — `make verify-examples` runs `ailang run`, never `ailang test`
+(`scripts/verify_examples.go:108-115`, all three exec forms). That verification is also what made
+the seed pin low-risk, and it is worth keeping in mind: **`ailang test` has no CI coverage over
+the example corpus at all.**
+
+**Gate 3b — GREEN, SHA-addressed on `3ebd4d19a`; merged as squash `a9e26ffd6`.** All FOUR
+required contexts green (`test`, `lint`, `build`, `docs-gate` — read from branch protection, not
+assumed): 13 success + 5 skipped/N-A. ⚠ **SonarCloud went RED and it is recorded, not hidden**:
+77.9% coverage on new code (gate ≥80%) and 4.6% duplication (gate ≤3%). Sonar is **not** in the
+required set, so UNSTABLE ≠ BLOCKED — but the duplication is a genuine consequence of splitting
+the ensures path out of `runner.go`, and M2 should collapse the shared shape rather than let it
+compound. The poll was SHA-pinned throughout; note that the tally moved 18 → 20 checks mid-poll as
+late jobs registered, which is exactly why a count-based "all complete" test must be re-read
+against the head SHA rather than trusted once.
+
+**Ruled out**
+- *`#535` is a simple default-seed change* — REFUTED. Fixing seeding alone would have frozen a
+  false positive into a permanent failure.
+- *`list_recursive_verify.ail` exposes a genuine contract violation* — REFUTED by measurement;
+  the counterexample violates the precondition.
+- *Repeated `requires` blocks must be handled* — REFUTED; the parser rejects them.
+- *`TestConfig.WorkspaceRoot` exists* — REFUTED; zero matches with a firing control.
+- *M1's acceptance criteria were runnable as written* — REFUTED by the planner; they required a
+  flag M1 never adds.
+- *The 99-accepted boundary is pinned by the suite* — REFUTED by a surviving mutation.
+- *The negative control proved its counterexample was in-domain* — REFUTED; it accepted any
+  non-negative value.
+
+**Routing evidence** — designer `codex:gpt-5.6-sol` (**rotation advanced** claude → codex; 3 bounded
+runs: author, fold-in, quorum-revision), quorum reviewers `gpt5-6-sol` + `gemini-3-1-pro`
+(2 rounds), planner **opus**, executor `codex:gpt-5.6-sol`, evaluator **sonnet** — generator≠judge
+holds (OpenAI executor vs Anthropic judge). `metered=$0.1323` of the `$5` ceiling (quorum only:
+$0.0596 R1 + $0.0727 R2); planner/controller/evaluator on quota buckets, codex on the ChatGPT
+subscription bucket. No Fable spend (designer rotated off it).
+
+**Next** — M2 (`#535` deterministic seeding) is plan-ready but **blocked on AC9's module-less
+fixture parse failure**, which must be resolved first. Then M3, then LANE B1 (now with 130 lines
+of `runner.go` headroom). `#546` unparks the moment Mark answers a/b/c (controller's read remains
+**(c)**, avoid **(a)**). Both quota offloads remain date-gated to the 08-03 re-arm.
+
+**Parked for human** — nothing new. `#546`'s a/b/c scope call remains the single open ask.
+
+## 132 — 2026-08-01 — Iteration 127: `#548` **LANDED**, and the AC9 blocker gating the seed sprint's M2 is **DISCHARGED**. The pick was `#548`; the find was that the defect is **not contract-specific at all** — `ailang test` corrupted every temp module it generated for a multi-line declaration.
+
+**Picked** — `#548` + the AC9 blocker, as ONE root cause. Not the literal queue head, and the
+reason is the same shape as last iteration's: `#546` remains **PARKED** on Mark's unanswered a/b/c
+scope call (Standing rule 2 forbids forcing a park), **both quota offloads are date-gated by Mark
+to the 2026-08-03 07:00 re-arm**, and the seed sprint's own **M2/M3 are date-gated to that same
+re-arm**. `m-property-generator-coverage LANE B1` sequences behind `#535`, which is M2. What was
+left that is genuinely live: `#548`, filed by iteration 126 and never routed — and iteration 126's
+own **Next** field names AC9's parse failure as the thing that must be resolved *before* M2 starts.
+So this pick is a capacity multiplier landing before the capacity consumer, which is exactly the
+ordering Mark set for the re-arm.
+
+**Gate 0/1** — kill switch armed, billing **CLEAN**, gh account `sunholo-voight-kampff`, dev CI
+**GREEN** SHA-addressed on `858b067d4`. **Zero** open `[nightly-eval]` alarms — control-verified
+against 5 closed ones, so the empty result is a fact and not a broken instrument. No new Mark
+comment, also control-verified: exactly **1** comment from `MarkEdmondson1234` exists on `#484`, at
+`2026-07-27T07:53:53Z`, which **equals the watermark** — already actioned by iteration 126. No
+rotation due (`#484` created Mon **07:27 CEST**, *after* the 07:00 local boundary; 41 < 80).
+Inbox: 7 routine `eval-suite` aggregates plus this mission's own iteration-126 report; no
+regression, no directive; all acked.
+
+**Two Gate-1 traps caught rather than inherited.** (1) Local `dev` had **diverged** — 1 ahead, 3
+behind. The ahead-commit was NOT local work: `git cherry -v origin/dev dev` printed `-` and the
+patch-ids matched exactly (`fc808504e…`), i.e. iteration 126's Gate-4 record had landed upstream
+under a different SHA. Nothing to rescue, and per Critical Principle 0 the shared tree was left
+untouched; all mission state was read from `origin`. (2) `git status` showed
+`.claude/skills/mission-control/SKILL.md` modified, which reads like an uncommitted Gate-5 edit —
+but `git diff origin/dev -- <file>` was **empty** and both copies are 74747 bytes. The edit had
+already landed as `858b067d4`; the "M" was relative to the *stale local HEAD*, not to origin. A
+dirty-file list is meaningless until you name the reference it is dirty against.
+
+**The find — the first diagnosis was too narrow, and the planner refuted it.** Reality-checking
+`#548` reproduced it 1/1 with a control (named test alone → rc=0; named test + contract → rc=1,
+`PAR_NO_PREFIX_PARSE ... requires`/`ensures` in a generated `_namedtest_body_*.ail`). The AC9 shape
+reproduced too, with the discriminating variable isolated: identical contract **with** a `module`
+header → rc=0, **without** → rc=1. I traced both to `stripNonPureFunctions` and confirmed it with a
+falsifiable prediction — I hand-built the temp file I believed was being generated
+(`module`/blank/`requires`/`ensures`) and `ailang check` produced errors at **exactly `3:1` and
+`4:1`**, byte-identical to the live failure.
+
+That prediction was right about the mechanism and **wrong about its scope**, and the opus planner
+caught it. The defect is **not contract-specific**: the strip deletes exactly ONE line of a
+declaration that may span many, so a plain multi-line function with **no contract anywhere**
+corrupts identically (`unexpected token in expression: }`), and an `@verify` annotation — which
+sits *above* `Span.Start`, so even a span-based strip misses it — yields `PAR_ATTR_REQUIRES_FUNC`.
+I re-ran both first-party before accepting them. Contracts were merely the loudest instance of a
+wider corruption class. The planner also refuted `#548`'s own "known-positive control" as passing
+for the wrong reason: its body `test "trivial" { true }` calls nothing, so it could never detect
+that the function had been deleted.
+
+**The measured rejection that shaped the fix.** The obvious remedy is to derive purity from the
+effect annotation, since `IsPure` is set **only** by the `pure` keyword (`parser_func.go:33`) — I
+verified that adding `pure` makes the AC9 case pass. The planner rejected it on blast radius and I
+confirmed the reason: `internal/format/decl.go:57` is `if d.IsPure { write("pure ") }`, so flipping
+the parser flag would make **`ailang fmt` insert a keyword the author never typed** — the silent
+source-rewrite class this repo has already paid for once. Purity inference therefore stays **local**
+to `internal/testing`, mirroring the existing precedent at `cmd/ailang/ai_check.go:231-232`.
+
+**Shipped** (PR #550 → `f1a10b673`): a new `internal/testing/source_strip.go` serving all THREE
+call sites (Critical Principle 3 — one unified fix, not three patches): whole-declaration span
+deletion extended upward over annotations, a local `isEffectivelyPure`, and a keep-set so the
+function under extraction survives its own strip. `ExtractPureClusterForFunction` no longer computes
+a stripped source the module pipeline never reads — the module path loads the root module **by
+filename from disk** (`pipeline.go:157-169`), which is also precisely why the module-ful case
+*masked* the bug for so long. `executor.go` 739 → **654** lines.
+
+**AC9 is discharged, with a paired control.** AC9's original module-less fixture, verbatim and
+unmodified: pre-fix binary → `rc=1`, `PAR_NO_PREFIX_PARSE ... ensures`; post-fix → `rc=0`, 1 passed.
+The seed sprint plan's §0.3, §5.3 and risk-row B3 were updated to record the discharge and name the
+committed regression fixture, so the 08-03 session does not re-derive a blocker that no longer
+exists — and it may keep AC9 **as written** rather than restating it.
+
+**A surviving mutation, found by the judge and then closed.** I ran three mutations (purity policy,
+span collapse, annotation extension) — all killed, all reverted byte-identically. The sonnet
+evaluator ran six more and found one that **SURVIVED**: the `endLine < startLine` disjunct of the
+invalid-span guard was never exercised, because the only fallback test left `End` at its zero value.
+I reproduced the survival first-party, converted the test into a table covering **both** disjuncts,
+and then proved the point rather than asserting it — with the mutation re-applied, the new
+`end_before_start` subtest fails; with the fix intact it passes. All three of the evaluator's
+non-blocking findings were **acted on rather than filed** (a severity label is an opinion, not a
+measurement): the mutation gap, the missing CHANGELOG entry, and the seed-plan discharge.
+
+**Ruled out**
+- *The defect is contract-specific* — REFUTED by the planner and re-verified by me; a multi-line
+  function with no contract at all corrupts identically.
+- *One fix closes both defects* — REFUTED before routing. Stripping contracts *with* the declaration
+  fixes `#548` but leaves AC9 with no function to extract; the keep-set is a separate necessity.
+- *Deriving `IsPure` from the empty effect set is the clean fix* — REFUTED on measured blast radius
+  (`internal/format/decl.go:57` would make `ailang fmt` rewrite user source).
+- *`#548`'s own control proves the function survives* — REFUTED by the planner; its test body calls
+  nothing.
+- *`cmd/wasm` build failure is ours* — REFUTED; identical on a pristine stashed `origin/dev`
+  (`GOOS=js` build-tag artifact).
+- *`TestIsTempPath` is a regression, or a pre-existing dev bug* — REFUTED both ways; it fails ONLY
+  because this worktree lived under `/tmp`, and passes `rc=0` in a non-`/tmp` checkout. Dev CI is
+  green precisely because CI does not check out under `/tmp`.
+- *An empty `grep` for `[NEXT]` meant no open queue items* — REFUTED by a control: the tag census
+  found **7** `[NEXT]` rows; my line-anchor assumption about queue formatting was wrong, not the data.
+
+**Routing evidence** — planner **opus**, executor `codex:gpt-5.6-sol` (one bounded 30-min run,
+delivery asserted, stdin `< /dev/null`), evaluator **sonnet** — generator≠judge holds (OpenAI
+executor vs Anthropic judge). No designer fired (bug-fix lane, no new design doc, no quorum — the
+`m-nightly-run-validity-gate`/`#524` precedent), so the designer rotation is **unchanged** at
+`codex:gpt-5.6-sol`. `metered=$0.00` of the `$5` ceiling — quorum did not run, no managed-agents
+call; planner/controller/evaluator on quota buckets, codex on the ChatGPT subscription bucket.
+All gates re-run **outside** the codex sandbox, as required: its `go test ./...` hit a loopback-bind
+denial and it correctly labelled that `UNINFORMATIVE UNDER SANDBOX` rather than reporting pass or fail.
+
+**Watch-item (instance 1, NOT yet a skill edit)** — placing the sprint worktree under `/tmp` makes
+`internal/loader`'s `TestIsTempPath` fail spuriously, because the test resolves relative paths
+against a CWD that is itself temp-shaped. A full-suite run from such a worktree therefore shows a
+red that CI will never show. Prior iterations used `.wt-iter117` / `.wt-iter121` under the repo
+parent; this iteration deviated to `/tmp/wt-iter127`. One recorded instance, so per Gate 5's
+≥2-friction bar this is logged rather than written into the skill. If a second iteration hits it,
+the fix is to standardise the worktree location off `/tmp`.
+
+**Next** — the 2026-08-03 07:00 re-arm now has a clean run at Mark's stated order: the two quota
+offloads first (`m-planner-codex-lane` is plan-ready, `m-evaluator-gemini-review-lane`), then the
+seed sprint's **M2 (`#535`) which is no longer blocked** — AC9 needs no restatement — then M3, then
+LANE B1. `#546` unparks the moment Mark answers a/b/c (controller's read remains **(c)**, avoid
+**(a)**).
+
+**Parked for human** — nothing new from this sprint. `#546`'s a/b/c scope call remains the single
+open ask. Additionally surfaced for awareness, not a decision: the **shared main checkout is in a
+diverged state** (1 commit ahead that is a patch-identical duplicate of an upstream commit, 3
+behind), which Gate 1 will keep flagging. Critical Principle 0 forbids the loop resetting it, so it
+needs an interactive session to reconcile.
+
+## 133 — 2026-08-01 — Iteration 128: `#551` **filed and landed in one iteration**. The nightly run-validity gate `#524` built was passing a 100%-`non_agentic` outage as VALID — and tonight's unmeasurable run had already become the baseline for Sunday and Monday.
+
+**Picked** — NOT the queue head. A genuine measurement-validity regression surfaced at Gate 0.4, which outranks the queue. Everything Mark sequenced was unavailable anyway: `#546` stays PARKED on his a/b/c call (Standing rule 2), and both quota offloads *and* the seed sprint's M2/M3 are date-gated to the 2026-08-03 07:00 re-arm. The live alternatives were two P2 `[NEXT]` rows needing a new doc + metered quorum; neither outranks a broken regression detector.
+
+**Gate 0/1** — kill switch armed, billing **CLEAN**, gh account `sunholo-voight-kampff`, dev CI **GREEN** SHA-addressed on `c7fc3b954` (13 success / 2 neutral / 0 failures). **Zero** open `[nightly-eval]` alarms, control-verified against 3 closed ones. No new Mark comment — control-verified: exactly 1 comment ever on `#484`, at `2026-07-27T07:53:53Z`, which *is* the watermark. No rotation due (`#484` created Mon 07:27 CEST, after the 07:00 **local** boundary; 42 comments < 80).
+
+**A Gate-1 trap, and it was the loop's own rulebook.** Local `dev` was **6 commits behind** `origin/dev`, so mission state was read from origin. But the `~/.claude/skills/mission-control` symlink resolves into that same stale checkout, so **the skill this iteration was executing was not origin's**. Measured: of the last 8 commits touching the file, the newest two (`858b067d4`, `c7fc3b954`) are `NOT-in-local-HEAD` while every older one is — the old ones were saved in place, the new ones committed from worktrees. The running copy was therefore missing iter-127's own Gate-4 STATUS-rotation mass-deletion guard, the rule added *because that step had already deleted the charter's 1,571-line queue once*. I only had it because I diffed against origin. Separately, the `SKILL.md` showing as "modified" was byte-identical to origin commit `858b067d4` — dirty against the stale local HEAD, not against origin, so no work was at risk; but `.claude/skills/post-release/` **does** carry genuine uncommitted work, so Principle 0 held and the shared tree was left alone.
+
+**The find.** The inbox carried a `1/24 (4.2%)` nightly. `non_agentic` was **0 across all 336 history rows on the eight prior nights**, then **12/12 (100%)** in one night, with the pass rate collapsing 56/84 → 1/24. Root cause is infra, not capability: every trial had `duration_ms: 0` and the harness's own text, `executor "opencode" produced non-agentic result: 1 turns, 0 tool calls ... Check that the CLI is configured for agentic coding` — the "or a tool-delivery problem" branch that `internal/eval_harness/error_categorizer.go:5-9` names itself. The gate missed it because `INFRA_CATEGORIES = {api_error, timeout, executor_error}` and `non_agentic` is not a member, so `tainted = 0/12`, `0.0 < 0.30`, **VALID** — and 11 verdicts (5 SUSPECTED-FLAKE) entered the trend.
+
+**The instrument failed before the finding did.** My first classifier run returned `INVALID zero_files 0/0` for the subject — and *also* for the 07-29 positive control, which is the only reason I noticed: results live in the `agent/` subdirectory. Pointed correctly, subject → 11 verdicts and no INVALID line; control → `INVALID infra_outage 42/42 0.167 0.643`. Rule 3a earned its keep four more times this iteration (see Ruled out).
+
+**Containment before the sprint.** 2026-08-01 marked `validity:{valid:false,reason:infra_outage}` via the tool's own `--mark-invalid` with a backup — **348 lines before and after**, evidence preserved, nothing deleted. Trend restored to `42 benchmarks, 7 nights, 2 invalid nights excluded`. This is iter-119's own prescribed deployment step, applied to a new night.
+
+**The planner refuted my preferred fix — after I had already published it.** `#551` therefore carries a correction comment. All three refutations reproduced first-party before acceptance:
+- *A category-agnostic concentration gate is safe at 0.30* — **REFUTED**. `thrash_aborted` reaches **13/42 = 0.31 on 2026-07-28 AND 2026-07-31, both good nights**; the gate would mark 2 of 3 good nights INVALID. Only the "unprecedented in the trailing window" conjunct rescues it, and that clause would then silence a genuine 42/42 `verify_error` regression — verbatim the failure mode `#524` rejected the pass-rate-deviation disjunct for.
+- *An all-trials `duration_ms == 0` rule works* — **REFUTED**. 08-01 is **22/24**, not 24/24 (my own issue text contradicted its own `passes=1/24` line), and zero-duration is **17–21% of a healthy night** — it is how `thrash_aborted` is recorded.
+- *`validity_backstop_test.go:201` blocks adding `non_agentic` to the infra set* — **REFUTED**, mis-aimed: it governs Go's per-row backstop, unconnected to the Python run gate. The real reason is that `INFRA_CATEGORIES` has **two callers**, so widening it would permanently silence every *individual* non-agentic benchmark.
+
+**Shipped** (PR #552 → squash `9c2081b05`): split the overloaded set rather than widen it. `INFRA_CATEGORIES` untouched for per-benchmark taint; a new `RUN_UNMEASURED_CATEGORIES` (infra ∪ `non_agentic`, `quota_exhausted`, `rate_limit`, `cost_killed`) consulted **only** by `run_validity()`, plus a dominant-category field on the INVALID line and the shell driver reading it. Threshold **unchanged at 0.30** — no new knob (measured 0.048 / 0.048 / 0.024 on good nights vs 1.000 / 1.000 on both outages). Suite 74 → **88**; CI anti-skip floor 70 → **84**.
+
+**M3 ran first, and that mattered.** The `/tmp` corpora are being reaped — re-measured with `find` after an unquoted-glob `ls` aborted and printed a plausible `0`: 07-24…07-27 hold at most a `summary.json`, their trial data already gone. The five surviving nights are now frozen as in-repo fixtures, and the evaluator confirmed live dirs and committed fixtures produce identical numbers.
+
+**A self-inflicted destructive edit, caught by my own restore check.** Reverting mutation MUT-1 I ran `git checkout -- tools/nightly_classify.py` against an **uncommitted** baseline — which resets to HEAD and destroyed the executor's entire fix, not just my mutation. The post-restore sha256 did not match the pre-mutation hash, which is the only reason I noticed; `git diff --stat` was silent because the file now matched HEAD exactly. Reconstructed from the diff captured earlier and verified **byte-identical** (`bab47b70…`), then all three mutations re-run with a `cp`-based baseline. Same class as iter-127's Gate-4 near-miss — *a destructive edit reports success exactly like a correct one* — but a new surface: mutation testing against uncommitted executor work, which every sprint in this loop does.
+
+**Gates re-run OUTSIDE the codex sandbox**, as required. The executor's `make test` hit a loopback-bind denial on `TestHandleWebSocket` and **correctly labelled it `UNINFORMATIVE UNDER SANDBOX`**; outside, `make test` rc=0 with zero FAIL lines and `TestHandleWebSocket` **PASSES**. Its `make ci` died on a sandbox DNS denial to `proxy.golang.org` — also uninformative, also re-run. Controller mutations: 3, all killed, all restored byte-identically; MUT-3 died as an *error* (`IndexError`) rather than an assertion, in the correctly-targeted test — recorded as a genuine but less clean kill.
+
+**Ruled out**
+- *The 08-01 nightly is a capability regression* — REFUTED. `duration_ms: 0` and `0 tool calls` on 22 of 24 trials is a lane failure; the model is present in `ollama list`.
+- *`non_agentic` should simply join `INFRA_CATEGORIES`* — REFUTED on blast radius (two callers; individual non-agentic benchmarks would never be filed again).
+- *My own concentration-gate and zero-duration proposals* — both REFUTED by measurement, above.
+- *The evaluator's non-blocking "sprint plan belongs in `implemented/`"* — REFUTED by measurement: `#524`'s own plan sits in `planned/`, as does `m-nightly-sustained-failure-label`; only `m-nightly-flake-guard` is in `implemented/`. My placement matches the direct predecessor. The inconsistency is repo-wide and pre-existing, not this sprint's.
+- *A `grep -c "invalid"` on the history file proves no night is marked* — REFUTED by control: the key is `validity` / `"valid": false`, so the literal never appears. The grep was a broken instrument agreeing with no hypothesis.
+- *An empty `[NEXT]` row regex meant no open queue items* — REFUTED by a tag census (13 `[NEXT]`), the **second** iteration in a row to hit this exact false negative after iter-127.
+- *`ls .../agent/*.json | wc -l` reporting 0 proves a directory is reaped* — REFUTED as an instrument: zsh aborts on the unmatched glob before `ls` runs, so `wc -l` prints a plausible `0`. Re-measured with `find`; the conclusion held, the evidence did not.
+- *The `Reading additional input from stdin...` line indicates the codex stdin hang* — REFUTED: it appears **even with `< /dev/null`**, and the run proceeded normally. The recipe implies that line is the tell; it is not. Watch-item.
+
+**Routing evidence** — planner **opus**, executor `codex:gpt-5.6-sol` (one bounded run, delivery asserted at 3662 B, stdin `< /dev/null`), evaluator **sonnet** — generator≠judge holds (OpenAI executor vs Anthropic judge). Designer **NOT fired** (bug-fix lane, no new doc, no quorum — the `#524`/`#548` precedent), so the designer rotation correctly did **not** advance, remaining at `codex:gpt-5.6-sol`. `metered=$0.00` of the `$5` ceiling — no quorum, no managed-agents call; codex on the ChatGPT subscription bucket, planner/controller/evaluator on quota buckets.
+
+**Evaluator** — sonnet **PASS 91/100 round 1, zero blocking**. Six independent mutations, all killed. It re-derived the threshold margins first-party from *both* the live `/tmp` dirs and the new in-repo fixtures and got identical numbers, which is the fixture-faithfulness proof; it also verified the shell driver parses the new 6-field line under **bash 3.2.57** and that the old 5-field form degrades cosmetically rather than crashing. All three non-blocking findings were re-checked rather than accepted on their label; one was refuted by measurement (above), two stand as cosmetic/process notes.
+
+**Watch-items (instance 1 each, NOT yet skill edits)** — (a) reverting a mutation with `git checkout --` destroys an **uncommitted** executor baseline; the safe form is `cp` to a temp file and restore from the copy, verified by sha256. (b) The codex recipe implies `Reading additional input from stdin...` is the tell for the stdin hang; it is printed even under `< /dev/null`, so it is not. Both are logged rather than written into the skill, per Gate 5's ≥2-friction bar.
+
+**Skill edit (Gate 5, the one allowed)** — the Repo Profile's headline claim that a skill edit is "LIVE for every mission the instant you save it" is true only for an edit **saved in the main checkout**, and false for the **worktree-commit path that every sprint uses**. Added as consequence (c), with the Gate-1 remedy: diff the running skill against origin and read the delta before proceeding. Two frictions: iter-127 surfaced the divergence, iter-128 measured the harm.
+
+**Next** — the 2026-08-03 07:00 re-arm is unchanged and still has a clean run at Mark's stated order: the two quota offloads first (`m-planner-codex-lane` is plan-ready), then the seed sprint's M2 (`#535`), then M3, then LANE B1. `#546` unparks the moment Mark answers a/b/c (controller's read remains **(c)**, avoid **(a)**).
+
+**Parked for human — one NEW ask.** The opencode/**qwen3.5** lane is still broken and will keep producing unmeasurable nights; the gate now marks them INVALID instead of silently trusting them, but it cannot make the lane produce data. Narrowing evidence, stated as suggestive rather than conclusive since the benchmark sets differ: `opencode-qwen3-6` and `pi-qwen3-6` passed 4/4 on the same rig the same night, and the nightly's own suite had shrunk 42 → 12 benchmarks. Also still open: `#546`'s a/b/c. And the shared main checkout remains diverged — now with a measured consequence, since that is *why* the loop was running a stale copy of its own skill.
+
+## 134 — 2026-08-01 — Iteration 129: **triage-only.** `#554` filed. The nightly `non_agentic` outage is a **recurring ollama tool-call emission collapse**, not the qwen3.5 lane — and the proposed remedy, "switch the nightly to qwen3.6", is **refuted by measurement**.
+
+**Picked** — NOT a queue item, and no sprint routed. `#546` stays PARKED on Mark's a/b/c (Standing rule 2); the seed sprint's M2/M3 and both quota offloads remain date-gated to the 2026-08-03 07:00 re-arm; LANE B1's own row requires `#535` — which *is* the date-gated M2 — to land first or alongside. That left iteration 128's open ask: a live, ongoing outage of the mission's primary data instrument, which Gate 0.4 ranks above the queue.
+
+**Gate 0/1** — kill switch armed, billing **CLEAN**, gh account `sunholo-voight-kampff`, dev CI **GREEN** per-workflow on `b3f628ed8` (CI + Build-and-Release success; Docs-Deploy last ran on `f64659b12` and is path-filtered, so N/A rather than pending for the doc-only commits after it). **Zero** open `[nightly-eval]` alarms — control-verified: the same search returns 5 CLOSED, so the instrument sees positives. No new Mark comment — control-verified: exactly **1** comment ever by `MarkEdmondson1234` on `#484`, at `2026-07-27T07:53:53Z`, which *is* the watermark. No rotation due (`#484` created Mon **07:27 CEST**, after the 07:00 **local** boundary; 43 < 80).
+
+**The Gate-1 trap fired, one step further along than iter-128 measured it.** Local `dev` was **1 ahead / 8 behind** origin; the ahead-commit `9e742037a` is iteration 126's record already upstream under a different SHA (`167c55e6a`), so nothing was lost and the shared tree was left untouched (Principle 0). The new part: the **working-tree charter carried stamps 123/125/126 while origin carried 126/127/128**. A Gate-4 edit made in place — which is the default reading of "append an entry" — would have silently deleted iterations 127 and 128's STATUS records, a mass deletion that reports success. Iter-128 proved the *running skill* was stale; this iteration proves the *charter the loop writes to* is stale too. All Gate-4 writes were done in a worktree branched from `origin/dev`. Conversely the running `SKILL.md` **matched origin byte-for-byte** (`cmp` silent, 78454 B both), so iter-128's fix is holding.
+
+**The find.** I built a longitudinal instrument out of **opencode's own session DB** (`~/.local/share/opencode/opencode.db`, ~1.0 GB) — per-session tool-emission rate, which the eval harness does not expose. qwen3.5 scored **100 / 100 / 98.8 / 25.9 / 98.8 / 100 / 12.0 %** across 07-26…08-01. So the collapse is **recurring and intermittent, not new**: 07-29 is the same mechanism, and that is the night whose four bogus filings (`#520`–`#523`) iterations 118/119 diagnosed as an `api_error` serving failure. One mechanism, two `error_category` labels, two separate investigations. Failing sessions end `reason: "stop"` — a **clean stop, not truncation** — after ~232 output tokens with **zero tool parts**, the model's own text halting mid-sentence exactly where a tool call belongs: *"Let me first read the existing solution file to see what's there:"*.
+
+**Four hypotheses refuted, each first-party**
+
+1. **Lane-specific to qwen3.5** — refuted. On 07-29 hour 00, qwen3.**6** ran **18** sessions with **1** emitting tools; all 17 failures `reason=stop`, avg **236** output tokens, the same shape as qwen3.5's 232. This is the load-bearing one: it answers Mark's open question with data — switching the nightly to qwen3.6 would not have prevented either outage. Iter-128's own phrasing was correctly hedged as *suggestive*, and the hedge is what made it worth re-testing rather than inheriting.
+2. **Prompt size / context overflow** — refuted, and it was *my* leading hypothesis: input `41,217` sits suspiciously near a 40960 `num_ctx`. Holding first-step input ≥41,000, the same ~41,260-token prompt yields **83/84** (07-30) and **108/108** (07-31) but **21/81** (07-29) and **2/24** (08-01) — identical size, opposite outcome — and successful sessions reach **113,373** input tokens.
+3. **Model rot / missing model** — refuted. The blob is present and unchanged for 8 weeks and scored 100% the night before.
+4. **Harness / opencode change** — refuted. Same opencode `1.15.7` either side, with an **identical 12-tool registry** (`bash edit glob grep invalid question read skill task todowrite webfetch write`) resolved in both good and bad sessions.
+
+**My own instrument was wrong once, and I caught it.** The first version of test (2) aggregated `max` input tokens per session, which conflates multi-turn context growth with prompt size and made the no-tools group look capped at ~41.8k. Redone on the **first** `step-finish` to be apples-to-apples, the apparent threshold vanished and the hypothesis died. A comparison is only as good as its denominator.
+
+**Not established, and deliberately not claimed** — the root cause. It is temporal and environment-level, pointing at ollama serving state. Same-hour co-residency of the two 37 GB models is **not** cleanly predictive (08-01 hour 01: qwen3.6 **2/2** while qwen3.5 was **3/25**), so contention is a hypothesis I refused to assert. One unverified lead handed over: the ollama **server** is `0.31.2`, up since **Tue Jul 21** (11 days), against an installed **client** of `0.32.1`.
+
+**Ruled out**
+- *"The qwen3.5 lane is broken"* (iter-128's framing) — the failure is not lane-scoped; qwen3.6 collapses identically.
+- *Context/`num_ctx` overflow* — same prompt size succeeds and fails on different nights.
+- *Model file missing or rotted* — present, unchanged, 100% the prior night.
+- *An opencode or harness version change* — identical version and tool registry either side.
+- *Model contention in the same hour* — not predictive; explicitly not asserted.
+- *A code fix in this repo* — the root cause is ops-side; inventing an AILANG-lane fix would be the wrong lane per PROGRAM.md routing.
+
+**Routing evidence** — designer, planner, executor and evaluator **all NOT fired**: triage-only, zero code changed, no design doc, no quorum. The designer rotation therefore correctly did **not** advance, remaining at `codex:gpt-5.6-sol`. Controller on the session model (quota bucket). `metered=$0.00` of the `$5` ceiling.
+
+**Byproduct worth more than the incident** — the harness's `error_category` labelled two identical-mechanism nights *differently* (`api_error` 07-29, `non_agentic` 08-01), while tool-emission rate separates "we failed to measure" from "the model failed" cleanly, and the opencode DB retains history the `/tmp` run dirs reap after ~5 days. A candidate backlog item, not routed this iteration.
+
+**Watch-item (instance 2)** — the Gate-4 charter write against a stale working tree. Instance 1 was iter-128's stale *skill*; this is the stale *charter*. Recorded as a Gate-5 skill edit this iteration, since the two instances meet the ≥2-friction bar and the second one is a mass-deletion surface.
+
+**Next** — the 2026-08-03 07:00 re-arm is unchanged: the two quota offloads first (`m-planner-codex-lane` is plan-ready), then the seed sprint's M2 (`#535`), then M3, then LANE B1. `#546` unparks the moment Mark answers a/b/c (controller's read remains **(c)**, avoid **(a)**).
+
+**Parked for human — one ask, now answerable.** Restart the ollama server, ideally onto 0.32.1, and re-measure the rate table in `#554`; it is cheap and directly falsifiable — if the collapse recurs on a freshly restarted server, the skew/uptime lead is dead and the next suspect is per-request serving state. Tonight's nightly will otherwise likely be unmeasurable again (correctly marked INVALID by `#551`'s gate, but still no data). Also still open: `#546`'s a/b/c, and the shared main checkout's interactive reconcile — now with a second measured consequence.
+
+## 135 — 2026-08-01 — Iteration 130: **Mark's directive half-executed by design.** The qwen3.5 retirement **LANDED** (PR #556); the "restart ollama" half is **parked and escalated** — because characterising it found the rig running **two ollama servers on port 11434** since the 21 Jul reboot, `0.31.2` on IPv4 and `0.32.1` on IPv6 (`#557`).
+
+**Picked** — not a queue item. Gate 0.5 found a **human directive**: Mark commented on `#484` at `2026-08-01T06:54:07Z`, *"Remove qwen 3.5 only use qwen 3.6. Restart ollama"*, answering iteration 129's DECISION-1. He **overrode** iter-129's refutation of the qwen3.6 switch and asked for it anyway, plus the restart. The refutation still stands on its own measurement — switching lanes would not have prevented either outage — and was not relitigated. A directive sets priority, not truth; the right response is to execute it and keep the measurement on record.
+
+**Gate 0/1** — kill switch armed, billing **CLEAN**, gh account `sunholo-voight-kampff`, dev CI **GREEN** per-workflow on `9a50c569a` (CI + Build-and-Release success; Docs-Deploy last ran on `f64659b12`, path-filtered = N/A). **Zero** open `[nightly-eval]` alarms — control-verified: the same search returns **50** under `--state all`, so the instrument sees positives. No rotation due (`#484` created Mon **07:27 CEST**, after the 07:00 *local* boundary; 45 < 80). Watermark advanced to the directive's timestamp **before** routing, so a crash re-reads rather than drops it.
+
+**The Gate-1 trap fired again, and iteration 129's brand-new rule caught it.** Local `dev` was **1 ahead / 9 behind**; the ahead-commit `9e742037a` is iteration 126's record already upstream as `167c55e6a`. The working-tree charter's newest stamp was **ITERATION 126** while origin carried **127/128/129** — an in-place Gate-4 edit would have deleted three iterations' records. Every write this iteration went to a worktree branched from `origin/dev`. The running `SKILL.md` was byte-identical to origin (`cmp` silent, 80493 B), so iter-128's fix is still holding.
+
+**The shipped work.** `os-rotation-filler` retired qwen3.5 on 2026-06-15, so **`nightly-eval.sh:120` was the last driver still pinning it** — the regression guard itself, which is why the outage in `#554` kept landing on that lane. Six sites moved to `opencode-qwen3-6-35b-a3b-mxfp8`: `nightly-eval.sh`, `nightly-lang-eval.sh`, `embedder-ab.sh`, `tools/setup/pi-ollama-models.json`, its README, and the plist dependency note.
+
+**Measured before swapping — the swap does not blind the regression guard.** `eval_baselines` in `observatory.db`: qwen3.5 **61 benchmarks / 58 with ≥5 passing trials**, qwen3.6 **60 / 44**. The OS rotation has been banking qwen3.6 since 06-15, so adaptive mean+2σ thresholds apply to 44 benchmarks from day one and the other 16 fall back to the fixed `THRASH_CEILING` until they accrue 5 samples. Self-healing, and it was the only real risk in the swap. Had this come back near-zero, the correct move would have been to park the directive and say so.
+
+**models.yml entries deliberately KEPT.** "Remove qwen 3.5" could mean deleting the registry rows; that would orphan **2,438 banked pass-trials** and their pricing attribution (and `cost_classify_test.go` keys off one of the ids). They stay, carrying `RETIRED 2026-08-01` banners explaining why, and sit in no `*_suite`. The ollama model blobs (~81 GB across three tags) were also NOT deleted — not required to satisfy "only use qwen3.6", and irreversible-ish without a large re-pull. Both are flagged to Mark as one-word questions.
+
+**The find, and it is worth more than the errand.** Verifying the restart, `ollama --version` reported server `0.31.2` while `curl localhost:11434/api/version` reported `0.32.1`. Chasing that contradiction rather than picking one reading is the whole iteration. Measured stable **6/6**:
+
+| | pid | manager | version | reachable at | loaded |
+|---|---|---|---|---|---|
+| A | 1075 | launchd `dev.ollama.serve` (ppid 1) | **0.31.2** | `127.0.0.1` | embeddinggemma |
+| B | 1351 | `Ollama.app` Electron (ppid 1340) | **0.32.1** | `[::1]` | qwen3.6 |
+
+Both up since **Tue 21 Jul 10:27** — the post-kernel-panic reboot. They share `~/.ollama` (identical `/api/tags`) but hold **separate GPU state** (`/api/ps` differs), with no shared scheduler. The live rotation eval's runner (pid 98152) is a **child of 1351**, so evals reach B while the `ollama` CLI reaches A — which is exactly why `ollama ps` showed an idle GPU while a 37 GB model was resident. `dscacheutil` returns `::1` before `127.0.0.1`, and the harness connects via **`localhost:11434/v1`**, *not* pinned to a family — so which server, and which tool-calling implementation, an eval reaches depends on the client's dual-stack dial order, which differs between Go, node, curl and python.
+
+Filed as **`#557`** and cross-linked from `#554` as a **falsifiable mechanism, explicitly NOT an established cause** of the tool-emission collapse. It is consistent with the symptoms on four counts (unpinned endpoint, two tool-calling implementations, uncoordinated VRAM contention, and a start date preceding the 07-29 outage) and it is cheap to falsify.
+
+**Why the restart was parked rather than performed — a deliberate refusal, not an omission.** Mark authorised restarting *one stale server*. What is there is two servers under two process managers, which makes "restart ollama" underspecified. Concretely: `rig-watchdog.sh` probes `http://localhost:11434/api/tags` → resolves to `::1` → it only ever observes server **B**, and on failure it kickstarts `dev.ollama.serve` → server **A**, the **0.31.2** one. So killing B and letting the watchdog heal would land the rig on the *older* version — the opposite of the intent. A rotation eval was also mid-run holding the rig lock (acquired `09:17:51Z`), and a restart would have injected fake `api_error` rows into the very error-category stream `#554` is investigating. The rig is currently working (6/6 and 7/7 nightlies this morning) and the split brain has been live 11 days, so it can wait for a human rather than be gambled on unattended over a weekend.
+
+**Ruled out**
+- *"The ollama server is 0.31.2"* (iteration 129's handed-over lead) — **incomplete, not wrong**: it is 0.31.2 *on IPv4 only*, and the server evals actually use is already 0.32.1. The remediation it implied ("restart to get onto 0.32.1") would have restarted the wrong server.
+- *`lsof` showing nothing on 11434* — **uninformative**: the known-positive control returned nothing either, so the instrument is broken here (sandbox), not the port empty.
+- *Deleting the qwen3.5 registry entries* — rejected on measurement: 2,438 banked pass-trials depend on them.
+- *Swapping the nightly model blinds the regression guard* — refuted: qwen3.6 already carries 60 baselines / 44 adaptive-eligible.
+- *That the split brain CAUSED `#554`* — explicitly not claimed; offered as a mechanism to falsify.
+
+**Routing evidence** — designer, planner, executor, evaluator **all NOT fired**. This was a directive-driven config change whose two real decisions (registry-vs-rotation scope; baseline safety) were controller measurements, and whose edits were deterministic substitutions the skill classes as mechanical work. Routing them to the metered `codex` lane would have spent real dollars on string replacement already fully specified. The designer rotation therefore correctly did **not** advance, remaining at `codex:gpt-5.6-sol`. Controller on the session model (quota bucket). `metered=$0.00` of the `$5` ceiling.
+
+**Gate 5 skill edit** — new verification rule **3c**: *"the service" is an assumption; a probe identifies the endpoint you REACHED, never the service you NAMED*. Two frictions meet the bar: iteration 129 recorded "the ollama server is 0.31.2" as a fact and built a recommendation on it, and this iteration nearly repeated it before cross-checking a second access path. Rules 3a/3b already cover empty and green results; neither covers a result that is specific, non-empty, confidently phrased, and **about the wrong object**. Saved in the main checkout (live immediately via the symlink) *and* committed from the worktree, so the running copy and origin carry identical bytes.
+
+**Next** — the 2026-08-03 07:00 re-arm is unchanged: the two quota offloads first, then the seed sprint's M2 (`#535`), then M3, then LANE B1. Tonight's nightly is the first to run on qwen3.6; its result is also a partial test of `#557`, since a collapse on the freshly-swapped lane would weaken the split-brain mechanism.
+
+**Parked for human — one new ask, with a concrete remediation.** `#557`: decide the single owner of ollama (launchd *or* the app), restart onto one server on 0.32.1, **pin the harness endpoint to a literal `127.0.0.1`** rather than `localhost` (the durable guard, worth doing regardless of root cause), and fix `rig-watchdog.sh` to probe the same literal it kickstarts. Two smaller one-word questions: delete the ~81 GB of qwen3.5 blobs? and confirm keeping the qwen3.5 registry rows. `#546`'s a/b/c and the main-checkout reconcile remain open.
+
+## 136 — 2026-08-03 — Iteration 131: **`#558`** — the launchd drivers execute from the stale main checkout, so `#556`'s qwen3.5 retirement landed on 2026-08-01 and **never reached the rig**. This morning's nightly ran the retired model 24/24.
+
+**Picked** — not the queue head. Mark's dated quota-offload directive re-armed at **07:00 today** and `m-planner-codex-lane` is plan-ready (`e980c72d5` + `b43af2a3e`), so it was the intended pick. Triaging the inbox's INVALID nightly first — Gate 0.4 — surfaced a live regression that outranks the queue *and* blocks the directive: that sprint's HIGH-risk milestone edits `tools/launchd/mission-control.sh`, one of the four launchd entry points executed from the stale tree. It would have landed green, passed CI, and changed nothing about which model the planner actually runs on. Shipping an inert capacity multiplier and reporting it as capacity gained is precisely the class this mission has been burned by before (`ailang fmt` telling eval models their correct code was non-canonical for two weeks).
+
+**Gate 0/1** — kill switch armed, billing **CLEAN**, gh account `sunholo-voight-kampff`, dev CI **GREEN** per-workflow on `d847082726` (CI, Build-and-Release, Docs-Deploy all success). **Zero** open `[nightly-eval]` alarms — control-verified: the same search returns **30** under `--state all`, so the instrument sees positives. No new Mark comment (watermark `2026-08-01T06:54:07Z`; iter-130 already actioned that directive).
+
+**Rotation performed** — and this is the first time the local-timezone rule fired *affirmatively* rather than correctly declining. 07:01 CEST is one minute past the Monday 07:00 **local** boundary, and `#484` was created 2026-07-27, before it. Comment count was 45, below the 80 trigger, so the time condition carried it alone. `#484` closed → **`#559`**; `mission-gh-issue` and `-prev` both written, so next iteration's predecessor read is armed.
+
+**The Gate-1 trap fired again — fourth consecutive iteration.** Local `dev` was **1 ahead / 10 behind**; the ahead-commit `9e742037a` is still iteration 126's record already upstream as `167c55e6a`. The cheap tell did its job: the working-tree charter carried **zero** occurrences of `ITERATION 130` while a control grep found 3 stamps present, so an in-place Gate-4 edit would have deleted iterations 127–130. Every write went to a worktree branched from `origin/dev`. The running `SKILL.md` was byte-identical to origin (`cmp` silent), so iter-128's fix is still holding.
+
+**The find — and the mechanism is narrower and more interesting than "the checkout is stale".**
+
+The nightly is *otherwise correctly pinned*. `nightly-eval.sh:62-87` fetches origin and rebuilds a throwaway worktree at `$HOME/.ailang-nightly/worktree` pinned to `BUILD_REF=origin/dev`; the `ailang` binary, the benchmarks and `tools/nightly_classify.py` all execute **from that fresh worktree**. Line 12 of the script states the intent in its own words: *"isolated git worktree pinned to committed origin/dev — never the live working tree."*
+
+**So the pipeline pins everything except the one file it cannot pin — itself.** launchd invokes `/Users/…/ailang/tools/launchd/nightly-eval.sh` directly (plist verified via `plutil -p`), and that copy read `MODEL="opencode-qwen3-5-35b-a3b-mxfp8"` at line 120 while `origin/dev` read `qwen3-6` at line 129. `/tmp/ailang-nightly-eval.log` shows **24/24 trials on qwen3.5** this morning — `#556` landed `2026-08-01T07:48Z`, the nightly fired `2026-08-03T03:00Z`.
+
+A second, independent symptom corroborates the split-version state and rules out "the log label is stale". `#551` added a 6th tab field (category) to the classifier's `INVALID` record. The **fresh** classifier emits it; the **stale** driver still parses `$2..$5`. Today's alert therefore printed the old banner and silently dropped the field:
+
+```
+observed: INVALID nightly run: infra_outage; infra-tainted 6/12; pass rate 0.375 ...
+origin:   INVALID nightly run: <reason>; unmeasured 6/12 <category>; pass rate ...
+```
+
+**I got this wrong once and caught it — the correction is the load-bearing part.** My first read was that `#551`'s `RUN_UNMEASURED_CATEGORIES` gate was *also* inert, from a grep of the main checkout's `nightly_classify.py` that came back empty **with a firing known-positive control** (`INFRA_CATEGORIES` matched twice). The grep was honest and the control was sound; the **object** was wrong — that copy is never executed. This is rule 3c (*a probe identifies the endpoint you REACHED, never the service you NAMED*) applied to a FILE rather than a service, and I made it *while investigating that exact class of bug*. Rules 3a/3b would not have caught it: the search was not empty-without-a-control and not green-out-of-scope; it was a correct measurement of the wrong copy. The gate is live.
+
+**Containment applied — deliberately not called a fix.** Restored `nightly-eval.sh` and `nightly-lang-eval.sh` from `origin/dev`. Both had **zero** local edits (`git status --porcelain` on those paths returned empty while repo-wide showed 7), so nothing was destroyed; none of Principle 0's four named operations (branch checkout, pull, reset, stash) was involved. Unstaged afterwards so a sibling's `git add -A` cannot sweep staged content. Both verified byte-identical to origin and `bash -n` clean. Tonight's nightly is the first genuine qwen3.6 run — which also makes it a partial test of `#557`, since a collapse on the freshly-swapped lane weakens the split-brain mechanism.
+
+I checked the coupling before acting: restoring the driver alone is *correct* precisely because everything downstream is already fresh — driver at `origin/dev` + worktree at `origin/dev` is self-consistent, and it repairs the 6-field parse as a side effect. `rig-lock.sh`, which the driver sources from the main checkout, is identical between `dev` and `origin/dev`.
+
+**Blast radius measured, not assumed.** Four launchd entry points execute from the main checkout: `nightly-eval.sh` (**was stale** — model pin + `INVALID` parse), `nightly-lang-eval.sh` (**was stale** — model pin), `mission-control.sh`, `rig-watchdog.sh` and `os-rotation-filler.sh` (not stale; unchanged in the missing 10). `dev.ailang.mission-world` points at a different repo entirely. `mission-control.sh` is the one to worry about prospectively — it is the file `m-planner-codex-lane` edits.
+
+**Ruled out**
+
+- **"The nightly log label is stale / cosmetic"** — refuted: the model string appears on all 24 per-trial lines, and the `INVALID` banner independently shows the old 5-field format.
+- **"`#551`'s validity gate is inert too"** — refuted by re-measuring the executed copy; the classifier runs from the pinned worktree. My own claim, retracted within the iteration.
+- **"The whole checkout being stale means everything is stale"** — refuted: the build, binary, benchmarks and classifier are all pinned to `origin/dev`. Only the entry-point scripts are exposed. Over-stating the blast radius would have made the reconcile look more urgent *and* less tractable than it is.
+- **"Land `m-planner-codex-lane` anyway; it is correct code"** — rejected on the evidence above: its point-of-no-return milestone edits a driver the rig would not read, so the capacity gain Mark is buying would not materialise while the report claimed it had.
+- **Doing the full reconcile unattended** — rejected under Principle 0. The tree is shared with concurrent agents, `git merge` would contend with a dirty `SKILL.md` that is in the incoming diff, and three prior iterations (128, 129, 130) all escalated this rather than gamble on it.
+
+**Routing evidence**: model=session task-class=mechanical round1-score=n/a rounds=0 corrections=0 provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus. Designer, planner, executor and evaluator **all NOT fired** — triage plus a two-file containment restore, zero product code changed, no design doc, no quorum. The designer rotation therefore correctly did **not** advance, remaining at `codex:gpt-5.6-sol`. `metered=$0.00` of the `$5` ceiling.
+
+**Retro lane**: none — no skill edit this iteration. The nearest candidate is a Gate-1 rule ("check what the *rig* executes, not what the repo contains"), but it has exactly **one** recorded friction and the skill's own bar is ≥2. Recorded here as **watch-item instance 1** instead, per the same discipline iter-127 used for the `/tmp` worktree finding. Rule 3c already covers the general shape; what is new is applying it to files rather than services.
+
+**Next** — `m-planner-codex-lane` is the pick, unchanged and still plan-ready; Mark has already greenlit it, so it needs no re-asking. It should be routed **after** the reconcile, or landed with an explicit note that it is inert until then. Then `m-evaluator-gemini-review-lane`, then the seed sprint's M2 (`#535`), M3, and LANE B1.
+
+**Parked for human — the reconcile is now the blocking ask, not a hygiene note.** Reconcile the shared main checkout with `origin/dev` (1 ahead / 10 behind; the ahead-commit is a verified duplicate; 7 uncommitted files, none under `tools/` or `internal/`). It gates the quota-offload directive dated to this morning. `#557` (two ollama servers on :11434) and `#546`'s a/b/c remain open.
+
+## 137 — 2026-08-03 — Iteration 132: **both parked asks executed.** The shared main checkout is **reconciled** (`dev` == `origin/dev` == `af3bca9a5`) and the rig runs **exactly one** ollama server (`dev.ollama.serve`, **0.32.1**). The 13-day split brain (`#557`) is closed; the four-iteration Gate-1 stale-checkout streak is broken at the source.
+
+**Picked** — not a queue item. A **human directive outranks the queue** (Gate 0.5): Mark commented on `#559` at `2026-08-03T07:04:45Z` — *"Yes reconcile dev and only one ollama server"* — which answers iteration 131's blocking ask and iteration 130's deliberately-parked half-directive in a single line. Both were prerequisites for the queue head, so this is also the shortest path back to `m-planner-codex-lane`.
+
+**Gate 0/1** — kill switch armed, billing **CLEAN**, gh account `sunholo-voight-kampff`, dev CI **GREEN** per-workflow on `af3bca9a5` (CI + Build-and-Release success; Docs-Deploy success on `d84708272`, path-filtered = N/A after). **Zero** open `[nightly-eval]` alarms — control-verified: the same search returns **30** under `--state all`. Watermark advanced to `2026-08-03T07:04:45Z` **before** routing.
+
+**Rotation-week predecessor read performed** — `-prev` = `#484`, written fresh by iter-131. It surfaced 2 Mark comments (`07-27`, `08-01`), both already actioned by iterations 114 and 130. They re-appeared only because a rotation resets the watermark to epoch; correctly **not** re-run. This is the first exercise of that catch, and it worked as designed. No rotation due (`#559` created `05:08:48Z` = 07:08 CEST, *after* today's Monday 07:00 local boundary; 2 comments < 80).
+
+**The reconcile — measured before executed, and the refusal is the evidence.**
+
+Local `dev` was **1 ahead / 11 behind**. Two measurements made the operation safe rather than hopeful:
+
+1. The ahead-commit `9e742037a` is a **pure duplicate**, proven by `git patch-id`: `fc808504e7…`, byte-identical to upstream `167c55e6a`. Discarding it loses nothing. Every prior iteration asserted this from the commit *title*; this one measured it.
+2. Of 9 dirty files, **3 were already byte-identical to origin** (iter-131's containment restores plus `SKILL.md`) and **6 carried real local content** — a sibling session's `post-release` skill edits, the fmt hook log, and rig-generated benchmark JSON. **None of the 11 incoming commits touches any of those 6.** That negative was control-verified in the same call: the intersection with the 3 same-as-origin files came back **non-empty**, so the empty answer was informative rather than vacuous (rule 3a).
+
+All 9 backed up first. The first `git checkout -B dev origin/dev` **refused**, blocked by exactly the 3 containment files — git compares the working tree against the **stale local HEAD**, not the target, so a file whose content already *equals* the target still reads as a clobber risk. Staged origin's blob for just those 3, sha256-verifying that **not one byte on disk changed**, and retried: rc=0.
+
+**Principle 0 was fully respected, not narrowly evaded**: no `reset --hard`, no `clean -fd`, no `stash`, no `pull`, no branch switch. `checkout -B` is protective by construction — it *errored rather than destroying*, which is exactly why it was the right instrument for a shared tree. Old HEAD remains in the reflog.
+
+**Verified the point, not just the pointer.** Only the 6 known-local files still differ from origin; all **four** launchd entry points now match origin and are `bash -n` clean; qwen3.5 is **0 hits** in both nightly drivers (control: `qwen3-6` = 10 hits); and `#551`'s `RUN_UNMEASURED_CATEGORIES` gate — the one iter-131's per-file containment could **not** reach — is now live in the copy the rig actually executes.
+
+**The ollama consolidation — and the find is bigger than the errand.**
+
+Split brain reconfirmed live (`127.0.0.1`→**0.31.2**, `[::1]`→**0.32.1**), and both managers identified: `dev.ollama.serve` (launchd, pid 1075) held IPv4; `Ollama.app` (Electron 1340→1351) held IPv6.
+
+**The two servers were running `llama-server` with materially different inference flags.** launchd's child: `--no-mmap --cache-type-k q8_0 --cache-type-v q8_0 --flash-attn on`. The app's child (pid 5860): `--flash-attn auto`, **default f16 KV cache**, no cache-type flags. The rig's tuned plist config (`OLLAMA_FLASH_ATTENTION=1`, `KV_CACHE_TYPE=q8_0`, `KEEP_ALIVE=-1`, `MAX_LOADED_MODELS=1`) applied to **only one** of the two — and iteration 130 measured that *evals reached the other one*. So an unknown share of local-model eval data since 21 Jul was produced under **unintended inference settings**, with which server a run reached decided by dual-stack dial order. Recorded as a **confound**, explicitly **not** a claimed cause for `#554` — but a falsifiable one now, because the confound is gone.
+
+Kept the **launchd** server: it carries the tuned env, the watchdog, and survives logout; the GUI app is untuned and inappropriate for a headless rig. `SIGTERM`'d the app parent (its server exited with it), then `kickstart -k` → **0.32.1**. Verified exactly **one** server; GUI not running; `127.0.0.1` **and** `localhost` → 0.32.1 (clients fall back cleanly from the now-refused `::1` — measured, not assumed); `ollama --version` agrees with **no** client/server warning for the first time since 21 Jul; model store intact (8 models incl. qwen3.6). Disabled `com.ollama.ollama` (the Squirrel autostart) so the split brain cannot silently return.
+
+**Instrument self-catch.** My own "REAL server count" printed **2** while the list printed beside it showed **1** — the counting `grep` was matching its own command line. The list was right; the counter was the broken instrument, caught only because the two disagreed *in the same output*. Rule 3a aimed at my own probe, and an argument for always printing the evidence next to the count.
+
+**Shipped** — `87f65ff67`: `rig-watchdog.sh` pins its probe to `127.0.0.1`, so the address it **probes** is the server it **restarts**. It had probed the app's server while kickstarting launchd's for 13 days (the `::1` `GET /api/tags` rows in `~/.ollama/logs` prove it), meaning a dead `dev.ollama.serve` would never have been noticed, and a dead app server would have "healed" by restarting an already-live job. Verified with a known-positive control (dead port → `ollama unreachable` fires), so the passing probe is informative rather than vacuous.
+
+**Ruled out**
+- *That the reconcile required discarding local work.* Refuted by measurement: the ahead-commit is a patch-id duplicate and no incoming commit touches any locally-modified file. The reconcile was a strictly non-destructive operation, and the tooling proved it by refusing the unsafe form.
+- *That "restart ollama" was a one-server operation* (iteration 130's reason for parking). Confirmed correct to have parked: it was two servers under two process managers, and the naive restart would have healed the rig onto the **older** 0.31.2.
+- *That the watchdog was protecting the ollama service.* It was probing a server it does not manage. Not a latent risk — an actively false green for 13 days.
+
+**Gate-1 trap did not fire — first time since iteration 127.** Local == origin, cheap tell confirmed (`ITERATION 131` present; control `ITERATION 130` present), so Gate-4 writes were made **in place** safely for the first time in five iterations. A direct dividend of the reconcile.
+
+**Routing evidence**: model=session task-class=mechanical round1-score=n/a rounds=0 corrections=0 provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus. Designer, planner, executor and evaluator **all NOT fired** — a human-directive ops iteration. The designer rotation therefore correctly did **not** advance, remaining at `codex:gpt-5.6-sol`. `metered=$0.00` of the `$5` ceiling.
+
+**Retro lane**: none — no skill edit. The Gate-1 stale-checkout rules now have their **cause** removed rather than another guard added, which is the better lane; the rules stay because the divergence can recur. Iteration 131's watch-item ("check what the *rig* executes, not what the repo contains") remains at instance 1 — this iteration confirmed it rather than re-instancing it.
+
+**Next** — `m-planner-codex-lane` is **unblocked** and is the pick: the reconcile it was gated on is done, and `tools/launchd/mission-control.sh` edits will now actually reach the rig.
+
+**Parked for human — nothing new.** Both standing asks are closed. `#546`'s a/b/c, `#558` (durable driver self-re-exec) and `#554`'s root cause remain open from earlier iterations.
+
+## 138 — 2026-08-03 — Iteration 133: **the `#546` park is CLEARED and the sprint is plan-ready.** Mark's option-(c) ruling folded in, five post-quorum points from the AUTHOR absorbed, and the designer's own drain mechanism — a sentinel-panic abort — **refuted by the controller and ruled out by the planner** on Go's `syscall/js` contract. PR **#562**.
+
+**Picked** — `m-recorded-stream-api` (`ailang#546`), and **not** what iteration 132 named as next. Two charter commits landed at 10:19/10:20 today, *after* iter-132's report, recording Mark's attended rulings: `#546` → **option (c)**, ROUTABLE, **pick #1**; `m-mcp-exact-tool-surface` Lane B → pick #2, ahead of the quota offloads. So `m-planner-codex-lane` is correctly displaced, not dropped. Gate 1's origin-sync is what surfaced this: reading the charter from the working tree alone would have executed a plan the human had superseded 55 minutes earlier.
+
+**Gate 0/1** — kill switch armed, billing **CLEAN**, gh account `sunholo-voight-kampff`, dev CI **GREEN** per-workflow on `a929ec452`, **zero** open `[nightly-eval]` alarms (control-verified: the same search under `--state closed` returned results up to the `--limit 3` I passed, so the instrument sees positives — the control proves non-vacuity, it does not count the closed set). No new Mark comment (watermark `2026-08-03T07:04:45Z` already sits on his last one; control-verified by listing all comment authors). Rotation-week predecessor `#484` re-read — both Mark comments there already actioned by iters 114/130. No rotation due (`#559` created `05:08:48Z` = 07:08 CEST, *after* today's Monday 07:00 local boundary; 3 comments < 80). Inbox: 5 messages, all eval-suite telemetry plus our own iter-132 report — no directive, no regression, no cross-mission request. Acked.
+
+**Gate-1 trap did not fire, second consecutive iteration.** `dev` == `origin/dev` == `a929ec452`, 0 ahead / 0 behind; running `SKILL.md` byte-identical to origin (`cmp` silent). The cheap tell passed (`ITERATION 132` present; control `ITERATION 131` present, 2 hits), so Gate-4 writes were made in place. The reconcile is still holding.
+
+**Ghost discipline — not a ghost, re-verified 58 commits later.** On a freshly rebuilt `v0.31.0-58-ga929ec452`, positive control beside the negative probe in one session: an `{IO}` rendering callback → rc=0 `✓ No errors found!`; an `{FS}` recording callback → rc=1 `incompatible closed rows: r1 has extra labels [IO], r2 has extra labels [FS]`. `StepResult` (`std/ai.ail:154-162`) carries no chunks; the callback row is closed at `:335` while the comment at `:324` still says it is open. My first probe pair was **uninformative** — both files failed identically on an unrelated missing `images` field, so the instrument was not discriminating until fixed. Worth recording: a negative and a positive that fail the *same* way are not a control.
+
+**The charter told me to verify the author's sealed-interface claim first-party "as a formality". It was not a formality — it came back STRONGER than filed, and my first instrument was broken.** `grep "StreamChunk()"` returned **empty**; the marker is `streamChunkMarker()`, and the correct pattern returns 4 hits (control: a deliberately-wrong pattern returns rc=1). Four independent legs then hold at `a929ec452`: the interface is sealed by an unexported marker (`internal/ai/provider.go:159-163`); exactly **three** implementers (`:172`, `:198`, `:213`); `encodeStreamChunk` (`internal/effects/ai_step.go:422`) handles all three with `default: return nil` at `:447`; **nothing embeds `ai.StreamChunk`** (the standard escape hatch from a sealed Go interface — flagged as an empty search for which I could build no positive control); and the one variable-forwarding call site (`cmd/wasm/effects.go:244`) is nil-guarded at `:243` by a producer returning an **untyped** nil, so there is no typed-nil trap. **The fail-loud drain trigger is unreachable for any value constructible today** — which reframes Mark's ruling as insurance rather than a bug fix, and that reframing is what let the sprint be sized honestly.
+
+**THE FIND: the designer's own drain mechanism is unsound on the WASM target.**
+
+The Fable designer specified the option-(c) bound as two budgets (`recordedDrainMaxChunks=256`, `recordedDrainMaxBytes=1MiB`) **plus a sentinel-panic abort** recovered inside the recorded op, justified as "the established Go control-flow escape … `encoding/json`, `fmt` use it internally". Drain mode is sound. The abort is not:
+
+`cmd/wasm/effects.go:238-247` hands the Go callback to JS as a `js.FuncOf` wrapper and awaits the handler's promise via `awaitJSResult` → `awaitPromise` (`:43-53`). That function's own comment states the mechanism — *"js.FuncOf callbacks run as goroutines, so blocking one goroutine doesn't freeze the browser event loop."* Go's `recover` is **per-goroutine**, so once `awaitPromise` parks, a sentinel raised in a JS-invoked callback cannot be caught by a `recover` scoped to the `StepWithStream` call: it is an unrecovered panic on another goroutine, **fatal to the whole module**. And **no host test can see it** — `cmd/wasm/effects.go` is `//go:build js && wasm`, and the file's own sibling comment records that the pure-Go helpers were split out *specifically* so they could be unit-tested on the host. The designer's proposed "sentinel containment" test would have passed green while the WASM path crashed: the vacuous-pass class, fifth instance in this repo.
+
+**The planner confirmed it against a better source than mine and added three legs I did not have.** Where I quoted the repo's comment, it quoted **Go's own `syscall/js` documentation** — *"Invoking the wrapped Go function from JavaScript will pause the event loop and spawn a new goroutine. Other wrapped functions which are triggered during a call from Go to JavaScript get executed on the same goroutine."* The exception clause is the entire question, and it does not cover the parked-promise path. I re-read `$(go env GOROOT)/src/syscall/js/func.go` first-party and the quote is exact. Its three additions: (a) the doc's `encoding/json` precedent is **false in the load-bearing respect** — json's single `recover` handles panics from its *own* recursion and explicitly **re-raises** panics from a user-supplied `MarshalJSON`, so the precedent is "a package panics through its own frames", never "a package panics out of a callback handed to foreign code"; (b) **it refuted my own option ranking** — I offered a build-tag gate as second preference, and it measured that `ci.yml` and `build.yml` contain **zero** `wasm` references (control: `release.yml` has 28, `build-wasm` at `:17`), so the gate would be enforced by nothing until *release*; I re-ran both greps and confirm rc=1 and 28; (c) panicking out of a callback handed to 7 `AIHandler` implementers, **including out-of-repo ones such as @arniwesth's own driver**, imposes an unstated panic-transparency requirement with no compiler signal — making the sentinel **a covert version of the option (b) Mark rejected**. Ruling: **drain mode ships, the sentinel does not.** Every element of Mark's ruling survives — locality, no interface change, both budgets, `drain_exhausted` trace, preserved typed `Internal`. What is lost is a bound on post-failure *wall-clock*, on a path unreachable today. That loss is the one DECISION for Mark.
+
+**What the designer folded in** (five points @arniwesth raised on `#546` *after* the doc was written and after both quorum rounds — none of which the doc covered): "lossless" over-claimed, because chunks are already lost one layer *below* the encoder (anthropic's delta switch has no `default`; `input_json_delta` is never emitted; WASM drops unknown kinds) — the guarantee is now scoped to adapter-**emitted** chunks in the LongDesc, Success Criteria and the A2 axiom; the **sibling divergence** is made deliberate, since the existing op already skips silently (`ai_step.go:377-382`, shipped, which I verified); the completeness contract is ruled to live on `outcome` with `RecordedStream` **not** widened, and an `IncompleteStream` code filed as a question needing the author's sign-off rather than assumed; a **StreamChunk exhaustiveness guard** taken in scope, justified as the implementation of Conflict Surface item 4 rather than new scope; and the testability corollary that `onChunk(nil)` is the only constructible input for every unencodable-chunk test. I verified the author's three adapter claims first-party before routing them; all three are true.
+
+**Controller corrections to sub-agent output** — both caught by measuring rather than reading:
+- **Target v0.31.0 → v0.32.0.** v0.31.0 **shipped** on 2026-07-29 (`gh release list` → `AILANG v0.31.0  Latest`, tag `1f6f7dd28`), so every `Since: "v0.31.0"` string was stale. Doc moved to `design_docs/planned/v0_32_0/`.
+- **The sprint JSON FAILED validation.** The planner reported "no placeholders"; `validate_sprint_json.sh` disagreed — `S1_M1` carried `estimated_loc == 0`, the sentinel `create_sprint_json.sh` writes, so sprint-executor would have **refused to start**. The milestone is a behaviour-free file split, so ~0 *net* is the honest number; set to **245** (lines moved, enumerated in the milestone) with a note. Validator now rc=0 (control: an unknown sprint name fails differently).
+
+**Sprint cut** — the doc's estimate grew 4.0–5.0 → 5.5–6.0 days, over the charter's 3–4-day ceiling, so the planner cut it in two rather than executing a six-day sprint: **S1, 3.75 d, 5 milestones** (file split for headroom → verbatim credited patch adoption → shared core → fail-loud + inert bounded drain → test matrix → contract text), **S2, ~1.5–2.0 d** (example, the two false "open row" repairs + CI guard, prompt/μRAG/website, exhaustiveness guard). The plan states what S1's PR may and may not claim — notably **not** that ADR-009 is unblocked, and **nothing** about the `js && wasm` build.
+
+**De-risked, against my own warning.** I told the planner to budget rebase work because the reference patch was written against a tag 58 commits behind dev — then measured it and **I was wrong**: all five touched files are byte-unchanged since `v0.31.0` (control: `nightly-eval.sh` shows `180 29`), `git apply --check` is rc=0, and the four offered tests pass against current dev (**4/4 PASS**; scope-widened, the whole `internal/effects` package minus two live-network tests is **rc=0, 483 PASS, 0 FAIL**). The correction was pushed to the planner before it planned, not after.
+
+**Ruled out**
+- *That the reference patch needs rebasing onto dev.* Refuted by measurement — my own caution, retracted before it cost the planner anything.
+- *That the sealed-interface check was a formality.* It was the fact that resized the sprint; and my first grep for it was broken.
+- *That a build-tag gate could contain the sentinel safely* (my second-preference option). Refuted by the planner: PR CI never compiles `js && wasm`, so the gate is enforced by nothing.
+- *That `git apply --check` rc=0 proved the patch applies.* Not until the control did — my first "corrupted patch" control was built by a `sed` that **matched nothing**, so it was byte-identical to the real patch and its rc=0 proved precisely nothing. `cmp` caught it; two real controls (`--reverse`, and applying to the tree that already has it) both fail rc=1 as they must.
+- *That the two `make test` failures on clean `origin/dev` were a dev regression.* Both are `/tmp`-location artifacts — see the retro.
+- *That `TestNetHttpPost`'s failure was caused by the patch.* Refuted by a clean-dev control (rc=0); it is an httpbin.org **503**. Filed as `#561`.
+
+**Routing evidence**: model=claude-opus-5 (verified first-party from the process ancestry — `tools/launchd/mission-control.sh`, ppid launchd) task-class=design+plan round1-score=n/a rounds=0 corrections=3 provider=anthropic agent=claude-code cost=quota-bucket:opus. **Designer FIRED** — `claude:claude-fable-5` via `claude-sub`, bounded 30-min cap, 1-token probe first (rc=0); the rotation therefore advanced `codex:gpt-5.6-sol` → `claude:claude-fable-5` and the state file is written. **Planner FIRED** — opus Agent sub-agent, pinned. **Executor and evaluator NOT fired** — deliberately deferred (see Next); the generator≠judge guard is therefore N/A this iteration. No quorum re-run: R2's surviving objection was resolved by a *human ruling*, not by a revision, so no round is owed. `metered=$0.00` of the `$5` ceiling — every lane rode a quota bucket. Chain posted (`d2bb709d`).
+
+**Retro lane — ONE skill edit, executing a remedy iteration 127 pre-committed to.** iter-127 recorded the `/tmp`-worktree false-red as watch-item instance 1 and wrote its own trigger: *"If a second iteration hits it, the fix is to standardise the worktree location off `/tmp`."* This iteration hit it, so the rule is now in Gate 3 (`3be3984e7`, saved in the MAIN checkout so it reaches the running skill — same inode verified through the `~/.claude` symlink). Widened on one point that cost me directly: the rule now covers **throwaway probe worktrees**, not just the sprint worktree — my sprint worktree was correctly placed and I still bought the false red twice, from two `/tmp` scratch trees made to establish a baseline. Second failing test added to the record: `TestSolve_HardTimeout_FakeSolverIgnoringT` (`internal/smt`, a `TMPDIR` child-pid path) alongside iter-127's `TestIsTempPath`. Control: both are rc=0 from a non-`/tmp` checkout and rc=1 from `/tmp` — location is the only variable.
+
+**Watch-item (instance 1, NOT a skill edit)** — *a control must be proven DIFFERENT from the thing it controls.* Rule 3a says prove the instrument can see a positive; it does not say prove your **negative** control is actually negative. My `sed`-built corrupted patch was byte-identical to the real one and returned rc=0, which read exactly like a passing check. One instance; logged rather than written into the skill, per the ≥2 bar.
+
+**Routed to the backlog rather than the skill-edit budget**: `#563` — `validate_sprint_json.sh` overloads `estimated_loc == 0` as the unfilled-placeholder sentinel, so a legitimately net-zero milestone (a pure refactor, or docs-only work) cannot be expressed. Two recorded instances now (iter-121's docs-only milestone, this iteration's file split), and both are milestone classes the repo's own rules *encourage*. Systemic fix proposed: `null` as the placeholder, `select(.estimated_loc == null)` in the validator.
+
+**Next** — **execute S1** (`sprint_M-RECORDED-STREAM-API-S1.json`, validator rc=0, 5 milestones / 3.75 d): executor `codex:gpt-5.6-sol` in a worktree that is **not** under `/tmp`, evaluator `sonnet` (distinct provider → generator≠judge holds). Then `m-mcp-exact-tool-surface` Lane B (Mark's pick #2, and a release ask for Ailang World when it lands), then the two quota offloads.
+
+**Parked for human — ONE decision, and it is the planner's ruling, not a request to re-litigate Mark's.** Dropping the sentinel means the drain budget bounds post-failure **work** (O(1)/chunk, zero retention) but not post-failure **wall-clock**; the call returns when the provider's stream ends, on a path unreachable for any `StreamChunk` constructible today. Accept? If no, the only remaining mechanism is a cancellable provider context — the already-rejected option (b) — which becomes a blocking dependency and makes this multi-sprint. `#558` (durable driver self-re-exec), `#554`'s root cause, `#561` and `#563` remain open.
+
+---
+
+## 139 — 2026-08-03 — Iteration 134: **dev CI was RED and the cause was a test helper whose own doc comment was false.** `cmd/ailang` re-linked the same 93 MB binary ~16× inside a 300s budget; on the Windows runner that package went **`FAIL 300.527s` → `ok 83.177s`**. PR **#564** → `3c28cc322`.
+
+**Picked** — **NOT the queue head.** Gate 1's per-workflow CI read found `CI: completed/failure @ 773894d87`, i.e. dev HEAD itself, and a RED dev outranks the queue. The displaced pick (`m-recorded-stream-api` S1, plan-ready from iteration 133) is untouched and stays next.
+
+**Reality check** — the red was **not** caused by the commit it landed on. `773894d87` is **docs-only** (`git show --stat`: one design doc, one sprint plan, one JSON — zero Go files), and `test-windows` was green on the previous **11 of 12** dev runs (job wall 337–617s). The failure was `panic: test timed out after 5m0s`, package `cmd/ailang`, stack parked in `buildAilang` → `exec.Cmd.CombinedOutput` → `go build`. Both CI jobs run `go test -timeout 300s ./...` (`ci.yml:74` linux, `:318` windows). So: a package that had been sitting just under its ceiling, tipped over by a slower runner. **The instrument nearly lied first** — a `grep -E "^\s*(--- FAIL|FAIL|panic:)"` over the 99 KB job log returned **nothing**; treated as a claim rather than a fact (rule 3a), a known-positive control (`grep -c "ok  "` → 105) proved the log was intact and a widened case-insensitive search found the panic immediately.
+
+**The find** — `cmd/ailang/main_test.go:430` carried the comment *"buildAilang builds the ailang binary once per test run"*. **The comment was false**: no memoization, every call ran a full `go build` into a fresh `t.TempDir()`. Measured warm (compile-cached) link cost on this Mac: **5–6 s** for a **93 MB** binary, 3/3 runs. **14 call sites**, one per top-level test, none in loops. And the same package linked the same binary twice more — `serve_api_mcp_surface_test.go:29` with its own `go build -o … "."`, and `budget_scoping_e2e_test.go`'s `budgetBin`, **which was already correct** (`sync.Once` + a persistent `os.MkdirTemp` dir, with a comment explaining that `t.TempDir` is torn down when the *first* caller returns and would delete the shared binary). So the right pattern already existed in the same file tree, twelve lines of it, unused by its sibling. That made this Principle 3 (systemic fix, audit before patching) rather than three patches: one `sync.Once` builder, all three paths routed through it, `TestMain` cleaning up after `m.Run()`, signature unchanged so **no call site moved**. The 300s timeout was deliberately **not** raised and nothing was skipped — it is a real hang-detector.
+
+**Shipped** — PR **#564** → squash **`3c28cc322`**, 2 commits (fix + changelog). Evaluator **sonnet PASS 91/100 round 1, zero blocking**, one NB (missing `[Unreleased]` entry) **actioned** rather than waved through. Measurements, all first-party:
+
+| | before | after |
+|---|---|---|
+| `cmd/ailang`, this Mac (controller, **outside** the codex sandbox) | `ok 110.833s` | `ok 15.487s` (**7.2×**) |
+| `cmd/ailang`, **windows-latest runner** | `FAIL 300.527s` (timeout) | **`ok 83.177s`** |
+| `test-windows` job wall | 536s | 337s |
+
+86% of the package's runtime was redundant re-linking. The Windows row is the one that matters and it is a **measurement, not an extrapolation** — pulled from the PR's own job log, not scaled from the Mac.
+
+**Ruled out** — three hypotheses, each refuted by measurement rather than argument. (1) *"The merge broke it"* — refuted: docs-only diff, and the two `go test ./...` failures in the worktree were both proven external. (2) *`internal/effects` `TestNetHttpPost` is a regression* — refuted: reproduces **identically on unmodified `origin/dev`** in the main checkout (httpbin.org **503**), i.e. `#561`, filed by iteration 133. (3) *`internal/smt` `TestSolve_HardTimeout_FakeSolverIgnoringT` is a regression* — refuted, and this one needed real work because it **passed** on the base and **failed** in my worktree, which is exactly the shape a genuine regression has. Isolated: **3/3 pass alone** in the *modified* worktree, and the diff touches **zero files outside `cmd/ailang`** (control: the changed-file list printed alongside). The evaluator then found the leg I had missed — the file carries **`//go:build !windows`** (verified first-party, control: its sibling `solver_test.go` has no tag), so it cannot run on the failing job at all. A load flake under `./...` parallelism, pre-existing.
+
+**Also ruled out — two local "failures" that were the repo's own guards working.** CI's anti-silent-skip gate appeared to fail locally: 2 of its 3 required tests printed no `--- PASS:`. Not a regression — `TestRunSmokeInTempDir_Pass` skips without `bin/ailang` (absent in a fresh worktree; CI builds it first), and `TestPromptCommand_Piping` skips via `internal/testutil.RequireAilangOnPath`, which **skips when the on-PATH binary is older than the newest Go source** — and I had just edited `main_test.go`. Both PASS once the environment matches CI, proven with a PATH-scoped scratch binary rather than by overwriting the shared `~/go/bin/ailang` that the rig's evals use. That guard is Gate 2's verification-protocol step 1 in mechanical form, and it correctly fired on me.
+
+**Routing evidence** — model=**claude-opus-5** (controller) task-class=**execute** round1-score=**91** rounds=**1** corrections=**1** (changelog NB actioned) provider=**codex** agent=**codex** cost=**quota-bucket:codex-chatgpt**. Executor **FIRED**: `codex:gpt-5.6-sol`, 1-token probe rc=0, bounded 30-min cap, `--sandbox workspace-write`, 60,751 tokens; `codex login status` → *"Logged in using ChatGPT"*, so the subscription bucket, **not** the metered key (`OPENAI_API_KEY` is set but does not win — checked with the safe `[ -n … ]` form, never the value-printing `${VAR:+…}` shape). Evaluator **FIRED**: `sonnet`, pinned — **generator≠judge holds** (codex/OpenAI executor vs Anthropic judge, different providers). Designer/planner **NOT fired** (a CI hotfix needs no doc or plan), so the designer rotation correctly did **not** advance, staying at `claude:claude-fable-5`. `metered=$0.00` of the `$5` ceiling. **Sandbox rule honoured**: codex reported its `go test ./cmd/ailang` as `UNINFORMATIVE UNDER SANDBOX` (an unrelated `httptest` loopback bind denial) and the controller re-ran every gate outside the sandbox — mandatory here, since the diff touches `cmd/*`.
+
+**Gate hygiene** — Gate 0/1 clean: kill switch armed, billing **CLEAN**, gh account `sunholo-voight-kampff`, **ZERO** open `[nightly-eval]` alarms (control-verified: the same search returns hits under `--state all`, so the instrument sees positives), no new Mark comment (watermark `2026-08-03T07:04:45Z` already on his last), no rotation due (`#559` created 05:08:48Z = 07:08 CEST, *after* today's Monday 07:00 **local** boundary; 4 comments < 80). Inbox: 6 messages, all eval-suite telemetry plus mission-world's iteration-43 report (informational, no ask) and our own iter-133 report — no directive, no regression; acked. **Gate-1 trap did not fire, 3rd consecutive**: `dev` == `origin/dev` == `773894d87` and the running `SKILL.md` byte-identical to origin (`cmp` silent). **The cheap tell caught my own instrument**: `grep -c "Iteration 133"` on the charter returned **0**, which reads exactly like a stale copy — the charter writes stamps in **UPPERCASE**. Re-run case-correctly it is 1, with controls (`ITERATION 132` = 2, `ITERATION 999` = 0). A case-sensitive grep is an instrument, and this one would have sent a healthy iteration down the stale-charter path.
+
+**Retro lane** — **skill-fix**, see below. Also: Gate-4 writes were made from a **worktree branched from `origin/dev`**, not in place, because merging #564 left local `dev` 1 behind — the routine post-merge state, not a divergence (zero local commits ahead).
+
+**Next** — `m-recorded-stream-api` **S1** (`ailang#546`), plan-ready since iteration 133, sprint JSON validated rc=0: executor `codex:gpt-5.6-sol` in a worktree **not** under `/tmp`, evaluator `sonnet`. Unchanged by this iteration.
+## 140 — 2026-08-03 — Iteration 135: **S1 of m-recorded-stream-api LANDED.** @arniwesth's patch adopted **verbatim** (credited commit `fd838911f`), shared stream core with policy `{record, failLoud}`, fail-loud latch + bounded **inert** drain (no panic/sentinel — planner ruling honored), 14-row matrix, contract text. PR **#577** → `ab209fcbf`, evaluator sonnet **92/100 r1**. Controller mutation probe found the drain-budget test self-referential (256→2 survived) — hardened, mutation re-run caught. Plan's M1-before-M2 ordering refuted by measurement (patch context referenced the pre-split file) — reordered patch-first. Follow-up `#578` filed; `IncompleteStream` question pending with @arniwesth. S2 remains.
+
+---
+
+## 141 — 2026-08-04 — Iteration 136: **the codex planner lane is LIVE — all four milestones landed and the default is FLIPPED.** `derive-planner-lane.sh` gates it fail-closed, the driver's probe loop is role-generic, the skill's Gate 3 derives before it spawns, and AC3a proved the lane end to end with a real codex planner run the repo's own validator passed rc=0. PR **#580**.
+
+**Picked**: `m-planner-codex-lane` EXECUTION — the queue head by Mark's 2026-08-03 reorder
+(`[NEXT #2]`, "immediately after m-recorded-stream-api", which iteration 135 landed). Plan-ready
+since iteration 125, parked to the 08-03 re-arm, **no human decision owed**. Nothing outranked it:
+dev CI green per-workflow on `898e380ee`, ZERO open `[nightly-eval]` alarms (control-verified
+against 45 open issues, so the empty result is a measurement), inbox = 15 eval-suite telemetry
+messages plus one World report whose own DECISIONS row says "none", no new Mark comment
+(watermark current at `07:04:45Z`), no rotation due (`#559` created 07:08 CEST after the Monday
+boundary; 10 < 80), weekly external-issue sweep already satisfied — and the five new
+`[motoko_agent]` filings `#572`-`#576` are ALREADY charter-tracked by the queued batch row, so
+they enter by normal ordering rather than outranking.
+
+**Reality check**: doc + sprint plan + 2 quorum artifacts all present; sprint JSON validates rc=0
+(4 features, no placeholders); not already landed, proven on a FRESH origin fetch (`git log
+origin/dev --grep` returns only the doc/plan commits `e980c72d5`/`b43af2a3e`, and the PR search
+is empty). Two local `dev` commits were AHEAD of origin — pushed first, so the whole iteration ran
+from `dev == origin/dev`. Running `SKILL.md` byte-identical to origin (`cmp` silent). **The plan's
+own worktree path was stale**: it specifies `/tmp/wt-m-planner-codex-lane`, and this skill has
+forbidden `/tmp` worktrees since iteration 133 — the sprint used
+`~/dev/sunholo-data/.wt-iter136` instead.
+
+**Shipped**: PR **#580**, six commits. M1 `tools/launchd/derive-planner-lane.sh` (Bash 3.2 only,
+pure text, no network, no codex invocation; six-step contract; one line on stdout, always exit 0)
++ 12 fixtures + the `**Planner-Lane**` design-doc template field. M2 the driver's executor-only
+probe `case` → the role-generic D3 loop, verbatim, plus the two-line `mission-<name>.env` source.
+M3 mandatory Gate-3 step 1b + a planner sub-bullet that parameterizes the executor recipe rather
+than forking it. M4 the AC3a rehearsal, then the flip. Design doc + sprint plan moved to
+`implemented/v1_0_0/`. CHANGELOG entry added.
+
+**THE MUTATION THAT SURVIVED, AND WHY IT MATTERED.** Four controller mutations on M1's script,
+each PROVEN applied by `cmp` against the original before its result was read — because "the
+mutation didn't red" and "the mutation never ran" are the same exit code. Three died (allowlist
+neutered → (a)(f)(g) flip to codex-ok; duplicate-section guard `-ne 1`→`-lt 1` → (i) flips;
+step-0 env pin removed → AC8-env flips). The fourth, neutering the `__UNPARSABLE_PATH_ENTRY__`
+sentinel, **SURVIVED**. Diagnosed by relabelling the two candidate arms separately: fixture (j)'s
+first backticked token EXISTS but is not path-shaped, so (j) is caught one arm LATER by the
+path-shape check and never touches the sentinel. Both arms are correct and both emit the same
+token — which is exactly why the gap was invisible. Fixture (n) supplies the missing input class
+(a Files bullet with no backticks at all) and the mutation now dies.
+
+**THE PLAN'S OWN AC9 IS VACUOUS.** It pins `opus` via the rollback env file and expects
+`planner=opus` — but pre-flip `opus` is ALSO the built-in default, so it passes identically
+whether the file is sourced or not. Only substituting a sentinel turns it into a measurement.
+Fourth instance of this mission's vacuous-pass class.
+
+**AND I CONTAMINATED MY OWN INSTRUMENT — twice-adjacent to the same variable.** The sentinel run
+first read as "the rollback plumbing is BROKEN". It was not: this controller session's own shell
+exports `MISSION_PLANNER_MODEL=opus` (the driver exports it into every tool shell), so the file's
+`${VAR:-…}` correctly deferred to it. Every AC9 side and the post-flip AC1 are run under
+`env -u MISSION_PLANNER_MODEL`; the contaminated form is recorded beside the clean one in the M4
+commit precisely because it looks identical to a real result. A separate self-inflicted instance:
+my first mutation harness clobbered its own backup and failed to restore — recovered
+byte-identical from the executor's `.snap/M1/` snapshot, the first time that protocol has paid.
+
+**Sandbox discipline honoured in both directions.** codex correctly labelled AC1/AC2/AC9
+`UNINFORMATIVE UNDER SANDBOX` — its nested codex probes died at app-server init rather than on the
+model, and `~/.config` writes were denied outright — and the controller re-ran every one outside
+the sandbox. AC2 then came back decisive: `400 "'no-such-model' model is not supported when using
+Codex with a ChatGPT account"`, i.e. the probe fails BECAUSE it carries `--model`, with the
+model-LESS control returning rc=0 `ok`, so `#486` has not regressed and the guard is load-bearing.
+
+**Probe dedupe proven with a discriminating control**: same bad model on both roles → ONE
+"unusable" line and TWO "lane -> falling back" lines; two DIFFERENT bad models → TWO "unusable"
+lines. So the post-flip both-roles-codex default costs one probe per fire, measured rather than
+asserted.
+
+**Routing evidence**: model=claude-opus-5 (controller) task-class=execute rounds=n/a
+corrections=3 provider=codex agent=codex cost=quota-bucket:codex-chatgpt+opus.
+Executor **FIRED four times** (`codex:gpt-5.6-sol`, probe rc=0, every run bounded 30 min,
+`--sandbox workspace-write`, ChatGPT subscription confirmed with the safe `[ -n ]` form): three
+milestone runs plus the AC3a planner rehearsal. Designer/planner **NOT fired** (doc and plan
+already existed from iter-125), so the designer rotation correctly did NOT advance, staying at
+`claude:claude-fable-5`. **Evaluator NOT fired** — see Ruled out. `metered=$0.00` of the `$5`
+ceiling.
+
+**Ruled out**:
+- *"post-run step (5) `ailang messages import-github` is an invented step"* — REFUTED. It reads
+  as a non-sequitur inside a planner recipe and I took it for a hallucination; it is **verbatim
+  from the design doc's D4 step (5)** (compensating for a possibly-skipped in-sandbox sync) and
+  the subcommand exists in the CLI. Reproduced before dismissing; the executor was right.
+- *"the rollback plumbing does not work"* — REFUTED, instrument contamination (above).
+- *"awk interval expressions `{2,4}` may not work in macOS BWK awk"* — REFUTED by measurement
+  with controls in both directions (2-hash and 3-hash headings match; 1-hash and 5-hash correctly
+  rejected; `awk version 20200816`).
+- *"the plan's `diff -q` skill-copy criterion failed"* — NOT a failure. `~/.claude/skills/
+  mission-control` is a SYMLINK to the repo copy, so a worktree edit differing from it is the
+  EXPECTED reading; the criterion is satisfied by construction once the edit reaches main.
+- *AC8(i)'s expected token* — the plan contradicts itself (binding task 1 says
+  `no-files-section`, the AC8 list groups (i) under `path-not-in-codex-allowlist`). Resolved in
+  favour of task 1; both are fail-closed so the safety behaviour is identical.
+
+**Retro lane**: process-fix — the charter's queue row for this item moves to LANDED, and the
+`/tmp` worktree path baked into a parked sprint plan is recorded as a class (a plan written before
+a skill rule cannot know about it; the executing iteration must re-read the skill's constraints
+against the plan's literals). **No skill edit this iteration** — the one candidate gap (executors
+spawned into this repo run the CLAUDE.md session-start inbox triage and waste a step on
+`ailang messages ack`, which the sandbox denies anyway) has ONE recorded instance, and the bar is
+two.
+
+**Next**: `#498` Lane B (`m-mcp-exact-tool-surface`, World's sole clause-6 blocker, NEW-DOC +
+quorum), then recorded-stream S2. First iteration after this one should CHECK ITS OWN EVIDENCE
+ROW for `planner=`: the flip is live, so the row is now the loop's own regression test.
+
+**Gate 3b**: GREEN, SHA-addressed on PR #580 head `623b93700` — **20 checks, 0 failures**, plus the
+per-workflow direct confirm (`CI` and `Build and Release` both `completed/success @ 623b93700`),
+because the poll is a hint and not the verdict. Squash merge `cd76499c5`. **The gate that actually
+mattered ran AFTER the merge**: launchd executes the MAIN checkout's working tree (`#558`), so a
+green worktree proves nothing. Fast-forwarded under Mark's standing 08-03 authorisation with both
+preconditions re-asserted rather than assumed (0 ahead; incoming-vs-dirty intersection EMPTY, with
+a control proving `comm` discriminates), then `bash -n` rc=0 and the acheck dry-run printing
+`planner=codex:gpt-5.6-sol` **in the main checkout** — with an automatic driver revert to the
+pre-merge SHA armed had either failed. `diff -q` against `~/.claude/skills/mission-control/SKILL.md`
+is now silent and step 1b is present there, so the skill edit reached the RUNNING skill instead of
+dying on a worktree branch (the iter-128 trap, closed by construction).
+
+## 142 — 2026-08-04 — Iteration 137: **the `#498` Lane B design is LANDED and quorum-cleared, and iter-136's owed evaluator finally ran.** PR **#582** → `2629ad8fa`, dev CI GREEN SHA-addressed (20 checks, 0 non-success) + per-workflow confirm.
+
+**Pick**: the queue head — `m-mcp-exact-tool-surface` Lane B (`#498`, world-DEMAND, World's sole clause-6
+external blocker) — plus the evaluator iteration 136 explicitly owed and named as this iteration's first
+task. Gate 0/1 clean throughout; `dev == origin/dev` at pick with `SKILL.md` and driver byte-identical to
+origin, so the 2026-08-03 reconcile **held for a second consecutive iteration**.
+
+**The owed evaluation was not a formality.** Iter-136 landed `m-planner-codex-lane` with no judge at all
+(`tools/launchd/` has zero CI coverage by design, so the ACs were the only gate). Sonnet returned
+**PASS 84/100 r1, zero blocking**, re-ran **five mutations — all caught** — and independently confirmed
+that fixture `(n)` genuinely kills the `__UNPARSABLE_PATH_ENTRY__` mutation iter-136 had reported as its
+one survivor. That headline find now rests on second-party verification rather than the author's word.
+Three non-blocking findings → **`#581`**. The load-bearing one I reproduced myself before filing, with a
+discriminating control: two docs differing *only* by a fenced code block containing a bullet flip
+`codex` → `opus fail-closed:path-not-in-codex-allowlist`. Its **direction** is what bounds the severity —
+the blindspot can only degrade a codex-eligible doc *to* opus, never grant codex a doc that should have
+been refused. Cost defect, not a safety hole.
+
+**The find that shrank Lane B.** The MCP Go SDK's `NewStreamableHTTPHandler(getServer func(*http.Request)
+*Server, opts)` already hands AILANG a per-request server-selection callback, and
+`internal/apiserver/mcp.go:303` calls it while **discarding the request**. So `#498` requirements 2–3
+(resolve principal before discovery; per-session exact descriptors) are supported by the dependency
+already in use — a wiring-and-authority problem, not a transport problem.
+
+**Quorum: two full rounds, both BLOCKED, neither degraded**, resolved by the ratified narrow-refinement
+carve-out. Two reviewer claims were **measured rather than forwarded**, which is the rule that keeps a
+third round from being bought: (1) *"per-request SDK servers break SSE"* — **refuted on this path**, since
+Stateless mode answers GET/DELETE with `405 Allow: POST` and there is no long-lived stream to correlate;
+but the reviewer surfaced a genuine adjacent landmine, now closed (`Stateless: true` frozen as a
+requirement, stateful/resumable MCP an explicit non-goal with the empty-registry failure mode written out,
+GET⇒405 in acceptance). (2) *"A2A timeout mapping never verified"* — process point correct, feared
+corruption impossible: `a2a.go:304` already writes HTTP 200 with a JSON-RPC envelope, so the mandate
+preserves the surface (V27); `-32603` is new to the file, recorded with a known-positive control (V28).
+R2's sharpest catch was aimed at my own R1 fix: **a deadline bounds the wait, not the resource.** Applied
+verbatim — `MaxConcurrentCallbacks`, a capacity token held until the goroutine *exits*, a frozen overload
+envelope, and the blunt admission that in-process Go callbacks cannot be forcibly terminated.
+
+**Ruled out / refuted, including three of my own facts.** The designer refuted: Lane A's squash
+`a81d66983` (that is `#517`'s Lane A, not `#498`'s — `aa02f0d9f`); `Config` having 16 fields (15); and
+`runtime` being the only importable library package — my `go list … | head -20` was **truncated** and I
+quoted it as a complete enumeration, with `testutil` past the cut. All three re-verified first-party; the
+designer was right each time. Separately my own "designer process gone" reading was **false**:
+`pgrep -f "A\|B"` is ERE, so `\|` matches a literal `|` and finds nothing (proven with controls both ways),
+and the bounded wait exited ~24 minutes early on a vacuous negative.
+
+**The STATUS rotation tried to eat the charter again — and the assertion stopped it.** The first rotation
+script used `${S[2]}`/`${S[0]}`; **zsh arrays are 1-indexed**, so it selected iteration *135* as "oldest"
+and left the insert position empty, deleting the wrong stamp and dropping the charter to 1729 lines. The
+mandated `after == before + 2 - 2*len(moved)` check failed loudly, both files were restored from git
+(verified 1731 lines / 3 stamps / archive 871), and the rotation was redone with no array indexing at all.
+This is the same zsh family as `${PIPESTATUS[0]}` already in the skill, and it is the fourth failure of
+this specific step — the assertion rule added at iter-127 is what made it a non-event.
+
+**Routing evidence**: controller opus; designer `codex:gpt-5.6-sol` fired **twice** (probe rc=0, both runs
+bounded 30 min, ChatGPT subscription bucket) → rotation advances to `codex:gpt-5.6-sol`; evaluator sonnet
+(generator≠judge holds). **Planner not fired** — the deliverable was doc+quorum, so iter-136's request to
+treat the `planner=` row as the flip's own regression test is answered "not exercised here"; the lane was
+exercised indirectly, `derive-planner-lane.sh` returning `opus declared:opus-required` on the brand-new
+doc. `metered=$0.1910` of the `$5` ceiling. Chain posted (`9a2260e0`).
+
+**Watch-item (instance 1)**: the codex `workspace-write` sandbox denies **outbound network**, not just
+loopback binds — the designer could not fetch `#498`. The directive carried the contract inline so it was
+covered, but the recipe documents only the bind denial. One more instance and it earns a skill edit.
+
+**Retro — one skill edit** (`d4a99dc29`, saved in the MAIN checkout so it reached the running skill):
+Gate 2 rule 3b gains **(v)**, the truncated-enumeration and transcribed-value shapes — three instances in
+one spawn directive, all caught by the designer rather than by me.
+
+**Next**: sprint-planner on Lane B (opus-required, ~17h, 3 milestones), then recorded-stream S2 per Mark's
+2026-08-03 order. `#554`, `#558`, `#561`, `#563`, `#578`, `#581` open.
+
+**Iteration 137 addendum — Gate 3b on the dev merge went RED, and it was not the merge.** `Build and
+Release` failed at `1af897b9b` on `TestGitCache_Resolve_RealRepo`, which clones the **live**
+`sunholo-data/ailang-packages` repo (`internal/pkg/gitcache_test.go:48`, guarded only by
+`testing.Short()`, which CI does not set): `fatal: could not read Username for 'https://github.com':
+Device not configured` → `exit status 128`. The push contains **zero Go files** (4 markdown + 1 skill
+doc) and the previous **seven consecutive** dev runs were green — including `2629ad8fa` four minutes
+earlier — so the merge cannot be the cause; a credential-helper/network condition on the macOS runner
+is. Matrix `fail-fast` then cancelled ubuntu and windows, so one network hiccup presented as three
+non-success checks, which is itself worth fixing because it obscures the diagnosis. The `--- FAIL`
+grep was paired with a known-positive control (13,115 `--- PASS` lines in the same log) so the single
+hit is a measurement rather than a lucky pattern. Failed jobs re-run; filed **`#583`** — same
+third-party-verdict class as `#561`, except this one reaches CI and gates releases. Recorded rather
+than smoothed over: the dual-channel digest went out **before** this surfaced, so a correction was
+posted to `#559` rather than letting a "LANDED, CI green" report stand unqualified.
+
+## 143 — 2026-08-04 — Iteration 138: **the `#498` Lane B sprint plan is LANDED, and planning refuted five of the design doc's premises — two of them acceptance criteria that could not fail.** Commit `6e82d2a1b`; planner opus per `derive-planner-lane.sh`; estimate revised 17h → **25h**; systemic gate-scope defect filed as **`#584`**.
+
+**Pick**: the queue head — `m-mcp-exact-tool-surface` Lane B (`#498`, world-DEMAND, World's sole clause-6
+external blocker) — routed to **sprint-planner**, which is exactly what iteration 137 named as next and
+what Mark's 2026-08-03 ratification ordered (`#498 Lane B` → recorded-stream S2, S2 does *not* jump).
+Gate 0/1 clean and cheap: kill switch armed, billing **CLEAN**, gh account correct, zero open
+`[nightly-eval]` alarms (control: 46 open issues total, so the zero is a measurement), no new Mark comment
+(watermark `2026-08-03T07:04:45Z`; the allowlist control fired — one Mark comment total, its `createdAt`
+equal to the watermark, so correctly excluded by `>`), no rotation due (`#559` created `05:08Z` =
+**07:08 CEST**, *after* the Monday-07:00 LOCAL boundary; 14 < 80), weekly sweep already satisfied by
+iter-136. `dev == origin/dev == 6bd8cda42` at pick, and **the running `SKILL.md`, the driver, and the
+charter were all byte-identical to origin** — the 2026-08-03 reconcile has now held for a **third**
+consecutive iteration, so Gate 4 wrote in place rather than through a worktree. Cheap tell case-correct
+with control (ITERATION 137 = 1, 136 = 2, rotation invariant 3). dev CI green at the pick SHA, confirmed
+per-workflow *and* SHA-addressed (14 success / 1 neutral), so iteration 137's `#583` re-run had cleared.
+
+**The planner refuted five premises, and I reproduced every one first-party before recording it.** A
+sub-agent finding is a claim until the controller measures it — including when the sub-agent is right,
+which it was five times out of five. New Verification Log rows **V29–V33** in the design doc:
+
+- **V29 — `make check-file-sizes` is blind to the package this sprint creates.** The gate body enumerates
+  `find internal cmd` only. Measured: **45** files seen under `internal/apiserver/`, **0** under
+  `runtime/`+`std/` where **6** `.go` files genuinely exist. The known-positive proves the instrument
+  works, so the zero is a measurement of *scope*. M3's "size gate passes" AC would have passed identically
+  with a 5,000-line `serveapi/serveapi.go`.
+- **V30 — `make check-boundaries` is blind to both `internal/apiserver` and `serveapi/`.** It iterates
+  three fixed package sets: `apiserver` **0** mentions, `serveapi` **0**, control `parser` **4**. The gate
+  passes whether or not the new public package imports the compiler core — i.e. it cannot fail for the
+  reason it was cited.
+- **V31 — the load-bearing one, and new to the design.** `mcp.Server.AddTool` **panics** on a missing or
+  non-object input schema (SDK v1.7.0 `mcp/server.go:282` and `:294`; control 16 `panic(` sites in that
+  file). The embedded design calls `AddTool` **per request**, inside a handler goroutine, from
+  **caller-supplied** descriptors, and its `ToolDescriptor` permits `InputSchema: nil` — so a host's
+  omission becomes a panic on every request. M1 had covered the *scalar* schema case and missed nil.
+- **V32 — `@nomcp` is already a second, MCP-only filter** downstream of `isExposed` (`mcp.go:94-95`; 57
+  references repo-wide including a dedicated `nomcp_test.go` whose
+  `TestNoMCP_StillServedOverHTTPAndOpenAPI` asserts the export *stays* on the other protocols). So M3's
+  instruction to restate "one filtering point" is false as written, and folding `@nomcp` into the shared
+  gate would hide those exports from A2A and OpenAPI — the opposite of the annotation's contract.
+- **V33 — favourable, and recorded so good results are not waved away.** `internal/apiserver` binds
+  **zero** sockets today; all **13** `httptest.NewServer` sites are in `cmd/` (control: 12 files in
+  `apiserver` already use `NewRecorder`). So most of this sprint is authoritative *inside* the codex
+  `workspace-write` sandbox, and M3's blanket "outside the loopback-denying sandbox" caveat applies only
+  to `./cmd/ailang`.
+
+**Two of those five are vacuous acceptance criteria — the class this mission has now shipped six times.**
+V29 and V30 are not merely inaccurate; they are ACs that *cannot fail*, which is worse than a missing AC
+because they read as coverage. Both are replaced in the doc: an explicit `find serveapi -name '*.go' |
+xargs wc -l` assertion, and a two-sided `go list` import check with a known-positive control, with
+`make check-boundaries` demoted to a non-regression check that is explicitly **not** evidence about
+`serveapi`. V31 adds a nil-schema rejection *before* any `AddTool` call plus panic-recovery in the
+per-request adapter mapped to the already-frozen `-32603` envelope — an extension of the existing
+"scalar schema produces an explicit error" requirement to the input class it missed, not a direction
+change, so no re-quorum. V32 narrows the invariant to be written ("one gateway decides *membership*;
+`@nomcp` remains an MCP-only *projection* filter applied after it").
+
+**The document had already measured the thing its own AC contradicted.** Row **V18** — written by the
+designer, cleared by two reviewers across two full quorum rounds — records that the boundary gate's
+package sets do not include `internal/apiserver`. The M3 acceptance criterion citing that gate survived
+anyway. Nobody diffs a 28-row Verification Log against the AC list, and quorum reads for design soundness
+rather than internal consistency, so the contradiction shipped through every gate the mission has. This is
+the retro finding (below) and it is the second instance: iteration 135's planner evidence row was measured
+at pre-split `HEAD` and then cited for an ordering claim at a position it never covered.
+
+**Milestone ordering CHANGED, for a bisectability reason worth keeping.** Three of M1's six ACs are
+unsatisfiable at the M1 boundary — AC2 (pointer session through a request), AC5 (its own text says it
+covers MCP POST, A2A task POST and A2A card GET) and AC6 (an overload envelope specified per-protocol) all
+need the M2 MCP handler or the M3 A2A path. Rather than drop them, the callback runner becomes
+protocol-neutral and directly unit-testable, so M1 keeps the *stronger* runner-level halves (observed
+context deadline, starts capped at N, token held until the goroutine exits, goroutine count flat under a
+burst) and the wire halves move to the transport that provides them. Separately the `isExposed` → gateway
+generalization moves **M1 → M3**: the embedded path never calls it, so nothing upstream depends on it, and
+it is the only change that can regress standalone behaviour across six production call sites in five
+files — last is the sharp bisect boundary. Same class as iteration 135's ordering defect, caught before
+execution this time instead of during it.
+
+**Estimate: 17h → 25h, and no AC cut.** The cost driver is the AC set, not LOC — test LOC runs ~70% of
+implementation LOC here. Calibration against Lane A (`aa02f0d9f`): 1,023 insertions of which **534** were
+its sprint plan, so ~490 LOC of real work for a materially smaller scope; Lane B is ~1,450 LOC across a
+new public package, a new authorization type, a concurrency-bounded callback runtime and two protocol
+adapters. If a hard 3-day box is ever imposed, the only clean cut is deferring M3's `isExposed`
+generalization (~3.5h, no embedded-path dependency).
+
+**Artifacts and their validation** (a plan is a claim too): plan
+`design_docs/planned/v1_0_0/m-mcp-exact-tool-surface-lane-b-sprint-plan.md` (631 lines, names the input
+doc); sprint `.ailang/state/sprints/sprint_M-MCP-EXACT-TOOL-SURFACE-LANE-B.json` — `jq -e .` rc=0, the
+repo's own `validate_sprint_json.sh` rc=0 "VALIDATION PASSED", placeholder sweep
+`MILESTONE_ID`/`auto-parse failed`/`TODO`/`TBD` all **0** with a known-positive control
+(`acceptance_criteria` = 3) proving the grep matches this file, `all(.features[].estimated_loc; . > 0)`
+true. `.ailang/` is gitignored (`.gitignore:77`) so the JSON needed `git add -f`, matching the 44 sprint
+JSONs already tracked. Staged diff verified **before** commit: exactly 3 files, 872 insertions, **zero
+deletions** — the rig-synced `docs/static/benchmarks/*.json` and a sibling session's untracked
+`m-eval-batch-api.md` were left alone (Critical Principle 0).
+
+**The plan encodes the executor's real constraints, which the doc could not know.** No git writes at all
+(the sandbox cannot write a linked worktree's `.git`), cumulative `.snap/M<k>/` snapshots per milestone
+with the controller reconstructing one commit each and proving byte-identity by sha256 manifest, and the
+worktree path pinned **literally** to `/Users/voightkampff/dev/sunholo-data/.wt-iter139-mcp-lane-b` —
+a sibling of the repo, never `/tmp`, because a `/tmp`-rooted checkout reds `TestIsTempPath` and
+`TestSolve_HardTimeout_FakeSolverIgnoringT` for the *location* and CI can never reproduce it. Iteration
+136 lost time to a plan whose worktree literal predated that rule; writing the path into the plan closes
+it for the executing iteration rather than relying on it to re-read this skill.
+
+**Ruled out / refuted.** My own probe for the boundary script came back empty and I nearly read it as
+"the gate has no script": the file is at `scripts/check_boundaries.sh`, not `tools/`, and the `|| find …`
+fallback I had chained after a pipe **never ran**, because `grep … | head` exits with `head`'s status —
+the pipe-exit-code trap in a new shape, where the casualty is a *fallback* silently not firing. Re-probed
+with `make -pn`, the tool that cannot miss, which printed the gate body directly. Also refuted: the
+planner's report that doc row V19 shows `./cmd/ailang` failing — that was measured in the *codex sandbox*;
+in an unsandboxed session it is rc=0 `ok 19.282s`, which is a scope qualification rather than a
+contradiction and makes controller re-runs cheap (~20s).
+
+**Routing evidence**: controller **opus** (`claude-opus-5`); task-class=**plan**; planner **opus**, fired
+once via the Agent tool — `derive-planner-lane.sh` returned `opus declared:opus-required`, so per Gate 3
+step 1b **no codex probe and no codex spawn happened for the planner role**, and the reason token is
+recorded verbatim. This is the first iteration to exercise the iter-136 flip's *opus* arm end to end, and
+the `planner=` row iteration 136 asked future iterations to check is therefore `planner=opus (declared)`,
+not the new `codex` default — the fail-closed derivation working as designed on a doc that declares its
+own lane. Designer **not fired** (doc pre-existed and is quorum-cleared), so the rotation correctly stays
+`codex:gpt-5.6-sol`. Evaluator **not fired — and not owed**: the deliverable is a plan, and the mission
+evaluates *sprints*; the plan's own gates (validator rc=0, placeholder sweep with control, jq) plus the
+controller's five first-party reproductions are the check. generator≠judge is not engaged for a planning
+iteration. `metered=$0.00` of the `$5` ceiling — every lane ran on a quota bucket.
+
+**Retro — one skill edit** (saved in the MAIN checkout; `readlink` confirms `~/.claude/skills/
+mission-control` is a symlink to the repo copy, inode `27963706` on both paths, `diff -q` silent, and the
+new rule greps present in the running copy with a known-positive control): Gate 2 rule 3b gains **(vi)** —
+*a document's Verification Log can refute that document's own acceptance criteria; diff the two before
+routing, because nothing else does.* Two recorded frictions, both in the log: iteration 138's V18-vs-M3
+contradiction (cleared by two reviewers across two quorum rounds) and iteration 135's evidence row
+measured at a position it was then cited beyond. The generalisation is the part worth keeping: a long
+document is an instrument too, and its Verification Log is the control — when the log and the claims
+disagree, the claims are what is wrong.
+
+**Also filed**: **`#584`** — both repo gates enumerate hardcoded directory/package lists, so every
+first-party Go package outside `internal/` and `cmd/` (`runtime/`, `std/`, `testutil/`, `scripts/`,
+`tools/*`) has no 800-line enforcement and no boundary enforcement at all. The per-sprint workaround is in
+the plan; the systemic fix (derive both lists from `go list ./...`, add an anti-vacuity floor, add a
+self-test fixture) is repo-wide and deliberately out of this sprint's scope. Not urgent enough to outrank
+the queue; filed so it is not re-discovered a third time.
+
+**Next**: **execute** Lane B — plan-ready, 3 milestones, ~25h, executor `codex:gpt-5.6-sol` with the
+snapshot protocol, evaluator sonnet (generator≠judge holds). Then recorded-stream S2 per Mark's
+2026-08-03 order. `#554`, `#558`, `#561`, `#563`, `#578`, `#581`, `#583`, `#584` open.
+
+---
+
+## 144 — 2026-08-04 — Iteration 139: **`#498` Lane B M1 is LANDED — and controller mutation testing found two vacuous assertions the executor shipped, one of which refutes the sprint plan's own "would this still pass if the claim were false?" answer.** PR **#585** → squash `f5ebcc0b5`, Gate 3b GREEN SHA-addressed (20 check-runs, 0 non-success); evaluator sonnet **PASS 94/100 r1, zero blocking**.
+
+**Pick**: the queue head — `m-mcp-exact-tool-surface` Lane B (`#498`, world-DEMAND, World's sole
+clause-6 external blocker) — routed straight to **sprint-executor**, which is exactly what iteration
+138 named as next. Doc and plan both pre-existed and were quorum-cleared, so **no designer and no
+planner fired**; the rotation correctly stays `codex:gpt-5.6-sol`. This is milestone **M1 of 3**;
+M2 (~8.5 h) and M3 (~10 h) remain, which is the plan's own 25 h shape, not a shortfall.
+
+Gate 0/1 clean: kill switch armed, billing **CLEAN**, gh account correct, **zero** open
+`[nightly-eval]` alarms (control: 47 open issues, so the zero is a measurement), inbox empty, no new
+Mark comment (watermark `2026-08-03T07:04:45Z`; the allowlist control fired — one Mark comment total,
+`createdAt` *equal* to the watermark and so correctly excluded by `>`), no rotation due (`#559`
+created `05:08Z` = **07:08 CEST**, after the Monday-07:00 LOCAL boundary; 16 < 80), weekly sweep
+satisfied by iter-136. `dev == origin/dev == d1b851026` at pick and the running `SKILL.md`
+byte-identical to origin (`cmp` silent) — **the 2026-08-03 reconcile has now held for a fourth
+consecutive iteration**, so Gate 4 wrote in place. Cheap tell case-correct with control
+(ITERATION 138 = 1, 137 = 2, rotation invariant 3).
+
+### The two vacuous assertions — both proven by mutation, not asserted
+
+The executor reported **6 of 6 acceptance criteria MET** and every gate green. That is a claim, and
+re-running the gates outside the sandbox confirmed all of them. What the gates did *not* show is
+whether the assertions behind them can fail. Two could not.
+
+**(1) `callbacks_test.go` — the "next callback in the chain is never entered" clause (plan AC4).**
+The follow-up call was guarded on `if err == nil`, and three lines earlier the test requires `err` to
+be `context.DeadlineExceeded`. So the branch is dead and `next.Load() != 0` held under *any*
+implementation. Proven rather than reasoned: an instrumented marker inside the branch printed **0**
+times while the test itself ran (**control: 1** PASS line in the same output). Replaced with the
+strictly stronger claim that *is* provable at the runner level — on a saturated runner (capacity 1) a
+follow-up call must return `ErrCallbackCapacity` with host code never entered, which fails precisely
+when the token is released as the handler stops waiting rather than when the goroutine **exits**.
+That is the semantics the design doc froze, and it now has a test that can fail.
+
+**(2) `authorized_surface_test.go` — the deep-copy proof (plan AC3).** It compared `surface.All()`
+against an earlier `surface.All()`. Under a shallow clone **both results alias the caller's storage
+and change together**, so the comparison holds however broken the copy is. The shallow-clone mutation
+**survived**. This is the sharper finding of the two, because **the sprint plan explicitly answered
+this case**: *"Would still pass if the claim were false? The mutation half fails on a shallow copy."*
+It does not. The plan was wrong, two reviewers and a full planning pass did not catch it, and only
+running the mutation showed it. Now compared against a materialized `json.Marshal` snapshot and a
+literal; the same mutation dies.
+
+Four controller mutations in total, **each proven applied by `cmp` before its result was read** —
+"the mutation didn't red" and "the mutation never ran" are the same exit code — and all reverted
+byte-identical. The other two (drop the nil-`InputSchema` rejection; remove the deterministic sort)
+died as intended.
+
+### The evaluator re-derived both fixes and its NB-1 is a real M2 blocker
+
+Sonnet **PASS 94/100, round 1, zero blocking**, generator≠judge holding twice over (OpenAI executor
+vs Anthropic judge; sonnet ≠ this opus controller). It independently confirmed both vacuity fixes are
+discriminating, ran its own four mutations, and separately established that the runner has no slot
+leak and that `ErrCallbackCapacity` is distinguishable from parent-context cancellation.
+
+Its **NB-1 was reproduced before adoption** and is load-bearing: a **fifth** `AddTool` panic case —
+`validateParamHeaderAnnotations` at `mcp/server.go:312-313`, firing on an `x-mcp-header` annotation
+that is invalid, duplicated, or applied to a non-primitive — is **not** covered by M1's validation
+(control: the already-confirmed `missing input schema` panic in the same call). It is invisible today
+because M1 never calls `AddTool`, and goes live the moment M2 registers per request from
+caller-supplied descriptors. **M2 AC5 is therefore not sound as written.** Recorded in the plan
+(`63e051de6`) requiring **both** loud validation *and* a `recover()` backstop — `recover()` alone
+would silently accept a descriptor class the contract calls invalid, which is the CLAUDE.md §2
+failure mode.
+
+### `go test ./...` came back rc=1 and it was not this sprint
+
+`TestNetHttpPost/httpPost_to_httpbin.org` failed against a live **httpbin.org 504**. Reproduced at
+the untouched base commit in the main checkout with zero sprint changes, already tracked as **`#561`**,
+and proven CI-safe in both directions (`CI=true` → rc=0 skip; without → rc=1). Same
+third-party-verdict class as `#583`. Diagnosed with a `--- FAIL` grep paired against a **106** `ok`
+control, so the single hit is a measurement.
+
+### Ruled out
+
+- **My own suspicion that the external-module fixture would red CI.** The plan specifies a hardcoded
+  worktree path in the `replace` directive, and a hardcoded absolute path cannot exist on a CI runner.
+  **REFUTED** — the executor derived the module root from `runtime.Caller(0)` instead, which is more
+  robust than the plan asked for. The executor improved on its instructions and I nearly filed it as a
+  defect.
+- **"`isExposed` is gone."** My control grep `func isExposed` returned empty and I briefly read that as
+  a finding. It is a **method** (`func (s *Server) isExposed`); widening the pattern found the
+  definition plus **6** production call sites, exactly as the plan states. The instrument was my
+  pattern, not the repo — and it was a *control* that failed, which is the case rule 3a exists to catch.
+- **A Go-version mismatch in the offline fixture.** The fixture pins `go 1.26.5`; repo `go.mod` and all
+  ten CI `go-version` entries are `1.26.5`. Checked before Gate 3b rather than after.
+
+### Filed
+
+**`#586`** — two latent traps in the external fixture, both reproduced first-party and both with
+**zero** current impact, so they are follow-ups rather than blockers: `runtime.Caller(0)` breaks under
+`-trimpath` (rc=1 measured, clean control rc=0; `trimpath` appears **0×** in CI against a **14×**
+`go test` control), and the fixture's `go 1.26.5` is a hardcoded literal that will drift on the next
+toolchain bump.
+
+**Routing evidence**: model=**claude-opus-5** (controller) · task-class=**execute** ·
+round1-score=**94** · rounds=1 · corrections=**2** · provider=**codex** · agent=codex ·
+planner=**not fired (plan pre-existed)** · designer=**not fired (doc pre-existed)** ·
+evaluator=**sonnet, pinned**. Executor fired **once** (`codex:gpt-5.6-sol`, probe rc=0, bounded 30 min,
+`--sandbox workspace-write`, `.snap/M1/` snapshot protocol observed and never committed).
+`metered=$0.00` of the `$5` ceiling — every lane on a quota bucket.
+
+**Retro — NO skill edit.** The candidate gap is real but has **one** clean instance and the bar is two:
+*both* vacuous assertions came from the **executor's own tests**, not from the plan, so the executor
+directive should carry a "prove each new assertion can fail" step rather than relying on the controller
+to mutation-test after the fact. Recorded as a watch-item; if a second iteration finds an
+executor-authored vacuous assertion, the directive template gets the step.
+
+**Next**: **M2** — MCP request-scoped adapter and frozen wire envelopes (~8.5 h). The architecture is
+pinned in plan §0.6 (outer wrapper handler, *not* resolution inside `getServer`), and M2 AC5 must now
+absorb the `x-mcp-header` panic case above. Then M3, then recorded-stream S2.
+
+**Gate 3b addendum (post-merge, recorded before the report went out).** The PR was green — 20
+check-runs, 0 non-success, SHA-addressed, plus the per-workflow confirm. The **post-merge dev run
+then failed `Build windows-latest`**, and it was not the merge.
+`TestReferenceSolutions_JS/fizzbuzz` hit its own 60 s node-startup timeout at **60.59 s**
+(`internal/eval_harness/reference_solutions_test.go:89`), with `recursion_fibonacci` at 31.07 s and
+every other subtest at 0.06 s — interpreter cold start, not program work. Two independent disproofs:
+my docs-only child `434e3e53a` **contains the identical M1 code** (`git merge-base --is-ancestor`
+true; `git ls-tree 434e3e53a serveapi/` lists both new files) and its Windows build **passed**; and a
+concurrent session's YAML-and-markdown-only commit `f574c4b58` — **zero Go files** — failed the same
+way in the same window. Isolated with a `--- FAIL` grep paired against a **13,067**-line `--- PASS`
+control. The test's own comment records that 60 s was *already* a raise after this same class of
+failure, so the bound is chasing the runner rather than bounding a hang. Filed **`#587`** — fourth in
+the runner/third-party-verdict family after `#583`, `#494`, `#509`. Iteration 137 shipped its digest
+before an equivalent red surfaced and had to follow with a correction; this one was found and
+recorded **first**, so the report carries the caveat rather than retracting it.
+
+---
+
+## 145 — 2026-08-04 — Iteration 140: **dev CI was red on every commit for two hours, and iteration 139 had already misfiled it as a known flake.** Fix `d434a9be9`; Gate 3b GREEN SHA-addressed on my own commit (**19** check-runs, **0** non-success). The regression was deterministic, reproducible in 0.5s, and caused by a concurrent session's curation cycle moving 12 benchmarks between tiers without updating either gate that pins the distribution.
+
+**Pick**: **not the queue head.** Gate 1 found `CI` and `Build and Release` both `completed/failure` at dev HEAD `56b0b2a65`, and a red dev outranks the queue. The queue head (`#498` Lane B M2) is untouched and remains next.
+
+**What was broken**: `TestAllBenchmarksHaveTierAndTags` (`internal/eval_harness/spec_test.go`) and `TestFilterBenchmarksByTier` (`cmd/ailang/eval_suite_flags_test.go`) are sibling drift detectors that pin the benchmark tier distribution. `f574c4b58` — the v0.32.0 curation cycle, landed by a concurrent non-mission session — moved 12 benchmarks between tiers and touched neither. Observed 23/23/25/8/9 against centers 23/19/21/16/9: exactly the redistribution that commit's own message declares (core 19→23, stretch 21→25, frontier 16→8). Failing on **both** ubuntu and windows, on every commit after it.
+
+**The fix follows the tests' own written remedy**, not my judgement: *"when a shift is intentional, re-center here"* and *"don't widen tolerance — bump the target counts to match reality."* Centers moved, ±3 tolerance kept, rationale comment added to both files naming which benchmarks moved and why — as every prior re-center did, because that history is how a later reader distinguishes a deliberate ladder change from silent drift.
+
+**Iteration 139 had already seen this red and misattributed it.** Its Gate-3b addendum states that `f574c4b58` *"failed the SAME way in the same window"* as the `#587` fizzbuzz node-cold-start flake, and used that as one of two disproofs that the M1 merge was innocent. Measured SHA-addressed, that is false in both particulars: on `f574c4b58`, `Build windows-latest` was **`cancelled`** (matrix fail-fast), not failed; the job that **failed** was `Build macos-latest`, on the tier gates — and `test` + `test-windows` failed the same way on both platforms. Wrong platform, wrong failure. `#587`'s headline conclusion survives on its other, independent disproof (`434e3e53a` carries identical M1 code and its Windows build passed), so the flake is real and the merge is still exonerated. But the cost was real too: because the red was filed as a known flake, a deterministic, trivially-fixable regression sat on dev for roughly two hours and was reported to Mark as a runner flake. Correction posted to `#587`.
+
+**The generalisable lesson**: *two commits going red in the same window is not evidence that they failed for the same reason.* Attribution to a known flake has to match on the **failing test name and the platform**, never on redness plus adjacency — matching on co-occurrence is precisely what lets a real regression hide inside an existing issue. This is the converse of the rule Gate 1 already carries from iteration 3 ("check whether the same failure exists on the parent commits before blaming any merge"): that one stops you *blaming* a merge, this one stops you *absolving* one. Recorded as watch-item instance 1; the skill-edit bar is two, and it was not taken as this iteration's edit.
+
+**Systemic fix (CLAUDE.md §3), because this recurs on every curation cycle**: `benchmarks/CURATION.md` is the document the curator actually reads. It mentions "tier" **36** times and mentioned **neither gate** — controls fired both ways, so the zero is a measurement. Added a §5 subsection *"Applying tier moves — REQUIRED follow-through"* naming both files, both commands, and the re-center-don't-widen rule, with the v0.32.0 incident recorded as the reason it exists. Fixing only the counts would have guaranteed a repeat at v0.33.0.
+
+**The gates were proven non-vacuous, not assumed.** Mutating 4 `stretch` benchmarks to `frontier` reds both (stretch 21 want 25±3; frontier 12 want 8±3); reverted byte-identical (`shasum -c`, 4/4 OK) and both green again. Independently, the pre-edit failure on unchanged data already proved they bind to the YAMLs rather than to a constant.
+
+**My first mutation attempt silently never ran, and both gates returned rc=0.** zsh does not word-split an unquoted variable, so `FILES=$(grep -l … | head -4)` followed by `sed -i '' … $FILES` passed **one** argument whose value was four newline-joined paths; `sed` failed on a nonexistent filename and nothing was mutated. An unexamined rc=0 there says "this assertion is vacuous" in exactly the same voice as "the mutation never ran". It was caught only by a did-the-mutation-apply control (`git diff --name-only | wc -l`: expected 4, got 1). In bash the same two lines work, which is why the shape reads as correct.
+
+**Ruled out**: my own grep-derived tier census (smoke=23 core=19 stretch=13 frontier=7 vision=9 experimental=3) — **refuted by its own arithmetic**, summing to 74 against 91 benchmark files. The pattern `^tier: <t>$` missed every line carrying a trailing `#` rationale comment; widened, it reconciles exactly to the loader's 23/23/25/8/9/3 = 91. The instrument was my pattern, not the data — and because of it the re-centered numbers are measured twice by independent routes, never transcribed from `f574c4b58`'s commit message.
+
+**Also ruled out**: my own Gate-3b target. I recomputed it as `$(git rev-parse origin/dev)` after a mid-iteration fetch, which re-pointed it at a **sibling's** commit `04315e341` pushed while I worked. The check-run set appeared to collapse from 15 (13 completed, 0 non-success) to 12 (3 completed) — indistinguishable from a re-run of my own commit. Re-pinning to my own SHA restored the true green. That is Gate 3b's SHA-pinning rule failing in a new shape: not `--limit 1`, but a correctly-pinned variable **recomputed** later in the same iteration.
+
+**Concurrent-session note**: Gate 2 rule 4 held. `04315e341` (Mark ratified clause-1 tier assignments, attended) landed in this shared checkout mid-iteration; the intersection of its changed files with my dirty set was empty (control-verified), local `dev` already carried it, and no merge was needed.
+
+**Routing evidence**: model=**claude-opus-5** (controller) task-class=**fix-forward** provider=none agent=none `metered=$0.00` of the `$5` ceiling. No designer, planner, executor or evaluator fired: the deliverable is a 3-file CI fix-forward that Gate 1 assigns to the controller directly, and Gate 3's "deterministic mechanical work = inline is fine" clause covers a re-center whose values the tests themselves print. Designer rotation correctly stays `codex:gpt-5.6-sol`.
+
+**Retro — one skill edit**: Gate 2 rule 3a **(i-c)** extended from two zsh shapes to three, adding unquoted-variable word-splitting — the 5th instance of the zsh-instrument class and the first to produce a vacuous pass inside a **mutation test**, with the array remedy and the general form *a mutation test needs proof the mutation landed before its result means anything*. Saved in the main checkout; `readlink` plus inode `28209338` on both paths confirm the symlink, and the new rule greps present in the running copy against a known-positive control.
+
+**Next**: back to the queue head — `#498` Lane B **M2** (~8.5h; its AC5 must absorb the `x-mcp-header` panic case iteration 139 recorded), then M3, then recorded-stream S2 per Mark's 2026-08-03 order. `#554`, `#558`, `#561`, `#563`, `#578`, `#581`, `#583`, `#584`, `#586`, `#587` open.
+
+## 146 — 2026-08-04 — Iteration 141: **Mark answered both open asks, both are actioned — the CI-flake systemic-fix design doc is landed (`dec17dab1`, 819 lines) and benchmark curation now runs through the loop.** Quorum ran **three** rounds; every blocking objection was upheld and re-measured first-party, and the round that was **not required** found the best defect of the iteration.
+
+**Pick**: **not the queue head.** Mark's `#559` comment `2026-08-04T12:16:12Z` — *"Yes sprint a CI flake fix."* / *"Route curation through mission loop"* — answered iteration 140's two DECISIONS asks, and per Gate 0 an allowlisted comment outranks the queue. Watermark advanced to `12:16:12Z` before routing; allowlist control fired (2 Mark comments against 18 agent comments). `#498` Lane B M2 is untouched and remains next after the CI-flake sprint.
+
+**The load-bearing finding, measured before any routing**: `-short` is passed **nowhere** in `.github/workflows/`, `make/`, or `Makefile`. The single grep hit is `git rev-parse --short HEAD` — a false positive, with a control of 15 `go test` hits in those same files proving the instrument sees positives. So **all seven `testing.Short()` gates are inert in CI**. An author who writes one believes CI is protected and it is not: the mission's own vacuous-gate class, and the root cause of `#583`. The repo carries three gating idioms with no shared helper — 7 inert `Short()`, 2 env opt-out that genuinely fire, 6 `*_live_test.go` opt-in that is the reliable pattern.
+
+**`#561` is local-only, not a CI flake.** `net_test.go:363` already skips on `GITHUB_ACTIONS`, which GitHub Actions always sets. Getting that distinction right was a hard gate on the designer and it held — the doc frames `#561` as a laptop/rig problem throughout and never claims it reddened CI.
+
+**Designer** fired on the rotation lane `claude:claude-fable-5` (probe rc=0 through `claude-sub`, bounded 30 minutes, an 11,223-byte directive carrying the ≥200-byte delivery assertion), producing a 595-line doc that became **819 lines with a 32-row Verification Log** after revision. Rotation advances to `claude:claude-fable-5`; next is `codex:gpt-5.6-sol`.
+
+**R1 — BLOCKED, both reviewers reject.** `gpt5-6-sol`: an enumerated denylist is not a boundary, since a new hostname, SSH, raw TCP, or a proxy-ignoring subprocess passes gatelint and every acceptance criterion. `gemini-3-1-pro`: rule R3 is unscoped, so gatelint would flag its own source and red CI on the very commit introducing it. I measured gemini's blast radius before routing the revision, and it is **seven** false positives rather than the one reported — six production non-test `.go` files carry R3's tokens (2 `httpbin.org`, 4 `ailang-packages`), plus gatelint's own source, with controls of 3 and 4 test files. The revision adopted `gpt5-6-sol`'s **own** option (c): the poisoned proxy is promoted from acceptance drill to **enforcement boundary** across all five CI legs and `make test`, gatelint is explicitly demoted to a legibility lint for known offenders, and the residual — raw TCP and SSH — is measured **open** and asserted *as open* by AC10(c) rather than papered over.
+
+**R2 — BLOCKED, N−1 degraded.** `gemini-3-1-pro` caught pure arithmetic: 7 gated files minus 1 migrated is **6** to delete, and the prose said 5. Resolved under the **narrow-refinement carve-out** (ratified; charter ~line 720) with the reviewer's verbatim fix, after I confirmed the count against the doc's own classification table. `gpt5-6-sol` was **absent — a pre-flight budget refusal at zero spend**, estimated $0.1185 against the $0.10 default cap, *because the R1 revision had grown the doc past that cap*. The reviewer who raised the hardest objection was silently priced out of reviewing its own resolution.
+
+**R3 was not a required round, and it found the iteration's best defect.** The carve-out permitted routing straight to the planner after R2. I ran `gpt5-6-sol` alone at a raised cap because its structural redesign had never actually been reviewed by it and roughly 97% of the metered ceiling was unspent. It rejected: **V31 was an invalid premise.** `setup-go`'s `cache: true` is a cache *attempt*, not a guarantee, and neither the production build nor `make test`'s `build` prerequisite pulls **test-only** modules — so a cold or missed cache would require HTTPS module retrieval *inside* the poisoned step. Confirmed by my own measurement: **247** test-only dependency packages exist that `go list -deps ./...` never reaches, including `testify` and `go-difflib`, with no `vendor/` directory, against a control of 1242 total dependencies. Left unfixed, **the enforcement boundary would itself have become a nondeterministic flake source — class C1 re-introduced by the mechanism meant to close it.** Fixed with the reviewer's verbatim remedy: an explicit unpoisoned `go mod download all` before every poisoned step, `GOPROXY=off` on the poisoned step so a prefetch miss fails explicitly rather than masquerading as an egress violation, V31 struck and replaced by **V32**, and the demanded cold-cache drill added as **AC12**.
+
+**The generalisable lesson**: *a degraded quorum round deserves completion, not acceptance, when the absence was an artifact of cost rather than a verdict.* An absent reviewer is correctly recorded by name and never a silent pass — but "recorded" is not "answered", and here the gap between them was a real design defect that would have reached a sprint.
+
+**Ruled out — my own prediction, refuted by measurement.** I expected AC3's poisoned-proxy drill to be **vacuous**, reasoning that a dead proxy yields a transport error, which V13 shows is tolerated by the `err != nil` → `t.Logf` branch. Wrong: the proxy returns an HTTP error *page*, so `err == nil` and control reaches the strict body assertion. Measured rc=1 with `net_test.go:380` firing, and a verbose control confirming the subtest actually ran. Recorded as **V22** — the one acceptance criterion whose non-vacuity claim had no verification row, found by applying rule 3b(vi) to my own pick.
+
+**Also ruled out**: the scout agent's "6780 test files", which silently counted **5,840** stale worktree copies under `.claude/`. The true first-party count is **937**, and `go list ./...` proves the Go tool never sees dot-directories (0 hits, control 139 packages). Its 0.1%-adoption framing was wrong by a factor of seven, and every count in the doc is now first-party-scoped with that contamination named.
+
+**Also ruled out**: my own `pgrep -f "claude-fable-5"` liveness check, used in every bounded wait. It reported **FABLE RUNNING** after my designer had already exited rc=0, because it was matching **Mark's own long-lived interactive CCD sessions** (etime 6–14 days, `--resume=`) and, in one form, its own wait-shell argv. This is rule 3c's class aimed at processes: *a probe identifies what you reached, never what you named.* The waits terminated correctly only because they also checked the log file — a second, independent condition is what saved them, and a liveness check that can match unrelated processes is not a liveness check.
+
+**I hit the zsh unquoted-variable trap that iteration 140 added to the skill yesterday.** `SCOPE="./internal ./cmd …"` followed by `find $SCOPE …` passes one joined argument; `2>/dev/null` swallowed the error and every count came back a clean-looking `0`. Sixth instance of the zsh-instrument class. The rule already existed and I still bought it, which is the point worth recording: the remedy that worked was the array plus an asserted `${#SCOPE[@]}`, not knowing the rule.
+
+**Mark's second directive is a charter guardrail, not a queue row.** Benchmark curation cycles — tier promotion, demotion, retirement — are now **queued mission items**, never attended side-sessions. The curator inherits Gate 2's reality-check, Gate 3b's SHA-addressed green, and the Gate-4 record, so a tier move cannot land without the distribution gates being re-centered in the same commit. The evidence is iteration 140's entire iteration. Attended *authoring* of benchmarks stays fine; the **tier-move commit** goes through the loop.
+
+**Routing evidence**: model=**claude-opus-5** (controller) task-class=**design** designer=**claude:claude-fable-5** (rotation, probe rc=0) reviewers=**gpt5-6-sol + gemini-3-1-pro** rounds=**3** verdict=**carve-out after R3** `metered=$0.26` of the `$5` ceiling ($0.1124 R1 + $0.0452 R2 + $0.1041 R3). Planner, executor and evaluator did not fire and are not owed: the deliverable is a design doc, the mission evaluates sprints, and generator≠judge is not engaged for a design iteration.
+
+**Retro — one skill edit**, adopted from `mission-world`'s proposal (World proposes, never applies) and saved in the main checkout: Gate 2 rule **3b(vi) gains an instrument** — sweep from the **oldest** declared measurement base, because a document revised in place across several iterations is only as fresh as its oldest row. Two recorded frictions, both V1's own: iterations 135 and 138, and 3b(vi) was authored at 138 without an instrument. World's measurement is the proof: the newer base returned zero changed files — a confident false all-clear — while the older returned eight and found every stale row, including a third stale premise that two quorum reviewers across five rounds had missed.
+
+**Cross-mission**: two `mission-world` messages triaged — the skill proposal (adopted, verdict acknowledged to its bookkeeping issue) and an iteration-48 report whose DECISIONS row reads "none". Neither outranks the queue, per the Gate-0 contract.
+
+**Next**: **plan the CI-flake sprint** — plan-ready, 4 milestones, 3–4 days, with `derive-planner-lane.sh` deciding the lane. Then `#498` Lane B **M2**, then recorded-stream S2. `#554`, `#558`, `#561`, `#563`, `#578`, `#581`, `#583`, `#584`, `#586`, `#587` open.
+
+## 147 — 2026-08-04 — Iteration 142: **the CI-flake sprint is planned (`7cb798d98`, 5 milestones / 1265 LOC / 26h) — and planning proved the doc's headline acceptance criterion is vacuous, refuting a verification row iteration 141 had added *specifically* to close that gap.** The poisoned-proxy egress boundary does not cover AILANG's own `Net` effect. M2 and M4 are parked on a human decision; M1 is unblocked.
+
+**Pick**: iteration 141's declared **Next** — plan the CI-flake sprint. No new Mark comment (watermark `2026-08-04T12:16:12Z`, unchanged), no unread inbox, no red `dev`, so the queue continuation stood. Gate 0/1 otherwise clean: kill switch armed, billing **CLEAN**, gh account correct, **zero** open `[nightly-eval]` alarms against a control of 45 open issues, no rotation due (`#559` created `05:08Z` = **07:08 CEST**, after the Monday-07:00 **local** boundary; 22 comments < 80). `dev == origin/dev == 9feefa3a6` at pick, and the running `SKILL.md` byte-identical to origin — the 08-03 reconcile has now held for a **seventh** consecutive iteration, so Gate 4 wrote in place. Cheap tell case-correct with control (ITERATION 141 = 1, 140 = 2, rotation invariant 3). dev CI green per-workflow at pick.
+
+**First use of the 3b(vi-b) instrument this loop adopted yesterday, and it returned a clean bill honestly.** The doc declares exactly one measurement base, `313504576`. Sweeping from it — `git diff --name-only 313504576..HEAD -- ':!design_docs'` — returns exactly one file, `SKILL.md`, which **no** verification row cites; the control (same range unfiltered) returns 6 files, so the instrument sees positives. **Doc fresh, zero stale rows.** I also confirmed every acceptance-criterion control token lives at HEAD, so no AC was vacuous in the *cannot-fire* direction: `testing.Short()` 7 files, `Getenv("CI")` 2, `eventOneBudget` 4, `minGap` 3, `60 * time.Second` 1. That made the vacuity found below all the more interesting: it was not in the class the instruments were pointed at.
+
+**The planner lane, and why I checked the reason token instead of just obeying it.** `derive-planner-lane.sh` emitted `opus fail-closed:planner-lane-field-invalid`. The cause is that the doc's line 8 read `**Planner-Lane**: codex-ok (mechanical Go test-infra work …)` while the matcher demands the bare token. I then tested a corrected copy, and it yields `opus fail-closed:path-not-in-codex-allowlist` — the Files section is all `internal/`, `cmd/` and `.github/workflows/`, and the codex allowlist is `tools/launchd/*` plus mission-skill paths. **So opus was correct either way, and "fix the field to obtain a codex lane" would not have worked.** Recorded so a future iteration does not spend the attempt. Field corrected to `opus-required`; derive now emits the honest `opus declared:opus-required`.
+
+**The load-bearing finding: AC3 is vacuous and V22 is refuted.** The planner refuted a premise I had handed it, and per Gate 2 rule (d) I reproduced it first-party before acting. AC3's command is `HTTPS_PROXY=…:9 HTTP_PROXY=…:9 go test ./internal/pkg/ ./internal/effects/` → PASS. Measured at `9feefa3a6`, the `./internal/effects/` half **already passes pre-sprint — by reaching the live internet straight through the poison.** Poisoned **rc=0 `ok 0.767s`**; unpoisoned **rc=0 `ok 0.724s`**. Outcome-identical, so the poison changed nothing. A verbose run confirms `--- PASS: TestNetHttpPost/httpPost_to_httpbin.org` genuinely ran, with a skip-variable control in the same block showing `CI`, `GITHUB_ACTIONS` and `SKIP_NET_TESTS` all unset — so this is not a skip wearing a pass's clothes.
+
+**The mechanism, measured rather than argued.** `internal/effects` builds **six** `http.Transport{}` literals by hand — `net.go:96,212,587`, `stream_ndjson.go:80`, `stream_sse.go:70,329` — and **none** sets `Proxy`; `ProxyFromEnvironment` appears in **0** first-party files. Control: 4 first-party files build an `http.Transport{}`, so both greps see positives. A hand-built transport has `Proxy == nil`, meaning no proxy is ever consulted. **AILANG's own `Net` effect — the repo's principal HTTP client, and the exact code path of `#561` — is entirely outside the enforcement boundary**, which makes the doc's Goals sentence *"Default `go test ./...` performs zero HTTP(S) egress — mechanically denied"* false. The boundary is real for `git`: `internal/pkg` poisoned gives **rc=1** (`git clone failed … exit status 128`) and unpoisoned **rc=0**, which is the control proving the poison environment was live and correctly formed in the very same shell. The defect is HTTP-client-specific, not an absent boundary.
+
+**How iteration 141 got it wrong, and this is the more instructive half.** Iteration 141 *predicted* AC3 would be vacuous, ran the poisoned command once, observed rc=1 with `net_test.go:380: Expected response containing 'httpbin.org', got: <html>`, and recorded that as **refuting its own prediction** — crediting the poison for having returned an error page. The poison never touched the request. That `<html>` was **`httpbin.org` returning its own error page — `#561` firing naturally**, the known-flaky third-party dependency this very sprint exists to remove. The original prediction was **correct**; the refutation was an artifact of a third-party outage that happened to coincide with the measurement. One unpoisoned control run in the same breath would have shown rc=1 there too and exposed it instantly. Recorded as **V33**, with V22 struck rather than deleted so the reasoning error stays visible.
+
+**Two further corrections.** **V30's count 2 → 1 package**: only `internal/pkg` fails the poisoned full suite. The substance survives — no third egress test lurks in first-party scope — but the reason `internal/effects` does not fail is that the poison never reaches it, not that it performs no egress. **The leg count 5 → 6** (**V34**): `build.yml`'s `matrix.include` has **4** entries, not 3, because `macos-latest` appears twice (amd64 and arm64), each running `go test` at `:65`, plus ci.yml's `test` and `test-windows`. The doc counted operating systems where it needed to count jobs, at six separate sites. Consequence is scope, not soundness: M4's wiring must cover four `build.yml` jobs.
+
+**Parked for human as `D5`, blocking M2 and M4**: whether to bring the `Net` effect inside the boundary. **(A)** leave it outside — narrow AC3 to `./internal/pkg/`, move the `internal/effects` egress tests behind `RequiresLiveNetwork`, and assert the residual openly via a new AC10(d). **(B)** set `Proxy: http.ProxyFromEnvironment` on all six transports — a **production runtime change** interacting with `net.go`'s pinned-IP SSRF guard, needing its own design pass and quorum. **Controller recommendation: (A) now, (B) as a separately queued design item.** (B) is the better end state, but it must not ride in on a sprint that was scoped, reviewed and quorum-cleared as test-only — Standing rule 2 says park, never force through. M1, M3 and M5 are unaffected by the decision; M3 depends on M2 and is transitively blocked; **M1 is the unblocked next pick.**
+
+**The plan.** Opus planner fired per the derived lane and produced **5** milestones rather than the doc's 4, because the doc's M3 bundled a 460-LOC pure-Go linter together with the workflow edits; splitting them isolates **M4 as the only CI-touching commit**, whose blast radius is a red `dev` for every concurrent session. Estimate **26h ≈ 4.5 days** against the doc's 3–4, calibrated on `M-RECORDED-STREAM-API-S1` (730 LOC / 3.75d) and `M-EVAL-STANDARD-CONFIDENCE-GATING` (460 LOC / 4d). The planner re-checked **19 doc premises confirmed, 4 refuted**, and verified beyond the doc that `internal/testutil` is stdlib-only with no import cycle and that 18 test files already import it green.
+
+**A collision the queue did not know about, confirmed first-party.** PR **`#532`** has been open and `CONFLICTING` since 2026-07-29. It rewrites `buildAilang` in `cmd/ailang/main_test.go` and the body under the `testing.Short()` gate in `serve_api_mcp_surface_test.go`, and touches `ci.yml` — **exactly M2's surface**. Resolve it before M2 starts. `#569` (a dependabot actions bump, `MERGEABLE`) touches `ci.yml` and `build.yml`, which is M4's surface.
+
+**The queue row for this P0 did not exist.** Iteration 141 landed the design doc under Mark's directive and recorded it **only in its STATUS stamp**; a grep of the queue returned zero rows for the item. It survived solely because iteration 141's hand-written "Next" line named it. Filed retroactively this iteration with full sequencing. The generalisable point is worth more than the fix: *a doc that lands without a queue row is invisible to every later Gate-2 pick* — the STATUS stamp is a record, not a work item.
+
+**Ruled out — my own instrument, twice, and both were wrong-key artifacts rather than defects in the thing inspected.** My post-run validation of the planner's artifacts asserted `jq '.milestones|length'` and got **0**, then `.title` and got **null** — either of which reads as a malformed plan, and the first of which I briefly took at face value. The canonical sprint schema uses **`features`**, and `.title` does not exist in it at all. Proven by running the identical probes against a known-good reference, `sprint_M-Z3-HARD-TIMEOUT.json`, which answers exactly the same way. Re-validated correctly: **5 features, LOC sum 1265 equal to the declared total, hours sum 26 equal to declared, zero placeholder tokens, zero zero-LOC features.** This is rule 3a's lesson pointed at a *schema*: an empty answer from the wrong key is indistinguishable from a defect in the artifact, and the sibling file is the control that separates them.
+
+**Routing evidence**: model=**claude-opus-5** (controller) task-class=**plan** planner=**opus** lane-reason=**`fail-closed:planner-lane-field-invalid`** (verbatim) provider=none `metered=$0.00` of the `$5` ceiling — every lane on a quota bucket, and no quorum round was needed because the doc was already cleared and this iteration's corrections are measurements rather than design changes. Designer, executor and evaluator did not fire and are not owed: the deliverable is a sprint plan. The designer rotation therefore correctly **stays** `claude:claude-fable-5`, with `codex:gpt-5.6-sol` next.
+
+**Retro — one skill edit, and it was pre-registered.** Iteration 140 recorded *"two commits going red in the same window is not evidence they failed for the same reason"* as **watch-item instance 1, bar is two**. This iteration is **instance 2** of the same class: a failure attributed to the mechanism under test when a known-flaky third party actually caused it. Gate 2 gains rule **3d**. Rule 3a covers results that come back **empty** and rule 3b covers results that come back **green**; nothing covered a result that comes back **red in the direction you predicted** — the most seductive of the three, because it arrives as confirmation and every instinct is to bank it and move on. **A positive result needs a negative control exactly as much as an empty result needs a positive one**: before *"the check failed, so my mechanism works"* becomes a fact, run it once with the mechanism removed. Same outcome means you measured the environment, not the mechanism.
+
+**Gate 3b — green, SHA-addressed on both commits.** `7cb798d98` **15/15** and `97a4ac9d3` **15/15**, **zero non-success** on each (14 success plus one `neutral` registry-validator, the same shape as the preceding commit), with the per-workflow confirm showing `CI: completed/success` and `Build and Release: completed/success` at `97a4ac9d3`. Incidentally the check-run list corroborates **V34** from a third independent direction: `Build macos-latest` appears **twice** in every listing, which is exactly why the leg count is 6 rather than the 5 the design doc asserted at six separate sites.
+
+**Watch-item (instance 1, bar is two): `completed == total` is not a terminal condition for a check-run poll, because the set grows.** My bounded poll reported `total=13 completed=12` at the same moment the direct SHA-addressed read showed `total=15 completed=14` — two check-runs, `SonarCloud Code Analysis` and the **required** context `build`, were created *after* the poll first enumerated the set. Had the poll happened to observe 13/13 in that window it would have reported LANDED while a required check was still `in_progress`. What saved it is Gate 3b's existing rule that the poll's output is a hint and never the verdict, so the direct read is what produced the recorded outcome. But the unsafe part is the snippet's own exit condition, not the reader's discipline: if a second instance appears, the fix is to require a stable total across two consecutive reads, or to gate on the four required contexts by name, rather than on `completed == total`. Not taken as this iteration's skill edit — rule 3d already used that budget, and this has one instance.
+
+**Recorded as a question rather than a finding**: dev's required contexts are `test`, `lint`, `build`, `docs-gate`, while this commit's check set carries `docs` and no `docs-gate` at all. Plausibly a PR-only job, or a job-name-versus-context-name distinction. **I did not measure it**, so it is written down as an open question for a later iteration and explicitly not acted on — an unverified observation is a claim, and labelling it as one is the whole point.
+
+**Next**: **execute M1** — unblocked, 5 hours, zero blast radius. If Mark answers `D5` first, M1 and M2 together; otherwise `#498` Lane B **M2** remains the standing alternative. `#532`, `#554`, `#558`, `#561`, `#563`, `#569`, `#578`, `#581`, `#583`, `#584`, `#586`, `#587` open.
+
+## 148 — 2026-08-05 — Iteration 143: **M1 of the CI-flake sprint is LANDED (`c440a1628`, PR #591) — and the executor shipped an inert `testing.Short()` gate into the very package built to replace them.** Evaluator sonnet **PASS 92/100 r1, zero blocking**. Two defects caught: one by the controller before commit, one by CI that could not be reproduced locally. My own mutation harness produced six false reds first.
+
+**Pick**: the queue head `m-ci-flake-systemic-fix` **M1** — the only unblocked milestone (M2/M4 blocked on `D5`, M3 transitively, M5 docs-only), and exactly iteration 142's declared Next. Gate 0/1 clean: kill switch armed, billing **CLEAN**, gh account correct, **zero** open `[nightly-eval]` alarms against a control of 45 open issues, inbox held one `mission-world` status report (informational, no request — acked), no new Mark comment (watermark `2026-08-04T12:16:12Z`, unchanged), no rotation due (`#559` created `05:08Z` = **07:08 CEST**, after the Monday-07:00 **local** boundary; 26 comments < 80), weekly sweep satisfied by iter-136. `dev == origin/dev == b1f9d7c57` at pick, and the running `SKILL.md` byte-identical to origin — the 08-03 reconcile has now held for an **eighth** consecutive iteration, so Gate 4 wrote in place. Cheap tell case-correct with control (ITERATION 142 = 1, 141 = 2, rotation invariant 3). dev CI green per-workflow at pick.
+
+**Freshness sweep (3b(vi-b)) clean, swept from the OLDER of two declared bases.** The doc declares `313504576` and `9feefa3a6`; sweeping from the older — `git diff --name-only 313504576..HEAD -- ':!design_docs'` — returns two files, `sprint_M-CI-FLAKE-SYSTEMIC-FIX.json` and `SKILL.md`, neither cited by any verification row. Control (same range unfiltered) returns 8, so the instrument sees positives. I also measured M1's acceptance baseline before routing: `go list -deps ./internal/testutil | grep sunholo | wc -l` = **1** at HEAD (control: `internal/effects` = 11), so that AC is a live regression guard rather than a vacuous one. Collision check: **zero** open PRs touch `internal/testutil` (`#532`'s conflict is M2's surface — `cmd/ailang` + `ci.yml` — not M1's).
+
+**The find, and it is the sprint's own thesis turned on itself.** The delivered `TestRunBounded_KillsHungChild` carried `if testing.Short() { t.Skip(...) }`. The flag `-short` is passed **nowhere** in this repo — measured, with a control proving the instrument sees positives (15 `go test` lines in the same scope; the only `--short` hit is `git rev-parse --short`, a different thing). That makes the gate **inert**, which is defect class **C4** in the doc's own taxonomy — the one it calls "the dangerous one" — and M3's gatelint rule **R1 admits zero legitimate exceptions**. So M1 would have red-lighted its own sprint two milestones later, from inside the package built to eliminate exactly this. Measured **7 → 8** first-party files with the doc's own **V2** command; removed; back to **7**, delta empty, control confirming the 7 baseline files are still detected. Worth recording: my **first** fix attempt failed, because the replacement *comment* I wrote contained the literal token `testing.Short()` and the V2 instrument is a text grep. Reworded.
+
+**My own mutation harness produced six false reds, and they were the seductive kind.** The first run reported all six mutations RED — exactly the result I wanted. Every one said `FAIL . [setup failed]`, which is a **build/flag error, not a failing assertion**. Cause: `go test -count=1 $extra -run …` with `$extra` unquoted holding `-timeout 60s`, and **zsh does not word-split an unquoted variable**, so it went as ONE argv entry that `go test` rejected. That is rule **3a(i-c)**'s documented zsh trap firing *inside the drill written to enforce anti-vacuity discipline* — the remedy inheriting the burden of proof it exists to impose, which is the same shape as `PIPESTATUS` printing nothing for four-plus iterations. What caught it was that all six failed *identically* and `[setup failed]` is not `--- FAIL:`. Also caught, by the landed-check rather than by me: the very first run aborted all six arms because I detected "did the mutation land?" with `git diff --numstat` on files that are **untracked**, so it was structurally blind. It failed CLOSED, which is the correct direction for a broken instrument. Re-run with an array (`flags=(${=extra})`), a byte-checksum landed-detector, and a **green negative control** first: all 6 mutations landed (byte-diffs printed), all 6 gave genuine `--- FAIL: <TestName>`, and the `exec.CommandContext → exec.Command` arm gave the predicted `panic: test timed out after 30s` rather than a clean fail. Both sources reverted sha256-identical.
+
+**CI caught a second defect I could not have reproduced locally.** `test-windows` and `Build windows-latest` both went red, and both for one cause: `TestLiveNetworkStatus_PoisonedProxyFatal/{http_proxy,https_proxy}` — only the lower-cased subtests. **Windows environment variables are case-INSENSITIVE**, so `http_proxy` and `HTTP_PROXY` are a single variable there; the subtest sets the lower-cased name, the predicate walks its list in order, matches the upper-cased entry first, and reports *that* name. The reported name is **correct** — same variable — but not byte-equal to the subtest's expectation, so a case-sensitive `strings.Contains` could never match on Windows. **Production code was right; the assertion was over-specific.** Fixed case-insensitively (`f45e8bab1`) and re-proven non-vacuous: mutating the reason to drop the variable name entirely turns it RED, negative control green, `gate.go` reverted identical.
+
+**Gate 3b — GREEN, SHA-addressed on `c440a1628`: 19 check-runs, 19 completed, all four required contexts (`test`, `lint`, `build`, `docs-gate`) `success`.** The check-run set grew **13 → 14 → 15 → 19** during the poll, which corroborates iteration 142's watch-item that `completed == total` is not a terminal condition; I polled on a *stable total across two consecutive reads*, which handled it. **Iteration 142's open `docs-gate` question is now ANSWERED by measurement rather than left as a question**: branch protection requires exactly `["test","lint","build","docs-gate"]`, and `docs` and `docs-gate` are two distinct checks that both exist — so the earlier observation was a job-name-versus-context-name distinction, as hypothesised, now confirmed.
+
+**The one non-success, attributed rather than waved through.** SonarCloud `new_coverage 67.9% < 80%`. It is **non-required** (branch protection lists four contexts and Sonar is not among them), but rule 3d cuts both ways, so I checked whether it predated M1: `97a4ac9d3` shows `success`, so it is genuinely new with M1 rather than pre-existing. Per-function measurement makes the follow-up actionable instead of speculative: the real gap is `LiveNetworkDecision.String()` at **0.0%** (it is only ever called from failure-path formatting, so a passing run never executes it). But `RequiresLiveNetwork` *also* reads 0.0%, and that one is a **re-exec artifact** — it executes in the subprocess child, whose coverage the parent profile cannot see, and the evaluator independently confirmed that path IS exercised. So Sonar **understates** true coverage here, and the obvious "fix" — collapsing the subprocess pattern to make the parent profile see it — would destroy the only non-vacuous test of the fatal branch. Filed as an M5 follow-up with that caveat attached.
+
+**Routing evidence**: model=**claude-opus-5** (controller) task-class=**execute** executor=**codex `gpt-5.6-sol`** (probe rc=0; real run rc=0, 357 LOC, no sandbox denials — it correctly reported none rather than inventing an `UNINFORMATIVE UNDER SANDBOX` label, and I re-ran every gate outside the sandbox anyway per the plan's explicit instruction) evaluator=**sonnet** (generator≠judge holds: sonnet ≠ codex/OpenAI) `metered=$0.00` of the `$5` ceiling — codex ran on subscription, no quorum round was needed (the doc was already cleared and this iteration's changes are measurements plus two bug fixes, not design changes). No designer and no planner fired: the pick was plan-ready. The designer rotation therefore correctly **stays** `claude:claude-fable-5`, with `codex:gpt-5.6-sol` next.
+
+**Ruled out.** (a) `go build ./...` is **rc=1 in this repo at baseline** — `cmd/wasm` is a `GOOS=js` package (`make/build.mk:103`) that cannot link for darwin. I nearly attributed it to M1; the control on the unmodified main checkout shows the identical failure *plus* one more (`gen/main`, a local untracked generated dir), so the worktree is strictly cleaner than baseline. Not an M1 regression, and not a gate CI uses. (b) The evaluator's non-blocking note that `TestHangGuard_NoDeadlineReturnsCap` skips under a normal `go test` is **honest, not a vacuous skip** — I reproduced both directions first-party (skips under `-timeout 60s`, passes under `-timeout 0`, and goes red under mutation there). Its suggestion to add a `-timeout 0 ./internal/testutil` line to CI's no-silent-skip step is a genuine improvement and is filed for M3/M5 rather than actioned here, since M1's scope is fixed and M3 is the milestone that owns that CI step.
+
+**Retro — no skill edit this iteration, and the reason matters.** The strongest candidate was my own mutation harness reproducing rule 3a(i-c)'s zsh word-splitting trap. But that rule **already exists**, in the exact form that would have prevented this, added at iteration 140 for the identical shape (`sed -i '' … $FILES`). A second instance of a rule already written is evidence the rule is right and that I failed to apply it — not evidence the skill needs changing. Writing it a second time would be noise. Recorded here instead, with the sharper framing the instance earned: **the rule's current wording is aimed at `sed`, and I read it as being about file lists; it is about ANY unquoted variable holding multiple words, and `go test $flags` is the same defect wearing different clothes.** The Gate-4 charter stamp carries the same note. Watch-item (instance 1, bar is two): if a third unquoted-multi-word-variable defect appears in a *different* command shape, the fix is to generalise 3a(i-c)'s wording from `sed`/file-lists to "any unquoted variable holding more than one word", rather than adding a third worked example.
+
+**Next**: **no unblocked CI-flake milestone remains** — M2/M4 are on `D5`, M3 is transitively blocked, M5 is docs-only and premature before M2–M4. So the next pick is **`#498` Lane B M2** (the standing alternative iteration 142 named), unless Mark answers `D5` first, which would unblock three of five milestones at once and is now the single highest-value unblock in the queue. `#532`, `#554`, `#558`, `#561`, `#563`, `#569`, `#578`, `#581`, `#583`, `#584`, `#586`, `#587` open.
+
+## 149 — 2026-08-05 — Iteration 144: **`#498` Lane B M2 is LANDED (`6166adab8`, PR #592) — and for the third sprint running, controller mutation testing caught an executor-shipped non-discriminating test.** Evaluator sonnet **PASS 94/100 r1, zero blocking**. The gateway-validation-removed mutant survived the delivered AC5 test because the `recover()` backstop also writes an error envelope — the exact class the plan's §0.5 UPDATE forbade.
+
+**Pick**: `#498` Lane B **M2** (iteration 143's declared Next — no unblocked CI-flake milestone exists while `D5` is unanswered). Gate 0/1 clean: kill switch armed, billing **CLEAN**, gh account correct, **zero** open `[nightly-eval]` alarms (control: 45 open issues), no new Mark comment (watermark `2026-08-04T12:16:12Z` unchanged), no rotation due (`#559` post-boundary, 30 < 80), weekly sweep satisfied by iter-136. `dev == origin/dev == 24bbad175` at pick; running `SKILL.md` byte-identical to origin (ninth consecutive iteration the 08-03 reconcile holds). Inbox: 2 messages — the eval-suite start notice (informational) and `mission-world` iteration 51 (its DECISIONS rows are addressed to Mark, not V1; per the cross-mission contract neither outranks the queue; both acked). Mid-iteration the M2 squash advanced origin and the **ratified standing fast-forward** applied cleanly (0 ahead, only the two rig-synced benchmark JSONs dirty) — first use since ratification, uneventful by design.
+
+**Reality-check before routing.** Freshness sweep (3b(vi-b)) from the sprint plan's declared base `6bd8cda42`: 36 files changed (control unfiltered: 50), every one attributable to four known landings (Lane B M1 itself, CI-flake M1, v0.33.0, benchmark curation), and M2's modify-target `internal/apiserver/mcp.go` in none of them — the plan is FRESH for M2, including its iteration-139 UPDATE block (the fifth `AddTool` panic case, an explicit M2 prerequisite). Collision: zero open PRs touch `internal/apiserver` or `serveapi` (control: 5 open PRs enumerate). Plan §9.6's deferred check performed: `#498`'s live body re-read and matches the doc's Goals. Baseline outside sandbox: both target packages `rc=0` at HEAD. The iter-139 worktree was gone (cleaned post-M1), so a fresh one was branched from `origin/dev` at `.wt-iter144-mcp-lane-b-m2` — a sibling of the repo, never `/tmp`.
+
+**Execution.** Codex `gpt-5.6-sol` (probe rc=0; real run rc=0 in ~19 min): 735 insertions across 5 files, all 8 ACs implemented, snapshot protocol honored, zero git writes. It also HONESTLY reported a plan-evidence discrepancy — SDK v1.7.0 emits SSE via `event: %s` in `mcp/event.go`, so AC8's control token is in SDK tests rather than `streamable.go` (verified; the production-side zero-count still holds with a firing control).
+
+**The find — mutation 1 SURVIVED as shipped.** With `validateHeaderAnnotations` removed, the invalid-annotation descriptor fell through to `AddTool`'s panic, `recover()` wrote "host tool registration failed", and the test's `result["error"] != nil` was satisfied — the AC5 test could not distinguish loud gateway validation from the backstop, i.e. "(b) alone" shipped **as a test property** even though the code had both halves. Fixed by asserting each invalid class's SPECIFIC gateway message (and not-contains the backstop text); the mutant now fails with `--- FAIL:` showing the backstop fired. This is the third consecutive sprint where controller mutation testing caught an executor-shipped weak assertion (iter-139: two vacuous assertions; iter-143: inert `testing.Short()`; now this) — the pattern is stable enough to treat mutation drills as non-optional for executor-shipped tests. Mutations 2 (`Stateless: false` → AC4 red, GET 400-not-405 exactly as the plan's "would still pass if stateful?" answer predicted) and 3 (frozen timeout text → AC6 red) both genuine; all reverts sha256-byte-identical.
+
+**My own instruments, twice — both documented classes bought first-hand.** (a) Mutation 2's landed-detector ran `git diff` against an UNTRACKED file — structurally blind, printing "0 diff lines" for a mutation that had landed; iter-143 recorded this exact class, the checksum comparison in the same call was the valid instrument, and the behavioral red corroborated. (b) My first Gate-3b poll piped the check-runs JSON through zsh `echo`, which interpreted backslash escapes in the payload and handed jq raw control characters — rule 3a(i-c)'s "echo is not a byte-faithful reader", 7th recorded zsh instance. Caught because the poll printed EMPTY readings (`total= completed=`) rather than plausible ones; killed, re-armed file-based, and the direct probe proved the API and jq were both fine.
+
+**Verification.** Controller re-ran every gate outside the sandbox: `go test ./internal/apiserver ./serveapi` rc=0; full `go test ./...` rc=0 (138 ok-lines); gofmt 0; vet clean; 183 passing test functions; AC8's 19 legacy-named tests proven executing by name listing. Evaluator sonnet **PASS 94/100 round 1, zero blocking**, and it ran two mutations of its OWN choosing (annotation-validation removal; timeout-message drift) — both red, both reverts byte-identical. Its NB-1 (AC7's overload loop never asserted the frozen envelope's HTTP 200) was reproduced first-party and applied as `811ac16b4`; NB-4 (the context.Canceled envelope diverges from the doc's "no completed wire response is promised" prose — benign, a write to a closed connection) is deferred to M3 as a doc-vs-code alignment question.
+
+**Gate 3b — GREEN, SHA-addressed on `6166adab8`: 19 check-runs, 19 completed, 4/4 required contexts (`test`/`lint`/`build`/`docs-gate`) success, 0 non-success**, plus per-workflow confirm (CI + Build and Release both `completed/success` @ `6166adab8`). The check-run set grew 14→18→19 mid-poll — third consecutive corroboration of the completed==total watch-item; the required-contexts-by-name + stable-total exit condition has now been used twice and held both times.
+
+**Routing evidence**: model=**claude-fable-5** (controller — ⚠ **DEVIATION, flagged**: `$MODEL` arrived empty and the session inherited Fable; the routing table pins the controller to opus. Surfaced in the report; the driver's export needs a check) task-class=**execute** executor=**codex `gpt-5.6-sol`** (probe rc=0, subscription) evaluator=**sonnet** (generator≠judge holds: Anthropic ≠ OpenAI) designer/planner **not fired** — rotation stays `claude:claude-fable-5` (next `codex:gpt-5.6-sol`). `metered=$0.00` of the $5 ceiling.
+
+**Ruled out.** (a) "codex deleted `mcpError`" — it MOVED the function to `embedded_mcp.go` in the same package; all four `mcp.go` call sites and the test caller intact (caller-grep with control before concluding, per the coding-standards rule). (b) The evaluator's NB-2 (assert an overload lower bound ~36/40) was considered and NOT applied: the exact count depends on goroutine scheduling; the two-sided design (some overloads + zero on the fast control) is the discriminating pair, and a flaky lower bound would re-introduce the C1 class this mission just spent a sprint removing.
+
+**Retro — no skill edit this iteration.** Two candidate frictions, both are SECOND-or-later instances of rules that already exist in the exact form that would have prevented them (untracked-file git-diff blindness: iter-143; zsh echo mangling: 3a(i-c)) — writing them again would be noise. The observation worth carrying: both were caught by the SAME habit (a paired control in the same call: the checksum beside the git-diff, the empty-reading tell beside the poll), which is the skill working as designed. Watch-item (instance 1, bar is two): the controller-model deviation — if a second scheduled run arrives with `$MODEL` empty, file a driver fix (tools/launchd/mission-control.sh export path) rather than re-flagging.
+
+**Next**: **`#498` Lane B M3** — the final Lane B milestone (~10h: A2A projection, Mount, exposure generalization, docs, CHANGELOG, gates). When it lands, Lane B is COMPLETE → surface the **release ask** to Mark (World consumes pinned releases only). Unless Mark answers `D5` first (unblocks 3 of 5 CI-flake milestones). `#532`, `#554`, `#558`, `#561`, `#563`, `#569`, `#578`, `#581`, `#583`, `#584`, `#586`, `#587` open.
+## 150 — 2026-08-05 — Iteration 145: **Mark's `D5` directive applied (= Option A) and CI-flake M2 is LANDED (`368f940cf`, PR #593) — and the collision that shaped this sprint's sequencing for three iterations was already dead.** Evaluator sonnet **PASS 91/100 r1, zero blocking**. `D5` unblocked M2/M3/M4: AC3 → AC3′(a/b/c), new **AC10(d)** asserts the residual openly (and reds when Option B lands), Option B queued as its own doc, iter-141 carve-out ratified. M2 turns AILANG's live-network tests off by default — `httpPost_to_httpbin.org` went `FAIL (503)` → `SKIP`, plus two deterministic `httptest` subtests. **Find 1:** `#588`/`#561` reproduced first-party *inside the pre-sprint control*, with no proxy set, so the attribution was unambiguous — CI was green only because the old `Getenv("CI")` opt-out hid it. **Find 2:** PR `#532`, carried as a blocker by iterations 142–144, had been superseded by `#564`/`3c28cc322` since 08-03; a controller decision was spent choosing between two options for a blocker that no longer existed, and I compounded it by asserting its fix was "still wanted" before measuring HEAD. Closed as superseded. **Ruled out:** iteration 144's `$MODEL`-export diagnosis is refuted — the driver never exports `MODEL` (control: role vars do export), it passes it as a `claude --model` CLI arg, so "check the driver's export" would have fixed nothing. **Deferred with numbers:** class C2's generator survives — 31 absolute `context.WithTimeout(Background(), N)` sites vs 2 deadline-derived, and gatelint R1–R3 cover none of it; `serve_api_mcp_surface_test.go` (30s budget, 10.34s actual) was woken by M2, so watch it after M4. **One skill edit** (≥2-instance bar): a declared **blocker** is a claim too — verify its *purpose* against HEAD, not its `state`, because a superseded PR stays `OPEN`/`CONFLICTING` forever.
+
+## 151 — 2026-08-05 — Iteration 146: **CI-flake `M3` is LANDED (`13c570063`, PR #597) — and the sprint plan it was routed from had gone stale against its own design doc, omitting the acceptance criterion Mark's `D5` ruling created the day before.** Evaluator sonnet **FAIL 79/100 r1**, one blocking finding, reproduced first-party and fixed; both Windows CI legs then green. M3 ships `internal/testutil/gatelint` (R1/R2/R3 legibility lint — 941 first-party test files scanned, 0 violations) and `egress_posture_test.go`, closing **AC8** and **AC10(a/b/c/d)**.
+
+**Find 1 — a sprint plan is a SECOND document, and revising the design doc silently rots it.** Iteration 145 applied `D5`=Option A by editing the *doc* (AC3 → AC3′, new **AC10(d)**). Nothing updated the *plan*, whose M3 task list still read `AC10 (a) … (b) … (c)`. Routed as written, M3 would have shipped **without the tripwire whose entire purpose is to red when the queued Option-B item lands**. Measured, not asserted: plan says `AC10 (a)` in **2** places, doc carries `AC10(d)` in **4**; and it rots BOTH ways — the doc's Implementation-Plan section still bundles M3 with the workflow edits the newer plan split into M4, and the doc still says "5 CI legs" in **6** places despite its own **V34** measuring **6** legs. Nothing in the loop re-diffs the two files.
+
+**Find 2 — the plan's gatelint allowlist seed predated M2**, so all three rules were re-measured at the executor's exact base `78f30e053` and handed down with provenance. **R1 = 0** — and that zero needed rule 3a, because the first instrument returned 0 for its *control* too; widened, the pattern finds **43** files under `.claude/` (a dot-dir the walker skips), so the zero is real. **R2 = 1**, and M2 had **already authored the allowlist reason into the file**, resolving the plan's open conditional by measurement rather than judgment. **R3 = 5** — the 2 files M2 migrated are GATED and deliberately NOT allowlisted, since allowlisting them would make the gate inert for exactly the files the sprint just fixed.
+
+**Find 3 — second Windows-only defect in this one package that no local gate can see.** The evaluator flagged `test-windows` + `Build windows-latest` red; confirmed first-party by SHA-addressed `check-runs` and then by the job log rather than the judge's transcription. Windows words a refused connect `connectex: No connection could be made because the target machine actively refused it.`, so an assertion requiring the literal `connection refused` can never pass there — production behavior right, assertion parochial. Fixed to `refused` (`4c5906c5c`), checked for weakening against four verbatim strings (Unix ✓, Windows ✓, DNS ✗, hang ✗) and mutation-proved with `go vet` rc=0 first, because the initial attempt broke the build and a build failure proves nothing about an assertion. M1's instance was env-var case-insensitivity. **A green `make test` on darwin is a scope-limited claim whenever a diff asserts on an OS-provided string.**
+
+**Verification.** Executor codex `gpt-5.6-sol` reproduced all three of the controller's numbers independently and returned a 7-item stale-source list (most of Find 1 is its catch). It labelled every socket/network result `UNINFORMATIVE UNDER SANDBOX` — load-bearing, since **AC10(a) fails in-sandbox** (`operation not permitted`) and **passes outside it**. Controller re-ran all four AC10 legs in four lane configurations (default, poisoned, live, poisoned+live — the last also exercising V29's proxy-env caching hazard): all pass. Full suite **rc=0, 108 ok, 0 FAIL**; gofmt 0, vet 0, golangci-lint 0 issues. **Six mutations**, each proven landed and reverted sha256-identical: three by the executor (R1 branch, walker suffix, dot-dir skip), three by the controller on what it left untested — R3's gating check removed reds naming exactly the 2 gated files; the R3 allowlist emptied reds naming exactly the 5 seeds; **AC10(d)'s `t.Setenv` poison stripped reds with `request through poison proxy unexpectedly succeeded`, proving the control half load-bearing exactly as the doc argued**. AC8's drill fired (942 files vs 941, scratch path named, removal restored green).
+
+**Ruled out / recorded:** the three dependabot lockfile merges carry **no CI run at all** — the documented GITHUB_TOKEN auto-merge recursion behavior, **not** a red. Gate 3b's check set grew **13→20** on the PR head, a **fourth** consecutive corroboration that `completed == total` is not terminal; the by-name required-context exit condition held again.
+
+**Own instruments, three times, all documented classes:** `echo "rc=$?"` after a pipe read `tail`'s status and printed `rc=0` beside an unmistakable `--- FAIL:`; a mutation that broke the build; and a background task reporting "exit code 1" that was `grep -c` exiting nonzero on **zero matches** — a clean result wearing a failure's clothes. **And a fourth, the worst of them, inside Gate 5 itself: the skill edit's `str.replace` anchor included rule `3c`'s header line, which the replacement did not restore — so applying rule 3b(vii) DELETED the first line of rule 3c.** The script printed `skill edit applied` and the new rule verified present, i.e. it reported success exactly like a correct edit — Gate 4's own warning about destructive edits, fired in Gate 5 on the rulebook itself. Caught only because the post-edit check for `3c` came back **0** and was treated as a claim rather than a formatting quirk (rule 3a), with a known-present control in the same call proving the instrument worked. Repaired from `origin` verbatim and proven clean: `git diff` on the skill is **29 insertions, ZERO deletions**, and 3c's body word count matches origin exactly (418 = 418). The generalisable point, which the charter already makes for the STATUS block and which now has an instance outside it: **an anchored text replacement is a destructive edit, so assert the diff is purely additive before trusting it.**
+
+**Routing:** controller `claude-opus-5` · executor codex `gpt-5.6-sol` · evaluator `sonnet` (generator≠judge holds) · designer/planner not fired (rotation stays `claude:claude-fable-5`). `metered=$0.00` of $5.
+
+**Retro — one skill edit** (≥2-instance bar met within this iteration): Gate 2 gains **3b(vii)** — diff the plan's milestone section against the doc's acceptance criteria at pick time, because quorum reviews the doc, the planner reads the doc once, and nothing re-diffs them afterwards.
+
+**Next:** CI-flake **M4** (the only CI-touching commit), then **M5**.
+
+## 152 — 2026-08-05 — Iteration 147: **CI-flake `M4` is LANDED (`4b47f8b0a`, PR #599) — the sprint's only CI-touching commit, and it went red on its own acceptance step first, because the prefetch it adds mutates a tracked file and I had already dismissed the identical local symptom as an environment artifact.** Evaluator sonnet **PASS 88/100 r1, zero blocking**. M4 wires the poisoned-proxy egress boundary across all **6** default-lane legs and registers gatelint in the no-silent-skip gate, closing **AC9, AC11, AC12**.
+
+**Sequencing.** `#569` (dependabot actions bump) was re-verified **by purpose, not state** — iteration 145's new rule, first use. Unlike the dead `#532` it is genuinely still wanted (dev still carried `setup-go@v6`, `setup-uv v8.3.2`) and was MERGEABLE with 20 green checks, so it was merged FIRST (`bc30912ea`, dev CI green) to clear the ci.yml/build.yml collision rather than let M4 make it CONFLICTING. Its diff is **+N/−N on every file** (23/23), i.e. pure line replacement — verified *before* merging, precisely because M4's line anchors depend on it. All anchors held.
+
+**Rule 3b(vii) fired on its first use, and inverted its own default.** The doc says "5 CI legs" in **6** places; its own **V34** measured **6**; the plan says 6. So here the **plan wins over the doc** — the opposite of iteration 146's "doc wins" ruling — because the doc's Verification Log refutes the doc's AC prose. Re-measured first-party: build.yml's matrix has 4 entries (ubuntu, macos/amd64, macos/arm64, windows) + ci.yml `test` + `test-windows` = 6. Stated explicitly in the executor directive.
+
+**Correction #1, and I got it wrong before I got it right.** The plan's gate `actionlint … → rc=0` **cannot pass** — rc=1 on the unmodified base. My replacement, `-shellcheck='-e SC2086'`, was **also wrong**: the flag takes an EXECUTABLE PATH, so that string is a bogus command name and shellcheck **silently never runs**. Proven — a deliberately bogus executable, `-e SC2086`, and explicit `-shellcheck=` all give rc=0 / 0 findings, while `-shellcheck=$(which shellcheck)` gives rc=1 / 3 SC2086. The original mutation proof was real but exercised actionlint's **native** checker, and I generalised it to "the gate works". The evaluator flagged the anomaly as "unexpected"; reproducing it first-party found the cause. Also corrected: base findings are 3 SC2086 + 1 SC2035 + 1 SC2046, not "all SC2086" (read off `head` output — rule 3b(v)(a)). What holds: `-shellcheck=` is rc=0 on base and M4 and mutation-proved non-vacuous; real shellcheck is **5 on base, 5 on M4** — zero new. actionlint never runs in CI (control: `golangci-lint` is found by the same search).
+
+**Correction #2.** `go mod download all` writes **394** lines into the tracked `go.sum` (three agreeing measures). Arm B: plain `go mod download` into a cold GOMODCACHE + full poisoned suite = **rc=0, 107 ok, zero resolution failures**, go.sum untouched. `make/test.mk` therefore uses plain `download` — removing a hazard that would have dirtied the shared checkout on every `make test` and silently broken the fast-forward precondition this loop depends on. Workflows keep `all` (three OSes not measured here).
+
+**THE FIND, and it is mine not the executor's.** PR #599's first CI run went **red on M4's own AC9 step**. `go mod download all` touches go.sum; the staleness detector compares binary mtime against the newest Go source; the step sat AFTER `Build binaries`. From the job log: **binaries 21:21:03Z, go.sum 21:21:17Z** → three binary-gated tests `t.Skip()` → the no-silent-skip gate red-lighted the job, **working exactly as designed** (`go test` itself exited 0 with three tests silently skipped). `build.yml` stayed green throughout and is the corroborating control: its download already precedes `go install`. ⚠ **I had seen this exact symptom locally hours earlier and dismissed it.** I ran a control — the pre-M4 form of the same command — got an identical skip, and concluded "pre-existing local artifact". **The control was contaminated**: both arms ran in a tree M4's own prefetch had already mutated, so it could not distinguish, and the symmetry was an artifact of shared state, not evidence of innocence. Fixed by moving the prefetch before the binary-building step in both legs.
+
+**Reproduced afterwards in both directions — and the first attempt was vacuous.** `go test … $PKGS` with an unquoted variable passes ONE argument under zsh, so setup failed in both arms and the absence of PASS lines *looked* like the skip reproducing (the documented iteration-140 trap, bought first-hand). Re-run with an ARRAY plus a did-it-run assertion: old order → rc=0, 5 ok-lines, the same 3 tests SKIP with the identical "is STALE" message; new order → all 5 PASS.
+
+**Verification.** Executor codex `gpt-5.6-sol` (probe rc=0, run rc=0 ~9 min, 11,083 B directive delivery-asserted, 3 files/+49−11, zero git writes, `.snap/M4/` sha256-verified, scope exact) reproduced my pre-edit zeros and labelled essentially all of M4 `UNINFORMATIVE UNDER SANDBOX` — correct, since workflow behaviour is only observable on real Actions. Controller re-ran everything outside it: AC11 poisoned rc=1 with the named message and **unpoisoned rc=0 in the same block**; AC12 both directions on a cold cache; `make test` rc=0/107 ok/go.sum clean; poison counts 8/4/1 against a pre-edit control of 0/0/0. Mutations, each proven landed and reverted byte-identical: all four env vars removed individually red the guard with its own message before `go test`; renaming `TestGateLint_SelfTest` removes the PASS line and reds the step while `go test` stays rc=0. **The PowerShell guard was unverifiable locally** (`pwsh` absent) after M1 and M3 each shipped a Windows-only defect here — **`test-windows` came back green on real CI**, closing the iteration's largest unverified risk. Gate 3b on the PR head: **20 checks, 0 non-success, all 5 required contexts green**, including all 4 build legs; the set grew 13→20, a **fifth** corroboration that `completed == total` is not terminal.
+
+**Evaluator findings, reproduced before acting AND before dismissing.** **NB-1 REFUTED**: it reported go.sum churn as 618 lines; that is `git diff | wc -l` — the diff's total output length including headers and context — while three independent measures agree on **394**. Its INFO-1 was *under*-stated and became correction #1.
+
+**Also:** filed **`#598`** (`TestSolve_HardTimeout_FakeSolverIgnoringT` fataled once on a pid-file race; not M4 — isolated arms pass with and without the poison; observed 1×, **0/12** on a targeted stress arm, so the mechanism is code-reading and labelled as such). **C2 watch-item corrected and weakened**: the 30s budget wraps only `probeServeAPIMCPTools`, whose subtests run 0.75s/0.03s — the 11.18s is setup outside that context, so the margin is ~40×, not the 2.9× recorded at iteration 145.
+
+**Own instruments, three times, all documented classes:** the zsh word-split above; a CI poll piping JSON through `echo`, which interpreted backslash escapes and fed jq control characters (7th zsh instance, caught because readings came back empty rather than plausible); and an ad-hoc `jq` that dropped the `neutral` exclusion my real poll had, briefly reporting 2 "failures" that were Cloud Build neutral checks.
+
+**Retro — one skill edit** (≥2-instance bar): Gate 2 gains **3e** — baseline every acceptance command on a **pristine** tree, because (a) a gate already red at base measures the repo, not your change (instance 1: iteration 145's `go build ./...`; instance 2: this iteration's `actionlint`), and (b) a control run after an earlier step has mutated shared state is not a control (this iteration's contaminated go.sum arm). The generalisable point: **an environmental explanation is always available for a symptom you caused**, and it is more comfortable than the alternative, so it wins by default unless the base is pinned down by command.
+
+**Gate 3b closed GREEN on the dev merge** `4b47f8b0a`: 15/15 complete, 0 non-success, with the poisoned test step and the AC9 step both `success` on dev — so the milestone is LANDED on the criterion that matters (remote CI on the merge), not merely on the PR head.
+
+**Next:** **M5** — docs/CHANGELOG/AC sweep, now owing the "5 CI legs"→6 correction in 6 places, the AC10 a/b/c→(d) reconciliation, the 5 pre-existing actionlint findings that keep the plan's own gate unpassable, and a note never to reuse `-shellcheck='-e SC2086'` as a filter. Standing alternative: `#498` Lane B M3.
+
+## 153 — 2026-08-06 — Iteration 149: **M-CI-FLAKE-SYSTEMIC-FIX IS COMPLETE — `M5` landed (`c9e1a4f98`, PR #600) — but the work was done by an *unrecorded* iteration 148 that died between opening the PR and merging it, leaving a green, fully-evaluated PR invisible to every charter read.** No entry exists for iteration 148 (`grep -c 'ITERATION 148'` = **0** in both charter and log); this entry covers its work and credits it. Iteration 148 ran the full inner loop — executor codex `gpt-5.6-sol`, evaluator sonnet **PASS 88/100 r1, zero blocking**, a complete AC1–AC12 sweep re-run out-of-sandbox — then stopped before Gate 3b, so its only traces were PR #600 (`OPEN`, `MERGEABLE`/`CLEAN`, all checks green) and the worktree `.wt-iter148-ci-flake` at `b5b135dfc`. **The find, and the reason it is a skill-lane item rather than a one-off:** Gate 2's already-landed check searches *merged* PRs and direct-to-dev commits. An iteration that dies between "PR opened" and "PR merged" produces neither — so its work is structurally invisible in exactly the window where it is most nearly finished, and the charter still reads `[NEXT]`. Trusting that tag would have re-run a completed milestone and opened a duplicate PR against a green one. The cheap closure is to include open PRs authored by this loop in the same check, which is one flag on a search Gate 2 already runs. **Inherited claims re-derived before merging (Gate 2 rule 3b(v)).** Iteration 148's headline correction — that the proxy-ignoring transport residual is **7 across 4 files**, not the doc's 6 — was confirmed first-party with controls: `net.go:96,212,587` · `stream_ndjson.go:80` · `stream_sse.go:70,329` · **`managed_agents/client.go:141`**; the matcher sees **11** including tests, and `ProxyFromEnvironment` appears only in M3's deliberate control arm, so V33's production-zero holds. I also checked the claimed doc fixes actually landed rather than trusting the commit message: `5 CI legs` **6 on dev → 1 on the PR** with the survivor deliberately inside **V34 itself** (control: `6 CI legs` × 6), `AC10(d)` in the plan **1 → 2**, and the `effects_nil_proxy_remains_open` subtest present at `egress_posture_test.go:20,67`. **Consequence:** the Option-B queue row described the work as 6 literals inside `internal/effects`; the 7th lives *outside* that package, so the row was corrected in place and the design pass now owes an explicit in-scope/out-of-scope call on the `managed_agents` client — a scope error that would otherwise have surfaced mid-sprint. **Issue closes verified, not asserted:** `#494` (`runAilangBin` → `testutil.RunBounded(…60s…)`), `#587` (cold-start warm-up), `#561` (`testutil.RequiresLiveNetwork` at `net_test.go:364,441`); `#583` auto-closed via the PR body. **Ruled out — my own hypothesis, refuted by measurement before I acted on it:** that `#509` was *not* closed by this sprint. I saw an absolute `context.WithTimeout(context.Background(), 10s)` in the pipe test and matched it to class **C2**, which iteration 145 recorded as surviving. REFUTED — that outer deadline is a legitimate bounded subprocess wait, and the issue's actual subject is the redundant `eventOneBudget` guardrail, repo-wide count **0** (deleted in M2 `368f940cf`), with the relative `gap >= minGap` assertion kept at `main_run_pipe_test.go:132-138` (control: `EVENT_1` × 9, so the grep was live). Acting on the first reading would have left a genuinely closed issue open on a false pattern match — the mirror of the over-claiming this rule usually catches. **Cost:** metered **$0.00** — controller-only iteration; iteration 148 had already paid for the executor and evaluator. Sprint doc + plan moved to `design_docs/implemented/v0_33_1/` with their path references updated. **Watch-item, instance 1 (bar is two):** an UNESCAPED backtick pair inside a double-quoted `gh issue close --comment "…"` body triggers zsh **command substitution**, and the failed substitution is silently dropped — `#494`'s verdict posted reading "now delegates to , so", i.e. a plausible, well-formed comment with its *evidence* surgically removed, while `gh` reported `✓ Closed`. The adjacent glob error (`60*time.Second`) was the only tell, and it scrolled past above four success lines. This is the zsh-rewrites-your-string class (rules 3a(i-b)/(i-c)) in a new surface — the shapes already listed are globs and history modifiers, not backticks, and markdown comment bodies are *made* of backticks. Corrected by re-posting from a quoted heredoc and verifying the phrase landed. If this recurs, the fix is a rule: never pass a markdown body inline — always `--body-file` written by Write.
+
+**Next:** **`m-net-effect-proxy-boundary`** (D5 Option B) — now unblocked by the sprint's completion, NEW-DOC + quorum required (production-runtime change touching the pinned-IP SSRF guard), carrying the corrected 7-across-4-files scope and the `managed_agents` in-scope question. Standing alternative: `#498` Lane B M3.
+
+## 154 — 2026-08-06 — Iteration 150: **`m-net-effect-proxy-boundary` (D5 Option B) has a design doc — and it is PARKED after two BLOCKED quorum rounds, because the surviving objection is not a defect in the design but a scope decision about how durable the completeness gate must be.** Designer codex `gpt-5.6-sol` (rotation advanced from Fable). Doc: 662 lines, 19 verification rows, a silent-revert check on every acceptance criterion. Planner/executor/evaluator not fired — the item parked before routing.
+
+**Pick.** The queue head, iteration 149's declared Next. Blocker re-verified **by purpose** rather than by status (iteration 145's rule): AC10(d) genuinely exists at `internal/testutil/egress_posture_test.go:20,67` — note the path is `internal/testutil/`, not the `internal/effects/` the iteration-149 stamp implies. Scope re-derived before the designer ran rather than inherited from the queue row: **7** hand-built `http.Transport{}` literals across **4** files, control **60** hits repo-wide including tests and sibling worktrees; `ProxyFromEnvironment` production-count **0**.
+
+**Find 1 — the reviewer's objection was itself a claim, and measuring it refuted the expensive half.** R1's `gpt5-6-sol` blocked on an *unverified premise*: the conflict surface never audited existing HTTP construction machinery, so the proposed RoundTripper might duplicate it. The standing rule for that objection class is that the controller measures it and hands the designer the **measurement**, not the objection. Doing so found the opposite of the reviewer's worry: production has **0** custom `RoundTripper`s, **0** `DefaultTransport` uses, **0** `Transport.Clone`, and no shared HTTP factory at all — **29** inline `http.Client{}` sites serving as the known-positive control. Nothing to duplicate, nothing to collide with.
+
+**Find 2 — and the measurement turned the doc's scope from an assertion into a derivation.** The doc never said *why* `http.Transport{` is the right thing to search for, which is precisely why a reviewer could not tell whether seven sites was the whole story. Verified in the toolchain source (`transport.go:46-48`, go1.26.5): `http.DefaultTransport` sets `Proxy: ProxyFromEnvironment`. So every bare `&http.Client{Timeout: X}` is **already inside** the egress boundary, and the only way to escape it is to hand-build a transport and leave `Proxy` nil — which is exactly the seven sites. That single fact is worth more than the row it produced: it converts "we found seven" into "seven is all there can be, by construction".
+
+**Find 3 — R1's second reviewer caught a real design defect, not a completeness nit.** `gemini-3-1-pro` observed that the doc specified target-IP resolution in **two** places: the existing preflight `resolveAndValidateIP` *and* the new RoundTripper. That is a TOCTOU DNS-rebinding race — the whole point of pinning is that the address validated is the address dialled — plus a broken-proxied-request risk on hosts that cannot resolve external names at all. Routed to the designer **without a controller-invented resolution**, flagging only the consequence it would have to handle: moving validation out of preflight changes when and in what shape the `E_NET_*` errors surface. The designer made the direct RoundTripper the sole resolve-validate-dial site and skips local target DNS entirely on proxy routes (rows V17/V18/V19; 520 → 592 lines). Re-derived before re-quorum: V19's call sites are exactly `net.go:85,201,317,565` plus the definition at `net_security.go:78`.
+
+**The park.** R2 blocked again. `gemini-3-1-pro`'s remaining objection is **carve-out-eligible** — concrete fix, no direction dispute — and I measured its answer in advance so the resume is cheap: `E_NET_IP_BLOCKED` at `net_security.go:27,34,46,51,56`, `E_NET_DNS_FAILED` at `:90,94`, surfaced through `makeResultErr("Transport", …)` at `net.go:551,556,567,605,631,639` (control **11** sites), of which `:567` is the preflight path being moved and `:631` the post-`client.Do` path where a `url.Error` arrives. `gpt5-6-sol`'s is **not** eligible: it asks that V2/V17 *and the M4 completeness gate* be replaced by a checked-in `go/packages` AST/type analyzer with positive fixtures, because textual matching cannot see aliased imports, `new(http.Transport)`, post-construction `Client.Transport =`, transport-returning factories, or custom `RoundTripper`s. That materially expands scope and needs a judgment call, so Standing rule 2 applies: park, do not force through.
+
+**But the decision was made cheap to answer by testing the reviewer's own hypothesis.** All five constructions the analyzer would catch are **zero at HEAD**, each with a firing control: aliased `net/http` imports 0 (control 1505 alias-shaped hits including a real `_ "embed"`), `new(http.Transport)` 0 (control 4 `new(` hits), post-construction `.Transport =` 0 (control 8 `Transport:` fields), transport-returning factories 0 (control 2 funcs returning `*http.Client`), `RoundTrip(` implementations 0. So the seven-site claim is **empirically complete today**, and the surviving argument is about the gate's *durability against future escapes*, not about present correctness — which is exactly the shape of question a human should answer in one word. **D-6**: (A) grep gate now + AST analyzer as a follow-up, 3d; (B) AST analyzer in-sprint, 3d→4d.
+
+**Own instruments — two of five controls failed on first run, and I re-ran rather than banking the zeros.** The alias matcher produced a false positive by matching the `import` keyword itself, and the `new(` control returned **0**, which under rule 3a makes the reading uninformative rather than negative. Both re-run with valid controls before any number above was used. Also worth recording in the other direction: my revision directive told the designer there were "roughly 40" inline clients; it re-derived **29** and corrected me — G-3 working in exactly the direction it was written for.
+
+**Ruled out.** That the sweep-batch row still owed a close on `#588`. It was **already closed 2026-08-05** with the M2 citation, so my close was a no-op and my comment did not post (verified: the only comment on the issue is the prior iteration's). Verifying the underlying claim first-party rather than inheriting it also found the charter's wording **loose**: M2 gated the live-network *subtest* at `net_test.go:364`, not the whole `TestNetHttpPost` function, whose remaining subtests are pure type-checking and correctly ungated (control: the same gate at `net_test.go:441` and `internal/pkg/gitcache_test.go:51`).
+
+**Orphaned PR, found by iteration 149's died-mid-flight check on its first independent use.** `#545`, open since 2026-07-31, CONFLICTING, **125 commits behind** dev, **zero** charter mentions (control `#532` = 2) and **zero** log mentions (control `#544` = 4) — structurally invisible, because the weekly sweep covers *issues* and the already-landed check covers *merged* PRs. Its purpose is **not** superseded, measured at HEAD rather than assumed: `ResolveCostModel` 0, `CostProvenance` 0, `cost_tally.go` and `codex/cost.go` absent, with `internal/executor/cost.go` present as the control. Both defects remain live — agent cost banked from the wrong model's price table, and `cost_usd` summing subscription list-price-equivalents with genuinely metered spend under one label, which is the provenance this mission's own cost reporting rests on. Triage comment posted; filed as a queue row, not actioned, since a sweep never outranks the queue head.
+
+**Inbox.** The nightly's **INVALID** verdict is the mission's own instrument working: `m-nightly-run-validity-gate` (landed iteration 119) marked the run invalid on `infra_outage` with 4/12 unmeasured and filed **zero** per-benchmark verdicts — no regression to triage, and no stale alarm created. Zero open `[nightly-eval]` issues (control: 30 closed).
+
+**Routing:** controller `claude-opus-5` · designer codex `gpt-5.6-sol` (rotation: was `claude:claude-fable-5`, now `codex:gpt-5.6-sol`, next `claude:claude-fable-5`) · quorum `gpt5-6-sol` + `gemini-3-1-pro`, two rounds, both BLOCKED · planner/executor/evaluator not fired. `metered=$0.1785` of the $5 ceiling (quorum only: $0.0801 + $0.0984); codex runs on an OAuth subscription, so its 148k-token designer run is a quota bucket, not dollars.
+
+**Retro — one skill edit** (≥2-instance bar): Gate 2 gains **3f** — a *reviewer's* objection is a claim too, and on an unverified-premise objection the controller's job is to **measure** it, because the measurement can refute the objection outright instead of costing a revision round. Instance 1: iteration 126's two-round premise block, whose fix was to hand the designer the measurement. Instance 2: this iteration, where testing `gpt5-6-sol`'s own hypothesis showed all five shapes are zero and converted an open-ended completeness dispute into a bounded, one-word scope decision.
+
+**Next:** PARKED on Mark's **D-6**. Standing alternative, unblocked and ready if D-6 goes unanswered: **`#498` Lane B M3** — the final Lane B milestone, after which the release ask goes to Mark.
+
+## 155 — 2026-08-06 — Iteration 151: **`#498` Lane B is COMPLETE — M3 landed (PR #601), the final milestone — and the find is a test that named a behaviour nobody can test.** Pick = `#498` Lane B M3 (~10h), the position iteration 150 designated when `D-6` went unanswered. Doc and plan both existed and were quorum-cleared at iter-137/138, so **designer and planner did not fire** (rotation unchanged: last-used `codex:gpt-5.6-sol`, next `claude:claude-fable-5`). Executor codex `gpt-5.6-sol`, evaluator **sonnet PASS 81/100 r1, zero blocking**.
+
+**What shipped.** `internal/apiserver/embedded_a2a.go` (162 LOC): A2A cards and `tasks/send` projected from the *same* `AuthorizedSurface` as MCP, dispatch routed by exact descriptor name through `Lookup` so an unauthorized send is `-32602` and never reaches the invoker. `serveapi.A2AHandler()` is live (was `NotFoundHandler`); `Mount` wires `/mcp/`, `/.well-known/agent.json`, `/a2a/` onto a caller-owned mux. `loadedExportMember(routesOnly, export)` becomes the single protocol-neutral **membership** gateway behind all 6 production `isExposed` sites, with `@nomcp` deliberately kept as an MCP-only **projection** filter applied after membership. Frozen A2A envelopes both directions. Doc + plan moved to `implemented/v1_0_0/`.
+
+**The find — and why it is a class, not a nit.** The evaluator did exactly what it was asked and caught the **fourth consecutive** non-discriminating test in this sprint: `TestMountRecorderRoutesAndMCPStripPrefix` passed with `StripPrefix` REMOVED. It proposed fixing it with a sub-path POST. I reproduced the finding — and then measured *why* instead of applying the proposed fix, which is what turned a nit into the real answer: the MCP SDK's `StreamableHTTPHandler` **never dispatches on the request path** (`URL.Path` = **0** across `go-sdk@v1.7.0/mcp` non-test sources; `.URL` = **12** as the control). So `StripPrefix` is behaviourally **inert** here, the evaluator's proposed fix would also not have worked, and AC3's clause was **vacuous by construction** — no assertion can distinguish it. The defect was therefore the *false claim*, not missing coverage of an unobservable behaviour. Fixed by telling the truth: test renamed to drop the claim, a comment records the measurement and states the wrapper is deliberately uncovered, and the assertion was replaced with one about the `/mcp/` **subtree** registration that IS discriminating (exact-path mutant → 404, reverted byte-identical). This is rule 3b(b) — a judge's non-blocking label is an opinion, not a measurement — with a new corollary worth keeping: **when a reviewer proposes a fix, the premise behind the fix is a claim too.**
+
+**Ruled out / refuted.** (1) The planner's transitive-import boundary assertion is **impossible**: `serveapi → internal/apiserver` legitimately reaches **13** compiler packages transitively, so the check could never pass; the correct gate is a DIRECT-import check (forbidden=0, control apiserver=1, mutant=1). Found by the executor, confirmed by me. (2) `go test ./...` rc=1 on `internal/smt TestSolve_HardTimeout_FakeSolverIgnoringT` is **NOT this sprint**: it fails identically on the unmodified main checkout under the full suite (run alone, no concurrent load) and passes in isolation in both trees — a load-sensitive 3s pidfile race in the test, filed as **`#602`**, a survivor of the CI-flake sprint that just closed. The negative control is the only reason it was not banked against the milestone. (3) `go build ./...` is already rc=1 at base (`cmd/wasm`, `gen/main`), reproducing iteration 145 — excluded as a verdict rather than blamed on the sprint.
+
+**Controller-caught, missed by both executor and evaluator.** The changelog entry went into root `CHANGELOG.md` under `## v0.32.0 (Unreleased)` — but that file is an *index* (its own line 3 points at `changelogs/v0.18-current.md`) and v0.32.0 is two releases stale. Relocated to the open `[v0.33.1]` section where the Lane B M1 entry lives. My first instrument here was **broken and I said so**: a `git show --stat --name-only` over two commits printed no changelog path and I nearly wrote "neither M1 nor M2 touched a changelog"; the truth is the *release* commit `ae36986c5` wrote M1's entry. Re-derived per-commit with a control (rule 3a).
+
+**My own instrument, once — and it destroyed the fix rather than the mutation.** Reverting an NB-3 mutation with `git checkout --` restored the **committed** file, but the fix had been added *after* the commit, so the "revert" silently wiped it. Caught only because the sha256 comparison read MISMATCH and the post-revert test was rc=1. **`git checkout --` is not an undo for an uncommitted edit — it is an undo back to HEAD.** The byte-identity discipline is the sole reason this did not ship.
+
+**Verification.** Controller re-ran every gate outside the codex sandbox: `./internal/apiserver ./serveapi` rc=0 · `./cmd/ailang` rc=0 · `-race` rc=0 · gofmt 0 · vet rc=0 · `check-file-sizes`/`check-boundaries` rc=0 · 0 files over 800 · `server.go` still exactly 764. Independent controller mutation: folding `IsNoMCP` into the shared gateway (the plan's highest-severity §0.7 hazard) is caught by **three** tests including the pre-existing `TestNoMCP_StillServedOverHTTPAndOpenAPI`. AC5's "three regression files unchanged" proved by `git hash-object` against pre-change baselines, not from prose. Executor snapshot manifest verified **22/23** byte-identical, the single mismatch being the file I deliberately changed. Doc↔plan cross-diff (3b(vii)) run and **clean** — the first time that check has come back green, which is itself the datum.
+
+**Routing evidence:** model=**claude-opus-5** (controller, matches the pinned table) · task-class=**execute** · executor=**codex `gpt-5.6-sol`** · evaluator=**sonnet** (generator≠judge: Anthropic ≠ OpenAI) · designer/planner **not fired**. `metered=$0.00` of the $5 ceiling (codex on subscription; no quorum round owed).
+
+**Next:** the **RELEASE ask to Mark** — Lane B is complete and World consumes upstream via PINNED RELEASES only, so a tag is now the only thing between them and an unblocked `w-mcp-projection`; it would also carry the already-landed `#510`/`#477`/Lane-A fixes. Then `#545` (orphan-PR rebase) or `m-property-generator-coverage` Lane B1. `D-6` remains parked and unanswered.
+
+## 156 — 2026-08-06 — Iteration 152: **`assert` was a reserved keyword with NO working call site anywhere in the language — `#590` is fixed, and the sprint's own CHANGELOG entry then red-lighted a required CI context after seven local gates passed.** Pick = the queue head, the iter-145 SWEEP-BATCH row. Executor codex `gpt-5.6-sol` **hit its OpenAI usage limit mid-sprint and fell back to opus**; evaluator sonnet **PASS 88/100 r1, zero blocking**.
+
+**The pick, and the ghost discipline that earned it.** The SWEEP-BATCH row carried three `motoko_agent` issues. `#588` was already closed. **`#589`** — nondeterministic cluster-harness failure, 6/10 — was **NOT reproduced**: the closest shape this repo can offer (`examples/runnable/pattern_sugar.ail`, 6 inline tests) ran **0/10 failures**, with a firing control (a deliberately-wrong expectation → rc=1). That is weak evidence and I said so on the issue rather than closing it: the report needs a 15-module transitive closure and **the widest multi-inline-test file here has 1 import**, so the negative is equally consistent with "fixed" and "this repo cannot express the trigger". Left OPEN with the repro burden named. **`#590`** reproduced 100% at HEAD (`v0.33.0-39-g64970c118`, both binaries rebuilt, `--version` == `git describe`) — true assert, false assert, inside and outside `/tmp`, all identical; control (assert-free body) rc=0.
+
+**The find is wider than the issue filed it.** `assert` is a lexer keyword (`token.go:53,178,289,397`) parseable in exactly ONE construct (`parser_test_decl.go:124-125`; `registerPrefix(lexer.ASSERT)` = **0**, control **26** `registerPrefix` calls), and that construct was 100% broken — so the keyword had **no working call site in the language at all**. `assert` in a plain function body fails identically.
+
+**And my own headline claim was REFUTED by my planner — after I had posted it publicly.** I wrote that the canonical prompt "advertises" `assert` to every eval model. It does not: line 2269 sits under **`## Reserved Keywords` — "you cannot use these as variable or function names"**, a table warning models OFF the identifier. `assert` appears **2** times in the whole prompt and never in a worked example (control: `match` **92**). That is rule 3b(i) exactly — a green citation quoted for a sentence wider than it supports — and it changed a scope call (touching the prompt became an explicit non-goal). **I posted a correction to `#590` rather than leaving the stronger claim standing**, because the issue thread is where a downstream reporter reads our reasoning.
+
+**The design decision, made by the planner on measured grounds.** Of the reporter's three options, (a) and (b) are BOTH refuted as fixes: `internal/elaborate` has **zero** `ast.AssertStmt` handling and ends in `normalization not implemented for %T`, so registering a parselet just relocates the failure one stage later; (b) is additionally a language change needing a Conflict Surface and quorum. Option (c) is the only single-package fix — but the reporter's placement of it **in the printer is wrong**, and this is the load-bearing insight: the printer sees one node and cannot see sequencing, so printing `assert c` as bare `c` would make `{ assert false; assert true }` **pass**. Short-circuiting is a property of the sequence, so the lowering lives in the **fold**: a non-negative int sentinel chain (0 = all passed, k = first failing check), decoded in Go, entered only for assert-bearing bodies so assert-free bodies keep the byte-identical legacy path.
+
+**A second, arguably worse defect surfaced during planning and I reproduced it first-party before filing (`#604`).** Non-final expressions in a named test body are bound to a dead `_seq` and DISCARDED, so `{ add_one(1) == 99; add_one(1) == 2 }` reports **`All tests passed!` rc=0**, while the reverse order correctly fails — a discriminating control, so it is position and not luck. This is the mission's **vacuous-pass class** again, and it is *why* the assert lowering must short-circuit. Fixing it in general is an explicit non-goal (it changes the type obligation on currently-passing tests), verified unchanged by this PR.
+
+**Routing degraded, and the probe did not see it coming.** The codex executor's 1-token pre-flight probe returned **rc=0** and the real run then died on `ERROR: You've hit your usage limit … try again at Aug 8th`. The Anthropic tripwire was re-checked and is **CLEAN** — this is an OpenAI-side bucket, not the billing trap. Fell back to `$MODEL` (opus) per the standing rule and FLAGGED. Cost: generator≠judge survives (opus executor ≠ sonnet evaluator) but the **cross-provider** independence does not — both are Anthropic now.
+
+**Controller verification, not banked from the executor.** Rebuilt from the worktree and re-ran every gate myself: `./internal/testing/...`, `./internal/parser/... ./internal/format/... ./internal/ast/...`, `./cmd/ailang/...`, vet, `go build ./internal/... ./cmd/ailang`, `check-file-sizes`, `check-boundaries`, `gofmt -l` 0 — all rc=0. Behaviour verified against a control: the **old PATH binary still fails** the same file the new one passes. **An 8th mutation the evaluator did not run**: replacing the short-circuit `Else` with a fall-through re-arms `#604` inside the assert path → **5 tests red**, including the dedicated short-circuit test; reverted **sha256-byte-identical**. The mutation's landing was proven by sha256, not by `git diff` — the file is untracked, so `git diff` prints nothing and would have looked exactly like "no mutation applied".
+
+**Commits reconstructed from snapshots, and proven faithful.** Four milestone commits rebuilt by replaying `.snap/M1..M3` over the tree, `go test ./internal/testing/` green at **every** boundary so the history bisects, and all **13** files `shasum -c` byte-identical against a manifest taken before reconstruction began.
+
+**The evaluator's non-blocking finding was ACTED ON, and reproducing it first is what showed it mattered.** A trailing bare expression in an assert-bearing body is a check but is not an `assert`, and the failure quoted it back as `` `assert (add_one(3) == 99)` `` — **source that appears nowhere in the user's file**, the same defect class as `#539` (a diagnostic prescribing a fix that cannot work). The existing test asserted the failure COUNT but never the TEXT, which is exactly why it shipped. `CheckInfo` now carries `IsAssert`; forcing it true reds the new assertion, and the fix reverted byte-identical.
+
+**Gate 3b caught what seven local gates did not, and it was NOT the failure I predicted.** The `test` job — a REQUIRED context — went red on **`make check-changelog`**: the entry went into root `CHANGELOG.md`, which must stay an index because release-manager builds notes from `changelogs/v0.18-current.md` and anything left in the index is *silently dropped from the release*. Iteration 151 caught this same misplacement **by hand**; the gate now catches it. Rule 3d applies to my own reflex here: I expected `#602` (the load-sensitive `internal/smt` race) and **checked instead of assuming** — and CI's own `go test ./...` had in fact passed, so `#602` does **not** red on CI runners. The generalisable fix is in the retro: I ran a hand-picked subset of gates; the CI job's own list is knowable from its log and is the one to run.
+
+**Ruled out:** (1) that the prompt advertises `assert` — refuted by my planner, corrected publicly; (2) that the CI red was `#602` — refuted by reading the log, it was `check-changelog`; (3) that `#589` is fixed — NOT concluded, because the instrument cannot express the trigger; (4) that a gated `examples/experimental` file could guard this bug — refuted: `verify-examples` runs `ailang run`, never `ailang test`, and `make -pn` shows it gates `examples/runnable/` only (control: runnable/agents/manifest/sim_stub all appear, `experimental` does not).
+
+**Routing evidence:** model=**claude-opus-5** (controller, matches the pinned table) · task-class=**execute** · planner=**opus** (lane derived verbatim: `opus fail-closed:planner-lane-field-missing` — no design doc, so no lane field) · executor=**codex `gpt-5.6-sol` FAILED usage-limit → opus fallback, FLAGGED** · evaluator=**sonnet** · designer **not fired** (bug-fix lane, no new doc, no quorum — the `#548`/`#524`/`#541` precedent), so the rotation is **unchanged** (last-used `codex:gpt-5.6-sol`, next `claude:claude-fable-5`). `metered=$0.00` of the $5 ceiling.
+
+**Next:** the FINDINGS-BATCH row (`#602` load-sensitive smt race, `#603` CodeQL reflected-xss + the weekly-scan cadence question), then `#545` (orphan-PR rebase) or `m-property-generator-coverage` Lane B1. `#604` is new and unqueued. **The RELEASE ask and `D-6` both remain parked and unanswered**, and the codex lane is down until 2026-08-08 — an executor-heavy pick before then will run on opus.
+
+---
+
+## 157 — 2026-08-06 — Iteration 153: **dev CI was red and it was not our code — a declared GitHub Actions major outage. The pick was `#603`, where the CodeQL taint trace is CORRECT and the finding is NOT exploitable, and the reason to fix it anyway is that all three things making it safe are inherited from a third-party dependency and asserted nowhere in this repo.**
+
+**Pick:** RED dev outranked the queue and was the first deliverable; then the queue head (FINDINGS-BATCH iter-151), `#603` half. `#602` deliberately left — it needs `go test ./...` under load and the CI signal was unavailable all iteration.
+
+**Gate 0/1:** kill switch armed · billing **CLEAN** · gh account correct · **zero** open `[nightly-eval]` alarms (control: 30 in `--state all`) · inbox 3, all acked · no new Mark comment on `#559` (control: 2 exist, both ≤ watermark) · no rotation due (48 < 80; `#559` created 07:08 CEST, after the Monday-07:00 LOCAL boundary) · `dev == origin/dev == a4e918e1b` · running `SKILL.md` byte-identical to origin — **13th consecutive iteration the 08-03 reconcile has held**, so Gate 4 wrote in place · cheap tell case-correct with control (152 = 1, 151 = 2, rotation invariant 3) · died-mid-flight check clean on its 4th use.
+
+**The RED-dev deliverable was a DIAGNOSIS, not a fix — and rule 3d is why.** The seductive read was "the pi-lane commit broke dev". Measured instead: all four red jobs had **`steps=0`** (never acquired a runner), and on re-run `test`/`dependency-submission` died in **`Set up job`** with zero repo commands executed. Negative control: the same four jobs were **green on parent `65f287107`** 76 minutes earlier. Corroboration: githubstatus **Actions major_outage**, incident `15:22Z`, our run `16:04Z` — inside the window; `mission-world` iteration 58 independently hit the identical signature in a different repo. Cleanest control of all: across re-runs `docs` went **cancelled → success on a byte-identical tree**, which is only possible if the variable is the environment. Re-runs fired; **Build and Release recovered green with no code change**. No revert warranted.
+
+**The triage, measured not argued.** 12 hostile shapes through the real handler. **The taint is REAL** — 2 of 12 reflect a literal `<script>alert(1)</script>` (malformed payload; unknown JSON-RPC method), so the battery is not vacuous and CodeQL is not hallucinating. **But not exploitable**: Content-Type present on all 12 (Go never sniffs); both reflecting paths come from the SDK's `http.Error` → `text/plain` + `nosniff`; `encoding/json` escapes `<`,`>`,`&`, which is why the tool-argument case does not reflect at all. `DetectContentType` returned `text/plain` on every body, never `text/html`. **The point: all three guards are inherited from `go-sdk`'s internals.** The wrapper copies headers wholesale and asserts nothing, so a `go.mod` bump removes any of them silently — dismissing the alert would have banked an inherited accident as a security control.
+
+**Executor = the NEW pi lane** (`pi:openrouter/deepseek/deepseek-v4-flash-0731`, Mark's directive delivered by message this fire, already live in env at HEAD). Probe rc=0, run rc=0, directive 7,462 B delivery-asserted, zero git writes. **pi has NO sandbox**, so the main checkout was checked for out-of-worktree writes — byte-identical to preflight. Datapoint **2 of ≥3**; it followed a prescriptive directive exactly.
+
+**Controller re-ran every gate and ran TWO mutations the executor did not.** A (drop `nosniff`) reds **6 of 12** — the other 6 already inherit nosniff from `http.Error`, which is exactly the split the new line covers. **B is the find: deleting the Content-Type default reddened NO test in the whole package.** That branch is unreachable through the public path because the SDK always labels — so the guard just added was, by this mission's own standard, not a guard. Fixed by injecting a transport that writes an unlabelled HTML-shaped body, with a control asserting it *would* sniff to `text/html`; re-running B now reds (rc 0→1). Every mutation proven to LAND by sha256, reverted byte-identical. **Gate list DERIVED from `ci.yml`, not recalled** — iteration 152's rule 3g on its first use, and `make check-changelog` was in the sweep this time.
+
+**Evaluator sonnet PASS 91/100 r1, zero blocking.** generator≠judge holds and **cross-provider independence is RESTORED** (DeepSeek/OpenRouter executor ≠ Anthropic judge) after iteration 152 lost it to the codex outage. It reproduced both mutations and matched my counts exactly. **Both non-blocking findings were ACTED ON, not filed** (rule 3b(b) — a NON-BLOCKING label is the judge's opinion of severity, not a measurement): (1) `writeMCPEnvelope`, the file's other response path, echoes a request-controlled `id` and set Content-Type but not nosniff, so after the first commit two paths in one file disagreed — verified first-party that the id IS escaped (`<script`; raw `<script>` absent), so not exploitable, but "the encoder escapes by default" is exactly the inherited guarantee this sprint exists to stop trusting; now labelled and mutation-proven. (2) The case named "reflected html in tool args" does **not** reflect the literal payload — my own earlier probe had shown the same and I had not noticed the name overstated it; renamed.
+
+**Ruled out:** that the dev CI red was caused by the sprint or by `a4e918e1b` (steps=0 + green parent + declared incident + identical-tree recovery). That `#603` is exploitable at HEAD (Content-Type present 12/12; sniff never yields `text/html`). That `writeMCPEnvelope` leaks an unescaped id (measured escaped). That the reflected-tool-argument case contributes to the anti-vacuity count (it does not — json escaping).
+
+**Own errors, recorded rather than buried:** (a) the new envelope test's control **failed on first run** — it asserted a literal `<script>` that correct escaping guarantees is absent; the test only became meaningful once the control asserted the *escaped* form. (b) I `Write`-ed the dashboard to `sunholo-data/design_docs/` instead of `sunholo-data/ailang/design_docs/`, creating a stray file outside the repo; removed immediately, working tree verified unchanged. (c) My post-rotation check `grep '^## STATUS.*ITERATION 150'` returned 1 on a correctly-rotated charter — `.*` spans a single-line stamp, and iteration 151's stamp quotes "ITERATION 150" in its own cheap-tell record. The self-describing-file trap from iteration 134, in a new place: **the check pattern was the broken instrument, not the data.**
+
+**Routing evidence:** model=**claude-opus-5** (controller, matches the pinned table) · task-class=**execute** · executor=**pi `deepseek-v4-flash-0731`** (probe rc=0, run rc=0) · evaluator=**sonnet** · designer/planner **not fired** (bug-fix lane; rotation unchanged, next `claude:claude-fable-5`). `metered=$0.0057` of the $5 ceiling — pi/OpenRouter, real dollars (21.8k in / 3.9k out / 169k cache-read).
+
+**Gate 3b:** PR **#606** polled bounded; a full green was not obtainable within the cap. **Every failure observed on #606 carried the outage signature** — `govulncheck (vuln gate)` and `test-windows`, both `steps=1`, dead in `Set up job`, both logging `Failed to resolve action download info. Error: Service Unavailable`. Recorded as a class rather than a count: I corrected this row from '0 failures' to '1' and it was 2 minutes later, so **a failure count over an in-flight run is stale as soon as it is written** — the invariant (no repo command ever ran) is what holds. Re-run **REFUSED** (`This workflow is already running`), so it is owed once the run settles — and my `rc=0` reading on it was wrong, `$?` having read the piped `head` rather than `gh`: step 3's own trap, in the iteration that added a rule about unverified claims. Recorded as a correction rather than left as the earlier '0 failures observed', which was true when written and stale ten minutes later. The item is **NOT** marked LANDED on an unobserved green — a timed-out wait is not green.
+
+**Next:** confirm `#606` green and merge, then `#602`. **The RELEASE ask and `D-6` remain unanswered; `D-7` is NEW** — CodeQL analyses `dev` only weekly, so a Tuesday defect is invisible for ~6 days and first surfaces as noise on an unrelated contributor's PR.
+
+---
+
+## 158 — 2026-08-06 — Iteration 154: **The Actions outage was still live, so nothing could land — and the pick was chosen for exactly that. `#602` did NOT reproduce in two full-suite runs; it was confirmed by measuring the race directly at 1 spawn in 300, and that measurement refuted both the issue's stated cause and its suggested fix.**
+
+**Pick:** `#602` — the FINDINGS-BATCH row's remaining half, deliberately deferred by iteration 153 for want of a CI signal. Chosen because its work needs **no landing gate**, which is what Gate 1's outage rule prescribes. Designer/planner not fired (bug-fix lane; rotation unchanged, next `claude:claude-fable-5`).
+
+**Gate 0/1.** Kill switch armed, billing **CLEAN**, gh account correct. **Zero** open `[nightly-eval]` alarms, control **52** in `--state all`. Inbox 4 messages acked **before** sending anything, per the `ack --all` outbound-sweep hazard; Mark's executor-lane directive was already live in env and already applied by iter-153. No new Mark comment on `#559` (watermark `2026-08-04T12:16:12Z`; control: 2 Mark comments exist, both ≤ watermark). No rotation due (`#559` created `05:08Z` = **07:08 CEST**, after the Monday-07:00 **local** boundary; 50 < 80). `dev == origin/dev == e70fb7484`, running `SKILL.md` byte-identical to origin — **the 08-03 reconcile has held for a fourteenth consecutive iteration**, so Gate 4 wrote in place. Cheap tell case-correct with control (153 = 1, 152 = 2; rotation invariant 3). Died-mid-flight check on its **fifth** use found real work: iter-153's `#606`, open and MERGEABLE.
+
+**The outage signature is a FAMILY, and iteration 153's own invariant would have misread it.** That rule says the tell is that **no repo command ever ran** (`steps=0`, or dead in `Set up job`). Eleven of twelve failing jobs on `#606` matched it exactly. **The twelfth did not**: `Build macos-latest` ran **17 steps, every one success or skipped — `Run tests`, `Build binary`, `Upload artifact`, `Complete job` — and the JOB's conclusion is still `failure`.** A job whose every step passed is not a code failure; the platform failed it outside step execution. Read strictly, the invariant would have classed that one job as a genuine regression and pointed at a revert — the precise harm the rule exists to prevent. The better question is not "did steps run" but **"is the failure attributable to any step"**; when no step failed, nothing in the diff did.
+
+**I shipped a vacuous pass into my own Gate-3b poll.** The first poll reported `pending=0 failures=0 SETTLED` — over a `check-runs` list of **one** (`automerge/skipped`) where **18** had existed minutes earlier. Re-running a workflow **empties the `check-runs` collection**, and every aggregate over an empty set is vacuously green. This is not a private mistake: **Gate 3b explicitly recommends `check-runs` as the instrument that "cannot drift"** — true against SHA drift, and precisely wrong during a re-run, which is the situation Gate 3b's own re-run advice puts you in. Fixed by asserting **completeness before any verdict counts** (all four expected workflows present, else `INSTRUMENT INCOMPLETE — no verdict`). Rule 3a's known-positive control, aimed at a poll rather than a search.
+
+**The repro failed, and that is the finding's strength.** Arm C (`go test ./...`) rc=0, reported with its limitation attached — **86 of 108 packages cached, only 22 genuinely ran**, so it was a far lighter load than the issue's conditions. Arm D (`go test -count=1 ./...`) was the honest arm — **108 ran, 0 cached** — and was also rc=0. Two clean runs do not refute a flake, so I measured the variable instead of re-rolling the dice.
+
+**The issue's stated cause is off by 3×.** The fake solver is not killed by "the 1s solver timeout": `solver.go:158` gives it `max(Timeout, effectiveTimeout) + solverKillGrace` = **3s**. Corroborated rather than merely read — the isolated arm takes **3.274s**.
+
+**The measurement.** A probe replicating the spawn exactly (same script, same `Setpgid`, fresh `TempDir` + freshly-written script per trial), timing spawn → pidfile: idle **200/200**, mean 209ms, max 232ms, **0** over budget; under a full `-count=1` suite, **1 trial in 300 exceeded 3s, at 3.435s** (margin **−435ms**). So **~0.3% per spawn, ~0.7% per suite run** — which is why CI stays green, why it survived the CI-flake sprint, and why iteration 151 saw it once. The over-budget trial landed at load **13.6**, *not* at the higher **24.4**: a tail effect (first exec of a freshly written script), not a smooth function of load — **a fix tuned to "more load" would have missed it.**
+
+**The same measurement refutes the issue's suggested fix.** Polling for the pidfile cannot help: a lost race means the shell was killed *before* `echo $! > file` ever ran, so the file never appears at all. Such a trial proves nothing about process-group kill — so it is now **inconclusive** and the scenario is retried, bounded at 3 with a loud `Fatalf`.
+
+**Routing evidence:** model = **claude-opus-5** · task-class = **execute** · executor = **pi `deepseek-v4-flash-0731`** (datapoint **3 of ≥3** for Mark's new lane; probe rc=0, run rc=0, directive 7,858 B delivery-asserted, zero git writes) · evaluator = **sonnet** · designer/planner not fired. pi has **no sandbox**, so the main checkout was re-checked for out-of-worktree writes — byte-identical to preflight. `metered=$0.0063` of the $5 ceiling.
+
+**Controller re-ran every gate and ran two mutations the executor did not**, both sha256-proven to land and reverted byte-identical: **(A)** `syscall.Kill(pid)` instead of `-pid`, breaking process-group kill, reds on **every** attempt (`child process 49684 still exists after 2s`) — the one that matters, because it proves the retry **cannot mask a real regression**; **(B)** forcing the race lost every time reds with three inconclusive logs and the exhaustion message, so that path is reachable rather than a silent pass. Gate list **derived from `ci.yml`**, not recalled: `check-changelog`/`check-file-sizes`/`check-boundaries`/`fmt-check`/`vet` all rc=0.
+
+**Evaluator sonnet PASS 88/100 r1, zero blocking** (generator≠judge holds: DeepSeek/OpenRouter executor ≠ Anthropic judge), and it devised its **own** third mutation rather than replaying mine. **Its non-blocking finding was acted on, not filed — and it was a genuine scope error of mine**: I quoted the ~3s budget as if it covered both tests. It does not. `Z3Version` passes `versionProbeTimeout` (**5s**) directly as its context deadline, since `solverKillGrace` is only its `WaitDelay`. So the two tests do not share a budget, my 0.3% figure is the **smaller** budget's rate, and **0 of 500 trials exceeded 5s**. Corrected in the constant's doc comment (`5b06718b6`).
+
+**Ruled out:** that two clean full-suite runs refute `#602` (they do not — the rate is ~0.7%/run, so ~1 run in 140 reds); that the flake is a smooth function of load (the over-budget trial was at the *lower* load); that polling for the pidfile fixes it (the file is never written at all when the race is lost); that every outage job shares the `steps=0` signature (one ran 17 green steps and still concluded `failure`).
+
+**Gate 3b: NOT GREEN, so `#602` is NOT LANDED.** `#608` has **zero** workflow runs created at all; `#606`'s four re-runs were accepted (rc=0, unlike iteration 153's refusal) but **0 of 4 had started after 28 minutes**; githubstatus still reads Actions **major_outage / investigating** (incident `15:22Z`, last update `18:46Z`).
+
+**Next:** confirm `#606` and `#608` green and merge both once the incident closes, then `#545` or Lane B1. `D-6` is answered and `m-net-effect-proxy-boundary` is unparked; the RELEASE ask is settled as WAIT.
+
+## 159 — 2026-08-06 — Iteration 155: **The Actions outage still blocks landing, so the pick was the unparked `m-net-effect-proxy-boundary` — and its sprint plan refuted a claim this charter has carried for three iterations: the `AC10(d)` tripwire that is supposed to tell this item it succeeded *cannot trip*.**
+
+**Gate 0/1.** Kill switch armed, billing **CLEAN**, gh account correct, **zero** open `[nightly-eval]` alarms, inbox empty, **no new Mark comment** on `#559` (watermark `2026-08-04T12:16:12Z`; control: **2** Mark comments exist, both ≤ watermark, so the empty result is the filter working). No rotation due (`#559` created `05:08Z` = 07:08 CEST, after the Monday-07:00 LOCAL boundary; 51 < 80). `dev == origin/dev == 291142de3` and the running `SKILL.md` byte-identical to origin — the 08-03 reconcile has now held **fifteen** consecutive iterations, so Gate 4 wrote in place (charter/log re-confirmed against origin immediately before writing). Cheap tell case-correct with control (ITERATION 154 = 1, 153 = 2, rotation invariant 3). Died-mid-flight check on its sixth use found `#606`, `#608`, `.wt-iter154` — all iteration 154's, all known.
+
+**The red dev is still the outage, and the corrected question settles it in one read.** CI's `test` and `lint` are `cancelled` at **steps=0**, `build` skipped, and **no step failed anywhere** — so nothing in the diff did. githubstatus: Actions **major_outage**, incident `15:22Z` still `investigating`. GitHub's own `20:34Z` update supplies the mechanism iteration 154 was missing: webhooks throttled to **~15%**, so *pushes and pull requests are not creating workflow runs at all*.
+
+**Find 1 — I almost banked a zero from an instrument I had mis-invoked, and only the control caught it.** `gh api actions/runs?head_sha=<sha>` returned `total=0` for `#606` — a PR that `gh run list` simultaneously showed **5** runs for. Cause: I passed a **9-character truncated SHA**; the endpoint wants the full 40 and returns an empty set rather than an error for anything shorter. Measured both ways on the same commit: full → `total=5`, truncated → `total=0`. Iteration 154's "`#608` has ZERO workflow runs created" is thereby **confirmed** — but it was only ever supported once the instrument had been validated against a known-positive. Rule 3a landing in the exact place Gate 3b recommends for "maximum certainty".
+
+**Find 2 — `workflow_dispatch` is webhook-independent, and it works when `push`/`pull_request` do not.** Because the outage's mechanism is dropped webhook *events*, a POST to the dispatch API is a different code path: it creates the run directly. Fired at `#608`'s branch and measured **`total=0` → `total=1`** (`CI: queued`, `event=workflow_dispatch`) — the first run that PR has ever had. A reusable outage lever the playbook lacked. Limit: `docs-gate` still needs a real `pull_request` context (its detector diffs against the PR base), so dispatch reaches 3 of the 4 required contexts.
+
+**The pick.** `m-net-effect-proxy-boundary`, unparked by Mark's `D-6 = (A)`, chosen because a design/planning pick needs no landing gate — what the outage rule prescribes. Blocker re-verified **by purpose, not status**: CI-flake M1–M5 all landed (`c440a1628`…`c9e1a4f98`).
+
+**Both blocked quorum objections resolved with no third round.** `gemini-3-1-pro`'s unverified-premise objection was **satisfied by measurement rather than argument** (rule 3f): row **V20** re-derives `E_NET_IP_BLOCKED` (`net_security.go:27,34,46,51,56`) and `E_NET_DNS_FAILED` (`:90,94`), surfacing through `makeResultErr("Transport", …)` (`net.go:551,556,567,605,631,639`), and names the two sites the change must update — `:567` (the preflight being moved) and `:631` (where a proxy failure arrives as `*url.Error`). Control: 12 `makeResultErr(` occurrences = **11 call sites + 1 definition** at `:773`, with six non-`Transport` constructors proving the matcher discriminates. `gpt5-6-sol`'s objection was resolved by the human ruling, and **`#612` filed** as the `go/packages` AST-analyzer follow-up — at resume time rather than during M4, so it cannot be lost if the sprint slips. Option A is "cheap gate now **and** the durable gate filed", never "instead of".
+
+**V21: all five shapes a textual gate cannot see are still zero — with two instrument caveats recorded rather than smoothed over.** (a) The naive alias matcher yields a **false positive**, matching the `import` keyword itself in single-line `import "net/http"`; **iteration 150 hit this identical defect and I reproduced it before correcting** — a property of the pattern, not of one author. (b) **The `new(` control does not fire in production scope at all**: repo-wide there are exactly **4** `new(` hits and all four are in a *test* file, so iteration 150's banked "control: 4" was measured in a wider scope than the claim it supported (rule 3b(i)). Shape 2's zero is the weakest of the five — which argues **for** `#612`, not against it.
+
+**Find 3, the headline — and it refutes my own briefing and this charter.** I handed the planner, under a VERIFIED heading, that this item's landing "must flip the `AC10(d)` tripwire RED"; the queue row has said so since iteration 149. **It is false.** `testEffectsProxyResidual` (`internal/testutil/egress_posture_test.go:66-85`) constructs its **own** `&http.Transport{}` at `:74` and exercises that, while its comment states it "intentionally trips red when Option B adds `ProxyFromEnvironment` to `internal/effects`". Confirmed with the tool that cannot miss: `go list -f '{{join .TestImports}}' ./internal/testutil` = **12 imports, all stdlib, zero ailang packages** (control: `./internal/effects` = **6** ailang imports). **A tripwire watching a local replica of its own subject** — this mission's "a guard whose removal reds nothing" discipline in a new shape: a guard never *connected* to what it guards. It shipped through a full sprint, a quorum and an evaluator PASS. The design doc was right all along ("**helper-only** residual logic"), so M4 is a deliberate **deletion**; the charter framing was wrong and the queue row is corrected. Sibling defect, same root cause: `m-ci-flake-systemic-fix-sprint-plan.md:460` describes an AC10(d) falsification drill that is not executable.
+
+**Find 4 (planner, rule 3e).** All three M1/M2 named-test gates return `rc=0` with **0** `=== RUN` lines and `[no tests to run]` at base — written as "rc=0" they would pass after a revert that *deletes the tests*. Every named-test AC now asserts a `=== RUN` count. `go build ./...` **confirmed rc=1 at base** (`cmd/wasm`, `gen/main` have no native `main`), excluded and replaced by a scoped build baselined rc=0.
+
+**Freshness (rule vi-b).** Swept from the doc's own measurement base `263df3df8`: **none** of the files its rows cite has changed (control: `internal/apiserver/mcp.go` correctly detected as changed). `V2` re-derived first-party — still **7** literals across **4** files at the same sites; `V3` production `ProxyFromEnvironment` = 0 with a 3-hit test control.
+
+**Ruled out / refuted.** (1) My own AC10(d) claim — refuted by the planner, then confirmed refuted first-party; the loop working, per Gate 2 rule (d). (2) That `#608` genuinely had no runs *because GitHub refused it* — refuted: it had none because the webhook was dropped, and a dispatch created one immediately. (3) That `head_sha=` returning zero meant zero runs — refuted by the truncation control. (4) That the sprint JSON was malformed because `.milestones` was empty — **my instrument error**: the schema key is `features`, confirmed against a known-good landed sprint JSON.
+
+**Verification.** Sprint JSON `jq -e` valid, 4 features, no `MILESTONE_ID`/`auto-parse failed` placeholders, plan names its design doc, 636 lines. Planner made no commits and created no branches (`git status` clean apart from the three known rig-synced files). Doc-relevant gates run before commit: `make check-changelog` rc=0, `make check-file-sizes` rc=0. Charter rotation scripted with the line-count invariant asserted **before** writing (1866 → 1864, exactly `−2×1` moved) and post-edit queue integrity re-checked (queue header 1, 65 LANDED rows, 11 NEXT, CURRENT GOAL 1, stamps 3).
+
+**Routing evidence:** model=**claude-opus-5** (controller, matches the pinned table) · task-class=**plan** · planner=**opus** (`tools/launchd/derive-planner-lane.sh` → `opus fail-closed:env-pin`, used verbatim; no codex probe fired, as the lane rule requires) · designer **not fired** (the doc already existed — rotation unchanged, last-used `codex:gpt-5.6-sol`, next `claude:claude-fable-5`) · executor/evaluator **not fired** (no code written). `metered=$0.00` of the $5 ceiling.
+
+**Gate 3b: NOT GREEN — nothing landed.** Both commits (`945f36727` doc revision, `7c7e5e58a` plan) are doc-only and **unpushed pending the outage**. `#606`: Build-and-Release and Docs **success**, CI + CodeQL **queued**. `#608`: CI **queued** via my dispatch. Per the outage rule this is a resume point, not a failure — and "0 failures observed" is not a green.
+
+**Next:** merge `#606` + `#608` the moment CI drains, push these two commits, then route `m-net-effect-proxy-boundary` M1 to an executor (pi lane, datapoint 4). **`D-1` — the knowing trade of target-IP SSRF pinning on proxied routes — is still owed a human ratification** and is the only ask on this item.
+
+## 160 — 2026-08-07 — Iteration 156: **The outage recovered and both resume-point PRs were unwedged — but the headline is that `m-net-effect-proxy-boundary` M1, implemented faithfully to its quorum-reviewed design, *removes* SSRF IP-blocking for literal private IPs and reds four existing tests on CI's own poisoned-proxy legs. `D-1` is no longer an abstract trade.**
+
+**The pick.** Queue head `m-net-effect-proxy-boundary`, M1 — exactly what iteration 155's Next prescribed. Doc + plan both existed (no designer, no planner). Doc↔plan cross-diff done first-party (rule vii): doc M1 = 4 ACs, plan `AC-M1.1..1.4` map exactly, 4+2+3+3 = **12** all owned once. Every plan-cited line number re-derived rather than transcribed (rule 3b(v)) and **all exact**. Blockers re-verified by purpose: CI-flake M1–M5 all landed.
+
+**Find 1 — iteration 155's `workflow_dispatch` lever is half a lever, and both halves are measured.** (a) It is **time-sensitive**: iter-155's dispatch at `21:30Z` was still `queued` with **`jobs=0`** seven hours later, as was `#606`'s `pull_request` run from `17:02Z`; dispatches fired at `23:38Z` reached **`jobs=6` in 12 seconds**. The discriminator is not "did a run get created" (`total_count`) but **"did it acquire jobs"** (`runs/<id>/jobs`). A wedged run also cannot be cancelled — `gh run cancel` says *"Cannot cancel a workflow run that is completed"* while the runs API simultaneously reports `queued`. (b) More important: **a dispatch's checks do not satisfy branch protection.** All four required contexts came back success on the head SHA via `commits/<sha>/check-runs` (18 and 12 rows), yet `gh pr checks --required` showed only `docs-gate` and the PR stayed `BLOCKED` — the gate is the *`pull_request`* check suite, which was the wedged one. Rule 3d: iter-155 predicted the dispatch would unblock the PR, saw a run appear, and banked the mechanism without checking the thing it was for. Note the inverse of Gate 3b's own warning too — `statusCheckRollup` **under-reported** (1 and 0 rows vs 18 and 12), so that aggregate was vacuously *red*.
+
+**Find 2 — the actual fix, and it needs no local checkout.** `POST git/commits` with the branch's **existing tree SHA** and the current head as parent, then `PATCH git/refs/heads/<br>`: a tree-identical empty commit fires a real `pull_request: synchronize` and creates a fresh, PR-scoped check suite. Tree identity asserted by comparing the new commit's `.tree.sha` to the old. Measured on both branches: `total=0 → total=5`, all four workflows `in_progress` at once. No working tree touched, so Critical Principle 0 is not engaged, and squash-merge absorbs the commit. *(zsh footnote, 5th instance: `-f parents[]=…` glob-expands — `no matches found` — so the commit was never created and the ref PATCH failed 422 on an empty sha. Failed safe; quote it.)*
+
+**Find 3, the headline — the design is faithfully implemented and that is the problem.** M1 moves IP validation off the preflight into the **direct** route only; by design the proxy route does zero target resolution or validation. Consequence nobody had drawn: a **literal private IP** target is handed to the proxy **unvalidated**. Under the exact env `ci.yml` sets on its own test legs (`:89-91`, `:350-352`), `TestNetIPValidation` is **rc=1, 4 of 7 subtests failing on this branch** and **rc=0, 7 PASS on pristine dev** — a real negative control, so this is attribution by mechanism, not co-occurrence. The three loopback subtests survive *because* `NO_PROXY` routes them direct, which corroborates the mechanism. So M1 alone reds CI, and `D-1` — flagged since iter-150 as an abstract trade — is now a demonstrated loss of an existing control. **A third option the doc does not carry**: `resolveAndValidateIP` already has a `// Special case: raw IP address (skip DNS)` branch calling `validateIP` with zero network I/O, so validating a literal-IP target on the proxy route costs no DNS and carries no TOCTOU/rebinding risk — the doc's own rationale does not reach that case. Not implemented unattended (rule vii: the doc wins; Standing rule 2: do not narrow a quorum-cleared security boundary alone). Escalated as the iteration's single ask.
+
+**Find 4 — my own process error, recorded not buried.** I read a **truncated tail of a 150 MB NDJSON still being written**, saw a mid-sentence `stopReason` and zero usage, ran `pgrep -f "pi --mode json …"` which returned nothing, and concluded the executor had died. It had not — `rc=0` over **47 turns**, and it wrote the tests itself. On that false diagnosis I spawned a **second executor into the same worktree**, causing the concurrent-shared-tree hazard this mission has a memory about. It ended well only because the second agent detected the collision, refused to clobber, and audited the first's tests — finding **four genuine vacuity defects**: the AC-M1.4 subtests sat in a **fifth top-level test the graded `-run` regex excluded** (so they never ran under the gate), `strings.Contains` category checks that survive removal of the `url.Error` unwrapping, a non-hermetic "alternate endpoint" assertion that escaped to the real resolver under mutation, and a `TestNetProxyNoProxy` with no proxy in it. Lesson, and the mirror of the existing `pgrep` memory: **`pgrep -f` is unreliable in BOTH directions — a false negative is a liveness claim, not a fact.** Wait on the process handle or the output artifact.
+
+**Controller verification.** Nothing executor-reported was banked. AC-M1.1 re-run first-party: `rc=0`, `=== RUN` **17**, four top-level `--- PASS`, 0 FAIL, 0 sandbox denials — baseline `rc=0` / `=== RUN` **0** / `[no tests to run]`, i.e. vacuously green, so the count is the load-bearing half. Gate list **derived from `ci.yml`** (rule 3g): scoped `go build`, `go vet`, `gofmt`, `make check-file-sizes`/`check-boundaries`/`check-changelog`/`fmt-check`, and `go test ./internal/effects ./internal/executor/... ./internal/testutil` — all rc=0. **My mutation D** (neuter the production `http.ProxyFromEnvironment` default) reds the gate, proven to LAND, restored sha256-identical — but via **exactly one** subtest, so the production default has a single point of coverage while the other 16 drive `proxySelector`, a test seam pi added to production that the doc never specified. pi has **no sandbox**: main checkout diffed against its preflight snapshot, **byte-identical**.
+
+**Evaluator (sonnet, generator≠judge intact): HOLD 71/100.** Reproduced both arms of Find 3, ran **three further distinct mutations** (bypass direct validation; reverse routing; re-add preflight resolution to the proxy path), each reddening the expected subtests, all sha256-restored. **Refuted my per-request-transport leak worry** by measurement — zero goroutine delta across 20 sequential and 50 concurrent requests — and confirmed no behavioural drift (the originals were bare `http.Transport{}` too). Independently endorsed the literal-IP narrowing. Its `NB2` stands and is honest: **no test covers a redirect that changes proxy applicability per hop**, which the doc advertises.
+
+**Ruled out / refuted.** (1) My "the pi run died" diagnosis — refuted by `rc=0`/47 turns; the instrument (`pgrep -f` + a partial file read) was broken, not the run. (2) My per-request-transport connection/goroutine leak hypothesis — refuted by the evaluator's measurement, not by argument. (3) "The dispatch lever unblocks a PR" (inherited from iter-155) — refuted: the checks land on the SHA but not on the PR's required set. (4) "The wedged runs will drain as capacity returns" (iter-153/154's expectation) — refuted: 7h later, still `jobs=0`, and uncancellable; only a new event helps. (5) A GREEN during the incident does **not** mean the incident is over — corroborated first-party in this repo (CI[dev] `success` 17:32Z, then `failure` 20:03Z, with runs from 17:02Z still wedged across both).
+
+**Routing evidence:** model=**claude-opus-5** (controller) · task-class=**execute** · executor=**pi `deepseek-v4-flash-0731`** + **opus FALLBACK (FLAGGED — spawned on a false death diagnosis, not a real lane failure)** · evaluator=**sonnet** · designer/planner **not fired** (doc + plan existed; rotation unchanged, next `claude:claude-fable-5`). `metered=$0.0893` of the $5 ceiling (pi/OpenRouter — 127.2k in / 61.9k out / 3.71M cache-read).
+
+**Gate 3b.** `#606` and `#608` unwedged and driven to real PR-scoped checks (`test`, `lint`, `docs-gate` pass; `build` gated behind `test`). **M1 is deliberately NOT landed** — `#613`, a DRAFT titled DO-NOT-MERGE, because its CI red is not a defect to fix but the evidence for `D-1`. Per mission-world's P1 (adopted this iteration), a green during an open incident licenses a **code** inference and never an **infrastructure** one, so nothing here records the outage as over; githubstatus still read Actions **major_outage / investigating** at write time.
+
+**Next:** merge `#606` + `#608` on their real greens; `D-1`'s answer then decides whether M1 proceeds as written or with the literal-IP narrowing; `#545` and Lane B1 behind it.
+
+## 161 — 2026-08-07 — Iteration 157: **The queue head `#604` is real and its design is written — but the quorum found a *second* vacuous-pass vector one level down, and the doc is parked because a reviewer will not let us ship a fix that pins a known silent false-green as expected behaviour.**
+
+**The pick.** Queue head `#604` (named test bodies grade only the last expression). No design doc existed (`grep -ri` across `design_docs/` before routing — the NEW-DOC tag was a claim and this time it was true), no quorum artifact. **Both binaries were STALE at pick time** — `~/go/bin/ailang` at `-42`, `bin/ailang` at `-39`, against `git describe` `-60` — and rebuilt before any live check; that step is what makes everything below a measurement rather than a recollection. The outage that shaped iterations 153–156 is over: githubstatus reads *All Systems Operational* with zero unresolved incidents and all three workflows are `success` at HEAD. I closed it on the **provider's status API**, not on my own green — the rule this skill adopted from mission-world one iteration ago, used for the first time in the direction it was written for.
+
+**Not a ghost, and the control is the whole point.** `{ add_one(1) == 99; add_one(1) == 2 }` → **rc=0, `All tests passed!`**; order swapped → **rc=1, `expected true, got false`**. Same binary, same file shape; the only variable is position. Load-bearing because **#590's assert lowering landed after the issue was filed and touches this exact code path** — it did not fix it.
+
+**Find 1 — the machinery already exists, and #590's author said so in the file.** `test_body_lowering.go:126-131` scopes #604 out verbatim and calls the fix *"a one-case extension of the switch below"*; `FoldTestBody` already lowers to an int sentinel with `CheckInfo` ordinals. The line reference the charter had been carrying (`runner.go:156-158`) is **stale** — the real sites are `runner.go:198/202` — re-derived rather than transcribed.
+
+**Find 2 — the issue's OWN suggested fix is unimplementable, and that is a class.** The fold is purely syntactic: `EvaluateNamedTestBodyExprs` prints the folded AST back to source and re-runs the full pipeline, so no type information exists at fold time. The issue's suggested direction, *"conjoin all **bool-valued** expressions"*, therefore cannot be implemented as written — nothing at that point knows which expressions are bool. **This is the 2nd instance of a shape the ghost discipline does not cover: an issue's BUG gets verified and its SUGGESTED FIX does not, and the queue row then carries that fix verbatim into the design space.** Instance 1 was iteration 154, where `#602`'s suggested pidfile-polling fix was refuted by the same measurement that confirmed its bug. Pre-registered as a Gate-5 watch-item at **instance 2**; it did not become this iteration's skill edit only because iteration 156 had already committed P2 to World, and a public commitment beats a fresher finding.
+
+**Find 3, the headline — the quorum earned its fee.** `gemini-3-1-pro` blocked on a vector nobody had named: `FoldTestBody` walks only the **top level** of `TestDecl.Body`, so a nested block still discards everything but its last expression. Per rule 3f I measured it instead of forwarding it, and it is real — in two shapes, each with a discriminating control: `if true then { a==99; a==2 } else false` → **rc=0 `All tests passed!`**, bare `{ a==99; a==2 }` → **rc=0**; move the false check LAST in either and both → **rc=1**. All four files parse and run today. **Filed as `#614`** during the round, so the doc's follow-up DoD item became "link it" rather than "file it" — patched into the doc in 6 places, because the designer could not cite a number that did not exist when it wrote. The reason this matters more *after* the fix than before: closing the top level while advertising *"structurally impossible"* converts a known bug into a **trusted** one.
+
+**Quorum: blocked ×2, one revision, then blocked again — and I did not bank a degraded proceed.** R1 rejected by both reviewers; I ran **both** objections myself before routing either, and both were **upheld, not argued down** — `gpt5-6-sol`'s trigger/uniformity objection confirmed by `test { 42 }` → `expected bool result, got *eval.IntValue` (the runner contract, not a lowered-`if` type error), gemini's as above. The revision took (a) narrow every uniformity sentence to the sentinel path, and (ii) scope the nested vector out honestly, deleting *"structurally impossible"* throughout. **R2 returned `proceed` rc=0 — with `gpt5-6-sol` ABSENT for `budget`.** The reviewer that raised objection 1 never saw objection 1's fix. A degrade to N-1 is by design, but **"absent" is not "satisfied"**, and banking it would have been this mission's own vacuous-pass class wearing a green exit code. The targeted re-run at `--max-cost-usd 0.30` **blocked on a NEW objection**: the doc pins the residual silent false-green as expected behaviour via a `nested_block_residual.ail` fixture, which violates no-silent-fallbacks / Machines First — *"nested checks can still fail while `ailang test` returns exit 0."* That disputes a direction choice and both rounds are spent → **Standing rule 2: parked, not forced through.**
+
+**The park carries numbers, so `D-2` is a one-word answer (rule 3f(c)).** The doc rejects the close-it-properly options because `internal/ast` has no generic Walk/Inspect — verified first-party: **0** hits, control **168** funcs across `internal/ast/*.go`, and the one walker found by widening (`internal/types/traverse/traverse.go`) is `func Walk(t types.Type, …)`, types not AST, so it does not refute the argument. But the argument is weaker than it looks: there are exactly **27** expression node types in `internal/ast/ast_expr.go`, so an exhaustive type switch with a **loud `default:`** makes "silently misses a node" impossible by construction — the repo's own Principle 2. Options for Mark: **(A)** ship top-level-only with `#614` open, **(B)** widen to close the nested vector, **(C)** make a multi-expression block inside a test body a static error.
+
+**Controller verification — nothing designer-reported was banked.** `executor.go:370` really does emit `check %d failed` for `IsAssert:false`, so *"a bare bool expression is a check"* is **already shipped semantics** for the final position and option 2 extends rather than invents it. `let u: () = ()` compiles **rc=0**, so option 1 was rejected on merits, not impossibility. Row **V6** re-run faithfully → `Effect checking failed for function '_seq' / Missing effects: IO`, rc=1.
+
+**Ruled out / refuted.** (1) My own near-miss: the first V6 re-check omitted `import std/io (println)`, produced `undefined variable: println`, and I briefly read it as the designer mis-attributing the mechanism. **The row was right and my instrument was wrong** — rule 3a aimed at my own re-check of someone else's evidence, and a reminder that verifying a claim badly is its own failure mode. (2) "The issue's two options are symmetric" — refuted; option 1 is a type obligation enforceable downstream, option 2 as literally phrased needs type info the fold cannot have. (3) "A generic AST walker exists to reuse" — refuted, with the `types.Type` walker as the near-miss that makes the grep look answered. (4) "`ack --all` is fine when only inbound messages are unread" — not tested; acked individually anyway, and 4 of 5 returned *already read* because reading had marked them, verified against `list --compact` rather than assumed.
+
+**Routing evidence:** model=**claude-opus-5** (controller) · task-class=**design** · designer=**`claude:claude-fable-5`** via `claude-sub` (probe rc=0; one new-doc run + one bounded revision, both delivery-asserted ≥200 B, closed stdin, 30-min cap, both rc=0) — **rotation advanced to `codex:gpt-5.6-sol`** · planner/executor/evaluator **not fired** (design lane; the doc parked before planning, so there was nothing to plan or judge). `metered=$0.2130` of the $5 ceiling — quorum reviewers only (R1 $0.0916, R2 $0.0369, R2b $0.0845); the designer rides a subscription bucket, not dollars.
+
+**Gate 3b.** Doc-only commits. `#604` is **not landed** and was never going to be this iteration — the deliverable is the design, the second vector, and `#614`. No landing gate was needed, so none is claimed.
+
+**GATE 3b AMENDED BEFORE REPORTING, NOT LEFT STALE — AND THE SHA-ADDRESSED CROSS-CHECK IS WHY.** The two EXPECTED workflows both went `completed/success` on `7019d1230` with completeness asserted (`present==expected==2`; Docs-Deploy correctly recorded **N/A**, since its `paths:` filter covers `docs/ prompts/ llms.txt CHANGELOG.md internal/ cmd/ go.* web/` and this diff touches only `.claude/` and `design_docs/`). But the SHA-addressed read that Gate 3b calls the instrument that *cannot drift* returned `total=15 failures=1` — **SonarCloud Code Analysis, Quality Gate failed, 78.7% coverage on new code against a required 80%.** The per-workflow read alone would have reported a clean green, because Sonar is a separate app and Gate 1 polls three named Actions workflows by name. **Negative control (rule 3d/3e): it was ALREADY `failure` on the parent `74dd06bb6`, and my diff contains ZERO `.go` files, so it cannot have moved coverage.** Walking it back further, it is `failure` on **five consecutive analysed commits** — `79caa15b3`, `49a6af789`, `1d355245a`, `74dd06bb6`, `7019d1230` — i.e. across iterations 155/156/157 AND the `#606`/`#608` merges, with three docs-only commits in between simply not analysed. So it is a **standing condition inherited from earlier Go work, not a regression from this push**, and Sonar is non-required (UNSTABLE is not BLOCKED). **The finding worth keeping is the instrument gap, not the number**: four iterations walked past a persistent red because Gate 1's health check enumerates three workflows by NAME rather than reading the commit's full check set, so any gate from a different app is invisible to it by construction. Filed as an observation here rather than acted on — it is nobody's sprint, my one Gate-5 skill edit was already spent on P2, and coverage-on-new-code needs a Go-diff iteration to move it. **Next:** `D-2` decides `#604`'s scope; `D-1` still decides `#613`/M1; then `#545` or Lane B1. **Two asks now, both one word.**

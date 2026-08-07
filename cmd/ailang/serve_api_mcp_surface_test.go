@@ -9,27 +9,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 )
 
 func TestServeAPI_MCPToolSurface(t *testing.T) {
-	if testing.Short() {
-		t.Skip("builds and drives the serve-api stdio MCP binary")
-	}
-	// Windows refuses to exec a file without the .exe suffix, failing with
-	// "executable file not found in %PATH%" — which reads like a missing
-	// toolchain rather than the naming bug it actually is.
-	binaryName := "ailang"
-	if runtime.GOOS == "windows" {
-		binaryName += ".exe"
-	}
-	binary := filepath.Join(t.TempDir(), binaryName)
-	build := exec.Command("go", "build", "-o", binary, ".")
-	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("go build: %v\n%s", err, output)
-	}
+	binary := buildAilang(t)
 
 	moduleRoot := t.TempDir()
 	modulePath := filepath.Join(moduleRoot, "api", "surface.ail")

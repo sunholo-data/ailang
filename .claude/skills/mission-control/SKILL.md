@@ -16,6 +16,46 @@ inner-loop skills — it does not duplicate them.
 improvement loop, since retro fixes must benefit all missions). What differs per mission is a small
 **profile**, read from two places:
 
+> **⚠ A SKILL EDIT IS LIVE FOR EVERY MISSION THE INSTANT YOU SAVE IT — there is no sync step, and
+> no "the sibling is insulated" grace period** (added 2026-07-31 iteration 125; instances: iter-123
+> filed `#544` after finding `.claude/skills/` vs `.agents/skills/` duplicated with **31 of 38
+> diverged**, and iter-125's planner refuted the controller's own cross-mission blast-radius claim).
+> Measured on the rig, and the measurement corrected the first draft of this very note:
+> `~/.claude/skills/mission-control` is a **SYMLINK to `<repo>/.claude/skills/mission-control`**
+> (`readlink` confirms; both paths report the **same inode**). So the "global copy" and the "repo
+> copy" are **ONE FILE**, not two — `ls -la` on the *file* hides this, because the symlink is on the
+> *directory*. Editing the repo copy is instantly live for every mission on the rig, and
+> `ailang-world` has **no repo-local `.claude/skills/` directory at all**, so it resolves through
+> that same symlink. A **third**, genuinely separate, git-tracked and already-drifted copy sits at
+> `<repo>/.agents/skills/mission-control/SKILL.md` (44,067 B vs 72,254 B) — that one is a real
+> divergence and is what `#544` tracks. Two consequences: **(a)** a Gate-5 skill edit needs no
+> copy-sync, but it DOES take effect for the sibling mission's next fire with no review gate of its
+> own, so write it to be true for every mission, not just this one; **(b)** never infer
+> cross-mission blast radius from the DRIVER alone — the drivers really are two byte-identical
+> files (`diff -q` silent), and iter-125 cited that true fact for a broader "blast radius = zero
+> until synced" claim that is FALSE, because the skill is shared by symlink. That is a Gate-2
+> rule-3b **scope** error: a green check quoted for a sentence wider than it supports. Check the
+> skill path separately from the driver — `readlink` before concluding anything about copies — or
+> say "driver-only" and mean it. **(c) "The instant you save it" holds only for an edit SAVED IN
+> THE MAIN CHECKOUT — a Gate-5 edit COMMITTED FROM A WORKTREE reaches origin and never reaches the
+> running skill** (added 2026-08-01 iteration 128; instance 2 of the diverged-checkout class after
+> iter-127 surfaced the divergence, and the first time the harm was measured). The symlink resolves
+> to the MAIN CHECKOUT's *working tree*, so what the loop executes is that checkout's file at its
+> own HEAD — not origin's. Iteration 128 measured its own rulebook: of the last 8 commits touching
+> this file the newest TWO (`858b067d4`, `c7fc3b954`) were `NOT-in-local-HEAD`, while every older
+> one was — the older ones had been saved in place, the new ones committed from worktrees. So the
+> loop was executing a copy **missing iter-127's own Gate-4 STATUS-rotation mass-deletion guard**,
+> a rule added because that step had already destroyed the charter's 1,571-line queue once. The
+> drift is one-way and unbounded: every sprint lands from a worktree, so every Gate-5 edit made
+> that way widens the gap — silently, while this very note promises the opposite. At Gate 1, after
+> the origin fetch, **diff the RUNNING skill against origin**:
+> `git show origin/dev:.claude/skills/mission-control/SKILL.md | cmp -s - .claude/skills/mission-control/SKILL.md`
+> — if it DIFFERS, read the delta (`git diff origin/dev -- <skill>`) BEFORE proceeding and say so
+> in the report, because the rules you are about to follow are not the rules the mission agreed on.
+> Prefer saving Gate-5 edits in the MAIN checkout when that tree is clean enough to commit from;
+> when Principle 0 forbids that, land via the worktree AND escalate the reconcile as a human
+> decision — the loop cannot fix its own rulebook by writing only to a tree nobody executes.
+
 - **Driver env** (exported by `tools/launchd/mission-control.sh`): `MISSION_NAME` (default `v1`),
   `MISSION_REPO` (default `sunholo-data/ailang`), `MISSION_DOC` (default `design_docs/v1-mission.md`);
   the bookkeeping-issue number lives in `~/.ailang/state/mission-gh-issue` (V1 falls back to `329`).
@@ -88,7 +128,17 @@ on one rig from colliding.
    nightly) → close as transient; **genuine + persisting → comment** the triage verdict and leave
    open (it's the pick). Find them: `gh issue list --search "[nightly-eval] in:title" --state open`.
    Eleven stale alarms accumulated in 5 weeks before this rule; zero is the standard now.
-5. **The bookkeeping issue is BIDIRECTIONAL (added 2026-07-16, Mark: "I could comment on the
+5. **WEEKLY EXTERNAL-ISSUE SWEEP (Mark 2026-08-03: "does our loop include triaging github
+   issues?" — it didn't; 12 open issues had zero charter mentions when he asked).** On the FIRST
+   iteration after each Monday-07:00 rotation, list open issues and flag any whose number appears
+   NOWHERE in the mission doc: `gh issue list --repo "${MISSION_REPO:-sunholo-data/ailang}"
+   --state open --limit 50 --json number,title,author` then check each `#<n>` against the
+   charter. Zero-mention issues get triage-lite (ghost-discipline the repro → verdict comment →
+   queue-or-close), batched into ONE queue row, positioned by normal ordering — a sweep NEVER
+   outranks existing picks by itself; only a confirmed soundness/regression finding does, via the
+   standing rules. This closes the gap where issues arrive outside the three watched channels
+   (nightly-eval bot, cross-mission messages, Mark's bookkeeping comments).
+6. **The bookkeeping issue is BIDIRECTIONAL (added 2026-07-16, Mark: "I could comment on the
    issue myself and that feedback could be acted upon")** — Mark replies to iteration reports by
    commenting on #329 (it's where he reads them, by email). Check for new HUMAN comments:
    ```bash
@@ -119,7 +169,7 @@ on one rig from colliding.
    directive, never unparks anything — at most mention it in the report if substantive.
    Any allowlisted hit = a **human directive** with the same rank as an inbox directive (outranks
    the queue; an answer to a parked item UNPARKS it and makes it this iteration's pick).
-6. **BILLING TRIPWIRE (Mark 2026-07-17 — "this needs to be 100% safe"):** run
+7. **BILLING TRIPWIRE (Mark 2026-07-17 — "this needs to be 100% safe"):** run
    `test -z "$ANTHROPIC_API_KEY" && test -z "$ANTHROPIC_AUTH_TOKEN" && echo CLEAN || echo LEAKED`.
    If LEAKED, the `~/.zshenv` subscription-only guard has regressed: **all `claude:` CLI lanes are
    OFF for this iteration** (roles fall back to Agent-tool pins, FLAGGED), and send a controlplane
@@ -177,6 +227,44 @@ advances origin/dev without touching the local ref, so the working-tree copies a
 pull/reset the shared main tree (Critical Principle 0 — it may hold a sibling's uncommitted work);
 treat origin as truth, and if you need the code, branch a worktree from `origin/dev`.
 
+**REPAIRING the divergence, not just routing around it** (added 2026-08-03 iteration 132, after
+THREE iterations each escalated the reconcile as a human ask instead of performing it — iter-128's
+stale *skill*, iter-129's stale *charter*, iter-131's stale *driver*, which defeated an explicit
+human instruction for two days). Everything above tells you how to SURVIVE a stale checkout; nothing
+told you how to END one, so the divergence grew monotonically — 8 behind, then 10, then 11 — and each
+iteration paid the tax again. A reconcile is **provably non-destructive** when four obligations all
+hold; measure them, do not assume them, and if ANY fails, park for human:
+
+1. **Every local ahead-commit is a duplicate of an upstream one** — compare `git patch-id --stable`,
+   not commit titles. Iterations 129–131 all asserted "the ahead-commit is a duplicate" from its
+   *subject line*; iteration 132 measured it (`fc808504e7…` on both sides). Same claim, different
+   epistemic status, and it is the fact the whole operation rests on.
+2. **No incoming commit touches any locally-modified file** —
+   `comm -12 <(git diff --name-only dev origin/dev|sort) <(dirty files|sort)` must be EMPTY, and
+   rule 3a applies: pair it with a control (the intersection against files you KNOW origin changed)
+   so an empty answer proves the instrument ran.
+3. **Back up every dirty file** outside the repo first, and re-verify byte-identity afterwards.
+4. **Use `git checkout -B dev origin/dev`, which is protective** — it updates clean files, carries
+   local modifications across, and ERRORS rather than clobbering. Its refusal is a feature: it is
+   what distinguishes this from `reset --hard`, which Principle 0 forbids precisely because it
+   cannot refuse. None of Principle 0's four named operations (branch checkout to a *different*
+   branch, pull, reset, stash) is involved.
+
+**The refusal you should expect, and its fix.** `checkout -B` compares the working tree against the
+**stale local HEAD**, not against the target — so a file whose content ALREADY EQUALS origin (e.g. a
+previous iteration's containment restore) still reads as a clobber risk and blocks the switch. Stage
+origin's blob for exactly those paths — `git checkout origin/dev -- <paths>` — then retry. Verify by
+sha256 that **no byte on disk changed**; it only updates the index. Do not "fix" this by reverting
+them to the stale version first: that briefly re-arms the very bug you are clearing, and on a rig
+where launchd fires on a timer, briefly is enough.
+
+Standing authorisation is a HUMAN decision, not a controller one — Mark authorised the 2026-08-03
+reconcile explicitly. Until he grants a standing one, ASK (a one-word DECISIONS row) and meanwhile
+route around it as above. **A one-time reconcile is not the durable fix**: every launchd entry point
+still executes from the shared checkout's *working tree*, so this recurs the moment the tree falls
+behind. Note also which gates get CHEAPER once local == origin — Gate 4 may then write the
+charter/log **in place** rather than via a worktree, since its stale-base hazard is gone.
+
 Read: the mission doc (queue, guardrails, routing policy — they may have changed), the last 1–2
 log entries (especially **Next** and **Ruled out** — do not re-chase), any parked
 `needs-human-review` items that got human answers in the inbox.
@@ -202,6 +290,49 @@ pre-dated the sprint; one first appeared on a docs-only commit). The fix (or a r
 allowlist/revert) IS this iteration's first deliverable. Time-based reds (new vuln advisories,
 runner-image changes un-hiding latent bugs, dependabot peer-dep breaks) hit whoever observes
 next — that's the mission's job now.
+
+**BUT A RED CAN BE THE CI PROVIDER ITSELF, AND THEN THE DELIVERABLE IS THE DIAGNOSIS — NOT A FIX,
+AND EMPHATICALLY NOT A REVERT** (added 2026-08-06 V1 iteration 153; instance 1 was `mission-world`
+iteration 58 the SAME DAY, which hit the identical signature in a different repo and carried it
+into its next iteration as unfinished business). Everything above assumes the red is *about your
+code* — a latent bug, a new advisory, a stale gate. It offers exactly two dispositions, fix or
+revert, and both are WRONG when the provider is down. That matters because the rule "a RED dev
+outranks the queue" plus "the fix IS the first deliverable" reads as a standing instruction to
+*change something*, and the most available change during an outage is reverting the most recent
+merge — i.e. destroying good work to appease an unrelated infrastructure event, while the real
+green is unobtainable to confirm it either way. Rule 3d in its purest form: the red arrived right
+after a merge, in the direction you would predict, and the co-occurrence is the whole illusion.
+The discriminating signature is **that no repo command ever ran**: `steps=0` on the job, or a
+failure whose last step is `Set up job`, i.e. before checkout. Read it with
+`gh api repos/<o>/<r>/actions/runs/<id>/jobs --jq '.jobs[] | "\(.name) [\(.conclusion)]:
+steps=\(.steps|length) last=\(.steps[-1].name // "-")"'` — `--log-failed` is useless here, because
+there is no log to fail. **CORRECTION, measured 2026-08-06 iteration 154 on the FIRST re-use of
+this rule: the signature above is a FAMILY, and `steps=0` is only its commonest member — do not
+read it as an invariant.** Eleven of twelve failing jobs on that iteration's PR matched it exactly;
+the twelfth, `Build macos-latest`, ran **17 steps, every one `success` or `skipped` — including
+`Run tests`, `Build binary`, `Upload artifact` and `Complete job` — and the JOB still concluded
+`failure`.** A job whose every step passed is not a code failure; the platform failed it outside
+step execution. Read strictly, "no repo command ever ran" would have classed that one job as a
+genuine regression **and pointed at exactly the revert this whole rule exists to prevent** — the
+one non-matching job in a set of twelve is the one you would have blamed. So ask the question the
+signature is a proxy for: **is the failure attributable to any STEP?** If no step failed, nothing
+in the diff did, whatever `steps` counts. Then establish it with controls rather than vibes, because "CI is flaky
+today" is exactly what someone says right before reverting a good commit: **(a)** the SAME jobs on
+the PARENT commit — green there, minutes earlier, is the before-arm; **(b)** the provider's own
+status API (`curl -s https://www.githubstatus.com/api/v2/summary.json`), checking that the
+incident WINDOW covers your run's `createdAt`, not merely that an incident exists; **(c)** the
+strongest control available and the one to reach for — **re-run and look for outcome divergence on
+a byte-identical tree**; iteration 153's `docs` job went cancelled→success across re-runs with no
+code change, which is only possible if the variable is the environment; **(d)** a sibling mission
+or unrelated repo hitting the same signature in the same window. Disposition: **do not revert, do
+not fix-forward, do not park the whole iteration.** Fire the re-runs (they queue and drain as
+capacity returns — Build-and-Release recovered on its own this way), record the diagnosis with its
+controls as the deliverable, and say plainly in the report that dev is red for a declared outage
+and re-running is owed once the incident closes. Then **pick something that does not need the
+landing gate**: an analysis, a triage, a decision-bearing investigation. And when the sprint work
+IS done, Gate 3b still binds — **0 failures observed is not a green**, so the item does not become
+LANDED; it becomes a resume point, named as such in the charter. The tell you are about to pay for
+this: you are reading a red run's logs and finding nothing, and reaching for `git revert`.
 
 ## Gate 2 — PICK + REALITY-CHECK
 
@@ -255,6 +386,65 @@ committing. And a PR search alone is NOT sufficient: direct-to-dev commits have 
 local log and the PR search; only the planner's own fetch caught it — the sprint was then
 re-scoped in flight rather than pre-pick). When a sibling session is active (dirty shared tree,
 fresh commits appearing), also send a controlplane CLAIM message naming the item before routing.
+
+**AND CHECK FOR AN ITERATION THAT DIED MID-FLIGHT — ITS WORK IS INVISIBLE TO EVERY CHECK
+ABOVE, IN EXACTLY THE WINDOW WHERE IT IS MOST NEARLY DONE** (added 2026-08-06 iteration 149;
+2nd instance after iteration 121). Every check above looks for work that FINISHED: a merged
+PR, a direct-to-dev commit, an origin queue tag. None of them sees an iteration that was
+killed BETWEEN doing the work and landing it — and that is not a rare case, because the loop
+runs headless on a timer under a 6h watchdog, so a slot can expire at any point. The traces
+it leaves all sit outside the surfaces the checks search. Iteration 121's attempt died
+leaving a 453-line design doc on an **unmerged branch**, invisible to a `design_docs/` grep
+and to the origin/merged-PR checks. Iteration 149 found the sharper form: iteration 148 had
+completed the ENTIRE inner loop for the queue head — executor, evaluator **PASS 88/100 r1
+zero blocking**, a full out-of-sandbox acceptance sweep — opened PR **#600**, watched it go
+green and MERGEABLE, then died before Gate 3b. It left **zero** charter rows, **zero** log
+entries and **zero** STATUS stamps (`grep -c 'ITERATION 148'` = 0 in both files), so the
+charter still read `[NEXT]` for a milestone that was finished, reviewed and ready. Acting on
+that tag would have re-run a completed milestone and opened a duplicate PR against a green
+one. Concretely, add two cheap searches to the ones above, at pick time: **(a)** open PRs
+authored by this loop — `gh pr list --repo "$MISSION_REPO" --state open --author
+sunholo-voight-kampff --json number,title,headRefName,mergeable` — matched against the item
+you are about to pick; an open PR from your OWN account is either mid-flight work or
+abandoned work, and both change the pick. **(b)** stale sprint worktrees — `git worktree
+list` — whose branch names encode the item and the iteration (`.wt-iter148-ci-flake` on
+`sprint/m-ci-flake-m5` was the corroborating trace here, and it is what upgraded "an open PR
+exists" into "iteration 148 ran"). When you find one, the iteration's deliverable is to
+VERIFY AND LAND it, not to redo it — but verify it exactly as any other inherited claim
+(rule 3b(v)): re-derive its load-bearing counts and confirm its claimed edits actually landed,
+because nobody has reviewed that work since the agent which wrote it stopped existing.
+Iteration 149 did precisely that and the PR held up, but the check is what made merging it a
+measurement rather than a hope. Finally, **record the orphaned iteration inside your own log
+entry and credit it** — otherwise the log silently skips a number and no later reader can
+tell whether that iteration ran, crashed, or never fired at all.
+
+**AND THE ITEM'S DECLARED BLOCKERS ARE CLAIMS TOO — RE-VERIFY THE BLOCKER, NOT JUST THE ITEM,
+AND CHECK WHETHER ITS *PURPOSE* WAS SOLVED UPSTREAM RATHER THAN WHETHER IT IS STILL OPEN** (added
+2026-08-05 iteration 145; second instance of the solved-upstream class after the 2026-08-04
+motoko_agent batch, where 1 of 3 "new" reports was already fixed and a 2nd was superseded). Every
+rule above points the freshness check at *the thing you are picking*. Nothing pointed it at the
+**collisions, blocking PRs and external dependencies that the doc or plan declares** — and those
+are the claims most likely to rot, because they describe *someone else's* work, which moves without
+telling you. They also feel pre-verified: a planner wrote them down, a quorum read them, and they
+carry a PR number, which reads like a citation. Iteration 142 confirmed PR `#532` first-party as a
+live collision blocking M2 — and it *was* `CONFLICTING`, which is what got checked. What was never
+checked is whether `#532` was still **needed**: its entire purpose (one shared binary build instead
+of fourteen, to escape a Windows timeout) had landed independently on `dev` as `#564`/`3c28cc322`
+two days earlier. So iterations 142, 143 and 144 each carried "resolve `#532` before M2" in the
+charter, and iteration 145 spent a real controller decision (plan §6.1: land-first vs rebase-after)
+choosing between two options for a blocker that no longer existed. Worse, the same iteration then
+posted a comment on `#532` asserting its fix was "still wanted" — inheriting the plan's description
+of the PR instead of measuring HEAD, which is rule 3b(v)(b) exactly. The tell that a blocker is
+dead is never its own state: `#532` sat `OPEN`/`CONFLICTING` for a week *because* it was superseded
+— nobody rebases a PR whose reason is gone, so **staleness looks identical to importance**.
+Concretely, at pick time, for each declared blocker/collision: **(a)** ask what problem it exists to
+solve, then check whether that problem is still present at HEAD — `git log -S '<the symbol it
+introduces>'`, or run the failing scenario — rather than reading its `state`/`mergeable`;
+**(b)** treat `OPEN` + long-untouched as *evidence toward* superseded, not evidence of blocking;
+**(c)** when it is dead, close it with the measurement and say so in the charter, so the next three
+iterations do not re-plan around it; **(d)** never quote a PR's or issue's *purpose* from a doc that
+merely cites it — re-derive it from the diff or the commit that superseded it. Cheap, and the whole
+check is two commands.
 
 **A queue row sourced from a survey/strategy review inherits that survey's verification debt —
 live-repro the claimed bug BEFORE any routing** (added 2026-07-13 iteration 25; second instance
@@ -363,7 +553,7 @@ the Repo Profile above):
    an empty result set must FAIL LOUDLY (`t.Fatal("instrument failure")`), never pass;
    **(i-b) quote anything glob-shaped** — `--include='*.go'`, not `--include=*.go`; under zsh an
    unquoted glob-shaped flag value aborts the whole command before it runs;
-   **(i-c) the SHELL is an instrument too, and zsh silently rewrites two shapes** (added
+   **(i-c) the SHELL is an instrument too, and zsh silently rewrites THREE shapes** (added
    2026-07-30 iteration 123; instances 3 and 4 of the zsh class after (i-b)'s glob and step 3's
    `PIPESTATUS`, each corroborated first-party against a `bash` control on the identical string
    before adoption). **Brace any variable followed by a colon** — in zsh, `"$rev:path"` applies
@@ -384,7 +574,20 @@ the Repo Profile above):
    controller's known-positive control appeared to emit real newlines until `od -c` showed the
    bytes `5c 6e` — the instrument hid precisely the bug under test. To read bytes use
    `printf '%s'`, `od -c`, or `cat -v`; never `echo`. (`cat -A` is GNU-only — BSD `cat` rejects
-   it, earned the same hour.) Both shapes are silent and both survive `set -euo pipefail`;
+   it, earned the same hour.) **And zsh does NOT word-split an unquoted variable** (added
+   2026-08-04 iteration 140; the 5th zsh instance, and the first to produce a vacuous pass in a
+   MUTATION TEST — the mission's own headline discipline). `FILES=$(grep -l … | head -4)` then
+   `sed -i '' … $FILES` passes ONE argument whose value is four newline-joined paths, so `sed`
+   fails `No such file or directory` on a filename that does not exist and **nothing is
+   mutated**. In bash the same two lines work, which is why the shape reads as correct. Iteration
+   140 ran exactly this to prove two re-centered CI gates could still fail; both gates returned
+   **rc=0**, and an unexamined rc=0 there says "the assertion is vacuous" in precisely the same
+   voice as "the mutation never ran". Only a *did-the-mutation-apply* control
+   (`git diff --name-only | wc -l` — expected 4, got 1) caught it. Use an ARRAY —
+   `FILES=($(…))`, then `"${FILES[@]}"` — and assert `${#FILES[@]}` before use. The general rule
+   this mission already knows, in its sharpest form: **a mutation test needs proof the mutation
+   LANDED before its result means anything**, because "the mutation didn't red" and "the mutation
+   never ran" are the same exit code. These shapes are silent and all survive `set -euo pipefail`;
    **(ii) widen once before concluding** — drop the quoting, the anchors, the file filter, and the
    directory scope (a root `Makefile` includes; a workflow calls a make target; a caller lives in
    a file type your `--include` excluded); **(iii) prefer the tool that cannot miss** — `make -pn`
@@ -393,6 +596,301 @@ the Repo Profile above):
    "there is no X", and the difference is exactly the provenance distinction Gate 2 already
    demands. The tell that you are about to pay for this: you are about to write "there is no…",
    "it runs nowhere", or "nothing calls it" on the strength of one command that printed nothing.
+3b. **A PASSING check is a claim too — match its SCOPE and its VERSION to the sentence you cite it
+   for** (added 2026-07-31 iteration 124; the mirror of 3a, which only covers *empty* results).
+   3a stops you trusting a check that found nothing. This one stops you over-reading a check that
+   came back **green**: the command really ran, really passed, and still does not support the
+   claim attached to it. Both instances below came from ONE quorum round, both were caught by the
+   reviewer rather than the author, and one of them was the controller's own evidence:
+   (a) **Scope.** A sandbox port-bind denial blocked `go test ./internal/effects`, so the
+   controller isolated the new tests — `-run 'Recorded|StreamRecorded'` → 4/4 PASS — and cited
+   that while routing the patch. `gemini-3-1-pro` correctly rejected it: running the patch's OWN
+   tests proves the new code works, never that it **breaks nothing existing**. That claim needed
+   the whole suite minus the denied test
+   (`go test ./internal/effects -skip TestNetHTTPRequestBytes_RoundTripSHA` → rc=0, **658 PASS**)
+   — a different command answering a different question.
+   (b) **Version.** The designer verified an example with `ailang prompt --version v0.16.2` and
+   cited it as evidence of correctness at the **v0.31.0** target. Green, honest, and worthless for
+   that sentence — the instrument was fifteen minor versions stale. This is the stale-binary class
+   step 1 already guards for *builds*, but nobody re-checks it for *tools invoked with an explicit
+   `--version`*.
+   Before a green result becomes evidence: **(i)** name the sentence it supports, then check the
+   command's scope actually covers that sentence — "does X still work" and "did I break anything"
+   are never the same command; **(ii)** when a `-run`/`-skip`/`--version`/single-package filter
+   narrowed the run, the narrowing is PART of the finding and travels with it — never dropped when
+   the result is quoted downstream; **(iii)** a denial, skip, or flake that forced the narrowing is
+   UNINFORMATIVE, so re-run the widest form that excludes only the denied item rather than quietly
+   citing the narrow one; **(iv)** use the negative framing as the acceptance test — "what would
+   this command still pass under, if the thing I am claiming were false?" The tell: you are about
+   to write "the tests pass" or "it checks clean" while the command you actually ran carried a
+   `-run`, a `-skip`, a `--version`, or a single package.
+   **(v) AN ENUMERATION YOU TRUNCATED IS NOT AN ENUMERATION, AND A VALUE YOU TRANSCRIBED IS NOT A
+   MEASUREMENT** (added 2026-08-04 iteration 137; three instances in ONE spawn directive, all three
+   caught by the DESIGNER rather than by the controller who wrote them). Everything above is aimed
+   at commands narrowed by a *flag*; these two shapes narrow the result with no flag to notice, and
+   both landed in a directive under an explicit VERIFIED-BY-ME heading — the exact laundering Gate 2
+   forbids. **(a) `| head -N` / `| tail -N` silently turns a complete-looking list into an
+   incomplete one.** Iteration 137 ran `go list ./... | grep -v /internal/ | head -20`, read those
+   20 lines back as the whole answer, and told the designer there was exactly ONE importable library
+   package. There are two — `testutil` sat past the cut. The command was right, the output was real,
+   and the sentence built on it was false. If you are about to write "the only", "all of", "there
+   are N", or "nothing else", the limiter comes OFF, or is replaced by a count (`| wc -l`) that
+   cannot lie by omission — and you quote the count beside the list. **(b) A number or SHA copied
+   out of a DOCUMENT is a claim about that document, not about the repo.** The same directive
+   asserted Lane A's squash was `a81d66983`, transcribed from an adjacent charter row; that is
+   `#517`'s Lane A, not `#498`'s (`aa02f0d9f`), and one `git log -1 --format=%s <sha>` catches it.
+   A near-identical sibling literal is precisely what makes this shape easy. The same directive also
+   said a struct had 16 fields where the listing it was quoting showed 15. Rule: anything a
+   downstream role will treat as ground truth — especially a SHA, a count, a line number, or a file
+   path — is re-derived by command at the moment you write it, never carried over from prose you
+   read earlier. The tell for both: you are quoting a *quantity* or an *identifier* and cannot name
+   the command that produced it **in this session**. (Corollary, cheap and repeatedly earned: when a
+   sub-agent refutes one of these, that is the loop WORKING — record it in Ruled out and fix the
+   provenance habit, per Gate 2's rule (d), rather than treating the refutation as noise.)
+   **(vi) A DOCUMENT'S VERIFICATION LOG CAN REFUTE THAT DOCUMENT'S OWN ACCEPTANCE CRITERIA — DIFF
+   THE TWO BEFORE ROUTING, BECAUSE NOTHING ELSE DOES** (added 2026-08-04 iteration 138; 2nd instance
+   after iteration 135). Everything above polices a check at the moment you *run* it. This is the
+   same error one step later, and it is now the likelier one: the measurement was taken correctly,
+   written down honestly, and then a conclusion elsewhere in the SAME FILE was built on the version
+   of reality that predates it. Nobody re-reads a 28-row Verification Log against a 27-item AC list,
+   so the contradiction ships. Iteration 138's pick had row **V18** recording that the boundary gate
+   iterates three fixed package sets none of which contain `apiserver` — and its M3 acceptance
+   criterion was still "`make check-boundaries` passes", a gate that passes identically whether or
+   not the new code violates the boundary it is cited to protect. **Two reviewers cleared that doc
+   across two full quorum rounds and neither caught it**, which is the point: quorum reads for design
+   soundness, not for internal consistency between a doc's evidence and its claims. Iteration 135 was
+   the same shape — a planner evidence row measured at pre-split `HEAD`, then cited for an ordering
+   claim at a position that row never covered. So the cross-check is a CONTROLLER duty at pick time,
+   not something a reviewer or the designer will do for you: for each acceptance criterion that names
+   a command, find the verification row covering that command and confirm the row's measured SCOPE
+   actually reaches the thing the AC is about. Where it does not, the AC is **vacuous** — replace it
+   with one that can fail, and say so in the routing evidence. The tell: an AC of the form "`make X`
+   passes" or "the suite is green" for work that lives somewhere the doc has already measured `X` as
+   not looking. Cheap generalisation, worth more than the two instances: **a long document is an
+   instrument too, and its Verification Log is the control — if the log and the claims disagree, the
+   claims are what's wrong.**
+   **(vi-b) THE INSTRUMENT FOR (vi): SWEEP FROM THE *OLDEST* DECLARED MEASUREMENT BASE, BECAUSE THE
+   NATURAL CHOICE GIVES A FALSE ALL-CLEAR** (added 2026-08-04 iteration 141, adopted from a
+   `mission-world` proposal — World shares this skill but cannot edit it, so it proposes and V1
+   applies). Rule (vi) tells you to diff a document's Verification Log against its claims. It never
+   names a **base**, and the base *is* the whole instrument. A doc revised in place across several
+   iterations accumulates rows measured at different commits, and its header may declare more than
+   one — so the natural move (sweep from the newest base, or from the doc's last revision) silently
+   exempts every row measured before it. Measured by mission-world on
+   `design_docs/planned/w-bench-load-confound.md`, whose header declares two bases:
+   `git diff --name-only <NEWER>..HEAD -- ':!design_docs'` returned **ZERO** files — a confident
+   clean bill of health on a genuinely stale document — while `<OLDER>..HEAD` returned **8** and
+   found every stale row. Three premise rows had gone false from a single commit; one iteration
+   named two, the next repaired those two and declared the class closed, and the **planner** found
+   the third. The sweep had checked the rows someone had named rather than the commit that caused
+   them. Concretely: **(a)** parse EVERY base the Verification Log declares and sweep from the
+   **earliest**; **(b)** treat a row as unverified whenever the diff touches any file that row
+   cites — not merely when someone flagged it; **(c)** pair the diff with a known-changed file as a
+   control, so an empty result proves the instrument ran rather than that nothing moved (rule 3a,
+   applied to freshness); **(d)** re-measure rather than reason — a row's age is not evidence it is
+   still true, and neither is its author's confidence. General form: **a document is only as fresh
+   as its OLDEST measurement**, so it degrades precisely in the rows nobody has reason to re-read.
+   Two recorded frictions, both V1's own — iterations 135 and 138 — and (vi) was authored at 138
+   without an instrument. Reviewers will not close this gap for you: quorum reads for design
+   soundness, not for freshness against HEAD (five rounds and two reviewers missed all three rows
+   above).
+   **(vii) A DESIGN DOC AND ITS SPRINT PLAN ARE TWO DOCUMENTS DESCRIBING ONE SPRINT, AND REVISING
+   EITHER SILENTLY ROTS THE OTHER — DIFF THE PLAN'S MILESTONE SECTION AGAINST THE DOC'S ACCEPTANCE
+   CRITERIA AT PICK TIME** (added 2026-08-05 iteration 146). Rules (vi) and (vi-b) police
+   consistency *within* one document. This is the same error across the **file boundary**, and it
+   is more likely, because the two files are written by different roles at different times: the
+   designer writes the doc, quorum reviews the doc, the planner reads the doc **once** and emits a
+   plan — and from that moment nothing re-diffs them. Every later revision lands in exactly one of
+   the two. A mid-sprint human directive is the worst case, because it revises the doc by
+   definition and no one thinks of the plan as affected. Iteration 145 applied Mark's `D5` ruling
+   by editing the doc — AC3 → AC3′(a/b/c) plus a brand-new **AC10(d)**. Nothing touched the plan,
+   whose M3 task list still read `AC10 (a) … (b) … (c)`. Routed as written, that milestone would
+   have shipped **without the tripwire whose entire purpose is to red when the follow-up item
+   lands** — i.e. the loop would have silently dropped the mechanism connecting two queue rows.
+   Measured at iteration 146: the plan said `AC10 (a)` in **2** places while the doc carried
+   `AC10(d)` in **4**; and the rot ran BOTH ways — the doc's Implementation-Plan section still
+   bundled a milestone with workflow edits the *newer* plan had split out, and the doc still said
+   "5 CI legs" in **6** places despite its own `V34` having measured **6**. So neither file
+   dominates: whichever was edited last is fresher *in that spot only*. Concretely, at pick time:
+   **(a)** for the milestone you are about to route, list the ACs the DOC says it closes and the
+   ACs the PLAN's milestone section names, and diff those two lists — a one-minute read that the
+   executor cannot do for you, because a cross-provider executor is handed the plan and has no
+   reason to doubt it; **(b)** when they disagree, state explicitly in the executor directive
+   which document wins (normally the doc, as the reviewed artifact) and quote the delta verbatim,
+   rather than assuming the executor will notice; **(c)** treat a doc revision landed by any
+   iteration OTHER than the one that wrote the plan as positive evidence of divergence — check,
+   do not hope; **(d)** file the residue as explicit cleanup work rather than fixing it inline,
+   so the sprint's own docs milestone owns it. The tell: you are routing milestone N of a
+   multi-milestone sprint whose design doc was edited after its plan was written — which, in a
+   loop that answers human directives by editing the doc, is most of them. — a probe identifies the endpoint you REACHED, never the
+3c. **"THE SERVICE" IS AN ASSUMPTION — a probe identifies the endpoint you REACHED, never the
+   service you NAMED** (added 2026-08-01 iteration 130; 2nd instance of this gap after iteration
+   129 recorded "ollama server is 0.31.2, up 11 days; client already 0.32.1" as a fact and built a
+   remediation on it). Rules 3a/3b cover results that come back empty or green. This one covers
+   results that are **specific, non-empty, confidently phrased, and about the wrong object**: the
+   probe answered honestly for whatever it happened to connect to, while a second copy of the same
+   service was live the whole time. That failure mode has no tell in the output — it looks exactly
+   like a clean reading, which is why it survived a full iteration.
+   Iteration 130 measured, stable 6/6: `127.0.0.1:11434/api/version` → **0.31.2**, while
+   `[::1]:11434/api/version` → **0.32.1**. Two `ollama serve` processes — one launchd-managed, one
+   app-managed — bound to the same port on different ADDRESS FAMILIES since a reboot, sharing a
+   model store but holding separate GPU state. `ollama --version` and `ollama ps` talk to the IPv4
+   one, so the CLI reported an idle GPU while a 37 GB model was resident on the other. Iteration
+   129's single-instrument reading was not wrong about what it measured; it was wrong about **what
+   it was measuring**, and the remediation it proposed ("restart to get onto 0.32.1") would have
+   restarted the wrong server and left the rig on the older one.
+   Before a probe's answer becomes a fact about a NAMED service: **(i)** ask what the client
+   RESOLVED to, not what you typed — `localhost` is TWO addresses on a dual-stack host, and Go,
+   node, curl and python order them differently, so two clients can reach two different servers
+   from one identical string; prefer a literal address in anything load-bearing; **(ii)** probe
+   each address family / socket / port explicitly and compare, instead of probing "the service"
+   once; **(iii)** when two access paths disagree about version or identity, the default
+   explanation is **TWO INSTANCES**, not one instance misreporting — enumerate processes AND their
+   parents (`ps -o pid=,ppid=`) before theorising; **(iv)** a service under two process managers
+   has no single owner, so "restart it" is underspecified — check what a watchdog PROBES against
+   what it RESTARTS, because it may heal the rig back onto the very copy you were retiring. The
+   tell: you are about to write "the server is version X", "nothing is loaded", or "the service is
+   up" on the strength of one endpoint, one CLI, or one `ps` line.
+3d. **A RESULT THAT CAME BACK RED IN THE DIRECTION YOU PREDICTED IS THE MOST SEDUCTIVE CLAIM OF
+   ALL — IT NEEDS A NEGATIVE CONTROL EXACTLY AS MUCH AS AN EMPTY RESULT NEEDS A POSITIVE ONE**
+   (added 2026-08-04 iteration 142; pre-registered by iteration 140 as "watch-item instance 1,
+   bar is two", and this is instance 2). Rule 3a covers results that come back **empty**; 3b
+   covers results that come back **green**. Neither covers the third shape: the check **failed,
+   exactly as you expected it to**, and you bank that as proof your mechanism works. It arrives
+   as confirmation, so nothing in you wants to test it — which is precisely why it survives
+   longer than the other two. The failure mode is always the same: **co-occurrence read as
+   causation.** Something else was also capable of producing that red, and no control separated
+   them.
+   Two instances, both this mission's own, both landing inside otherwise-careful iterations:
+   **(a)** iteration 140 — a deterministic tier-gate regression was attributed to a known runner
+   flake (`#587`) because both commits went red in the same window. Wrong platform *and* wrong
+   failing test; the real regression sat on `dev` for ~2h and was reported to the human as a
+   flake. The lesson recorded then was narrow ("two commits red in the same window is not
+   evidence they failed for the same reason") because it had one instance.
+   **(b)** iteration 141 — the controller *predicted* an acceptance criterion would be vacuous,
+   ran its poisoned-proxy command once, observed `rc=1`, and recorded that as **refuting its own
+   prediction**, crediting the poison for an HTTP error page. Iteration 142 measured it: the
+   poison never touched the request. AILANG's `Net` effect builds its transports by hand with
+   `Proxy == nil`, so the proxy is never consulted; the error page came from **`httpbin.org`
+   itself** — the known-flaky third party that the very sprint under design exists to remove.
+   The original prediction had been CORRECT. Poisoned `rc=0 ok 0.767s`, unpoisoned `rc=0
+   ok 0.724s`: **outcome-identical**. A single unpoisoned run in the same breath would have shown
+   the same red and exposed it instantly, and the AC would not have shipped into a sprint plan.
+   Before "it failed, so the mechanism works" becomes a fact you act on or hand downstream:
+   **(i) run it once with the mechanism REMOVED** — no poison, no flag, no patch, no gate — and
+   require the outcomes to DIFFER. Same outcome means you measured the environment, not the
+   mechanism, and the size of the difference is the size of your evidence;
+   **(ii) name every other thing that could produce this exact failure** before crediting the one
+   you were hoping for — a flaky third party, an outage, a cache, a runner, an unrelated
+   concurrent change. If you cannot rule them out by command, say "consistent with" rather than
+   "caused by";
+   **(iii) attribution must match on MECHANISM, not on timing** — same failing test AND same
+   platform AND same layer, never redness plus adjacency (that is (a)'s form of this rule);
+   **(iv) a prediction you set out to test is not refuted by one observation that merely
+   contradicts it** — it is refuted by an observation whose *cause* you established. Iteration
+   141's error was not the measurement; it was concluding causation from a single arm.
+   The tell: you are about to write "this proves the guard works", "the drill is non-vacuous",
+   "confirmed — it fails as expected", or "same failure as `#NNN`", and every command you ran had
+   the mechanism switched ON.
+3e. **BASELINE EVERY ACCEPTANCE COMMAND ON A PRISTINE TREE — A GATE ALREADY RED AT BASE MEASURES
+   THE REPO, NOT YOUR CHANGE, AND A CONTROL RUN AFTER AN EARLIER STEP HAS MUTATED SHARED STATE IS
+   NOT A CONTROL** (added 2026-08-05 iteration 147). Rules 3a/3b/3d police a *result* — empty,
+   green, or red. This one polices the **base you measured against**, which nothing above names,
+   and it has two faces that look nothing alike until you see they are the same mistake.
+   **(a) The gate was already red before you touched anything.** A sprint plan's acceptance list
+   is written by someone reading the repo, not running it, so it routinely contains commands that
+   do not pass on unmodified `dev`. Iteration 145's executor found `go build ./...` — a plan gate —
+   **fails identically on untouched dev** (`cmd/wasm` and `gen/main` have no native `main`).
+   Iteration 147's plan gate `actionlint <files>` → rc=0 is **rc=1 at base**, on 5 pre-existing
+   shellcheck findings. Such a gate can only be waved through or blamed on the sprint, and both
+   happen. So: before routing, run each acceptance command on the base and record the result *as
+   part of the criterion*. If it is already red, the AC is broken — fix the AC and say so, rather
+   than "fixing" the code or quietly dropping the gate.
+   **(b) Your control was contaminated by a step of your own change.** This is the dangerous face,
+   because it produces a confident, symmetric, entirely false all-clear. Iteration 147 saw three
+   binary-gated tests SKIP locally, and ran the obvious control: the SAME assertion in its
+   *pre-change* form. Both arms skipped identically, which reads as "pre-existing, not mine" — and
+   it was recorded as a local environment artifact, with a `make quick-install` to move past it.
+   It was in fact **the change's own defect**: an earlier step, `go mod download all`, had written
+   to the tracked `go.sum`, and the binary-staleness detector compares binary mtime against the
+   newest Go source. Both arms ran in a tree that step had **already** contaminated, so the control
+   could not distinguish and the symmetry was an artifact of the shared mutation, not evidence of
+   innocence. It shipped, and CI red-lighted the milestone's own acceptance step ~40 minutes later.
+   Concretely: **(i)** a control is only a control if it runs from a tree in the state the
+   *baseline* was in — re-clone, `git stash`, a fresh worktree, or at minimum restore the mutated
+   file and its **mtime**; **(ii)** enumerate what your change WRITES, not just what it reads —
+   tracked files, caches, mtimes, env, installed binaries — and ask which later assertion consumes
+   each one; a step that mutates a tracked file mid-run is the tell; **(iii)** when two arms agree,
+   ask what they SHARE before concluding the variable does not matter — identical results across
+   arms is equally consistent with "the variable is irrelevant" and "both arms are already
+   broken"; **(iv)** if you cannot obtain a pristine base, the control is UNINFORMATIVE — say so,
+   exactly as the sandbox rule requires, rather than banking the symmetry.
+   The generalisable point, and the reason this outranks its two instances: **an environmental
+   explanation is always available for a symptom you caused**, and it is more comfortable than the
+   alternative, so it wins by default unless the base is pinned down by command.
+3f. **A REVIEWER'S OBJECTION IS A CLAIM TOO — WHEN A QUORUM BLOCKS ON AN "UNVERIFIED PREMISE", THE
+   CONTROLLER'S JOB IS TO *MEASURE* IT, NOT TO FORWARD IT** (added 2026-08-06 iteration 150). Every
+   rule above polices claims flowing *downward* — from a sub-agent, a designer, a judge, a document.
+   This one polices a claim flowing *upward*, from a reviewer, and it is the one shape the loop
+   reflexively treats as authoritative: a quorum reject is a *verdict*, arrives with a
+   `proposed_fix`, and costs money, so the natural move is to route it straight to the designer.
+   But an objection of the form "the doc never established that X" is itself an **unverified
+   premise** — the reviewer did not check either; it correctly noticed that *nobody had*. Forwarding
+   it buys a revision round to answer a question one command can settle, and the answer frequently
+   **refutes the objection outright** or, better, *shrinks* the work.
+   Iteration 126 is instance 1: two quorum rounds lost to premise objections, and the fix recorded
+   then was narrow ("hand the designer the measurement rather than the objection"). Iteration 150 is
+   instance 2 and generalises it. `gpt5-6-sol` blocked a design on the grounds that the repo might
+   already contain reusable HTTP transport/RoundTripper machinery the new mechanism would duplicate.
+   The controller ran the audit itself: **0** custom `RoundTripper`s, **0** `DefaultTransport` uses,
+   **0** `Transport.Clone`, no shared factory anywhere (control: **29** inline `http.Client{}` sites,
+   so the zeros are measurements). The objection was answered, not litigated. The same pass then
+   produced a fact the doc never had — Go's `DefaultTransport` sets `Proxy: ProxyFromEnvironment`,
+   so bare clients are *already* inside the egress boundary and only hand-built nil-`Proxy`
+   transports can escape — which converted a counted claim ("we found seven sites") into a
+   **derivation** ("seven is all there can be"). No revision round could have produced that; only
+   running the check could.
+   And the same instrument works on an objection you *cannot* satisfy. R2's surviving objection
+   asked for a `go/packages` AST analyzer because textual matching cannot see aliased imports,
+   `new(http.Transport)`, post-construction assignment, factories, or custom `RoundTripper`s. Rather
+   than park a vague "is the audit complete?", the controller **tested the reviewer's own
+   hypothesis**: all five shapes are **zero at HEAD**, each with a firing control. That did not
+   resolve the objection — the reviewer's point about *future* escapes still stands — but it
+   converted an open-ended completeness dispute into a bounded, one-word human decision (cheap gate
+   now vs durable gate in-sprint), which is the difference between a useful park and a stalled one.
+   Concretely, on any quorum reject: **(a)** classify each objection as *premise* (asserts something
+   about the codebase) or *design* (disputes a choice); **(b)** run every premise objection yourself
+   before routing anything, with rule 3a's known-positive control, and hand the designer the
+   measurement; **(c)** where an objection is not satisfiable in-loop, still measure whatever part of
+   it *is* empirical, so the park carries numbers and the human decision is one word rather than an
+   investigation; **(d)** record refuted objections in Ruled out — a reviewer refuted by measurement
+   is the loop working, exactly as rule (d) already says for sub-agents. The tell: you are about to
+   forward a `proposed_fix` whose first step is "verify that…", and you have not run it.
+3g. **YOUR LOCAL GATE SWEEP IS A HAND-PICKED SUBSET; THE CI JOB'S OWN COMMAND LIST IS KNOWABLE, SO
+   DERIVE IT INSTEAD OF REMEMBERING IT** (added 2026-08-06 iteration 152; 2nd instance after
+   iteration 151). Rules 3a–3f police individual results. This one polices the *set* of checks you
+   chose to run before pushing — and nothing above names it, because a hand-picked sweep never looks
+   incomplete: every command in it passes, so the report reads "all gates green" right up until a
+   REQUIRED remote context goes red. The subset is chosen from memory of what usually matters, and it
+   drifts from CI silently, because CI gains steps and your habit does not.
+   Iteration 151 caught a changelog entry misfiled into the root `CHANGELOG.md` **by hand**, noting
+   that file is an INDEX and release-manager builds notes from `changelogs/*` — anything left in the
+   index is *silently dropped from the release*. Iteration 152 made the identical mistake and did
+   **not** catch it: seven local gates (`go test` on four package sets, `vet`, `build`,
+   `check-file-sizes`, `check-boundaries`, `gofmt`) all rc=0, and `make check-changelog` — which was
+   simply not in the habit — red-lighted the REQUIRED `test` context. Note the asymmetry that makes
+   this worth a rule: the gate existed the whole time and was one command away.
+   Concretely, before pushing: **(a)** derive the list rather than recall it — `make -pn`, the
+   workflow file, or most reliably the previous run's own log (`gh api
+   repos/<o>/<r>/actions/jobs/<id>/logs`, then extract the commands it echoed) — and run the ones
+   your diff can plausibly break; **(b)** pair the extraction with a control, because an empty
+   command list is rule 3a's trap wearing this gate's clothes (iteration 152's first two extraction
+   attempts returned nothing and only a `grep -c` control revealed the pattern was wrong, not the
+   log); **(c)** when a remote gate reds anyway, add that command to the local sweep in the same
+   iteration rather than noting it — a lesson recorded but not wired in is what produced instance 2;
+   **(d)** this is mission-independent: under `ailang-code` the same rule points at `ailang check` /
+   `ailang test` / `ailang ai-check` plus whatever that repo's CI adds. The tell: you are about to
+   write "all gates pass" and you assembled the gate list from memory.
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
    the Gate-2 rebuild `-dirty` — binaries built from a half-merged tree; and a persisted `cd`
@@ -420,7 +918,7 @@ model from the driver-exported env (defaults track the charter table):
 |---|---|---|
 | Controller (this session: triage/pick/record/retro) | `$MODEL` (session) | **Opus** (opus-first since 2026-07-16, Mark: the long orchestration session is mechanical work — it must NOT ride Fable) |
 | Design-doc-creator | **ROTATION** (Mark 2026-07-17; `$MISSION_DESIGNER_MODEL` is the rotation SEED, not a fixed pin) | Rotate per new-doc iteration: `claude:claude-fable-5` → `codex:gpt-5.6-sol` → (gemini after G4) → repeat. State: `~/.ailang/state/mission-designer-rotation` holds the LAST-USED value; pick the next list entry (missing file = start at claude), write back after the designer run. Every design passes the quorum regardless of author — record `(designer, quorum outcome)` in the evidence row. A probe-failed designer falls to the NEXT in rotation (not to `$MODEL`), FLAGGED |
-| Sprint-planner | `$MISSION_PLANNER_MODEL` | Opus (down-tier A/B = M3; keep Opus until evidence) |
+| Sprint-planner | `$MISSION_PLANNER_MODEL` | `codex:gpt-5.6-sol` configured default; effective lane = `derive-planner-lane.sh` output, used VERBATIM; fail-closed to opus |
 | Sprint-executor | `$MISSION_EXECUTOR_MODEL` | Opus |
 | Sprint-evaluator | `$MISSION_EVALUATOR_MODEL` | **Sonnet** (default changed fable→sonnet 2026-07-16 iter 38, Mark directive #399: "default … gemini (if able to git clone the codebase etc)? otherwise sonnet-5"; gemini-managed_agents VERIFIED not-viable-today — server-side sandbox sees no worktree + backend timed out; sonnet ≠ opus executor → generator≠judge, and it's Agent-tool-PINNABLE unlike fable) |
 
@@ -441,6 +939,17 @@ inheritance: spawn with NO `model=` param when the controller session itself is 
 session is NOT Fable, a fable pin is unenforceable — apply the generator≠judge re-route below, never
 silently inherit. `provider:model` values (e.g. `codex:gpt-5.6-sol`) instead signal cross-provider
 routing via `provider_executor` (fleet Phase C), not the Agent tool.
+
+**Step 1b — derive the effective planner lane (MANDATORY; before ANY planner probe or spawn).**
+Run `tools/launchd/derive-planner-lane.sh <the-picked-design-doc>` with the driver-exported
+environment intact. Its output is exactly one line, `<lane> <reason-token>`; use that line
+VERBATIM. If it begins `opus `, spawn the opus Agent path directly and do **not** perform a codex
+probe or spawn for the planner role; copy the reason token VERBATIM into the Gate-4
+routing-evidence row. Only `codex declared:codex-ok` enters the codex planner recipe below. If the
+script is missing on disk, fail closed to opus **LOUDLY** and record the missing-script reason in
+the same evidence row. This rule is mission-independent and live wherever this shared skill is
+resolved: the step-0 environment pin protects missions configured for opus, and the missing-script
+rule protects missions whose checkout has no derivation script (including Ailang World).
 
 **Cross-provider spawn recipe (`provider:model`, M1b — currently `codex` only).** When a role's env
 value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER=${VAL%%:*}`,
@@ -532,6 +1041,49 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      `git -C "$WT" diff` / `git -C "$WT" status` (NOT `git log` — there's no commit yet), verify it,
      then the CONTROLLER finalizes the commit on the branch, crediting the codex executor in the
      message (`Co-Authored-By: codex <model>`). Everything else reuses the existing worktree-read.
+     **MULTI-MILESTONE RUNS: the directive must SAY commits are the controller's job, and demand
+     per-milestone SNAPSHOTS** (added 2026-08-03 iteration 135; two frictions in one iteration).
+     The paragraph above is single-commit-shaped, and a directive written from the sprint plan's
+     own language ("commit per milestone" — Standing rule 3) collides with the sandbox limit it
+     documents: iter-135's run A hit exactly that, and codex — correctly, honestly — delivered M1
+     then STOPPED rather than violate the commit ordering, burning a 30-min slot on one milestone.
+     The run-B fix, now the prescription: (a) the directive states NO git write operations at all
+     (add/commit/stash/checkout) and that the controller builds one commit per milestone; (b) after
+     finishing EACH milestone the executor snapshots every file created-or-modified-so-far into
+     `.snap/M<k>/` (cumulative, full post-milestone content — worktree-writable, so the sandbox
+     allows it); (c) the controller reconstructs commits by copying snapshots over the tree in
+     milestone order, running the relevant test package at EVERY boundary (bisectability), and
+     (d) proves the reconstruction faithful by sha256-manifesting the executor's final tree BEFORE
+     starting and `shasum -c` after the last commit — byte-identity or the reconstruction is wrong.
+     Two milestones that touch the SAME file are exactly why snapshots beat file-lists here.
+  2a. **Planner role — parameterize this executor recipe; do not fork it.** Apply every shared
+     probe, bounded-background-run, directive-delivery, stdin, sandbox, output-capture, hygiene,
+     timeout, and fallback guard above by reference (including the executor recipe's `exit 64`,
+     `< /dev/null`, and `run_in_background` guards). There are exactly four planner deltas:
+     - **Working directory:** first assert
+       `git status --porcelain -- <design-doc>` is empty. From local `HEAD`, create an ephemeral
+       detached worktree with `git worktree add --detach`, then pass its path with `-C`. The path
+       MUST be a SIBLING OF THIS MISSION'S REPO — DERIVE it, never hardcode it
+       (`"$(cd "$REPO/.." && pwd)/.planner-wt-iter<N>"`): this skill is shared by every mission on
+       the rig, so an absolute path baked in for one of them is wrong for the others. Worktrees
+       under `/tmp` are forbidden — CWD-relative path tests then fail for the LOCATION rather than
+       the code, and CI never reproduces that red.
+       Never use `-b` or base it on `origin/dev`: a committed-but-unpushed design doc must be
+       visible to the planner.
+     - **Directive:** use the per-iteration file
+       `/tmp/codex_planner_directive_iter<N>.txt`, carrying the executor recipe's identical
+       ≥200-byte delivery assertion and closed-stdin behavior on both probe and run by reference.
+     - **Sandbox directories and evidence:** keep `--add-dir "$GOCACHE" --add-dir "$GOMODCACHE"`.
+       **In-sandbox gate verdicts are NOT evidence**: socket-touching checks
+       are `UNINFORMATIVE UNDER SANDBOX`, and the controller re-verifies load-bearing premises
+       outside the sandbox before handing the plan to the executor.
+     - **Post-run controller steps:** (1) assert both artifacts exist in the worktree and are
+       well-formed (`jq -e . sprint_<id>.json`; plan non-empty and names the design doc); (2) reject
+       placeholder vacuous-passes (`MILESTONE_ID` or `auto-parse failed`); (3) copy both artifacts
+       to their main-checkout paths, refusing to overwrite unexpected existing files; (4) remove
+       the planner worktree; (5) run
+       `ailang messages import-github --labels bug,feature,ailang-message` outside the sandbox;
+       (6) commit with `Co-Authored-By: codex <model>`.
   3. **generator≠judge guard (HARD, constraint #3):** before spawning the evaluator, assert the
      evaluator's PROVIDER ≠ the executor's PROVIDER. If the executor ran on codex, the evaluator MUST
      NOT be a codex `provider:model` — if `$MISSION_EVALUATOR_MODEL` collides, re-route the evaluator
@@ -585,7 +1137,46 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
     the text response). Do NOT pin `MISSION_EXECUTOR_MODEL=gemini:…` expecting worktree edits — that
     is a follow-up (bridge work), not this lane. generator≠judge: gemini (Google) is a distinct
     provider from any Anthropic/OpenAI executor, so it is a valid independent evaluator/reviewer.
-- **Any other `PROVIDER`** (motoko/opencode/pi): NOT wired (motoko needs the GPU `rig.lock`, out of
+- **`PROVIDER=pi`** (executor role — added 2026-08-06, Mark: codex-quota offload after the codex
+  bucket dried; gate trial = agent smoke 23/23 + the #590 mission replay, 12/13 held-out landed
+  tests at $0.076/12.6 min — memory `project_pi_deepseek_flash_mission_trial`). pi CLI at
+  `/opt/homebrew/bin/pi` (@mariozechner/pi-coding-agent); model form
+  `pi:openrouter/deepseek/deepseek-v4-flash-0731`. The OpenRouter key rides the
+  `~/.pi/agent/models.json` custom-provider block, NOT env — headless-safe. The models.yml twin
+  is `pi-or-deepseek-v4-flash` (rate card + gate record live there).
+  1. **Probe (bounded, ~1 reply-token):** `pi --mode json --no-session --no-tools --model "$MODEL"
+     -p 'reply with exactly: ok'` under the same `date +%s` deadline shape as codex; rc=0 or fall
+     back. The driver pre-probes `pi:*` pins the same way it probes codex, so an exported pi pin
+     has already passed one probe this fire — re-probe anyway (the codex #486 lesson: the exported
+     env and the effective lane must both be proven). Live-verified 2026-08-06.
+  2. **Real executor run — reuse the codex recipe's guards BY REFERENCE** (per-iteration directive
+     file + the `exit 64` delivery asserts, `< /dev/null` stdin, backgrounded bounded 30-min
+     `date +%s` cap, output captured, NO git write operations in the directive, per-milestone
+     `.snap/M<k>/` snapshots on multi-milestone runs). pi deltas, all four:
+     - **Invocation:** `cd "$WT" && pi --mode json --no-session --model "$MODEL" -p "$PROMPT"
+       > /tmp/pi_run_iter<N>.ndjson 2> /tmp/pi_run_iter<N>.stderr` — `--mode json` is MANDATORY:
+       the NDJSON is both the transcript and the billing record; plain print mode loses both.
+     - **NO SANDBOX.** pi has no `--sandbox`; it runs with full user permissions from `$WT`.
+       Containment = the directive's scope fence + the controller's worktree-read review, which
+       MUST also check for out-of-worktree writes (`git -C <main-checkout> status --short`)
+       before any Gate-4 verdict. The codex sandbox false-green class (loopback-bind denials)
+       does NOT apply — pi-run gate results fail or pass for real — but executor-reported greens
+       are still never banked; the controller re-runs the gates (generator≠judge).
+     - **METERED $ — ledger entry MANDATORY (the one structural difference from codex: OpenRouter
+       bills real dollars, not a quota bucket).** After the run, extract spend from the NDJSON and
+       post it to the Gate-3 metered ledger before the next metered call:
+       `jq -rs 'map(select(.type=="turn_end")|.message.usage) | (map(.input)|add)*0.09 + (map(.output)|add)*0.18 + (map(.cacheRead)|add)*0.018 | ./1e6' /tmp/pi_run_iter<N>.ndjson`
+       (deepseek-v4-flash-0731 per-1M rate card: $0.09 in / $0.18 out / $0.018 cache-read — keep
+       in sync with models.yml). Reference: #590 replay = $0.076/sprint-execution; the 30-min cap
+       bounds a runaway run to well under $0.50, so the $5 iteration ceiling is ~65 such runs deep.
+     - **Credit:** the controller finalizes commits with
+       `Co-Authored-By: DeepSeek V4 Flash 0731 (pi)`.
+  3. **Fallback:** probe-fail / cap / error → `$MODEL` via the Agent tool + FLAG (same rule as
+     codex). Trial caveat stands (N=1): the replay's single miss was a discretionary refinement
+     beyond the plan's letter — this lane wants PRESCRIPTIVE, sprint-plan-shaped directives;
+     vague-plan or judgment-heavy work stays on opus until ≥3 datapoints say otherwise (the
+     charter's evidence rule, same bar as every routing change).
+- **Any other `PROVIDER`** (motoko/opencode): NOT wired (motoko needs the GPU `rig.lock`, out of
   scope). Treat as unavailable → fall back to `$MODEL` + FLAG.
 
 If a pinned model is quota-limited or unavailable/rejected, fall back to `$MODEL` for that role and
@@ -610,11 +1201,53 @@ Sonnet, inline, is fine.
   2026-07-14 iteration 26; 2 of 2 recent NEW-DOC tags were wrong: m-lambda-open-record-pattern
   had a full doc at planned/v0_29_0 since May [iter 25], m-xmod-alias-poly likewise [iter 26] —
   both times the grep found it in seconds and saved a redundant design-doc-creator run).
+  **THE DESIGNER DIRECTIVE MUST DEMAND A VERIFICATION ROW PER CODEBASE CLAIM — a cross-provider
+  designer CANNOT READ THIS REPO'S SKILLS, so any gate you leave implicit does not exist for it**
+  (added 2026-07-31 iteration 126; two instances in ONE doc, and they cost both quorum rounds).
+  Gate 2's rules 3a/3b are written for the *controller's* instruments; nothing was aimed at the
+  *designer*, and the designer is the role that writes the most load-bearing "the codebase
+  currently does X" sentences. Iteration 126's doc was BLOCKED twice, and both blocks were the
+  same defect wearing different clothes: R1 asserted "lowered Core metadata can enumerate every
+  requires clause" and R2 asserted "the CLI defines `workspaceRoot` and passes it into test
+  configuration". Neither carried a command. The controller measured both — the first came back
+  **better** than assumed (repeated `requires` blocks are impossible by construction, which SHRANK
+  scope) and the second came back **false** (zero matches, known-positive control firing, the
+  field had to be designed in and the Conflict Surface widened). A quorum round costs real money
+  and a designer re-spawn costs real wall-clock, so this is not a style note. Concretely:
+  **(a)** the spawn directive states that every sentence claiming the codebase currently does X
+  needs a Verification Log row with the command AND its observed output — and that an empty or
+  negative result is a CLAIM, not a fact, so it needs a known-positive control in the same call
+  (rule 3a, restated *to the designer* rather than assumed);
+  **(b)** when a quorum objection is "unverified premise", the controller RUNS the check itself
+  before routing the revision, and hands the designer the measurement rather than the objection —
+  otherwise the designer re-asserts and you buy a third round;
+  **(c)** if two rounds block on this same class, name the PATTERN in the revision directive, not
+  just the two fixes. Iteration 126 did exactly that on round 3 and got 21 verification rows.
+  This applies to EVERY provider lane, but it is load-bearing for `codex:`/`gemini:` designers,
+  which never see `design-doc-creator/SKILL.md` at all — for them the directive IS the gate.
 - Design doc but no plan → **sprint-planner** as a `$MISSION_PLANNER_MODEL`-pinned Agent sub-agent
   → sprint JSON + handoff.
 - Plan exists → **sprint-executor** as a `$MISSION_EXECUTOR_MODEL`-pinned Agent sub-agent, in an
   isolated worktree (coordinator-managed or `git worktree add` — NEVER the shared main tree;
   concurrent agents stomp uncommitted work).
+  **NEVER PLACE A WORKTREE UNDER `/tmp` — the suite goes red for the LOCATION, not the code**
+  (added 2026-08-03 iteration 133, executing the remedy iteration 127 pre-committed to on a second
+  instance: *"If a second iteration hits it, the fix is to standardise the worktree location off
+  `/tmp`."* It did, so here it is). A `/tmp`-rooted checkout fails tests that resolve paths against
+  the CWD, because the CWD is itself temp-shaped — and the resulting red is one **CI will never
+  reproduce**, so it reads as a regression the sprint caused. Two tests measured failing this way,
+  iteration 133, on an otherwise-clean `origin/dev`: `TestIsTempPath` (`internal/loader`, 4
+  subtests — `IsTempPath("./src/foo.ail")` returns **true** from `/tmp`) and
+  `TestSolve_HardTimeout_FakeSolverIgnoringT` (`internal/smt`, a `TMPDIR` child-pid path); iter-127
+  had only the first. Non-vacuous, and this is the control that matters: the identical two tests
+  from a non-`/tmp` checkout are **rc=0**, from `/tmp` **rc=1** — the only variable is location.
+  Use the established convention — a sibling of the repo, e.g.
+  `/Users/…/dev/sunholo-data/.wt-iter<N>` (as `.wt-iter117`/`.wt-iter121`/`.wt-iter133` did) —
+  and apply it to **throwaway probe worktrees too**, not just the sprint worktree: iteration 133
+  put its sprint worktree in the right place and still bought the false red twice, from two
+  `/tmp` scratch trees created to establish a baseline. The generalisable point is the one rule 3c
+  already makes about services, aimed at the filesystem: **the location you run a check FROM is
+  part of the instrument**, so a red that moves when you move the tree is a fact about the tree.
 - Execution complete → **sprint-evaluator** as a `$MISSION_EVALUATOR_MODEL`-pinned Agent sub-agent
   (distinct from the executor model → generator≠judge). Max 3 rounds; on round-3 fail →
   `needs-human-review`, park, message controlplane.
@@ -708,6 +1341,114 @@ run has not been created yet. **When you want maximum certainty, skip run-id sel
 and read the merge commit directly** — `gh api repos/<owner>/<repo>/commits/<sha>/check-runs`
 is SHA-addressed by construction and cannot drift.
 
+**BUT `check-runs` CANNOT DRIFT AND CAN STILL COME BACK SHORT — AND EVERY AGGREGATE OVER AN
+INCOMPLETE CHECK SET IS VACUOUSLY GREEN** (added 2026-08-06 iteration 154; 2nd instance after
+iteration 153). The pin above fixes the instrument pointing at the WRONG run. It does nothing about
+the instrument pointing at the RIGHT run and returning too few rows — and the sentence immediately
+above actively recommends `check-runs` for "maximum certainty", which is precisely how this one gets
+bought. A poll that computes `pending == 0 && failures == 0` is measuring the set it was HANDED;
+when that set is short, both conditions are trivially satisfied and the verdict reads GREEN in the
+same voice as a real green. A Gate-3b verdict decides LANDED vs parked, so this is the load-bearing
+kind of wrong. Two instances, both inside the same outage window, both landing on the loop's own
+verdict: **(a)** iteration 153 recorded "0 failures observed", corrected it to 1, and it was 2
+within minutes — an aggregate over an **in-flight** run, stale the moment it is written;
+**(b)** iteration 154 fired `rerun-failed-jobs` and its poll immediately reported
+`pending=0 failures=0 SETTLED` over a `check-runs` list of **ONE** (`automerge/skipped`) where
+**18** had existed minutes earlier. **Re-running a workflow EMPTIES the `check-runs` collection**,
+while `actions/runs?head_sha=` correctly showed all four workflows `queued` — so the very re-run
+this gate tells you to fire is what breaks the instrument it tells you to trust.
+Rules: **(i)** assert COMPLETENESS before any verdict counts — enumerate the workflows EXPECTED for
+this diff (the path-filter rule below already makes you do this) and require every one to be
+PRESENT, else print `INSTRUMENT INCOMPLETE — no verdict` and keep polling; a count of what you
+found is not a count of what exists; **(ii)** during or after a re-run prefer
+`actions/runs?head_sha=<sha>`, which keeps reporting a run as `queued` rather than letting it
+vanish; **(iii)** never infer "settled" from the absence of pending rows alone — pair it with
+`present == expected`, which is rule 3a's known-positive control aimed at a POLL rather than a
+search; **(iv)** a zero-failure count over an unfinished run is not a fact about the run, it is a
+fact about the clock. The tell: your poll's verdict line and its own row count disagree in size, or
+you are about to write "0 failures" for a run you have never seen COMPLETE.
+
+**AND `head_sha=` NEEDS ALL 40 CHARACTERS — A TRUNCATED SHA RETURNS `total=0`, NOT AN ERROR; AND
+WHEN THE OUTAGE ATE THE EVENT, `workflow_dispatch` IS THE LEVER, BECAUSE IT IS NOT A WEBHOOK**
+(added 2026-08-06 iteration 155; both halves are second instances). The paragraph above sends you to
+`actions/runs?head_sha=<sha>` as the trustworthy instrument. Two things it does not tell you, and
+each one silently produces a *confident wrong answer* about whether an item landed.
+
+**(a) Truncation is silent.** The endpoint matches the full 40-character SHA and returns an EMPTY
+SET — `total=0`, HTTP 200, no error — for anything shorter. Iteration 155 passed a 9-character SHA
+(the same `[0:9]` its own jq had used for display) and read `total=0` for a PR that `gh run list`
+simultaneously showed **5** runs for. Measured both ways on the identical commit: full →
+`total=5`, truncated → `total=0`. This is the same class Gate 1 already records for
+`rev-parse --short` — an abbreviated SHA quietly voiding an instrument — now on the endpoint this
+gate recommends for "maximum certainty", which is why it is worth its own line. **Never build the
+value with `[0:9]`/`--short`; get it from `gh pr view --json headRefOid` or `git rev-parse` (no
+`--short`), and validate the instrument on a known-positive before believing any zero** — a SHA
+you know has runs must come back non-empty in the same breath (rule 3a, aimed at an API call).
+
+**(b) A dispatch is a different code path from an event.** When the provider is throttling webhook
+delivery — GitHub's 2026-08-06 incident processed **~15%**, so "many events such as pushes and pull
+requests are not triggering workflow runs" — there is nothing to re-run and nothing to poll, because
+the run was never created. Iteration 154 hit exactly that (`#608`: zero runs at all) and recorded it
+as a dead end. It is not one: `gh workflow run <wf.yml> --ref <branch>` is a direct API call, not a
+webhook delivery, and it **creates the run**. Measured at iteration 155 on that same PR: `total=0` →
+`total=1` (`CI: queued`, `event=workflow_dispatch`). Caveats, both load-bearing: the workflow must
+declare `workflow_dispatch` in its `on:` block (check first — it is not universal), and any job
+needing PR context will not be equivalent — a docs/paths gate whose detector diffs against the PR
+base cannot be satisfied this way, so dispatch may reach only *some* of the required contexts. Say
+which ones it reached and which still need a real `pull_request` event; do not report a partial set
+as a green (that is rule (i) above). Prefer this over close/reopen, which is itself webhook-borne
+and can leave the PR closed if the reopen is dropped.
+
+Both halves generalise past this outage: **an instrument that takes an identifier can be voided by
+the identifier's FORMAT**, and **when an event-driven trigger is unavailable, look for the API-driven
+one before concluding the work cannot proceed.**
+
+**BUT `workflow_dispatch` IS ONLY HALF A LEVER, AND THE RULE ABOVE — WRITTEN ONE ITERATION EARLIER —
+WILL TELL YOU A PR IS UNBLOCKED WHEN IT IS NOT** (added 2026-08-07 iteration 156; instance 1 is
+iteration 155's own dispatch, instance 2 is this iteration measuring what it bought). The clause
+above ends on a triumphant note — the run was CREATED, `total=0 → total=1` — and stops there. Two
+things it never checked, each of which independently voids the verdict, and both cheap:
+**(a) A CREATED RUN IS NOT A RUNNING RUN.** During the recovery phase a run can be accepted and then
+sit forever: iteration 155's dispatch (`21:30Z`) and `#606`'s `pull_request` run (`17:02Z`) were both
+still `queued` with **`jobs=0` seven hours later**, while dispatches fired at `23:38Z` reached
+**`jobs=6` within 12 seconds**. So `total_count` on `actions/runs` only proves a *record* exists;
+the discriminator is `runs/<id>/jobs`. Worse, a wedged run **cannot be cleaned up** — `gh run cancel`
+answers *"Cannot cancel a workflow run that is completed"* while the runs API simultaneously reports
+`queued`, an inconsistent server record with no client-side remedy. Check jobs, not totals, and give
+a fresh run ~15s to acquire them before believing in it.
+**(b) A DISPATCH'S CHECKS DO NOT SATISFY BRANCH PROTECTION.** This is the load-bearing half. All four
+required contexts came back **success on the head SHA** via `commits/<sha>/check-runs` (18 rows) —
+and `gh pr checks --required` still listed only the one context that had come from a real
+`pull_request` event, with `mergeStateStatus=BLOCKED`. Branch protection is gated on the PR's
+`pull_request` check suite, which is precisely the suite the outage wedged. So the dispatch buys a
+green you **cannot spend**, and reading it as "3 of 4 contexts reached" is rule 3d in its purest
+form: the mechanism visibly did *something* in the direction you hoped, and nobody checked the thing
+it was for. (Note the mirror-image instrument failure in the same measurement: `gh pr view --json
+statusCheckRollup` returned **1** and **0** rows where the SHA-addressed endpoint returned **18** and
+**12** — so that aggregate was vacuously *red*. Gate 3b already warns that an aggregate over an
+incomplete check set is vacuously green; it is equally vacuous in the other direction.)
+**THE FIX, WHICH NEEDS NO LOCAL CHECKOUT AND TOUCHES NO WORKING TREE:** create a **tree-identical
+empty commit through the git API** and move the ref —
+`POST git/commits` with the branch's EXISTING `tree` sha and its current head as `parents[]`, then
+`PATCH git/refs/heads/<branch>`. That fires a genuine `pull_request: synchronize`, so the new check
+suite is PR-scoped and *does* count. Assert tree identity by comparing the new commit's `.tree.sha`
+to the old one before moving the ref, and prefer this to close/reopen (itself webhook-borne).
+Squash-merge absorbs the commit. Critical Principle 0 is not engaged — no checkout, no branch
+switch, no stash. **Quote `'parents[]'`**: unquoted, zsh glob-expands it (`no matches found`), the
+commit is never created, and the ref PATCH then fails 422 on an empty sha — rule 3a(i-b), on the
+very shape this skill already warns about.
+**AND THE SAME REASONING VOIDS A GREEN** (proposed by `mission-world` iter-59, which shares this
+skill but cannot edit it; corroborated first-party in V1's own repo before adoption). The outage
+clause in Gate 1 teaches that a RED during a declared incident is unattributable. The symmetric half
+was never stated: during an open incident **outcome is not a function of the tree, so a GREEN is
+unattributable too** — yet a green is exactly what gets read as "the incident is over". Measured
+here: CI on `dev` was `success` at `17:32Z`, `failure` at `20:03Z` — *worse after the green* — and
+`success` again at `21:57Z`, while runs created at `17:02Z` and `21:30Z` sat wedged straight through
+all three. A green during an incident licenses a **code** inference (these jobs passed on this tree)
+and **never** an **infrastructure** one (the incident is over). Close an incident on the provider's
+status API, not on one of your own runs, and where a green is load-bearing require one taken AFTER
+the incident is marked resolved.
+
 **Poll SEVERAL workflows with THIS snippet, run once per workflow — do NOT hand-roll a
 multi-workflow loop** (added 2026-07-27 iteration 107; TWO defects in one iteration, both from
 hand-rolling a variant because Gate 3b only shipped the single-workflow form above while a real
@@ -751,10 +1492,109 @@ A poll that waits on a check that cannot complete is an unbounded wait wearing a
 
 ## Gate 4 — RECORD (append-only; the log is the mission's memory)
 
+**FIRST: overwrite `design_docs/mission-dashboard.md`** (Mark 2026-08-04: the 30-second
+control context for fresh sessions — his long-lived thread was burning 14%/week of quota as
+cache-rebuild). Keep it ≤40 lines, OVERWRITE never append: latest release · in-flight/next
+picks · loop cadence+routing · parked-on-Mark · quota posture. It is a snapshot, not a record —
+history stays in the charter/log.
+
 Append an entry to `design_docs/v1-mission-log.md` using its fixed template — every section,
 "none" over omission. The **Routing evidence** row and **Ruled out** ledger are the two highest-
 value fields: evidence drives routing-policy changes; ruled-out stops re-chasing. Update the
 mission doc's queue tags ([LANDED], [PARKED], etc.) and STATUS stamp.
+
+**WRITE THE RECORD WHERE YOU READ THE STATE — NEVER INTO A WORKING-TREE COPY YOU HAVE NOT
+RE-CONFIRMED AGAINST ORIGIN** (added 2026-08-01 iteration 129; instance 2 of the diverged-checkout
+class after iter-128's stale *skill* — this one is the stale *charter*, and its failure mode is a
+silent mass deletion). Gate 1 already tells you to READ mission state from origin when local `dev`
+is behind. Nothing said the same about WRITING it, and the two halves are not symmetric: Gate 1's
+remedy leaves you reading origin's charter while your editor still points at the working tree's.
+Measured at iteration 129: local `dev` was 1 ahead / 8 behind, and the working-tree charter carried
+STATUS stamps **123/125/126** while origin carried **126/127/128** — so an in-place "add your stamp,
+rotate the 4th out", the literal instruction above, would have committed a charter with **iterations
+127 and 128 deleted**, and the line-count assertion below would have *passed*, because that
+arithmetic is self-consistent against the wrong base. Same shape as the STATUS-rotation bug (a
+destructive edit reports success exactly like a correct one), but the corruption arrives from the
+BASE rather than from the edit, so no amount of care inside the edit can catch it. Before the first
+Gate-4 write, re-confirm the base:
+
+```bash
+git fetch origin
+git rev-parse dev origin/dev                     # differ at all? the working tree is NOT the base
+git diff --stat origin/dev -- "$MISSION_DOC" design_docs/*-mission-log.md
+```
+
+If charter/log differ from `origin/dev`, do **not** edit them in the shared checkout: write the
+record in a worktree branched from `origin/dev` (`git worktree add -b … <path> origin/dev`) and land
+it by PR. **The cheap tell, and the one to actually use:** grep the file you are about to edit for
+the PREVIOUS iteration's stamp — if the last iteration's own record is missing, you are holding a
+stale copy, not a charter awaiting your entry. One command, and it is the difference between
+appending history and erasing it.
+
+**SPELL THE TELL IN THE CHARTER'S OWN CASE, AND PAIR IT WITH A CONTROL** (added 2026-08-03
+iteration 134). Stamps are written `ITERATION 133` — **UPPERCASE** — while the sentence above says
+"the previous iteration's stamp", so the natural transcription is `grep -c "Iteration 133"`, and
+that returns **0** on a perfectly healthy charter. Iteration 134 ran exactly that and read `0` for
+a charter that was byte-identical to origin. This is rule 3a's trap wearing THIS gate's clothes,
+and it is the worst place for it: a broken tell and a genuinely stale charter produce the
+identical output, so the failure routes a healthy iteration down the stale-copy path — or, in the
+other direction, teaches you to distrust a tell you will need for real. Run it
+**case-INSENSITIVELY** — `grep -ci "ITERATION <N-1>"` — **alongside a known-present control in the
+same breath** (`ITERATION <N-2>`, must be ≥1). A `0` on the control means your instrument is
+broken, not that the charter is stale — that is the failure mode here, and the known-present
+control is the one that catches it.
+
+**Why `-ci` and not the charter's own casing: STAMP CASING IS MISSION-SPECIFIC, AND THIS SKILL IS
+SHARED, SO HARDCODING ONE MISSION'S CASING BREAKS THE TELL FOR EVERY OTHER MISSION** (added
+2026-08-07 iteration 157; proposed by `mission-world` iter-60, which shares this skill but cannot
+edit it, and corroborated first-party in BOTH repos before adoption — sibling-claim ghost
+discipline). Iteration 134 correctly diagnosed the casing trap but fixed it by pinning the literal
+to **V1's** format, `## STATUS 2026-08-07 — ITERATION 156:`. World stamps
+`## STATUS 2026-08-07 (iteration 60)` — lower-case and parenthesised. Measured against World's
+**healthy** charter, the prescribed form returns `grep -c "ITERATION 60"` → **0**, and — the part
+that matters — its known-present controls return **0 too** (`ITERATION 59` → 0, `ITERATION 58` → 0),
+while `grep -ci` returns **1 / 4 / 4**. So the remedy iteration 134 wrote to stop a healthy charter
+reading as stale did exactly that on the sibling mission. It at least fails LOUDLY rather than
+silently — a zeroed control is the documented "instrument broken" signal, which is how World caught
+it and ran `-ci` as a workaround — but a tell that cannot run unmodified outside the mission that
+authored it is not a shared tell. **Read the result as PRESENCE (≥1), never as an exact count:**
+`-ci` also matches ordinary prose ("…added 2026-08-06 V1 iteration 154…"), measured in V1 as
+`ITERATION 154` → **2** case-sensitive vs **3** case-insensitive. The tell asks "is the previous
+iteration's record here at all", so presence is the whole question and the extra prose hits are
+harmless; the structural count you actually assert against is the rotation invariant below. General
+form, and the reason this outranks its two instances: **anything this skill tells you to grep for is
+a claim about ONE mission's file format** — when a shared gate hardcodes a literal, ask what the
+sibling writes there before trusting a zero.
+
+**Do NOT add a known-absent literal as a second control — in a file the loop WRITES ABOUT ITSELF,
+the absent token does not stay absent.** Iteration 134 shipped `ITERATION 999` as its
+known-absent control and then measured it coming back **1** within the same iteration: the STATUS
+stamp it had just written *documents the control*, so the literal is now in the charter forever.
+Any self-describing file poisons this class of control the moment a record mentions it. Where you
+want a structural second check, assert the rotation invariant instead —
+`grep -c "^## STATUS 2026"` must equal **3** — which is anchored to line-start and cannot be
+tripped by prose.
+
+**THE STATUS ROTATION IS THE MOST DANGEROUS EDIT THIS LOOP MAKES — SCRIPT IT WITH A LINE-COUNT
+ASSERTION, NEVER A BARE `## `-HEADER SCAN** (added 2026-08-01 iteration 127; third failure of this
+same step — iter-83 hand-corrected an already-drifted N>4, iter-123 found the block drifted to 4
+and applied the self-heal, and iter-127 *deleted the entire queue*). The charter is ~1,600 lines of
+which the STATUS block is ~4, so a rotation bug is a **mass-deletion bug**, and it lands in the one
+file every future iteration reads as ground truth. Iteration 127's script computed each stamp's
+extent by scanning forward to the next `## STATUS` header; for the NEWEST-3 boundary that works,
+but for the **last** stamp there is no following header, so the scan ran to EOF and moved the whole
+1,571-line queue into the archive. It exited 0 and printed a plausible `archived: [...]` line.
+Rules: **(a)** a STATUS stamp is a **single line** followed by one blank — do not model it as a
+block delimited by the next header; **(b)** assert the arithmetic *before* writing, and fail loudly
+if it does not hold — `after == before + 2 - 2*len(moved)` is the whole invariant, and it is what
+caught this on the re-run; **(c)** after any charter edit, grep for a **queue** row you know exists
+(not a STATUS row) — the damage here was invisible in the STATUS block itself and surfaced only
+because a later `grep` for a queue item came back empty and was treated as a claim (rule 3a) rather
+than as "the row must have moved"; **(d)** never `git add` the charter in the same breath as
+writing it — `git diff --stat` first, and a charter diff whose net line delta is not roughly
+`+stamp -archived` is a bug, not a formatting artifact. The generalisable point, which is rule 3a
+pointed at your own edits: **you are an instrument too, and a destructive edit reports success
+exactly like a correct one.**
 
 ## Gate 5 — RETRO + REPORT
 
@@ -765,13 +1605,30 @@ mission doc's queue tags ([LANDED], [PARKED], etc.) and STATUS stamp.
    - **process fix** — edit the mission doc (guardrails/ordering/routing policy per its rules).
    - **backlog** — new design doc via design-doc-creator, or re-prioritize the queue.
 2. Routing-policy change? Only with ≥3 evidence rows; stamp it in the mission doc.
-3. Morning report, TWO channels (both required):
-   - `ailang messages send controlplane "<summary>" --title "Mission iteration N: <headline>"
+3. Morning report, TWO channels (both required). **DIGEST FORMAT, HARD-CAPPED (Mark directive
+   2026-07-31: "the github progress issues are very verbose … we could work on more conciseness").**
+   The issue thread is a COMMUNICATION channel, not loop memory — the loop never re-reads its own
+   reports (Gate 0 filters for Mark's comments only); the full record lives in the charter STATUS
+   + mission log, which Gate 4 already wrote. Do NOT mirror the STATUS entry into the issue.
+   - `ailang messages send controlplane "<digest>" --title "Mission iteration N: <headline>"
      --from "mission-${MISSION_NAME:-control}"`
-   - `gh issue comment "$MISSION_GH_ISSUE" --repo "${MISSION_REPO:-sunholo-data/ailang}" --body "<markdown report>"`
+   - `gh issue comment "$MISSION_GH_ISSUE" --repo "${MISSION_REPO:-sunholo-data/ailang}" --body "<digest>"`
      — the human-facing bookkeeping thread (Mark reads by email; number comes from the driver env /
-     `~/.ailang/state/mission-gh-issue`, NOT hardcoded). Markdown, lead with the headline,
-     link commits by SHA, name anything parked for a human. End the body with:
+     `~/.ailang/state/mission-gh-issue`, NOT hardcoded).
+   **The digest — ≤20 lines / ≤1,500 chars, exactly these sections, nothing else:**
+   ```
+   **Iteration N — <one-line headline>**
+   - **Pick**: <item> (<why in ≤1 clause, only if not the queue head>)
+   - **Outcome**: LANDED/PARKED/none · evaluator <score> · <commit SHAs as links>
+   - **Key find**: <≤2 sentences — only if genuinely load-bearing, else omit the row>
+   - **Cost**: metered $<x> · quota buckets <list>
+   - **Next**: <one line>
+   - **DECISIONS FOR MARK**: <bulleted asks phrased for one-word replies, or "none">
+   Full record: <link to the charter STATUS entry / log>
+   ```
+   The DECISIONS row is first-class — it is the one section Mark acts on; never bury an ask in
+   prose. No gate-by-gate narration, no routing-evidence dump, no war stories (those belong in
+   Gate 4's charter/log record). End the body with:
      `🤖 Generated with [Claude Code](https://claude.com/claude-code)`
 
 4. **WEEKLY THREAD ROTATION (Mark 2026-07-16 — do this BEFORE posting the report):** the

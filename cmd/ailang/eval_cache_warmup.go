@@ -151,6 +151,25 @@ func warmOneCache(ctx context.Context, key cacheWarmupKey, sample Job, timeout t
 // an API key, or a network. The network call itself is covered by the live,
 // key-gated probe in internal/ai/anthropic (TestLiveGeneratePromptCache); there
 // is nothing this indirection hides that a unit test could have checked anyway.
+//
+// NewAIAgent is the STANDARD-mode (direct HTTP) path — it always requires
+// ANTHROPIC_API_KEY, via getAPIKeyForProvider in internal/eval_harness/ai_provider.go.
+// isAnthropicModel (above) does not distinguish "runs in standard mode" from
+// "runs in agent mode via the claude CLI executor" — so on every --agent run with
+// an Anthropic model, this warm-up call ALWAYS attempts the key-based path and
+// therefore ALWAYS fails/warns when ANTHROPIC_API_KEY is unset. That is the
+// CORRECT state for agent mode: agent-mode Claude calls go through a completely
+// separate executor (internal/executor) that shells out to the `claude` CLI and
+// authenticates via Keychain OAuth/subscription — an inherited ANTHROPIC_API_KEY
+// silently wins over OAuth there and bills the metered API instead (see
+// reference_headless_claude_billing_rig in project memory; this cost a real
+// billing incident once). So: "prompt-cache warm-up skipped ... ANTHROPIC_API_KEY
+// not set" on an agent run is expected noise, not a sign anything is broken — the
+// actual per-benchmark claude executor calls right after it use OAuth and don't
+// need the key at all. Do NOT "fix" this by exporting the key into the
+// environment; that fixes nothing here (warm-up is best-effort and non-fatal
+// either way, see the design-constraints comment atop this file) and actively
+// risks metered billing on every subsequent claude CLI call in that shell.
 var warmupCallFn = func(ctx context.Context, model, cachedPrefix, task string, maxTokens int) error {
 	agent, err := eval_harness.NewAIAgent(model, 0)
 	if err != nil {

@@ -132,9 +132,31 @@ func TestTypeNodeCoverage(t *testing.T) {
 			": Option[int] =",
 		},
 		{
+			// A single unambiguous parameter prints in the taught bare-arrow form.
+			// The parenthesised spelling is kept only where it changes meaning; see
+			// FuncType_funcParam / FuncType_tupleParam below and bareArrowSafe.
 			"FuncType",
 			&ast.FuncType{Params: []ast.Type{&ast.SimpleType{Name: "int"}}, Return: &ast.SimpleType{Name: "bool"}},
-			": (int) -> bool =",
+			": int -> bool =",
+		},
+		{
+			"FuncType_multiParam",
+			&ast.FuncType{Params: []ast.Type{&ast.SimpleType{Name: "int"}, &ast.SimpleType{Name: "string"}}, Return: &ast.SimpleType{Name: "bool"}},
+			": (int, string) -> bool =",
+		},
+		{
+			// Right-associative arrow: `(int -> int) -> bool` must keep its parens
+			// or it re-reads as `int -> (int -> bool)`.
+			"FuncType_funcParam",
+			&ast.FuncType{Params: []ast.Type{&ast.FuncType{Params: []ast.Type{&ast.SimpleType{Name: "int"}}, Return: &ast.SimpleType{Name: "int"}}}, Return: &ast.SimpleType{Name: "bool"}},
+			": (int -> int) -> bool =",
+		},
+		{
+			// A sole TUPLE parameter must keep its parens: `(int, string) -> bool`
+			// is a two-parameter function type, not a one-tuple one.
+			"FuncType_tupleParam",
+			&ast.FuncType{Params: []ast.Type{&ast.TupleType{Elements: []ast.Type{&ast.SimpleType{Name: "int"}, &ast.SimpleType{Name: "string"}}}}, Return: &ast.SimpleType{Name: "bool"}},
+			": ((int, string)) -> bool =",
 		},
 		{
 			"RecordType",
@@ -301,7 +323,7 @@ func TestDeclNodeCoverage(t *testing.T) {
 			t.Fatal(err)
 		}
 		mustContain(t, got, "class Show[a] {")
-		mustContain(t, got, "show: (a) -> string")
+		mustContain(t, got, "show: a -> string")
 	})
 
 	t.Run("Instance_empty", func(t *testing.T) {

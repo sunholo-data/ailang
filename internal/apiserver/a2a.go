@@ -54,7 +54,7 @@ func (s *Server) buildAgentCard(r *http.Request) map[string]any {
 			if export.Arity < 0 {
 				continue
 			}
-			if !s.isExposed(export) {
+			if !loadedExportMember(s.routesOnly, export) {
 				continue
 			}
 
@@ -182,7 +182,7 @@ func (s *Server) handleA2ATaskSend(w http.ResponseWriter, req *a2aRequest) {
 	var found bool
 	for _, e := range modInfo.Exports {
 		if e.Name == funcName {
-			found = s.isExposed(e)
+			found = loadedExportMember(s.routesOnly, e)
 			break
 		}
 	}

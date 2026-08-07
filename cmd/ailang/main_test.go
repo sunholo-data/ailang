@@ -1,15 +1,17 @@
 package main
 
 import (
-	"bytes"
+	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // runCLI runs the ailang CLI with given arguments and returns stdout, stderr, and exit code
@@ -22,26 +24,7 @@ func runCLI(t *testing.T, args ...string) (stdout, stderr string, exitCode int) 
 		t.Fatalf("Failed to get project root: %v", err)
 	}
 
-	cmd := exec.Command("go", append([]string{"run", "./cmd/ailang"}, args...)...)
-	cmd.Dir = projectRoot // Run from project root so paths resolve correctly
-
-	var outBuf, errBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-
-	err = cmd.Run()
-	stdout = outBuf.String()
-	stderr = errBuf.String()
-
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitCode = exitErr.ExitCode()
-		} else {
-			t.Fatalf("Failed to run CLI: %v", err)
-		}
-	}
-
-	return stdout, stderr, exitCode
+	return testutil.RunBounded(t, projectRoot, 120*time.Second, "go", append([]string{"run", "./cmd/ailang"}, args...)...)
 }
 
 func TestCLI_Version(t *testing.T) {
@@ -423,28 +406,55 @@ func TestSetupNetHandler(t *testing.T) {
 	}
 }
 
-// TestCLI_NetAllowHTTPFlag_Exists is a regression test ensuring the
-// --net-allow-http flag is recognized by the CLI (not just documented).
+var (
+	ailangBinOnce   sync.Once
+	ailangBinPath   string
+	ailangBinErr    error
+	ailangBinOutput string
+)
+
 // buildAilang builds the ailang binary once per test run and returns its path.
+// It is the package's single builder: every test that needs a real ailang
+// executable goes through here. Linking this binary costs ~5s warm, and the
+// package used to link it 16 times, which is what pushed cmd/ailang past the
+// 300s CI ceiling on the (slower) windows-latest runner.
+//
+// The shared binary lives in an os.MkdirTemp directory, not a per-test
+// t.TempDir: t.TempDir is removed when the first caller returns and would
+// delete the binary before later tests can use it. TestMain removes it after
+// m.Run() returns.
 // Uses a compiled binary instead of "go run" so exit codes propagate correctly.
 func buildAilang(t *testing.T) string {
 	t.Helper()
-	projectRoot, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatalf("Failed to get project root: %v", err)
+	ailangBinOnce.Do(func() {
+		projectRoot, err := filepath.Abs(filepath.Join("..", ".."))
+		if err != nil {
+			ailangBinErr = err
+			return
+		}
+		// Windows refuses to exec a file without the .exe suffix, failing with
+		// "executable file not found in %PATH%" — which reads like a missing
+		// toolchain rather than the naming bug it actually is.
+		binName := "ailang"
+		if runtime.GOOS == "windows" {
+			binName = "ailang.exe"
+		}
+		dir, err := os.MkdirTemp("", "ailang-test-bin")
+		if err != nil {
+			ailangBinErr = err
+			return
+		}
+		ailangBinPath = filepath.Join(dir, binName)
+		stdout, stderr, exitCode := testutil.RunBounded(t, projectRoot, 120*time.Second, "go", "build", "-o", ailangBinPath, "./cmd/ailang")
+		ailangBinOutput = stdout + stderr
+		if exitCode != 0 {
+			ailangBinErr = fmt.Errorf("go build exited with code %d", exitCode)
+		}
+	})
+	if ailangBinErr != nil {
+		t.Fatalf("Failed to build ailang: %v\n%s", ailangBinErr, ailangBinOutput)
 	}
-	binName := "ailang"
-	if runtime.GOOS == "windows" {
-		binName = "ailang.exe"
-	}
-	binPath := filepath.Join(t.TempDir(), binName)
-	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/ailang")
-	cmd.Dir = projectRoot
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to build ailang: %v\n%s", err, out)
-	}
-	return binPath
+	return ailangBinPath
 }
 
 // runAilangBin runs a pre-built ailang binary and returns stdout, stderr, exit code.
@@ -454,22 +464,7 @@ func runAilangBin(t *testing.T, binPath string, args ...string) (stdout, stderr 
 	if err != nil {
 		t.Fatalf("Failed to get project root: %v", err)
 	}
-	cmd := exec.Command(binPath, args...)
-	cmd.Dir = projectRoot
-	var outBuf, errBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-	err = cmd.Run()
-	stdout = outBuf.String()
-	stderr = errBuf.String()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitCode = exitErr.ExitCode()
-		} else {
-			t.Fatalf("Failed to run ailang: %v", err)
-		}
-	}
-	return stdout, stderr, exitCode
+	return testutil.RunBounded(t, projectRoot, 60*time.Second, binPath, args...)
 }
 
 func TestCLI_Exit_Code0(t *testing.T) {

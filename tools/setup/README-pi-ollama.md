@@ -14,5 +14,5 @@ cp tools/setup/pi-ollama-models.json ~/.pi/agent/models.json
 pi --list-models | grep ollama
 ```
 
-Then `ailang eval-suite --agent --models pi-qwen3-5-35b-a3b-mxfp8 ...` works locally.
+Then `ailang eval-suite --agent --models pi-qwen3-6-35b-a3b-mxfp8 ...` works locally.
 Add more local models by appending `{ "id": "<ollama-tag>" }` to the models array.

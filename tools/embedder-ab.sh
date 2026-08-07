@@ -13,7 +13,7 @@
 # Usage: tools/embedder-ab.sh [model] [benchmarks-comma-list]
 set -uo pipefail
 cd "$(dirname "$0")/.."
-MODEL="${1:-opencode-qwen3-5-35b-a3b-mxfp8}"
+MODEL="${1:-opencode-qwen3-6-35b-a3b-mxfp8}"
 CORE="${2:-$(cat /tmp/core_benchmarks.txt)}"
 CFG="$HOME/.ailang/config.yaml"
 OUT=/tmp/embedder_cmp

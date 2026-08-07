@@ -25,7 +25,7 @@ jobs:
         fetch-depth: 0
 
     - name: Set up Go
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v7
       with:
         go-version: '1.26.5'
         cache: true
@@ -36,10 +36,24 @@ jobs:
     # Python is installed. Update PinnedPythonVersion in
     # internal/eval_harness/python.go if the target moves.
     - name: Set up uv
-      uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+      uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
 
     - name: Install dependencies
       run: make deps
+
+    # Prefetch UNPOISONED so the poisoned `go test` step below cannot fail on a
+    # module-cache miss. This MUST run BEFORE the binaries are built: `go mod
+    # download all` writes new entries into the TRACKED go.sum, and the binary
+    # staleness detector (internal/testutil/ailangbin.go) compares binary mtime
+    # against the newest Go source file — so downloading afterwards makes every
+    # ailang binary look stale and silently SKIPS every binary-gated integration
+    # test. Measured on PR #599's first run: binaries built 21:21:03Z, go.sum
+    # touched 21:21:17Z, TestRunSmokeInTempDir_Pass / TestPromptCommand_Piping /
+    # TestZ3VerifyEndToEnd all skipped, and the no-silent-skip gate below
+    # correctly red-lighted the job. build.yml was unaffected precisely because
+    # its download already precedes `go install`.
+    - name: Download all Go modules (including test dependencies)
+      run: go mod download all
 
     - name: Build binaries
       run: make install
@@ -71,7 +85,17 @@ jobs:
     # runners (red dev 2026-07-10: package panicked at exactly 1m0s).
     # 300s still catches genuine hangs (M-DX11's intent) without the flake.
     - name: Run tests with timeout (M-DX11)
-      run: go test -timeout 300s ./...
+      env:
+        HTTP_PROXY: http://127.0.0.1:9
+        HTTPS_PROXY: http://127.0.0.1:9
+        NO_PROXY: localhost,127.0.0.1
+        GOPROXY: off
+      run: |
+        [[ "$HTTP_PROXY" == "http://127.0.0.1:9" ]] || { echo "::error::HTTP_PROXY poison is not configured"; exit 1; }
+        [[ "$HTTPS_PROXY" == "http://127.0.0.1:9" ]] || { echo "::error::HTTPS_PROXY poison is not configured"; exit 1; }
+        [[ "$NO_PROXY" == "localhost,127.0.0.1" ]] || { echo "::error::NO_PROXY loopback bypass is not configured"; exit 1; }
+        [[ "$GOPROXY" == "off" ]] || { echo "::error::GOPROXY is not disabled"; exit 1; }
+        go test -timeout 300s ./...
 
     # `go test ./...` output is non-verbose: a t.Skip is invisible and CI
     # stays green while integration coverage silently evaporates (e.g. if
@@ -81,9 +105,9 @@ jobs:
     # verbosely and require an explicit PASS — a skip or rename fails here.
     - name: Assert binary-gated integration tests ran (no silent skips)
       run: |
-        go test -count=1 -v -run '^(TestRunSmokeInTempDir_Pass|TestPromptCommand_Piping|TestZ3VerifyEndToEnd|TestFormatAilHookSinkRoundTrip)$' \
-          ./internal/pkg ./cmd/ailang ./internal/bestof ./internal/eval_harness 2>&1 | tee gated_integration.log
-        for t in TestRunSmokeInTempDir_Pass TestPromptCommand_Piping TestZ3VerifyEndToEnd TestFormatAilHookSinkRoundTrip; do
+        go test -count=1 -v -run '^(TestRunSmokeInTempDir_Pass|TestPromptCommand_Piping|TestZ3VerifyEndToEnd|TestFormatAilHookSinkRoundTrip|TestGateLint_SelfTest)$' \
+          ./internal/pkg ./cmd/ailang ./internal/bestof ./internal/eval_harness ./internal/testutil/gatelint 2>&1 | tee gated_integration.log
+        for t in TestRunSmokeInTempDir_Pass TestPromptCommand_Piping TestZ3VerifyEndToEnd TestFormatAilHookSinkRoundTrip TestGateLint_SelfTest; do
           grep -q -- "--- PASS: $t" gated_integration.log || {
             echo "::error::$t did not PASS — a binary-gated integration test is being skipped (missing/stale ailang, z3, jq or bash?) or was renamed (then update this step)."
             exit 1
@@ -140,12 +164,12 @@ jobs:
 
     - name: Assert nightly classifier tests ran (no silent skips)
       run: |
-        # Floor tracks the measured suite size (74 on 2026-07-30) with a four-test rename buffer.
+        # Floor tracks the measured suite size (88 on 2026-08-01) with a four-test rename buffer.
         # It drifted to 20-vs-40 before iteration 119 caught it: a floor set
         # once and never revisited is the same vacuous-check class this suite
         # exists to prevent. Raise it whenever you add tests.
         PASSES=$(grep -c -- '--- PASS:' nightly_classifier.log || true)
-        if [ "$PASSES" -lt 70 ]; then
+        if [ "$PASSES" -lt 84 ]; then
           echo "::error::nightly classifier emitted only $PASSES PASS lines; tests were skipped, renamed, or did not run"
           exit 1
         fi
@@ -221,7 +245,7 @@ jobs:
     # continue-on-error keeps CI green if the secret is missing or the scan
     # service has a hiccup — Sonar is a reporting layer, not a gate.
     - name: SonarCloud scan
-      uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v7
+      uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v7
       continue-on-error: true
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -269,13 +293,20 @@ jobs:
       run: git config --global core.autocrlf false
 
     - name: Set up Go
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v7
       with:
         go-version: '1.26.5'
         cache: true
 
     - name: Set up uv (provides Python for eval-harness Python runner tests)
-      uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+      uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+
+    # Same ordering constraint as the Linux leg: prefetch BEFORE the binary is
+    # installed, because `go mod download all` touches the tracked go.sum and the
+    # staleness detector would then treat the freshly-installed ailang as stale,
+    # silently skipping every binary-gated test.
+    - name: Download all Go modules (including test dependencies)
+      run: go mod download all
 
     - name: Install ailang to PATH (mirrors `make install`)
       shell: pwsh
@@ -315,7 +346,17 @@ jobs:
       # still get caught — a 5min ceiling is well above any healthy test.
       # If a test is genuinely Windows-incompatible (not just slow), fix it or
       # skip it with a `// TODO(windows-ci): <reason>` + tracked GH issue.
-      run: go test -timeout 300s ./...
+      env:
+        HTTP_PROXY: http://127.0.0.1:9
+        HTTPS_PROXY: http://127.0.0.1:9
+        NO_PROXY: localhost,127.0.0.1
+        GOPROXY: off
+      run: |
+        if ($env:HTTP_PROXY -ne 'http://127.0.0.1:9') { Write-Error "HTTP_PROXY poison is not configured"; exit 1 }
+        if ($env:HTTPS_PROXY -ne 'http://127.0.0.1:9') { Write-Error "HTTPS_PROXY poison is not configured"; exit 1 }
+        if ($env:NO_PROXY -ne 'localhost,127.0.0.1') { Write-Error "NO_PROXY loopback bypass is not configured"; exit 1 }
+        if ($env:GOPROXY -ne 'off') { Write-Error "GOPROXY is not disabled"; exit 1 }
+        go test -timeout 300s ./...
 
     # Same anti-silent-skip gate as the Linux job (minus z3, which isn't
     # installed here): tests that shell out to ailang t.Skip when it's
@@ -324,8 +365,8 @@ jobs:
     - name: Assert binary-gated integration tests ran (no silent skips)
       shell: pwsh
       run: |
-        go test -count=1 -v -run '^(TestRunSmokeInTempDir_Pass|TestPromptCommand_Piping|TestFormatAilHookSinkRoundTrip)$' ./internal/pkg ./cmd/ailang ./internal/eval_harness 2>&1 | Tee-Object -FilePath gated_integration.log
-        foreach ($t in 'TestRunSmokeInTempDir_Pass','TestPromptCommand_Piping','TestFormatAilHookSinkRoundTrip') {
+        go test -count=1 -v -run '^(TestRunSmokeInTempDir_Pass|TestPromptCommand_Piping|TestFormatAilHookSinkRoundTrip|TestGateLint_SelfTest)$' ./internal/pkg ./cmd/ailang ./internal/eval_harness ./internal/testutil/gatelint 2>&1 | Tee-Object -FilePath gated_integration.log
+        foreach ($t in 'TestRunSmokeInTempDir_Pass','TestPromptCommand_Piping','TestFormatAilHookSinkRoundTrip','TestGateLint_SelfTest') {
           if (-not (Select-String -Path gated_integration.log -SimpleMatch "--- PASS: $t" -Quiet)) {
             Write-Error "$t did not PASS - a binary-gated integration test is being skipped (missing/stale ailang, jq or bash?) or was renamed (then update this step)."
             exit 1
@@ -340,7 +381,7 @@ jobs:
     - uses: actions/checkout@v7
     
     - name: Set up Go
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v7
       with:
         go-version: '1.26.5'
         cache: true
@@ -384,7 +425,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Go
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v7
       with:
         go-version: '1.26.5'
         cache: true
@@ -410,7 +451,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Go
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v7
       with:
         go-version: '1.26.5'
 
@@ -439,7 +480,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Go
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v7
       with:
         go-version: '1.26.5'
 

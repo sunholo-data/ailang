@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/eval_analysis"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
@@ -67,10 +68,37 @@ func runEvalELO() {
 	args := flag.Args() // flag.Arg(0) == "eval-elo"
 	jsonOut := false
 	resultsDir := ""
+	// Unknown flags are REJECTED, not swallowed as the results dir.
+	//
+	// This used to fall through to `resultsDir = a`, so `--mode agent --persist
+	// <db>` ran silently as a no-op — and that is the exact command
+	// eval_confidence.go and eval_saturation.go tell you to run when the ratings
+	// DB is empty. Following the instruction appeared to work, printed a table,
+	// and wrote nothing, so agent-mode ratings were NEVER seeded and
+	// `--benchmarks-by-confidence` could not be used at all. Benchmark selection
+	// for every agent A/B stayed a hardcoded list that silently goes stale.
+	//
+	// Persistence lives in tools/eval-elo, and deliberately: THAT tool fits one
+	// blended rating per mode, which is the scale the ratings DB and the
+	// confidence selector compare against. This command fits ailang and python
+	// SEPARATELY, so its numbers are a per-language leaderboard on a different
+	// scale (subject 2664 here vs 1789 there over the same rows). Persisting
+	// from here would silently corrupt the selector's frame of reference.
 	for _, a := range args[1:] {
-		switch a {
-		case "--json":
+		switch {
+		case a == "--json":
 			jsonOut = true
+		case a == "--persist" || strings.HasPrefix(a, "--persist=") ||
+			a == "--mode" || strings.HasPrefix(a, "--mode="):
+			fmt.Fprintf(os.Stderr, "%s: `ailang eval-elo` does not persist ratings — it fits AILANG and\n"+
+				"Python separately, on a different scale from the ratings DB.\n\n"+
+				"To seed the ratings DB (what --benchmarks-by-confidence reads):\n"+
+				"  go run ./tools/eval-elo --mode agent --persist %s <results_dir>\n",
+				red("Error"), defaultObservatoryDB())
+			os.Exit(1)
+		case strings.HasPrefix(a, "-"):
+			fmt.Fprintf(os.Stderr, "%s: unknown flag %q\nUsage: ailang eval-elo <results_dir> [--json]\n", red("Error"), a)
+			os.Exit(1)
 		default:
 			if resultsDir == "" {
 				resultsDir = a

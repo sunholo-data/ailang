@@ -16,34 +16,49 @@
 # Reviewed: post-release skill prompts a check of expiries.
 
 allow:
-  # Ollama: 9 reachable findings, all unfixed upstream as of 2026-04-28.
+  # Ollama: 8 reachable findings, all unfixed upstream.
   # AILANG calls api.ClientFromEnvironment to talk to a local Ollama
   # daemon for the eval suite (internal/eval_harness). Removing Ollama
   # support is not on the roadmap; we monitor https://github.com/ollama/ollama
   # for security releases via Dependabot.
+  #
+  # RE-VERIFIED 2026-07-31 (mission iteration 124), when all 8 entries
+  # expired together and took dev CI red. Evidence, first-party on the rig:
+  #   - `govulncheck -format json ./...` reports these 8 as the COMPLETE set
+  #     of reachable findings — the allowlist matches reality exactly, with
+  #     no drift and no newly-reachable vuln hiding behind it.
+  #   - every one of the 8 reports NO fixed version in its OSV range
+  #     (`events[].fixed` absent) — i.e. still genuinely unpatched upstream,
+  #     so there is no fix available to take.
+  #   - go.mod is already on github.com/ollama/ollama v0.32.5, which
+  #     `go list -m -versions` confirms is the newest published release.
+  # Conclusion: the original reason still holds verbatim; re-armed for
+  # another 90 days rather than papered over. Next reviewer: re-run the
+  # three checks above before bumping again — if any entry gains a fixed
+  # version, upgrade the dependency instead of extending this date.
   - id: GO-2025-4251
-    reason: Ollama upstream unpatched; tracked via Dependabot. AILANG only invokes the client side; daemon-side issues need an upstream Ollama release.
-    expires: 2026-07-31
+    reason: Ollama upstream unpatched (re-verified 2026-07-31, no fixed version published); tracked via Dependabot. AILANG only invokes the client side; daemon-side issues need an upstream Ollama release.
+    expires: 2026-10-29
   - id: GO-2025-3824
-    reason: Ollama upstream unpatched; tracked via Dependabot.
-    expires: 2026-07-31
+    reason: Ollama upstream unpatched (re-verified 2026-07-31, no fixed version published); tracked via Dependabot.
+    expires: 2026-10-29
   - id: GO-2025-3695
-    reason: Ollama upstream unpatched; tracked via Dependabot.
-    expires: 2026-07-31
+    reason: Ollama upstream unpatched (re-verified 2026-07-31, no fixed version published); tracked via Dependabot.
+    expires: 2026-10-29
   - id: GO-2025-3689
-    reason: Ollama upstream unpatched; tracked via Dependabot.
-    expires: 2026-07-31
+    reason: Ollama upstream unpatched (re-verified 2026-07-31, no fixed version published); tracked via Dependabot.
+    expires: 2026-10-29
   - id: GO-2025-3582
-    reason: Ollama upstream unpatched; tracked via Dependabot.
-    expires: 2026-07-31
+    reason: Ollama upstream unpatched (re-verified 2026-07-31, no fixed version published); tracked via Dependabot.
+    expires: 2026-10-29
   - id: GO-2025-3559
-    reason: Ollama upstream unpatched; tracked via Dependabot.
-    expires: 2026-07-31
+    reason: Ollama upstream unpatched (re-verified 2026-07-31, no fixed version published); tracked via Dependabot.
+    expires: 2026-10-29
   - id: GO-2025-3558
-    reason: Ollama upstream unpatched; tracked via Dependabot.
-    expires: 2026-07-31
+    reason: Ollama upstream unpatched (re-verified 2026-07-31, no fixed version published); tracked via Dependabot.
+    expires: 2026-10-29
   - id: GO-2025-3557
-    reason: Ollama upstream unpatched; tracked via Dependabot.
-    expires: 2026-07-31
+    reason: Ollama upstream unpatched (re-verified 2026-07-31, no fixed version published); tracked via Dependabot.
+    expires: 2026-10-29
   # GO-2025-3548 removed 2026-05-22 — flagged as stale by govulncheck-filter
   # (upstream Ollama fix landed; no longer reachable via current deps).

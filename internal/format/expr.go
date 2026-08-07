@@ -160,11 +160,29 @@ func (p *printer) funcCall(n *ast.FuncCall, parentPrec int) error {
 			return p.expr(n.Args[1], precCons)
 		})
 	}
+	// String interpolation desugars the same way cons does: `"a ${x} b"` becomes
+	// a left-associative concat_String chain with show()-wrapped holes
+	// (parser_literals.go:parseInterpolatedString), and NOTHING in the AST records
+	// that it was written as an interpolation. Re-sugar it for the same reason
+	// cons is re-sugared above — see interpolationString for why this is not
+	// cosmetic.
+	if s, ok := p.interpolationString(n); ok {
+		p.w.write(s)
+		return nil
+	}
 	return p.wrap(parentPrec, precCall, func() error {
 		// The callee binds at call precedence; a lower-precedence callee (e.g. a
 		// lambda) is parenthesised by its own printer via precCall.
 		if err := p.expr(n.Func, precCall); err != nil {
 			return err
+		}
+		// `now()` and `now(())` parse to the IDENTICAL FuncCall — a single unit
+		// literal argument — so printing the empty form round-trips. Only `now()`
+		// is taught; emitting `now(())` rewrote 5 of the prompt's own examples,
+		// the same dialect contradiction as `[int]`→`list[int]`.
+		if isUnitArgOnly(n.Args) {
+			p.w.write("()")
+			return nil
 		}
 		p.w.write("(")
 		for i, a := range n.Args {
@@ -178,6 +196,16 @@ func (p *printer) funcCall(n *ast.FuncCall, parentPrec int) error {
 		p.w.write(")")
 		return nil
 	})
+}
+
+// isUnitArgOnly reports whether an argument list is exactly one unit literal —
+// the shape the parser produces for BOTH `f()` and `f(())`.
+func isUnitArgOnly(args []ast.Expr) bool {
+	if len(args) != 1 {
+		return false
+	}
+	lit, ok := args[0].(*ast.Literal)
+	return ok && lit.Kind == ast.UnitLit
 }
 
 func (p *printer) recordAccess(n *ast.RecordAccess, parentPrec int) error {

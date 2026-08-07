@@ -1,0 +1,10 @@
+module single_pass
+
+-- #590: a named test body whose only check is a passing assert.
+-- Before the assert lowering this failed with PAR_NO_PREFIX_PARSE.
+
+export pure func add_one(x: int) -> int { x + 1 }
+
+test "single passing assert" {
+  assert add_one(1) == 2
+}

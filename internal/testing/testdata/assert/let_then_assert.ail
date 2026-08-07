@@ -1,0 +1,10 @@
+module let_then_assert
+
+-- A `let` binding threaded around the sentinel chain.
+
+export pure func add_one(x: int) -> int { x + 1 }
+
+test "let then assert" {
+  let x = add_one(1);
+  assert x == 2
+}

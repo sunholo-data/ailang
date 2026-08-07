@@ -12,52 +12,15 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"sync"
 	"testing"
 )
 
-var (
-	budgetBinOnce sync.Once
-	budgetBinPath string
-	budgetBinErr  error
-)
-
-// budgetBin builds the ailang binary once for the whole matrix into a temp dir
-// that survives across all tests (NOT a per-test t.TempDir, which is removed
-// when the first test returns and would delete the shared binary).
+// budgetBin returns the package-wide shared ailang test binary.
 func budgetBin(t *testing.T) string {
 	t.Helper()
-	budgetBinOnce.Do(func() {
-		projectRoot, err := filepath.Abs(filepath.Join("..", ".."))
-		if err != nil {
-			budgetBinErr = err
-			return
-		}
-		binName := "ailang-budget-e2e"
-		if runtime.GOOS == "windows" {
-			binName += ".exe"
-		}
-		dir, err := os.MkdirTemp("", "ailang-budget-e2e")
-		if err != nil {
-			budgetBinErr = err
-			return
-		}
-		budgetBinPath = filepath.Join(dir, binName)
-		cmd := exec.Command("go", "build", "-o", budgetBinPath, "./cmd/ailang")
-		cmd.Dir = projectRoot
-		if out, err := cmd.CombinedOutput(); err != nil {
-			budgetBinErr = err
-			t.Logf("build output:\n%s", out)
-		}
-	})
-	if budgetBinErr != nil {
-		t.Fatalf("ailang binary build failed: %v", budgetBinErr)
-	}
-	return budgetBinPath
+	return buildAilang(t)
 }
 
 // runBudget writes src to a temp module and runs `main` with --caps IO.

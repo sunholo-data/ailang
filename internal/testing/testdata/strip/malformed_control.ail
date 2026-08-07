@@ -1,0 +1,5 @@
+module malformed_control
+
+test "malformed" {
+  }
+}

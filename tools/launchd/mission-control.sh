@@ -50,6 +50,12 @@ MISSION_NAME="${MISSION_NAME:-v1}"
 MISSION_REPO="${MISSION_REPO:-sunholo-data/ailang}"
 MISSION_DOC="${MISSION_DOC:-design_docs/v1-mission.md}"
 export MISSION_NAME MISSION_REPO MISSION_DOC
+# D6 rollback pin: always sourced for the RESOLVED mission name, so the documented
+# `MISSION_PLANNER_MODEL=opus` rollback works for V1 (whose plist sets no MISSION_PROFILE).
+# Convention: entries use ${VAR:-value} so a command-line env pin still wins (the AC fixtures
+# depend on that). Double-source for World is idempotent.
+[ -f "$HOME/.config/ailang/mission-${MISSION_NAME}.env" ] \
+  && . "$HOME/.config/ailang/mission-${MISSION_NAME}.env"
 STATE_DIR="$HOME/.ailang/state"
 if [ "$MISSION_NAME" = "v1" ]; then
   # LEGACY paths — bit-for-bit compat with the live V1 loop (no migration).
@@ -168,14 +174,17 @@ _mc_probe() {
   _mc_bounded "$PROBE_TIMEOUT" claude -p 'reply with exactly: ok' --model "$m"; rc=$?
   out="$MC_BOUNDED_OUT"
   [ "$rc" -eq 0 ] && return 0
-  [ "$rc" -eq 124 ] && log "model $m probe timed out after ${PROBE_TIMEOUT}s"
+  # Log the captured output tail on timeout: an EMPTY capture (claude -p is
+  # silent until completion) means a hang/backoff loop, error text means an
+  # actual failure — 2026-08-05's refusals were undiagnosable without this.
+  [ "$rc" -eq 124 ] && log "model $m probe timed out after ${PROBE_TIMEOUT}s — captured output: '$(printf '%s' "$out" | tail -c 200 | tr '\n' ' ')'"
   if printf '%s' "$out" | grep -qiE "$QUOTA_SIG"; then return 1; fi
   # transient? retry once
   sleep 5
   _mc_bounded "$PROBE_TIMEOUT" claude -p 'reply with exactly: ok' --model "$m"; rc=$?
   out="$MC_BOUNDED_OUT"
   [ "$rc" -eq 0 ] && return 0
-  [ "$rc" -eq 124 ] && log "model $m probe timed out after ${PROBE_TIMEOUT}s (retry)"
+  [ "$rc" -eq 124 ] && log "model $m probe timed out after ${PROBE_TIMEOUT}s (retry) — captured output: '$(printf '%s' "$out" | tail -c 200 | tr '\n' ' ')'"
   printf '%s' "$out" | grep -qiE "$QUOTA_SIG" && return 1
   return 2
 }
@@ -277,10 +286,20 @@ export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-fable-5}"
 # this. Enforced by the skill's Gate-3 metered ledger; quota-bucket (subscription) spend is
 # NOT counted — this caps dollars, not tokens.
 export MISSION_METERED_BUDGET_USD="${MISSION_METERED_BUDGET_USD:-5}"
-export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-opus}"
+# THE FLIP (m-planner-codex-lane M4, mission iteration 136): the sprint-planner default
+# moves to the ChatGPT-subscription codex bucket so opus stays controller-only (Mark
+# quota-offload #1). The CONFIGURED default is not the EFFECTIVE lane: the skill's Gate-3
+# step 1b runs tools/launchd/derive-planner-lane.sh on the picked design doc and fails
+# CLOSED to opus unless that doc declares **Planner-Lane**: codex-ok AND every path it
+# declares is inside the D2 infra allowlist. Rollback = uncomment MISSION_PLANNER_MODEL
+# in ~/.config/ailang/mission-<name>.env (delivery mechanism added by M2 above).
+export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol}"
 export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol}"
-# Codex-lane pre-flight (2026-07-27): subscription quota is invisible until it errors, so probe
-# once per fire. Any probe failure → fall back to opus THIS fire only (logged, never wedged).
+# Codex-lane pre-flight, ROLE-GENERIC (m-planner-codex-lane): probe once per DISTINCT
+# codex model, fall back per-role on ANY non-zero rc (#486: probe MUST carry --model;
+# an unusable pin is exactly as fatal as spent quota). Export AFTER fallback so the
+# EXPORTED env — what the routing-evidence row reports — stays honest.
+# BASH 3.2 (L19): ':'-delimited string sets, NOT associative arrays; no ${var,,}.
 #
 # The probe MUST carry --model (#486, 2026-07-27): without it codex exercises its DEFAULT model,
 # so a pinned-but-unreachable model false-greens the lane. Live evidence that day: codex-cli
@@ -292,20 +311,65 @@ export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol}"
 # fatal to the lane as a spent quota, and the old quota-only gate is what let #486 through. The
 # skill's Gate-3 recipe re-probes and would fall back anyway; doing it here keeps the EXPORTED
 # env honest, which is what the routing-evidence row reports.
-case "$MISSION_EXECUTOR_MODEL" in codex:*)
-  cx_model="${MISSION_EXECUTOR_MODEL#codex:}"
-  _mc_bounded "$PROBE_TIMEOUT" codex exec --skip-git-repo-check --model "$cx_model" 'reply with exactly: ok'
-  cx_rc=$?; cx_out="$MC_BOUNDED_OUT"
-  if [ $cx_rc -ne 0 ]; then
-    if [ $cx_rc -eq 124 ]; then cx_why="probe timed out after ${PROBE_TIMEOUT}s"
-    elif printf '%s' "$cx_out" | grep -qiE "$QUOTA_SIG"; then cx_why="quota-limited"
-    else cx_why="probe failed (rc=$cx_rc)"; fi
-    log "codex executor lane $cx_why for model '$cx_model' -> falling back to opus for this fire"
-    log "codex probe output: $(printf '%s' "$cx_out" | tail -3 | tr '\n' ' ')"
-    MISSION_EXECUTOR_MODEL="opus"; export MISSION_EXECUTOR_MODEL
-  fi
-  ;;
-esac
+_cx_probed=":"   # models probed this fire (dedupe: planner+executor share the default model)
+_cx_failed=":"   # models whose probe failed
+for role in PLANNER EXECUTOR; do
+  var="MISSION_${role}_MODEL"; val="${!var}"
+  case "$val" in codex:*)
+    cx_model="${val#codex:}"
+    case "$_cx_probed" in *":${cx_model}:"*) : ;; *)   # not yet probed
+      _cx_probed="${_cx_probed}${cx_model}:"
+      _mc_bounded "$PROBE_TIMEOUT" codex exec --skip-git-repo-check --model "$cx_model" 'reply with exactly: ok'
+      cx_rc=$?; cx_out="$MC_BOUNDED_OUT"
+      if [ "$cx_rc" -ne 0 ]; then
+        _cx_failed="${_cx_failed}${cx_model}:"
+        # why-classification happens ONCE, at probe time (timeout / quota-sig / other)
+        if [ "$cx_rc" -eq 124 ]; then cx_why="probe timed out after ${PROBE_TIMEOUT}s"
+        elif printf '%s' "$cx_out" | grep -qiE "$QUOTA_SIG"; then cx_why="quota-limited"
+        else cx_why="probe failed (rc=$cx_rc)"; fi
+        log "codex model '$cx_model' unusable: $cx_why"
+        log "codex probe output: $(printf '%s' "$cx_out" | tail -3 | tr '\n' ' ')"
+      fi
+    ;; esac
+    case "$_cx_failed" in *":${cx_model}:"*)
+      role_lc=$(printf '%s' "$role" | tr 'A-Z' 'a-z')   # ${role,,} is bash-4.0-only (L21)
+      log "codex ${role_lc} lane -> falling back to opus for this fire (model '$cx_model')"
+      printf -v "$var" 'opus'; export "$var"
+    ;; esac
+  ;; esac
+done
+# pi-lane pre-flight, ROLE-GENERIC (mirrors the codex loop above; added 2026-08-06,
+# Mark: DeepSeek executor lane — trial record in models.yml pi-or-deepseek-v4-flash).
+# Probe once per DISTINCT pi model, fall back per-role on ANY non-zero rc — an
+# unusable pin is exactly as fatal as a spent bucket (#486). The OpenRouter key
+# rides ~/.pi/agent/models.json (custom provider), not env, so this probe is
+# headless-safe. --no-tools keeps it ~1 reply-token; --no-session avoids polluting
+# ~/.pi/sessions. BASH 3.2 (L19): ':'-delimited string sets, NOT associative arrays.
+_pi_probed=":"   # models probed this fire (dedupe: planner+executor could share one)
+_pi_failed=":"   # models whose probe failed
+for role in PLANNER EXECUTOR; do
+  var="MISSION_${role}_MODEL"; val="${!var}"
+  case "$val" in pi:*)
+    pi_model="${val#pi:}"
+    case "$_pi_probed" in *":${pi_model}:"*) : ;; *)   # not yet probed
+      _pi_probed="${_pi_probed}${pi_model}:"
+      _mc_bounded "$PROBE_TIMEOUT" pi --mode json --no-session --no-tools --model "$pi_model" -p 'reply with exactly: ok'
+      pi_rc=$?; pi_out="$MC_BOUNDED_OUT"
+      if [ "$pi_rc" -ne 0 ]; then
+        _pi_failed="${_pi_failed}${pi_model}:"
+        if [ "$pi_rc" -eq 124 ]; then pi_why="probe timed out after ${PROBE_TIMEOUT}s"
+        else pi_why="probe failed (rc=$pi_rc)"; fi
+        log "pi model '$pi_model' unusable: $pi_why"
+        log "pi probe output: $(printf '%s' "$pi_out" | tail -3 | tr '\n' ' ')"
+      fi
+    ;; esac
+    case "$_pi_failed" in *":${pi_model}:"*)
+      role_lc=$(printf '%s' "$role" | tr 'A-Z' 'a-z')   # ${role,,} is bash-4.0-only (L21)
+      log "pi ${role_lc} lane -> falling back to opus for this fire (model '$pi_model')"
+      printf -v "$var" 'opus'; export "$var"
+    ;; esac
+  ;; esac
+done
 # evaluator default = sonnet (2026-07-16, Mark directive on #399: "default can be gemini (if able
 # to git clone the codebase etc)? otherwise sonnet-5"). gemini managed_agents is NOT viable as the
 # evaluator today — VERIFIED iteration 38: (1) architecturally the request body carries only
@@ -355,12 +419,12 @@ fi
 # 4. Select the model (probe doubles as the subscription-auth check: API keys
 #    are stripped above, so a passing probe proves keychain/token auth too).
 if ! select_model; then
-  log "NO usable model in prefs ($PREFS) — quota-exhausted across candidates or auth dead. Refusing."
+  log "NO usable model in prefs ($PREFS) — every probe failed (per-model reasons above: quota-limited, timed out, or errored). Refusing."
   ailang messages send controlplane \
-    "mission-control refused to start: no usable model in prefs ($PREFS). Either every candidate is quota-limited or subscription auth is unavailable (keychain locked / rig at login screen?). Zero tokens spent beyond probes." \
+    "mission-control refused to start: no usable model in prefs ($PREFS). Every candidate probe failed — per-model reasons (quota-limited / timed out / errored) are in the driver log; observed cause so far is probe TIMEOUTS (likely API backoff), not dead auth. Zero tokens spent beyond probes." \
     --title "Mission iteration blocked: no usable model" --from "$MSG_FROM" 2>/dev/null
   [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-    --body "⚠️ Mission iteration did not start: **no usable model** in preference list (\`$PREFS\`) — all candidates quota-limited or auth unavailable. Will retry next interval; recovery is automatic when any candidate's probe succeeds." 2>/dev/null
+    --body "⚠️ Mission iteration did not start: **no usable model** in preference list (\`$PREFS\`) — every candidate probe failed (quota-limited, timed out, or errored — per-model detail in the driver log). Will retry next interval; recovery is automatic when any candidate's probe succeeds." 2>/dev/null
   exit 1
 fi
 
@@ -440,6 +504,13 @@ _mc_run_once() {
   return "$RC"
 }
 
+# Snapshot the mission log's last record heading before the run, so the rc!=0
+# notice below can tell "iteration lost" from "iteration recorded itself, then a
+# watchdog killed a lingering child" (iter-145, 2026-08-05: report landed 14:35,
+# SIGTERM 14:41, and the FAILED comment sent a human to re-check landed work).
+MISSION_LOG_FILE="${MISSION_DOC%.md}-log.md"
+pre_last_record=$(grep '^## ' "$MISSION_LOG_FILE" 2>/dev/null | tail -1)
+
 # Run with transient-retry. On a non-zero exit that is NOT a deliberate watchdog
 # kill (143/137) AND whose THIS-attempt output carries a transient signature,
 # back off and re-run — up to TRANSIENT_RETRIES total attempts.
@@ -463,12 +534,24 @@ done
 rm -f "$PIDFILE"   # this instance owns the run; yield paths above never reach here
 
 if [ "$RC" -ne 0 ]; then
-  log "iteration exited rc=$RC"
-  ailang messages send controlplane \
-    "mission-control iteration exited rc=$RC (timeout or crash). Log: $LOG" \
-    --title "Mission iteration FAILED (rc=$RC)" --from "$MSG_FROM" 2>/dev/null
-  [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-    --body "⚠️ Mission iteration **FAILED to complete** (rc=$RC — timeout or crash) at $(date '+%F %H:%M %Z'). Log on the rig: \`$LOG\`. The queue is untouched; the next interval will retry." 2>/dev/null
+  post_last_record=$(grep '^## ' "$MISSION_LOG_FILE" 2>/dev/null | tail -1)
+  if [ -n "$post_last_record" ] && [ "$post_last_record" != "$pre_last_record" ]; then
+    # The mission log gained a record during this run: the work landed and the
+    # non-zero exit is a late kill of a lingering child, not a lost iteration.
+    log "iteration exited rc=$RC AFTER recording itself — late kill, work landed"
+    ailang messages send controlplane \
+      "mission-control iteration exited rc=$RC AFTER its mission-log record landed (late watchdog kill of a lingering child, not a lost iteration). Record: ${post_last_record:0:160}. Log: $LOG" \
+      --title "Mission iteration killed post-record (rc=$RC) — work landed" --from "$MSG_FROM" 2>/dev/null
+    [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
+      --body "ℹ️ Mission iteration exited **rc=$RC after landing its record** at $(date '+%F %H:%M %Z') — the mission log gained an entry during this run, so this was a late watchdog kill of a lingering child, not a lost iteration. The queue advanced normally. Log on the rig: \`$LOG\`." 2>/dev/null
+  else
+    log "iteration exited rc=$RC"
+    ailang messages send controlplane \
+      "mission-control iteration exited rc=$RC (timeout or crash). Log: $LOG" \
+      --title "Mission iteration FAILED (rc=$RC)" --from "$MSG_FROM" 2>/dev/null
+    [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
+      --body "⚠️ Mission iteration **FAILED to complete** (rc=$RC — timeout or crash) at $(date '+%F %H:%M %Z'). Log on the rig: \`$LOG\`. The queue is untouched; the next interval will retry." 2>/dev/null
+  fi
 else
   log "iteration complete (rc=0)"
   # The skill itself sends the substantive report (Gate 5, both channels).

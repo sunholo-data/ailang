@@ -1,0 +1,230 @@
+{
+  "sprint_id": "M-RECORDED-STREAM-API-S1",
+  "design_doc": "design_docs/planned/v0_32_0/m-recorded-stream-api.md",
+  "sprint_plan": "design_docs/planned/v0_32_0/m-recorded-stream-api-sprint-plan.md",
+  "mission": "V1 mission iteration 133 — adopt @arniwesth's recorded-stream implementation (ailang#546)",
+  "target_version": "v0.32.0",
+  "created": "2026-08-03",
+  "planner_model": "claude-opus-4-8",
+  "executor_model": "codex:gpt-5.6-sol",
+  "branch": "sprint/m-recorded-stream-api",
+  "worktree": "/Users/voightkampff/dev/sunholo-data/.wt-iter133",
+  "github_issues": [
+    546
+  ],
+  "risk_level": "medium",
+  "credit": "@arniwesth is the original author of the adopted implementation (arniwesth/ailang#2). Credit is MANDATORY in the adopting commit message and the CHANGELOG entry.",
+  "velocity": {
+    "target_loc_per_day": 190,
+    "estimated_total_loc": 730,
+    "estimated_days": 3.75
+  },
+  "sprint_cut": {
+    "rationale": "Design doc M1-M4 total 4.5-6.0 days after the sentinel ruling; the mission charter caps a sprint at 3-4 days. Sprint 1 = merge-ready core (split + shared core + fail-loud/drain + tests + contract text). Sprint 2 = example/manifest, the two false 'open row' doc repairs + CI text guard, prompt/uRAG/website, and the M4 exhaustiveness guard.",
+    "moved_up_from_doc_M3": "Since: metadata, LongDesc, CHANGELOG and credit are merge-blocking contract text, not documentation polish - a builtin cannot merge registered Since: 'prototype', and shipping a fail-loud API whose deliberate sibling divergence is undocumented is the silent-fallback shape this repo forbids.",
+    "new_work_not_in_doc": "S1-M1, the internal/effects/ai_step.go split. HEAD 665 + patch 113 = 778 against an 800-line CI gate = 22 lines headroom, measured first-party. The 0.5d freed by dropping the sentinel is reallocated here.",
+    "pr_can_claim": [
+      "stepWithStreamRecorded exists, registered, typed, StabilityExperimental, Since v0.32.0, returns {chunks, outcome}",
+      "both stream ops share ONE validation/decode/dispatch core; no duplicated block",
+      "fail-loud invariant with stable public message prefix 'unencodable stream chunk'; delivered_chunks == len(recorded) invariant",
+      "post-failure drain bounded in per-chunk work, retains nothing",
+      "existing stepWithStream externally unchanged (parity test)",
+      "evaluator <-> non-strict --bytecode parity for nested RecordedStream",
+      "@arniwesth credited"
+    ],
+    "pr_must_not_claim": [
+      "ADR-009 / Motoko Project 009 is unblocked - only a Go-level ordering gate passes; the consumer probe is @arniwesth's against a merged build",
+      "the streaming docs no longer lie - both false 'open row' claims stay live until sprint 2",
+      "there is a worked example - no examples/ai_streaming_recorded.ail; prompt/uRAG discovery does not know the function",
+      "an unencodable StreamChunk variant is impossible - that is the M4 guard in sprint 2; correct phrasing is 'unreachable for any StreamChunk constructible today (sealed interface)'",
+      "the post-failure drain terminates in bounded wall-clock - it terminates when the provider's stream ends",
+      "anything about the js && wasm build - PR CI never compiles it (ci.yml/build.yml: zero wasm hits; only release.yml:17 build-wasm)"
+    ]
+  },
+  "planner_ruling_sentinel": {
+    "question": "The design doc specified a sentinel-panic abort on drain-budget exhaustion, recovered around ctx.AI.StepWithStream. The controller refuted it as unsound on js && wasm. Options: (i) no sentinel, (ii) native-only gated sentinel, (iii) keep as designed.",
+    "ruling": "(i) - drain mode ships, the sentinel does NOT. Controller refutation CONFIRMED and strengthened against a primary source.",
+    "reasons": [
+      "R1: Go 1.26.5 syscall/js FuncOf doc: 'Invoking the wrapped Go function from JavaScript will pause the event loop and spawn a new goroutine. Other wrapped functions which are triggered during a call from Go to JavaScript get executed on the same goroutine.' WasmAIHandler.StepWithStream returns from Invoke with a thenable and parks in awaitPromise's select (cmd/wasm/effects.go:53-88), so every later funcWrapper call arrives from the JS event loop on a NEW goroutine. recover is per-goroutine => unrecovered => fatal to the module.",
+      "R2: option (iii) refuted - it needs the JS handler to emit synchronously inside Invoke, but the repo's own StepWithStream comment says the wrapper is released 'once the JS handler resolves its Promise', and any real streaming handler is async. A soundness property a third-party caller can revoke is not a soundness property.",
+      "R3: option (ii) refuted - (a) PR CI never compiles js && wasm (grep -n wasm .github/workflows/ci.yml .github/workflows/build.yml => rc=1 zero hits; control: 20+ hits in release.yml, build-wasm job at :17), so a build-tag slip surfaces at RELEASE not on the PR; (b) on WASM the drain branch is unreachable BY CONSTRUCTION - jsToStreamChunk (cmd/wasm/effects.go:345-366) returns only the 3 encodable variants or untyped nil, and :243 filters nil before onChunk - so the gated sentinel is dead code today, and the only scenario that activates it (a 4th variant added to jsToStreamChunk without an encodeStreamChunk case) is exactly where a wrong gate turns 'typed Internal + long drain' into 'fatal WASM module crash'.",
+      "R4: the sentinel is a covert version of the interface change Mark already rejected. AIHandler.StepWithStream has 7 implementers (4 production, 3 test doubles) PLUS out-of-repo ones including @arniwesth's driver. Panicking out of the onChunk we hand them imposes an unstated panic-transparency requirement with no compiler signal, no interface doc, no version bump. Mark rejected option (b) because an interface change reaching WASM forfeits the purely-additive property; the sentinel forfeits it invisibly."
+    ],
+    "doc_argument_refuted": "The doc claimed the sentinel is 'the established Go control-flow escape ... (encoding/json, fmt use it internally)'. encoding/json's only recover is encode.go:335 in (*encodeState).marshal, and the jsonError it catches is raised by json's OWN encodeState recursion; a panic from a user-supplied MarshalJSON is explicitly RE-RAISED at encode.go:339. The precedent is 'a package panics through its own frames', never 'a package panics out of a callback it handed to foreign code'.",
+    "what_survives": "drain mode, both named budgets, drain_exhausted trace metadata, the preserved typed Internal error, locality, no interface change - every element of Mark's option-(c) ruling.",
+    "residual_for_human": "Post-failure WALL-CLOCK is no longer bounded; only post-failure WORK is. On a path unreachable for any StreamChunk constructible today. One-word question to Mark: accept? (yes/no)"
+  },
+  "executor_constraints": {
+    "sandbox": "codex --sandbox workspace-write DENIES loopback socket binds. Any httptest/net-listener failure of that shape is 'UNINFORMATIVE UNDER SANDBOX', never a product failure. Label it with the exact test name; do not report a red gate. Known instance: TestNetHTTPRequestBytes_RoundTripSHA in internal/effects.",
+    "always": "Run Go gates with SKIP_NET_TESTS=1. Separate live-network flake filed as #561 (TestNetHttpPost/httpPost_to_httpbin.org, upstream httpbin 503) - do not chase it.",
+    "no_push": "Commit to sprint/m-recorded-stream-api in this worktree only. Do NOT push. The controller opens the PR.",
+    "no_panic": "Do NOT implement panic/recover anywhere in this sprint. See planner_ruling_sentinel.",
+    "narrowing_travels": "If a -run/-skip/single-package filter produced a green result, that narrowing must be stated with the claim.",
+    "unencodable_test_routes": "StreamChunk is sealed by unexported streamChunkMarker() (internal/ai/provider.go:159-163). Only two constructible unencodable inputs exist: a fake handler calling onChunk(nil), or a test-local struct{ ai.StreamChunk } nil-embed. Fake-handler pattern exists at internal/effects/ai_step_test.go:53. There is no third route - do not look for one."
+  },
+  "reference_patch": {
+    "path": "/tmp/arni-546-dev.patch",
+    "bytes": 20402,
+    "stat": "+452, 5 files, 0 deletions",
+    "verified_by_planner_at": "2f12ddacd",
+    "evidence": "git apply --check rc=0; git apply --check --reverse rc=1 (non-vacuous control); applied then SKIP_NET_TESTS=1 go test ./internal/effects/ -run 'Recorded|StreamRecorded' -v => rc=0, 4/4 PASS, ok internal/effects 0.413s; reversed, git status --porcelain empty; post-patch wc -l internal/effects/ai_step.go = 778 and make check-file-sizes green."
+  },
+  "features": [
+    {
+      "id": "S1_M1_SPLIT_AI_STEP_FOR_HEADROOM",
+      "description": "Behaviour-free split of internal/effects/ai_step.go (665 lines at HEAD; 778 after the patch; 800-line CI gate = 22 lines headroom). Move decode helpers to internal/effects/ai_decode.go (decodeMessages :459, decodeToolCalls :494, decodeImageParts :514, decodeCacheBreakpoints :537, decodeToolSchemas :557, getStringField :576 ~135 LOC) and encode/result helpers to internal/effects/ai_encode.go (encodeStreamChunk :422, makeOkStringResult :593, makeOkStepResult :601, encodeToolCalls :629, makeAIErrorResultRecord :646 ~110 LOC). MUST be the first commit and MUST contain no logic change. ESTIMATED_LOC NOTE: 245 = lines MOVED (~135 decode + ~110 encode), not net-new; the net diff is ~0. Recorded as the moved-line count because the sprint-state validator rejects estimated_loc == 0 as an unfilled placeholder (iter-121 hit the same wall).",
+      "estimated_loc": 245,
+      "estimated_days": 0.5,
+      "dependencies": [],
+      "files": [
+        "internal/effects/ai_step.go (remove moved functions; target <= 450 lines)",
+        "internal/effects/ai_decode.go (NEW)",
+        "internal/effects/ai_encode.go (NEW)"
+      ],
+      "acceptance_criteria": [
+        "git diff -M --stat for this commit shows moves only, no changed function bodies; the diff summary is quoted in the notes",
+        "SKIP_NET_TESTS=1 go test ./internal/effects/ ./internal/builtins/ => rc=0",
+        "make check-file-sizes => green",
+        "wc -l internal/effects/ai_step.go <= 450",
+        "go build ./... => rc=0"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "S1_M2_ADOPT_PATCH_ON_SHARED_CORE",
+      "description": "Two commits. (1) Apply /tmp/arni-546-dev.patch VERBATIM in its own commit crediting @arniwesth, so the refactor is reviewable as a diff against the author's code and the credit is legible in git log. (2) Extract the ~80 duplicated lines (arity/type validation, handler + FnCaller guards, message/tool-schema/cache-breakpoint decode, the single ctx.AI.StepWithStream invocation, chunk encode, callback delivery + fail-soft callback-error tracing, typed operation-error classification, final response conversion, trace metadata/count construction) into one private core in a NEW internal/effects/ai_stream_core.go, taking an explicit policy struct {record bool; failLoud bool}. aiStepWithStream = core + {false,false}; aiStepWithStreamRecorded = core + {true,true}. Prefer the core returning ([]eval.Value, *ai.Response, *ai.AIError) and letting each wrapper build its own eval.Value, rather than threading a constructor callback.",
+      "estimated_loc": 200,
+      "estimated_days": 1.0,
+      "dependencies": [
+        "S1_M1_SPLIT_AI_STEP_FOR_HEADROOM"
+      ],
+      "files": [
+        "internal/effects/ai_stream_core.go (NEW)",
+        "internal/effects/ai_step.go (aiStepWithStream becomes a thin wrapper)",
+        "internal/builtins/ai_step.go (from patch, +69)",
+        "internal/builtins/ai.go (from patch, +1)",
+        "std/ai.ail (from patch, +25)",
+        "internal/effects/ai_step_with_stream_recorded_test.go (from patch, +244, keep unmodified)"
+      ],
+      "acceptance_criteria": [
+        "Exactly ONE copy of the argument-validation and decode blocks across both siblings; the grep command and its count are quoted in the notes",
+        "SKIP_NET_TESTS=1 go test ./internal/effects/ -run 'Recorded|StreamRecorded' -v => 4/4 PASS",
+        "TestAIStepWithStream_UnchangedByRecordedVariant passes",
+        "SKIP_NET_TESTS=1 go test ./internal/effects/ ./internal/builtins/ => rc=0",
+        "make check-file-sizes green and no file in internal/effects above 700 lines",
+        "make build && AILANG_BUILTINS_REGISTRY=1 ./bin/ailang doctor builtins => rc=0",
+        "The verbatim-adoption commit message names @arniwesth and links arniwesth/ailang#2"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "S1_M3_FAIL_LOUD_AND_BOUNDED_INERT_DRAIN",
+      "description": "In the shared core, active only under failLoud: (1) first unencodable chunk (encodeStreamChunk returns nil) records nothing, delivers nothing, and latches non-retryable AIError{code:Internal, message:'unencodable stream chunk at provider index N; recorded log is an incomplete prefix'} - the prefix 'unencodable stream chunk' is PUBLIC CONTRACT and lives in a named constant; (2) the latched error cannot be overwritten by a later provider terminal success/error; (3) drain mode after the latch does no encode/record/deliver, only advances post-failure chunk count and post-failure payload bytes (no retention); (4) named constants recordedDrainMaxChunks = 256 and recordedDrainMaxBytes = 1 << 20, whichever exhausts first sets drainExhausted; (5) ON EXHAUSTION THE DRAIN GOES INERT - the callback's first statement is `if drainExhausted { return }`, counters saturate, NO PANIC, NO RECOVER, NO SENTINEL (see planner_ruling_sentinel); (6) counters provider_chunks (a floor once drain_exhausted) and delivered_chunks (== len(recorded) always), plus drain_exhausted:true in trace metadata; no skipped_chunks success path. OUT OF SCOPE: any change to aiStepWithStream's shipped silent skip (internal/effects/ai_step.go:377-382).",
+      "estimated_loc": 120,
+      "estimated_days": 0.75,
+      "dependencies": [
+        "S1_M2_ADOPT_PATCH_ON_SHARED_CORE"
+      ],
+      "files": [
+        "internal/effects/ai_stream_core.go",
+        "internal/effects/ai_step.go (unchanged behaviour - assert this)"
+      ],
+      "acceptance_criteria": [
+        "Unencodable FIRST chunk: outcome = Err, code = Internal, message begins with the named constant, chunks is empty, the AILANG callback was never invoked for it",
+        "Unencodable MIDDLE chunk: chunks is exactly the delivered prefix; later chunks are neither recorded nor delivered",
+        "Fake handler emitting 1000 post-failure chunks: exactly recordedDrainMaxChunks counted, drain_exhausted:true traced, and an instrumented fake asserts ZERO encodes/appends/AILANG-callback invocations after exhaustion",
+        "Fake handler emitting 3 post-failure chunks of 512 KiB each trips recordedDrainMaxBytes independently of the chunk budget",
+        "A provider terminal Ok arriving after the latch does NOT overwrite the Internal error",
+        "grep -rn 'recover()|panic(' internal/effects/ai_stream_core.go => ZERO hits, paired with a known-positive control in the same call (e.g. the same pattern against internal/effects/stream.go)",
+        "No goroutine and no timer is created anywhere in the new code"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "S1_M4_TEST_MATRIX",
+      "description": "New tests in internal/effects/ai_stream_core_test.go (leave ai_step_with_stream_recorded_test.go, the author's four, unmodified so the adoption stays legible). 14 rows: (1) table-driven argument/type/decode failure parity across both siblings; (2) no-handler and no-FnCaller typed errors, recorded mode returns EMPTY chunks; (3) callback failure traced, stream continues, recorded chunks exact; (4) all three chunk variants incl. full Usage field encoding and order; (5) unencodable first/middle; (6) both drain budgets independently; (7) latched error not overwritten; (8) empty stream success and error; (9) multiple chunks - stable order, no duplicate callback, callback value identical to recorded value; (10) capability denial + AI budget accounting parity; (11) trace assertions - operation name, routing metadata, outcome, fatal provider index, provider_chunks, delivered_chunks, drain_exhausted; (12) builtin registry + public type + metadata (v0.32.0, StabilityExperimental); (13) evaluator vs non-strict --bytecode parity for nested RecordedStream; (14) ADR-009 ordering gate at the Go level - immediate projection, exact ordered returned-log parity, success, partial-then-error, no duplicate delivery.",
+      "estimated_loc": 350,
+      "estimated_days": 1.0,
+      "dependencies": [
+        "S1_M3_FAIL_LOUD_AND_BOUNDED_INERT_DRAIN"
+      ],
+      "files": [
+        "internal/effects/ai_stream_core_test.go (NEW)",
+        "internal/builtins/ai_step_test.go (registry/metadata rows)"
+      ],
+      "risk_note_row_13": "The design doc's 'no dedicated bytecode op is needed' is CORROBORATED BUT NOT PROVEN for the new nested return. The controller confirmed runtime.CallEntrypoint is the evaluator-only dispatch path (cmd/ailang/run_helpers.go:473-483) and that both ops register via RegisterEffectBuiltin -> effects.Call -> RegisterOp('AI', ...), but nobody has tested eval<->bytecode value conversion for {chunks: [StreamChunk], outcome: Result[...]}. IF ROW 13 FAILS THAT IS A REAL FINDING, NOT A TEST BUG - stop and report it, do not paper over it. --strict-bytecode behaviour must stay identical to the existing callback-bearing stream function.",
+      "acceptance_criteria": [
+        "SKIP_NET_TESTS=1 go test ./internal/effects/ ./internal/builtins/ -count=1 => rc=0, with the --- PASS: count reported",
+        "SKIP_NET_TESTS=1 go test ./... and go build ./... => rc=0, modulo sandbox-denied listener tests labelled UNINFORMATIVE UNDER SANDBOX with the exact test name",
+        "make check-file-sizes => green",
+        "make lint => rc=0",
+        "All 14 matrix rows present and passing, or an explicit note naming any row that could not be executed and why"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "S1_M5_CONTRACT_TEXT_METADATA_CHANGELOG_CREDIT",
+      "description": "Merge-blocking contract text, moved up from the design doc's M3. (1) Builtin LongDesc for stepWithStreamRecorded MUST state all four: linear unbounded retention until the call returns; the log is exact w.r.t. chunks the provider ADAPTER EMITS not the wire (tool-call input_json stream content is never emitted as chunks by design, internal/ai/anthropic/streamstep.go:336-337); an unencodable chunk terminates the op with typed Internal (stable prefix 'unencodable stream chunk') and an explicitly incomplete prefix, after which AILANG records/encodes/delivers nothing and per-chunk work is bounded BUT THE CALL STILL RETURNS ONLY WHEN THE PROVIDER'S STREAM ENDS; and the deliberate divergence from stepWithStream, which silently skips an unencodable chunk (siblings equivalent only for fully-encodable streams, i.e. every stream constructible today). (2) Metadata Since: 'prototype' -> Since: 'v0.32.0', keep StabilityExperimental. (3) CHANGELOG.md entry under v0.32.0 unreleased crediting @arniwesth and linking #546 + arniwesth/ailang#2; do NOT touch the historical changelog 'open row' occurrence. (4) File the follow-up issue 'cancellable provider context across the AI surface (AIHandler v2)' - the honest fix for the wall-clock residual and the standing answer to R2's gpt5-6-sol objection; link from #546; do NOT start it. (5) Ask @arniwesth on #546 whether he prefers a first-class AIError code (IncompleteStream) over the stable message prefix - do not assume the answer.",
+      "estimated_loc": 60,
+      "estimated_days": 0.5,
+      "dependencies": [
+        "S1_M4_TEST_MATRIX"
+      ],
+      "files": [
+        "internal/builtins/ai_step.go (LongDesc + Since metadata)",
+        "CHANGELOG.md"
+      ],
+      "acceptance_criteria": [
+        "AILANG_BUILTINS_REGISTRY=1 ./bin/ailang doctor builtins => rc=0",
+        "LongDesc text contains all four required items; the text is quoted in the notes",
+        "grep -rn 'Since: *\"prototype\"' internal/builtins/ => zero hits for this symbol, paired with a known-positive control proving the grep sees Since: lines at all",
+        "CHANGELOG entry present and names @arniwesth",
+        "Follow-up issue for the cancellable provider context filed and linked from #546",
+        "The IncompleteStream question posted on #546"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "sprint_2_scope": {
+    "estimated_days": "1.5-2.0",
+    "contents": [
+      "examples/ai_streaming_recorded.ail - ailang check with the freshly built target compiler, then run with --ai-stub; REGENERATE examples/manifest.json (make verify-examples enforces manifest/module parity at make/examples.mk:18-27; drift is the usual cause of a red gate)",
+      "Replace both false 'the callback's effect row is open' claims with the exact wording in the design doc's Documentation correction: std/ai.ail:324 and examples/runnable/ai_streaming.ail:40-42; historical CHANGELOG untouched",
+      "Focused CI text guard that fails if the streaming docs again describe this callback row as 'open'",
+      "Teaching prompt + uRAG/builtin discovery entry; generated builtin docs; docs website",
+      "M4 StreamChunk exhaustiveness guard - CHECK #546 FIRST"
+    ],
+    "m4_status_checked_by_planner": "2026-08-03: ailang#546 has 4 comments (last is ours, 2026-08-03T08:20Z). @arniwesth OFFERED the exhaustiveness guard as a separate small patch in his 2026-08-01 comment but has NOT posted one. Verified via gh issue view 546 --json comments. So M4 must currently be budgeted at 0.5d as write-from-scratch; re-check #546 when sprint 2 starts - if a patch has landed, M4 collapses to review-and-adopt with credit, which is the preferred path.",
+    "m4_mechanism": "A canonical allStreamChunkVariants registry slice in internal/ai beside the variant declarations plus a test asserting encodeStreamChunk(v) != nil for every entry, and/or a CI parity check comparing streamChunkMarker() implementer count against encodeStreamChunk case count. Must cover both siblings. NOTE: it should also cover cmd/wasm/effects.go's jsToStreamChunk, a second independent place a fourth variant can go missing."
+  },
+  "top_risks": [
+    "The 800-line wall. 22 lines headroom at HEAD+patch, measured. Mitigated by making the split the first commit; if make check-file-sizes goes red mid-sprint, split further rather than compressing code.",
+    "The shared-core refactor silently changes stepWithStream - the doc's binding Non-Goal. Mitigated by the verbatim-adoption commit first (refactor becomes a reviewable diff) plus TestAIStepWithStream_UnchangedByRecordedVariant and the parity table. Characterization first, refactor second.",
+    "Evaluator<->bytecode parity for the nested RecordedStream (S1-M4 row 13) - the one design-doc claim nobody has tested. A failure is a real finding; report it, do not work around it."
+  ],
+  "lower_risks": [
+    "Sandbox listener denials misread as product failures - see executor_constraints.sandbox",
+    "examples/manifest.json drift in sprint 2",
+    "Rebase conflict with M-AI-STRUCTURED-STEP, which touches the same std/ai + builtin + effects surface (design doc Conflict Surface)"
+  ],
+  "human_question": {
+    "text": "The sentinel-panic abort is dropped, so the drain budget now bounds post-failure WORK (O(1)/chunk, zero retention) but NOT post-failure WALL-CLOCK - the call returns when the provider's stream ends. This is on a path unreachable for any StreamChunk constructible today. Accept?",
+    "answerable_in_one_word": "yes / no",
+    "if_no": "The only remaining mechanism is a cancellable provider context - Mark's already-rejected option (b) - which becomes a blocking dependency and makes this a multi-sprint item."
+  }
+}

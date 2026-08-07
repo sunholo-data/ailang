@@ -1,0 +1,63 @@
+{
+  "sprint_id": "M-NAMED-TEST-ASSERT-LOWERING",
+  "design_doc": null,
+  "sprint_plan": "design_docs/planned/v0_33_1/m-named-test-assert-lowering-sprint-plan.md",
+  "status": "completed",
+  "created": "2026-08-06T00:00:00+01:00",
+  "github_issues": [590],
+  "features": [
+    {
+      "id": "M1",
+      "description": "Assert-aware test-body lowering: new internal/testing/test_body_lowering.go holding the moved FoldBodyExprs plus FoldTestBody, which lowers top-level AssertStmt into a short-circuiting if-chain over an int sentinel; EvaluateNamedTestBodyExprs decodes the sentinel.",
+      "estimated_loc": 260,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "AC-1 (TDD): internal/testing/named_test_assert_test.go exists; the pre-fix run of `go test ./internal/testing/ -run TestNamedTest_Assert` was recorded RED",
+        "AC-2: `ailang test` on a single-assert module -> rc=0, output contains `1 passed` (base rc=1)",
+        "AC-3: `ailang test` on a false-only-assert module -> rc=1 and output does NOT contain PAR_NO_PREFIX_PARSE",
+        "AC-4: `test \"x\" { assert <false>; assert <true> }` -> rc=1 (short-circuit / anti-vacuous-green)",
+        "AC-5: `go test ./internal/testing/...` -> rc=0",
+        "AC-6: `make check-file-sizes` -> rc=0"
+      ],
+      "passes": true,
+      "started": "2026-08-06T00:00:00+01:00",
+      "completed": "2026-08-06T00:00:00+01:00",
+      "notes": "AC-1 RED recorded before the fix: `go test ./internal/testing/ -run TestNamedTest_Assert -v` rc=1, 7 FAIL / 1 PASS. Every failure was `pipeline error: ... PAR_NO_PREFIX_PARSE at _namedtest_body_*.ail:6:3: unexpected token in expression: assert`; the one PASS was TestNamedTest_AssertFree_LegacyPathUnchanged, confirming only assert bodies were broken. After the fix all 9 tests pass. AC-2 rc=0 `1 passed` (base rc=1); AC-3 rc=1 with zero PAR_NO_PREFIX_PARSE occurrences; AC-4 rc=1; AC-5 rc=0; AC-6 rc=0 (executor_helpers.go 717 -> 665 lines, new test_body_lowering.go 263 lines). Assert-free bodies return the byte-identical legacy FoldBodyExprs result and an empty []CheckInfo, so no currently-passing named test changes code path."
+    },
+    {
+      "id": "M2",
+      "description": "Report which check failed (sentinel k -> `assertion k failed: `assert <src>` (at pos)`) and add a printer tripwire so an AssertStmt reaching PrintAILANGSource is a self-describing error instead of unparseable source.",
+      "estimated_loc": 160,
+      "dependencies": ["M1"],
+      "acceptance_criteria": [
+        "AC-7: `go test ./internal/testing/ -run TestNamedTest_Assert_ReportsWhichAssertion` -> rc=0, result.Error contains `assertion 2 failed` when the SECOND assert is false",
+        "AC-8: PrintAILANGSource(&ast.AssertStmt{...}) contains `printer-error` and no longer emits verbatim `assert ...` (two-directional guard)",
+        "AC-9: `go test ./internal/parser/... ./internal/format/... ./internal/ast/...` -> rc=0 (parser untouched)",
+        "AC-10: `go vet ./internal/testing/...` -> rc=0 and `go build ./internal/... ./cmd/ailang` -> rc=0"
+      ],
+      "passes": true,
+      "started": "2026-08-06T00:00:00+01:00",
+      "completed": "2026-08-06T00:00:00+01:00",
+      "notes": "AC-7/AC-8 RED recorded before M2: rc=1, error text was `expected true, got false` and the printer returned `assert (x == 1)` — exactly the state the plan predicted. All three AC-8 clauses fired in the red (printer-error absent, FoldTestBody absent, verbatim `assert ` prefix present), proving both directions. After M2: AC-7 rc=0, AC-8 rc=0, AC-9 rc=0 (internal/format's own node_coverage_test.go still expects `assert x` from the FORMATTER's separate printer and stays green), AC-10 vet rc=0 / build rc=0. End-to-end CLI: `assertion 1 failed: `assert (add_one(1) == 99)` (at false_assert.ail:6:3)` — original source position, not the round-trip temp file."
+    },
+    {
+      "id": "M3",
+      "description": "On-disk .ail fixture corpus under internal/testing/testdata/assert/ driven by a table test through RunTestsFromFile (the same entry point `ailang test` uses), plus a CHANGELOG entry.",
+      "estimated_loc": 60,
+      "dependencies": ["M1", "M2"],
+      "acceptance_criteria": [
+        "AC-11: `ailang test` over each fixture produces the expected rc, driven by a table test; `go test ./internal/testing/...` -> rc=0",
+        "AC-12: `rg -n \"590\" CHANGELOG.md` returns a hit"
+      ],
+      "passes": true,
+      "started": "2026-08-06T00:00:00+01:00",
+      "completed": "2026-08-06T00:00:00+01:00",
+      "notes": "7 fixtures: single_pass, single_fail, second_fails, first_fails_short_circuit, let_then_assert, assert_let_assert, assert_free_control. TestNamedTest_AssertFixtures rc=0 (7/7 subtests pass); each fixture is copied into a temp dir first so the evaluator's round-trip temp file never lands in testdata/ (verified pristine afterwards). Independently confirmed with the worktree-built CLI: rc=0/1/1/1/0/0/0 respectively, with ordinals 1/2/1 on the three failures. AC-12 hit at CHANGELOG.md:19. Per plan section 6, examples/experimental was deliberately LEFT ALONE (already labelled non-working; verify-examples runs `ailang run`, never `ailang test`, so a gated example could not guard this bug anyway)."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 400,
+    "estimated_total_loc": 480,
+    "estimated_days": 2
+  }
+}

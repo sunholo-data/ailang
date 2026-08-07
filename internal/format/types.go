@@ -2,6 +2,7 @@ package format
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
@@ -115,7 +116,17 @@ func (p *printer) typeList(ts []ast.Type) ([]string, error) {
 	return parts, nil
 }
 
-// funcTypeString renders a function type `(P1, P2) -> R ! {E}`.
+// funcTypeString renders a function type `(P1, P2) -> R ! {E}`, or the bare
+// arrow form `P -> R ! {E}` for a single unambiguous parameter.
+//
+// `int -> int` and `(int) -> int` parse to the IDENTICAL FuncType
+// (parser_type.go: the S-ARROWTYPE sugar path and the parenthesised path both
+// yield Params:[int]), so both round-trip. Only one of them is taught: the
+// active prompt writes `int -> int` and never `(int) -> int`. Always emitting
+// the parenthesised form made fmt rewrite 10 of the prompt's own examples —
+// the same class of contradiction as `[int]`→`list[int]`, and the second-largest
+// dialect divergence after string interpolation. See
+// TestFmtDoesNotDriftFromTeachingPrompt.
 func (p *printer) funcTypeString(n *ast.FuncType) (string, error) {
 	params, err := p.typeList(n.Params)
 	if err != nil {
@@ -129,10 +140,33 @@ func (p *printer) funcTypeString(n *ast.FuncType) (string, error) {
 	if eff != "" {
 		eff = " " + eff
 	}
+	if len(params) == 1 && bareArrowSafe(n.Params[0]) {
+		return params[0] + " -> " + ret + eff, nil
+	}
 	return "(" + strings.Join(params, ", ") + ") -> " + ret + eff, nil
 }
 
-// recordTypeString renders a record type `{ a: T, b: U }` or open `{ a: T | r }`.
+// bareArrowSafe reports whether a sole parameter type can drop its parentheses
+// without changing what the result re-parses to.
+//
+// Two shapes must keep them:
+//   - a FuncType parameter, because the arrow is RIGHT-associative: `(int ->
+//     int) -> int` and `int -> int -> int` are different types;
+//   - a TupleType parameter, because `(int, string) -> bool` is read as a
+//     TWO-parameter function type, not as one tuple parameter — the only
+//     spelling for the latter is `((int, string)) -> bool`.
+func bareArrowSafe(t ast.Type) bool {
+	switch t.(type) {
+	case *ast.FuncType, *ast.TupleType:
+		return false
+	default:
+		return true
+	}
+}
+
+// recordTypeString renders a record type `{ a: T, b: U }`, an open record in the
+// taught `...` sugar (`{ a: T, ... }`), or an explicit row variable
+// (`{ a: T | r }`).
 func (p *printer) recordTypeString(n *ast.RecordType) (string, error) {
 	fields := make([]string, len(n.Fields))
 	for i, f := range n.Fields {
@@ -144,6 +178,20 @@ func (p *printer) recordTypeString(n *ast.RecordType) (string, error) {
 	}
 	body := strings.Join(fields, ", ")
 	if n.Row != nil {
+		// `{a: T, ...}` desugars to a row variable with a COMPILER-GENERATED name
+		// (parser.go:freshRowVarName → `_r0`, `_r1`, …). Printing that name raw
+		// leaked an internal identifier into user-facing source: fmt answered the
+		// prompt's own `{email: string, ...}` with `{ email: string | _r0 }`.
+		// Re-emitting the `...` sugar round-trips because the names are assigned in
+		// source order by a per-parse counter, so a re-parse regenerates the same
+		// sequence. An explicitly-written row variable is never `_r<digits>` and is
+		// printed as-is.
+		if generatedRowVar(n.Row.Name) {
+			if body == "" {
+				return "{ ... }", nil
+			}
+			return "{ " + body + ", ... }", nil
+		}
 		if body == "" {
 			return "{ | " + n.Row.Name + " }", nil
 		}
@@ -153,6 +201,16 @@ func (p *printer) recordTypeString(n *ast.RecordType) (string, error) {
 		return "{}", nil
 	}
 	return "{ " + body + " }", nil
+}
+
+// generatedRowVarRe matches the compiler-generated row-variable names the parser
+// synthesizes for the `...` open-record sugar (parser.go:freshRowVarName).
+var generatedRowVarRe = regexp.MustCompile(`^_r[0-9]+$`)
+
+// generatedRowVar reports whether a row-variable name was synthesized by the
+// parser rather than written by the user.
+func generatedRowVar(name string) bool {
+	return generatedRowVarRe.MatchString(name)
 }
 
 // labelledTypeString renders IFC label / refinement syntax `T<label>` / `T{not L}`.

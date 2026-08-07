@@ -336,6 +336,31 @@ export func stepWithStream(
 ) -> Result[StepResult, AIError] ! {AI} =
   _ai_step_with_stream(model, messages, tools, cache_breakpoints, on_chunk)
 
+-- RecordedStream is what stepWithStreamRecorded returns: the exact ordered
+-- list of observed chunks plus the final typed outcome. `chunks` is populated
+-- on BOTH outcomes — a stream that fails part-way still returns every chunk
+-- observed before the failure, which is the case a deterministic recorder
+-- most depends on.
+export type RecordedStream = {
+  chunks: [StreamChunk],
+  outcome: Result[StepResult, AIError]
+}
+
+-- stepWithStreamRecorded: stepWithStream that also returns what it streamed.
+--
+-- The callback still fires immediately at each chunk's arrival, so live
+-- rendering is unchanged. The returned `chunks` is an exact, non-duplicating
+-- record of the same sequence, which lets a caller record a live exchange and
+-- replay it deterministically without widening the callback's effect row.
+export func stepWithStreamRecorded(
+  model: string,
+  messages: [Message],
+  tools: [ToolSchema],
+  cache_breakpoints: [CacheBreakpoint],
+  on_chunk: (StreamChunk) -> () ! {IO}
+) -> RecordedStream ! {AI} =
+  _ai_step_with_stream_recorded(model, messages, tools, cache_breakpoints, on_chunk)
+
 -- runTools: convenience loop driver for multi-turn tool dispatch.
 --
 -- Calls step in a loop until the model returns finish_reason != "tool_calls"

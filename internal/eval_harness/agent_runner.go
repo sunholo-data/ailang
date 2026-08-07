@@ -132,6 +132,14 @@ type AgentBenchmarkResult struct {
 	// experiment whose treatment IS an extension.
 	ResolvedExtensions string `json:"resolved_extensions,omitempty"`
 
+	// SessionJSONLPath is the executor's own session log — the only record of
+	// what the agent was actually TOLD. The banked agent_transcript holds tool
+	// CALLS; tool RESULTS (compiler diagnostics, `ailang fmt` advice) live only
+	// here. Set by the motoko executor; empty for executors that keep no such
+	// log. eval_benchmark.go feeds it to observatory.ImportMotokoSession so the
+	// eval chain carries results, not just calls.
+	SessionJSONLPath string `json:"session_jsonl_path,omitempty"`
+
 	// Contract verification results (M-CONTRACT-EVAL)
 	VerifyOk        bool   `json:"verify_ok"`             // All contracts verified
 	VerifyVerified  int    `json:"verify_verified"`       // Count of verified functions

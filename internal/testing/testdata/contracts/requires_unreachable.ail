@@ -1,0 +1,6 @@
+module internal/testing/testdata/contracts/requires_unreachable
+export func impossible(x: int) -> bool ! {}
+requires { x > 1000 && x < -1000 }
+ensures { result == true } { false }
+export func ok(x: int) -> bool ! {}
+ensures { result == true } { true }

@@ -26,6 +26,7 @@ import nightly_classify as nc  # noqa: E402
 MODEL = "opencode-qwen3-5-35b-a3b-mxfp8"
 ARM = "rag_on"
 FIXTURE = TOOLS / "testdata/nightly_classify/replay_2026-07.jsonl"
+TRIAL_FIXTURES = TOOLS / "testdata/nightly_classify"
 OUTAGE_0729 = [
     ("adt_option", 1, ["api_error"], ""),
     ("api_call_json", 1, ["api_error"], ""),
@@ -145,6 +146,17 @@ def write_trial(
 
 def result_dir(root: Path, raw_date: str) -> Path:
     return root / f"nightly_eval_{raw_date}_rag_on" / "agent"
+
+
+def materialize_trial_fixture(root: Path, raw_date: str) -> Path:
+    directory = result_dir(root, raw_date)
+    directory.mkdir(parents=True)
+    manifest = TRIAL_FIXTURES / f"trials_{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:]}.jsonl"
+    for line in manifest.read_text(encoding="utf-8").splitlines():
+        record = json.loads(line)
+        slot = record.pop("slot")
+        (directory / slot).write_text(json.dumps(record), encoding="utf-8")
+    return directory
 
 
 def run_cli(*args: str, timeout: float = 10) -> subprocess.CompletedProcess:
@@ -592,6 +604,118 @@ class ValidityTests(unittest.TestCase):
             self.assertIn("1 invalid nights excluded", proc.stdout)
 
 
+class RunGateTests(unittest.TestCase):
+    @staticmethod
+    def _results(categories: list[str]) -> dict:
+        return {
+            f"bench-{index:02d}": [(False, category), (False, category)]
+            for index, category in enumerate(categories)
+        }
+
+    def test_Gate_non_agentic_wipeout_is_invalid(self):
+        self.assertEqual(
+            nc.run_validity(self._results(["non_agentic"] * 12), 0.30),
+            (False, "infra_outage", 12, 12),
+        )
+
+    def test_Gate_every_unmeasured_category_fires(self):
+        for category in sorted(nc.RUN_UNMEASURED_CATEGORIES):
+            with self.subTest(category=category):
+                results = self._results([category] * 3 + ["logic_error"] * 7)
+                self.assertEqual(nc.run_validity(results, 0.30)[:2], (False, "infra_outage"))
+
+    def test_Gate_catastrophic_clean_regression_stays_valid(self):
+        """Passes before the fix; pins rejection of category concentration."""
+        for category in sorted(nc.MODEL_OUTCOME_CATEGORIES):
+            with self.subTest(category=category):
+                results = self._results([category] * 42)
+                self.assertEqual(nc.run_validity(results, 0.30)[:2], (True, ""))
+                self.assertEqual(len(nc.persistent_failures(results)), 42)
+
+    def test_Gate_non_agentic_still_files_on_a_normal_night(self):
+        """Passes before the fix; pins the per-benchmark taint boundary."""
+        results = {
+            **{f"pass-{i}": [(True, "none"), (True, "none")] for i in range(38)},
+            **self._results(["non_agentic"] * 2 + ["compile_error"] * 2),
+        }
+        self.assertEqual(nc.run_validity(results, 0.30)[:2], (True, ""))
+        failures = nc.persistent_failures(results)
+        self.assertEqual(sum("non_agentic" in cats for cats in failures.values()), 2)
+
+    def test_Gate_infra_taint_set_is_unchanged(self):
+        """Passes before the fix; rejects widening the per-benchmark set."""
+        self.assertEqual(nc.INFRA_CATEGORIES, {"api_error", "timeout", "executor_error"})
+        self.assertEqual(nc.INFRA_CATEGORIES & nc.RUN_UNMEASURED_CATEGORIES, nc.INFRA_CATEGORIES)
+        self.assertNotEqual(nc.INFRA_CATEGORIES, nc.RUN_UNMEASURED_CATEGORIES)
+
+    def test_Gate_union_boundary_is_inclusive(self):
+        categories = ["non_agentic"] * 3000 + ["logic_error"] * 7000
+        self.assertEqual(nc.run_validity(self._results(categories), 0.30)[:2], (False, "infra_outage"))
+        categories[2999] = "logic_error"
+        self.assertEqual(nc.run_validity(self._results(categories), 0.30)[:2], (True, ""))
+
+    def test_Gate_invalid_line_names_dominant_category(self):
+        with tempfile.TemporaryDirectory() as temp:
+            tonight = result_dir(Path(temp), "20260801")
+            for index in range(12):
+                write_trial(tonight, f"bench-{index}", 1, False, "non_agentic")
+            proc = run_cli("--tonight", tonight)
+            invalid = [line for line in proc.stdout.splitlines() if line.startswith("INVALID\t")]
+            self.assertEqual(len(invalid), 1, proc.stdout)
+            self.assertEqual(invalid[0].split("\t")[5], "[non_agentic]")
+
+
+class FixtureGateTests(unittest.TestCase):
+    def _run(self, raw_date: str):
+        self.temp = tempfile.TemporaryDirectory()
+        root = Path(self.temp.name)
+        tonight = materialize_trial_fixture(root, raw_date)
+        history = root / "history.jsonl"
+        shutil.copyfile(FIXTURE, history)
+        return run_cli("--tonight", tonight, "--history", history), tonight
+
+    def test_Fixture_real_0801_incident_is_invalid_and_files_nothing(self):
+        proc, _ = self._run("20260801")
+        lines = proc.stdout.splitlines()
+        self.assertEqual(sum(line.startswith("INVALID\t") for line in lines), 1)
+        verdict_labels = (
+            "REGRESSION\t", "SUSTAINED-FAILURE\t", "SUSPECTED-FLAKE\t",
+            "GAP\t", "INSUFFICIENT-HISTORY\t",
+        )
+        self.assertFalse(any(line.startswith(verdict_labels) for line in lines))
+
+    def test_Fixture_real_good_nights_stay_valid(self):
+        """Passes before the fix; guards the measured false-positive margin."""
+        for date in ("20260728", "20260730", "20260731"):
+            with self.subTest(date=date):
+                proc, _ = self._run(date)
+                self.assertNotIn("INVALID\t", proc.stdout)
+                self.assertGreater(len(proc.stdout.splitlines()), 1)
+
+    def test_Fixture_real_0729_outage_still_invalid(self):
+        proc, _ = self._run("20260729")
+        self.assertEqual(sum(line.startswith("INVALID\t") for line in proc.stdout.splitlines()), 1)
+
+    def test_Fixture_manifests_match_recorded_totals(self):
+        expected = {
+            "20260728": (42, 84, 54, 2, "thrash_aborted", 13),
+            "20260729": (42, 84, 14, 42, "api_error", 42),
+            "20260730": (42, 84, 65, 2, "thrash_aborted", 8),
+            "20260731": (42, 84, 56, 1, "thrash_aborted", 13),
+            "20260801": (12, 24, 1, 12, "non_agentic", 12),
+        }
+        for date, want in expected.items():
+            with self.subTest(date=date):
+                _, directory = self._run(date)
+                results = nc.parse_results_dir(directory)
+                trials = sum(map(len, results.values()))
+                passes = sum(passed for rows in results.values() for passed, _ in rows)
+                unmeasured = sum(any(cat in nc.RUN_UNMEASURED_CATEGORIES for _, cat in rows) for rows in results.values())
+                category, count = want[4:]
+                category_count = sum(any(cat == category for _, cat in rows) for rows in results.values())
+                self.assertEqual((len(results), trials, passes, unmeasured, category_count), (*want[:4], count))
+
+
 class BackfillTests(unittest.TestCase):
     NOTE = "42/42 benchmarks api_error; issues #520-#523 closed"
 
@@ -670,6 +794,35 @@ class BackfillTests(unittest.TestCase):
 
 
 class VocabularyTests(unittest.TestCase):
+    @staticmethod
+    def _go_categories() -> set[str]:
+        sources = "\n".join(
+            (ROOT / path).read_text(encoding="utf-8")
+            for path in (
+                "internal/eval_harness/metrics.go",
+                "internal/eval_harness/error_categorizer.go",
+            )
+        )
+        return set(re.findall(r'ErrorCategory[A-Za-z0-9_]*\s*=\s*"([^"]+)"', sources))
+
+    def test_Taxonomy_every_go_category_is_classified(self):
+        harvested = self._go_categories()
+        self.assertGreaterEqual(len(harvested), 16, "category harvest must not be vacuous")
+        self.assertFalse(nc.RUN_UNMEASURED_CATEGORIES & nc.MODEL_OUTCOME_CATEGORIES)
+
+        def unclassified(categories: set[str]) -> set[str]:
+            return categories - nc.RUN_UNMEASURED_CATEGORIES - nc.MODEL_OUTCOME_CATEGORIES - {"none"}
+
+        self.assertEqual(unclassified(harvested), set())
+        self.assertEqual(unclassified(harvested | {"synthetic_unclassified"}), {"synthetic_unclassified"})
+
+    def test_Taxonomy_python_only_extras_are_pinned(self):
+        # executor_error is a historical phantom: Python recognizes it but no
+        # Go ErrorCategory producer emits it. Removing it is a behavior change.
+        known_python_only = {"executor_error"}
+        classified = nc.RUN_UNMEASURED_CATEGORIES | nc.MODEL_OUTCOME_CATEGORIES | {"none"}
+        self.assertEqual(classified - self._go_categories(), known_python_only)
+
     def test_Vocabulary_every_python_reason_exists_in_validity_go(self):
         go_source = (
             ROOT / "internal/eval_harness/validity.go"
@@ -1326,6 +1479,14 @@ class RoutingContractTests(unittest.TestCase):
             self.assertEqual(logged.count("--type note"), 1, logged)
             for forbidden in ("--type bug", "--type feature", "--github", "public-feedback"):
                 self.assertNotIn(forbidden, logged)
+
+    def test_Routing_invalid_banner_names_unmeasured_category(self):
+        logged = self._run_route(
+            "HEALTH\thistory: fixture\n"
+            "INVALID\tinfra_outage\t12/12\t0.042\t0.643\t[non_agentic]"
+        )
+        self.assertIn("unmeasured 12/12 [non_agentic]", logged)
+        self.assertNotIn("infra-tainted", logged)
 
     def test_routing_smoke_aggregates_suppressed_labels(self):
         with tempfile.TemporaryDirectory() as temp:

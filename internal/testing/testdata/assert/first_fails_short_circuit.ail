@@ -1,0 +1,12 @@
+module first_fails_short_circuit
+
+-- #590 anti-vacuous-green guard: a NON-FINAL false assert must fail the test.
+-- Under the legacy fold every non-final expression was bound to a dead `_seq`
+-- and discarded, so this body would have reported a vacuous pass.
+
+export pure func add_one(x: int) -> int { x + 1 }
+
+test "first assert fails, second would pass" {
+  assert add_one(1) == 99;
+  assert add_one(1) == 2
+}

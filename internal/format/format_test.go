@@ -48,7 +48,12 @@ func TestCanonicalLayout(t *testing.T) {
 		{
 			name: "hello_world",
 			src:  "module examples/hello\nimport std/io (println)\nexport func main() -> () ! {IO} = println(\"Hello, World!\")",
-			want: "module examples/hello\n\nimport std/io (println)\n\nexport func main() -> () ! {IO} = println(\"Hello, World!\")\n",
+			// Header block is TIGHT: `module` and its imports are one contiguous
+			// group, with the blank line falling before the first declaration.
+			// That is what the teaching prompt writes (module→import contiguous in
+			// 21 examples vs 2; import→import in 55 vs 0), and fmt disagreeing with
+			// it fired the motoko fmt extension on nearly every file a model wrote.
+			want: "module examples/hello\nimport std/io (println)\n\nexport func main() -> () ! {IO} = println(\"Hello, World!\")\n",
 		},
 		{
 			name: "braced_newline_block",

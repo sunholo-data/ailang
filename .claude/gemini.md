@@ -64,12 +64,6 @@ The SessionStart hook checks BOTH locations automatically.
 - Outputs message summaries to stdout (appears in system reminders)
 - **Does NOT auto-mark as read** (prevents race conditions)
 
-**Stop Hook (Agent Handoff):**
-- Script: `scripts/hooks/agent_handoff.sh`
-- Reads hook event JSON from stdin
-- Detects design docs created in session (last 5 minutes)
-- Sends handoff messages to sprint-planner agent
-
 **Message Lifecycle:**
 1. Agent sends message → lands in `_unread` or `.pending.json`
 2. SessionStart hook injects into Gemini's context (or manual check)
