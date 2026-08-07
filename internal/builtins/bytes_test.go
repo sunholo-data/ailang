@@ -308,3 +308,101 @@ func TestBase64RoundTrip(t *testing.T) {
 		t.Errorf("round trip failed: got %v, want %v", finalBytes, original)
 	}
 }
+
+func TestBytesToInts(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []byte
+		want  []int
+	}{
+		{
+			name:  "ascii",
+			input: []byte("AB"),
+			want:  []int{65, 66},
+		},
+		{
+			name:  "empty",
+			input: []byte{},
+			want:  []int{},
+		},
+		{
+			name:  "full byte range boundaries",
+			input: []byte{0x00, 0x7F, 0x80, 0xFF},
+			want:  []int{0, 127, 128, 255},
+		},
+		{
+			name:  "high bytes are unsigned, not sign-extended",
+			input: []byte{0xC5},
+			want:  []int{197},
+		},
+		{
+			name:  "multi-byte UTF-8 yields raw bytes, not codepoints",
+			input: []byte("é"),
+			want:  []int{195, 169},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := []eval.Value{&eval.BytesValue{Value: tt.input}}
+			result, err := bytesToIntsImpl(nil, args)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			listVal, ok := result.(*eval.ListValue)
+			if !ok {
+				t.Fatalf("expected ListValue, got %T", result)
+			}
+			if len(listVal.Elements) != len(tt.want) {
+				t.Fatalf("got len %d, want %d", len(listVal.Elements), len(tt.want))
+			}
+			for i, elem := range listVal.Elements {
+				iv, ok := elem.(*eval.IntValue)
+				if !ok {
+					t.Fatalf("element %d: expected IntValue, got %T", i, elem)
+				}
+				if iv.Value != tt.want[i] {
+					t.Errorf("element %d: got %d, want %d", i, iv.Value, tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestBytesToIntsWrongType(t *testing.T) {
+	args := []eval.Value{&eval.StringValue{Value: "not bytes"}}
+	if _, err := bytesToIntsImpl(nil, args); err == nil {
+		t.Fatal("expected error for non-Bytes argument, got nil")
+	}
+}
+
+func TestBytesIntsRoundTrip(t *testing.T) {
+	// Property: toInts(fromInts(xs)) == xs for every value in 0..255.
+	// This is the acceptance criterion from design_docs/implemented/v0_21_0/
+	// m-bytes-toints-byteAt.md that shipped with byteAt but never with toInts.
+	elements := make([]eval.Value, 256)
+	for i := range elements {
+		elements[i] = &eval.IntValue{Value: i}
+	}
+
+	bytesResult, err := bytesFromIntsImpl(nil, []eval.Value{&eval.ListValue{Elements: elements}})
+	if err != nil {
+		t.Fatalf("_bytes_from_ints failed: %v", err)
+	}
+
+	intsResult, err := bytesToIntsImpl(nil, []eval.Value{bytesResult})
+	if err != nil {
+		t.Fatalf("_bytes_to_ints failed: %v", err)
+	}
+
+	got := intsResult.(*eval.ListValue).Elements
+	if len(got) != 256 {
+		t.Fatalf("round trip changed length: got %d, want 256", len(got))
+	}
+	for i, elem := range got {
+		if v := elem.(*eval.IntValue).Value; v != i {
+			t.Errorf("round trip corrupted index %d: got %d", i, v)
+		}
+	}
+}

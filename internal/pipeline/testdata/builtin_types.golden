@@ -41,6 +41,7 @@ _bytes_length : bytes -> int
 _bytes_mime_type : bytes -> string
 _bytes_slice : (bytes, int, int) -> Option[bytes]
 _bytes_to_base64 : bytes -> string
+_bytes_to_ints : bytes -> list[int]
 _bytes_to_string : bytes -> string
 _clock_now : () -> int ! {Clock}
 _clock_sleep : int -> () ! {Clock}

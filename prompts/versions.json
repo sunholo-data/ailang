@@ -639,13 +639,24 @@
       "created": "2026-07-31",
       "tags": [
         "production",
-        "latest",
         "dialect-alignment"
       ],
       "notes": "Two fixes, both verified against the toolchain rather than assumed. (1) v0.16.3 taught that `letrec` with a `= ...` body is a PARSE ERROR; it type-checks AND runs correctly (verified with `ailang check` + `ailang run`) -- the claim went stale when M-SYNTAX-AI-FORGIVING R1 made an equation body a `;`-separated statement sequence. Teaching models to avoid valid syntax is the same failure class as `ailang fmt` contradicting the prompt. The section now states both forms work and recommends the block because that is what fmt emits. (2) `List[T]` -> `[T]` in 4 places (1 ailang block, 3 prose): `[T]` is taught 64 times and is what fmt emits, so `List[T]` was a spelling fmt would rewrite. Both parse to the identical TypeApp. v0.16.3 remains served byte-identical for pinned eval baselines."
+    },
+    "v0.16.5": {
+      "file": "prompts/v0.16.5.md",
+      "hash": "697307d3c2551e96aa1b7236a4cda4415e9eab589aba8d4ba2df494d42f84b1c",
+      "description": "v0.16.4 + std/bytes byte-level access made discoverable: teaches the new `toInts`, and adds `fromInts`/`toInts`/`byteAt` to the `import std/bytes (...)` line that previously listed none of them.",
+      "created": "2026-08-07",
+      "tags": [
+        "production",
+        "latest",
+        "stdlib-discoverability"
+      ],
+      "notes": "Prompted by issue #609, where a field agent reported a string's raw bytes were 'unreachable from AILANG' and asked for toInts. The reach claim was FALSE -- byteAt has shipped since v0.21.0 and was already taught in the bytes function list, and byteAt+length transcodes the reporter's exact Latin-1 payload correctly at HEAD (verified with ailang run before any change). What was actually missing was discoverability and shape. The common-imports line read `import std/bytes (fromString, toString, toBase64, fromBase64, length, slice)` -- not one byte-level function -- so an agent copying that canonical line saw a bytes module with no way into the bytes. The toInts entry also states explicitly that charCode/string indexing return U+FFFD for non-UTF-8 bytes and that fromString+toInts is the way through, because that specific wrong turn is what the report documented. v0.16.4 remains served byte-identical for pinned eval baselines."
     }
   },
-  "active": "v0.16.4",
+  "active": "v0.16.5",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

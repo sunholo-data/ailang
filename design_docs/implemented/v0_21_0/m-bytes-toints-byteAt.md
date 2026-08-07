@@ -1,6 +1,6 @@
 # M-BYTES-TOINTS-BYTEAT: Add byte-to-int extraction primitives to std/bytes
 
-**Status**: Planned
+**Status**: Implemented (in two parts — see Delivery History)
 **Target**: v0.23.x (small stdlib addition)
 **Priority**: P3 — Low (stdlib gap surfaced by benchmark; not blocking but a clean small addition)
 **Estimated**: ~3–5 hours
@@ -152,8 +152,37 @@ pure func toInts(b: bytes) -> [int] = _bytes_toInts(b)
 
 ## Success Criteria
 
-- [ ] `byteAt` + `toInts` exported from `std/bytes`
-- [ ] Go builtins implemented + unit-tested (`make test`)
-- [ ] Round-trip property test: `toInts(fromInts(xs)) == xs` for valid `xs`
-- [ ] Teaching prompt mentions byteAt for "ASCII / byte extraction" use case
+- [x] `byteAt` + `toInts` exported from `std/bytes` (`byteAt` v0.21.0; `toInts` v0.34.0)
+- [x] Go builtins implemented + unit-tested (`make test`)
+- [x] Round-trip property test: `toInts(fromInts(xs)) == xs` for valid `xs` (`TestBytesIntsRoundTrip`, all 256 values)
+- [x] Teaching prompt mentions byteAt for "ASCII / byte extraction" use case
 - [ ] `VB_T2_013_get_char_code` placeholder updated to use `byteAt`; VeraBench AILANG tier 2 run_correct improves from 87.5% (7/8 testable) to 100%
+
+---
+
+## Delivery History
+
+This doc specified two primitives and shipped one, then was filed under
+`implemented/` with its status still reading `Planned` and every success-criterion
+box unticked. The gap stayed open for ~2.5 months and was re-reported from the
+field as [#609](https://github.com/sunholo-data/ailang/issues/609).
+
+| Part | Landed | Commit |
+|------|--------|--------|
+| `byteAt(b, i) -> Option[int]` | v0.21.0, 2026-05-21 | `c23d45254` |
+| `toInts(b) -> [int]` | v0.34.0, 2026-08-07 | this change |
+
+**What the re-report got wrong, and why it is still worth acting on.** #609 claimed
+the underlying bytes were "unreachable from AILANG". They were not: `byteAt` +
+`length` in a recursion transcodes the reporter's exact Latin-1 payload correctly
+at HEAD, verified before this change was written. The real defect was **shape and
+discoverability**, not reach — `byteAt` forces hand-rolled recursion where the
+whole-slice list wants `map`/`filter`/`foldl`, and the teaching prompt's
+`import std/bytes (...)` line listed neither `fromInts` nor `byteAt`, so an agent
+copying that line saw a bytes module with no byte-level access at all. Both are
+fixed here.
+
+**Process note.** The failure mode is not "we forgot to write the code" — it is
+that moving a doc to `implemented/` was treated as a filing action rather than a
+claim requiring the checkboxes to be true. An unticked success-criteria list inside
+`implemented/` is a contradiction, and nothing was checking for it.

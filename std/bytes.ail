@@ -9,61 +9,93 @@
 --   let encoded = toBase64(b)
 
 module std/bytes
-
 import std/option (Option, Some, None)
 
 -- Convert a UTF-8 string to bytes
 -- Example: fromString("hello") returns 5 bytes
-export pure func fromString(s: string) -> bytes { _bytes_from_string(s) }
+export pure func fromString(s: string) -> bytes {
+  _bytes_from_string(s)
+}
 
 -- Convert bytes to a UTF-8 string
 -- Invalid UTF-8 sequences are replaced with U+FFFD
-export pure func toString(b: bytes) -> string { _bytes_to_string(b) }
+export pure func toString(b: bytes) -> string {
+  _bytes_to_string(b)
+}
 
 -- Encode bytes as a base64 string (RFC 4648)
 -- Example: toBase64(fromString("hello")) returns "aGVsbG8="
-export pure func toBase64(b: bytes) -> string { _bytes_to_base64(b) }
+export pure func toBase64(b: bytes) -> string {
+  _bytes_to_base64(b)
+}
 
 -- Decode a base64 string to bytes
 -- Returns None if input is not valid base64
 -- Example: fromBase64("aGVsbG8=") returns Some(bytes)
-export pure func fromBase64(s: string) -> Option[bytes] { _bytes_from_base64(s) }
+export pure func fromBase64(s: string) -> Option[bytes] {
+  _bytes_from_base64(s)
+}
 
 -- Decode a base64url string (RFC 4648 §5, no padding) to bytes
 -- JWT tokens use base64url encoding for header and payload segments.
 -- Returns None if input is not valid base64url
 -- Example: fromBase64URL("SGVsbG8") returns Some(bytes for "Hello")
-export pure func fromBase64URL(s: string) -> Option[bytes] { _bytes_from_base64url(s) }
+export pure func fromBase64URL(s: string) -> Option[bytes] {
+  _bytes_from_base64url(s)
+}
 
 -- Get the length of a byte slice (O(1))
 -- Returns raw byte count, not UTF-8 character count
 -- Example: length(fromString("hello")) returns 5
 -- Example: length(fromString("\u{1F389}")) returns 4 (UTF-8 encoding is 4 bytes)
-export pure func length(b: bytes) -> int { _bytes_length(b) }
+export pure func length(b: bytes) -> int {
+  _bytes_length(b)
+}
 
 -- Extract a sub-slice of bytes
 -- Returns None if start < 0 or start + len > length(b)
 -- Example: slice(fromString("hello"), 1, 3) returns Some(bytes for "ell")
 -- Example: slice(fromString("hello"), 5, 1) returns None
-export pure func slice(b: bytes, start: int, len: int) -> Option[bytes] { _bytes_slice(b, start, len) }
+export pure func slice(b: bytes, start: int, len: int) -> Option[bytes] {
+  _bytes_slice(b, start, len)
+}
 
 -- Concatenate two byte slices
 -- Example: concat(fromString("hello"), fromString(" world")) returns bytes for "hello world"
-export pure func concat(a: bytes, b: bytes) -> bytes { _bytes_concat(a, b) }
+export pure func concat(a: bytes, b: bytes) -> bytes {
+  _bytes_concat(a, b)
+}
 
 -- Concatenate a list of byte slices
 -- Single allocation for efficiency
 -- Example: concatList([header, body, footer])
-export pure func concatList(xs: [bytes]) -> bytes { _bytes_concat_list(xs) }
+export pure func concatList(xs: [bytes]) -> bytes {
+  _bytes_concat_list(xs)
+}
 
 -- Construct bytes from a list of integers (0-255 each)
 -- Useful for building binary headers (WAV, PNG)
 -- Example: fromInts([0x52, 0x49, 0x46, 0x46]) returns bytes for "RIFF"
-export pure func fromInts(xs: [int]) -> bytes { _bytes_from_ints(xs) }
+export pure func fromInts(xs: [int]) -> bytes {
+  _bytes_from_ints(xs)
+}
 
 -- Get the byte value at the given index (0-255), or None if out of bounds.
 -- Inverse of fromInts. For UTF-8 strings, returns the raw byte at that
 -- position — NOT the Unicode codepoint.
 -- Example: byteAt(fromString("A"), 0) returns Some(65) (ASCII 'A')
 -- Example: byteAt(fromString("hello"), 4) returns Some(111) (ASCII 'o')
-export pure func byteAt(b: bytes, i: int) -> Option[int] { _bytes_byte_at(b, i) }
+export pure func byteAt(b: bytes, i: int) -> Option[int] {
+  _bytes_byte_at(b, i)
+}
+
+-- Get all byte values (0-255) as a list of ints, in order.
+-- Exact inverse of fromInts: toInts(fromInts(xs)) == xs.
+-- Use this (not byteAt in a loop) to walk a slice with map/filter/foldl —
+-- e.g. transcoding Latin-1 to UTF-8, checksums, byte-level parsing.
+-- For UTF-8 strings these are raw bytes, NOT Unicode codepoints.
+-- Example: toInts(fromString("AB")) returns [65, 66]
+-- Example: toInts(fromString("é")) returns [195, 169] (2 bytes, 1 char)
+export pure func toInts(b: bytes) -> [int] {
+  _bytes_to_ints(b)
+}
