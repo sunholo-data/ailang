@@ -1075,18 +1075,46 @@ test "$a" != "$c"
 
 #### AC-SEED-SWEEP-M2 — every RNG path went through the derivation (§5.1's failure shape)
 
+**REPAIRED at iteration 162 — (b) and (c) as originally written are unrunnable, and (d) is
+vacuous for the defect it names. Both repairs are measured, not reasoned; see the two notes below.**
+
 ```bash
+PROD=($(ls internal/testing/*.go | grep -v '_test\.go$'))                  # production files only
 grep -rn 'time\.Now()\.UnixNano' internal/testing/ ; test $? -ne 0        # (a)
-test "$(grep -rnE 'newRNG\(' internal/testing/*.go | grep -vc 'func newRNG')" -eq 3   # (b)
-grep -rnE 'newRNG\(' internal/testing/*.go | grep -v 'func newRNG' \
-  | grep -c 'propertySeed' | grep -qx 3                                    # (c)
+test "$(grep -nE 'newRNG\(' "${PROD[@]}" | grep -vc 'func newRNG')" -eq 3  # (b)
+test "$(grep -nE 'newRNG\(' "${PROD[@]}" | grep -v 'func newRNG' \
+  | grep -c 'propertySeed')" -eq 3                                         # (c)
 go test ./internal/testing -run 'TestRunner_AllThreePropertyPathsUseDerivedSeed' -count=1  # (d)
+go test ./internal/testing -run 'TestRunner_DerivedSeedDrivesSampleStreams' -count=1       # (e)
 ```
 
 **Baseline**: (a) fails (the sentinel is at `runner.go:667`); (b) **passes at baseline** (there are
 already exactly 3 sites) — it is a *count guard* against a fourth appearing, not evidence; (c) fails
-(zero sites mention `propertySeed`); (d) fails (test does not exist). (c) and (d) are the
-discriminating arms, and (d) is the one that catches `contract_domain.go:89` specifically.
+(zero sites mention `propertySeed`); (d) and (e) fail (tests do not exist). (c) and (e) are the
+discriminating arms, and **(e)** — not (d) — is the one that catches `contract_domain.go:89`.
+
+**Repair 1 — the scope was wrong, and the executor caught it (self-reported deviation, adjudicated
+by measurement).** The original arms glob `internal/testing/*.go`, which includes `_test.go`. S10's
+own spec (§5.6) requires it to call `newRNG(0)`/`newRNG(1)` directly, so the moment S10 exists the
+`-eq 3` guard reads **6**; with S11b's doc comment quoting the call form it reads **8**, and (c)
+reads **4**. Measured at iteration 162: as-written (b)=8 / (c)=4 → both FAIL on a correct tree;
+production-scoped (b)=3 / (c)=3 → both PASS. The guard is about *production* call sites, so the
+glob, not the count, was the defect.
+
+**Repair 2 — (d) does not kill the mutation it is documented to kill.** S11 observes
+`PropertyResult.Seed`, which each path stamps into its result initializer **independently of what it
+hands to `newRNG`**. Measured at iteration 162 with the mutant landed and building
+(`go build ./internal/testing` rc=0): replacing `newRNG(r.propertySeed(...))` with a constant at
+`contract_domain.go:89` leaves **the entire seed suite green**. §5.6's S11 row therefore pins the
+stamp, not the stream, and the milestone's whole point — the sweep — was unguarded. S11b
+(`TestRunner_DerivedSeedDrivesSampleStreams`) closes it by observing facts downstream of the
+generator: the ensures path's accept/discard counts under M1's domain filter, and the requires
+path's counterexample text. Both are exact and reproducible (fixed seeds ⇒ fixed samples), and both
+mutants now red. **Residual, recorded rather than papered over**: the *forall* site
+(`runner.go:293`) has no stream observable in this package — every forall property in a unit-test
+fixture fails on its first generated input with `evaluation failed: empty program`, a pre-existing
+harness limitation unrelated to this milestone — so a constant-seed mutant there still survives.
+That site is pinned by arm (c) plus the seed stamp only. M3 owes it a CLI-level e2e arm.
 
 #### AC-SCOPE-M2 — no scope creep
 

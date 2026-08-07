@@ -1,6 +1,7 @@
 package testing
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -119,6 +120,82 @@ func TestRunner_AllThreePropertyPathsUseDerivedSeed(t *testing.T) {
 	}
 }
 
+// streamObservables reduces a suite result to the per-property facts that are a
+// function of the RNG *stream* rather than of the seed field: how many inputs
+// were generated and discarded, and the counterexample text. PropertyResult.Seed
+// is deliberately excluded — it is stamped in each path's initializer and is
+// therefore identical whether or not the stream actually consumed it.
+func streamObservables(t *testing.T, result *SuiteResult) map[string]string {
+	t.Helper()
+	obs := make(map[string]string, len(result.Properties))
+	for _, p := range result.Properties {
+		obs[p.Name] = fmt.Sprintf("status=%s testsRun=%d generated=%d discarded=%d err=%s",
+			p.Status, p.TestsRun, p.GeneratedInputs, p.DiscardedInputs, p.Error)
+	}
+	return obs
+}
+
+// S11b — TestRunner_DerivedSeedDrivesSampleStreams is the arm S11 cannot be.
+//
+// S11 observes PropertyResult.Seed, which each path stamps into its result
+// initializer *independently of what it hands to newRNG*. So S11 stays green
+// under the exact defect it is documented to kill: replacing
+// `newRNG(r.propertySeed(...))` with `newRNG(<constant>)` at contract_domain.go's
+// ensures site leaves every seed field untouched. Verified by mutation at
+// mission iteration 162 — the mutant built and the whole seed suite passed.
+//
+// This test instead observes facts downstream of the generator stream:
+//   - the ensures path's accept/discard counts under M1's domain filter, and
+//   - the requires path's counterexample text,
+//
+// each of which changes if and only if that site's RNG actually consumed the
+// derived seed. Both are exact and reproducible, not statistical: the seeds are
+// fixed constants, so the sampled values are fixed too.
+//
+// The forall site (runner.go's runProperty) has no stream observable in this
+// package today — every forall property in a unit-test fixture fails on its
+// first generated input with "evaluation failed: empty program", a pre-existing
+// harness limitation unrelated to this milestone. That site is pinned by the
+// seed stamp plus AC-SEED-SWEEP-M2 arm (c), and is called out here so a future
+// reader does not mistake its absence for coverage.
+func TestRunner_DerivedSeedDrivesSampleStreams(t *testing.T) {
+	const (
+		requiresProp = "g_property_1" // the requires path (runner.go)
+		ensuresProp  = "g_property_2" // the ensures path (contract_domain.go)
+	)
+
+	master0a := streamObservables(t, runSeedFixture(t, testConfig(t.TempDir(), 0)))
+	master0b := streamObservables(t, runSeedFixture(t, testConfig(t.TempDir(), 0)))
+	master42 := streamObservables(t, runSeedFixture(t, testConfig(t.TempDir(), 42)))
+
+	// Non-vacuity: an empty or renamed property set must fail loudly rather than
+	// leave every assertion below with nothing to compare.
+	for _, name := range []string{requiresProp, ensuresProp} {
+		if _, ok := master0a[name]; !ok {
+			t.Fatalf("instrument failure: fixture produced no property %q (have %v)", name, master0a)
+		}
+	}
+
+	// Determinism: the same master must reproduce the stream exactly, from a
+	// different workspace root, in a different temp directory.
+	for name, want := range master0a {
+		if got := master0b[name]; got != want {
+			t.Fatalf("property %q is not reproducible at the same master:\n  run A: %s\n  run B: %s", name, want, got)
+		}
+	}
+
+	// Sensitivity, per site. Each of these fails if that site's newRNG stops
+	// consuming the derived seed.
+	if master42[ensuresProp] == master0a[ensuresProp] {
+		t.Fatalf("ensures path (contract_domain.go) ignored the master seed: master 0 and 42 both gave %s",
+			master0a[ensuresProp])
+	}
+	if master42[requiresProp] == master0a[requiresProp] {
+		t.Fatalf("requires path (runner.go) ignored the master seed: master 0 and 42 both gave %s",
+			master0a[requiresProp])
+	}
+}
+
 // S12 — TestRunner_MasterSeedChangesEveryStream kills a hard-coded or ignored
 // master: at master 0 vs 42 all three seed values must differ.
 func TestRunner_MasterSeedChangesEveryStream(t *testing.T) {
@@ -169,6 +246,13 @@ export func main() -> int ! {} { 0 }
 	result, err := RunTestsFromFileWithConfig(tmpFile, file, cfg)
 	if err != nil {
 		t.Fatalf("RunTestsFromFileWithConfig: %v", err)
+	}
+
+	// Non-vacuity: with no property results the loop below asserts nothing and
+	// this test passes for the wrong reason. Verified non-vacuous at iteration
+	// 162 by adding this guard and observing the test still pass.
+	if len(result.Properties) == 0 {
+		t.Fatal("instrument failure: fixture produced zero property results")
 	}
 
 	for _, prop := range result.Properties {
