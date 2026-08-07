@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -47,16 +48,19 @@ func (r *Reporter) Report(result *SuiteResult) error {
 func (r *Reporter) reportJSON(result *SuiteResult) error {
 	// Create a JSON-friendly structure
 	output := map[string]interface{}{
-		"module_path":    result.ModulePath,
-		"total_tests":    result.TotalTests,
-		"passed_tests":   result.PassedTests,
-		"failed_tests":   result.FailedTests,
-		"skipped_tests":  result.SkippedTests,
-		"vacuous_skips":  result.VacuousSkips,
-		"total_duration": result.TotalDuration.String(),
-		"success":        result.Success(),
-		"tests":          r.formatTestsJSON(result.Tests),
-		"properties":     r.formatPropertiesJSON(result.Properties),
+		"module_path":     result.ModulePath,
+		"total_tests":     result.TotalTests,
+		"passed_tests":    result.PassedTests,
+		"failed_tests":    result.FailedTests,
+		"skipped_tests":   result.SkippedTests,
+		"vacuous_skips":   result.VacuousSkips,
+		"total_duration":  result.TotalDuration.String(),
+		"success":         result.Success(),
+		"tests":           r.formatTestsJSON(result.Tests),
+		"properties":      r.formatPropertiesJSON(result),
+		"seed_mode":       string(result.SeedMode),
+		"seed":            strconv.FormatInt(result.MasterSeed, 10),
+		"seed_derivation": result.SeedDerivation,
 	}
 
 	encoder := json.NewEncoder(r.writer)
@@ -81,8 +85,11 @@ func (r *Reporter) formatTestsJSON(tests []TestResult) []map[string]interface{} 
 	return output
 }
 
-// formatPropertiesJSON converts property results to JSON-friendly format.
-func (r *Reporter) formatPropertiesJSON(properties []PropertyResult) []map[string]interface{} {
+// formatPropertiesJSON converts property results to JSON-friendly format. It
+// takes the whole SuiteResult because the replay command (D9) and per-property
+// seed are derived from the master seed and module path carried by the suite.
+func (r *Reporter) formatPropertiesJSON(result *SuiteResult) []map[string]interface{} {
+	properties := result.Properties
 	output := make([]map[string]interface{}, len(properties))
 	for i, prop := range properties {
 		output[i] = map[string]interface{}{
@@ -94,12 +101,16 @@ func (r *Reporter) formatPropertiesJSON(properties []PropertyResult) []map[strin
 			"discarded_inputs": prop.DiscardedInputs,
 			"location":         prop.Location,
 			"skip_kind":        prop.SkipKind,
+			"seed":             strconv.FormatInt(prop.Seed, 10),
 		}
 		if prop.Error != "" {
 			output[i]["error"] = prop.Error
 		}
 		if prop.FailingInput != "" {
 			output[i]["failing_input"] = prop.FailingInput
+		}
+		if prop.Status == StatusFail {
+			output[i]["replay"] = fmt.Sprintf("ailang test --seed %d %s", result.MasterSeed, result.ModulePath)
 		}
 	}
 	return output
@@ -244,6 +255,15 @@ func (r *Reporter) reportSummaryHuman(result *SuiteResult) {
 	if result.SkippedTests > 0 {
 		fmt.Fprintf(r.writer, "  %s %d\n", r.color(colorYellow, "⊘ Skipped:"), result.SkippedTests)
 	}
+
+	// Seed / replay block (D10). Mode, master seed, derivation version and the
+	// copy/paste replay command are mandatory content.
+	fmt.Fprintf(r.writer, "\n%s\n", r.color(colorBold, "Seed:"))
+	fmt.Fprintf(r.writer, "  mode: %s\n", string(result.SeedMode))
+	fmt.Fprintf(r.writer, "  master seed: %d\n", result.MasterSeed)
+	fmt.Fprintf(r.writer, "  derivation: %s\n", result.SeedDerivation)
+	fmt.Fprintf(r.writer, "  replay: ailang test --seed %d %s\n", result.MasterSeed, result.ModulePath)
+
 	fmt.Fprintln(r.writer)
 }
 

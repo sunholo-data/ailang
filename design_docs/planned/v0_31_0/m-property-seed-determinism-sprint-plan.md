@@ -813,7 +813,11 @@ case randomSet:
 switches from `RunTestsFromFile(filename, file)` to `RunTestsFromFileWithConfig(filename, file, cfg)`.
 **In BOTH aggregation blocks**, immediately after `NewSuiteResult(...)` (line 48 and line 185), call
 `aggregateResults.SetSeedMetadata(cfg)`. Missing either one silently emits an empty `seed_mode` for
-that mode — this is the §5.1 fourth call-site class.
+that mode — this is the §5.1 fourth call-site class. **`runTestsV2` (line 17) is FILE mode;
+`runPackageTests` (line 136) is `--package` mode, and every other M2 acceptance arm runs file mode
+only** — so the second call site is guarded solely by **`AC-SEED-AGG-M2C` (§5.11) and row S17
+(§5.6)**, both added at iteration 163 for exactly this reason. Run them; do not treat the file-mode
+arms going green as evidence that this half landed.
 
 **(c) `printTestHelp` (`cmd/ailang/test.go:225-246`).** Add two Options lines. The literal strings
 `--seed N` and `--random-seed` **must appear verbatim** — AC6 greps for them with `grep -F`:
@@ -853,6 +857,50 @@ New file `internal/testing/config_test.go` (M2A), additions to
 | S14 | `TestSuiteResult_SetSeedMetadata` | copies all three fields from a `TestConfig` | a partial copy |
 | S15 | `TestReporter_JSONSeedFieldsAreDecimalStrings` | top-level `seed` and per-property `seed` decode as **strings** matching `^-?[0-9]+$`; `seed_derivation == "ailang-property-seed-v1"`; a negative master round-trips exactly | emitting a JSON number (float64 precision loss above 2^53) |
 | S16 | `TestReporter_ReplayOnlyOnFailure` | `replay` present on a `fail` property, **absent** on pass/skip, and equal to `ailang test --seed <master> <module_path>` | emitting `replay` unconditionally (would break AC6 byte-identity only if it varied — assert the text) |
+
+**ADDED at iteration 163, BEFORE routing M2C — §5.5(b)'s named risk is not gated in the milestone
+that creates it.** §5.5(b) instructs the executor to call `SetSeedMetadata(cfg)` in **both**
+aggregation blocks and states the consequence of missing one: "silently emits an empty `seed_mode`
+for that mode — this is the §5.1 fourth call-site class."
+
+**Being precise about what was and was not already there**, because the honest version of this
+finding is narrower than the first draft of it: §5.10 *does* carry a row —
+"package-mode propagation test | M3 | temp `ailang.toml` package, asserts top-level seed fields" —
+so the sprint was not blind to package mode. But that row (a) is scheduled for **M3, one milestone
+after the call sites are written**, (b) has **no S-ID and no entry in the §5.6 test table**, (c) has
+**no acceptance criterion**, and (d) specifies a **temp** `ailang.toml`, which is the same
+environment-dependent shape AC6(a) already had to repair with `--relax-modules`. So M2C would land,
+pass every gate it owns, and the defect would be undetectable until a later milestone's untracked
+row happened to catch it. Moving the guard into the milestone that creates the risk is the repair;
+S17 gives it an ID and `AC-SEED-AGG-M2C` gives it a runnable, baselined arm off `$TMPDIR`.
+
+Measured at `bb7a8a8a9` before any code was written:
+
+- Every arm of `AC-SEED-SWEEP-M2` — the AC whose title is "every RNG path went through the
+  derivation (§5.1's failure shape)" — scopes to `internal/testing/` production files or
+  `go test ./internal/testing`. **None of them reads `cmd/ailang/test.go`**, which is where both
+  aggregation call sites live.
+- `--package` appears in this plan exactly **twice** (lines 120 and 608), both as prose describing
+  the *current* flag set, and **zero** times in an AC command; it appears **zero** times in the
+  design doc. Control: `--seed` appears **26** times in this plan, so the instrument sees positives.
+- S14/S15/S16 are `internal/testing` unit tests and never execute `cmd/ailang/test.go`.
+- `runPackageTests` genuinely emits properties: `cmd/ailang/test.go:56` appends
+  `fileResult.Properties` into the package aggregate, verified live below.
+
+So M2C as specified would ship **two call sites with one guarded**, and every gate in the sprint
+would stay green — the exact shape iteration 162 found in S11, caught here before routing rather
+than after. Row S17 and `AC-SEED-AGG-M2C` (§5.11) close it.
+
+| ID | Test | Asserts | Kills which mutation |
+|---|---|---|---|
+| S17 | `TestPackageAndFileAggregatesBothCarrySeedMetadata` (`cmd/ailang/test_seed_test.go`, new) | drives **both** `runTestsV2` and `runPackageTests` over the same fixture and asserts each aggregate's `SeedMode`/`MasterSeed`/`SeedDerivation` are populated — **not** that `SetSeedMetadata` works | §5.5(b): adding `SetSeedMetadata` to only ONE of the two aggregation blocks |
+
+> **Read S17 against rule 3i before implementing it.** The observable must be the *aggregate that
+> the command path actually built*, reached through `runTestsV2` / `runPackageTests`. A test that
+> constructs a `SuiteResult` by hand and calls `SetSeedMetadata` on it is S14 again and kills
+> nothing here — S14 already passes with both call sites deleted. If the two functions cannot be
+> called directly (they `os.Exit`), assert through the CLI instead, exactly as `AC-SEED-AGG-M2C`
+> does, and say so rather than weakening the observable.
 
 ### 5.7 M3 — integration, CLI end-to-end, and repository gates
 
@@ -916,9 +964,10 @@ appear with any closing keyword.
 | `cmd/ailang/test.go` | M2C | config threading through 3 funcs, `SetSeedMetadata` at **both** aggregates, configured entry point, help text | +55 |
 | `internal/testing/reporter.go` | M2C | 3 top-level keys, per-property `seed`, conditional `replay`, human seed/replay block | +45 |
 | `internal/testing/reporter_test.go` | M2C | S15–S16 | +55 |
+| `cmd/ailang/test_seed_test.go` (NEW) | **M2C** | **S17** — both aggregates carry seed metadata (**MOVED FROM M3 at iteration 163**; see the note under §5.6's S17 row) | +40 |
 | `cmd/ailang/test_seed_e2e_test.go` (NEW) | M3 | AC5/AC6 end-to-end + help literals | +150 |
 | `cmd/ailang/test_contract_domain_test.go` (NEW, descopable) | M3 | M1's deferred AC1/AC2/AC3 CLI e2e | +110 |
-| package-mode propagation test | M3 | temp `ailang.toml` package, asserts top-level seed fields | +40 |
+| ~~package-mode propagation test~~ | ~~M3~~ | **MOVED TO M2C as S17 + `AC-SEED-AGG-M2C`** — it guards a call site M2C writes, so deferring it left that site unguarded for a whole milestone; also re-specified OFF `$TMPDIR` (the AC6(a) class) | — |
 | `changelogs/v0.18-current.md` | M3 | Unreleased → Fixed | +15 |
 
 **Net ≈ +850 (must-ship ≈ +700).** File-size headroom after M2+M3 (cap 800, Q5/Q6):
@@ -1130,6 +1179,72 @@ mutants now red. **Residual, recorded rather than papered over**: the *forall* s
 fixture fails on its first generated input with `evaluation failed: empty program`, a pre-existing
 harness limitation unrelated to this milestone — so a constant-seed mutant there still survives.
 That site is pinned by arm (c) plus the seed stamp only. M3 owes it a CLI-level e2e arm.
+
+#### AC-SEED-AGG-M2C — BOTH aggregation blocks carry the seed metadata (§5.5(b)'s fourth call site)
+
+**ADDED at iteration 163, before routing.** Every other M2 arm runs `ailang test` in **file** mode,
+so all of them pass with `SetSeedMetadata` wired into `runTestsV2` alone. This arm is the only one
+that reaches `runPackageTests`.
+
+```bash
+set -u
+fix=$(cd "$(dirname "$0")" && pwd)/.ac-seed-agg-fixture   # any NON-temp dir; see the note below
+rm -rf "$fix"; mkdir -p "$fix"
+cat >"$fix/ailang.toml" <<'EOF'
+[package]
+name = "seedtest/pkg"
+version = "0.1.0"
+edition = "1"
+
+[exports]
+modules = ["seedtest/pkg/prop"]
+
+[stability]
+level = "experimental"
+EOF
+cat >"$fix/prop_test.ail" <<'EOF'
+module seedtest/pkg/prop_test
+
+export func ok(x: int) -> bool ! {}
+ensures { result == true } { true }
+EOF
+
+# (a) PACKAGE mode — the discriminating arm, and the one no other AC covers
+./bin/ailang test --package --format json --no-color "$fix" >"$fix/pkg.json" 2>"$fix/pkg.err"
+jq -e '.seed_mode == "derived" and .seed == "0"
+       and .seed_derivation == "ailang-property-seed-v1"
+       and ([.properties[] | select(.seed != null)] | length > 0)' "$fix/pkg.json"
+
+# (b) FILE mode over the SAME fixture — proves (a)'s failure is mode-specific, not fixture-specific
+./bin/ailang test --format json --no-color "$fix/prop_test.ail" >"$fix/file.json" 2>"$fix/file.err"
+jq -e '.seed_mode == "derived" and .seed_derivation == "ailang-property-seed-v1"' "$fix/file.json"
+
+# (c) KNOWN-POSITIVE CONTROL — must pass at baseline AND after; if this fails the fixture is broken,
+#     not the feature, and (a)'s red means nothing (rule 3a).
+jq -e '.module_path == "seedtest/pkg" and (.properties | length) == 1' "$fix/pkg.json"
+
+# (d) --package + --seed replays too (the master-mode half of the same call site)
+./bin/ailang test --package --seed=42 --format json --no-color "$fix" >"$fix/pkg42.json" 2>/dev/null
+jq -e '.seed_mode == "master" and .seed == "42"' "$fix/pkg42.json"
+```
+
+**Baseline on pristine `dev` (`bb7a8a8a9`), measured 2026-08-07 — every value below is from a
+command run, not reasoned:**
+- (a) **DISCRIMINATES** — `rc=1`; the three keys are absent from the package-mode JSON entirely.
+- (b) **DISCRIMINATES** — `rc=1`, same reason.
+- (c) **PASSES at baseline (`rc=0`)** — this is the control, and it is what makes (a)'s red a
+  measurement rather than a broken fixture. Package mode really does run the property:
+  `properties[0]` is `ok_property_1`, `status pass`, `tests_run 100`, `generated_inputs 100`.
+- (d) **DISCRIMINATES** — `rc=2` at baseline (`flag provided but not defined: -seed`).
+
+**Fixture-location note (the AC6(a) class, and it bites here too).** Put the fixture in a
+**non-temp** directory. Under `$TMPDIR` the loader's `IsTempPath` auto-relaxes MOD010 to a warning,
+so a module-path mismatch that would fail elsewhere passes silently — the arm would then be
+measuring `$TMPDIR`, not the code. As written above the module path never matches the on-disk path,
+so MOD010 is relaxed *by the package loader* in both locations; the arm does not depend on it
+either way, but keep the fixture off `/tmp` so the failure mode stays legible. Verified live at
+baseline: package mode emitted `WARNING MOD010 (relaxed)` on stderr and still ran the property to
+`tests_run 100`, so the warning is not a blocker for this arm.
 
 #### AC-SCOPE-M2 — no scope creep
 

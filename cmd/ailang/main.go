@@ -13,6 +13,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/prompt"
 	"github.com/sunholo-data/ailang/internal/schema"
+	ailangTesting "github.com/sunholo-data/ailang/internal/testing"
 	"github.com/sunholo-data/ailang/internal/version"
 )
 
@@ -115,6 +116,8 @@ func main() {
 		noColorFlag := testFlags.Bool("no-color", false, "Disable colored output")
 		packageFlag := testFlags.Bool("package", false, "Run tests in package mode (discovers *_test.ail via ailang.toml)")
 		allowSkipsFlag := testFlags.Bool("allow-skips", false, "Exit 0 even when all tests are skipped (default: skipped-only suites exit 1)")
+		seedFlag := testFlags.Int64("seed", 0, "Master seed for property generation (signed int64)")
+		randomSeedFlag := testFlags.Bool("random-seed", false, "Read one master seed from crypto/rand and report it")
 		helpTestFlag := testFlags.Bool("help", false, "Show help for test command")
 
 		_ = testFlags.Parse(flag.Args()[1:]) // Parse errors handled by flags package
@@ -124,15 +127,56 @@ func main() {
 			return
 		}
 
+		// Both flags are registered above so the CLI accepts them. D1 mandates
+		// detecting PRESENCE via Visit — presence, not value — so the returned
+		// randomSeedFlag value is intentionally unused (--seed 0 must not be
+		// confused with unset); blank it rather than dereference it.
+		_ = randomSeedFlag
+
+		// Detect flag PRESENCE via Visit (D1) — presence, not value, because
+		// --seed 0 is a legitimate explicit master seed and must not be confused
+		// with "unset". Visit iterates only flags that were set on the command line.
+		seedSet, randomSet := false, false
+		testFlags.Visit(func(f *flag.Flag) {
+			switch f.Name {
+			case "seed":
+				seedSet = true
+			case "random-seed":
+				randomSet = true
+			}
+		})
+		if seedSet && randomSet { // D2 — mutual exclusion on stderr, exit 2
+			fmt.Fprintln(os.Stderr, "Error: --seed and --random-seed cannot be used together")
+			os.Exit(2)
+		}
+		// Capture os.Getwd() ONCE, before any path walking.
+		cwd, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: cannot determine working directory: %v\n", err)
+			os.Exit(1)
+		}
+		cfg := ailangTesting.TestConfig{WorkspaceRoot: cwd, SeedMode: ailangTesting.SeedModeDerived, MasterSeed: 0}
+		switch {
+		case seedSet:
+			cfg.SeedMode, cfg.MasterSeed = ailangTesting.SeedModeMaster, *seedFlag
+		case randomSet:
+			m, err := ailangTesting.NewRandomMasterSeed()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1) // BEFORE any property runs
+			}
+			cfg.SeedMode, cfg.MasterSeed = ailangTesting.SeedModeMaster, m
+		}
+
 		path := "."
 		if testFlags.NArg() >= 1 {
 			path = testFlags.Arg(0)
 		}
 
 		if *packageFlag {
-			runPackageTests(path, *formatFlag, !*noColorFlag, *allowSkipsFlag)
+			runPackageTests(path, *formatFlag, !*noColorFlag, *allowSkipsFlag, cfg)
 		} else {
-			runTestsV2(path, *formatFlag, !*noColorFlag, *allowSkipsFlag)
+			runTestsV2(path, *formatFlag, !*noColorFlag, *allowSkipsFlag, cfg)
 		}
 
 	case "watch":

@@ -3,6 +3,8 @@ package testing
 import (
 	"bytes"
 	"encoding/json"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -532,5 +534,108 @@ func TestReporter_UnknownFormat(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "unknown output format") {
 		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+// S15 — the top-level and per-property seed fields must decode as decimal
+// STRINGS, never JSON numbers. A JSON number is float64 on decode and silently
+// loses precision above 2^53; both cases here exercise values beyond that bound
+// (positive and negative) so a JSON-number mutant genuinely discriminates.
+func TestReporter_JSONSeedFieldsAreDecimalStrings(t *testing.T) {
+	seedRe := regexp.MustCompile(`^-?[0-9]+$`)
+	cases := []struct {
+		master   int64
+		propSeed int64
+	}{
+		{master: 9007199254740993, propSeed: 9007199254740999},   // 2^53+1 / 2^53+7
+		{master: -9007199254740993, propSeed: -9007199254747319}, // negative round-trip
+	}
+	for _, c := range cases {
+		result := NewSuiteResult("case/stable.ail")
+		result.SetSeedMetadata(TestConfig{WorkspaceRoot: "/work", SeedMode: SeedModeMaster, MasterSeed: c.master})
+		result.AddPropertyResult(PropertyResult{Name: "p", Status: StatusPass, Seed: c.propSeed})
+
+		var buf bytes.Buffer
+		if err := NewReporter(FormatJSON, &buf, false).Report(result); err != nil {
+			t.Fatalf("Report() error: %v", err)
+		}
+		var output map[string]interface{}
+		if err := json.Unmarshal(buf.Bytes(), &output); err != nil {
+			t.Fatalf("Invalid JSON output: %v", err)
+		}
+
+		// Top-level seed: a decimal string matching the master exactly.
+		topSeed, ok := output["seed"].(string)
+		if !ok {
+			t.Fatalf("master %d: top-level seed is %T (%v), want string", c.master, output["seed"], output["seed"])
+		}
+		if !seedRe.MatchString(topSeed) {
+			t.Errorf("master %d: top-level seed %q does not match decimal regex", c.master, topSeed)
+		}
+		if topSeed != strconv.FormatInt(c.master, 10) {
+			t.Errorf("master %d: round-trip got %q, want %q", c.master, topSeed, strconv.FormatInt(c.master, 10))
+		}
+
+		// Derivation tag.
+		if output["seed_derivation"] != SeedDerivationV1 {
+			t.Errorf("master %d: seed_derivation = %v, want %q", c.master, output["seed_derivation"], SeedDerivationV1)
+		}
+
+		// Per-property seed: also a decimal string.
+		prop := output["properties"].([]interface{})[0].(map[string]interface{})
+		propSeed, ok := prop["seed"].(string)
+		if !ok {
+			t.Fatalf("master %d: property seed is %T (%v), want string", c.master, prop["seed"], prop["seed"])
+		}
+		if !seedRe.MatchString(propSeed) {
+			t.Errorf("master %d: property seed %q does not match decimal regex", c.master, propSeed)
+		}
+		if propSeed != strconv.FormatInt(c.propSeed, 10) {
+			t.Errorf("master %d: property seed round-trip got %q, want %q", c.master, propSeed, strconv.FormatInt(c.propSeed, 10))
+		}
+	}
+}
+
+// S16 — replay appears on a FAIL property and is absent on pass and skip, and
+// equals the exact copy/paste command text (D9).
+func TestReporter_ReplayOnlyOnFailure(t *testing.T) {
+	result := NewSuiteResult("mods/example.ail")
+	result.SetSeedMetadata(TestConfig{SeedMode: SeedModeMaster, MasterSeed: 42})
+	result.AddPropertyResult(PropertyResult{Name: "fail_prop", Status: StatusFail})
+	result.AddPropertyResult(PropertyResult{Name: "pass_prop", Status: StatusPass})
+	result.AddPropertyResult(PropertyResult{Name: "skip_prop", Status: StatusSkip, SkipKind: SkipKindNoGenerator})
+
+	var buf bytes.Buffer
+	if err := NewReporter(FormatJSON, &buf, false).Report(result); err != nil {
+		t.Fatalf("Report() error: %v", err)
+	}
+	var output struct {
+		Properties []map[string]interface{} `json:"properties"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &output); err != nil {
+		t.Fatalf("Invalid JSON output: %v", err)
+	}
+	props := map[string]map[string]interface{}{}
+	for _, p := range output.Properties {
+		props[p["name"].(string)] = p
+	}
+
+	wantReplay := "ailang test --seed 42 mods/example.ail"
+	for name, p := range props {
+		got, present := p["replay"]
+		if name == "fail_prop" {
+			if !present {
+				t.Errorf("fail property missing replay key")
+			} else if got != wantReplay {
+				t.Errorf("fail replay = %v, want %q", got, wantReplay)
+			}
+		} else if present {
+			t.Errorf("%s property should NOT have replay, got %v", name, got)
+		}
+	}
+	for _, name := range []string{"fail_prop", "pass_prop", "skip_prop"} {
+		if _, ok := props[name]; !ok {
+			t.Errorf("missing property %q in output", name)
+		}
 	}
 }
