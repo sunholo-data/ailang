@@ -447,9 +447,36 @@ VERIFY AND LAND it, not to redo it — but verify it exactly as any other inheri
 (rule 3b(v)): re-derive its load-bearing counts and confirm its claimed edits actually landed,
 because nobody has reviewed that work since the agent which wrote it stopped existing.
 Iteration 149 did precisely that and the PR held up, but the check is what made merging it a
-measurement rather than a hope. Finally, **record the orphaned iteration inside your own log
+measurement rather than a hope. **(c) UNCOMMITTED WORKING-TREE STATE — in the stale worktree
+AND in the MAIN CHECKOUT — because that is where a dying iteration's most recent work
+necessarily sits, and (a) and (b) are both blind to it** (added 2026-08-07 iteration 161; two
+frictions, both first-party in one iteration, and the rule's own trace list is what missed
+them). (a) and (b) find *the existence of* an attempt: a PR record, a worktree directory.
+Neither says anything about **content**, so both come back looking identical whether the
+worktree is pristine or holds the milestone. Note the asymmetry that makes this the likelier
+half: an iteration dies at its LAST step, and the last step before landing is always
+"uncommitted edits exist". Iteration 161 found iteration 160 had left **two** residues, and
+`git worktree list` showed only that a worktree existed: two untracked source files
+implementing a whole milestone, and — the one no rule anywhere covers — a Gate-5 **skill edit
+saved in the main checkout and never committed**, which the `~/.claude` symlink made LIVE for
+every mission on the rig while it was absent from origin. That is the Repo Profile's one-way
+divergence arriving by a mechanism note (c) there does not list: it covers an edit *committed
+from a worktree*, not one *never committed at all*. Two commands, both cheap:
+`git -C <each worktree> status --porcelain` and `git status --porcelain` in the main checkout,
+read for files your predecessor would plausibly have written rather than for a clean/dirty
+verdict. Gate 1's `cmp` against origin catches the skill case specifically — **so when it
+fires, do not stop at "read the delta": ask WHY the running copy diverged**, because an
+uncommitted edit means an author who never finished, and that author had other work too.
+And verify what you find rather than adopting it: iteration 161's inherited milestone had
+**2 of its 9 tests RED as delivered**, plus a third that passed locally and was vacuous on
+another platform — an executor's unfinished output has been reviewed by nobody, not even by
+the executor, which is exactly why the VERIFY-AND-LAND instruction above is worth more than
+the traces that lead you to it. Finally, **record the orphaned iteration inside your own log
 entry and credit it** — otherwise the log silently skips a number and no later reader can
-tell whether that iteration ran, crashed, or never fired at all.
+tell whether that iteration ran, crashed, or never fired at all. When you find **two in a
+row**, say so in the report as a pattern rather than as two incidents: the loop cannot
+diagnose why its own slots are dying, but it can make the frequency visible to someone who
+can.
 
 **AND THE ITEM'S DECLARED BLOCKERS ARE CLAIMS TOO — RE-VERIFY THE BLOCKER, NOT JUST THE ITEM,
 AND CHECK WHETHER ITS *PURPOSE* WAS SOLVED UPSTREAM RATHER THAN WHETHER IT IS STILL OPEN** (added
