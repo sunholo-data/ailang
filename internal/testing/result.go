@@ -41,19 +41,23 @@ type PropertyResult struct {
 	Error           string        // Error message (if failed)
 	Location        string        // Source location
 	SkipKind        string        // Machine-readable reason when StatusSkip
+	Seed            int64         // Derived seed used for this property's RNG stream
 }
 
 // SuiteResult aggregates results from all tests in a test suite.
 type SuiteResult struct {
-	ModulePath    string           // Module path
-	Tests         []TestResult     // All test results
-	Properties    []PropertyResult // All property results
-	TotalTests    int              // Total number of tests
-	PassedTests   int              // Number of passing tests
-	FailedTests   int              // Number of failing tests
-	SkippedTests  int              // Number of skipped tests
-	VacuousSkips  int              // Skipped properties that executed no meaningful cases
-	TotalDuration time.Duration    // Total execution time
+	ModulePath     string           // Module path
+	Tests          []TestResult     // All test results
+	Properties     []PropertyResult // All property results
+	TotalTests     int              // Total number of tests
+	PassedTests    int              // Number of passing tests
+	FailedTests    int              // Number of failing tests
+	SkippedTests   int              // Number of skipped tests
+	VacuousSkips   int              // Skipped properties that executed no meaningful cases
+	TotalDuration  time.Duration    // Total execution time
+	SeedMode       SeedMode         // Derived or master seed policy
+	MasterSeed     int64            // Master seed (0 in derived mode)
+	SeedDerivation string           // Seed derivation contract tag
 }
 
 // NewSuiteResult creates a new empty suite result.
@@ -84,6 +88,14 @@ func (sr *SuiteResult) AddTestResult(result TestResult) {
 	case StatusSkip:
 		sr.SkippedTests++
 	}
+}
+
+// SetSeedMetadata copies the seed-relevant fields of cfg onto the suite result.
+// Both CLI aggregates call this; it is the single mutator so they cannot drift.
+func (sr *SuiteResult) SetSeedMetadata(cfg TestConfig) {
+	sr.SeedMode = cfg.SeedMode
+	sr.MasterSeed = cfg.MasterSeed
+	sr.SeedDerivation = SeedDerivationV1
 }
 
 // AddPropertyResult adds a property result and updates counters.
