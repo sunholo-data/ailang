@@ -3,6 +3,7 @@ package testing
 import (
 	"fmt"
 	"math/rand"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,16 +14,47 @@ import (
 
 // Runner executes tests and properties.
 type Runner struct {
-	modulePath string
-	executor   *Executor
+	modulePath     string
+	executor       *Executor
+	config         TestConfig
+	moduleIdentity string
 }
 
-// NewRunner creates a new test runner.
+// NewRunner creates a new test runner using the default derived-seed policy.
+//
+// It is a convenience wrapper over NewRunnerWithConfig: the workspace root is
+// inferred from the module file's own directory (SeedModeDerived, master 0) and
+// the module identity is left unresolved. CLI code must not use this — it should
+// use RunTestsFromFileWithConfig so the module identity is resolved properly.
 func NewRunner(modulePath string) *Runner {
-	return &Runner{
-		modulePath: modulePath,
-		executor:   NewExecutor(modulePath),
+	abs, err := filepath.Abs(modulePath)
+	if err != nil {
+		abs = modulePath
 	}
+	cfg := TestConfig{
+		WorkspaceRoot: filepath.Dir(abs),
+		SeedMode:      SeedModeDerived,
+		MasterSeed:    0,
+	}
+	return NewRunnerWithConfig(modulePath, cfg, "")
+}
+
+// NewRunnerWithConfig creates a test runner with an explicit seed config and a
+// pre-resolved module identity. It never fails: callers resolve the identity via
+// ResolveModuleIdentity before calling.
+func NewRunnerWithConfig(modulePath string, cfg TestConfig, moduleIdentity string) *Runner {
+	return &Runner{
+		modulePath:     modulePath,
+		executor:       NewExecutor(modulePath),
+		config:         cfg,
+		moduleIdentity: moduleIdentity,
+	}
+}
+
+// propertySeed derives the deterministic seed for a single property from the
+// runner's master seed, module identity, and the property name.
+func (r *Runner) propertySeed(name string) int64 {
+	return DeriveSeedV1(r.config.MasterSeed, r.moduleIdentity, name)
 }
 
 // RunSuite executes all tests in a test suite and returns aggregated results.
@@ -234,6 +266,7 @@ func (r *Runner) runProperty(propCase PropertyCase) PropertyResult {
 		Name:     propCase.Name,
 		Location: propCase.Location.String(),
 		TestsRun: 0,
+		Seed:     r.propertySeed(propCase.Name),
 	}
 
 	// Number of test cases to generate per property
@@ -257,8 +290,7 @@ func (r *Runner) runProperty(propCase PropertyCase) PropertyResult {
 	}
 
 	// Run property tests
-	config := DefaultConfig()
-	rng := newRNG(config.Seed)
+	rng := newRNG(r.propertySeed(propCase.Name))
 
 	for testNum := 0; testNum < numTests; testNum++ {
 		result.GeneratedInputs = testNum + 1
@@ -330,6 +362,7 @@ func (r *Runner) runRequiresProperty(propCase PropertyCase) PropertyResult {
 		Name:     propCase.Name,
 		Location: propCase.Location.String(),
 		TestsRun: 0,
+		Seed:     r.propertySeed(propCase.Name),
 	}
 
 	if propCase.Function == nil {
@@ -380,8 +413,7 @@ func (r *Runner) runRequiresProperty(propCase PropertyCase) PropertyResult {
 	}
 
 	const numTests = 100
-	config := DefaultConfig()
-	rng := newRNG(config.Seed)
+	rng := newRNG(r.propertySeed(propCase.Name))
 
 	for testNum := 0; testNum < numTests; testNum++ {
 		result.GeneratedInputs = testNum + 1
@@ -497,19 +529,54 @@ func formatEnsuresInputs(params []*ast.Param, values []eval.Value) string {
 	return strings.Join(parts, ", ")
 }
 
-// RunTestsFromFile is a convenience function that parses, collects, and runs tests from a file.
-func RunTestsFromFile(filePath string, ast *ast.File) (*SuiteResult, error) {
+// RunTestsFromFileWithConfig parses, collects, and runs tests from a file with an
+// explicit seed config. It validates the config, resolves the module identity
+// (module-bearing files are path-independent; module-less files are made
+// workspace-relative), and stamps the seed metadata onto the result.
+func RunTestsFromFileWithConfig(filePath string, file *ast.File, cfg TestConfig) (*SuiteResult, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
+	// Resolve the stable module identity before the Runner exists (D4: one
+	// consumption point for WorkspaceRoot).
+	declared := ""
+	if file.Module != nil {
+		declared = file.Module.Path
+	}
+	identity, err := ResolveModuleIdentity(cfg.WorkspaceRoot, filePath, declared)
+	if err != nil {
+		return nil, err
+	}
+
 	// Collect tests from AST
 	collector := NewCollector(filePath)
-	suite := collector.Collect(ast)
+	suite := collector.Collect(file)
 
 	// Run tests
-	runner := NewRunner(filePath)
+	runner := NewRunnerWithConfig(filePath, cfg, identity)
 	// Provide source file context to executor
-	runner.executor.SetSourceFile(ast)
+	runner.executor.SetSourceFile(file)
 	result := runner.RunSuite(suite)
+	result.SetSeedMetadata(cfg)
 
 	return result, nil
+}
+
+// RunTestsFromFile is a convenience function that parses, collects, and runs
+// tests from a file with the default derived-seed policy (workspace root is the
+// module file's own directory). It is a wrapper over RunTestsFromFileWithConfig.
+func RunTestsFromFile(filePath string, ast *ast.File) (*SuiteResult, error) {
+	abs, err := filepath.Abs(filePath)
+	if err != nil {
+		abs = filePath
+	}
+	cfg := TestConfig{
+		WorkspaceRoot: filepath.Dir(abs),
+		SeedMode:      SeedModeDerived,
+		MasterSeed:    0,
+	}
+	return RunTestsFromFileWithConfig(filePath, ast, cfg)
 }
 
 // createGeneratorForType creates a generator and shrinker for the given type.
@@ -661,10 +728,9 @@ func (r *Runner) shrinkCounterexample(property *ast.Property, failingValues []ev
 	return minimal
 }
 
-// newRNG creates a random number generator.
+// newRNG creates a random number generator from a fixed seed. The seed is always
+// used verbatim — there is deliberately no wall-clock fallback, so property
+// streams are deterministic and replayable.
 func newRNG(seed int64) *rand.Rand {
-	if seed == 0 {
-		seed = time.Now().UnixNano()
-	}
 	return rand.New(rand.NewSource(seed))
 }

@@ -26,6 +26,7 @@ func (r *Runner) runEnsuresProperty(propCase PropertyCase) PropertyResult {
 		Name:     propCase.Name,
 		Location: propCase.Location.String(),
 		TestsRun: 0,
+		Seed:     r.propertySeed(propCase.Name),
 	}
 
 	if propCase.Function == nil {
@@ -85,8 +86,7 @@ func (r *Runner) runEnsuresProperty(propCase PropertyCase) PropertyResult {
 		requiredAccepted = 100
 		maxAttempts      = 1000
 	)
-	config := DefaultConfig()
-	rng := newRNG(config.Seed)
+	rng := newRNG(r.propertySeed(propCase.Name))
 	requires := r.findAllLoweredContractPredicates(propCase, core.RequiresKind)
 
 	for result.TestsRun < requiredAccepted && result.GeneratedInputs < maxAttempts {
