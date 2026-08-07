@@ -1001,6 +1001,41 @@ the Repo Profile above):
    acceptable" with no measurement is exactly the vacuous pass this mission keeps closing elsewhere.
    The tell: you are about to write "sound deviation", "adjudicated acceptable", or "the executor's
    reasoning is correct" and every word of your justification came from the executor's own report.
+3i. **A TEST-PLAN ROW'S "KILLS WHICH MUTATION" COLUMN IS A CLAIM, AND IT IS THE ONE CLAIM IN THE
+   WHOLE SPRINT NOBODY EVER CHECKS — RUN THE NAMED MUTATION AGAINST THE ROW THAT NAMES IT, NOT
+   AGAINST THE SUITE** (added 2026-08-07 iteration 162). Rules 3a–3h police claims about the
+   *codebase*. This one polices a claim about a *test*, and it survives every gate above because a
+   test written to catch defect D and a test that merely passes are indistinguishable while D is
+   absent — which is the entire time, until the day it isn't. The plan asserts the kill, a quorum
+   reads the plan for design soundness, an executor implements the row faithfully, an evaluator
+   confirms the row exists and is green, and at no point does anyone apply D. So the row ships as
+   documentation of protection that was never present.
+   Measured here, on the milestone whose *whole point* was a three-call-site sweep. §5.6's S11 row
+   read "run the fixture twice; every `PropertyResult.Seed` is non-zero, the three differ,
+   both runs agree — **kills guarding two sites and missing `contract_domain.go:89`**." It does not.
+   `Seed` is stamped into each path's result *initializer*, alongside the RNG construction rather
+   than by it, so replacing `newRNG(r.propertySeed(…))` with a constant at that exact site left the
+   **entire seed suite green** (mutant asserted LANDED via sha256 and BUILDS via `go build` rc=0,
+   per this skill's own mutation rule). Two of three swept sites were unguarded, in a repo whose
+   named recurring failure shape is *guard the helper, miss a call site*. Note what did NOT catch
+   it: the executor implemented S11 exactly as specified; the row's own author had reasoned
+   correctly about *what* to observe and wrongly about *whether that observable moves*; and the
+   sprint's grep-based sweep AC passed throughout, because the call sites really were swept — it
+   was the behavioural pin that was hollow.
+   The general shape, which is worth more than the instance: **an assertion that observes a value
+   set ALONGSIDE the mechanism cannot fail for the reason it claims** — only one observing a value
+   set BY it can. Ask, per row, "which write does this read?"; if the answer is a sibling statement
+   rather than the mechanism, the row is decorative. Concretely: **(a)** at pick/route time, for
+   each test-plan row carrying a named mutation, name the *observable* and check it is downstream
+   of the mechanism, not adjacent to it; **(b)** run the named mutation, per row, with only that
+   row's test selected (`-run`), because a suite-wide green hides which member did the killing and
+   a suite-wide red hides which member did not; **(c)** when a mutant survives, the finding is that
+   the ROW is wrong, not that the code is — repair the row, and say in the commit which mutant used
+   to survive, since that sentence is the only durable evidence the pin is real; **(d)** where no
+   observable exists (here the forall path had none — every such property errors out before
+   sampling), record the residual explicitly in the code and the AC rather than letting arm-count
+   arithmetic imply coverage; a named gap is cheap, an assumed one is not. The tell: a test-plan row
+   says "kills X" and you are about to accept it because the test is green.
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
    the Gate-2 rebuild `-dirty` — binaries built from a half-merged tree; and a persisted `cd`

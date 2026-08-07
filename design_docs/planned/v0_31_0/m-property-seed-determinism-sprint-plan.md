@@ -765,6 +765,21 @@ flags. That intermediate state is coherent (strictly better than a hidden wall c
 
 **~200 net LOC (impl ~145, test ~55).**
 
+> **INHERITED FROM M2B (added iteration 162, from the evaluator's one non-blocking finding).**
+> `NewRunner` and `RunTestsFromFile` (`internal/testing/runner.go`) both swallow a `filepath.Abs`
+> error with `abs = modulePath`. CLAUDE.md §2 forbids a silent fallback where the value affects
+> correctness, and this one feeds `WorkspaceRoot`, which feeds the module identity, which feeds the
+> seed. **Traced inert today, by both the controller and the evaluator**: in `NewRunner` the
+> computed root is dead (it passes a hardcoded empty `moduleIdentity`, and `WorkspaceRoot` is read
+> only by `Validate` and `ResolveModuleIdentity`, neither of which `NewRunner` calls); in
+> `RunTestsFromFile` the only case where it could matter — a relative input plus a failing
+> `os.Getwd` — yields a non-absolute root that `Validate` then rejects loudly. So it is not a
+> correctness bug **at HEAD**. It is still a fallback on a seed-determining value, and **M2C builds
+> directly on both wrappers**, so fix it here rather than inheriting it further: return the error
+> from `RunTestsFromFile`, and in `NewRunner` — whose D5 signature cannot return one — either drop
+> the dead root computation or comment why it is dead. Do not merely re-verify that it is inert;
+> "currently unreachable" is the state that rots.
+
 **(a) `cmd/ailang/main.go`, `case "test"` (lines 111-136).** Add to `testFlags`:
 
 ```go
