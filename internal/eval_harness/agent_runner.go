@@ -79,14 +79,18 @@ func (c AgentBenchmarkConfig) ResolvedVerifyTimeout() time.Duration {
 
 // AgentBenchmarkResult captures agent evaluation outcome
 type AgentBenchmarkResult struct {
-	BenchmarkID   string
-	Executor      string // Executor used: "claude", "gemini", etc.
-	Success       bool
-	Iterations    int     // Number of agent turns
-	Cost          float64 // Total cost in USD
-	DurationMS    int     // Total time in milliseconds
-	NumTurns      int     // Conversation turns
-	ToolCallCount int     // Number of tool invocations (validates agentic behavior)
+	BenchmarkID string
+	Executor    string // Executor used: "claude", "gemini", etc.
+	Success     bool
+	Iterations  int     // Number of agent turns
+	Cost        float64 // Total cost in USD
+	// CostProvenance says whether Cost is money anyone was charged
+	// (metered | list-price-equivalent | free-local | unknown). Empty means
+	// the executor did not classify it; read as unknown, never as metered.
+	CostProvenance string
+	DurationMS     int // Total time in milliseconds
+	NumTurns       int // Conversation turns
+	ToolCallCount  int // Number of tool invocations (validates agentic behavior)
 	// ToolCalls is the per-tool-name histogram (nil if the executor didn't capture
 	// names). Answers "did the agent actually invoke `ailang fmt`" — which the
 	// scalar ToolCallCount cannot.

@@ -58,6 +58,7 @@ func calculateAggregates(results []*BenchmarkResult) Aggregates {
 	totalDuration := int64(0)
 	cacheRead := 0
 	cacheCreate := 0
+	costProvenance := map[string]int{}
 
 	for _, r := range results {
 		if r.FirstAttemptOk {
@@ -78,6 +79,13 @@ func calculateAggregates(results []*BenchmarkResult) Aggregates {
 		totalDuration += r.DurationMs
 		cacheRead += r.CacheReadInputTokens
 		cacheCreate += r.CacheCreationInputTokens
+
+		// An absent label is unknown provenance, never an assumption of metering.
+		prov := r.CostProvenance
+		if prov == "" {
+			prov = "unknown"
+		}
+		costProvenance[prov]++
 	}
 
 	agg.ZeroShotSuccess = safeDiv(float64(firstAttemptSuccess), float64(len(results)))
@@ -86,6 +94,7 @@ func calculateAggregates(results []*BenchmarkResult) Aggregates {
 	agg.RepairSuccessRate = safeDiv(float64(repairSuccess), float64(repairUsed))
 	agg.TotalTokens = totalTokens
 	agg.TotalCostUSD = totalCost
+	agg.CostProvenance = costProvenance
 	agg.AvgDurationMs = safeDiv(float64(totalDuration), float64(len(results)))
 	agg.CacheReadTokens = cacheRead
 	agg.CacheCreationTokens = cacheCreate

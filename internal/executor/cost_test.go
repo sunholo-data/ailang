@@ -232,3 +232,72 @@ func approxEqual(a, b, tol float64) bool {
 	}
 	return d < tol
 }
+
+// TestResolveCostModel pins the 2026-07-30 defect: every model routed through
+// a CLI harness was billed at that harness's single hardcoded table (each
+// codex-run model at gpt-5-codex's $1.25/$10 per 1M), while Task.Budget
+// enforced the kill at the model's real models.yml rates. The two numbers came
+// from different price tables and were not comparable.
+func TestResolveCostModel(t *testing.T) {
+	// The hardcoded fallback each CLI executor declares.
+	codexTable := &CostModel{ProviderName: "openai", InputTokenCost: 0.00125, OutputTokenCost: 0.01}
+	// gpt-5.6-luna after OpenAI's 2026-07-30 cut: $0.20/$1.20 per 1M.
+	luna := &CostModel{ProviderName: "openai", InputTokenCost: 0.0002, OutputTokenCost: 0.0012}
+
+	tests := []struct {
+		name string
+		task *Task
+		want *CostModel
+	}{
+		{"per-model pricing wins over the harness table", &Task{Pricing: luna}, luna},
+		{"no pricing supplied falls back", &Task{}, codexTable},
+		{"nil task falls back", nil, codexTable},
+		{
+			// Local Ollama models are genuinely free. Falling back here would
+			// invent cloud spend that never happened.
+			name: "present-but-zero pricing is honoured, not treated as missing",
+			task: &Task{Pricing: &CostModel{ProviderName: "ollama"}},
+			want: &CostModel{ProviderName: "ollama"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResolveCostModel(tt.task, codexTable)
+			if got.InputTokenCost != tt.want.InputTokenCost || got.OutputTokenCost != tt.want.OutputTokenCost {
+				t.Errorf("rates = $%g/$%g, want $%g/$%g",
+					got.InputTokenCost, got.OutputTokenCost, tt.want.InputTokenCost, tt.want.OutputTokenCost)
+			}
+		})
+	}
+}
+
+// TestResolveCostModel_MatchesBudgetPricing is the regression proper: the cost
+// an executor BANKS must agree with the cost the budget ENFORCES on, for the
+// same token counts. Uses the real banked row that exposed the split —
+// luna/graph_bfs, 256,987 in / 2,136 out, banked $0.34259375 at codex rates
+// while the $0.30 budget spared it because it saw $0.26980 at luna's rates.
+func TestResolveCostModel_MatchesBudgetPricing(t *testing.T) {
+	const (
+		inTok, outTok     = 256987, 2136
+		lunaIn, lunaOut   = 0.001, 0.006 // luna's models.yml rates at the time
+		codexIn, codexOut = 0.00125, 0.01
+		maxUSD            = 0.30
+	)
+	task := &Task{
+		Budget:  NewCostBudget(maxUSD, lunaIn, lunaOut),
+		Pricing: &CostModel{ProviderName: "openai", InputTokenCost: lunaIn, OutputTokenCost: lunaOut},
+	}
+	enforced, exceeded := task.Budget.Add(inTok, outTok)
+	if exceeded {
+		t.Fatalf("budget reported exceeded at $%.5f; this row passed in the real run", enforced)
+	}
+	banked := ResolveCostModel(task, &CostModel{InputTokenCost: codexIn, OutputTokenCost: codexOut}).
+		CalculateCost(TokenUsage{InputTokens: inTok, OutputTokens: outTok})
+
+	if diff := banked - enforced; diff > 1e-9 || diff < -1e-9 {
+		t.Errorf("banked $%.5f != enforced $%.5f — the two price tables have split again", banked, enforced)
+	}
+	if banked >= maxUSD {
+		t.Errorf("banked $%.5f >= cap $%.2f, but the run was not killed — banked cost is billing the wrong model", banked, maxUSD)
+	}
+}

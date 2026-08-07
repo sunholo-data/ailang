@@ -460,8 +460,8 @@ func (b *SQLiteBackend) UpdateStageSession(ctx context.Context, stageID, session
 	return b.store.UpdateStageSession(ctx, stageID, sessionID)
 }
 
-func (b *SQLiteBackend) UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64) error {
-	return b.store.UpdateStageMetrics(ctx, stageID, cost, tokensIn, tokensOut, turns, toolCalls, durationMs)
+func (b *SQLiteBackend) UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64, costProvenance string) error {
+	return b.store.UpdateStageMetrics(ctx, stageID, cost, tokensIn, tokensOut, turns, toolCalls, durationMs, costProvenance)
 }
 
 func (b *SQLiteBackend) UpdateStageApproval(ctx context.Context, stageID string, status ApprovalStatus, approvalType ApprovalType, feedback string) error {

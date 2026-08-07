@@ -15,7 +15,7 @@ func seedStage(t *testing.T, store *Store, chainID, agentID string, cost float64
 	if err != nil {
 		t.Fatalf("CreateStage: %v", err)
 	}
-	if err := store.UpdateStageMetrics(ctx, stage.ID, cost, tokensIn, tokensOut, 0, 0, 0); err != nil {
+	if err := store.UpdateStageMetrics(ctx, stage.ID, cost, tokensIn, tokensOut, 0, 0, 0, ""); err != nil {
 		t.Fatalf("UpdateStageMetrics: %v", err)
 	}
 	if model != "" {

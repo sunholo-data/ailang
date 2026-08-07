@@ -320,6 +320,13 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	var firstAttemptMs int64 = -1
 	var firstStreamEventAt time.Time
 	var costKilled bool
+	// The WORK gate (M-EVAL-OS-LONGITUDINAL Phase 1, extended to claude 2026-07-31).
+	// A dollar budget buys work in inverse proportion to model price: at $3/$15,
+	// claude-sonnet-4-6 — the suite's longitudinal ANCHOR — got 0.14M tokens from
+	// the same $0.50 that bought deepseek-v4-flash 3.40M. On the rig's OAuth lane
+	// there is also no spend to control, so tokens are the only meaningful gate.
+	var thrashKilled bool
+	var thrashKilledAtTokens int
 	// runningInputTokens / runningOutputTokens track the cumulative usage
 	// reported in message_delta events; we feed deltas into Budget.Add().
 	// Claude emits cumulative output_tokens in message_delta and the full
@@ -457,6 +464,12 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 								_ = cmd.Process.Kill()
 							}
 						}
+						if task.MaxTokensPerBench > 0 && !thrashKilled &&
+							runningInputTokens+runningOutputTokens > task.MaxTokensPerBench {
+							thrashKilled = true
+							thrashKilledAtTokens = runningInputTokens + runningOutputTokens
+							_ = cmd.Process.Kill()
+						}
 					}
 
 				case "content_block_stop":
@@ -517,13 +530,14 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				// This lets cloud handlers broadcast metrics before the executor returns.
 				if mh, ok := handler.(executor.MetricsHandler); ok && finalResult != nil {
 					mh.OnMetrics(executor.ExecutionMetrics{
-						NumTurns:     finalResult.NumTurns,
-						InputTokens:  finalResult.Usage.InputTokens,
-						OutputTokens: finalResult.Usage.OutputTokens,
-						CostUSD:      finalResult.TotalCostUSD,
-						DurationMS:   finalResult.DurationMS,
-						SessionID:    finalResult.SessionID,
-						Success:      !finalResult.IsError,
+						NumTurns:       finalResult.NumTurns,
+						InputTokens:    finalResult.Usage.InputTokens,
+						OutputTokens:   finalResult.Usage.OutputTokens,
+						CostUSD:        finalResult.TotalCostUSD,
+						CostProvenance: executor.ResolveCostProvenance(task, e.authLane()),
+						DurationMS:     finalResult.DurationMS,
+						SessionID:      finalResult.SessionID,
+						Success:        !finalResult.IsError,
 					})
 				}
 			}
@@ -565,6 +579,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			InputTokens:    runningInputTokens,
 			OutputTokens:   runningOutputTokens,
 			CostKilledAt:   task.Budget.KilledAt(),
+			ThrashKilledAt: thrashKilledAtTokens,
 			FirstAttemptMs: firstAttemptMs,
 			SuccessAtMs:    -1,
 		}, nil
@@ -584,6 +599,11 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			if costKilled {
 				errMsg = fmt.Sprintf("cost budget exceeded ($%.4f) — %s", task.Budget.KilledAt(), errMsg)
 			}
+			// Token gate outranks the cost gate — on OAuth the dollars are notional.
+			if thrashKilled {
+				errMsg = fmt.Sprintf("thrash abort: cumulative tokens %d exceeded MaxTokensPerBench=%d — %s",
+					thrashKilledAtTokens, task.MaxTokensPerBench, errMsg)
+			}
 			return &executor.Result{
 				Success:        false,
 				Error:          errMsg,
@@ -595,6 +615,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				InputTokens:    runningInputTokens,
 				OutputTokens:   runningOutputTokens,
 				CostKilledAt:   task.Budget.KilledAt(),
+				ThrashKilledAt: thrashKilledAtTokens,
 				FirstAttemptMs: firstAttemptMs,
 				SuccessAtMs:    -1,
 			}, nil
@@ -618,6 +639,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				InputTokens:    runningInputTokens,
 				OutputTokens:   runningOutputTokens,
 				CostKilledAt:   task.Budget.KilledAt(),
+				ThrashKilledAt: thrashKilledAtTokens,
 				FirstAttemptMs: firstAttemptMs,
 				SuccessAtMs:    -1,
 			}, nil
@@ -649,6 +671,11 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			errorMsg = fmt.Sprintf("cost budget exceeded ($%.4f)", task.Budget.KilledAt())
 			success = false
 		}
+		if thrashKilled {
+			errorMsg = fmt.Sprintf("thrash abort: cumulative tokens %d exceeded MaxTokensPerBench=%d",
+				thrashKilledAtTokens, task.MaxTokensPerBench)
+			success = false
+		}
 
 		if !success {
 			span.SetStatus(codes.Error, errorMsg)
@@ -677,6 +704,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			NumTurns:                 finalResult.NumTurns,
 			ToolCallCount:            toolCallCount,
 			CostUSD:                  finalResult.TotalCostUSD,
+			CostProvenance:           executor.ResolveCostProvenance(task, e.authLane()),
 			InputTokens:              finalResult.Usage.InputTokens,
 			OutputTokens:             finalResult.Usage.OutputTokens,
 			CacheReadInputTokens:     finalResult.Usage.CacheReadInputTokens,
@@ -684,6 +712,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			SessionID:                sessionID,
 			Transcript:               transcriptBuf.String(),
 			CostKilledAt:             task.Budget.KilledAt(),
+			ThrashKilledAt:           thrashKilledAtTokens,
 			FirstAttemptMs:           firstAttemptMs,
 			SuccessAtMs:              -1,
 			TokensPerSec:             tokensPerSec,
@@ -725,17 +754,6 @@ func (e *ClaudeExecutor) Capabilities() []executor.Capability {
 	}
 }
 
-// CostModel returns pricing information for cost calculations
-func (e *ClaudeExecutor) CostModel() *executor.CostModel {
-	// Default to Haiku pricing
-	return &executor.CostModel{
-		ProviderName:    "anthropic",
-		InputTokenCost:  0.001,  // $1.00 per 1M
-		OutputTokenCost: 0.005,  // $5.00 per 1M
-		CacheReadCost:   0.0001, // $0.10 per 1M
-	}
-}
-
 // HealthCheck verifies the executor is configured and accessible
 func (e *ClaudeExecutor) HealthCheck(ctx context.Context) error {
 	// Check if claude binary exists
@@ -749,39 +767,6 @@ func (e *ClaudeExecutor) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
-// Close releases any resources held by the executor
-func (e *ClaudeExecutor) Close() error {
-	return nil
-}
-
-func (e *ClaudeExecutor) getModel(task *executor.Task) string {
-	if task.Model != "" {
-		return task.Model
-	}
-	return e.model
-}
-
-// claudeHeadlessResult matches Claude CLI output structure
-type claudeHeadlessResult struct {
-	Type         string      `json:"type"`
-	Subtype      string      `json:"subtype"`
-	IsError      bool        `json:"is_error"`
-	Result       string      `json:"result"`
-	NumTurns     int         `json:"num_turns"`
-	DurationMS   int         `json:"duration_ms"`
-	TotalCostUSD float64     `json:"total_cost_usd"`
-	SessionID    string      `json:"session_id"`
-	Usage        claudeUsage `json:"usage"`
-}
-
-type claudeUsage struct {
-	InputTokens              int `json:"input_tokens"`
-	OutputTokens             int `json:"output_tokens"`
-	CacheReadInputTokens     int `json:"cache_read_input_tokens"`
-	CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
-}
-
-// Register registers the Claude executor with the global factory
 func Register() {
 	executor.GlobalFactory().Register("claude", func(cfg *executor.Config) (executor.Executor, error) {
 		return New(cfg)

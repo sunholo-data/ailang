@@ -130,7 +130,11 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		"cacheCreationTokens": matrix.Aggregates.CacheCreationTokens,
 		"cacheHitRate":        matrix.Aggregates.CacheHitRate,
 		"totalCostUSD":        matrix.Aggregates.TotalCostUSD,
-		"avgDurationMs":       matrix.Aggregates.AvgDurationMs,
+		// How those dollars arose. Absent/"unknown" dominates pre-2026-07-30
+		// baselines; a large list-price-equivalent share means the cohort's cost
+		// column is notional, not spend.
+		"costProvenance": matrix.Aggregates.CostProvenance,
+		"avgDurationMs":  matrix.Aggregates.AvgDurationMs,
 		// Agent metrics (M-EVAL-AGENT)
 		"agentRuns":        len(agentResults),
 		"agentSuccessRate": agentSuccessRate,

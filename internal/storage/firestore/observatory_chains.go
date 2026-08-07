@@ -337,15 +337,22 @@ func (s *ObservatoryStore) UpdateStageApproval(ctx context.Context, stageID stri
 	return err
 }
 
-func (s *ObservatoryStore) UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64) error {
-	_, err := s.client.Doc(collObsChainStages, stageID).Update(ctx, []firestore.Update{
+func (s *ObservatoryStore) UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64, costProvenance string) error {
+	updates := []firestore.Update{
 		{Path: "cost", Value: cost},
 		{Path: "tokens_in", Value: tokensIn},
 		{Path: "tokens_out", Value: tokensOut},
 		{Path: "turns", Value: turns},
 		{Path: "tool_calls", Value: toolCalls},
 		{Path: "duration_ms", Value: durationMs},
-	})
+	}
+	// Only write a label we actually have. An unclassified caller must not
+	// clear provenance an earlier one established (mirrors the SQLite
+	// COALESCE(NULLIF(...)) behaviour).
+	if costProvenance != "" {
+		updates = append(updates, firestore.Update{Path: "cost_provenance", Value: costProvenance})
+	}
+	_, err := s.client.Doc(collObsChainStages, stageID).Update(ctx, updates)
 	return err
 }
 

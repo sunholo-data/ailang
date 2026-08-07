@@ -105,13 +105,18 @@ func DefaultExecuteOptions() *ExecuteOptions {
 
 // ExecuteResult contains the result of task execution
 type ExecuteResult struct {
-	Success    bool
-	Output     string
-	Error      string
-	Provider   string
-	Duration   time.Duration
-	Cost       float64
-	TokensUsed int // Total tokens (InputTokens + OutputTokens)
+	Success  bool
+	Output   string
+	Error    string
+	Provider string
+	Duration time.Duration
+	Cost     float64
+	// CostProvenance says whether Cost was actually billed — "metered",
+	// "list-price-equivalent" (subscription lane), "free-local", or "" for
+	// unclassified. Carried through to the chain stage so cost rollups can
+	// keep notional and real dollars apart.
+	CostProvenance string
+	TokensUsed     int // Total tokens (InputTokens + OutputTokens)
 	// Detailed token breakdown
 	InputTokens  int
 	OutputTokens int

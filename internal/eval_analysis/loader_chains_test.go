@@ -129,7 +129,7 @@ func TestLoadResultsFromChain(t *testing.T) {
 		if err := store.UpdateStageEvalAssessment(ctx, stage.ID, assessment); err != nil {
 			t.Fatalf("failed to update assessment: %v", err)
 		}
-		if err := store.UpdateStageMetrics(ctx, stage.ID, 0.003, 500, 200, 3, 5, 8000); err != nil {
+		if err := store.UpdateStageMetrics(ctx, stage.ID, 0.003, 500, 200, 3, 5, 8000, ""); err != nil {
 			t.Fatalf("failed to update metrics: %v", err)
 		}
 	}

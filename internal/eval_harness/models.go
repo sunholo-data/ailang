@@ -54,11 +54,43 @@ type Pricing struct {
 //
 // Cost is the primary gate; wall-clock HardTimeoutSecs is a safety net for
 // hung connections, not a cost proxy.
+//
+// MaxTokensPerBench is the WORK gate, and it exists because a dollar gate is
+// not one. A dollar ceiling buys work in inverse proportion to model price, so
+// a flat $0.30 across the agent suite spanned 24x in actual tokens (audited
+// 2026-07-31): claude-sonnet-4-6 — the longitudinal ANCHOR — got 0.14M tokens
+// while opencode-or-deepseek-v4-flash got 3.40M. That silently handed the
+// weakest models the most iteration and the reference model the least, which
+// is backwards for a suite whose question is "does the agent loop rescue weak
+// models". It also means a vendor price change silently re-scopes the gate,
+// which is exactly what OpenAI's 2026-07-30 cut did to gpt5-6-luna.
+//
+// Policy (Mark, 2026-07-31): subscription lanes (codex, claude-on-OAuth) gate
+// on TOKENS alone — equal work, and no spend to control. Metered lanes keep a
+// dollar ceiling as a real spend control WITH the token gate as a second bound;
+// whichever binds first wins. Their comparison stays confounded, but for a
+// stated reason rather than by accident.
 type Budgets struct {
 	MaxCostUSD              float64 `yaml:"max_cost_usd"`
+	MaxTokensPerBench       int     `yaml:"max_tokens_per_bench"`
 	HardTimeoutSecs         int     `yaml:"hard_timeout_secs"`
 	ExpectedTTFTSecs        int     `yaml:"expected_ttft_secs"`
 	ExpectedTTFSolutionSecs int     `yaml:"expected_ttf_solution_secs"`
+}
+
+// ResolvedMaxTokensPerBench returns the effective cumulative-token ceiling for
+// a model: the explicit per-model budget when set, otherwise flagFallback (the
+// global --max-tokens-per-bench value, 0 = unlimited).
+//
+// Per-model wins because the flag is one number for a whole run, and the point
+// of the token gate is that every model in a cohort gets the SAME work — which
+// a shared flag already gives, but a mixed cohort (cloud + local) may want to
+// split. 0 from both = no token enforcement (legacy behaviour).
+func (m *ModelConfig) ResolvedMaxTokensPerBench(flagFallback int) int {
+	if m.Budgets.MaxTokensPerBench > 0 {
+		return m.Budgets.MaxTokensPerBench
+	}
+	return flagFallback
 }
 
 // ResolvedMaxCostUSD returns the effective cost ceiling for a model:

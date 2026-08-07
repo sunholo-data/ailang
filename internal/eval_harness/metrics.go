@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/executor"
 )
 
 // RunMetrics captures the results of a single benchmark run
@@ -27,22 +29,31 @@ type RunMetrics struct {
 	//
 	// omitempty keeps pre-v0.31.0 baselines parsing unchanged (absent reads as 0)
 	// and keeps rows for providers without cache reporting free of noise.
-	CacheReadInputTokens     int       `json:"cache_read_input_tokens,omitempty"`
-	CacheCreationInputTokens int       `json:"cache_creation_input_tokens,omitempty"`
-	TotalTokens              int       `json:"total_tokens"` // Total for billing (includes reasoning)
-	CostUSD                  float64   `json:"cost_usd"`
-	CompileOk                bool      `json:"compile_ok"`
-	RuntimeOk                bool      `json:"runtime_ok"`
-	StdoutOk                 bool      `json:"stdout_ok"`
-	DurationMs               int64     `json:"duration_ms"`    // Total time (startup + compile + execution)
-	CompileMs                int64     `json:"compile_ms"`     // Time spent in compilation (if separate)
-	ExecuteMs                int64     `json:"execute_ms"`     // Time spent in execution (if measurable)
-	ErrorCategory            string    `json:"error_category"` // compile_error | runtime_error | logic_error | none
-	Stdout                   string    `json:"stdout,omitempty"`
-	Stderr                   string    `json:"stderr,omitempty"`
-	ExpectedStdout           string    `json:"expected_stdout,omitempty"`
-	Timestamp                time.Time `json:"timestamp"`
-	Code                     string    `json:"code,omitempty"` // Generated code (optional, for debugging)
+	CacheReadInputTokens     int     `json:"cache_read_input_tokens,omitempty"`
+	CacheCreationInputTokens int     `json:"cache_creation_input_tokens,omitempty"`
+	TotalTokens              int     `json:"total_tokens"` // Total for billing (includes reasoning)
+	CostUSD                  float64 `json:"cost_usd"`
+	// CostProvenance labels CostUSD: "metered" (an account was genuinely
+	// charged), "list-price-equivalent" (real arithmetic over real tokens, but
+	// a subscription/OAuth lane covered the run and nobody was billed),
+	// "free-local" (on-device, no marginal cost), or "unknown".
+	//
+	// Added 2026-07-30. omitempty keeps earlier baselines parsing unchanged —
+	// but an ABSENT value means unmeasured, NOT metered. Any aggregate that
+	// claims metered dollars must filter on this, not assume it.
+	CostProvenance string    `json:"cost_provenance,omitempty"`
+	CompileOk      bool      `json:"compile_ok"`
+	RuntimeOk      bool      `json:"runtime_ok"`
+	StdoutOk       bool      `json:"stdout_ok"`
+	DurationMs     int64     `json:"duration_ms"`    // Total time (startup + compile + execution)
+	CompileMs      int64     `json:"compile_ms"`     // Time spent in compilation (if separate)
+	ExecuteMs      int64     `json:"execute_ms"`     // Time spent in execution (if measurable)
+	ErrorCategory  string    `json:"error_category"` // compile_error | runtime_error | logic_error | none
+	Stdout         string    `json:"stdout,omitempty"`
+	Stderr         string    `json:"stderr,omitempty"`
+	ExpectedStdout string    `json:"expected_stdout,omitempty"`
+	Timestamp      time.Time `json:"timestamp"`
+	Code           string    `json:"code,omitempty"` // Generated code (optional, for debugging)
 
 	// ResolvedProfile / ResolvedExtensions record what the SUBJECT reports it
 	// actually loaded, from its own step-0 broadcast — not what we asked for.
@@ -325,16 +336,38 @@ func CalculateCostWithBreakdown(model string, inputTokens, outputTokens int) flo
 	return cost
 }
 
+// standardModeCostProvenance classifies a standard-mode row's cost.
+//
+// Standard mode reaches providers over their metered HTTP APIs via an API key
+// (internal/ai), so a priced model is genuinely billed — unlike agent mode,
+// where the codex and claude CLIs run on subscriptions. A zero-rate model is
+// on-device and free. An unresolvable model yields unknown rather than a guess,
+// matching CalculateCostWithBreakdown's no-silent-fallback stance.
+func standardModeCostProvenance(model string) string {
+	if GlobalModelsConfig == nil {
+		return string(executor.CostProvenanceUnknown)
+	}
+	cfg, ok := GlobalModelsConfig.Models[model]
+	if !ok {
+		return string(executor.CostProvenanceUnknown)
+	}
+	if cfg.Pricing.InputPer1K == 0 && cfg.Pricing.OutputPer1K == 0 {
+		return string(executor.CostFreeLocal)
+	}
+	return string(executor.CostMetered)
+}
+
 // NewRunMetrics creates a new RunMetrics with timestamp and error category.
 // MicroragState is auto-populated from the inherited env so every metrics
 // emission honours the eval-suite --microrag flag (M-BRAIN-MICRORAG).
 func NewRunMetrics(id, lang, model string, seed int64) *RunMetrics {
 	return &RunMetrics{
-		ID:            id,
-		Lang:          lang,
-		Model:         model,
-		Seed:          seed,
-		Timestamp:     time.Now(),
-		MicroragState: MicroragModeAuto.ResolvedState(),
+		ID:             id,
+		Lang:           lang,
+		Model:          model,
+		Seed:           seed,
+		Timestamp:      time.Now(),
+		MicroragState:  MicroragModeAuto.ResolvedState(),
+		CostProvenance: standardModeCostProvenance(model),
 	}
 }

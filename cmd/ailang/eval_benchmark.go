@@ -282,7 +282,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 		}
 		_ = evalChain.Store.UpdateStageEvalAssessment(ctx, stageID, assessment)
 		_ = evalChain.Store.UpdateStageMetrics(ctx, stageID, metrics.CostUSD,
-			metrics.InputTokens, metrics.OutputTokens, 0, 0, metrics.DurationMs)
+			metrics.InputTokens, metrics.OutputTokens, 0, 0, metrics.DurationMs, metrics.CostProvenance)
 
 		stageStatus := observatory.StageStatusCompleted
 		if !metrics.StdoutOk {

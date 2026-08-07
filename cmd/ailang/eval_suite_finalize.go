@@ -79,6 +79,17 @@ func finalizeSuiteRun(p suiteSummaryParams) {
 	}
 	fmt.Println()
 
+	// Cost tally, split by whether the dollars were actually charged. A single
+	// grand total would be misleading here: agent-mode codex and claude run on
+	// subscriptions, so their cost_usd is real arithmetic over real tokens that
+	// nobody paid. Best-effort — a cost report must never fail a completed run.
+	if tally, err := eval_harness.TallyCosts(p.outputDir); err == nil {
+		if s := tally.Format(); s != "" {
+			fmt.Print(s)
+			fmt.Println()
+		}
+	}
+
 	// M-EVAL-OS-LONGITUDINAL Phase 3: write summary.json that aggregates
 	// per-(benchmark, model, lang, condition) pass rate and token distribution
 	// across trials. Required for Phase 4 candidates command + Phase 5

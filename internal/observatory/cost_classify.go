@@ -1,5 +1,7 @@
 package observatory
 
+import "github.com/sunholo-data/ailang/internal/executor"
+
 // Cost-attribution classifier (M-MISSION-COST-CHAINS, M1).
 //
 // The chains rollup historically summed the self-reported `cost` column with a SQL
@@ -9,9 +11,15 @@ package observatory
 //
 // This file adds a READ-SIDE, per-stage classifier under Mark's SCOPED-INFERENCE
 // rule (2026-07-24, `4e1348adb`). It NEVER mutates stored data and NEVER guesses a
-// model or a rate. The four statuses are mutually exclusive:
+// model or a rate. The five statuses are mutually exclusive:
 //
-//   - reported : cost > 0 in storage → the sender attributed cost. Left untouched.
+//   - reported : cost > 0 in storage and NOT labelled subscription → the sender
+//     attributed cost. Left untouched. Note this means "self-reported", not
+//     "proven metered": a stage with no cost_provenance (every row banked before
+//     2026-07-30) lands here regardless of whether anyone was billed.
+//   - subscription: cost > 0 AND cost_provenance == "list-price-equivalent" →
+//     real arithmetic over real tokens on a lane nobody was charged for (codex
+//     `auth_mode: chatgpt`, claude OAuth). Kept OUT of metered-dollar totals.
 //   - estimated: tokens > 0, cost == 0, and the stage's model resolves to a
 //     NON-ZERO metered rate → cost is computed tokens×rate and flagged.
 //   - unknown  : tokens > 0, cost == 0, and the model is unresolvable → surfaced as
@@ -36,6 +44,12 @@ const (
 	CostStatusUnknown CostStatus = "unknown"
 	// CostStatusQuota: quota/subscription lane (no tokens) — $0-by-design, never estimated.
 	CostStatusQuota CostStatus = "quota"
+	// CostStatusSubscription: the stage reported a non-zero cost AND labelled it
+	// list-price-equivalent — real arithmetic over real tokens on a lane where
+	// nobody was billed (codex `auth_mode: chatgpt`, claude OAuth). Distinct from
+	// `quota`, which has no tokens at all, and from `reported`, which a
+	// metered-dollars KPI may legitimately sum. Added 2026-07-30.
+	CostStatusSubscription CostStatus = "subscription"
 )
 
 // StageCost is the classified cost of a single stage.
@@ -43,6 +57,7 @@ type StageCost struct {
 	Status CostStatus `json:"status"`
 	// CostUSD is the effective dollar cost for the rollup:
 	//   - reported : the stored cost.
+	//   - subscription: the stored cost (notional — never billed).
 	//   - estimated: the computed tokens×rate (may be $0 for a free model).
 	//   - unknown  : 0 (but MUST be surfaced as unknown, not as $0 metered spend).
 	//   - quota    : 0.
@@ -80,8 +95,15 @@ func ClassifyStageCost(stage *ChainStage) StageCost {
 		return StageCost{Status: CostStatusQuota}
 	}
 
-	// 1. Self-reported cost is authoritative and never re-estimated.
+	// 1. Self-reported cost is never re-estimated — but "self-reported" is not
+	//    the same as "billed". An agent CLI on a subscription lane (codex with
+	//    auth_mode chatgpt, claude on OAuth) emits a non-zero cost that nobody
+	//    was charged. When the stage carries that provenance, split it out so a
+	//    metered-dollars total can exclude it; otherwise behave as before.
 	if stage.Cost > 0 {
+		if stage.CostProvenance == string(executor.CostListPriceEquivalent) {
+			return StageCost{Status: CostStatusSubscription, CostUSD: stage.Cost}
+		}
 		return StageCost{Status: CostStatusReported, CostUSD: stage.Cost}
 	}
 
@@ -130,21 +152,31 @@ func ClassifyStageCost(stage *ChainStage) StageCost {
 type CostRollup struct {
 	ReportedCost  float64 `json:"reported_cost"`
 	EstimatedCost float64 `json:"estimated_cost"`
+	// SubscriptionCost is real arithmetic over real tokens that nobody paid.
+	// Deliberately EXCLUDED from TotalKnownCost so a metered-dollars KPI cannot
+	// pick it up by accident; surface it alongside, never inside.
+	SubscriptionCost float64 `json:"subscription_cost"`
 	// UnknownCost is always 0 by construction (unknown is never given a dollar figure);
 	// UnknownStages is the count that MUST trigger an incomplete-data warning.
-	ReportedStages  int `json:"reported_stages"`
-	EstimatedStages int `json:"estimated_stages"`
-	QuotaStages     int `json:"quota_stages"`
-	UnknownStages   int `json:"unknown_stages"`
+	ReportedStages     int `json:"reported_stages"`
+	EstimatedStages    int `json:"estimated_stages"`
+	QuotaStages        int `json:"quota_stages"`
+	SubscriptionStages int `json:"subscription_stages"`
+	UnknownStages      int `json:"unknown_stages"`
 	// Token counts split the same way (quota lanes carry no tokens by definition).
-	ReportedTokens  int64 `json:"reported_tokens"`
-	EstimatedTokens int64 `json:"estimated_tokens"`
-	UnknownTokens   int64 `json:"unknown_tokens"`
+	ReportedTokens     int64 `json:"reported_tokens"`
+	EstimatedTokens    int64 `json:"estimated_tokens"`
+	UnknownTokens      int64 `json:"unknown_tokens"`
+	SubscriptionTokens int64 `json:"subscription_tokens"`
 }
 
 // TotalKnownCost returns reported + estimated dollars (the credible total).
 // Unknown stages contribute NO dollars — callers must surface UnknownStages
 // separately as an incomplete-data warning rather than silently reading $0.
+//
+// SubscriptionCost is deliberately NOT included: it is money nobody spent, and
+// the v1.0 cost-per-verified-success KPI counts attributable metered dollars.
+// Callers wanting the full list-price picture add SubscriptionCost explicitly.
 func (r CostRollup) TotalKnownCost() float64 {
 	return r.ReportedCost + r.EstimatedCost
 }
@@ -176,6 +208,10 @@ func (r *CostRollup) AddStage(stage *ChainStage) {
 		r.UnknownTokens += tokens
 	case CostStatusQuota:
 		r.QuotaStages++
+	case CostStatusSubscription:
+		r.SubscriptionCost += sc.CostUSD
+		r.SubscriptionStages++
+		r.SubscriptionTokens += tokens
 	}
 }
 

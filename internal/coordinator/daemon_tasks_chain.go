@@ -48,7 +48,7 @@ func (d *Daemon) updateStageMetrics(ctx context.Context, task *TaskRecord, resul
 		return
 	}
 	durationMs := result.Duration.Milliseconds()
-	if err := d.obsBackend.UpdateStageMetrics(ctx, task.StageID, result.Cost, result.InputTokens, result.OutputTokens, result.NumTurns, result.ToolCallCount, durationMs); err != nil {
+	if err := d.obsBackend.UpdateStageMetrics(ctx, task.StageID, result.Cost, result.InputTokens, result.OutputTokens, result.NumTurns, result.ToolCallCount, durationMs, result.CostProvenance); err != nil {
 		d.logger.Printf("Warning: Failed to update stage %s metrics: %v", task.StageID, err)
 	}
 }

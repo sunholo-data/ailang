@@ -264,6 +264,10 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 		// NOT recomputed from tokens: agent CLIs report their own billed cost,
 		// which already includes reasoning. Deriving it here would double-count.
 		CostUSD: result.Cost,
+		// Whether that cost was actually billed. The rig's codex and claude
+		// lanes authenticate by subscription, so a non-zero cost there is a
+		// list-price equivalent, not spend (see executor.CostProvenance).
+		CostProvenance: result.CostProvenance,
 		// Use standard validation fields from agent runner
 		CompileOk:  result.CompileOk,
 		RuntimeOk:  result.RuntimeOk,
@@ -393,7 +397,7 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 		_ = evalChain.Store.UpdateStageEvalAssessment(ctx, stageID, assessment)
 
 		tokensIn := result.Usage.InputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens
-		_ = evalChain.Store.UpdateStageMetrics(ctx, stageID, result.Cost, tokensIn, result.Usage.OutputTokens, result.NumTurns, result.ToolCallCount, int64(result.DurationMS))
+		_ = evalChain.Store.UpdateStageMetrics(ctx, stageID, result.Cost, tokensIn, result.Usage.OutputTokens, result.NumTurns, result.ToolCallCount, int64(result.DurationMS), result.CostProvenance)
 
 		stageStatus := observatory.StageStatusCompleted
 		if !result.Success {

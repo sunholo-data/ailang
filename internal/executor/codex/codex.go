@@ -216,6 +216,13 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 	var firstAttemptMs int64 = -1
 	var firstStreamEventAt time.Time
 	var costKilled bool
+	// The WORK gate (M-EVAL-OS-LONGITUDINAL Phase 1, extended to codex 2026-07-31).
+	// A dollar budget buys work in inverse proportion to model price, so it cannot
+	// give two models an equal number of iterations. On subscription lanes — codex
+	// with auth_mode chatgpt — there is no spend to control at all, and this is the
+	// only gate that means anything.
+	var thrashKilled bool
+	var thrashKilledAtTokens int
 	var prevBudgetIn, prevBudgetOut int
 
 	go func() {
@@ -335,6 +342,12 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 								_ = cmd.Process.Kill()
 							}
 						}
+						if task.MaxTokensPerBench > 0 && !thrashKilled &&
+							inputTokens+outputTokens > task.MaxTokensPerBench {
+							thrashKilled = true
+							thrashKilledAtTokens = inputTokens + outputTokens
+							_ = cmd.Process.Kill()
+						}
 					}
 				}
 				// New format has no separate "result" event — turn.completed
@@ -402,6 +415,12 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 							costKilled = true
 							_ = cmd.Process.Kill()
 						}
+					}
+					if task.MaxTokensPerBench > 0 && !thrashKilled &&
+						inputTokens+outputTokens > task.MaxTokensPerBench {
+						thrashKilled = true
+						thrashKilledAtTokens = inputTokens + outputTokens
+						_ = cmd.Process.Kill()
 					}
 				}
 
@@ -491,6 +510,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				OutputTokens:         outputTokens,
 				CacheReadInputTokens: cachedInput,
 				CostKilledAt:         task.Budget.KilledAt(),
+				ThrashKilledAt:       thrashKilledAtTokens,
 				FirstAttemptMs:       firstAttemptMs,
 				SuccessAtMs:          -1,
 			}, nil
@@ -547,6 +567,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 					OutputTokens:         outputTokens,
 					CacheReadInputTokens: cachedInput,
 					CostKilledAt:         task.Budget.KilledAt(),
+					ThrashKilledAt:       thrashKilledAtTokens,
 					FirstAttemptMs:       firstAttemptMs,
 					SuccessAtMs:          -1,
 				}, nil
@@ -584,6 +605,14 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 					errMsg = fmt.Sprintf("cost budget exceeded ($%.4f) — %s", task.Budget.KilledAt(), errMsg)
 					finishReason = executor.FinishCostExhausted
 				}
+				// The token gate outranks the cost gate: on a subscription lane the
+				// dollar figure is notional, so "thrash_aborted" is the truthful
+				// reason a run was stopped for doing too much work.
+				if thrashKilled {
+					errMsg = fmt.Sprintf("thrash abort: cumulative tokens %d exceeded MaxTokensPerBench=%d — %s",
+						thrashKilledAtTokens, task.MaxTokensPerBench, errMsg)
+					finishReason = executor.FinishThrashAborted
+				}
 				freshInput, cachedInput := splitCodexInputTokens(inputTokens, cachedInputTokens)
 				return &executor.Result{
 					Success:              false,
@@ -599,6 +628,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 					OutputTokens:         outputTokens,
 					CacheReadInputTokens: cachedInput,
 					CostKilledAt:         task.Budget.KilledAt(),
+					ThrashKilledAt:       thrashKilledAtTokens,
 					FirstAttemptMs:       firstAttemptMs,
 					SuccessAtMs:          -1,
 					TokensPerSec:         tokensPerSec,
@@ -606,7 +636,10 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			}
 
 			freshInput, cachedInput := splitCodexInputTokens(inputTokens, cachedInputTokens)
-			cost := e.CostModel().CalculateCost(executor.TokenUsage{
+			// Bill the model that actually ran, not codex's default. The harness
+			// supplies per-model rates via Task.Pricing; CostModel() is the
+			// fallback for callers that don't (see executor.ResolveCostModel).
+			cost := executor.ResolveCostModel(task, e.CostModel()).CalculateCost(executor.TokenUsage{
 				InputTokens:          freshInput,
 				OutputTokens:         outputTokens,
 				CacheReadInputTokens: cachedInput,
@@ -625,6 +658,10 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			if costKilled {
 				success = false
 				finishReason = executor.FinishCostExhausted
+			}
+			if thrashKilled {
+				success = false
+				finishReason = executor.FinishThrashAborted
 			}
 
 			span.SetAttributes(
@@ -649,6 +686,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				NumTurns:             turnNum,
 				ToolCallCount:        toolCallCount,
 				CostUSD:              cost,
+				CostProvenance:       executor.ResolveCostProvenance(task, e.authLane()),
 				InputTokens:          freshInput,
 				OutputTokens:         outputTokens,
 				CacheReadInputTokens: cachedInput,
@@ -656,6 +694,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				Transcript:           transcriptBuf.String(),
 				ProviderData:         providerData(rawEvents),
 				CostKilledAt:         task.Budget.KilledAt(),
+				ThrashKilledAt:       thrashKilledAtTokens,
 				FirstAttemptMs:       firstAttemptMs,
 				SuccessAtMs:          -1,
 				TokensPerSec:         tokensPerSec,
@@ -672,18 +711,6 @@ func (e *CodexExecutor) Capabilities() []executor.Capability {
 	}
 }
 
-// CostModel returns pricing for gpt-5-codex (the default Codex model).
-// Source: https://platform.openai.com/docs/pricing
-// gpt-5-codex: $1.25/$10.00 per 1M tokens = $0.00125/$0.01 per 1K.
-func (e *CodexExecutor) CostModel() *executor.CostModel {
-	return &executor.CostModel{
-		ProviderName:    "openai",
-		InputTokenCost:  0.00125,
-		OutputTokenCost: 0.01,
-		CacheReadCost:   0.000125,
-	}
-}
-
 // HealthCheck verifies the codex binary exists on PATH and responds.
 func (e *CodexExecutor) HealthCheck(ctx context.Context) error {
 	codexPath := e.codexPath
@@ -696,11 +723,14 @@ func (e *CodexExecutor) HealthCheck(ctx context.Context) error {
 	if err := checkCmd.Run(); err != nil {
 		return fmt.Errorf("codex --version failed: %w", err)
 	}
-	if os.Getenv("OPENAI_API_KEY") == "" {
-		// Auth may also come from `codex login` cache; warn but do not fail.
-		if os.Getenv("DEBUG_AGENT") != "" {
-			fmt.Fprintf(os.Stderr, "[DEBUG_CODEX] OPENAI_API_KEY unset; relying on codex login cache\n")
-		}
+	// Auth comes from ~/.codex/auth.json, written by `codex login`. OPENAI_API_KEY
+	// in the environment does NOT override it — probe-verified 2026-07-30 against
+	// codex-cli 0.145.0 with auth_mode "chatgpt": a deliberately invalid key in the
+	// env still ran clean. So its absence is not a warning condition, and its
+	// presence is not proof that runs are metered (this rig is on a ChatGPT
+	// subscription, where cost_usd is a list-price equivalent, never billed spend).
+	if os.Getenv("DEBUG_AGENT") != "" {
+		fmt.Fprintf(os.Stderr, "[DEBUG_CODEX] auth: ~/.codex/auth.json (codex login); OPENAI_API_KEY is not consulted\n")
 	}
 	return nil
 }

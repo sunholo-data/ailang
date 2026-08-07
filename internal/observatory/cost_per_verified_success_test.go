@@ -75,7 +75,7 @@ func bankCohort(t *testing.T, store *Store, sourceRef string, specs []cvsStageSp
 		if err := store.UpdateStageEvalAssessment(ctx, stage.ID, assessment); err != nil {
 			t.Fatalf("failed to bank assessment %d: %v", i, err)
 		}
-		if err := store.UpdateStageMetrics(ctx, stage.ID, s.cost, s.tokensIn, s.tokensOut, 0, 0, 0); err != nil {
+		if err := store.UpdateStageMetrics(ctx, stage.ID, s.cost, s.tokensIn, s.tokensOut, 0, 0, 0, ""); err != nil {
 			t.Fatalf("failed to bank metrics %d: %v", i, err)
 		}
 	}

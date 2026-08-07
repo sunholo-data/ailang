@@ -275,7 +275,9 @@ func (e *Executor) ExecuteStreaming(
 	// rate because Vertex's gemini-3-5-flash pricing model doesn't separate
 	// them — so they must be added back here even though the fields are now
 	// stored separately.
-	cm := e.CostModel()
+	cm := executor.ResolveCostModel(task, e.CostModel())
+	// Vertex ADC bills a real GCP project — the one agent lane that is metered.
+	res.CostProvenance = executor.ResolveCostProvenance(task, executor.AuthLaneBilled)
 	res.CostUSD = cm.CalculateCost(executor.TokenUsage{
 		InputTokens:  res.InputTokens,
 		OutputTokens: res.OutputTokens + res.ReasonTokens,
