@@ -1403,6 +1403,52 @@ Both halves generalise past this outage: **an instrument that takes an identifie
 the identifier's FORMAT**, and **when an event-driven trigger is unavailable, look for the API-driven
 one before concluding the work cannot proceed.**
 
+**BUT `workflow_dispatch` IS ONLY HALF A LEVER, AND THE RULE ABOVE — WRITTEN ONE ITERATION EARLIER —
+WILL TELL YOU A PR IS UNBLOCKED WHEN IT IS NOT** (added 2026-08-07 iteration 156; instance 1 is
+iteration 155's own dispatch, instance 2 is this iteration measuring what it bought). The clause
+above ends on a triumphant note — the run was CREATED, `total=0 → total=1` — and stops there. Two
+things it never checked, each of which independently voids the verdict, and both cheap:
+**(a) A CREATED RUN IS NOT A RUNNING RUN.** During the recovery phase a run can be accepted and then
+sit forever: iteration 155's dispatch (`21:30Z`) and `#606`'s `pull_request` run (`17:02Z`) were both
+still `queued` with **`jobs=0` seven hours later**, while dispatches fired at `23:38Z` reached
+**`jobs=6` within 12 seconds**. So `total_count` on `actions/runs` only proves a *record* exists;
+the discriminator is `runs/<id>/jobs`. Worse, a wedged run **cannot be cleaned up** — `gh run cancel`
+answers *"Cannot cancel a workflow run that is completed"* while the runs API simultaneously reports
+`queued`, an inconsistent server record with no client-side remedy. Check jobs, not totals, and give
+a fresh run ~15s to acquire them before believing in it.
+**(b) A DISPATCH'S CHECKS DO NOT SATISFY BRANCH PROTECTION.** This is the load-bearing half. All four
+required contexts came back **success on the head SHA** via `commits/<sha>/check-runs` (18 rows) —
+and `gh pr checks --required` still listed only the one context that had come from a real
+`pull_request` event, with `mergeStateStatus=BLOCKED`. Branch protection is gated on the PR's
+`pull_request` check suite, which is precisely the suite the outage wedged. So the dispatch buys a
+green you **cannot spend**, and reading it as "3 of 4 contexts reached" is rule 3d in its purest
+form: the mechanism visibly did *something* in the direction you hoped, and nobody checked the thing
+it was for. (Note the mirror-image instrument failure in the same measurement: `gh pr view --json
+statusCheckRollup` returned **1** and **0** rows where the SHA-addressed endpoint returned **18** and
+**12** — so that aggregate was vacuously *red*. Gate 3b already warns that an aggregate over an
+incomplete check set is vacuously green; it is equally vacuous in the other direction.)
+**THE FIX, WHICH NEEDS NO LOCAL CHECKOUT AND TOUCHES NO WORKING TREE:** create a **tree-identical
+empty commit through the git API** and move the ref —
+`POST git/commits` with the branch's EXISTING `tree` sha and its current head as `parents[]`, then
+`PATCH git/refs/heads/<branch>`. That fires a genuine `pull_request: synchronize`, so the new check
+suite is PR-scoped and *does* count. Assert tree identity by comparing the new commit's `.tree.sha`
+to the old one before moving the ref, and prefer this to close/reopen (itself webhook-borne).
+Squash-merge absorbs the commit. Critical Principle 0 is not engaged — no checkout, no branch
+switch, no stash. **Quote `'parents[]'`**: unquoted, zsh glob-expands it (`no matches found`), the
+commit is never created, and the ref PATCH then fails 422 on an empty sha — rule 3a(i-b), on the
+very shape this skill already warns about.
+**AND THE SAME REASONING VOIDS A GREEN** (proposed by `mission-world` iter-59, which shares this
+skill but cannot edit it; corroborated first-party in V1's own repo before adoption). The outage
+clause in Gate 1 teaches that a RED during a declared incident is unattributable. The symmetric half
+was never stated: during an open incident **outcome is not a function of the tree, so a GREEN is
+unattributable too** — yet a green is exactly what gets read as "the incident is over". Measured
+here: CI on `dev` was `success` at `17:32Z`, `failure` at `20:03Z` — *worse after the green* — and
+`success` again at `21:57Z`, while runs created at `17:02Z` and `21:30Z` sat wedged straight through
+all three. A green during an incident licenses a **code** inference (these jobs passed on this tree)
+and **never** an **infrastructure** one (the incident is over). Close an incident on the provider's
+status API, not on one of your own runs, and where a green is load-bearing require one taken AFTER
+the incident is marked resolved.
+
 **Poll SEVERAL workflows with THIS snippet, run once per workflow — do NOT hand-roll a
 multi-workflow loop** (added 2026-07-27 iteration 107; TWO defects in one iteration, both from
 hand-rolling a variant because Gate 3b only shipped the single-workflow form above while a real
