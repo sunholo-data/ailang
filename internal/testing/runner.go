@@ -27,14 +27,15 @@ type Runner struct {
 // the module identity is left unresolved. CLI code must not use this — it should
 // use RunTestsFromFileWithConfig so the module identity is resolved properly.
 func NewRunner(modulePath string) *Runner {
-	abs, err := filepath.Abs(modulePath)
-	if err != nil {
-		abs = modulePath
-	}
+	// WorkspaceRoot is deliberately left empty and the original filepath.Abs is
+	// gone: this convenience wrapper does not resolve the module identity
+	// (moduleIdentity is empty), and WorkspaceRoot is read only by Validate and
+	// ResolveModuleIdentity — neither of which this path ever invokes. Computing
+	// it here would be dead state with a silent-fallback shape (CLAUDE.md §2);
+	// the CLI must use RunTestsFromFileWithConfig so the identity is resolved.
 	cfg := TestConfig{
-		WorkspaceRoot: filepath.Dir(abs),
-		SeedMode:      SeedModeDerived,
-		MasterSeed:    0,
+		SeedMode:   SeedModeDerived,
+		MasterSeed: 0,
 	}
 	return NewRunnerWithConfig(modulePath, cfg, "")
 }
@@ -569,7 +570,9 @@ func RunTestsFromFileWithConfig(filePath string, file *ast.File, cfg TestConfig)
 func RunTestsFromFile(filePath string, ast *ast.File) (*SuiteResult, error) {
 	abs, err := filepath.Abs(filePath)
 	if err != nil {
-		abs = filePath
+		// No silent fallback to a non-absolute root: this value feeds the module
+		// identity, which feeds the seed (CLAUDE.md §2). Surface the error.
+		return nil, err
 	}
 	cfg := TestConfig{
 		WorkspaceRoot: filepath.Dir(abs),

@@ -14,7 +14,7 @@ import (
 
 // runTestsV2 executes all tests in the given path.
 // Replaces the stub implementation in main.go.
-func runTestsV2(path string, formatStr string, colorEnabled bool, allowSkips bool) {
+func runTestsV2(path string, formatStr string, colorEnabled bool, allowSkips bool, cfg ailangTesting.TestConfig) {
 	preambleWriter := os.Stdout
 	if formatStr == "json" {
 		preambleWriter = os.Stderr
@@ -47,10 +47,11 @@ func runTestsV2(path string, formatStr string, colorEnabled bool, allowSkips boo
 
 	// Aggregate results across all files
 	aggregateResults := ailangTesting.NewSuiteResult("All Tests")
+	aggregateResults.SetSeedMetadata(cfg)
 
 	// Run tests for each file
 	for _, file := range testFiles {
-		fileResult := runTestFile(file)
+		fileResult := runTestFile(file, cfg)
 		if fileResult != nil {
 			// Merge results into aggregate
 			aggregateResults.Tests = append(aggregateResults.Tests, fileResult.Tests...)
@@ -90,7 +91,7 @@ func runTestsV2(path string, formatStr string, colorEnabled bool, allowSkips boo
 
 // runTestFile runs all tests in a single file.
 // Returns nil if the file has no tests.
-func runTestFile(filename string) *ailangTesting.SuiteResult {
+func runTestFile(filename string, cfg ailangTesting.TestConfig) *ailangTesting.SuiteResult {
 	// Read source
 	source, err := os.ReadFile(filename)
 	if err != nil {
@@ -116,7 +117,7 @@ func runTestFile(filename string) *ailangTesting.SuiteResult {
 	}
 
 	// Use the built-in test runner
-	result, err := ailangTesting.RunTestsFromFile(filename, file)
+	result, err := ailangTesting.RunTestsFromFileWithConfig(filename, file, cfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: Failed to run tests in %s: %v\n", yellow("⚠"), filename, err)
 		return nil
@@ -133,7 +134,7 @@ func runTestFile(filename string) *ailangTesting.SuiteResult {
 // runPackageTests discovers and runs *_test.ail files in a package directory.
 // It reads ailang.toml for package metadata, finds test files by convention,
 // and runs them using the existing test framework.
-func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips bool) {
+func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips bool, cfg ailangTesting.TestConfig) {
 	// Load package manifest
 	manifest, err := pkg.LoadManifest(dir)
 	if err != nil {
@@ -183,9 +184,10 @@ func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips
 
 	// Aggregate results across all test files
 	aggregateResults := ailangTesting.NewSuiteResult(manifest.Package.Name)
+	aggregateResults.SetSeedMetadata(cfg)
 
 	for _, file := range testFiles {
-		fileResult := runTestFile(file)
+		fileResult := runTestFile(file, cfg)
 		if fileResult != nil {
 			aggregateResults.Tests = append(aggregateResults.Tests, fileResult.Tests...)
 			aggregateResults.Properties = append(aggregateResults.Properties, fileResult.Properties...)
@@ -232,6 +234,8 @@ func printTestHelp() {
 	fmt.Println("  --no-color         Disable colored output")
 	fmt.Println("  --package          Package mode: discover *_test.ail files via ailang.toml")
 	fmt.Println("  --allow-skips      Exit 0 even if all tests were skipped (default: exit 1)")
+	fmt.Println("  --seed N           Master seed for property generation (signed int64; replayable)")
+	fmt.Println("  --random-seed      Read one master seed from crypto/rand and report it for replay")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  ailang test                    # Run all tests in current directory")
