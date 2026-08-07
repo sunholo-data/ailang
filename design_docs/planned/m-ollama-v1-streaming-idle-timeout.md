@@ -1,10 +1,54 @@
 # M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT: Stream the ollama /v1 tool-calling path with an idle timeout
 
-**Status**: Planned
-**Target**: v0.26.0
-**Priority**: P1 (Medium-High — robustness for large-context agentic runs)
+**Tracking**: ailang#618 (this) · ailang#619 (the publisher-validity fallout)
+**Status**: REVIVED 2026-08-07 (was archived 2026-07-29 as charter-unreferenced — see Field Evidence below; the diagnosis was never wrong, it just wasn't on the charter)
+**Target**: v0.34.0
+**Priority**: **P0** (raised from P1 — measured 43-day production impact: 80 motoko runs lost, ~74.6 GPU-hours burned, and ACCELERATING)
 **Estimated**: 2–3 days
 **Dependencies**: None. Complements (does not block) motoko_agent#65 (raise total timeout) and P2 context-compression.
+
+---
+
+## Field Evidence (2026-08-07) — why this was revived
+
+Measured by scanning all **2058** motoko session JSONLs in `mk-ast/.motoko/logfile` plus the live
+ollama access log (`/private/tmp/ollama-serve-launchd.log` — NOT `~/.ollama/logs/server.log`,
+which froze at the 2026-08-03 server restart).
+
+| Metric | Value |
+|---|---|
+| Sessions carrying `context deadline exceeded` | **182 / 2058 (8.8%)** |
+| — died outright (no `run_summary`) | **80** |
+| — finished anyway after retrying (silently inflated latency/cost) | **102** |
+| Total retry events | **895** |
+| Lower-bound GPU time burned | **~74.6 h** (895 × 300s; excludes the 8–22s reload tax per retry and the final in-flight request killed at the wall clock) |
+| First affected session → today | **2026-06-26 → 2026-08-07 = 43 days continuous** |
+
+**It is accelerating, and not because of a model change** (`qwen3.6:35b-a3b-mxfp8` in every
+affected session): retries/day **16.7 (Jun) → 13.5 (Jul) → 51.4 (Aug)**; retries per affected
+session **2.7 → 4.6 → 7.5**. The step counter increments per failure and **step 0 itself times
+out**, so "the context grew too long" is REFUTED — the cap is simply below the median turn.
+
+**Why 300s is below a turn:** passing motoko-local runs measure **7–62 output tok/s** (slower at
+long context), with whole sessions running **20–37 min**. At ~15 tok/s the 300s budget buys only
+~4,500 tokens — right at the median thinking-mode turn, so easy benchmarks squeak under and
+long-reasoning ones lose nearly every turn. Evidence it is real generation and not a hang:
+durations spread 48s → 4m59 rather than always pinning the cap. On 2026-08-07 alone, **47 requests
+ended at exactly `took=4m59.97x`**.
+
+**Blast radius beyond lost runs:** the 30 resulting `api_error` rows all carried
+`validity.valid=false, reason="harness_error"`, but `cmd/ailang/eval_publish.go` never reads
+`validity` — so motoko-local's published v0.33.0 **frontier score was exactly 3/22 = 13.6%** where
+**17 of those 22 were harness timeouts**. True figure ≈ 60% (n=5). That publisher defect is a
+distinct bug tracked as W8 in
+[m-eval-validity-discipline](m-eval-validity-discipline.md) / ailang#619; the corrupted rows were deleted
+2026-08-07.
+
+**Stopgap in place (REMOVE when this lands):** `AILANG_OLLAMA_HTTP_TIMEOUT_SEC=1800` set via
+`launchctl setenv` and pinned in `tools/launchd/dev.ailang.os-rotation-filler.plist` +
+`dev.ailang.nightly-eval.plist`. This is precisely the band-aid the Problem Statement below warns
+about — it enlarges the guess and over-tolerates genuine hangs (the cap exists because of a
+**1h54m** and a **~7h** rig-wedging hang; see 63fc63e09 / 772704cbb). It buys time, not a fix.
 
 ## Axiom Compliance
 

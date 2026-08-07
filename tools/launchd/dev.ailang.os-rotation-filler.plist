@@ -50,6 +50,18 @@
     <dict>
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+
+        <!-- STOPGAP (2026-08-07): the 300s default in internal/ai/ollama/step.go
+             is shorter than a qwen3.6:35b thinking turn on long benchmarks, so
+             motoko retried the deadline until the wall clock killed it — 895
+             retries / ~74.6 GPU-hours burned over 43 days, 80 runs lost. 1800s
+             unblocks the rotation; it does NOT fix the real problem, which is
+             that a TOTAL-duration cap cannot tell "hung" from "slow". The robust
+             fix is the idle/TTFT timeout in
+             design_docs/planned/m-ollama-v1-streaming-idle-timeout.md — REMOVE
+             this line once that lands. -->
+        <key>AILANG_OLLAMA_HTTP_TIMEOUT_SEC</key>
+        <string>1800</string>
     </dict>
 </dict>
 </plist>

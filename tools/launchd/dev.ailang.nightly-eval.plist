@@ -51,6 +51,15 @@
         <string>/Users/voightkampff/go/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
         <key>HOME</key>
         <string>/Users/voightkampff</string>
+
+        <!-- STOPGAP (2026-08-07): see the note in
+             dev.ailang.os-rotation-filler.plist. The 300s default in
+             internal/ai/ollama/step.go kills long-but-healthy local-model turns.
+             Remove once the idle/TTFT timeout lands
+             (design_docs/planned/m-ollama-v1-streaming-idle-timeout.md). -->
+        <key>AILANG_OLLAMA_HTTP_TIMEOUT_SEC</key>
+        <string>1800</string>
+
         <!-- Inherit OPENROUTER_API_KEY from ~/.config/ailang/secrets.env via the script -->
     </dict>
 
