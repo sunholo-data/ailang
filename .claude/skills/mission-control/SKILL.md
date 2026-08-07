@@ -282,6 +282,39 @@ for wf in "CI" "Build and Release" "Deploy Documentation to GitHub Pages"; do
 done
 ```
 
+**THEN READ THE COMMIT'S FULL CHECK SET, BECAUSE THE LOOP ABOVE ENUMERATES WORKFLOWS BY *NAME* AND
+IS THEREFORE BLIND BY CONSTRUCTION TO EVERY CHECK THAT IS NOT AN ACTIONS WORKFLOW YOU LISTED**
+(added 2026-08-07 iteration 158; instance 1 was iteration 157, which found the gap while doing a
+Gate-3b cross-check and filed it as an observation rather than fixing it). The `for wf in …` loop is
+a *hand-maintained allowlist*, so its all-green means "the three things I remembered are green" and
+reads identically to "this commit is healthy". It is rule 3g — the hand-picked-subset gap — aimed at
+Gate 1's health check rather than at your pre-push sweep, and it is worse here, because Gate 1's
+verdict decides whether a RED outranks the queue. Measured on V1: `SonarCloud Code Analysis` had
+been `failure` for **six consecutive analysed commits** while this loop reported `CI`,
+`Build and Release` and `Docs-Deploy` all `success` on the *same SHA* — four iterations walked past
+it. Sonar is a GitHub App, not a workflow, so no workflow name could ever have surfaced it. Add one
+SHA-addressed read, which is complete by construction:
+
+```bash
+sha=$(git rev-parse origin/dev)               # no --short (Gate 1's rev-parse lesson); see note below
+gh api "repos/${MISSION_REPO:-sunholo-data/ailang}/commits/$sha/check-runs" \
+  --jq '"checks=\(.total_count)", (.check_runs[] | select(.conclusion != "success" and .conclusion != "skipped" and .conclusion != "neutral") | "  NOT-GREEN \(.name): \(.conclusion // "pending")")'
+```
+
+Read it with rule 3a's discipline: `total_count` is the known-positive control, so `checks=0` means
+the endpoint did not answer, **not** that the commit is clean. **Note the endpoints differ on SHA
+truncation and do NOT assume otherwise** — this rule's first draft carried a "a truncated SHA
+silently returns 0" comment copied across from Gate 3b, and the negative control run in the same
+breath refuted it: `commits/<sha>/check-runs` resolves an abbreviated SHA fine (**19** both ways),
+while `actions/runs?head_sha=` genuinely needs all 40. Two endpoints, two behaviours, and the
+warning was true of the other one. Then triage whatever it surfaces
+exactly like any other red — with rule 3d's negative control, since the commonest answer is
+"inherited, not from this push": walk the same check back over the parent commits before attributing
+it to anything recent. A red non-required check is not automatically the pick (`UNSTABLE` is not
+`BLOCKED`), but it must be *seen and named* rather than invisible; a standing red nobody has looked
+at for six commits is exactly how a required one eventually gets missed. Mission-independent: the
+allowlist is per-repo, the blind spot is not.
+
 Any non-success → a RED dev outranks the queue (added 2026-07-10 per Mark; that day's red was a
 pre-existing gofmt miss + a newly published stdlib vuln — neither from a sprint, both invisible
 to local gates). Diagnose via `gh run view <id> --log-failed` — and check whether the SAME
