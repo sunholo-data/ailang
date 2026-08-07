@@ -40,7 +40,7 @@ Controller **opus** · designer **rotation** (pointer unchanged: next `claude:cl
 · planner **opus** (env pin) · executor **`pi:deepseek-v4-flash-0731`** (codex bucket dry)
 · evaluator **sonnet**. Iteration 163 metered **$0.0732**; iteration 164 **$0.00** (no sub-agent).
 
-## PARKED ON MARK — four asks, all one word
+## PARKED ON MARK — five asks, all one word
 - **`D-1`** (iter-150): proxy-boundary drops target-IP SSRF pinning on **proxied** routes.
   **(A)** as-written · **(B)** narrow to literal-IPs · **(C)** rethink.
 - **`D-2`** (iter-157): `#604` closes the top-level vacuous pass, leaves the nested one (`#614`).
@@ -49,5 +49,9 @@ Controller **opus** · designer **rotation** (pointer unchanged: next `claude:cl
   origin. **(A)** commit · **(B)** leave · **(C)** revert.
 - **`D-4`** (iter-164, NEW): `de50f203a` — a real ollama GPU-cap fix — has sat **unpushed** on local
   `dev` for two iterations. **(A)** loop may publish it · **(B)** it is yours, leave it.
+
+- **`D-5`** (iter-164, NEW): **3 of the last 6 slots died mid-flight** (159, 160, 163), always at
+  the last step. The loop sees the frequency, never the cause. **(A)** investigate as a queue item ·
+  **(B)** leave it — the died-mid-flight recovery check is catching them.
 
 Full record: charter `## STATUS … ITERATION 164` + `v1-mission-log.md` entries 167–168.
