@@ -620,7 +620,22 @@ the Repo Profile above):
    `FILES=($(…))`, then `"${FILES[@]}"` — and assert `${#FILES[@]}` before use. The general rule
    this mission already knows, in its sharpest form: **a mutation test needs proof the mutation
    LANDED before its result means anything**, because "the mutation didn't red" and "the mutation
-   never ran" are the same exit code. These shapes are silent and all survive `set -euo pipefail`;
+   never ran" are the same exit code. **And a mutation red counts only when the mutant BUILDS —
+   assert `go build ./...` (or the verify profile's compile step; under `ailang-code`,
+   `ailang check`) rc=0 on the mutated tree BEFORE reading the test result, and prefer a mutant
+   that keeps every import used (neuter the call — `_ = f(x)`) over one that deletes a block**
+   (added 2026-08-07 iteration 160; proposed by `mission-world` iter-62, which shares this skill
+   but cannot edit it, and corroborated first-party in V1's own checkout before adoption —
+   sibling-claim ghost discipline: all 6 `compil*` lines in this file are verify-profile/toolchain
+   prose, not one about mutants, while the control fires — the mutation-LANDED rule above is
+   present). "The mutant does not compile" is a THIRD fact wearing that same exit code, and it is
+   the one rule 3d cannot catch, because a build-failure red arrives in **exactly** the direction
+   you predicted — so the negative control agrees with you for the wrong reason and the mechanism
+   was never exercised at all. Three instances in one `mission-world` iteration: a deleted refusal
+   block redding on `imported and not used`; a non-matching regex leaving sha256 **unchanged**
+   (LANDED=NO) whose fallback edit then stripped an import — two reds, zero information; and an
+   opus executor that hit the class, self-reported it, and re-ran with a compiling mutant before
+   believing the RED. Generalises past Go to any compiled or typechecked language. These shapes are silent and all survive `set -euo pipefail`;
    **(ii) widen once before concluding** — drop the quoting, the anchors, the file filter, and the
    directory scope (a root `Makefile` includes; a workflow calls a make target; a caller lives in
    a file type your `--include` excluded); **(iii) prefer the tool that cannot miss** — `make -pn`
