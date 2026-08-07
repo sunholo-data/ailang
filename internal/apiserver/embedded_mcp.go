@@ -115,6 +115,14 @@ func (h *embeddedMCPHandler) serveTransport(w http.ResponseWriter, r *http.Reque
 	for name, values := range buffer.header {
 		w.Header()[name] = append([]string(nil), values...)
 	}
+	// The SDK sets Content-Type on every response path it has today, but this wrapper
+	// replays its headers wholesale, so that guarantee is inherited rather than ours. An
+	// unlabelled body here would be content-sniffed by the browser, and this body can
+	// contain reflected request data. Assert the invariant locally instead (#603).
+	if w.Header().Get("Content-Type") == "" {
+		w.Header().Set("Content-Type", "application/json")
+	}
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(buffer.status)
 	_, _ = w.Write(buffer.body.Bytes())
 }
@@ -198,6 +206,10 @@ func writeMCPEnvelope(w http.ResponseWriter, id json.RawMessage, message string)
 		id = json.RawMessage("null")
 	}
 	w.Header().Set("Content-Type", "application/json")
+	// Same reasoning as the replay path: this envelope echoes a request-controlled `id`,
+	// so label it here rather than relying on encoding/json's HTML escaping staying on by
+	// default. Without this the two response paths out of this file disagree (#603).
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(struct {
 		JSONRPC string          `json:"jsonrpc"`
