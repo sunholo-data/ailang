@@ -1538,11 +1538,33 @@ that returns **0** on a perfectly healthy charter. Iteration 134 ran exactly tha
 a charter that was byte-identical to origin. This is rule 3a's trap wearing THIS gate's clothes,
 and it is the worst place for it: a broken tell and a genuinely stale charter produce the
 identical output, so the failure routes a healthy iteration down the stale-copy path — or, in the
-other direction, teaches you to distrust a tell you will need for real. Run it as
-`grep -c "ITERATION <N-1>"` **alongside a known-present control in the same breath**
-(`ITERATION <N-2>`, must be ≥1). A `0` on the control means your instrument is broken, not that
-the charter is stale — that is the failure mode here, and the known-present control is the one
-that catches it.
+other direction, teaches you to distrust a tell you will need for real. Run it
+**case-INSENSITIVELY** — `grep -ci "ITERATION <N-1>"` — **alongside a known-present control in the
+same breath** (`ITERATION <N-2>`, must be ≥1). A `0` on the control means your instrument is
+broken, not that the charter is stale — that is the failure mode here, and the known-present
+control is the one that catches it.
+
+**Why `-ci` and not the charter's own casing: STAMP CASING IS MISSION-SPECIFIC, AND THIS SKILL IS
+SHARED, SO HARDCODING ONE MISSION'S CASING BREAKS THE TELL FOR EVERY OTHER MISSION** (added
+2026-08-07 iteration 157; proposed by `mission-world` iter-60, which shares this skill but cannot
+edit it, and corroborated first-party in BOTH repos before adoption — sibling-claim ghost
+discipline). Iteration 134 correctly diagnosed the casing trap but fixed it by pinning the literal
+to **V1's** format, `## STATUS 2026-08-07 — ITERATION 156:`. World stamps
+`## STATUS 2026-08-07 (iteration 60)` — lower-case and parenthesised. Measured against World's
+**healthy** charter, the prescribed form returns `grep -c "ITERATION 60"` → **0**, and — the part
+that matters — its known-present controls return **0 too** (`ITERATION 59` → 0, `ITERATION 58` → 0),
+while `grep -ci` returns **1 / 4 / 4**. So the remedy iteration 134 wrote to stop a healthy charter
+reading as stale did exactly that on the sibling mission. It at least fails LOUDLY rather than
+silently — a zeroed control is the documented "instrument broken" signal, which is how World caught
+it and ran `-ci` as a workaround — but a tell that cannot run unmodified outside the mission that
+authored it is not a shared tell. **Read the result as PRESENCE (≥1), never as an exact count:**
+`-ci` also matches ordinary prose ("…added 2026-08-06 V1 iteration 154…"), measured in V1 as
+`ITERATION 154` → **2** case-sensitive vs **3** case-insensitive. The tell asks "is the previous
+iteration's record here at all", so presence is the whole question and the extra prose hits are
+harmless; the structural count you actually assert against is the rotation invariant below. General
+form, and the reason this outranks its two instances: **anything this skill tells you to grep for is
+a claim about ONE mission's file format** — when a shared gate hardcodes a literal, ask what the
+sibling writes there before trusting a zero.
 
 **Do NOT add a known-absent literal as a second control — in a file the loop WRITES ABOUT ITSELF,
 the absent token does not stay absent.** Iteration 134 shipped `ITERATION 999` as its
