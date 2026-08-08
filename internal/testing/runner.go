@@ -298,6 +298,9 @@ func (r *Runner) runProperty(propCase PropertyCase) PropertyResult {
 	// sample — no sample stream exists to observe at any level. Its seed is
 	// derived and reported (so the seed machinery is covered) but the sample
 	// stream is not, until the legacy EvaluateExpression path is replaced.
+	// Tracked in #624, which also records a SECOND failure on this path: a
+	// forall body that calls a module function dies with a PAR_UNEXPECTED_TOKEN
+	// in the synthesized _test.ail rather than with "empty program".
 	rng := newRNG(r.propertySeed(propCase.Name))
 
 	for testNum := 0; testNum < numTests; testNum++ {

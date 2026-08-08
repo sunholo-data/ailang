@@ -1078,6 +1078,49 @@ the Repo Profile above):
    mutant, and require rc=0 — that is what proves *your* test is the killer rather than a
    bystander. The tell: a milestone's headline verb is "reject", "refuse", "validate" or "exit
    non-zero", and your mutation list has one entry.
+3k. **IF THE PRODUCT HANDS A HUMAN SOMETHING TO RUN, A TEST MUST RUN EXACTLY THAT — A TEST THAT
+   REBUILDS THE SAME COMMAND BY A SECOND ROUTE VERIFIES YOUR ARITHMETIC, NEVER YOUR ARTIFACT**
+   (added 2026-08-08 iteration 166). Rules 3a–3j police claims about the codebase, about a check's
+   scope, and about a mutation. None of them points at the class of deliverable that is *itself* a
+   string a user is told to execute — a replay command, a suggested fix, a `--help` example, a
+   copy-pasteable line in a guide, a generated URL. Those ship with green suites by construction,
+   because the natural test computes the correct value independently and asserts on *that*, so the
+   emitted text is never touched by anything. The bug then lives exactly where it is most visible
+   to users and least visible to CI.
+   Two instances, both first-party. **(a)** Iteration 166: `ailang test` printed
+   `replay: ailang test --seed 0 All Tests` on every failing property — `All Tests` is the
+   *aggregate display label* (`NewSuiteResult("All Tests")`), not a path, so the command the tool
+   told the user to run could not run. It had been broken since the milestone before, through a
+   quorum, a sprint plan, an evaluator PASS and a Gate-3b green, because the acceptance criterion
+   covering replay (`AC6-M2`) reconstructed `--seed=${seed} "$tmp/multi.ail"` from the JSON's
+   `.seed` field instead of executing `.properties[0].replay`. Every arm of it passed on a product
+   that was broken. **(b)** Iteration 111: the public guide taught a function name absent from the
+   example file while handing the reader copy-pasteable commands against that very file — filed by
+   the judge as a maintenance nit, and worse than filed for exactly this reason.
+   Concretely: **(i)** enumerate, per milestone, every string the product EMITS for a human to run
+   or paste, and require one test that takes that string *out of the output* and executes it
+   verbatim — split it, drop the binary name, pass the remaining tokens through; **(ii)** an
+   assertion built from a field the same output also contains is not that test, however equal the
+   two values happen to be today; **(iii)** the mutation that proves it is "make the emitter use
+   the wrong source" — if only a test that re-derives the command exists, that mutant survives, and
+   it is the survival you should be predicting before you run it; **(iv)** when the emitted form
+   cannot be executed in-process (it names a network resource, a paid API, a destructive action),
+   assert its *shape* against a parser rather than against a reconstruction, and say in the AC that
+   execution was not possible. The tell: an acceptance criterion mentions a user-facing command,
+   snippet or link, and every command in it was written by the test author rather than read out of
+   the product's own output.
+   **Corollary on the mutation drill this rule will make you run more often — RESTORE FROM A COPY,
+   NEVER `git checkout -- <file>`** (one instance, iteration 166, first-party, and recorded as a
+   correction to an existing prescription rather than as a rule earning its way in on evidence).
+   Every mutation rule above ends "restore byte-identical, verified by sha256". None says how, and
+   in a sprint worktree the file you are mutating is *uncommitted by construction* — so
+   `git checkout --` restores it to HEAD and silently deletes the executor's work. The sha256 check
+   then fires correctly, which is the good news and also the whole problem: it reports MISMATCH
+   *after* the loss. Iteration 166 did this to `internal/testing/reporter.go` and recovered only
+   because the diff was still in-session and the pre-mutation hash was known, so the reconstruction
+   could be *proved* byte-identical rather than hoped to be. `cp <file> <backup>` before the
+   mutation, `cp <backup> <file>` after, and keep the sha256 assertion as the check on the restore
+   rather than as the discovery of a disaster.
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
    the Gate-2 rebuild `-dirty` — binaries built from a half-merged tree; and a persisted `cd`

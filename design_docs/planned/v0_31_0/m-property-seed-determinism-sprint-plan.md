@@ -1367,9 +1367,22 @@ the safe direction and is exactly what tonight ships.
   identical under `--seed 42`. The §5.11 note "M3 owes it a CLI-level e2e arm"
   is **retracted as unachievable** — the site is pinned by the seed stamp and
   by acceptance arm (c) only, until the legacy `EvaluateExpression` path is
-  replaced. This gap is declared in-code too: a comment immediately above the
+  replaced. **Tracked in [#624](https://github.com/sunholo-data/ailang/issues/624)**,
+  filed independently by mission iteration 165 while scoping this same arm — it
+  reaches the identical conclusion from a separate measurement and records a
+  SECOND defect on this path that iteration 166 did not find: a forall body that
+  calls a module function dies with `PAR_UNEXPECTED_TOKEN … expected next token
+  to be )` in the synthesized `_test.ail`, not with `empty program`. The one-line
+  version, since it is the reusable part: **a residual recorded by a previous
+  iteration is a claim about future feasibility, and nothing in the loop
+  re-checks it before the work is scheduled.** Iteration 162 wrote this debt down
+  in the same paragraph in which its own evaluator had already failed to refute
+  the limitation "across four fixture shapes **and the real CLI**" — so the
+  contradiction was on the page the whole time, and two iterations planned
+  around it before anyone re-ran the check.
+  This gap is declared in-code too: a comment immediately above the
   `rng := newRNG(...)` line in `runner.go`'s forall path names the reason no
-  test observable exists downstream of it.
+  test observable exists downstream of it, and cites `#624`.
 
 ---
 
