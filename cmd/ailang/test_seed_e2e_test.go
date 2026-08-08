@@ -32,6 +32,28 @@ export func good(x: int) -> bool ! {}
 ensures { result == true } { x == x }
 `
 
+// seedE2EPkgManifest is the package manifest for the package-mode replay
+// fixture. Package mode is a SECOND ReplayTarget branch in cmd/ailang/main.go
+// (it prefixes "--package "), and every other test in this file drives file
+// mode only.
+const seedE2EPkgManifest = `[package]
+name = "seede2e/pkg"
+version = "0.1.0"
+edition = "1"
+
+[exports]
+modules = ["seede2e/pkg/fail"]
+
+[stability]
+level = "experimental"
+`
+
+const seedE2EPkgFailSource = `module seede2e/pkg/fail_test
+
+export func bad(x: int) -> bool ! {}
+ensures { result == true } { false }
+`
+
 // writeSeedE2EFixture writes src to a fresh t.TempDir file and returns it.
 func writeSeedE2EFixture(t *testing.T, name, src string) string {
 	t.Helper()
@@ -92,6 +114,7 @@ func TestReplayTargetArg(t *testing.T) {
 	}
 }
 
+// TestSeedE2E_DefaultRunIsDeterministic — AC5-M2: two default runs over the
 // same fixture produce byte-identical normalized JSON, and the default mode is
 // reported as derived with the v1 derivation tag.
 func TestSeedE2E_DefaultRunIsDeterministic(t *testing.T) {
@@ -279,5 +302,75 @@ func TestSeedE2E_EmittedReplayCommandActuallyReplays(t *testing.T) {
 	nReplay := normalizeRunJSON(t, []byte(replayOut))
 	if string(nFirst) != string(nReplay) {
 		t.Errorf("emitted replay command did NOT reproduce the run byte-identically:\n---first---\n%s\n---replay (%q)---\n%s", nFirst, replay, nReplay)
+	}
+}
+
+// TestSeedE2E_PackageModeEmittedReplayCarriesPackageFlag closes a gap the
+// iteration-166 evaluator found by mutation, and it is the same defect class as
+// the "All Tests" bug this milestone exists to fix — one branch of an emitted
+// artifact guarded, the sibling branch not.
+//
+// cmd/ailang/main.go builds ReplayTarget on TWO branches: package mode prefixes
+// "--package ", ordinary mode does not. Every other test here drives file mode,
+// and the pre-existing package-mode test
+// (TestPackageAndFileAggregatesBothCarrySeedMetadata) uses a PASSING fixture —
+// and `replay` is emitted only for FAILING properties. So the package branch had
+// no observer at all: dropping the `"--package " +` prefix left
+// `go test ./cmd/ailang/... ./internal/testing/...` fully rc=0 (reproduced
+// first-party before this test was written). This test uses a failing fixture so
+// the key is emitted, asserts the flag survives, and then RUNS the emitted text.
+func TestSeedE2E_PackageModeEmittedReplayCarriesPackageFlag(t *testing.T) {
+	bin := buildAilang(t)
+
+	pkgDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(pkgDir, "ailang.toml"), []byte(seedE2EPkgManifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgDir, "fail_test.ail"), []byte(seedE2EPkgFailSource), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	firstOut, firstErr, firstExit := runAilangBin(t, bin,
+		"test", "--package", "--seed", "42", "--format", "json", "--no-color", pkgDir)
+	if firstExit != 1 {
+		t.Fatalf("expected failing package fixture to exit 1, got %d\nstdout:\n%s\nstderr:\n%s", firstExit, firstOut, firstErr)
+	}
+	var firstDoc struct {
+		Properties []struct {
+			Replay string `json:"replay"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal([]byte(firstOut), &firstDoc); err != nil {
+		t.Fatalf("package run output is not JSON: %v\n%s", err, firstOut)
+	}
+	if len(firstDoc.Properties) == 0 || firstDoc.Properties[0].Replay == "" {
+		t.Fatalf("package mode emitted no replay command for a failing property\n%s", firstOut)
+	}
+	replay := firstDoc.Properties[0].Replay
+
+	// The discriminating assertion: without the prefix the emitted command
+	// re-runs the directory in FILE mode, which is a different discovery path.
+	if !strings.Contains(replay, "--package") {
+		t.Fatalf("package-mode replay lost the --package flag: %q", replay)
+	}
+	if strings.Contains(replay, "All Tests") {
+		t.Fatalf("emitted replay contains the un-runnable %q label: %q", "All Tests", replay)
+	}
+
+	// Execute the emitted text verbatim (flags inserted after the subcommand —
+	// see the note in TestSeedE2E_EmittedReplayCommandActuallyReplays). The
+	// t.TempDir path has no spaces, so Fields-splitting is faithful here;
+	// replayTargetArg's quoting is covered directly by TestReplayTargetArg.
+	fields := strings.Fields(replay)
+	if len(fields) < 3 || fields[0] != "ailang" || fields[1] != "test" {
+		t.Fatalf("unexpected replay command shape: %q", replay)
+	}
+	replayArgs := append([]string{"test", "--format", "json", "--no-color"}, fields[2:]...)
+	replayOut, replayErr, replayExit := runAilangBin(t, bin, replayArgs...)
+	if replayExit != firstExit {
+		t.Errorf("replayed exit = %d, first exit = %d\nreplay stderr:\n%s", replayExit, firstExit, replayErr)
+	}
+	if got, want := string(normalizeRunJSON(t, []byte(replayOut))), string(normalizeRunJSON(t, []byte(firstOut))); got != want {
+		t.Errorf("package-mode replay %q did NOT reproduce the run byte-identically:\n---first---\n%s\n---replay---\n%s", replay, want, got)
 	}
 }
