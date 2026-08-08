@@ -453,7 +453,23 @@ if [ -f "$EXEC_ONCE_FILE" ]; then
   fi
 fi
 
-log "=== mission iteration starting (controller=$MODEL via ${MODEL_WHY}, timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL) ==="
+# Background-task ceiling (2026-08-08, mission-world iter-65 + V1 iter-167). `claude -p` terminates
+# still-running BACKGROUND tasks 600s after the assistant's last turn ends, prints
+# "Background tasks still running after 600s; terminating." and exits **rc=0**. The controller
+# spawns its planner/executor as a background Agent and stops its turn to wait, so the slot dies
+# with a plausible transcript, zero commits, zero charter rows — and NEITHER watchdog fires,
+# because rc=0 is a clean exit. Attribution is exact and first-party: 2 hits in this driver's own
+# log (/tmp/ailang-mission-control.log lines 3193, 3420) = the 2026-08-07 12:26 fire (iteration
+# 159) and the 2026-08-08 09:09 fire (iteration 167 attempt 1); 2 hits in mission-world's log = its
+# only 2 orphaned slots in 67 iterations. Zero misses, zero false positives across both missions.
+# 0 = wait indefinitely — that is not an UNBOUNDED wait (Standing rule 6): it hands the bound to
+# HARD_TIMEOUT (${HARD_TIMEOUT}s, logs "HARD TIMEOUT") and the stall watchdog (idle tree + a
+# descendant ≥${STALL_CHILD_AGE}s → "STALL … killing early"), BOTH of which are LOUD. It replaces a
+# silent 10-minute rc=0 with two noisy bounds that already exist. A live background agent keeps the
+# tree non-idle, so the stall watchdog cannot false-fire on it.
+export CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS="${CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS:-0}"
+
+log "=== mission iteration starting (controller=$MODEL via ${MODEL_WHY}, timeout=${HARD_TIMEOUT}s | bg-wait-ceiling=${CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS}ms | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL) ==="
 
 PROMPT="Run one mission-control iteration: invoke the mission-control skill for \
 ${MISSION_DOC} and follow its gates. You are a scheduled run; \
