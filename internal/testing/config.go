@@ -30,6 +30,11 @@ type TestConfig struct {
 	WorkspaceRoot string // absolute; the CLI's initial os.Getwd()
 	SeedMode      SeedMode
 	MasterSeed    int64
+	// ReplayTarget is the CLI argument tail that reproduces this invocation,
+	// already shell-safe. Empty is legal and means "no replay target known"
+	// (library callers that build a SuiteResult directly rely on that to fall
+	// back to ModulePath).
+	ReplayTarget string
 }
 
 // Validate returns an error when the config is not usable for seed derivation.

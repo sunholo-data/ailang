@@ -1351,6 +1351,26 @@ no shared config. The design doc's "partial rollback is unsafe" warning applies 
 combined state, and specifically to keeping M2 while dropping M1. Dropping M2 while keeping M1 is
 the safe direction and is exactly what tonight ships.
 
+### 5.14 M3 residuals — recorded, not papered over
+
+- **T5 — `make verify-examples` is not evidence that any contract property ran.**
+  `make verify-examples` invokes the **`run`** subcommand
+  (`scripts/verify_examples.go:104-115`), never `ailang test`, so a green
+  `verify-examples` is **not** evidence that any contract property executed. It
+  is a module/compile-linking gate only.
+- **T6 — the `forall` residual (measured, §3(C) of the M3 directive).**
+  `forall`-style properties still run on the broken `EvaluateExpression`
+  source-synthesis path and die on their FIRST generated input, so there is no
+  sample stream to observe at any level — CLI included. Measured on a fresh
+  `property "ints are self equal" { forall(x: int) => x == x }` fixture:
+  `generated_inputs: 1`, `error: "test 0: evaluation failed: empty program"`,
+  identical under `--seed 42`. The §5.11 note "M3 owes it a CLI-level e2e arm"
+  is **retracted as unachievable** — the site is pinned by the seed stamp and
+  by acceptance arm (c) only, until the legacy `EvaluateExpression` path is
+  replaced. This gap is declared in-code too: a comment immediately above the
+  `rng := newRNG(...)` line in `runner.go`'s forall path names the reason no
+  test observable exists downstream of it.
+
 ---
 
 ## 6. Executor operating notes

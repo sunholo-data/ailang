@@ -85,6 +85,20 @@ func (r *Reporter) formatTestsJSON(tests []TestResult) []map[string]interface{} 
 	return output
 }
 
+// replayCommand builds the copy/paste command that reproduces a suite run. It
+// prefers ReplayTarget — the shell-safe CLI argument tail recorded at
+// invocation time (see replayTargetArg in cmd/ailang) — and falls back to
+// ModulePath when ReplayTarget is empty, preserving today's behaviour for
+// library callers and tests that build a SuiteResult directly. Both the JSON
+// and human reporters go through this ONE helper so the two can never drift.
+func replayCommand(result *SuiteResult) string {
+	target := result.ReplayTarget
+	if target == "" {
+		target = result.ModulePath
+	}
+	return fmt.Sprintf("ailang test --seed %d %s", result.MasterSeed, target)
+}
+
 // formatPropertiesJSON converts property results to JSON-friendly format. It
 // takes the whole SuiteResult because the replay command (D9) and per-property
 // seed are derived from the master seed and module path carried by the suite.
@@ -110,7 +124,7 @@ func (r *Reporter) formatPropertiesJSON(result *SuiteResult) []map[string]interf
 			output[i]["failing_input"] = prop.FailingInput
 		}
 		if prop.Status == StatusFail {
-			output[i]["replay"] = fmt.Sprintf("ailang test --seed %d %s", result.MasterSeed, result.ModulePath)
+			output[i]["replay"] = replayCommand(result)
 		}
 	}
 	return output
@@ -262,7 +276,7 @@ func (r *Reporter) reportSummaryHuman(result *SuiteResult) {
 	fmt.Fprintf(r.writer, "  mode: %s\n", string(result.SeedMode))
 	fmt.Fprintf(r.writer, "  master seed: %d\n", result.MasterSeed)
 	fmt.Fprintf(r.writer, "  derivation: %s\n", result.SeedDerivation)
-	fmt.Fprintf(r.writer, "  replay: ailang test --seed %d %s\n", result.MasterSeed, result.ModulePath)
+	fmt.Fprintf(r.writer, "  replay: %s\n", replayCommand(result))
 
 	fmt.Fprintln(r.writer)
 }
