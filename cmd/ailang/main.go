@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/sunholo-data/ailang/internal/agentprompt"
@@ -171,6 +172,15 @@ func main() {
 		path := "."
 		if testFlags.NArg() >= 1 {
 			path = testFlags.Arg(0)
+		}
+
+		// Record the CLI argument tail that reproduces this run, shell-safe, so
+		// the emitted replay command is runnable (defect §3(A)); see
+		// replayTargetArg for the quoting rules.
+		if *packageFlag {
+			cfg.ReplayTarget = "--package " + replayTargetArg(path)
+		} else {
+			cfg.ReplayTarget = replayTargetArg(path)
 		}
 
 		if *packageFlag {
@@ -567,4 +577,16 @@ func main() {
 		printHelp()
 		os.Exit(1)
 	}
+}
+
+// replayTargetArg renders a CLI argument tail that reproduces a test run,
+// shell-safe. A space, single quote, or double quote triggers single-quote
+// wrapping with embedded single quotes escaped as '\”; otherwise the argument
+// is emitted bare. It lives in ONE helper (used only by the test subcommand)
+// so the package mode and ordinary mode targets cannot diverge.
+func replayTargetArg(path string) string {
+	if strings.ContainsAny(path, " '\"") {
+		return "'" + strings.ReplaceAll(path, "'", "'\\''") + "'"
+	}
+	return path
 }

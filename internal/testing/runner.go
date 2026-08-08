@@ -291,6 +291,13 @@ func (r *Runner) runProperty(propCase PropertyCase) PropertyResult {
 	}
 
 	// Run property tests
+	// M-M3-RESIDUAL (T6): this forall path has NO test observable downstream of
+	// it. It still runs on the broken EvaluateExpression source-synthesis path
+	// (see runProperty's dispatch comment above), so every generated input
+	// fails with "test 0: evaluation failed: empty program" on the FIRST
+	// sample — no sample stream exists to observe at any level. Its seed is
+	// derived and reported (so the seed machinery is covered) but the sample
+	// stream is not, until the legacy EvaluateExpression path is replaced.
 	rng := newRNG(r.propertySeed(propCase.Name))
 
 	for testNum := 0; testNum < numTests; testNum++ {

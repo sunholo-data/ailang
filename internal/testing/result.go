@@ -47,6 +47,7 @@ type PropertyResult struct {
 // SuiteResult aggregates results from all tests in a test suite.
 type SuiteResult struct {
 	ModulePath     string           // Module path
+	ReplayTarget   string           // Shell-safe CLI arg tail that reproduces this run (empty = unknown)
 	Tests          []TestResult     // All test results
 	Properties     []PropertyResult // All property results
 	TotalTests     int              // Total number of tests
@@ -96,6 +97,7 @@ func (sr *SuiteResult) SetSeedMetadata(cfg TestConfig) {
 	sr.SeedMode = cfg.SeedMode
 	sr.MasterSeed = cfg.MasterSeed
 	sr.SeedDerivation = SeedDerivationV1
+	sr.ReplayTarget = cfg.ReplayTarget
 }
 
 // AddPropertyResult adds a property result and updates counters.

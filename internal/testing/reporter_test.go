@@ -639,3 +639,70 @@ func TestReporter_ReplayOnlyOnFailure(t *testing.T) {
 		}
 	}
 }
+
+// T2 — the replay command prefers ReplayTarget (the shell-safe CLI argument
+// tail recorded at invocation time) and falls back to ModulePath when
+// ReplayTarget is empty, preserving the historical behaviour for library
+// callers and tests that build a SuiteResult directly. One arm carries a space
+// (and one an embedded single quote) to assert the shell quoting rules.
+func TestReplayCommand_FallsBackToModulePath(t *testing.T) {
+	// The three non-empty-target arms pass the target the way the CLI records it:
+	// ALREADY shell-safe (the quoting lives in replayTargetArg in cmd/ailang — the
+	// reporter must emit it verbatim and never fall back to ModulePath). The 'want'
+	// strings therefore carry the quotes as produced upstream.
+	cases := []struct {
+		name         string
+		replayTarget string
+		modulePath   string
+		want         string
+	}{
+		{
+			name:         "empty target falls back to module path",
+			replayTarget: "",
+			modulePath:   "mods/a.ail",
+			want:         "ailang test --seed 7 mods/a.ail",
+		},
+		{
+			name:         "explicit target is preferred over module path",
+			replayTarget: "path/to/f.ail",
+			modulePath:   "mods/a.ail (ignored)",
+			want:         "ailang test --seed 7 path/to/f.ail",
+		},
+		{
+			name:         "target with a space is single-quoted",
+			replayTarget: "'dir with space/ f.ail'",
+			modulePath:   "mods/a.ail",
+			want:         "ailang test --seed 7 'dir with space/ f.ail'",
+		},
+		{
+			name:         "target with an embedded single quote is escaped",
+			replayTarget: "'it'\\''s here/ f.ail'",
+			modulePath:   "mods/a.ail",
+			want:         "ailang test --seed 7 'it'\\''s here/ f.ail'",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			result := NewSuiteResult(c.modulePath)
+			result.SetSeedMetadata(TestConfig{SeedMode: SeedModeMaster, MasterSeed: 7, ReplayTarget: c.replayTarget})
+			result.AddPropertyResult(PropertyResult{Name: "fail_prop", Status: StatusFail})
+
+			var buf bytes.Buffer
+			if err := NewReporter(FormatJSON, &buf, false).Report(result); err != nil {
+				t.Fatalf("Report() error: %v", err)
+			}
+			var output struct {
+				Properties []map[string]interface{} `json:"properties"`
+			}
+			if err := json.Unmarshal(buf.Bytes(), &output); err != nil {
+				t.Fatalf("Invalid JSON output: %v", err)
+			}
+			if len(output.Properties) != 1 {
+				t.Fatalf("expected 1 property, got %d", len(output.Properties))
+			}
+			if got, ok := output.Properties[0]["replay"].(string); !ok || got != c.want {
+				t.Errorf("replay = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
