@@ -4,43 +4,47 @@
 > append — history lives in the charter/log). A fresh session reads THIS + MEMORY.md and has full
 > steering context. Humans steer via comments on the bookkeeping issue, never a long-lived thread.
 
-**Updated**: 2026-08-08 ~07:00 local (iteration 166)
+**Updated**: 2026-08-08 ~11:30 local (iteration 167)
 
 ## Now
-- **Latest release**: **v0.33.0** · `origin/dev` `2ab7b3d31`. ⚠ the changelog still carries a
+- **Latest release**: **v0.33.0** · `origin/dev` `306633d83`. ⚠ the changelog still carries a
   `## [v0.33.1] - 2026-08-06` section with **no `v0.33.1` tag** — written, not released.
-- ✅ **`#535` IS CLOSED. The `m-property-seed-determinism` sprint is COMPLETE** (M1·M2A·M2B·M2C·M3).
-  PR **`#625`** → squash `2ab7b3d31`, Gate 3b green with completeness asserted (`total=20`,
-  0 pending, 0 failed, all four REQUIRED contexts, `CLEAN`). Evaluator **sonnet PASS 95/100 r1**.
-- ⚠ **The feature's headline deliverable had never worked.** Every failing property printed
-  `replay: ailang test --seed 0 All Tests` — the aggregate *display label*, not a path. Green the
-  whole time because `AC6-M2` **rebuilt** the command from `.seed` instead of **executing** the one
-  the tool emits. Now skill rule **3k**.
-- ⚠ **ITERATION 165 DIED — 4 of the last 7 slots** (159, 160, 163, 165). New signature: both opus
-  probes timed out, the driver fell back to **Fable**, and the slot exited **rc=0 after 10.5 min**.
-  It looked like zero output; it had in fact filed **`#624`** — invisible to all three traces the
-  died-mid-flight rule names, because the artifact is an **issue**.
-- `dev` CI green. ⚠ **SonarCloud red on `dev`** (standing, non-required, 8 consecutive commits, `#615`).
-- Nightly `13/24`, **0** regressions, **0** sustained failures, **0** open `[nightly-eval]` alarms.
-- ⚠ Local `dev` is **1 ahead / N behind** origin — a sibling's unpushed `de50f203a`. See `D-4`.
-- ⚠ Three stale sprint worktrees (`.wt-iter117`, `.wt-iter121`, `.wt-iter159`) each carry **unmerged
-  commits**; left alone rather than swept blind, but they are noise in the died-mid-flight check.
+- ✅ **`D-5` HAS A ROOT CAUSE, MEASURED, AND A TWO-PART FIX.** The harness reaps still-running
+  **background** tasks 600 s after the controller's turn ends and exits **rc=0**, so the driver
+  logs `iteration complete (rc=0)` and **neither watchdog fires**. Attribution is exact:
+  `grep -c 'Background tasks still running after 600s'` = **2** in V1's driver log = the
+  2026-08-07 12:26 fire (**iter-159**) and the 2026-08-08 09:09 fire (**iter-167 attempt 1**);
+  **2** in World's log = its only 2 orphans in 67 iterations. Zero misses, zero false positives.
+  Found by `mission-world` iter-65; corroborated first-party in V1 before adoption.
+  **Fix 1** driver `export CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` (`mission-control.sh:470`,
+  live in the main checkout now). **Fix 2** skill Standing rule **7 — every wait is ACTIVE**.
+- ✅ **Iteration 167 attempt 1's orphaned work was recovered, not redone**: 6 verification rows
+  (V31–V36) on the queue head's design doc, adopted only after re-deriving the 3 load-bearing
+  ones. **B1's scope SHRINKS** — `list[T]` already ships (`runner.go:615`, from `a81d66983`), so
+  it is not B1 work; routing the doc as written would have re-derived an existing generator.
+- `dev` CI green (`checks=6`, zero NOT-GREEN on `306633d83`). ⚠ **SonarCloud red on `dev`**
+  (standing, non-required, `#615`; *absent* — not failing — on the dependabot commits).
+- **0** open `[nightly-eval]` alarms (control 52 in `--state all`).
+- ⚠ Local `dev` **1 ahead / 11 behind** origin — the sibling's unpushed `de50f203a`. See `D-4`.
+- ⚠ Bookkeeping issue **`#559` at 65 comments** (<80) — rotation due next fire or Monday 07:00.
 
 ## In flight
-- **`#624`** (NEW, from iter-165): top-level `forall` properties never evaluate — `empty program` on
-  the simplest property, parse error when the body calls a function. The forall seed site is pinned
-  by *stamp* only until this is fixed; M3's CLI arm was retracted as unachievable because of it.
-- **`#613`** proxy-boundary M1 — DRAFT *DO-NOT-MERGE*, implemented and held. Blocked on **`D-1`**.
+- **`#624`**: top-level `forall` properties never evaluate. Does **not** block B1 (V36).
+- **`#613`** proxy-boundary M1 — DRAFT *DO-NOT-MERGE*, held on **`D-1`**.
 - **`#604`** named-test vacuous pass — design written, **PARKED** on **`D-2`**. `#614` open.
+- **`#633`** (World SM.C, FYI): registry vendor-namespace auth deferred; one shared key can
+  permanently consume any vendor's name. Non-blocking for World; needs an owner here.
 
 ## Next
-**Lane B1** (unblocked by `#535`) · `D-2` → `#604` · `D-1` → `#613` · `#624` · swept-issue batch · `#615`.
+**Lane B1** — scope-corrected, still the queue head, **not routed this iteration by design** (two
+consecutive slots died at the moment a background planner was spawned; the next fire is the first
+to run with both fixes live). Then: `D-2` → `#604` · `D-1` → `#613` · `#624` · swept-issue batch.
 
 ## Loop + routing
 Controller **opus** · designer **rotation** (pointer unchanged: next `claude:claude-fable-5`)
-· planner **opus** (env pin) · executor **`pi:deepseek-v4-flash-0731`** (codex bucket dry)
-· evaluator **sonnet**. Iteration 166 metered **$0.2530**. pi lane **datapoint 2** — it refuted
-three of the controller's own directive claims, all three adjudicated correct by command.
+· planner **opus** (codex bucket dry — probe hit its usage limit again this fire)
+· executor **`pi:deepseek-v4-flash-0731`** · evaluator **sonnet**. Iteration 167 metered **$0.00**
+(no heavy role spawned).
 
 ## PARKED ON MARK — five asks, all one word
 - **`D-1`** (iter-150): proxy-boundary drops target-IP SSRF pinning on **proxied** routes.
@@ -50,9 +54,8 @@ three of the controller's own directive claims, all three adjudicated correct by
 - **`D-3`** (iter-162): uncommitted hook-timeout fixes live in the shared checkout, absent from
   origin. **(A)** commit · **(B)** leave · **(C)** revert.
 - **`D-4`** (iter-164): `de50f203a` — a real ollama GPU-cap fix — has sat **unpushed** on local
-  `dev` for three iterations. **(A)** loop may publish it · **(B)** it is yours, leave it.
-- **`D-5`** (iter-164, UPDATED iter-166): **4 of the last 7 slots died** (159, 160, 163, 165), and
-  165's death correlates with both opus probes timing out and the driver falling back to Fable.
-  **(A)** investigate as a queue item · **(B)** leave it — recovery keeps catching them.
+  `dev` for four iterations. **(A)** loop may publish it · **(B)** it is yours, leave it.
+- **`D-5`** (iter-164, **RESOLVED-PENDING-PROOF** iter-167): root cause found and both fixes
+  landed. Nothing to decide — the next two fires prove or refute it on their own. No ask.
 
-Full record: charter `## STATUS … ITERATION 166` + `v1-mission-log.md` entry 169.
+Full record: charter `## STATUS … ITERATION 167` + `v1-mission-log.md` entry 170.

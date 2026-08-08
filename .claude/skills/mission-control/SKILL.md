@@ -1903,3 +1903,38 @@ exactly like a correct one.**
    `until COND; do sleep …; done` with no cutoff. A headless iteration has no human to notice, so
    one unbounded wait burns the entire 6h slot. Default cap ≤30 min; treat expiry as a parkable
    failure, not an error to retry in place.
+7. **Every wait is ACTIVE — NEVER END YOUR TURN WHILE A BACKGROUND AGENT OR BACKGROUND `Bash` IS
+   STILL RUNNING** (added 2026-08-08 V1 iteration 167; proposed by `mission-world` iter-65, which
+   shares this skill but cannot edit it, and corroborated first-party in V1's own driver log before
+   adoption — sibling-claim ghost discipline). This is rule 6's mirror, and the two collide in a way
+   that is lethal precisely because rule 6 is correct: rule 6 tells you to bound your waits, and the
+   most natural way to "wait" for a background agent is to stop making tool calls and let the
+   harness hold the slot for you. **That is the fatal move.** `claude -p` terminates still-running
+   background tasks **600 s after the assistant's last turn ends**, prints
+   `Background tasks still running after 600s; terminating.` — and exits **rc=0**. The driver then
+   logs `iteration complete (rc=0)` and **neither watchdog fires**, because a clean exit code is
+   exactly what they are built to ignore. So the slot ends with a plausible transcript, zero
+   commits, zero charter rows, zero log entries: the vacuous-pass class this loop keeps closing
+   elsewhere — *success reported for work that never happened* — now aimed at the loop itself. It is
+   invisible afterwards to every check except Gate 2's died-mid-flight traces.
+   **Attribution, measured, both missions, zero misses and zero false positives:** `grep -c
+   'Background tasks still running after 600s'` returns **2** in `/tmp/ailang-mission-control.log`
+   (V1, lines 3193 / 3420 = the 2026-08-07 12:26 fire → iteration 159, and the 2026-08-08 09:09
+   fire → iteration 167 attempt 1, which died holding six freshly-measured verification rows) and
+   **2** in `/tmp/ailang-mission-world.log` — World's *only* two orphaned slots in 67 iterations.
+   Both V1 hits sit immediately above a transcript reading "Gates 0–2 complete; sprint-planner
+   running", i.e. the controller had just spawned a background role and stopped.
+   **The rule:** while any background work you spawned is outstanding, keep the turn alive with
+   *chained bounded waits* — a `Monitor`, a bounded `date +%s` poll, or repeated short status reads
+   — so the harness never sees you stop. Rule 6 still binds each individual wait; what changes is
+   that expiry must be handled **by you, in-turn** (park, kill, report), never by going quiet and
+   hoping. Two corollaries: **(a)** prefer a FOREGROUND spawn (`run_in_background: false`) whenever
+   the work fits inside the tool's own limit — a synchronous call cannot be reaped this way at all;
+   **(b)** the driver-side safety net is
+   `export CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0`, landed in V1's
+   `tools/launchd/mission-control.sh` at iteration 167 — `0` means "wait indefinitely", which is
+   **not** an unbounded wait in rule 6's sense: it hands the bound to the driver's `HARD_TIMEOUT`
+   and stall watchdog, both of which fail LOUDLY, replacing a silent 10-minute rc=0. Any mission
+   whose driver lacks that export is still exposed; check it rather than assume it. The tell: you
+   are about to write "the planner is running; I will report back", or to end a turn whose last
+   tool call started something you have not yet read the result of.

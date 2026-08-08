@@ -164,6 +164,16 @@ func (sr *SuiteResult) Success() bool {
 
 **Discovery that shrinks this lane** (verified): the combinator layer already exists in `internal/testing/generator_advanced.go` — `NewRecordGenerator`, `NewTupleGenerator`, `NewADTGenerator`, `NewOneOfGenerator`, `NewFrequencyGenerator`, `NewSizedGenerator` — plus `NewADTShrinker` in shrink.go. **None of it is wired into `createGeneratorForType`.** This is the repo's recurring guard-the-call-site-not-the-helper shape, a second time in the same function. Lane B is therefore mostly *derivation + wiring + value-splice plumbing*, not generator implementation.
 
+> **SCOPE UPDATE 2026-08-08 (iteration 167, controller-measured — see Verification Log V31–V36).**
+> Lane A shipped more than "make it loud": it also added a live `*ast.TypeApp{Constructor:"list"}`
+> arm to `createGeneratorForType` (`a81d66983`). **`list[T]` is therefore already covered and is
+> NOT B1 work** — the arm recurses into `createGeneratorForType`, so `list[Tree]` starts working
+> the moment B1 derives `Tree`. The Problem Statement's `mixed.ail` repro above no longer
+> reproduces (V32). B1's live scope is exactly: **records (named + anonymous, nested), ADTs,
+> tuples, unit `()`**. Refined types (`string<email>`) and imported types remain B2/out-of-scope.
+> The `*ast.TypeApp` bullet below must **preserve** the existing `list` arm and add user-type
+> substitution beside it, never replace it.
+
 **B1. Structural derivation** (~1.5–2 days):
 
 - **Type resolution**: for `*ast.SimpleType{Name: "Point"}` not in the scalar set, look up a `TypeDecl` named `Point` in `r.executor.sourceFile.Decls` (surface AST — the runner already holds it via `SetSourceFile`). Same-file only in v1; imported types remain vacuous skips (honest, and now loud per Lane A).
@@ -543,6 +553,40 @@ All commands run 2026-07-29 in worktree `.wt-iter121` (branch `sprint/m-property
 | V30 | `cmd/ailang/coordinator_cloud.go:586` is `exec.CommandContext(ctx, "ailang", "test", "--package", ".")`; `:588` is the `testErr != nil` → `"ailang test failed (escalating to AI)"` branch | Read `cmd/ailang/coordinator_cloud.go:578-592` (revision pass; corrects V11's path, which omitted the `cmd/ailang/` directory) |
 
 **Not verified / open for the executor**: shrink quality of derived generators (V-none — flagged in Lane B); whether external (out-of-repo) consumers parse `success` (unknowable from here; mitigated by `--allow-skips` + CHANGELOG). The `gen<TypeName>` call path's *depth-bounded evaluation and error-to-Fail behavior* is verified (V25/V26), but B2 is deferred regardless — depth bounds divergence, not total work (quorum 2026-07-29); the verified envelope is retained for unpark.
+
+### Freshness re-verification at Lane-B1 pick time (2026-08-08, V1 mission iteration 167)
+
+Every row V1–V30 above was measured at the doc's **single declared base `3901c14a8`** (2026-07-29).
+Swept per mission-control rule 3b(vi-b) from that oldest base to `origin/dev` @ `306633d83`:
+`git diff --name-only 3901c14a8..HEAD -- internal/testing cmd/ailang` returns **69** files
+(control: `runner.go` present in that list, so the instrument fires). Rows citing a changed file
+were re-measured; rows citing `harness.go`, `generator_advanced.go`, `shrink.go`,
+`coordinator_cloud.go` were untouched by the diff and stand. **Three rows are now FALSE, and the
+change SHRINKS B1's scope — routing the doc as written would have had the executor re-derive a
+generator that already ships.**
+
+| # | Claim | Evidence |
+|---|---|---|
+| V31 | **V1 IS SUPERSEDED.** `createGeneratorForType` now has **three** arms, not two: 4 scalars (`*ast.SimpleType`), a **live `*ast.TypeApp{Constructor:"list"}` arm**, and the still-dead `*ast.ListType` arm | Read `runner.go:596-637` at `306633d83`. The `TypeApp` arm landed inside **Lane A** (`git log -S 'app.Constructor == "list"'` → `a81d66983`, "#517 Lane A") — an addition the doc never anticipated for Lane A, whose stated scope was "make it loud" |
+| V32 | **V3/V4(c) ARE SUPERSEDED — the doc's own headline repro no longer reproduces.** `mixed.ail` (Problem Statement, verbatim) now yields rc=0, `success=true`, `passed=2 failed=0 skipped=0 vacuous_skips=0`; `headOr_property_1` **passes at `tests_run=100`** where V3 recorded `skip, tests_run=0, "no generator for parameter xs: list[int]"` | Live `ailang test --format json --no-color` on the doc's `mixed.ail`, binary built from `306633d83` |
+| V33 | V4's *structural* leg still holds — `*ast.ListType` remains unreachable from parsed programs — but it is now **harmless rather than load-bearing**: list coverage arrives via the `TypeApp` arm. The dead arm is dead code, not a coverage hole | Read `runner.go:625-633`; behavioral proof in V32 |
+| V34 | **B1's remaining scope, re-measured.** Shapes still emitting `no generator for parameter …` at HEAD: **ADTs** (`Role`, `Region`, `Priority`, `TaxBracket`, `AgeBand`, `RiskTier`, `Coverage`, `TaxRegion`, `CustomerTier`, `Season`), **named record aliases** (`Cell`, `Mail`), **anonymous records** (`{ subtotal: int, tax: int, discount: int }`, nested `{ name: string, pos: { x: int, y: int } }`), **unit** `()`, **refined** `string<email>` (B2 only), and **`list[Tree]`** — the last one proving list coverage is *element-recursive*: the `TypeApp` arm recurses into `createGeneratorForType`, so `list[T]` works exactly as far as `T` does. `list` itself is **out of B1's scope**; `list[<derived T>]` falls out of B1 for free | Per-file sweep of `examples/runnable/contracts/*.ail` (33 files, partial — 2-min cap; ~17 files swept) with the `306633d83` binary. Note Lane A's exit-code change is visible throughout: files with vacuous skips now report `success=false` |
+| V35 | **The charter's B1 constraint (1) is itself stale in the other direction.** It records `runner.go` at 790/800 (iter-121), "relieved to **670**" (iter-126). Measured at `306633d83`: **749** lines — 51 lines of headroom under the 800-line CI gate, not 130. B1 additions must still land in a **new file** in `internal/testing/` | `wc -l internal/testing/runner.go`; gate at `make/code-health.mk:122` |
+| V36 | **`#624` (top-level `forall` never evaluates) does NOT block B1**, and the doc already says so | Both `#624` repros reproduce byte-for-byte at `306633d83` (`empty program`; `PAR_UNEXPECTED_TOKEN at _test.ail:1:26`). Per Related Documents + V10, the forall breakage is an *evaluation-path* defect owned by `m-forall-properties-direct-core-eval` (planned, P3); B1 touches `createGeneratorForType` + `valueToLiteral` only. The coupling is one-way and beneficial: B1's derived generators reach the forall path for free once that doc's fix lands. ⚠ `#624` does not cross-reference that design doc — it should |
+
+**Provenance and adoption (V1 mission iteration 167, 2026-08-08).** Rows V31–V36 were measured by
+iteration 167 *attempt 1*, which was reaped by the harness's 600 s background-task ceiling before it
+could commit them (see the charter's `D-5` and Standing rule 7). Attempt 2 adopted them only after
+re-deriving the three load-bearing rows first-party at `306633d83`, per rule 3b(v) — an inherited
+measurement is a claim: **V31** `runner.go:615` carries `app.Constructor == "list"`, introduced by
+`a81d66983` (`git log -S`); **V32** the doc's verbatim `mixed.ail` now yields rc=0 with
+`headOr_property_1` **passing at 100 cases** (was `skip, tests_run=0`); **V35** `wc -l
+internal/testing/runner.go` = **749** against the 800-line gate at `make/code-health.mk:122`.
+
+⚠ **V34 is a LOWER BOUND, not an enumeration** (rule 3b(v)(a)): its sweep covered ~17 of 33
+`examples/runnable/contracts/*.ail` files under a 2-minute cap, and the row says so. Read it as
+"these shapes are definitely still uncovered", never as "these are the only ones". The executor must
+re-sweep all 33 before treating the list as B1's complete scope.
 
 ### Quorum verification log
 
