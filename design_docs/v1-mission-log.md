@@ -8600,3 +8600,63 @@ Two instrument lessons: **`pkill` reporting success is not proof a process is de
 **Gate 5 — one skill edit**: not taken. The two candidates each have one instance so far (`pkill`-success-is-not-death; the driver log poisoning its own dead-slot tell). The bar is two — both are pre-registered here for the next iteration that hits them.
 
 **Next**: **M2 with the seam**, then M3 (structural derivation + the `RecordGenerator` map-order determinism bug). Parked on Mark, now on `#635`: `D-1` (`#613`), `D-2` (`#604`), and new **`D-6`** — codex's OAuth refresh token is **revoked** (401 on every probe since ≥2026-08-09 22:45), so the lane is down for a reason a human must fix. `D-3` landed as `1239d9ec6` by a concurrent session; `D-4`/`D-5` resolved.
+
+---
+
+## 172 — 2026-08-10 — Iteration 169: **The charter said M1 was landed; `gh pr view` said `OPEN`. The died-mid-flight rule looks for missing traces, and this time every trace was present and pointing the wrong way.**
+
+**Pick**: two, because the first was bookkeeping-shaped (Standing rule 1). **(a)** Verify and land PR **#637**, which iteration 168 recorded as "SHIPPED / M1 is landed" and left unmerged. **(b)** The charter's own Next: **M2** of the Lane B1 sprint (`#517`), with the test seam.
+
+**Outcome**: both **LANDED**. #637 → squash `59b74e06d` (Gate 3b GREEN: 3/3 workflows, 19 checks, 0 pending). M2 → PR [#638](https://github.com/sunholo-data/ailang/pull/638) → squash `632024121` (Gate 3b GREEN: `total=20`, pending 0, 0 not-green, all four REQUIRED contexts from real `pull_request` events, `mergeStateStatus=CLEAN`). Evaluator **sonnet PASS 96/100, zero blocking**.
+
+**Routing evidence**: controller `claude-opus-5` · designer **NOT fired** (doc exists, quorum-cleared 2026-07-29; rotation pointer unchanged, next `claude:claude-fable-5`) · planner **NOT fired** (sprint plan exists from iter-168) · executor **`pi:openrouter/deepseek/deepseek-v4-flash-0731`**, probe rc=0, 51 turns, no out-of-worktree writes (main-checkout `git status` byte-identical to its Gate-0 state) · evaluator **sonnet** — generator≠judge holds (DeepSeek vs Anthropic). `metered=$0.086` against the $5 ceiling. ⚠ codex remains DOWN on a revoked refresh token (`D-6`), so no codex lane fired.
+
+### A sixth died-mid-flight positive, and a shape the rule does not cover
+
+Gate 2's died-mid-flight check tells you to look for an iteration that finished the work and never recorded it: an open PR, a stale worktree, uncommitted files. Iteration 168 is the **inverse**. It recorded *everything* — a charter row saying "SHIPPED (PR #637)", a log entry titled "M1 is landed", a STATUS stamp, a dashboard update — and then did not merge. Every trace whose **absence** the rule teaches you to notice was **present**, and each one asserted the opposite of the truth.
+
+The generalisable point: the loop's already-landed check reads the charter, and the charter is written by the same iteration that would have done the merging. When that iteration dies between "write the record" and "press the button", the record is not just missing — it is actively wrong, and it is wrong in the direction that stops the next iteration from looking. Only Gate 2 trace (a), the open-PR-by-this-author check, caught it. The cheap widening: run that check against the charter's **"LANDED" claims** too, not only against its `[NEXT]` rows.
+
+**Verified rather than adopted** (Gate 2's inherited-work rule): the three-dot diff is exactly M1 — `value_splice.go` +92, tests +213, `runner.go` 749→710, plan, sprint JSON, changelog; CI on the PR head was 20 checks / 0 pending / 0 failures. ⚠ **The two-dot diff (`git diff origin/dev..HEAD`) looked alarming** — apparent deletions of `tools/launchd/mission-recovery.sh`, the recovery plist and 68 log lines — and is a pure stale-base artifact, since the base had moved four commits. `git merge-base` plus `origin/dev...HEAD` settles it in one command. Reading the two-dot as "what this PR changes" would have meant reverting a good branch on the strength of a diff direction. One line of iteration 168's own record is also corrected: `value_splice_test.go` is **213** lines, not the 216 it claimed.
+
+### M2: the seam exists to make four guards real, and one of them still is not
+
+M2's premises were all re-measured first-party before routing, and the plan's own controller-correction was **narrowed**: `shrinkCounterexample` takes its values as plain parameters, so **N-5 needs no seam** — the seam covers N-2/N-3/N-4 only. Iteration 168's evaluator had said exactly this; it re-measures true, so the correction stands as amended rather than as written.
+
+Mutation drill, controller-run, six mutants. Every one asserted **LANDED** (sha256 changed) and **BUILDS** (`go build` rc=0) before its result was read; every killer scoped with `-run`; every one paired with the **inverse arm** (`-skip` the killer → rest of the package rc=0, proving sole-killer rather than bystander); every one restored from a `cp` backup, never `git checkout --` (rule 3k's corollary — the tree held uncommitted executor work).
+
+| # | Verdict | Note |
+|---|---|---|
+| N-1 default arm | **KILLED** | also reds N-2..N-4 — broader protection, recorded not hidden |
+| N-2 ensures | **KILLED**, sole killer | panics in `astExprToCore(nil)`, the plan's predicted path; not "fixed" |
+| N-3 requires | **KILLED**, sole killer | same mechanism |
+| N-4 forall | **KILLED**, sole killer | but see the evaluator's finding below — this one is weaker than it reads |
+| N-5 shrink | **SURVIVED** | declared, see below |
+| B1-2 record→tuple | **KILLED** | `got (1, true), want {x: 1, y: true}` — reads the *evaluated value*, one step past the AST |
+
+**N-5 survived, and the executor said so before I measured it.** Its stated reason was checked rather than adopted (rule 3h): on a refusal `bindPropertyValues` returns `(nil, err)`, and `EvaluateExpression` builds its program by **string-formatting the AST**, so a nil expression yields unparseable source and *errors* — the adjacent pre-existing branch then `continue`s for the same effect. Resolved through rule 3j's own escape clause: an unreachable branch is acceptable **when declared**. The guard stays, is declared redundant *in the code* with the measurement, and the implicit contract it rests on is pinned by `TestShrinkNilExprContract` — which is itself **proven non-vacuous** (mutating `EvaluateExpression` to `panic` on nil BUILDS rc=0 and reds it). If that pin ever fires, N-5 stops being decorative and its neutering mutation starts killing.
+
+### The evaluator corrected my own record twice
+
+**sonnet PASS 96/100, zero blocking.** It attacked all five named claims by *running mutations* rather than reading code; both attempted refutations (N-5's redundancy, the pin's non-vacuity) failed and independently reproduced my measurements. All three non-blocking findings were reproduced first-party before being acted on, and closed **in-PR** (`fdec563d2`) rather than fast-followed:
+
+1. **`runner.go` is 766, not 754.** I had transcribed the figure from the executor's report instead of measuring it. The two adjacent counts the evaluator did *not* flag — 109 and 203 — re-measure correct, so the instrument was sound and this was a single transcription slip. Rule 3b(v), and the third time this mission has bought it.
+2. **N-4 deserved N-5's disclosure and did not get it.** Reproduced: with N-4 neutered, `PropertyResult.Status` is **still** `StatusFail`, because the `EvaluateExpression` branch below sets it too. What actually moves is `.Error`'s **text** — measured `"test 0: evaluation failed: PAR_NO_PREFIX_PARSE at _test.ail:1:1…"` where the test demands `"no literal splice"`. The test genuinely reds and is not vacuous (error text is inside AC B1-3's stated observable), but the guard buys **diagnostic quality, not the verdict**, and my table's plain "KILLED, sole killer" implied more than that. This is the same asymmetry N-5 got a paragraph for; consistency demanded N-4 get one too.
+3. **`genForTypeSeam`'s fallback is dead today** — one `&Runner{` literal in the whole repo, inside `NewRunnerWithConfig` itself (which doubled as the grep's known-positive control). Kept as defensive code, but described as speculative rather than load-bearing.
+
+**B1-2 is PAID** — the round-trip acceptance criterion iteration 168 named as owed. All five shapes are evaluated through the evaluator and compared as *values*.
+
+### Ruled out
+
+- **"N-5's guard prevents a panic"** — REFUTED by measurement (mutant survives; no panic in either the bare-`Runner` or real-`sourceFile` scenario, the latter tested by the evaluator beyond my own drill).
+- **"The N-4 guard determines the verdict"** — REFUTED. Only the message changes.
+- **"PR #637 reverts `mission-recovery.sh` and 68 log lines"** — REFUTED as a two-dot stale-base artifact; the three-dot diff touches six files.
+- **"The SonarCloud red on `origin/dev` came from a recent push"** — REFUTED by negative control: `failure` on `825c37ee9`, `718f28241`, `7d8db911f`, `973803c65`, absent on the two dependabot commits. Standing, non-required, `#615`-class.
+
+### Instrument failure, caught by disagreement rather than by inspection
+
+Mid-Gate-3b my poll started printing `total=` and `pending=` **empty**, which reads exactly like "nothing pending". Cause: piping `gh api` output through shell `jq` hit raw control characters in a check's output (`Invalid string: control characters from U+0000 through U+001F must be escaped`), so `jq` errored and the command substitution returned nothing. It was caught only because the direct `gh pr checks --required` read disagreed, showing `test` still running. This is rule 3a's trap wearing Gate 3b's clothes, and the fix is two-fold: use `gh api --jq` (server-side, which handled the same payload fine all iteration), and make the poll **refuse to score a non-numeric total** rather than treating an empty string as zero. The second half is what makes it safe, since any future instrument breakage produces the same silent empty.
+
+**Gate 5 — one skill edit**: not taken. The strongest candidate — *the charter's own "LANDED" claim can be false, so re-verify it against open PRs* — has exactly one instance (this one). The bar is two. Pre-registering it here as watch-item instance 1 so the next occurrence is recognisable rather than re-derived.
+
+**Next**: **M3** — structural derivation for records (named/anonymous/nested), tuples, unit, aliases, carrying the **mandatory** `RecordGenerator` map-order fix (B1-4 is REFUTED at base: a fixed seed does not reproduce a counterexample today). Then M4 → M6. Parked on Mark, all on `#635`: `D-1` (`#613`), `D-2` (`#604`), `D-6` (codex re-auth).
