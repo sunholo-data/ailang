@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  dev.ailang.mission-recovery.plist — reclaim the 90 minutes a probe stall costs.
+
+  mission-control refuses when every controller probe times out (API-side stall,
+  first seen 2026-08-03). Its StartInterval is 5400s, so the slot is lost for a
+  full 90 min even when the stall clears in 20. This polls every 4 min and
+  kickstarts mission-control once its .blocked marker is up and the cooldown has
+  passed, cutting recovery to ~20 min.
+
+  Cheap by construction: it does NOT call the API. It only reads marker files and
+  issues launchctl kickstart; the driver's own probes decide whether to proceed,
+  and a failed retry spends zero tokens.
+
+  Installation:
+    cp tools/launchd/dev.ailang.mission-recovery.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/dev.ailang.mission-recovery.plist
+
+  Kill switch (survives reboots, no unload needed):
+    touch ~/.ailang/state/mission-recovery.disabled
+
+  The mission's OWN kill switch (~/.ailang/state/mission-control.disabled) also
+  stops this — a deliberately disabled mission is never resurrected.
+
+  Logs: /tmp/ailang-mission-recovery.log
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.ailang.mission-recovery</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/voightkampff/dev/sunholo-data/ailang/tools/launchd/mission-recovery.sh</string>
+    </array>
+
+    <!-- 4 min. The script is a few file stats unless the loop is blocked, so the
+         poll is effectively free; the real pacing is the 20-min cooldown inside. -->
+    <key>StartInterval</key>
+    <integer>240</integer>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/voightkampff/go/bin:/Users/voightkampff/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>MISSION_NAME</key>
+        <string>v1</string>
+    </dict>
+
+    <!-- Deliberately NOT RunAtLoad: a login/reboot should not immediately kickstart
+         a mission iteration. The first poll happens 4 min in. -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/ailang-mission-recovery.stdout</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/ailang-mission-recovery.stderr</string>
+</dict>
+</plist>

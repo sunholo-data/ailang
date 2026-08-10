@@ -66,6 +66,7 @@ if [ "$MISSION_NAME" = "v1" ]; then
   LAST_MODEL_FILE="$STATE_DIR/mission-model-last"
   EXEC_ONCE_FILE="$STATE_DIR/mission-executor-model-once"
   GH_ISSUE_FILE="$STATE_DIR/mission-gh-issue"
+  BLOCKED_FILE="$STATE_DIR/mission-control.blocked"
   MSG_FROM="mission-control"
 else
   LOG="/tmp/ailang-mission-${MISSION_NAME}.log"
@@ -75,6 +76,7 @@ else
   LAST_MODEL_FILE="$STATE_DIR/mission-${MISSION_NAME}-model-last"
   EXEC_ONCE_FILE="$STATE_DIR/mission-${MISSION_NAME}-executor-model-once"
   GH_ISSUE_FILE="$STATE_DIR/mission-${MISSION_NAME}-gh-issue"
+  BLOCKED_FILE="$STATE_DIR/mission-${MISSION_NAME}.blocked"
   MSG_FROM="mission-${MISSION_NAME}"
 fi
 # -----------------------------------------------------------------------------
@@ -420,13 +422,24 @@ fi
 #    are stripped above, so a passing probe proves keychain/token auth too).
 if ! select_model; then
   log "NO usable model in prefs ($PREFS) — every probe failed (per-model reasons above: quota-limited, timed out, or errored). Refusing."
-  ailang messages send controlplane \
-    "mission-control refused to start: no usable model in prefs ($PREFS). Every candidate probe failed — per-model reasons (quota-limited / timed out / errored) are in the driver log; observed cause so far is probe TIMEOUTS (likely API backoff), not dead auth. Zero tokens spent beyond probes." \
-    --title "Mission iteration blocked: no usable model" --from "$MSG_FROM" 2>/dev/null
-  [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-    --body "⚠️ Mission iteration did not start: **no usable model** in preference list (\`$PREFS\`) — every candidate probe failed (quota-limited, timed out, or errored — per-model detail in the driver log). Will retry next interval; recovery is automatic when any candidate's probe succeeds." 2>/dev/null
+  # Announce ONCE per blocked episode, not once per refusal. mission-recovery.sh
+  # retries every ~20 min while a stall lasts (instead of waiting out the 90-min
+  # StartInterval), so notifying per refusal would post a dozen identical GH
+  # comments and controlplane messages during a single API incident. The marker
+  # is cleared the moment a probe succeeds, so the NEXT episode announces again.
+  if [ -f "$BLOCKED_FILE" ]; then
+    log "refusal already announced this episode ($BLOCKED_FILE) — staying quiet"
+  else
+    : > "$BLOCKED_FILE"
+    ailang messages send controlplane \
+      "mission-control refused to start: no usable model in prefs ($PREFS). Every candidate probe failed — per-model reasons (quota-limited / timed out / errored) are in the driver log; observed cause so far is probe TIMEOUTS (likely API backoff), not dead auth. Zero tokens spent beyond probes. Further refusals in this episode are silent; mission-recovery retries automatically." \
+      --title "Mission iteration blocked: no usable model" --from "$MSG_FROM" 2>/dev/null
+    [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
+      --body "⚠️ Mission iteration did not start: **no usable model** in preference list (\`$PREFS\`) — every candidate probe failed (quota-limited, timed out, or errored — per-model detail in the driver log). \`mission-recovery\` now retries every ~20 min rather than waiting out the 90-min interval; recovery is automatic when any candidate's probe succeeds. Further refusals in this episode are silent to avoid comment spam." 2>/dev/null
+  fi
   exit 1
 fi
+rm -f "$BLOCKED_FILE"   # a probe succeeded — the blocked episode (if any) is over
 
 # Announce model CHANGES on #329 (not every iteration — only transitions).
 PREV_MODEL=$(cat "$LAST_MODEL_FILE" 2>/dev/null || true)
