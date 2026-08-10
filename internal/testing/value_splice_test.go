@@ -17,7 +17,10 @@ func newSpliceRunner() *Runner {
 // literal.
 func TestValueToLiteral_UnitValue(t *testing.T) {
 	r := newSpliceRunner()
-	expr := r.valueToLiteral(&eval.UnitValue{})
+	expr, err := r.valueToLiteral(&eval.UnitValue{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	lit, ok := expr.(*ast.Literal)
 	if !ok {
@@ -32,12 +35,15 @@ func TestValueToLiteral_UnitValue(t *testing.T) {
 // ast.Record with a field per entry and sorted field order.
 func TestValueToLiteral_RecordValue(t *testing.T) {
 	r := newSpliceRunner()
-	expr := r.valueToLiteral(&eval.RecordValue{
+	expr, err := r.valueToLiteral(&eval.RecordValue{
 		Fields: map[string]eval.Value{
 			"x": &eval.IntValue{Value: 1},
 			"y": &eval.IntValue{Value: 2},
 		},
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	rec, ok := expr.(*ast.Record)
 	if !ok {
@@ -55,12 +61,15 @@ func TestValueToLiteral_RecordValue(t *testing.T) {
 // ast.Tuple keeping element order.
 func TestValueToLiteral_TupleValue(t *testing.T) {
 	r := newSpliceRunner()
-	expr := r.valueToLiteral(&eval.TupleValue{
+	expr, err := r.valueToLiteral(&eval.TupleValue{
 		Elements: []eval.Value{
 			&eval.IntValue{Value: 7},
 			&eval.BoolValue{Value: true},
 		},
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	tup, ok := expr.(*ast.Tuple)
 	if !ok {
@@ -80,12 +89,15 @@ func TestValueToLiteral_TupleValue(t *testing.T) {
 // would die at runtime with "cannot apply non-function value").
 func TestValueToLiteral_TaggedValue_Nullary(t *testing.T) {
 	r := newSpliceRunner()
-	expr := r.valueToLiteral(&eval.TaggedValue{
+	expr, err := r.valueToLiteral(&eval.TaggedValue{
 		ModulePath: "test",
 		TypeName:   "Season",
 		CtorName:   "SPRING",
 		Fields:     []eval.Value{},
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	ident, ok := expr.(*ast.Identifier)
 	if !ok {
@@ -100,7 +112,7 @@ func TestValueToLiteral_TaggedValue_Nullary(t *testing.T) {
 // splices to an *ast.FuncCall over the constructor identifier.
 func TestValueToLiteral_TaggedValue_Nary(t *testing.T) {
 	r := newSpliceRunner()
-	expr := r.valueToLiteral(&eval.TaggedValue{
+	expr, err := r.valueToLiteral(&eval.TaggedValue{
 		ModulePath: "test",
 		TypeName:   "Block",
 		CtorName:   "Para",
@@ -109,6 +121,9 @@ func TestValueToLiteral_TaggedValue_Nary(t *testing.T) {
 			&eval.IntValue{Value: 3},
 		},
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	call, ok := expr.(*ast.FuncCall)
 	if !ok {
@@ -140,7 +155,7 @@ func TestValueToLiteral_TaggedValue_Nary(t *testing.T) {
 // valueToLiteral: a record containing a tuple containing a list.
 func TestValueToLiteral_Nested(t *testing.T) {
 	r := newSpliceRunner()
-	expr := r.valueToLiteral(&eval.RecordValue{
+	expr, err := r.valueToLiteral(&eval.RecordValue{
 		Fields: map[string]eval.Value{
 			"outer": &eval.TupleValue{
 				Elements: []eval.Value{
@@ -154,6 +169,9 @@ func TestValueToLiteral_Nested(t *testing.T) {
 			},
 		},
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	rec, ok := expr.(*ast.Record)
 	if !ok {
@@ -196,7 +214,10 @@ func TestValueToLiteral_RecordFieldOrderSorted(t *testing.T) {
 		for _, n := range names {
 			fields[n] = &eval.IntValue{Value: 1}
 		}
-		expr := r.valueToLiteral(&eval.RecordValue{Fields: fields})
+		expr, err := r.valueToLiteral(&eval.RecordValue{Fields: fields})
+		if err != nil {
+			t.Fatalf("iteration %d: unexpected error: %v", i, err)
+		}
 		rec, ok := expr.(*ast.Record)
 		if !ok {
 			t.Fatalf("expected *ast.Record, got %T", expr)
