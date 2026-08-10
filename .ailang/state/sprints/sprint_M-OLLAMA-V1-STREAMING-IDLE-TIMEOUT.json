@@ -1,0 +1,215 @@
+{
+  "sprint_id": "M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT",
+  "status": "not_started",
+  "created": "2026-08-10T20:15:00Z",
+  "planned_at_head": "3e1f63f7a",
+  "design_doc": "design_docs/planned/m-ollama-v1-streaming-idle-timeout.md",
+  "sprint_plan": "design_docs/planned/v1_0_0/m-ollama-v1-streaming-idle-timeout-sprint-plan.md",
+  "github_issues": [618],
+  "github_issues_note": "#618 is this item. #619 (publisher validity fallout, W8 in m-eval-validity-discipline) is DELIBERATELY EXCLUDED: it is a distinct defect in cmd/ailang/eval_publish.go (doc V18 measured 0 validity reads) which this sprint does not implement. A 'Fixes #619' would wrongly auto-close it. Reference #619 only as context (refs, never Fixes).",
+  "risk_level": "high",
+  "planner_lane": "opus-required",
+  "velocity": {
+    "target_loc_per_day": 443,
+    "estimated_total_loc": 1330,
+    "estimated_days": 3,
+    "basis": "Measured at 3e1f63f7a over the last 10 days of non-merge feat/fix/test commits: 59b74e06d=1300+39, 48cf25cff=733+55, 632024121=537+40, 825c37ee9=238+23, 7d8db911f=204+5, 973803c65=126, 64aa59e55=124. Observed single-milestone band 200-750 lines changed. All four milestones (380/510/280/160) sit inside that band. REFUTES THE DESIGN DOC's '1-2 days': the doc's estimate is downstream of a premise this plan disproves (StreamStep is not response-equivalent to Step), which adds a whole milestone (M3, 280 LOC) the doc does not know exists, plus a step.go restructure the doc's '~40-60 LOC' does not cover."
+  },
+  "baseline_findings": {
+    "go_build_all": "rc=1 AT BASE on unmodified dev at 3e1f63f7a. cmd/wasm and gen/main have no native main ('function main is undeclared in the main package'). STRUCTURAL - EXCLUDED as an acceptance gate. Confirms the controller's claim, verified first-party.",
+    "scoped_build_substitute": "go build ./internal/... ./cmd/ailang = rc=0 at base. ADOPTED in place of go build ./... in every milestone boundary.",
+    "measurement_methodology_warning": "rc was initially misread as 0 for `go build ./... | tail -5` because $? after a pipe is tail's status. NEVER measure a build/test rc through a pipe. Redirect to a file, then read $?. This is how the controller's (correct) rc=1 claim was almost 'refuted' by a broken instrument.",
+    "already_green_at_base": [
+      "go test ./internal/ai/ollama/... (rc=0; control: -count=1 -v yields 23 '--- PASS' lines, so the instrument reads)",
+      "go test ./internal/ai/openai/... (rc=0, 'ok ... 0.392s')",
+      "go vet ./internal/ai/... (rc=0)",
+      "gofmt -l internal/ai (0 files)",
+      "make check-file-sizes (rc=0; internal/ai/ollama/step.go = 447 lines, 800 gate has ~350 lines headroom)",
+      "make check-boundaries (rc=0)",
+      "make check-changelog (rc=0; '## [Unreleased]' exists at changelogs/v0.18-current.md:5)"
+    ],
+    "vacuously_green_gates": "Every `-run <NewTestName>` command in this plan returns rc=0 with ZERO '=== RUN' lines and '[no tests to run]' at base. An AC written as 'rc=0' would pass after a revert that DELETES the tests. Every named-test AC therefore carries a '=== RUN' count assertion in addition to rc=0.",
+    "correctly_red_at_base": "grep -c AILANG_OLLAMA_HTTP_TIMEOUT_SEC tools/launchd/dev.ailang.os-rotation-filler.plist tools/launchd/dev.ailang.nightly-eval.plist = 1 each (must reach 0). Anti-vacuity control in the same call: grep -c AILANG_OLLAMA on the same two plists = 1 each, CONTROL FIRES. grep -rc AILANG_OLLAMA_V1_STREAM tools/launchd/*.plist = 0 everywhere (must reach >=1 in both).",
+    "sandbox_posture": "This planning workspace was NOT socket-restricted: net.Listen(\"tcp\",\"127.0.0.1:0\") returned BIND OK, and all httptest-based baselines ran informative and green. REFINEMENT to the controller's note: internal/ai/ollama/step_test.go ALREADY uses httptest 12 times and streamstep_test.go 7 times, so if the executor sandbox denies loopback binds the PRE-EXISTING ollama suite is uninformative at base too - the UNINFORMATIVE UNDER SANDBOX label is a property of the package, not of the new tests. Never rewrite tests to dodge sandbox policy; report UNINFORMATIVE and let the controller re-run outside.",
+    "gpu_scope": "EXACTLY ONE step touches the GPU: M4 AC-M4.2 (the docx_reimplement end-to-end rig validation, doc S7). Every other acceptance criterion is unit-testable with httptest, io.Pipe, and the committed fixture. The controller must take the rig lock around AC-M4.2 and only AC-M4.2.",
+    "fixture_confirmed_done": "internal/ai/ollama/testdata/ollama_v1_stream_toolcall.sse exists at HEAD: 104 lines, 13,077 bytes, one-chunk tool call get_weather{\"city\":\"Paris\"}, finish_reason:\"tool_calls\", usage 294/80/374, exactly one [DONE]. The doc's M3 'capture a fixture' task is DONE and is NOT planned again."
+  },
+  "planner_corrections": [
+    "REFUTES THE DESIGN DOC (#1, decisive): the /v1 path is ALREADY bounded by an outer context deadline the doc never mentions. Step wraps the ENTIRE call in ollamaCallContext(ctx) at internal/ai/ollama/step.go:266 - context.WithTimeout(ctx, ollamaV1Timeout()), DEFAULT 300s - BEFORE the /v1 branch is reached at :283. The doc's Solution Design section 2 says the streaming client 'supplies Timeout: 0 (V12)'; that is necessary but NOT SUFFICIENT, because the 300s CONTEXT deadline survives and kills the stream anyway. The doc's own rollout makes this the default rig state: M4 mandatorily REMOVES the AILANG_OLLAMA_HTTP_TIMEOUT_SEC=1800 plist pin, leaving the var unset, at which point ollamaCallContext = 300s while the new hard deadline = 3600s, so the effective bound is 300s and the rig reproduces today's took=4m59.97 signature EXACTLY, with the flag on. FIX: M2 captures outerCtx := ctx before step.go:266 and derives the streaming branch from it; flag-off and native paths keep the 300s-bounded ctx byte-for-byte. GATED BY AC-M2.4.",
+    "REFUTES THE DESIGN DOC (#2, decisive): StreamStep is NOT response-equivalent to Step, and the difference is the exact failure mode this ollama line of work exists to fight. The doc asserts 'StreamStep returns the same *ai.Response shape as Step ... so logOllamaResponse and everything downstream is unchanged'. Same SHAPE, different SEMANTICS. (a) ParseChatStepSSEStream NEVER sets out.Reasoning, while buffered openai.Step does (openai/step.go:587-588 -> ai.Response{Reasoning: reasoning} at :633). (b) Far worse: buffered openai.Step runs a Hermes tool-call recovery at openai/step.go:610-616 - `if len(toolCalls)==0 { extractHermesToolCalls(text+\"\\n\"+reasoning) }` - whose own comment says it exists because 'Ollama's /v1 sometimes fails to lift [a <tool_call> block] into the tool_calls field for Qwen3 thinking models' and names what it prevents as 'the 0 tool calls / disengagement failure mode'. ParseChatStepSSEStream has NO such recovery AND discards the reasoning text where qwen3 puts the block. So the doc's swap silently deletes an ollama-qwen3-specific mitigation for motoko disengagement. The doc's S6 as written would NOT catch it (an implementer using a native-tool_calls response passes S6 green while the regression ships). FIX: new milestone M3 (280 LOC, not in the doc) + S6 strengthened into a three-case table including a Hermes-in-reasoning case.",
+    "CORRECTS THE DESIGN DOC (S9): the doc says go.uber.org/goleak is 'already in go.sum at v1.3.0'. TRUE but insufficient - goleak is NOT in go.mod and is imported nowhere in the repo, so using it requires a go.mod edit + go mod tidy, dragging Dependabot/CI surface in for one test. Use the doc's own stated alternative, the watchdog done-channel probe. Do NOT add goleak.",
+    "CONFIRMS THE CONTROLLER on every measured premise re-checked at 3e1f63f7a: go build ./... rc=1 at base and the scoped substitute rc=0; ollama + openai package tests rc=0 with a firing PASS control; go vet / check-file-sizes / check-boundaries / check-changelog rc=0; gofmt -l internal/ai = 0; step.go = 447 lines; v1.Step at step.go:309 with the client built at :293-296; ollamaV1Timeout() at :29-39 returning 0 for <=0; StreamStep at streamstep.go:42 and ParseChatStepSSEStream at :217 with bufio.NewScanner at :218; onChunk firing at exactly 4 sites (:255, :269, :281, :284) and never for tool_call deltas; handler.go:378 as the only non-test StreamStep caller passing context.Background(); the committed fixture's size, line count and contents.",
+    "PLANNER FINDING (not in the doc): transport construction is a real leak hazard. The RoundTripper needs a base *http.Transport carrying ResponseHeaderTimeout = TTFT window. http.DefaultTransport must NOT be mutated (process-global), and a fresh &http.Transport{} per call must NOT be used: a bare http.Transport{} has IdleConnTimeout: 0 = NO LIMIT, and the /v1 client is constructed per request at step.go:293, so a per-call transport accumulates idle connections forever across thousands of rig requests. Build the base transport ONCE via sync.Once, cloned from http.DefaultTransport (inheriting IdleConnTimeout 90s), and give each request only the cheap per-request wrapper.",
+    "PLANNER FINDING: AC-M2.4 (the REFUTATION #1 gate) CANNOT be a wall-clock test, and an executor who writes one has written a gate that never bites. Because Design Freeze #3 fixes the knob name, AILANG_OLLAMA_HTTP_TIMEOUT_SEC drives BOTH the legacy ollamaCallContext bound and the new hard deadline - so whenever the var is SET both clocks are equal and the bug is unobservable at any timescale. The clocks differ ONLY via their defaults (300s vs 3600s). The only fast discriminating observation is the effective deadline VALUE read back from streamCtx.Deadline() and emitted in the M2 debug log. Escalation E-3 in the plan offers the controller a second knob as the alternative; the plan keeps the doc's single knob per rule vii.",
+    "PLANNER FINDING: the hard deadline needs its OWN resolver; ollamaV1Timeout() must not be changed. TestOllamaV1Timeout (step_test.go:179-192) pins '0' -> 0 = disabled, and ollamaCallContext is also used by Generate (client.go:93) and the native /api/chat path. Changing ollamaV1Timeout()'s <=0 semantics or default would red an existing test AND change the native path's bound, violating 'default-off is byte-identical'.",
+    "RULE-VII ESCALATION E-1: the doc's onChunk: nil decision (High-Impact Decisions row 2 and Solution Design section 3) must be REVERSED to make M3 parity achievable. onChunk DOES fire for reasoning deltas (streamstep.go:281,284), and that is the ONLY seam by which the ollama package can recover Response.Reasoning - and therefore the Hermes block - WITHOUT modifying internal/ai/openai/streamstep.go, which the doc forbids. The doc's V14 establishes onChunk is nil-SAFE, i.e. nil is permitted, not required. Recommendation: adopt non-nil.",
+    "RULE-VII ESCALATION E-2: M3 exports extractHermesToolCalls (openai/step.go:657 -> openai.ExtractHermesToolCalls), touching internal/ai/openai/step.go. The doc's non-goal names internal/ai/openai/streamstep.go SPECIFICALLY, so this respects its letter; flagged so it is a decision and not a drive-by. 2 internal references to update (:616, hermes_test.go:38). The only alternative is duplicating the Hermes regex in the ollama package.",
+    "RULE-VII ESCALATION E-4 (bookkeeping): the doc's Rollout says v0.35.0 flips the default on 'only if the M3 rig validation held'. With milestones renumbered, that sentence now points at parity work. The gate the doc means is AC-M4.2 in this plan.",
+    "DOC ITEM ADOPTED UNCHANGED, with its own framing preserved: S1's honest rationale (the V-C3 narrowing). The tool-call-only starvation shape is HYPOTHETICAL - the probed qwen3.6 thinking turn fed onChunk 49/51 times and would NOT have starved a callback timer. AC-M2.5 pins the property that makes read-level placement correct BY CONSTRUCTION (V10, V23), and says so, rather than claiming to reproduce production traffic. Likewise S8's traffic shape is synthetic-by-design (the probe saw zero ':'-comment keep-alives)."
+  ],
+  "hard_constraints": {
+    "s8_ownership": "Doc S8 (the mandatory finite hard deadline, default 3600s via context.WithTimeout, NEVER http.Client.Timeout, with a configured 0 REJECTED via a typed error) is owned by M2 - the milestone that INTRODUCES the deadline - as AC-M2.2 and AC-M2.3. It is NOT deferred to a later milestone. It is the highest-risk requirement in the sprint.",
+    "default_off_ownership": "Doc S5 (default-off is byte-identical to today) is owned by M2 as AC-M2.1, with its own named mutation (R7 inverted: defaulting the flag on puts \"stream\":true on the wire). It is not a footnote of another criterion.",
+    "gpu_step": "M4 AC-M4.2 ONLY. Take the rig lock around that step and release it immediately after. If the docx run dies at ~300s with the env unset, that is REFUTATION #1 resurfacing - check AC-M2.4's logged effective deadline BEFORE concluding anything about the model.",
+    "rollout_ordering": "M4's rig opt-in MUST NOT happen before M3 lands. Between M2 and M3 the flag-on path has a known parity gap (Reasoning + Hermes recovery). M2 is still independently landable because the flag is default-off and no default behaviour changes - but turning it on early ships the regression.",
+    "refusal_mutation_form": "Every refusal branch gets exactly ONE neutering mutation of the form `if false && <cond>` - NEVER a deleted block. A mutant that fails to COMPILE reds for the wrong reason and tells you nothing. Register R1-R10 is in section 3 of the sprint plan.",
+    "out_of_scope_do_not_implement": "internal/ai/handler.go:378 (the pre-existing unbounded StreamStep consumer with context.Background()) - the doc names it deliberately out of scope; the backstop lives in the ollama package's transport and must NOT cover handler.go. Do not silently change it; file a follow-up issue instead. Also: no internal/ai/openai/streamstep.go SOURCE changes (two-consumer blast radius, V11); no change to ollamaV1Timeout()/ollamaCallContext() semantics; no change to the native /api/chat path; no re-capture of the wire fixture; no go.uber.org/goleak in go.mod.",
+    "file_size_guard": "step.go is 447 lines at base and M2 adds ~180 (~630). If it crosses the 800-line gate, SPLIT the streaming branch into internal/ai/ollama/streamstep.go. Never trim an acceptance gate to fit under a size limit.",
+    "docs_are_not_a_gate": "Documentation and changelog updates are MILESTONE BOUNDARY work, deliberately NOT acceptance criteria - they pass identically whether or not the feature works. Required at the M4 boundary: the three env knobs plus the changed AILANG_OLLAMA_HTTP_TIMEOUT_SEC semantics in .claude/rules/dev-workflow.md and docs/docs/guides/debugging.md, and a '## [Unreleased]' entry in changelogs/v0.18-current.md.",
+    "sandbox_rule": "Any 'bind: operation not permitted' or loopback denial is UNINFORMATIVE UNDER SANDBOX. Never report as pass or fail. Socket-bearing ACs: AC-M2.1, AC-M2.2, AC-M2.3, AC-M2.4, AC-M2.5, AC-M2.6, AC-M2.7, AC-M2.8, AC-M3.1, AC-M3.2, AC-M3.3. Non-socket ACs (io.Pipe / pure fixture): AC-M1.1 through AC-M1.5, AC-M4.1. Do not rewrite tests to work around sandbox policy.",
+    "commit_policy": "One bisectable commit per milestone; go test -count=1 ./internal/ai/... must pass at every milestone boundary. The controller commits and reviews - the planner created no branches, worktrees or commits, and did not modify the design doc."
+  },
+  "features": [
+    {
+      "id": "M1_IDLE_TTFT_READER_AND_TRANSPORT",
+      "description": "New internal/ai/ollama/idlereader.go + idlereader_test.go. A deadline-resetting io.ReadCloser (NOT a bare Reader - StreamStep's `defer httpResp.Body.Close()` at streamstep.go:100 is what stops the watchdog; a bare Reader loses the underlying Close and leaves the timer armed). First-Read deadline = TTFT window; every Read returning n>0 resets to the idle window. A blocked Read cannot interrupt itself, so the watchdog calls a supplied context.CancelFunc and the transport fails the pending Read. Which-window-fired is recorded via an atomic CAS (first writer wins) so the surfaced error is typed. Close() stops the timer/goroutine THEN closes the underlying body, idempotent. Typed sentinels distinguishable by errors.Is: ErrTTFTTimeout, ErrIdleTimeout, ErrStreamDeadlineExceeded, ErrStreamDeadlineInvalid. A RoundTripper that wraps resp.Body. Three resolvers: AILANG_OLLAMA_IDLE_TIMEOUT_SEC (default 120), AILANG_OLLAMA_TTFT_TIMEOUT_SEC (default 600), and a SEPARATE ollamaStreamHardDeadline() reading AILANG_OLLAMA_HTTP_TIMEOUT_SEC with default 3600 and <=0 REJECTED. ollamaV1Timeout() is NOT touched. Base transport built ONCE via sync.Once, cloned from http.DefaultTransport, carrying ResponseHeaderTimeout = TTFT window - never mutate DefaultTransport, never a fresh &http.Transport{} per call (IdleConnTimeout 0 = no limit = fd leak). ZERO call sites are added, so runtime behaviour is unchanged by construction.",
+      "estimated_loc": 380,
+      "dependencies": [],
+      "closes_doc_acceptance_criteria": [
+        "S9",
+        "S2 (reader-level mechanics)",
+        "S3 (reader-level mechanics)"
+      ],
+      "design_doc_lines": "479-487",
+      "gpu_required": false,
+      "acceptance_criteria": [
+        "AC-M1.1 (doc S2 mechanics; mutation R2): `go test -count=1 -v ./internal/ai/ollama -run TestIdleReader` - an io.Pipe case writes 3 chunks then goes silent; Read must return an error satisfying errors.Is(err, ErrIdleTimeout) within idle+slack (test windows <=200ms via direct struct construction, not env). BASE AT 3e1f63f7a: rc=0, '=== RUN' count 0, '[no tests to run]' - VACUOUSLY GREEN. Pass requires rc=0 AND '=== RUN' >= 6 AND a '--- PASS' per named subtest. RED UNDER mutation R2 (`if false && elapsed > r.idle {`): the watchdog never fires and the test blocks to the Go test timeout.",
+        "AC-M1.2 (doc S3 mechanics; mutation R1): pre-first-byte silence longer than the idle window but shorter than the TTFT window, then data => the read COMPLETES; and pre-first-byte silence longer than the TTFT window => errors.Is(err, ErrTTFTTimeout). BASE: new by construction. RED UNDER mutation R1 (`if false && r.firstRead && elapsed > r.ttft {`) - the second half returns no error; and separately red under collapsing to one window (r.ttft = r.idle) - the first half false-trips.",
+        "AC-M1.3 (which-window-fired is preserved): three cases assert three DISTINCT sentinels - ErrTTFTTimeout, ErrIdleTimeout, ErrStreamDeadlineExceeded - using errors.Is, PLUS pairwise NON-equality assertions (e.g. !errors.Is(idleErr, ErrTTFTTimeout)), so returning one generic error for all three cannot pass. BASE: new by construction. RED UNDER: returning a single generic error - the non-equality assertions fail.",
+        "AC-M1.4 (doc S9, leak-free Close; mutation R6): after a fully-consumed happy-path stream, Close() (a) closes the watchdog's done-channel within 100ms, (b) calls the underlying body's Close EXACTLY ONCE (counting io.ReadCloser stub), (c) a second Close() is a no-op that does not increment the count. CORRECTION TO THE DOC: goleak is in go.sum v1.3.0 but NOT in go.mod and is imported nowhere - use the doc's own stated alternative, the watchdog done-channel probe; do NOT add goleak. BASE: new by construction. RED UNDER mutation R6 (`if false && r.stopped.CompareAndSwap(false, true) {`): the done-channel never closes and (a) fails.",
+        "AC-M1.5 (config rejection at resolver level; mutation R5): table test on ollamaStreamHardDeadline() - unset => 3600s; \"7200\" => 7200s; \"0\" => ErrStreamDeadlineInvalid; \"-1\" => ErrStreamDeadlineInvalid. PLUS the non-regression half: TestOllamaV1Timeout passes UNMODIFIED, still asserting \"0\" => 0 for the legacy resolver. BASE: TestOllamaV1Timeout green (part of the 23-PASS control); the new table is new by construction. RED UNDER mutation R5 (`if false && n <= 0 { return 0, errStreamDeadlineInvalid }`) - the \"0\"/\"-1\" rows get 0 or 3600 instead of an error; and in the other direction, changing ollamaV1Timeout() to reject 0 reds TestOllamaV1Timeout.",
+        "MILESTONE BOUNDARY (all rc=0 at base, must remain rc=0): `go build ./internal/... ./cmd/ailang`; `go test -count=1 ./internal/ai/ollama`; `go vet ./internal/ai/...`; `gofmt -l internal/ai` => 0 files; `make check-file-sizes`."
+      ],
+      "files": [
+        "internal/ai/ollama/idlereader.go (new)",
+        "internal/ai/ollama/idlereader_test.go (new)"
+      ],
+      "risks": [
+        "A bare io.Reader instead of io.ReadCloser loses the underlying Close and leaves the watchdog armed - AC-M1.4(b) asserts the underlying Close was called exactly once",
+        "Per-call &http.Transport{} has IdleConnTimeout 0 = no limit; the /v1 client is built per request (step.go:293) so idle conns accumulate forever - build the base transport once via sync.Once, cloned from http.DefaultTransport",
+        "Mutating http.DefaultTransport to set ResponseHeaderTimeout is a process-global change - explicitly forbidden; clone, never mutate"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_FLAG_GATED_STREAMING_BRANCH_AND_HARD_DEADLINE",
+      "description": "internal/ai/ollama/step.go + step_test.go. (1) Capture outerCtx := ctx at step.go:265, BEFORE `ctx, cancel := ollamaCallContext(ctx)` at :266 - this is REFUTATION #1's fix; the flag-off branch and the native path keep using the 300s-bounded ctx byte-for-byte. (2) Streaming branch under os.Getenv(\"AILANG_OLLAMA_V1_STREAM\")==\"1\": streamCtx, cancel, cfgErr := streamCallContext(outerCtx), which resolves ollamaStreamHardDeadline() and returns cfgErr BEFORE any HTTP request is made on <=0, otherwise context.WithTimeout(outerCtx, hard). (3) openai.NewClient(... WithHTTPClient(&http.Client{Timeout: 0, Transport: idleTransport(streamCancel)})) - Timeout 0 per V12, the bound is the context. (4) v1.StreamStep(streamCtx, &r2, onChunk) - onChunk is NOT nil (escalation E-1); in M2 it is a byte/delta counter for the debug log, and M3 gives it the parity job. (5) Error mapping with EXPLICIT precedence: (a) a fired window recorded by the wrapper's atomic CAS wins; (b) else streamCtx.Err()==context.DeadlineExceeded => ErrStreamDeadlineExceeded; (c) else classify normally. Precedence must be explicit because the idle timer can race the hard deadline. (6) Per-request debug logging of max inter-chunk gap, TTFT, total duration, AND the EFFECTIVE hard deadline read back from streamCtx.Deadline() (read back, never the configured value) - that last field is what makes AC-M2.4 possible.",
+      "estimated_loc": 510,
+      "dependencies": [
+        "M1_IDLE_TTFT_READER_AND_TRANSPORT"
+      ],
+      "closes_doc_acceptance_criteria": [
+        "S8",
+        "S5",
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "design_doc_lines": "489-497",
+      "gpu_required": false,
+      "acceptance_criteria": [
+        "AC-M2.1 (doc S5 - DEFAULT-OFF IS BYTE-IDENTICAL; mutation R7 inverted): with AILANG_OLLAMA_V1_STREAM UNSET, a fake /v1 server captures the raw request body and headers and asserts NO \"stream\":true, NO \"stream_options\", and Accept is NOT text/event-stream. Additionally `go test -count=1 -v ./internal/ai/ollama -run 'TestStep_ToolsViaOpenAICompat$|TestStep_ToolsViaOpenAICompat_TimesOut|TestOllamaV1Timeout'` passes with those test bodies UNMODIFIED - rc=0 AND '=== RUN' >= 3 AND three '--- PASS' lines. BASE: those three are green today (part of the 23-PASS control); the byte-identity test is new by construction. RED UNDER defaulting the flag on (e.g. `!= \"0\"` instead of `== \"1\"`) - \"stream\":true appears on the wire; also red under any drive-by edit to the non-flag branch. SOCKET-BEARING => UNINFORMATIVE UNDER SANDBOX if the listener is denied.",
+        "AC-M2.2 (doc S8 - MANDATORY KEEP-ALIVE-FOREVER BOUND; mutation R4): a fake SSE server writes ': keep-alive\\n' every 20ms FOREVER (bytes flowing, never a parseable chunk - the V15/V16 shape). Test config: idle window 500ms, hard deadline 2s - emission interval well under the idle window so the idle timer is genuinely reset and provably never fires, and hard deadline well above it so the terminating error provably comes from the deadline. The call must return errors.Is(err, ErrStreamDeadlineExceeded) within 2s + 1s slack, AND the test asserts !errors.Is(err, ErrIdleTimeout). BASE: new by construction; '=== RUN' >= 1 required. RED UNDER mutation R4 (`if false && hard > 0 { ctx, cancel = context.WithTimeout(outer, hard) }`) - keep-alive bytes reset the idle timer indefinitely and the test blocks to the Go test timeout. This is the highest-risk requirement in the sprint and it is owned by the milestone that introduces the deadline. Traffic shape is synthetic-by-design: ollama emitted zero ':'-comment keep-alives on the probe (V22); this proves the defensive bound against malformed/hostile servers.",
+        "AC-M2.3 (doc S8 second half - a configured 0 is REJECTED, not disabled; mutation R5): with the flag ON and AILANG_OLLAMA_HTTP_TIMEOUT_SEC=0, Step returns an error satisfying errors.Is(err, ErrStreamDeadlineInvalid) AND the fake server's request counter is EXACTLY 0 - the refusal happens at client construction, before any request leaves. Repeat for \"-1\". Then the mirror case: with the flag OFF and the same \"0\", ollamaV1Timeout() still returns 0 and the legacy path still works (the documented semantics split). BASE: new by construction. RED UNDER mutation R5 - the client is built unbounded, the request goes out, the counter hits 1, and no typed error is returned. The request-counter assertion is what stops a 'returns an error eventually' implementation passing.",
+        "AC-M2.4 (REFUTATION #1 GATE - the outer 300s deadline must not survive): with the flag ON and AILANG_OLLAMA_HTTP_TIMEOUT_SEC UNSET, a trivially-completing fake SSE server, and the per-request debug log enabled, the logged EFFECTIVE hard deadline (read back from streamCtx.Deadline()) must be >= 3500s. WHY THIS SHAPE AND NOT A WALL-CLOCK TEST: the legacy ollamaCallContext bound and the new hard deadline read the SAME env var (Design Freeze #3 fixes the knob name), so whenever the var is SET both clocks are equal and the bug is unobservable at any timescale; the clocks differ ONLY via their defaults (300s vs 3600s), so the only fast discriminating observation is the deadline value itself. A drip-and-wait test CANNOT bite here - do not write one and call it a gate. BASE: new by construction. RED UNDER deriving the streaming branch from the ollamaCallContext-bounded ctx instead of outerCtx - the logged effective deadline reads ~300s and the assertion fails. That is the literal state the design doc as written produces.",
+        "AC-M2.5 (doc S1 - tool-call-only starvation gate; mutation R3): a fake SSE server emits ONLY tool_calls fragments - no content, no reasoning - one fragment per 300ms for ~2s with the idle window set to 1s, then finish_reason:\"tool_calls\" and [DONE]. The call must COMPLETE with correctly assembled ToolCalls (name + concatenated arguments). HONEST FRAMING per the doc's V-C3 narrowing: this is a HYPOTHETICAL shape (the probed qwen3.6 thinking turn fed onChunk 49/51 times), pinning the property that makes read-level placement correct BY CONSTRUCTION (V10: no tool-call fire site; V23: content:\"\" fires nothing). BASE: new by construction. RED UNDER mutation R3 (`if false && n > 0 { r.reset() }`) - the idle deadline stops resetting on bytes, so a ~2s tool-call-only stream trips the 1s idle window and returns ErrIdleTimeout instead of completing. Equivalently red under moving the reset to the onChunk callback: no callback ever fires for tool-call deltas, so the timer starves.",
+        "AC-M2.6 (doc S2 at branch level; mutation R2): fake server sends 3 content chunks then goes silent forever; idle window 500ms; the call returns errors.Is(err, ErrIdleTimeout) within 500ms + 1s slack. RED UNDER mutation R2 - blocks to the Go test timeout.",
+        "AC-M2.7 (doc S3 at branch level; mutation R1): fake server sends headers immediately, delays the first BODY byte by 900ms (> idle window 500ms, < TTFT window 3s), then streams normally => COMPLETES. RED UNDER collapsing to a single window (idle armed from t=0) - false-trips with ErrIdleTimeout; the TTFT half is red under mutation R1.",
+        "AC-M2.8 (doc S4 - long-but-progressing beats the old client timeout): with AILANG_OLLAMA_HTTP_TIMEOUT_SEC=4 and the flag on, a fake server drips one content chunk every 200ms for 2.5s then finishes => COMPLETES, with Response.Text equal to the concatenation. RED UNDER the V12 trap in pure form: setting `Timeout: 1 * time.Second` on the streaming branch's http.Client - the client timer interrupts the body read mid-stream and the test fails. NOTE: this AC does NOT cover REFUTATION #1; AC-M2.4 does. Keep them separate.",
+        "MILESTONE BOUNDARY (all rc=0 at base, must remain rc=0): `go build ./internal/... ./cmd/ailang`; `go test -count=1 ./internal/ai/ollama ./internal/ai/openai`; `go vet ./internal/ai/...`; `gofmt -l internal/ai` => 0; `make check-file-sizes` (step.go 447 + ~180 ~= 630, under 800 - if it crosses, SPLIT into internal/ai/ollama/streamstep.go, never trim a gate). The flag-off diff must be reviewable as indentation-only plus the two-line outerCtx capture."
+      ],
+      "files": [
+        "internal/ai/ollama/step.go",
+        "internal/ai/ollama/step_test.go"
+      ],
+      "risks": [
+        "REFUTATION #1 ships unnoticed and the feature is inert at 300s on the rig - AC-M2.4 is the gate; a wall-clock test cannot bite (see the AC's rationale)",
+        "Race between hard-deadline expiry and the idle timer yields the wrong typed error - explicit precedence + atomic CAS first-writer-wins; AC-M2.2 asserts !errors.Is(err, ErrIdleTimeout)",
+        "An implementer sets Timeout: ollamaV1Timeout() on the streaming client (the V12 trap) - AC-M2.8 is the gate",
+        "step.go crosses the 800-line gate - split into a new file, never trim an acceptance gate to fit"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_RESPONSE_PARITY_REASONING_AND_HERMES_RECOVERY",
+      "description": "NOT IN THE DESIGN DOC - this milestone exists because REFUTATION #2 shows the doc's 'everything downstream is unchanged' premise is false, and what it silently deletes is the ollama-qwen3 mitigation for motoko's dominant disengagement mode. (1) Export extractHermesToolCalls -> openai.ExtractHermesToolCalls(s string) []ai.ToolCall (rename at internal/ai/openai/step.go:657; update the two references at :616 and hermes_test.go:38). This touches openai/step.go, NOT streamstep.go, so the doc's non-goal is respected to the letter - escalation E-2 flags it as a decision. (2) In the ollama streaming branch, pass an onChunk that accumulates ai.StreamThinkingDelta.Text into a strings.Builder; onChunk DOES fire for reasoning deltas (streamstep.go:281,284) and is the ONLY seam that makes parity achievable without touching streamstep.go - escalation E-1. (3) After StreamStep returns, set resp.Reasoning from the accumulator, then `if len(resp.ToolCalls) == 0 { if rec := openai.ExtractHermesToolCalls(resp.Text + \"\\n\" + resp.Reasoning); len(rec) > 0 { resp.ToolCalls = rec; resp.FinishReason = \"tool_calls\" } }` - mirroring openai/step.go:610-616 exactly.",
+      "estimated_loc": 280,
+      "dependencies": [
+        "M1_IDLE_TTFT_READER_AND_TRANSPORT",
+        "M2_FLAG_GATED_STREAMING_BRANCH_AND_HARD_DEADLINE"
+      ],
+      "closes_doc_acceptance_criteria": [
+        "S6 (strengthened)"
+      ],
+      "design_doc_lines": "n/a - milestone added by the planner; see sprint plan section 0.3 and escalations E-1/E-2",
+      "gpu_required": false,
+      "acceptance_criteria": [
+        "AC-M3.1 (Hermes recovery parity; mutation R8): a fake SSE server streams a turn with ZERO native tool_calls and a `<tool_call>{\"name\":\"write_file\",\"arguments\":{\"path\":\"a.ail\"}}</tool_call>` block delivered across delta.reasoning chunks. Flag on. Assert len(resp.ToolCalls)==1, Name==\"write_file\", arguments parse to the expected object, FinishReason==\"tool_calls\". ANTI-VACUITY CONTROL IN THE SAME TEST: the identical logical response served through the FLAG-OFF buffered path must ALSO yield exactly 1 tool call - proving the criterion measures a PARITY GAP and not a property neither path has. BASE: the streamed half cannot run (no branch); the buffered control is green today. RED UNDER mutation R8 (`if false && len(resp.ToolCalls) == 0 {`) - the streamed half returns 0 tool calls and FinishReason stays \"stop\" while the buffered control still returns 1. That divergence is exactly the shipped regression this milestone prevents.",
+        "AC-M3.2 (Reasoning parity; mutation R9): the same content served buffered vs streamed - resp.Reasoning is NON-EMPTY and byte-identical across both. BASE: new by construction. RED UNDER mutation R9 (`if false && d.Text != \"\" { rb.WriteString(d.Text) }`) - streamed Reasoning is \"\" while buffered is not.",
+        "AC-M3.3 (doc S6, STRENGTHENED - streamed == buffered): a THREE-CASE table, each case served once buffered and once as SSE, asserting Text, ToolCalls (ORDER, IDs, assembled arguments), FinishReason AND Reasoning are identical: (a) native single tool_calls chunk (the committed-fixture shape); (b) tool_calls FRAGMENTED across 3 chunks (mirrors streamstep_test.go:109); (c) Hermes block in reasoning with zero native tool calls - case (c) is what the doc's S6 as written would have missed. BASE: new by construction; '=== RUN' >= 3 subtests required. RED UNDER mutation R8 (case c), R9 (the Reasoning column, all cases), or R10 on streamstep.go:299 (case b's assembled arguments).",
+        "MILESTONE BOUNDARY (all rc=0 at base, must remain rc=0): `go build ./internal/... ./cmd/ailang`; `go test -count=1 ./internal/ai/ollama ./internal/ai/openai` (the export rename must leave hermes_test.go green); `go vet ./internal/ai/...`; `gofmt -l internal/ai` => 0; `make check-boundaries`."
+      ],
+      "files": [
+        "internal/ai/openai/step.go",
+        "internal/ai/openai/hermes_test.go",
+        "internal/ai/ollama/step.go",
+        "internal/ai/ollama/step_test.go"
+      ],
+      "risks": [
+        "Executor skips this milestone as 'not in the design doc' and ships the disengagement regression - the hard_constraints rollout_ordering entry makes M3 a hard dependency of M4's rig opt-in",
+        "Escalations E-1 (non-nil onChunk) and E-2 (exporting the extractor) are unresolved when the executor starts - the controller must rule before M3 begins",
+        "A naive S6 implementation using only native-tool_calls responses passes green while the regression ships - AC-M3.3 case (c) and AC-M3.1's buffered control both exist to stop exactly that"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_FIXTURE_REPLAY_RIG_VALIDATION_STOPGAP_REMOVAL_AND_DOCS",
+      "description": "GPU MILESTONE (AC-M4.2 only). Write the fixture-replay regression test through ParseChatStepSSEStream in internal/ai/openai/streamstep_test.go (coverage only, NO source change) against the ALREADY-COMMITTED real wire bytes at internal/ai/ollama/testdata/ollama_v1_stream_toolcall.sse - the doc's capture task is DONE and is not re-planned. Flip both rig plists to AILANG_OLLAMA_V1_STREAM=1, REMOVING the AILANG_OLLAMA_HTTP_TIMEOUT_SEC=1800 stopgap pin in the same edit (mandatory, not tidy-up: flag-on that same var BECOMES the hard deadline, and 1800s sits BELOW the doc's computed worst-case legitimate request of ~2941s, which would re-create the 4m59.97 failure at a larger scale). Run docx_reimplement end-to-end under the rig lock and record the observed TTFT / max-gap distributions against the freeze defaults in the PR description - these are the named falsifiers for Design Freeze #1/#2/#3. Boundary work (NOT acceptance criteria): add the three env knobs plus the changed AILANG_OLLAMA_HTTP_TIMEOUT_SEC semantics to the debug-flags table in .claude/rules/dev-workflow.md and docs/docs/guides/debugging.md, and a '## [Unreleased]' entry in changelogs/v0.18-current.md (the section exists at line 5).",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M1_IDLE_TTFT_READER_AND_TRANSPORT",
+        "M2_FLAG_GATED_STREAMING_BRANCH_AND_HARD_DEADLINE",
+        "M3_RESPONSE_PARITY_REASONING_AND_HERMES_RECOVERY"
+      ],
+      "closes_doc_acceptance_criteria": [
+        "S7"
+      ],
+      "design_doc_lines": "499-509",
+      "gpu_required": true,
+      "acceptance_criteria": [
+        "AC-M4.1 (fixture replay - regression pin on today's ollama wire shape; mutation R10): `go test -count=1 -v ./internal/ai/openai -run TestParseChatStepSSEStream_OllamaV1Fixture` reads internal/ai/ollama/testdata/ollama_v1_stream_toolcall.sse through ParseChatStepSSEStream and asserts, from the fixture's MEASURED contents: exactly 1 tool call, Name==\"get_weather\", Arguments JSON-equal to {\"city\":\"Paris\"}, FinishReason mapped from \"tool_calls\", usage InputTokens 294 / OutputTokens 80 / TotalTokens 374. Do NOT move the committed fixture. BASE AT 3e1f63f7a: rc=0, '=== RUN' 0, '[no tests to run]' - VACUOUSLY GREEN. Pass requires rc=0 AND '=== RUN' >= 1 AND '--- PASS'. RED UNDER mutation R10 (`if false && tcFrag.Function.Arguments != \"\" {` at streamstep.go:299) - arguments collapse to {} and the assertion fails, proving the test exercises the assembly path rather than just parsing. R10 is a VERIFICATION-ONLY mutation; revert it.",
+        "AC-M4.2 (doc S7 - FIELD VALIDATION; GPU - THE CONTROLLER MUST TAKE THE RIG LOCK AROUND THIS STEP AND ONLY THIS STEP): with AILANG_OLLAMA_V1_STREAM=1, docx_reimplement produces an end-to-end X/17 GRADE (a number, not a 'context deadline exceeded' abort), and the per-request debug log records, FOR EVERY REQUEST, max inter-chunk gap, TTFT, total duration, and the effective hard deadline. Record the observed TTFT and max-gap distributions against the freeze defaults (120s idle / 600s TTFT / 3600s hard) in the PR description. RED UNDER: any idle/TTFT false trip on a progressing run, or a run lost to 'context deadline exceeded' at a step boundary. IF THE RUN DIES AT ~300s WITH THE ENV UNSET, that is REFUTATION #1 resurfacing - check AC-M2.4's logged effective deadline BEFORE concluding anything about the model.",
+        "AC-M4.3 (stopgap removal is mandatory, not tidy-up): `grep -c AILANG_OLLAMA_HTTP_TIMEOUT_SEC tools/launchd/dev.ailang.os-rotation-filler.plist tools/launchd/dev.ailang.nightly-eval.plist` => 0 for both (BASE: 1 each - CORRECTLY RED AT BASE), and `grep -c AILANG_OLLAMA_V1_STREAM` on both => >= 1 (BASE: 0 everywhere). ANTI-VACUITY CONTROL in the same call: `grep -c AILANG_OLLAMA` on both plists => >= 1 (BASE: 1 each - THE CONTROL FIRES, so a zero above is a measurement and not a broken path). RED UNDER leaving either pin in place.",
+        "MILESTONE BOUNDARY (not acceptance criteria - these gate the repo, not the feature; all rc=0 at base, must remain rc=0): `go build ./internal/... ./cmd/ailang`; `go test -count=1 ./internal/ai/...`; `go vet ./internal/ai/...`; `gofmt -l internal/ai` => 0; `make check-file-sizes`; `make check-boundaries`; `make check-changelog`. Docs + changelog are required here and are DELIBERATELY NOT acceptance criteria - 'docs updated' passes identically whether or not the feature works."
+      ],
+      "files": [
+        "internal/ai/openai/streamstep_test.go",
+        "tools/launchd/dev.ailang.os-rotation-filler.plist",
+        "tools/launchd/dev.ailang.nightly-eval.plist",
+        ".claude/rules/dev-workflow.md",
+        "docs/docs/guides/debugging.md",
+        "changelogs/v0.18-current.md"
+      ],
+      "risks": [
+        "Rig lock held longer than the docx run needs - take it around AC-M4.2 only and release immediately after",
+        "The rig opt-in happens before M3 lands, shipping the parity regression - M3 is a hard dependency",
+        "Leaving the 1800s pin turns the stopgap into a hard deadline BELOW the ~2941s computed worst case, re-creating the failure at a larger scale - AC-M4.3 is the gate",
+        "M4 gets compressed by dropping AC-M4.2 - it is the ONLY field falsifier for all three freeze defaults; do not drop it"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
