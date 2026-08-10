@@ -8532,3 +8532,71 @@ The generalisation is worth more than the instance, and it is not the shape you 
 **Gate 5 — one skill edit** (Standing rule 7, above). Not taken this iteration and named as such: the two remaining friction candidates (the `#559` comment count nearing 80; `V34`'s truncated sweep) are bookkeeping and a doc fix respectively, both already handled in place.
 
 **Next**: **Lane B1 of `m-property-generator-coverage` remains the queue head** and is now scope-corrected — the next fire will be the **first to run with both fixes live**, and it should route B1 to the planner *without ending its turn*. Not done here, and stated plainly: B1 itself was not routed. The doc's scope update had to land first, and two consecutive slots have now died at exactly the moment a background planner was spawned; routing a third before the fix was live would have been the same bet a third time. Parked on Mark: `D-1` (`#613`), `D-2` (`#604`), `D-3` (rig-hook edits), `D-4` (`de50f203a` unpushed, now four iterations old), `D-5` — **root cause found and fixed; what remains for Mark is only whether the fix worked**, which the next two fires answer on their own.
+
+---
+
+## 171 — 2026-08-10 — Iteration 168: **Lane B1 is routed at last and M1 is landed — but the two sharpest findings both came from sub-agents refuting the controller, and the slot's most valuable output was an incident: a killed executor kept running and overwrote a verified tree.**
+
+**Pick**: Lane B1 of `m-property-generator-coverage` (`#517`) — the queue head for three iterations, blocked twice by dead slots. Quorum artifact present (2026-07-29; both objections landed exclusively on the deferred B2), so no re-quorum.
+
+**Outcome**: **M1 LANDED** via PR [#637](https://github.com/sunholo-data/ailang/pull/637) — `internal/testing/value_splice.go` (92 lines, arms for Unit/Record/Tuple/Tagged), `value_splice_test.go` (216 lines), `runner.go` 749→710, changelog. Evaluator **sonnet 82/100 PASS**, one blocking-caliber finding closed in-PR. Also landed: the 6-milestone Lane B1 sprint plan with a controller correction to M2.
+
+**Routing evidence**: controller `claude-opus-5` · designer **NOT fired** (doc exists and is quorum-cleared; rotation pointer unchanged, next `claude:claude-fable-5`) · planner **opus** via the Agent tool, `derive-planner-lane.sh` → `opus fail-closed:env-pin` so **no codex probe fired for the planner role** · executor `pi:openrouter/deepseek/deepseek-v4-flash-0731` (two runs) · evaluator **sonnet**. generator≠judge holds across all three. `metered=$0.040` against the $5 ceiling ($0.0184 first run + $0.0215 second + probe).
+
+### The planner refuted nine premises; I re-verified eight first-party and three change the sprint
+
+1. **Three generator call sites, not two.** `runEnsuresProperty` lives in `contract_domain.go:74` — the file every ensures-derived property flows through, and the one the design doc's Lane B file list omits entirely. My own spawn directive had asserted two under a VERIFIED-BY-ME heading. Gate 2's rule (d) working exactly as written.
+2. **`RecordGenerator.Generate` is nondeterministic** (`generator_advanced.go:203-212`): it ranges a Go map while drawing from the RNG, so a fixed seed does not reproduce a counterexample. That refutes the design doc's own A1=0 determinism score and is a live defect in the layer B1 builds on. Mandatory fix in M3.
+3. **B1 fixes zero properties in either prompt-injection safety demo.** `inbox_v2_app.ail:24` imports its `Mail` type (cross-module named types stay honest vacuous skips in v1); `inbox_injection_v2.ail` is all refined `string<email>`. The doc's success metric — "the five silent-shape files run their skipped properties" — is **false for two of the five**. That framing propagates upward, so it is recorded rather than quietly dropped.
+
+Also confirmed: `matchPattern` compares CtorName+arity only (the plan's original B-3 mutation would have killed nothing), `isTag` has zero non-test callers, `MaxSize=100`, `ast.TypeAlias` exists, unit is `SimpleType{Name:"()"}`, and both contract paths do `gen, _ :=` so derived shrinkers are unreachable rather than merely unvalidated.
+
+### M2 as planned is not executable — and the first executor run is what proved it
+
+The first `pi` run, directed at M1+M2, spent 17 turns and 200 MB of NDJSON deliberating in circles ("I keep hitting the same wall") and wrote zero code. The cause is real: `N-2…N-5` pin call-site refusal branches **nothing can reach at M2**. The only generators reachable from `createGeneratorForType` are the five scalar/list arms, all yielding kinds M1 makes spliceable, and `Runner` has no seam to inject an unspliceable value. Verified first-party before acting.
+
+It is **not** a "wait for M3" problem: M3/M4 derive exactly the kinds M1 gives arms to, so the branch stays defensive forever — precisely the guard rule 3j says rots. **Decision: M2 gains a test seam**, recorded in the plan, re-estimated 60/130 → 90/160 LOC.
+
+The re-scoped M1-only run delivered in 26 turns / $0.021. The difference was an explicit clause: *if you get stuck, write it in `FINDINGS.md` and move on — the controller makes design decisions, you implement mechanical ones.* pi-lane datapoint 3, and the documented caveat holds: prescriptive directives suit it, judgment calls do not.
+
+### The evaluator found a guard nothing was protecting — and reproducing it narrowed the finding
+
+It reported three splice arms vacuous on value content, scoping each with `-run`. Scoped, true. At **suite** level only one genuinely was: record and tuple values are covered by `TestValueToLiteral_Nested`, while **tagged n-ary argument values were unprotected** — a constant-999 mutant BUILDS rc=0 and the entire `internal/testing` suite stayed rc=0, so a constructor could be spliced with entirely wrong arguments and nothing noticed. That is the arm the whole lane exists for.
+
+A decorative **row** is not an unprotected **file** (rule 3i), and the distinction is the finding. Closed in-PR (`161c8f511`), proven sole killer by the inverse arm.
+
+The evaluator also attacked my own M2 correction as instructed and found it **overstated for one of four**: `N-5` (`shrinkCounterexample`) takes its values as plain parameters and *is* reachable today with no production change — it built a `probeShrinker` and hit the default arm. Deferral stands for the other three; the overclaim is corrected.
+
+### Mutation drill (controller-run, every mutant asserted to BUILD first)
+
+| Mutant | Builds | Killed by | Inverse arm |
+|---|---|---|---|
+| record fields sorted in reverse | rc=0 | `_RecordValue`, `_RecordFieldOrderSorted` | rest of suite rc=0 |
+| `if false && len(v.Fields)==0` | rc=0 | `_TaggedValue_Nullary` | rest of suite rc=0 |
+| tagged n-ary args → 999 | rc=0 | `_TaggedValue_Nary` (added) | rest of suite rc=0 |
+
+⚠ My **first** sorted-order mutant deleted `sort.Strings` and failed to compile on `"sort" imported and not used` — the exact class this skill names, caught by the BUILDS assertion rather than by luck. Two later value-content mutants died the same way on an unused loop variable and were re-run with `_ = field`.
+
+### The incident: a killed executor kept running and overwrote a verified tree
+
+After `pkill` reported success and `git status` read clean, M2-shaped edits (error threading, `StatusFail`, `contract_domain.go`) appeared **over the M1 files, mid-evaluation**. The evaluator noticed the tree changing under it and correctly switched to read-only `git archive` exports into `/tmp`. Nothing was lost — the commit already existed — the delta is preserved at `/tmp/iter168_orphan_delta`, and the tree was restored to the verified content (sha256 `8d58671b…`) before the PR.
+
+Two instrument lessons: **`pkill` reporting success is not proof a process is dead**, and my liveness poll `pgrep -f "deepseek-v4-flash-0731"` was matching **my own polling shells** — the `pgrep -f` false-positive class already recorded for `claude-fable-5`, hit again in a new costume. Two of my three bounded waits were measuring nothing.
+
+### Ruled out
+
+- *"There were three dead slots since the fix"* — **refuted.** `grep -c 'Background tasks still running after 600s'` returns 3, but **2** anchored to `^Background tasks…terminating\.`; the third hit is iteration 167's own report quoting the signature, captured into the driver log with the controller transcript. The tell has poisoned itself, same class as iteration 134's known-absent-control trap. Broadcast to `mission-world`, whose count is subject to the identical artifact.
+- *"The kill switch being set for 12 fires was a breakage"* — no evidence of that; it was present 2026-08-09 13:44 → 2026-08-10 06:16 and removed by a human. The 07:46 fire then REFUSED with all three claude probes timing out at 120s (the known API-side new-session stall), and 09:29 probed clean.
+- *"World's substring-pin bug exists in V1"* — **refuted by sweep**: no `scripts/verify_go.sh`; the two `grep -q`+version hits match golangci-lint error text, not a version; the one genuine substring test gates an install step, not build acceptance. Control 25 matches for the pattern class.
+
+### Housekeeping
+
+- **Weekly rotation**: `#559` (68 comments, created before the 08-10 07:00 CEST boundary) → **[#635](https://github.com/sunholo-data/ailang/issues/635)**; predecessor closed with a pointer, state + `-prev` written, watermark carried forward.
+- **Weekly external-issue sweep, second use**: **0 of 52** open issues have zero charter mentions (controls `#517`=4, `#498`=7). No batched triage row needed.
+- **Cross-mission**: World's `publish --dry-run` digest report ghost-disciplined at HEAD (their measurement was v0.30.0) and **reproduces** — `pkg_publish.go:110-112` truncates to 68 bits of 256, no `--json`, no surface prints the full values. Filed **`#636`** as `[world-DEMAND]` at normal queue ordering, no date promised. Their framing recorded as the load-bearing part: the defect is not the bit count, it is that truncated output *looks like* verification.
+
+**Owed and named, not dropped**: acceptance criterion **B1-2** (round-trip the spliced AST through the evaluator) is M1-scoped and unmet.
+
+**Gate 5 — one skill edit**: not taken. The two candidates each have one instance so far (`pkill`-success-is-not-death; the driver log poisoning its own dead-slot tell). The bar is two — both are pre-registered here for the next iteration that hits them.
+
+**Next**: **M2 with the seam**, then M3 (structural derivation + the `RecordGenerator` map-order determinism bug). Parked on Mark, now on `#635`: `D-1` (`#613`), `D-2` (`#604`), and new **`D-6`** — codex's OAuth refresh token is **revoked** (401 on every probe since ≥2026-08-09 22:45), so the lane is down for a reason a human must fix. `D-3` landed as `1239d9ec6` by a concurrent session; `D-4`/`D-5` resolved.
