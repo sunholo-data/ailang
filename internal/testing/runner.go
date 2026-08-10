@@ -630,50 +630,6 @@ func (r *Runner) genForTypeSeam(typ ast.Type) (Generator, Shrinker) {
 	return r.createGeneratorForType(typ)
 }
 
-// createGeneratorForType creates a generator and shrinker for the given type.
-func (r *Runner) createGeneratorForType(typ ast.Type) (Generator, Shrinker) {
-	// Check for simple types
-	if simpleType, ok := typ.(*ast.SimpleType); ok {
-		switch simpleType.Name {
-		case "int":
-			config := DefaultConfig()
-			return NewIntGenerator(config.MinInt, config.MaxInt), NewIntShrinker()
-		case "float":
-			config := DefaultConfig()
-			return NewFloatGenerator(config.MinFloat, config.MaxFloat), NewFloatShrinker()
-		case "bool":
-			return NewBoolGenerator(), NewNoOpShrinker()
-		case "string":
-			config := DefaultConfig()
-			return NewStringGenerator(0, config.MaxSize, ""), NewStringShrinker()
-		}
-	}
-
-	// The parser represents both [a] and list[a] as TypeApp.
-	if app, ok := typ.(*ast.TypeApp); ok && app.Constructor == "list" && len(app.Args) == 1 {
-		elemGen, elemShrink := r.createGeneratorForType(app.Args[0])
-		if elemGen == nil {
-			return nil, nil
-		}
-		config := DefaultConfig()
-		return NewListGenerator(elemGen, 0, config.MaxSize), NewListShrinker(elemShrink)
-	}
-
-	// Check for list types [a]
-	if listType, ok := typ.(*ast.ListType); ok {
-		// Create generator for element type
-		elemGen, elemShrink := r.createGeneratorForType(listType.Element)
-		if elemGen == nil {
-			return nil, nil
-		}
-		config := DefaultConfig()
-		return NewListGenerator(elemGen, 0, config.MaxSize), NewListShrinker(elemShrink)
-	}
-
-	// Unsupported type
-	return nil, nil
-}
-
 // bindPropertyValues binds generated values to forall parameters in a property expression.
 // For: forall(x: int, y: int) => x + y == y + x
 // With values: [5, 10]
