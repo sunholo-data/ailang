@@ -149,6 +149,23 @@ on one rig from colliding.
    outranks existing picks by itself; only a confirmed soundness/regression finding does, via the
    standing rules. This closes the gap where issues arrive outside the three watched channels
    (nightly-eval bot, cross-mission messages, Mark's bookkeeping comments).
+   **THE SWEEP'S VERDICT MUST BE A PER-ISSUE TABLE, NEVER A SUMMARY SENTENCE — a "0 of 52" CLEAN
+   is unauditable and has already been false once** (added 2026-08-10 iteration 170; two recorded
+   frictions: iteration 168 ran this sweep and recorded "**0** of **52** open issues have zero
+   charter mentions", with firing controls, and an attended re-measure two days later found **4**
+   issues — `#616`–`#619`, all filed 2026-08-07 — with ZERO mentions across ALL FOUR mission docs;
+   two of the four would not even bare-number match, so a correct per-issue grep could not have
+   missed them, meaning the enumeration or the loop was broken, not the pattern — and the summary
+   format is what let a broken instrument report CLEAN unchallenged). Rules: **(a)** grep
+   `-cE "#<n>\b"` (anchored with `#` and a word boundary — a bare number matches dates, SHAs and
+   line counts) across the charter AND the log AND the status archive AND the dashboard, not the
+   charter alone; **(b)** PRINT the per-issue counts — every issue number with its four counts, so
+   a zero is a visible row a reader can re-run, not an invisible contributor to a summary; **(c)**
+   the known-tracked control (`#517`-class) proves the grep can see a positive, but it CANNOT
+   prove the enumeration covered all issues — so also assert the issue-list length against
+   `gh issue list … | wc` in the same breath (rule 3a aimed at the LIST, not the pattern); **(d)**
+   a CLEAN sweep verdict quoted anywhere downstream must carry the issue count it swept ("0 orphans
+   of N enumerated"), so a truncated enumeration cannot wear a complete one's clothes.
 6. **The bookkeeping issue is BIDIRECTIONAL (added 2026-07-16, Mark: "I could comment on the
    issue myself and that feedback could be acted upon")** — Mark replies to iteration reports by
    commenting on #329 (it's where he reads them, by email). Check for new HUMAN comments:
