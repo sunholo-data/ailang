@@ -8818,3 +8818,119 @@ spending the one-edit budget on a single instance is how a rulebook accumulates 
 earned their place. Both are recorded here as watch-items; if either recurs, the remedy is a Gate-2
 rule aimed at migrations specifically: *when a change re-routes an existing call path, the question
 is not "does the new path work" but "what does the old path do that the new one does not".*
+
+## 175 — 2026-08-10 — Iteration 172: **M1 landed, but the finding is the executor lane: pi failed twice with `rc=0` and zero files, because a thinking-runaway that hits the output cap is a normal terminal state to it**
+
+**Pick**: `#618` M1 — the idle/TTFT/hard-deadline `ReadCloser` + watchdog + RoundTripper. The
+charter's own Next, routed at iteration 171. Doc and plan both existed and were quorum-cleared, so
+no designer or planner spend was needed.
+
+**Outcome**: **LANDED.** PR `#647` → squash `752f997d1`. `internal/ai/ollama/idlereader.go` (358
+lines) + `idlereader_test.go` (514), 872 insertions, **zero existing files modified, zero call
+sites** — runtime behaviour is unchanged by construction, and that is measured rather than asserted
+(a repo-wide grep for every new identifier outside those two files returns empty). Package goes
+**23 → 30** top-level `--- PASS` (35 → 67 counting subtests; the two counts are not
+interchangeable, and quoting one against the other's threshold would look like a regression that
+isn't there). Evaluator **sonnet 95/100 PASS, zero blocking**. Gate 3b **GREEN** with completeness
+asserted: `total=5`, running 0, all four REQUIRED contexts from real `pull_request` events,
+`mergeStateStatus=CLEAN`.
+
+**The finding worth the slot — a new false-green shape in the pi executor lane.**
+`pi:openrouter/deepseek/deepseek-v4-flash-0731` probed rc=0 and ran fenced by the `worktree-fence.ts`
+extension that landed hours earlier. Run A: 9 turns, 14 tool executions, all of it healthy work — it
+read the plan, `step.go`, `streamstep.go`, `step_test.go`, and re-derived the pristine baselines
+itself. Then turn 9's **only** content block was a **65,776-character `thinking` block** with
+`stopReason=length` — the 16,384-token output cap — emitting no tool call at all. pi ended the agent
+loop and exited **rc=0**. Zero files on disk. Run B, with an explicit anti-runaway directive
+("emit a tool call early and often; never compose a large file silently in your head"), failed
+**identically** at turn 4: a 62,873-char thinking block, `stopReason=length`, rc=0, zero files.
+
+Two independent runs with the same terminal state is the lane, not sampling noise. It matters
+because it is precisely the vacuous-pass class this mission keeps closing elsewhere — *success
+reported for work never done* — and the pi recipe's existing guards do not catch it: they assert
+directive delivery, closed stdin, and sandbox-verdict honesty, and none of them reads **per-turn
+`stopReason`**. An `rc=0` with an empty diff is indistinguishable from a completed milestone if you
+only read the exit code. Fell back to `$MODEL` (opus) via the Agent tool and **FLAGGED**, per the
+recipe's probe-fail/error clause; generator≠judge still holds, since the evaluator is sonnet.
+
+**Ruled out / refuted**:
+- *"The executor is spiralling"* — **REFUTED, and the instrument was mine.** My first read of the
+  tool log showed an apparently repeating command pair and I nearly recorded a spiral. The commands
+  differ **past my own 140-char `grep -o` truncation**; extracted properly with `jq`, the sequence
+  is a clean read-then-baseline progression. Rule 3b(v)(a) aimed at a log rather than at a list.
+- *"The directive was too large / unclear"* — refuted by run B, which used a tighter, more
+  prescriptive directive with an explicit anti-runaway clause and failed the same way, faster.
+- *Doc-vs-plan milestone disagreement is a divergence to fix inline* — no: rule 3b(vii)(d) says
+  file it as cleanup owned by the sprint's docs milestone (M4), which is what happened.
+
+**Rule 3b(vii) divergence, found before routing.** The design doc's Implementation-Plan section
+still describes a **3**-milestone sprint whose M3 is the plan's **M4**, and knows nothing of the
+plan's new M3 (response parity). Measured: the doc mentions `M4` **zero** times against the plan's
+**23**, with a firing control (the doc mentions `M1` 3×, so the instrument reads). M1 itself is
+described identically by both, so the pick was unaffected — but the executor directive stated
+plan-wins explicitly rather than hoping the executor would notice, and the renumber is filed as
+cleanup owned by M4.
+
+**Executor deviation, adjudicated ACCEPTABLE by measurement in both arms (rule 3h).** The plan
+assigns the hard deadline to M2 (R4, `context.WithTimeout`), which left M1 with **no code path able
+to produce `ErrStreamDeadlineExceeded`** — so AC-M1.3's third sentinel would have shipped dead and
+untestable. The executor added an optional in-reader budget (`idleReaderConfig.Hard`, `0` =
+disabled) and said so. Forward arm: neutering the branch reds **only** the deadline case and the
+pairwise-distinct assertion. Inverse arm: with it neutered and that one test `-skip`ped, the rest of
+the package is **rc=0** — TTFT/idle behaviour is untouched, so the addition is strictly additive.
+M2's context still does the real cancelling; this only adds attribution. Note which way this cuts:
+a "deviations are suspect" prior would have discarded the change that made an acceptance criterion
+testable at all.
+
+**Controller mutation drill.** Each mutant asserted **LANDED** (sha256 changed) and **BUILDS**
+(`go build ./internal/...` rc=0) *before* its result was read, each scoped with `-run`, each
+restored from a `cp` backup and verified byte-identical (rule 3k's corollary — never
+`git checkout -- <file>` in a worktree holding uncommitted work):
+- **C1** watchdog shutdown in `Close()` neutered → **KILLED** by the Close/idempotence test.
+- **C2** hard-deadline branch neutered → **KILLED**, deadline case only (the deviation proof above).
+- **C3** three sentinels collapsed to one → **KILLED** by the which-window test.
+
+**Wide gate sweep (rule 3g — derived from `ci.yml`, not recalled)**: `check-file-sizes`,
+`check-boundaries`, `check-changelog`, `check-skills`, `fmt-check`, `vet`, `check-golden-drift`,
+`test-regression-guards`, the full `make test`, and `go test -race` — all rc=0. Anti-vacuity held
+throughout: at base `-run TestIdleReader` is rc=0 with **zero** `=== RUN`, so a bare-rc=0 gate would
+have passed after deleting the tests, which is why every AC carries a `=== RUN` count.
+
+**The evaluator earned its slot, and its finding was reproduced before being carried forward.** It
+attacked all five named targets by *running* things rather than reading: independently reproduced
+the deviation's two arms; went **past** the delivered test with a 50-goroutine concurrent-`Close()`
+probe under `-race -count=10` (body-close count = 1, no race); showed the `%w`/`%v` directionality
+is load-bearing by swapping it, which reds **three** tests — more than it had predicted; confirmed
+`http.DefaultTransport` is never mutated, with a firing control; and found no instability at
+`-race -count=20` (100/100 PASS) on the millisecond-window concurrency code.
+
+Its load-bearing non-blocking finding was **reproduced first-party** before being acted on:
+`streamBaseTransport()`'s `sync.Once` **freezes** `ResponseHeaderTimeout` at first use. Measured
+with a known-positive control — the transport stayed at **1m51s** while `ollamaTTFTTimeout()`
+correctly tracked **999s**. Harmless in production (env does not change mid-process) and harmless in
+M1's own tests (which assert structural invariants, never an env-driven value), but a live landmine
+for **M2's test design**: any M2 case varying `AILANG_OLLAMA_TTFT_TIMEOUT_SEC` per subtest gets a
+stale reading unless it runs first or resets the `sync.Once` — and it will pass **green** while
+measuring nothing. That is carried into the M2 instructions in the charter, not left in a judge's
+report where the next iteration would have to rediscover it. Second NB (cosmetic): within a single
+tick the Hard check precedes TTFT/idle, so a same-tick coincidence attributes by program order.
+
+**Not done / owed**: the doc renumber (M4's docs task). M2 itself, which is where both of iteration
+171's planner refutations actually get closed — it is the milestone to review hardest.
+
+**Routing evidence**: controller `claude-opus-5` (session). Designer and planner **not fired** — doc
+and plan both exist and were quorum-cleared at iteration 171; the designer rotation pointer is
+unchanged, next `codex:gpt-5.6-sol`. Executor **`pi:openrouter/deepseek/deepseek-v4-flash-0731`
+FAILED twice** (`stopReason=length`, rc=0, zero files) → **fell back to opus via the Agent tool,
+FLAGGED**. Evaluator **sonnet** — distinct from the opus executor, so generator≠judge holds.
+`metered=$0.0248`, which is *entirely* the two dead pi runs ($0.0184 + $0.0064), against the $5
+ceiling; the executor that actually delivered rode a quota bucket. Lane note: **25** `<｜image｜>`
+tokenizer artifacts leaked into DeepSeek's emitted bash across the two runs.
+
+**Gate 5**: **no skill edit.** The pi `stopReason=length` false-green is a genuine gap in the
+recipe — its guards check delivery, stdin and sandbox verdicts, never per-turn stop reasons — but
+it sits at **instance 1**: two runs, one iteration, one cause. The bar is two independent recorded
+frictions, so it is pre-registered as a watch-item instead of spending the one-edit budget below
+the bar. If a second iteration hits a `rc=0` executor run with an empty diff, the fix is to add a
+delivery-side assertion to the pi recipe: refuse to accept a run whose last turn's `stopReason` is
+`length`, and refuse to record LANDED for an executor run whose worktree diff is empty.

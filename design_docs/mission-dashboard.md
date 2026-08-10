@@ -2,41 +2,43 @@
 > **Contract**: ≤40 lines, overwritten by mission-control Gate 4 every iteration (history lives in
 > the charter/log). Fresh session = THIS + MEMORY.md. Humans steer via the bookkeeping issue.
 
-**Updated**: 2026-08-10 ~20:30 local (iteration 171)
+**Updated**: 2026-08-11 ~00:20 local (iteration 172)
 
 ## Now
-- **v0.33.0** · `origin/dev` `eecb4d011` · Standing SonarCloud red (`#615`) unchanged — non-required,
-  inherited across all 5 analysed commits.
-- ✅ **`#618` routed** (ollama `/v1` streaming idle-timeout, P0 — 80 motoko runs and ~74.6 GPU-h lost
-  over 43 days, accelerating). Doc quorum-cleared, sprint plan + state JSON landed. **Not executed
-  this slot, deliberately** — the planner's refutations reshaped it minutes before.
-- 🔴 **Sharpest find: the design would have SHIPPED INERT.** `ollamaCallContext` applies a 300s
-  `context.WithTimeout` at `step.go:266` — 17 lines *above* the `/v1` branch — so setting
-  `Client.Timeout: 0` fixes nothing. Three designer passes and four quorum reviews read the branch;
-  the deadline is applied above it. Found by the **planner**, not the quorum.
-- 🔴 **Second find: a would-have-shipped regression.** The streamed path has no `Reasoning` and no
-  Hermes tool-call recovery (controls 6 / 8), i.e. it would have traded a timeout bug for the
-  **disengagement** failure mode. New M3; estimate 1–2d → 3d.
-- ✅ **Feasibility settled empirically** — rig probe under the GPU lock: ollama 0.32.1 `/v1` streams
-  tool calls fine on qwen3.6. The 13,077-B capture is committed as a fixture, so M3's capture task
-  was done before the sprint began.
+- **v0.33.0** · `origin/dev` `752f997d1` · Standing SonarCloud red (`#615`) unchanged — non-required,
+  inherited (negative control: `failure` on 4 analysed commits, *absent* on the two doc-only ones).
+- ✅ **`#618` M1 LANDED** — PR [#647](https://github.com/sunholo-data/ailang/pull/647) → squash
+  `752f997d1`. Gate 3b **GREEN**: 5/5 workflows settled, all four REQUIRED contexts from real
+  `pull_request` events, `CLEAN`. Evaluator **95/100 PASS, zero blocking**.
+- 872 lines, 2 new files, **zero call sites** — runtime behaviour unchanged by construction.
+  Package goes **23 → 30** top-level `--- PASS`.
+- 🔴 **THE PRIMARY EXECUTOR LANE FAILED TWICE, rc=0, ZERO FILES.** `pi:deepseek-v4-flash-0731`
+  ended both runs on a single ~63k-char **thinking** block that hit the 16,384-token output cap
+  (`stopReason=length`), emitting no tool call — and pi exits **0** on that. A new false-green
+  shape: *success reported for work never done*. Fell back to opus (**FLAGGED**), which delivered.
+- 🟡 **Executor deviation, adjudicated ACCEPTABLE by measurement in both arms**: the plan puts the
+  hard deadline in M2, which left AC-M1.3's third sentinel unreachable and untestable, so the
+  executor added an in-reader budget. Neutering it reds *only* the deadline case; with it neutered
+  and that test skipped the package is rc=0 → strictly additive.
 
 ## In flight / queued
-- **`#618` M1** (idle/TTFT/deadline `ReadCloser` + watchdog + RoundTripper, 380 LOC, no GPU) → M2
-  (owns S8 + the inert-deadline fix) → M3 (parity) → M4 (rig, **GPU**).
-- **Lane B1 M4** (`#517`) — ADTs, recursion/size budgets, `TypeApp`; slipped one slot, resumes after.
+- **`#618` M2** (flag-gated streaming branch + mandatory hard deadline — owns S8/S5 **and the
+  inert-deadline fix**) → M3 (parity: `Reasoning` + Hermes) → M4 (rig, **GPU**).
+- **Lane B1 M4** (`#517`) — ADTs, recursion/size budgets, `TypeApp`; resumes after.
 - Batch remainder: `#619` → `#616` → `#617`. **#636** `[world-DEMAND]` · **#613** on `D-1` ·
   **#604**/`#614` on `D-2`.
 
 ## Next
-**`#618` M1**, then M2 — M2 is where the two planner refutations actually get closed, so it is the
-milestone to review hardest.
+**`#618` M2** — the milestone where both planner refutations actually get closed, so review it
+hardest. **Carry into M2**: `streamBaseTransport()`'s `sync.Once` freezes `ResponseHeaderTimeout`
+at first use (reproduced first-party: froze at 1m51s while the resolver correctly tracked 999s).
+Any M2 test varying `AILANG_OLLAMA_TTFT_TIMEOUT_SEC` per case gets a stale reading unless it runs
+first or resets the `sync.Once` — it will pass green while measuring nothing.
 
 ## Loop + routing
-Controller **opus** · designer **`claude:claude-fable-5`** (3 bounded passes; pointer advances →
-next `codex:gpt-5.6-sol`) · planner **opus** (`derive-planner-lane.sh` → `opus
-fail-closed:planner-lane-field-missing`) · executor/evaluator **not fired** (no code milestone).
-Metered **$0.165** (quorum R1 $0.074 + R2 $0.091) against the $5 ceiling.
+Controller **opus** · designer/planner **not fired** (doc + plan exist; rotation pointer unchanged,
+next `codex:gpt-5.6-sol`) · executor **opus FALLBACK** after two pi failures · evaluator **sonnet**
+— generator≠judge holds. Metered **$0.025** (both dead pi runs) against the $5 ceiling.
 
 ## PARKED ON MARK — asks are on #635
 - **`D-1`** (iter-150): proxy drops target-IP SSRF pinning on **proxied** routes. **(A)** as-written ·
@@ -44,4 +46,4 @@ Metered **$0.165** (quorum R1 $0.074 + R2 $0.091) against the $5 ceiling.
 - **`D-2`** (iter-157): `#604` closes the top-level vacuous pass, leaves the nested one (`#614`).
   **(A)** top-level-only · **(B)** widen · **(C)** reject multi-expression test bodies.
 
-Full record: charter `## STATUS … ITERATION 171` + `v1-mission-log.md`.
+Full record: charter `## STATUS … ITERATION 172` + `v1-mission-log.md`.
