@@ -132,8 +132,17 @@ UNREAD_COUNT=$(echo "$ALL_MESSAGES_JSON" | jq 'length' 2>/dev/null || echo "0")
 MESSAGES_JSON=$(echo "$ALL_MESSAGES_JSON" | jq ".[:${INBOX_DUMP_LIMIT}]" 2>/dev/null || echo "[]")
 
 # Function to query brain for relevant context based on recent files
+# Bound a command's runtime. macOS ships no coreutils `timeout`, so use perl's alarm.
+# Guards against `ailang cache search` blocking ~30s on its Ollama embedding request
+# whenever an eval job holds the GPU with a large model (see AILANG_BRAIN_TIMEOUT).
+run_bounded() {
+    local secs="$1"; shift
+    perl -e 'alarm(shift @ARGV); exec @ARGV' "$secs" "$@" 2>/dev/null
+}
+
 get_brain_context() {
     local BRAIN_CONTEXT=""
+    local BRAIN_TIMEOUT="${AILANG_BRAIN_TIMEOUT:-3}"
 
     # Check if brain hooks are disabled
     if [ "${AILANG_BRAIN_HOOKS:-1}" = "0" ]; then
@@ -160,7 +169,7 @@ get_brain_context() {
     local BRAIN_RESULTS=""
     if [ -n "$RECENT_FILES" ]; then
         # Search brain based on recently touched files
-        BRAIN_RESULTS=$(ailang cache search --context "$RECENT_FILES" --limit 2 2>/dev/null || echo "")
+        BRAIN_RESULTS=$(run_bounded "$BRAIN_TIMEOUT" ailang cache search --context "$RECENT_FILES" --limit 2 2>/dev/null || echo "")
     fi
 
     # Also do a general search based on current branch/task
@@ -168,7 +177,7 @@ get_brain_context() {
     BRANCH_NAME=$(git branch --show-current 2>/dev/null || echo "")
     if [ -n "$BRANCH_NAME" ] && [ "$BRANCH_NAME" != "dev" ] && [ "$BRANCH_NAME" != "main" ]; then
         local BRANCH_RESULTS
-        BRANCH_RESULTS=$(ailang cache search "${BRANCH_NAME//-/ }" --limit 1 2>/dev/null || echo "")
+        BRANCH_RESULTS=$(run_bounded "$BRAIN_TIMEOUT" ailang cache search "${BRANCH_NAME//-/ }" --limit 1 2>/dev/null || echo "")
         if [ -n "$BRANCH_RESULTS" ] && ! echo "$BRANCH_RESULTS" | grep -q "No results"; then
             BRAIN_RESULTS="${BRAIN_RESULTS}
 ${BRANCH_RESULTS}"

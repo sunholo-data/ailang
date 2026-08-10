@@ -79,11 +79,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/session_start.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/session_start.sh",
+            "timeout": 10
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/cloud_setup.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/cloud_setup.sh",
+            "timeout": 10
           },
           {
             "type": "command",
@@ -127,11 +129,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/format_go.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/format_go.sh",
+            "timeout": 10
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/format_ail.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/format_ail.sh",
+            "timeout": 10
           }
         ]
       },
