@@ -119,7 +119,20 @@ func TestValueToLiteral_TaggedValue_Nary(t *testing.T) {
 		t.Errorf("expected Func to be identifier Para, got %T %v", call.Func, call.Func)
 	}
 	if len(call.Args) != 2 {
-		t.Errorf("expected 2 args, got %d", len(call.Args))
+		t.Fatalf("expected 2 args, got %d", len(call.Args))
+	}
+
+	// Assert the argument VALUES, not just the count. Checking name+arity only
+	// would pass identically if the arm spliced constants instead of recursing
+	// through valueToLiteral — measured: replacing both args with a literal 999
+	// leaves the whole internal/testing suite rc=0 without these two blocks.
+	arg0, ok := call.Args[0].(*ast.Literal)
+	if !ok || arg0.Kind != ast.StringLit || arg0.Value != "hello" {
+		t.Errorf("arg 0: expected string literal %q, got %T %+v", "hello", call.Args[0], call.Args[0])
+	}
+	arg1, ok := call.Args[1].(*ast.Literal)
+	if !ok || arg1.Kind != ast.IntLit || arg1.Value != 3 {
+		t.Errorf("arg 1: expected int literal 3, got %T %+v", call.Args[1], call.Args[1])
 	}
 }
 
