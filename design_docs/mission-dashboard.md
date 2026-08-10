@@ -2,38 +2,41 @@
 > **Contract**: ≤40 lines, overwritten by mission-control Gate 4 every iteration (history lives in
 > the charter/log). Fresh session = THIS + MEMORY.md. Humans steer via the bookkeeping issue.
 
-**Updated**: 2026-08-10 ~18:00 local (iteration 170)
+**Updated**: 2026-08-10 ~20:30 local (iteration 171)
 
 ## Now
-- **v0.33.0** · `origin/dev` `48cf25cff` · PR #645 merged, all required contexts green. Standing
-  SonarCloud red (`#615`) unchanged, non-required, inherited.
-- ✅ **Lane B1 M3 landed** (`#517`) — records, tuples, unit, aliases all derive generators now;
-  seeded replay actually replays (F-3 map-order fix). Evaluator **95/100, zero blocking**.
-- ⚠ Sharpest find: the plan's "preserve the list arms untouched" preserved a **stack overflow** —
-  `type Tree = { val: int, kids: [Tree] }` crashed the deriver once named types became derivable.
-  Fixed + crash-pinned in the same PR. "Preserve verbatim" is a claim about the OLD reachability graph.
-- ✅ **`D-6` resolved** — Mark re-authed codex 09:43; planner lane restored (not needed this slot).
-- ⚠ The weekly sweep's 08-10 CLEAN was a **false negative** — 4 orphaned issues (`#616`–`#619`)
-  found by attended re-measure, all triaged + queued this iteration. Skill now demands a
-  per-issue count table, never a summary verdict (`2d4a8118a`).
+- **v0.33.0** · `origin/dev` `eecb4d011` · Standing SonarCloud red (`#615`) unchanged — non-required,
+  inherited across all 5 analysed commits.
+- ✅ **`#618` routed** (ollama `/v1` streaming idle-timeout, P0 — 80 motoko runs and ~74.6 GPU-h lost
+  over 43 days, accelerating). Doc quorum-cleared, sprint plan + state JSON landed. **Not executed
+  this slot, deliberately** — the planner's refutations reshaped it minutes before.
+- 🔴 **Sharpest find: the design would have SHIPPED INERT.** `ollamaCallContext` applies a 300s
+  `context.WithTimeout` at `step.go:266` — 17 lines *above* the `/v1` branch — so setting
+  `Client.Timeout: 0` fixes nothing. Three designer passes and four quorum reviews read the branch;
+  the deadline is applied above it. Found by the **planner**, not the quorum.
+- 🔴 **Second find: a would-have-shipped regression.** The streamed path has no `Reasoning` and no
+  Hermes tool-call recovery (controls 6 / 8), i.e. it would have traded a timeout bug for the
+  **disengagement** failure mode. New M3; estimate 1–2d → 3d.
+- ✅ **Feasibility settled empirically** — rig probe under the GPU lock: ollama 0.32.1 `/v1` streams
+  tool calls fine on qwen3.6. The 13,077-B capture is committed as a fixture, so M3's capture task
+  was done before the sprint began.
 
 ## In flight / queued
-- **Orphaned-issue batch** (iter-170): `#618` (ollama 300s cap — live eval-noise cause, doc exists)
-  → `#619` (publisher counts harness errors as capability fails, W8 P0) → `#616` (effect-row vars
-  never unify, repro'd) → `#617` (strict-eval flatMap OOM class, design-first).
-- **#636** `[world-DEMAND]` publish digest truncation · **#613** proxy M1 DRAFT on `D-1` ·
-  **#604**/`#614` on `D-2` · **#624** forall — none block B1.
+- **`#618` M1** (idle/TTFT/deadline `ReadCloser` + watchdog + RoundTripper, 380 LOC, no GPU) → M2
+  (owns S8 + the inert-deadline fix) → M3 (parity) → M4 (rig, **GPU**).
+- **Lane B1 M4** (`#517`) — ADTs, recursion/size budgets, `TypeApp`; slipped one slot, resumes after.
+- Batch remainder: `#619` → `#616` → `#617`. **#636** `[world-DEMAND]` · **#613** on `D-1` ·
+  **#604**/`#614` on `D-2`.
 
 ## Next
-**Lane B1 M4** — ADTs, recursion/size budgets, `TypeApp` substitution. Now also owns the
-evaluator's NB: the depth-3 budget makes record-via-list types unconditionally underivable even
-when legitimately inhabited (`{val:1, kids:[]}`). Then M5/M6.
+**`#618` M1**, then M2 — M2 is where the two planner refutations actually get closed, so it is the
+milestone to review hardest.
 
 ## Loop + routing
-Controller **fable this slot** (driver-selected; table default opus — FLAGGED) · designer rotation
-(next `claude:claude-fable-5`, not fired) · planner codex restored (not fired) · executor
-**`pi:deepseek-v4-flash-0731`** (5 good prescriptive datapoints, $0.02–$0.16/run) · evaluator
-**sonnet**. Metered **$0.160** this iteration.
+Controller **opus** · designer **`claude:claude-fable-5`** (3 bounded passes; pointer advances →
+next `codex:gpt-5.6-sol`) · planner **opus** (`derive-planner-lane.sh` → `opus
+fail-closed:planner-lane-field-missing`) · executor/evaluator **not fired** (no code milestone).
+Metered **$0.165** (quorum R1 $0.074 + R2 $0.091) against the $5 ceiling.
 
 ## PARKED ON MARK — asks are on #635
 - **`D-1`** (iter-150): proxy drops target-IP SSRF pinning on **proxied** routes. **(A)** as-written ·
@@ -41,4 +44,4 @@ Controller **fable this slot** (driver-selected; table default opus — FLAGGED)
 - **`D-2`** (iter-157): `#604` closes the top-level vacuous pass, leaves the nested one (`#614`).
   **(A)** top-level-only · **(B)** widen · **(C)** reject multi-expression test bodies.
 
-Full record: charter `## STATUS … ITERATION 170` + `v1-mission-log.md` entry 173.
+Full record: charter `## STATUS … ITERATION 171` + `v1-mission-log.md`.

@@ -8716,3 +8716,105 @@ fired (doc + plan exist, quorum artifact 2026-07-29; rotation pointer unchanged,
 67 turns; $0.160 by the models.yml rate card over the NDJSON usage) · evaluator `sonnet` (Agent
 tool pin) — generator≠judge holds (pi ≠ Anthropic) · `metered=$0.160` vs the $5 ceiling · quota
 buckets: fable (controller), sonnet (evaluator).
+
+## 174 — 2026-08-10 — Iteration 171: **the design would have shipped inert, and it took the planner asking whether streaming is *equivalent* rather than whether it works**
+
+**Pick**: `#618` — ollama `/v1` streaming idle-timeout, the head of iteration 170's orphaned-issue
+batch, ranked above Lane B1 M4 as the controller's declared ordering call (iteration 170 left that
+call open by name). Rationale: it is the highest-compounding item on the board — 80 motoko runs and
+~74.6 GPU-hours lost over 43 continuous days and accelerating — and it corrupts the eval data that
+every routing decision in this mission reads. Its design doc already existed, so starting cost no
+designer spend. Lane B1 M4 slips exactly one slot.
+
+**Outcome**: doc + wire fixture `3e1f63f7a`; sprint plan + state JSON + controller rulings
+`eecb4d011`. **Deliberately not executed** — see *Not done / owed*.
+
+The pick's whole value turned out to be in the gate, not the code. Quorum-at-pick fired (no artifact
+existed; control: 85 artifacts in the dir, none matching `ollama`), and everything below happened
+before a single line of the feature was written.
+
+**Three controller premise measurements reshaped the design before the designer ran.** The doc's
+`internal/ai/ollama/` claims were fresh (unchanged since before authoring; control 125 files changed
+overall) but its line numbers were wrong *at authoring*. More usefully, the repo **already had** an
+OpenAI-compatible SSE client with per-index tool_call fragment reassembly (`openai.StreamStep`
+`streamstep.go:42`, tested at `streamstep_test.go:109`), so the doc's plan to port the native
+`/api/chat` reassembly was unnecessary work — estimate 2–3d → 1–2d. And `onChunk` has **no**
+tool_call fire site (exactly four: `:255`, `:269` behind the `:266` empty-guard, `:281`, `:284`), so
+the doc's callback-driven idle timer was unsound *by construction* → moved to a read-level deadline.
+
+**Both quorum rounds blocked, and both times the objection was measured rather than forwarded**
+(rule 3f). R1's reject was CORRECT and *understated*: `ParseChatStepSSEStream` has zero bounds of any
+kind (control `scanner`=5), so a comment-emitting endpoint never terminates. Its `proposed_fix` was
+applied verbatim. R2's two objections were premise/completeness only — carve-out territory — and the
+second of them was the good one: it asked for the feasibility premise, deferred to M3, to be
+established. The controller took the rig GPU lock and established it against the live endpoint. The
+13,077-byte capture is now a committed fixture, which retires M3's capture task before the sprint
+starts.
+
+**Ruled out / refuted**:
+- **My own V-C3 framing, by my own probe.** I told the designer tool-call-only turns are motoko's
+  dominant shape. The wire says qwen3.6 emits **48 `reasoning` deltas** first, so **49 of 51** parsed
+  chunks would have fired `onChunk`. The mechanism defect stands; the frequency argument falls.
+  Read-level placement is now justified as robustness independent of model chattiness, and S1 states
+  outright that it tests a defensive hypothetical rather than reproducing production.
+- **The keep-alive scenario as an *observed* ollama behaviour** — zero `:`-comment lines in the
+  probe (control: 52 blank separators). The backstop stays mandatory but is labelled defensive.
+- **Three of my own line numbers**, by the designer, across three passes: `v1.Step` `:309` not
+  `:311`; `ollamaV1Timeout` `:29-39` not `:38-46`; the empty-content guard `:266`, with `:269` the
+  fire site it protects. All three verified. A designer refuting the controller three times in one
+  iteration is the provenance discipline working, not friction.
+- **The doc's "goleak is already available"** — in `go.sum` (2), not `go.mod` (0).
+- **The doc's 1–2 day estimate**, by the planner → 3 days, on the strength of R2 below.
+
+**The two findings worth the slot**, both from the planner, both re-verified first-party:
+- **R1 — the feature would have shipped INERT.** `ollamaCallContext(ctx)` is
+  `context.WithTimeout(ctx, ollamaV1Timeout())` — the *same* 300s default — and it wraps at
+  `step.go:266`, **seventeen lines above** the `/v1` branch at `:283`. So `Client.Timeout: 0` is
+  necessary and not sufficient. Combined with M4 mandatorily removing the 1800s plist pin, both
+  clocks fall to their defaults and the effective bound is min(300s, 3600s) = 300s — reproducing the
+  exact `took=4m59.97x` signature the sprint exists to remove. Three designer passes and four quorum
+  reviews missed it, and the reason is structural: everyone was reading the `/v1` branch, and the
+  deadline is applied *above* it. A quorum reads a document; it does not read the seventeen lines the
+  document never quotes.
+- **R2 — a would-have-shipped regression.** `streamstep.go` sets `out.Reasoning` **0** times
+  (control: buffered `step.go` 6) and has **0** Hermes references (control: 8). The recovery at
+  `openai/step.go:610-616` exists — per its own comment — because *"Ollama's /v1 sometimes fails to
+  lift [a Hermes `<tool_call>` block] into the tool_calls field for Qwen3 thinking models"*,
+  preventing *"the 0 tool calls / disengagement failure mode"*. Streaming motoko's path without
+  parity work trades a timeout bug for a disengagement bug: this mission's single most-studied
+  failure mode.
+
+**Against myself**: R2 was findable from this iteration's own rig probe and I missed it. The probe
+measured 48 `reasoning` deltas — precisely the text where qwen3 puts the Hermes block — and I read
+that column as *"the callback gets fed, so the frequency argument is weaker"* rather than *"the
+reasoning text is load-bearing content the streamed path discards."* Same bytes, two readings, and
+only one of them was looked for. The generalisable form, and the reason it is recorded here rather
+than waved past: **I asked whether the new path WORKS; the planner asked whether it is EQUIVALENT.**
+A migration's risk lives in the second question, and the first question's evidence — which I had in
+hand — reads as reassuring right up until someone asks the second.
+
+**Not done / owed**: the sprint was **not executed**. The refutations changed its shape (a new
+milestone, +1 day, three controller rulings) minutes before an executor would have been spawned, and
+a directive built on a plan amended that recently is how this loop buys a bad sprint. M1 is the next
+pick, and **M2 is the milestone to review hardest** — it is where both refutations actually get
+closed. Also owed: the 5 untracked generated `docs/docs/prompts/v0.16.*.md` files (dated 08-08) in
+the main checkout are noted, not chased.
+
+**Routing evidence**: controller `claude-opus-5` (session). Designer **`claude:claude-fable-5`** via
+`claude-sub`, three bounded passes (probe rc=0; revision, revision-2 under the carve-out) — rotation
+pointer advances to `codex:gpt-5.6-sol`. Planner **opus** via the Agent tool, foreground, lane
+derived by `tools/launchd/derive-planner-lane.sh` → **`opus fail-closed:planner-lane-field-missing`**
+(reason token verbatim; no codex probe fired). Executor and evaluator **not fired** — no code
+milestone this slot, so generator≠judge is not engaged. Quorum reviewers `gpt5-6-sol` +
+`gemini-3-1-pro`, two rounds. `metered=$0.165` (R1 $0.0741 + R2 $0.0913) against the $5 ceiling;
+designer and planner rode quota buckets. Baselines (rule 3e) on the pristine tree: ollama and openai
+suites rc=0, vet/file-sizes/boundaries/changelog rc=0, gofmt 0, and **`go build ./...` rc=1 AT BASE**
+(`cmd/wasm`, `gen/main` have no native `main`) — barred as an acceptance gate, with
+`go build ./internal/... ./cmd/ailang` as the green-at-base substitute.
+
+**Gate 5**: no skill edit. Both of this slot's frictions — the missed-equivalence reading, and a
+design doc whose line numbers were stale at authoring — are at **instance 1**. The bar is two, and
+spending the one-edit budget on a single instance is how a rulebook accumulates rules that never
+earned their place. Both are recorded here as watch-items; if either recurs, the remedy is a Gate-2
+rule aimed at migrations specifically: *when a change re-routes an existing call path, the question
+is not "does the new path work" but "what does the old path do that the new one does not".*
