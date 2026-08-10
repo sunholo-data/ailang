@@ -126,6 +126,9 @@ jobs:
     - name: Check changelog index hygiene
       run: make check-changelog
 
+    - name: Check skill frontmatter
+      run: make check-skills
+
     - name: Check coverage gate (M-P2)
       run: make test-coverage-gate
 

@@ -142,6 +142,9 @@ check-boundaries: ## Check architecture layer boundaries (CI gate)
 check-changelog: ## Check root CHANGELOG.md stays an index, not a changelog (CI gate)
 	@bash scripts/check_changelog.sh
 
+check-skills: ## Check .claude/skills/*/SKILL.md have name+description frontmatter (CI gate)
+	@bash scripts/check_skills.sh
+
 report-file-sizes: ## Report all files >500 lines
 	@echo "$(BOLD)=== File Size Report ===$(RESET)"
 	@echo ""

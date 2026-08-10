@@ -1,3 +1,8 @@
+---
+name: motoko-analyzer
+description: Run ONE motoko-mission diagnostic and improvement cycle through five non-skippable ordered gates — observe (failure-mode segmentation), diff (capture the exact wire bytes), cheap-confirm, build, validate + record. Use when investigating why motoko disengages or grinds wrong on benchmarks, when analyzing the motoko↔pi harness gap, when the user says "run a motoko cycle", "analyze motoko", "why is motoko failing", or when fired unattended by the motoko-mission launchd job.
+---
+
 # Motoko Analyzer — the mission diagnostic loop
 
 Run ONE motoko-mission improvement cycle with the deterministic diagnostic gates that this

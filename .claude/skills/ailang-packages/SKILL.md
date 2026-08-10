@@ -1,3 +1,8 @@
+---
+name: ailang-packages
+description: Create, validate, and publish AILANG packages with correct conventions. Use when user asks to create a new package, fix package errors, add dependencies, publish to registry, or import packages. Also use when encountering `IMP010`, `LDR001`, `MOD010`, or `export type` errors during package development.
+---
+
 # AILANG Package Development
 
 Create, validate, and publish AILANG packages with correct conventions. Use when user asks to create a new package, fix package errors, add dependencies, publish to registry, or import packages. Also use when encountering `IMP010`, `LDR001`, `MOD010`, or `export type` errors during package development.
