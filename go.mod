@@ -22,7 +22,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/mattn/go-sqlite3 v1.14.49
 	github.com/modelcontextprotocol/go-sdk v1.7.0
-	github.com/ollama/ollama v0.32.5
+	github.com/ollama/ollama v0.32.6
 	github.com/peterh/liner v1.2.2
 	github.com/petermattis/goid v0.0.0-20260330135022-df67b199bc81
 	github.com/stretchr/testify v1.11.1
@@ -41,7 +41,7 @@ require (
 	golang.org/x/net v0.57.0
 	golang.org/x/term v0.45.0
 	golang.org/x/text v0.40.0
-	google.golang.org/api v0.291.0
+	google.golang.org/api v0.292.0
 	google.golang.org/grpc v1.83.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1

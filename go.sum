@@ -156,8 +156,8 @@ github.com/mattn/go-sqlite3 v1.14.49 h1:B8jBHC3xhxZgxztrgruTuLucebnULQnx4W7cF7SA
 github.com/mattn/go-sqlite3 v1.14.49/go.mod h1:6JTjA44L93a0QCyJef5YvlPoKXntQPjzWv5gtm9sB6w=
 github.com/modelcontextprotocol/go-sdk v1.7.0 h1:yqjY2dsbKAC0LSuWZVBMrHgiG8ukXv6NRo0JiALay44=
 github.com/modelcontextprotocol/go-sdk v1.7.0/go.mod h1:dL7u98E/zjJTGzEq+j30jQ8K2k1mb6LeAH4inEcSGts=
-github.com/ollama/ollama v0.32.5 h1:5jeKnTJmDTR+xgB8qh68szdXM9zwnMBMtGl890frdzo=
-github.com/ollama/ollama v0.32.5/go.mod h1:b1ydCt2oVg0VAg22WWDgCbwW0AyOaRKAFzlS91NI4OY=
+github.com/ollama/ollama v0.32.6 h1:Jh996TTLL1rNePPDdyNY+70Sl9/NCmZDCd+BzPHrg84=
+github.com/ollama/ollama v0.32.6/go.mod h1:b1ydCt2oVg0VAg22WWDgCbwW0AyOaRKAFzlS91NI4OY=
 github.com/peterh/liner v1.2.2 h1:aJ4AOodmL+JxOZZEL2u9iJf8omNRpqHc/EbrK+3mAXw=
 github.com/peterh/liner v1.2.2/go.mod h1:xFwJyiKIXJZUKItq5dGHZSTBRAuG/CpeNpWLyiNRNwI=
 github.com/petermattis/goid v0.0.0-20260330135022-df67b199bc81 h1:WDsQxOJDy0N1VRAjXLpi8sCEZRSGarLWQevDxpTBRrM=
@@ -308,8 +308,8 @@ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8T
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 gonum.org/v1/gonum v0.17.0 h1:VbpOemQlsSMrYmn7T2OUvQ4dqxQXU+ouZFQsZOx50z4=
 gonum.org/v1/gonum v0.17.0/go.mod h1:El3tOrEuMpv2UdMrbNlKEh9vd86bmQ6vqIcDwxEOc1E=
-google.golang.org/api v0.291.0 h1:wfPbbY+mr9c7wZLqqzrHJLft/q8iFKREd6IgTBUene0=
-google.golang.org/api v0.291.0/go.mod h1:at7kwWbuonglBFEBoeMDAV1bguHqL3qf0BHFsv3coa0=
+google.golang.org/api v0.292.0 h1:Ewiwo/GTtiaPZSNAZQUcWLh8AYDEoPmIXyJfeoTSMHU=
+google.golang.org/api v0.292.0/go.mod h1:07kjmMnFGm2RQuCza2EZM/5N68G/fVvFb1xKjWqoFA0=
 google.golang.org/appengine v1.1.0/go.mod h1:EbEs0AVv82hx2wNQdGPgUI5lhzA/G0D9YwlJXL52JkM=
 google.golang.org/appengine v1.4.0/go.mod h1:xpcJRLb0r/rnEns0DIKYYv+WjYCduHsrkT7/EB5XEv4=
 google.golang.org/appengine/v2 v2.0.6 h1:LvPZLGuchSBslPBp+LAhihBeGSiRh1myRoYK4NtuBIw=
