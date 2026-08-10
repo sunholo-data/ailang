@@ -465,6 +465,70 @@ must remain byte-identical).
 >
 > Re-estimate M2: **90 impl / 160 test LOC · 0.35 d** (was 60/130 · 0.25 d).
 
+> ### ✅ M2 LANDED — completion record (V1 mission iteration 169, 2026-08-10)
+>
+> Executor `pi:openrouter/deepseek/deepseek-v4-flash-0731`, 51 turns, `metered=$0.086`. Delivered on
+> `sprint/iter169-b1-m2`: `value_splice.go` 92→109, `runner.go` 710→**766** (800 gate still green),
+> `contract_domain.go` 194→203, `value_splice_test.go` 213→234, NEW `value_splice_refusal_test.go`
+> and `value_splice_roundtrip_test.go`. The seam landed as an unexported `Runner.genForType` field
+> bound in `NewRunnerWithConfig`, reached through a `genForTypeSeam` accessor that falls back to
+> `createGeneratorForType` for any `Runner` built another way — **that fallback is speculative, not
+> observed-necessary**: the evaluator measured exactly one `&Runner{` literal in the repo (the one
+> inside `NewRunnerWithConfig` itself, which doubled as its grep's known-positive control),
+> panic-mutated the fallback branch, and got a green package plus a clean corpus sweep. It is
+> defensive code for a construction path that does not exist today, and is recorded as such rather
+> than described as load-bearing.
+>
+> **Mutation drill, controller-run, every mutant asserted LANDED (sha256) and BUILDS (`go build`
+> rc=0) before its result was read, and every one restored byte-identical from a `cp` backup.** Each
+> killer was scoped with `-run`, and each was paired with the inverse arm (`-skip` the killer → rest
+> of the package rc=0) so it is the sole killer rather than a bystander.
+>
+> | # | Mutation | Killer | Verdict | Inverse arm |
+> |---|---|---|---|---|
+> | N-1 | `default:` arm neutered to `if false && true`, falls back to a unit literal | `TestRefusal_N1_DirectCall` | **KILLED** | also reds N-2/N-3/N-4 — broader protection, recorded rather than treated as a defect |
+> | N-2 | ensures `if false && err != nil` | `TestRefusal_N2_Ensures` | **KILLED** (panics in `astExprToCore(nil)`, the plan's predicted path — not "fixed") | sole killer |
+> | N-3 | requires `if false && err != nil` | `TestRefusal_N3_Requires` | **KILLED** | sole killer |
+> | N-4 | forall/`bindPropertyValues` `if false && err != nil` | `TestRefusal_N4_Forall` | **KILLED** | sole killer |
+> | N-5 | shrink `if false && err != nil { continue }` | `TestRefusal_N5_Shrink` | **SURVIVED** — see below | — |
+> | B1-2 | `RecordValue` arm emits `ast.Tuple` (plan §4's named mutation for this AC) | `TestB12_RoundTrip` | **KILLED** (`got (1, true), want {x: 1, y: true}` — reads the *evaluated value*, one step past the AST, exactly as the AC row promises) | also reds other arms |
+>
+> **N-5 is DECLARED REDUNDANT rather than quietly shipped** (rule 3j: an unreachable branch is
+> acceptable *when declared in the code and in the AC*; an undeclared one is a guard nobody is
+> protecting). The executor self-reported this before the controller measured it, and its stated
+> reason was checked rather than adopted (rule 3h): on a splice refusal `bindPropertyValues` returns
+> `(nil, err)`, and `EvaluateExpression` builds its program by string-formatting the AST, so a nil
+> expression yields unparseable source and **errors** — the adjacent pre-existing branch then
+> `continue`s for the same effect. The guard is kept, because depending on that is an implicit
+> contract, and the contract is now pinned: `TestShrinkNilExprContract` asserts
+> `EvaluateExpression(nil)` returns an error and does not panic. That pin is itself non-vacuous —
+> mutating `EvaluateExpression` to `panic` on nil BUILDS rc=0 and reds it. If it ever fires, N-5
+> stops being decorative and its neutering mutation starts killing.
+>
+> **EVALUATOR (sonnet) PASS 96/100, zero blocking — and it sharpened the table above.** It attacked
+> all five named claims by running mutations rather than reading code, and both attempted
+> refutations (N-5's redundancy, the new pin's non-vacuity) failed to refute and instead reproduced
+> the controller's measurements independently. Its three non-blocking findings were each reproduced
+> first-party before being acted on, and two of them corrected this record:
+>
+> 1. **`runner.go` is 766, not 754** — corrected above. The figure had been transcribed from the
+>    executor's report rather than measured; the two adjacent counts the evaluator did *not* flag
+>    (109, 203) re-measure correct, so the instrument was sound and this was a single transcription
+>    slip. Rule 3b(v): a value you transcribed is not a measurement.
+> 2. **N-4 is closer to N-5 than "KILLED, sole killer" implies, and deserves the same disclosure.**
+>    Reproduced: with N-4 neutered the property's `Status` is *still* `StatusFail`, because the
+>    adjacent `EvaluateExpression` branch below sets it too. The observable that actually moves is
+>    `.Error`'s **text** — measured `"test 0: evaluation failed: PAR_NO_PREFIX_PARSE at
+>    _test.ail:1:1…"` where the test demands `"no literal splice"`. So the test genuinely reds and is
+>    not vacuous (error text is inside AC B1-3's stated observable), but what the N-4 guard buys is
+>    **diagnostic quality, not the verdict**: without it a splice refusal on the forall path still
+>    fails, just with a parser error naming the wrong cause. Stated here rather than left to be
+>    rediscovered.
+> 3. `genForTypeSeam`'s fallback is dead today — folded into the paragraph above.
+>
+> **AC status**: B1-1 ✅ (M1), **B1-2 ✅ — the debt iteration 168 named as owed is paid here**,
+> B1-3 ✅ with the N-4 and N-5 caveats above stated in full.
+
 ---
 
 ### M3 — Structural derivation: records (named + anonymous + nested), tuples, unit, aliases

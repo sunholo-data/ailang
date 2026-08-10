@@ -71,7 +71,7 @@ func (r *Runner) runEnsuresProperty(propCase PropertyCase) PropertyResult {
 	params := propCase.Function.Params
 	generators := make([]Generator, len(params))
 	for i, p := range params {
-		gen, _ := r.createGeneratorForType(p.Type)
+		gen, _ := r.genForTypeSeam(p.Type)
 		if gen == nil {
 			result.Status = StatusSkip
 			result.SkipKind = SkipKindNoGenerator
@@ -96,9 +96,18 @@ func (r *Runner) runEnsuresProperty(propCase PropertyCase) PropertyResult {
 		for i, gen := range generators {
 			v := gen.Generate(rng)
 			generatedValues[i] = v
+			lit, err := r.valueToLiteral(v)
+			if err != nil {
+				// Loud failure, never a skip: a skip here would re-open the
+				// vacuous hole this milestone exists to close.
+				result.Status = StatusFail
+				result.Error = fmt.Sprintf("test %d: %v", result.GeneratedInputs-1, err)
+				result.Duration = time.Since(start)
+				return result
+			}
 			ensuresParams[i] = EnsuresParam{
 				Name:  params[i].Name,
-				Value: astExprToCore(r.valueToLiteral(v)),
+				Value: astExprToCore(lit),
 			}
 		}
 

@@ -18,6 +18,13 @@ type Runner struct {
 	executor       *Executor
 	config         TestConfig
 	moduleIdentity string
+
+	// genForType is an injectable generator seam. It exists so tests can
+	// substitute a generator that produces a value kind valueToLiteral
+	// refuses, making the refusal branches at the three call sites observable
+	// (rule 3j: a guard is not a gate until something reds when you remove it).
+	// Defaults to createGeneratorForType and is bound in NewRunnerWithConfig.
+	genForType func(ast.Type) (Generator, Shrinker)
 }
 
 // NewRunner creates a new test runner using the default derived-seed policy.
@@ -44,12 +51,17 @@ func NewRunner(modulePath string) *Runner {
 // pre-resolved module identity. It never fails: callers resolve the identity via
 // ResolveModuleIdentity before calling.
 func NewRunnerWithConfig(modulePath string, cfg TestConfig, moduleIdentity string) *Runner {
-	return &Runner{
+	r := &Runner{
 		modulePath:     modulePath,
 		executor:       NewExecutor(modulePath),
 		config:         cfg,
 		moduleIdentity: moduleIdentity,
 	}
+	// Bind the generator seam to the built-in derivation after the Runner value
+	// exists, so the method value binds to the right receiver. Tests may
+	// override r.genForType afterwards to inject a refusal-producing generator.
+	r.genForType = r.createGeneratorForType
+	return r
 }
 
 // propertySeed derives the deterministic seed for a single property from the
@@ -278,7 +290,7 @@ func (r *Runner) runProperty(propCase PropertyCase) PropertyResult {
 	shrinkers := make([]Shrinker, len(propCase.Property.Binders))
 
 	for i, binder := range propCase.Property.Binders {
-		gen, shrink := r.createGeneratorForType(binder.Type)
+		gen, shrink := r.genForTypeSeam(binder.Type)
 		if gen == nil {
 			result.Status = StatusSkip
 			result.SkipKind = SkipKindNoGenerator
@@ -312,7 +324,14 @@ func (r *Runner) runProperty(propCase PropertyCase) PropertyResult {
 		}
 
 		// Bind generated values to property expression
-		boundExpr := r.bindPropertyValues(propCase.Property, generatedValues)
+		boundExpr, err := r.bindPropertyValues(propCase.Property, generatedValues)
+		if err != nil {
+			result.Status = StatusFail
+			result.Error = fmt.Sprintf("test %d: %v", testNum, err)
+			result.TestsRun = testNum + 1
+			result.Duration = time.Since(start)
+			return result
+		}
 
 		// Evaluate the property expression (should return bool)
 		resultValue, err := r.executor.EvaluateExpression(boundExpr)
@@ -412,7 +431,7 @@ func (r *Runner) runRequiresProperty(propCase PropertyCase) PropertyResult {
 	params := propCase.Function.Params
 	generators := make([]Generator, len(params))
 	for i, p := range params {
-		gen, _ := r.createGeneratorForType(p.Type)
+		gen, _ := r.genForTypeSeam(p.Type)
 		if gen == nil {
 			result.Status = StatusSkip
 			result.SkipKind = SkipKindNoGenerator
@@ -433,9 +452,17 @@ func (r *Runner) runRequiresProperty(propCase PropertyCase) PropertyResult {
 		for i, gen := range generators {
 			v := gen.Generate(rng)
 			generatedValues[i] = v
+			lit, err := r.valueToLiteral(v)
+			if err != nil {
+				result.Status = StatusFail
+				result.Error = fmt.Sprintf("test %d: %v", testNum, err)
+				result.TestsRun = testNum + 1
+				result.Duration = time.Since(start)
+				return result
+			}
 			harnessParams[i] = EnsuresParam{
 				Name:  params[i].Name,
-				Value: astExprToCore(r.valueToLiteral(v)),
+				Value: astExprToCore(lit),
 			}
 		}
 
@@ -592,6 +619,17 @@ func RunTestsFromFile(filePath string, ast *ast.File) (*SuiteResult, error) {
 	return RunTestsFromFileWithConfig(filePath, ast, cfg)
 }
 
+// genForTypeSeam returns the generator and shrinker for typ, routing through the
+// injectable genForType field so tests can substitute a generator that yields a
+// value kind valueToLiteral refuses. It falls back to the built-in
+// createGeneratorForType for any Runner not constructed via NewRunnerWithConfig.
+func (r *Runner) genForTypeSeam(typ ast.Type) (Generator, Shrinker) {
+	if r.genForType != nil {
+		return r.genForType(typ)
+	}
+	return r.createGeneratorForType(typ)
+}
+
 // createGeneratorForType creates a generator and shrinker for the given type.
 func (r *Runner) createGeneratorForType(typ ast.Type) (Generator, Shrinker) {
 	// Check for simple types
@@ -640,7 +678,7 @@ func (r *Runner) createGeneratorForType(typ ast.Type) (Generator, Shrinker) {
 // For: forall(x: int, y: int) => x + y == y + x
 // With values: [5, 10]
 // Returns: let x = 5 in let y = 10 in (x + y == y + x)
-func (r *Runner) bindPropertyValues(property *ast.Property, values []eval.Value) ast.Expr {
+func (r *Runner) bindPropertyValues(property *ast.Property, values []eval.Value) (ast.Expr, error) {
 	expr := property.Expr
 
 	// Bind in reverse order (innermost first)
@@ -648,8 +686,11 @@ func (r *Runner) bindPropertyValues(property *ast.Property, values []eval.Value)
 		binder := property.Binders[i]
 		value := values[i]
 
-		// Convert eval.Value to ast.Expr (literal)
-		valueLit := r.valueToLiteral(value)
+		// Convert eval.Value to ast.Expr (literal); refuse unspliceable values.
+		valueLit, err := r.valueToLiteral(value)
+		if err != nil {
+			return nil, err
+		}
 
 		// Wrap in let binding
 		expr = &ast.Let{
@@ -660,7 +701,7 @@ func (r *Runner) bindPropertyValues(property *ast.Property, values []eval.Value)
 		}
 	}
 
-	return expr
+	return expr, nil
 }
 
 // shrinkCounterexample finds the minimal counterexample using shrinking.
@@ -683,7 +724,22 @@ func (r *Runner) shrinkCounterexample(property *ast.Property, failingValues []ev
 			testValues[i] = shrunk
 
 			// Test if property still fails with shrunk value
-			boundExpr := r.bindPropertyValues(property, testValues)
+			boundExpr, err := r.bindPropertyValues(property, testValues)
+			if err != nil {
+				// Skip unusable shrink candidate (best-effort, must not panic).
+				//
+				// DECLARED REDUNDANT (measured, iteration 169): neutering this
+				// branch to `if false && err != nil` leaves the whole package
+				// green. On a splice refusal bindPropertyValues returns
+				// (nil, err), and EvaluateExpression string-formats the AST, so
+				// a nil expr yields unparseable source and errors — the
+				// adjacent branch below then continues for the same effect.
+				// The branch is kept because relying on that is an implicit
+				// contract; TestShrinkNilExprContract pins it, so if
+				// EvaluateExpression ever panics on nil instead of erroring,
+				// that test reds and this guard becomes load-bearing.
+				continue
+			}
 			result, err := r.executor.EvaluateExpression(boundExpr)
 			if err != nil {
 				continue // Skip if evaluation fails
