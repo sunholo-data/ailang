@@ -261,6 +261,13 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	// is how we diff what each harness actually sends to the model.
 	logOllamaRequest(req)
 
+	// Capture the context BEFORE ollamaCallContext's wrap. The streaming /v1
+	// branch derives its own (much longer) hard deadline from THIS context —
+	// see streamCallContext for why deriving from the wrapped ctx would cap
+	// every stream at the buffered path's 300s default and make the feature
+	// inert. Every other path below keeps using the wrapped ctx unchanged.
+	outerCtx := ctx
+
 	// Bound the whole call (native /api/chat has no client timeout — see
 	// ollamaCallContext). Covers the /v1 delegation and Generate fallback too.
 	ctx, cancel := ollamaCallContext(ctx)
@@ -281,6 +288,14 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	// pointed at the Ollama host's /v1 (dummy key; Ollama ignores auth). Set
 	// AILANG_OLLAMA_NATIVE_TOOLS=1 to force the legacy native /api/chat tool path.
 	if len(req.Tools) > 0 && os.Getenv("AILANG_OLLAMA_NATIVE_TOOLS") != "1" {
+		// M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT (ailang#618): opt-in streaming
+		// variant of exactly this call. Default-OFF — with the flag unset the
+		// buffered request built below is byte-identical to today's, which is
+		// why this is an early return rather than a restructure.
+		if ollamaStreamEnabled() {
+			return c.stepV1Stream(outerCtx, req)
+		}
+
 		// CRITICAL: bound the call with an HTTP timeout. The /v1 Step path is
 		// non-streaming (io.ReadAll of the full body) and openai.NewClient
 		// defaults to http.DefaultClient (Timeout: 0). On a single shared local
