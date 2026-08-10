@@ -58,11 +58,33 @@ func (d *Daemon) startHealthServer(port string) {
 
 		// M-CLOUD-WEBHOOK: GitHub webhook endpoint replaces polling-based
 		// ApprovalWatcher and GitHub sync in cloud mode.
-		mux.HandleFunc("/github/webhook", d.handleGitHubWebhook)
-		d.logger.Println("GitHub webhook endpoint registered: /github/webhook")
+		//
+		// Registered ONLY with a signing secret present (2026-08-10). The handler
+		// also refuses without one, but not registering it at all means a
+		// misconfigured deploy 404s instead of advertising an endpoint whose whole
+		// chain ends in task dispatch. Loud, because a silently-absent webhook and a
+		// silently-unauthenticated one look identical from outside.
+		if os.Getenv("GITHUB_WEBHOOK_SECRET") == "" {
+			d.logger.Println("SECURITY: GitHub webhook endpoint NOT registered — GITHUB_WEBHOOK_SECRET is unset")
+		} else {
+			mux.HandleFunc("/github/webhook", d.handleGitHubWebhook)
+			d.logger.Println("GitHub webhook endpoint registered: /github/webhook")
+		}
 	}
 
-	addr := fmt.Sprintf("0.0.0.0:%s", port)
+	// Bind scope follows the mode (2026-08-10). Cloud Run REQUIRES 0.0.0.0 to receive
+	// traffic; the local daemon does not, and binding it to every interface exposed
+	// /health plus the API-key surface to the LAN and the tailnet for no reason.
+	// Override with COORDINATOR_BIND_ADDR when the local daemon genuinely must be
+	// reachable off-host.
+	host := "127.0.0.1"
+	if os.Getenv("COORDINATOR_MODE") == CoordinatorModeCloud {
+		host = "0.0.0.0"
+	}
+	if override := os.Getenv("COORDINATOR_BIND_ADDR"); override != "" {
+		host = override
+	}
+	addr := fmt.Sprintf("%s:%s", host, port)
 	server := &http.Server{
 		Addr:         addr,
 		Handler:      mux,

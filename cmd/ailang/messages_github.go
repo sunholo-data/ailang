@@ -173,24 +173,48 @@ func runMessagesImportGitHub(args []string) {
 			}
 		}
 
+		// SECURITY (2026-08-10): the repo is PUBLIC and the issue templates auto-apply
+		// `bug`/`enhancement` with no write access needed, so the label filter above
+		// says nothing about WHO is speaking. Everything that gives an imported issue
+		// directive weight — category (which feeds the auto-triage router), inbox
+		// routing, and the spoofable `[agent-name]` sender prefix — is gated on the
+		// author here. Untrusted issues still import, because dropping public feedback
+		// would be a worse failure; they import INERT.
+		trusted := config.IsTrustedAuthor(issue.Author)
+		if !trusted {
+			category = ""
+			targetInbox = *inbox
+		}
+
 		if *dryRun {
 			routeInfo := ""
 			if targetInbox == "coordinator" {
 				routeInfo = fmt.Sprintf(" [auto-routed to %s]", targetInbox)
+			}
+			if !trusted {
+				routeInfo = fmt.Sprintf(" [UNTRUSTED author %s — inert]", issue.Author)
 			}
 			fmt.Printf("  Would import: #%d %s%s\n", issue.Number, issue.Title, routeInfo)
 			imported++
 			continue
 		}
 
-		// Parse from agent from title prefix [agent-name]
+		// Parse from agent from title prefix [agent-name].
+		// Only for trusted authors: otherwise an outsider titling an issue
+		// "[mission-world] ..." would import as that sibling mission's message.
 		fromAgent := "github"
 		title := issue.Title
-		if strings.HasPrefix(title, "[") {
+		if trusted && strings.HasPrefix(title, "[") {
 			if idx := strings.Index(title, "]"); idx > 0 {
 				fromAgent = title[1:idx]
 				title = strings.TrimSpace(title[idx+1:])
 			}
+		}
+		if !trusted {
+			// Encode the real principal, and make it unmistakable downstream that
+			// this is public feedback rather than an instruction.
+			fromAgent = "github-untrusted:" + issue.Author
+			title = "[untrusted] " + title
 		}
 
 		// Extract and cache images from issue body (before JWT tokens expire)

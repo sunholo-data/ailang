@@ -20,8 +20,13 @@ import (
 //   - issues + opened  → imports issue as message (replaces runGitHubSync)
 //   - ping             → responds 200 (GitHub connectivity check)
 //
-// Authentication: HMAC-SHA256 via GITHUB_WEBHOOK_SECRET env var.
-// Always returns 200 to GitHub (except signature failures) to prevent retries.
+// Authentication: HMAC-SHA256 via GITHUB_WEBHOOK_SECRET env var. REQUIRED — an
+// unset secret makes every request 503, because a signature that is never checked
+// is worse than an endpoint that is never served. Note what the signature does and
+// does not prove: it authenticates the TRANSPORT (this really came from GitHub), not
+// the PRINCIPAL (GitHub signs webhooks for issues opened by anyone on a public repo).
+// Author authorisation is enforced separately, at import — see GitHubConfig.TrustedAuthors.
+// Always returns 200 to GitHub (except auth failures) to prevent retries.
 func (d *Daemon) handleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -36,15 +41,24 @@ func (d *Daemon) handleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate HMAC-SHA256 signature
+	// Validate HMAC-SHA256 signature — FAIL CLOSED (2026-08-10).
+	//
+	// This used to be `if secret != ""`, i.e. an unset secret SKIPPED verification
+	// and every webhook was accepted unsigned. That is the wrong default for this
+	// handler specifically: handleWebhookOpened's chain ends in executeTaskQueue(),
+	// so an unsigned POST could enqueue and dispatch work. A deploy that forgets the
+	// secret must serve nothing, not serve everything.
 	secret := os.Getenv("GITHUB_WEBHOOK_SECRET")
-	if secret != "" {
-		sig := r.Header.Get("X-Hub-Signature-256")
-		if !verifyWebhookSignature(body, sig, secret) {
-			d.logger.Printf("Webhook: invalid signature")
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
+	if secret == "" {
+		d.logger.Printf("Webhook: REFUSING request — GITHUB_WEBHOOK_SECRET is unset, signatures cannot be verified")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return
+	}
+	sig := r.Header.Get("X-Hub-Signature-256")
+	if !verifyWebhookSignature(body, sig, secret) {
+		d.logger.Printf("Webhook: invalid signature")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
 	}
 
 	event := r.Header.Get("X-GitHub-Event")

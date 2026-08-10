@@ -31,6 +31,39 @@ type GitHubConfig struct {
 
 	// AutoImport enables automatic import on session start (default: true)
 	AutoImport *bool `yaml:"auto_import"`
+
+	// TrustedAuthors are the GitHub logins whose issues may carry DIRECTIVE weight:
+	// agent-inbox routing, bug/feature categorisation (which feeds the auto-triage
+	// router), and the `[agent-name]` title prefix that sets a message's sender.
+	//
+	// SECURITY: the repo is public, so anyone can open an issue, and the issue
+	// TEMPLATES auto-apply `bug`/`enhancement` labels with no write access required.
+	// Label filtering alone therefore proves nothing about who is speaking. Issues
+	// from anyone else still import — losing public feedback would be worse — but
+	// as INERT feedback: no category, no inbox routing, no spoofable sender.
+	//
+	// Empty list means only ExpectedUser is trusted, which is the conservative
+	// default and matches the sole author of every issue in the repo today.
+	TrustedAuthors []string `yaml:"trusted_authors"`
+}
+
+// IsTrustedAuthor reports whether a GitHub login may author a directive.
+// GitHub logins are case-insensitive, so the comparison is too — otherwise
+// "markedmondson1234" would be treated as a stranger, or worse, a lookalike
+// login could be waved through by a case-sensitive miss.
+func (c *GitHubConfig) IsTrustedAuthor(login string) bool {
+	if c == nil || login == "" {
+		return false
+	}
+	if len(c.TrustedAuthors) == 0 {
+		return c.ExpectedUser != "" && strings.EqualFold(login, c.ExpectedUser)
+	}
+	for _, a := range c.TrustedAuthors {
+		if strings.EqualFold(login, a) {
+			return true
+		}
+	}
+	return false
 }
 
 // RepoForInbox returns the GitHub repository for a given inbox name.

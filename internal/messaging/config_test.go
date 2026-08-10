@@ -198,3 +198,48 @@ other_setting: value
 		t.Error("expected GitHub config to be nil")
 	}
 }
+
+// TestIsTrustedAuthor covers the author allowlist that decides whether an imported
+// GitHub issue may carry directive weight. The repo is public and the issue
+// TEMPLATES auto-apply `bug`/`enhancement` with no write access required, so label
+// filtering proves nothing about who is speaking — this check is what does.
+func TestIsTrustedAuthor(t *testing.T) {
+	tests := []struct {
+		name   string
+		cfg    *GitHubConfig
+		login  string
+		expect bool
+	}{
+		// Empty list falls back to ExpectedUser. This is the shipped default and
+		// must keep the bot trusted, or every existing agent-filed issue silently
+		// downgrades to inert on upgrade.
+		{"empty list falls back to expected_user", &GitHubConfig{ExpectedUser: "the-bot"}, "the-bot", true},
+		{"empty list rejects anyone else", &GitHubConfig{ExpectedUser: "the-bot"}, "outsider", false},
+
+		// Explicit list wins over ExpectedUser.
+		{"explicit list admits a listed human", &GitHubConfig{ExpectedUser: "the-bot", TrustedAuthors: []string{"human", "the-bot"}}, "human", true},
+		{"explicit list rejects an unlisted login", &GitHubConfig{ExpectedUser: "the-bot", TrustedAuthors: []string{"human"}}, "the-bot", false},
+
+		// GitHub logins are case-insensitive; a case-sensitive compare would both
+		// reject the real user and invite lookalike confusion.
+		{"case-insensitive match", &GitHubConfig{TrustedAuthors: []string{"MarkEdmondson1234"}}, "markedmondson1234", true},
+
+		// Fail-closed edges: no principal, and no config at all.
+		{"empty login is never trusted", &GitHubConfig{TrustedAuthors: []string{"human"}}, "", false},
+		{"empty login with empty allowlist", &GitHubConfig{ExpectedUser: "the-bot"}, "", false},
+		{"no expected_user and no list trusts nobody", &GitHubConfig{}, "anyone", false},
+		{"nil config trusts nobody", nil, "anyone", false},
+
+		// A near-miss must not pass: substring/prefix logic would admit these.
+		{"prefix of a trusted login is rejected", &GitHubConfig{TrustedAuthors: []string{"MarkEdmondson1234"}}, "MarkEdmondson", false},
+		{"trusted login as a prefix is rejected", &GitHubConfig{TrustedAuthors: []string{"MarkEdmondson1234"}}, "MarkEdmondson12345", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.cfg.IsTrustedAuthor(tt.login); got != tt.expect {
+				t.Errorf("IsTrustedAuthor(%q) = %v, want %v", tt.login, got, tt.expect)
+			}
+		})
+	}
+}

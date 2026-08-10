@@ -17,6 +17,46 @@ func testLogger() *log.Logger {
 	return log.New(os.Stderr, "test: ", 0)
 }
 
+// signedWebhookRequest builds a POST carrying a VALID HMAC signature for secret,
+// and arms the secret for the duration of the test.
+//
+// Every handler test must go through this. The handler fails closed on a missing
+// secret (2026-08-10), so an unsigned request no longer reaches the event switch at
+// all — it exercises the refusal. Four tests here previously passed *because*
+// verification was skipped when the env var was unset, which is precisely the
+// behaviour that was wrong.
+func signedWebhookRequest(t *testing.T, event, body, secret string) *http.Request {
+	t.Helper()
+	t.Setenv("GITHUB_WEBHOOK_SECRET", secret)
+	req := httptest.NewRequest(http.MethodPost, "/github/webhook", strings.NewReader(body))
+	req.Header.Set("X-GitHub-Event", event)
+	mac := computeHMACSHA256([]byte(body), []byte(secret))
+	req.Header.Set("X-Hub-Signature-256", "sha256="+hex.EncodeToString(mac))
+	return req
+}
+
+// TestHandleGitHubWebhookRefusesWithoutSecret pins the security invariant: with no
+// signing secret configured the endpoint serves NOTHING. Before this was fixed the
+// same request returned 200 and the event was processed unsigned — and for
+// action=opened that chain ends in executeTaskQueue(), so an unauthenticated POST
+// could enqueue and dispatch work.
+func TestHandleGitHubWebhookRefusesWithoutSecret(t *testing.T) {
+	t.Setenv("GITHUB_WEBHOOK_SECRET", "")
+	d := &Daemon{logger: testLogger()}
+
+	// A ping is the most benign event there is; even that must be refused, so the
+	// test cannot pass merely because the payload was uninteresting.
+	req := httptest.NewRequest(http.MethodPost, "/github/webhook", strings.NewReader(`{"zen":"x"}`))
+	req.Header.Set("X-GitHub-Event", "ping")
+
+	w := httptest.NewRecorder()
+	d.handleGitHubWebhook(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("unset secret: got status %d, want %d (fail-closed)", w.Code, http.StatusServiceUnavailable)
+	}
+}
+
 func TestVerifyWebhookSignature(t *testing.T) {
 	secret := "test-secret-key"
 	body := []byte(`{"action":"labeled"}`)
@@ -117,8 +157,7 @@ func TestHandleGitHubWebhookPing(t *testing.T) {
 	d := &Daemon{logger: testLogger()}
 
 	body := `{"zen":"Responsive is better than fast."}`
-	req := httptest.NewRequest(http.MethodPost, "/github/webhook", strings.NewReader(body))
-	req.Header.Set("X-GitHub-Event", "ping")
+	req := signedWebhookRequest(t, "ping", body, "test-secret")
 
 	w := httptest.NewRecorder()
 	d.handleGitHubWebhook(w, req)
@@ -175,8 +214,7 @@ func TestHandleGitHubWebhookBotSender(t *testing.T) {
 	}
 	body, _ := json.Marshal(payload)
 
-	req := httptest.NewRequest(http.MethodPost, "/github/webhook", strings.NewReader(string(body)))
-	req.Header.Set("X-GitHub-Event", "issues")
+	req := signedWebhookRequest(t, "issues", string(body), "test-secret")
 
 	w := httptest.NewRecorder()
 	d.handleGitHubWebhook(w, req)
@@ -189,8 +227,7 @@ func TestHandleGitHubWebhookBotSender(t *testing.T) {
 func TestHandleGitHubWebhookUnknownEvent(t *testing.T) {
 	d := &Daemon{logger: testLogger()}
 
-	req := httptest.NewRequest(http.MethodPost, "/github/webhook", strings.NewReader("{}"))
-	req.Header.Set("X-GitHub-Event", "push")
+	req := signedWebhookRequest(t, "push", "{}", "test-secret")
 
 	w := httptest.NewRecorder()
 	d.handleGitHubWebhook(w, req)
@@ -223,8 +260,7 @@ func TestHandleGitHubWebhookLabeledNoWatcher(t *testing.T) {
 	}
 	body, _ := json.Marshal(payload)
 
-	req := httptest.NewRequest(http.MethodPost, "/github/webhook", strings.NewReader(string(body)))
-	req.Header.Set("X-GitHub-Event", "issues")
+	req := signedWebhookRequest(t, "issues", string(body), "test-secret")
 
 	w := httptest.NewRecorder()
 	d.handleGitHubWebhook(w, req)
