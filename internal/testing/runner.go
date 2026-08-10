@@ -663,45 +663,6 @@ func (r *Runner) bindPropertyValues(property *ast.Property, values []eval.Value)
 	return expr
 }
 
-// valueToLiteral converts an eval.Value to an ast.Literal expression.
-func (r *Runner) valueToLiteral(value eval.Value) ast.Expr {
-	switch v := value.(type) {
-	case *eval.IntValue:
-		return &ast.Literal{
-			Kind:  ast.IntLit,
-			Value: v.Value,
-		}
-	case *eval.FloatValue:
-		return &ast.Literal{
-			Kind:  ast.FloatLit,
-			Value: v.Value,
-		}
-	case *eval.BoolValue:
-		return &ast.Literal{
-			Kind:  ast.BoolLit,
-			Value: v.Value,
-		}
-	case *eval.StringValue:
-		return &ast.Literal{
-			Kind:  ast.StringLit,
-			Value: v.Value,
-		}
-	case *eval.ListValue:
-		// Convert list elements
-		elements := make([]ast.Expr, len(v.Elements))
-		for i, elem := range v.Elements {
-			elements[i] = r.valueToLiteral(elem)
-		}
-		return &ast.List{Elements: elements}
-	default:
-		// For unsupported types, return a unit literal
-		return &ast.Literal{
-			Kind:  ast.UnitLit,
-			Value: struct{}{},
-		}
-	}
-}
-
 // shrinkCounterexample finds the minimal counterexample using shrinking.
 func (r *Runner) shrinkCounterexample(property *ast.Property, failingValues []eval.Value, shrinkers []Shrinker) []eval.Value {
 	// Try shrinking each parameter independently
