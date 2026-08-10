@@ -13,9 +13,12 @@ const jsonOutputTestSource = `module json_output_test
 test "passes" { true }
 `
 
+// The vacuous vehicle must be a type the runner cannot derive a generator
+// for. Records became derivable at Lane B1 M3 (#517), so the vehicle is an
+// ADT — underivable until M4, which will need to swap it again (F-M3-2).
 const mixedVacuousTestSource = `module mixed_vacuous_test
 
-export type Point = { x: int, y: int }
+export type Point = P | Q
 
 export func anchor(x: int) -> int ! {}
 ensures { result == x }
@@ -24,9 +27,9 @@ ensures { result == x }
 }
 
 export func shiftX(p: Point, dx: int) -> int ! {}
-ensures { result == p.x + dx }
+ensures { result == dx }
 {
-  p.x + dx
+  dx
 }
 
 export func headOr(xs: list[int], d: int) -> int ! {}

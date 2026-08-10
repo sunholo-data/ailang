@@ -2,6 +2,7 @@ package testing
 
 import (
 	"math/rand"
+	"sort"
 
 	"github.com/sunholo-data/ailang/internal/eval"
 )
@@ -191,21 +192,33 @@ func (g *ADTGenerator) Generate(rng *rand.Rand) eval.Value {
 // RecordGenerator generates record values (field: value maps).
 type RecordGenerator struct {
 	fieldGens map[string]Generator
+	// fieldOrder holds the field names in sorted order, fixed once at
+	// construction. Generate iterates this slice so the per-field RNG draw
+	// order is deterministic across runs — ranging the Go map directly would
+	// randomise the draw order per Generate call and break seeded replayability
+	// (F-3 in m-property-generator-coverage-lane-b1-sprint-plan.md).
+	fieldOrder []string
 }
 
 // NewRecordGenerator creates a generator for record values.
 func NewRecordGenerator(fieldGens map[string]Generator) *RecordGenerator {
+	fieldOrder := make([]string, 0, len(fieldGens))
+	for name := range fieldGens {
+		fieldOrder = append(fieldOrder, name)
+	}
+	sort.Strings(fieldOrder)
 	return &RecordGenerator{
-		fieldGens: fieldGens,
+		fieldGens:  fieldGens,
+		fieldOrder: fieldOrder,
 	}
 }
 
 // Generate produces a record value.
 func (g *RecordGenerator) Generate(rng *rand.Rand) eval.Value {
-	fields := make(map[string]eval.Value)
+	fields := make(map[string]eval.Value, len(g.fieldOrder))
 
-	for fieldName, fieldGen := range g.fieldGens {
-		fields[fieldName] = fieldGen.Generate(rng)
+	for _, fieldName := range g.fieldOrder {
+		fields[fieldName] = g.fieldGens[fieldName].Generate(rng)
 	}
 
 	return &eval.RecordValue{Fields: fields}
