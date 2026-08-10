@@ -1,0 +1,289 @@
+{
+  "sprint_id": "M-PROPERTY-GENERATOR-LANE-B1",
+  "status": "planned",
+  "created": "2026-08-10T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_31_0/m-property-generator-coverage.md",
+  "sprint_plan": "design_docs/planned/v0_31_0/m-property-generator-coverage-lane-b1-sprint-plan.md",
+  "github_issues": [
+    517
+  ],
+  "risk_level": "medium-high",
+  "metadata": {
+    "planner-model": "claude-opus-5",
+    "mission_iteration": 168,
+    "scope": "Lane B1 ONLY of m-property-generator-coverage. IN: structural generator derivation from same-file surface-AST TypeDecls for records (named + anonymous + nested), ADTs, tuples, unit (), and *ast.TypeAlias targets; the valueToLiteral value-splice arms (UnitValue/RecordValue/TupleValue/TaggedValue) followed by the loud-error default; a recursion depth budget (default 3) and a size budget; deterministic record-field ordering. OUT: Lane A (LANDED at a81d66983, PR #536 - do NOT redo the list arm, skip taxonomy, Success(), reporter, or JSON preamble); Lane B2 entirely (gen<TypeName> escape hatch, alias-first hint text / B-9, refined types) - DEFERRED by the 2026-07-29 quorum on reviewer gpt5-6-sol's own proposal, BLOCKED ON a deterministic evaluator fuel budget; imported / cross-module named types (stay honest vacuous skips); cross-constructor ADT shrinking.",
+    "estimated_effort": "2.25 days (doc says ~1.5-2d; the doc predates Lane A and omits the RecordGenerator determinism fix, the size budget, and the measured 87-property triage load)",
+    "base_commit": "22ba8626d8265f86cb2b9fdaa6b4ff0ae0facb19",
+    "base_note": "Branch dev. All measurements taken FIRST-PARTY in the MAIN CHECKOUT at this commit with `go build -o /tmp/ailang_planner168 ./cmd/ailang` (binary self-reports Commit: 22ba862). No repo file was modified during planning; no scratch-patch probe was applied to internal/testing.",
+    "premises_verified_live": true,
+    "verification_date": "2026-08-10",
+    "read_only_main_checkout": true,
+    "executor_cannot_run_git": "The executor cannot run git AT ALL. The controller reconstructs each commit from a per-milestone .snap/M<k>/ snapshot. Every milestone's `files` field lists the exact NEW/MOD set to snapshot. Report any touched file not on its milestone's list - an unlisted file is a planning defect, not a silent extra.",
+    "mandatory_ordering": "M1 (valueToLiteral gains UnitValue/RecordValue/TupleValue/TaggedValue arms, default STILL silent) MUST land before M2 (default becomes a loud error). Reversing this fails the harness for every unit-typed generated value - the exact defect gemini-3-1-pro caught in quorum round 2. M1 is behaviour-inert at the CLI (no generator yet produces these value kinds), which is what makes a bisect landing on M1 exonerating.",
+    "three_generator_call_sites": "REFUTES the controller brief's two-site claim. createGeneratorForType has THREE callers across TWO files: internal/testing/runner.go:281 (runProperty / forall binders), internal/testing/runner.go:415 (runRequiresProperty), and internal/testing/contract_domain.go:74 (runEnsuresProperty). runEnsuresProperty was moved out of runner.go into contract_domain.go (194 lines) after the design doc was written, and the doc's Lane B 'Files to Modify' list omits contract_domain.go entirely. Every ensures-derived property in the corpus flows through it. Mitigation: M3 routes all three through a single deriveType entry point so contract_domain.go needs no edit for derivation (it is still edited in M2 for the valueToLiteral error thread).",
+    "three_splice_call_sites": "valueToLiteral has THREE external call sites across TWO files - contract_domain.go:101 (ensures), runner.go:438 (requires), runner.go:652 (bindPropertyValues, also reached from shrinkCounterexample:725) - plus an internal recursion at runner.go:693. Changing the signature to (ast.Expr, error) also changes bindPropertyValues' signature and therefore its callers runProperty:315 and shrinkCounterexample:725. This is not a one-file edit.",
+    "file_size_gate": "internal/testing/runner.go = 749 lines; make check-file-sizes fails >800 (make/code-health.mk:122). Only 51 lines of headroom, and B1 adds far more. The plan therefore MOVES valueToLiteral out of runner.go into a new internal/testing/value_splice.go (M1, ~-38 lines) and createGeneratorForType into a new internal/testing/derive.go (M3, ~-42 lines), landing runner.go near 669. These moves are deliberate size-gate relief, not drive-by refactoring. make check-file-sizes is a gate on EVERY milestone.",
+    "bounded_wait_recipe": "CRITICAL, REFUTES the Lane A plan's guidance. `perl -e 'alarm N; exec @ARGV'` DOES NOT BOUND A GO BINARY: the Go runtime classifies SIGALRM as notify-only and, with no os/signal listener, ignores it. Measured with a positive control: a 20s Go binary under `alarm 3` ran the full 20s and exited 0; /bin/sleep 20 under the same wrapper died at 3s with rc 142. `timeout` and `gtimeout` are NOT on PATH on this rig. Use background-and-kill instead: `\"$@\" & pid=$!; ( sleep LIM; kill -9 $pid 2>/dev/null ) & w=$!; wait $pid; rc=$?; kill $w 2>/dev/null; exit $rc` - verified to bound a Go binary (rc 137) and to leave a fast one alone (rc 0).",
+    "pristine_baselines": "MEASURED at 22ba8626d, all first-party. GREEN and usable as gates: `go test ./internal/testing/... -count=1` rc 0 (ok, 1.347s); `go vet ./internal/testing/...` rc 0; `make check-file-sizes` rc 0; `make lint` rc 0 (BUT it prints `1 issues: * unused: 1` and still exits 0 - gate on the EXIT CODE, never on that line's absence); `go build ./internal/... ./cmd/ailang/...` rc 0; `make verify-examples` rc 0 (186 modules checked, 0 drift, 1 missing-on-disk). ALREADY RED - NOT A GATE: `go build ./...` rc 1 (cmd/wasm and gen/main declare no native main). UNINFORMATIVE UNDER SANDBOX (never pass/fail): `go test ./cmd/ailang/...` and `make test`, which bind loopback sockets in six cmd/ailang test files.",
+    "flags_before_path": "MANDATORY. `ailang test f.ail --format json` silently ignores --format (Go flag stops at the first non-flag arg; #534, out of scope). Every command in the plan is flags-first. A flags-last acceptance check tests nothing.",
+    "corpus_measurement": "FULL 33-file sweep of examples/runnable/contracts at 22ba8626d, 32 measured + per_function_depth_verify UNMEASURED (exceeds a 60s bound, rc 137). Total 111 vacuous skips. B1 fixes 87; 24 remain BY DESIGN: Cell x3 and list[Tree] x1 (imported from cross_module_types_lib), Mail x9 (imported from inbox_v2_lib), string<email> x11 (refined type, B2). This SUPERSEDES V34, which was an explicit lower bound (~17 of 33 files under a 2-minute cap) and which missed scoring.ail (6 vacuous: SkillLevel, Tenure, Performance, Department) and showcase.ail (9 vacuous: {subtotal,tax,discount}, Priority) entirely.",
+    "must_stay_green_files": "FALSE-RED GUARDS - these five are rc 0 today and MUST stay rc 0 with vacuous_skips == 0: cross_module_functions, cross_module_functions_lib, hof_verify, temperature, unencodable_callee_skip. Their skips are out_of_contract, deliberately forgiven.",
+    "triage_expectation": "87 never-executed properties across 15 files start running. Failures are the feature working, NOT regressions - but every newly-failing property must be classified inside this sprint as (a) deliberate (record_verify.ail:59 brokenDistance; the file header at :8 says 'Expect: 4 verified, 1 violation'), (b) a genuine latent bug in the EXAMPLE's contract (fix the example, name the line), or (c) a B1 defect (fix B1, re-run that milestone's gate). Zero unclassified.",
+    "two_out_of_contract_texts": "The ensures path (contract_domain.go:144) and the requires path (runner.go:465) emit DIFFERENT out_of_contract texts: 'unverified: requires filter accepted N of M generated inputs; need 100 (K discarded)' vs 'requires not satisfied by random input (consider tighter generators): ...'. Never assert a single out_of_contract substring across both paths.",
+    "no_examples_dir_trap": "Adding examples/runnable/contracts/shapes_verify.ail REQUIRES a matching examples/manifest.json entry (path/status/tags/description) or scripts/validate_manifest.go --ci reds make verify-examples, AND the file must `ailang run` successfully - every manifest'd contracts example has an `export func main() -> int ! {}`. Unlike Lane A (which correctly skipped its example because Lane A added zero syntax), B1's user-visible payoff IS 'these shapes now get tested', so the example is kept."
+  },
+  "velocity": {
+    "target_loc_per_day": 649,
+    "estimated_total_loc": 1460,
+    "estimated_days": 2.25,
+    "loc_note": "1460 = 590 impl + 870 test. Deliberately test-heavy: the impl is derivation plumbing over an already-existing combinator layer, and the value is in the mutation-backed acceptance suite (16 criteria, 5 refusal-branch neutering mutations). The 2.25d budget is gated by M6's measured triage of 87 newly-executing properties across 15 files (Lane A's 16 properties cost it 0.4d) plus two defects the design doc does not contain: the RecordGenerator map-iteration nondeterminism (+0.15d) and the missing size budget (+0.2d)."
+  },
+  "features": [
+    {
+      "id": "M1_SPLICE_ARMS_DEFAULT_STILL_SILENT",
+      "description": "FIRST HALF OF THE MANDATED ORDERING. Move valueToLiteral (runner.go:666-703) verbatim into a NEW internal/testing/value_splice.go, keeping the (r *Runner) receiver - this buys ~38 lines of headroom in runner.go (749 -> ~711) before anything is added. Then add four arms BEFORE the default: *eval.UnitValue -> ast.Literal{Kind: ast.UnitLit, Value: struct{}{}}; *eval.RecordValue -> *ast.Record with fields emitted in SORTED field-name order (RecordValue.Fields is a map, so unsorted emission would produce a nondeterministic AST); *eval.TupleValue -> *ast.Tuple; *eval.TaggedValue -> ARITY-SPLIT: len(Fields)==0 yields a bare *ast.Identifier{Name: CtorName}, otherwise *ast.FuncCall{Func: Identifier(CtorName), Args: ...}. The arity split is load-bearing, not cosmetic: injectADTConstructors (executor_helpers.go:483-489) binds NULLARY constructors to a *eval.TaggedValue rather than a closure, so emitting FuncCall for a nullary constructor produces core.App over a non-function and dies with 'cannot apply non-function value: *eval.TaggedValue' (eval_operations.go:245). The default arm stays SILENT in this milestone (add a TODO(M2) comment naming this plan). M1 is behaviour-inert at the CLI because no generator yet produces these value kinds.",
+      "estimated_loc": 230,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "B1-1: valueToLiteral returns *ast.Record for RecordValue, *ast.Tuple for TupleValue, ast.Literal{UnitLit} for UnitValue, *ast.Identifier for a NULLARY TaggedValue, and *ast.FuncCall for an n-ary TaggedValue. BASELINE at 22ba8626d: all five currently fall through to the default and return ast.Literal{UnitLit} (read at runner.go:696-701); no corpus path reaches them. Red-turning mutation: delete any one arm - that value falls to the default and the node-type assertion fails.",
+        "B1-2 (ROUND-TRIP, the downstream observable): for each of the five shapes, astExprToCore(valueToLiteral(v)) evaluated through an eval.CoreEvaluator (with injectADTConstructors applied for the ADT case) is STRUCTURALLY EQUAL to v. The assertion reads the EVALUATED eval.Value, one full step past the AST, so an AST that is well-formed but semantically wrong still reds. Red-turning mutation: emit ast.Tuple for RecordValue - it compiles and produces a valid AST, but the round-tripped value differs.",
+        "INERTNESS PROOF: re-run the 32-file bounded corpus sweep and diff success / passed / failed / skipped / vacuous_skips against the plan's section 1.4 table - must be BYTE-IDENTICAL. Use the background-and-kill bounded-wait recipe; perl alarm does NOT bound a Go binary.",
+        "go test ./internal/testing/... -count=1 rc 0 (base rc 0); go vet ./internal/testing/... rc 0; make check-file-sizes rc 0; make lint rc 0 (gate on exit code only - it prints '1 issues: * unused: 1' at base and still exits 0); go build ./internal/... ./cmd/ailang/... rc 0 (do NOT use go build ./... - it is rc 1 on the pristine tree).",
+        "Report go test ./cmd/ailang/... as UNINFORMATIVE UNDER SANDBOX. Snapshot exactly: NEW internal/testing/value_splice.go, MOD internal/testing/runner.go, NEW internal/testing/value_splice_test.go."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_SPLICE_LOUD_DEFAULT_REFUSAL",
+      "description": "SECOND HALF OF THE MANDATED ORDERING - must not land before M1. valueToLiteral's signature becomes (ast.Expr, error) and its default arm returns nil plus fmt.Errorf(\"no literal splice for generated value of type %T (%s)\", value, value.Type()). Thread the error through all FOUR call sites: contract_domain.go:101 (ensures) -> Status: StatusFail with the message, NEVER StatusSkip (a skip here would re-open the vacuous-pass hole this doc exists to close); runner.go:438 (requires) -> same; bindPropertyValues (runner.go:643) gains (ast.Expr, error) and runProperty:315 -> StatusFail; shrinkCounterexample:725 treats a splice error as an unusable shrink candidate and `continue`s, exactly as the existing EvaluateExpression error branch already does (best-effort by design - it must not panic and must not change the reported verdict). The internal list-element recursion at runner.go:693 propagates.",
+      "estimated_loc": 190,
+      "dependencies": [
+        "M1_SPLICE_ARMS_DEFAULT_STILL_SILENT"
+      ],
+      "acceptance_criteria": [
+        "B1-3: an unknown eval.Value (e.g. &eval.FuncValue{}) makes valueToLiteral return a NON-NIL error, and each of the three property paths turns it into Status == StatusFail carrying that message - never StatusSkip. BASELINE at 22ba8626d: the default silently splices (), so a property can PASS on a fabricated unit value.",
+        "REFUSAL BRANCH N-1 (default arm refuses): neutering mutation `default: if false && true { return nil, fmt.Errorf(...) }; return &ast.Literal{Kind: ast.UnitLit}, nil`. The unit test asserting a non-nil error for an unknown eval.Value must go RED. Apply, observe red, revert, and record the observation in the milestone report.",
+        "REFUSAL BRANCH N-2 (ensures site converts error to StatusFail): neutering mutation `if false && err != nil { ...fail... }` at contract_domain.go. The ensures-path test asserting StatusFail + message must go RED. NOTE: with the mutant, astExprToCore(nil) panics - a panic is a red Go test, which is the correct outcome. Do NOT 'fix' that panic.",
+        "REFUSAL BRANCH N-3 (requires site converts error to StatusFail): neutering mutation `if false && err != nil { ... }` at runner.go:438. The requires-path test asserting StatusFail must go RED.",
+        "REFUSAL BRANCH N-4 (forall / bindPropertyValues site converts error to StatusFail): neutering mutation `if false && err != nil { ... }` at runner.go:315. The forall-path unit test asserting StatusFail must go RED.",
+        "REFUSAL BRANCH N-5 (shrink site skips an unusable candidate instead of crashing): neutering mutation `if false && err != nil { continue }`. The shrink test with one unspliceable candidate must still return a minimal value and must not panic; with the mutant it panics.",
+        "All FIVE neutering mutations applied, observed red, and reverted - one line per branch in the milestone report. A guard is not a gate until something reds when you remove it.",
+        "INERTNESS at the corpus level: no generator yet produces the new value kinds, so the 32-file sweep must STILL be byte-identical to section 1.4.",
+        "go test ./internal/testing/... -count=1 rc 0; go vet rc 0; make check-file-sizes rc 0; make lint rc 0; go build ./internal/... ./cmd/ailang/... rc 0. Snapshot exactly: MOD internal/testing/value_splice.go, MOD internal/testing/runner.go, MOD internal/testing/contract_domain.go, MOD internal/testing/value_splice_test.go, NEW internal/testing/value_splice_refusal_test.go."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_DERIVE_RECORDS_TUPLES_UNIT_ALIASES",
+      "description": "Create NEW internal/testing/derive.go and MOVE createGeneratorForType (runner.go:596-637) into it verbatim (another ~42 lines out of runner.go, landing it near 669), then extend. Introduce a deriveCtx carrying depth and sizeBudget; createGeneratorForType becomes a thin wrapper over deriveType(typ, newDeriveCtx()) so all THREE call sites (runner.go:281, runner.go:415, contract_domain.go:74) are wired by construction with no edit to contract_domain.go. New arms: *ast.SimpleType{Name:\"()\"} -> NewConstantGenerator(&eval.UnitValue{}) + NewNoOpShrinker (unit parses to SimpleType{\"()\"}, NOT an empty tuple - parser_type.go:96, parser_func.go:72); *ast.RecordType (anonymous, including nested) -> NewRecordGenerator over per-field derived generators, returning nil if ANY field is underivable (no silent substitution, CLAUDE.md principle 2); *ast.TupleType -> NewTupleGenerator; a non-scalar *ast.SimpleType{Name: X} -> look up *ast.TypeDecl{Name: X} in r.executor.sourceFile.Decls and derive a *ast.RecordType Definition, returning nil,nil when sourceFile is nil or no decl matches (imported types stay honest vacuous skips); *ast.TypeAlias -> RECURSE ON .Target. PRESERVE the existing list TypeApp arm and the ListType arm untouched - the doc's SCOPE UPDATE block is explicit that B1 adds beside them, never replaces them. ADTs and TypeApp-over-user-types are M4. ALSO in this milestone: the F-3 determinism fix - NewRecordGenerator sorts and stores its field names once and Generate iterates the sorted slice (signature unchanged, zero call-site churn).",
+      "estimated_loc": 400,
+      "dependencies": [
+        "M2_SPLICE_LOUD_DEFAULT_REFUSAL"
+      ],
+      "acceptance_criteria": [
+        "B1-4 (DETERMINISM, F-3): constructing the derived generator for {x:int, y:int, s:string} and drawing once from a FRESH newRNG(42), 200 times, yields 200 byte-identical RecordValues. BASELINE: REFUTED at base - RecordGenerator.Generate (generator_advanced.go:203-212) ranges a map[string]Generator and calls Generate(rng) inside the loop; Go randomises map iteration order per range statement (measured: 3 distinct orders in a 6-run probe over a 4-key map), so the RNG DRAW ORDER varies run to run and a fixed seed no longer reproduces a fixed record. This contradicts the doc's own axiom table (A1: Determinism, score 0) and defeats the propertySeed/SetSeedMetadata replayability machinery. Observable: the field->value ASSIGNMENT in the produced RecordValue, which is exactly what changes when draw order changes. Red-turning mutation: revert to `for k, g := range g.fieldGens`.",
+        "B1-5: anonymous record parameter {x: int, y: int} runs 100 cases. examples/runnable/contracts/record_pattern_verify.ail goes 5 vacuous -> 0 vacuous and rc 1 -> 0. BASELINE measured: success=false, 0 passed / 0 failed / 5 skipped, vacuous_skips=5, all 'no generator for parameter p: { x: int, y: int }'. Observable: CLI JSON vacuous_skips plus per-property tests_run. Red-turning mutation: restrict derivation to named TypeDecls only (drop the direct *ast.RecordType arm).",
+        "B1-8: NESTED anonymous records derive. examples/runnable/contracts/nested_record_verify.ail ({ name: string, pos: { x: int, y: int } }) goes 5 vacuous -> 0 and rc 1 -> 0. BASELINE measured: success=false, 0/0/5, vacuous_skips=5. Red-turning mutation: make the record arm derive only scalar fields (return nil for a *ast.RecordType field).",
+        "B1-10 (imported types stay honest): examples/runnable/contracts/cross_module_types.ail keeps Cell x3 and list[Tree] x1 as no_generator vacuous skips (rc stays 1) while its () parameter starts running - vacuous_skips goes 5 -> 4. BASELINE measured: success=false, 2/0/6, vacuous_skips=5, comprising Cell x3, list[Tree] x1, () x1; Cell and Tree verified IMPORTED at cross_module_types.ail:18. Red-turning mutation: make an unresolvable named type fall back to a unit-constant generator.",
+        "B1-11 (NO FALSE REDS): cross_module_functions, cross_module_functions_lib, hof_verify, temperature, unencodable_callee_skip all still exit rc 0 with vacuous_skips == 0. BASELINE: all five measured rc 0 at 22ba8626d. Red-turning mutation: make the record arm return a generator for ANY type, so out_of_contract files acquire vacuous labels.",
+        "*ast.TypeAlias arm exists and is unit-tested for a scalar target, a list target and a tuple target (type UserId = int / type Names = [string] / type Pair = (int, string) all parse to TypeAlias per parser_type_decl.go:98-118,179-186). The design doc omits TypeAlias entirely. There is NO corpus occurrence, so this is a UNIT-LEVEL criterion only - do not claim a corpus observable for it.",
+        "go test ./internal/testing/... -count=1 rc 0; go vet rc 0; make check-file-sizes rc 0 (runner.go must be well under 800 after the move); make lint rc 0; go build ./internal/... ./cmd/ailang/... rc 0.",
+        "Snapshot exactly: NEW internal/testing/derive.go, MOD internal/testing/runner.go, MOD internal/testing/generator_advanced.go, NEW internal/testing/derive_test.go, NEW internal/testing/generator_determinism_test.go, and MOD internal/testing/generator_advanced_test.go ONLY IF an existing assertion depended on map order - if so, report it explicitly (pre-authorised exception to the no-test-edits rule)."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_DERIVE_ADTS_DEPTH_AND_SIZE_BUDGET",
+      "description": "In derive.go: *ast.AlgebraicType -> NewOneOfGenerator over one NewADTGenerator(ctor.Name, fieldGens, true) per constructor; a constructor with any underivable field makes the WHOLE type underivable (nil, nil) - do not silently drop constructors, that biases the distribution invisibly. DEPTH BUDGET default 3, decremented on EVERY derivation step (not only ADT arms) so mutual recursion through record->list->ADT->record is bounded; at the bound restrict ADT choice to non-recursive constructors (per-constructor recursiveness computed once per decl, memoised); if none exist return nil,nil for an honest vacuous skip. SIZE BUDGET (F-4): inside a derivation (depth < max), cap generated list length by remaining depth instead of 0..MaxSize; top-level list[<scalar>] keeps today's 0..MaxSize so Lane A's measured behaviour is unchanged. *ast.TypeApp over a USER type with args -> substitute args into the decl's TypeParams before deriving, bounded by depth, keeping the list arm first. Also parameterise ADTGenerator with the real module path and type name in generator_advanced.go - COSMETIC/DIAGNOSTIC ONLY, see the adt_typename_refutation note.",
+      "estimated_loc": 340,
+      "dependencies": [
+        "M3_DERIVE_RECORDS_TUPLES_UNIT_ALIASES"
+      ],
+      "acceptance_criteria": [
+        "B1-6 (ADT CONSTRUCTOR COVERAGE - replaces the doc's B-3, whose mutation kills nothing): across one property run over a same-file ADT with >=2 constructors (park.ail's Season, 6 vacuous today), EVERY constructor is observed at least once in the generated stream. BASELINE measured: park.ail success=false, 1/0/7, vacuous_skips=6, 'no generator for parameter season: Season' x6. Observable: the multiset of CtorNames actually applied in the harness, downstream of the OneOf sum. Red-turning mutation: replace NewOneOfGenerator(ctors...) with the first constructor only.",
+        "B1-7 (NULLARY-vs-N-ARY SPLICE): a property over an ADT with BOTH a nullary and an n-ary constructor (Shade = Light | Dark(level: int)) runs 100 cases with no evaluation error. Observable: the EVALUATOR's verdict - a nullary emitted as FuncCall dies with 'cannot apply non-function value: *eval.TaggedValue' (eval_operations.go:245), because injectADTConstructors binds nullary constructors to a TaggedValue rather than a closure. Red-turning mutation: make the TaggedValue arm always emit ast.FuncCall regardless of arity.",
+        "B1-9 (SIZE BOUND, F-4): for the in-repo mutually-recursive Doc (record_adt_cycle_verify.ail:7-8 - `type Block = Para(string) | Container({ blocks: list[Block], kind: string })` and `type Doc = { title: string, blocks: list[Block] }`), EVERY one of 200 derived draws has total node count <= a stated constant N, AND the file completes inside a 60s bounded wait. BASELINE measured: success=false, 0/0/1, vacuous_skips=1, 'no generator for parameter d: Doc'; DefaultConfig().MaxSize == 100 read at generator.go:30. At depth 3 with uncapped lists one Doc draw is ~2500 nodes, x100 cases. Observable: the SIZE of the generated value - deterministic, so the gate cannot flake on wall clock. Red-turning mutation: remove the depth-scaled list cap (restore 0..MaxSize inside derivation).",
+        "B1-12 (DEPTH EXHAUSTION IS AN HONEST SKIP, not a hang or a fabrication): a same-file ADT with NO non-recursive constructor (`type Endless = Wrap(Endless)`, unit-level fixture) derives to nil,nil so the property reports skip_kind == \"no_generator\". Observable: PropertyResult.SkipKind written at contract_domain.go:77. Red-turning mutation: at the depth bound, return the first constructor anyway - the derivation then recurses past the bound and the test times out or stack-overflows.",
+        "B1-13 (LANE A BEHAVIOUR PRESERVED): hof_verify (2 pass x100), list_verify (5 pass + 1 deliberate fail), and invoice's 2 list[int] properties all keep their exact tests_run counts. BASELINE measured in the plan's section 1.4. Red-turning mutation: apply the depth-scaled size cap to top-level list[<scalar>] too - list lengths shrink and Lane A's measured counts drift.",
+        "ADT-heavy corpus files move as predicted: access_control 4 vacuous -> 0 (rc 1->0), cross_function 5 -> 0 (rc 1->0), finance 4 -> 0 (rc 1 kept, 1 real fail), insurance 6 -> 0 (rc 1->0), park 6 -> 0 (rc 1->0), scoring 6 -> 0 (rc 1->0), showcase 9 -> 0 (rc 1 kept, 1 real fail), invoice 13 -> 0 (rc 1 kept, 1 real fail).",
+        "ADTGenerator module/type parameterisation is asserted at UNIT LEVEL ONLY and explicitly NOT claimed as an end-to-end fix. See metadata.adt_typename_refutation: nothing downstream reads TaggedValue.TypeName or .ModulePath on this path, and the splice discards the generated TaggedValue entirely.",
+        "go test ./internal/testing/... -count=1 rc 0; go vet rc 0; make check-file-sizes rc 0; make lint rc 0; go build ./internal/... ./cmd/ailang/... rc 0. Snapshot exactly: MOD internal/testing/derive.go, MOD internal/testing/generator_advanced.go, MOD internal/testing/derive_test.go, NEW internal/testing/derive_adt_test.go."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_DERIVED_SHRINKERS_DROPPABLE",
+      "description": "DROPPABLE MILESTONE - unit-observable only. Add RecordShrinker (per-field, composing the existing field shrinkers) and TupleShrinker (per-element) to internal/testing/shrink.go and return them from the M3/M4 derivation arms; ADTs reuse the existing NewADTShrinker. RATIONALE FOR THE DROPPABLE FLAG (F-5): createGeneratorForType returns (Generator, Shrinker) but BOTH contract paths discard the shrinker - contract_domain.go:74 and runner.go:415 are both `gen, _ := ...`. The only consumer is shrinkCounterexample, reached only from runProperty (the forall path), which is broken upstream ('empty program', #624 / doc V10 and V36) and cannot produce a counterexample at all. So a derived shrinker cannot be observed through `ailang test` by any means. If the sprint is behind at the end of M4, DROP this milestone and file it as a follow-up - nothing downstream depends on it.",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M4_DERIVE_ADTS_DEPTH_AND_SIZE_BUDGET"
+      ],
+      "acceptance_criteria": [
+        "B1-14: RecordShrinker and TupleShrinker produce field-wise / element-wise simplifications and never return the input unchanged. BASELINE: no such shrinkers exist - `grep 'func New.*Shrinker' internal/testing/shrink.go` returns Int, Float, String, List, ADT, NoOp only. Observable: the returned []eval.Value. Red-turning mutation: delete the per-field loop, yielding an empty shrink set.",
+        "NO criterion in this milestone may claim improved counterexample quality, shrink quality, or any CLI-visible effect. State plainly in the milestone report that these shrinkers are unreachable from `ailang test` today and why (F-5).",
+        "go test ./internal/testing/... -count=1 rc 0; go vet rc 0; make check-file-sizes rc 0; make lint rc 0.",
+        "If DROPPED: say so explicitly, leave shrink.go untouched, and record the follow-up. Do not partially land it. Snapshot exactly (if landed): MOD internal/testing/shrink.go, MOD internal/testing/derive.go, NEW internal/testing/shrink_derived_test.go."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6_CORPUS_TRIAGE_EXAMPLE_AND_CLOSEOUT",
+      "description": "TRIAGE-DOMINATED (0.5 of its 0.55d). Re-sweep all 33 examples/runnable/contracts files with the background-and-kill bounded-wait recipe and produce the after-table against the plan's section 1.4. Classify EVERY newly-failing property. Add NEW examples/runnable/contracts/shapes_verify.ail (the doc's shapes.ail: record + ADT + tuple + scalar ensures) PLUS an `export func main() -> int ! {}`, and a matching examples/manifest.json entry. Update changelogs/v0.18-current.md [Unreleased] and mark B1 landed in the design doc, recording refutations F-1 through F-7. File follow-ups without implementing them. SIZING NOTE: estimated_loc 100 counts code/fixture lines only (40 impl + 60 test), consistent with the other milestones; the ~120 lines of CHANGELOG + design-doc prose are excluded so the milestone sum matches velocity.estimated_total_loc.",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M5_DERIVED_SHRINKERS_DROPPABLE"
+      ],
+      "acceptance_criteria": [
+        "B1-16 (ZERO UNCLASSIFIED): every newly-failing property in the after-sweep is classified as (a) DELIBERATE - the example is documented as broken, e.g. record_verify.ail:59 brokenDistance with the file header at :8 stating 'Expect: 4 verified, 1 violation'; record and leave failing; (b) GENUINE LATENT BUG in the example's contract - fix the EXAMPLE, not the runner, and name the line; or (c) a B1 DEFECT - fix B1 and re-run the affected milestone's gate. BASELINE: 111 vacuous skips today, 87 of which start running.",
+        "B1-15: make verify-examples rc 0 with shapes_verify.ail in the manifest. BASELINE measured rc 0 at 22ba8626d ('186 modules checked, 0 drift, 1 missing-on-disk'; 'all examples pass and manifest is in sync') - an already-green gate, so a red here is a real defect, not pre-existing noise. Red-turning mutation: omit the manifest entry - scripts/validate_manifest.go --ci reds.",
+        "shapes_verify.ail has an `export func main() -> int ! {}` (every manifest'd contracts example does; make verify-examples runs `ailang run`, not `ailang test`) and its manifest entry carries path / status:\"working\" / tags / description.",
+        "CHANGELOG entry in changelogs/v0.18-current.md [Unreleased]: record / ADT / tuple / unit parameters now get derived generators; 87 previously-never-executed contract properties across 15 in-repo examples now run; the files that flip rc 1 -> 0 are named; the 24 skips that REMAIN (Cell x3 + list[Tree] x1 + Mail x9 imported, string<email> x11 refined) are named as B2 scope, not omissions.",
+        "The design doc is updated to mark B1 landed AND to record: F-1 (its success metric is WRONG - B1 fixes ZERO properties in inbox_injection_v2.ail and inbox_v2_app.ail, so the headline 'the prompt-injection safety demos have never executed' claim is not addressed by B1); F-2 (ADTGenerator TypeName parameterisation is cosmetic, and B-3's mutation kills nothing); F-3 (RecordGenerator nondeterminism, which contradicts the doc's own A1 score); F-4 (depth alone does not bound generation cost); F-5 (derived shrinkers are unreachable); F-7 (the Lane B file list must include contract_domain.go).",
+        "Follow-ups FILED, NOT implemented: derived shrinkers if M5 was dropped; TypeAlias-shaped named aliases have no corpus coverage; imported-type resolution via the typechecker env is the fix for the 13 remaining imported-type skips; refined-type generation stays with B2 behind the evaluator fuel budget.",
+        "make verify-examples rc 0; go test ./internal/testing/... -count=1 rc 0; go vet rc 0; make check-file-sizes rc 0; make lint rc 0; go build ./internal/... ./cmd/ailang/... rc 0.",
+        "Snapshot exactly: NEW examples/runnable/contracts/shapes_verify.ail, MOD examples/manifest.json, MOD changelogs/v0.18-current.md, MOD design_docs/planned/v0_31_0/m-property-generator-coverage.md, plus EACH examples/runnable/contracts/*.ail fixed under classification (b) - list every one."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "discrepancies_found": [
+    {
+      "id": "F-1",
+      "severity": "high",
+      "doc_claim": "Design doc Success metrics: 'After Lane B1, the five silent-shape example files above run their skipped properties (or fail honestly).' Problem Statement: 'The first two are the prompt-injection safety demos - their safety properties have never executed.'",
+      "finding": "REFUTED. B1 fixes ZERO properties in either injection demo. inbox_injection_v2.ail's 10 vacuous skips are ALL `no generator for parameter rawEmail/rawBody: string<email>` - a REFINED type, explicitly out of B1 scope and parked with B2. inbox_v2_app.ail's are `Mail` x9 plus one string<email>; Mail is declared in inbox_v2_lib.ail and IMPORTED at inbox_v2_app.ail:24, so the same-file derivation bound leaves it vacuous. Verified: `grep -E '^(export )?type Mail' inbox_v2_app.ail` returns nothing.",
+      "action": "No acceptance criterion may expect those two files to change; section 1.4 pins them as UNCHANGED. The mission-visible claim that B1 makes the injection demos honest is false - the honest claim is that Lane A already made them LOUD (they exit 1 today) and B2 makes them RUN. Correct the design doc at M6 and flag it for the release note."
+    },
+    {
+      "id": "F-2",
+      "severity": "high",
+      "doc_claim": "Lane B1 bullet: 'Prerequisite fix: ADTGenerator.Generate hardcodes ModulePath: \"test\", TypeName: \"ADT\" (generator_advanced.go:171-176) - parameterize with the real module path + type name or generated TaggedValues won't match/typecheck in the harness.' Acceptance B-3's red-turning mutation is 'Restore hardcoded ModulePath/TypeName in ADTGenerator.Generate'.",
+      "finding": "REFUTED ON BOTH LEGS, and B-3's mutation kills nothing. (1) NOTHING MATCHES ON TypeName/ModulePath: matchPattern's *core.ConstructorPattern arm (internal/eval/eval_patterns.go:178-194) compares ONLY tagged.CtorName != p.Name and arity; taggedValuesEqual (:410) compares only CtorName + fields; isTag (:749) - the one function that does compare TypeName - has ZERO non-test callers (only adt_runtime_test.go:140); TaggedValue.String() (value.go:362) prints CtorName(fields...) and never the type name, so it is not observable in counterexample text either. (2) THE SPLICE THROWS THE GENERATED TaggedValue AWAY: valueToLiteral(TaggedValue) becomes ast.FuncCall(Identifier(ctor), fields) -> core.App{Func: core.Var{ctor}} -> the harness env's ConstructorClosure.Apply (eval_operations.go:241, value.go:395) REBUILDS a fresh TaggedValue using the TypeName injected by injectADTConstructors (executor_helpers.go:461-501), which is the correct one. (3) There is no typechecking on this path at all: evaluateEnsuresHarnessCore (executor.go:144-167) builds a core.Program and calls EvalCoreProgram directly.",
+      "action": "B-3 is REPLACED by two criteria with real downstream writes: B1-6 (every ADT constructor observed at least once across a run - downstream of the OneOf sum; mutation = collapse to the first constructor) and B1-7 (nullary-vs-n-ary splice - downstream of the arity split; mutation = always emit FuncCall, which dies with 'cannot apply non-function value: *eval.TaggedValue'). ADTGenerator parameterisation is retained as a COSMETIC/DIAGNOSTIC change with a unit-level criterion only, demoted from 'prerequisite'."
+    },
+    {
+      "id": "F-3",
+      "severity": "high",
+      "doc_claim": "Axiom Compliance table: 'A1: Determinism | 0 | Derived generators use the existing seeded RNG (newRNG(config.Seed)); no new nondeterminism.'",
+      "finding": "REFUTED - wiring RecordGenerator as-is introduces run-to-run nondeterminism. RecordGenerator.Generate (generator_advanced.go:203-212) iterates `for fieldName, fieldGen := range g.fieldGens` over a map[string]Generator and calls fieldGen.Generate(rng) INSIDE the loop. Go randomises map iteration order per range statement - measured this sprint with a 6-run probe over a 4-key map: 3 distinct orders observed. So the ORDER OF RNG DRAWS varies run to run and a fixed seed no longer reproduces a fixed record. This defeats the propertySeed / SetSeedMetadata / result.SetSeedMetadata replayability machinery: a reported counterexample would not reproduce from its reported seed. The doc scores A1 at 0 on the assumption that reusing the seeded RNG is sufficient; it is not, because the CONSUMPTION ORDER is unspecified.",
+      "action": "MANDATORY fix in M3: NewRecordGenerator sorts and stores its field names once; Generate iterates the sorted slice. Signature unchanged, so zero call-site churn. Acceptance B1-4 asserts 200 byte-identical draws from a fresh newRNG(42) - non-flaky, since under map-range the probability of 200 identical multi-field draws is effectively zero. The same sorted-order discipline applies to valueToLiteral's RecordValue arm in M1 (RecordValue.Fields is also a map). Correct the doc's A1 justification at M6."
+    },
+    {
+      "id": "F-4",
+      "severity": "high",
+      "doc_claim": "Lane B1 'Recursion bound: depth budget (default 3) threaded through derivation' - the ONLY bound the doc specifies for structural generation.",
+      "finding": "INSUFFICIENT - this is the same critique the quorum levelled at B2, applied to B1's own generation, and the doc does not address it. DefaultConfig().MaxSize == 100 (generator.go:30) and the list arm generates lengths 0..MaxSize. The in-repo fixture record_adt_cycle_verify.ail is MUTUALLY RECURSIVE through a record, an ADT and a list: `export type Block = Para(string) | Container({ blocks: list[Block], kind: string })` and `export type Doc = { title: string, blocks: list[Block] }`. At depth 3 with uncapped list lengths, one Doc draw carries ~50 Blocks each containing ~50 more - roughly 2500 nodes with strings up to 100 chars - times 100 cases. Depth bounds recursion; it does not bound total work.",
+      "action": "MANDATORY in M4: thread a SIZE budget alongside the depth budget - cap derivation-internal list length by remaining depth, while top-level list[<scalar>] keeps 0..MaxSize so Lane A's measured behaviour on hof_verify / list_verify / invoice is unchanged (pinned by B1-13). Acceptance B1-9 asserts a DETERMINISTIC size bound on the generated values (not a wall-clock time, so the gate cannot flake), with the 60s bounded completion of record_adt_cycle_verify.ail as a secondary smoke."
+    },
+    {
+      "id": "F-5",
+      "severity": "medium",
+      "doc_claim": "Lane B1 'Shrinking: minimal honest scope - per-element TupleShrinker and per-field RecordShrinker ... Shrinking behaviour for derived generators was NOT investigated beyond code reading - treat quality of shrunk counterexamples as unvalidated until B1's tests exist.'",
+      "finding": "UNDERSTATED - they are not merely unvalidated, they are UNREACHABLE. createGeneratorForType returns (Generator, Shrinker), but BOTH contract paths discard the shrinker: contract_domain.go:74 and runner.go:415 are both `gen, _ := r.createGeneratorForType(...)`. The only consumer is shrinkCounterexample, reached only from runProperty (the forall path), which is broken upstream ('empty program', #624 / doc V10 and V36) and cannot produce a counterexample at all. So no derived shrinker can be observed through `ailang test` by any means, at any level above a unit test.",
+      "action": "M5 is scoped as UNIT-OBSERVABLE ONLY and flagged DROPPABLE - cut it if the sprint is behind after M4 and file a follow-up. No acceptance criterion in this sprint may claim improved counterexample quality."
+    },
+    {
+      "id": "F-6",
+      "severity": "medium",
+      "doc_claim": "Lane A sprint plan section 0.8 / R-9: 'Use a bounded wait when sweeping (gtimeout/perl alarm - note plain timeout is NOT on PATH on this rig).'",
+      "finding": "REFUTED, with a positive control, and it bit this planner. `perl -e 'alarm 3; exec @ARGV'` against a 20s Go binary ran the FULL 20 SECONDS and exited 0 - not bounded. The same wrapper against /bin/sleep 20 died at 3s with rc 142. The Go runtime classifies SIGALRM as notify-only and, with no os/signal listener, ignores it. gtimeout is not installed either. The planner's first corpus sweep hung on per_function_depth_verify.ail because of this and had to be killed.",
+      "action": "Use background-and-kill instead: `\"$@\" & pid=$!; ( sleep LIM; kill -9 $pid 2>/dev/null ) & w=$!; wait $pid; rc=$?; kill $w 2>/dev/null; exit $rc`. Verified to bound a Go binary at the limit (rc 137) and to leave a fast one alone (rc 0). This matters beyond this sprint: an unbounded wait wedges the whole mission loop."
+    },
+    {
+      "id": "F-7",
+      "severity": "medium",
+      "doc_claim": "Design doc 'Files to Modify/Create (Lane B, B1 only)': internal/testing/derive.go (new), internal/testing/runner.go (+40/-10), internal/testing/generator_advanced.go, internal/testing/shrink.go, internal/testing/derive_test.go, examples/. Controller brief: 'Callers: :281 (forall binder path) and :415 (contract-derived property path).'",
+      "finding": "BOTH INCOMPLETE. runEnsuresProperty was moved out of runner.go into internal/testing/contract_domain.go (194 lines) after the doc was written. There are THREE createGeneratorForType call sites across TWO files - runner.go:281 (forall), runner.go:415 (requires) and contract_domain.go:74 (ENSURES, the site every contract-derived property in the corpus actually flows through) - and THREE valueToLiteral call sites across the same two files (contract_domain.go:101, runner.go:438, runner.go:652) plus an internal recursion at runner.go:693. Changing valueToLiteral's signature also changes bindPropertyValues' signature and therefore runProperty:315 and shrinkCounterexample:725. Separately, the two out_of_contract skip texts now DIFFER by path: contract_domain.go:144 emits 'unverified: requires filter accepted N of M generated inputs; need 100 (K discarded)' while runner.go:465 emits 'requires not satisfied by random input (consider tighter generators): ...'.",
+      "action": "contract_domain.go is added to the file set (M2). M3 routes all three generator call sites through a single deriveType entry point so derivation needs no contract_domain.go edit. No test may assert a single out_of_contract substring across both paths. Correct the doc's Lane B file list at M6."
+    },
+    {
+      "id": "F-8",
+      "severity": "medium",
+      "doc_claim": "Verification Log V34, flagged by the controller as a LOWER BOUND: 'B1's remaining scope, re-measured. Shapes still emitting no generator for parameter ... at HEAD' - measured over ~17 of 33 files under a 2-minute cap.",
+      "finding": "CONFIRMED as a lower bound, and the full sweep found TWO WHOLE FILES V34 never reached. scoring.ail: 6 vacuous skips over SkillLevel x3, Tenure, Performance, Department - four ADT names V34 does not list. showcase.ail: 9 vacuous skips over `{ subtotal: int, tax: int, discount: int }` x5 and Priority x4. Neither file appears in V34 or in the doc's blast-radius paragraph. Full sweep at 22ba8626d: 32 of 33 files measured (per_function_depth_verify exceeds a 60s bound, reported UNMEASURED, never pass/fail); 111 total vacuous skips; B1 fixes 87; 24 remain by design.",
+      "action": "The plan's section 1.4 table is the complete measurement and supersedes V34 as the sprint's scope of record. Do not quote V34."
+    },
+    {
+      "id": "F-9",
+      "severity": "medium",
+      "doc_claim": "Lane B1 derivation rules list TypeDecl{Definition: *ast.RecordType}, anonymous *ast.RecordType, TypeDecl{Definition: *ast.AlgebraicType}, *ast.TupleType, unit (), and *ast.TypeApp over a user type.",
+      "finding": "INCOMPLETE - *ast.TypeAlias is missing entirely. parser_type_decl.go:79-198 shows that `type Pair = (int, string)` parses to TypeAlias{Target:*ast.TupleType} (:112-118), `type Names = [string]` to TypeAlias{Target:*ast.TypeApp{\"list\"}} (:98-104), and `type UserId = int` to TypeAlias{Target:*ast.SimpleType} (:179-186). Only `type X = { ... }` yields a bare *ast.RecordType and only pipe-separated forms yield *ast.AlgebraicType. Without a TypeAlias arm, every scalar/list/tuple named alias stays vacuous. Separately, the unit type parses to *ast.SimpleType{Name:\"()\"} (parser_type.go:96, parser_func.go:72), NOT an empty tuple - the derivation arm belongs in the SimpleType switch.",
+      "action": "M3 adds a one-line *ast.TypeAlias arm recursing on .Target, and puts unit in the SimpleType switch. There is NO corpus occurrence of an alias-shaped named type used as a parameter (verified by grep over all 33 contract examples), so its acceptance is UNIT-LEVEL ONLY - do not claim a corpus observable for it."
+    },
+    {
+      "id": "F-10",
+      "severity": "low",
+      "doc_claim": "Controller brief: 'go build ./... fails rc=1 on untouched dev (cmd/wasm, gen/main have no native main) - do not write it as a gate.'",
+      "finding": "CONFIRMED first-party (rc 1, exactly those two packages) and RESOLVED: `go build ./internal/... ./cmd/ailang/...` is rc 0 at base and is the correct substitute. Also confirmed: `make lint` prints `1 issues: * unused: 1` at base and STILL EXITS 0 - a plan that gated on the absence of that line would have written an already-red gate of a different kind.",
+      "action": "Section 1.7 records every gate with its measured baseline. Gate on exit codes only, and use the scoped go build."
+    }
+  ],
+  "risks": [
+    {
+      "id": "RISK-1",
+      "risk": "87 never-executed properties across 15 files start running; some fail on real latent bugs in the examples.",
+      "impact": "sprint time (0.5d budgeted in M6)",
+      "mitigation": "M6 requires every newly-failing property to be classified (a) deliberate / (b) example bug fixed / (c) B1 defect fixed - zero unclassified. record_verify.ail's brokenDistance (:59) is documented as deliberate at :8 ('Expect: 4 verified, 1 violation'). Failures are the feature working; do not treat them as regressions or 'fix' them by weakening the runner."
+    },
+    {
+      "id": "RISK-2",
+      "risk": "Derivation returns a generator for a shape it should not, converting a deliberate out_of_contract skip into a vacuous label and flipping a green file red.",
+      "impact": "high if missed (false red)",
+      "mitigation": "B1-11 pins the five must-stay-rc-0 files (cross_module_functions, cross_module_functions_lib, hof_verify, temperature, unencodable_callee_skip) at CLI level in M3 and again in the M4 and M6 sweeps. Derivation returns nil,nil for any underivable component - no silent substitution (CLAUDE.md principle 2)."
+    },
+    {
+      "id": "RISK-3",
+      "risk": "F-3: wiring RecordGenerator as-is ships an axiom-A1 determinism violation - a reported counterexample would not reproduce from its reported seed.",
+      "impact": "high (silent correctness/replayability defect)",
+      "mitigation": "Mandatory sorted-field-order fix in M3, plus B1-4's 200-identical-draws assertion, plus the same sorted discipline in M1's RecordValue splice arm. Measured evidence: 3 distinct map orders in a 6-run probe."
+    },
+    {
+      "id": "RISK-4",
+      "risk": "F-4: depth-3 derivation over the in-repo mutually-recursive Doc/Block types blows up to ~2500-node values x100 cases with MaxSize 100.",
+      "impact": "high (sprint stalls on a pathologically slow gate, or the harness effectively hangs)",
+      "mitigation": "Mandatory size budget in M4 with B1-9's DETERMINISTIC size assertion (not wall clock, so it cannot flake) plus a 60s bounded-wait smoke on record_adt_cycle_verify.ail. B1-13 pins that the cap does NOT apply to top-level list[<scalar>], preserving Lane A behaviour."
+    },
+    {
+      "id": "RISK-5",
+      "risk": "The M1-before-M2 ordering is violated (loud default lands before the arms), failing the harness for every unit-typed generated value.",
+      "impact": "high (the exact defect gemini-3-1-pro caught in quorum round 2)",
+      "mitigation": "Enforced as separate milestones with M2 declaring M1 as a dependency, and M1 carrying its own unit-level round-trip tests (B1-2) so the arms are proven before the default is flipped. Both milestones additionally require corpus inertness proofs."
+    },
+    {
+      "id": "RISK-6",
+      "risk": "runner.go crosses the 800-line file-size gate (749 today, 51 headroom) while B1 adds hundreds of lines.",
+      "impact": "medium (gate red mid-sprint, forcing an unplanned refactor)",
+      "mitigation": "Pre-planned relief, not reactive: M1 moves valueToLiteral into value_splice.go (-38) and M3 moves createGeneratorForType into derive.go (-42), landing runner.go near 669. make check-file-sizes is a gate on EVERY milestone."
+    },
+    {
+      "id": "RISK-7",
+      "risk": "F-6: an unbounded corpus sweep hangs on per_function_depth_verify.ail (or another slow example) and wedges the loop.",
+      "impact": "high (loop-level, not just sprint-level)",
+      "mitigation": "The background-and-kill recipe in section 1.6, verified against a Go binary with a positive control. per_function_depth_verify.ail is reported UNMEASURED (exceeds bounded wait), never pass/fail, and must never block a milestone gate."
+    },
+    {
+      "id": "RISK-8",
+      "risk": "The executor writes acceptance commands flags-last, so they silently test nothing (#534).",
+      "impact": "high (false green on the sprint's own gates)",
+      "mitigation": "Every command in the plan is flags-first; stated as executor constraint 0.2. #534 is out of scope - do not fix it here."
+    }
+  ]
+}
