@@ -2,42 +2,43 @@
 > **Contract**: ≤40 lines, overwritten by mission-control Gate 4 every iteration (history lives in
 > the charter/log). Fresh session = THIS + MEMORY.md. Humans steer via the bookkeeping issue.
 
-**Updated**: 2026-08-10 ~13:50 local (iteration 169)
+**Updated**: 2026-08-10 ~18:00 local (iteration 170)
 
 ## Now
-- **v0.33.0** · `origin/dev` `632024121` · CI green. ⚠ SonarCloud red is standing, non-required,
-  inherited (`#615`) — negative control: `failure` on 4 pre-dating commits, absent on the dependabot ones.
-- ✅ **Lane B1 M2 landed** (`#517`) — PR **#638** → `632024121`. The splicer now **refuses** instead
-  of fabricating a `()` value, so a property can no longer pass on an input it never tested.
-  Evaluator **96/100 PASS**, zero blocking. **B1-2 (the debt M1 owed) is paid.**
-- ⚠ **M1 had been RECORDED as landed while PR #637 sat OPEN.** Iteration 168 wrote the charter row,
-  the log entry and the STATUS stamp, then never merged. New died-mid-flight shape: the traces whose
-  *absence* the rule looks for were all **present and pointing the wrong way**. Merged here as
-  `59b74e06d`. Cheap guard: check `gh pr list --author sunholo-voight-kampff` against the charter's
-  own "LANDED" claims, not just against `[NEXT]` rows.
-- ⚠ **codex lane still DOWN and still NOT quota** — `401 … refresh token was revoked` since 08-09.
-  Needs a human `codex login`; the loop cannot self-fix (`D-6`).
+- **v0.33.0** · `origin/dev` `48cf25cff` · PR #645 merged, all required contexts green. Standing
+  SonarCloud red (`#615`) unchanged, non-required, inherited.
+- ✅ **Lane B1 M3 landed** (`#517`) — records, tuples, unit, aliases all derive generators now;
+  seeded replay actually replays (F-3 map-order fix). Evaluator **95/100, zero blocking**.
+- ⚠ Sharpest find: the plan's "preserve the list arms untouched" preserved a **stack overflow** —
+  `type Tree = { val: int, kids: [Tree] }` crashed the deriver once named types became derivable.
+  Fixed + crash-pinned in the same PR. "Preserve verbatim" is a claim about the OLD reachability graph.
+- ✅ **`D-6` resolved** — Mark re-authed codex 09:43; planner lane restored (not needed this slot).
+- ⚠ The weekly sweep's 08-10 CLEAN was a **false negative** — 4 orphaned issues (`#616`–`#619`)
+  found by attended re-measure, all triaged + queued this iteration. Skill now demands a
+  per-issue count table, never a summary verdict (`2d4a8118a`).
 
-## In flight
-- **#636** `[world-DEMAND]`: `publish --dry-run` truncates digests to 68 bits. Normal queue ordering.
-- **#613** proxy M1 DRAFT on `D-1`. **#604**/`#614` on `D-2`. **#624** forall — does not block B1.
+## In flight / queued
+- **Orphaned-issue batch** (iter-170): `#618` (ollama 300s cap — live eval-noise cause, doc exists)
+  → `#619` (publisher counts harness errors as capability fails, W8 P0) → `#616` (effect-row vars
+  never unify, repro'd) → `#617` (strict-eval flatMap OOM class, design-first).
+- **#636** `[world-DEMAND]` publish digest truncation · **#613** proxy M1 DRAFT on `D-1` ·
+  **#604**/`#614` on `D-2` · **#624** forall — none block B1.
 
 ## Next
-**Lane B1 M3** — structural derivation for records (named/anonymous/nested), tuples, unit, aliases.
-Carries the **mandatory** `RecordGenerator` map-order fix: B1-4 is REFUTED at base, so a fixed seed
-does *not* reproduce a counterexample today. Then M4 → M6.
+**Lane B1 M4** — ADTs, recursion/size budgets, `TypeApp` substitution. Now also owns the
+evaluator's NB: the depth-3 budget makes record-via-list types unconditionally underivable even
+when legitimately inhabited (`{val:1, kids:[]}`). Then M5/M6.
 
 ## Loop + routing
-Controller **opus** · designer **rotation** (next `claude:claude-fable-5`, not fired) · planner
-**opus** (codex down) · executor **`pi:deepseek-v4-flash-0731`** · evaluator **sonnet**.
-Metered **$0.086**. pi lane datapoint **4** — prescriptive directives suit it; the explicit
-"if stuck, write it in FINDINGS.md and move on" clause produced the slot's best finding.
+Controller **fable this slot** (driver-selected; table default opus — FLAGGED) · designer rotation
+(next `claude:claude-fable-5`, not fired) · planner codex restored (not fired) · executor
+**`pi:deepseek-v4-flash-0731`** (5 good prescriptive datapoints, $0.02–$0.16/run) · evaluator
+**sonnet**. Metered **$0.160** this iteration.
 
 ## PARKED ON MARK — asks are on #635
 - **`D-1`** (iter-150): proxy drops target-IP SSRF pinning on **proxied** routes. **(A)** as-written ·
   **(B)** narrow to literal-IPs · **(C)** rethink.
 - **`D-2`** (iter-157): `#604` closes the top-level vacuous pass, leaves the nested one (`#614`).
   **(A)** top-level-only · **(B)** widen · **(C)** reject multi-expression test bodies.
-- **`D-6`** (iter-168): codex OAuth refresh token revoked — re-auth, or drop codex from routing?
 
-Full record: charter `## STATUS … ITERATION 169` + `v1-mission-log.md` entry 172.
+Full record: charter `## STATUS … ITERATION 170` + `v1-mission-log.md` entry 173.

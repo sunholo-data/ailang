@@ -8660,3 +8660,59 @@ Mid-Gate-3b my poll started printing `total=` and `pending=` **empty**, which re
 **Gate 5 — one skill edit**: not taken. The strongest candidate — *the charter's own "LANDED" claim can be false, so re-verify it against open PRs* — has exactly one instance (this one). The bar is two. Pre-registering it here as watch-item instance 1 so the next occurrence is recognisable rather than re-derived.
 
 **Next**: **M3** — structural derivation for records (named/anonymous/nested), tuples, unit, aliases, carrying the **mandatory** `RecordGenerator` map-order fix (B1-4 is REFUTED at base: a fixed seed does not reproduce a counterexample today). Then M4 → M6. Parked on Mark, all on `#635`: `D-1` (`#613`), `D-2` (`#604`), `D-6` (codex re-auth).
+
+## 173 — 2026-08-10 — Iteration 170: **M3 landed same-slot, and the review found a stack overflow the plan itself prescribed — "preserve the list arms untouched" preserved a fresh-root depth budget that a newly-reachable recursive type could reset forever.**
+
+**Pick**: Lane B1 M3 (`#517`) — the charter's own Next. Gate-0 duty first: the attended session's
+sweep-false-negative report (4 orphaned issues `#616`–`#619`) was verified first-party and
+triage-lite'd in full — all four CONFIRMED at HEAD, verdict comments posted, one batched queue row
+added ranked `#618` → `#619` → `#616` → `#617`. Per the standing rule the sweep row did NOT outrank.
+`D-6` (codex OAuth) RESOLVED by Mark 09:43; lane restored, not needed this slot.
+
+**Outcome**: **LANDED** — PR [#645](https://github.com/sunholo-data/ailang/pull/645) → squash
+`48cf25cff`, all four REQUIRED contexts green from real `pull_request` events. Evaluator sonnet
+**95/100 PASS, zero blocking**. Executor `pi:deepseek-v4-flash-0731`, 67 turns, `metered=$0.160`
+(prescriptive-lane datapoint 5). Deliverables: `derive.go` (records/tuples/unit/aliases,
+depth-budgeted, honest-nil for ADTs/imports), F-3 map-order determinism fix, `runner.go` 766→722.
+Controller-run mutation drill: B1-4/5/8/10/11 all killed by their named rows; rule-3j sweep found
+the tuple arm's refusal branch unprotected — pinned with a proven killer. Gate-5 skill edit
+`2d4a8118a`: the weekly sweep's verdict must be a per-issue table with an enumeration-length
+assert, never a summary sentence.
+
+**Key find (controller, at review)**: the list arms derived elements via `createGeneratorForType`
+— a fresh root context — so `type Tree = { val: int, kids: [Tree] }` recursed unboundedly and
+crashed the deriver with a goroutine stack overflow. The path was unreachable until M3 made named
+types derivable, and the plan's own §3-M3 "preserve the existing list arms untouched" is what
+carried it. Fixed in-PR (elements derive within the descended budget), pinned by a regression test
+measured to crash pre-fix. The generalisable point joins iter-168's seam finding: **a
+"preserve-verbatim" instruction is a claim about the OLD reachability graph** — moving code into a
+context with new arms changes what its unchanged lines can reach.
+
+**Ruled out**:
+- "The executor's B1-10 claim ('the `()` param passes 100 cases') was an overclaim" — REFUTED, and
+  the refutation was of the CONTROLLER: I had attributed `makeCell_property_1`'s unrelated
+  pre-existing requires-skip to the unit param without reading the pass lines. The evaluator
+  measured `emptyCell_property_1: pass, tests_run=100`; reproduced first-party before accepting.
+  Rule (d) ran in both directions this slot — judge refuting controller, controller reproducing
+  judge — and both times the measurement, not the author, won.
+- "The three fixture-vehicle swaps might weaken assertions" — refuted by `git diff -U0` (assertions
+  byte-identical) plus the both-arms check: the old record fixture REDS under the new derivation.
+- World iter-67's fixture-discrimination lens over V1's mutation rows: none of the B1 fixtures is
+  "defensively safe" in the way that made World's `MUT-D0-FENCE-ORDER` claim false — skip-kind
+  assignment precedes body evaluation, so the swapped-vehicle tests observe the mechanism.
+- iter-168's sweep instrument: its "0 of 52" CLEAN cannot have been a weak grep pattern — two of
+  the four missed issues do not even bare-number match the charter, so the enumeration or loop was
+  broken. Unreconstructable post-hoc; the fix is the per-issue-table format (skill edit).
+
+**Not done / owed**: M4 (ADTs, budgets, `TypeApp` substitution) now also owns the evaluator's NB —
+the depth-3 budget makes record-via-list types unconditionally underivable even when legitimately
+inhabited. `Build macos-latest` was still in_progress (non-required) at merge; dev-CI-on-squash
+confirmed separately in the STATUS stamp.
+
+**Routing evidence**: controller `claude-fable-5` (SESSION model — driver-selected; the table
+default is opus; FLAGGED, mechanical orchestration rode Fable this slot) · designer/planner NOT
+fired (doc + plan exist, quorum artifact 2026-07-29; rotation pointer unchanged, next
+`claude:claude-fable-5`) · executor `pi:openrouter/deepseek/deepseek-v4-flash-0731` (probe rc=0;
+67 turns; $0.160 by the models.yml rate card over the NDJSON usage) · evaluator `sonnet` (Agent
+tool pin) — generator≠judge holds (pi ≠ Anthropic) · `metered=$0.160` vs the $5 ceiling · quota
+buckets: fable (controller), sonnet (evaluator).
