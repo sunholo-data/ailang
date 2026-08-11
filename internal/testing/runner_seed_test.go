@@ -217,9 +217,7 @@ func TestRunner_MasterSeedChangesEveryStream(t *testing.T) {
 func TestRunProperty_SeedSetEvenOnSkip(t *testing.T) {
 	src := `module skip_seed
 
-type Tree = TreeNode | TreeLeaf
-
-export pure func walk(t: Tree) -> int
+export pure func walk(t: ImportedTree) -> int
   ensures { result >= 0 }
 {
   0
