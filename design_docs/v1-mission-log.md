@@ -8934,3 +8934,123 @@ frictions, so it is pre-registered as a watch-item instead of spending the one-e
 the bar. If a second iteration hits a `rc=0` executor run with an empty diff, the fix is to add a
 delivery-side assertion to the pi recipe: refuse to accept a run whose last turn's `stopReason` is
 `length`, and refuse to record LANDED for an executor run whose worktree diff is empty.
+
+---
+
+## 176 — 2026-08-11 — Iteration 173: **M2 landed and the inert-deadline fix is closed — and the executor lane failed a third time in the shape iteration 172 pre-registered, so the watch-item became a skill edit**
+
+**Pick**: `#618` M2 — the flag-gated streaming branch plus the mandatory hard deadline. The
+charter's own Next, and the milestone that actually closes both of iteration 171's planner
+refutations. Doc and plan existed and were quorum-cleared at iteration 171, so no designer or
+planner spend.
+
+**Outcome**: **LANDED.** PR `#648` → squash `ff1fa0760`. `internal/ai/ollama/step.go` **+15/−0**,
+new `streamstep.go` (318) and `streambranch_test.go` (670), plus a changelog entry — 1,025
+insertions, zero deletions. Package **30 → 38** top-level `--- PASS`, one per AC, 0 FAIL. Evaluator
+**sonnet 97/100 PASS, zero blocking**. Gate 3b **GREEN**: all four REQUIRED contexts from real
+`pull_request` events, `mergeable=MERGEABLE state=CLEAN`, SHA-addressed `checks=20` with zero
+not-green.
+
+**The milestone in one sentence, and it is two lines of code.** The streaming branch derives its
+deadline from the context captured **above** `ollamaCallContext`'s wrap at `step.go:266`; the `/v1`
+branch sits 17 lines below it, so deriving from the wrapped `ctx` caps every stream at the buffered
+path's 300s default and ships the feature **inert**. AC-M2.4 is its gate and it bites: with the
+capture moved below the wrap (mutant **LANDED** by sha256, **BUILDS** rc=0, keeping `outerCtx` used)
+the read-back effective deadline is **`299.999963583s`** against a configured **`3600s`** and the
+test reds; `-skip` that one test and the whole package is rc=0, so it is the **sole killer**.
+
+**A mutation that failed for the wrong reason, caught by the rule that exists for it.** My first C1
+mutant replaced `stepV1Stream(outerCtx, req)` with `stepV1Stream(ctx, req)`. It reds — and it reds
+because `outerCtx` becomes an unused variable, so the package does not compile. That is the
+build-failure class the skill warns about in its purest form: the red arrived in **exactly** the
+direction I predicted, so the confirmation felt like evidence while the mechanism was never
+exercised. Re-cut as a capture-position move (`outerCtx := ctx` relocated below the wrap), the
+mutant BUILDS rc=0 and the kill is real. Cost: one command. Value: the AC's whole standing.
+
+**MY OWN RULING WAS WRONG, THE EXECUTOR REFUTED IT, AND THE MEASUREMENT AGREES WITH THE EXECUTOR.**
+Plan §10 ruling **E-3** (mine, iteration 171) asserted that with `AILANG_OLLAMA_HTTP_TIMEOUT_SEC`
+set small and the flag on, the **error type** would discriminate whether `outerCtx` was captured
+correctly, and directed the executor to add that behavioural arm to AC-M2.4. The executor declined
+and explained why: precedence rule (b) at `streamstep.go:273-275` maps **any** `streamCtx`
+`DeadlineExceeded` to `ErrStreamDeadlineExceeded` regardless of provenance, so the type cannot
+discriminate even in principle — and independently, the two clocks read the *same* env var, so
+whenever it is set they are equal and the bug is unobservable at any timescale. Measured, in both
+arms: under the identical R1 defect that reds AC-M2.4, `TestStreamBranch_HardDeadlineBeatsKeepAlive`
+still passes **rc=0**. The read-back value is the only instrument that can bite. Recorded as
+refuted; the executor did the Gate-2 work my ruling should have done.
+
+**Second deviation, adjudicated by measurement in both arms (rule 3h).** `idleReaderConfig.Hard` is
+deliberately left at **0** in production — the total budget is enforced once, by `streamCtx`. The
+executor's justification is checkable, so I checked it: with **only** `streamCtx` armed, neutering
+it (`if false && hard > 0`, LANDED + BUILDS) reds AC-M2.2 **and** AC-M2.4; with **both** armed, the
+same neuter leaves AC-M2.2 **green (rc=0)**. A redundant guard is one no test can hold accountable,
+and the choice makes the surviving timer accountable. Note this leaves M1's `Hard` field exercised
+only by M1's own tests — flagged, not a defect.
+
+**A four-run kill that was legitimate redundancy, and only reading the failing test name showed
+it.** C2's inverse arm came back rc=1, which by the letter means "not the sole killer". The single
+failure was AC-M2.4 reporting `effective_deadline_sec: 0` — removing the deadline entirely makes
+the read-back zero. AC-M2.2 catches the *behaviour*, AC-M2.4 the *value*; both are supposed to see
+R4. Banking the exit code alone would have recorded a phantom problem.
+
+**THE EXECUTOR LANE FAILED A THIRD TIME, IN EXACTLY THE PRE-REGISTERED SHAPE.**
+`pi:openrouter/deepseek/deepseek-v4-flash-0731` probed rc=0 and ran with a directive that was
+*more* prescriptive than iteration 172's — it named the file to create, ruled on placement, and
+instructed one-AC-at-a-time edits with a build after each. It did 10 healthy tool executions (read
+the plan, `step.go`, `idlereader.go`, `streamstep.go`, `step_test.go`, both clients, and grepped
+the provider interface), then produced a single **262,414-character** block, hit the
+**16,384-token** output cap (`stopReason=length`), emitted no tool call, and **exited rc=0** with a
+**clean worktree**. Three runs, two iterations, one cause. Two refinements over 172's record: the
+runaway block was **`text`**, not `thinking`, so the tell is the `stopReason` and never the block
+type; and `turn_start=7 / turn_end=6 / agent_end=0` — the loop died mid-turn while the wrapper
+still reported success. **Operational hazard, new:** pi's `message_update` events replay the whole
+accumulated message, so the runaway wrote the NDJSON at **~3 MB/s** and reached **1.2 GB in six
+minutes**, still growing when the cap hit. Head/tail slices kept, the 1.2 GB deleted. Fell back to
+opus via the Agent tool, **FLAGGED**; generator≠judge holds (evaluator sonnet).
+
+**Ruled out / refuted**:
+- *E-3's behavioural arm is achievable* — **REFUTED by measurement**, and it was my own ruling. See
+  above. The executor's mechanism argument was complete; the evaluator independently failed to find
+  any environment configuration under which a fast behavioural discriminator exists.
+- *"pi's failures are directive quality"* — **REFUTED, second time.** Iteration 172 refuted it with
+  a tighter directive; this iteration refuted it again with a directive that prescribed incremental
+  per-AC edits and explicitly forbade silent composition. Same failure.
+- *"The C1 mutant proves the R1 defect is caught"* — **REFUTED as first cut**: the mutant did not
+  compile. Re-cut so every identifier stays used before the result counted.
+- *The `sync.Once` freeze makes an M2 test vacuous* — **REFUTED by the evaluator**: `stepV1Stream`
+  reads `ollamaTTFTTimeout()` fresh per call into `idleReaderConfig.TTFT`, entirely bypassing the
+  frozen shared transport, and no delivered test references `ResponseHeaderTimeout` or
+  `streamBaseTransport`. The warning was still worth carrying — it is what made the executor use
+  the `base` injection seam.
+- *`ErrStreamDeadlineExceeded`'s message not matching the eval-harness retry classifier is a live
+  gap* — refuted as live: `GenerateWithRetry`/`isRetryableError` have **zero non-test callers**
+  (control: `NewProviderError` greps fine), so it is dead code today. Not deleted — the
+  coding-standards rule against deleting "unused" functions on a linter's say-so applies.
+
+**Wide gate sweep (rule 3g — derived from `ci.yml`, not recalled)**: `check-boundaries`,
+`check-changelog`, `check-file-sizes`, `check-golden-drift`, `check-skills`, `fmt-check`, `vet`,
+`test-regression-guards`, plus `go build ./internal/... ./cmd/ailang`, `go test ./internal/ai/...`
+and `gofmt` — all rc=0. `check-changelog` was in the sweep and mattered: M1 deliberately shipped no
+changelog entry ("no user-visible surface; it lands with M2"), so M2 owed one, and it went to
+`changelogs/v0.18-current.md` — never the root index, which the gate exists to keep clean.
+
+**A live instance of the incomplete-check-set hazard, in Gate 3b's own poll.** At 01:53 the required
+set was **3** contexts; at 01:58 it was **4** (`build` appeared late). Had the last pending context
+settled before `build` registered, `pending=0` over a 3-row set would have read exactly like a
+complete green. The poll asserted presence *and* pendingness, which is what made the difference.
+
+**Not done / owed**: M3 (response parity — `Reasoning` + Hermes recovery, the disengagement
+regression), M4 (rig validation, GPU), and the doc renumber M4 owns.
+
+**Routing evidence**: controller `claude-opus-5` (session). Designer and planner **not fired** —
+doc and plan exist and were quorum-cleared at iteration 171; designer rotation pointer unchanged,
+next `codex:gpt-5.6-sol`. Executor **`pi:...deepseek-v4-flash-0731` FAILED** (`stopReason=length`,
+rc=0, empty worktree) → **fell back to opus via the Agent tool, FLAGGED**. Evaluator **sonnet**,
+distinct from the opus executor. `metered=$0.0214` — entirely the dead pi run (141,409 in / 24,887
+out / 233,472 cache-read) — against the $5 ceiling; the executor that delivered rode a quota bucket.
+
+**Gate 5**: **skill edit landed** — the pi recipe gains three mandatory post-run assertions
+(`stopReason":"length"` count must be 0; the worktree diff must be non-empty; an `agent_end` event
+must exist) plus the NDJSON size ceiling. Iteration 172 pre-registered exactly this fix at instance
+1 and named the bar; this is instance 2, from a separate iteration with a different directive, so
+the bar is met. The edit is written to be true for any mission using the pi lane, not just V1.
