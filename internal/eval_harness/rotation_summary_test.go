@@ -16,17 +16,23 @@ func fixtureMetrics(t *testing.T, outputDir, id, lang, model string, trial int,
 ) {
 	t.Helper()
 	m := RunMetrics{
-		ID:            id,
-		Lang:          lang,
-		Model:         model,
-		EvalMode:      EvalModeAgent,
-		Trial:         trial,
-		TotalTokens:   totalTokens,
-		CompileOk:     pass,
-		RuntimeOk:     pass,
-		StdoutOk:      pass,
-		ErrorCategory: errCat,
-		Timestamp:     time.Now().Add(time.Duration(trial) * time.Second),
+		ID:       id,
+		Lang:     lang,
+		Model:    model,
+		EvalMode: EvalModeAgent,
+		Trial:    trial,
+		// The token KPI counts UNCACHED work (2026-08-11), so a fixture must say
+		// what its cache split was. All-fresh with cache accounting ON keeps these
+		// trials contributing their full totalTokens, which is what the pass/fail
+		// token assertions below are about.
+		InputTokens:    totalTokens,
+		CacheAccounted: true,
+		TotalTokens:    totalTokens,
+		CompileOk:      pass,
+		RuntimeOk:      pass,
+		StdoutOk:       pass,
+		ErrorCategory:  errCat,
+		Timestamp:      time.Now().Add(time.Duration(trial) * time.Second),
 	}
 	logger := NewMetricsLogger(outputDir)
 	if err := logger.Log(&m); err != nil {
@@ -196,4 +202,46 @@ func stringContains(haystack, needle string) bool {
 		}
 	}
 	return false
+}
+
+// TestSummarizeRotation_ExcludesUnaccountedFromTokenKPI covers the trap the
+// uncached-token KPI is built around: rows banked before cache accounting cannot
+// be decomposed into fresh vs cached, so counting them whole would inflate every
+// historical row and manufacture an improvement out of a schema change. They must
+// be dropped from the token means and COUNTED, so a shrunken sample is visible.
+func TestSummarizeRotation_ExcludesUnaccountedFromTokenKPI(t *testing.T) {
+	out := t.TempDir()
+	// Two accounted trials at 100k fresh...
+	fixtureMetrics(t, out, "fizzbuzz", "ailang", "m", 1, true, 100000, "")
+	fixtureMetrics(t, out, "fizzbuzz", "ailang", "m", 2, true, 100000, "")
+	// ...and one legacy row with no cache accounting, at a wildly different size.
+	// If it leaked into the mean, the mean would move off 100000.
+	legacy := RunMetrics{
+		ID: "fizzbuzz", Lang: "ailang", Model: "m", EvalMode: EvalModeAgent, Trial: 3,
+		InputTokens: 9_000_000, TotalTokens: 9_000_000,
+		CompileOk: true, RuntimeOk: true, StdoutOk: true,
+		Timestamp: time.Now().Add(3 * time.Second),
+	}
+	if err := NewMetricsLogger(out).Log(&legacy); err != nil {
+		t.Fatalf("legacy fixture: %v", err)
+	}
+
+	rs, err := SummarizeRotation(out)
+	if err != nil {
+		t.Fatalf("SummarizeRotation: %v", err)
+	}
+	bs := rs.BenchmarkSummary[0]
+
+	if bs.Trials != 3 {
+		t.Errorf("trials = %d, want 3 (the legacy row is still a trial)", bs.Trials)
+	}
+	if bs.Passed != 3 {
+		t.Errorf("passed = %d, want 3 (exclusion is from TOKENS, not from pass rate)", bs.Passed)
+	}
+	if math.Abs(bs.TokensPassMean-100000) > 0.5 {
+		t.Errorf("tokens_pass_mean = %v, want 100000 — the unaccounted 9M row leaked in", bs.TokensPassMean)
+	}
+	if bs.TokensCacheUnaccounted != 1 {
+		t.Errorf("tokens_cache_unaccounted = %d, want 1 (a shrunken sample must be stated)", bs.TokensCacheUnaccounted)
+	}
 }

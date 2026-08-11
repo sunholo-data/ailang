@@ -268,6 +268,12 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 		// describe different quantities and neither can be derived from the other.
 		CacheReadInputTokens:     result.Usage.CacheReadInputTokens,
 		CacheCreationInputTokens: result.Usage.CacheCreationInputTokens,
+		// Always true on this path: the split above is populated for every agent
+		// run from here on, INCLUDING genuine zeros (a local ollama model with no
+		// prompt cache). That is the point — it marks the row as decomposable, so
+		// the fresh-token KPI can exclude pre-2026-08-11 rows instead of scoring
+		// them as 100% fresh and manufacturing an improvement.
+		CacheAccounted: true,
 		// Hidden reasoning tokens, kept disjoint from OutputTokens but counted
 		// in TotalTokens (upstream bills them at the output rate). 0 = the
 		// executor doesn't report a count, not "the model didn't think".

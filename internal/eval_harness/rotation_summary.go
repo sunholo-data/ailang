@@ -53,6 +53,11 @@ type BenchmarkSummary struct {
 
 	// Count of runs aborted by Phase-1 thrash detection.
 	ThrashAborts int `json:"thrash_aborts,omitempty"`
+	// TokensCacheUnaccounted counts trials excluded from the token KPIs because
+	// they predate cache accounting (2026-08-11) and so cannot be decomposed into
+	// fresh vs cached. Non-zero means the token means below rest on FEWER trials
+	// than Trials — a shrunken sample stated out loud rather than a silent one.
+	TokensCacheUnaccounted int `json:"tokens_cache_unaccounted,omitempty"`
 }
 
 // ModelRollupStats is the per-model headline rollup: pass@1 vs best-of-N across all of a model's benchmarks.
@@ -200,15 +205,34 @@ func SummarizeRotation(outputDir string) (*RotationSummary, error) {
 	// Compute per-group summary.
 	var summaries []BenchmarkSummary
 	for key, g := range groups {
+		// Token KPIs count UNCACHED work only (Mark, 2026-08-11). A cache read
+		// costs ~20% of a fresh token, so charging it as a whole one makes a run
+		// that caches well look more expensive than one that does not — the metric
+		// would penalise the behaviour we want, and penalise AILANG hardest, since
+		// its large teaching prompt is the most cacheable thing in the system
+		// (measured: total_tokens reads ~3.9x the real work at a 75% hit rate).
+		//
+		// Rows predating cache accounting are EXCLUDED, not assumed all-fresh:
+		// counting them whole would inflate every historical row and manufacture
+		// an improvement out of a schema change. The count is surfaced so a
+		// shrunken sample is visible rather than silent.
 		var passTokens, failTokens []int
 		passed := 0
+		unaccounted := 0
 		for _, m := range g.Trials {
 			isPass := m.CompileOk && m.RuntimeOk && m.StdoutOk
 			if isPass {
 				passed++
-				passTokens = append(passTokens, m.TotalTokens)
+			}
+			fresh, ok := m.FreshTokens()
+			if !ok {
+				unaccounted++
+				continue
+			}
+			if isPass {
+				passTokens = append(passTokens, fresh)
 			} else {
-				failTokens = append(failTokens, m.TotalTokens)
+				failTokens = append(failTokens, fresh)
 			}
 		}
 		bestPass, anyPass := bestOfNExact(g.Trials)
@@ -232,6 +256,7 @@ func SummarizeRotation(outputDir string) (*RotationSummary, error) {
 		if len(failTokens) > 0 {
 			s.TokensFailMean = mean(failTokens)
 		}
+		s.TokensCacheUnaccounted = unaccounted
 		if len(s.ErrorCategories) == 0 {
 			s.ErrorCategories = nil
 		}

@@ -29,10 +29,18 @@ type RunMetrics struct {
 	//
 	// omitempty keeps pre-v0.31.0 baselines parsing unchanged (absent reads as 0)
 	// and keeps rows for providers without cache reporting free of noise.
-	CacheReadInputTokens     int     `json:"cache_read_input_tokens,omitempty"`
-	CacheCreationInputTokens int     `json:"cache_creation_input_tokens,omitempty"`
-	TotalTokens              int     `json:"total_tokens"` // Total for billing (includes reasoning)
-	CostUSD                  float64 `json:"cost_usd"`
+	CacheReadInputTokens     int `json:"cache_read_input_tokens,omitempty"`
+	CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
+	// CacheAccounted distinguishes "this run genuinely had no cache reads" from
+	// "nobody recorded them" — omitempty makes both look like 0 otherwise, and
+	// that ambiguity is not cosmetic: agent mode never populated the cache fields
+	// before 2026-08-11, so treating absent-as-zero would score every historical
+	// row as 100% fresh and make post-fix runs look artificially cheaper. Set it
+	// wherever the executor path reports cache usage, EVEN WHEN THE VALUE IS 0
+	// (a local ollama model with no cache is a real zero, not a missing one).
+	CacheAccounted bool    `json:"cache_accounted,omitempty"`
+	TotalTokens    int     `json:"total_tokens"` // Total for billing (includes reasoning)
+	CostUSD        float64 `json:"cost_usd"`
 	// CostProvenance labels CostUSD: "metered" (an account was genuinely
 	// charged), "list-price-equivalent" (real arithmetic over real tokens, but
 	// a subscription/OAuth lane covered the run and nobody was billed),
@@ -386,4 +394,33 @@ func NewRunMetrics(id, lang, model string, seed int64) *RunMetrics {
 		MicroragState:  MicroragModeAuto.ResolvedState(),
 		CostProvenance: standardModeCostProvenance(model),
 	}
+}
+
+// FreshTokens returns the tokens this run actually made the provider process:
+// uncached input plus generated output (reasoning included, since upstream bills
+// it at the output rate). Cache reads are EXCLUDED.
+//
+// Why the token KPI excludes them (Mark, 2026-08-11): a cache read costs ~20% of
+// a fresh token, so counting it as one full token makes a run that caches well
+// look more expensive than one that does not — the metric would penalise exactly
+// the behaviour we want. Measured on the pi lane: total_tokens reads ~3.9x the
+// real work on an AILANG run at a 75% hit rate, and AILANG is hit hardest of all
+// because its large teaching prompt is the most cacheable thing in the system.
+//
+// ok is false when this row predates cache accounting, i.e. the split is unknown
+// rather than zero. Callers MUST NOT treat that as an all-fresh run: every
+// agent-mode row before 2026-08-11 would then report inflated fresh tokens and
+// make later runs look better for free. Exclude those rows and say how many.
+func (m *RunMetrics) FreshTokens() (tokens int, ok bool) {
+	if !m.CacheAccounted {
+		return 0, false
+	}
+	fresh := m.InputTokens - m.CacheReadInputTokens - m.CacheCreationInputTokens
+	if fresh < 0 {
+		// InputTokens is cache-INCLUSIVE by construction, so this cannot happen
+		// unless a producer changed that contract. Clamp rather than emit a
+		// negative token count, and refuse to vouch for it.
+		return 0, false
+	}
+	return fresh + m.OutputTokens + m.ReasonTokens, true
 }
