@@ -215,3 +215,34 @@ export func main() -> int ! {} { 0 }
 			"the derivable constructors, biasing the distribution invisibly)", gen, shrink)
 	}
 }
+
+// TestM4_IndirectRecursionThroughNamedTypeIsBounded covers the indirect arm of
+// the recursion detector (typeDefReferencesDecl). B1-9's Doc/Block fixture
+// recurses through an INLINE anonymous record, so it reaches the target through
+// typeReferencesDecl's RecordType arm and never consults a named intermediary —
+// leaving the whole named-type path at 0% coverage while looking well tested.
+//
+// Here Branch's field is a NAMED type whose own definition points back at Node.
+// If that indirection is not followed, Branch is classified non-recursive, the
+// depth bound never restricts it, and derivation runs away. The size assertion
+// is what catches that: it is downstream of the classification, not adjacent to
+// it. Neutering typeDefReferencesDecl to `return false` reds this test.
+func TestM4_IndirectRecursionThroughNamedTypeIsBounded(t *testing.T) {
+	r, _ := parseDeriveFixture(t, `module indirect_rec
+export type Node = Leaf | Branch(Wrapper)
+export type Wrapper = { node: Node }
+export func main() -> int ! {} { 0 }
+`)
+	gen, _ := r.createGeneratorForType(&ast.SimpleType{Name: "Node"})
+	if gen == nil {
+		t.Fatal("Node generator is nil: an ADT recursive through a named type must still derive")
+	}
+	rng := newRNG(7)
+	for i := 0; i < 200; i++ {
+		if n := derivedValueNodes(gen.Generate(rng)); n > maxDerivedDocNodes {
+			t.Fatalf("draw %d has %d nodes, limit is %d — indirect recursion through a "+
+				"named type was not detected, so the depth bound never restricted Branch",
+				i, n, maxDerivedDocNodes)
+		}
+	}
+}
