@@ -336,6 +336,22 @@ func CalculateCostWithBreakdown(model string, inputTokens, outputTokens int) flo
 	return cost
 }
 
+// CalculateCostWithCache is CalculateCostWithBreakdown for callers that know the
+// run's prompt-cache reads. inputTokens must be FRESH input, disjoint from
+// cacheReadTokens. Same no-silent-fallback stance: an unpriced model returns 0.
+func CalculateCostWithCache(model string, inputTokens, outputTokens, cacheReadTokens int) float64 {
+	if GlobalModelsConfig == nil {
+		return 0.0
+	}
+
+	cost, err := GlobalModelsConfig.CalculateCostForModelWithCache(model, inputTokens, outputTokens, cacheReadTokens)
+	if err != nil {
+		return 0.0
+	}
+
+	return cost
+}
+
 // standardModeCostProvenance classifies a standard-mode row's cost.
 //
 // Standard mode reaches providers over their metered HTTP APIs via an API key

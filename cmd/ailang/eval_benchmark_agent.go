@@ -247,15 +247,27 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 	}
 
 	metrics := &eval_harness.RunMetrics{
-		Validity:     configValidity,
-		ID:           result.BenchmarkID,
-		Lang:         lang,
-		Model:        model,
-		Executor:     result.Executor,    // Track which executor was used (claude, gemini, etc.)
-		ModelFamily:  result.ModelFamily, // For cross-harness grouping (M-EVAL-CROSS-HARNESS)
-		Seed:         seed,
+		Validity:    configValidity,
+		ID:          result.BenchmarkID,
+		Lang:        lang,
+		Model:       model,
+		Executor:    result.Executor,    // Track which executor was used (claude, gemini, etc.)
+		ModelFamily: result.ModelFamily, // For cross-harness grouping (M-EVAL-CROSS-HARNESS)
+		Seed:        seed,
+		// InputTokens stays cache-INCLUSIVE so this stays comparable with every
+		// pre-2026-08-11 baseline. The disjoint parts are banked alongside it
+		// below, which is what makes the total decomposable.
 		InputTokens:  result.Usage.InputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
 		OutputTokens: result.Usage.OutputTokens,
+		// Bank the cache split (2026-08-11). RunMetrics has carried these fields
+		// since v0.31.0 but ONLY the standard-mode repair path ever set them, so
+		// every agent-mode row omitted them (omitempty) and the agent cache hit
+		// rate was unmeasurable from our own data — the exact gap v0.31.0 set out
+		// to close, left open on the agent side. Without these, input_tokens is
+		// cache-inclusive while cost_usd is priced cache-exclusive, so the two
+		// describe different quantities and neither can be derived from the other.
+		CacheReadInputTokens:     result.Usage.CacheReadInputTokens,
+		CacheCreationInputTokens: result.Usage.CacheCreationInputTokens,
 		// Hidden reasoning tokens, kept disjoint from OutputTokens but counted
 		// in TotalTokens (upstream bills them at the output rate). 0 = the
 		// executor doesn't report a count, not "the model didn't think".

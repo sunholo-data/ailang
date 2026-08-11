@@ -455,14 +455,16 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	// reports zero but models.yml prices the model, recompute list-price-
 	// equivalent cost from banked tokens (same helper as standard mode).
 	// Free local lanes (pricing 0.0) still resolve to $0.
-	// KNOWN UNDERCOUNT: cache-read tokens are priced at $0 because models.yml
-	// has no cache-read rate (OpenRouter bills them at ~20% of input rate —
-	// e.g. deepseek-v4-flash-0731 $0.018/M vs $0.09/M, checked 2026-08-06).
-	// At agent-loop hit rates this understates true cost by ~25-30%; a real
-	// fix needs a cache_read_per_1k pricing field, not a guess here.
+	// UNDERCOUNT FIXED 2026-08-11: cache reads used to be priced at $0 because
+	// models.yml had no cache-read rate. Pricing now comes from
+	// Pricing.CacheReadPer1K, and a model that declares no rate bills its cache
+	// reads at the FULL input rate — overstating is visible in a budget, whereas
+	// $0 hides both the spend and a broken cache. result.InputTokens is FRESH
+	// input here (executors report cache reads separately), so the two arguments
+	// stay disjoint and no token is billed twice.
 	costUSD := result.CostUSD
 	if costUSD == 0 {
-		if c := CalculateCostWithBreakdown(lookupKey, result.InputTokens, result.OutputTokens+result.ReasonTokens); c > 0 {
+		if c := CalculateCostWithCache(lookupKey, result.InputTokens, result.OutputTokens+result.ReasonTokens, result.CacheReadInputTokens); c > 0 {
 			costUSD = c
 		}
 	}

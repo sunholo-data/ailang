@@ -40,6 +40,15 @@ type ModelConfig struct {
 type Pricing struct {
 	InputPer1K  float64 `yaml:"input_per_1k"`
 	OutputPer1K float64 `yaml:"output_per_1k"`
+	// CacheReadPer1K prices prompt-cache READ tokens, which every major provider
+	// bills far below fresh input (OpenRouter ~20% of input; deepseek-v4-flash
+	// $0.016-0.028/M vs $0.08-0.14/M depending on the upstream host).
+	//
+	// Zero means "no cache rate declared", and the cost helpers then bill cache
+	// reads at the FULL input rate rather than silently at $0 — an overstatement
+	// is visible in a budget, whereas a $0 line looks like caching is free and
+	// hides both the spend and a broken cache. Declare it wherever it is known.
+	CacheReadPer1K float64 `yaml:"cache_read_per_1k"`
 }
 
 // Budgets represents per-model cost-and-speed budget overrides
@@ -248,6 +257,40 @@ func (c *ModelsConfig) CalculateCostForModel(name string, inputTokens, outputTok
 	outputCost := float64(outputTokens) / 1000.0 * model.Pricing.OutputPer1K
 
 	return inputCost + outputCost, nil
+}
+
+// CalculateCostForModelWithCache prices a run whose prompt-cache activity is known.
+//
+// inputTokens must be FRESH input only — disjoint from cacheReadTokens. Callers
+// holding a cache-inclusive total must subtract before calling, or they will pay
+// twice for the same tokens.
+//
+// Why this exists (2026-08-11): agent mode folded cache reads into InputTokens for
+// reporting while costing the cache-exclusive value, so the banked input_tokens and
+// cost_usd described different quantities and the documented "~25-30% undercount"
+// could not be checked from banked data. Measured on the pi/OpenRouter lane: an
+// unpinned deepseek-v4-flash call cached 0 of ~27.7k prompt tokens, the same call
+// price-pinned cached 27,392 — a 4.8x cost difference that was invisible.
+//
+// A model with no declared cache rate bills cache reads at the full input rate:
+// overstating is visible, whereas $0 hides both the spend and a broken cache.
+func (c *ModelsConfig) CalculateCostForModelWithCache(name string, inputTokens, outputTokens, cacheReadTokens int) (float64, error) {
+	model, err := c.GetModel(name)
+	if err != nil {
+		// NO FALLBACK - same stance as CalculateCostForModel.
+		return 0.0, err
+	}
+
+	cacheRate := model.Pricing.CacheReadPer1K
+	if cacheRate == 0 {
+		cacheRate = model.Pricing.InputPer1K
+	}
+
+	inputCost := float64(inputTokens) / 1000.0 * model.Pricing.InputPer1K
+	cacheCost := float64(cacheReadTokens) / 1000.0 * cacheRate
+	outputCost := float64(outputTokens) / 1000.0 * model.Pricing.OutputPer1K
+
+	return inputCost + cacheCost + outputCost, nil
 }
 
 // SupportsAgentEval returns true if the model supports agent-based evaluation

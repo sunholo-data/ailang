@@ -2340,15 +2340,31 @@ models:
     description: "DeepSeek V4 Flash 0731 via pi minimal harness — mission-fleet trial (codex offload candidate)"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "pi"
-    agent_model_name: "openrouter/deepseek/deepseek-v4-flash-0731"
+    # PRICE-PINNED 2026-08-11. Bare ids let OpenRouter load-balance across 26
+    # hosts; prompt caches are PER-PROVIDER, so consecutive calls landed on
+    # different hosts and cached nothing. Measured: unpinned cacheRead=0 on two
+    # identical ~27.7k-token prompts; :floor (provider.sort=price) cached 27,392
+    # of 27,673 on the second call — 4.8x cheaper per repeat call. :floor is a
+    # price SORT, not a hard pin: if the cheapest host changes, routing moves and
+    # the cache resets. A hard pin needs provider.only, which pi cannot express.
+    agent_model_name: "openrouter/deepseek/deepseek-v4-flash-0731:floor"
     model_family: "deepseek-v4"
     max_output_tokens: 65536  # matches or-/opencode- siblings. Declared ceilings
                               # (endpoints API 2026-08-06): first-party DeepSeek
                               # 384K, most hosts >=131K, min-host Venice 32768 —
                               # routing roulette can undercut this cap on Venice.
     pricing:
-      input_per_1k: 0.00009   # $0.09 per 1M — verified live 2026-08-06
-      output_per_1k: 0.00018  # $0.18 per 1M — verified live 2026-08-06
+      # RE-MEASURED 2026-08-11 from OpenRouter's own endpoints API. The model is
+      # served by 26 upstream hosts at $0.08-0.14/M input, so a single number is
+      # always approximate; these track DeepInfra, which is what the :floor
+      # (sort=price) variant selects and therefore what this lane actually bills.
+      # The old $0.09 was the mid-band, not any host we necessarily hit.
+      input_per_1k: 0.00008        # $0.08 per 1M  (DeepInfra, via :floor)
+      output_per_1k: 0.00018       # $0.18 per 1M
+      cache_read_per_1k: 0.000016  # $0.016 per 1M — ~20% of input, the standard
+                                   # OpenRouter cache-read discount. Before this
+                                   # field existed, cache reads were billed at $0
+                                   # (the documented ~25-30% undercount).
     budgets:
       max_cost_usd: 0.50      # same rationale as opencode twin: cost-gated, not time-gated
       hard_timeout_secs: 3600
