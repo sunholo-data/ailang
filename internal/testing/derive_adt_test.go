@@ -67,7 +67,15 @@ export func main() -> int ! {} { 0 }
 	}
 }
 
-const maxDerivedDocNodes = 40
+// maxDerivedDocNodes bounds B1-9's size assertion. The draw sequence below is
+// fully deterministic (newRNG(42), a fixed 200 draws), so this can be tight
+// without flaking: the measured max over that exact sequence is 7. It is
+// deliberately NOT set to a round "obviously safe" number — at 40 the assertion
+// still caught the plan's named mutation (restoring unlimited MaxSize inside a
+// derivation, which reaches 197) but sailed past a modest one: widening the
+// per-level cap to ctx.depth+3 tops out at 13 and would have passed unnoticed.
+// A bound that only catches the catastrophic regression is not a size budget.
+const maxDerivedDocNodes = 10
 
 func TestM4B1_9_MutualRecursionSizeBound(t *testing.T) {
 	r, _ := parseDeriveFixture(t, `module doc_cycle
@@ -184,5 +192,26 @@ export func main() -> int ! {} { 0 }
 	value := gen.Generate(newRNG(42)).(*eval.TaggedValue)
 	if _, ok := value.Fields[0].(*eval.IntValue); !ok {
 		t.Fatalf("substituted field type=%T, want IntValue", value.Fields[0])
+	}
+}
+
+// TestM4_UnderivableConstructorRefusesWholeADT pins plan §3 M4 change 1: if ANY
+// field of ANY constructor is underivable, the WHOLE type refuses. Dropping just
+// the offending constructor would still produce a working generator — one that
+// silently draws from a biased sub-distribution, never emitting Bad. That is the
+// one defect in this milestone with no visible symptom: every other test still
+// passes, the corpus still runs, and the property tests quietly stop covering a
+// constructor. Mutating the refusal to `continue` past the bad constructor leaves
+// the entire package green without this test.
+func TestM4_UnderivableConstructorRefusesWholeADT(t *testing.T) {
+	r, _ := parseDeriveFixture(t, `module mixed_ctors
+export type Mix = Good(int) | Bad(ImportedThing)
+export func main() -> int ! {} { 0 }
+`)
+	gen, shrink := r.createGeneratorForType(&ast.SimpleType{Name: "Mix"})
+	if gen != nil || shrink != nil {
+		t.Fatalf("a constructor with an underivable field must refuse the whole ADT, "+
+			"got generator=%T shrinker=%T (a non-nil generator here draws only from "+
+			"the derivable constructors, biasing the distribution invisibly)", gen, shrink)
 	}
 }
