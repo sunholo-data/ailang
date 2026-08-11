@@ -1,6 +1,5 @@
 # M-PROPERTY-GENERATOR-COVERAGE: Vacuous-Pass Honesty + Structural Generator Derivation for Contract Property Tests
 
-**Status**: Planned
 **Target**: v0.31.0 (Lane A); Lane B may slip to a later minor without harming Lane A
 **Status**: Lane A and Lane B1 landed; Lane B2 remains deferred
 **Priority**: P2 (explicitly NOT a v1.0 bar item — sized accordingly)
@@ -734,6 +733,13 @@ properties had never executed. Lane B1 makes the demos demonstrate what they alw
   shape is unit-level only today.
 - Resolve imported types through the typechecker environment to unlock the remaining imported-type
   skips. Refinement-aware generation for `string<email>` remains B2.
+- **`ailang verify` cannot encode tuple patterns.** Surfaced by M6's new `shapes_verify.ail`:
+  `fst2` fails with `unsupported pattern type *core.TuplePattern in SMT encoding`. Measured in
+  both arms — the error comes from encoding the function **body**, so it is independent of the
+  `ensures` clause and was present before that clause was strengthened. Consequence: a
+  tuple-parameter contract is checkable by property testing (B1 derives its generator and runs
+  100 cases) but **not** by Z3, so the two checkers disagree in coverage for this one shape.
+  `shapes_verify.ail`'s header states the split explicitly rather than claiming a clean verify.
 
 M6 also corrected the measurement procedure in the sprint plan: watchdog output must be redirected
 before `jq`, and the CLI JSON schema has no `.suites` key. Finally,

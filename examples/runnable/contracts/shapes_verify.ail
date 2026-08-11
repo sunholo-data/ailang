@@ -2,8 +2,15 @@
 -- Structural generator coverage for contract parameters
 -- Demonstrates: named records, ADTs, tuples, and scalar ensures parameters
 --
+-- Run:    ailang test   examples/runnable/contracts/shapes_verify.ail
+-- Expect: 4 properties, 100 cases each, 0 vacuous skips, 0 failures
+--
 -- Run:    ailang verify examples/runnable/contracts/shapes_verify.ail
--- Expect: 4 verified, 0 violations
+-- Expect: 3 verified, 1 encoding error (fst2)
+--         Z3 cannot yet encode tuple patterns (`unsupported pattern type
+--         *core.TuplePattern`), so a tuple-parameter contract is checkable by
+--         property testing but not by SMT. The error is a known language gap,
+--         not a violated contract — see the Lane B1 closeout follow-ups.
 
 module examples/runnable/contracts/shapes_verify
 
