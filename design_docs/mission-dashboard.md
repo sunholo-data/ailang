@@ -31,8 +31,8 @@
 reality-check is already banked). Hold → iteration 179 takes **`#616`** (NEW-DOC needed).
 
 ## Loop + routing
-Controller **opus** · designer/planner/executor/evaluator **all NOT fired** (parked pre-routing;
-rotation pointer unchanged, next `codex:gpt-5.6-sol`).
+Controller **opus** · designer/planner/executor/evaluator **NOT fired** (parked pre-routing).
+Gate 3b GREEN: `checks=15`, `incomplete=0`, 0 not-green. Gate 5: skill fix `02c552339`.
 
 ## PARKED ON MARK — #635
 - **`D-9`** (NEW, iter-178): quorum reviews a 5-item umbrella while only **W8** is routed, so it
