@@ -1121,9 +1121,34 @@ the Repo Profile above):
    a green suite and no pin, and the green is what makes the gap invisible — a function whose
    contract is "refuse X" can have N distinct refusal branches and pins for none of them.
    **Rule:** for any function added or modified by a milestone whose contract is a refusal,
-   enumerate its refusal branches (`grep -c 'return .*fmt.Errorf(.*%w'` over the function is a fair
-   mechanical first cut) and require **one neutering mutation per branch** before the milestone
-   closes. Neuter with `if false && <cond>` rather than deleting the block, so every import stays
+   enumerate its refusal branches and require **one neutering mutation per branch** before the
+   milestone closes.
+   **⚠ THE MECHANICAL FIRST CUT THIS RULE USED TO PRESCRIBE — `grep -c 'return .*fmt.Errorf(.*%w'`
+   — IS BLIND TO EVERY REFUSAL THAT DOES NOT WRAP, AND IT RETURNS A LARGE CONFIDENT NUMBER WHILE
+   DOING SO** (fixed 2026-08-11 V1 iteration 178; proposed by `mission-world` iter-72 with a
+   first-party measurement, corroborated in V1's own checkout before adoption per the
+   sibling-claim ghost discipline — and V1's numbers are WORSE than the ones that motivated it).
+   `%w` is a *wrapping* convention, and a terminal refusal has nothing to wrap, so the qualifier
+   silently excludes exactly the branches most likely to be the last word. This is rule 3a's trap
+   in its most seductive form: the count is non-zero and large, so it is its own known-positive
+   control and reads as a thorough enumeration. Measured on World's `transitionreg.go`: the
+   prescribed cut saw **22** of ~**55** refusal returns, and **0 of the 2** `errors.New` branches
+   that shipped with no coverage — neutered together, a tampered object with a broken revision
+   chain read as sound, mutant landed and building, whole package rc=0. Measured repo-wide in V1
+   (non-test Go): prescribed cut **1781**, all `return … fmt.Errorf(` **4273**, plus **20**
+   `return … errors.New(` — so the qualifier alone hides **~2,500** refusal returns here, and the
+   dominant blind class is *non-wrapping `fmt.Errorf`*, not `errors.New`. Use
+   `grep -cE 'return .*(fmt\.Errorf|errors\.New|status\.Error)\('`, or better, phrase the task as
+   **"every `return` on an error path"** and pair the count with a known-positive control (rule
+   3a). Generalises to any language whose terminal and wrapping error constructors differ — under
+   `ailang-code`, the same question is asked of whatever that repo's refusal form is.
+   **And the more general half — ANCHOR THE ENUMERATION TO THE DIFF, NEVER TO THE DESIGN DOC'S
+   DECISION LIST.** World's sprint implemented this rule as an audit of the branches the doc
+   *froze*, so the rules a later decision added and the wrappers the milestone itself wrote were
+   outside the enumeration **by construction**: the gap was not an oversight *within* the audit's
+   scope, it **was** the audit's scope. A doc can only freeze the branches it knew about, and the
+   ones a milestone writes during the sprint are precisely the ones no pre-sprint enumeration can
+   contain — which is the same reason this rule exists at all. Neuter with `if false && <cond>` rather than deleting the block, so every import stays
    used and "the mutant does not build" cannot masquerade as "the guard fired" (the class the
    mutation-BUILDS rule above already names). A genuinely unreachable branch is an acceptable
    outcome **when declared in the code and in the AC**; an undeclared one is a guard nobody is
