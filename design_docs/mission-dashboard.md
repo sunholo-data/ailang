@@ -23,13 +23,12 @@
 
 ## In flight / queued
 - **`#618` rollout** (cp plists → `launchctl load` → *then* `unsetenv`) — human-sequenced, `D-8`.
-- Batch remainder: `#619` → `#616` → `#617`. **#636** `[world-DEMAND]` · **#613** `D-1` ·
-  **#604**/`#614` `D-2` · **#649** local-model gap · **#651** quorum zero-signal · **#654**
-  `validate_manifest.go` prints a total it never asserts.
+- Batch: `#619` → `#616` → `#617`. **#636** `[world-DEMAND]` · **#613** `D-1` · **#604**/`#614`
+  `D-2` · **#649** local-model gap · **#651** quorum zero-signal · **#654** manifest total unasserted.
 
 ## Next
-**Lane B1 is done — no successor milestone.** Iteration 178 picks the queue's next unblocked item
-fresh. Lane B2 stays deferred (evaluator fuel budget, quorum 2026-07-29).
+**Lane B1 is done — no successor milestone.** Iteration 178 picks the next unblocked item fresh.
+Lane B2 stays deferred (evaluator fuel budget, quorum 2026-07-29).
 
 ## Loop + routing
 Controller **opus** · designer/planner **not fired** (quorum-cleared 2026-07-29; next
