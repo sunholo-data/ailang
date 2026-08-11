@@ -437,6 +437,45 @@ before. **Ratification of first use (iter-95):** because this is a controller-au
 the FIRST doc to use the carve-out is surfaced to Mark for a one-time OK before its sprint runs (a
 `--from mission` report line + a parked `(0)` bookkeeping row); once ratified, later iterations
 apply it without re-asking. Record which path was taken in the log's Ruled-out/routing rows.
+**A QUORUM THAT PRINTS `proceed` WITH A NON-EMPTY `absent_reviewers` IS NOT A PASS — IT IS A PASS
+WITH A NAMED HOLE, AND THE EYE THAT CLOSED IS SYSTEMATICALLY THE ONE YOU MOST NEEDED** (added
+2026-08-11 iteration 175; proposed by `mission-world` iter-70, which shares this skill but cannot
+edit it, and corroborated first-party in V1's own artifacts before adoption — sibling-claim ghost
+discipline). The degrade itself is documented and correct: an unreachable/over-budget reviewer is
+recorded by name with its reason and the quorum drops to N−1, never a silent pass. That is true and
+it is not enough, because the synthesis still emits `verdict: proceed`, and a controller reading a
+green verdict has no prompt to notice the gate just halved. Same family as Gate 3b's "an aggregate
+over an incomplete check set is vacuously green", aimed at the quorum instead of at `check-runs`.
+**The trigger is self-selecting, which is what makes this worth a rule rather than a caution.** A
+reviewer drops out on `budget` when the DOC GREW — i.e. immediately after a substantial revision,
+which is exactly when its opinion is most load-bearing, and the revision was usually driven by *its*
+objection. World's instance: round 1 both reviewers reject → one revision → round 2 `gemini-3-1-pro`
+PASS, `gpt5-6-sol` absent on budget → synthesis **proceed**; re-running that one reviewer alone for
+**$0.08** returned **REJECT**, and the objection was real (the doc claimed an *enforced* authority
+boundary its milestones only supplied as an optional helper). V1's instance is the same shape and
+sharper on cost: `m-named-test-body-check-semantics-2026-08-07T04-40-40Z` printed `proceed` with
+`gpt5-6-sol` absent for *"estimated cost $0.1048 (doc ~14818 input tok) exceeds cap $0.1000"* —
+refused over **$0.0048** — on a doc `blocked` in the immediately preceding round at `04:26:48Z`
+where `gpt5-6-sol` was the substantive rejecter.
+**Rule.** Before acting on any synthesis whose verdict is `proceed`, read `absent_reviewers`. If it
+is non-empty: re-run each absent reviewer alone with a raised cap
+(`ailang design-review --reviewer <m> --max-cost-usd <raised>`) and fold its verdict in — a metered
+re-run is cents against the $5 iteration ceiling and is the cheapest gate in this loop. If a
+reviewer genuinely cannot be restored, then everywhere the verdict is quoted downstream it reads
+"PROCEED at N−1, `<model>` absent (`<reason>`)" — never a bare "quorum passed".
+**And check `presentCount` has not been satisfied by YOU.** V1's artifacts carry three syntheses
+reading `proceed` with **zero of two** model reviewers present
+(`m-check-strict-fallbacks-2026-07-17T07-58-22Z`, `m-gemini-evaluator-diff-bridge-2026-07-16T23-03-39Z`,
+`m-gemini-exec-project-plumbing-2026-07-16T17-44-15Z`) — and in all three the absent reviewers had
+in fact said **reject**, recoverable from the captured raw text on disk. The zero-signal guard at
+`internal/mission/quorum/quorum.go:168` did not fire because the controller's own
+`--controller-verdict` increments the same `presentCount` it tests, and Gate 2 *mandates* that flag
+(measured: **86 of 87** artifacts carry one; control — the single artifact without one reads
+`blocked`). So the loop can pass a doc on its own self-assessment while the artifact says "quorum:
+proceed". Filed as `#651` for the code fix; until it lands, the count that matters is **present
+EXTERNAL reviewers**, and zero of them is a park, not a pass. The tell: you are about to route on a
+quorum and you have not read `absent_reviewers` — or you have read it, seen a name, and let the
+green verdict speak louder than the hole.
 A design doc's status header is a claim, not a fact (M-EVAL-BENCH-UI shipped fully while its doc
 said Planned for a month). **Also confirm the item is not ALREADY LANDED on origin** — check the
 `origin/dev` queue tag (`git show origin/dev:design_docs/v1-mission.md | grep`) and any merged PR
