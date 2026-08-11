@@ -613,7 +613,7 @@ func ParseChatStepResponse(body []byte, requestedModel string) (*ai.Response, *a
 	// the turn as a no-op (the "0 tool calls / disengagement" failure mode).
 	finish := MapChatFinishReason(choice.FinishReason)
 	if len(toolCalls) == 0 {
-		if recovered := extractHermesToolCalls(text + "\n" + reasoning); len(recovered) > 0 {
+		if recovered := ExtractHermesToolCalls(text + "\n" + reasoning); len(recovered) > 0 {
 			toolCalls = recovered
 			finish = "tool_calls"
 		}
@@ -650,11 +650,16 @@ func ParseChatStepResponse(body []byte, requestedModel string) (*ai.Response, *a
 // balancing).
 var hermesToolCallRe = regexp.MustCompile(`(?s)<tool_call>\s*(.*?)\s*</tool_call>`)
 
-// extractHermesToolCalls recovers tool calls a model emitted as Hermes-style
+// ExtractHermesToolCalls recovers tool calls a model emitted as Hermes-style
 // <tool_call>{...}</tool_call> blocks inside its text/reasoning, which Ollama's
 // /v1 sometimes fails to lift into the native tool_calls field (Qwen3 thinking
 // models). Returns nil when there are none or all blocks fail to parse.
-func extractHermesToolCalls(s string) []ai.ToolCall {
+//
+// Exported so the ollama streaming /v1 path (M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT
+// M3) can apply the SAME recovery the buffered path does — the SSE parser sets
+// no Reasoning and runs no recovery, so without this the streamed path silently
+// drops the Hermes-block tool calls (the "0 tool calls / disengagement" mode).
+func ExtractHermesToolCalls(s string) []ai.ToolCall {
 	if !strings.Contains(s, "<tool_call>") {
 		return nil
 	}

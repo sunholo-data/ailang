@@ -35,7 +35,7 @@ func TestExtractHermesToolCalls(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := extractHermesToolCalls(c.in)
+			got := ExtractHermesToolCalls(c.in)
 			if len(got) != len(c.wantNames) {
 				t.Fatalf("got %d calls, want %d (%v)", len(got), len(c.wantNames), got)
 			}
