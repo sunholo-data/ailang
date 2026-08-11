@@ -9054,3 +9054,65 @@ out / 233,472 cache-read) — against the $5 ceiling; the executor that delivere
 must exist) plus the NDJSON size ceiling. Iteration 172 pre-registered exactly this fix at instance
 1 and named the bar; this is instance 2, from a separate iteration with a different directive, so
 the bar is met. The edit is written to be true for any mission using the pi lane, not just V1.
+
+## 177 — 2026-08-11 — Iteration 174: **#618 M3 landed — response parity (Reasoning + Hermes recovery) on the streaming /v1 path closes the disengagement regression; the pi executor was pre-empted to opus rather than re-triggered a 4th time into a known rig-down hazard**
+
+**Picked**: `#618` M3 — the charter's own Next. Response parity for the flag-gated ollama `/v1`
+streaming path: populate `resp.Reasoning` from accumulated thinking deltas and run Hermes
+`<tool_call>` recovery when there are zero native tool_calls. This is REFUTATION #2 from the
+iteration-171 planner — streaming without it would trade M2's timeout fix for motoko's dominant
+*disengagement* failure mode. Design doc + plan + 2-round quorum artifact all present; M3's
+authority is plan §4 + the iter-171 controller rulings E-1..E-4 (M3 is planner-added, not in the doc).
+
+**Reality check**: M2 landed dependency confirmed (squash `ff1fa0760`). `dev == origin/dev`
+(`b19301692`), running `SKILL.md` byte-identical to origin. Died-mid-flight sweep: only open PR on
+our account is `#613` (known D-1 draft); no pre-existing `.wt-iter174`; main-tree dirty set is the
+known rig-synced trio + 5 untracked generated prompt docs. Gate 1 CI: three named workflows green;
+`checks=15`, one NOT-GREEN = SonarCloud (negative control: inherited, standing non-required `#615`).
+
+**Shipped**: PR [#650](https://github.com/sunholo-data/ailang/pull/650) → squash
+[`86f7f1c32`](https://github.com/sunholo-data/ailang/commit/86f7f1c32). `+315/−5`, 5 files. Exported
+`openai.ExtractHermesToolCalls` (touches `step.go`, not the shared `streamstep.go` — ratified E-2);
+`ollama/streamstep.go` non-nil `onChunk` accumulates `StreamThinkingDelta` text (ratified E-1) and
+`stepV1Stream` sets `resp.Reasoning` then runs the zero-native Hermes recovery mirroring
+`openai/step.go:610-616`; three parity ACs in `ollama/step_test.go` (8 `=== RUN`). **Controller
+mutation drill re-run first-party (generator≠judge)**: R8 (Hermes recovery, `streamstep.go:282`) and
+R9 (reasoning accumulation, `:136`) each — mutant BUILDS (rc=0), target parity test REDs (rc=1),
+suite `-skip TestStreamParity` stays rc=0 (the new test is the killer), restored from `cp` backup and
+sha256-verified byte-identical. Evaluator **sonnet 93/100 PASS, zero blocking** — independently
+reproduced both mutations and the deviation. Its non-blocking CHANGELOG finding (missing M3 entry,
+breaking M1/M2 precedent) reproduced first-party and FIXED at finalization (amended into the commit;
+`make check-changelog` rc=0). Gate 3b GREEN: PR head `checks=20` zero not-green, 4/4 REQUIRED from
+real `pull_request` events, `state=CLEAN`; merge commit CI + Build-and-Release green. Deploy-Docs
+failed then recovered — a declared GitHub Pages 500 outage (its own error text names it), not this
+change: docs-build/docs-gate all passed, negative control (parent deployed green) + re-run on a
+byte-identical tree flipped failure→success with zero code change.
+
+**Deviation adjudicated (rule 3h)**: plan's M3 "Files" line named `ollama/step.go` for the recovery
+but it landed in `ollama/streamstep.go` — where `stepV1Stream` actually lives after M2's split.
+Checkable proposition confirmed by diff (`ollama/step.go` UNCHANGED, `ollama/streamstep.go` changed,
+`openai/step.go` changed only for the export rename). Sound — the mechanism must live with the
+streaming branch; the plan's file list was imprecise, not the design.
+
+**Routing evidence**: model=claude-opus-5 task-class=execute round1-score=93 rounds=1 corrections=0
+provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus
+  <!-- EXECUTOR pi PRE-EMPTED to opus (FLAGGED): pi has failed 3/3 real runs on THIS sprint with
+       identical stopReason=length/rc=0/empty-worktree, unfixable by prompting, + a measured
+       1.2GB-in-6min disk-fill hazard; D-7 open. A 4th run yields no info past N=1 and risks the
+       unattended rig, so pre-empted per the fallback discipline. Evaluator sonnet (generator≠judge:
+       opus≠sonnet). Designer/planner NOT fired (doc+plan quorum-cleared at iter-171; rotation
+       pointer unchanged, next codex:gpt-5.6-sol). metered=$0.00 — pi not run; opus+sonnet on quota
+       buckets — against the $5 ceiling. -->
+
+**Ruled out**: "running pi a 4th time would inform the D-7 decision" — REFUTED; 3/3 identical is
+conclusive, the value is nil and the disk-fill risk is nonzero. (The pi failure itself is already
+skill-guarded at `b253e0ff8` and parked as D-7.)
+
+**Retro lane**: none — this slot's one friction (pi pre-emption as a controller judgment beyond the
+strict "always try pi first" letter) is at instance 1 for the pre-emption decision specifically, and
+the underlying pi failure is already guarded + parked on Mark (D-7); recorded as a watch-item and
+surfaced in the digest, below the two-friction one-edit bar.
+
+**Next**: `#618` M4 — fixture replay + rig validation + stopgap removal + docs (**GPU**; controller
+takes `rig.lock` around AC-M4.2 only), which also owns the doc renumber; then Lane B1 M4 (`#517`)
+resumes. Parked on Mark: D-1 (`#613`), D-2 (`#604`/`#614`), D-7 (pi 3/3 failed) — all on `#635`.
