@@ -2,39 +2,39 @@
 > **Contract**: ≤40 lines, overwritten by mission-control Gate 4 every iteration (history lives in
 > the charter/log). Fresh session = THIS + MEMORY.md. Humans steer via the bookkeeping issue.
 
-**Updated**: 2026-08-11 ~18:15 local (iteration 177)
+**Updated**: 2026-08-11 ~20:15 local (iteration 178)
 
 ## Now
-- **v0.33.0** · `origin/dev` `2cab77966` — **`#517` Lane B1 is COMPLETE** (PR
-  [#655](https://github.com/sunholo-data/ailang/pull/655)). M1–M4 + M6; **M5 descoped** per the
-  plan's §6 (derived shrinkers have no downstream observable, F-5), filed as a follow-up.
-- 📈 **Measured twice independently** — controller before routing, evaluator from a binary rebuilt
-  at the pre-B1 base `22ba8626d`: **vacuous skips 111 → 24**, i.e. **87 previously-never-executed
-  contract properties across 15 examples now run**. 8 files flip rc 1 → 0; all 5 guards hold rc 0.
-- 🔴 **F-1 confirmed in the field: B1 does NOT fix the prompt-injection safety demos** (the 24
-  surviving skips are imported + refined, B2 by design) — **the doc's Success metric was wrong**.
-- 💡 **Closing finding: the corpus's "Z3 catches this bug" demos had never run.** All 3 newly-failing
-  properties are **(a) deliberate**; zero were example bugs or B1 defects.
-- 🟡 **Two vacuity defects caught inside the milestone about vacuity**: the executor shipped
-  `ensures { result == result }` (cannot fail; strengthened, both arms measured), and a header
-  claiming a clean `ailang verify` when Z3 **cannot encode tuple patterns at all**.
-- ⚠️ **The plan's §1.6 bounded-wait recipe is broken when piped** (watchdog inherits stdout). Cost
-  13 min and nearly produced a false "these files are slow now" finding. Redirect to a file.
+- **v0.33.0** · `origin/dev` `5f471b2b7` — **`#619` (P0) PICKED AND PARKED at the quorum gate.**
+  2 rounds, both BLOCKED, **both reviewers present** (no N−1 hole). Metered **$0.0955** of $5.
+  No code, no sprint, no PR — the deliverable is the reality-check + doc revision.
+- 🔴 **The doc named the wrong file.** `cmd/ailang/eval_publish.go` never aggregates raw rows
+  (it sums rotation `summary.json`). The real numerator is **`SummarizeRotation`**
+  (`rotation_summary.go:246`) — **0** `IsValid()` reads, control `PassRate`=8 — **plus a second**
+  at `ModelRollupStats.PassAt1`. A sprint off the doc as written would have shipped a **no-op**.
+- ✅ **A third of the scope is already done** (`--skip-existing`, `f3189541a`); `FilterValidResults`
+  **cannot** be reused (`go list -deps`: import cycle). **160** invalid rows live in the bank
+  (control firing), and the OS board has **no denominator field** — surfacing it is a schema change.
+- 💡 **Both blocking objections were TRUE and understated.** R1: the coverage gate compares
+  benchmark **counts, never set identity** → new **W9**; its "50%" was quoting our own stale doc
+  (code: RATE 0.5 / **ELO 0.9**) → **AC1 now marked NOT SATISFIED**. R2: `null` unmarshals to a
+  silent `0.0` in **3** independent `PassRate float64` decls + 14 `jq` consumers.
+- 🔧 **Archive repaired**: iter-177 put stamp **174** at the *bottom* of a newest-first file.
 
 ## In flight / queued
 - **`#618` rollout** (cp plists → `launchctl load` → *then* `unsetenv`) — human-sequenced, `D-8`.
-- Batch: `#619` → `#616` → `#617`. **#636** `[world-DEMAND]` · **#613** `D-1` · **#604**/`#614`
-  `D-2` · **#649** local-model gap · **#651** quorum zero-signal · **#654** manifest total unasserted.
+- Batch while `D-9` is open: **`#616`** → `#617`. **#636** `[world-DEMAND]` · **#613** `D-1` ·
+  **#604**/`#614` `D-2` · **#649** local-model gap · **#651** quorum zero-signal · **#654**.
 
 ## Next
-**Lane B1 is done — no successor milestone.** Iteration 178 picks the next unblocked item fresh.
-Lane B2 stays deferred (evaluator fuel budget, quorum 2026-07-29).
+**`D-9` gates `#619`.** Split → W8 gets its own scoped doc, one re-quorum, route (the
+reality-check is already banked). Hold → iteration 179 takes **`#616`** (NEW-DOC needed).
 
 ## Loop + routing
-Controller **opus** · designer/planner **not fired** (quorum-cleared 2026-07-29) · executor
-**codex:gpt-5.6-sol**, 2nd clean fire · evaluator **sonnet** 94/100. Metered **$0.00** of $5.
+Controller **opus** · designer/planner/executor/evaluator **all NOT fired** (parked pre-routing;
+rotation pointer unchanged, next `codex:gpt-5.6-sol`).
 
-## PARKED ON MARK — asks are on #635
-- **`D-1`** (iter-150): proxy drops target-IP SSRF pinning on **proxied** routes — (A) as-written ·
-  (B) narrow to literal-IPs · (C) rethink. `#613` blocked on this.
-- **`D-2`** `#604`/`#614` · **`D-7`** codex now **2/2** → (B) flip to codex is de facto · **`D-8`** authorise the `#618` rig rollout (or hold on the stopgap).
+## PARKED ON MARK — #635
+- **`D-9`** (NEW, iter-178): quorum reviews a 5-item umbrella while only **W8** is routed, so it
+  blocks on content W8 doesn't touch. **(A)** split W8 into its own doc + re-quorum · **(B)** hold.
+- **`D-1`** `#613` SSRF · **`D-2`** `#604`/`#614` · **`D-7`** codex **2/2** → (B) de facto · **`D-8`** authorise the `#618` rig rollout.
