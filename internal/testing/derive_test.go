@@ -250,14 +250,12 @@ export func main() -> int ! {} { 0 }
 }
 
 // TestDerive_UnderivableFieldKillsWholeRecord pins the nil-on-any-underivable-
-// field rule: an ADT field (M4 territory) makes the entire record underivable
+// field rule: an unresolved imported field makes the entire record underivable
 // rather than silently substituting the other fields.
 func TestDerive_UnderivableFieldKillsWholeRecord(t *testing.T) {
 	src := `module derive_underv
 
-export type Shade = Light | Dark(level: int)
-
-export type Rec = { ok: int, shade: Shade }
+export type Rec = { ok: int, shade: ImportedShade }
 
 export func main() -> int ! {} { 0 }
 `
@@ -268,9 +266,8 @@ export func main() -> int ! {} { 0 }
 	}
 }
 
-// TestDerive_ADTIsM4 pins that AlgebraicType definitions do NOT derive in M3 —
-// they stay honest vacuous skips until M4's arm lands.
-func TestDerive_ADTIsM4(t *testing.T) {
+// TestDerive_ADT derives a same-file algebraic type after M4.
+func TestDerive_ADT(t *testing.T) {
 	src := `module derive_adt_m4
 
 export type Shade = Light | Dark(level: int)
@@ -278,14 +275,14 @@ export type Shade = Light | Dark(level: int)
 export func main() -> int ! {} { 0 }
 `
 	r := deriveRunnerFromSource(t, src)
-	gen, shrink := r.createGeneratorForType(&ast.SimpleType{Name: "Shade"})
-	if gen != nil || shrink != nil {
-		t.Fatalf("expected nil, nil for ADT at M3, got generator=%T shrinker=%T", gen, shrink)
+	_, val := deriveOnce(t, r, &ast.SimpleType{Name: "Shade"})
+	if _, ok := val.(*eval.TaggedValue); !ok {
+		t.Fatalf("expected TaggedValue for ADT, got %T", val)
 	}
 }
 
 // TestDerive_ListArmPreserved pins that the Lane A list arm is untouched:
-// list[int] still derives, list[Shade] (ADT element, M4) still fails.
+// list[int] still derives and list[Shade] derives through M4's ADT arm.
 func TestDerive_ListArmPreserved(t *testing.T) {
 	src := `module derive_list
 
@@ -305,8 +302,8 @@ export func main() -> int ! {} { 0 }
 		Constructor: "list",
 		Args:        []ast.Type{&ast.SimpleType{Name: "Shade"}},
 	})
-	if gen != nil {
-		t.Fatal("expected list[Shade] to stay underivable at M3 (ADT element)")
+	if gen == nil {
+		t.Fatal("expected list[Shade] to derive through the M4 ADT arm")
 	}
 }
 
@@ -335,14 +332,12 @@ export func main() -> int ! {} { 0 }
 func TestDerive_UnderivableElemKillsWholeTuple(t *testing.T) {
 	src := `module derive_tuple_refuse
 
-export type Color = Red | Green
-
 export func main() -> int ! {} { 0 }
 `
 	r := deriveRunnerFromSource(t, src)
 	typ := &ast.TupleType{Elements: []ast.Type{
 		&ast.SimpleType{Name: "int"},
-		&ast.SimpleType{Name: "Color"},
+		&ast.SimpleType{Name: "ImportedColor"},
 	}}
 	gen, shrink := r.createGeneratorForType(typ)
 	if gen != nil || shrink != nil {

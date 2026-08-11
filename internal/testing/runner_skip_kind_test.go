@@ -63,9 +63,7 @@ func TestRunProperty_SkipTaxonomyIsTotal(t *testing.T) {
 func TestRunContractProperties_SkipKinds(t *testing.T) {
 	src := `module skip_kinds
 
-type Point = P | Q
-
-export pure func unsupported(p: Point) -> int
+export pure func unsupported(p: ImportedPoint) -> int
   requires { true }
   ensures { result > 0 }
 {

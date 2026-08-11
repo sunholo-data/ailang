@@ -149,16 +149,28 @@ type ADTGenerator struct {
 	tag          string
 	fieldGens    []Generator
 	constructTag bool // If true, wrap in TaggedValue
+	modulePath   string
+	typeName     string
 }
 
 // NewADTGenerator creates a generator for ADT values.
 // If constructTag is true, wraps result in TaggedValue.
-func NewADTGenerator(tag string, fieldGens []Generator, constructTag bool) *ADTGenerator {
-	return &ADTGenerator{
+// identity optionally supplies module path and type name. Keeping it optional
+// preserves the test-helper API while production-derived ADTs carry their real
+// diagnostic identity.
+func NewADTGenerator(tag string, fieldGens []Generator, constructTag bool, identity ...string) *ADTGenerator {
+	gen := &ADTGenerator{
 		tag:          tag,
 		fieldGens:    fieldGens,
 		constructTag: constructTag,
+		modulePath:   "test",
+		typeName:     "ADT",
 	}
+	if len(identity) >= 2 {
+		gen.modulePath = identity[0]
+		gen.typeName = identity[1]
+	}
+	return gen
 }
 
 // Generate produces an ADT value.
@@ -171,8 +183,8 @@ func (g *ADTGenerator) Generate(rng *rand.Rand) eval.Value {
 
 	if g.constructTag {
 		return &eval.TaggedValue{
-			ModulePath: "test", // Test module
-			TypeName:   "ADT",  // Generic ADT type for testing
+			ModulePath: g.modulePath,
+			TypeName:   g.typeName,
 			CtorName:   g.tag,  // Constructor name (e.g., "Some", "None")
 			Fields:     fields, // Constructor fields
 		}

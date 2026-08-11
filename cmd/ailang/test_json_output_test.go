@@ -14,11 +14,16 @@ test "passes" { true }
 `
 
 // The vacuous vehicle must be a type the runner cannot derive a generator
-// for. Records became derivable at Lane B1 M3 (#517), so the vehicle is an
-// ADT — underivable until M4, which will need to swap it again (F-M3-2).
+// for, and that target keeps moving as #517 lands: records became derivable at
+// Lane B1 M3, same-file ADTs at M4. The vehicle is now an UNRESOLVED type name,
+// which is the honest end of the line — B1 deliberately leaves imported and
+// refined types underivable (deferred to B2 on the evaluator fuel budget), so
+// unlike `Point` this one is not scheduled to become derivable underneath us.
+// If a future milestone does derive it, this test fails loudly rather than
+// silently ceasing to exercise the vacuous path — which is the whole point:
+// the assertion below is the ONLY end-to-end pin on `ailang test` exiting 1 for
+// a suite whose properties never ran.
 const mixedVacuousTestSource = `module mixed_vacuous_test
-
-export type Point = P | Q
 
 export func anchor(x: int) -> int ! {}
 ensures { result == x }
@@ -26,7 +31,7 @@ ensures { result == x }
   x
 }
 
-export func shiftX(p: Point, dx: int) -> int ! {}
+export func shiftX(p: ImportedPoint, dx: int) -> int ! {}
 ensures { result == dx }
 {
   dx
@@ -88,7 +93,7 @@ func TestTestCommand_MixedVacuousSuiteExitSemantics(t *testing.T) {
 	if humanExit != 1 {
 		t.Fatalf("human mode expected exit 1, got %d", humanExit)
 	}
-	if !strings.Contains(human, "no generator for parameter p: Point") {
+	if !strings.Contains(human, "no generator for parameter p: ImportedPoint") {
 		t.Fatalf("human output missing exact skip reason:\n%s", human)
 	}
 	if strings.Contains(human, "All tests passed!") {
