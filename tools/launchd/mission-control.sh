@@ -297,6 +297,23 @@ export MISSION_METERED_BUDGET_USD="${MISSION_METERED_BUDGET_USD:-5}"
 # in ~/.config/ailang/mission-<name>.env (delivery mechanism added by M2 above).
 export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol}"
 export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol}"
+# EXECUTOR FALLBACK CHAIN — ailang#611 (2026-08-11).
+#
+# RATIFIED SEMANTICS (Mark 2026-08-06, restated attended 2026-08-10 and 2026-08-11):
+# "codex as default but deepseek to be replacement when codex out of quota", then
+# opus as the last resort. Until now NEITHER driver implemented it: the codex and
+# pi pre-flight loops are independent and each degraded straight to a hardcoded
+# `opus`, so deepseek was only ever reached by hard-pinning it in a mission env
+# file — which made it the DEFAULT, the opposite of the ratified policy, and left
+# the pin running unprobed on World (whose driver has only the codex loop).
+#
+# Implemented by retargeting the codex loop's fallback rather than adding a third
+# probe loop: the pi loop already runs immediately AFTER the codex loop, so handing
+# the role to a `pi:*` model here means the very next loop probes it and degrades to
+# opus if it is unusable too. One chain, no new probe machinery, and the per-role
+# fallback stays overridable for a mission that wants a different tail.
+export MISSION_EXECUTOR_FALLBACK="${MISSION_EXECUTOR_FALLBACK:-pi:openrouter/deepseek/deepseek-v4-flash-0731:floor}"
+export MISSION_PLANNER_FALLBACK="${MISSION_PLANNER_FALLBACK:-opus}"
 # Codex-lane pre-flight, ROLE-GENERIC (m-planner-codex-lane): probe once per DISTINCT
 # codex model, fall back per-role on ANY non-zero rc (#486: probe MUST carry --model;
 # an unusable pin is exactly as fatal as spent quota). Export AFTER fallback so the
@@ -335,8 +352,13 @@ for role in PLANNER EXECUTOR; do
     ;; esac
     case "$_cx_failed" in *":${cx_model}:"*)
       role_lc=$(printf '%s' "$role" | tr 'A-Z' 'a-z')   # ${role,,} is bash-4.0-only (L21)
-      log "codex ${role_lc} lane -> falling back to opus for this fire (model '$cx_model')"
-      printf -v "$var" 'opus'; export "$var"
+      # Hand off to the NEXT link, not straight to opus (#611). A `pi:*` value here
+      # is probed by the pi loop below, which degrades to opus on its own failure —
+      # that is what makes codex -> deepseek -> opus a real chain. `%s` rather than
+      # a bare format string: the value is data, and a stray % would be a directive.
+      fbvar="MISSION_${role}_FALLBACK"; fb="${!fbvar:-opus}"
+      log "codex ${role_lc} lane -> falling back to '$fb' for this fire (model '$cx_model')"
+      printf -v "$var" '%s' "$fb"; export "$var"
     ;; esac
   ;; esac
 done
