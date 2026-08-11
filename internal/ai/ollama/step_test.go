@@ -2,9 +2,12 @@ package ollama
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -522,6 +525,257 @@ func TestStep_ChatErrorClassified(t *testing.T) {
 	// Either is acceptable — the contract is "not a generic error".
 	if aiErr.Code == "" {
 		t.Error("AIError.Code is empty")
+	}
+}
+
+// --- M3 response-parity tests (M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT) -----------
+//
+// These pin REFUTATION #2: the streamed /v1 path must be RESPONSE-equivalent to
+// the buffered one, not merely the same shape. The SSE parser sets no Reasoning
+// and runs no Hermes tool-call recovery; stepV1Stream restores both. Each test
+// runs the SAME logical response once buffered (flag off) and once as SSE
+// (flag on) and compares. The fake-/v1 helpers (newFakeV1, streamEnv, toolReq,
+// contentChunk, toolFragChunk, finishChunk, doneChunk, sse*) live in
+// streambranch_test.go.
+
+// reasoningChunk emits an SSE chunk carrying a delta.reasoning fragment — the
+// field the SSE parser surfaces as ai.StreamThinkingDelta and the exact place
+// qwen3 thinking models put a Hermes <tool_call> block.
+func reasoningChunk(text string) string {
+	return sseData(map[string]any{
+		"id": "chatcmpl-1", "object": "chat.completion.chunk", "model": "qwen3.6",
+		"choices": []any{map[string]any{"index": 0, "delta": map[string]any{"reasoning": text}}},
+	})
+}
+
+// fullToolChunk emits a complete native tool_call (id + name + args) in ONE
+// chunk — the committed-fixture shape (AC-M3.3 case a).
+func fullToolChunk(id, name, args string) string {
+	return sseData(map[string]any{
+		"id": "chatcmpl-1", "object": "chat.completion.chunk", "model": "qwen3.6",
+		"choices": []any{map[string]any{"index": 0, "delta": map[string]any{
+			"tool_calls": []any{map[string]any{
+				"index": 0, "id": id, "type": "function",
+				"function": map[string]any{"name": name, "arguments": args},
+			}},
+		}}},
+	})
+}
+
+// nativeTC builds one non-streaming (buffered) tool_call. arguments is the
+// OpenAI wire shape: a JSON STRING, so json.Marshal escapes it correctly.
+func nativeTC(id, name, args string) map[string]any {
+	return map[string]any{
+		"id": id, "type": "function",
+		"function": map[string]any{"name": name, "arguments": args},
+	}
+}
+
+// bufferedV1Body renders a non-streaming /v1 chat completion body. reasoning is
+// omitted when empty; toolCalls is omitted when nil.
+func bufferedV1Body(content, reasoning, finish string, toolCalls []map[string]any) string {
+	msg := map[string]any{"role": "assistant", "content": content}
+	if reasoning != "" {
+		msg["reasoning"] = reasoning
+	}
+	if toolCalls != nil {
+		msg["tool_calls"] = toolCalls
+	}
+	body := map[string]any{
+		"id": "chatcmpl-1", "object": "chat.completion", "model": "qwen3.6",
+		"choices": []any{map[string]any{"index": 0, "message": msg, "finish_reason": finish}},
+		"usage":   map[string]any{"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+	}
+	b, err := json.Marshal(body)
+	if err != nil {
+		panic(err) // test-only: the map above is always marshalable
+	}
+	return string(b)
+}
+
+// runOllamaBuffered drives the flag-OFF buffered /v1 path against a server that
+// returns jsonBody, and returns the parsed response.
+func runOllamaBuffered(t *testing.T, jsonBody string) *ai.Response {
+	t.Helper()
+	f := newFakeV1(t, func(_ *fakeV1, w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, jsonBody)
+	})
+	t.Setenv("AILANG_OLLAMA_NATIVE_TOOLS", "")
+	t.Setenv("AILANG_OLLAMA_V1_STREAM", "") // flag OFF -> buffered path
+	t.Setenv("OLLAMA_HOST", f.srv.URL)
+	c := newTestClient(t, f.srv.URL)
+	resp, err := c.Step(context.Background(), toolReq())
+	if err != nil {
+		t.Fatalf("buffered Step: %v", err)
+	}
+	return resp
+}
+
+// runOllamaStreamed drives the flag-ON streaming /v1 path against a server that
+// emits chunks then [DONE], and returns the parsed response.
+func runOllamaStreamed(t *testing.T, chunks ...string) *ai.Response {
+	t.Helper()
+	f := newFakeV1(t, func(_ *fakeV1, w http.ResponseWriter, _ *http.Request) {
+		sseHeaders(w)
+		for _, ch := range chunks {
+			if !sseWrite(w, ch) {
+				return
+			}
+		}
+		sseWrite(w, doneChunk)
+	})
+	streamEnv(t, f.srv.URL)
+	c := newTestClient(t, f.srv.URL)
+	got := stepWithin(t, c, toolReq(), 5*time.Second)
+	if got.err != nil {
+		t.Fatalf("streamed Step: %v", got.err)
+	}
+	return got.resp
+}
+
+// TestStreamParity_HermesRecoveryFromReasoning is AC-M3.1 (mutation R8). A
+// Hermes <tool_call> block split across THREE delta.reasoning chunks, with zero
+// native tool_calls, must be recovered into exactly one write_file call on the
+// streamed path — and the identical logical response on the buffered path must
+// recover it too (the anti-vacuity control).
+func TestStreamParity_HermesRecoveryFromReasoning(t *testing.T) {
+	assertOneWriteFile := func(t *testing.T, resp *ai.Response) {
+		t.Helper()
+		if len(resp.ToolCalls) != 1 {
+			t.Fatalf("ToolCalls = %+v, want exactly 1", resp.ToolCalls)
+		}
+		tc := resp.ToolCalls[0]
+		if tc.Name != "write_file" {
+			t.Errorf("Name = %q, want write_file", tc.Name)
+		}
+		var args struct {
+			Path string `json:"path"`
+		}
+		if err := json.Unmarshal([]byte(tc.Arguments), &args); err != nil {
+			t.Fatalf("arguments %q do not parse as JSON: %v", tc.Arguments, err)
+		}
+		if args.Path != "a.ail" {
+			t.Errorf("arguments.path = %q, want a.ail", args.Path)
+		}
+		if resp.FinishReason != "tool_calls" {
+			t.Errorf("FinishReason = %q, want tool_calls", resp.FinishReason)
+		}
+	}
+
+	t.Run("streamed_flag_on_recovers_across_reasoning_chunks", func(t *testing.T) {
+		resp := runOllamaStreamed(t,
+			reasoningChunk(`<tool_call>{"name":"wr`),
+			reasoningChunk(`ite_file","arguments":{"path":"a.ail"}}`),
+			reasoningChunk(`</tool_call>`),
+			finishChunk("stop"),
+		)
+		assertOneWriteFile(t, resp)
+	})
+
+	t.Run("buffered_flag_off_control_also_recovers", func(t *testing.T) {
+		body := bufferedV1Body("",
+			`<tool_call>{"name":"write_file","arguments":{"path":"a.ail"}}</tool_call>`,
+			"stop", nil)
+		assertOneWriteFile(t, runOllamaBuffered(t, body))
+	})
+}
+
+// TestStreamParity_ReasoningByteIdentical is AC-M3.2 (mutation R9). The same
+// reasoning served buffered vs streamed (as three fragments) must produce a
+// non-empty, byte-identical Response.Reasoning.
+func TestStreamParity_ReasoningByteIdentical(t *testing.T) {
+	const reasoning = "Step 1: read the spec.\nStep 2: write the file.\nStep 3: run it."
+	buffered := runOllamaBuffered(t, bufferedV1Body("done", reasoning, "stop", nil))
+	streamed := runOllamaStreamed(t,
+		reasoningChunk("Step 1: read the spec.\n"),
+		reasoningChunk("Step 2: write the file.\n"),
+		reasoningChunk("Step 3: run it."),
+		contentChunk("done"),
+		finishChunk("stop"),
+	)
+	if buffered.Reasoning == "" {
+		t.Fatal("buffered Reasoning is empty — the control cannot prove parity")
+	}
+	if streamed.Reasoning == "" {
+		t.Error("streamed Reasoning is empty — R9 accumulation did not fire")
+	}
+	if streamed.Reasoning != buffered.Reasoning {
+		t.Errorf("Reasoning mismatch:\n streamed = %q\n buffered = %q", streamed.Reasoning, buffered.Reasoning)
+	}
+}
+
+// TestStreamParity_StreamedEquivalentToBuffered is AC-M3.3 (doc S6,
+// strengthened; mutations R8/R9/R10). Three cases, each served once buffered
+// and once as SSE, asserting Text, ToolCalls (order/IDs/assembled args),
+// FinishReason AND Reasoning are identical.
+func TestStreamParity_StreamedEquivalentToBuffered(t *testing.T) {
+	cases := []struct {
+		name         string
+		bufferedJSON string
+		streamChunks []string
+	}{
+		{
+			name: "native_single_toolcall_chunk",
+			bufferedJSON: bufferedV1Body("", "reasoned about it.", "tool_calls",
+				[]map[string]any{nativeTC("call_1", "write_file", `{"path":"a.ail"}`)}),
+			streamChunks: []string{
+				reasoningChunk("reasoned about it."),
+				fullToolChunk("call_1", "write_file", `{"path":"a.ail"}`),
+				finishChunk("tool_calls"),
+			},
+		},
+		{
+			name: "toolcall_fragmented_across_3_chunks",
+			bufferedJSON: bufferedV1Body("", "fragmented think", "tool_calls",
+				[]map[string]any{nativeTC("call_1", "write_file", `{"path":"a.ail"}`)}),
+			streamChunks: []string{
+				reasoningChunk("fragmented think"),
+				toolFragChunk("write_file", ""),
+				toolFragChunk("", `{"pa`),
+				toolFragChunk("", `th":"a`),
+				toolFragChunk("", `.ail"}`),
+				finishChunk("tool_calls"),
+			},
+		},
+		{
+			name: "hermes_in_reasoning_zero_native",
+			bufferedJSON: bufferedV1Body("ok",
+				`plan: <tool_call>{"name":"write_file","arguments":{"path":"a.ail"}}</tool_call>`,
+				"stop", nil),
+			streamChunks: []string{
+				contentChunk("ok"),
+				reasoningChunk(`plan: <tool_call>{"name":"write_file","arguments":{"path":"a.ail"}}</tool_call>`),
+				finishChunk("stop"),
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			buffered := runOllamaBuffered(t, tc.bufferedJSON)
+			streamed := runOllamaStreamed(t, tc.streamChunks...)
+
+			if streamed.Text != buffered.Text {
+				t.Errorf("Text: streamed=%q buffered=%q", streamed.Text, buffered.Text)
+			}
+			if streamed.FinishReason != buffered.FinishReason {
+				t.Errorf("FinishReason: streamed=%q buffered=%q", streamed.FinishReason, buffered.FinishReason)
+			}
+			if streamed.Reasoning != buffered.Reasoning {
+				t.Errorf("Reasoning: streamed=%q buffered=%q", streamed.Reasoning, buffered.Reasoning)
+			}
+			if !reflect.DeepEqual(streamed.ToolCalls, buffered.ToolCalls) {
+				t.Errorf("ToolCalls mismatch:\n streamed=%+v\n buffered=%+v", streamed.ToolCalls, buffered.ToolCalls)
+			}
+			// Anti-vacuity: every case carries exactly one tool call on BOTH
+			// paths, so an all-empty pass cannot masquerade as parity.
+			if len(buffered.ToolCalls) != 1 {
+				t.Fatalf("buffered ToolCalls = %+v, want exactly 1 (control)", buffered.ToolCalls)
+			}
+			if len(streamed.ToolCalls) != 1 {
+				t.Fatalf("streamed ToolCalls = %+v, want exactly 1", streamed.ToolCalls)
+			}
+		})
 	}
 }
 

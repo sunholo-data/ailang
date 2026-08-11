@@ -94,6 +94,13 @@ type streamMetrics struct {
 	sawFirst       bool
 	contentDeltas  int
 	thinkingDeltas int
+	// reasoning accumulates StreamThinkingDelta text so stepV1Stream can set
+	// Response.Reasoning for parity with the buffered /v1 path, and so the
+	// Hermes recovery can see a <tool_call> block qwen3 put in its reasoning
+	// (M3). The SSE parser fires ThinkingDelta for delta.reasoning /
+	// delta.reasoning_content (streamstep.go:281,284); this is the only seam
+	// that recovers reasoning without editing the shared parser.
+	reasoning strings.Builder
 }
 
 // observe records a non-empty read: TTFT on the first one, the running maximum
@@ -118,12 +125,27 @@ func (m *streamMetrics) observe(n int) {
 func (m *streamMetrics) onChunk(chunk ai.StreamChunk) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	switch chunk.(type) {
+	switch d := chunk.(type) {
 	case ai.StreamContentDelta:
 		m.contentDeltas++
 	case ai.StreamThinkingDelta:
 		m.thinkingDeltas++
+		// M3: accumulate reasoning text for Response.Reasoning parity and so the
+		// Hermes recovery in stepV1Stream can see a <tool_call> block emitted
+		// inside the model's reasoning.
+		if d.Text != "" {
+			m.reasoning.WriteString(d.Text)
+		}
 	}
+}
+
+// reasoningText returns the accumulated reasoning under the metrics lock. Safe
+// to call after StreamStep returns (all callbacks have fired synchronously by
+// then); the lock is defensive consistency with observe/onChunk.
+func (m *streamMetrics) reasoningText() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.reasoning.String()
 }
 
 // meteredReader times reads without touching the watchdog wrapper it sits on
@@ -249,6 +271,21 @@ func (c *Client) stepV1Stream(outerCtx context.Context, req *ai.Request) (*ai.Re
 	if err != nil {
 		return nil, streamStepError(err, watch, streamCtx)
 	}
+
+	// M3 (response parity, REFUTATION #2): the SSE parser sets neither
+	// Response.Reasoning nor runs the Hermes tool-call recovery the buffered
+	// /v1 path does (openai/step.go:586-620). Mirror BOTH here so switching
+	// motoko to the streamed path does not trade a timeout bug for the
+	// "0 tool calls / disengagement" bug this line of work exists to fight.
+	// This mirrors openai/step.go's post-parse recovery exactly.
+	resp.Reasoning = metrics.reasoningText()
+	if len(resp.ToolCalls) == 0 {
+		if rec := openai.ExtractHermesToolCalls(resp.Text + "\n" + resp.Reasoning); len(rec) > 0 {
+			resp.ToolCalls = rec
+			resp.FinishReason = "tool_calls"
+		}
+	}
+
 	logOllamaResponse(resp)
 	return resp, nil
 }
