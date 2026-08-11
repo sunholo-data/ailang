@@ -155,6 +155,117 @@ $ DEBUG_PARSER=1 ailang run test.ail
 | `DEBUG_OPERATOR_LOWERING=1` | Operator resolution | Dispatch issues | Builtin selection |
 | `DEBUG_PARSER=1` | Token position tracing | Parser bugs | Token flow |
 
+### Ollama Streaming Timeouts (v0.34.0)
+
+Local-model turns on the eval rig are long: a `qwen3.6:35b` thinking turn can run
+well past the buffered path's 300s default cap. A single total-duration clock
+cannot tell **"the model is thinking hard"** from **"the connection is wedged"**,
+so it is either too short (a healthy turn is killed at 4m59.97s) or too long
+(a wedged stream hangs for hours). The streaming `/v1` path replaces one coarse
+clock with three sharp ones.
+
+| Flag | Purpose | Use When | Default |
+|------|---------|----------|---------|
+| `AILANG_OLLAMA_V1_STREAM=1` | Opt into the streaming ollama `/v1` path. Exactly `"1"` opts in — anything else keeps today's buffered path with byte-identical requests | Long local-model turns timing out mid-generation | **off** |
+| `AILANG_OLLAMA_IDLE_TIMEOUT_SEC` | Max silence **between** bytes. Trips a typed `idle-timeout` — this is the "wedged" detector | A hung stream should fail fast instead of burning the whole budget | `120` |
+| `AILANG_OLLAMA_TTFT_TIMEOUT_SEC` | Max silence **before the first byte**. Long on purpose: a cold 35B load under GPU contention legitimately takes minutes | Cold-start false trips | `600` |
+| `AILANG_OLLAMA_HTTP_TIMEOUT_SEC` | Total budget for the whole call — **but its meaning changes with the flag**, see below | Bounding worst-case wall clock | `300` off / `3600` on |
+
+:::warning `AILANG_OLLAMA_HTTP_TIMEOUT_SEC` means two different things
+
+- **Flag off (buffered `/v1`)** — an HTTP client timeout and whole-call cap,
+  default **300s**, where `0` (or negative) means *no timeout at all*.
+- **Flag on (streaming `/v1`)** — the **mandatory hard deadline** on the stream,
+  default **3600s**, where `0`, a negative, or an unparseable value is
+  **rejected at client construction** with a typed configuration error and **no
+  HTTP request is sent**. An unbounded stream is precisely the hang the guard
+  exists to prevent, so there is deliberately no "disabled" setting here.
+
+The practical consequence: a value that was a safe raise on the buffered path
+becomes a **ceiling** on the streaming path. Auditing a config, read the flag
+first. This is why the rig's launchd plists dropped their `1800` stopgap pin in
+the same edit that added the flag — 1800s sits below the worst-case legitimate
+request and would have re-created the timeout it was added to fix.
+:::
+
+:::danger Two delivery sites — clearing one does not clear the other
+
+On the eval rig this variable reaches a job by **two independent paths**, and
+they must be audited separately:
+
+1. **The plist**, via `EnvironmentVariables` in `tools/launchd/*.plist`.
+2. **The launchd user-domain global**, set once by `launchctl setenv` and
+   inherited by every job in the domain. **No plist edit touches it**, it
+   survives reboots of the job, and it is invisible to any `grep` over the repo.
+
+Editing the plists alone is therefore *not* enough to remove a pin — it silently
+keeps applying from site 2. Check the live value before trusting a config:
+
+```bash
+launchctl getenv AILANG_OLLAMA_HTTP_TIMEOUT_SEC   # empty == not pinned
+launchctl getenv AILANG_NOT_A_REAL_VAR            # control: also empty
+```
+
+Pair the check with a known-unset name as above, so an empty answer is a
+measurement rather than a broken command.
+
+**Clearing site 2 is ordered, and the wrong order is expensive.** Site 2 is
+load-bearing while the streaming flag is off: with the flag unset the buffered
+path runs, `ollamaV1Timeout()` falls back to its **300s** default, and the domain
+global is the only thing raising it for invocations a plist does not cover. So
+turn the flag on **first** — the plists in `tools/launchd/` are *source*, and the
+installed copies under `~/Library/LaunchAgents/` are regular files updated by a
+manual `cp` + `launchctl load`, so editing the repo changes nothing on the rig —
+and only then:
+
+```bash
+launchctl unsetenv AILANG_OLLAMA_HTTP_TIMEOUT_SEC
+```
+
+Doing it the other way round drops those calls back to 300s and re-creates the
+timeout the pin was added to fix.
+
+This is not hypothetical. Both plists were cleaned up and every grep read green
+while the domain global still held `1800`, so streamed requests kept logging
+`hard_deadline_sec = 1800` / `effective_deadline_sec = 1800` instead of the 3600s
+default. The `effective_deadline_sec` read-back is what exposed it — which is
+exactly why that field is read back from the context rather than reported from
+the configured value.
+:::
+
+When request logging is enabled — `AILANG_OLLAMA_LOG_REQUESTS=<path>`, or a path
+written to the `~/.ailang/state/ollama-log-requests` **sentinel file** whose
+contents are the dump path (it exists because harnesses like motoko's
+`bun`→`ailang` process chain drop our custom env, but `HOME` always propagates)
+— each streaming request appends a `"kind":"stream_metrics"` JSONL record with
+`ttft_ms`, `max_gap_ms`, `total_ms`, `bytes`, the delta counts, and both
+`hard_deadline_sec` (configured) and `effective_deadline_sec` (**read back** from
+the request context). Those numbers are the evidence for whether the three
+defaults above are right. If the two deadline fields disagree, something upstream
+is capping the stream — a run killed at ~300s with the flag on means the deadline
+never reached the wire, which is a harness bug, not a model one.
+
+:::caution The sentinel makes the log a shared global sink
+
+Because the sentinel is keyed on `HOME`, **every** `ailang` process on the machine
+writes to the same file — including `go test ./internal/ai/...`, whose `httptest`
+fake servers emit real `stream_metrics` records. A unit-test run during a field
+capture therefore pollutes the capture. This happened on 2026-08-11: 10
+test-generated records landed in the middle of a live rig measurement.
+
+They were separable only by their **window fields**: tests use non-production
+values (`idle_window_sec: 1`, `ttft_window_sec: 2` or `3`) against a real run's
+`120` / `600`. Filter on those before analysing a capture:
+
+```bash
+jq -c 'select(.kind=="stream_metrics" and .idle_window_sec==120)' "$LOG"
+```
+
+Prefer an explicit `AILANG_OLLAMA_LOG_REQUESTS=<path>` per capture where the
+harness propagates env; reach for the sentinel only when it does not, and remove
+it when the capture ends.
+:::
+
 ### CLI Flags
 
 | Flag | Purpose | Use When |

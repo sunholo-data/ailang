@@ -2,9 +2,13 @@ package openai
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -343,5 +347,113 @@ func TestStreamStep_HTTPError(t *testing.T) {
 	}
 	if !strings.Contains(aiErr.Message, "Incorrect API key") {
 		t.Errorf("AIError.Message = %q, want it to contain 'Incorrect API key'", aiErr.Message)
+	}
+}
+
+// TestParseChatStepSSEStream_OllamaV1Fixture replays REAL ollama /v1 wire bytes
+// through the shared SSE parser (M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT, ailang#618
+// AC-M4.1).
+//
+// The fixture is not a hand-written mock: it is the verbatim capture of a
+// qwen3.6:35b-a3b-mxfp8 tool-calling turn recorded off the rig on 2026-08-10 and
+// committed at internal/ai/ollama/testdata/ollama_v1_stream_toolcall.sse. Its
+// shape — 48 `delta.reasoning` chunks with `content:""`, then ONE chunk carrying
+// the whole tool call, then a bare `finish_reason:"tool_calls"` chunk, then a
+// choices-empty usage chunk, then `[DONE]` — is what the ollama streaming branch
+// actually has to survive. Pinning it here means a future ollama emission change
+// (or a parser regression) fails a sub-second unit test instead of a GPU run.
+//
+// Every asserted value below was read out of the fixture first, not copied from
+// the design doc: `wc -c` = 13077 B / 104 lines; the tool call is on line 97; the
+// finish reason on line 99; the usage block on line 101.
+//
+// This test reads the committed fixture in place (the ollama package's testdata
+// dir) rather than duplicating it, so there is exactly one copy of the wire bytes
+// in the repo and no way for the two to drift apart.
+func TestParseChatStepSSEStream_OllamaV1Fixture(t *testing.T) {
+	fixture := filepath.Join("..", "ollama", "testdata", "ollama_v1_stream_toolcall.sse")
+	f, err := os.Open(fixture) //nolint:gosec // fixed test fixture path
+	if err != nil {
+		t.Fatalf("open fixture %s: %v", fixture, err)
+	}
+	defer func() { _ = f.Close() }()
+
+	// onChunk is non-nil: the streaming ollama branch passes a real callback
+	// (controller ruling E-1), so exercise the nil-check-free path here too.
+	var thinking, content int
+	resp, aiErr := ParseChatStepSSEStream(f, "requested-model-should-be-overridden", func(chunk ai.StreamChunk) {
+		switch chunk.(type) {
+		case ai.StreamThinkingDelta:
+			thinking++
+		case ai.StreamContentDelta:
+			content++
+		}
+	})
+	if aiErr != nil {
+		t.Fatalf("ParseChatStepSSEStream returned error: %v", aiErr)
+	}
+
+	// --- Tool call: exactly one, fully assembled ---
+	if len(resp.ToolCalls) != 1 {
+		t.Fatalf("ToolCalls len = %d, want 1", len(resp.ToolCalls))
+	}
+	tc := resp.ToolCalls[0]
+	if tc.Name != "get_weather" {
+		t.Errorf("ToolCall.Name = %q, want get_weather", tc.Name)
+	}
+	if tc.ID != "call_1p3mekpr" {
+		t.Errorf("ToolCall.ID = %q, want call_1p3mekpr (fixture line 97)", tc.ID)
+	}
+	// JSON-equal, not string-equal: key order is not part of the contract, but
+	// the assembled *content* is. Under mutation R10 (dropping the argument
+	// fragment concatenation in streamstep.go) this collapses to `{}` and fails,
+	// which is what proves this test reads the assembly path and not just the
+	// parser.
+	var gotArgs, wantArgs map[string]any
+	if err := json.Unmarshal([]byte(tc.Arguments), &gotArgs); err != nil {
+		t.Fatalf("ToolCall.Arguments %q is not valid JSON: %v", tc.Arguments, err)
+	}
+	if err := json.Unmarshal([]byte(`{"city":"Paris"}`), &wantArgs); err != nil {
+		t.Fatalf("want-arguments literal is not valid JSON: %v", err)
+	}
+	if !reflect.DeepEqual(gotArgs, wantArgs) {
+		t.Errorf("ToolCall.Arguments = %q, want JSON-equal to {\"city\":\"Paris\"}", tc.Arguments)
+	}
+
+	// --- Finish reason: mapped from the wire's "tool_calls" ---
+	if resp.FinishReason != "tool_calls" {
+		t.Errorf("FinishReason = %q, want tool_calls (fixture line 99)", resp.FinishReason)
+	}
+
+	// --- Usage: from the choices-empty final chunk (fixture line 101) ---
+	if resp.InputTokens != 294 {
+		t.Errorf("InputTokens = %d, want 294", resp.InputTokens)
+	}
+	if resp.OutputTokens != 80 {
+		t.Errorf("OutputTokens = %d, want 80", resp.OutputTokens)
+	}
+	if resp.TotalTokens != 374 {
+		t.Errorf("TotalTokens = %d, want 374", resp.TotalTokens)
+	}
+
+	// --- Shape of the turn, as measured from the fixture ---
+	// 48 reasoning deltas and ZERO content deltas: every `content` field in the
+	// fixture is the empty string. This is the exact shape that motivated the
+	// M3 reasoning-parity work — the model's whole visible output is reasoning
+	// text, which the streamed path would otherwise discard. Asserted here so
+	// that a future re-capture with a different shape is a loud test failure
+	// rather than a silent change of what this fixture is evidence for.
+	if thinking != 48 {
+		t.Errorf("thinking deltas = %d, want 48", thinking)
+	}
+	if content != 0 {
+		t.Errorf("content deltas = %d, want 0 (every content field in the fixture is \"\")", content)
+	}
+	if resp.Text != "" {
+		t.Errorf("Response.Text = %q, want empty (the fixture carries no content)", resp.Text)
+	}
+	// The model name is lifted off the wire, overriding the requested one.
+	if resp.Model != "qwen3.6:35b-a3b-mxfp8" {
+		t.Errorf("Model = %q, want qwen3.6:35b-a3b-mxfp8", resp.Model)
 	}
 }
