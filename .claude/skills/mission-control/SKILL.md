@@ -1437,8 +1437,39 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
        bounds a runaway run to well under $0.50, so the $5 iteration ceiling is ~65 such runs deep.
      - **Credit:** the controller finalizes commits with
        `Co-Authored-By: DeepSeek V4 Flash 0731 (pi)`.
-  3. **Fallback:** probe-fail / cap / error → `$MODEL` via the Agent tool + FLAG (same rule as
-     codex). Trial caveat stands (N=1): the replay's single miss was a discretionary refinement
+     - **`rc=0` FROM pi IS NOT A CLAIM THAT ANY WORK HAPPENED — READ THE PER-TURN `stopReason`
+       AND THE WORKTREE DIFF BEFORE BELIEVING THE EXIT CODE** (added 2026-08-11 iteration 173;
+       two independent frictions, three runs — iteration 172's two and this iteration's one).
+       This is the vacuous-pass class the mission keeps closing elsewhere, aimed at the executor
+       lane itself: *success reported for work never done*. The recipe's existing guards check
+       directive **delivery**, **stdin** and **sandbox verdicts**; none of them reads how the
+       model's last turn ENDED, so a run that never emitted a tool call is indistinguishable in
+       the exit code from one that shipped a milestone. The shape, stable across all three runs:
+       pi does real work for several turns (iteration 173: 10 tool executions — it read the plan,
+       both source files and the provider interface, and re-derived the baselines itself), then
+       one turn's content is a single enormous block that hits the **16,384-token output cap**
+       (`stopReason":"length"`), emitting **no tool call**. pi treats that as a normal terminal
+       state, ends the agent loop, and exits **0**. It is not sampling noise and it is not fixed
+       by prompting: iteration 172 added an explicit anti-runaway instruction and the second run
+       failed identically, and iteration 173's directive prescribed incremental per-AC edits and
+       it failed again. Note the block TYPE varies — `thinking` (~63k chars) in 172, `text`
+       (~262k chars) in 173 — so match on `stopReason`, never on the block type.
+       Three cheap post-run assertions, all mandatory before any Gate-4 verdict:
+       **(a)** `grep -c '"stopReason":"length"'` over the NDJSON must be **0**; non-zero is a
+       LANE FAILURE, not a result — fall back and FLAG, do not re-prompt in place;
+       **(b)** `git -C "$WT" status --porcelain` must be NON-EMPTY. An empty diff with `rc=0` is
+       the false-green in its pure form; refuse to record anything from such a run;
+       **(c)** assert an `agent_end` event exists (`grep -c '"type":"agent_end"'` ≥ 1). Its
+       ABSENCE with `turn_start` > `turn_end` is the tell that the loop died mid-turn — iteration
+       173 read `turn_start=7, turn_end=6, agent_end=0` while the wrapper still exited 0.
+       **Operational hazard, same run:** pi's `message_update` events replay the whole accumulated
+       message, so a runaway turn writes the NDJSON at **~3 MB/s** — iteration 173's log reached
+       **1.2 GB in six minutes** and was still growing when the cap hit. Poll the file SIZE
+       alongside the deadline and kill on a ceiling (a few hundred MB is already pathological),
+       and slice the head/tail for forensics before deleting it. A disk that fills takes the whole
+       rig down, not just the iteration.
+  3. **Fallback:** probe-fail / cap / error / any of the three assertions above → `$MODEL` via the
+     Agent tool + FLAG (same rule as codex). Trial caveat stands (N=1): the replay's single miss was a discretionary refinement
      beyond the plan's letter — this lane wants PRESCRIPTIVE, sprint-plan-shaped directives;
      vague-plan or judgment-heavy work stays on opus until ≥3 datapoints say otherwise (the
      charter's evidence rule, same bar as every routing change).
