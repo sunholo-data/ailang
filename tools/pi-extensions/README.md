@@ -13,7 +13,7 @@ sandboxing"), so containment goes here rather than into a VM.
 
 | Tool | Fenced by | Mechanism |
 |---|---|---|
-| `bash` | upstream `sandbox/` example extension | `@anthropic-ai/sandbox-runtime` → Seatbelt (`sandbox-exec`) on macOS |
+| `bash` | `sandbox/` (this dir, adapted upstream) | `@anthropic-ai/sandbox-runtime` → Seatbelt (`sandbox-exec`) on macOS |
 | `write`, `edit` | **`worktree-fence.ts` (this dir)** | `tool_call` hook, allow-list on the resolved path |
 | `read` | — | not a write risk; see Limitations |
 
@@ -67,6 +67,38 @@ explicit `root != cwd` arm, verified to fail when the bug is reintroduced.
   the sandbox by design (that is what keeps OpenRouter reachable). This confines *writes*.
 - **`bash` needs the separate sandbox extension.** This file deliberately does not parse
   shell; without that extension a `bash` tool call can still write anywhere.
-- **Not yet wired into the mission recipe.** Doing that is a `mission-control/SKILL.md`
-  edit; both missions run on a schedule and Gate 5 may write that file, so it wants a clean
-  window.
+- **SM.B2a-class work (irreversible publish) still stays off this lane.** Sandboxing writes
+  is not the same as bounding blast radius on a publish.
+
+## sandbox/ — the bash layer
+
+Upstream's example, adapted for pi 0.73.1. Two forced deltas, both recorded in the file
+header: the package rename (`@earendil-works` → `@mariozechner`), and `CONFIG_DIR_NAME`,
+which 0.73.1 does not export from the package root (only `"."` and `"./hooks"` are
+exported) so it is inlined as `".pi"` — the value read out of the installed
+`dist/config.js`. Dependency moved 0.0.26 → ^0.0.71; `SandboxManager.wrapWithSandbox`
+and `initialize` were verified present in 0.0.71 before adopting.
+
+Policy: `sandbox.mission.json` here is canonical; installed at
+`~/.pi/extensions/sandbox.json`.
+
+### Two gotchas that cost real debugging
+
+1. **`mkdir -p /tmp/claude` is required.** sandbox-runtime pins `TMPDIR=/tmp/claude`
+   inside the sandbox — it is built for Claude Code, which creates that directory. Under
+   pi nothing does, and `go build` dies with `creating work dir: stat /tmp/claude: no such
+   file or directory`. Your own `TMPDIR` does not survive into the sandbox, so exporting it
+   is not a workaround.
+2. **The Go caches must be in `allowWrite`.** With the stock `[".", "/tmp"]` policy,
+   `go build` fails on `~/Library/Caches/go-build: operation not permitted`. Cache dirs
+   cannot corrupt the repo, so widening to them costs nothing that matters — but it must be
+   deliberate, and re-verified after: widening a policy is how holes get opened.
+
+### Verified live (2026-08-11), running the skill's invocation verbatim
+
+| check | result |
+|---|---|
+| bash write to `$HOME` | `Operation not permitted`, exit 1 |
+| bash read of `secrets.env` | `Operation not permitted`, exit 1 |
+| `write` tool to `/tmp` (outside `$WT`) | blocked by the fence |
+| `go build ./internal/messaging/` | `BUILD_OK`, exit 0 |

@@ -1,0 +1,11 @@
+{
+  "name": "ailang-pi-extension-sandbox",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Upstream pi sandbox extension, adapted for pi 0.73.1. Fences the bash tool at the OS level (Seatbelt on macOS) via @anthropic-ai/sandbox-runtime. Pairs with ../worktree-fence.ts, which fences write/edit.",
+  "pi": { "extensions": ["./index.ts"] },
+  "dependencies": {
+    "@anthropic-ai/sandbox-runtime": "^0.0.71"
+  }
+}

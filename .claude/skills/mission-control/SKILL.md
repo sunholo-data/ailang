@@ -1458,15 +1458,41 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      file + the `exit 64` delivery asserts, `< /dev/null` stdin, backgrounded bounded 30-min
      `date +%s` cap, output captured, NO git write operations in the directive, per-milestone
      `.snap/M<k>/` snapshots on multi-milestone runs). pi deltas, all four:
-     - **Invocation:** `cd "$WT" && pi --mode json --no-session --model "$MODEL" -p "$PROMPT"
-       > /tmp/pi_run_iter<N>.ndjson 2> /tmp/pi_run_iter<N>.stderr` — `--mode json` is MANDATORY:
-       the NDJSON is both the transcript and the billing record; plain print mode loses both.
-     - **NO SANDBOX.** pi has no `--sandbox`; it runs with full user permissions from `$WT`.
-       Containment = the directive's scope fence + the controller's worktree-read review, which
-       MUST also check for out-of-worktree writes (`git -C <main-checkout> status --short`)
-       before any Gate-4 verdict. The codex sandbox false-green class (loopback-bind denials)
-       does NOT apply — pi-run gate results fail or pass for real — but executor-reported greens
-       are still never banked; the controller re-runs the gates (generator≠judge).
+     - **Invocation (SANDBOXED since 2026-08-11 — do not drop the two `-e` flags):**
+       ```bash
+       mkdir -p /tmp/claude   # sandbox-runtime pins TMPDIR here; absent ⇒ `go build` dies
+                              # with "creating work dir". Measured, not theoretical.
+       cd "$WT" && PI_FENCE_ROOT="$WT" pi --mode json --no-session \
+         -e "$REPO/tools/pi-extensions/sandbox/index.ts" \
+         -e "$REPO/tools/pi-extensions/worktree-fence.ts" \
+         --model "$MODEL" -p "$PROMPT" \
+         > /tmp/pi_run_iter<N>.ndjson 2> /tmp/pi_run_iter<N>.stderr
+       ```
+       `--mode json` is MANDATORY: the NDJSON is both the transcript and the billing record;
+       plain print mode loses both. `$REPO` is the mission's checkout — pass an ABSOLUTE path,
+       since `-e` resolves relative to the process cwd, which is `$WT`, not the repo.
+     - **SANDBOXED (2026-08-11).** pi has no `--sandbox` flag, but it is extensible, and
+       containment now runs in TWO layers because neither covers the other:
+       | tool | fenced by | mechanism |
+       |---|---|---|
+       | `bash` | `tools/pi-extensions/sandbox/` | `@anthropic-ai/sandbox-runtime` → Seatbelt |
+       | `write`, `edit` | `tools/pi-extensions/worktree-fence.ts` | `tool_call` hook, path allow-list |
+       The upstream sandbox extension fences ONLY bash (it replaces the bash tool); `write`/`edit`
+       are Node `fs` calls inside the un-sandboxed pi process and bypass it entirely. Policy lives
+       at `~/.pi/extensions/sandbox.json`, canonical copy in
+       `tools/pi-extensions/sandbox/sandbox.mission.json`. Verified live: a bash write to `$HOME`
+       and a read of `secrets.env` both return `Operation not permitted` (exit 1), while
+       `go build` returns `BUILD_OK` — the Go caches are in `allowWrite` because a policy of just
+       `['.','/tmp']` breaks every build.
+       **This does NOT retire the post-hoc check.** Still run
+       `git -C <main-checkout> status --short` before any Gate-4 verdict: the fence confines
+       WRITES, not reads, and a defence you never verify is one you cannot claim. It also does
+       not make executor-reported greens bankable — the controller re-runs the gates
+       (generator≠judge). The codex sandbox false-green class (loopback-bind denials) still does
+       not apply here: pi-run gate results fail or pass for real.
+       **SM.B2a-class work (irreversible publish) stays off this lane** until the fence has run
+       clean for N iterations — sandboxing writes is not the same as bounding blast radius on a
+       publish, and the World charter's exception was written about the latter.
      - **METERED $ — ledger entry MANDATORY (the one structural difference from codex: OpenRouter
        bills real dollars, not a quota bucket).** After the run, extract spend from the NDJSON and
        post it to the Gate-3 metered ledger before the next metered call:

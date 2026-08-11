@@ -1,0 +1,22 @@
+{
+  "_comment": "Mission-executor sandbox policy for pi. Install to ~/.pi/extensions/sandbox.json (global) or $WT/.pi/sandbox.json (per-worktree). Writes are confined to the worktree plus the toolchain caches a Go build genuinely needs — measured, not guessed: with only ['.','/tmp'] a build fails on ~/Library/Caches/go-build. Cache dirs cannot corrupt the repo, so widening to them costs nothing that matters.",
+  "filesystem": {
+    "allowWrite": [
+      ".",
+      "/tmp",
+      "~/Library/Caches/go-build",
+      "~/go/pkg/mod",
+      "~/.cache"
+    ],
+    "denyWrite": [".env", ".env.*", "*.pem", "*.key"],
+    "denyRead": ["~/.ssh", "~/.aws", "~/.gnupg", "~/.config/ailang/secrets.env", "~/.pi/agent/models.json"]
+  },
+  "network": {
+    "allowedDomains": [
+      "proxy.golang.org", "sum.golang.org", "*.golang.org",
+      "github.com", "*.github.com", "api.github.com", "raw.githubusercontent.com",
+      "registry.npmjs.org", "*.npmjs.org"
+    ],
+    "deniedDomains": []
+  }
+}
