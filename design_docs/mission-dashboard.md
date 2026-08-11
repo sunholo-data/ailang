@@ -11,10 +11,10 @@
 - 📈 **Measured twice independently** — controller before routing, evaluator from a binary rebuilt
   at the pre-B1 base `22ba8626d`: **vacuous skips 111 → 24**, i.e. **87 previously-never-executed
   contract properties across 15 examples now run**. 8 files flip rc 1 → 0; all 5 guards hold rc 0.
-- 🔴 **F-1 confirmed in the field: B1 does NOT fix the prompt-injection safety demos.** The 24
-  surviving skips are imported + refined types — B2 by design. **The doc's Success metric was wrong.**
-- 💡 **Closing finding: the corpus's "Z3 catches this bug" demos had never run.** All 3
-  newly-failing properties are **(a) deliberate**; zero were example bugs or B1 defects.
+- 🔴 **F-1 confirmed in the field: B1 does NOT fix the prompt-injection safety demos** (the 24
+  surviving skips are imported + refined, B2 by design) — **the doc's Success metric was wrong**.
+- 💡 **Closing finding: the corpus's "Z3 catches this bug" demos had never run.** All 3 newly-failing
+  properties are **(a) deliberate**; zero were example bugs or B1 defects.
 - 🟡 **Two vacuity defects caught inside the milestone about vacuity**: the executor shipped
   `ensures { result == result }` (cannot fail; strengthened, both arms measured), and a header
   claiming a clean `ailang verify` when Z3 **cannot encode tuple patterns at all**.
@@ -31,12 +31,10 @@
 Lane B2 stays deferred (evaluator fuel budget, quorum 2026-07-29).
 
 ## Loop + routing
-Controller **opus** · designer/planner **not fired** (quorum-cleared 2026-07-29; next
-`codex:gpt-5.6-sol`) · executor **codex:gpt-5.6-sol**, 2nd consecutive clean fire · evaluator
-**sonnet** 94/100, zero blocking. Metered **$0.00** against the $5 ceiling.
+Controller **opus** · designer/planner **not fired** (quorum-cleared 2026-07-29) · executor
+**codex:gpt-5.6-sol**, 2nd clean fire · evaluator **sonnet** 94/100. Metered **$0.00** of $5.
 
 ## PARKED ON MARK — asks are on #635
-- **`D-1`** (iter-150): proxy drops target-IP SSRF pinning on **proxied** routes. (A) as-written ·
-  (B) narrow to literal-IPs · (C) rethink. — `#613` blocked on this.
-- **`D-2`**: `#604`/`#614`. · **`D-7`**: codex is now **2/2** → **(B) flip to codex** is de facto.
-- **`D-8`**: authorise the `#618` rig rollout, or hold on the stopgap until attended.
+- **`D-1`** (iter-150): proxy drops target-IP SSRF pinning on **proxied** routes — (A) as-written ·
+  (B) narrow to literal-IPs · (C) rethink. `#613` blocked on this.
+- **`D-2`** `#604`/`#614` · **`D-7`** codex now **2/2** → (B) flip to codex is de facto · **`D-8`** authorise the `#618` rig rollout (or hold on the stopgap).
