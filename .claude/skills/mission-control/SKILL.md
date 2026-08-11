@@ -2070,3 +2070,29 @@ exactly like a correct one.**
    whose driver lacks that export is still exposed; check it rather than assume it. The tell: you
    are about to write "the planner is running; I will report back", or to end a turn whose last
    tool call started something you have not yet read the result of.
+   **⚠ THE CEILING=0 SAFETY NET DOES NOT HOLD THE SLOT, AND INSTALLING IT DELETED THE ONLY WAY TO
+   SEE THAT IT DIDN'T** (added 2026-08-11 V1 iteration 176; instance 3 of this gap, and the first
+   under the post-fix regime). Everything above treats (b) as the belt behind (a)'s braces. It is
+   not. Measured on V1: the 11:23:12 fire ran with `bg-wait-ceiling=0ms` — confirmed in its own
+   driver banner — spawned a background executor, and its controller reasoned, in the transcript,
+   *"bg-wait ceiling is `0` (indefinite) — the 600s reaper is disabled, so waiting on the Monitor is
+   safe … I'll wait for the next event"*. The slot then logged `iteration complete (rc=0)` **nine
+   minutes later** while the executor kept writing for a further twelve. Zero commits, zero charter
+   rows, zero log entries — the same vacuous pass as before, arriving faster and quieter. So read
+   (b) narrowly: it removes the harness's 600-second *reap*, it does **not** make ending your turn
+   safe, and nothing in a `claude -p` run will re-invoke you when a `Monitor` fires. **A `Monitor` is
+   an event stream, not a wait.** Chain bounded in-turn polls, or spawn with
+   `run_in_background: false`, exactly as (a) says — (b) never relaxes (a).
+   **And fix your instrument before you use it to look for this.** `grep -c 'Background tasks still
+   running after 600s'` is the attribution tell this rule prescribes, and it is now wrong in **both**
+   directions. It is **blind by construction** to every post-fix instance, because the ceiling
+   suppresses the very line it greps for — so a mission with the fix installed reads clean while
+   dying exactly as before. And it **over-counts**: on V1 it returns **3** against **2** real reap
+   lines, the third being iteration 167's own log record *quoting the count*. This file already
+   warns that a self-describing file poisons a known-ABSENT control; this is the same trap sprung on
+   a known-PRESENT one, which is worse — an absent control that fires announces itself, while a
+   present one that over-counts just looks like more evidence. Attribute a dead slot by the shape
+   instead: an `iteration complete (rc=0)` whose elapsed time is far below the work it claims, sitting
+   above a transcript that ends by announcing a wait. Then confirm with Gate 2's died-mid-flight
+   traces (a stale worktree, an orphaned output file still growing after the exit) — those are
+   mechanism-independent, which is the whole reason they outlive each fix.
