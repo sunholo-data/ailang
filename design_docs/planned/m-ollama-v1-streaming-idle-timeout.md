@@ -334,7 +334,10 @@ reassembly that already exists):**
   `ollamaV1Timeout()`.
 - `internal/ai/ollama/step_test.go`: fake-SSE-server tests (M2 below), including the
   tool-call-only starvation gate.
-- `internal/ai/openai/streamstep_test.go` (M3): replay the **already-committed** ollama `/v1`
+- `internal/ai/openai/step.go` (M3): export `ExtractHermesToolCalls` so the ollama streaming
+  branch can reuse the Hermes recovery rather than duplicating its regex (ruling E-2). The
+  recovery and the `Reasoning` accumulation themselves land in `internal/ai/ollama/streamstep.go`.
+- `internal/ai/openai/streamstep_test.go` (M4): replay the **already-committed** ollama `/v1`
   fixture (`internal/ai/ollama/testdata/ollama_v1_stream_toolcall.sse` — real wire bytes from the
   2026-08-10 rig probe, V21, not a hand-written mock) through `ParseChatStepSSEStream` — coverage
   widening only, no source change. The capture itself is DONE; only the replay test remains.
@@ -397,6 +400,24 @@ grammar/type conflict surface. Runtime risks:
   the existing code verbatim (moved into an `else` — indentation-only diff) with the existing
   300s-default total cap: byte-identical requests on the wire, proven by S5 below and by the
   unchanged existing `step_test.go` suite.
+- ⚠️ **THE STOPGAP HAS TWO DELIVERY SITES, AND EDITING THE REPO REACHES NEITHER OF THEM**
+  (measured 2026-08-11, iteration 175; this paragraph previously described only the plists, and
+  followed literally it produces the exact failure the next bullet warns about). **(i)** the two
+  plists below — but `tools/launchd/*.plist` is *source*: the rig runs
+  `~/Library/LaunchAgents/*.plist`, which are **regular files, not symlinks**, installed by a
+  manual `cp` + `launchctl load` (`tools/launchd/nightly-eval.sh:19-21`). **(ii)** a launchd
+  **user-domain global** — `launchctl getenv AILANG_OLLAMA_HTTP_TIMEOUT_SEC` returns `1800`, set
+  by `launchctl setenv` when the stopgap landed (`b67d415cd` says so in its own body: *"pinned in
+  both rig plists (also set live via launchctl setenv)"*). Controls: an unset variable and
+  `AILANG_OLLAMA_V1_STREAM` both return empty, so the reading discriminates. A grep over the
+  plists cannot see (ii) at all.
+  **The rollout is therefore ORDERED, and the obvious order is the harmful one.** Install the
+  flag-on, pin-free plists and `launchctl load` them **first**; clear the global **second**.
+  Reversed, the flag is still off everywhere installed, so the buffered path runs and
+  `ollamaV1Timeout()` falls to its **300s** default (`step.go:24`) for every invocation the
+  plists do not cover — reintroducing `#618` at its measured cost of 895 retries / ~74.6
+  GPU-hours. The stopgap is load-bearing until the flag is on. Full arms and controls in the
+  sprint plan's AC-M4.3.
 - The rig opts in via the launchd plists that today pin the `AILANG_OLLAMA_HTTP_TIMEOUT_SEC=1800`
   stopgap (`dev.ailang.os-rotation-filler.plist`, `dev.ailang.nightly-eval.plist`) — replace the
   stopgap pin with `AILANG_OLLAMA_V1_STREAM=1` in the same edit, so the band-aid is removed by
@@ -406,9 +427,11 @@ grammar/type conflict surface. Runtime risks:
   4m59.97 failure at a larger scale. Note the semantics split: flag-off, `0` still means "no
   timeout" (legacy `ollamaV1Timeout()`, `step.go:29-39`); flag-on, `0` is a loud construction
   error.
-- Default flips on in v0.35.0 only if the M3 rig validation held for the release cycle (no
-  idle/TTFT false-trips on passing runs — checkable from the per-request max-gap/TTFT debug logs
-  added in M2).
+- Default flips on in v0.35.0 only if **both** the M3 response-parity work and the **M4** rig
+  validation held for the release cycle (no idle/TTFT false-trips on passing runs — checkable
+  from the per-request max-gap/TTFT debug logs added in M2). Parity alone is not sufficient
+  evidence to flip a default on the rig. (Milestones were renumbered on 2026-08-10 when the
+  parity milestone was inserted as M3; the rig-validation milestone this sentence means is M4.)
 
 ## Success Criteria (each names the mutation that turns it red)
 
@@ -445,7 +468,7 @@ grammar/type conflict surface. Runtime risks:
   and once as SSE (via the streaming branch) yields identical `Response.Text`,
   `Response.ToolCalls` (order, IDs, assembled arguments), and `FinishReason`. **Red under:**
   fragment-ordering or concatenation regressions in assembly.
-- [ ] **S7 — Field validation (M3, on the rig).** With the flag on, `docx_reimplement` produces an
+- [ ] **S7 — Field validation (M4, on the rig).** With the flag on, `docx_reimplement` produces an
   end-to-end X/17 grade, and the per-request debug logs show max inter-chunk gap, TTFT, and total
   request duration for every request (the falsifiers for Design Freeze #1/#2/#3). **Red under:**
   any false idle/TTFT trip on a progressing run, or a run lost to `context deadline exceeded` at
@@ -496,22 +519,46 @@ tests in `step_test.go` covering S1–S6 and S8 — S1 (tool-call-only starvatio
 (keep-alive-forever bounded) are the non-negotiable gates. *Acceptance: S1–S6 + S8 green;
 existing tests untouched and green; flag-off diff is indentation-only.*
 
-**M3 — Fixture replay + rig validation + docs (RE-SCOPED 2026-08-10: the capture task is DONE).**
-The original M3 task "capture a real streamed response in a test fixture" was completed **before
-the sprint** by the controller's 2026-08-10 rig probe: real wire bytes — not a hand-written mock
-— are committed at `internal/ai/ollama/testdata/ollama_v1_stream_toolcall.sse` (13,077 B,
-52 events; provenance in V21, contents re-derived locally in V22). What remains in M3: write the
-replay test through `ParseChatStepSSEStream` (added to `streamstep_test.go` — coverage only, no
-source change); flip the rig plists to `AILANG_OLLAMA_V1_STREAM=1` (removing the 1800s stopgap
-pin in the same edit — V19); run `docx_reimplement` end-to-end; record the observed TTFT /
-max-gap distributions against the freeze defaults. Add the three env knobs to the debug-flags
-table in `.claude/rules/dev-workflow.md` + `docs/docs/guides/debugging.md`. *Acceptance: S7
-green; fixture-replay test green; freeze-default falsifier data recorded in the PR description.*
+**M3 — Response parity: `Reasoning` + Hermes tool-call recovery (ADDED by the sprint plan,
+2026-08-10).** This milestone did not exist in the first draft of this doc, which assumed
+`StreamStep` was response-*equivalent* to `Step` and that "everything downstream is unchanged".
+Planning refuted that: `ParseChatStepSSEStream` never sets `out.Reasoning`, and — far more
+seriously — it has no equivalent of the buffered path's Hermes tool-call recovery
+(`openai/step.go:610-616`), which exists precisely because Ollama's `/v1` sometimes fails to lift
+a `<tool_call>` block out of a **Qwen3 thinking model's** reasoning text into `tool_calls`. Swapping
+to streaming without this would trade a timeout bug for the *disengagement* bug this whole line of
+work exists to fight. So: export `extractHermesToolCalls`, accumulate `StreamThinkingDelta` text
+through a **non-nil** `onChunk` (reversing this doc's earlier `v1.StreamStep(ctx, &r2, nil)` — the
+only seam that recovers `Reasoning` without editing `streamstep.go`, which the non-goals forbid),
+set `resp.Reasoning`, and run the identical zero-native-tool-calls recovery.
+*Acceptance: S6, strengthened into a three-case streamed-≡-buffered table — native single-chunk
+tool call, tool call fragmented across 3 chunks, and Hermes block in `reasoning` with zero native
+tool calls. S6 as originally written would have passed green while the regression shipped.*
 
-## Timeline (realistic; ~1–2 days total under V8/V9)
-- Day 1 AM: M1. Day 1 PM: M2 (the branch is ~40–60 LOC; the tests are the bulk).
-- Day 2: M3 (rig time dominates; the docx run is wall-clock-bound — the fixture capture is
-  already done, which shortens M3's code-bound portion to the replay test + plist flip).
+**M4 — Fixture replay + rig validation + stopgap removal + docs (RE-SCOPED 2026-08-10: the capture
+task is DONE).** The original "capture a real streamed response in a test fixture" task was
+completed **before** the sprint by the controller's 2026-08-10 rig probe: real wire bytes — not a
+hand-written mock — are committed at `internal/ai/ollama/testdata/ollama_v1_stream_toolcall.sse`
+(13,077 B, 52 events; provenance in V21, contents re-derived locally in V22). What remains in M4:
+write the replay test through `ParseChatStepSSEStream` (added to `streamstep_test.go` — coverage
+only, no source change); flip the rig plists to `AILANG_OLLAMA_V1_STREAM=1` (removing the 1800s
+stopgap pin in the same edit — V19, and mandatory, not tidy-up); run `docx_reimplement`
+end-to-end; record the observed TTFT / max-gap distributions against the freeze defaults. Add the
+three env knobs, and the changed `AILANG_OLLAMA_HTTP_TIMEOUT_SEC` semantics, to the debug-flags
+table in `.claude/rules/dev-workflow.md` + `docs/docs/guides/debugging.md`. *Acceptance: S7 green;
+fixture-replay test green; freeze-default falsifier data recorded in the PR description.*
+
+## Timeline (revised 2026-08-10: 3 days, not 1–2)
+- Day 1: M1, and start M2.
+- Day 2: finish M2, then M3.
+- Day 3: M4 (rig-lock window + docs). The docx run is wall-clock-bound; the fixture capture is
+  already done, which shortens M4's code-bound portion to the replay test + plist flip.
+
+The earlier "~1–2 days" estimate was downstream of the premise that the buffered→streaming swap
+was semantically free. M3 is work that premise hid, and it cannot be dropped without shipping a
+disengagement regression. Rollout note: the v0.35.0 default flip requires **both** M3 parity
+**and** M4 rig validation to have held — the "M3 rig validation" phrasing in Rollout above predates
+this renumbering and now means **M4**.
 
 ## Related Documents
 - [m-eval-stream-health-retry](v0_24_0/m-eval-stream-health-retry.md) (neural 0.48) — **distinct**: that covers eval-harness-level stream health + retry policy; this is the ollama client's per-call timeout semantics underneath it. Complementary.

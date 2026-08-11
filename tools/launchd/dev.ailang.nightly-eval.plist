@@ -52,13 +52,17 @@
         <key>HOME</key>
         <string>/Users/voightkampff</string>
 
-        <!-- STOPGAP (2026-08-07): see the note in
-             dev.ailang.os-rotation-filler.plist. The 300s default in
-             internal/ai/ollama/step.go kills long-but-healthy local-model turns.
-             Remove once the idle/TTFT timeout lands
-             (design_docs/planned/m-ollama-v1-streaming-idle-timeout.md). -->
-        <key>AILANG_OLLAMA_HTTP_TIMEOUT_SEC</key>
-        <string>1800</string>
+        <!-- The 2026-08-07 stopgap (a 1800s total-timeout pin on the buffered
+             /v1 path) is REMOVED here and replaced by the streaming opt-in
+             below — ailang#618 M4, 2026-08-11. Full rationale in
+             dev.ailang.os-rotation-filler.plist. In short: flag-on, that same
+             env var becomes the stream's hard deadline rather than an HTTP
+             client timeout, and 1800s sits BELOW the worst-case legitimate
+             request (~2941s), so leaving it would re-create the failure it was
+             meant to prevent. Unset, the hard deadline is 3600s and "hung" is
+             caught by the idle (120s) / TTFT (600s) windows. -->
+        <key>AILANG_OLLAMA_V1_STREAM</key>
+        <string>1</string>
 
         <!-- Inherit OPENROUTER_API_KEY from ~/.config/ailang/secrets.env via the script -->
     </dict>

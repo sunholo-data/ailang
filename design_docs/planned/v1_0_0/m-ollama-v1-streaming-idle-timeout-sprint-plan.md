@@ -140,6 +140,21 @@ report UNINFORMATIVE and let the controller re-run outside.
 | `grep -c AILANG_OLLAMA_HTTP_TIMEOUT_SEC tools/launchd/dev.ailang.{os-rotation-filler,nightly-eval}.plist` | **1** each — **correctly red**, must reach **0** |
 | `grep -c AILANG_OLLAMA tools/launchd/dev.ailang.{os-rotation-filler,nightly-eval}.plist` | **1** each — anti-vacuity **control fires** |
 | `grep -rc AILANG_OLLAMA_V1_STREAM tools/launchd/*.plist` | **0** everywhere — must reach ≥1 in both |
+| `launchctl getenv AILANG_OLLAMA_HTTP_TIMEOUT_SEC` | **`1800`** — **SECOND DELIVERY SITE, missed by this table's first draft.** See below |
+| `launchctl getenv AILANG_OLLAMA_V1_STREAM` · `launchctl getenv AILANG_NOT_A_REAL_VAR` | **empty** each — the anti-vacuity control pair: the instrument discriminates set from unset, so the `1800` above is a measurement |
+| `test -L ~/Library/LaunchAgents/dev.ailang.{nightly-eval,os-rotation-filler}.plist` | **not symlinks** — both are regular files. The repo copies are *source*, not the running config |
+| `diff -q ~/Library/LaunchAgents/dev.ailang.*.plist` vs `git show HEAD:tools/launchd/…` | **identical** — the installed files match repo HEAD, i.e. pre-M4. Install is a manual `cp` + `launchctl load` (`tools/launchd/nightly-eval.sh:19-21`), so **a repo edit reaches the rig only when a human copies it** |
+
+**The stopgap has TWO delivery sites and the three rows above this one only measure ONE.**
+`AILANG_OLLAMA_HTTP_TIMEOUT_SEC=1800` is also a launchd **user-domain global**, set by
+`launchctl setenv`, which **no plist edit touches**. The stopgap commit says so in its own body —
+`git log -1 b67d415cd`: *"pinned in both rig plists (**also set live via launchctl setenv**)"* —
+and this table's first draft measured only the plists. Consequence: the grep criterion can go fully
+GREEN while the hazard stays live, and it did. Measured on the controller's in-flight GPU run with
+the flag on and both plists already edited: every streamed request logged
+`hard_deadline_sec = 1800` **and** `effective_deadline_sec = 1800`, not the 3600 default — i.e. the
+inherited global became the hard deadline, which is the exact ~2941s-worst-case hazard AC-M4.3
+exists to remove, one level up from where the criterion was looking. AC-M4.3 gains a fourth arm.
 
 ### 2.5 Load-bearing code facts, re-verified first-party at `3e1f63f7a`
 
@@ -179,10 +194,37 @@ block, because a mutant that fails to compile reds for the wrong reason.
 | R7 | Streaming branch selected only when flag set | `if false && os.Getenv("AILANG_OLLAMA_V1_STREAM") == "1" {` | AC-M2.1 (S5, inverted: flag-ON case) |
 | R8 | Hermes recovery on zero native tool calls | `if false && len(resp.ToolCalls) == 0 {` | **AC-M3.1** |
 | R9 | Reasoning accumulation from thinking deltas | `if false && d.Text != "" { rb.WriteString(d.Text) }` | AC-M3.2 |
-| R10 | Tool-call argument fragment concatenation | `if false && tcFrag.Function.Arguments != "" {` (`streamstep.go:299`) | AC-M4.1 |
+| R10 | Tool-call argument fragment concatenation | `if false && tcFrag.Function.Arguments != "" {` (`streamstep.go:`**`298`**) | AC-M4.1 |
+| R11 | Usage mapping from the final chunk | `if false && chunk.Usage.PromptTokens > 0 {` (`streamstep.go:248`) | AC-M4.1 (controller-added) |
+| R12b | **Fixture** tool-call arguments: line 97 `Paris` → `Berlin` | not an `if false &&` — the mutation target is the captured wire bytes, not a branch | AC-M4.1 (controller-added) |
 
 R10 is a mutation of *existing* code, used only to prove the M4 replay test actually reads the
 assembly path. It is a verification step, not a change to ship.
+
+**R10's line number was wrong in this register's first draft** — it said `streamstep.go:299`, but
+`:299` is the `WriteString` body; the predicate is at **`:298`**. Measured independently by the
+executor and the controller.
+
+**Finding (2026-08-11): R10 is NOT discriminating for AC-M4.1; R12b is.** Executed results:
+
+| Mutation | Landed (sha256 differs) | Builds | Arm A — target test alone | Arm B — package `-skip` target |
+|---|---|---|---|---|
+| R10 | yes | rc=0 | **rc=1**, `Arguments = "{}"` | **rc=1** — pre-existing `TestStreamStep_ParsesToolCallFragments` also dies |
+| R11 | yes | rc=0 | **rc=1**, `InputTokens = 0, want 294` | **rc=1** — pre-existing `TestStreamStep_ParsesContentAndUsage` also dies |
+| R12b | yes, *and asserted to have landed on the mechanism* | n/a (data) | **rc=1**, `=== RUN` 1, `Arguments = "{\"city\":\"Berlin\"}"` | **rc=0** — **UNIQUE killer** |
+
+**Why arm B failing is expected rather than a defect in the M4 test.** No mutation of
+`openai/streamstep.go` can be unique to the replay test, because the package's existing tests
+already cover parse, assembly and usage on hand-written SSE. AC-M4.1's object is the **captured
+wire shape** — that today's real ollama emission still parses to `get_weather{"city":"Paris"}` with
+usage `294/80/374` — so the discriminating mutation is one on the **fixture**, which is what R12b
+is. The earlier instruction "arm B must stay rc=0 under R10" was an over-specification: this plan
+only ever claimed R10 proves the test reaches the assembly path, which it does.
+
+**Methodology note carried by R12b, worth more than the result.** The controller's first R12b
+attempt edited line 17 — thinking text, not the tool call — and the test correctly stayed green.
+A mutation must be asserted to have landed **on the mechanism under test**, not merely to have
+changed the file's bytes; a sha256 diff proves the edit happened, not that it was aimed correctly.
 
 ---
 
@@ -504,6 +546,61 @@ is default-off and no default behaviour changes — but turning it on early woul
   doc's computed worst-case legitimate request (~2941s) — it would re-create the `4m59.97` failure at
   a larger scale.
   **RED UNDER**: leaving either pin in place.
+
+  **FOURTH ARM (added 2026-08-11, after the first three passed while the hazard stayed live).**
+  The stopgap has **two** delivery sites and the three arms above measure only one. The launchd
+  user-domain global is set by `launchctl setenv`, survives every plist edit, and is invisible to
+  any grep over the repo; §2.4 records the commit that says so and the in-flight rig measurement
+  (`effective_deadline_sec = 1800`) that caught it. A criterion that greens on the plists alone is
+  measuring the *file*, not the process environment the rig job actually inherits.
+
+  > ### ⚠️ THIS ARM IS RIG-STATE ROLLOUT — **NOT** PART OF M4's REPO DELIVERABLE
+  >
+  > **M4's repo work is complete when the files change.** The plists in `tools/launchd/` are
+  > *source*; the rig runs `~/Library/LaunchAgents/`. Measured 2026-08-11: both installed files are
+  > **regular files, not symlinks**, and were **byte-identical to repo HEAD** — installation is a
+  > manual `cp` + `launchctl load`, documented at `tools/launchd/nightly-eval.sh:19-21`. Editing
+  > this repo therefore changes **nothing** on the rig. Steps 1–2 below are a separate,
+  > human-sequenced action with its own ordering hazard, and no executor should perform them as
+  > "finishing the milestone".
+
+  **The rollout is ORDERED. Flag ON first, clear the global SECOND.**
+
+  1. **Install the flag-on, pin-free plists**, then reload them:
+     `cp tools/launchd/dev.ailang.{nightly-eval,os-rotation-filler}.plist ~/Library/LaunchAgents/`
+     followed by `launchctl unload && launchctl load` on each. Verify with
+     `grep -c AILANG_OLLAMA_V1_STREAM ~/Library/LaunchAgents/dev.ailang.*.plist` → ≥1 each
+     (base: **0** each, so the check discriminates).
+  2. **Only then** `launchctl unsetenv AILANG_OLLAMA_HTTP_TIMEOUT_SEC`, asserted by
+     `launchctl getenv AILANG_OLLAMA_HTTP_TIMEOUT_SEC` returning **empty**, paired in the same call
+     with a **firing control** — a known-set variable returning non-empty — so an empty result is a
+     measurement and not a broken call. (At base the target itself reads `1800` while
+     `launchctl getenv AILANG_OLLAMA_V1_STREAM` and `launchctl getenv AILANG_NOT_A_REAL_VAR` read
+     empty, which is the same discrimination in the other direction.)
+
+  **HAZARD OF THE REVERSE ORDER — do not "tidy up" the global first.** Until step 1 is installed,
+  `AILANG_OLLAMA_V1_STREAM` is unset **everywhere installed**, so the streaming branch is OFF and
+  the buffered path is live. On the buffered path `ollamaV1Timeout()` (`step.go:28-39`) falls back
+  to `defaultOllamaV1TimeoutSec = 300` (`step.go:24`), and the domain global is the **only** thing
+  raising it for any invocation not covered by a plist's own `EnvironmentVariables`. Clearing the
+  global before the flag is on therefore drops those invocations straight back to 300s and
+  **reintroduces the exact defect #618 exists to fix** — the one that cost 895 retries /
+  ~74.6 GPU-hours over 43 days, 80 runs lost (`b67d415cd`). **The stopgap is load-bearing until the
+  flag is on.** Step 2 before step 1 is not a cosmetic mistake; it is a regression to the original
+  bug at full cost.
+
+  **RED UNDER**: editing the plists (or even installing them) without clearing the domain global —
+  the three grep arms pass and step 2 fails, which is precisely the state that shipped. Also red,
+  in the opposite and more expensive direction, under performing step 2 before step 1.
+
+  **Known limitation of arms 1–3, stated so the next person does not read it as an oversight**:
+  the instrument is a raw `grep -c` over the **whole file**, not a plist-key query, so the criterion
+  forbids naming `AILANG_OLLAMA_HTTP_TIMEOUT_SEC` anywhere in either file — including in a comment
+  explaining why the pin was removed. The M4 executor hit this: an explanatory removal comment held
+  the count at 1 and read red. The comments therefore describe it as "the 1800s total-timeout pin"
+  without the literal token, and the variable name lives in git history. Do not "fix" this by
+  matching a partial token; that games the instrument. If a future revision wants the name back in
+  prose, change the arm to a key-level query (e.g. `plutil -extract EnvironmentVariables …`) first.
 
 **Milestone boundary (not acceptance criteria — these gate the repo, not the feature):**
 `go build ./internal/... ./cmd/ailang` · `go test -count=1 ./internal/ai/...` ·
