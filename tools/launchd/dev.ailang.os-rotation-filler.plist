@@ -51,17 +51,26 @@
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
 
-        <!-- STOPGAP (2026-08-07): the 300s default in internal/ai/ollama/step.go
-             is shorter than a qwen3.6:35b thinking turn on long benchmarks, so
-             motoko retried the deadline until the wall clock killed it — 895
-             retries / ~74.6 GPU-hours burned over 43 days, 80 runs lost. 1800s
-             unblocks the rotation; it does NOT fix the real problem, which is
-             that a TOTAL-duration cap cannot tell "hung" from "slow". The robust
-             fix is the idle/TTFT timeout in
-             design_docs/planned/m-ollama-v1-streaming-idle-timeout.md — REMOVE
-             this line once that lands. -->
-        <key>AILANG_OLLAMA_HTTP_TIMEOUT_SEC</key>
-        <string>1800</string>
+        <!-- The 2026-08-07 stopgap (a 1800s total-timeout pin on the buffered
+             /v1 path) is REMOVED here and replaced by the streaming opt-in
+             below — ailang#618 M4, 2026-08-11.
+
+             Why the stopgap existed: the 300s default in
+             internal/ai/ollama/step.go is shorter than a qwen3.6:35b thinking
+             turn, so motoko retried the deadline until the wall clock killed
+             it — 895 retries / ~74.6 GPU-hours over 43 days, 80 runs lost.
+             1800s unblocked the rotation but did not fix the real problem: a
+             TOTAL-duration cap cannot tell "hung" from "slow".
+
+             Why removing it is MANDATORY, not tidy-up: with the flag below on,
+             that same env var stops being an HTTP client timeout and BECOMES
+             the stream's hard deadline. 1800s sits BELOW the computed
+             worst-case legitimate request (~2941s), so leaving it in would
+             re-create the 4m59.97 failure at a larger scale. Left unset, the
+             hard deadline defaults to 3600s, and "hung" is caught by the
+             sharper idle (120s) / TTFT (600s) windows instead. -->
+        <key>AILANG_OLLAMA_V1_STREAM</key>
+        <string>1</string>
     </dict>
 </dict>
 </plist>
