@@ -1629,6 +1629,19 @@
       "description": "Multi-factor scoring system \u2014 Z3 finds score exceeds 100 in specific enum combination"
     },
     {
+      "path": "runnable/contracts/shapes_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "records",
+        "adt",
+        "tuples"
+      ],
+      "description": "Structural contract generators \u2014 record, ADT, tuple, and scalar ensures parameters all execute property cases"
+    },
+    {
       "path": "runnable/contracts/showcase.ail",
       "status": "working",
       "tags": [
@@ -2670,11 +2683,11 @@
     }
   ],
   "statistics": {
-    "total": 192,
-    "working": 184,
+    "total": 193,
+    "working": 185,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9583333333333334,
+    "coverage": 0.9585492227979274,
     "experimental": 0
   },
   "milestones": {
