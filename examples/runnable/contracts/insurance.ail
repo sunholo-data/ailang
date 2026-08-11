@@ -1,6 +1,7 @@
 -- examples/runnable/contracts/insurance.ail
 -- Complex insurance pricing with many interacting factors
 -- Demonstrates: contracts catching non-obvious bugs in branching logic
+-- Expect: 4 verified, 1 violation (applyDiscount)
 --
 -- WHY THIS IS HARD TO VERIFY BY HAND:
 -- 5 enum types × multiple branches = 50+ code paths

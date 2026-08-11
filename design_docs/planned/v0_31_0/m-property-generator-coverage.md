@@ -1,7 +1,7 @@
 # M-PROPERTY-GENERATOR-COVERAGE: Vacuous-Pass Honesty + Structural Generator Derivation for Contract Property Tests
 
-**Status**: Planned
 **Target**: v0.31.0 (Lane A); Lane B may slip to a later minor without harming Lane A
+**Status**: Lane A and Lane B1 landed; Lane B2 remains deferred
 **Priority**: P2 (explicitly NOT a v1.0 bar item — sized accordingly)
 **Estimated**: Lane A ~0.5 day; Lane B = B1 only, ~1.5–2 days (independently shippable; Lane A first). B2 (user-supplied generators) **DEFERRED** — see Lane B2.
 **Dependencies**: Lane A and Lane B1: None. **Deferred B2: BLOCKED ON a deterministic evaluator fuel/step budget** (fuel charged per evaluation reduction and function application — see Future Work; quorum 2026-07-29). Related-but-independent: [m-forall-properties-direct-core-eval](../v1_1_0/m-forall-properties-direct-core-eval.md) (P3, parked)
@@ -304,6 +304,7 @@ export func genPoint(seed: int) -> Point ! {}
 **Lane B (B1 only — B2 file impact deferred with B2):**
 - `internal/testing/derive.go` (new, ~200 LOC) — type resolution, structural derivation, depth budget (`gen<TypeName>` lookup deferred with B2)
 - `internal/testing/runner.go` (+40/-10) — wire derivation; `valueToLiteral` record/tuple/tagged arms + loud default
+- `internal/testing/contract_domain.go` — wire derived generators and loud splice errors into the ensures path
 - `internal/testing/generator_advanced.go` (+15/-8) — parameterize ADTGenerator module/type
 - `internal/testing/shrink.go` (+80) — TupleShrinker, RecordShrinker
 - `internal/testing/derive_test.go` (new, ~300 LOC)
@@ -631,6 +632,118 @@ scope** in any case. Lane A remains unobjected across **both** rounds. This is n
 objection was overridden, and no controller-invented resolution was substituted for a reviewer's.
 
 ---
+
+## Lane B1 closeout (M6, 2026-08-11)
+
+Lane B1 has landed. The controller re-swept all 33 contract files with the repository binary built at
+`025588fe2`. The sweep confirms the intended payoff: **87 previously-never-executed properties across
+15 examples now run**, and vacuous skips fall **111 → 24**. The remaining 24 are exactly
+`cross_module_types` (4), `inbox_injection_v2` (10), and `inbox_v2_app` (10). They are imported or
+refined types and remain B2 by design. `p/f/s` below means passed/failed/skipped; “before vac” is the
+§1.4 baseline. `per_function_depth_verify` exceeded the 60-second bound and is deliberately reported
+as UNMEASURED, never pass or fail.
+
+| File | rc | success | total | p/f/s | vac | before vac | Δ vac | M6 result / triage |
+|---|---:|:---:|---:|---:|---:|---:|---:|---|
+| access_control | 0 | true | 4 | 2/0/2 | 0 | 4 | -4 | fixed; rc 1→0 |
+| basic | 1 | false | 8 | 3/2/3 | 0 | 0 | 0 | unchanged; 2 pre-existing failures |
+| cross_function | 0 | true | 5 | 4/0/1 | 0 | 5 | -5 | fixed; rc 1→0 |
+| cross_module_functions | 0 | true | 5 | 3/0/2 | 0 | 0 | 0 | false-red guard holds |
+| cross_module_functions_lib | 0 | true | 3 | 2/0/1 | 0 | 0 | 0 | false-red guard holds |
+| cross_module_types | 1 | false | 8 | 3/0/5 | 4 | 5 | -1 | unit now runs; 4 imported skips remain |
+| cross_module_types_lib | 1 | false | 0 | 0/0/0 | 0 | 0 | 0 | unchanged; no tests |
+| ensures_violation_demo | 1 | false | 2 | 1/1/0 | 0 | 0 | 0 | unchanged |
+| finance | 1 | false | 6 | 2/1/3 | 0 | 4 | -4 | pre-existing failure |
+| hof_verify | 0 | true | 2 | 2/0/0 | 0 | 0 | 0 | false-red guard holds |
+| inbox_injection | 1 | false | 10 | 3/1/6 | 0 | 0 | 0 | unchanged |
+| inbox_injection_v2 | 1 | false | 11 | 1/0/10 | 10 | 10 | 0 | F-1: refined types, B2 |
+| inbox_v2_app | 1 | false | 11 | 1/0/10 | 10 | 10 | 0 | F-1: imported/refined types, B2 |
+| inbox_v2_lib | 1 | false | 0 | 0/0/0 | 0 | 0 | 0 | unchanged; no tests |
+| insurance | 1 | false | 6 | 4/1/1 | 0 | 6 | -6 | **(a) deliberate:** `applyDiscount_property_2` |
+| invoice | 1 | false | 21 | 9/1/11 | 0 | 13 | -13 | pre-existing failure |
+| list_recursive_verify | 1 | false | 6 | 0/0/6 | 0 | 0 | 0 | unchanged |
+| list_verify | 1 | false | 7 | 5/1/1 | 0 | 0 | 0 | deliberate pre-existing fixture failure |
+| nested_record_verify | 0 | true | 5 | 2/0/3 | 0 | 5 | -5 | fixed; rc 1→0 |
+| park | 0 | true | 8 | 4/0/4 | 0 | 6 | -6 | fixed; rc 1→0 |
+| per_function_depth_verify | 137 | — | — | — | — | — | — | **UNMEASURED**; exceeds bound |
+| quantifier_verify | 1 | false | 7 | 2/1/4 | 0 | 0 | 0 | unchanged |
+| record_adt_cycle_verify | 0 | true | 1 | 1/0/0 | 0 | 1 | -1 | fixed; rc 1→0 |
+| record_adt_sort_verify | 0 | true | 1 | 1/0/0 | 0 | 1 | -1 | fixed; rc 1→0 |
+| record_discovery_verify | 0 | true | 10 | 5/0/5 | 0 | 6 | -6 | fixed; rc 1→0, better than §1.4 predicted |
+| record_pattern_verify | 0 | true | 5 | 2/0/3 | 0 | 5 | -5 | fixed; rc 1→0 |
+| record_verify | 1 | false | 15 | 4/1/10 | 0 | 15 | -15 | **(a) deliberate:** `brokenDistance_property_3` |
+| recursive_verify | 1 | false | 9 | 0/0/9 | 0 | 0 | 0 | unchanged |
+| scoring | 1 | false | 6 | 5/1/0 | 0 | 6 | -6 | **(a) deliberate:** `normalizedScore_property_1` |
+| showcase | 1 | false | 15 | 7/1/7 | 0 | 9 | -9 | pre-existing failure |
+| string_verify | 1 | false | 5 | 4/1/0 | 0 | 0 | 0 | unchanged |
+| temperature | 0 | true | 4 | 2/0/2 | 0 | 0 | 0 | false-red guard holds |
+| unencodable_callee_skip | 0 | true | 2 | 1/0/1 | 0 | 0 | 0 | false-red guard holds |
+
+Eight files flip rc 1 → 0: `access_control`, `cross_function`, `nested_record_verify`, `park`,
+`record_adt_cycle_verify`, `record_adt_sort_verify`, `record_discovery_verify`, and
+`record_pattern_verify`. The five false-red guards remain rc 0.
+
+### Newly-failing-property triage (B1-16)
+
+All three newly-failing properties are **(a) deliberate**; zero are (b) example bugs, zero are (c)
+B1 defects, and zero are unclassified:
+
+- `record_verify / brokenDistance_property_3`, counterexample `p={x: 152, y: 469}`. The header says
+  “Expect: 4 verified, 1 violation (brokenDistance)”; measured 4 pass / 1 fail.
+- `insurance / applyDiscount_property_2`, counterexample `age=ADULT, tier=LOW,
+  discountPercent=297`. The function comment explicitly calls the discount calculation intentionally
+  broken and says Z3 will find the breaking combination; measured 4 pass / 1 fail.
+- `scoring / normalizedScore_property_1`, counterexample `level=ADVANCED, perf=AVERAGE,
+  dept=RESEARCH, tenure=MID`. The function comment explicitly says department weights can push the
+  score above 100 and Z3 finds the combination; measured 5 pass / 1 fail.
+
+These examples were written to demonstrate Z3 catching contract violations, but the relevant
+properties had never executed. Lane B1 makes the demos demonstrate what they always claimed to.
+
+### Sprint findings F-1 through F-8
+
+- **F-1 (mission-visible): B1 does not fix the prompt-injection safety demos.**
+  `inbox_injection_v2` and `inbox_v2_app` are unchanged at 10 vacuous skips each. Their refined and
+  imported types are B2, so the original Success metric claiming B1 makes those properties run is
+  wrong. Lane A made them fail loudly; B1 does not make them execute.
+- **F-2:** generated ADT `TypeName`/`ModulePath` metadata is not downstream-observable on this path;
+  the evaluator reconstructs tagged values through constructor closures. Parameterisation is
+  diagnostic/cosmetic, not a prerequisite.
+- **F-3:** `RecordGenerator` map iteration made seeded generation nondeterministic. B1 now uses a
+  stable field order, preserving replayability.
+- **F-4:** recursion depth alone does not bound collection growth. B1 also scales list size by the
+  remaining derivation budget while preserving top-level scalar-list behavior.
+- **F-5:** derived record/tuple shrinkers have no downstream observable above a unit test because the
+  live contract paths discard the shrinker and the forall consumer is blocked by #624. M5 was
+  therefore descoped.
+- **F-6:** `perl alarm` does not bound the Go binary, and the replacement watchdog must not be piped:
+  its inherited stdout keeps the pipe open until the full timeout. Redirect watchdog output to a
+  file, then run `jq` on that file. The JSON has top-level counters and `.properties[]`, not
+  `.suites`.
+- **F-7:** `runEnsuresProperty` lives in `internal/testing/contract_domain.go`; the Lane B file list
+  above now includes it. Ensures and requires paths also have different out-of-contract text.
+- **F-8:** the earlier V34 corpus count was a lower bound: it missed `scoring.ail` and `showcase.ail`.
+  The M6 table is the complete 33-file accounting, with one bounded-time UNMEASURED fixture.
+
+### Follow-ups (not implemented in Lane B1)
+
+- Derived record and tuple shrinkers (descoped M5); revisit only when a live downstream consumer can
+  make their behavior observable.
+- Add corpus coverage for named aliases represented by `*ast.TypeAlias`; Lane B1 acceptance for this
+  shape is unit-level only today.
+- Resolve imported types through the typechecker environment to unlock the remaining imported-type
+  skips. Refinement-aware generation for `string<email>` remains B2.
+- **`ailang verify` cannot encode tuple patterns.** Surfaced by M6's new `shapes_verify.ail`:
+  `fst2` fails with `unsupported pattern type *core.TuplePattern in SMT encoding`. Measured in
+  both arms — the error comes from encoding the function **body**, so it is independent of the
+  `ensures` clause and was present before that clause was strengthened. Consequence: a
+  tuple-parameter contract is checkable by property testing (B1 derives its generator and runs
+  100 cases) but **not** by Z3, so the two checkers disagree in coverage for this one shape.
+  `shapes_verify.ail`'s header states the split explicitly rather than claiming a clean verify.
+
+M6 also corrected the measurement procedure in the sprint plan: watchdog output must be redirected
+before `jq`, and the CLI JSON schema has no `.suites` key. Finally,
+`record_discovery_verify` reached rc 0 rather than the predicted rc 1 with two out-of-contract skips.
 
 ## References
 

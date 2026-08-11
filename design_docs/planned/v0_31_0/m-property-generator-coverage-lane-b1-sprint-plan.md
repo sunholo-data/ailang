@@ -178,6 +178,19 @@ corpus occurrence**, so its acceptance is unit-level only — say so, do not cla
 
 ### 1.6 Bounded-wait recipe that actually works
 
+> **M6 correction (2026-08-11): do not pipe the watchdog command.** The watchdog subshell inherits
+> stdout, so `/tmp/bwait.sh 60 command | jq` keeps the pipe open for the full 60 seconds even when
+> `command` exits immediately. Redirect first, then inspect the completed file:
+>
+> ```bash
+> /tmp/bwait.sh 60 ./bin/ailang test --format json --no-color FILE > /tmp/out.json 2>/dev/null
+> jq ... /tmp/out.json
+> ```
+>
+> The CLI JSON schema is top-level: `.success`, `.total_tests`, `.passed_tests`, `.failed_tests`,
+> `.skipped_tests`, `.vacuous_skips`, and `.properties[]`; it has **no `.suites` key**. Failing
+> properties are selected with `.properties[] | select(.status == "fail")`.
+
 ```bash
 # /tmp/bwait.sh <seconds> <cmd...>
 lim=$1; shift

@@ -1,6 +1,7 @@
 -- examples/runnable/contracts/scoring.ail
 -- Multi-factor scoring system with complex invariants
 -- Demonstrates: Z3 catching subtle bugs in scoring logic
+-- Expect: 5 verified, 1 violation (normalizedScore)
 --
 -- WHY THIS IS HARD TO VERIFY BY HAND:
 -- Multiple scoring dimensions combine non-linearly

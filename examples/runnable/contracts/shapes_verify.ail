@@ -1,0 +1,47 @@
+-- examples/runnable/contracts/shapes_verify.ail
+-- Structural generator coverage for contract parameters
+-- Demonstrates: named records, ADTs, tuples, and scalar ensures parameters
+--
+-- Run:    ailang test   examples/runnable/contracts/shapes_verify.ail
+-- Expect: 4 properties, 100 cases each, 0 vacuous skips, 0 failures
+--
+-- Run:    ailang verify examples/runnable/contracts/shapes_verify.ail
+-- Expect: 3 verified, 1 encoding error (fst2)
+--         Z3 cannot yet encode tuple patterns (`unsupported pattern type
+--         *core.TuplePattern`), so a tuple-parameter contract is checkable by
+--         property testing but not by SMT. The error is a known language gap,
+--         not a violated contract — see the Lane B1 closeout follow-ups.
+
+module examples/runnable/contracts/shapes_verify
+
+export type Point = { x: int, y: int }
+
+export type Shade = Light | Dark(level: int)
+
+export func shiftX(p: Point, dx: int) -> int ! {}
+ensures { result == p.x + dx } {
+  p.x + dx
+}
+
+export func level(s: Shade) -> int ! {}
+ensures { result >= 0 } {
+  match s {
+    Light => 0,
+    Dark(l) => if l >= 0 then l else 0
+  }
+}
+
+export func fst2(pair: (int, int)) -> int ! {}
+ensures { match pair { (a, _) => result == a } } {
+  match pair { (a, _) => a }
+}
+
+export func anchor(x: int) -> int ! {}
+ensures { result == x } {
+  x
+}
+
+export func main() -> int ! {} {
+  let p = { x: 3, y: 4 }
+  shiftX(p, level(Dark(2))) + fst2((5, 8)) + anchor(1)
+}
