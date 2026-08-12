@@ -207,6 +207,53 @@ Single-expression branches don't need braces.
 
 ## Language Feature Gaps
 
+### Strict evaluation: `take(n, flatMap(f, xs))` bounds the result, not the peak
+
+**Status**: Design constraint (strict evaluation)
+**Verified at**: v0.33.0 (2026-08-12, `/usr/bin/time -l` transcripts below)
+
+AILANG evaluates function arguments strictly. Therefore `flatMap(f, xs)` is fully materialised
+before `take` runs: the cap bounds the returned list, but not the intermediate's peak memory.
+The #617 reproduction, with a cap of 5, measured:
+
+| Form | Result | Peak RSS | Wall time |
+|---|---:|---:|---:|
+| `take(5, flatMap(f, xs))` (unfused, V1) | 5 elements | 425 MB | 81.9 s |
+| `takeFlatMap(5, f, xs)` (existing fused builtin, V2) | 5 elements | 89 MB | 0.06 s |
+
+Repro transcript (maximum resident set size is reported by macOS `/usr/bin/time -l`):
+
+```text
+$ /usr/bin/time -l ./bin/ailang run --caps IO arm_a.ail
+[1, 1, 1, 1, 1]
+81.93 real
+425361408 maximum resident set size
+
+$ /usr/bin/time -l ./bin/ailang run --caps IO arm_d.ail
+[1, 1, 1, 1, 1]
+0.06 real
+89374720 maximum resident set size
+```
+
+Rewrite the unfused form as `takeFlatMap(n, f, xs)`. Its corrected cost model is:
+
+```text
+peak = source residency + largest single f(x) + n retained outputs
+```
+
+`takeFlatMap` is **not a peak-memory cap**. It removes only the unvisited-outputs term: it
+does not shrink the already-resident source list or the largest single result of `f(x)`.
+If one `f(x)` can be very large or unbounded, apply #617's budgeted-walk workaround inside
+`f` itself—for example, use a capped per-element tokenizer. Raising
+`--max-recursion-depth` is an anti-pattern here: it lets strict evaluation materialise still
+more output and makes the memory failure worse.
+
+The same issue affects `take(n, map(f, xs))` when `f` allocates. Against `takeMap`, the
+allocating case measured about **5.5× peak RSS** and **235× wall time** (V25/V26: 559 MB /
+18.78 s unfused versus 101 MB / 0.08 s fused). Use `takeMap(n, f, xs)` to avoid evaluating
+and retaining outputs for unvisited inputs. A non-allocating scalar `f`, such as `\x. x + 1`,
+did **not** amplify peak memory (V7), so the qualification “when `f` allocates” matters.
+
 ### Error Propagation Operator (`?`)
 
 **Status**: Planned — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-error-propagation.md)

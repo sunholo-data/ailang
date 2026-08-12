@@ -27,6 +27,7 @@ workarounds. Verified open at v0.28.0 (2026-07-10):
 | **CSP concurrency (channels / session types)** | Deferred | no channel/session-type surface in the parser. |
 | **Raw-mode single keypress / mid-call `std/ai.step()` abort** | Narrow input gaps | line input (`readLine`, `asyncReadStdinLines`) works; raw keypress is out-of-core by design. |
 | **Regex backreferences / lookaround** | Design constraint (RE2 linear-time guarantee) | `std/regex` wraps Go's RE2 engine → **no backreferences, no lookahead/lookbehind**. `regex.compile("(a)\\1")` / `compile("(?=x)")` return `Err(message)` (never panic). This is the deliberate price of the linear-time, no-catastrophic-backtracking guarantee. |
+| **Strict `take` after `flatMap` / allocating `map` bounds results, not peak memory** | Design constraint (strict evaluation) | Use `takeFlatMap(n, f, xs)` or, when `f` allocates, `takeMap(n, f, xs)`; [canonical entry](docs/docs/reference/limitations.md#strict-evaluation-taken-flatmapf-xs-bounds-the-result-not-the-peak) has the v0.33.0 repro and remaining bounds. |
 
 ### If-Else Branches Require Explicit Braces {#if-else-branches-require-explicit-braces}
 
