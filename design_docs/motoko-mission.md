@@ -9,6 +9,7 @@ should be measured on the tree we actually run. **The mission is done when motok
 be an executor in the mission fleet itself** (clause 6): the harness we improve becomes a harness
 that does the improving. That graduation is the honest end-state test — a harness that can land its
 own sprints has demonstrated something no benchmark score argues for on its own.
+
 **Traces to**: [PROGRAM.md](PROGRAM.md) — this mission is an operational instance of the program's
 loop; every friction found here routes to a lane (AILANG fix / motoko extension / core-floor fix).
 **Skill**: [.claude/skills/mission-control/SKILL.md](../.claude/skills/mission-control/SKILL.md)
@@ -19,8 +20,23 @@ playbook** for "why is motoko failing" queue items (its five gates), not a compe
 staggered against V1 (5400s) and World (14400s), and deliberately slow: the queue is gated (see
 Guardrails) and the rig's quota is shared.
 **Log**: [motoko-mission-log.md](motoko-mission-log.md) — append-only, one entry per iteration.
-**Human-facing reporting**: GitHub issue #<NNN — seeded at bootstrap> — every iteration posts its
+**Human-facing reporting**: GitHub issue [#663](https://github.com/sunholo-data/ailang/issues/663) — every iteration posts its
 report there as a comment; driver crashes post there too.
+
+**The weak-model path is the METHOD, not a budget compromise (Mark, 2026-08-12).** Motoko is tuned
+against weak models on purpose, and the expected result is that it becomes the best AILANG harness
+**for the strongest models too**. The mechanism is a forcing function: optimising against a model
+that cannot carry itself forces the *harness* to supply what the model lacks — structure,
+verification, error recovery, context discipline, retry-on-the-right-signal. Those affordances are
+**model-independent**. A harness tuned against a strong model can lean on the model's competence and
+never grow them, and so plateaus lower on strong models than the weak-model path does.
+
+This is a real, falsifiable claim and it is **still unmeasured**. Its test is the archived charter's
+**R3** (cross-model generality study: do motoko's gains hold with strong models, and are they
+AILANG-specific or general?) — carried forward here rather than left in the archive. R3 also carries
+the generality split worth keeping in view: best-of-N (check + run) is **language-general** — a
+portable edge on any compiler+runtime — while contracts + Z3 are **AILANG-specific**, the moat. Do
+not let "we use cheap models" get recorded as a constraint we are working around; it is the design.
 
 ## Repo Profile (M-MISSION-PORTABILITY M2 — the per-mission values mission-control reads)
 
@@ -37,7 +53,7 @@ of hardcoding.
   lock (`rig-lock.sh` guards eval jobs, not missions; the driver's overlap guard is a per-mission
   pidfile), so two missions sharing one working tree would contend on `git commit`/`push` to `dev`.
   V1 fires every 90 min, so overlap would be routine, not rare.
-- **Bookkeeping issue**: `#<NNN>`, rotates weekly; live number in `~/.ailang/state/mission-motoko-gh-issue`
+- **Bookkeeping issue**: `#663`, rotates weekly; live number in `~/.ailang/state/mission-motoko-gh-issue`
 - **CI workflows Gate 3b / Gate 1 poll**: `CI`, `Build and Release`, `Deploy Documentation to GitHub Pages`
 - **Verify profile**: `go-compiler` — this repo compiles the AILANG toolchain, so gates rebuild
   BOTH binaries (`make quick-install && make build`) and run `make test`; `~/go/bin/ailang` (PATH)
@@ -126,6 +142,27 @@ intact. Meanwhile the whole tree beneath us has been rewritten (see the queue's 
   profile. Expect motoko's executor graduation to land on World before it lands here, and treat a
   Go-repo trial as the harder, later bar rather than the starting one.
 
+  **MOTOKO HAS NO SUBSCRIPTION LANE, AND CANNOT GET ONE.** Measured 2026-08-12; recorded here so
+  nobody spends an iteration trying to bridge it. Both subscription buckets the fleet currently
+  runs on are **bound to a CLI client**, not reachable as an API:
+  - *Anthropic* — the Claude Code OAuth path. Motoko is a different harness; it cannot present it.
+  - *ChatGPT/codex* — `~/.codex/auth.json` reports `auth_mode = chatgpt` with an OAuth token object.
+    That credential is bound to the codex CLI, and motoko's providers are
+    `request_shape = "openai_chat"` + `auth = { type = "bearer", env = … }` — standard OpenAI chat
+    to a URL, which subscription OAuth does not speak. `OPENAI_API_KEY` *is* present, so motoko can
+    reach OpenAI — but **metered**, with no advantage over OpenRouter.
+
+  So motoko's lanes are exactly two: **OpenRouter (metered)** or **local GPU ($0)**. This sharpens
+  the strategy rather than weakening it — the local lane is the only executor the fleet can ever gain
+  that ADDS capacity instead of spending it, which is most of clause 6's value.
+
+  **The local lane needs a GPU-lock story that does not exist yet.** The driver is explicit that
+  mission iterations *never* take `rig.lock` because they are cloud-model work (GPU-touching sprint
+  steps take it per-step, inside the session). A motoko-*local* executor is GPU work for the whole
+  sprint, so it would contend with the nightly evals and the OS rotation. **OpenRouter-backed
+  `motoko:` lanes have no such problem and are therefore the easier first target**; the $0 local lane
+  is the bigger prize and the later one.
+
 ## Guardrails (mission-specific; the skill's Standing Rules always apply on top)
 
 - **THE PHASE-0 GATE IS REAL. Do not start the ABI 5.0 extension port until BOTH:
@@ -179,17 +216,32 @@ are ordered so the UNGATED work runs first.
    result on the new tree cheaply. This is the clause-3 lever that decides whether `motoko_ext_fmt`
    survives, and the first real test of whether DST can replace a 7-14h rig A/B · 1-2 iterations
 5. **Profile restoration design** · clause 4 · 5 profiles, 14 of 18 model entries · 1 iteration
-6. [PARKED — Phase-0 gated] **Extension port to ABI 5.0** · clauses 1+2 · 12 packages, pilot on
+6. **Repin the stale OpenRouter motoko models** · clause 4 · measured live 2026-08-12: our
+   `motoko-or-kimi-k2-6` pins `moonshotai/kimi-k2.6` ($0.95/$4.00 per M), but
+   **`moonshotai/kimi-k2.7-code` dominates it on every axis** — newer, code-specialised, and cheaper
+   ($0.70/$3.50), same 262k context. `moonshotai/kimi-k3` also now exists (**1M context**, $3/$15 —
+   4.3× k2.7-code both ways, so a targeted large-context instrument for the `docx_reimplement` class,
+   NOT a default). DeepSeek needs no change: our `deepseek-v4-flash-0731` pin at $0.08/$0.18 with 1M
+   context is already the cheapest concrete option (`~…-flash-latest` is cheaper still but is a
+   FLOATING alias, which would undo the `:floor` prompt-cache pinning we do deliberately).
+   **Not a side edit** — a model repin moves the eval baseline, so it needs a deliberate before/after
+   and a banked comparison, per the extension-fix baseline lesson · 1 iteration
+7. [PARKED — needs a green tree] **R3 — cross-model generality study** · clause 5 + the north star's
+   weak-model thesis · do motoko's gains hold with strong models, and are they AILANG-specific or
+   general? This is the TEST of the mission's central claim and it has never been run. Carried
+   forward from the archived charter. Split to measure: best-of-N is language-general (portable
+   edge), contracts + Z3 are AILANG-specific (the moat)
+8. [PARKED — Phase-0 gated] **Extension port to ABI 5.0** · clauses 1+2 · 12 packages, pilot on
    `test-dummy`, `compaction-ai` last
-7. [PARKED — Phase-0 gated] **Registry-vs-vendored reconciliation with Arni** · clause 2 · his
+9. [PARKED — Phase-0 gated] **Registry-vs-vendored reconciliation with Arni** · clause 2 · his
    `compaction_ai` "0.3.0" is 33,851 B; our published `0.3.2` is 9,454 B — same name, lower version,
    different code
-8. [PARKED — Phase-0 gated] **Re-prove and re-baseline** · clauses 3+4 · migration Phase 3
-9. [PARKED — needs a green tree first] **Motoko executor-lane graduation, design** · clause 6 ·
+10. [PARKED — Phase-0 gated] **Re-prove and re-baseline** · clauses 3+4 · migration Phase 3
+11. [PARKED — needs a green tree first] **Motoko executor-lane graduation, design** · clause 6 ·
    the `motoko:<model>` spawn recipe, bounded probe, fallback-chain placement, and the false-green
    guards. Design work can start once clause 1 holds (a motoko we can rebuild); the *trial* needs a
    real sprint. **Target World (`ailang-code` profile) first — not this Go repo.**
-10. [PARKED — after 9] **Motoko executor-lane gate trial** · clause 6 · real sprints, plan-faithful
+12. [PARKED — after 11] **Motoko executor-lane gate trial** · clause 6 · real sprints, plan-faithful
     landing of held-out tests. The DeepSeek-Flash precedent is the bar to clear: 3/3 real-sprint
     failures behind a clean `rc=0`, so a passing smoke proves nothing on its own.
 
