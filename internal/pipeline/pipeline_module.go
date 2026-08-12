@@ -386,6 +386,9 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	sort.Strings(argOrderModIDs)
 	for _, modID := range argOrderModIDs {
 		result.Warnings = append(result.Warnings, DetectArgOrderWarnings(compiledUnits[modID].Core)...)
+		// M-TAKE-FLATMAP-PEAK-MEMORY: direct take(n, flatMap(f, xs)) calls
+		// materialize the full intermediate list. Non-blocking warning channel.
+		result.Warnings = append(result.Warnings, DetectTakeAfterFlatMap(compiledUnits[modID].Core)...)
 		// M-CHECK-STRICT-FALLBACKS: empty/default `Ok(...)` in Result-returning
 		// functions. Here imports ARE resolved to VarGlobal, so the
 		// std/json.jo([])-class registry case fires as well as literal empties.

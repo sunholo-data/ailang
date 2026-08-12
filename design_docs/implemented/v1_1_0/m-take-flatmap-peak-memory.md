@@ -1,6 +1,6 @@
 # M-TAKE-FLATMAP-PEAK-MEMORY: `take(n, flatMap(f, xs))` Cannot Bound Peak Memory — Expose the Fused Primitive That Already Exists, Fix Its Latent Type Bug, and Teach the Trap
 
-**Status**: Planned
+**Status**: Implemented (M1–M4 landed; AC-6 closed V1 iteration 186, commit 5e4d629be)
 **Target**: v0.34.0
 **Priority**: P1 (two production host OOMs in `sunholo/ailang_parse`; silent, inverted failure mode — the code *looks* defensive)
 **Estimated**: 3–4 days (round 1 cut the `takeMap` export and revised down to 3; round 2 restored it on measured evidence — see Round 2 section)
