@@ -2,39 +2,39 @@
 > **Contract**: ≤40 lines, overwritten by mission-control Gate 4 every iteration (history lives in
 > the charter/log). Fresh session = THIS + MEMORY.md. Humans steer via the bookkeeping issue.
 
-**Updated**: 2026-08-11 ~23:30 local (iteration 179)
+**Updated**: 2026-08-12 ~01:45 local (iteration 180)
 
 ## Now
-- **v0.33.0** · `origin/dev` `0a84f5377` — **`#616` RECLASSIFIED P0, design doc LANDED** (PR `#657`,
-  docs-only, 845 lines). Quorum r1 **BLOCKED**. Metered **$0.1103** of $5.
-- 🔴 **Not a DX bug — a STATIC EFFECT-SOUNDNESS HOLE.** A function with **no** effect annotation
-  calling a row-poly function **TWICE** passes `check` rc=0 and **executes IO**; a **wrong** row
-  (`! {FS}` over `{IO}`) also passes and runs.
-- ✅ **Severity bounded by measurement**: with no `--caps IO` the run is refused — the capability
-  layer **backstops**. This defeats capability **planning from signatures** (the reporter's
-  MCP-embedder case), not enforcement.
-- 💡 **Framing wrong twice.** `e` is a row **TAIL**, not a phantom concrete effect: `Required`=[]
-  **and** `Declared`=[] while the check fails — same fact explains the blank `Missing effects:`.
-- ✅ **"Reject lowercase (fastest)" REFUTED** — **13** row-var signatures ship in `std`. Fix site is
-  the **effect checker only**. **No new D-item — direction settled by data.**
-- ⚠ Both blocking objections **measured, not forwarded** (rule 3f), **both CONFIRMED**: gemini's
-  laundering reproduces *inside* the row-poly fn (Phase 2 can't reach it); gpt5 is right that the
-  App branch prefers `declaredEffects` and never consults `typeInfo`.
+- **v0.33.0** · `origin/dev` `817bb0274` — **`#616` doc REVISED (1,028 lines) and PARKED
+  `needs-human-review` at quorum round 2** → new **`D-10`**. Metered **$0.1365** of $5.
+- 🔴 **I ran R1's own probe (rule 3f) and it REFUTED the doc's architecture**: occurrence type-info
+  is **present, occurrence-shaped and UNINSTANTIATED** — `EffectRow RAW={labels=[] tail=ρ3}`.
+- 💡 **The correct info is in the ARGUMENT, not the result** — arm l's two sites carry `param[0]` rows
+  `{}` vs `{IO}` while **both** result rows are unsolved, so **parameter-`e` and return-`e` are NOT the
+  same variable** (control: a *concrete* row resolves fine). Refutes iter-179's "type layer is fine".
+- 🔴 **FIX SITE MOVED A 4th TIME, and R1's replacement is refuted too.** "One metavar per row-var
+  name, reused everywhere" **already exists** (`types_v2.go:533-561`/`:383-401`); the App mints an
+  **independent** `freshEffectRow()` (`inference.go:203-215`) — A2 *and* A3 aim at the wrong layer.
+- ✅ **R2 confirmed at a line**: `UnionEffectRows` body has **0** `Tail` (control 3) → `effects.go:606-616`.
+- ⚠ **`ailang check` CACHES by content and hides only the arms that PASS** (0 probe lines vs 10 on the
+  failing control) — and the soundness arms are the passing ones. ⚠ **Controller restored the
+  no-regression gate** the revision dropped (14 ACs → 10, all mechanism pins): AC11/AC12 → **12**.
 
 ## In flight / queued
-- **`#616` revision** + **ONE re-quorum** — **no human input needed**.
+- **`#616`** blocked on `D-10`; **`#619`** blocked on `D-9` → next unblocked item is **`#617`**.
 - **`#618` rollout** (cp plists → `launchctl load` → *then* `unsetenv`) — human-sequenced, `D-8`.
-- `D-9` gates **`#619`**, then **`#617`**. **#636** `[world-DEMAND]` · **#613** `D-1` · **#604**/
-  `#614` `D-2` · **#649** local-model gap · **#651** quorum zero-signal · **#654**.
-- **Next**: Iteration 180 revises `#616`'s doc and re-quorums — both objection measurements already banked.
+- **#636** `[world-DEMAND]` · **#613** `D-1` · **#604**/`#614` `D-2` · **#649** · **#651** · **#654**.
 
 ## Loop + routing
-Controller **opus** · designer **claude-fable-5** (rotation → claude) · planner/executor/evaluator
-**NOT fired** (parked at quorum). Gate 3b GREEN: 4/4 required, `checks=20`, 0 not-green — required
-set grew **2→3→4** (late-registration trap, 4th time). ⚠ Local `dev` was **1 ahead** (sibling
-motoko doc, unpushed) → ff-authorization did NOT apply; Gate-4 writes went via a worktree off
-`origin/dev`. Gate 5: **no skill edit** (both frictions instance 1, already covered).
+Controller **opus** · designer **codex:gpt-5.6-sol** (rotation → codex; ⚠ provider-collides with
+reviewer R1, FLAGGED) · planner/executor/evaluator **NOT fired** (parked at the quorum gate).
+⚠ Local `dev` **1 ahead / 2 behind**; reconcile correctly REFUSED (genuine unpushed sibling motoko
+doc) → Gate-4 writes via a worktree off `origin/dev`. ⚠ `gh run list --limit 1` returned a
+**six-week-old** run once; the SHA-addressed read settled it. Gate 5: **no skill edit** (frictions
+at instance 1; World's iter-73 rule-3j proposal corroborated-pending).
 
 ## PARKED ON MARK — #635
-- **`D-9`**: `#619`'s quorum reviews a 5-item umbrella while only **W8** routes. **(A)** split · **(B)** hold.
-- **`D-1`** `#613` · **`D-2`** `#604`/`#614` · **`D-7`** codex **2/2** → (B) de facto · **`D-8`** `#618` rig rollout.
+- **`D-10`**: `#616`'s fix site is now `internal/types` row unification at the App constraint.
+  **(A)** third revision, accept the widened surface · **(B)** hold `#616`.
+- **`D-9`**: `#619` quorum reviews a 5-item umbrella while only **W8** routes. **(A)** split · **(B)** hold.
+- **`D-1`** `#613` · **`D-2`** `#604`/`#614` · **`D-7`** codex **2/2** → (B) de facto · **`D-8`** `#618` rig.
