@@ -1,0 +1,46 @@
+module tests/stdlib/bounded_take_parity_test
+
+import std/list (dedup, flatMap, map, take, takeFlatMap, takeMap)
+
+pure func duplicate(x: int) -> [int] = [x, x]
+pure func withEmpty(x: int) -> [int] = if x % 2 == 0 then [] else [x, x + 10]
+pure func double(x: int) -> int = x * 2
+pure func listsEqual(xs: [int], ys: [int]) -> bool = match xs {
+  [] => match ys { [] => true, _ => false },
+  [x, ...xr] => match ys {
+    [] => false,
+    [y, ...yr] => x == y && listsEqual(xr, yr)
+  }
+}
+
+test "takeFlatMap parity at n zero" {
+  assert listsEqual(takeFlatMap(0, duplicate, [1, 2, 3]), take(0, flatMap(duplicate, [1, 2, 3])))
+}
+
+test "takeFlatMap parity when n exceeds available outputs" {
+  assert listsEqual(takeFlatMap(20, duplicate, [1, 2]), take(20, flatMap(duplicate, [1, 2])))
+}
+
+test "takeFlatMap parity with empty inner lists" {
+  assert listsEqual(takeFlatMap(3, withEmpty, [1, 2, 3, 4]), take(3, flatMap(withEmpty, [1, 2, 3, 4])))
+}
+
+test "dedup composed with takeFlatMap preserves parity" {
+  assert listsEqual(dedup(takeFlatMap(4, duplicate, [1, 2, 3])), dedup(take(4, flatMap(duplicate, [1, 2, 3]))))
+}
+
+test "takeMap parity at n zero" {
+  assert listsEqual(takeMap(0, double, [1, 2, 3]), take(0, map(double, [1, 2, 3])))
+}
+
+test "takeMap parity when n exceeds available outputs" {
+  assert listsEqual(takeMap(20, double, [1, 2]), take(20, map(double, [1, 2])))
+}
+
+test "takeMap parity on an empty source" {
+  assert listsEqual(takeMap(3, double, []), take(3, map(double, [])))
+}
+
+test "dedup composed with takeMap preserves parity" {
+  assert listsEqual(dedup(takeMap(4, double, [1, 1, 2, 2, 3])), dedup(take(4, map(double, [1, 1, 2, 2, 3]))))
+}

@@ -1,0 +1,11 @@
+module tests/stdlib/take_flatmap_delegation
+
+-- AC-1 first-touch check fixture: M2 takeFlatMap surface.
+
+import std/list (takeFlatMap)
+
+pure func boom(x: int) -> [int] =
+  if x > 2 then [100 / (x - x)] else [x, x]
+
+export func main() -> () ! {IO} =
+  println(show(takeFlatMap(4, boom, [1, 2, 3, 4, 5])))

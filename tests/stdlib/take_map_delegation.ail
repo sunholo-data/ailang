@@ -1,0 +1,11 @@
+module tests/stdlib/take_map_delegation
+
+-- AC-1 first-touch check fixture: M2 takeMap surface.
+
+import std/list (takeMap)
+
+pure func boom(x: int) -> int =
+  if x > 4 then 100 / (x - x) else x
+
+export func main() -> () ! {IO} =
+  println(show(takeMap(4, boom, [1, 2, 3, 4, 5])))
