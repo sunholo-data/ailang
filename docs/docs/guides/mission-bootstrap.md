@@ -62,10 +62,20 @@ Do these once on the machine that will host the loop:
    cd <mission-checkout> && claude     # accept the trust dialog once, then quit
    ```
 
-   Measured, with a working control: `ailang-world` runs fine on
-   `hasTrustDialogAccepted: false` **because it has `hasCompletedProjectOnboarding`**, while
-   `ailang-motoko` had neither and failed. So onboarding — not the trust flag the error message
-   names — is the discriminator. Setting both is the safe fix.
+   Measured across three checkouts, including the counterfactual: `ailang` (trust=T, onboarded=T)
+   works; `ailang-world` (trust=**F**, onboarded=T) works; `ailang-motoko` failed with **neither**,
+   then worked with **trust=T and onboarding still absent**. So **either flag suffices** — the error
+   message's own advice is correct, and running `claude` once in the checkout sets what is needed.
+
+   > An earlier draft of this section claimed onboarding was *the* discriminator and the trust flag
+   > was not. That was inferred from three config snapshots by picking the variable that correlated,
+   > without testing the counterfactual — `ailang-world` licensed *"trust=false can work"*, never
+   > *"trust=true alone cannot"*. Kept as a caution: with N=3 configs and no counterfactual, a
+   > correlation is not a mechanism.
+
+   Separately, `hasCompletedProjectOnboarding` **is** load-bearing for the #558 launchd-driver pin —
+   see PR #667, which gates the pin root on it after finding the pin would otherwise walk every fire
+   into this same probe-hang.
 
    **This bites only missions whose `MISSION_WORKDIR` is a NEW checkout.** A mission anchored on an
    already-used working tree (V1) never sees it, which is why four prior mission bootstraps did not
