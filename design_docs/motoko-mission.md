@@ -16,7 +16,9 @@ loop; every friction found here routes to a lane (AILANG fix / motoko extension 
 runs ONE iteration — the SAME unforked skill every mission uses (M-MISSION-PORTABILITY).
 The [motoko-analyzer](../.claude/skills/motoko-analyzer/SKILL.md) skill is the **diagnostic
 playbook** for "why is motoko failing" queue items (its five gates), not a competing outer loop.
-**Scheduling**: launchd `dev.ailang.mission-motoko`, `StartInterval=21600` (6h) — deliberately
+**Scheduling**: launchd `dev.ailang.mission-motoko`, `StartInterval=43200` (**12h** — corrected
+iteration 1 from a stale `21600`/6h; measured against the installed plist, and matching Mark's
+2026-08-12 note on #663 that the cadence is halved this week while quotas are watched) — deliberately
 staggered against V1 (5400s) and World (14400s), and deliberately slow: the queue is gated (see
 Guardrails) and the rig's quota is shared.
 **Log**: [motoko-mission-log.md](motoko-mission-log.md) — append-only, one entry per iteration.
@@ -80,6 +82,8 @@ scarcest model budget; the append-only history lives in the log + archive.
 > 2026-06-24 and had gone stale in a way that matters: three of its four stated goals are now solved
 > or superseded upstream (see CURRENT GOAL). It is kept because its *findings* remain valid evidence;
 > it is not kept as direction.
+
+## STATUS 2026-08-12 — ITERATION 1 COMPLETE: **THE FIRST ITERATION THAT ACTUALLY RAN. QUEUE ITEM 3 LANDED — 51 FORK COMMITS DISPOSITIONED — AND THE INDEPENDENT JUDGE BROKE 2 OF 16 `SUPERSEDED` ROWS, BOTH REAL.** Iteration 0 was bootstrap and the 09:11 fire died on V22's trust-dialog defect, so this is the loop's first end-to-end pass. Gate 1 found local `dev` **4 behind** origin with a clean tree; reconciled via `git checkout -B dev origin/dev` after measuring all four obligations with firing controls, and confirmed git wrote a **new inode** (35083371→35155023) so the in-flight driver kept its old fd. **Quorum-at-pick BLOCKED the migration doc** (both reviewers present, `absent_reviewers` empty, **$0.064**) and per rule 3f both objections were MEASURED rather than forwarded: `gemini-3-1-pro`'s "the four Port claims are unverified" is procedurally right and **substantively refuted 4/4** (it needs verification rows, not a redesign); `gpt5-6-sol`'s "Phase 0 is an unbounded wait" is **upheld — and its obvious remedy is vacuous**, because ABI 5.0 declares `[stability] level = "stable"` and so does the 2.2.0 we are pinned to and call unstable, so a gate on that field passes immediately and falsely. That is the sharpest negative result of the iteration and it is now queue item 4's starting point. The pick itself produced [m-motoko-fork-disposition.md](planned/m-motoko-fork-disposition.md) (`752254d3f`): **14 SUPERSEDED / 16 PORT / 14 DROP / 7 UNRESOLVED = 51**. Two instruments were retired before they could mislead: the range holds **52** commits but `ed61097` is a merge whose second-parent diff is empty, so 51 is the ceiling and the doc's own success criterion asked for a row that cannot exist; and **path existence is not a supersession signal here** — 80 of 94 touched paths survive upstream, but `agent_loop_v2.ail` is **4,005 B** there against **95,868 B** here, so the paths survive as facades while the substance moved, and a sweep built on that test would have been ~85% wrong. The `codex:gpt-5.6-sol` executor ran as pinned (probe rc=0, no lane degradation) and its evidence held under three first-party re-runs that reproduced exactly, file:line and denominators included — but the **sonnet** evaluator (generator≠judge: openai executor, anthropic judge) still **FAILED it 65/100** and was right twice, both in `SUPERSEDED`, the one verdict whose error is irreversible: **R16** cited `should_retry_stream_error` by name while its body is `retryable && retry_enabled && budget > 1` and `session.ail:2379` builds `code: "Internal"` with `retryable: false` **in the file the row cited**; **R34** named `phase_vocab.ail` as superseding a resolved-config broadcast, but that module is types and four candidate tokens measure **0** upstream against a firing 29-file control. Both were the failure mode the directive had named as the primary attack surface — a token match read as a behavioural equivalence — and both were reproduced by the controller before the downgrades were applied. The artifact landed as **REVISED-after-FAIL, not as a pass**, and the UNRESOLVED count went **up** under review, which is the direction to trust. Gate 3b: 13 of 14 checks green on the pushed SHA with `test` still running at the poll's bound, recorded as **not-yet-green** rather than waved through.
 
 ## STATUS 2026-08-12 — ITERATION 0 COMPLETE: **CHARTER RATIFIED BY MARK; QUORUM BLOCKED TWICE AND ALL FOUR OBJECTIONS WERE TRUE; THE V21 DRIVER DEFECT IS FIXED FOR v1+motoko.** Bootstrapped per [mission-bootstrap.md](../docs/docs/guides/mission-bootstrap.md) (separate checkout, env profile, plist, kill switch ON, dry-run isolation proven). Charter put through `ailang design-quorum` twice, both reviewers present both rounds, **metered $0.115 total**. Round 1 — `gpt5-6-sol`: no Premise Verification Log for operationally decisive claims. `gemini-3-1-pro`: clause 6.2 designs a fallback with no loud signal, **in a charter that cites the World mission losing five iterations to exactly that**. Both fixed (V1-V18 log added; 6.2 now requires a degradation-time notice). Round 2 — `gpt5-6-sol`: the *live* `codex→pi→opus` chain has none of the safeguards clause 6 demands of the future motoko lane. `gemini-3-1-pro`: V19 illegitimately inherited a **per-working-tree** build artifact claim from V1. The V19 fix (running `make quick-install && make build` here) then surfaced **V20 — `quick-install` writes the SHARED `~/go/bin/ailang`** that V1 and the eval rig resolve through, a cross-mission side effect no reviewer could have predicted. V21 measured the round-2 objection and **confirmed it: lane demotion is logged (driver 360/392) and never posted to the bookkeeping issue — a defect affecting v1, world AND motoko.** Re-quorum budget was exhausted (one re-run, per the guardrail), so V21 was escalated rather than ping-ponged. **Mark ratified the bar + queue and routed the V21 fix to this mission**, which then landed it in the driver: a degradation ledger accumulated at both probe loops and emitted ONCE, after every early exit and before the iteration starts, over the same two channels the driver's four existing report sites use. Deliberately NOT fail-closed on the post — aborting would make GitHub availability a hard dependency of every fire — but a failed post is itself loud, which is the one thing the old path never was. Tested at both halves without spending an iteration: five stubbed-channel tests over the real emit block (fires when degraded; **silent when healthy**; `gh` invoked; `gh` failure warns and does NOT abort; unset issue warns), plus a forced codex failure proving accumulation (probe rc=1 → handed to the pi lane). The seam between the two halves is now permanently testable: `MISSION_DRY_RUN=1` reports `lanes=ok` / `lanes=DEGRADED(n)…` — both arms exercised. **World is still owed the fix** and cannot take it by copy: its driver has drifted 233 lines (165 ailang-only / 68 World-only) and its fallback site is shaped differently (`_fb`), so it is handed over via the cross-mission channel rather than overwritten mid-flight.
 
@@ -313,17 +317,40 @@ are ordered so the UNGATED work runs first.
    probe's exit code/timeout, and the model actually used, **before execution continues**. Affects
    **v1, world and motoko** — so it needs Mark's routing call (driver is frozen core) and probably
    belongs to whichever mission owns the driver, not automatically to this one · 1 iteration
-3. [NEXT] **Disposition all 52 fork commits** · clause 3 · classify each as superseded / port / drop, with
-   evidence per row; output a table in the migration doc. Pure analysis, no gate dependency · 1-2 iterations
-4. **Output-headroom upstream issue** · clause 3 · file the case against `main_dst` (qwen3 arithmetic
-   + the `docx_lambda` failure) if Arni's #97 reply invites it · 1 iteration
-5. **fmt re-measurement instrument** · clause 3 · design HOW we re-prove the −74% tokens-to-pass
+3. [LANDED 2026-08-12 · iteration 1 · **Gate 3b: 13/14 green, macOS `test` still running at the
+   poll bound — a timed-out wait is not a green, so confirm before citing this as clean**]
+   **Disposition all 52 fork commits** · clause 3 ·
+   [m-motoko-fork-disposition.md](planned/m-motoko-fork-disposition.md), `752254d3f` —
+   **14 SUPERSEDED / 16 PORT / 14 DROP / 7 UNRESOLVED**. Split into its own file: the migration doc
+   is the decision, this is the ledger. Three corrections came out of it: the range is 52 commits
+   but only **51** are dispositionable (`ed61097` is a content-free merge); **path existence is not
+   a supersession signal** here (80 of 94 paths survive upstream as facades — `agent_loop_v2.ail`
+   is 4,005 B there vs 95,868 B here), which retired the obvious instrument before it was used; and
+   an independent evaluator **failed the first pass 65/100**, correctly, on 2 of 16 SUPERSEDED rows
+   — the one verdict whose error is irreversible. **The 7 UNRESOLVED rows are the honest residual**,
+   each naming its settling measurement; Phase 3 is not done until they are settled
+4. [NEXT] **Designer pass on the migration doc + re-quorum ONCE** · the quorum **BLOCKED** it at
+   pick time (2026-08-12, both reviewers present, $0.064), and both objections are still live.
+   Iteration 1 measured them rather than forwarding them (rule 3f), so the designer gets numbers,
+   not opinions: **obj 2** (`gemini-3-1-pro`: the four "Port — carry forward" claims are unverified)
+   is procedurally right and **substantively refuted 4/4** — it needs verification rows, not a
+   redesign. **obj 1** (`gpt5-6-sol`: Phase 0 is an unbounded wait with no machine-verifiable
+   stability condition) is **upheld, and its obvious remedy is vacuous** — ABI 5.0 declares
+   `[stability] level = "stable"` and so does the 2.2.0 we call unstable, so a gate on that field
+   passes immediately and falsely. A real bounded condition is a design call: candidates are
+   `#154` merged (objective, currently OPEN), the ABI version string unchanged for N days, or an
+   explicit word from Arni — plus a re-check cadence and a defined action on expiry · 1 iteration
+5. **Output-headroom upstream issue** · clause 3 · file the case against `main_dst` (qwen3 arithmetic
+   + the `docx_lambda` failure) if Arni's #97 reply invites it. **Iteration 1 note:** the
+   disposition's **R8 is UNRESOLVED** on exactly this question and names the settling measurement,
+   so this item now has a concrete instrument to cite rather than a recollection · 1 iteration
+6. **fmt re-measurement instrument** · clause 3 · design HOW we re-prove the −74% tokens-to-pass
    result on the new tree. Decides whether `motoko_ext_fmt` survives. **DST will NOT do this** —
    `fmt` is an effectful extension hook, precisely the class measured at 1-of-~40 coverage (see DST
    scope). Design a real instrument and price it honestly rather than assuming it is cheap ·
    1-2 iterations
-6. **Profile restoration design** · clause 4 · 5 profiles, 14 of 18 model entries · 1 iteration
-7. **Repin the stale OpenRouter motoko models** · clause 4 · measured live 2026-08-12: our
+7. **Profile restoration design** · clause 4 · 5 profiles, 14 of 18 model entries · 1 iteration
+8. **Repin the stale OpenRouter motoko models** · clause 4 · measured live 2026-08-12: our
    `motoko-or-kimi-k2-6` pins `moonshotai/kimi-k2.6` ($0.95/$4.00 per M), but
    **`moonshotai/kimi-k2.7-code` dominates it on every axis** — newer, code-specialised, and cheaper
    ($0.70/$3.50), same 262k context. `moonshotai/kimi-k3` also now exists (**1M context**, $3/$15 —
@@ -333,22 +360,22 @@ are ordered so the UNGATED work runs first.
    FLOATING alias, which would undo the `:floor` prompt-cache pinning we do deliberately).
    **Not a side edit** — a model repin moves the eval baseline, so it needs a deliberate before/after
    and a banked comparison, per the extension-fix baseline lesson · 1 iteration
-8. [PARKED — needs a green tree] **R3 — cross-model generality study** · clause 5 + the north star's
+9. [PARKED — needs a green tree] **R3 — cross-model generality study** · clause 5 + the north star's
    weak-model thesis · do motoko's gains hold with strong models, and are they AILANG-specific or
    general? This is the TEST of the mission's central claim and it has never been run. Carried
    forward from the archived charter. Split to measure: best-of-N is language-general (portable
    edge), contracts + Z3 are AILANG-specific (the moat)
-9. [PARKED — Phase-0 gated] **Extension port to ABI 5.0** · clauses 1+2 · 12 packages, pilot on
+10. [PARKED — Phase-0 gated] **Extension port to ABI 5.0** · clauses 1+2 · 12 packages, pilot on
    `test-dummy`, `compaction-ai` last
-10. [PARKED — Phase-0 gated] **Registry-vs-vendored reconciliation with Arni** · clause 2 · his
+11. [PARKED — Phase-0 gated] **Registry-vs-vendored reconciliation with Arni** · clause 2 · his
    `compaction_ai` "0.3.0" is 33,851 B; our published `0.3.2` is 9,454 B — same name, lower version,
    different code
-11. [PARKED — Phase-0 gated] **Re-prove and re-baseline** · clauses 3+4 · migration Phase 3
-12. [PARKED — needs a green tree first] **Motoko executor-lane graduation, design** · clause 6 ·
+12. [PARKED — Phase-0 gated] **Re-prove and re-baseline** · clauses 3+4 · migration Phase 3
+13. [PARKED — needs a green tree first] **Motoko executor-lane graduation, design** · clause 6 ·
    the `motoko:<model>` spawn recipe, bounded probe, fallback-chain placement, and the false-green
    guards. Design work can start once clause 1 holds (a motoko we can rebuild); the *trial* needs a
    real sprint. **Target World (`ailang-code` profile) first — not this Go repo.**
-13. [PARKED — after the executor-lane design item] **Motoko executor-lane gate trial** · clause 6 · real sprints, plan-faithful
+14. [PARKED — after the executor-lane design item] **Motoko executor-lane gate trial** · clause 6 · real sprints, plan-faithful
     landing of held-out tests. The DeepSeek-Flash precedent is the bar to clear: 3/3 real-sprint
     failures behind a clean `rc=0`, so a passing smoke proves nothing on its own.
 
