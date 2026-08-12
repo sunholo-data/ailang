@@ -72,6 +72,15 @@ cd "$T"
 DRV="$T/clone/tools/launchd/fake-driver.sh"
 export AILANG_DRIVER_PIN_DIR="$T/pinwt"
 
+# Fake HOME carrying a synthetic ~/.claude.json, so the ONBOARDING GATE is exercised for real
+# rather than switched off for the happy path. Marking the pin path onboarded here is what makes
+# tests 1-5 meaningful: if the gate regressed to always-refuse they would go red, and if it
+# regressed to always-allow test 7 would.
+export HOME="$T/home"; mkdir -p "$HOME"
+cat > "$HOME/.claude.json" <<JSON
+{"projects": {"$T/pinwt": {"hasCompletedProjectOnboarding": true}}}
+JSON
+
 echo "== 1. happy path: stale clone re-execs into committed origin/dev =="
 OUT=$(/bin/bash "$DRV" alpha beta 2>&1)
 check "status is pinned"                 "$OUT" "STATUS=pinned"
@@ -80,6 +89,13 @@ check "ROOT moved to the pin worktree"   "$OUT" "REPO=$T/pinwt"
 check "reads FRESH content, not stale"   "$OUT" "MARKER=FRESH-CONTENT"
 checkno "stale content is NOT read"      "$OUT" "MARKER=STALE-CONTENT"
 check "args survive the re-exec"         "$OUT" "ARGS=alpha beta"
+
+# REGRESSION: the SECOND fire must pin too. The first implementation matched `worktree list`
+# by string, which never matches a realpath-resolved entry, so fire 2 hit `worktree add` on an
+# existing directory and refused. A one-shot fix that reports STALE forever after.
+OUT2=$(/bin/bash "$DRV" 2>&1)
+check "second consecutive fire pins"     "$OUT2" "STATUS=pinned"
+check "and still reads FRESH content"    "$OUT2" "MARKER=FRESH-CONTENT"
 
 echo "== 2. control: the clone really was stale (instrument check) =="
 CTL=$(AILANG_DRIVER_PIN=0 /bin/bash "$DRV" 2>&1)
@@ -118,6 +134,38 @@ cp "$T/clone/tools/launchd/fake-driver.sh" "$T/plain/tools/launchd/"
 NR=$(/bin/bash "$T/plain/tools/launchd/fake-driver.sh" 2>&1)
 check "non-repo is STALE"                "$NR" "STATUS=STALE"
 check "reason names the repo problem"    "$NR" "not a git repository"
+
+echo "== 7. un-onboarded pin target => REFUSE, do not exec into a probe-hang =="
+# The regression this exists for: a pin worktree is by construction a path Claude Code has never
+# seen, and pinning into one makes every model probe hang to its timeout, then the driver refuses
+# with "NO usable model in prefs" — reading as a quota outage. Cost motoko its whole first fire
+# (charter V22). Staleness is the strictly smaller harm, so the pin must decline.
+printf '{"projects":{}}' > "$HOME/.claude.json"
+UO=$(/bin/bash "$DRV" 2>&1)
+check "refuses to pin"                   "$UO" "STATUS=STALE"
+check "names the onboarding cause"       "$UO" "is not onboarded in Claude Code"
+check "gives the exact human fix"        "$UO" "&& claude"
+check "fire still runs, unpinned"        "$UO" "MARKER=STALE-CONTENT"
+checkno "never reports pinned"           "$UO" "STATUS=pinned"
+
+echo "== 8. the gate reads the MEASURED flag, not the one the error text names =="
+# 76ee4056c: ailang-world has trust=false / onboarded=true and WORKS. So trust alone must not
+# satisfy the gate, or we would be right by accident and wrong in the reason.
+printf '{"projects":{"%s":{"hasTrustDialogAccepted":true}}}' "$T/pinwt" > "$HOME/.claude.json"
+TR=$(/bin/bash "$DRV" 2>&1)
+check "trust flag alone does NOT satisfy" "$TR" "STATUS=STALE"
+printf '{"projects":{"%s":{"hasCompletedProjectOnboarding":true}}}' "$T/pinwt" > "$HOME/.claude.json"
+OB=$(/bin/bash "$DRV" 2>&1)
+check "onboarding flag DOES satisfy"      "$OB" "STATUS=pinned"
+
+echo "== 9. undeterminable (no jq) fails SAFE, not open =="
+mkdir -p "$T/nojq"
+for b in git mktemp date basename dirname cat rm sleep kill grep tr tail printf mkdir; do
+  p=$(command -v $b 2>/dev/null); [ -n "$p" ] && ln -sf "$p" "$T/nojq/$b"
+done
+NJ=$(PATH="$T/nojq" /bin/bash "$DRV" 2>&1)
+check "no jq => STALE, not pinned"       "$NJ" "STATUS=STALE"
+check "says it could not verify"         "$NJ" "cannot verify Claude Code onboarding"
 
 echo ""
 echo "==== $PASS passed, $FAIL failed ===="

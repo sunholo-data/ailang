@@ -131,11 +131,23 @@ pin_root_to_committed_ref() {
 
   # Refresh (or create) the pin worktree. It is a throwaway checkout with no user work in it,
   # kept outside every dev clone, so --force can never overwrite in-progress changes.
+  #
+  # Existence is decided by ASKING THE WORKTREE, not by string-matching `worktree list`. git
+  # records the resolved realpath, so on any tree reached through a symlink — /var -> /private/var
+  # on macOS being the everyday case — the recorded path never equals the one we computed, the
+  # match silently fails, and we take the `add` branch against a directory that already exists.
+  # That fails, which means the pin would have worked exactly ONCE and reported STALE on every
+  # fire afterwards: a self-disabling fix, loud but useless. Caught by test 7, not by review.
   git -C "$src" worktree prune >/dev/null 2>&1
-  if git -C "$src" worktree list --porcelain 2>/dev/null | grep -qx "worktree $wt"; then
+  if [ -e "$wt/.git" ] && git -C "$wt" rev-parse --git-dir >/dev/null 2>&1; then
     if ! git -C "$wt" checkout --quiet --detach --force "$target" 2>/dev/null; then
       _pin_stale "pin worktree checkout $short failed at $wt"; return 1
     fi
+  elif [ -d "$wt" ]; then
+    # Occupied but not a usable worktree. Deliberately NOT rm -rf'd: AILANG_DRIVER_PIN_DIR is
+    # caller-supplied, and silently deleting a caller-named directory is a worse failure than
+    # declining to pin. A human clears it; until then this is loud on every fire.
+    _pin_stale "$wt exists but is not a usable git worktree — refusing to pin; remove it to re-enable"; return 1
   else
     mkdir -p "$(dirname "$wt")"
     if ! git -C "$src" worktree add --quiet --detach --force "$wt" "$target" 2>/dev/null; then
@@ -147,6 +159,29 @@ pin_root_to_committed_ref() {
   # a pin into a silent no-run. Control for the whole worktree step in one assertion.
   if [ ! -f "$wt/tools/launchd/$script" ]; then
     _pin_stale "$ref has no tools/launchd/$script — refusing to re-exec into a missing driver"; return 1
+  fi
+
+  # ONBOARDING GATE — the one that makes this whole mechanism dangerous by default.
+  # A checkout Claude Code has never seen makes headless `claude -p` block on a trust dialog it
+  # cannot display, so EVERY model probe hangs to its timeout and the driver refuses with "NO
+  # usable model in prefs" — indistinguishable from a quota outage. That cost the motoko mission
+  # its entire first unattended fire (charter V22, commit 76ee4056c). A pin worktree is BY
+  # CONSTRUCTION a path Claude Code has never seen, so pinning into an un-onboarded one trades
+  # stale-but-working for fresh-and-dead. Staleness is the strictly smaller harm: refuse.
+  #
+  # `hasCompletedProjectOnboarding`, NOT the `hasTrustDialogAccepted` the error text names —
+  # 76ee4056c measured all three checkouts and ailang-world (trust=false, onboarded=true) WORKS,
+  # which is the control proving the flag the message points at is not the gate.
+  #
+  # Undeterminable is treated as un-onboarded, deliberately: pinning blind risks ~12 min of hung
+  # probes and a dead loop, refusing costs staleness that is already reported. jq lives at
+  # /usr/bin/jq, inside launchd's default PATH, so its absence means something is genuinely wrong.
+  if [ -n "${AILANG_DRIVER_SKIP_ONBOARD_CHECK:-}" ]; then
+    :
+  elif ! command -v jq >/dev/null 2>&1; then
+    _pin_stale "cannot verify Claude Code onboarding for $wt (jq not found) — refusing to pin into a possibly-unusable checkout"; return 1
+  elif [ "$(jq -r --arg p "$wt" '.projects[$p].hasCompletedProjectOnboarding // false' "$HOME/.claude.json" 2>/dev/null)" != "true" ]; then
+    _pin_stale "$wt is not onboarded in Claude Code — every model probe would hang there (charter V22). Run once, interactively: cd $wt && claude"; return 1
   fi
 
   # MISSION_WORKDIR moves too, and that is the point: mission-control.sh:40 reads it AHEAD of
