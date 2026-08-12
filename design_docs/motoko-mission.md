@@ -81,7 +81,7 @@ scarcest model budget; the append-only history lives in the log + archive.
 > or superseded upstream (see CURRENT GOAL). It is kept because its *findings* remain valid evidence;
 > it is not kept as direction.
 
-## STATUS 2026-08-12 — ITERATION 0 RAN, **QUORUM BLOCKED TWICE, AND ALL FOUR OBJECTIONS WERE TRUE — RATIFICATION NOW NEEDS MARK.** Bootstrapped per [mission-bootstrap.md](../docs/docs/guides/mission-bootstrap.md) (separate checkout, env profile, plist, kill switch ON, dry-run isolation proven). Charter put through `ailang design-quorum` twice, both reviewers present both rounds, **metered $0.115 total**. Round 1 — `gpt5-6-sol`: no Premise Verification Log for operationally decisive claims. `gemini-3-1-pro`: clause 6.2 designs a fallback with no loud signal, **in a charter that cites the World mission losing five iterations to exactly that**. Both fixed (V1-V18 log added; 6.2 now requires a degradation-time notice). Round 2 — `gpt5-6-sol`: the *live* `codex→pi→opus` chain has none of the safeguards clause 6 demands of the future motoko lane. `gemini-3-1-pro`: V19 illegitimately inherited a **per-working-tree** build artifact claim from V1. The V19 fix (running `make quick-install && make build` here) then surfaced **V20 — `quick-install` writes the SHARED `~/go/bin/ailang`** that V1 and the eval rig resolve through, a cross-mission side effect no reviewer could have predicted. V21 measured the round-2 objection and **confirmed it: lane demotion is logged (driver 360/392) and never posted to the bookkeeping issue — a defect affecting v1, world AND motoko.** Re-quorum budget is exhausted (one re-run, per the guardrail), so the remaining objection is escalated rather than ping-ponged: it is queue item 2 and needs Mark's routing call, since the driver is frozen core and the fix is not this mission's to own. **The bar and queue remain proposed, not agreed.**
+## STATUS 2026-08-12 — ITERATION 0 COMPLETE: **CHARTER RATIFIED BY MARK; QUORUM BLOCKED TWICE AND ALL FOUR OBJECTIONS WERE TRUE; THE V21 DRIVER DEFECT IS FIXED FOR v1+motoko.** Bootstrapped per [mission-bootstrap.md](../docs/docs/guides/mission-bootstrap.md) (separate checkout, env profile, plist, kill switch ON, dry-run isolation proven). Charter put through `ailang design-quorum` twice, both reviewers present both rounds, **metered $0.115 total**. Round 1 — `gpt5-6-sol`: no Premise Verification Log for operationally decisive claims. `gemini-3-1-pro`: clause 6.2 designs a fallback with no loud signal, **in a charter that cites the World mission losing five iterations to exactly that**. Both fixed (V1-V18 log added; 6.2 now requires a degradation-time notice). Round 2 — `gpt5-6-sol`: the *live* `codex→pi→opus` chain has none of the safeguards clause 6 demands of the future motoko lane. `gemini-3-1-pro`: V19 illegitimately inherited a **per-working-tree** build artifact claim from V1. The V19 fix (running `make quick-install && make build` here) then surfaced **V20 — `quick-install` writes the SHARED `~/go/bin/ailang`** that V1 and the eval rig resolve through, a cross-mission side effect no reviewer could have predicted. V21 measured the round-2 objection and **confirmed it: lane demotion is logged (driver 360/392) and never posted to the bookkeeping issue — a defect affecting v1, world AND motoko.** Re-quorum budget was exhausted (one re-run, per the guardrail), so V21 was escalated rather than ping-ponged. **Mark ratified the bar + queue and routed the V21 fix to this mission**, which then landed it in the driver: a degradation ledger accumulated at both probe loops and emitted ONCE, after every early exit and before the iteration starts, over the same two channels the driver's four existing report sites use. Deliberately NOT fail-closed on the post — aborting would make GitHub availability a hard dependency of every fire — but a failed post is itself loud, which is the one thing the old path never was. Tested at both halves without spending an iteration: five stubbed-channel tests over the real emit block (fires when degraded; **silent when healthy**; `gh` invoked; `gh` failure warns and does NOT abort; unset issue warns), plus a forced codex failure proving accumulation (probe rc=1 → handed to the pi lane). The seam between the two halves is now permanently testable: `MISSION_DRY_RUN=1` reports `lanes=ok` / `lanes=DEGRADED(n)…` — both arms exercised. **World is still owed the fix** and cannot take it by copy: its driver has drifted 233 lines (165 ailang-only / 68 World-only) and its fallback site is shaped differently (`_fb`), so it is handed over via the cross-mission channel rather than overwritten mid-flight.
 
 ## Premise Verification Log
 
@@ -121,9 +121,10 @@ or queue-ordering premise is UNVERIFIED.** New claims added later carry a row or
 
 ## CURRENT GOAL
 
-1. **Iteration 0 (definition)**: ratify the bar (below) with Mark through the design quorum, then
-   score the queue against it. Output: an agreed ordered queue in this doc.
-2. **Then**: work the queue through the inner loop (design-doc → sprint-plan → execute → evaluate),
+1. ~~**Iteration 0 (definition)**: ratify the bar with Mark through the design quorum.~~ **DONE
+   2026-08-12** — quorum blocked twice, all four objections measured and true, three fixed in-doc
+   and the fourth (V21) escalated; Mark ratified the bar and queue, and routed the V21 driver fix.
+2. **Now**: work the queue through the inner loop (design-doc → sprint-plan → execute → evaluate),
    one sprint-sized item per iteration, recording routing evidence every time.
 
 **What changed under the old charter, and why this is a rewrite rather than an edit.** The June
@@ -134,7 +135,7 @@ not, which was the actual bug; (3) is **partly superseded** — `motoko-ext-empt
 reimplements our empty-response retry as a pure budgeted `on_solver_candidate`. Only (4) survives
 intact. Meanwhile the whole tree beneath us has been rewritten (see the queue's epic).
 
-## The bar — what "motoko is the best AILANG harness, honestly measured" means (RATIFY at iteration 0)
+## The bar — what "motoko is the best AILANG harness, honestly measured" means (**RATIFIED by Mark, 2026-08-12**)
 
 - **Clause 1 — It builds and gates green from source.** The tree our evals run is rebuildable and
   passes `make check_core && make verify_extensions`. A harness we cannot rebuild is not a harness
@@ -261,9 +262,9 @@ planner / executor / evaluator, generator≠judge enforced). Overrides for THIS 
 adopt Arni's phase-core/DST refactor, re-prove our improvements. The epic is gated; the items below
 are ordered so the UNGATED work runs first.
 
-1. [NEXT] **Iteration 0 — ratify this charter** · all clauses · bar + queue + guardrails through
-   `ailang design-quorum` with Mark · 1 iteration
-2. **Loud lane-degradation notice in the driver** · clause 6 + Critical Principle 2 · **CROSS-MISSION
+1. [LANDED 2026-08-12] **Iteration 0 — ratify this charter** · all clauses · quorum x2 ($0.115),
+   4/4 objections true; bar + queue **RATIFIED by Mark**
+2. [LANDED 2026-08-12 for v1+motoko · **World still owed**] **Loud lane-degradation notice in the driver** · clause 6 + Critical Principle 2 · **CROSS-MISSION
    DEFECT, found by `gpt5-6-sol` at iteration 0 and measured as V21.** When the codex or pi lane
    probe fails, the driver `log`s the demotion (lines 360/392) and continues — it never posts to the
    bookkeeping issue, so the human channel sees nothing. That is precisely how World lost five

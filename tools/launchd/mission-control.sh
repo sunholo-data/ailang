@@ -332,6 +332,18 @@ export MISSION_PLANNER_FALLBACK="${MISSION_PLANNER_FALLBACK:-opus}"
 # env honest, which is what the routing-evidence row reports.
 _cx_probed=":"   # models probed this fire (dedupe: planner+executor share the default model)
 _cx_failed=":"   # models whose probe failed
+# LANE-DEGRADATION LEDGER (motoko mission iteration 0, 2026-08-12; Mark ratified the fix).
+# Until now a lane demotion was `log`ged here and NOWHERE ELSE — none of this driver's four
+# `gh issue comment` sites covers it, so the human channel saw nothing. That is exactly how the
+# World mission spent FIVE iterations (18/19/21/22) silently demoted from codex to opus, each
+# mis-attributed to a spent quota, before iter-23 found the real cause. A fallback visible only in
+# a routing-evidence row written AFTER the fact is still a silent fallback (Critical Principle 2):
+# by then the iteration has already run on the wrong lane.
+# Accumulate here; emit ONCE below, AFTER every early exit and BEFORE the iteration starts.
+# bash 3.2 (L19/L21): no associative arrays — ';'-delimited "model=rc", newline-delimited ledger.
+_lane_degraded=""   # newline-delimited markdown bullets, one per degraded role
+_cx_rcmap=""        # "model=rc;" so the emit site names the probe's exit code, not just the lane
+_pi_rcmap=""
 for role in PLANNER EXECUTOR; do
   var="MISSION_${role}_MODEL"; val="${!var}"
   case "$val" in codex:*)
@@ -348,6 +360,7 @@ for role in PLANNER EXECUTOR; do
         else cx_why="probe failed (rc=$cx_rc)"; fi
         log "codex model '$cx_model' unusable: $cx_why"
         log "codex probe output: $(printf '%s' "$cx_out" | tail -3 | tr '\n' ' ')"
+        _cx_rcmap="${_cx_rcmap}${cx_model}=${cx_rc};"
       fi
     ;; esac
     case "$_cx_failed" in *":${cx_model}:"*)
@@ -358,6 +371,10 @@ for role in PLANNER EXECUTOR; do
       # a bare format string: the value is data, and a stray % would be a directive.
       fbvar="MISSION_${role}_FALLBACK"; fb="${!fbvar:-opus}"
       log "codex ${role_lc} lane -> falling back to '$fb' for this fire (model '$cx_model')"
+      _cx_rc_for=$(printf '%s' "$_cx_rcmap" | tr ';' '\n' | grep "^${cx_model}=" | head -1 | cut -d= -f2)
+      [ -n "$_cx_rc_for" ] || _cx_rc_for="unknown"
+      _lane_degraded="${_lane_degraded}
+- \`${role_lc}\`: **codex** lane \`${cx_model}\` unusable (probe rc=\`${_cx_rc_for}\`$([ "$_cx_rc_for" = "124" ] && printf ' — TIMEOUT after %ss' "$PROBE_TIMEOUT")) → handed to \`${fb}\`"
       printf -v "$var" '%s' "$fb"; export "$var"
     ;; esac
   ;; esac
@@ -385,11 +402,16 @@ for role in PLANNER EXECUTOR; do
         else pi_why="probe failed (rc=$pi_rc)"; fi
         log "pi model '$pi_model' unusable: $pi_why"
         log "pi probe output: $(printf '%s' "$pi_out" | tail -3 | tr '\n' ' ')"
+        _pi_rcmap="${_pi_rcmap}${pi_model}=${pi_rc};"
       fi
     ;; esac
     case "$_pi_failed" in *":${pi_model}:"*)
       role_lc=$(printf '%s' "$role" | tr 'A-Z' 'a-z')   # ${role,,} is bash-4.0-only (L21)
       log "pi ${role_lc} lane -> falling back to opus for this fire (model '$pi_model')"
+      _pi_rc_for=$(printf '%s' "$_pi_rcmap" | tr ';' '\n' | grep "^${pi_model}=" | head -1 | cut -d= -f2)
+      [ -n "$_pi_rc_for" ] || _pi_rc_for="unknown"
+      _lane_degraded="${_lane_degraded}
+- \`${role_lc}\`: **pi** lane \`${pi_model}\` unusable (probe rc=\`${_pi_rc_for}\`$([ "$_pi_rc_for" = "124" ] && printf ' — TIMEOUT after %ss' "$PROBE_TIMEOUT")) → handed to \`opus\` (end of chain)"
       printf -v "$var" 'opus'; export "$var"
     ;; esac
   ;; esac
@@ -435,9 +457,21 @@ if ! command -v claude >/dev/null 2>&1; then
   exit 1
 fi
 
-# 3. Dry run — verify wiring without spending tokens (no probes fired).
+# 3. Dry run — verify wiring without spending tokens (probes DO fire; they are ~1 reply-token).
+# `lanes=` reports the degradation ledger's state HERE, ~90 lines before the notice's own emit
+# site. That is deliberate: it makes the seam between accumulation (the probe loops) and emission
+# testable without spending an iteration, which is otherwise the one part of the notice path a
+# cheap test cannot reach. Prove BOTH arms:
+#   MISSION_PROFILE=<m> MISSION_DRY_RUN=1                                      -> lanes=ok
+#   MISSION_PROFILE=<m> MISSION_DRY_RUN=1 MISSION_EXECUTOR_MODEL=codex:bogus \
+#     MISSION_PROBE_TIMEOUT=10                                                 -> lanes=DEGRADED(...)
 if [ "${MISSION_DRY_RUN:-0}" = "1" ]; then
-  log "DRY RUN ok: mission=$MISSION_NAME repo-slug=$MISSION_REPO doc=$MISSION_DOC workdir=$REPO pidfile=$PIDFILE prefs=$PREFS timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL"; exit 0
+  if [ -n "$_lane_degraded" ]; then
+    _dry_lanes="DEGRADED($(printf '%s' "$_lane_degraded" | grep -c '^- '))$(printf '%s' "$_lane_degraded" | tr '\n' ' ')"
+  else
+    _dry_lanes="ok"
+  fi
+  log "DRY RUN ok: mission=$MISSION_NAME repo-slug=$MISSION_REPO doc=$MISSION_DOC workdir=$REPO pidfile=$PIDFILE prefs=$PREFS timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL | lanes=$_dry_lanes"; exit 0
 fi
 
 # 4. Select the model (probe doubles as the subscription-auth check: API keys
@@ -503,6 +537,33 @@ fi
 # silent 10-minute rc=0 with two noisy bounds that already exist. A live background agent keeps the
 # tree non-idle, so the stall watchdog cannot false-fire on it.
 export CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS="${CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS:-0}"
+
+# LANE-DEGRADATION NOTICE — emit the ledger accumulated by the probe loops (see their header).
+# HERE, not at the probe: this point is after EVERY early exit (kill switch, overlap yield, dry
+# run, no-model refusal) and after the one-shot override, so a fire that does not actually run
+# can never post a notice, and the notice names the model the iteration is ABOUT to use rather
+# than the one it was configured with. Two channels, mirroring the driver's four existing
+# report sites: `ailang messages` (controlplane) + the bookkeeping issue.
+# NOT fail-closed on the post: aborting the iteration would make GitHub availability a hard
+# dependency of every fire. Instead, a post failure is itself LOUD in the driver log — the one
+# thing the old code never was.
+if [ -n "$_lane_degraded" ]; then
+  _deg_body="**Executor/planner lane degraded on this fire** — recorded before the iteration ran.
+${_lane_degraded}
+
+Controller: \`${MODEL}\` (${MODEL_WHY}). Effective roles now: designer=\`${MISSION_DESIGNER_MODEL}\` planner=\`${MISSION_PLANNER_MODEL}\` executor=\`${MISSION_EXECUTOR_MODEL}\` evaluator=\`${MISSION_EVALUATOR_MODEL}\`.
+Driver log: \`${LOG}\`. If this repeats across fires, the lane is down — check the bucket, and check that this mission's plist carries a PATH that reaches the CLI (the World mission lost five iterations to exactly that)."
+  log "LANE DEGRADED this fire:$(printf '%s' "$_lane_degraded" | tr '\n' ' ')"
+  ailang messages send controlplane "$_deg_body" \
+    --title "Mission ${MISSION_NAME}: executor/planner lane degraded" --from "$MSG_FROM" 2>/dev/null \
+    || log "WARNING: lane-degradation notice FAILED to send via ailang messages"
+  if [ -n "${MISSION_GH_ISSUE:-}" ]; then
+    gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" --body "$_deg_body" >/dev/null 2>&1 \
+      || log "WARNING: lane-degradation notice FAILED to post to issue #${MISSION_GH_ISSUE}"
+  else
+    log "WARNING: lane degraded but MISSION_GH_ISSUE is unset — no issue notice possible"
+  fi
+fi
 
 log "=== mission iteration starting (controller=$MODEL via ${MODEL_WHY}, timeout=${HARD_TIMEOUT}s | bg-wait-ceiling=${CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS}ms | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL) ==="
 

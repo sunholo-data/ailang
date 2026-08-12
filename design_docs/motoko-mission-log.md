@@ -29,7 +29,7 @@ forward to look productive.
 
 ---
 
-## 0 — 2026-08-12 — charter ratification: quorum blocked twice, all four objections true, one escalated to Mark
+## 0 — 2026-08-12 — charter RATIFIED; quorum blocked twice, all four objections true; the V21 driver defect fixed
 
 **Picked**: Iteration 0 — ratify the rewritten charter. Not a sprint by construction (bootstrap
 guide step 6); the deliverable is an agreed bar + queue, run attended with Mark.
@@ -44,7 +44,8 @@ tokens.
 
 **Shipped**: charter + log + archive + bookkeeping issue #663 (`bc2fc3c2d`, `98ffaf5cf`); clause 6
 (executor-fleet graduation) added on Mark's direction; Premise Verification Log V1-V21 added under
-quorum pressure. **NOT ratified** — see Ruled out.
+quorum pressure. **Bar + queue RATIFIED by Mark**, who also routed the V21 driver fix here — landed in
+`tools/launchd/mission-control.sh` (lane-degradation ledger + one emit after every early exit).
 
 **Routing evidence**: model=gpt5-6-sol,gemini-3-1-pro task-class=design-review
   round1-score=blocked rounds=2 corrections=4
@@ -70,11 +71,18 @@ quorum pressure. **NOT ratified** — see Ruled out.
   (pid 71129, 70 min elapsed) during this very bootstrap, so a shared tree would have contended
   immediately rather than eventually.
 
-**Retro lane**: backlog — queue item 2 (loud lane-degradation notice in the driver). Deliberately NOT
-taken as a skill-fix this iteration: the driver is frozen core, and the defect affects **v1, world
-and motoko**, so ownership is Mark's routing call rather than this mission's to assume. No skill edit
-spent (Gate 5 budget intact).
+**Retro lane**: **driver-fix, LANDED.** Mark ratified the bar + queue and routed V21 here, so it was
+taken this iteration rather than deferred. A degradation ledger accumulates at both probe loops and
+emits ONCE, after every early exit and before the iteration starts, over the driver's existing two
+channels. Not fail-closed on the post (that would make GitHub availability a hard dependency of every
+fire) — but a failed post is loud, which the old path never was. Coverage without spending an
+iteration: 5 stubbed-channel tests over the real emit block (fires when degraded; silent when
+healthy; `gh` invoked; `gh` failure warns and does not abort; unset issue warns) + a forced codex
+probe failure proving accumulation. The seam between the halves is now permanently testable —
+`MISSION_DRY_RUN=1` reports `lanes=ok` / `lanes=DEGRADED(n)…`, both arms exercised. No Gate-5 skill
+edit spent (this was driver, not skill).
 
-**Next**: Mark ratifies (or amends) the bar + queue. Then iteration 1 picks queue item 3
-(disposition the 52 fork commits) — the top item that is neither gated on #154 nor awaiting a routing
-decision.
+**Next**: iteration 1 picks queue item 3 (disposition the 52 fork commits) — the top item neither
+gated on #154 nor awaiting a routing decision. **Carried debt**: World is still owed the V21 fix and
+cannot take it by copy (233 lines of drift, differently-shaped fallback site); handed over via the
+cross-mission channel.
