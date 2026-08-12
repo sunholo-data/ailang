@@ -9428,3 +9428,94 @@ The edit that did land (`02c552339`) answers **`mission-world`'s iter-72 proposa
 **Gate 5 — one skill edit: none taken.** This iteration's frictions were both instrument failures I caught myself (the `-rlc` control, the `MOD010` probe), and in both cases the existing rules — 3a(i) and 3a(i-d) — worked exactly as written: a paired control fired and identified the instrument rather than the data. A rule that catches its own class does not need rewording. The one candidate with genuine novelty is that **an external quality gate converted a correctly-named residual into a pin**, i.e. Sonar found the thing rule 3i(d) told me to merely document; that is an argument for treating new-code coverage as a first-class non-vacuity signal rather than a nuisance, but it is one instance and the bar is two. Pre-registered as a watch-item. The standing structural item remains `D-11` (the codex lane mandates a background spawn, so no wording closes Standing rule 7's failure mode), unanswered.
 
 **Next.** `#617` is **COMPLETE** (M1–M4, AC-1..AC-7; doc and sprint plan moved to `implemented/v1_1_0/`, plans travelling with their doc). The queue head after it is **`m-bytecode-vm-parity-bugs`** — the clause-2 SOUND residue, ≤2 days — unless a directive or a genuine regression outranks it. Parked on Mark, unchanged: `D-1`, `D-2`, `D-7`, `D-8`, `D-9`, `D-10`, `D-11` on `#635`; **no new decision item this iteration**.
+
+---
+
+## 187 — 2026-08-12 — #505 fixed and closed; the P0 had no queue row for 8 days
+
+**Picked**: `m-bytecode-pattern-arity-fix` (#505). NOT the queue head as declared by iter-186 —
+that was `m-bytecode-vm-parity-bugs`, whose row still correctly reads PARKED `needs-human-review`
+on the A2 harness-classification question. Mark's option-C ruling (2026-08-04) split that doc and
+spun the P0 out into `m-bytecode-pattern-arity-fix.md`, "ready to sprint immediately", and **nothing
+ever wrote a queue row for it**. Charter mentions at pick time: `pattern-arity` = 0 (same-file
+controls: `bytecode` = 15, `#505` = 2). A landed human decision produced an invisible P0.
+
+**Reality check**: bug live-reproduced at HEAD `8ecebc0e1` before any routing.
+`ailang run --bytecode --caps IO examples/runnable/recursion_quicksort.ail` → `Quicksort: [3]` /
+`sortBy: [3]` at rc=0, no error, no fallback line; evaluator arm (known-positive control) → the
+correct `[1, 1, 2, 3, 4, 5, 6, 9]`. Minimal repro showed it **wider than the doc claimed**: the
+`[x]` arm swallows every list of length >= 1, so the `[a,b]`/`[a,b,c]` arms are never reached.
+Isolated single-arm modules then confirmed the overflow bug independently at n=2 and n=3 and
+confirmed underflow was already correct. Died-mid-flight sweep clean (only open PR on our account
+was the known `#613` DO-NOT-MERGE draft; no `.wt-iter187`).
+
+**Shipped**: PR [#684](https://github.com/sunholo-data/ailang/pull/684) → squash `0625059d3`,
+**`#505` CLOSED**. Five commits: doc revision `8a859d6a2`, plan `06ecd2469`, M1 red-first
+`05ec3020a`, M2 fix `4646ca198`, M3 drills `6d1f35287`, plus the Gate-5 skill edit. Gate 3b GREEN:
+SHA-addressed `checks=22`, `pending=0`, ZERO not-green, 4/4 REQUIRED (`build`/`docs-gate`/`lint`/
+`test`) from real `pull_request` events; count climbed 18 → 22 across the poll, so `pending=0` was
+required rather than inferred. Evaluator **sonnet PASS 110/120 round 1, zero blocking**.
+Also filed **`#683`** (`make fmt-check-ail` enumerates a nonexistent `stdlib/` — 400 files swept
+vs 446, and its empty-set branch is a vacuous green).
+
+The fix: `internal/gen/lower/match.go`, `lowerPatternCond`, `case *core.ListPattern` emitted
+`stmt.OpGte` for every list pattern except the empty one. Now `OpEq` when
+`core.ListPattern.Tail == nil`, `OpGte` when non-nil; the old empty-list special case is just the
+`Tail == nil, n == 0` instance of that rule and collapses into it.
+
+**Routing evidence**:
+- model=codex:gpt-5.6-sol task-class=design round1-score=n/a rounds=1 corrections=0
+  provider=codex agent=codex cost=quota-bucket:codex  (ROTATION designer; state advanced from
+  `claude:claude-fable-5`. Handed the controller's measurements, not the objections — rule 3f.)
+- model=opus task-class=plan round1-score=n/a rounds=1 corrections=2
+  provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus
+  (lane DERIVED by `derive-planner-lane.sh` → `opus fail-closed:planner-lane-field-missing`, used
+  VERBATIM; no codex probe ran for this role. corrections=2 = the two facts it refuted, below.)
+- model=codex:gpt-5.6-sol task-class=execute round1-score=n/a rounds=1 corrections=1
+  provider=codex agent=codex cost=quota-bucket:codex  (~17 min; 1 self-reported deviation)
+- model=sonnet task-class=evaluate round1-score=110 rounds=1 corrections=0
+  provider=anthropic agent=claude-code cost=quota-bucket:weekly-sonnet
+- quorum R1 + R2: provider=mixed cost=$0.031 + $0.039 = **$0.070 metered total**
+  (`absent_reviewers` **[]** in BOTH rounds — no N-1 degrade, no hole to name.)
+- generator≠judge held: executor codex, evaluator sonnet, distinct providers.
+
+**Ruled out**:
+- *"`go build ./...` rc=0 is a usable mutation-drill build gate"* — **REFUTED by the planner**,
+  confirmed first-party: it is RED AT BASE (`cmd/wasm` only builds under `GOOS=js`), so the drill
+  I wrote into my own executor directive could never have passed for any mutation. Rule 3e(a).
+- *"`tests/golden/bytecode/` is a fixture directory"* — **REFUTED**, it is a Go test package
+  (4 `.go` files, `package bytecode_golden_test`) driving `pipeline→lower→compiler→vm` in-process,
+  so it can never observe the CLI's stderr, `--caps IO` or exit code: AC1/AC3 were unimplementable
+  there as written.
+- *"the plan's `if false && p.Tail == nil` drill mutant reproduces `#505`"* — **REFUTED**, and this
+  is the executor's self-reported deviation. It also makes the EMPTY pattern match everything, so
+  quicksort prints `[]` rather than `[3]` — a strictly stronger perturbation. Adjudicated in both
+  arms by the controller (rule 3h(b)) and independently reproduced by the evaluator.
+- *"the `stdlib` wrong-path enumerator is systemic"* — **REFUTED**, `make fmt-check-ail` is the
+  only instance; the other `stdlib` hits are `tests/stdlib/` (exists) and target names.
+- *"the parent doc's quorum artifacts are on disk"* — REFUTED, zero `m-bytecode-*` artifacts exist
+  in `.ailang/state/mission-quorum/` (control: 93 artifacts present). Noted, not chased.
+- ⚠ **One of my own instruments was vacuous**: the first blast-radius check hashed with `md5`,
+  which does not exist on this machine, so both arms were the empty string and all four programs
+  printed MATCH. Re-run with `shasum -a 256` gave four mutually-distinct hashes and a real MATCH.
+
+**Retro lane**: skill-fix — `.claude/skills/mission-control/SKILL.md`, rule 3j extended with
+**"a gate's coverage is a property of its ENUMERATOR"**. Two frictions: `mission-world` iter-77
+(proposed; a case-sensitive `find -name` let `SNEAKY.AIL` past an allowlist gate whose four refusal
+branches were all mutation-killed) and V1's own, corroborated first-party before adoption per the
+sibling-claim ghost discipline (`make fmt-check-ail` enumerating a `stdlib/` that has never existed
+— 400 vs 446 files, 46 outside the gate, plus a green-checkmark empty-set branch). Filed as `#683`.
+Also this iteration, though not the skill lane: the **main checkout was 7 commits behind for the
+3rd consecutive iteration**, which is why the running skill was not origin's. Iters 185 and 186
+both diagnosed it and both routed around it. Mark's ratified standing fast-forward authorization
+covers exactly this state; preconditions were **measured** (0 ahead; dirty ∩ incoming EMPTY with
+the control firing; dirty set = the known rig-synced files), backed up, `merge --ff-only`, tracked
+dirty files re-verified byte-identical. **Divergence CLOSED**, and the new rule confirmed live in
+the running copy at the end of the iteration.
+
+**Next**: `#616` (`D-10`) unless a directive or regression outranks it. The parent
+`m-bytecode-vm-parity-bugs` stays PARKED on the A2 semantic-effect-extraction question. New
+decision item **`D-12`** for Mark: a human ruling that unblocks a doc does not create its queue
+row, and this one hid a P0 for 8 days — should the loop auto-row an unblocked doc at ruling time?
+Disclosed residual worth a follow-up doc: nested tail sub-patterns (`::(x, [])`) still over-match,
+because `lowerPatternCond` never recurses into `p.Tail`.

@@ -2,39 +2,43 @@
 > **Contract**: ≤40 lines, overwritten by mission-control Gate 4 every iteration (history lives in
 > the charter/log). Fresh session = THIS + MEMORY.md. Humans steer via the bookkeeping issue.
 
-**Updated**: 2026-08-12 ~19:55 local (iteration 186)
+**Updated**: 2026-08-12 ~23:30 local (iteration 187)
 
 ## Now
-- **v0.33.0** · merge `905722f28` — **`#617` M4 LANDED, `#617` COMPLETE** (M1–M4, AC-1..AC-7;
-  PR #681). Gate 3b GREEN: `checks=21`, `pending=0`, zero NOT-GREEN, 4/4 REQUIRED from real
-  `pull_request` events. Evaluator **sonnet PASS 98/100 r1, zero blocking**. `$0.00`.
-- 🟢 `ailang check` now warns `LIST_TAKE_AFTER_FLATMAP`, pointing at `takeFlatMap`. **Reachability
-  verified through the real CLI** — the point, since `#617` *is* a shipped-but-unreachable defect.
+- **v0.33.0** · merge `0625059d3` — **`#505` FIXED AND CLOSED** (PR #684). Gate 3b GREEN:
+  `checks=22`, `pending=0`, zero NOT-GREEN, 4/4 REQUIRED from real `pull_request` events.
+  Evaluator **sonnet PASS 110/120 r1, zero blocking**. `metered=$0.07` (two quorum rounds).
+- 🟢 Fixed-length list patterns now match **exactly n** under `--bytecode`. `recursion_quicksort`
+  printed `[3]` at rc=0 with no error and no fallback; it prints the right list now.
 
-## 🔴 The plan would have shipped a detector that never fires
-It specified matching `App(take, [n, App(flatMap, …)])`; elaboration **always** emits ANF
-(`let tmp = flatMap(f, xs) in take(n, tmp)`). The codex executor **self-reported** it; I
-adjudicated both arms — neutering the ANF arm LANDS, BUILDS (rc=0), reds `/direct_trap` with
-`got warnings: []`. Plan-as-written = a green suite pinning nothing: `#617`'s own failure mode
-recreated inside the sprint fixing it (3rd form — iter-182 frozen prompt, iter-183 no CI gate).
-**Rule 3h(d) vindicated**: a "deviations are suspect" prior loses this finding.
+## 🔴 The bug was invisible because nobody wrote the queue row
+Mark's option-C ruling (2026-08-04) split the parent doc and spun this P0 out as ready-to-sprint.
+The charter mentioned `pattern-arity` **0** times (controls: `bytecode` 15, `#505` 2), so for 8
+days iterations declared the still-PARKED *parent* as Next while an unblocked P0 sat unrowed.
+A landed human decision does not create its own queue row → **`D-12`**.
 
 ## Also worth knowing
-- The unexercised nested-`App` arm was *named* (rule 3i(d)), then **pinned** once SonarCloud
-  red-lit new-code coverage on exactly those lines (control: `dev` green ⇒ not inherited).
-- **`#680`** filed: nested composition warns only on the OUTERMOST trap (1 of 2). Two of my own
-  instruments failed and were caught by their paired controls.
+- **Quorum blocked it twice and was right both times.** Both rounds were *premise* objections;
+  rule 3f says measure, not forward. Doing so shrank the fix site from three packages to one
+  function + one operator, and round 2 caught that my own repro's arm ordering masked n=2/n=3.
+- **The pin is a gate**: restoring `OpGte` LANDS, BUILDS, reds both new tests — and the inverse
+  arm (`-skip` them) is rc=0 across all of `./cmd/ailang`. Nothing else caught `#505`.
+- **Planner refuted two of my VERIFIED-BY-ME facts**, both confirmed first-party: `go build ./...`
+  is red at base (`cmd/wasm`), and `tests/golden/bytecode/` is a Go test *package*, so the doc's
+  prescribed AC1/AC3 home was unimplementable.
+- **`#683`** filed: `make fmt-check-ail` enumerates `stdlib/`, which has never existed — 400 files
+  swept vs 446, so 46 stdlib files sit outside a gate that prints a green checkmark.
 
 ## Queued
-**Next: `m-bytecode-vm-parity-bugs`** (clause-2 SOUND residue, ≤2d). Then **`#616`** `D-10` ·
-**`#619`** `D-9` · **`#618`** `D-8` · #636 · #613 · #604/#614 · #649 · #651 · #654 · #669 · #670 · #680.
+**Next: `#616`** (`D-10`). Then **`#619`** `D-9` · **`#618`** `D-8` · #636 · #613 · #604/#614 ·
+#649 · #651 · #654 · #669 · #670 · #680 · #683. Parent `m-bytecode-vm-parity-bugs` stays PARKED on A2.
 
 ## Loop + routing
-Controller **opus** · executor **codex `gpt-5.6-sol`** (~13 min; no designer/planner — doc
-quorum-resolved, plan existed) · evaluator **sonnet**; generator≠judge held. ⚠ **Running skill
-still NOT origin's, 2nd iteration**: `~/.claude/skills/…` → *main checkout*, 5 behind but clean —
-driver-pin fixed the *code* path, not the *skill* path.
+Controller **opus** · designer **codex `gpt-5.6-sol`** (rotation) · planner **opus** (derived lane,
+`fail-closed:planner-lane-field-missing`) · executor **codex `gpt-5.6-sol`** · evaluator **sonnet**;
+generator≠judge held. ✅ **Skill divergence CLOSED** — main checkout was 7 behind for 3 iterations;
+ff'd under Mark's ratified authorization (preconditions measured), running skill == origin.
 
 ## PARKED ON MARK — #635
-**`D-11`** slot-death guard (driver `rc=0` when elapsed ≪ claimed work?) · **`D-10`** `#616` ·
-**`D-9`** `#619` · **`D-1`** `#613` · **`D-2`** `#604`/`#614` · **`D-7`** codex · **`D-8`** `#618`.
+**`D-12`** unrowed-P0 gap (NEW) · **`D-11`** slot-death guard · **`D-10`** `#616` · **`D-9`** `#619` ·
+**`D-1`** `#613` · **`D-2`** `#604`/`#614` · **`D-7`** codex · **`D-8`** `#618`.
