@@ -14,10 +14,16 @@ import (
 // with early exit. They avoid materializing full intermediate lists, preventing
 // OOM on large inputs.
 //
-// Semantic note: For effectful f, takeFlatMap(n, f, xs) evaluates f only for
-// as many input elements as needed to produce the first n output elements.
-// This is intentional short-circuiting — the bounded behavior is explicit
-// in the function name.
+// Semantic note: for a PURE f, takeFlatMap(n, f, xs) applies f only to as many
+// input elements as are needed to produce the first n output elements. This is
+// intentional short-circuiting — the bounded behavior is explicit in the
+// function name.
+//
+// This says nothing about effectful f, which cannot reach these builtins at
+// all: makeTakeFlatMapType builds its callback with T.Func(a).Returns(listB)
+// and no .Effects(...)/.RowTail(...), so the effect row is closed and empty
+// and an effectful closure fails to unify against it. An effectful variant is
+// deferred.
 
 func init() {
 	registerTakeMap()
