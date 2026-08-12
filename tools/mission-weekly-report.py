@@ -152,6 +152,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--hours", type=int, default=168)
     ap.add_argument("--full", action="store_true")
+    ap.add_argument("--mission", help="scope to ONE mission (v1|world|motoko). Each mission rotates "
+                                      "its bookkeeping thread independently, so a fleet-wide report "
+                                      "posted at rotation would land 3x, two thirds of it off-topic "
+                                      "for the thread it is in. This emits that mission's rows plus a "
+                                      "one-line fleet comparison for context.")
     a = ap.parse_args()
     since = (datetime.now() - timedelta(hours=a.hours)).strftime("%Y-%m-%d")
     W = 200 if a.full else 96
@@ -166,7 +171,11 @@ def main():
     ftok = next((l.split(":", 1)[1].strip() for l in fleet.split("\n")
                  if l.strip().startswith("Tokens:")), "n/a")
 
-    print("# Mission fleet — weekly report\n")
+    sel = a.mission
+    if sel and sel not in [m[0] for m in MISSIONS]:
+        sys.exit(f"unknown mission {sel!r}; expected one of {[m[0] for m in MISSIONS]}")
+    title = f"Mission `{sel}` — weekly report" if sel else "Mission fleet — weekly report"
+    print(f"# {title}\n")
     print(f"**Window** last {a.hours}h (since {since}) · **generated** {datetime.now():%Y-%m-%d %H:%M}\n")
 
     rows, landed, decisions, plan = [], {}, {}, {}
@@ -200,7 +209,7 @@ def main():
 
     print("| mission | iters (wk/all) | commits | lines+ | metered $ | opus | opus/it | refuted | ref/it |")
     print("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
-    for r in rows:
+    for r in ([x for x in rows if x["n"] == sel] if sel else rows):
         tilde = "~" if r["shared"] else ""
         print("| **%s** | %d / %d | %s%s | %s%s | $%.2f | %d | %s | %d | %s |" % (
             r["n"], r["it"], r["tot"], tilde, r["c"], tilde, r["churn"], r["cost"], r["opus"],
@@ -214,7 +223,7 @@ def main():
           f"fleet tokens **{ftok}** (all chains incl. evals; per-mission not exposed)\n")
 
     print("## Landed\n")
-    for name, _, _, _, _, _ in MISSIONS:
+    for name, _, _, _, _, _ in [m for m in MISSIONS if not sel or m[0] == sel]:
         its = landed.get(name) or []
         if not its:
             print(f"**{name}** — no iterations in window\n"); continue
@@ -231,7 +240,7 @@ def main():
     print("the better predictor because iterations overrun the interval and the overlap guard yields.\n")
     print("| mission | expected iters | blocked | next |")
     print("|---|---:|---:|---|")
-    for nm, _, _, _, _, _ in MISSIONS:
+    for nm, _, _, _, _, _ in [m for m in MISSIONS if not sel or m[0] == sel]:
         nxt, blk, nom = plan.get(nm, (None, 0, None))
         obs = next((r["it"] for r in rows if r["n"] == nm), 0)
         print(f"| **{nm}** | {obs}{f' ({nom})' if nom else ''} | {blk} | {nxt or '—'} |")
@@ -240,7 +249,7 @@ def main():
     print("## Needs you\n")
     print("_Conservative — under-reports by design; the charter is the source of truth._\n")
     any_d = False
-    for name, _, _, _, _, _ in MISSIONS:
+    for name, _, _, _, _, _ in [m for m in MISSIONS if not sel or m[0] == sel]:
         for d in decisions.get(name) or []:
             print(f"- **{name}** — {d}"); any_d = True
     if not any_d:
