@@ -411,19 +411,14 @@ func lowerPatternCond(scrutinee stmt.Expr, pat core.CorePattern) stmt.Expr {
 		// List pattern — check length + tag checks for constructor sub-patterns.
 		lenExpr := stmt.BuiltinCall{Name: "_len", Args: []stmt.Expr{scrutinee}}
 		var cond stmt.Expr
-		if len(p.Elements) == 0 && p.Tail == nil {
-			// Match empty list.
-			cond = stmt.BinOp{
-				Op:    stmt.OpEq,
-				Left:  lenExpr,
-				Right: stmt.LitInt{Value: 0},
-			}
-		} else {
-			cond = stmt.BinOp{
-				Op:    stmt.OpGte,
-				Left:  lenExpr,
-				Right: stmt.LitInt{Value: int64(len(p.Elements))},
-			}
+		lenOp := stmt.OpGte
+		if p.Tail == nil {
+			lenOp = stmt.OpEq
+		}
+		cond = stmt.BinOp{
+			Op:    lenOp,
+			Left:  lenExpr,
+			Right: stmt.LitInt{Value: int64(len(p.Elements))},
 		}
 		// Tag checks for constructor sub-patterns at each index.
 		for i, elem := range p.Elements {
