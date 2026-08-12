@@ -312,7 +312,7 @@ are ordered so the UNGATED work runs first.
    probe's exit code/timeout, and the model actually used, **before execution continues**. Affects
    **v1, world and motoko** — so it needs Mark's routing call (driver is frozen core) and probably
    belongs to whichever mission owns the driver, not automatically to this one · 1 iteration
-3. **Disposition all 52 fork commits** · clause 3 · classify each as superseded / port / drop, with
+3. [NEXT] **Disposition all 52 fork commits** · clause 3 · classify each as superseded / port / drop, with
    evidence per row; output a table in the migration doc. Pure analysis, no gate dependency · 1-2 iterations
 4. **Output-headroom upstream issue** · clause 3 · file the case against `main_dst` (qwen3 arithmetic
    + the `docx_lambda` failure) if Arni's #97 reply invites it · 1 iteration
