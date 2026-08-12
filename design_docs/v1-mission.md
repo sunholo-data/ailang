@@ -1654,6 +1654,43 @@ frozen; contracts projection live).
   evaluator when the gemini lane is unavailable). Rationale: the opus bucket dried Thursday
   this week at ~55% duty cycle; these two move the remaining Anthropic-heavy sub-agent roles
   off-bucket so the week stretches toward Monday-to-Monday.
+- **[BLOCKED-ON-EVIDENCE — do NOT pick before the gate below is measured] m-driver-pin-rollout**
+  (`#558`; mission infra, not a language change; does not gate v1.0). **Prerequisite already
+  shipped**: PR `#666` (2026-08-12, attended) adds `tools/launchd/lib/pin-root.sh` and wires it
+  into `mission-control.sh` ONLY — the driver re-execs from a worktree pinned to committed
+  `origin/dev`, moving the driver, the skill and the charter together, and posting *"driver ran
+  UNPINNED"* on both human channels when the pin fails. This item is the rollout to the
+  remaining **five** entry points: `nightly-eval.sh`, `nightly-lang-eval.sh`,
+  `mission-recovery.sh`, `os-rotation-filler.sh`, `rig-watchdog.sh`.
+
+  **Why one root, not five patches** (Principle 3): everything a fire reads hangs off `REPO` at
+  `mission-control.sh:40`, so the driver (`$0`), the skill (`cwd`) and the charter (`cwd`) go
+  stale *together*. Measured four times — `#556`'s retired qwen3.5 running 24/24 (iter-131), a
+  stale skill (iter-128), a stale charter (iter-129), and `564cc4640` inert on V1 at 12 commits
+  behind (2026-08-12) while both sibling missions had it. Two one-time human reconciles, zero
+  durable fixes, until `#666`.
+
+  **INERT UNTIL RECONCILED, and say so rather than reporting the capability as gained** — the
+  same trap that deferred `m-planner-codex-lane` at iter-131. `#666` cannot take effect until
+  the shared clone receives it once, and that is a human branch op (the standing fast-forward
+  authorisation above does NOT cover it: local dev is 1 ahead, not 0). **Order matters:** merge
+  `#666` FIRST, reconcile SECOND — reconciling first brings the lane fix but not the pin, and
+  the clone simply starts drifting again.
+
+  **THE GATE (evidence, not a delay):** ≥3 consecutive V1 fires logging `driver pin: running
+  committed origin/dev @ <sha>` with a normal iteration completing. Read it from
+  `/tmp/ailang-mission-control.log`, not from the file's presence on disk — measuring the wrong
+  copy is the same class of error as the bug. **Known limit of that gate, stated up front:** three
+  green fires exercise the re-exec, the root move and the fetch, but NOT the failure path, which
+  production will not produce on demand. That arm is covered only by `make test-launchd-drivers`
+  (37 assertions, bash 3.2 CI job) — so a passing gate is evidence about the happy path alone and
+  must not be reported as whole-fix confidence.
+
+  **Not in scope, and not ours to schedule:** `ailang-world` is a **different repo**
+  (`sunholo-data/ailang-world`) whose driver is a hand-synced *fork* — 513 lines against this
+  repo's 671, with a differently-shaped fallback site. It can never take this by copy, only by
+  port. Handed over on the cross-mission channel as `msg_20260812_085746`; World's loop decides
+  when. Do not "fix" it from here.
 - **[QUORUM-BLOCKED 2026-08-11 (iter-179) — doc LANDED, PR `#657` → squash `0a84f5377`, Gate 3b GREEN
   (4/4 required, `checks=20`, zero not-green). **Reclassified P0**: `#616` is a STATIC EFFECT-SOUNDNESS
   hole, not the DX/error-message item it was queued as — a function with NO effect annotation calling a
