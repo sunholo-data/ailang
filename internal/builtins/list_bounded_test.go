@@ -131,8 +131,7 @@ func TestTakeMapEmptyInput(t *testing.T) {
 }
 
 func TestTakeMapEarlyExit(t *testing.T) {
-	timeout := time.AfterFunc(time.Second, func() { panic("TestTakeMapEarlyExit timed out") })
-	defer timeout.Stop()
+	defer failAfter(t, time.Second)()
 
 	ctx := newTestEffCtx()
 	callCount := 0
@@ -147,16 +146,7 @@ func TestTakeMapEarlyExit(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	got := toInts(t, result)
-	want := []int{1, 2, 3}
-	if len(got) != len(want) {
-		t.Fatalf("length mismatch: got %v, want %v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("index %d: got %d, want %d", i, got[i], want[i])
-		}
-	}
+	assertInts(t, toInts(t, result), []int{1, 2, 3})
 
 	if callCount != 3 {
 		t.Errorf("expected f to be called 3 times, got %d", callCount)
@@ -303,8 +293,7 @@ func TestTakeFlatMapEmptyInput(t *testing.T) {
 }
 
 func TestTakeFlatMapEarlyExit(t *testing.T) {
-	timeout := time.AfterFunc(time.Second, func() { panic("TestTakeFlatMapEarlyExit timed out") })
-	defer timeout.Stop()
+	defer failAfter(t, time.Second)()
 
 	ctx := newTestEffCtx()
 	callCount := 0
@@ -325,17 +314,8 @@ func TestTakeFlatMapEarlyExit(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	got := toInts(t, result)
 	// f(1)=[10,11,12], f(2)=[20,21,22] → take 5 → [10,11,12,20,21]
-	expected := []int{10, 11, 12, 20, 21}
-	if len(got) != len(expected) {
-		t.Fatalf("length mismatch: got %v, want %v", got, expected)
-	}
-	for i := range expected {
-		if got[i] != expected[i] {
-			t.Errorf("index %d: got %d, want %d", i, got[i], expected[i])
-		}
-	}
+	assertInts(t, toInts(t, result), []int{10, 11, 12, 20, 21})
 
 	// Should only call f twice (3 from first + 2 from second = 5 total)
 	if callCount != 2 {
@@ -523,5 +503,29 @@ func BenchmarkTakeFlatMap(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = takeFlatMapImpl(ctx, args)
+	}
+}
+
+// failAfter panics if the returned func is not called within d. Both bounded
+// builtins are early-exit by contract, so a hang is the failure mode worth
+// bounding explicitly rather than leaving to the package timeout.
+func failAfter(t *testing.T, d time.Duration) func() {
+	t.Helper()
+	timer := time.AfterFunc(d, func() { panic(t.Name() + " timed out") })
+	return func() { timer.Stop() }
+}
+
+// assertInts compares a decoded builtin result against an exact expected
+// prefix. Length is fatal (a short result makes the index reads meaningless);
+// element mismatches are not, so one run reports every difference.
+func assertInts(t *testing.T, got, want []int) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("length mismatch: got %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("index %d: got %d, want %d", i, got[i], want[i])
+		}
 	}
 }
