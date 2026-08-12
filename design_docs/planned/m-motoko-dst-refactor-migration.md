@@ -3,9 +3,11 @@
 **Status**: Planned (2026-08-11)
 **Target**: rolling — operational; no AILANG core changes
 **Priority**: P0 — once [#154](https://github.com/arniwesth/motoko_agent/pull/154) lands on `main`, our fork is 805 commits behind a tree whose ABI it cannot build against. Every motoko eval depends on closing this.
-**Estimated**: 3 phases; Phase 1 is ~12 mechanical package ports, Phase 3 is the open-ended one
+**Estimated**: 3 phases; Phase 1 is ~12 mechanical package ports; Phase 0 and Phase 3 each carry a
+fixed timebox (28 mission fires ≈ 14 days at the 12h interval) with a fail-closed expiry action —
+neither is open-ended
 **Owner**: sunholo (we co-develop motoko with @arniwesth)
-**Dependencies**: #154 merged to `origin/main`; Arni's extension republish (he states the ABI "is still subject to change" — Phase 1 must not start before it settles)
+**Dependencies**: #154 merged to `origin/main`; Arni's extension republish (he states the ABI "is still subject to change" — Phase 1 must not start before it settles; bounded by the Phase 0 gate below)
 
 ## TL;DR
 
@@ -75,26 +77,37 @@ improvement that still measures positive — and without carrying forward any th
 |---|---|---|---|---|
 | Adopt or fork permanently | adopt `main_dst` / stay on ours | **Adopt** (ratified by Mark 2026-08-11) | Mark — **decided** | Very high |
 | Extension source of truth | our registry / his vendored `{path=...}` | **Registry**, and reconcile his vendored copies back to it | Mark + Arni | High — this is the drift that cost an audit once ([MOTOKO.md](../../MOTOKO.md) §3) |
-| When to start Phase 1 | now / after ABI settles | **After** — he says the ABI is "still subject to change" | us | Medium — starting early means porting twice |
+| When to start Phase 1 | now / after ABI settles | **After** — he says the ABI is "still subject to change"; bounded by the Phase 0 gate | us | Medium — starting early means porting twice |
 | `motoko_ext_fmt` disposition | port / upstream / drop | **Port first, propose upstream once re-measured** | us | Low |
 | Profiles | restore ours / adopt his | **Restore ours** — they encode our A/B design, not his | us | Low |
 
 ### Design Freeze
 
-Check off before sprint-executor starts:
+**Check off before PHASE 1 starts** (reworded 2026-08-12 R2 per `gemini-3-1-pro`'s verbatim fix —
+the previous "before sprint-executor starts" was a **deadlock**: Phase 0 is the thing the executor
+runs to *evaluate* G1–G4, so gating the executor's start on G1–G4 permanently blocks the doc and
+silently restores the unbounded manual wait R1 rejected):
 
-- [ ] #154 merged to `origin/main`
-- [ ] Arni's extension republish landed and ABI 5.0 declared stable
-- [ ] Registry-vs-vendored reconciliation agreed with Arni (see Risks)
+- [ ] Phase 0 gate predicates all TRUE in one evaluation — G1 (#154 MERGED), G2 (`packages/` on
+      motoko_agent's `origin/main`), G3 (registry exposes 5.x at a pinned digest), G4 (compile
+      probe green). These are **evaluated by Phase 0, not checked by hand** — the boxes record
+      Phase 0's verdict, they do not precede it
+- [ ] Registry-vs-vendored reconciliation agreed with Arni (see Risks) — **queue item 11**
 - [ ] Phase 1 port target confirmed as ABI 5.0 (not a later 6.x)
+- [ ] **OPEN — parked for Mark (R2, `gpt5-6-sol`)**: is Arni's explicit ABI-settled acknowledgement
+      a *gate predicate* (G5) or an accepted risk? The ratified charter guardrail says the port does
+      not start until "#154 is merged **AND** Arni has declared the ABI stable", so the charter reads
+      as G5-required — but this doc's *Declared residual* currently starts Phase 1 on G1–G4 alone.
+      Until that is resolved the two documents disagree and **Phase 1 must not start**. See the
+      Quorum revision log
 
 ## Solution Design
 
 ### Overview
 
-Three sequential phases behind a gate. Phase 0 is a wait, not work. Phase 1 is mechanical and
-sizeable. Phase 3 is the one with genuine unknowns, and is deliberately last so it runs on a green
-tree.
+Three sequential phases behind a gate. Phase 0 is a bounded gate, not work. Phase 1 is mechanical
+and sizeable. Phase 3 is the one with genuine unknowns, and is deliberately last so it runs on a
+green tree; it is timeboxed, with unresolved items promoted to named blockers rather than left open.
 
 ### Architecture: what actually changed
 
@@ -130,8 +143,53 @@ Two independent changes land together:
 
 ### Implementation Plan
 
-**Phase 0 — Gate (no work, blocking).** Wait for #154 on `main` and the extension republish.
-Track via `pr-monitor`. Starting Phase 1 against a moving ABI means porting twice.
+**Phase 0 — Bounded, fail-closed gate (no port work).** Rewritten 2026-08-12 after the design
+quorum correctly rejected the original as an unbounded wait. The exit condition is a
+**conjunction of four machine-checkable predicates**, evaluated once per mission fire, under a
+fixed evaluation budget with a defined action on expiry. All four must be TRUE in the same
+evaluation for Phase 1 to start. Starting Phase 1 against a moving ABI means porting twice.
+
+| # | Predicate | Command | Observed 2026-08-12 |
+|---|---|---|---|
+| G1 | #154 is MERGED | `gh pr view 154 --repo arniwesth/motoko_agent --json state,mergedAt` → `state == "MERGED"`, `mergedAt` non-null | `state=OPEN`, merged `-` → **FALSE** (V17) |
+| G2 | The DST tree is reachable from **motoko_agent's** `origin/main`: `packages/motoko-ext-abi/ailang.toml` resolves there | `U=/Users/voightkampff/dev/arniwesth/motoko_agent; git -C "$U" fetch origin && git -C "$U" cat-file -e origin/main:packages/motoko-ext-abi/ailang.toml` exits 0 — **and the mandatory control** `git -C "$U" cat-file -e origin/main:README.md` also exits 0 | Predicate `rc=128` (*"path … does not exist in 'origin/main'"*), control `rc=0` → **FALSE, for the right reason** (V20). `packages/` arrives *with* the merge, so this is "#154 merged" as seen from the tree itself, not a duplicate of the PR API's word for it |
+| G3 | The registry exposes ABI 5.x at a pinnable digest | `curl -s https://registry.ailang.sunholo.com/api/packages/sunholo/motoko_ext_abi \| jq -r '.index.versions'` contains a `5.` version | `latest=2.2.0`, `versions=1.0.0,2.0.0,2.1.0,2.2.0` → **FALSE** (V19) |
+| G4 | Compile probe: the pilot port compiles against the *published* ABI | port `motoko_ext_test_dummy`'s trivial hooks to the `Outcome` shape in a scratch worktree, repin its `motoko_ext_abi` dep to the registry 5.x, `ailang check` exits 0 | unrunnable while G3 is FALSE → **FALSE** |
+
+**Digest pinning (G3 detail).** The registry publishes a per-version `content_hash` (V19: 2.2.0 is
+`sha256:60d6ec4684d6bf80d1ec800efda7aa598ccbebcbf529dd6c760fd10c5c101956`). On the first evaluation
+where a 5.x version appears, record its `content_hash` in this section; every subsequent evaluation
+requires that exact digest. A digest change under the same version number flips G3 back to FALSE —
+that is direct evidence the ABI is still moving, which is precisely what this gate exists to detect.
+
+**Explicitly NOT a predicate: `[stability] level`.** The obvious machine-readable form of "ABI
+declared stable" is vacuous, and was measured so before being excluded (V18): `origin/main_dst`'s
+ABI 5.0 `ailang.toml` already carries `[stability] level = "stable"`, and the registry reports
+`stability: stable` for the 2.2.0 line we are pinned to *and call unstable*. A gate on that field
+passes immediately and falsely. Future readers: do not reach for it.
+
+**Cadence and timebox.** Predicates are evaluated at most once per mission fire — the charter's
+launchd `StartInterval=43200` (12h); no dedicated poller is invented. Budget: **28 evaluations
+(~14 days), counted from the first fire after this revision lands.** Each evaluation ends exactly
+one of three ways: all four TRUE → Phase 1 starts; any FALSE with budget remaining → idle
+iteration (a correct outcome per the mission guardrail — the queue works other items meanwhile);
+budget exhausted → the expiry action below. There is no fourth outcome; in particular, expiry does
+**not** start Phase 1.
+
+**Action on expiry (fail-closed).** Emit a structured BLOCKED result: a mission-log entry plus a
+post to issue #663 (the mission's existing human-facing channel) recording each predicate's last
+observed value, **escalated to Mark**. The mission queue continues with other backlog items; this
+doc stays Planned but stops consuming iterations. Re-arming the gate for another 28-evaluation
+window is a human decision by Mark, recorded in this section — never automatic.
+
+**Declared residual — what the predicates do and do not cover.** G1–G4 prove: the PR is merged,
+the packages are on `main`, a 5.x ABI is published at a fixed digest, and our pilot package
+type-checks against it. They do **not** prove that Arni considers the ABI settled — "declared
+stable" is a human judgement, and V18 shows the machine-readable field that appears to encode it
+is vacuous. No predicate substitutes for his word, and over-claiming the gate would be worse than
+naming the gap. Phase 1 starts on G1–G4 alone, with the "ABI changes again mid-port" risk row
+still live; an explicit ack from Arni (PR comment or message), recorded here when it arrives, is
+what retires that risk — not this gate.
 
 **Phase 1 — Port 12 extensions to ABI 5.0.** For each of `ailang-docs`, `a2a`,
 `decision-framework`, `context-mode`, `compaction-ai`, `compose`, `microrag`, `mcp`, `fmt`,
@@ -144,25 +202,45 @@ Track via `pr-monitor`. Starting Phase 1 against a moving ABI means porting twic
 6. `make check_core && make verify_extensions`.
 
 Do `test-dummy` **first** as the pilot — it is the smallest and its hooks are trivial, so it
-isolates ABI mechanics from behavioural complexity. Do `compaction-ai` **last**: it is the one
-package whose `on_pre_step` genuinely needs all ten effects via `ai_step`, per the ABI's own
-commentary.
+isolates ABI mechanics from behavioural complexity. Do `compaction-ai` **last** — but for
+**behavioural complexity, not for its effect row**. ~~it is the one package whose `on_pre_step`
+genuinely needs all ten effects via `ai_step`, per the ABI's own commentary.~~ **Struck 2026-08-12
+(R2, V26).** That sentence cited, as authority, a passage upstream has since *retracted*:
+`on_pre_step` is `! {AI, IO, Trace}` — **three** effects — and the ABI's own commentary says the
+ten-effect reading "was taken as given … over-declared by SEVEN". The claim also contradicted this
+doc's own ABI-break table, where `on_pre_step` is 9→3 and only `on_tool_handle` reaches ten
+(9 + `Rand`). The ordering still holds; its stated reason did not.
 
 **Phase 2 — Restore profiles and re-point the harness.** `main_dst` carries `ollama` but not
 `cloud`, `ollama_docs`, `ollama_dp7`, `ollama_fmt`, or `ollama_microrag`. 14 of our 18
 `motoko_profile:` entries reference the missing ones. Recreate them under `.motoko/config/`, then
 verify each resolves. These encode our A/B design (one variable per arm) and are ours to maintain.
 
-**Phase 3 — Disposition all 52 commits and re-prove what remains.** Classify each:
+**Phase 3 — Settle the disposition residual and re-prove what remains (timeboxed).** The
+disposition itself already exists: all **51** non-merge fork commits (V14) are classified in
+[m-motoko-fork-disposition.md](m-motoko-fork-disposition.md) — 14 SUPERSEDED / 16 PORT / 14 DROP /
+**7 UNRESOLVED**, each UNRESOLVED row naming the measurement that settles it. That ledger is the
+working surface for this phase; its rows are not duplicated here. Classifications:
 
 - **Superseded — drop.** Already confirmed: the compaction calibration, the elision ladder, and
   system-message pinning (see below); the empty-response retry (`087e68e`), which `main_dst`
   reimplements as `motoko-ext-empty-stop-guard` — a pure budgeted `on_solver_candidate` returning
   `ContinueWithFeedback`, cleaner than our loop-level retry.
-- **Port — carry forward.** `motoko_ext_fmt`, the eval profiles, `MOTOKO_MAX_STEPS`, AST autoread,
-  whitespace-tolerant `EditFile`, the DP7 done-gate via `ailang ai-check`.
+- **Port — carry forward.** `motoko_ext_fmt` (V6), the eval profiles (V7), `MOTOKO_MAX_STEPS`
+  (V21), AST autoread (V22), whitespace-tolerant `EditFile` (V23), the DP7 done-gate via
+  `ailang ai-check` (V24). The last four were asserted without upstream verification in the first
+  draft — the quorum caught it; each now has a Verification Log row establishing upstream absence
+  with a same-scope control, and they stay on this list because they are substantiated, not
+  because the draft said so.
 - **Re-prove.** Anything whose value was measured on the old tree gets re-measured on the new one
   *before* we argue to keep it. `motoko_ext_fmt` is the headline case.
+
+**Timebox.** Phase 3 gets a fixed budget of **28 mission fires (~14 days at the 12h interval),
+counted from the first fire after Phase 2's success metric is green.** At expiry, every still-open
+item — an unsettled UNRESOLVED row, or a re-proof not yet run — is emitted as an explicit blocker
+(mission-log entry plus a #663 post naming the commit and its settling measurement, escalated to
+Mark), and the phase **closes with named blockers** rather than remaining open. A promoted blocker
+is a correct outcome; an open-ended phase is not.
 
 ### Compaction: what survives, what doesn't
 
@@ -227,12 +305,80 @@ wrong before by asserting rather than checking (ground conclusions in data, not 
 | V14 | **The fork delta is 52 commits but only 51 are dispositionable** | `git rev-list --count origin/main_dst..HEAD` → **52**; `--no-merges` → **51**; `git log --merges` names the one, `ed61097` | Confirmed 2026-08-12 (iteration 1, re-measured first-party against `main_dst@303d869`). V2 counted correctly; the Success Criterion built on it was off-by-one *in kind*, asking for a row that cannot exist |
 | V15 | That merge carries no unique content, so dropping it loses nothing | `git diff ed61097^2 ed61097` → **empty** (the merge is content-equivalent to its second parent); `git diff ed61097^1 ed61097` → 2 files, i.e. it is a real merge, not a no-op commit | Confirmed. Both arms measured: the second-parent diff being empty is the finding, the first-parent diff being non-empty is the control proving the instrument reads this merge at all |
 | V16 | **Path-existence is NOT a usable supersession signal for this fork** — the headline files survive upstream as facades | for each path our 51 commits touch, `git cat-file -e origin/main_dst:<path>`: **80 of 94** rows come back `UPSTREAM_HAS`. But `agent_loop_v2.ail` is **4,005 B** upstream vs **95,868 B** ours, `compaction.ail` **5,804** vs **17,543**. Controls both fire: `.motoko/config/cloud/config.json` → GONE (matches V7), `README.md` → present | Confirmed — and it **retires an instrument before it was used**. A naive does-the-file-still-exist test would label ~85% of our commits "upstream still has this surface" and under-detect supersession almost completely. Disposition must be judged on **content**, not on path survival |
+| V17 | #154 still OPEN on 2026-08-12 — the Phase 0 gate is genuinely closed, not already-passed | `gh pr view 154 --repo arniwesth/motoko_agent --json state,mergedAt,baseRefName` | `state=OPEN`, merged `-`, base `main`, updated 2026-08-11T19:37:56Z. **Control**: `gh pr list --repo arniwesth/motoko_agent --state merged --limit 3` → #152, #151, #150 all MERGED 2026-08-11 — the same instrument can see a MERGED state |
+| V18 | **`[stability] level = "stable"` is VACUOUS as a Phase 0 predicate** | `git -C /Users/voightkampff/dev/arniwesth/motoko_agent show origin/main_dst:packages/motoko-ext-abi/ailang.toml \| grep -A1 '^\[stability\]'` (the 5.0 tree); `curl -s https://registry.ailang.sunholo.com/api/packages/sunholo/motoko_ext_abi \| jq -r .index.stability` (the 2.2.0 line we pin) | Both read `stable` — including the 2.2.0 line we are pinned to **and call unstable**. A gate on this field passes immediately and falsely; excluded from Phase 0 by design, and recorded here so a future reader does not reach for the obvious answer |
+| V19 | Registry does NOT yet expose ABI 5.0 — a non-vacuous, discriminating predicate | `curl -s https://registry.ailang.sunholo.com/api/packages/sunholo/motoko_ext_abi \| jq -r '"latest=\(.index.latest) versions=\(.index.versions\|join(","))"'` | `latest=2.2.0 versions=1.0.0,2.0.0,2.1.0,2.2.0` — currently FALSE, flips TRUE only on Arni's republish. **Control**: the version list is non-empty (4 entries), so "5.0 absent" is a measurement, not an endpoint outage. The registry publishes a per-version `content_hash` (2.2.0 → `sha256:60d6ec4684d6bf80d1ec800efda7aa598ccbebcbf529dd6c760fd10c5c101956`), so a 5.x digest pins the same way |
+| V20 | `packages/` does not exist on `origin/main` at all — #154 merging IS the vendored packages landing | `U=/Users/voightkampff/dev/arniwesth/motoko_agent; git -C "$U" show origin/main:packages/motoko-ext-abi/ailang.toml` | `fatal: path 'packages/motoko-ext-abi/ailang.toml' does not exist in 'origin/main'`. **Controls**: same path on `origin/main_dst` resolves and is 5.0; `origin/main:README.md` resolves (`rc=0`), so the ref itself is fine and only the path is absent. Upstream `main_dst` HEAD at measurement: `303d869` |
+| V25 | **`origin/main` is AMBIGUOUS across this mission's three repos, and the ambiguous form of G2 is vacuously FALSE forever** — caught at iteration 2 when the controller ran the predicate table verbatim instead of reading it | the draft's `git cat-file -e origin/main:packages/…` with no `-C`, run from the mission checkout (`sunholo-data/ailang`) | `fatal: invalid object name 'origin/main'`, **rc=128** — this repo's default branch is `dev` and it has no `origin/main` (control: `git rev-parse --verify origin/dev` resolves). The wrong-repo error and the genuine path-absent answer **both return 128**, so an `exits 0` test cannot tell them apart, and G2 would have read FALSE forever — including after #154 merges. Fixed by pinning the repo with `-C` and pairing the predicate with a `README.md` control that proves the ref resolves. General form: **a predicate evaluated in a multi-repo mission must name its repo, and "it failed" is not "it is false"** |
+| V21 | `MOTOKO_MAX_STEPS` env-var override absent upstream | grep `MOTOKO_MAX_STEPS` over `origin/main_dst` vs `mk-ast` | Upstream **0** files / mk-ast **1**. Nuance recorded: the generic token `max_steps` matches **70** upstream files — the upstream *concept* exists; what is ours is the ENV-VAR OVERRIDE, and this row claims only that. **Control (same scope)**: `MOTOKO_` → 612 upstream files — the instrument fires in that tree |
+| V22 | AST autoread absent upstream | grep `autoread` and `auto_read` over both trees | `autoread`: upstream **0** / mk-ast **2** files; `auto_read`: 0 both sides. **Control (same scope)**: `agent_loop` → 116 upstream / 21 mk-ast — the instrument fires in both trees |
+| V23 | Whitespace-tolerant `EditFile` absent upstream | grep the `ws_*` helper names over both trees | Upstream **0**; ours live at mk-ast `src/core/tool_runtime.ail:847` (`apply_edit_ws_tolerant`), test at `:860`. **Control (same scope)**: `src` matches 819 upstream files; `EditFile` → 51 upstream / 8 mk-ast. **Instrument warning**: the bare word `whitespace` matches 26 upstream files — prose and unrelated trimming, the WRONG instrument; use the helper names |
+| V24 | DP7 done-gate (`ailang ai-check`) has no upstream *implementation* | grep `done_gate` and `ailang ai-check` over both trees, then classify the hits | `done_gate`: 0 both sides. `ailang ai-check`: **10** upstream files — ALL TEN are `.agent/` prose (plans, PR write-ups), not implementation; mk-ast **23**. **Control (same scope)** fires as in V21–V23. Scoping recorded deliberately: an unscoped grep reads as "already upstream" and is wrong — this repo's own disposition work retired token-matching as a behavioural-equivalence test for exactly this reason (see the mission log's R16/R34) |
+
+| V26 | **`on_pre_step` takes THREE effects, not ten — and the "ten" the first draft cited is a reading upstream has explicitly RETRACTED** | `U=/Users/voightkampff/dev/arniwesth/motoko_agent; git -C "$U" show origin/main_dst:packages/motoko-ext-abi/types.ail` — read the `ExtensionHooks` signature and the commentary above it | Signature: `on_pre_step: (ExtCtx, [Msg]) -> PreStepOutcome ! {AI, IO, Trace}` — **3**. The commentary: *"WI-D8 NARROWED THIS ROW FROM TEN EFFECTS TO THREE, AND NOTHING HAD EVER MEASURED IT … WI-D7's central conclusion about `on_pre_step` rested on that row being what the port performs — 'whose own port row is exactly those ten'. It was taken as given. **It was over-declared by SEVEN.**"* **Controls (same scope)**: the file resolves at **971** lines; `on_tool_handle` in the same record reads `! {IO, Process, FS, AI, Env, Net, SharedMem, Clock, Stream, Rand}` — ten — so the instrument can see a ten-effect row where one exists. Raised by `gemini-3-1-pro` at R2 against this doc's own ABI-break table (9→3 for `on_pre_step`; only `on_tool_handle` reaches ten); measured first-party rather than forwarded, and the measurement made it **worse** than filed — not merely inconsistent with V4, but sourced from a passage whose own author records it as an unmeasured assumption |
+
+Rows V17–V26 were measured first-party by mission-control on 2026-08-12 (iteration 2), commands
+and outputs as recorded; they answer the 2026-08-12 quorum block (see the Quorum revision log below).
 
 **Not verified — carried as open questions, not premises:**
 - Whether `motoko-ext-progress-contract-guard` supersedes any of our commits (it has no obvious
   counterpart in our 52; likely new work of his).
-- Whether the remaining ~40 of our 52 commits have upstream counterparts. Phase 3 dispositions
-  these one at a time; this doc does not assume.
+- ~~Whether the remaining ~40 of our 52 commits have upstream counterparts.~~ Superseded since the
+  first draft: the four Port-list features the quorum flagged now have rows (V21–V24), and the
+  full 51-commit disposition lives in [m-motoko-fork-disposition.md](m-motoko-fork-disposition.md),
+  whose **7 UNRESOLVED** rows — each naming its settling measurement — are the remaining open
+  questions. Phase 3 settles them under its timebox.
+
+### Quorum revision log
+
+**2026-08-12 — BLOCKED by `ailang design-quorum`** (artifact:
+`.ailang/state/mission-quorum/m-motoko-dst-refactor-migration-2026-08-12T08-41-12Z.json`, both
+reviewers present, `absent_reviewers` empty, $0.064). Neither reviewer disputed the design
+direction (adopt the phase-core/DST refactor, re-prove our improvements); both objections were
+measured first-party by mission-control (iteration 2) before this revision, which answers them:
+
+- **gpt5-6-sol (reject)** — *"Phase 0 is an explicitly unbounded wait on external events … neither
+  a deadline nor a machine-verifiable stability condition."* **Upheld.** Phase 0 is rewritten as a
+  bounded, fail-closed gate: four conjunctive predicates G1–G4, each with its evaluating command
+  and current observed value (V17, V19, V20, plus the compile probe), a 28-evaluation timebox at
+  the mission's 12h fire interval, a structured BLOCKED expiry escalating to Mark, and a declared
+  residual naming what the predicates cannot prove. One part of the proposed fix did **not**
+  survive contact with the data: a machine check on "ABI declared stable" is vacuous (V18) — the
+  discriminating replacement is "registry exposes 5.x at a pinned digest" (V19). The objection's
+  second sentence (open-ended Phase 3) is answered with a fixed Phase 3 timebox that promotes
+  unresolved commits to named blockers.
+- **gemini-3-1-pro (reject)** — *the four "Port — carry forward" features were asserted without
+  verifying their absence in `main_dst`.* **Procedurally upheld** — the premise-verification rule
+  was violated; **substantively refuted 4/4** — all four features really are absent upstream.
+  Resolved via the first branch of the reviewer's proposed fix: Verification Log rows V21–V24
+  added, each with a same-scope known-positive control, and the Port list now cites them. The
+  features remain on the list because they are now substantiated, not deferred to Phase 3.
+
+**2026-08-12 R2 — BLOCKED again, on NEW objections** (artifact
+`…m-motoko-dst-refactor-migration-2026-08-12T09-50-35Z.json`, both reviewers present,
+`absent_reviewers` empty, $0.096). R1's two objections are **not** re-raised — the bounded gate and
+the V21–V24 rows answered them. Both new objections are internal-consistency defects in the R1
+revision itself, and both were measured first-party before any action:
+
+- **`gemini-3-1-pro` (reject)** — two parts, **both UPHELD, both fixed in this R2 pass**.
+  (i) The Design Freeze said "check off before *sprint-executor* starts", creating a **deadlock**:
+  Phase 0 is what the executor runs to evaluate G1–G4. Reworded to "before **Phase 1** starts" —
+  the reviewer's verbatim fix. (ii) The Phase 1 ordering rationale asserted `compaction-ai`'s
+  `on_pre_step` "genuinely needs all ten effects". **Refuted, and worse than filed** (V26): the row
+  is `! {AI, IO, Trace}` — three — and the ABI commentary the sentence cited as authority is one
+  upstream *retracted* ("over-declared by SEVEN"). Struck; the ordering keeps a different reason.
+- **`gpt5-6-sol` (reject) — UPHELD and PARKED for Mark, not resolved in-loop.** The gate authorises
+  Phase 1 on G1–G4 while the doc's own Dependencies + Design Freeze also demand Arni's confirmation
+  and the reconciliation. It is right that the doc contradicts itself — and the contradiction reaches
+  **outside** the doc: the *ratified charter guardrail* requires "#154 merged **AND** Arni has
+  declared the ABI stable", which the R1 *Declared residual* silently relaxed to G1–G4. Its fix
+  offers two branches (add G5/G6/G7 vs. drop the human condition and have the decision owner accept
+  the risk). **Choosing is Mark's call, not the controller's** — and branch A's G6 would make
+  queue item 11 (itself Phase-0 gated) a Phase-0 predicate, a dependency loop worth his eyes. The
+  loop's one-revision-one-requorum budget is spent, so this doc is **`needs-human-review`** and
+  **Phase 1 must not start** until he answers. Nothing is lost by waiting: Phase 0 is measurably
+  CLOSED today (G1 FALSE, G2 FALSE, G3 FALSE — V17/V19/V20/V25), so no sprint was available to
+  block.
 
 ## Axiom Compliance
 
