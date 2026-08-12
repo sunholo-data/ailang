@@ -142,6 +142,23 @@
       ]
     },
     {
+      "path": "bounded_take_flatmap.ail",
+      "status": "working",
+      "tags": [
+        "list",
+        "performance",
+        "bounded"
+      ],
+      "description": "Fused takeFlatMap and takeMap compared with strict unfused pipelines",
+      "modules": [
+        "std/list"
+      ],
+      "expected": {
+        "stdout": "unfused flatMap: [1, 1, 2, 2]\nfused takeFlatMap: [1, 1, 2, 2]\nunfused map: [[1, 11], [2, 12], [3, 13]]\nfused takeMap: [[1, 11], [2, 12], [3, 13]]\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "bug_float_comparison.ail",
       "status": "working",
       "tags": [
@@ -2683,11 +2700,11 @@
     }
   ],
   "statistics": {
-    "total": 193,
-    "working": 185,
+    "total": 194,
+    "working": 186,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9585492227979274,
+    "coverage": 0.9587628865979382,
     "experimental": 0
   },
   "milestones": {

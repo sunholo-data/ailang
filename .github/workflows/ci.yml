@@ -117,6 +117,12 @@ jobs:
     - name: Run parser tests
       run: make test-parser
 
+    # Added iteration 183: until now NO make target and NO CI job ran `ailang test` over any
+    # .ail suite, so every .ail test in the repo was decoration. The target carries its own
+    # anti-vacuity floor — an empty glob fails loudly rather than passing silently.
+    - name: Run stdlib .ail test suites
+      run: make test-stdlib-ail
+
     - name: Check file sizes (>800 lines)
       run: make check-file-sizes
 

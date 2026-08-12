@@ -206,6 +206,19 @@ export pure func flatMap[a, b](f: (a) -> [b], xs: [a]) -> [b] {
   }
 }
 
+-- Fused take + flatMap: retains at most n outputs and stops invoking f once
+-- they exist. It bounds f invocation to the needed input prefix, but does NOT
+-- bound peak memory by n:
+--   peak = source residency + largest single f(x) + n retained
+-- If one f(x) can itself be large, bound it inside f.
+export pure func takeFlatMap[a, b](n: int, f: (a) -> [b], xs: [a]) -> [b] = _list_takeFlatMap(n, f, xs)
+
+-- Fused take + map: retains at most n outputs and invokes f on at most n
+-- inputs. It does NOT bound peak memory by n:
+--   peak = source residency + largest single f(x) + n retained
+-- If one f(x) can itself be large, bound it inside f.
+export pure func takeMap[a, b](n: int, f: (a) -> b, xs: [a]) -> [b] = _list_takeMap(n, f, xs)
+
 -- ============================================================================
 -- Effectful Combinators (v0.7.3) - map/filter/fold with effects
 -- ============================================================================

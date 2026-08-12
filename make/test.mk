@@ -232,3 +232,43 @@ check-golden-drift: ## Check for uncommitted golden file changes
 test-parity: build ## Test REPL/file parity for imports (interactive)
 	@chmod +x tests/parity/run_imports_basic.sh
 	@tests/parity/run_imports_basic.sh
+
+# The `.ail` test suites under tests/stdlib/ ran in NO make target and NO CI job until
+# iteration 183 measured it: `grep -rn "ailang test" make/ Makefile` returned ZERO while the
+# control (`.ail` in make/) returned 35 — i.e. the product's own test runner had no CI reach
+# over any .ail suite. M-TAKE-FLATMAP-PEAK-MEMORY M2's entire behavioural pin (the fused
+# delegation instrument and the parity suite) lived there, so it would have shipped as
+# decoration: a guard is not a gate until something reds when you remove it.
+# Both loops carry an ANTI-VACUITY FLOOR — an empty glob must FAIL LOUDLY, never pass silently,
+# because "no suites found" and "all suites green" are otherwise the same exit code.
+# The .expected files are captured from the product's OWN stdout and diffed against a verbatim
+# re-run, rather than reconstructed by the gate — a reconstruction verifies our arithmetic, not
+# the artifact.
+test-stdlib-ail: build ## Run the .ail test suites + run-fixtures under tests/stdlib/
+	@echo "Running stdlib .ail test suites..."
+	@suites=0; \
+	for f in tests/stdlib/*_test.ail; do \
+	  [ -e "$$f" ] || continue; \
+	  suites=$$((suites+1)); \
+	  echo "  test: $$f"; \
+	  ./bin/ailang test --no-color "$$f" > /tmp/ailang_stdlib_test.$$$$ 2>&1 || \
+	    { echo "FAIL: $$f"; cat /tmp/ailang_stdlib_test.$$$$; rm -f /tmp/ailang_stdlib_test.$$$$; exit 1; }; \
+	  rm -f /tmp/ailang_stdlib_test.$$$$; \
+	done; \
+	[ "$$suites" -ge 1 ] || { echo "instrument failure: no tests/stdlib/*_test.ail suites found"; exit 1; }; \
+	echo "  $$suites .ail test suite(s) passed"
+	@fixtures=0; \
+	for e in tests/stdlib/*.expected; do \
+	  [ -e "$$e" ] || continue; \
+	  f=`echo "$$e" | sed 's/\.expected$$/.ail/'`; \
+	  [ -e "$$f" ] || { echo "instrument failure: $$e has no matching $$f"; exit 1; }; \
+	  fixtures=$$((fixtures+1)); \
+	  echo "  run: $$f"; \
+	  ./bin/ailang run "$$f" 2>/dev/null | grep -v '^→\|^✓' > /tmp/ailang_stdlib_run.$$$$ || true; \
+	  diff -u "$$e" /tmp/ailang_stdlib_run.$$$$ || \
+	    { echo "FAIL: $$f stdout differs from $$e"; rm -f /tmp/ailang_stdlib_run.$$$$; exit 1; }; \
+	  rm -f /tmp/ailang_stdlib_run.$$$$; \
+	done; \
+	[ "$$fixtures" -ge 1 ] || { echo "instrument failure: no tests/stdlib/*.expected fixtures found"; exit 1; }; \
+	echo "  $$fixtures run-fixture(s) matched expected stdout"
+	@echo "$(GREEN)✓ stdlib .ail suites and run-fixtures pass$(NC)"

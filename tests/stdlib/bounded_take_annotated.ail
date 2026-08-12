@@ -1,0 +1,14 @@
+module tests/stdlib/bounded_take_annotated
+
+import std/list (takeFlatMap, takeMap)
+
+pure func boundedFlatMap(n: int, xs: [int]) -> [int] =
+  takeFlatMap(n, \x. [x], xs)
+
+pure func boundedMap(n: int, xs: [int]) -> [int] =
+  takeMap(n, \x. x * 10, xs)
+
+export func main() -> () ! {IO} {
+  let _ = println(show(boundedFlatMap(2, [1, 2, 3])));
+  println(show(boundedMap(2, [1, 2, 3])))
+}
