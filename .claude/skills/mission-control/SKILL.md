@@ -738,6 +738,36 @@ the Repo Profile above):
    (LANDED=NO) whose fallback edit then stripped an import — two reds, zero information; and an
    opus executor that hit the class, self-reported it, and re-ran with a compiling mutant before
    believing the RED. Generalises past Go to any compiled or typechecked language. These shapes are silent and all survive `set -euo pipefail`;
+   **(i-d) SCOPE THE KNOWN-POSITIVE CONTROL TO THE SAME PATH AS THE CHECK — A CONTROL RUN
+   SOMEWHERE ELSE PROVES THE PATTERN, AND THE THING THAT BREAKS IS ALMOST ALWAYS THE SCOPE**
+   (added 2026-08-12 V1 iteration 181; two first-party frictions, and the older one put a false
+   fact in the charter for eleven iterations). Clause (i) says pair the check with a known
+   positive **in the same call**. It never says *in the same scope*, and that is the half that
+   fails: `grep -r <pattern> <dir>` over a directory that DOES NOT EXIST prints nothing, and
+   piped to `wc -l` it reports a confident **0** — indistinguishable from a real absence, while
+   a control aimed at a *different* directory comes back large and certifies it. Measured on V1,
+   all three in one call: `grep -ril 'flatmap' stdlib/ | wc -l` → **0**; the SAME-PATH control
+   `grep -ril 'export' stdlib/` → **0** (the signal you want — instrument broken); the
+   DIFFERENT-PATH control `grep -ril 'export' std/` → **46** (the signal that misleads). The
+   real path has always been `std/`; `stdlib/` has never existed in this repo. Iteration 170's
+   weekly sweep recorded exactly that pair as *"grep 0, control firing"* and wrote into the
+   charter that *"stdlib has NO `flatMap` … so the class is user-written eager flatMaps"* —
+   false, and `std/list.ail:202` exports `flatMap`, `:250` `flatMapE`, `:99` `take`. That
+   sharpening then sat in the queue row for **eleven iterations**, and it pointed `#617` at a
+   docs/lint lane when both halves of the trap are the stdlib's own exported, taught surface;
+   iteration 181 hit the identical trap on its own first Gate-2 command. Rules: **(a)** run the
+   control against the SAME directory/file-set as the check — a same-path control over a bad
+   path returns zero too, and that zero is the instrument-broken signal (i)'s whole design
+   depends on; **(b)** `grep` already distinguishes them **in its exit code** — `1` is "no
+   match", **`2` is "no such file"** — and `| wc -l` throws it away, which is step 3's
+   exit-codes-through-pipes class aimed at the control rather than at the result; **(c)** where
+   the scope is load-bearing, assert it exists before reading its emptiness (`test -d`, or a
+   `find <dir> -type f | wc -l` denominator quoted beside the zero); **(d)** when a charter or
+   queue row quotes "control firing", the control's SCOPE travels with it, exactly as rule
+   3b(ii) makes a `-run`/`--version` narrowing travel with a green — "control firing" without a
+   named scope is not a citation. The tell: you are about to write "there is no X in `<dir>`"
+   and you have never confirmed that `<dir>` is a directory. Mission-independent: under
+   `ailang-code` the same trap is a module path that does not resolve.
    **(ii) widen once before concluding** — drop the quoting, the anchors, the file filter, and the
    directory scope (a root `Makefile` includes; a workflow calls a make target; a caller lives in
    a file type your `--include` excluded); **(iii) prefer the tool that cannot miss** — `make -pn`
