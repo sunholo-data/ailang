@@ -1,0 +1,135 @@
+{
+  "sprint_id": "M-BYTECODE-PATTERN-ARITY-FIX",
+  "status": "planned",
+  "created": "2026-08-12T00:00:00Z",
+  "design_doc": "design_docs/planned/v1_0_0/m-bytecode-pattern-arity-fix.md",
+  "sprint_plan": "design_docs/planned/v1_0_0/m-bytecode-pattern-arity-fix-sprint-plan.md",
+  "github_issues": [505],
+  "metadata": {
+    "planner-model": "claude-opus-5",
+    "base_commit": "8a859d6a2",
+    "base_of_base": "8ecebc0e1",
+    "worktree": "/Users/voightkampff/dev/sunholo-data/.wt-iter187",
+    "branch": "sprint/iter187-bytecode-pattern-arity",
+    "scope": "ONE branch change in internal/gen/lower/match.go:lowerPatternCond — a core.ListPattern with Tail == nil lowers its length guard to stmt.OpEq instead of stmt.OpGte. Root cause is already pinned and mutation-proven by the design doc (V-C/V-E/V-I); this sprint does NOT re-derive it. The work is overwhelmingly test work: build guards that have teeth and prove they have teeth. NON-SCOPE: the closure-dispatch family (array_basic/array_grid/module_let_helpers, parent doc B1/B3); the parity harness classification scheme (A1/A2, parked); the unsafe-effect-replay policy (B4, parked); M-BYTECODE-2E bridge gaps; and nested tail sub-patterns (lowerPatternCond never recurses into p.Tail, so ::(x, []) stays len >= 1 after this fix — a documented residual, not a regression, follow-up doc only).",
+    "estimated_effort": "1 day (M1 0.25d red-first, M2 0.25d fix + AC1/AC3, M3 0.5d drills + blast radius + gates)",
+    "premises_verified_live": true,
+    "verification_binary": "built from base in the worktree (make build -> bin/ailang, v0.33.0-179-g8a859d6a2); probe applied and restored byte-identically, final sha256 internal/gen/lower/match.go = fd1d890e7d3e1ed58211c0fec4eab41640aad7d8274ca31b09d25b6aa87500a2, git status and git diff --stat both empty",
+    "verification_date": "2026-08-12",
+    "read_only_git": true,
+    "ac_numbering": "AC1/AC2/AC3 exactly as the design doc numbers them; no renumbering, no added milestones beyond doc scope",
+    "caps_requirement": "EVERY acceptance/blast-radius command passes --caps IO. Without it the run errors with \"effect 'IO' requires capability\" and the bytecode path falls back to the evaluator, masking the bug entirely.",
+    "hashing_tool": "shasum -a 256 (md5 does not exist on this machine)",
+    "test_home_correction": "The design doc says to commit the .ail repro under tests/golden/bytecode/. VERIFIED: that path is a Go test package (package bytecode_golden_test; golden_test.go, probe_test.go, bench_test.go, io_test.go), its .ail fixtures live in tests/golden/codegen/ loaded by name from a hard-coded goldenSpecs() list, and it drives pipeline->lower->compiler->vm IN-PROCESS so it cannot observe CLI stderr, --caps IO, or exit code. AC1 and AC3 are therefore unimplementable there. Resolution: .ail fixture at tests/golden/bytecode/pattern_arity.ail (honours the stated location; verified inert - go test ./tests/golden/bytecode/ stays ok with it present, and no Glob/WalkDir exists over that dir), and ALL THREE ACs as CLI tests appended to cmd/ailang/run_bytecode_test.go.",
+    "wiring_verdict": "ALREADY GATED — no new make target and no new CI job needed. .github/workflows/ci.yml runs `go test -timeout 300s ./...`, which covers ./cmd/ailang, ./tests/golden/bytecode and ./internal/gen/.... Measured at base: `go test -count=1 -run TestCLI_RunBytecode ./cmd/ailang` = 5/5 PASS in 6.35s; `go test ./tests/golden/bytecode/` = ok. This differs from iteration 183's gap, which was specific to `ailang test`-driven .ail suites having no runner at all; these are Go tests.",
+    "do_not_place_in_examples": "scripts/verify_bytecode_parity.go:85 globs examples/runnable/*.ail. Putting the repro there would silently mutate the very corpus used as the blast-radius control and would enter the make verify-examples manifest.",
+    "changelog_target": "changelogs/v0.18-current.md under ## [Unreleased] -> ### Fixed. NEVER root CHANGELOG.md — scripts/check_changelog.sh fails on any ### Fixed heading there (root is an index only). make check-changelog measured rc=0 at base."
+  },
+  "discrepancies_found": [
+    {
+      "id": "D-A",
+      "doc_claim": "Commit a minimal failing .ail repro under tests/golden/bytecode/",
+      "finding": "tests/golden/bytecode/ is a Go test package (4 .go files, package bytecode_golden_test), not a fixture directory. Its .ail fixtures live in tests/golden/codegen/ and are loaded BY NAME from a hard-coded goldenSpecs() list (tryCompileAILFile -> filepath.Join(\"..\",\"codegen\",name)); there is no Glob or WalkDir over either directory. More importantly the harness runs pipeline.Run -> lower.LowerProgram -> compiler.Compile -> vm.NewVM in-process, so it can never observe the `falling back to evaluator` stderr line (emitted at cmd/ailang/run_helpers.go:376), --caps IO grants, or process exit code. AC1 and AC3 are unimplementable there.",
+      "action": "Place the .ail fixture at tests/golden/bytecode/pattern_arity.ail (honours the doc's stated location; verified inert w.r.t. the Go package). Implement AC1, AC2 and AC3 as CLI tests appended to cmd/ailang/run_bytecode_test.go, which already shells out via runCLI -> testutil.RunBounded(t, projectRoot, 120s, \"go\", \"run\", \"./cmd/ailang\", ...) and already carries the exact AC3 assertion at line 63. Already covered by `go test ./...` in CI."
+    },
+    {
+      "id": "D-B",
+      "doc_claim": "AC3: the minimal quicksort repro passes under --bytecode with no fallback (stderr asserted free of \"falling back to evaluator\")",
+      "finding": "The stderr clause is ALREADY TRUE AT HEAD on the broken binary. Measured: `ailang run --bytecode --caps IO examples/runnable/recursion_quicksort.ail` prints the WRONG answer (Quicksort: [3] / sortBy:    [3]) with rc=0 and stderr containing only `✓ Running ... via bytecode VM` — no `falling back` line at all. As an independent observable the clause is set alongside the mechanism rather than by it, i.e. decorative.",
+      "action": "Keep the clause — it rules out a 'fix' that gets the right answer by bailing to the evaluator — but ONLY as a conjunction with the stdout assertion inside a single test, and give it its own mutation (drill D4: neuter the guard at cmd/ailang/run_helpers.go:376 to `if true || vmErr != nil` and require the test to red ON THE STDERR ASSERTION SPECIFICALLY). If it reds only on stdout, the stderr clause is unwired."
+    },
+    {
+      "id": "D-C",
+      "doc_claim": "Conflict Surface names four must-still-work programs (cons_expression, block_recursion, adt_list_fields, effectful_list)",
+      "finding": "Correct — and all four are MATCH at HEAD as well as under the probe, with identical hash prefixes (2230a604cb25, d4295f6e4c13, 5430d1a50e8f, 69fd90893805), so this is a genuine before/after control. But the three most list-pattern-dense examples in the corpus are unnamed: list_pattern_cons (3d9a0ed566bd), list_patterns (ec1c27cb21d0), list_pattern_records (316ab9a842c6). All three also MATCH at HEAD and under the probe.",
+      "action": "Blast-radius set widened from 4 to 7 examples. All seven must read MATCH after the change."
+    },
+    {
+      "id": "D-D",
+      "doc_claim": "(not addressed) — the doc treats Tail != nil as uniformly 'at least n' and stops there",
+      "finding": "lowerPatternCond never recurses into p.Tail. It builds one length guard from len(p.Elements) plus tag checks for constructor sub-patterns at each index, then returns. So a nested tail sub-pattern such as ::(x, []) still lowers to `len >= 1` after this fix and does not enforce its inner fixed-length tail.",
+      "action": "Documented as an explicit residual in the plan's scope-boundaries section. It is NOT a regression introduced by this change and is NOT covered by AC1-AC3. Flag for a follow-up doc; do not fix in this sprint."
+    },
+    {
+      "id": "D-E",
+      "doc_claim": "(controller-prescribed non-vacuity drill) assert each mutation BUILDS via `go build ./...` rc=0",
+      "finding": "CONTRADICTS a controller VERIFIED-BY-ME instruction. `go build ./...` is RED AT BASE on darwin/arm64 in this worktree: `# github.com/sunholo-data/ailang/cmd/wasm` / `runtime.main_main·f: function main is undeclared in the main package`. cmd/wasm only builds under GOOS=js GOARCH=wasm. Using it would report EVERY mutation as 'failed to build' and make the drill uninterpretable (rule 3e: a command already red at base measures the repo, not the change).",
+      "action": "All mutation drills use `go build ./internal/... ./cmd/ailang` instead — measured rc=0 at base. Do not add `go build ./...` to the gate sweep."
+    },
+    {
+      "id": "D-F",
+      "doc_claim": "Run the whole-corpus parity harness (go run ./scripts/verify_bytecode_parity.go) before/after as the blast-radius check",
+      "finding": "Sound as a check, but the harness is NOT byte-stable across runs: xml_walk_perf.ail embeds wall-clock time_ms in its output, tar_gzip_reader.ail depends on a /tmp/tar_smoke fixture that may not exist, and claude_haiku_call.ail hits the network. Measured base = MATCH 151 / NON_DET 2 / DIVERGE 6 / EVAL_SKIP 16 of 175; probe = MATCH 152 / NON_DET 2 / DIVERGE 5 / EVAL_SKIP 16. Delta is exactly one file.",
+      "action": "Compare bucket COUNTS and the DIVERGE NAME SET only, never raw output diffs. Expected delta: recursion_quicksort.ail moves DIVERGE -> MATCH and nothing else moves. Residual DIVERGE (all out of scope): array_basic (closure-dispatch, parent B1/B3); pattern_sugar (the parent doc's A1 — note the EVALUATOR is the wrong one there, printing <*eval.TupleValue> where the VM correctly prints (a, 1)); claude_haiku_call (network); tar_gzip_reader (missing fixture); xml_walk_perf (timing). Report deviations as findings, not as build failures."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 205,
+    "estimated_total_loc": 205,
+    "estimated_days": 1,
+    "loc_note": "205 = sum of the three milestone estimates (125 + 50 + 30). Only ~6 of those are PRODUCTION lines (one branch in internal/gen/lower/match.go, net -4). The rest is ~55 LOC of .ail fixture, ~115 LOC of Go CLI tests, and ~30 LOC of drill/changelog bookkeeping. Deliberately ~20:1 test-to-production: the root cause is already mutation-proven by the design doc, so the entire risk of this sprint lives in whether the guards have teeth, not in whether the fix works."
+  },
+  "features": [
+    {
+      "id": "M1_RED_FIRST_AC2",
+      "description": "RED FIRST — land the pattern-arity .ail fixture and the AC2 table-driven CLI test against the UNFIXED lowering, and prove the test fails. No production code changes in this milestone. Deliverables: tests/golden/bytecode/pattern_arity.ail (module tests/golden/bytecode/pattern_arity — resolves canonically, NO --relax-modules needed, measured) with five isolated functions arity1/arity2/arity3 (each a single fixed arm plus a [p, ...rest] fallback so no shorter arm can intercept, per V-H), tail2 ([a,b,...rest]) and consForm (::(h,t)); plus TestCLI_ListPatternArity_Bytecode appended to cmd/ailang/run_bytecode_test.go asserting BOTH (a) cross-engine parity: stdout of `run --caps IO` byte-identical to `run --bytecode --caps IO`, AND (b) an absolute 15-line golden — parity alone is satisfiable by breaking both engines identically. Also assert exitCode==0 and stderr contains 'via bytecode VM' (anti-bridging sanity check).",
+      "estimated_loc": 125,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "AC2 (doc numbering): fixed-length list-pattern arity under --bytecode for n=1, 2 and 3, in all three directions — exact-length matches, LONGER list does NOT match (the bug), SHORTER list does NOT match (the over-correction guard) — plus the tailed [a,b,...rest] and cons ::(h,t) arms which must keep 'at least n'.",
+        "`go test -count=1 -run 'TestCLI_ListPatternArity_Bytecode' ./cmd/ailang` exits NON-ZERO at HEAD (this milestone is DONE when the test is RED).",
+        "The failure output names EXACTLY THREE wrong rows: `arity1 [7,8]` (got n1, want other), `arity2 [7,8,9]` (got n2, want other), `arity3 [7,8,9,10]` (got n3, want other). Fewer than three means the fixture is being bridged to the evaluator or an arm is intercepting; more than three means the expected table is wrong.",
+        "The red-first failure output is recorded verbatim in the milestone commit message.",
+        "`go test -count=1 ./tests/golden/bytecode/` stays rc=0 with the new .ail file present (measured ok at base).",
+        "STOP CONDITION: if the test is GREEN at HEAD, do not proceed — the test is vacuous and must be reworked."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_FIX_AC1_AC3",
+      "description": "Land the one-branch fix and the flagship-symptom goldens. internal/gen/lower/match.go lowerPatternCond case *core.ListPattern: replace the if/else at lines 412-427 with a single operator selection — `lenOp := stmt.OpGte; if p.Tail == nil { lenOp = stmt.OpEq }` — then one BinOp{Op: lenOp, Left: lenExpr, Right: LitInt{int64(len(p.Elements))}}. This SUBSUMES rather than deletes the empty-list special case: (0 elems, Tail nil) -> len == 0, identical to before; (n elems, Tail nil) -> len == n, the fix; (n elems, Tail non-nil) -> len >= n, unchanged; (0 elems, Tail non-nil) -> len >= 0, always true, identical. Plus TestCLI_RunBytecode_QuicksortArity appended to cmd/ailang/run_bytecode_test.go covering AC1 and AC3 in ONE run (they are the same invocation; splitting doubles a ~4s `go run` for no extra signal). Do NOT pass --relax-modules — the example resolves canonically.",
+      "estimated_loc": 50,
+      "dependencies": ["M1_RED_FIRST_AC2"],
+      "acceptance_criteria": [
+        "AC1 (doc numbering): `ailang run --bytecode --caps IO examples/runnable/recursion_quicksort.ail` stdout contains exactly `Quicksort: [1, 1, 2, 3, 4, 5, 6, 9]` AND `sortBy:    [1, 1, 2, 3, 4, 5, 6, 9]` (three spaces after `sortBy:` — the source is column-aligned; copy the literal, do not retype).",
+        "AC3 (doc numbering): the same run exits 0, stderr does NOT contain `falling back to evaluator`, and stderr DOES contain `via bytecode VM`.",
+        "`go test -count=1 -run 'TestCLI_RunBytecode_QuicksortArity|TestCLI_ListPatternArity_Bytecode' ./cmd/ailang` rc=0 — M1's previously-red test is now GREEN under the same command.",
+        "`go test -count=1 ./internal/gen/...` rc=0 (base measured rc=0 across 5 packages: block, emitgo, golang, lower, stmt).",
+        "Regression arm, UNDERFLOW direction: `arity2 [7]` and `arity3 [7,8]` still return `other` — a fix that over-corrects into rejecting shorter lists incorrectly is caught here.",
+        "Regression arm, TAILED direction: `tail2 [7,8,9]` still returns `tail2` and `cons [7,8]` still returns `cons` — [p, ...rest] and the :: cons form (per V-I always Tail != nil) must keep 'at least n'.",
+        "internal/gen/lower/match.go stays under 800 lines (566 at base, net -4)."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_DRILLS_BLAST_RADIUS_GATES",
+      "description": "Prove every guard has teeth, measure blast radius in both directions, sweep the local gates, and update the changelog. Mutation protocol for EVERY drill row: (1) shasum -a 256 the file, record BEFORE; (2) apply the mutation, preferring neutering (`if false && cond` / `if true || cond`) over deletion so imports stay used; (3) shasum again, ASSERT IT DIFFERS — a mutation that did not land makes the subsequent red meaningless; (4) assert it BUILDS with `go build ./internal/... ./cmd/ailang` (NOT `go build ./...`, which is red at base — see D-E); (5) run the row's command and assert it reds, naming the expected rows; (6) restore from backup and assert shasum equals BEFORE.",
+      "estimated_loc": 30,
+      "dependencies": ["M2_FIX_AC1_AC3"],
+      "acceptance_criteria": [
+        "Drill D1 (kills AC2 overflow / the fix itself): neuter the discriminator in internal/gen/lower/match.go to `if false && p.Tail == nil` so lenOp stays OpGte unconditionally -> TestCLI_ListPatternArity_Bytecode reds on exactly arity1 [7,8], arity2 [7,8,9], arity3 [7,8,9,10].",
+        "Drill D2 (kills AC2 TAILED arm — the over-correction guard): force `lenOp := stmt.OpEq` unconditionally, i.e. OpEq even when Tail != nil -> the same test reds on tail2 [7,8,9] and cons [7,8] (they become `other`). This is the ONLY drill that exercises those rows: under D1 they stay green, so without D2 the tailed arm is unproven decoration.",
+        "Drill D3 (kills AC1): same mutation as D1 -> TestCLI_RunBytecode_QuicksortArity reds with `Quicksort: [3]`.",
+        "Drill D4 (kills AC3's stderr clause — the decorative one, see D-B): at cmd/ailang/run_helpers.go:376 neuter the fallback guard to `if true || vmErr != nil` so the top-level fallback always fires -> TestCLI_RunBytecode_QuicksortArity must red ON THE STDERR ASSERTION SPECIFICALLY (`falling back to evaluator` present). If it reds only on stdout, the stderr clause is unwired — fix the test, not the mutation.",
+        "Drill D5 (kills AC2's absolute-golden clause): corrupt one expected line in the test (e.g. `n2` -> `nX`) -> test reds naming that row, proving the golden is compared rather than merely computed.",
+        "Drill D6 (kills AC2's parity clause): set `evalStdout := vmStdout` in the test -> the parity clause can no longer fire; re-run D1 and RECORD WHICH CLAUSE fired, proving the evaluator run is a real second measurement and not a self-comparison.",
+        "Every drill records BEFORE sha256, AFTER sha256 (asserted different), `go build ./internal/... ./cmd/ailang` rc=0, the observed red, and the restore-hash equality.",
+        "Blast radius: all SEVEN examples read MATCH (cons_expression, block_recursion, adt_list_fields, effectful_list, list_pattern_cons, list_patterns, list_pattern_records) via `./bin/ailang run --caps IO` vs `--bytecode --caps IO`, comparing shasum -a 256 of the last 20 output lines. Expected prefixes: 2230a604cb25, d4295f6e4c13, 5430d1a50e8f, 69fd90893805, 3d9a0ed566bd, ec1c27cb21d0, 316ab9a842c6.",
+        "Parity harness `go run ./scripts/verify_bytecode_parity.go` before/after: bucket counts move 151->152 MATCH and 6->5 DIVERGE of 175, and the DIVERGE name-set delta is EXACTLY recursion_quicksort.ail leaving. This is a REGRESSION CHECK, NOT A GATE — this doc does not own the harness's bucket definitions. Compare counts and names only (the harness is not byte-stable: xml_walk_perf embeds time_ms, tar_gzip_reader needs a /tmp fixture, claude_haiku_call hits the network). Report any other movement as a finding.",
+        "Local gate sweep, all rc=0: `go test -timeout 300s ./...`; `go test -count=1 ./internal/gen/...`; `go test -count=1 ./tests/golden/bytecode/`; `go test -count=1 -run 'TestCLI_RunBytecode|TestCLI_ListPatternArity' -v ./cmd/ailang`; `make test-lowering`; `make test-stdlib-ail`; `make check-file-sizes`; `make check-boundaries`; `make check-changelog`; `make check-golden-drift`; `make test-regression-guards`; `make verify-examples`; `make fmt-check`; `make vet`; `make lint`.",
+        "Changelog entry added to changelogs/v0.18-current.md under ## [Unreleased] -> ### Fixed, referencing #505. NOT root CHANGELOG.md.",
+        "docs/LIMITATIONS.md checked for a fixed-length-list-pattern-under---bytecode caveat: remove it if present, add nothing if absent."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
