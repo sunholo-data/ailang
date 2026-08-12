@@ -94,6 +94,25 @@ unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN OPENAI_API_KEY
 
 log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 
+# _mc_notify TITLE BODY LABEL — report a degradation on BOTH human channels.
+# Extracted from the lane-degradation block (564cc4640) when the driver-pin notice (#558) needed
+# the identical shape: two near-identical emit blocks is how one of them silently rots.
+# NOT fail-closed: aborting on a failed post would make GitHub/controlplane availability a hard
+# dependency of every fire. A failed post is LOUD in the driver log instead — the one thing the
+# silent-fallback class never was (Critical Principle 2).
+_mc_notify() {
+  local title="$1" body="$2" label="$3"
+  ailang messages send controlplane "$body" \
+    --title "$title" --from "$MSG_FROM" 2>/dev/null \
+    || log "WARNING: ${label} notice FAILED to send via ailang messages"
+  if [ -n "${MISSION_GH_ISSUE:-}" ]; then
+    gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" --body "$body" >/dev/null 2>&1 \
+      || log "WARNING: ${label} notice FAILED to post to issue #${MISSION_GH_ISSUE}"
+  else
+    log "WARNING: ${label} notice needed but MISSION_GH_ISSUE is unset — no issue notice possible"
+  fi
+}
+
 # --- stall detection (see the stall watchdog below) -------------------------
 # _mc_descendants PID → echoes PID and every descendant PID (one per line).
 _mc_descendants() {
@@ -278,6 +297,43 @@ TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_err
 MISSION_GH_ISSUE="${MISSION_GH_ISSUE:-$(head -1 "$GH_ISSUE_FILE" 2>/dev/null)}"
 [ -z "${MISSION_GH_ISSUE:-}" ] && [ "$MISSION_NAME" = "v1" ] && MISSION_GH_ISSUE=329
 export MISSION_GH_ISSUE
+
+# --- DRIVER PIN (#558) -------------------------------------------------------
+# Re-exec this driver out of a worktree pinned to committed origin/dev, so the script, the
+# skill and the charter all come from the same reviewed commit rather than from whatever the
+# shared clone happens to hold. See tools/launchd/lib/pin-root.sh for the full rationale.
+#
+# PLACED HERE, and the position is load-bearing in both directions:
+#   * BEFORE the model probes below — a re-exec restarts the script from the top, so pinning
+#     any later would probe every lane twice and bill it twice;
+#   * BEFORE the pidfile is written (line ~583) — the re-exec'd copy would otherwise read its
+#     own parent's pid and yield to itself as an overlap, turning every fire into a no-op;
+#   * AFTER the state block, so a failed pin has LOG, log(), MSG_FROM and MISSION_GH_ISSUE
+#     available to report with. Reporting a stale driver on a channel that needs the stale
+#     driver's own config to be resolved is not reporting.
+# Sourced from $REPO, which on the first pass is the UNPINNED clone: the stale helper re-execs
+# into the pinned driver, which then sources the pinned helper. Two passes by construction.
+if [ -f "$REPO/tools/launchd/lib/pin-root.sh" ]; then
+  . "$REPO/tools/launchd/lib/pin-root.sh"
+  pin_root_to_committed_ref "$@"
+else
+  # PIN_DRIFT is normally initialised by the helper. It must be set HERE too: this branch is the
+  # pre-helper clone, i.e. exactly the case it exists to survive, and `set -u` would otherwise
+  # abort at the DRY RUN line below — the fallback crashing only on the fallback path.
+  PIN_STATUS="STALE"
+  PIN_DRIFT="?"
+  PIN_NOTE="$REPO/tools/launchd/lib/pin-root.sh is absent — this clone predates the driver pin (#558)"
+fi
+_pin_degraded=""
+if [ "$PIN_STATUS" = "STALE" ]; then
+  # Deliberately NOT fatal: aborting would make network/git availability a hard dependency of
+  # every fire, trading rare silent staleness for common loud outage. Loud instead of fatal.
+  log "DRIVER PIN FAILED — this fire runs the WORKING TREE at $(git -C "$REPO" rev-parse --short HEAD 2>/dev/null), not committed code: $PIN_NOTE"
+  _pin_degraded="
+- driver pin: **FAILED** — \`$PIN_NOTE\`. This fire ran \`$REPO\` at \`$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null)\` ($(git -C "$REPO" rev-list --count HEAD..origin/dev 2>/dev/null || echo '?') behind \`origin/dev\`), so any landed driver/skill/charter fix newer than that commit was NOT in effect."
+else
+  log "driver pin: $PIN_NOTE"
+fi
 
 # designer default is the claude-CLI lane (claude:<full-id>), NOT the bare "fable" alias: the
 # Agent tool pins only sonnet|opus|haiku (F1, iteration 31), so under an opus-first controller a
@@ -471,7 +527,7 @@ if [ "${MISSION_DRY_RUN:-0}" = "1" ]; then
   else
     _dry_lanes="ok"
   fi
-  log "DRY RUN ok: mission=$MISSION_NAME repo-slug=$MISSION_REPO doc=$MISSION_DOC workdir=$REPO pidfile=$PIDFILE prefs=$PREFS timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL | lanes=$_dry_lanes"; exit 0
+  log "DRY RUN ok: mission=$MISSION_NAME repo-slug=$MISSION_REPO doc=$MISSION_DOC workdir=$REPO pidfile=$PIDFILE prefs=$PREFS timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL | lanes=$_dry_lanes | pin=$PIN_STATUS($PIN_DRIFT behind)"; exit 0
 fi
 
 # 4. Select the model (probe doubles as the subscription-auth check: API keys
@@ -554,15 +610,23 @@ ${_lane_degraded}
 Controller: \`${MODEL}\` (${MODEL_WHY}). Effective roles now: designer=\`${MISSION_DESIGNER_MODEL}\` planner=\`${MISSION_PLANNER_MODEL}\` executor=\`${MISSION_EXECUTOR_MODEL}\` evaluator=\`${MISSION_EVALUATOR_MODEL}\`.
 Driver log: \`${LOG}\`. If this repeats across fires, the lane is down — check the bucket, and check that this mission's plist carries a PATH that reaches the CLI (the World mission lost five iterations to exactly that)."
   log "LANE DEGRADED this fire:$(printf '%s' "$_lane_degraded" | tr '\n' ' ')"
-  ailang messages send controlplane "$_deg_body" \
-    --title "Mission ${MISSION_NAME}: executor/planner lane degraded" --from "$MSG_FROM" 2>/dev/null \
-    || log "WARNING: lane-degradation notice FAILED to send via ailang messages"
-  if [ -n "${MISSION_GH_ISSUE:-}" ]; then
-    gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" --body "$_deg_body" >/dev/null 2>&1 \
-      || log "WARNING: lane-degradation notice FAILED to post to issue #${MISSION_GH_ISSUE}"
-  else
-    log "WARNING: lane degraded but MISSION_GH_ISSUE is unset — no issue notice possible"
-  fi
+  _mc_notify "Mission ${MISSION_NAME}: executor/planner lane degraded" "$_deg_body" "lane-degradation"
+fi
+
+# DRIVER-PIN NOTICE — same site and same reasoning as the lane notice above: after every early
+# exit, so a fire that does not run cannot post. Emitted only when the pin actually FAILED, i.e.
+# only when stale code really did run. The shared clone being behind is not itself reportable —
+# once drivers pin, that drift is harmless, and posting it every 90 minutes would train the
+# channel to be ignored, which is how the original silent fallback survived twelve commits.
+if [ -n "$_pin_degraded" ]; then
+  _pin_body="**Driver ran UNPINNED on this fire** — recorded before the iteration ran.
+${_pin_degraded}
+
+Mission \`${MISSION_NAME}\`. Driver log: \`${LOG}\`. The fire still ran; only its code provenance is
+unknown. Fix: reconcile that clone with \`origin/dev\`, or find why the fetch failed. Until then
+every fire silently runs whatever that working tree happens to hold — the class \`#558\` tracks,
+measured twice (2026-08-03 \`#556\`, 2026-08-12 \`564cc4640\`)."
+  _mc_notify "Mission ${MISSION_NAME}: driver ran UNPINNED (code provenance unknown)" "$_pin_body" "driver-pin"
 fi
 
 log "=== mission iteration starting (controller=$MODEL via ${MODEL_WHY}, timeout=${HARD_TIMEOUT}s | bg-wait-ceiling=${CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS}ms | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL) ==="
