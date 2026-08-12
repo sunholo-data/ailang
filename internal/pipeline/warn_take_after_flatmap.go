@@ -55,13 +55,16 @@ func DetectTakeAfterFlatMap(prog *core.Program) []elaborate.Warning {
 // the take application to be the immediate let body preserves the direct-call
 // scope rule.
 //
-// MEASURED (V1 iteration 186): elaboration always produces the ANF form, so the
-// isTakeOfFlatMapApp arm below is NOT exercised by any test in this repo —
-// neutering it alone leaves ./internal/diag and ./internal/pipeline fully green,
-// while neutering the ANF arm reds TestTakeAfterFlatMapWarningFixtures/direct_trap
-// with "got warnings: []". The nested arm is retained deliberately as a cheap
-// guard should elaboration stop ANF-ing applications; it is named here rather
-// than left to imply coverage it does not have.
+// MEASURED (V1 iteration 186): elaboration always produces the ANF form.
+// Neutering the ANF arm reds TestTakeAfterFlatMapWarningFixtures/direct_trap
+// with "got warnings: []", so that arm is what carries the real diagnostic;
+// the plan's source-shaped spec alone would have shipped a detector that never
+// fires. The isTakeOfFlatMapApp arm below is therefore unreachable through the
+// pipeline today and is retained deliberately as a cheap guard should
+// elaboration stop ANF-ing applications. Because no pipeline-level fixture can
+// reach it, it is pinned directly against a hand-built Core program in
+// TestDetectTakeAfterFlatMap_NestedAppArm rather than left as unexercised code
+// no test would notice rotting.
 func directTakeFlatMap(expr core.CoreExpr) (*core.App, bool) {
 	if outer, ok := expr.(*core.App); ok && isTakeOfFlatMapApp(outer) {
 		return outer, true
