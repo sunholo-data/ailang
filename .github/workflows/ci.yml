@@ -444,6 +444,27 @@ jobs:
         make install-lint
         make lint
 
+  launchd-drivers:
+    name: launchd drivers (bash 3.2)
+    # macOS DELIBERATELY, and it is the whole point of this job: the rig runs bash 3.2.57 and
+    # GitHub's macOS runners still ship 3.2 as /bin/bash, while ubuntu ships bash 5. A suite
+    # green on bash 5 proves nothing about the constraint that actually bites here — every
+    # `declare -A` or ${v,,} that reaches tools/launchd/ breaks the rig and passes on ubuntu.
+    # No Go, no cache: these are shell + git tests and nothing else.
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Confirm /bin/bash really is 3.2 (guard against a silent runner upgrade)
+      run: |
+        /bin/bash --version | head -1
+        /bin/bash -c '[ "${BASH_VERSINFO[0]}" -eq 3 ]' \
+          || { echo "::error::/bin/bash is no longer 3.x — this job no longer tests the rig's shell"; exit 1; }
+
+    - name: Run launchd driver tests
+      run: make test-launchd-drivers
+
   govulncheck:
     name: govulncheck (vuln gate)
     runs-on: ubuntu-latest

@@ -13,6 +13,13 @@ rm -rf "$T"; mkdir -p "$T"
 T="$(cd "$T" && pwd)"
 trap 'rm -rf "$T"' EXIT
 
+# Hermetic identity + branch name. A CI runner has no user.name/user.email and may default
+# `init.defaultBranch` to anything, so without these the lab commits fail there and the suite
+# reports a git-config problem as a pin failure — a test that only passes on the author's box.
+export GIT_AUTHOR_NAME=pinlab GIT_AUTHOR_EMAIL=pinlab@invalid
+export GIT_COMMITTER_NAME=pinlab GIT_COMMITTER_EMAIL=pinlab@invalid
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
+
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); echo "  PASS: $1"; }
 bad()  { FAIL=$((FAIL+1)); echo "  FAIL: $1"; echo "        got: $2"; }
