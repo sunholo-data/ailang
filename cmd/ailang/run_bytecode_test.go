@@ -214,3 +214,25 @@ func listPatternProgramOutput(t *testing.T, stdout string) string {
 	}
 	return stdout[start:]
 }
+
+func TestCLI_RunBytecode_QuicksortArity(t *testing.T) {
+	src := filepath.Join("examples", "runnable", "recursion_quicksort.ail")
+	stdout, stderr, exitCode := runCLI(t, "run", "--bytecode", "--caps", "IO", src)
+	if exitCode != 0 {
+		t.Fatalf("expected exit 0, got %d\nstderr=%s", exitCode, stderr)
+	}
+	for _, want := range []string{
+		"Quicksort: [1, 1, 2, 3, 4, 5, 6, 9]",
+		"sortBy:    [1, 1, 2, 3, 4, 5, 6, 9]",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("expected stdout to contain %q, got %q", want, stdout)
+		}
+	}
+	if strings.Contains(stderr, "falling back to evaluator") {
+		t.Errorf("expected no fallback to evaluator, got stderr=%q", stderr)
+	}
+	if !strings.Contains(stderr, "via bytecode VM") {
+		t.Errorf("expected stderr to mention bytecode VM run, got %q", stderr)
+	}
+}

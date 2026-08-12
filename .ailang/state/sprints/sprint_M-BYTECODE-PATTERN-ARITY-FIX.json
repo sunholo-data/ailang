@@ -102,10 +102,10 @@
         "Regression arm, TAILED direction: `tail2 [7,8,9]` still returns `tail2` and `cons [7,8]` still returns `cons` — [p, ...rest] and the :: cons form (per V-I always Tail != nil) must keep 'at least n'.",
         "internal/gen/lower/match.go stays under 800 lines (566 at base, net -4)."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-08-12T20:45:16Z",
+      "completed": "2026-08-12T20:46:18Z",
+      "notes": "Tail-discriminated list-length lowering implemented. AC1/AC3 quicksort CLI test added; combined CLI tests, internal/gen suite, and corrected build scope all passed."
     },
     {
       "id": "M3_DRILLS_BLAST_RADIUS_GATES",
