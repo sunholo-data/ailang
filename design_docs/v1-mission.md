@@ -1677,6 +1677,15 @@ frozen; contracts projection live).
   `#666` FIRST, reconcile SECOND — reconciling first brings the lane fix but not the pin, and
   the clone simply starts drifting again.
 
+  **PER-CHECKOUT PREREQUISITE, and it applies to EVERY entry point that spawns `claude`:** a pin
+  worktree is a path Claude Code has never seen, and an un-onboarded checkout hangs every
+  headless probe (charter V22, `76ee4056c`). The pin now refuses rather than walking into it, so
+  a fire stays alive — but it stays *unpinned* until a human runs `cd
+  ~/.ailang-driver-pin/<mission> && claude` once. Budget one such action per pinned entry point
+  that runs `claude`, and **measure rather than assume which ones do**: `nightly-eval.sh` looks
+  exempt (it builds and runs the binary, not `claude`) but that has not been verified, and
+  assuming it would repeat exactly the mistake this row exists to prevent.
+
   **THE GATE (evidence, not a delay):** ≥3 consecutive V1 fires logging `driver pin: running
   committed origin/dev @ <sha>` with a normal iteration completing. Read it from
   `/tmp/ailang-mission-control.log`, not from the file's presence on disk — measuring the wrong
