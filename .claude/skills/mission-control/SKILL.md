@@ -2063,10 +2063,50 @@ exactly like a correct one.**
       Monday's date>" --body "<5-line state snapshot: queue head · fleet state · parked-for-human
       list · link to predecessor issue #N · directive convention: comments from
       @MarkEdmondson1234 on THIS issue steer the loop>"` — the mention auto-subscribes Mark.
-   2. Final comment on the OLD issue: "→ continues in #<new>" — then `gh issue close` it.
-   3. Write the new number to `~/.ailang/state/mission-gh-issue` and the old one to
+   2. **Open the new thread with last week in one screen (Mark 2026-08-12) — FAIL-SOFT.**
+      ```bash
+      # CAPABILITY check, not an existence check — see (d). First copy that actually
+      # supports --mission wins; checkouts lag independently.
+      RPT=""
+      for c in tools/mission-weekly-report.py \
+               "$HOME/dev/sunholo-data/ailang-motoko/tools/mission-weekly-report.py" \
+               "$HOME/dev/sunholo-data/ailang/tools/mission-weekly-report.py"; do
+        [ -f "$c" ] && python3 "$c" --help 2>&1 | grep -q -- '--mission' && { RPT="$c"; break; }
+      done
+      if [ -n "$RPT" ]; then
+        python3 "$RPT" --mission "$MISSION_NAME" > "/tmp/wk-$MISSION_NAME.md" 2>/dev/null \
+          && gh issue comment "<new>" --repo "${MISSION_REPO:-sunholo-data/ailang}" \
+               --body-file "/tmp/wk-$MISSION_NAME.md" \
+          || echo "weekly report generated but did not post (non-fatal) — rotation continues"
+      else
+        echo "NO --mission-capable weekly report found in any checkout — skipping (non-fatal)"
+      fi
+      ```
+      Four properties, each the fix for something that has already bitten:
+      **(a) FAIL-SOFT.** Rotating the thread is essential; opening it with a summary is not. A
+      formatting bug in the report must never wedge the bookkeeping of three loops, so every arm
+      falls through to `echo` and rotation proceeds.
+      **(b) The `$HOME` fallbacks cover Ailang World, which has no repo-local copy.** The script
+      reads absolute paths for all three missions, so it need not be repo-local — and copying it
+      into each repo would start a second drift surface like the driver's (233 lines adrift as of
+      2026-08-12). One file, three lookup paths.
+      **(d) CAPABILITY, NOT EXISTENCE — and this one was caught by testing the snippet before
+      shipping it, not by reasoning.** The first draft did `[ -f "$RPT" ]` and fell back to the V1
+      checkout. That file *existed* and was **two commits stale** (V1's clone only pulls when V1
+      runs), so it predated `--mission` and died on `unrecognized arguments`. Combined with (a),
+      World would have posted no report ever, and fail-soft would have swallowed the reason. A
+      checkout being present says nothing about a checkout being current; ask the tool what it
+      supports. The `else` branch is loud for the same reason.
+      **(c) `--body-file`, never an inline `--body`.** A markdown body is *made* of backticks, and
+      iteration 149 lost its evidence out of a `gh issue close --comment` when unescaped backticks
+      triggered zsh command substitution — `gh` reported `✓ Closed` on a comment whose evidence had
+      been surgically removed. Same class, same surface.
+      **`--mission` scopes it deliberately:** each mission rotates independently, so an unscoped
+      fleet report would land three times, two thirds of it off-topic for the thread it is in.
+   3. Final comment on the OLD issue: "→ continues in #<new>" — then `gh issue close` it.
+   4. Write the new number to `~/.ailang/state/mission-gh-issue` and the old one to
       `~/.ailang/state/mission-gh-issue-prev`.
-   4. Post this iteration's report to the NEW issue.
+   5. Post this iteration's report to the NEW issue.
    **Rotation-week catch:** on the first iteration after a rotation (the `-prev` file is fresh),
    Gate-0's Mark-comment read must ALSO check the predecessor issue — Mark may have replied to the
    old thread over the boundary. Same allowlist + watermark.
