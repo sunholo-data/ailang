@@ -197,6 +197,11 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	// consistency and future extensibility. Non-blocking.
 	result.Warnings = append(result.Warnings, DetectArgOrderWarnings(coreProg)...)
 
+	// M-TAKE-FLATMAP-PEAK-MEMORY: direct take(n, flatMap(f, xs)) warning.
+	// Imports are not resolved to VarGlobal here, so this is currently a
+	// consistency no-op; imported files route through the module pipeline.
+	result.Warnings = append(result.Warnings, DetectTakeAfterFlatMap(coreProg)...)
+
 	// M-CHECK-STRICT-FALLBACKS: warn on empty/default `Ok(...)` in
 	// Result-returning functions. Literal-empty cases (Ok("")/Ok([])/Ok({}))
 	// are caught here; the `std/json.jo`-class registry case needs imports

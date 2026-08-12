@@ -225,6 +225,88 @@ func TestFootgunFixtures(t *testing.T) {
 	}
 }
 
+// TestTakeAfterFlatMapWarningFixtures exercises the non-blocking
+// LIST_TAKE_AFTER_FLATMAP diagnostic through the module pipeline. Unlike the
+// fatal-diagnostic table above, these fixtures must compile successfully and
+// inspect result.Warnings directly.
+func TestTakeAfterFlatMapWarningFixtures(t *testing.T) {
+	const warningCode = "LIST_TAKE_AFTER_FLATMAP"
+	tests := []struct {
+		name     string
+		src      string
+		wantWarn bool
+	}{
+		{
+			name: "direct_trap",
+			src: `module fixture/direct_trap
+import std/list (take, flatMap)
+func expand(x: int) -> [int] { [x, x] }
+export func main() -> [int] { take(2, flatMap(expand, [1, 2, 3])) }
+`,
+			wantWarn: true,
+		},
+		{
+			name: "fused",
+			src: `module fixture/fused
+import std/list (takeFlatMap)
+func expand(x: int) -> [int] { [x, x] }
+export func main() -> [int] { takeFlatMap(2, expand, [1, 2, 3]) }
+`,
+		},
+		{
+			name: "take_map",
+			src: `module fixture/take_map
+import std/list (take, map)
+func double(x: int) -> int { x * 2 }
+export func main() -> [int] { take(2, map(double, [1, 2, 3])) }
+`,
+		},
+		{
+			name: "sort_by",
+			src: `module fixture/sort_by
+import std/list (sortBy)
+func compare(a: int, b: int) -> int { a - b }
+export func main() -> [int] { sortBy(compare, [3, 1, 2]) }
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, tt.name+".ail")
+			if err := os.WriteFile(path, []byte(tt.src), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			result, err := pipeline.Run(
+				pipeline.Config{Mode: pipeline.ModeCheck, NoCache: true},
+				pipeline.Source{Code: tt.src, Filename: path},
+			)
+			if err != nil {
+				t.Fatalf("warning must be non-blocking, got error: %v", err)
+			}
+			var matching []string
+			for _, warning := range result.Warnings {
+				coded, ok := warning.(interface{ Code() string })
+				if ok && coded.Code() == warningCode {
+					matching = append(matching, warning.String())
+				}
+			}
+			if tt.wantWarn {
+				if len(matching) == 0 {
+					t.Fatalf("expected %s warning, got warnings: %v", warningCode, result.Warnings)
+				}
+				if !strings.Contains(matching[0], "takeFlatMap") {
+					t.Fatalf("%s warning must carry takeFlatMap fix, got: %s", warningCode, matching[0])
+				}
+			} else if len(matching) != 0 {
+				t.Fatalf("expected no %s warning, got: %v", warningCode, matching)
+			}
+		})
+	}
+}
+
 // TestFootgunFixture_MOD014_ModuleLess is the MOD014 footgun contract. Unlike
 // the inline-Code table above (which routes through the single-file pipeline),
 // MOD014 only fires in the MODULE pipeline, which requires a real filename on
