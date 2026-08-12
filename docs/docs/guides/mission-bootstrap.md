@@ -49,6 +49,27 @@ Do these once on the machine that will host the loop:
    subscription, never a metered key. (For AILANG this is a `~/.zshenv` unset plus a `claude-sub`
    wrapper; adapt to your shell. The driver probes auth cheaply and refuses loudly with zero spend if
    the subscription is not reachable.)
+5. **Claude Code has been run interactively in the mission's checkout ONCE** — added 2026-08-12 after
+   it cost the motoko mission its entire first fire. A checkout Claude Code has never seen has no
+   `hasCompletedProjectOnboarding` entry in `~/.claude.json`, so a headless `claude -p` blocks on the
+   trust dialog it cannot display. **Every** model in `MISSION_MODEL_PREFS` then burns its full probe
+   timeout twice (2 × 120s × 3 models ≈ 12 minutes) and the driver correctly refuses with
+   *"NO usable model in prefs"* — a message that reads exactly like a quota outage or an auth
+   failure, which is the trap. The captured probe output names the real cause, so **read it** rather
+   than the summary line.
+
+   ```bash
+   cd <mission-checkout> && claude     # accept the trust dialog once, then quit
+   ```
+
+   Measured, with a working control: `ailang-world` runs fine on
+   `hasTrustDialogAccepted: false` **because it has `hasCompletedProjectOnboarding`**, while
+   `ailang-motoko` had neither and failed. So onboarding — not the trust flag the error message
+   names — is the discriminator. Setting both is the safe fix.
+
+   **This bites only missions whose `MISSION_WORKDIR` is a NEW checkout.** A mission anchored on an
+   already-used working tree (V1) never sees it, which is why four prior mission bootstraps did not
+   surface it.
 
 ## Step 1 — Write the charter
 
