@@ -224,6 +224,9 @@ wrong before by asserting rather than checking (ground conclusions in data, not 
 | V11 | `empty_stop_guard` supersedes `087e68e` | read `packages/motoko-ext-empty-stop-guard/empty_stop_guard.ail` | Confirmed — budgeted `ContinueWithFeedback` on `on_solver_candidate` |
 | V12 | `on_tool_handle` gains `Rand`, retiring the a2a deferral | V4 diff + `a2a@0.2.2` present in `main_dst` `[extensions]` | Confirmed |
 | V13 | His vendored extension copies diverge from our published ones | compare `compaction_ai` `ailang.toml` version + file sizes | Confirmed: his "0.3.0" is 33,851 bytes; our published 0.3.2 is 9,454. Same name, lower version, different content |
+| V14 | **The fork delta is 52 commits but only 51 are dispositionable** | `git rev-list --count origin/main_dst..HEAD` → **52**; `--no-merges` → **51**; `git log --merges` names the one, `ed61097` | Confirmed 2026-08-12 (iteration 1, re-measured first-party against `main_dst@303d869`). V2 counted correctly; the Success Criterion built on it was off-by-one *in kind*, asking for a row that cannot exist |
+| V15 | That merge carries no unique content, so dropping it loses nothing | `git diff ed61097^2 ed61097` → **empty** (the merge is content-equivalent to its second parent); `git diff ed61097^1 ed61097` → 2 files, i.e. it is a real merge, not a no-op commit | Confirmed. Both arms measured: the second-parent diff being empty is the finding, the first-parent diff being non-empty is the control proving the instrument reads this merge at all |
+| V16 | **Path-existence is NOT a usable supersession signal for this fork** — the headline files survive upstream as facades | for each path our 51 commits touch, `git cat-file -e origin/main_dst:<path>`: **80 of 94** rows come back `UPSTREAM_HAS`. But `agent_loop_v2.ail` is **4,005 B** upstream vs **95,868 B** ours, `compaction.ail` **5,804** vs **17,543**. Controls both fire: `.motoko/config/cloud/config.json` → GONE (matches V7), `README.md` → present | Confirmed — and it **retires an instrument before it was used**. A naive does-the-file-still-exist test would label ~85% of our commits "upstream still has this surface" and under-detect supersession almost completely. Disposition must be judged on **content**, not on path survival |
 
 **Not verified — carried as open questions, not premises:**
 - Whether `motoko-ext-progress-contract-guard` supersedes any of our commits (it has no obvious
@@ -265,11 +268,23 @@ several axioms are scored on what the architecture does for our ability to reaso
 - [ ] `make check_core && make verify_extensions` green on the migrated branch
 - [ ] All 12 extensions published at ABI 5.0 and repinned from the registry
 - [ ] All 18 `motoko_profile:` entries resolve
-- [ ] All 52 fork commits dispositioned in a table in this doc (superseded / ported / dropped)
+- [x] All **51 non-merge** fork commits dispositioned, in
+      [m-motoko-fork-disposition.md](m-motoko-fork-disposition.md) (2026-08-12, iteration 1):
+      **14 SUPERSEDED / 16 PORT / 14 DROP / 7 UNRESOLVED**. The range holds **52** commits; exactly
+      one (`ed61097`) is a merge carrying no unique content, so 51 is the number of rows this
+      criterion can ever have — see V14/V15. Split into its own file rather than inlined here: it
+      is 114 lines of evidence and this doc is the *decision*, not the ledger. **The 7 UNRESOLVED
+      rows are the honest residual and each names the measurement that settles it** — Phase 3 is
+      not complete until they are settled, and a forced verdict there would have been worse than
+      the gap.
 - [ ] `motoko_ext_fmt` re-measured on the new tree; kept or dropped **on evidence**
 - [ ] Output-headroom question resolved upstream or carried as a named patch
 - [ ] [MOTOKO.md](../../MOTOKO.md) rewritten to describe the new tree
-- [ ] One historical A/B question answered via DST rather than a rig run
+- [ ] ~~One historical A/B question answered via DST rather than a rig run~~ **WITHDRAWN** — this is
+      the metric Goals §5 already retracts as a DST over-read. It survived here as a checkbox after
+      the retraction landed in Goals, i.e. this criterion could never be met by design. Removed
+      rather than reworded: the honest replacement is Goals §5's contract-instrument metric, which
+      is the line above it.
 
 ## Testing Strategy
 
