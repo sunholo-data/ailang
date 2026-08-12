@@ -1,0 +1,59 @@
+module tests/golden/bytecode/pattern_arity
+
+import std/io (println)
+
+// n=1 fixed arm, isolated: only the tailed fallback can catch anything else.
+func arity1(xs: [int]) -> string =
+  match xs {
+    [] => "other",
+    [a] => "n1",
+    [p, ...rest] => "other"
+  }
+
+// n=2 fixed arm, isolated.
+func arity2(xs: [int]) -> string =
+  match xs {
+    [] => "other",
+    [a, b] => "n2",
+    [p, ...rest] => "other"
+  }
+
+// n=3 fixed arm, isolated.
+func arity3(xs: [int]) -> string =
+  match xs {
+    [] => "other",
+    [a, b, c] => "n3",
+    [p, ...rest] => "other"
+  }
+
+// Tailed pattern MUST keep "at least 2" semantics.
+func tail2(xs: [int]) -> string =
+  match xs {
+    [a, b, ...rest] => "tail2",
+    _ => "other"
+  }
+
+// Cons form: always tailed, so "at least 1" must survive.
+func consForm(xs: [int]) -> string =
+  match xs {
+    ::(h, t) => "cons",
+    _ => "other"
+  }
+
+export func main() -> () ! {IO} {
+  println("arity1 []      = ${arity1([])}");
+  println("arity1 [7]     = ${arity1([7])}");
+  println("arity1 [7,8]   = ${arity1([7, 8])}");
+  println("arity2 [7]     = ${arity2([7])}");
+  println("arity2 [7,8]   = ${arity2([7, 8])}");
+  println("arity2 [7,8,9] = ${arity2([7, 8, 9])}");
+  println("arity3 [7,8]   = ${arity3([7, 8])}");
+  println("arity3 [7,8,9] = ${arity3([7, 8, 9])}");
+  println("arity3 [7,8,9,10] = ${arity3([7, 8, 9, 10])}");
+  println("tail2  [7]     = ${tail2([7])}");
+  println("tail2  [7,8]   = ${tail2([7, 8])}");
+  println("tail2  [7,8,9] = ${tail2([7, 8, 9])}");
+  println("cons   []      = ${consForm([])}");
+  println("cons   [7]     = ${consForm([7])}");
+  println("cons   [7,8]   = ${consForm([7, 8])}")
+}

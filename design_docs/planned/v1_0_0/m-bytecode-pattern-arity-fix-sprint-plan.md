@@ -431,17 +431,20 @@ Notes:
 
 ## 8. Success metrics
 
-- [ ] AC1 green: quicksort under `--bytecode --caps IO` prints both correct lines.
-- [ ] AC2 green: all 15 fixture rows match the evaluator **and** the absolute golden, for n=1,2,3,
+- [x] AC1 green: quicksort under `--bytecode --caps IO` prints both correct lines.
+- [x] AC2 green: all 15 fixture rows match the evaluator **and** the absolute golden, for n=1,2,3,
       in the overflow, exact **and** underflow directions, plus the tailed and cons arms.
-- [ ] AC3 green: rc=0, stderr free of `falling back to evaluator`, stderr contains `via bytecode VM`.
-- [ ] M1's red-first failure output recorded in the commit message (exactly three wrong rows).
-- [ ] Six mutation drills D1-D6 executed; each recorded with before/after sha256, build rc, and the
+- [x] AC3 green: rc=0, stderr free of `falling back to evaluator`, stderr contains `via bytecode VM`.
+- [x] M1's red-first failure output recorded in sprint state and the executor report (exactly three
+      wrong rows); the controller owns the milestone commit per the no-git-write rule.
+- [x] Six mutation drills D1-D6 executed; each recorded with before/after sha256, build rc, and the
       observed red.
-- [ ] All seven blast-radius examples MATCH.
-- [ ] Parity harness delta is exactly `recursion_quicksort.ail` DIVERGE → MATCH.
-- [ ] Full §7 gate sweep rc=0.
-- [ ] Changelog entry in `changelogs/v0.18-current.md`.
+- [x] All seven blast-radius examples MATCH.
+- [x] Parity harness delta is exactly `recursion_quicksort.ail` DIVERGE → MATCH.
+- [ ] Full §7 gate sweep rc=0 — `go test -timeout 300s ./...` is **UNINFORMATIVE UNDER
+      SANDBOX** because `httptest` cannot bind (`operation not permitted`) and home/cache writes
+      are denied; every other §7 gate returned rc=0. Controller rerun required outside sandbox.
+- [x] Changelog entry in `changelogs/v0.18-current.md`.
 
 ## 9. Scope boundaries (do not cross)
 

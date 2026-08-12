@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-BYTECODE-PATTERN-ARITY-FIX",
-  "status": "planned",
+  "status": "in_progress",
   "created": "2026-08-12T00:00:00Z",
   "design_doc": "design_docs/planned/v1_0_0/m-bytecode-pattern-arity-fix.md",
   "sprint_plan": "design_docs/planned/v1_0_0/m-bytecode-pattern-arity-fix-sprint-plan.md",
@@ -83,10 +83,10 @@
         "`go test -count=1 ./tests/golden/bytecode/` stays rc=0 with the new .ail file present (measured ok at base).",
         "STOP CONDITION: if the test is GREEN at HEAD, do not proceed — the test is vacuous and must be reworked."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-08-12T20:40:00Z",
+      "completed": "2026-08-12T20:45:15Z",
+      "notes": "Red-first AC2 fixture and CLI parity/absolute-golden test added. Intended behavioral failure rc=1 named exactly the three overflow rows; fixture check and bytecode golden package passed."
     },
     {
       "id": "M2_FIX_AC1_AC3",
