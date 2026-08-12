@@ -332,7 +332,7 @@ are ordered so the UNGATED work runs first.
    an independent evaluator **failed the first pass 65/100**, correctly, on 2 of 16 SUPERSEDED rows
    — the one verdict whose error is irreversible. **The 7 UNRESOLVED rows are the honest residual**,
    each naming its settling measurement; Phase 3 is not done until they are settled
-4. [PARKED — `needs-human-review`, 2026-08-12 iteration 2 · **DECISION D1 below**] **Designer pass
+4. [LANDED 2026-08-12 · iteration 2 · **D1 RESOLVED by Mark — G5 is a predicate**] **Designer pass
    on the migration doc + re-quorum ONCE** — **DONE, and R1's objections are answered**
    (`1d0e2e511`): Phase 0 is now a bounded fail-closed gate (4 conjunctive predicates with their
    commands and observed values, a 28-fire ~14d timebox, structured BLOCKED expiry, declared human
@@ -342,8 +342,13 @@ are ordered so the UNGATED work runs first.
    row is `! {AI, IO, Trace}` and the cited ABI commentary is one upstream *retracted*); and
    `gpt5-6-sol`'s finding that the gate starts Phase 1 on G1–G4 while the **ratified charter
    guardrail** demands Arni's declaration too. That last one needs **Mark**, so the doc is parked
-   rather than force-passed. **D1 — is Arni's ABI-settled acknowledgement a gate predicate (G5) or
-   an accepted risk?** Nothing is blocked meanwhile: Phase 0 measures CLOSED (G1/G2/G3 all FALSE).
+   rather than force-passed. **D1 — RESOLVED by Mark 2026-08-12: Arni's ABI-settled acknowledgement is a GATE
+   PREDICATE (G5), not an accepted risk. "We wait for Arni's ABI settled acknowledgement."**
+   So Phase 0 is G1-G5 conjunctive: the four measured predicates AND Arni's declaration. This
+   matches the ratified guardrail rather than relaxing it, and it means the gate CANNOT open on
+   registry evidence alone — the 5.x-at-a-pinned-digest predicate (iteration 2's non-vacuous
+   find) is necessary but not sufficient. Human residual is therefore permanent by design, not
+   a gap: the timebox escalates to Mark, it does not self-open. Nothing is blocked meanwhile: Phase 0 measures CLOSED (G1/G2/G3 all FALSE).
    Also fixed here: **V25**, a defect in the designer's own output — G2 written as bare
    `origin/main` is `rc=128` from this checkout and indistinguishable from the FALSE it reports, so
    the gate could never have opened · *(historical: the quorum **BLOCKED** it at
