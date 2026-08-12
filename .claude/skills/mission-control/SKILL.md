@@ -1208,6 +1208,41 @@ the Repo Profile above):
    mutant, and require rc=0 — that is what proves *your* test is the killer rather than a
    bystander. The tell: a milestone's headline verb is "reject", "refuse", "validate" or "exit
    non-zero", and your mutation list has one entry.
+   **AND A GATE'S COVERAGE IS A PROPERTY OF ITS *ENUMERATOR*, ONE LEVEL BELOW ITS BRANCHES — SO
+   EVERY BRANCH CAN BE PINNED AND THE GATE STILL SEE NOTHING** (added 2026-08-12 V1 iteration 187;
+   proposed by `mission-world` iter-77 with a first-party instance, corroborated in V1's own
+   checkout before adoption per the sibling-claim ghost discipline). Everything above asks *how
+   many ways can this mechanism refuse*, and iter-75's dual asks *how many ways can the forbidden
+   thing be spelled*. Neither asks **who decides what counts as an input at all**. An enumerator's
+   blind spot is invisible to every downstream assertion **by construction**, which is exactly why
+   a full set of arms, mutations and a high evaluator score all agree: the input never reached the
+   branches. World's instance: a gate refusing any `.ail` module outside an allowlist, four
+   refusal branches all mutation-killed, five committed arms, ten mutations, evaluator 93/100 —
+   defeated by `SNEAKY.AIL`, because the enumerator is `find -name '*.ail'` and `-name` is
+   case-sensitive. The gate exited **rc=0** and printed its own success line **byte-identical to
+   the pristine baseline's**; same-call control, `-name` saw **4** files, `-iname` saw **5**.
+   **V1's corroborating instance is a different mechanism — wrong SCOPE, not wrong case — and a
+   live 46-file hole.** `make fmt-check-ail` (`make/code-health.mk:28-39`) advertises "examples/ +
+   stdlib/" and enumerates `find examples stdlib -name '*.ail' 2>/dev/null`. **`stdlib/` has never
+   existed in this repo** (`test -d stdlib` → NO; the real path is `std/`, → YES), `find` reports
+   that only on stderr, and the `2>/dev/null` swallows it. Measured in one call: as-written
+   **400** files, `find examples std` **446**. So 46 stdlib `.ail` files sit outside a gate that
+   still prints `✓ All .ail files are canonical`. Worse, its empty-enumeration branch prints a
+   **GREEN checkmark and `exit 0`** — the anti-vacuity floor iteration 183 added to
+   `test-stdlib-ail` is absent here. Note this is the *same wrong path* rule 3a(i-d) already
+   records from iteration 181, now inside a gate rather than inside a controller probe: a repo
+   with one wrong-path habit will grow enumerators around it.
+   **Rule.** Before trusting any set-compare, allowlist, manifest or sweep gate, ask what its
+   enumerator **cannot see** — case, symlinks, extension variants, roots that do not exist,
+   permissions, build tags, ignore files, `head`/`tail` limiters. Pair the enumeration with a
+   deliberately **widened** control in the same call (`-iname` beside `-name`, `find` beside
+   `go list`, the parent directory beside the named one) and require the two counts to agree, or
+   record the delta as a declared limitation. Assert the roots exist (`test -d`) rather than
+   reading their emptiness, since a missing root returns zero exactly like a clean one — that is
+   rule 3a(i-d)'s scope trap, aimed at a committed gate instead of at your own probe. And any
+   enumerator-fed gate needs an anti-vacuity floor: an empty set must FAIL LOUDLY, never print a
+   checkmark. The tell: you are about to trust a gate whose branches you have all mutation-killed,
+   and you have never asked what feeds it.
 3k. **IF THE PRODUCT HANDS A HUMAN SOMETHING TO RUN, A TEST MUST RUN EXACTLY THAT — A TEST THAT
    REBUILDS THE SAME COMMAND BY A SECOND ROUTE VERIFIES YOUR ARITHMETIC, NEVER YOUR ARTIFACT**
    (added 2026-08-08 iteration 166). Rules 3a–3j police claims about the codebase, about a check's
