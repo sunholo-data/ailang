@@ -2,39 +2,39 @@
 > **Contract**: ≤40 lines, overwritten by mission-control Gate 4 every iteration (history lives in
 > the charter/log). Fresh session = THIS + MEMORY.md. Humans steer via the bookkeeping issue.
 
-**Updated**: 2026-08-12 ~11:40 local (iteration 183)
+**Updated**: 2026-08-12 ~16:35 local (iteration 185)
 
 ## Now
-- **v0.33.0** · merge `6a67bb7a7` — **`#617` M2 LANDED** (PR #668). Gate 3b GREEN: SHA-addressed
-  `checks=16`, **zero NOT-GREEN**. Evaluator **sonnet PASS 95/100 r1, zero blocking**, every drill
-  reproduced independently. Metered **$0.00** (quota + codex buckets).
-- 🟢 **`import std/list (takeFlatMap)` / `(takeMap)` now work.** Doc comments carry the corrected
-  cost model and say plainly neither bounds peak by `n` — what they bound is how many inputs `f`
-  is invoked on (verified empirically: 84.8 MB peak at `n=2`).
-- 🔴 **The milestone's own pins had no gate.** `grep -rn "ailang test" make/ Makefile` → **0**
-  (control `.ail` in `make/` = 35): **nothing** ran **any** `.ail` suite, so AC-3a/AC-4 would have
-  shipped as one-shot commands against a tree that no longer exists. Added `make test-stdlib-ail`
-  + a `ci.yml` step, anti-vacuity floors on both loops.
+- **v0.33.0** · merge `ebbc5a749` — **`#617` M3 LANDED** (PR #675). Gate 3b GREEN: SHA-addressed
+  `checks=21`, `pending=0`, **zero NOT-GREEN**, 4/4 REQUIRED from real `pull_request` events.
+  Evaluator **sonnet PASS 91/100 r1, zero blocking**. Metered **$0.00** (quota + codex buckets).
+- 🟢 **The trap is now taught where users meet it**: prompt **v0.16.6** active in *both* trees,
+  LIMITATIONS ×2, footgun row 22, changelog. Verified **behaviourally** — the built binary's
+  `prompt --source=embedded` really serves it (control: v0.16.5's `toInts` intact). That check is
+  the point: `#617` exists *because* a v0.10.0 fix shipped unreachable for 5 months.
+- 🟢 **This milestone's guard is a real gate** (unlike M2's pins): corrupting the recorded prompt
+  hash reds `TestAILANGPromptLoading` + `TestPromptDisambiguation` for the right *mechanism*.
 
-## Two new bugs, found by drills rather than by the sprint
-- **`#669`** — `ailang test` reports **FALSE FAILURES**: a stdlib export delegating to another
-  same-module AILANG export cannot be `match`-destructured; same code under `ailang run` is fine.
-- **`#670`** — `expected.stdout` in `examples/manifest.json` is **display-only** for all 194
-  examples: corrupted one to a wrong value → `make verify-examples` still **rc=0**.
+## 🔴 The slot before mine died silently — 4th instance
+Iteration **184** spawned the codex executor, announced a wait, and logged `iteration complete
+(rc=0)` **6 minutes later**: 333 KB executor log, clean worktree, **zero** records (`ITERATION 184`
+greps 0 in charter *and* log; control `183`=1/1). Standing rule 7, instances **159·167·176·184**.
+It ran with `bg-wait-ceiling=0ms`, so the rule's own grep-tell is blind — as iter-176 predicted.
+**Structural, not a wording gap**: the codex lane *mandates* a background spawn (30-min cap > the
+10-min foreground limit), so every executor iteration is one lapse from this. → **`D-11`**.
 
 ## In flight / queued
-- **`#617` M3** (limitations, prompt **v0.16.6**, footgun row, changelog) next; then M4 (**cut line**).
-  **`#616`** `D-10` · **`#619`** `D-9` · **`#618`** `D-8` · **#636** `[world-DEMAND]` · **#613**
-  `D-1` · **#604**/`#614` `D-2` · **#649** · **#651** · **#654**.
+- **`#617` M4** (the `LIST_TAKE_AFTER_FLATMAP` note — **cut line**; site resolved to
+  `result.Warnings`) next. **`#616`** `D-10` · **`#619`** `D-9` · **`#618`** `D-8` · **#636**
+  `[world-DEMAND]` · **#613** `D-1` · **#604**/`#614` `D-2` · **#649** · **#651** · **#654**.
 
 ## Loop + routing
-Controller **opus** · executor **codex `gpt-5.6-sol`** (probe rc=0; no planner run — plan existed) ·
-evaluator **sonnet** — generator≠judge held. ⚠ Local `dev` **1 ahead / 19 behind**; reconcile REFUSED
-— obligation 1 now PASSES (patch-id dup of `99486ad02`), **obligation 2 fails** (dirty ∩ incoming =
-`SKILL.md`, `mission-control.sh`; control 24) → writes via worktrees off `origin/dev`. ⚠ `origin/dev`
-moved **twice** mid-iteration (motoko merging) — the per-workflow `--limit 1` read watched a
-sibling's SHA; only SHA-addressed reads are trustworthy.
+Controller **opus** · executor **codex `gpt-5.6-sol`** (probe rc=0; no designer/planner — doc
+quorum-resolved, plan existed) · evaluator **sonnet** — generator≠judge held. ⚠ **The RUNNING skill
+was NOT origin's**: `~/.claude/skills/…` symlinks to the *main checkout* (188,002 B vs origin's
+190,937 B), missing `e96cf210d`; delta read, origin's rules followed. Writes via worktrees.
 
 ## PARKED ON MARK — #635
+- **`D-11`** *(new)* slot-death guard: should a driver exit `rc=0` when elapsed ≪ claimed work?
 - **`D-10`** `#616` · **`D-9`** `#619` · **`D-1`** `#613` · **`D-2`** `#604`/`#614` · **`D-7`**
-  codex 3/3 → (B) de facto · **`D-8`** `#618`. **No new item** — `#669`/`#670` are work, not asks.
+  codex 3/3 → (B) de facto · **`D-8`** `#618`.
