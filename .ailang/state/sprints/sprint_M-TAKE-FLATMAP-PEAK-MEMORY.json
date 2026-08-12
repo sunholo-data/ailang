@@ -1,0 +1,188 @@
+{
+  "sprint_id": "M-TAKE-FLATMAP-PEAK-MEMORY",
+  "design_doc": "design_docs/planned/m-take-flatmap-peak-memory.md",
+  "sprint_plan": "design_docs/planned/m-take-flatmap-peak-memory-sprint-plan.md",
+  "mission": "V1 mission iteration 182 — AILANG-fix lane (expose + repair + teach an already-shipped fused primitive)",
+  "planner_model": "claude-opus-5",
+  "created": "2026-08-12",
+  "status": "planned",
+  "risk_level": "medium",
+  "target_version": "v0.34.0",
+  "github_issues": [617],
+  "planning_base_sha": "063442179",
+  "design_doc_measurement_base_sha": "eabab0611",
+  "scope_note": "Not a build. _list_takeFlatMap and _list_takeMap shipped in v0.10.0 (internal/builtins/list_bounded.go, commit d41e43894) and became unreachable: no std/list export, a latent TCon{Name:\"Int\"} vs surface `int` registration bug, and zero teaching. The sprint is expose + repair + teach, with a check-time note as a pre-declared cut line.",
+  "velocity": {
+    "target_loc_per_day": 120,
+    "estimated_total_loc": 470,
+    "estimated_days": 4
+  },
+  "milestones": [
+    {
+      "id": "M1_REPAIR_INT_TYPE",
+      "goal": "Fix TCon{Name:\"Int\"} -> T.Int() at both registration sites, regenerate the builtin-types golden, correct Since/LongDesc metadata",
+      "closes_acs": ["AC-2 (Go half)"],
+      "files": [
+        "internal/builtins/list_bounded.go",
+        "internal/builtins/list_bounded_test.go",
+        "internal/pipeline/testdata/builtin_types.golden"
+      ]
+    },
+    {
+      "id": "M2_EXPOSE_STDLIB",
+      "goal": "Export takeFlatMap + takeMap from std/list.ail, add the gated runnable example, pin the exports to the fused mechanism",
+      "closes_acs": ["AC-1", "AC-2 (.ail half)", "AC-3a", "AC-4"],
+      "files": [
+        "std/list.ail",
+        "examples/runnable/bounded_take_flatmap.ail",
+        "examples/manifest.json",
+        "internal/builtins/list_bounded_test.go"
+      ]
+    },
+    {
+      "id": "M3_TEACH",
+      "goal": "LIMITATIONS (canonical + root), NEW prompt version v0.16.6 in both prompt trees, footgun row, changelog entry",
+      "closes_acs": ["AC-5"],
+      "files": [
+        "docs/docs/reference/limitations.md",
+        "docs/LIMITATIONS.md",
+        "prompts/v0.16.6.md",
+        "prompts/versions.json",
+        "cmd/ailang/prompts/v0.16.6.md",
+        "cmd/ailang/prompts/versions.json",
+        "internal/diag/footguns.md",
+        "changelogs/v0.18-current.md"
+      ]
+    },
+    {
+      "id": "M4_DIAGNOSE_NOTE",
+      "goal": "Non-blocking LIST_TAKE_AFTER_FLATMAP note in the structured elaborate.Warning channel, wired into both pipelines, with warning-based CI fixtures",
+      "closes_acs": ["AC-6"],
+      "files": [
+        "internal/pipeline/warn_take_after_flatmap.go",
+        "internal/pipeline/pipeline_module.go",
+        "internal/pipeline/pipeline_single.go",
+        "internal/diag/footgun_fixtures_test.go",
+        "internal/diag/footguns.md"
+      ]
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_REPAIR_INT_TYPE",
+      "description": "Replace the two `intT := &types.TCon{Name: \"Int\"}` sites in internal/builtins/list_bounded.go (lines 68 in makeTakeMapType, 150 in makeTakeFlatMapType) with the builder's canonical T.Int(); regenerate internal/pipeline/testdata/builtin_types.golden; correct Since v0.9.4 -> the real first tag and rewrite the LongDesc effectful-f claim to pure-only wording.",
+      "estimated_loc": 90,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "AC-2 (Go half): a red-at-base regression in list_bounded_test.go exercises BOTH repaired sites through an annotated `int`; reverting either T.Int() site turns it red. Baseline VERIFIED BY ME at 063442179: `./bin/ailang check` on an annotated `n: int` wrapper fails with `cannot unify type constructors: Int vs int`.",
+        "Exactly two lines change in internal/pipeline/testdata/builtin_types.golden (138 and 139, `Int` -> `int`). Regenerate with `UPDATE_GOLDEN=1 go test -v ./internal/pipeline -run TestBuiltinTypes_GoldenSnapshot`. A larger diff means something else moved: stop and investigate. NOTE: `make check-golden-drift` will NOT catch a stale golden here (VERIFIED BY ME, make/test.mk:207-219 watches internal/parser/testdata/parser/ only).",
+        "TestTakeMapEarlyExit gains the returned-prefix assertion it currently lacks (VERIFIED BY ME: list_bounded_test.go:112 discards the result via `_, err :=`), and both early-exit tests gain the explicit short timeout round-2 objection 3 required.",
+        "The four pre-existing refusal branches per builtin (non-Int n, non-List input, nil FnCaller, callback-must-return-a-List) stay covered: the change is to the DECLARED type, not the runtime *eval.IntValue assertion.",
+        "Boundary gate green: go test ./internal/builtins ./internal/pipeline -count=1, make lint, make fmt-check. Baseline VERIFIED BY ME: builtins `ok 0.380s`, pipeline golden subset `ok 0.410s`."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_EXPOSE_STDLIB",
+      "description": "Add `export pure func takeFlatMap` and `export pure func takeMap` to std/list.ail delegating to the fused builtins (the map -> _list_map idiom at std/list.ail:56), with doc comments carrying the corrected cost model. Create the runnable example at examples/runnable/ and register it in examples/manifest.json. Add the parity suite and the delegation instrument.",
+      "estimated_loc": 140,
+      "dependencies": ["M1_REPAIR_INT_TYPE"],
+      "acceptance_criteria": [
+        "AC-1: two fresh files, one importing `std/list (takeFlatMap)` and one `std/list (takeMap)`, both `ailang check` rc=0. Baseline VERIFIED BY ME at 063442179: rc=1 with `IMP010: symbol 'takeFlatMap' not exported by 'std/list' — did you mean 'take'?`; takeMap likewise absent (grep rc=1 against a same-file 38-export known-positive control). Killed by dropping either export.",
+        "AC-2 (.ail half): both annotated wrappers (n: int) run; the takeFlatMap half prints [1, 2] and the takeMap half's expected prefix is asserted.",
+        "AC-3a (REWRITTEN — the doc's version is already green at base): an .ail integration test calling `takeFlatMap(4, boom, [1,2,3,4,5])` THROUGH the std/list import exits 0 and prints exactly `[1, 1, 2, 2]`, where `boom x = if x > 2 then [100 / (x - x)] else [x, x]`; same shape for takeMap. Baseline: inexpressible (AC-1's import fails). Killed by writing the export body as `take(n, flatMap(f, xs))` — output-identical under that mutation, but strictness forces the poison branch. Both arms VERIFIED BY ME at 063442179: fused rc=0 printing `[1, 1, 2, 2]`; unfused rc=2 with `panic: division by zero`.",
+        "AC-3a rationale (why the doc's version was replaced): the builtin-layer instrument round 2 prescribed ALREADY EXISTS and is green at base — TestTakeFlatMapEarlyExit (list_bounded_test.go:261) asserts the prefix [10,11,12,20,21] AND callCount==2, TestTakeMapEarlyExit (:103) asserts callCount==3, and the package is `ok 0.380s`. A gate green at base measures the repo, not the change. The mutation this sprint newly makes available lives at the EXPORT layer, where no existing Go test looks.",
+        "AC-4: .ail parity for takeFlatMap vs take-flatMap AND takeMap vs take-map, pure f, across n=0, n>total, empty inner lists, and the dedup composition. Baseline: inexpressible. Killed by an off-by-one in either early-exit loop — VERIFIED BY ME the site is list_bounded.go:190-192 (`if len(result) >= n { break }`); `>=` -> `>` yields n+1 elements.",
+        "The example goes at examples/runnable/bounded_take_flatmap.ail, NOT examples/. VERIFIED BY ME: make verify-examples (make/examples.mk:18) runs scripts/verify_examples.go + scripts/validate_manifest.go over examples/runnable/; manifest path `adt_option.ail` resolves to examples/runnable/adt_option.ail and `ls examples/adt_option.ail` is a no-such-file. Register with expected.stdout taken from the example's OWN run and expected.exit_code 0.",
+        "Append the exports after the pure-combinator block and BEFORE the effectful-combinator contract comment at std/list.ail:212-214, to keep textual distance from m-parmap-effectful's append point.",
+        "Boundary gate green: M1's gates plus make verify-examples (187 modules; the pre-existing `1 missing-on-disk` must not grow)."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_TEACH",
+      "description": "Ship the teaching half: canonical + root LIMITATIONS entries with the corrected cost model and the allocating-f map half; a NEW teaching prompt version v0.16.6 (v0.16.5 + a <=8-line Common-Mistakes block) written to BOTH prompt trees with both versions.json files updated and `active` bumped; the footguns.md row; the changelog entry in changelogs/v0.18-current.md.",
+      "estimated_loc": 120,
+      "dependencies": ["M2_EXPOSE_STDLIB"],
+      "acceptance_criteria": [
+        "AC-5 (REWRITTEN — the doc targets a frozen, non-active prompt): `grep -ci \"takeFlatMap\"` >= 1 AND `grep -ci \"takeMap\"` >= 1 in EACH of docs/docs/reference/limitations.md, docs/LIMITATIONS.md, internal/diag/footguns.md, prompts/v0.16.6.md, cmd/ailang/prompts/v0.16.6.md. takeMap is not a substring of takeFlatMap, so the greps are independent. Baseline VERIFIED BY ME: takeFlatMap = 0 in all five, with same-file known-positive controls (flatMap = 5 in each prompt; 12 footgun rows; 92 and 345 limitation lines).",
+        "AC-5 (prompt-plumbing half): `jq -r '.active' prompts/versions.json` == `jq -r '.active' cmd/ailang/prompts/versions.json` == `v0.16.6`; `shasum -a 256 prompts/v0.16.6.md` matches `jq -r '.versions[\"v0.16.6\"].hash' prompts/versions.json`; `diff -q prompts/v0.16.6.md cmd/ailang/prompts/v0.16.6.md` rc=0. Baseline VERIFIED BY ME: .active == v0.16.5 in both trees.",
+        "DO NOT edit prompts/v0.16.2.md or v0.16.5.md. VERIFIED BY ME: prompt versions are content-hashed in versions.json and immutable — v0.16.5's own release note says \"v0.16.4 remains served byte-identical for pinned eval baselines\". VERIFIED BY ME there are TWO real prompt directories (not symlinks, 66 entries each, v0.16.5 byte-identical between them) and the embedded one is cmd/ailang/prompts/ (`//go:embed all:prompts` at cmd/ailang/main.go:21). VERIFIED BY ME no sync automation exists: `grep -n prompts Makefile` = 0 hits against a 342-line same-file control. The recipe to copy is commit 1677fcff9, which touched both prompt files, both versions.json files, and changelogs/v0.18-current.md.",
+        "The LIMITATIONS entry MUST carry the corrected cost model (peak = source residency + largest single f(x) + n retained outputs), MUST say plainly that takeFlatMap is not a peak-memory cap, MUST carry the bound-it-inside-f guidance, MUST carry the allocating-f map half, and MUST include the --max-recursion-depth anti-pattern. Per M-V1-STABILITY-PROMISE: repro transcript + verified-at version.",
+        "The footguns.md row's blind-spot column records BOTH known false negatives: value-level aliases (V10) and the allocating-f take-map form (V25/V26), with takeMap named as the fix the note cannot deliver. Status `inventoried` here, flipped to `shipped-this-sprint` by M4.",
+        "Bounded cleanup: internal/diag/footguns.md's header cites prompts/v0.16.2.md as the prompt of record and is stale; repoint the header and this row's `prompt lines to delete` column at v0.16.6. Leave other rows' line numbers alone.",
+        "The changelog entry goes in changelogs/v0.18-current.md, NOT root CHANGELOG.md. VERIFIED BY ME: `make check-changelog` is a REQUIRED CI gate (.github/workflows/ci.yml:127) running scripts/check_changelog.sh (make/code-health.mk:142-143), described as \"Check root CHANGELOG.md stays an index, not a changelog\". Include the AC-3b /usr/bin/time -l before/after table, and record that the exports landed ungated by make verify-stdlib (see out_of_scope).",
+        "AC-3b (release evidence, non-CI): /usr/bin/time -l on both rewritten repros, recorded in the changelog. Targets inherited from the design doc (V1/V2, V25/V26): fused takeFlatMap arm < 150 MB max RSS and < 1 s against 425 MB / 81.9 s; the takeMap pair against 559 MB / 18.78 s. Peak RSS never becomes a CI gate.",
+        "Boundary gate green: M2's gates plus make check-changelog and the AC-5 hash + cross-tree diff checks."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_DIAGNOSE_NOTE",
+      "description": "Add the non-blocking LIST_TAKE_AFTER_FLATMAP check-time note in a NEW file internal/pipeline/warn_take_after_flatmap.go modelled on internal/pipeline/strict_fallbacks.go, wired into both the module and single-file pipelines, with warning-based (not error-based) CI fixtures in internal/diag/footgun_fixtures_test.go. PRE-DECLARED CUT LINE.",
+      "estimated_loc": 120,
+      "dependencies": ["M3_TEACH"],
+      "acceptance_criteria": [
+        "Site decision (the doc deferred this to the planner and its candidate was wrong): use the structured `result.Warnings []elaborate.Warning` channel (internal/pipeline/pipeline.go:125), NOT the MOD010 path the doc suggested. VERIFIED BY ME: warnMOD010Relaxed (pipeline_module.go:767-779) is a bare fmt.Fprintf to os.Stderr with no code, no position, and it never reaches result.Warnings — a note there would be invisible to `ailang check --json` and untestable through pipeline.Run. VERIFIED BY ME the structured channel is rendered and never fails the check: cmd/ailang/check.go:243 calls printCheckWarnings(result.Warnings) on the SUCCESS path, whose comment reads \"Warnings never fail the check\" (check.go:250-257). That satisfies AC-6's rc=0 requirement structurally.",
+        "Implementation shape: copy internal/pipeline/strict_fallbacks.go — a TakeAfterFlatMapWarning implementing elaborate.Warning with Code() == \"LIST_TAKE_AFTER_FLATMAP\", Position() and a String() carrying the fix; a `var _ elaborate.Warning = (*TakeAfterFlatMapWarning)(nil)` compile-time assertion; and DetectTakeAfterFlatMap(prog *core.Program) matching App(std/list.take, [n, App(std/list.flatMap, [f, xs])]) on resolved VarGlobals. NEW FILE, not an insertion into pipeline_module.go, which is already large (make check-file-sizes fails >800 lines).",
+        "Wire into BOTH pipelines, mirroring how DetectStrictFallbacks and DetectArgOrderWarnings are wired (VERIFIED BY ME): internal/pipeline/pipeline_module.go:387-397 inside the existing sorted-modID loop, and internal/pipeline/pipeline_single.go:198-206. Only the module one can ever fire — the in-repo comments say the single-file/REPL pipeline does not resolve imports to VarGlobal (pipeline_single.go:191-194) while the module pipeline does (pipeline_module.go:389-390). Benign, since any file calling take/flatMap must import std/list and therefore routes to the module pipeline. Preserve the sorted-modID iteration order: pipeline_module.go:380-386 states it exists so warning output is deterministic (A1/A2).",
+        "AC-6 (MECHANISM RESPECIFIED — the doc's cited convention is structurally incompatible): add a SEPARATE test function to internal/diag/footgun_fixtures_test.go, NOT a row in the footgunFixtures table. VERIFIED BY ME that table's harness (TestFootgunFixtures:207-224) does `if err == nil { t.Fatalf(\"expected a diagnostic, got nil error\") }` and reads only err.Error() — a non-blocking note returns err == nil and would fail there for the right reason in the wrong place. Follow the shape of TestFootgunFixture_MOD014_ModuleLess (:234) and TestFootgunFixture_MOD007_DuplicateModuleBinding (:286) instead.",
+        "AC-6 fixtures (four, real files written into t.TempDir() because the note only fires in the module pipeline — the same constraint MOD014's own comment states): (1) direct trap file -> a warning whose Code() is LIST_TAKE_AFTER_FLATMAP and whose String() contains the substring `takeFlatMap`, with err == nil; (2) fused file -> no such warning; (3) a take(n, map(...)) file -> no such warning; (4) a sortBy-using file -> no such warning (sortBy calls take internally at std/list.ail:78 and has no flatMap inside). Baseline: the trap file checks fully clean today. Killed by removing the pass (1) or over-matching (2-4).",
+        "Fixture 3 pins the STATED SCOPE RULE (the note fires on the flatMap form only, because a syntactic pass cannot see whether f allocates) — it is NOT a claim that take-map is safe. The allocating-f map case is a documented lint false negative carried by AC-5's teaching text.",
+        "TestMain in footgun_fixtures_test.go:38-43 sets AILANG_STDLIB_PATH=../../std and types.ImportSuggester before any fixture runs; our fixtures import std/list, so do not disturb it.",
+        "Refusal-branch mutation obligation, enumerated FROM THE DIFF not from this plan: run `grep -cE 'return .*(fmt\\.Errorf|errors\\.New|status\\.Error)\\(' <each file in the M4 diff>` (the \\( anchor is required — the %w form is blind to terminal, non-wrapping refusals), add one `if false && <cond>` mutant per branch found, assert the mutant BUILDS with `go build ./internal/... ./cmd/ailang` at rc unchanged from its base value BEFORE reading a red, then confirm a test fails. Do NOT use `go build ./...` — it is known-red at base (cmd/wasm and gen/main have no native main).",
+        "Flip the internal/diag/footguns.md row from `inventoried` to `shipped-this-sprint`.",
+        "Boundary gate green: all prior gates plus go test ./internal/diag ./internal/pipeline -count=1.",
+        "CUT POLICY: if M4 runs over budget it is dropped as a RECORDED decision, not a silent drop. M1-M3 alone close #617's primary ask; the footgun row stays `inventoried` with the target diagnostic recorded, and the changelog says so."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "acceptance_criteria_overall": [
+    "AC-1 (surface): `import std/list (takeFlatMap)` and `import std/list (takeMap)` both check clean. Baseline VERIFIED BY ME at 063442179: IMP010, rc=1.",
+    "AC-2 (type fix): both annotated `n: int` wrappers type-check and run. Baseline VERIFIED BY ME: `cannot unify type constructors: Int vs int`.",
+    "AC-3a (REWRITTEN): the stdlib EXPORT is pinned to the fused mechanism by a refusal-divergence test, not by output equality. Baseline: inexpressible. The doc's builtin-layer version was already green at base.",
+    "AC-3b: /usr/bin/time -l release evidence in the changelog; peak RSS is never a CI gate.",
+    "AC-4 (parity): fused == unfused for pure f across n=0, n>total, empty inner lists, and dedup composition, for BOTH fused builtins.",
+    "AC-5 (REWRITTEN): teaching lands in limitations x2, footguns.md, and a NEW ACTIVE prompt v0.16.6 present and identical in BOTH prompt trees with both versions.json files updated and hash-verified.",
+    "AC-6 (RESPECIFIED): four warning-based fixtures on the structured elaborate.Warning channel, asserting rc=0 with the note present.",
+    "AC-7 (anti-regression, reach-verified): go test ./internal/builtins ./internal/pipeline ./internal/diag -count=1, make verify-examples, make check-changelog, make lint, make fmt-check all green. `suite green` never stands in for AC-1..AC-6.",
+    "Bisectability: one commit per milestone, full suite green at every milestone boundary."
+  ],
+  "discrepancies_found": [
+    "D-1 BLOCKING — The teaching-prompt target is a FROZEN, NON-ACTIVE version. The doc names prompts/v0.16.2.md in Phase 2 step 7, in Files to Modify (line 603) and in AC-5's grep. VERIFIED BY ME: `jq -r '.active' prompts/versions.json` = v0.16.5 (same in cmd/ailang/prompts/versions.json); prompt versions are content-hashed (`hash: 1c16a8fc...` for v0.16.2) and immutable by policy (v0.16.5's own note: \"v0.16.4 remains served byte-identical for pinned eval baselines\"); and there are TWO real prompt directories, with the EMBEDDED one being cmd/ailang/prompts/ (`//go:embed all:prompts`, cmd/ailang/main.go:21) and no sync automation (`grep -n prompts Makefile` = 0 hits against a 342-line control). As written, AC-5 would require corrupting a hashed, eval-pinned file, and greening it would still leave the SHIPPED prompt at 0 mentions — #617's own failure mode (a fix that ships and is never reachable) reproduced one layer up. Fix: cut a new v0.16.6 in both trees per the recipe of commit 1677fcff9. Root cause is inherited, not the doc's invention: footguns.md's own header cites v0.16.2 as the prompt of record.",
+    "D-2 BLOCKING — The doc says there is no golden churn; there is, and it is required. Conflict Surface line 646 claims \"no golden builtin-count snapshot churn beyond metadata\". VERIFIED BY ME FALSE: internal/pipeline/testdata/builtin_types.golden lines 138-139 literally record `_list_takeFlatMap : (Int, ...)` and `_list_takeMap : (Int, ...)`, so the Int->int repair changes them. Line 137 (`_list_take : (int, ...)`) is the same-file known-positive control and the tightest evidence that exactly these two builtins deviate. Gate is TestBuiltinTypes_GoldenSnapshot in internal/pipeline (UPDATE_GOLDEN=1 to regenerate); `make check-golden-drift` will NOT catch it — VERIFIED BY ME it diffs internal/parser/testdata/parser/ only (make/test.mk:207-219).",
+    "D-3 RESOLVED BY MEASUREMENT — The Phase-3 diagnostic site the doc proposed is the wrong channel. Line 605 defers the site to the planner with the candidate \"pipeline_module.go warning channel used by MOD010\". VERIFIED BY ME the MOD010 'channel' is not a channel: warnMOD010Relaxed (pipeline_module.go:767-779) is a bare fmt.Fprintf to os.Stderr with no code and no position, never reaching result.Warnings. The real structured non-blocking channel is result.Warnings []elaborate.Warning (pipeline.go:125), rendered by printCheckWarnings on the SUCCESS path (check.go:243, 250-257, comment: \"Warnings never fail the check\"). Decision: new file internal/pipeline/warn_take_after_flatmap.go modelled on strict_fallbacks.go, wired at pipeline_module.go:387-397 AND pipeline_single.go:198-206. Only the module wiring can fire (single-file does not resolve imports to VarGlobal, per the in-repo comments at pipeline_single.go:191-194 vs pipeline_module.go:389-390) — which is what forces AC-6's fixtures onto real files in t.TempDir().",
+    "D-4 BLOCKING FOR M4 — AC-6 cannot use the fixture convention the doc points at. The doc says \"per that file's existing convention\", but VERIFIED BY ME TestFootgunFixtures (footgun_fixtures_test.go:207-224) does `if err == nil { t.Fatalf(\"expected a diagnostic, got nil error\") }` and inspects only err.Error(). Our note is non-blocking, so err == nil and the warning lives in the pipeline RESULT. A footgunFixtures row would fail for the right reason in the wrong place. Fix: a separate test function following TestFootgunFixture_MOD014_ModuleLess (:234) / _MOD007_ (:286), writing real files to t.TempDir() and asserting on result.Warnings.",
+    "D-5 REWRITTEN — AC-3(a) is ALREADY GREEN AT BASE, so as written it cannot fail. Round 2 replaced AC-3 with reviewer objection 3's prescribed 'instrumented callback + small fixed input' Go test. VERIFIED BY ME that test already exists twice: TestTakeFlatMapEarlyExit (list_bounded_test.go:261) uses a counting callback and asserts BOTH the prefix [10,11,12,20,21] AND callCount==2; TestTakeMapEarlyExit (:103) asserts callCount==3; and `go test ./internal/builtins -run 'TakeFlatMap|TakeMap' -count=1` is `ok 0.380s` at base. Its own named mutation ('re-implement takeFlatMap as sugar for take(n, flatMap(f, xs))') is therefore ALREADY killed at base. The reviewer's reasoning and instrument are right; the LAYER is wrong. The mutation this sprint newly makes available is an export body written as `take(n, flatMap(f, xs))` in std/list.ail — byte-identical output, reintroduces the entire OOM, and every existing Go test still passes because they call takeFlatMapImpl directly and never read std/list.ail. AC-3a retargeted there. Two genuine Go-layer gaps folded into M1: TestTakeMapEarlyExit asserts the count but NOT the returned prefix (`_, err :=` at :112), and neither test carries the explicit short timeout objection 3 asked for.",
+    "D-6 NEW INSTRUMENT, MEASURED — the replacement AC-3a observable. An invocation counter is unavailable through the export (the fused builtins are pure-only, V6). A refusal-divergence instrument works: with `boom x = if x > 2 then [100 / (x - x)] else [x, x]`, VERIFIED BY ME at 063442179 that `_list_takeFlatMap(4, boom, [1,2,3,4,5])` prints `[1, 1, 2, 2]` at rc=0 (f is never invoked past the second input, so the poison branch never evaluates) while `take(4, flatMap(boom, [1,2,3,4,5]))` dies at rc=2. The observable is downstream of the early-exit loop itself, not stamped alongside it. Honesty note: the unfused failure is an UNSTRUCTURED Go `panic: division by zero` from internal/types/dictionaries.go:119 (registerNumInt), an A11 gap found here and routed out of scope; AC-3a therefore pins only the fused arm's rc=0 + exact stdout, which is stable under any future fix.",
+    "D-7a — V17 miscounts the existing tests. Doc says '22 test funcs + 2 benchmarks'. VERIFIED BY ME `grep -c '^func Test' internal/builtins/list_bounded_test.go` = 20; plus BenchmarkTakeMap (:437) and BenchmarkTakeFlatMap (:458) that is 22 FUNCTIONS total. The benchmarks were double-counted.",
+    "D-7b — The example path is not on the CI-gated surface. Doc says examples/bounded_take_flatmap.ail. VERIFIED BY ME make verify-examples (make/examples.mk:18) runs over examples/runnable/: manifest path `adt_option.ail` resolves to examples/runnable/adt_option.ail while `ls examples/adt_option.ail` is a no-such-file; examples/runnable/ has 174 .ail files vs 42 at examples/ top level, manifest has 193 entries. Create at examples/runnable/bounded_take_flatmap.ail with expected.stdout + expected.exit_code, or it is gated by nothing.",
+    "D-7c — V19's conflict scope is narrower than the actual file set, though its conclusion survives. V19 checked list_bounded.go and named only m-parmap-effectful for std/list.ail. VERIFIED BY ME `grep -rln 'std/list.ail' design_docs/planned/` returns SIX planned docs. Checked each by purpose: four are citations, not edits. m-parmap-effectful is still LIVE (Status: Planned; lines 191 and 255 still name std/list.ail) and still low-risk — additive exports at different sites. The sixth, m-verify-stdlib-stale-path (planned/v0_29_0), is NOT in the doc's Conflict Surface and is directly about this sprint's action: `make verify-stdlib` reads a `stdlib/std` directory that has not existed since v0.3.20, so the stdlib interface-stability gate has verified nothing for years, and its own Problem section names adding std/list exports as exactly what it should have flagged. Impact on us is nil (VERIFIED BY ME verify-stdlib is not in any CI workflow) — but the changelog should record that these exports landed ungated by it.",
+    "D-8 CONTEXT — the doc's Verification Log is FRESH. Between its declared measurement base eabab0611 and the planning base 063442179 the only non-design_docs file changed is .claude/skills/mission-control/SKILL.md, so no source file cited by V1-V26 has moved. I independently re-confirmed V4, V5, V-BUILDER, V16, V17, V14 and V15 at 063442179, each with a same-path known-positive control. Rows not re-measured by me (notably the V1/V2 and V21-V26 RSS/wall tables, and V12's tag provenance) remain UNVERIFIED and inherited."
+  ],
+  "out_of_scope": [
+    "takeFilter, _list_take exposure, or further fused forms — the minimal core is an evidence bar, not a headcount, and neither clears it (filter measured no amplification, V8; _list_take has no motivating incident)",
+    "takeFlatMapE / takeMapE effectful twins — the type system enforces the deferral (V6)",
+    "General lazy evaluation or lazy lists, and the Iterator-Protocol redesign",
+    "Fixing concat/take's own recursion limits (RT_REC_003, V9)",
+    "Streaming/chunked JSON decode (M-JSON-STREAMING, never routed)",
+    "Making the lint see value-level aliases (V10) — documented blind spot",
+    "Fixing make verify-stdlib's dead stdlib/std path — owned by m-verify-stdlib-stale-path (planned/v0_29_0, P3); just record in the changelog that these exports landed ungated by it",
+    "Fixing the unstructured `panic: division by zero` at internal/types/dictionaries.go:119 (found via D-6) — a real A11 structured-failure gap, worth its own issue, not this sprint",
+    "Re-dating the other prompts/v0.16.2.md references in footguns.md rows beyond our own (D-1)",
+    "Touching prompts/v0.16.2.md or prompts/v0.16.5.md in any way — both are hashed and pinned by banked eval baselines"
+  ]
+}

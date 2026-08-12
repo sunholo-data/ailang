@@ -14,10 +14,16 @@ import (
 // with early exit. They avoid materializing full intermediate lists, preventing
 // OOM on large inputs.
 //
-// Semantic note: For effectful f, takeFlatMap(n, f, xs) evaluates f only for
-// as many input elements as needed to produce the first n output elements.
-// This is intentional short-circuiting — the bounded behavior is explicit
-// in the function name.
+// Semantic note: for a PURE f, takeFlatMap(n, f, xs) applies f only to as many
+// input elements as are needed to produce the first n output elements. This is
+// intentional short-circuiting — the bounded behavior is explicit in the
+// function name.
+//
+// This says nothing about effectful f, which cannot reach these builtins at
+// all: makeTakeFlatMapType builds its callback with T.Func(a).Returns(listB)
+// and no .Effects(...)/.RowTail(...), so the effect row is closed and empty
+// and an effectful closure fails to unify against it. An effectful variant is
+// deferred.
 
 func init() {
 	registerTakeMap()
@@ -46,7 +52,7 @@ func registerTakeMap() {
 				{Name: "xs", Description: "Input list"},
 			},
 			Returns:   "List of at most n elements, each the result of applying f",
-			Since:     "v0.9.4",
+			Since:     "v0.10.0",
 			Stability: StabilityStable,
 			Tags:      []string{"list", "map", "take", "bounded", "performance"},
 			Category:  "list",
@@ -65,7 +71,7 @@ func makeTakeMapType() types.Type {
 	listA := T.List(a)
 	listB := T.List(b)
 	fn := T.Func(a).Returns(b).Build()
-	intT := &types.TCon{Name: "Int"}
+	intT := T.Int()
 	return T.Func(intT, fn, listA).Returns(listB).Build()
 }
 
@@ -121,14 +127,14 @@ func registerTakeFlatMap() {
 		Impl:    takeFlatMapImpl,
 		Metadata: &BuiltinMetadata{
 			Description: "FlatMap a function over a list, collecting at most n results",
-			LongDesc:    "Fused take+flatMap: applies f to elements of xs (where f returns a list), flattening results and stopping as soon as n total output elements are collected. Avoids materializing the full flattened list when only a prefix is needed. For effectful f, only evaluates f for as many input elements as needed to produce n outputs.",
+			LongDesc:    "Fused take+flatMap for pure f: applies f to elements of xs (where f returns a list), flattening results and stopping as soon as n total output elements are collected. Avoids materializing the full flattened list when only a prefix is needed. An effectful variant is deferred.",
 			Params: []ParamDoc{
 				{Name: "n", Description: "Maximum number of output elements to collect"},
 				{Name: "f", Description: "Function to apply to each element (must return a list)"},
 				{Name: "xs", Description: "Input list"},
 			},
 			Returns:   "Flattened list of at most n elements",
-			Since:     "v0.9.4",
+			Since:     "v0.10.0",
 			Stability: StabilityStable,
 			Tags:      []string{"list", "flatMap", "take", "bounded", "performance"},
 			Category:  "list",
@@ -147,7 +153,7 @@ func makeTakeFlatMapType() types.Type {
 	listA := T.List(a)
 	listB := T.List(b)
 	fn := T.Func(a).Returns(listB).Build()
-	intT := &types.TCon{Name: "Int"}
+	intT := T.Int()
 	return T.Func(intT, fn, listA).Returns(listB).Build()
 }
 
