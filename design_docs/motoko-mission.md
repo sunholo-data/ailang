@@ -1,254 +1,162 @@
-# MISSION: Make Motoko the Best AILANG-Specific Code Harness
+# Motoko Mission — make motoko the best AILANG-specific harness, and keep our evals honest about it
 
-**Type:** Long-running mission (advanced in downtime, e.g. while evals run)
-**North star:** motoko should be the BEST harness for writing AILANG specifically — exploiting structural
-advantages a generic harness on an untyped language cannot (typed-interface reads, AST edits/queries, effect
-rows, contracts + Z3 verification, exact best-of-N selection), with robust large-context AILANG synthesis and
-CORRECT, consistent delivery of the canonical AILANG teaching prompt into every session.
+**Type**: Long-running mission (peer of [v1-mission.md](v1-mission.md)); advanced by a scheduled
+outer loop on the always-on rig.
+**North star**: motoko should be the BEST harness for writing AILANG specifically — exploiting
+structural advantages a generic harness on an untyped language cannot (typed-interface reads, AST
+edits/queries, effect rows, contracts + Z3, exact best-of-N) — and every claim we make about it
+should be measured on the tree we actually run.
+**Traces to**: [PROGRAM.md](PROGRAM.md) — this mission is an operational instance of the program's
+loop; every friction found here routes to a lane (AILANG fix / motoko extension / core-floor fix).
+**Skill**: [.claude/skills/mission-control/SKILL.md](../.claude/skills/mission-control/SKILL.md)
+runs ONE iteration — the SAME unforked skill every mission uses (M-MISSION-PORTABILITY).
+The [motoko-analyzer](../.claude/skills/motoko-analyzer/SKILL.md) skill is the **diagnostic
+playbook** for "why is motoko failing" queue items (its five gates), not a competing outer loop.
+**Scheduling**: launchd `dev.ailang.mission-motoko`, `StartInterval=21600` (6h) — deliberately
+staggered against V1 (5400s) and World (14400s), and deliberately slow: the queue is gated (see
+Guardrails) and the rig's quota is shared.
+**Log**: [motoko-mission-log.md](motoko-mission-log.md) — append-only, one entry per iteration.
+**Human-facing reporting**: GitHub issue #<NNN — seeded at bootstrap> — every iteration posts its
+report there as a comment; driver crashes post there too.
 
-**MILESTONE ACHIEVED (2026-06-21), NOT THE GOAL:** "match or beat pi" is DONE — motoko = pi at pass@1 (parity)
-+ ahead on best-of-N; best-of-N shipped as a first-class rotation metric. Do NOT re-derive "beat pi" as the
-goal or declare victory on it again — that bar is behind us.
+## Repo Profile (M-MISSION-PORTABILITY M2 — the per-mission values mission-control reads)
 
-**CURRENT GOAL = best AILANG-specific harness. The frontier is HARNESS CORRECTNESS + AILANG-native power:**
-1. CANONICAL PROMPT DELIVERY — the versioned teaching prompt (prompts/versions.json / `ailang prompt`) must be
-   inserted into EVERY motoko session consistently (persistent system prompt, like all other evals). The
-   recurring system-prompt failure. NEVER duplicate or approximate it with ad-hoc cheat-sheets — one source.
-2. RESPECT CONTEXT LENGTH — compaction must use the model's real token accounting (provider input_tokens /
-   count tool_calls, not a content-only estimate) so sessions never overflow the model window.
-3. UNCAUGHT HARNESS ERRORS — premature stops / disengagement are HARNESS bugs (swallowed errors), NOT model
-   capacity. Every such case this arc was a harness bug. Find the error; do not band-aid with heuristics.
-4. AILANG-NATIVE POWER — AST edits/queries, typed-interface reads, contracts+Z3, exact best-of-N: the moat.
+The single source of truth for the values that differ per mission. The one `mission-control` skill
+reads this block (and the driver env it exports from `~/.config/ailang/mission-motoko.env`) instead
+of hardcoding.
 
-**The standard set is now SATURATED** (both harnesses 100% best-of-N ceiling, 0 hard-fails) — it can no
-longer discriminate "best vs equal." **Remaining (optional, "best not just equal"):** the large-context
-frontier (P0, ailang-parse repo-source reimplement instrument) where pi and motoko actually diverge — a
-deliberate focused-session build, not a cron task. See [[motoko-strategic-goal]] +
-the [analysis log](motoko-harness-analysis-log.md).
+- **Repo slug**: `sunholo-data/ailang` (driver: `MISSION_REPO`)
+- **Mission doc**: `design_docs/motoko-mission.md` (driver: `MISSION_DOC`)
+- **Mission name / state namespace**: `motoko` (driver: `MISSION_NAME`; any name ≠ `v1` gets fully
+  namespaced `~/.ailang/state/mission-motoko-*` paths — no collision with the V1 loop)
+- **Working checkout**: `/Users/voightkampff/dev/sunholo-data/ailang-motoko` (driver:
+  `MISSION_WORKDIR`) — **a SEPARATE clone from V1's**, deliberately. There is no cross-mission
+  lock (`rig-lock.sh` guards eval jobs, not missions; the driver's overlap guard is a per-mission
+  pidfile), so two missions sharing one working tree would contend on `git commit`/`push` to `dev`.
+  V1 fires every 90 min, so overlap would be routine, not rare.
+- **Bookkeeping issue**: `#<NNN>`, rotates weekly; live number in `~/.ailang/state/mission-motoko-gh-issue`
+- **CI workflows Gate 3b / Gate 1 poll**: `CI`, `Build and Release`, `Deploy Documentation to GitHub Pages`
+- **Verify profile**: `go-compiler` — this repo compiles the AILANG toolchain, so gates rebuild
+  BOTH binaries (`make quick-install && make build`) and run `make test`; `~/go/bin/ailang` (PATH)
+  and `bin/ailang` go stale independently (confirm `--version` == `git describe`).
 
-**STATUS 2026-06-22 — P0 LARGE-CONTEXT GRADED (the frontier moved; two desynced sessions merged here).**
-First real `docx_reimplement` grade (727-line parser reimplement): motoko **0/17**, but the **timeout fix is
-VALIDATED** — 48 steps to completion, no "context deadline exceeded" (prior runs died at 14/27 on the 300s
-cap). So 0/17 is a genuine capability result, and the failure is exactly the discriminating signal P0 exists
-for: **on a 727-line generation qwen's AILANG syntax fidelity DRIFTS** (emits Haskell `\x.` lambda instead of
-`\x ->`; bad `match` arm) → the package won't COMPILE. Compounded by **under-testing** (only 3 `ailang check`
-calls in 48 steps despite 40+ spare → it never caught its own parse errors). The short standard benchmarks
-hide this; the large-context instrument surfaces it.
+**Skill sync, and why the separate checkout is NOT a skill fork.** V1 resolves `mission-control`
+through `~/.claude/skills/mission-control`, a symlink into V1's checkout. This checkout has its own
+git-tracked `.claude/skills/`, which takes precedence for sessions run here. That is **convergence
+via git, not divergence**: both checkouts track `dev`, so a Gate-5 edit made here reaches V1 on its
+next pull and vice versa. Do not "fix" this by symlinking over the tracked directory. Do keep
+Gate 5's one-edit-per-iteration rule — it is what bounds the divergence window.
 
-**Re-prioritized "beat pi" levers (now DATA-BACKED, not speculative) — the path to a passing large-context grade:**
-1. **best-of-N + EXACT selector (P1, BUILT):** N attempts, reject non-compiling → a syntactically-clean
-   candidate likely appears across samples. Directly rescues the syntax-drift class. **TOP lever — try first.**
-2. **compile-gate-before-done (DP7):** force `ailang check --package` green before "done" (motoko had 40+
-   spare steps). DP7 either isn't in this rig build or didn't fire on this task — re-verify/enforce.
-3. **EditDecl / ast-edit (P3, [`planned/m-motoko-editdecl-astedit.md`](planned/m-motoko-editdecl-astedit.md)):**
-   smaller per-edit surface → less drift than a 727-line monolith write.
-4. **R1 syntax-fidelity diagnostics + R1-glue contract verification:** surface `\x.`→`\x ->` as an
-   actionable error; verify candidates against provided contracts. The `\x.` drift is qwen-on-AILANG friction
-   (hits ANY harness) = an AILANG eval-gap, NOT motoko-specific.
+---
 
-**Infra cleared (both sessions): /v1 timeout fix deployed (runtime-process.ts:357) + upstream DRAFT PR #65;
-parser `s[0]` panic FIXED on dev (dbc8bf391); CI green (gofmt + approvaltoken). R1-glue MVP done
-(astedit.InjectContract + `select-best --contract-spec`); next gate = multi-function body-less `contract_spec`
-extraction + a HARDER contract benchmark (current contract_* are saturated, 0 runs-but-wrong → no lift to show).**
+## STATUS (rotation rule)
 
-## Roadmap: BEYOND parity (2026-06-21) — exploit what pi structurally can't do
+Newest **3** STATUS stamps live here; older ones move to `motoko-mission-status-archive.md`.
+At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the archive file. Rationale:
+every iteration re-reads this charter — unbounded STATUS history is a per-read token tax on the
+scarcest model budget; the append-only history lives in the log + archive.
 
-The standard set is saturated (motoko = pi). Beating pi requires AILANG-native structural advantages a
-generic harness has no access to. Priorities (mine):
+> The archive file currently holds the **pre-2026-08-12 charter in full** — the "beat pi" arc, the
+> P0 large-context grading, and the June harness-correctness frontier. That charter was last touched
+> 2026-06-24 and had gone stale in a way that matters: three of its four stated goals are now solved
+> or superseded upstream (see CURRENT GOAL). It is kept because its *findings* remain valid evidence;
+> it is not kept as direction.
 
-- **R1 (TOP — build now) — Contract-aware best-of-N selector.** Extend the best-of-N selector (select-best
-  / the rotation rollup) to reject runs-but-WRONG candidates via AILANG **contracts** (`ailang run
-  --verify-contracts`, or Z3 `ailang verify`). pi has no typed verifier → it keeps selector-misses (the
-  head-to-head `pipeline` case: pi picked runs-but-wrong; motoko 0 misses). The `contract_*` stretch
-  benchmarks are the proving ground. **Lever class: AILANG-native MOAT.** Small build (Go/eval-harness).
+## STATUS 2026-08-12 — ITERATION 0 PENDING: **charter rewritten, loop armed-but-silent, not yet ratified.** Bootstrapped per [mission-bootstrap.md](../docs/docs/guides/mission-bootstrap.md): separate checkout, env profile, plist, kill switch ON. Iteration 0 (ratification with Mark, via `ailang design-quorum`) has NOT run — the bar and queue below are **proposed, not agreed**.
 
-- **R2 — Real-codebase "evolving codebase" eval (design-doc → sprint → motoko-execute → compare-reference).**
-  The realistic instrument that replaces saturated synthetic benchmarks (the user's idea). **TARGET = real
-  codebases WRITTEN IN AILANG, NOT the ailang-core repo's design_docs/ (those are the Go COMPILER — wrong
-  substrate).** Use: `ailang-parse` (docx/office parsing), `ailang-demos` (ecommerce/BigQuery/budgets),
-  `docparse`, `motoko_agent` (`src/core/*.ail`). Pipeline: take a feature/design-doc from one of THESE
-  AILANG projects (reference AILANG implementation exists) → sprint-plan → motoko executes on the pre-feature
-  copy → grade vs the reference (its AILANG tests + diff: "did motoko match or BEAT the human solution?").
-  docx-reimplement (ailang-parse) is the first instance — already AILANG-source. Tests ALL differentiators
-  on real evolving-AILANG-codebase work.
+## CURRENT GOAL
 
-- **R3 — Cross-model + cross-language generality study.** Once motoko is optimal on-device: motoko vs pi/
-  opencode on BIG openrouter models (gpt5, opus, gemini-3) + across langs (ailang/python/js/go). Q: (a) do
-  motoko's gains hold with strong models (model-independent harness win)? (b) AILANG-specific or general?
-  **Generality split:** best-of-N (check+run) is LANGUAGE-GENERAL (any compiler+runtime) = portable edge;
-  contracts (R1) are AILANG-SPECIFIC = the moat. This positions motoko: portable advantage vs substrate moat.
+1. **Iteration 0 (definition)**: ratify the bar (below) with Mark through the design quorum, then
+   score the queue against it. Output: an agreed ordered queue in this doc.
+2. **Then**: work the queue through the inner loop (design-doc → sprint-plan → execute → evaluate),
+   one sprint-sized item per iteration, recording routing evidence every time.
 
-Sequence: R1 (lever, now) → R2 (instrument, measures R1 + context_mode on real work) → R3 (positioning).
-docx-reimplement = R2's first instance + the context_mode/large-context proving ground.
+**What changed under the old charter, and why this is a rewrite rather than an edit.** The June
+charter's frontier was (1) canonical prompt delivery, (2) respect context length, (3) uncaught
+harness errors, (4) AILANG-native power. As of 2026-08-12: (1) is **solved**; (2) is **superseded
+upstream** — Arni's affine calibration is anchor-size-insensitive where our ratio calibration was
+not, which was the actual bug; (3) is **partly superseded** — `motoko-ext-empty-stop-guard`
+reimplements our empty-response retry as a pure budgeted `on_solver_candidate`. Only (4) survives
+intact. Meanwhile the whole tree beneath us has been rewritten (see the queue's epic).
 
-**Large-context infra prerequisites (surfaced by docx-reimplement, 2026-06-22) — clear these for a clean P0/R2 grade:**
-1. ailang parser PANIC on `s[0]` index access → **FIXED on dev** (dbc8bf391; nil-guard + regression test).
-2. ollama `/v1` TOTAL timeout aborts legitimately-long requests ("context deadline exceeded", killed docx at steps 14 & 27). Band-aid: raise total to 1800s (motoko_agent#65). **Robust fix designed:** [`planned/m-ollama-v1-streaming-idle-timeout.md`](planned/m-ollama-v1-streaming-idle-timeout.md) — stream `/v1` + idle/inter-chunk deadline (tolerates long generation, still catches hangs). P1, v0.26.0.
-3. Root lever for prefill size = **P2 context-compression** (a bigger timeout can't shrink the prompt). Sequence: #65 (unblock now) → streaming-idle-timeout (robust) → P2 (root).
-4. Write-side efficiency = **EditDecl/ast-edit** ([`planned/m-motoko-editdecl-astedit.md`](planned/m-motoko-editdecl-astedit.md)) — replace one decl by parsed span instead of re-emitting the whole file (docx had motoko write 526 lines). Shrinks WRITES (per-turn prompt growth); P2 shrinks READS. AILANG-native; pi's line-edit tools can't. P3, trigger now met.
+## The bar — what "motoko is the best AILANG harness, honestly measured" means (RATIFY at iteration 0)
 
-## AILANG AST/type advantages — examined + prioritized (2026-06-22)
+- **Clause 1 — It builds and gates green from source.** The tree our evals run is rebuildable and
+  passes `make check_core && make verify_extensions`. A harness we cannot rebuild is not a harness
+  we can improve.
+- **Clause 2 — No extension drift.** Every extension we own is published, registry-pinned, and
+  ABI-current. No vendored `{path=...}` copy diverging from a published version under the same name.
+- **Clause 3 — Every carried improvement is measured, and RE-measured when the tree moves.** No
+  improvement survives on assumption across an architecture change. An unmeasurable improvement is
+  dropped, not carried.
+- **Clause 4 — Profile↔model routing is explicit and resolves.** Every `motoko_profile:` entry in
+  `internal/eval_harness/models.yml` names a profile that exists. No implicit defaulting (the
+  failure that once gave cloud eval models neither the AILANG-knowledge extensions nor a verify gate).
+- **Clause 5 — Motoko exploits what a generic harness cannot.** Typed-interface reads, AST
+  edits/queries, contracts + Z3, exact best-of-N — the moat, and the reason this mission is not
+  "make a good agent loop".
 
-The "beat pi" thesis rests on structural advantages a generic harness on an UNTYPED language cannot access.
-AILANG hands the harness a real typed AST (HM types, effect rows, `requires/ensures` contracts, span-based
-stable IDs) plus two verifiers (`ailang check`, `ailang verify`/Z3). Audit of what we exploit vs the gap:
+## Guardrails (mission-specific; the skill's Standing Rules always apply on top)
 
-**EXPLOITED (shipped):**
-- Type + effect checking (`ailang check`) as a best-of-N tier — HM inference + effect-row checking.
-- Runtime contract checking (`ailang run --verify-contracts`) — rejects runs-but-WRONG candidates (R1).
-- **Z3 SMT static verification (`ailang verify`) as the TOP selector tier (2026-06-22, `select-best
-  --verify-z3`)** — PROVES a contract for ALL inputs (or returns a counterexample), vs one runtime input.
-  (Had been dormant — z3 wasn't installed on the rig.)
-- Provided-contract injection (`astedit.InjectContract` → `select-best --contract-spec`) — verify against the
-  benchmark's contract the model omits (44/48 drop it).
-- AST-anchored decl LOCATION for edits (`ailang ast-edit replace` parses to find the exact decl span).
+- **THE PHASE-0 GATE IS REAL. Do not start the ABI 5.0 extension port until BOTH:
+  [#154](https://github.com/arniwesth/motoko_agent/pull/154) is merged to `origin/main`, AND Arni
+  has declared the ABI stable.** He states it "is still subject to change and the current version
+  number is somewhat arbitrary." Porting 12 packages against a moving ABI means porting twice.
+  **If the unblocked queue is exhausted, SAY SO and idle** — record a no-op iteration rather than
+  pulling gated work forward. An idle iteration is a correct outcome here, not a failure.
+- **We are GUESTS in `arniwesth/motoko_agent`.** Never push to it. PRs only, never force a draft to
+  ready, and never re-open something the maintainer closed without Mark. He is hands-on.
+- **Three repos, one mission.** `sunholo-data/ailang` is the anchor (evals, benchmarks, design docs,
+  and the only issue queue). The motoko fork worktrees (`~/dev/mk-*`, see [MOTOKO.md](../MOTOKO.md))
+  and `sunholo-data/ailang-packages` are work surfaces, not mission repos. Gate 3b CI applies to the
+  anchor.
+- **Never run `ailang fmt` across motoko sources.** It reflows whole expressions and inserts blank
+  lines between imports — hundreds of lines of conflict surface against a fork we must stay
+  mergeable with, for no benefit.
+- **[MOTOKO.md](../MOTOKO.md) is roughly half-stale until the migration completes** (§3 packaging,
+  §4 profiles, §5 the retired a2a deferral, §7 upstream delta). Verify against the tree before
+  citing it; rewriting it is a success criterion of the migration doc.
+- **Never conclude "model wall."** Every motoko disengagement investigated on this mission so far
+  has been a harness bug. Prove it with `ailang chains` / the wire bytes before claiming capacity.
 
-**UNEXPLOITED — the opportunity (ranked; HIGH/MED/LOW):**
-1. **[HIGH — in flight] Z3-verify everywhere it pays.** Wire the `--verify-z3` tier into the eval-rotation
-   best-of-N, and auto-couple `--contract-spec` + `--verify-z3` (inject the provided spec, then Z3-PROVE it —
-   not just runtime-check). Strongest reference-free signal; pi has no equivalent. Tier built; integration +
-   a harder contract benchmark that elicits prove-vs-counterexample divergence remain.
-2. **[HIGH — data-backed] EditDecl (AST-span decl-replace) in motoko's edit loop** (= existing P3, elevated).
-   motoko whole-file-writes (727-line monolith → AILANG syntax drift `\x.`); editing ONE decl at a time via
-   `ailang ast-edit replace` shrinks the surface → less drift. Design done (`m-motoko-editdecl-astedit.md`);
-   CLI exists; fork wiring pending. The docx 0/17 directly justifies it.
-3. **[MED] Type/effect-aware edit validation.** astedit holds the full typed AST (ReturnType, Effects) but
-   uses only the span; validate that an edit preserves the signature + effect row (reject silent pure->effectful
-   drift) — catches wrong edits at edit-time, not post-hoc.
-4. **[MED] Type-directed context** (= existing P2 context_mode, reframed). Feed the typed AST / a projection
-   (signatures, effect rows, contracts, type-directed slices) instead of raw file text → smaller, more legible
-   context. The STRUCTURAL answer to the context-bloat that timed out docx (vs the blunt timeout bump).
-5. **[LOW] SID-anchored edits.** FuncDecl carries a span-based SID (stable structural id); anchor edits by SID
-   (rename/duplicate-name robust) vs the current name-match. Marginal until rename/collision thrash appears.
-6. **[LOW] Typed AST-diff surfacing between turns** (compaction-resistant re-grounding) — blocked on the
-   faithful AST<->source formatter (backlog), so lowest until that lands.
+## Routing policy
 
-**Rationale / sequence:** #1 and #2 are the two HIGH levers, both data-backed by the docx 0/17 (under-testing
--> stronger verification/gates = #1; syntax-drift -> smaller AST-scoped edits = #2). Sequence:
-**#1 (extend the shipped Z3 tier) -> #2 (EditDecl, kills the monolith-write drift) -> #4 (type-directed
-context) -> #3 -> #5/#6.** The honest framing from the 2026-06-22 review: the EDITOR is still text-splice
-(only decl LOCATION is AST-aware); the deep AILANG advantage lives in the VERIFIER (now incl Z3) and in
-type-directed context — that is where the moat compounds.
+Uses the **shared** per-role model routing from `mission-control` (controller / designer-rotation /
+planner / executor / evaluator, generator≠judge enforced). Overrides for THIS mission live in
+`~/.config/ailang/mission-motoko.env`:
 
-## How the mission runs (each cycle)
+- **Executor default**: inherits the driver's ratified chain (`codex:gpt-5.6-sol` →
+  `pi:deepseek(:floor)` → `opus`), which is already non-Anthropic-first — so a second concurrent
+  loop does not double the Anthropic burn.
+- **Evaluator**: inherits the shared default (differs in provider from the executor).
+- No other overrides. `PATH` is set in the env file to include `/opt/homebrew/bin` — see the World
+  mission's iter-18-to-22 lesson, where a PATH-less plist silently demoted the codex lane to opus
+  on **every** fire for five iterations before anyone noticed.
 
-A cycle picks up **one** item and runs the full record-keeping flow:
+## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
-1. **Observe** — read the latest rotation/eval numbers (`os/latest.json`,
-   `eval_results/rotation/os-rolling`) + the [analysis log](motoko-harness-analysis-log.md).
-   Append a new analysis-log entry if there's new failure data.
-2. **Pick** — take the top open item from the Backlog below (or a newly-found one).
-3. **design-doc → sprint-plan → execute** — same flow as M-EMBED-TASK-PREFIX /
-   M-EVAL-OS-LONGITUDINAL, so every change has a design doc + sprint record.
-4. **Land** — per the routing rule below. Verify locally before landing.
-5. **Record** — update the analysis log (prior-action status), tick the Backlog,
-   re-measure on the rig next cycle.
+**Current epic**: [m-motoko-dst-refactor-migration](planned/m-motoko-dst-refactor-migration.md) —
+adopt Arni's phase-core/DST refactor, re-prove our improvements. The epic is gated; the items below
+are ordered so the UNGATED work runs first.
 
-## Routing rule (where changes land)
+1. [NEXT] **Iteration 0 — ratify this charter** · all clauses · bar + queue + guardrails through
+   `ailang design-quorum` with Mark · 1 iteration
+2. **Disposition all 52 fork commits** · clause 3 · classify each as superseded / port / drop, with
+   evidence per row; output a table in the migration doc. Pure analysis, no gate dependency · 1-2 iterations
+3. **Output-headroom upstream issue** · clause 3 · file the case against `main_dst` (qwen3 arithmetic
+   + the `docx_lambda` failure) if Arni's #97 reply invites it · 1 iteration
+4. **fmt re-measurement instrument** · clause 3 · design HOW we re-prove the −74% tokens-to-pass
+   result on the new tree cheaply. This is the clause-3 lever that decides whether `motoko_ext_fmt`
+   survives, and the first real test of whether DST can replace a 7-14h rig A/B · 1-2 iterations
+5. **Profile restoration design** · clause 4 · 5 profiles, 14 of 18 model entries · 1 iteration
+6. [PARKED — Phase-0 gated] **Extension port to ABI 5.0** · clauses 1+2 · 12 packages, pilot on
+   `test-dummy`, `compaction-ai` last
+7. [PARKED — Phase-0 gated] **Registry-vs-vendored reconciliation with Arni** · clause 2 · his
+   `compaction_ai` "0.3.0" is 33,851 B; our published `0.3.2` is 9,454 B — same name, lower version,
+   different code
+8. [PARKED — Phase-0 gated] **Re-prove and re-baseline** · clauses 3+4 · migration Phase 3
 
-| change is in… | lands as |
-|---|---|
-| **AILANG** (`internal/…`, `cmd/…`, eval rig, `tools/…`) | **commit to `dev`** (this repo) |
-| **motoko_agent** (`.ail` core, profiles, prompts, TS) | **PR** to `arniwesth/motoko_agent` (via our `sunholo-voight-kampff` fork) — verified working locally first |
-
-## Reference harness
-
-**pi** = `@mariozechner/pi-coding-agent` → `@mariozechner/pi-ai`. It's motoko's
-inspiration and the 96% bar. Key learnings (mine the source under
-`/opt/homebrew/lib/node_modules/@mariozechner/pi-*` and `internal/executor/pi/`):
-- Drives ollama via **OpenAI-compat `/v1/chat/completions`** (no native ollama
-  provider) — the reason its tool-calling is reliable on qwen.
-
-## Backlog (prioritized — top = next)
-
-**[NEXT — 2026-06-20] CONVERGENCE EFFICIENCY (context hygiene).** Truncation + disengagement are
-fixed; motoko is at pass-rate parity with pi (88.9% vs 90.4%) but **3–10× less efficient** (pi median
-5 turns vs motoko 15–50). Source+transcript root cause: motoko's **verbose tool results + 70%
-auto-compaction erase the model's own writes**, forcing re-reads/rewrites (vicious cycle). Plan in
-[`planned/m-ailang-semantic-context.md`](planned/m-ailang-semantic-context.md): near-term = match pi
-(truncate tool results, raise compaction floor, echo writes; fork PR, A/B by turns-to-success), then
-AILANG-native semantic-context routes (distilled diagnostics, type/effect-directed surfacing, AST
-diffs, trace distillation, typed projection layer). Pending cheap-confirm: `wire_diag` elision capture.
-
-0. **[LANDED 2026-06-19 — TRUNCATION fixed.]** max_tokens floor 16384 (fac848054): disengaging
-   benchmarks **21%→79%**, finish=length 11→0. Per-model precision plumbed (006a679a6 + motoko PR #48:
-   registry max_output_tokens→motoko via AILANG_OLLAMA_MAX_TOKENS). NEXT (blocked on fresh rotation
-   data): re-run Gate 1 to measure the full gap drop. Original finding below:
-   **[ROOT CAUSE: TRUNCATION.]** Wire-proven: motoko's
-   disengagement = qwen3.6 thinks ~4k+ tokens (median 13.9k chars reasoning) and **`finish_reason=length`
-   truncates at `max_tokens=4096` BEFORE the tool call** (11/14 disengaged turns = length). pi sends
-   `max_completion_tokens=16384`. **Fix: raise the agent/ollama max_tokens to ≥16384** (pi-faithful;
-   AILANG default is `internal/ai/handler.go:95`). Also: motoko's `enable_thinking:false` is DROPPED
-   before /v1 (never forwarded) — optional second fix (forward a real thinking-disable param). Reasoning-
-   parsing/hermes hypothesis REFUTED (0 tool calls found in reasoning); reasoning-CAPTURE done anyway
-   (79714e3d5, c1f87275e) — it's the observability that found this. Next: raw-replay confirm
-   (max_tokens=16384 → qwen finishes?), then raise + A/B by disengage-rate. Routing: AILANG default vs
-   motoko per-request max_tokens (motoko has no max_tokens config knob today).
-0b. **[eval rig — user priority] Add `qwen-code` (QwenLM/qwen-code) as an eval-suite harness arm.**
-   qwen's own coding agent (OpenAI-compat/ollama, CLI like opencode/pi → fits the executor contract).
-   A qwen-tuned reference on the SAME benchmarks — directly measures the motoko↔well-tuned-harness delta.
-
-1. **[THE gap, precisely located 2026-06-18 — DISENGAGEMENT, needs GPU to fix].** Rotation-scale
-   failure-mode segmentation (`tools/eval_failure_modes.py`): the motoko↔pi gap (+26pp) is
-   **entirely disengagement** — motoko fails with ≤2 tool calls (prose / one inspect call) **29%**
-   of runs vs pi's **3%**; grind-wrong (engaged-but-incorrect) is ~1% for both, NOT the gap.
-   **7 always-disengage benchmarks** (3/3 fail, 0 tool calls): csv_to_json_converter,
-   log_file_analyzer, graph_bfs, polymorphic_ord_defaulting, run_length_encode, symbolic_diff,
-   config_file_parser. **Next (GPU):** request-dump the FIRST turn of those 7 to see WHY qwen emits
-   0 tool calls (tool schema not seen? task framing? result format?), then a targeted fix A/B'd by
-   the **disengage-rate delta** (not just pass rate). Prior fixes touched the symptom not the 29%:
-   - *Ruled out — M-MOTOKO-PERSIST-NUDGE* (PR arniwesth/motoko_agent#47): forces continuation AFTER
-     disengagement; +3/18 on a biased subset; pi has no such mechanism. Kept default-off; divergent.
-   - *Ruled out — M-MOTOKO-AGENT-SYSTEM-PROMPT*: lean agentic system prompt, proper core-tier A/B =
-     **+1/52 (null)**; the 6-flaky smoke (+14pp) did NOT generalize. Knob kept, not productionized.
-   - *Ruled out — system-role delivery* (teaching → system slot): A/B −2/18.
-2. **[RULED OUT 2026-06-19 — SAMPLING is already optimal].** Wire-verified motoko sends only
-   `{model, max_tokens}` (no temp/top_p/top_k); ollama then applies qwen3.6's OWN modelfile vector
-   (`temperature 1, top_p 0.95, top_k 20, presence_penalty 1.5`). So motoko already runs the model's
-   recommended sampling — there is NO sampling lever (the "forcing greedy temp 0" premise was false;
-   `resolveOllamaTemperature`→0 is omitempty → unsent). The `AILANG_OLLAMA_TEMPERATURE` knob stays as
-   an opt-in override only. See analysis log 2026-06-19 SAMPLING-RULED-OUT.
-3. **[THE residual, data-elevated 2026-06-19 — CONVERGENCE/correctness, partly SHARED with pi].**
-   Post-truncation-fix the gap is no longer disengagement. Partial h2h (n=18 ea): motoko 88% vs pi
-   94%; motoko's only net loss = `explicit_dataflow_ssa` (grind, 32 tool calls fighting AILANG
-   `expected float arguments` numeric-type friction), and `csv_to_json_converter` fails for BOTH
-   harnesses (shared qwen-on-AILANG limit). "Step budget too low" ruled out (motoko runs ~50 steps
-   via `rpc.ail` clamp). **Next (disciplined, NO pre-committed lever): complete the full head-to-head
-   as a clean MEASUREMENT, read EVERY residual transcript, then classify each as (i) motoko-specific
-   & fixable harness lever, or (ii) shared qwen-on-AILANG capability friction → AILANG eval-gap item,
-   not a motoko harness lever.** See analysis log 2026-06-19 SAMPLING-RULED-OUT / residual entry.
-
-## Resolved / ruled out (this investigation arc)
-- **System-role delivery** (M-MOTOKO-SYSTEM-ROLE, `7a0caf7a`): A/B off-vs-on (6 flaky ×3, 2026-06-18)
-  = 10/18 → 8/18 (net −2, within noise) → **KEEP GATED, not default-on.** Retained as a lever: it
-  lifts the FLOOR (config_file_parser/graph_bfs 0→1) and raises iteration depth (turns up across the
-  board) — re-test combined with iteration-persistence (#1), not standalone. Clean injection
-  mechanism shipped: motoko `--system-prompt` flag PR (arniwesth/motoko_agent#46, GPU-verified).
-- **3-way capture** (motoko/pi/opencode, `f92df86b`): threading IDENTICAL across all three (chat
-  history ruled out). Differentiator = TOOL SURFACE — opencode 33 tools (23 ailang-docs MCP) vs
-  motoko 6 / pi 4 → keep motoko lean. Backs the "why motoko beats opencode" decision.
-- **Prompt** is sub-dominant: agent-mode output-delivery override landed (+11pp, `2cbaf85a`,
-  motoko 76%→83%); copying pi's full system prompt only added +1/18 (A/B) → NOT the gap.
-- **Temperature** ruled out as the pi differentiator (pi runs qwen at the same 1.0 default).
-- **Loop guards** (compel-write / definition-of-done) built + reverted (fired 0/18 or regressed).
-- **Tolerant Hermes/XML parsing** — moot post-/v1; dropped.
-
-## Done / superseded
-- motoko ollama integration enabled + PATH/key rotation fix (this repo, landed).
-- First failure analysis → root cause = AILANG-INTEGRATION (tool-calling), not language.
-- **#2 ollama tool-calling over `/v1` (M-OLLAMA-V1-TOOLCALLING) — LANDED on `dev`
-  (41c52ffe, 2026-06-17).** Root cause of the 26% closed: native `/api/chat` → 0 tool
-  calls; now delegates to OpenAI-compat `/v1`. Aggregate confirmed: **AILANG 26%→79%**,
-  motoko now BEATS opencode (72%) on AILANG, approaching pi (88%). Zero 0-tool-call runs.
-- **`agent_tool_calls` surfaced in result JSON (M-MOTOKO-OBS-TOOLCALLS) — LANDED (e92bc4ba).**
-- **/v1 HTTP timeout (63fc63e0) + native rig-lock in eval-suite (8a18e4e7) — LANDED.**
-  Fixed a ~2h rig hang: /v1 (non-streaming, no timeout) stalled on a GPU-contention model
-  reload; lock prevents concurrent rig jobs (fail-fast). The user's hypothesis — /v1 vs
-  native endpoints caused the historical hangs — was correct.
-- **Tool-call transcript retained (M-MOTOKO-OBS-TRANSCRIPT) — LANDED.** Parser kept counting
-  tool calls but discarding content; now retains tool name + write path/content into
-  `agent_transcript`. Unblocks root-causing the stub failures (backlog #1).
-
-## Skill
-When the analysis log has ~3+ entries and the cycle is repeatable, codify a
-`motoko-analyzer` skill (the log template + lever taxonomy is the spec).
+---
+**Document created**: 2026-08-12 (rewritten from the 2026-06-24 charter, archived in full at
+[motoko-mission-status-archive.md](motoko-mission-status-archive.md)). Iteration 0 ratifies it via
+the quorum with Mark before any sprint routes.
