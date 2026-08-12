@@ -81,7 +81,43 @@ scarcest model budget; the append-only history lives in the log + archive.
 > or superseded upstream (see CURRENT GOAL). It is kept because its *findings* remain valid evidence;
 > it is not kept as direction.
 
-## STATUS 2026-08-12 — ITERATION 0 PENDING: **charter rewritten, loop armed-but-silent, not yet ratified.** Bootstrapped per [mission-bootstrap.md](../docs/docs/guides/mission-bootstrap.md): separate checkout, env profile, plist, kill switch ON. Iteration 0 (ratification with Mark, via `ailang design-quorum`) has NOT run — the bar and queue below are **proposed, not agreed**.
+## STATUS 2026-08-12 — ITERATION 0 RAN, **QUORUM BLOCKED TWICE, AND ALL FOUR OBJECTIONS WERE TRUE — RATIFICATION NOW NEEDS MARK.** Bootstrapped per [mission-bootstrap.md](../docs/docs/guides/mission-bootstrap.md) (separate checkout, env profile, plist, kill switch ON, dry-run isolation proven). Charter put through `ailang design-quorum` twice, both reviewers present both rounds, **metered $0.115 total**. Round 1 — `gpt5-6-sol`: no Premise Verification Log for operationally decisive claims. `gemini-3-1-pro`: clause 6.2 designs a fallback with no loud signal, **in a charter that cites the World mission losing five iterations to exactly that**. Both fixed (V1-V18 log added; 6.2 now requires a degradation-time notice). Round 2 — `gpt5-6-sol`: the *live* `codex→pi→opus` chain has none of the safeguards clause 6 demands of the future motoko lane. `gemini-3-1-pro`: V19 illegitimately inherited a **per-working-tree** build artifact claim from V1. The V19 fix (running `make quick-install && make build` here) then surfaced **V20 — `quick-install` writes the SHARED `~/go/bin/ailang`** that V1 and the eval rig resolve through, a cross-mission side effect no reviewer could have predicted. V21 measured the round-2 objection and **confirmed it: lane demotion is logged (driver 360/392) and never posted to the bookkeeping issue — a defect affecting v1, world AND motoko.** Re-quorum budget is exhausted (one re-run, per the guardrail), so the remaining objection is escalated rather than ping-ponged: it is queue item 2 and needs Mark's routing call, since the driver is frozen core and the fix is not this mission's to own. **The bar and queue remain proposed, not agreed.**
+
+## Premise Verification Log
+
+Added at iteration 0 after `gpt5-6-sol` **blocked** ratification on it: this charter makes
+operationally decisive claims — isolation, routing, gating, queue order — and a reader cannot
+otherwise tell a measured claim from an assumed one. Every row below was run on **2026-08-12**
+against `sunholo-data/ailang@98ffaf5cf` (this checkout), `arniwesth/motoko_agent@303d8697`
+(`origin/main_dst`), and `sunholo-data/ailang-packages` working tree.
+
+**Acceptance rule (the reviewer's, adopted): iteration 0 may not ratify while any safety-, routing-,
+or queue-ordering premise is UNVERIFIED.** New claims added later carry a row or the label
+`UNVERIFIED — blocks ratification`.
+
+| # | Claim | How measured | Result |
+|---|---|---|---|
+| V1 | No cross-mission lock exists, so a shared tree would contend | read `rig-lock.sh` header (scope = eval jobs); grep `mission-control.sh` for `flock/LOCK` | **Confirmed** — only per-mission `PIDFILE`/`BLOCKED_FILE`. V1 was mid-iteration (pid 71129, 70 min) during this bootstrap |
+| V2 | Any `MISSION_NAME` ≠ `v1` gets fully namespaced state | read `mission-control.sh` lines 72-80 — every path interpolates `${MISSION_NAME}` | **Confirmed** |
+| V3 | motoko's pidfile cannot collide with V1's or World's | driver dry-run printed `pidfile=…/mission-motoko.pid`; `ls ~/.ailang/state/*.pid` | **Confirmed live** — `mission-control.pid` (v1), `mission-world.pid`, `mission-motoko.pid` distinct |
+| V4 | The three Gate-3b CI workflow names exist in this repo | `gh workflow list --repo sunholo-data/ailang` | **Confirmed** — `CI`, `Build and Release`, `Deploy Documentation to GitHub Pages`, all `active`. NB: a local `for f in .github/workflows/*.yaml` check printed **nothing** because zsh aborts on an unmatched glob — a rule 3a(i-d) instrument failure, caught only by a control. The API is the authority here |
+| V5 | `provider:model` routes via `provider_executor`, not the Agent tool; codex is the only lane today | read the skill's cross-provider recipe (regex `^([a-z_]+):(.+)$`) | **Confirmed** |
+| V6 | Role defaults resolve as stated | `MISSION_PROFILE=motoko MISSION_DRY_RUN=1` | **Confirmed live** — `designer=claude:claude-fable-5 planner=codex:gpt-5.6-sol executor=codex:gpt-5.6-sol evaluator=sonnet` |
+| V7 | Executor fallback chain is codex → pi:deepseek(:floor) → opus | read `MISSION_EXECUTOR_FALLBACK` / `MISSION_PLANNER_FALLBACK` defaults | **Confirmed** |
+| V8 | Fork delta is 52 ours-only / 805 theirs-only | `git rev-list --count` both directions | **Confirmed** |
+| V9 | 12 of our packages pin ABI `2.2.0` | `grep -l '"sunholo/motoko_ext_abi" = "2.2.0"' */ailang.toml` | **Confirmed** — 12 |
+| V10 | 14 of 18 `motoko_profile:` entries name an absent profile | `grep -oE` count over `models.yml` | **Confirmed** — 14 of 18; only `ollama` survives |
+| V11 | 5 of 6 profiles absent from `main_dst` | `git ls-tree -d origin/main_dst .motoko/config/` vs local `ls` | **Confirmed (negative existence)** |
+| V12 | `motoko_ext_fmt` absent from `main_dst` | `git grep -il 'motoko_ext_fmt\|ext-fmt' origin/main_dst` | **Confirmed (negative existence)** — zero hits |
+| V13 | His vendored extensions diverge from our published ones under the same name | compare `compaction_ai` `ailang.toml` version + blob sizes | **Confirmed** — his `0.3.0` = 33,851 B; our published `0.3.2` = 9,454 B |
+| V14 | Motoko has no reachable subscription lane | `jq .auth_mode ~/.codex/auth.json` (= `chatgpt`, OAuth token object); motoko provider block is `openai_chat` + bearer-from-env | **Confirmed** |
+| V15 | Kimi/DeepSeek prices and the stale pin | live `GET https://openrouter.ai/api/v1/models` | **Confirmed 2026-08-12** — prices move; re-measure before acting on queue item 6 |
+| V16 | Separate checkout is not a skill fork | `readlink ~/.claude/skills/mission-control` → V1's checkout; motoko's copy is `git ls-files`-tracked; `cmp` the two | **Confirmed** — and currently **byte-identical**, because V1 landed its Gate-5 edit and this checkout pulled it. Convergence-via-git demonstrated, not just argued |
+| V17 | Mission iterations never take `rig.lock`, so a local-model executor has no GPU-lock story | `grep rig.lock tools/launchd/mission-control.sh` → line 15 states it explicitly. **Same-path control**: `grep -rl 'rig-lock.sh' tools/launchd/` → `os-rotation-filler.sh`, `nightly-lang-eval.sh`, `nightly-eval.sh` | **Confirmed (negative existence)** — the instrument finds takers, and mission-control is genuinely not among them |
+| V18 | R3 (cross-model generality) has never been run | `grep -rn R3` over the archive + analysis log → 2 hits, both *planning* prose in the archived charter. **Same-path control**: `grep -c 'R1\|R2'` on the analysis log → **33**, so that log does record this class of work | **Confirmed (negative existence)** — R3 is absent from the log that would hold it |
+| V19 | Verify profile `go-compiler` works **in this checkout** | `make quick-install && make build` run here 2026-08-12. **The inherit-from-V1 claim was rejected by `gemini-3-1-pro` and it was right**: `bin/ailang` is a per-working-tree artifact, so V1's measurement cannot speak for this tree | **Confirmed first-party** — both binaries build; `bin/ailang` and `~/go/bin/ailang` both report `v0.33.0-149-g4a45e993d-dirty` |
+| V20 | **`make quick-install` writes a SHARED path** — discovered by running V19 | after the V19 build, `which ailang` → `~/go/bin/ailang`, `ailang --version` → `4a45e993d-dirty`, i.e. stamped from **this** checkout | **Confirmed — and it is a cross-mission side effect.** The system binary that V1's iterations and the eval rig use was replaced by a build from the motoko tree. Benign here (both on `dev`, delta is docs-only) but NOT benign in general. See Guardrails |
+| V21 | An executor-lane demotion is **logged but never surfaced to the human channel** | `grep` the driver: fallbacks `log` at lines 360 (codex→fallback) and 392 (pi→opus); `gh issue comment` appears at 4 sites — no-usable-model refusal, controller model change, post-record late kill, and iteration failure. **None is the executor/planner lane demotion.** Control: the driver does call `gh` (8 hits), so the instrument works | **Confirmed (negative existence).** The gap `gpt5-6-sol` named is real and it affects **all three missions**, not just this charter. Queue item 2 |
 
 ## CURRENT GOAL
 
@@ -125,7 +161,18 @@ intact. Meanwhile the whole tree beneath us has been rewritten (see the queue's 
   1. A `provider:model` spawn recipe in the shared skill's cross-provider section — `motoko:<model>`
      matched by `^([a-z_]+):(.+)$` and routed via `provider_executor`, NOT the Agent tool.
   2. A **bounded, token-cheap pre-flight probe** (Standing rule 6 — never unbounded), plus a place in
-     the driver's fallback chain so a dead lane degrades rather than wedges.
+     the driver's fallback chain **that posts a loud degradation notice to the bookkeeping issue and
+     names the lane, the probe's exit code, and the model actually used** — so a dead lane degrades
+     rather than wedges, *and never degrades quietly*.
+
+     **This clause was BLOCKED at iteration 0 by `gemini-3-1-pro` and the objection was correct.**
+     The first draft asked for a fallback slot "so a dead lane degrades rather than wedges" with no
+     alerting requirement — in a charter that, two sections earlier, cites the World mission losing
+     **five iterations** to the codex lane being silently demoted to opus. That is Critical Principle
+     2 (NO SILENT FALLBACKS) violated in the document that quotes the precedent. A fallback whose
+     degradation is only visible in a routing-evidence row nobody reads is the same defect wearing a
+     different hat: the Gate-4 row is written *after* the iteration already ran on the wrong lane.
+     The signal must fire at degradation time, not at reporting time.
   3. A real-run recipe that survives what a real coding sprint needs: a write sandbox that also
      reaches build caches outside the worktree, a background spawn (the 30-min cap exceeds the
      harness's 10-min foreground `Bash` limit), and `< /dev/null`.
@@ -183,6 +230,14 @@ intact. Meanwhile the whole tree beneath us has been rewritten (see the queue's 
 - **[MOTOKO.md](../MOTOKO.md) is roughly half-stale until the migration completes** (§3 packaging,
   §4 profiles, §5 the retired a2a deferral, §7 upstream delta). Verify against the tree before
   citing it; rewriting it is a success criterion of the migration doc.
+- **`make quick-install` is a SHARED WRITE — treat the verify profile as touching V1 and the rig**
+  (measured V20, 2026-08-12). It installs to `~/go/bin/ailang`, the binary V1's iterations and the
+  eval rig resolve through `PATH`. A separate checkout isolates the *working tree*, not the installed
+  toolchain. So: before any gate that runs `quick-install`, confirm this checkout is not behind
+  `origin/dev`, and never run it from a tree carrying experimental compiler changes. If a gate needs
+  an experimental binary, build to `bin/ailang` (`make build`) and invoke it by path — do not install
+  it. A rig eval that silently ran on a mission's half-finished compiler would be indistinguishable
+  from a language regression.
 - **Never conclude "model wall."** Every motoko disengagement investigated on this mission so far
   has been a harness bug. Prove it with `ailang chains` / the wire bytes before claiming capacity.
 
@@ -208,15 +263,23 @@ are ordered so the UNGATED work runs first.
 
 1. [NEXT] **Iteration 0 — ratify this charter** · all clauses · bar + queue + guardrails through
    `ailang design-quorum` with Mark · 1 iteration
-2. **Disposition all 52 fork commits** · clause 3 · classify each as superseded / port / drop, with
+2. **Loud lane-degradation notice in the driver** · clause 6 + Critical Principle 2 · **CROSS-MISSION
+   DEFECT, found by `gpt5-6-sol` at iteration 0 and measured as V21.** When the codex or pi lane
+   probe fails, the driver `log`s the demotion (lines 360/392) and continues — it never posts to the
+   bookkeeping issue, so the human channel sees nothing. That is precisely how World lost five
+   iterations to a silently-demoted codex lane. Fix: on any lane fallback, post the failed lane, the
+   probe's exit code/timeout, and the model actually used, **before execution continues**. Affects
+   **v1, world and motoko** — so it needs Mark's routing call (driver is frozen core) and probably
+   belongs to whichever mission owns the driver, not automatically to this one · 1 iteration
+3. **Disposition all 52 fork commits** · clause 3 · classify each as superseded / port / drop, with
    evidence per row; output a table in the migration doc. Pure analysis, no gate dependency · 1-2 iterations
-3. **Output-headroom upstream issue** · clause 3 · file the case against `main_dst` (qwen3 arithmetic
+4. **Output-headroom upstream issue** · clause 3 · file the case against `main_dst` (qwen3 arithmetic
    + the `docx_lambda` failure) if Arni's #97 reply invites it · 1 iteration
-4. **fmt re-measurement instrument** · clause 3 · design HOW we re-prove the −74% tokens-to-pass
+5. **fmt re-measurement instrument** · clause 3 · design HOW we re-prove the −74% tokens-to-pass
    result on the new tree cheaply. This is the clause-3 lever that decides whether `motoko_ext_fmt`
    survives, and the first real test of whether DST can replace a 7-14h rig A/B · 1-2 iterations
-5. **Profile restoration design** · clause 4 · 5 profiles, 14 of 18 model entries · 1 iteration
-6. **Repin the stale OpenRouter motoko models** · clause 4 · measured live 2026-08-12: our
+6. **Profile restoration design** · clause 4 · 5 profiles, 14 of 18 model entries · 1 iteration
+7. **Repin the stale OpenRouter motoko models** · clause 4 · measured live 2026-08-12: our
    `motoko-or-kimi-k2-6` pins `moonshotai/kimi-k2.6` ($0.95/$4.00 per M), but
    **`moonshotai/kimi-k2.7-code` dominates it on every axis** — newer, code-specialised, and cheaper
    ($0.70/$3.50), same 262k context. `moonshotai/kimi-k3` also now exists (**1M context**, $3/$15 —
@@ -226,22 +289,22 @@ are ordered so the UNGATED work runs first.
    FLOATING alias, which would undo the `:floor` prompt-cache pinning we do deliberately).
    **Not a side edit** — a model repin moves the eval baseline, so it needs a deliberate before/after
    and a banked comparison, per the extension-fix baseline lesson · 1 iteration
-7. [PARKED — needs a green tree] **R3 — cross-model generality study** · clause 5 + the north star's
+8. [PARKED — needs a green tree] **R3 — cross-model generality study** · clause 5 + the north star's
    weak-model thesis · do motoko's gains hold with strong models, and are they AILANG-specific or
    general? This is the TEST of the mission's central claim and it has never been run. Carried
    forward from the archived charter. Split to measure: best-of-N is language-general (portable
    edge), contracts + Z3 are AILANG-specific (the moat)
-8. [PARKED — Phase-0 gated] **Extension port to ABI 5.0** · clauses 1+2 · 12 packages, pilot on
+9. [PARKED — Phase-0 gated] **Extension port to ABI 5.0** · clauses 1+2 · 12 packages, pilot on
    `test-dummy`, `compaction-ai` last
-9. [PARKED — Phase-0 gated] **Registry-vs-vendored reconciliation with Arni** · clause 2 · his
+10. [PARKED — Phase-0 gated] **Registry-vs-vendored reconciliation with Arni** · clause 2 · his
    `compaction_ai` "0.3.0" is 33,851 B; our published `0.3.2` is 9,454 B — same name, lower version,
    different code
-10. [PARKED — Phase-0 gated] **Re-prove and re-baseline** · clauses 3+4 · migration Phase 3
-11. [PARKED — needs a green tree first] **Motoko executor-lane graduation, design** · clause 6 ·
+11. [PARKED — Phase-0 gated] **Re-prove and re-baseline** · clauses 3+4 · migration Phase 3
+12. [PARKED — needs a green tree first] **Motoko executor-lane graduation, design** · clause 6 ·
    the `motoko:<model>` spawn recipe, bounded probe, fallback-chain placement, and the false-green
    guards. Design work can start once clause 1 holds (a motoko we can rebuild); the *trial* needs a
    real sprint. **Target World (`ailang-code` profile) first — not this Go repo.**
-12. [PARKED — after 11] **Motoko executor-lane gate trial** · clause 6 · real sprints, plan-faithful
+13. [PARKED — after the executor-lane design item] **Motoko executor-lane gate trial** · clause 6 · real sprints, plan-faithful
     landing of held-out tests. The DeepSeek-Flash precedent is the bar to clear: 3/3 real-sprint
     failures behind a clean `rc=0`, so a passing smoke proves nothing on its own.
 
