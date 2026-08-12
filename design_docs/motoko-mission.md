@@ -317,8 +317,9 @@ are ordered so the UNGATED work runs first.
    probe's exit code/timeout, and the model actually used, **before execution continues**. Affects
    **v1, world and motoko** — so it needs Mark's routing call (driver is frozen core) and probably
    belongs to whichever mission owns the driver, not automatically to this one · 1 iteration
-3. [LANDED 2026-08-12 · iteration 1 · **Gate 3b: 13/14 green, macOS `test` still running at the
-   poll bound — a timed-out wait is not a green, so confirm before citing this as clean**]
+3. [LANDED 2026-08-12 · iteration 1 · **Gate 3b GREEN** — confirmed on a second bounded poll:
+   16 checks present, 0 pending, 0 not-green, `test: completed/success`. The first poll timed out
+   with `test` still running and was recorded as *not* green, which is the rule working]
    **Disposition all 52 fork commits** · clause 3 ·
    [m-motoko-fork-disposition.md](planned/m-motoko-fork-disposition.md), `752254d3f` —
    **14 SUPERSEDED / 16 PORT / 14 DROP / 7 UNRESOLVED**. Split into its own file: the migration doc
