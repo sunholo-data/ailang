@@ -26,9 +26,10 @@ import argparse, json, os, re, subprocess, sys
 from datetime import datetime, timedelta
 
 MISSIONS = [
-    ("v1",     "~/dev/sunholo-data/ailang",        "design_docs/v1-mission-log.md",     "design_docs/v1-mission.md",     "exclude"),
-    ("world",  "~/dev/sunholo-data/ailang-world",  "design_docs/world-mission-log.md",  "design_docs/world-mission.md",  None),
-    ("motoko", "~/dev/sunholo-data/ailang-motoko", "design_docs/motoko-mission-log.md", "design_docs/motoko-mission.md", "include"),
+    # name, repo, log, charter, shared-repo attribution, launchd job (v1's is legacy-named)
+    ("v1",     "~/dev/sunholo-data/ailang",        "design_docs/v1-mission-log.md",     "design_docs/v1-mission.md",     "exclude", "dev.ailang.mission-control"),
+    ("world",  "~/dev/sunholo-data/ailang-world",  "design_docs/world-mission-log.md",  "design_docs/world-mission.md",  None,      "dev.ailang.mission-world"),
+    ("motoko", "~/dev/sunholo-data/ailang-motoko", "design_docs/motoko-mission-log.md", "design_docs/motoko-mission.md", "include", "dev.ailang.mission-motoko"),
 ]
 # Header shapes differ by historical accident: "## 7 — date — x" (v1, motoko) vs
 # "## Iteration 7 — date — x" (world). Match both rather than rewriting the logs.
@@ -100,6 +101,53 @@ def open_decisions(charter, cap=4):
     return out[:cap]
 
 
+NEXT_RE = re.compile(r'^\*\*Next\*\*\s*[:—-]?\s*(.+)$')
+
+
+def roadmap(charter, log, plist_name):
+    """What each mission says it will do next — its OWN declaration, not my inference.
+
+    Source is the LAST `**Next**:` line in the mission log, not the charter queue.
+    That was a deliberate switch: the queues are 700-1200 lines of human prose with
+    three different retirement conventions, and parsing them produced a confident
+    wrong answer (v1's "next pick" came back as a DO-NOT-MERGE draft row, world's as
+    a status line). The `**Next**` field is one line, written by the mission at Gate 4
+    about the iteration it just finished, and is present in the latest entry of all
+    three logs. One authoritative sentence beats a heuristic over a thousand.
+
+    Blocked count still comes from the queue — a count survives format drift where an
+    extract does not.
+
+    Returns (next_declaration, blocked_count, nominal_fires_per_week).
+    """
+    nominal = None
+    pl = os.path.expanduser(f"~/Library/LaunchAgents/{plist_name}.plist")
+    if os.path.exists(pl):
+        iv = sh(f"plutil -extract StartInterval raw '{pl}'")
+        if iv.isdigit() and int(iv) > 0:
+            nominal = round(168 * 3600 / int(iv))
+
+    nxt = None
+    if os.path.exists(log):
+        for l in reversed(open(log, errors="replace").read().split("\n")):
+            m = NEXT_RE.match(l)
+            if m and len(m.group(1).strip()) > 12:   # skip the template placeholder
+                nxt = clean(m.group(1), 150)
+                break
+
+    blocked = 0
+    if os.path.exists(charter):
+        text = open(charter, errors="replace").read().split("\n")
+        st = next((i for i, l in enumerate(text) if re.match(r'^##\s+Queue\b', l)), None)
+        if st is not None:
+            en = next((i for i in range(st + 1, len(text)) if text[i].startswith("## ")), len(text))
+            for l in text[st:en]:
+                if re.match(r'^\s*(?:\d+\.|[-*])\s', l) and re.search(r'\[PARKED', l, re.I) \
+                   and '~~' not in l:
+                    blocked += 1
+    return nxt, blocked, nominal
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--hours", type=int, default=168)
@@ -121,8 +169,8 @@ def main():
     print("# Mission fleet — weekly report\n")
     print(f"**Window** last {a.hours}h (since {since}) · **generated** {datetime.now():%Y-%m-%d %H:%M}\n")
 
-    rows, landed, decisions = [], {}, {}
-    for name, repo, log, charter, share in MISSIONS:
+    rows, landed, decisions, plan = [], {}, {}, {}
+    for name, repo, log, charter, share, job in MISSIONS:
         repo = os.path.expanduser(repo)
         iters, total = parse_log(os.path.join(repo, log), since)
         c = cost.get(name, {})
@@ -148,6 +196,7 @@ def main():
                      "refs": sum(i["refs"] for i in iters), "shared": share is not None})
         landed[name] = iters
         decisions[name] = open_decisions(os.path.join(repo, charter))
+        plan[name] = roadmap(os.path.join(repo, charter), os.path.join(repo, log), job)
 
     print("| mission | iters (wk/all) | commits | lines+ | metered $ | opus | opus/it | refuted | ref/it |")
     print("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
@@ -165,7 +214,7 @@ def main():
           f"fleet tokens **{ftok}** (all chains incl. evals; per-mission not exposed)\n")
 
     print("## Landed\n")
-    for name, _, _, _, _ in MISSIONS:
+    for name, _, _, _, _, _ in MISSIONS:
         its = landed.get(name) or []
         if not its:
             print(f"**{name}** — no iterations in window\n"); continue
@@ -176,10 +225,22 @@ def main():
             print(f"- …and {len(its)-5} earlier")
         print()
 
+    print("## Next week — each mission's own declaration\n")
+    print("`next` is the last iteration's `**Next**` field — what the mission itself said it would")
+    print("take. `expected` is last week's OBSERVED rate (nominal capacity in brackets); observed is")
+    print("the better predictor because iterations overrun the interval and the overlap guard yields.\n")
+    print("| mission | expected iters | blocked | next |")
+    print("|---|---:|---:|---|")
+    for nm, _, _, _, _, _ in MISSIONS:
+        nxt, blk, nom = plan.get(nm, (None, 0, None))
+        obs = next((r["it"] for r in rows if r["n"] == nm), 0)
+        print(f"| **{nm}** | {obs}{f' ({nom})' if nom else ''} | {blk} | {nxt or '—'} |")
+    print()
+
     print("## Needs you\n")
     print("_Conservative — under-reports by design; the charter is the source of truth._\n")
     any_d = False
-    for name, _, _, _, _ in MISSIONS:
+    for name, _, _, _, _, _ in MISSIONS:
         for d in decisions.get(name) or []:
             print(f"- **{name}** — {d}"); any_d = True
     if not any_d:
