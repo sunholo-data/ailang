@@ -7,7 +7,7 @@
 .PHONY: test-operator-assertions test-regression-guards test-builtin-consistency
 .PHONY: test-stdlib-canaries test-row-properties test-golden-types test-repl-smoke
 .PHONY: test-sim-stub test-stdlib-freeze verify-no-shim verify-lowering
-.PHONY: test-nightly-classifier
+.PHONY: test-nightly-classifier test-launchd-drivers
 
 # Core tests. Depends on build so integration tests that shell out to the
 # ailang binary never see a stale bin/ailang — a stale binary caused phantom
@@ -31,6 +31,15 @@ test: build ## Run all Go unit tests (builds bin/ailang first)
 
 test-nightly-classifier: ## Run nightly variance-guard contract and replay tests
 	@python3 tools/test_nightly_classify.py -v
+
+# The launchd drivers carried ZERO automated coverage until #558's second recurrence — a large
+# part of why two silent-staleness bugs shipped unnoticed. /bin/bash explicitly, not $$SHELL:
+# the rig runs 3.2.57, so a suite that only passes under a newer bash proves nothing about it.
+test-launchd-drivers: ## Run launchd driver tests (pin-root + degradation notices, bash 3.2)
+	@/bin/bash tools/launchd/test_pin_root.sh
+	@/bin/bash tools/launchd/test_driver_notify.sh
+	@for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n "$$f" || exit 1; done
+	@echo "launchd drivers: tests + bash 3.2 syntax OK"
 
 test-parser: ## Run parser tests only
 	@echo "Testing parser..."
