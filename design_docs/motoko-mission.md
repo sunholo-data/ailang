@@ -135,6 +135,46 @@ not, which was the actual bug; (3) is **partly superseded** — `motoko-ext-empt
 reimplements our empty-response retry as a pure budgeted `on_solver_candidate`. Only (4) survives
 intact. Meanwhile the whole tree beneath us has been rewritten (see the queue's epic).
 
+## DST scope — what it actually covers, measured (2026-08-12; corrects an earlier over-read)
+
+Arni, on handing the refactor over: *"Doing proper DST of extensions turned out to be exquisitely
+complex. That is basically an open research project."* His own closing note
+(`.agent/projects/009_motoko_dst_execution/NOTE-d28`, HEAD `b3953a9`) quantifies it. **Plan against
+these numbers, not against the ambition.**
+
+**The CORE is strongly covered** — and this is why adopting the refactor is still right:
+11/11 acceptance rows across three profiles; **9 of 11 fault classes and 9 of 11 NAMED production
+recovery branches reached**, so recovery paths execute under injected faults rather than merely
+existing; seeded generation byte-identical at equal seed and distinct across seeds; a virtual clock;
+exact-program strict replay; per-variant ledger parity (`ProviderResult 15/15`, `RunSummary 8/8`);
+a blocking fixed-seed CI corpus plus a rotating day-keyed one.
+
+**EXTENSION coverage is very nearly nil, and his tooling says so out loud rather than hiding it:**
+
+| profile | covered hooks | extensions | substantively world-mediated |
+|---|---|---|---|
+| `driver_plus_compose` | 7 | 1 | **1** |
+| `driver_plus_no_ops` | 32 | 4 | **0** — *"entirely of no-ops"*, 16 satisfying criterion 2 **vacuously, over an empty set of performed effects** |
+
+**≈1 of 40 covered hooks is substantively simulated, across 15 extensions.** The note states it as
+"one-of-forty" deliberately — *"the difference between reporting the demonstration and overclaiming
+from it"* — and `tools/profile_definition/check_no_op_profile.py` **fails the build** if a non-zero
+coverage number is stated without its vacuity qualifier. That is unusually honest engineering; treat
+the numbers as trustworthy.
+
+**What this means for THIS mission, whose entire value is in extensions.** DST gives us a
+**contract layer, not a simulation layer**: `make declared_vs_performed` (hook effect rows checked
+against measured behaviour by two independent producers), `conformance`, `hook_guard`,
+`ext_call_inventory`, `ext_ambient_inventory`. Genuinely useful — it catches a lazily-widened effect
+row during the 12-package ABI port, which is the mistake that port most invites. It will **not**
+tell us whether `fmt` saves tokens, whether a compaction strategy converges, or whether μRAG helps.
+Those stay rig questions and must be priced as such.
+
+**Do not repeat the over-read.** This charter's first draft made "answer an A/B via DST instead of a
+rig run" a success metric of the migration. That mistook the core's maturity for the framework's
+reach. If extension-level DST is ever solved upstream it changes our economics completely — watch
+for it, do not assume it.
+
 ## The bar — what "motoko is the best AILANG harness, honestly measured" means (**RATIFIED by Mark, 2026-08-12**)
 
 - **Clause 1 — It builds and gates green from source.** The tree our evals run is rebuildable and
@@ -277,8 +317,10 @@ are ordered so the UNGATED work runs first.
 4. **Output-headroom upstream issue** · clause 3 · file the case against `main_dst` (qwen3 arithmetic
    + the `docx_lambda` failure) if Arni's #97 reply invites it · 1 iteration
 5. **fmt re-measurement instrument** · clause 3 · design HOW we re-prove the −74% tokens-to-pass
-   result on the new tree cheaply. This is the clause-3 lever that decides whether `motoko_ext_fmt`
-   survives, and the first real test of whether DST can replace a 7-14h rig A/B · 1-2 iterations
+   result on the new tree. Decides whether `motoko_ext_fmt` survives. **DST will NOT do this** —
+   `fmt` is an effectful extension hook, precisely the class measured at 1-of-~40 coverage (see DST
+   scope). Design a real instrument and price it honestly rather than assuming it is cheap ·
+   1-2 iterations
 6. **Profile restoration design** · clause 4 · 5 profiles, 14 of 18 model entries · 1 iteration
 7. **Repin the stale OpenRouter motoko models** · clause 4 · measured live 2026-08-12: our
    `motoko-or-kimi-k2-6` pins `moonshotai/kimi-k2.6` ($0.95/$4.00 per M), but

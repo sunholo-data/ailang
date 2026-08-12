@@ -35,10 +35,15 @@ sits **52 commits ahead / 805 commits behind** `origin/main_dst`. Three concrete
    that has no deterministic test path, against an upstream that has one.
 
 3. **We cannot cheaply prove our own improvements.** Resolving a paired A/B currently costs 7–14h
-   of rig time (see the extension-fix baseline shift (rig memory)). The DST framework —
-   seeded generation, virtual clock, exact-program strict replay, invariants asserted over a
-   `LedgerTrace` rather than over model prose — is a much cheaper instrument for exactly the
-   questions we keep spending rig hours on.
+   of rig time (see the extension-fix baseline shift (rig memory)). The DST framework — seeded
+   generation, virtual clock, exact-program strict replay, invariants over a `LedgerTrace` rather
+   than over model prose — is a much cheaper instrument **for the core loop**.
+   **CORRECTED 2026-08-12 — it does not reach our extensions, and that is where our value is.**
+   Measured from Arni's own closing note: extension coverage is **1 of ~40 covered hooks
+   substantively world-mediated**, across 15 extensions; a whole profile's 32 covered hooks are
+   *"entirely of no-ops"*. What the framework gives extensions is a **contract layer**
+   (`declared_vs_performed`, `conformance`, `hook_guard`, `ext_call_inventory`) — valuable for the
+   ABI port, useless for "does fmt save tokens". See the charter's *DST scope* section.
 
 The risk of a naive merge is that our measured wins vanish silently. `motoko_ext_fmt` (a −74%
 tokens-to-pass result, the fmt A/B result (rig memory)) does not exist upstream, and
@@ -58,8 +63,11 @@ improvement that still measures positive — and without carrying forward any th
 3. Every one of our 52 fork commits is dispositioned: **superseded**, **ported**, or
    **dropped-with-evidence**. No commit silently lost.
 4. `motoko_ext_fmt`'s token win is re-measured on the new tree — kept if it holds, dropped if not.
-5. At least one of our historical A/B questions is answered via DST instead of a rig run,
-   establishing the cheaper instrument works.
+5. The 12-package ABI port is gated by motoko's **contract** instruments (`make
+   declared_vs_performed`, `conformance`, `hook_guard`) rather than by hand-reading effect rows —
+   the mistake that port most invites. **This metric originally read "at least one historical A/B
+   answered via DST instead of a rig run"; that over-read what DST covers (see Problem Statement 3)
+   and is withdrawn.**
 
 ## High-Impact Decisions
 
@@ -331,9 +339,11 @@ Latitude granted to the implementing agent:
 
 ## Future Work
 
-- **Use DST as our primary A/B instrument.** If a seeded DST run can answer questions that
-  currently cost 7–14h of rig time, that changes the economics of the whole self-improvement loop
-  — arguably a bigger win than the refactor itself.
+- **Extension-level DST is an OPEN RESEARCH PROBLEM, and worth watching rather than assuming.**
+  Arni: *"Doing proper DST of extensions turned out to be exquisitely complex. That is basically an
+  open research project."* If it is ever solved, the economics of our whole self-improvement loop
+  change — a paired A/B currently costs 7–14h of rig time. Until then, extension A/Bs stay rig
+  questions and should be priced as such.
 - **Propose `motoko_ext_fmt` upstream** once re-measured, with the token evidence attached.
 - **Revisit `motoko_ext_a2a`** now that `Rand` is in the `on_tool_handle` row.
 - **Reconcile the registry as single source of truth** with Arni, so vendored `{path=...}` copies
