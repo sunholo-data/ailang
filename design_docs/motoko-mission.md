@@ -5,7 +5,10 @@ outer loop on the always-on rig.
 **North star**: motoko should be the BEST harness for writing AILANG specifically — exploiting
 structural advantages a generic harness on an untyped language cannot (typed-interface reads, AST
 edits/queries, effect rows, contracts + Z3, exact best-of-N) — and every claim we make about it
-should be measured on the tree we actually run.
+should be measured on the tree we actually run. **The mission is done when motoko is good enough to
+be an executor in the mission fleet itself** (clause 6): the harness we improve becomes a harness
+that does the improving. That graduation is the honest end-state test — a harness that can land its
+own sprints has demonstrated something no benchmark score argues for on its own.
 **Traces to**: [PROGRAM.md](PROGRAM.md) — this mission is an operational instance of the program's
 loop; every friction found here routes to a lane (AILANG fix / motoko extension / core-floor fix).
 **Skill**: [.claude/skills/mission-control/SKILL.md](../.claude/skills/mission-control/SKILL.md)
@@ -95,6 +98,33 @@ intact. Meanwhile the whole tree beneath us has been rewritten (see the queue's 
 - **Clause 5 — Motoko exploits what a generic harness cannot.** Typed-interface reads, AST
   edits/queries, contracts + Z3, exact best-of-N — the moat, and the reason this mission is not
   "make a good agent loop".
+- **Clause 6 (META — the loop closes) — Motoko graduates into the mission executor fleet.**
+  `motoko:<model>` becomes a valid `MISSION_EXECUTOR_MODEL`, so the harness this mission improves
+  becomes a harness that *does* the improving. This is the strongest available dogfood and the
+  operational proof of [PROGRAM.md](PROGRAM.md)'s self-specializing thesis: a harness good enough to
+  land its own sprints is good enough, in a way no benchmark score argues for on its own.
+
+  **What graduation concretely requires** (from the landed `codex` lane, M1b — currently the *only*
+  cross-provider executor):
+  1. A `provider:model` spawn recipe in the shared skill's cross-provider section — `motoko:<model>`
+     matched by `^([a-z_]+):(.+)$` and routed via `provider_executor`, NOT the Agent tool.
+  2. A **bounded, token-cheap pre-flight probe** (Standing rule 6 — never unbounded), plus a place in
+     the driver's fallback chain so a dead lane degrades rather than wedges.
+  3. A real-run recipe that survives what a real coding sprint needs: a write sandbox that also
+     reaches build caches outside the worktree, a background spawn (the 30-min cap exceeds the
+     harness's 10-min foreground `Bash` limit), and `< /dev/null`.
+  4. **The false-green guards that killed the DeepSeek-Flash lane** — it went 3/3 FAILED on real
+     sprints while reporting `rc=0` with an empty worktree. Assert directive delivery before
+     spawning; a silent success is the failure mode to design against, not an edge case.
+  5. A gate trial on real sprints — plan-faithful landing of held-out tests, not a smoke reply.
+
+  **First target is an AILANG-source repo, NOT this one.** This mission's anchor repo is
+  `sunholo-data/ailang`, a **Go** repo on the `go-compiler` verify profile — motoko has no structural
+  advantage writing Go, and would be graded against `codex` precisely where its moat does not apply.
+  The natural first lane is a repo on the `ailang-code` profile, where `ailang check` / `ailang test`
+  / `ailang ai-check` *are* the gates: **Ailang World** is AILANG source and already runs that
+  profile. Expect motoko's executor graduation to land on World before it lands here, and treat a
+  Go-repo trial as the harder, later bar rather than the starting one.
 
 ## Guardrails (mission-specific; the skill's Standing Rules always apply on top)
 
@@ -155,6 +185,13 @@ are ordered so the UNGATED work runs first.
    `compaction_ai` "0.3.0" is 33,851 B; our published `0.3.2` is 9,454 B — same name, lower version,
    different code
 8. [PARKED — Phase-0 gated] **Re-prove and re-baseline** · clauses 3+4 · migration Phase 3
+9. [PARKED — needs a green tree first] **Motoko executor-lane graduation, design** · clause 6 ·
+   the `motoko:<model>` spawn recipe, bounded probe, fallback-chain placement, and the false-green
+   guards. Design work can start once clause 1 holds (a motoko we can rebuild); the *trial* needs a
+   real sprint. **Target World (`ailang-code` profile) first — not this Go repo.**
+10. [PARKED — after 9] **Motoko executor-lane gate trial** · clause 6 · real sprints, plan-faithful
+    landing of held-out tests. The DeepSeek-Flash precedent is the bar to clear: 3/3 real-sprint
+    failures behind a clean `rc=0`, so a passing smoke proves nothing on its own.
 
 ---
 **Document created**: 2026-08-12 (rewritten from the 2026-06-24 charter, archived in full at
