@@ -654,9 +654,21 @@
         "stdlib-discoverability"
       ],
       "notes": "Prompted by issue #609, where a field agent reported a string's raw bytes were 'unreachable from AILANG' and asked for toInts. The reach claim was FALSE -- byteAt has shipped since v0.21.0 and was already taught in the bytes function list, and byteAt+length transcodes the reporter's exact Latin-1 payload correctly at HEAD (verified with ailang run before any change). What was actually missing was discoverability and shape. The common-imports line read `import std/bytes (fromString, toString, toBase64, fromBase64, length, slice)` -- not one byte-level function -- so an agent copying that canonical line saw a bytes module with no way into the bytes. The toInts entry also states explicitly that charCode/string indexing return U+FFFD for non-UTF-8 bytes and that fromString+toInts is the way through, because that specific wrong turn is what the report documented. v0.16.4 remains served byte-identical for pinned eval baselines."
+    },
+    "v0.16.6": {
+      "file": "prompts/v0.16.6.md",
+      "hash": "875b9cb27b4d81bef1c9d414c96997be3821c6f542d328bfe9c66254d14541c2",
+      "description": "v0.16.5 + strict-evaluation guidance for fused takeFlatMap and allocating-f takeMap forms.",
+      "created": "2026-08-12",
+      "tags": [
+        "production",
+        "latest",
+        "strict-evaluation"
+      ],
+      "notes": "Teaches that take(n, flatMap(f, xs)) materialises all outputs under strict evaluation and should be rewritten as takeFlatMap(n, f, xs), while stating the remaining source-list and single-f(x) bounds. Also teaches takeMap for take-after-map when f allocates. v0.16.5 remains served byte-identical for pinned eval baselines."
     }
   },
-  "active": "v0.16.5",
+  "active": "v0.16.6",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
