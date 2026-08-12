@@ -163,3 +163,89 @@ bite is **path-selective** — the same unbraced form worked minutes earlier on
 not. So a spot-check that happens to use a different path **certifies the unbraced form as safe**.
 Caught here only because the empty output was treated as a claim rather than a reading. If a second
 instance lands, that is the skill edit.
+
+---
+
+## 2 — 2026-08-12 — Phase 0 is bounded now; the predicate as first drafted could never have flipped TRUE
+
+**Picked**: Queue item 4 (head, `[NEXT]`, ungated) — designer pass on
+[m-motoko-dst-refactor-migration.md](planned/m-motoko-dst-refactor-migration.md) for the two live
+R1 quorum objections, then the one re-quorum the item allows.
+
+**Reality check**: Gate 0/1 clean and measured, not assumed. Kill switch armed; `gh` on
+`sunholo-voight-kampff`; billing tripwire CLEAN (both vars unset). The **RUNNING** skill is
+byte-identical to `origin/dev` (`cmp -s` silent) — worth stating because this checkout has its own
+tracked `.claude/skills/`, while `~/.claude/skills/mission-control` symlinks into **V1's** clone
+(different inodes, identical bytes). Local `dev` == `origin/dev`, so no reconcile was owed and
+Gate 4 could write in place. CI on HEAD: 18 checks, 17 green, `test` in-flight — no RED to outrank
+the queue. Died-mid-flight sweep: no motoko worktrees, clean main tree, the one open loop-authored
+PR (`#613`) is V1's. `#663` created 05:59Z **after** the Monday-07:00 boundary and holds 8
+comments, so no rotation. **Item-level freshness**: only ONE quorum artifact existed for this doc
+(the R1 block), and no commit touched it — the item was genuinely unstarted, not silently landed.
+**Blocker re-verified rather than inherited** (the solved-upstream rule): `#154` is still `OPEN`,
+control firing (`#150`/`#151`/`#152` all `MERGED` 2026-08-11 through the same instrument), so the
+Phase-0 gate is genuinely closed and the item's premise holds.
+
+**Shipped**: `1d0e2e511` — the revised migration doc. **Not a pass**: R2 BLOCKED, and item 4 is
+**PARKED `needs-human-review`** on a decision that belongs to Mark (D1 below). R1's two objections
+ARE answered and were not re-raised: Phase 0 is a bounded fail-closed gate (four conjunctive
+predicates, each with its evaluating command and observed value; a 28-fire ≈14d timebox at the
+charter's 12h interval; a structured BLOCKED expiry escalating to Mark; a declared human residual),
+and the four "Port — carry forward" claims carry rows V21–V24, each with a **same-scope**
+known-positive control. R2's two NEW objections were both internal-consistency defects in the R1
+revision; `gemini`'s two were measured and FIXED in-loop, `gpt5-6-sol`'s was measured and PARKED.
+No evaluator ran — the deliverable is a design doc, not an implementation.
+
+**Routing evidence**: designer model=`claude:claude-fable-5` task-class=design
+  round1-score=n/a rounds=2 corrections=3 (controller-authored, all measured)
+  provider=anthropic agent=`claude-sub -p` (probe rc=0, no lane degradation) cost=quota-bucket:weekly-fable
+  controller model=`claude-opus-5` task-class=orchestration cost=quota-bucket:opus
+  quorum R2 provider=openai+google models=`gpt5-6-sol`,`gemini-3-1-pro` **both present,
+  `absent_reviewers` empty** cost=**$0.096** · **metered total this iteration = $0.096 of $5**
+  designer rotation: `mission-motoko-designer-rotation` was ABSENT → started at claude per the
+  rotation rule, written back after the run. Note the shared un-namespaced
+  `mission-designer-rotation` holds V1's state; using it would have collided (M1 namespacing).
+
+**Ruled out**:
+- **`[stability] level = "stable"` as the Phase-0 condition** — REFUTED first-party, reproducing
+  iteration 1 rather than inheriting it: ABI 5.0's manifest and the registry's `2.2.0` (the line we
+  pin *and call unstable*) both read `stable`. A gate on it passes immediately and falsely.
+- **"the obvious remedy is vacuous, so there is no machine-verifiable condition"** — REFUTED, and
+  this is the iteration's most useful correction to its own predecessor. `gpt5-6-sol`'s
+  `proposed_fix` had **two** machine-checkable clauses and iteration 1 only tested one. The other —
+  *does the registry expose 5.x at a pinned digest* — is **non-vacuous**: the registry lists
+  `1.0.0,2.0.0,2.1.0,2.2.0` and no `5.x`, against a firing 4-entry control, so it reads FALSE today
+  and flips TRUE only on Arni's republish. It also supplies the digest half (`content_hash` per
+  version). Lesson: a `proposed_fix` is a list, and refuting its first clause is not refuting it.
+- **The designer's G2 predicate** — REFUTED by running the table verbatim instead of reading it
+  (V25). Bare `origin/main` is ambiguous across this mission's three repos; from this checkout it is
+  `rc=128 invalid object name` because the anchor's default branch is `dev`. The wrong-repo error and
+  the genuine path-absent answer **both return 128**, so an `exits 0` test cannot separate them —
+  **G2 would have read FALSE forever, including after `#154` merges.** A gate that can never open,
+  wearing a correct gate's clothes. Fixed with `-C` plus a `README.md` control.
+- **`compaction-ai`'s `on_pre_step` "genuinely needs all ten effects"** — REFUTED, and **worse than
+  the reviewer filed it** (V26). The row is `! {AI, IO, Trace}` — three. `gemini` flagged it as
+  contradicting this doc's own V4; measuring it showed the sentence cited *as its authority* a
+  passage upstream has **retracted**: *"WI-D8 NARROWED THIS ROW FROM TEN EFFECTS TO THREE, AND
+  NOTHING HAD EVER MEASURED IT … it was taken as given. It was over-declared by SEVEN."* Control:
+  `on_tool_handle` in the same record genuinely reads ten, so the instrument can see a ten-effect
+  row where one exists. Second instance this mission of *a judge's finding being under-stated*.
+- **"the Design Freeze checkboxes are harmless bookkeeping"** — REFUTED by `gemini`: gating the
+  sprint-executor's start on G1–G4 is a **deadlock**, because Phase 0 is what the executor runs to
+  evaluate G1–G4. It would have silently restored the unbounded manual wait R1 rejected.
+- **Applying the narrow-refinement carve-out to `gpt5-6-sol`'s R2 objection** — REJECTED as a
+  route. Its `proposed_fix` offers two branches, one of which explicitly requires "the named
+  decision owner's acceptance", and branch A's G6 would make queue item 11 (itself Phase-0 gated)
+  a Phase-0 predicate — a dependency loop. Choosing is judgment, and the carve-out forbids a
+  controller-invented resolution. Parked instead.
+
+**Retro lane**: none — no skill edit this iteration. The candidate gap (a predicate table in a
+multi-repo mission needing its repo named, and "the command errored" not being "the predicate is
+false") has **one** recorded friction, below the ≥2 bar; it is recorded in the doc as V25 and
+carried as a watch-item. If a second instance lands, the fix is a Gate-2 clause aimed at
+*evaluating* a doc's commands rather than reading them.
+
+**Next**: item 4 stays parked on **D1**. Iteration 3 takes item **5** (output-headroom upstream
+issue) — ungated, and the disposition's `R8` UNRESOLVED row now gives it a concrete instrument to
+cite rather than a recollection. If Mark answers D1 first, item 4 unparks and outranks it: apply
+his branch, then the doc is quorum-clean without another paid round.
