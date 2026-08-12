@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-BYTECODE-PATTERN-ARITY-FIX",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-08-12T00:00:00Z",
   "design_doc": "design_docs/planned/v1_0_0/m-bytecode-pattern-arity-fix.md",
   "sprint_plan": "design_docs/planned/v1_0_0/m-bytecode-pattern-arity-fix-sprint-plan.md",
@@ -126,10 +126,10 @@
         "Changelog entry added to changelogs/v0.18-current.md under ## [Unreleased] -> ### Fixed, referencing #505. NOT root CHANGELOG.md.",
         "docs/LIMITATIONS.md checked for a fixed-length-list-pattern-under---bytecode caveat: remove it if present, add nothing if absent."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-08-12T20:46:19Z",
+      "completed": "2026-08-12T20:57:30Z",
+      "notes": "D1-D6 mutation drills produced behavioral reds and all mutants built; seven-example blast radius and 175-example parity observation matched expected results; changelog updated; all targeted gates passed. Full go test ./... rc=1 is UNINFORMATIVE UNDER SANDBOX due forbidden httptest socket binds and denied home/cache access, requiring controller rerun. D1/D3 used the exact pre-fix branch because the prescribed false-and mutant did not reproduce #505; D4 neutered the current ranOnVM guard because the cited vmErr guard no longer exists."
     }
   ]
 }
