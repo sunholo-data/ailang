@@ -143,7 +143,7 @@ echo "== 7. un-onboarded pin target => REFUSE, do not exec into a probe-hang =="
 printf '{"projects":{}}' > "$HOME/.claude.json"
 UO=$(/bin/bash "$DRV" 2>&1)
 check "refuses to pin"                   "$UO" "STATUS=STALE"
-check "names the onboarding cause"       "$UO" "is not onboarded in Claude Code"
+check "names the onboarding cause"       "$UO" "onboarded in Claude Code"
 check "gives the exact human fix"        "$UO" "&& claude"
 check "fire still runs, unpinned"        "$UO" "MARKER=STALE-CONTENT"
 checkno "never reports pinned"           "$UO" "STATUS=pinned"
@@ -157,6 +157,24 @@ check "trust flag alone does NOT satisfy" "$TR" "STATUS=STALE"
 printf '{"projects":{"%s":{"hasCompletedProjectOnboarding":true}}}' "$T/pinwt" > "$HOME/.claude.json"
 OB=$(/bin/bash "$DRV" 2>&1)
 check "onboarding flag DOES satisfy"      "$OB" "STATUS=pinned"
+
+echo "== 8b. SOURCE-clone onboarding satisfies it — the case the first cut got WRONG =="
+# Measured 2026-08-12: `claude -p` runs fine from ~/.ailang-driver-pin/v1 while ~/.claude.json
+# has NO entry for it — a worktree inherits its source clone's trust. The first predicate checked
+# only the worktree's own entry, so it would have refused a demonstrably working target on every
+# fire and left the pin permanently off. This is the production shape: worktree absent, source ok.
+printf '{"projects":{"%s":{"hasCompletedProjectOnboarding":true}}}' "$T/clone" > "$HOME/.claude.json"
+SC=$(/bin/bash "$DRV" 2>&1)
+check "source onboarding is enough"       "$SC" "STATUS=pinned"
+check "and it really pinned"              "$SC" "MARKER=FRESH-CONTENT"
+
+echo "== 8c. NEITHER onboarded => still refuse (the motoko shape) =="
+# The gate must not have been widened into a no-op: a fresh clone with nothing onboarded anywhere
+# is exactly what cost motoko iteration 1, and it must still be refused.
+printf '{"projects":{"%s":{"hasCompletedProjectOnboarding":true}}}' "/some/unrelated/path" > "$HOME/.claude.json"
+NN=$(/bin/bash "$DRV" 2>&1)
+check "neither path onboarded => STALE"   "$NN" "STATUS=STALE"
+check "message names BOTH paths"          "$NN" "nor its source clone"
 
 echo "== 9. undeterminable (no jq) fails SAFE, not open =="
 mkdir -p "$T/nojq"

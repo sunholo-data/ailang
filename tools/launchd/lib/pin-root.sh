@@ -161,27 +161,43 @@ pin_root_to_committed_ref() {
     _pin_stale "$ref has no tools/launchd/$script — refusing to re-exec into a missing driver"; return 1
   fi
 
-  # ONBOARDING GATE — the one that makes this whole mechanism dangerous by default.
-  # A checkout Claude Code has never seen makes headless `claude -p` block on a trust dialog it
-  # cannot display, so EVERY model probe hangs to its timeout and the driver refuses with "NO
-  # usable model in prefs" — indistinguishable from a quota outage. That cost the motoko mission
-  # its entire first unattended fire (charter V22, commit 76ee4056c). A pin worktree is BY
-  # CONSTRUCTION a path Claude Code has never seen, so pinning into an un-onboarded one trades
-  # stale-but-working for fresh-and-dead. Staleness is the strictly smaller harm: refuse.
+  # ONBOARDING GATE — a checkout Claude Code has never seen makes headless `claude -p` block on
+  # a trust dialog it cannot display, so EVERY model probe hangs to its timeout and the driver
+  # refuses with "NO usable model in prefs" — indistinguishable from a quota outage. That cost
+  # the motoko mission its entire first unattended fire (charter V22, commit 76ee4056c).
+  # Staleness is the strictly smaller harm than a dead loop, so an unusable target means refuse.
+  #
+  # THE PREDICATE IS THE SOURCE REPO, NOT THE WORKTREE PATH. The first cut checked the pin
+  # worktree's own entry and was measured WRONG on 2026-08-12: `claude -p` runs fine from
+  # ~/.ailang-driver-pin/v1 while ~/.claude.json has NO entry for it at all — a git worktree
+  # inherits its source clone's trust, having no separate identity to onboard. Checking the
+  # worktree would have refused a demonstrably working target on every fire, leaving the pin
+  # permanently off. The two measured cases discriminate cleanly:
+  #
+  #   ailang-motoko          fresh CLONE, source entry ABSENT   -> probes HANG   (iteration 1 lost)
+  #   ~/.ailang-driver-pin/v1  WORKTREE of an onboarded clone,
+  #                            own entry ABSENT                 -> probes WORK   (measured)
+  #
+  # So: accept when EITHER path is onboarded. That refuses exactly the motoko shape (nothing
+  # onboarded anywhere) and accepts the worktree-of-a-good-clone shape. `$wt` is still checked
+  # first because AILANG_DRIVER_PIN_DIR can point somewhere that is NOT a worktree of $src.
   #
   # `hasCompletedProjectOnboarding`, NOT the `hasTrustDialogAccepted` the error text names —
-  # 76ee4056c measured all three checkouts and ailang-world (trust=false, onboarded=true) WORKS,
-  # which is the control proving the flag the message points at is not the gate.
+  # 76ee4056c measured ailang-world (trust=false, onboarded=true) WORKING, the control proving
+  # the flag the message points at is not the gate.
   #
   # Undeterminable is treated as un-onboarded, deliberately: pinning blind risks ~12 min of hung
   # probes and a dead loop, refusing costs staleness that is already reported. jq lives at
   # /usr/bin/jq, inside launchd's default PATH, so its absence means something is genuinely wrong.
+  _pin_onboarded() {  # $1 = path -> echoes true/false
+    jq -r --arg p "$1" '.projects[$p].hasCompletedProjectOnboarding // false' "$HOME/.claude.json" 2>/dev/null
+  }
   if [ -n "${AILANG_DRIVER_SKIP_ONBOARD_CHECK:-}" ]; then
     :
   elif ! command -v jq >/dev/null 2>&1; then
     _pin_stale "cannot verify Claude Code onboarding for $wt (jq not found) — refusing to pin into a possibly-unusable checkout"; return 1
-  elif [ "$(jq -r --arg p "$wt" '.projects[$p].hasCompletedProjectOnboarding // false' "$HOME/.claude.json" 2>/dev/null)" != "true" ]; then
-    _pin_stale "$wt is not onboarded in Claude Code — every model probe would hang there (charter V22). Run once, interactively: cd $wt && claude"; return 1
+  elif [ "$(_pin_onboarded "$wt")" != "true" ] && [ "$(_pin_onboarded "$src")" != "true" ]; then
+    _pin_stale "neither $wt nor its source clone $src is onboarded in Claude Code — every model probe would hang there (charter V22). Run once, interactively: cd $src && claude"; return 1
   fi
 
   # MISSION_WORKDIR moves too, and that is the point: mission-control.sh:40 reads it AHEAD of
