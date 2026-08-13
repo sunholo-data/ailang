@@ -9664,3 +9664,84 @@ is a bug or a demand against AILANG, so neither earns a queue row (Gate 0's cros
 item is the `[SWEEP iter-158]` external-issue triage batch (P3, ~0.5d), then
 `m-dialect-keyword-diagnostics` (`#539`, NEW-DOC). Parked on Mark: `D-1`, `D-2`, `D-7`, `D-8`,
 `D-9`, `D-10`, `D-11`, `D-12`, **`D-13`** — all on `#635`.
+
+## 191 — 2026-08-13 — Iteration 189: the nightly eval — the mission's primary measurement instrument — was banking ZERO rows; a genuine regression outranked the human-gated queue, fixed and landed
+
+**Picked**: `#665` — a genuine regression, filed first-party at iter-182 and never actioned. Not a
+free choice: the entire top of the queue (`#558`/`D-13`, plus `D-1`/`D-2`/`D-7`..`D-12`) is parked
+on Mark, and no directive arrived this iteration (`scripts/mission_directives.sh` → 0 of 36
+comments). A genuine regression outranks the queue (Gate 0 rule 4), and this one is on the
+mission's primary measurement instrument. Of the two open nightly-eval issues, `#649` is a
+sustained *capability gap* (opencode-qwen local model, `log_file_analyzer`), not an instrument
+regression; `#665` is infrastructure.
+
+**Ghost discipline at HEAD (`8fdccf00c`), before any routing.** `#665` claims `nightly-eval.sh`
+never sources `secrets.env`, so `OPENROUTER_API_KEY` is absent in the non-login launchd env, so the
+local ollama models' motoko canary pre-flight fails, so every local model is skipped, so
+`eval-suite` exits *"No models support agent evaluation"* and banks 0 rows both arms. Re-measured,
+with a same-path control: `grep -c 'secrets\.env'` = **0**, `grep -c 'OPENROUTER'` = **0**, and the
+same-path source control `grep -cE '^\s*(source|.) '` = **1** (the rig-lock source at `:42`, so the
+instrument works and the absence is real). Both siblings source it — `mission-control.sh` = **3**,
+`os-rotation-filler.sh` = **2** — so `nightly-eval.sh` is the outlier. No `nightly-eval.sh` commit
+since 08-12; `#665` still open with zero queue row. CONFIRMED regression, still live.
+
+**Fix = mirror the two established siblings.** `os-rotation-filler.sh:22-25` carries the *identical*
+rationale comment for the *identical* canary ("the motoko executor's pre-flight health check
+requires OPENROUTER_API_KEY even for the local ollama profile … the non-login launchd env doesn't
+have it"). So the "which path carries the key" question `#665` deliberately flagged as having a
+security dimension is already answered by convention: source `secrets.env` in the script (the
+more-secure path — the key never touches a world-readable plist), NOT the plist `EnvironmentVariables`
+block. Added the identical guarded line + rationale (crediting `#665`) after `cd "$REPO"`, with
+`# shellcheck source=/dev/null` / `disable=SC1091` to preempt SC1091.
+
+**Verified before landing.** (1) Delivery path: the installed `dev.ailang.nightly-eval.plist`
+(PlistBuddy) runs the script from the MAIN clone `/Users/voightkampff/dev/sunholo-data/ailang`, and
+`os-rotation-filler.sh` `git pull`s that clone every 45 min — so a commit to `dev` reaches the
+running nightly. (2) Mechanism: in a launchd-shaped env (`env -u OPENROUTER_API_KEY`), sourcing
+`secrets.env` makes the key SET — verified presence-only, **value never printed** (memory
+`feedback_never_print_secret_values`). (3) `bash -n` clean. (4) `check-changelog` only asserts the
+root CHANGELOG stays an index, so a launchd-only fix needs no entry (precedent `877fe37a3` /
+`f09cea9d7` shipped CI-clean with zero changelog files).
+
+**Shipped**: `tools/launchd/nightly-eval.sh` +11 lines, committed straight to `dev` as `fc7fc67b4`
+(only that file staged; the rig-synced dirty files — `.claude/fmt_hook_events.jsonl`,
+`docs/static/benchmarks/os/*.json`, untracked prompt docs — left untouched; no MERGE_HEAD).
+Charter LANDED row + STATUS stamp, this entry, dashboard refresh. `#665` closed citing the commit.
+
+**Gate 3b GREEN.** SHA-addressed on `fc7fc67b4`: `checks=16`, `pending=0`, **ZERO NOT-GREEN**; `CI`
+and `Build and Release` both `completed/success`; `launchd drivers (bash 3.2)` — the only gate this
+diff can touch — green. Held the turn open with chained bounded CI polls throughout (Standing rule
+7); the run's only long pole was the `test` job (Go suite, which a shell-only change cannot affect).
+
+**⚠ Not-yet-confirmed end-to-end (no premature victory).** The root cause is removed and the
+mechanism is proven, but the full chain (canary passes → local models run → rows bank) only confirms
+at the next **03:00** run. Recorded as not-yet-confirmed, not as done — the next iteration should
+confirm the nightly banked rows.
+
+**Routing evidence**: controller `claude-opus-5` (session) ONLY. A one-line, sibling-mirrored infra
+fix in the AILANG-fix/mission-infra lane needs no design doc (same class as
+`m-nightly-run-validity-gate` / `m-nightly-sustained-failure-label`), so no designer, planner,
+executor, or evaluator fired — generator≠judge is not engaged. Billing tripwire re-checked inside
+the tool shell (both `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` unset). `metered=$0.00`.
+
+**Ruled out (by measurement)**: *"`#665` was already fixed"* — REFUTED (0 `secrets.env` refs at
+HEAD, no `nightly-eval.sh` commit since 08-12). *"the fix needs a novel security decision"* —
+REFUTED (two siblings establish the convention, and the script path is the more-secure one).
+*"`#649` is the regression to pick"* — REFUTED (it is a local-model capability gap, not an
+instrument regression).
+
+**Retro (Gate 5)**: no skill or process fix owed this iteration — the loop's gates worked as
+written (ghost discipline caught nothing to re-derive; the never-print-secrets discipline held;
+the STATUS rotation script's line-count assertion passed). No routing-policy change (a single infra
+fix is not evidence for one). One observation, not yet a ≥2 pattern: `#665` sat open and unactioned
+for a day because it was filed as a GitHub issue by our own account rather than entering the queue
+— the weekly external-issue sweep (next due 2026-08-17) is the mechanism that would have surfaced
+it, but a *regression on our own instrument* arguably deserves faster routing than a P3 sweep. If a
+second instance recurs, consider a Gate-0 rule that first-party regression issues on mission
+infrastructure get triaged the iteration they are filed.
+
+**Next**: confirm the 03:00 nightly banks rows. The queue top (`#558`/`D-13` and `D-1`..`D-12`) is
+human-gated end to end; the next unblocked non-human item is the `[SWEEP iter-158]` external-issue
+triage batch (P3, ~0.5d), then `m-dialect-keyword-diagnostics` (`#539`, NEW-DOC + quorum). Parked
+on Mark: `D-1`, `D-2`, `D-7`, `D-8`, `D-9`, `D-10`, `D-11`, `D-12`, `D-13` — all on `#635`; no new
+decision item this iteration.
