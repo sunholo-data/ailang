@@ -44,6 +44,52 @@
 #   ⚠️ Post-2026-07-27 numbers are NOT comparable to earlier baselines: rows
 #   moved by up to 8x. Pre-v0.30.0 results also lack reason_tokens entirely and
 #   cannot be re-judged for truncation — only re-run.
+#
+# =============================================================================
+# PRICING IS A DRIFTING MEASUREMENT (M-EVAL-PRICING-DRIFT, 2026-08-13)
+# =============================================================================
+#
+# `pricing:` is the ONE source of truth for a row's rate. Prose in `notes:` is
+# DATED NARRATIVE — it records what a price was when someone wrote it, and MUST
+# NOT be read as the current rate. Do not "fix" that prose to match a new price;
+# it is history ("dropped $0.14/$0.28 -> $0.09/$0.18"), and rewriting it destroys
+# the record of when a vendor moved.
+#
+# `description:` is the opposite: a current-tense label surfaced by
+# `ailang eval-models`, with nowhere to hang a verified-on date. Do NOT embed a
+# rate in one — it will silently rot. Say "cheapest viable model", not
+# "cheapest viable model ($0.09/$0.18 per 1M)".
+#
+# Vendors reprice with no notice and no changelog. The 2026-08-13 audit found
+# 23 of 39 `provider: "openrouter"` rows stale, drift running from 0.89x to
+# 3.67x and in BOTH directions — understated cost silently flatters a model in
+# every cost-per-pass comparison, overstated cost silently penalises it. The
+# trigger case, `or-deepseek-v4-pro`, had been holding the price of what is now
+# a DIFFERENT slug (`deepseek/deepseek-v4-pro-0813`) for a 2.7x understatement.
+#
+# Hand-verification decays faster than anyone expects: `or-glm-5-2` carried
+# "verified live 2026-08-06 via /api/v1/models" in its notes and its output rate
+# was already 1.79x stale seven days later. A verified-on date is evidence of
+# when someone looked, NOT evidence that the number is still right.
+#
+#   make verify-model-pricing    # diffs every openrouter row against the live
+#                                # OpenRouter API; exits non-zero on drift.
+#                                # NOT in `make ci` — it needs the network and a
+#                                # third party's uptime. Run it before trusting
+#                                # any cost figure, and after any repricing news.
+#
+# The offline half of the gate DOES run in CI: TestModels_OpenRouterPricingIsSlugConsistent
+# (models_pricing_consistency_test.go) requires that two rows sharing an
+# `api_name` also share a price — the same model cannot cost two different
+# amounts depending on which harness invokes it.
+#
+# ⚠️ Banked results are NEVER recomputed when a price is corrected here. A
+# banked cost is a measurement of what a run cost under the rates in force at
+# the time; recomputing it with today's rate would fabricate a number no one was
+# ever charged. Correct the rate going forward and ANNOTATE the affected
+# baseline — precedent: v0.30.0 cost invalidation, and
+# design_docs/implemented/v0_31_0/m-eval-measurement-contract.md ("the existing
+# data stays as-is, only annotated").
 # =============================================================================
 
 # Model definitions
@@ -1463,8 +1509,8 @@ models:
     model_family: "glm-5"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
-      input_per_1k: 0.00098   # $0.98 per 1M
-      output_per_1k: 0.00392  # ~$3.92 per 1M (estimated at 4x input)
+      input_per_1k: 0.0014   # $1.4 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.0044   # $4.4 per 1M (OpenRouter API, verified 2026-08-13)
     budgets:
       max_cost_usd: 0.50
       hard_timeout_secs: 3600
@@ -1484,8 +1530,8 @@ models:
     model_family: "glm-5"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 8192
     pricing:
-      input_per_1k: 0.00060   # $0.60 per 1M
-      output_per_1k: 0.00208   # $2.08 per 1M
+      input_per_1k: 0.00095   # $0.95 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.00255   # $2.55 per 1M (OpenRouter API, verified 2026-08-13)
     notes: |
       GLM-5 via motoko. Best-performing OS model on the AILANG benchmark
       suite (85.3% raw success on motoko's vendored runs, $0.60/M in,
@@ -1513,8 +1559,8 @@ models:
     model_family: "gemma-4"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 8192
     pricing:
-      input_per_1k: 0.0001
-      output_per_1k: 0.0003
+      input_per_1k: 0.00012   # $0.12 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.0004   # $0.4 per 1M (OpenRouter API, verified 2026-08-13)
     notes: |
       Gemma 4 27B via motoko. Open-weight model with no first-party
       coding-agent CLI; motoko-as-host is the bridge that lets Gemma
@@ -1541,8 +1587,11 @@ models:
     model_family: "deepseek-v4"
     max_output_tokens: 65536
     pricing:
-      input_per_1k: 0.00009
-      output_per_1k: 0.00018
+      input_per_1k: 0.00008   # $0.08 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.00018   # $0.18 per 1M (OpenRouter API, verified 2026-08-13)
+      cache_read_per_1k: 0.000016  # $0.016 per 1M (OpenRouter API, verified 2026-08-13)
+                                   # Matches pi-or-deepseek-v4-flash, which measured this
+                                   # rate 2026-08-11; all four rows bill the same slug.
     budgets:
       max_cost_usd: 0.50      # generous: validates "more $ → more passes" hypothesis
       hard_timeout_secs: 3600 # 1 hour safety net only; cost is the real gate
@@ -1571,8 +1620,8 @@ models:
     model_family: "kimi"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
-      input_per_1k: 0.00057
-      output_per_1k: 0.00228
+      input_per_1k: 0.00095   # $0.95 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.004   # $4 per 1M (OpenRouter API, verified 2026-08-13)
     budgets:
       max_cost_usd: 0.50
       hard_timeout_secs: 3600
@@ -1615,8 +1664,8 @@ models:
     model_family: "gemma-4"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
-      input_per_1k: 0.00006
-      output_per_1k: 0.00024
+      input_per_1k: 0.00012   # $0.12 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.0004   # $0.4 per 1M (OpenRouter API, verified 2026-08-13)
     # M-EVAL-SWEET-SPOT-FOLLOWUP-P1 (v0.19.0): cap dropped from $0.50 to
     # $0.30 to actually trigger cost_killed on stretch benchmarks. Prior
     # validation showed gemma can burn $0.94 on a trivial benchmark when
@@ -1648,9 +1697,18 @@ models:
     agent_model_name: "openrouter/qwen/qwen3.5-35b-a3b-20260224"
     model_family: "qwen-3-5"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
+    # ⚠️ SLUG NO LONGER RESOLVES (audit 2026-08-13): `qwen/qwen3.5-35b-a3b-20260224`
+    # is absent from the live OpenRouter models API — the dated snapshot was
+    # withdrawn; only the undated `qwen/qwen3.5-35b-a3b` remains (now $0.25/$1.25
+    # per 1M, i.e. 1.8x this row's input). Pricing below is deliberately FROZEN at
+    # its last-verified 2026-06-02 value: this row is retired and exists solely to
+    # attribute banked results, which were charged at these rates. Re-pointing the
+    # slug would change WHICH model the id names — a model-selection decision, not
+    # a pricing fix — and Mark's #484 directive is qwen3.6-only. verify-model-pricing
+    # reports this row as unresolvable rather than drifted, and does not fail on it.
     pricing:
-      input_per_1k: 0.00014   # $0.14 per 1M (verified OpenRouter API 2026-06-02)
-      output_per_1k: 0.001    # $1.00 per 1M (verified OpenRouter API 2026-06-02)
+      input_per_1k: 0.00014   # $0.14 per 1M (verified OpenRouter API 2026-06-02; slug withdrawn since — frozen for attribution)
+      output_per_1k: 0.001    # $1.00 per 1M (verified OpenRouter API 2026-06-02; slug withdrawn since — frozen for attribution)
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 3600
@@ -2152,8 +2210,8 @@ models:
     model_family: "glm-5"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
-      input_per_1k: 0.0006   # $0.60 per 1M
-      output_per_1k: 0.00208 # $2.08 per 1M
+      input_per_1k: 0.00095   # $0.95 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.00255   # $2.55 per 1M (OpenRouter API, verified 2026-08-13)
     # M-EVAL-COST-AND-SPEED-BUDGETS (v0.15.1): explicit OS parity budget.
     # Default formula resolves to $0.105 — generous bump to $0.30 matches the
     # 4 OS near-misses tested in M5, gives multi-turn agent loops headroom.
@@ -2181,8 +2239,8 @@ models:
     model_family: "glm-5"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
-      input_per_1k: 0.00098  # $0.98 per 1M
-      output_per_1k: 0.00308 # $3.08 per 1M
+      input_per_1k: 0.0014   # $1.4 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.0044   # $4.4 per 1M (OpenRouter API, verified 2026-08-13)
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 600
@@ -2209,8 +2267,8 @@ models:
     model_family: "glm-5"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
-      input_per_1k: 0.00056  # $0.56 per 1M — OpenRouter price cut, verified live 2026-08-06 (was $1.40)
-      output_per_1k: 0.00176 # $1.76 per 1M — verified live 2026-08-06 (was $4.40)
+      input_per_1k: 0.0005   # $0.5 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.00315   # $3.15 per 1M (OpenRouter API, verified 2026-08-13)
     budgets:
       # WORK GATE (2026-07-31, Mark): one shared 3.0M blended-token ceiling across
       # agent_suite, so every model gets the same number of iterations. A dollar cap
@@ -2291,8 +2349,8 @@ models:
     model_family: "gemma-4"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 8192
     pricing:
-      input_per_1k: 0.00006
-      output_per_1k: 0.00033
+      input_per_1k: 0.00012   # $0.12 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.0004   # $0.4 per 1M (OpenRouter API, verified 2026-08-13)
     # M-EVAL-SWEET-SPOT (v0.19.0): bumped from 600s to cost-only gating.
     budgets:
       max_cost_usd: 0.50
@@ -2314,8 +2372,11 @@ models:
     model_family: "deepseek-v4"
     max_output_tokens: 65536
     pricing:
-      input_per_1k: 0.00009
-      output_per_1k: 0.00018
+      input_per_1k: 0.00008   # $0.08 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.00018   # $0.18 per 1M (OpenRouter API, verified 2026-08-13)
+      cache_read_per_1k: 0.000016  # $0.016 per 1M (OpenRouter API, verified 2026-08-13)
+                                   # Matches pi-or-deepseek-v4-flash, which measured this
+                                   # rate 2026-08-11; all four rows bill the same slug.
     # M-EVAL-SWEET-SPOT (v0.19.0): bumped from 600s to cost-only gating.
     # Cheap model (~$0.003/benchmark) — 50¢ cap is 150x typical cost.
     # hard_timeout_secs is a network-hang safety net, not a cost proxy.
@@ -2433,8 +2494,8 @@ models:
     model_family: "deepseek-v4"
     max_output_tokens: 65536
     pricing:
-      input_per_1k: 0.00043
-      output_per_1k: 0.00087
+      input_per_1k: 0.001168   # $1.168 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.002336   # $2.336 per 1M (OpenRouter API, verified 2026-08-13)
     budgets:
       # WORK GATE (2026-07-31, Mark): one shared 3.0M blended-token ceiling across
       # agent_suite, so every model gets the same number of iterations. A dollar cap
@@ -2457,13 +2518,16 @@ models:
     api_name: "deepseek/deepseek-v4-flash-0731"
     provider: "openrouter"
     default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
-    description: "DeepSeek V4 Flash 0731 (official release, 2026-07-31) via OpenRouter (standard) — cheapest viable model ($0.09/$0.18 per 1M)"
+    description: "DeepSeek V4 Flash 0731 (official release, 2026-07-31) via OpenRouter (standard) — cheapest viable model in the spread"
     env_var: "OPENROUTER_API_KEY"
     model_family: "deepseek-v4"
     max_output_tokens: 65536
     pricing:
-      input_per_1k: 0.00009
-      output_per_1k: 0.00018
+      input_per_1k: 0.00008   # $0.08 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.00018   # $0.18 per 1M (OpenRouter API, verified 2026-08-13)
+      cache_read_per_1k: 0.000016  # $0.016 per 1M (OpenRouter API, verified 2026-08-13)
+                                   # Matches pi-or-deepseek-v4-flash, which measured this
+                                   # rate 2026-08-11; all four rows bill the same slug.
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 600
@@ -2475,6 +2539,32 @@ models:
       the full rationale. Pricing dropped $0.14/$0.28 -> $0.09/$0.18 per 1M.
 
   or-deepseek-v4-pro:
+    api_name: "deepseek/deepseek-v4-pro"
+    provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "DeepSeek V4 Pro via OpenRouter (standard)"
+    env_var: "OPENROUTER_API_KEY"
+    model_family: "deepseek-v4"
+    max_output_tokens: 65536
+    pricing:
+      input_per_1k: 0.001168   # $1.168 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.002336   # $2.336 per 1M (OpenRouter API, verified 2026-08-13)
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Standard companion to opencode-or-deepseek-v4-pro. Added 2026-06-04.
+      Validates Motoko's "DeepSeek V4 Flash good for AILANG" recommendation.
+      Note: V4 Pro under-performed Flash (1/3 vs 2/3) — Pro's reasoning
+      overhead may hurt simple-task accuracy.
+      v0.19.0: timeout bumped to 3600s (network-hang net only) for
+      M-EVAL-SWEET-SPOT validation — cost is the real budget gate.
+
+  # DeepSeek V4 Pro 0813 — GA release of the V4 Pro line, published 2026-08-13
+  # (the incumbent or-deepseek-v4-pro slug is the April *preview*). Smoke gate
+  # PASSED 22/23 on 2026-08-13; entry is OPT-IN and in NO suite until the core
+  # tier settles promotion (smoke is a FLOOR, not a ranking — see notes).
+  or-deepseek-v4-pro-0813:
     api_name: "deepseek/deepseek-v4-pro-0813"
     provider: "openrouter"
     default_thinking: "on"  # VERIFIED 2026-08-13 on the 0813 GA: bare probe returned reasoning_tokens=237 of 490 completion
@@ -2595,8 +2685,8 @@ models:
     model_family: "kimi"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
-      input_per_1k: 0.00074
-      output_per_1k: 0.00349
+      input_per_1k: 0.00095   # $0.95 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.004   # $4 per 1M (OpenRouter API, verified 2026-08-13)
     # M-EVAL-SWEET-SPOT (v0.19.0): bumped from 600s to cost-only gating.
     budgets:
       max_cost_usd: 0.50
@@ -2625,8 +2715,8 @@ models:
     model_family: "kimi"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
-      input_per_1k: 0.00075   # $0.75 per 1M
-      output_per_1k: 0.0035   # $3.50 per 1M
+      input_per_1k: 0.00067   # $0.67 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.0034   # $3.4 per 1M (OpenRouter API, verified 2026-08-13)
     budgets:
       max_cost_usd: 0.50
       hard_timeout_secs: 3600
@@ -2649,8 +2739,8 @@ models:
     model_family: "kimi"
     max_output_tokens: 65536  # thinking headroom (reasons by default; see or-glm-5-2 truncation retraction)
     pricing:
-      input_per_1k: 0.00075   # $0.75 per 1M
-      output_per_1k: 0.0035   # $3.50 per 1M
+      input_per_1k: 0.00067   # $0.67 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.0034   # $3.4 per 1M (OpenRouter API, verified 2026-08-13)
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 600
@@ -2879,8 +2969,8 @@ models:
     max_output_tokens: 16384  # M-EVAL-TOKEN-HEADROOM: was 8192; CEILING-LIMITED: deepseek/deepseek-chat max_completion=16384 across all upstreams
     model_family: "deepseek-v3"
     pricing:
-      input_per_1k: 0.00014   # $0.14 per 1M
-      output_per_1k: 0.00028  # $0.28 per 1M
+      input_per_1k: 0.0002574   # $0.2574 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.0010287   # $1.0287 per 1M (OpenRouter API, verified 2026-08-13)
     notes: "Pricing varies by OpenRouter upstream. Trace ResolvedRoute carries actual cost_usd."
 
   or-qwen-2-5-72b:
@@ -2892,8 +2982,8 @@ models:
     max_output_tokens: 16384  # M-EVAL-TOKEN-HEADROOM: was 8192; CEILING-LIMITED: qwen/qwen-2.5-72b-instruct max_completion=16384 across all upstreams
     model_family: "qwen-2-5"
     pricing:
-      input_per_1k: 0.00012   # $0.12 per 1M
-      output_per_1k: 0.00039  # $0.39 per 1M
+      input_per_1k: 0.00036   # $0.36 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.0004   # $0.4 per 1M (OpenRouter API, verified 2026-08-13)
     notes: "Pricing varies by OpenRouter upstream. Trace ResolvedRoute carries actual cost_usd."
 
   or-mistral-large:
@@ -2948,8 +3038,8 @@ models:
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     model_family: "glm-5"
     pricing:
-      input_per_1k: 0.0006   # $0.60 per 1M
-      output_per_1k: 0.00208 # $2.08 per 1M
+      input_per_1k: 0.00095   # $0.95 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.00255   # $2.55 per 1M (OpenRouter API, verified 2026-08-13)
     # M-EVAL-COST-AND-SPEED-BUDGETS (v0.15.1): standard-mode parity with the
     # opencode-or-glm-5 agent variant. Default formula resolves to $0.105;
     # explicit $0.30 keeps the cap symmetric across both modes.
@@ -2990,8 +3080,8 @@ models:
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     model_family: "glm-5"
     pricing:
-      input_per_1k: 0.00098  # $0.98 per 1M
-      output_per_1k: 0.00308 # $3.08 per 1M
+      input_per_1k: 0.0014   # $1.4 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.0044   # $4.4 per 1M (OpenRouter API, verified 2026-08-13)
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 600
@@ -3019,8 +3109,8 @@ models:
                               # thinking + content at worst-case ~$0.29/run.
     model_family: "glm-5"
     pricing:
-      input_per_1k: 0.00056  # $0.56 per 1M — OpenRouter price cut, verified live 2026-08-06 (was $1.40)
-      output_per_1k: 0.00176 # $1.76 per 1M — verified live 2026-08-06 (was $4.40)
+      input_per_1k: 0.0005   # $0.5 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.00315   # $3.15 per 1M (OpenRouter API, verified 2026-08-13)
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 600
@@ -3110,6 +3200,13 @@ models:
     env_var: "OPENROUTER_API_KEY"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     model_family: "laguna-xs-2"
+    # ⚠️ SLUG NO LONGER RESOLVES (audit 2026-08-13): `poolside/laguna-xs.2:free` is
+    # absent from the live OpenRouter models API. The nearest live id is
+    # `poolside/laguna-xs-2.1:free` (dash, and .2.1) — also $0/$0. A run against
+    # this row would 404, so this is a REACHABILITY defect, not a pricing one; the
+    # $0/$0 below stays correct by construction for any free tier. Left un-repointed
+    # on purpose: moving to 2.1 evaluates a different model revision, which is a
+    # screening decision for local-model-onboarding, not a drift correction.
     pricing:
       input_per_1k: 0.0
       output_per_1k: 0.0
@@ -3119,6 +3216,8 @@ models:
     notes: |
       local-model-onboarding screen (2026-06-14): OpenRouter FREE-tier quality screen
       for on-device candidate laguna-xs.2 (poolside, 33B/3B MoE, agentic-coding).
+      2026-08-13: slug withdrawn upstream (see comment above) — re-screen against
+      poolside/laguna-xs-2.1:free before using this row again.
 
   or-gemma-4-26b:
     api_name: "google/gemma-4-26b-a4b-it"
@@ -3129,8 +3228,8 @@ models:
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 8192
     model_family: "gemma-4"
     pricing:
-      input_per_1k: 0.00006   # $0.06 per 1M
-      output_per_1k: 0.00033  # $0.33 per 1M
+      input_per_1k: 0.00012   # $0.12 per 1M (OpenRouter API, verified 2026-08-13)
+      output_per_1k: 0.0004   # $0.4 per 1M (OpenRouter API, verified 2026-08-13)
     notes: |
       26B total / ~4B active MoE. Smoke 2026-05-04: fizzbuzz✅ adt_option✅
       csv_to_json❌ (WRONG_LANG — model produced Python). Cheapest validated

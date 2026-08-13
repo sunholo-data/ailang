@@ -9745,3 +9745,140 @@ human-gated end to end; the next unblocked non-human item is the `[SWEEP iter-15
 triage batch (P3, ~0.5d), then `m-dialect-keyword-diagnostics` (`#539`, NEW-DOC + quorum). Parked
 on Mark: `D-1`, `D-2`, `D-7`, `D-8`, `D-9`, `D-10`, `D-11`, `D-12`, `D-13` — all on `#635`; no new
 decision item this iteration.
+
+---
+
+## 192 — 2026-08-13 — Iteration 190: `m-dialect-keyword-diagnostics` designed and hard-re-scoped by a reviewer who was right — then parked, because the parser physically cannot do what the design asks
+
+**Picked**: `m-dialect-keyword-diagnostics` (`#539`), the charter's top `[NEXT]` row at line 1364.
+Not a free choice — `D-1`, `D-2`, `D-7`..`D-13` are all open, so every item above it is
+human-gated, and no directive arrived (`scripts/mission_directives.sh` → **0** of **38** comments).
+
+**The pick corrected the last two iterations' own records.** Iterations 188 and 189 both wrote that
+the next unblocked item was the `[SWEEP iter-158]` batch. The charter lists
+`m-dialect-keyword-diagnostics` at **1364** and the sweep at **1365**, and the sweep row's own text
+says a sweep "NEVER outranks an existing pick — this sits below the picks above it by construction".
+The charter is the artifact of record; both Next lines were slips. Recorded rather than silently
+followed, because a Next line is what the following iteration reads first.
+
+**NEW-DOC tag verified, not assumed.** `grep -ril dialect-keyword design_docs/` returns only the
+charter, log and dashboard — i.e. the queue rows themselves, not a doc (control:
+`m-driver-pin-rollout` → **3** files). `git log origin/dev --grep` finds only the unrelated
+`ailang fmt` dialect-alignment work, so nothing had landed.
+
+**⚠ The verify profile earned its place before any probe ran.** `~/go/bin/ailang` reported
+`v0.33.0-149-g4a45e993d-dirty` against a `git describe` of `v0.33.0-184-gfd01a37c1` — **35 commits
+stale, and dirty** — and `bin/ailang` did not exist at all. Rebuilt both; every measurement below
+is on `v0.33.0-184-gfd01a37c1`, byte-matching HEAD.
+
+**Ghost discipline: REAL at HEAD, all nine shapes — and my first two instruments were broken.**
+The known-positive control (`match c { 0 => "zero", _ => "other" }`) came back **rc=1**, not rc=0:
+outside `/tmp`, MOD010 (module-name-vs-path) fires first and masks every parse diagnostic. Repaired
+with `--relax-modules`, the control is **rc=0 / "✓ No errors found!"**, and that narrowing travels
+with the finding. In the same call a second instrument was contaminated: my "does the diagnostic
+name `match`?" counter was matching the literal word *match* **inside the MOD010 text**. Both were
+caught by the control, not by inspection. Measured after repair:
+
+| shape | first diagnostic | verdict |
+|---|---|---|
+| `case` / `switch` | `PAR020 missing ';' … Add a ';' after the previous statement` + 5× `PAR_NO_PREFIX_PARSE` | prescribed fix cannot work; `match` never named (the one "match" mention is generic delimiter boilerplate) |
+| `data C = A \| B` | `PAR015 … Use: let C = … in` | **wrong** fix — the answer is `type` |
+| `struct` / `class` | **no parse error at all** → type error `undefined variable: struct` | agent is not even told the problem is syntactic |
+| `return` / `enum` / `elif` | `PAR_UNEXPECTED_TOKEN` | names nothing |
+| bare `fn` | `PAR_NO_PREFIX_PARSE` at `->` | the good `PAR_EXPORT_REQUIRES_FUNC` is `export`-gated |
+
+Premises handed to the designer were verified first-party, with provenance labels: `PAR_MATCH_ARROW`
+at `parser_expr.go:282`, `PAR_EXPORT_REQUIRES_FUNC` at `parser_decl.go:338` (control `PAR020` → 4
+files); `case` is **not** a lexer keyword (zero hits, control `"match"` firing in `token.go`).
+
+**Designer = rotation `codex:gpt-5.6-sol`.** The pointer held `claude:claude-fable-5` from iter-188
+and the **log agreed**, so iter-188's namespacing fix held and there was no clobber ambiguity to
+adjudicate. Probe rc=0; one bounded pass (~8 min) plus a bounded revision (~7 min). It returned a
+323-line doc with **13** verification rows — and **V13 refuted my own inherited framing**: I handed
+it "`m-syntax-ai-forgiving` established an alias lane"; it read the implemented doc and found R1/R2
+were *separator* acceptance (`;`-sequences, newline-as-soft-separator), **not** keyword aliases. The
+precedent therefore supports acceptance only on strong frequency evidence — the opposite of the
+lean I gave it. Gate 2 rule (d): a sub-agent contradicting a controller fact is the loop working.
+
+**Quorum BLOCKED ×2, `absent_reviewers: []` both rounds, all four objections measured not forwarded.**
+
+*R1 (`$0.0570`).* `gpt5-6-sol` — the probes rode a binary that "explicitly warned it was stale".
+**PREMISE, REFUTED, and the refutation is reusable.** The warning is an **mtime heuristic** at
+`cmd/ailang/help.go:37-53`, walking four **CWD-relative** directories and warning if any `.go`
+mtime post-dates the binary. A fresh `git worktree` rewrites all 23,610 files, so it trips on a
+**content-identical** binary; the same binary run from the non-worktree checkout emits nothing, and
+`ailang --version` never emits it while `ailang check` does. Content identity proven by
+**differential** rather than assertion: a binary built FROM the worktree matches the PATH binary
+**byte-for-byte on 10/10 fixtures** (only the two warning lines differed). **Negative control — the
+differential is sensitive**: against a `HEAD~40` build (`0a84f5377`, `v0.33.0-141`) it detects a
+difference (1/10 fixtures, plus `--version`), so 0/10 is a measurement rather than blindness. The
+reviewer was right that the doc's justification was an appeal to authority ("user-supplied
+controller provenance") and wrong that the probes were untrustworthy.
+
+*R1.* `gemini-3-1-pro` — 2.5–3.5 days of parser surface for nine spellings, eight with zero
+recorded occurrences, against the Minimal Frozen Core axiom. **ADJUDICATED CORRECT**: it is the
+north star (`PROGRAM.md`: default bias is extension, the core stays frozen) and the mission's own
+demand-evidence guardrail, and the doc's own Demand section already conceded the premise. Directed
+a **hard re-scope rather than a defence** → **`case` only, 1–1.5 days, 2 milestones**, the other
+eight deferred behind a named evidence trigger. Its second half — consuming a foreign declaration
+without producing an AST node still yields a downstream `undefined variable`, contradicting the
+doc's own goal — was also correct, and was resolved explicitly in the revision.
+
+*R2 (`$0.0507`) — BLOCKED AGAIN, and the blocker is a fact about the parser, not about the doc.*
+`gemini-3-1-pro` asked whether the parser can peek past an arbitrary subject expression. **It
+cannot, so the revised mechanism is infeasible as written.** Measured: the parser is a streaming
+Pratt parser with **fixed 4-token lookahead** (`curToken` + `peekToken`..`peek4Token`, primed by
+five reads at `parser.go:134-139`); `nextToken()` at `parser.go:214-220` is a **pure forward shift**
+that overwrites the consumed token with no saved position; and there are **ZERO**
+`save`/`restore`/`rewind`/`mark`/`backtrack`/`snapshot` methods — control **125** `*Parser` method
+definitions, so the zero is a measurement, not a broken grep. A subject expression is unbounded in
+tokens, so no fixed window can reach its `{`. `gpt5-6-sol` — the "zero occurrences for the eight
+deferred spellings" premise is unverified. **CONFIRMED as a genuine gap**: the charter+log carry
+backticked hits for seven of the eight (`switch` 2, `return` 4, `enum` 1, `struct` 2, `class` 3,
+`elif` 1, `data` 0; control `` `match` `` 8) — but those are this queue row's own prose, and the
+mission record stores **conclusions, not raw transcripts**, so it cannot establish absence in
+either direction. The instrument that could is a transcript scan across **468** recorded nights.
+
+**PARKED `needs-human-review`.** Neither R2 objection carries a reviewer-authored `proposed_fix`
+(both `<none>` in the artifact), and resolving the mechanism would require a **controller-invented**
+resolution — which the narrow-refinement carve-out explicitly forbids. Standing rule 2 binds. Per
+rule 3f(c) the park carries numbers, so the human decision is one word (`D-14`): **(A)**
+recovery-site detection at `parser_literals.go:562`, where `expected ; or }, got =>` is already
+raised *after* the subject is consumed — no rewind needed, fits the parser as-is; **(B)**
+statement-initial soft keyword — fits inside 4 tokens only for simple subjects; **(C)** add parser
+backtracking — touches the assumptions of all 125 parser methods, a core change against the north
+star; **(D)** drop it — one observed occurrence, and `ailang fmt` cannot be the auto-fix lever
+because it parses before formatting and leaves parse-invalid input byte-identical (sha256-verified).
+
+**Landed + Gate 3b.** Doc at `9ebdad07c`; **GREEN** — SHA-addressed `checks=16`, `pending=0`, zero
+not-green. The count climbed **13 → 14 → 15 → 16** during the poll, so `pending=0` was **required,
+not inferred**; an early aggregate would have been vacuously green. A sibling pushed `30cf295dc` to
+`dev` mid-poll, which is exactly why the poll was SHA-pinned rather than `--limit 1`.
+
+**Two bookkeeping defects found and repaired in the record itself.** (1) **Iteration 189's STATUS
+rotation DROPPED iteration 186's stamp** — it is present in *no* file, while controls **184** and
+**185** are each present exactly once in the archive, and `git log -S 'ITERATION 186'` pins the
+removal to `fd01a37c1` (iteration 189's own record commit) while `8ecebc0e1` added it. Recovered
+byte-identical from `8ecebc0e1` and archived alongside this iteration's rotation of **187**; the
+line-count invariant (`after == before + 2 − 2×moved`) held at **1982**, and the post-edit queue-row
+guard confirmed the queue intact. (2) Iterations 188/189's Next lines contradicted the charter's own
+queue ordering (above).
+
+**Routing evidence**: controller **opus**; designer **`codex:gpt-5.6-sol`** (rotation — pointer
+advanced to `claude:claude-fable-5`); planner / executor / evaluator **not fired**, since the
+deliverable parked at the quorum gate before a sprint existed, so generator≠judge is not engaged.
+`metered=$0.1077` (quorum R1 `$0.0570` + R2 `$0.0507`) against the `$5` ceiling.
+
+**Ruled out by measurement**: *"the probes rode a stale binary"* — REFUTED (mtime artifact of a
+fresh worktree; 10/10 byte-identical differential with a sensitive negative control); *"`m-syntax-
+ai-forgiving` established a keyword-alias precedent"* — REFUTED by the designer (separator
+acceptance, not aliases); *"the `[SWEEP iter-158]` batch is the next unblocked item"* — REFUTED by
+the charter's ordering and the sweep row's own text; *"`ailang fmt` could serve as the auto-fix
+lever"* — REFUTED (parses before formatting; parse-invalid input returns byte-identical);
+*"the mission record can establish that eight spellings never occurred"* — REFUTED (it stores
+conclusions, not transcripts).
+
+**Next**: `D-14` gates `#539`. With `D-1`, `D-2`, `D-7`..`D-13` also open, the next unblocked
+non-human item is the `[SWEEP iter-158]` external-issue batch — `#611` (executor fallback chain,
+the most actionable), `#581` (planner-lane derivation parsing fenced bullets as paths), `#554`
+(ollama tool-call emission collapse), and the three `from:cli` reports `#610` / `#609` / `#607`.
