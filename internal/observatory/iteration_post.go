@@ -188,16 +188,13 @@ func PostIterationTo(ctx context.Context, store IterationSink, p *IterationPost)
 		}
 		// Record the model (metered lanes) so the M1 classifier can resolve a rate.
 		if st.Model != "" {
-			switch {
-			case canRecordModel:
-				if err := modelSink.UpdateStageEvalAssessment(ctx, stage.ID, &EvalAssessment{
-					Model:    st.Model,
-					EvalMode: "mission",
-				}); err != nil {
-					return chain.ID, fmt.Errorf("update stage %d model: %w", i, err)
-				}
-			default:
+			if !canRecordModel {
 				modelsDropped++
+			} else if err := modelSink.UpdateStageEvalAssessment(ctx, stage.ID, &EvalAssessment{
+				Model:    st.Model,
+				EvalMode: "mission",
+			}); err != nil {
+				return chain.ID, fmt.Errorf("update stage %d model: %w", i, err)
 			}
 		}
 		// Status LAST, so completed_at lands after the stage is fully credited.
