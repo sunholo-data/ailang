@@ -29,6 +29,13 @@ MODEL_OUTCOME_CATEGORIES = {
     "compile_error", "runtime_error", "logic_error", "verify_error",
     "constraint_violation", "refused", "step_exhausted", "thrash_aborted",
     "resource_limit",
+    # M-EVAL-FAILURE-ATTRIBUTION: solved the problem, ignored the output
+    # contract. A MODEL outcome, not a harness one — metrics.go is explicit
+    # that it "is still a FAIL and still attributed to the model"; the split
+    # exists so "could not solve it" and "solved it, dressed the output" stop
+    # being one number. Classifying it as run-unmeasured would silently
+    # forgive a real failure.
+    "output_format",
 }
 PAGING_CLASSES = {"regression", "sustained-failure"}
 DATE_RE = re.compile(r"nightly_eval_(\d{8})_rag_on")
