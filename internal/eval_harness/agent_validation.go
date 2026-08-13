@@ -220,6 +220,7 @@ func gradeInWorkspace(spec *BenchmarkSpec, workspace string) ValidationResult {
 	if len(spec.Caps) > 0 {
 		args = append(args, "--caps", strings.Join(spec.Caps, ","))
 	}
+	args = append(args, aiHandlerArgs(spec.Caps)...)
 	args = append(args, spec.GradeEntrypoint)
 
 	// Run under the shared guards (process group, output limits, timeout,

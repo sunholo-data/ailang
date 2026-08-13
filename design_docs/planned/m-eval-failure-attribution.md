@@ -85,10 +85,11 @@ Its own comment states the premise: *"every identifiable MODEL failure has its o
 | `docx_reimplement` + `markdown_reimplement` at 0% across 18 runs each | 36 | harness (`input_files` never reaches the standard-mode prompt) | compile/runtime/logic |
 | AI-caps benchmarks run without `--ai` | 6 | harness (runner grants `--caps AI`, never passes `--ai`) | `runtime_error` |
 | AILANG interpreter dictionary crash | 5 | AILANG (`missing dictionary method: prelude::Fractional::Int::add`) | `runtime_error` |
-| Correct values, extra output decoration | 17 | model — but a *formatting* failure, not a solve failure | `logic_error` |
-| **Total not-a-capability-failure** | **64** | | |
+| **Total not-a-capability-failure** | **47** | | |
 
 **47 of 213 failures (22%) are not model capability failures.** Only **4 of 877** rows carry `validity.valid=false`.
+
+> **A fourth class was claimed and then REFUTED — see V17.** An earlier pass counted 17 "correct values, extra decoration" rows. Every one was a genuine wrong answer; the heuristic that found them (*every expected line appears somewhere in the output*) over-matched. `contract_rle_roundtrip` expects a final `true` and produced `1q` — a real roundtrip failure that the loose rule scored as cosmetic. The 22% headline is unaffected because those 17 were never in it. The `output_format` category below survives on a different, verified case, and its frequency is explicitly low.
 
 **Impact:**
 - **Model ranking is wrong in an unknown direction.** Contamination is not uniform — it concentrates in whichever benchmarks touch the broken paths, so it biases per-model scores by however often that model's code style trips an AILANG defect.
@@ -115,7 +116,7 @@ Its own comment states the premise: *"every identifiable MODEL failure has its o
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |----------|-----------------|-----------|----------|-------------|
 | Attribution is a **new banked field**, not a reinterpretation of `error_category` | `error_category` is consumed by dashboards, ELO, curation and the OS publisher; overloading it breaks readers silently. A parallel field is additive. | human | design | high |
-| Formatting failures keep **FAIL** semantics | Byte-exact stdout is the determinism contract AILANG is built on. Loosening it to rescue 17 rows would trade a measurement bug for a semantics change. | human | design | high |
+| Formatting failures keep **FAIL** semantics | Byte-exact stdout is the determinism contract AILANG is built on. Loosening it would trade a measurement bug for a semantics change — and V17 shows the rows a loose rule would 'rescue' are mostly genuine wrong answers. | human | design | high |
 | Historical rows are **annotated, never re-banked** | Precedent: the v0.30.0 cost-invalidation decision. Re-running changes the measurement; re-classifying does not. | human | design | med |
 | Classification is **pure and offline-replayable** | Lets us re-attribute every historical baseline without API spend, and makes the classifier unit-testable against real banked rows. | agent | design | med |
 | `output_format` as the new category name | Shared namespace with every other `ErrorCategory*`. Verified free (V9). | agent | design | low |
@@ -171,7 +172,9 @@ Add a typed **attribution** to every banked run, decided by a table of signature
 
 3. **`applyValidityBackstop` rewritten** to consult attribution: any attribution other than `model` marks the row invalid with the reason carried through. The existing `api_error` behaviour becomes one row in the table rather than the only rule.
 
-4. **`output_format` error category** (new value) — assigned when `!stdoutOk` **and** the produced stdout contains the expected values but differs in decoration. Attribution stays `model`; the row still FAILS. This is purely about separability: `logic_error` currently means both "wrong answer" and "right answer, labelled".
+4. **`output_format` error category** (new value) — assigned when `!stdoutOk` **and** the produced stdout is the expected values carrying a *label*. Attribution stays `model`; the row still FAILS. Purely about separability: `logic_error` currently means both "wrong answer" and "right answer, labelled".
+
+   **The detector must be conservative, and this is the load-bearing constraint.** Over-matching here is the mirror of the bug this whole doc fixes — it would quietly reclassify wrong answers as cosmetic and inflate apparent capability. A naive `HasSuffix(got, want)` is insufficient: expected `3` against produced `13` satisfies it. The shipped rule requires equal line counts **and** a label terminated by `:` or `=`; that delimiter is the entire safety property. Measured: it reclassifies **0 of 72** `logic_error` rows in the v0.32.0 baseline (V17), i.e. no false positives on real data, while catching the observed `tree_transformation_pipeline` case.
 
 **Why a table and not more `if`s.** This is the fourth instance of one bug class. `ErrorCategoryNonAgentic`'s own comment records it: *"Third instance of this bug class after step_exhausted and max_steps."* Each was fixed by adding a substring test to a growing switch. Those three moved rows *out* of the `api_error` catch-all (harness-looking failures that were really known causes); this one is the mirror image — model-looking failures that are really harness or AILANG. Same class, opposite direction. A table with a test per row is the unified fix; a fifth `if` is the anti-pattern.
 
@@ -244,7 +247,7 @@ expected:  [1, 2, 3, 4, 5, 6, 7]      got:  treeToList(tree): [1, 2, 3, 4, 5, 6,
 - [ ] `AttributeFailure` is pure and has a test per signature, each fixtured from a real banked row
 - [ ] Re-classifying v0.32.0 marks ≥ 47 failures non-capability, matching the audit in this doc
 - [ ] `applyValidityBackstop` keys on attribution; `api_error` is one table row, not the only rule
-- [ ] `output_format` exists, does not change any pass/fail verdict, and is populated on the 17 identified rows
+- [ ] `output_format` exists, changes no pass/fail verdict, catches the verified `tree_transformation_pipeline` case, and reclassifies **zero** of the 72 baseline `logic_error` rows (no false positives — V17)
 - [ ] `--ai` is passed wherever `--caps AI` is granted, at **both** call sites
 - [ ] Every aggregate that excludes rows reports the excluded count
 - [ ] No existing `error_category` value changes meaning; existing readers untouched
@@ -300,6 +303,7 @@ Every row re-derived by command on 2026-08-13 against `origin/dev` @ `fd01a37c1`
 | V13 | This is a recurring bug class | read `error_categorizer.go:5-18,89-99` | *"Third instance of this bug class after step_exhausted and max_steps"* | TRUE — table, not a 5th `if` |
 | V14 | Two benchmarks sit at 0% across all models | per-benchmark pass rates over the baseline | `docx_reimplement` 0/18, `markdown_reimplement` 0/18 | TRUE — covered by m-eval-standard-mode-input-files-gap |
 | V15 | A "shrunken sample stated out loud" idiom exists to follow | `rotation_summary.go:56-59` | `TokensCacheUnaccounted` | TRUE — reuse the shape |
+| V17 | **(self-refutation)** The claimed 17 "correct values, extra decoration" rows | applied the shipped conservative rule to all 72 `logic_error` rows in the baseline; then dumped `repr()` of expected vs actual for the rows the LOOSE rule had flagged | conservative rule: **0 of 72**. Loose-rule sample `contract_rle_roundtrip`: expected `…\ntrue\ntrue\n`, got `…\ntrue\n1q\n` | **FALSE — the 17 are genuine wrong answers.** The loose heuristic ("every expected line appears somewhere in output") matched because `true` occurred on an earlier line. Class removed from the contamination table; `output_format` retained on the verified `tree_transformation_pipeline` case with frequency stated as low |
 | V16 | W8's target class is NOT empty tree-wide — scopes W8 fairly | `xargs grep -l '"valid":[[:space:]]*false'` over `eval_results/**`; control = rows carrying any `validity` block | **147** invalid of **160** with a validity block; top dirs `motoko_full_core_matrix` (80), `motoko_profile_matrix` (10), `ab_conv_docx_*` (20) | TRUE — **W8 is load-bearing for agent/rotation data**; the 4-of-877 figure is specific to standard-mode baselines and must not be quoted as "W8 does nothing" |
 
 **Two claims in the originating analysis were refuted by V10/V12 and are corrected here rather than carried forward:** IMP010 is not an AILANG export gap (the symbols do not exist at all), and `commonmark_emphasis` is a runnable benchmark. The contamination count in the Problem Statement excludes both.

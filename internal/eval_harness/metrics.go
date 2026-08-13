@@ -206,6 +206,23 @@ const (
 	// (unbounded allocation), banked instead of crashing the host — see the
 	// 2026-07-20 rig kernel panic.
 	ErrorCategoryResourceLimit = "resource_limit"
+
+	// M-EVAL-FAILURE-ATTRIBUTION: the program computed every expected value but
+	// dressed the output — `treeToList(tree): [1, 2, 3]` where `[1, 2, 3]` was
+	// asked for. Byte-exact stdout is deliberate and stays the contract, so this
+	// is still a FAIL and still attributed to the model; the split exists purely
+	// so that "could not solve it" and "solved it, ignored the output contract"
+	// stop being the same number. The second is a prompt-teaching signal, not a
+	// capability one.
+	//
+	// Frequency is currently LOW and unmeasured at scale: observed on
+	// tree_transformation_pipeline (or-deepseek-v4-pro-0813, 2026-08-13 core
+	// run), and IsOutputFormatFailure reclassifies 0 of the 72 logic_error rows
+	// in the v0.32.0 baseline. That zero is the point — an earlier, looser
+	// heuristic claimed 17 such rows and every one it found was a genuine wrong
+	// answer (contract_rle_roundtrip expects a final "true", produced "1q"),
+	// which is exactly the over-matching this category must never do.
+	ErrorCategoryOutputFormat = "output_format"
 )
 
 // CategorizeError determines the error category based on execution results

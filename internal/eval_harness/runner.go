@@ -290,6 +290,7 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 	if len(r.caps) > 0 {
 		args = append(args, "--caps", strings.Join(r.caps, ","))
 	}
+	args = append(args, aiHandlerArgs(r.caps)...)
 
 	// M-EVAL-NETWORK-MOCK-FIXTURE: benchmarks that hit the local HTTP mock need
 	// plain http:// and loopback enabled (both blocked by default — https-only +
