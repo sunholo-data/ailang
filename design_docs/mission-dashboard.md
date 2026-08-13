@@ -2,42 +2,46 @@
 > **Contract**: ≤40 lines, overwritten by mission-control Gate 4 every iteration (history lives in
 > the charter/log). Fresh session = THIS + MEMORY.md. Humans steer via the bookkeeping issue.
 
-**Updated**: 2026-08-13 ~18:30 local (iteration 194)
+**Updated**: 2026-08-13 ~23:30 local (iteration 195)
 
 ## Now
-- **v0.33.1** · `dev` @ `5a4dac723` — merge of PR #697. Gate 3b GREEN (SHA-addressed **21** checks,
-  zero NOT-GREEN, **4/4** REQUIRED contexts, `state=CLEAN`).
-- **Iteration 193 did a full sprint, exited `rc=0`, and left it invisible.** It implemented
-  M-MISSION-LOOP-UNIFIED-TELEMETRY M2+M3, committed 4 commits (1,183 insertions) into the **main
-  checkout's `dev`**, and died before pushing — **zero** charter rows, **zero** log rows. Found by
-  Gate 2's died-mid-flight sweep. This iteration verified and **landed** it rather than redoing it.
-- **M2+M3 LANDED** — mission stages now carry real per-stage `status` + tokens and roll up into the
-  chain total ($0.0000/0 tokens → $0.1077/37,414 on the iter-190 shape); `chains post-iteration`
-  dual-writes to a remote observatory under the **same** chain/stage ids, per-target bounded spool,
-  rc=0 when the remote is unreachable. Evaluator sonnet **PASS 82/100**.
+- **v0.33.1** · `dev` @ `8e8447f51` — merge of PR #699. Gate 3b GREEN (SHA-addressed **21** checks,
+  zero NOT-GREEN, **4/4** REQUIRED, `state=CLEAN`); count climbed 14→21 during the poll, so
+  `pending=0` was **required, not inferred**.
+- **`#698` fast-follow LANDED — the buildable two-thirds.** M1 pins the `CreateStage` pinned-ID
+  retry guard that survived a landed, building mutation; M2 arms 4 of 5 unpinned error branches;
+  M3 restores the orphaned sprint JSON. Tests + state artifacts only, **zero production code**.
+  Evaluator sonnet **PASS 83/100**. `#698` stays OPEN — its part 1 is parked (below).
 
-## New this iteration (both reproduced first-party before filing) — `#698`
-- **A RATIFIED Design Freeze item was never built.** Freeze item 3 (opt-in remote **READ**) has
-  zero code: `--remote|RemoteRead|readRemote` → **0**, same-path control `--cloud` → **4**.
-  M3 shipped the write half only, so the design's own Primary Goal — one query across all four
-  providers — is unreachable by any shipped tool. The handover names the gap nowhere.
-- **SURVIVED MUTATION** on the pinned-ID retry guard (`store_chains.go:334`) — the guard M3's
-  cross-store identity rests on. Mutation asserted LANDED (sha256) and BUILDING; whole
-  `internal/observatory` package still green, including the test named for the property.
+## Why the ratified item vanished (the iteration's headline finding)
+- The prior sprint's M3 **task list** contains "Opt-in remote read"; its **acceptance criteria**
+  contain five entries and **zero** mention read or remote (AC-section grep → **0**; controls:
+  task list → **1**, AC bullets → **5**). Every AC passed on a milestone missing a third of its
+  task list. **A task with no acceptance criterion is invisible to the gate.**
+
+## Also found and fixed this iteration
+- **Two `#698` claims are WRONG**: the retry branch is reachable *deterministically* (there is a
+  `id TEXT PRIMARY KEY` as well as the composite UNIQUE), and the 5th error branch is
+  **unreachable by construction** (`EvalAssessment` is 26 scalar fields — `json.Marshal` cannot fail).
+- **`.gitignore:77` ignores `.ailang/` with no negation** — a NEW sprint JSON is skipped by
+  `git add -A` **silently** (empty output, 0 staged) and hidden from `git status`. Almost certainly
+  how the prior sprint's JSON ended up on a divergent branch. Every sprint JSON needs `git add -f`.
+- **Evaluator caught a Windows-only regression I had shipped**: `os.UserHomeDir()` reads
+  `USERPROFILE`, not `HOME`, so both new arms silently never saw their own input on Windows —
+  failing for the *platform*, not the code. Fixed, re-drilled, Windows legs green.
 
 ## Parked on Mark (all on `#635`)
-- `D-1`, `D-2`, `D-7`–`D-14` — no reply since the 2026-08-13T04:58Z watermark (0 of 46 comments).
+- `D-1`, `D-2`, `D-7`–`D-14` — no reply since the 2026-08-13T04:58Z watermark (0 of 48 comments).
+- **NEW `D-15`** — `#698` part 1: how far should `--remote` reach, **`view`** or **`eval`**?
+  Recommendation **`view`**. The ratified freeze says *every* consumer inherits the option; the code
+  refutes that as wiring-only work (`QueryEvalResults` is `*Store`-only, and Firestore stores
+  `eval_assessment` as an opaque JSON string, so its six `json_extract` filters cannot be served
+  remotely without a schema change).
 
 ## Next (if nothing unparks)
-- **`#698`** — the sprint's own missing half (opt-in remote read + the 4 missing regression tests).
-- Then `#691`. `m-mapE-queryall-retention` (`#610`) stays infra-gated (needs duckdb CLI).
+- `#691` (embedded `exit()` panics the host — needs a one-word contract decision), then `#692`.
+  `m-mapE-queryall-retention` (`#610`) stays infra-gated (needs duckdb CLI).
 
 ## Loop health
-- ⚠ **Slot deaths are now a pattern, not incidents**: iter-193 joins iter-159/167/176. Standing
-  rule 7's grep tell is **blind** under `bg-wait-ceiling=0` — it suppresses the very line it greps
-  for. Attribute by shape instead: `rc=0` + elapsed far below the work claimed + zero landing.
-- ⚠ **The skill-drift check fired for real, first time.** The RUNNING skill (main checkout, via
-  `readlink`) differed from `origin/dev` — iter-193's own uncommitted-to-origin rules. **Cured**:
-  after the merge the checkout was 0-ahead+clean, so the standing ff-only authorisation applied.
-- A green from a mutation that never applied is the same exit code as a guard that held. The
-  LANDED (sha256) assertion caught exactly that here, on the first attempt.
+- ⚠ **The driver refused 15 fires today** — every Anthropic probe timed out 120s across all three
+  preference models. 212 log lines today vs 29 on 08-12. The loop is up but firing intermittently.
