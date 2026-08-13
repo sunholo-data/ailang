@@ -179,9 +179,25 @@ func TestCloudSpoolPath_IsSeparate(t *testing.T) {
 	}
 }
 
+// setHomeDir points os.UserHomeDir() at dir (or makes it fail, when dir is "")
+// on every platform the CI matrix builds.
+//
+// os.UserHomeDir reads a DIFFERENT variable per GOOS — USERPROFILE on Windows,
+// $home on plan9, HOME elsewhere — so a test that sets only HOME silently has no
+// effect on Windows: the runner's real profile resolves, the guard under test
+// never sees the input the test believes it supplied, and the assertion fails for
+// the platform rather than for the code. Setting all three keeps the arm honest
+// wherever it runs.
+func setHomeDir(t *testing.T, dir string) {
+	t.Helper()
+	t.Setenv("HOME", dir)        // unix, darwin
+	t.Setenv("USERPROFILE", dir) // windows
+	t.Setenv("home", dir)        // plan9
+}
+
 func TestCheckRemoteIsElsewhere_UnresolvableHomeIsAnError(t *testing.T) {
 	t.Setenv("AILANG_STATE_DIR", "")
-	t.Setenv("HOME", "")
+	setHomeDir(t, "")
 
 	err := checkRemoteIsElsewhere("local")
 	if err == nil || !strings.Contains(err.Error(), "cannot resolve") {
@@ -191,7 +207,7 @@ func TestCheckRemoteIsElsewhere_UnresolvableHomeIsAnError(t *testing.T) {
 
 func TestCheckRemoteIsElsewhere_SelfTargetIsRejected(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHomeDir(t, home)
 	t.Setenv("AILANG_STATE_DIR", filepath.Join(home, ".ailang", "state"))
 
 	err := checkRemoteIsElsewhere("local")
@@ -202,7 +218,7 @@ func TestCheckRemoteIsElsewhere_SelfTargetIsRejected(t *testing.T) {
 
 func TestCheckRemoteIsElsewhere_PositiveControls(t *testing.T) {
 	t.Run("non-local mode short-circuits", func(t *testing.T) {
-		t.Setenv("HOME", "")
+		setHomeDir(t, "")
 		t.Setenv("AILANG_STATE_DIR", "")
 		if err := checkRemoteIsElsewhere("gcp"); err != nil {
 			t.Fatalf("gcp target rejected: %v", err)
@@ -211,7 +227,7 @@ func TestCheckRemoteIsElsewhere_PositiveControls(t *testing.T) {
 
 	t.Run("different local directory is accepted", func(t *testing.T) {
 		home := t.TempDir()
-		t.Setenv("HOME", home)
+		setHomeDir(t, home)
 		t.Setenv("AILANG_STATE_DIR", filepath.Join(t.TempDir(), "remote-state"))
 		if err := checkRemoteIsElsewhere("local"); err != nil {
 			t.Fatalf("distinct local target rejected: %v", err)
