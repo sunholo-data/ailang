@@ -2539,32 +2539,6 @@ models:
       the full rationale. Pricing dropped $0.14/$0.28 -> $0.09/$0.18 per 1M.
 
   or-deepseek-v4-pro:
-    api_name: "deepseek/deepseek-v4-pro"
-    provider: "openrouter"
-    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
-    description: "DeepSeek V4 Pro via OpenRouter (standard)"
-    env_var: "OPENROUTER_API_KEY"
-    model_family: "deepseek-v4"
-    max_output_tokens: 65536
-    pricing:
-      input_per_1k: 0.001168   # $1.168 per 1M (OpenRouter API, verified 2026-08-13)
-      output_per_1k: 0.002336   # $2.336 per 1M (OpenRouter API, verified 2026-08-13)
-    budgets:
-      max_cost_usd: 0.30
-      hard_timeout_secs: 600
-    notes: |
-      Standard companion to opencode-or-deepseek-v4-pro. Added 2026-06-04.
-      Validates Motoko's "DeepSeek V4 Flash good for AILANG" recommendation.
-      Note: V4 Pro under-performed Flash (1/3 vs 2/3) — Pro's reasoning
-      overhead may hurt simple-task accuracy.
-      v0.19.0: timeout bumped to 3600s (network-hang net only) for
-      M-EVAL-SWEET-SPOT validation — cost is the real budget gate.
-
-  # DeepSeek V4 Pro 0813 — GA release of the V4 Pro line, published 2026-08-13
-  # (the incumbent or-deepseek-v4-pro slug is the April *preview*). Smoke gate
-  # PASSED 22/23 on 2026-08-13; entry is OPT-IN and in NO suite until the core
-  # tier settles promotion (smoke is a FLOOR, not a ranking — see notes).
-  or-deepseek-v4-pro-0813:
     api_name: "deepseek/deepseek-v4-pro-0813"
     provider: "openrouter"
     default_thinking: "on"  # VERIFIED 2026-08-13 on the 0813 GA: bare probe returned reasoning_tokens=237 of 490 completion
@@ -2591,51 +2565,43 @@ models:
       friendly name is deliberately UNCHANGED so banked history stays on one id.
 
       ⚠️ BASELINE BOUNDARY: rows banked under this name BEFORE 2026-08-13 ran the
-      April *preview* checkpoint at a different price. Do not read a pre/post
-      2026-08-13 delta on this row as a model change without checking the date.
+      April *preview* checkpoint at a different price ($1.168/$2.336 per 1M). Do
+      not read a pre/post 2026-08-13 delta on this row as a model change without
+      checking the date.
 
-      Gates on the GA, in order (standard mode, --langs ailang):
+      Gates on the GA (standard mode, --langs ailang):
         smoke      22/23 — sole failure dense_operator_program, which the two
-                   banked dev-model controls also fail and nothing else, so
-                   22/23 IS the clean result for that tier.
+                   banked dev-model controls also fail and nothing else.
         core N=1   20/23 vs preview 21/23  <- candidate appeared WORSE
         core N=3   67/69 vs preview 65/69  <- candidate WINS
-      The N=1 ordering was an ARTIFACT and the >=N=3 escalation rule caught it.
-      Do not quote 20-vs-23; it is superseded. Decomposed, the two N=1 "losses"
-      were (a) our own interpreter crashing — missing dictionary method:
-      prelude::Fractional::Int::add — and (b) a byte-exact stdout miss where
-      every computed value was correct but carried a label. The preview's single
-      loss was a genuine incomplete solve. At N=3 the GA's only two failures
-      across 69 runs are ordinary model errors (read app_config.json without
-      creating it as instructed; println without the IO cap).
-      This pair is the worked example in
+      The N=1 ordering was an ARTIFACT; the >=N=3 escalation rule caught it. Do
+      not quote 20-vs-23. Decomposed, the two N=1 "losses" were (a) our own
+      interpreter crashing (missing dictionary method:
+      prelude::Fractional::Int::add) and (b) a byte-exact stdout miss where every
+      computed value was correct but carried a label. At N=3 the GA's only two
+      failures across 69 runs are ordinary model errors. Worked example in
       design_docs/planned/m-eval-failure-attribution.md.
 
       Truncation ruled out before any verdict: every run finish_reason=stop,
       peak reason_tokens 13010 against 65536 headroom.
 
-      Price DROPPED at GA: $1.168/$2.336 -> $0.435/$0.87 per 1M (~2.7x). The
-      pricing recorded here before the repoint (0.00043/0.00087) understated the
-      PREVIEW's real cost ~2.7x; it happens to be right for the GA, so the
-      repoint incidentally corrects this row. A broader audit of every
-      openrouter entry's pricing against the live API is running separately.
+      PRICING: the GA is ~2.7x cheaper than the preview. The upstream drift audit
+      (commit 6e3fa9b5c) corrected THIS row to the preview's real $1.168/$2.336;
+      that correction was right for the preview slug and is superseded here by the
+      repoint — the row now bills deepseek/deepseek-v4-pro-0813 at $0.435/$0.87,
+      which is what the drift detector should verify against.
 
-      ROUTING NOTE (will recur on the next day-zero DeepSeek slug): on 2026-08-13
-      the GA slug had exactly ONE endpoint (first-party DeepSeek), which this
-      account's OpenRouter data policy filtered out, so every call 404'd with
-      "No endpoints available matching your guardrail restrictions and data
-      policy". Mark cleared it by allowing first-party DeepSeek. The fast
-      diagnosis is a control — pin the suspect provider on a slug KNOWN to work:
+      ROUTING NOTE (recurs on the next day-zero DeepSeek slug): on 2026-08-13 the
+      GA slug had exactly ONE endpoint (first-party DeepSeek), filtered out by this
+      account's OpenRouter data policy, so every call 404'd. Mark cleared it. Fast
+      diagnosis = pin the suspect provider on a slug KNOWN to work:
         flash-0731 unpinned            -> 200 (Sail Research)
         flash-0731 pinned to DeepSeek  -> 404 "No endpoints found"  <- the block
         flash-0731 pinned to DeepInfra -> 200
-      The older v4 slugs only ever worked because 18-27 third parties mirror them.
 
-      Historical (preview era, kept for context): added 2026-06-04 as the
-      standard companion to opencode-or-deepseek-v4-pro; validated Motoko's
-      "DeepSeek V4 Flash good for AILANG" recommendation. The 2026-05-04 note
-      that V4 Pro under-performed Flash (1/3 vs 2/3) predates this checkpoint.
-
+      Historical (preview era): added 2026-06-04 as the standard companion to
+      opencode-or-deepseek-v4-pro. The 2026-05-04 note that V4 Pro under-performed
+      Flash (1/3 vs 2/3) predates this checkpoint.
 
   opencode-or-glm-4-7-flash:
     api_name: "z-ai/glm-4.7-flash"
