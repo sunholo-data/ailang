@@ -1,6 +1,6 @@
 # M-EVAL-VALIDITY-DISCIPLINE: like-for-like, coverage-gated eval comparisons everywhere
 
-**Status**: IN PROGRESS — coverage gating + per-model coverage landed 2026-07-11 (ratings block + ELO leaderboard). Remaining: uplift/delta like-for-like, cross-mode/harness labelling, tests, **W8 (P0, added 2026-08-07): harness errors scored as capability failures**, and **W9 (added 2026-08-11): the coverage gate compares counts, not benchmark-set identity**.
+**Status**: IN PROGRESS — coverage gating + per-model coverage landed 2026-07-11 (ratings block + ELO leaderboard). Remaining: uplift/delta like-for-like, cross-mode/harness labelling, tests, and **W9 (added 2026-08-11): the coverage gate compares counts, not benchmark-set identity**. **W8 SPLIT OUT 2026-08-13** to [m-eval-w8-harness-errors-as-capability-failures.md](m-eval-w8-harness-errors-as-capability-failures.md) — Mark took the pending human decision so it can route without waiting on W9; this doc no longer blocks it.
 **Quorum**: 2 rounds run 2026-08-11 (iter-178), artifacts `m-eval-validity-discipline-2026-08-11T17-46-03Z.json` and `…T17-49-21Z.json`. Both rounds **BLOCKED**, both reviewers **present** (`absent_reviewers: []` — no N−1 hole), metered **$0.0955** total. Every objection from both rounds was measured rather than forwarded and its `proposed_fix` adopted VERBATIM (R1→W9 ACs, R2→AC-W8.3 + the Conflict Surface). **The doc is NOT cleared to route**: round 2's surviving R1 objection disputes the design *direction* of **W9**, so per the mission-control carve-out this parks `needs-human-review` rather than taking a controller-authored third round. **W8 is untouched by either objection** — whether W8 may route on its own, in its own scoped doc, is the human decision on the bookkeeping issue.
 **Target**: v0.30.x (eval infrastructure + dashboard)
 **Priority**: P1 — every benchmark run has surfaced a *new manifestation of the same class of bug* (invalid cross-cohort comparison). This is the fix that stops the cycle.
@@ -34,91 +34,10 @@ None were random — they're all *comparing things that aren't comparable*, then
 - **W4 (partial ✅)** — done: `ComputeUplift` tests (shared-benchmark/identity/macro-avg/lang-scope) + `eval-elo` coverage-gating test (full/sparse/at-threshold). Remaining: a "no ranked model below threshold" invariant on the dashboard board once W2-frontend lands; keep the tier-distribution detectors in sync with the corpus.
 - **W5** — apply the same discipline to the merged local↔cloud board ([m-eval-local-cloud-unify](m-eval-local-cloud-unify.md)) — local only enters full (non-provisional) ranking once its AILANG coverage matches. The rig is now **AILANG-first**: `os-rotation-filler.sh` fills every core+stretch+frontier AILANG benchmark for the current version *first* (default), then auto-hands-off to the cross-language pass; a new release resets coverage so AILANG-first resumes. Completeness = every full-tier bench banked for every local model, OR one full AILANG lap (deadlock-safe against benchmarks a weak model can't pass).
 
-- **W8 (NEW 2026-08-07, P0 — ailang#619)** — **the OS leaderboard publisher counts harness errors as capability failures.** Same class as the fable "60% Python = 16 API refusals counted as capability fails" face above, but in the *publisher* rather than the display. `cmd/ailang/eval_publish.go` computes `PassRate = Passed / Trials` over **every banked row** and never reads `validity` — even though the harness already writes `validity: {valid: false, reason: "harness_error"}` on exactly these rows (`internal/eval_harness/validity_backstop*`). Concretely on 2026-08-07: 30 `api_error` rows from the ollama 300s-timeout cascade ([m-ollama-v1-streaming-idle-timeout](m-ollama-v1-streaming-idle-timeout.md), ailang#618) put motoko-local's published v0.33.0 **frontier at exactly `3/22 = 0.13636363636363635`** — bit-for-bit the published value — where **17 of the 22 were harness timeouts**. True figure ≈ 60% (n=5): a ~4× understatement, live on the dashboard and synced to the bucket. Frozen wrong, too, because `--skip-existing` treats a banked `api_error` as done, so those combos never re-run for that version.
-  - **Fix:** exclude `validity.valid == false` rows from BOTH numerator and denominator, and surface the excluded count (`n=5 (17 invalid excluded)`) rather than silently shrinking `n` — a silent drop trades one invisible bug for another. Per Critical Principle 2, a harness error must never be scored as a capability failure.
-  - **Also:** `--skip-existing` should not treat an invalid row as satisfying a combo (otherwise every harness outage permanently poisons that version's bank). Deleting the rows is the current manual workaround — done 2026-08-07, 30 rows removed after backup.
-  - **Tests:** a banked `validity.valid=false` row must not move a published pass rate; the excluded-count must appear.
-
-  ### W8 — controller reality-check, iteration 178 (2026-08-11), base `5f471b2b7`
-
-  Every row below was re-derived by command in-session; a `0` is paired with a known-positive
-  control in the same call, so an empty result is a measurement and not a broken instrument
-  (Gate 2 rule 3a). **Two of the three claims above are wrong about WHERE, and one is already
-  fixed** — the corrections are load-bearing for scoping, not editorial.
-
-  | # | Claim under test | Command | Result | Verdict |
-  |---|---|---|---|---|
-  | V1 | `cmd/ailang/eval_publish.go` never reads `validity` | `grep -ci validity cmd/ailang/eval_publish.go` / control `grep -c PassRate` | **0** / control **5** | TRUE |
-  | V2 | …and it is therefore the fix site | `grep -n 'LoadResults\|eval_analysis\.' cmd/ailang/eval_publish.go` | **0 hits** — the publisher reads rotation `summary.json`, it does not aggregate raw rows | **FALSE — wrong site** |
-  | V3 | The real aggregation point | `internal/eval_harness/rotation_summary.go:246` | `PassRate: float64(passed) / float64(len(g.Trials))`; the loop at `:222` counts `passed` off `CompileOk && RuntimeOk && StdoutOk` with **zero** `IsValid()` reads (`grep -ci 'validity\|IsValid'` = **0**, control `PassRate` = **8**) | **`SummarizeRotation` is the defect site** |
-  | V4 | The rollup is unguarded too | `rotation_summary.go:294-307` | `ModelRollupStats.PassAt1 = passTrials / trials`, same unfiltered `BenchmarkSummary` sums | TRUE — second numerator |
-  | V5 | The harness marks these rows | `internal/eval_harness/validity.go:51,89` | `ReasonHarnessError = "harness_error"`; `func (m *RunMetrics) IsValid() bool { return m.Validity == nil \|\| m.Validity.Valid }` | TRUE |
-  | V6 | `--skip-existing` still treats an invalid row as done | `cmd/ailang/eval_skip_existing.go` | `hasValidBankedResult` already gates on `row.IsValid()`; landed `f3189541a` (2026-07-29), ancestor of `origin/dev` | **ALREADY FIXED — drop from scope** |
-  | V7 | A filter helper already exists and can be reused | `internal/eval_analysis/validity_filter.go`; direction measured with `go list -deps` (authoritative, not grep) | `FilterValidResults` + `CountInvalid` exist, called from `loader.go:54` only. But `eval_analysis -> eval_harness` = **2**, `eval_harness -> eval_analysis` = **0** (control: `eval_harness` has **25** internal deps) — importing them into `SummarizeRotation` is an import **cycle** | Helper exists, **reuse NOT available at the defect site**; `eval_harness` needs its own guard off the `RunMetrics.IsValid()` that already lives there (V5) |
-  | V8 | There is an in-repo idiom for surfacing a shrunken sample | `rotation_summary.go:56-59` | `TokensCacheUnaccounted` — *"a shrunken sample stated out loud rather than a silent one"* (2026-08-11) | TRUE — **follow this shape** |
-  | V9 | The published board can carry the excluded count today | `jq '[.rows[0]\|paths(scalars)]' docs/static/benchmarks/os/latest.json` | every leaf is a bare rate (`lang.*`, `tiers.*.*`); **no `n`, no denominator, no exclusion field** | FALSE — the JSON schema + dashboard need the field |
-  | V10 | The defect is live, not historical | `find eval_results -name '*.json' ! -name summary.json \| head -4000 \| xargs grep -l '"valid":[[:space:]]*false' \| wc -l` | **160** invalid rows; control (rows carrying any `validity` block) = **160** | TRUE — live in the bank |
-  | V11 | The specific `3/22` instance | `jq .rows` on the rig-synced `latest.json` (v0.33.0, generated 2026-08-11) | motoko-local frontier now `0.25`; the 2026-08-07 manual row deletion cleared *that* instance | Instance cleared, **defect stands** |
-
-  **Scope consequence.** The fix is ONE guard at ONE aggregation point (`SummarizeRotation`),
-  plus surfacing. `eval_publish.go` changes only to carry the count through to the board; and the
-  `--skip-existing` bullet is already closed by `f3189541a` and is struck from the sprint.
-  Re-publishing an already-banked rotation needs `--summarize` (`eval_publish.go:89`), because a
-  `summary.json` written before the fix has the wrong `passed`/`trials` baked in — that is an
-  operational note for the rollout, not repo work.
-
-  ### W8 acceptance criteria (scoped; the umbrella ACs below do not cover W8)
-
-  - **AC-W8.1** — `SummarizeRotation` excludes `!row.IsValid()` rows from BOTH `Passed` and
-    `Trials` in every `BenchmarkSummary`, and from `ModelRollupStats.PassAt1`/`Trials`.
-  - **AC-W8.2** — the exclusion is COUNTED, never silent: `BenchmarkSummary` and
-    `ModelRollupStats` each carry an `invalid_excluded` count, following the
-    `TokensCacheUnaccounted` idiom (V8).
-  - **AC-W8.3** — a group whose trials are ALL invalid must not publish `NaN` (`0/0`) or a
-    fabricated `0.0`; it is a measurement of nothing and must be representable as such.
-    **Schema migration is part of this AC** (quorum R1, `gemini-3-1-pro`, fix adopted VERBATIM):
-    *"migrating `PassRate` and `PassAt1` in `BenchmarkSummary` and `ModelRollupStats` from
-    `float64` to `*float64`. This allows a 0-valid-trial result to be set to `nil`, serializing
-    cleanly to `null` in JSON instead of triggering an unsupported value error on NaN."*
-    The objection is correct and its consequence is a crash, not a cosmetic one: `encoding/json`
-    **errors** on `NaN`, and V3/V9 measured both fields as bare `float64`, so leaving the structs
-    unchanged turns an all-invalid cohort into a failed publish.
-
-  #### Conflict Surface — `summary.json` consumers of `pass_rate` / `pass_at_1`
-
-  Added at quorum R2 (`gemini-3-1-pro`, round 2), whose objection was that AC-W8.3's first draft
-  *"waves this off ('call that out in the milestone') instead of mapping the conflict surface"*.
-  **The objection is correct AND understated** — measured at base `5f471b2b7`, the migration is
-  not confined to `rotation_summary.go`:
-
-  | Consumer | Evidence | Hazard |
-  |---|---|---|
-  | `internal/eval_harness/rotation_summary.go:33,69` | `PassRate float64` / `PassAt1 float64` — the producer | the fields being migrated |
-  | `cmd/ailang/eval_trend.go:70` | **its own** `PassRate float64 \`json:"pass_rate"\`` (12 `PassRate` refs, 1 `RotationSummary` ref) | a `null` unmarshals to the zero value **silently** — an all-invalid cohort reads as a real `0.0` trend point |
-  | `tools/build-snapshot/main.go:588` | **its own** `PassRate float64 \`json:"pass_rate"\`` | same silent `0.0`, in the snapshot the site ships |
-  | `internal/eval_analysis/sweet_spot.go:54` | `PassRate float64 \`json:"pass_rate"\`` | same class; confirm whether its input is a rotation summary before migrating |
-  | `cmd/ailang/eval_publish.go` | 5 `PassRate` refs, sums `BenchmarkSummary` | must carry the count through (AC-W8.4) |
-  | 14 shell/JS consumers (`tools/os-release-snapshot.sh`, the `eval-analyzer` / `eval-gap-finder` / `post-release` skill scripts, ×2 for the `.claude`/`.agents` skill copies) | `git grep -l 'summary.json'` over `*.sh *.py *.js` | `jq` arithmetic on a `null` yields `null`, not an error — a silently empty column |
-
-  Control: `git grep -l 'summary.json'` returns **78** files repo-wide, so the 11-file Go subset
-  above is a filtered result and not an empty instrument.
-
-  **Reviewer's `proposed_fix`, adopted VERBATIM as AC-W8.3's remaining half:** *"Add a Conflict
-  Surface section that specifically identifies all downstream consumers of `summary.json` (e.g.,
-  measured via `git grep -l 'summary.json'`). Require that all consuming structs be updated to
-  `*float64` in the same commit, and add a validation step in the consumers that hard-fails or
-  explicitly skips when `PassRate == nil`, preventing silent 0.0 defaults."* Per Critical
-  Principle 2 a `nil` rate is a no-measurement and must never be rendered as `0.0`; the milestone
-  that migrates the producer migrates **every** struct in the table above in the same commit, and
-  each consumer gets an explicit nil branch (skip-and-count, never a zero).
-  - **AC-W8.4** — `eval-publish` surfaces the excluded count on the OS board JSON and the
-    generated page; a bare rate with a silently shrunken denominator is the bug, not the fix.
-  - **AC-W8.5** — tests: a fixture rotation containing `validity.valid=false` rows publishes the
-    SAME pass rate as the fixture with those rows removed, and a DIFFERENT one from the fixture
-    with them counted. Each new assertion names the mutation it kills, and the mutation is run
-    per-row with only that test selected (skill rule 3i).
-  - **AC-W8.6** — no gate is vacuous at base: every acceptance command is baselined on unmodified
-    `dev` and recorded (rule 3e).
+- **W8 (NEW 2026-08-07, P0 — ailang#619) — SPLIT OUT 2026-08-13** — **the OS leaderboard publisher counts harness errors as capability failures.** Moved verbatim to its own scoped doc so it can route independently of W9's disputed direction: **[m-eval-w8-harness-errors-as-capability-failures.md](m-eval-w8-harness-errors-as-capability-failures.md)**.
+  - Mark took the pending human decision on 2026-08-13 ("whether W8 may route on its own, in its own scoped doc") — **yes**. W8 was untouched by both quorum rounds' objections; only W9's direction is disputed, and it was the bundling that blocked W8.
+  - That doc carries the full V1-V11 reality-check, AC-W8.1 through AC-W8.6, the `summary.json` Conflict Surface table, and the verbatim R1/R2 `proposed_fix` text. **Do not maintain a second copy here.**
+  - Added at the split (V12): W8's target rows are concentrated in agent/motoko rotation data — 147 invalid rows tree-wide, 80 in `motoko_full_core_matrix` alone — so W8 delivers on its own for the OS board. On *standard-mode* baselines only 4 of 877 rows carry `validity.valid=false`, which is why it pairs with the producer-side [m-eval-failure-attribution.md](m-eval-failure-attribution.md).
 
 - **W9 (NEW 2026-08-11, iter-178 — raised by quorum R1, `gpt5-6-sol`, and MEASURED before adoption)** — **the coverage gate compares COUNTS, never benchmark-set IDENTITY, so two models on disjoint sets of equal size are ranked as comparable.** This is the doc's own headline defect surviving inside the fix for it: Rule 1 makes "coverage" a scalar, and a scalar cannot express "measured on the same benchmarks". Measured at base `5f471b2b7`:
 
