@@ -10143,3 +10143,101 @@ fix is to add (d) to the died-mid-flight list.** Related but distinct, and alrea
 Repo Profile's note (c) covers an edit *committed from a worktree* (reaches origin, never reaches the
 running skill) — this is its mirror (reaches the running skill, never reaches origin), and it is why
 the drift check fired here.
+
+## 196 — 2026-08-13 — Iteration 195: the ratified item vanished because it was a task with no acceptance criterion
+
+**Pick**: `#698`, the fast-follow to iteration 194's own sprint, and the dashboard's `[NEXT]`. Both
+of its headline claims reproduced first-party at HEAD before any routing: the remote-read grep → 0
+with the SAME-PATH control `--cloud` → 4 and both scopes asserted as directories; the pinned-ID
+guard present verbatim at `store_chains.go:334`. Already-landed check negative on a fresh fetch
+(the `git log --grep` hits are all *filings* of the issue, not implementations of it).
+
+**Quorum-at-pick skipped, and flagged rather than silently widened.** The design doc has no quorum
+artifact. Its three Design Freeze items were ratified by Mark personally, 2 of its 3 milestones had
+already landed through a full Gate 3b with an evaluator PASS, and the pick implements the one item
+he ratified — so a quorum round would have re-litigated settled design at real cost. That is a
+fourth carve-out beyond the three the skill names; recording it as a judgment rather than treating
+it as covered.
+
+**The finding.** The prior sprint's M3 **task list** contains "Opt-in remote read for analysis;
+local stays the default". M3's **acceptance criteria** contain five entries, of which **zero**
+mention read or remote — AC-section `grep -ciE 'read|remote'` → 0, controls: task list
+`grep -ciE 'remote read'` → 1, AC bullets present → 5. So the milestone shipped two thirds of its
+task list and every acceptance criterion passed. This is adjacent to rule 3b(vi) but not the same
+shape: 3b(vi) is an AC that *cannot fail*; this is a task with *no AC at all*, which is strictly
+harder to see, because a reviewer scanning the AC list finds nothing wrong with it — the missing
+thing is missing from the list being checked. Two reviewers and a full quorum read that plan.
+
+**Routing.** Planner lane DERIVED, not assumed: `derive-planner-lane.sh` →
+`opus fail-closed:planner-lane-field-missing`, so no codex planner probe was made. Executor
+`codex:gpt-5.6-sol` (probe rc=0; 163,880 tokens on the OAuth bucket). Evaluator `sonnet` —
+generator≠judge holds across providers (OpenAI author, Anthropic judge).
+
+**The planner refuted four things, and all four were verified before I acted on them.** This is
+the loop working, and it is worth naming which direction each refutation moved the work:
+1. **`#698` §2 is wrong.** It says the retry branch is reachable only through a `stage_number`
+   race. `chain_stages` has `id TEXT PRIMARY KEY` (`schema_chains.sql:37`) *as well as*
+   `UNIQUE(chain_id, stage_number)`, so a duplicate PINNED id raises
+   `UNIQUE constraint failed: chain_stages.id` and enters the same branch deterministically. That
+   turned a flaky concurrency test into 55 straightforward lines. Note the provenance: the wrong
+   claim was written by *this loop*, one iteration earlier, in an issue it filed itself.
+2. **`ListEvalChains` is a 5-line wrapper over `ListChains`**, which is on `Backend` and is
+   implemented by Firestore. My own V3 hand-off to the planner was right that it is absent from the
+   interface and wrong about the consequence — it decomposes into something servable.
+3. **The 5th error branch is unreachable by construction** (`EvalAssessment` is 26 string/bool/int
+   fields), so it ships a type guard rather than a fabricated arm.
+4. **`.gitignore:77` ignores `.ailang/` with no negation.** Measured: `git add -A` produced empty
+   output and staged 0; `git status --porcelain` showed nothing (control: it does report other
+   untracked paths); 55 already-tracked `.ailang/` files are unaffected. Both failure modes are
+   silent, which is almost certainly how iteration 193's sprint JSON reached only
+   `origin/coordinator/task-d98bb271`. The repair commit proves the defect inside itself.
+
+**Gates re-run outside the sandbox, as required.** The executor honestly labelled three package-wide
+runs `UNINFORMATIVE UNDER SANDBOX` on loopback-bind denials rather than reporting them as failures.
+Outside: observatory+storage rc=0 / 0 FAIL, `cmd/ailang` rc=0, vet rc=0, gofmt empty,
+check-changelog rc=0. `go build ./...` rc=1 baselined as a BASE failure (`cmd/wasm`).
+
+**The evaluator's blocking finding was mine, and it is the same class this sprint exists to close.**
+`test-windows` and `Build windows-latest` were FAIL while every macOS/ubuntu leg was green:
+`os.UserHomeDir()` reads `USERPROFILE` on Windows, not `HOME`, so both new arms set an input the
+guard under test never saw. The tests failed **for the platform, not for the code** — an arm that
+cannot see its own input is not pinning anything, wherever it happens to be green. My PR body had
+claimed "all gates rc=0" with no Windows caveat; a local sweep on one platform cannot speak for a
+cross-platform matrix. Fixed with a helper setting all three variables Go consults, and re-drilled:
+both mutants LANDED + BUILDING and still red with their exact assertions.
+
+**The evaluator also refuted my own framing, in the direction of the work being better than I said.**
+I recorded the two firestore arms as "killed by a nil-pointer panic". It independently re-mutated
+each guard to `return nil` — no panic — and all four tests still failed on the asserted *error text*.
+So they pin the guard's error contract, not merely absence-of-crash. Understatement is as much an
+error as overstatement, and a judge that corrects downward-biased description is doing the same job
+as one that catches a false claim.
+
+**Ruled out** (by measurement, not argument):
+- *"The dirty main checkout is an orphaned iteration"* — REFUTED. Files at 21:20–21:28, but the
+  driver log shows no mission iteration between 18:46:54 and 22:10:30. It is a concurrent sibling
+  session (model-pricing work); left untouched, and every write this iteration made went to a
+  worktree. The discriminator was the driver log, not the file mtimes.
+- *"`#698` §2's stage_number-race mechanism"* — REFUTED by the schema's own PRIMARY KEY.
+- *"The fifth error branch needs an arm"* — REFUTED as unreachable by construction.
+- *"All gates green"* — REFUTED by the evaluator on Windows. My claim, my sweep, my miss.
+- *"The M2 firestore arms only prove absence-of-panic"* — REFUTED by the evaluator's `return nil`
+  mutants.
+
+**Instrument failures I caught on myself, both mid-flight:**
+- My Gate-3b poll piped `gh api` through a shell variable into `jq` and hit *"Invalid string:
+  control characters"* on a check-run body, printing **empty** counts. An empty reading is
+  instrument failure, not a green — re-run with server-side `--jq` before any verdict.
+- My known-positive control for the `git status` probe failed to create its own control file (a
+  malformed path I wrote), so its zero was uninformative. The claim survived only because a
+  *different* control fired in the same output (`status` did report `?? .snap/`).
+
+**Routing evidence**: controller opus (session default; `$MODEL` env UNSET again — anomaly instance
+3 after iters 191/192, still driver-side, still harmless while the session default IS the policy
+pin); planner **opus** via `fail-closed:planner-lane-field-missing` (token copied verbatim);
+executor **codex:gpt-5.6-sol**, 163,880 tokens, OAuth bucket; evaluator **sonnet**, PASS 83/100.
+Designer NOT fired (the design doc exists and is ratified — a `grep -ri` for the item found it
+rather than a redundant design-doc-creator run). Rotation pointer untouched. `metered=$0.00`.
+
+**Next**: `#691` (embedded `exit()` panics the host; needs a one-word contract decision), then
+`#692`. `#610` stays infra-gated. Parked on Mark: `D-1`–`D-15`.
