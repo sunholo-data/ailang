@@ -1,6 +1,6 @@
 # M-OPENROUTER-BROADCAST-INGEST
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.33.1
 **Priority**: P0 — **Broadcast is LIVE on prod as of 2026-08-13 and every ingested trace ID is corrupted right now**
 **Estimated**: ~12 hours (2 days)
