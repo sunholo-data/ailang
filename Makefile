@@ -313,6 +313,35 @@ bin/build-snapshot: tools/build-snapshot/main.go
 	@echo "$(BOLD)Building build-snapshot tool...$(RESET)"
 	@go build -o bin/build-snapshot ./tools/build-snapshot/
 
+## bin/verify-model-pricing: Build the model-pricing drift checker
+bin/verify-model-pricing: tools/verify-model-pricing/main.go
+	@go build -o bin/verify-model-pricing ./tools/verify-model-pricing/
+
+## verify-model-pricing: Drift-check models.yml openrouter pricing against the live OpenRouter API
+##
+## Deliberately NOT in `make ci`: it needs the network and a third party's uptime,
+## and a CI job that goes red because someone else's API is down teaches people to
+## ignore it. The offline half of this gate IS in CI —
+## TestModels_OpenRouterPricingIsSlugConsistent.
+##
+## The binary exits 1 = a row drifted, 2 = the check could not run (network/API/yml).
+## Those are different answers and "could not run" must never be read as a pass.
+## GNU make normalises ANY recipe failure to its own exit 2, so that distinction
+## survives only in the printed message here — a script that needs to branch on it
+## must call ./bin/verify-model-pricing directly, not this target.
+## Pass STRICT=1 to also fail when a slug no longer resolves on the API.
+verify-model-pricing: bin/verify-model-pricing ## Drift-check models.yml openrouter pricing vs the live OpenRouter API (needs network)
+	@echo "$(BOLD)Drift-checking models.yml against the live OpenRouter catalogue...$(RESET)"
+	@./bin/verify-model-pricing $(if $(STRICT),--strict,) || { \
+		rc=$$?; \
+		if [ $$rc -eq 2 ]; then \
+			echo "$(BOLD)⚠ pricing check could NOT RUN (exit 2) — this is not a pass$(RESET)"; \
+		else \
+			echo "$(BOLD)✗ pricing drift detected — correct models.yml; do NOT re-bank historical results$(RESET)"; \
+		fi; \
+		exit $$rc; \
+	}
+
 ## install-notify-daemon: Install the macOS notification daemon under launchd (env=ENV, default prod)
 install-notify-daemon: build
 	@echo "$(BOLD)Installing ailang notify daemon (env=$${ENV:-prod})...$(RESET)"
