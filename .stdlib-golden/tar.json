@@ -1,0 +1,60 @@
+{
+  "module": "std/tar",
+  "types": [
+    {
+      "name": "TarEntry",
+      "alias": "{isDir: bool, name: string, size: int}"
+    }
+  ],
+  "funcs": [
+    {
+      "name": "extractAll",
+      "type": "(string,string)-\u003eResult[list[string],string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "listEntries",
+      "type": "(string)-\u003eResult[list[\u003c*types.TRecord2\u003e],string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "readEntry",
+      "type": "(string,string)-\u003eResult[string,string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "readEntryBytes",
+      "type": "(string,string)-\u003eResult[string,string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "readFromGzip",
+      "type": "(string,string)-\u003eResult[string,string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "readFromGzipBytes",
+      "type": "(string,string)-\u003eResult[string,string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

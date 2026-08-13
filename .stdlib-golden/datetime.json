@@ -1,0 +1,139 @@
+{
+  "module": "std/datetime",
+  "types": [],
+  "funcs": [
+    {
+      "name": "addDays",
+      "type": "(int,int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "addMonths",
+      "type": "(int,int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "addYears",
+      "type": "(int,int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "day",
+      "type": "(int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "diffDays",
+      "type": "(int,int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "formatISODate",
+      "type": "(int)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "formatMonthShort",
+      "type": "(int)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "formatRFC3339",
+      "type": "(int)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "formatWeekdayFull",
+      "type": "(int)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "hour",
+      "type": "(int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "makeDate",
+      "type": "(int,int,int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "makeDateTime",
+      "type": "(int,int,int,int,int,int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "minute",
+      "type": "(int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "month",
+      "type": "(int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "parseISODate",
+      "type": "(string)-\u003eOption[int]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "parseRFC3339",
+      "type": "(string)-\u003eOption[int]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "second",
+      "type": "(int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "startOfDay",
+      "type": "(int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "startOfMonth",
+      "type": "(int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "startOfWeek",
+      "type": "(int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "weekday",
+      "type": "(int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "year",
+      "type": "(int)-\u003eint",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

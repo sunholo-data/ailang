@@ -1,0 +1,55 @@
+{
+  "module": "std/embedding",
+  "types": [],
+  "funcs": [
+    {
+      "name": "add_vectors",
+      "type": "(list[float],list[float])-\u003elist[float]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "cosine",
+      "type": "(list[float],list[float])-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "cosine_encoded",
+      "type": "(bytes,bytes)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "dot",
+      "type": "(list[float],list[float])-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "euclidean_distance",
+      "type": "(list[float],list[float])-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "magnitude",
+      "type": "(list[float])-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "normalize",
+      "type": "(list[float])-\u003elist[float]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "scale",
+      "type": "(float,list[float])-\u003elist[float]",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

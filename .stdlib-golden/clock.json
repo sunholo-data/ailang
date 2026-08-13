@@ -1,0 +1,23 @@
+{
+  "module": "std/clock",
+  "types": [],
+  "funcs": [
+    {
+      "name": "now",
+      "type": "(())-\u003eint!{Clock}",
+      "effects": [
+        "Clock"
+      ],
+      "pure": true
+    },
+    {
+      "name": "sleep",
+      "type": "(int)-\u003e()!{Clock}",
+      "effects": [
+        "Clock"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

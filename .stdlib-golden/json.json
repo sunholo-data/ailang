@@ -1,0 +1,247 @@
+{
+  "module": "std/json",
+  "types": [
+    {
+      "name": "Json",
+      "ctors": [
+        "JArray(list[Json])",
+        "JBool(bool)",
+        "JNull",
+        "JNumber(float)",
+        "JObject(list[{key: string, value: Json}])",
+        "JString(string)"
+      ]
+    }
+  ],
+  "funcs": [
+    {
+      "name": "allNumbers",
+      "type": "(list[Json])-\u003eOption[list[float]]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "allStrings",
+      "type": "(list[Json])-\u003eOption[list[string]]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "asArray",
+      "type": "(Json)-\u003eOption[list[Json]]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "asBool",
+      "type": "(Json)-\u003eOption[bool]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "asBoolLoose",
+      "type": "(Json)-\u003eOption[bool]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "asNumber",
+      "type": "(Json)-\u003eOption[float]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "asObject",
+      "type": "(Json)-\u003eOption[list[{key: string, value: Json}]]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "asString",
+      "type": "(Json)-\u003eOption[string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "decode",
+      "type": "(string)-\u003eResult[Json,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "encode",
+      "type": "(Json)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "filterNumbers",
+      "type": "(list[Json])-\u003e[float]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "filterStrings",
+      "type": "(list[Json])-\u003e[string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "get",
+      "type": "(Json,string)-\u003eOption[Json]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getArray",
+      "type": "(Json,string)-\u003eOption[list[Json]]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getBool",
+      "type": "(Json,string)-\u003eOption[bool]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getInt",
+      "type": "(Json,string)-\u003eOption[int]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getNumber",
+      "type": "(Json,string)-\u003eOption[float]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getNumberArray",
+      "type": "(Json,string)-\u003eOption[[float]]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getNumberArrayOrEmpty",
+      "type": "(Json,string)-\u003e[float]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getNumberArrayStrict",
+      "type": "(Json,string)-\u003eOption[list[float]]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getObject",
+      "type": "(Json,string)-\u003eOption[Json]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getOr",
+      "type": "(Json,string,Json)-\u003eJson",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getString",
+      "type": "(Json,string)-\u003eOption[string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getStringArray",
+      "type": "(Json,string)-\u003eOption[[string]]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getStringArrayOrEmpty",
+      "type": "(Json,string)-\u003e[string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getStringArrayStrict",
+      "type": "(Json,string)-\u003eOption[list[string]]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "has",
+      "type": "(Json,string)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "ja",
+      "type": "(list[Json])-\u003eJson",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "jb",
+      "type": "(bool)-\u003eJson",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "jint",
+      "type": "(int)-\u003eJson",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "jn",
+      "type": "(())-\u003eJson",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "jnum",
+      "type": "(float)-\u003eJson",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "jo",
+      "type": "(list[{key: string, value: Json}])-\u003eJson",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "js",
+      "type": "(string)-\u003eJson",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "keys",
+      "type": "(Json)-\u003elist[string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "kv",
+      "type": "(string,Json)-\u003e{key: string, value: Json}",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "repair",
+      "type": "(string)-\u003eResult[string,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "values",
+      "type": "(Json)-\u003elist[Json]",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

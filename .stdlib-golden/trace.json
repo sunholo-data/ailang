@@ -1,0 +1,31 @@
+{
+  "module": "std/trace",
+  "types": [],
+  "funcs": [
+    {
+      "name": "event",
+      "type": "(string,string)-\u003e()!{Trace}",
+      "effects": [
+        "Trace"
+      ],
+      "pure": true
+    },
+    {
+      "name": "spanEnd",
+      "type": "(string)-\u003e()!{Trace}",
+      "effects": [
+        "Trace"
+      ],
+      "pure": true
+    },
+    {
+      "name": "spanStart",
+      "type": "(string)-\u003e()!{Trace}",
+      "effects": [
+        "Trace"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

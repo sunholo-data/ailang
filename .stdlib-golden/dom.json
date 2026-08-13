@@ -1,0 +1,58 @@
+{
+  "module": "std/dom",
+  "types": [
+    {
+      "name": "DOMPatch",
+      "ctors": [
+        "AddPanel(string, string)",
+        "AddTimeline(string)",
+        "RemoveNode(string)",
+        "UpdateNode(string, string)"
+      ]
+    }
+  ],
+  "funcs": [
+    {
+      "name": "applyBatch",
+      "type": "(string,list[DOMPatch])-\u003e\u003c*types.TRecord2\u003e!{DOM}",
+      "effects": [
+        "DOM"
+      ],
+      "pure": true
+    },
+    {
+      "name": "applyBatchResult",
+      "type": "(string,list[DOMPatch])-\u003eResult[\u003c*types.TRecord2\u003e,\u003c*types.TRecord2\u003e]!{DOM}",
+      "effects": [
+        "DOM"
+      ],
+      "pure": true
+    },
+    {
+      "name": "applyPatch",
+      "type": "(string,DOMPatch)-\u003e\u003c*types.TRecord2\u003e!{DOM}",
+      "effects": [
+        "DOM"
+      ],
+      "pure": true
+    },
+    {
+      "name": "applyPatchResult",
+      "type": "(string,DOMPatch)-\u003eResult[\u003c*types.TRecord2\u003e,\u003c*types.TRecord2\u003e]!{DOM}",
+      "effects": [
+        "DOM"
+      ],
+      "pure": true
+    },
+    {
+      "name": "subscribe",
+      "type": "(string,list[string],(DOMEvent)-\u003e()!{Cog,DOM})-\u003e()!{Cog,DOM}",
+      "effects": [
+        "Cog",
+        "DOM"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

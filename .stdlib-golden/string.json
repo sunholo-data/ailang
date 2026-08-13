@@ -1,46 +1,184 @@
 {
-  "module": "stdlib/std/string",
+  "module": "std/string",
   "types": [],
   "funcs": [
     {
+      "name": "charAt",
+      "type": "(string,int)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "charCode",
+      "type": "(string)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "chars",
+      "type": "(string)-\u003elist[string]",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "compare",
-      "type": "(a,b)-\u003ec",
+      "type": "(string,string)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "concat",
+      "type": "(list[string])-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "contains",
+      "type": "(string,string)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "decodeQuotedPrintable",
+      "type": "(string)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "endsWith",
+      "type": "(string,string)-\u003ebool",
       "effects": [],
       "pure": true
     },
     {
       "name": "find",
-      "type": "(a,b)-\u003ec",
+      "type": "(string,string)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "floatToStr",
+      "type": "(float)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "foldChars",
+      "type": "((a,string)-\u003ea,a,string)-\u003ea",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "foldSlices",
+      "type": "(string,string,a,(a,string)-\u003ea)-\u003ea",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "intToStr",
+      "type": "(int)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "join",
+      "type": "(string,list[string])-\u003estring",
       "effects": [],
       "pure": true
     },
     {
       "name": "length",
-      "type": "(a)-\u003eb",
+      "type": "(string)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "mapSlicesJoin",
+      "type": "(string,string,(string)-\u003estring)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "repeat",
+      "type": "(string,int)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "replace",
+      "type": "(string,string,string)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "replaceMany",
+      "type": "(string,list[\u003c*types.TTuple\u003e])-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "split",
+      "type": "(string,string)-\u003elist[string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "splitAny",
+      "type": "(string,list[string])-\u003elist[string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "startsWith",
+      "type": "(string,string)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "startsWithIgnoreCase",
+      "type": "(string,string)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "stringToFloat",
+      "type": "(string)-\u003eOption[float]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "stringToInt",
+      "type": "(string)-\u003eOption[int]",
       "effects": [],
       "pure": true
     },
     {
       "name": "substring",
-      "type": "(a,b,c)-\u003ed",
+      "type": "(string,int,int)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
       "name": "toLower",
-      "type": "(a)-\u003eb",
+      "type": "(string)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
       "name": "toUpper",
-      "type": "(a)-\u003eb",
+      "type": "(string)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
       "name": "trim",
-      "type": "(a)-\u003eb",
+      "type": "(string)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "words",
+      "type": "(string)-\u003elist[string]",
       "effects": [],
       "pure": true
     }

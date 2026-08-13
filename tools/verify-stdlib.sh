@@ -1,56 +1,61 @@
 #!/bin/bash
 # verify-stdlib.sh - Verify stdlib interfaces haven't changed
+#
+# Fails if any std/ module's exported interface differs from its frozen golden,
+# and ALSO if a module has no golden at all — an unfrozen module is uncovered,
+# not "passing".
 
-set -e
+set -uo pipefail
 
-STDLIB_DIR="stdlib/std"
-GOLDEN_DIR=".stdlib-golden"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=tools/stdlib-iface-lib.sh
+source "$SCRIPT_DIR/stdlib-iface-lib.sh"
 
-# List of stdlib modules
-MODULES="io list option result string"
+resolve_ailang
 
-echo "Verifying stdlib interface stability..."
+echo "Verifying stdlib interface stability (binary: $AILANG)..."
 echo
 
 FAILED=0
+CHECKED=0
+
+MODULES="$(stdlib_modules)"
+if [ -z "$MODULES" ]; then
+    echo "✗ no modules found under $STDLIB_DIR/ — refusing to report success" >&2
+    exit 1
+fi
 
 for module in $MODULES; do
-    MODULE_PATH="$STDLIB_DIR/$module.ail"
     GOLDEN_JSON="$GOLDEN_DIR/$module.json"
     GOLDEN_HASH="$GOLDEN_DIR/$module.sha256"
 
     if [ ! -f "$GOLDEN_HASH" ]; then
-        echo "✗ $module: No golden file found"
-        echo "  Run 'make freeze-stdlib' to create golden files"
+        echo "✗ $module: no golden file — module is UNCOVERED"
+        echo "    Run 'make freeze-stdlib' to snapshot it (and say so in the commit)"
         FAILED=1
         continue
     fi
 
-    EXPECTED_HASH=$(cat "$GOLDEN_HASH")
+    EXPECTED_HASH="$(cat "$GOLDEN_HASH")"
 
-    # Generate current JSON
-    CURRENT_JSON=$(mktemp)
-    ailang iface "$MODULE_PATH" 2>/dev/null | grep -A 10000 '^{' > "$CURRENT_JSON"
-
-    # Compute current hash
-    if command -v sha256sum >/dev/null 2>&1; then
-        CURRENT_HASH=$(sha256sum "$CURRENT_JSON" | awk '{print $1}')
-    elif command -v shasum >/dev/null 2>&1; then
-        CURRENT_HASH=$(shasum -a 256 "$CURRENT_JSON" | awk '{print $1}')
-    else
-        echo "Error: No SHA256 tool found" >&2
-        exit 1
+    CURRENT_JSON="$(mktemp)"
+    if ! iface_json "$module" "$CURRENT_JSON"; then
+        rm -f "$CURRENT_JSON"
+        FAILED=1
+        continue
     fi
+
+    CURRENT_HASH="$(sha256_of "$CURRENT_JSON")"
+    CHECKED=$((CHECKED + 1))
 
     if [ "$CURRENT_HASH" = "$EXPECTED_HASH" ]; then
         echo "✓ $module (SHA256: ${EXPECTED_HASH:0:16}...)"
     else
-        echo "✗ $module: Interface changed!"
-        echo "  Expected: $EXPECTED_HASH"
-        echo "  Got:      $CURRENT_HASH"
-        echo
-        echo "  Diff:"
-        diff -u "$GOLDEN_JSON" "$CURRENT_JSON" || true
+        echo "✗ $module: interface changed!"
+        echo "    Expected: $EXPECTED_HASH"
+        echo "    Got:      $CURRENT_HASH"
+        echo "    Diff (golden → current):"
+        diff -u "$GOLDEN_JSON" "$CURRENT_JSON" | sed 's/^/      /' || true
         echo
         FAILED=1
     fi
@@ -59,12 +64,12 @@ for module in $MODULES; do
 done
 
 echo
-
-if [ $FAILED -eq 0 ]; then
-    echo "✓ All stdlib interfaces stable"
+if [ "$FAILED" -eq 0 ]; then
+    echo "✓ All $CHECKED stdlib interfaces stable"
     exit 0
 else
-    echo "✗ Stdlib interface verification failed"
-    echo "  If changes are intentional, run 'make freeze-stdlib' to update golden files"
+    echo "✗ Stdlib interface verification failed ($CHECKED verified before failures)"
+    echo "  If the changes are intentional, run 'make freeze-stdlib' and state the"
+    echo "  interface change in the commit message."
     exit 1
 fi

@@ -1,44 +1,47 @@
 #!/bin/bash
 # freeze-stdlib.sh - Generate SHA256 golden files for stdlib interfaces
+#
+# RE-FREEZING ACCEPTS WHATEVER THE INTERFACES CURRENTLY ARE. It is not a check.
+# Run it only when you have decided the current interfaces are correct, and say
+# so in the commit — a silent re-freeze turns the gate into a rubber stamp.
 
-set -e
+set -euo pipefail
 
-STDLIB_DIR="stdlib/std"
-GOLDEN_DIR=".stdlib-golden"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=tools/stdlib-iface-lib.sh
+source "$SCRIPT_DIR/stdlib-iface-lib.sh"
 
-# Create golden directory if it doesn't exist
+resolve_ailang
 mkdir -p "$GOLDEN_DIR"
 
-# List of stdlib modules
-MODULES="io list option result string"
-
-echo "Freezing stdlib interfaces..."
+echo "Freezing stdlib interfaces (binary: $AILANG)..."
 echo
 
-for module in $MODULES; do
-    MODULE_PATH="$STDLIB_DIR/$module.ail"
+# Drop goldens for modules that no longer exist, or the gate quietly keeps
+# verifying a deleted module against a stale snapshot forever.
+CURRENT_MODULES="$(stdlib_modules)"
+for existing in "$GOLDEN_DIR"/*.json; do
+    [ -e "$existing" ] || continue
+    name="$(basename "$existing" .json)"
+    if ! echo "$CURRENT_MODULES" | grep -qx "$name"; then
+        echo "  - $name (module gone — removing stale golden)"
+        rm -f "$GOLDEN_DIR/$name.json" "$GOLDEN_DIR/$name.sha256"
+    fi
+done
+
+COUNT=0
+for module in $CURRENT_MODULES; do
     JSON_FILE="$GOLDEN_DIR/$module.json"
     HASH_FILE="$GOLDEN_DIR/$module.sha256"
 
-    echo "Processing $module..."
+    iface_json "$module" "$JSON_FILE"
+    sha256_of "$JSON_FILE" > "$HASH_FILE"
 
-    # Generate normalized JSON (strip debug output)
-    ailang iface "$MODULE_PATH" 2>/dev/null | grep -A 10000 '^{' > "$JSON_FILE"
-
-    # Compute SHA256 hash
-    if command -v sha256sum >/dev/null 2>&1; then
-        sha256sum "$JSON_FILE" | awk '{print $1}' > "$HASH_FILE"
-    elif command -v shasum >/dev/null 2>&1; then
-        shasum -a 256 "$JSON_FILE" | awk '{print $1}' > "$HASH_FILE"
-    else
-        echo "Error: No SHA256 tool found (sha256sum or shasum)" >&2
-        exit 1
-    fi
-
-    HASH=$(cat "$HASH_FILE")
-    echo "  ✓ $module.json (SHA256: ${HASH:0:16}...)"
+    HASH="$(cat "$HASH_FILE")"
+    echo "  ✓ $module (SHA256: ${HASH:0:16}...)"
+    COUNT=$((COUNT + 1))
 done
 
 echo
-echo "✓ Stdlib interfaces frozen in $GOLDEN_DIR/"
+echo "✓ Froze $COUNT stdlib interfaces in $GOLDEN_DIR/"
 echo "  Run 'make verify-stdlib' to check for API changes"

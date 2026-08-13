@@ -1,0 +1,203 @@
+{
+  "module": "std/sem",
+  "types": [
+    {
+      "name": "UpdateResult",
+      "ctors": [
+        "CASConflict",
+        "CASSuccess"
+      ]
+    },
+    {
+      "name": "namespace",
+      "alias": "string"
+    },
+    {
+      "name": "search_result",
+      "alias": "{key: string, score: float, timestamp: int, version: int}"
+    },
+    {
+      "name": "sem_frame",
+      "alias": "{content: string, embedding: Option[a], embedding_dim: int, id: string, opaque: a, simhash: int, ts: int, ver: int}"
+    },
+    {
+      "name": "simhash64",
+      "alias": "int"
+    },
+    {
+      "name": "similarity_match",
+      "alias": "{distance: int, hash: int}"
+    }
+  ],
+  "funcs": [
+    {
+      "name": "bump_version",
+      "type": "(\u003c*types.TRecordOpen\u003e)-\u003e\u003c*types.TRecordOpen\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "count_frames",
+      "type": "(string)-\u003eint!{SharedIndex}",
+      "effects": [
+        "SharedIndex"
+      ],
+      "pure": true
+    },
+    {
+      "name": "create_or_update_frame",
+      "type": "(string,\u003c*types.TRecordOpen\u003e,(\u003c*types.TRecordOpen\u003e)-\u003e\u003c*types.TRecordOpen\u003e,int)-\u003eUpdateResult!{SharedMem}",
+      "effects": [
+        "SharedMem"
+      ],
+      "pure": true
+    },
+    {
+      "name": "decode_frame",
+      "type": "(string)-\u003eOption[{content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int}]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "delete_frame_ns",
+      "type": "(string,string)-\u003e()!{SharedIndex,SharedMem}",
+      "effects": [
+        "SharedIndex",
+        "SharedMem"
+      ],
+      "pure": true
+    },
+    {
+      "name": "encode_frame",
+      "type": "(\u003c*types.TRecordOpen\u003e)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "find_similar",
+      "type": "(string,string,int)-\u003elist[\u003c*types.TRecord2\u003e]!{SharedIndex}",
+      "effects": [
+        "SharedIndex"
+      ],
+      "pure": true
+    },
+    {
+      "name": "find_similar_bounded",
+      "type": "(string,string,int,int,bool)-\u003elist[\u003c*types.TRecord2\u003e]!{SharedIndex}",
+      "effects": [
+        "SharedIndex"
+      ],
+      "pure": true
+    },
+    {
+      "name": "get_simhash",
+      "type": "(\u003c*types.TRecordOpen\u003e)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "has_embedding",
+      "type": "(\u003c*types.TRecordOpen\u003e)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "is_newer",
+      "type": "(\u003c*types.TRecordOpen\u003e,\u003c*types.TRecordOpen\u003e)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "is_similar",
+      "type": "(\u003c*types.TRecordOpen\u003e,\u003c*types.TRecordOpen\u003e,int)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "list_namespaces",
+      "type": "(())-\u003elist[string]!{SharedIndex}",
+      "effects": [
+        "SharedIndex"
+      ],
+      "pure": true
+    },
+    {
+      "name": "load_frame",
+      "type": "(string)-\u003eOption[{content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int}]!{SharedMem}",
+      "effects": [
+        "SharedMem"
+      ],
+      "pure": true
+    },
+    {
+      "name": "make_frame",
+      "type": "(string,string,a)-\u003e{content: string, embedding: Option[b], embedding_dim: c, id: string, opaque: a, simhash: int, ts: int, ver: d}!{Clock}",
+      "effects": [
+        "Clock"
+      ],
+      "pure": true
+    },
+    {
+      "name": "make_frame_at",
+      "type": "(string,string,a,int)-\u003e{content: string, embedding: Option[b], embedding_dim: c, id: string, opaque: a, simhash: int, ts: int, ver: d}",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "resolve_best_match",
+      "type": "(string,string)-\u003eOption[{content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int}]!{SharedIndex,SharedMem}",
+      "effects": [
+        "SharedIndex",
+        "SharedMem"
+      ],
+      "pure": true
+    },
+    {
+      "name": "resolve_best_match_threshold",
+      "type": "(string,string,float)-\u003eOption[{content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int}]!{SharedIndex,SharedMem}",
+      "effects": [
+        "SharedIndex",
+        "SharedMem"
+      ],
+      "pure": true
+    },
+    {
+      "name": "store_frame",
+      "type": "(string,\u003c*types.TRecordOpen\u003e)-\u003e()!{SharedMem}",
+      "effects": [
+        "SharedMem"
+      ],
+      "pure": true
+    },
+    {
+      "name": "store_frame_ns",
+      "type": "(string,\u003c*types.TRecordOpen\u003e)-\u003e()!{SharedIndex,SharedMem}",
+      "effects": [
+        "SharedIndex",
+        "SharedMem"
+      ],
+      "pure": true
+    },
+    {
+      "name": "update_frame",
+      "type": "(string,({content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int})-\u003e{content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int},int)-\u003eUpdateResult!{SharedMem}",
+      "effects": [
+        "SharedMem"
+      ],
+      "pure": true
+    },
+    {
+      "name": "validate_namespace",
+      "type": "(string)-\u003eOption[string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "with_embedding",
+      "type": "(\u003c*types.TRecordOpen\u003e,a,int)-\u003e\u003c*types.TRecordOpen\u003e",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

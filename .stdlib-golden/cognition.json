@@ -1,0 +1,56 @@
+{
+  "module": "std/cognition",
+  "types": [],
+  "funcs": [
+    {
+      "name": "drain",
+      "type": "(int)-\u003eint!{Cog}",
+      "effects": [
+        "Cog"
+      ],
+      "pure": true
+    },
+    {
+      "name": "recvMsg",
+      "type": "(string)-\u003e\u003c*types.TRecord2\u003e!{Msg}",
+      "effects": [
+        "Msg"
+      ],
+      "pure": true
+    },
+    {
+      "name": "recvMsgResult",
+      "type": "(string)-\u003eResult[\u003c*types.TRecord2\u003e,\u003c*types.TRecord2\u003e]!{Msg}",
+      "effects": [
+        "Msg"
+      ],
+      "pure": true
+    },
+    {
+      "name": "sendMsg",
+      "type": "(string,string)-\u003e\u003c*types.TRecord2\u003e!{Msg}",
+      "effects": [
+        "Msg"
+      ],
+      "pure": true
+    },
+    {
+      "name": "sendMsgResult",
+      "type": "(string,string)-\u003eResult[\u003c*types.TRecord2\u003e,\u003c*types.TRecord2\u003e]!{Msg}",
+      "effects": [
+        "Msg"
+      ],
+      "pure": true
+    },
+    {
+      "name": "subscribeMsg",
+      "type": "(string,({clock: int, from: string, msg_id: string, payload: string, to: string})-\u003e()!{Cog,Msg})-\u003e()!{Cog,Msg}",
+      "effects": [
+        "Cog",
+        "Msg"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

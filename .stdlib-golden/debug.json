@@ -1,0 +1,23 @@
+{
+  "module": "std/debug",
+  "types": [],
+  "funcs": [
+    {
+      "name": "check",
+      "type": "(bool,string)-\u003e()!{Debug}",
+      "effects": [
+        "Debug"
+      ],
+      "pure": true
+    },
+    {
+      "name": "log",
+      "type": "(string)-\u003e()!{Debug}",
+      "effects": [
+        "Debug"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

@@ -1,0 +1,151 @@
+{
+  "module": "std/fs",
+  "types": [],
+  "funcs": [
+    {
+      "name": "appendFile",
+      "type": "(string,string)-\u003e()!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "appendFileBytes",
+      "type": "(string,bytes)-\u003e()!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "appendFileResult",
+      "type": "(string,string)-\u003eResult[(),string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "fileExists",
+      "type": "(string)-\u003ebool!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "isDir",
+      "type": "(string)-\u003ebool!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "isFile",
+      "type": "(string)-\u003ebool!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "listDir",
+      "type": "(string)-\u003elist[string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "mkdir",
+      "type": "(string)-\u003e()!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "mkdirAll",
+      "type": "(string)-\u003e()!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "mkdirAllResult",
+      "type": "(string)-\u003eResult[(),string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "readFile",
+      "type": "(string)-\u003estring!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "readFileBytes",
+      "type": "(string)-\u003eResult[string,string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "readFileResult",
+      "type": "(string)-\u003eResult[string,string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "removeFile",
+      "type": "(string)-\u003e()!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "removeFileResult",
+      "type": "(string)-\u003eResult[(),string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "writeFile",
+      "type": "(string,string)-\u003e()!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "writeFileBytes",
+      "type": "(string,bytes)-\u003e()!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "writeFileResult",
+      "type": "(string,string)-\u003eResult[(),string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

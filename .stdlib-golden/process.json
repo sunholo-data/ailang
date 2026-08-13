@@ -1,0 +1,62 @@
+{
+  "module": "std/process",
+  "types": [
+    {
+      "name": "ProcessError",
+      "ctors": [
+        "AbnormalExit(int, string)",
+        "NotAllowed(string)",
+        "NotFound(string)",
+        "OutputLimitExceeded(int)",
+        "PermissionDenied(string)",
+        "SpawnFailed(string)",
+        "Timeout(int)"
+      ]
+    },
+    {
+      "name": "ProcessHandle",
+      "ctors": [
+        "ProcessHandle(int)"
+      ]
+    },
+    {
+      "name": "ProcessOutput",
+      "alias": "{exitCode: int, resolvedPath: string, stderr: a, stdout: a, truncated: bool}"
+    }
+  ],
+  "funcs": [
+    {
+      "name": "closeProcessStdin",
+      "type": "(ProcessHandle)-\u003e()!{Process}",
+      "effects": [
+        "Process"
+      ],
+      "pure": true
+    },
+    {
+      "name": "exec",
+      "type": "(string,list[string])-\u003eResult[\u003c*types.TRecord2\u003e,ProcessError]!{Process}",
+      "effects": [
+        "Process"
+      ],
+      "pure": true
+    },
+    {
+      "name": "spawnProcess",
+      "type": "(string,list[string])-\u003eProcessHandle!{Process}",
+      "effects": [
+        "Process"
+      ],
+      "pure": true
+    },
+    {
+      "name": "writeProcessStdin",
+      "type": "(ProcessHandle,bytes)-\u003eResult[(),string]!{Process}",
+      "effects": [
+        "Process"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

@@ -1,0 +1,63 @@
+{
+  "module": "std/zip",
+  "types": [],
+  "funcs": [
+    {
+      "name": "createArchive",
+      "type": "(string,list[{content: string, name: string}])-\u003eResult[(),string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "createArchiveWithBytes",
+      "type": "(string,list[{data: string, name: string}])-\u003eResult[(),string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "listEntries",
+      "type": "(string)-\u003eResult[list[string],string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "readEntry",
+      "type": "(string,string)-\u003eResult[string,string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "readEntryBytes",
+      "type": "(string,string)-\u003eResult[string,string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "scanFold",
+      "type": "(string,string,string,a,(a,XmlNode)-\u003ea)-\u003eResult[a,string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "scanFoldStep",
+      "type": "(string,string,string,a,(a,XmlNode)-\u003eFoldStep[a])-\u003eResult[a,string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

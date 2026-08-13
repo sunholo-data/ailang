@@ -1,0 +1,30 @@
+{
+  "module": "std/iter",
+  "types": [
+    {
+      "name": "FoldStep",
+      "params": [
+        "a"
+      ],
+      "ctors": [
+        "Continue(a)",
+        "Stop(a)"
+      ]
+    }
+  ],
+  "funcs": [
+    {
+      "name": "fromFoldStep",
+      "type": "(FoldStep[a])-\u003ea",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "isStop",
+      "type": "(FoldStep[a])-\u003ebool",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

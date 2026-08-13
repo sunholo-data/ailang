@@ -1,0 +1,81 @@
+{
+  "module": "std/net",
+  "types": [
+    {
+      "name": "HttpResponse",
+      "alias": "{body: string, bodyBytes: a, headers: list[{name: string, value: string}], ok: bool, status: int}"
+    },
+    {
+      "name": "NetError",
+      "ctors": [
+        "BodyTooLarge(string)",
+        "DisallowedHost(string)",
+        "InvalidHeader(string)",
+        "Transport(string)"
+      ]
+    },
+    {
+      "name": "Url",
+      "alias": "{fragment: string, host: string, path: string, port: string, query: string, scheme: string}"
+    }
+  ],
+  "funcs": [
+    {
+      "name": "httpGet",
+      "type": "(string)-\u003estring!{Net}",
+      "effects": [
+        "Net"
+      ],
+      "pure": true
+    },
+    {
+      "name": "httpPost",
+      "type": "(string,string)-\u003estring!{Net}",
+      "effects": [
+        "Net"
+      ],
+      "pure": true
+    },
+    {
+      "name": "httpRequest",
+      "type": "(string,string,list[{name: string, value: string}],string)-\u003eResult[\u003c*types.TRecord2\u003e,NetError]!{Net}",
+      "effects": [
+        "Net"
+      ],
+      "pure": true
+    },
+    {
+      "name": "httpRequestBytes",
+      "type": "(string,string,list[{name: string, value: string}],bytes)-\u003eResult[\u003c*types.TRecord2\u003e,NetError]!{Net}",
+      "effects": [
+        "Net"
+      ],
+      "pure": true
+    },
+    {
+      "name": "parseQuery",
+      "type": "(string)-\u003elist[\u003c*types.TRecord2\u003e]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "parseUrl",
+      "type": "(string)-\u003eResult[\u003c*types.TRecord2\u003e,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "urlEncode",
+      "type": "(string)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "urlEncodeForm",
+      "type": "(list[{name: string, value: string}])-\u003estring",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

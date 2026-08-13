@@ -1,0 +1,47 @@
+{
+  "module": "std/rand",
+  "types": [],
+  "funcs": [
+    {
+      "name": "rand_bool",
+      "type": "(())-\u003ebool!{Rand}",
+      "effects": [
+        "Rand"
+      ],
+      "pure": true
+    },
+    {
+      "name": "rand_float",
+      "type": "(float,float)-\u003efloat!{Rand}",
+      "effects": [
+        "Rand"
+      ],
+      "pure": true
+    },
+    {
+      "name": "rand_int",
+      "type": "(int,int)-\u003eint!{Rand}",
+      "effects": [
+        "Rand"
+      ],
+      "pure": true
+    },
+    {
+      "name": "rand_seed",
+      "type": "(int)-\u003e()!{Rand}",
+      "effects": [
+        "Rand"
+      ],
+      "pure": true
+    },
+    {
+      "name": "uuid4",
+      "type": "(())-\u003estring!{Rand}",
+      "effects": [
+        "Rand"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

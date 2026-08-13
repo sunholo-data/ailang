@@ -1,0 +1,43 @@
+{
+  "module": "std/jwt",
+  "types": [],
+  "funcs": [
+    {
+      "name": "checkAudience",
+      "type": "(Json,string)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "checkIssuer",
+      "type": "(Json,string)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "decodeJWT",
+      "type": "(string)-\u003eResult[{header: Json, payload: Json, signature: bytes, signed: string},string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "isExpired",
+      "type": "(Json,int)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "verifyRS256",
+      "type": "(string,string)-\u003eResult[Json,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "verifyWithKid",
+      "type": "(string,Json)-\u003eResult[Json,string]",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

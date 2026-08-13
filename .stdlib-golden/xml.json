@@ -1,0 +1,186 @@
+{
+  "module": "std/xml",
+  "types": [
+    {
+      "name": "NodeKind",
+      "ctors": [
+        "KindComment",
+        "KindElement",
+        "KindText"
+      ]
+    },
+    {
+      "name": "XmlNode",
+      "ctors": [
+        "Comment(string)",
+        "Element(string, list[{name: string, value: string}], list[XmlNode])",
+        "Text(string)"
+      ]
+    }
+  ],
+  "funcs": [
+    {
+      "name": "escapeXml",
+      "type": "(string)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "findAll",
+      "type": "(XmlNode,string)-\u003elist[XmlNode]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "findAllAttrs",
+      "type": "(XmlNode,string,string)-\u003elist[string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "findAllTexts",
+      "type": "(XmlNode,string)-\u003elist[string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "findFirst",
+      "type": "(XmlNode,string)-\u003eOption[XmlNode]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "flatMapChildren",
+      "type": "(XmlNode,(XmlNode)-\u003elist[a])-\u003elist[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "foldChildren",
+      "type": "(XmlNode,a,(a,XmlNode)-\u003ea)-\u003ea",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "foldChildrenStep",
+      "type": "(XmlNode,a,(a,XmlNode)-\u003eFoldStep[a])-\u003ea",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getAttr",
+      "type": "(XmlNode,string)-\u003eOption[string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getAttrMap",
+      "type": "(XmlNode)-\u003e\u003c*types.TMap\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getChildren",
+      "type": "(XmlNode)-\u003elist[XmlNode]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getTag",
+      "type": "(XmlNode)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getText",
+      "type": "(XmlNode)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "mapChildren",
+      "type": "(XmlNode,(XmlNode)-\u003ea)-\u003elist[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "nodeKind",
+      "type": "(XmlNode)-\u003eNodeKind",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "parse",
+      "type": "(string)-\u003eResult[XmlNode,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "parseElements",
+      "type": "(string,string,int)-\u003eResult[list[XmlNode],string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "parseFold",
+      "type": "(string,string,a,(a,XmlNode)-\u003ea)-\u003eResult[a,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "parseFoldStep",
+      "type": "(string,string,a,(a,XmlNode)-\u003eFoldStep[a])-\u003eResult[a,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "parseLenient",
+      "type": "(string)-\u003eResult[XmlNode,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "parseWithLimit",
+      "type": "(string,int)-\u003eResult[XmlNode,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "sanitizeXml",
+      "type": "(string)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "serialize",
+      "type": "(XmlNode)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "serializeWithDecl",
+      "type": "(XmlNode)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "xmlComment",
+      "type": "(string)-\u003eXmlNode",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "xmlElement",
+      "type": "(string,list[{name: string, value: string}],list[XmlNode])-\u003eXmlNode",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "xmlText",
+      "type": "(string)-\u003eXmlNode",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

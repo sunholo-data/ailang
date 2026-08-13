@@ -1,0 +1,37 @@
+{
+  "module": "std/crypto",
+  "types": [],
+  "funcs": [
+    {
+      "name": "constantTimeEqual",
+      "type": "(string,string)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "hmacSha256",
+      "type": "(string,string)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "rsaVerifyPKCS1v15",
+      "type": "(bytes,bytes,string)-\u003eResult[bool,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "sha256Bytes",
+      "type": "(bytes)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "sha256Hex",
+      "type": "(string)-\u003estring",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

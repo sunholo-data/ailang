@@ -1,0 +1,67 @@
+{
+  "module": "std/array",
+  "types": [],
+  "funcs": [
+    {
+      "name": "append",
+      "type": "(\u003c*types.TArray\u003e,a)-\u003e\u003c*types.TArray\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "empty",
+      "type": "(())-\u003e\u003c*types.TArray\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "fromList",
+      "type": "(list[a])-\u003e\u003c*types.TArray\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "get",
+      "type": "(\u003c*types.TArray\u003e,int)-\u003ea",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getOpt",
+      "type": "(\u003c*types.TArray\u003e,int)-\u003eOption[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "length",
+      "type": "(\u003c*types.TArray\u003e)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "make",
+      "type": "(int,a)-\u003e\u003c*types.TArray\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "set",
+      "type": "(\u003c*types.TArray\u003e,int,a)-\u003e\u003c*types.TArray\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "toList",
+      "type": "(\u003c*types.TArray\u003e)-\u003elist[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "unsafeGet",
+      "type": "(\u003c*types.TArray\u003e,int)-\u003ea",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

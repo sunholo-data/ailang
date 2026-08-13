@@ -1,23 +1,69 @@
 {
-  "module": "stdlib/std/io",
+  "module": "std/io",
   "types": [],
   "funcs": [
     {
+      "name": "eprintln",
+      "type": "(string)-\u003e()!{IO}",
+      "effects": [
+        "IO"
+      ],
+      "pure": true
+    },
+    {
+      "name": "exit",
+      "type": "(int)-\u003e()!{IO}",
+      "effects": [
+        "IO"
+      ],
+      "pure": true
+    },
+    {
+      "name": "flush",
+      "type": "(())-\u003e()!{IO}",
+      "effects": [
+        "IO"
+      ],
+      "pure": true
+    },
+    {
       "name": "print",
-      "type": "(a)-\u003eb",
-      "effects": [],
+      "type": "(string)-\u003e()!{IO}",
+      "effects": [
+        "IO"
+      ],
+      "pure": true
+    },
+    {
+      "name": "printErr",
+      "type": "(string)-\u003e()!{IO}",
+      "effects": [
+        "IO"
+      ],
       "pure": true
     },
     {
       "name": "println",
-      "type": "(a)-\u003eb",
-      "effects": [],
+      "type": "(string)-\u003e()!{IO}",
+      "effects": [
+        "IO"
+      ],
       "pure": true
     },
     {
       "name": "readLine",
-      "type": "()-\u003ea",
-      "effects": [],
+      "type": "(())-\u003estring!{IO}",
+      "effects": [
+        "IO"
+      ],
+      "pure": true
+    },
+    {
+      "name": "writeBytes",
+      "type": "(bytes)-\u003e()!{IO}",
+      "effects": [
+        "IO"
+      ],
       "pure": true
     }
   ],

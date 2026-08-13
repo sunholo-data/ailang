@@ -1,0 +1,67 @@
+{
+  "module": "std/map",
+  "types": [],
+  "funcs": [
+    {
+      "name": "empty",
+      "type": "(())-\u003e\u003c*types.TMap\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "fromList",
+      "type": "(list[\u003c*types.TTuple\u003e])-\u003e\u003c*types.TMap\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "insert",
+      "type": "(Map[a,b],a,b)-\u003e\u003c*types.TMap\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "keys",
+      "type": "(Map[a,b])-\u003elist[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "lookup",
+      "type": "(Map[a,b],a)-\u003eOption[b]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "member",
+      "type": "(Map[a,b],a)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "remove",
+      "type": "(Map[a,b],a)-\u003e\u003c*types.TMap\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "size",
+      "type": "(Map[a,b])-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "toList",
+      "type": "(Map[a,b])-\u003elist[\u003c*types.TTuple\u003e]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "values",
+      "type": "(Map[a,b])-\u003elist[b]",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

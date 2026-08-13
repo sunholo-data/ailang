@@ -1,0 +1,63 @@
+{
+  "module": "std/sharedindex",
+  "types": [],
+  "funcs": [
+    {
+      "name": "delete",
+      "type": "(string,string)-\u003e()!{SharedIndex}",
+      "effects": [
+        "SharedIndex"
+      ],
+      "pure": true
+    },
+    {
+      "name": "entryCount",
+      "type": "(string)-\u003eint!{SharedIndex}",
+      "effects": [
+        "SharedIndex"
+      ],
+      "pure": true
+    },
+    {
+      "name": "findByEmbedding",
+      "type": "(string,list[float],int,int,bool)-\u003elist[\u003c*types.TRecord2\u003e]!{SharedIndex}",
+      "effects": [
+        "SharedIndex"
+      ],
+      "pure": true
+    },
+    {
+      "name": "findSimhash",
+      "type": "(string,int,int,int,bool)-\u003elist[\u003c*types.TRecord2\u003e]!{SharedIndex}",
+      "effects": [
+        "SharedIndex"
+      ],
+      "pure": true
+    },
+    {
+      "name": "namespaces",
+      "type": "(())-\u003elist[string]!{SharedIndex}",
+      "effects": [
+        "SharedIndex"
+      ],
+      "pure": true
+    },
+    {
+      "name": "upsert",
+      "type": "(string,string,int,int,int)-\u003e()!{SharedIndex}",
+      "effects": [
+        "SharedIndex"
+      ],
+      "pure": true
+    },
+    {
+      "name": "upsertWithEmbedding",
+      "type": "(string,string,int,list[float],int,int)-\u003e()!{SharedIndex}",
+      "effects": [
+        "SharedIndex"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

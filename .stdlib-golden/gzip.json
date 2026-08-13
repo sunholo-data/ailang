@@ -1,0 +1,27 @@
+{
+  "module": "std/gzip",
+  "types": [],
+  "funcs": [
+    {
+      "name": "compress",
+      "type": "(string,int)-\u003eResult[string,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "decompress",
+      "type": "(string)-\u003eResult[string,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "decompressFile",
+      "type": "(string)-\u003eResult[string,string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

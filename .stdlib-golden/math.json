@@ -1,0 +1,139 @@
+{
+  "module": "std/math",
+  "types": [],
+  "funcs": [
+    {
+      "name": "E",
+      "type": "(())-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "PI",
+      "type": "(())-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "abs_Float",
+      "type": "(float)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "abs_Int",
+      "type": "(int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "acos",
+      "type": "(float)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "asin",
+      "type": "(float)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "atan",
+      "type": "(float)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "atan2",
+      "type": "(float,float)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "bitwiseOr",
+      "type": "(int,int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "ceil",
+      "type": "(float)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "cos",
+      "type": "(float)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "exp",
+      "type": "(float)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "floatToInt",
+      "type": "(float)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "floor",
+      "type": "(float)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "intToFloat",
+      "type": "(int)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "log",
+      "type": "(float)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "log10",
+      "type": "(float)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "pow",
+      "type": "(float,float)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "round",
+      "type": "(float)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "sin",
+      "type": "(float)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "sqrt",
+      "type": "(float)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "tan",
+      "type": "(float)-\u003efloat",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

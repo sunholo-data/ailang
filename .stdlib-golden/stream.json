@@ -1,0 +1,202 @@
+{
+  "module": "std/stream",
+  "types": [
+    {
+      "name": "StreamConfig",
+      "alias": "{headers: list[StreamHeader]}"
+    },
+    {
+      "name": "StreamConn",
+      "ctors": [
+        "StreamConn(int)"
+      ]
+    },
+    {
+      "name": "StreamErrorKind",
+      "ctors": [
+        "BudgetExhausted(string)",
+        "ConnectionFailed(string)",
+        "MessageTooLarge(string)",
+        "ProtocolError(string)",
+        "Timeout(string)"
+      ]
+    },
+    {
+      "name": "StreamEvent",
+      "ctors": [
+        "Binary(string)",
+        "Closed(int, string)",
+        "Message(string)",
+        "Opened(string)",
+        "Ping(string)",
+        "SSEData(string, string)",
+        "SourceBytes(string, a)",
+        "SourceText(string, string)",
+        "StreamError(StreamErrorKind)"
+      ]
+    },
+    {
+      "name": "StreamHeader",
+      "alias": "{name: string, value: string}"
+    },
+    {
+      "name": "StreamMessage",
+      "ctors": [
+        "Bin(string)",
+        "Text(string)"
+      ]
+    },
+    {
+      "name": "StreamSource",
+      "ctors": [
+        "StreamSource(int)"
+      ]
+    },
+    {
+      "name": "StreamStatus",
+      "ctors": [
+        "Closing",
+        "Connecting",
+        "Open",
+        "StreamClosed"
+      ]
+    }
+  ],
+  "funcs": [
+    {
+      "name": "asyncExecProcess",
+      "type": "(string,list[string],string,int,int)-\u003eStreamSource!{Stream}",
+      "effects": [
+        "Stream"
+      ],
+      "pure": true
+    },
+    {
+      "name": "asyncReadStdinLines",
+      "type": "(string,int)-\u003eStreamSource!{Stream}",
+      "effects": [
+        "Stream"
+      ],
+      "pure": true
+    },
+    {
+      "name": "connect",
+      "type": "(string,{headers: list[{name: string, value: string}]})-\u003eResult[StreamConn,StreamErrorKind]!{Stream}",
+      "effects": [
+        "Stream"
+      ],
+      "pure": true
+    },
+    {
+      "name": "defaultConfig",
+      "type": "(())-\u003e{headers: [{name: string, value: string}]}",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "disconnect",
+      "type": "(StreamConn)-\u003e()!{Stream}",
+      "effects": [
+        "Stream"
+      ],
+      "pure": true
+    },
+    {
+      "name": "ndjsonPost",
+      "type": "(string,string,{headers: list[{name: string, value: string}]})-\u003eResult[StreamConn,StreamErrorKind]!{Stream}",
+      "effects": [
+        "Stream"
+      ],
+      "pure": true
+    },
+    {
+      "name": "onEvent",
+      "type": "(StreamConn,(StreamEvent)-\u003ebool)-\u003e()!{Stream}",
+      "effects": [
+        "Stream"
+      ],
+      "pure": true
+    },
+    {
+      "name": "runEventLoop",
+      "type": "(StreamConn)-\u003e()!{Stream}",
+      "effects": [
+        "Stream"
+      ],
+      "pure": true
+    },
+    {
+      "name": "selectEvents",
+      "type": "(list[StreamSource],(StreamEvent)-\u003ebool)-\u003e()!{Stream}",
+      "effects": [
+        "Stream"
+      ],
+      "pure": true
+    },
+    {
+      "name": "sourceOfConn",
+      "type": "(StreamConn,string,int)-\u003eStreamSource!{Stream}",
+      "effects": [
+        "Stream"
+      ],
+      "pure": true
+    },
+    {
+      "name": "sseConnect",
+      "type": "(string,{headers: list[{name: string, value: string}]})-\u003eResult[StreamConn,StreamErrorKind]!{Stream}",
+      "effects": [
+        "Stream"
+      ],
+      "pure": true
+    },
+    {
+      "name": "ssePost",
+      "type": "(string,string,{headers: list[{name: string, value: string}]})-\u003eResult[StreamConn,StreamErrorKind]!{Stream}",
+      "effects": [
+        "Stream"
+      ],
+      "pure": true
+    },
+    {
+      "name": "status",
+      "type": "(StreamConn)-\u003eStreamStatus!{Stream}",
+      "effects": [
+        "Stream"
+      ],
+      "pure": true
+    },
+    {
+      "name": "transmit",
+      "type": "(StreamConn,string)-\u003eResult[(),StreamErrorKind]!{Stream}",
+      "effects": [
+        "Stream"
+      ],
+      "pure": true
+    },
+    {
+      "name": "transmitBinary",
+      "type": "(StreamConn,bytes)-\u003eResult[(),StreamErrorKind]!{Stream}",
+      "effects": [
+        "Stream"
+      ],
+      "pure": true
+    },
+    {
+      "name": "withSSE",
+      "type": "(string,(StreamEvent)-\u003ebool)-\u003eResult[StreamConn,StreamErrorKind]!{Stream}",
+      "effects": [
+        "Stream"
+      ],
+      "pure": true
+    },
+    {
+      "name": "withStream",
+      "type": "(string,(StreamEvent)-\u003ebool)-\u003eResult[StreamConn,StreamErrorKind]!{Stream}",
+      "effects": [
+        "Stream"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

@@ -1,0 +1,153 @@
+{
+  "module": "std/ai",
+  "types": [
+    {
+      "name": "AIError",
+      "alias": "{code: string, message: string, retryable: bool}"
+    },
+    {
+      "name": "CacheBreakpoint",
+      "alias": "{position: string, ttl: string}"
+    },
+    {
+      "name": "ImagePart",
+      "alias": "{mime: string, source: string}"
+    },
+    {
+      "name": "Message",
+      "alias": "{content: string, images: list[ImagePart], role: string, tool_call_id: string, tool_calls: list[ToolCall]}"
+    },
+    {
+      "name": "RecordedStream",
+      "alias": "{chunks: list[StreamChunk], outcome: Result[StepResult,AIError]}"
+    },
+    {
+      "name": "StepResult",
+      "alias": "{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: Message, output_tokens: int, tool_calls: list[ToolCall]}"
+    },
+    {
+      "name": "StreamChunk",
+      "ctors": [
+        "ContentDelta(string)",
+        "ThinkingDelta(string)",
+        "Usage({cache_creation_input_tokens: int, cache_read_input_tokens: int, input_tokens: int, output_tokens: int})"
+      ]
+    },
+    {
+      "name": "ToolCall",
+      "alias": "{arguments: string, id: string, name: string}"
+    },
+    {
+      "name": "ToolSchema",
+      "alias": "{description: string, name: string, parameters: string}"
+    }
+  ],
+  "funcs": [
+    {
+      "name": "call",
+      "type": "(string)-\u003estring!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
+      "name": "callImage",
+      "type": "(string,string,string)-\u003estring!{AI,FS}",
+      "effects": [
+        "AI",
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "callImageBase64",
+      "type": "(string,string)-\u003estring!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
+      "name": "callJson",
+      "type": "(string,string)-\u003estring!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
+      "name": "callJsonResult",
+      "type": "(string,string)-\u003eResult[string,\u003c*types.TRecord2\u003e]!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
+      "name": "callJsonSimple",
+      "type": "(string)-\u003estring!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
+      "name": "callJsonSimpleResult",
+      "type": "(string)-\u003eResult[string,\u003c*types.TRecord2\u003e]!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
+      "name": "callResult",
+      "type": "(string)-\u003eResult[string,\u003c*types.TRecord2\u003e]!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
+      "name": "runTools",
+      "type": "(string,list[Message],list[ToolSchema],(ToolCall)-\u003estring,int)-\u003eResult[[Message],AIError]!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
+      "name": "step",
+      "type": "(string,list[Message],list[ToolSchema])-\u003eResult[\u003c*types.TRecord2\u003e,\u003c*types.TRecord2\u003e]!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
+      "name": "stepWithCache",
+      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint])-\u003eResult[\u003c*types.TRecord2\u003e,\u003c*types.TRecord2\u003e]!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
+      "name": "stepWithStream",
+      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint],(StreamChunk)-\u003e()!{IO})-\u003eResult[\u003c*types.TRecord2\u003e,\u003c*types.TRecord2\u003e]!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
+      "name": "stepWithStreamRecorded",
+      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint],(StreamChunk)-\u003e()!{IO})-\u003e\u003c*types.TRecord2\u003e!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

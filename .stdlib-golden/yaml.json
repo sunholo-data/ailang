@@ -1,0 +1,19 @@
+{
+  "module": "std/yaml",
+  "types": [],
+  "funcs": [
+    {
+      "name": "decode",
+      "type": "(string)-\u003eResult[Json,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "yamlToJson",
+      "type": "(string)-\u003eResult[string,string]",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

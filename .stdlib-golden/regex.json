@@ -1,0 +1,54 @@
+{
+  "module": "std/regex",
+  "types": [
+    {
+      "name": "Regex",
+      "ctors": [
+        "Regex(string)"
+      ]
+    },
+    {
+      "name": "RegexMatch",
+      "alias": "{end: int, groups: list[{end: int, start: int, text: string}], start: int, text: string}"
+    }
+  ],
+  "funcs": [
+    {
+      "name": "compile",
+      "type": "(string)-\u003eResult[Regex,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "findAll",
+      "type": "(Regex,string)-\u003elist[\u003c*types.TRecord2\u003e]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "findFirst",
+      "type": "(Regex,string)-\u003eOption[\u003c*types.TRecord2\u003e]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "isMatch",
+      "type": "(Regex,string)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "replaceAll",
+      "type": "(Regex,string,string)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "split",
+      "type": "(Regex,string)-\u003elist[string]",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

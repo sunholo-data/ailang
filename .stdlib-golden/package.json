@@ -1,0 +1,15 @@
+{
+  "module": "std/package",
+  "types": [],
+  "funcs": [
+    {
+      "name": "assetPath",
+      "type": "(string,string)-\u003eResult[string,string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

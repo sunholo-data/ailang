@@ -1,0 +1,19 @@
+{
+  "module": "std/simhash",
+  "types": [],
+  "funcs": [
+    {
+      "name": "hammingDistance",
+      "type": "(int,int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "simhash",
+      "type": "(string)-\u003eint",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

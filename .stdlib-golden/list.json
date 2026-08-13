@@ -1,64 +1,244 @@
 {
-  "module": "stdlib/std/list",
+  "module": "std/list",
   "types": [],
   "funcs": [
     {
+      "name": "any",
+      "type": "((a)-\u003ebool,list[a])-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "concat",
-      "type": "(a,b)-\u003eb",
+      "type": "(list[a],list[a])-\u003elist[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "dedup",
+      "type": "(list[a])-\u003elist[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "difference",
+      "type": "(list[a],list[a])-\u003elist[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "drop",
+      "type": "(int,list[a])-\u003elist[a]",
       "effects": [],
       "pure": true
     },
     {
       "name": "filter",
-      "type": "(a,b)-\u003e[c]",
+      "type": "((a)-\u003ebool,list[a])-\u003elist[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "filterE",
+      "type": "((a)-\u003ebool,list[a])-\u003e[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "findIndex",
+      "type": "((a)-\u003ebool,list[a])-\u003eOption[int]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "flatMap",
+      "type": "((a)-\u003elist[b],list[a])-\u003e[b]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "flatMapE",
+      "type": "((a)-\u003elist[b],list[a])-\u003e[b]",
       "effects": [],
       "pure": true
     },
     {
       "name": "foldl",
-      "type": "(a,b,c)-\u003eb",
+      "type": "((a,b)-\u003ea,a,list[b])-\u003ea",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "foldlE",
+      "type": "((a,b)-\u003ea,a,list[b])-\u003ea",
       "effects": [],
       "pure": true
     },
     {
       "name": "foldr",
-      "type": "(a,b,c)-\u003eb",
+      "type": "((a,b)-\u003eb,b,list[a])-\u003eb",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "forEachE",
+      "type": "((a)-\u003e(),list[a])-\u003e()",
       "effects": [],
       "pure": true
     },
     {
       "name": "head",
-      "type": "(a)-\u003eOption",
+      "type": "(list[a])-\u003eOption[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "head_or",
+      "type": "(list[a],a)-\u003ea",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "intersect",
+      "type": "(list[a],list[a])-\u003elist[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "last",
+      "type": "(list[a])-\u003eOption[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "last_or",
+      "type": "(list[a],a)-\u003ea",
       "effects": [],
       "pure": true
     },
     {
       "name": "length",
-      "type": "(a)-\u003eb",
+      "type": "(list[a])-\u003eint",
       "effects": [],
       "pure": true
     },
     {
       "name": "map",
-      "type": "(a,b)-\u003e[c]",
+      "type": "((a)-\u003eb,list[a])-\u003elist[b]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "mapE",
+      "type": "((a)-\u003eb,list[a])-\u003e[b]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "maximumFloat",
+      "type": "(list[float])-\u003eOption[float]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "maximumInt",
+      "type": "(list[int])-\u003eOption[int]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "maximumString",
+      "type": "(list[string])-\u003eOption[string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "member",
+      "type": "(a,list[a])-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "minimumFloat",
+      "type": "(list[float])-\u003eOption[float]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "minimumInt",
+      "type": "(list[int])-\u003eOption[int]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "minimumString",
+      "type": "(list[string])-\u003eOption[string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "nth",
+      "type": "(list[a],int)-\u003eOption[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "nth_or",
+      "type": "(list[a],int,a)-\u003ea",
       "effects": [],
       "pure": true
     },
     {
       "name": "reverse",
-      "type": "(a)-\u003e[b]",
+      "type": "(list[a])-\u003e[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "sortBy",
+      "type": "((a,a)-\u003eint,list[a])-\u003e[a]",
       "effects": [],
       "pure": true
     },
     {
       "name": "tail",
-      "type": "(a)-\u003e[b]",
+      "type": "(list[a])-\u003e[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "take",
+      "type": "(int,list[a])-\u003e[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "takeFlatMap",
+      "type": "(int,(a)-\u003elist[b],list[a])-\u003elist[b]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "takeMap",
+      "type": "(int,(a)-\u003eb,list[a])-\u003elist[b]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "union",
+      "type": "(list[a],list[a])-\u003elist[a]",
       "effects": [],
       "pure": true
     },
     {
       "name": "zip",
-      "type": "(a,b)-\u003e[c]",
+      "type": "(list[a],list[b])-\u003e[\u003c*types.TTuple\u003e]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "zipWith",
+      "type": "((a,b)-\u003ec,list[a],list[b])-\u003elist[c]",
       "effects": [],
       "pure": true
     }

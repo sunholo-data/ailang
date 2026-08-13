@@ -1,0 +1,19 @@
+{
+  "module": "std/html",
+  "types": [],
+  "funcs": [
+    {
+      "name": "parse",
+      "type": "(string)-\u003eResult[XmlNode,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "parseFragment",
+      "type": "(string)-\u003eResult[list[XmlNode],string]",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

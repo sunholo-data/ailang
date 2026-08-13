@@ -3,7 +3,7 @@
 # =============================================================================
 
 .PHONY: verify-examples verify-examples-toplevel verify-examples-all verify-examples-trace verify-cli-examples examples-status
-.PHONY: update-readme update-trace-baselines flag-broken freeze-stdlib verify-stdlib
+.PHONY: update-readme update-trace-baselines flag-broken freeze-stdlib verify-stdlib verify-stdlib-selftest
 .PHONY: compile-examples-go verify-examples-gate-selftest backfill-manifest-modules validate-manifest-selftest
 
 # Example verification (parallel by default, ~8s vs ~3min sequential)
@@ -134,6 +134,38 @@ freeze-stdlib: ## Freeze std/ library interfaces (create golden checksums)
 	@echo "Freezing std/ library interfaces..."
 	@tools/freeze-stdlib.sh
 
-verify-stdlib: ## Verify std/ library interface stability
+verify-stdlib: build ## Verify std/ library interface stability
 	@echo "Verifying std/ library interfaces..."
 	@tools/verify-stdlib.sh
+
+# Prove the freeze gate actually FAILS on an interface change. Between 2026-05-22
+# (v0.0.12) and 2026-08-13 this gate was dead — wrong stdlib path, `ailang iface`
+# rejecting every std/ file, and `set -e` + `2>/dev/null` killing it with no
+# message — and nothing noticed, because "make verify-stdlib exits non-zero" and
+# "the gate is broken" look identical from outside. A green gate is not evidence;
+# a gate that goes red on a real change is.
+verify-stdlib-selftest: build ## Prove the stdlib freeze gate fails on a real interface change
+	@echo "Gate self-test: adding a temporary export to std/option..."
+	@cp std/option.ail /tmp/_selftest_option.ail; \
+	trap "cp /tmp/_selftest_option.ail std/option.ail; rm -f /tmp/_selftest_option.ail" EXIT; \
+	printf '\n-- temporary export injected by verify-stdlib-selftest\nexport pure func selftestCanary(x: int) -> int = x\n' >> std/option.ail; \
+	if tools/verify-stdlib.sh >/tmp/_selftest_out.txt 2>&1; then \
+		echo "❌ SELF-TEST FAIL: gate exited 0 despite a new export in std/option"; \
+		rm -f /tmp/_selftest_out.txt; exit 1; \
+	else \
+		echo "✓ gate exited non-zero on the injected export"; \
+	fi; \
+	if grep -q "option: interface changed" /tmp/_selftest_out.txt; then \
+		echo "✓ gate named the changed module (std/option)"; \
+	else \
+		echo "❌ SELF-TEST FAIL: gate failed but never named std/option"; \
+		cat /tmp/_selftest_out.txt; rm -f /tmp/_selftest_out.txt; exit 1; \
+	fi; \
+	if grep -q "selftestCanary" /tmp/_selftest_out.txt; then \
+		echo "✓ gate showed the actual diff (the new symbol appears)"; \
+	else \
+		echo "❌ SELF-TEST FAIL: no diff shown — operators cannot see WHAT changed"; \
+		cat /tmp/_selftest_out.txt; rm -f /tmp/_selftest_out.txt; exit 1; \
+	fi; \
+	rm -f /tmp/_selftest_out.txt; \
+	echo "✅ stdlib gate self-test passed: interface change -> non-zero + named module + diff"

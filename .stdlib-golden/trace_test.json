@@ -1,0 +1,25 @@
+{
+  "module": "std/trace_test",
+  "types": [],
+  "funcs": [
+    {
+      "name": "assert_trace_exists",
+      "type": "(string)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "assert_trace_not_exists",
+      "type": "(string)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "test_compile_traces",
+      "type": "(())-\u003eint",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

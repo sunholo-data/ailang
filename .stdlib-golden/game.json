@@ -1,0 +1,31 @@
+{
+  "module": "std/game",
+  "types": [],
+  "funcs": [
+    {
+      "name": "delta_time",
+      "type": "(())-\u003efloat!{Clock}",
+      "effects": [
+        "Clock"
+      ],
+      "pure": true
+    },
+    {
+      "name": "frame_count",
+      "type": "(())-\u003eint!{Clock}",
+      "effects": [
+        "Clock"
+      ],
+      "pure": true
+    },
+    {
+      "name": "total_time",
+      "type": "(())-\u003efloat!{Clock}",
+      "effects": [
+        "Clock"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

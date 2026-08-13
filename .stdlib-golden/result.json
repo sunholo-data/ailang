@@ -1,5 +1,5 @@
 {
-  "module": "stdlib/std/result",
+  "module": "std/result",
   "types": [
     {
       "name": "Result",
@@ -8,39 +8,45 @@
         "b"
       ],
       "ctors": [
-        "Err",
-        "Ok"
+        "Err(a)",
+        "Ok(a)"
       ]
     }
   ],
   "funcs": [
     {
       "name": "flatMap",
-      "type": "(a,b)-\u003ec",
+      "type": "((a)-\u003eResult[b,c],Result[a,c])-\u003eResult[b,c]",
       "effects": [],
       "pure": true
     },
     {
       "name": "isErr",
-      "type": "(a)-\u003ebool",
+      "type": "(Result[a,b])-\u003ebool",
       "effects": [],
       "pure": true
     },
     {
       "name": "isOk",
-      "type": "(a)-\u003ebool",
+      "type": "(Result[a,b])-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "map",
+      "type": "((a)-\u003eb,Result[a,c])-\u003eResult[b,c]",
       "effects": [],
       "pure": true
     },
     {
       "name": "mapErr",
-      "type": "(a,b)-\u003ec",
+      "type": "((a)-\u003eb,Result[c,a])-\u003eResult[c,b]",
       "effects": [],
       "pure": true
     },
     {
       "name": "unwrap",
-      "type": "(a)-\u003eb",
+      "type": "(Result[a,b])-\u003ea",
       "effects": [],
       "pure": true
     }

@@ -1,0 +1,71 @@
+{
+  "module": "std/sharedmem",
+  "types": [],
+  "funcs": [
+    {
+      "name": "cas",
+      "type": "(string,Option[bytes],bytes)-\u003ebool!{SharedMem}",
+      "effects": [
+        "SharedMem"
+      ],
+      "pure": true
+    },
+    {
+      "name": "delete",
+      "type": "(string)-\u003e()!{SharedMem}",
+      "effects": [
+        "SharedMem"
+      ],
+      "pure": true
+    },
+    {
+      "name": "get",
+      "type": "(string)-\u003eOption[bytes]!{SharedMem}",
+      "effects": [
+        "SharedMem"
+      ],
+      "pure": true
+    },
+    {
+      "name": "get_or",
+      "type": "(string,bytes)-\u003ebytes!{SharedMem}",
+      "effects": [
+        "SharedMem"
+      ],
+      "pure": true
+    },
+    {
+      "name": "has_key",
+      "type": "(string)-\u003ebool!{SharedMem}",
+      "effects": [
+        "SharedMem"
+      ],
+      "pure": true
+    },
+    {
+      "name": "keys",
+      "type": "(())-\u003elist[string]!{SharedMem}",
+      "effects": [
+        "SharedMem"
+      ],
+      "pure": true
+    },
+    {
+      "name": "put",
+      "type": "(string,bytes)-\u003e()!{SharedMem}",
+      "effects": [
+        "SharedMem"
+      ],
+      "pure": true
+    },
+    {
+      "name": "put_if_absent",
+      "type": "(string,bytes)-\u003ebool!{SharedMem}",
+      "effects": [
+        "SharedMem"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

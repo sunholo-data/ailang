@@ -162,6 +162,17 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 			ml.stdlibResolver = NewStdlibResolver("", false, false)
 		}
 
+		// An IMPORT is always a bare module path ("std/io"), but this branch is
+		// also reached when a std/ FILE is the entry — `ailang check std/io.ail`
+		// or `ailang iface std/io`, which check.go turns into "std/io.ail". That
+		// path reached validateModuleName as a module NAME, where the "." in
+		// ".ail" fails the [a-zA-Z0-9_/-] guard, so NO file under std/ could be
+		// type-checked or introspected at all. (The embedded fallback below then
+		// compounded it by looking up "io.ail.ail".) Stripping the extension here
+		// cannot mask a legitimate module, because "." is not a valid character
+		// in a module name in the first place.
+		canonPath = strings.TrimSuffix(canonPath, ".ail")
+
 		resolvedPath, err := ml.stdlibResolver.ResolveStdlib(canonPath)
 		if err != nil {
 			// Filesystem resolution failed — try embedded stdlib fallback.

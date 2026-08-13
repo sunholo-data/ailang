@@ -1,0 +1,31 @@
+{
+  "module": "std/smoke",
+  "types": [],
+  "funcs": [
+    {
+      "name": "dispatchAllTools",
+      "type": "(list[string],(string)-\u003e())-\u003e()!{IO}",
+      "effects": [
+        "IO"
+      ],
+      "pure": true
+    },
+    {
+      "name": "dispatchTool",
+      "type": "(string,(string)-\u003e())-\u003e()!{IO}",
+      "effects": [
+        "IO"
+      ],
+      "pure": true
+    },
+    {
+      "name": "okSuite",
+      "type": "(string)-\u003e()!{IO}",
+      "effects": [
+        "IO"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

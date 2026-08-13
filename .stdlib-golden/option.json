@@ -1,5 +1,5 @@
 {
-  "module": "stdlib/std/option",
+  "module": "std/option",
   "types": [
     {
       "name": "Option",
@@ -8,44 +8,44 @@
       ],
       "ctors": [
         "None",
-        "Some"
+        "Some(a)"
       ]
     }
   ],
   "funcs": [
     {
       "name": "filter",
-      "type": "(a,b)-\u003ec",
+      "type": "((a)-\u003ebool,Option[a])-\u003eOption[a]",
       "effects": [],
       "pure": true
     },
     {
       "name": "flatMap",
-      "type": "(a,b)-\u003ec",
+      "type": "((a)-\u003eOption[b],Option[a])-\u003eOption[b]",
       "effects": [],
       "pure": true
     },
     {
       "name": "getOrElse",
-      "type": "(a,b)-\u003ec",
+      "type": "(Option[a],a)-\u003ea",
       "effects": [],
       "pure": true
     },
     {
       "name": "isNone",
-      "type": "(a)-\u003ebool",
+      "type": "(Option[a])-\u003ebool",
       "effects": [],
       "pure": true
     },
     {
       "name": "isSome",
-      "type": "(a)-\u003ebool",
+      "type": "(Option[a])-\u003ebool",
       "effects": [],
       "pure": true
     },
     {
       "name": "map",
-      "type": "(a,b)-\u003ec",
+      "type": "((a)-\u003eb,Option[a])-\u003eOption[b]",
       "effects": [],
       "pure": true
     }
