@@ -249,3 +249,100 @@ carried as a watch-item. If a second instance lands, the fix is a Gate-2 clause 
 issue) — ungated, and the disposition's `R8` UNRESOLVED row now gives it a concrete instrument to
 cite rather than a recollection. If Mark answers D1 first, item 4 unparks and outranks it: apply
 his branch, then the doc is quorum-clean without another paid round.
+
+---
+
+## 3 — 2026-08-13 — the queue head waited on a human who never replied, and the case it was waiting to file was wrong in both directions
+
+**Picked**: queue item 5 (head), **Output-headroom upstream issue** — clause 3, "file the case
+against `main_dst` if Arni's #97 reply invites it". Nothing outranked it: dev CI green (16 checks on
+`7ea12af93`, 0 not-green), zero human directives since the watermark, no regression in the inbox.
+The three unread cross-mission messages (World iter-80 ×2, V1 iter-191) are sibling reports and one
+skill proposal addressed to V1 — per Gate 0 they never auto-outrank, and none is a motoko demand.
+
+**Reality check**: the item's **precondition is FALSE, and it is an unbounded wait**. Measured
+first-party: **zero** `arniwesth` events on PR #97 across all four surfaces — `gh pr view --json
+comments` (1 comment, ours, 2026-08-11T19:39:21Z), `pulls/97/comments` (0), `pulls/97/reviews` (0),
+`issues/97/timeline` filtered to his login (0). **Control fires**: `search/issues?q=repo:…+commenter:arniwesth`
+returns **34**, so the instruments can see him where he is. Waiting on a third party with no expiry
+is precisely the defect `gpt5-6-sol` blocked Phase 0 for at iteration 1 — and it was sitting in the
+queue head *one iteration after* we fixed the identical shape next door. The Phase-0 fix generalised
+to the gate and not to the queue.
+
+Also checked and clean: driver pin **pinned** (`7ea12af93`; source clone 38 behind, which is what the
+pin exists to survive); the RUNNING skill byte-identical to `origin/dev` on **both** resolutions (the
+repo-local `.claude/skills/` that wins here, and V1's symlinked copy); no died-mid-flight traces
+(both motoko checkouts clean, `git worktree list` shows only the pin and the clone, and the one open
+loop-authored PR `#613` is V1's); no rotation due (`#663` created 2026-08-12 07:59 local, after the
+Monday 07:00 boundary; 10 comments < 80).
+
+**Shipped**: the item's **evidence half**, which is what any filing must cite — and it says the case
+as written would have filed something incorrect. Re-measured against `main_dst@6c06b08` (advanced
+from the `303d869` the doc's rows were taken at) and landed as migration-doc rows **V27–V29** plus a
+rewritten compaction section, a sharpened disposition **R8**, and a bounded queue item 5.
+
+1. **The live ladder targets 70%, not the 95% the doc asserted.** `register.ail:24` binds
+   `compact_for_pre_step`; every branch gates on `candidate_fits` → `< result_target_pct()` =
+   `elide_tier_pct()` = **70**. `emergency_pct() = 95` occurs at exactly 3 sites, all inside the
+   off-path `compact_step_with_limit`. On a 262144 window 70% leaves **≥78,644** — more than the
+   65,536 output cap *and* more than the 75k reserve `96542f8` adds. Upstream already beats our
+   patch **when the ladder reaches its target**.
+2. **The mitigation the doc credited has zero production callers.** Every importer of
+   `compact_step_with_limit` is a smoke or integration test. Control: `compact_for_pre_step` is
+   imported by the live `register.ail:17`, so the instrument distinguishes live from test.
+3. **The live refusal exists anyway, and is loud** — the phase core's `seal_compacted_payload`
+   (`phase_vocab.ail:145`) at `exhaustion_pct() = 95` (`compaction.ail:30`), called at
+   `session.ail:2561` with the **raw** `context_limit`, terminating `CompactionExhausted` /
+   `code: "ContextExhausted"` / `retryable: false`. "Hard-stop, not silent corruption" is
+   **CONFIRMED at a different function than we named**.
+
+Net: the residual is neither "no reserve" nor "no refusal" but **the band between the ladder's 70%
+aspiration and the seal's 95% permission**, whose predicate counts messages only. That shrinks the
+upstream ask from "adopt an output reserve in a compaction extension" to **one argument at
+`session.ail:2561`** — and the precedent to cite is one line up at `:2534`, where upstream already
+hands the extension `context_limit - pinned_tokens`, subtracting a reserve before delegating.
+
+**Routing evidence**: model=`claude-opus-5` task-class=**mechanical/analysis** (controller-only —
+Gate 2 reality-check plus first-party measurement; **no sub-agent spawned**, because no design,
+plan, execution or judgement role was needed and spawning one would have billed a role with nothing
+to do) round1-score=n/a rounds=1 corrections=1 (self, see Ruled out) provider=anthropic
+agent=mission-control cost=**metered $0.00** of $5 · quota-bucket:opus. Designer rotation
+UNTOUCHED at `claude:claude-fable-5` (no doc was created — the migration doc was *corrected* from
+measurement, which rule 3f assigns to the controller, not to the designer). No lane degradation, no
+fallback traversed. Quorum: **not run** — no new or revised *design*; the migration doc's one
+re-quorum is spent and these edits are Verification-Log corrections, not design changes.
+
+**Ruled out**:
+- **"The live compaction path has no refusal at all"** — my own first reading, from the
+  unconditional `else Compacted(floor, …)` branch at `compaction_structural.ail:191`. **FALSE.**
+  Caught only by chasing the *second* `compaction_exhausted` site rather than trusting upstream's
+  own ADR-002, which calls the off-path one "the only `compaction_exhausted` `Err`" and is itself
+  **stale** at `6c06b08`. Had I banked the first reading, the correction to the doc would have been
+  as wrong as the thing it corrected, in the opposite direction.
+- **"V9 established that upstream has no output-headroom protection."** V9 is true *as measured* —
+  a token grep for `headroom|reserve|max_tokens|output_budget|effective_window` genuinely returns
+  nothing. The behavioural clause the compaction table built on it ("tiers run off raw
+  `ctx.context_limit`") is not something any token grep can support, and is wrong for the live path.
+  **Generalisable**: a negative-existence grep for the vocabulary of *our* fix establishes only that
+  the other tree does not spell it our way — never that it lacks the property. Upstream's protection
+  is spelled `result_target_pct`, a word no such grep contains. Two quorum rounds read past it.
+- **"R8 needs a rig A/B."** No — both `compact_for_pre_step` and `seal_compacted_payload` are
+  `pure`, so the one open question (is the 70→95 band reachable?) is a direct unit-level call.
+  R8 re-sharpened accordingly.
+- **"`main_dst` is unchanged since iteration 0 measured it."** It moved `303d869 → 6c06b08`. The
+  delta is docs-only (`.agent/prs/2026-08-11-main-dst-integration.md`, +184), so no measurement was
+  invalidated — but the check is why V27–V29 name their own base rather than inheriting one.
+
+**Retro lane**: **process-fix** — queue item 5's precondition replaced with a bounded rule
+(2026-08-27 expiry ⇒ file standalone + carry locally), and the migration doc's matching Deferred
+Decision struck and bounded the same way. No skill edit: the two frictions this iteration surfaced
+(the unbounded-wait-in-a-queue-row, and V9's vocabulary grep) are each at **instance 1** for this
+mission, below Gate 5's ≥2 bar. Both are logged here as watch-items. The V9 shape is close kin to
+the skill's existing rule 3a(i-d) (scope) but is genuinely distinct — 3a(i-d) is about pointing an
+instrument at a path that does not exist; this is about pointing a *correct* instrument at the
+wrong *vocabulary*. If it recurs, that is the skill edit.
+
+**Next**: item 5's remaining unit-level assertion (R8's re-sharpened form) — cheap, and it decides
+PORT vs SUPERSEDED for the last open leg of PR #97. If it is deferred, item 6 (`fmt`
+re-measurement instrument) is the next unblocked design item; items 9–14 remain Phase-0 gated and
+Phase 0 still measures CLOSED (`#154` OPEN, control: `#152` MERGED).
