@@ -229,6 +229,12 @@ func (b *JaegerBackend) GetToolsByTimestampRange(ctx context.Context, start, end
 	return nil, errJaegerNotSupported("GetToolsByTimestampRange")
 }
 
+// LookupChainBySessionID is not supported by the Jaeger backend, matching its
+// LookupTaskBySessionID sibling: session correlation is local-only.
+func (b *JaegerBackend) LookupChainBySessionID(ctx context.Context, sessionID string) (string, string) {
+	return "", ""
+}
+
 // LookupTaskBySessionID is not supported by Jaeger backend (session correlation is local only).
 func (b *JaegerBackend) LookupTaskBySessionID(ctx context.Context, sessionID string) (string, string, string) {
 	return "", "", ""

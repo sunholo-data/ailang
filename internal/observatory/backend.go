@@ -42,6 +42,16 @@ type Backend interface {
 	DeleteSpan(ctx context.Context, id string) error
 	GetTrace(ctx context.Context, traceID string) (*Trace, error)
 	ListTraces(ctx context.Context, opts TraceQuery) ([]*TraceSummary, error)
+	// LookupChainBySessionID resolves a chain and stage from a session id
+	// (M-MISSION-LOOP-UNIFIED-TELEMETRY M1).
+	//
+	// OpenRouter Broadcast delivers our chain id as `session.id`, so this is how
+	// a provider-side trace joins back to the run that caused it. Mirrors
+	// LookupTaskBySessionID's contract deliberately: an unknown session returns
+	// empties rather than an error, because not every session has a chain and
+	// that is ordinary, not a fault.
+	LookupChainBySessionID(ctx context.Context, sessionID string) (chainID, stageID string)
+
 	// LookupTaskBySessionID finds task hierarchy for Claude Code session correlation
 	LookupTaskBySessionID(ctx context.Context, sessionID string) (taskID, assignmentID, traceID string)
 	// LinkOrphanedSpansBySession updates spans with matching session.id that lack task linkage

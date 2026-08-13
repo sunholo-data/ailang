@@ -586,6 +586,13 @@ func (b *GCPTraceBackend) GetToolsByTimestampRange(ctx context.Context, start, e
 	return nil, errNotSupported("GetToolsByTimestampRange")
 }
 
+// LookupChainBySessionID is not supported by the GCP trace backend, matching
+// its LookupTaskBySessionID sibling. Empties, not an error — an unresolvable
+// session is ordinary.
+func (b *GCPTraceBackend) LookupChainBySessionID(ctx context.Context, sessionID string) (string, string) {
+	return "", ""
+}
+
 // LookupTaskBySessionID is not supported by GCP backend (session correlation is local only).
 func (b *GCPTraceBackend) LookupTaskBySessionID(ctx context.Context, sessionID string) (string, string, string) {
 	return "", "", ""

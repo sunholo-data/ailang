@@ -214,6 +214,27 @@ func (s *ObservatoryStore) ListTraces(ctx context.Context, opts obs.TraceQuery) 
 	return result, nil
 }
 
+// LookupChainBySessionID resolves a chain/stage from a session id
+// (M-MISSION-LOOP-UNIFIED-TELEMETRY M1).
+//
+// This is the CLOUD half, and it matters: both deployed observatories run
+// AILANG_STORAGE=gcp, so this — not the SQLite implementation — is what a live
+// OpenRouter Broadcast span actually resolves through.
+//
+// An unrecognised session returns empties, never an error, matching the
+// LookupTaskBySessionID sibling below.
+func (s *ObservatoryStore) LookupChainBySessionID(ctx context.Context, sessionID string) (chainID, stageID string) {
+	if sessionID == "" {
+		return "", ""
+	}
+	doc, err := s.client.Doc(collObsSessions, sessionID).Get(ctx)
+	if err != nil {
+		return "", ""
+	}
+	data := doc.Data()
+	return getString(data, "chain_id"), getString(data, "stage_id")
+}
+
 func (s *ObservatoryStore) LookupTaskBySessionID(ctx context.Context, sessionID string) (taskID, assignmentID, traceID string) {
 	// Check sessions table first
 	doc, err := s.client.Doc(collObsSessions, sessionID).Get(ctx)

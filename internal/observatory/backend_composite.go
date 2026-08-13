@@ -320,6 +320,12 @@ func (b *CompositeBackend) GetToolsByTimestampRange(ctx context.Context, start, 
 	return b.local.GetToolsByTimestampRange(ctx, start, end, toolName)
 }
 
+// LookupChainBySessionID delegates to local, matching its LookupTaskBySessionID
+// sibling: session correlation is local-only.
+func (b *CompositeBackend) LookupChainBySessionID(ctx context.Context, sessionID string) (string, string) {
+	return b.local.LookupChainBySessionID(ctx, sessionID)
+}
+
 // LookupTaskBySessionID delegates to local (session correlation is local only).
 func (b *CompositeBackend) LookupTaskBySessionID(ctx context.Context, sessionID string) (string, string, string) {
 	return b.local.LookupTaskBySessionID(ctx, sessionID)

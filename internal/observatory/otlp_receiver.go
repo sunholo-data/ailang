@@ -451,6 +451,28 @@ func (r *OTLPReceiver) convertLogToSpan(log *logspb.LogRecord, resourceAttrs map
 		stageID = extractString(attrs, "stage_id")
 	}
 
+	// Session-keyed chain resolution (M-MISSION-LOOP-UNIFIED-TELEMETRY M1).
+	//
+	// OpenRouter Broadcast has no way to set ailang.chain_id — it emits whatever
+	// we passed as `session_id` on the request, which arrives here as
+	// `session.id`. Resolving through the sessions table (which already carries
+	// chain_id + stage_id) is what lets a provider-side trace join back to the
+	// run that caused it.
+	//
+	// STRICTLY a fallback. An explicit ailang.chain_id is a direct assertion by
+	// the producer; this is an inference, so the assertion wins. Guarding on
+	// chainID == "" also keeps the Claude Code path — which owns `session.id`
+	// today — behaving exactly as before: its sessions carry no chain, so the
+	// lookup returns empties and nothing changes.
+	if chainID == "" && sessionID != "" {
+		if sc, ss := r.backend.LookupChainBySessionID(context.Background(), sessionID); sc != "" {
+			chainID = sc
+			if stageID == "" {
+				stageID = ss
+			}
+		}
+	}
+
 	// Session-based correlation (M-TASK-HIERARCHY-SESSION-LINKING)
 	// Claude Code internal events have session.id but not task_id.
 	// Look up the parent claude.execute span which has both session.id AND task_id.
@@ -675,6 +697,27 @@ func (r *OTLPReceiver) convertSpan(span *tracepb.Span, resourceAttrs map[string]
 	stageID := extractString(resourceAttrs, "ailang.stage_id")
 	if stageID == "" {
 		stageID = extractString(attrs, "stage_id")
+	}
+
+	// Session-keyed chain resolution (M-MISSION-LOOP-UNIFIED-TELEMETRY M1).
+	//
+	// THIS is the path OpenRouter Broadcast actually takes — it exports traces,
+	// not logs. Broadcast cannot set ailang.chain_id; it echoes the `session_id`
+	// we sent on the request, which arrives as the `session.id` span attribute.
+	// Resolving through the sessions table (already carrying chain_id +
+	// stage_id) is what joins a provider-side trace to the run that caused it.
+	//
+	// STRICTLY a fallback, for two reasons: an explicit ailang.chain_id is a
+	// producer assertion where this is an inference, and `session.id` belongs to
+	// the Claude Code path today — whose sessions carry no chain, so this lookup
+	// returns empties and leaves that path untouched.
+	if chainID == "" && sessionID != "" {
+		if sc, ss := r.backend.LookupChainBySessionID(context.Background(), sessionID); sc != "" {
+			chainID = sc
+			if stageID == "" {
+				stageID = ss
+			}
+		}
 	}
 
 	return &Span{

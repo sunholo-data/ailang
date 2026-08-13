@@ -238,6 +238,12 @@ func (b *SQLiteBackend) ListTraces(ctx context.Context, opts TraceQuery) ([]*Tra
 
 // LookupTaskBySessionID finds task hierarchy for Claude Code session correlation.
 // Used by OTLP receiver to link Claude Code internal events to their parent executor span.
+// LookupChainBySessionID resolves a chain/stage from a session id.
+// See the Backend interface for why an unknown session is not an error.
+func (b *SQLiteBackend) LookupChainBySessionID(ctx context.Context, sessionID string) (chainID, stageID string) {
+	return b.store.LookupChainBySessionID(sessionID)
+}
+
 func (b *SQLiteBackend) LookupTaskBySessionID(ctx context.Context, sessionID string) (taskID, assignmentID, traceID string) {
 	return b.store.LookupTaskBySessionID(sessionID)
 }

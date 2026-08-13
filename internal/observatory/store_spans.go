@@ -662,6 +662,30 @@ func (s *Store) DeleteSpan(id string) error {
 // LookupTaskBySessionID finds task hierarchy info for a given session ID.
 // This enables correlating Claude Code internal events to their parent executor span.
 // Returns taskID, agentAssignmentID, traceID (for trace linking), or empty strings if not found.
+// LookupChainBySessionID resolves the chain and stage a session belongs to
+// (M-MISSION-LOOP-UNIFIED-TELEMETRY M1).
+//
+// This is the reuse that keeps the design honest: `sessions` already carries
+// chain_id and stage_id (migrate_v8), and chain_stages already has a session_id
+// column, so a provider-side trace joins through the linkage that exists rather
+// than through a second, parallel map that would need eternal syncing.
+//
+// An unrecognised session returns empties, NOT an error — most sessions have no
+// chain, and that is ordinary. Mirrors LookupTaskBySessionID below.
+func (s *Store) LookupChainBySessionID(sessionID string) (chainID, stageID string) {
+	if sessionID == "" {
+		return "", ""
+	}
+	var c, st sql.NullString
+	err := s.db.QueryRow(
+		`SELECT chain_id, stage_id FROM sessions WHERE session_id = ?`, sessionID,
+	).Scan(&c, &st)
+	if err != nil {
+		return "", ""
+	}
+	return c.String, st.String
+}
+
 func (s *Store) LookupTaskBySessionID(sessionID string) (taskID, assignmentID, traceID string) {
 	if sessionID == "" {
 		return "", "", ""
