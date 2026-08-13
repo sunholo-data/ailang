@@ -9937,3 +9937,93 @@ conclusion (rule 3a).
 
 **Next**: `m-batch-exit-panic` (`#607`) — P1, ~0.5d, fix shape established, CI fixture + rule-3j
 mutation drill specified in the queue row. `D-1`–`D-14` remain parked on Mark on `#635`.
+
+## 194 — 2026-08-13 — Iteration 192: the `exit()` recover existed on one run path and not its sibling call site — one bad file killed a 2,500-file batch
+
+**Pick**: `m-batch-exit-panic` (`#607`), the charter's `[NEXT]` row and the queue's next unblocked
+item with `D-1`–`D-14` all open and no Mark comment on `#635` (0 directives of 43 since the
+watermark). Confirmed not-already-landed against a fresh `origin` (grep of `git log origin/dev`,
+PR search, worktree scan, issue state) before any work. No design doc and no quorum, by the row's
+own terms: AILANG-fix lane, fix shape established by the sibling path.
+
+**The defect, and why the third arm is the one that matters.** `ailang run --batch` promises
+per-item isolation — it counts failures and prints `Batch complete: X/Y succeeded`. `exit()` raises
+a `*eval.EvalExitCode` sentinel panic (`internal/effects/io.go:145`); `executeBatchItem` called
+`executeModuleEntrypoint` directly with no recover, so the sentinel unwound out of `main`: rc=2, a
+raw Go stack shown to the user, every remaining input silently skipped. Three arms at HEAD
+`47c00318d`: defect (rc=2, stack through `io.go:145` → `run_helpers.go:656` → `main_run_exec.go:326`,
+`[2/2]` never runs, no summary); **mechanism-removed control** (same batch, no `exit()`) → rc=0,
+both items run, `2/2 succeeded`; **path-specificity control** (single-file, same `exit(1)`) → rc=1,
+clean, **zero** panic frames. Rule 3d in the affirmative: the outcomes differ across the mechanism
+arm, so this is `exit()` and not the environment — a single red arm would have proved nothing.
+
+**Two instruments repaired before any conclusion.** The first fixture lived under `/tmp`, where
+MOD010 auto-relaxes and the module-path check is not the one CI runs — the same location-is-part-of-
+the-instrument class the skill records for worktrees, arriving in a scratch fixture. And the first
+`rc=` reading came through a `| tail` pipe and reported tail's status.
+
+**Fix, with the census run before the patch (Critical Principle 3).** `executeModuleEntrypoint` has
+exactly **two** call sites; both are now recovered, so this is complete rather than a one-off patch.
+`exit(N != 0)` fails THAT item and the loop continues; `exit(0)` is a success; non-exit panics are
+re-raised unchanged so a genuine crash stays loud.
+
+**The inverse arm is the finding, not the mutations.** Four mutations, one per recover branch, each
+asserted LANDED (sha256) and BUILDS (`go build` rc=0), each redding only its own arm. But the
+load-bearing measurement is the converse: with the recover removed **and** the new tests skipped,
+the rest of `cmd/ailang` is **rc=0**. Batch mode had no regression tests at all, so the defect
+shipped entirely undetected and would have again. Five tests now. Every restore came from a `cp`
+backup, not `git checkout --` (the files were uncommitted), and was verified byte-identical.
+
+**I caught one of my own tests being hollow before shipping it.** The first draft of
+`TestBatchMode_ExitCodeZeroCountsAsSuccess` asserted on inputs that took the *println* arm and
+never called `exit(0)` — rule 3i's "which write does this read?" pointed at my own test rather than
+at someone else's plan. The shipped version asserts on the exit(0) arm's own stdout line and
+`t.Fatal`s if it is absent. Separately, the re-panic branch is unreachable from any `.ail` fixture,
+so rather than declare it a residual I split the recover into `recoverBatchItemExit` and unit-tested
+it directly — the evaluator independently confirmed the unreachability *and* found a real non-exit
+panic site in the evaluator (`eval_operations.go:405` under `DEBUG_STRICT=1`), so the branch is
+worth guarding rather than defensive theatre.
+
+**Evaluator sonnet PASS 96/100 round 1, zero blocking** (generator≠judge: opus author, sonnet
+judge). It reproduced every claim first-party — all four mutations, the inverse arm, the full gate
+sweep, the pre-fix stack frame-for-frame, and the `go build ./...` baseline against the pinned
+checkout. Nothing it checked was false. What it found was that the completeness framing was
+**understated**: the two-call-site census is correct *as scoped to `executeModuleEntrypoint`*, and
+one level up `runtime.CallEntrypoint` has two further call sites in `internal/embed/embed.go`
+with **zero** `recover()` in the package. I reproduced that before acting on it (rule 3b(v)):
+`grep -c 'recover()' internal/embed/embed.go` = 0, control `cmd/ailang/run_helpers.go` = 2, scope
+control (file exists) YES. So `exit()` in embedded AILANG panics the **host** — a crash rather than
+an exit code for a long-lived dashboard process. Filed as `#691` rather than fixed inline, because
+an embedding host has no `os.Exit` semantics to map onto and the contract is a real decision.
+Second finding filed as `#692` (batch never calls `flushDebugOutput`). Third (`--quiet` batch loses
+per-item attribution) recorded as pre-existing, not filed.
+
+**A bookkeeping instrument defect, found by not trusting an exit code.** The PR body's `Fixes #607`
+auto-closed the issue *before* my close-with-evidence ran, and `gh issue close --comment` on an
+already-closed issue **silently drops the comment while exiting 0** — it prints only
+`! ... is already closed`. Caught by re-reading the comment count (1 — iteration 191's triage) instead
+of trusting the command; re-posted via `gh issue comment --body-file` and verified (2). This is the
+vacuous-pass shape the mission keeps closing, now in the reporting channel: success reported for a
+message never delivered. Since a PR's `Fixes #N` auto-close is the *normal* path, this will recur
+for any iteration that closes its own issue.
+
+**Routing evidence**: controller **opus** (session default — see the anomaly), evaluator **sonnet**;
+designer, planner and executor **not fired** — the queue row explicitly sanctions direct-fix for an
+established fix shape (same class as `m-nightly-run-validity-gate`), so the only spawned role was
+the independent judge, and generator≠judge holds through model diversity rather than provider
+diversity. Rotation pointer untouched. `metered=$0.00` — no quorum, no cross-provider lane fired.
+⚠ **`$MODEL` env UNSET again, instance 2 after iteration 191.** Harmless this fire because the
+session default *is* opus, which is the policy pin — but that makes the invariant luck rather than
+configuration, and it is now a pattern rather than an incident. Driver-side fix owed.
+
+**Ruled out**: *"`go build ./...` red means my change broke the build"* — REFUTED, identical rc=1 on
+the pristine pinned tree (`cmd/wasm` has no native `main`), package-scoped build rc=0 both sides
+(rule 3e, baselined not assumed); *"the two-call-site census closes the class"* — REFUTED one level
+up by the evaluator, → `#691`; *"my exit(0) test covers the exit(0) arm"* — REFUTED against my own
+first draft; *"the running skill matches origin"* — initially asserted from the **wrong copy** (the
+pin worktree's, not the `readlink` destination in the main checkout) and only true once re-measured.
+
+**Next**: `m-mapE-queryall-retention` (`#610`) is the next charter row but its design is gated on
+repro infra this rig lacks (duckdb CLI + `sunholo/duckdb@0.1.1` + `-memprofile`), so the likely pick
+is `#691` — this iteration's own finding — which wants a one-word contract decision first.
+`D-1`–`D-14` remain parked on Mark on `#635`.
