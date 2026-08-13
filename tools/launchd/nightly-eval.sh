@@ -28,6 +28,17 @@ set -euo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO"
 
+# Load API keys (OPENROUTER_API_KEY, etc.) — the local ollama profile's motoko
+# canary pre-flight requires OPENROUTER_API_KEY even for local models (motoko
+# routes ALL models via OpenRouter), and the non-login launchd env doesn't have
+# it. Without this the canary fails, every local model is skipped, eval-suite
+# exits "No models support agent evaluation", and the nightly banks ZERO rows
+# (#665). Mirrors os-rotation-filler.sh / mission-control.sh. secrets.env uses
+# `export KEY=...`.
+# shellcheck source=/dev/null
+# shellcheck disable=SC1091
+[ -f "$HOME/.config/ailang/secrets.env" ] && . "$HOME/.config/ailang/secrets.env"
+
 LOG=/tmp/ailang-nightly-eval.log
 RESULTS_DIR="/tmp/nightly_eval_$(date +%Y%m%d)"
 DATE=$(date +%Y-%m-%d)
