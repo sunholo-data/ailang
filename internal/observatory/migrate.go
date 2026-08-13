@@ -10,6 +10,14 @@ import (
 //go:embed schema.sql schema_chains.sql
 var schemaFS embed.FS
 
+// CurrentSchemaVersion is the version a fully-migrated database reports.
+//
+// Bump this in the same commit as a new migrateVN. Tests assert against this
+// constant rather than a literal, so adding a migration does not require
+// editing unrelated test expectations — that churn is what made the v18 bump
+// look like a regression.
+const CurrentSchemaVersion = 18
+
 // Migrate runs database migrations to create or update the observatory schema.
 // It is idempotent - safe to call multiple times.
 func Migrate(db *sql.DB) error {
@@ -499,6 +507,15 @@ func MigrateWithVersion(db *sql.DB) (int, error) {
 	// Migration v17: chain_stages.cost_provenance (metered vs subscription).
 	if currentVersion < 17 {
 		currentVersion, err = migrateV17(db, currentVersion)
+		if err != nil {
+			return currentVersion, err
+		}
+	}
+
+	// Migration v18: repair trace/span IDs corrupted by the OTLP/JSON decode
+	// defect (M-OPENROUTER-BROADCAST-INGEST).
+	if currentVersion < 18 {
+		currentVersion, err = migrateV18(db, currentVersion)
 		if err != nil {
 			return currentVersion, err
 		}

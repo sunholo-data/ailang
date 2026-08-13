@@ -79,7 +79,8 @@ func TestMigrateWithVersion(t *testing.T) {
 	// v15=eval_baselines table backfill (M-EVAL-OS-LONGITUDINAL Phase 2)
 	// v16=ELO rating tables (M-EVAL-RATING-EFFICIENCY part 2)
 	// v17=chain_stages.cost_provenance (metered vs subscription cost)
-	expectedVersion := 17
+	// v18=repair OTLP/JSON-corrupted trace/span ids (M-OPENROUTER-BROADCAST-INGEST)
+	expectedVersion := CurrentSchemaVersion
 	if version != expectedVersion {
 		t.Errorf("expected version %d, got %d", expectedVersion, version)
 	}
@@ -89,8 +90,8 @@ func TestMigrateWithVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second MigrateWithVersion failed: %v", err)
 	}
-	if version != 17 {
-		t.Errorf("expected version 17 on second call, got %d", version)
+	if version != CurrentSchemaVersion {
+		t.Errorf("expected version %d on second call, got %d", CurrentSchemaVersion, version)
 	}
 }
 
@@ -132,8 +133,8 @@ func TestMigrateWithVersion_V15BackfillsEvalBaselines(t *testing.T) {
 	if err != nil {
 		t.Fatalf("v15 MigrateWithVersion failed: %v", err)
 	}
-	if version != 17 {
-		t.Errorf("expected version 17 after backfill, got %d", version)
+	if version != CurrentSchemaVersion {
+		t.Errorf("expected version %d after backfill, got %d", CurrentSchemaVersion, version)
 	}
 	if !tableExists(t, db, "eval_baselines") {
 		t.Error("eval_baselines table should exist after the v15 migration")
