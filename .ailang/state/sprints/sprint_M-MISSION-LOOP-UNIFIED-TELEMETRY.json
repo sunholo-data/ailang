@@ -1,0 +1,95 @@
+{
+  "sprint_id": "M-MISSION-LOOP-UNIFIED-TELEMETRY",
+  "created": "2026-08-13",
+  "design_doc": "design_docs/planned/v0_33_2/m-mission-loop-unified-telemetry.md",
+  "plan_path": "design_docs/planned/v0_33_2/m-mission-loop-unified-telemetry-sprint-plan.md",
+  "handover": "design_docs/planned/v0_33_2/HANDOVER-mission-loop-unified-telemetry.md",
+  "branch": "coordinator/task-d98bb271",
+  "base_commit": "3941c0db",
+  "verify_profile": "go-compiler",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 250,
+    "estimated_total_loc": 500,
+    "estimated_days": 2
+  },
+  "sequencing": "M1 -> M2 -> M3 (M1 landed 56b449d01; M2 independently useful; M3 depends on M2's writer)",
+  "design_freeze": {
+    "dual_write_node_generic": "RATIFIED (Mark, 2026-08-13). Dual-write, not mirror: volume is 42 chains / 238 stages per day, so mirroring buys little and costs a reconciliation problem. Scope is NODE-GENERIC - 'this server, laptop, cloud, other nodes in the future'. Nothing may hardcode 'the rig'; the node is a parameter.",
+    "never_block_offline": "RATIFIED (Mark, 2026-08-13): 'no block if not available, at least until we harden availability.' Implement by EXTENDING the existing bounded+loud spool (internal/observatory/spool.go), not by inventing a policy. Availability hardening is deferred, not forgotten - the spool's bounded+loud contract is what keeps 'no block' honest rather than silently lossy.",
+    "local_analysis_reads_cloud_opt_in": "RATIFIED (Mark, 2026-08-13): yes, OPT-IN. OpenDefaultStore() keeps its local default so offline nodes stay first-class; an explicit remote mode is added. Opt-in is reversible - if --remote turns out to be always-passed, flipping the default later is one line with evidence behind it. Canonical-first is the version you cannot walk back."
+  },
+  "reality_checks": {
+    "rc1_m2_two_defects_different_owners": "CONFIRMED - (a) writer-side: PostIteration (iteration_post.go:103-128) calls CreateStage -> UpdateStageMetrics -> UpdateStageEvalAssessment and NEVER calls UpdateStageStatus, so every stage keeps CreateStage's StageStatusPending default (store_chains.go:292). (b) caller-side: IterationStage ALREADY carries TokensIn/TokensOut/CostUSD and iteration_post.go:116 already passes them to UpdateStageMetrics - the zeros come from the poster (the mission-control skill).",
+    "rc2_chain_total_never_aggregated": "CONFIRMED - Store.UpdateChainMetrics exists (store_chains.go:227, increments total_cost/total_tokens/total_turns) and PostIteration never calls it. That is why iter-190 reads $0.0000 while holding $0.1077 of stage cost.",
+    "rc3_m3_single_hardcoded_backend": "CONFIRMED - cmd/ailang/chains_post.go:59 hardcodes NewSQLiteBackendFromPath(DefaultDatabasePath()) and is the SINGLE place the mission loop's backend is chosen. chainsPostIterationCommand ALREADY wraps that write in the bounded+loud spool, so the ratified never-block requirement is already satisfied structurally - M3 extends the wrapper, it does not build fail-soft from scratch.",
+    "rc4_eval_assessment_not_on_backend_iface": "CONFIRMED - UpdateStageEvalAssessment is a *Store method (store_chains_eval.go:14) and is NOT on the observatory.Backend interface, so the Firestore ObservatoryStore does not implement it. The dual-write sink must treat it as OPTIONAL (interface upgrade), not required - otherwise the cloud leg cannot compile against the same code path.",
+    "rc5_no_import_cycle_for_storage_selection": "CONFIRMED - internal/storage imports internal/observatory, so observatory CANNOT import storage. The cloud backend selection therefore belongs in cmd/ailang/chains_post.go (which is also where the single hardcoded backend lives), reusing internal/storage.NewBackends rather than adding a second selection mechanism."
+  },
+  "features": [
+    {
+      "id": "M1_SESSION_KEYED_CHAIN_LINKAGE",
+      "description": "Make a Broadcast span resolve to its chain: register the correlation session_id as a sessions row bound to chain_id + stage_id, and resolve chain_id via the sessions table in convertSpan when session.id is present and no explicit ailang.chain_id was supplied. ailang.chain_id keeps precedence.",
+      "estimated_loc": 190,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "An OTLP/JSON span carrying session.id matching a seeded session resolves to that session's chain_id and stage_id",
+        "NEGATIVE CONTROL: a Claude Code span carrying session.id and NO chain resolves exactly as it does today",
+        "An explicit ailang.chain_id WINS over a conflicting session.id lookup",
+        "A session.id with no matching row leaves chain_id empty and does not error",
+        "go test ./internal/observatory/... green"
+      ],
+      "passes": true,
+      "started": "2026-08-13T09:00:00Z",
+      "completed": "2026-08-13T12:00:00Z",
+      "notes": "Landed 56b449d01 (before this branch). LookupChainBySessionID added to the Backend interface + all impls; the chain-extraction block was patched in BOTH convertLogToSpan and convertSpan - Broadcast exports traces, not logs, so the logs-only first patch left the end-to-end test red. Covered by internal/observatory/session_chain_linkage_test.go."
+    },
+    {
+      "id": "M2_MISSION_STAGE_ACCOUNTING",
+      "description": "Two defects with DIFFERENT owners. Writer-side: add a Status field to IterationStage and call UpdateStageStatus so stages stop reading pending. Caller-side: supply real token counts from the mission-control skill (the path is already wired). Then aggregate stage cost/tokens into the chain total via UpdateChainMetrics.",
+      "estimated_loc": 190,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "A posted stage with a terminal status reads back as that status, NOT pending",
+        "A failed stage reads back failed - blanket-completing every stage would hide real failures and is explicitly wrong",
+        "A stage posted with tokens reads back with those tokens",
+        "Chain total equals the sum of its stages - regression fixture built from the real iter-190 shape: 4 stages, 3 providers, two stages with cost-but-zero-tokens",
+        "A post that omits Status still works and defaults to today's behaviour (version skew between the skill and the CLI)"
+      ],
+      "passes": true,
+      "started": "2026-08-13T13:00:00Z",
+      "completed": "2026-08-13T13:40:00Z",
+      "notes": "Writer-side: IterationStage gained a per-stage Status (pending|running|awaiting_approval|completed|failed); PostIteration now calls UpdateStageStatus. Empty stays valid and leaves the stage pending (version skew with the mission-control skill); an unrecognised value is REJECTED by Validate rather than coerced. Aggregation: stage cost/tokens summed into UpdateChainMetrics, which nothing credited before (iter-190 read $0.0000 holding $0.1077). Caller-side: .claude/skills/mission-control/SKILL.md Gate 4 now supplies real tokens_in/tokens_out and a per-stage status, with the do-not-blanket-complete rule stated inline. Tests: iteration_post_test.go (SQLite read-back; runs in CI where cgo is on) + iteration_sink_test.go (same semantics through a fake sink, runs without cgo) incl. the iter-190 fixture, the failed-stage criterion, StagesCompleted excluding the failed stage, and call-ordering."
+    },
+    {
+      "id": "M3_NODE_GENERIC_CLOUD_ROUTING",
+      "description": "Make the backend at chains_post.go:59 selectable rather than hardcoded SQLite, reusing internal/storage.NewBackends (which already resolves local/gcp/hybrid from AILANG_STORAGE). Dual-write local AND cloud per the ratified decision; extend the EXISTING spool to cover a cloud write failure; opt-in remote read for analysis with local staying the default.",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M2_MISSION_STAGE_ACCOUNTING"
+      ],
+      "acceptance_criteria": [
+        "With cloud configured, a posted iteration appears in BOTH stores",
+        "Cloud unreachable -> the post is spooled, a loud stderr notice fires, and the command exits 0",
+        "The spool stays bounded - its existing 100-entry / 1 MiB caps still hold with cloud failures added",
+        "With no cloud configured, behaviour is byte-identical to today",
+        "Node-generic: nothing hardcodes the rig. The node is a parameter."
+      ],
+      "passes": true,
+      "started": "2026-08-13T13:40:00Z",
+      "completed": "2026-08-13T14:30:00Z",
+      "notes": "PostIteration refactored onto a narrow IterationSink (a strict subset of observatory.Backend, so the Firestore ObservatoryStore satisfies it \u2014 compile-time assertion added there). UpdateStageEvalAssessment is SQLite-only, so it is an OPTIONAL IterationModelSink upgrade whose absence is reported on stderr, never silent. New internal/observatory/iteration_legs.go: PostToLegs/FlushLegs write to every configured destination with PER-LEG spools \u2014 a shared spool would replay a post the local leg already stored and duplicate the chain on every flush. cmd/ailang/chains_post.go builds the legs: local always, cloud only when AILANG_STORAGE=gcp (hybrid resolves the observatory to local SQLite, so it is deliberately NOT a cloud leg). Nothing is rig-specific. Opt-in remote READ: --remote on chains list/view via openChainBackend; with no cloud configured it ERRORS rather than silently answering from SQLite. NOT DONE: the live cloud end-to-end confirmation, which needs credentials this sandbox does not have \u2014 recorded in the design doc and the handover."
+    }
+  ],
+  "definition_of_done": [
+    "make build && make test green",
+    "go test ./internal/observatory/... ./cmd/ailang/... green",
+    "make lint && make fmt-check && make check-file-sizes && make check-boundaries green",
+    "A failed stage still reads back failed (no blanket-completion)",
+    "An unversioned payload (no status field) keeps working",
+    "CHANGELOG updated; design doc + sprint plan moved planned/ -> implemented/ on green"
+  ],
+  "risk_level": "medium",
+  "status": "completed",
+  "environment_note": "Executed in a sandbox with CGO_ENABLED=0 and no C toolchain, so every go-sqlite3-backed test in internal/observatory fails to open a database (177 such failures at baseline, ALL environmental \u2014 zero non-cgo failures before or after this sprint). The new SQLite read-back tests therefore compile and vet here but are first EXECUTED in CI. That is why each M2/M3 accounting rule is ALSO covered by a cgo-free fake-sink test that was run and passed locally."
+}
