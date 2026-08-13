@@ -926,7 +926,47 @@ the Repo Profile above):
    do not hope; **(d)** file the residue as explicit cleanup work rather than fixing it inline,
    so the sprint's own docs milestone owns it. The tell: you are routing milestone N of a
    multi-milestone sprint whose design doc was edited after its plan was written — which, in a
-   loop that answers human directives by editing the doc, is most of them. — a probe identifies the endpoint you REACHED, never the
+   loop that answers human directives by editing the doc, is most of them.
+   **(viii) THE HOST PLATFORM IS A NARROWING YOU NEVER TYPED, SO THERE IS NO FLAG TO NOTICE — AND
+   IT IS THE ONE NARROWING THAT SILENTLY CHANGES WHAT YOUR CODE *MEANS*, NOT JUST WHICH TESTS RAN**
+   (added 2026-08-13 V1 iteration 195; three recorded frictions, one first-party and measured).
+   Rule 3b(ii) makes a `-run`/`-skip`/`--version`/single-package narrowing travel with the finding,
+   because you typed it and can therefore see it. Rule 3b(v) adds the shapes with no flag —
+   `| head -N`, a transcribed value. **The platform is the purest member of that second family:**
+   you never wrote `--os=darwin`, nothing in the output says `darwin`, and every command reads as
+   unqualified. So "the tests pass" is uttered honestly about a matrix leg you cannot run, and rule
+   3g does not catch it — 3g asks whether you ran the right *commands*, and here the command list
+   was complete and every one of them was green.
+   What makes it worse than an ordinary narrowing: on another platform the same source has
+   **different semantics**, so the failure is not "a test I didn't run" but "a test whose input the
+   code never received". Iteration 195's own instance, filed as BLOCKING by the evaluator against
+   the controller's PR: two new negative arms set `t.Setenv("HOME", …)` to drive a guard through
+   `os.UserHomeDir()` — which reads **`USERPROFILE`** on windows and `$home` on plan9. On Windows
+   the runner's real profile resolved anyway, so the guard never saw the input the test believed it
+   supplied, and both arms **failed for the PLATFORM rather than for the code** — inside a sprint
+   whose entire subject was arms that do not pin what they claim. The controller's PR body had
+   claimed *"Gates (all outside the sandbox) … rc=0"* with no Windows caveat, and every one of
+   those commands really had returned rc=0. Two corroborating frictions in this mission's own
+   charter, both Windows, both invisible locally and both caught only by Gate 3b: iteration 120's
+   *"Windows `.exe` fix Gate 3b caught"*, and the recorded finding that *"Windows env vars are
+   case-INSENSITIVE, so `http_proxy`/`HTTP_PROXY` are ONE variable"*.
+   Rules: **(a)** before writing "the gates pass" anywhere a human or a downstream role will read
+   it, name the platform — "green on darwin/arm64; windows and ubuntu legs unrun locally" — so the
+   narrowing travels exactly as 3b(ii) requires of a `-run`; **(b)** when a diff touches anything
+   whose meaning is per-GOOS — env-var *names* (`HOME`/`USERPROFILE`), path separators and drive
+   letters, case-sensitivity of filesystems AND of env vars, line endings, symlinks, file
+   permissions, executable suffixes, temp-dir shape, `os/user` and `os.UserHomeDir` — treat a
+   single-platform green as **UNINFORMATIVE for that behaviour**, in the same voice the codex recipe
+   uses for a sandbox denial; **(c)** prefer a helper that sets EVERY variable the stdlib consults
+   over the one your machine happens to read, since the portable form costs a line and the
+   non-portable one costs a CI cycle plus a merge block; **(d)** Gate 3b is the only instrument that
+   sees the whole matrix, so a red there on a leg you cannot reproduce is **information, not noise**
+   — read which leg and why before reaching for a re-run, and note that the required-contexts list
+   may not include it, so a matrix leg can be genuinely broken while the merge button stays green.
+   The tell: you are about to write "all gates green" and every command you ran executed on one
+   machine, whose operating system you did not mention because it did not occur to you that it was
+   a parameter. Mission-independent: under `ailang-code` the same axis is whatever `ailang check`
+   resolves differently per host.
 3c. **"THE SERVICE" IS AN ASSUMPTION — a probe identifies the endpoint you REACHED, never the
    service you NAMED** (added 2026-08-01 iteration 130; 2nd instance of this gap after iteration
    129 recorded "ollama server is 0.31.2, up 11 days; client already 0.32.1" as a fact and built a
