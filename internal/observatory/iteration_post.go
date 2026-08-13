@@ -40,6 +40,18 @@ type IterationStage struct {
 	// It is encoded into the free-text agent_id as "<role> (quota:<bucket>)" so it
 	// is visible in `chains view` with NO schema change.
 	QuotaBucket string `json:"quota_bucket,omitempty"`
+	// Status is the stage's outcome, from the existing ChainStageStatus vocabulary:
+	// pending | running | awaiting_approval | completed | failed.
+	//
+	// A stage that FAILED must post "failed". Posting "completed" for every stage
+	// would satisfy "nothing stays pending" while hiding real failures — that is the
+	// wrong fix, and the reason this field is free-form outcome rather than a bool.
+	//
+	// EMPTY IS VALID and means "not reported": the stage keeps CreateStage's
+	// `pending` default, i.e. exactly today's behaviour. The mission-control skill
+	// and this CLI ship independently, so a payload written before this field
+	// existed must keep working.
+	Status string `json:"status,omitempty"`
 }
 
 // IterationPost is one mission iteration to be posted as a chain.
@@ -61,6 +73,24 @@ func (st IterationStage) agentIDFor() string {
 	return st.Role
 }
 
+// stageStatus resolves a posted status to the store vocabulary. An EMPTY status
+// resolves to ("", nil) — "leave the stage at its CreateStage default", which is
+// the version-skew path for payloads written before Status existed. An unknown
+// status is an error rather than a silent coercion: coercing it would report an
+// outcome the caller never claimed.
+func (st IterationStage) stageStatus() (ChainStageStatus, error) {
+	switch ChainStageStatus(st.Status) {
+	case "":
+		return "", nil
+	case StageStatusPending, StageStatusRunning, StageStatusAwaitingApproval,
+		StageStatusCompleted, StageStatusFailed:
+		return ChainStageStatus(st.Status), nil
+	}
+	return "", fmt.Errorf("unknown status %q (want one of: %s, %s, %s, %s, %s)",
+		st.Status, StageStatusPending, StageStatusRunning, StageStatusAwaitingApproval,
+		StageStatusCompleted, StageStatusFailed)
+}
+
 // Validate checks the post is well-formed before it hits storage (or the spool).
 func (p *IterationPost) Validate() error {
 	if p.Source == "" {
@@ -76,15 +106,20 @@ func (p *IterationPost) Validate() error {
 		if st.QuotaBucket != "" && (st.TokensIn != 0 || st.TokensOut != 0 || st.CostUSD != 0) {
 			return fmt.Errorf("iteration post: quota-lane stage %q must have zero tokens and cost (subscription spend is bucket-visible, not dollar-faked)", st.Role)
 		}
+		if _, err := st.stageStatus(); err != nil {
+			return fmt.Errorf("iteration post: stage %d (%s): %w", i, st.Role, err)
+		}
 	}
 	return nil
 }
 
 // PostIteration writes one iteration chain and its stages to the observatory SQLite
-// store. The chain and each stage are created; a per-stage failure aborts and
-// returns an error (the caller spools the WHOLE post for retry). The quota bucket is
-// encoded into agent_id. It takes *SQLiteBackend directly because it writes the
-// stage model via eval_assessment (a store-level write not on the Backend interface)
+// store. The chain and each stage are created, each stage's reported outcome is
+// applied, and the stage costs/tokens are rolled up into the chain total; a
+// per-stage failure aborts and returns an error (the caller spools the WHOLE post
+// for retry). The quota bucket is encoded into agent_id. It takes *SQLiteBackend
+// directly because it writes the stage model via eval_assessment (a store-level
+// write not on the Backend interface)
 // and because `ailang chains` is offline-first (direct SQLite).
 func PostIteration(ctx context.Context, backend *SQLiteBackend, p *IterationPost) (string, error) {
 	if err := p.Validate(); err != nil {
@@ -99,6 +134,17 @@ func PostIteration(ctx context.Context, backend *SQLiteBackend, p *IterationPost
 	if err != nil {
 		return "", fmt.Errorf("create iteration chain: %w", err)
 	}
+
+	// Chain totals are denormalized, and nothing else writes them for a mission
+	// chain — so an iteration that holds real per-stage spend reported $0.0000 as
+	// its total (measured on mission:v1/iter-190). Accumulate as we go and roll up
+	// once, after every stage has landed.
+	var (
+		totalCost   float64
+		totalTokens int
+		anyFailed   bool
+		allTerminal = true
+	)
 
 	for i, st := range p.Stages {
 		stage, err := store.CreateStage(ctx, &StageCreateRequest{
@@ -124,6 +170,49 @@ func PostIteration(ctx context.Context, backend *SQLiteBackend, p *IterationPost
 			}); err != nil {
 				return chain.ID, fmt.Errorf("update stage %d model: %w", i, err)
 			}
+		}
+		// Outcome. Validate already rejected an unknown status, so the only error
+		// here is a store failure. An empty status leaves the CreateStage default.
+		status, _ := st.stageStatus()
+		if status != "" {
+			if err := store.UpdateStageStatus(ctx, stage.ID, status); err != nil {
+				return chain.ID, fmt.Errorf("update stage %d status: %w", i, err)
+			}
+		}
+
+		totalCost += st.CostUSD
+		totalTokens += st.TokensIn + st.TokensOut
+		switch status {
+		case StageStatusFailed:
+			anyFailed = true
+		case StageStatusCompleted:
+		default:
+			// Unreported, running, or awaiting approval: the iteration is not
+			// finished, so the chain must not claim an outcome.
+			allTerminal = false
+		}
+	}
+
+	// Roll the stages up into the chain. UpdateChainMetrics is additive and the
+	// chain was created in this call, so this is the sum, not a re-add.
+	if totalCost != 0 || totalTokens != 0 {
+		if err := store.UpdateChainMetrics(ctx, chain.ID, totalCost, totalTokens, 0); err != nil {
+			return chain.ID, fmt.Errorf("aggregate chain metrics: %w", err)
+		}
+	}
+
+	// Chain outcome, derived ONLY when every stage reported a terminal one — a post
+	// that omits Status (or is still mid-flight) leaves the chain `active`, which is
+	// today's behaviour. One failed stage fails the iteration: a mission iteration
+	// that lost a stage did not succeed, and "completed with a failed stage inside"
+	// is the reading this whole milestone exists to prevent.
+	if allTerminal {
+		chainStatus := ChainStatusCompleted
+		if anyFailed {
+			chainStatus = ChainStatusFailed
+		}
+		if err := store.UpdateChainStatus(ctx, chain.ID, chainStatus); err != nil {
+			return chain.ID, fmt.Errorf("set chain status: %w", err)
 		}
 	}
 

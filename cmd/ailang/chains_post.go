@@ -14,11 +14,19 @@ package main
 //	{
 //	  "source": "mission:v1/iter-42",
 //	  "stages": [
-//	    {"role":"codex-executor","provider":"codex","model":"claude-sonnet-4-5","cost_usd":0.42,"tokens_in":1000,"tokens_out":500},
-//	    {"role":"controller","quota_bucket":"opus"},
-//	    {"role":"evaluator","quota_bucket":"sonnet"}
+//	    {"role":"codex-executor","provider":"codex","model":"claude-sonnet-4-5","cost_usd":0.42,"tokens_in":1000,"tokens_out":500,"status":"completed"},
+//	    {"role":"controller","quota_bucket":"opus","status":"completed"},
+//	    {"role":"evaluator","quota_bucket":"sonnet","status":"failed"}
 //	  ]
 //	}
+//
+// `status` is optional (omitting it leaves the stage `pending`, the pre-v0.33.2
+// behaviour) but SHOULD be posted. Post the stage's REAL outcome: marking every
+// stage `completed` hides the failures this record exists to surface.
+//
+// The success line echoes the totals actually recorded, so a payload that forgot
+// its token counts is visible at the call site rather than three weeks later in a
+// cost rollup.
 
 import (
 	"context"
@@ -94,7 +102,29 @@ func chainsPostIterationCommand() {
 		_ = spool.Append(post)
 		return
 	}
-	fmt.Printf("Posted iteration chain %s (source %s, %d stages)\n", chainID, post.Source, len(post.Stages))
+	cost, tokens, unreported := postTotals(post)
+	fmt.Printf("Posted iteration chain %s (source %s, %d stages, $%.4f, %d tokens)\n",
+		chainID, post.Source, len(post.Stages), cost, tokens)
+	if unreported > 0 {
+		// Not an error — a payload may legitimately post mid-flight stages. But an
+		// unreported stage reads back `pending` forever, so say it out loud here
+		// rather than let it be discovered in a cost rollup weeks later.
+		fmt.Fprintf(os.Stderr, "chains post-iteration: %d of %d stages posted no status and stay 'pending'\n",
+			unreported, len(post.Stages))
+	}
+}
+
+// postTotals sums what the post claims, for the echo line: metered dollars, total
+// tokens, and how many stages reported no outcome.
+func postTotals(post *observatory.IterationPost) (cost float64, tokens, unreported int) {
+	for _, st := range post.Stages {
+		cost += st.CostUSD
+		tokens += st.TokensIn + st.TokensOut
+		if st.Status == "" {
+			unreported++
+		}
+	}
+	return cost, tokens, unreported
 }
 
 // flushSpool drains buffered posts and re-posts them; posts that still fail are
