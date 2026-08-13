@@ -59,25 +59,41 @@ curl -s -X POST -H "Content-Type: application/json" -d '{"resourceSpans":[]}' \
 
 Measured 2026-08-13: prod and dev both 200 on `/v1/traces`, both 404 on the control.
 
-## KNOWN DEFECT: OTLP/JSON mangles trace and span IDs
+## OTLP/JSON ID decoding — FIXED IN CODE, NOT YET DEPLOYED
 
-[`internal/observatory/otlp_receiver.go:166`](../../internal/observatory/otlp_receiver.go) decodes
-JSON bodies with `protojson.Unmarshal`, which follows the proto3 JSON mapping and treats `bytes`
-fields as **base64**. The OTLP/JSON spec overrides this: `traceId`/`spanId` are **hex** strings.
-So every OTLP/JSON ingest silently corrupts both IDs and still returns `HTTP 200 {"partialSuccess":{}}`.
+OTLP/JSON encodes `traceId`/`spanId` as **hex**; `protojson` correctly implements the proto3 JSON
+mapping, which decodes `bytes` as **base64**. Feeding a spec-compliant body straight to `protojson`
+therefore stored 24 bytes where 16 were meant, and still answered `HTTP 200 {"partialSuccess":{}}`.
 
-Same bug at `otlp_receiver.go:233` (logs) and in `otlp_receiver_metrics.go`. The protobuf path
-(`otlp_receiver.go:161`) is correct.
+**Fixed by `normalizeOTLPJSONIDs`** ([otlp_json_ids.go](../../internal/observatory/otlp_json_ids.go)),
+applied at all three JSON decode sites plus their content-type-sniffing fallbacks. Malformed IDs now
+return a typed **400** and write no row. `migrate_v18` repairs existing rows — the corruption is
+lossless, so `base64encode(unhexlify(stored))` recovers the original exactly.
 
-Symptom — a stored trace ID that is **48 hex chars instead of 32**:
+> **PRODUCTION STILL HAS THE OLD BINARY.** The fix landed on `dev`; Cloud Run has not been
+> redeployed. Until it is, live OpenRouter Broadcast spans keep arriving with 48-char trace IDs.
+> Nothing is being lost — `migrate_v18` is idempotent and covers whatever accumulates first.
+
+Symptom of an unfixed receiver — a stored trace ID **48 hex chars instead of 32**:
 
 ```
 sent    5b8aa5a2d2c872e8321cf37308d69df2                  (16 bytes)
 stored  e5bf1a6b96b677673cef67bcdf6d5c7f7ef7d3c77af5d7f6  (24 bytes) == base64decode(sent)
 ```
 
-Check any new OTLP/JSON producer before trusting its correlation:
+Check what production is actually storing:
 
 ```bash
 curl -s "https://dashboard.ailang.sunholo.com/api/observatory/spans?limit=5" | python3 -m json.tool
 ```
+
+## OTLP ingest auth (available, OFF by default)
+
+`AILANG_OTLP_INGEST_TOKEN` gates `/v1/traces`, `/v1/logs`, `/v1/metrics` behind a shared secret, sent
+as `X-AILANG-Ingest-Token` or `Authorization: Bearer`. **Unset or empty = auth disabled**, which is
+how it ships — Broadcast is already streaming to prod and the rig posts to `localhost:1957` with no
+credential, so an enforcing default would break both on deploy.
+
+Enabling it takes **both** sides, or ingest silently stops: set the Cloud Run env var **and** add the
+matching custom header on the OpenRouter destination. Verify with a before/after span count, never
+with a 200.

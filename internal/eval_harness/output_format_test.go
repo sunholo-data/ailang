@@ -9,7 +9,7 @@ func TestIsOutputFormatFailure(t *testing.T) {
 		actual   string
 		want     bool
 	}{
-		// The motivating case: tree_transformation_pipeline, or-deepseek-v4-pro-0813,
+		// The motivating case: tree_transformation_pipeline, ran as or-deepseek-v4-pro-0813
 		// 2026-08-13 core run. Every value correct, every line labelled.
 		{
 			name:     "labelled values, the real regression",

@@ -216,7 +216,8 @@ const (
 	// capability one.
 	//
 	// Frequency is currently LOW and unmeasured at scale: observed on
-	// tree_transformation_pipeline (or-deepseek-v4-pro-0813, 2026-08-13 core
+	// tree_transformation_pipeline (ran as or-deepseek-v4-pro-0813 before that id
+	// was folded into or-deepseek-v4-pro by the 2026-08-13 repoint; 2026-08-13 core
 	// run), and IsOutputFormatFailure reclassifies 0 of the 72 logic_error rows
 	// in the v0.32.0 baseline. That zero is the point — an earlier, looser
 	// heuristic claimed 17 such rows and every one it found was a genuine wrong

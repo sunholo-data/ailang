@@ -2416,6 +2416,12 @@ models:
   # DeepSeek V4 Pro (agent) — re-test 2026-06-04. Pro tier of the v4 line;
   # 2026-05-04 precedent had V4 Pro UNDER-performing Flash on smoke (1/3 vs 2/3),
   # but that was on the old harness — re-evaluate on current core.
+  # ⚠️ STILL ON THE SUPERSEDED APRIL PREVIEW SLUG, and deliberately so: this
+  # agent-lane entry is in NO suite (Mark removed it from agent_suite 2026-08-03
+  # as unreliable via opencode), and repointing it at the 0813 GA would be an
+  # ungated change to a lane that has never been gated on that checkpoint. The
+  # STANDARD lane (or-deepseek-v4-pro) was repointed 2026-08-13 — that is the
+  # one v4 Pro in the suite. Gate this lane before reviving or repointing it.
   opencode-or-deepseek-v4-pro:
     api_name: "deepseek/deepseek-v4-pro"
     provider: "openrouter"
@@ -2469,120 +2475,77 @@ models:
       the full rationale. Pricing dropped $0.14/$0.28 -> $0.09/$0.18 per 1M.
 
   or-deepseek-v4-pro:
-    api_name: "deepseek/deepseek-v4-pro"
-    provider: "openrouter"
-    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
-    description: "DeepSeek V4 Pro via OpenRouter (standard)"
-    env_var: "OPENROUTER_API_KEY"
-    model_family: "deepseek-v4"
-    max_output_tokens: 65536
-    pricing:
-      input_per_1k: 0.00043
-      output_per_1k: 0.00087
-    budgets:
-      max_cost_usd: 0.30
-      hard_timeout_secs: 600
-    notes: |
-      Standard companion to opencode-or-deepseek-v4-pro. Added 2026-06-04.
-      Validates Motoko's "DeepSeek V4 Flash good for AILANG" recommendation.
-      Note: V4 Pro under-performed Flash (1/3 vs 2/3) — Pro's reasoning
-      overhead may hurt simple-task accuracy.
-      v0.19.0: timeout bumped to 3600s (network-hang net only) for
-      M-EVAL-SWEET-SPOT validation — cost is the real budget gate.
-
-  # DeepSeek V4 Pro 0813 — GA release of the V4 Pro line, published 2026-08-13
-  # (the incumbent or-deepseek-v4-pro slug is the April *preview*). Smoke gate
-  # PASSED 22/23 on 2026-08-13; entry is OPT-IN and in NO suite until the core
-  # tier settles promotion (smoke is a FLOOR, not a ranking — see notes).
-  or-deepseek-v4-pro-0813:
     api_name: "deepseek/deepseek-v4-pro-0813"
     provider: "openrouter"
-    default_thinking: "on"  # VERIFIED 2026-08-13: bare call returned reasoning_tokens=237 of 490 completion
+    default_thinking: "on"  # VERIFIED 2026-08-13 on the 0813 GA: bare probe returned reasoning_tokens=237 of 490 completion
     description: "DeepSeek V4 Pro 0813 (GA, 2026-08-13) via OpenRouter (standard) — thinking-on, $0.435/$0.87 per 1M"
     env_var: "OPENROUTER_API_KEY"
     model_family: "deepseek-v4"
-    # Thinking-on, so this is sized for reasoning + content, not the 32768 fleet
-    # default. Only endpoint declares max_completion=384000 (first-party DeepSeek,
-    # 1M ctx); 65536 is the fleet's standard thinking-model headroom (gpt5-5,
-    # claude-*-5, gemini-3-*-flash, or-kimi-k3, pi-or-deepseek-v4-flash all use it)
-    # and matches the incumbent or-deepseek-v4-pro so preview-vs-GA stays
-    # apples-to-apples. Raise toward 384000 only if failures show finish=length.
+    # Thinking-on, so sized for reasoning + content, not the 32768 fleet default.
+    # The sole endpoint declares max_completion=384000 (first-party DeepSeek, 1M
+    # ctx); 65536 is the fleet's thinking-model convention (gpt5-5, claude-*-5,
+    # gemini-3-*-flash, or-kimi-k3, pi-or-deepseek-v4-flash) and is unchanged from
+    # the preview, so pre/post-repoint rows stay comparable. Raise toward 384000
+    # only if failures show finish=length. Measured peak across core: 13010.
     max_output_tokens: 65536
     pricing:
-      input_per_1k: 0.000435   # $0.435/1M — OpenRouter models API, 2026-08-13
-      output_per_1k: 0.00087   # $0.87/1M  — OpenRouter models API, 2026-08-13
+      input_per_1k: 0.000435  # $0.435/1M — OpenRouter models API, 2026-08-13
+      output_per_1k: 0.00087  # $0.87/1M  — OpenRouter models API, 2026-08-13
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 600
     notes: |
-      GA release of DeepSeek V4 Pro, published to OpenRouter 2026-08-13
-      (created=1786549364). Same relationship to `deepseek/deepseek-v4-pro`
-      as `-flash-0731` has to `-flash`: GA supersedes the April preview.
+      REPOINTED 2026-08-13 (Mark: "we need only one v4 deepseek pro") from the
+      April preview slug (deepseek/deepseek-v4-pro) to the GA release
+      (deepseek/deepseek-v4-pro-0813). Same move flash made on 2026-08-03; the
+      friendly name is deliberately UNCHANGED so banked history stays on one id.
 
-      ROUTING NOTE — day zero this slug had exactly ONE endpoint (first-party
-      DeepSeek), which this account's OpenRouter data-policy setting filtered
-      out, so every call 404'd with "No endpoints available matching your
-      guardrail restrictions and data policy". Mark cleared it 2026-08-13 by
-      allowing first-party DeepSeek. Recorded because it will recur on the NEXT
-      day-zero DeepSeek slug, and because the control is the fast diagnosis:
-        - flash-0731 unpinned            -> 200 (routed to Sail Research)
-        - flash-0731 pinned to DeepSeek  -> 404 "No endpoints found"  <- the block
-        - flash-0731 pinned to DeepInfra -> 200
-      i.e. pin the suspect provider on a slug that is known to work. The older
-      v4 slugs only ever worked because 18-27 third-party providers mirror them.
+      ⚠️ BASELINE BOUNDARY: rows banked under this name BEFORE 2026-08-13 ran the
+      April *preview* checkpoint at a different price. Do not read a pre/post
+      2026-08-13 delta on this row as a model change without checking the date.
 
-      SMOKE GATE PASSED 2026-08-13 — 22/23, ~5 min, standard mode, N=1.
-      Sole failure `dense_operator_program`: runtime_error, "IMP010: symbol
-      'bitwiseOr' not exported by 'std/math'" — the known AILANG stdlib gap,
-      NOT a model gap. Control (no live anchor available: v0.32.0 banked no
-      claude-sonnet-4-6 smoke rows and there is no ANTHROPIC_API_KEY here, so
-      running the anchor would have produced 23 auth failures reading as a
-      broken tier) = the two banked dev models, which fail the same single
-      benchmark and nothing else: gemini-3-flash 19/20, gpt5-4-mini 22/23.
-      So 22/23 IS the clean result for this tier.
-      Truncation ruled out per step 2a: every run finish_reason=stop, max
-      reason_tokens=9160 against 65536 headroom.
+      Gates on the GA, in order (standard mode, --langs ailang):
+        smoke      22/23 — sole failure dense_operator_program, which the two
+                   banked dev-model controls also fail and nothing else, so
+                   22/23 IS the clean result for that tier.
+        core N=1   20/23 vs preview 21/23  <- candidate appeared WORSE
+        core N=3   67/69 vs preview 65/69  <- candidate WINS
+      The N=1 ordering was an ARTIFACT and the >=N=3 escalation rule caught it.
+      Do not quote 20-vs-23; it is superseded. Decomposed, the two N=1 "losses"
+      were (a) our own interpreter crashing — missing dictionary method:
+      prelude::Fractional::Int::add — and (b) a byte-exact stdout miss where
+      every computed value was correct but carried a label. The preview's single
+      loss was a genuine incomplete solve. At N=3 the GA's only two failures
+      across 69 runs are ordinary model errors (read app_config.json without
+      creating it as instructed; println without the IO cap).
+      This pair is the worked example in
+      design_docs/planned/m-eval-failure-attribution.md.
 
-      CORE GATE PASSED 2026-08-13 — PROMOTED to extended_suite (the cloud
-      standard-mode roster; there is no 'standard_suite' key).
-      Head-to-head vs the incumbent preview slug, --tier core, --langs ailang:
-        N=1:  GA 20/23  vs  preview 21/23   <- candidate appears WORSE
-        N=3:  GA 67/69  vs  preview 65/69   <- candidate WINS
-      The N=1 result was an artifact and the escalation rule caught it. Do NOT
-      quote the 20-vs-23 figure; it is superseded.
+      Truncation ruled out before any verdict: every run finish_reason=stop,
+      peak reason_tokens 13010 against 65536 headroom.
 
-      Why N=1 lied, decomposed (this is the useful part):
-        - GA's explicit_dataflow_ssa loss was the AILANG interpreter dict-crash
-          (missing dictionary method: prelude::Fractional::Int::add) — our bug,
-          charged to the model.
-        - GA's tree_transformation_pipeline loss computed EVERY value correctly
-          and lost on byte-exact stdout for adding labels ("treeToList(tree): ").
-        - The incumbent's one loss was a genuine incomplete solve.
-      At N=3 the GA's only two failures across 69 runs are both genuine but
-      ordinary (config_file_parser: read app_config.json without creating it
-      as instructed; prompt_injection: used println without the IO cap), vs the
-      incumbent's three genuine + one more dict-crash. See
-      design_docs/planned/m-eval-failure-attribution.md — this pair is the
-      worked example in it.
+      Price DROPPED at GA: $1.168/$2.336 -> $0.435/$0.87 per 1M (~2.7x). The
+      pricing recorded here before the repoint (0.00043/0.00087) understated the
+      PREVIEW's real cost ~2.7x; it happens to be right for the GA, so the
+      repoint incidentally corrects this row. A broader audit of every
+      openrouter entry's pricing against the live API is running separately.
 
-      Cheaper AND better: $0.435/$0.87 per 1M here vs the preview's LIVE
-      $1.168/$2.336 (~2.7x). Note the incumbent entry's recorded pricing
-      (0.00043/0.00087) is stale and understates its cost — separate fix.
+      ROUTING NOTE (will recur on the next day-zero DeepSeek slug): on 2026-08-13
+      the GA slug had exactly ONE endpoint (first-party DeepSeek), which this
+      account's OpenRouter data policy filtered out, so every call 404'd with
+      "No endpoints available matching your guardrail restrictions and data
+      policy". Mark cleared it by allowing first-party DeepSeek. The fast
+      diagnosis is a control — pin the suspect provider on a slug KNOWN to work:
+        flash-0731 unpinned            -> 200 (Sail Research)
+        flash-0731 pinned to DeepSeek  -> 404 "No endpoints found"  <- the block
+        flash-0731 pinned to DeepInfra -> 200
+      The older v4 slugs only ever worked because 18-27 third parties mirror them.
 
-      OPEN (Mark's call): whether or-deepseek-v4-pro is now retired or
-      repointed at this slug, per the flash-0731 precedent. Both sit in
-      extended_suite today, which is a near-duplicate spend.
+      Historical (preview era, kept for context): added 2026-06-04 as the
+      standard companion to opencode-or-deepseek-v4-pro; validated Motoko's
+      "DeepSeek V4 Flash good for AILANG" recommendation. The 2026-05-04 note
+      that V4 Pro under-performed Flash (1/3 vs 2/3) predates this checkpoint.
 
-      Corroboration for the dict-crash finding: extended_suite's own header
-      notes every OpenAI model fails explicit_dataflow_ssa 3/3. That is the
-      same prelude::Fractional::Int::add defect, already visible in the roster
-      notes as a per-model quirk rather than the AILANG bug it is.
-
-      Price note: GA is CHEAPER than the live preview — $0.435/$0.87 per 1M
-      here vs $1.168/$2.336 for `deepseek/deepseek-v4-pro` as metered on
-      2026-08-13. See the incumbent entry: its recorded pricing (0.00043/
-      0.00087 per 1K) matches THIS model, not the preview it points at, so
-      banked or-deepseek-v4-pro costs are understated ~2.7x. Separate fix.
 
   opencode-or-glm-4-7-flash:
     api_name: "z-ai/glm-4.7-flash"
@@ -3302,11 +3265,9 @@ extended_suite:
     # probe, ADDITION not a K2.7-Code replacement (different lineage + 4x cost).
   - "or-minimax-m3"     # MiniMax M3 — 87% std, $0.30/1M (ties opus/gpt5 at 1/16 cost)
   - "or-deepseek-v4-flash" # DeepSeek V4 Flash — 75% std, $0.10/1M (cheapest viable; re-gated 2026-06-04)
-  - "or-deepseek-v4-pro"   # DeepSeek V4 Pro — 75% std, agent champion (97%)
-  # PROMOTED 2026-08-13 after the core gate: N=3 67/69 vs the preview slug's 65/69
-  # ($0.435/$0.87 per 1M, ~2.7x cheaper than the preview's live price). Retirement
-  # or repoint of or-deepseek-v4-pro above is still open — both run today.
-  - "or-deepseek-v4-pro-0813" # DeepSeek V4 Pro 0813 (GA) — smoke 22/23, core N=3 67/69
+  - "or-deepseek-v4-pro"   # DeepSeek V4 Pro — REPOINTED 2026-08-13 to the 0813 GA slug
+    # (core N=3 67/69 vs the preview's 65/69, and ~2.7x cheaper). Pre-2026-08-13 rows
+    # under this name are the April preview — see the entry's baseline-boundary note.
 
 # Development models - cheap and fast (3 models)
 # Use for: Development iteration, testing eval infrastructure
