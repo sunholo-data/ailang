@@ -1,0 +1,25 @@
+-- bitwise_or.ail — bitwise OR via std/math
+--
+-- AILANG has &, ^, ~, << and >> as operators, but NOT `|`: a single pipe is
+-- reserved for ADT declarations (`type T = A | B`) and pattern alternatives,
+-- so it cannot also be infix. `bitwiseOr(a, b)` from std/math is the
+-- replacement, and it composes with the operators normally.
+
+module examples/bitwise_or
+import std/math (bitwiseOr)
+
+export func main() -> () ! {IO} = {
+  -- the operators that DO exist
+  println(show(12 & 10))  -- 8   AND
+  println(show(12 ^ 10))  -- 6   XOR
+  println(show(1 << 4))  -- 16  left shift
+  println(show(16 >> 2))  -- 4   right shift
+  println(show(~12))  -- -13 NOT
+  -- OR is a function, not an operator
+  println(show(bitwiseOr(12, 10)))  -- 14
+  println(show(bitwiseOr(0, 0)))  -- 0
+  println(show(bitwiseOr(255, 256)))  -- 511
+  println(show(bitwiseOr(-1, 5)))  -- -1  (two's complement)
+  -- composing OR with the operators: (12 & 10) | (4 ^ 6)
+  println(show(bitwiseOr(12 & 10, 4 ^ 6)))  -- 10
+}

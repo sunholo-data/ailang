@@ -120,6 +120,21 @@
       ]
     },
     {
+      "path": "bitwise_or.ail",
+      "status": "working",
+      "tags": [
+        "bitwise",
+        "operators",
+        "stdlib",
+        "math"
+      ],
+      "description": "Bitwise operators (&, ^, ~, <<, >>) and bitwiseOr from std/math",
+      "expected": {
+        "stdout": "8\n6\n16\n4\n-13\n14\n0\n511\n-1\n10\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "block_demo.ail",
       "status": "working",
       "tags": [
@@ -2700,7 +2715,7 @@
     }
   ],
   "statistics": {
-    "total": 194,
+    "total": 195,
     "working": 186,
     "aspirational": 4,
     "broken": 4,

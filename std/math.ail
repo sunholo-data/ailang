@@ -93,3 +93,30 @@ export pure func PI() -> float = _math_PI()
 
 -- E: Return Euler's number e (2.71828...)
 export pure func E() -> float = _math_E()
+
+-- ============================================================================
+-- Bitwise Functions
+-- ============================================================================
+
+-- bitwiseOr: Bitwise OR of two integers.
+--
+-- AILANG has bitwise AND (&), XOR (^), NOT (~) and shifts (<<, >>) as
+-- operators, but NOT `|` — a single pipe is reserved for ADT declarations
+-- (`type T = A | B`) and pattern alternatives, so it cannot also be an infix
+-- operator. See internal/lexer/token.go's precedence table, which records the
+-- exclusion and names this function as the intended replacement.
+--
+-- The teaching prompt has instructed models to call `bitwiseOr(a, b) from
+-- std/math` since v0.11.4 — but the function was never implemented, so every
+-- model that followed the instruction failed with
+-- `IMP010: symbol 'bitwiseOr' not exported by 'std/math'`. That is the sole
+-- failure in the `dense_operator_program` benchmark, for every model tested.
+-- This closes the gap between what the prompt promises and what std ships.
+--
+-- Implemented via De Morgan (a | b == ~(~a & ~b)) rather than a new builtin:
+-- the operators it needs already exist, so this needs no Go change and no
+-- parser change. Verified against two's-complement semantics:
+--   bitwiseOr(12, 10) == 14      bitwiseOr(0, 0) == 0
+--   bitwiseOr(255, 256) == 511   bitwiseOr(-1, 5) == -1
+--   bitwiseOr(7, 7) == 7
+export pure func bitwiseOr(a: int, b: int) -> int = ~((~a) & (~b))
