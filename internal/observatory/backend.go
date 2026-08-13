@@ -155,6 +155,12 @@ type Backend interface {
 	// that reads as unknown and never overwrites a label already recorded.
 	UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64, costProvenance string) error
 	UpdateStageError(ctx context.Context, stageID, errorMessage string) error
+	// UpdateStageEvalAssessment records the structured assessment (model, benchmark,
+	// eval mode) a stage ran under. On the interface because a mission iteration
+	// posted to a REMOTE observatory must carry its per-stage model too — without it
+	// the cost classifier cannot resolve a rate cloud-side (M-MISSION-LOOP-UNIFIED-
+	// TELEMETRY M3).
+	UpdateStageEvalAssessment(ctx context.Context, stageID string, assessment *EvalAssessment) error
 	GetSpansByStageID(ctx context.Context, stageID string) ([]*Span, error)
 	// GetSpanLitesByStageID returns lightweight spans without attributes (M-PERF-OBSERVATORY).
 	GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error)

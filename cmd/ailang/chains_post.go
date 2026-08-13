@@ -1,6 +1,6 @@
 package main
 
-// `ailang chains post-iteration` (M-MISSION-COST-CHAINS M2).
+// `ailang chains post-iteration` (M-MISSION-COST-CHAINS M2, dual-write M3).
 //
 // Posts ONE chain per mission iteration to the observatory so the loop's spend
 // (metered $ + quota buckets) shows up in `ailang chains`. Invoked by the
@@ -27,6 +27,16 @@ package main
 // The success line echoes the totals actually recorded, so a payload that forgot
 // its token counts is visible at the call site rather than three weeks later in a
 // cost rollup.
+//
+// DUAL-WRITE (M3). The local store is always written. A node that also names a
+// remote one — `--cloud <mode>` or `AILANG_CHAINS_CLOUD=<mode>`, resolved through
+// internal/storage, the same selector `AILANG_STORAGE` uses — gets the iteration
+// written to BOTH, under the SAME chain and stage ids so spans carrying those ids
+// join either copy. The node is a parameter: nothing here assumes a particular
+// machine, and with no remote named the behaviour is exactly what it was.
+//
+// Each target keeps its OWN bounded spool. That is deliberate: sharing one would
+// let a long cloud outage evict local posts that were only waiting on a locked DB.
 
 import (
 	"context"
@@ -36,8 +46,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/storage"
 )
 
 // defaultSpoolPath returns the mission iteration spool path next to observatory.db.
@@ -49,31 +61,51 @@ func defaultSpoolPath() string {
 	return filepath.Join(home, ".ailang", "state", "chains-iteration-spool.jsonl")
 }
 
+// cloudSpoolPath derives the remote target's spool from the local one, so an
+// override of --spool moves both.
+func cloudSpoolPath(localPath string) string {
+	ext := filepath.Ext(localPath)
+	return strings.TrimSuffix(localPath, ext) + "-cloud" + ext
+}
+
+// postTarget is one observatory the iteration is written to. connErr non-nil means
+// the target could not be opened at all — treated exactly like a failed write
+// (spool it, say so, keep going), because to the mission loop they are the same
+// event: telemetry is unavailable right now.
+type postTarget struct {
+	name    string
+	backend observatory.Backend
+	spool   *observatory.Spool
+	connErr error
+	close   func()
+}
+
 func chainsPostIterationCommand() {
 	fs := flag.NewFlagSet("chains post-iteration", flag.ExitOnError)
 	file := fs.String("file", "", "Read the iteration JSON from this file (default: stdin)")
 	spoolPath := fs.String("spool", "", "Override the spool path (default: ~/.ailang/state/chains-iteration-spool.jsonl)")
 	flushOnly := fs.Bool("flush-only", false, "Only flush any buffered spool; do not read a new post")
+	cloud := fs.String("cloud", "", "Also write to a remote observatory in this storage mode (gcp). Default: $AILANG_CHAINS_CLOUD")
 	fs.Parse(flag.Args()[2:])
 
 	spPath := *spoolPath
 	if spPath == "" {
 		spPath = defaultSpoolPath()
 	}
-	spool := observatory.NewSpool(spPath)
-
-	// Connecting to the store can itself fail (locked/missing). Treat that as the
-	// server-down path: buffer the new post and return fail-soft.
-	backend, connErr := observatory.NewSQLiteBackendFromPath(observatory.DefaultDatabasePath())
-	if backend != nil {
-		defer backend.Close()
-	}
 
 	ctx := context.Background()
+	targets := openPostTargets(ctx, spPath, *cloud)
+	for _, t := range targets {
+		if t.close != nil {
+			defer t.close()
+		}
+	}
 
-	// 1. Flush any previously-spooled posts first (best-effort).
-	if connErr == nil {
-		flushSpool(ctx, backend, spool)
+	// 1. Flush any previously-spooled posts first (best-effort, per target).
+	for _, t := range targets {
+		if t.connErr == nil {
+			flushSpool(ctx, t)
+		}
 	}
 
 	if *flushOnly {
@@ -89,28 +121,128 @@ func chainsPostIterationCommand() {
 		return
 	}
 
-	// 3. Try to post; on failure, spool it (LOUD, bounded, fail-soft).
-	if connErr != nil {
-		fmt.Fprintf(os.Stderr, "chains post-iteration: observatory unreachable (%v)\n", connErr)
-		_ = spool.Append(post)
+	// 3. Write to every target. The local target runs first and backfills the post
+	//    with the ids it wrote, so the remote copy shares them.
+	written := []string{}
+	for _, t := range targets {
+		if writeToTarget(ctx, t, post) {
+			written = append(written, t.name)
+		}
+	}
+	if len(written) == 0 {
+		// Everything is buffered and every failure was already reported. Do NOT
+		// claim a post happened — exit 0 without a success line.
+		fmt.Fprintf(os.Stderr, "chains post-iteration: %s buffered for retry, nothing written\n", post.Source)
 		return
 	}
 
-	chainID, postErr := observatory.PostIteration(ctx, backend, post)
-	if postErr != nil {
-		fmt.Fprintf(os.Stderr, "chains post-iteration: write failed (%v)\n", postErr)
-		_ = spool.Append(post)
-		return
-	}
 	cost, tokens, unreported := postTotals(post)
 	fmt.Printf("Posted iteration chain %s (source %s, %d stages, $%.4f, %d tokens)\n",
-		chainID, post.Source, len(post.Stages), cost, tokens)
+		post.ChainID, post.Source, len(post.Stages), cost, tokens)
 	if unreported > 0 {
 		// Not an error — a payload may legitimately post mid-flight stages. But an
 		// unreported stage reads back `pending` forever, so say it out loud here
 		// rather than let it be discovered in a cost rollup weeks later.
 		fmt.Fprintf(os.Stderr, "chains post-iteration: %d of %d stages posted no status and stay 'pending'\n",
 			unreported, len(post.Stages))
+	}
+}
+
+// openPostTargets builds the write targets: always local, plus a remote one when
+// this node names a storage mode for it. A target that cannot be opened is still
+// RETURNED, carrying its connErr — dropping it here would silently lose the post
+// instead of spooling it.
+func openPostTargets(ctx context.Context, spPath, cloudFlag string) []*postTarget {
+	local := &postTarget{name: "local", spool: observatory.NewSpool(spPath)}
+	backend, err := observatory.NewSQLiteBackendFromPath(observatory.DefaultDatabasePath())
+	local.connErr = err
+	if backend != nil {
+		local.backend = backend
+		local.close = func() { _ = backend.Close() }
+	}
+	targets := []*postTarget{local}
+
+	mode := cloudFlag
+	if mode == "" {
+		mode = os.Getenv("AILANG_CHAINS_CLOUD")
+	}
+	if mode == "" {
+		return targets // no remote named: unchanged, offline-first behaviour
+	}
+
+	remote := &postTarget{name: "cloud", spool: observatory.NewSpool(cloudSpoolPath(spPath))}
+	if err := checkRemoteIsElsewhere(storage.Mode(mode)); err != nil {
+		remote.connErr = err
+		return append(targets, remote)
+	}
+	// Same local/gcp/hybrid resolution AILANG_STORAGE goes through — an explicit
+	// mode rather than a second selector, so this node's own storage mode (and its
+	// coordinator/messaging stores) are left alone.
+	backends, err := storage.NewBackendsForMode(ctx, storage.Mode(mode))
+	remote.connErr = err
+	if backends != nil {
+		remote.backend = backends.Observatory
+		remote.close = func() { _ = backends.Close() }
+	}
+	return append(targets, remote)
+}
+
+// checkRemoteIsElsewhere rejects a remote target that resolves to the SAME SQLite
+// file as the local one. `local` and `hybrid` both put the observatory in
+// $AILANG_STATE_DIR (default ~/.ailang/state), so without this the command would
+// "dual-write" an iteration into one store twice, and the second write would fail
+// on the pinned ids — loudly, but for a reason nobody would guess. Naming another
+// node's state directory is still allowed; only writing to yourself is not.
+func checkRemoteIsElsewhere(mode storage.Mode) error {
+	if mode != storage.ModeLocal && mode != storage.ModeHybrid {
+		return nil
+	}
+	remoteDir := os.Getenv("AILANG_STATE_DIR")
+	if remoteDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("cannot resolve the %q remote target's directory: %w", mode, err)
+		}
+		remoteDir = filepath.Join(home, ".ailang", "state")
+	}
+	localDir := filepath.Dir(observatory.DefaultDatabasePath())
+	if filepath.Clean(remoteDir) == filepath.Clean(localDir) {
+		return fmt.Errorf("remote target %q resolves to this node's own observatory (%s); "+
+			"use gcp, or point AILANG_STATE_DIR at a different store", mode, localDir)
+	}
+	return nil
+}
+
+// writeToTarget posts to one target, spooling on failure, and reports whether the
+// write landed. It never returns an error: a telemetry outage must not block or
+// fail the mission iteration.
+func writeToTarget(ctx context.Context, t *postTarget, post *observatory.IterationPost) bool {
+	if t.connErr != nil {
+		fmt.Fprintf(os.Stderr, "chains post-iteration: %s observatory unreachable (%v); buffering\n", t.name, t.connErr)
+		_ = t.spool.Append(post)
+		return false
+	}
+	if _, err := observatory.PostIteration(ctx, t.backend, post); err != nil {
+		fmt.Fprintf(os.Stderr, "chains post-iteration: %s write failed (%v); buffering\n", t.name, err)
+		_ = t.spool.Append(post)
+		return false
+	}
+	return true
+}
+
+// flushSpool drains one target's buffered posts and re-posts them; posts that
+// still fail are re-spooled (LOUD) so nothing is lost.
+func flushSpool(ctx context.Context, t *postTarget) {
+	entries, err := t.spool.Drain()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "chains post-iteration: could not read %s spool (%v)\n", t.name, err)
+		return
+	}
+	for _, p := range entries {
+		if _, err := observatory.PostIteration(ctx, t.backend, p); err != nil {
+			fmt.Fprintf(os.Stderr, "chains post-iteration: re-post of spooled %q to %s failed (%v); re-buffering\n", p.Source, t.name, err)
+			_ = t.spool.Append(p)
+		}
 	}
 }
 
@@ -125,22 +257,6 @@ func postTotals(post *observatory.IterationPost) (cost float64, tokens, unreport
 		}
 	}
 	return cost, tokens, unreported
-}
-
-// flushSpool drains buffered posts and re-posts them; posts that still fail are
-// re-spooled (LOUD) so nothing is lost.
-func flushSpool(ctx context.Context, backend *observatory.SQLiteBackend, spool *observatory.Spool) {
-	entries, err := spool.Drain()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "chains post-iteration: could not read spool (%v)\n", err)
-		return
-	}
-	for _, p := range entries {
-		if _, err := observatory.PostIteration(ctx, backend, p); err != nil {
-			fmt.Fprintf(os.Stderr, "chains post-iteration: re-post of spooled %q failed (%v); re-buffering\n", p.Source, err)
-			_ = spool.Append(p)
-		}
-	}
 }
 
 // readIterationPost reads and decodes an IterationPost from a file or stdin.

@@ -478,6 +478,10 @@ func (b *SQLiteBackend) UpdateStageError(ctx context.Context, stageID, errorMess
 	return b.store.UpdateStageError(ctx, stageID, errorMessage)
 }
 
+func (b *SQLiteBackend) UpdateStageEvalAssessment(ctx context.Context, stageID string, assessment *EvalAssessment) error {
+	return b.store.UpdateStageEvalAssessment(ctx, stageID, assessment)
+}
+
 func (b *SQLiteBackend) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error) {
 	return b.store.GetSpanLitesByStageID(ctx, stageID, limit, offset)
 }

@@ -52,6 +52,9 @@ type IterationStage struct {
 	// and this CLI ship independently, so a payload written before this field
 	// existed must keep working.
 	Status string `json:"status,omitempty"`
+	// ID pins this stage's identity across stores; see IterationPost.ChainID.
+	// Normally empty on the wire and BACKFILLED by the first write.
+	ID string `json:"id,omitempty"`
 }
 
 // IterationPost is one mission iteration to be posted as a chain.
@@ -62,6 +65,15 @@ type IterationPost struct {
 	// SpooledAt records when this was buffered (set by the spool; informational).
 	SpooledAt time.Time        `json:"spooled_at,omitempty"`
 	Stages    []IterationStage `json:"stages"`
+	// ChainID pins the chain identity so the SAME iteration written to a second
+	// store (local + remote, M3) carries the SAME id — otherwise a span carrying
+	// that id cannot join the remote copy, and the remote record is an island.
+	//
+	// Normally empty on the wire: PostIteration BACKFILLS it (and each stage's ID)
+	// from what it wrote, so the caller can hand the same post to the next target,
+	// and so a spooled entry replays with the identity it already has. A caller
+	// MAY set it deliberately to pin an iteration's id up front.
+	ChainID string `json:"chain_id,omitempty"`
 }
 
 // agentIDFor builds the stage agent_id, encoding the quota bucket in free text for
@@ -113,27 +125,34 @@ func (p *IterationPost) Validate() error {
 	return nil
 }
 
-// PostIteration writes one iteration chain and its stages to the observatory SQLite
-// store. The chain and each stage are created, each stage's reported outcome is
+// PostIteration writes one iteration chain and its stages to an observatory
+// backend. The chain and each stage are created, each stage's reported outcome is
 // applied, and the stage costs/tokens are rolled up into the chain total; a
 // per-stage failure aborts and returns an error (the caller spools the WHOLE post
-// for retry). The quota bucket is encoded into agent_id. It takes *SQLiteBackend
-// directly because it writes the stage model via eval_assessment (a store-level
-// write not on the Backend interface)
-// and because `ailang chains` is offline-first (direct SQLite).
-func PostIteration(ctx context.Context, backend *SQLiteBackend, p *IterationPost) (string, error) {
+// for retry). The quota bucket is encoded into agent_id.
+//
+// It takes the Backend INTERFACE, not *SQLiteBackend: the same iteration is posted
+// to the local store and, when a node is configured for it, to a remote one
+// (M-MISSION-LOOP-UNIFIED-TELEMETRY M3). One writer, two targets — a second
+// implementation would be a second set of bugs.
+//
+// SIDE EFFECT: it backfills p.ChainID and each p.Stages[i].ID with what it wrote,
+// so the next target writes the SAME identity and a spooled retry replays it.
+func PostIteration(ctx context.Context, backend Backend, p *IterationPost) (string, error) {
 	if err := p.Validate(); err != nil {
 		return "", err
 	}
-	store := backend.Store()
 
-	chain, err := store.CreateChain(ctx, &ChainCreateRequest{
+	chain, err := backend.CreateChain(ctx, &ChainCreateRequest{
+		ID:         p.ChainID, // empty = generate; set = replaying a known identity
 		SourceType: ChainSourceManual,
 		SourceRef:  p.Source,
 	})
 	if err != nil {
 		return "", fmt.Errorf("create iteration chain: %w", err)
 	}
+	// Backfill so a second target (and the spool) reuse this identity.
+	p.ChainID = chain.ID
 
 	// Chain totals are denormalized, and nothing else writes them for a mission
 	// chain — so an iteration that holds real per-stage spend reported $0.0000 as
@@ -147,7 +166,8 @@ func PostIteration(ctx context.Context, backend *SQLiteBackend, p *IterationPost
 	)
 
 	for i, st := range p.Stages {
-		stage, err := store.CreateStage(ctx, &StageCreateRequest{
+		stage, err := backend.CreateStage(ctx, &StageCreateRequest{
+			ID:       st.ID, // empty = generate; set = replaying a known identity
 			ChainID:  chain.ID,
 			AgentID:  st.agentIDFor(),
 			Provider: Provider(st.Provider),
@@ -155,16 +175,17 @@ func PostIteration(ctx context.Context, backend *SQLiteBackend, p *IterationPost
 		if err != nil {
 			return chain.ID, fmt.Errorf("create stage %d (%s): %w", i, st.Role, err)
 		}
+		p.Stages[i].ID = stage.ID
 		// Metrics: cost + tokens (quota lanes post zeros, which is a no-op add).
 		if st.CostUSD != 0 || st.TokensIn != 0 || st.TokensOut != 0 {
 			// "" = provenance not classified by this poster; reads as unknown.
-			if err := store.UpdateStageMetrics(ctx, stage.ID, st.CostUSD, st.TokensIn, st.TokensOut, 0, 0, 0, ""); err != nil {
+			if err := backend.UpdateStageMetrics(ctx, stage.ID, st.CostUSD, st.TokensIn, st.TokensOut, 0, 0, 0, ""); err != nil {
 				return chain.ID, fmt.Errorf("update stage %d metrics: %w", i, err)
 			}
 		}
 		// Record the model (metered lanes) so the M1 classifier can resolve a rate.
 		if st.Model != "" {
-			if err := store.UpdateStageEvalAssessment(ctx, stage.ID, &EvalAssessment{
+			if err := backend.UpdateStageEvalAssessment(ctx, stage.ID, &EvalAssessment{
 				Model:    st.Model,
 				EvalMode: "mission",
 			}); err != nil {
@@ -175,7 +196,7 @@ func PostIteration(ctx context.Context, backend *SQLiteBackend, p *IterationPost
 		// here is a store failure. An empty status leaves the CreateStage default.
 		status, _ := st.stageStatus()
 		if status != "" {
-			if err := store.UpdateStageStatus(ctx, stage.ID, status); err != nil {
+			if err := backend.UpdateStageStatus(ctx, stage.ID, status); err != nil {
 				return chain.ID, fmt.Errorf("update stage %d status: %w", i, err)
 			}
 		}
@@ -196,7 +217,7 @@ func PostIteration(ctx context.Context, backend *SQLiteBackend, p *IterationPost
 	// Roll the stages up into the chain. UpdateChainMetrics is additive and the
 	// chain was created in this call, so this is the sum, not a re-add.
 	if totalCost != 0 || totalTokens != 0 {
-		if err := store.UpdateChainMetrics(ctx, chain.ID, totalCost, totalTokens, 0); err != nil {
+		if err := backend.UpdateChainMetrics(ctx, chain.ID, totalCost, totalTokens, 0); err != nil {
 			return chain.ID, fmt.Errorf("aggregate chain metrics: %w", err)
 		}
 	}
@@ -211,7 +232,7 @@ func PostIteration(ctx context.Context, backend *SQLiteBackend, p *IterationPost
 		if anyFailed {
 			chainStatus = ChainStatusFailed
 		}
-		if err := store.UpdateChainStatus(ctx, chain.ID, chainStatus); err != nil {
+		if err := backend.UpdateChainStatus(ctx, chain.ID, chainStatus); err != nil {
 			return chain.ID, fmt.Errorf("set chain status: %w", err)
 		}
 	}

@@ -252,6 +252,110 @@ func TestPostIteration_PartialStatusLeavesChainActive(t *testing.T) {
 	}
 }
 
+// TestPostIteration_DualWriteKeepsOneIdentity is the M3 property that makes the
+// remote copy joinable instead of an island: the same post written to a second
+// store lands under the SAME chain and stage ids, so a span carrying those ids
+// resolves in either. Two independent backends stand in for local + remote.
+func TestPostIteration_DualWriteKeepsOneIdentity(t *testing.T) {
+	local := newIterationBackend(t)
+	remote := newIterationBackend(t)
+	ctx := context.Background()
+
+	post := iter190Post()
+	post.Source = "mission:v1/iter-196"
+
+	localChain, err := PostIteration(ctx, local, post)
+	if err != nil {
+		t.Fatalf("local PostIteration: %v", err)
+	}
+	// The first write backfills the identity; the caller hands the SAME post on.
+	if post.ChainID != localChain {
+		t.Fatalf("post.ChainID = %q, want the written chain %q", post.ChainID, localChain)
+	}
+	localStages := readStages(t, local, localChain)
+	for _, st := range post.Stages {
+		if st.ID == "" {
+			t.Fatalf("stage %q was not backfilled with its id", st.Role)
+		}
+	}
+
+	remoteChain, err := PostIteration(ctx, remote, post)
+	if err != nil {
+		t.Fatalf("remote PostIteration: %v", err)
+	}
+	if remoteChain != localChain {
+		t.Errorf("remote chain id %q != local %q — spans carrying the local id cannot join the remote copy",
+			remoteChain, localChain)
+	}
+
+	remoteStages := readStages(t, remote, remoteChain)
+	if len(remoteStages) != len(localStages) {
+		t.Fatalf("remote holds %d stages, local %d", len(remoteStages), len(localStages))
+	}
+	for agentID, ls := range localStages {
+		rs, ok := remoteStages[agentID]
+		if !ok {
+			t.Errorf("stage %q missing from the remote store", agentID)
+			continue
+		}
+		if rs.ID != ls.ID {
+			t.Errorf("stage %q: remote id %q != local id %q", agentID, rs.ID, ls.ID)
+		}
+		if rs.Status != ls.Status || rs.Cost != ls.Cost || rs.TokensIn != ls.TokensIn {
+			t.Errorf("stage %q: remote copy differs (status %q/%q, cost %v/%v, tokens_in %d/%d)",
+				agentID, rs.Status, ls.Status, rs.Cost, ls.Cost, rs.TokensIn, ls.TokensIn)
+		}
+	}
+
+	// And the remote chain totals match, so a cloud-side rollup sees the same money.
+	lc, err := local.Store().GetChain(ctx, localChain, ChainReadOptions{})
+	if err != nil {
+		t.Fatalf("read local chain: %v", err)
+	}
+	rc, err := remote.Store().GetChain(ctx, remoteChain, ChainReadOptions{})
+	if err != nil {
+		t.Fatalf("read remote chain: %v", err)
+	}
+	if rc.TotalCost != lc.TotalCost || rc.TotalTokens != lc.TotalTokens || rc.Status != lc.Status {
+		t.Errorf("remote chain differs: cost %v/%v, tokens %d/%d, status %q/%q",
+			rc.TotalCost, lc.TotalCost, rc.TotalTokens, lc.TotalTokens, rc.Status, lc.Status)
+	}
+}
+
+// TestPostIteration_PinnedIDIsNotSilentlyReplaced: CreateStage regenerates the
+// stage id when it hits a UNIQUE constraint. A PINNED id must never be swapped
+// that way — the swap would look like success while breaking the cross-store
+// identity it was pinned for.
+func TestPostIteration_PinnedIDIsNotSilentlyReplaced(t *testing.T) {
+	backend := newIterationBackend(t)
+	ctx := context.Background()
+
+	post := iter190Post()
+	post.Source = "mission:v1/iter-197"
+	post.ChainID = "pinned-chain-id"
+	for i := range post.Stages {
+		post.Stages[i].ID = "pinned-stage-" + string(rune('a'+i))
+	}
+
+	chainID, err := PostIteration(ctx, backend, post)
+	if err != nil {
+		t.Fatalf("PostIteration: %v", err)
+	}
+	if chainID != "pinned-chain-id" {
+		t.Errorf("chain id = %q, want the pinned \"pinned-chain-id\"", chainID)
+	}
+	got := map[string]bool{}
+	for _, st := range readStages(t, backend, chainID) {
+		got[st.ID] = true
+	}
+	for i := range post.Stages {
+		want := "pinned-stage-" + string(rune('a'+i))
+		if !got[want] {
+			t.Errorf("stage id %q was not honoured", want)
+		}
+	}
+}
+
 // TestIterationPost_ValidateStatus: an unknown status is rejected loudly rather
 // than coerced — coercion would report an outcome the caller never claimed.
 func TestIterationPost_ValidateStatus(t *testing.T) {

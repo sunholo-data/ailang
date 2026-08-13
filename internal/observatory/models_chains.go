@@ -361,6 +361,11 @@ type JourneyResponse struct {
 
 // ChainCreateRequest contains the data needed to create a new chain.
 type ChainCreateRequest struct {
+	// ID pins the chain's identity. Empty (the norm) generates a UUID. Set it to
+	// write the SAME chain into a second store — a mission iteration dual-written
+	// to a remote observatory must keep its id, or spans carrying that id cannot
+	// join it there (M-MISSION-LOOP-UNIFIED-TELEMETRY M3).
+	ID                string          `json:"id,omitempty"`
 	SourceType        ChainSourceType `json:"source_type"`
 	SourceRef         string          `json:"source_ref,omitempty"`
 	GitHubRepo        string          `json:"github_repo,omitempty"`
@@ -371,6 +376,8 @@ type ChainCreateRequest struct {
 
 // StageCreateRequest contains the data needed to create a new stage in a chain.
 type StageCreateRequest struct {
+	// ID pins the stage's identity; empty generates a UUID. See ChainCreateRequest.ID.
+	ID        string   `json:"id,omitempty"`
 	ChainID   string   `json:"chain_id"`
 	AgentID   string   `json:"agent_id"`
 	Provider  Provider `json:"provider,omitempty"`

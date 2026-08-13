@@ -356,6 +356,12 @@ func (b *JaegerBackend) UpdateStageError(ctx context.Context, stageID, errorMess
 	return nil
 }
 
+// UpdateStageEvalAssessment is a no-op here, like every other chain-stage write on
+// this backend: Jaeger holds spans, not the chain hierarchy.
+func (b *JaegerBackend) UpdateStageEvalAssessment(ctx context.Context, stageID string, assessment *EvalAssessment) error {
+	return nil
+}
+
 func (b *JaegerBackend) GetSpansByStageID(ctx context.Context, stageID string) ([]*Span, error) {
 	return nil, nil
 }

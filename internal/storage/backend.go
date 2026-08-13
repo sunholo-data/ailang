@@ -70,7 +70,17 @@ func GetMode() Mode {
 
 // NewBackends creates all three backends based on the AILANG_STORAGE environment variable.
 func NewBackends(ctx context.Context) (*Backends, error) {
-	mode := GetMode()
+	return NewBackendsForMode(ctx, GetMode())
+}
+
+// NewBackendsForMode resolves an EXPLICIT mode instead of reading the process-wide
+// AILANG_STORAGE. It exists so a caller can open a SECOND set of backends alongside
+// its own — the mission loop dual-writes its telemetry to a remote observatory while
+// its coordinator and messaging stay local (M-MISSION-LOOP-UNIFIED-TELEMETRY M3).
+//
+// This is the same resolution NewBackends performs, factored out — deliberately NOT
+// a second local/gcp/hybrid selector, since two selectors drift.
+func NewBackendsForMode(ctx context.Context, mode Mode) (*Backends, error) {
 	switch mode {
 	case ModeLocal, "":
 		return NewSQLiteBackends()
