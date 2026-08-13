@@ -97,20 +97,26 @@ Anthropic, OpenAI, OpenRouter and local providers.
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |----------|-----------------|-----------|----------|-------------|
 | ~~Where Broadcast traces land~~ **DECIDED: the cloud route** | Determines whether the join happens cloud-side or rig-side, and therefore which half has to move | human (Mark, 2026-08-13) | design | — |
-| Does the rig **dual-write** to cloud, or **mirror** local→cloud after the fact? | Dual-write couples every rig run to network availability; mirroring adds lag and a reconciliation problem | human | design | high |
+| ~~Dual-write vs. mirror~~ **RATIFIED: dual-write** (Mark, 2026-08-13) | Mirroring's usual justification is volume, and there is none: 42 chains / 238 stages per day. It would buy little and cost a reconciliation problem. `PostIteration` already writes directly. **Scope is NODE-generic, not rig-specific** — "this server, laptop, cloud, other nodes in the future" | human | design | — |
 | Reuse `sessions.chain_id` linkage vs. add a `session.id`→`chain_id` branch in `convertSpan` | The `sessions` table already carries `chain_id`+`stage_id`; a second mechanism would need keeping in sync with it forever | agent | design | med |
 | Whether `session.id` handling may change for the Claude Code path that owns it today | `convertSpan`'s session block is Claude-Code-specific; widening it risks mis-attributing Claude spans | agent | compile | med |
-| Whether local-only runs remain first-class after the cloud becomes the join point | If analysis moves cloud-side, an offline rig run must still be analysable | human | design | high |
+| ~~Local analysis reads cloud?~~ **RATIFIED: yes, OPT-IN** (Mark, 2026-08-13) | Opt-in keeps offline nodes first-class and is reversible; if `--remote` turns out to be always-passed, flipping the default later is one line with evidence behind it. Canonical-first is the version you cannot walk back | human | design | — |
 
 ### Design Freeze
 
 Before implementation begins:
 
-- [ ] **Dual-write vs. mirror** for rig→cloud chain data.
-- [ ] **Offline behaviour**: what a rig run does when the cloud is unreachable — buffer, degrade to
-      local-only, or fail loudly. Note this interacts with the mission loop's own reliability.
-- [ ] **Does local analysis read cloud?** If yes, `OpenDefaultStore()` gains a remote mode and every
-      `ailang chains`/`eval-*` consumer inherits it.
+- [x] **Dual-write vs. mirror** — **RATIFIED: dual-write**, and deliberately NODE-GENERIC. Not
+      "the rig pushes to cloud" but "any node writes to cloud": this server, a laptop, a Cloud Run
+      job, and future workers. Design the write path so the node is a parameter, not an assumption.
+- [x] **Offline behaviour** — **RATIFIED: never block.** Mark: *"no block if not available, at least
+      until we harden availability."* Implement by EXTENDING the existing bounded+loud spool
+      (`internal/observatory/spool.go`), not by inventing a policy — see V10.
+- [x] **Local analysis reads cloud** — **RATIFIED: yes, OPT-IN.** `OpenDefaultStore()` keeps its
+      local default; an explicit remote mode is added. Every `ailang chains` / `eval-*` consumer
+      inherits the option, none inherit a changed default.
+
+**All Design Freeze items are ratified; the sprint has no pause point.**
 
 ## Solution Design
 
@@ -241,6 +247,31 @@ ailang chains view <iter-191> --remote
 - **Whether `--remote` is a flag, an env var, or a config key** — agent may choose.
 - **Retention/cost of cloud-side span volume** — agent may raise if it looks material.
 
+## Strategic Placement (Mark, 2026-08-13)
+
+Recorded because it changes how this should be BUILT, not just why it is worth building.
+
+The direction is **cloud-native, for an eventual AILANG cloud product**. The history matters: cloud
+first on a laptop → moved on-device when this server arrived, to trial its GPU eval cluster → that is
+now fairly stable → moving back to cloud. So on-device was a deliberate, temporary posture, and this
+work is the first step back.
+
+Two consequences for this design:
+
+1. **"Dual-write" means node-generic, not rig-specific.** The write path should treat the node as a
+   parameter — this server, a laptop, a Cloud Run job, future scale-out workers. Anything that hard-codes
+   "the rig" is the wrong shape and will need re-doing.
+2. **Availability hardening is explicitly deferred, not forgotten.** "No block" is correct *for now*;
+   the spool's bounded+loud contract is what keeps that honest rather than silently lossy.
+
+**Adjacent, deliberately NOT in this doc's scope** — several mechanics are half-implemented and want
+their own passes: the coordinator, the dashboard, and `ailang messages`. On the last, Mark's
+"I think they are separated at the moment" was checked and is correct, with a sharper shape than
+separation (see V11): local and cloud inboxes hold **different populations** — internal loop traffic
+here, external/public traffic there — and neither side sees the other. The eventual integration
+surface named: Discord, `ailang messages`, the dashboard, evals as Cloud Run jobs, and workers for
+scale-out missions.
+
 ## Non-Goals
 
 - **Dashboard refactor for mission control.** Mark named this as the follow-up, and it depends on
@@ -286,6 +317,10 @@ their own row per the design-doc-creator hard gate.
 | V6b | Zero tokens are a CALLER defect, not a writer defect | `iteration_post.go:116` does pass `st.TokensIn`/`st.TokensOut` to `UpdateStageMetrics`, and only skips when all three are zero. Observed cost $0.0570 with 0 tokens ⇒ the caller supplied 0 | Confirmed — fix belongs at the post-iteration caller, not in `UpdateStageMetrics` |
 | V7 | Mission stages are `pending` with 0 tokens and a $0.00 chain total | `ailang chains view d075f569-9e4` — 4 stages pending; quorum stages $0.0570/$0.0507 at 0 tokens; total $0.0000 | Confirmed, measured |
 | V8 | Analysis reads the local store | `internal/eval_analysis/loader_chains.go:17` → `observatory.OpenDefaultStore()` → `~/.ailang/state/observatory.db` (`models.go:14-19`) | Confirmed |
+| V10 | A bounded, loud, fail-soft spool ALREADY exists for exactly the "cannot reach the store" case | Read [`internal/observatory/spool.go`](../../../internal/observatory/spool.go): 100-entry / 1 MiB cap, drops oldest with a stderr notice, every buffering event warns, next iteration flushes. Its comment records that it was built to answer a quorum objection about "unbounded silent fallback" | **Exists** — the offline decision extends it rather than inventing a policy |
+| V11 | Local and cloud `ailang messages` hold different populations | `AILANG_STORAGE` unset on this server (launchd global empty, with a firing control) → local store. Local: 20 messages, all `mission-*`/`eval-suite`. Cloud `/api/inbox`: 55, from `mcp-public` (28), `pkg-sunholo-*`, `coordinator`; latest 2026-08-11 | Confirmed — internal traffic here, external there, neither visible to the other. **Out of scope here**, recorded so it is not re-derived |
+| V12 | The two stores are COMPLEMENTARY, not duplicates | Local: 1,716 chains / 28,231 stages / **0 spans**. Cloud: 25 chains (all `source_type: message`) / 0 stages / 193 spans | Confirmed — a sync is nearly ADDITIVE, not a merge; no source-type collision |
+| V13 | Sync volume is small | 42 chains and 238 stages in the last 24h; burstiest single chain is 132 stages | Confirmed — removes the usual argument for mirroring over dual-write |
 | V9 | Prod/dev observatories are Firestore, not SQLite | Both Cloud Run services set `AILANG_STORAGE=gcp` → `NewGCPBackends` → `fsstore.NewObservatoryStore`; behavioural proof: 190 spans survived a revision roll | Confirmed |
 
 ## Related Documents
