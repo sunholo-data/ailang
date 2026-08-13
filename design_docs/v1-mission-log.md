@@ -10127,3 +10127,19 @@ guard is tested"* — REFUTED by a landed, building mutation; *"my mutation prov
 **Next**: `#698` — the sprint's own missing half (opt-in remote read + the four absent regression
 tests). Then `#691`. `m-mapE-queryall-retention` (`#610`) stays infra-gated (no duckdb CLI on this
 rig). Parked on Mark: `D-1`–`D-14`, all on `#635`.
+
+**Gate 5 retro — one gap PRE-REGISTERED, no skill edit (bar is two, this is instance 1).**
+Gate 2's died-mid-flight sweep enumerates three traces: **(a)** open PRs on our account, **(b)** stale
+sprint worktrees, **(c)** uncommitted working-tree state. Iteration 193 left **none of the three**. Its
+work was *committed*, on the main checkout's own `dev`, and simply never pushed — invisible to (a) (no
+PR), to (b) (no worktree; it worked in the main tree), and to (c) (the tree was clean). It was caught
+only because Gate 1's origin-sync happens to print the **ahead** direction, which the gate reads for a
+different purpose entirely (deciding whether local state is trustworthy), and whose own snippet is
+written around the *behind* case. Candidate trace **(d)**: `git log --oneline origin/dev..dev` in the
+main checkout, read for commits your predecessor would plausibly have written. Not written into the
+skill this iteration — the standing bar is ≥2 recorded frictions, and prior instances (121, 148/149,
+161) each left one of (a)/(b)/(c), so this shape has exactly one. **If a second iteration hits it, the
+fix is to add (d) to the died-mid-flight list.** Related but distinct, and already documented: the
+Repo Profile's note (c) covers an edit *committed from a worktree* (reaches origin, never reaches the
+running skill) — this is its mirror (reaches the running skill, never reaches origin), and it is why
+the drift check fired here.
