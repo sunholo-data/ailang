@@ -83,10 +83,17 @@ func (p *GeminiAPIProvider) Execute(ctx context.Context, task *AnalyzedTask, opt
 		model = opts.Model
 	}
 
+	// MaxTokens deliberately UNSET (2026-08-13). Gemini 3.x thinks by default and
+	// its thoughtsTokenCount bills against maxOutputTokens, so the old hardcoded
+	// 4096 was a thinking throttle on every coordinator research task — the same
+	// defect that silently truncated quorum reviewers mid-verdict. 0 omits
+	// maxOutputTokens from the payload entirely (generate.go: `if req.MaxTokens
+	// > 0`), leaving the model's own server-side ceiling. Outside the eval
+	// harness — which equalises headroom on purpose so token counts compare —
+	// models run at full ability.
 	req := &ai.Request{
 		Model:      model,
 		UserPrompt: prompt,
-		MaxTokens:  4096,
 	}
 	response, err := p.client.Generate(execCtx, req)
 	result.Duration = time.Since(start)

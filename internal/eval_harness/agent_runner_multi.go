@@ -262,6 +262,11 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 			if cfg.MaxOutputTokens > 0 {
 				task.MaxOutputTokens = cfg.MaxOutputTokens
 			}
+			// reasoning_effort reached standard mode (ai_agent.go) but was
+			// dropped on the agent path, so an entry could declare a dial that
+			// never left the registry. Empty stays empty: no reasoning control
+			// is sent and the model thinks at its provider default.
+			task.ReasoningEffort = cfg.ReasoningEffort
 			if cfg.GCPProject != "" {
 				task.GCPProject = cfg.GCPProject
 			}

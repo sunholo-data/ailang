@@ -102,3 +102,54 @@ Policy: `sandbox.mission.json` here is canonical; installed at
 | bash read of `secrets.env` | `Operation not permitted`, exit 1 |
 | `write` tool to `/tmp` (outside `$WT`) | blocked by the fence |
 | `go build ./internal/messaging/` | `BUILD_OK`, exit 0 |
+
+## models.mission.json — the model registry pi actually reads
+
+Policy: `models.mission.json` here is canonical; installed at `~/.pi/agent/models.json`
+(the OpenRouter `apiKey` is a placeholder in the repo copy — the installed file carries
+the real key, which is why it lives in the config and not in the env: headless-safe).
+
+**pi has no max-tokens flag.** It reads `maxTokens` per model from that file and falls
+back to **16384** for any model that omits it (`model-registry.js`), along with
+`contextWindow` 128000 and `reasoning: false`. Our four OpenRouter models were registered
+as bare `{"id": "..."}`, so from the day the lane was wired until 2026-08-13:
+
+| | declared in models.yml | actually on the wire |
+|---|---|---|
+| max output tokens | 65536 | **16384** |
+| context window | 1M (deepseek-v4-flash-0731) | **128K** |
+| reasoning capability | thinks by default | **`false`** — no `--thinking` level accepted |
+
+DeepSeek V4 Flash 0731 thinks by default and OpenRouter bills reasoning tokens against
+`max_tokens`, so thinking and answer shared a 16384 budget nobody chose. That is the
+mechanism behind the executor's `"stopReason":"length"` failures: three runs, two
+directives written specifically to prevent it, no prompt could have fixed it.
+
+`internal/executor/pi/buildPiArgs` **cannot** forward `task.MaxOutputTokens` — there is no
+flag to put it in. The registry value reaches the wire only if this file carries the same
+number, which `TestPiModelsConfigMatchesRegistry` (in `internal/eval_harness`) now asserts.
+
+### The trap when fixing it
+
+Setting `reasoning: true` **alone makes it worse.** With `compat.thinkingFormat:
+"openrouter"` and no effort passed, pi-ai sends `reasoning: {effort: "none"}` — actively
+*disabling* thinking that previously happened by default. The `thinkingLevelMap` here maps
+`off` to `null`, which suppresses that branch: no reasoning field is sent unless
+`--thinking <level>` is explicitly passed. Levels a model cannot honour are mapped to
+`null` too (glm-4.7-flash and gemma-4-26b do not list `reasoning_effort` in their
+OpenRouter `supported_parameters`).
+
+Verified live 2026-08-13 after the change: `stopReason: stop`, a 358-char `thinking` block
+present in the response — thinking preserved, not disabled.
+
+### Keeping it honest
+
+`maxTokens` mirrors `max_output_tokens` in `internal/eval_harness/models.yml` (CI-enforced).
+`contextWindow`, ceilings and `cost` (per 1M tokens — pi reports `cost: 0` for any custom
+model without one, which silently zeroed the metered ledger) come from
+`GET https://openrouter.ai/api/v1/models`; re-measure rather than assume, prices move.
+
+**Ollama rows are deliberately untouched.** Their ceiling is VRAM-bound, and the three
+local harnesses currently disagree on it (pi 16384 default, opencode 4096, motoko 8192
+from the registry). Aligning them moves a live measurement baseline mid-rotation, so it is
+a decision, not a cleanup.

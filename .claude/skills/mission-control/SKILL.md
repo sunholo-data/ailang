@@ -1604,7 +1604,18 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
        both source files and the provider interface, and re-derived the baselines itself), then
        one turn's content is a single enormous block that hits the **16,384-token output cap**
        (`stopReason":"length"`), emitting **no tool call**. pi treats that as a normal terminal
-       state, ends the agent loop, and exits **0**. It is not sampling noise and it is not fixed
+       state, ends the agent loop, and exits **0**. **ROOT CAUSE FOUND 2026-08-13 — the cap was
+       ours, not the model's.** pi has no max-tokens flag; it reads `maxTokens` from
+       `~/.pi/agent/models.json` and defaults to **16384** for any model that omits it, and our
+       four OpenRouter models were registered as bare `{"id": "..."}`. models.yml declared 65536
+       the whole time. DeepSeek V4 Flash 0731 thinks by default and OpenRouter bills reasoning
+       against `max_tokens`, so thinking and answer shared a budget nobody chose — which is why
+       both `thinking` (172) and `text` (173) blocks blew it. Fixed: the config now declares
+       `maxTokens` 65536, the real 1M `contextWindow`, and `reasoning: true`; canonical copy
+       `tools/pi-extensions/models.mission.json`, drift-tested by
+       `TestPiModelsConfigMatchesRegistry`. **The three assertions below stay mandatory** — a
+       4x-larger budget makes the failure rarer, not impossible, and the lane is only re-qualified
+       by runs, not by this fix. It is not sampling noise and it is not fixed
        by prompting: iteration 172 added an explicit anti-runaway instruction and the second run
        failed identically, and iteration 173's directive prescribed incremental per-AC edits and
        it failed again. Note the block TYPE varies — `thinking` (~63k chars) in 172, `text`

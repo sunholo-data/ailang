@@ -42,7 +42,8 @@ type JSONCaller interface {
 // GenerateWithDetails so we recover token counts + provider-reported CostUSD
 // for the budget ledger.
 type handlerCaller struct {
-	handler *ai.Handler
+	handler   *ai.Handler
+	maxTokens int
 }
 
 func (c *handlerCaller) CallJSON(sysPrompt, userPrompt, schema string) (string, *ai.Response, error) {
@@ -53,7 +54,7 @@ func (c *handlerCaller) CallJSON(sysPrompt, userPrompt, schema string) (string, 
 		Model:          c.handler.Model(),
 		SystemPrompt:   sysPrompt,
 		UserPrompt:     userPrompt,
-		MaxTokens:      reviewMaxTokens,
+		MaxTokens:      c.maxTokens,
 		ResponseFormat: "json",
 		ResponseSchema: schema,
 	})
@@ -63,19 +64,35 @@ func (c *handlerCaller) CallJSON(sysPrompt, userPrompt, schema string) (string, 
 	return strings.TrimSpace(resp.Text), resp, nil
 }
 
-// reviewMaxTokens caps reviewer output. Reviews are short structured JSON, but
-// the frontier reviewers are REASONING models whose thinking tokens count
-// against maxOutputTokens (Gemini 3.x especially — "2x reasoning"). At the old
-// 4096 cap the thinking trace could consume the whole budget and truncate the
-// JSON answer mid-object, so the review was silently dropped as
-// "malformed JSON" and the quorum degraded to N-1 (observed live, mission iter
-// 42: gemini-3-1-pro finishReason=MAX_TOKENS on a substantive objection). 16384
-// leaves genuine thinking headroom above the ~1-2K structured verdict. Cost is
-// billed per ACTUAL token emitted (a short verdict stays in cents) and the
-// pre-flight budget cap uses a fixed expectedOutputTokens estimate, so raising
-// this ceiling does not change budget gating. A residual truncation now fails
-// LOUDLY via resp.FinishReason == "length" (see runReviewerWith), never silently.
-const reviewMaxTokens = 16384
+// reviewerMaxTokens returns the reviewer's output budget: the model's FULL
+// declared strength from models.yml, never a policy cap of our own.
+//
+// History, because this number has been wrong twice in the same direction.
+// Reviews are short structured JSON, but the frontier reviewers are REASONING
+// models whose thinking tokens count against maxOutputTokens (Gemini 3.x
+// especially — "2x reasoning"). At 4096 the thinking trace consumed the whole
+// budget and truncated the JSON mid-object, so the review was dropped as
+// "malformed JSON" and the quorum silently degraded to N-1 (mission iter 42:
+// gemini-3-1-pro finishReason=MAX_TOKENS on a substantive objection). Raising
+// it to a hardcoded 16384 fixed that case and left the same trap set one octave
+// up — a deeper thinker still hits a ceiling nobody chose per-model.
+//
+// Policy (2026-08-13): outside the eval harness, models run at full ability.
+// Restricting thinking is an EVAL decision — evals equalise headroom so token
+// counts are comparable between models (TestModels_CloudHeadroomEqualised).
+// Nothing else has that excuse: a throttled reviewer is just a worse reviewer.
+// Cost is billed per ACTUAL token emitted (a short verdict stays in cents) and
+// the pre-flight cap uses a fixed expectedOutputTokens estimate, so this
+// ceiling does not change budget gating.
+//
+// Fails LOUDLY (Principle 2) when the registry declares no budget: 0 would fall
+// back to the ai.Handler's 4096 default and silently re-create the iter-42 bug.
+func reviewerMaxTokens(mc *eval_harness.ModelConfig) (int, error) {
+	if mc.MaxOutputTokens <= 0 {
+		return 0, fmt.Errorf("reviewer %q declares no max_output_tokens in models.yml — refusing to fall back to the 4096 handler default, which truncates reasoning models mid-verdict", mc.APIName)
+	}
+	return mc.MaxOutputTokens, nil
+}
 
 // ResolveCaller builds a JSONCaller for a models.yml model id, wiring the
 // correct provider + auth from the shipped registry:
@@ -130,6 +147,10 @@ func ResolveCaller(modelID string) (JSONCaller, *eval_harness.ModelConfig, error
 		return nil, nil, fmt.Errorf("reviewer %q provider %q unsupported for quorum (want openai or google)", modelID, mc.Provider)
 	}
 
-	handler := ai.NewHandler(provider, mc.APIName, ai.WithMaxTokens(reviewMaxTokens))
-	return &handlerCaller{handler: handler}, mc, nil
+	maxTokens, err := reviewerMaxTokens(mc)
+	if err != nil {
+		return nil, nil, err
+	}
+	handler := ai.NewHandler(provider, mc.APIName, ai.WithMaxTokens(maxTokens))
+	return &handlerCaller{handler: handler, maxTokens: maxTokens}, mc, nil
 }

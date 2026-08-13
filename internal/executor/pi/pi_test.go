@@ -90,15 +90,58 @@ func TestGetModel_TaskOverride(t *testing.T) {
 }
 
 func TestBuildPiArgs_Defaults(t *testing.T) {
-	args := buildPiArgs("anthropic/claude-haiku-4-5", &executor.Task{}, "fizz")
+	args, err := buildPiArgs("anthropic/claude-haiku-4-5", &executor.Task{}, "fizz")
+	if err != nil {
+		t.Fatalf("buildPiArgs: %v", err)
+	}
 	want := []string{"--mode", "json", "--model", "anthropic/claude-haiku-4-5", "--no-session", "-p", "fizz"}
 	if !equalSlices(args, want) {
 		t.Errorf("args = %v, want %v", args, want)
 	}
 }
 
+// TestBuildPiArgs_NoThinkingDialByDefault pins the default: an unset
+// ReasoningEffort sends NO --thinking flag, so the model thinks at its provider
+// default. Passing a level here would silently convert "unset" into a decision —
+// and for an openrouter-compat model pi turns "off" into reasoning.effort=none,
+// i.e. thinking DISABLED.
+func TestBuildPiArgs_NoThinkingDialByDefault(t *testing.T) {
+	args, err := buildPiArgs("openrouter/deepseek/deepseek-v4-flash-0731", &executor.Task{}, "go")
+	if err != nil {
+		t.Fatalf("buildPiArgs: %v", err)
+	}
+	if contains(args, "--thinking") {
+		t.Errorf("unset ReasoningEffort must not emit --thinking, got %v", args)
+	}
+}
+
+func TestBuildPiArgs_ThinkingLevel(t *testing.T) {
+	args, err := buildPiArgs("openrouter/deepseek/deepseek-v4-flash-0731",
+		&executor.Task{ReasoningEffort: "high"}, "go")
+	if err != nil {
+		t.Fatalf("buildPiArgs: %v", err)
+	}
+	idx := indexOf(args, "--thinking")
+	if idx < 0 || idx+1 >= len(args) {
+		t.Fatalf("expected --thinking <level> in args, got %v", args)
+	}
+	if args[idx+1] != "high" {
+		t.Errorf("--thinking value = %q, want \"high\"", args[idx+1])
+	}
+}
+
+func TestBuildPiArgs_InvalidThinkingLevelIsLoud(t *testing.T) {
+	if _, err := buildPiArgs("openrouter/deepseek/deepseek-v4-flash-0731",
+		&executor.Task{ReasoningEffort: "maximum"}, "go"); err == nil {
+		t.Fatal("expected an error for an unknown reasoning_effort, got nil")
+	}
+}
+
 func TestBuildPiArgs_NoTools(t *testing.T) {
-	args := buildPiArgs("openai/gpt-5.4", &executor.Task{AllowedTools: []string{}}, "do x")
+	args, err := buildPiArgs("openai/gpt-5.4", &executor.Task{AllowedTools: []string{}}, "do x")
+	if err != nil {
+		t.Fatalf("buildPiArgs: %v", err)
+	}
 	// AllowedTools = empty slice → --no-tools
 	if !contains(args, "--no-tools") {
 		t.Errorf("expected --no-tools flag for empty AllowedTools, got %v", args)
@@ -106,9 +149,12 @@ func TestBuildPiArgs_NoTools(t *testing.T) {
 }
 
 func TestBuildPiArgs_AllowedTools(t *testing.T) {
-	args := buildPiArgs("anthropic/claude-haiku-4-5",
+	args, err := buildPiArgs("anthropic/claude-haiku-4-5",
 		&executor.Task{AllowedTools: []string{"read", "grep"}},
 		"summarize")
+	if err != nil {
+		t.Fatalf("buildPiArgs: %v", err)
+	}
 	idx := indexOf(args, "--tools")
 	if idx < 0 || idx+1 >= len(args) {
 		t.Fatalf("expected --tools <list> in args, got %v", args)

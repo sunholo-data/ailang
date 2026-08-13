@@ -131,6 +131,16 @@ type Task struct {
 	// MaxTokensPerBench (a cumulative thrash ceiling).
 	MaxOutputTokens int
 
+	// ReasoningEffort is the registry's reasoning_effort dial ("off"|"low"|
+	// "medium"|"high", plus pi's "minimal"/"xhigh"), forwarded to executors that
+	// can express it. Empty = unset: send NO reasoning control and let the model
+	// think at its provider default, which is NOT the same as "off" — an
+	// explicit "off" is a request to disable thinking. Only executors
+	// advertising a thinking dial honour it (today: pi via --thinking); the
+	// others ignore it, so a non-empty value there is a declaration that does
+	// not reach the wire.
+	ReasoningEffort string
+
 	// RequiresEgress (M-GEMINI-REPO-MOUNT Phase 2) opts the task into an
 	// egress-enabled sandbox so the hosted agent can reach the public network
 	// (e.g. `git clone` the public AILANG repo at a target revision, then run

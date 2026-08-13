@@ -27,6 +27,40 @@ func TestResolveCaller_OpenAIRequiresKey(t *testing.T) {
 	}
 }
 
+// TestReviewerMaxTokens_UsesRegistryNotAPolicyCap proves reviewers run at the
+// model's FULL declared strength. The previous hardcoded 16384 was a thinking
+// throttle on a reasoning model: it replaced an even smaller 4096 cap that had
+// already degraded a live quorum to N-1 by truncating a verdict mid-JSON.
+func TestReviewerMaxTokens_UsesRegistryNotAPolicyCap(t *testing.T) {
+	if err := eval_harness.InitModelsConfig(); err != nil {
+		t.Skipf("models.yml unavailable: %v", err)
+	}
+	mc, err := eval_harness.GlobalModelsConfig.GetModel("gemini-3-1-pro")
+	if err != nil {
+		t.Skipf("gemini-3-1-pro not in models.yml: %v", err)
+	}
+
+	got, err := reviewerMaxTokens(mc)
+	if err != nil {
+		t.Fatalf("reviewerMaxTokens: %v", err)
+	}
+	if got != mc.MaxOutputTokens {
+		t.Errorf("reviewer budget = %d, want the registry's %d", got, mc.MaxOutputTokens)
+	}
+	if got <= 16384 {
+		t.Errorf("reviewer budget = %d — a frontier reasoning model is being capped at or below the old policy ceiling", got)
+	}
+}
+
+// TestReviewerMaxTokens_RefusesUndeclaredBudget: 0 would silently fall back to
+// the ai.Handler's 4096 default, which is exactly the truncation this path has
+// already been bitten by. Refuse instead (Principle 2).
+func TestReviewerMaxTokens_RefusesUndeclaredBudget(t *testing.T) {
+	if _, err := reviewerMaxTokens(&eval_harness.ModelConfig{APIName: "no-budget"}); err == nil {
+		t.Fatal("expected a hard error when max_output_tokens is undeclared, got nil")
+	}
+}
+
 // TestResolveCaller_GeminiDoesNotReadGeminiKey proves the google reviewer path
 // resolves via the models.yml provider=google (Vertex ADC) route and does NOT
 // depend on GEMINI_API_KEY (the rig-absent var the design doc flagged). We set

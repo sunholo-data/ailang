@@ -107,7 +107,10 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 		directive = task.SystemPrompt + "\n\n" + task.Directive
 	}
 
-	args := buildPiArgs(e.getModel(task), task, directive)
+	args, err := buildPiArgs(e.getModel(task), task, directive)
+	if err != nil {
+		return nil, err
+	}
 	piPath := e.piPath
 
 	cmd := exec.CommandContext(ctx, piPath, args...)
@@ -542,14 +545,33 @@ func (e *PiExecutor) getModel(task *executor.Task) string {
 //	--model <prov/id>  model selection via provider-prefix shorthand
 //	--no-session       ephemeral run (avoids ~/.pi/sessions/ pollution)
 //	--no-tools         when AllowedTools is empty; otherwise --tools <list>
+//	--thinking <lvl>   only when the registry declares reasoning_effort
 //
 // The directive is the trailing positional argument.
-func buildPiArgs(model string, task *executor.Task, directive string) []string {
+//
+// NOT expressible here: the per-request output budget. pi has no max-tokens
+// flag — it reads maxTokens from ~/.pi/agent/models.json and falls back to
+// 16384 for any model that omits it (model-registry.js). task.MaxOutputTokens
+// therefore CANNOT be forwarded from this side; the registry's declared budget
+// reaches the wire only if the pi config carries the same number. Canonical
+// copy: tools/pi-extensions/models.mission.json, drift-tested against
+// models.yml by TestPiModelsConfigMatchesRegistry.
+func buildPiArgs(model string, task *executor.Task, directive string) ([]string, error) {
 	args := []string{
 		"--mode", "json",
 		"--model", model,
 		"--no-session",
 		"-p",
+	}
+
+	// Empty = send no dial at all; provider default thinking. Validated here
+	// rather than passed through, because pi rejects an unknown level with a
+	// usage dump that reads like a harness bug.
+	if task.ReasoningEffort != "" {
+		if !validPiThinkingLevels[task.ReasoningEffort] {
+			return nil, fmt.Errorf("pi: invalid reasoning_effort %q (want one of off, minimal, low, medium, high, xhigh)", task.ReasoningEffort)
+		}
+		args = append(args, "--thinking", task.ReasoningEffort)
 	}
 
 	switch {
@@ -562,7 +584,15 @@ func buildPiArgs(model string, task *executor.Task, directive string) []string {
 	}
 
 	args = append(args, directive)
-	return args
+	return args, nil
+}
+
+// validPiThinkingLevels is pi's --thinking vocabulary (cli/args.js
+// VALID_THINKING_LEVELS). Wider than the registry's off/low/medium/high, so a
+// models.yml value is always accepted; the extra two are pi-only.
+var validPiThinkingLevels = map[string]bool{
+	"off": true, "minimal": true, "low": true,
+	"medium": true, "high": true, "xhigh": true,
 }
 
 // piUsageCost mirrors message_end.message.usage.cost.

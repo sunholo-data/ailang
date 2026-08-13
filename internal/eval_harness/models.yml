@@ -2353,6 +2353,16 @@ models:
                               # (endpoints API 2026-08-06): first-party DeepSeek
                               # 384K, most hosts >=131K, min-host Venice 32768 —
                               # routing roulette can undercut this cap on Venice.
+                              # ⚠️ THIS NUMBER DOES NOT REACH THE WIRE BY ITSELF.
+                              # pi has no max-tokens flag: it reads maxTokens from
+                              # ~/.pi/agent/models.json (canonical copy:
+                              # tools/pi-extensions/models.mission.json) and
+                              # defaults to 16384 for a model that omits it. This
+                              # entry declared 65536 while every pi run — mission
+                              # executor AND agent-mode eval — was capped at
+                              # 16384 with thinking billed against it, until
+                              # 2026-08-13. TestPiModelsConfigMatchesRegistry now
+                              # fails if the two drift apart again.
     pricing:
       # RE-MEASURED 2026-08-11 from OpenRouter's own endpoints API. The model is
       # served by 26 upstream hosts at $0.08-0.14/M input, so a single number is
@@ -2460,6 +2470,73 @@ models:
       overhead may hurt simple-task accuracy.
       v0.19.0: timeout bumped to 3600s (network-hang net only) for
       M-EVAL-SWEET-SPOT validation — cost is the real budget gate.
+
+  # DeepSeek V4 Pro 0813 — GA release of the V4 Pro line, published 2026-08-13
+  # (the incumbent or-deepseek-v4-pro slug is the April *preview*). Smoke gate
+  # PASSED 22/23 on 2026-08-13; entry is OPT-IN and in NO suite until the core
+  # tier settles promotion (smoke is a FLOOR, not a ranking — see notes).
+  or-deepseek-v4-pro-0813:
+    api_name: "deepseek/deepseek-v4-pro-0813"
+    provider: "openrouter"
+    default_thinking: "on"  # VERIFIED 2026-08-13: bare call returned reasoning_tokens=237 of 490 completion
+    description: "DeepSeek V4 Pro 0813 (GA, 2026-08-13) via OpenRouter (standard) — thinking-on, $0.435/$0.87 per 1M"
+    env_var: "OPENROUTER_API_KEY"
+    model_family: "deepseek-v4"
+    # Thinking-on, so this is sized for reasoning + content, not the 32768 fleet
+    # default. Only endpoint declares max_completion=384000 (first-party DeepSeek,
+    # 1M ctx); 65536 is the fleet's standard thinking-model headroom (gpt5-5,
+    # claude-*-5, gemini-3-*-flash, or-kimi-k3, pi-or-deepseek-v4-flash all use it)
+    # and matches the incumbent or-deepseek-v4-pro so preview-vs-GA stays
+    # apples-to-apples. Raise toward 384000 only if failures show finish=length.
+    max_output_tokens: 65536
+    pricing:
+      input_per_1k: 0.000435   # $0.435/1M — OpenRouter models API, 2026-08-13
+      output_per_1k: 0.00087   # $0.87/1M  — OpenRouter models API, 2026-08-13
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      GA release of DeepSeek V4 Pro, published to OpenRouter 2026-08-13
+      (created=1786549364). Same relationship to `deepseek/deepseek-v4-pro`
+      as `-flash-0731` has to `-flash`: GA supersedes the April preview.
+
+      ROUTING NOTE — day zero this slug had exactly ONE endpoint (first-party
+      DeepSeek), which this account's OpenRouter data-policy setting filtered
+      out, so every call 404'd with "No endpoints available matching your
+      guardrail restrictions and data policy". Mark cleared it 2026-08-13 by
+      allowing first-party DeepSeek. Recorded because it will recur on the NEXT
+      day-zero DeepSeek slug, and because the control is the fast diagnosis:
+        - flash-0731 unpinned            -> 200 (routed to Sail Research)
+        - flash-0731 pinned to DeepSeek  -> 404 "No endpoints found"  <- the block
+        - flash-0731 pinned to DeepInfra -> 200
+      i.e. pin the suspect provider on a slug that is known to work. The older
+      v4 slugs only ever worked because 18-27 third-party providers mirror them.
+
+      SMOKE GATE PASSED 2026-08-13 — 22/23, ~5 min, standard mode, N=1.
+      Sole failure `dense_operator_program`: runtime_error, "IMP010: symbol
+      'bitwiseOr' not exported by 'std/math'" — the known AILANG stdlib gap,
+      NOT a model gap. Control (no live anchor available: v0.32.0 banked no
+      claude-sonnet-4-6 smoke rows and there is no ANTHROPIC_API_KEY here, so
+      running the anchor would have produced 23 auth failures reading as a
+      broken tier) = the two banked dev models, which fail the same single
+      benchmark and nothing else: gemini-3-flash 19/20, gpt5-4-mini 22/23.
+      So 22/23 IS the clean result for this tier.
+      Truncation ruled out per step 2a: every run finish_reason=stop, max
+      reason_tokens=9160 against 65536 headroom.
+
+      Floor cleared; PROMOTION still open — smoke is saturated and carries no
+      ranking information (see the GLM-5.2 anti-pattern above). Suite membership
+      and any repoint of or-deepseek-v4-pro must be decided on --tier core:
+        ailang eval-suite --models or-deepseek-v4-pro-0813,or-deepseek-v4-pro \
+          --tier core --langs ailang --output /tmp/core_v4pro0813 --parallel 4
+      If candidate and incumbent land within 1-2 benchmarks, escalate to N>=3
+      before flipping the incumbent — do not decide a repoint on an N=1 delta.
+
+      Price note: GA is CHEAPER than the live preview — $0.435/$0.87 per 1M
+      here vs $1.168/$2.336 for `deepseek/deepseek-v4-pro` as metered on
+      2026-08-13. See the incumbent entry: its recorded pricing (0.00043/
+      0.00087 per 1K) matches THIS model, not the preview it points at, so
+      banked or-deepseek-v4-pro costs are understated ~2.7x. Separate fix.
 
   opencode-or-glm-4-7-flash:
     api_name: "z-ai/glm-4.7-flash"
