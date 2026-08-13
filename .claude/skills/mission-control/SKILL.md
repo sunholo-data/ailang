@@ -2059,6 +2059,35 @@ writing it — `git diff --stat` first, and a charter diff whose net line delta 
 pointed at your own edits: **you are an instrument too, and a destructive edit reports success
 exactly like a correct one.**
 
+**AND EVERY ASSERTION ABOVE IS CHARTER-SIDE, SO ALL OF THEM PASS IDENTICALLY WHETHER THE ROTATED
+STAMP WAS *MOVED* TO THE ARCHIVE OR SIMPLY *DELETED* — ASSERT THE ARCHIVE END TOO** (added
+2026-08-13 V1 iteration 190; two first-party instances, iterations **171** and **186**). The
+rotation is a two-file operation described by one file's arithmetic. `after == before + 2 −
+2×len(moved)` is a statement about the CHARTER's line count; it is satisfied exactly as well by a
+correct move as by a deletion, because both remove the same two lines. Rule (c)'s queue-row grep
+looks at the charter, and rule (d)'s `git diff --stat` shows `-archived` in the charter without
+ever asking where those lines went — indeed a diff **stat** over both files still nets out
+plausibly if the archive gained a *different* number of lines. So the one thing the rotation exists
+to guarantee — that the stamp survives somewhere — is the one thing nothing checks. This is the
+vacuous-pass shape the mission keeps closing, aimed at Gate 4's own edit: the assertion passes for
+the wrong reason.
+Measured on V1: of the six iteration numbers absent from charter+archive in the range 150–190,
+**159/160/165 were never written at all** (reaped slots — Standing rule 7, so a gap is NOT by
+itself a rotation defect, and attributing it as one would be rule 3d), while **171** and **186**
+were each *added to the charter and later removed with no archive commit ever touching them*
+(`git log -S "ITERATION <n>" -- <charter>` shows 2 commits, `-- <archive>` shows **0**; control
+`185` shows 2 and **1**). Iteration 186's stamp was recovered from `8ecebc0e1` at iteration 190;
+171's is still recoverable and was not.
+**Rule:** after any rotation, grep the ARCHIVE for the stamp you just moved and require **≥1**, in
+the same breath as the charter arithmetic — `grep -c "ITERATION <moved>" <archive>`. Pair it with
+a known-present control (`ITERATION <moved-1>`) so a zero means "the move failed" rather than "my
+pattern is wrong". **And do NOT enumerate stamps with a header-shaped pattern to audit this**:
+V1's own audit of exactly this used `^## STATUS … — ITERATION N` and reported `163` and `184`
+missing when a raw `grep -c "ITERATION N"` finds both — the header format drifted, so the strict
+pattern manufactured two false gaps beside the two real ones. Count the bare token, not the
+header. Mission-independent: the casing/format of the stamp is per-mission (see the `-ci` rule
+above), but "the destination gained what the source lost" is a property of every rotation.
+
 ## Gate 5 — RETRO + REPORT
 
 1. Scan this iteration's friction (evaluator feedback, executor corrections, your own dead ends)
