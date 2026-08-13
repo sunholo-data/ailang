@@ -19,8 +19,13 @@ func (s *Store) CreateChain(ctx context.Context, req *ChainCreateRequest) (*Exec
 		return nil, fmt.Errorf("source_type is required")
 	}
 
+	chainID := req.ID
+	if chainID == "" {
+		chainID = uuid.New().String()
+	}
+
 	chain := &ExecutionChain{
-		ID:                uuid.New().String(),
+		ID:                chainID,
 		SourceType:        req.SourceType,
 		SourceRef:         req.SourceRef,
 		GitHubRepo:        req.GitHubRepo,
@@ -280,8 +285,13 @@ func (s *Store) CreateStage(ctx context.Context, req *StageCreateRequest) (*Chai
 		iteration = 1
 	}
 
+	stageID := req.ID
+	if stageID == "" {
+		stageID = uuid.New().String()
+	}
+
 	stage := &ChainStage{
-		ID:        uuid.New().String(),
+		ID:        stageID,
 		ChainID:   req.ChainID,
 		AgentID:   req.AgentID,
 		Provider:  req.Provider,
@@ -315,9 +325,15 @@ func (s *Store) CreateStage(ctx context.Context, req *StageCreateRequest) (*Chai
 		if err == nil {
 			break
 		}
-		// Retry on UNIQUE constraint violation (concurrent inserts)
+		// Retry on UNIQUE constraint violation (concurrent inserts). The contended
+		// column is stage_number, which the INSERT recomputes each attempt; the new
+		// ID only covers a PK collision. A PINNED id is never regenerated — the
+		// caller asked for that id specifically, and quietly swapping it would
+		// break the cross-store identity it was pinned for.
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
-			stage.ID = uuid.New().String() // New ID for retry
+			if req.ID == "" {
+				stage.ID = uuid.New().String() // New ID for retry
+			}
 			continue
 		}
 		return nil, fmt.Errorf("failed to create stage: %w", err)

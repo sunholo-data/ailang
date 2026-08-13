@@ -446,6 +446,12 @@ func (b *CompositeBackend) UpdateStageError(ctx context.Context, stageID, errorM
 	return b.local.UpdateStageError(ctx, stageID, errorMessage)
 }
 
+// UpdateStageEvalAssessment delegates to local, like every other chain-stage write
+// on this backend.
+func (b *CompositeBackend) UpdateStageEvalAssessment(ctx context.Context, stageID string, assessment *EvalAssessment) error {
+	return b.local.UpdateStageEvalAssessment(ctx, stageID, assessment)
+}
+
 func (b *CompositeBackend) GetSpansByStageID(ctx context.Context, stageID string) ([]*Span, error) {
 	return b.local.GetSpansByStageID(ctx, stageID)
 }

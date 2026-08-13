@@ -2,6 +2,7 @@ package firestore
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -18,8 +19,12 @@ import (
 
 func (s *ObservatoryStore) CreateChain(ctx context.Context, req *obs.ChainCreateRequest) (*obs.ExecutionChain, error) {
 	now := time.Now()
+	chainID := req.ID
+	if chainID == "" {
+		chainID = uuid.New().String()
+	}
 	chain := &obs.ExecutionChain{
-		ID:                uuid.New().String(),
+		ID:                chainID,
 		SourceType:        req.SourceType,
 		SourceRef:         req.SourceRef,
 		GitHubRepo:        req.GitHubRepo,
@@ -235,8 +240,12 @@ func (s *ObservatoryStore) CreateStage(ctx context.Context, req *obs.StageCreate
 	}
 
 	now := time.Now()
+	stageID := req.ID
+	if stageID == "" {
+		stageID = uuid.New().String()
+	}
 	stage := &obs.ChainStage{
-		ID:          uuid.New().String(),
+		ID:          stageID,
 		ChainID:     req.ChainID,
 		StageNumber: stageCount + 1,
 		AgentID:     req.AgentID,
@@ -353,6 +362,29 @@ func (s *ObservatoryStore) UpdateStageMetrics(ctx context.Context, stageID strin
 		updates = append(updates, firestore.Update{Path: "cost_provenance", Value: costProvenance})
 	}
 	_, err := s.client.Doc(collObsChainStages, stageID).Update(ctx, updates)
+	return err
+}
+
+// UpdateStageEvalAssessment stores the assessment as the same JSON string
+// stageToMap/mapToStage already round-trip, so a stage written here reads back
+// with its model — which is what lets the cost classifier resolve a rate for a
+// mission iteration posted to a REMOTE observatory (M-MISSION-LOOP-UNIFIED-
+// TELEMETRY M3). This is the deployed backend: both dashboards run
+// AILANG_STORAGE=gcp.
+func (s *ObservatoryStore) UpdateStageEvalAssessment(ctx context.Context, stageID string, assessment *obs.EvalAssessment) error {
+	if stageID == "" {
+		return fmt.Errorf("stage_id is required")
+	}
+	if assessment == nil {
+		return fmt.Errorf("assessment is required")
+	}
+	data, err := json.Marshal(assessment)
+	if err != nil {
+		return fmt.Errorf("failed to marshal eval assessment: %w", err)
+	}
+	_, err = s.client.Doc(collObsChainStages, stageID).Update(ctx, []firestore.Update{
+		{Path: "eval_assessment", Value: string(data)},
+	})
 	return err
 }
 

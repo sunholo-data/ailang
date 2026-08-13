@@ -1772,24 +1772,54 @@ to the bounded, LOUD, fail-soft Go subcommand — NEVER inline shell spooling:
 ```bash
 # stages: metered lanes carry $ + model + tokens; quota lanes carry quota_bucket
 # (fable|opus|sonnet) and ZERO tokens/cost (subscription burn is bucket-visible, not dollar-faked).
+# EVERY stage carries "status" — its REAL outcome (completed|failed|running|awaiting_approval).
 cat <<JSON | ailang chains post-iteration || true   # `|| true`: telemetry NEVER blocks the loop
 {
   "source": "mission:${MISSION_NAME:-v1}/iter-${ITER}",
   "stages": [
-    {"role":"executor","provider":"codex","model":"<model>","cost_usd":<metered $>,"tokens_in":<n>,"tokens_out":<n>},
-    {"role":"controller","quota_bucket":"opus"},
-    {"role":"evaluator","quota_bucket":"sonnet"}
+    {"role":"executor","provider":"codex","model":"<model>","cost_usd":<metered $>,"tokens_in":<n>,"tokens_out":<n>,"status":"completed"},
+    {"role":"controller","quota_bucket":"opus","status":"completed"},
+    {"role":"evaluator","quota_bucket":"sonnet","status":"failed"}
   ]
 }
 JSON
 ```
 
+**TOKENS AND STATUS ARE YOURS TO SUPPLY, and both were missing** (M-MISSION-LOOP-UNIFIED-TELEMETRY
+M2, 2026-08-13). Measured on `mission:v1/iter-190`: four stages across three providers, all reading
+`pending`, the two OpenRouter quorum stages recording **$0.0570/$0.0507 at ZERO tokens**, and a
+chain total of **$0.0000** against $0.1077 actually spent. The writer forwards whatever it is
+handed — those zeros came from this skill. So:
+
+- **Tokens**: every metered stage posts `tokens_in`/`tokens_out` from the provider's own usage
+  report (quorum reviewers included — a reviewer bill without tokens is what produced iter-190).
+  Quota lanes still post zero, as they always have.
+- **Status**: post what actually happened. `ailang chains post-iteration` now prints a stderr
+  notice naming how many stages posted no status and will read `pending` forever.
+  **Do NOT blanket-post `completed`** — a stage that failed must be posted `failed`. Marking
+  everything `completed` satisfies "nothing is pending" and hides exactly the failures this record
+  exists to surface; the CLI has a regression test whose entire job is to block that shortcut.
+  If a stage is genuinely mid-flight when you post, `running` is the honest answer.
+- **Omitting `status` is still accepted** (an older payload must not break the loop) — it leaves
+  that stage `pending`, i.e. the pre-v0.33.2 behaviour.
+
 The subcommand: (a) flushes any previously-spooled iterations first; (b) writes the chain +
 per-stage cost/tokens/model (metered) or quota bucket (encoded in `agent_id` as `<role>
-(quota:<bucket>)` — NO schema change); (c) if the observatory is unreachable, buffers to a bounded
-JSONL spool (≤100 entries / 1 MiB, drop-oldest, stderr-LOUD) the next iteration flushes. It exits 0
-even on telemetry failure — a broken tracker must never wedge the loop. Review the fleet's spend
-later with `ailang chains stats --by-mission` (M3).
+(quota:<bucket>)` — NO schema change), applies each stage's status, and **rolls the stage
+costs/tokens up into the chain total**; when every stage reports a terminal status the chain itself
+closes as `completed`, or as `failed` if any stage failed; (c) if the observatory is unreachable,
+buffers to a bounded JSONL spool (≤100 entries / 1 MiB, drop-oldest, stderr-LOUD) the next
+iteration flushes. It exits 0 even on telemetry failure — a broken tracker must never wedge the
+loop. Review the fleet's spend later with `ailang chains stats --by-mission` (M3).
+
+**DUAL-WRITE to a remote observatory** (M-MISSION-LOOP-UNIFIED-TELEMETRY M3): a node that sets
+`AILANG_CHAINS_CLOUD=gcp` (or passes `--cloud gcp`) writes the iteration to its local store AND to
+the remote one, under the SAME chain and stage ids, so spans carrying those ids join either copy.
+Nothing about it is specific to this machine — the node is a parameter, and with the variable unset
+behaviour is exactly what it was. It does NOT touch `AILANG_STORAGE`, so this node's coordinator
+and messaging stores stay where they are. Each target keeps its OWN bounded spool, so a cloud
+outage cannot evict local posts, and an unreachable cloud is a stderr warning plus a buffered
+retry — never a blocked iteration.
 
 **GPU rule (two-tier)**: default iterations never touch `rig.lock` — it is a GPU mutex only.
 If (and only if) a step drives ollama/local models: `source tools/launchd/rig-lock.sh &&
