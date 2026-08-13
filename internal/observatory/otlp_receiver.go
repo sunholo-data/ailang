@@ -137,10 +137,15 @@ func NewOTLPReceiver(backend Backend) *OTLPReceiver {
 // - POST /v1/traces - Receive trace data (protobuf or JSON)
 // - POST /v1/logs - Receive logs/events (for Claude Code events)
 // - POST /v1/metrics - Receive metrics (for Claude Code metrics)
+//
+// All three are wrapped in requireOTLPIngestAuth. Wrapping happens HERE rather
+// than at the server's mux so the auth cannot accidentally widen to the
+// dashboard UI or the /api/observatory/* read endpoints: only the handlers
+// registered on this line are covered, by construction.
 func (r *OTLPReceiver) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /v1/traces", r.handleTraces)
-	mux.HandleFunc("POST /v1/logs", r.handleLogs)
-	mux.HandleFunc("POST /v1/metrics", r.handleMetrics)
+	mux.HandleFunc("POST /v1/traces", requireOTLPIngestAuth(r.handleTraces))
+	mux.HandleFunc("POST /v1/logs", requireOTLPIngestAuth(r.handleLogs))
+	mux.HandleFunc("POST /v1/metrics", requireOTLPIngestAuth(r.handleMetrics))
 }
 
 // handleTraces handles the OTLP trace export endpoint.
@@ -163,14 +168,26 @@ func (r *OTLPReceiver) handleTraces(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	case "application/json":
-		if err := protojson.Unmarshal(body, &exportReq); err != nil {
+		// OTLP/JSON encodes IDs as hex; protojson expects base64. See
+		// normalizeOTLPJSONIDs. A malformed ID is rejected, never stored.
+		jsonBody, err := normalizeOTLPJSONIDs(body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := protojson.Unmarshal(jsonBody, &exportReq); err != nil {
 			http.Error(w, fmt.Sprintf("failed to parse JSON: %v", err), http.StatusBadRequest)
 			return
 		}
 	default:
 		// Try protobuf first, fall back to JSON
 		if err := proto.Unmarshal(body, &exportReq); err != nil {
-			if jsonErr := protojson.Unmarshal(body, &exportReq); jsonErr != nil {
+			jsonBody, normErr := normalizeOTLPJSONIDs(body)
+			if normErr != nil {
+				http.Error(w, normErr.Error(), http.StatusBadRequest)
+				return
+			}
+			if jsonErr := protojson.Unmarshal(jsonBody, &exportReq); jsonErr != nil {
 				http.Error(w, "unsupported content type", http.StatusUnsupportedMediaType)
 				return
 			}
@@ -230,7 +247,14 @@ func (r *OTLPReceiver) handleLogs(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	case "application/json":
-		if err := protojson.Unmarshal(body, &exportReq); err != nil {
+		// OTLP/JSON encodes IDs as hex; protojson expects base64.
+		jsonBody, normErr := normalizeOTLPJSONIDs(body)
+		if normErr != nil {
+			fmt.Printf("observatory: rejected logs with a malformed ID: %v\n", normErr)
+			http.Error(w, normErr.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := protojson.Unmarshal(jsonBody, &exportReq); err != nil {
 			fmt.Printf("observatory: failed to parse JSON logs: %v\n", err)
 			http.Error(w, fmt.Sprintf("failed to parse JSON: %v", err), http.StatusBadRequest)
 			return
@@ -238,7 +262,13 @@ func (r *OTLPReceiver) handleLogs(w http.ResponseWriter, req *http.Request) {
 	default:
 		// Try protobuf first, fall back to JSON
 		if err := proto.Unmarshal(body, &exportReq); err != nil {
-			if jsonErr := protojson.Unmarshal(body, &exportReq); jsonErr != nil {
+			jsonBody, normErr := normalizeOTLPJSONIDs(body)
+			if normErr != nil {
+				fmt.Printf("observatory: rejected logs with a malformed ID: %v\n", normErr)
+				http.Error(w, normErr.Error(), http.StatusBadRequest)
+				return
+			}
+			if jsonErr := protojson.Unmarshal(jsonBody, &exportReq); jsonErr != nil {
 				fmt.Printf("observatory: failed to parse logs (tried both): proto=%v, json=%v\n", err, jsonErr)
 				http.Error(w, "unsupported content type", http.StatusUnsupportedMediaType)
 				return

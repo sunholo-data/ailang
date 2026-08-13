@@ -43,14 +43,26 @@ func (r *OTLPReceiver) handleMetrics(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	case "application/json":
-		if err := protojson.Unmarshal(body, &exportReq); err != nil {
+		// OTLP/JSON encodes IDs as hex; protojson expects base64. Metrics carry
+		// them on exemplars, which the normalizer reaches by walking the tree.
+		jsonBody, normErr := normalizeOTLPJSONIDs(body)
+		if normErr != nil {
+			http.Error(w, normErr.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := protojson.Unmarshal(jsonBody, &exportReq); err != nil {
 			http.Error(w, fmt.Sprintf("failed to parse JSON: %v", err), http.StatusBadRequest)
 			return
 		}
 	default:
 		// Try protobuf first, fall back to JSON
 		if err := proto.Unmarshal(body, &exportReq); err != nil {
-			if jsonErr := protojson.Unmarshal(body, &exportReq); jsonErr != nil {
+			jsonBody, normErr := normalizeOTLPJSONIDs(body)
+			if normErr != nil {
+				http.Error(w, normErr.Error(), http.StatusBadRequest)
+				return
+			}
+			if jsonErr := protojson.Unmarshal(jsonBody, &exportReq); jsonErr != nil {
 				http.Error(w, "unsupported content type", http.StatusUnsupportedMediaType)
 				return
 			}
