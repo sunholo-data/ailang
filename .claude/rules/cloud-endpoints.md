@@ -35,16 +35,16 @@ path still points at the dev run.app URL — see `design_docs/planned/m-eval-dat
 `server.go:31-33` flips it to `0.0.0.0` whenever `PORT` is set — the Cloud Run convention. Reading
 only the default and concluding "local-only" is wrong, and has been made before.
 
-## The OTLP receiver is public and unauthenticated
+## The OTLP receiver is public, and currently unauthenticated BY CHOICE
 
 [`internal/server/server.go:603-605`](../../internal/server/server.go) registers the OTLP receiver at
 `/v1/traces`, `/v1/logs`, `/v1/metrics` on the main mux. `server.go:631` wraps that mux in
 `corsMiddleware` **only** — Firebase auth is applied per-route and does not cover these. Anyone who
-knows the URL can write spans into the production `observatory.db`; the read APIs
-(`/api/observatory/*`, `/api/chains`) are open too.
+knows the URL can write spans into the production observatory; the read APIs (`/api/observatory/*`,
+`/api/chains`) are open too.
 
-This is the ingest path for anything pushing OTLP from outside the rig (e.g. OpenRouter Broadcast).
-Adding a shared-secret header check on the OTLP routes is the obvious hardening and has not been done.
+Since v0.33.1 a shared-secret gate **exists** but ships disabled — see "OTLP ingest auth" below for
+the decision and how to turn it on.
 
 ## Verify with a control, never a bare 200
 
@@ -69,10 +69,19 @@ in-container SQLite would not have.
 **Consequence that has already bitten once:** `internal/observatory/migrate_*.go` migrations run only
 from the SQLite paths (`store.go:61`, `backend_sqlite.go:32`). Firestore has **no migration hook**, so
 a schema/data migration written there repairs local and rig observatories and *silently does nothing*
-to dev or prod. `migrate_v18` was written and shipped on the assumption prod was SQLite; it isn't, so
-the 190 corrupted rows it was written to repair are still corrupted.
+to dev or prod. `migrate_v18` was written and shipped on the assumption prod was SQLite; it isn't.
 
-Before writing an observatory migration, decide which backend actually holds the data.
+**Before writing an observatory migration, decide which backend actually holds the data.** If it is
+the cloud, the migration needs a cloud-side counterpart — see `ailang observatory repair-ids` for the
+shape: an explicit, dry-run-by-default command rather than an automatic startup migration, because a
+migration that fires on every boot against a live production datastore is a much worse failure mode.
+
+Two Firestore-specific traps that command hit, both absent from the SQLite path:
+- A span's **ID is its document key**, so repairing it is create+delete, not an update. Both go in
+  one atomic `WriteBatch`.
+- `WriteBatch` caps at 500 ops **and ~11.5 MB of payload**. The byte cap is the one that bites:
+  span docs carry `gen_ai.prompt`/`gen_ai.completion` (whole prompts and generated programs), and a
+  400-op batch blew the limit on the first real run. Chunk on bytes, not just op count.
 
 ## OTLP/JSON ID decoding — FIXED AND DEPLOYED (v0.33.1)
 
@@ -85,11 +94,11 @@ applied at all three JSON decode sites plus their content-type-sniffing fallback
 return a typed **400** and write no row. `migrate_v18` repairs existing rows — the corruption is
 lossless, so `base64encode(unhexlify(stored))` recovers the original exactly.
 
-> **DEPLOYED to prod in v0.33.1** (2026-08-13, revision `ailang-dashboard-00032-qm2`). Verified live:
-> a 32-char hex `traceId` round-trips exactly, and a malformed one returns HTTP 400. **New ingest is
-> correct.** The 190 rows corrupted *before* the deploy are still 48-char — `migrate_v18` cannot reach
-> them, see the Firestore section above. They are losslessly recoverable whenever a Firestore-side
-> repair is run.
+> **DEPLOYED to prod in v0.33.1** (2026-08-13, revision `ailang-dashboard-00032-qm2`) and **fully
+> repaired**. Verified live: a 32-char hex `traceId` round-trips exactly, a malformed one returns
+> HTTP 400, and the 190 pre-deploy rows were repaired by `ailang observatory repair-ids --apply`.
+> Prod now reads `{32: 193}` — every span correct, count unchanged, and a second run is a clean
+> no-op.
 
 Symptom of an unfixed receiver — a stored trace ID **48 hex chars instead of 32**:
 
@@ -104,7 +113,11 @@ Check what production is actually storing:
 curl -s "https://dashboard.ailang.sunholo.com/api/observatory/spans?limit=5" | python3 -m json.tool
 ```
 
-## OTLP ingest auth (available, OFF by default)
+## OTLP ingest auth (available, OFF — deliberately)
+
+**Decision, Mark 2026-08-13: stays off for now — "it's just us."** Recorded so it is not re-derived
+as an oversight. Revisit when the endpoint is exposed to anyone outside the team.
+
 
 `AILANG_OTLP_INGEST_TOKEN` gates `/v1/traces`, `/v1/logs`, `/v1/metrics` behind a shared secret, sent
 as `X-AILANG-Ingest-Token` or `Authorization: Bearer`. **Unset or empty = auth disabled**, which is

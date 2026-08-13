@@ -50,15 +50,18 @@ func migrateV18(db *sql.DB, currentVersion int) (int, error) {
 	return 18, nil
 }
 
+// Exported so the Firestore-side repair can reuse the SAME transform rather
+// than reimplementing it — two copies of a data-repair rule is how they drift.
+//
 // corruptedIDLength maps an ID's correct hex length to the length it has when
 // corrupted. A 16-byte ID stored as base64-decoded-hex occupies 24 bytes, and a
 // 8-byte ID occupies 12 — in both cases exactly 1.5x, rendering as 1.5x the hex
 // characters.
 const (
-	correctTraceIDHexLen   = 32
-	corruptedTraceIDHexLen = 48
-	correctSpanIDHexLen    = 16
-	corruptedSpanIDHexLen  = 24
+	CorrectTraceIDHexLen   = 32
+	CorruptedTraceIDHexLen = 48
+	CorrectSpanIDHexLen    = 16
+	CorruptedSpanIDHexLen  = 24
 )
 
 // repairCorruptedSpanIDs rewrites every corrupted ID in the spans table and
@@ -78,7 +81,7 @@ func repairCorruptedSpanIDs(db *sql.DB) (repairedCount int, skippedCount int, er
 		SELECT id, trace_id, COALESCE(parent_span_id, '')
 		FROM spans
 		WHERE LENGTH(trace_id) = ? OR LENGTH(id) = ? OR LENGTH(parent_span_id) = ?`,
-		corruptedTraceIDHexLen, corruptedSpanIDHexLen, corruptedSpanIDHexLen)
+		CorruptedTraceIDHexLen, CorruptedSpanIDHexLen, CorruptedSpanIDHexLen)
 	if err != nil {
 		return 0, 0, fmt.Errorf("select corrupted rows: %w", err)
 	}
@@ -98,15 +101,15 @@ func repairCorruptedSpanIDs(db *sql.DB) (repairedCount int, skippedCount int, er
 		}
 
 		r := repair{oldID: id}
-		if r.newID, r.setID, err = recoverCorruptedID(id, correctSpanIDHexLen, corruptedSpanIDHexLen); err != nil {
+		if r.newID, r.setID, err = RecoverCorruptedID(id, CorrectSpanIDHexLen, CorruptedSpanIDHexLen); err != nil {
 			rows.Close()
 			return 0, 0, fmt.Errorf("span id %q: %w", id, err)
 		}
-		if r.newTrace, r.setTrace, err = recoverCorruptedID(traceID, correctTraceIDHexLen, corruptedTraceIDHexLen); err != nil {
+		if r.newTrace, r.setTrace, err = RecoverCorruptedID(traceID, CorrectTraceIDHexLen, CorruptedTraceIDHexLen); err != nil {
 			rows.Close()
 			return 0, 0, fmt.Errorf("trace id %q: %w", traceID, err)
 		}
-		if r.newParent, r.setParent, err = recoverCorruptedID(parentID, correctSpanIDHexLen, corruptedSpanIDHexLen); err != nil {
+		if r.newParent, r.setParent, err = RecoverCorruptedID(parentID, CorrectSpanIDHexLen, CorruptedSpanIDHexLen); err != nil {
 			rows.Close()
 			return 0, 0, fmt.Errorf("parent span id %q: %w", parentID, err)
 		}
@@ -172,12 +175,12 @@ func repairCorruptedSpanIDs(db *sql.DB) (repairedCount int, skippedCount int, er
 	return repairedCount, skippedCount, nil
 }
 
-// recoverCorruptedID inverts the base64-decoded-hex corruption for one ID.
+// RecoverCorruptedID inverts the base64-decoded-hex corruption for one ID.
 //
 // It reports whether a repair applied. A value that is not exactly
 // corruptedLen hex characters is left ALONE — that guard is what makes the
 // migration idempotent and keeps it off correctly-encoded rows.
-func recoverCorruptedID(value string, correctLen, corruptedLen int) (string, bool, error) {
+func RecoverCorruptedID(value string, correctLen, corruptedLen int) (string, bool, error) {
 	if len(value) != corruptedLen {
 		return value, false, nil
 	}

@@ -68,6 +68,7 @@ func observatoryCommand() {
 		fmt.Println("  sync-chat   Import Claude Code conversation history to database")
 		fmt.Println("  seed        Generate test data for dashboard development")
 		fmt.Println("  backfill    Link existing spans to tasks by time correlation")
+		fmt.Println("  repair-ids  Repair OTLP/JSON-corrupted trace/span ids in the CLOUD observatory (dry-run by default)")
 		fmt.Println("  cleanup     Delete old/noise spans based on retention policy")
 		fmt.Println("  heatmap     Get activity heatmap data (daily aggregates)")
 		fmt.Println("  evolution   Get task evolution data (cumulative metrics over time)")
@@ -104,6 +105,8 @@ func observatoryCommand() {
 		observatorySyncChatCommand()
 	case "seed":
 		observatorySeedCommand()
+	case "repair-ids":
+		observatoryRepairIDsCommand()
 	case "backfill":
 		observatoryBackfillCommand()
 	case "cleanup":

@@ -99,8 +99,8 @@ func TestMigrateV18_RecoversProductionTraceID(t *testing.T) {
 	if gotTrace != prodRecoveredTraceID {
 		t.Errorf("trace_id = %s, want %s", gotTrace, prodRecoveredTraceID)
 	}
-	if len(gotID) != correctSpanIDHexLen {
-		t.Errorf("span id = %s (%d chars), want %d", gotID, len(gotID), correctSpanIDHexLen)
+	if len(gotID) != CorrectSpanIDHexLen {
+		t.Errorf("span id = %s (%d chars), want %d", gotID, len(gotID), CorrectSpanIDHexLen)
 	}
 }
 
@@ -241,7 +241,7 @@ func TestMigrateV18_RepairsParentSpanID(t *testing.T) {
 	if err := db.QueryRow("SELECT parent_span_id FROM spans WHERE id = ?", knownSpanIDHex).Scan(&gotParent); err != nil {
 		t.Fatalf("read back: %v", err)
 	}
-	if len(gotParent) != correctSpanIDHexLen {
-		t.Errorf("parent_span_id = %s (%d chars), want %d", gotParent, len(gotParent), correctSpanIDHexLen)
+	if len(gotParent) != CorrectSpanIDHexLen {
+		t.Errorf("parent_span_id = %s (%d chars), want %d", gotParent, len(gotParent), CorrectSpanIDHexLen)
 	}
 }
