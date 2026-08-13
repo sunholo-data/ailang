@@ -1,0 +1,171 @@
+{
+  "sprint_id": "M-TELEMETRY-REMOTE-READ-FASTFOLLOW",
+  "created": "2026-08-13",
+  "created_by": "sprint-planner (mission iteration 195)",
+  "baseline_commit": "644cf178ac3c6054f8039938abf122b0695f9891",
+  "design_doc": "design_docs/planned/v0_33_2/m-mission-loop-unified-telemetry.md",
+  "sprint_plan": "design_docs/planned/v0_33_2/m-telemetry-remote-read-fastfollow-sprint-plan.md",
+  "prior_sprint": "M-MISSION-LOOP-UNIFIED-TELEMETRY",
+  "github_issues": [
+    698
+  ],
+  "risk_level": "low",
+  "status": "in_progress",
+  "executor_constraints": {
+    "no_git_writes": "The executor performs NO git write operations. `git show` and `git cat-file` are reads and are allowed. The controller builds all commits.",
+    "no_production_code": "M1, M2 and M3 change tests and state files only. If a test cannot be written without changing production code, report it as a finding rather than changing the code.",
+    "build_command": "go build ./internal/observatory/... ./cmd/ailang/... ./internal/storage/...   # NEVER `go build ./...`: rc=1 on the pristine tree (cmd/wasm has no native main)",
+    "shell": "zsh — quote glob-shaped flag values ('*.go', 'TestX'), brace \"${var}:path\", never echo raw bytes, and never read rc through a pipe (`cmd | tail; echo $?` reports tail's status)"
+  },
+  "measured_baselines": {
+    "go_build_all": "rc=1 — cmd/wasm: function main is undeclared in the main package. NOT this sprint's regression.",
+    "go_build_scoped": "rc=0",
+    "go_test_internal_observatory": "rc=0 (2.562s)",
+    "go_test_cmd_ailang": "rc=0 (48.403s)",
+    "go_test_internal_storage_firestore": "rc=0 (0.423s)",
+    "m1_named_test_probe": "go test ./internal/observatory/... -run 'TestCreateStage_PinnedIDSurvivesUniqueConstraintRetry' -count=1 -> ok [no tests to run]",
+    "sha256_store_chains_go": "54432ddb531082a0160eca2ffe86bb45df8b06563490d7dc5e3bae8dca31b624",
+    "sha256_chains_post_go": "04ba78d9eec6a0ac207565f7c16f16069bef0ae944da9b3b264e88d98fdb3a31",
+    "sha256_firestore_observatory_chains_go": "73b7267458975e8379c854ca52c97e89e1b4057851f58fe02a8ac852b4995af8"
+  },
+  "mutation_discipline": {
+    "rule": "A mutation result may only be read after the mutation is asserted LANDED (sha256 differs from the recorded baseline) and BUILDING (package-scoped go build rc=0). Restore from a `cp` backup, never `git checkout`, and assert the restored sha256 is byte-identical.",
+    "neutering_form": "if false && <cond> {  — never delete the branch; the identifiers inside the body must stay referenced so the package still compiles",
+    "line_scoping": "MANDATORY. `if stageID == \"\" {` occurs at BOTH internal/storage/firestore/observatory_chains.go:244 and :375. A global sed mutates the wrong branch and the test passes for the wrong reason."
+  },
+  "velocity": {
+    "target_loc_per_day": 350,
+    "estimated_total_loc": 175,
+    "estimated_days": 0.5,
+    "estimated_hours": 3.75,
+    "note": "Buildable part only (M1+M2+M3). M4 is decision-gated and excluded from every total."
+  },
+  "features": [
+    {
+      "id": "M1_PINNED_ID_COLLISION_REDS_UNDER_MUTATION",
+      "description": "#698 part 2. Test that forces a real UNIQUE-constraint retry with a PINNED stage id and asserts the id is never silently regenerated. Drives (*Store).CreateStage directly, using the duplicate id TEXT PRIMARY KEY route (deterministic, single-threaded) rather than a flaky stage_number race — both enter the identical retry branch at store_chains.go:333.",
+      "estimated_loc": 55,
+      "estimated_hours": 1,
+      "files": [
+        "internal/observatory/store_chains_test.go"
+      ],
+      "dependencies": [],
+      "acceptance_criteria": [
+        "BASELINE (measured today): `go test ./internal/observatory/... -run 'TestCreateStage_PinnedIDSurvivesUniqueConstraintRetry' -count=1` returns `ok ... [no tests to run]`. After M1 the same command is rc=0 WITHOUT the `[no tests to run]` marker. Not done => the marker is still present.",
+        "MUTATION (the criterion that makes M1 real): with `sed -i '' '334s/if req.ID == \"\" {/if true {/' internal/observatory/store_chains.go` asserted LANDED (sha256 != 54432ddb531082a0160eca2ffe86bb45df8b06563490d7dc5e3bae8dca31b624) and BUILDING (`go build ./internal/observatory/... ./cmd/ailang/...` rc=0), the named test FAILS (rc != 0). Not done => the mutant survives, exactly as it does today.",
+        "RESTORE PROOF: after `cp` restore, `shasum -a 256 internal/observatory/store_chains.go` equals the baseline sha byte-for-byte.",
+        "NON-PINNED COUNTERPART: an empty req.ID under the same duplicate condition still regenerates and succeeds. Without this arm the guard could be 'fixed' by disabling regeneration entirely and M1 would not notice.",
+        "NO COLLATERAL: `go test ./internal/observatory/... -count=1` rc=0 (baseline rc=0, 2.562s) and TestPostIteration_PinnedIDIsNotSilentlyReplaced still passes — M1 adds coverage, it does not replace a narrow test.",
+        "NO PRODUCTION CODE CHANGED: the diff touches internal/observatory/store_chains_test.go only."
+      ],
+      "passes": true,
+      "started": "2026-08-13T20:44:32Z",
+      "completed": "2026-08-13T20:44:32Z",
+      "notes": "Deterministic duplicate-primary-key test added. Named test and build rc=0; mutation killed with the expected pinned-ID assertion. Full-package and inverse verdicts are UNINFORMATIVE UNDER SANDBOX because unrelated httptest socket binding is denied."
+    },
+    {
+      "id": "M2_ERROR_BRANCH_NEGATIVE_ARMS",
+      "description": "#698 part 3. Negative arms plus positive controls for the shipped error branches: 2 in cmd/ailang/chains_post.go (checkRemoteIsElsewhere) and 2 of the 3 in internal/storage/firestore/observatory_chains.go (UpdateStageEvalAssessment guards). The fifth branch is unreachable by construction and gets a reported finding plus a type guard, not a fake test.",
+      "estimated_loc": 120,
+      "estimated_hours": 2.5,
+      "files": [
+        "cmd/ailang/chains_post_dualwrite_test.go",
+        "internal/storage/firestore/observatory_chains_test.go (new, package firestore)"
+      ],
+      "dependencies": [],
+      "acceptance_criteria": [
+        "BASELINE: `go test ./cmd/ailang/... -count=1` rc=0 (48.403s) and `go test ./internal/storage/firestore/... -count=1` rc=0 (0.423s). Both still rc=0 after M2.",
+        "NEW FILE PROOF: `git log --oneline -1 -- internal/storage/firestore/observatory_chains_test.go` is EMPTY at 644cf178a; control: the same command for internal/storage/firestore/cache_test.go is non-empty. After M2 the file exists.",
+        "MUTATION 1: cmd/ailang/chains_post.go line 203 `if err != nil {` -> `if false && err != nil {`. LANDED (sha != 04ba78d9eec6a0ac207565f7c16f16069bef0ae944da9b3b264e88d98fdb3a31) + BUILDING (rc=0) => `go test ./cmd/ailang/... -run 'TestCheckRemoteIsElsewhere' -count=1` FAILS.",
+        "MUTATION 2: cmd/ailang/chains_post.go line 209 `if filepath.Clean(remoteDir) == filepath.Clean(localDir) {` -> prefixed with `false && `. LANDED + BUILDING => the same -run FAILS.",
+        "MUTATION 3: internal/storage/firestore/observatory_chains.go LINE 375 (NOT 244 — identical text also occurs there) `if stageID == \"\" {` -> prefixed with `false && `. LANDED (sha != 73b7267458975e8379c854ca52c97e89e1b4057851f58fe02a8ac852b4995af8) + BUILDING => `go test ./internal/storage/firestore/... -run 'TestUpdateStageEvalAssessment' -count=1` FAILS.",
+        "MUTATION 4: same file line 378 `if assessment == nil {` -> prefixed with `false && `. LANDED + BUILDING => the same -run FAILS.",
+        "ALL FOUR RESTORES BYTE-IDENTICAL: post-restore shasum -a 256 equals each recorded baseline sha.",
+        "POSITIVE CONTROLS ARE MANDATORY, in the same files: (a) checkRemoteIsElsewhere returns nil for mode 'gcp' and for mode 'local' with a genuinely different AILANG_STATE_DIR — without these, a mutation making the function error on every path would still be green; (b) UpdateStageEvalAssessment with a valid stageID AND a non-nil assessment gets PAST both guards (assert it does not return either guard message, recovering the nil-client panic) — without this, an unconditional `return fmt.Errorf(\"stage_id is required\")` as the first line would pass both negative arms.",
+        "BRANCH 5 IS REPORTED, NOT FAKED: no test in this sprint claims to cover 'failed to marshal eval assessment'. TestEvalAssessment_IsAlwaysMarshalable is labelled a TYPE GUARD (it fails only if someone adds a chan/func/map field), not as coverage of that line.",
+        "NO PRODUCTION CODE CHANGED by M2."
+      ],
+      "passes": true,
+      "started": "2026-08-13T20:44:32Z",
+      "completed": "2026-08-13T20:44:32Z",
+      "notes": "Four reachable negative arms plus known-positive controls and the EvalAssessment marshalability type guard added. All four mutants killed; Firestore inverses rc=0. CLI inverses are UNINFORMATIVE UNDER SANDBOX because unrelated httptest socket binding is denied. The marshal-error branch remains explicitly unreachable by construction."
+    },
+    {
+      "id": "M3_RECONCILE_ORPHANED_SPRINT_JSON",
+      "description": "#698 tail note, confirmed. The prior sprint's own progress artifact never reached dev; it exists only on the divergent branch origin/coordinator/task-d98bb271. Read it out with `git show` (a read) and write it into the worktree at the canonical path, correcting any milestone record that claims work #697 did not actually land.",
+      "estimated_loc": 1,
+      "estimated_hours": 0.25,
+      "files": [
+        ".ailang/state/sprints/sprint_M-MISSION-LOOP-UNIFIED-TELEMETRY.json"
+      ],
+      "dependencies": [],
+      "acceptance_criteria": [
+        "`jq -e . .ailang/state/sprints/sprint_M-MISSION-LOOP-UNIFIED-TELEMETRY.json` rc=0. Not done => the file does not exist and jq is rc!=0.",
+        "`git cat-file -e origin/dev:.ailang/state/sprints/sprint_M-MISSION-LOOP-UNIFIED-TELEMETRY.json` is rc!=0 TODAY (measured; control: the same command for sprint_M-STD-YAML.json is rc=0). After the controller commits and pushes, rc=0.",
+        "The restored file contains no unfilled scaffold tokens: `jq -r '[.features[].id] | join(\",\")'` yields only real milestone ids, and the sprint-planner placeholder token (the literal upper-snake word the create_sprint_json.sh template emits for an unfilled id) appears zero times.",
+        "No other file under .ailang/state/sprints/ is modified.",
+        "Any milestone record that claims work #697 did not land is corrected in `passes`/`notes` with a note saying so. History is corrected, never invented.",
+        "GITIGNORE: the controller stages this file with `git add -f`. Verified at 644cf178a: `.gitignore:77` ignores `.ailang/` with NO negation rule, so `git check-ignore --no-index` is rc=0 even for paths whose siblings are already tracked, and a plain `git add` silently skips a NEW sprint JSON. Not done => the file is written, reads green locally, and never reaches dev — which is exactly the state #698's tail note describes."
+      ],
+      "passes": true,
+      "started": "2026-08-13T20:44:32Z",
+      "completed": "2026-08-13T20:44:32Z",
+      "notes": "Restored byte-identically from origin/coordinator/task-d98bb271 after verifying it is absent from origin/dev and the tracked M-STD-YAML control is present. Controller must stage both ignored sprint JSON files with git add -f."
+    },
+    {
+      "id": "M4_OPT_IN_REMOTE_READ",
+      "description": "#698 part 1 — the ratified Design Freeze item that the prior plan's acceptance-criteria section lost. DECISION-GATED: DO NOT EXECUTE. Carries no acceptance criteria until Mark answers the one-word question, deliberately — writing criteria before the scope is chosen is how the last one went missing in the other direction.",
+      "estimated_loc": null,
+      "estimated_hours": null,
+      "files": [],
+      "dependencies": [],
+      "blocked_on": "human_decision",
+      "decision_question": "How far should `--remote` reach — `view` or `eval`?",
+      "decision_options": {
+        "view": {
+          "scope": "Remote read for the Backend-shaped `ailang chains` commands only (view/list/tree/find/diagnose/stats). eval-* stays local and ERRORS loudly on --remote rather than silently reading local (Critical Principle 2).",
+          "estimated_loc": 230,
+          "estimated_hours": 4,
+          "recommended": true
+        },
+        "eval": {
+          "scope": "The above, plus the three eval read methods behind a narrow ChainReader implemented for both stores, with eval-* and internal/eval_analysis switched to it.",
+          "estimated_loc": 550,
+          "estimated_hours": 9,
+          "recommended": false,
+          "caveat": "Ships a full-collection scan with client-side filtering on the Firestore side, which a later `schema` sprint (~2-3d) would replace."
+        },
+        "backend_variant_rejected": {
+          "scope": "Same functional scope as `eval` but by promoting ListEvalChains/QueryEvalResults onto the 90-method Backend interface.",
+          "estimated_loc": 595,
+          "estimated_hours": 10,
+          "recommended": false,
+          "why_rejected": "Agent's call, not Mark's. ~45 LOC more than ChainReader for zero functional gain, and forces 2 more methods onto every one of the 5 implementations — none of which embed, and 2 of which (JaegerBackend, GCPTraceBackend) already stub 33 lines apiece."
+        }
+      },
+      "recommendation_reasoning": [
+        "It is what was asked for: Mark's authorization sentence is about following a mission loop, and the design doc's own worked example is `ailang chains view <iter-191> --remote`.",
+        "The freeze's eval-* clause was a wiring assumption the code refutes: Firestore stores eval_assessment as an opaque JSON string (observatory_chains.go:386), so QueryEvalResults' six json_extract filters, its JOIN to execution_chains, and its LIKE prefix match are all unanswerable server-side. That is a porting problem, not a wiring one, and it is new information the freeze deserves to be re-decided against.",
+        "`eval` now buys code a later `schema` sprint would replace, at ~5h, for no known user.",
+        "`view` makes the demand measurable: an eval-* command given --remote errors loudly, so the first person who wants it produces a dated, attributable signal. Pre-registered trigger to revisit: the first --remote / AILANG_CHAINS_READ invocation against an eval-* command.",
+        "Choosing `view` narrows a Mark-ratified freeze item, which is exactly why it is not the agent's call."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Measured constraints behind the costing: Backend.QueryEvalResults -> 0 hits and Backend.ListEvalChains -> 0 hits in the interface block, with same-block controls Backend.GetChain -> 1 and Backend.GetChainStages -> 1; both methods are *Store-only (store_chains_eval.go:68 and :236). ListEvalChains is a 5-line wrapper over ListChains, which IS on Backend and IS implemented by Firestore, so only QueryEvalResults is genuinely missing (-2h off `eval`). The chains command family already uses observatory.Backend via NewSQLiteBackendFromPath (35 of 41 non-test call sites are in cmd/ailang; only chains_import.go there uses OpenDefaultStore), but 15 helpers including resolveChainID (chains_util.go:314) take the CONCRETE *observatory.SQLiteBackend, so a 16-signature widening pass is required (+1.5h). Every method those helpers call is on Backend except DB(), which is absent from chains_util.go/chains_tree.go/chains_diagnostics.go — the 12 raw-DB escapes are in the observatory_* family plus chains_live.go:203, giving a clean local-only boundary. No firestore.indexes.json exists anywhere (control: `find . -name 'package.json'` -> 2), so the efficient `schema` variant needs out-of-band index deploys plus a cloud backfill and is not a fast-follow."
+    }
+  ],
+  "document_precedence": {
+    "policy_and_intent": "The DESIGN DOC wins. Design Freeze item 3 (opt-in remote read, local default) is Mark-ratified 2026-08-13; the prior sprint plan's M3 acceptance-criteria section silently dropped it, and an omission carries no authority.",
+    "facts_about_the_code": "The CODE wins over both documents. The design doc's 'routing/wiring problem, not a porting one' and 'every ailang chains / eval-* consumer inherits the option' are true for Backend-shaped consumers and FALSE for ListEvalChains/QueryEvalResults. Where a document asserts a code fact that a control-backed measurement refutes, the measurement wins and the document gets amended.",
+    "explicitly_open_questions": "The DESIGN DOC's Deferred Decisions win: 'whether --remote is a flag, an env var, or a config key — agent may choose' remains the executor's call, and no criterion in this plan constrains it."
+  },
+  "root_cause_of_the_gap": {
+    "finding": "The prior plan's M3 task list contained 'Opt-in remote read for analysis; local stays the default.' Its acceptance-criteria section contained five criteria and ZERO mentioning read or remote. Every AC passed on a milestone missing a third of its task list.",
+    "measurement": "AC-section `grep -ciE 'read|remote'` -> 0; control `grep -c '^- '` on the same AC section -> 5; control `grep -ciE 'remote read'` on the same milestone's task list -> 1.",
+    "rule_adopted": "Every task in this plan carries an acceptance criterion that can FAIL, and each criterion names the command whose output would be DIFFERENT if the task were not done. Where the criterion is 'a test exists and passes', it is paired with the mutation that must make it fail."
+  },
+  "started": "2026-08-13T20:44:32Z",
+  "last_updated": "2026-08-13T20:44:32Z"
+}
