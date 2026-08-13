@@ -3,6 +3,7 @@ package observatory
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -253,6 +254,62 @@ func TestStore_CreateStage(t *testing.T) {
 	updatedChain, _ := store.GetChain(ctx, chain.ID, ChainReadOptions{})
 	if updatedChain.CurrentStage != 2 {
 		t.Errorf("expected chain.current_stage 2, got %d", updatedChain.CurrentStage)
+	}
+}
+
+func TestCreateStage_PinnedIDSurvivesUniqueConstraintRetry(t *testing.T) {
+	db, store := setupTestDB(t)
+	defer db.Close()
+
+	ctx := context.Background()
+	chain, err := store.CreateChain(ctx, &ChainCreateRequest{SourceType: ChainSourceManual})
+	if err != nil {
+		t.Fatalf("CreateChain: %v", err)
+	}
+
+	const pinnedID = "pinned-stage-1"
+	if _, err := store.CreateStage(ctx, &StageCreateRequest{
+		ID: pinnedID, ChainID: chain.ID, AgentID: "agent-pinned",
+	}); err != nil {
+		t.Fatalf("first CreateStage with pinned ID: %v", err)
+	}
+
+	// A duplicate primary key enters the same UNIQUE-constraint retry branch as a
+	// stage_number collision, but deterministically. This refutes #698's claim that
+	// only a concurrent stage_number race can exercise the branch.
+	if _, err := store.CreateStage(ctx, &StageCreateRequest{
+		ID: pinnedID, ChainID: chain.ID, AgentID: "agent-pinned-duplicate",
+	}); err == nil {
+		t.Fatal("duplicate pinned ID unexpectedly succeeded; pinned ID was silently replaced")
+	} else if !strings.Contains(err.Error(), "failed to create stage after retries") {
+		t.Fatalf("duplicate pinned ID returned wrong error: %v", err)
+	}
+
+	stages, err := store.GetChainStages(ctx, chain.ID, ChainReadOptions{})
+	if err != nil {
+		t.Fatalf("GetChainStages after pinned collision: %v", err)
+	}
+	if len(stages) != 1 {
+		t.Fatalf("pinned collision created %d stages, want exactly 1", len(stages))
+	}
+	if stages[0].ID != pinnedID {
+		t.Fatalf("surviving stage ID = %q, want %q", stages[0].ID, pinnedID)
+	}
+
+	firstGenerated, err := store.CreateStage(ctx, &StageCreateRequest{
+		ChainID: chain.ID, AgentID: "agent-generated-1",
+	})
+	if err != nil {
+		t.Fatalf("first CreateStage with generated ID: %v", err)
+	}
+	secondGenerated, err := store.CreateStage(ctx, &StageCreateRequest{
+		ChainID: chain.ID, AgentID: "agent-generated-2",
+	})
+	if err != nil {
+		t.Fatalf("second CreateStage with generated ID: %v", err)
+	}
+	if firstGenerated.ID == "" || secondGenerated.ID == "" || firstGenerated.ID == secondGenerated.ID {
+		t.Fatalf("unpinned stages must receive distinct IDs, got %q and %q", firstGenerated.ID, secondGenerated.ID)
 	}
 }
 
