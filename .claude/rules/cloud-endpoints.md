@@ -59,7 +59,22 @@ curl -s -X POST -H "Content-Type: application/json" -d '{"resourceSpans":[]}' \
 
 Measured 2026-08-13: prod and dev both 200 on `/v1/traces`, both 404 on the control.
 
-## OTLP/JSON ID decoding — FIXED IN CODE, NOT YET DEPLOYED
+## Deployed observatories are FIRESTORE, not SQLite
+
+Both `ailang-dashboard` and `ailang-dev-dashboard` run with `AILANG_STORAGE=gcp`, which selects
+`fsstore.NewObservatoryStore` — spans live in **Firestore**, not in `observatory.db`. Behavioural
+confirmation: prod rolled to a new revision on 2026-08-13 and all 190 spans survived, which
+in-container SQLite would not have.
+
+**Consequence that has already bitten once:** `internal/observatory/migrate_*.go` migrations run only
+from the SQLite paths (`store.go:61`, `backend_sqlite.go:32`). Firestore has **no migration hook**, so
+a schema/data migration written there repairs local and rig observatories and *silently does nothing*
+to dev or prod. `migrate_v18` was written and shipped on the assumption prod was SQLite; it isn't, so
+the 190 corrupted rows it was written to repair are still corrupted.
+
+Before writing an observatory migration, decide which backend actually holds the data.
+
+## OTLP/JSON ID decoding — FIXED AND DEPLOYED (v0.33.1)
 
 OTLP/JSON encodes `traceId`/`spanId` as **hex**; `protojson` correctly implements the proto3 JSON
 mapping, which decodes `bytes` as **base64**. Feeding a spec-compliant body straight to `protojson`
@@ -70,9 +85,11 @@ applied at all three JSON decode sites plus their content-type-sniffing fallback
 return a typed **400** and write no row. `migrate_v18` repairs existing rows — the corruption is
 lossless, so `base64encode(unhexlify(stored))` recovers the original exactly.
 
-> **PRODUCTION STILL HAS THE OLD BINARY.** The fix landed on `dev`; Cloud Run has not been
-> redeployed. Until it is, live OpenRouter Broadcast spans keep arriving with 48-char trace IDs.
-> Nothing is being lost — `migrate_v18` is idempotent and covers whatever accumulates first.
+> **DEPLOYED to prod in v0.33.1** (2026-08-13, revision `ailang-dashboard-00032-qm2`). Verified live:
+> a 32-char hex `traceId` round-trips exactly, and a malformed one returns HTTP 400. **New ingest is
+> correct.** The 190 rows corrupted *before* the deploy are still 48-char — `migrate_v18` cannot reach
+> them, see the Firestore section above. They are losslessly recoverable whenever a Firestore-side
+> repair is run.
 
 Symptom of an unfixed receiver — a stored trace ID **48 hex chars instead of 32**:
 
