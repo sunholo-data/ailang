@@ -139,6 +139,30 @@ on one rig from colliding.
    nightly) → close as transient; **genuine + persisting → comment** the triage verdict and leave
    open (it's the pick). Find them: `gh issue list --search "[nightly-eval] in:title" --state open`.
    Eleven stale alarms accumulated in 5 weeks before this rule; zero is the standard now.
+   **⚠ POST THE VERDICT AS ITS OWN `gh issue comment --body-file`, THEN CLOSE — `gh issue close
+   --comment` REPORTS SUCCESS WHILE SILENTLY LOSING THE COMMENT, BY TWO DIFFERENT MECHANISMS**
+   (added 2026-08-13 V1 iteration 192; instance 1 was iteration 149, and the fix recorded then
+   does not cover instance 2). The rule above says "close **with** the evidence one-liner", which
+   reads as a single `--comment` flag — and that flag is the one part of this loop's reporting
+   that can fail without failing. **Mechanism A (iter-149): the body is mangled in transit.** An
+   inline `--comment` body is markdown, markdown is made of backticks, and unquoted backticks
+   trigger zsh command substitution — `gh` printed `✓ Closed` on a comment whose evidence had been
+   surgically removed. **Mechanism B (iter-192): the comment is dropped entirely.** On an
+   ALREADY-CLOSED issue, `gh issue close --comment` prints only
+   `! Issue … is already closed`, **exits 0, and posts nothing**. Note who closes it first: a PR
+   body carrying `Fixes #N` auto-closes the issue **at merge**, i.e. before the loop's own close
+   step ever runs — so for any iteration that lands a fix by PR, mechanism B is not an edge case,
+   it is the **normal path**. Iteration 192 hit it and recovered the evidence only by re-reading
+   the comment **count** (**1** — the previous iteration's triage) instead of trusting `rc=0`.
+   Critically, `--body-file` fixes A and does **nothing** for B: the command short-circuits before
+   it looks at the body at all. So the order is the fix, not the flag. **Do:** `gh issue comment
+   <n> --body-file <f>` first, then `gh issue close <n>` (a no-op if the merge already closed it),
+   then **assert the comment landed** — `gh issue view <n> --json comments --jq '.comments|length'`
+   must have grown, with the pre-count as the control. Same discipline the rotation step already
+   applies to `--body-file` at Gate 5, aimed at the *closing* channel rather than the *opening*
+   one. Mission-independent, and it generalises past `gh`: **a reporting command's exit code
+   describes the request, not the delivery** — when the artifact is the message, verify the
+   artifact.
 5. **WEEKLY EXTERNAL-ISSUE SWEEP (Mark 2026-08-03: "does our loop include triaging github
    issues?" — it didn't; 12 open issues had zero charter mentions when he asked).** On the FIRST
    iteration after each Monday-07:00 rotation, list open issues and flag any whose number appears
