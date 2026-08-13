@@ -11,6 +11,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/observatory"
@@ -176,4 +177,44 @@ func TestCloudSpoolPath_IsSeparate(t *testing.T) {
 	if filepath.Ext(cloud) != ".jsonl" {
 		t.Errorf("cloud spool %q lost its .jsonl extension", cloud)
 	}
+}
+
+func TestCheckRemoteIsElsewhere_UnresolvableHomeIsAnError(t *testing.T) {
+	t.Setenv("AILANG_STATE_DIR", "")
+	t.Setenv("HOME", "")
+
+	err := checkRemoteIsElsewhere("local")
+	if err == nil || !strings.Contains(err.Error(), "cannot resolve") {
+		t.Fatalf("unresolvable home error = %v, want message containing %q", err, "cannot resolve")
+	}
+}
+
+func TestCheckRemoteIsElsewhere_SelfTargetIsRejected(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("AILANG_STATE_DIR", filepath.Join(home, ".ailang", "state"))
+
+	err := checkRemoteIsElsewhere("local")
+	if err == nil || !strings.Contains(err.Error(), "resolves to this node's own observatory") {
+		t.Fatalf("self-target error = %v, want self-observatory rejection", err)
+	}
+}
+
+func TestCheckRemoteIsElsewhere_PositiveControls(t *testing.T) {
+	t.Run("non-local mode short-circuits", func(t *testing.T) {
+		t.Setenv("HOME", "")
+		t.Setenv("AILANG_STATE_DIR", "")
+		if err := checkRemoteIsElsewhere("gcp"); err != nil {
+			t.Fatalf("gcp target rejected: %v", err)
+		}
+	})
+
+	t.Run("different local directory is accepted", func(t *testing.T) {
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+		t.Setenv("AILANG_STATE_DIR", filepath.Join(t.TempDir(), "remote-state"))
+		if err := checkRemoteIsElsewhere("local"); err != nil {
+			t.Fatalf("distinct local target rejected: %v", err)
+		}
+	})
 }
