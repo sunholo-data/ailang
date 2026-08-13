@@ -9431,7 +9431,7 @@ The edit that did land (`02c552339`) answers **`mission-world`'s iter-72 proposa
 
 ---
 
-## 187 — 2026-08-12 — #505 fixed and closed; the P0 had no queue row for 8 days
+## 189 — 2026-08-12 — Iteration 187: #505 fixed and closed; the P0 had no queue row for 8 days
 
 **Picked**: `m-bytecode-pattern-arity-fix` (#505). NOT the queue head as declared by iter-186 —
 that was `m-bytecode-vm-parity-bugs`, whose row still correctly reads PARKED `needs-human-review`
@@ -9519,3 +9519,148 @@ decision item **`D-12`** for Mark: a human ruling that unblocks a doc does not c
 row, and this one hid a P0 for 8 days — should the loop auto-row an unblocked doc at ruling time?
 Disclosed residual worth a follow-up doc: nested tail sub-patterns (`::(x, [])`) still over-match,
 because `lowerPatternCond` never recurses into `p.Tail`.
+
+---
+
+## 190 — 2026-08-13 — Iteration 188: `m-driver-pin-rollout` unblocked by measurement, designed, and parked — and the rollout would have deleted its own delivery mechanism
+
+**Picked**: `m-driver-pin-rollout` (`#558`). Not a free choice: iter-187's declared Next was
+`#616`, which is PARKED on `D-10`; `#619` is on `D-9`, `#618`'s repo work is complete with the rig
+rollout on `D-8`, `#617` is complete, and `m-bytecode-vm-parity-bugs` is parked on A2. The whole
+batch is human-gated, so the next unblocked item is the one tagged `[BLOCKED-ON-EVIDENCE]` — and
+the evidence its own row demands is now measurable.
+
+**The gate, measured with controls (DISCHARGED).** The row required ">=3 consecutive V1 fires
+logging the pin with a normal iteration completing".
+`grep -c "driver pin: running committed origin/dev @" /tmp/ailang-mission-control.log` = **5**;
+`grep -c "DRIVER PIN FAILED"` = **0**, known-positive control firing (the string exists once in
+`mission-control.sh`) and the log proven readable (`mission iteration starting` = **126**). Fires
+**185 / 186 / 187** each logged the pin, started, and completed with charter records.
+⚠ My FIRST control was broken and produced a vacuous all-clear: I grepped `UNPINNED`, taken from
+the charter's prose description of the failure message. That string is **0** in `pin-root.sh` too,
+so the log's zero could not distinguish "no failures" from "wrong pattern" — rule 3a(i) sprung on
+my own instrument, in the very command establishing the pick. Fixed by reading the emitter
+(`mission-control.sh:331`) and greping what it actually writes.
+
+**Gate 2 corrected the charter's scope before any designer ran.** The row names five entry points.
+`nightly-lang-eval.sh` is not one of them: no plist installed or in-repo, no crontab entry, no log
+file on disk — with the known-positive control that `nightly-eval.plist` exists in BOTH locations
+and `/tmp/ailang-nightly-eval.log` is 334 KB. The remaining four split into two classes that change
+what pinning buys: `nightly-eval.sh:28` and `os-rotation-filler.sh:12` derive `REPO` and `cd` into
+it (driver + skill + data go stale together), while `mission-recovery.sh` and `rig-watchdog.sh`
+have **no `REPO=` at all** and read zero repo artifacts. And the charter's per-checkout onboarding
+prerequisite — "budget one human action per pinned entry point that runs `claude`", which it
+explicitly asked to be measured rather than assumed — applies to **zero** of the four:
+`claude` refs 0/0/0/0, `mission-recovery.sh:50` being a comment, control `mission-control.sh` = 24.
+
+**Designer** `claude:claude-fable-5` (rotation; probe rc=0 through `claude-sub`, one bounded pass
+~14 min plus a bounded revision ~4 min), handed the eight measurements above under explicit
+`VERIFIED BY ME` / `INHERITED` provenance labels, with a mandate of one Verification Log row per
+codebase claim and a same-path known-positive control on every empty result. It returned 351 lines
+(later 434, 24 rows) and found two things I had not, both confirmed by me first-party:
+
+- **A live rig hazard.** `dev.ailang.mission-recovery.plist` injects `MISSION_NAME=v1` through
+  `EnvironmentVariables` at `StartInterval` **240** (`PlistBuddy`; control fires on
+  `nightly-eval.plist`, which has no `MISSION_NAME`). The helper's default pin dir is
+  `$HOME/.ailang-driver-pin/${MISSION_NAME}` — so a naive pin of mission-recovery would have
+  `checkout --force`d **the live V1 mission pin worktree every four minutes underneath a running
+  iteration**. Resolved in D3 by mandating an explicit `AILANG_DRIVER_PIN_DIR` per driver.
+- **A defect in the acceptance gate itself.** `make test-launchd-drivers` is **9 passed / 26
+  failed, rc=2** when run from inside a pinned session, and **17 passed / 0 failed, rc=0** with
+  `AILANG_DRIVER_*`/`MISSION_WORKDIR`/`MISSION_NAME` sanitized — both arms run by me. The fixtures
+  never sanitize inherited driver env, so the helper's already-pinned fast path short-circuits
+  every scenario; CI is green only because CI's env is clean. Rule 3e(a): a gate already red at
+  base measures the repo, not the change — and any future iteration running it from the pinned
+  root would read a red and blame its own diff.
+
+**Quorum: BLOCKED twice, `absent_reviewers: []` both rounds, all four objections measured rather
+than forwarded (rule 3f).**
+
+R1 (`$0.0794`, artifact `…T23-37-22Z.json`). `gemini-3-1-pro` caught D6 prescribing "continue and
+`exit 0`" as `rig-watchdog`'s STALE behaviour — self-contradictory as written. Measured: the script
+is **114** lines and line 114 is its **only** `exit` (control: `mission-recovery.sh` = 5), so the
+phrase described the terminal exit but sat in the STALE column where it reads as "disable the
+respawn backstop". `gpt5-6-sol` said D5 rate-limits fetch *frequency* but specifies no *timeout*.
+**Premise REFUTED**: `pin-root.sh:103` `fetch_s="${AILANG_DRIVER_FETCH_TIMEOUT:-120}"`, `:114`
+`_pin_bounded "$fetch_s" git … fetch`, `:116` typed STALE on expiry — and `_pin_bounded` is a real
+bounded wait (backgrounds, `date +%s` deadline, `kill` then `kill -9`, returns 124), not a comment.
+**Substance survives**, because 120s is **2x** rig-watchdog's 60s cadence and half of
+mission-recovery's 240s. One bounded revision applied both: per-driver bounds of 20/60/300/600s,
+each justified below its own cadence, plus AC10 with a stated mutation that reds it.
+
+R2 (`$0.0984`, artifact `…T23-45-23Z.json`) **BLOCKED again on two NEW objections — and measuring
+them made both worse than filed, which is precisely why the narrow-refinement carve-out does not
+apply.**
+
+- **V23.** `gemini-3-1-pro` flagged D2's deferred path audit of `os-release-snapshot.sh` and
+  `publish-unified-dashboard.sh` as an admitted unverified premise. Audited (scope asserted first —
+  both files exist): both resolve their root from **`$0`, not the caller's cwd** —
+  `publish-unified-dashboard.sh:26-27` `REPO="$(cd "$(dirname "$0")/.." && pwd)"; cd "$REPO"`, and
+  `os-release-snapshot.sh:24` `cd "$(dirname "$0")/.."` (control: `REPO` = 19 in
+  `nightly-eval.sh`). So D2's "invoke them with `cwd=$REPO_DURABLE`" cannot work **by
+  construction**, and the writes land in the throwaway pin worktree — the predicted silent data
+  loss, arriving by a mechanism the objection never named. The reviewer's own `proposed_fix` says
+  to "confirm they strictly use relative paths and respect the caller's cwd" and then delete the
+  deferral; applying it verbatim would have written a **false** row into the document.
+- **V24.** `gpt5-6-sol` said nothing advances the rig's source checkout, so the new pin blocks might
+  never execute. **Literal premise REFUTED, and the updater named**: `os-rotation-filler.sh` runs
+  `git pull --rebase --autostash origin dev` at lines **197 / 398 / 426 / 458**, every 45 minutes —
+  which is exactly why the source clone measures **0 behind** right now; `pin-root.sh:114` only
+  ever *fetches* it and never advances its working tree. **But the conclusion stands for a worse
+  reason than the reviewer gave**: M2 pins that very filler, so after M2 its `git pull` targets the
+  throwaway pin worktree and the rollout **deletes the only automatic delivery path for every later
+  milestone**. D7's "ships entirely through git, no human rig action" is self-falsifying from M2
+  onward.
+
+Both remaining objections need a resolution the controller would have to **invent**, which the
+carve-out explicitly forbids ("never a controller-invented resolution"), so Standing rule 2 binds:
+**PARKED `needs-human-review`**, with every measurement banked in the doc so option (A)/(B)/(C)
+starts from evidence rather than a re-derivation. Note the shared root, which is why the two cannot
+be fixed independently: inside a pinned context `$REPO`/`$0` resolve to the throwaway worktree,
+and both durable-data writing and source-clone updating currently depend on them resolving to the
+source clone.
+
+**New decision item `D-13`, framed for one word.** **(A)** exclude `os-rotation-filler.sh` from the
+rollout and keep its `git pull` as the delivery path (cheapest; costs the filler's own staleness,
+which is the `#556` lane); **(B)** move the source-clone fast-forward into `pin-root.sh` itself,
+under the same clean-and-0-ahead precondition as Mark's standing authorisation (widest blast radius
+— every mission's driver would then write to its clone); **(C)** keep the scope and re-root durable
+writes and the filler's pull through `$AILANG_DRIVER_SRC` (preserves intent; adds a second place
+where a wrong `$AILANG_DRIVER_SRC` causes silent data loss).
+
+**Shipped**: design doc `design_docs/planned/m-driver-pin-rollout.md` (434 lines, 24 verification
+rows, PARKED at the quorum gate), charter row + STATUS stamp, this entry, dashboard refresh.
+No code change; no sprint existed to run.
+
+**Routing evidence**: controller `claude-opus-5` (session). Designer `claude:claude-fable-5`
+(rotation, 2 bounded passes via `claude-sub` — billing guard re-checked inside the tool shell, not
+merely at preflight: `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` both unset). Planner, executor
+and evaluator **not fired** — the deliverable parked at the quorum gate before any sprint existed,
+so generator≠judge is not engaged. `metered=$0.1778` (two quorum rounds x two present reviewers)
+against the `$5` ceiling.
+
+**Ruled out (five hypotheses measurement killed, all before they reached a commit or an issue)**:
+*"the charter's five launchd entry points are five"* — REFUTED, `nightly-lang-eval.sh` is a
+manual-only orphan. *"the rollout needs one human onboarding action per pinned driver"* — REFUTED,
+zero of the four spawn `claude`. *"`make test-launchd-drivers` is a trustworthy acceptance gate
+from inside the loop"* — REFUTED, red at base in a pinned env. *"the pin fetch is unbounded"* —
+REFUTED, `_pin_bounded` at a 120s default with kill→kill-9. *"nothing automatically advances the
+rig's source clone"* — REFUTED, the 45-minute filler does, and that is precisely what M2 removes.
+
+**Two bookkeeping defects found in this loop's own records and fixed here.** (1) The log's entry
+counter had drifted: iteration 187 wrote `## 187`, colliding with iteration 185's entry and
+breaking the monotonic sequence (`186 → 187 → 188 → 187`); corrected to `## 189`. (2) That same
+entry omitted the words "Iteration 187", which is what made Gate 4's own staleness tell read **0**
+on a perfectly healthy log while its control read 1 — the tell was correct and the record was
+malformed, the reverse of the failure the tell exists to catch. Both are now consistent.
+
+**Cross-mission**: two `mission-world` iter-78 messages triaged and acked. One is a rule-3a(i-d)
+sibling ("fidelity of MECHANISM is not fidelity of INPUTS") filed explicitly as **instance 1 of 2**
+with no edit proposed — World is respecting our own >=2-frictions bar, so nothing is owed but the
+tally. The other is World's item-16 A/B decision, which is Mark's call for World, not ours. Neither
+is a bug or a demand against AILANG, so neither earns a queue row (Gate 0's cross-mission contract).
+
+**Next**: `D-13` gates `#558`. If it stays open alongside `D-9`/`D-10`/`D-12`, the next unblocked
+item is the `[SWEEP iter-158]` external-issue triage batch (P3, ~0.5d), then
+`m-dialect-keyword-diagnostics` (`#539`, NEW-DOC). Parked on Mark: `D-1`, `D-2`, `D-7`, `D-8`,
+`D-9`, `D-10`, `D-11`, `D-12`, **`D-13`** — all on `#635`.
