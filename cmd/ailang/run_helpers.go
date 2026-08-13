@@ -653,7 +653,50 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 		quiet:             quiet,
 		pipelineResult:    &result,
 	}
-	return executeModuleEntrypoint(rt, execParams)
+	return runBatchItemEntrypoint(rt, execParams)
+}
+
+// runBatchItemEntrypoint executes one batch item's entrypoint, converting the
+// exit() sentinel panic into a per-item outcome.
+//
+// #607: exit() raises a *eval.EvalExitCode sentinel panic (effects/io.go). The
+// single-file run path recovers it (main_run_exec.go) and turns it into a clean
+// os.Exit; executeBatchItem called executeModuleEntrypoint directly, so the
+// sentinel unwound through the whole batch loop — the process died with rc=2
+// and a raw Go stack, and every remaining input was silently skipped. That is
+// the guard-the-helper-miss-the-call-site shape: the recover existed, one call
+// site did not have it.
+//
+// Batch mode's contract is per-item isolation — the "Batch complete: X/Y
+// succeeded" summary already promises it — so a non-zero exit fails THAT item
+// (the caller counts it and continues to the next input) and exit(0) succeeds.
+// Non-exit panics are re-raised unchanged: a genuine crash must stay loud.
+func runBatchItemEntrypoint(rt *runtime.ModuleRuntime, params moduleExecParams) error {
+	return recoverBatchItemExit(func() error {
+		return executeModuleEntrypoint(rt, params)
+	})
+}
+
+// recoverBatchItemExit runs one batch item and maps the exit() sentinel panic
+// onto that item's error result. Split out from runBatchItemEntrypoint so each
+// branch is reachable from a unit test without standing up a module runtime.
+func recoverBatchItemExit(run func() error) (err error) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+		ec, ok := r.(*eval.EvalExitCode)
+		if !ok {
+			panic(r) // re-panic: not an exit(), so it is a real crash
+		}
+		if ec.Code != 0 {
+			err = fmt.Errorf("program called exit(%d)", ec.Code)
+			return
+		}
+		err = nil // exit(0) — the item finished successfully
+	}()
+	return run()
 }
 
 // debugLogLevel is the minimum severity level to print. Set by --log-level flag.
