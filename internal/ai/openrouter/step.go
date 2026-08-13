@@ -106,6 +106,18 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	}
 	extras = append(extras, reasoningFrags...)
 
+	// Broadcast correlation (M-OPENROUTER-BROADCAST-INGEST M3). Contributes no
+	// fragments when the caller set no correlation, so the spliced body stays
+	// byte-identical to before.
+	corrFrags, cErr := correlationExtras(req.Correlation)
+	if cErr != nil {
+		e := ai.NewAIError(ai.CodeSchemaValidation,
+			fmt.Sprintf("openrouter: invalid correlation: %v", cErr), false)
+		recordStepError(span, e)
+		return nil, e
+	}
+	extras = append(extras, corrFrags...)
+
 	body, marshalErr := marshalStepBodyWithExtras(chatReq, extras)
 	if marshalErr != nil {
 		e := ai.NewAIError(ai.CodeInternal,

@@ -46,6 +46,12 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request, reasoning ai
 		Messages: messages,
 	}
 
+	// Broadcast correlation (M-OPENROUTER-BROADCAST-INGEST M3). No-op, and
+	// wire-identical to before, when the caller set no correlation.
+	if err := applyCorrelation(&apiReq, req.Correlation); err != nil {
+		return nil, err
+	}
+
 	maxTokens := req.MaxTokens
 	if maxTokens <= 0 {
 		maxTokens = 4096

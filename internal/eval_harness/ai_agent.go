@@ -229,3 +229,26 @@ func (m *MockAIAgent) GenerateCode(ctx context.Context, prompt string) (*Generat
 		Model:        m.model,
 	}, nil
 }
+
+// SetCorrelation attaches OpenRouter Broadcast correlation identifiers so the
+// trace OpenRouter pushes for each request can be joined back to the eval run
+// that caused it (M-OPENROUTER-BROADCAST-INGEST M3).
+//
+// Nil, or a run with no chain, leaves every request wire-identical to before.
+func (a *AIAgent) SetCorrelation(chainID, benchmarkID, tier string) {
+	if chainID == "" && benchmarkID == "" {
+		return
+	}
+	trace := map[string]any{}
+	if benchmarkID != "" {
+		trace["trace_name"] = "eval:" + benchmarkID
+		trace["benchmark"] = benchmarkID
+	}
+	if tier != "" {
+		trace["tier"] = tier
+	}
+	a.adapter.setCorrelation(&ai.Correlation{
+		SessionID: chainID,
+		Trace:     trace,
+	})
+}

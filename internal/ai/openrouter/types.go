@@ -29,6 +29,24 @@ type chatRequest struct {
 	// always-thinking models (e.g. z-ai/glm-5.2) keep content headroom inside
 	// max_tokens instead of burning the whole budget on thought.
 	Reasoning *reasoningField `json:"reasoning,omitempty"`
+
+	// User, SessionID and Trace are OpenRouter Broadcast correlation fields
+	// (https://openrouter.ai/docs/guides/features/broadcast). They do not
+	// affect the completion; they travel with the trace OpenRouter pushes to
+	// its configured destinations, which is what makes a broadcast span
+	// joinable to the eval run that caused it.
+	//
+	// Every field is omitempty: a request that sets none must produce
+	// byte-identical wire output to before they existed. Every OpenRouter call
+	// in the project flows through these structs, so that is the property the
+	// golden-body tests defend.
+	//
+	// Length caps are OpenRouter's: user <= 128 chars, session_id <= 256.
+	// Over-cap values are rejected at construction rather than truncated —
+	// a silently shortened correlation id joins to nothing.
+	User      string         `json:"user,omitempty"`
+	SessionID string         `json:"session_id,omitempty"`
+	Trace     map[string]any `json:"trace,omitempty"`
 }
 
 // reasoningField configures OpenRouter's normalized reasoning controls.

@@ -104,6 +104,14 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 		return false, fmt.Errorf("failed to create AI agent: %w", err)
 	}
 
+	// Tag OpenRouter requests so the trace OpenRouter broadcasts back can be
+	// joined to this chain and benchmark (M-OPENROUTER-BROADCAST-INGEST M3).
+	// No chain (e.g. a bare `ailang eval-benchmark`) leaves the request
+	// wire-identical to before.
+	if evalChain != nil {
+		agent.SetCorrelation(evalChain.ChainID, spec.ID, spec.Difficulty)
+	}
+
 	// Get runner with context for full telemetry hierarchy (TRACEPARENT + task ID)
 	runner, err := eval_harness.GetRunnerWithContext(ctx, lang, spec, taskID)
 	if err != nil {

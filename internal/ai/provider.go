@@ -110,6 +110,15 @@ type Request struct {
 	// will accept the request. Other providers return ErrRoutingNotSupported.
 	Routing *AIRoutingPolicy
 
+	// Correlation carries OpenRouter Broadcast correlation identifiers
+	// (M-OPENROUTER-BROADCAST-INGEST). Nil — the zero value — means the request
+	// is wire-identical to one made before this field existed.
+	//
+	// Only the openrouter provider consumes it. Other providers ignore it
+	// rather than erroring: these are observability hints, not semantics, so a
+	// caller that sets them should not have to know which provider it drew.
+	Correlation *Correlation
+
 	// Messages, when non-empty, supersedes SystemPrompt + UserPrompt.
 	// Used for multi-turn conversations and Provider.Step tool dispatch.
 	// Adapters that see a non-empty Messages MUST use it; legacy single-shot

@@ -32,6 +32,7 @@ type providerAdapter struct {
 	reasoningMaxTokens int             // Cap on hidden thinking tokens; 0 = uncapped
 	reasoningEffort    string          // Vendor effort dial ("low"|"medium"|"high"); "" = vendor default
 	attribution        *ai.Attribution // OpenRouter app-attribution overrides
+	correlation        *ai.Correlation // OpenRouter Broadcast correlation (nil = wire-identical to before)
 }
 
 // defaultMaxTokens is the fallback output budget when a model has no
@@ -110,6 +111,13 @@ func (p *providerAdapter) setAttribution(attr *ai.Attribution) {
 
 // setMaxTokens overrides the per-request output budget.
 // Pass 0 to fall back to defaultMaxTokens.
+// setCorrelation attaches OpenRouter Broadcast correlation identifiers, so a
+// broadcast trace can be joined back to the eval run that caused it.
+// Nil leaves every request wire-identical to before.
+func (p *providerAdapter) setCorrelation(c *ai.Correlation) {
+	p.correlation = c
+}
+
 func (p *providerAdapter) setMaxTokens(n int) {
 	p.maxTokens = n
 }
@@ -186,6 +194,7 @@ func (p *providerAdapter) generate(ctx context.Context, cachedPrefix, prompt str
 		UserPrompt:   prompt,
 		MaxTokens:    maxTokens,
 		Attribution:  p.attribution,
+		Correlation:  p.correlation,
 		// Note the breakpoint targets the USER prefix, not the system prompt:
 		// systemPrompt above is ~70 tokens, far below every model's minimum
 		// cacheable prefix, so a system breakpoint here would be a silent no-op.
