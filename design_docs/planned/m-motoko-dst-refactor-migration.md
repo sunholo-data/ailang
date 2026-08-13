@@ -250,21 +250,59 @@ Our [PR #97](https://github.com/arniwesth/motoko_agent/pull/97) had four legs. V
 | Leg | Disposition | Evidence |
 |---|---|---|
 | Calibrated estimate (anti-oscillation) | **Superseded, by a better mechanism** | His `affine_calibrate` is an affine fit with a fixed delta-density slope (1235‰), floored at raw. Anchor-size-*insensitive* where our ratio calibration was not — which was the actual bug. Pinned by the test `affine_stable_across_anchor_size`. |
-| Tiered elision ladder | **Superseded and extended** | `motoko-ext-compaction-structural`, tiers 70/85/95, `keep_last` 10/5/3→1, plus `cap_oversized_tool_results` at 30% which we never had. |
+| Tiered elision ladder | **Superseded and extended** | `motoko-ext-compaction-structural`, `keep_last` 10/5/3→1, plus `cap_oversized_tool_results` at 30% which we never had. **Corrected 2026-08-13**: "tiers 70/85/95" describes the *constants*, not the live selection. `compact_for_pre_step` selects the **gentlest tier whose RESULT fits under 70%** (`candidate_fits`/`result_target_pct`), and never reads `elide_hard_tier_pct()`/`emergency_pct()` at all — those are only read by the off-path `compact_step_with_limit`. Upstream's own `.agent/issues/ephemeral-compaction-and-ai-noop-thrash.md:55` proposed exactly this change ("select the structural tier by *result*, not by uncompacted pct") and it has landed. |
 | System-message pinning | **Superseded, structurally stronger** | Ours pins at runtime (`159125e`). His makes it a type-level property: `PinnedSplit`, `CompactableSegment` as a newtype, `system_is_head_prefix` enforced at seed *and* resume, `seal_compacted_payload` able to require a non-empty prefix. |
-| **75k output headroom reserve** | **Still open — the one thing to carry** | No output reserve in his compaction path. Tiers run off raw `ctx.context_limit`. |
+| **75k output headroom reserve** | **Still open — but NOT where this row said, and the ask is one argument** | **RE-MEASURED 2026-08-13 (iteration 3) against `main_dst@6c06b08`; the previous wording is struck below.** The gap is real and it lives in the **phase core**, not in the compaction extension: `seal_compacted_payload` (`src/core/phase_vocab.ail:145-155`) is handed the **raw** `context_limit` by `session.ail:2561` and refuses on `usage_percent_with_limit(payload_msgs, limit) >= exhaustion_pct()` = **95** (`src/core/compaction.ail:30`). That predicate counts messages only — there is no output term anywhere between `policy.step.compaction.context_limit` (`session.ail:2530`) and the provider call. Rows V27–V29. |
 
-The output-headroom case, stated precisely: on a 262144-token window his 95% emergency ceiling
-admits ~249k of *input*, leaving ~13k against a 65536 output cap — and input and output share the
-window. This is the exact failure `96542f8` was written for (`docx_lambda`, `finish=error` at step
-84, input 263259 > 262144). Two mitigations exist upstream that we should credit: `affine_calibrate`
-scales *up* (implicit but unbounded margin), and `try_emergency_compaction_with_limit` fails loudly
-with `compaction_exhausted` rather than sending. So this is a **hard-stop** risk, not silent
-corruption — but it is an output-side concern that input-side calibration does not address.
+~~The output-headroom case, stated precisely: on a 262144-token window his 95% emergency ceiling
+admits ~249k of *input*, leaving ~13k against a 65536 output cap … Two mitigations exist upstream
+that we should credit: `affine_calibrate` scales *up*, and `try_emergency_compaction_with_limit`
+fails loudly with `compaction_exhausted` rather than sending.~~ **Struck 2026-08-13 (iteration 3).
+The arithmetic is right, the two attributions are wrong, and the ask is smaller and better than
+this paragraph made it look. Corrected below.**
+
+**The output-headroom case, stated precisely (re-measured 2026-08-13, `main_dst@6c06b08`).** Three
+numbers govern the live path and they are in three different files:
+
+1. **The extension ladder targets 70%, not 95%.** `compact_for_pre_step`
+   (`packages/motoko-ext-compaction-structural/compaction_structural.ail:170`) — the hook actually
+   registered as `on_pre_step` (`register.ail:24`) — gates *every* branch on
+   `candidate_fits` → `calibrated_ctx_usage(ctx, msgs) < result_target_pct()`, and
+   `result_target_pct() = elide_tier_pct() = 70` (`:30`, `:16`). It picks the **gentlest tier whose
+   result fits**, not a tier keyed off the uncompacted percentage. `emergency_pct() = 95` is
+   referenced **only** at `:126`, `:130`, `:137` — all inside `compact_step_with_limit` /
+   `try_emergency_compaction_with_limit`, which have **zero production callers** (V28). At 70% of a
+   262144 window that is ≤183,500 input, leaving **≥78,644** — *more* than the 65,536 output cap
+   and more than the 75k reserve `96542f8` adds. **When the ladder reaches its target, upstream is
+   already better than our patch.**
+2. **The ladder's last branch is unconditional.** When even `keep_last=1` cannot reach 70%,
+   `compact_for_pre_step` returns `Compacted(floor, structural_note("floor", …))` rather than an
+   error (`:191-193`). It does not refuse; it hands the over-target payload upward.
+3. **The seal is the refusal, and it is input-only.** `seal_compacted_payload` then admits anything
+   **< 95%** of the **raw** `context_limit` — ~249,036 input on a 262144 window, leaving **~13,108**
+   against a 65,536 output cap. Over that, it is genuinely loud and terminal:
+   `CompactionExhausted` ledger event, `code: "ContextExhausted"`, `retryable: false`,
+   `c2_finalize(… TermCompactionExhausted …)` (`session.ail:2572-2578`).
+
+So: **"hard-stop risk, not silent corruption" is CONFIRMED** — but by the phase core's seal, not by
+`try_emergency_compaction_with_limit`, which nothing on the live path calls. And the residual is
+**the band between the ladder's 70% aspiration and the seal's 95% permission**, which is exactly
+where `docx_lambda` died (`finish=error` at step 84, input 263259 > 262144).
+
+**Why this makes the upstream ask smaller and more acceptable.** We are not asking for a reserve
+inside a compaction extension, and not asking anyone to adopt `OUTPUT_HEADROOM`/`75000`. We are
+asking that the seal's threshold become output-aware — one argument at `session.ail:2561`
+(`context_limit - reserved_output`) or one term inside `seal_compacted_payload`. One function, one
+constant, in the phase core. Note the seal *already* demonstrates the pattern one line up: the
+extension is handed `ext_context_limit = context_limit - pinned_tokens` (`session.ail:2534`), i.e.
+upstream already subtracts a reserve before delegating — for the pinned system prefix. Ours is the
+same move for the output budget.
 
 Raised on PR #97 ([comment](https://github.com/arniwesth/motoko_agent/pull/97#issuecomment-5257958760)).
-If Arni agrees, this becomes a small upstream PR against the new architecture rather than a
-carried patch.
+**As of 2026-08-13 that comment has no reply** — zero `arniwesth` events across issue comments,
+review comments, reviews and the timeline, with a firing control (34 issues/PRs in that repo carry
+his comments). See the charter's queue item 5 for the bounded decision rule that replaced
+"if Arni's #97 reply invites it".
 
 ### Files to Modify/Create
 
@@ -297,7 +335,7 @@ wrong before by asserting rather than checking (ground conclusions in data, not 
 | V6 | `motoko_ext_fmt` absent from `main_dst` | `git grep -il 'motoko_ext_fmt\|ext-fmt' origin/main_dst` | Confirmed — **negative existence**, zero hits |
 | V7 | 5 of 6 profiles absent | `git ls-tree -d origin/main_dst .motoko/config/` vs local `ls` | Confirmed: `ollama` survives; `cloud`, `ollama_docs`, `ollama_dp7`, `ollama_fmt`, `ollama_microrag` absent |
 | V8 | 14 of 18 eval entries point at missing profiles | `grep -oE 'motoko_profile: "(cloud\|ollama_docs\|ollama_dp7\|ollama_fmt\|ollama_microrag)"' models.yml \| wc -l` | Confirmed 14 of 18 |
-| V9 | No output-headroom reserve upstream | grep `headroom\|reserve\|max_tokens\|output_budget\|effective_window` over `src/core/*.ail` + compaction packages | **Negative existence** confirmed — `headroom` appears only in `dst_corpus.ail`; structural compactor tiers off raw `ctx.context_limit` |
+| V9 | No output-headroom reserve upstream | grep `headroom\|reserve\|max_tokens\|output_budget\|effective_window` over `src/core/*.ail` + compaction packages | **Negative existence** confirmed — `headroom` appears only in `dst_corpus.ail`. ⚠ **The row is true as measured and the CONCLUSION drawn from it was not** (see V27): a grep for *our* solution's vocabulary cannot see whether the other tree has the *property*. The trailing clause "structural compactor tiers off raw `ctx.context_limit`" is a **behavioural** claim no token grep can support, and it is wrong for the live path — the ladder gates on a 70% result target. Superseded by V27–V29 |
 | V10 | System-message pinning is superseded | read `phase_vocab.ail` — `PinnedSplit`, `take_system_prefix`, `system_is_head_prefix`, `seal_compacted_payload` | Confirmed. **This corrects an earlier session claim that it was unverified.** |
 | V11 | `empty_stop_guard` supersedes `087e68e` | read `packages/motoko-ext-empty-stop-guard/empty_stop_guard.ail` | Confirmed — budgeted `ContinueWithFeedback` on `on_solver_candidate` |
 | V12 | `on_tool_handle` gains `Rand`, retiring the a2a deferral | V4 diff + `a2a@0.2.2` present in `main_dst` `[extensions]` | Confirmed |
@@ -317,8 +355,15 @@ wrong before by asserting rather than checking (ground conclusions in data, not 
 
 | V26 | **`on_pre_step` takes THREE effects, not ten — and the "ten" the first draft cited is a reading upstream has explicitly RETRACTED** | `U=/Users/voightkampff/dev/arniwesth/motoko_agent; git -C "$U" show origin/main_dst:packages/motoko-ext-abi/types.ail` — read the `ExtensionHooks` signature and the commentary above it | Signature: `on_pre_step: (ExtCtx, [Msg]) -> PreStepOutcome ! {AI, IO, Trace}` — **3**. The commentary: *"WI-D8 NARROWED THIS ROW FROM TEN EFFECTS TO THREE, AND NOTHING HAD EVER MEASURED IT … WI-D7's central conclusion about `on_pre_step` rested on that row being what the port performs — 'whose own port row is exactly those ten'. It was taken as given. **It was over-declared by SEVEN.**"* **Controls (same scope)**: the file resolves at **971** lines; `on_tool_handle` in the same record reads `! {IO, Process, FS, AI, Env, Net, SharedMem, Clock, Stream, Rand}` — ten — so the instrument can see a ten-effect row where one exists. Raised by `gemini-3-1-pro` at R2 against this doc's own ABI-break table (9→3 for `on_pre_step`; only `on_tool_handle` reaches ten); measured first-party rather than forwarded, and the measurement made it **worse** than filed — not merely inconsistent with V4, but sourced from a passage whose own author records it as an unmeasured assumption |
 
+| V27 | **The live compaction ladder targets 70%, not the 95% this doc's compaction section asserted — and V9's grep could never have seen that** | `U=/Users/voightkampff/dev/arniwesth/motoko_agent`; `git -C "$U" show 6c06b08:packages/motoko-ext-compaction-structural/register.ail` (which func is bound to `on_pre_step`), then `… \| grep -n 'emergency_pct()'` and `… \| grep -n 'result_target_pct()'` over `compaction_structural.ail` | `register.ail:24` binds **`compact_for_pre_step`**. In that function every branch gates on `candidate_fits` → `< result_target_pct()`, and `result_target_pct() = elide_tier_pct() = 70` (`:30`, `:16`). `emergency_pct() = 95` occurs at exactly **3** sites — `:126`, `:130`, `:137` — **all** inside `try_emergency_compaction_with_limit` / `compact_step_with_limit`. **Control (same scope, same call)**: the `result_target_pct()` grep returns 2 hits (`:30`, `:167`) in the same file, so the instrument fires on both patterns. **Arithmetic** (262144 window, 65536 output cap): 95% ⇒ 249,036 in / 13,108 left (**deficit**); 70% ⇒ ≤183,500 in / **≥78,644** left (**exceeds both the output cap and our own 75k reserve**). **The generalisable error in V9**: a negative-existence grep for the vocabulary of *our* fix (`headroom`, `reserve`, `output_budget`) establishes only that upstream does not spell it our way — never that it lacks the property. Upstream's protection is spelled `result_target_pct`, a word no such grep contains |
+| V28 | **`try_emergency_compaction_with_limit` — the mitigation this doc credited — has ZERO production callers** | `git -C "$U" grep -n 'compact_step_with_limit' 6c06b08 -- '*.ail'` and the same for `compact_for_pre_step`, then classify every importer | Non-test importers of `compact_step_with_limit`: **none**. All importers are `scripts/smoke_catalog_compaction.ail`, `scripts/smoke_v2_compaction_tiers.ail`, `src/core/test/integration_tests.ail`, plus its own inline unit test. **Control (same scope)**: `compact_for_pre_step` is imported by `register.ail:17` — the live registration — so the instrument distinguishes a live importer from a test one. Corroborated by upstream's own ADR-002 (`.agent/projects/001_DST/…:153`): *"Target the **live** compactor (`compact_for_pre_step`), not the off-path `compact_step_with_limit`"*. ⚠ **That same ADR (`:344`) calls it "the only `compaction_exhausted` `Err`", which is FALSE at `6c06b08`** — `src/core/phase_vocab.ail:152` emits one on the live path. Upstream's doc is stale and this doc had inherited its claim; see V29 |
+| V29 | **The live refusal exists and is loud — it is the phase core's seal, and its threshold is input-only** | `git -C "$U" show 6c06b08:src/core/phase_vocab.ail \| sed -n '145,155p'`; `git -C "$U" grep -n 'exhaustion_pct' 6c06b08 -- '*.ail'`; `git -C "$U" show 6c06b08:src/core/session.ail \| sed -n '2530,2580p'` | `seal_compacted_payload` (`phase_vocab.ail:145`) tests `usage_percent_with_limit(payload_msgs, limit) >= exhaustion_pct()`, and `exhaustion_pct() = 95` (`src/core/compaction.ail:30`). It is called on the live path at `session.ail:2561` with the **raw** `context_limit` (`:2530`), and its `Err(SealExhausted …)` arm is terminal and loud: `CompactionExhausted` ledger event, `code: "ContextExhausted"`, `retryable: false`, `TermCompactionExhausted` (`:2572-2578`). So **"hard-stop, not silent corruption" is CONFIRMED** — at a different function than this doc named. The predicate counts messages only; there is no output term between `policy.step.compaction.context_limit` and the provider call. **Control, and the reason the ask is one argument**: one line up, `session.ail:2534` hands the extension `ext_context_limit = context_limit - pinned_tokens` — upstream *already* subtracts a reserve before delegating, for the pinned system prefix. **Self-correction recorded**: this controller's first reading was "the live path has no refusal at all", from the unconditional `floor` branch at `compaction_structural.ail:191`. That was FALSE, and only chasing the second `compaction_exhausted` site instead of trusting the ADR's "the only" caught it |
+
 Rows V17–V26 were measured first-party by mission-control on 2026-08-12 (iteration 2), commands
 and outputs as recorded; they answer the 2026-08-12 quorum block (see the Quorum revision log below).
+Rows **V27–V29** were measured first-party on 2026-08-13 (iteration 3) against
+`arniwesth/motoko_agent@6c06b08` (`origin/main_dst`, which advanced from the `303d869` V14/V20 were
+taken at). They correct this doc's compaction section — see the struck paragraph above.
 
 **Not verified — carried as open questions, not premises:**
 - Whether `motoko-ext-progress-contract-guard` supersedes any of our commits (it has no obvious
@@ -459,8 +504,13 @@ Latitude granted to the implementing agent:
 - Port order within Phase 1, except: `test-dummy` first, `compaction-ai` last.
 - Whether to port `motoko_ext_a2a` at all now that `Rand` is available — nothing depends on it today.
 - Exact profile file layout, as long as the five names resolve.
-- Whether the output-headroom fix lands as an upstream PR or a carried patch — decide on Arni's
-  response to the #97 comment.
+- Whether the output-headroom fix lands as an upstream PR or a carried patch. ~~Decide on Arni's
+  response to the #97 comment.~~ **Struck 2026-08-13 (iteration 3): that is an unbounded wait on a
+  third party, the same defect `gpt5-6-sol` blocked Phase 0 for at iteration 1.** Bounded rule, and
+  it is the charter's queue item 5: the #97 comment is the ask; if there is no `arniwesth` response
+  on #97 by **2026-08-27** (14 days from the re-measurement), file the corrected case as a standalone
+  upstream **issue** citing V27–V29, and carry the patch locally against `main_dst` regardless. A
+  reply may still redirect it to a PR at any point; what expires is the *waiting*, not the offer.
 
 ## Risks & Mitigations
 
