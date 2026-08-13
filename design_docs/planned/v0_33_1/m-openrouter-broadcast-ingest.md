@@ -133,12 +133,17 @@ OpenRouter calls carry the identifiers needed to join broadcast traces to eval r
 
 Before implementation begins, these must be resolved:
 
-- [ ] **Malformed-ID policy**: reject with typed error (proposed) vs. best-effort accept.
-- [ ] **Auth mechanism**: shared-secret header via env var (proposed) vs. alternative.
-      **Note the live constraint**: Broadcast is already sending to prod, so whatever is chosen must
-      be expressible as a static custom header OpenRouter can attach, and the destination config
-      must be updated in the same change or ingest breaks.
-- [x] ~~**Existing corrupted rows**~~ — **RESOLVED: backfill.** Reversible (V12), 38 rows.
+- [x] **Malformed-ID policy** — **RESOLVED (Mark, 2026-08-13): reject with a typed 400.** Trace IDs
+      are the join key, so this is data integrity and CLAUDE.md Principle 2 gives it no fallback.
+      Not stored, not silently repaired.
+- [x] **Auth mechanism** — **RESOLVED (Mark, 2026-08-13): shared-secret header, landed DISABLED.**
+      `AILANG_OTLP_INGEST_TOKEN` unset = auth off, so live Broadcast ingest cannot break on deploy.
+      Mark enables it by setting the env var on Cloud Run *and* adding the matching custom header on
+      the OpenRouter destination — **both sides, or ingest stops**. The agent cannot perform the
+      OpenRouter-dashboard half.
+- [x] **Existing corrupted rows** — **RESOLVED: backfill.** Reversible (V12), 38 rows.
+
+**All Design Freeze items are resolved; sprint-executor has no pause point.**
 
 ## Solution Design
 
