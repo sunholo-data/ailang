@@ -2543,13 +2543,40 @@ models:
       Truncation ruled out per step 2a: every run finish_reason=stop, max
       reason_tokens=9160 against 65536 headroom.
 
-      Floor cleared; PROMOTION still open — smoke is saturated and carries no
-      ranking information (see the GLM-5.2 anti-pattern above). Suite membership
-      and any repoint of or-deepseek-v4-pro must be decided on --tier core:
-        ailang eval-suite --models or-deepseek-v4-pro-0813,or-deepseek-v4-pro \
-          --tier core --langs ailang --output /tmp/core_v4pro0813 --parallel 4
-      If candidate and incumbent land within 1-2 benchmarks, escalate to N>=3
-      before flipping the incumbent — do not decide a repoint on an N=1 delta.
+      CORE GATE PASSED 2026-08-13 — PROMOTED to extended_suite (the cloud
+      standard-mode roster; there is no 'standard_suite' key).
+      Head-to-head vs the incumbent preview slug, --tier core, --langs ailang:
+        N=1:  GA 20/23  vs  preview 21/23   <- candidate appears WORSE
+        N=3:  GA 67/69  vs  preview 65/69   <- candidate WINS
+      The N=1 result was an artifact and the escalation rule caught it. Do NOT
+      quote the 20-vs-23 figure; it is superseded.
+
+      Why N=1 lied, decomposed (this is the useful part):
+        - GA's explicit_dataflow_ssa loss was the AILANG interpreter dict-crash
+          (missing dictionary method: prelude::Fractional::Int::add) — our bug,
+          charged to the model.
+        - GA's tree_transformation_pipeline loss computed EVERY value correctly
+          and lost on byte-exact stdout for adding labels ("treeToList(tree): ").
+        - The incumbent's one loss was a genuine incomplete solve.
+      At N=3 the GA's only two failures across 69 runs are both genuine but
+      ordinary (config_file_parser: read app_config.json without creating it
+      as instructed; prompt_injection: used println without the IO cap), vs the
+      incumbent's three genuine + one more dict-crash. See
+      design_docs/planned/m-eval-failure-attribution.md — this pair is the
+      worked example in it.
+
+      Cheaper AND better: $0.435/$0.87 per 1M here vs the preview's LIVE
+      $1.168/$2.336 (~2.7x). Note the incumbent entry's recorded pricing
+      (0.00043/0.00087) is stale and understates its cost — separate fix.
+
+      OPEN (Mark's call): whether or-deepseek-v4-pro is now retired or
+      repointed at this slug, per the flash-0731 precedent. Both sit in
+      extended_suite today, which is a near-duplicate spend.
+
+      Corroboration for the dict-crash finding: extended_suite's own header
+      notes every OpenAI model fails explicit_dataflow_ssa 3/3. That is the
+      same prelude::Fractional::Int::add defect, already visible in the roster
+      notes as a per-model quirk rather than the AILANG bug it is.
 
       Price note: GA is CHEAPER than the live preview — $0.435/$0.87 per 1M
       here vs $1.168/$2.336 for `deepseek/deepseek-v4-pro` as metered on
@@ -3276,6 +3303,10 @@ extended_suite:
   - "or-minimax-m3"     # MiniMax M3 — 87% std, $0.30/1M (ties opus/gpt5 at 1/16 cost)
   - "or-deepseek-v4-flash" # DeepSeek V4 Flash — 75% std, $0.10/1M (cheapest viable; re-gated 2026-06-04)
   - "or-deepseek-v4-pro"   # DeepSeek V4 Pro — 75% std, agent champion (97%)
+  # PROMOTED 2026-08-13 after the core gate: N=3 67/69 vs the preview slug's 65/69
+  # ($0.435/$0.87 per 1M, ~2.7x cheaper than the preview's live price). Retirement
+  # or repoint of or-deepseek-v4-pro above is still open — both run today.
+  - "or-deepseek-v4-pro-0813" # DeepSeek V4 Pro 0813 (GA) — smoke 22/23, core N=3 67/69
 
 # Development models - cheap and fast (3 models)
 # Use for: Development iteration, testing eval infrastructure
