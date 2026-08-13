@@ -10027,3 +10027,103 @@ pin worktree's, not the `readlink` destination in the main checkout) and only tr
 repro infra this rig lacks (duckdb CLI + `sunholo/duckdb@0.1.1` + `-memprofile`), so the likely pick
 is `#691` — this iteration's own finding — which wants a one-word contract decision first.
 `D-1`–`D-14` remain parked on Mark on `#635`.
+
+---
+
+## 195 — 2026-08-13 — Iteration 194: iteration 193 did the work, exited rc=0, and left it unpushed and unrecorded
+
+*(There is no entry 195-for-193: **iteration 193 wrote no log entry and no charter stamp**. Its work
+is credited here. The driver log has it starting 13:58:19 and reporting `iteration complete (rc=0)`
+at 15:18:30 — 80 minutes, four commits, zero landing.)*
+
+**Pick**: NOT the queue head, and **not in the queue at all**. Gate 2's died-mid-flight sweep found
+the main checkout's `dev` **4 ahead / 1 behind** `origin/dev`. The four ahead-commits are
+M-MISSION-LOOP-UNIFIED-TELEMETRY **M2** (`088176104`), the mission-control skill edit (`e4c45eb4f`),
+**M3** (`769d920a0`) and a handover (`2b5cfa976`) — 1,183 insertions of finished, tested work that no
+mission surface could see: `grep -ci "ITERATION 193"` returns **0** in the charter and **0** in the
+log (controls: 192 → 1/1, 191 → 2/3). The sprint itself has **no charter row** (mentions **0**,
+control `m-batch-exit-panic` → **3**); it was directive-driven, its three Design Freeze items
+ratified by Mark on 2026-08-13. Its own handover says *"Not pushed / CI not yet run"*. Per the
+died-mid-flight rule the deliverable is **verify and land**, not redo — nobody has reviewed that work
+since the agent that wrote it stopped existing.
+
+**The drift check fired for real, for the first time.** `readlink ~/.claude/skills/mission-control`
+resolves to the MAIN checkout, so the rules this iteration executed were `e4c45eb4f`'s — present on
+no remote. `cmp` against `origin/dev` DIFFERED (+37/−7: the M2 tokens-and-status posting contract and
+the M3 dual-write switch). Delta read before proceeding, per the Repo Profile. It was then **cured
+rather than routed around**: once #697 merged, the checkout was **0 ahead** and clean, which is
+exactly the standing fast-forward authorisation's precondition, so `git merge --ff-only origin/dev`
+— and the running skill is now byte-identical to origin (`cmp` silent).
+
+**No reap line, because the fix deleted the tell.** Standing rule 7 says attribute a dead slot by
+`grep -c 'Background tasks still running after 600s'`. There is no such line at 15:18: with
+`bg-wait-ceiling=0` exported, the harness no longer prints it. The instrument is blind by
+construction to every post-fix instance — which is the failure mode the rule's own ⚠ paragraph
+predicted. Attribution came from the shape instead: `rc=0`, 80 minutes, zero commits pushed, zero
+rows written, plus the residue itself. **This is now a pattern**: 193 joins 159, 167 and 176.
+
+**Verification of the inherited work, before landing.** Gates derived from `ci.yml` rather than
+recalled (rule 3g): `make test` **rc=0** and non-vacuous (**107** `ok` lines, **0** `FAIL`), `vet`
+rc=0, and `check-boundaries` / `check-file-sizes` / `check-changelog` / `check-skills` /
+`check-golden-drift` / `verify-no-shim` / `fmt-check` / `test-regression-guards` /
+`test-nightly-classifier` all rc=0. `go build ./...` rc=1 is a **BASE** failure, measured not assumed
+— byte-identical error (`cmd/wasm` has no native `main`) on the pristine `origin/dev` tree (rule 3e).
+
+**Evaluator sonnet PASS 82/100** (generator≠judge: the implementer was `codex:gpt-5.6-sol`), handed
+five named targets to attack. Its two load-bearing findings were **reproduced first-party before
+being recorded** (rule 3b(v)), and both survive:
+
+1. **A ratified Design Freeze item has zero implementation.** Freeze item 3 — *local analysis reads
+   cloud, OPT-IN* — shipped nowhere. `grep -rEc -- '--remote|RemoteRead|readRemote' cmd/ailang/
+   internal/eval_analysis/` → **0**, with the SAME-PATH control `--cloud|AILANG_CHAINS_CLOUD` → **4**
+   and both scopes asserted to exist (rule 3a(i-d)); `OpenDefaultStore()` is hardcoded to local
+   SQLite. M3 shipped the WRITE half only, so the design doc's own Primary Goal — one query returning
+   every stage across all four providers — is unreachable by any shipped tool. The handover mentions
+   the gap in neither its milestone summary nor its follow-ups.
+2. **Survived mutation on the pinned-ID retry guard** (`internal/observatory/store_chains.go:334`) —
+   the guard M3's cross-store identity rests on. The UNIQUE constraint is on `(chain_id,
+   stage_number)`, not `id`, so the retry path needs a real `stage_number` collision that no test
+   forces. `if req.ID == ""` → `if true`, asserted **LANDED** (sha256 `54432ddb…` → `05892ff1…`) and
+   **BUILDING** (`go build` rc=0): the whole `internal/observatory` package stays **ok**, including
+   `TestPostIteration_PinnedIDIsNotSilentlyReplaced` — the test named for exactly this property.
+   Rule 3i in its purest form: the row's observable sits *alongside* the mechanism, not downstream of
+   it. Restored from a `cp` backup (never `git checkout --`), sha256 byte-identical.
+
+**I bought the vacuous-mutation trap on the first attempt and the assertion caught it.** My initial
+`perl -0pi` regex matched nothing; the package came back green and, read carelessly, that green says
+"the guard is protected". `sha before == sha after` → `MUTATION LANDED=NO` is what separated it from
+a real result. "The mutation didn't red" and "the mutation never ran" are the same exit code.
+
+**Confirmed as filed** (not everything was a gap): dual-write cross-store identity; unreachable
+remote → loud stderr, buffered post, **rc=0**, local write still succeeds, with a *separate* spool
+file per target; the status vocabulary pinned to five terminal values; and an omitted `status`
+leaving the stage `pending`, which is the back-compat the skill promises. Five new error branches
+(2 in `chains_post.go`, 3 in `firestore/observatory_chains.go`) carry no negative arm.
+
+**Landing**: PR [#697](https://github.com/sunholo-data/ailang/pull/697) → merge `5a4dac723` with
+per-milestone bisectability preserved (all four commits `--is-ancestor` of `origin/dev`; control
+`3924615ac` likewise). **Gate 3b GREEN**: SHA-addressed **21** checks, **zero** NOT-GREEN, **4/4**
+REQUIRED contexts (`test` 24m7s, `build`, `lint`, `docs-gate`) from real `pull_request` events,
+`mergeable=MERGEABLE state=CLEAN`. The check count climbed **17 → 21** during the poll, so
+`pending=0` was **required, not inferred**. Fast-follow **`#698`** filed with both reproductions.
+
+**Gate 1 note**: `SonarCloud Code Analysis` was `failure` on `3924615ac` — the only NOT-GREEN of 16
+checks. Non-required (`UNSTABLE` ≠ `BLOCKED`), named rather than left invisible per the check-set
+rule, and it returned `success` on the PR's own SHA.
+
+**Routing evidence**: controller **opus** (session default; `$MODEL` env unset again — instance 3
+after iters 191/192, still FLAGGED for the driver), evaluator **sonnet** (`$MISSION_EVALUATOR_MODEL`,
+distinct from the codex implementer → generator≠judge holds). Designer / planner / executor **not
+fired** — the work was inherited complete, so the only role owed was the independent judge. Designer
+rotation pointer untouched. `metered=$0.00` against the `$5` ceiling (no quorum, no cross-provider
+lane; the evaluator is a quota bucket).
+
+**Ruled out by measurement**: *"the 4 ahead-commits are duplicates already on origin"* — REFUTED by
+`git patch-id --stable` (all four absent from origin's last 12); *"`go build ./...` red means the
+inherited work broke the build"* — REFUTED (identical rc=1 on the pristine tree); *"the pinned-ID
+guard is tested"* — REFUTED by a landed, building mutation; *"my mutation proved the guard survives"*
+— initially FALSE, the mutation never applied, caught before it reached this record.
+
+**Next**: `#698` — the sprint's own missing half (opt-in remote read + the four absent regression
+tests). Then `#691`. `m-mapE-queryall-retention` (`#610`) stays infra-gated (no duckdb CLI on this
+rig). Parked on Mark: `D-1`–`D-14`, all on `#635`.
