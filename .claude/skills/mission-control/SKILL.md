@@ -1484,9 +1484,19 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      NOT be a codex `provider:model` — if `$MISSION_EVALUATOR_MODEL` collides, re-route the evaluator
      to a DISTINCT, PINNABLE Anthropic alias (`sonnet` — fable is unpinnable, gemini is not wired) and
      **FLAG** the collision in the Gate-5 report.
-  4. **Fallback (never wedge the loop):** if the pre-flight probe fails, or the real run errors /
-     hits the cap, fall back to `$MODEL` via the Agent tool for that role and FLAG it in Gate-5 — the
-     same discipline as a quota-limited Anthropic pin below.
+  4. **Fallback (never wedge the loop) — follow the RATIFIED CHAIN, never a straight drop to
+     `$MODEL`** (ailang#611, Mark-ratified 2026-08-06; the DRIVER half landed `d14f106bb`, and this
+     clause is the in-iteration half the issue explicitly required — a codex 1-token probe can
+     return **rc=0 on a spent bucket**, so quota exhaustion is sometimes visible only HERE, on the
+     real Gate-3 run, after every driver probe passed). If the pre-flight probe fails, or the real
+     run errors / hits the cap: read `MISSION_<ROLE>_FALLBACK` (driver defaults: executor
+     `pi:openrouter/deepseek/deepseek-v4-flash-0731:floor`, planner `opus`; the `:floor` suffix is
+     an OpenRouter price-routing variant — part of the MODEL ID, not chain syntax) and hand the
+     role to that value under its OWN lane recipe, probe included — a `pi:*` value enters the pi
+     recipe below, an alias enters the Agent tool. Only when the chain value is absent, already the
+     failed lane, or itself fails does the role fall to `$MODEL` via the Agent tool. FLAG every
+     link traversed in Gate-5 and record the ACTUAL final (role, model) in the routing-evidence row
+     — same discipline as a quota-limited Anthropic pin below.
 - **`PROVIDER=claude`** (added 2026-07-16, Mark — the true-Fable lane): the `claude` CLI takes FULL
   model IDs (`claude -p --model claude-fable-5`), unlike the Agent tool's sonnet|opus|haiku alias
   limit (F1). So a role value like `claude:claude-fable-5` routes around F1 to a REAL Fable run.
@@ -1634,8 +1644,11 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
        alongside the deadline and kill on a ceiling (a few hundred MB is already pathological),
        and slice the head/tail for forensics before deleting it. A disk that fills takes the whole
        rig down, not just the iteration.
-  3. **Fallback:** probe-fail / cap / error / any of the three assertions above → `$MODEL` via the
-     Agent tool + FLAG (same rule as codex). Trial caveat stands (N=1): the replay's single miss was a discretionary refinement
+  3. **Fallback:** probe-fail / cap / error / any of the three assertions above → the next link in
+     `MISSION_<ROLE>_FALLBACK` AFTER the pi entry if one exists, else `opus` via the Agent tool
+     ("end of chain", mirroring the driver's pi loop) + FLAG — never re-prompt in place, and never
+     loop back to a lane that already failed this iteration (ailang#611 chain rule; see the codex
+     recipe's Fallback for the full semantics). Trial caveat stands (N=1): the replay's single miss was a discretionary refinement
      beyond the plan's letter — this lane wants PRESCRIPTIVE, sprint-plan-shaped directives;
      vague-plan or judgment-heavy work stays on opus until ≥3 datapoints say otherwise (the
      charter's evidence rule, same bar as every routing change).
