@@ -152,12 +152,12 @@ no new schema, no second model.
 ### Implementation Plan
 
 **M1: Session-keyed chain linkage** (~6 hours)
-- [ ] Register the correlation `session_id` as a `sessions` row bound to `chain_id` + `stage_id` when
+- [x] Register the correlation `session_id` as a `sessions` row bound to `chain_id` + `stage_id` when
       a mission/eval stage dispatches an OpenRouter call.
-- [ ] Extend `convertSpan` to resolve `chain_id` via `sessions` when `session.id` is present and no
+- [x] Extend `convertSpan` to resolve `chain_id` via `sessions` when `session.id` is present and no
       explicit `ailang.chain_id` was supplied — **without** disturbing the Claude Code path that owns
       that attribute today.
-- [ ] Test both directions: a Claude Code span still resolves as it does now; an OpenRouter Broadcast
+- [x] Test both directions: a Claude Code span still resolves as it does now; an OpenRouter Broadcast
       span resolves to its chain.
 
 **M2: Mission stage lifecycle + accounting** (~8 hours)
@@ -165,19 +165,22 @@ no new schema, no second model.
 Two *distinct* defects with different owners — worth separating, because a single "fix mission
 accounting" change would likely patch one and miss the other:
 
-- [ ] **Status (writer-side).** `PostIteration` creates stages and never transitions them, so they
+- [x] **Status (writer-side).** `PostIteration` creates stages and never transitions them, so they
       keep `CreateStage`'s `StageStatusPending` default. Add the status transition in
       `iteration_post.go`, carrying per-stage outcome rather than blanket-completing.
-- [ ] **Tokens (caller-side).** `UpdateStageMetrics` already receives `st.TokensIn`/`st.TokensOut`
+- [x] **Tokens (caller-side).** `UpdateStageMetrics` already receives `st.TokensIn`/`st.TokensOut`
       correctly; the zeros come from the caller. Thread real token counts through
       `ailang chains post-iteration` and the mission-control skill that invokes it.
-- [ ] Aggregate stage cost/tokens into the chain total.
-- [ ] Regression fixture built from the real iter-190 shape (4 stages, 3 providers, cost-without-tokens).
+- [x] Aggregate stage cost/tokens into the chain total.
+- [x] Regression fixture built from the real iter-190 shape (4 stages, 3 providers, cost-without-tokens).
 
 **M3: Cloud routing for rig writes** (~8 hours)
-- [ ] Wire the rig's observatory writes to the Firestore backend per the frozen decision.
-- [ ] Offline behaviour per the frozen decision.
+- [x] Wire the rig's observatory writes to the Firestore backend per the frozen decision.
+- [x] Offline behaviour per the frozen decision.
 - [ ] Verify a full mission iteration lands cloud-side with every stage and its Broadcast spans.
+      **NOT DONE — needs a live run on a `AILANG_STORAGE=gcp` node.** The write path and its
+      spool are implemented and unit-tested against a non-SQLite sink; the end-to-end confirmation
+      is a manual step that cannot be performed from the sprint sandbox (no cloud credentials).
 
 ### Files to Modify/Create
 
@@ -214,13 +217,17 @@ ailang chains view <iter-191> --remote
 
 ## Success Criteria
 
-- [ ] One query returns a full mission iteration across all four providers
-- [ ] Chain total equals the sum of stage costs (regression fixture from iter-190)
-- [ ] ≥95% of a mission iteration's Broadcast spans carry a resolved `chain_id`
-- [ ] No stage ends an iteration in `pending`
-- [ ] **Claude Code session correlation is unchanged** — asserted by a test that fails if the
+- [ ] One query returns a full mission iteration across all four providers — **needs a live
+      mission iteration**; the code path exists and is unit-tested, the measurement is not made
+- [x] Chain total equals the sum of stage costs (regression fixture from iter-190)
+- [ ] ≥95% of a mission iteration's Broadcast spans carry a resolved `chain_id` — **M1 landed and
+      is unit-tested; the ≥95% figure is a live measurement, not yet taken**
+- [x] No stage ends an iteration in `pending` — the CLI accepts and stores a per-stage status and
+      the mission-control skill now supplies it; a stage that omits one is still left `pending` by
+      design (version skew), so the live figure depends on the skill having been updated
+- [x] **Claude Code session correlation is unchanged** — asserted by a test that fails if the
       existing path regresses
-- [ ] All tests passing; `make lint` clean
+- [x] All tests passing; `make lint` clean
 
 ## Testing Strategy
 

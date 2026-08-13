@@ -9,16 +9,26 @@ package main
 // drop-oldest) that the NEXT invocation flushes. It NEVER blocks or fails the
 // iteration — telemetry problems exit 0 with a stderr warning.
 //
+// M-MISSION-LOOP-UNIFIED-TELEMETRY M2 added a per-stage `status` and chain-total
+// aggregation; M3 made the destination NODE-GENERIC — this node dual-writes to
+// local AND cloud when a cloud observatory is configured, each leg with its own
+// bounded spool.
+//
 // Input is a JSON IterationPost read from --file or stdin:
 //
 //	{
 //	  "source": "mission:v1/iter-42",
 //	  "stages": [
-//	    {"role":"codex-executor","provider":"codex","model":"claude-sonnet-4-5","cost_usd":0.42,"tokens_in":1000,"tokens_out":500},
-//	    {"role":"controller","quota_bucket":"opus"},
-//	    {"role":"evaluator","quota_bucket":"sonnet"}
+//	    {"role":"codex-executor","provider":"codex","model":"claude-sonnet-4-5","cost_usd":0.42,"tokens_in":1000,"tokens_out":500,"status":"completed"},
+//	    {"role":"controller","quota_bucket":"opus","status":"completed"},
+//	    {"role":"evaluator","quota_bucket":"sonnet","status":"failed"}
 //	  ]
 //	}
+//
+// `status` is OPTIONAL (an older payload omitting it keeps working and leaves the
+// stage pending) and is PER STAGE: a stage that failed must say `failed`, because
+// blanket-completing an iteration's stages would satisfy "nothing left pending"
+// while hiding the failure.
 
 import (
 	"context"
@@ -28,8 +38,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/storage"
 )
 
 // defaultSpoolPath returns the mission iteration spool path next to observatory.db.
@@ -39,6 +51,14 @@ func defaultSpoolPath() string {
 		return "chains-iteration-spool.jsonl"
 	}
 	return filepath.Join(home, ".ailang", "state", "chains-iteration-spool.jsonl")
+}
+
+// cloudSpoolPath derives the cloud leg's spool from the local one. The legs spool
+// SEPARATELY on purpose: a shared buffer would replay a post the local leg
+// already stored, duplicating that chain on every flush.
+func cloudSpoolPath(localSpool string) string {
+	ext := filepath.Ext(localSpool)
+	return strings.TrimSuffix(localSpool, ext) + "-cloud" + ext
 }
 
 func chainsPostIterationCommand() {
@@ -52,21 +72,14 @@ func chainsPostIterationCommand() {
 	if spPath == "" {
 		spPath = defaultSpoolPath()
 	}
-	spool := observatory.NewSpool(spPath)
-
-	// Connecting to the store can itself fail (locked/missing). Treat that as the
-	// server-down path: buffer the new post and return fail-soft.
-	backend, connErr := observatory.NewSQLiteBackendFromPath(observatory.DefaultDatabasePath())
-	if backend != nil {
-		defer backend.Close()
-	}
 
 	ctx := context.Background()
 
-	// 1. Flush any previously-spooled posts first (best-effort).
-	if connErr == nil {
-		flushSpool(ctx, backend, spool)
-	}
+	legs, closeLegs := iterationLegs(ctx, observatory.DefaultDatabasePath(), spPath)
+	defer closeLegs()
+
+	// 1. Flush any previously-spooled posts first, per leg (best-effort).
+	observatory.FlushLegs(ctx, legs, os.Stderr)
 
 	if *flushOnly {
 		return
@@ -81,36 +94,69 @@ func chainsPostIterationCommand() {
 		return
 	}
 
-	// 3. Try to post; on failure, spool it (LOUD, bounded, fail-soft).
-	if connErr != nil {
-		fmt.Fprintf(os.Stderr, "chains post-iteration: observatory unreachable (%v)\n", connErr)
-		_ = spool.Append(post)
-		return
+	// 3. Write to every leg; per-leg failures spool (LOUD, bounded, fail-soft).
+	// Report where the data ACTUALLY went — claiming delivery to a leg that only
+	// buffered would make a cloud outage invisible in the loop's own output.
+	delivered, spooled := observatory.PostToLegs(ctx, legs, post, os.Stderr)
+	if len(delivered) > 0 {
+		fmt.Printf("Posted iteration %s (%d stages) to %s\n", post.Source, len(post.Stages), strings.Join(delivered, "+"))
 	}
-
-	chainID, postErr := observatory.PostIteration(ctx, backend, post)
-	if postErr != nil {
-		fmt.Fprintf(os.Stderr, "chains post-iteration: write failed (%v)\n", postErr)
-		_ = spool.Append(post)
-		return
+	if len(spooled) > 0 {
+		fmt.Printf("Buffered iteration %s for %s (will flush next invocation)\n", post.Source, strings.Join(spooled, "+"))
 	}
-	fmt.Printf("Posted iteration chain %s (source %s, %d stages)\n", chainID, post.Source, len(post.Stages))
 }
 
-// flushSpool drains buffered posts and re-posts them; posts that still fail are
-// re-spooled (LOUD) so nothing is lost.
-func flushSpool(ctx context.Context, backend *observatory.SQLiteBackend, spool *observatory.Spool) {
-	entries, err := spool.Drain()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "chains post-iteration: could not read spool (%v)\n", err)
-		return
-	}
-	for _, p := range entries {
-		if _, err := observatory.PostIteration(ctx, backend, p); err != nil {
-			fmt.Fprintf(os.Stderr, "chains post-iteration: re-post of spooled %q failed (%v); re-buffering\n", p.Source, err)
-			_ = spool.Append(p)
+// iterationLegs builds this NODE's dual-write destinations. The local SQLite
+// observatory is always a leg (`ailang chains` is offline-first). The cloud leg
+// exists only when this node is configured for one — nothing here is
+// rig-specific, so a laptop, this server or a Cloud Run job with the same
+// AILANG_STORAGE configuration behave identically, and a node with no cloud
+// configured behaves exactly as it did before M3.
+//
+// A leg that cannot be OPENED is still returned, with Sink nil and Err set, so
+// the post is buffered rather than dropped.
+func iterationLegs(ctx context.Context, dbPath, localSpool string) ([]observatory.IterationLeg, func()) {
+	var closers []func()
+	closeAll := func() {
+		for _, c := range closers {
+			c()
 		}
 	}
+
+	local := observatory.IterationLeg{
+		Name:  "local",
+		Spool: observatory.NewSpool(localSpool),
+	}
+	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	if err != nil {
+		local.Err = err
+	} else {
+		local.Sink = backend.Store()
+		closers = append(closers, func() { _ = backend.Close() })
+	}
+	legs := []observatory.IterationLeg{local}
+
+	// The cloud leg is opt-in via the SAME selector every other AILANG service
+	// uses (AILANG_STORAGE); adding a second selection mechanism would be one
+	// more thing to keep in sync. Only "gcp" names a genuinely remote
+	// observatory — "hybrid" still resolves the observatory to local SQLite, so
+	// treating it as a cloud leg would dual-write the same database twice.
+	if storage.GetMode() != storage.ModeGCP {
+		return legs, closeAll
+	}
+
+	cloud := observatory.IterationLeg{
+		Name:  "cloud",
+		Spool: observatory.NewSpool(cloudSpoolPath(localSpool)),
+	}
+	backends, err := storage.NewBackends(ctx)
+	if err != nil {
+		cloud.Err = err
+	} else {
+		cloud.Sink = backends.Observatory
+		closers = append(closers, func() { _ = backends.Close() })
+	}
+	return append(legs, cloud), closeAll
 }
 
 // readIterationPost reads and decodes an IterationPost from a file or stdin.

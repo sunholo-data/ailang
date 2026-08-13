@@ -9,11 +9,16 @@ Start with `.claude/skills/sprint-executor/scripts/session_start.sh M-MISSION-LO
 
 ## Status
 
+> **SUPERSEDED 2026-08-13 — M2 and M3 are implemented.** Kept for the traps section, which is still
+> accurate, and for the ratified Design Freeze wording. The one thing left is the LIVE confirmation
+> M3 could not make from the sprint sandbox: post a real iteration from a node with
+> `AILANG_STORAGE=gcp` and read it back cloud-side with its Broadcast spans.
+
 | Milestone | State |
 |-----------|-------|
 | M1 session-keyed chain linkage | ✅ **PASS** — landed `56b449d01` |
-| **M2 mission stage accounting** | ⬜ **PENDING — start here** |
-| M3 node-generic cloud routing | ⬜ pending (depends on M2) |
+| M2 mission stage accounting | ✅ **PASS** — per-stage `status`, chain-total aggregation, skill supplies tokens |
+| M3 node-generic cloud routing | ✅ **PASS** (code) — dual-write via `IterationSink`, per-leg spools, `--remote` reads. ⬜ live cloud read-back not yet performed |
 
 **All three Design Freeze items are RATIFIED by Mark (2026-08-13).** Do not re-open them; they are
 recorded verbatim with his reasoning in the sprint JSON's `design_freeze` block:

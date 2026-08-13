@@ -38,11 +38,11 @@ fail-soft behaviour from scratch.
 Make a Broadcast span resolve to its chain.
 
 **Tasks:**
-- [ ] Register the correlation `session_id` as a `sessions` row bound to `chain_id` + `stage_id`
+- [x] Register the correlation `session_id` as a `sessions` row bound to `chain_id` + `stage_id`
       when a mission/eval stage dispatches an OpenRouter call.
-- [ ] In `convertSpan`, resolve `chain_id` via the `sessions` table when `session.id` is present and
+- [x] In `convertSpan`, resolve `chain_id` via the `sessions` table when `session.id` is present and
       no explicit `ailang.chain_id` was supplied.
-- [ ] `ailang.chain_id` keeps precedence — the new path only fires when it is absent.
+- [x] `ailang.chain_id` keeps precedence — the new path only fires when it is absent.
 
 **Acceptance criteria:**
 - An OTLP/JSON span carrying `session.id` matching a seeded session resolves to that session's
@@ -60,14 +60,14 @@ Two defects with **different owners**. A single "fix mission accounting" change 
 miss the other, so they are separate tasks with separate criteria.
 
 **Tasks:**
-- [ ] **Writer-side (status)**: `PostIteration` creates stages and never transitions them, so they
+- [x] **Writer-side (status)**: `PostIteration` creates stages and never transitions them, so they
       keep `CreateStage`'s `StageStatusPending` default. Add a `Status` field to `IterationStage`
       and call `UpdateStageStatus`. Vocabulary available: `pending`, `running`,
       `awaiting_approval`, `completed`, `failed`.
-- [ ] **Caller-side (tokens)**: `IterationStage` ALREADY carries `TokensIn`/`TokensOut`;
+- [x] **Caller-side (tokens)**: `IterationStage` ALREADY carries `TokensIn`/`TokensOut`;
       `UpdateStageMetrics` already receives them. The zeros come from the poster. Supply real token
       counts from the mission-control skill.
-- [ ] Aggregate stage cost/tokens into the chain total.
+- [x] Aggregate stage cost/tokens into the chain total.
 
 **Acceptance criteria:**
 - A posted stage with a terminal status reads back as that status, NOT `pending`.
@@ -82,11 +82,11 @@ miss the other, so they are separate tasks with separate criteria.
 ### M3_NODE_GENERIC_CLOUD_ROUTING (~120 LOC, ~4h)
 
 **Tasks:**
-- [ ] Make the backend at `chains_post.go:59` selectable rather than hardcoded SQLite, reusing
+- [x] Make the backend at `chains_post.go:59` selectable rather than hardcoded SQLite, reusing
       `internal/storage.NewBackends` which already resolves local/gcp/hybrid from `AILANG_STORAGE`.
-- [ ] Dual-write: local AND cloud, per the ratified decision.
-- [ ] Confirm the EXISTING spool covers a cloud write failure — extend, do not replace.
-- [ ] Opt-in remote read for analysis; local stays the default.
+- [x] Dual-write: local AND cloud, per the ratified decision.
+- [x] Confirm the EXISTING spool covers a cloud write failure — extend, do not replace.
+- [x] Opt-in remote read for analysis; local stays the default.
 
 **Acceptance criteria:**
 - With cloud configured, a posted iteration appears in BOTH stores.

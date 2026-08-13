@@ -311,7 +311,14 @@ func displayChainDetails(backend *observatory.SQLiteBackend, ctx context.Context
 
 // resolveChainID resolves a short ID prefix to a full chain ID.
 // Returns error if no match or multiple matches (ambiguous prefix).
-func resolveChainID(backend *observatory.SQLiteBackend, ctx context.Context, prefix string) (string, error) {
+// chainLister is the only capability resolveChainID needs. Taking the narrow
+// interface rather than *SQLiteBackend is what lets `--remote` reuse it against
+// the cloud observatory (M-MISSION-LOOP-UNIFIED-TELEMETRY M3).
+type chainLister interface {
+	ListChains(ctx context.Context, opts observatory.ChainListOptions) ([]*observatory.ChainSummary, error)
+}
+
+func resolveChainID(backend chainLister, ctx context.Context, prefix string) (string, error) {
 	// If prefix looks like a full UUID, use it directly
 	if len(prefix) >= 36 {
 		return prefix, nil

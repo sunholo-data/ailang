@@ -46,6 +46,7 @@ func chainsCommand() {
 		fmt.Println("  ailang chains tree <chain-id>       # View as tree")
 		fmt.Println("  ailang chains stats --hours 168     # Last week's cost summary")
 		fmt.Println("  ailang chains stats --by-mission    # Per-mission metered total vs budget + quota buckets")
+		fmt.Println("  ailang chains view <id> --remote    # Read this node's cloud observatory (opt-in)")
 		fmt.Println("  ailang chains post-iteration        # Post a mission iteration chain (JSON on stdin)")
 		fmt.Println("  ailang chains diagnose <chain-id>   # Quick issue check")
 		fmt.Println("  ailang chains diff <chain-id>        # Git diff across all stages")
@@ -105,18 +106,19 @@ func chainsListCommand() {
 	limit := fs.Int("limit", 20, "Maximum number of chains to show")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
 	fullIDs := fs.Bool("full", false, "Show full chain IDs (for copy-paste)")
+	remote := fs.Bool("remote", false, remoteFlagUsage)
 	fs.Parse(flag.Args()[2:])
 
-	// Connect to observatory database
-	dbPath := observatory.DefaultDatabasePath()
-	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	ctx := context.Background()
+
+	// Connect to the observatory (local by default; --remote is opt-in).
+	backend, closeBackend, err := openChainBackend(ctx, *remote)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
 		os.Exit(1)
 	}
-	defer backend.Close()
+	defer closeBackend()
 
-	ctx := context.Background()
 	opts := observatory.ChainListOptions{
 		Limit: *limit,
 	}
@@ -190,6 +192,7 @@ func chainsViewCommand() {
 	includeSpans := fs.Bool("spans", false, "Include span summaries for each stage (no attributes)")
 	fullSpans := fs.Bool("full", false, "Include full span data with attributes (heavy)")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
+	remote := fs.Bool("remote", false, remoteFlagUsage)
 	fs.Parse(flag.Args()[2:])
 
 	if fs.NArg() < 1 {
@@ -199,16 +202,15 @@ func chainsViewCommand() {
 
 	chainIDPrefix := fs.Arg(0)
 
-	// Connect to observatory database
-	dbPath := observatory.DefaultDatabasePath()
-	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	ctx := context.Background()
+
+	// Connect to the observatory (local by default; --remote is opt-in).
+	backend, closeBackend, err := openChainBackend(ctx, *remote)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
 		os.Exit(1)
 	}
-	defer backend.Close()
-
-	ctx := context.Background()
+	defer closeBackend()
 
 	// Resolve short ID prefix to full ID
 	chainID, err := resolveChainID(backend, ctx, chainIDPrefix)

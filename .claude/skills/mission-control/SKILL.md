@@ -1748,24 +1748,49 @@ to the bounded, LOUD, fail-soft Go subcommand — NEVER inline shell spooling:
 ```bash
 # stages: metered lanes carry $ + model + tokens; quota lanes carry quota_bucket
 # (fable|opus|sonnet) and ZERO tokens/cost (subscription burn is bucket-visible, not dollar-faked).
+# EVERY stage carries its OWN `status` — see the two rules below.
 cat <<JSON | ailang chains post-iteration || true   # `|| true`: telemetry NEVER blocks the loop
 {
   "source": "mission:${MISSION_NAME:-v1}/iter-${ITER}",
   "stages": [
-    {"role":"executor","provider":"codex","model":"<model>","cost_usd":<metered $>,"tokens_in":<n>,"tokens_out":<n>},
-    {"role":"controller","quota_bucket":"opus"},
-    {"role":"evaluator","quota_bucket":"sonnet"}
+    {"role":"executor","provider":"codex","model":"<model>","cost_usd":<metered $>,"tokens_in":<n>,"tokens_out":<n>,"status":"completed"},
+    {"role":"controller","quota_bucket":"opus","status":"completed"},
+    {"role":"evaluator","quota_bucket":"sonnet","status":"failed"}
   ]
 }
 JSON
 ```
 
+**Two rules on this payload (M-MISSION-LOOP-UNIFIED-TELEMETRY M2), both measured defects:**
+
+1. **`status` is per stage, and a stage that failed says `failed`.** Vocabulary: `pending`,
+   `running`, `awaiting_approval`, `completed`, `failed`. Marking every stage `completed` because
+   the iteration ended would satisfy "no stage left pending" and *hide the failure* — that is the
+   one thing this field must not do. Omitting `status` is still accepted (older payloads keep
+   working) and leaves the stage `pending`; an unrecognised value is REJECTED loudly rather than
+   coerced.
+2. **`tokens_in`/`tokens_out` must be the REAL counts for every metered lane.** Measured on
+   `manual:mission:v1/iter-190`: the two quorum stages posted $0.0570 and $0.0507 with **0 tokens**
+   — the write path was always wired, the poster supplied zeros. Take the counts from the same
+   place the METERED-SPEND LEDGER takes the dollars (codex reported usage, managed_agents
+   `TokensIn`/`TokensOut`, the quorum reviewer's usage block). Quota lanes still post 0/0 — that is
+   structural, not missing data.
+
 The subcommand: (a) flushes any previously-spooled iterations first; (b) writes the chain +
 per-stage cost/tokens/model (metered) or quota bucket (encoded in `agent_id` as `<role>
-(quota:<bucket>)` — NO schema change); (c) if the observatory is unreachable, buffers to a bounded
-JSONL spool (≤100 entries / 1 MiB, drop-oldest, stderr-LOUD) the next iteration flushes. It exits 0
-even on telemetry failure — a broken tracker must never wedge the loop. Review the fleet's spend
-later with `ailang chains stats --by-mission` (M3).
+(quota:<bucket>)` — NO schema change), sets each stage's status, and **aggregates the stage
+cost/tokens into the chain total** (before M2 the chain read `$0.0000` while holding $0.1077);
+(c) if the observatory is unreachable, buffers to a bounded JSONL spool (≤100 entries / 1 MiB,
+drop-oldest, stderr-LOUD) the next iteration flushes. It exits 0 even on telemetry failure — a
+broken tracker must never wedge the loop. Review the fleet's spend later with
+`ailang chains stats --by-mission` (M3).
+
+**Cloud leg (M3, node-generic).** When this node has a cloud observatory configured
+(`AILANG_STORAGE=gcp` + `AILANG_CLOUD_PROJECT`), the same post is dual-written local **and** cloud,
+so a mission iteration is queryable cloud-side alongside its OpenRouter Broadcast spans. Nothing
+about it is rig-specific — a laptop or a Cloud Run job with the same env dual-writes identically,
+and a node with no cloud configured behaves exactly as before. A cloud outage buffers to a separate
+bounded spool and still exits 0.
 
 **GPU rule (two-tier)**: default iterations never touch `rig.lock` — it is a GPU mutex only.
 If (and only if) a step drives ollama/local models: `source tools/launchd/rig-lock.sh &&

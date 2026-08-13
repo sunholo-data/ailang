@@ -15,6 +15,14 @@ import (
 // Compile-time check that ObservatoryStore implements observatory.Backend.
 var _ obs.Backend = (*ObservatoryStore)(nil)
 
+// This store is the CLOUD leg of the mission-iteration dual-write
+// (M-MISSION-LOOP-UNIFIED-TELEMETRY M3). IterationSink is deliberately a subset
+// of Backend so that stays true; this assertion is what fails if it stops being
+// one. It does NOT implement IterationModelSink — eval_assessment is a
+// SQLite-only write — which is why PostIterationTo treats that as optional and
+// reports the drop rather than requiring it.
+var _ obs.IterationSink = (*ObservatoryStore)(nil)
+
 // Observatory Firestore collection names (prefixed with obs_ to avoid collisions).
 const (
 	collObsWorkspaces       = "obs_workspaces"
