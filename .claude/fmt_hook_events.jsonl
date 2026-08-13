@@ -21,3 +21,21 @@
 {"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/ailang-packages/packages/motoko-ext-fmt/register.ail","exit_code":0,"id":"toolu_01HGCVYZr6GbSXZud81EGgCC","detail":""}
 {"status":"formatted","file":"/tmp/mc124_probe_positive.ail","exit_code":0,"id":"toolu_01LGWcU2acsQ2vj46yPFbJQ9","detail":""}
 {"status":"formatted","file":"/tmp/mc124_probe_record.ail","exit_code":0,"id":"toolu_011WARrnRrAxnrTw48Deyt3V","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/iter152probe/single_assert_pass.ail","exit_code":0,"id":"toolu_01S9ZCCQbijVW3PycwfpwYVG","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/iter152probe/single_assert_fail.ail","exit_code":0,"id":"toolu_01J2gfVRdc6Ux14fhHeUuwGk","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/iter152probe/assert_false_then_true.ail","exit_code":0,"id":"toolu_01Y99r1aVV9jaFrjw7L1nxQA","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/iter152probe/assert_true_then_false.ail","exit_code":0,"id":"toolu_01NZjt9jN3MLv4w3XuKQVPqg","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/iter152probe/assert_both_true.ail","exit_code":0,"id":"toolu_01XfqjcqFXWTU9qREjHFgGkc","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/iter152probe/assert_free.ail","exit_code":0,"id":"toolu_015FgyJFRVmte2CzXFpiVjUy","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/iter152probe/sentinel_collision_test.ail","exit_code":0,"id":"toolu_01EmKR3cDReK2ndoGGfAHHuC","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/iter152probe/sentinel_int_only.ail","exit_code":0,"id":"toolu_01NMjsF569qaDFhrm2iV84V4","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/iter152probe/sentinel_final_bool_as_int.ail","exit_code":0,"id":"toolu_01XYjH64Hc8yekuGnvSkhmou","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/iter152probe/f2_nonfinal_false_noassert.ail","exit_code":0,"id":"toolu_01TvKAS88cntQFW1PjwTj9tn","detail":""}
+{"status":"formatted","file":"/private/tmp/claude-501/-Users-voightkampff-dev-sunholo-data-ailang/cd7e7322-89f6-4d9d-8f30-4d31a665ad31/scratchpad/latin1.ail","exit_code":0,"id":"toolu_015x5WoiLJBWWk5EiFuJTX7Z","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/ailang/std/bytes.ail","exit_code":0,"id":"toolu_01D9BBSEyHPdBpRPLwhb4o1F","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/.wt-iter177/examples/runnable/contracts/shapes_verify.ail","exit_code":0,"id":"toolu_014dfjNPeBNAWo94yHuNfKcM","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/.wt-iter177/examples/runnable/contracts/shapes_verify.ail","exit_code":0,"id":"toolu_01AVMMVaVWiEDVhFRbi4HzzW","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/.wt-iter177/examples/runnable/contracts/shapes_verify.ail","exit_code":0,"id":"toolu_01XvDKwxsJDgvb7FekQotkDs","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/.wt-iter177/examples/runnable/contracts/shapes_verify.ail","exit_code":0,"id":"toolu_01Tt47vZ6vZRhY7CAzoPcMV4","detail":""}
+{"status":"error","file":"/Users/voightkampff/dev/sunholo-data/.wt-iter183/std/list.ail","exit_code":2,"id":"toolu_017aLbhnyDBkBdUxc4zdPxLU","detail":"Error: /Users/voightkampff/dev/sunholo-data/.wt-iter183/std/list.ail: comment at byte 590 (\"-- Simple recursive reverse (not tail-recursive)\") could not be attached to any boundary"}
+{"status":"error","file":"/Users/voightkampff/dev/sunholo-data/.wt-iter183/std/list.ail","exit_code":2,"id":"toolu_01RF56xHNY7agg1aFifwF7ZU","detail":"Error: /Users/voightkampff/dev/sunholo-data/.wt-iter183/std/list.ail: comment at byte 590 (\"-- Simple recursive reverse (not tail-recursive)\") could not be attached to any boundary"}
