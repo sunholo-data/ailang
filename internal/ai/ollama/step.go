@@ -95,6 +95,43 @@ const defaultOllamaMaxTokens = 16384
 //  2. the caller's reqMax when it already meets the floor;
 //  3. the floor (defaultOllamaMaxTokens) — so an unset/small default (e.g. motoko's
 //     std/ai 4096) can't truncate a reasoning model mid-thought.
+//
+// resolveOllamaNumCtx reports the num_ctx to send, and whether to send one at all.
+//
+// Default: DON'T send it. Ollama then sizes the context from the model itself —
+// measured 2026-08-13, `ollama ps` reports CONTEXT 262144 for
+// qwen3.6:35b-a3b-mxfp8 — which is exactly what the opencode and pi lanes get,
+// since they reach ollama over /v1 where num_ctx is not expressible. Those are
+// the two local lanes with the healthiest tool-emission record.
+//
+// Both option maps in this package used to hardcode 8192 ("Reasonable context
+// window", 2026-05-05, M-AI-TOOL-LOOP M4 — written before the local-model
+// rotation existed). num_ctx bounds prompt AND generation together, while the
+// eval harness's agentic prompts for these models measure 28k-44k tokens (banked
+// opencode sessions, first step-finish, 21-day window). So the ceiling sat below
+// the prompt: ollama context-shifts, and the model answers having seen a fraction
+// of the task. The same maps then asked for num_predict up to 32768 — four times
+// more generation than the whole context allowed. That combination cannot work,
+// whichever number is right.
+//
+// Scope, so this is not over-read: motoko's TOOL-CALLING turns never came through
+// here (Step routes those to /v1 unless AILANG_OLLAMA_NATIVE_TOOLS=1). What did:
+// single-shot Generate calls, multi-turn chat without tools, and the legacy
+// native tool path — which includes motoko's compaction_ai summaries, i.e. the
+// calls whose entire job is to digest a long context.
+//
+// AILANG_OLLAMA_NUM_CTX pins a value when VRAM demands one — the KV cache scales
+// with it (the rig runs OLLAMA_KV_CACHE_TYPE=q8_0 + flash attention, which is what
+// makes the full context affordable at all).
+func resolveOllamaNumCtx() (int, bool) {
+	if v := os.Getenv("AILANG_OLLAMA_NUM_CTX"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n, true
+		}
+	}
+	return 0, false
+}
+
 func resolveOllamaMaxTokens(reqMax int) int {
 	if v := os.Getenv("AILANG_OLLAMA_MAX_TOKENS"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
@@ -374,8 +411,10 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	}
 
 	options := map[string]interface{}{
-		"seed":    int64(42),
-		"num_ctx": 8192,
+		"seed": int64(42),
+	}
+	if n, ok := resolveOllamaNumCtx(); ok {
+		options["num_ctx"] = n
 	}
 	if req.MaxTokens > 0 {
 		options["num_predict"] = req.MaxTokens

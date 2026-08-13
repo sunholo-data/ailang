@@ -6,16 +6,51 @@
       "apiKey": "ollama",
       "models": [
         {
-          "id": "qwen3.5:35b-a3b-mxfp8"
+          "id": "qwen3.5:35b-a3b-mxfp8",
+          "maxTokens": 32768,
+          "contextWindow": 262144,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "low": null,
+            "medium": null,
+            "high": null,
+            "xhigh": null
+          }
         },
         {
-          "id": "qwen3.5:35b-a3b"
+          "id": "qwen3.5:35b-a3b",
+          "maxTokens": 32768,
+          "contextWindow": 262144,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "low": null,
+            "medium": null,
+            "high": null,
+            "xhigh": null
+          }
         },
         {
-          "id": "gemma4:26b"
+          "id": "gemma4:26b",
+          "maxTokens": 8192,
+          "contextWindow": 262144
         },
         {
-          "id": "qwen3.6:35b-a3b-mxfp8"
+          "id": "qwen3.6:35b-a3b-mxfp8",
+          "maxTokens": 32768,
+          "contextWindow": 262144,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "low": null,
+            "medium": null,
+            "high": null,
+            "xhigh": null
+          }
         }
       ]
     },

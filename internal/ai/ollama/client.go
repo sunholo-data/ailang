@@ -131,8 +131,13 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 
 	// Build options
 	options := map[string]interface{}{
-		"seed":    int64(42), // Deterministic by default
-		"num_ctx": 8192,      // Reasonable context window
+		"seed": int64(42), // Deterministic by default
+	}
+	// num_ctx is omitted by default so ollama sizes context from the model —
+	// see resolveOllamaNumCtx (step.go) for why the old hardcoded 8192 sat below
+	// the prompts we actually send.
+	if n, ok := resolveOllamaNumCtx(); ok {
+		options["num_ctx"] = n
 	}
 
 	// Set max output tokens if specified

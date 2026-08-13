@@ -149,7 +149,33 @@ present in the response — thinking preserved, not disabled.
 model without one, which silently zeroed the metered ledger) come from
 `GET https://openrouter.ai/api/v1/models`; re-measure rather than assume, prices move.
 
-**Ollama rows are deliberately untouched.** Their ceiling is VRAM-bound, and the three
-local harnesses currently disagree on it (pi 16384 default, opencode 4096, motoko 8192
-from the registry). Aligning them moves a live measurement baseline mid-rotation, so it is
-a decision, not a cleanup.
+### Ollama rows — aligned 2026-08-13, and the numbers were not what we assumed
+
+The local rows were left alone in the first pass on the belief that the three harnesses
+disagreed as pi 16384 / opencode 4096 / motoko 8192, and that aligning them would move a
+live baseline. Measured, two of those three were wrong:
+
+| harness | assumed | **measured** | how |
+|---|---|---|---|
+| pi | 16384 | **16384** ✓ | pi's own default; config carried no `maxTokens` |
+| opencode | 4096 | **~32000** | banked sessions show qwen3.6 outputs to 31,703 and `length` finishes at exactly 32,000 — the per-model `max_tokens: 4096` in `opencode.jsonc` is **not reaching the wire** (sst/opencode#971 class) |
+| motoko | 8192 | **32768** | `motoko-local-*` rows declare 32768; the 8192 belonged to the `pi-`/`opencode-` rows |
+
+So the registry disagreed with **itself** — 32768 on `motoko-local-*`, 8192 on `pi-`/
+`opencode-*`, for the same model on the same wire. Aligned at **32768** (one budget per
+model), which is the value the lane with the most banked local data was already using, so
+motoko does not move and opencode moves ~2%. Only pi actually changes, 16384 → 32768.
+`TestPiModelsConfigMatchesRegistry` now fails on registry self-disagreement too.
+
+Why 32768 and not higher: qwen3.6 does hit `length` at ~32k about 0.5% of the time, but
+those are runaway generations, not normal turns — and on a time-boxed local rig a larger
+ceiling mostly buys longer runaways. `MaxTokensPerBench` already covers the cumulative case.
+
+⚠️ **Baseline boundary: 2026-08-13.** Local qwen rows banked before this date ran on a
+per-harness budget and are not comparable across harnesses.
+
+`gemma4:26b` is unchanged at 8192 — it is not established as a heavy reasoner in our data,
+so there is no evidence to move it. `gemma4:26b-ailang`'s 4096 in `opencode.jsonc` is
+genuinely deliberate (it matches `num_predict` in its Modelfile) and is also untouched; the
+qwen models have no `num_predict` in their Modelfiles at all, so that rationale never
+applied to them.

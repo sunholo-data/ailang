@@ -1952,7 +1952,22 @@ models:
     agent_cli: "opencode"
     agent_model_name: "ollama/qwen3.5:35b-a3b-mxfp8"
     model_family: "qwen-3-5"
-    max_output_tokens: 8192
+    # ALIGNED 8192 -> 32768 (2026-08-13). ONE output budget per MODEL, across
+    # every harness. The registry itself declared two different values for this
+    # same model — 32768 on the motoko-local-* rows, 8192 on the pi-/opencode-
+    # rows — so any pi-vs-opencode-vs-motoko comparison was partly measuring the
+    # harness's budget rather than the model. qwen3.x emit thousands of <think>
+    # tokens BEFORE the tool call, so a small budget truncates into a 0-tool-call
+    # no-op (wire-proven 2026-06-19; see defaultOllamaMaxTokens). All three
+    # harnesses reach ollama over /v1, where the server sizes context from the
+    # model itself — measured 262144 on 2026-08-13 — so 32768 of generation fits
+    # beside a 28-44k prompt with room to spare. 32768 = the motoko-local value,
+    # i.e. the lane with the most banked local data does NOT move.
+    # ⚠️ BASELINE BOUNDARY: local qwen rows banked BEFORE 2026-08-13 ran on a
+    # per-harness budget (pi 16384 via its own default, opencode ~32000, motoko
+    # 32768) and are not comparable across harnesses. See
+    # tools/pi-extensions/README.md.
+    max_output_tokens: 32768
     ttft_timeout: 900
     generation_timeout: 1200
     budgets:
@@ -1989,7 +2004,8 @@ models:
     agent_cli: "pi"
     agent_model_name: "ollama/qwen3.5:35b-a3b-mxfp8"
     model_family: "qwen-3-5"
-    max_output_tokens: 8192
+    # Aligned 2026-08-13 — one budget per model; rationale on opencode-qwen3-5-35b-a3b-mxfp8.
+    max_output_tokens: 32768
     ttft_timeout: 900
     generation_timeout: 1200
     budgets:
@@ -2019,7 +2035,8 @@ models:
     agent_cli: "opencode"
     agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"
     model_family: "qwen-3-6"
-    max_output_tokens: 8192
+    # Aligned 2026-08-13 — one budget per model; rationale on opencode-qwen3-5-35b-a3b-mxfp8.
+    max_output_tokens: 32768
     ttft_timeout: 900
     generation_timeout: 1200
     budgets:
@@ -2042,7 +2059,8 @@ models:
     agent_cli: "pi"
     agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"
     model_family: "qwen-3-6"
-    max_output_tokens: 8192
+    # Aligned 2026-08-13 — one budget per model; rationale on opencode-qwen3-5-35b-a3b-mxfp8.
+    max_output_tokens: 32768
     ttft_timeout: 900
     generation_timeout: 1200
     budgets:
@@ -2067,7 +2085,8 @@ models:
     agent_cli: "opencode"
     agent_model_name: "ollama/qwen3.5:35b-a3b-nvfp4"
     model_family: "qwen-3-5"
-    max_output_tokens: 8192
+    # Aligned 2026-08-13 — one budget per model; rationale on opencode-qwen3-5-35b-a3b-mxfp8.
+    max_output_tokens: 32768
     ttft_timeout: 900
     generation_timeout: 1200
     budgets:
