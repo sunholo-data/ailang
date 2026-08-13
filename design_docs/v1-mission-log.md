@@ -9882,3 +9882,58 @@ conclusions, not transcripts).
 non-human item is the `[SWEEP iter-158]` external-issue batch — `#611` (executor fallback chain,
 the most actionable), `#581` (planner-lane derivation parsing fenced bullets as paths), `#554`
 (ollama tool-call emission collapse), and the three `from:cli` reports `#610` / `#609` / `#607`.
+
+## 193 — 2026-08-13 — Iteration 191: the `[SWEEP iter-158]` six-issue batch fully dispositioned — a third of it was already fixed and nobody had closed the loop
+
+**Pick**: `[SWEEP iter-158]` external-issue batch (`#611` `#581` `#554` `#610` `#609` `#607`) — the
+charter's next unblocked item with `D-1`–`D-14` all open and no Mark comment on `#635` (0 of 41
+since the watermark). Triage iteration: no designer/planner/executor/evaluator fired.
+
+**The headline pattern: two of six were already done, invisibly.** `#609`'s `toInts` shipped at
+`std/bytes.ail:99` in `1677fcff9` — whose subject line even cites #609 — five days before this
+triage, contained in release v0.33.1, and the issue sat open because the commit carried no closing
+keyword. Live-verified with the issue's own example (`toInts(fromString("é"))` → `[195, 169]`),
+closed. `#611`'s driver half landed at `d14f106bb` on 08-11 (codex → `MISSION_<ROLE>_FALLBACK` →
+pi loop → opus, env hard-pins reverted); what remained was exactly the constraint the issue
+pre-registered — a codex 1-token probe can rc=0 on a spent bucket, so the chain must bind
+in-iteration too — and that became this iteration's ONE Gate-5 skill edit (`14efcae22`, both
+Gate-3 Fallback bullets now follow the chain; Gate 3b GREEN, SHA-addressed `checks=16`,
+`pending=0`). `#611` closed, both halves cited. The `:floor` suffix in the default chain was
+VERIFIED as an OpenRouter price-routing variant (part of the model ID, not chain syntax) by
+reading `mission-control.sh:356-371` before it went into the rulebook.
+
+**Two confirmed and split out per the sweep row's own instruction.** `#607`: batch-mode `exit(1)`
+reproduced frame-for-frame — item `[1/2]` panics `*eval.EvalExitCode` through `effects/io.go:145`
+→ `run_helpers.go:656`, rc=2, raw Go stack, item `[2/2]` never runs — and the control that makes
+it a mechanism rather than a report: the single-file path recovers the same sentinel at
+`main_run_exec.go:549-555` for a clean rc=1. Guard-one-path-miss-the-sibling-call-site, the
+repo's named recurring class → new row `m-batch-exit-panic`, now the queue's next unblocked pick.
+`#610`: the 49× memory claim was probed synthetically (no duckdb CLI on the rig): identical
+retained data — 300 fresh 768-int vectors — costs ~187 MB when produced under `mapE` over 300
+std/json-parsed rows vs ~77 MB under `mapE` over a range (~2.4×, stable ×2, field access adds
+nothing, parse-only control 92 MB). So the core path shows a real amplification but CANNOT
+explain 49×; the magnitude lives in `queryAll` or its interaction → new row
+`m-mapE-queryall-retention` with repro infra (duckdb CLI + `sunholo/duckdb@0.1.1` +
+`-memprofile`) gating the design.
+
+**Two measured and left open.** `#581` re-confirmed with a fresh discriminating pair (control
+`codex declared:codex-ok`; +fenced-block `opus fail-closed:path-not-in-codex-allowlist`; the
+extractor untouched since filing) — fail-safe direction re-affirmed, low-P. `#554` quiescent:
+eval-shaped emission per day since 08-01 shows the filed collapse (31/56) never recurred at full
+severity — one moderate dip 08-09 (36/58), 08-11..13 all ~100% — root cause still open, ops watch.
+
+**Routing evidence**: controller **fable-5** — ⚠ ANOMALY: the driver's `$MODEL` env was UNSET this
+fire, so the session model was inherited rather than the opus-first pin; triage-only iteration,
+zero sub-agents, so no other role was affected, but the driver needs the export restored. Designer
+rotation pointer untouched (`codex:gpt-5.6-sol` last-used). `metered=$0.00` — opencode-DB sqlite
+reads and local binary runs only.
+
+**Ruled out**: "`#611` is still open driver work" — REFUTED (`d14f106bb`); "`#609` needs a stdlib
+sprint" — REFUTED (shipped v0.33.1); "the 49× lives in core `mapE`/`std/json`" — REFUTED at this
+scale (~2.4× measured); "`#554` recurred since filing" — NOT SUPPORTED at full severity; plus one
+instrument self-catch: the first #554 day-table query used `$.data.tokens.input` and returned
+empty while its `step-finish` LIKE control fired — fixed to `$.tokens.input` before any
+conclusion (rule 3a).
+
+**Next**: `m-batch-exit-panic` (`#607`) — P1, ~0.5d, fix shape established, CI fixture + rule-3j
+mutation drill specified in the queue row. `D-1`–`D-14` remain parked on Mark on `#635`.
