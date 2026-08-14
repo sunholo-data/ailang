@@ -264,6 +264,24 @@ print(sum(1 for f in fs
           if d.get('compile_ok') and d.get('runtime_ok') and d.get('stdout_ok')))" 2>/dev/null
 }
 
+# Top-level for the same reason as count_passes: both A/B blocks log through it.
+# Reads eval-paired JSON on stdin, prints a one-line b/c/p summary. The Python
+# is a single-quoted shell string, so its own strings MUST be double-quoted and
+# never \"-escaped — a \" here reaches Python as a literal backslash and is a
+# SyntaxError, which 2>/dev/null converts into an unconditional "parse failed"
+# (that exact bug shipped 2026-08-04..13: every A/B night logged "parse failed"
+# while the banked JSON was fine). No f-strings: nested same-type quotes are the
+# trap this helper exists to avoid.
+paired_summary() {
+    python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+m = d["mcnemar"]
+head = "b=%d c=%d unpaired=%d " % (d["only_on_passed"], d["only_off_passed"], d["unpaired"])
+tail = "p=%.4f (%s)" % (m["p_value"], m["method"]) if m["reportable"] else "no p-value: " + m["note"]
+print(head + tail)' 2>/dev/null || echo "parse failed"
+}
+
 # microRAG arm set: confidence-selected, not the smoke+core tier dump.
     RAG_BENCH_LIST="${AILANG_AB_MICRORAG_BENCHMARKS:-$(select_ab_benchmarks "$MODEL" "${AILANG_AB_MICRORAG_N:-12}")}"
     if [[ -z "$RAG_BENCH_LIST" ]]; then
@@ -318,7 +336,7 @@ if [[ "$RUN_AB_MICRORAG" == "1" ]]; then
     # shell arithmetic is what produced the 2026-07-20 artefact.
     PAIRED=$("$BIN" eval-paired --with-pairs=true "${RESULTS_DIR}_rag_on" "${RESULTS_DIR}_rag_off" 2>>"$LOG" || echo "")
     if [[ -n "$PAIRED" ]]; then
-        log "paired: $(echo "$PAIRED" | python3 -c 'import json,sys; d=json.load(sys.stdin); m=d["mcnemar"]; print(f"b={d[\"only_on_passed\"]} c={d[\"only_off_passed\"]} unpaired={d[\"unpaired\"]} " + (f"p={m[\"p_value\"]:.4f} ({m[\"method\"]})" if m["reportable"] else "no p-value: " + m["note"]))' 2>/dev/null || echo 'parse failed')"
+        log "paired: $(echo "$PAIRED" | paired_summary)"
     else
         log "paired: eval-paired produced no output (see $LOG)"
     fi
@@ -493,6 +511,11 @@ fi  # end microRAG A/B
         # stuck with the same ~13pp detection floor that made the microRAG
         # weekly unable to conclude anything.
         FMT_PAIRED=$("$BIN" eval-paired --with-pairs=true "${RESULTS_DIR}_fmt_on" "${RESULTS_DIR}_fmt_off" 2>>"$LOG" || echo "")
+        if [[ -n "$FMT_PAIRED" ]]; then
+            log "fmt paired: $(echo "$FMT_PAIRED" | paired_summary)"
+        else
+            log "fmt paired: eval-paired produced no output (see $LOG)"
+        fi
 
         # `|| true`: same as the microRAG arm — let the FMT_VALID guard see an
         # empty value instead of set -e killing the run here.
