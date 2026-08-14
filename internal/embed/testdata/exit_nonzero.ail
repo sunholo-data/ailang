@@ -1,0 +1,10 @@
+-- exit_nonzero.ail: fixture for #691 — an embedded module that calls exit(1).
+--
+-- Used by internal/embed's host-survival tests. Calling this through
+-- Engine.Call must surface a typed *ExitError to the host, never panic
+-- the host process with the raw *eval.EvalExitCode sentinel.
+
+module internal/embed/testdata/exit_nonzero
+import std/io (exit)
+
+export func main() -> () ! {IO} = exit(1)

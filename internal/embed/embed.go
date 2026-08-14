@@ -233,8 +233,10 @@ func (e *Engine) Call(modulePath, funcName string, args ...interface{}) (eval.Va
 		ailangArgs[i] = converted
 	}
 
-	// Call the function
-	return runtime.CallEntrypoint(e.runtime, inst, funcName, ailangArgs)
+	// Call the function. exit() in the module must not panic the host (#691).
+	return recoverProgramExit(func() (eval.Value, error) {
+		return runtime.CallEntrypoint(e.runtime, inst, funcName, ailangArgs)
+	})
 }
 
 // CallPreserveFloats is like Call but preserves Go float64 values as AILANG FloatValue,
@@ -310,8 +312,10 @@ func (e *Engine) CallPreserveFloats(modulePath, funcName string, args ...interfa
 		ailangArgs[i] = converted
 	}
 
-	// Call the function
-	return runtime.CallEntrypoint(e.runtime, inst, funcName, ailangArgs)
+	// Call the function. exit() in the module must not panic the host (#691).
+	return recoverProgramExit(func() (eval.Value, error) {
+		return runtime.CallEntrypoint(e.runtime, inst, funcName, ailangArgs)
+	})
 }
 
 // CallJSON is a convenience method that accepts JSON input and returns JSON output.
@@ -407,6 +411,14 @@ func (e *Engine) SetEffContext(ctx interface{}) {
 // GetCallValue returns the evaluator's CallValue function, which can be used
 // to invoke AILANG function values from Go code (e.g., for stream event handlers).
 // Returns a function with signature: func(fn eval.Value, arg eval.Value) (eval.Value, error)
+//
+// DECLARED RESIDUAL (#691): the returned handle is the evaluator's own, so it is
+// NOT wrapped by recoverProgramExit. A callback that reaches exit() still raises
+// the *eval.EvalExitCode sentinel. That is harmless for the in-evaluator use
+// (effCtx.FnCaller), where the panic unwinds into the enclosing Call and is
+// recovered there; a host that invokes this handle OUTSIDE any Call is on its own.
+// Wrapping is deliberately not done here because it would change the callback
+// identity these consumers pass into the effect context.
 func (e *Engine) GetCallValue() func(eval.Value, eval.Value) (eval.Value, error) {
 	return e.runtime.GetEvaluator().CallValue
 }
