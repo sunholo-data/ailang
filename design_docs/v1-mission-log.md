@@ -10241,3 +10241,124 @@ rather than a redundant design-doc-creator run). Rotation pointer untouched. `me
 
 **Next**: `#691` (embedded `exit()` panics the host; needs a one-word contract decision), then
 `#692`. `#610` stays infra-gated. Parked on Mark: `D-1`–`D-15`.
+
+## 197 — 2026-08-14 — Iteration 196: dev's head had never been run at all, and a zero reads exactly like nothing to report
+
+**Pick — not the queue head, and deliberately so.** `#691` was the dashboard's `[NEXT]` and it was
+fully reality-checked before being set down: `recover()` → **0** across all three `internal/embed`
+files with the control `run_helpers.go` → **2** and both scopes asserted to exist; the panic
+reproduced live (`panic: (*eval.EvalExitCode)` through `runtime.CallEntrypoint` → `embed.Call`)
+with a mechanism-removed control returning rc=0 on an otherwise identical module; and a call-site
+census measured rather than assumed — `Call`, `CallPreserveFloats` and `CallJSON` all panic, `Eval`
+is **UNINFORMATIVE** (GAP-5 makes standalone-expression evaluation unreachable, so the instrument
+never touches the mechanism), and `GetCallValue`/`GetCallValueN` hand closures to the host and are
+a declared residual. Then Gate 1 found dev red on a security gate, which outranks the queue. The
+repro work is banked in this entry so the resume is cheap.
+
+**The Gate-1 finding, which is the durable one.** The three named workflows all reported `success`
+— on `fc357a045` and `8e8447f51`, *not* on dev's HEAD. The SHA-addressed read returned `checks=0`
+for `d53352af0` with the instrument proven live in the same call (control `fc357a045` → **16**),
+and `actions/runs?head_sha=<full 40>` → `total=0`. Repo-wide: **0** runs after 22:00Z against **20**
+in the hour before. `actions/permissions` → `enabled`. githubstatus → *All Systems Operational*.
+The `/events` feed carries a PushEvent for both merges at 21:24Z and 21:48Z and **none** for
+`#701`'s merge at 22:18:30Z.
+
+So the discriminator was the API-driven lever the skill already records for the 2026-08-06 outage:
+`gh workflow run CI --ref dev` is not webhook-borne. It created a run that acquired **`jobs=7` in
+12 seconds** — Actions was alive the entire time; the *event* was what went missing. That dispatch
+is the only reason anyone saw the red, ~5.5 hours late.
+
+The shape worth keeping: Gate 1's health check asks whether the runs it finds are green. It never
+asks whether a run **exists**. A commit with zero runs is neither green nor red — it is
+**unverified** — and it renders identically to "nothing to report".
+
+**I over-claimed a pattern and caught it.** A first sweep of the last 15 dev commits showed 9 with
+no push run, which looked systemic. It is an artifact: only a push's **tip** gets a run, so every
+intra-push commit reads as zero by construction. Re-scoped to PR merge commits — the correct unit —
+**7 of the last 8 have 2–3 runs and only `#701` has zero**. One dropped event, not a pattern, and
+this iteration's own merge fired normally with 4 push runs. Recording the correction because the
+wrong version was more interesting and would have gone into the report unchallenged.
+
+**The red.** 7 unallowlisted `govulncheck` findings, every one Go **stdlib**, every one
+`fixed: v1.26.6`, against a repo on 1.26.5: `GO-2026-5026` (`net/http`, x/net idna punycode),
+`5972` (`encoding/asn1`), `6088` (`encoding/xml`), `6089` (`net/http`), `6090` (`crypto/tls`),
+`6091` (`html/template`), `6218` (`net/url`) — all reachable from AILANG's own call graph.
+Attribution by negative control rather than adjacency: `govulncheck` was `success` on the three
+preceding dev commits (16:46Z, 21:24Z, 21:48Z) and `failure` at 23:55Z, and `d53352af0` changes
+exactly one markdown file. A time-based advisory publication, and since a fix exists an allowlist
+entry would have been the wrong instrument.
+
+**The fix, and what my enumerator could not see.** 16 patch-pinned sites: `go.mod`, 14 workflow
+`go-version` pins, and one hardcoded fixture literal. My first matcher was `grep -rn '1\.26\.5'`
+and it was **truncated by `head -40`** — rule 3b(v)(a), in the same iteration that rule was first
+available to me — so it showed 11. The widened `grep -rn go-version .github/workflows/` finds
+**14**, adding `eval-weekly.yml`, `test-game-codegen.yml` and `ci.yml:515`. Measured before and
+after on the same tree: *"7 unallowlisted"* rc=1 → *"8 finding(s), all allowlisted and unexpired"*
+rc=0. The 8 survivors are the pre-existing Ollama entries, none expiring before 2026-10-29.
+
+**Evaluator sonnet PASS 93/100, zero blocking — and it refuted my headline rationale.** I called
+the fixture edit *load-bearing*. It is **drift hygiene**: reverting only that literal, with the
+active toolchain at 1.26.6 (what `actions/setup-go` installs), leaves the test rc=0 — identical to
+the unmutated arm — because all 14 workflow pins move in lockstep with `go.mod`, so the active
+toolchain can never fall below the requirement. The `requires go >= X` failure is real, but it
+needs the *active* toolchain to be below, which was true of the historical 1.26.4 → 1.26.5
+transition and cannot be true here.
+
+**And my own first attempt to check that refutation returned rc=1 in exactly the direction I had
+predicted, for an entirely different reason.** The local `go` shim is **1.26.4**, so
+`GOTOOLCHAIN=local` refused at the **main module** — `go.mod requires go >= 1.26.6 (running go
+1.26.4)` — and the fixture was never reached. Rule 3d in its purest form, sprung inside the very
+check meant to test someone else's refutation of me. Re-run with the 1.26.6 SDK directly: mutant
+rc=0, control rc=0, outcome-identical. Mutation asserted LANDED by sha256, restored byte-identical
+from a `cp` backup rather than `git checkout --`.
+
+**The judge also found the work better than I described it**, which is the same error in the other
+direction: the bump clears an **eighth** stdlib advisory, `GO-2026-5942`, invisible to the "7"
+because it reaches no traced function; and *"16 sites, nothing missed"* holds only for **patch
+pins** — 8 `docker/Dockerfile.*` files use the floating `golang:1.26-bookworm` tag, invisible to
+both my matchers and correctly needing no edit. All three reproduced first-party, and the changelog
+was corrected in a second commit rather than shipped overstated.
+
+**New issue `#703`, and it is the most durable thing this iteration produced.** While verifying the
+before/after I found that `govulncheck-filter` only considers **function-reaching** findings, so a
+module-level finding appears in **neither** the unallowlisted list nor the allowlisted count. It is
+silently dropped, and the gate prints a green summary whose denominator excludes a whole class —
+the CLAUDE.md §2 failure mode, inside the tool that guards against it. Four are dropped today; one
+is **`GO-2026-5750`** (`CVE-2026-7020`, Ollama path traversal, published 2026-07-27, no upstream
+fix) which is **not** in `.govulncheck-allow.yml`. Control: `GO-2026-6218`, which the filter *did*
+report, has 2 function-reaching traces. Pre-existing; `tools/govulncheck-filter` is byte-identical
+across this diff. The asymmetry is what makes it worth filing: eight Ollama advisories were each
+allowlisted with a written reason and an expiry, while a ninth in the same dependency is being
+hidden by the tooling instead of reviewed.
+
+**Skill drift fired for real, second time.** `readlink` resolves the running skill to the MAIN
+checkout, whose `dev` was **7 behind** origin — so the running copy was missing exactly one commit,
+`d53352af0`, iteration 195's own rule **3b(viii)** (the platform axis). Read the delta before
+proceeding and applied it: this iteration's PR body, commit message and Gate-3b verdict all carry
+an explicit platform scope, and the matrix legs are **named** (`test-windows`, `Build
+windows-latest`, `Build ubuntu-latest`, `Build macos-latest` ×2, all `success`) rather than folded
+into an aggregate. A toolchain bump is precisely the change whose meaning is per-GOOS, so that rule
+earned its keep on the first iteration it existed. The drift itself is **not** cured: the main
+checkout is dirty with a concurrent sibling's model-pricing work, so Critical Principle 0 forbids
+the fast-forward and `D-16` — iteration 195's standing-authorisation ask — is still owed.
+
+**Routing evidence**: controller **opus** (session default); evaluator **sonnet** (generator≠judge:
+opus author, sonnet judge). Designer, planner, quorum and every cross-provider lane **not fired** —
+the item had no design doc and the fix shape is established (the changelog records the identical
+14-pin bump to 1.26.5), same basis as `#607` at iteration 192. `metered=$0.00`; both lanes are
+quota buckets.
+
+**Gate 3b**: PR [#702](https://github.com/sunholo-data/ailang/pull/702) → squash `23ea352e7`.
+SHA-addressed **22** checks, `pending=0`, **zero** NOT-GREEN, **4/4** REQUIRED (`test`, `build`,
+`lint`, `docs-gate`), `mergeable=MERGEABLE state=CLEAN`, `govulncheck (vuln gate): success`.
+
+**Ruled out by measurement**: *"dev's HEAD is green"* — refuted, it had never been run;
+*"the missing runs are a pattern"* — refuted by re-scoping to merge commits; *"Actions is dead /
+an outage"* — refuted by a dispatch reaching `jobs=7` in 12s and by githubstatus; *"`#701` caused
+the red"* — refuted, one markdown file, three green parents; *"the fixture edit is load-bearing"* —
+refuted by the evaluator and confirmed by my own corrected mutation; *"my mutation red proves the
+fixture matters"* — refuted, it failed on the main module via a 1.26.4 shim; *"7 advisories fixed"*
+— refuted as an **under**-count, it is 8.
+
+**Next**: `#691` (repro and census banked above), then `#692`. `#703` new and unowned. `#610` stays
+infra-gated. Parked on Mark: `D-1`–`D-16`, all on `#635`.
