@@ -582,6 +582,9 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 
 	// Each input gets its own args: the input path is the sole program argument
 	effCtx := effects.NewEffContext([]string{input})
+	defer func() {
+		flushDebugOutput(effCtx, input)
+	}()
 	grantCapabilities(effCtx, caps)
 
 	effCtx.GoCtx = ctx
@@ -754,10 +757,15 @@ func extractSeverity(msg string) string {
 }
 
 // flushDebugOutput collects Debug effect logs and prints them to stderr.
-// Respects debugLogLevel for severity filtering. Called after execution completes.
-func flushDebugOutput(effCtx *effects.EffContext) {
+// Respects debugLogLevel for severity filtering. A non-empty label prefixes
+// each emitted line so batch output remains attributable even under --quiet.
+func flushDebugOutput(effCtx *effects.EffContext, label string) {
 	if effCtx == nil || effCtx.Debug == nil {
 		return
+	}
+	prefix := ""
+	if label != "" {
+		prefix = "[" + label + "] "
 	}
 	out := effCtx.Debug.Collect()
 	for _, log := range out.Logs {
@@ -768,11 +776,11 @@ func flushDebugOutput(effCtx *effects.EffContext) {
 				continue
 			}
 		}
-		fmt.Fprintf(os.Stderr, "%s\n", log.Message)
+		fmt.Fprintf(os.Stderr, "%s%s\n", prefix, log.Message)
 	}
 	for _, a := range out.Assertions {
 		if !a.Passed {
-			fmt.Fprintf(os.Stderr, "[ASSERT FAIL] %s at %s\n", a.Message, a.Location)
+			fmt.Fprintf(os.Stderr, "%s[ASSERT FAIL] %s at %s\n", prefix, a.Message, a.Location)
 		}
 	}
 }
