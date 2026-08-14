@@ -2,46 +2,43 @@
 > **Contract**: ≤40 lines, overwritten by mission-control Gate 4 every iteration (history lives in
 > the charter/log). Fresh session = THIS + MEMORY.md. Humans steer via the bookkeeping issue.
 
-**Updated**: 2026-08-13 ~23:30 local (iteration 195)
+**Updated**: 2026-08-14 ~03:30 local (iteration 196)
 
 ## Now
-- **v0.33.1** · `dev` @ `8e8447f51` — merge of PR #699. Gate 3b GREEN (SHA-addressed **21** checks,
-  zero NOT-GREEN, **4/4** REQUIRED, `state=CLEAN`); count climbed 14→21 during the poll, so
-  `pending=0` was **required, not inferred**.
-- **`#698` fast-follow LANDED — the buildable two-thirds.** M1 pins the `CreateStage` pinned-ID
-  retry guard that survived a landed, building mutation; M2 arms 4 of 5 unpinned error branches;
-  M3 restores the orphaned sprint JSON. Tests + state artifacts only, **zero production code**.
-  Evaluator sonnet **PASS 83/100**. `#698` stays OPEN — its part 1 is parked (below).
+- **v0.33.1** · `dev` @ `23ea352e7` — merge of PR #702. Gate 3b GREEN (SHA-addressed **22** checks,
+  `pending=0`, zero NOT-GREEN, **4/4** REQUIRED, `state=CLEAN`), incl. `test-windows` and all three
+  `Build` legs — so the toolchain bump is verified across the whole matrix, not just darwin.
+- **The queue did not get picked. dev was RED on a security gate and that outranks it.**
+  `govulncheck` failed with **7 unallowlisted findings**, every one a Go **stdlib** advisory and
+  every one `fixed: 1.26.6` against a repo on 1.26.5. Bumped the toolchain at 16 patch-pinned
+  sites (`go.mod` + 14 workflow pins + one fixture literal). Evaluator sonnet **PASS 93/100**.
 
-## Why the ratified item vanished (the iteration's headline finding)
-- The prior sprint's M3 **task list** contains "Opt-in remote read"; its **acceptance criteria**
-  contain five entries and **zero** mention read or remote (AC-section grep → **0**; controls:
-  task list → **1**, AC bullets → **5**). Every AC passed on a milestone missing a third of its
-  task list. **A task with no acceptance criterion is invisible to the gate.**
+## The red was INVISIBLE — and that is the bigger finding
+- `#701` merged at `22:18:30Z` and GitHub recorded **no PushEvent** for it: `total=0` runs on dev's
+  HEAD, **0** repo-wide after 22:00Z against **20** in the hour before. Actions was `enabled` the
+  whole time. A `workflow_dispatch` created a run that took `jobs=7` in 12s — which is how the red
+  surfaced, ~5.5h late.
+- **Correctly scoped: one dropped event, NOT a pattern.** 7 of the last 8 merge commits have 2–3
+  runs; only `#701` had zero. (My first sweep suggested a pattern and was wrong — it counted
+  intra-push commits, which never get their own run.) This iteration's own merge fired normally.
 
-## Also found and fixed this iteration
-- **Two `#698` claims are WRONG**: the retry branch is reachable *deterministically* (there is a
-  `id TEXT PRIMARY KEY` as well as the composite UNIQUE), and the 5th error branch is
-  **unreachable by construction** (`EvalAssessment` is 26 scalar fields — `json.Marshal` cannot fail).
-- **`.gitignore:77` ignores `.ailang/` with no negation** — a NEW sprint JSON is skipped by
-  `git add -A` **silently** (empty output, 0 staged) and hidden from `git status`. Almost certainly
-  how the prior sprint's JSON ended up on a divergent branch. Every sprint JSON needs `git add -f`.
-- **Evaluator caught a Windows-only regression I had shipped**: `os.UserHomeDir()` reads
-  `USERPROFILE`, not `HOME`, so both new arms silently never saw their own input on Windows —
-  failing for the *platform*, not the code. Fixed, re-drilled, Windows legs green.
+## The judge refuted me, and it was right
+- I called the fixture edit "load-bearing". It is **drift hygiene**: reverting just that literal
+  with the active toolchain at 1.26.6 leaves the test **rc=0**, outcome-identical. ⚠ My own first
+  check returned **rc=1 in exactly my predicted direction, for the wrong reason** — the local `go`
+  shim is 1.26.4, so it refused at the *main module* and never reached the fixture.
+- Better than I claimed: the bump also clears an **8th** stdlib advisory (`GO-2026-5942`).
+- Filed **#703**: `govulncheck-filter` silently drops module-level findings — reported in *neither*
+  the unallowlisted list nor the allowlisted count. One is **`GO-2026-5750`** (CVE-2026-7020,
+  Ollama path traversal), real, published, unallowlisted, no upstream fix. Pre-existing.
 
 ## Parked on Mark (all on `#635`)
-- `D-1`, `D-2`, `D-7`–`D-14` — no reply since the 2026-08-13T04:58Z watermark (0 of 48 comments).
-- **NEW `D-15`** — `#698` part 1: how far should `--remote` reach, **`view`** or **`eval`**?
-  Recommendation **`view`**. The ratified freeze says *every* consumer inherits the option; the code
-  refutes that as wiring-only work (`QueryEvalResults` is `*Store`-only, and Firestore stores
-  `eval_assessment` as an opaque JSON string, so its six `json_extract` filters cannot be served
-  remotely without a schema change).
+- `D-1`, `D-2`, `D-7`–`D-16` — **0** directives since the 2026-08-13T04:58Z watermark (of 49 comments).
+- `D-15` (`#698` part 1: `--remote` reach — `view` or `eval`?) and `D-16` (standing ff-merge
+  authorisation) both still unanswered from iteration 195.
 
 ## Next (if nothing unparks)
-- `#691` (embedded `exit()` panics the host — needs a one-word contract decision), then `#692`.
-  `m-mapE-queryall-retention` (`#610`) stays infra-gated (needs duckdb CLI).
-
-## Loop health
-- ⚠ **The driver refused 15 fires today** — every Anthropic probe timed out 120s across all three
-  preference models. 212 log lines today vs 29 on 08-12. The loop is up but firing intermittently.
+- `#691` — reality-checked and repro'd this iteration but **not picked** (the red outranked it):
+  `exit()` in embedded AILANG panics the host. Census measured: `Call`, `CallPreserveFloats` and
+  `CallJSON` all panic; `Eval` is UNINFORMATIVE (GAP-5); `GetCallValue*` is a declared residual.
+- Then `#692`. `#610` stays infra-gated (needs duckdb). `#703` is new and unowned.

@@ -375,6 +375,41 @@ it to anything recent. A red non-required check is not automatically the pick (`
 at for six commits is exactly how a required one eventually gets missed. Mission-independent: the
 allowlist is per-repo, the blind spot is not.
 
+**AND WHEN THAT ZERO IS *TRUE* — THE INSTRUMENT FIRES AND THE COMMIT GENUINELY HAS NO RUNS — dev IS
+NOT GREEN AND NOT RED, IT IS **UNVERIFIED**, AND NOTHING ABOVE GIVES YOU A DISPOSITION FOR THAT**
+(added 2026-08-14 V1 iteration 196; instance 1 was iterations 154–155, whose fix landed in the wrong
+gate). Every rule above asks whether the runs you FOUND are green. None asks whether a run **exists**.
+The paragraph immediately above even trains you to read `checks=0` as *the endpoint did not answer* —
+correct, and it stops there, so a controller who re-probes, sees the control fire, and gets zero again
+has followed the rule to its end and still has no next step. The failure mode is that an unverified
+HEAD renders **identically to a clean one**: no red to triage, no name to record, nothing to say.
+Measured here: `#701` merged at `22:18:30Z`; `commits/<sha>/check-runs` → **0** with the control
+`fc357a045` → **16** in the same call, `actions/runs?head_sha=<full 40>` → `total=0`, **0** runs
+repo-wide after 22:00Z against **20** in the hour before, `actions/permissions` → `enabled`, and the
+provider's status API → *All Systems Operational*. GitHub had recorded **no PushEvent for the merge**
+while carrying one for both merges 30 and 54 minutes earlier. Concealed behind that silence was a
+genuine `govulncheck` red — **7 reachable stdlib advisories** — which the three named workflows
+reported `success` straight past, because their greens were on the *parent* commits.
+**The lever already exists in this skill and is filed where Gate 1 will never look**: Gate 3b's
+2026-08-06 outage rule teaches that `workflow_dispatch` is an *API call, not a webhook delivery*, so
+it creates a run when the event was dropped. That was written about a PR during a declared incident;
+nothing pointed it at dev's own HEAD, and iterations 154–155 paid for the same missing disposition
+one gate over (`#608`: *"ZERO workflow runs created at all, so Gate 3b never even had an instrument"*).
+Guard the helper, miss the call site — this loop's own named recurring shape, applied to its rulebook.
+**Rule.** At Gate 1, after reading the check set, assert a run EXISTS for `origin/dev`'s HEAD. If the
+count is a true zero, do **not** record a health verdict: fire `gh workflow run <wf> --ref dev` (check
+the workflow declares `workflow_dispatch` first), give it ~15s and confirm `runs/<id>/jobs` is
+non-zero — `total_count` alone only proves a *record* exists — then triage whatever it surfaces as an
+ordinary Gate-1 red. **Do not stop at "an event was dropped"**, which is a fact about GitHub; the
+deliverable is the *verdict on the commit*, which only a run can give you. Then scope the anomaly
+before reporting it: **count runs per PR MERGE COMMIT, never per commit**, because only a push's
+**tip** gets a run and every intra-push commit reads as zero by construction — the wrong unit turned
+one dropped event into an apparent 9-of-15 pattern here, and the correct one showed **7 of the last 8
+merges fine**. Mission-independent, and note the standing exposure it reveals: a PR's green is taken
+on the PR head, while the squash-merge produces a *different commit* — so "the PR was green" never
+implies "dev's HEAD was verified", and on the one occasion those diverge it is invisible. The tell:
+your CI health check printed nothing alarming and you have not confirmed that anything ran.
+
 Any non-success → a RED dev outranks the queue (added 2026-07-10 per Mark; that day's red was a
 pre-existing gofmt miss + a newly published stdlib vuln — neither from a sprint, both invisible
 to local gates). Diagnose via `gh run view <id> --log-failed` — and check whether the SAME
