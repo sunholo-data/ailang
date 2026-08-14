@@ -346,3 +346,99 @@ wrong *vocabulary*. If it recurs, that is the skill edit.
 PORT vs SUPERSEDED for the last open leg of PR #97. If it is deferred, item 6 (`fmt`
 re-measurement instrument) is the next unblocked design item; items 9–14 remain Phase-0 gated and
 Phase 0 still measures CLOSED (`#154` OPEN, control: `#152` MERGED).
+
+---
+
+## 4 — 2026-08-14 — R8 settled → PORT, and the ladder turns out to have no lever at all; plus the recovery job that made this iteration exist was live but uncommitted
+
+**Picked**: Two items, per Standing rule 1's bookkeeping clause. **(a)** A Gate-2 died-mid-flight
+trace found before the queue was consulted: `git status` in the mission workdir showed
+`tools/launchd/dev.ailang.mission-recovery-motoko.plist` — untracked, complete, written 08:44 —
+which changes the pick by the skill's own rule (verify and land, do not redo). **(b)** The queue
+head, item 5, whose only remaining unit was the disposition's **R8**, sharpened by iteration 3 to
+one `pure`-function assertion.
+
+**Reality check**: Local HEAD == `origin/dev` (`bad8f3647`), no reconcile owed. Running skill
+byte-identical to `origin/dev` — and checked against the **resolved symlink target** in V1's
+checkout (`readlink` → `~/dev/sunholo-data/ailang/.claude/skills/...`), not the repo-local copy,
+which is a different file that happens to match. Gate 1: **20** checks on HEAD, **0** not-green
+(`checks=20` is the known-positive control, so the endpoint answered). Zero human directives since
+the `#663` watermark (control: World's `#53` → **1**, instrument fires). Weekly external-issue
+sweep NOT due — `#663` was created 2026-08-12, after the most recent Monday-07:00 local boundary
+(2026-08-10), and holds 12 comments, so neither rotation trigger fires.
+Open loop-authored PRs `#695`/`#613` are both V1's, not this mission's.
+The plist's own header claims were verified rather than inherited: `mission-recovery.sh` really is
+`MISSION_NAME`-parameterized (lines 32, 42–47) and the installed v1 plist really does pin
+`MISSION_NAME=v1`, so motoko's `.blocked` marker genuinely had nothing watching it.
+
+**Shipped**:
+- `ceb2bb055` — the recovery launchd job, committed. Landed only after proving it is behaviourally
+  identical to the copy actually running (`plutil -convert json` byte-equal, v1 plist as a firing
+  negative control), so the commit changes comments and nothing else.
+- R8 → **PORT** in `m-motoko-fork-disposition.md`; ledger now **14 SUPERSEDED / 17 PORT / 14 DROP /
+  6 UNRESOLVED = 51**. Counts propagated to the migration doc (4 sites, each substitution asserted
+  unique before writing) and the dashboard; the iteration 1–3 STATUS stamps and log entries are left
+  as written, since they record what was true then.
+- `tools/motoko/r8_headroom_band.ail` + `tools/motoko/README.md` — the instrument, committed to the
+  anchor repo so the measurement is reproducible rather than a number in a log entry. It cannot go
+  upstream: we are guests there.
+- New queue item **5a** — the empty-output probe hang, diagnose-only.
+- No evaluator ran: both deliverables are controller measurement, not generated artifacts, so no
+  role needed a pin and generator≠judge was not engaged.
+
+**Routing evidence**: model=claude-opus-5 (controller session) task-class=mechanical+measurement
+  round1-score=n/a rounds=1 corrections=0
+  provider=anthropic agent=controller cost=quota-bucket:weekly-opus · **metered $0.00 of $5**
+  No designer/planner/executor/evaluator/quorum lane fired — designer rotation pointer untouched at
+  `claude:claude-fable-5`. `make quick-install` deliberately NOT run: an `ailang eval-suite` (3
+  models incl. `motoko-local-qwen3`) has been live on the shared `~/go/bin/ailang` since 07:58, and
+  the charter's shared-write guardrail makes swapping it mid-eval a language-regression-shaped
+  hazard. The probe therefore ran on the installed `v0.33.1-23-g644cf178a-dirty`, and that narrowing
+  travels with the result (rule 3b(ii)). No GPU touched (`pure` functions only) — no `rig.lock`.
+
+**Ruled out**:
+- **"The ladder grinds down under a long transcript and lands in the band."** Refuted. The ladder
+  has no lever at all on this shape: `elide_walk` only rewrites `role=="tool"` messages, so a large
+  **user** message is invisible to all four tiers, which removed **2,061 of 208,980** tokens (~1%)
+  between them. The floor branch fires on an essentially unchanged payload. This matters beyond the
+  row: it is why an extension-side reserve cannot fix the case and the seal is the only place that
+  can see it.
+- **"The seal's 95% hard stop catches the over-target case."** Refuted for the band — arm A returns
+  **`Ok`** at 79% and SENDS with 54,905 tokens of headroom against a 65,536 output cap. The seal is
+  real (arm C, 158% → `Err(SealExhausted)`), it simply permits everything below 95%.
+- **"The plist header's 'three of six refusals' is the current rate."** Refuted by re-derivation:
+  **6 refusals / 4 starts = 10 fires, 60%**. The header was true when written at 08:44 and three
+  more refusals followed it within the hour.
+- **"The probe stall is a motoko-specific misconfiguration."** Refuted by control: v1 refused with
+  the identical empty-output signature at 05:20/05:36/08:49 on 08-14, overlapping motoko's
+  08:47/09:07/09:27, from a separate checkout with separate config.
+- **"`ailang lock` regeneration is optional for a local `main_dst` worktree."** Refuted: the
+  committed lock carries **absolute** `/workspaces/motoko_agent` paths (19/19), so every package
+  import fails with "package directory not found" — which reads as a broken checkout, not a stale
+  lock. Ten minutes, now documented so it is paid once.
+
+**Retro lane**: none — no skill edit this iteration. The two frictions found (an `ailang fmt`-shaped
+PostToolUse hook rewriting `.ail` files on write, against the charter guardrail; and the driver's
+"quota-limited, timed out, or errored" summary flattening a *hang* into the same sentence as a quota
+refusal) are **one recorded instance each**, below the skill-fix bar of ≥2 frictions on the same
+gap. Both are named here so instance 2 has something to point at, and the second is now queue item
+5a's starting evidence.
+
+**Cross-mission collision, found at push time and worth more than the inconvenience**: my push to
+`dev` was rejected because **V1's iteration 198 had landed the same orphaned plist ~15 minutes after
+I did** (`f5a7ce8be`, "motoko had no recovery watcher"). Two missions independently found the same
+uncommitted artifact and both acted on it — exactly the contention the charter's Repo Profile
+predicts ("there is no cross-mission lock … the driver's overlap guard is a per-mission pidfile"),
+now observed rather than theorised, and on *work* rather than on a git ref. Resolved by keeping
+their commit and rebasing mine on top as a **correction**: the two files are **operatively
+identical** (`plutil -convert json` byte-equal, and the resolved file is byte-equal to the copy
+actually running), so the only delta is comments — and theirs carries the "three of six refusals"
+figure that three later refusals had already falsified. Nothing was lost either way; the notable
+part is that neither loop could have known. Generalises past this instance: a died-mid-flight trace
+is visible to *every* mission on the rig, so the Gate-2 verify-and-land rule has a race in it that
+only shows up when two loops are awake at once.
+
+**Next**: item **5a** (diagnose the empty-output probe hang — it is costing 60% of this mission's
+fires, and recovery-by-brute-retry now hides that from the human channel), then item 6 (the fmt
+re-measurement instrument). Item 5 needs no more work from us: it is waiting only on the
+2026-08-27 bound.

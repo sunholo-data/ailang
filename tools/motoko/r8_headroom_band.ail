@@ -1,0 +1,134 @@
+-- R8 — is the band between the ladder's 70% target and the seal's 95%
+-- permission reachable in practice?
+--
+-- LOCAL PROBE, mission-motoko iteration 4. Not for upstream: this file exists to
+-- answer one question and is never pushed to arniwesth/motoko_agent.
+--
+-- It replicates the LIVE wiring from src/core/session.ail:2534-2561 rather than
+-- calling the two functions in isolation, because R8 asks about practice:
+--   split      = split_for_compaction(history)
+--   ext_limit  = context_limit - estimate_tokens_messages(split.pinned)
+--   decision   = compact_for_pre_step(ctx(ext_limit), segment)
+--   seal       = seal_compacted_payload(split, chain_msgs, model, context_limit, false)
+-- Note the two asymmetries that make the band possible at all: the extension is
+-- measured against ext_limit over the SEGMENT, the seal against the raw
+-- context_limit over pinned ++ chain.
+--
+-- Three arms, so a result means something:
+--   A  the question    — floor tier reached; what does the seal say?
+--   B  negative control — small history must PassThrough and seal Ok
+--   C  over-band control — must reach Err(SealExhausted), proving the seal refuses
+
+module scripts/dst/r8_headroom_band
+import std/io (println)
+import std/list (length)
+import std/result (Result, Ok, Err)
+import std/string as Str (length)
+import pkg/sunholo/motoko_ext_abi/types (empty_ext_world, ExtCtx, Msg, PreStepDecision, PassThrough, Compacted)
+import src/core/ext/ctx_defaults (noop_ext_ports, empty_ext_artifacts, zero_token_telemetry)
+import pkg/sunholo/motoko_ext_compaction_structural/compaction_structural (compact_for_pre_step, result_target_pct, emergency_final_keep_last)
+import src/core/compaction (estimate_tokens_messages, usage_percent_with_limit, exhaustion_pct)
+import src/core/phase_vocab (seal_compacted_payload, split_for_compaction, segment_messages, msgs_to_messages, PinnedSplit, SealError, SealExhausted, SealSystemPromptEmpty)
+import std/ai (Message)
+
+-- The real ollama/qwen3.6 window this mission runs against.
+func window() -> int {
+  262144
+}
+
+func model() -> string {
+  "ollama/qwen3.6:35b-a3b-mxfp8"
+}
+
+func msg(role: string, content: string) -> Message {
+  { role: role, content: content, tool_calls: [], tool_call_id: "", images: [] }
+}
+
+func to_msg(m: Message) -> Msg {
+  { role: m.role, content: m.content, tool_calls: m.tool_calls, tool_call_id: m.tool_call_id }
+}
+
+func messages_to_msgs(msgs: [Message]) -> [Msg] {
+  match msgs {
+    [] => [],
+    m :: rest => to_msg(m) :: messages_to_msgs(rest)
+  }
+}
+
+-- s repeated 2^k times. Doubling, so an ~900k-char body costs 13 steps.
+func dup(s: string, k: int) -> string {
+  if k <= 0 then s else dup("${s}${s}", k - 1)
+}
+
+func chunk() -> string {
+  "the quarterly report section continues here with ordinary prose and some code fragments interleaved, "
+}
+
+func ctx(limit: int) -> ExtCtx {
+  { task: "r8", step: 0, model: model(), context_limit: limit, cwd: ".", hybrid_tools: false, budget: { total: 1, solver: 1, verifier: 0 }, mode: "default", workdir: ".", env_server_url: "", budget_remaining: 1, history_slice: [], state_key: "k", ports: noop_ext_ports(), artifacts: empty_ext_artifacts(), telemetry: zero_token_telemetry(), world: empty_ext_world() }
+}
+
+-- A docx_lambda-class history: a system prompt, one very large USER message
+-- (the document — never elided, because elide_walk only touches role=="tool"),
+-- and a few tool results.
+func history(k: int) -> [Message] {
+  [msg("system", dup("You are motoko, an AILANG coding agent. ", 5)), msg("user", dup(chunk(), k)), msg("assistant", "I'll start by reading the file."), msg("tool", dup("file contents ", 8)), msg("tool", dup("more file contents ", 8)), msg("tool", "the most recent tool result, kept by every tier")]
+}
+
+func decision_msgs(d: PreStepDecision, fallback: [Msg]) -> [Msg] {
+  match d {
+    PassThrough => fallback,
+    Compacted(m, _, _) => m
+  }
+}
+
+func decision_note(d: PreStepDecision) -> string {
+  match d {
+    PassThrough => "PassThrough",
+    Compacted(_, note, _) => note
+  }
+}
+
+func arm(label: string, k: int) -> () ! {IO} {
+  let limit = window()
+  let hist = history(k)
+  let split = split_for_compaction(hist)
+  let segment = segment_messages(split.segment)
+  let pinned_tokens = estimate_tokens_messages(split.pinned)
+  let ext_limit = if limit - pinned_tokens < 0 then 0 else limit - pinned_tokens
+  let seg_msgs = messages_to_msgs(segment)
+  let decision = compact_for_pre_step(ctx(ext_limit), seg_msgs)
+  let chain = decision_msgs(decision, seg_msgs)
+  let chain_messages = msgs_to_messages(chain)
+  -- what the EXTENSION was looking at, in its own units
+  let ext_pct_before = usage_percent_with_limit(msgs_to_messages(seg_msgs), ext_limit)
+  let ext_pct_after = usage_percent_with_limit(chain_messages, ext_limit)
+  -- what the SEAL looks at: pinned ++ chain against the RAW limit
+  let sealed_tokens = estimate_tokens_messages(split.pinned ++ chain_messages)
+  let seal_pct = usage_percent_with_limit(split.pinned ++ chain_messages, limit)
+  let _ = println("--- ${label} ---")
+  let _ = println("  pinned_tokens=${show(pinned_tokens)} ext_limit=${show(ext_limit)} (raw limit=${show(limit)})")
+  let seg_tokens_before = estimate_tokens_messages(msgs_to_messages(seg_msgs))
+  let seg_tokens_after = estimate_tokens_messages(chain_messages)
+  let _ = println("  ext pct before=${show(ext_pct_before)}%  after=${show(ext_pct_after)}%  (ladder target=${show(result_target_pct())}%)")
+  let _ = println("  segment tokens before=${show(seg_tokens_before)} after=${show(seg_tokens_after)} — ladder removed ${show(seg_tokens_before - seg_tokens_after)}")
+  let _ = println("  decision note: ${decision_note(decision)}")
+  let _ = println("  seal sees ${show(sealed_tokens)} tok = ${show(seal_pct)}% of raw limit (exhaustion=${show(exhaustion_pct())}%)")
+  match seal_compacted_payload(split, chain_messages, model(), limit, false) {
+    Err(SealExhausted(r)) => println("  SEAL: Err(SealExhausted) — ${r}"),
+    Err(SealSystemPromptEmpty(r)) => println("  SEAL: Err(SealSystemPromptEmpty) — ${r}"),
+    Ok(_) => {
+      let headroom = limit - sealed_tokens
+      let _ = println("  SEAL: Ok — SENT with headroom=${show(headroom)} tok")
+      println("        (output cap 65536 => ${if headroom < 65536 then "STARVED: headroom < output cap" else "fits"})")
+    }
+  }
+}
+
+export func main() -> () ! {IO} {
+  let _ = println("R8 — reachability of the 70%..95% band, main_dst@6c06b08")
+  let _ = println("keep_last floor tier = ${show(emergency_final_keep_last())}")
+  let _ = arm("B  negative control: small history", 1)
+  let _ = arm("A  the question: floor tier, in-band", 13)
+  arm("C  over-band control: must exhaust", 14)
+}

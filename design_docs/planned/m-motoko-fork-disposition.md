@@ -11,7 +11,7 @@ Measured on 2026-08-12 by reading each non-merge commit in fork `9e8d647f18eda6c
 | R5 | `05f60d8da` | 2026-06-23 | continue after length truncation | UNRESOLVED | `git show 05f60d8` adds `MOTOKO_CONTINUE_ON_TRUNCATION`; scoped grep `continue_on_trunc` in `src/core` => 0/68. `step_machine.ail` enumerates terminal reasons but the inspected output did not establish provider `finish_reason=length` behavior. | low |
 | R6 | `ce938f239` | 2026-06-23 | DP7 type-check gate default | DROP | `git show ce938f2` installs `ailang check .`; R7 makes it conditional and R29 replaces it with `ailang ai-check`. This version is superseded by our own later commits. | high |
 | R7 | `5c74b5dcd` | 2026-06-23 | conditional DP7 type-check | DROP | `git show 5c74b5d` adds `workspace_has_ail` and conditional `ailang check`; R29 replaces the command and closes the stated verification hole. | high |
-| R8 | `96542f898` | 2026-06-24 | reserve 75k output headroom | UNRESOLVED | `git show 96542f8` subtracts a fixed 75k from the total window; scoped grep `reserved_output` => 0/68. Upstream instead resolves deployment context limits and phased compaction thresholds, but no observed output proves equivalent output-token headroom. | low |
+| R8 | `96542f898` | 2026-06-24 | reserve 75k output headroom | **PORT** *(settled 2026-08-14, iteration 4)* | Settled by running the sharpened instrument (see *Residuals*), `tools/motoko/r8_headroom_band.ail` against `main_dst@6c06b08`, replicating the live `session.ail:2534-2561` wiring. Arm A (`docx_lambda`-class history: one large **user** message, which the ladder can never elide — `elide_walk` only touches `role=="tool"`): the ladder removed **2,061 of 208,980** tokens (1%), hit its last branch and returned `structural: tier=floor keep_last=1` at **79%** — above its own 70% target. The seal then saw 207,239 tok = **79% < 95%** and returned **`Ok`**, i.e. it SENT, leaving headroom **54,905 < the 65,536 output cap**. Per this row's own decision rule that is **PORT**. Controls both fire: arm B (small history) → `PassThrough`, `Ok`, headroom 259,642; arm C (158%) → **`Err(SealExhausted)`**, so the seal genuinely refuses and arm A's `Ok` is a real permission, not a dead gate. | high |
 | R9 | `1d9d8453d` | 2026-06-24 | register EditDecl/ReadInterface | UNRESOLVED | `git show 1d9d845` adds schemas and SYSTEM guidance; scoped grep `EditDecl` in `src/core` => 0/68. The new dispatch architecture exists, but whether these two tools remain desired was not established. | low |
 | R10 | `087e68e0e` | 2026-06-24 | retry empty response | UNRESOLVED | `git show 087e68e` adds bounded `MOTOKO_RETRY_EMPTY`; scoped grep `retry_empty` => 0/68. Upstream has `recovery.ail`, but its inspected policy covers retryable stream errors and persist nudges, not demonstrably empty successful responses. | low |
 | R11 | `21331d636` | 2026-06-24 | count tool-call args in tokens | PORT | `git show 21331d6` adds `tool_calls_chars`; scoped grep for that helper => 0/68. Upstream `compaction.ail:estimate_tokens_messages` visibly folds only `length(m.content)`, so port argument sizing into the phased estimator (`compaction.ail`/`context_usage.ail`). | high |
@@ -61,13 +61,18 @@ Measured on 2026-08-12 by reading each non-merge commit in fork `9e8d647f18eda6c
 Post-review (see *Review history* below). The parenthesised figure is the executor's first pass.
 
 - SUPERSEDED: **14** (was 16)
-- PORT: **16** (was 15)
+- PORT: **17** (was 15 at first pass, 16 post-review)
 - DROP: **14** (unchanged)
-- UNRESOLVED: **7** (was 6)
+- UNRESOLVED: **6** (was 6 at first pass, 7 post-review)
 - Total: **51**
 
-The UNRESOLVED count is **7**. Recounted independently from the VERDICT column, not carried over
+The UNRESOLVED count is **6**. Recounted independently from the VERDICT column, not carried over
 from the executor's own tally.
+
+**Settled since review:** **R8 → PORT** at mission iteration 4 (2026-08-14), by measurement rather
+than by re-reading — see its row and the *Residuals* entry. That is the first of the seven
+post-review UNRESOLVED rows to close, and it closed in the direction the row's own decision rule
+named, not in the direction the sharpening guessed at.
 
 ## Review history
 
@@ -108,6 +113,26 @@ Each row began with `git show <sha>` (the distinctive added behavior is summariz
   upstream's gate covers it and the row becomes SUPERSEDED.
 - **R5 — length truncation:** run a scripted provider scenario through upstream `session.run_v2_from_messages` whose first successful response has `finish_reason="length"` and no tool calls, then assert whether a second provider step occurs within budget and history contains the continuation instruction.
 - **R8 — output headroom:** ~~run the same long-context transcript/model limit through fork and upstream with a provider that attempts a large completion; record pre-call input tokens, allowed output tokens, compaction tier, and whether either request exceeds total context.~~ **SHARPENED 2026-08-13 (mission iteration 3) — the old wording asks for a whole rig A/B, and a static read has already settled most of it** (migration doc V27–V29, measured against `main_dst@6c06b08`). What is now *known*: the live ladder targets **70%** (`result_target_pct`), which on a 262144 window leaves ≥78,644 — more than both the 65,536 output cap and our own 75k reserve; and the live refusal is the phase core's `seal_compacted_payload` at `exhaustion_pct() = 95`, whose predicate is **input-only**. So the residual is a single, much narrower question, and it is the one the settling measurement should target: **is the band between the ladder's 70% target and the seal's 95% permission reachable in practice?** The ladder's last branch (`compaction_structural.ail:191`) sends unconditionally when even `keep_last=1` misses 70%, so the band is reachable *by construction*; what is unmeasured is whether a real `docx_lambda`-class transcript gets there. **Cheapest sufficient instrument** (and it is not a rig run): drive `compact_for_pre_step` directly at `limit=262144` with a scripted history whose floor form still exceeds 183,500 estimated tokens, and assert the returned note is `tier=floor`; then feed that payload to `seal_compacted_payload` and read whether it returns `Ok` (⇒ over-target input is SENT with <65,536 of window left ⇒ **PORT**, as a phase-core seal argument, not an extension reserve) or `Err(SealExhausted …)` (⇒ the hard stop catches it ⇒ **SUPERSEDED**, and the residual is a *starved completion*, not an overflow). Both functions are `pure`, so this is a unit-level assertion, not a provider A/B. **Note the instrument must not use `compact_step_with_limit`** — V28: zero production callers, and its 95% `Err` is the one the migration doc wrongly credited.
+  **SETTLED 2026-08-14 (mission iteration 4) → PORT.** The instrument was built and run:
+  `tools/motoko/r8_headroom_band.ail`, against `main_dst@6c06b08`, replicating the live
+  `session.ail:2534-2561` wiring rather than calling the two functions in isolation — `split_for_compaction`,
+  `ext_limit = context_limit - estimate_tokens_messages(split.pinned)`, `compact_for_pre_step` over the
+  segment, then `seal_compacted_payload(split, chain, model, context_limit, false)`. Measured, three arms:
+  **A (the question)** pinned=320, ext_limit=261,824; segment 208,980 → 206,919 tokens (the ladder removed
+  **1%**), decision `structural: tier=floor keep_last=1` at **79%**, seal saw 207,239 tok = **79%**, returned
+  **`Ok`**, headroom **54,905 < 65,536**. **B (negative control)** small history → `PassThrough`, `Ok`,
+  headroom 259,642. **C (over-band control)** 158% → **`Err(SealExhausted)`**.
+  So the band is reachable *in practice*, not merely by construction, and the seal permits it — the
+  `Ok` branch, which is the PORT half of this row's own rule.
+  **The mechanism is worth more than the verdict, and it is not the one the sharpening assumed.** The
+  sharpening pictured a transcript that grinds down the ladder; what actually happens is that the ladder
+  has **no lever at all**. `elide_walk` only rewrites `role=="tool"` messages, so a large **user** message
+  — a pasted document, the `docx_lambda` shape — is invisible to every tier. All four tiers therefore
+  produce near-identical output, the unconditional floor branch fires, and 79% is sent unchanged. Raising
+  keep-last aggressiveness would not move this case by one token; only a reserve at the seal does. That is
+  why the ask is `session.ail:2561` and not the extension, and it is the same move upstream already makes
+  one line up at `:2534` (`context_limit - pinned_tokens`) — now confirmed first-party by reading the call
+  site, not inherited from the row.
 - **R9 — EditDecl/ReadInterface:** obtain the migration product decision for whether these public tools remain supported, then run upstream tool-catalog/dispatch tests for both schemas and calls. Desired plus absent means PORT; deliberately removed means DROP.
 - **R10 — empty response:** scripted provider test: first successful `stop` response has empty/whitespace content and no tool calls, second response is nonempty. Observe whether upstream retries once, terminates, or injects only the persist nudge.
 - **R46 — resolved profile telemetry:** launch two upstream profiles and inspect the first live session event/trace payload. A field containing the resolved loaded profile (not merely requested CLI text) settles SUPERSEDED; absence settles PORT to `phase_vocab.ail`/`session.ail`.

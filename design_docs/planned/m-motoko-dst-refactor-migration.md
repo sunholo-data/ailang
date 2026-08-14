@@ -218,8 +218,8 @@ verify each resolves. These encode our A/B design (one variable per arm) and are
 
 **Phase 3 — Settle the disposition residual and re-prove what remains (timeboxed).** The
 disposition itself already exists: all **51** non-merge fork commits (V14) are classified in
-[m-motoko-fork-disposition.md](m-motoko-fork-disposition.md) — 14 SUPERSEDED / 16 PORT / 14 DROP /
-**7 UNRESOLVED**, each UNRESOLVED row naming the measurement that settles it. That ledger is the
+[m-motoko-fork-disposition.md](m-motoko-fork-disposition.md) — 14 SUPERSEDED / 17 PORT / 14 DROP /
+**6 UNRESOLVED** (R8 settled → PORT at iteration 4), each UNRESOLVED row naming the measurement that settles it. That ledger is the
 working surface for this phase; its rows are not duplicated here. Classifications:
 
 - **Superseded — drop.** Already confirmed: the compaction calibration, the elision ladder, and
@@ -371,7 +371,7 @@ taken at). They correct this doc's compaction section — see the struck paragra
 - ~~Whether the remaining ~40 of our 52 commits have upstream counterparts.~~ Superseded since the
   first draft: the four Port-list features the quorum flagged now have rows (V21–V24), and the
   full 51-commit disposition lives in [m-motoko-fork-disposition.md](m-motoko-fork-disposition.md),
-  whose **7 UNRESOLVED** rows — each naming its settling measurement — are the remaining open
+  whose **6 UNRESOLVED** rows — each naming its settling measurement — are the remaining open
   questions. Phase 3 settles them under its timebox.
 
 ### Quorum revision log
@@ -461,10 +461,11 @@ several axioms are scored on what the architecture does for our ability to reaso
 - [ ] All 18 `motoko_profile:` entries resolve
 - [x] All **51 non-merge** fork commits dispositioned, in
       [m-motoko-fork-disposition.md](m-motoko-fork-disposition.md) (2026-08-12, iteration 1):
-      **14 SUPERSEDED / 16 PORT / 14 DROP / 7 UNRESOLVED**. The range holds **52** commits; exactly
+      **14 SUPERSEDED / 16 PORT / 14 DROP / 7 UNRESOLVED** as first landed; **14/17/14/6** after R8
+      settled at iteration 4. The range holds **52** commits; exactly
       one (`ed61097`) is a merge carrying no unique content, so 51 is the number of rows this
       criterion can ever have — see V14/V15. Split into its own file rather than inlined here: it
-      is 114 lines of evidence and this doc is the *decision*, not the ledger. **The 7 UNRESOLVED
+      is 114 lines of evidence and this doc is the *decision*, not the ledger. **The 6 remaining UNRESOLVED
       rows are the honest residual and each names the measurement that settles it** — Phase 3 is
       not complete until they are settled, and a forced verdict there would have been worse than
       the gap.
