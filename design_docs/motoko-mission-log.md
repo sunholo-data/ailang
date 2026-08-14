@@ -442,3 +442,103 @@ only shows up when two loops are awake at once.
 fires, and recovery-by-brute-retry now hides that from the human channel), then item 6 (the fmt
 re-measurement instrument). Item 5 needs no more work from us: it is waiting only on the
 2026-08-27 bound.
+
+---
+
+## 5 — 2026-08-14 — the fleet's "no usable model" refusal was never about models, quota, or contention: our own SessionStart hook was holding its stdout open
+
+**Picked**: Queue head **5a** — "the driver's model probe hangs with EMPTY output, and it is
+costing this mission most of its fires", scoped by iteration 4 to *diagnose only*, with an
+explicit prohibition on lengthening the 120s probe timeout before the mechanism is known.
+
+**Reality check**: Local HEAD == `origin/dev` (`6f3e6bce7`), no reconcile owed. Running skill
+byte-identical to `origin/dev` — `cmp` against the **resolved symlink target** in V1's checkout
+(`readlink` → `~/dev/sunholo-data/ailang/.claude/skills/...`), paired with a deliberately-different
+file as a firing control, since a silent `cmp` proves nothing unless it can also report a
+difference. Gate 1: **16** checks on HEAD, **0** not-green, `total_count=16` as the known-positive
+control. Zero human directives on `#663` since the watermark. Weekly external-issue sweep NOT due
+(`#663` created 2026-08-12, after the Monday-07:00 *local* boundary; 13 comments < 80). No
+died-mid-flight traces: both motoko checkouts clean, no stale motoko worktrees, and all three open
+loop-authored PRs (`#719`, `#695`, `#613`) are V1's. No quorum owed — the pick has no design doc;
+it is a diagnostic with a one-line remedy.
+
+**What was found**. `scripts/hooks/session_start.sh` ended with
+`ailang docs embed-warmup --quiet --timeout 3m &`, commented *"(non-blocking)"*. That is true of
+the **script** and false of every **consumer that captures its stdout**: a backgrounded child
+inherits the stdout descriptor, so a `$(...)`-style capture cannot observe EOF until the **child**
+exits, however promptly the script itself `exit 0`s. Claude Code captures hook stdout — that is
+how the SessionStart banner reaches a session — so the hook was held open for as long as the
+warmup ran, bounded only by the warmup's own `--timeout 3m` (**180s**) against the driver's
+**120s** `PROBE_TIMEOUT`. Hence `probe timed out after 120s — captured output: ''`: empty because
+`claude -p` emits nothing until it completes, and identical across all three models because **it
+was never a model verdict — it is one hook stall observed six times** (3 models × 2 attempts).
+
+**Measurements** (darwin/arm64; windows and ubuntu legs unrun locally, rule 3b(viii)):
+
+| arm | elapsed |
+|---|---|
+| hook stdout **captured** | **8,433 ms** |
+| hook stdout **redirected to a file** | 8 ms |
+| identical script, **background child removed** (negative control) | 237 ms |
+| one real `session_start.sh` capture, contended | **96,377 ms** |
+| warm `embed-warmup` alone | ~1.2 s |
+
+| mission | refusals / fires | hooks |
+|---|---|---|
+| v1 | **47 / 186** | 3 SessionStart hooks |
+| motoko | **6 / 11** | 3 SessionStart hooks |
+| world | **0 / 89** | **no `.claude/settings.json` at all** |
+
+World's zero is a measurement, not a broken grep: its log carries **90** `probe ok` lines over the
+same 24-day window (both logs start 2026-07-21). And **`quota-limited` has never fired once** in
+either driver log, so the driver's own `quota-limited, timed out, or errored` summary has only
+ever meant *timed out* — every reading of these refusals as quota pressure, this charter's
+included, was wrong.
+
+**Amplification, measured rather than inferred**: `_mc_bounded` kills the `claude` process on
+expiry, but the warmup is a **grandchild** and survives — verified reparented to `ppid=1`. So each
+timed-out probe leaves a GPU tenant behind and the next probe adds another, up to six per fire.
+
+**Ruled out**: **GPU contention alone is not sufficient**, refuting this controller's own leading
+hypothesis. The filler held `rig.lock` from **07:58:30 to 12:39:58** on 08-14; motoko's
+*successful* 09:45 fire sits inside that window alongside the three refusals preceding it. The
+correlation fit three data points and died on the fourth — rule 3d, where the evidence arrived in
+exactly the predicted direction and only the negative control separated it.
+Also ruled out: auth/trust (V22's class) — the never-failing mission, world, has
+`hasTrustDialogAccepted=False`, which inverts the trust story rather than supporting it.
+
+**Corrected**: iteration 4's charter claim that the stall is *"not motoko-specific"* and therefore
+environmental. It is common to v1 and motoko because both are `sunholo-data/ailang` checkouts
+carrying the three SessionStart hooks; world is immune for a structural reason, not a lucky one.
+"Two missions failing together" was read as evidence of an environment when it was evidence of a
+shared **repo**.
+
+**Deviation from the item's scope, declared**: widened from diagnose-only to include the fix. The
+prohibition was specifically against lengthening the 120s timeout before the mechanism was known;
+the mechanism is now known and the remedy is a stdout redirect, which is the opposite change.
+
+**The sharpest finding is about the guard, not the fix.** `tools/launchd/test_hook_stdout.sh`'s
+first draft **passed against the deliberately mutated hook** — it reported `0ms` with the defect
+present. `session_start.sh` early-returns on the no-unread-messages path (`:287`) **before** the
+warmup line, so a stub answering `[]` never reaches the code under test: an observable that is not
+downstream of the mechanism, which is rule 3i exactly. It was caught only because the mutation was
+*run* rather than reasoned about. Repaired with a marker control asserting the warmup line is
+REACHED, plus an anti-vacuity floor on the hook enumeration and a control proving the stubbed
+warmup is genuinely slow. The arm now goes **1s → 11s RED** on the mutant; mutant asserted LANDED
+by sha256 and parsing under bash 3.2, restored **byte-identical from a `cp` backup** — never
+`git checkout --`, which in a worktree would have deleted the uncommitted work.
+
+**Routing evidence**: controller `claude-opus-5` (session, `probe ok`). **No sub-agent spawned** —
+the deliverable was controller measurement plus a one-line fix with a guard, so no role needed a
+pin; designer rotation pointer untouched. metered=**$0.00** of $5. No GPU work, so no `rig.lock`
+taken. `make quick-install` deliberately NOT run (shared-write guardrail, V20).
+
+**Landed**: PR **#721** — `scripts/hooks/session_start.sh` (the redirect + a comment explaining why
+it is load-bearing), `tools/launchd/test_hook_stdout.sh` (new guard), `make/test.mk` (wired into
+`make test-launchd-drivers`, already a CI gate at `ci.yml:472`), `changelogs/v0.18-current.md`.
+
+**Next**: item **5b** — split out of 5a and genuinely still open: `make test-launchd-drivers` is
+green in CI and **1 passed / 28 failed** on the rig (`test_pin_root.sh`), re-measured this
+iteration from a pristine `origin/dev` worktree, so the one gate covering the driver scripts is
+blind where those scripts run. Then item 6 (the fmt re-measurement instrument). Item 5 needs
+nothing from us until its 2026-08-27 bound.

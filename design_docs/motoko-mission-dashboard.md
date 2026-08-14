@@ -3,7 +3,7 @@
 > the charter STATUS + [log](motoko-mission-log.md)). Fresh session = THIS + MEMORY.md. Humans
 > steer via the bookkeeping issue. **Namespaced** — `mission-dashboard.md` is V1's.
 
-**Updated**: 2026-08-14 ~10:30 local (iteration 4)
+**Updated**: 2026-08-14 ~23:00 local (iteration 5)
 
 ## Where the mission is
 - **Charter RATIFIED** (iter 0). Bar = 6 clauses; clause 6 (motoko graduates into the mission
@@ -11,19 +11,18 @@
 - **Iter 1–3**: 51 fork commits dispositioned ([ledger](planned/m-motoko-fork-disposition.md));
   Phase 0 became a **bounded fail-closed gate** with **G5** (Arni's word) as a permanent human
   predicate; the output-headroom case was corrected before filing — it was wrong both ways.
-- **Iter 4**: **R8 SETTLED → PORT.** Ledger now **14 SUPERSEDED / 17 PORT / 14 DROP / 6 UNRESOLVED**
-  — first of the seven post-review UNRESOLVED rows to close. Measured, not re-read
-  (`tools/motoko/r8_headroom_band.ail`): the ladder sends at **79%** and the seal returns **`Ok`**,
-  leaving **54,905** headroom against a **65,536** output cap. Controls both fire.
-  **The mechanism changes the ask**: the ladder has *no lever* — `elide_walk` only touches
-  `role=="tool"`, so a large **user** message is invisible to all four tiers (~1% removed). So an
-  extension-side reserve cannot fix it; the ask is **one argument at `session.ail:2561`**, with
-  upstream's own `:2534` as precedent.
-- **Iter 4 also landed the recovery job that made iter 4 exist** (`ceb2bb055`) — live but uncommitted.
+- **Iter 4**: **R8 SETTLED → PORT**; ledger **14 SUPERSEDED / 17 PORT / 14 DROP / 6 UNRESOLVED**.
+  The ladder has *no lever* (`elide_walk` only touches `role=="tool"`), so the upstream ask is
+  **one argument at `session.ail:2561`**, with upstream's own `:2534` as precedent.
+- **Iter 5**: **the loop's own 25%-of-fires refusal is FIXED, and it was ours.** `session_start.sh`
+  backgrounded `embed-warmup --timeout 3m &` **without redirecting stdout**; a backgrounded child
+  inherits the descriptor, so Claude Code's hook-stdout capture couldn't see EOF until the *child*
+  exited — 180s against the driver's 120s probe cap. Hence `captured output: ''` on all three
+  models: **never a model verdict, one hook stall seen six times.** PR **#721**.
 
 ## Next
-- **Item 5a (NEW, next pick)** — the driver's model probe hangs with **empty output**: **6 refusals
-  / 4 starts = 60% of fires**, each costing a half-day at the 12h cadence. Diagnose only.
+- **Item 5b (next pick)** — `make test-launchd-drivers` is **green in CI, 1-passed/28-failed on the
+  rig**. The one gate covering the driver scripts is blind where those scripts run.
 - Then item 6 (`fmt` re-measurement instrument). **Item 5 needs no more work from us** — waiting
   only on the 2026-08-27 bound.
 
@@ -37,12 +36,13 @@
 ## Open with Mark (see bookkeeping issue #663) — nothing blocked on you
 1. **Carried from iter 1, unanswered**: (a) routing item 3's *analysis* while its *design* was
    quorum-blocked — too loose? (b) keep the namespaced `motoko-mission-dashboard.md`?
-2. **New, FYI not a blocker**: the empty-output probe stall is **fleet-wide** (v1 hit the identical
-   signature in the same window). Recovery now retries it, which also *hides* it — hence item 5a.
+2. **Iter 4's "fleet-wide/environmental" FYI is now CORRECTED**: the stall hit v1 and motoko
+   because both are `sunholo-data/ailang` checkouts carrying the SessionStart hooks; world
+   (**0 refusals / 89 fires**, no `.claude/settings.json`) was never affected. Not environmental.
 
 ## Loop posture
-- Cadence **12h** (`43200s`); effective cadence is worse — see item 5a.
+- Cadence **12h** (`43200s`); effective cadence should now recover — that was item 5a.
 - Routing: controller opus · designer `claude:claude-fable-5` (rotation **unadvanced** — no doc
   created) · planner/executor `codex:gpt-5.6-sol` · evaluator sonnet. **No lane degradation.**
-- **Metered iter 4: $0.00** of $5 — controller-only measurement, no sub-agent spawned.
-- `make quick-install` **skipped deliberately**: an eval-suite was live on the shared `ailang`.
+- **Metered iter 5: $0.00** of $5 — controller measurement + a one-line fix; no sub-agent spawned.
+- `make quick-install` **skipped deliberately** (shared-write guardrail, V20).
