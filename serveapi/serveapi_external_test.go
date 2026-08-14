@@ -92,7 +92,7 @@ func TestExternalModuleCanImportFacadeButNotInternal(t *testing.T) {
 	root := filepath.Dir(filepath.Dir(currentFile))
 	dir := t.TempDir()
 	t.Logf("external fixture directory: %s", dir)
-	goMod := fmt.Sprintf("module externalfixture\n\ngo 1.26.5\n\nrequire github.com/sunholo-data/ailang v0.0.0\nreplace github.com/sunholo-data/ailang => %s\n", root)
+	goMod := fmt.Sprintf("module externalfixture\n\ngo 1.26.6\n\nrequire github.com/sunholo-data/ailang v0.0.0\nreplace github.com/sunholo-data/ailang => %s\n", root)
 	writeFixtureFile(t, filepath.Join(dir, "go.mod"), []byte(goMod))
 	sum, err := os.ReadFile(filepath.Join(root, "go.sum"))
 	if err != nil {
