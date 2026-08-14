@@ -1453,6 +1453,43 @@ the Repo Profile above):
    could be *proved* byte-identical rather than hoped to be. `cp <file> <backup>` before the
    mutation, `cp <backup> <file>` after, and keep the sha256 assertion as the check on the restore
    rather than as the discovery of a disaster.
+3l. **"ENVIRONMENTAL" IS A CLAIM, AND THE FLEET IS ITS CONTROL GROUP — THREE MISSIONS RUN ON THIS
+   RIG, SO ANY "IT'S THE MACHINE, NOT US" DIAGNOSIS HAS A READY-MADE THIRD ARM, AND SKIPPING IT
+   COSTS MONTHS** (added 2026-08-15 motoko iteration 5; two frictions, both about the same defect).
+   Rules 3a–3k police claims about the repo, a check, a probe, a mutation. None points at the loop's
+   diagnosis of **its own health**, and that is where the most expensive wrong verdict this fleet has
+   recorded actually lived. The failure mode is specific and seductive: **two missions failing
+   together reads as evidence of an ENVIRONMENT when it may be evidence of a shared REPO.** It is
+   rule 3d's shape — co-occurrence read as causation — but the co-occurrence is across *missions*
+   rather than across commits, so nothing in 3d prompts you to look for it.
+   Friction 1: motoko iteration 4 measured the driver's empty-output probe refusals in two logs,
+   found v1 refusing with an identical signature in an overlapping window from *"a separate checkout
+   with separate config"*, and recorded — reasonably, and wrongly — *"Not motoko-specific … what
+   makes this environmental rather than per-mission"*. Friction 2: iteration 5 opened on GPU
+   contention for the same reason, and the filler's `rig.lock` window fit three refusals before the
+   *fourth* data point (a **successful** fire inside the same window) killed it.
+   The third arm was free and sitting in `/tmp` the whole time. Refusals per fire over one 24-day
+   window: v1 **47/186**, motoko **6/11**, world **0/89** — and world is the one mission whose
+   checkout has **no `.claude/settings.json`**, hence no SessionStart hooks. The cause was a hook in
+   the *shared repo* (a backgrounded child holding stdout past the probe's cap), which is why exactly
+   the two `sunholo-data/ailang` checkouts were affected and the AILANG-source one never was. A
+   two-mission sample cannot distinguish "the rig" from "the repo"; the three-mission one does it in
+   a single `grep -c`.
+   Rules: **(a)** before writing "environmental", "fleet-wide", "transient" or "not <mission>-specific"
+   anywhere, count the symptom in **all three** driver logs — `/tmp/ailang-mission-{control,world,motoko}.log`
+   — and quote rates, not presence: two missions failing is not a rate, and 47/186 vs 0/89 is;
+   **(b)** pair the count with a known-positive control per log, because a mission whose log spells
+   the symptom differently greps to a clean zero (world's zero is a measurement only because its log
+   carries **90** `probe ok` lines — rule 3a aimed at a sibling's log rather than at your own repo);
+   **(c)** when the arms differ, ask what the *failing* ones SHARE that the healthy one does not —
+   repo, hooks, config, checkout path, verify profile — rather than what the environment was doing;
+   the missions are deliberately configured differently, which is what makes them a usable control;
+   **(d)** a driver's own summary line is not a diagnosis: this one flattened every failure into
+   `quota-limited, timed out, or errored`, and **the quota arm had never fired once** in either log,
+   so four months of refusals were read as quota pressure that was never present. Check which arm of
+   a disjunctive log line actually fired before inheriting its framing.
+   Mission-independent by construction, and it generalises past this fleet: **whenever you are about
+   to blame a shared environment, find the peer that is NOT failing and ask what it lacks.**
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
    the Gate-2 rebuild `-dirty` — binaries built from a half-merged tree; and a persisted `cd`
