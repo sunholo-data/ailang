@@ -65,6 +65,28 @@ func countDependencyKey(content, name string) int {
 	return count
 }
 
+func countDependenciesTables(content string) int {
+	count := 0
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(strings.SplitN(line, "#", 2)[0])
+		if line == "[dependencies]" || line == `["dependencies"]` || line == "['dependencies']" {
+			count++
+		}
+	}
+	return count
+}
+
+func countNamedKeyOccurrences(content, name string) int {
+	count := 0
+	for _, line := range strings.Split(content, "\n") {
+		key, _, ok := strings.Cut(strings.TrimSpace(line), "=")
+		if ok && strings.Trim(strings.TrimSpace(key), `"'`) == name {
+			count++
+		}
+	}
+	return count
+}
+
 func TestAppendDependencyToFile_IdempotentUpsert(t *testing.T) {
 	dir := t.TempDir()
 	writeTestManifest(t, dir, testPackageManifest)
@@ -492,5 +514,116 @@ func TestWriteManifestChecked_AllowsWriteOverUnparseableInput(t *testing.T) {
 	}
 	if got := readTestManifest(t, dir); got != replacement {
 		t.Errorf("write did not land\nwant:\n%s\ngot:\n%s", replacement, got)
+	}
+}
+
+// Killing mutation: restore openMultilineString's strings.Count(delimiter)%2 scanner.
+func TestUpsertDependencyLine_TripleQuoteInsideSingleLineString(t *testing.T) {
+	const original = "[package]\nname = \"sunholo/upsert_test\"\nversion = \"0.1.0\"\nedition = \"1\"\nnotes = 'contains \"\"\" triple double quotes'\n\n[dependencies]\n\"sunholo/existing\" = \"1.0.0\"\n"
+	updated, _, replaced := upsertDependencyLine(original, "sunholo/existing", `"sunholo/existing" = "2.0.0"`)
+	if !replaced {
+		t.Fatal("existing dependency was not replaced")
+	}
+	dir := t.TempDir()
+	writeTestManifest(t, dir, updated)
+	if err := pkg.ParseManifestFile(filepath.Join(dir, pkg.ManifestFile)); err != nil {
+		t.Fatalf("updated manifest does not parse: %v\n%s", err, updated)
+	}
+	if got := countDependenciesTables(updated); got != 1 {
+		t.Fatalf("dependencies table count = %d, want 1\n%s", got, updated)
+	}
+}
+
+// Killing mutation: restore the dependencies-header check to trimmed == "[dependencies]".
+func TestUpsertDependencyLine_QuotedDependenciesHeader(t *testing.T) {
+	const original = "[package]\nname = \"sunholo/upsert_test\"\nversion = \"0.1.0\"\nedition = \"1\"\n\n[\"dependencies\"]\n\"sunholo/existing\" = \"1.0.0\"\n"
+	updated, _, replaced := upsertDependencyLine(original, "sunholo/existing", `"sunholo/existing" = "2.0.0"`)
+	if !replaced {
+		t.Fatal("existing dependency was not replaced")
+	}
+	dir := t.TempDir()
+	writeTestManifest(t, dir, updated)
+	if err := pkg.ParseManifestFile(filepath.Join(dir, pkg.ManifestFile)); err != nil {
+		t.Fatalf("updated manifest does not parse: %v\n%s", err, updated)
+	}
+	if got := countDependenciesTables(updated); got != 1 {
+		t.Fatalf("dependencies table count = %d, want 1\n%s", got, updated)
+	}
+}
+
+// Killing mutation: make tableHeaderName accept a [[-prefixed array-of-tables header.
+func TestTableHeaderName_RejectsArrayOfTables(t *testing.T) {
+	if name, ok := tableHeaderName("[[dependencies]]"); ok || name != "" {
+		t.Fatalf("array-of-tables accepted as simple header: name=%q ok=%v", name, ok)
+	}
+}
+
+// Killing mutation: restore openMultilineString's strings.Count(delimiter)%2 scanner.
+func TestOpenMultilineString_QuotedDelimiterCorpus(t *testing.T) {
+	tests := []struct {
+		line string
+		want string
+	}{
+		{line: `notes = """`, want: `"""`},
+		{line: `text = """abc`, want: `"""`},
+		{line: `notes = 'contains """ triple double quotes'`, want: ""},
+		{line: `notes = "he said \"\"\" once"`, want: ""},
+	}
+	for _, tc := range tests {
+		if got := openMultilineString(tc.line); got != tc.want {
+			t.Errorf("openMultilineString(%q) = %q, want %q", tc.line, got, tc.want)
+		}
+	}
+}
+
+// Killing mutation: restore either the delimiter-count scanner or literal header comparison.
+func TestAppendDependencyToFile_ManifestShapeCorpus(t *testing.T) {
+	const base = "[package]\nname = \"sunholo/upsert_test\"\nversion = \"0.1.0\"\nedition = \"1\"\n"
+	const dep = "sunholo/gemini_files"
+	rows := []struct {
+		name     string
+		manifest string
+	}{
+		{name: "no dependencies", manifest: base},
+		{name: "different dependency", manifest: base + "\n[dependencies]\n\"sunholo/other\" = \"1.0.0\"\n"},
+		{name: "same dependency older", manifest: base + "\n[dependencies]\n\"" + dep + "\" = \"0.1.0\"\n"},
+		{name: "header trailing comment", manifest: base + "\n[dependencies] # managed\n"},
+		{name: "header final line", manifest: base + "\n[dependencies]"},
+		{name: "multiline string with header-shaped line", manifest: base + "description = \"\"\"prose\n[not-a-table]\nmore prose\"\"\"\n\n[dependencies]\n"},
+		{name: "literal triple double quote", manifest: base + "notes = 'contains \"\"\" triple double quotes'\n\n[dependencies]\n"},
+		{name: "quoted dependencies header", manifest: base + "\n[\"dependencies\"]\n"},
+		{name: "literal quoted key", manifest: base + "\n[dependencies]\n'" + dep + "' = \"0.1.0\"\n"},
+		{name: "CRLF", manifest: strings.ReplaceAll(base+"\n[dependencies]\n", "\n", "\r\n")},
+		{name: "followed by another table", manifest: base + "\n[dependencies]\n\n[metadata]\nowner = \"test\"\n"},
+		{name: "missing edition", manifest: "[package]\nname = \"sunholo/upsert_test\"\nversion = \"0.1.0\"\n\n[dependencies]\n"},
+	}
+	if len(rows) < 12 {
+		t.Fatalf("corpus shrank to %d rows; want at least 12", len(rows))
+	}
+	run := 0
+	for _, tc := range rows {
+		t.Run(tc.name, func(t *testing.T) {
+			run++
+			dir := t.TempDir()
+			writeTestManifest(t, dir, tc.manifest)
+			for i := 0; i < 2; i++ {
+				if err := appendDependencyToFile(dir, dep, "0.2.0", false); err != nil {
+					t.Fatalf("install %d: %v", i+1, err)
+				}
+			}
+			content := readTestManifest(t, dir)
+			if err := pkg.ParseManifestFile(filepath.Join(dir, pkg.ManifestFile)); err != nil {
+				t.Errorf("manifest does not parse: %v\n%s", err, content)
+			}
+			if got := countNamedKeyOccurrences(content, dep); got != 1 {
+				t.Errorf("dependency key count = %d, want 1\n%s", got, content)
+			}
+			if got := countDependenciesTables(content); got != 1 {
+				t.Errorf("dependencies table count = %d, want 1\n%s", got, content)
+			}
+		})
+	}
+	if run != len(rows) {
+		t.Fatalf("ran %d corpus rows, want %d", run, len(rows))
 	}
 }

@@ -248,7 +248,8 @@ func upsertDependencyLine(content, name, depLine string) (updated, previous stri
 			if inDependencies {
 				break
 			}
-			inDependencies = trimmed == "[dependencies]"
+			header, ok := tableHeaderName(trimmed)
+			inDependencies = ok && header == "dependencies"
 			if inDependencies {
 				sectionHeader = i
 			}
@@ -292,6 +293,30 @@ func upsertDependencyLine(content, name, depLine string) (updated, previous stri
 		prefix = ""
 	}
 	return content + prefix + "[dependencies]\n" + depLine + "\n", "", false
+}
+
+// tableHeaderName returns the name of a simple, single-segment TOML table header.
+func tableHeaderName(trimmed string) (string, bool) {
+	if len(trimmed) < 2 || trimmed[0] != '[' || trimmed[1] == '[' || trimmed[len(trimmed)-1] != ']' {
+		return "", false
+	}
+	body := strings.TrimSpace(trimmed[1 : len(trimmed)-1])
+	if body == "" || strings.Contains(body, ".") {
+		return "", false
+	}
+	if body[0] == '"' || body[0] == '\'' {
+		quote := body[0]
+		if len(body) < 2 || body[len(body)-1] != quote {
+			return "", false
+		}
+		body = body[1 : len(body)-1]
+		if body == "" || strings.ContainsAny(body, "\"'") {
+			return "", false
+		}
+	} else if strings.ContainsAny(body, " \t\"'") {
+		return "", false
+	}
+	return body, true
 }
 
 // dependencyLineKey extracts a quoted, literal-quoted or bare TOML key, only
@@ -352,12 +377,45 @@ func stripLineComment(line string) string {
 // openMultilineString reports the delimiter of a multi-line string this line
 // opens and does not close, or "" when the line leaves no string open.
 func openMultilineString(line string) string {
-	for _, d := range []string{`"""`, `'''`} {
-		if n := strings.Count(line, d); n%2 == 1 {
-			return d
+	var singleQuote byte
+	open := ""
+	for i := 0; i < len(line); {
+		if open != "" {
+			if strings.HasPrefix(line[i:], open) {
+				open = ""
+				i += 3
+				continue
+			}
+			i++
+			continue
 		}
+		if singleQuote != 0 {
+			if singleQuote == '"' && line[i] == '\\' {
+				i += 2
+				continue
+			}
+			if line[i] == singleQuote {
+				singleQuote = 0
+			}
+			i++
+			continue
+		}
+		if strings.HasPrefix(line[i:], `"""`) {
+			open = `"""`
+			i += 3
+			continue
+		}
+		if strings.HasPrefix(line[i:], `'''`) {
+			open = `'''`
+			i += 3
+			continue
+		}
+		if line[i] == '"' || line[i] == '\'' {
+			singleQuote = line[i]
+		}
+		i++
 	}
-	return ""
+	return open
 }
 
 // writeManifestChecked writes the rewritten manifest, then refuses to leave the
