@@ -85,6 +85,28 @@ func a2aTaskState(t *testing.T, response map[string]any) string {
 	return state
 }
 
+// a2aTaskMessage returns the status message an A2A failure carries.
+//
+// Separate from a2aTaskState because the state is a three-value enum that
+// many unrelated failures share, so a state assertion cannot tell "exit(1)
+// was reported as an error" from "the call never reached exit() at all".
+func a2aTaskMessage(t *testing.T, response map[string]any) string {
+	t.Helper()
+	result, ok := response["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("A2A response has no task result: %#v", response)
+	}
+	status, ok := result["status"].(map[string]any)
+	if !ok {
+		t.Fatalf("A2A task has no status: %#v", result)
+	}
+	message, ok := status["message"].(string)
+	if !ok {
+		t.Fatalf("A2A task has no string message: %#v", status)
+	}
+	return message
+}
+
 func TestRoutesDispatchExitZeroSucceeds(t *testing.T) {
 	srv := newExitHandlerTestServer(t)
 	status, body := callRouteFixture(t, srv, exitFixturePrefix+"exit_zero")
@@ -93,6 +115,20 @@ func TestRoutesDispatchExitZeroSucceeds(t *testing.T) {
 	}
 	if _, present := body["error"]; present {
 		t.Fatalf("clean exit response contains error: %#v", body)
+	}
+	// Pin the whole shape, not just the absence of an error. D-17's contract
+	// is that a clean exit is indistinguishable from a unit return, and
+	// embed.ToGo maps UnitValue to nil, so "result" must be absent (it is
+	// omitempty) while the identifying fields are present. Measured against
+	// a live serve-api unit return: {"module":…,"func":…,"elapsed_ms":…}.
+	if _, present := body["result"]; present {
+		t.Fatalf("clean exit response carries a result: %#v", body)
+	}
+	if body["module"] != exitFixturePrefix+"exit_zero" || body["func"] != "main" {
+		t.Fatalf("clean exit response misidentifies the call: %#v", body)
+	}
+	if _, present := body["elapsed_ms"]; !present {
+		t.Fatalf("clean exit response has no elapsed_ms: %#v", body)
 	}
 }
 
@@ -120,6 +156,15 @@ func TestA2AExitNonzeroFails(t *testing.T) {
 	response := callA2AFixture(t, srv, exitFixturePrefix+"exit_nonzero")
 	if state := a2aTaskState(t, response); state != "failed" {
 		t.Fatalf("task state = %q, want failed: %#v", state, response)
+	}
+	// The state alone is NOT enough. Every failure mode reaches "failed" —
+	// including one where exit() never ran at all, e.g. the effect layer
+	// refusing the call for a missing IO capability. Asserting the message
+	// is what makes this arm depend on the mechanism under test: with the
+	// grant in newExitHandlerTestServer removed, the state check still
+	// passes and only this check fails.
+	if msg := a2aTaskMessage(t, response); msg != "program called exit(1)" {
+		t.Fatalf("task message = %q, want unchanged exit(1) message: %#v", msg, response)
 	}
 }
 
