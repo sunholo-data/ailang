@@ -229,7 +229,7 @@ func (s *Server) handleA2ATaskSend(w http.ResponseWriter, req *a2aRequest) {
 		taskID = fmt.Sprintf("task-%d", time.Now().UnixNano())
 	}
 
-	if callErr != nil {
+	if callErr != nil && !isCleanExit(callErr) {
 		a2aResult(w, req.ID, map[string]any{
 			"id":     taskID,
 			"status": map[string]any{"state": "failed", "message": callErr.Error()},
@@ -237,13 +237,17 @@ func (s *Server) handleA2ATaskSend(w http.ResponseWriter, req *a2aRequest) {
 		return
 	}
 
-	goResult, err := embed.ToGo(result)
-	if err != nil {
-		a2aResult(w, req.ID, map[string]any{
-			"id":     taskID,
-			"status": map[string]any{"state": "failed", "message": "result conversion: " + err.Error()},
-		})
-		return
+	var goResult any
+	if callErr == nil {
+		var err error
+		goResult, err = embed.ToGo(result)
+		if err != nil {
+			a2aResult(w, req.ID, map[string]any{
+				"id":     taskID,
+				"status": map[string]any{"state": "failed", "message": "result conversion: " + err.Error()},
+			})
+			return
+		}
 	}
 
 	resultJSON, _ := json.Marshal(goResult)
