@@ -2095,6 +2095,45 @@ listings; a path-filtered workflow with no run is **N/A, record it as such — n
 Actions skips `pull_request` workflows it cannot build a test-merge for (they never complete).
 A poll that waits on a check that cannot complete is an unbounded wait wearing a deadline.
 
+**AND CHECK `mergeable` BEFORE YOU REACH FOR ANY DROPPED-EVENT LEVER — MISSING RUNS ON A PR ARE A
+CONFLICT UNTIL PROVEN OTHERWISE, AND THIS FILE NOW ARGUES LOUDLY FOR THE RARE EXPLANATION WHILE THE
+COMMON ONE IS HALF A LINE** (added 2026-08-14 V1 iteration 198; instance 1 is iteration 30's
+35-minute cap above, and this is instance 2 — but the *mechanism* is new, which is why it earns its
+own note rather than a louder restatement of clause (b)). Clause (b) is correct and it is one
+sub-clause of one sentence. Since then this gate has grown three multi-paragraph blocks on dropped
+webhook deliveries — the `checks=0` zero-run rule, the all-40-characters rule, and the
+`workflow_dispatch`-is-only-half-a-lever rule — and `workflow_dispatch` now appears **6** times in
+this file against **one** operative mention of `CONFLICTING`. A controller who has just read this
+gate top-to-bottom has been handed a vivid, recent, heavily-evidenced story about GitHub silently
+eating events, and a passing mention of the boring answer. **Prominence is not evidence**, but it
+is what you reach for first.
+Measured here, and the shape is worth more than the incident: a PR head showed `checks=1`
+(`automerge/skipped`) with **1** of **5** expected workflow runs, the provider's status API read
+*All Systems Operational*, and repo-wide run creation was demonstrably healthy — three `push` runs
+for a sibling's commits appeared in the same window. Every one of those observations is *consistent
+with* a dropped `pull_request` delivery, and the controller spent ~15 minutes assembling exactly
+that diagnosis, right up to selecting the tree-identical-empty-commit lever. One command refuted it:
+`gh pr view --json mergeable` → **`CONFLICTING`/`DIRTY`**, from a three-commit sibling merge to
+`dev` that touched **one** file in common (a changelog). Rebase, force-push, and all **5** runs
+appeared within 25 seconds. This is rule 3d in its purest form — the evidence arrived in exactly the
+direction the loudest rule predicted, so nothing prompted a negative control — and note that the
+partial delivery is what sells it: `pull_request_target` fired while `pull_request` did not, which
+reads as *selective* event loss and is in fact just Actions declining to build a test-merge.
+**Rule.** On a PR, before diagnosing anything as a dropped event and before firing `workflow_dispatch`
+or an empty commit, read `mergeable`/`mergeStateStatus` — it is one call, it is authoritative, and
+`CONFLICTING` explains missing `pull_request` runs completely. Order matters, not just inclusion:
+put it FIRST, because the dropped-event levers are expensive and mutate the PR, while this is a
+read. Two corollaries. **(a)** `MERGEABLE`/`UNKNOWN` is not a clearance — GitHub computes
+mergeability asynchronously and answers `UNKNOWN` while it does; poll until it resolves rather than
+banking the first non-`CONFLICTING` reading (this iteration saw `UNKNOWN UNKNOWN` before the truth).
+**(b)** The rare explanation stays rare *even after you have personally seen it once*: iteration 196
+met a genuine dropped push event, wrote it up at length two iterations before this one, and that
+write-up is precisely what made the wrong hypothesis feel earned. **Mission-independent, and the
+generalisable half is about this file rather than about `gh`: when a gate accumulates a long, vivid
+war story about an uncommon cause, the common cause needs re-promoting, or the documentation itself
+becomes the bias.** The tell: you are about to explain missing CI runs with an infrastructure
+failure, and you have not yet run the one-line check for the boring one.
+
 ## Gate 4 — RECORD (append-only; the log is the mission's memory)
 
 **FIRST: overwrite `design_docs/mission-dashboard.md`** (Mark 2026-08-04: the 30-second
