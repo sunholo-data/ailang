@@ -10490,3 +10490,149 @@ pre-fix behaviour on that path was a host crash.
 
 **Next**: `#692` (batch drops `Debug` output), then `#706` and `#703`, both unowned and now both
 carrying queue rows. `#610` stays infra-gated. Parked on Mark: `D-1`–`D-16`, all on `#635`.
+
+## 199 — 2026-08-14 — Iteration 198: `#698` part 1 landed at the ratified scope, and a merge conflict wore a dropped webhook event's clothes
+
+**Pick — not the queue head, and that was correct.** `D-15` was answered attended this morning and
+charter-stamped at `bad8f3647`: opt-in remote read reaches the `Backend`-shaped `chains` view
+commands only, `eval-*` errors loudly on `--remote`. An answer to a parked item unparks it and
+becomes the pick, so `#698` part 1 M4 outranked `#692`. M4 had shipped **DECISION-GATED with no
+acceptance criteria by design** — the plan says writing them before the scope is chosen is how the
+last ratified item went missing.
+
+**Ghost discipline at HEAD.** `--remote` genuinely absent: `grep -rn '"remote"' cmd/ailang/` returns
+one hit and it is a `git remote get-url` argument, with the same-path control (`--cloud`, defined at
+`chains_post.go:88`) firing. Freshness swept from the plan's own declared base `644cf178a` (rule
+3b(vi-b) — sweep from the OLDEST base): 27 non-doc files changed, control 32 including docs, and
+**none** touches `chains*.go` bar one test file, `store_chains.go`, or `observatory_chains.go`.
+
+**Quorum skipped, flagged as a controller judgment.** The design's freeze items were ratified by
+Mark personally and this pick implements the narrowing he ruled. Re-quorumming a human ruling is
+re-litigation, not a gate — same basis iteration 195 used on this doc.
+
+**The planner refuted six inherited claims, two of them mine, and I re-verified all six before
+routing.** "~20 chains-family call sites" → **17**, of which **13** swappable. "15 helpers / 16
+edits" → **12** signatures in three files (5/5/2); the rest are the out-of-scope `observatory_*`
+family and one type assertion that must stay concrete. **Discovery #5's "a clean remote/local
+boundary exists" — refuted, because it grepped only `DB()`**: `Store()` is a second escape hatch and
+is also not on `Backend` (4 non-test hits including `chains_stats_cvs.go:62`; control — `Store()` in
+`backend.go` → 0 against `GetChain(` → 1), so `chains stats --cost-per-verified-success` cannot go
+remote. "All widened helpers call only `Backend` methods" → `GetChainJourney`
+(`backend_sqlite.go:457`) and `GetTaskSpanSummary` (`:403`) are `*SQLiteBackend`-only, so two more
+commands join the refusal set. "~230 LOC / ~4h" → **~400 LOC / ~7h**. And the plan's `48.4s`
+`cmd/ailang` baseline does not reproduce (**21.7s**) — restated as rc, since time is not a criterion.
+
+**And it found a defect M4 itself would have created.** Firestore `GetMissionRollups` returns
+`nil, nil` — the only such stub in that file (control: 26 methods) — inert only while nothing could
+reach it remotely. The moment `chains stats --by-mission` accepted `--remote gcp` it would print
+"no missions" for a store it never queried. That is a Critical Principle 2 violation the milestone
+would have opened, so the milestone closes it (T6). It was not in the option table at all.
+
+**Executor deviation, self-reported, adjudicated by measurement (rule 3h).** codex found that
+`chains find --task` cannot compile against `observatory.Backend`, added a narrow type-assertion
+seam that **errors** rather than silently reading local, and said so — reaching the planner's
+refutation #4 independently. Run B replaced it with the real `D-15` refusal. It also reported a
+**first M4-2 mutation attempt that BSD `sed` silently no-op'd** (sha UNCHANGED, so its rc=0 was
+meaningless) and discarded it rather than banking it — the mutation-LANDED discipline working
+unprompted, in the executor rather than in the controller.
+
+**Controller re-ran every gate outside the sandbox.** Mandatory: the diff touches `cmd/*`, and the
+executor honestly labelled two package-wide runs `UNINFORMATIVE UNDER SANDBOX` on loopback-bind
+denials. Outside it: `go test ./... -count=1` rc=0, **109 ok / 0 FAIL**; vet rc=0; `gofmt -l` empty;
+and 11 gates **derived from `ci.yml`** rather than recalled (rule 3g) all rc=0. Behavioural check on
+the **built binary** rather than a reconstruction (rule 3k): `eval-paired --remote gcp` rc=1 with the
+`D-15` text, `chains live --remote gcp` rc=1, and both positive controls holding — `chains list`
+rc=0 with real rows, `eval-paired` without `--remote` carrying zero `D-15` mentions. All 4 refusal
+call sites asserted to reach the single helper and the eval guard asserted wired at `main.go:101`,
+because guard-the-helper-miss-the-call-site is this repo's named recurring shape.
+
+**Evaluator sonnet PASS 88/100, one BLOCKING, and it was mine.** Two new arms exercised the LOCAL
+branch without isolating `$HOME`, so they read the developer's real `~/.ailang/state` and
+red-lighted `Build macos-latest`. The judge reproduced it independently before finding my fix.
+Measured with the control in the same breath: `HOME=$(mktemp -d)` → rc=1 with CI's exact message,
+real HOME → rc=0. Fixed with `hermeticLocalObservatory`, reusing **iteration 195's** `setHomeDir`
+(which sets `HOME`, `USERPROFILE` and `home`) rather than a bare `t.Setenv`. **The axis is a sibling
+of the recorded one, not the same one**: 195's finding was that the env var NAME differs per
+PLATFORM; this is that its VALUE differs per MACHINE. My PR body's platform caveat named only
+windows and ubuntu, so reading it strictly would still have missed this.
+
+**The judge also found a real bypass, fixed in-iteration.** Go's `flag` package treats `-remote` and
+`--remote` as the same flag, so the single-dash spelling fell through to the subcommand's own
+FlagSet and died with a generic `flag provided but not defined` — losing the `D-15` text. That text
+IS the mechanism: the ruling chose `view` over `eval` precisely so that wanting remote eval read
+produces a dated, attributable signal. Pinned by an all-four-spellings arm **plus an over-match
+control** (`--remotely`, `--baseline`, `--`, `remote`, `-`), because a normalizer that refused
+everything would satisfy the first test perfectly. Drill: mutant LANDED (`8865c9b8`→`bf1f9c7e`) and
+BUILDS, new test reds, and the **inverse arm** — same mutant with the new test `-skip`ped → rc=0,
+0 FAIL — proves it is the killer rather than a bystander. ⚠ An earlier run of that drill was cut off
+by a tool timeout **while the mutant was applied**; restored from the `cp` backup and byte-identity
+asserted before anything else ran. Recorded because a half-finished mutation drill is exactly how a
+mutant reaches a commit.
+
+**The headline mistake, and it is this loop's own documentation biting back.** The PR's
+`pull_request` runs never appeared: `checks=1`, **1** of **5** expected runs, githubstatus reading
+*All Systems Operational*, repo-wide run creation demonstrably healthy, and `pull_request_target`
+firing while `pull_request` did not — which reads as *selective* event loss. I spent ~15 minutes
+assembling the dropped-event diagnosis, up to selecting the tree-identical-empty-commit lever,
+because iteration 196 met a genuine dropped push event and wrote it up at length **two iterations
+ago**. One command refuted it: `gh pr view --json mergeable` → **`CONFLICTING`/`DIRTY`**, from a
+three-commit sibling merge to `dev` sharing exactly one file (a changelog). Rebase, force-push, all
+5 runs inside 25 seconds. Rule 3d in its purest form — the evidence arrived in the direction the
+loudest rule predicted, so nothing prompted a negative control.
+
+**`D-16` used for the first time, twice, with both conditions measured.** 0-ahead each time, and the
+dirty∩incoming intersection **empty** with the control firing at 10 and then 23; dirty files
+asserted byte-identical after each merge. **The skill drift that ran 7–9 commits deep across
+iterations 195–197 is CLOSED**, so this iteration's Gate-5 edit is live for every mission
+immediately rather than landing in a tree nobody executes.
+
+**Two process defects of my own.** First, I ran the **evaluator in the same worktree** the controller
+was still verifying in, so its in-flight mutation of `chains_tree.go` surfaced in my gate run as a
+transient FAIL I nearly attributed to the code — caught by re-reading the file against HEAD, and
+independently flagged by the judge in its own report. A judge doing mutation drills needs its OWN
+worktree; until that lands, never `git add -A` while one is running (I staged named files instead).
+Second, `ailang messages ack --all` marked **my own outbound** cross-mission message read; unacked
+and asserted back to `unread` — the exact trap the standing memory records.
+
+**Routing evidence**: controller **opus** (session default); planner **opus** — lane DERIVED, not
+assumed, `derive-planner-lane.sh` → `opus fail-closed:planner-lane-field-missing` used VERBATIM, so
+no codex planner probe was made; executor **codex `gpt-5.6-sol`** across two bounded runs (probe
+rc=0); evaluator **sonnet** (generator≠judge: OpenAI author, Anthropic judge). No designer fired —
+the doc existed and the scope was human-ruled. `metered=$0.00`: codex rides the OAuth bucket and no
+OpenRouter or quorum lane fired.
+
+**Gate 3b**: PR [#710](https://github.com/sunholo-data/ailang/pull/710) → squash `4942362f4`.
+SHA-addressed **21** checks, `pending=0`, **zero** NOT-GREEN, **4/4** REQUIRED (`test` 18m14s,
+`build`, `lint`, `docs-gate`), `mergeable=MERGEABLE state=CLEAN`. The count climbed
+**15→16→17→19→20→21** during the poll, so `pending=0` was **required, not inferred**; the platform
+legs are named rather than assumed (rule 3b(viii)) — `test-windows`, `Build windows-latest`,
+`Build ubuntu-latest`, `Build macos-latest` ×2, all `success`.
+
+**Bookkeeping**: `#709` (new nightly alarm, `config_file_parser`) triaged, verdict posted via
+`--body-file` with the comment count asserted **0→1**. NOT a fresh break by the bot's own numbers
+(`prior window 1/10 over 5 nights`), so it does not outrank the queue; NOT closed either, since the
+gap is real — queued as capability triage, with the vanished results directory named explicitly as
+what was *not* measured.
+
+**Ruled out by measurement**: *"the missing CI runs are a dropped webhook event"* — refuted, it was
+a merge conflict; *"`--remote` already exists"* — refuted, absent with the control firing;
+*"~230 LOC / ~4h"* — refuted at ~400/~7h; *"a clean remote/local boundary exists"* — refuted,
+`Store()` is a second escape hatch; *"the transient `chains_tree.go` FAIL is real drift"* — refuted,
+it was my own evaluator mid-mutation, restored and byte-identical to HEAD; *"World's iter-83
+'measure the remedy' rule is in the skill"* — **refuted, it was never adopted** (0 hits, controls
+firing at 1/4/4), so their iteration-84 proposal to *append* to it had nothing to attach to.
+
+**Gate 5 — skill edit**: Gate 3b now reads `mergeable` **FIRST**, before any dropped-event lever,
+with the ordering argued rather than merely listed (the levers mutate the PR; this is a read). Two
+frictions: iteration 30's 35-minute cap, and this iteration. The generalisable half is about the
+file rather than about `gh` — when a gate accumulates a long vivid war story about an uncommon
+cause, the common cause needs re-promoting, or the documentation itself becomes the bias.
+
+**Cross-mission**: told `mission-world`, with the measurement and controls, that its iteration-83
+rule was never adopted here — so its iteration-84 append needs to become the whole rule. It is V1's
+standing top Gate-5 candidate for iteration 199, credited to World's two instances rather than
+silently re-derived.
+
+**Next**: `#692` (batch drops `Debug` output), then `#706` (direction settled by `D-17`) and `#703`,
+all unowned. `#610` stays infra-gated. `#698` is now fully landed and can be closed. Parked on Mark:
+`D-1`–`D-14`; `D-15`/`D-16`/`D-17` all discharged today.
