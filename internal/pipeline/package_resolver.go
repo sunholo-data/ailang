@@ -1,8 +1,10 @@
 package pipeline
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
@@ -25,21 +27,25 @@ var currentModulePrefixMap map[string]string
 var currentRootPkgName string
 
 // tryLoadPackageResolver attempts to set up a package resolver from
-// ailang.toml + ailang.lock in the given directory. Returns nil if
-// no package manifest exists (backward compatible — bare projects work unchanged).
-func tryLoadPackageResolver(dir string) loader.PackageResolver {
+// ailang.toml + ailang.lock in the given directory. Returns (nil, nil) if no
+// package manifest exists (backward compatible — bare projects work unchanged).
+func tryLoadPackageResolver(dir string) (loader.PackageResolver, error) {
 	// Check if ailang.toml exists
 	manifestDir := pkg.FindManifest(dir)
 	if manifestDir == "" {
 		currentPackageManifest = nil
-		return nil // No package manifest — use legacy module resolution
+		currentModulePrefixMap = nil
+		currentRootPkgName = ""
+		return nil, nil // No package manifest — use legacy module resolution
 	}
 
 	// Load manifest for effect ceiling checks
 	manifest, err := pkg.LoadManifest(manifestDir)
 	if err != nil {
 		currentPackageManifest = nil
-		return nil
+		currentModulePrefixMap = nil
+		currentRootPkgName = ""
+		return nil, fmt.Errorf("cannot load package manifest %s: %w", filepath.Join(manifestDir, pkg.ManifestFile), err)
 	}
 	currentPackageManifest = manifest
 	currentRootPkgName = manifest.Package.Name
@@ -53,7 +59,10 @@ func tryLoadPackageResolver(dir string) loader.PackageResolver {
 	// Load lock file
 	lf, err := pkg.LoadLockFile(manifestDir)
 	if err != nil {
-		return nil // No lock file or invalid — skip package resolution
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil // Lock files are optional while authoring a package.
+		}
+		return nil, fmt.Errorf("cannot load package lock file %s: %w", filepath.Join(manifestDir, pkg.LockFileName), err)
 	}
 
 	// Validate content hashes — detect stale lock files
@@ -71,7 +80,7 @@ func tryLoadPackageResolver(dir string) loader.PackageResolver {
 		}
 	}
 
-	return pkgLoader
+	return pkgLoader, nil
 }
 
 // loadDepManifest loads a dependency's manifest via the package loader.

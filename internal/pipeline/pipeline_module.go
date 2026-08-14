@@ -100,7 +100,15 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	// cfg.PackageDir overrides "." so callers (e.g. the named-test harness)
 	// can resolve package manifests relative to the source file rather than CWD.
 	pkgSearchDir := loaderBaseDir
-	pkgResolver := tryLoadPackageResolver(pkgSearchDir)
+	pkgResolver, err := tryLoadPackageResolver(pkgSearchDir)
+	if err != nil {
+		loadErr := fmt.Errorf("package resolution setup failed: %w", err)
+		loadSpan.RecordError(loadErr)
+		loadSpan.SetStatus(codes.Error, "package resolution setup failed")
+		loadSpan.End()
+		pipelineSpan.RecordError(loadErr)
+		return result, loadErr
+	}
 	if pkgResolver == nil {
 		pkgResolver = tryLoadSelfOnlyPackageResolver(pkgSearchDir)
 	}
