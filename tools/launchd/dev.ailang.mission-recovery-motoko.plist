@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  dev.ailang.mission-recovery-motoko.plist — the motoko sibling of the v1 recovery job.
+
+  mission-recovery.sh has been mission-parameterized since it was written (every path
+  derives from MISSION_NAME), but only ONE instance was ever installed and it is pinned
+  to MISSION_NAME=v1. So motoko's .blocked marker had nothing watching it: measured
+  2026-08-14, ~/.ailang/state/mission-motoko.blocked sat untouched for 7+ hours while
+  the recovery log showed an unbroken run of "mission v1 blocked" lines.
+
+  Recovery matters MORE here than for v1, not less. mission-motoko's StartInterval is
+  43200s (12h) against v1's 5400s (90m), so one refused fire costs a full half-day and
+  the loop silently halves its own cadence. Observed: of the six fires from 08-12 to
+  08-14, three refused on probe timeouts — 08-13 00:13, 08-14 01:07 (and 08-12 09:13 on
+  the trust dialog). The probe stall itself is transient and fleet-wide, not a motoko
+  fault: v1 hit the identical empty-output timeout at 05:34 on 08-14 and was green by
+  05:54 — because something kickstarted it.
+
+  Cheap by construction, exactly as the v1 job: it does NOT call the API. It reads
+  marker files and issues launchctl kickstart; the driver's own probes decide whether
+  to proceed, and a failed retry spends zero tokens.
+
+  Installation:
+    cp tools/launchd/dev.ailang.mission-recovery-motoko.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/dev.ailang.mission-recovery-motoko.plist
+
+  Kill switches (both survive reboots, no unload needed):
+    touch ~/.ailang/state/mission-motoko.disabled    # motoko only — mission AND its recovery
+    touch ~/.ailang/state/mission-recovery.disabled  # SHARED: silences v1 recovery too
+
+  Note the second one is shared with the v1 job by design (the script's SELF_KILL_SWITCH
+  is not namespaced). To stop only this loop, use the mission's own switch.
+
+  Logs: /tmp/ailang-mission-recovery.log (shared with v1; lines carry the mission name)
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.ailang.mission-recovery-motoko</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/voightkampff/dev/sunholo-data/ailang-motoko/tools/launchd/mission-recovery.sh</string>
+    </array>
+
+    <!-- 4 min, matching v1. The script is a few file stats unless the loop is blocked,
+         so the poll is effectively free; the real pacing is the 20-min cooldown inside. -->
+    <key>StartInterval</key>
+    <integer>240</integer>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/voightkampff/go/bin:/Users/voightkampff/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>MISSION_NAME</key>
+        <string>motoko</string>
+    </dict>
+
+    <!-- Deliberately NOT RunAtLoad: a login/reboot should not immediately kickstart
+         a mission iteration. The first poll happens 4 min in. -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/ailang-mission-recovery-motoko.stdout</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/ailang-mission-recovery-motoko.stderr</string>
+</dict>
+</plist>
