@@ -571,7 +571,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			stdoutBuf.Flush()
 
 			// Flush Debug ghost effect output to stderr
-			flushDebugOutput(effCtx)
+			flushDebugOutput(effCtx, "")
 
 			// M-TRACE-EXPORT: Record module end with duration
 			if effCtx.Trace != nil && effCtx.Trace.Enabled() {
