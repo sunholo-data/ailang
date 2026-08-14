@@ -1240,6 +1240,43 @@ the Repo Profile above):
    sampling), record the residual explicitly in the code and the AC rather than letting arm-count
    arithmetic imply coverage; a named gap is cheap, an assumed one is not. The tell: a test-plan row
    says "kills X" and you are about to accept it because the test is green.
+   **AND THE OBSERVABLE CAN BE DOWNSTREAM OF THE MECHANISM AND *STILL* NOT DISCRIMINATE IT — ASK NOT
+   ONLY "WHICH WRITE DOES THIS READ?" BUT "WHAT ELSE WRITES THIS VALUE?"** (added 2026-08-14 V1
+   iteration 200 at the ≥2-friction bar iteration 199 pre-registered; instance 1 was 199's
+   absence-only assertion, instance 2 is this iteration's over-subscribed enum). The rule above
+   catches an observable set *alongside* the mechanism. It does not catch one the mechanism really
+   does write — where **other mechanisms write the same value**, so the assertion passes for any of
+   them. Both instances shipped green, both sat inside otherwise-careful mutation drills, and in
+   both the sibling rows redded convincingly enough that the drill looked like it had worked.
+   Instance 1 was the pure form: an assertion that a below-threshold log line is **ABSENT**, which
+   "the filter suppressed it" and "nothing was ever emitted" satisfy equally. Instance 2 is the form
+   that will fool you *after* you have learned instance 1, because it asserts a **present, specific
+   value**: `TestA2AExitNonzeroFails` required the A2A task state to be `"failed"`. It is a
+   three-value enum, and **every** failure mode reaches `"failed"` — including one where the code
+   under test never executed. Measured by neutering the test's own precondition (the IO capability
+   grant, without which the effect layer refuses before `exit()` is ever entered): **5 of the 6
+   exit arms correctly failed and that one PASSED**. The production fix was correct throughout; the
+   test certifying it was hollow. Note how little the two surfaces resemble each other — an absence
+   and a named string constant — and that the underlying defect is identical: **the observable's
+   value set is larger than the mechanism's**.
+   **The drill, and it is cheap enough to run on every arm you are unsure of: neuter the test's
+   PRECONDITION, not the production code, and require the arm to die.** Every mutation rule in this
+   skill mutates the thing under test; this one mutates the *setup* — the capability grant, the
+   fixture load, the seeded row, the injected clock — i.e. whatever must hold for the mechanism to
+   run at all. An arm that survives its own precondition being removed is not testing the mechanism.
+   Run it over the whole arm set in one call, because the informative output is the **split**: the
+   arms that die are the honest ones, and the survivors name themselves. Concretely: **(a)** for
+   each assertion, enumerate what else in the system can produce that exact value — an error path, a
+   default, a zero value, a shared enum branch, a timeout; **(b)** prefer an observable whose value
+   is *unique* to the mechanism (the message text, not the status enum; the computed value, not the
+   fact that something was written); **(c)** where the discriminating observable is unavoidably
+   coarse, pair it with a second assertion that is fine-grained, exactly as the routes/MCP siblings
+   here asserted the message and the a2a arm did not; **(d)** apply this to POSITIVE CONTROLS too,
+   which is where iteration 200 also got caught — its control fixture (`main() -> int = 42`) needed
+   no capability, so it passed with or without the grant and never proved what it was cited for. A
+   control that cannot fail is not a control, and a green suite hides that fact perfectly. The tell:
+   your assertion compares against an enum member, a boolean, a status class, or an absence — rather
+   than against a value only this code path could have produced.
 3j. **WHEN A MILESTONE'S DELIVERABLE IS A REFUSAL, THE UNIT OF MUTATION IS THE *BRANCH*, NOT THE
    MILESTONE — AND A ONE-SHOT ACCEPTANCE COMMAND IS NOT A GUARD** (added 2026-08-08 iteration 164;
    proposed by `mission-world` iter-63 with three first-party instances, corroborated here on V1's

@@ -10754,3 +10754,111 @@ vacuous green on a security gate). Both unowned and unblocked. `#610` stays infr
 blocked on `D-1`. Parked on Mark: `D-1`–`D-14`. Still owed from iteration 198: the evaluator ran
 in the controller's worktree again — no harm this time because it backed up and restored by `cp`,
 but that is luck rather than design, and a judge doing mutation drills wants its own tree.
+
+## 201 — 2026-08-14 — Iteration 200: the arm asserted a state that every failure reaches, and one of those failures is "the code never ran"
+
+**Pick — the queue head, and the ghost check paid for itself in the first five minutes.** `#706`:
+`exit(0)` inside a serve-api / A2A / MCP handler returned a hard failure. The issue's evidence was
+a grep plus a table, so I reproduced it live at `66abbc660` on the built binary. The first attempt
+was **wrong in a way that would have read as a success**: I omitted `--caps IO`, and *both* arms
+returned 500 — the control for an unrelated capability reason, the subject for the same one. Had I
+run only the subject, I would have recorded a clean reproduction of a bug I had not exercised. With
+the grant: unit-return route **200**, `exit(0)` route **500** `{"error":"program called exit(0)"}`,
+host **ALIVE** in both — so this is `#691`'s incomplete half, not a regression. That accident is
+what put the IO-grant trap at the top of the executor directive, and it is the same trap the judge
+later used to break the sprint's own weakest test.
+
+**Direction was not mine to choose.** Mark ratified `D-17` this morning: `exit(0)` from a handler is
+a success, non-zero stays an error unchanged, `internal/embed/` untouched. So the one-word contract
+call the queue row asked for was already answered, and the iteration spent nothing deciding it.
+
+**Shape decided before routing**: one `isCleanExit` classifier **plus a separate branch at each of
+the three call sites**. A helper-only fix would have been the fourth instance of the exact shape
+that produced this chain — `#607` → `#691` → `#706` — each one a guard added where the author was
+looking and missed where they were not.
+
+**THE FINDING.** The evaluator (sonnet, its own worktree, 90/100 PASS) filed one BLOCKING issue and
+it is the whole value of this iteration. `TestA2AExitNonzeroFails` asserted only that the A2A task
+state was `"failed"`. Every failure mode reaches `"failed"` — including one where `exit()` never ran
+at all. Reproduced first-party before acting on it, by neutering the IO grant: **5 of the 6 exit
+arms correctly failed, and that one PASSED**. The production code was fine; the test proving it was
+hollow.
+
+This is **instance 2** of the gap iteration 199 pre-registered as a watch-item, and it arrived one
+iteration later wearing different clothes, which is what makes it worth a rule. Iteration 199's was
+a pure **absence** ("the below-threshold line does not appear"). This one asserts a **present
+value** — but from a three-value enum whose "failed" branch is **over-subscribed**: many mechanisms
+write it, only one of which is the mechanism under test. Different surface, identical defect: *the
+observable does not discriminate*. Rule 3i already asks "which write does this read?" and would
+have caught both, and neither executor nor the first-round drill asked it, because in both cases
+the test was green and its sibling rows redded convincingly.
+
+**It also refuted my own commit message**, which is the loop working. I had written that without the
+IO grant "every arm would pass for the wrong reason". Only **one** did. And the positive control
+never proved what I claimed for it: `no_exit.ail` is `main() -> int = 42`, with **no IO effect**, so
+it passes with or without the grant. What actually proves the grant took — now, after the fix — is
+that all six exit arms fail without it. I had asserted a property of the control I never measured;
+the judge measured it.
+
+**Executor deviation, adjudicated by measurement (rule 3h), and the plan was what was wrong.** codex
+could not satisfy the directive's `go build ./...` gate. It was right: that command is **rc=1 on
+pristine `origin/dev`** (`cmd/wasm`: `function main is undeclared in the main package`), verified by
+me at base. My directive shipped an acceptance criterion that was **already red before any code
+changed** — rule 3e(a) exists for precisely this and I did not baseline it. codex reported the
+failure rather than papering over it or blaming the sprint, which is exactly the deviation behaviour
+rule 3h(d) says to treat as better evidence than silence. The substitute evidence it offered is
+also sound and the judge independently confirmed it: a mutant that produces a populated runtime JSON
+body has demonstrably compiled, which is a stronger claim than a build flag.
+
+**An executor design call I did not ask for, and it was correct.** On a clean exit the engine returns
+a nil value, so codex guarded `embed.ToGo(result)` behind `if callErr == nil` in a2a/mcp. `ToGo` maps
+`UnitValue` → `nil`, so the clean-exit response body is shape-identical to a unit return — traced,
+not assumed. The judge went further and showed the guard is provably *redundant* (`ToGo(nil)`
+short-circuits to `(nil, nil)`), harmless rather than masking.
+
+**Gate 3b GREEN**: PR [#714](https://github.com/sunholo-data/ailang/pull/714) → squash `1c7fa675b`.
+**20** contexts, **15 pass / 5 skipped / zero failures**, `pending=0`, **4/4 REQUIRED**,
+`MERGEABLE CLEAN`, all three platform legs plus `test-windows` green.
+
+**Instrument note, recorded so a future poll does not misread it.** Mid-poll, `gh api …/check-runs`
+piped to shell `jq` began failing `Invalid string: control characters from U+0000 through U+001F`
+for ~13 consecutive rounds — some check's output carried raw control bytes. My poll printed
+`checks= pending=` and, had it not been written to distinguish an empty reading from a verdict, that
+would have satisfied a naive `pending == 0` test. `gh api --jq` read the same endpoint fine (**21**).
+So: shell-side `jq` is the fragile link, `gh --jq` is not, and an empty `checks=` is INSTRUMENT
+ERROR, never green.
+
+**Bookkeeping**: `Fixes #706` auto-closed the issue at merge, so `gh issue close --comment` would
+have been the documented silent no-op. Verdict posted FIRST via `--body-file`, delivery asserted by
+comment count **0→1**. `D-16` exercised: main checkout ff-merged 1 commit with both obligations
+measured — 0 ahead, `comm -12` of incoming-vs-dirty **empty** with a firing self-intersection control
+(**6**) — dirty benchmark JSONs sha256-identical after, and the running skill re-confirmed
+`cmp`-identical to `origin/dev`.
+
+**Inbox — 6 triaged, one entered the queue on its own evidence.** `email-parse` reported that
+`ailang install` on an already-declared dependency corrupts `ailang.toml`. Ghost discipline: the
+first repro attempt **failed to reproduce** because my hand-written manifest was invalid, so
+`install` silently took its not-a-package branch — an uninformative negative I nearly recorded as a
+refutation. Regenerating with `ailang init package` reproduced it exactly: a second install yields a
+**duplicate TOML key** and `ailang lock` rc=1. Two sibling helpers share the defect across four call
+sites — the guard-the-helper shape again. Queued as `[email-parse-DEMAND]`. `mission-world`'s
+`#712`/`#713` filings acknowledged, not outranking.
+
+**Ruled out by measurement**: *"`ailang lock` silently passes on a corrupted manifest"* — REFUTED,
+it is rc=1 and names the real TOML parse error. My own first reading said rc=0, and that was
+`tail`'s status through a pipe — the exact trap the verification protocol's step 3 exists for,
+sprung on the person who was checking someone else's report for exactly this class. *"the mutants
+did not build"* — refuted, semantic runtime failures prove compilation. *"the positive control
+proves the IO grant took"* — refuted, the control fixture has no IO effect.
+
+**Gate 5 — skill edit taken (rule 3i), at the bar iteration 199 pre-registered.** Instance 1 was
+199's absence-only assertion; instance 2 is this iteration's over-subscribed enum value. Both were
+green, both survived a check that looked like a mutation drill, and both were caught only by asking
+what *else* could produce the observable. The edit generalises 199's proposed wording from
+"absence" to the real class — an assertion whose observable is reachable by mechanisms other than
+the one under test — and names the cheap universal drill: neuter the test's own *precondition* and
+require the arm to die.
+
+**Next**: `#703` (`govulncheck-filter` drops module-level findings — a vacuous green on a security
+gate, P1 gate-integrity), then the new `[email-parse-DEMAND]` install/upsert row. `#610` stays
+infra-gated, `#613` blocked on `D-1`. Parked on Mark: `D-1`–`D-14`, nothing newly blocking.
