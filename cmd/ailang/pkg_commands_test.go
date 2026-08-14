@@ -446,3 +446,51 @@ func TestWriteManifestChecked_RollsBackACorruptingWrite(t *testing.T) {
 		t.Errorf("file was not restored\nwant:\n%s\ngot:\n%s", before, got)
 	}
 }
+
+// Killing mutation: replace pkg.ParseManifestFile with pkg.LoadManifest in writeManifestChecked.
+func TestWriteManifestChecked_ParseabilityNotValidity(t *testing.T) {
+	const withoutEdition = "[package]\nname = \"sunholo/upsert_test\"\nversion = \"0.1.0\"\nnotes = 'contains \"\"\" triple double quotes'\n\n[dependencies]\n\"sunholo/existing\" = \"1.0.0\"\n"
+	const withEdition = "[package]\nname = \"sunholo/upsert_test\"\nversion = \"0.1.0\"\nedition = \"1\"\nnotes = 'contains \"\"\" triple double quotes'\n\n[dependencies]\n\"sunholo/existing\" = \"1.0.0\"\n"
+
+	for _, tc := range []struct {
+		name     string
+		original string
+	}{
+		{name: "validation-invalid missing edition", original: withoutEdition},
+		{name: "validation-valid control", original: withEdition},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeTestManifest(t, dir, tc.original)
+			path := filepath.Join(dir, pkg.ManifestFile)
+			corrupt := tc.original + "\n[dependencies]\n\"sunholo/existing\" = \"2.0.0\"\n"
+
+			err := writeManifestChecked(dir, path, []byte(tc.original), corrupt)
+			if err == nil {
+				t.Fatal("corrupting write was accepted")
+			}
+			if !strings.Contains(err.Error(), "unparseable") {
+				t.Errorf("error does not identify unparseable result: %v", err)
+			}
+			if got := readTestManifest(t, dir); got != tc.original {
+				t.Errorf("file changed despite rollback\nwant:\n%s\ngot:\n%s", tc.original, got)
+			}
+		})
+	}
+}
+
+// Killing mutation: force parsedBefore=true in writeManifestChecked.
+func TestWriteManifestChecked_AllowsWriteOverUnparseableInput(t *testing.T) {
+	dir := t.TempDir()
+	const broken = "[package]\nname = = = broken\n"
+	const replacement = "[package]\nname = = = still-broken\n"
+	writeTestManifest(t, dir, broken)
+	path := filepath.Join(dir, pkg.ManifestFile)
+
+	if err := writeManifestChecked(dir, path, []byte(broken), replacement); err != nil {
+		t.Fatalf("already-unparseable manifest should not hold the write: %v", err)
+	}
+	if got := readTestManifest(t, dir); got != replacement {
+		t.Errorf("write did not land\nwant:\n%s\ngot:\n%s", replacement, got)
+	}
+}

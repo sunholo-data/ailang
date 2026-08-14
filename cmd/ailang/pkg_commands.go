@@ -363,11 +363,13 @@ func openMultilineString(line string) string {
 // writeManifestChecked writes the rewritten manifest, then refuses to leave the
 // file less parseable than it found it. The upsert above is a line scanner over
 // TOML, so its blind spots are open-ended by construction; this bounds them.
-// A manifest that was ALREADY broken is not held against the write — only a
-// manifest this call broke is rolled back.
+// A manifest that did not parse as TOML before the write is not held against
+// the write. The net engages for every parseable manifest, whether or not it
+// passes semantic validation.
 func writeManifestChecked(dir, path string, original []byte, updated string) error {
+	_ = dir
 	parsedBefore := true
-	if _, err := pkg.LoadManifest(dir); err != nil {
+	if err := pkg.ParseManifestFile(path); err != nil {
 		parsedBefore = false
 	}
 	if err := os.WriteFile(path, []byte(updated), 0644); err != nil {
@@ -376,7 +378,7 @@ func writeManifestChecked(dir, path string, original []byte, updated string) err
 	if !parsedBefore {
 		return nil
 	}
-	if _, err := pkg.LoadManifest(dir); err != nil {
+	if err := pkg.ParseManifestFile(path); err != nil {
 		if restoreErr := os.WriteFile(path, original, 0644); restoreErr != nil {
 			return fmt.Errorf("%s became unparseable and could not be restored: %w (restore failed: %v)", path, err, restoreErr)
 		}
