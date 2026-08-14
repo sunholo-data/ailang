@@ -11044,3 +11044,24 @@ no: codex correctly reported it impossible offline and added nothing, and the co
 against the real registry instead, which is the deviation behaviour rule 3h(d) wants.
 
 **Next**: `#720` (the residual scanner gaps, and the parse→mutate→re-serialize decision behind them).
+
+**Gate 5 — retro routing.** Two candidate skill-fixes, both measured as **instance 1**, so
+**no skill edit this iteration** (the ≥2-friction bar). Both pre-registered here so a second
+instance is recognisable rather than re-derived:
+
+1. **Coverage withdrawn by precision.** When a fix REPLACES a permissive mechanism with a precise
+   one, the permissive version's accidental coverage is withdrawn silently, and no test written for
+   the new code can observe it. The missing instrument is *differential*: run old vs new over a
+   corpus of real-world input shapes and require the new one to be no worse on anything the old one
+   handled. Every existing gate in this skill polices the new code against its own claims. The tell:
+   your diff deletes a `Contains`/regex/substring test in favour of an exact one, or narrows any
+   predicate, and your acceptance criteria mention only the behaviour you were trying to add.
+   Measured search for a prior instance: 0 (control `guard the helper` fires at 2, so the grep works).
+
+2. **A control correlated with the thing it checks.** `countDependencyKey` was written to verify the
+   scanner and reimplemented the scanner's own assumptions, so it was blind in exactly the shapes the
+   arms existed to catch — and reported `0` for two correct outputs, briefly indicting a working fix.
+   Distinct from rule 3a(i) (which asks whether a control *fires*) and from iteration 200's clause
+   3i(d) (a control that *cannot fail*): this control fires, can fail, and is wrong in the same
+   direction as the code. The tell: your assertion helper and the code under test would need the
+   same fix. Measured search for a prior instance: 0.
