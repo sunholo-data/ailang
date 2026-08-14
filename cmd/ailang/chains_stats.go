@@ -8,8 +8,6 @@ import (
 	"os"
 	"text/tabwriter"
 	"time"
-
-	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // chainStatsResult holds the aggregated stats
@@ -59,12 +57,17 @@ func chainsStatsCommand() {
 	strict := fs.Bool("strict", false, "Exit non-zero if any stage has unattributable (unknown) cost")
 	costPerVerifiedSuccess := fs.Bool("cost-per-verified-success", false, "Compute the frozen-cohort cost-per-verified-success KPI (M-COST-PER-SUCCESS-KPI)")
 	baseline := fs.String("baseline", "", "Frozen cohort baseline id/source_ref prefix for --cost-per-verified-success (e.g. 'v1.0')")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
 	fs.Parse(flag.Args()[2:])
 
 	// M-COST-PER-SUCCESS-KPI: the headline KPI is its own strict surface. It
 	// reuses the observatory rollup (never recomputes cost) and emits the exact
 	// same struct the HTTP handler and latest.json publisher serialize.
 	if *costPerVerifiedSuccess {
+		if err := refuseRemoteReadForLocalOnlySurface("chains stats --cost-per-verified-success", *remote); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 		chainsStatsCostPerVerifiedSuccess(*baseline, *hours, *jsonOutput, *strict)
 		return
 	}
@@ -75,17 +78,16 @@ func chainsStatsCommand() {
 		if *byMission && prefix == "" {
 			prefix = "mission:"
 		}
-		chainsStatsByMission(prefix, *hours, *jsonOutput, *strict)
+		chainsStatsByMission(prefix, *hours, *jsonOutput, *strict, *remote)
 		return
 	}
 
-	dbPath := observatory.DefaultDatabasePath()
-	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	backend, closeBackend, err := openChainsReadBackend(context.Background(), *remote)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
 		os.Exit(1)
 	}
-	defer backend.Close()
+	defer closeBackend()
 
 	ctx := context.Background()
 

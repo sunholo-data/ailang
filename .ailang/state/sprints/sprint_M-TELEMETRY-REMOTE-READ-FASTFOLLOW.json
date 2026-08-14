@@ -10,15 +10,15 @@
     698
   ],
   "risk_level": "low",
-  "status": "in_progress",
+  "status": "completed",
   "executor_constraints": {
     "no_git_writes": "The executor performs NO git write operations. `git show` and `git cat-file` are reads and are allowed. The controller builds all commits.",
     "no_production_code": "M1, M2 and M3 change tests and state files only. If a test cannot be written without changing production code, report it as a finding rather than changing the code.",
     "build_command": "go build ./internal/observatory/... ./cmd/ailang/... ./internal/storage/...   # NEVER `go build ./...`: rc=1 on the pristine tree (cmd/wasm has no native main)",
-    "shell": "zsh — quote glob-shaped flag values ('*.go', 'TestX'), brace \"${var}:path\", never echo raw bytes, and never read rc through a pipe (`cmd | tail; echo $?` reports tail's status)"
+    "shell": "zsh \u2014 quote glob-shaped flag values ('*.go', 'TestX'), brace \"${var}:path\", never echo raw bytes, and never read rc through a pipe (`cmd | tail; echo $?` reports tail's status)"
   },
   "measured_baselines": {
-    "go_build_all": "rc=1 — cmd/wasm: function main is undeclared in the main package. NOT this sprint's regression.",
+    "go_build_all": "rc=1 \u2014 cmd/wasm: function main is undeclared in the main package. NOT this sprint's regression.",
     "go_build_scoped": "rc=0",
     "go_test_internal_observatory": "rc=0 (2.562s)",
     "go_test_cmd_ailang": "rc=0 (48.403s)",
@@ -30,20 +30,20 @@
   },
   "mutation_discipline": {
     "rule": "A mutation result may only be read after the mutation is asserted LANDED (sha256 differs from the recorded baseline) and BUILDING (package-scoped go build rc=0). Restore from a `cp` backup, never `git checkout`, and assert the restored sha256 is byte-identical.",
-    "neutering_form": "if false && <cond> {  — never delete the branch; the identifiers inside the body must stay referenced so the package still compiles",
+    "neutering_form": "if false && <cond> {  \u2014 never delete the branch; the identifiers inside the body must stay referenced so the package still compiles",
     "line_scoping": "MANDATORY. `if stageID == \"\" {` occurs at BOTH internal/storage/firestore/observatory_chains.go:244 and :375. A global sed mutates the wrong branch and the test passes for the wrong reason."
   },
   "velocity": {
     "target_loc_per_day": 350,
-    "estimated_total_loc": 175,
-    "estimated_days": 0.5,
-    "estimated_hours": 3.75,
-    "note": "Buildable part only (M1+M2+M3). M4 is decision-gated and excluded from every total."
+    "estimated_total_loc": 575,
+    "estimated_days": 1.5,
+    "estimated_hours": 10.75,
+    "note": "M1+M2+M3 = ~175 LOC / ~3.75h, LANDED in #699. M4 = ~400 LOC / ~7h, UNBLOCKED 2026-08-14 by Mark's D-15 = `view` ruling and now included in the totals. The option table's ~230 LOC / ~4h for `view` was re-derived at bad8f3647 and REFUTED (under-scoped ~1.7x) \u2014 see features[3].rederived_at_bad8f3647.estimate_refutation."
   },
   "features": [
     {
       "id": "M1_PINNED_ID_COLLISION_REDS_UNDER_MUTATION",
-      "description": "#698 part 2. Test that forces a real UNIQUE-constraint retry with a PINNED stage id and asserts the id is never silently regenerated. Drives (*Store).CreateStage directly, using the duplicate id TEXT PRIMARY KEY route (deterministic, single-threaded) rather than a flaky stage_number race — both enter the identical retry branch at store_chains.go:333.",
+      "description": "#698 part 2. Test that forces a real UNIQUE-constraint retry with a PINNED stage id and asserts the id is never silently regenerated. Drives (*Store).CreateStage directly, using the duplicate id TEXT PRIMARY KEY route (deterministic, single-threaded) rather than a flaky stage_number race \u2014 both enter the identical retry branch at store_chains.go:333.",
       "estimated_loc": 55,
       "estimated_hours": 1,
       "files": [
@@ -55,7 +55,7 @@
         "MUTATION (the criterion that makes M1 real): with `sed -i '' '334s/if req.ID == \"\" {/if true {/' internal/observatory/store_chains.go` asserted LANDED (sha256 != 54432ddb531082a0160eca2ffe86bb45df8b06563490d7dc5e3bae8dca31b624) and BUILDING (`go build ./internal/observatory/... ./cmd/ailang/...` rc=0), the named test FAILS (rc != 0). Not done => the mutant survives, exactly as it does today.",
         "RESTORE PROOF: after `cp` restore, `shasum -a 256 internal/observatory/store_chains.go` equals the baseline sha byte-for-byte.",
         "NON-PINNED COUNTERPART: an empty req.ID under the same duplicate condition still regenerates and succeeds. Without this arm the guard could be 'fixed' by disabling regeneration entirely and M1 would not notice.",
-        "NO COLLATERAL: `go test ./internal/observatory/... -count=1` rc=0 (baseline rc=0, 2.562s) and TestPostIteration_PinnedIDIsNotSilentlyReplaced still passes — M1 adds coverage, it does not replace a narrow test.",
+        "NO COLLATERAL: `go test ./internal/observatory/... -count=1` rc=0 (baseline rc=0, 2.562s) and TestPostIteration_PinnedIDIsNotSilentlyReplaced still passes \u2014 M1 adds coverage, it does not replace a narrow test.",
         "NO PRODUCTION CODE CHANGED: the diff touches internal/observatory/store_chains_test.go only."
       ],
       "passes": true,
@@ -78,10 +78,10 @@
         "NEW FILE PROOF: `git log --oneline -1 -- internal/storage/firestore/observatory_chains_test.go` is EMPTY at 644cf178a; control: the same command for internal/storage/firestore/cache_test.go is non-empty. After M2 the file exists.",
         "MUTATION 1: cmd/ailang/chains_post.go line 203 `if err != nil {` -> `if false && err != nil {`. LANDED (sha != 04ba78d9eec6a0ac207565f7c16f16069bef0ae944da9b3b264e88d98fdb3a31) + BUILDING (rc=0) => `go test ./cmd/ailang/... -run 'TestCheckRemoteIsElsewhere' -count=1` FAILS.",
         "MUTATION 2: cmd/ailang/chains_post.go line 209 `if filepath.Clean(remoteDir) == filepath.Clean(localDir) {` -> prefixed with `false && `. LANDED + BUILDING => the same -run FAILS.",
-        "MUTATION 3: internal/storage/firestore/observatory_chains.go LINE 375 (NOT 244 — identical text also occurs there) `if stageID == \"\" {` -> prefixed with `false && `. LANDED (sha != 73b7267458975e8379c854ca52c97e89e1b4057851f58fe02a8ac852b4995af8) + BUILDING => `go test ./internal/storage/firestore/... -run 'TestUpdateStageEvalAssessment' -count=1` FAILS.",
+        "MUTATION 3: internal/storage/firestore/observatory_chains.go LINE 375 (NOT 244 \u2014 identical text also occurs there) `if stageID == \"\" {` -> prefixed with `false && `. LANDED (sha != 73b7267458975e8379c854ca52c97e89e1b4057851f58fe02a8ac852b4995af8) + BUILDING => `go test ./internal/storage/firestore/... -run 'TestUpdateStageEvalAssessment' -count=1` FAILS.",
         "MUTATION 4: same file line 378 `if assessment == nil {` -> prefixed with `false && `. LANDED + BUILDING => the same -run FAILS.",
         "ALL FOUR RESTORES BYTE-IDENTICAL: post-restore shasum -a 256 equals each recorded baseline sha.",
-        "POSITIVE CONTROLS ARE MANDATORY, in the same files: (a) checkRemoteIsElsewhere returns nil for mode 'gcp' and for mode 'local' with a genuinely different AILANG_STATE_DIR — without these, a mutation making the function error on every path would still be green; (b) UpdateStageEvalAssessment with a valid stageID AND a non-nil assessment gets PAST both guards (assert it does not return either guard message, recovering the nil-client panic) — without this, an unconditional `return fmt.Errorf(\"stage_id is required\")` as the first line would pass both negative arms.",
+        "POSITIVE CONTROLS ARE MANDATORY, in the same files: (a) checkRemoteIsElsewhere returns nil for mode 'gcp' and for mode 'local' with a genuinely different AILANG_STATE_DIR \u2014 without these, a mutation making the function error on every path would still be green; (b) UpdateStageEvalAssessment with a valid stageID AND a non-nil assessment gets PAST both guards (assert it does not return either guard message, recovering the nil-client panic) \u2014 without this, an unconditional `return fmt.Errorf(\"stage_id is required\")` as the first line would pass both negative arms.",
         "BRANCH 5 IS REPORTED, NOT FAKED: no test in this sprint claims to cover 'failed to marshal eval assessment'. TestEvalAssessment_IsAlwaysMarshalable is labelled a TYPE GUARD (it fails only if someone adds a chan/func/map field), not as coverage of that line.",
         "NO PRODUCTION CODE CHANGED by M2."
       ],
@@ -105,7 +105,7 @@
         "The restored file contains no unfilled scaffold tokens: `jq -r '[.features[].id] | join(\",\")'` yields only real milestone ids, and the sprint-planner placeholder token (the literal upper-snake word the create_sprint_json.sh template emits for an unfilled id) appears zero times.",
         "No other file under .ailang/state/sprints/ is modified.",
         "Any milestone record that claims work #697 did not land is corrected in `passes`/`notes` with a note saying so. History is corrected, never invented.",
-        "GITIGNORE: the controller stages this file with `git add -f`. Verified at 644cf178a: `.gitignore:77` ignores `.ailang/` with NO negation rule, so `git check-ignore --no-index` is rc=0 even for paths whose siblings are already tracked, and a plain `git add` silently skips a NEW sprint JSON. Not done => the file is written, reads green locally, and never reaches dev — which is exactly the state #698's tail note describes."
+        "GITIGNORE: the controller stages this file with `git add -f`. Verified at 644cf178a: `.gitignore:77` ignores `.ailang/` with NO negation rule, so `git check-ignore --no-index` is rc=0 even for paths whose siblings are already tracked, and a plain `git add` silently skips a NEW sprint JSON. Not done => the file is written, reads green locally, and never reaches dev \u2014 which is exactly the state #698's tail note describes."
       ],
       "passes": true,
       "started": "2026-08-13T20:44:32Z",
@@ -114,13 +114,45 @@
     },
     {
       "id": "M4_OPT_IN_REMOTE_READ",
-      "description": "#698 part 1 — the ratified Design Freeze item that the prior plan's acceptance-criteria section lost. DECISION-GATED: DO NOT EXECUTE. Carries no acceptance criteria until Mark answers the one-word question, deliberately — writing criteria before the scope is chosen is how the last one went missing in the other direction.",
-      "estimated_loc": null,
-      "estimated_hours": null,
-      "files": [],
-      "dependencies": [],
-      "blocked_on": "human_decision",
-      "decision_question": "How far should `--remote` reach — `view` or `eval`?",
+      "description": "#698 part 1 \u2014 the ratified Design Freeze item that the prior plan's acceptance-criteria section lost. UNBLOCKED 2026-08-14: Mark ratified D-15 = `view` in person (design_docs/v1-mission.md, 'RATIFIED (attended, 2026-08-14 morning)', item 3): opt-in remote read reaches the Backend-shaped `chains` view commands only; eval-* errors loudly on --remote, turning assumed demand into a dated signal; the ratified freeze item is knowingly NARROWED. Seven tasks (T1 resolver, T2 widen 12 helper signatures, T3 swap 13 read call sites, T4 loud refusal for 5 non-Backend-shaped chains surfaces, T5 eval-* refusal \u2014 the ruling's measurement instrument, T6 remove the silent-empty Firestore GetMissionRollups stub, T7 the doc amendment) \u2014 each with at least one acceptance criterion that can FAIL, and 5 named line-scoped mutations.",
+      "estimated_loc": 400,
+      "estimated_hours": 7,
+      "m4_baseline_commit": "bad8f3647",
+      "files": [
+        "cmd/ailang/chains_read_backend.go (new)",
+        "cmd/ailang/chains_read_backend_test.go (new)",
+        "cmd/ailang/chains.go",
+        "cmd/ailang/chains_chat.go",
+        "cmd/ailang/chains_data.go",
+        "cmd/ailang/chains_diagnostics.go",
+        "cmd/ailang/chains_diff.go",
+        "cmd/ailang/chains_find.go",
+        "cmd/ailang/chains_stats.go",
+        "cmd/ailang/chains_stats_cvs.go",
+        "cmd/ailang/chains_stats_mission.go",
+        "cmd/ailang/chains_tree.go",
+        "cmd/ailang/chains_util.go",
+        "cmd/ailang/chains_live.go",
+        "cmd/ailang/main.go",
+        "internal/storage/firestore/observatory_chains.go",
+        "internal/storage/firestore/observatory_chains_test.go (extend the file M2 created)",
+        "design_docs/planned/v0_33_2/m-mission-loop-unified-telemetry.md"
+      ],
+      "dependencies": [
+        "M2_ERROR_BRANCH_NEGATIVE_ARMS (M4 extends internal/storage/firestore/observatory_chains_test.go, which M2 created)"
+      ],
+      "internal_ordering": [
+        "T1 before T3 \u2014 the swap needs the resolver.",
+        "T2 before T3 for chains_util.go / chains_tree.go / chains_diagnostics.go \u2014 handing an observatory.Backend to a helper still declaring *observatory.SQLiteBackend does not compile. Compile-enforced, not conventional.",
+        "T6 before (or with) T3's chains_stats_mission.go:49 swap \u2014 otherwise `--by-mission --remote` answers 'no missions' silently in the gap.",
+        "T4 and T5 are independent and may land first; they are the two tasks whose absence would reproduce the prior plan's failure mode.",
+        "T7 ships in the SAME change as T1-T6, by criterion."
+      ],
+      "decision_question": "How far should `--remote` reach \u2014 `view` or `eval`?",
+      "decision_answer": "view",
+      "decision_answered_on": "2026-08-14",
+      "decision_answered_by": "Mark (attended, in person)",
+      "decision_recorded_at": "design_docs/v1-mission.md \u2014 'RATIFIED (attended, 2026-08-14 morning)' block, item 3 (D-15)",
       "decision_options": {
         "view": {
           "scope": "Remote read for the Backend-shaped `ailang chains` commands only (view/list/tree/find/diagnose/stats). eval-* stays local and ERRORS loudly on --remote rather than silently reading local (Critical Principle 2).",
@@ -140,7 +172,7 @@
           "estimated_loc": 595,
           "estimated_hours": 10,
           "recommended": false,
-          "why_rejected": "Agent's call, not Mark's. ~45 LOC more than ChainReader for zero functional gain, and forces 2 more methods onto every one of the 5 implementations — none of which embed, and 2 of which (JaegerBackend, GCPTraceBackend) already stub 33 lines apiece."
+          "why_rejected": "Agent's call, not Mark's. ~45 LOC more than ChainReader for zero functional gain, and forces 2 more methods onto every one of the 5 implementations \u2014 none of which embed, and 2 of which (JaegerBackend, GCPTraceBackend) already stub 33 lines apiece."
         }
       },
       "recommendation_reasoning": [
@@ -150,16 +182,55 @@
         "`view` makes the demand measurable: an eval-* command given --remote errors loudly, so the first person who wants it produces a dated, attributable signal. Pre-registered trigger to revisit: the first --remote / AILANG_CHAINS_READ invocation against an eval-* command.",
         "Choosing `view` narrows a Mark-ratified freeze item, which is exactly why it is not the agent's call."
       ],
-      "passes": null,
+      "acceptance_criteria": [
+        "GLOBAL \u2014 NO REGRESSION: `go test ./cmd/ailang/... -count=1` rc=0 (baseline rc=0, 21.695s re-measured at bad8f3647 \u2014 the inherited 48.403s figure is a 644cf178a number and does NOT reproduce; rc is the criterion, time is not), `go test ./internal/storage/firestore/... -count=1` rc=0, `go test ./internal/observatory/... -count=1` rc=0, `go build ./internal/observatory/... ./cmd/ailang/... ./internal/storage/...` rc=0. NEVER `go build ./...` (baseline rc=1 on cmd/wasm).",
+        "GLOBAL \u2014 THE DEFAULT DID NOT MOVE: with no flag and no AILANG_CHAINS_READ, openChainsReadBackend returns a *observatory.SQLiteBackend over observatory.DefaultDatabasePath(). Not done => the ratified 'local stays the default' is broken, which is the one thing the freeze was explicit about.",
+        "T1 \u2014 ROUTING: `grep -c 'storage.NewBackendsForMode' cmd/ailang/chains_read_backend.go` >= 1. BASELINE: the file does not exist, grep rc=2. Same-path control that the constraint is real: the identical grep on cmd/ailang/chains_post.go -> 1 today. Not done, or routed around NewBackendsForMode => 0, and the read half has grown the second selector chains_post.go:181 exists to prevent.",
+        "T1 \u2014 TESTS: TestOpenChainsReadBackend_DefaultsToLocal (no flag, AILANG_CHAINS_READ='' => *SQLiteBackend, err nil); TestOpenChainsReadBackend_RemoteRoutesThroughStorageMode (flag 'gcp' + AILANG_CLOUD_PROJECT='' => err non-nil containing 'AILANG_CLOUD_PROJECT', hermetic and offline because NewGCPBackends fails before constructing a Firestore client \u2014 THIS is the arm that proves the flag reaches NewBackendsForMode; a stub returning local would pass every other criterion); TestOpenChainsReadBackend_EnvIsTheFallbackNotTheOverride (flag '' + env 'gcp' => remote; flag 'local' + env 'gcp' => LOCAL, mirroring chains_post.go:165-168) \u2014 the positive control against a resolver that only reads the env.",
+        "T1 \u2014 MUTATION M4-1: mandated literal `mode := remoteFlag` (the executor MUST write it verbatim so the address resolves). Resolve L with `grep -n 'mode := remoteFlag' cmd/ailang/chains_read_backend.go`, ASSERT EXACTLY ONE HIT, then `sed -i '' \"${L}s/mode := remoteFlag/mode := \\\"\\\"/\"`. LANDED (sha CHANGED) + BUILDING (package-scoped rc=0) => `go test ./cmd/ailang/... -run 'TestOpenChainsReadBackend' -count=1` FAILS. Not done => the mutant survives and --remote is decorative. Restore from a cp backup; post-restore shasum byte-identical. NEVER `git checkout --`.",
+        "T2 \u2014 WIDENING: `grep -c '\\*observatory\\.SQLiteBackend'` on cmd/ailang/chains_util.go / chains_tree.go / chains_diagnostics.go -> 5 / 5 / 2 TODAY (measured at bad8f3647); after T2 -> 0 / 0 / 0.",
+        "T2 \u2014 CONTROLS THAT MUST NOT CHANGE (so a blanket sed cannot satisfy the criterion): the same grep on cmd/ailang/observatory_metrics.go -> 3 BEFORE AND AFTER (the observatory_* family is Out of Scope) and on cmd/ailang/chains_live.go -> 1 BEFORE AND AFTER (the type assertion at :199 is the local-only escape and must survive). A global replace => these go to 0 and the criterion FAILS.",
+        "T2 \u2014 COMPILE PROOF: `go build ./cmd/ailang/...` rc=0 after the widening (baseline rc=0). A widened signature with a DB()/Store() call left inside would not compile \u2014 which is the check that the 'Backend-shaped' claim is TRUE rather than asserted.",
+        "T3 \u2014 SWAP COUNTS: `grep -c 'openChainsReadBackend(' cmd/ailang/chains*.go` summed over non-test files -> 13 (baseline 0, the identifier does not exist). `grep -n 'NewSQLiteBackendFromPath(' cmd/ailang/chains*.go` over non-test files -> 17 TODAY (each enumerated with its enclosing func in the plan); after T3 -> exactly 4, and the survivors are exactly chains_post.go (write half), chains_live.go, chains.go (journey), chains_stats_cvs.go. Any other survivor is a missed swap; any missing one is a refusal accidentally converted.",
+        "T3 \u2014 SOURCE GUARD THAT OUTLIVES THE SPRINT: TestChainsReadCommands_UseTheResolver (in cmd/ailang) reads the chains*.go sources and asserts the direct-NewSQLiteBackendFromPath allowlist is EXACTLY that four-file set. It fails the day a new chains read command is added with a hard-wired local backend \u2014 the same class of silent omission this sprint exists to close.",
+        "T3 \u2014 MUTATION M4-2: line-scoped revert of ONE swapped site. Resolve L with `grep -n 'openChainsReadBackend(' cmd/ailang/chains_tree.go` (ASSERT EXACTLY ONE HIT) and line-scope a sed that restores a direct local open at that site. LANDED (sha != baa479cecf73b9e550ec452dd1bcbfffcb4b820ea6c683e498bb4629d33249df) + BUILDING => `go test ./cmd/ailang/... -run 'TestChainsReadCommands_UseTheResolver' -count=1` FAILS. If it does not fail, the guard is enumerating something other than the sources.",
+        "T4 \u2014 REFUSAL: TestRemoteReadRefusal_LocalOnlySurfaces, table-driven over the FIVE entries (chains live; chains journey; chains stats --cost-per-verified-success; chains find --task's span-summary fallback; and the observatory_* family, which does not gain the flag at all), each asserting a NON-NIL ERROR / NON-ZERO EXIT whose text contains the command name AND the reason token (the specific method that is not on Backend). A warning where an error was ruled is a silent fallback. BASELINE: the refusal function does not exist; `go test -run 'TestRemoteReadRefusal'` -> [no tests to run].",
+        "T4 \u2014 POSITIVE CONTROL, MANDATORY: the same table includes at least three SWAPPABLE commands (chains view, chains list, chains tree) asserting the refusal does NOT fire. Without this, a refusal function that errored on every input would pass all five negative arms \u2014 the exact failure mode M2's Firestore arms were written to avoid.",
+        "T4 \u2014 MUTATION M4-3: delete ONE entry from the refusal set. Resolve L with `grep -n 'chains stats --cost-per-verified-success' cmd/ailang/<refusal file>` (ASSERT EXACTLY ONE HIT) and comment that line out with a line-scoped sed. LANDED + BUILDING => `go test ./cmd/ailang/... -run 'TestRemoteReadRefusal' -count=1` FAILS on that arm specifically. Not done => the CVS command silently reads local under --remote, which is both a wrong answer and a silent fallback.",
+        "T5 \u2014 THE RULING'S INSTRUMENT (this criterion is the milestone's reason for existing): TestEvalRemoteReadIsRefused, table-driven over ALL 14 eval-family surfaces, each asserting the explicit-flag arm returns a NON-NIL ERROR whose message contains the revisit-trigger token. Baseline for the command list, re-derivable: `grep -cE '^\\tcase \"eval' cmd/ailang/main.go` -> 13 top-level cases (measured at bad8f3647; eval-chains' own subcommands make 14 surfaces). Not done => zero of 14 arms exist and the ruling's measurement instrument was never built \u2014 which is precisely how the previous plan lost this obligation.",
+        "T5 \u2014 ENV ARM (a deliberate asymmetry, recorded not buried): TestEvalRemoteReadEnvWarnsAndProceeds \u2014 with AILANG_CHAINS_READ=gcp set, the guard returns NO error but DOES emit a loud one-line warning naming the ignored variable and the command, to the captured writer. Rationale: an exported env var is a node-wide default; hard-failing it would make the variable unexportable and break the rig the moment anyone sets it globally. Two distinguishable outcomes, so a guard that hard-failed here AND a guard that stayed silent are both caught.",
+        "T5 \u2014 POSITIVE CONTROL, MANDATORY: the same test asserts the guard does NOT fire for `chains`, `chains view` or `messages`. Without it, an unconditional `return errors.New(...)` would pass all 14 arms.",
+        "T5 \u2014 MUTATION M4-4: shrink the guarded set by exactly one. Resolve L with `grep -n '\"eval-paired\"' cmd/ailang/<guard file>` (ASSERT EXACTLY ONE HIT), line-scoped sed to \"eval-paired-DISABLED\". LANDED + BUILDING => `go test ./cmd/ailang/... -run 'TestEvalRemoteReadIsRefused' -count=1` FAILS on the eval-paired arm. A table that iterates a list it does not actually consult would survive this.",
+        "T5 \u2014 THE MESSAGE IS THE SIGNAL, SO IT IS GRADED AS SUCH: `ailang eval-paired --remote gcp` (or the chosen surface form) writes to STDERR and exits NON-ZERO, and the text names the command, says remote read is view-scoped per D-15, and points at #698 part 1 as the place to register demand. Not done => 'assumed demand becomes a dated signal' is false and the ruling's stated reason for choosing `view` is unfulfilled.",
+        "T6 \u2014 SILENT STUB REMOVED: `grep -c 'return nil, nil' internal/storage/firestore/observatory_chains.go` -> 1 TODAY (measured; the hit is GetMissionRollups' body at :545, declared at :544); after T6 -> 0. Same-file control that the grep discriminates: `grep -c 'func (s \\*ObservatoryStore)' internal/storage/firestore/observatory_chains.go` -> 26, unchanged before and after.",
+        "T6 \u2014 TEST: TestGetMissionRollups_RefusesLoudlyOnFirestore in internal/storage/firestore/observatory_chains_test.go (the file M2 created, package firestore): (&ObservatoryStore{}).GetMissionRollups(ctx, nil, \"\", 5) with a NIL client returns err != nil and rollups == nil. Nil-client-safe because the guard returns before touching s.client \u2014 the same construction M2's arms already use.",
+        "T6 \u2014 MUTATION M4-5: restore the stub. Resolve L with `grep -n 'func (s \\*ObservatoryStore) GetMissionRollups' internal/storage/firestore/observatory_chains.go`, then line-scope the sed to L+1 replacing the new return with `return nil, nil`. LANDED (sha != 73b7267458975e8379c854ca52c97e89e1b4057851f58fe02a8ac852b4995af8) + BUILDING => `go test ./internal/storage/firestore/... -run 'TestGetMissionRollups' -count=1` FAILS. Not done => `chains stats --by-mission --remote gcp` prints 'no missions' for a store that was never queried.",
+        "T7 \u2014 DOC RECORDS A DECISION: `grep -c 'D-15' design_docs/planned/v0_33_2/m-mission-loop-unified-telemetry.md` -> 0 TODAY (measured at bad8f3647); after T7 -> >= 1. Same-file control that the grep sees the document at all: `grep -c 'Design Freeze'` -> 3, before and after.",
+        "T7 \u2014 DECISION + DATE + EVIDENCE: the amended Design Freeze item 3 (doc lines 115-117) contains ALL THREE of the word `view`, the date `2026-08-14`, and the string `eval_assessment` (the measurement that motivated the narrowing). Three greps, three failure modes: a decision with no scope, a decision with no date, a decision with no evidence.",
+        "T7 \u2014 THE REFUTED SENTENCE NO LONGER STANDS UNQUALIFIED: `grep -n 'every .ailang chains. / .eval-\\*. consumer inherits the option'` on the doc returns 0 hits, OR every surviving hit is on a line the amendment marks as superseded. Not done => the doc still asserts, in the present tense, a code fact that D3/D4 and Discoveries #6/#7 refute \u2014 and the next planner reads the doc, not this plan.",
+        "T7 \u2014 SAME CHANGE: `git diff --name-only` for M4 includes design_docs/planned/v0_33_2/m-mission-loop-unified-telemetry.md alongside the T1-T6 files. Not done => the doc records a pending decision after the decision was made and executed, which is the failure the 'Doc amendments' section was written to prevent."
+      ],
+      "rederived_at_bad8f3647": {
+        "D1_REFUTES_20_call_sites": "'~20 chains-family NewSQLiteBackendFromPath sites' is REFUTED. Mentions != call sites != chains-family read sites. Measured: `grep -rn 'NewSQLiteBackendFromPath' cmd/ailang/ | wc -l` -> 38 MENTIONS; `grep -rn 'NewSQLiteBackendFromPath(' cmd/ailang/ --include='*.go' | grep -v '_test.go' | wc -l` -> 35 call sites across all of cmd/ailang; in chains*.go non-test specifically -> 17 (control: the same grep for NewSQLiteBackendFromPathZZZ -> 0). Of the 17: 13 SWAP, 3 REFUSE-only (chains.go:519 journey, chains_live.go:66, chains_stats_cvs.go:47), 1 UNTOUCHED write half (chains_post.go:157).",
+        "D2_REFUTES_15_helpers": "'15 helpers / ~16 edits' is REFUTED for the in-scope set. `grep -rn '*observatory.SQLiteBackend' cmd/ailang/ | wc -l` -> 16 (same-path control `observatory.Backend` -> 13). Per file: chains_util.go 5, chains_tree.go 5, chains_diagnostics.go 2, observatory_metrics.go 3, chains_live.go 1. But observatory_metrics.go's 3 are the Out-of-Scope observatory_* family and chains_live.go's 1 is a TYPE ASSERTION (backend.(*observatory.SQLiteBackend) at :199), not a signature \u2014 it is the local-only escape and must stay concrete. The widening pass is 12 signatures in 3 files.",
+        "D3_REFUTES_clean_boundary": "Discovery #5's 'a clean, defensible remote/local boundary exists' is REFUTED as stated for the whole chains family. It greps DB() only. `.Store()` is a second escape hatch with the same effect: `grep -rn '\\.Store()' cmd/ailang/ --include='*.go' | grep -v '_test.go'` -> 4 hits, including chains_stats_cvs.go:62 (control: the same grep on chains_util.go -> 0). `Store` is NOT on Backend (0 hits in the interface block; control GetChain -> 1). So `ailang chains stats --cost-per-verified-success` is a chains VIEW command that is NOT Backend-shaped and cannot go remote.",
+        "D4_two_more_non_Backend_methods": "Extracting the 90-method Backend block and checking every backend.<M>( call in the 11 chains read files: chains.go calls GetChainJourney (:533, in chainsJourneyCommand) and chains_find.go calls GetTaskSpanSummary (:86, the --task fallback); NEITHER is on Backend (both defined only on *SQLiteBackend at backend_sqlite.go:457 and :403, and on *Store). Controls in the same run: chains_chat.go, chains_data.go, chains_diagnostics.go, chains_diff.go, chains_stats.go, chains_stats_mission.go, chains_tree.go, chains_util.go -> ALL methods on Backend. So `chains journey` and `chains find --task`'s fallback are two more refusals the option table did not name.",
+        "D5_critical_principle_2_violation_in_the_view_path": "Scanning all 94 ObservatoryStore methods for a silent stub body found EXACTLY ONE: internal/storage/firestore/observatory_chains.go:544-546 GetMissionRollups -> `return nil, nil`, commented 'not supported on the Firestore backend ... returns empty'. Its ONLY consumer is cmd/ailang/chains_stats_mission.go:66. Inert today only because nothing can reach it remotely; the moment `chains stats --by-mission` accepts --remote gcp it prints 'no missions' for a store that was never asked. A fallback is not safe because it is unreachable; it is unreached. New task T6.",
+        "D6_the_rest_of_view_IS_servable": "Verified method-by-method, not assumed: all 16 methods the swappable commands call are implemented by firestore.ObservatoryStore \u2014 GetChain, GetChainStages, ListChains, GetSessionTools, ListSpans, GetChatMessagesBySession, GetChatMessagesByTaskID, GetChainStatsByAgent, GetChainStatusCounts, GetCostRollup, GetChainByGitHubIssue, GetChainByMessageID, GetChainByTaskID, GetSession, Close, each at a named `func (s *ObservatoryStore)` (control: GetMissionRollups located too, which is how D5 was found). And *SQLiteBackend satisfies Backend (backend_sqlite.go:526 `var _ Backend = (*SQLiteBackend)(nil)`), so widening a parameter never breaks an existing local caller.",
+        "surface_form_is_still_the_executors_call": "--remote does not exist today: `grep -rn '\"remote\"' cmd/ailang/` -> 1 hit and it is a `git remote get-url` argument at coordinator_cloud_github.go:88 (same-path control: the --cloud flag IS defined at chains_post.go:88). `AILANG_CHAINS_READ` -> 0 hits repo-wide (control AILANG_CHAINS_CLOUD -> 4). Both names are free. Flag vs env vs config key remains the executor's call per the design doc's Deferred Decisions; routing it anywhere other than storage.NewBackendsForMode is NOT \u2014 the write half's three-part shape (flag chains_post.go:88 -> env chains_post.go:167 -> NewBackendsForMode chains_post.go:181) is binding, because 'two selectors drift'.",
+        "estimate_refutation": "The option table's `view` column of ~230 LOC / ~4h is REFUTED \u2014 it under-scoped by ~1.7x. Revised: ~400 LOC (~205 production, ~195 tests) / ~7h (~1 day). Derivation: T1 ~55 (table ~70, narrowed by delegating to NewBackendsForMode), T2 ~12 (table ~16; D2 measured 12), T3 ~40 (table ~20 for '~20 sites'; 13 sites x call+flag), T4 ~45 (table ~30 for one family; D3/D4 added three commands), T5 ~45 (14 surfaces x 2 arms plus the message text that IS the instrument), T6 ~8 (entirely new, D5, not in the table at all), tests ~195 (table ~110; six tasks each need a mutation-killable arm plus a positive control). Not priced dishonestly \u2014 the table costed the Backend-shaped set by grepping ONE escape hatch and never scanned the Firestore impls for silent stubs, both the same shape as the omission this sprint exists to correct. THE RULING IS UNAFFECTED: every discovery makes `view` narrower and therefore MORE clearly the cheaper option; none makes `eval` cheaper."
+      },
+      "passes": true,
       "started": null,
       "completed": null,
-      "notes": "Measured constraints behind the costing: Backend.QueryEvalResults -> 0 hits and Backend.ListEvalChains -> 0 hits in the interface block, with same-block controls Backend.GetChain -> 1 and Backend.GetChainStages -> 1; both methods are *Store-only (store_chains_eval.go:68 and :236). ListEvalChains is a 5-line wrapper over ListChains, which IS on Backend and IS implemented by Firestore, so only QueryEvalResults is genuinely missing (-2h off `eval`). The chains command family already uses observatory.Backend via NewSQLiteBackendFromPath (35 of 41 non-test call sites are in cmd/ailang; only chains_import.go there uses OpenDefaultStore), but 15 helpers including resolveChainID (chains_util.go:314) take the CONCRETE *observatory.SQLiteBackend, so a 16-signature widening pass is required (+1.5h). Every method those helpers call is on Backend except DB(), which is absent from chains_util.go/chains_tree.go/chains_diagnostics.go — the 12 raw-DB escapes are in the observatory_* family plus chains_live.go:203, giving a clean local-only boundary. No firestore.indexes.json exists anywhere (control: `find . -name 'package.json'` -> 2), so the efficient `schema` variant needs out-of-band index deploys plus a cloud backfill and is not a fast-follow."
+      "notes": "PLANNED 2026-08-14 (mission iteration 198, sprint-planner) against the D-15 ruling; not yet executed. Measured constraints behind the costing: Backend.QueryEvalResults -> 0 hits and Backend.ListEvalChains -> 0 hits in the interface block, with same-block controls Backend.GetChain -> 1 and Backend.GetChainStages -> 1; both methods are *Store-only (store_chains_eval.go:68 and :236). ListEvalChains is a 5-line wrapper over ListChains, which IS on Backend and IS implemented by Firestore, so only QueryEvalResults is genuinely missing (-2h off `eval`). The chains command family already uses observatory.Backend via NewSQLiteBackendFromPath (35 of 41 non-test call sites are in cmd/ailang; only chains_import.go there uses OpenDefaultStore), but 15 helpers including resolveChainID (chains_util.go:314) take the CONCRETE *observatory.SQLiteBackend, so a 16-signature widening pass is required (+1.5h). Every method those helpers call is on Backend except DB(), which is absent from chains_util.go/chains_tree.go/chains_diagnostics.go \u2014 the 12 raw-DB escapes are in the observatory_* family plus chains_live.go:203, giving a clean local-only boundary. No firestore.indexes.json exists anywhere (control: `find . -name 'package.json'` -> 2), so the efficient `schema` variant needs out-of-band index deploys plus a cloud backfill and is not a fast-follow. >>> SUPERSEDED IN PART: the two sentences above about '35 of 41 call sites', '15 helpers / a 16-signature widening pass' and 'every method those helpers call is on Backend except DB(), giving a clean local-only boundary' were re-derived at bad8f3647 and are REFUTED \u2014 see rederived_at_bad8f3647 D1 (17 chains-family sites: 13 swap / 3 refuse / 1 write), D2 (12 signatures in 3 files, not 16 in 5) and D3/D4 (Store(), GetChainJourney and GetTaskSpanSummary are three further non-Backend escapes INSIDE the chains family, so the boundary is not where Discovery #5 put it). The Firestore/QueryEvalResults constraint and the schema/indexes finding both still hold, re-verified.",
+      "status": "completed"
     }
   ],
   "document_precedence": {
     "policy_and_intent": "The DESIGN DOC wins. Design Freeze item 3 (opt-in remote read, local default) is Mark-ratified 2026-08-13; the prior sprint plan's M3 acceptance-criteria section silently dropped it, and an omission carries no authority.",
     "facts_about_the_code": "The CODE wins over both documents. The design doc's 'routing/wiring problem, not a porting one' and 'every ailang chains / eval-* consumer inherits the option' are true for Backend-shaped consumers and FALSE for ListEvalChains/QueryEvalResults. Where a document asserts a code fact that a control-backed measurement refutes, the measurement wins and the document gets amended.",
-    "explicitly_open_questions": "The DESIGN DOC's Deferred Decisions win: 'whether --remote is a flag, an env var, or a config key — agent may choose' remains the executor's call, and no criterion in this plan constrains it."
+    "explicitly_open_questions": "The DESIGN DOC's Deferred Decisions win: 'whether --remote is a flag, an env var, or a config key \u2014 agent may choose' remains the executor's call, and no criterion in this plan constrains it."
   },
   "root_cause_of_the_gap": {
     "finding": "The prior plan's M3 task list contained 'Opt-in remote read for analysis; local stays the default.' Its acceptance-criteria section contained five criteria and ZERO mentioning read or remote. Every AC passed on a milestone missing a third of its task list.",
@@ -167,5 +238,14 @@
     "rule_adopted": "Every task in this plan carries an acceptance criterion that can FAIL, and each criterion names the command whose output would be DIFFERENT if the task were not done. Where the criterion is 'a test exists and passes', it is paired with the mutation that must make it fail."
   },
   "started": "2026-08-13T20:44:32Z",
-  "last_updated": "2026-08-13T20:44:32Z"
+  "last_updated": "2026-08-14T00:00:00Z",
+  "m4_unblocked": {
+    "on": "2026-08-14",
+    "by": "Mark (attended, in person)",
+    "decision_id": "D-15",
+    "answer": "view",
+    "recorded_at": "design_docs/v1-mission.md \u2014 'RATIFIED (attended, 2026-08-14 morning)' block, item 3",
+    "verbatim": "D-15: `view` \u2014 opt-in remote read reaches the `Backend`-shaped `chains` view commands only; `eval-*` errors loudly on `--remote` (turning assumed demand into a dated signal). The ratified freeze item is knowingly NARROWED by this ruling.",
+    "planner_note": "M4's acceptance criteria are written against `view` and ONLY `view`. The `eval` option's costing is retained in decision_options as the pre-registered cost of T5's revisit trigger, not as a live alternative."
+  }
 }

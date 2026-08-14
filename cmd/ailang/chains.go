@@ -105,16 +105,16 @@ func chainsListCommand() {
 	limit := fs.Int("limit", 20, "Maximum number of chains to show")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
 	fullIDs := fs.Bool("full", false, "Show full chain IDs (for copy-paste)")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
 	fs.Parse(flag.Args()[2:])
 
 	// Connect to observatory database
-	dbPath := observatory.DefaultDatabasePath()
-	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	backend, closeBackend, err := openChainsReadBackend(context.Background(), *remote)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
 		os.Exit(1)
 	}
-	defer backend.Close()
+	defer closeBackend()
 
 	ctx := context.Background()
 	opts := observatory.ChainListOptions{
@@ -190,6 +190,7 @@ func chainsViewCommand() {
 	includeSpans := fs.Bool("spans", false, "Include span summaries for each stage (no attributes)")
 	fullSpans := fs.Bool("full", false, "Include full span data with attributes (heavy)")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
 	fs.Parse(flag.Args()[2:])
 
 	if fs.NArg() < 1 {
@@ -200,13 +201,12 @@ func chainsViewCommand() {
 	chainIDPrefix := fs.Arg(0)
 
 	// Connect to observatory database
-	dbPath := observatory.DefaultDatabasePath()
-	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	backend, closeBackend, err := openChainsReadBackend(context.Background(), *remote)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
 		os.Exit(1)
 	}
-	defer backend.Close()
+	defer closeBackend()
 
 	ctx := context.Background()
 
@@ -349,13 +349,15 @@ func printStageSessionDetails(backend observatory.Backend, ctx context.Context, 
 
 // chainsActiveCommand is a convenience alias for list --status active
 func chainsActiveCommand() {
-	dbPath := observatory.DefaultDatabasePath()
-	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	fs := flag.NewFlagSet("chains active", flag.ExitOnError)
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	fs.Parse(flag.Args()[2:])
+	backend, closeBackend, err := openChainsReadBackend(context.Background(), *remote)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
 		os.Exit(1)
 	}
-	defer backend.Close()
+	defer closeBackend()
 
 	ctx := context.Background()
 	opts := observatory.ChainListOptions{
@@ -507,11 +509,16 @@ func printEvalAssessment(a *observatory.EvalAssessment) {
 func chainsJourneyCommand() {
 	fs := flag.NewFlagSet("chains journey", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
 	fs.Parse(flag.Args()[2:])
 
 	chainIDPrefix := fs.Arg(0)
 	if chainIDPrefix == "" {
 		fmt.Fprintln(os.Stderr, "Usage: ailang chains journey <chain-id>")
+		os.Exit(1)
+	}
+	if err := refuseRemoteReadForLocalOnlySurface("chains journey", *remote); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 

@@ -65,3 +65,16 @@ func TestEvalAssessment_IsAlwaysMarshalable(t *testing.T) {
 		t.Fatalf("EvalAssessment ceased to be marshalable: %v", err)
 	}
 }
+
+func TestGetMissionRollups_RefusesLoudlyOnFirestore(t *testing.T) {
+	rollups, err := (&ObservatoryStore{}).GetMissionRollups(context.Background(), nil, "", 5)
+	if err == nil {
+		t.Fatal("GetMissionRollups returned no error for unsupported Firestore operation")
+	}
+	if rollups != nil {
+		t.Fatalf("rollups = %#v, want nil", rollups)
+	}
+	if !strings.Contains(err.Error(), "Firestore") || !strings.Contains(err.Error(), "GetMissionRollups") {
+		t.Fatalf("error = %v, want backend and method names", err)
+	}
+}

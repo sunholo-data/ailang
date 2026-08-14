@@ -43,6 +43,7 @@ func chainsLiveCommand() {
 	fs := flag.NewFlagSet("chains live", flag.ExitOnError)
 	interval := fs.Int("interval", 3, "Refresh interval in seconds")
 	once := fs.Bool("once", false, "Render once and exit (for snapshot testing)")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
 	if err := fs.Parse(flag.Args()[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -53,6 +54,10 @@ func chainsLiveCommand() {
 		fmt.Println()
 		fmt.Println("Shows live progress of an in-flight execution chain, refreshing every N seconds.")
 		fmt.Println("Distinguishes 'model is thinking hard' from 'model is genuinely stuck' using span age.")
+		os.Exit(1)
+	}
+	if err := refuseRemoteReadForLocalOnlySurface("chains live", *remote); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 

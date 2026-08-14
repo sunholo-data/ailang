@@ -15,13 +15,12 @@ import (
 // runChainsInteractive shows an interactive menu for viewing execution chains.
 func runChainsInteractive() {
 	// Connect to observatory database
-	dbPath := observatory.DefaultDatabasePath()
-	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	backend, closeBackend, err := openChainsReadBackend(context.Background(), "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: failed to connect to observatory: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
-	defer backend.Close()
+	defer closeBackend()
 
 	ctx := context.Background()
 	reader := bufio.NewReader(os.Stdin)
@@ -229,7 +228,7 @@ func formatChainStatus(status observatory.ChainStatus) string {
 }
 
 // displayChainDetails shows detailed information about a chain.
-func displayChainDetails(backend *observatory.SQLiteBackend, ctx context.Context, chainID string) {
+func displayChainDetails(backend observatory.Backend, ctx context.Context, chainID string) {
 	opts := observatory.ChainReadOptions{
 		IncludeStages: true,
 	}
@@ -311,7 +310,7 @@ func displayChainDetails(backend *observatory.SQLiteBackend, ctx context.Context
 
 // resolveChainID resolves a short ID prefix to a full chain ID.
 // Returns error if no match or multiple matches (ambiguous prefix).
-func resolveChainID(backend *observatory.SQLiteBackend, ctx context.Context, prefix string) (string, error) {
+func resolveChainID(backend observatory.Backend, ctx context.Context, prefix string) (string, error) {
 	// If prefix looks like a full UUID, use it directly
 	if len(prefix) >= 36 {
 		return prefix, nil
@@ -343,7 +342,7 @@ func resolveChainID(backend *observatory.SQLiteBackend, ctx context.Context, pre
 }
 
 // displayChainTree shows a tree view of the chain hierarchy.
-func displayChainTree(backend *observatory.SQLiteBackend, ctx context.Context, chainID string) {
+func displayChainTree(backend observatory.Backend, ctx context.Context, chainID string) {
 	opts := observatory.ChainReadOptions{
 		IncludeStages: true,
 	}
@@ -369,7 +368,7 @@ func displayChainTree(backend *observatory.SQLiteBackend, ctx context.Context, c
 }
 
 // displayChainTreeDetailed shows a detailed tree view with execution info (turns, tools, session).
-func displayChainTreeDetailed(backend *observatory.SQLiteBackend, ctx context.Context, chainID string) {
+func displayChainTreeDetailed(backend observatory.Backend, ctx context.Context, chainID string) {
 	opts := observatory.ChainReadOptions{
 		IncludeStages: true,
 	}
@@ -395,7 +394,7 @@ func displayChainTreeDetailed(backend *observatory.SQLiteBackend, ctx context.Co
 }
 
 // displayChainJSON outputs full chain data as JSON for debugging/data export.
-func displayChainJSON(backend *observatory.SQLiteBackend, ctx context.Context, chainID string) {
+func displayChainJSON(backend observatory.Backend, ctx context.Context, chainID string) {
 	opts := observatory.ChainReadOptions{
 		IncludeStages: true,
 	}
