@@ -19,6 +19,7 @@ func chainsFindCommand() {
 	taskID := fs.String("task-id", "", "Find chain by coordinator task ID")
 	github := fs.String("github", "", "Find chain by GitHub issue (repo#number)")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
 	fs.Parse(flag.Args()[2:])
 
 	// Validate exactly one lookup key
@@ -50,13 +51,12 @@ func chainsFindCommand() {
 		os.Exit(1)
 	}
 
-	dbPath := observatory.DefaultDatabasePath()
-	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	backend, closeBackend, err := openChainsReadBackend(context.Background(), *remote)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
 		os.Exit(1)
 	}
-	defer backend.Close()
+	defer closeBackend()
 
 	ctx := context.Background()
 	var chain *observatory.ExecutionChain
@@ -83,7 +83,12 @@ func chainsFindCommand() {
 
 	// If no chain found, try span summary fallback (for user sessions, evals, etc.)
 	if chain == nil && *taskID != "" {
-		summary, summaryErr := backend.GetTaskSpanSummary(ctx, *taskID)
+		sqliteBackend, ok := backend.(*observatory.SQLiteBackend)
+		if !ok {
+			fmt.Fprintln(os.Stderr, "Error: task span summary fallback is unavailable on this backend")
+			os.Exit(1)
+		}
+		summary, summaryErr := sqliteBackend.GetTaskSpanSummary(ctx, *taskID)
 		if summaryErr != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", summaryErr)
 			os.Exit(1)

@@ -18,6 +18,7 @@ func chainsChatCommand() {
 	compact := fs.Bool("compact", false, "Compact one-line-per-turn view")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
 	limit := fs.Int("limit", 0, "Limit number of turns shown")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
 	fs.Parse(flag.Args()[2:])
 
 	if fs.NArg() < 1 {
@@ -40,13 +41,12 @@ func chainsChatCommand() {
 
 	chainPrefix := fs.Arg(0)
 
-	dbPath := observatory.DefaultDatabasePath()
-	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	backend, closeBackend, err := openChainsReadBackend(context.Background(), *remote)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
 		os.Exit(1)
 	}
-	defer backend.Close()
+	defer closeBackend()
 
 	ctx := context.Background()
 

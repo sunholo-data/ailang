@@ -26,11 +26,12 @@ func chainsTreeCommand() {
 	errorsOnly := fs.Bool("errors", false, "Only show failed or stuck stages (human-readable)")
 	handoffsOnly := fs.Bool("handoffs", false, "Show handoff summary only (compact view)")
 	lastTurnOnly := fs.Bool("last-turn", false, "Show only the final turn per stage")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
 	fs.Parse(flag.Args()[2:])
 
 	// Direct session query mode
 	if *sessionID != "" {
-		messages := getChatMessages(*sessionID)
+		messages := getChatMessages(*sessionID, *remote)
 		if len(messages) == 0 {
 			fmt.Fprintf(os.Stderr, "No chat messages found for session: %s\n", *sessionID)
 			fmt.Fprintf(os.Stderr, "Try: ailang observatory sync-chat --status to see imported sessions\n")
@@ -54,13 +55,12 @@ func chainsTreeCommand() {
 	chainIDPrefix := fs.Arg(0)
 
 	// Connect to observatory database
-	dbPath := observatory.DefaultDatabasePath()
-	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	backend, closeBackend, err := openChainsReadBackend(context.Background(), *remote)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
 		os.Exit(1)
 	}
-	defer backend.Close()
+	defer closeBackend()
 
 	ctx := context.Background()
 
@@ -124,7 +124,7 @@ func printChainTree(chain *observatory.ExecutionChain) {
 	printChainTreeDetailed(context.Background(), nil, chain, false)
 }
 
-func printChainTreeDetailed(ctx context.Context, backend *observatory.SQLiteBackend, chain *observatory.ExecutionChain, detailed bool) {
+func printChainTreeDetailed(ctx context.Context, backend observatory.Backend, chain *observatory.ExecutionChain, detailed bool) {
 	// Source node
 	sourceLabel := string(chain.SourceType)
 	if chain.GitHubRepo != "" {
@@ -181,7 +181,7 @@ func printChainTreeDetailed(ctx context.Context, backend *observatory.SQLiteBack
 }
 
 // printStageToolSummary shows a compact tool usage summary for a session
-func printStageToolSummary(ctx context.Context, backend *observatory.SQLiteBackend, sessionID, prefix string) {
+func printStageToolSummary(ctx context.Context, backend observatory.Backend, sessionID, prefix string) {
 	tools, err := backend.GetSessionTools(ctx, sessionID)
 	if err != nil || len(tools) == 0 {
 		return
@@ -220,7 +220,7 @@ func printStageToolSummary(ctx context.Context, backend *observatory.SQLiteBacke
 	fmt.Printf("%s%s tools: %s\n", prefix, dim(fmt.Sprintf("[%d]", len(tools))), dim(strings.Join(parts, " ")))
 }
 
-func printStageDetails(ctx context.Context, backend *observatory.SQLiteBackend, taskID, prefix string) {
+func printStageDetails(ctx context.Context, backend observatory.Backend, taskID, prefix string) {
 	// PREFERRED: Try deterministic task_id query first (M-DETERMINISTIC-CHAT-LINKING)
 	// This works when sync-chat has propagated correlation IDs from sessions to chat_messages
 	messages := getChatMessagesForTask(taskID)
@@ -530,7 +530,7 @@ func getTextPreview(text string, maxLen int) string {
 }
 
 // printChainErrorsOnly shows only failed or stuck stages (compact for AI)
-func printChainErrorsOnly(ctx context.Context, backend *observatory.SQLiteBackend, chain *observatory.ExecutionChain) {
+func printChainErrorsOnly(ctx context.Context, backend observatory.Backend, chain *observatory.ExecutionChain) {
 	fmt.Printf("Chain %s [%s]\n", truncateChainID(chain.ID), colorizeStatus(string(chain.Status)))
 
 	hasIssues := false
@@ -607,7 +607,7 @@ func printChainHandoffsOnly(chain *observatory.ExecutionChain) {
 }
 
 // printChainLastTurnOnly shows only the final turn per stage (for quick context)
-func printChainLastTurnOnly(ctx context.Context, backend *observatory.SQLiteBackend, chain *observatory.ExecutionChain) {
+func printChainLastTurnOnly(ctx context.Context, backend observatory.Backend, chain *observatory.ExecutionChain) {
 	fmt.Printf("Chain %s [%s] - Last Turn Summary\n", truncateChainID(chain.ID), colorizeStatus(string(chain.Status)))
 	fmt.Println()
 

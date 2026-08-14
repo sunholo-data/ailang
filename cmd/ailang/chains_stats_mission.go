@@ -13,8 +13,6 @@ import (
 	"strconv"
 	"text/tabwriter"
 	"time"
-
-	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // missionRollupJSON is the JSON shape for `chains stats --by-mission`.
@@ -44,14 +42,13 @@ type missionStageJSON struct {
 // chainsStatsByMission implements `chains stats --by-mission` / `--by-source-prefix`.
 // Per mission: metered total (reported+estimated) vs MISSION_METERED_BUDGET_USD,
 // per-bucket quota counts, and top-N most expensive stages. Reuses the M1 classifier.
-func chainsStatsByMission(sourcePrefix string, hours int, jsonOutput, strict bool) {
-	dbPath := observatory.DefaultDatabasePath()
-	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+func chainsStatsByMission(sourcePrefix string, hours int, jsonOutput, strict bool, remote string) {
+	backend, closeBackend, err := openChainsReadBackend(context.Background(), remote)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
 		os.Exit(1)
 	}
-	defer backend.Close()
+	defer closeBackend()
 
 	ctx := context.Background()
 

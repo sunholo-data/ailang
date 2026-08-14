@@ -19,6 +19,7 @@ import (
 func chainsDiagnoseCommand() {
 	fs := flag.NewFlagSet("chains diagnose", flag.ExitOnError)
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
 	fs.Parse(flag.Args()[2:])
 
 	if fs.NArg() < 1 {
@@ -31,13 +32,12 @@ func chainsDiagnoseCommand() {
 	chainIDPrefix := fs.Arg(0)
 
 	// Connect to observatory database
-	dbPath := observatory.DefaultDatabasePath()
-	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	backend, closeBackend, err := openChainsReadBackend(context.Background(), *remote)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
 		os.Exit(1)
 	}
-	defer backend.Close()
+	defer closeBackend()
 
 	ctx := context.Background()
 
@@ -110,7 +110,7 @@ type StageDiagnostics struct {
 	Issues         []string `json:"issues,omitempty"`
 }
 
-func runChainDiagnostics(ctx context.Context, backend *observatory.SQLiteBackend, chain *observatory.ExecutionChain) ChainDiagnostics {
+func runChainDiagnostics(ctx context.Context, backend observatory.Backend, chain *observatory.ExecutionChain) ChainDiagnostics {
 	diag := ChainDiagnostics{
 		ChainID:    chain.ID,
 		Status:     string(chain.Status),
@@ -287,16 +287,16 @@ func chainsHealthCommand() {
 	fs := flag.NewFlagSet("chains health", flag.ExitOnError)
 	hours := fs.Int("hours", 24, "Time window in hours")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
 	fs.Parse(flag.Args()[2:])
 
 	// Connect to observatory database
-	dbPath := observatory.DefaultDatabasePath()
-	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	backend, closeBackend, err := openChainsReadBackend(context.Background(), *remote)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
 		os.Exit(1)
 	}
-	defer backend.Close()
+	defer closeBackend()
 
 	ctx := context.Background()
 
@@ -352,7 +352,7 @@ type SystemHealth struct {
 	LastChatSync     string `json:"last_chat_sync,omitempty"`
 }
 
-func runSystemHealthCheck(ctx context.Context, backend *observatory.SQLiteBackend, hours int) SystemHealth {
+func runSystemHealthCheck(ctx context.Context, backend observatory.Backend, hours int) SystemHealth {
 	health := SystemHealth{
 		TimeWindow:  fmt.Sprintf("last %d hours", hours),
 		GeneratedAt: time.Now().Format(time.RFC3339),

@@ -16,6 +16,7 @@ func chainsDiffCommand() {
 	fs := flag.NewFlagSet("chains diff", flag.ExitOnError)
 	statOnly := fs.Bool("stat", false, "Show diffstat only")
 	jsonOutput := fs.Bool("json", false, "Output as JSON (stage metadata)")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
 	fs.Parse(flag.Args()[2:])
 
 	if fs.NArg() < 1 {
@@ -29,13 +30,12 @@ func chainsDiffCommand() {
 	chainIDPrefix := fs.Arg(0)
 
 	// Connect to observatory database for chain/stage data
-	dbPath := observatory.DefaultDatabasePath()
-	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	backend, closeBackend, err := openChainsReadBackend(context.Background(), *remote)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
 		os.Exit(1)
 	}
-	defer backend.Close()
+	defer closeBackend()
 
 	ctx := context.Background()
 

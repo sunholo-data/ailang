@@ -151,7 +151,7 @@ func getChatMessagesForTask(taskID string) []chatMessageExport {
 		return nil
 	}
 
-	backend, err := getObservatoryBackend()
+	backend, err := getObservatoryBackend("")
 	if err != nil {
 		return nil
 	}
@@ -165,13 +165,17 @@ func getChatMessagesForTask(taskID string) []chatMessageExport {
 }
 
 // getChatMessages fetches chat messages from observatory.db with full content
-func getChatMessages(sessionID string) []chatMessageExport {
-	return getChatMessagesInRange(sessionID, time.Time{}, time.Time{})
+func getChatMessages(sessionID string, remoteFlag ...string) []chatMessageExport {
+	return getChatMessagesInRange(sessionID, time.Time{}, time.Time{}, remoteFlag...)
 }
 
 // getChatMessagesInRange fetches chat messages within a time range
-func getChatMessagesInRange(sessionID string, startTime, endTime time.Time) []chatMessageExport {
-	backend, err := getObservatoryBackend()
+func getChatMessagesInRange(sessionID string, startTime, endTime time.Time, remoteFlag ...string) []chatMessageExport {
+	mode := ""
+	if len(remoteFlag) > 0 {
+		mode = remoteFlag[0]
+	}
+	backend, err := getObservatoryBackend(mode)
 	if err != nil {
 		return nil
 	}
@@ -185,9 +189,22 @@ func getChatMessagesInRange(sessionID string, startTime, endTime time.Time) []ch
 }
 
 // getObservatoryBackend opens the observatory backend (caller must Close)
-func getObservatoryBackend() (observatory.Backend, error) {
-	dbPath := observatory.DefaultDatabasePath()
-	return observatory.NewSQLiteBackendFromPath(dbPath)
+func getObservatoryBackend(remoteFlag string) (observatory.Backend, error) {
+	backend, closeBackend, err := openChainsReadBackend(context.Background(), remoteFlag)
+	if err != nil {
+		return nil, err
+	}
+	return &chainsReadBackend{Backend: backend, close: closeBackend}, nil
+}
+
+type chainsReadBackend struct {
+	observatory.Backend
+	close func()
+}
+
+func (b *chainsReadBackend) Close() error {
+	b.close()
+	return nil
 }
 
 // convertChatMessages converts Store ChatMessage types to CLI export types
