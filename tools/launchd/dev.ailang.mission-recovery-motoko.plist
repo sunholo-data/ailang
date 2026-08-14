@@ -4,24 +4,47 @@
   dev.ailang.mission-recovery-motoko.plist — the motoko sibling of the v1 recovery job.
 
   mission-recovery.sh has been mission-parameterized since it was written (every path
-  derives from MISSION_NAME), but only ONE instance was ever installed and it is pinned
-  to MISSION_NAME=v1. So motoko's .blocked marker had nothing watching it: measured
-  2026-08-14, ~/.ailang/state/mission-motoko.blocked sat untouched for 7+ hours while
-  the recovery log showed an unbroken run of "mission v1 blocked" lines.
+  derives from MISSION_NAME — see its lines 32/42-47), but only ONE instance was ever
+  installed and it is pinned to MISSION_NAME=v1. So motoko's .blocked marker had nothing
+  watching it: measured 2026-08-14, ~/.ailang/state/mission-motoko.blocked sat untouched
+  for 7+ hours while the recovery log showed an unbroken run of "mission v1 blocked" lines.
 
   Recovery matters MORE here than for v1, not less. mission-motoko's StartInterval is
   43200s (12h) against v1's 5400s (90m), so one refused fire costs a full half-day and
-  the loop silently halves its own cadence. Observed: of the six fires from 08-12 to
-  08-14, three refused on probe timeouts — 08-13 00:13, 08-14 01:07 (and 08-12 09:13 on
-  the trust dialog). The probe stall itself is transient and fleet-wide, not a motoko
-  fault: v1 hit the identical empty-output timeout at 05:34 on 08-14 and was green by
-  05:54 — because something kickstarted it.
+  the loop silently halves its own cadence.
+
+  MEASURED REFUSAL RATE (re-derived at mission iteration 4, 2026-08-14 09:50, from
+  /tmp/ailang-mission-motoko.log rather than transcribed): 6 refusals against 4 starts
+  over the loop's whole life, i.e. 10 fires and a 60% refusal rate. Refusals at 08-12
+  09:21, 08-13 00:25, 08-14 01:19, 08-14 08:57, 09:17, 09:37; starts at 08-12 10:32
+  (iter 1), 08-12 11:37 (iter 2), 08-13 12:27 (iter 3), 08-14 09:45 (iter 4). The
+  earlier draft of this comment said "three of six", which was correct when written at
+  08:44 and is superseded by the three refusals that followed it.
+
+  Only the FIRST refusal (08-12 09:19) carried a diagnostic — the Claude Code trust
+  dialog, charter V22. Every refusal since reads `captured output: ''` on all three
+  models across both attempts, which is a hang, not a quota message.
+
+  The stall is TRANSIENT and FLEET-WIDE, not a motoko fault. Control, measured in the
+  same window from /tmp/ailang-mission-control.log: v1 refused with the identical
+  empty-output signature at 05:20, 05:36 and 08:49 on 08-14, overlapping motoko's
+  08:47/09:07/09:27, and recovered each time — because its recovery job kickstarted it.
+  Two independently-configured missions in two checkouts failing together is what makes
+  this environmental rather than a per-mission defect.
+
+  This job WORKS, and the evidence is not a smoke test: motoko iteration 4 exists only
+  because of it. It kickstarted at 08:45, 09:05, 09:25 and 09:45; the first three
+  re-probed and refused again, and the fourth got through. So the recovery model here is
+  bounded brute retry against a stall that persisted ~1h — cheap enough to be the right
+  answer, but note it treats the symptom. The empty-output probe hang itself is
+  unexplained and is tracked as its own queue item.
 
   Cheap by construction, exactly as the v1 job: it does NOT call the API. It reads
   marker files and issues launchctl kickstart; the driver's own probes decide whether
   to proceed, and a failed retry spends zero tokens.
 
-  Installation:
+  Installation (the installed copy is a REGULAR FILE, not a symlink — editing this
+  repo file changes nothing on the rig until you re-cp it):
     cp tools/launchd/dev.ailang.mission-recovery-motoko.plist ~/Library/LaunchAgents/
     launchctl load ~/Library/LaunchAgents/dev.ailang.mission-recovery-motoko.plist
 
