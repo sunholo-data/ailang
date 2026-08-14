@@ -10636,3 +10636,121 @@ silently re-derived.
 **Next**: `#692` (batch drops `Debug` output), then `#706` (direction settled by `D-17`) and `#703`,
 all unowned. `#610` stays infra-gated. `#698` is now fully landed and can be closed. Parked on Mark:
 `D-1`–`D-14`; `D-15`/`D-16`/`D-17` all discharged today.
+
+## 200 — 2026-08-14 — Iteration 199: the executor's test asserted an absence, and an absence is what a broken flush produces too
+
+**Pick — the queue head, and it was a real bug rather than a claim about one.** `#692`: under
+`ailang run --batch`, every `Debug` ghost-effect log is collected into the per-item effect context
+and discarded. The issue's own evidence was a grep, so I re-derived it live at `6dd525c58` rather
+than inheriting it — a fixture calling `std/debug.log("HELLO-FROM-DEBUG")` emits the line **1×**
+single-file and **0×** under `--batch` over two inputs, while the run reports
+`Batch complete: 2/2 succeeded`, so both items demonstrably executed. The static half agrees:
+`flushDebugOutput` has exactly **one** call site in `cmd/ailang/` (`main_run_exec.go:574`, the
+non-batch branch), with the definition as the same-call known-positive control. Same
+guard-the-helper-miss-the-call-site shape as `#607`, one file over.
+
+**Two design calls made BEFORE routing, because leaving them implicit would have shipped a worse
+fix.** (1) **Attribution must not lean on the batch header.** `─── [i/n] <input>` is printed inside
+`if !quiet` and `Debug` shares its stream, so a bare per-item flush is unattributable under
+`--quiet` — the flush carries its own label. (2) **The flush must be deferred**, not appended after
+the success path: `executeBatchItem` has early `return fmt.Errorf(...)` arms and its terminal call
+recovers `#607`'s `exit()` sentinel into a per-item error, and a *failing* item's Debug logs are
+precisely the ones worth keeping. Both went into the executor directive as decisions, not as
+questions; codex implemented both exactly.
+
+**The finding, and it is the one worth reading.** The executor delivered four tests, all green, and
+reported a mutation drill in which two of them redded. Rule 3i says to run the named mutation
+**per row** rather than over the suite, so I did — and `TestBatchDebugOutput_SeverityFilterApplies`
+came back **rc=0 under the mutant**. It asserted only that a below-threshold line was **ABSENT**.
+An absence is satisfied exactly as well by *"the filter worked"* as by *"nothing was ever flushed"*,
+so the row documented a protection that was not there. This is rule 3a's trap in test form: the
+observable was not downstream of the mechanism, it was orthogonal to it. Repaired with a
+known-positive control in the same run — an `ERROR`-severity line that must survive `--log-level
+warn` and can only appear if the flush ran at all. It now reds under the mutant **on that
+assertion** (`main_run_batch_debug_test.go:139`, "instrument failure"), and the filter's own
+negative control was measured separately: at `--log-level debug` the low-severity line *does*
+appear, so the absence is the filter's doing rather than the flush's silence. The generalisable
+half: **a test whose only assertion is a negative needs the same known-positive control this loop
+already demands of a grep** — and the suite-wide mutation run the executor did cannot surface it,
+because two other rows redding makes the drill look like it worked.
+
+**The executor was right about what it could not measure, and that mattered.** codex labelled both
+the full-package gate and the mutation **inverse arm** `UNINFORMATIVE UNDER SANDBOX` on a
+`bind: operation not permitted` loopback denial, rather than reporting either as a pass or a fail —
+which is the directive's contract working as intended. The inverse arm is the load-bearing one: it
+is what distinguishes *"my new tests kill the mutant"* from *"something in the package kills the
+mutant"*. Re-run outside the sandbox: `go test ./cmd/ailang -skip '<the four>'` under the landed,
+building mutant is **rc=0 with 0 FAIL**. Mutant asserted LANDED (`b7e4b950…` → `83f78ec6…`) and
+BUILDS (`go build ./cmd/ailang` rc=0) before any arm was read, binary rebuilt before each arm
+(these tests shell out, and `FindAilangBinary` **skips** rather than fails on a stale binary — a
+skip would have made the whole drill vacuous), restored by `cp` with sha256 byte-identity.
+
+**Three of four rows kill the mutant; the fourth correctly does not.**
+`TestSingleFileDebugOutput_RemainsUnlabelled` stays green because it pins the single-file path the
+mutant never touches — it guards the *label leaking into single-file output*, which is a different
+proposition. Recorded rather than "fixed": a row that survives a mutant for a stated reason is not
+the same thing as a decorative one.
+
+**Controller re-ran every gate outside the sandbox** (mandatory — the diff touches `cmd/*`), and
+baselined each on the pristine tree first per rule 3e: `go build ./cmd/ailang`, `go vet`, and
+`go test ./cmd/ailang -count=1` were all **rc=0 at base**, so a red would have been ours. Final:
+build/vet rc=0, full package **rc=0 with 0 FAIL and 0 SKIP**, `gofmt -l` clean, `git diff --check`
+rc=0. The CI gate list was **derived** from `ci.yml` rather than recalled (rule 3g):
+`check-file-sizes`, `check-boundaries`, `fmt-check`, `vet`, `check-golden-drift`,
+`check-changelog`, `lint` all rc=0. The one `unused` lint finding is pre-existing in
+`internal/eval_harness/gemini_evaluator_bridge.go:453`, outside the diff.
+
+**Evaluator sonnet PASS 99/100 round 1, zero blocking.** Handed six named targets to attack per
+rule 3h(c) — including my own repair and my own claim about the inverse arm — rather than left to
+notice them. It reproduced all six, went beyond the brief with a *second, orthogonal* mutant that
+neuters the filter logic alone (the repaired row catches that too, so it now discriminates both
+failure modes), and byte-diffed the pre-fix binary's single-file stderr against the fixed one
+instead of reading the diff. Its one non-blocking find is real and pre-existing:
+`setupEnvContext`'s `os.Exit(1)` arms bypass deferred functions entirely, so that path would not
+flush — harmless here (it fires before any AILANG code runs, so nothing is collected yet) but
+correctly named as a genuine branch where the flush does not run.
+
+**Routing evidence**: controller **opus** (session default); executor **codex `gpt-5.6-sol`**, one
+bounded sandboxed run, probe rc=0, directive delivered **8,743 B** (asserted ≥200 B before spawn);
+evaluator **sonnet** — generator≠judge holds twice over (codex wrote the implementation, opus wrote
+the repaired row, sonnet judged). Designer, planner, quorum and every other cross-provider lane
+**not fired**: the item has no design doc and the fix shape was fixed by the existing single-file
+call site, the same direct-fix basis as `#691` at iteration 197 and `#607` at 192.
+`metered=$0.00` — codex rode the OAuth bucket; no OpenRouter, gemini or quorum lane fired.
+
+**Gate 3b**: PR [#711](https://github.com/sunholo-data/ailang/pull/711) → squash `29ad1c559`.
+`mergeable` read **FIRST** per this iteration's own predecessor rule — `MERGEABLE`, and `BLOCKED`
+resolved to `CLEAN` as checks landed, so no dropped-event lever was reached for. SHA-addressed
+**21** checks, `pending=0`, **0** NOT-GREEN, **4/4** REQUIRED (`build`, `docs-gate`, `lint`,
+`test`). The count climbed **17→19→20→21 during the poll**, so `pending=0` was required rather
+than inferred. Platform legs named per rule 3b(viii): `test-windows`, `Build windows-latest`,
+`Build ubuntu-latest`, `Build macos-latest` ×2 all `success` — which discharges the darwin-only
+narrowing on every command I ran locally. Post-merge, `dev`'s own HEAD was asserted to HAVE runs
+(**3**, control: previous merge **2**) per iteration 196's rule, so this merge did not land into
+the unverified-HEAD hole.
+
+**Bookkeeping**: `Fixes #692` auto-closed the issue at merge, so `gh issue close --comment` would
+have been the documented silent no-op. The verdict went in FIRST via `--body-file` and delivery was
+asserted by comment count **0→1**. `D-16` applied again to ff-merge the main checkout: 0 ahead, and
+`comm -12` of incoming-vs-dirty **empty** with a firing self-intersection control (**4**), dirty
+files sha256-identical after. The running skill remains `cmp`-identical to `origin/dev`.
+
+**Ruled out by measurement**: *"the executor's mutation drill established the four tests"* —
+refuted, one row survived; the suite-level drill could not see it. *"a test asserting a filter
+suppressed something is testing the filter"* — refuted, it tests nothing until a positive control
+proves anything was emitted at all.
+
+**Gate 5 — no skill edit.** The severity-test finding is instance **1** of "a negative-only
+assertion needs a known-positive control", and this skill's bar is ≥2 recorded frictions pointing
+at the same gap. Pre-registering it as a watch-item instead: rule 3a already covers empty results
+from *instruments*, and the gap is that nothing points it at **committed test assertions**, where a
+suite-wide mutation run actively conceals it. If a second instance lands, the edit is to rule 3i —
+"name the observable, and if the row's only assertion is an absence, require a positive control in
+the same run". Recorded here rather than acted on, per the bar.
+
+**Next**: `#706` (`exit(0)` in a serve-api route returns HTTP 500; `D-17` settled the direction —
+hosts branch on `Code == 0`), then `#703` (`govulncheck-filter` drops module-level findings, a
+vacuous green on a security gate). Both unowned and unblocked. `#610` stays infra-gated, `#613`
+blocked on `D-1`. Parked on Mark: `D-1`–`D-14`. Still owed from iteration 198: the evaluator ran
+in the controller's worktree again — no harm this time because it backed up and restored by `cp`,
+but that is luck rather than design, and a judge doing mutation drills wants its own tree.
