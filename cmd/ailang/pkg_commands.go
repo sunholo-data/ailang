@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
@@ -149,23 +150,14 @@ func addGitDep(cwd string, manifest *pkg.PackageManifest, gitURL, tag, rev, subd
 }
 
 func appendGitDependencyToFile(dir, name string, parts []string, gitURL, tag, rev string) error {
-	path := dir + "/" + pkg.ManifestFile
+	path := filepath.Join(dir, pkg.ManifestFile)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
 
-	content := string(data)
-	depLine := fmt.Sprintf("\"%s\" = { %s }\n", name, strings.Join(parts, ", "))
-
-	if strings.Contains(content, "[dependencies]") {
-		idx := strings.Index(content, "[dependencies]")
-		lineEnd := strings.Index(content[idx:], "\n")
-		insertAt := idx + lineEnd + 1
-		content = content[:insertAt] + depLine + content[insertAt:]
-	} else {
-		content += "\n[dependencies]\n" + depLine
-	}
+	depLine := fmt.Sprintf("\"%s\" = { %s }", name, strings.Join(parts, ", "))
+	content, previous, replaced := upsertDependencyLine(string(data), name, depLine)
 
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		return err
@@ -177,13 +169,17 @@ func appendGitDependencyToFile(dir, name string, parts []string, gitURL, tag, re
 	} else {
 		label += "@" + rev[:12]
 	}
-	fmt.Printf("%s Added %s (git: %s)\n", green("✓"), name, label)
+	if replaced && previous != depLine {
+		fmt.Printf("%s Updated %s (%s -> git: %s)\n", green("✓"), name, previous, label)
+	} else {
+		fmt.Printf("%s Added %s (git: %s)\n", green("✓"), name, label)
+	}
 	return nil
 }
 
-// appendDependencyToFile appends a dependency line to ailang.toml.
+// appendDependencyToFile inserts or replaces a dependency line in ailang.toml.
 func appendDependencyToFile(dir, name, value string, isPath bool) error {
-	path := dir + "/" + pkg.ManifestFile
+	path := filepath.Join(dir, pkg.ManifestFile)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -193,22 +189,12 @@ func appendDependencyToFile(dir, name, value string, isPath bool) error {
 
 	var depLine string
 	if isPath {
-		depLine = fmt.Sprintf("\"%s\" = { path = %q }\n", name, value)
+		depLine = fmt.Sprintf("\"%s\" = { path = %q }", name, value)
 	} else {
-		depLine = fmt.Sprintf("\"%s\" = %q\n", name, value)
+		depLine = fmt.Sprintf("\"%s\" = %q", name, value)
 	}
 
-	// Find [dependencies] section and append
-	if strings.Contains(content, "[dependencies]") {
-		// Insert after [dependencies] line
-		idx := strings.Index(content, "[dependencies]")
-		lineEnd := strings.Index(content[idx:], "\n")
-		insertAt := idx + lineEnd + 1
-		content = content[:insertAt] + depLine + content[insertAt:]
-	} else {
-		// Add new [dependencies] section
-		content += "\n[dependencies]\n" + depLine
-	}
+	content, previous, replaced := upsertDependencyLine(content, name, depLine)
 
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		return err
@@ -218,8 +204,89 @@ func appendDependencyToFile(dir, name, value string, isPath bool) error {
 	if isPath {
 		label = fmt.Sprintf("path: %s", value)
 	}
-	fmt.Printf("%s Added %s (%s)\n", green("✓"), name, label)
+	if replaced && previous != depLine {
+		fmt.Printf("%s Updated %s (%s -> %s)\n", green("✓"), name, previous, label)
+	} else {
+		fmt.Printf("%s Added %s (%s)\n", green("✓"), name, label)
+	}
 	return nil
+}
+
+// upsertDependencyLine replaces an exact key inside [dependencies], preserving
+// its position, or inserts the line immediately after the section header.
+func upsertDependencyLine(content, name, depLine string) (updated, previous string, replaced bool) {
+	lines := strings.SplitAfter(content, "\n")
+	inDependencies := false
+	sectionHeader := -1
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "[") {
+			if inDependencies {
+				break
+			}
+			inDependencies = trimmed == "[dependencies]"
+			if inDependencies {
+				sectionHeader = i
+			}
+			continue
+		}
+		if inDependencies && dependencyLineKey(line) == name {
+			previous = strings.TrimSpace(strings.TrimSuffix(line, "\n"))
+			ending := "\n"
+			if !strings.HasSuffix(line, "\n") {
+				ending = ""
+			}
+			lines[i] = depLine + ending
+			return strings.Join(lines, ""), previous, true
+		}
+	}
+
+	if sectionHeader >= 0 {
+		insertAt := sectionHeader + 1
+		line := depLine + "\n"
+		lines = append(lines, "")
+		copy(lines[insertAt+1:], lines[insertAt:])
+		lines[insertAt] = line
+		return strings.Join(lines, ""), "", false
+	}
+
+	// A brand-new section is separated from the preceding one by a blank line,
+	// matching every manifest written before the upsert rewrite. Without the
+	// leading newline the header lands flush against the previous key — valid
+	// TOML, but a visible formatting regression in a file users read.
+	prefix := "\n"
+	if !strings.HasSuffix(content, "\n") {
+		prefix = "\n\n"
+	}
+	if content == "" {
+		prefix = ""
+	}
+	return content + prefix + "[dependencies]\n" + depLine + "\n", "", false
+}
+
+// dependencyLineKey extracts a quoted or bare TOML key only when the line is
+// a simple key/value entry. The exact returned token prevents prefix matches.
+func dependencyLineKey(line string) string {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+		return ""
+	}
+	if strings.HasPrefix(trimmed, `"`) {
+		end := strings.Index(trimmed[1:], `"`)
+		if end < 0 {
+			return ""
+		}
+		end++
+		if !strings.HasPrefix(strings.TrimSpace(trimmed[end+1:]), "=") {
+			return ""
+		}
+		return trimmed[1:end]
+	}
+	key, rest, ok := strings.Cut(trimmed, "=")
+	if !ok || strings.TrimSpace(rest) == "" {
+		return ""
+	}
+	return strings.TrimSpace(key)
 }
 
 func pkgLockCommand(args []string) error {
