@@ -159,7 +159,7 @@ func appendGitDependencyToFile(dir, name string, parts []string, gitURL, tag, re
 	depLine := fmt.Sprintf("\"%s\" = { %s }", name, strings.Join(parts, ", "))
 	content, previous, replaced := upsertDependencyLine(string(data), name, depLine)
 
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := writeManifestChecked(dir, path, data, content); err != nil {
 		return err
 	}
 
@@ -196,7 +196,7 @@ func appendDependencyToFile(dir, name, value string, isPath bool) error {
 
 	content, previous, replaced := upsertDependencyLine(content, name, depLine)
 
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := writeManifestChecked(dir, path, data, content); err != nil {
 		return err
 	}
 
@@ -214,13 +214,37 @@ func appendDependencyToFile(dir, name, value string, isPath bool) error {
 
 // upsertDependencyLine replaces an exact key inside [dependencies], preserving
 // its position, or inserts the line immediately after the section header.
+//
+// This is a line scanner over TOML text, so what it CANNOT see is the thing that
+// breaks it. Four shapes were found by mutation/adversarial review and are
+// handled explicitly below: a header carrying a trailing comment, a header that
+// is the file's last line with no newline after it, lines inside a multi-line
+// string that look like headers or keys, and single-quoted (literal) keys.
+// Anything still missed is bounded by writeManifestChecked, which refuses to
+// leave a manifest less parseable than it found it.
 func upsertDependencyLine(content, name, depLine string) (updated, previous string, replaced bool) {
 	lines := strings.SplitAfter(content, "\n")
 	inDependencies := false
 	sectionHeader := -1
+	// Open multi-line string delimiter (`"""` or `'''`), empty when outside one.
+	// A line inside such a string is TOML data, not structure — treating it as a
+	// header ends the scan early and silently re-inserts a key that was there.
+	openString := ""
 	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "[") {
+		body := stripLineComment(line)
+		trimmed := strings.TrimSpace(body)
+		if openString != "" {
+			if strings.Contains(line, openString) {
+				openString = ""
+			}
+			continue
+		}
+		if d := openMultilineString(line); d != "" {
+			openString = d
+			// The opening line may still carry the key it belongs to; fall through
+			// so a `key = """` line is matched as a key before we start skipping.
+		}
+		if openString == "" && strings.HasPrefix(trimmed, "[") {
 			if inDependencies {
 				break
 			}
@@ -230,18 +254,24 @@ func upsertDependencyLine(content, name, depLine string) (updated, previous stri
 			}
 			continue
 		}
-		if inDependencies && dependencyLineKey(line) == name {
-			previous = strings.TrimSpace(strings.TrimSuffix(line, "\n"))
-			ending := "\n"
-			if !strings.HasSuffix(line, "\n") {
-				ending = ""
-			}
+		if inDependencies && openString == "" && dependencyLineKey(body) == name {
+			previous = strings.TrimSpace(strings.TrimRight(line, "\r\n"))
+			// Preserve the original line ending: a CRLF manifest must not gain a
+			// lone LF in the middle of it.
+			ending := line[len(strings.TrimRight(line, "\r\n")):]
 			lines[i] = depLine + ending
 			return strings.Join(lines, ""), previous, true
 		}
 	}
 
 	if sectionHeader >= 0 {
+		header := lines[sectionHeader]
+		// A header that is the file's last line has no newline of its own, so an
+		// insert glues the key onto it: `[dependencies]"name" = "1.0"`, which no
+		// longer parses. Give it one.
+		if !strings.HasSuffix(header, "\n") {
+			lines[sectionHeader] = header + "\n"
+		}
 		insertAt := sectionHeader + 1
 		line := depLine + "\n"
 		lines = append(lines, "")
@@ -264,15 +294,22 @@ func upsertDependencyLine(content, name, depLine string) (updated, previous stri
 	return content + prefix + "[dependencies]\n" + depLine + "\n", "", false
 }
 
-// dependencyLineKey extracts a quoted or bare TOML key only when the line is
-// a simple key/value entry. The exact returned token prevents prefix matches.
+// dependencyLineKey extracts a quoted, literal-quoted or bare TOML key, only
+// when the line is a simple key/value entry. The exact returned token prevents
+// prefix matches ("a/b" must never match "a/b_extra").
 func dependencyLineKey(line string) string {
 	trimmed := strings.TrimSpace(line)
 	if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 		return ""
 	}
-	if strings.HasPrefix(trimmed, `"`) {
-		end := strings.Index(trimmed[1:], `"`)
+	// TOML admits both basic ("k") and literal ('k') quoted keys. Handling only
+	// the basic form silently fails to find a literal-quoted dependency, and the
+	// insert that follows duplicates it.
+	for _, q := range []byte{'"', '\''} {
+		if trimmed[0] != q {
+			continue
+		}
+		end := strings.IndexByte(trimmed[1:], q)
 		if end < 0 {
 			return ""
 		}
@@ -287,6 +324,65 @@ func dependencyLineKey(line string) string {
 		return ""
 	}
 	return strings.TrimSpace(key)
+}
+
+// stripLineComment removes a trailing `#` comment that lies outside any quoted
+// string. A section header may legally carry one — `[dependencies] # deps` — and
+// an exact-string comparison against the raw line does not recognise it as the
+// dependencies table at all, so the writer appends a SECOND [dependencies]
+// table and the manifest stops parsing.
+func stripLineComment(line string) string {
+	var quote byte
+	for i := 0; i < len(line); i++ {
+		c := line[i]
+		switch {
+		case quote != 0:
+			if c == quote {
+				quote = 0
+			}
+		case c == '"' || c == '\'':
+			quote = c
+		case c == '#':
+			return line[:i]
+		}
+	}
+	return line
+}
+
+// openMultilineString reports the delimiter of a multi-line string this line
+// opens and does not close, or "" when the line leaves no string open.
+func openMultilineString(line string) string {
+	for _, d := range []string{`"""`, `'''`} {
+		if n := strings.Count(line, d); n%2 == 1 {
+			return d
+		}
+	}
+	return ""
+}
+
+// writeManifestChecked writes the rewritten manifest, then refuses to leave the
+// file less parseable than it found it. The upsert above is a line scanner over
+// TOML, so its blind spots are open-ended by construction; this bounds them.
+// A manifest that was ALREADY broken is not held against the write — only a
+// manifest this call broke is rolled back.
+func writeManifestChecked(dir, path string, original []byte, updated string) error {
+	parsedBefore := true
+	if _, err := pkg.LoadManifest(dir); err != nil {
+		parsedBefore = false
+	}
+	if err := os.WriteFile(path, []byte(updated), 0644); err != nil {
+		return err
+	}
+	if !parsedBefore {
+		return nil
+	}
+	if _, err := pkg.LoadManifest(dir); err != nil {
+		if restoreErr := os.WriteFile(path, original, 0644); restoreErr != nil {
+			return fmt.Errorf("%s became unparseable and could not be restored: %w (restore failed: %v)", path, err, restoreErr)
+		}
+		return fmt.Errorf("refusing to write %s: the edit would make it unparseable (%w); the file is unchanged — please add the dependency by hand", path, err)
+	}
+	return nil
 }
 
 func pkgLockCommand(args []string) error {
