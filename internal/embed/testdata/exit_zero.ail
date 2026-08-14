@@ -1,0 +1,10 @@
+-- exit_zero.ail: fixture for #691 — an embedded module that calls exit(0).
+--
+-- Pins the contract decision that exit(0) is reported as *ExitError{Code: 0}
+-- rather than collapsed to a nil error: the host cannot otherwise tell it
+-- apart from a function that returned unit normally.
+
+module internal/embed/testdata/exit_zero
+import std/io (exit)
+
+export func main() -> () ! {IO} = exit(0)

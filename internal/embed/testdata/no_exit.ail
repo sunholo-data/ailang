@@ -1,0 +1,9 @@
+-- no_exit.ail: fixture for #691 — the mechanism-removed control.
+--
+-- Identical call shape to exit_nonzero.ail with the exit() removed, so a
+-- green here proves the exit arms fail for the exit() and not for the
+-- fixture, the engine setup, or the test harness.
+
+module internal/embed/testdata/no_exit
+
+export func main() -> int = 42
