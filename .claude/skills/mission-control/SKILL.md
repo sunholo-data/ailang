@@ -1826,6 +1826,28 @@ Sonnet, inline, is fine.
 - Execution complete → **sprint-evaluator** as a `$MISSION_EVALUATOR_MODEL`-pinned Agent sub-agent
   (distinct from the executor model → generator≠judge). Max 3 rounds; on round-3 fail →
   `needs-human-review`, park, message controlplane.
+  **GIVE THE JUDGE ITS OWN WORKTREE — A GOOD EVALUATOR MUTATES SOURCE, AND EVERY RULE IN THIS SKILL
+  TELLS IT TO** (added 2026-08-14 V1 iteration 199; instance 1 was iteration 198, instance 2 is this
+  iteration). The isolation rule above is written for the EXECUTOR and stops there, so the evaluator
+  inherits whatever directory the controller names — normally the sprint worktree the controller is
+  still verifying in. That was harmless while judges only read. It is not harmless now: rules 3h(c),
+  3i and 3j all instruct the judge to re-run named mutations, so a *well-executed* evaluation
+  necessarily edits files, rebuilds binaries and restores them — concurrently with the controller's
+  own gate runs against the same tree. The two failure modes are opposite and both bad. **(a) The
+  controller misreads the judge.** Iteration 198's evaluator mutated `chains_tree.go` mid-run and the
+  controller's gate surfaced a transient FAIL it nearly attributed to the code — rule 3d exactly, with
+  the co-occurrence supplied by a *teammate* rather than by chance. **(b) The judge destroys the
+  work.** Sprint output is uncommitted by construction, so one `git checkout --` in the judge's
+  restore step deletes the milestone; iteration 199's judge restored by `cp` and came to no harm,
+  which is luck, not design. Note neither instance produced a wrong VERDICT, which is why this
+  survived two iterations: the score was right both times and the tree was the casualty.
+  **Rule.** Create a second worktree for the evaluator — same convention as the sprint one (a sibling
+  of the repo, **never** `/tmp`) — from the sprint branch's commit, and name THAT path in its
+  directive. Where a shared tree is genuinely unavoidable, say so in the directive, forbid mutation
+  outright, and treat the evaluation as narrowed accordingly (rule 3b(ii)) — a judge that could not
+  run the mutations has not verified them. And while any judge is running, never `git add -A`: stage
+  named files, because the tree is not yours alone. Mission-independent; under `ailang-code` the same
+  hazard is a judge re-running `ailang check` against a tree someone else is editing.
 
 **METERED-SPEND LEDGER (Mark 2026-07-18 — "make sure costs don't go crazy"):** keep a running
 per-iteration tally of METERED dollars (every codex run's reported cost, every managed_agents
