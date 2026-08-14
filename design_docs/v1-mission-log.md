@@ -10862,3 +10862,85 @@ require the arm to die.
 **Next**: `#703` (`govulncheck-filter` drops module-level findings — a vacuous green on a security
 gate, P1 gate-integrity), then the new `[email-parse-DEMAND]` install/upsert row. `#610` stays
 infra-gated, `#613` blocked on `D-1`. Parked on Mark: `D-1`–`D-14`, nothing newly blocking.
+
+## 202 — 2026-08-14 — Iteration 201: a security gate printed a confident green while dropping a real advisory, and the pre-fix tool told you to delete the advisory's own entry
+
+**Pick**: the queue head, `#703` — `govulncheck-filter` silently drops module-level govulncheck
+findings. P1 CI-gate-integrity, unowned and unblocked. The three inbound cross-mission items (World's
+rule-7 skill-fix proposal; the `#712`/`#713`/`#715` filings; the `email-parse` install-duplicate-key
+triage) were triaged and none outranks a P1 gate-integrity head per the cross-mission contract.
+
+**Ghost discipline at HEAD, and it is a real bug**: `readFindings` (`tools/govulncheck-filter/main.go:192`)
+skipped any finding frame whose `Trace[0].Function == ""`. Because it dedups at OSV level, an OSV
+all of whose frames are module-level was dropped entirely — reported in NEITHER the blocking list
+NOR the "all allowlisted" count. That is exactly the CLAUDE.md §2 vacuous-green: a confident green
+summary whose denominator quietly excludes a whole class. GO-2026-5750 — a real, published,
+UNallowlisted Ollama path-traversal advisory (CVE-2026-7020), no upstream fix — was invisible.
+
+**Routing** — direct-fix lane (no design doc, no quorum; same basis as `#706`/`#692`/`#691`/`#607`):
+executor **codex `gpt-5.6-sol`** (probe rc=0; directive 6,187 B, asserted ≥200 B before spawn),
+evaluator **sonnet** in its OWN worktree (iteration 199's skill edit), generator≠judge holds
+(OpenAI author, Anthropic judge). `metered=$0.00` (codex on the OAuth bucket; sonnet on quota; no
+OpenRouter or quorum lane fired).
+
+**Controller design call** (the issue's own suggested acceptance made this a controller-adjudicable
+decision, not a multi-provider design question): `readFindings` partitions OSVs into REACHING (any
+frame names a function) vs MODULE-ONLY; gating (exit code) is UNCHANGED and applies ONLY to reaching;
+module-only findings are ALWAYS reported in a third named bucket (annotated with allowlist status)
+on BOTH the pass and fail paths so the count is always complete and never gates on the unreachable;
+GO-2026-5750 allowlisted with a reason + expiry 2026-10-29 (co-reviews the Ollama batch).
+
+**A second latent bug fixed for free**: the old `Trace[0]`-only check also dropped an OSV reachable
+via a *later* trace element. The mutation drill exposed it — under the reverted skip, the *reaching*
+control (GO-2026-6218, whose first frame is module-level but whose last frame names a function)
+ALSO went empty. Classifying by ANY frame is strictly more correct.
+
+**Mutation drill run by BOTH codex and the judge independently (rule 3i)**: revert `readFindings` to
+the pre-#703 skip → the new test reds on `moduleOnly == [GO-2026-5750]`; the mutant BUILDS (rc=0),
+so the red is semantic not a compile failure; restored byte-identical by `cp` (never `git checkout --`).
+
+**Controller re-ran the gates OUTSIDE the sandbox** (generator≠judge): `go build`/`vet`/`test`/`gofmt -l`
+all rc=0. Functional smoke on the built binary: a reaching unallowlisted finding still reds the gate
+(exit 1) while the previously-DROPPED GO-2026-5750 now appears in the module-level bucket `[allowlisted]`.
+
+**Evaluator sonnet 96/100 PASS, ZERO BLOCKING** — reproduced the mutation drill, confirmed the
+over-subscription analysis is sound (including the mixed-frame OSV, correctly classified reaching),
+and found the pre-fix binary was *worse than silent*: with the real allowlist it listed GO-2026-5750
+among **9 "stale" entries recommended for removal** — the tool actively advised deleting the real
+advisory's future entry. One NON-BLOCKING nit: `printModuleOnly` never expiry-checks module-only
+allowlist entries, so an expired one prints `[allowlisted]` forever. Not in the acceptance criteria
+and module-only is non-gating by design → filed as follow-up **#717** rather than expanding the sprint.
+
+**Gate 3b GREEN**: PR [#716](https://github.com/sunholo-data/ailang/pull/716) → squash
+[`ba501607d`](https://github.com/sunholo-data/ailang/commit/ba501607d). `mergeable` read FIRST
+(`MERGEABLE`; `BLOCKED`→merged as required checks landed — no dropped-event lever reached for). The
+SHA-addressed check set climbed to **19** with **zero NOT-GREEN**, **4/4 REQUIRED** (`build`,
+`docs-gate`, `lint`, `test` 17m38s — the count-climb made `pending=0` required not inferred);
+`govulncheck (vuln gate)` — the exact gate this change modifies — GREEN; platform legs
+`test-windows`/`Build windows-/ubuntu-/macos-latest` all `success` (rule 3b(viii), discharging the
+darwin-only narrowing); `SonarCloud Code Analysis` GREEN (had been standing-red per iter-158).
+`Fixes #703` auto-closed the issue at merge (17:52:36Z — mechanism B, the normal path); post-merge
+`dev` HEAD `ba501607d` HAS runs (13), so it did not land into iter-196's unverified-HEAD hole.
+**`D-16` applied** to ff-merge the main checkout: 0 ahead, incoming ∩ dirty **EMPTY** with a firing
+self-intersection control (2), dirty benchmark JSONs sha256-identical after, running skill
+re-confirmed `cmp`==origin.
+
+**Cross-mission (contract)**: acked World that its rule-7 attribution-tell skill-fix proposal is
+ALREADY satisfied in V1's skill — the iteration-176 amendment covers blind-by-construction under the
+ceiling fix, the over-count from a self-quoting log record, AND promotes the mechanism-independent
+attribution. World's `#712`/`#713`/`#715` received and tracked as normal issues. World's
+generator≠judge designer-vs-quorum-reviewer gap logged as a Gate-5 candidate — it did NOT fire this
+iteration (no designer/quorum in the direct-fix lane).
+
+**Ruled out by measurement**: *"a module-level unallowlisted finding should red the gate"* — REJECTED
+(unreachable by definition; the fix is VISIBILITY, not gating — else "not reachable" and "not reported"
+stay the same output). *"the assertion `moduleOnly == [GO-2026-5750]` is over-subscribed"* — REFUTED
+by the judge (the observable is produced BY the classifier and reds under the mutant).
+
+**Gate 5 — NO skill edit**: the rule-7 proposal is already covered by the iter-176 amendment; the
+gen≠judge designer-vs-reviewer gap is instance **1** for V1 (bar ≥2), pre-registered as a watch-item.
+
+**Next**: `[email-parse-DEMAND]` (`ailang install` on an already-declared dep writes a duplicate TOML
+key; the fix must be an idempotent upsert reached by all four call sites across both sibling helpers),
+then `#717`. Nightly alarms `#709`/`#649` correctly open; `#610` infra-gated; `#613` blocked on `D-1`.
+Parked on Mark: `D-1`–`D-14`, nothing newly blocking.
