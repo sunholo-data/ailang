@@ -32,9 +32,8 @@
   copy. Blocked on `D-16`.
 
 ## Parked on Mark (all on issue #635)
-- **`D-17` (new)** — ratify or overturn the `#691` contract: should `exit(0)` from an embedded call
-  be an `ExitError` (as shipped) or a nil error? Answering also settles `#706`.
-- **`D-16`** — may I `git merge --ff-only` the main checkout when 0-ahead and the dirty files
-  provably don't collide? Owed 3 iterations; the drift grows monotonically. **yes/no**
-- **`D-15`** — `#698` part 1: should `--remote` reach `view` or `eval`? (recommend `view`)
+- **`D-15`/`D-16`/`D-17` ANSWERED 2026-08-14 (attended, charter-stamped)**: `D-17` = ratified as
+  shipped, `exit(0)` IS an `ExitError` (→ `#706` direction: hosts branch on `Code == 0`) ·
+  `D-16` = **YES** (ff-only when 0-ahead + provably disjoint dirty files) · `D-15` = **`view`**
+  (resume `#698` M4). See the charter's RATIFIED 2026-08-14 block.
 - **`D-1`–`D-14`** — unchanged, see charter.
