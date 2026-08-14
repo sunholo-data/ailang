@@ -10944,3 +10944,103 @@ gen≠judge designer-vs-reviewer gap is instance **1** for V1 (bar ≥2), pre-re
 key; the fix must be an idempotent upsert reached by all four call sites across both sibling helpers),
 then `#717`. Nightly alarms `#709`/`#649` correctly open; `#610` infra-gated; `#613` blocked on `D-1`.
 Parked on Mark: `D-1`–`D-14`, nothing newly blocking.
+
+## 203 — 2026-08-14 — Iteration 202: the fix passed every gate it had, and the judge found it had reintroduced the bug it was fixing
+
+**Pick**: the queue head, the `[email-parse-DEMAND]` row — `ailang install` on an already-declared
+dependency corrupts `ailang.toml`. Inbox was 4 and none of it competes: 2 eval-suite notifications
+and 2 of V1's OWN iteration-201 outbound reports. No Mark comment on `#635` (0 of 63). `#709`/`#649`
+already carry posted triage verdicts from earlier iterations, so no Gate-0 duty was owed there.
+
+**Ghost discipline at HEAD, both halves, each with a firing control.** Half 1 reproduced exactly as
+reported: two `ailang install sunholo/gemini_files@0.2.1` → a duplicate TOML key → `ailang lock`
+rc=1 naming the already-defined key, against a control (one install) at rc=0 `✓ Generated
+ailang.lock (3 packages)`. Half 2 — recorded in the queue row as *structurally* confirmed but never
+live-repro'd — was reproduced for the first time here, on ONE identical source file: broken manifest
+`ailang check` rc=1 with `requires ailang.toml and ailang.lock; run 'ailang init package'`, healthy
+manifest rc=0 `✓ No errors found!`. The first attempt at that pair was UNINFORMATIVE — both arms
+died on my own bad import syntax (IMP012), which is the same shape as iteration 200's missing
+`--caps IO`: a control that agrees with you for the wrong reason. Filed as `#718`.
+
+**Routing** — direct-fix lane (no design doc, no quorum; same basis as `#703`/`#706`/`#692`/`#691`):
+executor **codex `gpt-5.6-sol`** (probe rc=0; directive 14,757 B, asserted ≥200 B before spawn),
+evaluator **sonnet in its OWN worktree** (iteration 199's skill edit, 2nd use), generator≠judge
+holds. `metered=$0.00`. Two rounds. PR [#719](https://github.com/sunholo-data/ailang/pull/719) →
+squash [`afe06487e`](https://github.com/sunholo-data/ailang/commit/afe06487e).
+
+**THE FINDING THAT MATTERS: round 1 was wrong in a way every green agreed with.** The executor's cut
+passed its own 9 arms, `go vet`, the full package suite outside the sandbox, six `make` gates, and
+the controller's own mutation drill — and the evaluator returned **FAIL 66/100** with **four**
+BLOCKING findings, every one TOML-legal, two needing no unusual manifest at all. One was a
+**regression the PR itself introduced**: `[dependencies] # deps go here` failed the new
+exact-string compare, so the writer appended a SECOND `[dependencies]` table and the manifest
+stopped parsing — *reproducing `#718`'s own error on input the pre-fix substring match handled
+correctly*. Measured base-vs-fix on one fixture: base parsed, fix did not. The other three: a header
+that is the file's last line with no trailing newline (`[dependencies]"x" = "0.5.0"`); a multi-line
+string containing a `[`-leading line, which ended the scan early, duplicated a key, and printed
+`✓ Added` over the corruption; and a literal-quoted key `'name' = "1.0"`, invisible to
+`dependencyLineKey`. All four reproduced first-party against the real binary before any code moved.
+
+The generalisable shape, and it is not "we needed more tests": **when a fix replaces a permissive
+mechanism with a precise one, the permissive version's accidental coverage is silently withdrawn,
+and no test that exists can see the withdrawal.** `strings.Contains(content, "[dependencies]")` was
+sloppy and therefore tolerant; an exact compare is correct and therefore narrower. Every arm written
+for the new code tested the new code. The only instrument that would have caught it is a
+**differential** one — run the OLD and NEW implementations over a corpus of manifest shapes and
+require the new one to be no worse on any input the old one handled. That question was never asked,
+by anyone, at any gate.
+
+**The structural answer, not four patches.** The judge's real objection was that a hand-rolled line
+scanner over TOML has open-ended blind spots, so fixing four of them concedes the point. Round 2
+adds `writeManifestChecked`: re-parse after every write, and ROLL BACK any write that would leave a
+previously-parseable manifest less parseable than it found it. A manifest that was already broken is
+not held against the write. This bounds every blind spot, present and future — the scanner's misses
+now surface as a refused operation with a clear error rather than a corrupted file. Round 2 scored
+**PASS 95/100, zero blocking**; every *new* gap the judge found while attacking the fresh code
+(a literal string containing `"""`, a quoted table header `["dependencies"]`, escape-unaware comment
+stripping) was caught by that net — the design working, not the design lucky. Filed as `#720`.
+
+**A second finding, about instruments.** The test helper `countDependencyKey` carried the SAME blind
+spots as the code under test (exact `[dependencies]` compare, basic quotes only) and reported `0`
+for two perfectly correct outputs — a control failing in exactly the shape the arm was added to
+catch, and briefly convincing me the production fix was broken when it was not. Repaired to strip
+comments and literal quotes **independently** of the production helpers, because a control that
+shares the defect it checks for cannot see it.
+
+**Caught by the loop before the judge saw it**: the executor's
+`TestAppendDependencyToFile_OtherTableUntouched` claimed to pin section bounds and did NOT — its
+fixture places the rival table AFTER `[dependencies]`, where the scan's break-on-next-section stops
+the mutant regardless of the guard. Every real manifest puts `[package]`/`[exports]`/`[effects]`/
+`[stability]` BEFORE it, so the untested direction was the common one; under the mutant the earlier
+table's key is rewritten and no dependency is declared at all. Added
+`TestAppendDependencyToFile_EarlierTableUntouched`: arm rc=1, inverse (`-skip` that arm) rc=0, so it
+is the sole killer and the exposure had been entirely undetected. Same class as iteration 200's
+over-subscribed enum and 199's absence-only assertion, in a third disguise.
+
+**Mutation discipline**: 6/6 on the round-2 guards plus 2/2 on the lock-file arms, each mutant
+asserted LANDED (sha256) and BUILDS before its result was read, each scoped with `-run`, each
+inverse checked. One inverse came back rc=1 rather than rc=0 (missing-lock-is-optional): other
+tests in the package also fail under that mutant because they compile package projects without
+locks. Recorded as-is rather than reported as a clean inverse — it is *more* evidence the branch is
+load-bearing, not less.
+
+**Gate 3b GREEN**: `mergeable` read FIRST each round (`MERGEABLE`; `BLOCKED`→`UNSTABLE` as required
+checks landed — no dropped-event lever reached for). SHA-addressed **21** checks, `pending=0`,
+**4/4** REQUIRED (`build`, `docs-gate`, `lint`, `test` 17m20s). `UNSTABLE` is non-required
+SonarCloud only. **That Sonar red is NOT inherited** — parents `6f3e6bce7`/`ba501607d`/`ee44de42c`
+are all `success`, so rule 3d's negative control makes it attributable: new-code coverage 55.6%,
+against an 80% bar. Two lock-file arms were added in response (61.1%), covering the widest-blast-
+radius part of the change; the remainder is error branches and it is named here rather than buried.
+Gates were darwin/arm64 only locally — the windows/ubuntu legs came green from CI (rule 3b(viii)).
+`D-16` applied to ff-merge the main checkout: 0 ahead, incoming ∩ dirty **EMPTY** against a firing
+6-file control, benchmark JSONs sha256-stable after.
+
+**Ruled out by measurement**: *"`ailang lock` silently passes on a duplicate key"* — already refuted
+in the queue row, and re-confirmed: rc=1 naming the real TOML error. *"all five call sites are
+unguarded"* — REFUTED, three of five (`addPathDep`, `addVersionDep`, `addGitDep`) already pre-check
+and error; only `install` and `init --deps` were bare, so the fix belongs in the helper as defence
+in depth rather than as a behaviour change for `add`. *"the AC6 end-to-end install test was faked"* —
+no: codex correctly reported it impossible offline and added nothing, and the controller ran it live
+against the real registry instead, which is the deviation behaviour rule 3h(d) wants.
+
+**Next**: `#720` (the residual scanner gaps, and the parse→mutate→re-serialize decision behind them).

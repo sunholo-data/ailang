@@ -2,40 +2,43 @@
 > **Contract**: ≤40 lines, overwritten by mission-control Gate 4 every iteration (history lives in
 > the charter/log). Fresh session = THIS + MEMORY.md. Humans steer via the bookkeeping issue.
 
-**Updated**: 2026-08-14 ~19:55 local (iteration 201)
+**Updated**: 2026-08-14 ~23:15 local (iteration 202)
 
 ## Now
-- **v0.33.1** · `dev` @ `ba501607d` — squash of PR #716.
-- **`#703` LANDED** — `govulncheck-filter` silently dropped module-level findings (a vacuous green
-  on the security gate), hiding a real unallowlisted Ollama advisory GO-2026-5750. `readFindings`
-  now partitions OSVs into **reaching** vs **module-only** across all frames; gating unchanged
-  (reaching only); module-only always reported in a third named bucket, non-gating; GO-2026-5750
-  allowlisted (expiry 2026-10-29). Also fixed a **second latent bug**: the old `Trace[0]`-only
-  check dropped OSVs reachable via a later frame.
-- Repro before routing: pre-fix binary reported `0 findings, all allowlisted` AND (with the real
-  allowlist) listed GO-2026-5750 among **9 "stale" entries to delete** — worse than silent.
-- Evaluator sonnet **96/100 PASS, zero blocking**, in its own worktree. One non-blocking nit →
-  follow-up **#717** (module-only allowlist entries skip the expiry check).
-- Gate 3b GREEN: PR #716, `govulncheck (vuln gate)` itself green, 4/4 REQUIRED, all platform legs,
-  SonarCloud green (was standing-red). `metered=$0.00` (codex OAuth bucket; no OpenRouter/quorum).
+- **v0.33.1** · `dev` @ `afe06487e` — squash of PR #719.
+- **`#718` LANDED** — `ailang install` on an already-declared dep wrote a **duplicate TOML key**
+  (manifest unparseable, `lock` rc=1), and the resulting error blamed a *missing* `ailang.toml`.
+  Both halves fixed: one shared idempotent `upsertDependencyLine` in the helpers (so all 5 call
+  sites inherit it), and `tryLoadPackageResolver` now returns `(resolver, error)` — absent manifest
+  still `(nil, nil)`, existing-but-broken names its path + the TOML error. Lock load split the same
+  way (missing optional, malformed loud).
+- **Round 1 FAILED 66/100 on four TOML-legal blind spots — one a regression the PR introduced**:
+  `[dependencies] # comment` failed the new exact-string compare, so a SECOND table was appended,
+  *reproducing `#718`'s own error on input the pre-fix substring match handled*. Lesson worth
+  keeping: replacing a permissive mechanism with a precise one silently withdraws the permissive
+  version's accidental coverage, and **no test written for the new code can see that**. The missing
+  instrument is a *differential* one (old vs new over a corpus), and nothing asked for it.
+- Answered structurally, not by four patches: `writeManifestChecked` re-parses after every write and
+  **rolls back** anything that would leave a manifest less parseable than it found it. Round 2
+  **PASS 95/100, zero blocking**; every new gap the judge then found was caught by that net → `#720`.
+- Gate 3b GREEN: 21 checks, `pending=0`, 4/4 REQUIRED. `UNSTABLE` = non-required SonarCloud only,
+  and that red is **not inherited** (parents green): new-code coverage 55.6%→61.1% vs an 80% bar.
+  `metered=$0.00` (codex OAuth bucket; sonnet quota; no OpenRouter/quorum lane fired).
 
 ## Next
-1. **`[email-parse-DEMAND]`** — `ailang install` on an already-declared dep writes a **duplicate
-   TOML key** and breaks the manifest (`lock` rc=1). Reproduced first-party; two sibling helpers
-   (`appendDependencyToFile`/`appendGitDependencyToFile`), four call sites — the fix must be an
-   idempotent upsert reached by every site.
-2. `#717` (module-only expiry annotation, this iteration's follow-up). `#709`/`#649` nightly alarms
-   triaged, correctly open. `#610` infra-gated. `#613` blocked on `D-1`.
+1. **`#720`** — residual `ailang.toml` upsert scanner gaps (literal string containing `"""`; quoted
+   header `["dependencies"]`; escape-unaware comment stripping; the test helper's own version of the
+   same gap). None ships corruption — the rollback net refuses the write. Carries the real decision:
+   keep hand-editing TOML text, or parse → mutate → re-serialize and lose comment preservation.
+2. `#717` (module-only allowlist entries skip expiry). `#709`/`#649` nightly alarms triaged,
+   correctly open. `#610` infra-gated. `#613` blocked on `D-1`.
 
 ## Loop
 - launchd, fired from the driver pin (`~/.ailang-driver-pin/v1`). Routing: controller **opus** ·
-  executor **codex gpt-5.6-sol** · evaluator **sonnet** (generator≠judge holds). Designer, planner,
-  quorum **not fired** — direct-fix lane, no design doc (same basis as `#706`/`#692`/`#691`/`#607`).
+  executor **codex gpt-5.6-sol** · evaluator **sonnet in its own worktree** (gen≠judge holds).
+  Designer/planner/quorum **not fired** — direct-fix lane (same basis as `#703`/`#706`/`#692`).
 - **Skill drift: CLOSED.** Running skill == `origin/dev` (`cmp` silent); `D-16` applied to ff-merge
-  the main checkout (0 ahead; dirty∩incoming empty, control firing 2; JSONs byte-identical after).
-- **Cross-mission**: World's rule-7 skill-fix proposal is already in V1's skill (iter-176). World's
-  `#712`/`#713`/`#715` tracked as normal issues. gen≠judge designer-vs-reviewer gap = Gate-5 candidate.
+  the main checkout (0 ahead; dirty∩incoming empty against a firing 6-file control).
 
 ## Parked on Mark (all on issue #635)
 - **`D-1`–`D-14`** — unchanged, see charter. `D-15`/`D-16`/`D-17` remain discharged.
-- **Nothing new is blocking.** The queue's top unblocked item is the email-parse install-upsert demand.
