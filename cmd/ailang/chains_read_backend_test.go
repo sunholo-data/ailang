@@ -3,11 +3,34 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/observatory"
 )
+
+// hermeticLocalObservatory points DefaultDatabasePath() at a throwaway home and
+// creates the state directory sqlite needs.
+//
+// Without it, any arm exercising the LOCAL branch of openChainsReadBackend reads
+// the developer's real ~/.ailang/state/observatory.db — so it passes on a machine
+// that has one and fails on a clean runner with "unable to open database file: no
+// such file or directory". That is not hypothetical: it red-lighted Build
+// macos-latest on this very PR while the identical command was rc=0 locally, and
+// the only variable was $HOME. Same class as iteration 195's Windows finding, one
+// axis over: there the env var NAME differed per platform, here the env var VALUE
+// differs per machine. setHomeDir (chains_post_dualwrite_test.go) sets all three
+// variables os.UserHomeDir consults, so this stays honest on windows and plan9 too.
+func hermeticLocalObservatory(t *testing.T) {
+	t.Helper()
+	home := t.TempDir()
+	setHomeDir(t, home)
+	if err := os.MkdirAll(filepath.Join(home, ".ailang", "state"), 0o755); err != nil {
+		t.Fatalf("create hermetic state dir: %v", err)
+	}
+}
 
 func TestRemoteReadRefusal_LocalOnlySurfaces(t *testing.T) {
 	t.Setenv("AILANG_CHAINS_READ", "")
@@ -87,6 +110,7 @@ func TestEvalRemoteReadEnvWarnsAndProceeds(t *testing.T) {
 }
 
 func TestOpenChainsReadBackend_DefaultsToLocal(t *testing.T) {
+	hermeticLocalObservatory(t)
 	t.Setenv("AILANG_CHAINS_READ", "")
 	backend, closeBackend, err := openChainsReadBackend(context.Background(), "")
 	if err != nil {
@@ -118,6 +142,7 @@ func TestOpenChainsReadBackend_EnvIsTheFallbackNotTheOverride(t *testing.T) {
 	})
 
 	t.Run("flag beats env", func(t *testing.T) {
+		hermeticLocalObservatory(t)
 		t.Setenv("AILANG_CHAINS_READ", "gcp")
 		backend, closeBackend, err := openChainsReadBackend(context.Background(), "local")
 		if err != nil {
