@@ -159,8 +159,13 @@ func appendGitDependencyToFile(dir, name string, parts []string, gitURL, tag, re
 	depLine := fmt.Sprintf("\"%s\" = { %s }", name, strings.Join(parts, ", "))
 	content, previous, replaced := upsertDependencyLine(string(data), name, depLine)
 
-	if err := writeManifestChecked(dir, path, data, content); err != nil {
+	parseErr, err := writeManifestChecked(path, data, content)
+	if err != nil {
 		return err
+	}
+	if parseErr != nil {
+		fmt.Printf("%s Wrote dependency %s to %s, but the manifest still does not parse: %v\n", yellow("⚠"), name, path, parseErr)
+		return nil
 	}
 
 	label := gitURL
@@ -196,8 +201,13 @@ func appendDependencyToFile(dir, name, value string, isPath bool) error {
 
 	content, previous, replaced := upsertDependencyLine(content, name, depLine)
 
-	if err := writeManifestChecked(dir, path, data, content); err != nil {
+	parseErr, err := writeManifestChecked(path, data, content)
+	if err != nil {
 		return err
+	}
+	if parseErr != nil {
+		fmt.Printf("%s Wrote dependency %s to %s, but the manifest still does not parse: %v\n", yellow("⚠"), name, path, parseErr)
+		return nil
 	}
 
 	label := value
@@ -362,6 +372,10 @@ func stripLineComment(line string) string {
 		c := line[i]
 		switch {
 		case quote != 0:
+			if quote == '"' && c == '\\' {
+				i++
+				continue
+			}
 			if c == quote {
 				quote = 0
 			}
@@ -422,27 +436,24 @@ func openMultilineString(line string) string {
 // file less parseable than it found it. The upsert above is a line scanner over
 // TOML, so its blind spots are open-ended by construction; this bounds them.
 // A manifest that did not parse as TOML before the write is not held against
-// the write. The net engages for every parseable manifest, whether or not it
-// passes semantic validation.
-func writeManifestChecked(dir, path string, original []byte, updated string) error {
-	_ = dir
-	parsedBefore := true
-	if err := pkg.ParseManifestFile(path); err != nil {
-		parsedBefore = false
-	}
+// the write. Its post-write parse error is returned separately so callers can
+// warn without changing command exit status. The net engages for every
+// parseable manifest, whether or not it passes semantic validation.
+func writeManifestChecked(path string, original []byte, updated string) (parseErr, writeErr error) {
+	beforeErr := pkg.ParseManifestFile(path)
 	if err := os.WriteFile(path, []byte(updated), 0644); err != nil {
-		return err
+		return nil, err
 	}
-	if !parsedBefore {
-		return nil
+	if beforeErr != nil {
+		return pkg.ParseManifestFile(path), nil
 	}
 	if err := pkg.ParseManifestFile(path); err != nil {
 		if restoreErr := os.WriteFile(path, original, 0644); restoreErr != nil {
-			return fmt.Errorf("%s became unparseable and could not be restored: %w (restore failed: %v)", path, err, restoreErr)
+			return nil, fmt.Errorf("%s became unparseable and could not be restored: %w (restore failed: %v)", path, err, restoreErr)
 		}
-		return fmt.Errorf("refusing to write %s: the edit would make it unparseable (%w); the file is unchanged — please add the dependency by hand", path, err)
+		return nil, fmt.Errorf("refusing to write %s: the edit would make it unparseable (%w); the file is unchanged — please add the dependency by hand", path, err)
 	}
-	return nil
+	return nil, nil
 }
 
 func pkgLockCommand(args []string) error {

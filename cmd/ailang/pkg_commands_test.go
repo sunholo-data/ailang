@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,10 +38,9 @@ func readTestManifest(t *testing.T, dir string) string {
 //
 // It deliberately does NOT call the production stripLineComment/dependencyLineKey:
 // an instrument that shares the code under test's blind spots cannot detect them.
-// It grew its own comment handling because the first version compared the raw
-// line against "[dependencies]" and so reported 0 for the perfectly-correct
-// output of a manifest whose header carried a trailing comment — the instrument
-// failing in exactly the shape the arm was added to catch.
+// It has its own escape-aware basic/literal string comment handling and its own
+// quoted-header recognition. Keeping those independent prevents a shared blind
+// spot from making production code and its control agree on a wrong answer.
 //
 // It is not multi-line-string aware; arms that need that assert through
 // pkg.LoadManifest instead.
@@ -48,12 +48,23 @@ func countDependencyKey(content, name string) int {
 	count := 0
 	inDependencies := false
 	for _, line := range strings.Split(content, "\n") {
-		if i := strings.IndexByte(line, '#'); i >= 0 && strings.Count(line[:i], `"`)%2 == 0 {
-			line = line[:i]
+		var quote byte
+		for i := 0; i < len(line); i++ {
+			switch {
+			case quote == '"' && line[i] == '\\':
+				i++
+			case quote != 0 && line[i] == quote:
+				quote = 0
+			case quote == 0 && (line[i] == '"' || line[i] == '\''):
+				quote = line[i]
+			case quote == 0 && line[i] == '#':
+				line = line[:i]
+				i = len(line)
+			}
 		}
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "[") {
-			inDependencies = trimmed == "[dependencies]"
+			inDependencies = trimmed == "[dependencies]" || trimmed == `["dependencies"]` || trimmed == "['dependencies']"
 			continue
 		}
 		key := strings.TrimSpace(strings.SplitN(trimmed, "=", 2)[0])
@@ -449,7 +460,7 @@ func TestWriteManifestChecked_RollsBackACorruptingWrite(t *testing.T) {
 
 	// Control: the guard passes a write that keeps the file parseable.
 	okContent := good + "\n[dependencies]\n\"sunholo/existing\" = \"1.0.0\"\n"
-	if err := writeManifestChecked(dir, path, []byte(good), okContent); err != nil {
+	if _, err := writeManifestChecked(path, []byte(good), okContent); err != nil {
 		t.Fatalf("instrument failure: a valid write was rejected: %v", err)
 	}
 	if readTestManifest(t, dir) != okContent {
@@ -457,7 +468,7 @@ func TestWriteManifestChecked_RollsBackACorruptingWrite(t *testing.T) {
 	}
 
 	before := readTestManifest(t, dir)
-	err := writeManifestChecked(dir, path, []byte(before), "[package]\nname = = = broken\n")
+	_, err := writeManifestChecked(path, []byte(before), "[package]\nname = = = broken\n")
 	if err == nil {
 		t.Fatal("corrupting write was accepted")
 	}
@@ -487,7 +498,7 @@ func TestWriteManifestChecked_ParseabilityNotValidity(t *testing.T) {
 			path := filepath.Join(dir, pkg.ManifestFile)
 			corrupt := tc.original + "\n[dependencies]\n\"sunholo/existing\" = \"2.0.0\"\n"
 
-			err := writeManifestChecked(dir, path, []byte(tc.original), corrupt)
+			_, err := writeManifestChecked(path, []byte(tc.original), corrupt)
 			if err == nil {
 				t.Fatal("corrupting write was accepted")
 			}
@@ -509,8 +520,12 @@ func TestWriteManifestChecked_AllowsWriteOverUnparseableInput(t *testing.T) {
 	writeTestManifest(t, dir, broken)
 	path := filepath.Join(dir, pkg.ManifestFile)
 
-	if err := writeManifestChecked(dir, path, []byte(broken), replacement); err != nil {
+	parseErr, err := writeManifestChecked(path, []byte(broken), replacement)
+	if err != nil {
 		t.Fatalf("already-unparseable manifest should not hold the write: %v", err)
+	}
+	if parseErr == nil {
+		t.Fatal("already-unparseable result was not reported")
 	}
 	if got := readTestManifest(t, dir); got != replacement {
 		t.Errorf("write did not land\nwant:\n%s\ngot:\n%s", replacement, got)
@@ -625,5 +640,63 @@ func TestAppendDependencyToFile_ManifestShapeCorpus(t *testing.T) {
 	}
 	if run != len(rows) {
 		t.Fatalf("ran %d corpus rows, want %d", run, len(rows))
+	}
+}
+
+// Killing mutation: delete stripLineComment's backslash-skip branch.
+func TestStripLineComment_EscapedQuoteDoesNotExposeHash(t *testing.T) {
+	subject := `"a\"#b" = "1.0"`
+	if got := stripLineComment(subject); got != subject {
+		t.Errorf("escaped quote exposed hash: got %q, want %q", got, subject)
+	}
+	control := `"a/b" = "1.0" # note`
+	if got, want := stripLineComment(control), `"a/b" = "1.0" `; got != want {
+		t.Errorf("genuine comment was not stripped: got %q, want %q", got, want)
+	}
+}
+
+// Killing mutation: restore countDependencyKey's double-quote-parity comment scan or literal header compare.
+func TestCountDependencyKey_IndependentQuotedControls(t *testing.T) {
+	content := `["dependencies"]
+'sunholo/#inside' = "1.0"
+`
+	if got := countDependencyKey(content, "sunholo/#inside"); got != 1 {
+		t.Fatalf("quoted-header/hash-in-literal key count = %d, want 1", got)
+	}
+}
+
+// Killing mutation: remove the parse-warning branch and restore the unconditional success print.
+func TestAppendDependencyToFile_AlreadyBrokenReportsWarning(t *testing.T) {
+	dir := t.TempDir()
+	const broken = "[package]\nname = = = broken\n"
+	writeTestManifest(t, dir, broken)
+
+	readEnd, writeEnd, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("capture stdout: %v", err)
+	}
+	originalStdout := os.Stdout
+	os.Stdout = writeEnd
+	callErr := appendDependencyToFile(dir, "sunholo/newdep", "1.0.0", false)
+	os.Stdout = originalStdout
+	if err := writeEnd.Close(); err != nil {
+		t.Fatalf("close captured stdout: %v", err)
+	}
+	output, err := io.ReadAll(readEnd)
+	if err != nil {
+		t.Fatalf("read captured stdout: %v", err)
+	}
+	if err := readEnd.Close(); err != nil {
+		t.Fatalf("close capture reader: %v", err)
+	}
+	if callErr != nil {
+		t.Fatalf("already-broken path changed exit status: %v", callErr)
+	}
+	text := string(output)
+	if !strings.Contains(text, "Wrote dependency sunholo/newdep") || !strings.Contains(text, pkg.ManifestFile) || !strings.Contains(text, "still does not parse") {
+		t.Errorf("missing actionable parse warning: %q", text)
+	}
+	if strings.Contains(text, "✓ Added") {
+		t.Errorf("already-broken manifest was announced as success: %q", text)
 	}
 }
