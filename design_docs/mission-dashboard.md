@@ -2,43 +2,39 @@
 > **Contract**: ≤40 lines, overwritten by mission-control Gate 4 every iteration (history lives in
 > the charter/log). Fresh session = THIS + MEMORY.md. Humans steer via the bookkeeping issue.
 
-**Updated**: 2026-08-14 ~03:30 local (iteration 196)
+**Updated**: 2026-08-14 ~06:40 local (iteration 197)
 
 ## Now
-- **v0.33.1** · `dev` @ `23ea352e7` — merge of PR #702. Gate 3b GREEN (SHA-addressed **22** checks,
-  `pending=0`, zero NOT-GREEN, **4/4** REQUIRED, `state=CLEAN`), incl. `test-windows` and all three
-  `Build` legs — so the toolchain bump is verified across the whole matrix, not just darwin.
-- **The queue did not get picked. dev was RED on a security gate and that outranks it.**
-  `govulncheck` failed with **7 unallowlisted findings**, every one a Go **stdlib** advisory and
-  every one `fixed: 1.26.6` against a repo on 1.26.5. Bumped the toolchain at 16 patch-pinned
-  sites (`go.mod` + 14 workflow pins + one fixture literal). Evaluator sonnet **PASS 93/100**.
+- **v0.33.1** · `dev` @ `20d538a43` — merge of PR #705. Gate 3b GREEN (SHA-addressed **21** checks,
+  `pending=0`, **4/4** REQUIRED, `state=CLEAN`); platform legs **named** (`test-windows` + 3 Builds).
+- **`#691` LANDED**: `exit()` in an embedded module no longer panics the **host** — `#607`'s defect
+  one layer down. Evaluator sonnet **96/100**, zero blocking. `metered=$0.00`.
+- **Contract decided by the controller, flagged for Mark** (`D-17` below): `exit(N)` → typed
+  `*embed.ExitError{Code: N}`; **`exit(0)` is an error too, not nil** — the CLI batch path diverges
+  deliberately because it owns a process and embed does not. `runtime.CallEntrypoint` stays
+  panic-based **on purpose** (the CLI needs the sentinel for `os.Exit`); 4 sites repo-wide.
+- **Inverse arm**: both guards removed + the new tests deleted → `internal/embed` rc=0, **60 PASS**.
+  The defect had shipped entirely undetected.
 
-## The red was INVISIBLE — and that is the bigger finding
-- `#701` merged at `22:18:30Z` and GitHub recorded **no PushEvent** for it: `total=0` runs on dev's
-  HEAD, **0** repo-wide after 22:00Z against **20** in the hour before. Actions was `enabled` the
-  whole time. A `workflow_dispatch` created a run that took `jobs=7` in 12s — which is how the red
-  surfaced, ~5.5h late.
-- **Correctly scoped: one dropped event, NOT a pattern.** 7 of the last 8 merge commits have 2–3
-  runs; only `#701` had zero. (My first sweep suggested a pattern and was wrong — it counted
-  intra-push commits, which never get their own run.) This iteration's own merge fired normally.
+## Next
+1. **`#692`** — batch mode silently drops `Debug` output (`flushDebugOutput` never runs per item).
+2. **`#706`** *(new, from the iteration-197 judge)* — no host special-cases `*embed.ExitError`, so
+   `exit(0)` in a serve-api route returns HTTP 500. **Not a regression** (it used to crash the
+   process); needs a one-word contract call.
+3. **`#703`** — `govulncheck-filter` drops module-level findings; a vacuous green on a security gate.
+4. `#610` infra-gated. `#613` blocked on `D-1`.
 
-## The judge refuted me, and it was right
-- I called the fixture edit "load-bearing". It is **drift hygiene**: reverting just that literal
-  with the active toolchain at 1.26.6 leaves the test **rc=0**, outcome-identical. ⚠ My own first
-  check returned **rc=1 in exactly my predicted direction, for the wrong reason** — the local `go`
-  shim is 1.26.4, so it refused at the *main module* and never reached the fixture.
-- Better than I claimed: the bump also clears an **8th** stdlib advisory (`GO-2026-5942`).
-- Filed **#703**: `govulncheck-filter` silently drops module-level findings — reported in *neither*
-  the unallowlisted list nor the allowlisted count. One is **`GO-2026-5750`** (CVE-2026-7020,
-  Ollama path traversal), real, published, unallowlisted, no upstream fix. Pre-existing.
+## Loop
+- launchd, fired from the driver pin (`~/.ailang-driver-pin/v1`, == `origin/dev`). Routing:
+  controller **opus** · evaluator **sonnet** (generator≠judge); other lanes idle on direct-fix picks.
+- ⚠ **Skill drift widening**: the running skill resolves to the MAIN checkout, now **9 behind**
+  origin (7 last iteration). Every Gate-5 edit lands via worktree and never reaches the executing
+  copy. Blocked on `D-16`.
 
-## Parked on Mark (all on `#635`)
-- `D-1`, `D-2`, `D-7`–`D-16` — **0** directives since the 2026-08-13T04:58Z watermark (of 49 comments).
-- `D-15` (`#698` part 1: `--remote` reach — `view` or `eval`?) and `D-16` (standing ff-merge
-  authorisation) both still unanswered from iteration 195.
-
-## Next (if nothing unparks)
-- `#691` — reality-checked and repro'd this iteration but **not picked** (the red outranked it):
-  `exit()` in embedded AILANG panics the host. Census measured: `Call`, `CallPreserveFloats` and
-  `CallJSON` all panic; `Eval` is UNINFORMATIVE (GAP-5); `GetCallValue*` is a declared residual.
-- Then `#692`. `#610` stays infra-gated (needs duckdb). `#703` is new and unowned.
+## Parked on Mark (all on issue #635)
+- **`D-17` (new)** — ratify or overturn the `#691` contract: should `exit(0)` from an embedded call
+  be an `ExitError` (as shipped) or a nil error? Answering also settles `#706`.
+- **`D-16`** — may I `git merge --ff-only` the main checkout when 0-ahead and the dirty files
+  provably don't collide? Owed 3 iterations; the drift grows monotonically. **yes/no**
+- **`D-15`** — `#698` part 1: should `--remote` reach `view` or `eval`? (recommend `view`)
+- **`D-1`–`D-14`** — unchanged, see charter.

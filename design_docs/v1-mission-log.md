@@ -10362,3 +10362,131 @@ fixture matters"* — refuted, it failed on the main module via a 1.26.4 shim; *
 
 **Next**: `#691` (repro and census banked above), then `#692`. `#703` new and unowned. `#610` stays
 infra-gated. Parked on Mark: `D-1`–`D-16`, all on `#635`.
+
+## 198 — 2026-08-14 — Iteration 197: the fix was small, the shared primitive stayed broken on purpose, and the inverse arm proved nobody would have noticed
+
+**Pick — the queue head, resumed cheaply.** `#691`: `exit()` in an embedded module escapes as a raw
+panic into the host. Iteration 196 reality-checked it and then correctly set it down for a red dev,
+banking the repro. I re-ran that repro at HEAD rather than inheriting it, because an inherited
+measurement is a claim however good its author: `recover()` → **0** across `internal/embed` with the
+same-path control `cmd/ailang/run_helpers.go` → **2**, and the panic reproduced live —
+`panic: (*eval.EvalExitCode)` through `effects/io.go:145` → `runtime/entrypoint.go:112` →
+`embed.(*Engine).Call` at `embed.go:237`, host test binary dead.
+
+**The first repro attempt was UNINFORMATIVE, not a refutation.** It returned *"effect 'IO' requires
+capability, but none provided"* and rc=0. Read carelessly that is "the bug does not reproduce"; in
+fact the effect layer refuses *upstream* of `ioExit`, so the sentinel is never raised and the
+instrument never touches the mechanism. Granting the IO capability is what made the arm informative,
+and the test helper now carries a comment saying exactly why the grant is load-bearing — otherwise
+every arm in the file would pass for the wrong reason.
+
+**The contract decision, which is the substance of this item.** `#691` was filed with the fix
+deliberately deferred because it needs a contract: a host has no `os.Exit` to map onto. Decided:
+`exit(N)` surfaces as a typed `*embed.ExitError{Code: N}` from `Call`, `CallPreserveFloats` and
+transitively `CallJSON`. The signature already returned `(eval.Value, error)`, so this is additive.
+**`exit(0)` is reported as an `ExitError` too, not as a nil error** — a deliberate divergence from
+the CLI batch path, which maps `exit(0)` to success because it owns a process. Embed does not, and a
+nil error there is indistinguishable from a function that returned unit normally, discarding
+information the caller cannot recover. Flagged for Mark as a controller-made contract call.
+
+**Principle 3 audited, and the systemic fix rejected with a reason.** The tempting move is to
+recover inside `runtime.CallEntrypoint`, the shared primitive. That is wrong: the CLI *needs* the
+sentinel to reach its own recover so it can map onto `os.Exit`, so recovering in the primitive would
+force both CLI paths to reconstruct and re-panic a returned error. The primitive stays neutral and
+each consumer class supplies its own contract. The evaluator re-derived the census independently
+rather than taking my word — **4** `CallEntrypoint` call sites repo-wide, 2 CLI already covered by
+#607 and the single-file path, 2 embed now wrapped — and agreed with the placement.
+
+**Mutation drill, one per branch (rule 3j).** Every mutant asserted **LANDED** (sha256 changed) and
+**BUILDS** (`go build ./internal/embed/` rc=0) before its result was read, and restored from a `cp`
+backup — never `git checkout --`, since `exit.go` and `exit_test.go` are untracked and a checkout
+would have deleted the work outright (rule 3k's corollary, applied before it could bite):
+
+| mutation | reds |
+|---|---|
+| exit-mapping neutered | the 4 exit arms + the sentinel unit arm |
+| re-panic neutered | **only** `ReRaisesOtherPanics` |
+| passthrough neutered | **only** the control arm + the passthrough arm |
+| call site 1 unwired | site-1 arm dies, **site-2 arm still PASSES** |
+| call site 2 unwired | site-2 arm dies, **site-1 arm still PASSES** |
+
+The last two are the point. This repo's named recurring shape is guard-the-helper-miss-the-call-site
+— it is how `#691` was born out of `#607` — so the two entry points are pinned *independently*
+rather than assumed equivalent.
+
+**Two of my own drill readings were vacuous, and I caught both.** First: the drill reported
+*"PASSING ARMS: 0"* for every mutant, which looked alarming and meant nothing — `go test` prints no
+`--- PASS` lines without `-v`, so that column was an artifact of the instrument, not a measurement.
+Second, and worse: M4 and M5 **panic the test binary**, so every arm after the failing one never
+executes, and complementarity is unreadable from a combined run *by construction*. The
+independent-pinning claim above is evidence only because it was re-measured with `-run` scoping and
+`-v`. This is the mission's own rule 3a aimed at a mutation drill rather than at a grep: a column of
+zeros and a genuinely empty result look identical.
+
+**Inverse arm.** Both guards removed **and** `exit_test.go` deleted → `internal/embed` is rc=0,
+**60 PASS / 0 FAIL** (68 with the new arms; the package total is asserted, so the zero is not
+vacuous). The defect had shipped entirely undetected by the existing suite — which is the honest
+measure of what the new arms are worth.
+
+**Evaluator sonnet PASS 96/100, zero blocking — and it did the work rather than reading the claims.**
+It reproduced all five mutations and the inverse arm independently, matching every predicted
+red-set; confirmed `Engine.Eval` is genuinely UNINFORMATIVE by running it (GAP-5, *"empty program"*,
+no panic); and traced `GetCallValue`/`GetCallValueN` through `serve_api.go` → `effCtx.FnCaller` to
+establish that every real invocation is already nested inside a wrapped call.
+
+**It also found a third residual I had missed, and I reproduced it before acting.** **No host
+special-cases `*embed.ExitError`** — `routes_dispatch.go:145`, `a2a.go` and `mcp.go` all treat any
+non-nil error as a hard failure. So `exit(0)` in a serve-api route handler now returns **HTTP 500**,
+while the doc comment I had just written says hosts "branch on `Code == 0`". Nobody does. Confirmed
+first-party with a same-path known-positive control (zero `embed.ExitError` hits; the same paths do
+contain `.Call(`). **Not a regression** — that path previously crashed the entire serve-api process,
+so a failed request is strictly better than a dead host — which is why it is an *incomplete
+improvement* and was filed as **`#706`** rather than widened into this PR.
+
+**Process finding: `#691` never had a queue row.** It existed only as prose inside iteration 192's
+`m-batch-exit-panic` row, invisible to any `[NEXT]` scan, and survived purely because two
+consecutive iterations happened to name it in their *Next* line. That is the same class iteration
+195 recorded — *"the ratified item vanished as a task with no acceptance criterion"* — in a
+different surface: **a follow-up filed inside another row's prose is not a backlog item.** Fixed
+structurally, not just for this item: `#692`, `#703` and `#706` now have their own `[NEXT]` rows, so
+the whole `#607`→`#691`→`#706` chain is visible to the ordinary pick mechanism.
+
+**Skill drift fired again, and it is widening.** The running skill resolves via `readlink` to the
+MAIN checkout, whose `dev` is now **9 behind** origin — 7 at iteration 196 — so the running copy
+lacked two skill-touching commits, including `d53352af0` (rule 3b(viii)). Delta read before
+proceeding and applied: the PR body and commit message carry an explicit darwin/arm64 caveat and
+Gate 3b names the platform legs. Gate 1's *new* zero-run rule was checked and did **not** fire
+(`checks=16` on `d24ae5aca`, a real run, all green) — worth recording as a negative, since a rule
+that never fires is indistinguishable from one that cannot. The drift is uncured: the main checkout
+is still dirty with the same concurrent sibling's model-pricing work, so Principle 0 forbids the
+fast-forward and `D-16` is owed for a third consecutive iteration. It grows monotonically, because
+every Gate-5 edit lands via worktree and never reaches the tree the loop executes.
+
+**Routing evidence**: controller **opus** (session default); evaluator **sonnet** (generator≠judge:
+opus author, sonnet judge). Designer, planner, quorum and every cross-provider lane **not fired** —
+the item has no design doc and the fix shape was established by the two sibling recover paths, the
+same basis as `#607` at iteration 192. `metered=$0.00`; both lanes are quota buckets.
+
+**Gate 3b**: PR [#705](https://github.com/sunholo-data/ailang/pull/705) → squash `20d538a43`.
+SHA-addressed **21** checks, `pending=0`, **zero** NOT-GREEN, **4/4** REQUIRED (`test`, `build`,
+`lint`, `docs-gate`), `mergeable=MERGEABLE state=CLEAN`. The count climbed **19→21 during the poll**,
+so `pending=0` was required rather than inferred. Platform legs named per rule 3b(viii):
+`test-windows`, `Build windows-latest`, `Build ubuntu-latest`, `Build macos-latest` all `success` —
+which discharges the darwin-only local narrowing on the axis this diff could plausibly move (it
+resolves paths and sets an env var). Bookkeeping instrument re-verified rather than trusted:
+`Fixes #691` auto-closed the issue at merge, so `gh issue close` was the documented no-op — the
+verdict went in FIRST via `--body-file` and the comment count was asserted **0→1**.
+
+**Ruled out by measurement**: *"the `#691` claims are stale"* — refuted, reproduced frame-for-frame
+at HEAD; *"the IO-capability error refutes the repro"* — refuted, it is an UNINFORMATIVE arm
+upstream of the sentinel; *"the drill showed the other arms passing"* — refuted as vacuous, no `-v`
+and a panicking binary reports nothing after its first failure; *"`make fmt-check-ail` red is mine"*
+— refuted, it is opt-in and **not in CI**, flags 3 pre-existing `examples/` files, and its
+enumerator `find examples stdlib` cannot see this diff's `.ail` files at all because `stdlib/` has
+never existed here (the real path is `std/`) — the same wrong-path enumerator rules 3a(i-d) and 3j
+already record, met a third time in the wild; *"`go build ./...` red is mine"* — refuted, identical
+BASE failure (`cmd/wasm`, no native `main`); *"`#706` is a regression I introduced"* — refuted, the
+pre-fix behaviour on that path was a host crash.
+
+**Next**: `#692` (batch drops `Debug` output), then `#706` and `#703`, both unowned and now both
+carrying queue rows. `#610` stays infra-gated. Parked on Mark: `D-1`–`D-16`, all on `#635`.
