@@ -238,14 +238,18 @@ func (ms *MCPServer) makeToolHandler(modulePath, funcName string, paramNames []s
 
 		// Call the AILANG function (preserve floats — JSON has no int/float distinction).
 		result, callErr := ms.server.engine.CallPreserveFloats(modulePath, funcName, args...)
-		if callErr != nil {
+		if callErr != nil && !isCleanExit(callErr) {
 			return mcpError(fmt.Sprintf("function call failed: %v", callErr)), nil
 		}
 
 		// Convert result to Go value.
-		goResult, err := embed.ToGo(result)
-		if err != nil {
-			return mcpError(fmt.Sprintf("result conversion failed: %v", err)), nil
+		var goResult any
+		if callErr == nil {
+			var err error
+			goResult, err = embed.ToGo(result)
+			if err != nil {
+				return mcpError(fmt.Sprintf("result conversion failed: %v", err)), nil
+			}
 		}
 
 		// Marshal to JSON for text content.

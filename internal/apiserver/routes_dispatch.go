@@ -143,6 +143,14 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 	}
 
 	if callErr != nil {
+		if isCleanExit(callErr) {
+			writeJSON(w, http.StatusOK, FunctionCallResponse{
+				Module:    modulePath,
+				Func:      funcName,
+				ElapsedMs: elapsed,
+			})
+			return
+		}
 		log.Printf("[API] %s/%s failed: %v", modulePath, funcName, callErr)
 		writeJSON(w, http.StatusInternalServerError, FunctionCallResponse{
 			Module:    modulePath,
