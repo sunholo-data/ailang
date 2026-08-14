@@ -1002,6 +1002,37 @@ the Repo Profile above):
    machine, whose operating system you did not mention because it did not occur to you that it was
    a parameter. Mission-independent: under `ailang-code` the same axis is whatever `ailang check`
    resolves differently per host.
+   **(ix) A COUNT IS ONLY TRUE INSIDE THE SCOPE IT WAS TAKEN IN, AND THE SCOPE IS THE PART NOBODY
+   WRITES DOWN — SO THE NUMBER SURVIVES BEING COPIED INTO A WIDER SENTENCE, WHERE NOTHING ABOUT IT
+   LOOKS WRONG** (added 2026-08-14 V1 iteration 202; proposed by `mission-world` iter-86 with three
+   first-party instances in ONE iteration across THREE roles, and corroborated first-party in V1's
+   own artifacts before adoption — sibling-claim ghost discipline). Rule 3b(ii) makes a
+   `-run`/`--version`/single-package narrowing travel with a **green**. Rule 3a(i-d) makes a scope
+   travel with an **empty** result. Nothing makes a scope travel with a **non-empty count** — and
+   that is the shape that keeps shipping, because a cardinality reads as a fact about the world
+   rather than as a fact about the command that produced it. Note the asymmetry that makes it
+   durable: the count is usually **correct where it was taken**, so re-deriving it reproduces the
+   number and confirms the error.
+   World's three, one iteration: a queue row saying "four context-free read getters" that missed a
+   fifth **on its own scope**; a controller directive headed VERIFIED BY ME that placed three
+   functions in `store.go "~229-290"` where a definition grep returns **0** (they are in
+   `writer_lock.go`; `store.go` holds CALL SITES, read as definitions — that one violates the
+   EXISTING 3b(v)(b), so it is a rule broken rather than a gap found, and the DESIGNER refuted it,
+   which is Gate 2 rule (d) working); and the designer's own correction becoming a false universal,
+   "all five read getters are context-free" as a property of the STORE, which has **six**. Two of
+   those are the SAME number corrected in the SAME iteration and wrong both times, in **opposite
+   directions**.
+   V1's corroborating instance is the purest form, because nothing was miscounted at all: iteration
+   202's PR body carried a mutation table of **8** rows covering **9** test functions (7 + 2,
+   measured at `e86ffc36f`), and the evaluator read the 8 as an arm count and filed the mismatch.
+   The number was right in its scope — mutations — and wrong in the sentence a reader built from it.
+   **Rule.** Before a count becomes a fact you act on or hand downstream, write the scope INTO the
+   sentence — "five getters **on the daemon read path**", "eight **mutations** across nine arms" —
+   never a bare "five getters" or "eight". Where the count will be quoted downstream, quote the
+   enumerating command beside it, exactly as 3a(i-d) requires "control firing" to carry its scope.
+   The tell: you are about to write "all N", "the only", "there are N", or "N of them" about a set
+   whose boundary you chose and did not state. Mission-independent; under `ailang-code` the same
+   trap is a module set.
 3c. **"THE SERVICE" IS AN ASSUMPTION — a probe identifies the endpoint you REACHED, never the
    service you NAMED** (added 2026-08-01 iteration 130; 2nd instance of this gap after iteration
    129 recorded "ollama server is 0.31.2, up 11 days; client already 0.32.1" as a fact and built a
