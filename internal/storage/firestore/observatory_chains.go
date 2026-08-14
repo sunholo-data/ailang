@@ -539,10 +539,10 @@ func (s *ObservatoryStore) GetCostRollup(ctx context.Context, createdAfter *time
 	return rollup, nil
 }
 
-// GetMissionRollups is not supported on the Firestore backend (the mission loop
-// posts to the SQLite-backed server); returns empty (M3).
+// GetMissionRollups refuses rather than returning a false empty result because
+// mission rollups are not implemented by the Firestore backend.
 func (s *ObservatoryStore) GetMissionRollups(ctx context.Context, createdAfter *time.Time, sourcePrefix string, topN int) ([]obs.MissionRollup, error) {
-	return nil, nil
+	return nil, fmt.Errorf("Firestore backend does not support GetMissionRollups")
 }
 
 func (s *ObservatoryStore) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*obs.SpanLitePage, error) {

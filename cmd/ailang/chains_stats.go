@@ -64,6 +64,10 @@ func chainsStatsCommand() {
 	// reuses the observatory rollup (never recomputes cost) and emits the exact
 	// same struct the HTTP handler and latest.json publisher serialize.
 	if *costPerVerifiedSuccess {
+		if err := refuseRemoteReadForLocalOnlySurface("chains stats --cost-per-verified-success", *remote); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 		chainsStatsCostPerVerifiedSuccess(*baseline, *hours, *jsonOutput, *strict)
 		return
 	}

@@ -98,6 +98,10 @@ func main() {
 	checkStaleBinary()
 
 	command := flag.Arg(0)
+	if err := guardEvalRemoteRead(command, flag.Args()[1:], os.Stderr); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 
 	switch command {
 	case "version":

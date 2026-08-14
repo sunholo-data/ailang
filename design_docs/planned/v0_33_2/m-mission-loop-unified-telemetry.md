@@ -112,9 +112,13 @@ Before implementation begins:
 - [x] **Offline behaviour** — **RATIFIED: never block.** Mark: *"no block if not available, at least
       until we harden availability."* Implement by EXTENDING the existing bounded+loud spool
       (`internal/observatory/spool.go`), not by inventing a policy — see V10.
-- [x] **Local analysis reads cloud** — **RATIFIED: yes, OPT-IN.** `OpenDefaultStore()` keeps its
-      local default; an explicit remote mode is added. Every `ailang chains` / `eval-*` consumer
-      inherits the option, none inherit a changed default.
+- [x] **Local analysis reads cloud** — **RATIFIED, then narrowed by decision `D-15` on
+      2026-08-14: `view`.** `OpenDefaultStore()` keeps its local default; opt-in remote read reaches
+      only the `observatory.Backend`-shaped `ailang chains` view surfaces. Local-only chains
+      surfaces refuse remote mode, and `eval-*` records demand through a loud refusal. The broader
+      “every consumer” statement is superseded: Firestore stores `eval_assessment` as an opaque
+      JSON string and `QueryEvalResults` is not on `Backend`, making eval support a porting/schema
+      problem rather than wiring. This is a recorded decision, not a pending design question.
 
 **All Design Freeze items are ratified; the sprint has no pause point.**
 

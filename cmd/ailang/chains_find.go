@@ -83,6 +83,10 @@ func chainsFindCommand() {
 
 	// If no chain found, try span summary fallback (for user sessions, evals, etc.)
 	if chain == nil && *taskID != "" {
+		if refusalErr := refuseRemoteReadForLocalOnlySurface("chains find --task", *remote); refusalErr != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", refusalErr)
+			os.Exit(1)
+		}
 		sqliteBackend, ok := backend.(*observatory.SQLiteBackend)
 		if !ok {
 			fmt.Fprintln(os.Stderr, "Error: task span summary fallback is unavailable on this backend")

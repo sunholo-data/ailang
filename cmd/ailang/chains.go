@@ -509,11 +509,16 @@ func printEvalAssessment(a *observatory.EvalAssessment) {
 func chainsJourneyCommand() {
 	fs := flag.NewFlagSet("chains journey", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
 	fs.Parse(flag.Args()[2:])
 
 	chainIDPrefix := fs.Arg(0)
 	if chainIDPrefix == "" {
 		fmt.Fprintln(os.Stderr, "Usage: ailang chains journey <chain-id>")
+		os.Exit(1)
+	}
+	if err := refuseRemoteReadForLocalOnlySurface("chains journey", *remote); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 
