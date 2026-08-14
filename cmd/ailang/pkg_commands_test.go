@@ -566,10 +566,54 @@ func TestUpsertDependencyLine_QuotedDependenciesHeader(t *testing.T) {
 	}
 }
 
-// Killing mutation: make tableHeaderName accept a [[-prefixed array-of-tables header.
-func TestTableHeaderName_RejectsArrayOfTables(t *testing.T) {
-	if name, ok := tableHeaderName("[[dependencies]]"); ok || name != "" {
-		t.Fatalf("array-of-tables accepted as simple header: name=%q ok=%v", name, ok)
+// One arm per refusal branch in tableHeaderName. A helper whose contract is
+// "refuse anything that is not a simple single-segment header" has several
+// distinct ways to refuse, and a branch nothing reds for is not a guard — the
+// caller's `header == "dependencies"` compare happens to make some of these
+// harmless today, which is exactly why the CLAIM needs pinning rather than the
+// consequence.
+//
+// Killing mutations, one per row: neuter that row's guard with
+// `if false && <cond>` in tableHeaderName.
+func TestTableHeaderName_RefusalBranches(t *testing.T) {
+	refused := []struct {
+		label string
+		line  string
+	}{
+		{"array-of-tables", "[[dependencies]]"},
+		{"dotted header", "[dependencies.sub]"},
+		{"dotted header, quoted", `["dependencies.sub"]`},
+		{"quote mismatch", `["dependencies']`},
+		{"unterminated quote", `["dependencies]`},
+		{"empty body", "[]"},
+		{"interior quote", `["deps"x"]`},
+		{"bare header with a space", "[two words]"},
+		{"not a header", "dependencies"},
+	}
+	for _, tc := range refused {
+		if name, ok := tableHeaderName(tc.line); ok || name != "" {
+			t.Errorf("%s: tableHeaderName(%q) = (%q, %v), want (\"\", false)", tc.label, tc.line, name, ok)
+		}
+	}
+
+	// Control: the accepted forms must still be accepted, or every row above
+	// passes for the trivial reason that the helper refuses everything.
+	accepted := []struct {
+		line string
+		want string
+	}{
+		{"[dependencies]", "dependencies"},
+		{`["dependencies"]`, "dependencies"},
+		{"['dependencies']", "dependencies"},
+		{"[ dependencies ]", "dependencies"},
+		{"[\tdependencies\t]", "dependencies"},
+		{"[package]", "package"},
+	}
+	for _, tc := range accepted {
+		name, ok := tableHeaderName(tc.line)
+		if !ok || name != tc.want {
+			t.Errorf("instrument failure: tableHeaderName(%q) = (%q, %v), want (%q, true)", tc.line, name, ok, tc.want)
+		}
 	}
 }
 
@@ -666,6 +710,48 @@ func TestCountDependencyKey_IndependentQuotedControls(t *testing.T) {
 }
 
 // Killing mutation: remove the parse-warning branch and restore the unconditional success print.
+// The SECOND call site of the same warn branch. appendGitDependencyToFile has
+// its own copy, and neutering it left the entire package green — a branch whose
+// twin is tested reads as covered.
+//
+// Killing mutation: `if false && parseErr != nil` in appendGitDependencyToFile.
+func TestAppendGitDependencyToFile_AlreadyBrokenReportsWarning(t *testing.T) {
+	dir := t.TempDir()
+	const broken = "[package]\nname = = = broken\n"
+	writeTestManifest(t, dir, broken)
+
+	readEnd, writeEnd, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("capture stdout: %v", err)
+	}
+	originalStdout := os.Stdout
+	os.Stdout = writeEnd
+	callErr := appendGitDependencyToFile(dir, "sunholo/newdep",
+		[]string{`git = "https://example.invalid/r.git"`, `tag = "v1"`},
+		"https://example.invalid/r.git", "v1", "")
+	os.Stdout = originalStdout
+	if err := writeEnd.Close(); err != nil {
+		t.Fatalf("close captured stdout: %v", err)
+	}
+	output, err := io.ReadAll(readEnd)
+	if err != nil {
+		t.Fatalf("read captured stdout: %v", err)
+	}
+	if err := readEnd.Close(); err != nil {
+		t.Fatalf("close capture reader: %v", err)
+	}
+	if callErr != nil {
+		t.Fatalf("already-broken path changed exit status: %v", callErr)
+	}
+	text := string(output)
+	if !strings.Contains(text, "Wrote dependency sunholo/newdep") || !strings.Contains(text, pkg.ManifestFile) || !strings.Contains(text, "still does not parse") {
+		t.Errorf("missing actionable parse warning: %q", text)
+	}
+	if strings.Contains(text, "✓ Added") {
+		t.Errorf("already-broken manifest was announced as success: %q", text)
+	}
+}
+
 func TestAppendDependencyToFile_AlreadyBrokenReportsWarning(t *testing.T) {
 	dir := t.TempDir()
 	const broken = "[package]\nname = = = broken\n"
