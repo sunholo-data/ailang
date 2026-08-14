@@ -352,8 +352,19 @@ echo "$CONTEXT_MESSAGE"
 
 # Background: warm embedding cache for neural search (non-blocking)
 # This prevents cold-cache hangs when design-doc-creator uses --neural
+#
+# `>/dev/null 2>&1` IS LOAD-BEARING — without it this line is non-blocking for the SCRIPT and
+# blocking for every CONSUMER that captures our stdout (2026-08-14, motoko mission iteration 5).
+# A backgrounded child inherits stdout, so a `$(...)`-style capture cannot see EOF until the CHILD
+# exits, however promptly the script itself `exit 0`s. Claude Code captures hook stdout (that is
+# how this banner reaches the session), so the SessionStart hook was effectively held open for as
+# long as the warmup ran — bounded only by its own `--timeout 3m`, i.e. 180s against the mission
+# driver's 120s model-probe cap. Measured: capture arm 8433ms vs redirected arm 8ms vs 237ms with
+# the background child removed; one real hook capture took 96,377ms. That is what produced the
+# fleet's "probe timed out — captured output: ''" refusals (47/186 fires on v1, 6/11 on motoko,
+# 0/89 on world, the one mission with no hooks at all). See queue item 5a.
 if command -v ailang &> /dev/null; then
-    ailang docs embed-warmup --quiet --timeout 3m &
+    ailang docs embed-warmup --quiet --timeout 3m >/dev/null 2>&1 &
     log "Started background embedding cache warmup (PID: $!)"
 fi
 
