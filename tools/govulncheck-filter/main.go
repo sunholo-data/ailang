@@ -37,10 +37,8 @@ type allowlist struct {
 	Allow []allowEntry `yaml:"allow"`
 }
 
-// govulncheck JSON streams a sequence of objects, one per line. We
-// only care about the "finding" frames where Trace[0].Module is
-// non-empty (those are real reachable findings — symbol-level rather
-// than module-level scan artifacts).
+// govulncheck JSON streams a sequence of objects, one per line. Finding
+// frames may be function-reaching or module-level scan artifacts.
 type vulnFrame struct {
 	Finding *struct {
 		OSV   string `json:"osv"`
@@ -72,7 +70,7 @@ func main() {
 		byID[e.ID] = e
 	}
 
-	findings, err := readFindings(os.Stdin)
+	reaching, moduleOnly, err := readFindings(os.Stdin)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "govulncheck-filter: parse stdin: %v\n", err)
 		os.Exit(2)
@@ -85,10 +83,7 @@ func main() {
 		seen     = map[string]bool{}
 	)
 
-	for _, id := range findings {
-		if seen[id] {
-			continue
-		}
+	for _, id := range reaching {
 		seen[id] = true
 
 		entry, ok := byID[id]
@@ -106,6 +101,9 @@ func main() {
 			expired = append(expired, fmt.Sprintf("%s (expired %s)", id, entry.Expires))
 		}
 	}
+	for _, id := range moduleOnly {
+		seen[id] = true
+	}
 
 	// Surface allowlist entries that no longer match any finding —
 	// they're dead weight and should be removed.
@@ -121,8 +119,9 @@ func main() {
 	sort.Strings(stale)
 
 	if len(blocking) == 0 && len(expired) == 0 {
-		fmt.Printf("govulncheck-filter: %d finding(s), all allowlisted and unexpired.\n",
-			len(findings))
+		fmt.Printf("govulncheck-filter: %d reachable finding(s), all allowlisted and unexpired.\n",
+			len(reaching))
+		printModuleOnly(os.Stdout, moduleOnly, byID)
 		if len(stale) > 0 {
 			fmt.Printf("Note: %d stale allowlist entr(ies) — consider removing: %v\n",
 				len(stale), stale)
@@ -148,7 +147,22 @@ func main() {
 		fmt.Fprintln(os.Stderr,
 			"Re-evaluate: bump expires forward, fix the underlying issue, or remove the dependency.")
 	}
+	printModuleOnly(os.Stderr, moduleOnly, byID)
 	os.Exit(1)
+}
+
+func printModuleOnly(w io.Writer, ids []string, byID map[string]allowEntry) {
+	if len(ids) == 0 {
+		return
+	}
+	fmt.Fprintf(w, "govulncheck-filter: %d module-level finding(s) (not function-reaching, not gating):\n", len(ids))
+	for _, id := range ids {
+		status := "NOT allowlisted"
+		if _, ok := byID[id]; ok {
+			status = "allowlisted"
+		}
+		fmt.Fprintf(w, "  - %s [%s]\n", id, status)
+	}
 }
 
 func loadAllowlist(path string) (*allowlist, error) {
@@ -163,7 +177,8 @@ func loadAllowlist(path string) (*allowlist, error) {
 	return &a, nil
 }
 
-// readFindings extracts unique OSV IDs from a govulncheck JSON stream.
+// readFindings extracts unique OSV IDs from a govulncheck JSON stream,
+// partitioned into function-reaching and module-only findings.
 // Each finding object has an "osv" field naming the vulnerability;
 // govulncheck emits multiple frames per OSV (one per call trace) — we
 // dedup at the OSV level since the allowlist is OSV-keyed.
@@ -171,31 +186,39 @@ func loadAllowlist(path string) (*allowlist, error) {
 // Note: govulncheck's JSON output is a stream of pretty-printed
 // objects (NOT JSON Lines), so we use json.Decoder which handles
 // arbitrary whitespace between top-level values.
-func readFindings(r io.Reader) ([]string, error) {
+func readFindings(r io.Reader) (reaching, moduleOnly []string, err error) {
 	dec := json.NewDecoder(r)
-	seen := map[string]bool{}
-	var ids []string
+	reachesFunction := map[string]bool{}
 	for {
 		var frame vulnFrame
 		if err := dec.Decode(&frame); err != nil {
 			if err == io.EOF {
 				break
 			}
-			return nil, err
+			return nil, nil, err
 		}
 		if frame.Finding == nil {
 			continue
 		}
-		// Module-level frames have empty Trace[0].Function — those are
-		// false positives at the symbol level. Keep only frames whose
-		// trace reaches a function (= reachable finding).
-		if len(frame.Finding.Trace) == 0 || frame.Finding.Trace[0].Function == "" {
-			continue
+		id := frame.Finding.OSV
+		if _, exists := reachesFunction[id]; !exists {
+			reachesFunction[id] = false
 		}
-		if !seen[frame.Finding.OSV] {
-			seen[frame.Finding.OSV] = true
-			ids = append(ids, frame.Finding.OSV)
+		for _, trace := range frame.Finding.Trace {
+			if trace.Function != "" {
+				reachesFunction[id] = true
+				break
+			}
 		}
 	}
-	return ids, nil
+	for id, reaches := range reachesFunction {
+		if reaches {
+			reaching = append(reaching, id)
+		} else {
+			moduleOnly = append(moduleOnly, id)
+		}
+	}
+	sort.Strings(reaching)
+	sort.Strings(moduleOnly)
+	return reaching, moduleOnly, nil
 }

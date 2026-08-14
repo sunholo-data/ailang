@@ -36,6 +36,9 @@ allow:
   # another 90 days rather than papered over. Next reviewer: re-run the
   # three checks above before bumping again — if any entry gains a fixed
   # version, upgrade the dependency instead of extending this date.
+  - id: GO-2026-5750
+    reason: Ollama path-traversal (CVE-2026-7020, GHSA-x99g-8v8j-25j2), module-level / not function-reaching in AILANG's call graph; client-side use only; no upstream fix as of 2026-07-27. Tracked via Dependabot with the other Ollama advisories.
+    expires: 2026-10-29
   - id: GO-2025-4251
     reason: Ollama upstream unpatched (re-verified 2026-07-31, no fixed version published); tracked via Dependabot. AILANG only invokes the client side; daemon-side issues need an upstream Ollama release.
     expires: 2026-10-29
