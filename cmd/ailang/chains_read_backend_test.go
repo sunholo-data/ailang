@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -153,4 +154,51 @@ func TestOpenChainsReadBackend_EnvIsTheFallbackNotTheOverride(t *testing.T) {
 			t.Fatalf("backend type = %T, want *observatory.SQLiteBackend", backend)
 		}
 	})
+}
+
+// TestEvalRemoteReadIsRefused_AllFlagSpellings pins the four argv spellings Go's
+// flag package treats as the SAME flag. Before this, the guard matched only the
+// double-dash forms, so `-remote gcp` fell through to the subcommand's own
+// FlagSet and died with a generic "flag provided but not defined" -- losing the
+// D-15 text, which is the entire signalling mechanism the D-15 ruling chose
+// `view` in order to get. Found by the iteration-198 evaluator.
+func TestEvalRemoteReadIsRefused_AllFlagSpellings(t *testing.T) {
+	t.Setenv("AILANG_CHAINS_READ", "")
+	for _, args := range [][]string{
+		{"--remote", "gcp"},
+		{"--remote=gcp"},
+		{"-remote", "gcp"},
+		{"-remote=gcp"},
+	} {
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			err := guardEvalRemoteRead("eval-paired", args, io.Discard)
+			if err == nil {
+				t.Fatalf("guardEvalRemoteRead(%q) = nil, want a refusal", args)
+			}
+			for _, token := range []string{"eval-paired", "D-15", "#698 part 1"} {
+				if !strings.Contains(err.Error(), token) {
+					t.Errorf("refusal %q does not contain %q", err, token)
+				}
+			}
+		})
+	}
+}
+
+// Positive control for the above: tokens that merely LOOK flag-shaped, or that
+// name a different flag, must NOT be swallowed by the normalizer.
+func TestEvalRemoteReadIsRefused_DoesNotOverMatch(t *testing.T) {
+	t.Setenv("AILANG_CHAINS_READ", "")
+	for _, args := range [][]string{
+		{"--remotely", "gcp"},
+		{"--baseline", "v1.0"},
+		{"--"},
+		{"remote"},
+		{"-"},
+	} {
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			if err := guardEvalRemoteRead("eval-paired", args, io.Discard); err != nil {
+				t.Fatalf("guardEvalRemoteRead(%q) = %v, want nil (must not over-match)", args, err)
+			}
+		})
+	}
 }
