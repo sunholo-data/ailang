@@ -49,6 +49,38 @@ type Pricing struct {
 	// is visible in a budget, whereas a $0 line looks like caching is free and
 	// hides both the spend and a broken cache. Declare it wherever it is known.
 	CacheReadPer1K float64 `yaml:"cache_read_per_1k"`
+
+	// Expires is the last date (INCLUSIVE, "YYYY-MM-DD") on which the rates
+	// above are the ones actually billed. Empty means "no scheduled change
+	// known", which is the normal case.
+	//
+	// This exists because introductory pricing is a real and silent failure
+	// mode: on 2026-08-13 Google launched Gemini 3.7 Flash at $0.75/$3.75 per
+	// 1M with the rates DOUBLING to $1.50/$7.50 on 2027-01-01. Before this
+	// field, that reversion lived only in a YAML comment — so on New Year's Day
+	// every Gemini Flash cost figure would quietly become half the true spend,
+	// with no test going red and nothing to notice. A date the checker can read
+	// turns a comment nobody re-reads into a gate.
+	//
+	// Enforced offline by TestModels_PricingScheduleIsHonoured (so it fails in
+	// CI on the day, with no network) and online by `make verify-model-pricing`.
+	Expires string `yaml:"expires"`
+
+	// Next is the schedule of rates that take effect the day AFTER Expires.
+	// Required whenever Expires is set, and meaningless without it: recording
+	// only that a price lapses, without what it lapses TO, leaves the row
+	// failing with no way to fix it except re-researching the vendor's page.
+	Next *ScheduledPricing `yaml:"next"`
+}
+
+// ScheduledPricing is a future rate card for a row whose current price is known
+// to expire — see Pricing.Expires. It is deliberately NOT a *Pricing: a schedule
+// that could itself carry a schedule invites a chain of future prices nobody has
+// verified, and one hop is all any vendor has ever actually announced.
+type ScheduledPricing struct {
+	InputPer1K     float64 `yaml:"input_per_1k"`
+	OutputPer1K    float64 `yaml:"output_per_1k"`
+	CacheReadPer1K float64 `yaml:"cache_read_per_1k"`
 }
 
 // Budgets represents per-model cost-and-speed budget overrides

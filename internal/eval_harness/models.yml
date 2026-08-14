@@ -953,6 +953,13 @@ models:
     gcp_location: "global"
     model_family: "gemini-3-flash"
     max_output_tokens: 65536   # 65K max output; needed because thinking tokens eat into budget
+    pricing:
+      # ADDED 2026-08-13: this alias row carried NO pricing block at all, so it
+      # defaulted to $0/$0 and every run invoked as `--ai gemini-3-flash-preview`
+      # banked real Vertex spend as free. Must match the gemini-3-flash row it
+      # aliases — same api_name, same bill.
+      input_per_1k: 0.0005   # $0.50 per 1M
+      output_per_1k: 0.003   # $3.00 per 1M
 
   gemini-3-flash:
     api_name: "gemini-3-flash-preview"
@@ -1180,13 +1187,33 @@ models:
     # 65536 ACCEPTED; 131072 REJECTED ("supported range is from 1 to 65535").
     max_output_tokens: 65536
     pricing:
-      input_per_1k: 0.0015     # $1.50 per 1M = $0.0015 per 1K
-      output_per_1k: 0.0075    # $7.50 per 1M = $0.0075 per 1K (thinking billed as output)
+      # ⚠️  REPRICED 2026-08-13 (was 0.0015 / 0.0075). When Gemini 3.7 Flash launched,
+      # Google extended its 50% introductory cut ACROSS the Flash line, and the pricing
+      # page now quotes 3.6 Flash at the same promo rate as 3.7. These constants EXPIRE
+      # 2026-12-31 and revert to $1.50/$7.50 on 2027-01-01 — update them then or every
+      # cost figure for this model is silently half the true spend.
+      # Rows banked BEFORE 2026-08-13 are correct at the old $1.50/$7.50: the promo did
+      # not exist on 2026-07-21 (the launch note below reasons from a $9.00 -> $7.50 cut,
+      # which only holds at the pre-promo rate). Do NOT re-derive old costs at this rate.
+      input_per_1k: 0.00075    # $0.75 per 1M through 2026-12-31 → $1.50 from 2027-01-01
+      output_per_1k: 0.00375   # $3.75 per 1M through 2026-12-31 → $7.50 from 2027-01-01 (thinking billed as output)
+      expires: "2026-12-31"    # last day the rates above are billed; enforced by TestModels_PricingScheduleIsHonoured
+      next:
+        input_per_1k: 0.0015   # $1.50 per 1M from 2027-01-01
+        output_per_1k: 0.0075  # $7.50 per 1M from 2027-01-01
     notes: |
       Google's newest Flash model (released July 21, 2026), successor to Gemini 3.5 Flash.
+      SUPERSEDED 2026-08-13 by gemini-3-7-flash (a refinement of this model, not a new
+      pretraining run), which TOOK the extended_suite Flash-tier slot from this row after
+      22 days. Pass rates were indistinguishable on smoke/core/stretch; the deciding
+      margin was 42-48% more thinking tokens burned HERE at the same per-token price.
+      This row stays opt-in (`--models gemini-3-6-flash`) as the longitudinal anchor —
+      the same role gemini-3-5-flash was given when this row displaced it.
       1M token input context, 64K max output (65535 hard ceiling, verified via API rejection).
-      Pricing: $1.50/$7.50 per 1M — input unchanged vs 3.5 Flash, output DOWN from $9.00
-      (-17%). Source: ai.google.dev/gemini-api/docs/pricing (Google first-party, not a blog).
+      Launch pricing was $1.50/$7.50 per 1M — input unchanged vs 3.5 Flash, output DOWN from
+      $9.00 (-17%). As of 2026-08-13 it is on the same $0.75/$3.75 introductory rate as 3.7
+      Flash (verbatim from the pricing page; see the pricing block above for the date boundary).
+      Source: ai.google.dev/gemini-api/docs/pricing (Google first-party, not a blog).
 
       ⚠️  REASONING MODEL — thinks by default. Probed 2026-07-21 with NO reasoning
       params on a bare prompt: thoughtsTokenCount=739 vs candidatesTokenCount=600, i.e.
@@ -1267,6 +1294,69 @@ models:
       Standard mode: ✅ ready. Agent mode: ❌ not wired (no agent_cli declared;
       no agent name verified for this model rather than guessing one).
 
+  # Google Gemini 3.7 Flash (released August 13, 2026 — only THREE WEEKS after 3.6
+  # Flash). Google positions it as a REFINEMENT of 3.6, not a new pretraining run.
+  # STATUS: access verified 2026-08-13. HOLDS the extended_suite Flash-tier slot,
+  # taken from gemini-3-6-flash the same day on a smoke+core+stretch head-to-head
+  # (tied on all three) plus a 42-48% thinking-token reduction at identical price.
+  # The full gate record, including what was RETRACTED at N=3, is in the
+  # extended_suite annotation — read that before re-litigating this row.
+  gemini-3-7-flash:
+    api_name: "gemini-3.7-flash"
+    provider: "google"
+    default_thinking: "on"
+    description: "Gemini 3.7 Flash - Aug 2026 refinement of 3.6 Flash; coding/agentic focus, 50% introductory price cut"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    # VERIFIED empirically 2026-08-13 against the Vertex global endpoint, not guessed:
+    # 65536 ACCEPTED; 131072 REJECTED ("supported range is from 1 (inclusive) to
+    # 65537 (exclusive)"). Same 64K ceiling as 3.6 Flash.
+    max_output_tokens: 65536
+    pricing:
+      # ⚠️  INTRODUCTORY PRICING — these constants EXPIRE 2026-12-31. On 2027-01-01
+      # the rates DOUBLE to $1.50/$7.50 per 1M. If they are not updated then, every
+      # cost figure banked for this model is silently half the true spend.
+      input_per_1k: 0.00075    # $0.75 per 1M through 2026-12-31 → $1.50 from 2027-01-01
+      output_per_1k: 0.00375   # $3.75 per 1M through 2026-12-31 → $7.50 from 2027-01-01
+      expires: "2026-12-31"    # last day the rates above are billed; enforced by TestModels_PricingScheduleIsHonoured
+      next:
+        input_per_1k: 0.0015   # $1.50 per 1M from 2027-01-01
+        output_per_1k: 0.0075  # $7.50 per 1M from 2027-01-01
+    notes: |
+      Google's newest Flash model (released August 13, 2026), a refinement of 3.6 Flash
+      rather than a new pretraining run. 1M token input context, 64K max output
+      (65536 ceiling, verified via API rejection at 131072).
+
+      Pricing: $0.75/$3.75 per 1M — a 50% INTRODUCTORY cut that reverts to $1.50/$7.50
+      on 2027-01-01. Source: ai.google.dev/gemini-api/docs/pricing, quoted verbatim
+      2026-08-13 (Google first-party, not a blog). NOTE: the same promo now also
+      applies to gemini-3.6-flash on that page — see that entry's pricing block.
+
+      ⚠️  REASONING MODEL — thinks by default. Probed 2026-08-13 with NO reasoning
+      params on the same bare prompt used for the 3.6 Flash probe:
+        3.7: thoughtsTokenCount=552, candidatesTokenCount=464  (54% of billed output)
+        3.6: thoughtsTokenCount=693, candidatesTokenCount=452  (61% of billed output)
+      Thinking bills at the OUTPUT rate, so cost projections must use
+      (output + thoughts). Thinking is left ON — a thinking-tuned model with thinking
+      suppressed is not the model we would be gating. max_output_tokens sits at the
+      declared ceiling so a long thinking phase cannot guillotine the answer.
+
+      Access verification (2026-08-13): POST to the Vertex global endpoint on project
+      ailang-dev returned HTTP 200, modelVersion "gemini-3.7-flash", finishReason STOP.
+      GA name — gemini-3.7-flash-preview, gemini-3-7-flash, gemini-3.7-flash-lite and
+      gemini-3.7-pro ALL 404 on Vertex (probed 2026-08-13). Same GA-name pattern as 3.6.
+
+      Vendor-published gains vs 3.6 Flash (NOT independently verified, and none of these
+      benchmarks is AILANG): FrontierCode 43.6% (from 34.4%), DeepSWE v1.1 65.3% (from
+      48.6%), WebDev Arena Elo 1588 (from 1538). Treat as a reason to RUN the core gate,
+      never as a substitute for it.
+
+      Standard mode (direct Vertex generateContent): ✅ ready.
+      Agent mode: ❌ NOT wired — no agent_cli declared. The 3.5 Flash agent path goes
+      through Vertex Managed Agents under a public agent name; no equivalent name has
+      been verified for 3.7, and guessing one is how we get silent misroutes.
+
   # =============================================================================
   # OPENCODE HARNESS MODELS
   # =============================================================================
@@ -1286,8 +1376,8 @@ models:
     model_family: "claude-haiku-4-5"             # Cross-harness grouping: pairs with claude-haiku-4-5
     max_output_tokens: 64000  # M-EVAL-TOKEN-HEADROOM: was 16000; family ceiling (non-streaming Messages API)
     pricing:
-      input_per_1k: 0.00025   # $0.25 per 1M
-      output_per_1k: 0.00125  # $1.25 per 1M
+      input_per_1k: 0.001    # $1.00 per 1M — CORRECTED 2026-08-13 (was 0.00025, Haiku 3.5 rates)
+      output_per_1k: 0.005   # $5.00 per 1M — must match the canonical claude-haiku-4-5 row (same api_name)
     # M-EVAL-COST-AND-SPEED-BUDGETS (v0.15.1 retro): cheap-model agent budget.
     # Default formula = $0.056 — too tight. opencode harness compounds the
     # issue with internal Haiku compaction calls. Explicit $0.30.
@@ -1371,8 +1461,8 @@ models:
     model_family: "claude-haiku-4-5"                 # Cross-harness grouping: pairs with claude-haiku-4-5 + opencode-haiku
     max_output_tokens: 64000  # M-EVAL-TOKEN-HEADROOM: was 16000; family ceiling (non-streaming Messages API)
     pricing:
-      input_per_1k: 0.00025   # $0.25 per 1M
-      output_per_1k: 0.00125  # $1.25 per 1M
+      input_per_1k: 0.001    # $1.00 per 1M — CORRECTED 2026-08-13 (was 0.00025, Haiku 3.5 rates)
+      output_per_1k: 0.005   # $5.00 per 1M — must match the canonical claude-haiku-4-5 row (same api_name)
     notes: |
       Claude Haiku 4.5 evaluated via the pi minimal harness.
       Pi is a deliberately minimal Claude Agent SDK-based CLI (no MCP, no sub-agents,
@@ -1462,8 +1552,8 @@ models:
     model_family: "claude-haiku-4-5"                 # Pairs with claude-haiku-4-5 + opencode-haiku + pi-claude-haiku-4-5
     max_output_tokens: 64000  # M-EVAL-TOKEN-HEADROOM: was 16000; family ceiling (non-streaming Messages API)
     pricing:
-      input_per_1k: 0.00025
-      output_per_1k: 0.00125
+      input_per_1k: 0.001    # $1.00 per 1M — CORRECTED 2026-08-13 (was 0.00025, Haiku 3.5 rates)
+      output_per_1k: 0.005   # $5.00 per 1M — must match the canonical claude-haiku-4-5 row (same api_name)
     notes: |
       Claude Haiku 4.5 evaluated via the motoko_agent harness — the FIRST
       AILANG-native agent in the eval suite. Routes via OpenRouter so this
@@ -1894,8 +1984,8 @@ models:
     model_family: "gemini-2.5-flash"
     max_output_tokens: 65536
     pricing:
-      input_per_1k: 0.0005  # $0.50 per 1M
-      output_per_1k: 0.003  # $3.00 per 1M
+      input_per_1k: 0.0003  # $0.30 per 1M — CORRECTED 2026-08-13 (was 0.0005, gemini-3-flash rates)
+      output_per_1k: 0.0025 # $2.50 per 1M — must match the canonical gemini-2-5-flash row (same api_name)
     notes: |
       Gemini 2.5 Flash via opencode CLI harness. Confirmed working with this GCP project.
       Use this instead of opencode-gemini-3-flash until the project gains access to gemini-3-flash-preview.
@@ -3266,7 +3356,8 @@ benchmark_suite:
 # Standard mode only — cloud models never run the smoke tier (smoke is the local
 # OS-model iteration loop); release baselines run core,stretch.
 # OS roster: glm-5.2 (replaced 5.1 2026-07-19), minimax-m3, kimi k2.7-code + k3,
-# deepseek-v4 flash/pro. Roster last changed 2026-07-27 (claude-opus-5 in, 4.8 out);
+# deepseek-v4 flash/pro. Roster last changed 2026-08-13 (gemini-3-7-flash in, 3-6-flash
+# out of the Flash slot; before that 2026-07-27, claude-opus-5 in, 4.8 out);
 # see the per-entry annotations below for each gate record.
 extended_suite:
   - "gpt5-6-sol"        # OpenAI flagship (Jul 2026) — gated 2026-07-11: core 26/26 N=1, tie 25/26 with gpt5-5
@@ -3291,22 +3382,38 @@ extended_suite:
     # Narrow N=1 win — kept sonnet-4-6 alongside as the longitudinal anchor, not a replacement.
   - "claude-sonnet-4-6" # Anthropic previous-gen, kept as longitudinal anchor (Feb 2026)
   - "gemini-3-1-pro"    # Google flagship (Feb 2026)
-  - "gemini-3-6-flash"  # Google newest Flash (Jul 2026) — added 2026-07-21, takes the Flash-tier
-    # slot over gemini-3-5-flash. Matched head-to-head (same command, same day, thinking-inclusive):
-    #   smoke 22/23 = 22/23 | core 19/19 = 19/19 | stretch 20/21 = 20/21 (both fail only
-    #   emit_exact_bytes_varied) | frontier N=3: 3.5 32/48 (66.7%) vs 3.6 29/48 (60.4%)
-    # TIED on every tier release baselines run. 3.5 is nominally +6pp on frontier but a sign test
-    # on the 9 differing benchmarks (6-3) is p~0.25 — NOT significant. 3.6 is the newer model,
-    # 31% cheaper on frontier and uses 28% fewer thinking tokens, so it takes the slot for
-    # new-release tracking (same rationale as gpt5-6-luna above).
-    # ⚠️  HONEST CAVEAT: the 31% saving is a FRONTIER number. On stretch — which is what release
-    # baselines actually run — the two are within 3% ($1.88 vs $1.94), so this swap is roughly
-    # cost-NEUTRAL for baselines. It is justified by recency + tier parity, not by big savings.
-    # If frontier ever becomes a routine baseline tier, revisit: 3.5's edge there is unproven but
-    # was directionally consistent (led or tied all 3 passes).
-    # NOTE: gemini-3-5-flash's ONLY exclusion was agent-mode (managed-agents caching makes it
-    # $1.79/run); standard mode was never the problem, and it had drifted into no suite at all.
-    # It remains opt-in via `--models gemini-3-5-flash` as the longitudinal comparison point.
+  - "gemini-3-7-flash"  # Google newest Flash (Aug 2026) — REPLACED gemini-3-6-flash 2026-08-13
+    # (per Mark), three weeks after 3.6 took the same slot from 3.5. Matched head-to-head, same
+    # command, same day, thinking-inclusive, N=1 unless noted:
+    #   smoke 23/23 = 23/23 | core 23/23 = 23/23 | stretch 24/25 = 24/25
+    # TIED on every tier, and on core both models are pinned at CEILING (23/23), so that tier
+    # carries no ranking signal here at all — do not cite it as evidence either way.
+    #
+    # The two stretch benchmarks they split on were de-flaked at N=3, and BOTH turned out to be
+    # flaky for BOTH models rather than a capability difference:
+    #   emit_exact_bytes_varied  3.6 1/3  vs  3.7 2/3
+    #   run_length_encode        3.6 1/3  vs  3.7 0/3
+    #   discordant total         3.6 2/6  vs  3.7 2/6   — dead even
+    # ⚠️  RETRACTED before it could calcify: the N=1 reading that 3.7 "fixes emit_exact_bytes_varied,
+    # the standing failure of the Flash line (3.5 and 3.6 both fail it)" is WRONG. 3.6 passes it
+    # 1/3. The benchmark is unstable, not diagnostic. There is NO measured capability gain here.
+    #
+    # What the swap IS justified by — the same grounds that carried 3.5 -> 3.6, only stronger:
+    #   · newer generation, tracked on release (same rationale as gpt5-6-luna above)
+    #   · IDENTICAL price ($0.75/$3.75 per 1M — 3.7's launch promo was extended to 3.6, so unlike
+    #     the last swap there is no rate difference to trade off at all)
+    #   · 42-48% FEWER THINKING TOKENS: core 34,405 vs 59,250 | stretch 71,468 vs 137,376
+    #   · which at equal rates makes it 12% (core) to 19% (stretch) cheaper: $0.925 vs $1.147 on
+    #     stretch, the tier release baselines actually run. Unlike the 3.5 -> 3.6 swap — which was
+    #     cost-NEUTRAL on stretch (within 3%) and honest about it — this one is a real saving.
+    # No truncation on either model (finish=length: 0/50 on stretch), so the 65536 ceiling is
+    # adequate and is not confounding the thinking-token comparison.
+    #
+    # NOT measured, and the honest gap in this record: --tier frontier. The 3.5 -> 3.6 swap had a
+    # frontier N=3 pass; this one does not. If frontier becomes a routine baseline tier, measure it
+    # before trusting this row there.
+    # NOTE: gemini-3-6-flash remains opt-in via `--models gemini-3-6-flash` as the longitudinal
+    # comparison point, exactly as gemini-3-5-flash was kept when 3.6 displaced it.
   - "gemini-3-flash"    # Google fast + cheap (Dec 2025)
   - "gemini-3-5-flash-lite"  # Google cheapest current-gen (Jul 2026), $0.30/$2.50, ZERO thinking tokens.
     # Added 2026-07-22 (per Mark) as the LOW-COST FLOOR ANCHOR + language-improvement tracker, NOT as
