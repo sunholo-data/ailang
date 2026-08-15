@@ -11554,3 +11554,21 @@ two-friction bar for a skill edit.
 
 **Next**: `D-COV-1` remains parked for Mark. Then `#709`/`#649`, `#610`, and `#613` in the existing
 order. No second backlog item was taken during this recovery iteration.
+
+---
+
+## 208 — 2026-08-15 — Iteration 207: `#709` is a stable local-model capability gap, not a regression
+
+**Picked**: `#709`, the first unresolved candidate after parked `D-COV-1`. Iteration 198 had correctly rejected a fresh-regression verdict but could not inspect the then-missing result directory; the banked rows are present now, so this iteration closed that evidence gap.
+
+**Reality check**: read both trials for `config_file_parser` across `/tmp/nightly_eval_202608{11..15}_rag_on`. The scoped enumeration is 10 trials: 2 pass, 4 `thrash_aborted`, 2 runtime file-not-found, 1 nonexistent import, and 1 type error. The two successful programs create and read `app_config.json` through the existing stdlib and print exact expected stdout.
+
+**Outcome**: analysis-only. Four thrash arms exceeded `MaxTokensPerBench` at 320,982–360,759 cumulative tokens. The two runtime failures ignored requirement 1 and never created the file; the other two failures hallucinated `std/json.ok` and treated `writeFile: ()` as `Result`. This is model convergence/tool-use variance across independent shapes, not one compiler/stdlib defect. `#709` remains open as capability evidence; no language-fix sprint or queue promotion was created. The GitHub verdict comment landed (count 1→2).
+
+**Routing evidence**: model=codex:gpt-5.6-sol task-class=analysis provider=codex agent=controller cost=quota (`metered=$0.00`). Eval-analyzer workflow used directly; no designer, planner, executor, evaluator, quorum, GPU, or metered provider lane fired.
+
+**Ruled out**: “fresh regression” — prior window was already 1/10 and the measured five-night sample is 2/10. “Missing file/JSON primitive” — refuted by two exact-output passes using the public APIs. “One systemic compiler failure” — refuted by four distinct outcome classes, two of them explicit task-requirement misses.
+
+**Retro lane**: none. No uncovered repeated process gap met the Gate-5 skill-edit bar.
+
+**Next**: `D-COV-1` remains parked. `#649` remains open but is already diagnosed; `#610` is infra-gated; `#613` awaits `D-1`.
