@@ -142,6 +142,87 @@ level = "invalid"
 	}
 }
 
+func TestParseManifestFile(t *testing.T) {
+	cases := []struct {
+		name          string
+		content       string
+		missing       bool
+		wantParseErr  string
+		wantLoadError bool
+	}{
+		{
+			name: "valid TOML without required edition",
+			content: `[package]
+name = "test/pkg"
+version = "0.1.0"
+`,
+			wantLoadError: true,
+		},
+		{
+			name:         "missing file",
+			missing:      true,
+			wantParseErr: "failed to read",
+		},
+		{
+			name: "malformed TOML with duplicate dependency",
+			content: `[package]
+name = "test/pkg"
+version = "0.1.0"
+edition = "1"
+
+[dependencies]
+"sunholo/json" = "0.3.1"
+"sunholo/json" = "0.3.2"
+`,
+			wantParseErr: "failed to parse",
+		},
+		{
+			name: "fully valid manifest",
+			content: `[package]
+name = "test/pkg"
+version = "0.1.0"
+edition = "1"
+`,
+		},
+	}
+	if len(cases) < 4 {
+		t.Fatalf("expected at least 4 ParseManifestFile cases, got %d", len(cases))
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), ManifestFile)
+			if !tc.missing {
+				if err := os.WriteFile(path, []byte(tc.content), 0644); err != nil {
+					t.Fatalf("write manifest: %v", err)
+				}
+			}
+
+			err := ParseManifestFile(path)
+			if tc.wantParseErr != "" {
+				if err == nil {
+					t.Fatalf("ParseManifestFile() error = nil, want error containing %q", tc.wantParseErr)
+				}
+				if !strings.Contains(err.Error(), tc.wantParseErr) {
+					t.Fatalf("ParseManifestFile() error = %q, want error containing %q", err, tc.wantParseErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ParseManifestFile() unexpected error: %v", err)
+			}
+
+			_, loadErr := LoadManifestFile(path)
+			if tc.wantLoadError && loadErr == nil {
+				t.Fatal("LoadManifestFile() error = nil, want validation error")
+			}
+			if !tc.wantLoadError && loadErr != nil {
+				t.Fatalf("LoadManifestFile() unexpected error: %v", loadErr)
+			}
+		})
+	}
+}
+
 func TestInitManifest(t *testing.T) {
 	dir := t.TempDir()
 
