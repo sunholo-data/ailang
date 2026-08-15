@@ -2,19 +2,19 @@
 > **Contract**: ≤40 lines, overwritten by mission-control Gate 4 every iteration (history lives in
 > the charter/log). Fresh session = THIS + MEMORY.md. Humans steer via the bookkeeping issue.
 
-**Updated**: 2026-08-15 ~17:00 local (iteration 208)
+**Updated**: 2026-08-15 ~20:15 local (iteration 209)
 
 ## Now
-- **v0.33.1** · `dev` @ `57ed39598`; CI and Build-and-Release green; 16 SHA-addressed checks green/neutral.
-- **No executable pick this fire.** The frontier is decision- or infrastructure-gated.
-- Scheduled-run policy applied: no decision was inferred and no settled analysis was repeated.
+- **v0.33.1** · `dev` @ `3cefd177b`; CI and Build-and-Release green; 16 SHA-addressed checks green/neutral.
+- **`#610` mechanism repro completed.** Exact duckdb package stack produced a stable 14% retain delta, not 49x.
+- The query-row/parse-tree retention hypothesis is refuted; original workload evidence remains open.
 
 ## Next
 1. **`D-COV-1` parked on Mark — one word.** Coverage: **LOCALITY** or **EXECUTION**?
-2. `#649` is diagnosed · `#610` needs its duckdb repro stack · `#613` waits on `D-1`.
+2. `#649` is diagnosed · `#610` now needs the original DB/embed workload · `#613` waits on `D-1`.
 
 ## Loop
-- Record-only iteration. No heavy role, quorum, GPU, or metered lane fired; `metered=$0.00`.
+- Analysis-only iteration. No heavy role, quorum, GPU, or metered lane fired; `metered=$0.00`.
 - Running skill matches origin; billing CLEAN; inbox empty; no allowlisted directive.
 
 ## Parked on Mark (issue #635)
