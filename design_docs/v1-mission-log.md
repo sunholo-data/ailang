@@ -11218,3 +11218,148 @@ so `~/.claude/skills/mission-control` still resolves to the lagging main checkou
 is pre-registered here as a watch-item rather than edited in. If a second iteration finds the running
 skill stale for this reason, the fix is to point the skill symlink at the driver pin — or to make
 Gate 1's `cmp` failure trigger the `D-16` ff-merge automatically rather than by controller judgment.
+
+---
+
+## 205 — 2026-08-15 — Iteration 204: the implausible number was correct, and the metric was looking somewhere the tests were not
+
+**Pick**: the dashboard's queue head and a live red on `dev`, converging on the same object —
+triage the SonarCloud new-code-coverage gate, *instrument or real?* The row was written by
+iteration 203 about **its own** landing, so it is an inherited claim by construction and ghost
+discipline was mandatory.
+
+**Gate 0/1**: kill switch armed · billing CLEAN · gh `sunholo-voight-kampff` · fired from the driver
+pin at `3c5cbd1ed` == `origin/dev`, 0 ahead · running skill `cmp`-identical to `origin/dev` (drift
+stays CLOSED) · inbox 4, triaged (3 eval-suite informational, 1 V1's own iter-203 outbound) · no
+Mark comment on `#635` (0 of 65; watermark unchanged) · no rotation (created after the Monday-07:00
+boundary; 65 < 80) · died-mid-flight sweep **NEGATIVE**.
+
+**CI on `3c5cbd1ed`: 16 checks, runs EXIST, one NOT-GREEN — non-required `SonarCloud Code
+Analysis`.** Negative control run before attributing it (rule 3d): the same check walked back over
+8 dev commits reads `success` on all six predecessors and `failure` first at `3ec1dcb02`. **Not
+inherited** — it arrived with iteration 203's own merge.
+
+### The verdict: REAL, and iteration 203's premise is refuted
+
+The queue row said *0.0% on a heavily-tested diff is implausible — likely no coverage data reaching
+the analysis*. The diff **was** heavily tested. Every one of its tests landed somewhere the metric
+is configured not to look, and three independently-correct decisions compose into the gap:
+
+| # | fact | measured |
+|---|---|---|
+| 1 | `#722` added 127 new production lines; **113** are in `cmd/ailang/pkg_commands.go` | `git show --name-only` |
+| 2 | `cmd/ailang/**` is in `sonar.coverage.exclusions`, so that code **and its 358 lines of new tests** never enter the metric | `sonar-project.properties:45` |
+| 3 | the remaining **14** lines are `pkg.ParseManifestFile` in `internal/pkg/manifest.go` (7 statements Sonar counts) | per-file API sweep |
+| 4 | `make test-coverage` runs **without `-coverpkg`**, so `cmd/ailang`'s three call sites attribute **nothing** to `internal/pkg` | `make/coverage.mk:19` |
+
+Numerator 0, denominator 7 → **0.0% is correct arithmetic on a real gap.** The Sonar API
+reconciles exactly: project `new_lines_to_cover=143`, `new_uncovered_lines=29`,
+`new_coverage=79.72%` vs an 80% bar; a paginated per-file sweep (no `head` limiter, rule 3b(v)(a))
+sums to **143 / 29** precisely, with `internal/pkg/manifest.go` at **7 of the 29** — the largest
+block and the only file at 0.0%. `cmd/ailang/pkg_commands.go` appears **nowhere** in that
+enumeration, which is exclusion (2) confirmed from the other side.
+
+### But the gap was worse than a metric — that is the actual find
+
+`ParseManifestFile` is the load-bearing half of `#720`'s fix: the parse-**without**-validate
+predicate that stopped `writeManifestChecked`'s rollback net silently disengaging for
+TOML-valid-but-semantically-invalid manifests. It had **zero tests in its own package** — 0 hits
+across all 14 `internal/pkg/*_test.go` (same-scope control `LoadManifestFile` → **9**), 0.0% in
+`go tool cover -func` beside siblings at 88.9%–100.0% in the *same file*.
+
+**Measured consequence: reverting the mechanism left the entire `internal/pkg` package green.** Its
+only pin lived one package away.
+
+### Shipped
+
+One test-only commit, four arms, each pinning something a nil-check cannot:
+
+- **the discriminating arm** — `ParseManifestFile` ACCEPTS a fixture `LoadManifestFile` REJECTS.
+  Both halves are required: the accept-half alone passes identically for a function returning nil
+  unconditionally. That is rule 3j's over-subscribed-observable shape, caught at design time rather
+  than by drill.
+- **both refusal branches**, asserted on the wrapped message (`failed to read` / `failed to parse`)
+  rather than on `err != nil` — both branches return non-nil, so the exit value cannot tell them
+  apart.
+- **a positive control** (fully valid → both nil), without which every other arm would pass for a
+  function that always errored.
+- **an anti-vacuity floor** on the row count.
+
+Mutation drill, executor and controller independently — each mutant asserted LANDED (sha256) and
+BUILDS (`go build` rc=0) *before* its result was read, each neutered with `if false && …` so every
+import stays used:
+
+| mutation | failing arm |
+|---|---|
+| `ParseManifestFile` calls `Validate` | `valid_TOML_without_required_edition` only |
+| read branch neutered | `missing_file` only |
+| parse branch neutered | `malformed_TOML_with_duplicate_dependency` only |
+
+Inverse arm on the load-bearing mutant: whole package with `-skip TestParseManifestFile` is
+**rc=0** — the new test is the sole killer, not a bystander. `manifest.go` restored byte-identical
+(`32fcbfa2…`) from a **`cp` backup**, never `git checkout --`, which would have destroyed the
+uncommitted work. Coverage: `ParseManifestFile` **0.0% → 100.0%**, `Validate` 90.7% → 92.6%,
+package 68.7% → 69.4%.
+
+**Evaluator sonnet 96/100 PASS, zero blocking**, in its own worktree. It re-derived every
+load-bearing number rather than inheriting it — the 0-vs-9 grep at the *parent* commit, the
+before/after coverage by swapping in the parent's test file — and **added the drill the controller
+did not**: a precondition-neutering pass on all four arms (empty file instead of absent; malformed
+fixture made valid; `edition` added back; `edition` removed from the valid one). **All four die.**
+None is vacuous. It also proved the floor is not decorative by deleting a row, and confirmed the
+duplicate-key fixture is genuinely rejected by `toml.Unmarshal` rather than silently parsing.
+
+Its sharper non-blocking finding was verified first-party before being filed away (rule 3b(v)(b)):
+the read branch is **structurally unreachable through today's production call path**, because both
+call sites (`cmd/ailang/pkg_commands.go:162`, `:204`) do their own `os.ReadFile` and return early.
+Confirmed by reading the two call sites, not by trusting the report. It does not weaken the arm —
+`ParseManifestFile` is exported and tested on its own contract, which is the right level.
+
+**Gate 3b GREEN**: PR #723 → squash `54fdcb32c`. `mergeable` read FIRST (`MERGEABLE`, never
+`CONFLICTING`); check count climbed **16 → 21** so `pending=0` was required, not inferred; **4/4
+REQUIRED** (`build` 2m13s, `docs-gate` 6s, `lint` 3m58s, `test` 17m28s), `mergeStateStatus=CLEAN`.
+**`SonarCloud Code Analysis` on the PR head reads `success` — "Quality Gate passed"** — so the fix
+is confirmed at the gate rather than argued from arithmetic. Post-merge HEAD has runs (15; control,
+prev HEAD → 16). `D-16` applied: incoming ∩ dirty EMPTY with both self-intersection controls firing
+(1 and 3); all three dirty files sha256-identical after.
+
+### Ruled out
+
+- *"the 0.0% reading is an instrument artifact — coverage data is not reaching the analysis"* —
+  **REFUTED**. The arithmetic is correct and reconciles to Sonar's own totals.
+- *"the `cmd/ailang/**` coverage exclusion is stale and should be removed — the file's own comment
+  says to remove it once a unit-test suite exists"* — **REFUTED by measurement**. `cmd/ailang`
+  measures **9.3%** unit coverage (controls: `internal/server` 8.1%, `internal/storage/firestore`
+  2.0%, the other four excluded packages 0.0%). 358 new test lines do not make that a unit-test
+  suite for a package of that size; removing the entry would tank the metric rather than sharpen
+  it. The comment's invariant is aspirational. **The exclusion stays.**
+
+### Routing evidence
+
+| role | pinned | actual | notes |
+|---|---|---|---|
+| controller | `$MODEL` (session) | opus | triage, ghost discipline, gate re-runs, mutation drill, records |
+| designer | rotation | **not fired** | direct-fix lane, no new doc |
+| planner | `codex:gpt-5.6-sol` | **not fired** | lane derived anyway, recorded verbatim: `opus fail-closed:planner-lane-field-missing` |
+| executor | `codex:gpt-5.6-sol` | codex `gpt-5.6-sol` | probe rc=0; directive 7,346 B asserted ≥200 B; rc=0 |
+| evaluator | `sonnet` | sonnet, **own worktree** | iter-199's rule, 4th use; gen≠judge holds across providers |
+
+`metered=$0.00` — codex on the OAuth bucket, sonnet on quota, no OpenRouter or quorum lane fired.
+
+### Gate 5 — no skill edit
+
+Two candidate gaps, each at instance **1** against the ≥2 bar, both pre-registered as watch-items:
+**(a)** a queue row that calls a *number* implausible without naming the command that would falsify
+it — iteration 203 wrote "0.0% is implausible" and the falsifying command was two greps away;
+**(b)** the precondition-neutering drill arriving as an evaluator bonus rather than as something
+the controller specified, when rule 3j already prescribes it.
+
+### Next
+
+**`-coverpkg` is queued as a genuine open question, not a bug.** Cross-package coverage is
+unattributed repo-wide, so any helper added to a non-excluded package to serve `cmd/ailang` reads
+0% by construction — this iteration fixed one instance, not the class. Changing it moves the badge,
+the 29% `test-coverage-gate` threshold and Sonar's whole baseline, and would slow the suite
+materially on a 120k-line repo, so it wants a design doc rather than a mechanical edit. Then
+`#717`, `#709`/`#649` (correctly open), `#610` infra-gated, `#613` blocked on `D-1`. Parked on
+Mark: `D-1`–`D-14`.
