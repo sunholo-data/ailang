@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,10 +38,9 @@ func readTestManifest(t *testing.T, dir string) string {
 //
 // It deliberately does NOT call the production stripLineComment/dependencyLineKey:
 // an instrument that shares the code under test's blind spots cannot detect them.
-// It grew its own comment handling because the first version compared the raw
-// line against "[dependencies]" and so reported 0 for the perfectly-correct
-// output of a manifest whose header carried a trailing comment — the instrument
-// failing in exactly the shape the arm was added to catch.
+// It has its own escape-aware basic/literal string comment handling and its own
+// quoted-header recognition. Keeping those independent prevents a shared blind
+// spot from making production code and its control agree on a wrong answer.
 //
 // It is not multi-line-string aware; arms that need that assert through
 // pkg.LoadManifest instead.
@@ -48,17 +48,50 @@ func countDependencyKey(content, name string) int {
 	count := 0
 	inDependencies := false
 	for _, line := range strings.Split(content, "\n") {
-		if i := strings.IndexByte(line, '#'); i >= 0 && strings.Count(line[:i], `"`)%2 == 0 {
-			line = line[:i]
+		var quote byte
+		for i := 0; i < len(line); i++ {
+			switch {
+			case quote == '"' && line[i] == '\\':
+				i++
+			case quote != 0 && line[i] == quote:
+				quote = 0
+			case quote == 0 && (line[i] == '"' || line[i] == '\''):
+				quote = line[i]
+			case quote == 0 && line[i] == '#':
+				line = line[:i]
+				i = len(line)
+			}
 		}
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "[") {
-			inDependencies = trimmed == "[dependencies]"
+			inDependencies = trimmed == "[dependencies]" || trimmed == `["dependencies"]` || trimmed == "['dependencies']"
 			continue
 		}
 		key := strings.TrimSpace(strings.SplitN(trimmed, "=", 2)[0])
 		key = strings.Trim(key, `"'`)
 		if inDependencies && key == name {
+			count++
+		}
+	}
+	return count
+}
+
+func countDependenciesTables(content string) int {
+	count := 0
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(strings.SplitN(line, "#", 2)[0])
+		if line == "[dependencies]" || line == `["dependencies"]` || line == "['dependencies']" {
+			count++
+		}
+	}
+	return count
+}
+
+func countNamedKeyOccurrences(content, name string) int {
+	count := 0
+	for _, line := range strings.Split(content, "\n") {
+		key, _, ok := strings.Cut(strings.TrimSpace(line), "=")
+		if ok && strings.Trim(strings.TrimSpace(key), `"'`) == name {
 			count++
 		}
 	}
@@ -427,7 +460,7 @@ func TestWriteManifestChecked_RollsBackACorruptingWrite(t *testing.T) {
 
 	// Control: the guard passes a write that keeps the file parseable.
 	okContent := good + "\n[dependencies]\n\"sunholo/existing\" = \"1.0.0\"\n"
-	if err := writeManifestChecked(dir, path, []byte(good), okContent); err != nil {
+	if _, err := writeManifestChecked(path, []byte(good), okContent); err != nil {
 		t.Fatalf("instrument failure: a valid write was rejected: %v", err)
 	}
 	if readTestManifest(t, dir) != okContent {
@@ -435,7 +468,7 @@ func TestWriteManifestChecked_RollsBackACorruptingWrite(t *testing.T) {
 	}
 
 	before := readTestManifest(t, dir)
-	err := writeManifestChecked(dir, path, []byte(before), "[package]\nname = = = broken\n")
+	_, err := writeManifestChecked(path, []byte(before), "[package]\nname = = = broken\n")
 	if err == nil {
 		t.Fatal("corrupting write was accepted")
 	}
@@ -444,5 +477,312 @@ func TestWriteManifestChecked_RollsBackACorruptingWrite(t *testing.T) {
 	}
 	if got := readTestManifest(t, dir); got != before {
 		t.Errorf("file was not restored\nwant:\n%s\ngot:\n%s", before, got)
+	}
+}
+
+// Killing mutation: replace pkg.ParseManifestFile with pkg.LoadManifest in writeManifestChecked.
+func TestWriteManifestChecked_ParseabilityNotValidity(t *testing.T) {
+	const withoutEdition = "[package]\nname = \"sunholo/upsert_test\"\nversion = \"0.1.0\"\nnotes = 'contains \"\"\" triple double quotes'\n\n[dependencies]\n\"sunholo/existing\" = \"1.0.0\"\n"
+	const withEdition = "[package]\nname = \"sunholo/upsert_test\"\nversion = \"0.1.0\"\nedition = \"1\"\nnotes = 'contains \"\"\" triple double quotes'\n\n[dependencies]\n\"sunholo/existing\" = \"1.0.0\"\n"
+
+	for _, tc := range []struct {
+		name     string
+		original string
+	}{
+		{name: "validation-invalid missing edition", original: withoutEdition},
+		{name: "validation-valid control", original: withEdition},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeTestManifest(t, dir, tc.original)
+			path := filepath.Join(dir, pkg.ManifestFile)
+			corrupt := tc.original + "\n[dependencies]\n\"sunholo/existing\" = \"2.0.0\"\n"
+
+			_, err := writeManifestChecked(path, []byte(tc.original), corrupt)
+			if err == nil {
+				t.Fatal("corrupting write was accepted")
+			}
+			if !strings.Contains(err.Error(), "unparseable") {
+				t.Errorf("error does not identify unparseable result: %v", err)
+			}
+			if got := readTestManifest(t, dir); got != tc.original {
+				t.Errorf("file changed despite rollback\nwant:\n%s\ngot:\n%s", tc.original, got)
+			}
+		})
+	}
+}
+
+// Killing mutation: force parsedBefore=true in writeManifestChecked.
+func TestWriteManifestChecked_AllowsWriteOverUnparseableInput(t *testing.T) {
+	dir := t.TempDir()
+	const broken = "[package]\nname = = = broken\n"
+	const replacement = "[package]\nname = = = still-broken\n"
+	writeTestManifest(t, dir, broken)
+	path := filepath.Join(dir, pkg.ManifestFile)
+
+	parseErr, err := writeManifestChecked(path, []byte(broken), replacement)
+	if err != nil {
+		t.Fatalf("already-unparseable manifest should not hold the write: %v", err)
+	}
+	if parseErr == nil {
+		t.Fatal("already-unparseable result was not reported")
+	}
+	if got := readTestManifest(t, dir); got != replacement {
+		t.Errorf("write did not land\nwant:\n%s\ngot:\n%s", replacement, got)
+	}
+}
+
+// Killing mutation: restore openMultilineString's strings.Count(delimiter)%2 scanner.
+func TestUpsertDependencyLine_TripleQuoteInsideSingleLineString(t *testing.T) {
+	const original = "[package]\nname = \"sunholo/upsert_test\"\nversion = \"0.1.0\"\nedition = \"1\"\nnotes = 'contains \"\"\" triple double quotes'\n\n[dependencies]\n\"sunholo/existing\" = \"1.0.0\"\n"
+	updated, _, replaced := upsertDependencyLine(original, "sunholo/existing", `"sunholo/existing" = "2.0.0"`)
+	if !replaced {
+		t.Fatal("existing dependency was not replaced")
+	}
+	dir := t.TempDir()
+	writeTestManifest(t, dir, updated)
+	if err := pkg.ParseManifestFile(filepath.Join(dir, pkg.ManifestFile)); err != nil {
+		t.Fatalf("updated manifest does not parse: %v\n%s", err, updated)
+	}
+	if got := countDependenciesTables(updated); got != 1 {
+		t.Fatalf("dependencies table count = %d, want 1\n%s", got, updated)
+	}
+}
+
+// Killing mutation: restore the dependencies-header check to trimmed == "[dependencies]".
+func TestUpsertDependencyLine_QuotedDependenciesHeader(t *testing.T) {
+	const original = "[package]\nname = \"sunholo/upsert_test\"\nversion = \"0.1.0\"\nedition = \"1\"\n\n[\"dependencies\"]\n\"sunholo/existing\" = \"1.0.0\"\n"
+	updated, _, replaced := upsertDependencyLine(original, "sunholo/existing", `"sunholo/existing" = "2.0.0"`)
+	if !replaced {
+		t.Fatal("existing dependency was not replaced")
+	}
+	dir := t.TempDir()
+	writeTestManifest(t, dir, updated)
+	if err := pkg.ParseManifestFile(filepath.Join(dir, pkg.ManifestFile)); err != nil {
+		t.Fatalf("updated manifest does not parse: %v\n%s", err, updated)
+	}
+	if got := countDependenciesTables(updated); got != 1 {
+		t.Fatalf("dependencies table count = %d, want 1\n%s", got, updated)
+	}
+}
+
+// One arm per refusal branch in tableHeaderName. A helper whose contract is
+// "refuse anything that is not a simple single-segment header" has several
+// distinct ways to refuse, and a branch nothing reds for is not a guard — the
+// caller's `header == "dependencies"` compare happens to make some of these
+// harmless today, which is exactly why the CLAIM needs pinning rather than the
+// consequence.
+//
+// Killing mutations, one per row: neuter that row's guard with
+// `if false && <cond>` in tableHeaderName.
+func TestTableHeaderName_RefusalBranches(t *testing.T) {
+	refused := []struct {
+		label string
+		line  string
+	}{
+		{"array-of-tables", "[[dependencies]]"},
+		{"dotted header", "[dependencies.sub]"},
+		{"dotted header, quoted", `["dependencies.sub"]`},
+		{"quote mismatch", `["dependencies']`},
+		{"unterminated quote", `["dependencies]`},
+		{"empty body", "[]"},
+		{"interior quote", `["deps"x"]`},
+		{"bare header with a space", "[two words]"},
+		{"not a header", "dependencies"},
+	}
+	for _, tc := range refused {
+		if name, ok := tableHeaderName(tc.line); ok || name != "" {
+			t.Errorf("%s: tableHeaderName(%q) = (%q, %v), want (\"\", false)", tc.label, tc.line, name, ok)
+		}
+	}
+
+	// Control: the accepted forms must still be accepted, or every row above
+	// passes for the trivial reason that the helper refuses everything.
+	accepted := []struct {
+		line string
+		want string
+	}{
+		{"[dependencies]", "dependencies"},
+		{`["dependencies"]`, "dependencies"},
+		{"['dependencies']", "dependencies"},
+		{"[ dependencies ]", "dependencies"},
+		{"[\tdependencies\t]", "dependencies"},
+		{"[package]", "package"},
+	}
+	for _, tc := range accepted {
+		name, ok := tableHeaderName(tc.line)
+		if !ok || name != tc.want {
+			t.Errorf("instrument failure: tableHeaderName(%q) = (%q, %v), want (%q, true)", tc.line, name, ok, tc.want)
+		}
+	}
+}
+
+// Killing mutation: restore openMultilineString's strings.Count(delimiter)%2 scanner.
+func TestOpenMultilineString_QuotedDelimiterCorpus(t *testing.T) {
+	tests := []struct {
+		line string
+		want string
+	}{
+		{line: `notes = """`, want: `"""`},
+		{line: `text = """abc`, want: `"""`},
+		{line: `notes = 'contains """ triple double quotes'`, want: ""},
+		{line: `notes = "he said \"\"\" once"`, want: ""},
+	}
+	for _, tc := range tests {
+		if got := openMultilineString(tc.line); got != tc.want {
+			t.Errorf("openMultilineString(%q) = %q, want %q", tc.line, got, tc.want)
+		}
+	}
+}
+
+// Killing mutation: restore either the delimiter-count scanner or literal header comparison.
+func TestAppendDependencyToFile_ManifestShapeCorpus(t *testing.T) {
+	const base = "[package]\nname = \"sunholo/upsert_test\"\nversion = \"0.1.0\"\nedition = \"1\"\n"
+	const dep = "sunholo/gemini_files"
+	rows := []struct {
+		name     string
+		manifest string
+	}{
+		{name: "no dependencies", manifest: base},
+		{name: "different dependency", manifest: base + "\n[dependencies]\n\"sunholo/other\" = \"1.0.0\"\n"},
+		{name: "same dependency older", manifest: base + "\n[dependencies]\n\"" + dep + "\" = \"0.1.0\"\n"},
+		{name: "header trailing comment", manifest: base + "\n[dependencies] # managed\n"},
+		{name: "header final line", manifest: base + "\n[dependencies]"},
+		{name: "multiline string with header-shaped line", manifest: base + "description = \"\"\"prose\n[not-a-table]\nmore prose\"\"\"\n\n[dependencies]\n"},
+		{name: "literal triple double quote", manifest: base + "notes = 'contains \"\"\" triple double quotes'\n\n[dependencies]\n"},
+		{name: "quoted dependencies header", manifest: base + "\n[\"dependencies\"]\n"},
+		{name: "literal quoted key", manifest: base + "\n[dependencies]\n'" + dep + "' = \"0.1.0\"\n"},
+		{name: "CRLF", manifest: strings.ReplaceAll(base+"\n[dependencies]\n", "\n", "\r\n")},
+		{name: "followed by another table", manifest: base + "\n[dependencies]\n\n[metadata]\nowner = \"test\"\n"},
+		{name: "missing edition", manifest: "[package]\nname = \"sunholo/upsert_test\"\nversion = \"0.1.0\"\n\n[dependencies]\n"},
+	}
+	if len(rows) < 12 {
+		t.Fatalf("corpus shrank to %d rows; want at least 12", len(rows))
+	}
+	run := 0
+	for _, tc := range rows {
+		t.Run(tc.name, func(t *testing.T) {
+			run++
+			dir := t.TempDir()
+			writeTestManifest(t, dir, tc.manifest)
+			for i := 0; i < 2; i++ {
+				if err := appendDependencyToFile(dir, dep, "0.2.0", false); err != nil {
+					t.Fatalf("install %d: %v", i+1, err)
+				}
+			}
+			content := readTestManifest(t, dir)
+			if err := pkg.ParseManifestFile(filepath.Join(dir, pkg.ManifestFile)); err != nil {
+				t.Errorf("manifest does not parse: %v\n%s", err, content)
+			}
+			if got := countNamedKeyOccurrences(content, dep); got != 1 {
+				t.Errorf("dependency key count = %d, want 1\n%s", got, content)
+			}
+			if got := countDependenciesTables(content); got != 1 {
+				t.Errorf("dependencies table count = %d, want 1\n%s", got, content)
+			}
+		})
+	}
+	if run != len(rows) {
+		t.Fatalf("ran %d corpus rows, want %d", run, len(rows))
+	}
+}
+
+// Killing mutation: delete stripLineComment's backslash-skip branch.
+func TestStripLineComment_EscapedQuoteDoesNotExposeHash(t *testing.T) {
+	subject := `"a\"#b" = "1.0"`
+	if got := stripLineComment(subject); got != subject {
+		t.Errorf("escaped quote exposed hash: got %q, want %q", got, subject)
+	}
+	control := `"a/b" = "1.0" # note`
+	if got, want := stripLineComment(control), `"a/b" = "1.0" `; got != want {
+		t.Errorf("genuine comment was not stripped: got %q, want %q", got, want)
+	}
+}
+
+// Killing mutation: restore countDependencyKey's double-quote-parity comment scan or literal header compare.
+func TestCountDependencyKey_IndependentQuotedControls(t *testing.T) {
+	content := `["dependencies"]
+'sunholo/#inside' = "1.0"
+`
+	if got := countDependencyKey(content, "sunholo/#inside"); got != 1 {
+		t.Fatalf("quoted-header/hash-in-literal key count = %d, want 1", got)
+	}
+}
+
+// Killing mutation: remove the parse-warning branch and restore the unconditional success print.
+// The SECOND call site of the same warn branch. appendGitDependencyToFile has
+// its own copy, and neutering it left the entire package green — a branch whose
+// twin is tested reads as covered.
+//
+// Killing mutation: `if false && parseErr != nil` in appendGitDependencyToFile.
+func TestAppendGitDependencyToFile_AlreadyBrokenReportsWarning(t *testing.T) {
+	dir := t.TempDir()
+	const broken = "[package]\nname = = = broken\n"
+	writeTestManifest(t, dir, broken)
+
+	readEnd, writeEnd, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("capture stdout: %v", err)
+	}
+	originalStdout := os.Stdout
+	os.Stdout = writeEnd
+	callErr := appendGitDependencyToFile(dir, "sunholo/newdep",
+		[]string{`git = "https://example.invalid/r.git"`, `tag = "v1"`},
+		"https://example.invalid/r.git", "v1", "")
+	os.Stdout = originalStdout
+	if err := writeEnd.Close(); err != nil {
+		t.Fatalf("close captured stdout: %v", err)
+	}
+	output, err := io.ReadAll(readEnd)
+	if err != nil {
+		t.Fatalf("read captured stdout: %v", err)
+	}
+	if err := readEnd.Close(); err != nil {
+		t.Fatalf("close capture reader: %v", err)
+	}
+	if callErr != nil {
+		t.Fatalf("already-broken path changed exit status: %v", callErr)
+	}
+	text := string(output)
+	if !strings.Contains(text, "Wrote dependency sunholo/newdep") || !strings.Contains(text, pkg.ManifestFile) || !strings.Contains(text, "still does not parse") {
+		t.Errorf("missing actionable parse warning: %q", text)
+	}
+	if strings.Contains(text, "✓ Added") {
+		t.Errorf("already-broken manifest was announced as success: %q", text)
+	}
+}
+
+func TestAppendDependencyToFile_AlreadyBrokenReportsWarning(t *testing.T) {
+	dir := t.TempDir()
+	const broken = "[package]\nname = = = broken\n"
+	writeTestManifest(t, dir, broken)
+
+	readEnd, writeEnd, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("capture stdout: %v", err)
+	}
+	originalStdout := os.Stdout
+	os.Stdout = writeEnd
+	callErr := appendDependencyToFile(dir, "sunholo/newdep", "1.0.0", false)
+	os.Stdout = originalStdout
+	if err := writeEnd.Close(); err != nil {
+		t.Fatalf("close captured stdout: %v", err)
+	}
+	output, err := io.ReadAll(readEnd)
+	if err != nil {
+		t.Fatalf("read captured stdout: %v", err)
+	}
+	if err := readEnd.Close(); err != nil {
+		t.Fatalf("close capture reader: %v", err)
+	}
+	if callErr != nil {
+		t.Fatalf("already-broken path changed exit status: %v", callErr)
+	}
+	text := string(output)
+	if !strings.Contains(text, "Wrote dependency sunholo/newdep") || !strings.Contains(text, pkg.ManifestFile) || !strings.Contains(text, "still does not parse") {
+		t.Errorf("missing actionable parse warning: %q", text)
+	}
+	if strings.Contains(text, "✓ Added") {
+		t.Errorf("already-broken manifest was announced as success: %q", text)
 	}
 }

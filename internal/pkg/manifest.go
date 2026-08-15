@@ -234,6 +234,20 @@ func LoadManifestFile(path string) (*PackageManifest, error) {
 	return &m, nil
 }
 
+// ParseManifestFile checks TOML parseability without validation so rollback nets also protect incomplete manifests.
+func ParseManifestFile(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", path, err)
+	}
+
+	var m PackageManifest
+	if err := toml.Unmarshal(data, &m); err != nil {
+		return fmt.Errorf("failed to parse %s: %w", path, err)
+	}
+	return nil
+}
+
 // Validate checks the manifest for required fields and consistency.
 func (m *PackageManifest) Validate() error {
 	if m.Package.Name == "" {

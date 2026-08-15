@@ -159,8 +159,13 @@ func appendGitDependencyToFile(dir, name string, parts []string, gitURL, tag, re
 	depLine := fmt.Sprintf("\"%s\" = { %s }", name, strings.Join(parts, ", "))
 	content, previous, replaced := upsertDependencyLine(string(data), name, depLine)
 
-	if err := writeManifestChecked(dir, path, data, content); err != nil {
+	parseErr, err := writeManifestChecked(path, data, content)
+	if err != nil {
 		return err
+	}
+	if parseErr != nil {
+		fmt.Printf("%s Wrote dependency %s to %s, but the manifest still does not parse: %v\n", yellow("⚠"), name, path, parseErr)
+		return nil
 	}
 
 	label := gitURL
@@ -196,8 +201,13 @@ func appendDependencyToFile(dir, name, value string, isPath bool) error {
 
 	content, previous, replaced := upsertDependencyLine(content, name, depLine)
 
-	if err := writeManifestChecked(dir, path, data, content); err != nil {
+	parseErr, err := writeManifestChecked(path, data, content)
+	if err != nil {
 		return err
+	}
+	if parseErr != nil {
+		fmt.Printf("%s Wrote dependency %s to %s, but the manifest still does not parse: %v\n", yellow("⚠"), name, path, parseErr)
+		return nil
 	}
 
 	label := value
@@ -248,7 +258,8 @@ func upsertDependencyLine(content, name, depLine string) (updated, previous stri
 			if inDependencies {
 				break
 			}
-			inDependencies = trimmed == "[dependencies]"
+			header, ok := tableHeaderName(trimmed)
+			inDependencies = ok && header == "dependencies"
 			if inDependencies {
 				sectionHeader = i
 			}
@@ -294,6 +305,30 @@ func upsertDependencyLine(content, name, depLine string) (updated, previous stri
 	return content + prefix + "[dependencies]\n" + depLine + "\n", "", false
 }
 
+// tableHeaderName returns the name of a simple, single-segment TOML table header.
+func tableHeaderName(trimmed string) (string, bool) {
+	if len(trimmed) < 2 || trimmed[0] != '[' || trimmed[1] == '[' || trimmed[len(trimmed)-1] != ']' {
+		return "", false
+	}
+	body := strings.TrimSpace(trimmed[1 : len(trimmed)-1])
+	if body == "" || strings.Contains(body, ".") {
+		return "", false
+	}
+	if body[0] == '"' || body[0] == '\'' {
+		quote := body[0]
+		if len(body) < 2 || body[len(body)-1] != quote {
+			return "", false
+		}
+		body = body[1 : len(body)-1]
+		if body == "" || strings.ContainsAny(body, "\"'") {
+			return "", false
+		}
+	} else if strings.ContainsAny(body, " \t\"'") {
+		return "", false
+	}
+	return body, true
+}
+
 // dependencyLineKey extracts a quoted, literal-quoted or bare TOML key, only
 // when the line is a simple key/value entry. The exact returned token prevents
 // prefix matches ("a/b" must never match "a/b_extra").
@@ -337,6 +372,10 @@ func stripLineComment(line string) string {
 		c := line[i]
 		switch {
 		case quote != 0:
+			if quote == '"' && c == '\\' {
+				i++
+				continue
+			}
 			if c == quote {
 				quote = 0
 			}
@@ -352,37 +391,69 @@ func stripLineComment(line string) string {
 // openMultilineString reports the delimiter of a multi-line string this line
 // opens and does not close, or "" when the line leaves no string open.
 func openMultilineString(line string) string {
-	for _, d := range []string{`"""`, `'''`} {
-		if n := strings.Count(line, d); n%2 == 1 {
-			return d
+	var singleQuote byte
+	open := ""
+	for i := 0; i < len(line); {
+		if open != "" {
+			if strings.HasPrefix(line[i:], open) {
+				open = ""
+				i += 3
+				continue
+			}
+			i++
+			continue
 		}
+		if singleQuote != 0 {
+			if singleQuote == '"' && line[i] == '\\' {
+				i += 2
+				continue
+			}
+			if line[i] == singleQuote {
+				singleQuote = 0
+			}
+			i++
+			continue
+		}
+		if strings.HasPrefix(line[i:], `"""`) {
+			open = `"""`
+			i += 3
+			continue
+		}
+		if strings.HasPrefix(line[i:], `'''`) {
+			open = `'''`
+			i += 3
+			continue
+		}
+		if line[i] == '"' || line[i] == '\'' {
+			singleQuote = line[i]
+		}
+		i++
 	}
-	return ""
+	return open
 }
 
 // writeManifestChecked writes the rewritten manifest, then refuses to leave the
 // file less parseable than it found it. The upsert above is a line scanner over
 // TOML, so its blind spots are open-ended by construction; this bounds them.
-// A manifest that was ALREADY broken is not held against the write — only a
-// manifest this call broke is rolled back.
-func writeManifestChecked(dir, path string, original []byte, updated string) error {
-	parsedBefore := true
-	if _, err := pkg.LoadManifest(dir); err != nil {
-		parsedBefore = false
-	}
+// A manifest that did not parse as TOML before the write is not held against
+// the write. Its post-write parse error is returned separately so callers can
+// warn without changing command exit status. The net engages for every
+// parseable manifest, whether or not it passes semantic validation.
+func writeManifestChecked(path string, original []byte, updated string) (parseErr, writeErr error) {
+	beforeErr := pkg.ParseManifestFile(path)
 	if err := os.WriteFile(path, []byte(updated), 0644); err != nil {
-		return err
+		return nil, err
 	}
-	if !parsedBefore {
-		return nil
+	if beforeErr != nil {
+		return pkg.ParseManifestFile(path), nil
 	}
-	if _, err := pkg.LoadManifest(dir); err != nil {
+	if err := pkg.ParseManifestFile(path); err != nil {
 		if restoreErr := os.WriteFile(path, original, 0644); restoreErr != nil {
-			return fmt.Errorf("%s became unparseable and could not be restored: %w (restore failed: %v)", path, err, restoreErr)
+			return nil, fmt.Errorf("%s became unparseable and could not be restored: %w (restore failed: %v)", path, err, restoreErr)
 		}
-		return fmt.Errorf("refusing to write %s: the edit would make it unparseable (%w); the file is unchanged — please add the dependency by hand", path, err)
+		return nil, fmt.Errorf("refusing to write %s: the edit would make it unparseable (%w); the file is unchanged — please add the dependency by hand", path, err)
 	}
-	return nil
+	return nil, nil
 }
 
 func pkgLockCommand(args []string) error {
