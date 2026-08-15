@@ -2,20 +2,20 @@
 > **Contract**: ≤40 lines, overwritten by mission-control Gate 4 every iteration (history lives in
 > the charter/log). Fresh session = THIS + MEMORY.md. Humans steer via the bookkeeping issue.
 
-**Updated**: 2026-08-15 ~20:15 local (iteration 209)
+**Updated**: 2026-08-15 ~21:45 local (iteration 210)
 
 ## Now
-- **v0.33.1** · `dev` @ `3cefd177b`; CI and Build-and-Release green; 16 SHA-addressed checks green/neutral.
-- **`#610` mechanism repro completed.** Exact duckdb package stack produced a stable 14% retain delta, not 49x.
-- The query-row/parse-tree retention hypothesis is refuted; original workload evidence remains open.
+- **v0.33.1** · `dev` @ `45b3d682f`; CI and Build-and-Release green; 16 SHA-addressed checks green/neutral.
+- **No executable pick.** The ordered frontier is decision-gated or already diagnosed.
+- Scheduled iteration parked without code, design, quorum, or provider spend.
 
 ## Next
 1. **`D-COV-1` parked on Mark — one word.** Coverage: **LOCALITY** or **EXECUTION**?
-2. `#649` is diagnosed · `#610` now needs the original DB/embed workload · `#613` waits on `D-1`.
+2. `#649` is diagnosed · `#610` needs the original DB/embed workload · `#613` waits on `D-1`.
 
 ## Loop
-- Analysis-only iteration. No heavy role, quorum, GPU, or metered lane fired; `metered=$0.00`.
-- Running skill matches origin; billing CLEAN; inbox empty; no allowlisted directive.
+- Record-only iteration. No heavy role, quorum, GPU, or metered lane fired; `metered=$0.00`.
+- Running skill matches origin; billing CLEAN; inbox triaged; no allowlisted directive.
 
 ## Parked on Mark (issue #635)
 `D-1`, `D-2`, `D-8`, `D-9`, `D-10`, `D-11`, `D-12`, `D-13`, `D-14`, and `D-COV-1` are OPEN.
