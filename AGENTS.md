@@ -8,14 +8,16 @@ This document summarizes the key facts an agent should know while working in thi
 - **Programming in AILANG:** Use `ailang prompt` to get the current teaching prompt before writing or editing `.ail` code.
 
 ## Project Overview
-- **Language focus**: AILANG is a purely functional language optimized for AI-assisted development, emphasizing explicit algebraic effects, typed quasiquotes, CSP/session-type concurrency, and deterministic execution traces. Refer to `design_docs/20250926/initial_design.md` for the conceptual specification.
-- **Status**: Lexer, basic parser, AST, and foundational type system are implemented. Effect system, interpreter, and several advanced features are still TODO according to the top-level README.
+- **Language focus**: AILANG is a purely functional, effect-typed language designed as a deterministic execution substrate for AI-generated code.
+- **Status**: The compiler, interpreter, capability/effect runtime, standard library, package tooling, coordinator, and evaluation harness are implemented and actively developed. Use `design_docs/PROGRAM.md` for the north star and `design_docs/v1-mission.md` for current priorities; do not infer status from old design documents.
 
 ## Repository Structure & Tooling
 - `cmd/ailang/`: Go CLI entry point.
-- `internal/`: Core compiler/interpreter packages (lexer, parser, AST, types, effects, eval, etc.). Many subpackages are still under construction.
+- `internal/`: Compiler/runtime plus application and tooling packages. Respect the layer boundaries documented in `ARCHITECTURE.md`.
+- `std/`: AILANG standard library modules.
 - `examples/`: Example `.ail` programs.
-- `design_docs/20250926/`: Canonical language design references.
+- `design_docs/PROGRAM.md`: Program north star and routing rules.
+- `design_docs/v1-mission.md`: Current v1 mission status, queue, and human decision points.
 - Use `make build`, `make test`, `make fmt`, and `make lint` for common workflows.
 
 ## Operational Commands (Quick)
@@ -26,13 +28,13 @@ This document summarizes the key facts an agent should know while working in thi
 ## AILANG Coding Quickstart
 - **Start with the prompt:** `ailang prompt` to get the current teaching prompt and idioms.
 - **Browse working examples:** `examples/` has runnable `.ail` programs.
-- **Use the REPL:** `ailang repl` for quick experiments (see `docs/guides/repl.md`).
+- **Use the REPL:** `ailang repl` for quick experiments (see `docs/docs/reference/repl-commands.md`).
 - **Type-check fast:** `ailang check <file>` before running.
 
 ## Key Design Details
-- **Type system**: Hindley–Milner style with row-polymorphic algebraic effects and capability annotations. Review `initial_design.md` for type/effect constructs and idioms.
-- **Row unification**: Reference Go implementation for effect/record row handling lives in `design_docs/20250926/gpt5-reference-code.md`; it defines `Row`, `Subst`, and `UnifyRows` helpers for deterministic effect reasoning.
-- **Typeclass dictionaries**: Explicit dictionary passing is the intended elaboration strategy; see the same reference doc for `Class`, `Instance`, and `ElabMethodCall` scaffolding.
+- **Type system**: Hindley–Milner inference with row-polymorphic records and effects, capability annotations, and explicit dictionary passing.
+- **Runtime**: The tree-walking evaluator and capability-gated effect handlers are production code. Treat `internal/types/`, `internal/eval/`, and `internal/effects/` as security- and semantics-sensitive.
+- **Architecture**: Core packages must not import dashboard packages, and dashboard packages reach compiler behavior through `internal/embed`. Run `make check-boundaries` for cross-cutting changes.
 
 ## Critical Guardrails (Do Not Skip)
 - **No destructive git operations.** Do not run `git reset --hard`, `git clean -fd`, or switch branches with uncommitted changes. Ask the user first.
@@ -47,5 +49,4 @@ This document summarizes the key facts an agent should know while working in thi
 - Provide or update examples/tests when extending the language.
 
 ## Additional Notes
-- No existing AGENT instructions were present; this file acts as the root scope guide.
 - If you add subdirectories with specialized conventions, create additional `AGENTS.md` files there to override or extend these guidelines.

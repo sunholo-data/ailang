@@ -18,7 +18,7 @@
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/sunholo-data/ailang/badge)](https://securityscorecards.dev/viewer/?uri=github.com/sunholo-data/ailang)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12676/badge)](https://www.bestpractices.dev/projects/12676)
 
-> **Third-party verification.** AILANG is written autonomously by AI agents via its own [coordinator](https://ailang.sunholo.com/docs/guides/coordinator). The badges above are independent static-analysis and supply-chain scores — not self-reported. Live correctness signal: the [benchmark dashboard](https://ailang.sunholo.com/docs/benchmarks/performance) runs 33 benchmarks across 8 frontier models on every release.
+> **Third-party verification.** AILANG is written autonomously by AI agents via its own [coordinator](https://ailang.sunholo.com/docs/guides/coordinator). The badges above are independent static-analysis and supply-chain scores — not self-reported. The [benchmark dashboard](https://ailang.sunholo.com/docs/benchmarks/performance) publishes the live correctness signal across current benchmark and model cohorts.
 
 AILANG is a purely functional, effect-typed language designed as a **deterministic execution substrate** for AI-generated code. Every construct has deterministic semantics that can be reflected, verified, and serialized.
 
@@ -28,39 +28,80 @@ AILANG is a purely functional, effect-typed language designed as a **determinist
 
 ## Quick Start
 
-AILANG is designed to be used by AI agents. The easiest way to get started is via your agent's plugin/extension system.
+AILANG is designed to be used by AI coding agents. The
+[AILANG Bootstrap](https://github.com/sunholo-data/ailang_bootstrap) packages the
+current language guidance, reusable skills, and local MCP tools for Claude Code
+and OpenAI Codex.
 
-### With Claude Code
-
-```
-/plugin marketplace add sunholo-data/ailang_bootstrap
-/plugin install ailang
-```
-
-### With Gemini CLI
-
-```bash
-gemini extensions install https://github.com/sunholo-data/ailang_bootstrap.git
-```
-
-### What the Plugin Provides
-
-- **AILANG binary** - Auto-installed for your platform
-- **MCP tools** - `ailang_prompt`, `ailang_check`, `ailang_run`, `ailang_builtins`
-- **Slash commands** - `/ailang:prompt`, `/ailang:new`, `/ailang:run`, `/ailang:challenge`
-- **Teaching prompts** - Current syntax rules loaded automatically
-
-Once installed, just ask your agent to write AILANG code - it handles the rest.
-
-See [ailang_bootstrap](https://github.com/sunholo-data/ailang_bootstrap) for details.
-
-### Quick Install
+Install the AILANG CLI first:
 
 ```bash
 curl -fsSL https://ailang.sunholo.com/install.sh | bash
+ailang --version
 ```
 
-Detects your OS/architecture automatically. Pin a version with `VERSION=v0.9.0` before the curl.
+The agent integrations call the local `ailang` executable, so it must be
+available on `PATH`.
+
+### With Claude Code
+
+```text
+/plugin marketplace add sunholo-data/ailang_bootstrap
+/plugin install ailang@sunholo-data/ailang_bootstrap
+```
+
+### With OpenAI Codex
+
+AILANG Bootstrap also ships a Codex plugin manifest. Add its stable marketplace:
+
+```bash
+# Required by the plugin's local MCP server on first launch
+node --version
+npm --version
+
+codex plugin marketplace add sunholo-data/ailang_bootstrap --ref stable
+codex plugin add ailang@ailang-marketplace
+codex plugin list
+```
+
+Start a new Codex session after installation. Alternatively, after adding the
+marketplace, launch `codex`, enter `/plugins`, and install `ailang` from the
+AILANG marketplace. The plugin can also be installed from the Plugins directory
+in the Codex desktop app. Codex plugins are not currently available in the IDE
+extension.
+
+Codex reads this repository's [`AGENTS.md`](AGENTS.md) automatically, whether or
+not the plugin is installed. The plugin adds the reusable AILANG skills and MCP
+tools; `AGENTS.md` supplies repository-specific workflows and guardrails.
+
+### What the Agent Package Provides
+
+- **CLI integration** - Skills and tools use the separately installed `ailang` executable
+- **MCP tools** - `ailang_prompt`, `ailang_check`, `ailang_run`, `ailang_builtins`, `ailang_eval`
+- **Agent skills** - AILANG authoring, debugging, messaging, design-doc, and sprint workflows
+- **Teaching guidance** - Current syntax rules via repository guidance, skills, and `ailang prompt`
+
+The packaging is intentionally native to each host:
+
+| Capability | Claude Code | Codex |
+|---|---|---|
+| Persistent guidance | `CLAUDE.md` | `AGENTS.md` |
+| Reusable workflows | Plugin skills | Plugin skills |
+| Local AILANG MCP tools | Yes | Yes |
+| Host-native commands | Claude slash commands | Skills and MCP tools |
+| AILANG Bootstrap hooks | Claude hooks | Not currently packaged |
+
+Once installed, ask the agent to write AILANG code. All agents should run
+`ailang prompt` before authoring `.ail` files; it is the installed CLI's source
+for current syntax and idioms.
+
+See [ailang_bootstrap](https://github.com/sunholo-data/ailang_bootstrap) for details.
+
+The installer detects your OS and architecture automatically. To pin a release:
+
+```bash
+curl -fsSL https://ailang.sunholo.com/install.sh | VERSION=v0.30.0 bash
+```
 
 <details>
 <summary>Click to expand manual installation instructions</summary>
@@ -93,18 +134,18 @@ For complete setup instructions, see the [Getting Started Guide](https://ailang.
 ### Hello World
 
 ```ailang
-module examples/hello
+module examples/hello_world
 
 import std/io (println)
 
 export func main() -> () ! {IO} {
-  println("Hello from AILANG!")
+  println("Hello, World!")
 }
 ```
 
 ```bash
-ailang run --caps IO examples/hello.ail
-# Output: Hello from AILANG!
+ailang run --caps IO examples/hello_world.ail
+# Output: Hello, World!
 ```
 
 ### Interactive REPL
@@ -151,7 +192,8 @@ make lint       # Run linter
 **Guides:**
 - [Development Guide](https://ailang.sunholo.com/docs/guides/development)
 - [CONTRIBUTING.md](CONTRIBUTING.md)
-- [CLAUDE.md](CLAUDE.md) - For AI development assistants
+- [AGENTS.md](AGENTS.md) - Cross-agent repository instructions (including Codex)
+- [CLAUDE.md](CLAUDE.md) - Detailed AILANG operational workflows
 
 ---
 
@@ -161,8 +203,8 @@ make lint       # Run linter
 ailang/
 ├── cmd/ailang/     # CLI
 ├── internal/       # Compiler (lexer, parser, types, eval, effects)
-├── stdlib/         # Standard library (std/io, std/fs, std/json, std/zip, std/xml, etc.)
-├── examples/       # Example programs (97 files)
+├── std/            # Standard library (std/io, std/fs, std/json, std/zip, std/xml, etc.)
+├── examples/       # Example and reference programs
 ├── docs/           # Documentation website source
 └── design_docs/    # Design documents
 ```
@@ -177,4 +219,4 @@ AILANG draws inspiration from Haskell, OCaml, Rust, and Idris/Agda.
 
 ---
 
-*For AI agents: Deterministic functional language with Hindley-Milner type inference, algebraic effects, and explicit effect tracking. See [CLAUDE.md](CLAUDE.md) and [Documentation](https://ailang.sunholo.com/) for capabilities.*
+*For AI agents: Deterministic functional language with Hindley-Milner type inference, algebraic effects, and explicit effect tracking. Read [AGENTS.md](AGENTS.md), then use `ailang prompt` for current language guidance.*
