@@ -11635,3 +11635,33 @@ required mechanism repro with its weaker synthetic 2.4× observation.
 **Retro lane**: none. No new repeated friction met the skill-edit bar.
 
 **Next**: resume the first item selected by a ledger decision or by new first-party evidence satisfying `#610`'s workload gate.
+
+---
+
+## 212 — 2026-08-15 — Iteration 211: no executable pick at the decision boundary
+
+**Pick**: none. `D-COV-1` explicitly forbids a sprint until Mark chooses LOCALITY or EXECUTION.
+
+**Gate 0/1**: kill switch armed; billing CLEAN; required GitHub account active. Two inbox messages
+were informational: an active three-model eval suite and iteration 210's own report. The decision
+ledger validates with 10 OPEN rows; `scripts/mission_directives.sh` found zero allowlisted directives
+on `#635`. The running skill is byte-identical to origin. The detached driver checkout has a
+nine-commit-stale local `dev` plus unrelated untracked `govulncheck-filter`, so this record uses a
+worktree from `origin/dev`. Exact SHA `aed61db55` has 16 completed green/neutral checks; CI and
+Build-and-Release exact-SHA runs succeeded, and Docs Deploy is N/A.
+
+**Reality check**: `#649` is already diagnosed as a stable local-model capability gap. Iteration 209
+refuted `#610`'s synthetic retention mechanism, so it requires the original DB/embed workload or an
+equivalent 49× reproduction. `#613` remains a DO-NOT-MERGE draft gated by OPEN `D-1`; authored open
+PR `#695` is unrelated coordinator work, not a died-mid-flight form of the frontier item.
+
+**Outcome**: none. No code, design, plan, execution, evaluation, quorum, GPU, or metered provider
+call. Routing: controller `codex:gpt-5.6-sol`, record-only, `metered=$0.00`.
+
+**Ruled out**: silence as approval; repeating settled `#649` analysis; repeating the refuted `#610`
+synthetic mechanism; and advancing `#613` without its security ruling.
+
+**Retro lane**: none. No new repeated friction met the Gate-5 skill-edit bar.
+
+**Next**: resume the first item selected by a ledger decision or by new first-party evidence satisfying
+`#610`'s workload gate.
