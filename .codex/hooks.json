@@ -1,14 +1,11 @@
 {
+  "description": "AILANG hooks shared with Claude Code; commands resolve from the git root for Codex compatibility.",
   "hooks": {
     "PreToolUse": [
       {
         "matcher": "Bash|Edit|Write|Read|Agent|WebFetch|WebSearch|mcp__.*",
         "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/coordinator_hook.sh",
-            "timeout": 3
-          }
+          { "type": "command", "command": "/bin/bash \"$(git rev-parse --show-toplevel)/scripts/hooks/coordinator_hook.sh\"", "timeout": 3 }
         ]
       }
     ],
@@ -16,93 +13,52 @@
       {
         "matcher": "Edit|Write",
         "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/format_go.sh"
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/format_ail.sh"
-          }
+          { "type": "command", "command": "/bin/bash \"$(git rev-parse --show-toplevel)/scripts/hooks/codex_post_edit.sh\"", "timeout": 30 }
         ]
       },
       {
         "matcher": "Bash|Edit|Write|Read|Agent|WebFetch|WebSearch|mcp__.*",
         "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/coordinator_hook.sh",
-            "timeout": 3
-          }
+          { "type": "command", "command": "/bin/bash \"$(git rev-parse --show-toplevel)/scripts/hooks/coordinator_hook.sh\"", "timeout": 3 }
         ]
       }
     ],
     "SessionStart": [
       {
-        "matcher": "",
+        "matcher": "startup|resume|clear|compact",
         "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/session_start.sh"
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/cloud_setup.sh"
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/coordinator_hook.sh",
-            "timeout": 5
-          }
+          { "type": "command", "command": "/bin/bash \"$(git rev-parse --show-toplevel)/scripts/hooks/session_start.sh\"", "timeout": 10 },
+          { "type": "command", "command": "/bin/bash \"$(git rev-parse --show-toplevel)/scripts/hooks/cloud_setup.sh\"", "timeout": 10 },
+          { "type": "command", "command": "/bin/bash \"$(git rev-parse --show-toplevel)/scripts/hooks/coordinator_hook.sh\"", "timeout": 5 }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
         "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/brain_on_prompt.sh",
-            "timeout": 4
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/skills/microrag/frontends/claude-code/microrag_userprompt.sh",
-            "timeout": 4
-          }
+          { "type": "command", "command": "/bin/bash \"$(git rev-parse --show-toplevel)/scripts/hooks/brain_on_prompt.sh\"", "timeout": 4 },
+          { "type": "command", "command": "/bin/bash \"$(git rev-parse --show-toplevel)/.claude/skills/microrag/frontends/claude-code/microrag_userprompt.sh\"", "timeout": 4 }
         ]
       }
     ],
     "SubagentStart": [
       {
         "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/coordinator_hook.sh",
-            "timeout": 5
-          }
+          { "type": "command", "command": "/bin/bash \"$(git rev-parse --show-toplevel)/scripts/hooks/coordinator_hook.sh\"", "timeout": 5 }
         ]
       }
     ],
     "SubagentStop": [
       {
         "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/coordinator_hook.sh",
-            "timeout": 5
-          }
+          { "type": "command", "command": "/bin/bash \"$(git rev-parse --show-toplevel)/scripts/hooks/coordinator_hook.sh\"", "timeout": 5 }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/coordinator_hook.sh",
-            "timeout": 5
-          }
+          { "type": "command", "command": "/bin/bash \"$(git rev-parse --show-toplevel)/scripts/hooks/coordinator_hook.sh\"", "timeout": 5 }
         ]
       }
     ]
