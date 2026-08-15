@@ -2,48 +2,39 @@
 > **Contract**: ≤40 lines, overwritten by mission-control Gate 4 every iteration (history lives in
 > the charter/log). Fresh session = THIS + MEMORY.md. Humans steer via the bookkeeping issue.
 
-**Updated**: 2026-08-15 ~04:15 local (iteration 204)
+**Updated**: 2026-08-15 ~06:50 local (iteration 205)
 
 ## Now
-- **v0.33.1** · `dev` @ `54fdcb32c` — squash of PR #723. **SonarCloud Quality Gate PASSED on it**,
-  so the standing red is closed at source, not waived.
-- **The SonarCloud triage is answered: the red is REAL, not an instrument artifact** — and
-  iteration 203's own premise ("0.0% on a heavily-tested diff is implausible") is **REFUTED**.
-  The diff *was* heavily tested; every one of #722's 358 new test lines targets
-  `cmd/ailang/**`, which `sonar.coverage.exclusions` omits from the metric. What remained
-  countable was 14 lines of `internal/pkg/manifest.go` — `pkg.ParseManifestFile` — and
-  `make test-coverage` runs **without `-coverpkg`**, so `cmd/ailang`'s three call sites
-  attribute nothing to `internal/pkg`. Numerator 0, denominator 7 → **0.0% is correct arithmetic
-  on a real gap.**
-- **The gap was worse than a metric.** `ParseManifestFile` — the load-bearing half of `#720`'s
-  fix — had **zero tests in its own package** (0 hits across all 14 `internal/pkg/*_test.go`;
-  same-scope control `LoadManifestFile` → 9). Measured: reverting the mechanism left the
-  **entire `internal/pkg` package green**. Its only pin lived in `cmd/ailang`.
-- Fixed with 4 arms: the discriminating one asserts `ParseManifestFile` ACCEPTS what
-  `LoadManifestFile` REJECTS (both halves — the accept-half alone passes for a function returning
-  nil unconditionally), both refusal branches pinned **by message** (`failed to read` /
-  `failed to parse` — both return non-nil, so `err != nil` cannot tell them apart), a positive
-  control, an anti-vacuity floor. `ParseManifestFile` **0.0% → 100.0%**.
-- **Ruled out by measurement**: removing `cmd/ailang/**` from `sonar.coverage.exclusions` — the
-  file's own comment says to, but `cmd/ailang` measures **9.3%** unit coverage, so the exclusion
-  is still right and the comment's invariant is aspirational.
-- Evaluator (sonnet, own worktree) **96/100 PASS, zero blocking**. It re-ran all 3 mutations
-  independently and added a **precondition-neutering drill on all 4 arms — none survive**.
+- **v0.33.1** · `dev` @ `c095f1f0e` — squash of PR #724. Gate 3b green (21 checks, 4/4 required,
+  `SonarCloud` `success`, so iteration 204's fix holds at the gate, not just in argument).
+- **The `-coverpkg` decision is made, and the answer is NO.** Design doc landed
+  (`planned/v0_33_2/m-coverage-cross-package-attribution.md`, Planned): keep own-package
+  (**LOCALITY**) semantics for the gated/badged/Sonar metric; add a separate, non-gating
+  `test-coverage-xpkg` diagnostic for triage.
+- **The crux inverts the intuition** — iteration 204's defect was a function with *no own-package
+  test*, so `-coverpkg` would have painted it **green**, killing the true positive. Sonar was right.
+- **Two of the queue row's own premises are REFUTED** (A/B, 105 packages, 3 replicates/arm): runtime
+  **89/78/82s → 92/79/83s** (~+1–4%, not "material"); `total:` **45.5% → 48.1%** — it moves **UP**,
+  both arms far above the 29% gate. The hazard is the gate silently **loosening**, not breaking.
+- **The real cost was never named**: merged profile **5.7 MB → 599 MB** (~105×), and the Sonar step
+  is `continue-on-error: true` (`ci.yml:258`) — an ingest failure would be **silent**.
+- Quorum **BLOCKED ×2**, both reviewers present both rounds, `metered=$0.1454`; round 2 closed under
+  the narrow-refinement carve-out, both objections **measured and confirmed** (`XC1` was vacuous —
+  two packages sit in the profile with *every* counter zero). Separate finding: **CI runs the
+  coverage suite twice** — 492s of a 1127s critical-path `test` job.
 
 ## Next
-1. **`-coverpkg` is a real open question, not a bug**: cross-package coverage is unattributed
-   repo-wide, so any helper added to a non-excluded package to serve `cmd/ailang` reads 0%.
-   Changing it moves every number in the repo (badge, the 29% gate, Sonar's baseline) — wants a
-   design doc, not a mechanical edit. Queued, not done.
-2. `#717` (module-only allowlist entries skip expiry). `#709`/`#649` nightly alarms triaged,
-   correctly open. `#610` infra-gated. `#613` blocked on `D-1`.
+1. **`D-COV-1` parked on Mark — one word.** Does the coverage number mean **LOCALITY** or
+   **EXECUTION**? Recommendation LOCALITY. **No sprint runs on the doc until he answers.**
+2. `#717` (module-only allowlist skips expiry) · `#709`/`#649` correctly open · `#610` infra-gated
+   · `#613` blocked on `D-1`.
 
 ## Loop
-- launchd, fired from the driver pin (`~/.ailang-driver-pin/v1`). Routing: controller **opus** ·
-  executor **codex gpt-5.6-sol** · evaluator **sonnet in its own worktree** (gen≠judge holds).
-  Designer/planner/quorum **not fired** — direct-fix lane. `metered=$0.00`.
-- Skill drift **CLOSED** at pick time: running skill `cmp`-identical to `origin/dev`; local
-  `dev` == `origin/dev`, 0 ahead.
+- launchd, fired from the driver pin. Controller **opus** · designer **claude-fable-5** (rotation,
+  `claude-sub`) · quorum `gpt5-6-sol` + `gemini-3-1-pro` · planner/executor/evaluator **not fired**
+  (NEW-DOC lane — the quorum is the judge).
+- Skill drift **CLOSED** (`cmp`-identical to `origin/dev`; pin == `origin/dev`, 0 ahead). Nightly
+  2026-08-15 self-declared **INVALID** (`infra_outage`, 5/12 unmeasured) — no verdicts, nothing owed.
 
-## Parked on Mark (all on issue #635)
-- **`D-1`–`D-14`** — unchanged, see charter. `D-15`/`D-16`/`D-17` remain discharged.
+## Parked on Mark (issue #635)
+**`D-1`–`D-14`** unchanged · **`D-COV-1`** new · `D-15`/`D-16`/`D-17` remain discharged.

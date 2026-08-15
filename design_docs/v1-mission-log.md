@@ -11363,3 +11363,151 @@ the 29% `test-coverage-gate` threshold and Sonar's whole baseline, and would slo
 materially on a 120k-line repo, so it wants a design doc rather than a mechanical edit. Then
 `#717`, `#709`/`#649` (correctly open), `#610` infra-gated, `#613` blocked on `D-1`. Parked on
 Mark: `D-1`–`D-14`.
+
+---
+
+## 206 — 2026-08-15 — Iteration 205: the `-coverpkg` answer is NO, and turning it on would have hidden the defect that raised the question
+
+**Pick**: the charter queue head (`v1-mission.md:1396`) — the `[NEXT-CANDIDATE, needs a design doc
+— NOT a bug]` `-coverpkg` row, filed by iteration 204 about its own work. Inherited claim, so ghost
+discipline was mandatory.
+
+**Premises re-verified before routing.** `grep -rc 'coverpkg' make/` → 0 hits, same-scope control
+`coverprofile` → `make/coverage.mk:1`, `test -d make` → YES. `sonar.coverage.exclusions` does list
+`cmd/ailang/**`. The NEW-DOC tag was TRUE (unlike iterations 25/26, where it was wrong twice):
+`grep -ril 'coverpkg' design_docs/` hits only the three mission records, control `coverage` → 484
+files.
+
+**The evidence the row never had.** A/B on the exact `make test-coverage` package list (105
+test-bearing packages), 3 replicates per arm, `go clean -testcache` before each, at `376e19284`,
+darwin/arm64, go1.26.6:
+
+| arm | wall clock | `total:` | FAILs |
+|---|---|---|---|
+| A — today, no `-coverpkg` | 89s / 78s / 82s | **45.5%** ×3 | 0 |
+| B — `-coverpkg=./...` | 92s / 79s / 83s | **48.1%** ×3 | 0 |
+
+Both numbers deterministic across three replicates. So the row's *"would slow a 120k-line suite
+materially"* is **REFUTED** (~+1–4%), and *"moves every number in the repo"* is refuted in
+**direction**: the number moves **UP**, and both arms clear `COVERAGE_THRESHOLD := 29` with wide
+headroom. The risk was never the gate breaking — it is the gate silently **loosening**.
+
+*Narrowing that travels with the runtime figure (rule 3b(ii)/(viii)): darwin/arm64, warm Go build
+cache. Steady-state, not a cold first build. Windows/ubuntu unmeasured and not claimed.*
+
+**The real cost is the artifact, and the row never named it.** The merged profile goes
+**5,992,739 B / 74,336 blocks → 627,585,840 B / 7,808,904 blocks** (~105×), because each of the 105
+test binaries emits a full-repo profile and `go test` concatenates them. `go tool cover -func` stays
+cheap (539ms → 1463ms), so the local gate is untouched; the exposure is
+`sonar.go.coverage.reportPaths` ingesting a 599 MB file — and the SonarCloud step is
+`continue-on-error: true` (`ci.yml:258`, control: 3 occurrences repo-wide), so an ingest failure
+would be **silent**. Denominator widens by exactly 9 named test-less packages with **zero** lost
+(`comm -23` → 0); 4 of the 9 are already Sonar-excluded, so the Go badge and the Sonar number would
+move by different amounts — unquantified, and explicitly not asserted.
+
+**Subject-pair probe** (`./internal/pkg ./cmd/ailang`): only **2 of 85** `internal/pkg` functions
+move (`LoadLockFileFromPath` 66.7→77.8, `LoadManifestFile` 88.9→100.0). Control: profile package
+dirs 2 → 98. The live exposure on that pair is small; the doc says so rather than overselling.
+
+**CI context** (run `31858629366`): the `test` job is the critical path at 1127s, of which
+`Check coverage gate` 280s + `Generate test coverage` 212s = **492s (43.7%)** — i.e. the coverage
+suite runs **twice** per CI run. Named as an independent finding (`D-COV-4`), deliberately kept out
+of the `-coverpkg` decision.
+
+**The recommendation, and the crux.** The doc **refuses** the change. Iteration 204's actual defect
+was a function with *no own-package test*; whole-repo attribution would have reported it covered, so
+`-coverpkg` would have suppressed the true-positive that forced the right fix. Keep LOCALITY for the
+gated/badged/Sonar metric; add a separate non-gating `test-coverage-xpkg` diagnostic.
+
+**Quorum: two rounds, both reviewers present in each (`absent_reviewers` empty both times), BLOCKED
+both times.** Round 1's fixes were accepted and did not recur, which is how the rounds are known to
+be independent.
+
+- **R1 / gpt5-6-sol — `XC1` was VACUOUS. Measured rather than forwarded (rule 3f), and CONFIRMED
+  worse than stated.** With `-coverpkg` a test-less package is instrumented into every binary's
+  profile with all counters at zero, so presence proves nothing: `internal/mcp_client` 1024 lines /
+  **0** nonzero and `internal/auth/gcp` 288 / **0** are present and never executed, while `XC1`'s own
+  canary `internal/version` is genuinely exercised (56/168). So it **passed by luck**, and would have
+  passed identically and falsely had it named `mcp_client`. Same-scope controls: `internal/pkg`
+  86625/930, `internal/loader` 32760/1429. Fixed two-sided, with `mcp_client` as a named negative
+  control (re-point, never delete).
+- **R1 / gemini-3-1-pro** — the blanket "Conflict Surface not applicable" hid a real overlap with
+  `make/coverage.mk:18`'s discovery pipeline. Fixed with a shared-Make-variable decision + `XC5`.
+- **R2 resolved under Gate 2's NARROW-REFINEMENT CARVE-OUT, not by force-passing.** Both surviving
+  objections carried the reviewer's own `proposed_fix` and neither disputed the design direction;
+  first use was ratified by Mark earlier in this mission (charter:739). Both measured, both
+  confirmed. **gpt5-6-sol**: the *"and by whom"* claim is unsupported — V17, first-party: the 599 MB
+  profile has exactly one `mode:` line and field counts of only `{2,3}`, i.e. no originating-test
+  column. Contract narrowed verbatim; the reviewer's arm-2 redesign recorded in Future Work rather
+  than dropped. **gemini-3-1-pro**: the git-ignore mitigation cited V10, a `sonar-project.properties`
+  read, for a Git claim it cannot support — right about the evidence, and the conclusion survives
+  measurement (V16: `git check-ignore -v coverage/coverage-xpkg.out` rc=0 via `.gitignore:19`;
+  control `git check-ignore -v Makefile` rc=1). Right conclusion, wrong evidence — caught inside the
+  very doc that is about that class.
+
+**No sprint-evaluator fired**: the deliverable is a design doc and the quorum is its judge — two
+independent providers × two rounds, generator≠judge holding (fable author vs OpenAI + Google
+reviewers).
+
+**Gate 3b GREEN**: PR #724 → squash `c095f1f0e`. `mergeable` read FIRST per iter-198 (`MERGEABLE`,
+never `CONFLICTING`) and 5 runs were created, so no dropped-event lever was reached for.
+SHA-addressed **21** checks, `pending=0`, zero NOT-GREEN, **4/4 REQUIRED** (`build` 2m3s,
+`docs-gate` 3s, `lint` 3m54s, `test` 17m26s), `mergeStateStatus=CLEAN`, `SonarCloud` `success`.
+
+**An instrument failed mid-poll and was caught by its own emptiness.** Piping `gh api` into a
+standalone `jq` hit `parse error: Invalid string: control characters…`, so `runs=`/`still_running=`
+came back **empty, not zero**; the guard `[ "$tot" -gt 0 ]` errored on the empty string and the loop
+spun to the tool's 10-minute cap without ever emitting a verdict. Rule 3a aimed at a *poll* rather
+than a search. Re-run with `gh api --jq` (which parsed the identical response), and the loop now
+prints `INSTRUMENT_EMPTY` and refuses to read a non-numeric value as a state.
+
+### Routing evidence
+
+| role | pinned | actual | notes |
+|---|---|---|---|
+| controller | `$MODEL` (session) | opus | triage, ghost discipline, the A/B, objection measurement, carve-out revision, records |
+| designer | rotation | **`claude:claude-fable-5`** | namespaced pointer `mission-v1-designer-rotation` = codex (last-used) → next = claude. Probe rc=0 `ok`; directive 9,124 B asserted ≥200 B; bounded 30-min cap; rc=0. **Fired TWICE** (creation + the one sanctioned revision) — FLAGGED below |
+| planner | `codex:gpt-5.6-sol` | **not fired** | NEW-DOC lane; no plan this iteration |
+| executor | `codex:gpt-5.6-sol` | **not fired** | doc-only deliverable |
+| evaluator | `sonnet` | **not fired** | the quorum is the judge for a doc |
+| quorum | `gpt5-6-sol`, `gemini-3-1-pro` | both present, both rounds | `metered=$0.0649` + `$0.0805` = **$0.1454** of the $5 ceiling |
+
+`metered=$0.1454`. Quota buckets: opus (controller), claude-fable-5 (designer, subscription via
+`claude-sub`; billing tripwire CLEAN re-checked immediately before the spawn).
+
+### Ruled out (measured, do not re-chase)
+
+- *"`-coverpkg` would slow the suite materially"* — **REFUTED**, ~+1–4% across 3 replicates/arm.
+- *"it moves the coverage number (implied down, threatening the 29% gate)"* — **REFUTED in
+  direction**: 45.5% → 48.1%, wide headroom. The hazard is silent loosening.
+- *"the NEW-DOC tag may be stale"* — **REFUTED**, no prior doc covers this (control 484 files).
+- *"presence in a `-coverpkg` profile demonstrates cross-package execution"* — **REFUTED**, two
+  packages present with every counter zero.
+- *"the 599 MB profile would land in the developer's git workspace"* — **REFUTED**, `check-ignore`
+  rc=0 with the control at rc=1.
+- *"a 2-package runtime probe generalises to the suite"* — **REFUTED by construction**: the cost of
+  `-coverpkg` is per-test-binary instrumentation, so a 2-binary subset says nothing. This is why the
+  full 105-package A/B was run.
+
+### Gate 5 — no skill edit (three candidates, each at instance 1 against the ≥2 bar)
+
+**(a)** The `jq`-in-a-pipe empty-reading class. The skill's rule 3a covers searches and probes; the
+worked example that bit here was a **Gate-3b poll loop**, where an empty reading is not merely
+uninformative but makes the loop's own break condition un-evaluable, so it burns the wall clock
+instead of failing loudly. Pre-registered as a watch-item.
+
+**(b)** The Fable one-run-per-iteration discipline has **no stated exception for the revision pass
+that Gate 2's own one-revision flow requires**. Those two rules are in direct tension whenever a
+new doc is blocked: the revision must go somewhere, and re-routing it to the next designer in
+rotation would change authorship mid-doc. A second bounded fable run fired here and is **FLAGGED**.
+
+**(c)** A queue row asserting a **cost** ("would slow a 120k-line suite materially") with no command
+attached — the sibling of iteration 204's watch-item (a) about an asserted *number*. Two instances
+now sit in adjacent rows of the same charter, but they are different shapes (a number vs a cost), so
+the bar is not yet met on either alone.
+
+### Next
+
+`D-COV-1` is parked for Mark — one word, LOCALITY or EXECUTION — and **no sprint runs on this doc
+until he answers**. Then `#717`; `#709`/`#649` remain correctly open; `#610` infra-gated; `#613`
+blocked on `D-1`.
