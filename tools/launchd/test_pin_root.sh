@@ -20,6 +20,13 @@ export GIT_AUTHOR_NAME=pinlab GIT_AUTHOR_EMAIL=pinlab@invalid
 export GIT_COMMITTER_NAME=pinlab GIT_COMMITTER_EMAIL=pinlab@invalid
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 
+# A scheduled driver re-execs with these variables exported. They describe the
+# real driver's outer pin and must not leak into the synthetic drivers below:
+# inherited AILANG_DRIVER_PINNED makes every case short-circuit as "already
+# pinned", which turns CI green while the test fails on the rig it protects.
+unset AILANG_DRIVER_PINNED AILANG_DRIVER_DRIFT AILANG_DRIVER_SRC AILANG_DRIVER_REF
+unset MISSION_WORKDIR
+
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); echo "  PASS: $1"; }
 bad()  { FAIL=$((FAIL+1)); echo "  FAIL: $1"; echo "        got: $2"; }
