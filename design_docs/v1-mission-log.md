@@ -11597,3 +11597,23 @@ required mechanism repro with its weaker synthetic 2.4× observation.
 **Retro lane**: none. No new repeated friction met the skill-edit bar.
 
 **Next**: await a ledger decision or the named duckdb repro infrastructure.
+
+---
+
+## 210 — 2026-08-15 — Iteration 209: `#610`'s query-row retention mechanism is refuted
+
+**Pick**: `#610`. Gate 2 invalidated iteration 208's infrastructure blocker: duckdb v1.5.5 is now installed and the packages checkout contains exact `sunholo/duckdb@0.1.1` sources.
+
+**Reality check**: after loading the current AILANG teaching prompt, two fixtures queried 300 rows with 32 KiB payloads. Both allocated a fresh 768-int vector per row. The discard arm retained only each vector's length; the retain arm held every vector. Both type-checked and returned exactly 300.
+
+**Measurement**: two alternating successful runs per arm under `/usr/bin/time -l` and `ailang run --memprofile`: discard **165.6/163.6 MB**, retain **188.4/187.2 MB**. The stable ~23 MB / ~14% delta matches retaining the vectors themselves, not a 49× amplification. End-of-run Go heaps were 7.2–7.7 MiB and dominated by startup/runtime allocations, with no retained per-row/query graph. A first pair that printed `NotAllowed(duckdb)` was rejected as invalid evidence before correcting the Process allowlist.
+
+**Outcome**: analysis-only. The proposed mechanism — each retained output holds its row/parse tree or the whole `queryAll` result — is refuted on the controlled exact-package pair. No design doc or sprint. `#610` stays open as original-workload evidence until the 5 GB DB + embedding workload, or an equivalent fixture, reproduces the magnitude. Evidence comment delivery verified 1→2. The separate 1.2 GB DuckDB buffer-pool observation stays in documentation/external-process territory.
+
+**Routing evidence**: controller `codex:gpt-5.6-sol`, analysis; no designer, planner, executor, evaluator, quorum, GPU, or metered provider. `metered=$0.00`.
+
+**Ruled out**: infrastructure still absent; `queryAll` retaining one parsed graph per produced value; and treating a capability-rejected run as a measurement.
+
+**Retro lane**: none. Gate 2 already requires blocker re-verification, and it caught this stale premise before another empty iteration.
+
+**Next**: `D-COV-1` remains parked for Mark; `#649` is diagnosed; `#613` awaits `D-1`.
