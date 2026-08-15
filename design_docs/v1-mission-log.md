@@ -11511,3 +11511,46 @@ the bar is not yet met on either alone.
 `D-COV-1` is parked for Mark — one word, LOCALITY or EXECUTION — and **no sprint runs on this doc
 until he answers**. Then `#717`; `#709`/`#649` remain correctly open; `#610` infra-gated; `#613`
 blocked on `D-1`.
+
+---
+
+## 207 — 2026-08-15 — Iteration 206 recovery: `#717` landed, but its controller record did not
+
+**Picked**: the died-mid-flight iteration-206 residue, which outranked a new queue pick. The
+original scheduled controller hit its weekly quota after spawning the sprint; its executor and
+evaluator path continued, PR #726 merged, and no mission record was written.
+
+**Reality check**: `.wt-iter206` and `.wt-iter206-eval` remained; branch
+`sprint/iter206-govulncheck-expiry` held `225554b47` + evaluator follow-up `0ea0768a1`; GitHub showed
+PR #726 merged at `640bab054`, issue #717 auto-closed, and zero issue verdict comments. No
+iteration-206 STATUS/log/dashboard record existed. The PR's base repro used two fixtures differing
+only by a reaching function: expired module-only printed `[allowlisted]` rc=0 while reaching printed
+expired rc=1; malformed module-only expiry also passed rc=0. Both gaps share the omitted expiry path.
+
+**Shipped**: recovered already-landed PR #726. One classifier and clock now serve both finding
+classes; module-only annotations distinguish absent, live and expired allowlist entries; malformed
+expiry exits 2 before success output; expired module-only stays visible but non-gating per #703.
+The first non-gating test was vacuous and survived a gate-everything mutant, so `decide` was
+extracted and armed with discriminating arms. The evaluator found the reaching malformed-expiry
+branch unpinned; `0ea0768a1` closes it. PR checks: 21 completed success/neutral across CI,
+Build-and-Release, Windows/Ubuntu/macOS, CodeQL and SonarCloud. Recovery independently rebuilt both
+binaries (`v0.33.1-68-gde0e41099`) and reran package build/test/vet/gofmt, `go test ./tools/...`,
+and the derived make gates outside the sandbox on darwin/arm64 — all rc=0. Evaluator sonnet PASS;
+the score was not preserved after the controller quota exit, so it is UNKNOWN rather than invented.
+
+**Routing evidence**: model=opus task-class=execute/evaluate/recovery round1-score=unknown rounds=1
+corrections=1 provider=codex+anthropic agent=codex+sonnet cost=quota/OAuth (`metered=$0.00`).
+Direct-fix lane; no designer or planner. Executor codex `gpt-5.6-sol`; evaluator sonnet in its own
+worktree; generator≠judge held. The recovery controller was codex `gpt-5.6-sol`.
+
+**Ruled out**: “iteration 206 failed before producing work” — refuted by the merged PR and two
+commits. “The issue's expiry-only framing covered the whole defect” — refuted: malformed
+module-only dates skipped validation too. “A helper-level empty blocking list pins non-gating” —
+refuted by the mutant that gated everything while the first test stayed green.
+
+**Retro lane**: none. Died-mid-flight recovery already covers the failure class; “work merges after
+the controller quota exit while bookkeeping stays absent” is a new detail at instance 1, below the
+two-friction bar for a skill edit.
+
+**Next**: `D-COV-1` remains parked for Mark. Then `#709`/`#649`, `#610`, and `#613` in the existing
+order. No second backlog item was taken during this recovery iteration.
