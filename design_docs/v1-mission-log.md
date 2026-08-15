@@ -11617,3 +11617,21 @@ required mechanism repro with its weaker synthetic 2.4× observation.
 **Retro lane**: none. Gate 2 already requires blocker re-verification, and it caught this stale premise before another empty iteration.
 
 **Next**: `D-COV-1` remains parked for Mark; `#649` is diagnosed; `#613` awaits `D-1`.
+
+---
+
+## 211 — 2026-08-15 — Iteration 210: no executable pick at the decision boundary
+
+**Pick**: none. `D-COV-1` explicitly forbids a sprint until Mark chooses LOCALITY or EXECUTION.
+
+**Gate 0/1**: kill switch armed; billing CLEAN; required GitHub account active. Three inbox messages were informational and did not outrank: World's decision-gated report, V1 iteration 209's own report, and an active eval-suite notice. The decision ledger validates with 10 OPEN rows and `scripts/mission_directives.sh` found zero allowlisted directives on `#635`. The running skill is byte-identical to origin. The shared checkout is detached/stale by eight commits and has unrelated untracked `govulncheck-filter`, so records use a worktree from `origin/dev`. Exact SHA `45b3d682f` has 16 green/neutral checks; CI and Build-and-Release push runs are successful; Docs Deploy is N/A.
+
+**Reality check**: `#649` is already diagnosed as a stable local-model capability gap. Iteration 209 refuted `#610`'s synthetic query-retention mechanism, so it now requires the original DB/embed workload or an equivalent 49× reproduction. `#613` remains a DO-NOT-MERGE draft gated by OPEN `D-1`.
+
+**Outcome**: none. No code, design, plan, execution, evaluation, quorum, GPU, or metered provider call. Routing: controller `codex:gpt-5.6-sol`, record-only, `metered=$0.00`.
+
+**Ruled out**: silence as approval; repeating settled `#649` analysis; repeating the refuted `#610` synthetic mechanism; and advancing `#613` without its security decision.
+
+**Retro lane**: none. No new repeated friction met the skill-edit bar.
+
+**Next**: resume the first item selected by a ledger decision or by new first-party evidence satisfying `#610`'s workload gate.
