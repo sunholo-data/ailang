@@ -59,50 +59,47 @@ func main() {
 		os.Exit(2)
 	}
 
+	os.Exit(decide(os.Stdout, os.Stderr, allow, os.Stdin, time.Now().UTC()))
+}
+
+// decide runs the whole filter decision and returns the process exit code.
+// It is split out of main so the exit-code contract is testable without a
+// subprocess — in particular the #703 invariant that module-level findings
+// are reported but never gate, which cannot be pinned by calling the
+// per-class helpers directly (they are never handed module-only IDs).
+func decide(stdout, stderr io.Writer, allow *allowlist, in io.Reader, now time.Time) int {
 	// Index allowlist by ID for O(1) lookup. Surface duplicate IDs
 	// rather than silently masking them.
 	byID := map[string]allowEntry{}
 	for _, e := range allow.Allow {
 		if _, dup := byID[e.ID]; dup {
-			fmt.Fprintf(os.Stderr, "govulncheck-filter: duplicate allowlist entry for %s\n", e.ID)
-			os.Exit(2)
+			fmt.Fprintf(stderr, "govulncheck-filter: duplicate allowlist entry for %s\n", e.ID)
+			return 2
 		}
 		byID[e.ID] = e
 	}
 
-	reaching, moduleOnly, err := readFindings(os.Stdin)
+	reaching, moduleOnly, err := readFindings(in)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "govulncheck-filter: parse stdin: %v\n", err)
-		os.Exit(2)
+		fmt.Fprintf(stderr, "govulncheck-filter: parse stdin: %v\n", err)
+		return 2
 	}
 
-	now := time.Now().UTC()
-	var (
-		blocking []string // findings without allowlist entries
-		expired  []string // allowlist entries whose expiry has passed
-		seen     = map[string]bool{}
-	)
-
+	seen := map[string]bool{}
 	for _, id := range reaching {
 		seen[id] = true
-
-		entry, ok := byID[id]
-		if !ok {
-			blocking = append(blocking, id)
-			continue
-		}
-		t, err := time.Parse("2006-01-02", entry.Expires)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "govulncheck-filter: bad expires date %q for %s: %v\n",
-				entry.Expires, id, err)
-			os.Exit(2)
-		}
-		if !t.After(now) {
-			expired = append(expired, fmt.Sprintf("%s (expired %s)", id, entry.Expires))
-		}
 	}
 	for _, id := range moduleOnly {
 		seen[id] = true
+	}
+	blocking, expired, err := classifyReaching(reaching, byID, now)
+	if err != nil {
+		fmt.Fprintf(stderr, "govulncheck-filter: %v\n", err)
+		return 2
+	}
+	if err := validateModuleOnly(moduleOnly, byID, now); err != nil {
+		fmt.Fprintf(stderr, "govulncheck-filter: %v\n", err)
+		return 2
 	}
 
 	// Surface allowlist entries that no longer match any finding —
@@ -119,47 +116,89 @@ func main() {
 	sort.Strings(stale)
 
 	if len(blocking) == 0 && len(expired) == 0 {
-		fmt.Printf("govulncheck-filter: %d reachable finding(s), all allowlisted and unexpired.\n",
+		fmt.Fprintf(stdout, "govulncheck-filter: %d reachable finding(s), all allowlisted and unexpired.\n",
 			len(reaching))
-		printModuleOnly(os.Stdout, moduleOnly, byID)
+		printModuleOnly(stdout, moduleOnly, byID, now)
 		if len(stale) > 0 {
-			fmt.Printf("Note: %d stale allowlist entr(ies) — consider removing: %v\n",
+			fmt.Fprintf(stdout, "Note: %d stale allowlist entr(ies) — consider removing: %v\n",
 				len(stale), stale)
 		}
-		os.Exit(0)
+		return 0
 	}
 
 	if len(blocking) > 0 {
-		fmt.Fprintf(os.Stderr, "govulncheck-filter: %d unallowlisted finding(s):\n",
+		fmt.Fprintf(stderr, "govulncheck-filter: %d unallowlisted finding(s):\n",
 			len(blocking))
 		for _, id := range blocking {
-			fmt.Fprintf(os.Stderr, "  - %s\n", id)
+			fmt.Fprintf(stderr, "  - %s\n", id)
 		}
-		fmt.Fprintln(os.Stderr,
+		fmt.Fprintln(stderr,
 			"Either fix the underlying issue or add an entry to .govulncheck-allow.yml with a reason and expires date.")
 	}
 	if len(expired) > 0 {
-		fmt.Fprintf(os.Stderr, "govulncheck-filter: %d expired allowlist entr(ies):\n",
+		fmt.Fprintf(stderr, "govulncheck-filter: %d expired allowlist entr(ies):\n",
 			len(expired))
 		for _, e := range expired {
-			fmt.Fprintf(os.Stderr, "  - %s\n", e)
+			fmt.Fprintf(stderr, "  - %s\n", e)
 		}
-		fmt.Fprintln(os.Stderr,
+		fmt.Fprintln(stderr,
 			"Re-evaluate: bump expires forward, fix the underlying issue, or remove the dependency.")
 	}
-	printModuleOnly(os.Stderr, moduleOnly, byID)
-	os.Exit(1)
+	printModuleOnly(stderr, moduleOnly, byID, now)
+	return 1
 }
 
-func printModuleOnly(w io.Writer, ids []string, byID map[string]allowEntry) {
+func classifyEntry(entry allowEntry, now time.Time) (bool, error) {
+	t, err := time.Parse("2006-01-02", entry.Expires)
+	if err != nil {
+		return false, err
+	}
+	return !t.After(now), nil
+}
+
+func classifyReaching(ids []string, byID map[string]allowEntry, now time.Time) (blocking, expired []string, err error) {
+	for _, id := range ids {
+		entry, ok := byID[id]
+		if !ok {
+			blocking = append(blocking, id)
+			continue
+		}
+		isExpired, parseErr := classifyEntry(entry, now)
+		if parseErr != nil {
+			return nil, nil, fmt.Errorf("bad expires date %q for %s: %v", entry.Expires, id, parseErr)
+		}
+		if isExpired {
+			expired = append(expired, fmt.Sprintf("%s (expired %s)", id, entry.Expires))
+		}
+	}
+	return blocking, expired, nil
+}
+
+func validateModuleOnly(ids []string, byID map[string]allowEntry, now time.Time) error {
+	for _, id := range ids {
+		if entry, ok := byID[id]; ok {
+			if _, err := classifyEntry(entry, now); err != nil {
+				return fmt.Errorf("bad expires date %q for %s: %v", entry.Expires, id, err)
+			}
+		}
+	}
+	return nil
+}
+
+func printModuleOnly(w io.Writer, ids []string, byID map[string]allowEntry, now time.Time) {
 	if len(ids) == 0 {
 		return
 	}
 	fmt.Fprintf(w, "govulncheck-filter: %d module-level finding(s) (not function-reaching, not gating):\n", len(ids))
 	for _, id := range ids {
 		status := "NOT allowlisted"
-		if _, ok := byID[id]; ok {
-			status = "allowlisted"
+		if entry, ok := byID[id]; ok {
+			isExpired, _ := classifyEntry(entry, now) // validated before any output
+			if isExpired {
+				status = fmt.Sprintf("allowlisted, EXPIRED %s", entry.Expires)
+			} else {
+				status = "allowlisted"
+			}
 		}
 		fmt.Fprintf(w, "  - %s [%s]\n", id, status)
 	}
