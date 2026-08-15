@@ -131,6 +131,18 @@ func TestDecideExitCodes(t *testing.T) {
 			wantCode: 2,
 			wantOut:  `bad expires date "not-a-date" for GO-MODULE`,
 		},
+		{
+			// The reaching sibling of the arm above. This branch predates the
+			// module-only fix and was unpinned at 38641e216 too — measured:
+			// neutering `if parseErr != nil` in classifyReaching redded nothing.
+			// It is the direct counterpart of the #717 deliverable, so it is
+			// pinned here rather than left as debt.
+			name:     "malformed reaching expiry exits 2",
+			findings: reachingListed,
+			allow:    []allowEntry{{ID: "GO-REACH", Reason: "typo", Expires: "not-a-date"}},
+			wantCode: 2,
+			wantOut:  `bad expires date "not-a-date" for GO-REACH`,
+		},
 	}
 
 	for _, tc := range tests {
