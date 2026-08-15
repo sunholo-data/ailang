@@ -11065,3 +11065,156 @@ instance is recognisable rather than re-derived:
    3i(d) (a control that *cannot fail*): this control fires, can fail, and is wrong in the same
    direction as the code. The tell: your assertion helper and the code under test would need the
    same fix. Measured search for a prior instance: 0.
+
+---
+
+## 204 — 2026-08-15 — Iteration 203: the follow-up issue's own premise was false, and a control that failed is what found it
+
+**Pick**: the queue head, `#720` — the residual `ailang.toml` upsert scanner gaps filed by iteration
+202's own evaluator. P3, unowned, unblocked. An inherited claim by construction (filed *from* a
+judge's report), so ghost discipline was mandatory rather than optional.
+
+**Gate 0/1**: kill switch armed · billing CLEAN · gh `sunholo-voight-kampff` · fired from the driver
+pin at `83149133b` == `origin/dev` · inbox 2 (both eval-suite informational, a local-ollama rotation
+6/9) · no Mark comment on `#635` (0 of 64; watermark unchanged) · no rotation (created after the
+Monday-07:00 boundary; 64 < 80) · CI on `83149133b` **16 checks, zero NOT-GREEN, runs EXIST** ·
+`#709`/`#649` already carry verdicts · died-mid-flight sweep **NEGATIVE**.
+
+**Skill drift found OPEN — first time since iteration 200, and the mechanism is new.** `cmp` against
+`origin/dev` differed: 225,107 B vs 228,658 B, missing exactly Gate-2 **rule 3l** (the fleet-as-
+control-group rule motoko added the same day). Worth naming precisely, because a fix landed and did
+not cover this: `AILANG_DRIVER_PINNED` now pins the **driver** to a detached worktree at
+`origin/dev`, which is why the driver no longer drifts — but `~/.claude/skills/mission-control` still
+resolves by symlink to the **main checkout's working tree**, and that lags. The pin covers the driver
+and not the skill. That is this repo's own named recurring shape — guard the helper, miss the call
+site — aimed at its own rulebook. Delta read before proceeding; `D-16` then applied (0 ahead;
+incoming ∩ dirty EMPTY with both controls firing, 9/9 and 2/2; dirty benchmark JSONs sha256-identical
+after), and the running skill re-confirmed `cmp`-identical.
+
+### The find: a control that failed, chased instead of patched
+
+All four filed gaps reproduced first-party at `83149133b`, each against a control that behaved
+correctly. Then gap 5's control — *a healthy manifest broken by the edit must be refused* — **did not
+fire**. Rule 3a says that means the instrument, not the product. It did: my fixture was not
+`LoadManifest`-VALID. Chasing *why that mattered* is the whole iteration.
+
+`writeManifestChecked`'s "was this parseable before?" predicate **is** `pkg.LoadManifest` — TOML
+parse **plus full semantic `Validate`**. So a manifest that is perfectly good TOML but fails
+validation (missing `edition`, a one-level `name`, missing `version`) counts as ALREADY BROKEN, the
+post-write re-check is skipped, and the call returns `nil`. Measured on two fixtures differing by
+**exactly one line** (`edition = "1"`):
+
+| fixture | outcome |
+|---|---|
+| `edition` absent | duplicate dependency key **written to disk**, `err=nil`, caller prints `✓ Added` |
+| `edition = "1"`, otherwise identical | write **refused and rolled back**, one key on disk |
+
+`#720`'s headline claim — *"none ships corruption, because `writeManifestChecked` refuses the write"*
+— is therefore **false for the entire validate-invalid class**, which is an ordinary state for a
+hand-written manifest. None of its five catalogued items would have surfaced it, and neither would a
+careful implementation of all five. The generalisable point: **a follow-up issue inherits the
+framing of the round that filed it**, and that framing is the part nobody re-measures, because the
+*items* look like the claim.
+
+### Shipped
+
+Three milestones plus one follow-up commit, one commit per milestone, every boundary green:
+M1 parse-only `pkg.ParseManifestFile` with both probes re-pointed at it · M2 `openMultilineString`
+rewritten as a single-pass scanner tracking single-line basic/literal string state, plus
+`tableHeaderName` for quoted headers (refusing `[[dependencies]]` and dotted headers) · M3
+escape-aware `stripLineComment`, `countDependencyKey` repaired **independently of every production
+helper** so it stays a control rather than a mirror, and no unqualified `✓ Added` on a manifest that
+did not parse beforehand.
+
+**The instrument iteration 202 lacked is now committed**: a 12-shape corpus running the real
+`appendDependencyToFile` path twice per shape, asserting per shape that the file parses, has exactly
+one dependency key, and exactly one `[dependencies]` table — with an anti-vacuity floor that reds if
+fewer than 12 rows run. Iteration 202's round-1 regression (a precise mechanism silently withdrawing
+a permissive one's accidental coverage) is exactly what a differential corpus catches and no test
+written for the new code can.
+
+**Controller design call, made rather than drifted into** — the decision `#720` explicitly raises:
+**keep hand-editing TOML text**, not parse → mutate → re-serialize. Comment and formatting
+preservation in a file users read and hand-edit is a real product property, and with M1 landed the
+rollback net bounds the scanner's open-ended blind spots by construction. The judge was invited to
+argue against it and, after four drills, concurred it stays non-blocking.
+
+**Routing evidence**: controller **opus** (session) · designer/planner/quorum **not fired**
+(direct-fix lane, same basis as `#718`/`#703`/`#706`/`#692`) · planner lane derived anyway and
+recorded verbatim, `opus fail-closed:planner-lane-field-missing` · executor **codex `gpt-5.6-sol`**
+(probe rc=0; directive 16,990 B asserted ≥200 B before spawn; ~13 min; rc=0) · evaluator **sonnet in
+its OWN worktree** (iteration 199's rule, 3rd use), generator≠judge holds across providers ·
+`metered=$0.00`.
+
+**Sandbox deviation, adjudicated by measurement (rule 3h)**: the executor reported `go test` rc=1 for
+both packages and correctly labelled them UNINFORMATIVE UNDER SANDBOX (loopback bind denials). The
+checkable proposition — *these failed for the sandbox, not the code* — was tested by running them
+outside it: both rc=0. A self-reported deviation, and the better kind.
+
+**`go build ./...` was NOT used as a gate**, baselined RED on pristine `origin/dev` (`cmd/wasm`:
+*function main is undeclared*) per rule 3e(a) — it measures the repo, not the change.
+
+**Mutation discipline**: the executor ran 8, each asserted LANDED (sha256) and BUILDS before its
+result was read, each the sole killer (inverse `-skip` rc=0). The controller **independently re-ran
+the load-bearing one** — revert the predicate to `LoadManifest` — against its own pre-registered arm:
+mutant builds and lands, the `edition`-absent arm reds with *"the net did NOT engage"* /
+`keys-on-disk=2`, and the only other red was the executor's own M1 arm. Two independent arms, same
+guard, agreeing. Restored by `cp`, byte-identical.
+
+**Evaluator sonnet 94/100 PASS, zero blocking.** It ran its own drills: deleting a corpus row (floor
+fires), reverting each M2 mechanism (exactly the right 1-of-12 row reds each time), and probing CRLF
+/ `'''` / tab-separated / no-trailing-newline shapes for blind spots the rewrite might have
+introduced — **none found**, which is a genuine positive about a hand-rolled character scanner.
+
+**All three non-blocking findings were unpinned refusal branches, reproduced before acting** (`if
+false && …`, mutant BUILDS and LANDED, whole package stays rc=0) and closed in `72b60b153`:
+(a) `appendGitDependencyToFile`'s copy of the M3 warn branch — the **second call site**, whose tested
+twin is precisely what made it read as covered, i.e. *guard the helper, miss the call site, one
+commit after fixing that same shape*; (b/c) `tableHeaderName`'s dotted-header and quote-mismatch
+refusals, where M2's own commit message **claimed** the helper "deliberately refuses dotted headers"
+and nothing checked it. Neither is exploitable today — the only caller compares `header ==
+"dependencies"` exactly — but the quote-mismatch mutant returns a silently **truncated** name
+`("dependencie", true)` for `["dependencies]`, which is the sharper reason to keep it.
+`TestTableHeaderName_RejectsArrayOfTables` was folded into a 9-row refusal table **plus a 6-row
+accepted-forms control**, without which every refusal row would pass for the trivial reason that the
+helper refuses everything.
+
+**Gate 3b GREEN**: PR [#722](https://github.com/sunholo-data/ailang/pull/722) → squash
+[`3ec1dcb02`](https://github.com/sunholo-data/ailang/commit/3ec1dcb02). `mergeable` read **FIRST**
+per iteration 198 (`MERGEABLE`, never `CONFLICTING`, so no dropped-event lever was reached for);
+check count climbed **14 → 21**, so `pending=0` was required rather than inferred; **4/4 REQUIRED**
+(`build` 2m6s, `docs-gate`, `lint` 3m44s, `test` **17m1s**). `Closes #720` auto-closed the issue at
+merge (mechanism B, the normal path), so the verdict went out as its own `gh issue comment
+--body-file` and the comment count was asserted to have grown (0 → 1). Post-merge `dev` HEAD has runs
+(**15**; control `83149133b` → 16), so it did not land into iteration 196's unverified-HEAD hole.
+
+### Ruled out by measurement
+
+- *"the four `#720` gaps ship no corruption"* — **REFUTED**. True only for validate-valid manifests.
+- *"my gap-5 control failure means the product is broken"* — **REFUTED**. It was my fixture; chasing
+  it is what found the real defect. Recorded because the *right* response to a failed control is to
+  chase it, not to fix the fixture and move on.
+- *"the SonarCloud red is not inherited"* — **REFUTED as mis-scoped, self-caught before it reached
+  the report.** My first control compared it against four **`dev` branch** analyses (all `success`)
+  and I was one sentence from writing "not inherited". A branch analysis is not a PR analysis — rule
+  3a(i-d) aimed at a check rather than at a grep. The same-scope control is the previous code PR,
+  **`#719`, which fails the same gate** (61.1% new-code coverage vs an 80% bar). So the red is the
+  standing state for a code PR here, and `UNSTABLE ≠ BLOCKED`.
+
+### Not dismissed
+
+SonarCloud reads **0.0%** new-code coverage on this PR, where `#719` read 61.1%. On a diff that is
+mostly new tests, 0.0% is the shape of *no coverage data reaching the analysis*, not of untested
+code. Non-required either way, but named as the next item rather than waved through — the same-scope
+control explains the red's *existence*, not its *value*.
+
+**Next**: triage the SonarCloud 0.0% reading (instrument or real, one pass); then `#717`
+(module-only allowlist entries skip expiry). `#709`/`#649` nightly alarms triaged and correctly
+open; `#610` infra-gated; `#613` blocked on `D-1`. Parked on Mark: `D-1`–`D-14`.
+
+**Gate 5 — no skill edit.** One candidate: the **driver pin covers the driver but not the skill**,
+so `~/.claude/skills/mission-control` still resolves to the lagging main checkout. That is instance
+**1** under the new pin regime (the bar is ≥2), and `D-16` already discharges it per-iteration, so it
+is pre-registered here as a watch-item rather than edited in. If a second iteration finds the running
+skill stale for this reason, the fix is to point the skill symlink at the driver pin — or to make
+Gate 1's `cmp` failure trigger the `D-16` ff-merge automatically rather than by controller judgment.
