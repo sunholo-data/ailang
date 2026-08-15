@@ -28,4 +28,5 @@
 - `metered=$0.00`; running skill matches origin; billing CLEAN; inbox and human directives empty.
 
 ## Parked on Mark (issue #635)
-`D-1`, `D-2`, `D-8`–`D-14`, and `D-COV-1` are OPEN in the authoritative decision ledger.
+`D-1`, `D-2`, `D-8`, `D-9`, `D-10`, `D-11`, `D-12`, `D-13`, `D-14`, and `D-COV-1` are OPEN in
+the authoritative decision ledger.
