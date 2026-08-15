@@ -11572,3 +11572,28 @@ order. No second backlog item was taken during this recovery iteration.
 **Retro lane**: none. No uncovered repeated process gap met the Gate-5 skill-edit bar.
 
 **Next**: `D-COV-1` remains parked. `#649` remains open but is already diagnosed; `#610` is infra-gated; `#613` awaits `D-1`.
+
+---
+
+## 209 — 2026-08-15 — Iteration 208: no executable pick at the decision/infra boundary
+
+**Pick**: none. `D-COV-1` explicitly forbids a sprint until Mark chooses LOCALITY or EXECUTION.
+
+**Gate 0/1**: armed; billing CLEAN; required GitHub account active; inbox empty; decision ledger
+valid with 10 OPEN rows; zero allowlisted directives. Running skill matched origin. `origin/dev`
+was `57ed39598`; 16 SHA-addressed checks were green/neutral and CI plus Build-and-Release succeeded.
+The stale main checkout had unrelated untracked work, so records used an origin-based worktree.
+
+**Reality check**: `#649` is already diagnosed as a stable local-model capability gap. `#610`
+requires duckdb CLI, `sunholo/duckdb@0.1.1`, and a memprofile retain/discard repro before design;
+that infrastructure is absent. `#613` is a DO-NOT-MERGE draft gated by OPEN `D-1`.
+
+**Outcome**: none. No code, design, plan, execution, evaluation, quorum, GPU, or metered provider
+call. Routing: controller `codex:gpt-5.6-sol`, record-only, `metered=$0.00`.
+
+**Ruled out**: silence as approval; repeating a settled nightly analysis; and replacing `#610`'s
+required mechanism repro with its weaker synthetic 2.4× observation.
+
+**Retro lane**: none. No new repeated friction met the skill-edit bar.
+
+**Next**: await a ledger decision or the named duckdb repro infrastructure.
