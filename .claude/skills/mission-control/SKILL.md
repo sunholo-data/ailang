@@ -229,6 +229,17 @@ on one rig from colliding.
    directive, never unparks anything — at most mention it in the report if substantive.
    Any allowlisted hit = a **human directive** with the same rank as an inbox directive (outranks
    the queue; an answer to a parked item UNPARKS it and makes it this iteration's pick).
+   **DECISION RECORDING CONTRACT (2026-08-15, Mark):** the mission doc's marked
+   `decision-ledger` block is the authoritative current state; STATUS prose and issue comments are
+   evidence, not state. Run `scripts/mission_decisions.sh --check` before claiming any item is
+   parked, and `scripts/mission_decisions.sh --open` to generate the parked-for-human list. Never
+   summarize a range such as “D-1–D-14 stay parked”: IDs can be resolved out of order and some
+   historical IDs were reused. When an allowlisted directive answers a decision, update that row
+   from `OPEN` to `RESOLVED` in the SAME iteration, recording the answer and dated evidence, before
+   moving the watermark. If the answer is ambiguous, leave it OPEN and quote the ambiguity; never
+   infer resolution merely because related code landed. New decision IDs are append-only and MUST
+   NOT reuse an existing ID. A report's `DECISIONS FOR MARK` section is generated from OPEN rows
+   only; a resolved row must never be asked again unless a new, uniquely named decision supersedes it.
 7. **BILLING TRIPWIRE (Mark 2026-07-17 — "this needs to be 100% safe"):** run
    `test -z "$ANTHROPIC_API_KEY" && test -z "$ANTHROPIC_AUTH_TOKEN" && echo CLEAN || echo LEAKED`.
    If LEAKED, the `~/.zshenv` subscription-only guard has regressed: **all `claude:` CLI lanes are
@@ -1515,10 +1526,10 @@ model from the driver-exported env (defaults track the charter table):
 
 | Role | Model env | Default |
 |---|---|---|
-| Controller (this session: triage/pick/record/retro) | `$MODEL` (session) | **Opus** (opus-first since 2026-07-16, Mark: the long orchestration session is mechanical work — it must NOT ride Fable) |
+| Controller (this session: triage/pick/record/retro) | `$CONTROLLER_ID` (session) | Anthropic Opus/Fable preference order; `codex:gpt-5.6-sol` subscription fallback when all Anthropic probes are unavailable |
 | Design-doc-creator | **ROTATION** (Mark 2026-07-17; `$MISSION_DESIGNER_MODEL` is the rotation SEED, not a fixed pin) | Rotate per new-doc iteration: `claude:claude-fable-5` → `codex:gpt-5.6-sol` → (gemini after G4) → repeat. State: **`~/.ailang/state/mission-${MISSION_NAME}-designer-rotation`** holds the LAST-USED value; pick the next list entry (missing file = start at claude), write back after the designer run. **NAMESPACE THAT PATH — the unnamespaced `mission-designer-rotation` this skill used to prescribe is ONE FILE SHARED BY EVERY MISSION ON THE RIG, so a sibling's designer run silently overwrites yours, and the loop cannot tell a clobbered pointer from its own** (fixed 2026-08-13 V1 iteration 188; two frictions, both first-party). The Repo Profile above says "namespaced state keys (M1) keep two missions on one rig from colliding" — true of the keys M1 actually covered, and **false of this one**, which is why nobody re-checked it. Measured: `~/.ailang/state/` holds `mission-world-designer-rotation` and `mission-motoko-designer-rotation` — namespaced files hand-created by careful sibling controllers — **that this skill's literal path never reads**, beside the unnamespaced file it does. Friction 1: iteration 187 recorded advancing V1's pointer `claude → codex`, and at pick time it read `claude:claude-fable-5` again, mtime **01:10**, while V1 was idle (23:42→01:12) and `mission-world` was mid-iteration with a fable designer — consistent with a sibling write, and certain either way that 187's recorded advance was lost. Friction 2: iteration 188 then had to adjudicate between the file and the log to choose a designer at all, which is a coin-flip no rule covers. Note the failure is SILENT and self-concealing: a clobbered pointer holds a *valid* rotation value, so the only tell is a disagreement between the file and the previous iteration's own record — and the natural reading ("trust the state file") is the wrong one. **Migration is one line and costs nothing**: on first read, if the namespaced file is absent but `~/.ailang/state/mission-designer-rotation` exists, seed from it, then write the namespaced path from then on and never write the unnamespaced one again. Generalises: **any `~/.ailang/state/` key this skill names as a literal is shared by all missions** — audit the whole path list before adding another, rather than one key at a time. Every design passes the quorum regardless of author — record `(designer, quorum outcome)` in the evidence row. A probe-failed designer falls to the NEXT in rotation (not to `$MODEL`), FLAGGED |
-| Sprint-planner | `$MISSION_PLANNER_MODEL` | `codex:gpt-5.6-sol` configured default; effective lane = `derive-planner-lane.sh` output, used VERBATIM; fail-closed to opus |
-| Sprint-executor | `$MISSION_EXECUTOR_MODEL` | Opus |
+| Sprint-planner | `$MISSION_PLANNER_MODEL` | `codex:gpt-5.6-sol` configured default; effective lane = `derive-planner-lane.sh` output, used VERBATIM; Opus-required/fail-closed routes fall back to `$MISSION_PLANNER_ANTHROPIC_FALLBACK` (`codex:gpt-5.6-sol`) only when the driver proved Anthropic unavailable |
+| Sprint-executor | `$MISSION_EXECUTOR_MODEL` | `codex:gpt-5.6-sol`; first fallback `pi:openrouter/deepseek/deepseek-v4-flash-0731:floor`; Opus last |
 | Sprint-evaluator | `$MISSION_EVALUATOR_MODEL` | **Sonnet** (default changed fable→sonnet 2026-07-16 iter 38, Mark directive #399: "default … gemini (if able to git clone the codebase etc)? otherwise sonnet-5"; gemini-managed_agents VERIFIED not-viable-today — server-side sandbox sees no worktree + backend timed out; sonnet ≠ opus executor → generator≠judge, and it's Agent-tool-PINNABLE unlike fable) |
 
 **Fable discipline (Mark 2026-07-16, amended iter 38):** Fable now bills at most **ONE** BOUNDED
@@ -1544,11 +1555,15 @@ Run `tools/launchd/derive-planner-lane.sh <the-picked-design-doc>` with the driv
 environment intact. Its output is exactly one line, `<lane> <reason-token>`; use that line
 VERBATIM. If it begins `opus `, spawn the opus Agent path directly and do **not** perform a codex
 probe or spawn for the planner role; copy the reason token VERBATIM into the Gate-4
-routing-evidence row. Only `codex declared:codex-ok` enters the codex planner recipe below. If the
-script is missing on disk, fail closed to opus **LOUDLY** and record the missing-script reason in
-the same evidence row. This rule is mission-independent and live wherever this shared skill is
-resolved: the step-0 environment pin protects missions configured for opus, and the missing-script
-rule protects missions whose checkout has no derivation script (including Ailang World).
+routing-evidence row. If the driver exported `MISSION_ANTHROPIC_AVAILABLE=0`, an otherwise-Opus
+result instead begins with `$MISSION_PLANNER_ANTHROPIC_FALLBACK` (default
+`codex:gpt-5.6-sol`) and carries an `anthropic-fallback:*` reason; route it through the ordinary
+cross-provider recipe and record the fallback explicitly. Any `codex:*` result enters the codex
+planner recipe below. If the script is missing on disk, use the same conditional: Opus when
+Anthropic is available, otherwise the configured Anthropic fallback, always **LOUDLY** and with a
+missing-script reason in the evidence row. This rule is mission-independent and live wherever this
+shared skill is resolved: the step-0 environment pin protects missions configured for opus, and
+the missing-script rule protects missions whose checkout has no derivation script.
 
 **Cross-provider spawn recipe (`provider:model`, M1b — currently `codex` only).** When a role's env
 value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER=${VAL%%:*}`,
@@ -1859,8 +1874,11 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
 - **Any other `PROVIDER`** (motoko/opencode): NOT wired (motoko needs the GPU `rig.lock`, out of
   scope). Treat as unavailable → fall back to `$MODEL` + FLAG.
 
-If a pinned model is quota-limited or unavailable/rejected, fall back to `$MODEL` for that role and
-FLAG it in the Gate-5 report — never wedge the loop on a role-model outage. **EXCEPTION — the
+If a pinned Anthropic planner model is quota-limited or unavailable/rejected, fall back to
+`$MISSION_PLANNER_ANTHROPIC_FALLBACK` (default `codex:gpt-5.6-sol`), not the already-failed
+`$MODEL`, and FLAG it. Other pinned roles fall back to their declared role chain and then `$MODEL`;
+never silently inherit. If a pinned model is unavailable, always FLAG it in the Gate-5 report —
+never wedge the loop on a role-model outage. **EXCEPTION — the
 evaluator role never falls back to bare `$MODEL`** (alias-lane generator≠judge guard, added
 iteration 31 after F1): before spawning the evaluator, compare its RESOLVED model (post-fallback)
 against the model the executor ACTUALLY ran on. If they are equal — e.g. opus-first session, fable

@@ -1,7 +1,8 @@
 # V1 Mission — work the backlog to a v1.0.0 release
 
 **Type**: Long-running mission (peer of [motoko-mission.md](motoko-mission.md)); advanced by a
-scheduled nightly outer loop on the always-on rig, coordinated by Fable.
+scheduled outer loop on the always-on rig, coordinated by Anthropic with a Codex Sol subscription
+fallback when the Anthropic quota is unavailable.
 **North star**: Ship AILANG v1.0.0 — a release whose bar is *written down, met, and verified*,
 with the backlog worked through the honed inner loop (design-doc → sprint-plan → execute → evaluate)
 rather than ad-hoc sessions.
@@ -13,8 +14,9 @@ runs ONE iteration. **Scheduling: launchd `dev.ailang.mission-control`** (CONTIN
 22:00-nightly for the first supervised runs) behind the billing guard — API keys are stripped from the environment
 (subscription-or-nothing by construction) and a cheap auth probe runs first: keychain OAuth
 suffices while the rig is logged in (verified 2026-07-10); `CLAUDE_CODE_OAUTH_TOKEN` in
-secrets.env is an optional belt-and-braces for post-reboot login screens. Probe failure refuses
-loudly with zero spend. The Claude Code
+secrets.env is an optional belt-and-braces for post-reboot login screens. Exhausted/unavailable
+Anthropic probes fall through to the ChatGPT-subscription Codex Sol controller; the driver refuses
+loudly only when both provider lanes fail. The Claude Code
 scheduled-tasks path was TESTED AND RULED OUT for this job (2026-07-10 canary): that system is
 desktop-side — tasks landed on /Users/mark (Mark's machine, not the rig) and a probe task never
 dispatched even there (a June one-time task was also found a month overdue). Wrong machine +
@@ -44,6 +46,40 @@ current behavior.
   and `bin/ailang` go stale independently (confirm `--version` == `git describe`). (The alternative
   profile `ailang-code`, for an AILANG-code repo like Ailang World, uses the shipped binary's own
   gates — `ailang check` / `ailang test` / `ailang ai-check` — with no compile step.)
+
+---
+
+## Human Decision Ledger (authoritative current state)
+
+This marked table—not STATUS prose and not the rolling GitHub thread—is the source of truth for
+which decisions are open. Validate with `scripts/mission_decisions.sh --check`; list the asks with
+`scripts/mission_decisions.sh --open`. Rows are append-only, IDs are never reused, and a human
+answer changes the row to `RESOLVED` in the same iteration that consumes the directive. Historical
+STATUS sentences such as “D-1–D-14 stay parked” are snapshots and MUST NOT override this ledger.
+
+<!-- decision-ledger:start -->
+| ID | Status | Decision / recorded answer | Evidence |
+|---|---|---|---|
+| D-1 | OPEN | Decide `#613` proxy-route security: retain zero-DNS literal-IP validation, or explicitly accept losing target-IP SSRF pinning on proxied requests. | M1 is held; direct/`NO_PROXY` validation remains, and the raw-IP validation branch needs no DNS. |
+| D-2 | OPEN | Choose `#604` scope: A top-level checks with `#614` open; B widen to close nested blocks; C make multi-expression test blocks a static error. | Exactly 27 AST expression node types make an exhaustive loud-default walker feasible. |
+| D-3 | RESOLVED | Bound SessionStart brain lookup with timeout behavior. | Landed as commit `1239d9ec6`; current hook contains the bounded lookup. |
+| D-4 | RESOLVED | Use the feasible warning-test mechanism rather than the impossible fixture-row mechanism. | Recorded resolved in the `#635` decision thread and implemented in iteration 186. |
+| D-5 | RESOLVED | Choose option B: queue the production proxy-boundary change after the test-only sprint. | Mark directive 2026-08-05; recorded in the `m-net-effect-proxy-boundary` queue row. |
+| D-6 | RESOLVED | Historical D-6 asks are closed: re-auth completed and the earlier planner/config option A was selected. | `#635` records re-auth resolved; mission history records option A. ID reuse is retained only for history and forbidden going forward. |
+| D-7 | RESOLVED | Keep CodeQL on its weekly cadence; wait on a release until World needs one. | Mark attended ruling 2026-08-06, recorded in the findings-batch row. |
+| D-8 | OPEN | Authorize the ordered rig rollout for `#618` after the field run ended PARTIAL rather than grading X/17. | Repo work is complete; installed plists must be loaded before clearing the launchd-global timeout. |
+| D-9 | OPEN | Split W8 from the `m-eval-validity-discipline` umbrella and re-quorum, or hold. | `#619` parked at quorum round 2 because W9 disputes design direction outside W8. |
+| D-10 | OPEN | A: authorize a third `#616` revision around effect-row unification at the App constraint; B: hold and route next. | Round-2 measurements are banked; this widens the Conflict Surface into `internal/types`. |
+| D-11 | OPEN | Decide whether to add the short-success guard. | Current canonical D-11; an earlier nightly-secret ask sharing this ID landed as `#665`. IDs are never reused going forward. |
+| D-12 | OPEN | Decide whether a human ruling that unblocks a design doc must automatically create/unpark its queue row. | A resolved ruling left a P0 doc absent from the queue for eight days. |
+| D-13 | OPEN | Choose filler disposition: A exclude as updater, or B move into the measured lane. | Parked design decision from iteration 188. |
+| D-14 | OPEN | Choose dialect recovery mechanism A/B/C/D and whether to run the transcript scan. | Parked design decision from iteration 190. |
+| D-15 | RESOLVED | Remote READ scope is `view`. | Mark ratified; implemented and landed in iteration 198 / PR `#710`. |
+| D-16 | RESOLVED | Keep the mission-control runtime skill pinned to the authoritative `.claude` copy. | Attended decision recorded and verified by iteration 205. |
+| D-17 | RESOLVED | Handle clean exit separately at each of the three route/A2A/MCP call sites. | Mark ratified; landed in iteration 200 / PR `#714`. |
+| D-COV-1 | OPEN | Decide whether the coverage number means LOCALITY or cross-package EXECUTION. | Parked by iteration 205; no sprint on the coverage doc until answered. |
+| D-ROUTE-1 | RESOLVED | Coordinator and Anthropic-required planner routes fall back to Codex Sol when Anthropic quota is unavailable; executor remains Codex Sol primary with DeepSeek v4 Flash backup and Opus last. | Mark directive, attended session 2026-08-15; unique ID avoids reusing historical D-7. |
+<!-- decision-ledger:end -->
 
 ---
 

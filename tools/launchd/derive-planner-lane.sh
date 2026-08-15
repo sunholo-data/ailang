@@ -2,7 +2,18 @@
 # Derive the mission planner lane from a design document. Pure text only.
 
 emit() {
-  printf '%s\n' "$1"
+  local result="$1" reason
+  case "$result" in
+    opus\ *)
+      if [ "${MISSION_ANTHROPIC_AVAILABLE:-1}" = "0" ]; then
+        reason=${result#opus }
+        printf '%s anthropic-fallback:%s\n' \
+          "${MISSION_PLANNER_ANTHROPIC_FALLBACK:-codex:gpt-5.6-sol}" "$reason"
+        exit 0
+      fi
+      ;;
+  esac
+  printf '%s\n' "$result"
   exit 0
 }
 

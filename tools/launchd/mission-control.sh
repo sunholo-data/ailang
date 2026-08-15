@@ -5,7 +5,7 @@
 # (the default) keeps the LEGACY state paths + log name EXACTLY as before — bit-for-bit,
 # no migration; any other name gets fully namespaced state so two missions never collide.
 #
-# Fires a headless Claude session that runs the mission-control skill:
+# Fires a headless controller session that runs the mission-control skill:
 # observe mission state → pick top backlog item → route through the inner-loop
 # skills (design-doc → sprint-plan → execute → evaluate) → record → retro.
 # See design_docs/v1-mission.md for the charter and guardrails.
@@ -157,6 +157,7 @@ _mc_stalled() {
 
 # --- model selection (fleet Phase A) -----------------------------------------
 PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,claude-opus-4-8,claude-fable-5}"
+CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol}"
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
 PROBE_TIMEOUT="${MISSION_PROBE_TIMEOUT:-120}"   # per-probe wall-clock cap, seconds
 
@@ -210,9 +211,32 @@ _mc_probe() {
   return 2
 }
 
+# _mc_probe_codex MODEL → 0 usable | non-zero unusable. The OpenAI API key is
+# stripped above, so a pass proves the ChatGPT-subscription OAuth lane works.
+_mc_probe_codex() {
+  local m="$1" rc
+  _mc_bounded "$PROBE_TIMEOUT" codex exec --skip-git-repo-check --model "$m" 'reply with exactly: ok'
+  rc=$?
+  [ "$rc" -eq 124 ] && log "controller fallback codex:$m probe timed out after ${PROBE_TIMEOUT}s"
+  [ "$rc" -ne 0 ] && log "controller fallback codex:$m probe failed (rc=$rc): $(printf '%s' "$MC_BOUNDED_OUT" | tail -3 | tr '\n' ' ')"
+  return "$rc"
+}
+
+_mc_set_controller() {
+  local requested="$1"
+  MODEL_WHY="$2"
+  case "$requested" in
+    codex:*) CONTROLLER_PROVIDER=codex; MODEL="${requested#codex:}"; MISSION_ANTHROPIC_AVAILABLE=0 ;;
+    claude:*) CONTROLLER_PROVIDER=claude; MODEL="${requested#claude:}"; MISSION_ANTHROPIC_AVAILABLE=1 ;;
+    *) CONTROLLER_PROVIDER=claude; MODEL="$requested"; MISSION_ANTHROPIC_AVAILABLE=1 ;;
+  esac
+  CONTROLLER_ID="${CONTROLLER_PROVIDER}:${MODEL}"
+  export CONTROLLER_PROVIDER CONTROLLER_ID MODEL MODEL_WHY MISSION_ANTHROPIC_AVAILABLE
+}
+
 select_model() {
   # 1. absolute pin
-  if [ -n "${MISSION_MODEL:-}" ]; then MODEL="$MISSION_MODEL"; MODEL_WHY="env pin"; return 0; fi
+  if [ -n "${MISSION_MODEL:-}" ]; then _mc_set_controller "$MISSION_MODEL" "env pin"; return 0; fi
   # 2. override file pin (optional expiry epoch)
   if [ -f "$OVERRIDE_FILE" ]; then
     local ov_model ov_until now
@@ -222,7 +246,7 @@ select_model() {
       rm -f "$OVERRIDE_FILE"
       log "model override expired — resuming preference probing"
     elif [ -n "${ov_model:-}" ]; then
-      MODEL="$ov_model"; MODEL_WHY="override file"; return 0
+      _mc_set_controller "$ov_model" "override file"; return 0
     fi
   fi
   # 3. ordered preference probing
@@ -230,11 +254,22 @@ select_model() {
   for m in $(printf '%s' "$PREFS" | tr ',' ' '); do
     _mc_probe "$m"; rcode=$?
     case "$rcode" in
-      0) MODEL="$m"; MODEL_WHY="probe ok"; return 0 ;;
+      0) _mc_set_controller "$m" "probe ok"; return 0 ;;
       1) log "model $m quota-limited — falling through" ;;
       2) log "model $m unusable (auth/transient) — falling through" ;;
     esac
   done
+  case "$CONTROLLER_FALLBACK" in
+    codex:*)
+      m="${CONTROLLER_FALLBACK#codex:}"
+      log "all Anthropic controller candidates unavailable — probing $CONTROLLER_FALLBACK"
+      if _mc_probe_codex "$m"; then
+        _mc_set_controller "$CONTROLLER_FALLBACK" "Anthropic unavailable; subscription fallback"
+        return 0
+      fi
+      ;;
+    *) log "unsupported MISSION_CONTROLLER_FALLBACK '$CONTROLLER_FALLBACK' (expected codex:<model>)" ;;
+  esac
   return 1
 }
 # ----------------------------------------------------------------------------
@@ -370,6 +405,11 @@ export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol}"
 # fallback stays overridable for a mission that wants a different tail.
 export MISSION_EXECUTOR_FALLBACK="${MISSION_EXECUTOR_FALLBACK:-pi:openrouter/deepseek/deepseek-v4-flash-0731:floor}"
 export MISSION_PLANNER_FALLBACK="${MISSION_PLANNER_FALLBACK:-opus}"
+# When a design doc requires the Anthropic planner lane but the controller probe
+# has proved the Anthropic subscription unavailable, use Codex Sol rather than
+# wedging or silently inheriting the failed controller. derive-planner-lane.sh
+# applies this only when MISSION_ANTHROPIC_AVAILABLE=0.
+export MISSION_PLANNER_ANTHROPIC_FALLBACK="${MISSION_PLANNER_ANTHROPIC_FALLBACK:-codex:gpt-5.6-sol}"
 # Codex-lane pre-flight, ROLE-GENERIC (m-planner-codex-lane): probe once per DISTINCT
 # codex model, fall back per-role on ANY non-zero rc (#486: probe MUST carry --model;
 # an unusable pin is exactly as fatal as spent quota). Export AFTER fallback so the
@@ -505,14 +545,6 @@ if [ -f "$PIDFILE" ]; then
   rm -f "$PIDFILE"   # stale pidfile from a crashed/killed run — proceed
 fi
 
-# 2. claude CLI reachable?
-if ! command -v claude >/dev/null 2>&1; then
-  log "claude CLI not on PATH — abort"
-  ailang messages send controlplane "mission-control driver: claude CLI not found on PATH" \
-    --title "Mission iteration FAILED to start" --from "$MSG_FROM" 2>/dev/null
-  exit 1
-fi
-
 # 3. Dry run — verify wiring without spending tokens (probes DO fire; they are ~1 reply-token).
 # `lanes=` reports the degradation ledger's state HERE, ~90 lines before the notice's own emit
 # site. That is deliberate: it makes the seam between accumulation (the probe loops) and emission
@@ -533,7 +565,7 @@ fi
 # 4. Select the model (probe doubles as the subscription-auth check: API keys
 #    are stripped above, so a passing probe proves keychain/token auth too).
 if ! select_model; then
-  log "NO usable model in prefs ($PREFS) — every probe failed (per-model reasons above: quota-limited, timed out, or errored). Refusing."
+  log "NO usable controller in Anthropic prefs ($PREFS) or fallback ($CONTROLLER_FALLBACK). Refusing."
   # Announce ONCE per blocked episode, not once per refusal. mission-recovery.sh
   # retries every ~20 min while a stall lasts (instead of waiting out the 90-min
   # StartInterval), so notifying per refusal would post a dozen identical GH
@@ -544,10 +576,10 @@ if ! select_model; then
   else
     : > "$BLOCKED_FILE"
     ailang messages send controlplane \
-      "mission-control refused to start: no usable model in prefs ($PREFS). Every candidate probe failed — per-model reasons (quota-limited / timed out / errored) are in the driver log; observed cause so far is probe TIMEOUTS (likely API backoff), not dead auth. Zero tokens spent beyond probes. Further refusals in this episode are silent; mission-recovery retries automatically." \
+      "mission-control refused to start: no usable controller in Anthropic prefs ($PREFS) or fallback ($CONTROLLER_FALLBACK). Per-model reasons are in the driver log. Zero tokens spent beyond probes. Further refusals in this episode are silent; mission-recovery retries automatically." \
       --title "Mission iteration blocked: no usable model" --from "$MSG_FROM" 2>/dev/null
     [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-      --body "⚠️ Mission iteration did not start: **no usable model** in preference list (\`$PREFS\`) — every candidate probe failed (quota-limited, timed out, or errored — per-model detail in the driver log). \`mission-recovery\` now retries every ~20 min rather than waiting out the 90-min interval; recovery is automatic when any candidate's probe succeeds. Further refusals in this episode are silent to avoid comment spam." 2>/dev/null
+      --body "⚠️ Mission iteration did not start: **no usable controller** in Anthropic preferences (\`$PREFS\`) or fallback (\`$CONTROLLER_FALLBACK\`). Per-model detail is in the driver log. \`mission-recovery\` retries automatically; further refusals in this episode are silent to avoid comment spam." 2>/dev/null
   fi
   exit 1
 fi
@@ -555,12 +587,12 @@ rm -f "$BLOCKED_FILE"   # a probe succeeded — the blocked episode (if any) is 
 
 # Announce model CHANGES on #329 (not every iteration — only transitions).
 PREV_MODEL=$(cat "$LAST_MODEL_FILE" 2>/dev/null || true)
-if [ -n "$MODEL" ] && [ "$MODEL" != "${PREV_MODEL:-}" ]; then
-  printf '%s\n' "$MODEL" > "$LAST_MODEL_FILE"
+if [ -n "$CONTROLLER_ID" ] && [ "$CONTROLLER_ID" != "${PREV_MODEL:-}" ]; then
+  printf '%s\n' "$CONTROLLER_ID" > "$LAST_MODEL_FILE"
   if [ -n "${PREV_MODEL:-}" ]; then
-    log "controller model change: ${PREV_MODEL} → ${MODEL} (${MODEL_WHY})"
+    log "controller model change: ${PREV_MODEL} → ${CONTROLLER_ID} (${MODEL_WHY})"
     [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-      --body "🔁 Controller model: **${PREV_MODEL} → ${MODEL}** (${MODEL_WHY}) at $(date '+%F %H:%M %Z'). Automatic — preference order \`$PREFS\`; reverts when a higher-preference probe succeeds again." 2>/dev/null || true
+      --body "🔁 Controller model: **${PREV_MODEL} → ${CONTROLLER_ID}** (${MODEL_WHY}) at $(date '+%F %H:%M %Z'). Automatic — Anthropic preference order \`$PREFS\`, then \`$CONTROLLER_FALLBACK\`; reverts when a higher-preference probe succeeds again." 2>/dev/null || true
   fi
 fi
 
@@ -629,29 +661,37 @@ measured twice (2026-08-03 \`#556\`, 2026-08-12 \`564cc4640\`)."
   _mc_notify "Mission ${MISSION_NAME}: driver ran UNPINNED (code provenance unknown)" "$_pin_body" "driver-pin"
 fi
 
-log "=== mission iteration starting (controller=$MODEL via ${MODEL_WHY}, timeout=${HARD_TIMEOUT}s | bg-wait-ceiling=${CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS}ms | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL) ==="
+log "=== mission iteration starting (controller=$CONTROLLER_ID via ${MODEL_WHY}, timeout=${HARD_TIMEOUT}s | bg-wait-ceiling=${CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS}ms | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL) ==="
 
 PROMPT="Run one mission-control iteration: invoke the mission-control skill for \
 ${MISSION_DOC} and follow its gates. You are a scheduled run; \
 there is no human present — park anything needing human input and report via \
-ailang messages and the GitHub bookkeeping issue, per the skill."
+ailang messages and the GitHub bookkeeping issue, per the skill. \
+The authoritative runtime instructions are .claude/skills/mission-control/SKILL.md; \
+read and follow that file even when the controller provider is Codex."
 
-# _mc_run_once → runs claude -p with BOTH watchdogs, waits, sets global RC.
+# _mc_run_once → runs the selected provider with BOTH watchdogs, waits, sets global RC.
 # Watchdogs are per-attempt (fresh PIDs each retry).
 _mc_run_once() {
-  claude -p "$PROMPT" \
-    --model "$MODEL" \
-    --permission-mode bypassPermissions \
-    >>"$LOG" 2>&1 &
-  CLAUDE_PID=$!
-  printf '%s\n' "$CLAUDE_PID" > "$PIDFILE"   # overlap guard reads this (per-attempt: retries refresh it)
+  if [ "$CONTROLLER_PROVIDER" = "codex" ]; then
+    codex exec --skip-git-repo-check \
+      --dangerously-bypass-approvals-and-sandbox \
+      --model "$MODEL" -C "$REPO" "$PROMPT" >>"$LOG" 2>&1 &
+  else
+    claude -p "$PROMPT" \
+      --model "$MODEL" \
+      --permission-mode bypassPermissions \
+      >>"$LOG" 2>&1 &
+  fi
+  CONTROLLER_PID=$!
+  printf '%s\n' "$CONTROLLER_PID" > "$PIDFILE"   # overlap guard reads this (per-attempt: retries refresh it)
 
   # Watchdog: TERM at the wall limit, KILL 60s later. (No GNU timeout on macOS.)
   (
     sleep "$HARD_TIMEOUT"
-    if kill -0 "$CLAUDE_PID" 2>/dev/null; then
-      echo "[$(date '+%F %H:%M:%S')] HARD TIMEOUT ${HARD_TIMEOUT}s — killing $CLAUDE_PID" >>"$LOG"
-      kill -TERM "$CLAUDE_PID" 2>/dev/null; sleep 60; kill -KILL "$CLAUDE_PID" 2>/dev/null
+    if kill -0 "$CONTROLLER_PID" 2>/dev/null; then
+      echo "[$(date '+%F %H:%M:%S')] HARD TIMEOUT ${HARD_TIMEOUT}s — killing $CONTROLLER_PID" >>"$LOG"
+      kill -TERM "$CONTROLLER_PID" 2>/dev/null; sleep 60; kill -KILL "$CONTROLLER_PID" 2>/dev/null
     fi
   ) &
   WATCHDOG_PID=$!
@@ -663,11 +703,11 @@ _mc_run_once() {
   (
     sleep "$STALL_GRACE"
     hits=0
-    while kill -0 "$CLAUDE_PID" 2>/dev/null; do
-      if _mc_stalled "$CLAUDE_PID"; then hits=$((hits + 1)); else hits=0; fi
+    while kill -0 "$CONTROLLER_PID" 2>/dev/null; do
+      if _mc_stalled "$CONTROLLER_PID"; then hits=$((hits + 1)); else hits=0; fi
       if [ "$hits" -ge "$STALL_SAMPLES" ]; then
-        echo "[$(date '+%F %H:%M:%S')] STALL: claude $CLAUDE_PID idle with a descendant alive ≥${STALL_CHILD_AGE}s across $STALL_SAMPLES samples (unbounded poll loop?) — killing early" >>"$LOG"
-        kill -TERM "$CLAUDE_PID" 2>/dev/null; sleep 30; kill -KILL "$CLAUDE_PID" 2>/dev/null
+        echo "[$(date '+%F %H:%M:%S')] STALL: $CONTROLLER_PROVIDER $CONTROLLER_PID idle with a descendant alive ≥${STALL_CHILD_AGE}s across $STALL_SAMPLES samples (unbounded poll loop?) — killing early" >>"$LOG"
+        kill -TERM "$CONTROLLER_PID" 2>/dev/null; sleep 30; kill -KILL "$CONTROLLER_PID" 2>/dev/null
         break
       fi
       sleep "$STALL_INTERVAL"
@@ -675,7 +715,7 @@ _mc_run_once() {
   ) &
   STALL_PID=$!
 
-  wait "$CLAUDE_PID"; RC=$?
+  wait "$CONTROLLER_PID"; RC=$?
   kill "$WATCHDOG_PID" "$STALL_PID" 2>/dev/null
   return "$RC"
 }
