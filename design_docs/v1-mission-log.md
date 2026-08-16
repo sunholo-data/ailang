@@ -11694,8 +11694,6 @@ below the skill-edit bar.
 **Next**: resume the first item selected by a ledger decision or by new first-party evidence satisfying
 `#610`'s workload gate.
 
----
-
 ## 215 — 2026-08-16 — Iteration 214: unattended park at the explicit decision/evidence frontier
 
 **Picked**: none. `D-COV-1` explicitly forbids a coverage sprint until Mark chooses LOCALITY or EXECUTION.
@@ -11755,6 +11753,38 @@ security ruling.
 
 **Retro lane**: none. The shared-dashboard collision remains recorded, but this iteration created no
 new overwrite conflict and no repeated gap meeting the skill-edit bar.
+
+**Next**: resume the first item selected by a ledger decision or by new first-party evidence satisfying
+`#610`'s workload gate.
+
+---
+
+## 216 — 2026-08-16 — Iteration 215: unattended park at the unchanged decision/evidence frontier
+
+**Picked**: none. `D-COV-1` explicitly forbids a coverage sprint until Mark chooses LOCALITY or EXECUTION.
+
+**Reality check**: kill switch armed; billing CLEAN; required GitHub account active. Six inbox messages
+were operational telemetry: a banked/no-op eval launch, two partial eval outcomes, an INVALID nightly
+run with no per-benchmark verdicts, and iteration 214's own report. None was a trusted human directive
+or verified V1 regression. The decision ledger validates with 10 OPEN rows; the allowlisted directive
+check found zero Mark comments on `#635`. The running skill matches origin. Exact `origin/dev`
+`b771aa64b` has 16 completed green/neutral checks; CI and Build-and-Release succeeded. The detached
+driver checkout is thirteen commits stale and carries unrelated untracked `govulncheck-filter`, so
+this record uses a worktree from `origin/dev`.
+
+**Shipped**: parked: no authorized executable pick. `#649` is already diagnosed; `#610` requires the
+original DB/embed workload or equivalent 49× evidence; `#613` remains gated by OPEN `D-1`; authored
+PR `#695` is unrelated coordinator work. No code, design, plan, executor, evaluator, quorum, GPU, or
+metered provider call. The shared mission dashboard was not overwritten by a V1 park record.
+
+**Routing evidence**: model=codex:gpt-5.6-sol task-class=mechanical round1-score=n/a rounds=0
+corrections=0 provider=codex agent=controller cost=quota-bucket:Codex-OAuth (`metered=$0.00`).
+
+**Ruled out**: invalid/partial eval telemetry as a priority directive; silence as approval; repeating
+settled `#649` analysis; repeating the refuted `#610` synthetic mechanism; and advancing `#613`
+without its security ruling.
+
+**Retro lane**: none. No new repeated process gap met the Gate-5 skill-edit bar.
 
 **Next**: resume the first item selected by a ledger decision or by new first-party evidence satisfying
 `#610`'s workload gate.
