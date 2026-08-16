@@ -11665,3 +11665,33 @@ synthetic mechanism; and advancing `#613` without its security ruling.
 
 **Next**: resume the first item selected by a ledger decision or by new first-party evidence satisfying
 `#610`'s workload gate.
+
+---
+
+## 213 — 2026-08-16 — Iteration 212: unattended park at the decision/evidence frontier
+
+**Picked**: none. `D-COV-1` explicitly forbids a coverage sprint until Mark chooses LOCALITY or EXECUTION.
+
+**Reality check**: kill switch armed; billing CLEAN; required GitHub account active; inbox empty;
+decision ledger valid with 10 OPEN rows; zero allowlisted directives on `#635`; running skill
+byte-identical to origin. Exact `origin/dev` `a2f2dc193` has 16 completed green/neutral checks; CI
+and Build-and-Release succeeded, while Docs Deploy is N/A. `#649` remains already diagnosed;
+`#610` still requires original-workload or equivalent 49× evidence; `#613` is explicitly held on
+OPEN `D-1`. Authored PR `#695` is unrelated coordinator work, not an orphan of the frontier item.
+
+**Shipped**: parked: no authorized executable pick in this unattended run. No code, design, plan,
+executor, evaluator, quorum, GPU, or metered provider call.
+
+**Routing evidence**: model=codex:gpt-5.6-sol task-class=mechanical round1-score=n/a rounds=0
+corrections=0 provider=codex agent=controller cost=quota-bucket:Codex-OAuth (`metered=$0.00`).
+
+**Ruled out**: silence as approval; repeating settled `#649` analysis; repeating the refuted `#610`
+synthetic mechanism; and advancing `#613` without its security ruling.
+
+**Retro lane**: backlog/process watch. Motoko PR `#737` updated the same shared
+`design_docs/mission-dashboard.md` while this V1 record was landing. The rebase preserved Motoko's
+newer snapshot rather than clobbering it; a mission-namespaced dashboard is a new gap at instance 1,
+below the skill-edit bar.
+
+**Next**: resume the first item selected by a ledger decision or by new first-party evidence satisfying
+`#610`'s workload gate.
