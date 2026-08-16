@@ -542,3 +542,46 @@ green in CI and **1 passed / 28 failed** on the rig (`test_pin_root.sh`), re-mea
 iteration from a pristine `origin/dev` worktree, so the one gate covering the driver scripts is
 blind where those scripts run. Then item 6 (the fmt re-measurement instrument). Item 5 needs
 nothing from us until its 2026-08-27 bound.
+
+---
+
+## 7 — 2026-08-16 — recovered iteration 6: item 5b had landed, but the mission record never did
+
+**Picked**: Gate 2's died-mid-flight trace outranked the queue. The named motoko checkout was 21
+commits behind origin with mission-related uncommitted residue, and a clean
+`sprint/motoko-iter6-pin-root` worktree remained after PR #728 had merged. This is credited as
+iteration 6's work and recorded by iteration 7; it is not re-executed.
+
+**Reality check**: `origin/dev` at `a2f2dc193` is authoritative; the scheduled pin checkout is
+clean and byte-identical to it, while the named main checkout is stale and dirty and was left
+untouched. The running mission-control skill matches origin. Gate 1 found 16 exact-SHA checks and
+zero not-green. GitHub account is `sunholo-voight-kampff`; billing tripwire CLEAN; no allowlisted
+directive since the #663 watermark; one sibling report was informational and acknowledged. Weekly
+issue rotation/sweep was not due: #663 was created after the latest Monday 07:00 local boundary
+and has 16 comments.
+
+**Shipped / recovered**: PR #728 (`4f300bfa1`) had already merged item 5b. Its fix clears ambient
+scheduled-driver pin state before the hermetic pin-root lab, making the rig execute the same
+synthetic paths as CI. First-party re-run: `tools/launchd/test_pin_root.sh` = 35 passed / 0 failed;
+the PR records the negative mutation without isolation = 3 passed / 32 failed. All 21 PR checks
+were terminal success/skipped, including `launchd drivers (bash 3.2)`. The routing/decision files
+in the residue were already landed by `de0e41099`; byte hashes matched origin for the skill,
+driver, planner router, make target, and decision script. This record also restores the Motoko
+decision ledger (2 RESOLVED, 0 OPEN), which had existed only in the stale checkout.
+
+**Routing evidence**: controller=`codex:gpt-5.6-sol`; task-class=recovery/bookkeeping;
+provider=codex; no designer/planner/executor/evaluator/quorum lane fired; generator≠judge not
+engaged; no GPU and no `rig.lock`; metered=$0.00 of $5.
+
+**Ruled out**:
+- "Iteration 6 work is still unlanded" — refuted by merged PR #728 and merge SHA `4f300bfa1`.
+- "The dirty main checkout is the correct record base" — refuted: it is 21 commits behind origin;
+  editing it would erase newer mission history. Record written from an isolated origin-based worktree.
+- "CI green already proves the rig test" — not used. The exact rig-facing test was re-run locally
+  and passed 35/35; the mutation evidence proves the isolation is load-bearing.
+
+**Retro lane**: none. The existing died-mid-flight rule found both traces and prescribed the right
+action. No second friction warrants a skill edit; no routing-policy change was made.
+
+**Next**: queue item 6 — design the real `motoko_ext_fmt` re-measurement instrument. Item 5 remains
+bounded until 2026-08-27; there are no OPEN human decisions.

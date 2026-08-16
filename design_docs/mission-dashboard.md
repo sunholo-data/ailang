@@ -1,21 +1,20 @@
-# Mission Dashboard — the 30-second control context
-> **Contract**: ≤40 lines, overwritten by mission-control Gate 4 every iteration (history lives in
-> the charter/log). Fresh session = THIS + MEMORY.md. Humans steer via the bookkeeping issue.
+# Mission Dashboard — Motoko
+> Snapshot only; history lives in `motoko-mission.md` and `motoko-mission-log.md`.
 
-**Updated**: 2026-08-15 ~23:55 local (iteration 211)
+**Updated**: 2026-08-16 ~02:15 local (iteration 7)
 
 ## Now
-- **v0.33.1** · `dev` @ `aed61db55`; CI and Build-and-Release green; 16 SHA-addressed checks green/neutral.
-- **No executable pick.** The ordered frontier is decision-gated or already diagnosed.
-- Scheduled iteration parked without code, design, quorum, or provider spend.
+- **v0.33.1** · `dev` @ `a2f2dc193`; 16 exact-SHA checks green/neutral.
+- Iteration 6 queue item **5b LANDED** via PR #728 (`4f300bfa1`); iteration 7 recovered its missing mission record.
+- Rig-facing pin-root lab passes **35/35**; mutation without isolation was **3/32**.
 
 ## Next
-1. **`D-COV-1` parked on Mark — one word.** Coverage: **LOCALITY** or **EXECUTION**?
-2. `#649` is diagnosed · `#610` needs the original DB/embed workload · `#613` waits on `D-1`.
+1. Item **6** — design the `motoko_ext_fmt` re-measurement instrument.
+2. Item 5 remains bounded until 2026-08-27; no technical work is owed before then.
 
 ## Loop
-- Record-only iteration. No heavy role, quorum, GPU, or metered lane fired; `metered=$0.00`.
-- Running skill matches origin; billing CLEAN; 2 inbox notices triaged; no allowlisted directive.
+- Controller `codex:gpt-5.6-sol`; no heavy role, quorum, GPU, or metered lane fired.
+- Billing CLEAN; metered **$0.00**; running skill matches origin.
 
-## Parked on Mark (issue #635)
-`D-1`, `D-2`, `D-8`, `D-9`, `D-10`, `D-11`, `D-12`, `D-13`, `D-14`, and `D-COV-1` are OPEN.
+## Parked on Mark (issue #663)
+None — decision ledger has 0 OPEN rows.
