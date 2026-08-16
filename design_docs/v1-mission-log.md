@@ -11696,6 +11696,37 @@ below the skill-edit bar.
 
 ---
 
+## 215 — 2026-08-16 — Iteration 214: unattended park at the explicit decision/evidence frontier
+
+**Picked**: none. `D-COV-1` explicitly forbids a coverage sprint until Mark chooses LOCALITY or EXECUTION.
+
+**Reality check**: kill switch armed; billing CLEAN; required GitHub account active. Seven eval-suite
+inbox messages were operational telemetry, not human directives or verified V1 regressions. The
+decision ledger validates with 10 OPEN rows; `scripts/mission_directives.sh` found zero allowlisted
+directives on `#635`; the running skill is byte-identical to origin. Exact `origin/dev` `bb3361446`
+has 20 completed green/neutral checks; CI, Build-and-Release, and Docs Deploy exact-SHA runs succeeded.
+The detached driver checkout is twelve commits stale and has unrelated untracked
+`govulncheck-filter`, so this record uses an origin-based worktree.
+
+**Shipped**: parked: no authorized executable pick. `#649` is already diagnosed; `#610` requires
+original-workload or equivalent 49× evidence; `#613` remains gated by OPEN `D-1`; authored PR `#695`
+is unrelated coordinator work. No code, design, plan, executor, evaluator, quorum, GPU, or metered
+provider call. The shared mission dashboard was not overwritten by a V1 park record.
+
+**Routing evidence**: model=codex:gpt-5.6-sol task-class=mechanical round1-score=n/a rounds=0
+corrections=0 provider=codex agent=controller cost=quota-bucket:Codex-OAuth (`metered=$0.00`).
+
+**Ruled out**: eval-suite telemetry as a priority directive; silence as approval; repeating settled
+`#649` analysis; repeating the refuted `#610` synthetic mechanism; and advancing `#613` without its
+security ruling.
+
+**Retro lane**: none. No new repeated process gap met the Gate-5 skill-edit bar.
+
+**Next**: resume the first item selected by a ledger decision or by new first-party evidence satisfying
+`#610`'s workload gate.
+
+---
+
 ## 214 — 2026-08-16 — Iteration 213: unattended park at the explicit decision/evidence frontier
 
 **Picked**: none. `D-COV-1` explicitly forbids a coverage sprint until Mark chooses LOCALITY or EXECUTION.
