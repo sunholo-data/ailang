@@ -11666,8 +11666,6 @@ synthetic mechanism; and advancing `#613` without its security ruling.
 **Next**: resume the first item selected by a ledger decision or by new first-party evidence satisfying
 `#610`'s workload gate.
 
----
-
 ## 213 — 2026-08-16 — Iteration 212: unattended park at the decision/evidence frontier
 
 **Picked**: none. `D-COV-1` explicitly forbids a coverage sprint until Mark chooses LOCALITY or EXECUTION.
@@ -11692,6 +11690,40 @@ synthetic mechanism; and advancing `#613` without its security ruling.
 `design_docs/mission-dashboard.md` while this V1 record was landing. The rebase preserved Motoko's
 newer snapshot rather than clobbering it; a mission-namespaced dashboard is a new gap at instance 1,
 below the skill-edit bar.
+
+**Next**: resume the first item selected by a ledger decision or by new first-party evidence satisfying
+`#610`'s workload gate.
+
+---
+
+## 214 — 2026-08-16 — Iteration 213: unattended park at the explicit decision/evidence frontier
+
+**Picked**: none. `D-COV-1` explicitly forbids a coverage sprint until Mark chooses LOCALITY or EXECUTION.
+
+**Reality check**: kill switch armed; billing CLEAN; required GitHub account active. Four inbox
+messages were operational notices (role-lane degradation, active/partial eval-suite runs, and Motoko
+recovery), not human directives or verified V1 regressions. The decision ledger validates with 10
+OPEN rows; `scripts/mission_directives.sh` found zero allowlisted directives on `#635`; the running
+skill is byte-identical to origin. Exact `origin/dev` `a9a23f9f4` has 16 completed green/neutral
+checks; CI and Build-and-Release exact-SHA runs succeeded, while Docs Deploy is N/A. The detached
+driver checkout is eleven commits stale and has unrelated untracked `govulncheck-filter`, so this
+record uses a worktree from `origin/dev`.
+
+**Shipped**: parked: no authorized executable pick in this unattended run. `#649` is already
+diagnosed; `#610` requires original-workload or equivalent 49× evidence; `#613` remains gated by
+OPEN `D-1`; authored PR `#695` is unrelated coordinator work. No code, design, plan, executor,
+evaluator, quorum, GPU, or metered provider call. The shared Motoko dashboard snapshot was preserved.
+
+**Routing evidence**: model=codex:gpt-5.6-sol task-class=mechanical round1-score=n/a rounds=0
+corrections=0 provider=codex agent=controller cost=quota-bucket:Codex-OAuth (`metered=$0.00`).
+Preflight reported planner codex unavailable→opus and executor codex unavailable→pi; neither role fired.
+
+**Ruled out**: operational notices as priority directives; silence as approval; repeating settled
+`#649` analysis; repeating the refuted `#610` synthetic mechanism; and advancing `#613` without its
+security ruling.
+
+**Retro lane**: none. The shared-dashboard collision remains recorded, but this iteration created no
+new overwrite conflict and no repeated gap meeting the skill-edit bar.
 
 **Next**: resume the first item selected by a ledger decision or by new first-party evidence satisfying
 `#610`'s workload gate.
