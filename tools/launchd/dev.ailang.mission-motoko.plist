@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Motoko mission loop.
+
+  SOURCE OF TRUTH IS NOT THE LIVE JOB. The installed copy at
+  ~/Library/LaunchAgents/dev.ailang.mission-motoko.plist is a regular file, not a
+  symlink, so editing THIS file changes nothing on the rig until it is copied over
+  and the job reloaded. Until 2026-08-17 this plist existed ONLY in LaunchAgents and
+  was unversioned entirely; this copy exists so the interval below is reviewable.
+
+  StartInterval 46800 (13h), NOT 43200 (12h) — DELIBERATELY NON-HARMONIC.
+  2026-08-17: all three mission jobs were bootstrapped in one loop, and because every
+  mission plist carries RunAtLoad=true they all fired within five seconds of each
+  other (world 20:55:45, v1 20:55:49, motoko 20:55:50). At 12h that alignment was
+  PERMANENT, not transient: 43200/5400 (v1) = 8 exactly and 43200/14400 (world) = 3
+  exactly, so all three would have re-fired together every 12 hours indefinitely.
+  Both loops then preempted onto the same red dev and produced duplicate PRs #758
+  and #759 — the same six files, four minutes apart.
+
+  At 13h the ratios are 8.667 and 3.25, so exact re-alignment recedes to LCM 39h
+  (v1) and 52h (world) rather than every 12h. This is defence in depth only: the
+  actual fix is that a red now outranks the queue solely for the mission that OWNS
+  the repo (c2022c7fa), because desyncing timers cannot prevent two loops that
+  share MISSION_REPO from picking the same work when they do overlap.
+
+  DO NOT bulk-bootstrap the mission jobs in one loop again. RunAtLoad=true is kept
+  (it is what restores the loop after a reboot, since mission-recovery-motoko only
+  kickstarts once a .blocked marker exists — which requires a fire to have happened),
+  so any bulk reload re-creates the alignment this interval was chosen to break.
+  Reload missions one at a time, minutes apart, and NEVER while an iteration is in
+  flight — a bootout kills the running controller.
+-->
+<plist version="1.0">
+<dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>MISSION_PROFILE</key>
+		<string>motoko</string>
+	</dict>
+	<key>Label</key>
+	<string>dev.ailang.mission-motoko</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/voightkampff/dev/sunholo-data/ailang-motoko/tools/launchd/mission-control.sh</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/tmp/ailang-mission-motoko.launchd.log</string>
+	<key>StandardOutPath</key>
+	<string>/tmp/ailang-mission-motoko.launchd.log</string>
+	<key>StartInterval</key>
+	<integer>46800</integer>
+</dict>
+</plist>
