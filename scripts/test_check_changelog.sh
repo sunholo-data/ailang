@@ -21,7 +21,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 GATE="$REPO_ROOT/scripts/check_changelog.sh"
 FAILED=0
 ARMS_RUN=0
-ARMS_EXPECTED=9
+ARMS_EXPECTED=13
 
 pass() { echo "  ok   — $1"; ARMS_RUN=$((ARMS_RUN + 1)); }
 fail() { echo "  FAIL — $1"; FAILED=1; ARMS_RUN=$((ARMS_RUN + 1)); }
@@ -146,6 +146,38 @@ D="$WORK/missing"; mkdir -p "$D/changelogs"
 printf '%s\n' '# Current' > "$D/changelogs/v0.18-current.md"
 run_gate "$D"
 expect "refuses a missing CHANGELOG.md" 1 "$RC" "not found (run from repo root)"
+
+# --- arms 10-11: NEW — bracketed headings, named explicitly ------------------------------------
+# The structural rule ("any heading but the archive table") already refuses these, and arms 3-5
+# above cover the shapes that used to be invisible. These two pin the shapes the OLD lexical gate
+# DID catch by name, so a future rewrite cannot regress them silently while arms 3-5 stay green.
+# Carried over from motoko's #758, which was closed as superseded on 2026-08-17 under the
+# repo-ownership rule; its self-test had these and the landed one did not.
+D="$WORK/bracketed-unreleased"; make_fixture "$D"
+printf '\n%s\n' '## [Unreleased]' >> "$D/CHANGELOG.md"
+run_gate "$D"
+expect "refuses '## [Unreleased]' (bracketed)" 1 "$RC" "contains release-note content"
+
+D="$WORK/bracketed-version"; make_fixture "$D"
+printf '\n%s\n' '## [v0.32.0]' >> "$D/CHANGELOG.md"
+run_gate "$D"
+expect "refuses '## [v0.32.0]' (bracketed version)" 1 "$RC" "contains release-note content"
+
+# --- arms 12-13: NEW — the index must point somewhere -------------------------------------------
+# These target the second anti-vacuity floor. Before it, BOTH of these fixtures exited 0 with
+# `✓ CHANGELOG.md is index-only and links changelogs/` — a blank filename in a success message,
+# certifying a link to a file that does not exist. Measured on dev at a99083ae5.
+# Two input shapes, one branch: the directory is gone, and the directory survives with no
+# *current* file in it (a rename or an archive rollover).
+D="$WORK/nochangelogsdir"; make_fixture "$D"
+rm -rf "$D/changelogs"
+run_gate "$D"
+expect "refuses a missing changelogs/ directory" 1 "$RC" "the index points nowhere"
+
+D="$WORK/nocurrentfile"; make_fixture "$D"
+rm -f "$D/changelogs/v0.18-current.md"; printf '%s\n' '# Old' > "$D/changelogs/v0.17-old.md"
+run_gate "$D"
+expect "refuses a changelogs/ with no *current* file" 1 "$RC" "the index points nowhere"
 
 # --- anti-vacuity: every arm must have run ------------------------------------------------------
 if [ "$ARMS_RUN" -ne "$ARMS_EXPECTED" ]; then
