@@ -11,6 +11,11 @@
 # root-level stray build artifact (go build -o wasm ./cmd/wasm); the bare
 # pattern used to shadow the cmd/wasm SOURCE dir and forced -f adds
 /wasm
+# same class (go build ./tools/govulncheck-filter drops the binary at the root):
+# root-anchored so it cannot shadow the tracked tools/govulncheck-filter SOURCE
+# dir. Left untracked in the driver-pin worktree since 2026-08-15, and mission
+# iterations 213/214/215 each had to note and route around it at Gate 0.
+/govulncheck-filter
 
 # Test binary, built with `go test -c`
 *.test
