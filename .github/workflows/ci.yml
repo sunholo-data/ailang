@@ -132,6 +132,12 @@ jobs:
     - name: Check changelog index hygiene
       run: make check-changelog
 
+    # The gate above ran unguarded from the day it was written, and its detector
+    # was a keyword allowlist: measured at 0002c9b0b it saw 1 of 5 real offenders.
+    # This arm set feeds it the four shapes it used to pass green.
+    - name: Check changelog gate is not blind (self-test)
+      run: make check-changelog-selftest
+
     - name: Check skill frontmatter
       run: make check-skills
 
