@@ -132,6 +132,11 @@ jobs:
     - name: Check changelog index hygiene
       run: make check-changelog
 
+    # The gate above decides what counts as a release note; this proves it can still say no.
+    # Its four refusal branches are each pinned by an arm that dies when that branch is neutered.
+    - name: Changelog index gate self-test
+      run: make test-check-changelog
+
     - name: Check skill frontmatter
       run: make check-skills
 

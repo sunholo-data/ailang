@@ -7,7 +7,7 @@
 .PHONY: test-operator-assertions test-regression-guards test-builtin-consistency
 .PHONY: test-stdlib-canaries test-row-properties test-golden-types test-repl-smoke
 .PHONY: test-sim-stub test-stdlib-freeze verify-no-shim verify-lowering
-.PHONY: test-nightly-classifier test-launchd-drivers
+.PHONY: test-nightly-classifier test-launchd-drivers test-check-changelog
 
 # Core tests. Depends on build so integration tests that shell out to the
 # ailang binary never see a stale bin/ailang — a stale binary caused phantom
@@ -43,6 +43,15 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n "$$f" || exit 1; done
 	@/bin/bash -n scripts/mission_decisions.sh
 	@echo "launchd drivers: tests + bash 3.2 syntax OK"
+
+# `make check-changelog` is a refusal gate that shipped with no coverage of WHICH release-note
+# shapes it can see. Measured 2026-08-17 on dev at 0002c9b0b: five stranded sections in root
+# CHANGELOG.md, one flagged. A gate is not a gate until something reds when you remove it, so
+# each of its four refusal branches now has an arm that dies when that branch is neutered.
+# /bin/bash explicitly: the rig runs 3.2.57 (same reason as test-launchd-drivers).
+test-check-changelog: ## Run the changelog-index gate's own self-test (bash 3.2)
+	@/bin/bash scripts/test_check_changelog.sh
+	@/bin/bash -n scripts/check_changelog.sh
 
 test-parser: ## Run parser tests only
 	@echo "Testing parser..."
