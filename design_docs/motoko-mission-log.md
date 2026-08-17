@@ -585,3 +585,123 @@ action. No second friction warrants a skill edit; no routing-policy change was m
 
 **Next**: queue item 6 — design the real `motoko_ext_fmt` re-measurement instrument. Item 5 remains
 bounded until 2026-08-27; there are no OPEN human decisions.
+
+## 8 — 2026-08-17 — the −74% is one benchmark and one void pair; on the honest pairs it is −5.7%
+
+**Picked**: queue head item 6 (fmt re-measurement instrument). No regression, no human directive
+and no died-mid-flight trace outranked it. The weekly external-issue sweep was due and was run, but
+a sweep never outranks a pick — its output is the new queue row 6b.
+
+**Reality check**: `origin/dev` `127c1443e`; the scheduled pin checkout is clean, detached at that
+exact SHA, and the running mission-control skill is byte-identical to origin (`cmp` rc=0). Gate 1
+read 16 exact-SHA checks with 0 not-green, and the count is non-zero, so dev is *verified* rather
+than merely un-red. `gh` on `sunholo-voight-kampff`; billing tripwire CLEAN (re-checked immediately
+before the nested `claude`). Zero allowlisted directives since the `#663` watermark
+(`2026-08-16T00:23:15Z`). Died-mid-flight sweep: both motoko worktrees clean; the two open
+loop-authored PRs (`#695`, `#613`) are V1's; the stale main checkout's 7 modified paths were
+re-verified as 5 byte-equal-to-origin plus 2 explained by its 21-commit lag (`test_mission_routing.sh`
+exists on origin — it is untracked *there* only because that clone lacks the commit), so no orphaned
+work. Item-level freshness: `grep -ril` found prior fmt art (`m-eval-fmt-weakmodel-ab-M6-motoko-ext`,
+`m-fmt-dialect-alignment`) but no doc for the *instrument*, and no merged PR for it.
+
+**The finding — the pick's own premise did not survive Gate 2.** The −74% (AC5,
+`m-fmt-dialect-alignment.md`, 2026-07-31) is real and correctly attributed to the fmt extension.
+It is also not a target an instrument can reproduce, for five reasons measured first-party:
+(a) its author rates it *"direction, not proof"* — n=1/pair, sign test p≈0.11; (b) **74.7% of the
+saving is ONE benchmark** — six pairs give −74.2%, dropping `log_file_analyzer` gives −47.1%, and
+that pair alone is 3,125,933 of 4,182,882 saved tokens; (c) that benchmark is **3/30 lifetime and
+0/10 over the last five nights** in the `rag_on` opencode rotation lane (open `#649`), so
+tokens-to-pass is undefined there; (d) `ab2_fmt_on/emit_exact_bytes_varied` banked **zero** fmt-hook
+events with `validity={valid:False, reason:treatment_unproven}` and was summed into the headline
+regardless, while the other 5 ON rows carry exactly one `status=formatted` event and all 6 OFF rows
+are clean; (e) the run was **order-confounded** — sorting all 12 rows by in-file `timestamp` gives a
+perfect block, ON 16:42:37→17:00:10 then OFF 17:01:28→17:36:49, and the within-arm benchmark order
+differs between arms, so index pairing never paired the same position.
+**Net: on the four pairs with proven treatment and a currently-passable benchmark, −5.7% (ON cheaper
+3/4), not −74.2%.**
+
+**Shipped**: `design_docs/planned/m-motoko-fmt-remeasurement-instrument.md` (421 lines,
+`0e1edd80c`) — paired **censored win-rate** (non-pass right-censored at the 4M cap; null
+P(ON wins | non-tied)=0.5, defined even when nothing passes), a **counterbalanced** per-benchmark
+schedule with an order-integrity gate that VOIDs a slot banked otherwise, ELO-banded selection with
+`log_file_analyzer` out and continuity with −74% deliberately abandoned, ~9.8 rig-hours priced off a
+measured 4.91 min/row anchor, and a **pre-registered** KEEP/RETIRE/inconclusive rule.
+**PARKED `needs-human-review`** on D-MOTOKO-FMT-1 alone.
+
+**Confirmed live defect (not the pick, found on the way)**: the Wednesday fmt A/B lane has banked
+nothing since AC5. Both the 2026-08-05 and 08-12 fires died at
+`internal/executor/motoko/healthcheck.go:64` — an **unconditional** `OPENROUTER_API_KEY` refusal
+with no lane/model condition, reached via `MotokoExecutor.HealthCheck`→`runHealthCheck` — whose own
+error text (*"motoko routes ALL models via OpenRouter"*) is false for both fmt arms, which declare
+`provider: "ollama"`, `env_var: ""` (*"No API key — local inference"*) and
+`agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"` (models.yml:1854, :1880).
+
+**Quorum**: two rounds, **both external reviewers present both times**, `absent_reviewers` empty in
+both artifacts — so neither verdict is an N−1 degrade and no re-run at a raised cap was owed. R1
+BLOCKED → one revision → R2 BLOCKED. Metered **$0.1424** ($0.0619 + $0.0805). All four objections
+were classified premise-vs-design and **every premise was measured rather than forwarded** (rule 3f):
+- **O1** (`gpt5-6-sol`, arm ordering) — **UPHELD, and its "if" is fact**: the reviewer supposed
+  hypothetically what the banked rows show outright (finding (e)). Answered in §5.3.
+- **O2** (`gemini-3-1-pro`, the `cp`-to-LaunchAgents claim) — **UPHELD**:
+  `PlistBuddy -c "Print :ProgramArguments" ~/Library/LaunchAgents/dev.ailang.nightly-eval.plist` →
+  `{/bin/bash, /Users/voightkampff/dev/sunholo-data/ailang/tools/launchd/nightly-eval.sh}`, i.e. the
+  script runs **in place from V1's checkout**. Instruction removed; replaced with the real
+  constraint (a merged fix reaches the rig only when V1's clone pulls — open `#558`).
+- **O3** (`gemini-3-1-pro`, `#649` unverified) — procedurally right, claim measured **TRUE**
+  (`gh issue view 649` → OPEN, created 2026-08-11; control `#721` → MERGED).
+- **O4** (`gpt5-6-sol`, D1's routing premise) — **the park**. Partly measured (see the ledger row);
+  the missing half needs the `mk-ast` resolution path and/or a live motoko run under `rig.lock`.
+
+**Why parked and not carved out**: the narrow-refinement carve-out requires *every* remaining
+objection to carry a concrete reviewer-authored fix needing no controller judgment. O3 clears that
+bar; **O4 does not** — its remedy is an investigation, and choosing between "make the trace a D1
+precondition" and "redesign D1" is judgment. Forcing it would ship a prerequisite whose safety
+nobody established, inside a doc whose entire subject is that the previous measurement's integrity
+went unchecked. **No reviewer disputed the instrument's DIRECTION in either round.**
+
+**Weekly external-issue sweep** (due: first fire past the 2026-08-17 07:00 **local** Monday
+boundary; `#663` created 08-12 07:59 CEST, before it): **15 orphans of 75 enumerated open issues**,
+printed as a per-issue table over 8 charter/log/archive/dashboard files. Controls fired
+(`#663`→motoko charter 4; `#617`→v1 charter 2; `#663`→`mission-dashboard.md` 1) and the list length
+was asserted against `gh issue list … | wc -l` = 75. Batched into queue row **6b**; most orphans are
+AILANG-lane and belong to V1.
+
+**Routing evidence**: controller=`claude-opus-5` (session); designer=`claude:claude-fable-5` via
+`claude-sub`, probe rc=0, **FLAGGED as a rotation fallback** — the pointer's next entry is
+`codex:gpt-5.6-sol` and codex is genuinely quota-exhausted (my own re-probe: rc=1,
+*"You've hit your usage limit … try again at Aug 20th"*, corroborating the driver's degradation
+notice), gemini unwired pending G4, so the rotation wrapped to claude; planner/executor/evaluator
+**never spawned** (a parked design doc has no plan and nothing to judge, so generator≠judge was not
+engaged); quorum=`gpt5-6-sol` + `gemini-3-1-pro`, both present both rounds; no GPU, no `rig.lock`;
+`make quick-install` deliberately NOT run (shared-write guardrail); gates ran on **darwin/arm64
+only** (rule 3b(viii)); metered=**$0.1424** of $5.
+
+**Ruled out**:
+- *"The −74% is a ghost / was never measured"* — refuted. It is banked, arithmetically correct
+  (recomputed −74.2%), and correctly attributed to the fmt extension; the defect is its
+  *strength and composition*, not its existence.
+- *"The M6 doc's 'firing not yet observed' means fmt never fired"* — refuted by the rows: 5 of 6
+  AC5 ON rows carry a `status=formatted` event. The M6 header simply predates AC5.
+- *"`gemini`'s O2 was pedantry about a doc footnote"* — refuted; it was a false instruction, and
+  the truth underneath it (V1's checkout is what the plist executes) is load-bearing for D1.
+- *"My V-D pass rates are a property of the benchmarks"* — **corrected by the designer, and it was
+  my error**: `nightly-eval-history.jsonl` holds `arm=rag_on` **only** (516 rows, 2 opencode
+  models), so those rates are scoped to the rotation lane and not to any motoko or fmt arm. Rule
+  3b(ix) — the scope now travels with the number everywhere it is quoted. A sub-agent narrowing a
+  controller "fact" is the loop working.
+- *"15 orphans" from the sweep's first run* — the count survived, **the table did not**: see Retro.
+
+**Retro lane — skill fix (one, per the one-edit rule)**: Gate 0's weekly-sweep rule says to *print*
+per-issue counts so a zero is an auditable row. The natural zsh implementation of that instruction
+is wrong: **zsh arrays are 1-indexed**, so `${counts[0]}` is empty, every column silently shifts
+right by one, and the **last file in the list is dropped from every row**. My first sweep table
+printed `mission-dashboard.md`'s counts under the wrong header and never printed the 8th file at
+all; the orphan *verdict* was unaffected only because the accumulator summed the loop variable
+rather than the display array. This is the second instance of the zsh-array class the skill already
+records (iteration 140's `FILES=$(…)` word-splitting produced a vacuous mutation test), and the
+first to hit a *reporting* instrument, where the failure is invisible precisely because the output
+looks like a table. Edit made to the Gate-0 sweep rule.
+
+**Next**: answer **D-MOTOKO-FMT-1** (one word: precondition / redesign) and item 6 becomes a normal
+sprint. Otherwise queue row **6b** (triage-lite the 15 orphaned issues) is the head. Item 5 remains
+bounded until 2026-08-27.
