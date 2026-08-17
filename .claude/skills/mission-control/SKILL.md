@@ -2281,11 +2281,36 @@ failure, and you have not yet run the one-line check for the boring one.
 
 ## Gate 4 — RECORD (append-only; the log is the mission's memory)
 
-**FIRST: overwrite `design_docs/mission-dashboard.md`** (Mark 2026-08-04: the 30-second
-control context for fresh sessions — his long-lived thread was burning 14%/week of quota as
-cache-rebuild). Keep it ≤40 lines, OVERWRITE never append: latest release · in-flight/next
+**FIRST: overwrite `design_docs/${MISSION_NAME}-mission-dashboard.md`** (Mark 2026-08-04: the
+30-second control context for fresh sessions — his long-lived thread was burning 14%/week of quota
+as cache-rebuild). Keep it ≤40 lines, OVERWRITE never append: latest release · in-flight/next
 picks · loop cadence+routing · parked-on-Mark · quota posture. It is a snapshot, not a record —
 history stays in the charter/log.
+
+**⚠ THE PATH IS NAMESPACED, AND THE UNNAMESPACED `design_docs/mission-dashboard.md` THIS GATE USED
+TO PRESCRIBE IS ONE FILE THAT EVERY MISSION OVERWRITES — SO THE INSTRUCTION "OVERWRITE, NEVER
+APPEND" MADE EACH LOOP DESTROY ITS SIBLING'S SNAPSHOT ON EVERY ITERATION** (fixed 2026-08-17 V1
+iteration 216; four recorded frictions, all first-party). This is the same class the roles table
+already fixed for the designer-rotation state key — a shared skill naming a bare literal that reads
+as per-mission and is in fact fleet-global — and it is worse here, because the gate's own emphasis
+is on clobbering. The failure is silent and self-concealing in both directions: a controller that
+obeys the rule destroys a sibling's dashboard and reports success, while a controller that notices
+the collision can only skip its own record, so the dashboard is *never* right for both missions.
+Measured on V1: `design_docs/mission-dashboard.md` held **Motoko's** snapshot (`# Mission
+Dashboard — Motoko`, iteration 7) while a **separate, hand-created** `motoko-mission-dashboard.md`
+also existed — i.e. a careful sibling controller had already worked around this by hand, exactly as
+the sibling controllers did for the rotation key, and the shared skill never read the namespaced
+path. V1 iterations 212 ("the cross-mission single-dashboard collision is a new process-gap
+instance"), 213, 214 and 215 each recorded the friction and each responded by **omitting V1's
+dashboard refresh** rather than clobbering — so V1 had no current dashboard for four consecutive
+iterations, which is precisely the 30-second context this gate exists to guarantee.
+**Rule.** Write the mission-namespaced path. Never write the bare `mission-dashboard.md`, and if
+you find a sibling's content there, leave it alone and say so in the report rather than "fixing"
+it. **And audit the whole literal-path list rather than one key at a time** — the roles table's
+migration note says the same thing about `~/.ailang/state/`, and this gate is the instance that
+proves the audit was never done: one namespacing fix landed, the neighbouring literal did not.
+Whenever this skill names a path a mission writes to, ask what the sibling writes there first. The
+tell: you are about to overwrite a file whose name contains no mission identifier.
 
 Append an entry to `design_docs/v1-mission-log.md` using its fixed template — every section,
 "none" over omission. The **Routing evidence** row and **Ruled out** ledger are the two highest-
