@@ -1877,6 +1877,35 @@ models:
       matrix, not yet wired into a suite.
       Requires: Ollama running on localhost:11434, qwen3.6:35b-a3b-mxfp8 pulled.
 
+  motoko-local-qwen3-8-27b:
+    api_name: "qwen3.8:27b-mxfp8"
+    provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Qwen 3.8 27B DENSE (mxfp8) via motoko_agent on local Ollama — the A/B arm that matters: motoko is the AILANG-native harness and the best local performer (63% vs pi 56%, opencode 40%)."
+    env_var: ""                                       # No API key — local inference
+    agent_cli: "motoko"
+    motoko_profile: "ollama"                          # SAME lean profile as the qwen3.6 control — vary the model, not the profile
+    agent_model_name: "ollama/qwen3.8:27b-mxfp8"
+    model_family: "qwen-3-8"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    budgets:
+      # Already matches motoko-local-qwen3-6-35b-a3b-mxfp8 (3600), so unlike the
+      # opencode/pi arms this pair needs NO separate -ab3600 control entry.
+      hard_timeout_secs: 3600
+    notes: |
+      Added 2026-08-17 for the on-device qwen3.8 A/B. Control arm is
+      motoko-local-qwen3-6-35b-a3b-mxfp8 (same profile, same budget, same rig).
+      UNVERIFIED RISK at time of adding: motoko routes tool-calling turns via
+      ollama's /v1, and ollama v0.32.6 changed the /v1 streaming wire format
+      (role only on first chunk, finish_reason on its own chunk, usage separate).
+      The rig crossed that boundary in the 0.32.1 -> 0.32.14 upgrade on
+      2026-08-17. Smoke-test motoko on BOTH qwen3.6 and qwen3.8 before trusting
+      any result from this entry — a failure here may be the upgrade, not the model.
+      Requires: Ollama >= 0.32.12, qwen3.8:27b-mxfp8 pulled.
+
   motoko-local-qwen3-6-fmt:
     api_name: "qwen3.6:35b-a3b-mxfp8"
     provider: "ollama"
