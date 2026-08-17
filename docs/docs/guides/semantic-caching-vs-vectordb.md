@@ -28,37 +28,19 @@ AILANG's semantic cache is designed for **decision/tool/result memoization** - a
 
 ## When Semantic Caching Wins
 
-### 1. Agent-to-Agent Dedupe and "Already Handled" Suppression
+| Scenario | Why the cache wins |
+|----------|-------------------|
+| **Agent-to-agent dedupe** — N agents rediscover the same issue with different phrasing | Sits at the message boundary, closer to causality than retrieval; `ailang messages search "..." --threshold 0.90` before creating new work |
+| **Tool-result caching** — repeated expensive calls (`git diff`, test runs, API responses) | You want idempotence and latency collapse, not long-lived retrieval |
+| **CI "same failure" recognition** | Failure signature → prior fix mapping, scoped by repo/branch/fingerprint with TTL |
+| **Session coherence** — don't re-derive conclusions already reached this session | It's a *decision cache*, not a knowledge base |
+| **Ingestion dedupe gate** — detect duplicates before embedding into a vector DB | Vector stores don't want to be your dedupe front door |
+| **Provenance/policy guardrails** | Constraints are first-class effects in AILANG, not external filter config |
+| **Experience replay** — reuse past successful plans | Retrieved items are heuristics to re-validate, never new truth |
+| **Trace compression** — match new traces to semantic summaries of old ones | Summary in `content`, full trace in `opaque` |
+| **Coordination primitive** — "one agent claims this issue signature" | CAS + similarity gives atomic distributed claims |
 
-**The problem**: Multiple agents rediscover the same issue with slightly different phrasing, causing fan-out storms.
-
-**Why cache wins**: It's at the message boundary - closer to causality than retrieval.
-
-```bash
-# Detect near-duplicate bug reports before processing
-ailang messages search "parser crash on nested records" --threshold 0.90
-
-# If similar exists, link rather than create new
-ailang messages list --similar-to MSG_ID
-```
-
-**Use cases**:
-- Prevent repeated escalations of the same issue
-- Stop N agents from generating N fixes for the same bug
-- Recognize "known bad" states during triage
-
-### 2. Tool-Result Caching (The Real Cost Sink)
-
-**The problem**: Agents repeatedly call expensive tools with semantically similar inputs.
-
-**Why cache wins**: You want **idempotence and latency collapse**, not long-lived retrieval.
-
-**What to cache**:
-- `git diff` / `ripgrep` results with similar queries
-- Test failures + stack traces + environment fingerprint
-- API responses ("this endpoint returned 429")
-- Schema introspection, SQL EXPLAIN output
-- Build artifacts keyed by dependency fingerprint
+Two of these patterns in code — tool-result caching:
 
 ```ailang
 -- Cache expensive tool results with SimHash key
@@ -75,133 +57,9 @@ func cached_git_diff(commit: string) -> string ! {IO, SharedMem, SharedIndex} {
 }
 ```
 
-### 3. Build/CI Acceleration (Semantic "Same Failure" Recognition)
-
-**The problem**: CI fails with a similar error to yesterday's failure, but agents re-investigate from scratch.
-
-**Why cache wins**: You can enforce TTL, scope (repo/branch), and "only trust if build fingerprint matches."
-
-```bash
-# Match current failure to prior one
-ailang messages search "undefined: parseModuleDecl" --inbox ci-failures
-
-# Retrieve prior fix plan + patch + commit reference
-ailang messages read PRIOR_MSG_ID
-```
-
-**Cache can store**:
-- Failure signature → successful fix mapping
-- Build fingerprint → known issues
-- Test name → common root causes
-
-### 4. Multi-Turn Local Coherence: Don't Re-Derive Conclusions
-
-**The problem**: RAG finds *new* relevant context. But what about context you *already derived* in this session?
-
-**Why cache wins**: It's a **decision cache**, not a knowledge base.
-
-**Examples**:
-- "This codebase uses effect rows - we checked in turn 3"
-- "We decided: no raw SQL, only query builders"
-- "The chosen approach for DX-15 was tiered similarity"
+and atomic claim via CAS:
 
 ```ailang
--- Store a decision for session coherence
-let _ = store_frame("decision:sql_policy", make_frame_at(
-  "decision:sql_policy",
-  "Policy: no raw SQL, only query builders",
-  _bytes_from_string("Decided in sprint planning, rationale: ..."),
-  _clock_now(())
-))
-```
-
-### 5. Near-Duplicate Document Intake
-
-**The problem**: Before storing in a vector DB, you need to detect duplicates and extract deltas.
-
-**Why cache wins**: Vector stores don't want to be your dedupe gate. Semantic cache is perfect as the "front door."
-
-```bash
-# Before ingesting a PDF
-ailang messages search "Q3 sales report" --threshold 0.95
-
-# If 95%+ match exists, store only delta
-# Otherwise, proceed to full embedding
-```
-
-### 6. Policy & Safety Guardrails as Effects
-
-**The problem**: Vector DBs do filtering, but the semantics live outside your language/runtime.
-
-**Why cache wins**: Constraints are first-class effects in AILANG.
-
-```ailang
--- Cache with provenance requirements
-func store_with_provenance(key: string, content: string, source_hash: string)
-  -> unit ! {SharedMem, SharedIndex} {
-  let frame = make_frame_at(key, content, _bytes_from_string(source_hash), _clock_now(()));
-  -- Effect system ensures this runs with proper capabilities
-  store_frame(key, frame)
-}
-```
-
-**Constraints you can enforce**:
-- Forbid reusing cached results if provenance doesn't match
-- Require `source_hash` / `tool_fingerprint`
-- Enforce "don't retrieve across tenants/projects"
-- Enforce TTL for sensitive content
-
-### 7. Experience Replay (Plans, Not Facts)
-
-**The problem**: You want agents to learn from past successes, but not treat retrieval as "new truth."
-
-**Why cache wins**: Retrieved items are **heuristics that must be re-validated**, not facts.
-
-```ailang
--- Store successful trajectory keyed by problem signature
-let problem_sig = _simhash("type error on line 42 in parser.go");
-let _ = store_frame("trajectory:${show(problem_sig)}", make_frame_at(
-  "trajectory:${show(problem_sig)}",
-  "Fix: check for nil pointer before dereferencing",
-  _bytes_from_string(patch_content),
-  _clock_now(())
-))
-
--- Later: retrieve as heuristic, not truth
-let candidates = _sharedindex_find_simhash("trajectory", problem_sig, 3, 100, true);
--- Re-validate each candidate before applying!
-```
-
-### 8. Observability Compression
-
-**The problem**: Long traces are expensive to store and search.
-
-**Why cache wins**: Compress traces to semantic summaries, match new traces to old ones.
-
-```ailang
--- Compress trace to summary frame
-let trace_summary = summarize_trace(full_trace);  -- AI call or heuristic
-let _ = store_frame("trace:${trace_id}", make_frame_at(
-  "trace:${trace_id}",
-  trace_summary,
-  _bytes_from_string(full_trace),  -- Original in opaque
-  _clock_now(())
-))
-```
-
-### 9. Cache as Coordination Primitive
-
-**The problem**: Vector stores don't give you atomic coordination.
-
-**Why cache wins**: CAS (compare-and-swap) + similarity enables distributed coordination.
-
-**Patterns**:
-- Distributed "claim this task if similar to X" locks
-- "Only one agent generates final patch for this issue signature"
-- Consensus convergence: "we already have a canonical plan for this cluster"
-
-```ailang
--- Atomic claim with CAS
 match update_frame("claim:${issue_sig}", \frame.
   if frame.content == "unclaimed" then
     {frame | content: "claimed:${agent_id}"}
@@ -213,6 +71,9 @@ match update_frame("claim:${issue_sig}", \frame.
   Missing => create_and_claim()
 }
 ```
+
+The full pattern catalog with runnable code lives in the
+[Semantic Caching Guide](/docs/guides/semantic-caching-how-to).
 
 ---
 
@@ -284,48 +145,13 @@ Avoid "accidental RAG" by keeping boundaries clear:
 
 ---
 
-## Design Decisions & Future Work
+## Design Trade-off
 
-### Sound vs Useful?
-
-**Current design**: Useful (sometimes wrong but fast).
-
-- SimHash is approximate by nature
-- Thresholds are configurable per use case
-- Dedupe is "safe by default" (report-only mode)
-- Neural search is opt-in for higher accuracy
-
-**Trade-off**: We accept false positives (treating different things as similar) in exchange for speed. The mitigation is making it easy to inspect and override.
-
-### Frame Identity
-
-**Current implementation**:
-- Content: `title + payload` → SimHash
-- Namespace: `inbox` / custom prefix
-- Ordering: `timestamp`, `version`
-
-**Not yet implemented** (future work):
-- `tool_fingerprint` (hash of tool version + config)
-- `repo_hash` (git SHA or content hash)
-- `env_hash` (environment fingerprint)
-
-### Actionable Artifacts vs Raw Evidence
-
-**Current**: Both stored in `opaque` field, distinguished by:
-- `category`: bug, feature, general
-- `message_type`: notification, request, response
-- Convention: `content` is summary, `opaque` is full data
-
-**Future work**: Explicit trust levels, provenance tracking.
-
-### Negative Caching ("This Failed")
-
-**Current**: Not explicit. `dup_of` is for positive deduplication.
-
-**Future work**:
-- `failed_attempts` field or dedicated namespace
-- "Don't retry this approach" markers
-- Failure signature → known dead-end mapping
+The cache is **useful, not sound**: SimHash is approximate, so false positives
+(treating different things as similar) are accepted in exchange for speed.
+The mitigation is inspectability — thresholds are configurable per use case,
+dedupe is report-only by default, and neural search is opt-in for higher
+accuracy. Always re-validate retrieved results before acting on them.
 
 ---
 
