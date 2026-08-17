@@ -6,7 +6,7 @@
 > summary; the website copy is authoritative and carries per-entry repro transcripts + verified-at
 > dates.
 
-**All entries below were live-verified at AILANG `v0.28.0-141-g379990ad5` on 2026-07-10.** Per the
+**All entries below were live-verified at AILANG `v0.33.1-72-g4b46bb97e` on 2026-08-17.** Per the
 [M-V1-STABILITY-PROMISE](design_docs/planned/v1_0_0/m-v1-stability-promise.md) entry policy, every
 open limitation is a reproducible artifact with a verified-at date, and fixed items move to a
 dated "Resolved" list — this file is no longer allowed to freeze at a past version.
@@ -14,14 +14,14 @@ dated "Resolved" list — this file is no longer allowed to freeze at a past ver
 ## Open limitations (summary)
 
 See the [canonical page](docs/docs/reference/limitations.md) for repros, transcripts, and
-workarounds. Verified open at v0.28.0 (2026-07-10):
+workarounds. Verified open at v0.33.1 (2026-08-17):
 
 | Limitation | Kind | Verified-at repro |
 |---|---|---|
 | **Y-combinator / recursive lambdas** | Design constraint (Hindley-Milner occurs-check) | `let Y = \f. (\x. f(x(x)))(\x. f(x(x)))` → `occurs check failed`. Use named `func` recursion. |
 | **If-else multi-statement branches need braces** | Design constraint (no layout-sensitive parsing) | bare `let` in an `else` → "if-else branches require explicit braces". Wrap in `{ … }`. |
 | **Duplicate record types with identical fields** | Go-codegen only (interpreter unaffected) | `--emit-go` may pick the first structurally-matching struct. `ailang run` returns the correct value. |
-| **WASM type-checker depth limit** | WASM-host only (CLI unaffected) | deeply-recursive type structure exceeds the JS-engine stack; structured `depth budget exceeded` error. |
+| **WASM type-checker depth limit** | WASM-host only (CLI unaffected) | deeply-recursive or pathologically-slow type structure trips a 2 s wall-clock budget; structured `budget exceeded` error. |
 | **`?` error-propagation operator** | Not yet implemented (planned) | `r?` → `PAR_NO_PREFIX_PARSE: unexpected token in expression: ?`. Use explicit `match` on `Result`. |
 | **Typed quasiquotes** | Not yet implemented (planned) | quasiquote syntax not accepted. Use `"${expr}"` interpolation / `concat([..])`. |
 | **CSP concurrency (channels / session types)** | Deferred | no channel/session-type surface in the parser. |
@@ -53,7 +53,7 @@ if x > maxX then [] else {
 Single-expression branches don't need braces. See the
 [canonical page](docs/docs/reference/limitations.md) for the full entry.
 
-## Resolved (were documented as broken; re-verified working at v0.28.0)
+## Resolved (were documented as broken; re-verified working at v0.33.1)
 
 - **Polymorphic arithmetic lambdas** — `let add = \x. \y. x + y in add(3.14)(2.71)` → `5.85`
   (fixed v0.7.0, [m-poly-arithmetic-fix](design_docs/implemented/v0_7_0/m-poly-arithmetic-fix.md)).

@@ -10,7 +10,7 @@ This document tracks known limitations, workarounds, and design constraints in A
 
 For features that have been implemented, see [Design Documents](/docs/design-docs).
 
-**All entries below were live-verified at AILANG `v0.28.0-141-g379990ad5` on 2026-07-10** with
+**All entries below were live-verified at AILANG `v0.33.1-72-g4b46bb97e` on 2026-08-17** with
 `ailang check` / `ailang run` transcripts. Each open entry carries a **Verified at** date; fixed
 items are listed under [Recently Resolved](#recently-resolved). This is the entry policy from
 [M-V1-STABILITY-PROMISE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-v1-stability-promise.md):
@@ -23,7 +23,7 @@ every remaining limitation is a reproducible artifact, not lore.
 ### Y-Combinator and Recursive Lambdas (By Design)
 
 **Status**: Design constraint, not a bug
-**Verified at**: v0.28.0 (2026-07-10, `ailang check` transcript below)
+**Verified at**: v0.33.1 (2026-08-17, `ailang check` reproduces the transcript below verbatim)
 
 The Y-combinator and similar recursive lambda expressions fail with "occurs check" errors:
 
@@ -57,21 +57,25 @@ Named `func` recursion is also supported by `ailang verify` via bounded unrollin
 
 **Status**: WASM-specific constraint with structured error
 **Since**: v0.22.x
-**Verified at**: v0.28.0 (2026-07-10 — structured `depth budget exceeded` error path present; WASM-host-only, not reproducible from the CLI, which is unaffected)
+**Verified at**: v0.33.1 (2026-08-17 — guard present in `internal/types/typechecker_wasm_depth_wasm.go`; WASM-host-only, not reproducible from the CLI, which is unaffected)
 **Affects**: AILANG modules compiled to WebAssembly (browser demos using `wasm/ailang.wasm`). **CLI is unaffected.**
 
-The WASM-compiled type-checker is bound by the host JavaScript engine's call-stack limit (~10–15K frames in Node, Chromium, Firefox). Modules with deeply-recursive type structure exceed it. On native Go the CLI handles them fine because goroutine stacks grow dynamically up to 1 GiB; on WASM we hit the cliff.
+The WASM-compiled type-checker is bound by the host JavaScript engine's call-stack limit (~10–15K frames in Node, Chromium, Firefox) and by single-threaded execution. Modules with deeply-recursive or pathologically-slow type structure freeze the browser. On native Go the CLI handles them fine because goroutine stacks grow dynamically up to 1 GiB; on WASM we hit the cliff.
+
+**Enforcement**: a **wall-clock budget (2 s)** on the type-check of each module — it catches
+both true stack-depth blowups *and* pathologically slow analysis with the same structured
+error (earlier builds used a frame-count budget; the current guard is time-based).
 
 **Example failure**:
 
 ```
 loadModule cognitive_commons/services/citizen failed:
-WASM type-checker depth budget exceeded (5000 frames) in module
+WASM type-checker budget exceeded (2s) while checking module
 "cognitive_commons/services/citizen".
 
-This module's type structure recurses too deeply for the WASM host stack.
-The same source likely works on the AILANG CLI — this limit is specific
-to browser execution.
+This module's type structure recurses too deeply OR triggers pathologically
+slow analysis for the WASM runtime. The same source likely works on the
+AILANG CLI — this limit is specific to browser execution.
 ```
 
 **Common triggers**:
@@ -141,7 +145,7 @@ to browser execution.
 
 **Status**: Known limitation with workarounds
 **Since**: v0.5.10
-**Verified at**: v0.28.0 (2026-07-10 — **Go-codegen path only**; the interpreter is unaffected: `ailang run` on a duplicate-shaped record returns the correct field value)
+**Verified at**: v0.33.1 (2026-08-17 — **Go-codegen path only**; the first-match lookup is still present at `internal/gen/golang/codegen_record.go` (`GetRecordTypeByFields`). The interpreter is unaffected: `ailang run` on a duplicate-shaped record returns the correct field value)
 **Affects**: Go code generation when multiple record types share identical field structures
 
 When multiple record types declare the same field names and types, the Go
@@ -176,7 +180,7 @@ func initSystem() -> StarSystem {
 ### If-Else Branches Require Explicit Braces
 
 **Status**: Design constraint (improved error message in v0.5.9)
-**Verified at**: v0.28.0 (2026-07-10 — `ailang check` emits "if-else branches require explicit braces when using let bindings" with a fix suggestion)
+**Verified at**: v0.33.1 (2026-08-17 — `ailang check` emits "if-else branches require explicit braces when using let bindings", now with the `if` position and the branch whose `let` has no body)
 **Affects**: Multi-statement branches in if-else expressions
 
 AILANG is not layout-sensitive, so multi-statement branches must be wrapped in
@@ -257,7 +261,7 @@ did **not** amplify peak memory (V7), so the qualification “when `f` allocates
 ### Error Propagation Operator (`?`)
 
 **Status**: Planned — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-error-propagation.md)
-**Verified at**: v0.28.0 (2026-07-10 — `r?` produces `PAR_NO_PREFIX_PARSE: unexpected token in expression: ?`)
+**Verified at**: v0.33.1 (2026-08-17 — `r?` still produces `PAR_NO_PREFIX_PARSE: unexpected token in expression: ?`)
 
 The `?` operator for early return on `Result` errors is designed but not yet
 implemented. For now, use explicit `match` on `Result`:
@@ -274,7 +278,7 @@ match readFile(path) {
 ### Typed Quasiquotes
 
 **Status**: Planned — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-quasi-typed-quasiquotes.md)
-**Verified at**: v0.28.0 (2026-07-10 — quasiquote syntax not accepted by the parser)
+**Verified at**: v0.33.1 (2026-08-17 — backtick template syntax lexes as `ILLEGAL`; no quasiquote surface in the parser)
 
 Typed quasiquotes for deterministic AST templates and secure string templating
 are designed but not yet implemented. Use string interpolation (`"${expr}"`,
@@ -285,7 +289,7 @@ v0.12.1+) or `concat([..])` for now.
 ### CSP Concurrency
 
 **Status**: Deferred — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-csp-session-types.md)
-**Verified at**: v0.28.0 (2026-07-10 — no channel/session-type surface in the parser)
+**Verified at**: v0.33.1 (2026-08-17 — no channel/session-type surface in the parser; `chan` is just an identifier)
 
 CSP-style concurrency with channels and session types is deferred to v1.0.0+.
 AILANG currently focuses on deterministic, single-threaded execution. The
@@ -297,7 +301,7 @@ the `Concurrency` effect), but full CSP with session types remains future work.
 ### Interactive stdin / Keyboard Input
 
 **Status**: Line input works; two narrower gaps remain (see the three rows below).
-**Verified at**: v0.28.0 (2026-07-10 — `std/io.readLine` and `std/stream.asyncReadStdinLines` present in the stdlib)
+**Verified at**: v0.33.1 (2026-08-17 — `std/io.readLine` and `std/stream.asyncReadStdinLines` present in the stdlib)
 
 `std/io` provides `readLine()`, which reads one line from stdin and blocks until the user
 presses Enter — covering prompt-and-read and REPL-style input. `std/stream.asyncReadStdinLines`
@@ -320,32 +324,55 @@ string escapes (`\x1b`, `\u{…}`) added in v0.27.0 — `examples/progress_bar.a
 
 ---
 
+### Regex: No Backreferences or Lookaround (By Design)
+
+**Status**: Design constraint (RE2 linear-time guarantee)
+**Verified at**: v0.33.1 (2026-08-17, `ailang run` transcript below)
+
+`std/regex` wraps Go's RE2 engine, which deliberately excludes backreferences and
+lookahead/lookbehind in exchange for a **linear-time, no-catastrophic-backtracking
+guarantee**. Unsupported patterns return `Err(message)` — never a panic:
+
+```ailang
+match compile("(a)\\1") { Ok(_) => ..., Err(e) => ... }
+-- Err: error parsing regexp: invalid escape sequence: `\1`
+
+match compile("(?=x)") { Ok(_) => ..., Err(e) => ... }
+-- Err: error parsing regexp: invalid or unsupported Perl syntax: `(?=`
+```
+
+**Workaround**: restructure to RE2-expressible patterns (often a second `match` call or a
+string-function check on the captured group replaces the backreference/lookaround).
+
+---
+
 ## Recently Resolved
 
 These limitations existed in earlier versions and are now fully resolved.
-Listed for users following older docs. All re-verified at v0.28.0, 2026-07-10.
+Listed for users following older docs. All re-verified at v0.33.1, 2026-08-17.
 
 - **Polymorphic arithmetic in lambdas** — Fixed in v0.7.0
   ([design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-poly-arithmetic-fix.md)).
   `let add = \x. \y. x + y in add(3.14)(2.71)` now returns `5.85`.
-  Re-verified v0.28.0 (`ailang run` → `5.85`).
+  Re-verified v0.33.1 (`ailang run` → `5.85`).
 - **`match` inside block-body lambdas in HOF arguments** — Fixed (design doc
   [m-dx-match-in-hof-block-lambda](https://github.com/sunholo-data/ailang/blob/dev/design_docs/archive/v0_13_0_m-dx-match-in-hof-block-lambda.md)).
   Using brace-form `match` inside a `\x. { ... }` lambda passed to a HOF now type-checks and runs:
-  `map(\item. { let s = match item { 0 => "zero", _ => "ok" }; s }, [0,1,2])` → `[zero, ok, ok]`.
-  Re-verified v0.28.0. (The old `match ... with | …` ML/Haskell form is retired — it now emits
+  `map(\item. { let s = match item { 0 => "zero", _ => "ok" }; s }, [0,1,2])` → `[zero, ok, ok]`
+  (with `import std/list (map)` — `map` is not in the prelude).
+  Re-verified v0.33.1. (The old `match ... with | …` ML/Haskell form is retired — it now emits
   `PAR019`; use brace-form `match x { pat => expr }`.)
 - **Multi-statement block expressions** — `{ e1; e2; e3 }` sequencing now works fully.
   `{ println("step 1"); println("step 2"); println("step 3") }` runs all three. The old
-  `let _ = … in` workaround is no longer needed. Re-verified v0.28.0.
+  `let _ = … in` workaround is no longer needed. Re-verified v0.33.1.
 - **String interpolation** — Implemented in v0.12.1 (`"Hello, ${name}!"`).
   Phase 2 of [M-CONCAT-DISAMBIG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_13_0/m-concat-disambiguation.md)
-  in v0.13.0 made `++` list-only (string `++` is now a type error). Re-verified v0.28.0
+  in v0.13.0 made `++` list-only (string `++` is now a type error). Re-verified v0.33.1
   (`"Value: ${x}"` → `Value: 42`).
 - **Pattern guards** — Implemented in v0.6.2
   ([design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-pattern-guards.md)).
   `match x { n if n > 100 => ..., n if n > 0 => ... }` now evaluates guards
-  correctly. Re-verified v0.28.0 (→ `big`).
+  correctly. Re-verified v0.33.1 (→ `big`).
 
 ---
 
