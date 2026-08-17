@@ -111,7 +111,13 @@ export func main() -> () ! {IO} {
 		t.Fatalf("write probe: %v", err)
 	}
 
-	cmd := exec.Command(bin, "run", "--entry", "main", fp)
+	// --caps IO is REQUIRED: this probe asks "are println/show/Some/Ok reachable
+	// without an import", not "can IO happen uncapped". It used to run without
+	// caps and pass, but only because the prelude's println performed IO without
+	// consulting the capability set — fixed 2026-08-17, see
+	// TestPreludeAndImportedPrintln_SameCapabilityGate. Granting the cap keeps
+	// this test measuring prelude RESOLUTION, which is what it is for.
+	cmd := exec.Command(bin, "run", "--entry", "main", "--caps", "IO", fp)
 	cmd.Env = append(os.Environ(), "AILANG_STDLIB_PATH="+filepath.Join(repoRoot, "std"))
 	out, err := cmd.CombinedOutput()
 	if err != nil {

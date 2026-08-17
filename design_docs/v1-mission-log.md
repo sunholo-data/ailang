@@ -11788,3 +11788,100 @@ without its security ruling.
 
 **Next**: resume the first item selected by a ledger decision or by new first-party evidence satisfying
 `#610`'s workload gate.
+
+## 217 — 2026-08-17 — Iteration 216: the weekly sweep broke a four-iteration park streak; #696 ghost-disciplined and guarded
+
+**Picked**: `#696` (mission-control driver: `$MODEL` never exported), surfaced by the mandatory
+weekly external-issue sweep rather than from the queue — the ordered frontier is still gated by 10
+OPEN ledger decisions, and the sweep is Gate-0 work that does not need one.
+
+**Reality check**: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff` active. Twenty unread
+inbox messages were all eval-suite operational telemetry (starts, no-op-all-banked, partial outcomes)
+— none a human directive or verified V1 regression. Decision ledger validates with 10 OPEN rows; zero
+allowlisted directives on `#635` across 82 enumerated comments. Running skill byte-identical to
+`origin/dev`. `origin/dev` `127c1443e` carried 16 SHA-addressed checks with zero not-green.
+
+**Weekly external-issue sweep** (first iteration past the Monday-07:00 boundary): **15 orphans of 75
+enumerated**, reported as a per-issue four-column table, not a summary. Instrument validated in-call
+BEFORE use, because iteration 168's "0 of 52" was later shown false: `\b` discriminates `#613` from
+`#6130` under BSD grep; positive control `#613`→5; negative `#99999`→0; enumeration control `gh`
+count 75 = 75 lines; and all four scoped files asserted non-empty (charter 2050 / log 11790 /
+archive 1013 / dashboard 20). All 15 were filed 2026-08-10..08-15 by the bot via the agent-message
+importer — i.e. the sweep is working as designed, not revealing a broken instrument.
+
+**Ghost discipline on the pick — REAL when filed (2026-08-13), FIXED at HEAD.** `de0e41099`
+(2026-08-15) introduced `_mc_set_controller`, the sole setter, whose
+`export CONTROLLER_PROVIDER CONTROLLER_ID MODEL MODEL_WHY MISSION_ANTHROPIC_AVAILABLE`
+(`mission-control.sh:234`) runs on all four `select_model` paths — env pin `:239`, override file
+`:249`, probe-ok `:257`, Anthropic-unavailable Codex fallback `:267`. Live-confirmed this fire:
+`MODEL=claude-opus-5`, `MODEL_WHY=probe ok`. `#696`'s own evidence
+(`^\s*export MODEL=|^\s*export MODEL$` → 0) is an over-anchored pattern that cannot match a
+multi-variable bare `export`, and its known-positive control fired only because it happens to use
+the other form — rule 3a's trap, which is exactly why an incidental fix went unnoticed for two days.
+
+**Shipped**: PR `#741` → squash `3a75ec7d2`. 21 checks on the PR head with zero not-green; 4/4
+required contexts pass (`build`/`docs-gate`/`lint`/`test`); `MERGEABLE CLEAN`; and the
+`launchd drivers (bash 3.2)` job `success` on the **ubuntu** runner, not only on darwin. The fix had
+no guard: `test_mission_routing.sh` already sourced the real selector into a lab but read
+`MODEL_WHY` in the SAME shell — an assertion that passes whether or not `export` is present — so
+prior coverage was hollow for precisely this defect. The new arm reads both variables from a CHILD
+process (`/usr/bin/env`), the only observable the `export` keyword moves, with an in-call
+known-positive control (`MC_EXPORT_CONTROL`) so a broken pipeline cannot masquerade as a missing
+export. Also gitignored the root-level `/govulncheck-filter` build artifact, root-anchored so it
+cannot shadow the tracked `tools/govulncheck-filter/` source dir (four controls run); it had sat
+untracked in the driver-pin worktree since 2026-08-15 and iterations 213/214/215 each had to note
+and route around it.
+
+**Mutation drills** (both under `/bin/bash` 3.2.57 — the rig's shell, and the version CI asserts):
+reproducing `#696` by dropping `MODEL MODEL_WHY` from the export list — mutant LANDED by sha256 and
+valid by `bash -n` rc=0 — left **all nine pre-existing arms green and failed only the new arm**,
+control still firing, so the new arm is the killer rather than a bystander. Then
+**precondition-neutering** the arm's own `unset` made it **PASS under that same mutant**, because a
+suite run by the mission loop inherits the controller's real `MODEL`/`MODEL_WHY`, which match the
+expected string exactly — the guard would have been vacuous precisely where it matters, and the
+`unset` is what closes that. Driver restored from a copy (never `git checkout --`, per the
+iteration-166 corollary) and verified byte-identical by sha256 plus `git diff --quiet`. Baselined on
+pristine `origin/dev` first (rc=0, 9 passed / 0 failed), so the gates measure the change.
+
+**Died-mid-flight slot found and credited**: the 2026-08-16 15:00:31 fire logged **zero**
+driver-formatted terminal lines (control: the preceding fire's window contains exactly one
+`iteration complete`), leaving worktree `.wt-iter216-record` on branch `docs/mission-iter216-record`
+at `127c1443e` holding an **uncommitted** PARK record for "ITERATION 216" across charter, log and
+archive. Backed up outside the repo (`/tmp/iter216-orphan-backup`) and then DISCARDED as superseded:
+its text asserts `PARKED`, `metered=$0.00` and a codex controller, none of which describes this
+iteration. This is the trace class Gate 2 rule (c) names — `git worktree list` showed only that a
+worktree existed; the finding was its **uncommitted content**.
+
+**Quota drought, measured — NOT a wedge**: the 16-hour silence from 2026-08-16 15:00 to 2026-08-17
+07:19 was **45 fires refused before starting**, with every Anthropic preference `quota-limited`
+(`claude-opus-5`/`claude-opus-4-8`/`claude-fable-5`, 45 each) AND the codex subscription fallback
+exhausted (`try again at Aug 20th, 2026 5:34 AM`, 244 log hits). The driver refused LOUDLY, announced
+once per episode, and never billed the metered API — the ratified behaviour working. The first
+hypothesis (a wedged slot holding the overlap guard) was REFUTED by the per-hour log histogram: 36
+lines/hour throughout, not silence. The Monday-07:00 Anthropic reset restored the lane; **codex stays
+dry until 2026-08-20 05:34, so V1 runs on a single controller lane until then.**
+
+**Routing evidence**: controller=`claude:claude-opus-5` (`MODEL_WHY=probe ok`, read as a measurement
+now that `#696` is fixed) task-class=mechanical+bookkeeping round1-score=n/a rounds=0 corrections=0
+provider=claude agent=controller cost=quota-bucket:Anthropic-OAuth (`metered=$0.00`). Preflight
+degraded planner codex→`opus` and executor codex→`pi:openrouter/deepseek/deepseek-v4-flash-0731:floor`
+per the ratified `#611` chain, but **no** designer, planner, executor, evaluator, quorum, GPU or
+metered provider lane fired: a ~58-line test+gitignore+changelog change is the mechanical-inline class.
+
+**Ruled out**: adopting the orphan slot's park record (superseded by this iteration's landing);
+reading the 16-hour silence as a hang or wedge (measured as quota refusals, with a firing control);
+treating `#696` as still-open on the strength of its own grep; treating a green PR head as a verdict
+on `dev`'s own HEAD (a separate run was asserted for the merge commit); and treating four
+consecutive parks as evidence that no executable work existed — the sweep found 15 items in one call.
+
+**Retro lane**: ONE skill edit — the Gate-4 dashboard path was an unnamespaced literal
+(`design_docs/mission-dashboard.md`) that every mission writes, so V1 and Motoko have been
+overwriting each other; frictions recorded at iterations 212 ("a new process-gap instance"), 213,
+214 and 215. Namespaced to `design_docs/<mission>-mission-dashboard.md`, the form Motoko had already
+adopted by hand — the same class the skill previously fixed for the designer-rotation state key.
+V1's dashboard now lives at `design_docs/v1-mission-dashboard.md` and Motoko's snapshot is left
+untouched. **Caveat, escalated below**: the skill edit reaches `origin` but NOT the running copy,
+which resolves through the main checkout's working tree.
+
+**Next**: the remaining 14 sweep orphans as one batched queue row, mission-infra lane first
+(`#727`, `#708`, `#687`), each ghost-disciplined at HEAD before routing.

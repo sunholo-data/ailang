@@ -430,6 +430,21 @@ allowlist/revert) IS this iteration's first deliverable. Time-based reds (new vu
 runner-image changes un-hiding latent bugs, dependabot peer-dep breaks) hit whoever observes
 next — that's the mission's job now.
 
+**Scoped to the OWNING mission (2026-08-17).** "Whoever observes next" assumed one observer per
+repo. That is false wherever two missions share a `MISSION_REPO`: V1 and motoko both carry
+`sunholo-data/ailang` from separate clones, the overlap guard is per-mission by construction
+(`PIDFILE="$STATE_DIR/mission-${MISSION_NAME}.pid"`, each loop guarding only itself), and no
+cross-mission mutex exists. Both loops therefore preempt onto the *same* red and do the *same*
+work — measured as [#758](https://github.com/sunholo-data/ailang/pull/758)/[#759](https://github.com/sunholo-data/ailang/pull/759),
+identical six-file fixes opened four minutes apart. Gate 2's open-PR check does not save you: it
+is point-in-time at pick time, aimed at a *past* iteration's abandoned work, so a peer that opens
+its PR later in the same window is invisible (V1 checked at ~18:58Z; #758 appeared 19:05Z).
+So: **a red outranks the queue only for the mission that OWNS the repo** — for
+`sunholo-data/ailang` that is V1. A non-owning mission records the red, hands it to the owner on
+the cross-mission channel, and keeps its own pick, EXCEPT where the red is its own doing or sits
+in territory the owner has no domain knowledge for. Check your charter's guardrails for which
+side of that line you are on before letting any red displace your pick.
+
 **BUT A RED CAN BE THE CI PROVIDER ITSELF, AND THEN THE DELIVERABLE IS THE DIAGNOSIS — NOT A FIX,
 AND EMPHATICALLY NOT A REVERT** (added 2026-08-06 V1 iteration 153; instance 1 was `mission-world`
 iteration 58 the SAME DAY, which hit the identical signature in a different repo and carried it
@@ -2315,11 +2330,36 @@ failure, and you have not yet run the one-line check for the boring one.
 
 ## Gate 4 — RECORD (append-only; the log is the mission's memory)
 
-**FIRST: overwrite `design_docs/mission-dashboard.md`** (Mark 2026-08-04: the 30-second
-control context for fresh sessions — his long-lived thread was burning 14%/week of quota as
-cache-rebuild). Keep it ≤40 lines, OVERWRITE never append: latest release · in-flight/next
+**FIRST: overwrite `design_docs/${MISSION_NAME}-mission-dashboard.md`** (Mark 2026-08-04: the
+30-second control context for fresh sessions — his long-lived thread was burning 14%/week of quota
+as cache-rebuild). Keep it ≤40 lines, OVERWRITE never append: latest release · in-flight/next
 picks · loop cadence+routing · parked-on-Mark · quota posture. It is a snapshot, not a record —
 history stays in the charter/log.
+
+**⚠ THE PATH IS NAMESPACED, AND THE UNNAMESPACED `design_docs/mission-dashboard.md` THIS GATE USED
+TO PRESCRIBE IS ONE FILE THAT EVERY MISSION OVERWRITES — SO THE INSTRUCTION "OVERWRITE, NEVER
+APPEND" MADE EACH LOOP DESTROY ITS SIBLING'S SNAPSHOT ON EVERY ITERATION** (fixed 2026-08-17 V1
+iteration 216; four recorded frictions, all first-party). This is the same class the roles table
+already fixed for the designer-rotation state key — a shared skill naming a bare literal that reads
+as per-mission and is in fact fleet-global — and it is worse here, because the gate's own emphasis
+is on clobbering. The failure is silent and self-concealing in both directions: a controller that
+obeys the rule destroys a sibling's dashboard and reports success, while a controller that notices
+the collision can only skip its own record, so the dashboard is *never* right for both missions.
+Measured on V1: `design_docs/mission-dashboard.md` held **Motoko's** snapshot (`# Mission
+Dashboard — Motoko`, iteration 7) while a **separate, hand-created** `motoko-mission-dashboard.md`
+also existed — i.e. a careful sibling controller had already worked around this by hand, exactly as
+the sibling controllers did for the rotation key, and the shared skill never read the namespaced
+path. V1 iterations 212 ("the cross-mission single-dashboard collision is a new process-gap
+instance"), 213, 214 and 215 each recorded the friction and each responded by **omitting V1's
+dashboard refresh** rather than clobbering — so V1 had no current dashboard for four consecutive
+iterations, which is precisely the 30-second context this gate exists to guarantee.
+**Rule.** Write the mission-namespaced path. Never write the bare `mission-dashboard.md`, and if
+you find a sibling's content there, leave it alone and say so in the report rather than "fixing"
+it. **And audit the whole literal-path list rather than one key at a time** — the roles table's
+migration note says the same thing about `~/.ailang/state/`, and this gate is the instance that
+proves the audit was never done: one namespacing fix landed, the neighbouring literal did not.
+Whenever this skill names a path a mission writes to, ask what the sibling writes there first. The
+tell: you are about to overwrite a file whose name contains no mission identifier.
 
 Append an entry to `design_docs/v1-mission-log.md` using its fixed template — every section,
 "none" over omission. The **Routing evidence** row and **Ruled out** ledger are the two highest-

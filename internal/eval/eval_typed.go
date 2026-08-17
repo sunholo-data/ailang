@@ -39,7 +39,9 @@ type TraceEntry struct {
 // NewTypedEvaluator creates a new typed evaluator
 func NewTypedEvaluator(trace bool, seed int, virtualTime bool) *TypedEvaluator {
 	env := NewEnvironment()
-	registerBuiltins(env)
+	// nil: TypedEvaluator carries no effect context, so no capability system is
+	// wired here and prelude builtins are not gated. See requireCap.
+	registerBuiltins(env, nil)
 
 	var traceCollector *TraceCollector
 	if trace {
