@@ -11885,3 +11885,100 @@ which resolves through the main checkout's working tree.
 
 **Next**: the remaining 14 sweep orphans as one batched queue row, mission-infra lane first
 (`#727`, `#708`, `#687`), each ghost-disciplined at HEAD before routing.
+
+## 218 — 2026-08-17 — Iteration 217: dev was red for 6h on a gate that saw one offender of seven
+
+**Picked**: the RED `dev` (Gate 1 outranks the queue), and — under the ownership rule that landed
+mid-iteration as `c2022c7fa` — V1 owns `sunholo-data/ailang`, so the red is V1's to fix rather than
+the observing sibling's. Secondary, non-competing pick: iteration 216's orphaned record.
+
+**Reality check**: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Twenty-one unread
+inbox messages, all `eval-suite` operational telemetry — no directive, no cross-mission request, no
+`github-untrusted:` sender. Zero allowlisted directives on `#745` (created 06:14Z today, 2 comments).
+Decision ledger validates, 10 OPEN rows. Running skill byte-identical to `origin/dev` at Gate 1.
+The driver pin (`0002c9b0b`) equalled `origin/dev`, so mission state was read first-party rather
+than through a stale checkout.
+
+CI at `origin/dev` `0002c9b0b`: 19 checks, **5 not-green**, splitting into two classes that needed
+opposite dispositions:
+
+- **Genuine, deterministic**: `test` failed at `Check changelog index hygiene` (41 steps ran). Also
+  red on the parent `c541eccbc` (15:09Z), green at `22c74d7c3` (06:08Z) — so dev had been red ~6h,
+  introduced by `4c3ef27c8` (08:24 CEST) which filed a release note into the index.
+- **Infrastructure**: `lint` and `Build macos-latest` ×2 failed with `steps=1` at `Set up job`,
+  against a **green `lint` on the parent 40 minutes earlier**; GitHub's status API read *Partial
+  System Outage* (incident 13:40Z, still `investigating`), and the `test` job's own log shows
+  503/502/429 on action downloads inside the run window. Diagnosed, **not** reverted or fixed.
+
+**Instrument note**: the first parent scan read `failures=0` on the four commits below `c541eccbc`
+and that was **vacuous** — `checks=0` on each, because only a push TIP gets a run. Re-measured per
+push tip; the `test:ABSENT` rows are why the red looked newer than it was.
+
+**Shipped**:
+- `#744` — iteration 216's record, found orphaned by Gate 2's died-mid-flight check (open PR from
+  this account, charter/log both `grep -ci "ITERATION 216"` = 0, control 215 = 1). Verified rather
+  than redone: rotation invariant intact (3 charter stamps; archive gained 213, control 212 = 1),
+  and both its load-bearing claims re-derived first-party (`mission-dashboard.md` really did hold
+  `# Mission Dashboard — Motoko`; iterations 213–215 really did each skip their refresh). Merged
+  `642ac60ec`.
+- `#759` → **`cf56772bf`** (merged 20:02:27Z; all 4 required contexts green — `test` 19m41s,
+  `build`, `lint`, `docs-gate`). The red fix. Moved **7 stranded sections / 244 lines** out of the root index into
+  `changelogs/v0.18-current.md`, made the gate structural (an index has exactly one heading — the
+  archive table's), added an anti-vacuity floor on that heading, and added
+  `scripts/test_check_changelog.sh` (`make test-check-changelog`, wired into CI) — the gate had
+  **zero** coverage before.
+
+**Second red, same hour, different cause.** While `#759` was in flight, `9504393d0` (a genuine
+security fix: bare prelude `println` bypassed the capability system, so `--caps` was evadable by not
+importing `std/io`) turned `test` red at `Run stdlib .ail test suites`. Attributed BEFORE assuming
+ownership: the identical failure is on dev's own HEAD `c2022c7fa` (run `32060101087`), so it was
+inherited, not from the branch. Mechanism reproduced locally — `tests/stdlib/bounded_take_annotated.ail`
+uses the bare form and declares `! {IO}`, while the fixture runner invoked `ailang run "$f"` with no
+caps: `rc=1` + `effect 'IO' requires capability, but none provided`, versus `rc=0` and the expected
+`[1, 2]`/`[10, 20]` with `--caps IO`. Fixed forward in the same PR (`66b7c25e0`), with the flag-removed
+control still redding. The instrument half matters more than the flag: that error had been printed all
+along and was discarded by `2>/dev/null`, so CI showed an empty-stdout diff with no reason — fixture
+stderr is now captured and printed on mismatch.
+
+**Key finding — a gate's coverage is a property of its enumerator, measured on a live gate.** The
+guard flagged **1** of **7** stranded sections. Its pattern was lexical (Keep-a-Changelog verbs plus
+BRACKETED version headings), so `## v0.32.0 (Unreleased)`, `### Docs — …`, `### Eval cost accuracy
+— …` ×2 and `### Mission infrastructure …` were invisible **by construction** while it printed a
+confident failure about the fifth. Old-vs-new on the three shapes that shipped: old `rc=0`, new
+`rc=1`; clean index `rc=0` both; verb heading `rc=1` both.
+
+**Second finding — rc is not a discriminating observable for a refusal gate.** An `if false && …`
+drill over the four refusal branches, with rc-only arms, left **two branches alive**: a missing
+`CHANGELOG.md` and a missing archive heading both exit 1, so those arms were green for the wrong
+mechanism. With branch-unique message assertions each branch kills exactly its own arms (1/2/4/1),
+mutants asserted LANDED and parsing, gate restored byte-identical by sha256.
+
+**Third finding — the misfiling is a live habit.** Two MORE sections were pushed into the index by a
+concurrent session *during* this fix (19:00–19:21Z), taking the set from 5/169 to 7/244 and turning
+both open PRs `DIRTY`. That is the argument for the gate over the move.
+
+**Collision**: motoko iteration 9 opened `#758` at 19:05:51Z with the same six-file fix; V1 opened
+`#759` at 19:09:40Z. Gate 2's open-PR check ran at ~18:58Z and could not have seen it — it is
+point-in-time and aimed at a PAST iteration's abandoned work. Resolved by `c2022c7fa`'s ownership
+rule: `#758` closed as superseded with its three unique arms queued, `#759` carries the fix.
+
+**Routing evidence**: model=claude:claude-opus-5 task-class=mechanical round1-score=n/a rounds=0
+corrections=0 provider=anthropic agent=controller cost=quota-bucket:weekly-opus (`metered=$0.00`).
+No designer, planner, executor, evaluator, quorum or GPU call: the pick was a deterministic document
+move plus a shell-gate hardening, which Gate 3 assigns to the controller inline. Codex remains dry
+until 2026-08-20 05:34.
+
+**Ruled out**: reverting or fix-forwarding the `Set up job` failures (provider outage — controls:
+green parent 40 min earlier, incident window covering the run, 503/502/429 in-log); attributing the
+changelog red to the sprint that observed it (`git log -S` puts it on `4c3ef27c8`, 6h earlier);
+`failures=0` on intra-push commits as evidence of green (`checks=0` — vacuous); rc-only mutation
+arms as proof a refusal branch is pinned; and rebasing `#758`/`#759` onto each other (same 244 lines
+into the same place = pure conflict work).
+
+**Retro lane**: process-fix — new decision `D-18` (two missions, one repo, no claim protocol for a
+shared red). No skill edit: `c2022c7fa` already fixed the ownership half this iteration, and the
+remaining half is a mechanism choice that is Mark's, not the controller's.
+
+**Next**: re-apply the three `#759`/`#758` deltas as one small follow-up (`m-changelog-gate-deltas`),
+then the 14 remaining sweep orphans (`#727`, `#708`, `#687` first). The `Set up job` re-run is owed
+once GitHub marks the incident resolved.
