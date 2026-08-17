@@ -1840,6 +1840,11 @@ models:
       input_per_1k: 0.0
       output_per_1k: 0.0
     budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
       hard_timeout_secs: 3600
     notes: |
       Qwen 3.5 35B-A3B (mxfp8) via motoko_agent on the local Ollama rig
@@ -1866,6 +1871,11 @@ models:
       input_per_1k: 0.0
       output_per_1k: 0.0
     budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
       hard_timeout_secs: 3600
     notes: |
       Qwen 3.6 35B-A3B (mxfp8) via motoko_agent on the local Ollama rig.
@@ -1892,6 +1902,11 @@ models:
       input_per_1k: 0.0
       output_per_1k: 0.0
     budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
       # Already matches motoko-local-qwen3-6-35b-a3b-mxfp8 (3600), so unlike the
       # opencode/pi arms this pair needs NO separate -ab3600 control entry.
       hard_timeout_secs: 3600
@@ -1921,6 +1936,11 @@ models:
       input_per_1k: 0.0
       output_per_1k: 0.0
     budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
       # MUST equal the OFF arm (motoko-local-qwen3-6-35b-a3b-mxfp8: 3600). This
       # was 1800 — half the OFF arm's budget — which is a confound, not a
       # setting: a timeout kill is banked as a FAILURE, so the ON arm would be
@@ -1946,6 +1966,11 @@ models:
       input_per_1k: 0.0
       output_per_1k: 0.0
     budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
       hard_timeout_secs: 3600
     notes: |
       Profile-matrix arm: ollama lean baseline + the ailang_docs extension only.
@@ -1968,6 +1993,11 @@ models:
       input_per_1k: 0.0
       output_per_1k: 0.0
     budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
       hard_timeout_secs: 3600
     notes: |
       Profile-matrix arm: ollama base + ailang_docs + microrag (local μRAG over
@@ -1990,6 +2020,11 @@ models:
       input_per_1k: 0.0
       output_per_1k: 0.0
     budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
       hard_timeout_secs: 3600
     notes: |
       Profile-matrix arm testing motoko's DP7 pre-finalize verifier gate
@@ -2026,6 +2061,14 @@ models:
   opencode-gemma4-e4b:
     api_name: "gemma4:e4b"
     provider: "ollama"
+    budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
+      # Safety net for hung connections only; the token gate is the WORK gate.
+      hard_timeout_secs: 3600
     default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Gemma 4 E4B (4.5B active params) via opencode+Ollama — smoke test / 16GB laptop"
     env_var: ""
@@ -2056,10 +2099,15 @@ models:
     ttft_timeout: 900            # bumped 480→900: p=4 prefill contention; 5/17 smoke timeouts at 480
     generation_timeout: 1200     # bumped 600→1200: opencode per-session hard cap
     budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
       # Local model: cost is $0 (no cost gate). hard_timeout_secs is the only
       # wall-clock cap. After M-EVAL-LOCAL-OLLAMA fix, this takes precedence
       # over benchmark-spec timeouts (which are cloud-tuned, too tight for local).
-      hard_timeout_secs: 2400    # bumped 1800→2400: smoke tier showed 3 benchmarks hit 30min cap at p=4
+      hard_timeout_secs: 3600    # bumped 1800→2400: smoke tier showed 3 benchmarks hit 30min cap at p=4
     pricing:
       input_per_1k: 0.0
       output_per_1k: 0.0
@@ -2087,7 +2135,12 @@ models:
     ttft_timeout: 900
     generation_timeout: 1200
     budgets:
-      hard_timeout_secs: 2400
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
     pricing:
       input_per_1k: 0.0
       output_per_1k: 0.0
@@ -2148,7 +2201,12 @@ models:
     ttft_timeout: 900
     generation_timeout: 1200
     budgets:
-      hard_timeout_secs: 2400
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
     pricing:
       input_per_1k: 0.0
       output_per_1k: 0.0
@@ -2186,12 +2244,17 @@ models:
     ttft_timeout: 900
     generation_timeout: 1200
     budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
       # Tightened 2400 -> 600 (2026-06-14): pi hangs on a few hard AILANG
       # benchmarks (log_file_analyzer, polymorphic_ord_defaulting) and the old
       # 40-min backstop burned that much idle rig time per hang. Local qwen
       # finishes normal runs in ~1-3 min, so 10 min has ample headroom while
       # killing hangs 4x faster. Revisit if legit runs start hitting `timeout`.
-      hard_timeout_secs: 600
+      hard_timeout_secs: 3600
     pricing:
       input_per_1k: 0.0
       output_per_1k: 0.0
@@ -2217,7 +2280,12 @@ models:
     ttft_timeout: 900
     generation_timeout: 1200
     budgets:
-      hard_timeout_secs: 600
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
     pricing:
       input_per_1k: 0.0
       output_per_1k: 0.0
@@ -2241,7 +2309,12 @@ models:
     ttft_timeout: 900
     generation_timeout: 1200
     budgets:
-      hard_timeout_secs: 600
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
     pricing:
       input_per_1k: 0.0
       output_per_1k: 0.0
@@ -2276,6 +2349,11 @@ models:
     ttft_timeout: 1800      # 2x incumbent's 900 — 27B dense prefill on 28-44k prompts
     generation_timeout: 3600  # 3x incumbent's 1200 — measured 3.2x slower generation
     budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
       hard_timeout_secs: 3600  # 6x incumbent's 600, tracking the 6.8x prefill penalty
     pricing:
       input_per_1k: 0.0
@@ -2298,6 +2376,11 @@ models:
     ttft_timeout: 1800
     generation_timeout: 3600
     budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
       hard_timeout_secs: 3600
     pricing:
       input_per_1k: 0.0
@@ -2331,6 +2414,11 @@ models:
     ttft_timeout: 1800
     generation_timeout: 3600
     budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
       hard_timeout_secs: 3600
     pricing:
       input_per_1k: 0.0
@@ -2353,6 +2441,11 @@ models:
     ttft_timeout: 1800
     generation_timeout: 3600
     budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
       hard_timeout_secs: 3600
     pricing:
       input_per_1k: 0.0
@@ -2378,8 +2471,13 @@ models:
     ttft_timeout: 900
     generation_timeout: 1200
     budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
       # Local model: $0 cost, wall-clock is the only cap.
-      hard_timeout_secs: 2400
+      hard_timeout_secs: 3600
     pricing:
       input_per_1k: 0.0
       output_per_1k: 0.0
@@ -3017,6 +3115,14 @@ models:
   ollama-codellama:
     api_name: "codellama:7b"
     provider: "ollama"
+    budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
+      # Safety net for hung connections only; the token gate is the WORK gate.
+      hard_timeout_secs: 3600
     default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "CodeLlama 7B - local code generation"
     env_var: ""  # No API key needed
@@ -3031,6 +3137,14 @@ models:
   ollama-deepseek-coder:
     api_name: "deepseek-coder:6.7b"
     provider: "ollama"
+    budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
+      # Safety net for hung connections only; the token gate is the WORK gate.
+      hard_timeout_secs: 3600
     default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "DeepSeek Coder 6.7B - competitive with GPT-3.5"
     env_var: ""
@@ -3045,6 +3159,14 @@ models:
   ollama-qwen-coder:
     api_name: "qwen2.5-coder:7b"
     provider: "ollama"
+    budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
+      # Safety net for hung connections only; the token gate is the WORK gate.
+      hard_timeout_secs: 3600
     default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen 2.5 Coder 7B - top-tier open model"
     env_var: ""
@@ -3059,6 +3181,14 @@ models:
   ollama-llama3-2:
     api_name: "llama3.2:3b"
     provider: "ollama"
+    budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
+      # Safety net for hung connections only; the token gate is the WORK gate.
+      hard_timeout_secs: 3600
     default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Llama 3.2 3B - fast local inference"
     env_var: ""
@@ -3073,6 +3203,14 @@ models:
   ollama-gemma3:
     api_name: "gemma3:12b"
     provider: "ollama"
+    budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
+      # Safety net for hung connections only; the token gate is the WORK gate.
+      hard_timeout_secs: 3600
     default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Google Gemma 3 12B - multimodal open model"
     env_var: ""
@@ -3087,6 +3225,14 @@ models:
   ollama-gemma4-26b:
     api_name: "gemma4:26b"
     provider: "ollama"
+    budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
+      # Safety net for hung connections only; the token gate is the WORK gate.
+      hard_timeout_secs: 3600
     default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Google Gemma 4 26B (Q4_K_M, thinking mode) - direct Ollama smoke target"
     env_var: ""
@@ -3107,6 +3253,14 @@ models:
   ollama-granite3-2-vision:
     api_name: "granite3.2-vision:latest"
     provider: "ollama"
+    budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
+      # Safety net for hung connections only; the token gate is the WORK gate.
+      hard_timeout_secs: 3600
     default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "IBM Granite 3.2 Vision - document understanding and OCR"
     env_var: ""
@@ -3122,6 +3276,14 @@ models:
   ollama-paddleocr-vl:
     api_name: "MedAIBase/PaddleOCR-VL:0.9b"
     provider: "ollama"
+    budgets:
+      # WORK gate for a free local lane (#545 policy, Mark 2026-07-31): pricing is
+      # 0/0 so ResolvedMaxCostUSD gives NO cost gate, and without this the wall-clock
+      # was the ONLY gate — charging a bandwidth-bound box's slowness as model failure.
+      # Same 3.0M ceiling the cloud lanes carry, so a cohort gets EQUAL WORK.
+      max_tokens_per_bench: 3000000
+      # Safety net for hung connections only; the token gate is the WORK gate.
+      hard_timeout_secs: 3600
     default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "PaddleOCR-VL 0.9B - lightweight OCR vision-language model"
     env_var: ""

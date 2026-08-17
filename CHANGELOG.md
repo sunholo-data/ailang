@@ -4,6 +4,41 @@ For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-curre
 
 ## v0.32.0 (Unreleased)
 
+### The token WORK gate now covers local evals (it only ever covered cloud)
+
+- **`budgets.max_tokens_per_bench` was on 7 models, all cloud, and 0 of 27 local (ollama)
+  entries.** Local pricing is `0/0`, so `ResolvedMaxCostUSD` returns 0 and there is no cost
+  gate; with no token gate either, **`hard_timeout_secs` was the only gate on every local
+  model** — despite `models.go:96` stating wall-clock is "a safety net for hung connections,
+  not a cost proxy". The `--max-tokens-per-bench` flag's own help text reads "thrash
+  detection **for free local models**", so the instrument was built for this case and never
+  pointed at it. This extends the #545 policy (Mark, 2026-07-31: free lanes "gate on TOKENS
+  alone — equal work, and no spend to control") to the third free lane.
+- **All 27 local entries now carry `max_tokens_per_bench: 3000000`** — the same ceiling the
+  cloud lanes use, so a mixed cohort gets equal work — **and `hard_timeout_secs: 3600`**,
+  demoting wall-clock to the hung-connection safety net it is documented to be. Seven entries
+  were raised from 600/2400s; nine had no budgets block at all and were falling through to the
+  600s default.
+- **Measured impact — the wrong unit was inverting a result.** Re-scoring the 2026-08-17
+  qwen3.8-vs-qwen3.6 on-device A/B (117 runs) under each gate:
+
+  | arm | ungated | 600s wall-clock | 1.5M tokens |
+  |---|---|---|---|
+  | opencode-qwen3-8-27b | 27/27 | **23/27** | **27/27** |
+  | pi-qwen3-8-27b | 29/29 | 28/29 | 29/29 |
+  | opencode-qwen3-6 (control) | 24/31 | 24/31 | 24/31 |
+  | pi-qwen3-6 (control) | 30/30 | 29/30 | 29/30 |
+
+  The time gate killed 4 passing qwen3.8 runs; the token gate killed none, while still
+  aborting the one genuine runaway (a 4.69M-token pi-qwen3.6 run). qwen3.8 in fact uses
+  **fewer** tokens than qwen3.6 (median 177k vs 217k on opencode) — it does less work per
+  benchmark and merely costs more wall-clock per unit of work on a bandwidth-bound box.
+  Charging that to the model produced a false "qwen3.8 is unaffordable on opencode" reading.
+- Duplicate-`budgets` hazard noted for anyone scripting this file: entries that already had a
+  block need the key **merged in**, not a second block appended. A duplicate mapping key is
+  accepted by the runtime loader (last one wins, silently dropping the original
+  `max_cost_usd`/`hard_timeout_secs`) and only caught by the stricter test loader.
+
 ### Docs — staleness/fluff audit (2026-08-17)
 
 - **References**: added practitioner-convergence entries (Copeland's *Where the
