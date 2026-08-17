@@ -11,7 +11,10 @@ import { ACTIVE_PROMPT } from '@site/src/constants/version';
 
 **AILANG is an AI-first programming language designed for AI-assisted development.**
 
-This guide helps AI coding agents (like Claude, GPT, Gemini) write correct AILANG code.
+This guide is the onboarding path for AI coding agents (Claude, GPT, Gemini, …)
+and the humans configuring them. It deliberately contains **no syntax
+reference** — syntax lives in one place, the teaching prompt, so it can never
+drift from the compiler.
 
 ---
 
@@ -19,50 +22,37 @@ This guide helps AI coding agents (like Claude, GPT, Gemini) write correct AILAN
 
 ### Step 1: Verify AILANG is Installed
 
-Check if the user has AILANG installed:
-
 ```bash
 ailang --version
 ```
 
-**If not installed**, provide installation instructions:
+If not installed, use the one-line installer (see the
+[getting started guide](/docs/guides/getting-started) for manual options):
 
 ```bash
-# macOS (Apple Silicon)
-curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-arm64.tar.gz | tar -xz
-sudo mv ailang /usr/local/bin/
-
-# macOS (Intel)
-curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-amd64.tar.gz | tar -xz
-sudo mv ailang /usr/local/bin/
-
-# Linux
-curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-linux-amd64.tar.gz | tar -xz
-sudo mv ailang /usr/local/bin/
+curl -fsSL https://ailang.sunholo.com/install.sh | bash
 ```
 
 ### Step 2: Load the AILANG Teaching Prompt
 
-**CRITICAL**: Before writing ANY AILANG code, load the full syntax guide:
+**CRITICAL**: Before writing ANY AILANG code, load the canonical syntax guide —
+never write AILANG from memory:
 
-📖 **<a href={`/docs/prompts/${ACTIVE_PROMPT}`}>Teaching Prompt {ACTIVE_PROMPT}</a>** - Complete AILANG teaching prompt
+```bash
+ailang prompt
+```
 
-**Why this matters:**
-- AILANG is NOT Python, NOT Rust, NOT JavaScript
-- Pure functional programming with unique syntax
-- Algebraic effects with capability security
-- Common mistakes are documented in the prompt
-
-**How to use it:**
-1. Read the entire prompt before generating code
-2. Reference it for syntax questions
-3. Follow the examples - they show the exact correct syntax
+The same content is served as the
+<a href={`/docs/prompts/${ACTIVE_PROMPT}`}>current teaching prompt {ACTIVE_PROMPT}</a>,
+and version-scoped via the [hosted docs MCP server](/docs/guides/agent-mcp).
+It carries the full syntax, the common mistakes, and the idioms — it is the
+single source of truth, updated with every release.
 
 ### Step 3: Write AILANG Code
 
-**Every AILANG program MUST have this structure:**
+Every AILANG program has this shape:
 
-```typescript
+```ailang
 module benchmark/solution
 
 import std/io (println)
@@ -72,249 +62,36 @@ export func main() -> () ! {IO} {
 }
 ```
 
-**Key syntax rules:**
-- <CheckIcon inline size={14} /> Use `func` NOT `fn`, `function`, or `def`
-- <CheckIcon inline size={14} /> Use `type Name[a] = Constructor(a) | Constructor2` for ADTs
-- <CheckIcon inline size={14} /> NO `for`/`while` loops - use recursion
-- <CheckIcon inline size={14} /> Effects must be declared: `! {IO}`, `! {FS}`, etc.
-- <CheckIcon inline size={14} /> Semicolons REQUIRED between statements in blocks
-- <CheckIcon inline size={14} /> `show` is builtin - do NOT import it
-- <CheckIcon inline size={14} /> std/prelude is AUTO-IMPORTED (no imports for `<`, `>`, `==`, `!=`)
+Everything beyond this shape — operators, ADTs, records, effects, recursion
+patterns — comes from the teaching prompt you loaded in Step 2.
 
-**Common mistakes to avoid:**
-- <CrossIcon inline size={14} /> Writing Python/JavaScript/Rust syntax
-- <CrossIcon inline size={14} /> Forgetting `module` declaration
-- <CrossIcon inline size={14} /> Using loops instead of recursion
-- <CrossIcon inline size={14} /> Missing `export` keyword on functions
-- <CrossIcon inline size={14} /> Importing `show` or comparison operators
-
-### Step 4: Run the Code
+### Step 4: Check, then Run
 
 ```bash
-ailang run --caps IO,FS --entry main solution.ail
+ailang check solution.ail                       # type + effect check first
+ailang run --caps IO --entry main solution.ail  # flags BEFORE the filename
 ```
 
-**Note**: Flags MUST come BEFORE the filename!
+`ailang check` gives structured errors designed for machine repair — check
+before running, and re-check after every edit.
 
 ---
 
-## 📋 Quick Reference Card
+## 📚 Where Everything Lives
 
-### Module Structure
-```typescript
-module benchmark/solution         // REQUIRED first line
-import std/io (println)          // Import what you need
-export func main() -> () ! {IO}  // Export entry point
-```
+| You need | Go to |
+|----------|-------|
+| Syntax and idioms | `ailang prompt` / <a href={`/docs/prompts/${ACTIVE_PROMPT}`}>current teaching prompt</a> |
+| Live, version-scoped docs for agents | [Hosted docs MCP](/docs/guides/agent-mcp) |
+| Working programs | [Examples](https://github.com/sunholo-data/ailang/tree/dev/examples) |
+| What AILANG can't do yet | [Known limitations](/docs/reference/limitations) |
+| Current pass rates by model | [Benchmarks dashboard](https://ailang.sunholo.com/benchmarks) |
+| Debugging flags and REPL | [Debugging guide](/docs/guides/debugging) |
+| Human-oriented setup | [Getting started](/docs/guides/getting-started) |
 
-### Common Imports
-```typescript
-import std/io (println, print, readLine)        // Console IO
-import std/fs (readFile, writeFile, exists)    // File operations
-import std/clock (now, sleep)                  // Time operations
-import std/net (httpGet, httpPost)             // HTTP requests
-```
-
-**NO IMPORTS NEEDED:**
-- Comparisons: `<`, `>`, `<=`, `>=`, `==`, `!=` (auto-imported)
-- `show` function (builtin)
-
-### Recursion (instead of loops)
-```typescript
-// <CrossIcon inline size={14} /> WRONG - No loops in AILANG
-for i in [1, 2, 3] { println(i) }
-
-// <CheckIcon inline size={14} /> CORRECT - Use recursion
-export func printAll(xs: [int]) -> () ! {IO} {
-  match xs {
-    [] => (),
-    _ => {
-      println(show(head(xs)));
-      printAll(tail(xs))
-    }
-  }
-}
-```
-
-### Effects Declaration
-```typescript
-export func readConfig() -> string ! {FS}           // File system
-export func greet(name: string) -> () ! {IO}        // Console IO
-export func fetch(url: string) -> string ! {Net}   // Network
-export func main() -> () ! {IO, FS, Net}            // Multiple effects
-```
-
-### Records with Updates (NEW in v0.3.6)
-```typescript
-let person = {name: "Alice", age: 30, city: "NYC"};
-
-// Update fields (immutable - creates new record)
-let older = {person | age: 31};
-let moved = {older | city: "SF"};
-```
-
-### Pattern Matching
-```typescript
-type Option[a] = Some(a) | None
-
-export func getOrElse[a](opt: Option[a], default: a) -> a {
-  match opt {
-    Some(x) => x,
-    None => default
-  }
-}
-```
-
-### Multi-line ADTs (NEW in v0.3.8)
-```typescript
-// Single-line
-type Tree = Leaf(int) | Node(Tree, int, Tree)
-
-// Multi-line (optional leading pipe)
-type Tree =
-  | Leaf(int)
-  | Node(Tree, int, Tree)
-```
-
----
-
-## 🎯 Current Success Rates (v0.3.8)
-
-**Benchmark results (October 2025):**
-- **AILANG**: 49.1% success rate (28/57 benchmarks)
-- **Python** (baseline): 82.5% (47/57)
-- **Improvement**: +10.5% from v0.3.7 (38.6% → 49.1%)
-
-**Best performing model:**
-- Claude Sonnet 4.5: 68.4% across all tasks
-
-**What this means for you:**
-- Expect ~50% success on complex tasks
-- Simple programs work very well
-- Complex recursion/pattern matching needs careful attention
-- Always validate output by running `ailang run`
-
----
-
-## 🚨 Common Pitfalls & Fixes
-
-### Pitfall 1: Writing Python/JavaScript Syntax
-**Problem:**
-```python
-for i in range(10):
-    print(i)
-```
-
-**Fix:**
-```typescript
-module benchmark/solution
-import std/io (println)
-
-export func loop(n: int) -> () ! {IO} {
-  if n >= 10
-  then ()
-  else {
-    println(show(n));
-    loop(n + 1)
-  }
-}
-
-export func main() -> () ! {IO} {
-  loop(0)
-}
-```
-
-### Pitfall 2: Forgetting Module Declaration
-**Problem:**
-```typescript
-func main() {
-  println("hello")
-}
-```
-
-**Fix:**
-```typescript
-module benchmark/solution
-import std/io (println)
-
-export func main() -> () ! {IO} {
-  println("hello")
-}
-```
-
-### Pitfall 3: Missing Semicolons in Blocks
-**Problem:**
-```typescript
-{
-  println("First")
-  println("Second")  -- <CrossIcon inline size={14} /> Parse error!
-}
-```
-
-**Fix:**
-```typescript
-{
-  println("First");
-  println("Second")  -- <CheckIcon inline size={14} /> Last statement doesn't need semicolon
-}
-```
-
-### Pitfall 4: Importing show or comparisons
-**Problem:**
-```typescript
-import std/io (println, show)        -- <CrossIcon inline size={14} /> show not in std/io
-import std/prelude (Ord, Eq)         -- <CrossIcon inline size={14} /> auto-imported
-```
-
-**Fix:**
-```typescript
-import std/io (println)              -- <CheckIcon inline size={14} /> Only println
--- show and comparisons work automatically!
-```
-
----
-
-## 🔍 Debugging Failed Code
-
-If your generated code fails:
-
-1. **Check the error message** - AILANG provides detailed type errors
-2. **Verify module structure** - Must start with `module benchmark/solution`
-3. **Check for Python/JS syntax** - Common mistake!
-4. **Verify effects match** - `! {IO}` must match actual effects used
-5. **Test incrementally** - Use REPL for quick testing: `ailang repl`
-
-**Example debugging session:**
-```bash
-# Start REPL
-ailang repl
-
-# Test small expressions
-λ> 1 + 2
-3 :: Int
-
-# Test your function logic
-λ> let double = \x. x * 2 in double(21)
-42 :: Int
-
-# Check types
-λ> :type \x. x + x
-\x. x + x :: ∀α. Num α ⇒ α → α
-```
-
----
-
-## 📚 Full Documentation
-
-**Essential reading:**
-- **<a href={`/docs/prompts/${ACTIVE_PROMPT}`}>Teaching Prompt {ACTIVE_PROMPT}</a>** - Complete syntax guide (MUST READ before coding)
-- **[GitHub examples](https://github.com/sunholo-data/ailang/tree/main/examples)** - 48+ working examples
-- **limitations documentation** - Known limitations
-
-**Online docs:**
-- https://ailang.sunholo.com/ - Full documentation site
-- https://ailang.sunholo.com/docs/prompts - Teaching prompts
-- https://ailang.sunholo.com/docs/guides/getting-started - Getting started guide
+Success-rate numbers are deliberately **not** quoted here — they change every
+release. The [benchmarks dashboard](https://ailang.sunholo.com/benchmarks) is
+always current.
 
 ---
 
@@ -322,82 +99,19 @@ ailang repl
 
 Before generating AILANG code, confirm:
 
-- [ ] Read the full teaching prompt (run `ailang prompt` or see [Teaching Prompts](/docs/prompts))
+- [ ] Loaded the full teaching prompt (`ailang prompt`) — this session, not from memory
 - [ ] Understand: AILANG is NOT Python/JavaScript/Rust
-- [ ] Know: Use recursion, NOT loops
-- [ ] Know: Effects must be declared (`! {IO}`)
-- [ ] Know: std/prelude is auto-imported (no manual imports for comparisons)
-- [ ] Know: Every program needs `module benchmark/solution` first line
+- [ ] Know: every program starts with a `module` declaration
+- [ ] Plan to `ailang check` after every edit, and validate output with `ailang run`
 
-**If unsure about syntax:**
-1. Run `ailang prompt` to get the current teaching prompt
-2. Look at working examples in [GitHub examples](https://github.com/sunholo-data/ailang/tree/main/examples)
-3. When in doubt, use simpler constructs
-
----
-
-## 🎓 Learning Path for AI Agents
-
-**Phase 1: Basic Programs**
-- Hello World with `println`
-- Simple arithmetic functions
-- Basic recursion (factorial, fibonacci)
-
-**Phase 2: Data Structures**
-- Records (literals, field access, updates)
-- ADTs (Option, Result, List)
-- Pattern matching
-
-**Phase 3: Effects**
-- IO (console input/output)
-- FS (file operations)
-- Error handling with Option/Result
-
-**Phase 4: Advanced**
-- Complex recursion (quicksort, trees)
-- Higher-order functions
-- Type classes
-
----
-
-## 🤝 Best Practices
-
-1. **Start simple** - Get basic structure working first
-2. **Test incrementally** - Use REPL for quick validation
-3. **Follow examples** - The teaching prompt has proven patterns
-4. **Ask for clarification** - If user's request is ambiguous
-5. **Provide runnable code** - Include full module structure
-6. **Add comments** - Explain non-obvious recursion/pattern matching
-
-**Good response format:**
-```typescript
--- solution.ail
--- Solves [problem description]
--- Uses [key techniques]
-
-module benchmark/solution
-
-import std/io (println)
-
--- [Explain main logic]
-export func main() -> () ! {IO} {
-  [implementation]
-}
-```
+**If unsure about syntax**: re-read the relevant prompt section, look at a
+[working example](https://github.com/sunholo-data/ailang/tree/dev/examples),
+or verify the claim directly with `ailang check`. When in doubt, use simpler
+constructs.
 
 ---
 
 ## 📞 Getting Help
 
-**For users:**
 - Report issues: https://github.com/sunholo-data/ailang/issues
 - Documentation: https://ailang.sunholo.com/
-
-**For AI agents:**
-- If syntax is unclear, run `ailang prompt` for the current syntax guide
-- If examples fail, check limitations documentation
-- When in doubt, generate simpler code
-
----
-
-**Remember**: AILANG is designed for AI-assisted development. Your success rate will improve as you internalize the syntax patterns from the teaching prompt. Run `ailang prompt` to get the current syntax guide!
