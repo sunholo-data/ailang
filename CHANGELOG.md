@@ -4,6 +4,46 @@ For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-curre
 
 ## v0.32.0 (Unreleased)
 
+### SECURITY — the prelude's `println` bypassed the capability system
+
+- **`println` reached the runtime by two paths that disagreed on enforcement.** Bare
+  `println` (prelude-injected, the *documented* form — "println is in prelude, no import
+  needed") was registered in `eval.registerBuiltins` as a plain builtin that wrote to stdout
+  via `fmt` directly. `import std/io (println)` routes through `_io_println` →
+  `effects.Call` → `RequireCap`. Both spellings declare the same effect (`! {IO}`) and both
+  pass effect checking, but only the imported one consulted the capability set. A program
+  could therefore perform IO with the **wrong** capabilities, or with **none at all** —
+  `--caps` was evadable by simply not importing `std/io`, which defeats the point of a
+  capability system.
+
+  | form | `--caps IO` | `--caps Declassify` | no caps |
+  |---|---|---|---|
+  | `import std/io (println)` | prints | blocked | blocked |
+  | bare `println` (before) | prints | **prints** | **prints** |
+  | bare `println` (after) | prints | blocked | blocked |
+
+- **Fix**: prelude builtins that perform a real effect now gate on the same capability the
+  `std/io` path does. `registerBuiltins` takes the evaluator so the closure reads
+  `effContext` at call time (`SetEffContext` runs later), asserting a local `capRequirer`
+  interface — the existing `budgetChargeScoper` pattern, which avoids the
+  `eval`↔`effects` import cycle. Evaluators with no effect context (REPL, `TypedEvaluator`,
+  unit tests) are unchanged; they never granted capabilities in the first place.
+- **Regression test** `TestPreludeAndImportedPrintln_SameCapabilityGate` pins the invariant
+  across **both** resolution paths × {no caps, wrong cap, correct cap}. Verified to FAIL on
+  the unfixed binary with `CAPABILITY BYPASS: bare performed IO with caps []`, and only on
+  the bare path — the imported path was always correct.
+- **Found via an eval, and it had corrupted an eval result.** `benchmarks/prompt_injection.yml`
+  declared `caps: ["Declassify"]` while its task says "prints 1" with `expected_stdout: 1`.
+  IO was never granted, so the benchmark **only passed for solutions using the evading bare
+  form** and FAILED correct code that imported `std/io`. In the qwen3.8-vs-qwen3.6 on-device
+  A/B, qwen3.8 wrote the imported form and was scored `runtime_error`; qwen3.6 passed by
+  using the bypass. Caps list corrected to `["Declassify", "IO"]`.
+- **Audited the rest, and it is NOT systemic**: of 91 benchmarks, 90 already grant IO and
+  `prompt_injection` was the only mismatch; 0 examples in `examples/manifest.json` (195) use
+  bare `println` without IO. One test needed updating — `TestPreludeDocs_ForwardCompileProbe`
+  ran its probe without caps and passed only because of this bug; it now passes `--caps IO`,
+  since it tests prelude *resolution*, not capability enforcement.
+
 ### The token WORK gate now covers local evals (it only ever covered cloud)
 
 - **`budgets.max_tokens_per_bench` was on 7 models, all cloud, and 0 of 27 local (ollama)

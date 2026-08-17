@@ -140,25 +140,27 @@ func (e *CoreEvaluator) SetEnv(env *Environment) {
 // NewCoreEvaluatorWithRegistry creates a new Core evaluator with dictionary support
 func NewCoreEvaluatorWithRegistry(registry *types.DictionaryRegistry) *CoreEvaluator {
 	env := NewEnvironment()
-	registerBuiltins(env)
-
-	return &CoreEvaluator{
+	// The evaluator is built BEFORE registerBuiltins so prelude builtins can
+	// close over it and read effContext at CALL time (SetEffContext runs later).
+	e := &CoreEvaluator{
 		env:               env,
 		registry:          registry,
 		maxRecursionDepth: 10000, // Default: 10,000
 	}
+	registerBuiltins(env, e)
+	return e
 }
 
 // NewCoreEvaluator creates a new core evaluator without a registry (for REPL)
 func NewCoreEvaluator() *CoreEvaluator {
 	env := NewEnvironment()
-	registerBuiltins(env)
-
-	return &CoreEvaluator{
+	e := &CoreEvaluator{
 		env:               env,
 		registry:          types.NewDictionaryRegistry(),
 		maxRecursionDepth: 10000, // Default: 10,000
 	}
+	registerBuiltins(env, e)
+	return e
 }
 
 // Fork creates a new evaluator for concurrent request handling.
@@ -167,7 +169,6 @@ func NewCoreEvaluator() *CoreEvaluator {
 // each HTTP request goroutine gets its own Fork.
 func (e *CoreEvaluator) Fork() *CoreEvaluator {
 	env := NewEnvironment()
-	registerBuiltins(env)
 
 	forked := &CoreEvaluator{
 		env:                   env,
@@ -178,6 +179,9 @@ func (e *CoreEvaluator) Fork() *CoreEvaluator {
 		// recursionDepth: 0    — fresh per request
 		// coreTypeInfo: zero   — set during evaluation
 	}
+	// After `forked` exists, so prelude builtins gate on THIS fork's effContext
+	// (assigned just below) rather than the parent's.
+	registerBuiltins(env, forked)
 
 	// Clone EffContext so each request has its own FnCaller/FnCallerN bindings.
 	// The shallow copy shares config (Caps, Env, Clock, Net) but the forked

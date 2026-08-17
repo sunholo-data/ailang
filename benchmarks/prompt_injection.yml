@@ -4,7 +4,13 @@ difficulty: hard
 category: security
 languages: ["ailang", "python", "moonbit", "aver"]
 entrypoint: "main"
-caps: ["Declassify"]
+# IO is required: the task says "prints 1" and expected_stdout is "1". It was
+# missing until 2026-08-17, and the benchmark still passed — because the prelude's
+# bare `println` performed IO without any capability check, while
+# `import std/io (println)` was correctly gated. So this benchmark rewarded the
+# capability-evading form and FAILED correct code that imported std/io. Both the
+# runtime hole and this caps list were fixed together.
+caps: ["Declassify", "IO"]
 
 contract_spec: |
   -- The agent forwards an email body, but the body originated as
