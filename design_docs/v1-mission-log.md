@@ -11985,3 +11985,101 @@ remaining half is a mechanism choice that is Mark's, not the controller's.
 **Next**: re-apply the three `#759`/`#758` deltas as one small follow-up (`m-changelog-gate-deltas`),
 then the 14 remaining sweep orphans (`#727`, `#708`, `#687` first). The `Set up job` re-run is owed
 once GitHub marks the incident resolved.
+
+## 219 — 2026-08-18 — Iteration 218: the changelog gate certified a link to a file that did not exist
+
+**Picked**: the queue head `m-changelog-gate-deltas` — fold the three arms motoko's `#758` carried
+and the landed `#759` lacks into the gate. `dev` was green on the required set, so nothing outranked
+the queue.
+
+**Reality check**: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. One unread inbox
+message, iteration 217's own report — not a directive, not a cross-mission request, no
+`github-untrusted:` sender. **Zero** allowlisted directives on `#745`, and the zero is a measurement
+rather than a silence: all 6 enumerated comments are the bot's own, so widening `--since` to the
+epoch returns 0 for the same true reason. Decision ledger valid, **12** OPEN rows (`D-18` new at
+217). Running skill byte-identical to `origin/dev` — `cmp` silent, 237334 B both sides. No weekly
+rotation: `#745` was created `2026-08-17T06:14:45Z` = **08:14 CEST**, i.e. *after* the Monday-07:00
+LOCAL boundary, and holds 6 comments; the weekly sweep already ran at iteration 216.
+
+`origin/dev` `a99083ae5`: **16 checks, one not-green — `SonarCloud Code Analysis: failure`.** Walked
+back over six commits before attributing it: `failure` on both analysed tips, `absent` on the four
+intra-push commits (a property of push tips, not a clean bill). Standing, NON-REQUIRED, inherited —
+named here rather than left invisible, per the Gate-1 rule written after it went four iterations
+unseen at 158. All 4 required contexts green, so it does not outrank the queue. The driver pin
+equalled `origin/dev`, so mission state was read first-party.
+
+Died-mid-flight sweep: three open PRs from this account, none of them an attempt at this item
+(`#760` is motoko's own record, `#695` old coordinator work, `#613` the `D-1`-parked draft). No
+`iter218` worktree existed. Main checkout clean apart from the two rig-synced benchmark JSONs.
+
+**The row under-stated its own work, and only measuring found it.** `m-changelog-gate-deltas`
+framed all three deltas as missing test *arms*. Measured against the landed gate with a firing
+control (clean fixture `rc=0`):
+
+| fixture | measured at `a99083ae5` |
+|---|---|
+| `## [Unreleased]` in the index | **rc=1** — already refused |
+| `## [v0.32.0]` in the index | **rc=1** — already refused |
+| `rm -rf changelogs/` | **rc=0** ✓green |
+| `changelogs/` with only `v0.17-old.md` | **rc=0** ✓green |
+
+So two thirds of the row were shape pins on branches that already work, and the remaining third was
+a missing **refusal branch**. `if [ -n "$ACTIVE" ] && ! grep -qF …` skipped the link check entirely
+whenever `ls changelogs/ | grep current` came back empty, and the gate then exited 0 printing
+`✓ CHANGELOG.md is index-only and links changelogs/` — a **blank filename inside a success
+message**, certifying a link to a file that does not exist.
+
+That is the same silent drop this gate exists to prevent, arriving from the far end. The gate
+watches for release notes piling up in the index; nothing watched whether the archive those entries
+are supposed to move *into* still existed. `release-manager` builds the notes from the active file,
+so with no active file there are no release notes — and the gate said green. `ls changelogs/` is an
+enumerator, and this loop's own rule is that an enumerator returning empty must fail loudly.
+
+**Shipped**: `#762` → squash **`c307db03b`**. PR head `c0ee52083` carried **21 checks, zero
+not-green**; 4/4 required contexts pass (`build` 1m59s, `docs-gate` 4s, `lint` 3m58s, `test`
+17m32s); `MERGEABLE CLEAN` (checked *before* any dropped-event hypothesis, per the rule added at
+198). A second anti-vacuity floor sits beside the archive-heading one, and the now-provably-true
+`[ -n "$ACTIVE" ]` guard is **deleted** rather than kept as belt-and-braces — a permanently-true
+guard is precisely what let the empty case past this check for as long as it existed.
+
+**Mutation drills** (rule 3j — the unit is the branch, not the milestone):
+
+| mutant | result |
+|---|---|
+| `if false && [ -z "$ACTIVE" ]` | all **eleven** other arms green, **only** arms 12–13 fail → the new arms are that branch's killers, not bystanders |
+| `if false && [ -n "$OFFENDERS" ]` | arms 10–11 fail **alongside** arms 2–5, which share that branch → recorded as shape pins, not branch killers |
+
+Both mutants asserted LANDED by sha256 and valid by `bash -n` before either result was read.
+Restored from a copy — never `git checkout --`, which in an uncommitted worktree deletes the work —
+and verified byte-identical to `9707d1185`. Baselined on pristine `origin/dev` first (9/9 arms,
+rc=0), so the gates measure the change and not the repo.
+
+**Platform narrowing closed, for once.** Rule 3b(viii) normally ends with "windows and ubuntu legs
+unrun locally". Here the ubuntu `test` job's own log names all four new arms and
+`changelog index gate: OK (13 arms)`, so the pins are proven to execute on CI rather than only on
+darwin/arm64. Cheap: one `actions/jobs/<id>/logs` read.
+
+The changelog entry went into `changelogs/v0.18-current.md`, never the root index — which is the
+whole lesson of `#759`, and would have red-lighted this very gate had it gone the other way.
+
+**Routing evidence**: model=claude:claude-opus-5 task-class=mechanical round1-score=n/a rounds=0
+corrections=0 provider=anthropic agent=controller cost=quota-bucket:weekly-opus (`metered=$0.00`).
+No designer, planner, executor, evaluator, quorum or GPU call: the queue row itself specifies
+controller-inline mechanical work, and Gate 3 assigns that to the controller. Codex remains dry
+until 2026-08-20 05:34.
+
+**Ruled out**: treating the queue row's own three-arms framing as fact (measurement upgraded a third
+of it from a test addition to a code fix — the inherited-verification-debt class, aimed this time at
+a row *this loop wrote itself* one iteration earlier); treating the two bracketed shapes as
+unguarded (they refuse — they were merely unpinned); rc-only mutation arms; keeping the
+`[ -n "$ACTIVE" ]` guard alongside the new floor; letting the standing SonarCloud red outrank a green
+required set; and diagnosing anything as a dropped webhook event before reading `mergeable`.
+
+**Retro lane**: none. One friction this iteration (a queue row under-stating its own scope) and the
+bar for a skill edit is two. The two-mission claim protocol is already `D-18`, awaiting Mark; no new
+process gap surfaced.
+
+**Next**: the 14 remaining sweep orphans (`m-sweep-orphans-2026-08-17`), mission-infra lane first —
+`#727`, `#708`, `#687` — each ghost-disciplined at HEAD before routing, since two of them sit in
+code this loop has since edited. Secondary: triage the standing SonarCloud red far enough to say
+whether it is real, since nobody has looked at it across at least two analysed commits.
