@@ -35,6 +35,29 @@ fi
 
 ACTIVE=$(ls changelogs/ 2>/dev/null | grep current | head -1)
 
+# Second anti-vacuity floor, on the OTHER side of the index (added 2026-08-18,
+# iteration 218). The link check below is guarded by `[ -n "$ACTIVE" ]`, so an
+# absent or *current*-less changelogs/ directory skipped it entirely and the gate
+# exited 0 printing `links changelogs/` with an empty filename -- an index
+# certified as pointing at a file that does not exist. Measured on dev at
+# a99083ae5: `rm -rf changelogs/` gave rc=0, and so did a changelogs/ holding
+# only v0.17-old.md.
+#
+# That is the same silent-drop this whole gate exists to prevent, arriving from
+# the far end: release-manager builds notes from the active file, so if there is
+# no active file there are no release notes, and the gate said green.
+# A gate's coverage is a property of its enumerator; `ls changelogs/` is one, and
+# an enumerator that comes back empty must FAIL LOUDLY, never pass.
+if [ -z "$ACTIVE" ]; then
+	echo -e "${RED}✗ no changelogs/*current* file found -- the index points nowhere${RESET}"
+	echo ""
+	echo "$ROOT_CHANGELOG is an index into changelogs/, and release-manager builds"
+	echo "the release notes from the active changelogs/v*-current.md file. With no"
+	echo "such file there is nothing to build notes from, so this gate refuses"
+	echo "rather than passing on an empty enumeration."
+	exit 1
+fi
+
 # Anti-vacuity floor: the archive heading is the one heading an index is allowed
 # to have, and every check below is stated relative to it. Without it we cannot
 # tell an index from an empty file, and "no offenders found" would be vacuous.
@@ -69,7 +92,10 @@ if [ -n "$OFFENDERS" ]; then
 fi
 
 # The index is only useful if it actually points at the active changelog.
-if [ -n "$ACTIVE" ] && ! grep -qF "changelogs/$ACTIVE" "$ROOT_CHANGELOG"; then
+# No `[ -n "$ACTIVE" ]` guard: the floor above already refused the empty case, so
+# keeping one here would be a branch that can never fire -- and a permanently-true
+# guard is exactly what let the empty case slip past this check before.
+if ! grep -qF "changelogs/$ACTIVE" "$ROOT_CHANGELOG"; then
 	echo -e "${RED}✗ $ROOT_CHANGELOG does not link the active changelog (changelogs/$ACTIVE)${RESET}"
 	exit 1
 fi
