@@ -22,24 +22,8 @@ Built into AILANG itself (Go implementation), provides persistent message passin
 
 **Storage:** `~/.ailang/state/collaboration.db` (SQLite)
 
-**Commands:**
-```bash
-# Send message to an agent inbox
-ailang messages send <inbox> "message" --title "Title" --from "sender"
-
-# Check inbox
-ailang messages list --unread
-ailang messages list --inbox <agent-id>
-
-# Read full message
-ailang messages read <message-id>
-
-# Acknowledge message (mark as read)
-ailang messages ack <message-id>
-
-# Un-acknowledge if task failed
-ailang messages unack <message-id>
-```
+Full CLI reference (send/list/read/ack/unack/forward/search) lives in the
+[Agent Messaging guide](./agent-messaging.md).
 
 **Inbox types:**
 - **User inbox:** Messages for the human developer
@@ -258,143 +242,25 @@ your-project/
         └── M-TESTING-INLINE-COMPLETION-SPRINT.md
 ```
 
-## Practical Use Cases
+## Inspecting State from the Command Line
 
-### Use Case 1: Check Sprint Status (Without Claude)
+The state is plain JSON + SQLite, so everything is inspectable without Claude:
 
 ```bash
-# From command line, inspect progress anytime:
-$ jq '.milestones[] | {id, passes, actual_loc}' \
+# Sprint progress at a glance
+jq '.milestones[] | {id, passes, actual_loc}' \
   .ailang/state/sprints/sprint_M-TESTING-INLINE.json
 
-{
-  "id": "M1",
-  "passes": true,
-  "actual_loc": 210
-}
-{
-  "id": "M2",
-  "passes": null,
-  "actual_loc": 0
-}
+# Multiple sprints run in parallel — one JSON file each
+ls .ailang/state/sprints/
+
+# Messages waiting for an agent
+ailang messages list --inbox sprint-executor --unread
 ```
 
-### Use Case 2: Review Messages
-
-```bash
-# See all messages waiting for sprint-executor:
-$ ailang messages list --inbox sprint-executor --unread
-
-# Read full message:
-$ ailang messages read <message-id>
-
-# Mark as read after handling:
-$ ailang messages ack <message-id>
-```
-
-### Use Case 3: Recovery from Interruption
-
-```bash
-# Sprint crashes, Claude session lost
-# No problem! State is persistent:
-
-$ cat .ailang/state/sprints/sprint_M-TESTING-INLINE.json
-{
-  "milestones": [
-    {
-      "id": "M1",
-      "passes": true,
-      "notes": "Complete, all tests pass"
-    },
-    {
-      "id": "M2",
-      "passes": null,
-      "started": "2025-11-27T10:00:00Z",
-      "notes": "In progress, wrote 3/5 example files"
-    }
-  ]
-}
-
-# Start new Claude session:
-You: "Resume sprint M-TESTING-INLINE"
-
-Claude: "I see M1 is complete and M2 is in progress.
-         You've written 3/5 example files.
-         Let me continue with the remaining 2..."
-```
-
-### Use Case 4: Parallel Sprints
-
-```bash
-# Work on multiple features simultaneously
-$ ls .ailang/state/sprints/
-sprint_M-TESTING-INLINE.json    # Testing feature (70% done)
-sprint_M-DX11.json               # Developer experience (20% done)
-sprint_M-POLY-B.json             # Polymorphism phase 2 (not started)
-
-# Switch between them freely:
-You: "Continue sprint M-DX11"
-# Claude loads that sprint's state, continues that work
-
-You: "Switch to M-TESTING-INLINE"
-# Claude saves M-DX11 state, loads M-TESTING-INLINE state
-```
-
-## Key Benefits
-
-### 1. Multi-Day/Week Sprints
-Work on complex features over extended periods without losing context.
-
-### 2. Zero Context Loss
-State persists across session boundaries, interruptions, crashes, or days of inactivity.
-
-### 3. Automatic Agent Handoffs
-sprint-planner → sprint-executor with zero manual copy/paste.
-
-### 4. Parallel Development
-Multiple sprints can run concurrently, switch between them anytime.
-
-### 5. Auditable Progress
-All progress tracked in version-controlled JSON files.
-
-### 6. Resumable Anytime
-Interrupt work at any point, resume exactly where you left off.
-
-## Comparison: Before vs After
-
-### Without State System ❌
-
-```
-Session 1:
-You: "Plan sprint"
-Claude: Creates plan (in context only)
-[Close Claude]
-
-Session 2 (days later):
-You: "Continue sprint"
-Claude: "I don't have context about a sprint"
-You: *Pastes entire plan manually*
-You: "We completed M1, now do M2"
-You: *Explains what M1 was*
-You: *Explains what tests passed*
-```
-
-**Time lost: 10-15 minutes every session for context**
-
-### With State System ✅
-
-```
-Session 1:
-You: "Plan sprint"
-Claude: Creates plan + JSON + sends message
-[Close Claude]
-
-Session 2 (days later):
-You: "Continue sprint"
-Claude: Loads state → "M1 complete, starting M2..."
-```
-
-**Time lost: 0 minutes!**
+Because state survives crashes and session loss, recovery is just "Resume
+sprint M-TESTING-INLINE" in a fresh session — the skill reloads the JSON and
+continues from the last checkpoint.
 
 ## Technical Details
 
@@ -489,43 +355,10 @@ mv .ailang/state/sprints/sprint_M-OLD.json \
 
 ## Troubleshooting
 
-### Sprint State Not Loading
-
-```bash
-# Check if file exists
-ls -la .ailang/state/sprints/
-
-# Validate JSON
-jq -e . .ailang/state/sprints/sprint_M-TESTING-INLINE.json
-
-# Check permissions
-chmod 644 .ailang/state/sprints/*.json
-```
-
-### Messages Not Appearing
-
-```bash
-# Check messages
-ailang messages list --unread                    # All unread
-ailang messages list --inbox sprint-executor     # Agent inbox
-ailang messages list --inbox user                # User inbox
-
-# Send test message
-ailang messages send user "test" --title "Test" --from "debug"
-```
-
-### State Conflicts
-
-```bash
-# If multiple Claude sessions modify same sprint:
-# 1. Load current state
-cat .ailang/state/sprints/sprint_M-TESTING-INLINE.json
-
-# 2. Manually merge if needed
-# 3. Commit merged version
-git add .ailang/state/sprints/sprint_M-TESTING-INLINE.json
-git commit -m "Resolve sprint state conflict"
-```
+State not loading → validate the JSON: `jq -e . .ailang/state/sprints/<file>.json`.
+Messages not appearing → see the [Agent Messaging guide](./agent-messaging.md).
+Two sessions edited the same sprint → the state is git-tracked JSON; diff,
+merge by hand, commit.
 
 ## Related Documentation
 
