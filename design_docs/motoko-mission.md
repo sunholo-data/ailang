@@ -289,6 +289,24 @@ for it, do not assume it.
   and the only issue queue). The motoko fork worktrees (`~/dev/mk-*`, see [MOTOKO.md](../MOTOKO.md))
   and `sunholo-data/ailang-packages` are work surfaces, not mission repos. Gate 3b CI applies to the
   anchor.
+- **V1 OWNS DEV CI RED ON THE ANCHOR. YOU DO NOT — hand it over and keep your own pick.** V1 and this
+  mission both run `MISSION_REPO=sunholo-data/ailang` (separate clones, one GitHub repo), so a red dev
+  is visible to both — and the skill's rule that a red "hits whoever observes next" silently assumes a
+  single observer. There is not one. The driver's overlap guard is per-mission by construction
+  (`PIDFILE="$STATE_DIR/mission-${MISSION_NAME}.pid"` — each loop guards only against *itself*), and no
+  cross-mission mutex exists; iterations deliberately never take `rig.lock` (GPU mutex only, driver
+  line 15). **Measured 2026-08-17:** both loops preempted onto the same red and opened
+  [#758](https://github.com/sunholo-data/ailang/pull/758) (this mission, iteration 9) and
+  [#759](https://github.com/sunholo-data/ailang/pull/759) (V1, iteration 217) — **the same six files**,
+  both adding `scripts/test_check_changelog.sh`, both moving the same 169 lines out of `CHANGELOG.md`.
+  Gate 2's open-PR check cannot catch this: V1 ran it at ~18:58Z, before #758 existed at 19:05Z, so it
+  is a point-in-time query aimed at a *past* iteration's abandoned work and is blind to a concurrent
+  peer. **Third** instance of cross-mission contention on work rather than on a git ref — iterations 5
+  and 6 both collided on `changelogs/v0.18-current.md`, the same file again here. So: **on observing a
+  red dev, record it, hand it to V1 via the cross-mission channel, and proceed with your own pick. A
+  red you do not own never outranks it.** ONE carve-out: if the red is *yours* — a commit or PR from
+  this mission caused it, or it sits in motoko/eval-lane territory V1 has no domain knowledge for —
+  you own the fix, because handing that to V1 strands it.
 - **Never run `ailang fmt` across motoko sources.** It reflows whole expressions and inserts blank
   lines between imports — hundreds of lines of conflict surface against a fork we must stay
   mergeable with, for no benefit.

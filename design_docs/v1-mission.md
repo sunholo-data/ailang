@@ -307,7 +307,16 @@ invokes.
 - **Dev stays GREEN** (2026-07-10, Mark): an item is not [LANDED] until remote CI passes on its
   merge commit (Gate 3b — local gates miss fmt-check/govulncheck/file-sizes/docs build), and a
   red dev CI outranks the queue at OBSERVE, including time-based reds from newly published vuln
-  advisories.
+  advisories. **V1 OWNS that red — it is not shared** (2026-08-17). The motoko mission runs the same
+  `MISSION_REPO=sunholo-data/ailang` from a separate clone, so it sees every red you see, and the
+  skill's "hits whoever observes next" assumes a single observer that does not exist: the overlap
+  guard is per-mission (`mission-${MISSION_NAME}.pid`) and there is no cross-mission mutex. When both
+  loops fired together they produced [#758](https://github.com/sunholo-data/ailang/pull/758) and
+  [#759](https://github.com/sunholo-data/ailang/pull/759) — same red, same six files, duplicated
+  end-to-end. motoko's charter now hands anchor reds here instead of fixing them, so **expect those
+  hand-offs on the cross-mission channel and treat them as OBSERVE input**; a red nobody picks up
+  because each loop assumed the other owned it is the failure mode this creates. Conversely, a red in
+  motoko/eval-lane territory stays motoko's — do not adopt one you have no domain knowledge for.
 - **BENCHMARK CURATION CYCLES RUN THROUGH THE LOOP, NOT AS ATTENDED SIDE-SESSIONS** (RATIFIED
   2026-08-04, Mark: *"Route curation through mission loop"* — his one-line answer to iteration 140's
   DECISIONS ask). A curation cycle (tier promotion/demotion, retirement, rotation — the operations

@@ -430,6 +430,21 @@ allowlist/revert) IS this iteration's first deliverable. Time-based reds (new vu
 runner-image changes un-hiding latent bugs, dependabot peer-dep breaks) hit whoever observes
 next — that's the mission's job now.
 
+**Scoped to the OWNING mission (2026-08-17).** "Whoever observes next" assumed one observer per
+repo. That is false wherever two missions share a `MISSION_REPO`: V1 and motoko both carry
+`sunholo-data/ailang` from separate clones, the overlap guard is per-mission by construction
+(`PIDFILE="$STATE_DIR/mission-${MISSION_NAME}.pid"`, each loop guarding only itself), and no
+cross-mission mutex exists. Both loops therefore preempt onto the *same* red and do the *same*
+work — measured as [#758](https://github.com/sunholo-data/ailang/pull/758)/[#759](https://github.com/sunholo-data/ailang/pull/759),
+identical six-file fixes opened four minutes apart. Gate 2's open-PR check does not save you: it
+is point-in-time at pick time, aimed at a *past* iteration's abandoned work, so a peer that opens
+its PR later in the same window is invisible (V1 checked at ~18:58Z; #758 appeared 19:05Z).
+So: **a red outranks the queue only for the mission that OWNS the repo** — for
+`sunholo-data/ailang` that is V1. A non-owning mission records the red, hands it to the owner on
+the cross-mission channel, and keeps its own pick, EXCEPT where the red is its own doing or sits
+in territory the owner has no domain knowledge for. Check your charter's guardrails for which
+side of that line you are on before letting any red displace your pick.
+
 **BUT A RED CAN BE THE CI PROVIDER ITSELF, AND THEN THE DELIVERABLE IS THE DIAGNOSIS — NOT A FIX,
 AND EMPHATICALLY NOT A REVERT** (added 2026-08-06 V1 iteration 153; instance 1 was `mission-world`
 iteration 58 the SAME DAY, which hit the identical signature in a different repo and carried it
