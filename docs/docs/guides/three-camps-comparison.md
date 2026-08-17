@@ -126,6 +126,62 @@ Total: **~14 gap benchmarks**, each one a testable claim about why a particular 
 
 The self-audit results — AILANG running against all 14 — are on the [Three Camps Self-Audit](./three-camps-self-audit) companion page.
 
+## Deep Dive: AILANG vs Zero
+
+*(Verified against Zero v0.1.1 / AILANG v0.20.0, May 2026.)*
+
+Vercel Labs' [Zero](https://github.com/vercel-labs/zerolang) shipped May 2026 with the tagline
+*"The programming language for agents"* — the same thesis AILANG has worked since 2024, arrived
+at from the opposite end of the design spectrum. The two are complementary, not competitors:
+Zero stakes out **agent-authored systems software** (C-family, native binaries, manual memory,
+borrow checking, C FFI); AILANG stakes out **agent-authored applied/reasoning code**
+(ML-family, GC, effect rows, LLM-native primitives).
+
+**The convergence is the headline.** Both independently landed on: explicit effects in
+signatures (Zero's `raises { ErrSet }` / AILANG's `! {IO, Net, …}`), capability-object I/O with
+no ambient globals (Zero's `World` parameter / AILANG's capability handlers + budgets),
+machine-readable diagnostics (`--json` everywhere), determinism as a design goal, and the
+compiler as an agent tool (`zero fix --plan --json` / `ailang chains` + MCP). When two teams
+arrive at the same answers independently, the answers are probably right.
+
+**What Zero has that AILANG doesn't**: native binary emit, C FFI, borrow checking, and —
+worth studying — a best-in-class JSON diagnostic schema plus compiler-emitted repair plans
+(`zero fix --plan`) and seven modular version-matched skills vs AILANG's single prompt blob
+([M-ZERO-LANGUAGE-LEARNINGS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-zero-language-learnings.md)).
+**What AILANG has that Zero doesn't**: LLM calls as a typed effect (`std/ai`), row-polymorphic
+effects (generic over callees' effects — inexpressible in Zero's closed `raises` sets),
+Z3 contracts, capability budgets, concurrency, and an eval harness that treats agent failure
+modes as language-design signal.
+
+**Eval-suite inclusion**: yes in principle (both languages assume models learn from an
+in-context prompt), but blocked in practice — a hands-on smoke test of Zero v0.1.1 found the
+released binary only lowers trivial programs (`CGEN004` on string parameters), no float/math
+stdlib, and `zero skills` served only from the source checkout. Gated on Zero v0.2.0+ shipping
+a working `zero run`, with a re-check scheduled November 2026.
+
+## Deep Dive: Guardians (Prompt Injection as a Type-System Problem)
+
+*(AILANG v0.16.0+; full how-to in the [IFC Labels guide](./ifc-labels.mdx).)*
+
+Erik Meijer's January 2026 CACM piece [*Guardians of the Agents*](https://cacm.acm.org/practice/guardians-of-the-agents/)
+(with a ~1,900-LOC [Python reference implementation](https://github.com/metareflection/guardians))
+frames prompt injection correctly: the LLM cannot distinguish instructions from data, so verify
+the plan before any tool runs, using three orthogonal checks — **taint analysis**, **automaton
+checks over tool-call sequences**, and **SMT over arguments**.
+
+AILANG's position: **two of those three are already language features**, and that placement is
+the point. The SMT half shipped in v0.9.x (`ailang verify`, Z3 contracts in the signature); the
+taint half shipped in v0.16.0 as IFC labels — `string<email>` marks a source, `string{not email}`
+marks a refusing sink, and lowering a label requires the `! {Declassify}` effect. The compiler
+rejects the injection shape at build time; identity bindings can't launder labels. It is the
+parameterised-SQL move applied to the LLM-tool boundary: separate code from data *in the type
+system*, at zero runtime cost, instead of wrapping the runtime in a guardian library whose every
+sink is enforced by convention and reviewer attention. The automaton third is still ahead —
+deliberately unbuilt until IFC labels have been run in anger. The
+[prompt-injection benchmark](https://github.com/sunholo-data/ailang/tree/dev/benchmarks/prompt_injection)
+scores models on producing code that `ailang verify` accepts as safe *and* correctly trips on
+the injected variant — a gate Python baselines structurally cannot offer.
+
 ## What This Map Tells Us
 
 A few observations from sitting with the survey for a few days:
@@ -151,7 +207,6 @@ If you're working on an AI-native language that should appear here, [open an iss
 
 ## See Also
 
-- [AILANG vs Zero](./zero-comparison) — single-language deep-dive on Vercel's Zero
 - [AILANG vs Agents](./ailang-vs-agents) — why AILANG exists at all
 - [AI Effect Guide](./ai-effect) — how `std/ai` works
 - [Design Axioms](/docs/references/axioms) — the A1–A12 framework AILANG's design follows
