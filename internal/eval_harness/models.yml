@@ -2222,6 +2222,117 @@ models:
       qwen3.6:35b-a3b-mxfp8 tag in the ~/.pi/agent/models.json ollama provider block.
       Added 2026-06-14.
 
+  # ---------------------------------------------------------------------------
+  # qwen3.8 27B — DENSE. Added 2026-08-17 for the on-device A/B vs qwen3.6.
+  # NOT in the rotation. Cleared the OpenRouter quality screen (+15.9pp AILANG,
+  # McNemar p=0.0094 — see or-qwen3-8-27b) but pays a MEASURED throughput
+  # penalty on this bandwidth-bound box, same 7560-token prompt, ollama 0.32.14:
+  #     prefill  245.3 tok/s  vs qwen3.6  1671.2  -> 6.8x slower
+  #     gen       26.1 tok/s  vs qwen3.6    82.3  -> 3.2x slower
+  # Budgets below are SCALED (not matched to the incumbent's 600s) so the
+  # timeout does not decide the experiment — same reasoning as the price-scaled
+  # cost cap on or-qwen3-8-27b. To recover the operational number, compare
+  # recorded durations against the rotation's real 600s budget post-hoc.
+  # ---------------------------------------------------------------------------
+  opencode-qwen3-8-27b:
+    api_name: "qwen3.8:27b-mxfp8"
+    provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Qwen 3.8 27B DENSE (MXFP8, 31.7GB) via opencode+Ollama — LOCAL. A/B candidate vs qwen3.6-35b-a3b; requires ollama >= 0.32.12."
+    env_var: ""
+    agent_cli: "opencode"
+    agent_model_name: "ollama/qwen3.8:27b-mxfp8"
+    model_family: "qwen-3-8"
+    max_output_tokens: 32768
+    ttft_timeout: 1800      # 2x incumbent's 900 — 27B dense prefill on 28-44k prompts
+    generation_timeout: 3600  # 3x incumbent's 1200 — measured 3.2x slower generation
+    budgets:
+      hard_timeout_secs: 3600  # 6x incumbent's 600, tracking the 6.8x prefill penalty
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      Added 2026-08-17 for the on-device A/B against opencode-qwen3-6-35b-a3b-mxfp8.
+      Dense 27B active vs the incumbent's 35B/3B-active MoE. Do NOT add to
+      OS_FILLER_MODELS until the A/B settles the quality-vs-throughput tradeoff.
+
+  pi-qwen3-8-27b:
+    api_name: "qwen3.8:27b-mxfp8"
+    provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Qwen 3.8 27B DENSE MXFP8 via pi+Ollama — LOCAL, cross-harness sibling of opencode-qwen3-8-27b (requires ~/.pi/agent/models.json ollama provider)"
+    env_var: ""
+    agent_cli: "pi"
+    agent_model_name: "ollama/qwen3.8:27b-mxfp8"
+    model_family: "qwen-3-8"
+    max_output_tokens: 32768
+    ttft_timeout: 1800
+    generation_timeout: 3600
+    budgets:
+      hard_timeout_secs: 3600
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      pi-harness sibling of opencode-qwen3-8-27b. Requires the qwen3.8:27b-mxfp8
+      tag in the ~/.pi/agent/models.json ollama provider block. Added 2026-08-17.
+
+  # ---------------------------------------------------------------------------
+  # A/B CONTROL ARMS (2026-08-17). Identical to the rotation's qwen3.6 entries
+  # EXCEPT hard_timeout_secs is raised 600 -> 3600 to match opencode-/pi-qwen3-8-27b.
+  # Why they exist: hard_timeout_secs is resolved ONLY from models.yml — there is
+  # no CLI override (internal/eval_harness/models.go ResolvedHardTimeoutSecs).
+  # Running the A/B with the rotation entries would cap the incumbent at 600s
+  # while the candidate got 3600s, handicapping the incumbent on the ~7% of its
+  # runs that exceed 600s (11/158 in the v0.33.1 bank) and inflating the
+  # candidate's apparent quality edge.
+  # NOT for the rotation — do not add to OS_FILLER_MODELS. Delete once the
+  # qwen3.8 decision is recorded.
+  # ---------------------------------------------------------------------------
+  opencode-qwen3-6-ab3600:
+    api_name: "qwen3.6:35b-a3b-mxfp8"
+    provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "A/B control arm: qwen3.6 35B-A3B via opencode, timeout matched to qwen3.8 (3600s). Not a rotation lane."
+    env_var: ""
+    agent_cli: "opencode"
+    agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"
+    model_family: "qwen-3-6"
+    max_output_tokens: 32768
+    ttft_timeout: 1800
+    generation_timeout: 3600
+    budgets:
+      hard_timeout_secs: 3600
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      Timeout-matched control for the 2026-08-17 qwen3.8 on-device A/B. Same
+      model/quant/harness as opencode-qwen3-6-35b-a3b-mxfp8; only the budget
+      differs. Do NOT pool its results with rotation-banked qwen3.6 rows.
+
+  pi-qwen3-6-ab3600:
+    api_name: "qwen3.6:35b-a3b-mxfp8"
+    provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "A/B control arm: qwen3.6 35B-A3B via pi, timeout matched to qwen3.8 (3600s). Not a rotation lane."
+    env_var: ""
+    agent_cli: "pi"
+    agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"
+    model_family: "qwen-3-6"
+    max_output_tokens: 32768
+    ttft_timeout: 1800
+    generation_timeout: 3600
+    budgets:
+      hard_timeout_secs: 3600
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      Timeout-matched control for the 2026-08-17 qwen3.8 on-device A/B. Same
+      model/quant/harness as pi-qwen3-6-35b-a3b-mxfp8; only the budget differs.
+      Do NOT pool its results with rotation-banked qwen3.6 rows.
+
   # RETIRED 2026-08-01 — qwen3.5 family (see the banner above the first qwen3.5
   # entry). Kept for banked-result attribution only; not in any active lane.
   opencode-qwen3-5-35b-a3b:
