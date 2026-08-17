@@ -795,6 +795,40 @@ the Repo Profile above):
    never ran" are the same exit code. **And a mutation red counts only when the mutant BUILDS —
    assert `go build ./...` (or the verify profile's compile step; under `ailang-code`,
    `ailang check`) rc=0 on the mutated tree BEFORE reading the test result, and prefer a mutant
+   **AND THE ARRAY THIS RULE JUST PRESCRIBED IS 1-INDEXED IN ZSH, SO `${arr[0]}` IS EMPTY AND
+   EVERY LATER INDEX IS OFF BY ONE — WHICH IN A *REPORTING* INSTRUMENT SHIFTS EVERY COLUMN AND
+   SILENTLY DROPS THE LAST ELEMENT, WHILE THE OUTPUT STILL LOOKS LIKE A TABLE** (added 2026-08-17
+   motoko iteration 8; instance 1 is iteration 140's word-splitting above, instance 2 is this
+   iteration's Gate-0 sweep — same zsh-array class, new surface, and the first to land on an
+   instrument whose whole job is to be *read*). The remedy immediately above says "use an ARRAY —
+   `FILES=($(…))`, then `"${FILES[@]}"`". That is correct and it is where the next trap lives: in
+   bash `${FILES[0]}` is the first element, in zsh it is **nothing at all**, and `${FILES[1]}` is
+   the first. Iterating with `"${FILES[@]}"` is safe (which is why the prescribed remedy works);
+   **indexing is not**, and the two sit one line apart in the same idiom.
+   Why this earns a rule rather than a caution: the failure is *silent and plausible*. Measured
+   here on Gate 0's weekly external-issue sweep, whose rule (b) exists precisely to make per-issue
+   zeros auditable — an 8-file `FILES` array printed with `${counts[0]}…${counts[7]}` rendered
+   every count under the WRONG file's header and never printed the 8th file (`mission-dashboard.md`)
+   on any row. Nothing was blank enough to notice: the first column merely looked narrow. The
+   orphan *verdict* survived only by luck — the accumulator summed the loop variable (`for f in
+   "${FILES[@]}"`) rather than the display array — so a broken table sat beside a correct total,
+   which is the worst possible arrangement, because the total certifies the table. Note the
+   collision with rule 3a(i-d): a same-path control cannot catch this, since every column really
+   did run; only a control on the *last* element, or asserting `${#arr[@]}` against what you
+   printed, separates them.
+   Rules: **(a)** never index a zsh array with a literal `0` — iterate with `"${arr[@]}"`, or index
+   from **1**; **(b)** where a loop builds a display row, build the row by appending inside the same
+   loop that reads the element (as the corrected sweep does) rather than by indexing a parallel
+   array afterwards — parallel arrays and hand-written indices are the whole defect; **(c)** assert
+   `${#arr[@]}` equals the number of fields you emit, and print the array's own first and last
+   element once as a control; **(d)** this is mission-independent and shell-level, so it applies to
+   every gate in this file that formats a table — Gate 0's sweep, Gate 1's check enumeration, Gate
+   3b's per-workflow poll. The tell: you wrote `${something[0]}` in a `.sh`/tool-shell snippet on
+   this rig, or a table's first column is unexpectedly empty and you assumed it was a formatting
+   quirk. General form, and the reason it outranks its two instances: **a remedy is an instrument
+   too (step 3a(i) already says so) — when this skill prescribes a construct, the construct's own
+   footguns become the skill's problem, not the reader's.**
+   Prefer a mutant
    that keeps every import used (neuter the call — `_ = f(x)`) over one that deletes a block**
    (added 2026-08-07 iteration 160; proposed by `mission-world` iter-62, which shares this skill
    but cannot edit it, and corroborated first-party in V1's own checkout before adoption —
