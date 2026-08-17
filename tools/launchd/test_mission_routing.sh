@@ -52,6 +52,34 @@ out=$(/bin/bash -c '
   printf "%s|%s|%s" "$CONTROLLER_ID" "$MISSION_ANTHROPIC_AVAILABLE" "$MODEL_WHY"
 ' _ "$lab/select.sh" "$lab")
 want "controller selector traverses Anthropic to Codex" "$out" "codex:gpt-5.6-sol|0|Anthropic unavailable; subscription fallback"
+
+# #696 regression guard. `_mc_set_controller` must EXPORT the controller pin, not
+# merely assign it: the skill's routing contract reads `$MODEL`/`$MODEL_WHY` from
+# inside the controller session — a CHILD of this driver — and every role's
+# end-of-chain fallback (#611) terminates at `$MODEL`. The assertion above reads
+# those variables in the SAME shell, so it passes whether or not `export` is
+# present; the observable has to cross a process boundary, and `/usr/bin/env` is
+# that boundary. The pre-`unset` matters: this suite is run by a controller
+# session that already has MODEL exported, so without it the child would inherit
+# the ambient value and the arm would pass for the wrong reason.
+# MC_EXPORT_CONTROL is the known-positive control, read from the SAME `env` call:
+# if it is missing the instrument is broken, not the driver.
+out=$(/bin/bash -c '
+  set -uo pipefail
+  unset MISSION_MODEL MODEL MODEL_WHY CONTROLLER_ID CONTROLLER_PROVIDER MISSION_ANTHROPIC_AVAILABLE
+  export MC_EXPORT_CONTROL=sentinel
+  . "$1"
+  _mc_probe() { [ "$1" = claude-opus-5 ]; }
+  _mc_probe_codex() { return 1; }
+  log() { :; }
+  PREFS="claude-opus-5,claude-fable-5"
+  CONTROLLER_FALLBACK="codex:gpt-5.6-sol"
+  OVERRIDE_FILE="$2/no-override"
+  select_model || exit 1
+  /usr/bin/env | grep -E "^(MC_EXPORT_CONTROL|MODEL|MODEL_WHY|CONTROLLER_ID)=" | LC_ALL=C sort | tr "\n" "|"
+' _ "$lab/select.sh" "$lab")
+want "controller pin is exported to child processes (#696)" "$out" \
+  "CONTROLLER_ID=claude:claude-opus-5|MC_EXPORT_CONTROL=sentinel|MODEL=claude-opus-5|MODEL_WHY=probe ok|"
 rm -rf "$lab"
 
 echo ""
