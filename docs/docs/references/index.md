@@ -282,7 +282,7 @@ When referencing AILANG in academic work, please use the following format:
   title        = {{AILANG}: A Deterministic Language for {AI} Code Synthesis},
   year         = {2025--2026},
   url          = {https://github.com/sunholo-data/ailang},
-  note         = {Version 0.6.1}
+  note         = {Version as per the release tag used; see https://github.com/sunholo-data/ailang/releases}
 }
 ```
 

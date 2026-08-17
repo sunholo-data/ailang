@@ -6,13 +6,7 @@ Check [GitHub Releases](https://github.com/sunholo-data/ailang/releases/latest) 
 
 ## Feature Documentation
 
-All implemented features are documented in [Design Documents](/docs/design-docs), which is auto-generated from `design_docs/implemented/`. Each design doc describes a feature, bug fix, or architectural decision.
-
-**Recent versions with design docs:**
-- [v0.6.1](/docs/design-docs#v061) — M-VERIFY contracts, multi-executor support, bug fixes
-- [v0.6.0](/docs/design-docs#v060) — Semantic caching, SharedIndex, codegen improvements
-- [v0.5.10](/docs/design-docs#v0510) — Unified AI providers, type debugging tools
-- [v0.5.9](/docs/design-docs#v059) — Flat codegen, GitHub messaging, cyclic type diagnostics
+All implemented features are documented in [Design Documents](/docs/design-docs), which is auto-generated from `design_docs/implemented/` and always lists the latest versions — no hand-maintained list here.
 
 ---
 

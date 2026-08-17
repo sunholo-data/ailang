@@ -100,7 +100,7 @@ See [ailang_bootstrap](https://github.com/sunholo-data/ailang_bootstrap) for det
 The installer detects your OS and architecture automatically. To pin a release:
 
 ```bash
-curl -fsSL https://ailang.sunholo.com/install.sh | VERSION=v0.30.0 bash
+curl -fsSL https://ailang.sunholo.com/install.sh | VERSION=v0.33.1 bash
 ```
 
 <details>
