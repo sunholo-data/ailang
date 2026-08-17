@@ -4,6 +4,26 @@ For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-curre
 
 ## v0.32.0 (Unreleased)
 
+### Docs — staleness/fluff audit (2026-08-17)
+
+- **References**: added practitioner-convergence entries (Copeland's *Where the
+  Compiler Stops* + *MOTHER*) to the bibliography; BibTeX citation no longer
+  hard-codes a version.
+- **Stale facts fixed**: README install-pin example (v0.30.0 → v0.33.1);
+  implementation-status hand-maintained "recent versions" list (frozen at
+  v0.6.1/Dec-2025) dropped in favor of the auto-generated design-docs page.
+- **Removed** (superseded; content survives in design_docs/ + git history):
+  `guides/evaluation/{migration-guide,go-implementation,baseline-tests}.md`,
+  `guides/consumer-contract-v0.5.md`.
+- **Slimmed**: `agent-integration` (hand-maintained syntax card and frozen
+  Oct-2025 success rates removed — the teaching prompt and dashboard own
+  those), `claude-code-integration` (503→~120 lines, now a bridge-concept
+  page routing to the canonical CLI/hooks/coordinator docs),
+  `state-system-workflow` (marketing sections cut),
+  `semantic-caching-vs-vectordb` (9 verbose sections → table + 2 examples),
+  `evaluation/README` (hard-coded Oct-2025 model/pricing list dropped;
+  quick-start now scopes `eval-suite` to avoid full-matrix spend).
+
 ### Added `or-qwen3-8-27b` — OpenRouter quality screen for a rig upgrade candidate (no user-facing change)
 
 - **Qwen3.8 27B clears the screen against the rig incumbent's OpenRouter twin.** Core tier,
