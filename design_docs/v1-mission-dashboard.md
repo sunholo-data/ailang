@@ -8,7 +8,9 @@
 ## Now
 - **v0.33.1** · `dev` was **RED** for ~6h on `make check-changelog` (from `c541eccbc` 15:09Z),
   then again on the stdlib fixtures. Both fixed and merged: `cf56772bf` (`#759`), 4/4 required
-  contexts green; merge-commit CI re-verifying at record time.
+  contexts green. **Gate 3b settled on the merge commit**: 20 checks, 0 pending, the only
+  not-green is `SonarCloud Code Analysis` — non-required, and no Sonar run exists on the prior
+  11 dev commits, so whether it is new is UNDETERMINED here rather than clean.
 - Root `CHANGELOG.md` held **seven** stranded release-note sections / **244 lines**, none of them
   in `changelogs/v0.18-current.md` — i.e. content `release-manager` would have silently dropped.
   The gate flagged **one**: its enumerator was a keyword allowlist, so six sections were invisible

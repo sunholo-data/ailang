@@ -11922,7 +11922,10 @@ push tip; the `test:ABSENT` rows are why the red looked newer than it was.
   `# Mission Dashboard — Motoko`; iterations 213–215 really did each skip their refresh). Merged
   `642ac60ec`.
 - `#759` → **`cf56772bf`** (merged 20:02:27Z; all 4 required contexts green — `test` 19m41s,
-  `build`, `lint`, `docs-gate`). The red fix. Moved **7 stranded sections / 244 lines** out of the root index into
+  `build`, `lint`, `docs-gate`). **Gate 3b on the merge commit**: 20 checks, 0
+  pending, `notgreen=[SonarCloud Code Analysis]` only — non-required, and the negative control is
+  UNINFORMATIVE (no Sonar check-run exists on any of the prior 11 dev commits), so it is named
+  rather than attributed. The red fix. Moved **7 stranded sections / 244 lines** out of the root index into
   `changelogs/v0.18-current.md`, made the gate structural (an index has exactly one heading — the
   archive table's), added an anti-vacuity floor on that heading, and added
   `scripts/test_check_changelog.sh` (`make test-check-changelog`, wired into CI) — the gate had
