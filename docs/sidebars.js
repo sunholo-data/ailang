@@ -125,7 +125,6 @@ const sidebars = {
             'reference/implementation-status',
             'reference/stability',
             'reference/limitations',
-            'guides/consumer-contract-v0.5',
           ],
         },
         {
@@ -185,10 +184,7 @@ const sidebars = {
             'guides/evaluation/harness-setup',
             'guides/evaluation/model-configuration',
             'guides/evaluation/eval-loop',
-            'guides/evaluation/go-implementation',
-            'guides/evaluation/baseline-tests',
             'guides/evaluation/model-capability-threshold',
-            'guides/evaluation/migration-guide',
           ],
         },
         {

@@ -19,8 +19,9 @@ M-EVAL-LOOP is designed to empirically measure the "AI teachability" of AILANG -
 Use cheaper/faster models for daily development:
 
 ```bash
-# Quick dev check (gpt5-mini, gemini-2-5-flash)
-ailang eval-suite
+# Quick dev check — ALWAYS scope with --models and/or --tier;
+# a bare `ailang eval-suite` runs every dev model x every tier (real API spend)
+ailang eval-suite --tier smoke --models gpt5-mini
 
 # Create baseline
 make eval-baseline
@@ -66,23 +67,12 @@ ailang eval-suite --models gpt5 --self-repair
 - **[model-configuration.md](model-configuration.md)** - Model setup and pricing
 - **[cost-and-speed-budgets.md](cost-and-speed-budgets.md)** - Cost-as-primary-gate eval semantics (v0.15.1+)
 
-### Implementation Details
-- **[go-implementation.md](go-implementation.md)** - Native Go implementation guide
-- **[migration-guide.md](migration-guide.md)** - Migration from bash to Go
-- **[baseline-tests.md](baseline-tests.md)** - Running baseline tests
+## Available Models
 
-## Available Models (October 2025)
-
-### Production Models (--full)
-- <CheckIcon inline size={14} /> **Claude Sonnet 4.5** (Anthropic) - $3/$15 per 1M tokens
-- <CheckIcon inline size={14} /> **GPT-5** (OpenAI) - $1.25/$10 per 1M tokens
-- <CheckIcon inline size={14} /> **Gemini 2.5 Pro** (Google) - $1.25/$10 per 1M tokens
-
-### Development Models (default)
-- <CheckIcon inline size={14} /> **GPT-5 Mini** (OpenAI) - $0.25/$2 per 1M tokens (~1/5 price)
-- <CheckIcon inline size={14} /> **Gemini 2.5 Flash** (Google) - $0.30/$2.50 per 1M tokens (~1/4 price)
-
-See [model-configuration.md](model-configuration.md) for setup details.
+The model roster and pricing live in `internal/eval_harness/models.yml` — the
+single source of truth. See [model-configuration.md](model-configuration.md)
+for the current lineup, pricing, and how to add models. (Hard-coded model
+lists in docs rot within months; this page deliberately doesn't carry one.)
 
 ## Prerequisites
 
@@ -336,11 +326,4 @@ See [architecture.md](architecture.md) for complete details.
 - [Debugging Guide](/docs/guides/debugging) - Environment variables and debug flags for troubleshooting
 - [Model Configuration](./model-configuration.md) - Full model setup, pricing, and API key configuration
 
----
-
-**Version**: 3.0
-**Last Updated**: February 14, 2026
-**Framework Status**: <CheckIcon inline size={14} /> Production Ready
 **Eval Modes**: Standard (0-shot API) + Agent (agentic coding CLI)
-**Models Tested**: 5/5 working (3 production + 2 dev)
-**Test Coverage**: 90%+ for eval analysis tools
