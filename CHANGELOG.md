@@ -4,6 +4,30 @@ For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-curre
 
 ## v0.32.0 (Unreleased)
 
+### Added `or-qwen3-8-27b` — OpenRouter quality screen for a rig upgrade candidate (no user-facing change)
+
+- **Qwen3.8 27B clears the screen against the rig incumbent's OpenRouter twin.** Core tier,
+  standard mode, ailang+python, 3 trials, 270 runs, $5.34 metered. AILANG **94.2%** (65/69)
+  vs `or-qwen3-6-35b-a3b` **78.3%** (54/69) = **+15.9pp**; Python 93.9% vs 89.4%. Across 45
+  matched benchmark×lang cells: 12 wins / 3 losses / 30 ties (sign test p=0.035), and
+  trial-level McNemar 20 vs 6 discordant (**p=0.0094**). The gain is concentrated in AILANG
+  and specifically in *compile-time* correctness — 2 compile errors vs the control's 8.
+- **Screened hosted, on purpose: the rig cannot run it.** `ollama pull` returns HTTP 412 for
+  every qwen3.8 tag (MLX *and* GGUF) — support landed in ollama 0.32.12 and the rig is on
+  0.32.1. Running both arms on OpenRouter keeps the comparison free of an ollama-version
+  confound.
+- **This is NOT a promotion to the rotation.** qwen3.8 is **dense 27B** — there is no `a3b`
+  variant — against the incumbent's 35B/**3B-active** MoE, i.e. 9x the active params on a
+  bandwidth-bound box, where timeouts are already the top local failure mode (42 of 80
+  failures in the v0.33.1 bank). The screen measures quality only; on-device throughput is
+  unmeasured. Promotion additionally requires the ollama upgrade, which moves the incumbent's
+  baseline (0.32.10 flips the `repeat_penalty` default 1.1 → 1.0, 0.32.4 changes Qwen3 MoE
+  decoding, 0.32.6 changes the `/v1` streaming wire format) and so needs a qwen3.6
+  re-baseline on both sides of it.
+- Cost cap on the new entry is **price-scaled, not matched** ($1.00 vs the control's $0.30):
+  at $3.20/M output vs $1.00/M, an equal dollar cap would have given the candidate ~3.2x less
+  token headroom and let the cap, not capability, decide the screen.
+
 - Added experimental `std/ai.stepWithStreamRecorded`, originally authored by
   [@arniwesth](https://github.com/arniwesth). It preserves immediate stream
   callbacks while returning the exact ordered adapter-emitted chunk log and

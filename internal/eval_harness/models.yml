@@ -3230,6 +3230,48 @@ models:
       on-device upgrade candidate qwen3.6:35b-a3b. If it clears the bar, pull to the
       rig and register the opencode-/pi- cross-harness pair.
 
+  or-qwen3-8-27b:
+    api_name: "qwen/qwen3.8-27b"
+    provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Qwen3.8 27B (DENSE) via OpenRouter (standard mode) — OSS screen for on-device upgrade candidate. Control = or-qwen3-6-35b-a3b (same provider, so no ollama-version confound)."
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 65536  # matches or-qwen3-6-35b-a3b control
+    model_family: "qwen3-8-27b"
+    pricing:
+      input_per_1k: 0.00045   # $0.45 per 1M
+      output_per_1k: 0.00320  # $3.20 per 1M
+    budgets:
+      # PRICE-SCALED, not matched, on purpose. The control's cap is 0.30 at
+      # $1.00/M out; this model is $3.20/M out, so an equal *dollar* cap would
+      # give it ~3.2x LESS token headroom and the cap, not capability, would
+      # decide the screen. 1.00 ~= 0.30 x 3.2 => comparable token budget.
+      max_cost_usd: 1.00
+      hard_timeout_secs: 600
+    notes: |
+      local-model-onboarding screen (2026-08-17): quality screen for on-device
+      candidate qwen3.8:27b. Ran as an OpenRouter A/B against or-qwen3-6-35b-a3b
+      because the rig CANNOT pull qwen3.8 — it needs ollama >= 0.32.12 and the rig
+      is on 0.32.1 (HTTP 412 on pull, both MLX and GGUF tags).
+      RESULT — CLEARS THE BAR (core tier, standard, 3 trials, 270 runs, $5.34):
+        AILANG 94.2% (65/69) vs control 78.3% (54/69)  => +15.9pp
+        Python  93.9% (62/66) vs control 89.4% (59/66) => +4.5pp
+        45 matched cells: 12 wins / 3 losses / 30 ties, sign test p=0.035
+        Trial-level McNemar: 20 3.8-only vs 6 3.6-only, p=0.0094 (significant)
+        Failure mix: 3.8 has 8 failures (2 compile) vs control 22 (8 compile).
+        The gain is concentrated in AILANG and in COMPILE-time correctness.
+        Costs 5.9x the control ($4.57 vs $0.77) at +14% median tokens (29.2k
+        vs 25.6k) — irrelevant on-device (local = free), relevant only if it
+        were ever run hosted.
+      SHAPE CAVEAT: dense 27B active vs the incumbent's 35B/3B MoE — 9x active
+      params on a bandwidth-bound box. This screen measures QUALITY ONLY; it says
+      nothing about on-rig throughput, and timeouts are already the top failure
+      mode in the local bank (42/80). Do not promote to the rotation on screen
+      results alone — an on-device throughput measurement is required first, and
+      that needs the ollama upgrade (which also moves the qwen3.6 baseline:
+      v0.32.10 flips the repeat_penalty default 1.1 -> 1.0, v0.32.4 changes Qwen3
+      MoE decoding, v0.32.6 changes the /v1 streaming wire format).
+
   or-glm-4-7-flash:
     api_name: "z-ai/glm-4.7-flash"
     provider: "openrouter"
