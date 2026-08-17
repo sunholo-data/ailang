@@ -705,3 +705,93 @@ looks like a table. Edit made to the Gate-0 sweep rule.
 **Next**: answer **D-MOTOKO-FMT-1** (one word: precondition / redesign) and item 6 becomes a normal
 sprint. Otherwise queue row **6b** (triage-lite the 15 orphaned issues) is the head. Item 5 remains
 bounded until 2026-08-27.
+
+## 9 — 2026-08-17 — dev was red two different ways, the changelog gate saw 1 of 5 offenders, and V1 was four minutes behind me on the same fix
+
+**Picked**: NOT the queue head. `origin/dev` HEAD `0002c9b0b` was RED, which under the rulebook in
+force at pick time outranked the queue. (By the end of the iteration that rule had changed under me
+— see Ruled out.)
+
+**Reality check**: ran from the `#558` driver pin root, detached and clean at `0002c9b0b` ==
+`origin/dev`; running skill byte-identical to origin (`cmp` rc=0). Prior motoko worktrees (iter 6/7/8)
+all clean; open loop-authored PRs `#744`/`#695`/`#613` are all V1's. Decision ledger valid, 3 rows,
+1 OPEN (`D-MOTOKO-FMT-1`) and no directive answered it. Weekly issue sweep not due (iteration 8 ran
+it this morning; `#743` created 05:48Z, after the Monday-07:00 local boundary).
+
+**The red was TWO reds, and the split is the whole disposition.** `test` failed at `steps=41`,
+failing step `Check changelog index hygiene` — a repo command that ran and failed. `lint` and
+`Build macos-latest` (×2) failed at `steps=1, last=Set up job`, i.e. before checkout, inside a
+declared GitHub incident (`13:40:03Z`, impact **critical**, `investigating`) whose window covers the
+run's `15:49:32Z`. Those three were diagnosed, never reverted or fixed-forward. The negative control
+came later and is decisive: the **same three jobs were green** on my PR head at 21:30Z on a
+byte-different tree — they failed for the platform, not for any diff.
+
+**The finding — the gate could only ever have caught this by luck.** `4c3ef27c8` appended release
+notes to root `CHANGELOG.md`, which is an index; release-manager builds notes from
+`changelogs/v0.18-current.md`, so anything left there is silently dropped. But
+`scripts/check_changelog.sh` matched Keep-a-Changelog *keyword* headers
+(`### Added|Fixed|Changed|Removed|Deprecated|Security`) and *bracketed* `## [Unreleased]`, and this
+repo writes neither. Measured at `0002c9b0b`: **168 lines of release notes in 5 blocks, 1 flagged** —
+the only one whose header began with the word "Added". Confirmed against last-green `22c74d7c3`:
+**3** `###` blocks present, **zero** gate hits. So the gate had been printing a green checkmark over
+misfiled release notes for as long as they had been there. Rule 3j: the defect is the **enumerator**,
+not the branches. The one-line fix (rename the header to dodge the regex) was rejected — it satisfies
+the enumerator while leaving exactly the content release-manager drops.
+
+**Shipped as PR #758** (2 commits, now closed — see below): 5 blocks moved (167 of 168 lines verbatim,
+asserted line-by-line with a firing negative control), detector widened to any `###` sub-section plus
+any version/Unreleased `##` bracketed or not, an anti-vacuity floor (missing/empty `changelogs/` now
+fails loudly — every other check in the script is an absence test that an empty destination satisfies
+just as well as a clean index), and `scripts/test_check_changelog.sh` / `make check-changelog-selftest`
+wired into CI because **the gate had no test at all** (control: `test_pin_root` is in `make/test.mk`,
+so the instrument finds tests where they exist). `make check-changelog` rc=1 → rc=0, baselined red
+first on a pristine `origin/dev` worktree. Self-test 11/11, non-vacuous by drill: against the pre-fix
+detector **5 arms fail** and the four shapes live in the repo return `rc=0` **with the green
+checkmark**. Mutant restored from a `cp` backup, sha256-verified.
+
+**Gate 3b GREEN on the PR head `ef3b6a32c`**: 21 checks, pending=0, 0 not-green, 4/4 required
+contexts, both changelog steps green including the new self-test. Three bounded poll windows; every
+reading of `notgreen=0` over a non-zero `pending` was recorded as vacuously green, not as a verdict.
+
+**Then the iteration's real lesson landed under me, and I stood down.** V1's iteration 217 had
+independently preempted onto the same red and opened **#759 four minutes after #758** — same six
+files, both adding `scripts/test_check_changelog.sh`, both moving the same 169 lines. Mid-poll V1
+landed `c2022c7fa`, scoping "a red outranks the queue" to the mission that **owns** the repo; for
+`sunholo-data/ailang` that is V1. #758 was CLOSED with the verdict (comment-then-close, comment
+growth asserted 4→5). This is also right on merit, not just ownership: V1's detector
+(`^#{2,6}[[:space:]]` minus the archive heading) is **strictly more general** than mine.
+
+**Handed to #759 — two measurements it predates, both of which change its diff**: (1) the index has
+**accreted two more stranded sections since the red** (`9504393d0`, `dfb19a551`), so `origin/dev` now
+holds **7** blocks not 5, and #759 as written would move 5 of 7 and **strand a `### SECURITY` entry**
+(the prelude `println` capability bypass); (2) the outage-vs-real split with its negative control, so
+a lingering `lint`/`Build macos-latest` red is not mis-attributed to the changelog fix.
+
+**Routing evidence**: controller=`claude:claude-opus-5` (session). Designer, planner, executor,
+evaluator and quorum **never spawned** — deliberately: the work was a doc move plus a ~10-line shell
+gate, which the skill routes as deterministic mechanical work; codex is quota-exhausted until Aug 20
+and `pi` is metered. metered=**$0.00** of $5. No GPU, no `rig.lock`. `make quick-install` deliberately
+NOT run (shared-write guardrail). Gates on **darwin/arm64 only** (rule 3b(viii)).
+
+**Ruled out**:
+- *"The failing `lint`/`Build` jobs are a regression from the docs commits"* — REFUTED by the
+  `steps=1 / Set up job` signature, the incident window, and the same jobs going green on my PR head.
+  Reverting the docs merges would have destroyed good work to appease an unrelated outage.
+- *"Renaming the offending header fixes the red"* — true and rejected. It is the enumerator-satisfying
+  non-fix; 4 of 5 blocks would have stayed invisible.
+- *"V1's PR has no self-test"* — my own `grep -c` for arm markers returned **0** against a test file
+  that demonstrably exists. Rule 3a on my own instrument: I read their file instead, and it carries 9
+  arms plus its own instrument-failure floor. Had I banked that zero I would have argued to merge the
+  weaker PR.
+- *"Gate 2's open-PR check protects against duplicate work"* — it does not. It is point-in-time at
+  pick time and aimed at a *past* iteration's abandoned work, so a peer that opens its PR later in the
+  same window is invisible by construction (V1 checked ~18:58Z; #758 appeared 19:05Z).
+
+**Retro lane — no skill edit.** The one friction worth a rule (two missions preempting one red with no
+cross-mission mutex) was written into the shared skill and both charters by V1's `c2022c7fa` **while
+this iteration was in flight**. Duplicating it would spend the one-edit budget for zero information.
+Recorded here as the second first-party instance behind that rule rather than as a new one.
+
+**Next**: queue row **6b** (triage-lite the 15 charter-orphaned issues) is the head and is untouched —
+a hand-off is not a pick. **D-MOTOKO-FMT-1** remains the one OPEN decision (one word: precondition /
+redesign), which unblocks item 6. Item 5 remains bounded until 2026-08-27.
