@@ -276,9 +276,12 @@ test-stdlib-ail: build ## Run the .ail test suites + run-fixtures under tests/st
 	  [ -e "$$f" ] || { echo "instrument failure: $$e has no matching $$f"; exit 1; }; \
 	  fixtures=$$((fixtures+1)); \
 	  echo "  run: $$f"; \
-	  ./bin/ailang run "$$f" 2>/dev/null | grep -v '^→\|^✓' > /tmp/ailang_stdlib_run.$$$$ || true; \
+	  ./bin/ailang run --caps IO "$$f" 2>/tmp/ailang_stdlib_err.$$$$ | grep -v '^→\|^✓' > /tmp/ailang_stdlib_run.$$$$ || true; \
 	  diff -u "$$e" /tmp/ailang_stdlib_run.$$$$ || \
-	    { echo "FAIL: $$f stdout differs from $$e"; rm -f /tmp/ailang_stdlib_run.$$$$; exit 1; }; \
+	    { echo "FAIL: $$f stdout differs from $$e"; \
+	      echo "--- stderr from $$f ---"; cat /tmp/ailang_stdlib_err.$$$$; \
+	      rm -f /tmp/ailang_stdlib_run.$$$$ /tmp/ailang_stdlib_err.$$$$; exit 1; }; \
+	  rm -f /tmp/ailang_stdlib_err.$$$$; \
 	  rm -f /tmp/ailang_stdlib_run.$$$$; \
 	done; \
 	[ "$$fixtures" -ge 1 ] || { echo "instrument failure: no tests/stdlib/*.expected fixtures found"; exit 1; }; \
