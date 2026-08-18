@@ -2,6 +2,7 @@ package builtins
 
 import (
 	"fmt"
+	"unicode/utf8"
 
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -140,11 +141,11 @@ func strCharAtImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error)
 		return nil, fmt.Errorf("_str_charAt: expected int for second argument: %w", err)
 	}
 
-	runes := []rune(str)
-	if idx < 0 || idx >= len(runes) {
-		return nil, fmt.Errorf("_str_charAt: index %d out of bounds for string of length %d", idx, len(runes))
+	r, ok := runeAt(str, idx)
+	if !ok {
+		return nil, fmt.Errorf("_str_charAt: index %d out of bounds for string of length %d", idx, utf8.RuneCountInString(str))
 	}
-	return &eval.StringValue{Value: string(runes[idx])}, nil
+	return &eval.StringValue{Value: string(r)}, nil
 }
 
 // ============================================================================
@@ -190,9 +191,39 @@ func strCharCodeImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, erro
 	if err != nil {
 		return nil, fmt.Errorf("_str_charCode: expected string argument: %w", err)
 	}
-	runes := []rune(str)
-	if len(runes) != 1 {
-		return nil, fmt.Errorf("_str_charCode: expected single-character string, got %d characters", len(runes))
+	r, size := utf8.DecodeRuneInString(str)
+	if size == 0 || size != len(str) {
+		return nil, fmt.Errorf("_str_charCode: expected single-character string, got %d characters", utf8.RuneCountInString(str))
 	}
-	return &eval.IntValue{Value: int(runes[0])}, nil
+	return &eval.IntValue{Value: int(r)}, nil
+}
+
+// runeAt returns the rune at rune-index idx without materialising the whole
+// []rune slice.
+//
+// The obvious `[]rune(s)[idx]` costs O(len(s)) time AND allocates 4*len(s)+16
+// bytes on EVERY call regardless of idx, which makes an index-shaped primitive
+// quadratic in any scanner that walks a string (ailang#688). Decoding forward
+// is O(idx) with no heap allocation.
+//
+// The returned rune is byte-for-byte what `[]rune(s)[idx]` yields, including
+// utf8.RuneError for invalid UTF-8, so this is a cost change and not a
+// semantics change. ok=false means idx is out of range (negative, or past the
+// last rune).
+func runeAt(s string, idx int) (rune, bool) {
+	if idx < 0 {
+		return 0, false
+	}
+	for i := 0; i < idx; i++ {
+		_, size := utf8.DecodeRuneInString(s)
+		if size == 0 {
+			return 0, false
+		}
+		s = s[size:]
+	}
+	r, size := utf8.DecodeRuneInString(s)
+	if size == 0 {
+		return 0, false
+	}
+	return r, true
 }

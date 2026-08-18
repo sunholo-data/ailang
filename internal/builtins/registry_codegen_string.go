@@ -173,16 +173,58 @@ func registerStringCodegenSpecs() {
 		Imports:    []string{"strings"},
 		StdlibName: "repeat",
 	})
+	// charAt indexes by RUNE, matching both interpreter tiers. The former body
+	// indexed by BYTE (`str[i]`, bounds-checked against `len(str)`), so a
+	// compiled program silently disagreed with the same source run under the
+	// interpreter on any non-ASCII string -- charAt("h\u00e9llo", 1) returned
+	// "\u00c3" compiled vs "\u00e9" interpreted -- and returned a character past
+	// the end where the interpreter raises an out-of-bounds error (ailang#688).
 	registerIfMissing("_str_charAt", 2, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
 			FuncName:  "CharAt",
 			Signature: "func CharAt(s interface{}, idx interface{}) interface{}",
+			// Uses only `for range` (which iterates runes natively) and fmt.
+			// A Helper body CANNOT introduce a new import: runtime.go's import
+			// block is a closed allowlist in codegen.go (fmt, reflect, and
+			// conditionally sort/strconv/strings/math), and GoCodegenSpec.Imports
+			// is explicitly skipped for Helper specs in
+			// codegen_registry.go. A body that reaches for
+			// anything else emits Go that does not compile.
 			Body: `str := s.(string)
 	i := int(toInt64(idx))
-	if i < 0 || i >= len(str) { return "" }
-	return string(str[i])`,
+	n := 0
+	if i >= 0 {
+		for _, r := range str {
+			if n == i { return string(r) }
+			n++
+		}
+	} else {
+		for range str { n++ }
+	}
+	panic(fmt.Sprintf("charAt: index %d out of bounds for string of length %d", i, n))`,
 		},
 		StdlibName: "charAt",
+	})
+	// charCode had NO codegen spec at all, so any compiled program using it
+	// failed with "undefined: CharCode" (ailang#688). Same import constraint as
+	// CharAt above: `for range` plus fmt only.
+	registerIfMissing("_str_charCode", 1, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "CharCode",
+			Signature: "func CharCode(c interface{}) interface{}",
+			Body: `str := c.(string)
+	n := 0
+	var first rune
+	for _, r := range str {
+		if n == 0 { first = r }
+		n++
+	}
+	if n != 1 {
+		panic(fmt.Sprintf("charCode: expected single-character string, got %d characters", n))
+	}
+	return int64(first)`,
+		},
+		StdlibName: "charCode",
 	})
 	registerIfMissing("_str_foldChars", 3, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
