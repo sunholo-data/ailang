@@ -12873,3 +12873,113 @@ and the gate names its own backfill remedy); and claiming the shadow-guard drill
 **Next**: `#662` continues the language/stdlib lane, then `#646`, `#644`. Three rows newly queued
 behind it, one of them (`m-verify-unencodable-reported-as-error`) carrying this iteration's own
 first-party evidence.
+
+---
+
+## 226 — 2026-08-19 — Iteration 225: the WASM type-check budget was wall-clock, hardcoded, and untestable by construction
+
+**Picked**: queue head `m-sweep-orphans-2026-08-17`, language/stdlib lane, item `#662` — the item
+iteration 224 named as Next. Inbox empty (`ailang messages list --unread` → "No messages found"),
+so nothing outranked the queue. Zero allowlisted directives on `#745` since the
+`2026-08-18T18:39:04Z` watermark (20 comments enumerated). No weekly rotation: `#745` created
+`2026-08-17T06:14:45Z` = **08:14 CEST**, after the Monday-07:00 **local** boundary, 20 comments.
+Running skill **byte-identical** to `origin/dev` (`cmp` against the copy the `~/.claude` symlink
+resolves to — the MAIN checkout — with `readlink` confirming the target). The driver pin was at
+`8a6fd5570` = `origin/dev` exactly, and charter/log/dashboard were byte-identical to origin, so
+mission state was first-party. `origin/dev` `8a6fd5570`: **16 checks, zero not-green**.
+
+**Reality check**: REAL at HEAD, reproduced first-party at `8a6fd5570`. The budget was
+`const wasmTypeCheckBudget = 2 * time.Second` with **no setter anywhere** — `grep -rE 'func
+Set.*Budget' internal/types/` → **0**, same-scope control `func Begin.*TypeCheck` → **2**. The
+report is a downstream consumer's, filed after a real user's Firefox load failed on a deployed
+demo; their CPU-throttling harness measured 0 failures at 1x, **4 at 2x** (taking out the main
+demo), 10 at 4x over a 25-module ~367 KB corpus.
+
+**The report UNDERSTATED it in one respect, and that turned out to be the load-bearing half.** The
+guard had **zero test coverage, by construction**: the entire mechanism sat behind
+`//go:build js && wasm`, so `go list -f '{{.GoFiles}}' ./internal/types` reported **0** files
+containing it (controls: the `_native.go` stub → **1**; the same query under `GOOS=js GOARCH=wasm`
+→ **1**). Not an oversight — no native test *could* reach it. A guard nothing can red when you
+remove it is not a guard, and this one has been shipping since v0.22.x.
+
+**Shipped**: PR `#780` → squash **`d5831af9b`**; head `d89e8de7b` at **21 checks, zero not-green**,
+4/4 required (`build` 2m0s / `docs-gate` 4s / `lint` 3m49s / `test` 18m27s), `MERGEABLE CLEAN`.
+The state machine moves to an untagged `internal/types/typecheck_budget.go` with an **injectable
+clock** — the defect under test *is* a timing dependence, so a test that measured it by sleeping
+would inherit the flakiness it exists to pin. Only the decision to **arm** stays build-tagged, and
+native never arms, so CLI behaviour is unchanged (the hot path takes one predictable branch on a
+package-level bool). Three product changes: `ailangSetTypeCheckBudget(ms)` with `0` disabling the
+wall-clock limit and a rejected value leaving the previous budget **in force**;
+`typeCheckMs`/`typeCheckSteps`/`budgetMs` reported by `ailangLoadModule` on **every** outcome, not
+only success; and an error message that names the budget actually in force, the step count reached,
+and the fact that the limit is machine-dependent.
+
+**Deliberately NOT done: gating on the step count** — the reporter's own preferred fix. Picking a
+ceiling from our guesses is exactly how the 2 s got chosen. The deterministic counter ships first so
+the ceiling can come from a real corpus, and the issue comment asks the reporter for `typeCheckSteps`
+per module from the harness they already have. Queued as `m-wasm-deterministic-typecheck-budget`.
+
+**13 mutation drills** (12 + one re-drill), each asserted **LANDED** by sha256 and **BUILDS** by
+`go build` rc=0 **before any test result was read**, each restored by `cp` (never `git checkout --`)
+and verified byte-identical. **8 are unique killers** (inverse `-skip` rc=0).
+
+**The drill found a hollow assertion, which is the whole reason to run them.** M11 — deleting
+`begin()`'s own `b.tripped = false` — left the **entire package green**: **0** arms red. The arm
+named for it called `end()` first, and `end()` also clears the flag, so the assertion never
+exercised the line it named. Rule 3i in its exact form. Re-armed to re-`begin()` with **no
+intervening `end()`**, which is also the case that matters operationally (a host whose previous load
+panicked out before `EndWasmTypeCheck`), plus a second arm covering the `end()` path separately.
+Both then kill uniquely.
+
+**And the drill harness itself was wrong first.** Its pass criterion required the rest of the
+package to stay green with the named arm `-skip`ped, and 4 of 12 mutants failed it — read naively,
+"4 vacuous arms". Enumerating *which* arms redded showed the opposite: M1 killed 5 arms, M7 killed
+6, M4 four, M5 two, and the named arm was among the killers every time. A mutant with broad blast
+radius makes `-skip rc=0` unsatisfiable **by construction**, so the criterion was measuring the
+mutant's reach, not the arm's honesty. Corrected to "the named arm reds", with sole-killer reported
+separately — which is also what made M11's genuine `0 arms red` legible instead of one FAIL among
+five.
+
+**Sonar went red and the negative control attributed it to this diff, not to a standing condition.**
+`new_reliability_rating=3` and `new_coverage=78.1%` against an 80% floor. Control: the previous
+three loop PRs (`#778`, `#775`, `#767`) were all Sonar-**success** on their heads, so the standing-red
+reading was refuted before it could be used. The bug was real — `go:S1764` on `ms != ms`, a
+legitimate Go NaN idiom that `math.IsNaN` says better — and the coverage gap was real too:
+`LastWasmTypeCheckStats`, the exported accessor the bridge calls on **every** load, had no arm at
+all. Both fixed, the NaN guard re-drilled after the change, and the head then read 21/21 green
+including Sonar.
+
+**One local red re-measured rather than transcribed, and sharpened.** `make test` first came back red
+on `tests/golden/codegen/string_charat` (`undefined: CharCode`). Iteration 224 already recorded this
+class; it was re-measured anyway. Two arms: the **pin worktree at `origin/dev` with zero diff** →
+rc=1, identical failure; the same test with the freshly built binary **on `PATH`** → rc=0. The
+sharpening the dashboard's shorthand hides: `make build` does **not** fix it, because that harness
+`exec`s bare `ailang` from `PATH` while `make build` writes `bin/ailang` — the skill's verification
+protocol says test helpers "prefer `bin/ailang` when present", and this one does not look there.
+Mid-diagnosis that gap briefly read as "the stale-binary attribution is refuted"; the PATH arm is
+what settled it. `make test` with the fresh binary on `PATH`: **rc=0, 0 FAIL / 7401 PASS**.
+`go build ./...` likewise reds at `cmd/wasm` on untouched dev (baselined in the pin worktree).
+
+**Routing evidence**: model=claude-opus-5 task-class=mechanical round1-score=n/a rounds=1
+  corrections=0 provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus
+  <!-- controller-inline: well-specified code work on a measured, reproduced defect; no designer,
+       planner, executor, evaluator or quorum lane fired, no GPU, no rig.lock. metered=$0.00. -->
+
+**Ruled out**: gating on `typeCheckSteps` this iteration (no corpus to choose a ceiling from —
+choosing one from our own guesses reproduces how the 2 s was picked); raising the default instead
+(ask 4 — it moves the cliff without removing the hardware dependence, and a bigger constant is
+still a constant); closing `#662` on the strength of asks 1/3/4 (ask 2 is the reporter's stated
+design fix, so a close would misreport state — commented and left OPEN, scoped to ask 2); keeping
+the guard build-tagged and testing a native twin of it (a twin proves the twin); `make quick-install`
+to clear the local golden red (it mutates `~/go/bin` shared with concurrent eval agents — a
+worktree-local `PATH` arm answered the same question with no shared write); and "the arm is vacuous"
+for the four broad-blast-radius mutants, refuted by enumerating which arms redded.
+
+**Gate 5**: no skill edit. The two frictions were an existing rule working as written (3d's negative
+control catching the Sonar attribution) and a harness-design error of my own that the rule set
+already describes — not gaps in the rules. No process fix.
+
+**Next**: `#646` (`std/xml.getText` empty for whitespace), then `#644` (`std/zip` in-memory archive
+builder) close the language/stdlib lane; `m-wasm-deterministic-typecheck-budget` is queued behind
+them and is **blocked on external data** (the reporter's per-module step counts), so its predicate
+gets re-read at Gate 1 each iteration rather than waiting on a date.
