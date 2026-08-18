@@ -8812,6 +8812,17 @@ suites rc=0, vet/file-sizes/boundaries/changelog rc=0, gofmt 0, and **`go build 
 (`cmd/wasm`, `gen/main` have no native `main`) — barred as an acceptance gate, with
 `go build ./internal/... ./cmd/ailang` as the green-at-base substitute.
 
+**Red 2 — the platform narrowing this change NAMED before it bit** (rule 3b(viii)). `test-windows`
+and `Build windows-latest` both failed on a single assertion: the resolver's positive arm hardcoded
+`/usr/bin/git`, and `filepath.IsAbs("/usr/bin/git")` is **false on windows**, which requires a volume
+name. So the arm failed for the platform rather than for the code — inside a change whose own PR body
+had just said *"all local gates ran on darwin/arm64; ubuntu and windows are covered only by the green
+contexts"*. Naming a risk is not mitigating it. The arm now derives an absolute path at runtime via
+`filepath.Join(t.TempDir(), "git")`, with an in-call assertion that the derived path really is
+absolute on the running platform, so it cannot silently degrade. Both drills (**M14**, **M15**) still
+red it after the change. Note which instrument caught this: only Gate 3b sees the whole matrix, and
+`test-windows` is the one that named it.
+
 **Gate 5**: no skill edit. Both of this slot's frictions — the missed-equivalence reading, and a
 design doc whose line numbers were stale at authoring — are at **instance 1**. The bar is two, and
 spending the one-edit budget on a single instance is how a rulebook accumulates rules that never
@@ -12485,3 +12496,215 @@ with the *same* rc=127 is a fact about the instrument, not about the gates. No p
 **Next**: `#687` closes the mission-infra sweep lane (`⚠ Binary may be stale` is an mtime heuristic
 over CWD-relative dirs, so it mis-fires on this loop's own sprint worktrees), then the
 language/stdlib orphans (`#688`, `#689`, `#662`, `#646`, `#644`).
+
+## 223 — 2026-08-18 — Iteration 222: the stale-binary warning was mtime-only, so it fired on a binary it could have proven correct
+
+**Picked**: `#687`, the next mission-infra orphan in the queue head
+`m-sweep-orphans-2026-08-17` (12 of 15 remained). Iteration 221 named it as Next. The queue row
+carries an explicit warning about this very item — it *guessed* `#687` was likely a ghost, exactly
+as it had wrongly guessed for `#708` — so the guess was ignored and the repro was run.
+
+**Reality check**: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`; tree clean.
+Two unread inbox messages, both cross-mission (`mission-motoko` iteration 10, `mission-world`
+2026-08-18) — per the Gate-0 contract neither auto-outranks the queue. **Zero** allowlisted
+directives on `#745` since the `2026-08-18T06:11:44Z` watermark, across 14 enumerated comments.
+Ledger valid, 20 rows / 11 OPEN. No weekly rotation: `#745` created `06:14:45Z` = **08:14 CEST**,
+after the Monday-07:00 LOCAL boundary, 14 comments. Running skill **byte-identical** to
+`origin/dev` (`cmp` silent). The driver pin equalled `origin/dev` exactly, so mission state was
+first-party.
+
+**`origin/dev` `c8b2ea0a2`: 16 checks, ZERO not-green — including `SonarCloud Code Analysis:
+success`.** The standing non-required red that iterations **217, 218, 219, 220 and 221** each named
+is **CLOSED**, and iteration 221's arithmetic is what closed it: it predicted
+`new_uncovered_lines` 44 → 24 of 203 ⇒ ~88.2% against an 80% threshold, and the gate is green on the
+next analysed tip. That is a prediction recorded before the fact and confirmed after it, which is
+worth more than the fix — five iterations named the red and the one that opened it was right about
+the mechanism.
+
+**Ghost discipline — `#687` is REAL, and the repro is a differential whose only variable is the
+working directory.** `cmd/ailang/help.go` decided staleness by walking four **CWD-relative** source
+directories and warning if any `.go` file's `ModTime` was after the binary's. Measured at HEAD with
+the same PATH binary and the same arguments:
+
+- run from this checkout → `⚠ Binary may be stale (source files modified after build)`
+- run from `/tmp` → **silent**
+
+Nothing about the binary changed between those two runs. A fresh `git worktree` writes every tracked
+file with a *current* mtime, so the warning fires on a binary byte-identical to that worktree's own
+`HEAD`. Every mission sub-agent runs in a fresh worktree; iteration 190 lost a full design-quorum
+round to a reviewer who read the warning as evidence the premises were measured with a stale tool.
+
+**The fix, and why the pre-filter was kept.** The mtime walk is not wrong, it is merely not
+*sufficient* — it is a cheap signal that something *might* be stale. So it stays as a **pre-filter**,
+and when it fires the binary's embedded commit is used to try to *prove* the binary current before
+anything is printed. Suppression requires: no `-dirty` marker in `Version`; `Commit` a full
+40-character lowercase-hex sha; equal to `git rev-parse HEAD`; and `git status --porcelain` empty
+over **the same four directories the walk sampled**. Every undeterminable case falls through to the
+warning, so a failure costs a spurious warning rather than a silenced real one. Ordinary users pay
+nothing: outside a checkout the pre-filter finds no source directories, so no subprocess is ever
+spawned.
+
+**Outcome: LANDED.** PR `#772` → squash **`2305dbfdd`**. Final head `9bd5c9272` carried
+**21 checks, ZERO not-green** — including `SonarCloud Code Analysis: success`, `test-windows:
+success` and `Build windows-latest: success` — with 4/4 required contexts pass (`build` 2m10s /
+`docs-gate` 3s / `lint` 3m50s / `test` 18m7s), `MERGEABLE CLEAN`. `#687` closed by the merge, with
+the verdict posted as its **own** `--body-file` comment BEFORE the merge and the count asserted to
+have grown 0 → 1.
+
+**The PR went red twice on the way, and both were mine to fix rather than merge over.**
+
+**Red 1 — a gate this mission had just spent an iteration clearing, and the part worth reading.** The first head `c001be67b` carried 21 checks with `test`
+(17m46s), `lint`, `docs-gate` all pass — and `SonarCloud Code Analysis: failure`. The condition was
+**not** coverage: `new_security_rating=2`, from two `go:S4036` MINOR vulnerabilities on the new
+`exec.CommandContext(ctx, "git", …)` calls (*"Make sure the PATH variable only contains fixed,
+unwriteable directories"*). Control in the same breath: the identical query against `dev` returns
+`OK`, so the instrument works and the red is mine.
+
+The decisive evidence was the project's own standing disposition: **5 `go:S4036` issues are OPEN on
+`dev` right now and the gate is green anyway**, because the condition measures only the *new-code*
+window. So merging would not have been "one more advisory finding on a non-required gate" — it would
+have put mine *inside* the window and re-redded `dev` on the exact gate iteration 221 cleared. A
+non-required red is still a red you author.
+
+Fixed rather than waved through: the git binary is resolved **once** via `exec.LookPath` and
+**refused unless absolute** — and the gate came back `OK` with `new_security_rating=1` on the next
+analysis, so the fix is confirmed rather than hoped. That is defensible on its own merits — this code runs on an ordinary
+`ailang` invocation, so it must not execute whatever a relative or writable `PATH` entry happens to
+call `git` — and an unresolvable git makes both probes undeterminable, which *shows* the warning, so
+the failure direction stays safe.
+
+**End-to-end differential, four arms, one binary each, sources genuinely newer than every binary**
+(parser.go `11:24:00` vs binary `11:23:20`, so the pre-filter fires in all four):
+
+| arm | binary | worktree | result |
+|---|---|---|---|
+| A | new @`fc8ef61ce` | clean @`fc8ef61ce` | **SILENT** — the fix |
+| A′ | **old** (mechanism removed) | *same* worktree | **WARNS** — the `#687` defect |
+| B | new @`fc8ef61ce` | same worktree, one file edited | **WARNS** — genuine staleness still reported |
+| C | new @`fc8ef61ce` | clean @`c8b2ea0a2` | **WARNS** — commit mismatch |
+
+A vs A′ is rule 3d(i) in its intended form: the mechanism removed, everything else held, and the
+outcomes **differ**. B and C are what stop "it went silent" being read as "it always goes silent".
+
+**A measurement error caught mid-flight, and worth recording because it produced a confident
+identical answer.** The first attempt at this differential built both binaries in one shell; the
+`cd` persisted across the two `go build` lines, so *both* came from the sprint tree and hashed
+**identically**. It also emerged that `go build` stamped **no VCS info at all** here, so `Commit`
+was the ldflag-less default `dev` and the suppression could never have fired. Two independent
+faults, and the arms would have read "both warn" — a plausible, wrong result pointing at "the fix
+does not work". Only comparing the two binaries' sha256 caught it. The rebuild uses the Makefile's
+real `-ldflags`, which is what shipped binaries always carry.
+
+**16 mutation drills.** Every mutant asserted **LANDED** by sha256 and **BUILDS** by
+`go build` rc=0 *before* any test result was read; every inverse `-skip` run rc=0, which is what
+proves the new arms are the killers rather than bystanders riding someone else's red. `help.go`
+restored from a **copy** each time, never `git checkout --`, byte-identity re-verified by sha256.
+Ten drills red exactly one arm. Two are recorded as **sets** rather than claimed as unique kills:
+neutering `!isFullSHA` reds all five sha-shape arms (they route through one check), and that check's
+length and hex sub-conditions are what discriminate two of those five.
+
+**The drill's real yield: two arms were HOLLOW, and both were repaired rather than reported.** This
+is rule 3i exactly — an arm that passes for a reason other than the branch it names — and neither
+would have been visible in a green suite:
+
+- an arm named for a `Commit` `-dirty` branch was in fact refused by the sha-shape check. No
+  40-character lowercase-hex string can contain `-dirty` (none of `-`, `i`, `r`, `t`, `y` is a hex
+  digit), so that branch was **unreachable**. It is **removed** rather than left as undeclared dead
+  code — rule 3j allows an unreachable branch only when declared — and `TestIsFullSHA` now pins the
+  subsumption, so the branch would have to come back if it ever stopped holding.
+- an arm named for an unreadable `HEAD` supplied `("", false)`, which the *value mismatch* branch
+  refused first. It now supplies the **matching** sha with `ok=false`, so only determinability can
+  refuse it.
+
+Both survived the first drill pass with `killed=0` while the suite was fully green, which is the
+whole argument for drilling per branch instead of per milestone.
+
+**A third branch survives and is DECLARED rather than deleted or claimed.** `gitHead`'s empty-git
+guard survived even after the resolved binary was threaded through as a parameter specifically to
+make the branch reachable — `exec` refuses an empty command name with the same error, so removing
+the guard changes no observable behaviour and no test can kill it. Rule 3j allows an unreachable
+branch only when declared, so it is declared in the code and here. The alternative — deleting a
+defensive check so a drill table reads clean — would have been flattering a count.
+
+**And a fourth self-inflicted hollow arm, caught before it shipped.** The first version of the new
+resolver test re-implemented `resolveGit`'s predicate inside the test instead of calling it, which
+is rule 3k's shape (*a test that rebuilds the value by a second route verifies your arithmetic, not
+your artifact*) — and it was written in the same iteration that removed two hollow arms for the same
+reason. `resolveGit` was extracted so the arm drives the real function across five refusal shapes
+with a positive arm; drills **M14** and **M15** red it.
+
+**The call site was pinned, not just the helper.** This repo's named recurring failure shape is
+*guard the helper, miss the call site*, and the first cut of this work had it: `binaryMatchesTree`
+was thoroughly covered while `checkStaleBinary` — the code that actually decides whether anything is
+printed — was untestable, because it reads `os.Executable()` and writes to `os.Stderr`. The decision
+was extracted into `warnIfStale(io.Writer, …)`, and drills **M11** (the suppression condition) and
+**M12** (the pre-filter condition) red exactly the two call-site arms. The observable is the emitted
+**message text**, not "some output": the two silent arms are absence claims, which many failures
+satisfy equally, so the suite carries one arm that pins what is actually written.
+
+**One arm hardened for a platform narrowing rather than left to CI** (rule 3b(viii)). The
+"not a checkout" negative arm originally used a bare `t.TempDir()` — but `git -C` walks **up** the
+tree looking for a checkout, so on any runner whose TMPDIR sits inside a repository both probes
+would succeed and the arm would red for the runner's directory layout rather than for the code. It
+now points at a path that cannot exist, which fails identically on every platform. Drilled
+(**M13**): neutering `gitHead`'s error branch still reds it.
+
+**Gates**: baselined on pristine `origin/dev` first (`go build ./cmd/ailang` rc=0,
+`go test ./cmd/ailang/...` rc=0), so the gates measure the change and not the repo. Gate list
+**derived from `ci.yml`** rather than recalled (rule 3g), then filtered to what this diff can break:
+`go vet`, `gofmt`, `check-file-sizes`, `check-boundaries`, `check-changelog`,
+`test-check-changelog`, `check-golden-drift`, `test-coverage-gate`, `lint`, and
+`go test ./cmd/ailang/...` — **all rc=0**. `lint`'s single `unused` finding (`geminiPassThreshold`)
+is pre-existing, and iteration 221 recorded the same one. **Platform**: all local gates ran on
+darwin/arm64; ubuntu and windows are covered only by the green `test` / `test-windows` / `build`
+contexts.
+
+**Cross-mission triage (not the pick, per the Gate-0 contract).** `mission-world` reported that its
+Observatory-stderr class has a fourth site — `verify_go.sh` captured `--version 2>&1` and parsed the
+warning's **timestamp** as the version token once `~/.ailang/state` regrew past 200 MB — and
+recommended V1 grep its own gates for that shape.
+
+Ghost-disciplined first-party and **CONFIRMED as a mechanism**: `ailang --version 2>&1` on this rig
+emits `2026/08/18 10:55:48 Observatory: 293MB (warn threshold: 200MB)` as the **first** line, ahead
+of `AILANG v0.33.1-…`, so any gate taking the first token reads a date as a version. The state
+directory is at **293 MB** against a 200 MB threshold right now, and `eval-suite` grows it
+continuously.
+
+**V1 is not exposed.** The reported shape returns **zero** hits across `tools/`, `scripts/`,
+`make/` and `.github/workflows/`, with a firing same-path control (8 files in those same scopes
+match `--version`), so the zero is a measurement. The nearest analogue — `expect_pattern` entries
+asserting `ailang --version` matches `v0\.\d+\.\d+` in `tools/build-snapshot/*.json` — is **inert
+data**: the key has no consumer anywhere in the repo in any language (control: the JSON files
+themselves are found in the same scope). Recorded rather than actioned, and note the instrument
+failure caught en route — the first consumer search was written `tools/build-snapshot/*.py`
+unquoted, which zsh aborted with `no matches found` before `grep` ran (rule 3a(i-b), the loop's own
+documented trap); it was re-run `find`-based, and the two must not be confused, because the aborted
+command and a genuine absence print the same nothing.
+
+**`~/.ailang/state` crossing its threshold is a standing fleet condition, not a V1 defect** — World
+raised pruning as a possible fleet decision and it is theirs to route; V1's contribution is the
+first-party confirmation that the warning is live and ordered *before* the version on stdout+stderr.
+
+**Ruled out**: trusting the queue row's own guess that `#687` was probably a ghost (it guessed
+wrong about `#708` five days earlier and it guessed wrong here); the issue's first suggested fix of
+comparing the commit *unconditionally*, which would spawn a git subprocess on every `ailang`
+invocation — the mtime walk is kept precisely so the common path costs nothing; dropping the warning
+for non-interactive output, which would have silenced a real signal to fix a false one; leaving the
+unreachable `-dirty` branch in place as declared dead code, when removing it and pinning the
+subsumption is strictly better; accepting two hollow arms because the suite was green; banking the
+first end-to-end differential, whose two binaries were byte-identical; and letting the cross-mission
+report become the pick.
+
+**Routing**: controller `claude:claude-opus-5` inline (mechanical, well-specified code work with a
+reproduced defect); no designer / planner / executor / evaluator / quorum lane fired; no GPU, no
+`rig.lock`. `metered=$0.00`. Codex remains dry until 2026-08-20 05:34.
+
+**Gate 5**: no skill edit. One friction this iteration (the unquoted-glob abort) and it is an
+**already-documented** rule — 3a(i-b), written after mission-world hit the identical shape — so it
+is a rule obeyed too late, not a gap found; the bar is two frictions pointing at a *gap*. No process
+fix.
+
+**Next**: the sweep's remaining 11 orphans. The mission-infra lane is now **complete** (`#696`
+already-fixed, `#727` real, `#708` real, `#687` real), so the next pick moves to the
+language/stdlib group — `#688` (String primitives: `charAt` O(i), `find` has no offset) heads it.
+
