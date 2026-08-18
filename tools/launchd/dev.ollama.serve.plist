@@ -81,10 +81,36 @@
         <key>OLLAMA_KEEP_ALIVE</key>
         <string>-1</string>
 
-        <!-- One model resident at a time (gemma4:26b uses ~17 GB weights;
-             with q8_0 KV cache it's ~29 GB total). -->
+        <!-- TWO models resident (raised from 1 on 2026-08-18).
+             WHY 1 WAS WRONG: embeddinggemma (0.6 GB) and the eval LLM (32-38 GB)
+             could not coexist, so EVERY embed call stopped the LLM runner. The
+             embed callers are ordinary background traffic - microrag, the brain
+             index, agent-message embedding, and the UserPromptSubmit hooks in
+             .claude/settings.json, which fire on every message a human types.
+             Any motoko/opencode/pi stream in flight when one landed died
+             silently: no panic, empty stderr, 0 tokens, banked as api_error
+             ("cause unknown"). Measured on the 2026-08-17 qwen3.8 A/B: 10 of 92
+             runs lost (11%), crashes a median 14s from an embed load vs 1457s
+             for successful runs (Fisher exact p=8.0e-06).
+             VERIFIED SAFE, not reasoned: co-residency costs no throughput,
+             because NUM_PARALLEL stays 1 so only one model ever decodes.
+             qwen3.8 alone 245.4 prefill / 27.8 gen tok/s; under 400 hammering
+             embeds 238.7 / 28.0; with both qwens resident (72.4 GB) 240.4 / 30.0
+             - all within noise. Swap did not move; 95% memory free after.
+             This does NOT license OLLAMA_NUM_PARALLEL > 1. Residency is free;
+             concurrent DECODE is what thrashes the ~546 GB/s bus.
+             THE 2 SLOTS ARE: one on-device LLM + one embedder. That is the
+             policy (Mark, 2026-08-18), not merely what fits. Do NOT hold two
+             LLMs on device: three models would want residency, only two fit,
+             and LRU thrashes again - observed qwen3.6 evicting the embedder,
+             then the embedder evicting qwen3.6. MAX=3 would be ~73 GB, at the
+             ~74 GB ceiling, so raising it is not the answer either.
+             CONSEQUENCE for A/Bs: never interleave two on-device LLMs per
+             benchmark. Run arms in SEPARATE PASSES. The interleaved 2026-08-17
+             run forced 87 model swaps across 92 runs; sequential passes need
+             ~2, and leave the embedder slot untouched throughout. -->
         <key>OLLAMA_MAX_LOADED_MODELS</key>
-        <string>1</string>
+        <string>2</string>
 
         <!-- ONE concurrent request. Why not more: ollama pre-allocates KV cache
              at full context length per slot. With our 110k-token opencode prompts,
