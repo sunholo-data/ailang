@@ -44,6 +44,16 @@ type ReviewerOutcome struct {
 	Model   string  `json:"model"`
 	CostUSD float64 `json:"cost_usd"`
 
+	// TokensIn/TokensOut are the provider's OWN reported token counts for this
+	// reviewer call. They are recorded alongside CostUSD because the
+	// mission-control Gate-3 chain ledger requires every metered stage to post
+	// tokens_in/tokens_out, and a quorum stage could previously only supply
+	// zeros: the counts were read (to derive cost) and then discarded (#708).
+	// A zero here is indistinguishable from a free call, so it is a REPORTABLE
+	// gap rather than a default — see TokenAccountingGaps.
+	TokensIn  int `json:"tokens_in"`
+	TokensOut int `json:"tokens_out"`
+
 	// Present is true iff the reviewer ran and returned a valid verdict.
 	Present bool `json:"present"`
 	// AbsentReason is populated iff Present is false: one of "unreachable",
@@ -134,7 +144,10 @@ func runReviewerWith(caller JSONCaller, mc *eval_harness.ModelConfig, out *Revie
 		return out
 	}
 
-	// POST-flight actual cost from token counts × models.yml pricing.
+	// POST-flight actual cost from token counts × models.yml pricing. The same
+	// counts are RECORDED, not just consumed: cost alone cannot be reconciled
+	// against a provider bill, and the chain ledger mandates both (#708).
+	out.TokensIn, out.TokensOut = resp.InputTokens, resp.OutputTokens
 	out.CostUSD = estimateCost(mc, resp.InputTokens, resp.OutputTokens)
 
 	result, perr := ParseReviewResult(raw)

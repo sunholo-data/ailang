@@ -66,6 +66,15 @@ func runDesignQuorum() {
 	}
 	fmt.Fprintf(os.Stderr, "quorum artifact: %s\n", artPath)
 
+	// LOUD, non-blocking: a reviewer billed with zero reported tokens leaves the
+	// Gate-3 chain ledger unreconcilable, and a zero there reads exactly like a
+	// free call. Name it rather than let it pass silently (#708). This never
+	// changes the exit code — an unreconcilable reviewer must not wedge a
+	// quorum the loop depends on.
+	for _, gap := range result.TokenAccountingGaps() {
+		fmt.Fprintf(os.Stderr, "design-quorum: TOKEN ACCOUNTING GAP — %s\n", gap)
+	}
+
 	// Optionally append the human markdown block to the mission log.
 	if *logPath != "" {
 		if _, lerr := quorum.AppendMarkdownToLog(*logPath, result); lerr != nil {

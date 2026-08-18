@@ -82,10 +82,12 @@ func WriteJSONArtifact(dir string, q *QuorumResult) (string, error) {
 func MarkdownBlock(q *QuorumResult) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "#### Design-quorum review — `%s` (%s)\n\n", q.Doc, q.ISOTimestamp)
-	fmt.Fprintf(&b, "- **Synthesis: %s** (total $%.4f)\n", strings.ToUpper(string(q.Synthesis.Verdict)), q.Synthesis.TotalCostUSD)
+	fmt.Fprintf(&b, "- **Synthesis: %s** (total $%.4f, %d in / %d out tok)\n",
+		strings.ToUpper(string(q.Synthesis.Verdict)), q.Synthesis.TotalCostUSD,
+		q.Synthesis.TotalTokensIn, q.Synthesis.TotalTokensOut)
 	for _, o := range q.Reviewers {
 		if o.Present {
-			fmt.Fprintf(&b, "- `%s` → **%s** ($%.4f) — %s\n", o.Model, o.Result.Verdict, o.CostUSD, o.Result.StrongestObjection)
+			fmt.Fprintf(&b, "- `%s` → **%s** ($%.4f, %d/%d tok) — %s\n", o.Model, o.Result.Verdict, o.CostUSD, o.TokensIn, o.TokensOut, o.Result.StrongestObjection)
 		} else {
 			fmt.Fprintf(&b, "- `%s` → **ABSENT** (%s) — degraded to N-1, not a silent pass\n", o.Model, o.AbsentReason)
 		}
@@ -100,7 +102,7 @@ func MarkdownBlock(q *QuorumResult) string {
 				continue
 			}
 			if o.Present {
-				fmt.Fprintf(&b, "  - `%s` (tier2) → **%s** ($%.4f) — %s\n", o.Model, o.Result.Verdict, o.CostUSD, o.Result.StrongestObjection)
+				fmt.Fprintf(&b, "  - `%s` (tier2) → **%s** ($%.4f, %d/%d tok) — %s\n", o.Model, o.Result.Verdict, o.CostUSD, o.TokensIn, o.TokensOut, o.Result.StrongestObjection)
 			} else {
 				fmt.Fprintf(&b, "  - `%s` (tier2) → **ABSENT** (%s) — degraded to N-1, not a silent pass\n", o.Model, o.AbsentReason)
 			}

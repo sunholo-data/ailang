@@ -50,6 +50,12 @@ type Synthesis struct {
 	// with its reason. Empty when all reviewers were present.
 	AbsentReviewers []AbsentNote `json:"absent_reviewers"`
 	TotalCostUSD    float64      `json:"total_cost_usd"`
+	// TotalTokensIn/TotalTokensOut sum the TIER-1 reviewers only — exactly the
+	// scope TotalCostUSD has always had. A Tier-2 escalation's tokens live on
+	// its own outcomes under `tier2`, and are NOT folded in here, so the two
+	// totals stay comparable with the shipped cost total (#708).
+	TotalTokensIn  int `json:"total_tokens_in"`
+	TotalTokensOut int `json:"total_tokens_out"`
 }
 
 // AbsentNote records one missing reviewer for the synthesis.
@@ -141,6 +147,8 @@ func synthesize(outcomes []*ReviewerOutcome, controller *ControllerReview) Synth
 
 	for _, o := range outcomes {
 		s.TotalCostUSD += o.CostUSD
+		s.TotalTokensIn += o.TokensIn
+		s.TotalTokensOut += o.TokensOut
 		if !o.Present {
 			s.AbsentReviewers = append(s.AbsentReviewers, AbsentNote{Model: o.Model, Reason: o.AbsentReason})
 			continue

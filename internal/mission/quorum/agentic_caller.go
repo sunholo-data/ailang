@@ -30,6 +30,14 @@ type AgenticRun struct {
 	// CostUSD is the observed post-hoc cost (= coordinator ExecuteResult.Cost =
 	// executor CostUSD). The per-review cap is enforced against THIS value.
 	CostUSD float64
+	// InputTokens/OutputTokens are the executor's OWN reported token counts
+	// (= coordinator ExecuteResult.InputTokens/OutputTokens). They do NOT feed
+	// the cap — the agentic tier's cost stays OBSERVED, not derived — they are
+	// recorded so the artifact can satisfy the chain ledger's token mandate
+	// (#708). An executor that reports cost but no tokens leaves these zero,
+	// which TokenAccountingGaps surfaces rather than hides.
+	InputTokens  int
+	OutputTokens int
 }
 
 // AgenticRunner runs a single bounded, read-only agentic review and returns its
@@ -66,6 +74,11 @@ type agenticCaller struct {
 	// lastErr records an executor-level failure (Success=false) so the outcome
 	// is recorded as unreachable, not a silent pass.
 	lastErr string
+	// lastInputTokens/lastOutputTokens mirror lastCostUSD: the executor's own
+	// counts, captured on EVERY run (including a failed one) so the audit
+	// record is not silently narrower than the cost record.
+	lastInputTokens  int
+	lastOutputTokens int
 }
 
 // DefaultAgenticTimeout is the bounded wall-clock cap for a single agentic
@@ -74,9 +87,10 @@ type agenticCaller struct {
 const DefaultAgenticTimeout = 5 * time.Minute
 
 // CallJSON satisfies JSONCaller. It runs the bounded agentic review and returns
-// the raw verdict JSON. The *ai.Response it returns carries zero token counts:
-// the agentic tier's cost is OBSERVED (lastCostUSD), not derived from tokens,
-// so RunAgenticReviewer uses the observed cost rather than estimateCost.
+// the raw verdict JSON plus the executor's reported token counts. Cost is still
+// OBSERVED (lastCostUSD) rather than derived from those tokens, so
+// RunAgenticReviewer uses the observed cost rather than estimateCost — the
+// tokens are carried for ACCOUNTING (#708), not for pricing.
 func (c *agenticCaller) CallJSON(sysPrompt, userPrompt, _ string) (string, *ai.Response, error) {
 	timeout := c.timeout
 	if timeout <= 0 {
@@ -95,6 +109,7 @@ func (c *agenticCaller) CallJSON(sysPrompt, userPrompt, _ string) (string, *ai.R
 		return "", nil, fmt.Errorf("agentic runner returned nil run")
 	}
 	c.lastCostUSD = run.CostUSD
+	c.lastInputTokens, c.lastOutputTokens = run.InputTokens, run.OutputTokens
 	if !run.Success {
 		c.lastErr = run.Err
 		if c.lastErr == "" {
@@ -102,7 +117,11 @@ func (c *agenticCaller) CallJSON(sysPrompt, userPrompt, _ string) (string, *ai.R
 		}
 		return "", nil, fmt.Errorf("agentic run failed: %s", c.lastErr)
 	}
-	return strings.TrimSpace(run.Output), &ai.Response{}, nil
+	return strings.TrimSpace(run.Output), &ai.Response{
+		InputTokens:  run.InputTokens,
+		OutputTokens: run.OutputTokens,
+		TotalTokens:  run.InputTokens + run.OutputTokens,
+	}, nil
 }
 
 // agenticSystemPrompt is the SHIPPED reviewer systemPrompt PLUS the agentic-only
@@ -155,8 +174,11 @@ func RunAgenticReviewer(modelLabel, docPath, docBody, contestedPremise string, m
 
 	raw, _, cerr := caller.CallJSON(agenticSystemPrompt, BuildAgenticPrompt(docPath, docBody, contestedPremise), reviewSchema)
 
-	// Record the observed cost regardless of outcome (audit).
+	// Record the observed cost AND the executor's token counts regardless of
+	// outcome (audit). Recording cost without tokens is exactly the gap #708
+	// closes: a billed reviewer that reports zero tokens is unreconcilable.
 	out.CostUSD = caller.lastCostUSD
+	out.TokensIn, out.TokensOut = caller.lastInputTokens, caller.lastOutputTokens
 
 	if cerr != nil {
 		out.AbsentReason = ReasonUnreachable
