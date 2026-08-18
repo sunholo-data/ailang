@@ -442,7 +442,10 @@ func EncodeFunction(
 		bodyExpr = fmt.Sprintf("(%s %s)", unrollTopName, strings.Join(paramNames, " "))
 	} else {
 		var err error
-		bodyExpr, err = EncodeExpr(body)
+		// The result sort is determined BEFORE the body is encoded so it can
+		// resolve empty list literals in the body, whose element sort is not
+		// recoverable from the literal itself (ailang#689).
+		bodyExpr, err = encodeExprWithSortHint(body, resultSortFor(params, body, ctx, adtTypes, returnSort))
 		if err != nil {
 			return nil, fmt.Errorf("cannot encode function body: %w", err)
 		}
@@ -450,10 +453,7 @@ func EncodeFunction(
 	result.BodyExpr = bodyExpr
 
 	// Determine result type
-	resultSort := returnSort
-	if resultSort == "" {
-		resultSort = inferResultSort(params, body, ctx, adtTypes)
-	}
+	resultSort := resultSortFor(params, body, ctx, adtTypes, returnSort)
 	resultDecl := fmt.Sprintf("(define-const result %s %s)", resultSort, bodyExpr)
 	result.Declarations = append(result.Declarations, resultDecl)
 

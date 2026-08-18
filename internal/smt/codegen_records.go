@@ -270,7 +270,9 @@ func encodeRecord(rec *core.Record) (string, error) {
 		if !ok {
 			return "", fmt.Errorf("record construction: missing field %q", fieldName)
 		}
-		encoded, err := EncodeExpr(fieldExpr)
+		// The field's declared sort resolves an otherwise-ambiguous empty list
+		// literal (ailang#689); an unknown field sort leaves behaviour unchanged.
+		encoded, err := encodeExprWithSortHint(fieldExpr, info.FieldSorts[fieldName])
 		if err != nil {
 			return "", fmt.Errorf("record field %q: %w", fieldName, err)
 		}
@@ -311,7 +313,7 @@ func encodeRecordUpdate(ru *core.RecordUpdate) (string, error) {
 	var args []string
 	for _, fieldName := range info.FieldNames {
 		if updateExpr, ok := ru.Updates[fieldName]; ok {
-			encoded, err := EncodeExpr(updateExpr)
+			encoded, err := encodeExprWithSortHint(updateExpr, info.FieldSorts[fieldName])
 			if err != nil {
 				return "", fmt.Errorf("record update field %q: %w", fieldName, err)
 			}

@@ -268,6 +268,12 @@ func encodeListBuiltin(spec ListBuiltinSpec, args []core.CoreExpr) (string, erro
 		if err != nil {
 			return "", err
 		}
+		// `x :: []` IS the singleton sequence. Emitting it as such keeps Z3
+		// inferring the element sort from the head, instead of appending an
+		// empty literal whose sort has to be guessed (ailang#689).
+		if isEmptyListLiteral(args[1]) {
+			return fmt.Sprintf("(seq.unit %s)", head), nil
+		}
 		tail, err := EncodeExpr(args[1])
 		if err != nil {
 			return "", err
