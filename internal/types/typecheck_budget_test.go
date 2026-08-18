@@ -380,3 +380,50 @@ func TestTypeCheckerHooksRouteToTheBudget(t *testing.T) {
 	}
 	tc.wasmDepthExit(nil) // retained for the unconditional defer in inferCore
 }
+
+// LastWasmTypeCheckStats is the exported accessor the WASM bridge calls to
+// build the typeCheckMs / typeCheckSteps fields on every loadModule result;
+// exercised here against the package-level guard the bridge actually uses.
+func TestLastWasmTypeCheckStatsReportsThePackageGuard(t *testing.T) {
+	origNow, origLimit := wasmBudget.now, wasmBudget.limit
+	origSteps, origElapsed := wasmBudget.lastSteps, wasmBudget.lastElapsed
+	t.Cleanup(func() {
+		wasmBudget.now, wasmBudget.limit = origNow, origLimit
+		wasmBudget.lastSteps, wasmBudget.lastElapsed = origSteps, origElapsed
+		wasmBudget.end()
+	})
+
+	clk := &fakeClock{t: time.Date(2026, 8, 19, 0, 0, 0, 0, time.UTC)}
+	wasmBudget.now, wasmBudget.limit = clk.now, 10*time.Second
+
+	wasmBudget.begin("docparse/services/docx_parser")
+	tc := &CoreTypeChecker{}
+	for i := 0; i < 3; i++ {
+		clk.advance(50 * time.Millisecond)
+		if err := tc.wasmDepthEnter(nil); err != nil {
+			t.Fatalf("unexpected budget failure: %v", err)
+		}
+		tc.wasmDepthExit(nil)
+	}
+	wasmBudget.end()
+
+	steps, elapsed := LastWasmTypeCheckStats()
+	if steps != 3 {
+		t.Fatalf("LastWasmTypeCheckStats steps = %d; want 3", steps)
+	}
+	if elapsed != 150*time.Millisecond {
+		t.Fatalf("LastWasmTypeCheckStats elapsed = %s; want 150ms", elapsed)
+	}
+}
+
+// The bridge names the module, but a guard that trips outside a named check
+// must still produce a readable message rather than an empty pair of quotes.
+func TestBudgetErrorWithoutAModuleName(t *testing.T) {
+	msg := WasmTypeCheckerBudgetExceededError{Budget: time.Second, Steps: 12}.Error()
+	if !strings.Contains(msg, "(module name unavailable)") {
+		t.Fatalf("unnamed module rendered without a placeholder:\n%s", msg)
+	}
+	if !strings.Contains(msg, "12 type-checker steps") {
+		t.Fatalf("step count missing from the unnamed-module message:\n%s", msg)
+	}
+}

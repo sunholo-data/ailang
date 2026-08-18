@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -180,7 +181,7 @@ func LastWasmTypeCheckStats() (steps uint64, elapsed time.Duration) {
 // ordinary native test: everything inside cmd/wasm is behind `js && wasm` and
 // therefore untestable by `go test`.
 func ParseBudgetMillis(ms float64) (time.Duration, error) {
-	if ms != ms { // NaN
+	if math.IsNaN(ms) {
 		return 0, fmt.Errorf("type-check budget must be a number, got NaN")
 	}
 	if ms < 0 {
