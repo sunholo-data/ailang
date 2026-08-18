@@ -44,7 +44,20 @@ log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 # it here halved qwen3.6's throughput + added ~100min/cycle of hangs. Now qwen3.6-only
 # (the upgrade); compare qwen3.6-fresh vs qwen3.5-banked. Re-add the 3.5 pair to
 # OS_FILLER_MODELS if a regression check is ever needed.
-MODELS="${OS_FILLER_MODELS:-${OS_FILLER_MODEL:-opencode-qwen3-6-35b-a3b-mxfp8,pi-qwen3-6-35b-a3b-mxfp8,motoko-local-qwen3-6-35b-a3b-mxfp8}}"
+#
+# qwen3.6 -> qwen3.8 on 2026-08-18 (Mark). SAME single-LLM rule as the 3.5 retirement
+# above, and we now know the MECHANISM behind those "hangs": ollama holds
+# OLLAMA_MAX_LOADED_MODELS=2 slots = ONE on-device LLM + ONE embedder. List two LLMs
+# here and they evict each other every arm-switch — the interleaved 2026-08-17 A/B
+# forced 87 model swaps across 92 runs and lost 11% of them to silently killed
+# streams banked as api_error. So this is a REPLACEMENT, never an addition.
+# Evidence for the swap: OpenRouter screen +15.9pp AILANG (McNemar p=0.0094);
+# opencode 6-0 on-device; pi all ties. COST: qwen3.8 is dense 27B vs 3B-active MoE,
+# measured 2.5-3.4x slower per turn, so expect cycles to lengthen — the token WORK
+# gate (max_tokens_per_bench 3.0M), not wall-clock, is what bounds runs now.
+# CAVEAT at time of switching: the clean motoko A/B was still running. If motoko
+# regresses, revert this line to the qwen3-6 triple — banked qwen3.6 rows stay valid.
+MODELS="${OS_FILLER_MODELS:-${OS_FILLER_MODEL:-opencode-qwen3-8-27b,pi-qwen3-8-27b,motoko-local-qwen3-8-27b}}"
 LANGS="${OS_FILLER_LANGS:-ailang,python,javascript,go}"
 CHUNK="${OS_FILLER_CHUNK:-3}"                  # benchmarks per cycle
 CHUNK_TIMEOUT="${OS_FILLER_TIMEOUT:-1500s}"    # ~25-min wall budget per chunk

@@ -2325,8 +2325,11 @@ models:
       Added 2026-06-14.
 
   # ---------------------------------------------------------------------------
-  # qwen3.8 27B — DENSE. Added 2026-08-17 for the on-device A/B vs qwen3.6.
-  # NOT in the rotation. Cleared the OpenRouter quality screen (+15.9pp AILANG,
+  # qwen3.8 27B — DENSE. THE ROTATION MODEL as of 2026-08-18 (Mark), replacing
+  # the qwen3.6 triple in tools/launchd/os-rotation-filler.sh. Single-LLM rule:
+  # it REPLACES qwen3.6 there, never runs alongside it (two LLMs evict each other
+  # — see the ollama slot note in dev.ollama.serve.plist).
+  # Cleared the OpenRouter quality screen (+15.9pp AILANG,
   # McNemar p=0.0094 — see or-qwen3-8-27b) but pays a MEASURED throughput
   # penalty on this bandwidth-bound box, same 7560-token prompt, ollama 0.32.14:
   #     prefill  245.3 tok/s  vs qwen3.6  1671.2  -> 6.8x slower
@@ -2360,8 +2363,10 @@ models:
       output_per_1k: 0.0
     notes: |
       Added 2026-08-17 for the on-device A/B against opencode-qwen3-6-35b-a3b-mxfp8.
-      Dense 27B active vs the incumbent's 35B/3B-active MoE. Do NOT add to
-      OS_FILLER_MODELS until the A/B settles the quality-vs-throughput tradeoff.
+      Dense 27B active vs the incumbent's 35B/3B-active MoE. Promoted to the
+      rotation 2026-08-18 on the OR screen (p=0.0094) + opencode 6-0 + pi ties.
+      Expect longer cycles: 2.5-3.4x slower per turn than the MoE incumbent. The
+      token WORK gate (max_tokens_per_bench 3.0M) bounds runs now, not wall-clock.
 
   pi-qwen3-8-27b:
     api_name: "qwen3.8:27b-mxfp8"
