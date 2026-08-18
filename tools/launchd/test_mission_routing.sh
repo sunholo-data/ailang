@@ -23,8 +23,13 @@ want "planner Anthropic fallback is configurable" "$out" "codex:test-sol anthrop
 driver="$ROOT/tools/launchd/mission-control.sh"
 grep -q 'MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol' "$driver" \
   && ok "executor remains Codex Sol primary" || bad "executor remains Codex Sol primary" "missing default"
-grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:openrouter/deepseek/deepseek-v4-flash-0731:floor' "$driver" \
-  && ok "executor remains DeepSeek v4 Flash fallback" || bad "executor remains DeepSeek v4 Flash fallback" "missing fallback"
+# Anchored on the closing brace DELIBERATELY. The previous form pinned the `:floor`
+# suffix, but a suffix-free grep would prefix-match `...-0731:floor` too and pass on
+# both values — so the brace is what keeps this assertion discriminating and makes a
+# silent return of the price-pin RED. `:floor` was dropped 2026-08-18 (routed the
+# executor to the least-healthy endpoint; see the driver's own note).
+grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:openrouter/deepseek/deepseek-v4-flash-0731}' "$driver" \
+  && ok "executor DeepSeek fallback is provider-unpinned (no :floor)" || bad "executor DeepSeek fallback is provider-unpinned (no :floor)" "missing or price-pinned fallback"
 grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol' "$driver" \
   && ok "controller has Codex Sol fallback" || bad "controller has Codex Sol fallback" "missing fallback"
 

@@ -403,7 +403,30 @@ export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol}"
 # the role to a `pi:*` model here means the very next loop probes it and degrades to
 # opus if it is unusable too. One chain, no new probe machinery, and the per-role
 # fallback stays overridable for a mission that wants a different tail.
-export MISSION_EXECUTOR_FALLBACK="${MISSION_EXECUTOR_FALLBACK:-pi:openrouter/deepseek/deepseek-v4-flash-0731:floor}"
+# `:floor` DROPPED 2026-08-18 (was `...-0731:floor`). `:floor` is OpenRouter
+# provider.sort=price, so it pins the executor to the CHEAPEST endpoint — and the two
+# cheapest for this model carry NEGATIVE health status (StreamLake -2, Decart -5 of 28
+# endpoints, measured today). The lane was routed to the least-healthy host by
+# construction. World iteration 91 then returned `rc=0` with ZERO BYTES CHANGED twice,
+# at 625 output tokens against the 65,536 budget with `stopReason=stop` — the normal
+# success state, so the guard's stopReason assertion passes on a total failure and only
+# the worktree-diff assertion caught it.
+#
+# NOT a proven root cause, stated honestly: a live A/B probe today had BOTH `:floor`
+# (-> StreamLake) and the bare id (-> DeepInfra) return a correct tool_call, so tool
+# support is not categorically broken on either route, and billing is not implicated
+# either (OpenRouter credits were $8.33 remaining, and exhaustion returns 402, not a
+# clean stop). What survives is a correlation worth settling: the lane's one clear
+# big-milestone success (V1 iteration 156) was 2026-08-07, and `:floor` was pinned
+# 2026-08-11 — every failure since is on `:floor`.
+#
+# KNOWN COST OF THIS CHANGE: prompt caches are PER-PROVIDER, so a bare id that
+# load-balances across 26 hosts caches far less (measured 2026-08-11: unpinned
+# cacheRead=0 on two identical ~27.7k prompts vs :floor caching 27,392 of 27,673 on
+# call 2 => ~4.8x cheaper per repeat call). Accepted deliberately: a lane that returns
+# zero bytes has worse economics than any cache multiplier can repair. ROLLBACK: re-add
+# the `:floor` suffix here, or override MISSION_EXECUTOR_FALLBACK per mission env file.
+export MISSION_EXECUTOR_FALLBACK="${MISSION_EXECUTOR_FALLBACK:-pi:openrouter/deepseek/deepseek-v4-flash-0731}"
 export MISSION_PLANNER_FALLBACK="${MISSION_PLANNER_FALLBACK:-opus}"
 # When a design doc requires the Anthropic planner lane but the controller probe
 # has proved the Anthropic subscription unavailable, use Codex Sol rather than
