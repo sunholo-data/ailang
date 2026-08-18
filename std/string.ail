@@ -108,7 +108,9 @@ export pure func splitAny(s: string, delimiters: [string]) -> [string] = _str_sp
 export pure func foldChars(f: (a, string) -> a, acc: a, s: string) -> a = _str_foldChars(f, acc, s)
 
 -- charAt: Get character at rune index (0-based)
--- Note: O(n) rune conversion per call — use foldChars for sequential access
+-- Cost: O(i) — decodes forward to i, allocating nothing proportional to the
+-- string. It is NOT O(1): a left-to-right scan written with charAt is still
+-- quadratic in the string length. Use foldChars for sequential access.
 -- Example: charAt("hello", 1) = "e"
 export pure func charAt(s: string, i: int) -> string = _str_charAt(s, i)
 

@@ -1,0 +1,11 @@
+module test/string_charat
+
+-- ailang#688: the emit-go CharAt helper indexed by byte, and a later fix
+-- briefly emitted a helper that referenced unicode/utf8 -- an import runtime.go
+-- cannot produce for a Helper spec, so the generated package did not compile.
+-- This fixture keeps both regressions inside the codegen build+vet gate.
+import std/string (charAt, charCode)
+
+export func first(s: string) -> string = charAt(s, 0)
+export func nth(s: string, i: int) -> string = charAt(s, i)
+export func code(s: string) -> int = charCode(charAt(s, 0))

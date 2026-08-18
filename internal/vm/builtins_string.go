@@ -343,12 +343,13 @@ func builtinStrCharAt(args []bytecode.Value) (bytecode.Value, error) {
 	if args[1].Tag != bytecode.TagInt {
 		return bytecode.Value{}, fmt.Errorf("__str_charAt: arg 1 must be int")
 	}
-	runes := []rune(args[0].AsString())
+	str := args[0].AsString()
 	idx := int(args[1].Int)
-	if idx < 0 || idx >= len(runes) {
-		return bytecode.Value{}, fmt.Errorf("__str_charAt: index %d out of bounds for string of length %d", idx, len(runes))
+	r, ok := runeAt(str, idx)
+	if !ok {
+		return bytecode.Value{}, fmt.Errorf("__str_charAt: index %d out of bounds for string of length %d", idx, utf8.RuneCountInString(str))
 	}
-	return bytecode.NewString(string(runes[idx])), nil
+	return bytecode.NewString(string(r)), nil
 }
 
 func builtinStrCharCode(args []bytecode.Value) (bytecode.Value, error) {
@@ -358,11 +359,12 @@ func builtinStrCharCode(args []bytecode.Value) (bytecode.Value, error) {
 	if args[0].Tag != bytecode.TagString {
 		return bytecode.Value{}, fmt.Errorf("__str_charCode: expected string")
 	}
-	runes := []rune(args[0].AsString())
-	if len(runes) != 1 {
-		return bytecode.Value{}, fmt.Errorf("__str_charCode: expected single-character string, got %d characters", len(runes))
+	str := args[0].AsString()
+	r, size := utf8.DecodeRuneInString(str)
+	if size == 0 || size != len(str) {
+		return bytecode.Value{}, fmt.Errorf("__str_charCode: expected single-character string, got %d characters", utf8.RuneCountInString(str))
 	}
-	return bytecode.NewInt(int64(runes[0])), nil
+	return bytecode.NewInt(int64(r)), nil
 }
 
 // --- String encoding ---------------------------------------------------------
@@ -503,4 +505,27 @@ func isASCIIvm(s string) bool {
 		}
 	}
 	return true
+}
+
+// runeAt returns the rune at rune-index idx without materialising the whole
+// []rune slice. See the identical helper in internal/builtins/string_char.go:
+// `[]rune(s)[idx]` costs O(len(s)) time and allocates 4*len(s)+16 bytes on
+// every call regardless of idx (ailang#688). The two copies are pinned to
+// agree by TestCharAtTierAgreement.
+func runeAt(s string, idx int) (rune, bool) {
+	if idx < 0 {
+		return 0, false
+	}
+	for i := 0; i < idx; i++ {
+		_, size := utf8.DecodeRuneInString(s)
+		if size == 0 {
+			return 0, false
+		}
+		s = s[size:]
+	}
+	r, size := utf8.DecodeRuneInString(s)
+	if size == 0 {
+		return 0, false
+	}
+	return r, true
 }
