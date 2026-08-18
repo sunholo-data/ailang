@@ -12777,3 +12777,99 @@ type reported as ERROR where every comparable limitation is `skipped`). Two new 
 it: `m-string-search-offset` (`#688` claim 2, needs a design doc) and
 `m-codegen-helper-imports-inert` (`GoCodegenSpec.Imports` is silently inert for every Helper spec —
 latent, zero live exposure today).
+
+## 225 — 2026-08-18 — Iteration 224: an empty list literal took its element sort from a default, not from context
+
+**Picked**: queue head `m-sweep-orphans-2026-08-17`, language/stdlib lane, item `#689` — the item
+iteration 223 named as Next. Six unread inbox messages triaged (four eval-suite telemetry, V1's own
+iteration-223 report, one older `mission-v1` note); the latest eval suite is **46/46 (100%)**, and
+the `0/1` partial 4h earlier was a single-benchmark 3600s timeout superseded by two later suites, so
+nothing outranked the queue. Zero allowlisted directives on `#745` since the `12:32:25Z` watermark
+(18 comments enumerated). Ledger valid, 20 rows / 11 OPEN. `origin/dev` `d22681e27`: 15 checks,
+in-flight at Gate 1, zero failures; its parent's `checks=0` was confirmed to be the by-construction
+intra-push artifact (identical commit timestamps, one push at `18:39:00Z`), not a dropped event.
+
+**Reality check**: REAL at HEAD, reproduced first-party at `d22681e27` with output identical to the
+report — and **the report's characterisation was too narrow**. `#689` attributes the failure to "a
+record containing an ADT-typed field". Neither the record nor the ADT is the trigger. A five-case
+matrix isolated it: a record with a single `list[string]` field fails identically with **no ADT
+anywhere**; a `list[int]` field verifies; a plain `-> list[string] { [] }` with **no record at all**
+fails the same way; a non-empty `["a"]` verifies. The variable is the **element type**. Root cause:
+an empty list literal carries no element type of its own and SMT-LIB is monomorphically sorted, so
+`(as seq.empty (Seq X))` fixes `X` at the term; `encodeList` emitted `(Seq Int)` for every empty
+literal under a source comment asserting "the SMT solver will unify sorts as needed". It does not.
+The reporter's own paste already showed this and it had been read past: `listItems`, `textLines`
+and `tableRows` are `(Seq Int)` there too, and they are lists of strings.
+
+**Seven affected contexts**, enumerated before patching (Principle 3): record construction, record
+update, direct return, cons tail, an `if` branch, an empty literal nested inside a non-empty one,
+and the reported composite. **ANF is why the obvious fix does not work** — every literal is hoisted
+into a temporary before it reaches the site whose declared type would supply the sort, so the
+encoder sees `let $t = [] in (mk_S $t "x")` and the field sorts never meet the literal. Diagnosed
+by dumping the generated SMT with `verify -verbose`, not by reasoning.
+
+**Shipped**: PR `#778` → squash **`32ee90ed9`**; head `48f206a5b` at 21 checks, zero not-green,
+4/4 required (`build`/`docs-gate`/`lint` 3m35s/`test` 17m48s), `MERGEABLE CLEAN`. Empty-list
+bindings are inlined along the ANF let-spine (sound — an empty list is a pure, constant,
+argument-free value, and `SubstituteLambdaVar` already stops at any shadowing binder), then the
+declared sort is threaded from the three places a type is committed to — record field, record
+update, function return sort — propagating through `if` branches and into nested elements. `x :: []`
+is emitted as the singleton `(seq.unit x)`, needing no element sort at all. **Where no declared sort
+is available the behaviour is unchanged**, so the change can only replace an ill-sorted `(Seq Int)`
+with the sort the declaration had already committed to. 26 net lines of production code.
+
+**Verified in both directions, which is the part that matters for a verifier.** Making a shape
+encodable is only correct if a false contract over that shape still fails: five negative arms — the
+same shapes with contracts negated — all report **violations**, and the e2e negative test fails on
+`verified` *and* on `error`, so it also catches the positive arm passing for the wrong reason.
+Before/after differential on one tree with two binaries: 6 probe arms flip `errors` → `verified`
+while the three `int`-element and non-empty controls are **unchanged**. All **34** shipped contract
+examples byte-identical before and after (`diff` empty, instrument control-verified). New fixture
+`empty_list_sort_verify.ail` is its own discriminator: **7 errors before / 7 verified after**, one
+function per affected context.
+
+**9 mutation drills**, each asserted LANDED by sha256 and BUILDS by `go build` rc=0 **before any
+test result was read**, each restored by `cp` (never `git checkout --`) and verified byte-identical.
+**8 are unique killers** with inverse `-skip` rc=0. The 9th (shadow guard) reds alongside a
+pre-existing `TestSubstituteLambdaVar_ShadowedByLet` and is **recorded as a set, not claimed as a
+kill** — and it was run specifically because the shadowing arm had first fired for a *structural*
+reason under a different mutant, which would have left its name unsubstantiated.
+
+**Two instrument failures caught by their own controls.** (1) The first probe matrix omitted
+`import std/list (length as listLength)`, so `unknown constant listLength ((Seq String))` read like
+a second product defect; it was a repro artifact, found by checking where `listLength` is defined
+rather than believing the error. (2) The CI-log reader for "did my arms run on ubuntu" returned
+**0 hits for a known-present control**, i.e. a broken `awk` job-id extraction, not absent tests —
+re-derived, and all five test functions then showed 4/24/4/4/20 hits against a control at 4, with
+no `Z3 not installed` skip. So the arms are proven on **linux**, not only darwin/arm64.
+
+**One red attributed by measurement rather than inherited**: `tests/golden/codegen/string_charat`
+reds locally with `undefined: CharCode`. That harness shells out to whatever `ailang` is on `PATH`,
+and this rig's system binary is `v0.33.1-125-gc575cd44e-dirty`, predating `#775`. Two arms: fresh
+worktree binary on `PATH` → **rc=0**; **pristine tree with my changes stashed** → **rc=1, identical
+failure**. Iteration 223 recorded this class, but it was re-measured rather than transcribed.
+`go build ./...` likewise fails at `cmd/wasm` on untouched dev — confirmed by a stashed baseline arm.
+
+**Routing evidence**: model=claude-opus-5 task-class=mechanical round1-score=n/a rounds=1
+  corrections=0 provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus
+  <!-- controller-inline: well-specified code work on a measured, reproduced defect; no designer,
+       planner, executor, evaluator or quorum lane fired, no GPU, no rig.lock. metered=$0.00. -->
+
+**Ruled out**: the report's item 1 (reclassify the sort mismatch as `skipped`) **for this case** —
+the contract turned out genuinely verifiable, so reclassifying would have hidden a real bug behind
+an honest-looking hint permanently; item 1 is still owed for the *residual* surface and is queued
+separately on its own evidence (`shapes_verify.ail` ships today reporting `1 errors` for an
+unencodable tuple pattern where `unencodable_callee_skip.ail` reports `skipped` — the inconsistency
+reproduces independently of this defect). Also ruled out: the report's "record with an ADT field"
+framing (refuted by the a1/a4 arms); threading a hint through the whole `encodeApp` dispatch for
+cons (the `x :: []` → `(seq.unit x)` identity needs no sort and cannot drift); a `>= 0` seq-length
+contract on the `if` arm (12.6s of solver time for no extra coverage — the arm tests that the BODY
+encodes at all); trusting the manifest gate's first red as a real failure (it was statistics drift,
+and the gate names its own backfill remedy); and claiming the shadow-guard drill as a unique kill.
+
+**Gate 5**: no skill edit — the two frictions this iteration are already-documented rules
+(3a's known-positive control) working exactly as written, not gaps. No process fix.
+
+**Next**: `#662` continues the language/stdlib lane, then `#646`, `#644`. Three rows newly queued
+behind it, one of them (`m-verify-unencodable-reported-as-error`) carrying this iteration's own
+first-party evidence.
