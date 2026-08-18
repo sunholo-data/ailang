@@ -109,6 +109,47 @@ for zp in $(lsof -ti :8080 2>/dev/null); do
     fi
 done
 
+# --- MISSION-JOB RE-BOOTSTRAP (2026-08-18) ---------------------------------
+# The scheduled ailang jobs VANISH from the gui/<uid> domain — not disabled, not
+# crashed: absent, while their plists sit untouched in ~/Library/LaunchAgents.
+# Observed twice: 2026-08-17 (loops silent ~12h, discovered by hand) and
+# 2026-08-18 (again, ~4.5h silent, V1 and world each missing fires). Both times
+# the SAME seven vanished and dev.ailang.rig-watchdog — this job — survived.
+#
+# The cause is UNKNOWN and deliberately not guessed at here. It could not be
+# identified from the unified log: `log show` returns zero records to this
+# context even for the last 2 minutes despite a 1.1G store, so the instrument is
+# blind rather than the event absent. Nothing in this repo calls `launchctl
+# bootout`/`unload` on a mission label (grepped).
+#
+# So this is recovery, not a fix, and it is the same bet the ollama block above
+# makes: on this box launchd's own guarantees are not dependable, and a 60s
+# poller that survives is worth more than a correct theory. If the root cause is
+# later found, DELETE this block rather than leaving two mechanisms.
+#
+# Re-bootstrap is idempotent: an already-loaded label makes `bootstrap` fail
+# harmlessly (EALREADY), so the common path is silent and only genuine restores
+# log. RunAtLoad=true on the three mission jobs means a restore also FIRES that
+# mission — which is the point, since a vanished job has been missing fires.
+for label in mission-control mission-motoko mission-world \
+             mission-recovery mission-recovery-motoko \
+             nightly-eval os-rotation-filler; do
+    full="dev.ailang.${label}"
+    plist="$HOME/Library/LaunchAgents/${full}.plist"
+    [ -f "$plist" ] || continue
+    # Match the LABEL COLUMN of `launchctl list` (tab-separated: PID STATUS LABEL).
+    # A substring grep would false-positive: "mission-recovery" is a prefix of
+    # "mission-recovery-motoko", so the shorter label would read as loaded
+    # whenever only the longer one is — silently skipping the restore.
+    if ! launchctl list | awk '{print $3}' | grep -qx "$full"; then
+        if launchctl bootstrap "gui/${UID_NUMBER}" "$plist" 2>/dev/null; then
+            echo "${TIMESTAMP} [WATCHDOG] ${full} was ABSENT from gui/${UID_NUMBER} — re-bootstrapped"
+        else
+            echo "${TIMESTAMP} [WATCHDOG] ${full} absent and re-bootstrap FAILED — needs a human"
+        fi
+    fi
+done
+
 # Exit 0 always — the next tick will re-check. Non-zero exit would make
 # launchd consider the watchdog itself broken.
 exit 0
