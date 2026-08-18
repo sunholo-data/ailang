@@ -56,6 +56,13 @@ Ordered by my current best guess of likelihood-to-be-the-winner, with the unders
 
 **Concrete first-attempt recipe**: fine-tune `qwen3-coder:30b` (~50 GB peak QLoRA footprint, ~7-12 days for 3 epochs on 100k examples per the researcher's M4 Max throughput numbers).
 
+> **2026-08-18 refresh** (candidates table above is the 2026-05 frontier — kept for the reasoning, superseded for the pick):
+>
+> - **Refreshed first-attempt target: `qwen3.8:27b` (dense).** Same shape the table asks for (dense, mid-size, Qwen family, ~45-50 GB QLoRA peak), one generation newer than `qwen3-coder:30b`. Already on the rig: ollama upgraded to 0.32.14 and `qwen3.8:27b-mxfp8` pulled 2026-08-17; cleared the OpenRouter quality screen (+15.9pp AILANG vs qwen3.6-35b-a3b, McNemar p=0.0094, see `or-qwen3-8-27b` in models.yml); on-device A/B lanes registered (`opencode-/pi-/motoko-local-qwen3-8-27b`), rotation promotion pending the quality-vs-throughput A/B. Being family-adjacent to the qwen3.6 trajectories that dominate the corpus, the training data transfers with no tokenizer mismatch.
+> - The incumbent `qwen3.6:35b-a3b` remains the **data source**, not a fine-tune target — it's MoE, which the anti-recommendations below already exclude for MLX training.
+> - **Corpus readiness is no longer the bottleneck**: opencode.db measured 2026-08-18 at 9,111 sessions / 272,451 parts / 1.1 GB (vs 176 sessions / 3,751 parts when this doc was written). The extractor is now the only thing between us and knowing the true PASS-trajectory count.
+> - Unsloth re-checked 2026-08 (their Desktop app launch): still **no Apple Silicon training** — MLX QLoRA remains the stack. The MLX→GGUF/serving question (open question 2) may have moved with ollama ≥0.32.12's qwen3.8 support; re-verify at execution time.
+
 **Anti-recommendations** (do NOT pick these for fine-tuning even though they appear in ollama's library):
 
 - ❌ `llama-3.3-70b` and variants — see §"Why NOT llama" above
