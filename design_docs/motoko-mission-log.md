@@ -795,3 +795,109 @@ Recorded here as the second first-party instance behind that rule rather than as
 **Next**: queue row **6b** (triage-lite the 15 charter-orphaned issues) is the head and is untouched —
 a hand-off is not a pick. **D-MOTOKO-FMT-1** remains the one OPEN decision (one word: precondition /
 redesign), which unblocks item 6. Item 5 remains bounded until 2026-08-27.
+
+## 10 — 2026-08-18 — auto-merge is not a landing mechanism: iteration 9's record sat BLOCKED on a red its base had already been fixed for
+
+**Picked**: not the queue head, and not by preemption either. Gate 2's died-mid-flight check fired:
+**PR [#760](https://github.com/sunholo-data/ailang/pull/760)** — iteration 9's entire mission record
+— was OPEN, `MERGEABLE`/**`BLOCKED`**, with a stale worktree `.wt-motoko-iter9-record` corroborating
+it. The charter's newest stamp read **iteration 8**, so a reader could not tell whether iteration 9
+had run, crashed, or never fired. Per the rule, the deliverable is to **verify and land** it, not to
+redo it. Standing rule 1 then allowed a second item, since recovery is bookkeeping: queue head **6b**.
+
+**Reality check**: ran from the `#558` driver pin root, detached and clean at `c0dde65eb` ==
+`origin/dev`; running skill byte-identical to origin (`cmp` rc=0). dev **verified green, not merely
+un-red**: **16** exact-SHA checks, **0** not-green, `test: success` present in the set and a non-zero
+run count. `gh` on `sunholo-voight-kampff`; billing tripwire **CLEAN**; kill switch armed. **0**
+human directives on `#743` since the watermark `2026-08-17T05:48:45Z` (of 4 comments; the rest are
+public feedback). Decision ledger valid, 3 rows, **1 OPEN** (`D-MOTOKO-FMT-1`, unanswered). Weekly
+external-issue sweep **not due** — `#743` was created `2026-08-17T05:48:23Z`, i.e. **after** the
+Monday-07:00 **local** boundary (= `05:00Z`), and holds 4 comments < 80, so no rotation either.
+All four prior motoko worktrees clean; open loop-authored PRs `#695`/`#613` are V1's.
+
+**THE FINDING — auto-merge waits on a check set that can never change, so a base-inherited red
+freezes a PR forever, and the iteration that enabled it has already ended.** Iteration 9 closed by
+enabling auto-merge on #760 (`enabledAt 2026-08-17T19:36:39Z`, SQUASH) rather than force-merging over
+a red, and wrote in the PR body: *"It goes green once #759 lands."* Measured this iteration, and every
+number is first-party:
+
+- `#759` **merged at `2026-08-17T20:02:27Z`** — 26 minutes later — and its merge commit `cf56772bf`
+  reads `test=success`, as does every commit after it up to HEAD. So the premise came true.
+- #760's `updatedAt` is still **`2026-08-17T19:36:34Z`**, comments **0**, state `MERGEABLE`/`BLOCKED`,
+  **12 h 13 m** after creation. Its `test` check is still `failure` on head `bf66f7655`, `run_attempt=1`.
+- Mechanism: GitHub auto-merge merges when *the PR's own* required checks pass. It does **not** update
+  the branch and does **not** re-run checks when the base advances, so a red inherited from the base is
+  pinned to the PR's head SHA and outlives the fix. Nothing on either side re-evaluates it.
+
+Consequence, which is the part worth the rule: this is a **silent** loss. There is no timeout, no red
+to triage, no failed command — Gate 3b was never left in a state that could fail. The iteration ended
+"successfully" and the mission's memory simply skipped a number. It is the vacuous-pass class the loop
+keeps closing, aimed this time at the *landing* step: success reported for work that never shipped.
+Two of motoko's last five iterations have now lost their record this way (6→7, 9→10) by two different
+mechanisms.
+
+**SECOND FINDING — iteration 9 attributed #760's red to the wrong step, and it was the step it had
+just spent the whole iteration fixing.** The PR body says *"the `test` job's `Check changelog index
+hygiene` step fails here for the base's reason"*, and baselines `make check-changelog` rc=2 at base and
+with the diff applied. Measured on the actual job (`actions/jobs/95482959213`): `Check changelog index
+hygiene` is step **17** and its conclusion is **`skipped`** — it never ran. The failing step is **14.
+`Run stdlib .ail test suites`**. And on the base `714f1cecc` (`actions/jobs/95481571091`) the failing
+step is **also 14**, identically. So the *verdict* — inherited, not caused by this docs-only diff — is
+**correct**, and the *mechanism cited for it* is wrong: a real measurement was taken, of a different
+gate. Rule 3d in its purest form; the red arrived in exactly the direction the iteration had been
+looking all day, so nothing prompted reading the step list. Note the reading is only visible in
+`actions/jobs/<id>`, not in `check-runs`, which reports the job and not its steps.
+
+**Disposition — verified, then landed.** Rebased `docs/motoko-iter9-record` onto `origin/dev` (clean:
+`git diff --stat 714f1cecc origin/dev` over the five mission files is **empty**, so no conflict was
+possible), which produces a fresh check set on a green base. Iteration 9's own load-bearing claims
+were re-derived rather than adopted (rule 3b(v)): `#758` CLOSED `2026-08-17T19:27:25Z`, `#759` MERGED
+`20:02:27Z`, base `714f1cecc` `test=failure`, `cf56772bf` `test=success`. **One correction applied to
+the inherited diff**: it wrote `design_docs/mission-dashboard.md`, the bare unnamespaced path that
+V1's iteration 216 rule now forbids — that hunk was dropped (`git checkout origin/dev --` on that
+path; `git diff origin/dev` on it is empty) and the snapshot went to
+`design_docs/motoko-mission-dashboard.md` instead. The bare file still holds motoko's own stale
+iteration-7 snapshot; per the rule it is **left alone**, not "fixed", and is flagged here as one line
+of cleanup for a future iteration.
+
+**Queue row 6b — closed as a measurement, and motoko owns none of it.** Full verdict in the charter
+row. Headline: of the 15, **3 have closed** since the sweep (`#727`, `#708` on 08-18; `#696` on
+08-17); **11 of the remaining 12 carry `ailang-message` + `from:<consumer>` labels** and are already
+enumerated in V1's charter at `v1-mission.md:2104-2109`; the 12th, `#687`, is V1's **declared next
+pick** in both its iteration 220 and 221 reports. There was therefore nothing to hand over — the
+recipient charter already lists all twelve — and no verdict comment was posted, because a verdict
+from the non-owning loop is noise on someone else's lane. Table taken over 8 files with firing
+controls and an asserted array length.
+
+**Routing evidence**: controller `claude:claude-opus-5` (session). Designer, planner, executor,
+evaluator and quorum **never spawned** — the deliverable is a recovery-and-record plus a measured
+queue disposition, so there is no doc to design, no plan to write and nothing to judge. Designer
+rotation pointer untouched at `claude:claude-fable-5`. Metered **$0.00** of $5. No GPU, no `rig.lock`;
+`make quick-install` deliberately NOT run (shared-write guardrail). Gates ran on **darwin/arm64
+only** (rule 3b(viii)).
+
+**Ruled out**:
+- *"#760 is blocked by the changelog gate its own iteration fixed"* — REFUTED above; that step is
+  `skipped` on both the PR head and the base, and the real failure is `Run stdlib .ail test suites` on
+  both.
+- *"The sweep row poisons its own detector, so this is a Gate-0 defect"* — investigated and REJECTED.
+  It is true that all 15 issues now grep to ≥1 because row 6b names them, and true that a re-run of the
+  weekly sweep can never re-detect them. But that is the sweep *working*: they are tracked, by that
+  row. The residual hazard is narrower — a row that CLOSES without action makes them invisible again —
+  which is why 6b's close carries an ownership measurement rather than a bare tag. Not a skill edit.
+- *"Auto-merge is unsafe and should be dropped"* — no. V1's log carries **76** auto-merge mentions and
+  it lands PRs routinely; the failure is specific to a red inherited from the base, where the PR's own
+  check set is frozen. The remedy is a rebase, not abandoning the mechanism.
+- *"#695/#613 are the same shape"* — checked, and they are not: neither has auto-merge enabled
+  (`#695` is `CONFLICTING/DIRTY`, `#613` is a deliberate DO-NOT-MERGE). So #760 is instance **1** of
+  the auto-merge shape specifically, which is why the skill edit below is filed under the
+  died-mid-flight class it extends rather than as a new rule of its own.
+
+**Retro lane — ONE skill edit**, to Gate 3b: auto-merge is not a landing mechanism when the red is
+base-inherited, because the base moving does not re-run the PR's checks. Two recorded frictions in the
+class it extends (Gate 2's died-mid-flight rule, instances at iterations 121/148-149/160-161, plus
+motoko 6→7), and this iteration supplies the new mechanism with a clean negative control.
+
+**Next**: **D-MOTOKO-FMT-1** is the one OPEN decision (one word: *precondition* / *redesign*) and
+unblocks item **6**. With 6b closed, the untagged queue head is item **7** (profile restoration
+design, clause 4 — 5 profiles, 14 of 18 model entries). Item 5 remains bounded until 2026-08-27.
