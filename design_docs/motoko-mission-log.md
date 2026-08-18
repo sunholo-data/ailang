@@ -1013,3 +1013,110 @@ only** (rule 3b(viii)).
 
 **Next**: item **7** (profile restoration design) is the queue head, ungated. `#165` is Arni's to
 triage — nothing local waits on it.
+
+---
+
+## 12 — 2026-08-18 — the issue we filed six hours ago was already anchored to a base that had moved 59 commits, and upstream had just cut the branch to work it
+
+**Picked**: not the untagged queue head (item **7**). Gate 1's external-predicate re-read — the rule
+iteration 11 added to this very skill — surfaced that queue row 5's freshly-written claim
+*"`origin/main_dst` is **still exactly `6c06b08`**, **0** commits since our V27–V29 rows"* was
+**FALSE**, measured `git rev-list --count 6c06b08..8110ffc` = **59**. The row was six hours old. The
+deliverable is the re-anchor of the artifact that claim underwrites, upstream issue
+[**#165**](https://github.com/arniwesth/motoko_agent/issues/165), before its reader diffs against a
+base it no longer describes.
+
+**Reality check**: ran from the `#558` driver pin root, detached and clean at `9467ef183`; running
+skill **byte-identical to `origin/dev`** (`cmp` rc=0). Local pin root was **4** behind
+`origin/dev` (`d22681e27`), so all mission state was read from origin blobs, and the record is
+written in a worktree branched from `origin/dev` — never in the shared checkout. `origin/dev` last
+**settled** commit `9467ef183` is green: **16** exact-SHA checks, **0** not-green; the current tip
+`d22681e27` is mid-flight (**15** checks, all `pending`) and is therefore recorded as *unverified,
+not green* — no verdict taken from an in-flight run. `5f9f4ba4f` returns `checks=0` because it is an
+intra-push commit and only a push tip gets runs, which is the documented zero, not an anomaly. dev is
+V1's to own regardless (2026-08-17 scoping rule), so no red here could have displaced this pick.
+
+**Died-mid-flight sweep**: five motoko worktrees, `git status --porcelain` **0** in all five; the two
+open loop-authored PRs (`#695` `CONFLICTING`, `#613` `[DO NOT MERGE — awaiting D-1]`) are V1's, as
+the last three iterations also measured; the stale `~/dev/sunholo-data/ailang-motoko` source clone
+carries the same **7** paths iteration 11 already adjudicated *superseded, not orphaned*, unchanged.
+
+**THE FINDING — a LANDED row's deliverable can rot against a base nobody re-reads, and every
+freshness rule in this skill is scoped to rows you are about to PICK.** Iteration 11 wrote the rule
+that catches a *blocked* row re-asserting a stale measurement. This is the mirror: the row is
+**LANDED**, so by construction no gate revisits it — and its deliverable is not a local file but an
+artifact **published to an external party**, pinned to that party's moving branch. `main_dst` gained
+**59** commits (**100** files) between our filing at `12:46:42Z` and this iteration, `src/core/session.ail`
+among them (`+67/-13`), and the maintainer cut `arniwesth/mot-100-fix-output-headroom` in the same
+window. Nothing in the loop would have looked; the queue row reads LANDED and the issue reads filed.
+
+**The defect is INTACT — only the offsets moved, and that is a measurement, not a hope.** The ten-line
+window `src/core/session.ail:2552-2561@6c06b08` is **byte-identical** to `:2606-2615@8110ffc`,
+sha256 `c53792eb5b778cf32e72001006e485274b05f33d13f14cbe578c836e9e15f1dc`. **Negative control**: the
+same window shifted by one line hashes `01d10306…`, so the match is a real match rather than a hash of
+nothing. So all three `session.ail` citations in `#165` shift **+54**: `2552→2606` (the
+`context_limit` binding), `2556→2610` (`ext_context_limit = context_limit - pinned_tokens`),
+`2561→2615` (`seal_compacted_payload(…, context_limit, …)`). The asymmetry the issue is about —
+extensions get the reduced limit, the seal gets the raw one, five lines apart — survives verbatim.
+
+**The other cited files are byte-unchanged across the range, with a same-call control.**
+`git diff --stat 6c06b08 8110ffc -- src/core/phase_vocab.ail src/core/compaction.ail
+src/core/compaction_structural.ail src/core/context_usage.ail src/core/session.ail` returns
+**`session.ail` only** — so the instrument fires (rule 3a(i-d): the control is in the same scope as
+the check, not a different path) and the other four are genuinely untouched. `compaction.ail:25-28`,
+`:30`; `compaction_structural.ail:97-113`, `:170`, `:191`; `phase_vocab.ail:145-155` therefore stand
+as written.
+
+**Delivered**: a correction comment on
+[**#165**](https://github.com/arniwesth/motoko_agent/issues/165#issuecomment-5332596902) carrying the
+old→new citation table, the block sha256 with its negative control, the same-call unchanged-files
+control, and the note that `arniwesth/mot-100-fix-output-headroom` currently points at `ffd6256` —
+an **ancestor** of `main_dst@8110ffc` with **zero** commits of its own — so branching from the tip
+saves a rebase. Posted `--body-file` (never inline `--body`; markdown is made of backticks), and
+**delivery asserted by comment count 0 → 1**, because a reporting command's exit code describes the
+request, not the delivery.
+
+**Phase-0 predicates re-run, not transcribed — all still FALSE, so rows 10/11/12 stay parked.**
+**G1**: `#154` `state=OPEN`, `mergedAt=-` (control: `#161`/`#162` in the same repo return
+`state=MERGED` with non-null `mergedAt`, so the instrument can see a merge) — but note `#154`
+`updatedAt=2026-08-18T16:48:58Z`, i.e. it is actively moving, which is what put `main_dst` 59 ahead.
+**G2**: predicate `git -C <upstream> cat-file -e origin/main:packages/motoko-ext-abi/ailang.toml`
+rc=**128**, mandatory control `…:README.md` rc=**0** → FALSE for the right reason (V20/V25).
+**G3**: registry `latest=2.2.0`, `versions=1.0.0,2.0.0,2.1.0,2.2.0` → no 5.x → FALSE.
+**G4**: unrunnable while G3 is FALSE. **G5** (Arni's ABI-settled declaration) unchanged.
+**D-MOTOKO-FMT-1** remains the sole OPEN ledger row; `scripts/mission_directives.sh` returned **0**
+directives from `MarkEdmondson1234` on `#743` since the `2026-08-17T05:48:45Z` watermark, of 8
+comments.
+
+**RULED OUT**: *upstream already fixed this* — `session.ail:51` now imports `resolve_context_limit`
+from `src/core/context_usage`, which looks exactly like the fix; `context_usage.ail` is **byte-unchanged**
+across `6c06b08..8110ffc` and resolves the context limit rather than reserving output headroom, and
+the seal at `:2615` still receives the raw value. This is the solved-upstream class the Gate-2
+iteration-145 rule names, and it came back negative on measurement rather than on reading.
+*The four merge commits in the range moved `session.ail`* — **refuted before posting**, and the draft
+comment had already asserted it: `git log --oneline 6c06b08..8110ffc -- src/core/session.ail` returns
+exactly **two** commits, `b1ad13b` and `a45f708`, both `#160` work, and they are the whole `+54`. That
+is rule 3b(v)(b) caught on this controller's own prose — an inference from an adjacent list, written
+as if measured. *The fix branch has work on it* — `arniwesth/mot-100-fix-output-headroom` is an
+**ancestor** of `main_dst`, `git log main_dst..branch` empty, so it is a freshly cut branch and not a
+patch to read.
+
+**Routing evidence**: controller `claude:claude-opus-5` only. **No designer, planner, executor,
+evaluator or quorum spawned** — a base-freshness re-measurement of a filed artifact has no doc to
+design, no plan to write and nothing to judge; quorum-at-pick N/A (no design doc is in play).
+Designer rotation pointer **untouched** at `claude:claude-fable-5`. Metered **$0.00** of the $5
+ceiling. No GPU, no `rig.lock`. `make quick-install` deliberately NOT run (shared-write guardrail,
+V20) — no local AILANG behaviour was under test; every measurement here is `git`/`gh`/`shasum` over
+two checkouts. Gates ran on **darwin/arm64 only** (rule 3b(viii)).
+
+**Gate 5 — no skill edit.** The gap is real and narrowly stated: *every freshness rule in this file
+is scoped to a row you are about to pick, and none of them covers an artifact a LANDED row has
+already published to a third party whose base moves.* That is **instance 1**, pre-registered here at
+the skill's own ≥2-friction bar (the precedent is iteration 140 pre-registering rule 3d). Iteration
+11's rule and this one are the same family but not the same gap — its trigger is *blocked*, mine is
+*landed and published* — so folding this into it now would be a rule written on one datapoint.
+Queue row 5 is corrected in the charter instead (process lane), which is where a stale measurement
+belongs.
+
+**Next**: item **7** (profile restoration design) is the queue head, ungated, and is the pick for
+iteration 13 unless a predicate flips. `#165` is Arni's to triage; nothing local waits on it.
