@@ -12205,3 +12205,134 @@ process gap surfaced.
 `#727`, `#708`, `#687` — each ghost-disciplined at HEAD before routing, since two of them sit in
 code this loop has since edited. Secondary: triage the standing SonarCloud red far enough to say
 whether it is real, since nobody has looked at it across at least two analysed commits.
+
+## 221 — 2026-08-18 — Iteration 220: design-quorum read the token counts, spent them on cost, and threw them away
+
+**Picked**: the queue head `m-sweep-orphans-2026-08-17`, mission-infra lane, item `#708`
+(`design-quorum` records no per-reviewer token usage, so Gate-3's chain-telemetry token mandate is
+unsatisfiable). `dev` was green on the required set, so nothing outranked the queue.
+
+**Reality check**: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. One unread inbox
+message, and it was V1's **own outbound** cross-mission note to `mission-world` (iteration 219's
+`#764` triage) — left unacked rather than swept, since `ack --all` on an outbound message marks a
+sibling's *inbound* copy read. Zero allowlisted directives on `#745` since the
+`2026-08-18T01:47:22Z` watermark, across 10 enumerated comments. Ledger valid, 20 rows / 11 OPEN.
+No weekly rotation: `#745` was created `06:14:45Z` = **08:14 CEST**, after the Monday-07:00 LOCAL
+boundary, and holds 10 comments.
+
+**The skill `cmp` was run against the copy the loop actually executes, which is not the one in this
+worktree.** The driver pin (`~/.ailang-driver-pin/v1`) is a detached worktree at `origin/dev`, but
+`~/.claude/skills/mission-control` symlinks to the **MAIN checkout** — which is 6 commits behind.
+A `cmp` against the pin's own `.claude/skills/...` would have measured the wrong file and reported
+a reassuring identity. Measured properly: all three copies are 237,334 B and byte-identical, so the
+running rulebook matches `origin/dev`. The main checkout's only dirt is the two rig-synced
+`docs/static/benchmarks/os/*.json` files.
+
+**CI at `origin/dev` `9607d7c99`**: 16 SHA-addressed checks, one not-green —
+`SonarCloud Code Analysis: failure`. Walked back over eight commits: `failure` on all six analysed
+tips, `pending` on the two older ones. Same standing, NON-REQUIRED red that iterations 217, 218 and
+219 each named; this is the **fourth** iteration to name it and leave it un-triaged. The required
+set was green, so it did not outrank the queue — but four namings without a look is now itself the
+argument for picking it.
+
+**Ghost discipline: `#708` was REAL, and the row's prediction about it was WRONG.** The queue row
+had guessed `#708` was "a strong candidate to be a ghost or already-fixed" because the loop had
+since edited that code. Measured on a real artifact, with the control firing in the same call:
+reviewer keys came back `cost_usd,landed,model,present,result`, while
+`jq '[paths|join(".")]|map(select(test("cost")))'` on the same file returned three cost paths. So
+the absence is a measurement, not an empty grep. A guess about staleness is not ghost discipline;
+running the check is.
+
+**The defect was sharper than "not recorded" — the counts were READ AND DISCARDED.**
+`run.go:138` spent `resp.InputTokens`/`resp.OutputTokens` on `estimateCost` and then dropped them.
+Worse on the agentic tier: `agenticCaller.CallJSON` returned a literally empty `&ai.Response{}`,
+with a doc comment asserting the tier "carries zero token counts" — while
+`coordinator.ExecuteResult` had been carrying `InputTokens`/`OutputTokens` the whole time. So the
+data was present at every layer and thrown away at each one.
+
+**Enumerating the construction sites first is what made this one sweep instead of one patch**
+(Critical Principle 3). `grep 'ReviewerOutcome{'` over non-test Go returned exactly **two** sites —
+`run.go:92` and `agentic_caller.go:150` — with the test-inclusive count as the control (six files).
+Patching only the tier named in the issue would have left the agentic tier posting zeros, on the
+tier whose cost is *observed* rather than derived and is therefore the harder one to reconcile.
+
+**Outcome: LANDED.** PR `#767` → squash **`904cb9b0d`**. PR head `7b6d49d48` carried **21 checks,
+zero not-green**, 4/4 required contexts pass (`build` 2m16s / `docs-gate` 2s / `lint` 3m53s /
+`test` 17m15s), `MERGEABLE CLEAN`. Shipped: `tokens_in`/`tokens_out` on `ReviewerOutcome` for both
+tiers and on a **failed** agentic run (matching what cost already did — a billed-but-failed reviewer
+is the least explicable spend in the artifact); `total_tokens_in`/`out` on `Synthesis` at the
+Tier-1-only scope `total_cost_usd` has always had, so the two totals stay comparable;
+`TokenAccountingGaps()` naming any reviewer billed with zero reported tokens.
+
+**`TokenAccountingGaps` reports, it does not refuse.** Principle 2 argues for failing loudly, and the
+issue's own wording is "must FAIL LOUDLY". But the only remaining way to hit this state at runtime is
+a provider or executor that bills without reporting usage — someone else's reporting gap — and a
+refusal there would wedge a quorum the loop depends on. Loud stderr, never an exit code. The
+regression *test* is where the hard failure lives.
+
+**The mutation drill found a hole the issue did not describe.** Drill M3 zeroed the token mapping in
+the production `coordinator.ExecuteResult` → `AgenticRun` adapter and the **entire package stayed
+green**. That mapping sits behind `NewExecutorProvider`, which needs a registered executor, so every
+test stubs `AgenticRunner` directly and none could reach it — the one place the executor's real
+counts enter the quorum had zero coverage. It is now the extracted `agenticRunFromExecuteResult`,
+pinned with its nil guard, and re-drilled as M3b/M3c: each reds only its own arm.
+
+**10 new arms, 8 drills.** Every mutant asserted **LANDED** (sha256 before ≠ after) and **BUILDS**
+(`go build` rc=0) before any test result was read; every drill's inverse `-skip` run rc=0, which is
+what separates "my arm killed it" from "a bystander redded". Six drills red exactly one arm —
+text-tier recording, provider token mapping, provider nil guard, Tier-2 enumerator, synthesis
+totals, and the `json` tag. **Two red a pair and are recorded as pairs, not claimed as unique
+kills**: neutering the agentic recording reds both agentic arms (one assignment serves the success
+and failure branches), and widening the gap condition reds both gap-flagging arms (each carries a
+healthy-reviewer control). The tenth arm is that widening drill's negative control and was not
+drilled alone. Restores by `cp`, never `git checkout --`; byte-identity verified each time.
+
+**The artifact arm is the load-bearing one (rule 3k).** Drill M7 replaced `json:"tokens_in"` with
+`json:"-"`: every struct-level arm stayed green while the written artifact went back to being
+exactly as tokenless as before. The consumer of this work is a controller running `jq` over that
+file, so the assertion has to be on the emitted keys, not on the Go fields. M7 reds only that arm.
+
+**Baseline discipline**: the quorum package was rc=0 on pristine `origin/dev` before any edit, and
+`go build ./...` fails identically at `cmd/wasm` (`function main is undeclared`) on the **clean**
+driver-pin tree — so the scoped `go build ./internal/... ./cmd/ailang` is the informative gate, not
+a repo-wide build. The gate list was **derived from `ci.yml`** rather than recalled (rule 3g).
+
+**Platform narrowing stated, not closed.** Every local gate ran on darwin/arm64 and the PR body says
+so explicitly; the ubuntu and windows legs are covered only by the green `test`/`build` contexts. One
+assertion needed a tolerance rather than bit equality: `estimateCost` differs by **1 ULP** between
+two call sites on arm64 (`0x…aab` vs `0x…aac`), because the compiler may contract `a*b + c*d` into
+an FMA in one inlining context and not the other. A bit-exact check there reds for the FPU, not for
+the change — and it did, on the first run.
+
+The changelog entry went into `changelogs/v0.18-current.md`, never the root index. Its arm count was
+**re-derived by command** after a first draft said "eight new arms"; `grep -c '^func Test'` says ten
+(rule 3b(v)(b) — a quantity you cannot name a command for is not a measurement).
+
+`#708` was closed by the merge. The verdict was posted as its **own** `--body-file` comment BEFORE
+merging, and the comment count asserted to have grown 0 → 1 — `gh issue close --comment` exits 0 and
+posts nothing on an already-closed issue, and a `Fixes #N` PR body makes "already closed" the normal
+path.
+
+**Routing evidence**: model=claude:claude-opus-5 task-class=mechanical round1-score=n/a rounds=0
+corrections=0 provider=anthropic agent=controller cost=quota-bucket:weekly-opus (`metered=$0.00`).
+No designer, planner, executor, evaluator, quorum or GPU call: a well-specified code fix inside one
+package, which Gate 3 assigns to the controller. Codex remains dry until 2026-08-20 05:34.
+
+**Ruled out**: patching only the text tier named in the issue (the site enumeration found two, and
+the unpatched one was the harder to reconcile); re-deriving agentic cost from the now-available
+tokens (cost there stays OBSERVED — the tokens are for accounting, not pricing); making
+`TokenAccountingGaps` a refusal rather than a report; accepting M3's survival as drill noise instead
+of as a named coverage hole; bit-exact float comparison across inlining contexts; `ack --all` on an
+outbound cross-mission message; and letting the standing SonarCloud red outrank a green required set
+for a fourth time.
+
+**Retro lane**: none. One friction this iteration — the queue row's prediction that `#708` was
+probably a ghost, which measurement refuted — and the bar for a skill edit is two. That prediction
+pattern is now recorded in the queue row itself as a warning against `#687`, which carries the same
+guess. No process fix; the two-mission claim protocol is already `D-18`, awaiting Mark.
+
+**Next**: `#687` closes the mission-infra lane (`⚠ Binary may be stale` is an mtime heuristic over
+CWD-relative dirs, so it mis-fires on a content-identical binary in every fresh worktree — including
+this loop's own, where it printed during this very iteration). Then the language/stdlib orphans
+(`#688`, `#689`, `#662`, `#646`, `#644`). Secondary, and now overdue: triage the standing SonarCloud
+red far enough to say whether it is real.
