@@ -137,6 +137,24 @@ for label in mission-control mission-motoko mission-world \
     full="dev.ailang.${label}"
     plist="$HOME/Library/LaunchAgents/${full}.plist"
     [ -f "$plist" ] || continue
+    # HOLD = a SANCTIONED stop. Without this, re-bootstrap fights any operator or
+    # agent who stopped a job ON PURPOSE — it would resurrect it inside 60s, which
+    # is worse than the drift this block exists to fix. Matters most for the GPU
+    # consumers: os-rotation-filler fires every 2700s and takes rig.lock, so
+    # reviving it mid-eval starts a SECOND job against a device already holding a
+    # 33.5GB model. Two LLMs resident is the documented OOM shape that panicked the
+    # rig on 2026-07-20. Cloud-only jobs (the missions) never touch the GPU, but
+    # they honour the hold too so there is ONE idiom rather than a special case.
+    #   hold:    mkdir -p ~/.ailang/state/launchd-hold && \
+    #            echo "why + who" > ~/.ailang/state/launchd-hold/dev.ailang.os-rotation-filler
+    #   release: rm ~/.ailang/state/launchd-hold/dev.ailang.os-rotation-filler
+    # A hold does NOT stop a loaded job — bootout separately. It only stops this
+    # watchdog putting it back.
+    hold="$HOME/.ailang/state/launchd-hold/${full}"
+    if [ -f "$hold" ]; then
+        echo "${TIMESTAMP} [WATCHDOG] ${full} on HOLD — not re-bootstrapping ($(head -c 120 "$hold" 2>/dev/null | tr '\n' ' '))"
+        continue
+    fi
     # Match the LABEL COLUMN of `launchctl list` (tab-separated: PID STATUS LABEL).
     # A substring grep would false-positive: "mission-recovery" is a prefix of
     # "mission-recovery-motoko", so the shorter label would read as loaded
