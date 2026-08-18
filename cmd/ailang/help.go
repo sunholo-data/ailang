@@ -1,14 +1,58 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 )
 
-// checkStaleBinary warns if the binary is older than recent source changes
-// This prevents confusion when testing changes with an old binary
+// staleCheckDirs are the source directories the staleness heuristic samples.
+// They are CWD-relative on purpose: the check only means anything when the
+// binary is run from the checkout it was built from.
+var staleCheckDirs = []string{
+	"internal/parser",
+	"internal/elaborate",
+	"internal/eval",
+	"cmd/ailang",
+}
+
+// gitProbeTimeout bounds each git subprocess. A contended index.lock must
+// slow `ailang check` down by at most this, never wedge it.
+const gitProbeTimeout = 2 * time.Second
+
+// treeProbe reads the state of a git checkout. It exists as a struct so the
+// staleness decision can be tested without a git repository.
+type treeProbe struct {
+	// head returns the checkout's HEAD sha. ok is false when it cannot be read.
+	head func() (sha string, ok bool)
+	// dirty reports whether any of dirs holds uncommitted or untracked changes.
+	// ok is false when that cannot be determined.
+	dirty func(dirs []string) (dirty bool, ok bool)
+}
+
+// newGitProbe returns a treeProbe backed by git, rooted at dir.
+func newGitProbe(dir string) treeProbe {
+	git := gitBinary()
+	return treeProbe{
+		head:  func() (string, bool) { return gitHead(git, dir) },
+		dirty: func(dirs []string) (bool, bool) { return gitDirty(git, dir, dirs) },
+	}
+}
+
+// checkStaleBinary warns if the binary predates the source it is run against.
+//
+// The mtime walk below is a cheap PRE-FILTER only. It cannot stand on its own:
+// creating a git worktree stamps every tracked file with a current mtime, so
+// mtime alone reports a byte-identical binary as stale in every fresh worktree
+// (ailang#687). Before warning we therefore try to PROVE the binary matches the
+// tree by content, via the commit the binary embeds. Suppression requires that
+// proof — anything undeterminable falls through to the warning.
 func checkStaleBinary() {
 	// Get the binary's executable path
 	execPath, err := os.Executable()
@@ -21,19 +65,29 @@ func checkStaleBinary() {
 	if err != nil {
 		return // Can't stat binary, skip check
 	}
-	binaryTime := binaryInfo.ModTime()
 
-	// Check key source directories for recent changes
-	// We check parser and elaborator since those are most commonly modified
-	checkDirs := []string{
-		"internal/parser",
-		"internal/elaborate",
-		"internal/eval",
-		"cmd/ailang",
+	warnIfStale(os.Stderr, binaryInfo.ModTime(), staleCheckDirs, Version, Commit, newGitProbe("."))
+}
+
+// warnIfStale writes the staleness warning to w unless the binary is current.
+// It holds the whole decision so the suppression can be tested at the call site
+// rather than only in the helper it delegates to.
+func warnIfStale(w io.Writer, binaryTime time.Time, dirs []string, version, commit string, p treeProbe) {
+	if !sourcesNewerThan(binaryTime, dirs) {
+		return
 	}
+	if binaryMatchesTree(version, commit, dirs, p) {
+		return // content says the binary is current; the mtimes were misleading
+	}
+	fmt.Fprintf(w, "%s Binary may be stale (source files modified after build)\n", yellow("⚠"))
+	fmt.Fprintf(w, "  Run '%s' to rebuild\n", bold("make quick-install"))
+}
 
-	for _, dir := range checkDirs {
-		// Walk directory to find most recent .go file
+// sourcesNewerThan reports whether any .go file under dirs has an mtime after
+// binaryTime. Missing directories contribute nothing, so running outside a
+// checkout is silently false rather than an error.
+func sourcesNewerThan(binaryTime time.Time, dirs []string) bool {
+	for _, dir := range dirs {
 		newerFound := false
 		_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
@@ -47,14 +101,129 @@ func checkStaleBinary() {
 			}
 			return nil
 		})
-
 		if newerFound {
-			// Found source files newer than binary
-			fmt.Fprintf(os.Stderr, "%s Binary may be stale (source files modified after build)\n", yellow("⚠"))
-			fmt.Fprintf(os.Stderr, "  Run '%s' to rebuild\n", bold("make quick-install"))
-			return // Only warn once
+			return true
 		}
 	}
+	return false
+}
+
+// binaryMatchesTree reports whether the binary described by (version, commit)
+// was demonstrably built from the checkout p points at, with dirs unmodified
+// since. It returns true ONLY on proof; every undeterminable case is false, so
+// a failure here costs a spurious warning rather than a silenced real one.
+func binaryMatchesTree(version, commit string, dirs []string, p treeProbe) bool {
+	// A binary built from a dirty tree is not addressed by any sha, so its
+	// commit cannot prove anything. -ldflags stamps `git describe --dirty`
+	// into Version, which nothing else inspects, so it needs its own check.
+	if strings.Contains(version, "-dirty") {
+		return false
+	}
+	// "dev", "unknown" and abbreviations carry no comparable identity. This
+	// also subsumes the OTHER dirty marker: the debug.ReadBuildInfo fallback
+	// appends "-dirty" to Commit, and no 40-character lowercase-hex string can
+	// contain that substring, so a separate check for it would be unreachable.
+	if !isFullSHA(commit) {
+		return false
+	}
+	head, ok := p.head()
+	if !ok {
+		return false
+	}
+	if head != commit {
+		return false
+	}
+	dirty, ok := p.dirty(dirs)
+	if !ok {
+		return false
+	}
+	if dirty {
+		return false
+	}
+	return true
+}
+
+// isFullSHA reports whether s is a full 40-character lowercase hex object name.
+func isFullSHA(s string) bool {
+	if len(s) != 40 {
+		return false
+	}
+	for _, r := range s {
+		switch {
+		case r >= '0' && r <= '9', r >= 'a' && r <= 'f':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+var (
+	gitPathOnce sync.Once
+	gitPath     string
+)
+
+// resolveGit returns an ABSOLUTE path to git, or "" if look cannot produce one.
+//
+// Requiring an absolute result is deliberate: this check runs on an ordinary
+// `ailang` invocation, so it must not execute whatever a relative or writable
+// PATH entry happens to call "git". An empty result makes both probes report
+// undeterminable, which SHOWS the warning rather than suppressing it — a
+// failure here costs a spurious warning, never a silenced real one.
+func resolveGit(look func() (string, error)) string {
+	p, err := look()
+	if err != nil {
+		return ""
+	}
+	if !filepath.IsAbs(p) {
+		return ""
+	}
+	return p
+}
+
+// gitBinary resolves git once per process.
+func gitBinary() string {
+	gitPathOnce.Do(func() { gitPath = resolveGit(func() (string, error) { return exec.LookPath("git") }) })
+	return gitPath
+}
+
+// gitHead returns the HEAD sha of the checkout at dir, running the git at the
+// absolute path git.
+//
+// The empty-git guard below is a DECLARED-UNPINNABLE fast path: exec refuses an
+// empty command name with the same error, so removing the guard changes no
+// observable behaviour and no test can kill a mutation of it. It is kept
+// because handing an empty command name to exec is not something this code
+// should rely on being refused for it.
+func gitHead(git, dir string) (string, bool) {
+	if git == "" {
+		return "", false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), gitProbeTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, git, "-C", dir, "rev-parse", "HEAD").Output()
+	if err != nil {
+		return "", false
+	}
+	return strings.TrimSpace(string(out)), true
+}
+
+// gitDirty reports whether any of dirs holds uncommitted or untracked changes.
+// It is scoped to the SAME directories sourcesNewerThan samples, so the
+// confirmation can never be narrower than the signal it confirms. Its empty-git
+// guard is declared-unpinnable for the same reason as gitHead's.
+func gitDirty(git, dir string, dirs []string) (bool, bool) {
+	if git == "" {
+		return false, false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), gitProbeTimeout)
+	defer cancel()
+	args := append([]string{"-C", dir, "status", "--porcelain", "--"}, dirs...)
+	out, err := exec.CommandContext(ctx, git, args...).Output()
+	if err != nil {
+		return false, false
+	}
+	return strings.TrimSpace(string(out)) != "", true
 }
 
 func printVersion() {
