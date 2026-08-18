@@ -12336,3 +12336,152 @@ CWD-relative dirs, so it mis-fires on a content-identical binary in every fresh 
 this loop's own, where it printed during this very iteration). Then the language/stdlib orphans
 (`#688`, `#689`, `#662`, `#646`, `#644`). Secondary, and now overdue: triage the standing SonarCloud
 red far enough to say whether it is real.
+
+## 222 — 2026-08-18 — Iteration 221: the prelude capability gate was a guard with no gate
+
+**Picked**: the standing `SonarCloud Code Analysis` red on `dev`. It is NOT required, so it never
+blocked a merge, and iterations 217, 218, 219 and 220 each named it and moved on — correctly, under
+the rule that a red non-required check must be *seen and named* rather than treated as automatic.
+Iteration 220 pre-registered the escalation: *"it is now earning a pick on its own count."* Four
+namings without a look is the argument for opening it.
+
+**Reality check**: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Seven unread inbox
+messages — four eval/nightly telemetry, V1's own iteration-220 report, and one cross-mission note
+from `mission-world` (iteration 91), which per the Gate-0 contract never auto-outranks the queue.
+Zero allowlisted directives on `#745` since the `2026-08-18T04:21:47Z` watermark, across 12
+enumerated comments. Ledger valid, 20 rows / 11 OPEN. Running skill byte-identical to `origin/dev`,
+with the `cmp` aimed at the copy the `~/.claude` symlink resolves to — the MAIN checkout — not at
+the driver pin's own file, which is not what the loop executes.
+
+**What the red actually was, and why the shape matters.** One failed condition: **78.3% coverage on
+new code against an 80% threshold**. Everything else on the gate is fine — reliability, security and
+maintainability all A, duplication 0.2%, security hotspots 100% reviewed. The new-code window is
+`previous_version` = `v0.33.0` (2026-08-13).
+
+The denominator is the interesting part. `new_lines` is **5408**; `new_lines_to_cover` is **203**,
+because `sonar.coverage.exclusions` deliberately excludes `cmd/ailang/**`,
+`internal/storage/firestore/**` and others. So **44** uncovered lines decide the gate, and it sits
+four lines from green. That framing invites exactly the wrong deliverable — write four lines of test
+anywhere and the red goes away.
+
+So the 44 were enumerated per file before anything was written, and the enumeration reproduced the
+project aggregate **exactly**: 9+8+6+5+3+3+2+2+2+1+1+1+1 = 44. An enumeration that sums to the
+aggregate is complete rather than a sample — which is what made it safe to reason about *which*
+lines they are instead of *how many*.
+
+**Nine of the 44 are a capability gate.**
+
+**The defect.** `9504393d0` — landed by iteration 217 the day before — closed a real bypass. The
+prelude `println` wrote to stdout via `fmt` directly, while `import std/io (println)` routed through
+`RequireCap`. Both forms declare `! {IO}`, both pass effect checking, and only the imported one was
+enforced. So `--caps` was evadable by *not* importing `std/io`, and a program with no capabilities
+at all could still perform IO. The fix is correct.
+
+Nothing tested it. Measured at `5a3a59126`, neutering the call site with the skill's `if false &&`
+form so every symbol stays used:
+
+- mutant **LANDED** (sha256 differs), **BUILDS** (`go build ./internal/... ./cmd/ailang` rc=0)
+- `go test ./internal/... ./cmd/ailang/...` → **rc=0, 100 packages ok, zero FAIL**
+
+The security hole re-opened in full without redding a single test. The supporting search carried a
+firing same-path control, so its zeros are measurements: `requireCap` and `registerBuiltins` matched
+**0** `_test.go` files under `internal/eval/`, while `func Test` matched **11** files in that same
+directory and `--caps` matched **5** test files elsewhere in the repo.
+
+**Outcome: LANDED.** PR `#770` → squash **`e0be952be`**. PR head `5aa36135b` carried **21 checks,
+zero not-green**, 4/4 required contexts pass (`build` 2m4s / `docs-gate` 3s / `lint` 3m44s /
+`test` 17m50s), `MERGEABLE CLEAN`. **No production code changed** — one test file, one changelog
+entry.
+
+**Swept across the construction sites, not the one that was found** (Critical Principle 3).
+`internal/eval` has exactly four production `registerBuiltins` call sites, and the arms drive all
+four: `NewCoreEvaluator` and `NewCoreEvaluatorWithRegistry` (both gated), `Fork` (gated on the
+**fork's own** context, which is what makes per-request isolation real), and `NewTypedEvaluator`,
+which passes nil and is ungated by design.
+
+**The observable is deliberately narrow** (rule 3i). "An error was returned" is satisfied by any
+failure, including one raised after the effect already happened — so the denied arms assert that
+**nothing reached stdout** (`os.Stdout` swapped for a pipe) *and* that the capability requested was
+exactly `IO`. The granted arms assert the payload did reach stdout. The fork arm asserts the parent
+is unaffected in the same test, so it measures isolation rather than a global flip.
+
+The three `return nil` paths `requireCap` documents are pinned as **ungated** — not because they
+enforce anything, but because a future "fail closed everywhere" change would silently break the
+REPL and `TypedEvaluator`, which never granted capabilities in the first place. A pin on an
+intentional non-enforcement is as much a contract as a pin on an enforcement.
+
+**Nine arms, six mutation drills.** Every mutant was asserted LANDED by sha256 and BUILDS by
+`go build` rc=0 *before* any test result was read, and every drill's inverse `-skip` run is rc=0 —
+which is what proves the new arms are their branch's killer rather than bystanders riding someone
+else's red.
+
+Two of the six are recorded as **sets, not unique kills**: neutering the gate (M1) reds both
+constructor arms plus `Fork`, and swapping `IO` for `FS` (M2) reds all five name assertions. Both
+are true by construction and claiming either as a per-branch kill would be the over-subscribed-
+observable error this mission has closed twice elsewhere.
+
+**M4 is stated precisely rather than by its aggregate output.** Run as part of the suite it appears
+to red only `no effect context` — because a panic in the first ungated subtest short-circuits the
+rest. Run alone, it reds `no effect context` **and** `effect context is not a capRequirer` (both
+panic on the nil interface) and correctly leaves `nil evaluator` green, since that arm exits at the
+earlier `e == nil` branch. The aggregate output would have under-reported the drill's reach.
+
+**M6 is the drill that justifies the site sweep.** It makes `NewCoreEvaluatorWithRegistry` pass nil,
+and it reds **only** the `*WithRegistry` sub-arms — arms that did not exist until the construction
+sites were enumerated. Without the sweep that mutant survives, and the second production constructor
+would have been as unguarded as the first was.
+
+**Gates.** Baselined on pristine `origin/dev` first, so they measure the change and not the repo.
+The gate list was **derived from `ci.yml`** rather than recalled (rule 3g), then filtered to what
+this diff can plausibly break: `vet`, `fmt-check`, `check-file-sizes`, `check-boundaries`,
+`check-changelog`, `test-check-changelog`, `lint`, `test-coverage-gate` — all rc=0. `lint`'s single
+`unused` finding is pre-existing (`geminiPassThreshold` in
+`internal/eval_harness/gemini_evaluator_bridge.go`). `go test -count=1 ./internal/... ./cmd/ailang/...`
+→ rc=0, 100 ok. Source files restored from a `cp` backup after every drill, never
+`git checkout --` (the file under test is uncommitted by construction in a sprint worktree), with
+byte-identity verified by sha256 each time.
+
+**Platform narrowing CLOSED for once.** The ubuntu `test` job's own log names all four new tests
+(12 / 12 / 16 / 4 mentions) against a pre-existing `internal/eval` control at 4 — so the arms are
+proven to run on linux, not only on darwin/arm64.
+
+**Effect on the gate, predicted rather than claimed.** Local before/after coverage shows all 20
+previously-uncovered new lines across `eval_typed_helpers.go` (9), `eval_evaluator.go` (8) and
+`eval_typed.go` (3) are now covered; package coverage 26.0% → 27.4%. That implies
+`new_uncovered_lines` 44 → 24 of 203 ⇒ **~88.2%**. It is arithmetic on Sonar's current numbers, and
+both the window and the denominator move on the merge, so the gate's real verdict is whatever it
+reports on `dev`. Closing the red is a side effect; the pin is the deliverable.
+
+**Gate-0 bookkeeping: all three open nightly alarms triaged and closed.** `#769`
+(`lfu_cache_trace`), `#709` (`config_file_parser`) and `#649` (`log_file_analyzer`) were measured
+first-party against `~/.ailang/state/nightly-eval-history.jsonl`. **None has ever passed both
+trials** — 0 of 16, 0 of 24 and 0 of 16 recorded nights respectively, across two local model
+generations. The reader's known-positive control finds **201** full-pass rows elsewhere in the same
+file, so those zeros are measurements. The dominant categories are `timeout` and `thrash_aborted`,
+i.e. an agentic-loop or capability gap rather than a language or compiler regression — and `#769`'s
+own body already conceded *"not a certified fresh break"*. Nothing broke, so leaving them open makes
+them exactly the stale alarms `#417` was filed about. Each verdict was posted as its **own**
+`--body-file` comment *before* the close, with the comment count asserted to have grown (0→1, 2→3,
+2→3), since `gh issue close --comment` drops silently on an already-closed issue.
+
+**Routing evidence**: controller `claude:claude-opus-5`, inline — mechanical, well-specified test
+work with the defect already localised by measurement. No designer, planner, executor, evaluator,
+quorum, GPU or metered provider lane fired. `metered=$0.00` against the $5 ceiling. Codex remains
+dry until 2026-08-20 05:34, so V1 is still on a single controller lane.
+
+**Ruled out**: treating the Sonar red as box-ticking (nine of its 44 lines are a security gate);
+chasing the four lines that would flip the threshold instead of the branches that matter; pinning
+only the call site that was found (the enumeration found four); asserting on "an error was returned"
+without the stdout observable; claiming M1 and M2 as unique kills; claiming M4's aggregate output as
+a per-branch kill; letting a cross-mission note outrank the queue; and leaving three
+never-passing benchmarks open as regression alarms.
+
+**Gate 5**: no skill edit. One friction this iteration and it is an **already-documented** rule
+rather than a new gap — a `for g in "make vet" …; do $g; done` loop made six gates read rc=127,
+because zsh does not word-split an unquoted variable. The skill records that exact trap (rule
+3a(i-c), iteration 140's instance). What saved it was the uniformity: six *different* gates failing
+with the *same* rc=127 is a fact about the instrument, not about the gates. No process fix.
+
+**Next**: `#687` closes the mission-infra sweep lane (`⚠ Binary may be stale` is an mtime heuristic
+over CWD-relative dirs, so it mis-fires on this loop's own sprint worktrees), then the
+language/stdlib orphans (`#688`, `#689`, `#662`, `#646`, `#644`).
