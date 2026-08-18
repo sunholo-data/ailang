@@ -185,12 +185,10 @@ func TestCharAtCostDoesNotScaleWithLength(t *testing.T) {
 // compiled where the interpreter raises out-of-bounds. A compiled program
 // silently disagreed with the same source under the interpreter.
 func TestCodegenCharAtIsRuneIndexed(t *testing.T) {
-	if testing.Short() {
-		t.Skip("compiles and runs a Go program")
-	}
-	if _, err := exec.LookPath("go"); err != nil {
-		t.Skip("go toolchain not available")
-	}
+	// No -short gate and no LookPath skip: gatelint R1 rejects testing.Short as
+	// inert in CI, and a `go` binary is present by construction inside `go
+	// test`. A skip that can never legitimately fire is the vacuous pass this
+	// test exists to prevent, so this arm always runs and fails loudly.
 	spec := GetCodegenSpec("_str_charAt")
 	if spec == nil || spec.Helper == nil {
 		t.Fatal("instrument failure: no codegen spec/helper for _str_charAt")
