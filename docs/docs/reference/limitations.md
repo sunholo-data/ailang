@@ -55,27 +55,63 @@ Named `func` recursion is also supported by `ailang verify` via bounded unrollin
 
 ### WASM Type-Checker Depth Limit (By Design, WASM-only)
 
-**Status**: WASM-specific constraint with structured error
+**Status**: WASM-specific constraint with structured error; the limit is **host-configurable** (unreleased, lands after v0.33.1)
 **Since**: v0.22.x
-**Verified at**: v0.33.1 (2026-08-17 — guard present in `internal/types/typechecker_wasm_depth_wasm.go`; WASM-host-only, not reproducible from the CLI, which is unaffected)
+**Verified at**: v0.33.1+unreleased (2026-08-18 — guard in `internal/types/typecheck_budget.go`, armed only by `internal/types/typechecker_wasm_depth_wasm.go`; WASM-host-only, not reproducible from the CLI, which is unaffected)
 **Affects**: AILANG modules compiled to WebAssembly (browser demos using `wasm/ailang.wasm`). **CLI is unaffected.**
 
 The WASM-compiled type-checker is bound by the host JavaScript engine's call-stack limit (~10–15K frames in Node, Chromium, Firefox) and by single-threaded execution. Modules with deeply-recursive or pathologically-slow type structure freeze the browser. On native Go the CLI handles them fine because goroutine stacks grow dynamically up to 1 GiB; on WASM we hit the cliff.
 
-**Enforcement**: a **wall-clock budget (2 s)** on the type-check of each module — it catches
-both true stack-depth blowups *and* pathologically slow analysis with the same structured
-error (earlier builds used a frame-count budget; the current guard is time-based).
+**Enforcement**: a **wall-clock budget** on the type-check of each module, default 2 s — it
+catches both true stack-depth blowups *and* pathologically slow analysis with the same
+structured error (earlier builds used a frame-count budget; the current guard is time-based).
+
+**The budget is wall-clock, so it is hardware-dependent** ([ailang#662](https://github.com/sunholo-data/ailang/issues/662)):
+the same bytes that load on a fast desktop can fail on a slower laptop, or under a slower
+browser engine, and CI on fast runners cannot catch it. A module is not "big enough" or "too
+big" in the abstract — it is too big *for the machine in front of it*. Two things follow.
+
+*Raise the limit if your modules are large rather than pathological.* Hosts choose their own
+tolerance:
+
+```js
+// milliseconds; 0 disables the wall-clock limit entirely.
+const r = ailangSetTypeCheckBudget(8000);
+// -> {success: true, budgetMs: 8000}
+// A rejected value (negative, NaN, > 24h, non-number) leaves the previous
+// budget in force and returns {success: false, budgetMs: <unchanged>, error}.
+```
+
+*Watch your headroom instead of discovering the limit in production.*
+`ailangLoadModule()` reports consumption on **every** outcome:
+
+```js
+const r = ailangLoadModule(name, src);
+// r.typeCheckMs    — wall-clock spent (hardware-dependent)
+// r.typeCheckSteps — instrumented type-checker entries; DETERMINISTIC, so the
+//                    same source gives the same count on every machine
+// r.budgetMs       — the limit in force for that load
+```
+
+`typeCheckSteps` is the number worth tracking over time and worth quoting in a bug report:
+unlike `typeCheckMs` it does not move when the hardware does. Gating on a step ceiling rather
+than on the clock — which would make the outcome reproducible and CI-testable — is not done
+yet; the counter ships first so the ceiling can be chosen from real corpora.
 
 **Example failure**:
 
 ```
 loadModule cognitive_commons/services/citizen failed:
-WASM type-checker budget exceeded (2s) while checking module
-"cognitive_commons/services/citizen".
+WASM type-checker budget exceeded (2s, <N> type-checker steps) while
+checking module "cognitive_commons/services/citizen".
 
-This module's type structure recurses too deeply OR triggers pathologically
-slow analysis for the WASM runtime. The same source likely works on the
-AILANG CLI — this limit is specific to browser execution.
+This limit is WALL-CLOCK, so it depends on how fast this machine and browser
+are: the same source may load elsewhere and fail here. The step count above is
+hardware-independent — quote it if you report this.
+
+If the module is simply large (rather than pathological), raise the limit from
+the host and reload:
+    ailangSetTypeCheckBudget(8000);   // milliseconds; 0 disables the limit
 ```
 
 **Common triggers**:

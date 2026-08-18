@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"syscall/js"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/repl"
@@ -294,11 +295,22 @@ func loadModule(this js.Value, args []js.Value) interface{} {
 	types.BeginWasmTypeCheck(name)
 	exports, err := replInstance.LoadModule(name, code)
 	types.EndWasmTypeCheck()
+
+	// ailang#662 ask 3 — report consumption on EVERY outcome, so an embedder
+	// can watch headroom rather than discover the limit in production.
+	// typeCheckSteps is the hardware-independent half: identical source gives
+	// an identical count on every machine, unlike typeCheckMs.
+	steps, elapsed := types.LastWasmTypeCheckStats()
+	result := map[string]interface{}{
+		"typeCheckMs":    float64(elapsed.Nanoseconds()) / float64(time.Millisecond),
+		"typeCheckSteps": float64(steps),
+		"budgetMs":       float64(types.WasmTypeCheckBudget().Nanoseconds()) / float64(time.Millisecond),
+	}
+
 	if err != nil {
-		return map[string]interface{}{
-			"success": false,
-			"error":   err.Error(),
-		}
+		result["success"] = false
+		result["error"] = err.Error()
+		return result
 	}
 
 	// Convert exports to JavaScript array
@@ -307,10 +319,61 @@ func loadModule(this js.Value, args []js.Value) interface{} {
 		jsExports[i] = exp
 	}
 
-	return map[string]interface{}{
-		"success": true,
-		"exports": jsExports,
+	result["success"] = true
+	result["exports"] = jsExports
+	return result
+}
+
+// setTypeCheckBudget lets the host choose its own type-check wall-clock limit.
+// JavaScript: ailangSetTypeCheckBudget(ms) -> {success: bool, budgetMs: number, error?: string}
+//
+// ailang#662: the limit was a hardcoded 2s, which makes shipped correctness
+// hardware-dependent — the same bytes load on a fast desktop and fail on a
+// slower laptop or a slower browser engine, and CI on fast runners cannot see
+// it. Embedders know their own tolerance; a host that has already downloaded a
+// 40 MB WASM binary may well prefer a slow load to a refused one.
+//
+// 0 disables the wall-clock limit entirely (steps are still counted and
+// reported). Takes effect at the next ailangLoadModule.
+func setTypeCheckBudget(this js.Value, args []js.Value) interface{} {
+	if len(args) < 1 {
+		return map[string]interface{}{
+			"success":  false,
+			"budgetMs": budgetMillis(),
+			"error":    "ailangSetTypeCheckBudget requires 1 argument: the budget in milliseconds (0 disables the limit)",
+		}
 	}
+	if args[0].Type() != js.TypeNumber {
+		return map[string]interface{}{
+			"success":  false,
+			"budgetMs": budgetMillis(),
+			"error":    fmt.Sprintf("ailangSetTypeCheckBudget expects a number of milliseconds, got %s", args[0].Type()),
+		}
+	}
+
+	d, err := types.ParseBudgetMillis(args[0].Float())
+	if err == nil {
+		err = types.SetWasmTypeCheckBudget(d)
+	}
+	if err != nil {
+		// The previous budget is deliberately left in force — a fat-fingered
+		// value must not silently remove the guard.
+		return map[string]interface{}{
+			"success":  false,
+			"budgetMs": budgetMillis(),
+			"error":    err.Error(),
+		}
+	}
+	return map[string]interface{}{
+		"success":  true,
+		"budgetMs": budgetMillis(),
+	}
+}
+
+// budgetMillis reports the configured type-check budget in milliseconds; 0
+// means the wall-clock limit is disabled.
+func budgetMillis() float64 {
+	return float64(types.WasmTypeCheckBudget().Nanoseconds()) / float64(time.Millisecond)
 }
 
 // listModules returns the list of loaded modules
@@ -588,6 +651,10 @@ func main() {
 	js.Global().Set("ailangListModules", js.FuncOf(listModules))
 	js.Global().Set("ailangStdlibStatus", js.FuncOf(stdlibStatus))
 	js.Global().Set("ailangCall", js.FuncOf(callExport))
+
+	// Type-check budget control (ailang#662) — the wall-clock limit is a host
+	// setting, not a property of the source.
+	js.Global().Set("ailangSetTypeCheckBudget", js.FuncOf(setTypeCheckBudget))
 
 	// Register effect handler functions (M-WASM-EFFECTS)
 	js.Global().Set("ailangSetEffectHandler", js.FuncOf(setEffectHandler))
