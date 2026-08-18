@@ -901,3 +901,115 @@ motoko 6→7), and this iteration supplies the new mechanism with a clean negati
 **Next**: **D-MOTOKO-FMT-1** is the one OPEN decision (one word: *precondition* / *redesign*) and
 unblocks item **6**. With 6b closed, the untagged queue head is item **7** (profile restoration
 design, clause 4 — 5 profiles, 14 of 18 model entries). Item 5 remains bounded until 2026-08-27.
+
+---
+
+## 11 — 2026-08-18 — the queue's bounded wait had already expired: Arni answered five days ago, and the row that tracked him was re-asserting a measurement taken before his reply
+
+**Picked**: queue item **5** (output-headroom upstream case), not the untagged head item 7 — because
+Gate 2's blocker re-verification found item 5's declared blocker **dead**. The row reads
+*"Remaining: the bounded wait only — still zero `arniwesth` events on #97; 2026-08-27 stands"*.
+Measured this iteration: `arniwesth` commented on `#97` at **2026-08-13T18:45:54Z**, and the control
+fires (`commenter:arniwesth` in that repo → **34** issues/PRs, so the instrument can see him).
+
+**Reality check**: ran from the `#558` driver pin root, detached and clean at `1350d308f` ==
+`origin/dev`; running skill **byte-identical to origin** (`cmp` rc=0, with a known-different control
+at rc=1). dev **verified green, not merely un-red**: **16** exact-SHA checks, **0** not-green,
+`test: completed/success` present in the set, `runs_total=2` non-zero. `gh` on
+`sunholo-voight-kampff`; billing tripwire **CLEAN**; kill switch armed. **0** human directives on
+`#743` since watermark `2026-08-17T05:48:45Z` (of 6 comments). Decision ledger valid, 3 rows, **1
+OPEN** (`D-MOTOKO-FMT-1`, unanswered). Weekly sweep and rotation **both not due** — `#743` created
+`2026-08-17T05:48:23Z`, after the Monday-07:00 **local** boundary (= `05:00Z`), 6 comments < 80.
+Inbox 5 unread: 3 `eval-suite` telemetry, 2 sibling iteration reports (`mission-world` 92,
+`mission-v1` 222) — neither carries a request or a bug against motoko, so neither outranks.
+No died-mid-flight traces: all four prior motoko worktrees `dirty=0`; open loop-authored PRs
+`#695`/`#613` are V1's; the stale `ailang-motoko` checkout's 7 modified paths re-verified as
+**superseded, not orphaned** — 3 of 4 blobs exist verbatim in `de0e41099`, and the 4th is the
+decision-ledger block already present in origin's charter.
+
+**THE FINDING — a blocker row can re-assert a stale measurement as a fresh one, and nothing in the
+row's own text distinguishes the two.** Iteration 3 measured "zero `arniwesth` events on #97" on
+**2026-08-13** and that was true when taken. Iteration 4 (2026-08-14) then wrote *"still zero
+`arniwesth` events on #97; 2026-08-27 stands"* — after his 08-13T18:45Z comment — and iterations
+5–10 each carried the sentence forward. The word "still" is doing the work: it reads as a re-check
+and is in fact a transcription (rule 3b(v)(b)). The cost is not abstract: the bounded rule iteration
+3 wrote as a *remedy* for an unbounded wait became the thing that hid the wait ending, because a
+timebox invites you to check the clock rather than the predicate. Five days of a nine-day window,
+on a queue row sitting above two ungated items.
+
+**What Arni actually said** (`#97`, `2026-08-13T18:45:54Z`), and it is better than the row assumed:
+*"Agreed on all four points."* `#97` should close as superseded — calibration, the elision ladder and
+system-prefix pinning are all covered more strongly by `main_dst`/`#154`, and nothing from that
+branch should be revived. **But the output-headroom concern is still valid**, and *"Please go ahead
+with the separate issue against `main_dst`."* He specified its scope: the effective input budget used
+by **both** the pre-step compactor chain and the final payload seal, retaining the raw context limit
+for telemetry, plus regression coverage for the 262,144 / 65,536 case **and** the unknown- and
+small-limit fail-open behaviour. So the original precondition ("if Arni's reply invites it"), which
+iteration 3 declared FALSE and replaced with the 08-27 timebox, is now **satisfied on its own terms**.
+
+**Delivered — upstream issue [arniwesth/motoko_agent#165](https://github.com/arniwesth/motoko_agent/issues/165)**,
+built from claims re-derived first-party at `main_dst@6c06b08` rather than inherited from the charter
+(rule 3b(v)). The base is favourable and was checked, not assumed: `origin/main_dst` is **still exactly
+`6c06b08`**, zero commits since our V27–V29 rows were taken, so the measurements are fresh by
+construction.
+
+- `src/core/session.ail:2561` — the seal is called with the **raw** `context_limit`.
+- `src/core/session.ail:2556` — one line up, extensions get `context_limit - pinned_tokens`. That is
+  the precedent, and it makes the seal the *only* consumer still handed the unreduced number.
+- `src/core/phase_vocab.ail:145-155` + `src/core/compaction.ail:30` — the seal refuses only at
+  `usage_percent_with_limit(payload_msgs, limit) >= exhaustion_pct()`, and `exhaustion_pct() -> int { 95 }`.
+  The predicate is **input-only**.
+- `packages/motoko-ext-compaction-structural/compaction_structural.ail` — the live hook
+  `compact_for_pre_step` (`:170`) targets `result_target_pct() = elide_tier_pct() = 70` (`:30`, `:16`),
+  but all four tiers route through `elide_walk` (`:97-113`), which rewrites a message **only** when
+  `m.role == "tool"` (`:101`) and passes everything else through (`:112`). A large **user** message is
+  invisible to every tier, and the hook then returns the unconditional
+  `Compacted(floor, structural_note("floor", …))` (`:191`) — a payload it has already determined does
+  not fit, with no error.
+- `src/core/compaction.ail:25-28` — `usage_percent_with_limit` returns **0** when `limit == 0`, so an
+  unknown model makes the seal compare `0 >= 95` and return `Ok` unconditionally. That is the
+  fail-open arm Arni asked the follow-up to cover, and it is the reason a percentage-shaped reserve
+  cannot inherit its own zero case.
+
+**The R8 probe was RE-RUN, not quoted** (`tools/motoko/r8_headroom_band.ail` against a fresh
+`~/dev/mk-r8-main-dst` worktree at `6c06b08`; `ailang lock` rewrote the 19 dev-container absolute
+paths — `/workspaces` hits **0**, control `"path":` **19**). Every number reproduced:
+
+| arm | history | ladder | seal | headroom |
+|---|---|---|---|---|
+| B control | small | `PassThrough` | `Ok` | 259,642 |
+| **A** | one large **user** msg | `structural: tier=floor keep_last=1` at **79%** | **`Ok` — SENDS** | **54,905 < 65,536** |
+| C control | ≈158% | `tier=floor keep_last=1` | `Err(SealExhausted)` at 157% | — |
+
+Both controls fire, so arm A's `Ok` is a real permission and not a dead gate. Newly visible on the
+re-run and carried into the issue: the ladder removed **2,061 of 208,980** segment tokens (~1%) in
+arm A, and the extension saw `ext_limit = 261,824` (= 262,144 − 320 pinned) **while the seal saw the
+raw 262,144** — the asymmetry stated as one line of output rather than as an argument.
+
+**`#97` CLOSED with the verdict**, comment-then-close per the Gate-0 rule, comment count asserted
+**2 → 3** (`gh issue close --comment` drops the body on an already-closed issue and exits 0; here the
+issue was open, but the order costs nothing and the assertion is the point).
+
+**RULED OUT**: *the charter's "zero production callers" claim for `try_emergency_compaction_with_limit`
+is wrong* — it has exactly one caller, `compact_step_with_limit` (`:137`), so the bare claim is false
+as written, but the substance holds and upstream says so itself: `006_compactor_strategy/PLAN-compactor-strategy.md:75`
+records `compact_step_with_limit` as **test-only** with a single caller, and its non-test callers are
+smoke/DST scripts, never the session. The issue says "off-path", citing their line, rather than
+repeating our overstatement. Also ruled out: *an output-headroom issue already exists upstream* —
+enumerated all **20** issues in that repo, none is one (the adjacent `#31`/`#49` are cited as related,
+titles verified). And: *`main_dst` moved under our measurements* — `git log 6c06b08..origin/main_dst`
+is **0** commits.
+
+**Routing evidence**: controller `claude:claude-opus-5` only. **No designer, planner, executor,
+evaluator or quorum spawned** — the deliverable is an upstream issue assembled entirely from
+first-party measurements the controller took itself; there is no doc to design, no plan to write and
+nothing to judge. Quorum-at-pick N/A: item 5 has no design doc of its own, its case living in the
+migration doc's V27–V29 rows and the disposition ledger's R8, both already quorum-reviewed. Designer
+rotation pointer untouched at `claude:claude-fable-5`; codex quota-dry until Aug 20 and `pi:deepseek`
+is 3-for-3 zero-byte across the fleet per `mission-world` iter 92. Metered **$0.00** of $5. No GPU, no
+`rig.lock`. `make quick-install` deliberately NOT run (shared-write guardrail, V20) — the PATH binary
+is `v0.33.1-103-g0002c9b0b-dirty`, stated because the R8 re-run used it. Gates ran on **darwin/arm64
+only** (rule 3b(viii)).
+
+**Next**: item **7** (profile restoration design) is the queue head, ungated. `#165` is Arni's to
+triage — nothing local waits on it.
