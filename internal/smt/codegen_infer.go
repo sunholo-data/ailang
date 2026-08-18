@@ -82,3 +82,14 @@ func inferResultSortInner(body core.CoreExpr, ctx *SMTContext, ctorToType map[st
 	}
 	return "Int"
 }
+
+// resultSortFor returns the sort of a function's result: the declared return
+// sort when the signature supplies one, otherwise the inferred sort. It is
+// called both to pick the hint used while encoding the body and to declare
+// `result`, so the two can never disagree.
+func resultSortFor(params []FunctionParam, body core.CoreExpr, ctx *SMTContext, adtTypes map[string][]ADTVariant, returnSort string) string {
+	if returnSort != "" {
+		return returnSort
+	}
+	return inferResultSort(params, body, ctx, adtTypes)
+}

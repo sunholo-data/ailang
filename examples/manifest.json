@@ -1638,6 +1638,21 @@
       "description": "A named record containing list[ADT] verifies with dependency-ordered SMT declarations"
     },
     {
+      "path": "runnable/contracts/empty_list_sort_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "records",
+        "adt",
+        "lists"
+      ],
+      "description": "Empty list literals take their element sort from context (record field, return, cons, nesting, if-branch)",
+      "modules": [
+        "std/list"
+      ]
+    },
+    {
       "path": "runnable/contracts/record_verify.ail",
       "status": "working",
       "tags": [
@@ -2718,11 +2733,11 @@
     }
   ],
   "statistics": {
-    "total": 195,
-    "working": 187,
+    "total": 196,
+    "working": 188,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.958974358974359,
+    "coverage": 0.9591836734693877,
     "experimental": 0
   },
   "milestones": {

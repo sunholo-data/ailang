@@ -1,0 +1,80 @@
+-- An empty list literal carries no element type of its own, but SMT-LIB is
+-- monomorphically sorted. Encoding `[]` as `(Seq Int)` regardless of context
+-- produced an ill-sorted term wherever the expected element type was anything
+-- but int, and Z3 rejected the whole query with a raw sort error (ailang#689).
+--
+-- Every function below puts an empty list somewhere its element sort has to
+-- come from context. Each one is an ERROR before the fix and VERIFIED after.
+--
+-- Run: ailang verify examples/runnable/contracts/empty_list_sort_verify.ail
+-- Expect: 7 verified
+
+module examples/runnable/contracts/empty_list_sort_verify
+
+import std/list (length as listLength)
+
+export type Block = Para(string) | Head(int, string)
+
+export type Doc = {
+  blocks: list[Block],
+  lines: list[string],
+  rows: list[list[string]],
+  title: string
+}
+
+-- 1. Record construction: the field's declared sort supplies the element sort.
+--    This is ailang#689's reported shape — a record whose list fields are of
+--    four different element types, one of them a user ADT.
+export func emptyDoc() -> Doc ! {}
+ensures {
+  listLength(result.blocks) == 0 &&
+  listLength(result.lines) == 0 &&
+  listLength(result.rows) == 0
+} {
+  { blocks: [], lines: [], rows: [], title: "" }
+}
+
+-- 2. Record update: the same, through `{ base | field: val }`.
+export func clearLines(d: Doc) -> Doc ! {}
+ensures { listLength(result.lines) == 0 } {
+  { d | lines: [] }
+}
+
+-- 3. Direct return: the declared return sort supplies it.
+export func noLines() -> list[string] ! {}
+ensures { listLength(result) == 0 } {
+  []
+}
+
+-- 4. Return of an empty list whose element type is a user ADT.
+export func noBlocks() -> list[Block] ! {}
+ensures { listLength(result) == 0 } {
+  []
+}
+
+-- 5. Cons onto an empty tail: `x :: []` IS the singleton sequence, so the
+--    element sort follows from the head and never needs annotating.
+export func single(x: string) -> list[string] ! {}
+ensures { listLength(result) == 1 } {
+  x :: []
+}
+
+-- 6. Nested: the outer literal is non-empty, the INNER one is empty, and its
+--    element sort has to reach one level down.
+export func oneEmptyRow() -> list[list[string]] ! {}
+ensures { listLength(result) == 1 } {
+  [[]]
+}
+
+-- 7. If-branches: both arms produce the function's value, so both inherit it.
+--    The contract here is deliberately trivial: what this arm tests is that the
+--    BODY can be encoded at all. Before the fix it could not, and Z3 rejected
+--    the query whatever the contract said. (Asserting a seq-length property
+--    across an `ite` instead costs Z3 ~12s, which is a solver cost, not more
+--    coverage.)
+export func maybeLines(b: bool) -> list[string] ! {}
+ensures { b == b } {
+  if b then ["a"] else []
+}
+
+export func main() -> int ! {} { 0 }
