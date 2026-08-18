@@ -666,6 +666,44 @@ iterations do not re-plan around it; **(d)** never quote a PR's or issue's *purp
 merely cites it — re-derive it from the diff or the commit that superseded it. Cheap, and the whole
 check is two commands.
 
+**AND THE RULE ABOVE FIRES ONLY ON THE ITEM YOU PICK, WHICH IS NEVER THE BLOCKED ONE — SO A ROW
+WAITING ON AN EXTERNAL PREDICATE IS RE-CHECKED ONLY BY THE ITERATION THAT WOULD ALREADY HAVE
+UNBLOCKED IT** (added 2026-08-18 motoko iteration 11; instance 1 is motoko iteration 3, instance 2 is
+this iteration, and the second happened *inside the remedy written for the first*). Everything above
+is scoped "at pick time, for each declared blocker" — correct, and it leaves a circular hole: a row
+you do not pick is never re-verified, and you do not pick it **because** it is blocked. Meanwhile the
+predicate is what decides the row's ORDERING, so when it flips, the queue is silently wrong about
+what comes next and no gate in this file looks. The tell is grammatical: a row that says **"still"**
+— *still open*, *still zero events*, *still no reply* — where "still" reads as a re-check and is in
+fact a transcription (rule 3b(v)(b)) of a measurement taken by an earlier iteration.
+**A TIMEBOX MAKES THIS WORSE, NOT BETTER, WHICH IS THE PART WORTH THE RULE.** The natural fix for an
+unbounded external wait is a deadline — and a deadline invites you to check the CLOCK instead of the
+PREDICATE, so it converts "nobody knows when this unblocks" into "nothing to do until <date>", which
+reads like coverage. Measured on motoko: iteration 3 found item 5 waiting unbounded on an upstream
+maintainer's reply, correctly called that the same defect a reviewer had blocked Phase 0 for, and
+replaced it with *"if no response by 2026-08-27, file anyway"*. He replied **2026-08-13T18:45:54Z**
+— agreeing on all four points and **explicitly inviting** the issue the row existed to file.
+Iteration 4 then wrote *"still zero `arniwesth` events on #97; 2026-08-27 stands"* on **08-14**,
+after the comment, and iterations 5–10 each carried the sentence forward. Five days of a nine-day
+window, on a row sitting above two ungated items, and the deadline was still fourteen days out when
+it was found — i.e. the timebox would eventually have caught it, at maximum cost, and by then the
+invitation would have been the *last* thing anyone learned rather than the first.
+**Rule.** At Gate 1, when reading the queue, re-evaluate the PREDICATE of every row blocked on an
+**external** party (an upstream reply, a third-party PR, a release, a person) — not the rows you are
+picking, and not the deadline. It is one API read per row and the queue has a handful of them.
+**(a)** Run the predicate as a command with rule 3a's control, exactly as if you were picking it —
+the reply that unblocks you does not announce itself, and the flip is invisible in the row's text.
+**(b)** Where the row's prose says "still", require the word to carry the date and command of THIS
+iteration's measurement, or delete the word — an undated "still" is the whole defect.
+**(c)** A timebox is a floor on when you act, never a ceiling on when you look; a row with a future
+deadline gets the same predicate read as one without.
+**(d)** When it has flipped, the row is this iteration's pick regardless of position, because the
+ordering it was competing under was computed from a fact that is no longer true.
+Mission-independent, and it generalises past queues: **a blocked thing is exactly the thing nobody
+re-measures, so the freshness of a blocker is inversely proportional to how confidently it is
+stated.** The tell: you are reading past a queue row because it is blocked, and you have not run the
+one command that would tell you whether it still is.
+
 **A queue row sourced from a survey/strategy review inherits that survey's verification debt —
 live-repro the claimed bug BEFORE any routing** (added 2026-07-13 iteration 25; second instance
 of the ghost class): a 10-minute `ailang check`/run probe at HEAD beats a design-doc sprint on a
