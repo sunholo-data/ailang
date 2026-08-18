@@ -12708,3 +12708,72 @@ fix.
 already-fixed, `#727` real, `#708` real, `#687` real), so the next pick moves to the
 language/stdlib group — `#688` (String primitives: `charAt` O(i), `find` has no offset) heads it.
 
+
+---
+
+## 224 — 2026-08-18 — Iteration 223: charAt allocated the whole string per call, and the compiled backend indexed it by byte
+
+**Picked**: queue head `m-sweep-orphans-2026-08-17`, language/stdlib lane, item `#688` — the lane
+iteration 222 opened when mission-infra closed. Six unread inbox messages triaged; the one
+cross-mission item (`mission-world` iter-92, a pi-lane SKILL PROPOSAL) does not auto-outrank the
+queue per the Gate-0 contract. Zero allowlisted directives on `#745` since the `10:55:06Z`
+watermark (16 comments enumerated). `origin/dev` `1350d308f`: 16 checks, zero not-green.
+
+**Reality check**: REAL at HEAD, and the report **understated** it. `#688` claims `charAt` is
+O(i); both interpreter tiers evaluated `[]rune(s)` per call, making it **O(n) with an O(n)
+allocation independent of the index** — `B/op` exactly `4n+16` at every index
+(8212/16432/32788/65556 for n = 2000/4000/8000/16000), measured first-party on the VM tier.
+Enumerating the implementation sites before patching (Principle 3) is what turned a performance
+fix into a correctness one: `charAt` has **three** implementations and the `emit-go` one indexed by
+**byte**, so a compiled program silently disagreed with the same source interpreted
+(`charAt("héllo",1)` = `"Ã"` vs `"é"`; index 5 returned `"o"` where the interpreter raises
+out-of-bounds). The three tiers' agreement was asserted only in a source comment.
+
+**Shipped**: PR `#775` → squash **`a1dad782a`**; final head `6cbadeb2e` at 21 checks, zero
+not-green, 4/4 required (`build`/`docs-gate`/`lint`/`test`), `MERGEABLE CLEAN`. Fixes across all
+three tiers plus two defects found only by compiling and running the emitted package: a Helper body
+**cannot introduce a Go import** (the first rewrite emitted `undefined: utf8` while its unit test
+passed, because that test built its import block from `spec.Imports` rather than from what the
+generator emits — rule 3k exactly), and `charCode` had **no codegen spec at all**
+(`undefined: CharCode`), surfaced by a new `tests/golden/codegen/string_charat.ail` fixture added
+because that build+vet gate had no `charAt` fixture. 9 mutation drills, every mutant asserted
+LANDED by sha256 and BUILDS by `go build` rc=0 before any test result was read, every restore by
+`cp` and byte-identity verified; **7 unique killers** (inverse `-skip` rc=0), 2 recorded as sets.
+Cost arms assert allocated **bytes**, not alloc **count** — the pre-fix count was flat at 3 while
+its byte volume was `4n+16`, so a count assertion would have passed against the defect. `#688`
+closed by the merge with its verdict posted as its own `--body-file` comment beforehand, count
+asserted 0 → 1.
+
+**Routing evidence**: model=claude-opus-5 task-class=mechanical round1-score=n/a rounds=1
+  corrections=1 provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus
+  <!-- controller-inline: well-specified code work on a measured defect; no designer, planner,
+       executor, evaluator or quorum lane fired, no GPU, no rig.lock. metered=$0.00. -->
+
+**Ruled out**: treating `#688` as a pure performance report (two of the four defects are
+correctness); patching only the tier the report named (the enumeration found three); claiming O(1)
+access, which needs a representation change — `charAt` is O(i) and a left-to-right scan on it is
+still quadratic, which `std/string`'s doc now states rather than implying an array index; asserting
+alloc **count** (vacuous against the defect); trusting the reconstructed-program codegen test after
+it passed on a body the real pipeline could not compile; bundling `find`/`lastIndexOf`/`indexOfAny`
+into this change (API additions, queued as `m-string-search-offset`); attributing either local red
+without a control — `tests/golden/codegen` reds only with the stale system `ailang` on PATH (same
+tree, worktree binary rc=0), and `internal/lsp` `TestDidOpenWellTyped` is load-dependent (3/3 green
+isolated; ubuntu CI's own full-suite log for this commit reads `ok internal/lsp 0.211s`); and
+adopting `mission-world`'s pi-lane skill proposal without first-party corroboration.
+
+**Retro lane**: none — no skill edit. One friction this iteration (the missed `gatelint` gate) and
+it is a **rule 3g instance one level down**: the local sweep was derived from `ci.yml`'s `make`
+targets, but `gatelint` is a *test inside the suite*, not a make target, so a plain
+`go test ./...` was never in the list. Rule 3g(c) says wire the missed gate in during the same
+iteration rather than noting it — done. That is an existing rule applied too narrowly, not a gap
+in the rule, so it does not meet the two-friction bar for a skill edit. `mission-world` iter-92's
+pi-lane proposal (promote the worktree-diff assertion to first; the size poll is independent of the
+token cap) is sound and well-evidenced at three datapoints, but V1 has **zero** first-party
+instances — this iteration ran no executor lane at all — and the sibling-claim ghost discipline
+requires corroboration before adoption. Deferred to the next iteration that fires a pi lane.
+
+**Next**: `#689` continues the language/stdlib lane (`ailang verify`: SMT sort mismatch on a record
+type reported as ERROR where every comparable limitation is `skipped`). Two new rows queued behind
+it: `m-string-search-offset` (`#688` claim 2, needs a design doc) and
+`m-codegen-helper-imports-inert` (`GoCodegenSpec.Imports` is silently inert for every Helper spec —
+latent, zero live exposure today).
