@@ -11986,6 +11986,128 @@ remaining half is a mechanism choice that is Mark's, not the controller's.
 then the 14 remaining sweep orphans (`#727`, `#708`, `#687` first). The `Set up job` re-run is owed
 once GitHub marks the incident resolved.
 
+## 220 — 2026-08-18 — Iteration 219: exit code 2 was over-subscribed, and half the refusal surface was unpinned
+
+**Picked**: the queue head `m-sweep-orphans-2026-08-17`, mission-infra lane first, item `#727`
+(`govulncheck-filter`: two `decide()` refusal branches untested at any level). `dev` was green on
+the required set, so nothing outranked the queue.
+
+**Reality check**: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Five unread inbox
+messages: two `eval-suite` telemetry, V1's own iteration-218 report, and **two from `mission-world`**
+(iteration 90). Per the Gate-0 cross-mission contract a sibling mission cannot set this mission's
+priorities, so neither outranked the queue — both were triaged and one produced a new queue row (see
+below). **Zero** allowlisted directives on `#745` since the `2026-08-17T22:04:26Z` watermark, over 8
+enumerated comments. Decision ledger valid, 20 rows. Running skill byte-identical to `origin/dev` —
+`cmp` silent, 237334 B both sides. No weekly rotation: `#745` was created `2026-08-17T06:14:45Z` =
+**08:14 CEST**, after the Monday-07:00 LOCAL boundary, and holds 8 comments.
+
+`origin/dev` `0524a0fc5`: **16 checks, one not-green — `SonarCloud Code Analysis: failure`.** Walked
+back over the four analysed tips before attributing it (`failure` on all four; `absent` on
+`714f1cecc`, which is a property of push tips rather than a clean bill). Standing, NON-REQUIRED,
+inherited; the 4 required contexts were green so it does not outrank the queue. This is now the
+**third consecutive iteration** to name it and the third to leave it un-triaged — recorded as a
+count rather than as a fresh observation, because that is the number that will eventually justify
+picking it. Driver pin equalled `origin/dev`, so mission state was first-party.
+
+Died-mid-flight sweep: three open PRs from this account, none an attempt at this item (`#760`
+motoko's own record, `#695` old coordinator work, `#613` the `D-1`-parked draft). No `iter219`
+worktree existed. Main checkout clean apart from the two rig-synced benchmark JSONs.
+
+**Ghost discipline: `#727` was REAL** — which matters because the same sweep's first pick, `#696`,
+turned out to be already fixed. Instrument validated in the same call rather than trusted:
+
+| pattern over `tools/govulncheck-filter/main_test.go` | count |
+|---|---|
+| `duplicate` | **0** |
+| `parse stdin` | **0** |
+| `bad expires` (known-positive control) | 4 |
+| `TestDecideExitCodes` (known-positive control) | 2 |
+
+**The enumeration was re-anchored to the code, not to the issue.** Rule 3j says anchor to the diff
+and never to the document, and the check is cheap enough that skipping it is only ever a habit
+failure. Here the issue turned out to be accurate: `decide()` has **exactly four** `return 2`
+refusal branches — duplicate `id:`, `readFindings` parse error, `classifyReaching` malformed expiry,
+`validateModuleOnly` malformed expiry — of which the last two were pinned and the first two were not.
+Agreement is the outcome to *expect*; the point is that it was established rather than assumed.
+
+**The defect class is rule 3i(b): an over-subscribed observable.** All four branches return the same
+exit code, so an arm asserting only `wantCode: 2` passes for any of the other three, and would have
+read as coverage. Both new arms assert a branch-unique **message** — `duplicate allowlist entry for
+GO-REACH` and `parse stdin:` — following the pattern the malformed-expiry arms already set. Each is
+also constructed so no *earlier* branch can fire first: the duplicate arm supplies valid, non-gating
+findings, and the stdin arm supplies `allow: nil`. That second half is the part an arm can silently
+lose: a duplicate-ID arm that also happens to carry malformed JSON would pass under both branches.
+
+**Outcome: LANDED.** PR `#765` → squash `6ff68eda9`. PR head `51939a7c3` carried **21 checks, zero
+not-green**, 4/4 required contexts pass (`build` 2m3s / `docs-gate` 3s / `lint` 3m58s / `test`
+24m28s), `MERGEABLE CLEAN`. `TestDecideExitCodes` 5 arms → 7.
+
+**Mutation drill, per arm.** Each mutant asserted **LANDED** (sha256 before ≠ after) and **BUILDS**
+(`go build` rc=0) before its test result was read at all:
+
+| mutation | arms redded | `-skip TestDecideExitCodes` |
+|---|---|---|
+| `if _, dup := byID[e.ID]; false && dup` | **only** `duplicate allowlist id exits 2`; other 6 green | rc=0 |
+| `if false && err != nil` on the `readFindings` result | **only** `unparseable stdin exits 2`; other 6 green | rc=0 |
+
+The `-skip` arm is the one that does the real work: a suite-wide red under a mutant is equally
+consistent with "my new test killed it" and "a bystander happened to red", and only running the
+suite *without* the new test separates them. `main.go` was restored from a copy both times, never
+`git checkout --` (which in a worktree whose changes are uncommitted by construction would delete
+the work), and verified byte-identical by sha256.
+
+Baselined on pristine `origin/dev` before any edit — package rc=0 — so the gates measure the change
+and not the repo.
+
+**Platform narrowing closed for once**: the ubuntu `test` job's own log names both new arms **4**
+times each, against the pre-existing `malformed reaching expiry exits 2` control at **4**. So the
+arms are proven to run on CI rather than only on darwin/arm64 — the caveat rule 3b(viii) requires,
+discharged rather than merely declared.
+
+Gate sweep before pushing, derived rather than recalled: `gofmt -l` clean, `go vet`, `go build`,
+`go test`, `make check-changelog`, `make test-check-changelog` (13 arms), `make check-file-sizes`,
+`make check-boundaries` — all rc=0. Changelog entry filed into `changelogs/v0.18-current.md`, never
+the root index (the lesson of `#759`/`#762`).
+
+**Cross-mission triage — `ailang#764`, entered as a queue row, NOT as the pick.** `mission-world`
+iteration 90 reports that `serveapi` is an API seam but not a *dependency* seam, which blocks its
+item 5. The Gate-0 contract is explicit that a sibling's request never earns a row on the strength
+of the request, so it was ghost-disciplined first-party at HEAD and **CONFIRMED**: `serveapi`'s only
+non-stdlib import is `internal/apiserver`, and `go list -deps ./serveapi` closes over **486**
+non-stdlib packages by our filter (World measured **479** with theirs). Two of World's three controls
+reproduced exactly (`cmd/wasm` **12**, `cmd/astdump` **14**); the third did **not**
+(`cmd/registry-validator` **467** here vs World's **6**). That third is recorded rather than
+smoothed over — it is a fact about the two filters, not about the claim, and the finding does not
+rest on it. Filed as `[world-DEMAND] m-serveapi-protocol-only-module`, NEW-DOC, sequenced after the
+sweep-orphan lane. It satisfies the demand-evidence gate by construction: a real downstream consumer
+blocked today.
+
+**Routing evidence**: controller `claude:claude-opus-5` inline — the queue row specifies per-issue
+triage-lite, which is controller-inline work by construction. No designer, planner, executor,
+evaluator, quorum, GPU or metered provider lane fired. `metered=$0.00`. Codex remains dry until
+2026-08-20 05:34, so V1 stayed on a single controller lane.
+
+**Ruled out**:
+- Letting the standing `SonarCloud Code Analysis` red outrank a green required set — third
+  iteration running; non-required, inherited across all four analysed tips.
+- Trusting `#727`'s own two-branch enumeration without re-deriving it from `decide()`. It agreed,
+  which is the expected outcome and not a reason to have skipped it.
+- Asserting on `wantCode: 2` alone — the observable is shared by all four refusal branches.
+- Reading a suite-wide red under a mutant as proof of a kill; the `-skip` arm is what discriminates.
+- Letting World's `#764` become this iteration's pick. It is real and it is queued; it is still not
+  a priority a sibling mission gets to set.
+- Batch-closing the remaining sweep orphans. Two of fifteen are now dispositioned and they came out
+  **opposite** ways (`#696` already-fixed, `#727` real), which is the whole argument for per-issue
+  measurement.
+
+**Gate 5**: no skill edit — one friction this iteration and the bar is two. No process fix. The
+SonarCloud red is approaching a pick on its own count rather than on a rule change.
+
+**Next**: the remaining 13 sweep orphans — `#708` (design-quorum records no per-reviewer token
+usage, which makes Gate 3's chain-telemetry token mandate unsatisfiable) and `#687` (`⚠ Binary may
+be stale` mis-fires in every fresh worktree — including this loop's own) complete the mission-infra
+lane, then the language/stdlib group.
+
 ## 219 — 2026-08-18 — Iteration 218: the changelog gate certified a link to a file that did not exist
 
 **Picked**: the queue head `m-changelog-gate-deltas` — fold the three arms motoko's `#758` carried
