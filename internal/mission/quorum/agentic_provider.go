@@ -16,6 +16,7 @@ import (
 //   - bounded turn/time cap via opts.Timeout + opts.IdleTimeout,
 //   - cancellation via Execute(ctx, ...),
 //   - observed cost via result.Cost (= execResult.CostUSD),
+//   - observed token counts via result.InputTokens/OutputTokens (#708),
 //   - read-only worktree via opts.Workspace.
 //
 // executorName is the executor registered in the global factory ("codex" =
@@ -62,14 +63,30 @@ func NewCoordinatorAgenticRunner(executorName, workspace, model string, idleTime
 		if execErr != nil {
 			return &AgenticRun{Success: false, Err: execErr.Error()}, nil
 		}
-		if res == nil {
-			return &AgenticRun{Success: false, Err: "executor returned nil result"}, nil
-		}
-		return &AgenticRun{
-			Output:  res.Output,
-			Success: res.Success,
-			Err:     res.Error,
-			CostUSD: res.Cost,
-		}, nil
+		return agenticRunFromExecuteResult(res), nil
 	}, nil
+}
+
+// agenticRunFromExecuteResult maps the coordinator's ExecuteResult onto the
+// quorum's minimal AgenticRun surface.
+//
+// It is a named function rather than an inline literal because it is the ONLY
+// place the executor's real token counts enter the quorum, and it sits behind
+// NewExecutorProvider — which needs a registered executor, so no test reached
+// it. A mutation drill confirmed that: zeroing the token mapping here left the
+// entire package green (#708). Extracted so the mapping is pinnable on its own.
+//
+// A nil result is an executor-level failure, never a silent pass.
+func agenticRunFromExecuteResult(res *coordinator.ExecuteResult) *AgenticRun {
+	if res == nil {
+		return &AgenticRun{Success: false, Err: "executor returned nil result"}
+	}
+	return &AgenticRun{
+		Output:       res.Output,
+		Success:      res.Success,
+		Err:          res.Error,
+		CostUSD:      res.Cost,
+		InputTokens:  res.InputTokens,
+		OutputTokens: res.OutputTokens,
+	}
 }
