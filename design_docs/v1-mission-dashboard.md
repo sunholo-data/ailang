@@ -1,36 +1,40 @@
 # Mission Dashboard — V1
 
-_Snapshot, overwritten every iteration. History lives in `v1-mission.md` (STATUS) and `v1-mission-log.md`._
+> Snapshot only (overwritten every iteration). History lives in `v1-mission.md` (STATUS stamps),
+> `v1-mission-status-archive.md` and `v1-mission-log.md`.
 
-**Last iteration:** 222 · 2026-08-18 · `#687` fixed (stale-binary warning was mtime-only)
-**Latest release:** v0.33.1 · `origin/dev` @ `c8b2ea0a2`
+**Last iteration**: 223 · 2026-08-18 · **LANDED** `#688` → PR `#775` → squash `a1dad782a`
+(21 checks, zero not-green, 4/4 required).
+
+## Where the loop is
+
+- **Lane**: `m-sweep-orphans-2026-08-17` — the 15 zero-mention issues from iteration 216's weekly
+  sweep. **5 of 15 dispositioned, 10 remain.** Mission-infra sub-lane is CLOSED (`#696` already
+  fixed, `#727`/`#708`/`#687` all real). Now in the **language/stdlib** sub-lane.
+- **Next pick**: `#689` (`ailang verify` reports an SMT sort mismatch on a record type as ERROR
+  where every comparable limitation is `skipped`), then `#662`, `#646`, `#644`.
+- **Newly queued behind it**: `m-string-search-offset` (`#688` claim 2 — `find` has no offset;
+  needs a design doc) and `m-codegen-helper-imports-inert` (`GoCodegenSpec.Imports` is silently
+  inert for every Helper spec; latent, zero live exposure).
+- **Then**: `[world-DEMAND] m-serveapi-protocol-only-module` (`#764`), which needs a design doc.
 
 ## Loop health
-- **dev CI: FULLY GREEN** — 16 checks, zero not-green, **including `SonarCloud Code Analysis: success`**.
-  The standing non-required red that iterations 217–221 each named is **CLOSED**; iteration 221's
-  pre-registered coverage arithmetic predicted it and the next analysed tip confirmed it.
-- Driver pin == `origin/dev` exactly; running skill byte-identical to origin (`cmp` silent).
-- Codex lane dry until **2026-08-20 05:34**. Anthropic lanes healthy. `metered=$0.00` for 4 iterations.
 
-## Landed this iteration
-- **PR #772** — `#687` fix. Required contexts green; 19 checks / 0 not-green at last poll.
-  Two reds were authored and fixed rather than merged over: a SonarCloud `go:S4036` pair
-  (`new_security_rating=2`) and a windows `filepath.IsAbs("/usr/bin/git")` failure.
-
-## Next picks
-1. `m-sweep-orphans-2026-08-17` — **4 of 15 dispositioned, 11 remain.** Mission-infra lane is
-   **COMPLETE** (`#696` already-fixed, `#727`/`#708`/`#687` all real — 3 of 4 real, refuting the
-   row's "probably stale" prior). Next: **language/stdlib**, headed by `#688` (String primitives).
-2. `[world-DEMAND] m-serveapi-protocol-only-module` (`ailang#764`), P2.
+- Kill switch armed · billing CLEAN · gh `sunholo-voight-kampff` · running skill byte-identical to
+  `origin/dev` · driver pin == `origin/dev`.
+- Bookkeeping issue **#745** (created Mon 2026-08-17 08:14 CEST; no rotation due). 16 comments,
+  **zero** allowlisted directives since the `10:55:06Z` watermark.
+- Decision ledger: valid, 20 rows.
+- Routing last iteration: controller `claude:claude-opus-5` inline; **no** designer / planner /
+  executor / evaluator / quorum lane fired. **metered = $0.00.** Codex dry until 2026-08-20 05:34.
 
 ## Parked on Mark
-**11 OPEN decisions** in the ledger (`scripts/mission_decisions.sh --open`). None new this iteration.
-Longest-standing: `D-1` (`#613` proxy-route security), `D-2` (`#604` scope), `D-8` (`#618` rig rollout).
 
-## Fleet notes
-- `mission-world`: `--version 2>&1` stderr class **confirmed first-party** as a mechanism —
-  `ailang --version 2>&1` prints `Observatory: 293MB (warn threshold: 200MB)` *ahead of* the version.
-  **V1 has zero exposed gates** (control firing). `~/.ailang/state` is over its 200MB warn threshold
-  and growing; pruning is a live fleet question, World's to route.
-- `mission-motoko`: iteration 10 confirmed motoko owns **0 of 15** sweep orphans — all AILANG-lane,
-  already in V1's charter. Nothing to hand over.
+**None new.** No blocking decision was reached this iteration.
+
+## Notes
+
+- `design_docs/mission-dashboard.md` (unnamespaced) holds **Motoko's** snapshot — left untouched by
+  design; V1 writes only this namespaced file.
+- Cross-mission: `mission-world` iter-92 proposed a pi-lane skill edit (3 datapoints). Sound, but
+  deferred — V1 has zero first-party pi-lane instances to corroborate it.
