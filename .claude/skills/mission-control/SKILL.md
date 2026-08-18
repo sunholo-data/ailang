@@ -2278,6 +2278,47 @@ lint` do NOT cover the remote-only gates (fmt-check, govulncheck, check-file-siz
 Red → fix-forward immediately if small; otherwise revert the merge and park the item with the CI
 log excerpt. Only an OBSERVED green run upgrades the queue tag to [LANDED].
 
+**AND AUTO-MERGE IS NOT A LANDING MECHANISM WHEN THE RED IS INHERITED FROM THE BASE — IT WAITS ON A
+CHECK SET THAT CAN NEVER CHANGE, AND THE ITERATION THAT ARMED IT HAS ALREADY ENDED** (added
+2026-08-18 motoko iteration 10; a new mechanism inside Gate 2's died-mid-flight class, which already
+carries instances at iterations 121, 148/149 and 160/161, plus motoko 6→7). Every rule above assumes
+you are WATCHING a run: it goes green, it goes red, or your bounded poll expires and you park. Auto-
+merge is attractive precisely because it removes that obligation — "the required checks will pass and
+GitHub will merge it" — and it is a correct, routine mechanism (V1's log carries **76** mentions of it
+landing PRs). It has exactly one hole, and it is the case a mission-record PR most often lands in:
+**a red the PR inherited from its base**. GitHub auto-merge merges when *the PR's own* required checks
+pass; it does **not** update the branch and does **not** re-run checks when the base advances. So the
+failing check stays pinned to the PR's head SHA and outlives its own fix, forever, with nothing on
+either side re-evaluating it.
+The reason this earns a rule rather than a caution is that the loss is **SILENT**. There is no
+timeout, no red to triage, no failed command — Gate 3b was never left in a state that *could* fail —
+so the iteration ends looking successful and the mission's memory simply skips a number. It is the
+vacuous-pass class this loop keeps closing, aimed at the *landing* step: success reported for work
+that never shipped. Afterwards it is invisible to every check except Gate 2's died-mid-flight traces.
+Measured on motoko: `#760` (iteration 9's entire record) enabled auto-merge at `19:36:39Z` over a
+`test` red inherited from base `714f1cecc`, with the PR body predicting *"it goes green once #759
+lands"*. **The prediction came true and the PR still did not merge** — `#759` merged at `20:02:27Z`,
+26 minutes later, and its merge commit `cf56772bf` reads `test=success`, as does every commit after
+it; `#760`'s `updatedAt` was still `19:36:34Z` with `test=failure` on head `bf66f7655` at
+`run_attempt=1` **12h13m** later, `MERGEABLE`/`BLOCKED`.
+**Rules. (a)** Never end an iteration with its record behind auto-merge on a PR whose checks are not
+GREEN NOW — an armed auto-merge is a *prediction*, and Gate 3b's whole discipline is that a
+prediction is not an observation. **(b)** When the PR's red is base-inherited, the fix is a **rebase
+and force-push**, not a wait: that is what produces a new head SHA and therefore a new check set.
+Confirm it is safe first — `git diff --stat <base> origin/dev -- <the files you touch>` empty means no
+conflict is possible. **(c)** If you genuinely cannot land it in-turn, park the item
+`needs-human-review` and say so **in the charter and the log**, so the next iteration inherits a
+record rather than a mystery — the failure here was not the unmerged PR, it was that the charter's
+newest stamp read one iteration behind with nothing explaining why. **(d)** Diagnose which red you
+have before choosing: read the failing STEP, not the check name — `gh api
+repos/<o>/<r>/actions/jobs/<id> --jq '.steps[] | select(.conclusion=="failure")'`. `check-runs`
+reports the job and never its steps, and the same iteration got this wrong in the other direction:
+`#760`'s body blamed `Check changelog index hygiene` — the gate that iteration had spent all day
+fixing — while that step was **`skipped`** on both the PR head and the base, and the real failure was
+step 14 `Run stdlib .ail test suites` on both. Right verdict, wrong mechanism; rule 3d, since the red
+arrived in exactly the direction the author had been looking. The tell: you are about to write "auto-
+merge will take it from here", or to end a turn whose PR you have not seen go green.
+
 **Poll only checks that CAN complete for this push** (added 2026-07-16 iteration 31; second
 friction in the blind-poll class — iteration 30 burned a full 35-min cap watching a
 conflict-skipped PR suite, iteration 31's first poll demanded a Docs-Deploy run that its
