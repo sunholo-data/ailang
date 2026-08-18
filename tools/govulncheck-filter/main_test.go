@@ -143,6 +143,32 @@ func TestDecideExitCodes(t *testing.T) {
 			wantCode: 2,
 			wantOut:  `bad expires date "not-a-date" for GO-REACH`,
 		},
+		{
+			// #727 branch 1 of 2: a repeated `id:` in .govulncheck-allow.yml
+			// exits 2 rather than silently masking one of the entries. This
+			// branch runs BEFORE readFindings, so the findings here are valid
+			// and non-gating — the only thing that can produce a non-zero is
+			// the duplicate. Exit code 2 is over-subscribed (four distinct
+			// causes reach it), so the assertion is on the branch-unique
+			// message, never on the code alone.
+			name:     "duplicate allowlist id exits 2",
+			findings: reachingListed,
+			allow:    []allowEntry{freshReaching, {ID: "GO-REACH", Reason: "duplicate row", Expires: "2031-01-01"}},
+			wantCode: 2,
+			wantOut:  "duplicate allowlist entry for GO-REACH",
+		},
+		{
+			// #727 branch 2 of 2: govulncheck JSON that will not decode is an
+			// input error, not an empty finding set. Without this arm the
+			// readFindings error path is indistinguishable from a clean run
+			// with no findings — both would leave decide() returning 0.
+			// `allow` is nil so the duplicate branch above cannot fire first.
+			name:     "unparseable stdin exits 2",
+			findings: "this is not govulncheck json",
+			allow:    nil,
+			wantCode: 2,
+			wantOut:  "parse stdin:",
+		},
 	}
 
 	for _, tc := range tests {
