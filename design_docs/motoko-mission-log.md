@@ -1120,3 +1120,154 @@ belongs.
 
 **Next**: item **7** (profile restoration design) is the queue head, ungated, and is the pick for
 iteration 13 unless a predicate flips. `#165` is Arni's to triage; nothing local waits on it.
+
+## 13 — 2026-08-19 — Mark's ruling un-parked item 6; the trace it demanded answers the reviewer both ways, then finds the fix it authorises cannot be written where everyone assumed
+
+**Picked**: not the untagged queue head (item **7**). `D-MOTOKO-FMT-1` was RESOLVED **precondition**
+by Mark in an attended session dated **2026-08-19**, recorded in `1a3ca2d5f` — and under Gate 0's
+decision-recording contract an answer to a parked item unparks it and becomes this iteration's pick.
+The ruling is specific: *"the sprint TRACES motoko's resolved runtime provider first, then changes
+the preflight. Do not redesign around the unknown: the objection is precisely that nobody has
+measured which provider actually serves the ollama-declared lanes, so measure it."*
+
+**Reality check**: ran from the `#558` driver pin root, detached and clean at `c29c48e96`, which is
+exactly `origin/dev`; running skill **byte-identical to origin** (`cmp` rc=0). `origin/dev` is
+**verified green, not merely un-red** — **16** exact-SHA checks with **0** not-green, and
+`actions/runs?head_sha=<full 40>` returns `runs_total=2`, so a run exists rather than the commit
+being unverified. dev is V1's to own regardless (2026-08-17 scoping rule). Charter and log were
+byte-identical to `origin/dev` before the first write (`git diff --stat origin/dev --` empty), the
+previous-iteration tell fired (`grep -ci "ITERATION 12"` → **3**, control `ITERATION 11` → **4**),
+and the record is written in a worktree branched from `origin/dev`, never in the shared checkout.
+**Died-mid-flight sweep**: iteration 12 left no worktree and no PR; `#695`/`#613` are V1's, as the
+last four iterations also measured. **0** directives from `MarkEdmondson1234` on `#743` since the
+`2026-08-17T05:48:45Z` watermark (of 10 comments) — the ruling arrived through the attended-session
+channel, not the issue, which is why the directive script's zero is correct and not a miss.
+
+**THE TRACE — run via the fork-resolution-path arm the ruling names as sufficient (`and/or`), no GPU
+and no `rig.lock`.** The question was required to discriminate: does removing the unconditional
+`OPENROUTER_API_KEY` refusal at `internal/executor/motoko/healthcheck.go:64` delete a real fail-fast,
+or admit a silent OpenRouter fallback for `provider: "ollama"`, `env_var: ""` entries?
+
+**Answer: BOTH, of DIFFERENT lanes — so the remedy is a CONDITION, never a deletion.**
+
+**(a) For the two fmt arms no OpenRouter routing is reachable, so the preflight is a FALSE
+fail-fast.** Precedence in the fork is `process.env.MODEL ?? profileAgent.model ??
+"anthropic/claude-sonnet-4-6"` (`mk-ast/src/tui/src/index.ts:768-771`). Tier 1 is set
+unconditionally by the Go executor (`motoko.go:343`) from `agent_model_name`
+(`models.go:493-494`) → `ollama/qwen3.6:35b-a3b-mxfp8`; tier 2 is the profile's own
+`ollama/qwen3.5:35b-a3b-mxfp8`, and **both** `ollama` and `ollama_fmt` profiles additionally pin
+`agent.openai_base_url = "http://localhost:11434/v1"`. Measured: `GuessProvider` returns `ollama`
+with env var `""` for both, matched at `internal/ai/config.go:55-57` **before** the generic
+`vendor/model → OpenRouter` rule at `:67-73`, under an in-code comment demanding exactly that
+ordering. Motoko's own preflight asks for nothing — `required_secret_for_model`
+(`mk-ast/src/core/supervisor.ail:21-26`) matches only `anthropic/`, `openrouter/`, `openai/` and
+`google/`, returning `""` for `ollama/`.
+
+**The measurement discriminates rather than passing vacuously.** The same call returned
+`openrouter` / `OPENROUTER_API_KEY` for all three fallback defaults —
+`anthropic/claude-sonnet-4-6` (`index.ts:771`), `openrouter/auto` (`config.ail:434`) and
+`openrouter/anthropic/claude-haiku-4-5` (`factory.go:71`) — so both arms are present and an
+`ollama`/`""` reading is a real answer, not an instrument that cannot say otherwise.
+
+**(b) For the OpenRouter-routed motoko lanes the preflight IS a real fail-fast, and the only one.**
+Motoko's `validate_secrets` result flows to `emit_warnings`, which prints `{"type":"warning",…}`
+and `main` then proceeds to `run_with_config` (`supervisor.ail:11-19`, `:42-51`). Motoko warns and
+runs; it never refuses. Deleting the Go preflight outright would let an OpenRouter-lane eval start
+and burn wall-clock before failing at the provider.
+
+**THE FINDING THAT RE-SHAPES D1, and no reading of `healthcheck.go` could have produced it: the
+condition is not expressible where the check sits.** `HealthCheck(ctx context.Context) error` takes
+**no task** — it is the shared `executor.Executor` interface method (`internal/executor/executor.go:31`)
+— so the only model it can read is `e.model`. And `cfg.MotokoModel` is **never set from
+`models.yml`**: the whole non-test Go tree has **3** `MotokoModel` hits — a field declaration, the
+hardcoded `"openrouter/anthropic/claude-haiku-4-5"` at `internal/executor/factory.go:71`, and
+`motoko.go:145` reading it — against a control of **11** `MotokoProfile` hits, so the grep finds
+wiring where wiring exists. The lane's real model arrives per-task as `task.Model`
+(`cmd/ailang/eval_benchmark_agent.go:174,195,253,389`) and is consumed by `getModel(task)`
+(`motoko.go:610-620`) at Execute time — **after** the health check has already refused.
+
+So an `if` added at `healthcheck.go:64` would evaluate the OpenRouter default for **every** lane,
+conclude "OpenRouter", and refuse the ollama arms exactly as today. **D1 is a plumbing change, not
+the ~0.5-day one-liner §6 prices it as.** Three options are costed in the doc's new §12.2: set
+`cfg.MotokoModel` from `models.yml` at construction (smallest true fix, and it also corrects
+`e.model` being wrong for every motoko lane today); move the check into `Execute`; or widen the
+interface (6+ implementors, and the trace gives no reason to prefer it). The recommendation is to
+express the condition on the **resolved provider** — `ai.EnvVarForProvider(ai.GuessProvider(model))`
+returns the required variable *or `""`* for every provider (`internal/ai/config.go:104-119`) —
+rather than hardcoding one vendor; `internal/executor/motoko` does not import `internal/ai` today,
+so the boundary must be checked before assuming that is free.
+
+**Ordering note, free from the same read.** The preflight returns **before** the `motoko --version`
+query that discovers `e.motokoRepo` (`healthcheck.go:70-77`), and `MOTOKO_REPO` is what stops the
+profile silently degrading to `extensions.order=[]` — the defect `motoko.go:344-364` records as
+**39 of 39** eval sessions with `loaded_extensions=[]`. Moot while the check refuses outright;
+load-bearing the moment it becomes conditional, because a degraded profile drops the `fmt`
+extension that IS the treatment.
+
+**No key-absence-driven fallback exists anywhere.** Repo-wide non-test Go reads
+`OPENROUTER_API_KEY` at exactly **4** sites: `cmd/ailang/ai_handlers.go:276` and
+`cmd/ailang/exec.go:475` (both explicit `openrouter` subcommands), `internal/ai/config.go:115,143`
+(keyed by an ALREADY-resolved provider), and the motoko preflight. None re-routes on absence.
+Control: **23** `OPENAI_API_KEY` sites, so the grep sees this class of hit.
+
+**What the trace does NOT settle, moved to acceptance rather than claimed.** The static arm proves
+no OpenRouter routing is *reachable*; it does not prove no connection is *made*. The live arm is
+circular today — the fmt lane cannot run while the preflight refuses it — so it becomes a D1
+acceptance criterion, `AC-D1-live`: one fmt-lane run reaches `localhost:11434` and makes **zero**
+`openrouter.ai` connections, asserted **on the connection** rather than on the absence of an error
+(an absence is satisfied equally by "no OpenRouter call" and "the run never started"), paired with
+an OpenRouter-lane known-positive control in the same sweep.
+
+**Delivered**: `design_docs/planned/m-motoko-fmt-remeasurement-instrument.md` un-parked (status
+header rewritten), **O4 CLOSED** with its disposition rewritten from `PARKED — needs-human-review`,
+a new **§12** carrying the trace, the three costed options, the ordering note and `AC-D1-live`, and
+verification rows **V25–V32**. Charter queue row 6 re-tagged and the `D-MOTOKO-FMT-1` ledger row's
+evidence column marked DISCHARGED. Ledger re-validated: **3** rows, **0 OPEN**.
+
+**Phase-0 predicates re-run, not transcribed — all still FALSE, so rows 10/11/12 stay parked.**
+**G1**: `#154` `state=OPEN`, `mergedAt=-`; control `#161`/`#162` in the same repo return `MERGED`
+with non-null `mergedAt`, so the instrument can see a merge. **G2**: predicate
+`git -C <upstream> cat-file -e origin/main:packages/motoko-ext-abi/ailang.toml` rc=**128** with the
+mandatory `README.md` control rc=**0** → FALSE for the right reason. **G3**: registry
+`latest=2.2.0`, `versions=1.0.0,2.0.0,2.1.0,2.2.0` → no 5.x. **G4** unrunnable while G3 is FALSE.
+**G5** unchanged.
+
+**Upstream is acting on our issue.** `arniwesth/mot-100-fix-output-headroom` moved
+`ffd6256 → 2f61665` since iteration 12 and now carries **7** commits ahead of `main_dst`, including
+`da999ac fix(compaction): reserve provider output headroom` and their PR **#166**. `#165` is OPEN
+with **2** comments. Iteration 12's re-anchor of the line citations landed in time to be useful,
+which is the first evidence that the re-anchor rule it pre-registered actually pays.
+
+**RULED OUT**: *the `models.yml:1854` comment "`MODEL env > profile config model (index.ts:580)`" is
+current* — the **behaviour** it asserts is TRUE, re-derived first-party at `index.ts:768-771`, but
+its **citation is stale**: line 580 is now `native_tool_results` event printing. That is rule
+3b(v)(b) caught in the repo's own comments rather than in a controller's prose, and it is why the
+precedence was re-measured instead of inherited. *The silent-OpenRouter fallback the reviewer feared
+is live today* — it is **real but unreachable on the wired path**: tier 3
+`anthropic/claude-sonnet-4-6` does resolve to OpenRouter (measured), and it fires only if `MODEL` is
+empty AND the profile fails to resolve, which the unconditional `MODEL=` at `motoko.go:343`
+forecloses. Recorded as a residual with its trigger named, not as a live defect. *A live
+`rig.lock` run was needed to answer O4* — the ruling itself says *"and/or"*, and the fork-resolution
+arm settles the discriminating question while the live arm is circular until D1 lands; claiming it
+had been run would have been the vacuous pass this mission keeps closing.
+
+**Routing evidence**: controller `claude:claude-opus-5` only. **No designer, planner, executor,
+evaluator or quorum spawned** — a controller-run trace that answers a standing reviewer objection has
+no doc to design, no plan to write and nothing to judge, and the doc's own quorum is spent (2 rounds,
+both external reviewers present, `absent_reviewers` empty in both artifacts, metered $0.1424 at
+iteration 8). Designer rotation pointer **untouched** at `claude:claude-fable-5`. Metered **$0.00**
+of the $5 ceiling. No GPU, no `rig.lock`. `make quick-install` deliberately NOT run (shared-write
+guardrail, V20); the one build step taken was a throwaway `go test ./internal/ai/` whose test file
+was deleted immediately and the tree re-asserted clean (`git status --porcelain` empty). Gates ran on
+**darwin/arm64 only** (rule 3b(viii)).
+
+**Gate 5 — no skill edit.** The iteration's friction is real and narrowly stated: *rule 3b(v)(b)
+(a transcribed identifier is not a measurement) is written for controller and document prose, and
+nothing points it at the CODEBASE'S OWN COMMENTS* — `models.yml:1854` carries a `file:line` citation
+for a behaviour that is still true at a different line, so the comment reads as verified and its
+pointer is stale. That is **instance 1**, pre-registered here at the skill's own ≥2-friction bar
+(the precedent is iteration 140 pre-registering rule 3d, and iteration 12 pre-registering the
+published-artifact freshness gap). The correction went into the doc's V28 row instead.
+
+**Next**: item 6 is now a normal sprint — planner → executor on D1 (with §12.2's plumbing decision
+made explicitly) + D1b + D2. Item 7 (profile restoration design) is the untagged head behind it.
