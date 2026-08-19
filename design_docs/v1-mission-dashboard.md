@@ -1,40 +1,40 @@
 # Mission Dashboard — V1
 
-*Snapshot, overwritten every iteration. History lives in `v1-mission.md` (STATUS) and
-`v1-mission-log.md`. Last written: iteration 229, 2026-08-19.*
+_Snapshot, overwritten every iteration. History lives in the charter STATUS block and `v1-mission-log.md`._
 
-## Right now
+**Last iteration:** 230 · 2026-08-19 · **LANDED**
+**Release:** v0.33.1 · `origin/dev` = `98b704723`
 
-- **Release**: v0.33.1. `origin/dev` `dedf3b91f` — **16 checks, zero not-green**.
-- **Last iteration (229)**: consumed Mark's `D-19 : B` directive and produced the decomposition it
-  called for. **Zero OPEN decisions in the ledger** for the first time in weeks.
-- **In flight**: `m-list-cons-cells` — the true-cons-cells programme, 8 pieces / 15.5–21.5 days.
-  Roadmap `design_docs/planned/m-list-cons-cells-decomposition.md` is **quorum round-1 BLOCKED**
-  (2-of-2, both objections narrow with verbatim fixes, neither disputing direction).
-- **Next**: one designer revision applying both `proposed_fix` blocks + one re-quorum, **on the codex
-  lane once it resets 2026-08-20 05:34**. Then queue the 8 pieces, `LC-1` (the kill-criterion spike)
-  first. Nothing in the programme routes before the roadmap re-quorums.
+## In flight / next
+- **Queue head:** `m-sweep-orphans-2026-08-17` — downstream-consumer group. 8 of 15 dispositioned
+  (`#679` done this iteration). Remaining: `#672`, `#671`, `#694`, `#656`.
+- **`PARKED-ON-LANE`:** `m-list-cons-cells-decomposition` roadmap owes ONE designer revision + ONE
+  re-quorum. Lane `codex:gpt-5.6-sol` re-probed this iteration → **rc=1**, usage limit, returns
+  **2026-08-20 05:34** (before the next fire). Not parked on a human — no answer owed.
+- **Unblocked + cheap:** `m-ci-no-job-timeouts` (a wedged step burns 6 h of a REQUIRED check),
+  `m-stdlib-reverse-delegates-to-builtin` (O(n) `reverse` builtin ships with 0 callers).
+- **Held by ruling:** `#616` effect-row-var unification — `D-10 : B`, hold, no third revision.
+  New this iteration: first-party downstream demand evidence (see below).
 
-## Parked
+## Last iteration in one line
+`RT_REC_003` told users to "enable tail recursion", an option that has never existed — fixed and
+pinned by tests that execute the advice ([#788](https://github.com/sunholo-data/ailang/pull/788) →
+`98b704723`). And `#679`'s reported mechanism is refuted: `--deep` is not skipped, the warning is stale.
 
-- **On a LANE, not a human**: the roadmap revision above. Codex quota-dead until 08-20 05:34; gemini
-  is read-only under `CapRemoteSandbox`; Fable's diet is one run per iteration and 229 spent it on
-  the create. No decision is owed.
-- **On Mark**: one ask only — should `#676` get a *bounded interim* mitigation while the multi-week
-  programme runs? `D-19` declined the arena as the **permanent** answer, which does not by itself
-  decide whether a temporary one is worth it. The designer recommends **against** (throwaway work
-  colliding with LC-2/LC-4's own files). Not decided unilaterally.
+## Key standing finding
+`ailang-parse` maintains **three** parallel parse entry points solely because AILANG has no
+effect-row polymorphism (`#616`). One of them silently drops `--deep`. That is a language gap
+producing user-visible regressions in a shipped product, not a theoretical nicety.
 
 ## Loop / routing
+- Cadence: launchd `dev.ailang.mission-control`; controller `claude:claude-opus-5`.
+- Designer rotation state: `claude:claude-fable-5` (namespaced key). Fable run **unspent** at 230.
+- Executor `pi:…deepseek-v4-flash-0731` · planner `opus` · evaluator `sonnet`.
 
-- Cadence: v1 every ~90 min; siblings `motoko` and `world` share the rig.
-- Controller opus · designer **rotation** (codex → gemini → fable; codex dead till 08-20 05:34) ·
-  planner opus · executor `pi:deepseek-v4-flash` · evaluator sonnet (generator≠judge).
-- **Metered spend, iteration 229: $0.0884** of the $5 ceiling (quorum only). Fable/Opus are quota
-  buckets, $0. No GPU, no `rig.lock` taken.
+## Parked on Mark
+**Nothing.** Decision ledger: **21 rows, ZERO OPEN**.
 
-## Standing hazards worth one line
-
-- The superseded `m-list-cons-quadratic.md` labels its options A–D with the **opposite** sense to
-  `D-19`'s A/B. Its Option A is the chosen direction; its Option B is declined.
-- `Elements` is a field name on **22 struct types** — a `.Elements` grep cannot size list work.
+## Quota posture
+- codex `gpt-5.6-sol`: **dry** until 2026-08-20 05:34 (measured, not transcribed).
+- Fable: weekly bucket, one bounded designer run per iteration.
+- Metered spend at iteration 230: **$0.00** of $5.

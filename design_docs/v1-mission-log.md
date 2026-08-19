@@ -13416,6 +13416,135 @@ consumer reports `#679`, `#672`, `#671`, `#694`, `#656`.
 
 ---
 
+## 231 — 2026-08-19 — Iteration 230: `RT_REC_003` advertised an option that has never existed, and `#679`'s reported mechanism is refuted — the warning is the bug
+
+**Picked**: the queue head `m-sweep-orphans-2026-08-17`, downstream-consumer group, item `#679`
+(triage-lite); then, as the bookkeeping-second allowed by Standing rule 1, the trivial first-party
+row `m-rt-rec-003-advertises-nonexistent-option`, which turned out to be the *same defect class* as
+what `#679` measured. Gate 0/1 clean: kill switch armed, billing tripwire **CLEAN**, gh
+`sunholo-voight-kampff`, pin worktree clean and detached at `1ec50c9cb` = `origin/dev` exactly,
+running skill byte-identical to origin, `origin/dev` at **16 checks, zero not-green**, ledger valid
+at **21 rows and zero OPEN**, zero allowlisted directives since the `10:58:40Z` watermark (31
+comments). Three inbox messages — V1's own iteration-229 report, `mission-world`'s iteration-96
+report, and a `mission-world` Gate-5 skill proposal — none of which outranks the queue by contract;
+the proposal was routed to Gate 5. Died-mid-flight sweep clean.
+
+**The `PARKED-ON-LANE` predicate was re-run as a command, not transcribed.** Standing rule 8(d)
+exists because a blocked row is exactly the row nobody re-measures. `codex exec --model gpt-5.6-sol`
+→ **rc=1**, *"usage limit … try again at Aug 20th, 2026 5:34 AM"*. Still dry, so the cons-cells
+roadmap revision stays parked on its lane, and iteration 229's plan — revise plus re-quorum on codex
+after 05:34, before the next fire — is intact and was deliberately left untouched.
+
+**`#679`: REAL at HEAD, and the reporter's mechanism is REFUTED.** The report says `docparse --deep`
+resolves attachments and then skips text extraction, quoting the tool's own warning: *"parseDocumentPure
+cannot shell out; use parseDocument"*. Reproduced first-party on `ailang-parse` HEAD with the
+reporter's exact verify command — and `--deep` is **not** skipped on the CLI path. The warning is
+stale. `parseDocumentPure` (`docparse/services/orchestrator.ail:162`) appends it to
+`outcome.warnings` whenever `opts.deep` is set, which it must, since it genuinely cannot shell out.
+`parseDocument` (`:372`) then *consumes that outcome* — warning already baked in — and does the real
+deep work at `:378` via `orchEmailDeep`. Nothing retracts it, and the CLI (`main.ail:196`) calls
+`parseDocument`. So the product tells the user to use the function they are already using.
+
+**The discriminating measurement.** Rather than reasoning from the commit that added `orchEmailDeep`
+(dated five days *before* the report — suggestive, and not evidence), I ran the arm where the
+mechanism must succeed: a DOCX attachment, whose deep extraction needs no subprocess. Its **inner**
+content came back — `Q1 Revenue Analysis`, `Total revenue: $425,000`, `[table] 3 rows, 2 cols` — so
+deep resolution demonstrably ran, **and the warning fired anyway**. On the PDF fixture the ladder
+genuinely shelled out (`pdftotext` and `docling` both invoked; neither installed on this box, so that
+arm is UNINFORMATIVE for text, but it proves `Process` was reached). The reporter's missing PDF text
+is therefore the backend ladder, not the code path — the warning sent them at the wrong thing.
+
+**The same string is TRUE on another path, which is the whole point.** `parseDocumentAI` (`:757`) —
+the stdio MCP server, launched by published embedder configs with `--caps IO,FS,Env` — delegates to
+`parseDocumentPure` with no email-deep branch, and `mcp/tools.ail:127` calls it directly. One string,
+emitted by a helper that cannot know its caller, is simultaneously false on the CLI path and true on
+the MCP path. `orchestrator.ail:723` names the cause outright: AILANG has no effect-row polymorphism
+to express "Process only on the branch that uses it" (**`#616`**), so the capability tiers become
+three separate entry points. That is first-party downstream demand evidence that `#616` is not a
+theoretical nicety: it has produced a user-visible regression report in a shipped product. Verdict
+posted as its own `--body-file` comment with the count asserted **0 → 1**; `#679` kept OPEN, because
+the fix site is `ailang-parse`, outside `MISSION_REPO`.
+
+**`#616` was considered as the second pick and the Gate-2 reality check refuted the charter row.**
+The iteration-179 row reads *"Needs ONE revision + ONE re-quorum; NO human input required"*, which
+would have made it routable on this iteration's one unspent Fable designer run — an attractive
+convergence, given the evidence I had just produced for it. It is stale: `eabab0611` already landed
+that revision, and the iteration-180 update parks the doc on **`D-10`**, which Mark ruled **B — hold
+and route next, no third revision**. Routing it would have re-run work the human explicitly held. Not
+re-asked, per the decision-recording contract; the demand evidence is attached to the held row instead.
+
+**`m-rt-rec-003-advertises-nonexistent-option`: LANDED** — PR
+[#788](https://github.com/sunholo-data/ailang/pull/788) → squash `98b704723`, head `9a25fa253` at 21
+checks, zero not-green, `MERGEABLE CLEAN`, 4/4 required (`build` 1m58s, `docs-gate` 4s, `lint` 3m56s,
+`test` 14m20s). `mergeable` was read FIRST and came back `MERGEABLE`, with 5 runs present for the
+full 40-character head SHA (control: `origin/dev` = 2), so no dropped-event lever was needed.
+
+The claim is confirmed and sharper than filed: the only two mentions of tail recursion anywhere in
+`internal/eval` are a test comment and **the message itself**, so the sole reference to the feature
+was the advertisement for it. The machinery exists only in `internal/vm` and `internal/bytecode`,
+which `ailang run` does not use, and `run --help` offers only `-max-recursion-depth`.
+
+**The substituted remedies were ghost-disciplined before being advertised**, which is the part worth
+keeping. The first draft was going to name `foldl`/`map` on the strength of `^export func`, which
+returns **5** against `^export` = **40** — the real shape is `export pure func`. Widening (rule
+3a(ii)) confirmed `map` (`std/list.ail:56`) and `foldl` (`:60`) both exist and both delegate to
+iterative builtins that never recurse. Advertising a second non-existent remedy inside the fix for a
+non-existent remedy would have been the exact defect under repair, one layer down.
+
+**Pinned by two arms that take the remedy out of the product's own output and EXECUTE it** (rule 3k):
+every `--flag` the message names must map to a knob the evaluator actually has, and the test then
+*applies* that knob and requires the previously-failing program to succeed. An anti-vacuity floor
+fails loudly if the message names no flag at all. A second arm pins the prose, kept separate because
+"enable tail recursion" is not flag-shaped and is invisible to the flag matcher.
+
+**Mutation drill** — 2 mutants, both asserted LANDED (sha256) and BUILDS (`go build` rc=0) *before*
+any test result was read, restored by `cp` and verified byte-identical (never `git checkout --`, per
+the iteration-166 corollary, since the file is uncommitted by construction in a sprint worktree):
+
+| Mutant | Reds | Blast radius | Inverse `-skip` both arms |
+|---|---|---|---|
+| M1 — restore the original message | `TestRTREC003DoesNotAdvertiseTailRecursion` only | 1 | rc=0 |
+| M2 — advertise `--enable-tail-recursion` | `TestRTREC003AdvertisesOnlyRemediesThatExist` only | 1 | rc=0 |
+
+Both are single-test mutants, so the `rc=0` inverse criterion applies (the 2026-08-19 refinement) and
+holds: each arm is the sole killer of its own mutant. Scope enumerated before landing — **zero**
+production or test sites pinned the old body.
+
+**Routing evidence**
+
+| Role | Model | Notes |
+|---|---|---|
+| Controller | `claude:claude-opus-5` (session) | triage-lite + a well-specified fix on a measured defect |
+| Designer | — | **not fired**; the one Fable run went UNSPENT |
+| Planner / Executor / Evaluator | — | not fired; no new design doc, no sprint plan |
+| Quorum | — | not fired |
+
+No GPU, no `rig.lock`. **metered = $0.00** of $5.
+
+**Ruled out**
+- That the stale warning *causes* `eparse expand`'s data loss. I hypothesised exactly that and
+  measured it **false**: email-parse branches on `warnings` **0** times across `*.py`/`*.ail`/`*.ts`
+  (control: `docparse` matches 4 files). It is a mislabel, not the mechanism.
+- The reporter's *"a code path calls `parseDocumentPure` where it needs `parseDocument`"* — true of
+  the MCP path, false of the CLI path they actually ran.
+- Routing `#616`'s revision (held by `D-10`), and re-asking `D-10` on the strength of new evidence.
+- Spending this iteration's Fable run on the cons-cells revision: its own lane returns at 05:34,
+  before the next fire, so it needs no scarce-quota substitute.
+- Concluding `#679` was already fixed from the *date* of `1a28c47` — suggestive, and refuted by
+  running it.
+
+**Gate 5: no skill edit.** The frictions this iteration were documented rules working as written —
+3a(ii) widening the `^export func` grep, 3d's discriminating arm on the DOCX attachment, Gate 2's
+reality check catching the stale `#616` row, and Standing rule 8(d) re-running the lane predicate as
+a command. None is a gap. `mission-world`'s Gate-5 proposal (a negative grep cannot establish a
+premise) is recorded as instance 1 in V1; it is not adopted this iteration because the ≥2-friction
+bar requires a first-party instance, and this iteration's `^export func` miss was caught by the
+*existing* rule 3a(ii) rather than by the proposed one.
+
+**Next**: the cons-cells roadmap revision + re-quorum on codex after 05:34, then queue the 8 pieces
+with `LC-1` first; remaining consumer reports `#672`, `#671`, `#694`, `#656`; and
+`m-ci-no-job-timeouts` plus `m-stdlib-reverse-delegates-to-builtin`, both unblocked and cheap.
+
 ## 230 — 2026-08-19 — Iteration 229: Mark ruled `D-19 : B`, and the count I certified was right about the repo and wrong about the question
 
 **Picked**: a **human directive**, which outranks the queue. `MarkEdmondson1234` commented on
