@@ -187,7 +187,12 @@ on one rig from colliding.
    a zero is a visible row a reader can re-run, not an invisible contributor to a summary; **(c)**
    the known-tracked control (`#517`-class) proves the grep can see a positive, but it CANNOT
    prove the enumeration covered all issues — so also assert the issue-list length against
-   `gh issue list … | wc` in the same breath (rule 3a aimed at the LIST, not the pattern); **(d)**
+   `gh issue list … | wc` in the same breath (rule 3a aimed at the LIST, not the pattern). **And do
+   NOT print the known-ABSENT control's identifier in the sweep verdict** — rule (b) requires the
+   measurement to be published, and publishing the literal is what spends it (see Gate 4's *a control
+   you record is a control you spend*; V1's own `#99999` is already spent in the charter AND the log,
+   recorded by iteration 216's own sweep verdict). Publish "negative control fired", choose a FRESH
+   literal each sweep, and never trust a reused one; **(d)**
    a CLEAN sweep verdict quoted anywhere downstream must carry the issue count it swept ("0 orphans
    of N enumerated"), so a truncated enumeration cannot wear a complete one's clothes.
 6. **The bookkeeping issue is BIDIRECTIONAL (added 2026-07-16, Mark: "I could comment on the
@@ -2543,14 +2548,41 @@ form, and the reason this outranks its two instances: **anything this skill tell
 a claim about ONE mission's file format** — when a shared gate hardcodes a literal, ask what the
 sibling writes there before trusting a zero.
 
-**Do NOT add a known-absent literal as a second control — in a file the loop WRITES ABOUT ITSELF,
-the absent token does not stay absent.** Iteration 134 shipped `ITERATION 999` as its
-known-absent control and then measured it coming back **1** within the same iteration: the STATUS
-stamp it had just written *documents the control*, so the literal is now in the charter forever.
-Any self-describing file poisons this class of control the moment a record mentions it. Where you
-want a structural second check, assert the rotation invariant instead —
-`grep -c "^## STATUS 2026"` must equal **3** — which is anchored to line-start and cannot be
-tripped by prose.
+**A CONTROL YOU RECORD IS A CONTROL YOU SPEND — in a file the loop WRITES ABOUT ITSELF, the
+absent token does not stay absent** (generalised 2026-08-19 V1 iteration 232 from a Gate-4-only
+note; proposed by `mission-world` iter-97 at the two-gates bar, and corroborated first-party in
+V1's own artifacts before adoption — sibling-claim ghost discipline). Any known-ABSENT literal used
+as a negative control must never be written into a corpus the loop later greps: the charter, the
+log, the STATUS archive, the dashboard, or an issue body a sweep reads. The loop writes *about* its
+own measurements, so **naming the control in a record is what makes it stop being absent** — and the
+next controller to reuse it reads a `1` and concludes its *matcher* is over-matching rather than
+that the corpus was poisoned by a record.
+**This is not a Gate-4 quirk; it fires in every gate that both requires a control and publishes the
+measurement.** Instance 1, Gate 4: iteration 134 shipped `ITERATION 999` as its known-absent control
+and measured it coming back **1** within the same iteration, because the STATUS stamp it had just
+written documents the control. Instance 2, Gate 0's weekly external-issue sweep, whose rule (b)
+*mandates* printing per-issue counts so a zero is auditable — `mission-world` iter-96 recorded
+`#9999 → 0 negative` in its stamp and iter-97 measured `#9999` → **1**. Nothing in Gate 0 said the
+control's identifier must not be one of the things you print, and the warning lived two gates away
+attached to a different artifact and a different literal shape: **guard the helper, miss the call
+site**, this loop's own named recurring shape, aimed at its rulebook.
+V1's first-party corroboration is stronger than the proposal's, in two ways. Its Gate-0 sweep
+control is spent in **two** files at once — `grep -cE '#99999\b'` returns **1** in
+`design_docs/v1-mission.md` (line 2102, iteration 216's own sweep verdict) and **1** in
+`v1-mission-log.md`, controls firing at `#613` = **7** and **50**. And `ITERATION 999` reads **0**
+in the charter but **1** in the log (control `ITERATION 231` = 2 / 1), which is the sharpening
+neither instance had: **rotation does not un-spend a control.** The STATUS block's own three-entry
+rotation eventually carries the stamp out of the charter, so a controller re-measuring only the
+charter sees the literal go absent again — while the log and the archive keep it forever. A control
+that is spent is spent across *every* corpus the loop greps, not the one it was written in.
+Rules: **(a)** choose a FRESH absent literal each time and treat any reuse across iterations as
+suspect — including a literal that currently reads zero, since a rotated-out stamp is not a
+retracted one; **(b)** where a gate requires the measurement to be published (Gate 0's per-issue
+table, Gate 4's rotation assertion), publish the control's RESULT and not its IDENTIFIER —
+"negative control fired" rather than "`#9999` → 0"; **(c)** prefer a structural check that cannot be
+poisoned at all — Gate 4's `grep -c "^## STATUS 2026"` must equal **3** is the model: line-anchored,
+format-bound, immune to prose. Mission-independent: every mission on this rig writes records it
+later greps. The tell: you are about to write a known-absent literal into a file this loop reads.
 
 **THE STATUS ROTATION IS THE MOST DANGEROUS EDIT THIS LOOP MAKES — SCRIPT IT WITH A LINE-COUNT
 ASSERTION, NEVER A BARE `## `-HEADER SCAN** (added 2026-08-01 iteration 127; third failure of this
