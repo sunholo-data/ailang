@@ -13416,6 +13416,79 @@ consumer reports `#679`, `#672`, `#671`, `#694`, `#656`.
 
 ---
 
+## 232 — 2026-08-20 — `editor install vscode` shipped an extension VS Code refused to load: the helper's NAME said refresh, its effect was uninstall
+
+**Picked**: queue head `m-sweep-orphans-2026-08-17`, downstream-consumer group, item `#694` — the
+only remaining in-repo orphan of the three (`#672` is eparse-side, `#656` ailang-parse-side, both
+outside `MISSION_REPO`). Triage-lite was OWED and not yet done for it.
+
+**Reality check**: REAL at HEAD, and every one of the report's three code claims confirmed
+first-party before any work started. `installVSCode()` wrote an **unversioned** folder
+`~/.vscode/extensions/ailang`; `invalidateVSCodeExtensionCache()` **removed** the `sunholo.ailang`
+entry from `extensions.json`; `checkEditorStatus()` verified with `os.Stat`. Since VS Code 1.74 that
+file is the **registry** of installed extensions, not a cache, so the install produced a folder
+nothing scans and then deregistered the extension it had just written. The registry schema was read
+off a **real** `~/.vscode/extensions/extensions.json` on this rig (9 entries) rather than inherited
+from the report's prose, and a live `.obsolete` on the same box carries the flag class described.
+Coverage before the fix: `cmd/ailang/editor.go` had **zero** test references (control: 77
+`_test.go` files in `cmd/ailang`), so nothing could red when it broke.
+
+The sharpening the report does not make, and it is the whole cause: **`uninstallVSCode()` calls the
+same helper, where removing the entry is exactly right.** One function, correct on one caller and
+inverted on the other — and its NAME is what allowed that. Renamed `deregisterVSCodeExtension`.
+That makes `#694` the fourth consecutive report in this group where the artefact *describing* the
+behaviour is the bug (`#679`, `RT_REC_003`, `#671` were emitted strings; this one is a function
+name), so the class is wider than "diagnostics".
+
+**Shipped**: PR [#792](https://github.com/sunholo-data/ailang/pull/792) → squash `241221047`, head `14089c614` at **21 checks, ZERO not-green**, `MERGEABLE CLEAN`, 4/4 required (`build`/`docs-gate`/`lint`/`test`).
+Install now builds a VSIX (`archive/zip`, no node/`vsce`) and hands it to the editor's own CLI
+(`code`, `code-insiders`, `cursor`, `windsurf`, `codium`) so VS Code registers it; with no CLI on
+PATH it writes a **versioned** folder AND the registry entry, clears stale `.obsolete` flags and
+removes the old unregistered folder; a failed CLI install falls back loudly. `status` asks
+`code --list-extensions`, else requires a registry entry whose `relativeLocation` exists and is not
+obsolete. Same defect, second surface (Principle 3): `docs/docs/guides/editor-setup.md` and
+`editors/README.md` both taught `cp -r … ~/.vscode/extensions/` and verified with
+`ls … | grep ailang` — the folder-drop and the `os.Stat` false positive in shell form; both fixed.
+19 new test functions; **11 mutation drills, all LANDED (sha256) + BUILDS asserted before any test
+result was read**, 6 single-test with inverse `-skip` rc=0 (sole killers) and 5 broad-blast with
+enumerated red sets. M11's first form did not compile and was repaired rather than read.
+No evaluator lane ran (controller-inline routing, as iterations 219–231).
+
+**Routing evidence**: model=claude-opus-5 task-class=execute round1-score=n/a rounds=1 corrections=0
+  provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus
+  designer/planner/executor/evaluator/quorum: NONE fired. The Fable designer run went UNSPENT for
+  the third consecutive iteration. codex `gpt-5.6-sol` re-probed as a command (Standing rule 8(d)):
+  **rc=1**, quota-dry until 2026-08-20 05:34, so the cons-cells revision stays `PARKED-ON-LANE`.
+  metered=$0.00 of $5. No GPU, no `rig.lock`.
+
+**Ruled out**:
+- That the CI wedge was my diff — steps 1–8 incl. *Build binaries* and the consumer guardrail passed
+  on the linux runner before the stall, and attempt 3 passed the **same tree**.
+- That the wedge was a one-off runner hiccup — attempt 2 reproduced it identically. A retry that
+  reproduces is not a transient (the inverse of the iterations 55–58 lesson: there the retry ran a
+  *different* command, here it ran the same one and got the same answer).
+- That a GitHub incident explained it — the status API read *All Systems Operational* throughout.
+  Stated limit, not papered over: no concurrent peer run existed, so "environment-wide right now"
+  could not be established by comparison, only "unlike every completed run today".
+- That `#694` might be a ghost — all three code claims confirmed at HEAD first.
+- That the lock/`.obsolete` files needed schema guesswork — the schema was measured on this rig.
+
+**Retro lane**: skill-fix — `.claude/skills/mission-control/SKILL.md`. Generalised Gate 4's
+known-absent-control note into **"a control you record is a control you spend"** and cross-referenced
+it from Gate 0's weekly-sweep rule (c). Proposed by `mission-world` iter-97 at the two-gates bar
+(Gate 4 iteration 134's `ITERATION 999`; Gate 0 World iter-96's `#9999`), and corroborated
+first-party in V1's own artifacts before adoption per the sibling-claim ghost discipline — with a
+sharpening neither instance had: V1's `#99999` is spent in **two** files (charter line 2102 and the
+log, controls firing at `#613` = 7 and 50), and `ITERATION 999` reads **0** in the charter but **1**
+in the log, so **rotation does not un-spend a control**.
+
+**Next**: cons-cells roadmap revision + re-quorum on codex once it resets 05:34 today;
+`m-ci-no-job-timeouts`, which this iteration turned from an argued row into an evidenced one and is
+cheap; `m-stdlib-reverse-delegates-to-builtin`, unblocked and cheap. The orphan sweep's in-repo half
+is CLOSED — `#672` and `#656` are both outside `MISSION_REPO`.
+
+---
+
 ## 231 — 2026-08-19 — Iteration 230: `RT_REC_003` advertised an option that has never existed, and `#679`'s reported mechanism is refuted — the warning is the bug
 
 **Picked**: the queue head `m-sweep-orphans-2026-08-17`, downstream-consumer group, item `#679`
