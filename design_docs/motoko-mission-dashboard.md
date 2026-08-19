@@ -3,38 +3,38 @@
 > **Namespaced** — the bare `mission-dashboard.md` is not ours (V1 iter-216); it holds motoko's stale
 > iter-7 snapshot, left alone.
 
-**Updated**: 2026-08-18 ~21:00 local (iteration 12)
+**As of**: 2026-08-19 · iteration **13** · release `v0.33.1` · loop `dev.ailang.mission-motoko`, 12h
 
-## Where the mission is
-- **Charter RATIFIED** (iter 0). 6 clauses; clause 6 (motoko graduates into the mission executor
-  fleet) is the meta-goal. Epic = [DST migration](planned/m-motoko-dst-refactor-migration.md).
-- **Iter 1–10**: 51 fork commits dispositioned ([ledger](planned/m-motoko-fork-disposition.md) — 14
-  SUPERSEDED/17 PORT/14 DROP/6 UNRESOLVED); Phase 0 fail-closed on **G5**; **R8 → PORT**; `#721`/`#728`
-  fixed the loop's own health; the −74% is really **−5.7%**; auto-merge is not a landing mechanism.
-- **Iter 11**: item 5 LANDED — Arni had answered `#97` five days earlier and the charter never noticed.
-  Output-headroom case filed as [**#165**](https://github.com/arniwesth/motoko_agent/issues/165); `#97` closed as superseded.
-- **Iter 12**: **`#165` re-anchored — `main_dst` moved 59 commits within six hours of filing.** Defect
-  intact (window sha256-identical), its three `session.ail` citations shift **+54**; corrected
-  upstream. Arni has cut `arniwesth/mot-100-fix-output-headroom`.
+## Now
+- **Just landed (iter 13)**: queue item **6** UN-PARKED — Mark resolved `D-MOTOKO-FMT-1`
+  *precondition* (attended, 2026-08-19), and the provider-resolution trace he made a precondition is
+  RUN. **O4 CLOSED by measurement**; doc gains §12 + rows V25–V32.
+- **The answer**: both halves of the reviewer's fear are true, of *different* lanes — so the fix is a
+  CONDITION, never a deletion. fmt arms reach **no** OpenRouter path (`GuessProvider("ollama/…")`
+  → `ollama`, env var `""`; both profiles pin `localhost:11434/v1`); OpenRouter lanes have the Go
+  preflight as their **only** hard stop (motoko's own check merely warns and proceeds).
+- **The blocker it found**: the condition is **not expressible where the check sits**.
+  `HealthCheck(ctx)` takes no task, and `cfg.MotokoModel` is never set from `models.yml` — so an
+  `if` at `healthcheck.go:64` would read the hardcoded OpenRouter default for every lane. D1 is a
+  plumbing change, not a one-liner; three costed options in §12.2.
 
 ## Next
-- Untagged head is item **7** (profile restoration design) — ungated, ~1 iteration, the pick for
-  iteration 13 unless a predicate flips; then item **8** (repin the stale OpenRouter pins).
-  **D-MOTOKO-FMT-1 is the only thing gating item 6.** `#165` is Arni's to triage, nothing waits on it.
+1. **Item 6 → normal sprint**: planner → executor on D1 (+ the §12.2 plumbing decision) + D1b + D2.
+2. Item **7** — profile restoration design (untagged head behind it).
+3. Item **8** — repin the stale OpenRouter motoko models.
 
-## Blocked / parked
-- **Item 6 PARKED** `needs-human-review` — [the instrument](planned/m-motoko-fmt-remeasurement-instrument.md)
-  is written, twice-reviewed, **direction undisputed**. Any fmt run is blocked anyway: both Wednesday
-  A/B fires died at `healthcheck.go:64`, an unconditional `OPENROUTER_API_KEY` refusal, while both
-  arms are local ollama.
-- **Phase-0 gate REAL and unmet, re-measured iter 12**: G1 `#154` OPEN (control `#161`/`#162` MERGED),
-  G2 rc=128 / control rc=0, G3 registry `latest=2.2.0` (no 5.x), G4 unrunnable, G5 unchanged →
-  10/11/12 parked; 9/13/14 need a green tree. `#154` is moving (`updatedAt` 08-18 16:48Z).
+## Gated / parked
+- **Phase 0 CLOSED** (re-measured iter 13): G1 `#154` OPEN · G2 rc=128 (control rc=0) · G3 registry
+  `latest=2.2.0`, no 5.x · G4 unrunnable · G5 (Arni's ABI declaration) unchanged. Rows **10/11/12**
+  stay parked. Rows **9/13/14** need a green tree / earlier design.
+- **Upstream is acting on `#165`**: `arniwesth/mot-100-fix-output-headroom` now **7** commits ahead of
+  `main_dst` incl. `da999ac fix(compaction): reserve provider output headroom`, their PR **#166**.
 
-## Open with Mark (issue #743) — one decision, one word
-- **D-MOTOKO-FMT-1**: is tracing motoko's *resolved runtime provider* a **precondition** of D1, or does
-  D1 need a **redesign** leaving the preflight alone? *(precondition / redesign)*
-
-## Loop posture
-- Cadence **12h**; issue **#743**. Metered iter 12 **$0.00** of $5; no GPU/`rig.lock`; controller opus
-  only — no roles spawned. Designer pointer at `claude:claude-fable-5`; codex quota-dry until Aug 20.
+## Loop health
+- Routing: controller `claude:claude-opus-5`; designer rotation pointer `claude:claude-fable-5`
+  (untouched). Executor chain `codex:gpt-5.6-sol` → `pi:deepseek(:floor)` → `opus`.
+- Metered **$0.00** of $5 this iteration. No GPU, no `rig.lock`. `make quick-install` NOT run.
+- dev **verified green**: 16 exact-SHA checks, 0 not-green, `runs_total=2`. dev CI is **V1's** to own.
+## Parked on Mark
+- **none** — decision ledger valid, **3** rows, **0 OPEN** (`scripts/mission_decisions.sh --open`).
+- Bookkeeping issue **#743** (rotates Mondays 07:00 local); 0 directives since the watermark.

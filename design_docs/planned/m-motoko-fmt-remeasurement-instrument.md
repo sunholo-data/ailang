@@ -1,6 +1,9 @@
 # M-MOTOKO-FMT-REMEASUREMENT-INSTRUMENT: the instrument that decides whether `motoko_ext_fmt` survives the new tree
 
-**Status**: **PARKED — `needs-human-review`** (2026-08-17, iteration 8). Design only; nothing here
+**Status**: **UN-PARKED 2026-08-19 (iteration 13) — `D-MOTOKO-FMT-1` RESOLVED by Mark (attended,
+2026-08-19): the trace is a PRECONDITION of D1, and iteration 13 ran it. O4 is CLOSED by measurement
+(§12), and D1 is RE-SHAPED by what the trace found — the preflight cannot be made provider-conditional
+where it currently sits, because `HealthCheck` never sees the lane's model.** Design only; nothing here
 runs an eval. Two quorum rounds spent (R1 BLOCKED, revision, R2 BLOCKED — both rounds with BOTH
 external reviewers present, `absent_reviewers` empty in both artifacts). Three of the four
 objections raised across the two rounds are ANSWERED and carried into the text; the fourth is a
@@ -403,7 +406,7 @@ controller** before routing, per the mission-control rule that a reviewer's obje
 | O1 | R1 | `gpt5-6-sol` | the sign test is invalid without randomized/counterbalanced arm execution; "*if* the lane runs all ON before all OFF", order effects fake a directional win rate | **UPHELD, and the "if" is fact.** All 12 banked AC5 rows sorted by their in-file `timestamp`: ON 16:42:37→17:00:10, then OFF 17:01:28→17:36:49. A perfect block, zero interleaving; within-arm benchmark order also differs between arms, so "pair by trial index" pairs different positions | **ANSWERED** — §5.3 now *requires* per-benchmark counterbalanced execution, records the order, and VOIDs a slot banked otherwise (V19) |
 | O2 | R1 | `gemini-3-1-pro` | §8's claim that `nightly-eval.sh` must be `cp`-installed to `~/Library/LaunchAgents/` is an unverified premise; launchd loads `.plist`, not `.sh` | **UPHELD.** `PlistBuddy -c "Print :ProgramArguments" ~/Library/LaunchAgents/dev.ailang.nightly-eval.plist` → `{/bin/bash, /Users/voightkampff/dev/sunholo-data/ailang/tools/launchd/nightly-eval.sh}`. The script executes **in place, from V1's checkout** | **ANSWERED** — false instruction removed; replaced with the real constraint (a merged fix reaches the rig only when V1's clone pulls — open issue `#558`) and a precondition to verify at the plist's own path (V20/V21) |
 | O3 | R2 | `gemini-3-1-pro` | the load-bearing "`#649` open sustained-failure" claim justifying the `log_file_analyzer` exclusion is itself unverified in the Verification Log | **UPHELD procedurally, and the claim is TRUE.** `gh issue view 649` → `#649 OPEN — [nightly-eval] Nightly sustained failure: log_file_analyzer`, created `2026-08-11T02:57:37Z`. Known-positive control in the same sweep: `gh issue view 721` → `MERGED`, so the instrument distinguishes states | **ANSWERED by measurement** — the row is owed in the Verification Log; the exclusion itself stands |
-| O4 | R2 | `gpt5-6-sol` | D1 rests on an unverified routing premise: the doc bypasses the unconditional `OPENROUTER_API_KEY` preflight because both fmt arms are *allegedly* local Ollama lanes, but V15 verified a models.yml **profile name**, not the **resolved runtime provider**; removing the preflight could delete a required fail-fast or admit a silent provider fallback | **PARTIALLY measured — this is the park.** Established: the preflight is unconditional (`internal/executor/motoko/healthcheck.go:64`, no lane/model condition, reached via `MotokoExecutor.HealthCheck` → `runHealthCheck`); both arms declare `provider: "ollama"`, `env_var: ""` ("No API key — local inference"), `agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"` (models.yml:1854, :1880); and the preflight empirically **did** block both Wednesday slots (V10). **NOT established: whether removing it would let motoko silently resolve to OpenRouter at runtime.** That trace needs the `mk-ast` fork's own resolution path and/or a live motoko run holding `rig.lock` — neither is a text fix, and choosing between "make the trace a D1 precondition" and "redesign D1" is controller judgment, not a verbatim reviewer fix | **PARKED — `needs-human-review`** |
+| O4 | R2 | `gpt5-6-sol` | D1 rests on an unverified routing premise: the doc bypasses the unconditional `OPENROUTER_API_KEY` preflight because both fmt arms are *allegedly* local Ollama lanes, but V15 verified a models.yml **profile name**, not the **resolved runtime provider**; removing the preflight could delete a required fail-fast or admit a silent provider fallback | **PARTIALLY measured — this is the park.** Established: the preflight is unconditional (`internal/executor/motoko/healthcheck.go:64`, no lane/model condition, reached via `MotokoExecutor.HealthCheck` → `runHealthCheck`); both arms declare `provider: "ollama"`, `env_var: ""` ("No API key — local inference"), `agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"` (models.yml:1854, :1880); and the preflight empirically **did** block both Wednesday slots (V10). **NOT established: whether removing it would let motoko silently resolve to OpenRouter at runtime.** That trace needs the `mk-ast` fork's own resolution path and/or a live motoko run holding `rig.lock` — neither is a text fix, and choosing between "make the trace a D1 precondition" and "redesign D1" is controller judgment, not a verbatim reviewer fix | **CLOSED 2026-08-19 by measurement — see §12.** Answer: **both halves are true, of different lanes**, so the remedy is a CONDITION, never a deletion; and the condition is not expressible at the current call site |
 
 **Why this parks rather than taking the narrow-refinement carve-out.** The carve-out permits a
 bounded second revision only when *every* remaining objection carries a concrete reviewer-authored
@@ -419,3 +422,109 @@ whole subject is that the previous measurement's integrity was never checked.
 > preflight alone and reaches the local lanes another way? *(precondition / redesign)*
 
 Nothing else in this document is blocked on that answer.
+
+---
+
+## 12. The provider-resolution trace (iteration 13, 2026-08-19) — O4 answered, and D1 re-shaped
+
+`D-MOTOKO-FMT-1` was resolved **precondition** (Mark, attended 2026-08-19): *"the sprint TRACES
+motoko's resolved runtime provider first, then changes the preflight. Do not redesign around the
+unknown."* The ruling names the instrument — *"the `mk-ast` fork's own resolution path **and/or** a
+live motoko run holding `rig.lock`"* — and requires it to **discriminate**: does removing the
+unconditional `OPENROUTER_API_KEY` refusal at `internal/executor/motoko/healthcheck.go:64` delete a
+real fail-fast, or admit a silent OpenRouter fallback for entries declaring `provider: "ollama"`,
+`env_var: ""`?
+
+This section reports the **fork-resolution-path** arm, run first-party. No GPU was taken and no
+`rig.lock` was held; §12.4 states exactly what the static arm cannot settle and moves it into the
+sprint's acceptance criteria rather than claiming it.
+
+### 12.1 The answer: BOTH halves are true, of DIFFERENT lanes
+
+**(a) For the two fmt arms, no OpenRouter routing is reachable, so the preflight is a FALSE
+fail-fast.** The resolved model is `ollama/…` at every tier that can fire, and the AILANG runtime
+resolves that to the local provider *before* the generic `vendor/model → OpenRouter` rule:
+
+| tier | source | value for the fmt lanes | `GuessProvider` (measured) |
+|---|---|---|---|
+| 1 | `process.env.MODEL` — always set by the Go executor (`internal/executor/motoko/motoko.go:343`) from `agent_model_name` (`internal/eval_harness/models.go:493-494`) | `ollama/qwen3.6:35b-a3b-mxfp8` | `ollama`, env var `""` |
+| 2 | `profileAgent.model` — `.motoko/config/ollama_fmt/config.json` and `.motoko/config/ollama/config.json` | `ollama/qwen3.5:35b-a3b-mxfp8` | `ollama`, env var `""` |
+| 3 | hardcoded default, `src/tui/src/index.ts:771` | `anthropic/claude-sonnet-4-6` | **`openrouter`**, env var `OPENROUTER_API_KEY` |
+
+Precedence is `process.env.MODEL ?? profileAgent.model ?? "anthropic/claude-sonnet-4-6"`
+(`mk-ast/src/tui/src/index.ts:768-771`, read first-party — note the `models.yml:1854` comment citing
+`index.ts:580` for this is **stale**, that line is now event-printing code). Both profiles also pin
+`agent.openai_base_url = "http://localhost:11434/v1"`, so the endpoint is local independently of the
+model string. Motoko's own preflight asks for **nothing**: `required_secret_for_model`
+(`mk-ast/src/core/supervisor.ail:21-26`) matches only the `anthropic/`, `openrouter/`, `openai/` and
+`google/` prefixes and returns `""` otherwise, so `validate_secrets` returns `[]` for `ollama/…`.
+
+**(b) For the OpenRouter-routed motoko lanes the preflight IS a real fail-fast — and the only one.**
+Motoko's `validate_secrets` result is passed to `emit_warnings`, which prints
+`{"type":"warning",…}` and **proceeds** to `run_with_config` (`supervisor.ail:11-19`, `:42-51`). So
+motoko warns and runs; it never refuses. Deleting the Go preflight outright would let an
+OpenRouter-lane eval start and burn its wall-clock before failing at the provider. **Hence a
+condition, not a deletion** — which is what O4 was really asking.
+
+### 12.2 The blocker the trace found, which changes D1's shape and cost
+
+**A provider-conditional preflight is not expressible where the check currently sits.**
+`HealthCheck(ctx context.Context) error` takes no task — it is the shared `executor.Executor`
+interface method (`internal/executor/executor.go:31`) — so the only model it can read is `e.model`.
+And `e.model` is **never** set from `models.yml`: `cfg.MotokoModel` has exactly one assignment in
+non-test Go, the hardcoded `"openrouter/anthropic/claude-haiku-4-5"` at
+`internal/executor/factory.go:71`. The lane's real model arrives later, per task, as `task.Model`
+(`cmd/ailang/eval_benchmark_agent.go:174,195,253,389`), consumed by `getModel(task)`
+(`motoko.go:610-620`) at Execute time — after the health check has already refused.
+
+So an `if` added at `healthcheck.go:64` would evaluate `openrouter/anthropic/claude-haiku-4-5` for
+**every** lane, conclude "OpenRouter", and refuse the ollama arms exactly as today. The sprint has
+three options, none of them a one-line change, and D1's estimate should absorb whichever it takes:
+
+1. **Set `cfg.MotokoModel` from `models.yml` at construction.** Smallest true fix, no interface
+   change, and it also corrects `e.model` being wrong for every motoko lane today.
+2. **Move the key check into `Execute`,** where `task.Model` exists. No interface change; loses
+   fail-fast-before-workspace-setup.
+3. **Widen the `HealthCheck` signature.** Cross-executor interface change (6+ implementors) —
+   most expensive, and the trace gives no reason to prefer it.
+
+**Express the condition on the RESOLVED PROVIDER, not on the string `OPENROUTER_API_KEY`**:
+`ai.EnvVarForProvider(ai.GuessProvider(model))` returns the required variable *or `""`* for every
+provider (`internal/ai/config.go:104-119`), so one check covers ollama, OpenAI, Anthropic and Google
+instead of hardcoding one vendor. Note `internal/executor/motoko` does not import `internal/ai`
+today — confirm the boundary allows it before assuming option (1) is free.
+
+### 12.3 Ordering note, free from the same read
+
+The preflight at `healthcheck.go:64` returns **before** the `motoko --version` query that discovers
+`e.motokoRepo` (`healthcheck.go:70-77`), and `MOTOKO_REPO` is what stops motoko's profile silently
+degrading to `extensions.order=[]` — the defect `motoko.go:344-364` records as *39 of 39 eval
+sessions with `loaded_extensions=[]`*. Moot while the check refuses outright; load-bearing the moment
+it becomes conditional, because a degraded profile drops the `fmt` extension that IS the treatment.
+Whichever option D1 takes, the resolved-provider check must not run ahead of repo discovery.
+
+### 12.4 What this arm does NOT settle — moved to acceptance, not claimed
+
+The static arm proves no OpenRouter routing is **reachable** on the wired path. It does not prove no
+OpenRouter connection is **made** at runtime, and the live arm is circular today: the fmt lane cannot
+run while the preflight refuses it. So the live confirmation becomes a **D1 acceptance criterion**,
+not a precondition:
+
+> **AC-D1-live.** With the fix in place, one fmt-lane run reaches `localhost:11434` and makes **zero**
+> connections to `openrouter.ai`. Assert on the connection, not on the absence of an error — an
+> absence is satisfied equally by "no OpenRouter call" and "the run never started" (the observable
+> must be unique to the mechanism). Pair it with a known-positive control: an OpenRouter-lane run in
+> the same sweep must show the connection, or the instrument proves nothing.
+
+### 12.5 Verification rows
+
+| # | claim | command | observed |
+|---|---|---|---|
+| V25 | `GuessProvider` routes every tier as tabled in §12.1 | throwaway `go test ./internal/ai/ -run TestZZTraceIter13ProviderResolution -v` over the five literal model strings; file removed after, `git status --porcelain` empty | `ollama/qwen3.6:35b-a3b-mxfp8`→`ollama`/`""`; `ollama/qwen3.5:35b-a3b-mxfp8`→`ollama`/`""`; `anthropic/claude-sonnet-4-6`→`openrouter`/`OPENROUTER_API_KEY`; `openrouter/auto`→`openrouter`/`OPENROUTER_API_KEY`; `openrouter/anthropic/claude-haiku-4-5`→`openrouter`/`OPENROUTER_API_KEY`. **Both arms present, so the ollama reading discriminates rather than being vacuous** |
+| V26 | ollama prefix is matched BEFORE the generic vendor/model→OpenRouter rule, by design | `sed -n '45,73p' internal/ai/config.go` | `if strings.HasPrefix(lower,"ollama:")||HasPrefix(lower,"ollama/") { return ProviderOllama }` at `:55-57`, above the `strings.Contains(lower,"/")` OpenRouter block at `:67-73`, with a comment stating exactly this ordering requirement |
+| V27 | motoko's own secret check ignores `ollama/`, and is a WARNING not a refusal | read `mk-ast/src/core/supervisor.ail:11-51` | `required_secret_for_model` matches only `anthropic/`, `openrouter/`, `openai/`, `google/` → `""` for `ollama/…`; result flows to `emit_warnings` (prints `{"type":"warning"}`) then `main` continues to `run_with_config` |
+| V28 | model precedence in the fork; the `index.ts:580` citation in `models.yml` is stale | `sed -n '760,780p' mk-ast/src/tui/src/index.ts`; `sed -n '1,60p' src/tui/src/config.ts` | `const model = process.env.MODEL ?? profileAgent.model ?? "anthropic/claude-sonnet-4-6"` at `:768-771`; `config.ts:23` maps `agent.model`→`MODEL`. Line 580 is `native_tool_results` event printing — the models.yml comment is a stale transcription |
+| V29 | both ollama profiles pin an `ollama/` model AND a local base URL | `cat .motoko/config/ollama_fmt/config.json .motoko/config/ollama/config.json` | both: `agent.model = "ollama/qwen3.5:35b-a3b-mxfp8"`, `agent.openai_base_url = "http://localhost:11434/v1"`; `ollama_fmt` adds `fmt` to `extensions.order` (the treatment) |
+| V30 | `MODEL` is always non-empty on the eval path, so tier 3 is unreachable there | `sed -n '340,350p' internal/executor/motoko/motoko.go`; `sed -n '490,500p' internal/eval_harness/models.go` | `env = append(env, "MODEL="+e.getModel(task))` unconditionally; `modelName = *model.AgentModelName` when non-empty, else `model.APIName` |
+| V31 | `cfg.MotokoModel` is never set from `models.yml` — the health check cannot see the lane's model | `grep -rn 'MotokoModel' --include='*.go' . \| grep -v _test.go` (control: same grep for `MotokoProfile`) | **3** hits — a field decl, the hardcoded `factory.go:71` default, and `motoko.go:145` reading it. Control `MotokoProfile` → **11** hits, so the instrument finds wiring where it exists. `HealthCheck(ctx)` takes no task (`internal/executor/executor.go:31`); `task.Model` is set at `cmd/ailang/eval_benchmark_agent.go:174,195,253,389` |
+| V32 | no key-absence-driven provider fallback exists anywhere in non-test Go | `grep -rn 'OPENROUTER_API_KEY' --include='*.go' . \| grep -v _test.go` (control: same for `OPENAI_API_KEY`) | **4** functional sites: `cmd/ailang/ai_handlers.go:276`, `cmd/ailang/exec.go:475` (both explicit `openrouter` subcommands), `internal/ai/config.go:115,143` (keyed by an ALREADY-resolved provider), and the motoko preflight at `healthcheck.go:64`. None re-routes on absence. Control: **23** `OPENAI_API_KEY` sites, so the grep sees this class of hit |
