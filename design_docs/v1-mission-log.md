@@ -12983,3 +12983,127 @@ already describes — not gaps in the rules. No process fix.
 builder) close the language/stdlib lane; `m-wasm-deterministic-typecheck-budget` is queued behind
 them and is **blocked on external data** (the reporter's per-module step counts), so its predicate
 gets re-read at Gate 1 each iteration rather than waiting on a date.
+
+## 227 — 2026-08-19 — Iteration 226: `std/xml` dropped whitespace-only text, and the attribute that says not to was unreachable
+
+**Picked**: queue head `m-sweep-orphans-2026-08-17`, language/stdlib lane, item `#646` — the item
+iteration 225 named as Next. Inbox empty, so nothing outranked the queue. Zero allowlisted
+directives on `#745` since the `2026-08-18T21:43:21Z` watermark (22 comments enumerated); ledger
+valid, 20 rows / 11 OPEN. No weekly rotation: `#745` created `2026-08-17T06:14:45Z` = **08:14
+CEST**, after the Monday-07:00 **local** boundary, 22 comments. Running skill **byte-identical** to
+`origin/dev` (`cmp` against the copy the `~/.claude` symlink resolves to — the MAIN checkout — with
+`readlink` confirming the target). The driver pin was at `6a4348ce3` = `origin/dev` exactly, and
+charter/log/dashboard were byte-identical to origin, so mission state was first-party.
+`origin/dev` `6a4348ce3`: **16 checks, zero not-green**.
+
+**Blocked-row predicate re-read as a command.** `m-wasm-deterministic-typecheck-budget` waits on
+per-module `typeCheckSteps` from the `#662` reporter. `gh issue view 662 --json comments` → **1**
+comment, ours from iteration 225, and **1** mentioning `typeCheckSteps`, also ours; control `#689`
+→ 1. Not flipped, so the row stays blocked and did not become the pick — measured rather than
+transcribed from the row's own text.
+
+**Reality check**: REAL at HEAD, reproduced first-party at `6a4348ce3`. The report is exact, and
+`findAllTexts` localised the mechanism: `[plain , bold, , italic]`. The `<t>` **element** survives
+and its text child was never created, so the defect is at PARSE, not in `getText` — which the title
+of the issue does not say and which decides where the fix goes. The reporter's DOCX shape
+reproduces verbatim: `plain bolditalic` instead of `plain bold italic`. Enumerating the sites first
+(Principle 3) found exactly **two** drop sites, `parseXmlChildren` and `parseXmlChildrenLimited`,
+with every entry point funnelling through one of them — `parse`, `parseLenient`, `parseWithLimit`,
+and the three streaming scanners, which reuse `parseXmlChildren` to build the matched subtree.
+
+**The second half, which the reporter could not have seen: `xml:space` was unreachable from
+AILANG.** Names are resolved through the `xmlns` declarations in scope, and the `xml` prefix is
+bound *by definition* (XML Namespaces §3) and must never be declared — so it can never be in that
+map and `resolveTagName` fell through to the bare local name. The control matters here, because it
+is what rules out "the prefix machinery is broken": in the SAME document, a **declared** `xmlns:w`
+resolved `w:p` / `w:t` / `w:val` correctly while `xml:space` still arrived as `space`. So exactly
+the never-declarable prefix was affected. Consequences: `getAttr(t, "xml:space")` → **None** on a
+document that plainly has one, and `serialize` round-tripped `<t xml:space="preserve"/>` out as
+`<t space="preserve"/>` — silently changing what the document means. Shipping only the parser half
+would have acted on a condition no user could observe, read back, or round-trip. A Go-level probe
+of the decoder — rather than an assumption about it — showed Go already maps `xml:` to the
+canonical URI, which made the fix four lines.
+
+**Shipped**: PR `#782` → squash **`47760b931`**; head `457603950` at **21 checks, zero not-green**,
+4/4 required (`build` 2m2s / `docs-gate` 2s / `lint` 2m53s / `test` 18m58s), `MERGEABLE CLEAN`.
+`#646` closed by the merge, with its verdict posted as its **own** `--body-file` comment BEFORE the
+merge and the count asserted 0 → 1. Both recursive parsers and all three streaming scanners thread
+a preserve flag; per XML 1.0 §2.10 the attribute is **inherited** until an `xml:space="default"`
+overrides it, and a value the spec does not define is not an override — it inherits. A preserved
+node is counted against `maxNodes` like any other, so whitespace cannot be used to defeat the node
+limit.
+
+**The default did not move, which is why no flag was needed.** The reporter had offered to take a
+`parsePreserveSpace` flag if changing the default was too disruptive. With no `xml:space` in scope
+the drop is unchanged, so no existing caller is disrupted and the flag would have been a permanent
+API cost for a behaviour nobody needed to opt out of.
+
+**Verified in both directions, on one tree with two binaries** (distinct sha256, after a first
+attempt in which both arms were the same binary — caught because they printed identically).
+P1/P2/P5/P6 flip 0 → 1 preserved node; N1 (pretty-printed element content), N2 (whitespace-only,
+no attribute), P3 (explicit `xml:space="default"`), P4 (undefined value outside a scope) and R1
+(serialize round-trip of pretty XML) are unchanged.
+
+**14 mutation drills**, each asserted **LANDED** by sha256 and **BUILDS** by `go build` rc=0
+**before any test result was read**, each restored by `cp` (never `git checkout --`) and verified
+byte-identical. Every inverse `-skip <all drill arms>` run is **rc=0**, so these arms are the
+killers rather than bystanders. Sole killers: M2 (the namespace half of the attribute match) →
+`UnprefixedSpaceAttributeIsNotXmlSpace`; M4 (the `"default"` branch) →
+`DefaultOverridesInheritedPreserve`; M11/M12/M13 (the three streaming seeds) →
+`StreamingPathsHonourPreserve`.
+
+**The drill earned its keep: M11 initially SURVIVED with zero killers.** The
+`parseElements` / `parseFold` / `parseFoldStep` seed is a **third** code path that neither
+recursive parser's arms reach, so nine green arms and a green package said nothing about it. This
+is rule 3j's shape — a gate's coverage is a property of its enumerator — aimed at a *seed* rather
+than at a refusal branch: the two parsers and the three scanners look like one mechanism, and the
+arms were written per *decision* rather than per *entry point*. An arm was added covering all
+three, after which M11/M12/M13 each die to it alone.
+
+**Proven on linux, not only darwin/arm64.** The ubuntu `test` job log names each new arm **4×**
+against a pre-existing control (`TestXmlParse_Namespaces`) also at 4, with **0** skips.
+
+**Gates** (list DERIVED from `ci.yml`, rule 3g): `fmt-check` · `vet` · `lint` · `check-file-sizes` ·
+`check-boundaries` · `check-changelog` · `test-check-changelog` · `check-skills` ·
+`check-golden-drift` · `test-stdlib-ail` · `test-regression-guards` · `test-imports` ·
+`test-lowering` · `test-parser` · `verify-no-shim` — all rc=0. `verify-examples` rc=0 at **191
+modules, 0 drift**. `go test ./...` **rc=0, 0 FAIL**. All local gates ran on **darwin/arm64**; the
+linux and windows legs were unrun locally and settled by CI (rule 3b(viii)). `go build ./...` fails
+at `cmd/wasm` here **and on untouched `origin/dev`** — established from an uncontaminated pristine
+arm after a first baseline attempt ran in the changed tree by shell-cwd persistence, which is rule
+3e(b) and was caught in the same call.
+
+**The example is a product-level guard and the manifest gate proved itself.**
+`examples/runnable/xml_space_preserve.ail` is executed by `verify-examples`, and its first
+hand-written `modules` list was caught as DRIFT (`std/result`, which the example does not import)
+and corrected. The enumerator moved 190 → 191, which is the reading that shows the gate actually
+saw the new file rather than passing over it.
+
+**Ruled out**:
+- Shipping the parser half alone — the triggering condition would have been unobservable via
+  `getAttr` and lost on `serialize`.
+- A `parsePreserveSpace` flag (the reporter's own fallback offer) — unnecessary once the default
+  was left in place.
+- Changing the whitespace default outright — would put formatting whitespace into every
+  pretty-printed tree and break every existing `getChildren` caller.
+- Fixing the general undeclared-prefix drop and the streaming scanners' `nil` match-name prefix
+  map — both pre-existing, both a design question rather than a patch, both queued as
+  `m-xml-unresolvable-prefix-dropped` rather than bundled.
+- ODF `text:s`, which the reporter flagged as unaudited — a different mechanism (an explicit space
+  element, not significant whitespace) and no first-party repro, so it was named in the verdict
+  comment as wanting its own issue rather than assumed.
+- A before/after differential whose two arms were the same binary.
+
+**Routing evidence**: controller `claude:claude-opus-5` inline — well-specified code work on a
+measured defect, with the design surface (whether to move the default) small enough to settle by
+measurement rather than by quorum. No designer / planner / executor / evaluator / quorum lane
+fired. No GPU, no `rig.lock`. **metered = $0.00**.
+
+**Gate 5**: no skill edit. The three frictions were documented rules working as written — 3e(b)'s
+contaminated control, 3j's enumerator-level gap, and 3a(i-c)'s zsh non-splitting, which broke the
+break-condition in my own Gate-3b poll loop (`set -- $st` passes one argument in zsh) — not gaps in
+the rulebook. No process fix.
+
+**Next**: `#644` (`std/zip` needs an in-memory archive builder) closes the language/stdlib lane;
+then the downstream-consumer reports (`#679`, `#676`, `#672`, `#671`, `#694`, `#656`).
+
