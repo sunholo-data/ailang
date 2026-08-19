@@ -2420,6 +2420,24 @@
       ]
     },
     {
+      "path": "runnable/xml_space_preserve.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "xml",
+        "whitespace",
+        "namespaces",
+        "ooxml",
+        "std/xml"
+      ],
+      "description": "xml:space=\"preserve\" keeps significant whitespace (OOXML separator runs); the default still drops formatting whitespace",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/xml"
+      ]
+    },
+    {
       "path": "runnable/xml_walk_perf.ail",
       "status": "working",
       "tags": [
@@ -2733,11 +2751,11 @@
     }
   ],
   "statistics": {
-    "total": 196,
-    "working": 188,
+    "total": 197,
+    "working": 189,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9591836734693877,
+    "coverage": 0.9593908629441624,
     "experimental": 0
   },
   "milestones": {

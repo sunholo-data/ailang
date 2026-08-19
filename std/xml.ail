@@ -44,6 +44,20 @@ export type NodeKind =
 
 -- Parse XML string into XmlNode tree
 -- Returns Ok(XmlNode) or Err(message) for malformed XML
+--
+-- Whitespace: a text node made up ENTIRELY of whitespace is dropped, because
+-- element-content XML is normally pretty-printed and that whitespace is
+-- formatting rather than data. Inside an `xml:space="preserve"` scope it is
+-- KEPT. Per XML 1.0 s2.10 the attribute is inherited by descendants until an
+-- `xml:space="default"` overrides it, so declaring it once on an ancestor
+-- covers the subtree. This is what makes OOXML separator runs
+-- (`<w:t xml:space="preserve"> </w:t>`) survive text extraction.
+--
+-- Namespaces: prefixes declared with xmlns are preserved on both tags and
+-- attributes (`w:p`, `w:val`). The `xml` prefix is bound by definition and is
+-- never declared, so it is recognised structurally: `xml:space`, `xml:lang`,
+-- `xml:id` and `xml:base` keep their prefix. A prefix that is neither declared
+-- nor `xml` is dropped to its local name.
 export pure func parse(xml: string) -> Result[XmlNode, string] = _xml_parse(xml)
 
 -- M-STDLIB-XML-LENIENT: lenient parsing for real-world (malformed) XML.
@@ -68,7 +82,10 @@ export pure func findAll(node: XmlNode, tag: string) -> List[XmlNode] = _xml_fin
 export pure func findFirst(node: XmlNode, tag: string) -> Option[XmlNode] = _xml_findFirst(node, tag)
 
 -- Extract text content from a node
--- For Element nodes, concatenates all descendant text
+-- For Element nodes, concatenates all descendant text.
+-- Whitespace-only text survives only where `xml:space="preserve"` was in scope
+-- at parse time (see `parse`) -- getText concatenates what the tree holds, so a
+-- node the parser dropped cannot be recovered here.
 export pure func getText(node: XmlNode) -> string = _xml_getText(node)
 
 -- Get attribute value by name

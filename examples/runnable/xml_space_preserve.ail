@@ -1,0 +1,50 @@
+-- xml_space_preserve.ail — xml:space="preserve" keeps significant whitespace
+--
+-- A text node made up entirely of whitespace is dropped by default, because
+-- element-content XML is normally pretty-printed and that whitespace is layout
+-- rather than data. Mixed content is the opposite case: Word splits runs at
+-- every formatting boundary, so the separating space very commonly lands in a
+-- run of its own and dropping it jams words together.
+--
+-- xml:space="preserve" is exactly the signal that the whitespace is significant.
+-- Per XML 1.0 §2.10 it is INHERITED by descendants until an xml:space="default"
+-- overrides it.
+
+module examples/runnable/xml_space_preserve
+
+import std/xml (parseLenient, getText, findFirst, getAttr, getChildren, serialize)
+import std/list (length)
+import std/io (println)
+
+func textOf(doc: string) -> string =
+  match parseLenient(doc) {
+    Ok(node) => getText(node),
+    Err(msg) => concat_String("parse error: ", msg)
+  }
+
+export func main() -> () ! {IO} {
+  -- The DOCX shape: the separator run is its own <w:t>.
+  let runs = "<w:r><w:t xml:space=\"preserve\">plain </w:t></w:r><w:r><w:t>bold</w:t></w:r>";
+  let docx = "<w:p xmlns:w=\"urn:w\">${runs}<w:r><w:t xml:space=\"preserve\"> </w:t></w:r><w:r><w:t>italic</w:t></w:r></w:p>";
+  println("docx: ${textOf(docx)}");
+
+  -- Default is unchanged: pretty-printing whitespace is still discarded.
+  println("pretty: ${show(textOf("<r>\n  <a>x</a>\n  <b>y</b>\n</r>"))}");
+  println("bare:   ${show(textOf("<r><t> </t></r>"))}");
+
+  -- preserve on an ancestor covers the subtree; default opts back out.
+  println("inherited: ${show(textOf("<r xml:space=\"preserve\"><t> </t></r>"))}");
+  println("overridden: ${show(textOf("<r xml:space=\"preserve\"><t xml:space=\"default\"> </t></r>"))}");
+
+  -- The attribute keeps its prefix, so it is readable and round-trips.
+  match parseLenient("<r><t xml:space=\"preserve\"> </t></r>") {
+    Ok(node) => {
+      match findFirst(node, "t") {
+        Some(t) => println("getAttr: ${show(getAttr(t, "xml:space"))} children=${show(length(getChildren(t)))}"),
+        None => println("getAttr: <t> not found")
+      };
+      println("serialize: ${serialize(node)}")
+    },
+    Err(msg) => println("parse error: ${msg}")
+  }
+}

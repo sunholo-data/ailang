@@ -204,7 +204,7 @@ func scanForElementsFoldStepInner(decoder *xml.Decoder, tagName string, acc eval
 			if resolvedName == tagName {
 				localPM := extractPrefixMap(t, nil)
 				attrs := buildAttrs(t, localPM)
-				childNodes, parseErr := parseXmlChildren(decoder, 1, localPM)
+				childNodes, parseErr := parseXmlChildren(decoder, 1, localPM, spaceMode(t, false))
 				if parseErr != nil {
 					return acc, false, parseErr
 				}
@@ -275,7 +275,7 @@ func scanForElementsFoldInner(decoder *xml.Decoder, tagName string, acc eval.Val
 				// Build subtree for this matched element
 				localPM := extractPrefixMap(t, nil)
 				attrs := buildAttrs(t, localPM)
-				childNodes, parseErr := parseXmlChildren(decoder, 1, localPM)
+				childNodes, parseErr := parseXmlChildren(decoder, 1, localPM, spaceMode(t, false))
 				if parseErr != nil {
 					return acc, parseErr
 				}
