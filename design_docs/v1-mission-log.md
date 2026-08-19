@@ -13413,3 +13413,138 @@ charter's un-parking block) — `#613` in particular only needs a re-title and a
 `m-rt-rec-003-advertises-nonexistent-option` (trivial), `m-ci-no-job-timeouts`, and the remaining
 consumer reports `#679`, `#672`, `#671`, `#694`, `#656`.
 
+
+---
+
+## 230 — 2026-08-19 — Iteration 229: Mark ruled `D-19 : B`, and the count I certified was right about the repo and wrong about the question
+
+**Picked**: a **human directive**, which outranks the queue. `MarkEdmondson1234` commented on
+`#745` at `2026-08-19T10:58:40Z`, body exactly `D-19 : B` — the answer to the decision iteration 228
+parked on. `D-19` was the only OPEN row in the 21-row ledger; it is now RESOLVED and the ledger has
+**zero** OPEN decisions. Gate 0/1 otherwise clean: kill switch armed, billing tripwire **CLEAN**, gh
+`sunholo-voight-kampff`, pin worktree at `dedf3b91f` = `origin/dev` exactly with charter/log/dashboard
+byte-identical to origin, running skill byte-identical to origin (`cmp` against what
+`~/.claude/skills/mission-control` resolves to — the MAIN checkout, a different inode from the pin's
+own copy, which is why the pin's file is not the one that answers the question). `origin/dev`: **16
+checks, zero not-green**, and a run EXISTS (`runs_total=2`), so the iteration-196 unverified-HEAD
+case does not apply. Inbox empty. No weekly rotation (`#745` created 08:14 CEST Monday, after the
+07:00 **local** boundary; 29 comments). Died-mid-flight sweep clean — iteration 228's record is at
+HEAD.
+
+**The ruling's own words set the deliverable.** Option B is "true cons cells / structural sharing —
+O(1) under all sharing, correct by construction, and **a much larger sprint needing decomposition
+first**." Gate 3 says a multi-week strategic item is not executed; the iteration's deliverable is the
+decomposition into sprint-sized docs, queued individually. So this iteration produced a roadmap, not
+an implementation.
+
+**A letter collision that would silently invert the ruling.** The superseded
+`m-list-cons-quadratic.md` labels its own options A–D. Its **Option A** ("true cons cells") is what
+Mark's answer **B** selects; its **Option B** (the front-slack arena), which that doc marked CHOSEN,
+is now declined. The two documents use the same letters for opposite things. Recorded in the ledger
+row, the charter stamp and the queue row, because the next reader of either document hits it.
+
+**Deliverable**: `design_docs/planned/m-list-cons-cells-decomposition.md` — 505 lines, 20 first-party
+verification rows, **8 pieces totalling 15.5–21.5 person-days** (~12–16 wall-clock with the parallel
+lanes). A strangler: accessor seam over the unchanged slice → mechanical migration behind a ratchet →
+representation swap last, with deletion of the `Elements` field as the compile-time proof that
+migration was complete. `LC-1`, a throwaway representation spike, runs FIRST and carries an explicit
+**kill criterion** — if no candidate gets O(1) worst-case prepend *under branching* within ~2×
+iteration / ~2.5× per-element memory / O(1) length, the programme stops and `D-19` re-opens with
+measurements. The invariant the programme buys, and the arena did not: `x :: xs` is O(1) worst-case
+regardless of sharing, not merely along a linear use chain.
+
+**Key find — I certified a number under VERIFIED-BY-ME and the designer refuted the sentence it was
+carrying.** I handed the designer `902` `.Elements` references and `386` `ListValue{` constructions as
+measurements it "may rely on", labelled as the blast radius of a `ListValue` representation change.
+Both counts are **correct** — re-derived at HEAD with both directories asserted to exist and a
+same-scope control firing (20,361 `func` hits), and the designer reproduced them exactly. The
+**sentence** is false: `Elements` is a field name owned by **22 distinct struct types** across
+`internal/{ast,core,eval,typedast,types}` (controller-measured; the doc's N4 reports 23 across 9
+packages including one self-flagged local-variable false positive). `internal/types` alone contributes
+74 hits and `internal/gen` 36, none of them eval values, and even inside `internal/eval` a textual
+grep cannot separate `ListValue.Elements` from `TupleValue.Elements`/`ArrayValue.Elements` — and only
+`ListValue` changes. This is rule **3b(ix)** in its purest form: a count is only true inside the scope
+it was taken in, the scope is the part nobody writes down, and the number survives being copied into a
+wider sentence **because re-deriving it reproduces the number and confirms the error**. The design
+consequence is concrete rather than rhetorical: grep cannot size this migration, so LC-2's first
+deliverable is a `go/analysis` type-checker-driven census and every migration acceptance criterion is
+denominated in the analyzer's count, not grep's. This is Gate 2 rule (d) working — a sub-agent
+contradicting a fact the controller handed it — and the provenance habit that failed was mine.
+
+**A second inherited claim partially refuted.** The old doc's "~15 switch statements where
+`ListValue`/`ArrayValue`/`TupleValue` arms are symmetric" does not reproduce: **15** non-test files
+carry `case *ListValue` arms (16 including tests) and only **3** also carry `ArrayValue` arms —
+`builtins/canonical_key.go`, `builtins/list.go`, `embed/convert.go`. The statement-level count remains
+unmeasured and is owned by LC-2's analyzer rather than asserted.
+
+**Quorum round 1 — BLOCKED, 2-of-2 external reject, $0.0884.** `absent_reviewers` is **empty** and
+both reviewers report `present=true`, so this is a genuine block and not an N−1 degrade; the `#651`
+presentCount-inflation trap does not apply, since the controller verdict sits separately under
+`controller_in_session`. Both objections carry complete reviewer-authored `proposed_fix` text, quoted
+verbatim in the doc (the artifacts are untracked — `.gitignore:82` excludes `.ailang/` — so the doc is
+the only durable copy), and **neither disputes the design DIRECTION**.
+
+- `gpt5-6-sol` — the same reviewer, and the same class of catch, as round 1 of the superseded doc — is
+  **correct and not disputable**: deleting `ListValue.Elements` does not make cons cells immutable "by
+  the Go compiler", because Go has no immutable fields. Unexporting confines mutation to the owning
+  package, and the owning package is `internal/eval`, which is also the evaluator. So INV-1's
+  concurrency justification is unsupported, the `listrep` analyzer must be **retained rather than
+  retired**, and immutability and safe publication must be stated as required properties to be
+  verified — with a row per publication path naming its Go happens-before edge, plus race tests.
+- `gemini-3-1-pro` caught the doc contradicting its own isolation constraint: `LC-3c` is assigned all
+  three raw-slice escape sites, but two live in packages owned by `LC-3a` (`builtins/safe_cast.go`)
+  and `LC-3b` (`effects/testctx/mock_context.go`), so running the lanes in parallel worktrees
+  guarantees merge conflicts. Fix: each escape site goes to its owning package's piece.
+
+**Why the revision did not run, and why this is not `needs-human-review`.** The designer rotation's
+next entry `codex:gpt-5.6-sol` probed **rc=1** — "You've hit your usage limit… try again at Aug 20th,
+2026 5:34 AM", the same exhaustion iteration 228 measured — and the entry after it
+(gemini/managed_agents) is read-only under `CapRemoteSandbox` and structurally cannot author a doc. So
+the rotation resolved to `claude:claude-fable-5` as a **fallback**, and the Fable diet caps that lane
+at ONE bounded run per iteration. Iteration 228 spent two (create + revision) and flagged the
+violation; this iteration declined to repeat it. **The doc is parked on a LANE, not on a human** — no
+judgment is owed and no decision is open — and the lane returns at 2026-08-20 05:34, before the next
+fire.
+
+**Routing evidence**
+
+| Role | Pin | Actually ran | Note |
+|---|---|---|---|
+| Controller | `$MODEL` | `claude:claude-opus-5` | triage, directive consumption, count re-derivation, objection assessment, record |
+| Designer | rotation | **`claude:claude-fable-5`** | **FLAGGED — rotation fallback.** `codex:gpt-5.6-sol` probed rc=1 (quota, resets 2026-08-20 05:34); gemini/managed_agents is read-only under `CapRemoteSandbox`. **ONE run — diet respected**, and the owed revision was deferred rather than taken as a second run. |
+| Quorum | — | `gpt5-6-sol`, `gemini-3-1-pro` | 1 round; both `present=true`, `absent_reviewers` empty |
+| Planner / Executor / Evaluator | — | none | no sprint ran — the deliverable is the decomposition |
+
+`metered = $0.0884` of $5 (quorum round 1 only). Fable and Opus are quota buckets, $0. No GPU, no
+`rig.lock`.
+
+**Ruled out**
+- The 902/386 counts as a migration blast radius — refuted above; they are contaminated upper bounds,
+  and the replacement instrument is a `go/analysis` census owned by LC-2.
+- The old doc's "~15 symmetric switches" as stated — 15 non-test files carry `case *ListValue`, only 3
+  also carry `ArrayValue`.
+- An interim front-slack arena for `#676` — the designer recommends against it (throwaway work that
+  collides with LC-2/LC-4's own files) while correctly noting `D-19` declined the arena only as the
+  **permanent** answer. Not decided here: a bounded interim needs Mark's assent, so it is a DECISIONS
+  ask rather than a controller call.
+- Duplicating the `RT_REC_003` message fix and the `std/list.reverse` delegation into this programme —
+  both are already queued rows. Noted instead that `m-stdlib-reverse-delegates-to-builtin` becomes
+  **required, not optional** under cons cells, because `reverse`'s `concat(growing, [x])` left-append
+  shape stays quadratic when concat copies the left spine; and that `std/list`'s nine right-recursion
+  builders stay depth-capped even after cons cells *and* `m-eval-tail-calls`, since the recursive call
+  sits inside `++` where TCO does not reach.
+- Running the revision on a second Fable run — declined; see the lane-park reasoning above, and the
+  Gate-5 finding it produced.
+
+**Gate 5: one skill edit — the loop has ONE park state for two different blockers.** Two recorded
+frictions, both first-party and consecutive. Iteration 228 hit a round-1 block with codex dead, took a
+second Fable run, and flagged the diet violation. Iteration 229 hit the same rotation fallback and the
+same round-1 block, declined the second run, and then found there is **no way to record the
+difference**: the skill's only park state is `needs-human-review`, which Gate 0 unparks by looking for
+a human directive. A doc waiting on a human waits indefinitely and needs a DECISIONS ask; a doc
+waiting on a quota bucket unblocks on a clock, needs no ask, and must not appear in the human's queue
+at all. Recording the second as the first manufactures a decision Mark does not have, and — worse —
+the next iteration cannot tell which kind it inherited without re-deriving the whole routing story.
+Edit adds `PARKED-ON-LANE` alongside `needs-human-review`, with the requirement that it names the lane
+and the time the lane returns, so the resume is a predicate the next iteration can run rather than a
+narrative it must reconstruct.
