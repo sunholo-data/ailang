@@ -28,6 +28,13 @@ type ModuleLoader struct {
 	pkgLoader          PackageResolver     // Optional package loader for pkg/ imports
 	modulePrefixMap    map[string][]string // module_prefix → package names (e.g., "docparse" → ["sunholo/ailang_parse", "sunholo/docparse"])
 	currentPackageName string              // <vendor>/<name> of the package being compiled, when known. Enables bare-canonical self-imports (e.g., "import sunholo/linkedin/types" from within sunholo/linkedin).
+
+	// pkgResolverAbsentReason explains why pkgLoader is nil, as diagnosed by
+	// whoever wired (or failed to wire) the resolver. The loader cannot know:
+	// a nil resolver has several causes, and the message must not assert one.
+	// See ailang#671 — users were told to create an ailang.toml/ailang.lock
+	// that were sitting next to the source file the whole time.
+	pkgResolverAbsentReason string
 }
 
 // PackageResolver resolves package imports to source file paths.
@@ -66,6 +73,13 @@ func (ml *ModuleLoader) SetStrictSyntaxMode(strict bool) {
 // SetPackageResolver sets the resolver for pkg/ imports.
 func (ml *ModuleLoader) SetPackageResolver(resolver PackageResolver) {
 	ml.pkgLoader = resolver
+}
+
+// SetPackageResolverAbsentReason records WHY no package resolver could be
+// wired, so a failing pkg/ import can report the actual cause instead of
+// guessing one. Callers that wire a resolver need not call this.
+func (ml *ModuleLoader) SetPackageResolverAbsentReason(reason string) {
+	ml.pkgResolverAbsentReason = reason
 }
 
 // SetModulePrefixMap sets the module_prefix → package name mapping.
@@ -145,7 +159,11 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	} else if strings.HasPrefix(canonPath, "pkg/") {
 		// External package import — resolve via PackageLoader
 		if ml.pkgLoader == nil {
-			return nil, fmt.Errorf("package import %q requires ailang.toml and ailang.lock; run 'ailang init package' and 'ailang lock'", canonPath)
+			reason := ml.pkgResolverAbsentReason
+			if reason == "" {
+				reason = "no package resolver is configured for this compilation"
+			}
+			return nil, fmt.Errorf("package import %q cannot be resolved: %s", canonPath, reason)
 		}
 		// Strip pkg/ prefix for the package resolver
 		pkgImportPath := strings.TrimPrefix(canonPath, "pkg/")

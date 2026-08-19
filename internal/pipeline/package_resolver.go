@@ -153,3 +153,68 @@ func validateEffectCeiling(surfaceAST *ast.File, modID string) error {
 
 	return nil
 }
+
+// packageSearchDir decides where to look for ailang.toml/ailang.lock.
+//
+// The package manifest belongs to the SOURCE FILE, not to the process CWD.
+// Anchoring the search at "." meant an installed AILANG CLI invoked from
+// anywhere but its own project root could not resolve its own package imports
+// — and the failure blamed a missing ailang.toml/ailang.lock that were sitting
+// next to the source file (ailang#671). The named-test harness already passed
+// PackageDir for exactly this reason; every other entry point (run, check,
+// serve-api, the MCP server, embed) did not.
+//
+// FindManifest walks upward, so anchoring at the file's directory is a superset
+// of the old behaviour for any file inside its own project. An explicit
+// PackageDir always wins.
+func packageSearchDir(explicitPackageDir, loaderBaseDir, entryFilename string) string {
+	if explicitPackageDir != "" {
+		return explicitPackageDir
+	}
+	if dir := entrySourceDir(entryFilename); dir != "" {
+		return dir
+	}
+	return loaderBaseDir
+}
+
+// entrySourceDir returns the directory named by the entry source path, or ""
+// when the name does not locate a directory at all — a bare "service.ail"
+// (already relative to the CWD, so the existing base is correct) or a
+// synthetic label such as "<embedded>". Returning "" leaves the caller on its
+// previous CWD-anchored behaviour rather than inventing a directory from a
+// name that never named one.
+//
+// This is deliberately a PURE path computation: it does not touch the
+// filesystem. FindManifest is where filesystem truth belongs, and it already
+// stats as it walks upward, so probing here would add a second source of
+// truth and a filesystem read of user-supplied input on every compile for no
+// decision this function actually needs.
+func entrySourceDir(filename string) string {
+	if filename == "" {
+		return ""
+	}
+	if !strings.ContainsRune(filename, filepath.Separator) && !strings.ContainsRune(filename, '/') {
+		// No directory component: "service.ail", "<embedded>", "_test.ail".
+		return ""
+	}
+	return filepath.Dir(filename)
+}
+
+// packageResolverAbsentReason explains why no package resolver could be wired
+// for dir. The two causes need different user actions, and conflating them is
+// what made ailang#671 tell users to create files that already existed.
+func packageResolverAbsentReason(dir string) string {
+	if dir == "" {
+		dir = "."
+	}
+	searched := dir
+	if abs, err := filepath.Abs(dir); err == nil {
+		searched = abs
+	}
+	if manifestDir := pkg.FindManifest(dir); manifestDir != "" {
+		return fmt.Sprintf("the package manifest %s exists but could not be loaded as a package",
+			filepath.Join(manifestDir, pkg.ManifestFile))
+	}
+	return fmt.Sprintf("no %s was found in %s or any parent directory; run 'ailang init package' there, or invoke ailang from inside the package",
+		pkg.ManifestFile, searched)
+}
