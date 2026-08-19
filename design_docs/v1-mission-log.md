@@ -13267,3 +13267,149 @@ have said nothing. Correcting a read made mid-poll: seeing a step NAME and calli
 and only the step's `started_at` versus now answers the question. `ci.yml` declares `timeout-minutes`
 on **no** job (control: `runs-on` × 8), so every job inherits GitHub's 6-hour default on a
 **required** context. Queued as `m-ci-no-job-timeouts`.
+
+## 229 — 2026-08-19 — Iteration 228: `::` is O(n), so every AILANG list built by prepending is quadratic
+
+**Picked**: queue head `m-sweep-orphans-2026-08-17`, downstream-consumer group, item `#676` — the
+group iteration 227 named as Next after closing the language/stdlib lane at 5 of 5. One inbox
+message, `mission-world`'s iteration-95 report: a cross-mission status that by contract never
+auto-outranks the queue, and which asked nothing of V1. Zero allowlisted directives on `#745` since
+the `2026-08-19T06:00:58Z` watermark (26 comments enumerated); ledger valid, 20 rows / 11 OPEN at
+pick time — a reading that went stale mid-iteration (see below). No weekly rotation: `#745` created `2026-08-17T06:14:45Z` = **08:14 CEST**, after the
+Monday-07:00 **local** boundary; the external-issue sweep is not owed (iteration 216 ran it this
+week). Running skill byte-identical to `origin/dev`. `origin/dev` `88631976e`: **20 checks, zero
+not-green**. Blocked-row predicate re-read as a command per the motoko iter-11 rule: `#662` → 1
+comment, ours, 1 mentioning `typeCheckSteps`, also ours; control `#646` → 1. Not flipped.
+Died-mid-flight sweep clean.
+
+**The report was right that there is a defect and wrong about what it is.** `#676` blames
+"hand-rolled recursion + cons" and contrasts it with `std/list.map`, which is linear. Reproduced
+first-party at `88631976e`, and the cause is neither recursion nor any privilege of builtins:
+**`::` itself is O(n)**. `eval.ListValue` is a flat Go slice (`internal/eval/value.go:84`) and
+`listConsImpl` (`internal/builtins/list.go:87`) copies the entire tail on every call, so building
+*n* elements by prepending allocates `n(n+1)/2` value slots. **Any** list built by prepending is
+quadratic. `map` escapes only because it is `_list_map` in `internal/builtins/list_iterative.go`,
+an iterative Go builtin that allocates the result once and never conses.
+
+**This is a derivation, not a correlation, which is why it took ten minutes rather than a day.**
+A heap profile at n=12,800 attributes **1282.82 MB of 1346.73 MB — 95.25% of alloc_space** — to
+`builtins.listConsImpl`. The representation predicts `12800·12801/2 × 16 B = 1250.1 MB`. The two are
+**2.6%** apart, which is Go size-class rounding. A profile alone would have named the function; the
+closed form is what makes it the *whole* explanation rather than the largest contributor.
+
+**Two more defects the reporter could not have seen.** (1) The tree-walking evaluator has **no
+tail-call elimination**: `grep -ril 'tail.?call' internal/eval/` → **0**, same-scope control
+`recursionDepth` → **2** files, `test -d` → YES. The machinery exists, in `internal/vm/` and
+`internal/bytecode/` (9 files), which `ailang run` does not use. So the repro at n=12,800 does not
+merely get slow — it **fails**, `RT_REC_003: max recursion depth 10000 exceeded`, succeeding only
+under `--max-recursion-depth 200000`. A language whose only loop is recursion caps the canonical
+accumulator idiom at 10,000 elements. (2) `std/list.reverse` is `concat(reverse(rest), [x])` —
+quadratic and non-tail-recursive, as its own source comment admits — while the iterative
+`_list_reverse` builtin is registered at `internal/builtins/list.go:550` with **0** callers in
+`std/` (control `_list_map` → 1). AILANG has shipped an O(n) reverse that nothing calls, on the
+function that terminates the very idiom `#676` is about.
+
+**Their numbers have improved ~6× and the curve has not.** Baseline 55.6 MB here, matching the
+reporter's 56. Peak RSS at HEAD: 72 / 147 / 408 / 1,468 MB at n = 1,600 / 3,200 / 6,400 / 12,800,
+against their 2,594 MB at 6,400 on `v0.33.0-41-g65f287107`. The constant moved, the shape did not.
+Wall-clock is not the harm (0.05 s → 0.41 s across that range) — this is allocation pressure, which
+is exactly what they reported: a real pipeline OOMed at 10,570 MB and swapped the machine twice.
+
+**Rule 3d earned its keep before the profile ran.** The apply path contains a trace recorder that
+calls `a.String()` on every argument — which, on an accumulator, would stringify the whole list per
+call and produce a textbook O(n²). Plausible, well-located, and in exactly the direction wanted. The
+A/B killed it: `AILANG_TRACE=off` **1468.1 MB** vs default **1467.6 MB**, identical. Had that been
+banked on co-occurrence, the iteration would have shipped a fix to the wrong subsystem.
+
+**Outcome: PARKED on `D-19`** — design doc `design_docs/planned/m-list-cons-quadratic.md` written and
+carried through the full Gate-2 allowance of one revision and one re-quorum, then parked
+`needs-human-review`. Round 1 **BLOCKED**, both reviewers reject. Round 2 **BLOCKED**,
+`gemini-3-1-pro` **pass**, `gpt5-6-sol` reject. `absent_reviewers` is empty in **both** artifacts and
+both external reviewers read `absent=false`, with the controller verdict recorded separately under
+`controller_in_session` — so neither round is an N−1 degrade and the `#651` presentCount-inflation
+trap does not apply. Both artifacts are committed beside the doc.
+
+**Rule 3f, and it split the objection in half.** `gpt5-6-sol` round 1 objected that the doc's safety
+argument rested on greps that cannot see an aliased write — `e := lv.Elements; e[i] = v`. It was
+right about the instrument: my `.Elements[i] =` pattern is exactly that narrow, and it was **my**
+VERIFIED-BY-ME row. Widened (rule 3a(ii)): **2** `.Elements` slice bindings in non-test Go — one a
+`TupleType`, out of scope, and one at `internal/testing/shrink.go:199`, which **copies before every
+write** (`newElems := make(...); copy(newElems, elems); newElems[i] = ...`) — against a control of
+**1,883** bare index-writes proving the matcher fires. So the *current-state* half is **refuted**:
+zero aliased writes exist at HEAD. The *design* half **stands**: `Elements` is a raw exported
+`[]Value`, so that is a fact about today rather than an invariant, and an arena would raise a future
+write's cost from corrupting one list to corrupting older logical versions and racing readers. The
+designer was handed the measurement, not the objection — which is the whole point of the rule, and it
+is what let round 2 replace observed safety with a CI-enforced analyzer instead of arguing.
+
+**`gemini-3-1-pro`'s round-1 objection had no defence and the design changed.** A concat slow path
+returning nil-arena lists poisons the whole `[x] ++ rest` chain, so the arena never bootstraps and
+`std/list` stays exactly as quadratic as before. The revision froze a new rule — every list returned
+by `::` or `++` is arena-backed — and made the front-slack/left-append asymmetry explicit by command.
+It **passed** in round 2. A reviewer who blocks twice and then passes on a design that actually moved
+is the quorum working as designed.
+
+**Why it parked rather than proceeded.** `gpt5-6-sol`'s round-2 objection is new and, in the
+controller's judgement, correct: a front-slack arena is amortized O(1) only along a **linear use
+chain**. Under persistent branching — `x :: base` repeatedly while `base` stays live — every prepend
+after the first loses the CAS and copies, costing Θ(m·len(base)). That is the intrinsic difference
+between an arena and true cons cells, it disputes the design **DIRECTION**, and no reviewer-supplied
+fix resolves it, so the narrow-refinement carve-out does not apply and Standing rule 2 governs. **The
+fact that decides `D-19` is measured, not argued**: the reported defect *is* the linear-use case —
+`gen(n - 1, "constant" :: acc)` never retains the old `acc` — so the arena fixes `#676` completely.
+What it does not deliver is the general guarantee the doc's own title claims.
+
+**Routing evidence**
+
+| Role | Pin | Actually ran | Note |
+|---|---|---|---|
+| Controller | `$MODEL` | `claude:claude-opus-5` | triage, ghost discipline, profiling, objection measurement, record |
+| Designer | rotation | **`claude:claude-fable-5`** | **FLAGGED — rotation fallback.** Next entry `codex:gpt-5.6-sol` probed **rc=1**, "usage limit… try again Aug 20th 5:34 AM"; the entry after it (gemini/managed_agents) is read-only under `CapRemoteSandbox` and cannot write a file. Ran **twice** (create + the one revision) — **FLAGGED**, this exceeds the one-Fable-run-per-iteration diet; Gate 2's revision flow and the dead codex lane left no other route. |
+| Quorum | — | `gpt5-6-sol`, `gemini-3-1-pro` | 2 rounds; both present both rounds |
+| Planner / Executor / Evaluator | — | none | no sprint ran — the deliverable is the parked doc |
+
+`metered = $0.2319` of $5 (quorum r1 $0.0970 + r2 $0.1349). Fable and Opus are quota buckets, $0.
+No GPU, no `rig.lock`.
+
+**Ruled out**
+- The `evalCoreApp` trace recorder stringifying arguments per call — A/B identical (1468.1 vs 1467.6 MB).
+- Wall-clock time as the harm — 0.05 s → 0.41 s across the measured range; this is allocation pressure.
+- The reporter's recursion-vs-builtin framing — refuted by the representation itself.
+- Unexporting `Elements` — 902-reference churn for zero type-level gain, since Go has no read-only slices.
+- Copy-on-every-read — makes `_list_nth` O(n), recreating the class it is meant to remove.
+- Bundling the TCO fix into this sprint — disjoint subsystem, split as `m-eval-tail-calls`.
+
+**Gate 5: no skill edit.** The frictions were documented rules working exactly as written — 3f
+measuring a reviewer's premise instead of forwarding it, 3a(ii) widening a grep that was too narrow,
+3d killing a plausible hypothesis with a negative control, and the self-describing-file trap firing on
+my own `D-19` uniqueness guard (the fix was to scope the guard to the ledger block, which is the
+instrument the rule already prescribes). No gaps, so nothing to add; the ≥2-friction bar is not met by
+any of them.
+
+**Mark cleared the entire decision backlog mid-iteration, and Gate 3b is what caught it.** While the
+designer ran, two attended-ruling commits landed on `dev` (`1a3ca2d5f` 10:08, `c29c48e96` 10:23)
+resolving **every** remaining V1 decision. Gate 0's directive read had correctly returned **0** — the
+attended session authenticates as the bot account, which `mission_directives.sh`'s self-direction
+guard rightly refuses, so the charter stamp is the channel, exactly as the 2026-08-14 precedent note
+records. The record PR then came back **`CONFLICTING`/`DIRTY`**, and the 2026-08-14 rule — read
+`mergeable` BEFORE reaching for any dropped-event lever — is what turned a stale-base hazard into a
+two-command rebase instead of a fabricated infrastructure diagnosis. Resolved by taking Mark's
+`RESOLVED` `D-18` over my stale `OPEN` copy; the ledger is now 21 rows with **`D-19` the only OPEN
+decision**. Three of my own already-written sentences ("20 rows / 11 OPEN") were false by the time
+they were committed and were corrected rather than left standing.
+
+**`D-12` obligated this iteration to do more than record that.** Mark's ruling — *a human ruling that
+unblocks a design doc MUST create or un-park its queue row in the iteration that consumes the
+directive* — landed **in those same commits**, and those commits changed the **ledger block only**
+(one hunk, 9 insertions / 9 deletions, no queue row touched). This iteration is the first loop pass to
+see them, so it is the consuming iteration, and the charter now carries an un-parking block mapping
+each ruling to the row it frees. Two of them (`D-1`, `D-10`) came back as something **other than the
+arms the row offered**, which is worth carrying forward: a row that forces a human into a binary gets
+answered outside it.
+
+**Next**: `D-19` gates the `#676` fix. Nine rows unparked by Mark's rulings are now routable (see the
+charter's un-parking block) — `#613` in particular only needs a re-title and a rebase. Ungated and ready meanwhile:
+`m-stdlib-reverse-delegates-to-builtin` (cheap, independent of `D-19`),
+`m-rt-rec-003-advertises-nonexistent-option` (trivial), `m-ci-no-job-timeouts`, and the remaining
+consumer reports `#679`, `#672`, `#671`, `#694`, `#656`.
+

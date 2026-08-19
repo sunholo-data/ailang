@@ -1,0 +1,49 @@
+{
+  "doc": "design_docs/planned/m-list-cons-quadratic.md",
+  "iso_ts": "2026-08-19T08:24:23Z",
+  "reviewers": [
+    {
+      "model": "gpt5-6-sol",
+      "cost_usd": 0.067875,
+      "tokens_in": 11541,
+      "tokens_out": 339,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "Option B's claimed semantic and concurrency safety rests on V5/V6, but those greps do not establish slice immutability. V25 proves `Elements` is exposed as a raw `[]Value`; a caller can alias it and execute `xs[i] = v`, which neither matches `.Elements[i] =` nor is prevented by three-index capacity clipping. An arena-backed prepend shares the old elements with the new list, so such a write can mutate both logical list versions or race with readers—behavior that copy-on-cons does not have.",
+        "catch": "Capacity clipping prevents append from overwriting arena storage, but it does nothing against indexed writes through escaped aliases. The conflict-surface audit must cover transitive slice aliases and mutation-capable callees, not only direct `.Elements` assignments and `append(X.Elements, ...)` syntax.",
+        "proposed_fix": "Make immutable ownership a prerequisite for Option B. Replace the V5/V6 safety claim with a verification row produced by Go AST/data-flow analysis that inventories every return, assignment, and function call through which `ListValue.Elements` can escape or be mutated. Change `SafeAsList` and every other externally mutable exposure to return a cloned, capacity-clipped slice, and add tests proving mutation of each returned slice cannot alter either the source list or a prepended descendant. Add an enforced analyzer/linter rule forbidding writes or mutation-capable escapes of arena-backed storage. If that invariant cannot be mechanically enforced without privatizing `Elements` and adding read-only accessors, reject Option B and redesign around an actually immutable representation."
+      },
+      "landed": null
+    },
+    {
+      "model": "gemini-3-1-pro",
+      "cost_usd": 0.029078,
+      "tokens_in": 12955,
+      "tokens_out": 264,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The design fails to bootstrap the arena chain for `std/list`'s `[x] ++ rest` pattern. The recursion base cases (`[]` or literals) have a nil arena by definition. If `concat_List` only attempts a fast-path claim and defaults to the legacy copy path when the right operand lacks sufficient slack, it will return a new list with a nil arena. This nil arena will propagate up the entire recursive call stack, causing every subsequent `++` to miss the fast path and keeping `std/list` exactly as O(n²) as it is today.",
+        "catch": "`concat_List`'s small-left path is missing an arena-allocating slow path to handle nil-arena right operands.",
+        "proposed_fix": "Update the `concat_List` section to explicitly state that if the right operand lacks sufficient slack (e.g., nil arena), the small-left path must allocate a fresh arena with geometric front slack, mirroring `Prepend`'s slow path. Alternatively, mandate that `concat_List` delegates directly to `Prepend` when `len(left) == 1`."
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Controller pass. Root cause re-derived first-party at 88631976e: pprof attributes 95.25% of alloc_space to builtins.listConsImpl, matching the closed-form n(n+1)/2*16B prediction to 2.6%. Aliasing precondition re-measured (0 in-place .Elements writes, control 44 reads). Designer new finding independently confirmed: std/list.reverse is concat(reverse(rest),[x]) while the iterative _list_reverse builtin has 0 callers in std/ (control _list_map=1). Reviewers: please attack the arena claim-watermark concurrency protocol under Fork(), and whether the F1/F5 sprint split leaves Sprint 1 shipping a win users cannot reach below the 10k depth wall."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "gpt5-6-sol: Option B's claimed semantic and concurrency safety rests on V5/V6, but those greps do not establish slice immutability. V25 proves `Elements` is exposed as a raw `[]Value`; a caller can alias it and execute `xs[i] = v`, which neither matches `.Elements[i] =` nor is prevented by three-index capacity clipping. An arena-backed prepend shares the old elements with the new list, so such a write can mutate both logical list versions or race with readers—behavior that copy-on-cons does not have.",
+      "gemini-3-1-pro: The design fails to bootstrap the arena chain for `std/list`'s `[x] ++ rest` pattern. The recursion base cases (`[]` or literals) have a nil arena by definition. If `concat_List` only attempts a fast-path claim and defaults to the legacy copy path when the right operand lacks sufficient slack, it will return a new list with a nil arena. This nil arena will propagate up the entire recursive call stack, causing every subsequent `++` to miss the fast path and keeping `std/list` exactly as O(n²) as it is today."
+    ],
+    "absent_reviewers": [],
+    "total_cost_usd": 0.09695300000000001,
+    "total_tokens_in": 24496,
+    "total_tokens_out": 603
+  }
+}
