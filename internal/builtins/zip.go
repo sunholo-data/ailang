@@ -360,40 +360,7 @@ func zipCreateArchiveImpl(ctx *effects.EffContext, args []eval.Value) (eval.Valu
 	}
 
 	w := zip.NewWriter(f)
-	var writeErr error
-
-	for i, entry := range entriesVal.Elements {
-		rec, ok := entry.(*eval.RecordValue)
-		if !ok {
-			writeErr = fmt.Errorf("entry %d: expected record, got %T", i, entry)
-			break
-		}
-		nameVal, ok := rec.Fields["name"].(*eval.StringValue)
-		if !ok {
-			writeErr = fmt.Errorf("entry %d: 'name' field must be string", i)
-			break
-		}
-		contentVal, ok := rec.Fields["content"].(*eval.StringValue)
-		if !ok {
-			writeErr = fmt.Errorf("entry %d: 'content' field must be string", i)
-			break
-		}
-
-		if strings.Contains(nameVal.Value, "..") {
-			writeErr = fmt.Errorf("entry %d: path traversal rejected: %s", i, nameVal.Value)
-			break
-		}
-
-		ew, err := w.Create(nameVal.Value)
-		if err != nil {
-			writeErr = fmt.Errorf("entry %d: cannot create: %v", i, err)
-			break
-		}
-		if _, err := io.WriteString(ew, contentVal.Value); err != nil {
-			writeErr = fmt.Errorf("entry %d: write error: %v", i, err)
-			break
-		}
-	}
+	writeErr := writeZipEntries(w, "_zip_createArchive", entriesVal.Elements, zipEntryText, 0)
 
 	// Always close the writer and file
 	if cerr := w.Close(); cerr != nil && writeErr == nil {
@@ -485,51 +452,7 @@ func zipCreateArchiveWithBytesImpl(ctx *effects.EffContext, args []eval.Value) (
 	}
 
 	w := zip.NewWriter(f)
-	var writeErr error
-
-	for i, entry := range entriesVal.Elements {
-		rec, ok := entry.(*eval.RecordValue)
-		if !ok {
-			writeErr = fmt.Errorf("entry %d: expected record, got %T", i, entry)
-			break
-		}
-		nameVal, ok := rec.Fields["name"].(*eval.StringValue)
-		if !ok {
-			writeErr = fmt.Errorf("entry %d: 'name' field must be string", i)
-			break
-		}
-		dataVal, ok := rec.Fields["data"].(*eval.StringValue)
-		if !ok {
-			writeErr = fmt.Errorf("entry %d: 'data' field must be string (base64-encoded)", i)
-			break
-		}
-
-		if strings.Contains(nameVal.Value, "..") {
-			writeErr = fmt.Errorf("entry %d: path traversal rejected: %s", i, nameVal.Value)
-			break
-		}
-
-		decoded, err := base64.StdEncoding.DecodeString(dataVal.Value)
-		if err != nil {
-			writeErr = fmt.Errorf("entry %d: invalid base64: %v", i, err)
-			break
-		}
-
-		if len(decoded) > zipMaxDecompressedSize {
-			writeErr = fmt.Errorf("entry %d: data too large: %d bytes (max %d)", i, len(decoded), zipMaxDecompressedSize)
-			break
-		}
-
-		ew, err := w.Create(nameVal.Value)
-		if err != nil {
-			writeErr = fmt.Errorf("entry %d: cannot create: %v", i, err)
-			break
-		}
-		if _, err := ew.Write(decoded); err != nil {
-			writeErr = fmt.Errorf("entry %d: write error: %v", i, err)
-			break
-		}
-	}
+	writeErr := writeZipEntries(w, "_zip_createArchiveWithBytes", entriesVal.Elements, zipEntryBase64, 0)
 
 	if cerr := w.Close(); cerr != nil && writeErr == nil {
 		writeErr = fmt.Errorf("close archive: %v", cerr)
@@ -549,6 +472,89 @@ func zipCreateArchiveWithBytesImpl(ctx *effects.EffContext, args []eval.Value) (
 // ============================================================================
 // Shared helpers
 // ============================================================================
+
+// zipEntryEncoding selects how an entry record's payload field is interpreted.
+type zipEntryEncoding int
+
+const (
+	// zipEntryText reads the "content" field and writes it verbatim.
+	zipEntryText zipEntryEncoding = iota
+	// zipEntryBase64 reads the "data" field and writes its base64 decoding.
+	zipEntryBase64
+)
+
+func (e zipEntryEncoding) field() string {
+	if e == zipEntryBase64 {
+		return "data"
+	}
+	return "content"
+}
+
+// writeZipEntries is the single serialisation path shared by every archive
+// builder — the FS-writing pair and the in-memory pair alike. Keeping one
+// implementation is what makes the entry cap, the path-traversal rejection and
+// the per-entry size cap identical across all four; a second copy is how those
+// drift apart.
+//
+// budget, when > 0, caps the total number of payload bytes written across all
+// entries. The FS builders pass 0 (unbounded, as they always have — the archive
+// lands on disk, not in the process); the in-memory builders pass a real budget
+// because their output is retained in memory and then base64-expanded.
+func writeZipEntries(w *zip.Writer, fn string, entries []eval.Value, enc zipEntryEncoding, budget int) error {
+	payloadField := enc.field()
+	total := 0
+
+	for i, entry := range entries {
+		rec, ok := entry.(*eval.RecordValue)
+		if !ok {
+			return fmt.Errorf("entry %d: expected record, got %T", i, entry)
+		}
+		nameVal, ok := rec.Fields["name"].(*eval.StringValue)
+		if !ok {
+			return fmt.Errorf("entry %d: 'name' field must be string", i)
+		}
+		payloadVal, ok := rec.Fields[payloadField].(*eval.StringValue)
+		if !ok {
+			if enc == zipEntryBase64 {
+				return fmt.Errorf("entry %d: 'data' field must be string (base64-encoded)", i)
+			}
+			return fmt.Errorf("entry %d: 'content' field must be string", i)
+		}
+
+		if strings.Contains(nameVal.Value, "..") {
+			return fmt.Errorf("entry %d: path traversal rejected: %s", i, nameVal.Value)
+		}
+
+		payload := []byte(payloadVal.Value)
+		if enc == zipEntryBase64 {
+			decoded, err := base64.StdEncoding.DecodeString(payloadVal.Value)
+			if err != nil {
+				return fmt.Errorf("entry %d: invalid base64: %v", i, err)
+			}
+			payload = decoded
+		}
+
+		if len(payload) > zipMaxDecompressedSize {
+			return fmt.Errorf("entry %d: data too large: %d bytes (max %d)", i, len(payload), zipMaxDecompressedSize)
+		}
+		if budget > 0 {
+			total += len(payload)
+			if total > budget {
+				return fmt.Errorf("%s: archive contents too large: %d bytes (max %d)", fn, total, budget)
+			}
+		}
+
+		ew, err := w.Create(nameVal.Value)
+		if err != nil {
+			return fmt.Errorf("entry %d: cannot create: %v", i, err)
+		}
+		if _, err := ew.Write(payload); err != nil {
+			return fmt.Errorf("entry %d: write error: %v", i, err)
+		}
+	}
+
+	return nil
+}
 
 // readZipEntry reads a zip file entry with size limits
 func readZipEntry(f *zip.File) ([]byte, error) {
