@@ -203,8 +203,18 @@ func TestEntrySourceDir_IgnoresNonFiles(t *testing.T) {
 	if got := entrySourceDir("<stdin>"); got != "" {
 		t.Fatalf(`entrySourceDir("<stdin>") = %q, want ""`, got)
 	}
-	if got := entrySourceDir(dir); got != "" {
-		t.Fatalf("entrySourceDir(%q) on a directory = %q, want \"\"", dir, got)
+	if got := entrySourceDir("<embedded>"); got != "" {
+		t.Fatalf(`entrySourceDir("<embedded>") = %q, want ""`, got)
+	}
+	// A bare relative name is already relative to the CWD, so the existing
+	// base is correct and must not be overridden.
+	if got := entrySourceDir("service.ail"); got != "" {
+		t.Fatalf(`entrySourceDir("service.ail") = %q, want ""`, got)
+	}
+	// A name with a directory component yields it even if nothing is there:
+	// this is a pure path computation, and FindManifest owns filesystem truth.
+	if got := entrySourceDir(filepath.Join(dir, "does-not-exist.ail")); got != dir {
+		t.Fatalf("entrySourceDir on a nonexistent path = %q, want %q", got, dir)
 	}
 }
 

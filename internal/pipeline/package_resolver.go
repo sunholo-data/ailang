@@ -177,17 +177,24 @@ func packageSearchDir(explicitPackageDir, loaderBaseDir, entryFilename string) s
 	return loaderBaseDir
 }
 
-// entrySourceDir returns the directory holding the entry source file, or ""
-// when there is no real file on disk (code compiled from a string, a REPL
-// buffer, or a synthetic "<stdin>"-style name). Returning "" leaves the
-// caller on its previous CWD-anchored behaviour rather than inventing a
-// directory from a name that never named a file.
+// entrySourceDir returns the directory named by the entry source path, or ""
+// when the name does not locate a directory at all — a bare "service.ail"
+// (already relative to the CWD, so the existing base is correct) or a
+// synthetic label such as "<embedded>". Returning "" leaves the caller on its
+// previous CWD-anchored behaviour rather than inventing a directory from a
+// name that never named one.
+//
+// This is deliberately a PURE path computation: it does not touch the
+// filesystem. FindManifest is where filesystem truth belongs, and it already
+// stats as it walks upward, so probing here would add a second source of
+// truth and a filesystem read of user-supplied input on every compile for no
+// decision this function actually needs.
 func entrySourceDir(filename string) string {
 	if filename == "" {
 		return ""
 	}
-	st, err := os.Stat(filename)
-	if err != nil || st.IsDir() {
+	if !strings.ContainsRune(filename, filepath.Separator) && !strings.ContainsRune(filename, '/') {
+		// No directory component: "service.ail", "<embedded>", "_test.ail".
 		return ""
 	}
 	return filepath.Dir(filename)
