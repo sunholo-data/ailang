@@ -22,16 +22,23 @@ The CLI embeds all editor files, so it works from anywhere after `ailang` is ins
 
 ## VS Code Manual Install
 
-1. Copy the extension folder to your VS Code extensions:
-   ```bash
-   # macOS/Linux
-   cp -r .vscode/extensions/ailang ~/.vscode/extensions/
+**Do not copy a folder into `~/.vscode/extensions/`.** Since VS Code 1.74 that
+directory's `extensions.json` is the registry of installed extensions, not a
+cache — a folder with no entry in it is never scanned, so nothing loads.
 
-   # Windows (PowerShell)
-   Copy-Item -Recurse .vscode\extensions\ailang $env:USERPROFILE\.vscode\extensions\
-   ```
+Let VS Code install it:
 
-2. Restart VS Code
+```bash
+# Command palette: "Extensions: Install from VSIX..." — or, on the CLI:
+code --install-extension <path-to>.vsix --force
+```
+
+`ailang editor install vscode` builds that VSIX from the binary's embedded
+assets and hands it to whichever editor CLI it finds (`code`, `code-insiders`,
+`cursor`, `windsurf`, `codium`); with none on PATH it installs the directory
+*and* writes the `extensions.json` entry itself.
+
+Then restart VS Code.
 
 ### Workspace Settings (Alternative)
 
@@ -47,12 +54,18 @@ If you only want highlighting when working in the AILANG project, the grammar is
 
 **Extension not loading?**
 ```bash
-# Verify extension is installed
-ls ~/.vscode/extensions/ | grep ailang
+# Checks the registry, not just whether a folder exists on disk
+ailang editor status
+
+# Or ask VS Code directly:
+code --list-extensions --show-versions | grep ailang
 
 # Check VS Code output for errors
 # View > Output > Extension Host
 ```
+
+Listing `~/.vscode/extensions/` is not a check: it shows folders VS Code has
+marked obsolete and skips.
 
 ## Vim/Neovim Manual Install
 

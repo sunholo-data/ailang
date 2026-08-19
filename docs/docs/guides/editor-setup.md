@@ -47,16 +47,29 @@ Then restart VS Code or run **Developer: Reload Window** (Cmd+Shift+P on Mac, Ct
 
 ### Manual Install
 
-1. Copy the extension folder to your VS Code extensions:
-   ```bash
-   # macOS/Linux
-   cp -r .vscode/extensions/ailang ~/.vscode/extensions/
+:::warning Copying a folder into `~/.vscode/extensions/` does not install anything
 
-   # Windows (PowerShell)
-   Copy-Item -Recurse .vscode\extensions\ailang $env:USERPROFILE\.vscode\extensions\
-   ```
+Since VS Code 1.74, `~/.vscode/extensions/extensions.json` is the registry of
+installed extensions, not a cache. A folder with no entry in it is never scanned,
+so the extension silently does not load. Let VS Code do the install.
 
-2. Restart VS Code
+:::
+
+Use VS Code's own installer:
+
+```bash
+# Command palette: "Extensions: Install from VSIX..." — or, on the CLI:
+code --install-extension <path-to>.vsix --force
+```
+
+`ailang editor install vscode` does exactly this for you: it builds the VSIX from
+the binary's embedded assets and hands it to whichever editor CLI it finds
+(`code`, `code-insiders`, `cursor`, `windsurf`, `codium`). If none is on your
+PATH it falls back to installing the extension directory *and* registering it in
+`extensions.json`, which is the part a manual `cp` misses.
+
+To put `code` on your PATH: Cmd+Shift+P → **Shell Command: Install 'code' command
+in PATH**.
 
 ### Troubleshooting
 
@@ -74,12 +87,21 @@ Then restart VS Code or run **Developer: Reload Window** (Cmd+Shift+P on Mac, Ct
 
 **Extension not loading?**
 ```bash
-# Verify extension is installed
-ls ~/.vscode/extensions/ | grep ailang
+# Verify VS Code will actually load it — this checks the registry, not just
+# whether a folder exists on disk.
+ailang editor status
+
+# Or ask VS Code directly:
+code --list-extensions --show-versions | grep ailang
 
 # Check VS Code output for errors
 # View > Output > Extension Host
 ```
+
+A folder at `~/.vscode/extensions/ailang` with no matching `extensions.json`
+entry is the broken state — `ailang editor status` reports it as such, and
+`ailang editor install vscode` repairs it. Listing the directory is *not* a
+check: it shows folders VS Code has marked obsolete and skips.
 
 ## Vim
 
