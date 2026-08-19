@@ -99,7 +99,9 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	//
 	// cfg.PackageDir overrides "." so callers (e.g. the named-test harness)
 	// can resolve package manifests relative to the source file rather than CWD.
-	pkgSearchDir := loaderBaseDir
+	// The package manifest belongs to the SOURCE FILE, not the process CWD
+	// (ailang#671). See packageSearchDir.
+	pkgSearchDir := packageSearchDir(cfg.PackageDir, loaderBaseDir, src.Filename)
 	pkgResolver, err := tryLoadPackageResolver(pkgSearchDir)
 	if err != nil {
 		loadErr := fmt.Errorf("package resolution setup failed: %w", err)
@@ -111,6 +113,11 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	}
 	if pkgResolver == nil {
 		pkgResolver = tryLoadSelfOnlyPackageResolver(pkgSearchDir)
+	}
+	if pkgResolver == nil {
+		// Diagnose here, where the search directory is known; the loader
+		// cannot know, and must not guess (ailang#671).
+		modLoader.SetPackageResolverAbsentReason(packageResolverAbsentReason(pkgSearchDir))
 	}
 	if pkgResolver != nil {
 		modLoader.SetPackageResolver(pkgResolver)
