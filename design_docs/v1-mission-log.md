@@ -13107,3 +13107,163 @@ the rulebook. No process fix.
 **Next**: `#644` (`std/zip` needs an in-memory archive builder) closes the language/stdlib lane;
 then the downstream-consumer reports (`#679`, `#676`, `#672`, `#671`, `#694`, `#656`).
 
+
+---
+
+## 228 — 2026-08-19 — Iteration 227: `std/zip` could only build an archive by writing one, so browser document generation was impossible by construction
+
+**Picked**: queue head `m-sweep-orphans-2026-08-17`, language/stdlib lane, item `#644` — the item
+iteration 226 named as Next, and the one that closes the group. Three inbox messages triaged: V1's
+own iteration-226 report, `mission-world`'s iteration-94 report, and a **`[world->v1]` skill
+proposal**. That third is a cross-mission request, which by contract never auto-outranks the queue
+— it went to Gate 5, not to the pick. Zero allowlisted directives on `#745` since the
+`2026-08-19T01:17:27Z` watermark (24 comments enumerated); ledger valid, 20 rows / 11 OPEN. No
+weekly rotation: `#745` created `2026-08-17T06:14:45Z` = **08:14 CEST**, after the Monday-07:00
+**local** boundary. `origin/dev` `49a7208b4`: **16 checks, zero not-green**.
+
+**The zero-directives reading is a measurement, not a silence.** `mission_directives.sh` returned
+**0** for `#745` (24 comments) — and also 0 for the predecessor `#635` (83 comments), which is the
+shape of a broken filter. Widened: raw author enumeration shows `sunholo-voight-kampff` is the sole
+commenter on both, and `#559` carries **2** Mark comments. Running the script against `#559`
+returns both verbatim ("Yes reconcile dev and only one ollama server", "Yes sprint a CI flake fix").
+Instrument fires; the zero is real.
+
+**A `cmp` aimed at the wrong copy of the skill.** Gate 1's rule says diff the RUNNING skill against
+origin. The first `cmp` ran against `.claude/skills/…` **relative to the driver pin** — a different
+file: `ls -i` gives distinct inodes for the pin's copy and the one
+`~/.claude/skills/mission-control` resolves to, which `readlink` shows is the MAIN checkout's. Both
+happened to be byte-identical to origin, so the wrong instrument returned the right answer, which
+is exactly how it survives. Re-run against the symlink target before the result was recorded.
+
+**Blocked-row predicate re-read as a command.** `m-wasm-deterministic-typecheck-budget` waits on
+per-module `typeCheckSteps` from the `#662` reporter: **1** comment, ours; control `#689` → 1. Not
+flipped. Died-mid-flight sweep clean — the two open loop-authored PRs (`#695`, `#613`) are
+long-standing and unrelated, and no `.wt-iter226` worktree exists.
+
+**Reality check**: REAL at HEAD. `createArchive` and `createArchiveWithBytes` were the only archive
+constructors; both took a path, both carried `! {FS}`. The report's framing is right and its
+consequence is stronger than stated: **the `FS` gate is genuinely enforced**, so `createArchive`
+under `--caps IO` is denied with `effect 'FS' requires capability` while the same call under
+`--caps IO,FS` succeeds. That pair is what makes the fix's effect claim a measurement rather than
+an assertion — without it, "the new functions run without FS" is consistent with caps not being
+checked at all.
+
+**Shipped**: PR [#784](https://github.com/sunholo-data/ailang/pull/784) → squash
+[`b2bbac8d9`](https://github.com/sunholo-data/ailang/commit/b2bbac8d9), head `448cebd11` at
+**21 checks, zero not-green**, 4/4 required pass (`build` 1m55s / `docs-gate` 5s / `lint` 3m44s /
+`test` 17m31s), `MERGEABLE CLEAN`. `#644` closed by the merge, its verdict posted as its **own**
+`--body-file` comment BEFORE the merge (count asserted 0 → 1 — on an already-closed issue
+`gh issue close --comment` posts nothing and still exits 0, and a `Closes #N` body makes that the
+normal path, not an edge case). Two pure functions —
+`buildArchive([{name, content}])` and `buildArchiveWithBytes([{name, data}])`, both
+`-> Result[string, string]`, base64 out.
+
+**Two functions, not the one requested, and the extra one is the point.** The FS side has *both* a
+text and a bytes constructor. Shipping only the requested base64 variant would have left that
+asymmetry to be reported again, and would have forced base64-encoding of every XML part — which is
+most of a DOCX. Named `build*` rather than the reporter's `createArchiveBytes`: that name and
+`createArchiveWithBytes` differ by one word while meaning **opposite** things (returns bytes vs
+takes bytes), and the verb split — `build` returns, `create` writes — carries the effect
+distinction the report itself identified.
+
+**One serialisation path, not four** (Principle 3). The two FS impls were ~90% duplicated; adding
+two more copies would have made four places for the entry cap, the path-traversal rejection and the
+per-entry size cap to drift apart. Extracted `writeZipEntries`, which all four now call.
+
+**Purity is a claim about the OUTPUT, and it was checked before the design was fixed.** A pure
+builtin whose bytes vary run-to-run is a soundness bug, not a cosmetic one. Probed in a standalone
+Go program first: `archive/zip` stamps entries with the zero `time.Time` (MS-DOS epoch 1979-11-30),
+not the wall clock, and two builds 1.1 s apart were byte-identical. Pinned in the suite across a
+**2.1 s** gap — past a DOS timestamp's 2-second resolution, without which the test passes whether
+or not the builder is deterministic. Separately, `buildArchive` and `createArchive` emit
+**byte-identical** archives for identical entries (`sha ede7a339…`, 323 B, matching the standalone
+probe exactly), and a real Python `zipfile` reads the output.
+
+**One limit is new, and only on the in-memory pair**: a cap on *total* content across entries. The
+FS builders stream to disk and stay unbounded in aggregate as they always have — a **negative
+control** pins that they did not inherit the cap. The in-memory pair retains the archive in memory
+and then expands it 4/3 in base64, so an unbounded builder is an OOM primitive in a browser tab.
+The cap is a `var`, not a `const`, deliberately: a limit whose only exercise would be allocating
+100MB is a limit nothing ever reds on — iteration 225's untestable-by-construction lesson applied
+at design time rather than after a report.
+
+**10 mutation drills**, each asserted LANDED by sha256 and BUILDS by `go build` rc=0 **before any
+test result was read**, each restored by `cp` (never `git checkout --`) and verified
+byte-identical; tree green before and after. Sole killers with inverse `-skip` rc=0: `IsPure`→false
+and `Effect`→`"FS"` (`RegisteredPure`), neutered budget (`RejectsOversizeTotal`), wall-clock
+timestamps (`Deterministic`), neutered entry cap (`RejectsTooManyEntries`). One mutant hit the
+documented `BUILDS=NO` class (`"encoding/base64" imported and not used`) and was **discarded and
+re-run** with an import-preserving form rather than counted.
+
+**Two gates confirmed the headline property without being written for it.** The builtin golden
+snapshot moved by exactly **2** lines with **338 signatures unchanged** — so the shared-path
+refactor moved no existing signature — and neither new line carries an effect annotation. And both
+builtins are present in `bin/ailang.wasm` (8 / 4 occurrences; controls `_zip_createArchive` 14,
+`_deflate_inflate` 11). The first `strings` grep returned **0 for all three, including the
+control**, which is rule 3a's instrument-broken signal and was exactly that: the path is
+`bin/ailang.wasm`, not `wasm/*.wasm`.
+
+**Routing evidence**: model=claude-opus-5 task-class=execute round1-score=n/a rounds=1
+corrections=0 provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus
+— controller inline; no designer/planner/executor/evaluator/quorum lane fired; no GPU, no
+`rig.lock`; **metered = $0.00**.
+
+**The drill harness was wrong before the drill was, and it is worth more than the drill.** The
+harness re-copied its own backups at the top of every invocation, so when a run was interrupted and
+a second one started, the "pristine" backup was taken from an **already-mutated** tree — rule
+3e(b), a control contaminated by an earlier step of the same change. The symptom was a restored
+tree that failed 2 tests, i.e. a mutation surviving its own restore. Recovery was **not** to trust
+the backup: `zip.go` was reconstructed from `HEAD` plus the refactor patch (both deterministic,
+both asserted), then verified by reading the mutation-sensitive lines directly and by a green
+suite. Backups are now taken once, outside the loop. Note the near-miss the skill's own rule 3k
+warns about — `git checkout --` would have deleted the whole uncommitted milestone.
+
+**Under `D-16` the MAIN checkout was fast-forwarded 7 commits.** Preconditions measured, not
+assumed: 0 commits ahead; incoming (30 files) ∩ dirty (5 files) = **∅** with the `comm` control
+returning 3 on a known-overlapping set; all five sibling-agent files verified byte-identical after.
+That is what let the Gate-5 skill edit be **live and on origin at once** — the symlink resolves to
+the main checkout's working tree, so an edit committed only from a worktree reaches origin and
+never reaches the running loop.
+
+**Ruled out**: shipping only the requested `createArchiveBytes` (leaves the text/bytes asymmetry,
+forces base64 on every XML part); the reporter's chosen NAME (semantically collides with
+`createArchiveWithBytes`); rewriting the FS builders as compositions over the pure ones (needs a
+bytes-writing `std/fs` primitive and changes shipped behaviour for no reported need); adding the
+total-content cap to the FS builders (a behaviour change to a stable API — pinned as unchanged by
+a negative control); a curated-WASM-module allowlist as a second blocker (`cmd/wasm` has none —
+grepped; the "curated subset" the report mentions is docs-site-side, not compiler-side); and the
+first M9 mutant, whose non-compiling form cannot discriminate a fired guard from a broken build.
+
+**Retro lane**: skill-fix — `.claude/skills/mission-control/SKILL.md`, commit `171e2f2ef`. The
+`rc=0` mutation inverse is correct only for a mutant **proven single-test**; for any other it is
+unsatisfiable by construction and fails in the direction that reads as "your arm is a bystander".
+Proposed by `mission-world` iter-94 (a doc that *stated* a two-test red set where the measured set
+is four, which would have scored a **correct** mutant as a failed arm); instance 2 is V1's own
+iteration 225 (4 of 12 mutants "failed" the criterion; enumeration showed the named arm among the
+killers every time); instance 3 is this iteration, where 5 of 10 mutants were broad-blast and the
+criterion was inapplicable to half the drill. Corroborated first-party in V1's own log before
+adoption, per the sibling-claim ghost discipline. The rule now classifies by blast radius first,
+keeps `rc=0` where valid, requires an ENUMERATED red set produced by running it otherwise, marks a
+stated-not-run red set as a claim under 3b(v)(a), and separates sole-killer from set membership.
+World's second, watch-item-only proposal (backticks eaten by `git commit -m` under zsh) is **not**
+adopted — it stands at instance 1 for them and zero for us; this iteration used `-F` and asserted
+the tokens survived, which is the remedy anyway.
+
+**Next**: the language/stdlib group is **CLOSED at 5 of 5** (`#688`, `#689`, `#662`, `#646`,
+`#644`). The lane's remaining group is the downstream-consumer reports — `#679`, `#676`, `#672`,
+`#671`, `#694`, `#656` — each with a live consumer behind it, which is the strongest demand signal
+the queue has.
+
+**Gate 3b cost a cancel + re-run, and the attribution is a measurement.** `Install z3` — literally
+`sudo apt-get update && apt-get install z3`, an unbounded shell-out to a package mirror — sat
+`in_progress` for **39+ minutes** having taken **1m41s** on the immediately preceding run. What
+makes this environmental rather than a fact about the diff is not the shape of the failure but two
+controls: the **dev** CI run for `171e2f2ef`, a SKILL.md-only commit touching no Go code, was wedged
+on the **identical step** in the same window; and cancelling and re-running both cleared it on a
+byte-identical tree — outcome divergence with the code held constant. The provider status API read
+*All Systems Operational* throughout, so the status check the skill prescribes for outages would
+have said nothing. Correcting a read made mid-poll: seeing a step NAME and calling the job
+"progressing normally" was wrong — a step name that has not changed in 39 minutes is not progress,
+and only the step's `started_at` versus now answers the question. `ci.yml` declares `timeout-minutes`
+on **no** job (control: `runs-on` × 8), so every job inherits GitHub's 6-hour default on a
+**required** context. Queued as `m-ci-no-job-timeouts`.
