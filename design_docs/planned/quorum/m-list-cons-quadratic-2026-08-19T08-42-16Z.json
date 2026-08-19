@@ -1,0 +1,48 @@
+{
+  "doc": "design_docs/planned/m-list-cons-quadratic.md",
+  "iso_ts": "2026-08-19T08:42:16Z",
+  "reviewers": [
+    {
+      "model": "gpt5-6-sol",
+      "cost_usd": 0.09465,
+      "tokens_in": 17034,
+      "tokens_out": 316,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The design does not provide amortized O(1) prepend under normal persistent-list branching, despite making that its title and primary goal. After one prepend claims a tail's watermark, every later prepend of that same still-live tail loses the CAS and copies the entire tail. Repeating `x :: base` while retaining `base` therefore costs Θ(m·len(base)), and analogous branching affects `++`. The geometric-growth proof covers slack exhaustion along a single linear-use chain, not CAS failures caused by aliases, concurrency, or branching.",
+        "catch": "The document treats loser-copy as a correctness detail but never analyzes its asymptotic conflict with immutable-list reuse. AC-1 through AC-4 and AC-9 test only linear recursive chains, so they cannot validate the advertised general complexity or A9 cost-visibility claim; scheduling and alias topology silently determine whether `::` is O(1) or O(n).",
+        "proposed_fix": "Either narrow the proposal explicitly to “amortized O(1) for unbranched, single-claimer builder chains,” change the title/goals/A9 claim accordingly, document `x :: sharedTail` as O(len(sharedTail)) after the first claim, and add a branching benchmark/acceptance criterion; or, if general amortized O(1) prepend is required, replace Option B with a genuinely persistent representation such as cons cells and plan the accessor/construction-site migration needed to remove direct writable `Elements` access."
+      },
+      "landed": null
+    },
+    {
+      "model": "gemini-3-1-pro",
+      "cost_usd": 0.040282,
+      "tokens_in": 18839,
+      "tokens_out": 217,
+      "present": true,
+      "result": {
+        "verdict": "pass",
+        "strongest_objection": "The closest concern is a potential escape hatch in the listmut analyzer: R2 explicitly flags the slice passed as a []Value argument or returned, but an AST-based linter might miss the hand-off if the Elements slice is packed into a struct field, captured in a closure, or assigned to an any interface before crossing an un-allowlisted function boundary.",
+        "catch": "Ensure the listmut CI gate is implemented using SSA-based taint tracking (e.g., using golang.org/x/tools/go/ssa) rather than naive AST matching, so intra-procedural taint correctly tracks the slice through wrappers and interface conversions.",
+        "proposed_fix": "Update Phase 3 to explicitly require listmut to use SSA data-flow/taint tracking (via buildssa) to enforce R1 and R2, guaranteeing that assigning the slice to a struct field or interface still triggers an R2 violation if that wrapper escapes to an unaudited callee."
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Round 2, the single revision pass. Objection 1 (gpt5): I measured the premise myself and it splits — the current-state half is REFUTED by a widened instrument (2 .Elements slice bindings in non-test Go, one a TupleType, one in shrink.go which copies before every write; control 1883-2423 index-writes), so zero aliased writes exist at HEAD; but the design half STANDS and the doc now replaces observed-safety with a CI-enforced listmut analyzer plus copy-on-escape, because a raw exported []Value makes \"nobody writes today\" a fact about today. V5/V6 are retired, not re-cited. Objection 2 (gemini): I found no defence for it and said so; the doc now freezes \"every list returned by :: or ++ is arena-backed\" so both slow paths seed rather than poison the chain, makes the front-slack/left-append asymmetry explicit by command, and pins the claim with a measured failing base. Please attack: whether the analyzer can actually see the escape it is written for, and whether the estimate bump to 4-5 days means this should be split again."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "gpt5-6-sol: The design does not provide amortized O(1) prepend under normal persistent-list branching, despite making that its title and primary goal. After one prepend claims a tail's watermark, every later prepend of that same still-live tail loses the CAS and copies the entire tail. Repeating `x :: base` while retaining `base` therefore costs Θ(m·len(base)), and analogous branching affects `++`. The geometric-growth proof covers slack exhaustion along a single linear-use chain, not CAS failures caused by aliases, concurrency, or branching."
+    ],
+    "absent_reviewers": [],
+    "total_cost_usd": 0.134932,
+    "total_tokens_in": 35873,
+    "total_tokens_out": 533
+  }
+}
