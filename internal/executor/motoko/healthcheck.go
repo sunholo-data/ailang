@@ -23,7 +23,11 @@ import (
 //
 // HealthCheck:
 //  1. Verifies binary existence + executability (always required)
-//  2. Verifies OPENROUTER_API_KEY is set (wrapper pre-flight requirement)
+//  2. (D1, M-MOTOKO-FMT-REMEASUREMENT-INSTRUMENT) the provider-credential
+//     refusal moved OUT of this check and into a per-task preflight at the
+//     top of ExecuteStreaming (provider_preflight.go). HealthCheck no longer
+//     inspects any provider's env var: it cannot, because it sees no task and
+//     therefore no lane model (design doc §12.2).
 //  3. Calls `motoko --version` with a 5s timeout — if it succeeds, the
 //     version + git_rev are stashed in MotokoExecutor for telemetry.
 //     Failure here is NON-FATAL (older motoko binaries pre-M2c hang on
@@ -60,9 +64,6 @@ func (e *MotokoExecutor) runHealthCheck(ctx context.Context) error {
 	}
 	if runtime.GOOS != "windows" && info.Mode().Perm()&0111 == 0 {
 		return fmt.Errorf("motoko binary at %q is not executable (chmod +x)", motokoPath)
-	}
-	if os.Getenv("OPENROUTER_API_KEY") == "" {
-		return fmt.Errorf("OPENROUTER_API_KEY not set — motoko routes ALL models via OpenRouter; set this env var or expect every Execute to fail at the wrapper's pre-flight check")
 	}
 
 	// Best-effort version query (M-MOTOKO-EVAL-HARNESS-HARDENING M2c). Older

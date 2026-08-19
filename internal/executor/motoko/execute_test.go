@@ -52,8 +52,14 @@ exit 0
 	}
 
 	exec, err := New(&executor.Config{
-		MotokoPath:    mockMotoko,
-		MotokoModel:   "openrouter/anthropic/claude-haiku-4-5",
+		MotokoPath: mockMotoko,
+		// D1 (M-MOTOKO-FMT-REMEASUREMENT-INSTRUMENT): this test exercises the mock
+		// JSONL pipeline, not any provider binding — the mock is a bash stub that
+		// never dials a provider. Agent the ollama lane model so the run is not
+		// refused by the per-task pre-flight when OPENROUTER_API_KEY is unset
+		// (CI). An explicit openrouter model here would re-fragilize the whole
+		// test on the ambient key.
+		MotokoModel:   "ollama/qwen3.6:35b-a3b-mxfp8",
 		MotokoProfile: "dogfood",
 	})
 	if err != nil {
@@ -128,7 +134,8 @@ exit 0
 		t.Fatal(err)
 	}
 
-	exec, _ := New(&executor.Config{MotokoPath: mockMotoko})
+	exec, _ := New(&executor.Config{MotokoPath: mockMotoko,
+		MotokoModel: "ollama/qwen3.6:35b-a3b-mxfp8"})
 	res, err := exec.Execute(context.Background(), &executor.Task{
 		Workspace: wsDir,
 		Directive: "any",
@@ -201,7 +208,8 @@ exit 0
 		t.Fatal(err)
 	}
 
-	exec, _ := New(&executor.Config{MotokoPath: mockMotoko})
+	exec, _ := New(&executor.Config{MotokoPath: mockMotoko,
+		MotokoModel: "ollama/qwen3.6:35b-a3b-mxfp8"})
 
 	if _, err := exec.Execute(context.Background(), &executor.Task{
 		Workspace: wsDir,
@@ -282,7 +290,8 @@ exit 0
 		t.Fatalf("creating workspace: %v", err)
 	}
 
-	exec, err := New(&executor.Config{MotokoPath: mockMotoko})
+	exec, err := New(&executor.Config{MotokoPath: mockMotoko,
+		MotokoModel: "ollama/qwen3.6:35b-a3b-mxfp8"})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -357,7 +366,8 @@ exit 0
 	if err := os.MkdirAll(wsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	exec, _ := New(&executor.Config{MotokoPath: mockMotoko})
+	exec, _ := New(&executor.Config{MotokoPath: mockMotoko,
+		MotokoModel: "ollama/qwen3.6:35b-a3b-mxfp8"})
 	_, err := exec.Execute(context.Background(), &executor.Task{
 		Workspace: wsDir,
 		Directive: "any",
@@ -399,7 +409,8 @@ func TestExecute_NoJSONLFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exec, _ := New(&executor.Config{MotokoPath: mockMotoko})
+	exec, _ := New(&executor.Config{MotokoPath: mockMotoko,
+		MotokoModel: "ollama/qwen3.6:35b-a3b-mxfp8"})
 	res, err := exec.Execute(context.Background(), &executor.Task{
 		Workspace: wsDir,
 		Directive: "any",
@@ -442,7 +453,8 @@ exit 1
 		t.Fatal(err)
 	}
 
-	exec, _ := New(&executor.Config{MotokoPath: mockMotoko})
+	exec, _ := New(&executor.Config{MotokoPath: mockMotoko,
+		MotokoModel: "ollama/qwen3.6:35b-a3b-mxfp8"})
 	res, err := exec.Execute(context.Background(), &executor.Task{
 		Workspace: wsDir,
 		Directive: "any",
@@ -494,7 +506,8 @@ exit 1
 		t.Fatal(err)
 	}
 
-	exec, _ := New(&executor.Config{MotokoPath: mockMotoko})
+	exec, _ := New(&executor.Config{MotokoPath: mockMotoko,
+		MotokoModel: "ollama/qwen3.6:35b-a3b-mxfp8"})
 	res, err := exec.Execute(context.Background(), &executor.Task{
 		Workspace: wsDir,
 		Directive: "any",
@@ -544,7 +557,8 @@ exit 1
 		t.Fatal(err)
 	}
 
-	exec, _ := New(&executor.Config{MotokoPath: mockMotoko})
+	exec, _ := New(&executor.Config{MotokoPath: mockMotoko,
+		MotokoModel: "ollama/qwen3.6:35b-a3b-mxfp8"})
 	res, err := exec.Execute(context.Background(), &executor.Task{
 		Workspace:    wsDir,
 		Directive:    "any",
@@ -616,4 +630,96 @@ func TestLiveRun_Motoko(t *testing.T) {
 	t.Logf("live result: success=%v turns=%d cost=$%.6f tokens=%d/%d cache=%d/%d",
 		res.Success, res.NumTurns, res.CostUSD, res.InputTokens, res.OutputTokens,
 		res.CacheReadInputTokens, res.CacheCreationInputTokens)
+}
+
+// TestExecuteOrdering_RepoDiscoveryBeforeCredentialCheck pins the plan §3.3
+// ordering property (design doc §12.3): the per-task resolved-provider credential
+// check must NOT run ahead of repo discovery. If it did (the mutation the plan
+// names), an openrouter-default executor would refuse at HealthCheck BEFORE the
+// `motoko --version` query runs, so e.motokoRepo would never be populated and
+// the child process (which captures MOTOKO_REPO) would never be spawned.
+//
+// The observable is the child's captured MOTOKO_REPO value — a path string, not
+// a boolean: with the unmutated engine it is the repo the mock version query
+// reported; under the mutation it is absent/UNSET because no subprocess runs.
+//
+// KEY TRICK for the mutation to be fatal: the executor is built WITHOUT an
+// explicit model (New defaults to openrouter/anthropic/claude-haiku-4-5), while
+// the TASK carries an ollama model. The unmütated engine admits the ollama task
+// and spawns the child; a mutation that checks creds before the version query
+// uses the executor's openrouter model with the key unset -> refuses -> no repo,
+// no child, row fails.
+func TestExecuteOrdering_RepoDiscoveryBeforeCredentialCheck(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("bash mock binary requires POSIX shell")
+	}
+
+	tmp := t.TempDir()
+	mockMotoko := filepath.Join(tmp, "motoko")
+	envDump := filepath.Join(tmp, "received-env.txt")
+	mockScript := `#!/bin/bash
+set -e
+for arg in "$@"; do
+  if [ "$arg" = "--version" ]; then
+    echo "motoko_repo=/tmp/fake-motoko-repo"
+    echo "git_rev=abc123"
+    echo "ailang_built=1"
+    echo "tui_version=1.2.3"
+    exit 0
+  fi
+done
+LOGDIR="$WORKDIR/.motoko/logfile"
+mkdir -p "$LOGDIR"
+SESSION="${MOTOKO_SESSION_ID:-session_unknown}"
+echo "MOTOKO_REPO=${MOTOKO_REPO:-UNSET}" > "` + envDump + `"
+cat > "$LOGDIR/$SESSION.jsonl" <<EOF
+{"schema_version":"1","session_id":"$SESSION","type":"session_start","task":"x","model":"x","brainVersion":"0.2.0"}
+{"schema_version":"1","session_id":"$SESSION","type":"run_summary","finish_reason":"stop","duration_ms":1,"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}
+EOF
+exit 0
+`
+	if err := os.WriteFile(mockMotoko, []byte(mockScript), 0755); err != nil {
+		t.Fatalf("writing mock binary: %v", err)
+	}
+	wsDir := filepath.Join(tmp, "ws")
+	if err := os.MkdirAll(wsDir, 0755); err != nil {
+		t.Fatalf("creating workspace: %v", err)
+	}
+
+	// Force the key-unset leg so a mutation that checks the e-model's credential
+	// BEFORE the version query actually refuses.
+	t.Setenv("OPENROUTER_API_KEY", "")
+
+	// No explicit MotokoModel: New defaults e.model to openrouter (V31). This is
+	// load-bearing for the mutation's refusal.
+	exec, _ := New(&executor.Config{MotokoPath: mockMotoko})
+	if err := exec.HealthCheck(context.Background()); err != nil {
+		t.Fatalf("HealthCheck: %v", err)
+	}
+	if exec.motokoRepo != "/tmp/fake-motoko-repo" {
+		t.Fatalf("motokoRepo = %q, want /tmp/fake-motoko-repo (version query must have fired first)", exec.motokoRepo)
+	}
+
+	res, err := exec.Execute(context.Background(), &executor.Task{
+		Workspace: wsDir,
+		Directive: "any",
+		// The per-task model is ollama (the rooted lane); the executor-level default
+		// being openrouter is what makes the mutation predictable.
+		Model: "ollama/qwen3.6:35b-a3b-mvp",
+	})
+	if err != nil {
+		t.Fatalf("Execute of ollama task: %v", err)
+	}
+	if !res.Success {
+		t.Fatalf("ollama task did not succeed: %s", res.Error)
+	}
+
+	dump, err := os.ReadFile(envDump)
+	if err != nil {
+		t.Fatalf("reading env dump: %v", err)
+	}
+	got := strings.TrimSpace(string(dump))
+	if got != "MOTOKO_REPO=/tmp/fake-motoko-repo" {
+		t.Errorf("child MOTOKO_REPO = %q — repo discovery must run ahead of the credential refusal (plan T-ORDER)", got)
+	}
 }

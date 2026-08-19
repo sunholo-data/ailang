@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/executor"
@@ -106,50 +108,93 @@ func TestCapabilities(t *testing.T) {
 	}
 }
 
-// TestHealthCheck_BinaryMissing verifies HealthCheck returns a clear error
-// when the configured motoko path does not exist.
+// TestHealthCheck_BinaryMissing verifies HealthCheck refuses a missing
+// binary, and the error names + QUOTES the configured path (the refusal-branch
+// rule: an error value is reachable from every branch, so the observable must
+// be the path — plan §3.1, row T-B1).
 func TestHealthCheck_BinaryMissing(t *testing.T) {
 	exec, _ := New(&executor.Config{MotokoPath: "/definitely/not/a/real/binary/motoko-xyz"})
 	err := exec.HealthCheck(context.Background())
 	if err == nil {
 		t.Fatal("HealthCheck succeeded for missing binary; expected error")
 	}
+	msg := err.Error()
+	if !strings.Contains(msg, "motoko CLI not found at") ||
+		!strings.Contains(msg, `"/definitely/not/a/real/binary/motoko-xyz"`) {
+		t.Errorf("missing-binary error must name + quote the configured path; got: %q", msg)
+	}
 }
 
-// TestHealthCheck_MockBinary verifies the binary-existence + executability
-// check passes against a POSIX shell stub. motoko has no --version mode (any
-// flag becomes task input), so HealthCheck deliberately doesn't run the
-// binary — just verifies it exists, is a regular file, and is executable.
-func TestHealthCheck_MockBinary(t *testing.T) {
+// TestHealthCheck_PathIsDirectory covers the info.IsDir() branch (T-B2): the
+// error must name the configured path AND the "is a directory" diagnosis.
+func TestHealthCheck_PathIsDirectory(t *testing.T) {
+	tmpdir := t.TempDir()
+	dirPath := filepath.Join(tmpdir, "motoko")
+	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	exec, _ := New(&executor.Config{MotokoPath: dirPath})
+	err := exec.HealthCheck(context.Background())
+	if err == nil {
+		t.Fatal("HealthCheck succeeded against a directory; expected error")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "is a directory") || !strings.Contains(msg, dirPath) {
+		t.Errorf("directory-path error must name the path and diagnosis; got: %q", msg)
+	}
+}
+
+// TestHealthCheck_NotExecutable covers the exec-bit branch (T-B3). The branch
+// is guarded runtime.GOOS != "windows", so this row is darwin/posix-only by
+// construction — same skip pattern the plan assigns to it.
+func TestHealthCheck_NotExecutable(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("exec-bit refusal branch is darwin/posix-only (runtime.GOOS != windows)")
+	}
 	tmpdir := t.TempDir()
 	mockPath := filepath.Join(tmpdir, "motoko")
-	if err := os.WriteFile(mockPath, []byte("#!/bin/bash\nexit 0\n"), 0755); err != nil {
+	if err := os.WriteFile(mockPath, []byte("#!/bin/bash\nnot a real binary\n"), 0o644); err != nil {
+		t.Fatalf("write non-executable file: %v", err)
+	}
+	exec, _ := New(&executor.Config{MotokoPath: mockPath})
+	err := exec.HealthCheck(context.Background())
+	if err == nil {
+		t.Fatal("HealthCheck succeeded for a non-executable file; expected error")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "is not executable (chmod +x)") || !strings.Contains(msg, mockPath) {
+		t.Errorf("non-executable error must name the diagnosis and path; got: %q", msg)
+	}
+}
+
+// TestHealthCheck_MockBinary_VersionQueryAndNoKeyRefusal covers T-B4: on a
+// mock that answers `motoko --version`, HealthCheck returns NIL even with the
+// key UNSET (the behaviour change — this is the exact refusal M1 deleted), and
+// the version query still fires -> e.motokoRepo is populated. The motokoRepo
+// assertion is the positive half: "no error" is satisfiable by a HealthCheck
+// that never ran its version query at all.
+func TestHealthCheck_MockBinary_VersionQueryAndNoKeyRefusal(t *testing.T) {
+	tmpdir := t.TempDir()
+	mockPath := filepath.Join(tmpdir, "motoko")
+	// Deterministic: whatever the ambient shell holds, this row runs key-unset.
+	t.Setenv("OPENROUTER_API_KEY", "")
+	mock := "#!/bin/bash\n" +
+		"echo \"tui_version=1.2.3\"\n" +
+		"echo \"git_rev=abc123\"\n" +
+		"echo \"ailang_built=1\"\n" +
+		"echo \"motoko_repo=/tmp/fake-motoko-repo\"\n" +
+		"exit 0\n"
+	if err := os.WriteFile(mockPath, []byte(mock), 0755); err != nil {
 		t.Fatalf("failed to write mock binary: %v", err)
 	}
-
-	// HealthCheck also requires OPENROUTER_API_KEY to be set (wrapper
-	// pre-flight requirement). Set a placeholder for this test.
-	t.Setenv("OPENROUTER_API_KEY", "sk-or-test-stub-not-real")
 
 	exec, _ := New(&executor.Config{MotokoPath: mockPath})
 	if err := exec.HealthCheck(context.Background()); err != nil {
-		t.Errorf("HealthCheck against mock binary failed: %v", err)
+		t.Errorf("HealthCheck failed with key unset (was nil refusal): %v", err)
 	}
-}
-
-// TestHealthCheck_MissingAPIKey verifies HealthCheck fails clearly when
-// OPENROUTER_API_KEY is not set (motoko's wrapper requires it up-front).
-func TestHealthCheck_MissingAPIKey(t *testing.T) {
-	tmpdir := t.TempDir()
-	mockPath := filepath.Join(tmpdir, "motoko")
-	if err := os.WriteFile(mockPath, []byte("#!/bin/bash\nexit 0\n"), 0755); err != nil {
-		t.Fatalf("failed to write mock binary: %v", err)
-	}
-
-	t.Setenv("OPENROUTER_API_KEY", "")
-	exec, _ := New(&executor.Config{MotokoPath: mockPath})
-	if err := exec.HealthCheck(context.Background()); err == nil {
-		t.Errorf("HealthCheck succeeded with empty OPENROUTER_API_KEY; expected error")
+	if exec.motokoRepo != "/tmp/fake-motoko-repo" {
+		t.Errorf("version query did not populate motokoRepo (got %q, want /tmp/fake-motoko-repo)",
+			exec.motokoRepo)
 	}
 }
 
