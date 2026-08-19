@@ -2780,3 +2780,44 @@ above), but "the destination gained what the source lost" is a property of every
    above a transcript that ends by announcing a wait. Then confirm with Gate 2's died-mid-flight
    traces (a stale worktree, an orphaned output file still growing after the exit) — those are
    mechanism-independent, which is the whole reason they outlive each fix.
+8. **THERE ARE TWO KINDS OF PARK AND THIS SKILL ONLY NAMES ONE — A DOC WAITING ON A QUOTA BUCKET IS
+   NOT `needs-human-review`, AND FILING IT AS ONE MANUFACTURES A DECISION THE HUMAN DOES NOT HAVE**
+   (added 2026-08-19 V1 iteration 229; two consecutive first-party frictions, 228 and 229). Every
+   park in this file resolves to one state: Gate 2's quorum flow parks `needs-human-review`, Gate 3's
+   round-3 evaluator failure parks `needs-human-review`, Gate 3b's timeout parks
+   `needs-human-review`. That is correct whenever the blocker is **judgment** — a contested design
+   direction, a red nobody can attribute, an objection needing a call only the human can make. It is
+   wrong, and expensively wrong, whenever the blocker is **capacity**: a model lane that is
+   quota-exhausted, a rotation entry that is structurally incapable of the role, a provider outage.
+   The two are indistinguishable once written down, and they have opposite resume conditions — a
+   judgment park waits indefinitely and *must* appear in Gate 5's `DECISIONS FOR MARK`; a capacity
+   park unblocks on a **clock**, needs no ask, and must NOT appear there at all.
+   The failure mode is not merely cosmetic. Gate 0 unparks by looking for an allowlisted directive,
+   so a capacity park filed as a judgment park can only be cleared by a human answering a question
+   that was never real — and the human's queue is this loop's scarcest channel, which Gate 5 already
+   protects with a hard digest cap. In the other direction the next iteration inherits a park with no
+   machine-checkable resume predicate and must reconstruct the entire routing story from prose to
+   learn that it could simply have re-run.
+   Measured, both iterations, same rotation and same shape: `codex:gpt-5.6-sol` probed **rc=1**
+   ("usage limit … try again at Aug 20th, 2026 5:34 AM"), the next rotation entry
+   (gemini/managed_agents) is **read-only under `CapRemoteSandbox`** and cannot author a file at all,
+   so the designer resolved to Fable as a fallback — where the Fable diet allows **one** bounded run
+   per iteration. Iteration 228 spent two (create + revision) and FLAGGED the diet violation;
+   iteration 229 hit the identical wall on a round-1 block and declined to repeat it, at which point
+   there was no state in this skill that says *"a revision is owed, nothing is being asked of anyone,
+   and the lane returns at 05:34."*
+   **Rule.** Classify every park before writing it. **(a)** Judgment → `needs-human-review`, and it
+   carries a one-word-answerable ask into the Gate-5 DECISIONS row, as today. **(b)** Capacity →
+   **`PARKED-ON-LANE`**, and it MUST name three things: the role that could not run, the lane that
+   refused **with the command and its rc**, and the time or condition the lane returns. **(c)** A
+   `PARKED-ON-LANE` item never enters DECISIONS and never counts as a decision in the ledger — if you
+   find yourself writing an ask whose answer is "wait", you have misclassified it. **(d)** Its resume
+   is a **predicate, not a narrative**: the next iteration re-probes the named lane and proceeds on
+   rc=0, exactly as the blocked-external-row rule requires the predicate be run as a command rather
+   than transcribed. **(e)** When a lane park recurs for the same role in consecutive iterations,
+   that is a routing-policy signal, not a fact about the item — surface it in the report, because the
+   loop cannot widen its own rotation but the human can.
+   Mission-independent by construction: every mission on this rig shares one rotation file and the
+   same quota buckets, so all three hit this the same way. The tell: you are about to file
+   `needs-human-review` and the sentence explaining why contains a **reset time**, a **quota**, or
+   the phrase "no other route".
