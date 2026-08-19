@@ -1473,6 +1473,41 @@ the Repo Profile above):
    mutant, and require rc=0 — that is what proves *your* test is the killer rather than a
    bystander. The tell: a milestone's headline verb is "reject", "refuse", "validate" or "exit
    non-zero", and your mutation list has one entry.
+   **AND THAT `rc=0` INVERSE IS CORRECT ONLY FOR A MUTANT PROVEN TO BE SINGLE-TEST — FOR ANY OTHER
+   IT IS UNSATISFIABLE BY CONSTRUCTION, AND FAILING IT READS EXACTLY LIKE "YOUR ARM IS A
+   BYSTANDER"** (added 2026-08-19 V1 iteration 227; proposed by `mission-world` iter-94 at the
+   ≥2-friction bar, corroborated first-party in V1's own log before adoption — sibling-claim ghost
+   discipline — and then met a third time in the adopting iteration's own drill). The sentence
+   immediately above prescribes the inverse arm **unconditionally**, and that is the half that
+   fails: a mutant whose blast radius exceeds one test reds *other* arms too, so `-skip <your arm>`
+   returns non-zero however honest your arm is. The criterion is then measuring the **mutant's
+   reach**, not the arm's honesty — and it fails in the direction that reads as a confession, so
+   the natural response is to weaken or delete a test that was doing its job. Note which mutants
+   trigger it: the ones that reach furthest, i.e. the ones whose guards matter most.
+   The symmetric error is worse and is what World hit. A doc or test-plan row that **states** an
+   expected red set instead of **running** it will score a **correct** mutant as a failed arm:
+   `MU-DEADLINE-DETACH` declared a two-test set plus "any red outside that set fails the arm", and
+   the measured set is **four** — the extra two are the mutant's own phenotype. Implemented to the
+   letter, the doc would have rejected a working mutation; reproduced by four roles independently.
+   V1's own two: iteration 225 saw **4 of 12** mutants fail the `rc=0` criterion, read at first as
+   "4 vacuous arms", until enumeration showed M1 killed **5** arms, M7 **6**, M4 four, M5 two —
+   with the named arm among the killers every time; and iteration 227 found **5 of 10** mutants
+   broad-blast (red sets of 3, 2, 4, 4 and 6), so the criterion was inapplicable to half the drill.
+   **Rule. (a)** Classify each mutant by blast radius *before* choosing a criterion — that means
+   running it once and reading the red set, not predicting it. **(b)** Single-test mutant →
+   `-skip <arm>` rc=0 is correct, and it is the strongest evidence available; keep it. **(c)**
+   Otherwise the expected result is an **enumerated set of failing test names, produced by running
+   it**, and the check is "the named arm is IN the set, and every other member is explained" —
+   never `rc=0`. **(d)** A red set written into a plan, doc or mutation table before anyone executed
+   it is a claim, not a measurement (rule 3b(v)(a) aimed at a red SET rather than a count, and
+   3b(ix)'s scope discipline aimed at the same); a document cannot enumerate a set it has not run.
+   **(e)** Report *sole killer* separately from *set membership*: sole-killer is the finding a green
+   suite can never give you, and collapsing the two is what made iteration 225's one genuine
+   zero-killer arm illegible among four false alarms. Mission-independent, and the generalisation
+   is this skill's own recurring shape: **a criterion is an instrument too** — when it fails, ask
+   first whether it could have succeeded. The tell: you are about to write "vacuous arm",
+   "bystander" or "the drill did not pin this", and the mutants that failed your criterion are the
+   ones you would have predicted to reach furthest.
    **AND A GATE'S COVERAGE IS A PROPERTY OF ITS *ENUMERATOR*, ONE LEVEL BELOW ITS BRANCHES — SO
    EVERY BRANCH CAN BE PINNED AND THE GATE STILL SEE NOTHING** (added 2026-08-12 V1 iteration 187;
    proposed by `mission-world` iter-77 with a first-party instance, corroborated in V1's own
