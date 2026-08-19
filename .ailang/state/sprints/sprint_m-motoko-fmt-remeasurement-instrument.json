@@ -1,0 +1,178 @@
+{
+  "sprint_id": "m-motoko-fmt-remeasurement-instrument",
+  "title": "D1 + D1b + D2 + smoke-bank wiring for the motoko fmt re-measurement instrument",
+  "created": "2026-08-20",
+  "branch": "sprint/motoko-iter14-fmt-d1",
+  "worktree": "/Users/voightkampff/.ailang-driver-pin/.wt-motoko-iter14-fmt-d1",
+  "base_commit": "44aa3cab4",
+  "design_doc": "design_docs/planned/m-motoko-fmt-remeasurement-instrument.md",
+  "plan_path": "design_docs/planned/m-motoko-fmt-remeasurement-instrument-sprint-plan.md",
+  "github_issues": [558, 649],
+  "platform": "darwin/arm64 (macOS 26.5.2) — windows and ubuntu CI legs are UNRUN locally; every BASE result below is darwin/arm64 only",
+  "risk_level": "medium",
+  "velocity": {
+    "target_loc_per_day": 500,
+    "estimated_total_loc": 1525,
+    "estimated_days": 3.0
+  },
+  "key_decision": {
+    "question": "Which of design doc s12.2's three D1 options?",
+    "chosen": "option (2), refined — remove the unconditional OPENROUTER_API_KEY refusal from runHealthCheck; add a resolved-provider credential check at the top of MotokoExecutor.ExecuteStreaming keyed on e.getModel(task)",
+    "doc_preference_refuted": "option (1) (set cfg.MotokoModel from models.yml at construction)",
+    "refutation": [
+      "executor.GlobalFactory() builds ONE factory ONCE from DefaultConfig() (factory.go:178-182) and caches executors by NAME (factory.go:96-122). SetGlobalFactory has ZERO non-test callers. So cfg.MotokoModel is a process-global single string.",
+      "models.yml declares 17 lanes with agent_cli: motoko — 10 route via OpenRouter, 7 via ollama. One cached *MotokoExecutor serves all 17. There is no construction-time value that is correct for both halves.",
+      "HealthCheck is sync.Once-cached per executor (motoko.go:131-133, healthcheck.go:31-43). A model-dependent verdict computed there is frozen at whichever model canaried first, converting a loud uniform refusal into a silent order-dependent one."
+    ]
+  },
+  "baselines": [
+    {"command": "go build ./...", "base_result": "RED exit=1 — cmd/wasm: function main is undeclared in the main package. NOT usable as a gate.", "usable_as_gate": false},
+    {"command": "go build ./internal/... ./cmd/ailang/...", "base_result": "PASS exit=0", "usable_as_gate": true},
+    {"command": "go vet ./internal/executor/... ./internal/ai/...", "base_result": "PASS exit=0", "usable_as_gate": true},
+    {"command": "go test ./internal/executor/... ./internal/ai/...", "base_result": "PASS exit=0, 14/14 packages ok", "usable_as_gate": true},
+    {"command": "env -u OPENROUTER_API_KEY go test ./internal/executor/motoko/", "base_result": "PASS exit=0, ok 20.422s", "usable_as_gate": true},
+    {"command": "bash scripts/check_boundaries.sh", "base_result": "PASS exit=0 — 'OK: no architecture boundary violations'", "usable_as_gate": true},
+    {"command": "golangci-lint run ./internal/executor/motoko/... ./internal/eval_analysis/... ./cmd/ailang/...", "base_result": "PASS exit=0, 0 issues", "usable_as_gate": true},
+    {"command": "bash -n tools/launchd/nightly-eval.sh", "base_result": "PASS exit=0", "usable_as_gate": true},
+    {"command": "shellcheck -S warning tools/launchd/nightly-eval.sh", "base_result": "PASS exit=0, 0 findings", "usable_as_gate": true},
+    {"command": "grep -n OPENROUTER_API_KEY internal/executor/motoko/*.go | grep -v _test.go", "base_result": "1 hit (healthcheck.go:64); known-positive control over internal/ai/config.go returns 2 hits (:115,:143)", "usable_as_gate": true},
+    {"command": "go test ./internal/eval_analysis/... ./cmd/ailang/...", "base_result": "NOT BASELINED — executor must baseline before first edit and record the result", "usable_as_gate": true}
+  ],
+  "features": [
+    {
+      "id": "M1_D1_PROVIDER_CONDITIONAL_PREFLIGHT",
+      "description": "Remove the unconditional OPENROUTER_API_KEY refusal from runHealthCheck (healthcheck.go:64-66), keeping the binary/dir/exec-bit checks and the `motoko --version` query that discovers e.motokoRepo. Add internal/executor/motoko/provider_preflight.go with requireProviderCredential(model string) error, expressed as ai.EnvVarForProvider(ai.GuessProvider(model)) — never on the literal string OPENROUTER_API_KEY — and call it at the top of ExecuteStreaming with e.getModel(task). DELETE the now-stale TestHealthCheck_MissingAPIKey (motoko_test.go:141-154) per the no-backward-compatibility testing policy.",
+      "estimated_loc": 290,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "AC-M1-1: `go build ./internal/... ./cmd/ailang/...` exits 0 (BASE: PASS). `go build ./...` is NOT the gate — it is RED at base on cmd/wasm.",
+        "AC-M1-2: `go test ./internal/executor/... ./internal/ai/...` exits 0 (BASE: PASS, 14/14 ok).",
+        "AC-M1-3: `env -u OPENROUTER_API_KEY go test ./internal/executor/motoko/` exits 0 (BASE: PASS, ok 20.422s). Catches the measured hazard that 8 mock-binary Execute tests build with an empty MotokoModel that New() defaults to openrouter/anthropic/claude-haiku-4-5.",
+        "AC-M1-4: `bash scripts/check_boundaries.sh` exits 0 after the new internal/ai import (BASE: PASS).",
+        "AC-M1-5: `grep -n OPENROUTER_API_KEY internal/executor/motoko/*.go | grep -v _test.go` returns ZERO lines; known-positive control in the same sweep: the same grep over internal/ai/config.go returns :115 and :143 (BASE: 1 hit vs 2 control hits — instrument discriminates).",
+        "AC-M1-6: the full refusal-branch mutation matrix passes (T-B1..T-B6b, T-ORDER) and each neutering mutation `if false && <cond>` makes exactly its own row fail."
+      ],
+      "test_rows": [
+        {"id": "T-B1", "branch": "os.Stat error (binary missing)", "mutation": "if false && err != nil", "observable": "error contains 'motoko CLI not found at %q' AND the quoted path equals the configured MotokoPath"},
+        {"id": "T-B2", "branch": "info.IsDir()", "mutation": "if false && info.IsDir()", "observable": "error contains 'is a directory, expected an executable' and names the same path"},
+        {"id": "T-B3", "branch": "non-windows exec-bit clear", "mutation": "if false && (runtime.GOOS != \"windows\" && info.Mode().Perm()&0111 == 0)", "observable": "error contains 'is not executable (chmod +x)' and names the same path. darwin/arm64 only; windows leg unrun."},
+        {"id": "T-B4", "branch": "the DELETED OPENROUTER_API_KEY refusal", "mutation": "n/a — asserted by absence, admissible only because AC-M1-5 pairs it with a known-positive control grep", "observable": "HealthCheck on a mock binary with OPENROUTER_API_KEY unset returns nil AND version/motokoRepo parsing still ran"},
+        {"id": "T-B5", "branch": "resolved provider needs a key and it is unset -> refuse", "mutation": "if false && os.Getenv(envVar) == \"\"", "observable": "error names BOTH the resolved env var AND the model. Table: ollama/qwen3.6:35b-a3b-mxfp8 -> no error; ollama:qwen3.5 -> no error; openrouter/anthropic/claude-haiku-4-5 -> OPENROUTER_API_KEY; anthropic/claude-sonnet-4-6 -> OPENROUTER_API_KEY; claude-3-5-sonnet -> ANTHROPIC_API_KEY; gpt-5-codex -> OPENAI_API_KEY; gemini-3-1-pro -> GOOGLE_API_KEY. Value set = EnvVarForProvider's 5-way switch, in bijection with the mechanism; a boolean error/no-error observable would be decorative."},
+        {"id": "T-B5b", "branch": "key present -> proceed", "mutation": "if false && ... (inverted arm at the same site)", "observable": "for each keyed model, with the CORRECT env var set -> nil; with a DIFFERENT provider's var set instead -> still refuses. Kills an 'any API key is set' mutant."},
+        {"id": "T-B6", "branch": "GuessProvider returns \"\" (unresolvable model)", "mutation": "if false && provider == \"\"", "observable": "EnvVarForProvider(\"\") returns \"\" (config.go:117 default), so a naive impl passes silently. Per CLAUDE.md rule 2 the plan REQUIRES a loud refusal: error contains the model string and 'could not resolve provider'."},
+        {"id": "T-B6b", "branch": "coverage of the refusal against real config", "mutation": "n/a — coverage gate", "observable": "GuessProvider returns non-empty for ALL 17 agent_cli: motoko lanes read out of internal/eval_harness/models.yml, so a future unresolvable lane fails at add-time not rig-time"},
+        {"id": "T-ORDER", "branch": "design doc s12.3 — the resolved-provider check must NOT run ahead of MOTOKO_REPO discovery", "mutation": "move requireProviderCredential into runHealthCheck BEFORE the `motoko --version` query", "observable": "with a mock stub printing motoko_repo=/tmp/fake-repo for --version, the child process env captured by the stub contains MOTOKO_REPO=/tmp/fake-repo (non-empty). Under the mutation with the key unset the process is never spawned and no env is captured. Value set = the observed MOTOKO_REPO path, not a boolean."}
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_AC_D1_LIVE_CONNECTION_PROOF",
+      "description": "Add tools/eval/motoko_connection_probe.sh: run one motoko canary for a named models.yml lane, sample the ESTABLISHED TCP peer set of the motoko process tree once per second via `lsof -nP -iTCP -sTCP:ESTABLISHED -a -p <pid tree>`, resolve openrouter.ai up front with `dig +short` and record the resolved IP set in the artifact, then classify every observed peer as loopback / OR_IPS member / other. Always emit the full peer set — the artifact is the evidence and the verdict is a function of it. darwin/arm64 only; no root required.",
+      "estimated_loc": 160,
+      "dependencies": ["M1_D1_PROVIDER_CONDITIONAL_PREFLIGHT"],
+      "acceptance_criteria": [
+        "AC-D1-live (VERBATIM from design doc s12.4): With the fix in place, one fmt-lane run reaches localhost:11434 and makes ZERO connections to openrouter.ai. Assert on the connection, not on the absence of an error — an absence is satisfied equally by 'no OpenRouter call' and 'the run never started' (the observable must be unique to the mechanism). Pair it with a known-positive control: an OpenRouter-lane run in the same sweep must show the connection, or the instrument proves nothing.",
+        "AC-M2-treatment: for lane motoko-local-qwen3-6-fmt the observed peer set CONTAINS 127.0.0.1:11434 and contains NO member of OR_IPS. Any non-loopback peer outside OR_IPS does not fail the criterion but MUST be recorded.",
+        "AC-M2-control: for lane motoko-claude-haiku-4-5 with OPENROUTER_API_KEY set, the observed peer set CONTAINS at least one member of OR_IPS. If this control does not fire, AC-M2-treatment is VOID.",
+        "AC-M2-3: the artifact records OR_IPS, both peer sets, both lane names, probe start/end timestamps, and `uname -sm`.",
+        "This criterion may NOT be weakened to 'no error occurred' — the design doc forbids it explicitly."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Only non-local milestone: needs the rig (ollama serving qwen3.6 + motoko binary) and, for the control leg only, OPENROUTER_API_KEY plus a few cents of metered spend. ~15 min wall-clock."
+    },
+    {
+      "id": "M3_D1B_COUNTERBALANCED_WEDNESDAY_BLOCK",
+      "description": "Restructure the fmt block of tools/launchd/nightly-eval.sh (V22 cites lines 492-507; re-verified this session at the same lines) from the whole-arm `for arm in on off` loop wrapping one whole-suite eval-suite call, into the design doc s5.3 per-benchmark interleave: iterate the ELO-selected benchmarks in selection order and for benchmark index i (0-based) run both arms back-to-back — ON then OFF when i is even, OFF then ON when i is odd — each arm as one `eval-suite --benchmarks <b> --trials $FMT_TRIALS` invocation into the same per-arm --output dir. select_ab_benchmarks emits a comma-separated space-stripped list (nightly-eval.sh:225-232) so IFS=',' splitting is safe; repeated invocations into one output dir do not collide because bank filenames embed the bank time (V23). Everything downstream of the loop (eval-paired, count_passes, FMT_VALID, fmt_ab.jsonl) is untouched.",
+      "estimated_loc": 175,
+      "dependencies": ["M1_D1_PROVIDER_CONDITIONAL_PREFLIGHT"],
+      "acceptance_criteria": [
+        "AC-M3-1: `bash -n tools/launchd/nightly-eval.sh` exits 0 (BASE: PASS).",
+        "AC-M3-2: `shellcheck -S warning tools/launchd/nightly-eval.sh` exits 0 with 0 findings (BASE: PASS, 0 findings).",
+        "AC-M3-3: T-D1B order test — with a stub $BIN on PATH that appends \"$*\" to a log and exits 0, a 6-benchmark list produces exactly 12 eval-suite invocations whose (benchmark, arm) sequence is b0:on,b0:off, b1:off,b1:on, b2:on,b2:off, b3:off,b3:on, b4:on,b4:off, b5:off,b5:on, each naming exactly one benchmark.",
+        "AC-M3-4: the same log satisfies M4's order-integrity checker (contiguous same-(benchmark,arm) blocks; each benchmark's two blocks adjacent; |#ON-lead - #OFF-lead| <= 1), so the driver and the analyzer are proven to agree rather than each being right about a different schedule."
+      ],
+      "test_rows": [
+        {"id": "T-D1B-1", "mutation": "revert to `for arm in on off` around a whole-suite call", "observable": "stub invocation log: 2 invocations each naming 6 benchmarks, instead of 12 each naming 1"},
+        {"id": "T-D1B-2", "mutation": "fix the lead arm (ON always first) instead of alternating on i%2", "observable": "the (benchmark, arm) sequence gives #ON-lead=6, #OFF-lead=0, violating <=1. Observable value set = the 2^6 lead assignments, not a boolean."},
+        {"id": "T-D1B-3", "mutation": "pass $FMT_BENCH_LIST (all 6) instead of ${FMT_BENCHES[i]} inside the loop", "observable": "each logged invocation's --benchmarks argument has 6 comma-separated names instead of 1"}
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_D2_CENSORED_PAIR_ANALYZER",
+      "description": "New SIBLING command `ailang eval-censored-pairs <on-dir> <off-dir>` — NOT an extension of eval-paired, justified by measurement: eval-paired's stdout JSON is a live contract piped through paired_summary at nightly-eval.sh:512 and banked, and the Monday microRAG block calls the same command. Adds internal/eval_analysis/censored.go (design doc s2 verdict, s5 void rules, s7 decision rule), cmd/ailang/eval_censored.go, +1 case in main.go, +1 help line, +1 eval_remote_read.go map entry, and two additive read-side fields on eval_analysis.BenchmarkResult: FmtHookState `json:\"fmt_hook_state,omitempty\"` and FmtHookEvents `json:\"fmt_hook_events,omitempty\"` (measured gap: BenchmarkResult carries MicroRAGState but no fmt field, while Validity/Timestamp/Trial/token fields are already present; the banked keys exist at eval_harness/metrics.go:138,143). Reuses exactBinomialTwoSided/binomialPMF at eval_analysis/paired.go:205-231.",
+      "estimated_loc": 710,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "AC-M4-1: `go test ./internal/eval_analysis/... ./cmd/ailang/...` exits 0. BASE NOT RECORDED — the executor must baseline this before its first edit; a red base is a repo finding, not a sprint failure.",
+        "AC-M4-2: `golangci-lint run ./internal/eval_analysis/... ./cmd/ailang/... ./internal/executor/motoko/...` exits 0 with 0 issues (BASE: PASS, 0 issues).",
+        "AC-M4-3: `ailang eval-paired --with-pairs=true eval_results/ab2_fmt_on eval_results/ab2_fmt_off` produces BYTE-IDENTICAL stdout before and after M4 — proves the sibling command did not disturb the live contract.",
+        "AC-M4-4: the fixture verdict matrix passes (T-D2-VOID-ORDER, T-D2-VOID-TREAT-ON, T-D2-VOID-TREAT-OFF, T-D2-CENSOR, T-D2-MARGIN, T-D2-KEEP-3).",
+        "AC-M4-5: run against the REAL banked AC5 arms eval_results/ab2_fmt_{on,off}, the analyzer reports VOID with an order-integrity reason — known in advance from V19, independently measured, and NOT the happy path."
+      ],
+      "test_rows": [
+        {"id": "T-D2-VOID-ORDER", "mutation": "neuter the order-integrity gate", "observable": "on a perfect-arm-block fixture the (verdict, void_reason) pair changes from (VOID, order_integrity) to a numeric verdict. 4 verdicts x N reasons, not 'did it error'."},
+        {"id": "T-D2-VOID-TREAT-ON", "mutation": "neuter the >20% ON-quarantined rule", "observable": "fixture with 2/6 ON rows validity.valid=false: verdict changes from (VOID, treatment_unproven_rate)"},
+        {"id": "T-D2-VOID-TREAT-OFF", "mutation": "neuter the OFF-contamination rule", "observable": "fixture with 1 OFF row carrying fmt_hook_events: verdict changes from (VOID, control_contaminated)"},
+        {"id": "T-D2-CENSOR", "mutation": "neuter s2 rule 1 (one-passes-wins) so both-fail and one-passes both tie", "observable": "fixture with 10 one-arm-passes pairs: the (n_eff, W, verdict) triple goes 10->0 and KEEP->RETIRE"},
+        {"id": "T-D2-MARGIN", "mutation": "neuter the |log ratio| <= 0.10 practical-equivalence margin", "observable": "fixture of both-pass pairs all within +-5%: n_eff 0->12 with a spurious W"},
+        {"id": "T-D2-KEEP-3", "mutation": "neuter each of the three KEEP conjuncts in turn (sign test / both-pass median token ratio <= 0.90 / McNemar guardrail)", "observable": "three fixtures each failing exactly one conjunct must all be non-KEEP; a mutant dropping any conjunct returns KEEP on its own fixture"},
+        {"id": "T-D2-REAL", "mutation": "none — end-to-end oracle", "observable": "the real banked AC5 arms yield VOID with an order-integrity reason (V19 established this before the analyzer existed)"}
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Parallel-safe with M1/M2/M3/M5 — touches internal/eval_analysis + cmd/ailang only. Out of scope this sprint: the s5.1 'void run pages the mission via ailang messages send' wiring; the analyzer emits the void verdict + reason on stdout and exits non-zero, and paging is driver policy."
+    },
+    {
+      "id": "M5_SMOKE_BANK_WIRING",
+      "description": "Wire the design doc s5.2 new-tree contract check into the nightly fmt block immediately before M3's interleave loop: one smoke bank of 1 benchmark x 1 trial on the ON arm, asserting (a) the ported extension still writes <workspace>/.claude/fmt_hook_events.jsonl with the {status,file} schema and (b) the new-tree step-0 broadcast still names the extension `fmt` in resolved_extensions. NO NEW ASSERTION LOGIC IS WRITTEN — check (b) is exactly eval_harness.ResolveFmtArm (fmt_treatment.go:28-47, exact fmt#N name match) and check (a) is exactly AssertFmtTreatmentIntegrity(\"on\", events) (fmt_treatment.go:60-92, which already demands >=1 event AND >=1 with status=formatted). The smoke check reads the banked row's validity and fmt_hook_state. On failure the block logs the specific failing contract, sends `ailang messages send controlplane`, sets RUN_AB_FMT=0 and does NOT enter the measurement loop — modelled on the existing select_ab_benchmarks-returned-nothing path at nightly-eval.sh:480-487.",
+      "estimated_loc": 190,
+      "dependencies": ["M3_D1B_COUNTERBALANCED_WEDNESDAY_BLOCK"],
+      "acceptance_criteria": [
+        "AC-M5-1: `bash -n tools/launchd/nightly-eval.sh` and `shellcheck -S warning tools/launchd/nightly-eval.sh` both exit 0 with 0 findings (BASE: PASS / PASS).",
+        "AC-M5-2: T-D2-SMOKE — when the stub smoke bank produces a row with fmt_hook_state=off, the driver logs the contract failure, sets RUN_AB_FMT=0, and emits ZERO `eval-suite --trials 5` invocations. Killed mutation: neutering the smoke gate (`if false && <smoke_failed>`) yields 12 measurement invocations instead of 0. Observable: the stub's invocation log (value set = the set of invocations, not a boolean).",
+        "AC-M5-3: the happy path — a stub smoke row with fmt_hook_state=on and a status=formatted event — proceeds into M3's interleave and emits the full 12 invocations. Without this row, AC-M5-2 is satisfiable by a driver that always skips."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "deployment_precondition": {
+    "name": "AC-DEPLOY",
+    "gates": "the first measured Wednesday slot, NOT the sprint's merge",
+    "why": "merging to origin/dev does not put the fix on the rig — the installed plist executes nightly-eval.sh IN PLACE from V1's checkout (open issue #558, the stale-checkout defect)",
+    "steps": [
+      "SCRIPT=$(/usr/libexec/PlistBuddy -c \"Print :ProgramArguments\" ~/Library/LaunchAgents/dev.ailang.nightly-eval.plist | sed -n '3p' | tr -d ' ')  — read the path FROM THE INSTALLED PLIST, never from any working-tree path",
+      "confirm the script AT $SCRIPT contains the D1b per-benchmark interleave (no `for arm in on off` wrapping a whole-suite call)",
+      "confirm the `ailang` binary that $SCRIPT invokes as $BIN reports a git rev containing M1's commit (`$BIN --version`)",
+      "until BOTH reads pass, no Wednesday slot counts as a measurement attempt"
+    ],
+    "verified_this_session": "PlistBuddy on dev.ailang.nightly-eval.plist -> {/bin/bash, /Users/voightkampff/dev/sunholo-data/ailang/tools/launchd/nightly-eval.sh}, exit 0. Known-negative control: the same command on a nonexistent plist exits 1 with 'Entry Does Not Exist' — so absence is a measurement, not a silent zero."
+  },
+  "instrument_warnings": [
+    "The go.mod module path is github.com/sunholo-data/ailang, NOT github.com/sunholo/ailang. An import grep anchored on the wrong path returns a confident silent ZERO. Anchor every import grep on the go.mod path and pair it with a known-positive control.",
+    "`go build ./...` is RED at base (cmd/wasm builds only under GOOS=js). Use `go build ./internal/... ./cmd/ailang/...`.",
+    "OPENROUTER_API_KEY is set in the interactive shell on this machine (len 73), so a bare `go test` masks the CI behaviour. Use `env -u OPENROUTER_API_KEY` for the M1 regression gate."
+  ],
+  "risks": [
+    {"id": "R1", "risk": "The 8 mock-binary Execute tests break in CI where OPENROUTER_API_KEY is unset (they pass locally only because the ambient env has it)", "mitigation": "AC-M1-3 (`env -u OPENROUTER_API_KEY go test ./internal/executor/motoko/`) is the gate; green at base"},
+    {"id": "R2", "risk": "T-B6's loud refusal on an unresolvable provider refuses a legitimate lane", "mitigation": "T-B6b asserts GuessProvider resolves all 17 motoko lanes read from models.yml, so a future unresolvable lane fails at add-time"},
+    {"id": "R3", "risk": "AC-M2-control needs OPENROUTER_API_KEY, a few cents of metered spend, and the rig", "mitigation": "one trivial canary on the cheapest OpenRouter motoko lane; if the control does not fire, AC-M2-treatment is VOID and this plan does not soften that"},
+    {"id": "R4", "risk": "D2's shape drifts from the doc's s2/s5/s7 during implementation", "mitigation": "every D2 rule is quoted from the doc, and AC-M4-5 pins the analyzer against the real AC5 dataset whose correct verdict (VOID, order integrity) was established by V19 before the analyzer existed"},
+    {"id": "R5", "risk": "The fix merges but never reaches the rig (issue #558)", "mitigation": "AC-DEPLOY reads the script at the installed-plist path plus the $BIN git rev; until both pass, no slot counts"},
+    {"id": "R6", "risk": "M4's new BenchmarkResult fields collide with the existing loader's strictness", "mitigation": "additive with omitempty and JSON tags copied from the already-banked keys (metrics.go:138,143); AC-M4-3 asserts eval-paired's output is byte-identical before and after"}
+  ],
+  "execution_order": "M1 -> M2 -> M3 -> M5, with M4 parallel-safe (disjoint files). M3 must land before M5.",
+  "scope_note": "The full D1 + D1b + D2 + smoke-bank scope FITS in 3.0 days. Nothing is deferred to a follow-up sprint. The one item that is not purely local is M2's AC-D1-live, which needs the rig and (control leg only) OPENROUTER_API_KEY."
+}
