@@ -18,6 +18,12 @@ import (
 const (
 	xmlMaxDepth     = 256
 	xmlMaxInputSize = 50 * 1024 * 1024 // 50MB
+
+	// xmlNamespaceURI is the namespace the "xml" prefix is bound to by
+	// definition (XML Namespaces §3). It is never declared with an xmlns
+	// attribute — the spec forbids binding it to any other prefix — so it
+	// can never appear in a prefixMap and must be recognised structurally.
+	xmlNamespaceURI = "http://www.w3.org/XML/1998/namespace"
 )
 
 func init() {
@@ -131,7 +137,7 @@ func registerXmlParse() {
 		Impl:    xmlParseImpl,
 		Metadata: &BuiltinMetadata{
 			Description: "Parse an XML string into an XmlNode tree",
-			LongDesc:    "Parses well-formed XML into an XmlNode algebraic data type tree. Supports elements, text, CDATA, and comments. Namespace prefixes are preserved in tag names (e.g., w:p). Rejects input >50MB and depth >256.",
+			LongDesc:    "Parses well-formed XML into an XmlNode algebraic data type tree. Supports elements, text, CDATA, and comments. Namespace prefixes are preserved on tags and attributes (e.g., w:p, w:val); the implicitly-bound xml prefix is recognised structurally, so xml:space/xml:lang/xml:id keep it. Whitespace-only text nodes are dropped unless xml:space=\"preserve\" is in scope, which is inherited by descendants until an xml:space=\"default\" overrides it. Rejects input >50MB and depth >256.",
 			Params: []ParamDoc{
 				{Name: "xml", Description: "XML string to parse"},
 			},
@@ -172,7 +178,7 @@ func xmlParseImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) 
 	}
 
 	decoder := xml.NewDecoder(strings.NewReader(input))
-	children, err := parseXmlChildren(decoder, 0, nil)
+	children, err := parseXmlChildren(decoder, 0, nil, false)
 	if err != nil {
 		return xmlMakeErr(fmt.Sprintf("XML parse error: %v", err)), nil
 	}
@@ -280,7 +286,7 @@ func scanForElements(decoder *xml.Decoder, tagName string, limit int, results *[
 				// Build subtree for this matched element
 				localPM := extractPrefixMap(t, nil)
 				attrs := buildAttrs(t, localPM)
-				childNodes, err := parseXmlChildren(decoder, 1, localPM)
+				childNodes, err := parseXmlChildren(decoder, 1, localPM, spaceMode(t, false))
 				if err != nil {
 					return false
 				}
@@ -391,7 +397,7 @@ func xmlParseWithLimitImpl(_ *effects.EffContext, args []eval.Value) (eval.Value
 	nodeCount := 0
 
 	decoder := xml.NewDecoder(strings.NewReader(input))
-	children, err := parseXmlChildrenLimited(decoder, 0, nil, &nodeCount, maxNodes)
+	children, err := parseXmlChildrenLimited(decoder, 0, nil, &nodeCount, maxNodes, false)
 	if err != nil {
 		return xmlMakeErr(fmt.Sprintf("XML parse error: %v", err)), nil
 	}
@@ -405,7 +411,7 @@ func xmlParseWithLimitImpl(_ *effects.EffContext, args []eval.Value) (eval.Value
 	return xmlMakeOk(makeXmlElement("", nil, children)), nil
 }
 
-func parseXmlChildrenLimited(decoder *xml.Decoder, depth int, pm *prefixMap, nodeCount *int, maxNodes int) ([]eval.Value, error) {
+func parseXmlChildrenLimited(decoder *xml.Decoder, depth int, pm *prefixMap, nodeCount *int, maxNodes int, preserve bool) ([]eval.Value, error) {
 	if depth > xmlMaxDepth {
 		return nil, fmt.Errorf("maximum depth exceeded (%d)", xmlMaxDepth)
 	}
@@ -428,7 +434,7 @@ func parseXmlChildrenLimited(decoder *xml.Decoder, depth int, pm *prefixMap, nod
 			}
 			localPM := extractPrefixMap(t, pm)
 			attrs := buildAttrs(t, localPM)
-			childNodes, err := parseXmlChildrenLimited(decoder, depth+1, localPM, nodeCount, maxNodes)
+			childNodes, err := parseXmlChildrenLimited(decoder, depth+1, localPM, nodeCount, maxNodes, spaceMode(t, preserve))
 			if err != nil {
 				return nil, err
 			}
@@ -439,7 +445,7 @@ func parseXmlChildrenLimited(decoder *xml.Decoder, depth int, pm *prefixMap, nod
 			return children, nil
 
 		case xml.CharData:
-			if !isAllWhitespace(t) {
+			if preserve || !isAllWhitespace(t) {
 				*nodeCount++
 				if *nodeCount > maxNodes {
 					return nil, fmt.Errorf("node limit exceeded: %d nodes (max %d)", *nodeCount, maxNodes)
@@ -487,6 +493,13 @@ func resolveTagName(name xml.Name, pm *prefixMap) string {
 	if name.Space == "" {
 		return name.Local
 	}
+	// The "xml" prefix is bound by definition and must not be declared, so no
+	// prefixMap can ever resolve it. Without this, xml:space / xml:lang / xml:id
+	// all arrive as bare "space" / "lang" / "id" — indistinguishable from an
+	// unprefixed attribute of the same name, and unreachable via getAttr.
+	if name.Space == xmlNamespaceURI {
+		return "xml:" + name.Local
+	}
 	if pm != nil {
 		if prefix := pm.lookupPrefix(name.Space); prefix != "" {
 			return prefix + ":" + name.Local
@@ -495,7 +508,29 @@ func resolveTagName(name xml.Name, pm *prefixMap) string {
 	return name.Local
 }
 
-func parseXmlChildren(decoder *xml.Decoder, depth int, pm *prefixMap) ([]eval.Value, error) {
+// spaceMode reports whether whitespace inside start's content is significant.
+//
+// xml:space (XML 1.0 §2.10) takes exactly "preserve" or "default" and is
+// INHERITED by descendants until overridden, so the answer for an element is a
+// function of its own attribute and its ancestors'. A value the spec does not
+// define is not an override — it inherits, which is the lenient reading and
+// matches parseLenient's contract for real-world documents.
+func spaceMode(start xml.StartElement, inherited bool) bool {
+	for _, a := range start.Attr {
+		if a.Name.Local != "space" || a.Name.Space != xmlNamespaceURI {
+			continue
+		}
+		switch a.Value {
+		case "preserve":
+			return true
+		case "default":
+			return false
+		}
+	}
+	return inherited
+}
+
+func parseXmlChildren(decoder *xml.Decoder, depth int, pm *prefixMap, preserve bool) ([]eval.Value, error) {
 	if depth > xmlMaxDepth {
 		return nil, fmt.Errorf("maximum depth exceeded (%d)", xmlMaxDepth)
 	}
@@ -514,7 +549,7 @@ func parseXmlChildren(decoder *xml.Decoder, depth int, pm *prefixMap) ([]eval.Va
 		case xml.StartElement:
 			localPM := extractPrefixMap(t, pm)
 			attrs := buildAttrs(t, localPM)
-			childNodes, err := parseXmlChildren(decoder, depth+1, localPM)
+			childNodes, err := parseXmlChildren(decoder, depth+1, localPM, spaceMode(t, preserve))
 			if err != nil {
 				return nil, err
 			}
@@ -525,7 +560,7 @@ func parseXmlChildren(decoder *xml.Decoder, depth int, pm *prefixMap) ([]eval.Va
 			return children, nil
 
 		case xml.CharData:
-			if !isAllWhitespace(t) {
+			if preserve || !isAllWhitespace(t) {
 				children = append(children, makeXmlText(string(t)))
 			}
 
