@@ -13942,3 +13942,118 @@ this push, which measured it at 132s.
 decision, plus identifying cause 3). The cons-cells roadmap revision + re-quorum on codex once its
 bucket resets. `m-stdlib-reverse-delegates-to-builtin`, unblocked and cheap. Consumer reports
 `#672` and `#656`, both outside `MISSION_REPO`.
+
+## 234 — 2026-08-20 — Iteration 234: the cons-cells roadmap is unblocked, and of the two reviewers who blocked it the one with the smaller-looking objection was the one who was right
+
+**Picked**: not the queue head — a **flipped predicate**. The `m-list-cons-cells` roadmap row had sat
+`PARKED-ON-LANE` since iteration 229, waiting on a quota bucket rather than on a human. Standing rule
+8(d) and Gate 2's blocked-external-row rule both say the resume is a predicate to RUN, so it was run:
+`codex exec --model gpt-5.6-sol 'reply with exactly: ok'` → **rc=0** at 06:12 CEST, against iteration
+229's recorded rc=1 (*"try again at Aug 20th, 2026 5:34 AM"*). The lane had returned, so per rule (d)
+the row outranked the two `[NEXT]` rows above it regardless of position. Worth noting because this is
+the first iteration to exercise `PARKED-ON-LANE` end-to-end: the state was invented at iteration 229
+precisely so that this iteration would not have to reconstruct a routing story from prose, and it did
+not — one command decided the pick.
+
+Gate 0/1 otherwise clean: kill switch armed, billing tripwire **CLEAN**, gh `sunholo-voight-kampff`,
+pin worktree clean and detached at `779746352` = `origin/dev` exactly, running skill byte-identical to
+origin. `origin/dev` carried **16 checks, zero not-green**, with the parent (**21**) as the control
+that proves the endpoint answered — the 16 is a path-filtered docs-commit set, not a truncation. Zero
+allowlisted directives on `#745` since the `2026-08-19T22:47:05Z` watermark (39 comments); ledger
+valid, 21 rows, **zero OPEN**; no weekly rotation owed. Died-mid-flight sweep clean.
+
+**The designer was the rotation's next entry, which is the point.** `mission-v1-designer-rotation`
+(namespaced) read `claude:claude-fable-5`, so the next entry was `codex:gpt-5.6-sol` — the very lane
+that had just come back. Iterations 228 and 229 were both distorted by this row: 228 spent two Fable
+runs and flagged the diet violation, 229 declined the second run and parked. This iteration spent
+**zero** Fable runs. Codex ran bounded and backgrounded under `workspace-write`, rc=0, touched
+**exactly one file**, applied both round-1 `proposed_fix` blocks verbatim, and — because the directive
+demanded it — labelled its own two extrapolations as inferences rather than as reviewer text, which is
+what made them auditable.
+
+**Verified rather than adopted** (rule 3h): N1–N20 untouched (the diff adds only N21); the three
+escape sites confirmed by definition-site grep in their newly-assigned owning packages
+(`SafeAsList` `builtins/safe_cast.go:95` → LC-3a, `GetList` `effects/testctx/mock_context.go:353` →
+LC-3b, `ToList` `embed/convert.go:344` → LC-3c); zero surviving compiler-enforced-immutability text
+with same-file controls firing (`immutab` = 13, `happens-before` = 9); estimate arithmetic
+self-consistent (16.5 = 0.5+2+3+2+2+2+3+2, 22.5 likewise, matching both the header and the Totals
+line).
+
+**Re-quorum round 2 — BLOCKED 2-of-2 again.** `absent_reviewers` **EMPTY**, both reviewers
+`present=true`, so the iteration-175 N−1 degrade trap does not apply; the per-reviewer cap had been
+pre-raised to $0.25 precisely because that trap fires when a doc GROWS, and this doc had grown by 65
+lines. $0.1089, 28,040 in / 545 out tok. Both objections were premise-shaped, so rule **3f** applied
+— measure, do not forward — and the two came out in **opposite directions**, which is the entire
+argument for measuring rather than buying a third round.
+
+**Key find — `gemini-3-1-pro` was CONFIRMED and the defect is worse than it was filed as.** Its
+objection reads like a pedantic completeness note: N16's `comm -12` intersected ListValue × ArrayValue
+and omitted TupleValue. Measured in both scopes: the symmetric-switch surface is **7** non-test files,
+not 3 (**8** including tests, which is N16's own declared scope) — a more-than-2× under-count. The
+consequence is not a number in a table. One of the four newly-surfaced files,
+`internal/eval/eval_patterns.go`, belongs to **LC-3b**, which **refutes** the roadmap's claim that the
+symmetric files are *"all in LC-3a/LC-3c clusters"*. So all three migration lanes carry
+symmetric-switch work, not two — a fact the pieces would have been routed against. This is rule
+3b(ix) again in the shape this mission keeps meeting it: the count was correct inside the scope it was
+taken in, and the scope is the part nobody wrote down.
+
+**And `gpt5-6-sol` was PARTIALLY REFUTED, which selected its own cheaper fix.** It objected that
+LC-3a/b/c claim "zero behavior change" while turning an alias into a copy, without verifying that no
+caller relies on aliasing — correct that the doc had not verified it, and its `proposed_fix` offered
+either (1) retain alias semantics and version/deprecate the API, or (2) document snapshots plus
+mutation tests. The audit is now row **N22**, and it refutes the premise the expensive option rested
+on: all three escapes live under `internal/` in module `github.com/sunholo-data/ailang`, which the Go
+toolchain forbids importing from outside this module, so they are **not** "Go-facing APIs"; **every
+in-repo caller of all three is a test** (zero production callers — the one non-test `ToList` hit is a
+string literal being written into generated code at `internal/gen/golang/codegen_runtime_collections.go:177`,
+not a call); and **no call site mutates the returned slice**, with `builtins/array.go:121,:483` as the
+same-scope known-positive control proving the pattern can match. There is no consumer to version for,
+so option (1) is dropped and option (2) applied in full. Its wording fix landed verbatim — N13 now
+reads "3 currently known syntax-matched escapes" — and the residual it correctly kept open
+(syntax-specific greps cannot prove exhaustiveness) is recorded in *Unverified* against LC-2's
+type-aware analyzer, which N4 had already made authoritative over grep.
+
+**Disposition: narrow-refinement carve-out (ratified iter-98).** Both objections carry concrete
+reviewer-authored fixes and neither disputes the design DIRECTION, so the carve-out's conditions hold.
+Applied by the controller rather than by a second designer run, since after measurement the edits are
+the reviewers' own text plus numbers that only narrow them. **No third quorum** — the carve-out is one
+bounded revision after the one re-quorum, and re-running it would be the re-litigation Gate 2 forbids.
+
+**Outcome**: PR [#798](https://github.com/sunholo-data/ailang/pull/798) → `03e3e6057`. The roadmap is
+quorum-cleared and its eight pieces are routable in order, LC-1 (`m-list-repr-spike`, which carries
+the programme's kill criterion) first.
+
+**Routing evidence**
+
+| Role | Pin | Actually ran | Note |
+|---|---|---|---|
+| Controller | `$MODEL` | `claude:claude-opus-5` | triage, predicate re-probe, verification of the designer's output, both round-2 measurements, carve-out application, record |
+| Designer | ROTATION | **`codex:gpt-5.6-sol`** | the rotation's next entry, reached because the lane returned; bounded/backgrounded, `workspace-write`, rc=0, one file. **Fable diet untouched — zero Fable runs**, resolving the 228/229 pressure rather than repeating it. Pointer advanced to `codex:gpt-5.6-sol` in the NAMESPACED state file |
+| Quorum r2 | — | `gpt5-6-sol`, `gemini-3-1-pro` | both `present=true`, `absent_reviewers` empty; verdict **blocked**; cap pre-raised to $0.25 |
+| Planner / Executor / Evaluator | — | none | no sprint ran — the deliverable is the unblocked roadmap, and the pieces are each their own sprint |
+
+`metered = $0.1089` of $5 (round-2 quorum only). Codex and Opus are quota buckets, $0. No GPU, no
+`rig.lock`.
+
+**Ruled out**
+- Forwarding either round-2 objection to a second designer revision — rejected under rule 3f: both were
+  premise objections answerable by command, and one of the two was substantially refuted by the
+  measurement, so a revision round would have bought a wrong fix (API versioning for an `internal/`
+  package with no callers).
+- A third quorum after the carve-out — rejected: the carve-out is explicitly one bounded revision after
+  the one re-quorum; a third round is the re-litigation Gate 2 forbids.
+- Treating the stale installed binary (`v0.33.1-125-gc575cd44e-dirty`, 33 commits behind) as voiding
+  the quorum run — measured instead: **zero** of those 33 commits touch `internal/mission/quorum`,
+  `cmd/ailang/design_quorum.go` or `internal/ai` (control: 33 commits in the range). The staleness is
+  real and irrelevant *to this command's code path*, which is the scoped form of the claim.
+- Rebuilding the shared PATH binary mid-iteration to clear that warning — declined: it would mutate a
+  binary two sibling missions may be using, to fix a staleness that the scoped measurement above shows
+  does not reach this iteration's instruments.
+
+**Bookkeeping defect found, recorded, NOT silently fixed**: this log has a **duplicate entry number
+232** — the iteration-232 record (`editor install vscode`) and the iteration-231 record (package
+imports) are both headed `## 232` — and entries 230–233 are out of chronological order. So log entry
+numbers are no longer a reliable index into the log. This entry is numbered **234** (following the
+highest existing number, not the count of entries); renumbering the collision is a queue row rather
+than an inline edit, because rewriting historical entry numbers would invalidate every cross-reference
+already written against them.

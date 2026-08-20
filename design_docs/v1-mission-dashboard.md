@@ -1,40 +1,45 @@
 # Mission Dashboard — V1
 
-*Snapshot, overwritten every iteration. History lives in `v1-mission.md` (STATUS) + `v1-mission-log.md`.*
+*Snapshot, overwritten each iteration. History: `v1-mission.md` STATUS + `v1-mission-log.md`.*
 
-**Last iteration:** 233 · 2026-08-20 · **LANDED** · metered **$0.00** of $5 · no GPU
-**Release:** v0.33.1 · dev green at pick time (18 checks on `bc0b5a8d4`, only `test` in flight)
-**Bookkeeping issue:** [#745](https://github.com/sunholo-data/ailang/issues/745) (week of 2026-08-17)
+**Last iteration**: 234 · 2026-08-20 06:09–07:0x CEST · **LANDED**
+**Release**: v0.33.1 · `origin/dev` @ `779746352` → +`03e3e6057`
 
-## Last iteration in one line
-`m-ci-no-job-timeouts` — **no job in any of the repo's 10 workflows declared `timeout-minutes`**
-(control: `runs-on` × 27), so all 27 inherited GitHub's **6-hour** default. All 27 now bounded at
-~2× their measured max, the 3 `apt` steps get 5-minute *step* bounds, and `internal/cihygiene`
-keeps it that way. PR [#796](https://github.com/sunholo-data/ailang/pull/796) → `547803584`.
+## What just happened
 
-## ⚠ The find that matters more than the pick
-**`Dashboard UI Build` has been red since 2026-07-10 — forty days, 10 of 10 runs — and nothing in
-this mission had ever mentioned it** (charter mentions: 0). Path-filtered *and* non-required, so it
-never blocked and nobody looked. The failure is `npm ci` in `docker/Dockerfile.dashboard`'s
-`ui-builder` stage — the **image cannot be built** — and `cloudbuild-release.yaml` /
-`cloudbuild-dev.yaml` build and push that same stage. Recorded on the already-open
-[`#503`](https://github.com/sunholo-data/ailang/issues/503), whose title names this mechanism.
+The **cons-cells roadmap is unblocked**; its 8 pieces are routable in order, LC-1 first. It had
+been `PARKED-ON-LANE` since iter-229 on codex quota — the resume predicate was re-run as a
+command (rc=0), which made it the pick regardless of queue position. Round-2 re-quorum
+**blocked 2-of-2**; both premises measured, not forwarded (rule 3f), and they came out
+**opposite ways**:
+
+- `gemini-3-1-pro` **CONFIRMED, worse than filed** — N16 omitted `TupleValue` from its
+  intersection: symmetric-switch surface is **7** non-test files, not 3. One of them
+  (`eval/eval_patterns.go`) is **LC-3b's**, so *all three* migration lanes carry that work.
+- `gpt5-6-sol` **partially REFUTED** — the three escape APIs are `internal/`-only, every caller
+  is a test, none mutates the result. No consumer to version for → its cheap option applied.
+
+Resolved under the **narrow-refinement carve-out** (ratified iter-98). No third quorum.
 
 ## Next picks
-- **`m-ui-dependency-tree-unbuildable`** (NEW, top candidate) — **three stacked** peer conflicts in
-  `ui/`. The obvious fix is *already refuted by measurement*: pinning `@vitejs/plugin-react` back to
-  `^4` still fails and exposes an `eslint@10` conflict beneath. Needs a bump-vs-hold decision plus
-  identifying the third cause (the first red predates both known bumps).
-- **`m-list-cons-cells`** (Mark's `D-19 : B`) — `PARKED-ON-LANE`, owed one designer revision + one
-  re-quorum. **Not a human ask.** Lane reset 05:34 today; re-probe at next fire.
-- Cheap + unblocked: `m-stdlib-reverse-delegates-to-builtin`. Outside `MISSION_REPO`: `#672`, `#656`.
-## Loop cadence + routing
-Controller `claude:claude-opus-5` inline for measured defects with well-specified fixes (iterations
-219–233); designer/planner/executor/evaluator idle. Fable designer run **unspent 4 iterations
-running**. codex `gpt-5.6-sol` quota-dry at 03:07 (re-probed as a command, rc=1); gemini read-only
-under `CapRemoteSandbox`. `mission-motoko` ran **concurrently** throughout (its PR `#795`).
+
+1. **LC-1 `m-list-repr-spike`** — gates the whole cons-cells programme (carries its kill criterion).
+2. `m-ui-dependency-tree-unbuildable` — `ui/` unbuildable 40 days ([#503](https://github.com/sunholo-data/ailang/issues/503)).
+3. `m-stdlib-reverse-delegates-to-builtin` — cheap, and *required* under cons cells.
+
+## Loop health
+
+- Cadence normal. Fable diet **untouched this iteration** (0 runs) — 228/229's pressure is resolved.
+- Designer rotation now at `codex:gpt-5.6-sol`; codex quota **back** as of 05:34 today.
+- Cost: **$0.1089** metered of $5. Quota buckets: opus (controller), codex (designer).
+- dev CI green: 16 checks, 0 not-green (control: parent 21).
 
 ## Parked on Mark
-**One ask, carried forward from iteration 232 and still unanswered** — rotate
-`AILANG_REGISTRY_API_KEY`, whose value a Gate-0 environment dump printed into that iteration's
-transcript. Not exposed externally. Ledger: 21 rows, **zero OPEN**.
+
+- **Rotate `AILANG_REGISTRY_API_KEY`** — carried from iter-232 (its value was printed into a
+  transcript; not exposed externally). Not a ledger row; the decision ledger is **21 rows, 0 OPEN**.
+
+## Known bookkeeping defect
+
+`v1-mission-log.md` has a **duplicate entry number 232** (230–233 also out of order), so entry
+numbers are not a reliable index. Recorded, not silently renumbered.
