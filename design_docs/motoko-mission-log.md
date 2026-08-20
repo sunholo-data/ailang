@@ -1271,3 +1271,154 @@ published-artifact freshness gap). The correction went into the doc's V28 row in
 
 **Next**: item 6 is now a normal sprint — planner → executor on D1 (with §12.2's plumbing decision
 made explicitly) + D1b + D2. Item 7 (profile restoration design) is the untagged head behind it.
+
+---
+
+## 14 — 2026-08-20 — D1 landed; the guard was pinned and its wiring was not, and the mutation that would have shown it survived the first delivery
+
+**Picked**: queue item **6**, `m-motoko-fmt-remeasurement-instrument`, un-parked at iteration 13 by
+Mark's `D-MOTOKO-FMT-1` ruling. Item 6 sits above the untagged head (item 7) because iteration 13's
+trace discharged its precondition and left it *"now a normal sprint (planner → executor)"*.
+
+**Reality check**: ran from the `#558` driver pin root, detached and clean at `44aa3cab4`, which is
+exactly `origin/dev`; running skill **byte-identical to origin** (`cmp` rc=0). dev verified green,
+not merely un-red — **16** exact-SHA checks, **0** not-green. Ledger valid at 3 rows, **0 OPEN**.
+**0** human directives on `#743` since the watermark, of **12** comments. Inbox: 2 unread, both
+sibling reports (`mission-world` 97, `mission-v1` 231) — neither carries a request or a bug against
+motoko, so under Gate 0 they are read and acked, never obeyed. Weekly sweep and rotation both not
+due (`#743` created `2026-08-17T05:48:23Z` = 07:48 local, *after* the Monday-07:00 local boundary;
+12 comments < 80). Died-mid-flight check: `#792` is V1's iteration 232, `#695`/`#613` are V1's, as
+the last five iterations also measured.
+
+**External-predicate re-read** (the rule iteration 11 added, aimed at rows nobody picks): G1
+`gh pr view 154` → `state=OPEN`, `mergedAt=-`, control `#161`/`#162` → `MERGED` with non-null
+`mergedAt`; G2 predicate rc=**128** with the mandatory `README.md` control rc=**0** → FALSE for the
+right reason; G3 registry `latest=2.2.0`, versions `1.0.0,2.0.0,2.1.0,2.2.0` → no 5.x; G4 unrunnable
+while G3 is FALSE; G5 unchanged. Rows 10/11/12 stay parked. Upstream `main_dst` still `8110ffc`, so
+row 5's re-anchored `#165` citations remain valid; upstream's own fix PR `#166` is OPEN.
+
+**Delivered**: **M1 (D1) of a 5-milestone sprint** — PR
+[#794](https://github.com/sunholo-data/ailang/pull/794) → `bc0b5a8d4`. M2–M5 named as the resume
+point rather than silently compressed; M3 specifically was NOT shipped alone because its `AC-M3-4`
+depends on M4's order-integrity checker, and shipping it would have left a milestone with an
+unclosable acceptance criterion.
+
+**The planner refuted the design doc.** §12.2 preferred option (1) — set `cfg.MotokoModel` from
+models.yml at construction. Unsound, on two independent measurements I re-verified first-party:
+`ExecutorFactory.GetExecutor` caches by executor NAME (`factory.go:96-122`), so ONE
+`*MotokoExecutor` serves all **17** `agent_cli: "motoko"` lanes — **7** ollama, **10** requiring a
+credential (control: **89** total `agent_cli` lines) — and one string cannot be right for both; and
+`HealthCheck` runs under **`sync.Once`** (`motoko.go:134`, `healthcheck.go:40`), so a model-dependent
+verdict there freezes at whichever model canaried first, turning a loud uniform refusal into a
+silent order-dependent one. Chosen instead: the refusal moves to `ExecuteStreaming`, keyed on
+`e.getModel(task)`, expressed on the resolved provider and strictly downstream of repo discovery.
+
+**THE FINDING — a guard is not a gate until something reds when you remove it, and the thing nobody
+removed was the wiring.** Neutering the call site (`if err := error(nil); err != nil {`) left the
+**entire package green** as the executor delivered it: every arm called `requireProviderCredential`
+directly, and the single `Execute`-level arm (`T-ORDER`) drives an `ollama/…` task the guard
+**ADMITS**, so its observable could not move no matter how the wiring broke. That is this repo's own
+named recurring shape — *guard the helper, miss the call site* — reproduced **inside the milestone
+whose entire subject is a guard**. Per rule 3i(c) the ROW was repaired, not the code: `T-CALLSITE`
+asserts a refusal that reaches `Execute`, on the resolved provider name and the missing variable,
+plus a mock-not-invoked marker whose absence is admissible only because a control arm in the same
+test proves the marker fires for an admitted lane. MUT-4 now dies with `T-CALLSITE` as **sole
+killer** (`-skip` inverse → rc=0).
+
+**Honest full-package mutation table** (every mutant asserted LANDED by sha256 and BUILDING):
+
+| mutant | failing tests, full package |
+|---|---|
+| neuter the no-credential ADMIT branch | **12** |
+| neuter the credential-missing REFUSAL | **3** |
+| neuter the unresolvable-model guard | **1** (sole killer) |
+| neuter the `ExecuteStreaming` call site | **1** (sole killer; SURVIVED as first delivered) |
+| move the check into `HealthCheck` *before* the version query | 1 — `T-ORDER` at `execute_test.go:711` |
+| move it into `HealthCheck` *after* the version query | 1 — `T-ORDER` at `execute_test.go:718`, a *different* assertion |
+
+**Evaluator** (sonnet; distinct provider from the pi/DeepSeek executor, so generator≠judge holds):
+**PASS 84/100, zero blocking**, three non-blocking findings, all reproduced before being acted on —
+and the third came back **worse** than filed. (a) `T-ORDER` was **decorative**: its surviving
+assertion was a bare nil-vs-error on `HealthCheck`, which fires identically whether the check
+precedes the version query (violating §12.3) or follows it (not violating it), and the `MOTOKO_REPO`
+observable the plan calls the pin was never reached under either mutant. Repaired so the ordering
+claim rests on `e.motokoRepo` read independently of the returned error, then **proven to
+discriminate** by running both placements — they now fail at different assertions. (b) The same
+false claim survived one file over: `internal/executor/motoko/README.md` still read *"motoko routes
+ALL models via OpenRouter"*, false for 7 of 17 lanes — CLAUDE.md rule 3 applied to the code and not
+to the docs. (c) The mutation table in my own commit message was stale.
+
+**MY OWN ERROR, and it is the iteration's Gate-5 material.** My first published table reported the
+neuter-ADMIT mutant as killing **1** test. The evaluator measured ≥2. The full-package re-measure is
+**12**. Cause: those per-mutant runs were scoped `-run 'TestRequireProviderCredential'`, and I
+dropped the narrowing when I quoted the number — a `-run`-narrowed result cited for a whole-package
+sentence. That is **rule 3b(ii), which this skill already has**; it was broken, not missing, so it
+belongs here rather than in the rulebook.
+
+**Gate 3b caught two Windows-only defects no local command could** (rule 3b(viii)); the base arm was
+**green** on windows, so the red was ours, not inherited. `%q` **escapes backslashes**, so
+`strings.Contains(msg, dirPath)` can never match a windows path the message names correctly — now
+compares `strconv.Quote(dirPath)`. And a `#!/bin/bash` mock named `motoko` with no `.exe` is not
+executable there, so the version query never fired — skipped on windows, matching the **10** existing
+bash-mock skips (control), with the narrowing declared: T-B4's version-query half is darwin/posix-only.
+
+**Landing**: the PR first read `CONFLICTING`/`DIRTY`. `mergeable` was checked **FIRST**, per the
+iteration-198 rule, so the missing `pull_request` runs were explained in one call by the boring cause
+instead of by a dropped-event hypothesis; the overlap was exactly **one** file
+(`changelogs/v0.18-current.md`, from V1's iteration 232). Rebase + force-push produced **5** runs
+within seconds. Final PR head `fb1ef41b5`: **21** checks, **0** not-green, **4/4** required contexts
+pass, `mergeStateStatus=CLEAN` — observed, then squash-merged. No auto-merge was armed (iteration
+10's rule).
+
+**LANE DEFECT, found and fixed: the pi executor lane had never been runnable from this mission's
+checkout.** The mandated sandbox extension failed to load —
+`Cannot find module '@anthropic-ai/sandbox-runtime'` — because
+`tools/pi-extensions/sandbox/node_modules` exists **only in V1's checkout**. The extension sources
+are byte-identical across checkouts (`cmp` rc=0, with a rc≠0 control proving `cmp` discriminates), so
+this was a missing `npm ci`, not drift. Installed in the pin root; `node_modules/` is gitignored by
+that directory's own `.gitignore`, and the tree was verified clean afterwards. The skill's pi recipe
+says `$REPO` is "the mission's checkout" and gives path resolution as the reason — it does not say
+the dependency must be installed there, which is why this sat undiscovered until the first pi run
+from this mission.
+
+**Ruled out**
+- *The first pi run's `agent_end=0` was a lane failure of the documented iteration-173 shape.* It was
+  **mine**: I backgrounded the runner inside an already-backgrounded Bash call, so the harness reaped
+  it. 425 turns, all `stopReason:"stop"`, **zero** `"length"`, empty stderr — an external kill, not
+  an output-cap stall. Misattributing it would have burned the lane on my own harness misuse.
+- *The 300 MB NDJSON kill was a runaway turn.* Growth had already fallen from ~1.4 MB/s to ~93 KB/s
+  by 268 MB, and the executor had written `.snap/`, the changelog and cleaned its scratch dirs before
+  the cap fired — it was killed during its final *report* turn, so the work was complete. The cap was
+  my own guard against disk exhaustion, and disk was measured at **541 GB** free, so the guard was
+  mis-sized for this run rather than the run being pathological.
+- *`go build ./...` is a usable gate.* It is **RED at base** (`cmd/wasm` has no native `main`; it
+  builds only under `GOOS=js`). I put it in the planner directive; the planner refuted it and
+  substituted `go build ./internal/... ./cmd/ailang/...`, green at base. Rule 3e, caught by the role
+  I handed the error to.
+
+**Routing evidence**
+
+| role | pinned | actually ran | notes |
+|---|---|---|---|
+| controller | `$MODEL` | `claude:claude-opus-5` | triage/pick/verify/record |
+| designer | rotation | **not spawned** | quorum spent (2 rounds, both reviewers present, `absent_reviewers` empty); §12 is a measurement, not a new design. Pointer untouched at `claude:claude-fable-5` |
+| planner | `opus` | **opus** | `derive-planner-lane.sh` → `opus fail-closed:env-pin`, used verbatim; no codex probe |
+| executor | `pi:openrouter/deepseek/deepseek-v4-flash-0731` | same | probe rc=0; run killed at my 300 MB cap after the work was complete; **metered $0.2325** |
+| evaluator | `sonnet` | **sonnet** | Anthropic ≠ the executor's OpenRouter/DeepSeek → generator≠judge holds |
+
+**Metered**: **$0.2326** of the $5 ceiling (pi executor $0.2325 + probe $0.0001). Quota buckets:
+opus (controller, planner), sonnet (evaluator). No GPU, no `rig.lock`.
+
+**Platform**: every local gate ran on **darwin/arm64** only; the windows and ubuntu legs are known
+only through Gate 3b, which is exactly how the two windows defects above were found.
+
+**Next**: **M2–M5** of the same plan. M2 (`AC-D1-live`) is now unblocked in principle — its
+circularity is broken, since the preflight no longer refuses the fmt lane — but it needs the rig, and
+doc §6's **deployment precondition** still stands: merging to `origin/dev` does not put D1 on the
+rig, because the installed plist runs `nightly-eval.sh` in place from V1's checkout (open issue
+`#558`). Then items 7 and 8.
+
+**Gate 5**: **no skill edit.** The iteration's own friction — quoting a `-run`-narrowed blast radius
+for a whole-package sentence — is a rule the skill already carries (3b(ii)). A rule broken is not a
+rule missing, and adding a louder restatement would be the documentation-bias failure the skill's own
+iteration-198 note warns about.

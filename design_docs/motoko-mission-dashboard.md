@@ -3,38 +3,33 @@
 > **Namespaced** — the bare `mission-dashboard.md` is not ours (V1 iter-216); it holds motoko's stale
 > iter-7 snapshot, left alone.
 
-**As of**: 2026-08-19 · iteration **13** · release `v0.33.1` · loop `dev.ailang.mission-motoko`, 12h
+**As of**: 2026-08-20 · iteration **14** · release `v0.33.1` · loop `dev.ailang.mission-motoko`, 12h
 
-## Now
-- **Just landed (iter 13)**: queue item **6** UN-PARKED — Mark resolved `D-MOTOKO-FMT-1`
-  *precondition* (attended, 2026-08-19), and the provider-resolution trace he made a precondition is
-  RUN. **O4 CLOSED by measurement**; doc gains §12 + rows V25–V32.
-- **The answer**: both halves of the reviewer's fear are true, of *different* lanes — so the fix is a
-  CONDITION, never a deletion. fmt arms reach **no** OpenRouter path (`GuessProvider("ollama/…")`
-  → `ollama`, env var `""`; both profiles pin `localhost:11434/v1`); OpenRouter lanes have the Go
-  preflight as their **only** hard stop (motoko's own check merely warns and proceeds).
-- **The blocker it found**: the condition is **not expressible where the check sits**.
-  `HealthCheck(ctx)` takes no task, and `cfg.MotokoModel` is never set from `models.yml` — so an
-  `if` at `healthcheck.go:64` would read the hardcoded OpenRouter default for every lane. D1 is a
-  plumbing change, not a one-liner; three costed options in §12.2.
+## In flight / next
+- **Item 6 — fmt re-measurement instrument**: **M1 (D1) LANDED** — PR [#794](https://github.com/sunholo-data/ailang/pull/794) → `bc0b5a8d4`.
+  The unconditional `OPENROUTER_API_KEY` preflight that killed both Wednesday fmt slots is gone;
+  the refusal is now per-task, on the resolved provider, at `ExecuteStreaming`.
+  **Resume point: M2–M5 of the same 5-milestone plan** — M2 `AC-D1-live` (needs the rig),
+  M3 D1b counterbalanced block, M4 D2 censored-pair analyzer, M5 smoke-bank wiring.
+  Plan: `design_docs/planned/m-motoko-fmt-remeasurement-instrument-sprint-plan.md`.
+- Then item **7** (profile restoration design), item **8** (repin stale OpenRouter motoko models).
 
-## Next
-1. **Item 6 → normal sprint**: planner → executor on D1 (+ the §12.2 plumbing decision) + D1b + D2.
-2. Item **7** — profile restoration design (untagged head behind it).
-3. Item **8** — repin the stale OpenRouter motoko models.
+## Queue posture
+- Rows 1–5, 5a, 5b, 6b: LANDED/CLOSED. Row 6: M1 landed, M2–M5 open.
+- Rows 10/11/12 **Phase-0 gated** — predicates re-run 2026-08-20 as commands, all still FALSE:
+  G1 `#154` `state=OPEN`/`mergedAt=-` (control `#161`/`#162` MERGED) · G2 rc=**128** with the
+  mandatory `README.md` control rc=**0** · G3 registry `latest=2.2.0`, no 5.x · G4 unrunnable · G5 unchanged.
+- Rows 9/13 need a green tree; row 14 follows 13.
 
-## Gated / parked
-- **Phase 0 CLOSED** (re-measured iter 13): G1 `#154` OPEN · G2 rc=128 (control rc=0) · G3 registry
-  `latest=2.2.0`, no 5.x · G4 unrunnable · G5 (Arni's ABI declaration) unchanged. Rows **10/11/12**
-  stay parked. Rows **9/13/14** need a green tree / earlier design.
-- **Upstream is acting on `#165`**: `arniwesth/mot-100-fix-output-headroom` now **7** commits ahead of
-  `main_dst` incl. `da999ac fix(compaction): reserve provider output headroom`, their PR **#166**.
+## Loop cadence + routing
+- 12h `StartInterval`, staggered against V1 (90m) and World (4h).
+- Controller `claude:claude-opus-5` · planner **opus** (`derive-planner-lane.sh` → `opus fail-closed:env-pin`)
+  · executor `pi:openrouter/deepseek/deepseek-v4-flash-0731` · evaluator **sonnet** (generator≠judge holds).
+- Designer rotation pointer untouched at `claude:claude-fable-5` (no designer ran).
 
-## Loop health
-- Routing: controller `claude:claude-opus-5`; designer rotation pointer `claude:claude-fable-5`
-  (untouched). Executor chain `codex:gpt-5.6-sol` → `pi:deepseek(:floor)` → `opus`.
-- Metered **$0.00** of $5 this iteration. No GPU, no `rig.lock`. `make quick-install` NOT run.
-- dev **verified green**: 16 exact-SHA checks, 0 not-green, `runs_total=2`. dev CI is **V1's** to own.
 ## Parked on Mark
-- **none** — decision ledger valid, **3** rows, **0 OPEN** (`scripts/mission_decisions.sh --open`).
-- Bookkeeping issue **#743** (rotates Mondays 07:00 local); 0 directives since the watermark.
+- **None.** Decision ledger: 3 rows, **0 OPEN** (`scripts/mission_decisions.sh --check`).
+
+## Quota / cost posture
+- Metered **$0.2326** of $5 this iteration (pi executor; probe $0.0001). Quota buckets: opus, sonnet.
+- Codex reported exhausted until 2026-08-20 05:34 by both sibling missions; not needed here.
