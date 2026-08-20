@@ -46,6 +46,7 @@ concurrency:
 jobs:
   docs-changes:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
       docs_changed: ${{ steps.detect.outputs.docs_changed }}
     steps:
@@ -178,6 +179,7 @@ jobs:
   # Docs build job
   docs-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: docs-changes
     # Run even if commit has [skip ci] when it's from docs automation
     if: >-
@@ -202,6 +204,7 @@ jobs:
           go-version: '1.26.6'
 
       - name: Install jq for stats generation
+        timeout-minutes: 5
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Build WASM binary
@@ -298,6 +301,7 @@ jobs:
 
   docs-gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [docs-changes, docs-build]
     if: always()
     steps:
@@ -338,6 +342,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # Depends on the Pages artifact that docs-build uploads. When docs-build skips
     # (a PR touching no docs-relevant path) there is no artifact, so deploy MUST skip
     # with it — do NOT add `if: always()` here thinking it fixes a deployment gap.
