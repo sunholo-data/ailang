@@ -693,11 +693,29 @@ exit 0
 	// No explicit MotokoModel: New defaults e.model to openrouter (V31). This is
 	// load-bearing for the mutation's refusal.
 	exec, _ := New(&executor.Config{MotokoPath: mockMotoko})
-	if err := exec.HealthCheck(context.Background()); err != nil {
-		t.Fatalf("HealthCheck: %v", err)
-	}
+
+	// DO NOT Fatal on HealthCheck's error here. Repaired at iteration 14 after the
+	// evaluator showed this row was decorative: a `t.Fatalf("HealthCheck: %v", err)`
+	// fires identically for a credential check placed BEFORE the version query
+	// (which violates doc §12.3) and for one placed AFTER it (which does not), so
+	// the assertion that actually killed the mutant was a bare nil-vs-error — a
+	// 2-valued observable the sprint plan's own §3 rules exclude, and the
+	// motokoRepo assertion below was never reached under either mutant.
+	//
+	// The DISCRIMINATING observable is whether repo discovery COMPLETED, read
+	// independently of whatever HealthCheck returned. A check placed ahead of the
+	// version query leaves motokoRepo empty; a check placed after it (or, as
+	// shipped, not in HealthCheck at all) leaves it populated.
+	hcErr := exec.HealthCheck(context.Background())
 	if exec.motokoRepo != "/tmp/fake-motoko-repo" {
-		t.Fatalf("motokoRepo = %q, want /tmp/fake-motoko-repo (version query must have fired first)", exec.motokoRepo)
+		t.Fatalf("motokoRepo = %q, want /tmp/fake-motoko-repo — repo discovery did not complete, so a credential refusal ran AHEAD of the `motoko --version` query (doc §12.3). HealthCheck returned: %v",
+			exec.motokoRepo, hcErr)
+	}
+	// As shipped, HealthCheck makes no credential decision at all, so it must be nil.
+	// Checked second and separately: this pins the delivered behaviour without being
+	// the assertion that carries the ordering claim.
+	if hcErr != nil {
+		t.Fatalf("HealthCheck returned %v; as shipped it makes no provider-credential decision", hcErr)
 	}
 
 	res, err := exec.Execute(context.Background(), &executor.Task{
