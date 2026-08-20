@@ -2,44 +2,39 @@
 
 *Snapshot, overwritten every iteration. History lives in `v1-mission.md` (STATUS) + `v1-mission-log.md`.*
 
-**Last iteration:** 232 · 2026-08-20 · **LANDED**
-**Release:** v0.33.1 · dev green (16 checks, zero not-green on `44aa3cab4`)
+**Last iteration:** 233 · 2026-08-20 · **LANDED** · metered **$0.00** of $5 · no GPU
+**Release:** v0.33.1 · dev green at pick time (18 checks on `bc0b5a8d4`, only `test` in flight)
 **Bookkeeping issue:** [#745](https://github.com/sunholo-data/ailang/issues/745) (week of 2026-08-17)
 
 ## Last iteration in one line
-`#694` — `ailang editor install vscode` shipped an extension VS Code refused to load, because the
-installer called a helper whose **name** said "refresh a cache" and whose **effect** was "uninstall".
-The same helper is correct on the uninstall path. PR [#792](https://github.com/sunholo-data/ailang/pull/792) → `241221047`.
+`m-ci-no-job-timeouts` — **no job in any of the repo's 10 workflows declared `timeout-minutes`**
+(control: `runs-on` × 27), so all 27 inherited GitHub's **6-hour** default. All 27 now bounded at
+~2× their measured max, the 3 `apt` steps get 5-minute *step* bounds, and `internal/cihygiene`
+keeps it that way. PR [#796](https://github.com/sunholo-data/ailang/pull/796) → `547803584`.
 
-## In flight / next picks
-- **Queue head** — `m-sweep-orphans-2026-08-17`: the **in-repo half is now CLOSED**. The 2 remaining
-  orphans, `#672` (eparse) and `#656` (ailang-parse), are both outside `MISSION_REPO`.
-- **`m-ci-no-job-timeouts`** — promoted by evidence, not opinion: this iteration watched **two**
-  workflows wedge on `apt` install steps with no `timeout-minutes` (`Install z3` >26 min and 17m37s
-  vs a 49s/100s/9s control; `Install jq` 1h30m). Cheap, and the loop pays for it every time.
-- **`m-list-cons-cells` programme** (Mark's `D-19 : B`) — roadmap `PARKED-ON-LANE`, owed one designer
-  revision + one re-quorum. **Not a human ask.** Lane returns **today 05:34**.
-- Unblocked and cheap: `m-stdlib-reverse-delegates-to-builtin`.
+## ⚠ The find that matters more than the pick
+**`Dashboard UI Build` has been red since 2026-07-10 — forty days, 10 of 10 runs — and nothing in
+this mission had ever mentioned it** (charter mentions: 0). Path-filtered *and* non-required, so it
+never blocked and nobody looked. The failure is `npm ci` in `docker/Dockerfile.dashboard`'s
+`ui-builder` stage — the **image cannot be built** — and `cloudbuild-release.yaml` /
+`cloudbuild-dev.yaml` build and push that same stage. Recorded on the already-open
+[`#503`](https://github.com/sunholo-data/ailang/issues/503), whose title names this mechanism.
 
-## Emerging theme worth a look
-**Four** consecutive downstream-consumer reports where the thing that *describes* the behaviour is
-the bug — `#679` a stale warning, `RT_REC_003` a nonexistent option, `#671` an impossible
-instruction, and now `#694` a **function name**. The first three were emitted strings, so a
-"diagnostics pass" would have missed this one. The shared shape is an artefact asserting something
-its author could not know, surviving because nothing tests a name.
-
+## Next picks
+- **`m-ui-dependency-tree-unbuildable`** (NEW, top candidate) — **three stacked** peer conflicts in
+  `ui/`. The obvious fix is *already refuted by measurement*: pinning `@vitejs/plugin-react` back to
+  `^4` still fails and exposes an `eslint@10` conflict beneath. Needs a bump-vs-hold decision plus
+  identifying the third cause (the first red predates both known bumps).
+- **`m-list-cons-cells`** (Mark's `D-19 : B`) — `PARKED-ON-LANE`, owed one designer revision + one
+  re-quorum. **Not a human ask.** Lane reset 05:34 today; re-probe at next fire.
+- Cheap + unblocked: `m-stdlib-reverse-delegates-to-builtin`. Outside `MISSION_REPO`: `#672`, `#656`.
 ## Loop cadence + routing
-- Controller `claude:claude-opus-5` inline for measured defects with well-specified fixes
-  (iterations 219–232). Designer/planner/executor/evaluator lanes idle.
-- Designer rotation pointer: `claude:claude-fable-5`. **codex `gpt-5.6-sol` quota-dry until
-  2026-08-20 05:34** (re-probed as a command this iteration, rc=1); gemini is read-only under
-  `CapRemoteSandbox` and cannot author. The Fable designer run has now gone **unspent three
-  iterations running**.
+Controller `claude:claude-opus-5` inline for measured defects with well-specified fixes (iterations
+219–233); designer/planner/executor/evaluator idle. Fable designer run **unspent 4 iterations
+running**. codex `gpt-5.6-sol` quota-dry at 03:07 (re-probed as a command, rc=1); gemini read-only
+under `CapRemoteSandbox`. `mission-motoko` ran **concurrently** throughout (its PR `#795`).
 
 ## Parked on Mark
-**One ask** — rotate `AILANG_REGISTRY_API_KEY`. A Gate-0 environment dump I wrote
-(`env | grep -iE "^AILANG_"`) printed its value into this iteration's transcript. Not exposed to
-GitHub or any external service. Decision ledger otherwise: 21 rows, **zero OPEN**.
-
-## Quota posture
-metered **$0.00** of $5 this iteration. Opus is a subscription bucket. No GPU, no `rig.lock`.
+**One ask, carried forward from iteration 232 and still unanswered** — rotate
+`AILANG_REGISTRY_API_KEY`, whose value a Gate-0 environment dump printed into that iteration's
+transcript. Not exposed externally. Ledger: 21 rows, **zero OPEN**.

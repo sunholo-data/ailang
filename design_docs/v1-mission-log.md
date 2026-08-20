@@ -13861,3 +13861,84 @@ is asked of any human by it.
 `cmd/ailang/editor.go`, well-diagnosed with a verified workaround — the strongest of the three),
 `#656` (ailang-parse feature). Then the cons-cells roadmap revision + re-quorum on codex after
 05:34; `m-stdlib-reverse-delegates-to-builtin` and `m-ci-no-job-timeouts` both unblocked and cheap.
+
+## 233 — 2026-08-20 — every CI job in the repo inherited a six-hour ceiling, and fixing that surfaced a second workflow forty days red
+
+**Picked**: `m-ci-no-job-timeouts`, tagged `[NEXT — EVIDENCED 2026-08-20 (iter-232), promote]`. The
+previous iteration had just paid for it first-party — two workflows wedged in one night on unbounded
+`apt` steps — so the row arrived measured rather than argued, and it is the cheapest item in the
+queue that protects **both** missions on the rig.
+
+**Reality check — the row's scope was wrong by 3.5x, in the safe direction.** The row argues from
+`ci.yml` (*"declares `timeout-minutes` on no job at all"*), which is true and is not the boundary.
+Measured before touching anything: `timeout-minutes` appears **0** times across **all 10** workflow
+files, control `runs-on` = **27**. So every one of 27 jobs inherited GitHub's 6-hour default, not
+the 8 in `ci.yml`. One sweep, not two patches (Principle 3). This is the standing lesson that a
+queue row's scope is a claim like any other — it was written by someone reading one file.
+
+**Sizing was measured, not chosen.** Per-job durations over the last 18–20 *successful* runs:
+`test` mean 1221s / max 1712s, `lint` 228/287, `test-windows` 417/529, `build` 128/209, `docs-build`
+626/788. Each bound is ~2x the observed max, so it can only fire on a genuine wedge and never on
+normal variance. The point is converting an invisible multi-hour stall into a fast, legible red —
+**a bound, not a retry**, since a retry loop around an unbounded command inherits the unboundedness.
+
+**Shipped**: PR [#796](https://github.com/sunholo-data/ailang/pull/796) → squash `547803584`.
+27/27 jobs bounded. The 28th, `release.yml`'s `provenance`, is a reusable-workflow call where
+GitHub rejects the key — a real exemption, and the gate **asserts** it rather than assuming it (a
+mutant adding the key there reds). The three `apt-get` steps also carry 5-minute *step* bounds: a
+job bound reds the job, a step bound names the wedged step. Durable guard `internal/cihygiene` runs
+under `make test` and parses with a **real YAML parser** — a gate's coverage is a property of its
+enumerator (rule 3j), and a line matcher is defeated by comments, quoting and block scalars — reads
+both `*.yml` and `*.yaml`, and has three anti-vacuity floors that fail loudly rather than pass.
+**9 mutation drills**, each LANDED (sha256) and BUILDS asserted before any test result was read,
+restored from `cp` copies and verified byte-identical; blast radius **classified by running each
+mutant**, giving 7 single-test sole killers (inverse `-skip` rc=0) and 2 broad-blast with enumerated
+red sets. M9 exists specifically because a silently-broken classifier regex would make the step gate
+vacuously green and indistinguishable from a clean repo.
+
+**The unplanned deliverable is the bigger one.** `Dashboard UI Build` has been red since
+`2026-07-10T12:22:41Z` — **forty days, 10 of 10 recent runs** — with **zero** prior charter mentions
+(control `m-ci-no-job-timeouts` = 4). It surfaced only because this diff touched that workflow's own
+file, one of its path triggers. Establishing it was **not mine** came first: the new bound never
+fired (the job died in 27s at step 4) and the negative control shows it red long before this branch
+existed. The failure is `RUN npm ci` in `docker/Dockerfile.dashboard`'s `ui-builder` stage, so the
+image genuinely cannot be built; reproduced locally as a differential whose arm A fails exactly as
+CI does. **The obvious fix was refuted by measurement** — pinning `@vitejs/plugin-react` back to
+`^4.7.0` still fails and reveals a second, independent conflict underneath (`eslint@^10.8.1` vs
+`eslint-plugin-react@^7.37.5`, peering on `eslint <= ^9.7`). Three stacked causes, the third
+unidentified because the first red predates both known bumps. Recorded on the **already-open**
+[`#503`](https://github.com/sunholo-data/ailang/issues/503), whose title names exactly this
+mechanism, so this is its consequence rather than a duplicate; comment count asserted 0 → 1. Queued
+as `m-ui-dependency-tree-unbuildable`.
+
+**My own defect, reported rather than buried.** My Gate-3b poll printed `ALL COMPLETE` on a broken
+instrument: a `jq` parse error left both counts empty and `[ "" = "" ]` is **true**, so the
+settled-test passed vacuously — the vacuous-pass class this loop keeps closing, aimed at the gate
+that decides LANDED vs parked. Caught only because the per-workflow direct read printed three runs
+still `in_progress` beside the verdict. Fixed with a numeric anti-vacuity floor, which then
+correctly reported `INSTRUMENT FAILURE` through a real transient network drop instead of calling it
+a completion. Routed to Gate 5 as this iteration's one skill edit.
+
+**Ruled out.** That the `Dashboard UI Build` red came from this diff (bound never fired; 27s to
+failure; 10/10 prior runs red). That pinning plugin-react back repairs it (measured, refuted, and
+the refutation is what found the second conflict). That `ci.yml` alone was the scope (measured
+repo-wide across 10 files). That `provenance` was simply overlooked (it cannot carry the key, and
+the gate now asserts that).
+
+**Routing evidence**: model=claude-opus-5 task-class=execute round1-score=n/a rounds=1 corrections=0
+  provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus
+  designer/planner/executor/evaluator/quorum: NONE fired. The Fable designer run went UNSPENT for
+  the **fourth** consecutive iteration. codex `gpt-5.6-sol` re-probed as a command (Standing rule
+  8(d)): rc=1, *"usage limit … try again at 5:34 AM"* — still dry at 03:07 CEST, so the cons-cells
+  roadmap revision stays `PARKED-ON-LANE` and iteration 229's plan is untouched.
+  metered = **$0.00** of $5. No GPU, no `rig.lock`.
+
+**Not closed by this.** `release.yml` fires only on tags, so its seven bounds are unexercised until
+the next release. `dashboard-ui-build`'s 20-minute bound is still a guess — that job has never run
+long enough to produce data. And `Test Game Codegen`'s 20-minute bound was likewise a guess until
+this push, which measured it at 132s.
+
+**Next.** The `ui/` dependency untangle behind `#503` (three stacked conflicts; a real bump-vs-hold
+decision, plus identifying cause 3). The cons-cells roadmap revision + re-quorum on codex once its
+bucket resets. `m-stdlib-reverse-delegates-to-builtin`, unblocked and cheap. Consumer reports
+`#672` and `#656`, both outside `MISSION_REPO`.

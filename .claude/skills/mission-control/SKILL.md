@@ -2245,6 +2245,42 @@ search; **(iv)** a zero-failure count over an unfinished run is not a fact about
 fact about the clock. The tell: your poll's verdict line and its own row count disagree in size, or
 you are about to write "0 failures" for a run you have never seen COMPLETE.
 
+**AND THE COMPARISON THAT DECIDES "SETTLED" IS AN INSTRUMENT TOO — IN `sh`, TWO *EMPTY* VALUES ARE
+EQUAL, SO A POLL WHOSE COUNTS BOTH FAILED TO PARSE REPORTS COMPLETION IN EXACTLY THE VOICE OF A REAL
+ONE** (added 2026-08-20 V1 iteration 233; instance 1 is iteration 107's `set -- $res` poll that
+printed `TIMEOUT` on a run its own last line showed `completed success`, instance 2 is iteration
+154's vacuously-green aggregate, and this is instance 3 — a new mechanism, which is why it earns a
+note rather than a louder restatement). Rules (i)–(iv) above all police the check *set*: is it
+complete, is it the right run, has it finished. **None of them polices the arithmetic you run over
+it.** The rule immediately above even sends you to `present == expected` — a two-value comparison —
+without saying what happens when neither value exists.
+Measured first-party this iteration: a Gate-3b poll piped the runs payload to a local `jq`, which
+died with `parse error: Invalid string: control characters ... must be escaped` on a commit message
+containing a control character. Both counts were therefore the empty string, `[ "$pres" = "$done" ]`
+evaluated **true**, and the loop printed **`ALL COMPLETE`** — while the very next command, a direct
+per-workflow read, showed **three runs still `in_progress`**. Note what makes this worse than a
+missing row: rule (i)'s remedy, comparing two numbers, is *itself* the vulnerable shape, and the
+failure is total rather than partial — no rows at all, so no completeness check on the SET can see
+it. It is the vacuous-pass class aimed at the gate that decides **LANDED vs parked**, and the
+disposition it produces is the dangerous one: a *premature green*, not a false red.
+**Rules. (a)** Before any count is compared, assert it is a NUMBER — `case "$v" in ''|*[!0-9]*)` —
+and treat a non-numeric reading as **`INSTRUMENT FAILURE — not a verdict`**, never as a value.
+Print that phrase; it is what distinguishes "I could not measure" from "nothing is pending", which
+is the whole defect. **(b)** Prefer `gh --jq` (evaluated inside `gh`, on the raw payload) over
+`gh api | jq`: the pipe is where a payload with control characters, a truncated body or a rate-limit
+HTML page turns a measurement into an empty string. **(c)** Never let `-eq`/`=` on two derived
+values be the only thing standing between you and a LANDED tag — pair it with the direct
+per-workflow read Gate 3b already prescribes, and believe the read. This iteration was saved by
+exactly that pairing and by nothing else. **(d)** The floor pays for itself immediately: once added,
+the same poll correctly reported `INSTRUMENT FAILURE` straight through a real transient network drop
+(`dial tcp ...: network is unreachable`) instead of calling it a completion — a second, unplanned,
+live confirmation in the same iteration.
+Mission-independent, and the general form is this skill's own recurring shape one level down: **a
+remedy is an instrument too, so when this file prescribes a comparison, the comparison's own failure
+modes become the rulebook's problem.** The tell: your poll decides it is done by comparing two
+values you extracted from a payload, and you have never asked what those variables hold when the
+extraction fails.
+
 **AND `head_sha=` NEEDS ALL 40 CHARACTERS — A TRUNCATED SHA RETURNS `total=0`, NOT AN ERROR; AND
 WHEN THE OUTAGE ATE THE EVENT, `workflow_dispatch` IS THE LEVER, BECAUSE IT IS NOT A WEBHOOK**
 (added 2026-08-06 iteration 155; both halves are second instances). The paragraph above sends you to
