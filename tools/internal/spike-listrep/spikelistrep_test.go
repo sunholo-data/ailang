@@ -1,6 +1,7 @@
 package spikelistrep_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -13,6 +14,18 @@ func TestSliceListRoundTrip(t *testing.T) {
 
 func TestConsListRoundTrip(t *testing.T) {
 	testRoundTrip(t, spikelistrep.ConsFromSlice, spikelistrep.ConsEmpty, spikelistrep.ConsCons)
+}
+
+func TestChunkListRoundTrip(t *testing.T) {
+	for _, k := range []int{8, 32} {
+		t.Run(fmt.Sprintf("K=%d", k), func(t *testing.T) {
+			testRoundTrip(t,
+				func(v []eval.Value) spikelistrep.List { return spikelistrep.ChunkFromSlice(k, v) },
+				func() spikelistrep.List { return spikelistrep.ChunkEmpty(k) },
+				func(v eval.Value, l spikelistrep.List) spikelistrep.List { return spikelistrep.ChunkCons(k, v, l) },
+			)
+		})
+	}
 }
 
 func testRoundTrip(
