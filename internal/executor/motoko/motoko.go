@@ -174,6 +174,17 @@ func (e *MotokoExecutor) Execute(ctx context.Context, task *executor.Task) (*exe
 // JSONL file as it grows (M2 will add the streaming goroutine; M1 ships with
 // post-completion parse only).
 func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+	// D1 (M-MOTOKO-FMT-REMEASUREMENT-INSTRUMENT §12.2): per-task resolved-
+	// provider credential refusal, at the choke point through which ALL motoko
+	// work passes. Runs STRICTLY DOWNSTREAM of repo discovery: the eval harness
+	// and the canary both run HealthCheck (which populates e.motokoRepo via
+	// `motoko --version`) BEFORE ever reaching Execute, so refusing here cannot
+	// degrade the profile to extensions.order=[] and drop the fmt extension
+	// (design doc §12.3 ordering requirement).
+	if err := requireProviderCredential(e.getModel(task)); err != nil {
+		return nil, fmt.Errorf("motoko provider preflight refused: %w", err)
+	}
+
 	effectiveProfile := e.profile
 	if p := task.Metadata["motoko_profile"]; p != "" {
 		effectiveProfile = p

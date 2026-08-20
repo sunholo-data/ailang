@@ -14,7 +14,8 @@ Spawns `motoko "<task>"` as a subprocess with `WORKDIR` / `MODEL` / `MOTOKO_CONF
 motoko "<directive>"           # task as positional arg
 # Env var inputs:
 #   WORKDIR=/path/to/workspace          # working directory motoko writes JSONL into
-#   MODEL=openrouter/anthropic/claude-haiku-4-5   # model id (always openrouter/* for motoko)
+#   MODEL=ollama/qwen3.6:35b-a3b-mxfp8            # model id; the resolved PROVIDER decides the
+#                                                 # credential (7 of 17 motoko lanes are ollama/*)
 #   MOTOKO_CONFIG=dogfood                          # profile name (matches a directory under .motoko/config/)
 #   MOTOKO_SESSION_ID=session_<task_id>            # the adapter sets this so it can find the JSONL
 ```
@@ -23,10 +24,19 @@ The adapter never invokes any motoko sub-command beyond `--version` / `--help` (
 
 ## Auth
 
-- **Required**: `OPENROUTER_API_KEY` — motoko routes ALL models via OpenRouter, so this is the canonical auth surface.
+- **Per-lane, not global** (D1, 2026-08-20). The credential required is a function of the model's
+  RESOLVED PROVIDER, checked in `provider_preflight.go` at the top of `ExecuteStreaming`:
+  `ai.EnvVarForProvider(ai.GuessProvider(model))` returns that provider's variable, or `""` for a
+  provider that needs none. `OPENROUTER_API_KEY` is required only for an OpenRouter-routed lane
+  (10 of the 17 `agent_cli: "motoko"` entries in `models.yml`); the 7 `ollama/*` lanes require
+  nothing and run with every credential variable unset.
+  This section previously read *"motoko routes ALL models via OpenRouter"*, matching an
+  unconditional refusal in `HealthCheck`. That claim was false for the ollama lanes and is why two
+  Wednesday fmt A/B slots banked no data.
 - **NOT bound in cloud Job** (per [EXECUTOR_SHAPE.md §8](../../../docs/internal/EXECUTOR_SHAPE.md) cost-control rule): `ANTHROPIC_API_KEY`. Anthropic API-key billing is pay-per-token; the cloud Job binds only OpenRouter + OpenAI + Gemini keys, matching the Pi-precedent. `motoko-claude-*` models stay LOCAL-only for cost-control.
 
-For local dev, `OPENROUTER_API_KEY` in your shell environment is sufficient. The adapter does not manage credentials — it inherits the parent process's environment via `executor.BuildEnvironment`.
+For local dev, the variable your lane's provider declares is sufficient — `OPENROUTER_API_KEY` for an
+OpenRouter lane, nothing at all for an `ollama/*` one. The adapter does not manage credentials — it inherits the parent process's environment via `executor.BuildEnvironment`.
 
 ## Event schema (motoko session JSONL v1)
 
