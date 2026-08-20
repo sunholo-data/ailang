@@ -14174,3 +14174,113 @@ the harness's own task notification — had not fired, and the worktree diff was
 claimed completion. `pgrep` also over-matched in the other direction: `pgrep -fl codex` returns four
 `ChatGPT.app` helper processes on this rig, so both the false-negative and the false-positive live in
 the same instrument. Routed to Gate 5.
+
+## 236 — 2026-08-20 — Iteration 236: LC-1's doc and plan landed, and two of the doc's own acceptance criteria turned out to be unsatisfiable
+
+**Picked**: `LC-1 m-list-repr-spike`, the kill-criterion gate of the `m-list-cons-cells` programme.
+Iteration 235 deferred it for exactly one reason — the designer rotation's next entry was Fable, whose
+diet allows a single run, so a round-1 quorum block would have reproduced the 228/229 wall. That
+constraint was **managed rather than repeated**: Fable authored the doc (one run, diet intact) and the
+revision went to `codex:gpt-5.6-sol`, probed rc=0 first. NEW-DOC was verified, not assumed — a grep for
+`repr-spike` across `design_docs/` returned only roadmap/charter/log mentions (control:
+`m-list-cons-cells-decomposition` fires), and neither a merged PR nor a commit matched.
+
+**A stale instrument was caught before it was used, not after.** The installed `ailang` was
+`v0.33.1-125-gc575cd44e-dirty` against a `git describe` of `v0.33.1-160-g8322d22b7` — **35 commits
+adrift and dirty**. Since the quorum's reviewer set, pricing and degrade logic all live in that binary,
+the two metered rounds ran on a copy built in the clean pin worktree, its `--version` asserted equal to
+`git describe` with no `-dirty` suffix. The shared `~/go/bin` copy was deliberately left alone so
+concurrent agents were not disturbed.
+
+**Quorum: two metered rounds, BLOCKED 2-of-2 both times.** Both reviewers `present=true` and
+`absent_reviewers` **empty** in both rounds, so neither the iteration-175 N−1 degrade trap nor the
+`#651` controller-satisfied-`presentCount` trap applies; caps were pre-raised ($0.25, then $0.30)
+because the doc grows each round. Round 1: `gpt5-6-sol` found the **kill gate was non-deterministic** —
+`-count=3` with no defined replicate, aggregation, boundary-crossing or noise rule, so identical
+recorded numbers could produce different verdicts on the gate that commits ~16 further days. Its second
+catch was that a *peak* `HeapAlloc` cannot be obtained from before/after `ReadMemStats` endpoints; that
+was honoured by **removing** the metric and recording the removal under *Unverified*, rather than
+keeping a number nothing could produce. `gemini-3-1-pro` found a **false premise**.
+
+**The premise objection was measured, not forwarded (rule 3f) — and my first measurement was wrong in
+this skill's own documented way.** The doc claimed *"Go gives no mechanism to forbid same-module
+imports"*. Built as a real experiment with both arms: a nested `tools/internal/spikeprobe` package
+imported from `internal/` gives `rc=1`, `use of internal package … not allowed`; the same package
+imported from under `tools/` gives `rc=0` with zero output. **My first reading piped both `go build`
+calls through `head`, so both reported rc=0** — step 3's exit-codes-through-pipes trap, in the middle of
+the very measurement meant to settle the objection. Re-run with codes captured to file before anything
+was banked. The premise was false: the package moved to `tools/internal/spike-listrep/` at all **7**
+path sites, and social README enforcement was replaced by a compiler gate.
+
+**Round 2 blocked again, on new objections — and the reviewer was right about the instrument even where
+the conclusion held.** `gpt5-6-sol` objected that V3's method-only grep could not support "no accessor
+surface exists". Measured: the broad claim **holds** (0 hits for copy-on-write / finger-tree / rope /
+cons-cell / structural-sharing against a firing same-scope control of **753** `ListValue` hits; **2**
+generic types, neither a sequence, against a control of **2142** declared types; **0** of 99 direct
+dependencies) — **but two free functions over `*ListValue` do exist**, `encodeJSONArray` and
+`encodeJSONObject`, precisely the surface a method-only pattern excludes. V3 was narrowed to the method
+claim and the two functions recorded as LC-3x migration sites. One finding ran the other way and was
+adopted: `iter.Seq` has **0** in-repo uses at `go 1.26.6`, so D3's iterator is explicitly stdlib-adopted
+instead of implying a house idiom. `gemini-3-1-pro` found two claims that were **true but unsupported by
+the log** — `_list_nth` genuinely bounds-checks at `list.go:320`, and patterns genuinely index head
+elements at `eval_patterns.go:224` and `:244` (5 indexed of 18 total `Elements` references in that
+file) — while V6 had captured only the registration site. V6 expanded to read the body, V18 added, the
+D3 citation repointed. Resolved under the **narrow-refinement carve-out** (ratified iter-98): every
+surviving objection carried a concrete reviewer-authored `proposed_fix` and none disputed the design
+DIRECTION, so one bounded controller revision applied their own text plus the measurements. No third
+metered round to re-litigate fixes both reviewers had already written.
+
+**No threshold, observable or control was weakened at any step** — clause literals (1.5, ≥8×, 2.0, 2.5,
+1.2) were counted before and after each revision. The one apparent DRIFT was my own instrument
+over-matching: `1\.2` also matches `go 1.26.6`, which I had just added twice. `ratio ≤ 1.2` is one
+occurrence before and after.
+
+**The planner refuted two of the doc's own acceptance criteria, and both were confirmed first-party
+before acceptance.** (1) **AC-3 was unsatisfiable as written**: clause (d) requires `Len()` at n=4096
+and n=65536 within ratio ≤ 1.2, and **0 of 9** benchmark rows measures `Len` — B4 is `nth` at an index,
+a different operation. The clause had an observable with no instrument. Fixed additively with a `B-LEN`
+row; the threshold was untouched. (2) **AC-7 was vacuously green**: reproduced on the branch, the scoped
+`git diff --name-only <base>..HEAD -- internal/ cmd/ std/ examples/` prints **0** lines while the
+unscoped control prints **3** — so the criterion passes identically on a branch that did nothing. M6 now
+runs both arms. The planner additionally measured that the CI surface is wider than AC-8 stated (bare
+`go test ./...` on ubuntu *and* windows, plus `vet` and `fmt-check`, all reaching `tools/`), and that
+`.ailang/` is gitignored while 54 sprint JSONs are tracked, so the sprint JSON needed `git add -f` or it
+would have silently vanished.
+
+**Outcome: LANDED** — PR [#802](https://github.com/sunholo-data/ailang/pull/802) → squash `8f45dd419`.
+`mergeable` was read **first** (`MERGEABLE`, so no dropped-event lever was reached for); 5 runs on the
+full 40-character head SHA against a control of 2; Gate 3b SHA-addressed **21 checks, ZERO not-green**,
+4/4 required pass (`test` 17m35s · `lint` 3m51s · `build` 2m5s · `docs-gate` 4s), `MERGEABLE/CLEAN` at
+merge. Merged directly rather than armed behind auto-merge, since the checks were green *now* — an armed
+auto-merge is a prediction, and Gate 3b's whole discipline is that a prediction is not an observation.
+The local gate list was **derived from `ci.yml`**, not recalled: `check-changelog`, `check-skills`,
+`check-file-sizes` all rc=0, all **darwin/arm64**; linux and windows legs were unrun locally and settled
+by CI.
+
+**What is NOT claimed**: the spike itself has not been executed. The deliverable is a design doc and a
+6-milestone plan; the benchmark run — and therefore the programme's actual go/no-go — is next
+iteration's work. LC-2…LC-5 remain gated.
+
+**Routing evidence**: controller `claude:claude-opus-5` (session). Designer `claude:claude-fable-5` via
+`claude-sub`, probed rc=0, one bounded backgrounded run, 366-line doc, exactly one file touched — **the
+Fable diet was respected at one run**. Revision designer `codex:gpt-5.6-sol` (probed rc=0) rather than a
+second Fable run — a deliberate, **FLAGGED** rotation deviation taken to protect the diet, which
+iteration 228 violated in the same situation. Second revision: controller, under the carve-out. Planner
+`opus`, from `derive-planner-lane.sh` → `opus fail-closed:planner-lane-field-invalid`, token used
+VERBATIM, so no codex probe was owed for that role. No executor and no evaluator ran — the sprint is
+planned, not executed. Namespaced designer-rotation pointer advanced to `codex:gpt-5.6-sol`; the
+unnamespaced fleet-shared file was left untouched. `metered = $0.1605` of the $5 ceiling (two quorum
+rounds: $0.0757 + $0.0849); Fable, codex, opus and sonnet are quota buckets. No GPU, no `rig.lock`.
+
+**Ruled out**: that LC-1 already had a design doc (grep found only roadmap/charter/log mentions, control
+firing); that `#662` had moved, so `m-wasm-deterministic-typecheck-budget` could be unblocked (1 comment,
+ours, 2026-08-18, control `#613` = 2 — the predicate was re-run as a command today, not transcribed);
+that the installed `ailang` binary was safe to run the quorum with (35 commits stale and `-dirty`); that
+gemini's import objection could be settled by reasoning about Go's `internal/` rule rather than by
+compiling both arms; and that the apparent `1.2` threshold drift was real (it was my own pattern matching
+`go 1.26.6`).
+
+**Bookkeeping carried forward, not fixed**: the fleet-shared `design_docs/mission-dashboard.md` still
+holds **Motoko's** snapshot. Per Gate 4's namespacing rule V1 wrote only
+`design_docs/v1-mission-dashboard.md` and left the sibling's content alone. The duplicate log entry
+number `232` recorded by iteration 234 also stands — log numbers remain an unreliable index.

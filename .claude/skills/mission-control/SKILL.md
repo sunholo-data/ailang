@@ -780,6 +780,40 @@ the Repo Profile above):
    "exit codes lie" has itself been printing `rc=` — an empty reading that looks like a formatting
    quirk rather than a failed check, **voiding the very gate it was added to protect**. Reported by
    mission-world (iter-37, two instances) and reproduced first-party before adoption.
+   **AND THE PIPE TRAP IS WORST INSIDE A TWO-ARM CONTROL, BECAUSE IT DOES NOT LOSE ONE READING — IT
+   MAKES BOTH ARMS AGREE, AND AGREEMENT IS EXACTLY WHAT A CONTROL IS READ FOR** (added 2026-08-20 V1
+   iteration 236; instance 1 is iteration 233's Gate-3b poll, instance 2 is this iteration's Gate-2
+   measurement — two gates, two mechanisms, one shape, which is this loop's own
+   *guard the helper, miss the call site* pattern aimed at its rulebook). Everything above is written
+   about ONE command whose status you lose. The dangerous case is the **experiment**: rule 3d tells
+   you to run the mechanism removed and require the outcomes to DIFFER, and rule 3f tells you to
+   measure a reviewer's premise rather than forward it — so the loop's best instincts all point at
+   two-arm comparisons, and a broken reader corrupts both arms identically. The result is not a
+   missing number, it is a **false symmetry**: the discriminator collapses and the arms look like
+   evidence that the variable does not matter. Rule 3e(iii) already names that inference ("identical
+   results across arms is equally consistent with … 'both arms are already broken'") and tells you to
+   ask what the arms SHARE — the half it does not say is that **the thing they share is often the
+   READER, not the tree**, so no amount of care about the base will catch it.
+   Measured here, in the middle of the very measurement meant to settle a quorum objection:
+   `go build ./internal/spikeprobe_consumer/ 2>&1 | head -5; echo "rc=$?"` and the same shape for the
+   positive control both printed **rc=0** — `head`'s status, twice — on arms whose true codes are
+   **1** and **0**. The compiler's refusal text was visible in the negative arm, which is the only
+   reason it was noticed; a quieter check would have banked a clean, symmetric, entirely false result
+   and reported the reviewer's premise as unfalsifiable. Iteration 233's instance is the same shape
+   one gate over: a `jq` parse error left BOTH poll counts empty, `[ "" = "" ]` is true, and the gate
+   that decides LANDED vs parked printed `ALL COMPLETE` over three still-running workflows.
+   **Rule. (a)** In any comparison — two arms, before/after, check-vs-control — capture each side's
+   status WITHOUT a pipe (`cmd > /tmp/out 2>&1; rc=$?`) and print the codes **beside each other**,
+   because two codes on one line is what makes a false symmetry visible. **(b)** Before reading a
+   symmetric result as a finding, ask what would have to be true for the arms to differ, and confirm
+   your reader could have SHOWN that difference — a control proves the mechanism fires, and this
+   proves the instrument can report it. **(c)** Where the arms are expected to differ, assert the
+   difference explicitly (`[ "$rc_neg" -ne "$rc_pos" ]`) rather than eyeballing two values you
+   printed; an equality you did not intend is then a loud failure instead of a quiet conclusion.
+   **(d)** Mission-independent and shell-independent: the mechanism is whatever stands between the
+   work and your reading of it — a pipe, a `jq`, a truncation, an API that 200s on an error page.
+   The tell: you are about to report that two arms behaved the same, and the same command shape
+   produced both readings.
 3a. **A SEARCH THAT FOUND NOTHING IS A CLAIM, NOT A FACT — and so is any probe that came back
    empty** (added 2026-07-29 iteration 119; widened to all instruments iteration 120; the
    cheapest vacuous pass in the toolbox, and the one this loop keeps buying). An empty `grep` is
