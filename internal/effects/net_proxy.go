@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // targetValidationError is a typed, internal error returned by the
@@ -77,10 +78,27 @@ func (rt *netProxyRoundTripper) directRoundTrip(req *http.Request) (*http.Respon
 	return tr.RoundTrip(req)
 }
 
+// literalHost strips an RFC 4007 zone identifier from a URL host so that a
+// zone-qualified IPv6 literal is recognised as a literal.
+//
+// url.URL.Hostname() returns the zone, e.g. "fe80::1%eth0" for
+// http://[fe80::1%25eth0]/ — and net.ParseIP REJECTS that form, returning nil.
+// Without this, a zone-qualified link-local target would fall through to the
+// hostname branch and skip IP-policy validation entirely on the proxy route,
+// which is the one thing D-1 exists to prevent. Trimming at the first '%' cannot
+// turn a hostname into a literal: '%' is not a legal character in a DNS name, so
+// any host containing one is either a zone-qualified literal or already invalid.
+func literalHost(host string) string {
+	if i := strings.IndexByte(host, '%'); i >= 0 {
+		return host[:i]
+	}
+	return host
+}
+
 // proxyRoundTrip validates literal target IPs without DNS, then performs
 // ordinary proxy dialing. Hostname targets receive no local resolution.
 func (rt *netProxyRoundTripper) proxyRoundTrip(req *http.Request, proxyURL *url.URL) (*http.Response, error) {
-	if ip := net.ParseIP(req.URL.Hostname()); ip != nil {
+	if ip := net.ParseIP(literalHost(req.URL.Hostname())); ip != nil {
 		if err := validateIP(ip, rt.ctx); err != nil {
 			return nil, &targetValidationError{cause: err}
 		}

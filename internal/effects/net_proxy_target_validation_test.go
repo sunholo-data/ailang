@@ -9,8 +9,23 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
+
+// forceProxyCounted is forceProxy plus a selection counter. The counter is what
+// makes an arm DISCRIMINATE the proxy route: a blocked literal IP is refused by
+// the DIRECT route too (resolveAndValidateIP's raw-IP branch), with the same
+// error text and the same zero resolver/dial counts — so without this, an arm
+// named for the proxy route passes identically when the proxy is never selected,
+// and survives having its own precondition removed. Found by the iteration-235
+// evaluator's precondition-neutering drill.
+func forceProxyCounted(ctx *EffContext, proxyURL *url.URL, calls *int32) {
+	ctx.Net.proxySelector = func(*http.Request) (*url.URL, error) {
+		atomic.AddInt32(calls, 1)
+		return proxyURL, nil
+	}
+}
 
 // installProbeResponseDial replaces the probe dialer with a socket-free
 // net.Pipe responder while preserving dial call/address instrumentation.
@@ -43,11 +58,16 @@ func TestNetProxyTargetValidation(t *testing.T) {
 			return nil, nil
 		}}
 		ctx := newNetProbeCtx(t, probe)
-		forceProxy(ctx, proxyURL)
+		var proxySelections int32
+		forceProxyCounted(ctx, proxyURL, &proxySelections)
 
 		result, err := NetHTTPRequest(ctx, argsGet("http://10.0.0.1/x"))
 		if err != nil {
 			t.Fatalf("NetHTTPRequest returned Go error: %v", err)
+		}
+		if got := atomic.LoadInt32(&proxySelections); got != 1 {
+			t.Fatalf("proxy selections = %d, want 1 — this arm must exercise the PROXY route, "+
+				"not the direct route, which refuses the same literal for a different reason", got)
 		}
 		ctor, msg := unwrapErrCtor(t, result)
 		if ctor != "Transport" || !strings.Contains(msg, "E_NET_IP_BLOCKED") {
@@ -148,6 +168,42 @@ func TestNetProxyTargetValidation(t *testing.T) {
 		}
 		if s := probe.snapshot(); s.resolverCalls != 1 {
 			t.Errorf("resolver calls = %d, want 1 for direct route", s.resolverCalls)
+		}
+	})
+
+	// Regression arm for the iteration-235 evaluator finding: url.Hostname() keeps
+	// the RFC 4007 zone ("fe80::1%eth0") and net.ParseIP returns nil for that form,
+	// so before literalHost() this link-local target reached the proxy UNVALIDATED.
+	t.Run("proxy_zone_qualified_literal_blocked", func(t *testing.T) {
+		proxyURL, err := url.Parse("http://proxy.test:3128")
+		if err != nil {
+			t.Fatalf("parse proxy URL: %v", err)
+		}
+		probe := &netProbe{resolve: func(string) ([]net.IP, error) {
+			t.Fatal("zone-qualified literal must not reach the resolver")
+			return nil, nil
+		}}
+		ctx := newNetProbeCtx(t, probe)
+		var proxySelections int32
+		forceProxyCounted(ctx, proxyURL, &proxySelections)
+
+		result, err := NetHTTPRequest(ctx, argsGet("http://[fe80::1%25eth0]/x"))
+		if err != nil {
+			t.Fatalf("NetHTTPRequest returned Go error: %v", err)
+		}
+		if got := atomic.LoadInt32(&proxySelections); got != 1 {
+			t.Fatalf("proxy selections = %d, want 1 (arm must exercise the proxy route)", got)
+		}
+		ctor, msg := unwrapErrCtor(t, result)
+		if ctor != "Transport" || !strings.Contains(msg, "E_NET_IP_BLOCKED") {
+			t.Fatalf("expected Err(Transport(E_NET_IP_BLOCKED...)) for fe80::1%%eth0, got Err(%s(%q))", ctor, msg)
+		}
+		s := probe.snapshot()
+		if s.resolverCalls != 0 {
+			t.Errorf("resolver calls = %d, want 0", s.resolverCalls)
+		}
+		if s.dialCalls != 0 {
+			t.Errorf("dial calls = %d, want 0 before refusal; saw %v", s.dialCalls, s.dialAddrs)
 		}
 	})
 }
