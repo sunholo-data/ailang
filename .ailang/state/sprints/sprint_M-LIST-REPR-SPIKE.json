@@ -1,0 +1,329 @@
+{
+  "sprint_id": "M-LIST-REPR-SPIKE",
+  "status": "not_started",
+  "created": "2026-08-20T00:00:00Z",
+  "planned_at_head": "3ad6a2e46",
+  "merge_base": "8322d22b75adfce7a4aa284eaf3ad99afdd4b570",
+  "branch": "sprint/iter236-list-repr-spike",
+  "worktree": "/Users/voightkampff/dev/sunholo-data/.wt-iter236",
+  "design_doc": "design_docs/planned/m-list-repr-spike.md",
+  "sprint_plan": "design_docs/planned/m-list-repr-spike-sprint-plan.md",
+  "programme": "LC-1 of m-list-cons-cells-decomposition.md; carries the go/no-go KILL CRITERION gating LC-2..LC-5 (~16 further person-days)",
+  "github_issues": [],
+  "github_issues_note": "#676 (the user-reported OOM) is REFERENCED ONLY. Commits use `refs #676`; a `Fixes #676` would wrongly auto-close a defect this THROWAWAY SPIKE does not fix - the spike ships no production code at all. #745 (carries D-19 : B) is the DESTINATION OF A STOP VERDICT only: on STOP, M6 posts a comment re-opening D-19 with the measured table and records the URL. Neither issue is listed in github_issues so no auto-close language can be generated.",
+  "risk_level": "medium",
+  "planner_lane": "opus-required",
+  "velocity": {
+    "target_loc_per_day": 600,
+    "estimated_total_loc": 1800,
+    "estimated_days": 3,
+    "estimated_report_markdown_lines": 450,
+    "basis": "Measured first-party at 3ad6a2e46 over the last 14 days of non-merge commits touching *.go (added+deleted): 137, 220, 351, 503, 506, 557, 661, 709, 1013, 1286, 1696. Band 137-1696, median ~561 lines changed per commit. All six milestones (400/210/300/330/420/140) sit inside that band. 1800 LOC over 3.0 days = 600/day, inside the observed band (a single recent commit was 1286). The doc's own estimate is 2-3 days; this plan lands at 3.0, the TOP of the box, and says so rather than compressing to fit."
+  },
+  "measurement_posture": {
+    "platform_of_record": "darwin/arm64, go1.26.6, macOS 26.5.2 (25F84) - planner-verified P1. Every number in the report is a darwin/arm64 number.",
+    "gpu": "NONE. The spike is pure Go CPU + heap work: no model load, no ollama call, no GPU. It does NOT take rig.lock and MUST NOT take it - rig.lock is a GPU MUTEX ONLY (tools/launchd/rig-lock.sh:16, tools/launchd/mission-control.sh:15, .claude/skills/mission-control/SKILL.md:445). Holding it for a ~1h CPU sweep would needlessly block GPU eval consumers. A later executor must not infer a lock requirement from the phrase 'runs on the rig'.",
+    "rig_quietness": "OBSERVED, NEVER ACQUIRED. `ls \"$HOME/.ailang/state/rig.lock.d\"` is run immediately BEFORE and AFTER the full matrix run and both lines are pasted into the report header. A concurrent GPU eval contends for memory bandwidth and cores; the five-trial median + ordinal pairing + tie/spread rerun is the doc's designed defence, and ordinal pairing means contention hits candidate and control alike.",
+    "budget": "WALL-CLOCK, not GPU-hours. 76 measured points x 5 trials = 380 fresh-process invocations per full pass (plus B-LEN's 40, plus reruns). Estimated ~30-90 minutes at -benchtime=1s; the executor records ACTUAL elapsed wall-clock in the report.",
+    "peak_rss_ceiling": "4 GB. B1's heaviest cell (C0, m=4096, L=16384) retains ~1.07 GB PER ITERATION (4096 results x 16385 elements x 16 B interface headers) and the benchmark design mandates keeping them live. Release the result slice at the end of each b.N iteration; runner records /usr/bin/time -l max RSS per invocation; a cell breaching 4 GB is pinned to -benchtime=1x with the deviation and reason recorded in its command string. The rig has a documented history of eval-driven OOM kernel panics."
+  },
+  "ac1_cell_enumeration": {
+    "note": "The design doc's AC-1 says 'every cell of B1-B8 x {C0,C1,C2(8),C2(32)}' but never defines 'cell' at grid granularity (plan AMB-1). This plan takes the STRICT reading: one cell = one (grid point x arm) pair.",
+    "arms": [
+      "C0",
+      "C1",
+      "C2(K=8)",
+      "C2(K=32)"
+    ],
+    "B1_branching": "2 m x 3 L x 4 arms = 24",
+    "B2_linear": "4 n x 4 arms = 16",
+    "B3_iteration": "2 n x 4 arms = 8",
+    "B4_nth": "4 i x 4 arms = 16",
+    "B5_materialize": "1 x 4 arms = 4",
+    "B6_retained": "1 x 4 arms = 4",
+    "B7_allocs": "0 new runs - read off B1/B2 -benchmem",
+    "B8_gcshape": "1 x 4 arms = 4",
+    "total_ac1_scope": 76,
+    "B_LEN_additive": "2 n x 4 arms = 8 (OUTSIDE AC-1; supplies clause (d)'s observable, see doc_ac_ambiguities.AMB_2)",
+    "fresh_process_invocations_per_pass": 380
+  },
+  "doc_ac_ambiguities": {
+    "preamble": "Stated rather than silently resolved, per the mission's recurring plan/doc AC-mismatch defect. In every case the plan takes the STRICTER reading and no threshold moves. If the evaluator disagrees with a resolution, the DOC WINS and the plan is wrong.",
+    "AMB_1_cell_granularity": "AC-1 (doc:320-322) never defines 'cell' at grid granularity: row x arm = 32, grid point x arm = 76. RESOLVED to the strict 76 reading. The cheap reading would let a passing report omit 44 measured points.",
+    "AMB_2_clause_d_has_no_matrix_row": "GENUINE DOC GAP. Clause (d) (doc:218-223) and AC-3 (doc:328-331) require Len() at n=4096 and n=65536 with ratio <= 1.2, but the B1-B8 matrix (doc:135-144) has NO Len row (B4 is nth, a different operation). RESOLVED by adding a plan-level B-LEN benchmark in M4. Additive: AC-1 still ranges over B1-B8 only; the 1.2 threshold is untouched. AC-3 is unsatisfiable without it.",
+    "AMB_3_no_verdict_for_an_invalid_instrument": "AC-2 (doc:323-325) reds if the C0 control fails to reach L-ratio >= 8 ('instrument can't see a positive -> B1 is invalid'), but AC-5 (doc:336-339) admits ONLY GO or STOP and forbids hedging. A doc-literal reading would force a STOP on a benchmark just shown blind. RESOLVED: control failure => NO VERDICT MAY BE EMITTED; the sprint fails at M2, AC-2 is red, D-19 is NOT re-opened. This is why M2 is a separate Day-1 milestone.",
+    "AMB_4_benchtime_unpinned": "Protocol section 1 (doc:161-165) pins -count=1, -timeout=10m and a 12-minute subprocess deadline but never -benchtime, so two runs of 'the same command' can differ in b.N and hence variance. RESOLVED: pin -benchtime=1s (Go's default made visible) on every cell, recorded verbatim in each cell's command per AC-1; any per-cell deviation (see peak_rss_ceiling) recorded with its reason. No threshold changes.",
+    "AMB_5_one_file_is_singular": "Clause (e)(3) (doc:233-235) requires 'all field writes sit inside constructor functions in one file'; three representations cannot share one file without merging. RESOLVED per-representation: each candidate's field writes confined to its own constructor file. The AC-4 grep runs once across the package and its hits are partitioned by file.",
+    "AMB_6_ac6_already_largely_satisfied_by_the_doc": "D3's table with a file:line per row already exists at doc:248-257, so AC-6 is nearly satisfied before the sprint starts. RESOLVED: the report reproduces it AS-BUILT, annotated per row with whether the candidates implemented it and anything clause (e) proved infeasible. No new citations are invented.",
+    "AMB_7_ac8_understates_the_ci_surface": "AC-8 (doc:345) names make test, and Conflict Surface #2 (doc:273-276) calls it 'the one real surface'. MEASURED WIDER (P4/P5): CI runs bare `go test -timeout 300s ./...` on ubuntu-latest (ci.yml:101) AND windows-latest (ci.yml:297-298, :377); make vet (go list ./... minus examples/agents) and make fmt-check (gofmt -l .) both include tools/; make lint does NOT (golangci-lint run ./cmd/... ./internal/... ./testutil/..., code-health.mk:71). RESOLVED by ADDING gates at M1/M6 - AC-8 itself is unreinterpreted. Two consequences: the spike's unit tests must be OS-INDEPENDENT (they run on windows-latest) and per-package test time must stay far below 300s."
+  },
+  "planner_verified_facts": {
+    "P1_platform": "go1.26.6 darwin/arm64; Darwin arm64; macOS 26.5.2 (25F84)",
+    "P2_compile_premises": "A throwaway tools/internal/zzprobe holding `head eval.Value; tail *cell; n int`, an iter.Seq[eval.Value] iterator, and real &eval.IntValue{Value:1} / &eval.ListValue{Elements:...} literals passed `go vet ./tools/internal/zzprobe/` rc=0 with zero diagnostics. Probe removed; tree clean. Confirms BOTH load-bearing compile-time premises: tools/internal can import internal/eval, and iter.Seq works here.",
+    "P3_ac7_instrument_is_valid_but_vacuously_green": "With an uncommitted tools/internal/zzprobe/p.go staged via git add -N: `git diff --name-only HEAD -- internal/ cmd/ std/ examples/` -> 0 lines (correct); control `git diff --name-only HEAD` -> tools/internal/zzprobe/p.go. CONSEQUENCE: AC-7's scoped command is green both when the spike is correct AND when nothing changed at all, so M6 must run the unscoped firing control too.",
+    "P4_ci_surface": "ci.yml:17-18 test job = ubuntu-latest running `go test -timeout 300s ./...` (:101); ci.yml:297-298 test-windows = windows-latest running the same (:377). make vet = go vet $(go list ./... | grep -v examples/agents) -> includes tools/. make fmt-check = gofmt -l . -> includes tools/. make test (test.mk:30) runs OFFLINE under GOPROXY=off with poisoned HTTP(S)_PROXY.",
+    "P5_make_lint_excludes_tools": "code-health.mk:71 = golangci-lint run ./cmd/... ./internal/... ./testutil/... . The INVOCATION SCOPE excludes tools/, not the config (.golangci.yml:32-34 exclude-dirs lists only examples/agents and scripts). So a tools/-only lint smell cannot red CI, but go vet and gofmt still can.",
+    "P6_external_only_tests_dodge_the_coverage_gate": "Built tools/internal/zzcov with only a `package zzcov_test` file: go list showed TestGoFiles=[] XTestGoFiles=[z_ext_test.go]; `go list -f '{{if .TestGoFiles}}{{.ImportPath}}{{end}}' ./... | grep -c zzcov` = 0 with a firing control of 107 packages selected. coverage.mk:18 uses exactly that filter and coverage.mk:12 sets COVERAGE_THRESHOLD=29, so keeping ALL spike test files external keeps the spike out of the threshold denominator.",
+    "P7_tools_are_in_the_module": "go list ./... | grep '/tools/' = 7 packages, so a new tools/internal/spike-listrep is picked up automatically by go list-driven targets.",
+    "P8_rig_lock_is_gpu_only": "tools/launchd/rig-lock.sh:16 RIG_LOCK_DIR=$HOME/.ailang/state/rig.lock.d; tools/launchd/mission-control.sh:15 'Iterations are cloud-model work: they NEVER take rig.lock (GPU mutex only'; mission-control/SKILL.md:445 'it is a GPU mutex only'.",
+    "P9_velocity": "11 non-merge Go commits in the last 14 days: 137, 220, 351, 503, 506, 557, 661, 709, 1013, 1286, 1696 lines changed. Median ~561.",
+    "P10_no_bench_target_collision": "make/eval.mk:169-175 bench-phase2a uses -bench='Benchmark(Native|Eval)_' SCOPED TO ./internal/eval/. BenchmarkListRep_* in ./tools/internal/spike-listrep/ is unreachable on both axes.",
+    "controller_facts_consumed_not_rerun": "C1 nested tools/internal is compiler-refused to production importers (rc=1 negative, rc=0 positive control); C2 make/test.mk:30 compiles+unit-tests the spike, benchmarks compile but do not run; C3 check-file-sizes walks only root internal/cmd (make/code-health.mk:125); C4 *ListValue has 2 methods (control *ArrayValue = 4) + 2 free functions; C5 go 1.26.6 and iter.Seq has 0 in-repo uses; C6 _list_nth bounds-checks at internal/builtins/list.go:320, patterns index at internal/eval/eval_patterns.go:224 and :244."
+  },
+  "hard_constraints": {
+    "kill_criterion_is_not_descope_surface": "The kill criterion (doc:185-240), its literals (1.5, >=8, 2.0, 2.5, 1.2), the five-fresh-process/median-of-paired-ratios/tie-spread-rerun protocol (doc:156-183), and the verdict procedure (doc:237-240) are NOT available as descope surface under any schedule pressure. The plan references them by pointer and never paraphrases them into a gate.",
+    "primary_descope_lever": "DOC-SANCTIONED ONLY: if C2's lock-free O(K) shared-chunk prepend cannot be landed in budget, mark C2's columns infeasible with the reason recorded and proceed - the kill criterion tolerates it if C1 passes (doc:419). Removes ~0.4 day and 32 of the 76 measured points. A GO still requires ONE candidate to pass ALL FIVE clauses.",
+    "no_production_wiring": "ZERO changes under internal/, cmd/, std/, examples/. No parser/typechecker/codegen surface, no syntax, no semantics, no .ail files. The spike IMPORTS internal/eval read-only; importing is not modifying.",
+    "out_of_scope_lc2": "The production accessor layer/seam and the listrep ANALYZER are LC-2's and are NOT planned here - clause (e) ships a GREP, a syntax-level record for LC-2's type-aware analyzer to supersede (doc:233-235). Also out: migrating the 386 ListValue{ construction sites (LC-3), and the end-to-end AILANG repro.ail re-measurement (LC-4, doc:285-288). Planning any of these here would inflate a 2-3 day gate into a fortnight.",
+    "b8_no_peak_metric": "B8 reports ONLY defined before/after MemStats endpoint counters. The peak-HeapAlloc claim was REMOVED by the doc as unsupported by endpoint snapshots (doc:182-183, :420). Do not add a sampler to 'improve' it - that would enlarge a throwaway spike.",
+    "external_test_package_only": "ALL spike test files live in package spikelistrep_test. Clause (e) forces it for benchmarks; extending it to smoke tests keeps the package out of test-coverage-gate's denominator (P6). Do NOT add an in-package test file.",
+    "b6_b8_are_main_programs": "B6 and B8 are non-testing.B main packages, never Test* functions - CI runs go test ./... on ubuntu AND windows, where memory measurements would be flaky and unread.",
+    "commit_policy": "One bisectable commit per milestone (mission standing rule). gofmt clean, go vet ./tools/... rc=0, go test -count=1 ./tools/internal/spike-listrep/... rc=0 at every milestone boundary. Commit messages carry `refs #676`, NEVER `Fixes`.",
+    "file_size": "No spike file over 500 lines. The 800-line CI gate does not reach tools/ (C3); this is self-imposed hygiene.",
+    "negative_claims_need_controls": "Every empty/negative result in the report carries a same-scope firing control: AC-4's grep must be NON-EMPTY; AC-7's scoped diff must be paired with the unscoped diff listing the spike files (P3); gofmt -l on the spike is run alongside gofmt -l . ."
+  },
+  "deliverables": {
+    "D1": "tools/internal/spike-listrep/ - candidates + control + the full matrix. Every matrix cell = command + number.",
+    "D2": "Ratified kill criterion + explicit GO/NO-GO verdict with the arithmetic shown. On STOP: a comment on #745 re-opening D-19 with the table.",
+    "D3": "Draft accessor API spec sized against real call-site needs, reproduced as-built with a file:line per row (input to LC-2, not a commitment)."
+  },
+  "features": [
+    {
+      "id": "M1_SCAFFOLD_API_C0_CONTROL_C1_CONS",
+      "description": "Create tools/internal/spike-listrep/ with README (THROWAWAY - DO NOT IMPORT + the listConsImpl mirror quoted next to internal/builtins/list.go:98-105), list.go carrying the D3 accessor surface (Len/At/All(iter.Seq)/ToSlice/Uncons/DropPrefix + FromSlice/Empty/Cons), slicelist.go = C0 control wrapping the literal production *eval.ListValue with the cons copy mirrored locally, conslist.go = C1 {head eval.Value; tail *ConsList; n int} with unexported fields and all field writes inside constructors in that file. ALL test files in external package spikelistrep_test (clause (e) forces it for benchmarks; extending it to smoke tests also keeps the spike out of test-coverage-gate's denominator - planner-verified P6 with a 107-package firing control). This is the milestone where the spike enters CI.",
+      "estimated_loc": 400,
+      "dependencies": [],
+      "closes_doc_acceptance_criteria": [
+        "AC-4 (legs 1-2 of 3, for C0 and C1)"
+      ],
+      "partially_advances": [
+        "AC-7 (first checkpoint)",
+        "AC-8 (first checkpoint - spike enters CI here)",
+        "AC-6 (surface implemented)"
+      ],
+      "design_doc_lines": "49-70, 86-92, 102-105, 248-257",
+      "gpu_required": false,
+      "acceptance_criteria": [
+        "go build ./tools/internal/spike-listrep/ rc=0",
+        "go vet ./tools/... rc=0",
+        "gofmt -l tools/internal/spike-listrep prints nothing, run alongside `gofmt -l .` as the same CI instrument (make/code-health.mk:14-20 covers tools/)",
+        "go test -count=1 ./tools/internal/spike-listrep/... rc=0 AND output shows '--- PASS:' lines (not a vacuous zero-test pass)",
+        "go list -f '{{.TestGoFiles}} {{.XTestGoFiles}}' ./tools/internal/spike-listrep shows [] then a non-empty list (keeps the package out of coverage.mk:18's selection)",
+        "make test green end-to-end - runs offline (GOPROXY=off, poisoned HTTP proxies, make/test.mk:30), so the spike must import only stdlib + internal/eval",
+        "Negative-arm re-proof for the REAL package name: a scratch internal/ consumer importing tools/internal/spike-listrep fails to build with 'use of internal package ... not allowed', exit code captured TO A FILE not read through a pipe; scratch files deleted in the same milestone",
+        "All representation struct fields unexported; every field write inside a constructor in the representation's own file"
+      ],
+      "files": [
+        "tools/internal/spike-listrep/README.md (new)",
+        "tools/internal/spike-listrep/list.go (new)",
+        "tools/internal/spike-listrep/slicelist.go (new)",
+        "tools/internal/spike-listrep/conslist.go (new)",
+        "tools/internal/spike-listrep/spikelistrep_test.go (new, package spikelistrep_test)"
+      ],
+      "risks": [
+        "Low. internal/eval's import graph is stable and the package imports nothing that moves (doc:276)."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_B1_BRANCHING_B2_LINEAR_CONTROL_FIRES",
+      "description": "B1 (branching prepend: m prepends each onto ONE retained base of length L, all m results kept live via runtime.KeepAlive; grid m in {1024,4096} x L in {1024,4096,16384}) and B2 (linear build: fold n prepends onto the newest list, n in {1600,3200,6400,12800} = the #676 repro ladder). Both -benchmem so B7 (allocs/op) is read off these two rows with no extra runs. Table-driven b.Run subtests, NOT one func per grid point - the doc's BenchmarkListRep_BranchingPrepend_Cons_m4096_L16384 at doc:306 is explicitly a sketch (doc:291), and anchored subtest regexes give the runner the exactly-one-cell selection protocol section 1 requires. Placed on Day 1, BEFORE C2 and before any candidate is trusted, because AC-2 makes the instrument itself falsifiable.",
+      "estimated_loc": 210,
+      "dependencies": [
+        "M1_SCAFFOLD_API_C0_CONTROL_C1_CONS"
+      ],
+      "closes_doc_acceptance_criteria": [
+        "AC-2 (control leg only: C0 must show L-ratio >= 8)"
+      ],
+      "partially_advances": [
+        "AC-1 (B1, B2 columns)",
+        "AC-4 (benchmarks compile in the external _test package)"
+      ],
+      "design_doc_lines": "137-138, 144, 146-154, 323-325",
+      "gpu_required": false,
+      "acceptance_criteria": [
+        "Every B1/B2 subtest name resolves to EXACTLY ONE benchmark under its anchored regex (proved by running each regex and counting reported benchmark lines = 1)",
+        "AC-2 control leg: C0 time(m,L=16384) / time(m,L=1024) >= 8 at BOTH m in {1024,4096}. Provisional here under a labelled dev-loop run; final under M5's five-trial protocol at M6",
+        "HARD STOP CONDITION: if the C0 control leg fails, the sprint halts here and reports AC-2 red. NO verdict is emitted and NO #745 comment is posted - a STOP that re-opens D-19 must never rest on an instrument shown blind to its own known positive (plan AMB-3; the design doc does not define this case)",
+        "Benchmark names use the BenchmarkListRep_ prefix (cannot collide with bench-phase2a: different regex AND different package scope, make/eval.mk:169-175)",
+        "go test -count=1 ./tools/internal/spike-listrep/... still rc=0 and fast (benchmarks compile but do not execute without -bench)",
+        "B1's result slice is released at the END OF EACH b.N ITERATION so peak RSS stays at roughly one iteration (~1.07 GB at the m=4096/L=16384 C0 cell), not b.N iterations"
+      ],
+      "files": [
+        "tools/internal/spike-listrep/branching_bench_test.go (new, B1)",
+        "tools/internal/spike-listrep/linear_bench_test.go (new, B2)"
+      ],
+      "risks": [
+        "B1's heaviest cell retains ~1.07 GB per iteration (4096 results x 16385 elements x 16 B). Release per iteration; runner records /usr/bin/time -l max RSS; pin that cell to -benchtime=1x with the deviation recorded if it exceeds a 4 GB ceiling."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_C2_CHUNKED_K_SWEEP_8_32",
+      "description": "C2: chunked/unrolled cons. Nodes hold up to K elements plus a tail pointer and cached total length; elements fill leftward so a prepend into a chunk with front slack is a slot write; on front-slot contention (a second list sharing the chunk prepends) or a full chunk the prepender copies AT MOST ONE CHUNK (<= K) into a fresh node, i.e. O(K) worst case. K is a construction parameter swept at 8 and 32 - a PARAMETER STUDY of C2, not a third candidate (doc:98-100). The doc's own escape hatch applies verbatim: if the lock-free O(K) shared-chunk prepend cannot be landed in budget, C2's columns are marked INFEASIBLE with the reason recorded and the sprint proceeds, which the kill criterion tolerates if C1 passes (doc:419).",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M1_SCAFFOLD_API_C0_CONTROL_C1_CONS",
+        "M2_B1_BRANCHING_B2_LINEAR_CONTROL_FIRES"
+      ],
+      "closes_doc_acceptance_criteria": [],
+      "partially_advances": [
+        "AC-1 (C2(8) and C2(32) columns)",
+        "AC-4 (legs 1-2 extended to C2)",
+        "AC-6 (C2 implements the D3 surface)"
+      ],
+      "design_doc_lines": "93-100, 419",
+      "gpu_required": false,
+      "acceptance_criteria": [
+        "C2 satisfies the same external-API smoke round-trip as C0/C1 at BOTH K=8 and K=32",
+        "A shared-chunk CONTENTION test exists and passes: two lists share a chunk, both prepend, both observe correct independent contents - this is the correctness claim the O(K) argument rests on",
+        "Fields unexported; all field writes inside chunklist.go's constructors",
+        "If marked infeasible: the reason is committed to README.md in this SAME commit and the C2 columns are annotated infeasible everywhere they appear"
+      ],
+      "files": [
+        "tools/internal/spike-listrep/chunklist.go (new)",
+        "tools/internal/spike-listrep/spikelistrep_test.go (extend)"
+      ],
+      "risks": [
+        "Highest-uncertainty implementation in the sprint; the doc itself lists the O(K) lock-free claim as unverified (doc:419). Descope lever is doc-sanctioned, not planner-invented."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_BENCHMARKS_B3_B4_B5_BLEN_B6_B8",
+      "description": "B3 iteration/sum through All() at n in {4096,65536} (ns/element); B4 nth sweep i in {0,n/4,n/2,n-1} at n=4096 (INFORMATIONAL, explicitly not gated per doc:140); B5 materialize-to-slice at n=4096; B-LEN Len() at n in {4096,65536} - ADDITIVE, because clause (d)/AC-3 require this observable and the doc's B1-B8 matrix has NO Len row (B4 is nth, a different operation); plus two dedicated non-testing.B main programs: cmd/retained (B6: per fresh process GC x2, same-process empty-workload baseline, build n=100000 list of ONE SHARED SINGLETON element, KeepAlive, GC x2, report baseline-adjusted retained-heap delta / n) and cmd/gcshape (B8: B2's n=12800 workload with runtime.ReadMemStats immediately before and after; deltas for NumGC, PauseTotalNs, and ENDPOINT HeapAlloc before and after - NO peak claim, the doc removed it as unsupported by endpoint snapshots).",
+      "estimated_loc": 330,
+      "dependencies": [
+        "M1_SCAFFOLD_API_C0_CONTROL_C1_CONS",
+        "M3_C2_CHUNKED_K_SWEEP_8_32"
+      ],
+      "closes_doc_acceptance_criteria": [],
+      "partially_advances": [
+        "AC-1 (B3-B8)",
+        "AC-3 (B3, B6 and B-LEN observables exist)"
+      ],
+      "design_doc_lines": "139-144, 182-183, 218-223, 420",
+      "gpu_required": false,
+      "acceptance_criteria": [
+        "Each new benchmark's anchored regex selects exactly one cell (same proof as M2)",
+        "go run ./tools/internal/spike-listrep/cmd/retained -arm=C0 -n=100000 emits parseable JSON with raw empty baseline, post-workload counters, adjusted delta, and B/element; likewise cmd/gcshape",
+        "B6's singleton-element property is asserted by a unit test (the SAME eval.Value pointer is stored n times) - the whole 'element cost cancels' argument depends on it",
+        "B8 reports ONLY defined before/after MemStats counters. No sampler is added to recover a peak (doc:182-183, :420)",
+        "B6 and B8 are main packages, NOT Test* functions: CI runs go test ./... on ubuntu-latest AND windows-latest (ci.yml:101, :377), where memory measurements would be flaky and unread",
+        "go vet ./tools/... rc=0 including both main packages"
+      ],
+      "files": [
+        "tools/internal/spike-listrep/iter_bench_test.go (new, B3)",
+        "tools/internal/spike-listrep/nth_bench_test.go (new, B4)",
+        "tools/internal/spike-listrep/materialize_bench_test.go (new, B5)",
+        "tools/internal/spike-listrep/len_bench_test.go (new, B-LEN)",
+        "tools/internal/spike-listrep/cmd/retained/main.go (new, B6)",
+        "tools/internal/spike-listrep/cmd/gcshape/main.go (new, B8)"
+      ],
+      "risks": [
+        "B-LEN is a plan-level addition (AMB-2). If the evaluator holds that AC-1's B1-B8 enumeration is exhaustive, B-LEN is extra work but harms nothing; AC-3 is unsatisfiable without it."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_DETERMINISTIC_RUNNER_AND_ADJUDICATOR",
+      "description": "cmd/runner implementing doc:156-183 exactly. (1) Each cell in a FRESH PROCESS, FIVE TRIALS, each Go invocation with -count=1, explicit -timeout=10m, -benchmem, -benchtime=1s (the doc leaves -benchtime unpinned - plan AMB-4 pins it and records it verbatim in every cell's command), and EXACTLY ONE anchored cell regex; a 12-minute subprocess deadline kills a wedged command and the trial is REPORTED AS INVALID, never silently omitted. (2) Pairs candidate and C0 trials BY ORDINAL and computes every threshold ratio from the MEDIAN OF THE FIVE PAIRED RATIOS; clause (a)'s within-arm L-ratio and clause (d)'s within-arm n-ratio pair the two sizes by ordinal the same way. (3) Emits all raw operands, all five paired ratios, their sorted order, and the median arithmetic. (4) Applies the predeclared tie/spread rule: median exactly on a threshold, OR five ratios spanning the threshold (equality touching both sides), triggers FIVE ADDITIONAL fresh-process trials; the median of ALL TEN is final; equality passes a <= clause and passes a >= control clause. NO discretionary reruns, dropped trials, or alternate aggregation. (5) Drives B6/B8 through their main programs with the same deadlines and the same five/ten rule. (6) Records /usr/bin/time -l max RSS per invocation as NON-GATING context. Sequenced at end of Day 2 / start of Day 3 because the doc's own Timeline starts B6/B8 on Day 2 and finishes five-fresh-process runs on Day 3 (doc:358-360) - no day is added.",
+      "estimated_loc": 420,
+      "dependencies": [
+        "M2_B1_BRANCHING_B2_LINEAR_CONTROL_FIRES",
+        "M4_BENCHMARKS_B3_B4_B5_BLEN_B6_B8"
+      ],
+      "closes_doc_acceptance_criteria": [],
+      "partially_advances": [
+        "AC-3 (the mandated protocol is implemented)",
+        "AC-5 (the adjudication mechanism)"
+      ],
+      "design_doc_lines": "156-183, 358-360",
+      "gpu_required": false,
+      "acceptance_criteria": [
+        "Unit test: median of five paired ratios computed correctly for odd-length vectors, including unsorted input",
+        "Unit test: median EXACTLY on the threshold triggers the rerun (it is not a pass)",
+        "Unit test: five ratios SPANNING the threshold (some below, some above) triggers the rerun",
+        "Unit test: one ratio exactly equal to the threshold with the others strictly one side - equality TOUCHES BOTH sides - triggers the rerun",
+        "Unit test: after a rerun the median of ALL TEN paired ratios is used, and equality PASSES a <= clause and PASSES a >= control clause exactly as their written operators specify",
+        "Unit test: an invalid (deadline-killed) trial is surfaced as invalid and does NOT silently shrink the sample",
+        "Unit test: a cell whose regex matches != 1 benchmark is rejected before running",
+        "Runner emits, for every gated ratio, all raw operands + all five (or ten) paired ratios + sorted order + median arithmetic in machine-readable form",
+        "go vet ./tools/... rc=0; go test -count=1 ./tools/internal/spike-listrep/... rc=0"
+      ],
+      "files": [
+        "tools/internal/spike-listrep/cmd/runner/main.go (new)",
+        "tools/internal/spike-listrep/cmd/runner/adjudicate.go (new)",
+        "tools/internal/spike-listrep/cmd/runner/adjudicate_test.go (new)"
+      ],
+      "risks": [
+        "The tie/spread rule has four boundary cases that are easy to get subtly wrong, on a mechanism that decides ~16 person-days. Hence the six named boundary tests are a HARD acceptance criterion, not a suggestion."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6_MATRIX_RUN_VERDICT_AND_REPORT",
+      "description": "Full 76-measured-point x 5-trial matrix pass under M5's runner (380 fresh-process invocations, plus B-LEN's 40, plus any predeclared reruns), then the kill-criterion arithmetic, the single GO/STOP verdict, D3's as-built table, and the report. Report header records go version, machine identity (darwin/arm64, go1.26.6, macOS 26.5.2), elapsed wall-clock of the run, and the BEFORE and AFTER rig.lock observation (observed, never acquired - rig.lock is a GPU mutex only and this spike uses no GPU). On STOP: post the #745 comment re-opening D-19 with the full matrix and record its URL. If AC-2's control leg failed at M2, NO verdict is emitted at all.",
+      "estimated_loc": 140,
+      "dependencies": [
+        "M1_SCAFFOLD_API_C0_CONTROL_C1_CONS",
+        "M2_B1_BRANCHING_B2_LINEAR_CONTROL_FIRES",
+        "M3_C2_CHUNKED_K_SWEEP_8_32",
+        "M4_BENCHMARKS_B3_B4_B5_BLEN_B6_B8",
+        "M5_DETERMINISTIC_RUNNER_AND_ADJUDICATOR"
+      ],
+      "closes_doc_acceptance_criteria": [
+        "AC-1",
+        "AC-2 (full)",
+        "AC-3",
+        "AC-4 (leg 3, the grep)",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8"
+      ],
+      "partially_advances": [],
+      "design_doc_lines": "130-154, 185-240, 242-261, 316-346",
+      "gpu_required": false,
+      "acceptance_criteria": [
+        "AC-1: every one of the 76 measured points carries THE COMMAND AND ITS PRINTED NUMBER. A cell asserted from theory is a red AC",
+        "AC-2: candidate L-ratio <= 1.5 at BOTH m in {1024,4096} AND C0 control L-ratio >= 8 on the same grid, under the five-trial protocol",
+        "AC-3: the (b)/(c)/(d) ratios with BOTH operands measured - clause (c) denominated in B6's MEASURED C0 B/element, never the assumed 16 B derivation - plus five fresh-process trials, ordinal pairing, median of paired ratios, and the predeclared tie/spread rerun exactly as specified; B6 additionally reports every same-process empty baseline and baseline-adjusted retained-heap delta",
+        "AC-4 leg 3: the grep confining field writes to constructor files, QUOTED IN THE REPORT WITH A FIRING CONTROL - `grep -rnE '\\.(head|tail|n|elems|count|total)[[:space:]]*=' tools/internal/spike-listrep/*.go` must be NON-EMPTY and every hit must sit inside a constructor in slicelist.go / conslist.go / chunklist.go. A grep returning nothing is a broken instrument, not a pass. Legs 1-2 re-affirmed: ALL benchmarks compiled in the external _test package; if any benchmark needed a raw field, clause (e) FAILS",
+        "AC-5: a per-candidate pass/fail table over (a)-(e) with the arithmetic inline; >=1 candidate passes all five -> GO naming the chosen representation (ties broken by (c) then (b)); zero -> STOP with the #745 comment posted and its URL recorded. The verdict may NOT be 'partial go'. No discretionary adjudication, no dropped trials, no omitted raw trials or median arithmetic",
+        "AC-6: D3's table reproduced as-built with a file:line citation per row, annotated with anything clause (e) proved infeasible",
+        "AC-7: `git diff --name-only 8322d22b75adfce7a4aa284eaf3ad99afdd4b570..HEAD -- internal/ cmd/ std/ examples/` prints NOTHING, AND the firing control `git diff --name-only 8322d22b75adfce7a4aa284eaf3ad99afdd4b570..HEAD | head -40` LISTS THE SPIKE FILES. Both lines in the report - the scoped command alone is green even on an empty branch (planner-verified P3)",
+        "AC-8: make test green with the spike included, PLUS make vet rc=0, make fmt-check rc=0, and go test -timeout 300s ./tools/... rc=0 (the three CI gates the doc's Conflict Surface omits - planner-verified P4/P5)",
+        "CHANGELOG.md entry added (repo standing rule; make test-check-changelog only self-tests the gate script at make/test.mk:52-54 and does not enforce it here)",
+        "Report filed as the implemented-doc update carrying D1's matrix, D2's verdict, and D3's as-built table"
+      ],
+      "files": [
+        "design_docs/implemented/... report (new)",
+        "CHANGELOG.md (modify)",
+        "tools/internal/spike-listrep/cmd/runner/report.go (new, verdict-table emitter)"
+      ],
+      "risks": [
+        "Measurement contention from a concurrent GPU eval inflates variance. Mitigated by ordinal pairing, the five-trial median, and the tie/spread rerun - NOT by taking rig.lock, which would block GPU consumers for an hour for a job that uses no GPU."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
