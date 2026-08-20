@@ -2361,6 +2361,26 @@ on `D-19` only in that answer **B** (cons cells) may change what the evaluator w
 > converted into a fast, legible red.
 (first-party, iteration 227). `ci.yml` declares **`timeout-minutes` on no job at all** (`grep -c` → 0 over the file; control: `runs-on` appears throughout), so every job inherits GitHub's default **6-hour** limit. Measured today: `Install z3 …` — `sudo apt-get update && apt-get install z3`, an unbounded shell-out to a package mirror — hung **39+ minutes** on the `#784` run, having taken **1m41s** on the immediately preceding run (`32206877998`, 02:01:11Z → 02:02:52Z). Attribution is not a guess: the **dev** run for `171e2f2ef`, a SKILL.md-only docs commit touching no Go code, was wedged on the **identical step** in the same window, and a cancel+re-run of both cleared it on a byte-identical tree — outcome divergence with the code held constant. Provider status read *All Systems Operational* throughout, so a status-API check would NOT have caught it. Two consequences worth the row: (a) the loop's own Gate-3b bounded poll expires and reports a non-verdict while the run is neither green nor red for hours, and Standing rule 6 then costs an iteration; (b) `test` is a **required** context, so a wedged mirror blocks every merge in the repo, for both missions, with no alarm. Scope: add `timeout-minutes` to each job sized from observed p95 (the `test` job's own history is the data), and give the apt step its own bound — a package install that cannot finish in minutes will not finish. Do NOT simply retry: the failure to fix is the *unboundedness*, and a retry loop around an unbounded command inherits it. Note this is the same shape as the `AILANG_OLLAMA_*` streaming-deadline work — an unbounded external wait inside a job nobody is watching.
 
+**[NEXT — bookkeeping, cheap, first-party iteration 234] m-mission-log-entry-numbering — the mission
+log's entry numbers are no longer a usable index: there are TWO entries numbered `## 232`, and
+230–233 are out of chronological order.**
+
+> Measured at `746686cb6`: `grep -c '^## 232 — ' design_docs/v1-mission-log.md` → **2** (control:
+> `'^## 233 — '` → 1). The collision is the iteration-232 record (`editor install vscode`, dated
+> 2026-08-20) and the iteration-231 record (package imports, dated 2026-08-19); reading the headings
+> in file order gives 225, 226, 227, 228, 229, **232**, 231, 230, **232**, 233, 234, so neither the
+> number nor the position orders the log. Note also that entry number and iteration number drifted
+> apart earlier (entry 230 = Iteration 229, entry 231 = Iteration 230) and then re-converged, so the
+> two are not reliably offset by a constant either.
+>
+> Why this is a row and not an inline fix: renumbering historical entries would invalidate every
+> cross-reference already written against them — the charter, the status archive and prior issue
+> comments all cite entries by number. The durable options are (a) leave the numbers alone and add a
+> generated index keyed on the `Iteration N` token that already appears in each heading, or (b)
+> renumber once with a redirect table recorded in the archive. Choosing needs a design pass, not a
+> controller edit. Cheap to close and it protects the loop's own memory: Gate 4 appends by "highest
+> existing number", which a duplicate silently corrupts.
+
 **[NEXT] m-ui-dependency-tree-unbuildable — `ui/` has not installed since 2026-07-10, and the check
 that would have said so is path-filtered and non-required** ([`#503`](https://github.com/sunholo-data/ailang/issues/503),
 whose title names the MECHANISM; this row is the measured consequence, filed as a comment there rather

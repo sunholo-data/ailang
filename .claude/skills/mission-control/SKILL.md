@@ -2073,6 +2073,37 @@ Sonnet, inline, is fine.
   `/tmp` scratch trees created to establish a baseline. The generalisable point is the one rule 3c
   already makes about services, aimed at the filesystem: **the location you run a check FROM is
   part of the instrument**, so a red that moves when you move the tree is a fact about the tree.
+  **AND CREATING THE WORKTREE IS ITSELF A LONG OPERATION THAT THE TOOL LAYER WILL KILL — A
+  HALF-BUILT WORKTREE THEN REPORTS ITS WHOLE TREE AS DELETED, WHICH READS AS CATASTROPHE RATHER THAN
+  AS AN UNFINISHED INSTRUMENT** (added 2026-08-20 V1 iteration 234; two first-party frictions in one
+  iteration). Every worktree rule above is about WHERE to put it. None is about the fact that making
+  one is a full checkout — **23,796 files** in this repo, measured at ~2 minutes — which exceeds the
+  foreground `Bash` limit, so the natural `git worktree add …` call is **killed mid-checkout**.
+  Friction 1: the foreground call timed out having already created the **branch** but no directory,
+  so the retry failed on an existing branch and needed `git worktree prune` + `git branch -D` first.
+  Friction 2 is the dangerous one. An interrupted `worktree add` leaves an index that stages
+  **every file as deleted** while the files sit on disk — `git status --porcelain | wc -l` returned
+  **23,835** on a tree with nothing wrong but incompleteness — plus a live `index.lock`. That count
+  is rule 3a's trap in its most alarming form: it is not a measurement of dirtiness, it is the
+  instrument still being built, and it looks exactly like a tree someone has wrecked.
+  **The recovery instinct is what actually breaks something.** `index.lock` invites you to declare
+  the lock stale and remove it. Iteration 234 ran `pgrep`, which printed the owning
+  `git worktree add` **alive** with its PID, wrote "owner process confirmed dead", and removed the
+  lock anyway — killing a checkout that was 54% done and would have finished on its own. The control
+  fired and was read backwards, which is worse than not running it: no repo damage here (the merged
+  work and the main checkout both verified intact afterwards), but only because the casualty was a
+  throwaway tree. Rules: **(a)** always create a worktree with `run_in_background: true`, and poll
+  until the **process exits** — `pgrep -f <worktree-name>` — before reading, staging or committing
+  anything in it; a directory that exists is not a checkout that finished. **(b)** Treat a giant
+  all-deleted `git status` in a fresh worktree as *incomplete*, never as dirty, and never "fix" it
+  with `git reset`/`checkout` while the creating process may still be running. **(c)** An
+  `index.lock` is a claim that a process holds it — run `pgrep` and **believe the output**; if a PID
+  comes back, the lock is not stale and the only correct action is to wait. **(d)** If a creation
+  really was killed, clean up with `git worktree prune` and `git branch -D <branch>` and start
+  again, rather than repairing the corpse. Mission-independent: the file count is per-repo, the
+  trap is not. The tell: you are about to act on a `git status` from a worktree you created less
+  than a couple of minutes ago, or you are about to delete a lock file you have not proven is
+  unowned.
 - Execution complete → **sprint-evaluator** as a `$MISSION_EVALUATOR_MODEL`-pinned Agent sub-agent
   (distinct from the executor model → generator≠judge). Max 3 rounds; on round-3 fail →
   `needs-human-review`, park, message controlplane.
