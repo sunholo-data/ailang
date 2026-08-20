@@ -7,7 +7,7 @@ The design doc WINS wherever it and this plan disagree. This plan adds only *how
 
 **Created:** 2026-08-20 (V1 mission iteration 236, sprint-planner stage)
 **Branch / worktree:** `sprint/iter236-list-repr-spike` @ `/Users/voightkampff/dev/sunholo-data/.wt-iter236`
-**Planned at HEAD:** `3ad6a2e46` (design-doc commit); **merge base with `origin/dev`: `8322d22b75adfce7a4aa284eaf3ad99afdd4b570`** — this is the `<merge-base>` literal AC-7 requires.
+**Planned at HEAD:** `3ad6a2e46` (design-doc commit); **merge base with `origin/dev` AT PLANNING TIME: `8322d22b75adfce7a4aa284eaf3ad99afdd4b570`.** ⚠ This is a HISTORICAL record of where planning happened — it is **NOT** the base AC-7 should use, and it was 6 commits stale by iteration 238. AC-7 derives its base with `git merge-base origin/dev HEAD` (see §6 step 7).
 **Milestones:** 6 · **Estimated:** ~1,800 Go LOC + ~450 lines of report markdown · **3.0 days** (top of the doc's 2–3-day box — see §7)
 **Risk level:** MEDIUM · **Planner lane:** opus-required (doc line 10)
 **Target:** v0.34.0
@@ -292,11 +292,32 @@ Implements doc:156-183 exactly. Sequenced here (end of Day 2 / start of Day 3) r
    the instrument is broken and **no verdict may be emitted from it**. Also re-affirm legs 1–2: **all** benchmarks compiled in the external `_test` package, and if any benchmark needed a raw field, clause (e) **fails** (doc:231-235).
 5. **AC-5 verdict:** a per-candidate pass/fail table over (a)–(e) with the arithmetic inline; **≥1 candidate passes all five → GO**, naming the chosen representation (ties broken by (c) then (b)); **zero → STOP**, with a comment posted on **#745** carrying the full matrix and explicitly re-opening D-19. **The verdict may not be "partial go"** (doc:237-240). On STOP the report records the posted comment URL. If AC-2's control leg failed, **no verdict is emitted at all** (AMB-3).
 6. **AC-6:** D3's table reproduced as-built with its per-row `file:line` citations, annotated with anything clause (e) proved infeasible (AMB-6).
-7. **AC-7 anti-goal proof — with the firing control P3 showed is mandatory:**
+7. **AC-7 anti-goal proof — with the firing control P3 showed is mandatory.**
+
+   > **⚠ THE BASE MUST BE *DERIVED*, NEVER TRANSCRIBED — CORRECTED AT ITERATION 238 AFTER THE
+   > HARDCODED LITERAL WENT STALE AND PRODUCED A FALSE AC-7 FAILURE.** This step used to carry
+   > `8322d22b7…` as a literal. Measured at iteration 238: that base is **6 commits** behind
+   > `origin/dev`, and running the step verbatim returns **10** files
+   > (`cmd/ailang/eval_censored*.go`, `internal/eval_analysis/*`) — every one of them from an
+   > unrelated commit (`d5bcfa0c8`, the eval censored-pair analyzer) that landed after the plan
+   > was written. Against the correct base the same command returns **0**, with the unscoped
+   > control returning **15**, so the branch is clean and the *instrument* was what failed.
+   > This is the same trap iteration 237 hit from the other side — its executor directive had to
+   > order the base DERIVED because the plan's literal was already wrong then — and it was fixed
+   > only in that directive, so the plan kept the stale literal for a second iteration. A literal
+   > base goes stale every time `dev` moves; a derived one cannot. Note the failure direction:
+   > it manufactures a **STOP by artifact rather than by measurement**, on a gate that cancels
+   > ~16 person-days.
+
    ```bash
-   git diff --name-only 8322d22b75adfce7a4aa284eaf3ad99afdd4b570..HEAD -- internal/ cmd/ std/ examples/   # MUST be empty
-   git diff --name-only 8322d22b75adfce7a4aa284eaf3ad99afdd4b570..HEAD | head -40                          # MUST list the spike files
+   BASE=$(git merge-base origin/dev HEAD)          # DERIVE it. Never paste a SHA here.
+   echo "AC-7 base: $BASE"                          # record the resolved value in the report
+   git diff --name-only "$BASE"..HEAD -- internal/ cmd/ std/ examples/   # MUST be empty
+   git diff --name-only "$BASE"..HEAD | head -40                          # MUST list the spike files
    ```
+   If the scoped arm is non-empty, **check the base before concluding AC-7 failed**: confirm each
+   named file is reachable from your own branch's commits (`git log --oneline "$BASE"..HEAD --
+   <file>`) rather than inherited from `dev`.
    The scoped command alone is green even if the branch is empty (P3). Both lines go in the report.
 8. **AC-8 final:** `make test` green with the spike included. Plus the three gates the doc's Conflict Surface omits (AMB-7, P4): `make vet` rc=0, `make fmt-check` rc=0, and `go test -timeout 300s ./tools/...` rc=0 as a stand-in for the CI leg's per-package timeout.
 9. **Repo standing rules** (not doc ACs, and outside AC-7's pathspec): a `CHANGELOG.md` entry, and the implemented-doc report filed per the design-doc convention. Note `make test-check-changelog` only self-tests the gate script (`make/test.mk:52-54`) and does not enforce an entry against this diff — the entry is added because the coding standards require it, not because CI would catch its absence.

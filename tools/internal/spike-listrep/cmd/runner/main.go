@@ -20,6 +20,7 @@ import (
 
 const (
 	initialTrials      = 5
+	rerunTrials        = 5
 	subprocessDeadline = 12 * time.Minute
 )
 
@@ -242,6 +243,29 @@ func collect(ctx context.Context, in invocation, start, count int) []trial {
 	return results
 }
 
+// collector gathers `count` trials for one invocation, numbering them from
+// `start`. Injectable so the rerun ORCHESTRATION below is testable without
+// running any benchmark: iteration 238's evaluator showed that unit-testing
+// paired() alone leaves this function's rerun path entirely unpinned.
+type collector func(ctx context.Context, in invocation, start, count int) []trial
+
+// adjudicate runs the doc's five-trial protocol and, only on the predeclared
+// tie/spread condition, exactly one rerun of `rerunTrials` further fresh
+// trials per arm, numbered contiguously after the first batch. The rerun's
+// own analysis is computed with allowRerun=false, so a rerun can never
+// cascade: the median of all ten is final.
+func adjudicate(ctx context.Context, gather collector, candidateIn, controlIn invocation, threshold float64, op string) analysis {
+	candidate := gather(ctx, candidateIn, 1, initialTrials)
+	controlTrials := gather(ctx, controlIn, 1, initialTrials)
+	result := paired(candidate, controlTrials, threshold, op, true)
+	if result.Valid && result.Rerun {
+		candidate = append(candidate, gather(ctx, candidateIn, initialTrials+1, rerunTrials)...)
+		controlTrials = append(controlTrials, gather(ctx, controlIn, initialTrials+1, rerunTrials)...)
+		result = paired(candidate, controlTrials, threshold, op, false)
+	}
+	return result
+}
+
 func main() {
 	kind := flag.String("kind", "benchmark", "benchmark, retained, or gcshape")
 	cell := flag.String("cell", "", "one anchored benchmark regex, or arm for a main program")
@@ -266,14 +290,7 @@ func main() {
 	}
 	ctx := context.Background()
 	candidateIn, controlIn := invocation{*kind, *cell, *metric}, invocation{*kind, *control, *metric}
-	candidate := collect(ctx, candidateIn, 1, initialTrials)
-	controlTrials := collect(ctx, controlIn, 1, initialTrials)
-	result := paired(candidate, controlTrials, *threshold, *op, true)
-	if result.Valid && result.Rerun {
-		candidate = append(candidate, collect(ctx, candidateIn, 6, 5)...)
-		controlTrials = append(controlTrials, collect(ctx, controlIn, 6, 5)...)
-		result = paired(candidate, controlTrials, *threshold, *op, false)
-	}
+	result := adjudicate(ctx, collect, candidateIn, controlIn, *threshold, *op)
 	_ = json.NewEncoder(os.Stdout).Encode(result)
 	if !result.Valid {
 		os.Exit(1)
