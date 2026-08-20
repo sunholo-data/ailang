@@ -2,24 +2,28 @@
 
 *Snapshot, overwritten each iteration. History: `v1-mission.md` STATUS + `v1-mission-log.md`.*
 
-**Last iteration**: 234 · 2026-08-20 06:09–07:0x CEST · **LANDED**
-**Release**: v0.33.1 · `origin/dev` @ `779746352` → +`03e3e6057`
+**Last iteration**: 235 · 2026-08-20 09:03–10:2x CEST · **LANDED**
+**Release**: v0.33.1 · `origin/dev` @ `0a9367937` → +`e5ee6c5e5`
 
 ## What just happened
 
-The **cons-cells roadmap is unblocked**; its 8 pieces are routable in order, LC-1 first. It had
-been `PARKED-ON-LANE` since iter-229 on codex quota — the resume predicate was re-run as a
-command (rc=0), which made it the pick regardless of queue position. Round-2 re-quorum
-**blocked 2-of-2**; both premises measured, not forwarded (rule 3f), and they came out
-**opposite ways**:
+**`D-1` discharged and PR [#613](https://github.com/sunholo-data/ailang/pull/613) landed after 13 days
+as a DO-NOT-MERGE draft.** M1's request-aware Net RoundTripper performed **zero** target validation on
+the proxy route. Reproduced first-party under the ci.yml proxy poison, both arms, same command:
+branch **rc=1, 4 of 7** subtests failing · pristine dev **rc=0, 7/7** — a firing negative control.
+Mark's `D-1` ruling (2026-08-19) was **RETAIN zero-DNS literal-IP validation**, and it is now shipped:
+literal IPs are validated with no resolver; hostnames stay the accepted `D-5` residual.
 
-- `gemini-3-1-pro` **CONFIRMED, worse than filed** — N16 omitted `TupleValue` from its
-  intersection: symmetric-switch surface is **7** non-test files, not 3. One of them
-  (`eval/eval_patterns.go`) is **LC-3b's**, so *all three* migration lanes carry that work.
-- `gpt5-6-sol` **partially REFUTED** — the three escape APIs are `internal/`-only, every caller
-  is a test, none mutates the result. No consumer to version for → its cheap option applied.
+**The evaluator earned its keep.** Sonnet PASS **93/100** with two reproducible findings, both fixed
+*before* merge rather than filed as follow-ups:
 
-Resolved under the **narrow-refinement carve-out** (ratified iter-98). No third quorum.
+- **`net.ParseIP` rejects RFC 4007 zone identifiers**, so `http://[fe80::1%25eth0]/x` fell through to
+  the hostname branch and reached the proxy **unvalidated** — the exact hole `D-1` exists to close,
+  wearing an encoding the guard did not recognise. The **direct** route was measured, not assumed:
+  it fails *closed* (`E_NET_DNS_FAILED`). Only the proxy route failed open.
+- **The arm named for the mechanism did not test it** — `proxy_literal_blocked_before_dial` survived
+  having its own precondition removed, because the *direct* route refuses the same literal with the
+  same text and the same zero counters. It now asserts the proxy selector was consulted.
 
 ## Next picks
 
@@ -29,10 +33,11 @@ Resolved under the **narrow-refinement carve-out** (ratified iter-98). No third 
 
 ## Loop health
 
-- Cadence normal. Fable diet **untouched this iteration** (0 runs) — 228/229's pressure is resolved.
-- Designer rotation now at `codex:gpt-5.6-sol`; codex quota **back** as of 05:34 today.
-- Cost: **$0.1089** metered of $5. Quota buckets: opus (controller), codex (designer).
-- dev CI green: 16 checks, 0 not-green (control: parent 21).
+- Cadence normal. **Zero Fable runs** (no designer fired — existing doc + existing plan).
+- Executor `codex:gpt-5.6-sol` rc=0, one bounded run; evaluator sonnet (generator≠judge holds).
+- Cost: **$0.00 metered** of $5. Quota buckets: opus (controller), codex (executor), sonnet (judge).
+- Gate 3b on the PR head: **21 checks, 0 not-green**, 4/4 required, `MERGEABLE/CLEAN`.
+- `make check-file-sizes` caught a 921-line test file **before** push — the derived-gate sweep working.
 
 ## Parked on Mark
 
@@ -42,4 +47,5 @@ Resolved under the **narrow-refinement carve-out** (ratified iter-98). No third 
 ## Known bookkeeping defect
 
 `v1-mission-log.md` has a **duplicate entry number 232** (230–233 also out of order), so entry
-numbers are not a reliable index. Recorded, not silently renumbered.
+numbers are not a reliable index. Recorded, not silently renumbered — queue row
+`m-mission-log-entry-numbering`.
