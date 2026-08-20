@@ -27,6 +27,7 @@ jobs:
   test-game-codegen:
     name: Test AILANG -> Go Codegen Pipeline
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code

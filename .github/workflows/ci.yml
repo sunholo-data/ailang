@@ -16,6 +16,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
     - uses: actions/checkout@v7
@@ -70,6 +71,7 @@ jobs:
     # (internal/smt TestSolve_*_Z3, internal/bestof TestZ3VerifyEndToEnd, …)
     # t.Skip()s — they had silently never run in CI until 2026-07-10.
     - name: Install z3 (SMT solver for contract-verification tests)
+      timeout-minutes: 5
       run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends z3
 
     # jq drives scripts/hooks/format_ail.sh, which TestFormatAilHookSinkRoundTrip
@@ -78,6 +80,7 @@ jobs:
     # instead of an invisible skip — so pin it explicitly rather than rely on
     # the image (docusaurus-deploy.yml already installs jq for the same reason).
     - name: Install jq (drives the .ail format PostToolUse hook under test)
+      timeout-minutes: 5
       run: sudo apt-get install -y -qq --no-install-recommends jq && jq --version
 
     # -timeout is PER TEST BINARY (package). cmd/ailang legitimately runs
@@ -293,6 +296,7 @@ jobs:
   # expand to make verify-examples / make test-imports once stable.
   test-windows:
     runs-on: windows-latest
+    timeout-minutes: 25
 
     steps:
     - uses: actions/checkout@v7
@@ -389,6 +393,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: test
     
     steps:
@@ -411,6 +416,7 @@ jobs:
 
   docs:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
 
     steps:
@@ -434,6 +440,7 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
     - uses: actions/checkout@v7
@@ -463,6 +470,7 @@ jobs:
     # `declare -A` or ${v,,} that reaches tools/launchd/ breaks the rig and passes on ubuntu.
     # No Go, no cache: these are shell + git tests and nothing else.
     runs-on: macos-latest
+    timeout-minutes: 15
 
     steps:
     - uses: actions/checkout@v7
@@ -479,6 +487,7 @@ jobs:
   govulncheck:
     name: govulncheck (vuln gate)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # Reads .govulncheck-allow.yml. Fails on any new finding or any
     # allowlist entry past its expires date — forces re-review rather
     # than letting suppressions float forever.
@@ -507,6 +516,7 @@ jobs:
 
   dependency-submission:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')

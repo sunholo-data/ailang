@@ -21,6 +21,7 @@ jobs:
   ui-build:
     name: UI build stage
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v7

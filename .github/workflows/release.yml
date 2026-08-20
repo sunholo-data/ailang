@@ -17,6 +17,7 @@ jobs:
   build-wasm:
     name: Build WASM Binary
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
@@ -104,6 +105,7 @@ jobs:
   build-bootstrap-content:
     name: Build Bootstrap Content Bundle
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
@@ -128,6 +130,7 @@ jobs:
   build-examples:
     name: Build Examples Bundle
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
@@ -150,6 +153,7 @@ jobs:
   build-release:
     name: Build Release ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       matrix:
         include:
@@ -235,6 +239,7 @@ jobs:
   build-error-codes:
     name: Generate error_codes.json
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
@@ -260,6 +265,7 @@ jobs:
     name: Create GitHub Release
     needs: [build-release, build-wasm, build-bootstrap-content, build-examples, build-error-codes]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     # id-token: write is required for cosign keyless signing — the job
     # requests an OIDC token from GitHub which Sigstore's Fulcio CA uses
     # to issue a short-lived signing cert bound to this workflow's
@@ -459,6 +465,7 @@ jobs:
     name: Publish Release
     needs: [provenance]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
