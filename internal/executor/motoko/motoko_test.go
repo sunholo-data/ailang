@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -139,8 +140,13 @@ func TestHealthCheck_PathIsDirectory(t *testing.T) {
 		t.Fatal("HealthCheck succeeded against a directory; expected error")
 	}
 	msg := err.Error()
-	if !strings.Contains(msg, "is a directory") || !strings.Contains(msg, dirPath) {
-		t.Errorf("directory-path error must name the path and diagnosis; got: %q", msg)
+	// Compare against the %q-QUOTED path, not the raw one. The refusal formats the
+	// path with %q, and on windows a path contains backslashes which %q escapes —
+	// so `strings.Contains(msg, dirPath)` can never match there even though the
+	// message names the path correctly. Caught by Gate 3b's windows leg, which is
+	// the only instrument that sees the whole matrix.
+	if !strings.Contains(msg, "is a directory") || !strings.Contains(msg, strconv.Quote(dirPath)) {
+		t.Errorf("directory-path error must name the path and diagnosis; got: %q (wanted quoted path %s)", msg, strconv.Quote(dirPath))
 	}
 }
 
@@ -174,6 +180,15 @@ func TestHealthCheck_NotExecutable(t *testing.T) {
 // assertion is the positive half: "no error" is satisfiable by a HealthCheck
 // that never ran its version query at all.
 func TestHealthCheck_MockBinary_VersionQueryAndNoKeyRefusal(t *testing.T) {
+	// The mock is a `#!/bin/bash` script named `motoko` with no `.exe` suffix, so
+	// windows cannot execute it: the version query fails and motokoRepo stays
+	// empty, failing for the PLATFORM rather than for the code. This row is
+	// therefore darwin/posix-only by construction — the same skip the 10 bash-mock
+	// arms in execute_test.go already carry. The no-key-refusal half of T-B4 is
+	// covered platform-independently by the provider_preflight tests.
+	if runtime.GOOS == "windows" {
+		t.Skip("bash mock binary requires POSIX shell")
+	}
 	tmpdir := t.TempDir()
 	mockPath := filepath.Join(tmpdir, "motoko")
 	// Deterministic: whatever the ambient shell holds, this row runs key-unset.
