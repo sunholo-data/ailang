@@ -1,6 +1,7 @@
 package spikelistrep_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -13,6 +14,18 @@ func TestSliceListRoundTrip(t *testing.T) {
 
 func TestConsListRoundTrip(t *testing.T) {
 	testRoundTrip(t, spikelistrep.ConsFromSlice, spikelistrep.ConsEmpty, spikelistrep.ConsCons)
+}
+
+func TestChunkListRoundTrip(t *testing.T) {
+	for _, k := range []int{8, 32} {
+		t.Run(fmt.Sprintf("K=%d", k), func(t *testing.T) {
+			testRoundTrip(t,
+				func(v []eval.Value) spikelistrep.List { return spikelistrep.ChunkFromSlice(k, v) },
+				func() spikelistrep.List { return spikelistrep.ChunkEmpty(k) },
+				func(v eval.Value, l spikelistrep.List) spikelistrep.List { return spikelistrep.ChunkCons(k, v, l) },
+			)
+		})
+	}
 }
 
 func testRoundTrip(
@@ -114,6 +127,44 @@ func TestBranchingIndependence(t *testing.T) {
 			// Each branch must be base with exactly its own head in front.
 			assertElements(t, branchA.ToSlice(), []eval.Value{headA, baseElements[0], baseElements[1]})
 			assertElements(t, branchB.ToSlice(), []eval.Value{headB, baseElements[0], baseElements[1]})
+		})
+	}
+}
+
+// TestFromSliceDefensivelyCopies pins the defensive copy in each arm's
+// constructor. Iteration 238's evaluator landed a mutant that aliased the
+// caller's backing array instead of copying it and the ENTIRE suite stayed
+// green — including TestBranchingIndependence, which only exercises prepends
+// off a shared base and never mutates a caller-owned slice. A persistent
+// structure that aliases its input is not persistent: the caller can rewrite
+// history through a slice it still holds.
+func TestFromSliceDefensivelyCopies(t *testing.T) {
+	arms := map[string]func([]eval.Value) spikelistrep.List{
+		"C0":    spikelistrep.SliceFromSlice,
+		"C1":    spikelistrep.ConsFromSlice,
+		"C2K8":  func(v []eval.Value) spikelistrep.List { return spikelistrep.ChunkFromSlice(8, v) },
+		"C2K32": func(v []eval.Value) spikelistrep.List { return spikelistrep.ChunkFromSlice(32, v) },
+	}
+	for name, fromSlice := range arms {
+		t.Run("arm="+name, func(t *testing.T) {
+			original := &eval.IntValue{Value: 1}
+			tampered := &eval.IntValue{Value: 999}
+			backing := []eval.Value{original, original, original}
+
+			list := fromSlice(backing)
+			backing[0] = tampered // the caller still owns this array
+
+			got, ok := list.At(0)
+			if !ok {
+				t.Fatalf("At(0) not ok")
+			}
+			if got == eval.Value(tampered) {
+				t.Fatalf("constructor ALIASED the caller's slice: mutating backing[0] "+
+					"after construction changed list.At(0) to the tampered value (arm=%s)", name)
+			}
+			if got != eval.Value(original) {
+				t.Fatalf("At(0) = %v, want the original element", got)
+			}
 		})
 	}
 }

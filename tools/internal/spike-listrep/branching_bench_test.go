@@ -18,6 +18,8 @@ type benchmarkArm struct {
 var benchmarkArms = []benchmarkArm{
 	{name: "C0", fromSlice: spikelistrep.SliceFromSlice, cons: spikelistrep.SliceCons},
 	{name: "C1", fromSlice: spikelistrep.ConsFromSlice, cons: spikelistrep.ConsCons},
+	{name: "C2K8", fromSlice: func(v []eval.Value) spikelistrep.List { return spikelistrep.ChunkFromSlice(8, v) }, cons: func(v eval.Value, l spikelistrep.List) spikelistrep.List { return spikelistrep.ChunkCons(8, v, l) }},
+	{name: "C2K32", fromSlice: func(v []eval.Value) spikelistrep.List { return spikelistrep.ChunkFromSlice(32, v) }, cons: func(v eval.Value, l spikelistrep.List) spikelistrep.List { return spikelistrep.ChunkCons(32, v, l) }},
 }
 
 func BenchmarkListRep_B1_Branching(b *testing.B) {
