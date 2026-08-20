@@ -14284,3 +14284,103 @@ compiling both arms; and that the apparent `1.2` threshold drift was real (it wa
 holds **Motoko's** snapshot. Per Gate 4's namespacing rule V1 wrote only
 `design_docs/v1-mission-dashboard.md` and left the sibling's content alone. The duplicate log entry
 number `232` recorded by iteration 234 also stands — log numbers remain an unreliable index.
+
+## 237 — 2026-08-20 — Iteration 237: cons cells deliver INV-1 on the branching shape, and the executor's descope of the other candidate was refuted
+
+**Pick**: execute `LC-1 m-list-repr-spike`, iteration 236's declared Next and the cons-cells
+programme's kill-criterion gate. Doc + plan already landed (`8f45dd419`), quorum artifact present
+(2 rounds, both `blocked`, `absent_reviewers` empty both, resolved under the narrow-refinement
+carve-out), so this pick was EXECUTION — no designer, no planner, no re-quorum. Scope routed:
+M1, M2, M3 of six; M4–M6 explicitly out of scope for one 30-minute lane.
+
+**Routing evidence**
+
+| Role | Pinned | Actual | Notes |
+|---|---|---|---|
+| Controller | `claude:claude-opus-5` | opus | quota bucket, $0 |
+| Designer | — | not run | doc + plan exist; rotation pointer untouched |
+| Planner | — | not run | plan exists and is quorum-cleared |
+| Executor | `codex:gpt-5.6-sol` | codex | probed rc=0 first; bounded backgrounded run, rc=0, 3 snapshots, zero git writes; quota bucket, $0 |
+| Evaluator | `sonnet` | sonnet | own worktree (iter-199 rule); provider ≠ codex, so generator≠judge holds; quota bucket, $0 |
+
+`metered = $0.00` of $5. No GPU, no `rig.lock` — the spike is pure CPU/heap and the plan is
+explicit that a later executor must not infer a lock requirement from "runs on the rig".
+
+**Plan↔doc rot found at pick time (rule 3b(vii)) and adjudicated in the directive.** Iteration 236
+recorded fixing AC-3 with a `B-LEN` row and AC-7 with a second arm. Both landed in the PLAN and
+neither in the DOC: `grep -c 'B-LEN'` → plan **7**, doc **0**, control `B4` = 2. Both additions are
+strictly additive and turn an unsatisfiable AC satisfiable, so the executor directive stated
+explicitly that the plan wins on those two points rather than leaving a cross-provider executor to
+notice. The directive also ordered the merge base DERIVED rather than transcribed — the plan's
+`8322d22b7...` was correct when written and is not this branch's base.
+
+**Outcome: M1 and M2 LANDED, M3 executed and NOT landed.** PR
+[#804](https://github.com/sunholo-data/ailang/pull/804).
+
+**The headline measurement.** AC-2's control leg exists so the instrument itself is falsifiable: if
+C0 does not show the failure, B1 cannot see it and no verdict may be emitted at all. Measured by
+the controller independently of the executor — 3 fresh processes per cell, `-benchtime=1x`, paired
+by ordinal. **Provisional dev-loop reading, NOT M5's five-trial protocol, darwin/arm64 only.**
+
+| arm | m=1024 | m=4096 | clause |
+|---|---|---|---|
+| C0 slice (control) | **11.60×** | **12.37×** | wants ≥ 8 → GREEN |
+| C1 cons (early reading) | 0.95× | 1.08× | (a) wants ≤ 1.5, adjudicated at M6 |
+
+Heaviest cell: **112 ms** C0 against **62 µs** C1. Three independent readings — executor 9.51×
+(with a 6.37× outlier), controller 11.60×, evaluator's 5-trial 11.89× — agree in order with no
+threshold-crossing ambiguity.
+
+**Key find 1 — the executor's M3 descope was refuted, and the evaluator confirmed the refutation
+independently.** C2 (chunked cons) was marked infeasible because the immutable `List` API cannot
+determine whether a chunk is uniquely owned, so a front-slack write could mutate a retained alias.
+The premise is true and the conclusion does not follow: the doc's C2 bound is *already* the
+contended one — "copies at most one chunk (≤ K elements) into a fresh node — O(K) = O(1)
+worst-case with a constant" (doc:93-100) — so copying unconditionally, with no ownership detection
+at all, meets it by construction, and both benefits the doc names survive always-copy
+(`16 + 16/K` = 16.5 B/element at K=32, matching doc:417's own ~16-18 B estimate). Separately,
+doc:419 tolerates infeasible C2 columns only *"if C1 passes"*, and C1's clause-(b)/(c) numbers are
+B3/B6 — M4 work that does not exist. The lever was pulled before the predicate licensing it could
+be read. This matters because C2 is the candidate designed to pass exactly where C1 is most at
+risk: clause (b) iteration at n=65536, which chunking exists to fix, and clause (c) per-element
+memory, where the doc puts C1 at 32 B/cell. Descoping it before either is measured makes a **STOP
+reachable by descope rather than by measurement**, on a gate that commits or cancels ~16
+person-days.
+
+**Key find 2 — the property every B1 number is credited with was untested, found by the evaluator
+and fixed before merge.** A mutant making `SliceCons` append into a shared scratch buffer SURVIVED
+the entire suite. B1 measures `m` prepends onto ONE shared base, so every candidate is credited
+with branch independence — and a representation silently sharing storage would still produce a
+plausible ratio while AC-2 read green. Reproduced first-party, then pinned by
+`TestBranchingIndependence` over both arms: mutant asserted LANDED (sha256) and BUILDS
+(`go build` rc=0) before any test result was read; new test **rc=1** with its assertion text
+firing; `-skip` the new test **rc=0**, i.e. single-test blast radius, so the inverse arm is the
+applicable criterion and this is a **sole killer**. Restored from a `cp` backup, byte-identical to
+the M2 manifest.
+
+**Key find 3 — the executor's one red was the instrument.** It reported `make test` rc=2 citing
+`TestGoldenCompile/string_charat` / `undefined: CharCode`, and attributed it to a codegen gap
+outside its scope. Right disposition, wrong diagnosis: that test shells out to `ailang` **from
+PATH**, and the installed binary is `v0.33.1-125-gc575cd44e-dirty` — 37 commits behind
+`v0.33.1-162-gdaf881eaf`. Two arms on the identical pristine tree, rc captured to file and printed
+side by side: stale PATH **rc=1**, fresh binary **rc=0**. With a freshly built binary (into `/tmp`,
+leaving `~/go/bin` untouched so concurrent agents were undisturbed) `make test` is rc=0 with zero
+FAIL across 111 packages, and the spike package itself appears `ok`, so AC-8's first checkpoint is
+non-vacuously green.
+
+**Gates** (derived from `ci.yml`, rule 3g, not recalled): `check-changelog`, `check-file-sizes`,
+`check-boundaries`, `check-skills`, `fmt-check`, `vet`, `check-golden-drift` — all rc=0. `gofmt -l`
+empty **with a firing control**. AC-7 measured both arms: scoped **0**, unscoped control **9**.
+Compiler boundary re-proved both arms (rc=1 refused under `internal/`, rc=0 allowed under
+`tools/`), scratch consumers deleted with zero residue. All darwin/arm64; linux and windows legs
+unrun locally and settled by CI.
+
+**Ruled out**
+- That the golden-test red was a repo regression — it is a stale PATH binary; the two arms differ.
+- That the plan's merge-base SHA was usable — it is iteration 236's, not this branch's.
+- That C2 is infeasible — refuted on two independent grounds, confirmed by the evaluator.
+- That `#662` had moved — 1 comment, ours, control `#613` = 2. `m-wasm-deterministic-typecheck-budget` stays blocked, measured today rather than transcribed.
+
+**Next**: M3 re-owed with the always-copy C2, then M4–M6 — remaining benchmarks including `B-LEN`,
+the deterministic five-trial runner and adjudicator, then the full matrix and the programme's
+go/no-go.

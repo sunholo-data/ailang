@@ -154,6 +154,42 @@ The `BenchmarkListRep_` prefix cannot collide with `bench-phase2a` (P10: differe
 
 **The doc's own escape hatch is adopted verbatim, not invented here:** "C2's shared-chunk prepend is implementable at O(K) worst-case without locks" is listed under *Unverified / needs measurement* with the disposition "failure ⇒ C2 columns marked infeasible (which the kill criterion tolerates if C1 passes)" (doc:419). If the executor cannot land it inside this milestone's budget, C2's columns are marked **infeasible with the reason recorded**, and the sprint proceeds — this is the primary descope lever (§7).
 
+> **⚠ CONTROLLER ADJUDICATION, iteration 237 — THE DESCOPE LEVER WAS PULLED AND IS NOT ACCEPTED.
+> A LATER EXECUTOR MUST NOT RE-PULL IT ON THE SAME GROUND.** Iteration 237's executor marked
+> `C2(K=8)` and `C2(K=32)` infeasible, reasoning that the immutable `List` API gives no way to
+> tell whether a chunk is uniquely owned, so a slack write can mutate a retained alias, and that
+> *"pessimistically copying the leading chunk on every prepend removes the specified uncontended
+> slot-write behavior."* The first half is correct; the conclusion does not follow, on two
+> independent grounds, and the C2 commit was therefore **not landed**:
+>
+> 1. **The reason bears on the FAST PATH, not on any kill clause.** The doc's C2 bound is already
+>    the contended one — *"the prepender copies **at most one chunk** (≤ K elements) into a fresh
+>    node — O(K) = O(1) worst-case with a constant"* (doc:93-100). Copying unconditionally, with no
+>    ownership detection at all, meets that bound by construction: K is a constant, so O(K) is
+>    O(1) worst-case, which is what clause (a) tests. The uncontended slot write is an
+>    average-case optimisation the kill criterion never measures. Both benefits the doc names —
+>    *"recovering slice-like locality within chunks and amortizing per-element overhead across the
+>    chunk"* — survive always-copy intact: per-element overhead is `16 + 16/K` B, i.e. **16.5 B at
+>    K=32**, matching the doc's own *"~16-18 B/element for C2"* estimate (doc:417).
+> 2. **The doc's tolerance is CONDITIONAL, and the condition cannot yet be evaluated.** doc:419
+>    reads *"failure ⇒ C2 columns marked infeasible (**which the kill criterion tolerates if C1
+>    passes**)"*. C1's clause (b) and (c) numbers are B3/B6, which are **M4** work and do not
+>    exist. The lever was pulled before the predicate that licenses it could be read.
+>
+> This matters because C2 is the candidate designed to pass exactly where C1 is most at risk:
+> clause (b) (iteration ≤ 2.0× at n=65536, where cons-cell pointer-chasing hurts most, and which
+> chunking exists to fix) and clause (c) (per-element memory ≤ 2.5×, where the doc estimates
+> C1 at 32 B/cell against C2's ~16-18 B/element). Dropping C2 before either is measured makes a
+> STOP verdict reachable **by descope rather than by measurement**, on a gate that commits or
+> cancels ~16 person-days.
+>
+> **Revised instruction for M3.** Implement C2 with the **always-copy leading chunk** prepend —
+> no ownership tracking, no reference counting, no atomics, no locks — and measure it. That is a
+> straightforward, obviously-correct persistent structure. If it then fails a clause, it fails on
+> a **number**. The infeasibility lever remains available only for a reason that bears on the
+> O(K) bound itself, and only once C1's clause-(b)/(c) numbers exist to make doc:419's condition
+> readable.
+
 **Acceptance criteria:**
 - C2 satisfies the same external-API smoke round-trip as C0/C1, at **both** K values
 - A **shared-chunk contention test** exists and passes: two lists share a chunk, both prepend, and both observe correct independent contents (this is the correctness claim the O(K) argument rests on)
@@ -282,7 +318,7 @@ Arms: **C0, C1, C2(K=8), C2(K=32)** = 4.
 
 ## 7. Risks
 
-**R1 — C2's lock-free O(K) shared-chunk prepend may not be implementable in budget.** *Likelihood: medium.* The doc itself lists it as unverified (doc:419). **Mitigation is the doc's own:** mark C2's columns infeasible with the reason recorded, and proceed — the kill criterion tolerates it if C1 passes. This is the sprint's **primary descope lever**, and it is doc-sanctioned rather than planner-invented. *It does not weaken any clause: a GO still requires one candidate to pass all five.*
+**R1 — C2's lock-free O(K) shared-chunk prepend may not be implementable in budget.** *Likelihood: medium.* The doc itself lists it as unverified (doc:419). **Mitigation is the doc's own:** mark C2's columns infeasible with the reason recorded, and proceed — the kill criterion tolerates it if C1 passes. This is the sprint's **primary descope lever**, and it is doc-sanctioned rather than planner-invented. *It does not weaken any clause: a GO still requires one candidate to pass all five.* **⚠ NARROWED at iteration 237 — see the controller adjudication in §4 M3.** That sentence is true of the *verdict rule* and false of the *matrix*: dropping C2 removes the candidate designed to pass clauses (b) and (c) where C1 is most at risk, so a STOP can be reached by descope rather than by measurement. The lever is available only for a reason bearing on the O(K) bound itself, and only once C1's clause-(b)/(c) numbers exist.
 
 **R2 — B1's heaviest cell retains ~1.07 GB per benchmark iteration.** At `m=4096, L=16384`, C0 keeps all 4,096 results live: 4,096 × 16,385 × 16 B ≈ **1.07 GB per op**, and B1's design mandates keeping them live (doc:137). If results accumulate across `b.N` iterations the process can reach many GB. **Mitigation:** the result slice is released at the **end of each `b.N` iteration** (`KeepAlive` inside the iteration, not outside the loop); the runner records `/usr/bin/time -l` max RSS per invocation; if any cell exceeds a **4 GB** ceiling the executor pins that cell to `-benchtime=1x` and records the deviation and its reason in the cell's command string (AMB-4 permits exactly this, with disclosure). The rig has a documented history of eval-driven OOM kernel panics — this ceiling is not theoretical.
 
