@@ -14493,3 +14493,107 @@ being ACCEPTED is established; end-to-end enforcement is not.
 **Next.** **M6** — the full 76-point matrix under M5's runner, the kill-criterion arithmetic, and
 the programme's go/no-go, which either opens LC-2…LC-5 or STOPS the programme and re-opens `D-19`
 with measurements.
+
+## 239 — 2026-08-20 — Iteration 239: the kill criterion ran and the verdict is GO; the driver that decides ~16 person-days was flagging a rerun it never performed
+
+**Pick.** `LC-1 m-list-repr-spike` **M6** — iteration 238's declared Next, and the gate that commits
+or cancels the remaining ~16 person-days of the cons-cells programme. Execution, not design: doc and
+plan landed at `8f45dd419`, quorum artifact present with `absent_reviewers` EMPTY in both rounds, so
+no re-quorum was owed. Pick-time plan↔doc cross-diff found the **B-LEN** rot still present (plan 7,
+doc 0) and the PLAN wins on that point, exactly as iteration 237 adjudicated — it is strictly
+additive and makes clause (d) satisfiable at all.
+
+**Outcome: LANDED.** PR [#810](https://github.com/sunholo-data/ailang/pull/810). Evaluator (sonnet,
+its own worktree) **85/100 FAIL** on a real omission, fixed before merge.
+
+### The verdict
+
+**GO.** Full matrix under M5's runner: 76 AC-1 points + 8 B-LEN, five fresh-process trials each,
+**420 trials, 11m22s**, `go1.26.6 darwin/arm64`, `rig.lock` observed free before and after and
+**never acquired** — it is a GPU mutex and this spike is pure CPU/heap.
+
+AC-2's control leg is what makes the gate falsifiable, and it fires: C0 shows **9.854×** (m=1024)
+and **10.384×** (m=4096) against a required ≥ 8. All three candidates pass all five clauses; clause
+(c) is denominated in **measured** C0 B/element (**16.418**, agreeing with the 16 B derivation to
+2.6%), never the derivation. C2K32 wins the tie-break at **1.070×** where C1 sits at **1.952×**.
+
+### The two defects, and why the first one mattered most
+
+**1. The tie/spread rerun was flagged and never performed.** Self-reported by the codex executor,
+and worse than it reported. `Paired(…, allowRerun=true)` *sets* `Rerun` and forces `Pass=false`, but
+nothing collected the extra five trials — so a straddling clause banked as a permanent **FAIL**, and
+a straddling **C0 control leg** aborted the whole verdict with `control_leg_failed`. Either is a
+**STOP produced by a rerun nobody ran**, on a ~16-person-day gate, and in the JSON it is
+indistinguishable from a legitimate adjudication. This is the same shape iteration 237 caught as
+STOP-by-descope and iteration 238 caught as STOP-by-stale-artifact: **the third consecutive way this
+gate found to fail closed for a reason that was never measured.**
+
+**2. `-kind=gcshape` had never produced a number.** `parseMetric` unmarshalled into
+`map[string]float64` while the gcshape report carries a string `arm` beside its counters. No kill
+clause reads B8, so the only thing that ever asked for it was **AC-1's completeness floor** — and
+that is exactly where it surfaced, ten minutes into the first full pass, as
+`insufficient_valid_trials: B8/arm=C0 has 0`. The anti-vacuity floor earned its keep on its first
+real outing. The unblocked measurement is substantial: C0 triggers **~417** GC cycles over the
+n=12800 workload where C1 and C2K8 trigger **0** and C2K32 triggers **2** — reported as a
+**secondary and NOT adjudicated**, because no threshold was predeclared for it.
+
+### The evaluator was right, and the fix found more than the finding
+
+**AC-6 was 0% delivered** — 0 hits for D3/accessor/Uncons/DropPrefix/FromSlice in my report against
+a control of 24 in the doc. Reproducing it AS BUILT then surfaced something the judge did not reach:
+**three of the doc's own D3 rows cite verification-log IDs (V4, N13, N3) rather than a `file:line`**,
+so AC-6 read literally — *red if any row lacks a file:line* — fails on the doc's own table. Those are
+now real locations, **package-qualified**, because `builtins_json.go` and `value.go` each exist
+**twice** under `internal/`: a naive resolver landed on `vm/builtins_json.go:193` and
+`bytecode/value.go:89`, the latter an **empty line**. All 10 citations verified to resolve to their
+claimed text.
+
+Its second finding held under first-party mutation too: **`Adjudicate`'s no-rerun path was pinned by
+nothing** after the M3-M5→M6 test consolidation — an always-rerun mutant landed, built, and survived
+the entire suite. Now a sole killer.
+
+Its best work was T1: **independently re-deriving all 24 clause medians from the 420 raw trials**,
+bypassing the driver's own `median`/`pass` fields. A driver that agrees with itself is not evidence;
+that recomputation is what makes the verdict worth quoting.
+
+### Ruled out
+
+- That B8's zero was a code defect — it is a parser that never worked (fixed, sole-killed).
+- That the `Build and Release` red was attributable to this diff. Four controls: the failing step is
+  **5, `Get dependencies`**, before any repo code compiles; the before-arm (same workflow on base
+  `f529ba061`) is **success**; the diff touches **zero** dependencies (control: 8 `tools/` files
+  changed) and none of the named modules appears in the new packages (control: `internal/eval` in 15);
+  and **outcome diverged across attempts** — attempt 1 named `go-bfloat16`/`ledongthuc/pdf`/`gopickle`,
+  attempt 2 named `typescriptify-golang-structs`, and a deterministic failure cannot wander. Cause is
+  `sum.golang.org` returning HTTP/2 `INTERNAL_ERROR`. Not reverted, not fixed-forward, and not a
+  required context (required = `test`, `lint`, `build`, `docs-gate`, read from branch protection).
+- That `#662` had moved (1 comment, ours; control `#613` = 2).
+- That AC-6's information was lost — it lives at doc:248-257.
+
+### Two instrument failures in my own tooling, both caught by their own guards
+
+- A mutation whose **anchor did not match**, so the suite's rc=0 was the **unmutated** tree. The
+  LANDED-before-reading check is the only reason that did not read as *the mutant survives* — which,
+  had it been believed, would have "confirmed" a coverage gap for entirely the wrong reason.
+- An AC-6 citation-verification loop that **lost `PATH` in a subshell** and reported `FILE NOT FOUND`
+  for nine files that exist. Re-run in Python with a negative control (a line number past EOF).
+
+### Routing evidence
+
+| Role | Pinned | Actual | Notes |
+|---|---|---|---|
+| Controller | `$MODEL` | opus | triage, pick, both repairs, matrix run, record |
+| Executor | `codex:gpt-5.6-sol` | codex `gpt-5.6-sol` | probed rc=0 first; one bounded backgrounded run, rc=0; 3 cumulative `.snap/` snapshots; zero git writes |
+| Evaluator | sonnet | sonnet | own worktree (iter-199 rule); generator≠judge holds (codex ≠ sonnet) |
+| Designer | rotation | **not spent** | no new doc needed; Fable diet untouched |
+
+`metered = $0.00` of $5 — codex, opus and sonnet are all quota buckets; no quorum this iteration.
+No GPU, no `rig.lock`.
+
+### Next
+
+**`D-22` gates LC-2.** The matrix says GO but cannot say *which representation*: the doc's tie-break
+picks **C2K32**, the decomposition's 15.5–21.5 person-days were scoped around **C1**, and both pass
+every clause. On `C1` the estimates stand as written; on `C2K32` LC-2…LC-5 need re-scoping against a
+chunked structure before LC-2 routes. **`LC-0`** (0.5d — `#676` comment + a `docs/LIMITATIONS.md`
+entry) is unblocked either way and can run first.

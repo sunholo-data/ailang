@@ -1,33 +1,43 @@
-# Mission Dashboard — V1
+# V1 Mission Dashboard
 
-_Snapshot, overwritten each iteration. History lives in the charter STATUS block + `v1-mission-log.md`._
+> 30-second control context. Snapshot, NOT a record — history lives in the charter STATUS block,
+> `v1-mission-log.md` and `v1-mission-status-archive.md`. Overwritten every iteration.
+> **Namespaced path**: `design_docs/v1-mission-dashboard.md`. Never write the bare
+> `mission-dashboard.md` — that literal is shared by every mission on the rig.
 
-**Last iteration:** 238 · 2026-08-20 · **LANDED** · evaluator (sonnet) PASS **84/100**
-**Latest release:** v0.33.1 · `dev` at `8e27b0a12`
+**Updated**: 2026-08-20 (iteration 239) · **Release**: v0.33.1 · **Bookkeeping**: [#745](https://github.com/sunholo-data/ailang/issues/745)
 
-## In flight / next
-- **LC-1 `m-list-repr-spike`** — M1–M5 LANDED (`b32eef76b`). **M6 OWED**: the full 76-point ×
-  5-trial matrix under M5's runner, the kill-criterion arithmetic, and the programme's
-  **go/no-go**. Nothing else in the cons-cells programme may route before it.
-- Provisional, NOT the verdict (M5 protocol, darwin/arm64 only): clause **(c)** C1 **1.946×** vs
-  ≤2.5, C2K32 ≈**1.07×** · clause **(d)** all four arms **≈1.00×** vs ≤1.2 · clause **(a)**
-  (iter-237) C1 **0.95×/1.08×** vs ≤1.5. Clause **(b)** not yet measured.
-- Then: LC-2…LC-5 **iff** M6 says GO; otherwise STOP and re-open `D-19` with measurements.
+## In flight
 
-## Blocked
-- `m-wasm-deterministic-typecheck-budget` — waiting on `#662`'s reporter for per-module
-  `typeCheckSteps`. Predicate re-run 2026-08-20: 1 comment, ours. **External; re-check each pick.**
+- **LC-1 `m-list-repr-spike` M6 — the kill criterion RAN. Verdict: GO.**
+  PR [#810](https://github.com/sunholo-data/ailang/pull/810). Full matrix: 76 AC-1 points + 8 B-LEN,
+  5 fresh-process trials each, 420 trials, 11m22s, darwin/arm64.
+  All three candidates (C1, C2K8, C2K32) pass all five ratified clauses.
+  Control leg fires at **9.85× / 10.38×** against a required ≥ 8×, so the gate is falsifiable.
 
-## Loop / routing
-- Controller opus · designer ROTATION (next: gemini) · planner+executor `codex:gpt-5.6-sol`
-  (bucket reset 05:34 today) · evaluator **sonnet** (generator≠judge vs codex).
-- **Skill edit `8e27b0a12`:** the Agent tool now **ACCEPTS** a `fable` pin — the stale
-  "REJECTED" rule had been silently skipping the rotation's Fable designer slot.
+## Next
+
+- **LC-2 `m-list-accessor-api`** (2–3d) — the accessor seam over the unchanged slice + the
+  `listrep` ratchet analyzer. Unblocked by the GO. Then LC-3a/3b/3c → LC-4 (riskiest) → LC-5.
+- **LC-0 `m-list-interim-communication`** (0.5d) — `docs/LIMITATIONS.md` + a `#676` comment.
 
 ## Parked on Mark
-**None.** Decision ledger: **21 rows, ZERO OPEN.**
-Carried, not a ledger row: rotate `AILANG_REGISTRY_API_KEY` (iter-232).
 
-## Quota / cost
-- Iteration 238 metered **$0.00** of $5. Quota buckets: opus, codex, sonnet, one bounded fable probe.
-- No GPU, no `rig.lock` — the spike is pure CPU/heap.
+- **Which representation LC-2…LC-5 build for.** The doc's tie-break ((c) then (b)) selects
+  **C2(K=32)**, the chunked hybrid. The decomposition's **15.5–21.5 person-days** were scoped
+  around **plain cons cells (C1)**, which passes every clause with margin ((c) 1.95× vs a 2.5×
+  ceiling). Both are defensible; the matrix cannot decide it. **One word: `C1` or `C2K32`.**
+- Carried, not a ledger row: rotate `AILANG_REGISTRY_API_KEY` (iter-232).
+
+## Loop
+
+- Cadence: launchd `dev.ailang.mission-control`, 6h watchdog. Kill switch armed (not set).
+- Routing: controller **opus** · designer **rotation** (fable → codex → gemini) ·
+  planner/executor **codex `gpt-5.6-sol`** · evaluator **sonnet** (generator≠judge).
+- Decision ledger: **21 rows, 1 OPEN** (the representation choice above).
+- Metered spend this iteration: **$0.00** of $5 — every lane used was a quota bucket.
+
+## Quota posture
+
+codex bucket reset 05:34 today and probed rc=0. Fable diet: at most one bounded run per
+iteration (designer only) — not spent this iteration; no new doc was needed.
