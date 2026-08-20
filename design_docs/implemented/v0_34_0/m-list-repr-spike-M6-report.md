@@ -173,11 +173,56 @@ Both readings are defensible and the spike deliberately does not choose between 
 measurements that inform it are all above; nothing in the matrix distinguishes the two on
 correctness, and both clear every threshold.
 
-## 6. What this report does NOT claim
+## 6. AC-6 — the D3 accessor draft, reproduced AS BUILT
+
+The doc's D3 table (doc:248-257) is a **draft input to LC-2, not a commitment**. AC-6 asks for it
+reproduced as-built with its per-row `file:line` citations, annotated with anything clause (e)
+proved infeasible. The spike's `List` interface (`tools/internal/spike-listrep/list.go`) is the
+as-built surface, and all three candidates implement it — that implementability *is* clause (e)'s
+test, which is why infeasibility would have surfaced here rather than in LC-2.
+
+**Nothing was proved infeasible.** Every row below is implemented by all three candidates and
+exercised by the matrix.
+
+| Operation (D3 draft) | As built in `list.go` | Complexity slice → cons | Call-site justification (doc citations, unchanged) | Measured by |
+|---|---|---|---|---|
+| `Len() int` | `Len() int` | O(1) → O(1) (cached) | exact-length pattern match `eval/eval_patterns.go:218` (V5); `[x, ...rest]` bounds check `eval/eval_patterns.go:238` | **B-LEN** — clause (d), 0.998–1.001 across all arms |
+| `At(i int) (eval.Value, bool)` | `At(int) (eval.Value, bool)` | O(1) → O(i) | `_list_nth` builtin, bounds-checked at `builtins/list.go:320` (V6, body read — not the registration site); indexed head-element access at `eval/eval_patterns.go:224`, `:244` (V18) | **B4** — 16 cells, i ∈ {0, 1024, 2048, 4095} |
+| `All() iter.Seq[eval.Value]` | `All() iter.Seq[eval.Value]` | O(n) → O(n) | every spine walk (`String()` at `eval/value.go:89-99` V3, the map/fold family); range-over-func available at `go 1.26.6` (V7) | **B3** — clause (b), the dominant access pattern |
+| `ToSlice() []eval.Value` | `ToSlice() []eval.Value` | O(n) copy → O(n) copy, **documented** | escape sites take `*ListValue` as free functions, invisible to a method-only search: `encodeJSONArray` `eval/builtins_json.go:193`, `encodeJSONObject` `:220`; embedding conversion `internal/embed/convert.go:92` | **B5** materialize |
+| `FromSlice([]eval.Value)`, `Empty()` | **package-level per arm**, not interface methods: `SliceEmpty`/`ConsEmpty`/`ChunkEmpty` + `NewArm`/`PrependArm` (`arms.go`) | O(n) / O(1) | literal construction `eval/eval_simple.go:234`; builtin results, e.g. `eval/builtins_json.go` (6 sites). LC-3 owns the full sweep; the constructors must exist first | construction path of every benchmark |
+| `Cons(head, tail)` | **package-level per arm**: `SliceCons`/`ConsCons`/`ChunkCons` | O(n) today → O(1) | `::` — `listConsImpl` at `builtins/list.go:87` — the point of the programme | **B1** — clause (a), and **B2** linear build |
+| `Uncons() (head, tail, ok)` | `Uncons() (eval.Value, List, bool)` | O(1) → O(1) | pattern-match tail extraction is an O(1) alias today and must not regress (`eval/eval_patterns.go:255-256`, V5; roadmap N10) | **B3** iteration walks the spine through it |
+| `DropPrefix(k int) List` | `DropPrefix(int) List` | O(1) alias → O(k) | multi-element `[a, b, ...rest]` patterns take a tail at offset `len(p.Elements)` (`eval/eval_patterns.go:255`, V5) | exercised via `Uncons`/iteration; no dedicated row |
+
+> **Paths are package-qualified here, and the doc's are not.** `builtins_json.go` and `value.go`
+> each exist **twice** under `internal/` (`eval/` and `vm/`; `eval/` and `bytecode/`), so a bare
+> basename resolves to the wrong file — a naive resolver landed on `vm/builtins_json.go:193` and
+> `bytecode/value.go:89`, the latter an empty line. Every citation below was re-derived at HEAD and
+> the line's text checked, not transcribed from the doc.
+
+**Two divergences from the draft, both deliberate and both LC-2's to settle:**
+
+1. **Constructors are package-level functions per arm, not interface methods.** `FromSlice`,
+   `Empty` and `Cons` cannot sit on a read-only `List` interface without every implementation
+   needing to construct its siblings. The spike therefore splits them into `arms.go`'s
+   `NewArm`/`PrependArm` dispatch. This is exactly the constructor/accessor split clause (e)
+   requires — it is what makes "field write inside a constructor" mechanically distinguishable,
+   and it is why AC-4 leg 3's `(iii)` check finds precisely three composite literals, one per
+   representation file.
+2. **`DropPrefix` has no dedicated benchmark row.** The doc's own draft-status caveats already
+   ask whether it folds into `Uncons` iteration; it is exercised transitively and no clause
+   depends on it. **Recorded as a gap, not measured** — LC-2 should either give it a row or fold it.
+
+The doc's remaining draft-status caveats stand unchanged and are LC-2's: whether `At` returns
+`(Value, bool)` or errors, and naming throughout.
+
+## 7. What this report does NOT claim
 
 - **Platform.** Every number is `darwin/arm64` on one machine. The ubuntu and windows CI legs
   *compile* the spike and never run its benchmarks; no cross-platform number is claimed.
 - **B8 is not adjudicated.** No threshold was predeclared for GC shape, so it is reported only.
+- **`DropPrefix` is not separately benchmarked** — exercised transitively, no clause depends on it.
 - **B7** is read off `-benchmem` on B1/B2 and contributes no new runs, per the plan's §5.
 - **No rerun fired**, so the tie/spread path is exercised by tests rather than by this data. That
   path was repaired in this milestone precisely because it had never been exercised: the driver

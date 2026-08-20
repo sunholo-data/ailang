@@ -95,3 +95,43 @@ func TestParseMetricGCShapeToleratesStringFields(t *testing.T) {
 		t.Fatal("a non-numeric metric must be an error, not a silent zero")
 	}
 }
+
+// Adjudicate must collect EXACTLY five trials per arm when no rerun is warranted.
+// The M3-M5 -> M6 consolidation moved cmd/runner's tests into this package and
+// dropped the arm that pinned this, so a mutant making Adjudicate always collect a
+// rerun batch survived the ENTIRE suite (verified: landed by sha256, built rc=0,
+// go test ./tools/internal/spike-listrep/... rc=0). That is the same unpinned-rerun
+// class the matrix driver was just repaired for, in the opposite direction, on the
+// still-live single-cell CLI path. Kills "always rerun" and "rerun batch sized wrong".
+func TestAdjudicateCollectsFiveTrialsWhenNoRerunIsWarranted(t *testing.T) {
+	type call struct{ start, count int }
+	var calls []call
+	gather := func(_ context.Context, _ Invocation, start, count int) []Trial {
+		calls = append(calls, call{start, count})
+		out := make([]Trial, count)
+		for i := range out {
+			// Constant 1.0 against a constant control: every paired ratio is
+			// exactly 1.0, nowhere near the threshold, so no rerun is warranted.
+			out[i] = Trial{Ordinal: start + i, Value: 1, Valid: true, Command: []string{"m"}, RawOutput: "r"}
+		}
+		return out
+	}
+	r := Adjudicate(context.Background(), gather, Invocation{}, Invocation{}, 2.0, "<=")
+	if !r.Valid || !r.Pass {
+		t.Fatalf("a flat 1.0 ratio against a <= 2.0 threshold must pass: valid=%v pass=%v err=%q", r.Valid, r.Pass, r.Error)
+	}
+	if r.Rerun {
+		t.Error("no rerun should have been warranted")
+	}
+	if len(calls) != 2 {
+		t.Fatalf("want exactly 2 collector calls (one per arm, no rerun batch), got %d: %+v", len(calls), calls)
+	}
+	for i, c := range calls {
+		if c.start != 1 || c.count != InitialTrials {
+			t.Errorf("call %d: want start=1 count=%d, got start=%d count=%d", i, InitialTrials, c.start, c.count)
+		}
+	}
+	if len(r.Candidate) != InitialTrials || len(r.Control) != InitialTrials {
+		t.Fatalf("want %d trials per arm, got cand=%d ctrl=%d", InitialTrials, len(r.Candidate), len(r.Control))
+	}
+}
