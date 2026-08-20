@@ -920,7 +920,29 @@ the Repo Profile above):
    `FILES=($(…))`, then `"${FILES[@]}"` — and assert `${#FILES[@]}` before use. The general rule
    this mission already knows, in its sharpest form: **a mutation test needs proof the mutation
    LANDED before its result means anything**, because "the mutation didn't red" and "the mutation
-   never ran" are the same exit code. **And a mutation red counts only when the mutant BUILDS —
+   never ran" are the same exit code.
+   **AND THE SAME NON-SPLITTING BREAKS `set -- $var`, WHICH IS THE SHAPE THAT LANDS IN *POLL
+   READERS* — SO THE FALSE READING ARRIVES AT THE GATE THAT DECIDES LANDED vs PARKED** (added
+   2026-08-20 V1 iteration 239; instance 1 is iteration 107's `set -- $res` Gate-3b poll, which
+   printed `TIMEOUT — PARK` while its own last line read `completed success`; instance 2 is
+   iteration 236's `set -- $pair` containment check; instance 3 is this iteration's Gate-3b poll).
+   Note where this rule was NOT: `set -- $res` appears twice in this file already — both times as a
+   *war story* about a past defect, neither time in THIS list, which is the one place a reader looks
+   for "what does zsh silently rewrite?". That is this loop's own **guard the helper, miss the call
+   site** shape aimed at its rulebook, and it is why three iterations paid for one construct.
+   The mechanism is the clause immediately above — zsh does not word-split an unquoted variable — but
+   the *surface* is different and worse: `FILES=$(…)` fails loudly (`sed: No such file`), while
+   `set -- $st` succeeds, assigning the WHOLE string to `$1` and leaving `$2`/`$3` **empty**. Measured
+   here on `st="3 1 0"`: unquoted → `$1='3 1 0'`; `set -- ${=st}` → `$1='3'`. Empty positionals then
+   feed exactly the two-empty-values comparison Gate 3b's numeric-floor rule was written for — so a
+   poll can report completion over still-running workflows, or, as at iteration 107, a park over a
+   green. **Use `set -- ${=var}` (zsh's explicit-split flag), or avoid positional splitting entirely
+   and read each value with its own command** — the latter is what this iteration switched to, and it
+   is the form that also survives being copied into `bash`. Assert each value is a NUMBER before
+   comparing it (the floor caught this one: it printed `INSTRUMENT FAILURE — not a verdict` instead
+   of a completion, which is the only reason the bug was visible rather than banked). Mission-
+   independent, and the generalisation is the one this list keeps re-earning: **when a shape has
+   burned this loop twice in war stories, it belongs in the remedy list, not in the anecdote.** **And a mutation red counts only when the mutant BUILDS —
    assert `go build ./...` (or the verify profile's compile step; under `ailang-code`,
    `ailang check`) rc=0 on the mutated tree BEFORE reading the test result, and prefer a mutant
    **AND THE ARRAY THIS RULE JUST PRESCRIBED IS 1-INDEXED IN ZSH, SO `${arr[0]}` IS EMPTY AND
