@@ -1739,12 +1739,39 @@ inconsistency between this clause and the old "evaluator→sonnet unless ≥3 da
 
 Spawn pattern (heavy roles): `Agent(subagent_type="general-purpose", model="<the role's env value>",
 prompt="invoke the <skill> for <doc>/<worktree> …")` — resolve the env value first via
-`echo $MISSION_EXECUTOR_MODEL`. These are in-session Agent-tool model **aliases** — but the Agent
-tool accepts ONLY `sonnet`/`opus`/`haiku` as explicit pins; **`fable` is REJECTED**
-(InputValidationError, live-observed 2026-07-16 iteration 31). A fable role runs ONLY by session
-inheritance: spawn with NO `model=` param when the controller session itself is Fable; if the
-session is NOT Fable, a fable pin is unenforceable — apply the generator≠judge re-route below, never
-silently inherit. `provider:model` values (e.g. `codex:gpt-5.6-sol`) instead signal cross-provider
+`echo $MISSION_EXECUTOR_MODEL`. These are in-session Agent-tool model **aliases**.
+
+**⚠ CORRECTED 2026-08-20 (V1 iteration 238) — THE AGENT TOOL NOW ACCEPTS A `fable` PIN, AND THE
+STALE RULE WAS SILENTLY COSTING EVERY MISSION ITS ROTATION'S FABLE DESIGNER SLOT.** From
+2026-07-16 iteration 31 until now this paragraph read *"the Agent tool accepts ONLY
+`sonnet`/`opus`/`haiku` as explicit pins; **`fable` is REJECTED** (InputValidationError,
+live-observed)"*. That was true when measured and is **false in the current harness build**.
+Proposed by `mission-world` iter-101 and corroborated **first-party in V1's own session** before
+adoption (sibling-claim ghost discipline), on two independent readings: the Agent tool's `model`
+enum in this build lists `sonnet`/`opus`/`haiku`/**`fable`**, and a role spawned with an explicit
+`model="fable"` was **ACCEPTED and ran to completion** — no `InputValidationError`. World's
+instance was a 15.6-minute designer run returning a 232-line revision; V1's was a bounded probe.
+**Why a stale CAPABILITY rule is worse than a stale fact:** this one does not merely misinform, it
+*instructs a re-route* — so the rotation's Fable entry is skipped **silently**, and the loop cannot
+tell a deliberately-skipped designer from an unavailable one. World reached Fable at iter-101 only
+because the *next* rotation entry (gemini) is read-only under `CapRemoteSandbox` and cannot author
+a file at all.
+**Scope, stated honestly and NOT widened:** what is established is that the pin is **accepted** and
+the run **completes**. Neither mission verified which weights served the request, so
+*"`fable` is pinnable"* is supported and *"the fable pin is enforced end-to-end"* is **not** — do
+not quote this note for the stronger claim. **The Fable diet below is unchanged**: pinnability
+makes the slot reachable, it does not make it cheap, so it stays at most ONE bounded run per
+iteration.
+**Rule.** Spawn a Fable role with an explicit `model="fable"` pin. Session inheritance (no `model=`
+param when the controller is itself Fable) still works and is still correct, but is no longer the
+*only* route, so a non-Fable controller must NOT re-route away from a rotation's Fable entry on
+pinnability grounds. If a pin is ever rejected again, treat that as a harness change worth
+measuring — re-probe with one bounded spawn and record the reading — rather than restoring the old
+rule from memory. **Generalises past this one alias: a capability claim about the harness is a
+measurement with a date on it, and this file's model table is exactly where such claims go stale
+unseen** — when a rule tells you a route is unavailable, the cheapest possible probe beats
+inheriting a year-old observation. The tell: you are about to skip a configured lane because this
+file says it cannot be pinned, and you have not tried it. `provider:model` values (e.g. `codex:gpt-5.6-sol`) instead signal cross-provider
 routing via `provider_executor` (fleet Phase C), not the Agent tool.
 
 **Step 1b — derive the effective planner lane (MANDATORY; before ANY planner probe or spawn).**
