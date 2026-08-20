@@ -20,7 +20,11 @@ func SliceFromSlice(elements []eval.Value) List {
 
 // SliceCons mirrors listConsImpl's preallocated shallow copy.
 func SliceCons(head eval.Value, tail List) List {
-	elements := tail.ToSlice()
+	sliceTail, ok := tail.(*SliceList)
+	if !ok {
+		return SliceFromSlice(append([]eval.Value{head}, tail.ToSlice()...))
+	}
+	elements := sliceTail.value.Elements
 	result := make([]eval.Value, 0, 1+len(elements))
 	result = append(result, head)
 	result = append(result, elements...)
