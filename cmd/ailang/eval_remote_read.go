@@ -8,7 +8,7 @@ import (
 )
 
 var evalRemoteReadCommands = map[string]struct{}{
-	"eval": {}, "eval-analyze": {}, "eval-compare": {}, "eval-paired": {},
+	"eval": {}, "eval-analyze": {}, "eval-compare": {}, "eval-paired": {}, "eval-censored-pairs": {},
 	"eval-matrix": {}, "eval-sweet-spot": {}, "eval-summary": {}, "eval-report": {},
 	"eval-suite": {}, "eval-elo": {}, "eval-trend": {}, "eval-publish": {},
 	"eval-chains": {},

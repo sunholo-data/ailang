@@ -69,7 +69,12 @@ type BenchmarkResult struct {
 	Trial int `json:"trial,omitempty"`
 
 	// MicroRAGState records which A/B arm produced this row ("on"/"off").
-	MicroRAGState   string `json:"microrag_state,omitempty"`
+	MicroRAGState string `json:"microrag_state,omitempty"`
+	// FmtHookState and FmtHookEvents mirror the harness' banked treatment
+	// evidence so read-side analyzers can enforce treatment integrity.
+	FmtHookState  string                      `json:"fmt_hook_state,omitempty"`
+	FmtHookEvents []eval_harness.FmtHookEvent `json:"fmt_hook_events,omitempty"`
+
 	Condition       string `json:"condition,omitempty"`        // Experimental condition: "baseline", "agent_prompt", etc.
 	AgentTurns      int    `json:"agent_turns,omitempty"`      // Number of conversation turns
 	AgentToolCalls  int    `json:"agent_tool_calls,omitempty"` // Tool invocations (validates agentic behavior)
