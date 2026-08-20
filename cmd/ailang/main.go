@@ -288,6 +288,9 @@ func main() {
 	case "eval-paired":
 		runEvalPaired()
 
+	case "eval-censored-pairs":
+		runEvalCensoredPairs()
+
 	case "eval-matrix":
 		runEvalMatrix()
 

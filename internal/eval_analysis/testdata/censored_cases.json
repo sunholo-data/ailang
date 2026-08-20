@@ -1,0 +1,7 @@
+[
+  {"name":"keep","pairs":40,"on_token_wins":40,"want_verdict":"KEEP","want_reason":"keep-criteria-met"},
+  {"name":"retire_opposite","pairs":40,"off_token_wins":40,"want_verdict":"RETIRE","want_reason":"opposite-direction-rejection"},
+  {"name":"retire_neff","pairs":40,"on_token_wins":24,"off_token_wins":16,"want_verdict":"RETIRE","want_reason":"keep-failed-at-neff"},
+  {"name":"inconclusive_mid","pairs":30,"on_token_wins":18,"off_token_wins":12,"want_verdict":"INCONCLUSIVE","want_reason":"additional-slot-required"},
+  {"name":"inconclusive_low","pairs":10,"on_only_passes":10,"want_verdict":"INCONCLUSIVE","want_reason":"insufficient-neff"}
+]
