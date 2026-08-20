@@ -35,6 +35,8 @@ type CensoredPairResult struct {
 	MedianTokenRatio   float64       `json:"median_token_ratio,omitempty"`
 	OnQuarantined      int           `json:"on_quarantined,omitempty"`
 	OnRows             int           `json:"on_rows,omitempty"`
+	OffQuarantined     int           `json:"off_quarantined,omitempty"`
+	OffRows            int           `json:"off_rows,omitempty"`
 	PassRateLoss       bool          `json:"significant_on_pass_rate_loss,omitempty"`
 	McNemar            McNemarResult `json:"mcnemar"`
 }
@@ -49,24 +51,26 @@ func AnalyzeCensoredPairs(on, off []*BenchmarkResult) CensoredPairResult {
 		return voidCensoredResult(reason)
 	}
 
-	validOn := make([]*BenchmarkResult, 0, len(on))
-	quarantined := 0
-	for _, row := range on {
-		if row.Validity != nil && !row.Validity.Valid {
-			quarantined++
-			continue
-		}
-		validOn = append(validOn, row)
-	}
+	// Both arms are filtered before ANY statistic is computed. The gates above
+	// deliberately receive the RAW slices — the executed order is a fact about
+	// the run, and the ">20% quarantined" rate is defined over the banked set —
+	// but a row that is not a MEASUREMENT must never reach a win/tie tally, a
+	// token ratio, or the McNemar guardrail. Filtering only ON was a real
+	// defect: an OFF row invalid for any reason other than contamination
+	// (harness_error, config_mismatch, ...) still scored a full OFF win.
+	validOn, onQuarantined := partitionMeasurements(on)
+	validOff, offQuarantined := partitionMeasurements(off)
 
-	paired := PairArms(validOn, off)
+	paired := PairArms(validOn, validOff)
 	result := CensoredPairResult{
-		OnQuarantined: quarantined,
-		OnRows:        len(on),
-		McNemar:       paired.McNemar,
+		OnQuarantined:  onQuarantined,
+		OnRows:         len(on),
+		OffQuarantined: offQuarantined,
+		OffRows:        len(off),
+		McNemar:        paired.McNemar,
 	}
-	offByKey := make(map[pairKey]*BenchmarkResult, len(off))
-	for _, row := range off {
+	offByKey := make(map[pairKey]*BenchmarkResult, len(validOff))
+	for _, row := range validOff {
 		offByKey[pairKey{row.ID, row.Lang, row.Trial}] = row
 	}
 
@@ -113,6 +117,21 @@ func AnalyzeCensoredPairs(on, off []*BenchmarkResult) CensoredPairResult {
 	result.PassRateLoss = paired.McNemar.Reportable && paired.McNemar.PValue <= 0.05 && paired.OnlyOffPassed > paired.OnlyOnPassed
 	applyCensoredDecision(&result)
 	return result
+}
+
+// partitionMeasurements splits rows into those that ARE measurements and a
+// count of those that are not. Design doc section 5: a quarantined row is
+// dropped AND counted — never silently discarded, and never counted twice.
+func partitionMeasurements(rows []*BenchmarkResult) (valid []*BenchmarkResult, quarantined int) {
+	valid = make([]*BenchmarkResult, 0, len(rows))
+	for _, row := range rows {
+		if row.Validity != nil && !row.Validity.Valid {
+			quarantined++
+			continue
+		}
+		valid = append(valid, row)
+	}
+	return valid, quarantined
 }
 
 func treatmentIntegrityReason(on, off []*BenchmarkResult) string {
@@ -187,6 +206,13 @@ func CheckFmtOrderIntegrity(on, off []*BenchmarkResult) string {
 		if first.benchmark != second.benchmark || first.arm == second.arm {
 			return "order_integrity_nonadjacent_arms"
 		}
+		// DECLARED UNREACHABLE, defensively retained. Blocks are deduplicated by
+		// (benchmark, arm) and a non-contiguous repeat of either key returns
+		// order_integrity_noncontiguous_block above; a pair holding only one of a
+		// benchmark's blocks returns order_integrity_nonadjacent_arms. With two
+		// arms a benchmark owns at most two block keys, so no input reaches here.
+		// Pinned by TestD2OrderRefusalRepeatedBenchmarkIsUnreachable, which fails
+		// loudly if that ever stops being true.
 		if seenBenchmark[first.benchmark] {
 			return "order_integrity_repeated_benchmark"
 		}
