@@ -8,8 +8,8 @@ import (
 	"net/url"
 )
 
-// targetValidationError is a typed, internal error returned by the direct
-// route of the request-aware RoundTripper when target resolution or IP
+// targetValidationError is a typed, internal error returned by the
+// request-aware RoundTripper when target resolution or IP
 // validation fails (before any dial is attempted). It carries the original
 // E_NET_DNS_FAILED / E_NET_IP_BLOCKED category so that public callers can
 // surface the stable legacy category even after http.Client.Do wraps it in a
@@ -30,9 +30,9 @@ func (e *targetValidationError) Unwrap() error { return e.cause }
 //   - no proxy selected: resolveAndValidateIP is called exactly once, and the
 //     returned IP is handed to a direct transport whose dialer connects to that
 //     IP with no hostname re-resolution (anti-DNS-rebinding pinning).
-//   - proxy selected: ordinary proxy dialing only — zero local target
-//     resolution and zero IP validation. The proxy address never enters any
-//     target-IP substitution closure.
+//   - proxy selected: literal target IPs are validated without DNS before
+//     ordinary proxy dialing; hostnames receive zero local target resolution.
+//     The proxy address never enters any target-IP substitution closure.
 //
 // It owns separate transport creation paths for the two modes and never
 // mutates one shared transport between them. Each round trip builds a fresh
@@ -77,9 +77,14 @@ func (rt *netProxyRoundTripper) directRoundTrip(req *http.Request) (*http.Respon
 	return tr.RoundTrip(req)
 }
 
-// proxyRoundTrip performs ordinary proxy dialing and performs no local target
-// resolution or IP validation.
+// proxyRoundTrip validates literal target IPs without DNS, then performs
+// ordinary proxy dialing. Hostname targets receive no local resolution.
 func (rt *netProxyRoundTripper) proxyRoundTrip(req *http.Request, proxyURL *url.URL) (*http.Response, error) {
+	if ip := net.ParseIP(req.URL.Hostname()); ip != nil {
+		if err := validateIP(ip, rt.ctx); err != nil {
+			return nil, &targetValidationError{cause: err}
+		}
+	}
 	tr := rt.proxyTransport(proxyURL)
 	defer tr.CloseIdleConnections()
 	return tr.RoundTrip(req)

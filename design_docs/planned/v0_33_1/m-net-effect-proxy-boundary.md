@@ -45,8 +45,8 @@ The security controls have different scopes and must not be conflated:
 - redirect validation still enforces redirect count and protocol policy before the next round trip;
   it no longer resolves the redirect target (V4, V19);
 - target-IP resolution and validation occur exactly once per direct round trip, immediately before
-  dialing, and the validated address is the address dialed; proxied round trips perform no local
-  target DNS lookup;
+  dialing, and the validated address is the address dialed; proxied literal-IP targets receive the
+  same IP-policy validation with zero DNS, while proxied hostname targets perform no local lookup;
 - only the guarantee that the socket reaches the exact pre-validated **target IP** is traded away
   on a proxied request, because the proxy resolves/reaches the target by name;
 - direct requests, including requests bypassed by `NO_PROXY`, must retain target-IP pinning.
@@ -80,7 +80,7 @@ capability, domain, protocol, redirect, budget, and size controls remain enforce
 
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |---|---|---|---|---|
-| **D-1:** request-aware split: direct `Net` requests keep pinned-IP dialing; proxied requests use normal proxy dialing and knowingly delegate target resolution to the operator-selected proxy | A single transport/dial closure cannot both substitute the target IP and dial a proxy correctly; this is the SSRF boundary | human via design approval | design | high |
+| **D-1:** request-aware split: direct `Net` requests keep pinned-IP dialing; proxied literal IPs receive zero-DNS validation, while proxied hostnames use normal proxy dialing and delegate resolution to the operator-selected proxy | A single transport/dial closure cannot both substitute the target IP and dial a proxy correctly; literal-IP validation needs no resolver and therefore preserves policy without that conflict | Mark, 2026-08-19 | design | high |
 | A configured proxy is an explicit operator trust decision; it supersedes only target-IP pinning, not the `Net` capability, protocol, target-domain, redirect, budget, or response-size checks | Precisely defines the security trade rather than silently weakening the whole Net policy | human via design approval | design | high |
 | Use Go's `http.ProxyFromEnvironment` semantics, including `NO_PROXY`; do not add a new `ctx.Net` flag or version gate | Operators and CI already express routing policy in these standard variables; a second policy surface could disagree with them | human via design approval | design | high |
 | **D-2:** include `internal/executor/managed_agents/client.go` | Excluding it would knowingly leave the only measured first-party production `http.Transport` residual outside `internal/effects` (V2) | human via design approval | design | med |
@@ -89,7 +89,9 @@ capability, domain, protocol, redirect, budget, and size controls remain enforce
 
 ### Design Freeze
 
-- [x] Proxied `Net` requests knowingly trade target-IP pinning for operator-selected proxy routing.
+- [x] Proxied literal-IP targets retain zero-DNS IP-policy validation; proxied hostname targets
+  knowingly trade target-IP validation/pinning for operator-selected proxy routing (D-1, Mark,
+  2026-08-19).
 - [x] Direct and `NO_PROXY` `Net` requests retain target-IP pinning.
 - [x] All seven measured first-party production transport sites are in scope.
 - [x] Standard proxy environment variables are authoritative; no capability flag or version gate.
@@ -107,11 +109,13 @@ Introduce a small, package-private proxy-aware round trip mechanism in `internal
    transport whose dialer connects to that same IP without hostname re-resolution. This single
    resolve→validate→dial sequence preserves anti-DNS-rebinding pinning and closes the prior
    check/use gap.
-2. **Proxy selected:** use a proxy transport with ordinary proxy dialing and skip local resolution
-   and IP validation of the target entirely. This permits corporate proxy use on hosts without
-   external DNS. The proxy address is never passed through the target-IP substitution closure. The
-   request URL, Host/SNI semantics, and proxy CONNECT/absolute-URI behavior remain Go's
-   responsibility; the proxy chooses the ultimate target IP.
+2. **Proxy selected:** parse the target host as an IP without DNS. If it is a literal IP, apply the
+   existing IP-policy validation and refuse blocked targets before dialing; if it is a hostname,
+   perform no local resolution or validation. This preserves corporate proxy use on hosts without
+   external DNS while retaining zero-DNS literal-IP protection, per D-1 (Mark, 2026-08-19). The
+   proxy address is never passed through the target-IP substitution closure. The request URL,
+   Host/SNI semantics, and proxy CONNECT/absolute-URI behavior remain Go's responsibility; for
+   hostname targets, the proxy chooses the ultimate target IP.
 
 The mechanism must make this choice per request, not once per process or initial URL, so redirects
 and `NO_PROXY` are evaluated against the request actually being sent. A safe implementation is a
@@ -136,8 +140,8 @@ resolution occurs before the direct dial. It must not change public error catego
 mechanism returns a typed internal target-validation error; legacy GET/POST callers recognize it
 through `url.Error` wrapping and return the original `E_NET_DNS_FAILED`/`E_NET_IP_BLOCKED` error,
 while structured `httpRequest`/`httpRequestBytes` continue returning `Err(Transport, message)`.
-Tests must lock both mappings and prove that a proxy-selected request neither calls the injected
-resolver nor produces a local DNS error.
+Tests must lock both mappings and prove that a proxy-selected request never calls the injected
+resolver, refuses blocked literal IPs before dialing, and leaves hostname targets unvalidated.
 
 The HTTP-based Stream constructors and Managed Agents client do not currently pin a resolved target
 IP (V6). They should set `Proxy: http.ProxyFromEnvironment` while retaining their existing connect,
@@ -146,28 +150,29 @@ transport outside the measured HTTP literal set is not added to this sprint.
 
 ### D-1: SSRF interaction and recommendation
 
-**Recommendation: preserve pinning on the direct route and knowingly replace it with trusted-proxy
-routing only when `ProxyFromEnvironment` selects a proxy for that request.** This combines the
-strongest property available in each mode:
+**Recommendation: preserve pinning on the direct route; on the proxy route, validate literal IPs
+without DNS and knowingly leave hostname targets to trusted-proxy resolution.** Mark ratified this
+refinement as D-1 on 2026-08-19. It combines the strongest property available in each mode:
 
 - Option (a), merely adding `Proxy` beside the current closure, is rejected because the closure
   would rewrite the proxy dial address to the target IP; it is not merely a graceful degradation.
 - Option (b), enabling proxy only where pinning is absent, is rejected because the principal `Net`
   operations would remain outside the egress boundary.
 - Option (c) is adopted with a precise trust statement: proxy configuration is an operator decision
-  that supersedes target-IP pinning for proxied requests. AILANG validates the proxy URL through
-  Go's proxy selection/parsing path and surfaces selection/dial errors; it does not apply the
-  target's private-IP or domain policy to the proxy endpoint itself. Corporate/local proxies often
-  live on private networks, so doing so would make legitimate proxy deployment impossible.
+  that supersedes target-IP pinning for proxied hostname requests. AILANG still applies its IP
+  policy when the target itself is a literal IP, without resolving it. It validates the proxy URL
+  through Go's proxy selection/parsing path and surfaces selection/dial errors; it does not apply
+  the target's private-IP or domain policy to the proxy endpoint itself. Corporate/local proxies
+  often live on private networks, so doing so would make legitimate proxy deployment impossible.
 - Option (d), adding a `ctx.Net` switch, is rejected for this sprint. `Net` authority still comes
   from the capability grant; routing is process deployment policy. `NO_PROXY` already supplies a
   standard per-target opt-out that falls back to the pinned direct path.
 
-This does **not** claim equivalent SSRF resistance in proxy mode. The domain allowlist checks the
-requested initial hostname, and redirect validation checks redirect protocol/count; neither can
-prove which IP a remote proxy ultimately connects to. Deployments requiring the pinned-IP guarantee
-must leave the destination out of proxy routing with `NO_PROXY`, or avoid setting a proxy for that
-process.
+This does **not** claim equivalent SSRF resistance for hostname targets in proxy mode. Literal-IP
+targets are validated locally with zero DNS, but the domain allowlist and redirect protocol/count
+checks cannot prove which IP a remote proxy ultimately connects to for a hostname. Deployments
+requiring the pinned-IP guarantee must leave the destination out of proxy routing with `NO_PROXY`,
+or avoid setting a proxy for that process.
 
 ### D-2: Managed Agents scope
 
@@ -684,10 +689,9 @@ one of the five shapes the textual gate cannot see is zero at HEAD, so the cheap
 for *present correctness*, while the reviewer's durability concern survives intact and is what the
 follow-up owns.
 
-**Still owed to the human (non-blocking, does not gate the sprint):** **D-1** — this design knowingly
-trades target-IP SSRF pinning on **proxied** requests (pinning is preserved on direct/`NO_PROXY`
-routes, and the doc never claims equivalence). It is a real security-boundary change and deserves
-explicit ratification; it is carried as an open ask on the bookkeeping issue.
+**D-1 answered by Mark on 2026-08-19:** retain zero-DNS validation for literal-IP targets on the
+proxy route. Proxied hostname targets remain unresolved and unvalidated locally as the accepted
+residual; direct/`NO_PROXY` routes retain resolution, validation, and pinning.
 
 **The decision as originally posed:**
 
@@ -699,7 +703,7 @@ explicit ratification; it is carried as an open ask on the bookkeeping issue.
   shapes. Durable against future escapes and satisfies the reviewer outright, but adds roughly a day
   (3d → 4d) and makes a security sprint also a static-analysis sprint.
 
-The controller's reservation, recorded separately and **not** blocking: **D-1 knowingly trades
-target-IP SSRF pinning on proxied requests.** The doc is explicit about this, preserves pinning on
-direct/`NO_PROXY` routes, and never claims equivalence — but it is a real security-boundary change
-and deserves human ratification alongside D-6.
+The controller's D-1 reservation was resolved by Mark on 2026-08-19: proxied literal IPs retain
+zero-DNS IP validation, while proxied hostnames remain the explicitly accepted unvalidated
+residual. Direct/`NO_PROXY` routes preserve pinning, and the doc does not claim equivalence for
+proxied hostnames.
