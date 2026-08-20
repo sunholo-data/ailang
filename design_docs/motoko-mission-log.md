@@ -1422,3 +1422,193 @@ rig, because the installed plist runs `nightly-eval.sh` in place from V1's check
 for a whole-package sentence — is a rule the skill already carries (3b(ii)). A rule broken is not a
 rule missing, and adding a louder restatement would be the documentation-bias failure the skill's own
 iteration-198 note warns about.
+
+## 15 — 2026-08-20 — M4 landed, and the integrity gate the milestone exists to build was unreachable from its own CLI — twice, in opposite directions
+
+**Pick.** Queue item **6**'s named resume point, milestone **M4** (D2 censored-pair analyzer) —
+not M2, M3 or M5. Reason, stated because it is an ordering claim: the plan declares M4
+*parallel-safe with M1–M3*; it is the only remaining milestone with **no rig dependency** (M2's
+`AC-D1-live` needs ollama + a metered OpenRouter control leg); and **M3's AC-M3-4 closes by calling
+M4's order-integrity checker on synthesised rows**, so M4-first is the ordering that leaves no
+milestone with an unclosable acceptance criterion. M2, M3 and M5 remain the resume point.
+
+**Outcome.** PR [#806](https://github.com/sunholo-data/ailang/pull/806) → `d5bcfa0c8`. Gate 3b
+GREEN on head `922190dd3`: **21** checks, **0** pending, **0** not-green, **4/4** required contexts
+pass, `mergeStateStatus=CLEAN`, `test-windows` and `Build windows-latest` both `success`.
+Evaluator **FAIL 80/100**, one BLOCKING finding — against the controller's own repair — plus six
+non-blocking; blocking fixed and three non-blocking closed before landing.
+
+### The finding, and it is the same shape as last iteration's
+
+`ailang eval-censored-pairs` is a **sibling** of `eval-paired`, never an extension:
+`cmd/ailang/eval_paired.go` is byte-identical to `origin/dev` (`cmp` rc=0, with a control
+confirming a file we DID change differs), because its stdout JSON has two live callers
+(`nightly-eval.sh:339` microRAG, `:515` fmt).
+
+The command loaded its arms through `LoadArmForPairing`, which wraps `FilterValidResults` and drops
+rows whose `Validity` is invalid **at load time**. The `>20% of ON rows quarantined → VOID` gate
+counts exactly those rows — so through the CLI it could never fire. The analyzer's unit tests passed
+throughout, because they construct `[]*BenchmarkResult` directly and bypass the loader. That is
+*guard the helper, miss the call site*, reproduced inside the milestone whose subject is two
+integrity gates, for the **second consecutive iteration**.
+
+Measured, both arms in one call, control firing:
+
+| loader | ON rows | quarantined visible | AC-M4-5 refusal reason |
+|---|---:|---:|---|
+| `LoadArmForPairing` (as delivered) | 5 | **0** | `order_integrity_unpaired_block` |
+| `LoadResultsFromDirsIncludingInvalid` (fixed) | 6 | **1** | `order_integrity_nonadjacent_arms` |
+
+The reason change is the sharper half. **AC-M4-5 is cited in the plan as "a real dataset whose
+correct verdict is known in advance"** — V19 established those 12 rows are a perfect whole-arm
+block. The delivered code returned VOID for an **odd row count**, an artifact of the silent drop,
+not for the blocking. Right verdict class, wrong mechanism — and the AC as written could not tell
+the difference, because it asks only for "VOID with an order-integrity reason".
+
+### And the repair traded one defect for another — only the OFF arm paid
+
+Filed by the evaluator as BLOCKING, and it is against me. `AnalyzeCensoredPairs` filtered only the
+**ON** arm into `validOn`. That was invisible while the filtering loader dropped invalid rows from
+**both** arms; switching to the raw loader — necessary for the quarantine gate — removed the
+protection for OFF with no compensating filter. The treatment gate scans OFF rows only for
+*contamination* (`FmtHookEvents`), so an OFF row invalid for any other reason (`harness_error`,
+`config_mismatch`, `canary_failed`) reached `PairArms` and the win tally.
+
+Reproduced first-party before acting, two arms with a firing control: all-valid arms give
+`off_wins=1 both_pass=2`; marking that same decisive OFF row `Validity{Valid:false,
+Reason:"harness_error"}` gives **`off_wins=1 both_pass=2`** — identical. A row that is not a
+measurement was deciding a §7 verdict.
+
+Fixed with `partitionMeasurements` applied to **both** arms before any statistic. The gates keep the
+raw slices deliberately: the executed order is a fact about the run, and the quarantine *rate* is
+defined over the banked set, so filtering before either would be the same mistake one level up.
+
+**The evaluator earned its spawn by being pointed at me.** Its directive named the controller's
+repair as a target and said it had had no independent review at all — and that is the finding it
+returned. A judge that is told what to attack finds things a judge that is told to score does not.
+
+### Mutation discipline, including its own failure
+
+The first drill on the repair **did not build**: neutering `validOff` left the binding unused, so
+the red was a compile error rather than a guard firing — the "a mutation red counts only when the
+mutant BUILDS" class, caught rather than banked. Redone with the binding kept live:
+
+| mutant | LANDED | BUILDS (scoped) | killer row alone | inverse (`-skip` that row) |
+|---|---|---|---|---|
+| `loadCensoredArm` → `LoadArmForPairing` | grep=1 | rc=0 | rc=**1** | rc=**0** |
+| `PairArms(validOn, off)` (OFF unfiltered) | grep=1 | rc=0 | rc=**1** | rc=**0** |
+
+Both are **sole killers**: with that one row `-skip`ped the packages are green under the mutant —
+i.e. exactly as first delivered. The killing assertions are the win tally and the loader's row
+count, never the verdict enum, because every refusal branch also produces `VOID` and the enum
+cannot discriminate.
+
+The executor's own 13-row table (both treatment voids, six order-refusal branches, the censoring
+rule, the practical-equivalence margin, each of the three KEEP conjuncts) had zero survivors.
+
+### Three non-blocking findings, closed
+
+- **`order_integrity_repeated_benchmark` is not merely untested — it is unreachable.** Blocks are
+  deduplicated by `(benchmark, arm)`, so a third block for one benchmark is always a duplicate key
+  caught by `noncontiguous_block`, and a pair holding one of its blocks is caught by
+  `nonadjacent_arms`. That is *why* its `if false && …` mutant survived the whole package. An
+  unreachable branch is acceptable only when **declared**, so it is now declared in the code and
+  pinned by `TestD2OrderRefusalRepeatedBenchmarkIsUnreachable`, which fails loudly if it ever
+  becomes reachable.
+- **The `>20%` boundary is pinned on both sides**: 1 of 5 (exactly 20%) does not void, 1 of 4 does.
+  The doc says strictly greater; nothing tested it.
+- **`TestCensoredVerdictMatrix` passed with `[]` as its fixture** — zero subtests, zero assertions,
+  one green line. Now guarded, with a required-verdict-coverage check.
+
+### Gate 3b caught a windows-only defect in a test the controller wrote
+
+Rule 3b(viii), and the base arm was **green** on windows minutes earlier, so the red was ours. The
+fixture filename embedded an RFC3339 timestamp; `:` is illegal in a Windows filename, so
+`os.WriteFile` failed at `eval_censored_test.go:77` and the test died in its own setup. Swept the
+milestone's other two test files for the same shape — none (control: the grep matches the 3
+`filepath` lines in that file, so it can see this class). The timestamp belongs in the row body,
+which is what the loader reads; the filename only has to be unique.
+
+### Ruled out
+
+- ***The executor's `go build ./...` mutation precondition was skipped carelessly.*** It is red on
+  the **unmodified** tree (`cmd/wasm` has no native `main`), which the sprint plan §4 already
+  records, so the scoped build was the correct precondition. The executor **self-reported** this
+  with a checkable proposition rather than quietly using the scoped build — a self-reported
+  deviation is better evidence than a silent one.
+- ***AC-M4-3 "DIFFERS".*** A stderr Observatory banner carrying a timestamp leaked into a `2>&1`
+  capture. Redone with stderr separated: byte-identical, 1185 B both sides.
+- ***My own first AC-M4-3 was evidence.*** It was not: both the "before" and "after" binaries were
+  built from the **modified** worktree, so they were the same binary and the comparison was
+  vacuous (rule 3e(b), a control contaminated by a step of my own change). Redone against a binary
+  built from a pristine `origin/dev` checkout, with a control asserting the two binaries differ.
+- ***The PR's missing `pull_request` runs were a dropped event.*** `mergeable` read FIRST per the
+  iteration-198 rule: `CONFLICTING`/`DIRTY`, from V1's iteration 237 merging while we worked. The
+  overlap was **one** file, `changelogs/v0.18-current.md` — the **fourth** time that file has been
+  the cross-mission collision surface (iterations 5, 6, 9, 15). Rebase keeping both entries,
+  force-push, all runs appeared.
+
+### Two frictions that did NOT become skill edits
+
+Both are instances of rules the skill already carries, so they are recorded here rather than in the
+rulebook (Gate 5's bar is a *missing* rule, not a broken one):
+
+1. *A guard whose call site loads past it* — rule 3j already says to anchor the refusal-branch
+   enumeration to the **diff**, not to the design doc's decision list, and the call site is in the
+   diff. It was not run.
+2. *A repair that fixes one arm of a symmetric pair* — rule 3i's "which write does this read, and
+   what else writes it?" applied to the OFF arm would have caught it before the evaluator did.
+
+The one thing genuinely worth watching, pre-registered at instance 1 rather than written on a single
+datapoint: **an acceptance criterion phrased as a verdict CLASS ("VOID with an order-integrity
+reason") cannot detect a verdict that is right for the wrong reason.** AC-M4-5 was the strongest
+check in the plan and it passed under the defect. If a second instance appears, the rule is that an
+AC over a known-in-advance dataset names the *specific* expected reason, not its class.
+
+### Routing and cost
+
+Controller `claude:claude-opus-5`. Executor **`codex:gpt-5.6-sol`** — the ratified primary, probe
+rc=0 replying `ok`; iteration 14 had fallen to the pi lane, this one did not. Evaluator **sonnet**,
+a distinct provider from the executor, so generator≠judge holds against the executor. **FLAGGED:**
+the controller-authored repair is Anthropic-authored and judged by an Anthropic evaluator — same
+provider, different model. **No planner** (the plan already specifies M4 in full, so Gate 3's "plan
+exists → sprint-executor" applies), **no designer, no quorum** (the doc's quorum is spent: 2 rounds,
+both external reviewers present, `absent_reviewers` **empty in both artifacts**, verified
+first-party rather than transcribed — and note both verdicts are `blocked`, the doc proceeding
+because `D-MOTOKO-FMT-1` was RESOLVED by Mark and O3/O4 were answered by measurement; *spent*, not
+*passed*). Rotation pointer untouched at `claude:claude-fable-5`. Metered **$0.00** of $5 — codex
+and sonnet are both quota lanes. No GPU, no `rig.lock`; `make quick-install` deliberately not run
+(shared-write guardrail), and every load-bearing binary invocation used an explicitly built absolute
+path rather than PATH.
+
+### Gate 0/1
+
+Kill switch armed · `gh` on `sunholo-voight-kampff` · billing tripwire **CLEAN** · ran from the
+`#558` driver pin root, detached and clean at `daf881eaf` == `origin/dev` · running skill
+**byte-identical to origin** (`cmp` rc=0) at start · dev **verified green, not merely un-red**: 16
+exact-SHA checks, 0 not-green, `runs_total=2` so a run exists · **0** human directives on `#743`
+since the watermark (of 13 comments) · decision ledger valid at 3 rows, **0 OPEN** · inbox **0**
+unread · weekly sweep and rotation both **not due** (`#743` created `2026-08-17T05:48:23Z` = 07:48
+local, after the Monday-07:00 local boundary; 13 comments < 80) · no died-mid-flight traces (`#804`
+is V1's iteration 237, `#695` is V1's, the four motoko worktrees are iterations 6–9 already
+adjudicated).
+
+**External predicates re-read as commands, with controls** — G1 `#154` `state=OPEN`/`mergedAt=-`
+(control `#161`/`#162` MERGED with non-null `mergedAt`) · G2 rc=**128** with the mandatory
+`README.md` control rc=**0** · G3 registry `latest=2.2.0`, versions `1.0.0,2.0.0,2.1.0,2.2.0`, no
+5.x · G4 unrunnable while G3 is FALSE · G5 unchanged. Rows 10/11/12 stay parked.
+
+**Row 5's published artifact re-read too**, per iteration 12's own pre-registered lesson: upstream
+`arniwesth/motoko_agent#165` is OPEN, **labelled by `arniwesth` today**, and upstream's bot reports
+it **implemented in PR #166** (`MERGEABLE`, base `main_dst`, not yet merged). The issue we filed is
+being acted on.
+
+**A skill edit landed on origin mid-iteration** — `3c4bbbda2` (#805, V1's iteration 237: *the stale
+binary reaches you through TESTS, not only your own commands*). The copy this iteration executed was
+byte-identical to origin at Gate 1 and is one commit behind it by the end; the delta was read before
+recording. It applies here and is satisfied: every load-bearing binary invocation used an explicit
+absolute path, never PATH, and no test red required attributing.
+
+**Next**: item 6's **M3** (D1b counterbalanced Wednesday block) — now unblocked, since AC-M3-4
+closes by calling M4's order-integrity checker; then **M5** (depends on M3) and **M2**
+(`AC-D1-live`, which needs the rig). Then item 7.
