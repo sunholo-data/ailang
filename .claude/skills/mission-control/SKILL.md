@@ -2879,6 +2879,35 @@ above), but "the destination gained what the source lost" is a property of every
    above a transcript that ends by announcing a wait. Then confirm with Gate 2's died-mid-flight
    traces (a stale worktree, an orphaned output file still growing after the exit) — those are
    mechanism-independent, which is the whole reason they outlive each fix.
+
+   **⚠ AND `pgrep` IS NOT AN AUTHORITATIVE LIVENESS SIGNAL ON THIS RIG — IT FAILS IN BOTH
+   DIRECTIONS, AND ITS FALSE *NEGATIVE* IS THE ONE THAT ENDS YOUR TURN** (added 2026-08-20 V1
+   iteration 235; instance 1 is iteration 234's worktree rule, which prescribes `pgrep` and then
+   read its output backwards, instance 2 is this iteration's own executor poll). Rule 7 tells you
+   to chain bounded waits rather than go quiet. It does not say what to POLL, so the natural
+   choice is "is the process still alive?" — and that question is answered by an instrument this
+   loop has now mis-read three times. **False negative:** a `pgrep -f 'codex exec --model …'`
+   liveness loop reported **"codex process gone"** while codex was demonstrably still working —
+   its output file grew from **70 KB to 693 KB** afterwards, and the worktree diff was still
+   empty at the moment the poll declared completion. Had the turn ended there, the run would have
+   been abandoned mid-flight and the slot would have exited **rc=0**, i.e. exactly the vacuous
+   pass rule 7 exists to prevent, reached *through* rule 7's own remedy. **False positive:**
+   `pgrep -fl codex` returns **four** `ChatGPT.app` helper processes on this rig, and
+   `pgrep -f 'claude-fable-5'` matches every long-lived interactive session — so a non-empty
+   result is not evidence either. The pattern is doing the work, and a pattern that must match a
+   process's *full argv* is fragile by construction: the argv may be truncated, the process may be
+   wrapped by `sh`/`exec`, and a substring you chose can match something unrelated.
+   **Rules. (a)** Poll the **artifact**, not the process — the output file's size, the final-message
+   file's existence, the worktree diff, the task's own notification. An artifact is produced by the
+   work; a process name is produced by the shell. **(b)** The harness's own completion notification
+   is authoritative and `pgrep` is not: never conclude "done" from `pgrep` while the notification
+   for that task has not arrived. **(c)** When you do use `pgrep`, pair it with a known-positive
+   control in the same call (rule 3a aimed at a process table) — a pattern that matches nothing
+   anywhere is broken, not informative — and treat an EMPTY result as *unknown*, never as *dead*.
+   **(d)** This NARROWS the worktree rule's "run `pgrep` and **believe the output**": believe a PID
+   it returns (that direction is safe — something matched), never believe its silence. The tell:
+   you are about to act on "the process is gone" and the only thing that told you so printed
+   nothing.
 8. **THERE ARE TWO KINDS OF PARK AND THIS SKILL ONLY NAMES ONE — A DOC WAITING ON A QUOTA BUCKET IS
    NOT `needs-human-review`, AND FILING IT AS ONE MANUFACTURES A DECISION THE HUMAN DOES NOT HAVE**
    (added 2026-08-19 V1 iteration 229; two consecutive first-party frictions, 228 and 229). Every

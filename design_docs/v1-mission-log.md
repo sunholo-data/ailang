@@ -14057,3 +14057,120 @@ numbers are no longer a reliable index into the log. This entry is numbered **23
 highest existing number, not the count of entries); renumbering the collision is a queue row rather
 than an inline edit, because rewriting historical entry numbers would invalidate every cross-reference
 already written against them.
+
+## 235 — 2026-08-20 — Iteration 235: a security guard that had never run in production, a judge that found the hole in the fix, and a test named for a mechanism it was not testing
+
+**Picked**: `D-1` / PR **#613**, from the nine-decision-gated block at charter line 2071 — which sits
+**above** the cons-cells programme in queue order and had been routable but untaken since Mark's
+attended rulings on 2026-08-19. Chosen over LC-1 (`m-list-repr-spike`, the programme's gating piece)
+for a reason worth recording: LC-1 is NEW-DOC, the designer rotation's next entry is
+`claude:claude-fable-5`, and the Fable diet allows **one** bounded run per iteration — so a round-1
+quorum block would have reproduced exactly the 228/229 wall. `D-1` needed **no designer and no
+quorum**: the doc and the sprint plan both already exist and are quorum-cleared, and the ruling
+*restores* scope rather than narrowing it, so Standing rule 2 is not engaged.
+
+**The regression was real and was reproduced before anything was routed.** M1 shipped a request-aware
+RoundTripper whose PROXY route performed zero target validation of any kind. Same command, both arms,
+only the tree differing, under the ci.yml poison (`.github/workflows/ci.yml:92-95`):
+`TestNetIPValidation` **rc=1 with 4 of 7** subtests failing on the branch (private 10.x / 192.168.x /
+172.16.x, link-local) against **rc=0, 7/7 PASS on pristine dev**. Re-confirmed on the rebased tree
+before the executor was spawned, so the baseline was pinned to the tree the work would happen in
+(rule 3e).
+
+**Rebase first, and the conflict risk was measured rather than hoped.** The branch was **310 behind**.
+`git diff --stat <merge-base>..origin/dev` over the five files it touches returned **zero** changed
+files, with **535** files changed repo-wide in the same range as the control — so the rebase was
+conflict-free by construction, and it replayed cleanly in one commit.
+
+**Executor `codex:gpt-5.6-sol`, one bounded run, rc=0, three files.** Its output was verified, not
+adopted. The fix is exactly `D-1`'s shape: `net.ParseIP` on the target host, `validateIP` on a hit,
+wrapped in the existing `*targetValidationError` so `E_NET_IP_BLOCKED` survives `http.Client.Do`'s
+`*url.Error`; hostnames untouched. Its two mutations each red **exactly one** named test, and its
+self-reported deviations were all correct — including the one that mattered: the plan's
+`go build ./...` gate is **base-red on pristine dev** (`cmd/wasm`, "function main is undeclared"),
+which the controller confirmed first-party rather than taking on report. `go build ./internal/...` is
+rc=0 at base and is the honest scoped compile step.
+
+**`make check-file-sizes` caught a defect CI would have caught for us, one gate earlier.** Appending
+140 lines put `net_proxy_test.go` at **921** against the 800 cap. Found by deriving the gate list from
+`ci.yml` rather than recalling it (rule 3g) — and it is worth noting the sweep is what found it, since
+seven other gates were green and the report would otherwise have read "all gates pass". Fixed by
+moving the new arms into their own file; `net_proxy_test.go` was restored **byte-identical** to the
+parent commit's version and that identity was asserted, not assumed.
+
+**Key find — the evaluator found a hole in the fix, and it is the more interesting half of this
+iteration.** Sonnet, its own worktree, PASS **93/100**, two reproducible findings:
+
+1. **`net.ParseIP` rejects RFC 4007 zone identifiers.** `url.URL.Hostname()` preserves the zone, so
+   `http://[fe80::1%25eth0]/x` yields `fe80::1%eth0`, `ParseIP` returns **nil**, and the request fell
+   into the hostname branch and reached the proxy with **zero validation** — measured
+   `resolverCalls=0 dialCalls=1` and a 200. That is precisely the hole `D-1` exists to close, wearing
+   an encoding the guard did not recognise. Reproduced first-party before acting (rule 3b), with the
+   un-zoned literal as the same-call control (`ParseIP("fe80::1")` non-nil, `validateIP` blocks it).
+   The **direct** route was measured too rather than reasoned about: it hands the zone-qualified
+   string to the resolver and refuses with `E_NET_DNS_FAILED` — it fails **closed**. Only the proxy
+   route failed open. Fixed by `literalHost()`, which trims at the first `%`; a DNS name cannot
+   contain one, so the trim can never turn a hostname into a literal.
+2. **The arm named for the mechanism did not test it.** Under the precondition-neutering drill,
+   `proxy_literal_blocked_before_dial` **SURVIVED** having its own `forceProxy` removed — because the
+   *direct* route refuses the same literal, with the same error text and the same zero resolver/dial
+   counts. The assertion was satisfied by a mechanism it was not named for, and would have passed with
+   `D-1`'s code entirely reverted. This is the over-subscribed-observable class in a form the existing
+   rule does not quite name: the observable was not an enum or an absence but a *whole outcome shape*
+   that two different code paths produce identically. Fixed by asserting the proxy selector was
+   actually consulted (`forceProxyCounted`); re-running the drill now kills it with
+   `proxy selections = 0, want 1`.
+
+Both were fixed **before merge** rather than filed as fast-follows, because a reproduced bypass in a
+security boundary is not a follow-up, and because the fix was small enough to pin properly in the same
+iteration.
+
+**Mutation discipline, every arm.** Four production mutations across the two rounds; each asserted
+**LANDED** by sha256 and **BUILDS** (`go build ./internal/...` rc=0) *before* any test result was
+read; each restored from a `cp` backup (never `git checkout --`, which would delete uncommitted
+sprint work) with byte-identity asserted. Blast radius classified by **running** it, not predicting
+it: neutering the literal-IP guard reds exactly `proxy_literal_blocked_before_dial`, inverse `-skip`
+rc=0 — **sole killer**; reverting `literalHost` reds exactly `proxy_zone_qualified_literal_blocked`,
+inverse rc=0 — **sole killer**; routing the check through `resolveAndValidateIP` reds **6** subtests
+across 3 top-level tests, correctly *not* claimed as a sole killer, and every other member of that set
+is explained (they are the independent `resolverCalls == 0` assertions elsewhere in the M1 suite,
+broken by the same root cause). That third one is exactly why the 2026-08-19 blast-radius rule exists:
+under a bare `rc=0` inverse criterion it would have read as a failed arm.
+
+**Outcome**: PR [#613](https://github.com/sunholo-data/ailang/pull/613) → squash **`e5ee6c5e5`**.
+Gate 3b SHA-addressed on the PR head `a54a8624f`: **21 checks, ZERO not-green**, 4/4 required
+(`test` 18m09s, `lint` 3m00s, `build` 2m09s, `docs-gate` 4s), `MERGEABLE/CLEAN` before merge.
+
+**Routing evidence**
+
+| Role | Pin | Actually ran | Note |
+|---|---|---|---|
+| Controller | `$MODEL` | `claude:claude-opus-5` | triage, first-party repro of both arms, rebase, gate re-runs outside the sandbox, the test-file split, both round-2 fixes, 4 mutations, record |
+| Designer | ROTATION | **none** | doc + sprint plan already exist and are quorum-cleared; `D-1` restores scope rather than narrowing it, so no re-quorum. **Zero Fable runs** — rotation pointer left at `codex:gpt-5.6-sol`, unadvanced, because no designer fired |
+| Planner | `codex:gpt-5.6-sol` | **none** | plan exists (`m-net-effect-proxy-boundary-sprint-plan.md`); this is an amendment to an implemented milestone |
+| Executor | `codex:gpt-5.6-sol` | `codex:gpt-5.6-sol` | probe rc=0 first; bounded/backgrounded, `workspace-write`, rc=0, 30-min cap not reached, 3 files. Sandbox verdicts correctly self-labelled `UNINFORMATIVE UNDER SANDBOX` and re-run by the controller outside it |
+| Evaluator | `sonnet` | `sonnet` | own worktree (`.wt-iter235-eval`), distinct provider from the codex executor — generator≠judge holds. **PASS 93/100**, two reproducible findings, both fixed pre-merge |
+
+`metered = $0.00` of $5 — no quorum ran and every lane used this iteration is a quota bucket
+(opus controller, codex executor, sonnet judge). No GPU, no `rig.lock`.
+
+**Ruled out**
+- **LC-1 as the pick**, despite iteration 234 teeing it up — the programme's "LC-1 first" constraint
+  is scoped to *the eight pieces*, and the decision-gated block sits above the programme in queue
+  order. Deferring it also avoided spending the one permitted Fable designer run on a doc whose
+  round-1 block would then have had no revision lane, which is the 228/229 failure mode exactly.
+- **Filing the two evaluator findings as fast-follows.** Rejected: finding 1 is a reproduced bypass of
+  the guarantee the milestone exists to provide, and both fixes plus their pins cost one commit.
+- **Blaming the `go build ./...` red on the sprint.** Refuted by measurement — identical failure on
+  pristine `origin/dev` in the clean pin worktree (rule 3e(a)); the executor had already flagged it.
+- **`git checkout --` to restore mutated files.** Never used; the sprint worktree's changes are
+  uncommitted by construction, so it would have destroyed them.
+
+**Instrument failure found in this iteration's own polling** — a `pgrep -f 'codex exec --model
+gpt-5.6-sol'` liveness poll reported **"codex process gone"** while codex was demonstrably still
+working (its log grew from 70 KB to 693 KB afterwards). Had the turn ended there, the run would have
+been abandoned mid-flight and reported as complete. Caught only because the *authoritative* signal —
+the harness's own task notification — had not fired, and the worktree diff was empty when the poll
+claimed completion. `pgrep` also over-matched in the other direction: `pgrep -fl codex` returns four
+`ChatGPT.app` helper processes on this rig, so both the false-negative and the false-positive live in
+the same instrument. Routed to Gate 5.
