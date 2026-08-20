@@ -14384,3 +14384,112 @@ unrun locally and settled by CI.
 **Next**: M3 re-owed with the always-copy C2, then M4–M6 — remaining benchmarks including `B-LEN`,
 the deterministic five-trial runner and adjudicator, then the full matrix and the programme's
 go/no-go.
+
+## 238 — 2026-08-20 — Iteration 238: M3–M5 of the kill-criterion spike, and the adjudicator that decides ~16 person-days had its rerun path tested by nothing
+
+**Pick.** `LC-1 m-list-repr-spike`, milestones M3–M6 — iteration 237's declared Next and the
+cons-cells programme's kill-criterion gate; nothing else in the programme may route before it.
+Doc + plan landed at `8f45dd419` with a 2-round quorum artifact (`absent_reviewers` EMPTY both
+rounds), so no re-quorum was owed: this pick was EXECUTION. Scoped **deliberately** to M3–M5 and
+said so — M6 is a 76-point × 5-trial matrix plus a ~450-line verdict report and cannot share a
+30-minute executor slot with ~1,050 LOC of implementation. **The go/no-go remains OPEN.**
+
+**Routing.** Executor `codex:gpt-5.6-sol` (probed rc=0 first; the bucket that produced iterations
+228/229's `PARKED-ON-LANE` reset at 05:34 today), one bounded backgrounded run, rc=0, three
+cumulative `.snap/M<k>/` snapshots, zero git writes. Evaluator **sonnet** in its own worktree
+(iter-199 rule) — distinct provider from the codex executor, so generator≠judge holds. No designer,
+no planner, no quorum. `metered = $0.00` of $5.
+
+**Outcome — LANDED.** PR [#808](https://github.com/sunholo-data/ailang/pull/808) → squash
+`b32eef76b`. Reconstruction from snapshots byte-identical (**18/18 sha256 OK, 0 FAILED**), tests
+green at every milestone boundary. Gate 3b SHA-addressed on the full 40-char head: **21 checks,
+ZERO not-green**, 4/4 required (`test` 22m10s · `lint` 3m58s · `build` 1m49s · `docs-gate` 4s),
+`MERGEABLE/CLEAN` — merged directly rather than armed behind auto-merge, since checks were green
+NOW.
+
+**Key find — C2 was reinstated and the number that justifies it now exists.** M3 implements the
+always-copy leading chunk (no ownership tracking, no refcounting, no atomics, no locks), which meets
+doc:93-100's O(K) = O(1) worst-case bound by construction. Provisional clause (c), taken with
+**M5's own five-trial protocol** (fresh processes, ordinal-paired, `-benchtime=1s`), **darwin/arm64
+only, NOT M6's full matrix**: C1 median **1.946×** against ≤ 2.5 (five ratios 1.938–1.954), and B6
+B/element **C0 16.34–16.50** (doc derivation ≈16), **C1 31.95–32.00** (doc derivation 32), **C2K8
+≈22.0**, **C2K32 ≈17.57** (doc estimate ~16-18). C2(K=32) therefore sits at ≈**1.07×** where C1
+sits at **1.95×** — on the clause where C1 is most at risk. That is precisely the number whose
+absence made iteration 237's descope a *STOP reachable by descope rather than by measurement*.
+Clause (d) under the same protocol: **1.000 / 0.999 / 0.999 / 1.002** across all four arms against
+≤ 1.2.
+
+**And the protocol's `benchtime` is load-bearing — measured, not assumed.** Clause (d)'s observable
+sits at the timer floor (1–4 ns/op). At `-benchtime=100x` C1's ratio swung to **2.26×** — a spurious
+clause-(d) FAIL — against **0.999×** at the protocol's `1s`. Anyone re-measuring clause (d) with a
+smaller benchtime will manufacture failures. Recorded because M6 will re-measure it.
+
+**Evaluator PASS 84/100, three findings fixed BEFORE merge.**
+1. **`main()`'s rerun ORCHESTRATION was pinned by nothing.** Every existing arm called `paired()`
+   directly with a hand-built ten-vector, so the mechanism AC-5/R6 actually cite — collect five
+   more, then adjudicate the ten with `allowRerun` off — was untested. Mutating the rerun batch
+   **5→4** and re-enabling `allowRerun` on the second call **BOTH SURVIVED THE WHOLE SUITE**.
+   Extracted an injectable collector plus `adjudicate()`; both mutants now die and the new arm is
+   the **SOLE KILLER** for each (`-skip` → rc=0), with no benchmark run in either arm. This is the
+   most consequential finding: it is the arithmetic a 16-person-day go/no-go rests on.
+2. **`newChunkList`'s defensive copy was uncovered.** A mutant aliasing the caller's backing array
+   kept the entire suite green — `TestBranchingIndependence` only prepends off a shared base and
+   never mutates a caller-owned slice, so a structure that aliases its input still looked
+   persistent. `TestFromSliceDefensivelyCopies` covers all four arms; sole killer, reds exactly
+   C2K8/C2K32.
+3. **AC-7's base SHA was a stale literal** — 6 commits behind `origin/dev`, reporting **10**
+   violations all inherited from an unrelated eval commit, against **0** on the derived base
+   (unscoped control **15**). Another STOP-by-artifact. The step now DERIVES its base via
+   `git merge-base`. Note the recurrence shape: iteration 237 hit this same literal and fixed it
+   **in its executor directive only**, so the plan carried it for a second iteration — *guard the
+   helper, miss the call site*, aimed at a document.
+
+Every mutation asserted **LANDED** (sha256) and **BUILDS** (`go build` rc=0) before any test result
+was read, restored from `cp` backups with byte-identity re-asserted, zero `git checkout --`.
+
+**Controller-found defect — AC-4 leg 3's gate matched `==`.** Its regex returns **3** hits on
+correct code, all `==` comparisons (`chunklist.go:43`, `:101`, `:106`), all **outside any
+constructor** — so clause (e), read literally, **FAILS on a tree with zero real violations**, while
+a genuine violation lands in the *same function* and is indistinguishable in form (verified by
+mutation: an in-place front-slack slot write produces a 4th hit that looks identical). The
+assignment-only form returns **0**, so for this clause an **empty result is the PASS** and the
+"empty grep = broken instrument" rule does not apply — the instrument is proved live by a
+deliberate probe instead. And constructor writes are **composite literals**, invisible to *both*
+regex forms, so no `=`-shaped grep can verify the "inside a constructor" half at all.
+
+**Instrument failures caught in this iteration's own tooling.** An interrupted `git worktree add`
+left an index staging **23,865** files as deleted plus a live `index.lock`; `pgrep` showed the
+creating process **alive**, so the lock was held rather than stale and waiting — not clearing it —
+was the only correct action, exactly as iteration 234's rule prescribes. Separately, a
+`set -- $pair` containment check hit zsh's no-word-splitting trap and was re-run with correct
+indexing.
+
+**Ruled out.**
+- That B-LEN measured construction rather than `Len()` — **refuted**: `b.ResetTimer()` is correctly
+  placed after construction; the 218 µs reading was a `-benchtime=1x` artifact.
+- That clause (d) is too noisy to adjudicate — **refuted at the protocol's benchtime**, though true
+  at smaller ones (recorded above, since it is a real hazard for M6).
+- That AC-4 leg 3 is blind to plain field assignment — **refuted by mutation**: it catches
+  `l.total = x`. Its actual defects are `==` over-matching and composite-literal blindness.
+- That `#662` had moved — 1 comment, ours, control `#613` = 2.
+
+**Gates.** Derived from `ci.yml` (rule 3g), not recalled: `check-changelog`, `check-file-sizes`,
+`check-boundaries`, `check-skills`, `fmt-check`, `vet`, `go build/vet/test ./tools/...` all rc=0;
+`gofmt -l` over `internal cmd tools std` empty **with a firing control**. **`make test` rc=0, zero
+failures, under a FRESHLY BUILT binary prepended to `PATH`** — the installed `~/go/bin/ailang` is
+**37 commits** stale (iteration 237's own recorded trap); `~/go/bin` was left untouched so
+concurrent agents were undisturbed. All **darwin/arm64**; linux and windows legs unrun locally and
+settled by CI. AC-7 both arms against the derived base: scoped **0**, unscoped control **15**.
+
+**Gate 5 skill edit — `8e27b0a12`, saved in the MAIN checkout so it is live immediately.** The
+Agent tool's `fable` REJECTION has been recorded since iteration 31 and is false in the current
+build. Proposed by `mission-world` iter-101 and corroborated first-party here on two independent
+readings (the tool's model enum lists `fable`; an explicit `model="fable"` spawn was ACCEPTED and
+ran to completion). A stale **capability** rule is worse than a stale fact because it instructs a
+*re-route*, so the rotation's Fable designer slot was being skipped **silently** and the loop could
+not distinguish a skipped designer from an unavailable one. Scope deliberately not widened: the pin
+being ACCEPTED is established; end-to-end enforcement is not.
+
+**Next.** **M6** — the full 76-point matrix under M5's runner, the kill-criterion arithmetic, and
+the programme's go/no-go, which either opens LC-2…LC-5 or STOPS the programme and re-opens `D-19`
+with measurements.
