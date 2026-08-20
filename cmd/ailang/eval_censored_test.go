@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,7 +12,13 @@ import (
 )
 
 // writeArmRow banks one agent row into dir, mimicking the real bank layout.
-func writeArmRow(t *testing.T, dir string, row map[string]any) {
+//
+// The file NAME must not carry the row's RFC3339 timestamp: `:` is illegal in a
+// Windows filename, and the loader keys on the JSON body rather than the name,
+// so the timestamp belongs only inside the row. Gate 3b caught this — the test
+// passed on darwin and failed on windows-latest with "The filename, directory
+// name, or volume label syntax is incorrect".
+func writeArmRow(t *testing.T, dir string, index int, row map[string]any) {
 	t.Helper()
 	agent := filepath.Join(dir, "agent")
 	if err := os.MkdirAll(agent, 0o755); err != nil {
@@ -21,7 +28,7 @@ func writeArmRow(t *testing.T, dir string, row map[string]any) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	name := row["id"].(string) + "_" + row["timestamp"].(string) + ".json"
+	name := fmt.Sprintf("%s_%03d.json", row["id"].(string), index)
 	if err := os.WriteFile(filepath.Join(agent, name), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +69,7 @@ func TestEvalCensoredPairsSeesQuarantinedRows(t *testing.T) {
 		{"b2", "on", "2026-07-31T10:04:00Z"}, {"b2", "off", "2026-07-31T10:05:00Z"},
 		{"b3", "off", "2026-07-31T10:06:00Z"}, {"b3", "on", "2026-07-31T10:07:00Z"},
 	}
-	for _, o := range order {
+	for i, o := range order {
 		row := baseRow(o.id, o.ts)
 		dir := offDir
 		if o.arm == "on" {
@@ -74,7 +81,7 @@ func TestEvalCensoredPairsSeesQuarantinedRows(t *testing.T) {
 				}
 			}
 		}
-		writeArmRow(t, dir, row)
+		writeArmRow(t, dir, i, row)
 	}
 
 	// Control: the raw loader must actually surface the quarantined row, else
