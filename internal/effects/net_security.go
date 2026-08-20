@@ -85,7 +85,14 @@ func resolveAndValidateIP(hostname string, ctx *EffContext) (string, error) {
 	}
 
 	// Resolve hostname to IPs
-	ips, err := net.LookupIP(hostname)
+	var ips []net.IP
+	var err error
+	if ctx != nil && ctx.Net != nil && ctx.Net.lookupIP != nil {
+		// Test/extension hook: injected resolver (enables resolver-call counting).
+		ips, err = ctx.Net.lookupIP(hostname)
+	} else {
+		ips, err = net.LookupIP(hostname)
+	}
 	if err != nil {
 		return "", fmt.Errorf("E_NET_DNS_FAILED: %w", err)
 	}
