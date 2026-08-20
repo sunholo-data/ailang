@@ -768,6 +768,42 @@ the Repo Profile above):
    stale independently; a stale one silently falsifies results (1a: stale installed binary showed
    pre-fix behavior; 1b-eval: Jun-26 `bin/ailang` v0.26.0 broke `make test` with a phantom
    `_io_flush` error). Confirm `--version` matches `git describe` before trusting output.
+   **⚠ AND THE STALE BINARY REACHES YOU THROUGH *TESTS*, NOT ONLY THROUGH YOUR OWN COMMANDS —
+   WHERE THERE IS NO `--version` TO CHECK AND THE STALENESS ARRIVES WEARING A PLAUSIBLE CODE
+   DEFECT** (added 2026-08-20 V1 iteration 237; instance 1 is iteration 235's quorum, run on a
+   binary **35** commits adrift, instance 2 is this iteration's, at **37**). Everything in step 1
+   is written for a binary *you* invoke: rebuild it, then confirm `--version` against
+   `git describe`. That remedy cannot reach a test which shells out to `ailang` **from PATH**
+   inside its own body — you never type the command, so there is nothing to version-check, and
+   the failure surfaces as an ordinary red with a specific, technical, entirely convincing cause.
+   Measured here: `tests/golden/codegen` calls `exec.Command("ailang", "compile", …)`, so
+   `TestGoldenCompile/string_charat` failed on `undefined: CharCode` — a real symbol, in a repo
+   that has a test *about* that symbol, which is why the executor read it as a codegen gap and
+   said so in its report. Two arms on the **identical pristine tree**, exit codes captured to
+   file and printed side by side: stale PATH `rc=1`, fresh binary `rc=0`. Nothing about the diff
+   was involved.
+   **The trap is structural, not an accident, which is why it recurs.** Step 1's own remedy is
+   `make quick-install`, and this loop must NOT run it — `~/go/bin/ailang` is shared with every
+   concurrent agent on the rig, so installing mid-iteration is the shared-checkout hazard rule 4
+   already forbids, aimed at a binary instead of a tree. So the correct behaviour (leave
+   `~/go/bin` alone) *guarantees* the PATH copy drifts, without bound, forever. Iteration 235 got
+   half of it right — it built into the worktree and used `bin/ailang` — and that half does
+   nothing for a test's inner shell-out.
+   **Rule. (a)** Build to a scratch directory and **prepend it to `PATH`** for any suite you are
+   about to trust — `go build -o /tmp/<dir>/ailang ./cmd/ailang` then
+   `PATH="/tmp/<dir>:$PATH" make test` — rather than installing. It leaves `~/go/bin` untouched,
+   so concurrent agents are undisturbed, and it reaches shell-outs a `bin/ailang` build cannot.
+   **(b)** Before attributing ANY test red to the diff, run the same command in both arms —
+   stale PATH and fresh — and require the exit codes to DIFFER (rule 3d, aimed at a red you did
+   not predict). Identical codes mean it is the code; differing codes mean it was the
+   instrument. **(c)** Read a red's *cause* with the same suspicion as its exit code: a failure
+   naming a real symbol in a real file is exactly what a version skew produces, so "the message
+   is specific" is not evidence that the message is about your change. **(d)** State the binary's
+   provenance wherever a suite's green is quoted — "`make test` rc=0 under a freshly built
+   binary" — because "the tests pass" from a stale PATH is a claim about a build nobody can
+   identify. Mission-independent: under `ailang-code` the same axis is a lockfile-pinned release
+   artifact that the repo's own tooling invokes by name. The tell: a test failed, you did not
+   write the command it ran, and you are about to explain the failure with something in the diff.
 2. **A parked test is a claim, not evidence**: `t.Skip`-ed / disabled tests say "nobody
    re-checked", not "still broken". Un-skip and RUN before treating the bug as open — the
    M-TYPEENV-SUB "open P0" was already fixed; only un-skipping revealed it.
