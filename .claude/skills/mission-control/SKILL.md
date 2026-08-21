@@ -2503,6 +2503,36 @@ gate recommends for "maximum certainty", which is why it is worth its own line. 
 value with `[0:9]`/`--short`; get it from `gh pr view --json headRefOid` or `git rev-parse` (no
 `--short`), and validate the instrument on a known-positive before believing any zero** — a SHA
 you know has runs must come back non-empty in the same breath (rule 3a, aimed at an API call).
+**AND THE CONTROL'S OWN SHA MUST BE `rev-parse`d, NEVER HAND-EXPANDED — A FABRICATED 40-CHAR STRING
+RETURNS THE SAME CONFIDENT `total=0` AS A REAL DROPPED EVENT, SO THE CONTROL AGREES WITH YOUR FINDING
+FOR THE WRONG REASON** (added 2026-08-21 V1 iteration 243; instance 1 is iteration 176's known-PRESENT
+control that over-counted, instance 2 is this iteration's, and the mechanism is new). The rule
+immediately above is correct and it protects the *measurement*: don't truncate the SHA you are asking
+about. It says nothing about the SHA you build the **control** from, and that is the one you are most
+likely to invent, because a control feels like scaffolding rather than evidence — you already know the
+answer it should give, so you type an identifier instead of deriving one. Rule 3b(v)(b) already forbids
+exactly this ("anything a downstream role will treat as ground truth — especially a SHA — is re-derived
+by command"), aimed at findings; nothing points it at controls. That is this file's own *guard the
+helper, miss the call site* shape, one level down.
+**What makes it worse than an ordinary broken instrument is the DIRECTION of the failure.** Rule 3a's
+trap is a control that does not fire — loud, and it announces itself as an instrument failure. This one
+fires *wrongly*, and it fires in agreement: a hand-expanded SHA matches no commit, the endpoint answers
+`total=0` with HTTP 200 and no error, and you read that as *"even the known-good commit shows zero, so
+this really is a platform-wide outage"* — upgrading a single dropped event into a fleet-wide diagnosis
+on the strength of a string you made up. Measured here: iteration 242's merge, hand-expanded, returned
+`total=0`; `git rev-parse`d it returns **3**, and the finding under test (dev's own HEAD at `total=0`)
+survived — but only because the control was re-derived rather than believed.
+**Rule. (a)** Derive every control identifier by command in the same block that uses it —
+`ctl=$(git rev-parse <ref>)`, `gh pr view --json headRefOid` — and never paste, complete, or
+reconstruct one from memory or from an adjacent document. **(b)** Prefer a control the API itself can
+confirm exists: if the control's own lookup can 404 or return empty, assert a *second* property of it
+(here, `commits/<sha>/check-runs` reads **20** on the same commit, which is what proved the SHA
+resolvable at all). **(c)** When a control returns the SAME reading as the thing it is controlling for,
+treat that as *suspect before it is corroborating* — a control exists to DIFFER, so agreement is the
+one outcome that deserves a second look rather than fewer. **(d)** Mission-independent, and it
+generalises past SHAs to every addressed control: an issue number, a run id, a package path, a model
+name. The tell: you are about to trust a negative because "the control shows the same thing", and you
+typed the control's identifier rather than deriving it.
 
 **(b) A dispatch is a different code path from an event.** When the provider is throttling webhook
 delivery — GitHub's 2026-08-06 incident processed **~15%**, so "many events such as pushes and pull
