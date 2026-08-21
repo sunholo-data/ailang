@@ -1982,6 +1982,31 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      directive), and the **controller MUST re-run the gates outside the sandbox** before recording
      any Gate-4 verdict — mandatory whenever the diff touches `host/`, `daemon/`, `cmd/*`, or
      anything serving a socket. Never bank an executor-reported gate result for those paths.
+     **(4) THE GATE LIST *YOU* WRITE INTO THE DIRECTIVE IS AN ACCEPTANCE LIST TOO, AND RULE 3e(a)
+     DOES NOT REACH IT — SO THE ONE GATE LIST NOBODY BASELINES IS THE CONTROLLER'S OWN** (added
+     2026-08-21 V1 iteration 245; instance 1 is iteration 147's `actionlint` plan gate, instance 2 is
+     this iteration's). Rule 3e(a) says to run each acceptance command on a pristine base before
+     routing, and every word of it is scoped to a **sprint plan's** acceptance list — written by a
+     planner, read at pick time. A direct-fix iteration has no plan and no planner: the controller
+     writes the gates straight into the directive, at which point no rule in this file has ever asked
+     whether they pass on untouched `dev`. That is this loop's own *guard the helper, miss the call
+     site* shape aimed at its own hands, and it is why 3e(a) can be documented, cited, and still
+     bought a third time. Measured here: my directive made `go build ./...` the mutant-BUILDS
+     assertion; it is **rc=1 on pristine dev** (`cmd/wasm` and `gen/main` have no native `main` —
+     the identical finding iteration 145 recorded), against `./cmd/ailang` rc=0 and
+     `./internal/builtins/...` rc=0. The executor stopped mid-sprint rather than assert a mutant
+     built, which cost a second run and was **the correct call**.
+     **Rules. (a)** Before sending any directive, run its gate list on the base and delete or repair
+     anything already red — the same discipline 3e(a) applies to a plan, applied to the list you just
+     typed. **(b)** Prefer the narrowest gate that can actually fail for your diff
+     (`go build ./internal/<pkg>/...`) over the widest that looks thorough (`./...`); a whole-repo
+     build is *more* likely to be red at base, not less. **(c)** Say in the directive that a gate the
+     executor finds red at base is a finding to REPORT, not an obstacle to work around — and treat
+     the report as the loop working (rule 3h(d)), never as non-compliance. **(d)**
+     Mission-independent: under `ailang-code` the same trap is an `ailang check` over a module set
+     that does not resolve on untouched `dev`. The tell: you are about to hand an executor a list of
+     commands and you have not run one of them yourself.
+
      **Hygiene, broadcast with it (not a recipe defect):** a shell "is this env var set?" probe
      written `${VAR:+YES}${VAR:-NO}` **prints the variable's value** — World leaked `OPENAI_API_KEY`
      into a transcript this way. Safe form: `[ -n "$VAR" ] && echo SET || echo UNSET`. No preflight
