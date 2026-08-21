@@ -141,7 +141,7 @@ if [ "$INSTRUMENT_ERROR" -eq 0 ] && [ -n "$COMMITS_RANGE" ]; then
 			[ -z "$_sha" ] && continue
 			_message="$TMPDIR_AUTOCLOSE/message.$_sha"
 			_files="$TMPDIR_AUTOCLOSE/files.$_sha"
-			if ! git show -s --format=%B "$_sha" > "$_message" || ! git diff-tree --no-commit-id --name-only -r --root "$_sha" > "$_files"; then
+			if ! git show -s --format=%B "$_sha" > "$_message" || ! git diff-tree --no-commit-id --name-only -r -m --root "$_sha" > "$_files"; then
 				record_error "INSTRUMENT FAILURE: cannot read commit $_sha"
 				break
 			fi
@@ -155,8 +155,6 @@ if [ "$INSTRUMENT_ERROR" -eq 0 ] && [ -n "$TEXT_FILE" ]; then
 		record_error "INSTRUMENT FAILURE: text file not found: $TEXT_FILE"
 	elif [ ! -f "$FILES_FROM" ]; then
 		record_error "INSTRUMENT FAILURE: changed-file list not found: $FILES_FROM"
-	elif [ ! -s "$FILES_FROM" ]; then
-		record_error "INSTRUMENT FAILURE: no changed files enumerated from $FILES_FROM"
 	else
 		scan_record "PR title/body" "$TEXT_FILE" "$FILES_FROM"
 	fi

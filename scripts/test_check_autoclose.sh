@@ -9,7 +9,7 @@ trap 'rm -rf "$WORK"' EXIT HUP INT TERM
 
 FAILED=0
 FIXTURES_RUN=0
-FIXTURES_EXPECTED=10
+FIXTURES_EXPECTED=16
 OUT=""
 RC=0
 
@@ -91,6 +91,72 @@ expect_rc 'VACUITY empty commit range' 2 'INSTRUMENT FAILURE: no records enumera
 OUT=$(TMPDIR="$WORK/no-such-parent/child" "$GATE" --commits HEAD..HEAD 2>&1)
 RC=$?
 expect_rc 'TEMPFAIL unavailable scratch directory' 2 'INSTRUMENT FAILURE: cannot create temporary workspace'
+
+# --- Instrument-integrity arms (iteration 241 evaluator, BLOCKING findings) ---------------
+# The guards below all EXISTED, but no fixture killed them: neutering the text-file-exists
+# check left the whole self-test green while a missing text file passed rc=0 CLEAN. In CI the
+# text file is written by jq from the event payload, so a silent pass there is exactly the
+# vacuous-pass class this gate exists to prevent. A guard is not a gate until something reds.
+
+OUT=$("$GATE" --text-file "$WORK/definitely-absent-text" --files-from "$WORK/definitely-absent-files" 2>&1)
+RC=$?
+expect_rc 'MISSINGTEXT absent text file' 2 'INSTRUMENT FAILURE: text file not found'
+
+mkdir -p "$WORK/missingfiles"
+printf '%s\n' 'a record with no issue references' > "$WORK/missingfiles/text"
+OUT=$("$GATE" --text-file "$WORK/missingfiles/text" --files-from "$WORK/definitely-absent-files" 2>&1)
+RC=$?
+expect_rc 'MISSINGFILES absent changed-file list' 2 'INSTRUMENT FAILURE: changed-file list not found'
+
+OUT=$(cd "$EMPTY_REPO" && "$GATE" --commits HEAD..HEAD --not-a-real-flag 2>&1)
+RC=$?
+expect_rc 'UNKNOWNARG unrecognised argument' 2 'unknown argument'
+
+# An EXISTING but empty changed-file list is not an instrument failure: it is a record that
+# ships no code, which is precisely the hazard condition. It must be SCANNED, not errored --
+# otherwise an empty-diff PR whose body closes an issue escapes through an rc=2 that reads
+# like a broken instrument.
+mkdir -p "$WORK/emptyfiles"
+printf '%s\n' 'this closes #4242 with no code at all' > "$WORK/emptyfiles/text"
+: > "$WORK/emptyfiles/files"
+OUT=$("$GATE" --text-file "$WORK/emptyfiles/text" --files-from "$WORK/emptyfiles/files" 2>&1)
+RC=$?
+expect_rc 'EMPTYFILES no-code record is scanned, not errored' 1 'issue #4242'
+
+printf '%s\n' 'a rebase-only PR that references nothing' > "$WORK/emptyfiles/text2"
+OUT=$("$GATE" --text-file "$WORK/emptyfiles/text2" --files-from "$WORK/emptyfiles/files" 2>&1)
+RC=$?
+expect_rc 'EMPTYFILES clean no-code record passes' 0 '1 records scanned, 0 violations'
+
+# A real 2-parent merge commit. `git diff-tree --root` without `-m` reports ZERO files for a
+# merge, so a merge whose own message carries a closing keyword would be misread as shipping no
+# code and refused. Measured on origin/dev: 60 merge commits exist, and the as-written form saw
+# 0 files where `-m` saw 5. This arm pins the `-m`.
+MERGE_REPO="$WORK/merge-repo"
+mkdir -p "$MERGE_REPO"
+(
+	cd "$MERGE_REPO" || exit 1
+	git init -q
+	git config user.email test@example.invalid
+	git config user.name 'Autoclose Gate Test'
+	git symbolic-ref HEAD refs/heads/main
+	mkdir -p internal/foo
+	printf '%s\n' 'package foo' > internal/foo/bar.go
+	git add internal/foo/bar.go
+	git commit -q -m base
+	git checkout -q -b side
+	printf '%s\n' 'package foo // side' > internal/foo/bar.go
+	git commit -q -am side-change
+	git checkout -q main
+	printf '%s\n' 'main note' > MAINLINE.txt
+	git add MAINLINE.txt
+	git commit -q -m main-change
+	git merge --no-ff -q -m 'merge side: fixes #4321' side 2>/dev/null || \
+		git merge --no-ff -q --strategy-option=theirs -m 'merge side: fixes #4321' side
+)
+OUT=$(cd "$MERGE_REPO" && "$GATE" --commits 'HEAD^..HEAD' 2>&1)
+RC=$?
+expect_rc 'MERGECOMMIT ships code via -m, not misread as docs-only' 0 '0 violations'
 
 if [ "$FIXTURES_RUN" -ne "$FIXTURES_EXPECTED" ]; then
 	echo "  FAIL — $FIXTURES_RUN of $FIXTURES_EXPECTED fixtures ran; refusing vacuous green"
