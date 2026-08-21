@@ -14597,3 +14597,141 @@ picks **C2K32**, the decomposition's 15.5–21.5 person-days were scoped around 
 every clause. On `C1` the estimates stand as written; on `C2K32` LC-2…LC-5 need re-scoping against a
 chunked structure before LC-2 routes. **`LC-0`** (0.5d — `#676` comment + a `docs/LIMITATIONS.md`
 entry) is unblocked either way and can run first.
+
+## 240 — 2026-08-21 — Iteration 240: LC-0 ships the honest-limitations entry, and a live user-reported OOM had been auto-closed by a docs commit that merely argued about fixing it
+
+**Pick.** `LC-0 m-list-interim-communication` — iteration 239's declared Next, and the only piece of
+the cons-cells programme that `D-22` does not gate. Execution, not design: LC-0's contract is the
+`### LC-0` section of `design_docs/planned/m-list-cons-cells-decomposition.md`, which cleared quorum
+over two rounds plus the carve-out at iteration 234, so no re-quorum was owed. The NEW-DOC grep
+correctly found no separate LC-0 doc.
+
+**Outcome: LANDED.** PR [#811](https://github.com/sunholo-data/ailang/pull/811) → squash
+[`7db3db2d9`](https://github.com/sunholo-data/ailang/commit/7db3db2d9). Gate 3b on the **merge**:
+3/3 workflows `success`, **20 checks, zero not-green**. On the PR head: 5/5 runs green, all four
+required contexts (`build`, `docs-gate`, `lint`, `test`) pass, `MERGEABLE/CLEAN`. Evaluator (sonnet,
+its own worktree) **74/100 FAIL round 1** — correctly — fixed before merge.
+
+### The headline is not LC-0. It is what the pick's reality check found.
+
+`#676` is a live `from:email-parse` user report of quadratic memory, which this mission triaged
+**REAL at HEAD** on 2026-08-19. It was `CLOSED/COMPLETED`.
+
+It was closed by commit `dedf3b91f` — iteration 228's **mission record**: seven files, all docs and
+design docs, **zero code**. Its body contains, inside a paragraph reasoning about a candidate design
+option, the sentence *"the arena **fixes #676** completely."* GitHub's auto-close parser does not
+read English. It matched, and the issue closed at merge, 1h46m after our own triage comment said the
+defect was real and unfixed.
+
+**Audited before patching (Principle 3) — and the first audit was vacuous.** A hand-rolled
+`\x01`-separated `git log` parser returned **0 hits** with no control; commit bodies are multi-line,
+so the record split was broken and every body was truncated at its first newline. Re-run with a
+`\x1e` record separator, the same scan found **25** closing-keyword hits repo-wide (the control that
+proves the pattern fires) and **4** inside mission-record commits. Of those four:
+
+| issue | closed by | verdict |
+|---|---|---|
+| `#598` | **manually** (no commit) | harmless — the keyword was past-tense narration |
+| `#486` | `22c1eecd5`, a `fix(mission)` that shipped the fix | legitimate |
+| `#676` | `dedf3b91f`, docs-only record | **WRONG** |
+| `#612` | `7c7e5e58a`, which shipped **one 636-line sprint plan** | **WRONG** |
+
+`#612` asked for a `go/packages` AST analyzer to replace a textual gate. Measured at HEAD with
+firing controls: files importing `go/packages` **0** (control `go/ast` = **2**);
+`golang.org/x/tools` in `go.mod` **0** (control: **99** require lines). The dependency is not in the
+repo at all, so the analyzer cannot exist.
+
+**And `#612` was not a deliberate descope — the charter says the opposite.** The ruling that
+produced it is recorded as *"cheap gate now **and** the durable gate filed"*, never *"instead of"*,
+and it was filed at resume time *"so it cannot be lost if the sprint slips"*. Decisively, the same
+charter records that a planner in that very sprint *"stripped an auto-linked `Fixes #612` that would
+have wrongly auto-closed the out-of-scope follow-up."* **The hazard was known, the guard was applied
+to the document, and it never reached the commit message.** That is this loop's own named recurring
+shape — *guard the helper, miss the call site* — aimed at its own record-keeping.
+
+Both issues **reopened** with the measurement attached (`#612` comments 0→1, `#676` 1→2, each
+asserted post-hoc, both now `OPEN`). Confirmed empirically along the way that an **issue comment**
+carrying the keyword does **not** close: my `#676` comment quotes `fixes #676` twice and the issue
+stayed `OPEN`. The parser reads commit messages, PR titles and PR bodies — not file contents, not
+comments.
+
+### The evaluator was right, and the finding is one the charter already half-knew
+
+The delivered `foldl` carve-out said *"do not cons into a list accumulator"* — naming `::` and only
+`::`. `++` has the identical cost shape: `listConcatImpl` (`internal/builtins/list.go:161`)
+allocates a fresh slice and copies **both** operands, so `acc ++ [x]` is O(len(`acc`)) per step and
+`foldl(\acc. \x. acc ++ [x], [], xs)` is quadratic exactly as `x :: acc` is. The judge reproduced
+~4× scaling per doubling empirically **and** by source.
+
+Reproduced first-party before acting. Two things sharpen it beyond the judge's filing: `++` is the
+idiom `prompts/v0.16.1.md:170` **teaches** for list concatenation (control: 62 prompt files), so it
+is the **likelier** mistake rather than the safer one; and the charter already knew this shape —
+`m-stdlib-reverse-delegates-to-builtin` is REQUIRED precisely because `reverse`'s
+`concat(growing, [x])` stays quadratic even under cons cells. A docs page whose workaround walks the
+reader back into the defect it documents is worse than no page. Fixed before merge; the same
+correction was posted to `#676`, where the original wording had already gone out.
+
+### The judge's third finding was itself refuted by measurement
+
+It reported `TestGoldenCompile/string_charat` failing on `undefined: CharCode` as a *pre-existing Go
+codegen defect*. Two arms on the identical tree: **stale PATH binary rc=1, freshly built binary
+rc=0.** The arms differ, so it is the iteration-237 stale-binary instrument trap — `tests/golden/codegen`
+shells out to `ailang` from `PATH` — not the code. Its conclusion (unrelated to LC-0) was right; its
+characterisation was not. Third recorded instance of that trap, and the skill's rule caught it as
+written.
+
+### An adjudicated deviation from the AC's letter
+
+The design doc's AC names only `docs/LIMITATIONS.md`. At HEAD that file declares itself a *"pointer
++ short summary"* and names `docs/docs/reference/limitations.md` canonical and authoritative. A
+root-only edit would have satisfied the AC's letter while violating the file's own stated policy —
+and, as the evaluator noted independently, would have produced a summary row pointing at an anchor
+that does not exist. Full entry canonical, summary row root. The evaluator confirmed the call and
+established that the policy line predates LC-0 (`ebbc5a749`).
+
+### Four of my own instruments failed, and every one was caught by its control
+
+1. The `\x01` commit-audit parser above — 0 hits on a corpus containing the very commit under
+   investigation.
+2. `grep -cE '4096\|4,096'` — in ERE, `\|` matches a **literal pipe**, so it read **0** against a
+   report carrying **11** hits. I was one step from filing a doc defect against a correct citation.
+3. A hand-written slugifier using `\s+`, which collapsed the double space left by a removed `` `::` ``
+   and declared the new anchor BROKEN. github-slugger replaces **each** space individually, so the
+   double hyphen is correct and both anchors resolve; the evaluator independently confirmed this by
+   installing the real `github-slugger` package rather than deriving it by hand.
+4. `grep -rln 'proxy' make/` read **0** case-sensitively; `-i` reads **3**.
+
+Only (2) and (3) would have produced a *wrong finding against correct work*, which is the direction
+that matters: three of the four failures pointed at manufacturing a defect, not at missing one.
+
+### Ruled out
+
+- That `#612` was a deliberate descope — the charter records the opposite, verbatim.
+- That the `CharCode` red was a code defect — two arms differ on an identical tree.
+- That the new anchor was broken — my slugifier was, not the doc.
+- That the `4096` citation was fabricated — my ERE pattern was wrong; the report carries 11 hits.
+- That a sibling's Gate-2 PROPOSAL could outrank the queue — it cannot. `mission-world`'s "a Total
+  is a claim about a column" was triaged as a proposal, not obeyed.
+
+### Routing evidence
+
+| role | pinned | actual | note |
+|---|---|---|---|
+| controller | `claude:claude-opus-5` | opus, inline | quota bucket |
+| designer | rotation | **not fired** | doc pre-existed and was quorum-cleared; rotation pointer unchanged at `codex:gpt-5.6-sol` |
+| planner | `codex:gpt-5.6-sol` | **not fired** | single-milestone 0.5 d piece whose AC shape the design doc already specifies; a plan would have restated three bullets. Recorded as a deliberate deviation, FLAGGED |
+| executor | `codex:gpt-5.6-sol` | codex `gpt-5.6-sol` | probe rc=0; directive 9195 B delivered; rc=0, no cap; exactly 2 files touched |
+| evaluator | `sonnet` | sonnet | own worktree (iter-199 rule); generator≠judge holds — OpenAI executor vs Anthropic judge |
+
+`metered = $0.00` of $5 — codex, opus and sonnet are all quota buckets; no quorum this iteration.
+No GPU, `rig.lock` never touched. **D-16 fast-forward exercised twice**, predicate measured not
+assumed: 0 ahead, dirty∩incoming **0** with the control firing at 14 and then 3; all five
+rig-owned dirty files `shasum -c` **OK** both times.
+
+### Next
+
+**`D-22` still gates LC-2** and is re-asked unchanged — nothing arrived on `#745` to answer it.
+The strongest ungated pick is **`m-stdlib-reverse-delegates-to-builtin`**: it is REQUIRED rather
+than optional under cons cells, and this iteration's `++` finding is precisely its defect, now
+documented and therefore easy to regression-guard. `m-commit-autoclose-guard` is queued from the
+retro as the durable half of this iteration's finding.

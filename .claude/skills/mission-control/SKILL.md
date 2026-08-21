@@ -2671,6 +2671,50 @@ Append an entry to `design_docs/v1-mission-log.md` using its fixed template — 
 value fields: evidence drives routing-policy changes; ruled-out stops re-chasing. Update the
 mission doc's queue tags ([LANDED], [PARKED], etc.) and STATUS stamp.
 
+**⚠ AND THE COMMIT THAT LANDS THIS RECORD CAN *CLOSE AN ISSUE IT ONLY TALKED ABOUT* — GITHUB'S
+AUTO-CLOSE PARSER DOES NOT READ ENGLISH, AND GATE 4 MANDATES EXACTLY THE DISCURSIVE PROSE THAT
+FEEDS IT** (added 2026-08-21 V1 iteration 240; two measured instances plus a recorded near-miss).
+Every rule in this gate polices the record's *content*. None polices what merging it *does to
+other objects*. `fix`/`fixes`/`fixed`/`close`/`closes`/`closed`/`resolve`/`resolves`/`resolved`
+followed by `#N` closes `#N` at merge, from a **commit message**, a **PR title**, or a **PR body**
+— with no regard for the surrounding sentence. So *"the arena **fixes #676** completely"*, written
+inside a paragraph *arguing about a candidate design option*, closes the issue exactly as hard as a
+deliberate `Fixes #676` would.
+**The loop is uniquely exposed, and by its own instructions.** This gate requires long records that
+discuss issues by number, and a mission record's whole job is to reason about what *would* fix
+what. The practice manufactures the keyword. Note the failure is silent and inverted: the more
+carefully you reason in prose about a fix you have **not** shipped, the likelier you are to close
+the issue tracking it.
+Measured on V1. **(a)** `#676`, a live user-reported OOM this mission had itself triaged **REAL at
+HEAD**, was closed `COMPLETED` by `dedf3b91f` — a **docs-only** record, 7 files, **zero code** —
+1h46m after our own comment said it was real and unfixed. The repo is public; an external reporter
+saw their live bug marked done. **(b)** `#612` was closed by `7c7e5e58a`, which shipped **one
+636-line sprint plan**; its deliverable never landed (`go/packages` importers **0**, `x/tools` in
+`go.mod` **0**, controls firing at **2** and **99**). **(c)** The near-miss that makes this a
+recurrence rather than an accident: the charter records that a planner, *in that same sprint*,
+*"stripped an auto-linked `Fixes #612` that would have wrongly auto-closed the out-of-scope
+follow-up."* **The hazard was known and the guard was applied to the DOCUMENT, never to the COMMIT
+MESSAGE** — *guard the helper, miss the call site*, aimed at this loop's own record-keeping.
+**Rule. (a)** Before committing, scan the commit message AND the PR title/body for
+`(clos(e|es|ed)|fix(e|es|ed)?|resolv(e|es|ed))\s*:?\s*#[0-9]+`, and pair the scan with a
+known-bad control string (`printf 'this fixes #1\n' | grep -E …`) so a clean result proves the
+matcher fires rather than that you typed the pattern wrong — rule 3a, aimed at your own commit.
+**(b)** Reserve a closing keyword for the commit that **actually ships the thing**. Everywhere else
+— records, plans, triage, reasoning about options — reference the issue with a non-triggering form:
+*"reported at #676"*, *"the defect in #676"*, *"filed as #612"*. **(c)** After any merge that
+mentions an issue, **assert the issue is still in the state you expect**; the exit code of `gh pr
+merge` says nothing about what the merge closed, and a PR body's `Fixes #N` closes **before** any
+Gate-0 close step of yours runs (the mechanism-B hazard that gate already names, arriving from the
+other side). **(d)** A file's *contents* are safe — GitHub parses commit messages, PR titles and PR
+bodies only — so a charter, log or changelog may quote the offending phrase when describing this
+defect. Verified first-party: an **issue comment** containing `fixes #676` twice left the issue
+`OPEN`. Do not over-apply the guard and mangle your own record.
+Mission-independent, and the generalisation outranks the two instances: **a record is not inert —
+writing about a system can mutate it.** Wherever this loop's prose is parsed by a machine that does
+not share its intent (issue keywords, `@mentions`, CI directives like `[skip ci]`, changelog
+scrapers), the record is an *actuator*, and Gate 4 has been treating it as a notebook. The tell:
+your commit message or PR body names an issue number, and you have not run the scan.
+
 **WRITE THE RECORD WHERE YOU READ THE STATE — NEVER INTO A WORKING-TREE COPY YOU HAVE NOT
 RE-CONFIRMED AGAINST ORIGIN** (added 2026-08-01 iteration 129; instance 2 of the diverged-checkout
 class after iter-128's stale *skill* — this one is the stale *charter*, and its failure mode is a
