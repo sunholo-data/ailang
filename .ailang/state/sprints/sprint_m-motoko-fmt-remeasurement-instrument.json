@@ -290,11 +290,11 @@
         "AC-M5-2: T-D2-SMOKE \u2014 when the stub smoke bank produces a row with fmt_hook_state=off, the driver logs the contract failure, sets RUN_AB_FMT=0, and emits ZERO `eval-suite --trials 5` invocations. Killed mutation: neutering the smoke gate (`if false && <smoke_failed>`) yields 12 measurement invocations instead of 0. Observable: the stub's invocation log (value set = the set of invocations, not a boolean).",
         "AC-M5-3: the happy path \u2014 a stub smoke row with fmt_hook_state=on and a status=formatted event \u2014 proceeds into M3's interleave and emits the full 12 invocations. Without this row, AC-M5-2 is satisfiable by a driver that always skips."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": " Not started at iteration 14 \u2014 named resume point, not dropped.",
-      "status": "not_started"
+      "passes": true,
+      "started": "2026-08-21",
+      "completed": "2026-08-21",
+      "notes": "Iteration 16: an isolated one-row ON smoke bank reads existing fmt_hook_state and validity fields; invalid state skips loudly with zero five-trial measurements, while the valid fixture emits all 12.",
+      "status": "completed"
     }
   ],
   "deployment_precondition": {
@@ -348,5 +348,5 @@
   ],
   "execution_order": "M1 -> M2 -> M3 -> M5, with M4 parallel-safe (disjoint files). M3 must land before M5.",
   "scope_note": "The full D1 + D1b + D2 + smoke-bank scope FITS in 3.0 days. Nothing is deferred to a follow-up sprint. The one item that is not purely local is M2's AC-D1-live, which needs the rig and (control leg only) OPENROUTER_API_KEY.",
-  "delivery_status": "M1 + M4 of 5 delivered (iterations 14, 15); M3 -> M5 -> M2 is the resume point, M3 now unblocked by M4's order-integrity checker"
+  "delivery_status": "M1 + M4 delivered in iterations 14-15; M3 + M5 delivered in iteration 16; M2 remains explicitly unrun because it requires the GPU rig and rig.lock"
 }

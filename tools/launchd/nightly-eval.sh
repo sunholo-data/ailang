@@ -46,6 +46,52 @@ DATE=$(date +%Y-%m-%d)
 log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG"; }
 
 # BEGIN FMT_AB_TESTABLE_FUNCTIONS
+run_fmt_ab_smoke() {
+    local smoke_benchmark smoke_dir smoke_row smoke_count smoke_state smoke_validity failure
+    smoke_benchmark="${FMT_BENCH_LIST%%,*}"
+    smoke_dir="${RESULTS_DIR}_fmt_smoke_$$"
+    # Clear the scratch dir before banking. The row-count contract below reads whatever is in
+    # $smoke_dir/agent, so a leftover row from an earlier smoke would be adjudicated as this run's
+    # -- and would satisfy or violate the contract for a reason that has nothing to do with today.
+    rm -rf "$smoke_dir"
+    log "  fmt smoke: benchmark=${smoke_benchmark} model=motoko-local-qwen3-6-fmt"
+    "$BIN" eval-suite --agent \
+        --models "motoko-local-qwen3-6-fmt" \
+        --benchmarks "$smoke_benchmark" \
+        --langs ailang \
+        --output "$smoke_dir" \
+        --parallel 1 \
+        --trials 1 \
+        --max-tokens-per-bench "$MAX_TOKENS_PER_BENCH" >> "$LOG" 2>&1 || \
+        log "  fmt smoke eval-suite exited non-zero (see $LOG)"
+
+    smoke_count=$(find "$smoke_dir/agent" -name '*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
+    smoke_row=$(find "$smoke_dir/agent" -name '*.json' -type f 2>/dev/null | head -n 1)
+    smoke_state="<absent>"
+    smoke_validity="<absent>"
+    failure=""
+    if [[ "$smoke_count" != "1" || -z "$smoke_row" ]]; then
+        failure="banked-row contract failed: observed row_count=${smoke_count}, want 1"
+    else
+        smoke_state=$(jq -r '.fmt_hook_state // "<absent>"' "$smoke_row")
+        smoke_validity=$(jq -r 'if has("validity") then (.validity.valid | tostring) else "<absent>" end' "$smoke_row")
+        if [[ "$smoke_state" != "on" ]]; then
+            failure="fmt_hook_state contract failed: observed '${smoke_state}', want 'on'"
+        elif [[ "$smoke_validity" != "<absent>" && "$smoke_validity" != "true" ]]; then
+            failure="treatment-integrity contract failed: observed validity.valid='${smoke_validity}', want absent or true"
+        fi
+    fi
+    if [[ -n "$failure" ]]; then
+        log "fmt A/B SKIPPED: smoke ${failure}"
+        ailang messages send controlplane \
+            "fmt A/B skipped (${DATE}): smoke ${failure}. No measured rows were run." \
+            --title "fmt A/B smoke failed (${DATE})" --from "nightly-eval" 2>/dev/null || true
+        RUN_AB_FMT=0
+        return 1
+    fi
+    log "  fmt smoke passed: fmt_hook_state=${smoke_state} validity.valid=${smoke_validity}"
+}
+
 run_fmt_ab_measurements() {
     local benchmark i arm m
     local -a FMT_BENCHES arms
@@ -521,7 +567,12 @@ fi  # end microRAG A/B
         FMT_TRIALS="${AILANG_AB_FMT_TRIALS:-5}"
         log "Wednesday A/B: motoko fmt extension (on vs off) — ELO-selected set, N=${FMT_TRIALS}"
         log "  benchmarks: ${FMT_BENCH_LIST}"
-        run_fmt_ab_measurements
+        if [[ "$RUN_AB_FMT" == "1" ]]; then
+            run_fmt_ab_smoke || true
+        fi
+        if [[ "$RUN_AB_FMT" == "1" ]]; then
+            run_fmt_ab_measurements
+        fi
 
         # Paired analysis for the fmt arm too. Banking aggregates only would
         # leave THIS experiment — the one the pairing work was motivated by —
