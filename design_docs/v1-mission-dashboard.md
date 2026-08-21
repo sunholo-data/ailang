@@ -1,35 +1,38 @@
 # Mission Dashboard — V1
 
-*Snapshot, overwritten each iteration. History lives in `v1-mission.md` STATUS + `v1-mission-log.md`.*
+_Snapshot, overwritten each iteration. History lives in `v1-mission.md` STATUS + `v1-mission-log.md`._
 
-**Last updated:** 2026-08-21 (iteration 245) · **Release:** v0.33.1 · **dev:** `d8f07c9e5` green (21 checks, 0 not-green)
+**Latest release:** v0.33.1 · **Loop:** iteration 246, 2026-08-21 · **dev CI:** green (16 checks, 0 not-green at `8040dfd41`)
 
 ## In flight
-- **Just landed (245):** `m-stdlib-list-delegation-sweep` — PARTIAL. PR #817 → `d8f07c9e5`, evaluator 93/100.
-  `std/list.drop` delegates (was crashing `RT_REC_003` on large `n`); the exemption table's
-  classification is now machine-checked against the live runtime registry instead of prose.
-- **The finding:** the row scoped **13** delegation candidates; **only 2** are delegable. Eleven are
-  codegen-only — no interpreter implementation — so delegating them would break `std/list`, not speed it.
+- **PR [#818](https://github.com/sunholo-data/ailang/pull/818)** — codegen resolved stdlib calls
+  through a flat 161-name index, so a **compiled** program could run a *different module's*
+  implementation while the interpreter was correct. `std/option.map` panicked; `std/list.length`
+  became `utf8.RuneCountInString`. Now keyed on `(module, name)`, fail-closed, with a gate over all
+  45 `std/*.ail`. Three commits, evaluator FAIL→re-review.
 
 ## Next picks
-1. `m-stdlib-take-recursion` — `take` still fails `RT_REC_003` identically; delegating would make a
-   `pure` function write to stderr. Four options, needs a call.
-2. `m-list-builtins-codegen-only` — eleven builtins with two implementations (recursive AILANG +
-   Go codegen helper) and **no gate that they agree**. Run the differential BEFORE writing impls.
-3. `m-mission-log-entry-numbering` (bookkeeping) · `m-ui-dependency-tree-unbuildable` (40 days red)
+1. `m-codegen-claim-must-match-source` — the new gate checks claim IDENTITY, not SEMANTICS; a
+   fabricated `std/list.zipWith` claim passes it while compiled output silently diverges. Needs a
+   source-level delegation invariant. **Pairs with #2 — same instrument.**
+2. `m-list-builtins-codegen-only` (dispatch half landed) — 13 `_list_*` builtins are codegen-only,
+   so `std/list`'s recursive AILANG form and the Go helper are two implementations with no
+   differential.
+3. `m-show-diverges-between-run-and-compile` — `show` prints `[1, 2, 3]` interpreted, `[1 2 3]`
+   compiled, and cannot render tuples at all interpreted. Blocks the naive byte-diff harness #2 wants.
+4. `m-stdlib-take-recursion` · `m-math-abs-stdlib-name-mismatch` — both small, both first-party.
 
-## Blocked
-- `m-wasm-deterministic-typecheck-budget` — on `#662` gaining reporter step-count data.
-  Predicate re-read 2026-08-21: still 1 comment (ours). Not a date, a predicate.
-- `m-eval-tail-calls` — on `D-19`.
-
-## Loop
-- Cadence: launchd, ~90 min · Controller opus · Designer ROTATION (next: `claude:claude-fable-5`)
-- Planner/Executor `codex:gpt-5.6-sol` · Evaluator `sonnet` (generator≠judge held)
-- Metered spend iteration 245: **$0.00** of $5 ceiling. No GPU, no quorum.
+## Loop config
+Controller opus (session) · designer rotation `codex:gpt-5.6-sol` (unspent 4 iterations) ·
+planner/executor `codex:gpt-5.6-sol` · evaluator `sonnet`, own worktree · generator≠judge held.
+Fires ~90 min; pinned worktree `~/.ailang-driver-pin/v1`; running skill = main checkout via symlink.
 
 ## Parked on Mark
-- **`D-22`** (open since iteration 239, re-asked unchanged): do LC-2…LC-5 build for **`C1`**
-  (plain cons cells, what the 15.5–21.5d decomposition was scoped around) or **`C2K32`**
-  (chunked, K=32, which the doc's own tie-break selects on per-element memory)? One word.
-- Ledger: 22 rows, 1 OPEN.
+- **`D-22`** (open since iteration 239, unchanged, re-asked verbatim each iteration): do LC-2…LC-5 build for
+  **`C1`** (plain cons cells — what the 15.5–21.5d decomposition assumed) or **`C2K32`** (chunked,
+  which the doc's tie-break selects)? Nothing separates them on correctness. **One word.**
+- Nothing else. Ledger: 22 rows, 1 OPEN.
+
+## Quota posture
+metered **$0.00** of $5 this iteration — codex, opus and sonnet are all quota buckets. No GPU, no
+`rig.lock`, no quorum. Fable unspent.

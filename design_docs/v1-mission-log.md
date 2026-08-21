@@ -15346,3 +15346,142 @@ AILANG one the interpreter runs and a Go codegen helper compiled programs run �
 they agree**. That is a soundness question, and the cheap differential (same input, `run` vs compiled,
 byte-equal stdout) should run BEFORE anyone writes eleven interpreter implementations, because it may
 turn the row into a bug list instead.
+
+## 246 — 2026-08-21 — Iteration 246: a compiled AILANG program could run a different module's implementation of the function it called
+
+**Pick.** `m-list-builtins-codegen-only`, iteration 245's declared Next. Its own text says to measure
+before building: *"a differential fixture per name … is cheap and would either close the row or turn
+it into a bug list. Do that first; the implementations are the expensive half."* Gate 2 did exactly
+that, by hand, and it turned into a bug list — a wider one than the row describes.
+
+**What the row claimed, and what was true.** The row says **eleven** `_list_*` builtins are
+codegen-only. Measured first-party against both live registries (a throwaway test in
+`internal/builtins`, deleted after): runtime `AllNames()` **18** `_list_*`, codegen
+`GetBuiltinNames()` **26**, codegen-only **13** — `_list_last` and `_list_tail` were missed. Small,
+and it is the second consecutive iteration where a count in this row family was wrong in the
+enumeration rather than in the pattern.
+
+**The premise held and then got bigger.** `internal/gen/golang/codegen_registry.go` resolves a
+stdlib call through `GetCodegenSpecByStdlibName`, which reads `StdlibIndex` — **one flat namespace
+keyed on the BARE exported name**, 161 entries across 20 builtin families, with no module anywhere
+in the key. So the failure is not confined to `std/list`: any `std/*` export whose bare name is
+claimed by a different family is compiled to the wrong implementation, while the interpreter, which
+resolves through the module system, is correct.
+
+Two measured end-to-end, interpreter arm against compiled-and-run arm:
+
+- `std/option.map(\x. x + 1, Some(41))` — `ailang run` prints `42` rc=0; compiled emits the **LIST**
+  `Map` helper (`runtime.go:753`, a `toSlice` loop), builds, and **panics**:
+  `interface conversion: interface {} is []interface {}, not *Option`, rc=2.
+- `std/list.length(tail([1,2,3]))` — interpreted `2`; compiled
+  `int64(utf8.RuneCountInString(x.(string)))`. `StdlibName: "length"` is claimed **only** by
+  `_str_len` (`registry_codegen_string.go:31`) and `_list_length` has no codegen spec at all, so the
+  list call took the string implementation. It does not even compile (`undefined: utf8`), and if it
+  did it would type-assert a slice to `string`.
+
+Cross-referencing all 45 `std/*.ail` against the index gave **60** module-mismatched name hits.
+Stated honestly at the time and worth repeating: many are benign — every `std/string` export maps to
+a `_str_*` builtin, a spelling difference, not a collision — so 60 was never a bug count. The
+suspicious ones were the ones with different *semantics*: `std/option.map`/`flatMap`/`filter` and
+`std/result.map`/`flatMap` → `_list_*`, `std/debug.log` → `_math_log`, `std/map.keys` → `_json_keys`.
+
+**The fix direction was proven before the executor was spawned.** `e.Ref.Module` is populated and
+correct at the call site and was simply discarded: instrumenting
+`codegen_expr_simple.go:142` with a throwaway probe printed `VarGlobal module="std/option"
+name="map"` and `module="std/io" name="println"`. Restored from a `cp` backup, sha256-identical.
+And the failure mode for *no* match was measured first, because it determines whether refusing is
+safe: `std/list.zipWith`, which has no codegen spec, compiles to `undefined: ZipWith` and
+`ailang compile` **fails loudly** (rc=1). So refusing a wrong match degrades a silent wrong answer
+into a compile error — Principle 2, not a new hazard.
+
+**Shipped** (PR [#818](https://github.com/sunholo-data/ailang/pull/818) → squash
+[`f5f383b27`](https://github.com/sunholo-data/ailang/commit/f5f383b27), 3 commits). `GoCodegenSpec`
+gains `StdlibModule`; `StdlibIndex` is re-keyed on `(module, name)`; the qualified lookup returns nil
+on mismatch and never falls back; module-less references get a separate lookup resolving only names
+exactly one spec claims. Principle 3: all three consult sites together — `generateVar`,
+`generateVarGlobal`, and `resolveInlineBuiltin`, the third found by the executor's own audit and not
+named in the directive. `std/option.map` now fails loudly; `std/list.length` resolves to the list
+`Length` helper and the compiled arm **agrees with the interpreter**.
+
+**The gate needed two rounds, and round 1's version was worse than none.** Its module check read the
+`StdlibModule` of a spec fetched *by that same field*, so the branch was unreachable by construction
+— rule 3i's "observable written alongside the mechanism", in its purest form. Measured: re-annotating
+`_str_len` to `std/list` LANDED (sha `279bddf2…` → `98258986…`), BUILT, left the gate at **rc=0**, and
+brought the `utf8.RuneCountInString` lowering straight back. Round 2 replaced it with an explicit
+module→family-prefix table plus a closed exemption requirement; the identical mutant is now rc=1 with
+`qualified claim std/list.length uses builtin "_str_len" outside expected family "_list_" without a
+matching cross-module exemption`, and the tree restores byte-identically green.
+
+**THE EVALUATOR CAUGHT A REGRESSION THAT 22 GREEN CI CHECKS AND A ZERO-FAIL `make test` DID NOT, AND
+THE MERGE WAS HELD.** Round 1 of evaluation: **42/100 FAIL**. `not(x)` no longer compiled. Core IR
+emits negation as `VarGlobal{Module: "$builtin", Name: "not_Bool"}`, and that spec carries neither
+`StdlibName` nor `StdlibModule` — its own comment says it exists to match the Core IR name, i.e. it
+always resolved *directly*. `"$builtin"` is non-empty, so fail-closed sent it down the qualified path,
+got nil, and the generator wrote `NotBool` without registering the helper. Reproduced first-party
+before acting, two arms on `println(show(not(true)))`: pre-sprint `8040dfd41` compile rc=0 with
+`func NotBool` emitted (**1**); post-sprint `af8cfd3e3` compile rc=1, `undefined: NotBool`, emitted
+(**0**). Nothing caught it because no fixture anywhere exercises `not(...)` — the gates were green and
+the coverage was absent, which is the whole lesson. `show` survived only by luck: `Show` is an
+unconditionally-emitted core helper.
+
+**Round 3** made `$`-prefixed pseudo-modules use the direct path at both consult sites while keeping
+fail-closed for genuine modules. Four spellings exist (`$adt`, `$builtin`, `$const`, `$encoded`) and
+five specs carry no `StdlibName`; four are reachable only through a `$builtin` global (`_str_eq`,
+`floatToInt`, `intToFloat`, `not_Bool`) and one change restores all four. Pinned by two tests
+asserting the helper is REFERENCED **and** EMITTED. Controller mutation: neutering the pseudo-module
+carve-out landed (sha `71e0f7c5…` → `0766f21e…`), built rc=0, redded exactly those two tests, restored
+byte-identical and green. Round 3 also deleted a **fabricated** exemption row — round 1 had annotated
+the whole `mathHelpers` loop `StdlibModule: "std/list"` blindly, inventing a claim for a
+`std/list.absInt` that exists in no stdlib source, and round 2 silenced the resulting flag with an
+exemption instead of noticing. The gate now builds its own export set from all 45 files and rejects
+any exemption row with no real export.
+
+**EVALUATOR round 2: 96/100 PASS, zero blocking**, in its own worktree, and its scope claim is
+stronger than mine was. It compiled **all 465** `.ail` files under `examples/` and `tests/` on a
+pre-sprint and a post-sprint binary and compared exit codes: **9** files pre=1→post=0 (incidentally
+fixed), **3** pre=0→post=1 — all three call `std/option.map` — and **453** identical. It then
+compiled one of those three with the *pre-sprint* binary, ran it, and got the runtime panic, proving
+the three are the intended fail-closed behaviour rather than a regression. Its first mutant was
+flawed and it said so rather than banking the label. Two non-blocking findings, both filed as rows:
+the pseudo-module pins hand-build Core IR so no `.ail` fixture exercises `not(...)`, and compiled
+`std/list.head`/`tail`/`nth` do not wrap in `Option` (pre-existing, latent until this sprint
+incidentally unblocked the example that reaches it).
+
+**Ruled out.** That the divergence is confined to `std/list` (it is name-keyed and module-blind, so
+it spans every module). That 60 mismatched hits is a bug count (most are the `string`/`str` spelling).
+That refusing a wrong match is risky (a spec-less export already fails loudly at base). That the
+`Length` helper is new (`git diff --name-only` shows the path supplying it is untouched — it was
+being shadowed). That round 1's gate protected anything (green on the reintroduced defect). That
+`go build ./...` rc=1 is ours (`cmd/wasm`, `gen/main`, identical at base — the same finding
+iteration 145 recorded and iteration 245 met again).
+
+**Routing.** Controller `opus` (session). Designer **none** — no new doc; the row named the
+mechanism and Gate 2 measured it, so the rotation pointer stays `codex:gpt-5.6-sol`. Planner
+**none** — the controller wrote the ACs from the measurement and baselined every one of them on
+pristine dev first (rule 3e(a), which iteration 245 had just been burned by). Executor
+`codex:gpt-5.6-sol`, three bounded backgrounded runs, rc=0 each, zero git writes, five cumulative
+`.snap/M<k>/` snapshots; commits reconstructed by the controller and proven faithful by sha256
+manifest (13/13 and 5/5 `shasum -c` OK). Evaluator `sonnet`, two rounds, each in its **own**
+worktree; generator≠judge held (OpenAI executor, Anthropic judge). `metered = $0.00` of $5 — all
+three lanes are quota buckets. No GPU, no `rig.lock`, no quorum.
+
+**Gate 3b.** SHA-addressed on the full 40 chars, both heads: `af8cfd3e3` **22 checks / 0 not-green**,
+and after round 3 `624629a37` **22 checks / 0 not-green**, 4/4 required (`build`, `docs-gate`,
+`lint`, `test`) — and `build` again appeared only *after* `test` passed, so declaring green at 3/4
+would have been the incomplete-check-set trap for the second iteration running. `mergeable` read
+FIRST each time. Merged → `f5f383b27`.
+
+**Gate 5 skill edit** (`da771df73`, saved in the MAIN checkout so it is live): `mission-world`
+iter-106's proposal, corroborated first-party before adoption — `~/.ailang/state/mission-gh-issue`
+is the third unnamespaced state literal, appearing **4** times in the running copy (positive
+controls: the two already-namespaced keys read 2 and 1; a fresh invented literal read 0), and unlike
+the dashboard collision it is a **write onto a path the writer never reads**, so Gate 5's rotation
+step would replace a sibling's live inbound human channel. V1's own state migrated to
+`mission-v1-gh-issue` under the resolves-in-my-own-repo predicate.
+
+**Next.** `m-codegen-claim-must-match-source` together with `m-list-builtins-codegen-only` — they
+share an instrument, since the declared codegen-only substitution table IS the list of places where
+`ailang run` and a compiled binary can disagree. `m-show-diverges-between-run-and-compile` first if
+the differential is to compare rendered text at all. `D-22` still gates LC-2 and is re-asked
+unchanged.
+
