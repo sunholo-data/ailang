@@ -1612,3 +1612,165 @@ absolute path, never PATH, and no test red required attributing.
 **Next**: item 6's **M3** (D1b counterbalanced Wednesday block) — now unblocked, since AC-M3-4
 closes by calling M4's order-integrity checker; then **M5** (depends on M3) and **M2**
 (`AC-D1-live`, which needs the rig). Then item 7.
+
+---
+
+## 16 — 2026-08-21 — M3 and M5 built; the slot died 58 minutes in, one command short of landing them
+
+> **RECONSTRUCTED BY ITERATION 17 FROM ARTIFACTS — iteration 16 wrote no record of its own.** This
+> entry exists so the log does not silently skip a number. It is not a first-person account and it
+> claims nothing the artifacts do not show; everything below is a fact about a commit, a worktree, a
+> driver log line or a GitHub object.
+
+**What ran.** Fired `2026-08-21 08:02:25` CEST from the `#558` driver pin at `df68ccc8c`
+(controller `claude:claude-opus-5`, roles as configured). It picked queue item **6**'s resume
+point, took **M3** (D1b counterbalancing) and **M5** (smoke-bank wiring), routed the work to the
+ratified `codex:gpt-5.6-sol` executor lane, spawned an evaluator, and opened PR
+[#813](https://github.com/sunholo-data/ailang/pull/813) at `06:45:40Z`.
+
+**How it died.** `2026-08-21 09:00:33` CEST, killed by the driver's stall watchdog:
+`STALL: claude 94489 idle with a descendant alive ≥2400s across 3 samples (unbounded poll loop?) —
+killing early`, then `iteration exited rc=143`. The driver posted the failure to `#743` at
+`07:00:35Z`. Elapsed: **58 minutes**, of which the last ~40 were idle with a live child.
+
+**What it left.** The three traces Gate 2 names, all present: an open PR from this account; **two**
+worktrees, `.wt-motoko-iter16-d1b` (branch head) and `.wt-motoko-iter16-eval` (so the evaluator had
+been spawned and had its own tree, per the iteration-199 rule); and `.snap/` — the codex executor's
+per-milestone snapshots — as the only uncommitted residue. What it did **not** leave: any charter
+row, log entry or STATUS stamp (`grep -ci "ITERATION 16"` = **0** in both files; control
+`ITERATION 15` = **3**). The one durable record was the sprint JSON, which it had already updated to
+`"M3 + M5 delivered in iteration 16"`.
+
+**Credit.** The two commits are its work, and their trailers are preserved verbatim through
+iteration 17's rebase: `Co-Authored-By: codex <gpt-5.6-sol>` and
+`Co-Authored-By: Claude Opus 5`. The PR body's self-critique — two of three smoke refusal branches
+surviving neutering as first delivered, the decorative `AC-M3-4` analyzer call, the unsound `go
+test` cache key, the uncleared scratch dir — is iteration 16's own finding, not iteration 17's.
+
+**The note worth keeping.** Standing rule 7 is written about the *silent* failure: a `claude -p` run
+that reaps background tasks after 600 s and exits **rc=0**, so neither watchdog fires and the slot
+ends looking successful. That is not what happened here. This rig's driver carries a stall watchdog
+that detects the idle-with-live-descendant shape directly, kills early, exits **143**, and posts to
+the bookkeeping issue — loud, attributable, and visible to the human within the hour. The defect was
+still real (a controller went quiet while work was outstanding, which rule 7 forbids), but the cost
+was **one landing step**, not a lost slot, and the loss was announced rather than concealed.
+
+---
+
+## 17 — 2026-08-21 — the deliverable was a predecessor's finished work, and the job was to verify it rather than believe it
+
+**Pick.** Not the queue head, and not a milestone. Gate 2's died-mid-flight traces found iteration
+16's entire inner loop complete and unrecorded (see entry 16), so the skill's instruction applies
+literally: **verify and land it, do not redo it**. Acting on the charter's `[NEXT]` tag instead
+would have re-run two finished milestones and opened a duplicate PR against a green one.
+
+**Outcome.** PR [#813](https://github.com/sunholo-data/ailang/pull/813) rebased, verified, landed as
+[`b2733201a`](https://github.com/sunholo-data/ailang/commit/b2733201a). Gate 3b **GREEN** on head
+`aa4543ba4`: **21** checks, **0** pending, **0** not-green, **4/4** required contexts
+(`build`/`docs-gate`/`lint`/`test`) pass, `mergeStateStatus=CLEAN`. Queue item 6 is now
+**M1 + M3 + M4 + M5 landed, M2 only** — and M2 is the one that needs the rig.
+
+**Verification, because nobody had reviewed that work since its author stopped existing.** The
+rebase itself first: `make/test.mk` auto-merged (the two hunks sit 215 lines apart);
+`changelogs/v0.18-current.md` conflicted twice — the **fifth** consecutive iteration in which that
+file is the cross-mission collision surface — resolved keeping both sides, with a 4-of-4 entry
+presence check, a firing conflict-marker control, and a fresh negative literal. The rebased diff
+re-derived at **+407/-27 across 7 files**, identical to the pre-rebase PR, so the rebase moved the
+base and nothing else.
+
+Then the claims. The PR asserts every refusal branch of the M5 smoke gate is pinned; that is rule
+3j's bar, and it is checkable. Four mutants, each asserted **LANDED** (sha256 ≠ pre) and **VALID**
+(`bash -n` rc=0) before its result was read, each restored from a `cp` backup — never
+`git checkout --`, since the file is uncommitted by construction during a drill — and each restore
+verified byte-identical:
+
+| mutant | killer arm | other arms |
+|---|---|---|
+| neuter `banked-row contract` | `FAIL: no-banked-row smoke` (count=12, want 0) | green |
+| neuter `fmt_hook_state contract` | `FAIL: failing smoke` | green |
+| neuter `treatment-integrity contract` | `FAIL: invalid-treatment smoke` | green |
+| ON always leads (kills counterbalancing) | `FAIL: counterbalanced sequence` | green |
+
+Baseline unmutated rc=0. Each mutant is single-arm, so these are sole killers, not set members.
+
+The fourth one carries the load-bearing check, because AC-M3-4's whole claim is that the *analyzer*
+— not a reconstruction of what the schedule ought to emit — is the discriminator. Measured: with ON
+always leading, `TestFmtDriverScheduleSatisfiesOrderIntegrity` fails at `censored_test.go:100:
+CheckFmtOrderIntegrity rejected shell artifact: order_integrity_lead_not_alternating`. That
+simultaneously confirms iteration 16's `go test` cache-key repair — the Go test really does see a
+`/bin/bash` child's mutation.
+
+**My own vacuous pass, caught by a count and not by an exit code.** The first attempt at that last
+drill used `-run 'TestFmtABScheduleOrderIntegrity|TestFmtAB'`, which matches **no test in the
+package**. Both arms returned **rc=0** and the mutant read as *survived* — a false negative that
+would have made me report a decorative AC. The only tell was `ok … [no tests to run]`; re-run with
+an explicit `=== RUN` count on both arms and the correct test name, the arms are **0** and **1**.
+A `-run` filter is an enumerator, and rule 3a(i-e) applies to it: the drill proves the check fires,
+only a run count proves it looked.
+
+**Gate list derived, not recalled** (rule 3g), from `ci.yml`'s own `run:` lines rather than from the
+PR body — which is how two gates dev added *after* iteration 16 branched were caught:
+`make test-check-autoclose` and the newly exact-count `make test-stdlib-ail`. Both green on the
+merged `make/test.mk` (4 suites / 4 fixtures). Full sweep on the rebased tree, all rc=0: `bash -n`
+×2 · `shellcheck -S warning` (0 findings) · `make test-launchd-drivers` (10 passed / 0 failed —
+item 5b's fix still holds on the rig) · `test_fmt_ab_schedule.sh` (11 PASS) ·
+`go build ./internal/... ./cmd/ailang/...` · `go test -count=1 ./internal/eval_analysis/...` ·
+`check-file-sizes` · `check-boundaries` · `check-changelog` · `test-check-changelog` ·
+`test-check-autoclose` · `check-skills` · `fmt-check` · `vet` · `test-stdlib-ail`. Every binary
+invocation ran from an explicitly built absolute path (`/tmp/ailang_i17/ailang`,
+`git describe v0.33.1-191-gaa4543ba4`) prepended to `PATH`; `make quick-install` deliberately not
+run (shared-write guardrail). Platform: **darwin/arm64 only**; windows and ubuntu legs unrun
+locally, and Gate 3b is the only instrument that saw them.
+
+**Ruled out.** *The PR's `CONFLICTING` state was a dropped-event or infrastructure problem* —
+`mergeable` was read FIRST per the iteration-198 rule and returned `CONFLICTING`/`DIRTY`
+immediately, explained completely by a two-file overlap with V1's iterations 245/246. No
+`workflow_dispatch`, no empty commit, no diagnosis needed. *Iteration 16's work needed re-running* —
+it did not; every claim in its PR body that I checked held, and the two milestones were complete.
+*The `.snap/` directory was unfinished work* — it is the codex recipe's mandated per-milestone
+snapshot output, already reconstructed into the two commits.
+
+**Gate 0/1.** Kill switch armed; `gh` on `sunholo-voight-kampff`; billing tripwire **CLEAN**; pin
+root detached and clean at `8040dfd41` == `origin/dev` at start. Running-skill check performed on
+the **resolved** path per V1 iteration 241 — and both copies read, because they are different files:
+the copy this session actually executed is the pin worktree's own (inode `46496692`), `cmp` vs
+origin **rc=0**; `~/.claude/skills/mission-control` resolves to V1's main checkout (inode
+`45241676`), which is **1 commit ahead of origin carrying an unpushed Gate-5 edit** and so differs
+by 3,074 B. That is V1's divergence and is recorded here rather than acted on. Negative control
+(origin skill vs the charter) rc=1. dev **verified green, not merely un-red**: **16** exact-SHA
+checks, **0** not-green, `runs_total=2` so a run exists, parent-commit control **16**. **0** human
+directives on `#743` since the watermark `2026-08-17T05:48:45Z` — corroborated by a raw author
+enumeration showing all **15** comments are the bot's, with the script's positive control firing on
+`#745` (Mark's `D-19 : B`). Ledger valid at **3** rows, **0 OPEN**. Inbox **0** unread. **0** open
+`[nightly-eval]` alarms (control: 3 closed ones exist). Weekly sweep and rotation **both not due**
+(`#743` created `2026-08-17T05:48:23Z` = 07:48 local, after the Monday-07:00 local boundary; 15
+comments < 80).
+
+**Routing.** Controller `claude:claude-opus-5` only. **No designer, planner, executor, evaluator or
+quorum spawned** — verifying and landing a predecessor's finished work has no doc to design and no
+plan to write, and a judge would be adjudicating an artifact whose author no longer exists; the
+executor credit stays with iteration 16's `codex:gpt-5.6-sol`, preserved in both commit trailers.
+Rotation pointer untouched at `claude:claude-fable-5`. Metered **$0.00** of $5. No GPU, no
+`rig.lock`.
+
+**Gate 5 — one skill edit, Gate 2's died-mid-flight trace (a).** `--author sunholo-voight-kampff` is
+a **fleet** filter, not a mission filter: every mission on this rig pushes as the same bot account,
+so the rule's phrase *"an open PR from your OWN account"* is doing work the filter cannot. The
+frictions are recorded and repeated — the motoko charter and log carry **20** occurrences of
+hand-disambiguating *"is V1's"/"are V1's"*, across at least five consecutive iterations, each
+redoing the same adjudication with no rule to do it by. This iteration is the first where the
+latent hazard went live: the filter returned `#813` (mine, the correct pick) beside `#818` (V1's
+iteration 246, opened **20 minutes earlier** and still running) and `#695` (V1's, stale). Since the
+trace exists to find work you should *adopt*, its failure mode is not a missed signal but acting on
+a sibling's live PR. The fix uses an instrument the rule already has one line away: `git worktree
+list` is scoped to your own clone, and measured here the two clones' lists are **disjoint** — 8
+worktrees in motoko's, all `motoko`; 12 in V1's, none of them motoko's. A branch with a worktree in
+your list is definitely yours; a miss is *not* proof of the converse, so the rule requires a second
+reading and defaults to leaving an unattributable PR alone.
+
+**Next**: item 6's **M2** (`AC-D1-live`) is the only milestone left and it **needs the rig** —
+one fmt-lane run reaching `localhost:11434` with zero `openrouter.ai` connections, asserted on the
+connection and paired with an OpenRouter-lane known-positive control. Doc §6's deployment
+precondition (`#558`) is unchanged by this landing: merging to `dev` does not put D1b or the smoke
+gate on the rig, because the installed plist runs `nightly-eval.sh` in place from V1's checkout.
+If M2's rig slot is not available, item **7** (profile restoration design) is the next ungated row.

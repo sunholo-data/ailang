@@ -1,41 +1,48 @@
-# Motoko Mission Dashboard — the 30-second control context
-> **Contract**: ≤40 lines, OVERWRITTEN by Gate 4 (history: charter STATUS + [log](motoko-mission-log.md)).
-> **Namespaced** — the bare `mission-dashboard.md` is not ours (V1 iter-216); it holds motoko's stale
-> iter-7 snapshot, left alone.
+# Mission Dashboard — Motoko
 
-**As of**: 2026-08-20 · iteration **15** · release `v0.33.1` · loop `dev.ailang.mission-motoko`, 12h
+*Snapshot, overwritten every iteration. History lives in the charter STATUS block and
+[motoko-mission-log.md](motoko-mission-log.md). 30-second read for a fresh session.*
+
+**Last iteration**: **17** — 2026-08-21 · landed iteration 16's orphaned M3+M5.
+**Last release**: v0.33.1 (repo-wide; this mission does not release).
 
 ## In flight / next
-- **Item 6 — fmt re-measurement instrument**: **M1 + M4 of 5 LANDED.**
-  M4 (D2 censored-pair analyzer) → PR [#806](https://github.com/sunholo-data/ailang/pull/806) → `d5bcfa0c8`.
-  `ailang eval-censored-pairs` ships as a **sibling** of `eval-paired` (whose JSON contract is byte-identical).
-  **Resume point: M3 → M5 → M2.** M3 (D1b counterbalanced Wednesday block) is **now unblocked** —
-  its AC-M3-4 closes by calling M4's order-integrity checker. M5 depends on M3. **M2 (`AC-D1-live`)
-  is the only one needing the rig** (ollama + a metered OpenRouter control leg, ~15 min).
-  Plan: `design_docs/planned/m-motoko-fmt-remeasurement-instrument-sprint-plan.md`.
-- Then item **7** (profile restoration design), item **8** (repin stale OpenRouter motoko models).
 
-## Queue posture
-- Rows 1–5, 5a, 5b, 6b: LANDED/CLOSED. Row 6: M1+M4 landed, M2/M3/M5 open.
-- Rows 10/11/12 **Phase-0 gated** — predicates re-run 2026-08-20 as commands, all still FALSE:
-  G1 `#154` `state=OPEN`/`mergedAt=-` (control `#161`/`#162` MERGED) · G2 rc=**128** with the
-  mandatory `README.md` control rc=**0** · G3 registry `latest=2.2.0`, no 5.x · G4 unrunnable · G5 unchanged.
-- Rows 9/13 need a green tree; row 14 follows 13.
-- **Upstream**: `arniwesth/motoko_agent#165` (row 5's artifact) is OPEN, labelled by the maintainer
-  today, and reported **implemented in their PR #166** (MERGEABLE, base `main_dst`, not yet merged).
+- **Queue item 6** (`m-motoko-fmt-remeasurement-instrument`): **M1 + M3 + M4 + M5 LANDED**.
+  **Only M2 remains — and it NEEDS THE RIG** (`AC-D1-live`: one fmt-lane run reaching
+  `localhost:11434` with zero `openrouter.ai` connections, asserted on the connection, paired with
+  an OpenRouter-lane positive control). Requires `rig.lock`.
+- **If no rig slot** → item **7** (profile restoration design), then item **8** (repin the stale
+  OpenRouter motoko models).
+- **Deployment precondition still owed** (doc §6, issue `#558`): merging to `dev` does **not** put
+  D1/D1b/the smoke gate on the rig — the installed plist runs `nightly-eval.sh` in place from V1's
+  checkout. Verify at the path in the plist's `ProgramArguments`, never a working-tree path.
+- **Gated behind Phase 0** (G1–G5 conjunctive, all still FALSE): items 10, 11, 12.
+  **Parked on a green tree**: items 9, 13, 14.
 
-## Loop cadence + routing
-- 12h `StartInterval`, staggered against V1 (90m) and World (4h).
-- Controller `claude:claude-opus-5` · executor **`codex:gpt-5.6-sol`** (the ratified primary; probe
-  rc=0 — iteration 14 had fallen to the pi lane, this one did not) · evaluator **sonnet**.
-- generator≠judge holds against the executor. **FLAGGED**: the controller-authored repair was
-  Anthropic-authored and judged by an Anthropic evaluator — same provider, different model.
-- No planner, designer or quorum ran (the plan and the doc's spent quorum already cover M4).
-- Designer rotation pointer untouched at `claude:claude-fable-5`.
+## Loop health
+
+- Cadence: launchd `dev.ailang.mission-motoko`, `StartInterval=43200` (12h), staggered against
+  V1 (90 min) and World (4h).
+- **Iteration 16 was killed by the driver's stall watchdog** (`idle with a descendant alive
+  ≥2400s`, `rc=143`) with its work finished and unlanded. The watchdog behaved correctly — early
+  kill, non-zero exit, failure posted to `#743` within the hour. Cost was one landing step.
+- Last iteration's dev CI: green (16 exact-SHA checks, 0 not-green, a run exists).
+- Note: `~/.claude/skills/mission-control` resolves to **V1's** checkout, which is currently
+  1 commit ahead of origin with an unpushed skill edit. This mission executes its **own** repo-local
+  copy, verified `cmp` rc=0 against origin.
+
+## Routing (as configured)
+
+controller `claude:claude-opus-5` · designer rotation pointer `claude:claude-fable-5` ·
+planner/executor `codex:gpt-5.6-sol` (executor fallback `pi:deepseek-v4-flash-0731`) ·
+evaluator `sonnet`. Metered budget $5/iteration; iteration 17 spent **$0.00**.
 
 ## Parked on Mark
-- **None.** Decision ledger: 3 rows, **0 OPEN** (`scripts/mission_decisions.sh --check`).
 
-## Quota / cost posture
-- Metered **$0.00** of $5 this iteration — codex and sonnet are both quota lanes.
-- Quota buckets in use: codex (`gpt-5.6-sol`), opus, sonnet.
+**Nothing.** Decision ledger: 3 rows, **0 OPEN** (`scripts/mission_decisions.sh --check`).
+
+## Quota posture
+
+Bookkeeping issue `#743` (15 comments; rotates weekly Monday 07:00 **local**, not due).
+No GPU held; `rig.lock` untouched for 5 consecutive iterations.

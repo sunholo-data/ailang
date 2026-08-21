@@ -661,6 +661,42 @@ row**, say so in the report as a pattern rather than as two incidents: the loop 
 diagnose why its own slots are dying, but it can make the frequency visible to someone who
 can.
 
+**AND ON A SHARED REPO `--author` IS A *FLEET* FILTER, NOT A MISSION FILTER — SO TRACE (a)
+RETURNS YOUR SIBLING'S PRs UNDER THE HEADING "YOUR OWN ACCOUNT", AND THE ONE IT WILL EVENTUALLY
+HAND YOU IS THE SIBLING'S *LIVE, MID-FLIGHT* WORK** (added 2026-08-21 motoko iteration 17; the
+frictions are 5+ consecutive motoko iterations each hand-disambiguating the same PRs, and this
+iteration is the first where the filter returned a genuinely-mine PR *beside* a sibling's live
+one). Trace (a) says *"an open PR from your OWN account is either mid-flight work or abandoned
+work, and both change the pick"* — and every mission on this rig pushes as the SAME bot account,
+so "your own account" is the fleet's account. Gate 1 already scopes a RED to the owning mission;
+nothing scopes a **PR trace**, though it is the trace that tells you to go and *land something*.
+Note the asymmetry that makes this worth a rule: the trace exists to find work you should ADOPT,
+so its failure mode is not missing a signal, it is **acting on someone else's**. Rebasing,
+force-pushing or merging a sibling's PR collides with a loop that is still running, and the two
+missions cannot see each other — the overlap guard is a per-mission pidfile by construction.
+Measured here: `--author sunholo-voight-kampff --state open` returned **three** PRs — `#813`
+(mine, iteration 16's orphan, the correct pick), `#818` (V1's iteration 246, opened **20 minutes
+earlier and live**) and `#695` (a stale coordinator PR, V1's). The motoko charter and log carry
+**20** occurrences of *"is V1's"/"are V1's"*, i.e. this adjudication has been redone by hand every
+iteration with no rule to do it by.
+**The instrument is already in trace (b) and is clean by construction: `git worktree list` is
+scoped to YOUR clone.** Measured, and the control is what makes it usable: the motoko clone lists
+**8** worktrees, all `motoko`; V1's clone lists **12**, none of them motoko's — the two sets are
+**disjoint**, because the missions are deliberately separate checkouts (the Repo Profile says so).
+So a PR whose `headRefName` has a worktree in your list is *definitely yours*.
+**Rules. (a)** Treat `--author` as necessary and never sufficient; attribute every hit before
+acting. **(b)** Cross-reference `headRefName` against `git worktree list` in your own checkout —
+a hit is proof of ownership. **(c)** A *miss* is NOT proof it is a sibling's (worktrees get
+pruned, and a merged branch's may be gone), so fall back to a second reading — a `MISSION_NAME`
+token in the branch, your own iteration numbering, or your charter — and where none resolves,
+**leave it alone and say so in the report**: the safe default is that an unattributable PR is not
+yours. **(d)** Never rebase, force-push, comment on or merge a PR you have not attributed to this
+mission; if it looks like it needs attention, hand it over on the cross-mission channel exactly as
+Gate 1 requires for a red you do not own. Mission-independent wherever two missions share a
+`MISSION_REPO` and a push identity, which on this rig is V1 and motoko by design. The tell: you
+are reading a PR list you filtered by author, and the word "own" in the rule is doing work the
+filter cannot.
+
 **AND THE ITEM'S DECLARED BLOCKERS ARE CLAIMS TOO — RE-VERIFY THE BLOCKER, NOT JUST THE ITEM,
 AND CHECK WHETHER ITS *PURPOSE* WAS SOLVED UPSTREAM RATHER THAN WHETHER IT IS STILL OPEN** (added
 2026-08-05 iteration 145; second instance of the solved-upstream class after the 2026-08-04
