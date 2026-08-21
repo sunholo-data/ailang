@@ -14735,3 +14735,97 @@ The strongest ungated pick is **`m-stdlib-reverse-delegates-to-builtin`**: it is
 than optional under cons cells, and this iteration's `++` finding is precisely its defect, now
 documented and therefore easy to regression-guard. `m-commit-autoclose-guard` is queued from the
 retro as the durable half of this iteration's finding.
+
+## 241 — 2026-08-21 — Iteration 241: the loop's own records can close issues they never fixed, and the guard for that shipped with two of its own refusal branches unguarded
+
+**Pick.** `m-commit-autoclose-guard` — and the pick is itself a finding. The charter's queue
+position (line 2317) and iteration 240's prose **Next** (`m-stdlib-reverse`, line 2333)
+**disagreed**. Top-of-queue wins: iteration 240 wrote both rows in one breath, and its Next
+sentence was choosing among the cons-cells programme's *ungated* rows, not the whole queue.
+`m-stdlib-reverse-delegates-to-builtin` remains the head for 242. Rows 2072 (a ruling-order
+meta-block) and 2099 (a batched sweep, which never outranks by itself) are not pickable ahead of it.
+
+**Outcome: LANDED.** PR [#812](https://github.com/sunholo-data/ailang/pull/812) → squash
+[`ab7b71ffa`](https://github.com/sunholo-data/ailang/commit/ab7b71ffa), two commits
+(`5f090ea45`, `ac833780f`). Evaluator sonnet **83/100 PASS**.
+
+**The discriminator was measured before any code was written, which is why the gate has zero false
+positives.** Full-corpus scan, record-separated over `%H%x1f%s%n%b\x1e` rather than a line split
+(the shell loop timed out at 2 min on this repo's very large commit bodies — python instead):
+**1,913** commits since 2026-06-01, **24** carrying a closing keyword. Classified by "touches any
+non-docs path": **19 ship code** — all legitimate `fix(...)`/`feat(...)`/`test(ci)` — and **5 are
+docs-only**, the hazard class. Iteration 240's "4 hits" was scoped to `docs(mission)` commits only.
+The delivered gate reproduces the split exactly: **5 red / 19 pass, 0 mismatches**, re-verified
+after every subsequent edit. A docs-only record cannot legitimately fix a code issue, so the rule
+is machine-decidable without guessing at "ships code *for that issue*".
+
+**The sweep — the row's second deliverable — is CLOSED.** Beyond `#676`/`#612` (already reopened by
+iteration 240), the other three docs-only keyword commits and three docs-shaped PRs are **all
+benign in outcome**: `b195b7b02`→`#598` and `7c0d91c4c`→`#327` only because the issue was *already
+closed* when they landed (ordering luck, not a guard); `3055efda1`→`#1,#2` because those were
+*enumerated review objections* ("the first fix", "the second fix") that happen to collide with old
+merged PRs; `#774`→`#97` cross-repo, `#766`→`#727` and `#600`→`#583` both genuinely done by then.
+**No further closed-but-undone issues exist.** That two of the six were saved only by ordering is
+the argument for a gate rather than a habit.
+
+**The evaluator earned its keep, and both BLOCKING findings were reproduced first-party before
+acting.** The text-file-exists and unknown-argument guards **existed and fired correctly** (rc=2,
+correct messages). But **no fixture killed them**: neutering either left the self-test fully green,
+and a missing text file passed **rc=0 CLEAN**. In CI that file is written by `jq` from the event
+payload, so a silent pass there is this sprint's own vacuous-pass class living inside its own
+deliverable — rule 3j exactly, *a guard is not a gate until something reds when you remove it*.
+Fixtures **10 → 16**; all three previously-surviving mutants now red. **Two of the three are caught
+by the message FRAGMENT, not the exit code** (`rc=2 came from the wrong path`), because rc=2 is
+over-subscribed across four refusal branches — a bare rc assertion would have missed both. That the
+executor had already built `expect_rc` to assert a fragment is what made the fix possible at all.
+
+**Two further defects found and fixed.** (1) **Merge commits were invisible**: `git diff-tree
+--root` without `-m` reports **zero** files for a 2-parent merge, so a merge whose message carried
+a closing keyword would read as shipping no code and be refused. Measured: **60** merge commits on
+`origin/dev`; as-written saw **0** files where `-m` saw **5**; non-merge (7=7) and root (3=3)
+unchanged. Pinned by a new MERGECOMMIT arm that kills the mutant. (2) An **existing-but-empty**
+changed-file list was an instrument failure; it is a *ships-no-code* record and must be scanned —
+an empty-diff PR whose body closed an issue previously escaped behind an rc=2 that read like a
+broken instrument. A **missing** list stays rc=2; that distinction is the point.
+
+**Two instrument failures, both mine, both caught by controls rather than by luck.** `for s in
+$ALL` under zsh does **not** word-split, so the 24-commit regression iterated **once** over the
+whole string and reported rc=2 for everything; fixed with an array plus a `${#ALL[@]}` control.
+And a mutation reported as "survived" was **NOT LANDED** — my pattern said `record_error` where the
+code says `usage_error` — so the sha256 LANDED assertion is the only reason a non-existent hole was
+not banked as a real one. Also: the first `cmp` of the running skill compared the **pin worktree's**
+copy, not what `~/.claude/skills/mission-control` resolves to (different inodes); re-measured
+correctly, byte-identical to `origin/dev`. And the first CI step-verification filter matched
+`autoclose` while the step is named `auto-closure`, so only the self-test was proven until it was
+widened.
+
+**Ruled out.**
+- That the running skill differed from `origin/dev` — it does not; the first `cmp` was aimed at the
+  wrong file.
+- That iteration 240's prose "Next" outranks queue position — it does not.
+- That **mission-world's Gate-4 rotation-control claim** generalises — **REFUTED first-party**.
+  World proposed that Gate 4's prescribed archive control `ITERATION <moved-1>` "reads 0 exactly
+  when the rotation is correct". V1's archive reads `ITERATION 237` = **1** (this iteration moved
+  238), so the prescribed control **does** fire here; and World's own numbers (`99 → 2`) support
+  the rule rather than refuting it. Their "moved" appears to denote the newly-**added** stamp
+  rather than the one rotated **out**. **No skill edit taken** — the sibling-claim ghost discipline
+  working as designed, and the ≥2-friction bar is not met by a misreading.
+- That the corpus split was 20/5 — the changelog said so; **19**/5 is right (19+5=24), caught by
+  the judge and corrected.
+- That file contents are a hazard — they are not: the charter already carries `fixes #676` **twice**
+  while `#676` is OPEN, verified live. Only commit messages, PR titles and PR bodies are parsed.
+
+**Routing evidence.** controller `claude-opus-5` (session) · executor **`codex:gpt-5.6-sol`**
+(probe rc=0, one bounded 30-min run, rc=0, 8 files, no fallback link traversed) · evaluator
+**`sonnet`** in its OWN worktree per iteration 199 · designer **not run** (row explicitly scoped
+"no design doc needed beyond an AC list"), so the rotation pointer was **not** advanced · no quorum
+(same reason). generator≠judge held (codex vs Anthropic). `metered = $0.00` of $5 — all three lanes
+are quota buckets. No GPU, no `rig.lock`.
+
+**Gate 3b.** GREEN twice, SHA-addressed on the **full 40-char** head: `5f090ea45` 21 checks / 0
+not-green, then `ac833780f` 21 checks / 0 not-green; 4/4 required contexts; `MERGEABLE/CLEAN`. Both
+new steps confirmed to have RUN in the `test` job. Post-merge, `#676` and `#612` were **asserted
+still OPEN** — a PR discussing both at length closed neither.
+
+**Next.** `m-stdlib-reverse-delegates-to-builtin` — ungated by `D-22`, and iteration 240's `++`
+finding is precisely its defect. `D-22` remains the only OPEN ledger row and is re-asked unchanged.
