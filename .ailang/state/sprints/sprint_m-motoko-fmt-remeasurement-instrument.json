@@ -211,11 +211,11 @@
           "observable": "each logged invocation's --benchmarks argument has 6 comma-separated names instead of 1"
         }
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": " Not started at iteration 14 \u2014 named resume point, not dropped.",
-      "status": "not_started"
+      "passes": true,
+      "started": "2026-08-21",
+      "completed": "2026-08-21",
+      "notes": "Iteration 16 D1b: production driver emits the six-benchmark counterbalanced sequence as 12 single-benchmark calls; shell artifact is consumed by CheckFmtOrderIntegrity in Go.",
+      "status": "completed"
     },
     {
       "id": "M4_D2_CENSORED_PAIR_ANALYZER",

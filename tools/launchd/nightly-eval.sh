@@ -45,6 +45,38 @@ DATE=$(date +%Y-%m-%d)
 
 log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG"; }
 
+# BEGIN FMT_AB_TESTABLE_FUNCTIONS
+run_fmt_ab_measurements() {
+    local benchmark i arm m
+    local -a FMT_BENCHES arms
+    IFS=',' read -ra FMT_BENCHES <<< "$FMT_BENCH_LIST"
+    for ((i = 0; i < ${#FMT_BENCHES[@]}; i++)); do
+        benchmark="${FMT_BENCHES[i]}"
+        if ((i % 2 == 0)); then
+            arms=(on off)
+        else
+            arms=(off on)
+        fi
+        for arm in "${arms[@]}"; do
+            case "$arm" in
+                on)  m="motoko-local-qwen3-6-fmt" ;;
+                off) m="motoko-local-qwen3-6-35b-a3b-mxfp8" ;;
+            esac
+            log "  benchmark=${benchmark} fmt=${arm} model=${m}"
+            "$BIN" eval-suite --agent \
+                --models "$m" \
+                --benchmarks "$benchmark" \
+                --langs ailang \
+                --output "${RESULTS_DIR}_fmt_${arm}" \
+                --parallel 1 \
+                --trials "$FMT_TRIALS" \
+                --max-tokens-per-bench "$MAX_TOKENS_PER_BENCH" >> "$LOG" 2>&1 || \
+                log "  benchmark=${benchmark} fmt=${arm} eval-suite exited non-zero (see $LOG)"
+        done
+    done
+}
+# END FMT_AB_TESTABLE_FUNCTIONS
+
 # Shared rig mutex (M-EVAL-OS-CONTINUOUS-ROTATION): the nightly is the priority
 # job — wait for any in-flight rig work, then hold the lock for the whole run so
 # the background os-rotation-filler never overlaps it.
@@ -489,22 +521,7 @@ fi  # end microRAG A/B
         FMT_TRIALS="${AILANG_AB_FMT_TRIALS:-5}"
         log "Wednesday A/B: motoko fmt extension (on vs off) — ELO-selected set, N=${FMT_TRIALS}"
         log "  benchmarks: ${FMT_BENCH_LIST}"
-        for arm in on off; do
-            case "$arm" in
-                on)  m="motoko-local-qwen3-6-fmt" ;;
-                off) m="motoko-local-qwen3-6-35b-a3b-mxfp8" ;;
-            esac
-            log "  fmt=${arm} model=${m}"
-            "$BIN" eval-suite --agent \
-                --models "$m" \
-                --benchmarks "$FMT_BENCH_LIST" \
-                --langs ailang \
-                --output "${RESULTS_DIR}_fmt_${arm}" \
-                --parallel 1 \
-                --trials "$FMT_TRIALS" \
-                --max-tokens-per-bench "$MAX_TOKENS_PER_BENCH" >> "$LOG" 2>&1 || \
-                log "  fmt=${arm} eval-suite exited non-zero (see $LOG)"
-        done
+        run_fmt_ab_measurements
 
         # Paired analysis for the fmt arm too. Banking aggregates only would
         # leave THIS experiment — the one the pairing work was motivated by —
