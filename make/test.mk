@@ -257,6 +257,13 @@ test-parity: build ## Test REPL/file parity for imports (interactive)
 # decoration: a guard is not a gate until something reds when you remove it.
 # Both loops carry an EXACT COUNT PIN — adding, removing, renaming, or moving a test must be a
 # deliberate, reviewable change rather than silently shrinking or growing the gate.
+# Enumeration is `find -L` (symlinks FOLLOWED, so a symlinked fixture is a real fixture: with a
+# bare `-type f` a committed symlink is type `l`, invisible to both the run and the count, and a
+# suite that cannot pass sat one directory down at rc=0). A DANGLING symlink is still type `l`
+# under -L, so it is rejected explicitly rather than silently skipped. The file list is read from
+# a temp file, not word-split from `$(...)`, so a path containing a space stays one path.
+# Known residual, declared rather than assumed: name matching is case-SENSITIVE, so `*_TEST.ail`
+# and `*.EXPECTED` are still invisible, and a real suite not ending `_test.ail` is not enumerated.
 # The .expected files are captured from the product's OWN stdout and diffed against a verbatim
 # re-run, rather than reconstructed by the gate — a reconstruction verifies our arithmetic, not
 # the artifact.
@@ -265,21 +272,33 @@ STDLIB_AIL_FIXTURES_EXPECTED := 4
 
 test-stdlib-ail: build ## Run the .ail test suites + run-fixtures under tests/stdlib/
 	@echo "Running stdlib .ail test suites..."
-	@suites=0; suite_files=`find tests/stdlib -type f -name '*_test.ail' | sort`; \
-	for f in $$suite_files; do \
+	@test -d tests/stdlib || { echo "instrument failure: tests/stdlib does not exist"; exit 1; }; \
+	find -L tests/stdlib -type l -name '*_test.ail' > /tmp/ailang_stdlib_dangling.$$$$; \
+	if [ -s /tmp/ailang_stdlib_dangling.$$$$ ]; then \
+	  echo "instrument failure: broken symlink(s) matching *_test.ail — a suite that cannot be read is not a suite:"; \
+	  sed 's/^/  /' /tmp/ailang_stdlib_dangling.$$$$; rm -f /tmp/ailang_stdlib_dangling.$$$$; exit 1; \
+	fi; rm -f /tmp/ailang_stdlib_dangling.$$$$; \
+	suites=0; find -L tests/stdlib -type f -name '*_test.ail' | sort > /tmp/ailang_stdlib_suites.$$$$; \
+	while IFS= read -r f; do \
 	  suites=$$((suites+1)); \
 	  echo "  test: $$f"; \
 	  ./bin/ailang test --no-color "$$f" > /tmp/ailang_stdlib_test.$$$$ 2>&1 || \
 	    { echo "FAIL: $$f"; cat /tmp/ailang_stdlib_test.$$$$; rm -f /tmp/ailang_stdlib_test.$$$$; exit 1; }; \
 	  rm -f /tmp/ailang_stdlib_test.$$$$; \
-	done; \
+	done < /tmp/ailang_stdlib_suites.$$$$; \
 	[ "$$suites" -eq "$(STDLIB_AIL_SUITES_EXPECTED)" ] || \
 	  { echo "instrument failure: expected $(STDLIB_AIL_SUITES_EXPECTED) stdlib .ail test suite(s), actual $$suites"; \
-	    echo "actual files:"; printf '  %s\n' $$suite_files; \
+	    echo "actual files:"; sed 's/^/  /' /tmp/ailang_stdlib_suites.$$$$; rm -f /tmp/ailang_stdlib_suites.$$$$; \
 	    echo "If this change was intentional, update STDLIB_AIL_SUITES_EXPECTED in make/test.mk."; exit 1; }; \
+	rm -f /tmp/ailang_stdlib_suites.$$$$; \
 	echo "  $$suites .ail test suite(s) passed"
-	@fixtures=0; fixture_files=`find tests/stdlib -type f -name '*.expected' | sort`; \
-	for e in $$fixture_files; do \
+	@find -L tests/stdlib -type l -name '*.expected' > /tmp/ailang_stdlib_dangling.$$$$; \
+	if [ -s /tmp/ailang_stdlib_dangling.$$$$ ]; then \
+	  echo "instrument failure: broken symlink(s) matching *.expected:"; \
+	  sed 's/^/  /' /tmp/ailang_stdlib_dangling.$$$$; rm -f /tmp/ailang_stdlib_dangling.$$$$; exit 1; \
+	fi; rm -f /tmp/ailang_stdlib_dangling.$$$$; \
+	fixtures=0; find -L tests/stdlib -type f -name '*.expected' | sort > /tmp/ailang_stdlib_fixtures.$$$$; \
+	while IFS= read -r e; do \
 	  f=`echo "$$e" | sed 's/\.expected$$/.ail/'`; \
 	  [ -e "$$f" ] || { echo "instrument failure: $$e has no matching $$f"; exit 1; }; \
 	  fixtures=$$((fixtures+1)); \
@@ -291,10 +310,11 @@ test-stdlib-ail: build ## Run the .ail test suites + run-fixtures under tests/st
 	      rm -f /tmp/ailang_stdlib_run.$$$$ /tmp/ailang_stdlib_err.$$$$; exit 1; }; \
 	  rm -f /tmp/ailang_stdlib_err.$$$$; \
 	  rm -f /tmp/ailang_stdlib_run.$$$$; \
-	done; \
+	done < /tmp/ailang_stdlib_fixtures.$$$$; \
 	[ "$$fixtures" -eq "$(STDLIB_AIL_FIXTURES_EXPECTED)" ] || \
 	  { echo "instrument failure: expected $(STDLIB_AIL_FIXTURES_EXPECTED) stdlib run-fixture(s), actual $$fixtures"; \
-	    echo "actual files:"; printf '  %s\n' $$fixture_files; \
+	    echo "actual files:"; sed 's/^/  /' /tmp/ailang_stdlib_fixtures.$$$$; rm -f /tmp/ailang_stdlib_fixtures.$$$$; \
 	    echo "If this change was intentional, update STDLIB_AIL_FIXTURES_EXPECTED in make/test.mk."; exit 1; }; \
+	rm -f /tmp/ailang_stdlib_fixtures.$$$$; \
 	echo "  $$fixtures run-fixture(s) matched expected stdout"
 	@echo "$(GREEN)✓ stdlib .ail suites and run-fixtures pass$(NC)"
