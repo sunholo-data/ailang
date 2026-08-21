@@ -1,0 +1,48 @@
+module tests/stdlib/list_reverse_test
+import std/list (reverse)
+
+pure func intsEqual(xs: [int], ys: [int]) -> bool = match xs {
+  [] => match ys {
+    [] => true,
+    _ => false
+  },
+  [x, ...xr] => match ys {
+    [] => false,
+    [y, ...yr] => x == y && intsEqual(xr, yr)
+  }
+}
+
+pure func stringsEqual(xs: [string], ys: [string]) -> bool = match xs {
+  [] => match ys {
+    [] => true,
+    _ => false
+  },
+  [x, ...xr] => match ys {
+    [] => false,
+    [y, ...yr] => x == y && stringsEqual(xr, yr)
+  }
+}
+
+test "reverse empty" {
+  assert intsEqual(reverse([]), [])
+}
+
+test "reverse singleton" {
+  assert intsEqual(reverse([42]), [42])
+}
+
+test "reverse five integers" {
+  assert intsEqual(reverse([1, 2, 3, 4, 5]), [5, 4, 3, 2, 1])
+}
+
+test "reverse strings" {
+  assert stringsEqual(reverse(["alpha", "beta", "gamma"]), ["gamma", "beta", "alpha"])
+}
+
+test "reverse preserves duplicates" {
+  assert intsEqual(reverse([1, 2, 2, 3, 1]), [1, 3, 2, 2, 1])
+}
+
+test "reverse is an involution" {
+  assert intsEqual(reverse(reverse([9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2])), [9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2])
+}
