@@ -49,7 +49,25 @@ improvement loop, since retro fixes must benefit all missions). What differs per
 > drift is one-way and unbounded: every sprint lands from a worktree, so every Gate-5 edit made
 > that way widens the gap — silently, while this very note promises the opposite. At Gate 1, after
 > the origin fetch, **diff the RUNNING skill against origin**:
-> `git show origin/dev:.claude/skills/mission-control/SKILL.md | cmp -s - .claude/skills/mission-control/SKILL.md`
+> `git show origin/dev:.claude/skills/mission-control/SKILL.md | cmp -s - "$(readlink -f ~/.claude/skills/mission-control)/SKILL.md"`
+> **— and the second path MUST be the RESOLVED symlink target, never the relative
+> `.claude/skills/...`, because the loop does not run from the checkout the symlink points at**
+> (added 2026-08-21 V1 iteration 241; instance 1 is iteration 240, which caught it by hand and
+> recorded the correction in its STATUS stamp without fixing the prescription, instance 2 is this
+> iteration, which ran the command as written and got a green from the wrong file). The relative
+> path resolves against the CWD — and the V1 driver executes from a **pinned worktree**
+> (`~/.ailang-driver-pin/v1`), whose own `.claude/skills/mission-control/SKILL.md` is a DIFFERENT
+> FILE from the one `~/.claude/skills/mission-control` resolves to. Measured: inodes `45326796`
+> (pin worktree) vs `45241676` (main checkout). So the check silently compares origin against a
+> copy nothing executes, and — this is what makes it worse than useless — it reads GREEN in
+> exactly the situation the whole rule exists to detect, because the pin worktree is checked out
+> at `origin/dev` **by construction** while the main checkout is the one that drifts. A stale
+> running skill is therefore *guaranteed* to pass the prescribed form. Rule 3a's trap aimed at
+> this gate's own instrument: pair it with `readlink` and assert the two paths are the same file
+> before trusting either answer. Mission-independent — any mission whose driver runs from a
+> worktree, a pinned checkout, or any CWD other than the symlink's target has the same hole, and
+> the generalisation is this file's own recurring shape: **a relative path is a claim about where
+> you are standing, not about which file runs.**
 > — if it DIFFERS, read the delta (`git diff origin/dev -- <skill>`) BEFORE proceeding and say so
 > in the report, because the rules you are about to follow are not the rules the mission agreed on.
 > Prefer saving Gate-5 edits in the MAIN checkout when that tree is clean enough to commit from;
