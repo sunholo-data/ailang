@@ -142,6 +142,10 @@ check-boundaries: ## Check architecture layer boundaries (CI gate)
 check-changelog: ## Check root CHANGELOG.md stays an index, not a changelog (CI gate)
 	@bash scripts/check_changelog.sh
 
+AUTOCLOSE_ARGS ?= --commits origin/dev..HEAD
+check-autoclose: ## Refuse issue-closing phrases in docs-only commit/PR records (CI gate)
+	@bash scripts/check_autoclose.sh $(AUTOCLOSE_ARGS)
+
 check-skills: ## Check .claude/skills/*/SKILL.md have name+description frontmatter (CI gate)
 	@bash scripts/check_skills.sh
 
