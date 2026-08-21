@@ -15313,6 +15313,22 @@ is its opinion of severity, not a measurement.
 - *"3 of 4 required contexts passing is green"* — a **fourth** required context (`build`) appeared only
   after `test` passed. Declaring at 3/4 would have been the incomplete-check-set trap.
 
+**Friction 3 — `gh api .../comments --jq 'last'` returns the last of PAGE ONE, and I used it to edit
+a comment.** Gate 5's digest came out at **2,707 chars** against Mark's **1,500** cap, so I trimmed and
+PATCHed it. The id came from `gh api repos/.../issues/745/comments --jq '[.[]]|last|.id'`. That
+endpoint paginates at 30, and page 1 is the **OLDEST** 30 — so `last` is the 30th-oldest comment, not
+the newest. On a 52-comment thread it returned `5342088545`, iteration **229's** digest from
+2026-08-19, and I overwrote it with iteration 245's. Caught only because the PATCH echoed an id that
+did not match the one the `gh issue comment` call had just printed. Recovered in full from GraphQL
+`userContentEdits` (REST does not expose comment edit history; GraphQL does, and the original body is
+the *earliest* edit node), restored byte-for-byte, then the trim was re-applied to the correct id.
+Comment count 51 → 52 throughout, so there is no net damage. Two lessons, and the second is the
+durable one: **(a)** never address a mutation by an ordinal into a paginated list — `--paginate`, or
+better, use the id the creating call returned, which I had on screen; **(b)** an *edit* is a
+destructive write with no confirmation step, so it deserves the same "assert the artifact, not the
+exit code" discipline Gate 0 already demands of `gh issue close --comment`. Filed as instance 1;
+no skill edit this iteration, that budget is spent on the base-red gate rule.
+
 **Routing evidence.** controller opus (session) · executor `codex:gpt-5.6-sol` (two bounded runs, the
 second resuming after its correct refusal) · evaluator `sonnet` in its own worktree — distinct provider
 from the codex executor, so generator≠judge holds. No designer (no new doc: the pick's shape was
