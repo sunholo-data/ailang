@@ -15231,3 +15231,102 @@ as its second instance.
 **Next.** `m-stdlib-list-delegation-sweep`. Both of its prerequisites are now discharged: iteration
 243 made its test shape runnable, and this iteration made the gate that will protect its ~13 fixtures
 able to see them.
+
+## 245 — 2026-08-21 — Iteration 245: the queue row said thirteen builtins were ready to delegate, and eleven of them have no interpreter to delegate to
+
+**Pick.** `m-stdlib-list-delegation-sweep`, iteration 244's declared Next, both prerequisites
+discharged (243 made its test shape runnable; 244 made the gate protecting its fixtures able to see
+them). Queue head by position and by argument.
+
+**What the row claimed, and what was true.** The row scoped **13 delegation candidates, ~2–3 days**,
+and described itself as "enumerated rather than exploratory" — the exemption table had already
+classified all 18 non-delegated `_list_*` builtins. Verifying that classification at Gate 2, before
+any routing, refuted it: **only 2 of the 13 can be delegated at all.**
+
+The gate enumerates from the union of two registries, and those registries describe **different
+execution paths** — a distinction the exemption table never made. `AllNames()` is the interpreter's
+spec registry (**18** `_list_*` names); `GetBuiltinNames()` is codegen metadata (**26**); the union is
+**31**. Only `_list_take` and `_list_drop` are in the runtime one. The other eleven — `any`, `zip`,
+`foldr`, `findIndex`, `flatMap`, `sortBy`, and the five `*E` variants — are **codegen-only**: they
+exist to be emitted into generated Go, and the interpreter has no implementation. Delegating any of
+them would not make `std/list` faster; it would break it.
+
+Three-arm discriminating probe, fresh binary, `ailang run --caps IO`: `_list_drop(1,[1,2,3])` → rc=0
+`[2, 3]`; `_list_reverse([1,2,3])` (control, already delegated) → rc=0 `[3, 2, 1]`;
+`_list_zip([1,2],[3,4])` → **rc=1, `type error … undefined variable: _list_zip`**.
+
+So the blocker was never "the `std/list` form is recursive". It is a missing interpreter
+implementation — materially larger, differently shaped work, and the estimate that assumed otherwise
+would have sent a sprint at eleven delegations that cannot be written.
+
+**Shipped.** `std/list.drop` delegates to `_list_drop`. The recursive form recursed `n` deep, so
+`drop(12000, <16384-element list>)` died `RT_REC_003: max recursion depth 10000 exceeded`; the builtin
+is a slice copy with O(1) stack. Equivalence verified at `n<0, 0, 1, len-1, len, >len` and empty.
+Pinned by a new `.ail` fixture under the required `make test-stdlib-ail` asserting
+`length(drop(12000, big)) == 4384` — the exact program that failed. `STDLIB_AIL_SUITES_EXPECTED` moved
+**3 → 4**, because iteration 244 made that count an equality rather than a floor, and it correctly
+forced the move. And the classification is now **machine-checked**: each exemption carries a category
+(`DelegableNow`/`NoRuntimeImpl`/`NotNeeded`) plus a runtime-backed flag, asserted against `AllNames()`,
+so a wrong classification reds instead of reading as documentation — which is how the previous one
+stayed wrong.
+
+**Mutations.** Four, each asserted LANDED (sha256) and BUILDS before any test result was read, each a
+**sole killer** (the package suite with the gate `-skip`'d is rc=0): misclassify `_list_zip` as
+`DelegableNow` → reds naming it; register a new codegen-only builtin → count **31 → 32** and reds
+naming it; revert the `drop` delegation → reds naming `_list_drop`; leave `_list_drop` exempted after
+delegating → reds `stale exemption`. A removal proves the check FIRES; only the addition proves it
+LOOKS.
+
+**Friction 1 — I shipped a gate this skill already told me is red at base, and the executor refused
+it.** My directive listed `go build ./...` as the mutant-buildability assertion. Rule 3e(a) exists
+because iteration 145's executor found that exact command fails on untouched `dev`, and the charter
+records it. I wrote it anyway. The executor stopped mid-sprint rather than assert a mutant built,
+saying so plainly. Verified first-party: `./...` rc=1 (`cmd/wasm`, `gen/main` have no native `main`),
+`./cmd/ailang` rc=0, `./internal/builtins/...` rc=0 — arms differ, so the red is the repo's, not any
+diff's. Corrected the criterion, not the code. **The generalisable half is not "read rule 3e" — it is
+that an executor refusing a gate is the loop working**, and the refusal was worth more than compliance
+would have been. Recorded per rule 3h(d): a self-reported deviation is better evidence than a silent
+one, and the plan is what needed fixing.
+
+**Friction 2 — the evaluator was right and my record was wrong, in exactly the way this sprint exists
+to fix.** Sonnet, 93/100 PASS, zero blocking, in its own worktree per rule 199. Its non-blocking #1:
+`std/list.take` still fails `RT_REC_003` identically — the same `[x] ++ take(n-1, rest)` shape `drop`
+had — while my exemption reason mentioned only the stderr note, framing the deferral as a
+speed tradeoff rather than as a live crash. I had measured that crash **myself, at Gate 2, before
+routing**, and then written a reason that omitted it. That is an exemption row naming the wrong
+blocker — the precise defect the whole sprint exists to correct, committed inside the correction.
+Fixed in `c5240067e` before merge rather than deferred, per the rule that a judge's NON-BLOCKING label
+is its opinion of severity, not a measurement.
+
+**Ruled out.**
+- *"The row is enumerated, so it is safe to route as scoped"* — refuted before routing; 11 of 13 are
+  undeliverable. A classification written by an earlier iteration is a claim.
+- *"Both arms failed, so the probe is uninformative"* — my first two-arm run returned **rc=1 / rc=1**.
+  The causes differed entirely (one arm merely lacked `--caps IO`). Reading the output rather than the
+  exit code is the only reason the finding survived; this is the false-symmetry trap rule 3e(iii)/236
+  names, met live.
+- *"`pgrep` tells you whether the work is still running"* — `pgrep -f "worktree add"` matched the
+  shell snapshot's own environment block, a textbook rule-235 false positive. Polled the artifact.
+- *"The executor's reformatting is harmless"* — it rewrote the whole of `std/list.ail` (type-signature
+  and semicolon churn unrelated to `drop`). Ungated: `fmt-check-ail` is opt-in and not in CI.
+  Reverted; the file is now base + the delegation, **2 insertions / 7 deletions**.
+- *"3 of 4 required contexts passing is green"* — a **fourth** required context (`build`) appeared only
+  after `test` passed. Declaring at 3/4 would have been the incomplete-check-set trap.
+
+**Routing evidence.** controller opus (session) · executor `codex:gpt-5.6-sol` (two bounded runs, the
+second resuming after its correct refusal) · evaluator `sonnet` in its own worktree — distinct provider
+from the codex executor, so generator≠judge holds. No designer (no new doc: the pick's shape was
+determined by measurement, and the two new rows are queue entries, not designs). No quorum, no GPU.
+metered **$0.00** of $5.
+
+**Outcome.** PR [#817](https://github.com/sunholo-data/ailang/pull/817) → squash
+[`d8f07c9e5`](https://github.com/sunholo-data/ailang/commit/d8f07c9e5), **21 checks / zero not-green,
+4/4 required**. Autoclose scan run on all commit messages and the PR title+body with a firing
+known-bad control; `#676`, `#612`, `#662`, `#503` all asserted still OPEN after the merge.
+
+**Next.** `m-stdlib-take-recursion` or `m-list-builtins-codegen-only`, both filed this iteration. The
+second is the more interesting: eleven `std/list` functions have **two implementations** — a recursive
+AILANG one the interpreter runs and a Go codegen helper compiled programs run — and **no gate that
+they agree**. That is a soundness question, and the cheap differential (same input, `run` vs compiled,
+byte-equal stdout) should run BEFORE anyone writes eleven interpreter implementations, because it may
+turn the row into a bug list instead.

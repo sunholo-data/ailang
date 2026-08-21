@@ -1,49 +1,35 @@
 # Mission Dashboard — V1
 
-*Snapshot, overwritten every iteration. History lives in `v1-mission.md` (STATUS) and `v1-mission-log.md`.*
+*Snapshot, overwritten each iteration. History lives in `v1-mission.md` STATUS + `v1-mission-log.md`.*
 
-**Last updated:** 2026-08-21 16:05 CEST — iteration 244
+**Last updated:** 2026-08-21 (iteration 245) · **Release:** v0.33.1 · **dev:** `d8f07c9e5` green (21 checks, 0 not-green)
 
-## Latest
+## In flight
+- **Just landed (245):** `m-stdlib-list-delegation-sweep` — PARTIAL. PR #817 → `d8f07c9e5`, evaluator 93/100.
+  `std/list.drop` delegates (was crashing `RT_REC_003` on large `n`); the exemption table's
+  classification is now machine-checked against the live runtime registry instead of prose.
+- **The finding:** the row scoped **13** delegation candidates; **only 2** are delegable. Eleven are
+  codegen-only — no interpreter implementation — so delegating them would break `std/list`, not speed it.
 
-- **Release:** v0.33.1 · `origin/dev` at `3a484e626` (skill edit)
-- **Iteration 244 — `m-stdlib-ail-suite-enumerator-blind`.** PR
-  [#816](https://github.com/sunholo-data/ailang/pull/816), two commits
-  (`4b73ce52a` + `77e1eabe8`). Evaluator sonnet **85/100 PASS**, one BLOCKING —
-  reproduced first-party and fixed in round 2.
-- **What it was:** `make test-stdlib-ail` is a **required** CI gate (`ci.yml:127`). Both of its
-  loops enumerated with a non-recursive glob and floored at `-ge 1` instead of an exact count. A
-  suite one directory down was invisible — *including one that cannot pass*: a nested
-  `assert 1 == 2` left the gate at **rc=0, "3 .ail test suite(s) passed"**.
-- **What the judge added:** `find -type f` excludes symlinks, so a **committed symlinked** fixture
-  was invisible too **and both counts still agreed with the pins** — the same failure shape the
-  sprint existed to close. Now `find -L`, with dangling symlinks rejected explicitly.
-- **11 mutants** now red where most were green; the failing nested *and* symlinked suites red
-  because they **actually run**, not because a count moved.
+## Next picks
+1. `m-stdlib-take-recursion` — `take` still fails `RT_REC_003` identically; delegating would make a
+   `pure` function write to stderr. Four options, needs a call.
+2. `m-list-builtins-codegen-only` — eleven builtins with two implementations (recursive AILANG +
+   Go codegen helper) and **no gate that they agree**. Run the differential BEFORE writing impls.
+3. `m-mission-log-entry-numbering` (bookkeeping) · `m-ui-dependency-tree-unbuildable` (40 days red)
 
-## In flight / next
+## Blocked
+- `m-wasm-deterministic-typecheck-budget` — on `#662` gaining reporter step-count data.
+  Predicate re-read 2026-08-21: still 1 comment (ours). Not a date, a predicate.
+- `m-eval-tail-calls` — on `D-19`.
 
-1. **[NEXT] `m-stdlib-list-delegation-sweep`** — 13 delegation candidates among the 18 zero-caller
-   `_list_*` builtins, each needing its own semantic-equivalence check. ~2–3d, splittable. Both of
-   its prerequisites are now discharged: iteration 243 made its test shape runnable, and 244 made
-   the gate that will protect its ~13 fixtures able to see them.
-2. **[BLOCKED on `D-22`]** LC-2…LC-5 cons-cells programme.
-3. **[NEXT] `m-ui-dependency-tree-unbuildable`**, then the accessibility cluster.
-
-## Loop / routing
-
-- Cadence: launchd `dev.ailang.mission-control`, pinned worktree `~/.ailang-driver-pin/v1`.
-- Controller `opus` · designer **none** (no new doc needed; rotation pointer unmoved at
-  `codex:gpt-5.6-sol`) · planner **none** (controller wrote the ACs) · executor `codex:gpt-5.6-sol`
-  · evaluator `sonnet`, in its own worktree.
+## Loop
+- Cadence: launchd, ~90 min · Controller opus · Designer ROTATION (next: `claude:claude-fable-5`)
+- Planner/Executor `codex:gpt-5.6-sol` · Evaluator `sonnet` (generator≠judge held)
+- Metered spend iteration 245: **$0.00** of $5 ceiling. No GPU, no quorum.
 
 ## Parked on Mark
-
-- **`D-22` (OPEN, re-asked unchanged since iteration 239)** — cons-cell representation for
-  LC-2…LC-5: **`C1`** (plain cons cells, what the 15.5–21.5d decomposition was scoped around) or
-  **`C2K32`** (chunked, K=32, which the doc's own tie-break selects on per-element memory). One word.
-
-## Quota / cost
-
-- `metered = $0.00` of $5 this iteration. codex, opus and sonnet are all quota buckets; no quorum,
-  no GPU, no `rig.lock`.
+- **`D-22`** (open since iteration 239, re-asked unchanged): do LC-2…LC-5 build for **`C1`**
+  (plain cons cells, what the 15.5–21.5d decomposition was scoped around) or **`C2K32`**
+  (chunked, K=32, which the doc's own tie-break selects on per-element memory)? One word.
+- Ledger: 22 rows, 1 OPEN.
