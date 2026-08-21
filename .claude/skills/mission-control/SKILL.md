@@ -1040,6 +1040,44 @@ the Repo Profile above):
    named scope is not a citation. The tell: you are about to write "there is no X in `<dir>`"
    and you have never confirmed that `<dir>` is a directory. Mission-independent: under
    `ailang-code` the same trap is a module path that does not resolve.
+   **(i-e) TO TEST AN *ENUMERATION*, ADD A MEMBER — EVERY MUTATION RULE IN THIS FILE IS
+   REMOVAL-SHAPED, AND REMOVAL CANNOT DETECT A LIST THAT IS SHORT** (added 2026-08-21 V1
+   iteration 242; instance 1 is iteration 170's weekly-sweep enumeration, instance 2 is this
+   iteration's builtin enumeration, and in BOTH the pattern was correct and the enumeration was
+   the hole). Clause (i) proves the instrument can see a positive; (i-d) proves it looks in the
+   right place. Neither asks the question an enumeration actually turns on — **is the list of
+   things being checked COMPLETE?** — and no control over an EXISTING member can answer it,
+   because an existing member is in the list by assumption. Rule 3d ("remove the mechanism and
+   require a red") and rule 3j ("a guard is not a gate until something reds when you remove it")
+   both point the same way, so a gate can pass every drill this file prescribes and still be blind
+   to the case it exists for: **a NEW thing that was never enumerated**.
+   Measured here. A CI gate required every registered `_list_*` builtin to be delegated from `std/`
+   or carry an explicit reason. It enumerated by AST-parsing `Name:` fields for string literals,
+   and its commit message claimed *"names are derived, never hardcoded, so a new builtin cannot
+   slip past"*. Five removal-direction mutants all red — revert the delegation, launder it behind a
+   comment, two stale-exemption shapes — and every one of them passed the rule as written. The
+   evaluator then **added** a builtin registered as `Name: someConstant`, an `*ast.Ident` rather
+   than a `*ast.BasicLit`: the mutant compiled, the gate stayed **GREEN** at an unchanged
+   "31 registered", and the new builtin needed neither a call site nor an exemption. Iteration
+   170's instance is the same shape one gate over — the sweep's per-issue grep was fine and the
+   *issue list* was short, so four orphaned issues were invisible while the known-tracked control
+   fired correctly; that rule's remedy (assert the list's length) is a count you must already know,
+   which is the very fact in dispute.
+   **Rules. (a)** For any check that iterates a derived set — registered builtins, open issues,
+   workflow files, exported symbols, config keys — run one mutant that **ADDS a member the
+   enumerator might not see**, chosen to differ from existing members in the way the enumerator is
+   most likely to key on (a constant instead of a literal, a different registration call, a file in
+   an unscanned directory, a differently-named object). Require the count to MOVE, not merely the
+   verdict to flip. **(b)** Prefer an enumeration that is complete BY CONSTRUCTION over one that is
+   complete by inspection: a live registry, `go list`, an API's own listing — the thing the system
+   itself uses. Here the fix was to read the two live registries instead of parsing source, and
+   note the trap inside the fix — **neither registry was complete alone** (18 and 26 names, union
+   31), so "use the live one" needed measuring too. **(c)** Where an enumerator must stay
+   source-derived, say in the record what shape it can miss, rather than claiming it cannot be
+   evaded. **(d)** Mission-independent, and it is this file's own *guard the helper, miss the call
+   site* shape aimed at the mutation rules themselves: **a removal proves the check FIRES; only an
+   addition proves it LOOKS.** The tell: your gate's evidence is a list of things that went red
+   when you deleted them, and you have never made it go red by creating something.
    **(ii) widen once before concluding** — drop the quoting, the anchors, the file filter, and the
    directory scope (a root `Makefile` includes; a workflow calls a make target; a caller lives in
    a file type your `--include` excluded); **(iii) prefer the tool that cannot miss** — `make -pn`
