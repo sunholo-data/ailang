@@ -267,7 +267,7 @@ test-parity: build ## Test REPL/file parity for imports (interactive)
 # The .expected files are captured from the product's OWN stdout and diffed against a verbatim
 # re-run, rather than reconstructed by the gate — a reconstruction verifies our arithmetic, not
 # the artifact.
-STDLIB_AIL_SUITES_EXPECTED := 3
+STDLIB_AIL_SUITES_EXPECTED := 4
 STDLIB_AIL_FIXTURES_EXPECTED := 4
 
 test-stdlib-ail: build ## Run the .ail test suites + run-fixtures under tests/stdlib/

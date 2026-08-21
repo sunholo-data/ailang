@@ -83,6 +83,38 @@ func TestListCons(t *testing.T) {
 	}
 }
 
+func TestListDropImplMatchesRecursiveSemantics(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+	xs := []eval.Value{testctx.MakeInt(1), testctx.MakeInt(2), testctx.MakeInt(3), testctx.MakeInt(4)}
+	tests := []struct {
+		name string
+		n    int
+		xs   []eval.Value
+		want []eval.Value
+	}{
+		{"negative", -1, xs, xs},
+		{"zero", 0, xs, xs},
+		{"one", 1, xs, xs[1:]},
+		{"len minus one", len(xs) - 1, xs, xs[len(xs)-1:]},
+		{"len", len(xs), xs, []eval.Value{}},
+		{"greater than len", len(xs) + 1, xs, []eval.Value{}},
+		{"empty negative", -1, []eval.Value{}, []eval.Value{}},
+		{"empty zero", 0, []eval.Value{}, []eval.Value{}},
+		{"empty positive", 1, []eval.Value{}, []eval.Value{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := listDropImpl(ctx.EffContext, []eval.Value{
+				testctx.MakeInt(tt.n),
+				&eval.ListValue{Elements: tt.xs},
+			})
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, testctx.GetList(got))
+		})
+	}
+}
+
 // TestListConsTypeMismatch tests error handling for wrong types
 func TestListConsTypeMismatch(t *testing.T) {
 	ctx := testctx.NewMockEffContext()

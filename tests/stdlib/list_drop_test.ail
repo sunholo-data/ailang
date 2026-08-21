@@ -1,0 +1,47 @@
+module tests/stdlib/list_drop_test
+import std/list (concat, drop, length)
+
+pure func intsEqual(xs: [int], ys: [int]) -> bool = match xs {
+  [] => match ys {
+    [] => true,
+    _ => false
+  },
+  [x, ...xr] => match ys {
+    [] => false,
+    [y, ...yr] => x == y && intsEqual(xr, yr)
+  }
+}
+
+pure func bigList() -> [int] {
+  let seed = [1, 2, 3, 4, 5, 6, 7, 8]
+  let x16 = concat(seed, seed)
+  let x32 = concat(x16, x16)
+  let x64 = concat(x32, x32)
+  let x128 = concat(x64, x64)
+  let x256 = concat(x128, x128)
+  let x512 = concat(x256, x256)
+  let x1024 = concat(x512, x512)
+  let x2048 = concat(x1024, x1024)
+  let x4096 = concat(x2048, x2048)
+  let x8192 = concat(x4096, x4096)
+  concat(x8192, x8192)
+}
+
+test "drop boundary semantics" {
+  assert intsEqual(drop(-1, [1, 2, 3, 4]), [1, 2, 3, 4])
+  assert intsEqual(drop(0, [1, 2, 3, 4]), [1, 2, 3, 4])
+  assert intsEqual(drop(1, [1, 2, 3, 4]), [2, 3, 4])
+  assert intsEqual(drop(3, [1, 2, 3, 4]), [4])
+  assert intsEqual(drop(4, [1, 2, 3, 4]), [])
+  assert intsEqual(drop(5, [1, 2, 3, 4]), [])
+}
+
+test "drop empty semantics" {
+  assert intsEqual(drop(-1, []), [])
+  assert intsEqual(drop(0, []), [])
+  assert intsEqual(drop(1, []), [])
+}
+
+test "drop avoids recursive depth cap" {
+  assert length(drop(12000, bigList())) == 4384
+}
