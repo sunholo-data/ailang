@@ -76,7 +76,38 @@ improvement loop, since retro fixes must benefit all missions). What differs per
 
 - **Driver env** (exported by `tools/launchd/mission-control.sh`): `MISSION_NAME` (default `v1`),
   `MISSION_REPO` (default `sunholo-data/ailang`), `MISSION_DOC` (default `design_docs/v1-mission.md`);
-  the bookkeeping-issue number lives in `~/.ailang/state/mission-gh-issue` (V1 falls back to `329`).
+  the bookkeeping-issue number lives in `~/.ailang/state/mission-${MISSION_NAME}-gh-issue`
+  (V1 falls back to `329`).
+  **⚠ NAMESPACE THAT PATH — the bare `~/.ailang/state/mission-gh-issue` this profile used to
+  prescribe is ONE FILE SHARED BY EVERY MISSION ON THE RIG, and Gate 5's rotation step WRITES to
+  it, so a sibling's rotation week silently overwrites another mission's live inbound human
+  channel with an issue number that does not exist in that mission's repo** (fixed 2026-08-21 V1
+  iteration 246; proposed by `mission-world` iter-106 and corroborated first-party in V1's own
+  running copy before adoption — sibling-claim ghost discipline). This is the THIRD instance of a
+  class this file has already fixed twice and told itself to sweep: the roles table's
+  designer-rotation note (2026-08-13, iter-188) closes with *"any `~/.ailang/state/` key this
+  skill names as a literal is shared by all missions — audit the whole path list before adding
+  another"*, and Gate 4's dashboard note (2026-08-17, iter-216) closes with *"one namespacing fix
+  landed, the neighbouring literal did not."* Neither audit was run; this is what it would have
+  found. **It is worse than the dashboard collision**, which is a read-then-overwrite a careful
+  controller notices: this is a **write onto a path the writer never reads**, so the damage lands
+  entirely on the mission that did nothing wrong, and its only symptom is a Gate-0 read pointing
+  at nothing. Measured on the rig: `mission-gh-issue` = `745` and `-prev` = `635`, both V1's
+  (control — `745` does not resolve in `sunholo-data/ailang-world`), while
+  `mission-world-gh-issue`, `mission-world-gh-issue-prev`, `mission-motoko-gh-issue` and
+  `mission-motoko-gh-issue-prev` all exist as files **hand-created by careful sibling
+  controllers** that this skill's literal never read — the same signature the rotation key showed.
+  The bare literal appeared **4** times in the running copy (Repo Profile, Gate 5's report step,
+  and both halves of Gate 5 rotation step 4); positive controls, the two keys already namespaced,
+  read 2 and 1, and a fresh invented literal read 0.
+  **Migration, one line and safe in both directions:** on first read, if the namespaced file is
+  absent but the bare one exists **AND its number resolves in `$MISSION_REPO`**, seed from it;
+  otherwise treat the bare file as another mission's and never write it again. The
+  resolves-in-my-own-repo predicate is the load-bearing half — it is what makes the migration
+  safe for whichever mission currently owns the bare path. **And run the audit rather than fixing
+  one key**: whenever this skill names a `~/.ailang/state/` path or a `design_docs/` filename a
+  mission writes to, ask what the sibling writes there first. The tell: you are about to write to
+  a path whose name contains no mission identifier.
 - **The mission doc's charter header** — a `## Repo Profile` block (single source of truth,
   versioned with the mission): repo slug, bookkeeping-issue state key, the CI workflow names Gate 3b
   polls, and the **verify profile** name.
@@ -3031,7 +3062,8 @@ above), but "the destination gained what the source lost" is a property of every
      --from "mission-${MISSION_NAME:-control}"`
    - `gh issue comment "$MISSION_GH_ISSUE" --repo "${MISSION_REPO:-sunholo-data/ailang}" --body "<digest>"`
      — the human-facing bookkeeping thread (Mark reads by email; number comes from the driver env /
-     `~/.ailang/state/mission-gh-issue`, NOT hardcoded).
+     `~/.ailang/state/mission-${MISSION_NAME}-gh-issue`, NOT hardcoded and NOT the bare,
+     fleet-shared `mission-gh-issue` — see the Repo Profile).
    **The digest — ≤20 lines / ≤1,500 chars, exactly these sections, nothing else:**
    ```
    **Iteration N — <one-line headline>**
@@ -3104,8 +3136,10 @@ above), but "the destination gained what the source lost" is a property of every
       **`--mission` scopes it deliberately:** each mission rotates independently, so an unscoped
       fleet report would land three times, two thirds of it off-topic for the thread it is in.
    3. Final comment on the OLD issue: "→ continues in #<new>" — then `gh issue close` it.
-   4. Write the new number to `~/.ailang/state/mission-gh-issue` and the old one to
-      `~/.ailang/state/mission-gh-issue-prev`.
+   4. Write the new number to `~/.ailang/state/mission-${MISSION_NAME}-gh-issue` and the old one
+      to `~/.ailang/state/mission-${MISSION_NAME}-gh-issue-prev`. **NEVER the bare
+      `mission-gh-issue`** — that path is fleet-shared and this step is the one that would clobber
+      a sibling's live pointer (Repo Profile, iteration 246).
    5. Post this iteration's report to the NEW issue.
    **Rotation-week catch:** on the first iteration after a rotation (the `-prev` file is fresh),
    Gate-0's Mark-comment read must ALSO check the predecessor issue — Mark may have replied to the
