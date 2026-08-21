@@ -55,8 +55,12 @@ var listDelegationExemptions = map[string]listDelegationExemption{
 	"_list_mapE":      {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.mapE can delegate"},
 	"_list_sortBy":    {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.sortBy can delegate"},
 	"_list_tail":      {NotNeeded, false, "codegen-only helper is unnecessary in the interpreter because std/list.tail is O(1) pattern matching"},
-	"_list_take":      {DelegableNow, true, "runtime-backed, but delegation is deferred because the builtin writes a materialization note to stderr"},
-	"_list_zip":       {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.zip can delegate"},
+	"_list_take": {DelegableNow, true, "runtime-backed, and std/list.take STILL FAILS RT_REC_003 on large n — " +
+		"the same crash std/list.drop had, measured at take(12000, <16384-element list>). Delegation is " +
+		"deferred, NOT because the problem is absent, but because _list_take is the only list builtin that " +
+		"writes to stderr (a materialization note), so delegating would make a pure stdlib function emit " +
+		"output on the common take(small_n, big_list) call. Needs its own fix, not just a delegation"},
+	"_list_zip": {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.zip can delegate"},
 }
 
 // registeredListBuiltins reads the LIVE registries rather than parsing source.
