@@ -1,0 +1,12 @@
+module tests/stdlib/functionless_builtin_resolution_test
+import std/list (length, reverse)
+
+-- This function-less shape is load-bearing for the builtin-resolution defect;
+-- do not "fix" it by adding a helper function.
+test "delegating length resolves" {
+  assert length([1, 2, 3, 4]) == 4
+}
+
+test "multiple delegating exports resolve" {
+  assert length(reverse([1, 2, 3])) == 3
+}
