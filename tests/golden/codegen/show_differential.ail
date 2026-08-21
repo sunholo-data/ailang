@@ -1,0 +1,12 @@
+module test/show_differential
+
+type Option[a] = Some(a) | None
+
+export func main() -> () ! {IO} {
+  println(show([1, 2, 3]))
+  println(show([[1, 2], [3]]))
+  println(show({ x: 5, y: 10 }))
+  println(show(Some(42)))
+  println(show((1, "a")))
+  println(show(3.5))
+}
