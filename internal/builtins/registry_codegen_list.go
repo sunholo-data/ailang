@@ -14,7 +14,8 @@ func registerListCodegenSpecs() {
 			Signature: "func Concat(a, b interface{}) interface{}",
 			Body:      `return ConcatList(a, b)`,
 		},
-		StdlibName: "concat",
+		StdlibName:   "concat",
+		StdlibModule: "std/list",
 	})
 
 	registerIfMissing("_list_map", 2, true, &GoCodegenSpec{
@@ -28,7 +29,8 @@ func registerListCodegenSpecs() {
 	}
 	return result`,
 		},
-		StdlibName: "map",
+		StdlibName:   "map",
+		StdlibModule: "std/list",
 	})
 	registerIfMissing("_list_filter", 2, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -44,7 +46,8 @@ func registerListCodegenSpecs() {
 	if result == nil { result = []interface{}{} }
 	return result`,
 		},
-		StdlibName: "filter",
+		StdlibName:   "filter",
+		StdlibModule: "std/list",
 	})
 	registerIfMissing("_list_foldl", 3, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -57,7 +60,8 @@ func registerListCodegenSpecs() {
 	}
 	return result`,
 		},
-		StdlibName: "foldl",
+		StdlibName:   "foldl",
+		StdlibModule: "std/list",
 	})
 	registerIfMissing("_list_foldr", 3, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -70,7 +74,8 @@ func registerListCodegenSpecs() {
 	}
 	return result`,
 		},
-		StdlibName: "foldr",
+		StdlibName:   "foldr",
+		StdlibModule: "std/list",
 	})
 	registerIfMissing("_list_dedup", 1, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -88,7 +93,8 @@ func registerListCodegenSpecs() {
 	if result == nil { result = []interface{}{} }
 	return result`,
 		},
-		StdlibName: "dedup",
+		StdlibName:   "dedup",
+		StdlibModule: "std/list",
 	})
 
 	// M-CODEGEN-LETBIND-FIX: Set operations (intersect, union) used by DocParse
@@ -111,7 +117,8 @@ func registerListCodegenSpecs() {
 	if result == nil { result = []interface{}{} }
 	return result`,
 		},
-		StdlibName: "intersect",
+		StdlibName:   "intersect",
+		StdlibModule: "std/list",
 	})
 	registerIfMissing("_list_union", 2, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -136,7 +143,8 @@ func registerListCodegenSpecs() {
 	if result == nil { result = []interface{}{} }
 	return result`,
 		},
-		StdlibName: "union",
+		StdlibName:   "union",
+		StdlibModule: "std/list",
 	})
 
 	// Additional list helpers used by stdlib but not as builtins
@@ -216,8 +224,9 @@ func registerListCodegenSpecs() {
 		}},
 	} {
 		registerIfMissing(spec.name, spec.numArgs, true, &GoCodegenSpec{
-			Helper:     spec.helper,
-			StdlibName: spec.stdlib,
+			Helper:       spec.helper,
+			StdlibName:   spec.stdlib,
+			StdlibModule: "std/list",
 		})
 	}
 
@@ -230,7 +239,8 @@ func registerListCodegenSpecs() {
 	if i < 0 || i >= len(list) { return NewOptionNone() }
 	return NewOptionSome(list[i])`,
 		},
-		StdlibName: "nth",
+		StdlibName:   "nth",
+		StdlibModule: "std/list",
 	})
 	registerIfMissing("_list_last", 1, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -239,7 +249,8 @@ func registerListCodegenSpecs() {
 	if len(list) == 0 { return NewOptionNone() }
 	return NewOptionSome(list[len(list)-1])`,
 		},
-		StdlibName: "last",
+		StdlibName:   "last",
+		StdlibModule: "std/list",
 	})
 	registerIfMissing("_list_findIndex", 2, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -252,14 +263,16 @@ func registerListCodegenSpecs() {
 	}
 	return NewOptionNone()`,
 		},
-		StdlibName: "findIndex",
+		StdlibName:   "findIndex",
+		StdlibModule: "std/list",
 	})
 	registerIfMissing("_list_mapE", 2, false, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
 			FuncName: "MapE", Signature: "func MapE(f, xs interface{}) interface{}",
 			Body: `return Map(f, xs)`,
 		},
-		StdlibName: "mapE",
+		StdlibName:   "mapE",
+		StdlibModule: "std/list",
 	})
 	registerIfMissing("_list_forEachE", 2, false, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -270,6 +283,7 @@ func registerListCodegenSpecs() {
 	}
 	return struct{}{}`,
 		},
-		StdlibName: "forEachE",
+		StdlibName:   "forEachE",
+		StdlibModule: "std/list",
 	})
 }

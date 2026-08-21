@@ -10,16 +10,18 @@ func registerJSONCodegenSpecs() {
 			FuncName: "Decode", Signature: "func Decode(s interface{}) interface{}",
 			Body: `return NewResultErr("JSON decode not yet available in compiled Go mode")`,
 		},
-		StdlibName:  "decode",
-		RequiresADT: "Json",
+		StdlibName:   "decode",
+		StdlibModule: "std/json",
+		RequiresADT:  "Json",
 	})
 	setSpec("_json_encode", &GoCodegenSpec{
 		Helper: &GoHelperSpec{
 			FuncName: "Encode", Signature: "func Encode(obj interface{}) interface{}",
 			Body: `return "{}"`,
 		},
-		StdlibName:  "encode",
-		RequiresADT: "Json",
+		StdlibName:   "encode",
+		StdlibModule: "std/json",
+		RequiresADT:  "Json",
 	})
 
 	// JSON constructor and accessor helpers
@@ -165,9 +167,10 @@ func registerJSONCodegenSpecs() {
 		}, "Json"},
 	} {
 		registerIfMissing(spec.name, spec.numArgs, true, &GoCodegenSpec{
-			Helper:      spec.helper,
-			StdlibName:  spec.stdlib,
-			RequiresADT: spec.requiresADT,
+			Helper:       spec.helper,
+			StdlibName:   spec.stdlib,
+			StdlibModule: "std/json",
+			RequiresADT:  spec.requiresADT,
 		})
 	}
 
@@ -202,9 +205,10 @@ func registerJSONCodegenSpecs() {
 		}, "Result"},
 	} {
 		registerIfMissing(spec.name, spec.numArgs, true, &GoCodegenSpec{
-			Helper:      spec.helper,
-			StdlibName:  spec.stdlib,
-			RequiresADT: spec.requiresADT,
+			Helper:       spec.helper,
+			StdlibName:   spec.stdlib,
+			StdlibModule: map[string]string{"Option": "std/option", "Result": "std/result"}[spec.requiresADT],
+			RequiresADT:  spec.requiresADT,
 		})
 	}
 }

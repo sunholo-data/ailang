@@ -30,30 +30,35 @@ func registerMathCodegenSpecs() {
 			numArgs = 2
 		}
 		registerIfMissing(name, numArgs, true, &GoCodegenSpec{
-			Inline:     spec.goExpr,
-			Imports:    []string{"math"},
-			StdlibName: spec.stdlibName,
+			Inline:       spec.goExpr,
+			Imports:      []string{"math"},
+			StdlibName:   spec.stdlibName,
+			StdlibModule: "std/math",
 		})
 	}
 	// Math constants
 	registerIfMissing("_math_PI", 0, true, &GoCodegenSpec{
-		Inline:     `math.Pi`,
-		Imports:    []string{"math"},
-		StdlibName: "PI",
+		Inline:       `math.Pi`,
+		Imports:      []string{"math"},
+		StdlibName:   "PI",
+		StdlibModule: "std/math",
 	})
 	registerIfMissing("_math_E", 0, true, &GoCodegenSpec{
-		Inline:     `math.E`,
-		Imports:    []string{"math"},
-		StdlibName: "E",
+		Inline:       `math.E`,
+		Imports:      []string{"math"},
+		StdlibName:   "E",
+		StdlibModule: "std/math",
 	})
 	// Conversion builtins used by math
 	registerIfMissing("_int_to_float", 1, true, &GoCodegenSpec{
-		Inline:     `float64(toInt64({{arg0}}))`,
-		StdlibName: "intToFloat",
+		Inline:       `float64(toInt64({{arg0}}))`,
+		StdlibName:   "intToFloat",
+		StdlibModule: "std/math",
 	})
 	registerIfMissing("_float_to_int", 1, true, &GoCodegenSpec{
-		Inline:     `int64({{arg0}}.(float64))`,
-		StdlibName: "floatToInt",
+		Inline:       `int64({{arg0}}.(float64))`,
+		StdlibName:   "floatToInt",
+		StdlibModule: "std/math",
 	})
 }
 
@@ -63,11 +68,9 @@ func registerMathCodegenSpecs() {
 
 func registerConversionCodegenSpecs() {
 	setSpec("intToFloat", &GoCodegenSpec{
-		Inline:     `float64(toInt64({{arg0}}))`,
-		StdlibName: "intToFloat",
+		Inline: `float64(toInt64({{arg0}}))`,
 	})
 	setSpec("floatToInt", &GoCodegenSpec{
-		Inline:     `int64({{arg0}}.(float64))`,
-		StdlibName: "floatToInt",
+		Inline: `int64({{arg0}}.(float64))`,
 	})
 }

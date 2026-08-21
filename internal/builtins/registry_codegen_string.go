@@ -13,27 +13,27 @@ func registerStringCodegenSpecs() {
 			Body:      `return strings.TrimSpace(s.(string))`,
 		},
 		Imports:    []string{"strings"},
-		StdlibName: "trim",
+		StdlibName: "trim", StdlibModule: "std/string",
 	})
 	setSpec("_str_upper", &GoCodegenSpec{
 		Inline:     `strings.ToUpper({{arg0}}.(string))`,
 		Imports:    []string{"strings"},
-		StdlibName: "toUpper",
+		StdlibName: "toUpper", StdlibModule: "std/string",
 	})
 	setSpec("_str_lower", &GoCodegenSpec{
 		Inline:     `strings.ToLower({{arg0}}.(string))`,
 		Imports:    []string{"strings"},
-		StdlibName: "toLower",
+		StdlibName: "toLower", StdlibModule: "std/string",
 	})
 	setSpec("_str_len", &GoCodegenSpec{
 		Inline:     `int64(utf8.RuneCountInString({{arg0}}.(string)))`,
 		Imports:    []string{"unicode/utf8"},
-		StdlibName: "length",
+		StdlibName: "length", StdlibModule: "std/string",
 	})
 	setSpec("_str_compare", &GoCodegenSpec{
 		Inline:     `int64(strings.Compare({{arg0}}.(string), {{arg1}}.(string)))`,
 		Imports:    []string{"strings"},
-		StdlibName: "compare",
+		StdlibName: "compare", StdlibModule: "std/string",
 	})
 	setSpec("_str_find", &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -45,7 +45,7 @@ func registerStringCodegenSpecs() {
 	return int64(utf8.RuneCountInString(str[:byteIdx]))`,
 		},
 		Imports:    []string{"strings", "unicode/utf8"},
-		StdlibName: "find",
+		StdlibName: "find", StdlibModule: "std/string",
 	})
 	setSpec("_str_eq", &GoCodegenSpec{
 		Inline: `{{arg0}}.(string) == {{arg1}}.(string)`,
@@ -63,7 +63,7 @@ func registerStringCodegenSpecs() {
 	if st > en { return "" }
 	return string(runes[st:en])`,
 		},
-		StdlibName: "substring",
+		StdlibName: "substring", StdlibModule: "std/string",
 	})
 
 	// String builtins not in registry.go but referenced by stdlib
@@ -79,17 +79,17 @@ func registerStringCodegenSpecs() {
 	return result`,
 		},
 		Imports:    []string{"strings"},
-		StdlibName: "split",
+		StdlibName: "split", StdlibModule: "std/string",
 	})
 	registerIfMissing("_str_startsWith", 2, true, &GoCodegenSpec{
 		Inline:     `strings.HasPrefix({{arg0}}.(string), {{arg1}}.(string))`,
 		Imports:    []string{"strings"},
-		StdlibName: "startsWith",
+		StdlibName: "startsWith", StdlibModule: "std/string",
 	})
 	registerIfMissing("_str_endsWith", 2, true, &GoCodegenSpec{
 		Inline:     `strings.HasSuffix({{arg0}}.(string), {{arg1}}.(string))`,
 		Imports:    []string{"strings"},
-		StdlibName: "endsWith",
+		StdlibName: "endsWith", StdlibModule: "std/string",
 	})
 	registerIfMissing("_str_chars", 1, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -102,7 +102,7 @@ func registerStringCodegenSpecs() {
 	}
 	return result`,
 		},
-		StdlibName: "chars",
+		StdlibName: "chars", StdlibModule: "std/string",
 	})
 	registerIfMissing("_str_words", 1, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -116,7 +116,7 @@ func registerStringCodegenSpecs() {
 	return result`,
 		},
 		Imports:    []string{"strings"},
-		StdlibName: "words",
+		StdlibName: "words", StdlibModule: "std/string",
 	})
 	registerIfMissing("_str_join", 2, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -130,7 +130,7 @@ func registerStringCodegenSpecs() {
 	return strings.Join(strs, delimiter.(string))`,
 		},
 		Imports:    []string{"strings"},
-		StdlibName: "join",
+		StdlibName: "join", StdlibModule: "std/string",
 	})
 	registerIfMissing("_str_splitAny", 2, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -152,17 +152,17 @@ func registerStringCodegenSpecs() {
 	return result`,
 		},
 		Imports:    []string{"strings"},
-		StdlibName: "splitAny",
+		StdlibName: "splitAny", StdlibModule: "std/string",
 	})
 	registerIfMissing("_str_contains", 2, true, &GoCodegenSpec{
 		Inline:     `strings.Contains({{arg0}}.(string), {{arg1}}.(string))`,
 		Imports:    []string{"strings"},
-		StdlibName: "contains",
+		StdlibName: "contains", StdlibModule: "std/string",
 	})
 	registerIfMissing("_str_replace", 3, true, &GoCodegenSpec{
 		Inline:     `strings.ReplaceAll({{arg0}}.(string), {{arg1}}.(string), {{arg2}}.(string))`,
 		Imports:    []string{"strings"},
-		StdlibName: "replace",
+		StdlibName: "replace", StdlibModule: "std/string",
 	})
 	registerIfMissing("_str_repeat", 2, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -171,7 +171,7 @@ func registerStringCodegenSpecs() {
 			Body:      `return strings.Repeat(s.(string), int(toInt64(n)))`,
 		},
 		Imports:    []string{"strings"},
-		StdlibName: "repeat",
+		StdlibName: "repeat", StdlibModule: "std/string",
 	})
 	// charAt indexes by RUNE, matching both interpreter tiers. The former body
 	// indexed by BYTE (`str[i]`, bounds-checked against `len(str)`), so a
@@ -203,7 +203,7 @@ func registerStringCodegenSpecs() {
 	}
 	panic(fmt.Sprintf("charAt: index %d out of bounds for string of length %d", i, n))`,
 		},
-		StdlibName: "charAt",
+		StdlibName: "charAt", StdlibModule: "std/string",
 	})
 	// charCode had NO codegen spec at all, so any compiled program using it
 	// failed with "undefined: CharCode" (ailang#688). Same import constraint as
@@ -224,7 +224,7 @@ func registerStringCodegenSpecs() {
 	}
 	return int64(first)`,
 		},
-		StdlibName: "charCode",
+		StdlibName: "charCode", StdlibModule: "std/string",
 	})
 	registerIfMissing("_str_foldChars", 3, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -237,7 +237,7 @@ func registerStringCodegenSpecs() {
 	}
 	return result`,
 		},
-		StdlibName: "foldChars",
+		StdlibName: "foldChars", StdlibModule: "std/string",
 	})
 	registerIfMissing("_stringToInt", 1, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -249,7 +249,7 @@ func registerStringCodegenSpecs() {
 	return NewOptionSome(n)`,
 		},
 		Imports:    []string{"strings", "strconv"},
-		StdlibName: "stringToInt",
+		StdlibName: "stringToInt", StdlibModule: "std/string",
 	})
 	registerIfMissing("_stringToFloat", 1, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -263,16 +263,16 @@ func registerStringCodegenSpecs() {
 	return NewOptionSome(f)`,
 		},
 		Imports:    []string{"strings", "strconv"},
-		StdlibName: "stringToFloat",
+		StdlibName: "stringToFloat", StdlibModule: "std/string",
 	})
 	registerIfMissing("_string_intToStr", 1, true, &GoCodegenSpec{
 		Inline:     `fmt.Sprintf("%d", toInt64({{arg0}}))`,
 		Imports:    []string{"fmt"},
-		StdlibName: "intToStr",
+		StdlibName: "intToStr", StdlibModule: "std/string",
 	})
 	registerIfMissing("_string_floatToStr", 1, true, &GoCodegenSpec{
 		Inline:     `fmt.Sprintf("%g", {{arg0}}.(float64))`,
 		Imports:    []string{"fmt"},
-		StdlibName: "floatToStr",
+		StdlibName: "floatToStr", StdlibModule: "std/string",
 	})
 }

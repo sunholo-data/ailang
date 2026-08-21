@@ -39,6 +39,11 @@ type GoCodegenSpec struct {
 	// Used by the codegen to resolve VarGlobal references from stdlib imports.
 	StdlibName string
 
+	// StdlibModule is the AILANG module whose exported StdlibName this spec
+	// implements (for example, "std/string"). Qualified lookup never matches
+	// specs that omit this field.
+	StdlibModule string
+
 	// RequiresADT specifies which ADT must be registered for this helper to be emitted.
 	// Values: "Json", "Option", "Result", or "" (always emit).
 	// Helpers with RequiresADT are eagerly emitted when their ADT is registered,
@@ -66,11 +71,19 @@ type GoHelperSpec struct {
 // This is a simple data structure with no dependencies on eval or runtime
 var Registry = make(map[string]*BuiltinMeta)
 
-// StdlibIndex maps stdlib function names (e.g., "trim", "map") to their
-// internal builtin names (e.g., "_str_trim", "_list_map").
+type StdlibKey struct {
+	Module string
+	Name   string
+}
+
+// StdlibIndex maps qualified stdlib exports to internal builtin names.
 // M-CODEGEN-SUSTAINABILITY: Built automatically from GoCodegenSpec.StdlibName fields.
 // The codegen queries this to resolve VarGlobal references from stdlib imports.
-var StdlibIndex = make(map[string]string)
+var StdlibIndex = make(map[StdlibKey]string)
+
+// unambiguousStdlibNameIndex supports module-less references. A name is
+// present only when exactly one codegen spec claims it across the registry.
+var unambiguousStdlibNameIndex = make(map[string]string)
 
 func init() {
 	registerArithmeticMeta()
@@ -115,10 +128,22 @@ func GetCodegenSpec(name string) *GoCodegenSpec {
 	return meta.GoCodegen
 }
 
-// GetCodegenSpecByStdlibName looks up a codegen spec by stdlib function name.
-// Example: GetCodegenSpecByStdlibName("trim") returns the spec for _str_trim.
-func GetCodegenSpecByStdlibName(stdlibName string) *GoCodegenSpec {
-	builtinName, ok := StdlibIndex[stdlibName]
+// GetCodegenSpecByStdlibName looks up a codegen spec by qualified stdlib export.
+func GetCodegenSpecByStdlibName(module, stdlibName string) *GoCodegenSpec {
+	if module == "" {
+		return nil
+	}
+	builtinName, ok := StdlibIndex[StdlibKey{Module: module, Name: stdlibName}]
+	if !ok {
+		return nil
+	}
+	return GetCodegenSpec(builtinName)
+}
+
+// GetCodegenSpecByUnambiguousStdlibName looks up a module-less stdlib name.
+// Ambiguous names are deliberately absent rather than resolved by map order.
+func GetCodegenSpecByUnambiguousStdlibName(stdlibName string) *GoCodegenSpec {
+	builtinName, ok := unambiguousStdlibNameIndex[stdlibName]
 	if !ok {
 		return nil
 	}
@@ -140,9 +165,22 @@ func GetHelpersRequiringADT(adtName string) []*GoCodegenSpec {
 // RebuildStdlibIndex populates StdlibIndex from all registered builtins.
 // Called after all builtins are registered.
 func RebuildStdlibIndex() {
+	clear(StdlibIndex)
+	clear(unambiguousStdlibNameIndex)
+	counts := make(map[string]int)
 	for name, meta := range Registry {
 		if meta.GoCodegen != nil && meta.GoCodegen.StdlibName != "" {
-			StdlibIndex[meta.GoCodegen.StdlibName] = name
+			spec := meta.GoCodegen
+			counts[spec.StdlibName]++
+			if spec.StdlibModule != "" {
+				StdlibIndex[StdlibKey{Module: spec.StdlibModule, Name: spec.StdlibName}] = name
+			}
+			unambiguousStdlibNameIndex[spec.StdlibName] = name
+		}
+	}
+	for stdlibName, count := range counts {
+		if count != 1 {
+			delete(unambiguousStdlibNameIndex, stdlibName)
 		}
 	}
 }
