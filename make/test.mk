@@ -40,6 +40,7 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@/bin/bash tools/launchd/test_driver_notify.sh
 	@/bin/bash tools/launchd/test_mission_routing.sh
 	@/bin/bash tools/launchd/test_hook_stdout.sh
+	@/bin/bash tools/launchd/test_fmt_ab_schedule.sh
 	@for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n "$$f" || exit 1; done
 	@/bin/bash -n scripts/mission_decisions.sh
 	@echo "launchd drivers: tests + bash 3.2 syntax OK"

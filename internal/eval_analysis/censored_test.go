@@ -1,13 +1,105 @@
 package eval_analysis
 
 import (
+	"bufio"
 	"encoding/json"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
+
+func TestFmtDriverScheduleSatisfiesOrderIntegrity(t *testing.T) {
+	// DECLARED NARROWING. The artifact under test is produced by the launchd driver, which is a
+	// POSIX shell script executed by /bin/bash 3.2 on the rig and by the macOS leg in CI; there is
+	// no /bin/bash on windows, so this arm asserts nothing there. Same convention as the repo's
+	// other bash-mock skips (e.g. internal/executor/motoko/motoko_test.go:189). Caught by Gate 3b
+	// on the windows leg -- `exec: "/bin/bash": executable file not found in %PATH%` -- which no
+	// darwin-only command could have surfaced.
+	if runtime.GOOS == "windows" {
+		t.Skip("driver schedule fixture requires POSIX shell (/bin/bash)")
+	}
+	repoRoot := filepath.Join("..", "..")
+	logPath := filepath.Join(t.TempDir(), "invocations.log")
+
+	// DECLARE THIS TEST'S REAL INPUTS TO THE GO TEST CACHE.
+	// The observable here is produced by a SHELL subprocess reading two files outside this package,
+	// and `go test` keys its cache on files the TEST PROCESS opens -- it cannot see a subprocess's
+	// opens. So without these reads, editing nightly-eval.sh leaves the cached verdict in place and
+	// `go test` re-prints the PRE-EDIT result while reporting success: a mutation drill on the
+	// driver then reads green for a mutant that was never executed. Measured first-party during the
+	// M3 drill: the ON-always-leads mutant returned rc=0 from a cache hit and rc=1
+	// (order_integrity_lead_not_alternating) under -count=1. Reading the files here makes the cache
+	// key track them, so the stale green is unreachable rather than merely documented.
+	for _, input := range []string{
+		filepath.Join(repoRoot, "tools", "launchd", "nightly-eval.sh"),
+		filepath.Join(repoRoot, "tools", "launchd", "test_fmt_ab_schedule.sh"),
+	} {
+		if _, err := os.ReadFile(input); err != nil {
+			t.Fatalf("instrument failure: cannot read declared cache input %s: %v", input, err)
+		}
+	}
+	// EMIT-ONLY on purpose. The shell harness also asserts the schedule itself, and if this test
+	// ran the full suite then a wrong schedule would red those assertions first -- the process would
+	// exit non-zero and CheckFmtOrderIntegrity below would never execute. The analyzer call would
+	// then be decorative for exactly the defects AC-M3-4 cites it to catch. Measured: under the
+	// ON-always-leads mutant the full-suite form died at "shell schedule fixture failed", not at the
+	// order-integrity assertion. In emit-only mode the shell writes the driver's raw invocation log
+	// and exits 0 regardless of order, so the analyzer is the discriminator.
+	cmd := exec.Command("/bin/bash", filepath.Join(repoRoot, "tools", "launchd", "test_fmt_ab_schedule.sh"))
+	cmd.Env = append(os.Environ(), "FMT_AB_EMIT_LOG="+logPath, "FMT_AB_EMIT_ONLY=1")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("shell schedule fixture failed to EMIT (this is an instrument failure, not a schedule verdict): %v\n%s", err, output)
+	}
+
+	file, err := os.Open(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	var on, off []*BenchmarkResult
+	scanner := bufio.NewScanner(file)
+	stamp := time.Unix(1, 0)
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		var benchmark, model string
+		for i := 0; i+1 < len(fields); i++ {
+			switch fields[i] {
+			case "--benchmarks":
+				benchmark = fields[i+1]
+			case "--models":
+				model = fields[i+1]
+			}
+		}
+		row := &BenchmarkResult{ID: benchmark, Timestamp: stamp}
+		stamp = stamp.Add(time.Second)
+		if model == "motoko-local-qwen3-6-fmt" {
+			on = append(on, row)
+		} else {
+			off = append(off, row)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if len(on)+len(off) == 0 {
+		t.Fatal("instrument failure: shell artifact contained zero invocations")
+	}
+	// The emit-only artifact is the pure D1b measurement schedule: 6 benchmarks x 2 arms.
+	// Asserting the count here is what stops a truncated or contaminated artifact (e.g. one that
+	// also carried the M5 smoke row) from being read as a clean schedule.
+	if got := len(on) + len(off); got != 12 {
+		t.Fatalf("instrument failure: shell artifact has %d invocations, want 12", got)
+	}
+	if reason := CheckFmtOrderIntegrity(on, off); reason != "" {
+		t.Fatalf("CheckFmtOrderIntegrity rejected shell artifact: %s", reason)
+	}
+}
 
 type censoredFixture struct {
 	Name         string `json:"name"`
