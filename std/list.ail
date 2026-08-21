@@ -101,13 +101,8 @@ export pure func take[a](n: int, xs: [a]) -> [a] {
 }
 
 -- drop: Drop first n elements
-export pure func drop[a](n: int, xs: [a]) -> [a] {
-  if n <= 0 then xs
-  else match xs {
-    [] => [],
-    [_, ...rest] => drop(n - 1, rest)
-  }
-}
+-- Delegates to the iterative builtin to avoid recursion-depth failures on large n.
+export pure func drop[a](n: int, xs: [a]) -> [a] = _list_drop(n, xs)
 
 -- ============================================================================
 -- Index Access (v0.6.5) - Element access by index

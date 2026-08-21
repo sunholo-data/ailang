@@ -14,36 +14,53 @@ import (
 const stdlibSourceDir = "../../std"
 
 // listDelegationExemptions records, for every registered _list_* builtin with no
-// call site in std/*.ail, WHY that is acceptable. Two categories only:
+// call site in std/*.ail, WHY that is acceptable. Runtime and codegen registries
+// describe different execution paths: a codegen helper is not callable by the
+// interpreter. Categories are therefore machine-checked against AllNames(), the
+// runtime registry, rather than trusted as prose.
 //
-//	DELEGATION-CANDIDATE — a std/list export shadows this builtin with a recursive
-//	                       AILANG implementation that is asymptotically worse.
-//	                       Delegating each one needs its own semantic-equivalence
-//	                       verification; tracked as m-stdlib-list-delegation-sweep.
-//	NOT-NEEDED           — there is nothing to delegate, or the std/list form is
-//	                       already as cheap as the builtin.
+// In particular, 11 entries previously described as "delegation candidates" are
+// blocked on a MISSING INTERPRETER IMPLEMENTATION, not on their std/list forms
+// being recursive. Their codegen helpers run only in generated Go programs.
 //
 // _list_reverse is deliberately ABSENT: std/list.reverse delegates to it, and that
 // absence is the fixture proving this gate is live.
-var listDelegationExemptions = map[string]string{
-	"_list_any":       "DELEGATION-CANDIDATE: std/list.any is recursive; see m-stdlib-list-delegation-sweep",
-	"_list_contains":  "NOT-NEEDED: std/list exposes membership as member, which delegates to _list_member; both builtins use the same structural valuesEqual, so contains has no std/list counterpart to serve",
-	"_list_drop":      "DELEGATION-CANDIDATE: std/list.drop is recursive; see m-stdlib-list-delegation-sweep",
-	"_list_extract":   "NOT-NEEDED: std/list exposes no extract operation to delegate",
-	"_list_filterE":   "DELEGATION-CANDIDATE: std/list.filterE is recursive; see m-stdlib-list-delegation-sweep",
-	"_list_findIndex": "DELEGATION-CANDIDATE: std/list.findIndex recurses through findIndexHelper; see m-stdlib-list-delegation-sweep",
-	"_list_flatMap":   "DELEGATION-CANDIDATE: std/list.flatMap is recursive and concatenates per element; see m-stdlib-list-delegation-sweep",
-	"_list_flatMapE":  "DELEGATION-CANDIDATE: std/list.flatMapE is recursive and concatenates per element; see m-stdlib-list-delegation-sweep",
-	"_list_foldlE":    "DELEGATION-CANDIDATE: std/list.foldlE is recursive; see m-stdlib-list-delegation-sweep",
-	"_list_foldr":     "DELEGATION-CANDIDATE: std/list.foldr is recursive; see m-stdlib-list-delegation-sweep",
-	"_list_forEachE":  "DELEGATION-CANDIDATE: std/list.forEachE is recursive; see m-stdlib-list-delegation-sweep",
-	"_list_head":      "NOT-NEEDED: std/list.head is already O(1) through list pattern matching",
-	"_list_last":      "NOT-NEEDED: std/list.last already composes the delegated _list_length and _list_nth",
-	"_list_mapE":      "DELEGATION-CANDIDATE: std/list.mapE is recursive and appends per element; see m-stdlib-list-delegation-sweep",
-	"_list_sortBy":    "DELEGATION-CANDIDATE: std/list.sortBy is recursive and builds on the recursive take/drop/mergeBy; see m-stdlib-list-delegation-sweep",
-	"_list_tail":      "NOT-NEEDED: std/list.tail is already O(1) through list pattern matching",
-	"_list_take":      "DELEGATION-CANDIDATE: std/list.take is recursive and appends per element; see m-stdlib-list-delegation-sweep",
-	"_list_zip":       "DELEGATION-CANDIDATE: std/list.zip is recursive and appends per element; see m-stdlib-list-delegation-sweep",
+type listDelegationCategory uint8
+
+const (
+	DelegableNow listDelegationCategory = iota
+	NoRuntimeImpl
+	NotNeeded
+)
+
+type listDelegationExemption struct {
+	category      listDelegationCategory
+	runtimeBacked bool
+	reason        string
+}
+
+var listDelegationExemptions = map[string]listDelegationExemption{
+	"_list_any":       {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.any can delegate"},
+	"_list_contains":  {NotNeeded, true, "std/list exposes membership as member, which delegates to _list_member; contains has no std/list counterpart to serve"},
+	"_list_extract":   {NotNeeded, true, "std/list exposes no extract operation to delegate"},
+	"_list_filterE":   {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.filterE can delegate"},
+	"_list_findIndex": {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.findIndex can delegate"},
+	"_list_flatMap":   {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.flatMap can delegate"},
+	"_list_flatMapE":  {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.flatMapE can delegate"},
+	"_list_foldlE":    {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.foldlE can delegate"},
+	"_list_foldr":     {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.foldr can delegate"},
+	"_list_forEachE":  {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.forEachE can delegate"},
+	"_list_head":      {NotNeeded, true, "std/list.head is already O(1) through list pattern matching"},
+	"_list_last":      {NotNeeded, false, "codegen-only helper is unnecessary in the interpreter because std/list.last composes _list_length and _list_nth"},
+	"_list_mapE":      {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.mapE can delegate"},
+	"_list_sortBy":    {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.sortBy can delegate"},
+	"_list_tail":      {NotNeeded, false, "codegen-only helper is unnecessary in the interpreter because std/list.tail is O(1) pattern matching"},
+	"_list_take": {DelegableNow, true, "runtime-backed, and std/list.take STILL FAILS RT_REC_003 on large n — " +
+		"the same crash std/list.drop had, measured at take(12000, <16384-element list>). Delegation is " +
+		"deferred, NOT because the problem is absent, but because _list_take is the only list builtin that " +
+		"writes to stderr (a materialization note), so delegating would make a pure stdlib function emit " +
+		"output on the common take(small_n, big_list) call. Needs its own fix, not just a delegation"},
+	"_list_zip": {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.zip can delegate"},
 }
 
 // registeredListBuiltins reads the LIVE registries rather than parsing source.
@@ -113,6 +130,17 @@ func stdlibListCallSites(t *testing.T, names []string) map[string]int {
 
 func TestEveryListBuiltinIsDelegatedOrExplained(t *testing.T) {
 	names := registeredListBuiltins()
+	runtimeNames := map[string]struct{}{}
+	runtimeListCount := 0
+	for _, name := range AllNames() {
+		if strings.HasPrefix(name, "_list_") {
+			runtimeNames[name] = struct{}{}
+			runtimeListCount++
+		}
+	}
+	if runtimeListCount < 15 {
+		t.Fatalf("instrument failure: found only %d runtime _list_* builtins; want at least 15", runtimeListCount)
+	}
 
 	// Anti-vacuity floor: an enumeration that finds (almost) nothing must fail
 	// loudly, never pass. "no builtins found" and "every builtin delegates"
@@ -136,6 +164,44 @@ func TestEveryListBuiltinIsDelegatedOrExplained(t *testing.T) {
 		t.Fatal("instrument failure: known-positive control _list_map has zero call sites")
 	}
 
+	categorized := make(map[string]struct{}, len(listDelegationExemptions))
+	for name, exemption := range listDelegationExemptions {
+		if exemption.reason == "" {
+			t.Errorf("exemption %s has an empty reason", name)
+		}
+		_, hasRuntimeImpl := runtimeNames[name]
+		switch exemption.category {
+		case NoRuntimeImpl:
+			categorized[name] = struct{}{}
+			if hasRuntimeImpl {
+				t.Errorf("%s is categorized NoRuntimeImpl but is present in the runtime registry", name)
+			}
+		case DelegableNow:
+			categorized[name] = struct{}{}
+			if !exemption.runtimeBacked {
+				t.Errorf("%s is DelegableNow but does not claim a runtime implementation", name)
+			}
+			if !hasRuntimeImpl {
+				t.Errorf("%s is categorized DelegableNow but is absent from the runtime registry", name)
+			}
+		case NotNeeded:
+			categorized[name] = struct{}{}
+			if exemption.runtimeBacked && !hasRuntimeImpl {
+				t.Errorf("%s claims a runtime implementation but is absent from the runtime registry", name)
+			}
+		default:
+			t.Errorf("%s has unknown delegation category %d", name, exemption.category)
+		}
+	}
+	if len(categorized) != len(listDelegationExemptions) {
+		t.Fatalf("instrument failure: %d categorized names != %d exempted names", len(categorized), len(listDelegationExemptions))
+	}
+	for name := range listDelegationExemptions {
+		if _, ok := categorized[name]; !ok {
+			t.Errorf("exempted name %s is not categorized", name)
+		}
+	}
+
 	for name := range listDelegationExemptions {
 		if counts[name] > 0 {
 			t.Errorf("stale exemption %s: it now has %d call site(s) in std/*.ail — delete the exemption", name, counts[name])
@@ -153,14 +219,14 @@ func TestEveryListBuiltinIsDelegatedOrExplained(t *testing.T) {
 
 	var unexplained []string
 	for _, name := range names {
-		if counts[name] == 0 && listDelegationExemptions[name] == "" {
+		if _, exempted := listDelegationExemptions[name]; counts[name] == 0 && !exempted {
 			unexplained = append(unexplained, name)
 		}
 	}
 	sort.Strings(unexplained)
 	for _, name := range unexplained {
 		t.Errorf("%s has zero exact call sites in std/*.ail and no delegation exemption "+
-			"(delegate it from std/, or add a DELEGATION-CANDIDATE / NOT-NEEDED reason)", name)
+			"(delegate it from std/, or add a categorized reason)", name)
 	}
 
 	t.Logf("scan summary: %d registered _list_* builtins, %d exact std/ call sites, %d exemptions",
