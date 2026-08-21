@@ -16,21 +16,27 @@ import (
 
 // Executor handles evaluation of test expressions through the AILANG pipeline.
 type Executor struct {
-	modulePath  string
-	sourceFile  *ast.File // Full source file for context
-	enableDebug bool
-	modules     map[string]*loader.LoadedModule // Cached modules from last pipeline run
-	lastMeta    map[string]*core.DeclMeta       // Cached Core.Meta from last pipeline run (lowered contracts)
+	modulePath string
+	sourceFile *ast.File // Full source file for context
+	// ModeEval evaluates Core.Decls[0] through link.Resolver, which only gains a
+	// $builtin lookup when the caller supplies a GlobalResolver.
+	globalResolver eval.GlobalResolver
+	enableDebug    bool
+	modules        map[string]*loader.LoadedModule // Cached modules from last pipeline run
+	lastMeta       map[string]*core.DeclMeta       // Cached Core.Meta from last pipeline run (lowered contracts)
 }
 
 // NewExecutor creates a new test executor.
 func NewExecutor(modulePath string) *Executor {
+	evaluator := eval.NewCoreEvaluator()
+	builtins := runtime.NewBuiltinRegistry(evaluator)
 	return &Executor{
-		modulePath:  modulePath,
-		sourceFile:  nil,
-		enableDebug: false,
-		modules:     make(map[string]*loader.LoadedModule),
-		lastMeta:    nil,
+		modulePath:     modulePath,
+		sourceFile:     nil,
+		globalResolver: runtime.NewBuiltinOnlyResolver(builtins),
+		enableDebug:    false,
+		modules:        make(map[string]*loader.LoadedModule),
+		lastMeta:       nil,
 	}
 }
 
@@ -93,7 +99,8 @@ func (e *Executor) EvaluateExpression(expr ast.Expr) (eval.Value, error) {
 
 	// Use pipeline with ModeEval (non-module evaluation)
 	cfg := pipeline.Config{
-		Mode: pipeline.ModeEval,
+		Mode:           pipeline.ModeEval,
+		GlobalResolver: e.globalResolver,
 	}
 	src := pipeline.Source{
 		Code:     source,
@@ -286,9 +293,10 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 	}
 
 	cfg := pipeline.Config{
-		Mode:         pipeline.ModeEval,
-		RelaxModules: true,
-		PackageDir:   pkgDir,
+		Mode:           pipeline.ModeEval,
+		RelaxModules:   true,
+		PackageDir:     pkgDir,
+		GlobalResolver: e.globalResolver,
 	}
 	pipelineSrc := pipeline.Source{
 		Code:     combinedSource,
@@ -466,8 +474,9 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 		pipelineFilename = tmpFile
 	}
 	cfg := pipeline.Config{
-		Mode:         pipeline.ModeEval,
-		RelaxModules: true,
+		Mode:           pipeline.ModeEval,
+		RelaxModules:   true,
+		GlobalResolver: e.globalResolver,
 	}
 	src := pipeline.Source{
 		Code:     strippedSource,
@@ -643,7 +652,8 @@ func (e *Executor) ExtractPureClusterForFunction(
 	}
 
 	cfg := pipeline.Config{
-		Mode: pipeline.ModeEval,
+		Mode:           pipeline.ModeEval,
+		GlobalResolver: e.globalResolver,
 	}
 	src := pipeline.Source{
 		// With a filename, the module pipeline reloads source from disk
