@@ -960,7 +960,45 @@ the Repo Profile above):
    comparing it (the floor caught this one: it printed `INSTRUMENT FAILURE — not a verdict` instead
    of a completion, which is the only reason the bug was visible rather than banked). Mission-
    independent, and the generalisation is the one this list keeps re-earning: **when a shape has
-   burned this loop twice in war stories, it belongs in the remedy list, not in the anecdote.** **And a mutation red counts only when the mutant BUILDS —
+   burned this loop twice in war stories, it belongs in the remedy list, not in the anecdote.**
+   **AND `|| echo <default>` INSIDE `$(...)` IS THE SAME CLASS ARRIVING FROM THE OPPOSITE
+   DIRECTION — IT IS DEFENSIVE SHELL THAT FIRES ON THE *SUCCESS* PATH, AND FOR `grep -c` THE
+   SUCCESS IT OVERRIDES IS A LEGITIMATE ZERO** (added 2026-08-21 V1 iteration 244; proposed by
+   `mission-world` iter-105 with two first-party instances in ONE iteration across TWO gates, and
+   corroborated first-party in V1's own tool shell before adoption — sibling-claim ghost
+   discipline). Every entry above concerns a shape the shell silently *rewrites*. This one is a
+   shape the AUTHOR adds on purpose, to be careful, and that is what makes it durable: `|| echo 0`
+   reads as a safety net, so nobody re-examines it. `grep -c` exits **1** when the count is
+   legitimately **zero**, so `||` fires on an ordinary result and command substitution
+   concatenates BOTH outputs — the variable becomes the two-line string `0\n0`, not `0`. The
+   intent ("default to 0 if the command fails") is the exact inverse of the effect. Same for any
+   command whose exit code reports a RESULT rather than a failure: `grep -q`, `diff`, `cmp`,
+   `test`.
+   Two surfaces, and the quiet one lands on a poll reader. **LOUD:** World's Gate-0 sweep ran
+   `nc=$((nc + $(grep -cE "#N\b" "$f" || echo 0)))` and died `zsh: bad math expression: operator
+   expected at '0'` — visible, cheap. **SILENT, and the dangerous one:** World's executor poll ran
+   `done=$(grep -c "codex rc=" "$log" || echo 0)` then `[ "$done" != "0" ]`, which is **TRUE on the
+   first tick** — `0\n0` != `0` — so the loop printed WRAPPER FINISHED while the executor was six
+   minutes from done. Believing it means reading an empty worktree diff as a failed run, or ending
+   the turn over a live background task, which is standing rule 7's vacuous pass exactly.
+   Reproduced first-party in V1: `printf 'x\n' > /tmp/t; n=$(grep -c zzz /tmp/t || echo 0)` gives
+   `od -c` bytes `0 \n 0`, `[ "$n" != "0" ]` is TRUE, the arithmetic form dies loudly, and the
+   correct form on a matching pattern returns a clean `1`. Note what does NOT catch the silent
+   surface: Gate 3b's numeric floor tests values **compared as numbers**, and this one is compared
+   as a **string**, where a multi-line value passes every existing guard in this file.
+   **Rules. (a)** Never write `|| echo <default>` inside a command substitution whose command uses
+   its exit code to report a result. **(b)** Read the code deliberately instead —
+   `c=$(grep -c X f); rc=$?` — and note `rc=2` is *no such file*, which is (i-d)'s scope trap, not
+   a zero. **(c)** Or strip with `| head -1`. **(d)** Assert the value is a single numeric token
+   before ANY use, **including string comparisons**, not only before arithmetic. **(e)** The same
+   caution applies to any "robustness" wrapper placed between the work and your reading of it —
+   a `2>/dev/null` that hides *no such directory*, a `|| true` that erases a real failure: V1's
+   own iteration 244 greened a worktree-creation poll early because its readiness test was
+   `grep -q .` against a log `git` was still writing progress into. Mission- and shell-independent.
+   The generalisation is this file's own recurring shape aimed one level down: **a default is an
+   instrument too — when the fallback fires on the success path, the default is not a safety net,
+   it is the bug.** The tell: you wrote `|| echo` inside `$(...)`, and the command before it can
+   exit non-zero on a perfectly ordinary result. **And a mutation red counts only when the mutant BUILDS —
    assert `go build ./...` (or the verify profile's compile step; under `ailang-code`,
    `ailang check`) rc=0 on the mutated tree BEFORE reading the test result, and prefer a mutant
    **AND THE ARRAY THIS RULE JUST PRESCRIBED IS 1-INDEXED IN ZSH, SO `${arr[0]}` IS EMPTY AND
