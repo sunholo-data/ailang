@@ -255,27 +255,31 @@ test-parity: build ## Test REPL/file parity for imports (interactive)
 # over any .ail suite. M-TAKE-FLATMAP-PEAK-MEMORY M2's entire behavioural pin (the fused
 # delegation instrument and the parity suite) lived there, so it would have shipped as
 # decoration: a guard is not a gate until something reds when you remove it.
-# Both loops carry an ANTI-VACUITY FLOOR — an empty glob must FAIL LOUDLY, never pass silently,
-# because "no suites found" and "all suites green" are otherwise the same exit code.
+# Both loops carry an EXACT COUNT PIN — adding, removing, renaming, or moving a test must be a
+# deliberate, reviewable change rather than silently shrinking or growing the gate.
 # The .expected files are captured from the product's OWN stdout and diffed against a verbatim
 # re-run, rather than reconstructed by the gate — a reconstruction verifies our arithmetic, not
 # the artifact.
+STDLIB_AIL_SUITES_EXPECTED := 3
+STDLIB_AIL_FIXTURES_EXPECTED := 4
+
 test-stdlib-ail: build ## Run the .ail test suites + run-fixtures under tests/stdlib/
 	@echo "Running stdlib .ail test suites..."
-	@suites=0; \
-	for f in tests/stdlib/*_test.ail; do \
-	  [ -e "$$f" ] || continue; \
+	@suites=0; suite_files=`find tests/stdlib -type f -name '*_test.ail' | sort`; \
+	for f in $$suite_files; do \
 	  suites=$$((suites+1)); \
 	  echo "  test: $$f"; \
 	  ./bin/ailang test --no-color "$$f" > /tmp/ailang_stdlib_test.$$$$ 2>&1 || \
 	    { echo "FAIL: $$f"; cat /tmp/ailang_stdlib_test.$$$$; rm -f /tmp/ailang_stdlib_test.$$$$; exit 1; }; \
 	  rm -f /tmp/ailang_stdlib_test.$$$$; \
 	done; \
-	[ "$$suites" -ge 1 ] || { echo "instrument failure: no tests/stdlib/*_test.ail suites found"; exit 1; }; \
+	[ "$$suites" -eq "$(STDLIB_AIL_SUITES_EXPECTED)" ] || \
+	  { echo "instrument failure: expected $(STDLIB_AIL_SUITES_EXPECTED) stdlib .ail test suite(s), actual $$suites"; \
+	    echo "actual files:"; printf '  %s\n' $$suite_files; \
+	    echo "If this change was intentional, update STDLIB_AIL_SUITES_EXPECTED in make/test.mk."; exit 1; }; \
 	echo "  $$suites .ail test suite(s) passed"
-	@fixtures=0; \
-	for e in tests/stdlib/*.expected; do \
-	  [ -e "$$e" ] || continue; \
+	@fixtures=0; fixture_files=`find tests/stdlib -type f -name '*.expected' | sort`; \
+	for e in $$fixture_files; do \
 	  f=`echo "$$e" | sed 's/\.expected$$/.ail/'`; \
 	  [ -e "$$f" ] || { echo "instrument failure: $$e has no matching $$f"; exit 1; }; \
 	  fixtures=$$((fixtures+1)); \
@@ -288,6 +292,9 @@ test-stdlib-ail: build ## Run the .ail test suites + run-fixtures under tests/st
 	  rm -f /tmp/ailang_stdlib_err.$$$$; \
 	  rm -f /tmp/ailang_stdlib_run.$$$$; \
 	done; \
-	[ "$$fixtures" -ge 1 ] || { echo "instrument failure: no tests/stdlib/*.expected fixtures found"; exit 1; }; \
+	[ "$$fixtures" -eq "$(STDLIB_AIL_FIXTURES_EXPECTED)" ] || \
+	  { echo "instrument failure: expected $(STDLIB_AIL_FIXTURES_EXPECTED) stdlib run-fixture(s), actual $$fixtures"; \
+	    echo "actual files:"; printf '  %s\n' $$fixture_files; \
+	    echo "If this change was intentional, update STDLIB_AIL_FIXTURES_EXPECTED in make/test.mk."; exit 1; }; \
 	echo "  $$fixtures run-fixture(s) matched expected stdout"
 	@echo "$(GREEN)✓ stdlib .ail suites and run-fixtures pass$(NC)"
