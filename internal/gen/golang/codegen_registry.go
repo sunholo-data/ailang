@@ -15,13 +15,18 @@ import (
 //
 // Returns the Go expression/name to emit, or empty string if not found.
 // Also registers any needed runtime helpers and tracks imports.
-func (g *Generator) resolveBuiltinViaRegistry(name string) string {
-	// Try direct lookup first (internal builtin names like _str_trim)
-	spec := builtins.GetCodegenSpec(name)
-
-	// Then try stdlib name lookup (exported names like trim, map, split)
-	if spec == nil {
-		spec = builtins.GetCodegenSpecByStdlibName(name)
+func (g *Generator) resolveBuiltinViaRegistry(module, name string) string {
+	var spec *builtins.GoCodegenSpec
+	if module != "" {
+		// A qualified reference must never fall back to either a direct or bare
+		// name match: its module is authoritative.
+		spec = builtins.GetCodegenSpecByStdlibName(module, name)
+	} else {
+		// Module-less internal builtin names resolve directly first.
+		spec = builtins.GetCodegenSpec(name)
+		if spec == nil {
+			spec = builtins.GetCodegenSpecByUnambiguousStdlibName(name)
+		}
 	}
 
 	if spec == nil {
@@ -197,9 +202,10 @@ func sortStrings(s []string) {
 // Returns the complete Go expression or empty string if not an inline builtin.
 func (g *Generator) tryResolveInlineApp(app *core.App) string {
 	// Extract the function name from the App
-	var name string
+	var module, name string
 	switch f := app.Func.(type) {
 	case *core.VarGlobal:
+		module = f.Ref.Module
 		name = f.Ref.Name
 	case *core.Var:
 		name = f.Name
@@ -222,17 +228,22 @@ func (g *Generator) tryResolveInlineApp(app *core.App) string {
 		_ = buf // suppress unused
 	}
 
-	return g.resolveInlineBuiltin(name, argExprs)
+	return g.resolveInlineBuiltin(module, name, argExprs)
 }
 
 // resolveInlineBuiltin checks if a VarGlobal + App combination can use an Inline spec.
 // M-CODEGEN-SUSTAINABILITY: For builtins with Inline specs like "strings.TrimSpace({{arg0}}.(string))",
 // this substitutes the actual argument expressions and returns the final Go expression.
 // Returns empty string if not an Inline builtin.
-func (g *Generator) resolveInlineBuiltin(name string, argExprs []string) string {
-	spec := builtins.GetCodegenSpec(name)
-	if spec == nil {
-		spec = builtins.GetCodegenSpecByStdlibName(name)
+func (g *Generator) resolveInlineBuiltin(module, name string, argExprs []string) string {
+	var spec *builtins.GoCodegenSpec
+	if module != "" {
+		spec = builtins.GetCodegenSpecByStdlibName(module, name)
+	} else {
+		spec = builtins.GetCodegenSpec(name)
+		if spec == nil {
+			spec = builtins.GetCodegenSpecByUnambiguousStdlibName(name)
+		}
 	}
 	if spec == nil || spec.Inline == "" {
 		return ""

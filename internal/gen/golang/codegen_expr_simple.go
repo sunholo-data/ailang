@@ -84,7 +84,7 @@ func (g *Generator) generateVar(v *core.Var) error {
 		// This handles cases like `println` being passed as a first-class function
 		// argument — the Core IR binds it as a Var, but we need to resolve it
 		// to our helper function name (e.g., Println) to avoid shadowing Go built-ins.
-		if resolved := g.resolveBuiltinViaRegistry(v.Name); resolved != "" {
+		if resolved := g.resolveBuiltinViaRegistry("", v.Name); resolved != "" {
 			g.write(resolved)
 		} else {
 			g.write(ToGoVarName(v.Name))
@@ -139,7 +139,7 @@ func (g *Generator) generateVarGlobal(e *core.VarGlobal) error {
 
 	// M-CODEGEN-SUSTAINABILITY: Query the builtin registry for Go codegen specs.
 	// This replaces mapPureMathBuiltin, mapPureListBuiltin, and mapStdlibBuiltin.
-	if resolved := g.resolveBuiltinViaRegistry(e.Ref.Name); resolved != "" {
+	if resolved := g.resolveBuiltinViaRegistry(e.Ref.Module, e.Ref.Name); resolved != "" {
 		g.write(resolved)
 		return nil
 	}

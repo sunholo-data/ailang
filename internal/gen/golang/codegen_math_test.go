@@ -69,7 +69,7 @@ func TestMathStdlibNameResolution(t *testing.T) {
 	for _, name := range constantNames {
 		t.Run(name+"_varglobal", func(t *testing.T) {
 			g := New("test")
-			result := g.resolveBuiltinViaRegistry(name)
+			result := g.resolveBuiltinViaRegistry("std/math", name)
 			if result == "" {
 				t.Errorf("resolveBuiltinViaRegistry(%q) returned empty — not in registry", name)
 			}
@@ -82,7 +82,7 @@ func TestMathStdlibNameResolution(t *testing.T) {
 	for _, name := range funcNames {
 		t.Run(name+"_inline", func(t *testing.T) {
 			g := New("test")
-			result := g.resolveInlineBuiltin(name, []string{"x"})
+			result := g.resolveInlineBuiltin("std/math", name, []string{"x"})
 			if result == "" {
 				t.Errorf("resolveInlineBuiltin(%q) returned empty — not in registry", name)
 			}
@@ -197,7 +197,7 @@ func TestMathFunctionCall(t *testing.T) {
 // TestMathNonBuiltin tests that non-math builtins don't resolve via registry.
 func TestMathNonBuiltin(t *testing.T) {
 	g := New("test")
-	result := g.resolveBuiltinViaRegistry("some_random_func")
+	result := g.resolveBuiltinViaRegistry("", "some_random_func")
 	if result != "" {
 		t.Errorf("resolveBuiltinViaRegistry should return empty for non-math builtin, got %q", result)
 	}

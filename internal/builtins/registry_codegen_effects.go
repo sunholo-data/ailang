@@ -28,7 +28,8 @@ func registerEffectCodegenSpecs() {
 				Signature: "func " + funcName + "(args ...interface{}) interface{}",
 				Body:      `panic("` + funcName + `: XML operations not yet available in compiled mode")`,
 			},
-			StdlibName: spec.stdlib,
+			StdlibName:   spec.stdlib,
+			StdlibModule: "std/xml",
 		})
 	}
 
@@ -39,7 +40,8 @@ func registerEffectCodegenSpecs() {
 			Signature: "func ParseElements(args ...interface{}) interface{}",
 			Body:      `panic("ParseElements: XML streaming not available in compiled mode - provide an XML handler")`,
 		},
-		StdlibName: "parseElements",
+		StdlibName:   "parseElements",
+		StdlibModule: "std/xml",
 	})
 
 	// JSON helpers for DocParse
@@ -57,8 +59,9 @@ func registerEffectCodegenSpecs() {
 	if result == nil { result = []interface{}{} }
 	return result`,
 		},
-		StdlibName:  "filterStrings",
-		RequiresADT: "Json",
+		StdlibName:   "filterStrings",
+		StdlibModule: "std/json",
+		RequiresADT:  "Json",
 	})
 	registerIfMissing("_json_getObject", 2, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -68,8 +71,9 @@ func registerEffectCodegenSpecs() {
 	if IsNone(opt).(bool) { return NewOptionNone() }
 	return AsObject(OptionGetOrElse(opt, nil))`,
 		},
-		StdlibName:  "getObject",
-		RequiresADT: "Json",
+		StdlibName:   "getObject",
+		StdlibModule: "std/json",
+		RequiresADT:  "Json",
 	})
 
 	// NotBool helper — registered as not_Bool to match Core IR VarGlobal name
@@ -88,7 +92,8 @@ func registerEffectCodegenSpecs() {
 			Signature: "func Check(label interface{}, value interface{}) interface{}",
 			Body:      `return value`,
 		},
-		StdlibName: "check",
+		StdlibName:   "check",
+		StdlibModule: "std/debug",
 	})
 
 	// Effectful list combinators — panic stubs for compiled mode
@@ -108,7 +113,8 @@ func registerEffectCodegenSpecs() {
 				Signature: "func " + funcName + "(args ...interface{}) interface{}",
 				Body:      `panic("` + funcName + `: effectful list operation not available in compiled mode - provide a handler")`,
 			},
-			StdlibName: spec.stdlib,
+			StdlibName:   spec.stdlib,
+			StdlibModule: "std/list",
 		})
 	}
 
@@ -133,8 +139,9 @@ func registerEffectCodegenSpecs() {
 				Signature: "func " + funcName + "(args ...interface{}) interface{}",
 				Body:      `panic("` + funcName + `: JSON helper not yet available in compiled mode")`,
 			},
-			StdlibName:  spec.stdlib,
-			RequiresADT: "Json",
+			StdlibName:   spec.stdlib,
+			StdlibModule: "std/json",
+			RequiresADT:  "Json",
 		})
 	}
 
@@ -145,7 +152,8 @@ func registerEffectCodegenSpecs() {
 			Signature: "func ToString(v interface{}) interface{}",
 			Body:      `return Show(v)`,
 		},
-		StdlibName: "toString",
+		StdlibName:   "toString",
+		StdlibModule: "std/bytes",
 	})
 	registerIfMissing("_str_fromString", 1, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -153,7 +161,8 @@ func registerEffectCodegenSpecs() {
 			Signature: "func FromString(s interface{}) interface{}",
 			Body:      `return s`,
 		},
-		StdlibName: "fromString",
+		StdlibName:   "fromString",
+		StdlibModule: "std/bytes",
 	})
 
 	// Math helpers
@@ -175,26 +184,27 @@ func registerEffectCodegenSpecs() {
 				Signature: "func " + spec.funcName + "(args ...interface{}) interface{}",
 				Body:      spec.body,
 			},
-			StdlibName: spec.stdlib,
+			StdlibName:   spec.stdlib,
+			StdlibModule: "std/list",
 		})
 	}
 
 	// Process/IO effect stubs
 	ioEffectFuncs := []struct {
-		name, stdlib, funcName string
-		numArgs                int
+		name, module, stdlib, funcName string
+		numArgs                        int
 	}{
-		{"_process_spawn", "spawnProcess", "SpawnProcess", 1},
-		{"_process_exec", "exec", "Exec", 1},
-		{"_process_asyncExec", "asyncExecProcess", "AsyncExecProcess", 1},
-		{"_process_writeStdin", "writeProcessStdin", "WriteProcessStdin", 2},
-		{"_process_closeStdin", "closeProcessStdin", "CloseProcessStdin", 1},
-		{"_process_asyncReadStdinLines", "asyncReadStdinLines", "AsyncReadStdinLines", 1},
-		{"_io_listDir", "listDir", "ListDir", 1},
-		{"_clock_now", "now", "Now", 0},
-		{"_net_httpGet", "httpGet", "HttpGet", 1},
-		{"_net_httpRequest", "httpRequest", "HttpRequest", 1},
-		{"_net_httpRequestBytes", "httpRequestBytes", "HttpRequestBytes", 1},
+		{"_process_spawn", "std/process", "spawnProcess", "SpawnProcess", 1},
+		{"_process_exec", "std/process", "exec", "Exec", 1},
+		{"_process_asyncExec", "std/stream", "asyncExecProcess", "AsyncExecProcess", 1},
+		{"_process_writeStdin", "std/process", "writeProcessStdin", "WriteProcessStdin", 2},
+		{"_process_closeStdin", "std/process", "closeProcessStdin", "CloseProcessStdin", 1},
+		{"_process_asyncReadStdinLines", "std/stream", "asyncReadStdinLines", "AsyncReadStdinLines", 1},
+		{"_io_listDir", "std/fs", "listDir", "ListDir", 1},
+		{"_clock_now", "std/clock", "now", "Now", 0},
+		{"_net_httpGet", "std/net", "httpGet", "HttpGet", 1},
+		{"_net_httpRequest", "std/net", "httpRequest", "HttpRequest", 1},
+		{"_net_httpRequestBytes", "std/net", "httpRequestBytes", "HttpRequestBytes", 1},
 	}
 	for _, spec := range ioEffectFuncs {
 		funcName := spec.funcName
@@ -204,7 +214,8 @@ func registerEffectCodegenSpecs() {
 				Signature: "func " + funcName + "(args ...interface{}) interface{}",
 				Body:      `panic("` + funcName + `: effect not available in compiled mode - provide a handler")`,
 			},
-			StdlibName: spec.stdlib,
+			StdlibName:   spec.stdlib,
+			StdlibModule: spec.module,
 		})
 	}
 
@@ -215,7 +226,8 @@ func registerEffectCodegenSpecs() {
 			Signature: "func Head(xs interface{}) interface{}",
 			Body:      `return ListHead(xs)`,
 		},
-		StdlibName: "head",
+		StdlibName:   "head",
+		StdlibModule: "std/list",
 	})
 	registerIfMissing("_list_tail", 1, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -223,7 +235,8 @@ func registerEffectCodegenSpecs() {
 			Signature: "func Tail(xs interface{}) interface{}",
 			Body:      `return ListTail(xs)`,
 		},
-		StdlibName: "tail",
+		StdlibName:   "tail",
+		StdlibModule: "std/list",
 	})
 	registerIfMissing("_list_member", 2, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -235,7 +248,8 @@ func registerEffectCodegenSpecs() {
 	}
 	return false`,
 		},
-		StdlibName: "member",
+		StdlibName:   "member",
+		StdlibModule: "std/list",
 	})
 	registerIfMissing("_list_difference", 2, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -252,6 +266,7 @@ func registerEffectCodegenSpecs() {
 	if result == nil { result = []interface{}{} }
 	return result`,
 		},
-		StdlibName: "difference",
+		StdlibName:   "difference",
+		StdlibModule: "std/list",
 	})
 }
