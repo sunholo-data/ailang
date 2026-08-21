@@ -120,15 +120,26 @@ func showValue(v eval.Value, depth int) string {
 		return val.Value
 
 	case *eval.ListValue:
-		if len(val.Elements) == 0 {
-			return "[]"
+		return showSequence(val.Elements, depth, "[", "]")
+
+	case *eval.ArrayValue:
+		return showSequence(val.Elements, depth, "#[", "]")
+
+	case *eval.TupleValue:
+		return showSequence(val.Elements, depth, "(", ")")
+
+	case *eval.MapValue:
+		keys := make([]string, 0, len(val.Entries))
+		for key := range val.Entries {
+			keys = append(keys, key)
 		}
-		var parts []string
-		for _, elem := range val.Elements {
-			parts = append(parts, showValue(elem, depth+1))
+		sort.Strings(keys)
+		parts := make([]string, 0, len(keys))
+		for _, key := range keys {
+			entry := val.Entries[key]
+			parts = append(parts, showValue(entry.Key, depth+1)+": "+showValue(entry.Value, depth+1))
 		}
-		result := "[" + strings.Join(parts, ", ") + "]"
-		return truncateIfNeeded(result)
+		return truncateIfNeeded("Map{" + strings.Join(parts, ", ") + "}")
 
 	case *eval.RecordValue:
 		if len(val.Fields) == 0 {
@@ -165,13 +176,35 @@ func showValue(v eval.Value, depth int) string {
 	case *eval.FunctionValue:
 		return "<function>"
 
+	case *eval.BuiltinFunction:
+		return "<function>"
+
+	case *eval.ConstructorClosure:
+		return "<function>"
+
+	case *eval.BytesValue:
+		return val.String()
+
+	case *eval.IndirectValue:
+		if val.Cell == nil || !val.Cell.Init || val.Cell.Val == nil {
+			return "<uninitialized>"
+		}
+		return showValue(val.Cell.Val, depth)
+
 	case *eval.ErrorValue:
 		return fmt.Sprintf("Error: %s", val.Message)
 
 	default:
-		// Fallback for unknown types
-		return fmt.Sprintf("<%T>", val)
+		return "<unknown>"
 	}
+}
+
+func showSequence(elements []eval.Value, depth int, open, close string) string {
+	parts := make([]string, 0, len(elements))
+	for _, elem := range elements {
+		parts = append(parts, showValue(elem, depth+1))
+	}
+	return truncateIfNeeded(open + strings.Join(parts, ", ") + close)
 }
 
 // truncateIfNeeded elides the middle of long strings to keep under maxWidth

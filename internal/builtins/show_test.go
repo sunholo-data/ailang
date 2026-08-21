@@ -1,7 +1,13 @@
 package builtins
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"math"
+	"path/filepath"
+	"runtime"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,6 +15,95 @@ import (
 	"github.com/sunholo-data/ailang/internal/effects/testctx"
 	"github.com/sunholo-data/ailang/internal/eval"
 )
+
+func TestShow_AllEvalValueImplementationsHandled(t *testing.T) {
+	t.Helper()
+	_, thisFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	builtinsDir := filepath.Dir(thisFile)
+
+	valueTypes := evalValueImplementations(t, filepath.Join(builtinsDir, "..", "eval"))
+	handledTypes := showValueCases(t, filepath.Join(builtinsDir, "show.go"))
+
+	var unhandled []string
+	for _, name := range valueTypes {
+		if !handledTypes[name] {
+			unhandled = append(unhandled, name)
+		}
+	}
+	require.Empty(t, unhandled, "showValue must explicitly handle every eval.Value implementation")
+}
+
+func evalValueImplementations(t *testing.T, evalDir string) []string {
+	t.Helper()
+	methods := make(map[string]map[string]bool)
+	fset := token.NewFileSet()
+	files, err := filepath.Glob(filepath.Join(evalDir, "*.go"))
+	require.NoError(t, err)
+	require.NotEmpty(t, files)
+	for _, filename := range files {
+		if filepath.Ext(filename) != ".go" || len(filename) >= 8 && filename[len(filename)-8:] == "_test.go" {
+			continue
+		}
+		file, parseErr := parser.ParseFile(fset, filename, nil, 0)
+		require.NoError(t, parseErr)
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Recv == nil || len(fn.Recv.List) != 1 || fn.Name == nil {
+				continue
+			}
+			star, ok := fn.Recv.List[0].Type.(*ast.StarExpr)
+			if !ok {
+				continue
+			}
+			ident, ok := star.X.(*ast.Ident)
+			if !ok {
+				continue
+			}
+			if methods[ident.Name] == nil {
+				methods[ident.Name] = make(map[string]bool)
+			}
+			methods[ident.Name][fn.Name.Name] = true
+		}
+	}
+	var implementations []string
+	for name, names := range methods {
+		if names["Type"] && names["String"] {
+			implementations = append(implementations, name)
+		}
+	}
+	sort.Strings(implementations)
+	return implementations
+}
+
+func showValueCases(t *testing.T, filename string) map[string]bool {
+	t.Helper()
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, filename, nil, 0)
+	require.NoError(t, err)
+	handled := make(map[string]bool)
+	ast.Inspect(file, func(node ast.Node) bool {
+		typeSwitch, ok := node.(*ast.TypeSwitchStmt)
+		if !ok {
+			return true
+		}
+		for _, statement := range typeSwitch.Body.List {
+			clause := statement.(*ast.CaseClause)
+			for _, expr := range clause.List {
+				star, ok := expr.(*ast.StarExpr)
+				if !ok {
+					continue
+				}
+				selector, ok := star.X.(*ast.SelectorExpr)
+				if ok {
+					handled[selector.Sel.Name] = true
+				}
+			}
+		}
+		return false
+	})
+	return handled
+}
 
 func TestShow_Primitives(t *testing.T) {
 	ctx := testctx.NewMockEffContext()
@@ -294,6 +389,34 @@ func TestShow_FunctionValue(t *testing.T) {
 	result, err := showImpl(ctx.EffContext, []eval.Value{funcVal})
 	require.NoError(t, err)
 	assert.Equal(t, "<function>", testctx.GetString(result))
+}
+
+func TestShow_RemainingValueForms(t *testing.T) {
+	initialized := &eval.IndirectValue{Cell: &eval.RefCell{Val: &eval.TupleValue{
+		Elements: []eval.Value{testctx.MakeInt(1), testctx.MakeString("a")},
+	}, Init: true}}
+	tests := []struct {
+		name     string
+		value    eval.Value
+		expected string
+	}{
+		{"tuple", &eval.TupleValue{Elements: []eval.Value{testctx.MakeInt(1), testctx.MakeString("a")}}, "(1, a)"},
+		{"array", &eval.ArrayValue{Elements: []eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)}}, "#[1, 2]"},
+		{"map", &eval.MapValue{Entries: map[string]*eval.MapEntry{
+			"s:b": {Key: testctx.MakeString("b"), Value: testctx.MakeInt(2)},
+			"s:a": {Key: testctx.MakeString("a"), Value: testctx.MakeInt(1)},
+		}}, "Map{a: 1, b: 2}"},
+		{"bytes", &eval.BytesValue{Value: []byte{0x01, 0xab}}, "<bytes:01ab>"},
+		{"builtin", &eval.BuiltinFunction{Name: "example"}, "<function>"},
+		{"constructor closure", &eval.ConstructorClosure{CtorName: "Some", Arity: 1}, "<function>"},
+		{"indirect", initialized, "(1, a)"},
+		{"uninitialized indirect", &eval.IndirectValue{Cell: &eval.RefCell{}}, "<uninitialized>"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, showValue(tt.value, 0))
+		})
+	}
 }
 
 func TestShow_ErrorValue(t *testing.T) {
