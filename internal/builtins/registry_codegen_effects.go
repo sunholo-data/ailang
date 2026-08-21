@@ -167,15 +167,15 @@ func registerEffectCodegenSpecs() {
 
 	// Math helpers
 	mathHelpers := []struct {
-		name, stdlib, funcName, body string
+		name, module, stdlib, funcName, body string
 	}{
-		{"_math_maximumInt", "maximumInt", "MaximumInt", `a := toInt64(args[0]); b := toInt64(args[1]); if a > b { return a }; return b`},
-		{"_math_minimumInt", "minimumInt", "MinimumInt", `a := toInt64(args[0]); b := toInt64(args[1]); if a < b { return a }; return b`},
-		{"_math_maximumFloat", "maximumFloat", "MaximumFloat", `a := args[0].(float64); b := args[1].(float64); if a > b { return a }; return b`},
-		{"_math_minimumFloat", "minimumFloat", "MinimumFloat", `a := args[0].(float64); b := args[1].(float64); if a < b { return a }; return b`},
-		{"_math_absInt", "absInt", "AbsInt", `v := toInt64(args[0]); if v < 0 { return -v }; return v`},
-		{"_math_maximumString", "maximumString", "MaximumString", `a := args[0].(string); b := args[1].(string); if a > b { return a }; return b`},
-		{"_math_minimumString", "minimumString", "MinimumString", `a := args[0].(string); b := args[1].(string); if a < b { return a }; return b`},
+		{"_math_maximumInt", "std/list", "maximumInt", "MaximumInt", `a := toInt64(args[0]); b := toInt64(args[1]); if a > b { return a }; return b`},
+		{"_math_minimumInt", "std/list", "minimumInt", "MinimumInt", `a := toInt64(args[0]); b := toInt64(args[1]); if a < b { return a }; return b`},
+		{"_math_maximumFloat", "std/list", "maximumFloat", "MaximumFloat", `a := args[0].(float64); b := args[1].(float64); if a > b { return a }; return b`},
+		{"_math_minimumFloat", "std/list", "minimumFloat", "MinimumFloat", `a := args[0].(float64); b := args[1].(float64); if a < b { return a }; return b`},
+		{"_math_absInt", "", "", "AbsInt", `v := toInt64(args[0]); if v < 0 { return -v }; return v`},
+		{"_math_maximumString", "std/list", "maximumString", "MaximumString", `a := args[0].(string); b := args[1].(string); if a > b { return a }; return b`},
+		{"_math_minimumString", "std/list", "minimumString", "MinimumString", `a := args[0].(string); b := args[1].(string); if a < b { return a }; return b`},
 	}
 	for _, spec := range mathHelpers {
 		registerIfMissing(spec.name, 2, true, &GoCodegenSpec{
@@ -185,7 +185,7 @@ func registerEffectCodegenSpecs() {
 				Body:      spec.body,
 			},
 			StdlibName:   spec.stdlib,
-			StdlibModule: "std/list",
+			StdlibModule: spec.module,
 		})
 	}
 

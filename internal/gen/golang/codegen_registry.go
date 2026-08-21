@@ -17,12 +17,13 @@ import (
 // Also registers any needed runtime helpers and tracks imports.
 func (g *Generator) resolveBuiltinViaRegistry(module, name string) string {
 	var spec *builtins.GoCodegenSpec
-	if module != "" {
+	if module != "" && !strings.HasPrefix(module, "$") {
 		// A qualified reference must never fall back to either a direct or bare
 		// name match: its module is authoritative.
 		spec = builtins.GetCodegenSpecByStdlibName(module, name)
 	} else {
-		// Module-less internal builtin names resolve directly first.
+		// Module-less names and $-prefixed pseudo-module references are internal
+		// builtin identities, so resolve them directly first.
 		spec = builtins.GetCodegenSpec(name)
 		if spec == nil {
 			spec = builtins.GetCodegenSpecByUnambiguousStdlibName(name)
@@ -237,7 +238,7 @@ func (g *Generator) tryResolveInlineApp(app *core.App) string {
 // Returns empty string if not an Inline builtin.
 func (g *Generator) resolveInlineBuiltin(module, name string, argExprs []string) string {
 	var spec *builtins.GoCodegenSpec
-	if module != "" {
+	if module != "" && !strings.HasPrefix(module, "$") {
 		spec = builtins.GetCodegenSpecByStdlibName(module, name)
 	} else {
 		spec = builtins.GetCodegenSpec(name)

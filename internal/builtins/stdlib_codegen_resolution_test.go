@@ -51,7 +51,6 @@ var crossModuleCodegenExemptions = map[StdlibKey]crossModuleCodegenExemption{
 	{"std/bytes", "fromString"}:           {"_str_fromString", "bytes conversion is implemented by the shared string/bytes bridge"},
 	{"std/bytes", "toString"}:             {"_str_toString", "bytes conversion is implemented by the shared string/bytes bridge"},
 	{"std/fs", "listDir"}:                 {"_io_listDir", "directory listing uses the shared IO effect helper"},
-	{"std/list", "absInt"}:                {"_math_absInt", "integer absolute value delegates to the math helper"},
 	{"std/list", "concat"}:                {"concat_List", "list concatenation uses the polymorphic core concatenation helper"},
 	{"std/list", "maximumFloat"}:          {"_math_maximumFloat", "list reduction delegates pairwise comparison to the math helper"},
 	{"std/list", "maximumInt"}:            {"_math_maximumInt", "list reduction delegates pairwise comparison to the math helper"},
@@ -70,6 +69,13 @@ var crossModuleCodegenExemptions = map[StdlibKey]crossModuleCodegenExemption{
 }
 
 func TestStdlibCodegenResolutionIsModuleQualified(t *testing.T) {
+	// Blind spot (declared, not closed by this structural gate): a codegen spec
+	// can claim a genuine export of its own module, use that module's expected
+	// builtin-family prefix, and still implement the wrong semantics. For example,
+	// a fabricated _list_evilZipWith spec claiming std/list.zipWith and returning
+	// xs passes every check below, while interpreted zipWith(+, [1,2,3],
+	// [10,20,30]) produces [11,22,33] and compiled code produces [1,2,3]. Closing
+	// this requires a source-level delegation/substitution invariant.
 	paths, err := filepath.Glob(filepath.Join(stdlibSourceDir, "*.ail"))
 	if err != nil {
 		t.Fatalf("instrument failure: enumerate stdlib sources: %v", err)
@@ -124,6 +130,7 @@ func TestStdlibCodegenResolutionIsModuleQualified(t *testing.T) {
 	}
 
 	exportCount := 0
+	exported := make(map[StdlibKey]bool)
 	for _, path := range paths {
 		body, err := os.ReadFile(path)
 		if err != nil {
@@ -138,6 +145,7 @@ func TestStdlibCodegenResolutionIsModuleQualified(t *testing.T) {
 		for _, match := range stdlibExportedFunction.FindAllSubmatch(body, -1) {
 			exportCount++
 			name := string(match[1])
+			exported[StdlibKey{Module: module, Name: name}] = true
 			spec := GetCodegenSpecByStdlibName(module, name)
 			if spec == nil {
 				continue // Missing codegen is allowed and fails loudly during compilation.
@@ -149,6 +157,9 @@ func TestStdlibCodegenResolutionIsModuleQualified(t *testing.T) {
 	}
 
 	for key, exemption := range crossModuleCodegenExemptions {
+		if !exported[key] {
+			t.Errorf("cross-module exemption %s.%s has no corresponding stdlib export", key.Module, key.Name)
+		}
 		if exemption.reason == "" {
 			t.Errorf("cross-module exemption %s.%s has no reason", key.Module, key.Name)
 		}
