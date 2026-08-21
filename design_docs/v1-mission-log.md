@@ -14829,3 +14829,157 @@ still OPEN** — a PR discussing both at length closed neither.
 
 **Next.** `m-stdlib-reverse-delegates-to-builtin` — ungated by `D-22`, and iteration 240's `++`
 finding is precisely its defect. `D-22` remains the only OPEN ledger row and is re-asked unchanged.
+
+## 242 — 2026-08-21 — Iteration 242: AILANG shipped an O(n) reverse that nothing called, and the gate written to stop that recurring had two blind spots the judge found by ADDING code rather than removing it
+
+**Pick.** `m-stdlib-reverse-delegates-to-builtin` — top of queue, and iteration 241's declared
+Next. Ungated by `D-22`: it is a one-line delegation and does not touch the list representation.
+No new design doc: `design_docs/planned/m-list-cons-cells-decomposition.md` (quorum-cleared, two
+rounds plus the narrow-refinement carve-out at iteration 234) already scopes this row as one of
+the two D-19-independent interim deliverables, so the pick is EXECUTION, not design.
+
+**Outcome: LANDED.** PR [#814](https://github.com/sunholo-data/ailang/pull/814) → squash
+[`728ca8f3e`](https://github.com/sunholo-data/ailang/commit/728ca8f3e), five commits
+(`2182c10f7`, `89bda9041`, `63ee02ae9`, `50120d7fc`, `48cbc17ad`). Evaluator sonnet **91/100
+PASS**, zero blocking.
+
+**The claim was live-repro'd at HEAD before any routing, and the discriminator was measured in
+both directions before the directive was written.** `std/list.ail:29-34` was
+`concat(reverse(rest), [x])` — quadratic, and depth-O(n). `_list_reverse`
+(`internal/builtins/list.go:546`, one allocation, one loop) has been registered since v0.9.0 with
+**0** callers in `std/` (same-scope control `_list_map` → 1; total `_list_*` call sites in
+`std/*.ail` → 15). Timing on a freshly built binary against a control that is the same program
+with `reverse` removed: n=500 **0.18 s** vs 0.02 s, n=1000 **0.76 s** vs 0.02 s, n=2000
+**4.12 s / 130.7 MB** vs 0.03 s / 87.6 MB. The roadmap cites the designer's iteration-228 base as
+10.2 s / 172.7 MB at the same n; mine is today's, first-party, on this rig's current load — both
+support the same conclusion and the gap is not resolved here.
+
+**The regression arm is a DEPTH discriminator, not a timing one, which is why it cannot flake.**
+Reversing a 20,000-element list built via `std/array` fails under the old implementation with
+`RT_REC_003: max recursion depth 10000 exceeded` (rc=1) and returns `7` (rc=0) once delegated.
+Measured by the controller on a throwaway patch *before* the executor was spawned, then restored
+byte-identical — so the sprint was specified against a discriminator already known to fire.
+It ships as `tests/stdlib/list_reverse_depth.ail` + `.expected` under `make test-stdlib-ail`, a
+required CI job, beside a six-case correctness suite.
+
+**Principle 3 — the audit found this was not a one-off, and that is the larger half of the
+sprint.** **31** `_list_*` builtins are registered; only **12** were called from `std/*.ail`, so
+**19 had zero callers**. Several shadow a `std/list` export that is asymptotically worse than the
+builtin beside it: `take` (`[x] ++ take(n-1, rest)`, quadratic), `foldr`, `sortBy`, `drop`, `zip`,
+`any`, `findIndex`, `flatMap`, and the five effectful `*E` variants. The first audit pass was
+WRONG and its own control caught it: substring matching counts `_list_take` inside
+`_list_takeMap`/`_list_takeFlatMap`, so `_list_take` read as delegated. Re-run with `name(`
+matching, controls firing (a fabricated `_list_zzznotreal(` → 0; total call sites → 15).
+Those 18 are deliberately NOT delegated — each needs its own semantic-equivalence verification,
+filed as the `m-stdlib-list-delegation-sweep` row. What ships instead is the durable gate.
+
+**THE EVALUATOR FALSIFIED TWO CLAIMS THE GATE MADE ABOUT ITSELF, AND THE INTERESTING ONE WAS
+FOUND BY ADDING A BUILTIN RATHER THAN REMOVING A CALL.** Both reproduced first-party before
+acting, each mutant asserted to compile before its test result was read.
+(1) The gate AST-parsed `internal/builtins/*.go` for `Name:` values and the commit message claimed
+"names are derived, never hardcoded, so a new builtin cannot slip past". False: the scan only read
+`*ast.BasicLit`, so a builtin registered as `Name: someConstant` is an `*ast.Ident` and was
+**invisible** — it needed neither a call site nor an exemption and the gate passed at an unchanged
+"31 registered". Every mutation drill run to that point had *removed* something; none had added
+one, and the blind spot is only reachable from that direction.
+(2) The call-site scan was a raw byte-regex over whole files, so a **comment laundered a real
+regression**: reverting the delegation while leaving
+`-- historically this called _list_reverse(xs)` kept the gate GREEN over a function that no longer
+delegated. The depth fixture would still have caught that specific mutant, which is exactly why
+two independent arms were worth shipping.
+
+**The fix replaced source-parsing with the LIVE registries — and neither of them is complete
+alone.** Measured on this tree: `AllNames()` (specRegistry) holds **18** `_list_*` names,
+`GetBuiltinNames()` (the metadata `Registry`) holds **26**, and only their **union** reaches all
+**31** — 13 names are in the second and not the first, 4 in the first and not the second. The
+union is complete by construction (nothing is a builtin without registering), which is the
+property the AST scan only appeared to have. Also: `--` line comments are stripped before
+counting; whitespace before the paren is allowed (`_list_reverse (xs)` is valid AILANG and used to
+read as a non-delegation); `_list_map` is asserted as a known-positive control so a scan that sees
+nothing fails as an instrument failure rather than passing; and an exemption for a name that *now
+has* call sites is rejected, not just one for an unregistered name — staleness has two directions.
+
+**Mutation drill, five mutants against the final gate, all red, all restores sha256-identical.**
+A revert the delegation → `_list_reverse has zero exact call sites`. B revert it behind a
+mentioning comment → same red (**was a PASS before**). C register `_list_zzzprobe` by constant name
+→ caught, 32 builtins seen (**was a PASS before**). D exemption for an unregistered name → `stale
+exemption … not a registered`. E exemption for `_list_map`, which is called → `stale exemption …
+it now has 1 call site(s)`. Under A the correctness arm stays green by design — the old code is
+right on small inputs — which is what makes the depth arm a sole killer rather than one of two.
+
+**One exemption's stated reason was fabricated and was corrected.** `_list_contains` claimed
+`member` carries "explicit equality constraints". Neither builtin declares an `Eq[a]` constraint;
+both use the same structural `valuesEqual`. The NOT-NEEDED verdict stands; the justification did
+not, and a durable gate whose reasons are decorative is a worse artifact than no gate.
+
+**FOUR OF MY OWN INSTRUMENTS FAILED AND EACH WAS CAUGHT BY ITS CONTROL.** (1) The substring audit
+above. (2) A `git diff --name-only` "did the mutation land?" control read **0 files changed** — correct
+and useless, because reverting the delegation restores the file to its *committed* state, so
+diff-vs-HEAD is empty by construction; the real landed proof was the pattern assertion plus the
+sha change. (3) `grep -E "^FAIL\s"` — BSD `grep -E` has no `\s`, so a two-arm comparison printed
+nothing from either arm. (4) The one that matters: **`go test $PKGS` with an unquoted variable**.
+zsh does not word-split, so all four package paths were passed as ONE argument; both arms returned
+`rc=1` for `matched no packages` and I wrote "ARMS AGREE → pre-existing". That is this skill's
+named **false symmetry** — a broken reader corrupts both arms identically and the discriminator
+collapses into agreement. Re-run with an array (`${#PKGS[@]}` asserted = 4), both arms are **rc=0**.
+A fifth: a backgrounded subshell inside a `run_in_background` Bash call was reaped, so `make test`
+never ran while the harness reported exit 0 — caught only by reading the 4-line log instead of the
+notification.
+
+**`make test` is GREEN, and getting there needed the outcome-divergence control.** First run on the
+sprint tree: **rc=2**, four timeout-shaped reds (`executor/codex`, `executor/opencode`,
+`executor/pi`, `smt`) each at its exact timeout boundary (5.00 s, 5.01 s, 9.01 s). Pristine
+`origin/dev`: **rc=0, zero fails**. Arms differ, so "unrelated" was not yet earned. Re-run on a
+**byte-identical** sprint tree (sha256-manifest verified): **rc=0, zero fails**; the same four
+packages pass in isolation on that tree. Outcome divergence with the code held constant ⇒ the
+environment, here cold-build-cache contention in a fresh worktree, not the diff. `go build ./...`
+is rc=1 on `cmd/wasm` (`function main is undeclared`) with a **byte-identical message on both
+arms** — pre-existing, `js`-constrained.
+
+**The evaluator's `make test` red was a DIFFERENT artifact and it confirms the standing trap.** It
+saw one failure, `TestGoldenCompile/string_charat` / `undefined: CharCode`, from
+`golden_test.go:32` shelling out to `ailang` **from PATH**, where the shared `~/go/bin` copy is 55
+commits stale — iteration 237's and 240's instrument trap, third recorded instance. Its conclusion
+matched mine; its specifics did not, and both of us reached "no real defect" only by building a
+fresh binary. Neither of us ran `quick-install`, so `~/go/bin` was left alone for concurrent agents.
+
+**Gates, DERIVED from `ci.yml` (rule 3g) and run OUTSIDE the sandbox by the controller**:
+`build`, `test-stdlib-ail`, `go test ./internal/builtins/...`, `check-file-sizes`,
+`check-boundaries`, `check-changelog`, `test-check-changelog`, `check-skills`,
+`check-golden-drift`, `fmt-check`, `vet`, `test-regression-guards`, `test-check-autoclose`,
+`verify-examples` — all **rc=0**. All darwin/arm64; the linux and windows legs were unrun locally
+and settled by CI. **Gate 3b, SHA-addressed on the full 40-char head**: PR head `48cbc17ad`
+**21 checks, ZERO not-green**, 4/4 required (`test` 22m39s · `lint` 3m54s · `build` 2m6s ·
+`docs-gate` 2s), `MERGEABLE/CLEAN`; merge commit `728ca8f3e` **20 checks, ZERO not-green**, all
+three named workflows `success`. `#676` and `#612` asserted **still OPEN** post-merge (Gate 4 rule
+(c)) — pre-merge control read the same, and all five commit messages plus the PR title and body
+scanned clean for closing keywords with the known-bad control firing.
+
+**A pre-existing harness defect the evaluator found in passing, filed rather than fixed**:
+`ailang test` (not `ailang run`) fails to resolve `$builtin.*` — `EVA002: module not compiled:
+$builtin` — when a builtin-delegated stdlib call is `let`-bound inside a `test { }` block.
+Reproduced for `_list_reverse` and for the untouched `_list_length`, so it is not this sprint's.
+The shipped correctness suite avoids `let`-binding the call and sidesteps it; that it did so is not
+a design anyone chose, which is the argument for the row.
+
+**Ruled out.** That the `make test` reds came from the diff (byte-identical re-run is green;
+pristine is green). That `go build ./...` was broken by the sprint (identical message on both
+arms). That the delegation could alias its input (`listReverseImpl` allocates a fresh slice and
+copies; confirmed independently by the judge). That the AST enumeration was complete (refuted by
+adding a constant-named registration). That either live registry alone would do (18 and 26 against
+a union of 31). That `_list_take` was already delegated (my substring instrument, not the code).
+That the executor's charter edit should stand — it rewrote this row's queue entry and deleted the
+designer's measured base; Gate 4 owns the charter, so it was reverted and rewritten here.
+
+**Routing evidence.** controller `opus` (session) · designer **none** (no new doc needed; rotation
+pointer NOT advanced, still `codex:gpt-5.6-sol`) · planner **none** (row pre-scoped by the
+decomposition doc; the controller wrote the AC list) · executor `codex:gpt-5.6-sol` (probe rc=0,
+one bounded 30-min backgrounded run, rc=0, four cumulative `.snap/M<k>/` snapshots, zero git
+writes; commits reconstructed by the controller and proven faithful by sha256 manifest) ·
+evaluator `sonnet` in **its own worktree** (iteration-199 rule), generator≠judge held (OpenAI
+executor vs Anthropic judge). `metered = $0.00` of $5 — codex, opus and sonnet are all quota
+buckets; no quorum this iteration. No GPU, no `rig.lock`.
+
+**Next.** `m-stdlib-list-delegation-sweep` — the 18 remaining zero-caller builtins, each needing
+its own semantic-equivalence verification; the gate now names them, so the work is enumerated
+rather than discovered. `D-22` still gates LC-2 and is re-asked unchanged.
