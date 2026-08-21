@@ -15122,3 +15122,112 @@ predicate measured: main checkout 0 ahead, dirty∩incoming empty with the `comm
 **Next.** `m-stdlib-list-delegation-sweep` — now that its acceptance-signal shape actually runs.
 `m-stdlib-ail-suite-enumerator-blind` is the cheap hardening to land alongside or before it, since
 the sweep multiplies the exposure by thirteen. `D-22` still gates LC-2 and is re-asked unchanged.
+
+## 244 — 2026-08-21 — Iteration 244: a required CI gate could not see a fixture that moved, was renamed, or arrived as a symlink — including one that cannot pass
+
+**Pick.** `m-stdlib-ail-suite-enumerator-blind`, filed by iteration 243's judge. Taken on 243's own
+measured ordering argument rather than as a reshuffle: it is the prerequisite protection for the
+row directly beneath it, `m-stdlib-list-delegation-sweep`, which adds ~13 fixtures of exactly the
+vulnerable shape. No design doc and no planner — the row named both causes and both file:lines, so
+the controller wrote the acceptance criteria, the same routing iteration 243 used for a
+comparably-sized defect.
+
+**The row was an inherited claim and was re-measured first-party before any routing.** Six mutants
+on the pristine tree at `1e5d842be`, exit codes captured without a pipe, tree sha256-restored after
+each:
+
+| Mutant | What | rc | gate printed | truth |
+|---|---|---|---|---|
+| base | pristine | 0 | 3 suites / 4 fixtures | 3 / 4 |
+| A | +1 suite in a subdirectory | 0 | 3 suites | 4 existed |
+| B | +1 `.ail`/`.expected` pair in a subdirectory | 0 | 4 fixtures | 5 existed |
+| C | +1 subdirectory suite asserting `1 == 2` | 0 | "3 .ail test suite(s) passed" | a **failing** suite was invisible |
+| D | rename a suite out of the glob | 0 | 2 suites | silently dropped |
+| E | delete 2 of 3 suites | 0 | 1 suite | floor satisfied at 1 |
+| F | delete **all** suites (positive control) | 2 | instrument failure | the floor CAN fire |
+
+Two causes, both at `make/test.mk`: a non-recursive `*` glob, and a floor of `-ge 1` rather than an
+exact count. Recursive and case-widened controls agreed with the glob at 3/4, so the exposure was
+**latent, not a live hole** — recorded that way rather than inflated. The gate's CI wiring was
+verified rather than assumed (`ci.yml:127`), because this mission has previously found a "gate"
+wired into no target and no job.
+
+**Fix.** Both loops enumerate with a sorted `find`, and both assert an exact count pinned as
+`STDLIB_AIL_SUITES_EXPECTED` / `STDLIB_AIL_FIXTURES_EXPECTED`. The pin is deliberately a literal a
+human wrote: an expectation derived from the same `find` cannot detect a fixture disappearing, and
+would reproduce the defect one level up.
+
+**The evaluator's BLOCKING finding is the finding of the iteration, and it was in-class.** sonnet
+scored 85/100 PASS in its own worktree, and reported that `find -type f` **excludes symlinks** — a
+symlink is type `l`, so a *committed* symlinked fixture was invisible to both the run and the count,
+**and both counts still agreed with the pins**. Reproduced first-party before acting, per the rule
+that a judge's finding is a claim like any other: a symlinked suite asserting `1 == 2` left the gate
+at **rc=0, "3 .ail test suite(s) passed"**; `-type f` → 3, `-type l` → 1, `find -L` → 4; `git add -n`
+confirmed git would track it; control — **0** symlinks exist under `tests/` today against **1359**
+regular files, so the zero is a measurement rather than an assumption.
+
+That is the *same* failure shape the sprint existed to close — an invisible fixture whose absence the
+count cannot see — arriving through a mechanism the fix had not considered. It was fixed in round 2
+rather than deferred: `find -L`, with **dangling** symlinks (still type `l` under `-L`) rejected
+explicitly by path, because a suite that cannot be read is not a suite. Two further judge findings
+were fixed in the same pass: the file list is read from a temp file with `while IFS= read -r` instead
+of being word-split out of `$(...)`, so a path containing a space now produces the intended
+expected/actual message instead of `lstat …: no such file`; and `test -d tests/stdlib` is asserted
+first, so a missing root reports its own instrument failure instead of leaking `find`'s stderr ahead
+of it. Its changelog-accuracy finding was also correct — the entry had listed a mutant that was not
+in the post-fix re-drill set — and is corrected.
+
+**Round-2 drill: 11 mutants, all red, base and final green.** The decisive detail is *why* two of
+them red: the nested failing suite and the symlinked failing suite both produce the suite path in the
+run list followed by `assertion 1 failed`, and the symlinked `.expected` produces a real stdout diff.
+They red because they **actually run**, not because a count moved — which is the distinction rule 3i
+exists for, and the weaker outcome was explicitly named as weaker in the executor directive so it
+could not be quietly accepted.
+
+**Residual, declared rather than assumed away**, in the target's own comment and in the changelog:
+name matching stays case-sensitive, so `*_TEST.ail` / `*.EXPECTED` and suites not ending `_test.ail`
+remain invisible. Pre-existing and unchanged by this sprint, but now written down instead of being an
+unstated property of the enumerator.
+
+**Ruled out.**
+- *That the exposure was a live hole.* It was not: recursive and case-widened enumeration both agreed
+  with the non-recursive glob at 3 suites / 4 fixtures. The defect was latent. Saying so cost nothing
+  and keeps the record honest.
+- *That the windows leg was a portability risk.* The evaluator measured that `test-stdlib-ail` runs
+  only in the `ubuntu-latest` job; the windows job never invokes it. The brief had raised it; the
+  measurement retired it.
+- *That the executor's own mutation table could be banked.* It was not. Every arm was re-derived by
+  the controller, and the two symlink arms were only discovered because the judge attacked the
+  enumerator rather than its branches.
+
+**Routing evidence.** controller `opus` (session) · designer **none** — no new doc was needed, so the
+rotation pointer stays at `codex:gpt-5.6-sol` · planner **none** — the controller wrote the ACs ·
+executor **`codex:gpt-5.6-sol`** (probe rc=0; directive 7,443 B delivered and asserted; backgrounded
+under a 30-min cap; rc=0 with a non-empty worktree diff) · evaluator **`sonnet`**, in its own worktree
+at the sprint commit — distinct provider from the codex executor, so generator≠judge holds.
+`metered = $0.00` of $5. No quorum, no GPU, no `rig.lock`.
+
+**Deviation adjudicated.** The executor reported none, and none was found: the diff implemented every
+AC as written. The round-2 changes are the controller's, not a deviation.
+
+**Two live re-demonstrations of existing rules, both first-party, both this iteration.**
+1. My own worktree-readiness poll greened **early** because its test was `grep -q .` against a log
+   `git` was still writing progress into — a robustness construct firing on the success path. Caught
+   because the next command showed git at 84%.
+2. A **hand-typed** SHA returned a confident `total=0` from `actions/runs?head_sha=` where the
+   `rev-parse`d one returns 2 — iteration 243's control-agreeing-for-the-wrong-reason rule, met the
+   day after it was written, and by the iteration that inherited it.
+
+**Gate 5 — one skill edit, `3a484e626`, saved in the MAIN checkout so it is live.** `mission-world`
+iteration 105's `|| echo 0` proposal, corroborated first-party before adoption:
+`n=$(grep -c zzz f || echo 0)` yields the two-line string `0\n0` (`od -c` bytes `0 \n 0`), so
+`[ "$n" != "0" ]` is **TRUE**, and Gate 3b's numeric floor cannot catch it because that floor tests
+values compared as *numbers* while this one is compared as a *string*. The mechanism was absent from
+the running skill (0 lines carrying both `grep -c` and `|| echo`; control `rule 3a` = 22). Filed in
+Gate 2's rule 3a(i-c) remedy list — where a reader looks for "what silently rewrites my reading" —
+rather than as a war story, and generalised to neighbouring robustness wrappers with friction 1 above
+as its second instance.
+
+**Next.** `m-stdlib-list-delegation-sweep`. Both of its prerequisites are now discharged: iteration
+243 made its test shape runnable, and this iteration made the gate that will protect its ~13 fixtures
+able to see them.
