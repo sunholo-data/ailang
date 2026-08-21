@@ -84,9 +84,7 @@ func (tm *TypeMapper) mapTypeWithVisited(t types.Type, visited map[types.Type]bo
 		return GoType(fmt.Sprintf("[]%s", elemType)), nil
 
 	case *types.TTuple:
-		// Go doesn't have tuples, generate a struct type name
-		// For now, return a placeholder
-		return GoType("struct{}"), nil
+		return GoType("Tuple"), nil
 
 	case *types.TRecord:
 		// M-CROSS-MODULE: First check if TypeName is set (preserves nominal type identity)

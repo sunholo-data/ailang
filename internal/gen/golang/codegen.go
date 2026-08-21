@@ -551,11 +551,13 @@ func (g *Generator) writePackageHeader() {
 			g.writef("\t\"math\"\n")
 		}
 		g.writef("\t\"reflect\"\n")
+		g.writef("\t\"sort\"\n")
 		if g.needsStrconvImport {
 			g.writef("\t\"strconv\"\n")
 		}
 		g.writef("\t\"strings\"\n")
 		g.writef(")\n\n")
+		g.writef("type Tuple []interface{}\n\n")
 		g.writeRuntimeHelpers()
 	} else if g.needsMathImport || g.needsStrconvImport || g.needsStringsImport || g.needsSortImport {
 		// M-CODEGEN-SUSTAINABILITY: Even when skipping runtime helpers,
@@ -662,6 +664,8 @@ func (g *Generator) GenerateRuntime() ([]byte, error) {
 	// maps to []interface{} in Go. Needed when functions have unparameterized List return types.
 	g.writef("// List is the AILANG list type (unparameterized).\n")
 	g.writef("type List = []interface{}\n\n")
+	g.writef("// Tuple preserves tuple identity for pattern matching and canonical Show output.\n")
+	g.writef("type Tuple []interface{}\n\n")
 
 	// Write the pre-generated helpers (already generated above for import detection)
 	g.buf.WriteString(helpersCode)

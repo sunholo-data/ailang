@@ -46,8 +46,8 @@ func (g *Generator) writeRuntimeMiscHelpers() {
 	g.indent--
 	g.writef("}\n\n")
 
-	// Show helper for converting values to strings
-	g.writef("// Show converts any value to its string representation.\n")
+	// Show helper for converting values to canonical AILANG surface syntax.
+	g.writef("// Show converts any value to canonical AILANG surface syntax.\n")
 	g.writef("func Show(v interface{}) string {\n")
 	g.indent++
 	g.writef("switch x := v.(type) {\n")
@@ -65,7 +65,9 @@ func (g *Generator) writeRuntimeMiscHelpers() {
 	g.indent--
 	g.writef("case float64:\n")
 	g.indent++
-	g.writef("return fmt.Sprintf(\"%%g\", x)\n")
+	g.writef("s := fmt.Sprintf(\"%%g\", x)\n")
+	g.writef("if !strings.ContainsAny(s, \".eE\") { s += \".0\" }\n")
+	g.writef("return s\n")
 	g.indent--
 	g.writef("case bool:\n")
 	g.indent++
@@ -76,11 +78,119 @@ func (g *Generator) writeRuntimeMiscHelpers() {
 	g.indent++
 	g.writef("return \"()\"\n")
 	g.indent--
+	g.writef("case Tuple:\n")
+	g.indent++
+	g.writef("return showSequence(reflect.ValueOf(x), \"(\", \")\")\n")
+	g.indent--
 	g.writef("default:\n")
 	g.indent++
-	g.writef("return fmt.Sprintf(\"%%v\", x)\n")
+	g.writef("return showReflect(reflect.ValueOf(x))\n")
 	g.indent--
 	g.writef("}\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("func showReflect(v reflect.Value) string {\n")
+	g.indent++
+	g.writef("if !v.IsValid() { return \"()\" }\n")
+	g.writef("if v.Kind() == reflect.Interface {\n")
+	g.indent++
+	g.writef("if v.IsNil() { return \"()\" }\n")
+	g.writef("return Show(v.Elem().Interface())\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("switch v.Kind() {\n")
+	g.writef("case reflect.Ptr:\n")
+	g.indent++
+	g.writef("if v.IsNil() { return \"()\" }\n")
+	g.writef("return showReflect(v.Elem())\n")
+	g.indent--
+	g.writef("case reflect.Slice, reflect.Array:\n")
+	g.indent++
+	g.writef("return showSequence(v, \"[\", \"]\")\n")
+	g.indent--
+	g.writef("case reflect.Map:\n")
+	g.indent++
+	g.writef("return showMap(v)\n")
+	g.indent--
+	g.writef("case reflect.Struct:\n")
+	g.indent++
+	g.writef("return showStruct(v)\n")
+	g.indent--
+	g.writef("case reflect.Func:\n")
+	g.indent++
+	g.writef("return \"<function>\"\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return \"<unknown>\"\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("func showSequence(v reflect.Value, open, close string) string {\n")
+	g.indent++
+	g.writef("parts := make([]string, v.Len())\n")
+	g.writef("for i := 0; i < v.Len(); i++ { parts[i] = Show(v.Index(i).Interface()) }\n")
+	g.writef("return open + strings.Join(parts, \", \") + close\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("func showMap(v reflect.Value) string {\n")
+	g.indent++
+	g.writef("if v.Type().Key().Kind() != reflect.String { return \"<map>\" }\n")
+	g.writef("tag := v.MapIndex(reflect.ValueOf(\"_tag\"))\n")
+	g.writef("if tag.IsValid() {\n")
+	g.indent++
+	g.writef("ctor, ok := tag.Interface().(string)\n")
+	g.writef("if !ok { return \"<unknown>\" }\n")
+	g.writef("keys := make([]string, 0, v.Len()-1)\n")
+	g.writef("for _, key := range v.MapKeys() { if key.String() != \"_tag\" { keys = append(keys, key.String()) } }\n")
+	g.writef("sort.Strings(keys)\n")
+	g.writef("if len(keys) == 0 { return ctor }\n")
+	g.writef("parts := make([]string, len(keys))\n")
+	g.writef("for i, key := range keys { parts[i] = Show(v.MapIndex(reflect.ValueOf(key)).Interface()) }\n")
+	g.writef("return ctor + \"(\" + strings.Join(parts, \", \") + \")\"\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("keys := make([]string, 0, v.Len())\n")
+	g.writef("for _, key := range v.MapKeys() { keys = append(keys, key.String()) }\n")
+	g.writef("sort.Strings(keys)\n")
+	g.writef("parts := make([]string, len(keys))\n")
+	g.writef("for i, key := range keys { parts[i] = key + \": \" + Show(v.MapIndex(reflect.ValueOf(key)).Interface()) }\n")
+	g.writef("return \"{\" + strings.Join(parts, \", \") + \"}\"\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("func showStruct(v reflect.Value) string {\n")
+	g.indent++
+	g.writef("if v.NumField() == 0 { return \"()\" }\n")
+	g.writef("if kind := v.FieldByName(\"Kind\"); kind.IsValid() {\n")
+	g.indent++
+	g.writef("for i := 0; i < v.NumField(); i++ {\n")
+	g.indent++
+	g.writef("fieldInfo := v.Type().Field(i)\n")
+	g.writef("field := v.Field(i)\n")
+	g.writef("if fieldInfo.Name == \"Kind\" || field.Kind() != reflect.Ptr || field.IsNil() { continue }\n")
+	g.writef("variant := field.Elem()\n")
+	g.writef("parts := make([]string, variant.NumField())\n")
+	g.writef("for j := 0; j < variant.NumField(); j++ { parts[j] = Show(variant.Field(j).Interface()) }\n")
+	g.writef("if len(parts) == 0 { return fieldInfo.Name }\n")
+	g.writef("return fieldInfo.Name + \"(\" + strings.Join(parts, \", \") + \")\"\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return \"<unknown>\"\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("parts := make([]string, 0, v.NumField())\n")
+	g.writef("for i := 0; i < v.NumField(); i++ {\n")
+	g.indent++
+	g.writef("fieldInfo := v.Type().Field(i)\n")
+	g.writef("if fieldInfo.PkgPath != \"\" { continue }\n")
+	g.writef("name := strings.ToLower(fieldInfo.Name[:1]) + fieldInfo.Name[1:]\n")
+	g.writef("parts = append(parts, name + \": \" + Show(v.Field(i).Interface()))\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("sort.Strings(parts)\n")
+	g.writef("return \"{\" + strings.Join(parts, \", \") + \"}\"\n")
 	g.indent--
 	g.writef("}\n\n")
 

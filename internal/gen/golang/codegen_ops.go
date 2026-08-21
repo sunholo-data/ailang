@@ -417,9 +417,9 @@ func (g *Generator) getArrayElementType(arr *core.Array) string {
 	return ""
 }
 
-// generateTuple generates a Go struct for tuple.
+// generateTuple preserves tuple identity for canonical rendering and matching.
 func (g *Generator) generateTuple(tuple *core.Tuple) error {
-	g.write("[]interface{}{")
+	g.write("Tuple{")
 	for i, elem := range tuple.Elements {
 		if i > 0 {
 			g.write(", ")
