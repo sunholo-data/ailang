@@ -26,13 +26,9 @@ export pure func tail[a](xs: [a]) -> [a] {
   }
 }
 
-export pure func reverse[a](xs: [a]) -> [a] {
-  -- Simple recursive reverse (not tail-recursive)
-  match xs {
-    [] => [],
-    [x, ...rest] => concat(reverse(rest), [x])
-  }
-}
+-- M-ITERATIVE-LIST: Delegates to the Go-level iterative builtin; O(n) time, O(1) stack.
+-- The previous recursive `concat(reverse(rest), [x])` form was O(n^2) and depth-capped at 10,000.
+export pure func reverse[a](xs: [a]) -> [a] = _list_reverse(xs)
 
 export pure func concat[a](xs: [a], ys: [a]) -> [a] {
   match xs {

@@ -1,0 +1,12 @@
+module tests/stdlib/list_reverse_depth
+import std/array (make, set, toList)
+import std/list (head, reverse)
+import std/option (Some, None)
+
+export func main() -> () ! {IO} {
+  let xs = toList(set(make(20000, 1), 19999, 7))
+  match head(reverse(xs)) {
+    Some(x) => println(show(x)),
+    None => println("unexpected empty list")
+  }
+}
