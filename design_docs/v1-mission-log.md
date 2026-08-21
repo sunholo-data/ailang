@@ -14983,3 +14983,142 @@ buckets; no quorum this iteration. No GPU, no `rig.lock`.
 **Next.** `m-stdlib-list-delegation-sweep` — the 18 remaining zero-caller builtins, each needing
 its own semantic-equivalence verification; the gate now names them, so the work is enumerated
 rather than discovered. `D-22` still gates LC-2 and is re-asked unchanged.
+
+## 243 — 2026-08-21 — Iteration 243: ailang test could not run a function-less module's test blocks, and the bug report that found it was wrong in both directions
+
+**Pick.** `m-ailang-test-builtin-resolution` — taken AHEAD of the queue head on a measured
+ordering argument. Iteration 242's declared Next was `m-stdlib-list-delegation-sweep` (13
+delegations, ~2–3d, multi-iteration). This row sat directly beneath it and is its
+acceptance-signal dependency: every function the sweep delegates needs a semantic-equivalence
+test, and the natural shape for one — a small module of imports plus `test { }` blocks — is
+exactly the shape that could not run. Small, bounded, and it unblocks the larger row rather than
+competing with it. No design doc: the root cause was measurable in about twenty minutes, so the
+pick was EXECUTION and the controller wrote the AC list.
+
+**Outcome: LANDED.** PR [#815](https://github.com/sunholo-data/ailang/pull/815) → squash
+[`705e5f6b6`](https://github.com/sunholo-data/ailang/commit/705e5f6b6), three commits
+(`c38deec28`, `db094b40f`, `3c5166277`). Evaluator sonnet **97/100 PASS**, zero blocking.
+
+**The filed characterisation was false, and falsifying it is what made the fix findable.**
+Iteration 242's evaluator filed this as requiring a **`let`-bound** call to a delegated builtin
+inside a `test { }` block. Measured on a freshly built binary at `adac647c2`: it fails with and
+without a `let`, and it passes with and without one. Four shapes, four readings, each exit code
+captured without a pipe and the arms asserted to differ rather than eyeballed — function-less
+module calling `length`/`reverse`/`map` **rc=1** with `EVA002: module not compiled: $builtin`; the
+same module plus an **unused** `pure func unusedHelper` **rc=0**; function-less calling the
+non-delegating `any` **rc=0**; the same delegating call under `ailang run` **rc=0**. The variable
+is whether the module declares **any function of its own**. Had the `let` framing been inherited,
+the search would have gone into binding/scoping and missed the mechanism entirely.
+
+**My first freshness control was invalid, and its own two-arm assertion is what caught it.** To
+prove the new binary was post-242 I ran iteration 242's `list_reverse_depth.ail` fixture under both
+binaries. Both returned **rc=0** — because that delegation lives in `std/list.ail`, a *source* file
+both binaries load from the same worktree, so the arms shared the variable and could never have
+discriminated. Replaced with an ldflags-stamped `--version` compared against `git describe`. A
+plain `go build` produces `AILANG dev`, which is why the version route needed the ldflags rather
+than being the obvious first choice.
+
+**Root cause, reported by a sub-agent and then verified first-party at every load-bearing line.**
+The report asserted `GlobalResolver` appears nowhere in `executor.go`. It appears **4** times — as
+`evaluator.SetGlobalResolver` on the executor's own second-pass evaluator, a different object. The
+claim survived, but only because it was checked. The mechanism: `pipeline.Run` wires the `$builtin`
+lookup hook **only** under `cfg.GlobalResolver != nil`
+(`internal/pipeline/pipeline_module.go:442`), and in `ModeEval` it evaluates `Core.Decls[0]`
+through that resolver, returning immediately on error (`:494-501`). The elaborator emits
+function/let declarations **before** the trailing bare test-body block, so with no functions
+`Decls[0]` **is** the test body and it reaches `$builtin` through a resolver with no builtin
+lookup. Any function absorbs `Decls[0]`, the pipeline returns normally, and the executor's own
+second pass — correctly wired to a `CombinedResolver` — runs the real body. `ailang run` was never
+affected because `cmd/ailang/main_run_exec.go:198,243` already supplies exactly this resolver.
+
+**The fix direction was proven before the executor was spawned.** A throwaway patch supplying the
+resolver flipped all five failing shapes 1→0 while all three passing controls stayed 0→0, with
+`go test ./internal/testing/...` rc=0. Restored byte-identical by sha256 from a `cp` backup —
+never `git checkout --`, which in a worktree holding uncommitted work deletes it and then reports
+the loss correctly *after* the fact.
+
+**Principle 3 audit — and the audit instrument failed its own control first.** A `grep -A8` over
+`internal/testing/` found four `pipeline.Config` sites, but the known-positive control (the site in
+`cmd/ailang` that *does* set the field) came back **0**: the window was too short. Widened to
+`-A25`, the control fires at 1. Corrected result: **all four** sites omit `GlobalResolver` and all
+four use `ModeEval`. The fix builds the resolver **once** per `Executor` and passes it to all four;
+`NewExecutor` is the sole construction path (the only `&Executor{` literal in the package is inside
+it), so it cannot be bypassed.
+
+**Scope stated honestly rather than claimed.** Only the `EvaluateNamedTestBodyExprs` site has a
+reproducing arm. The `property`/`forall` path routes through `EvaluateExpression` and fails
+**earlier**, `PAR_UNEXPECTED_TOKEN ... at _test.ail` — the source-synthesis defect
+`internal/testing/runner.go:267,307,312` already names in its own comments. Measured in both arms,
+so it is a different bug; sites 95/468/645 ship changed-for-consistency and are recorded as having
+no arm. The judge independently established that the latter two are only reachable via
+`FunctionCtx`, i.e. structurally incompatible with a function-less module, so the absence is forced
+rather than an oversight.
+
+**Two arms, two layers, both verified SOLE KILLERS by the controller.** Mutant = remove
+`GlobalResolver` from the named-test-body site only, neutered so every import stays used; asserted
+**LANDED** (sha256 `4d1b6432…`→`ce36392d…`) and **BUILDING** (`go build ./internal/... ./cmd/ailang`
+rc=0) before any test result was read. Go arm: the package reds **exactly one** test and the
+inverse `-skip` run is **rc=0** with zero FAILs. `.ail` arm: the make target **short-circuits on
+first failure**, so its aggregate is not a red set — the three suites were run **individually**
+(`bounded_take_parity` rc=0, `list_reverse` rc=0, `functionless_builtin_resolution` rc=1). That
+distinction is the whole difference between an enumerated red set and an inherited one.
+
+**The enumeration was tested in the ADD direction, and the judge took that rule further than I
+did.** Rule 3a(i-e) — added by iteration 242 — says a removal proves a check FIRES and only an
+addition proves it LOOKS. My ADD test stayed inside `tests/stdlib/` and correctly showed the
+enumerated suite count moving **2 → 3** with the new fixture named in the output. Sonnet added one
+in `tests/stdlib/subdir_probe/` and the gate reported **rc=0, "3 suites passed"** — blind.
+Reproduced first-party. `make/test.mk:266,274`: the glob is non-recursive and the anti-vacuity
+floor is `[ suites -ge 1 ]` rather than an exact count, so the removal direction is undefended too.
+Pre-existing, so it is filed as `m-stdlib-ail-suite-enumerator-blind` rather than fixed here
+(standing rule 1) — and it matters now because the sweep will add ~13 fixtures of that exact shape.
+
+**The one real design question was the judge's to answer, and it did.** Four `ModeEval` sites now
+share one resolver built from one `eval.NewCoreEvaluator()`, and `getEffContext()` binds
+higher-order-builtin callbacks to that construction-time evaluator rather than to the fresh one
+each `pipeline.Run` spins up. Sonnet stress-tested it: five `test { }` blocks capturing different
+closure variables across five pipeline calls on one `Executor`, all numerically correct with no
+cross-call leakage, and `runner.go` has no goroutines. Safe today, flagged as latent should test
+execution ever be parallelised.
+
+**Gates, DERIVED from `ci.yml` (rule 3g) and run OUTSIDE the codex sandbox by the controller**:
+`build`, `test-stdlib-ail`, `check-file-sizes`, `check-boundaries`, `check-changelog`,
+`test-check-changelog`, `test-check-autoclose`, `check-skills`, `check-golden-drift`, `fmt-check`,
+`vet`, `test-regression-guards`, `verify-no-shim` — all **rc=0**; plus **`make test` rc=0 with zero
+FAIL lines** and `go test ./internal/testing/... ./internal/builtins/...` rc=0, both under a
+**freshly built binary prepended to PATH**. `~/go/bin` was left untouched for concurrent agents;
+the shared copy there is 54 commits stale, which is the fourth recorded encounter with that trap.
+All darwin/arm64 — the linux and windows legs were unrun locally and settled by CI.
+
+**Gate 3b, and the merge's push event was dropped.** PR head `3c5166277`: **21 checks, ZERO
+not-green**, 4/4 required, `MERGEABLE/CLEAN` — with `mergeable` read FIRST per the iteration-198
+ordering rule, before any dropped-event hypothesis was entertained. After merging to `705e5f6b6`,
+`actions/runs?head_sha=<full 40>` returned **total=0** and `check-runs` **checks=0**, while the
+previous three merges read 3, 3 and 2. My first control for that was itself broken: I
+**hand-expanded** iteration 242's merge SHA and the fabricated 40-char string returned a confident
+`total=0` — a control agreeing with the finding for the wrong reason, which is the most dangerous
+possible failure of one. `git rev-parse`d properly it returns **3**. With a real control the zero is
+real, so the iteration-196 disposition was executed rather than a verdict recorded: `gh workflow run
+CI --ref dev` created run `32476446627` with **7 live jobs**, so dev's HEAD gets its own verdict
+instead of inheriting the PR's.
+
+**Ruled out.** That the defect requires a `let` (false in both directions). That the property/forall
+path shares it (fails earlier; both arms identical). That iteration 242's depth fixture could
+witness binary freshness (both binaries load the same `std/`). That a shared resolver instance leaks
+state across calls (the judge's five-block closure-capture test). That the subdirectory blind spot is
+this PR's regression (pre-existing at `make/test.mk:274`). That `go build ./...` rc=1 is ours
+(`cmd/wasm`, byte-identical message at base).
+
+**Routing evidence.** controller `opus` (session) · designer **none** — no new doc was needed, so
+the rotation pointer stays at `codex:gpt-5.6-sol` · planner **none** — the controller wrote the AC
+list from the measured mechanism · executor `codex:gpt-5.6-sol` (probe rc=0, one bounded 30-min
+backgrounded run, rc=0, three cumulative `.snap/M<k>/` snapshots, **zero git writes**; commits
+reconstructed by the controller and proven faithful by a sha256 manifest, `shasum -c` 4/4 OK) ·
+evaluator `sonnet` in **its own worktree** (iteration-199 rule), generator≠judge held (OpenAI
+executor vs Anthropic judge). `metered = $0.00` of $5 — codex, opus and sonnet are all quota
+buckets; no quorum this iteration. No GPU, no `rig.lock`. D-16 fast-forward exercised with the
+predicate measured: main checkout 0 ahead, dirty∩incoming empty with the `comm` control firing at 4.
+
+**Next.** `m-stdlib-list-delegation-sweep` — now that its acceptance-signal shape actually runs.
+`m-stdlib-ail-suite-enumerator-blind` is the cheap hardening to land alongside or before it, since
+the sweep multiplies the exposure by thirteen. `D-22` still gates LC-2 and is re-asked unchanged.
