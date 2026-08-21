@@ -140,6 +140,28 @@ jobs:
     - name: Changelog index gate self-test
       run: make test-check-changelog
 
+    # Squash merges turn the PR title and body into the merge commit message, so
+    # PR text is the primary record. Pushes scan the exact delivered commit range.
+    - name: Check accidental issue auto-closure
+      shell: bash
+      run: |
+        case "$GITHUB_EVENT_NAME" in
+          pull_request)
+            jq -r '.pull_request.title // "", .pull_request.body // ""' "$GITHUB_EVENT_PATH" > "$RUNNER_TEMP/autoclose-pr-text"
+            git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" > "$RUNNER_TEMP/autoclose-pr-files"
+            make check-autoclose AUTOCLOSE_ARGS="--text-file $RUNNER_TEMP/autoclose-pr-text --files-from $RUNNER_TEMP/autoclose-pr-files"
+            ;;
+          push)
+            make check-autoclose AUTOCLOSE_ARGS="--commits ${{ github.event.before }}..${{ github.sha }}"
+            ;;
+          *)
+            make check-autoclose AUTOCLOSE_ARGS="--commits HEAD^..HEAD"
+            ;;
+        esac
+
+    - name: Issue autoclose gate self-test
+      run: make test-check-autoclose
+
     - name: Check skill frontmatter
       run: make check-skills
 

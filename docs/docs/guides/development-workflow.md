@@ -247,6 +247,19 @@ Fixes #17
 Fixes #42"
 ```
 
+### Accidental Auto-Close Guard
+
+GitHub treats a closing keyword immediately followed by an issue reference in a commit message,
+PR title, or PR body as an instruction to close that issue. Because this repository squash-merges,
+the PR title and body become the merge commit message. CI therefore runs `make check-autoclose`
+against PR text and its changed-file list (or against the delivered commit range on pushes).
+
+The gate refuses phrases such as `fixes #676` when the record ships documentation only. Describe
+the relationship without putting the keyword before the number: `#676 is fixed by ...`, `the
+defect in #676`, or `reported at #676`. If a docs-only change genuinely closes a documentation
+issue, add the issue-specific trailer `Autoclose-OK: #676`. A bare `Autoclose-OK:` is an instrument
+error, and a trailer for one issue never suppresses another.
+
 ## Best Practices
 
 ### Realistic Estimates
