@@ -247,6 +247,67 @@ Single-expression branches don't need braces.
 
 ## Language Feature Gaps
 
+### Prepending with `::` is quadratic; evaluator recursion is capped at 10,000 frames
+
+**Status**: Known runtime limitations; the list fix is a multi-week representation change now in progress, not yet shipped
+**Verified at**: v0.33.1-171-gc62e64878 (2026-08-21)
+
+These are two separate limits that often meet in hand-written recursive list builders:
+
+#### 1. Quadratic list construction by prepending (`::` / cons)
+
+The evaluator does not currently represent a list as cons cells. `eval.ListValue` stores a flat Go
+slice (`internal/eval/value.go:84-86`), and every `::` allocates a new slice and appends every element
+of the tail (`internal/builtins/list.go:87,98-103`). One prepend is therefore O(length of tail), and a
+list built by repeatedly prepending is O(n²) in copied element references and allocation volume.
+
+The LC-1 representation spike measured this same current-slice control on 2026-08-20: its heaviest
+branching-prepend cell (4,096 prepends onto a retained 16,384-element tail) took **54.8 ms/op**,
+versus **73 µs/op** for the candidate cons-cell representation. The n=12,800 current-slice workload
+also produced a median **417 Go GC cycles** across five trials. Those are dated spike measurements,
+not estimates; see
+[`m-list-repr-spike-M6-report.md`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_34_0/m-list-repr-spike-M6-report.md).
+
+**Workarounds**:
+
+1. Prefer the iterative builtin-backed `std/list.map` when transforming an entire existing list,
+   or `std/list.takeMap` when only a prefix is required. Their Go implementations allocate the
+   result slice directly and fill it in one pass (`internal/builtins/list_iterative.go:68-89` and
+   `internal/builtins/list_bounded.go:78-113`); neither invokes `::` per result.
+2. Use builtin-backed `std/list.foldl` for scalar or record aggregation instead of hand-written
+   recursion (`internal/builtins/list_iterative.go:202-223`). Do **not** grow a *list* accumulator
+   inside the fold: the fold itself is iterative, but its callback still pays the per-call copy.
+   This applies to **`++` exactly as much as to `::`** — `listConcatImpl`
+   (`internal/builtins/list.go:161`) allocates a fresh slice and copies both operands, so
+   `acc ++ [x]` is O(len(`acc`)) per step and `foldl(\acc. \x. acc ++ [x], [], xs)` is quadratic
+   in the same way `x :: acc` is. `++` is the idiom the AILANG prompt teaches for list
+   concatenation, so it is the likelier of the two mistakes, not the safer one. `foldl` is a
+   workaround only when the accumulator is a **scalar or record**.
+
+The permanent fix changes the evaluator's list representation and its consumers. That is a
+multi-week programme currently in progress; the representation spike returned GO, but no runtime
+representation fix has shipped yet.
+
+#### 2. Evaluator recursion depth cap (`RT_REC_003`)
+
+`ailang run` caps evaluator recursion at **10,000 frames** by default
+(`cmd/ailang/main_run.go:35`; the evaluator defaults are also set at
+`internal/eval/eval_evaluator.go:148,160`). Exceeding the cap returns `RT_REC_003`, as pinned by
+`internal/eval/recursion_test.go:265,301-302`. The evaluator has no tail-call elimination, so even
+tail-position or deep right-recursive code reaches this wall instead of becoming an iterative
+loop. A same-scope scan on 2026-08-21 found the positive `recursionDepth` guard in two files under
+`internal/eval/` and no tail-call implementation there; the sole tail-call match is a test that
+explicitly verifies the evaluator does not advertise nonexistent tail-call elimination.
+
+The executable remedy test at v0.33.1-171-gc62e64878 (2026-08-21) measured a right-recursive
+`sum(300)`: it raises `RT_REC_003` with a 100-frame ceiling and completes after the ceiling is raised
+to 10,000 (`internal/eval/rt_rec_003_message_test.go:31-112`).
+
+**Workaround**: pass `--max-recursion-depth N` to raise the evaluator's depth ceiling. Prefer the
+iterative `map`, `foldl`, and `takeMap` paths above where they express the operation. Raising the
+depth ceiling does **not** add tail-call elimination and does **not** fix the memory amplification
+from `::`; allowing a quadratic recursive builder to run longer can increase its memory use.
+
 ### Strict evaluation: `take(n, flatMap(f, xs))` bounds the result, not the peak
 
 **Status**: Design constraint (strict evaluation)
