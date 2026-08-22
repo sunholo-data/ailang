@@ -1926,6 +1926,46 @@ the Repo Profile above):
    Mission-independent. The tell: you are about to write "N/N green under load" and every run varied
    the same knob — or your test contains a millisecond literal you chose on the machine you are
    typing on.
+3n. **YOUR MUTATION SET IS DERIVED FROM WHAT THE MILESTONE *FIXES*, SO IT SYSTEMATICALLY MISSES WHAT
+   THE MILESTONE *SHIPS* — ANCHOR THE ENUMERATION TO THE DIFF, WHICH IS COMPLETE BY CONSTRUCTION**
+   (added 2026-08-22 V1 iteration 250; instance 1 is iteration 249, instance 2 is this iteration, and
+   in BOTH the gap was found by the judge rather than by the controller who wrote the mutants).
+   Rules 3d, 3i and 3j all sharpen a mutation you have already decided to run. None of them asks how
+   you CHOSE the set — and the choice is made, every time, by reading the defect: you mutate the thing
+   the milestone was about, because that is the thing you have been thinking about all iteration. A
+   diff ships more than that. Supporting predicates, shared helpers, a registry entry, a case added to
+   a switch three files away — each is a line you are now responsible for and none of them appears in
+   a mutation list derived from the bug. Note the asymmetry that makes this durable: the mutants you
+   DO run all behave, so the drill reads as thorough precisely where it is narrowest.
+   Two instances, both V1, consecutive. **249:** the controller ran two mutants on the milestone's
+   deliverables, both sole killers, and the judge then found that the milestone's own M1 unit test
+   asserted unconditional runtime-preamble boilerplate — it passed for a program containing no array
+   at all. **250:** the controller ran two mutants, both sole killers, both aimed at the behaviour the
+   milestone fixed; the judge reverted the two *supporting* edits and found that `types.go`'s
+   `TArray` case reds **only its own unit test** (the whole golden + differential suite stays rc=0),
+   while `IsUserDefinedType`'s `"ArrayVal"` case reds **nothing at all** — unit, golden and
+   `verify-examples` all rc=0. Two shipped lines pinned by nothing, in a green sprint.
+   **The cheap instrument already exists and is free.** `git diff` enumerates what you shipped,
+   completely, by construction — which is exactly what rule 3a(i-e) asks for and what a
+   defect-derived list can never be. And on 250 a **second, independent** instrument found the same
+   two lines: SonarCloud's *new-code coverage* condition. That is worth knowing because it is
+   already running on every PR — a coverage-on-new-code red is not a style nag, it is a machine
+   telling you which shipped lines nothing exercises, which is the same question this rule asks.
+   **Rules. (a)** Before recording a Gate-4 verdict, walk the diff **hunk by hunk** and ask, per hunk,
+   *what would go red if I reverted just this?* Where you cannot name a test, revert it and find out —
+   mutant LANDED (sha256) and BUILDS asserted first, as always. **(b)** A hunk with **no** killer is a
+   finding, not a failure: it is either genuinely unreachable, in which case say so **in the code**,
+   or it is unpinned, in which case it is a queue row. Do not quietly widen the sprint to fix it.
+   **(c)** Report *sole killer* separately from *some killer*, and expect supporting hunks to have
+   weaker coverage than the headline one — that gradient is the signal. **(d)** Read a
+   coverage-on-new-code gate as evidence about this rule rather than as a threshold to satisfy, and
+   **re-read WHICH condition failed rather than inheriting a previous iteration's framing** — V1
+   iterations 247 and 249 both met a *duplication* red on this same suite and correctly named it
+   benign, and iteration 250 nearly inherited that reading for a red that was in fact *coverage*, on
+   the very lines its own drill had missed. **(e)** Mission-independent: under `ailang-code` the diff
+   is still the enumeration and `ailang test` is still the killer. The tell: every mutant you ran was
+   a sole killer, and you chose all of them by thinking about the bug.
+
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
    the Gate-2 rebuild `-dirty` — binaries built from a half-merged tree; and a persisted `cd`
