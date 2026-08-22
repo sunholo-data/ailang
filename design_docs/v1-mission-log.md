@@ -15743,3 +15743,116 @@ grepped after the edit.
 then `m-codegen-claim-must-match-source` with `m-list-builtins-codegen-only`. New row filed:
 `m-prelude-diagnostic-names-absent-module` — the equality diagnostic tells users to import a module
 that does not exist. `D-22` and `D-23` stay parked and are re-asked unchanged.
+
+## 249 — 2026-08-22 — Iteration 249: the unit test guarding the fix passed for a program containing no array at all
+
+**Pick.** `m-array-show-diverges-run-vs-compile` M1/M2, iteration 248's declared Next, executed from the
+sprint plan 248 landed. M3/M4 deliberately out of scope — the plan budgets them at 2.5 further days.
+
+**Reality-check.** Re-measured the defect at HEAD rather than inheriting 248's row: both arms, binary freshly
+built from the tree and prepended to PATH, compiled-arm artifact deleted before the build and asserted present
+after (iteration 247's rule). Interpreted `#[1, 2, 3]` / `[1, 2, 3]`; compiled `[1, 2, 3]` / `[1, 2, 3]`;
+`cmp` rc=1. Generated Go for both lines byte-identical — the erasure is at construction, not at `Show`.
+Freshness sweep from the doc's and plan's declared base `404226a48` (rule 3b(vi-b): sweep from the OLDEST
+declared base) returned **1** non-docs file, the sprint JSON, so every Verification Log row is fresh; the
+control range `6cb53ddd1..058feebc3` returns 17, so the diff instrument fires.
+
+**Baselining my OWN gate list, which no rule reaches.** Rule 3e(a) is written for a sprint plan's acceptance
+list; a directive's gate list is written by the controller and nothing has ever asked whether it passes on
+untouched dev. Iteration 245 paid for that. So: `go build ./internal/gen/... ./cmd/ailang`, golden,
+`internal/gen/golang`, `vet`, `check-file-sizes` — all rc=0 at base, and `go build ./...` deliberately kept
+OUT because it is rc=1 on pristine dev (`cmd/wasm` has no native `main`).
+
+**Routing.** Executor `codex:gpt-5.6-sol` (probe rc=0), directive delivered at 7,883 B with the recipe's
+`exit 64` assertions, `< /dev/null`, a 30-min bounded background wrapper, no git writes, per-milestone
+`.snap/` snapshots. Finished rc=0 with a non-empty worktree diff — both post-run assertions the recipe
+requires. Evaluator `sonnet`: Anthropic against an OpenAI executor, so generator≠judge holds, and it ran in
+its **own** worktree per iteration 199, because a good judge mutates source and the sprint tree's work is
+uncommitted by construction.
+
+**The controller re-ran every gate outside the sandbox** and banked no executor-reported green: 7/7 rc=0,
+**6** `--- PASS` differential subtests, zero FAIL lines, `gofmt -l` empty. The subtest count is the
+non-vacuity control — `go test` prints `ok` for a package with zero tests, so rc=0 alone would not have been
+evidence.
+
+**The deviation, adjudicated by measurement rather than by its stated reason.** The executor narrowed
+`TestListPatternMatchGeneratesValidGo` from a whole-file `case []interface{}` absence assertion to the region
+from `func checkList_impl` onward, because M2's converter type switches legitimately introduce that text.
+Rule 3h says restate it as a checkable proposition and run both arms. Original rc=1, narrowed rc=0, on the
+identical tree, restored from a `cp` backup and not `git checkout --`. All five offending matches sit inside
+`ConvertTo*Slice` converters at dump lines 599–697; `checkList_impl` begins at 907. The narrowed region still
+contains the lowering under test (`ListLen(_scrutinee) == 0`), and moving the region marker earlier into
+converter territory LANDS, BUILDS and reds with the original message — so the assertion is live inside its
+region, not dead. The residual is named rather than assumed away: the region runs to end-of-file.
+
+**Controller mutants**, each asserted LANDED (sha256) and BUILDS (rc=0) *before* any test result was read,
+each a sole killer, each restored byte-identical: `"#["` → `"["` in the emitted `showValue` reds exactly
+`show_differential_array` with the other five green; a restored silent nil on `ConvertToInt64Slice` reds
+exactly `TestGeneratedSliceConverters` in the whole package. M2.6 was checked at the EMITTER rather than by
+name — all 7 remaining `return nil` writes in `codegen_runtime_slices.go` are `v == nil` guards, zero are
+`!ok` branches.
+
+**Reconstruction.** The two milestones were rebuilt from the executor's snapshots into bisectable commits,
+with M1 gated separately before M2 was applied (golden rc=0 with 6 subtests, gengo rc=0, sizes rc=0). The
+reconstruction was proved faithful by `shasum -c` against a manifest of the executor's final tree taken
+before the first commit: 10/10 OK, rc=0.
+
+**The finding worth the iteration, and my own mutants could not reach it.** Evaluator 93/100 PASS round 1,
+zero blocking, all seven named targets reached. Its best non-blocking finding was that
+`TestGenerateArrayPreservesRuntimeIdentity` — the milestone's own M1 unit test — asserted three strings that
+are **unconditional runtime-preamble boilerplate**. Reproduced first-party before acting: swapping
+`core.Array` for `core.List` inside the test's own fixture LANDS, BUILDS, and the test still returns rc=0.
+So does a bare int literal. It had zero discriminating power for the thing it is named after.
+
+This is the over-subscribed-observable shape rule 3i already names — the assertion's value set is larger than
+the mechanism's — arriving through a surface neither my mutation plan nor the plan's own "kills which
+mutation" column pointed at, because both of those aim at the *code*, and this was a defect in the *test*.
+Note also which layer caught it: the plan explicitly labels this test a "cheap localiser, not the gate", and
+the real gate (the differential fixture) is sound under mutation. A localiser that cannot localise is still
+worth repairing, and the repair is what makes the next member of the class visible.
+
+A same-call probe showed exactly what discriminates:
+
+| probe | array program | list program |
+|---|---|---|
+| `ArrayVal{int64(1), int64(2), int64(3)}` | true | false |
+| `[]interface{}{int64(1), int64(2), int64(3)}` | false | true |
+| `ArrayVal{` (the old assertion) | true | **true** |
+
+Rewritten over the emitted literal with a list-valued twin and negative arms in both directions; the
+mutation that used to survive now reds it. Landed as its own commit, per rule 3i(c) — repair the ROW, and
+say in the commit which mutant used to survive.
+
+**The judge also beat my own hedge**: it traced `Generate()`'s two-phase architecture and established that
+the runtime preamble is always written before user declarations in the path that test exercises, so the
+deviation's named residual is unreachable today. And its wider sweep — base-commit binary against
+post-sprint binary across every array-touching file in `examples/` and `tests/`, both backends — found all
+outputs identical, with two pre-existing failures reproducing on **both** binaries and therefore not ours.
+
+**Ruled out.** That the executor's deviation was a test weakening (measured, both arms, plus a marker
+mutation). That the M1 unit test was doing the work its name claims. That `#695` is this mission's to touch.
+That the two `examples/` failures the judge surfaced are sprint regressions.
+
+**Gates** (darwin/arm64; the linux and windows legs ran only in CI): build, golden with 6 differential
+subtests, `internal/gen/golang`, vet, `check-file-sizes`, `check-changelog`, `gofmt -l` — all rc=0 under a
+binary freshly built from the tree and prepended to PATH. `~/go/bin` was left untouched for concurrent agents
+throughout, which is why the stale-PATH trap that fired in each of iterations 235, 237 and 248 did not fire
+a fourth time.
+
+**Gate 3b.** SHA-addressed on the full 40 characters with a numeric floor on every extracted count, and
+`mergeable` read FIRST. Final head `9e5dc46ef`: 22 checks, 4/4 required pass, `MERGEABLE/UNSTABLE`. The one
+non-green is SonarCloud, non-required — 49.8% duplication on new code, which IS the differential fixture plus
+the converter test arms, near-identical by design. Iteration 247 met the same signal on the same suite and
+named it rather than collapsing the fixtures; collapsing them is exactly what three rounds of that sprint
+proved wrong. Named, not silently satisfied.
+
+**Outcome.** PR [#826](https://github.com/sunholo-data/ailang/pull/826) → squash
+[`d3b0185f5`](https://github.com/sunholo-data/ailang/commit/d3b0185f5). Autoclose scan run on all three
+commit messages, the PR title and body, the PR comment and the squash body, with a known-bad control firing
+each time. metered **$0.00** of $5 — every lane was a quota bucket.
+
+**Next.** `m-array-show-diverges-run-vs-compile` M3, which carries the sprint's whole risk and closes the
+measured `MkBox(Array[int])` user-visible defect, then M4. Two new rows filed from the evaluator's
+non-blocking findings: `m-array-record-slice-converter-arm-untested` (the one mutant of six that nothing
+killed, and it may be unreachable by construction) and `m-emitter-lint-evadable-by-rewording` (a class audit,
+not an instance fix). `D-22` and `D-23` stay parked and are re-asked unchanged.
