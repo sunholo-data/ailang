@@ -1,48 +1,40 @@
 # Mission Dashboard — Motoko
 
-*Snapshot, overwritten every iteration. History lives in the charter STATUS block and
-[motoko-mission-log.md](motoko-mission-log.md). 30-second read for a fresh session.*
+**Last iteration**: 18 · 2026-08-22 · pick = queue row 6 milestone **M2 (`AC-D1-live`)**
 
-**Last iteration**: **17** — 2026-08-21 · landed iteration 16's orphaned M3+M5.
-**Last release**: v0.33.1 (repo-wide; this mission does not release).
+## Where the mission is
 
-## In flight / next
+- **Release**: v0.33.1 (`v0.33.1-201-gb59255831` at iteration start)
+- **Current epic**: `m-motoko-dst-refactor-migration` — **Phase-0 gated, still CLOSED**
+  (re-measured: G1 `#154` OPEN, G2 rc=128 w/ control rc=0, G3 latest=2.2.0 no 5.x, G4 unrunnable, G5 outstanding)
+- **In flight**: [#829](https://github.com/sunholo-data/ailang/pull/829) — M2 instrument
+- **Queue row 6** (`m-motoko-fmt-remeasurement-instrument`): M1 + M3 + M4 + M5 LANDED.
+  **M2 still the named resume point** — the instrument now exists, its live verdict is VOID.
 
-- **Queue item 6** (`m-motoko-fmt-remeasurement-instrument`): **M1 + M3 + M4 + M5 LANDED**.
-  **Only M2 remains — and it NEEDS THE RIG** (`AC-D1-live`: one fmt-lane run reaching
-  `localhost:11434` with zero `openrouter.ai` connections, asserted on the connection, paired with
-  an OpenRouter-lane positive control). Requires `rig.lock`.
-- **If no rig slot** → item **7** (profile restoration design), then item **8** (repin the stale
-  OpenRouter motoko models).
-- **Deployment precondition still owed** (doc §6, issue `#558`): merging to `dev` does **not** put
-  D1/D1b/the smoke gate on the rig — the installed plist runs `nightly-eval.sh` in place from V1's
-  checkout. Verify at the path in the plist's `ProgramArguments`, never a working-tree path.
-- **Gated behind Phase 0** (G1–G5 conjunctive, all still FALSE): items 10, 11, 12.
-  **Parked on a green tree**: items 9, 13, 14.
+## This iteration
 
-## Loop health
+The M2 connection probe lands and its own live sweep came back **VOID**: both lanes
+`driver_rc=1` with empty peer sets, so `AC-M2-control` did not fire and the doc's own rule
+voids the treatment verdict. The instrument refused to certify rather than reporting a green.
 
-- Cadence: launchd `dev.ailang.mission-motoko`, `StartInterval=43200` (12h), staggered against
-  V1 (90 min) and World (4h).
-- **Iteration 16 was killed by the driver's stall watchdog** (`idle with a descendant alive
-  ≥2400s`, `rc=143`) with its work finished and unlanded. The watchdog behaved correctly — early
-  kill, non-zero exit, failure posted to `#743` within the hour. Cost was one landing step.
-- Last iteration's dev CI: green (16 exact-SHA checks, 0 not-green, a run exists).
-- Note: `~/.claude/skills/mission-control` resolves to **V1's** checkout, which is currently
-  1 commit ahead of origin with an unpushed skill edit. This mission executes its **own** repo-local
-  copy, verified `cmp` rc=0 against origin.
+## Next
 
-## Routing (as configured)
+1. **Isolate the V38 defect** — the probe as shipped breaks the runs it observes
+   (rc=1 / 8m15s), while a faithful replication of its own `run_lane` is rc=0 / 1m1s with
+   `127.0.0.1:11434` present. Keep the driver logs (the `trap` deletes them) — that is the
+   first fix and it is what made this need a re-run.
+2. **Evaluator finding B2** — ~15 refusal branches in the probe's live path have zero
+   self-test coverage; a neutered darwin/arm64 gate survives with an identical PASS.
+3. Then row 7 (profile restoration design) / row 8 (repin stale OpenRouter motoko models).
 
-controller `claude:claude-opus-5` · designer rotation pointer `claude:claude-fable-5` ·
-planner/executor `codex:gpt-5.6-sol` (executor fallback `pi:deepseek-v4-flash-0731`) ·
-evaluator `sonnet`. Metered budget $5/iteration; iteration 17 spent **$0.00**.
+## Loop + routing
+
+- Cadence: launchd `dev.ailang.mission-motoko`, 12h
+- Controller `claude:claude-opus-5` · executor `codex:gpt-5.6-sol` · evaluator **sonnet**
+  (distinct provider → generator≠judge holds) · no designer, no planner, no quorum
+- Designer rotation pointer untouched at `claude:claude-fable-5`
+- Metered **$0.00** of $5 this iteration. GPU: `rig.lock` taken and released (3 bounded runs)
 
 ## Parked on Mark
 
-**Nothing.** Decision ledger: 3 rows, **0 OPEN** (`scripts/mission_decisions.sh --check`).
-
-## Quota posture
-
-Bookkeeping issue `#743` (15 comments; rotates weekly Monday 07:00 **local**, not due).
-No GPU held; `rig.lock` untouched for 5 consecutive iterations.
+**None.** Decision ledger valid at 3 rows, **0 OPEN**.
