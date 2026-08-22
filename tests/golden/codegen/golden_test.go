@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -118,7 +119,12 @@ func TestInterpreterCompiledDifferential(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(outDir, "go.mod"), []byte("module differential\n\ngo 1.21\n"), 0644); err != nil {
 				t.Fatal(err)
 			}
-			binary := filepath.Join(outDir, "fixture-bin")
+			// Windows requires the .exe suffix or exec cannot find the file it just built.
+			binaryName := "fixture-bin"
+			if runtime.GOOS == "windows" {
+				binaryName += ".exe"
+			}
+			binary := filepath.Join(outDir, binaryName)
 			build := exec.Command("go", "build", "-o", binary, "./main/")
 			build.Dir = outDir
 			if output, err := build.CombinedOutput(); err != nil {
