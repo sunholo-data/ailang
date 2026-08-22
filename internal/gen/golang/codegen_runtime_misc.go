@@ -81,8 +81,11 @@ func (g *Generator) writeRuntimeMiscHelpers() {
 	g.indent--
 	g.writef("case float64:\n")
 	g.indent++
-	g.writef("s := fmt.Sprintf(\"%%g\", x)\n")
-	g.writef("if !strings.ContainsAny(s, \".eE\") { s += \".0\" }\n")
+	g.writef("if math.IsNaN(x) { return \"NaN\" }\n")
+	g.writef("if math.IsInf(x, 1) { return \"Inf\" }\n")
+	g.writef("if math.IsInf(x, -1) { return \"-Inf\" }\n")
+	g.writef("s := strconv.FormatFloat(x, 'f', -1, 64)\n")
+	g.writef("if !strings.Contains(s, \".\") { s += \".0\" }\n")
 	g.writef("return s\n")
 	g.indent--
 	g.writef("case bool:\n")

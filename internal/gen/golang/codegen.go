@@ -547,14 +547,10 @@ func (g *Generator) writePackageHeader() {
 		// M-CODEGEN-STDLIB-STRING: strconv needed when using string conversion functions
 		g.writef("import (\n")
 		g.writef("\t\"fmt\"\n")
-		if g.needsMathImport {
-			g.writef("\t\"math\"\n")
-		}
+		g.writef("\t\"math\"\n")
 		g.writef("\t\"reflect\"\n")
 		g.writef("\t\"sort\"\n")
-		if g.needsStrconvImport {
-			g.writef("\t\"strconv\"\n")
-		}
+		g.writef("\t\"strconv\"\n")
 		g.writef("\t\"strings\"\n")
 		g.writef(")\n\n")
 		g.writef("type Tuple []interface{}\n\n")
@@ -645,6 +641,9 @@ func (g *Generator) GenerateRuntime() ([]byte, error) {
 
 	g.writef("import (\n")
 	g.writef("\t\"fmt\"\n")
+	if strings.Contains(helpersCode, "math.") || g.needsMathImport {
+		g.writef("\t\"math\"\n")
+	}
 	g.writef("\t\"reflect\"\n")
 	if strings.Contains(helpersCode, "sort.") || g.needsSortImport {
 		g.writef("\t\"sort\"\n")
@@ -654,9 +653,6 @@ func (g *Generator) GenerateRuntime() ([]byte, error) {
 	}
 	if strings.Contains(helpersCode, "strings.") || g.needsStringsImport {
 		g.writef("\t\"strings\"\n")
-	}
-	if g.needsMathImport {
-		g.writef("\t\"math\"\n")
 	}
 	g.writef(")\n\n")
 

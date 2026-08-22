@@ -145,8 +145,9 @@ func TestIntToStrGeneration(t *testing.T) {
 	}
 }
 
-// TestNoStrconvImportWhenNotNeeded tests that strconv import is not added when not needed.
-func TestNoStrconvImportWhenNotNeeded(t *testing.T) {
+// TestRuntimeShowRequiresStrconvImport tests that the generated Show helper brings
+// in strconv even when the source program does not use conversion builtins.
+func TestRuntimeShowRequiresStrconvImport(t *testing.T) {
 	g := New("test")
 
 	// Create a simple program without string conversion functions
@@ -167,10 +168,8 @@ func TestNoStrconvImportWhenNotNeeded(t *testing.T) {
 
 	codeStr := string(code)
 
-	// Check that strconv import is NOT present
-	if strings.Contains(codeStr, `"strconv"`) {
-		t.Error("Generated code should NOT contain strconv import when not needed")
-		t.Logf("Generated code:\n%s", codeStr)
+	if !strings.Contains(codeStr, `"strconv"`) {
+		t.Error("Generated code should contain strconv import for runtime Show")
 	}
 }
 
