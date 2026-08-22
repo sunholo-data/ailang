@@ -264,5 +264,5 @@ data-and-ratification task, not a code task.
 
 ---
 
-**SPRINT_PLAN_PATH**: `design_docs/planned/v1_0_0/m-cost-per-success-kpi-sprint-plan.md`
+**SPRINT_PLAN_PATH**: `design_docs/implemented/v1_0_0/m-cost-per-success-kpi-sprint-plan.md`
 **SPRINT_JSON_PATH**: `.ailang/state/sprints/sprint_M-COST-PER-SUCCESS-KPI.json`

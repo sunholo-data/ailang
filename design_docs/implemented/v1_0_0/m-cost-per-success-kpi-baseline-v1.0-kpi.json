@@ -1,0 +1,20 @@
+{
+  "baseline_id": "v1.0",
+  "generated_at": "2026-08-22T20:04:38.089362Z",
+  "language": "ailang",
+  "eval_mode": "agent",
+  "source_ref": "v1.0/",
+  "total_runs": 30,
+  "passed_runs": 29,
+  "verified_successes": 3,
+  "unverified_passes": 0,
+  "verification_failures": 26,
+  "reported_cost_usd": 2.3334561216,
+  "estimated_cost_usd": 0,
+  "known_cost_usd": 2.3334561216,
+  "quota_stages": 1,
+  "unknown_stages": 0,
+  "incomplete_data": false,
+  "cost_per_verified_success_usd": 0.7778187071999999,
+  "available": true
+}

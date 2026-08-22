@@ -1,46 +1,41 @@
 # Mission Dashboard — V1
 
-> Snapshot only; history lives in `v1-mission.md` + `v1-mission-log.md`. Written: **iter 252, 2026-08-22**.
+> Snapshot only; history lives in `v1-mission.md` + `v1-mission-log.md`. Written: **iter 253, 2026-08-22**.
 
 ## Where we are
 
-- **Latest release** v0.33.1; the cons-cells programme targets v0.35.0 (LC-1 landed in v0.34.0's window).
-- **dev CI** GREEN at `8e3928a08` — 16 checks, zero not-green (control `total_count`=16 fires).
-- **Decision ledger** 23 rows, **ZERO OPEN**. Nothing parked on Mark.
-- Main checkout **0 ahead / 0 behind** origin, holding since iter 249 — records write in place.
+- **v0.33.1**. **BAR-FIRST ordering in force** (`D-28`, attended 08-22): bar-gating items outrank
+  the cons-cells programme until all five v1.0 clauses close.
+- **dev CI** GREEN at `498a64d38` — 16 checks, zero not-green (control: parent, 16).
+- **Ledger** 28 rows, **ZERO OPEN**. Main checkout 0 ahead / 0 behind — records write in place.
 
 ## In flight / next
 
-1. **`m-list-accessor-api` (LC-2)** — **sprint plan LANDED** (iter 252): 6 milestones, ~1,660 Go
-   LOC, **4.5 d** (+0.5 over the roadmap's 3–4 band, surfaced not compressed). **Next:
-   sprint-executor on M1+M2**, which are independently committable.
-   **⚠ Settle DEFECT-1 first**: `packages.Config.Tests` defaults to `false` while 380 of 903
-   `.Elements` sites are in `_test.go` — the census denominator every later lane is measured
-   against moves ~380 sites on an unstated flag.
-2. **`m-array-show-diverges-run-vs-compile` M4** — deferred two iterations now (to the directive,
-   then to LC-2's plan). CHANGELOG, doc move to `implemented/v0_34/`, VL-9 correction.
-3. Then LC-3a/3b/3c (mechanical, parallelizable) → LC-4 (the swap, riskiest) → LC-5 (tuning).
+1. **CLAUSE 5 CLOSED (iter 253).** M4b fired on `D-26`:
+   **`cost_per_verified_success = $0.7778187072`**, baseline `v1.0` (agent · ailang · 6 contract
+   benchmarks × 5-model `agent_suite`, 30/30 banked, cohort hash `526fe724…`). Strict cmd rc=0,
+   `available:true`; independently recomputed at `Decimal` precision (delta 3.6E-17). **$0.46 of $20.**
+2. **`m-contract-verification-coverage`** (NEW, P1) — the cheapest lever on that number.
+3. Remaining bar clauses: `m-effect-clock-net-fs-modes` · `m-v1-orchestration-flagship` ·
+   `m-run-selector-enumeration-floor` · A1/A2 parity lane (`D-25`) · clause-3 prompt A/B.
+   **Then** LC-2 execution (M1+M2) resumes per `D-28`.
 
 ## New this iteration
 
-- **`go test -run` exits 0 on an EMPTY match set** — confirmed first-party (rc=0, 0 `=== RUN`
-  lines, identical exit code to a real pass). V1 carries **54** such invocations across **16**
-  files in `design_docs/planned`. Filed `[world-DEMAND]` for a repo-wide sweep; LC-2's plan is
-  pre-emptively floored (all 7 ACs assert `N == <literal>` RUN lines, `N == 0` → instrument failure).
-- **Two hypotheses refuted by measurement**: the codex planner lane is *not* silently bypassed
-  (0/140 docs reach it because the allowlist is mission-infra by design), and LC-4's wasm exposure
-  *does* get a PR-time signal (`internal/` and `cmd/` are both in `.github/docs-build-paths.txt`).
+- **The KPI has a number for the first time.** All 19,027 previously banked files read
+  `verify_verified = 0`; 14 of 30 cohort runs now carry a positive count.
+- **The denominator is suppressed by Z3 SKIPPING, not wrong programs**: 14 partial · 8
+  counterexample · 4 verifier error · 3 fully verified · 1 no-compile; **53 skipped vs 28 verified**.
+  `isVerifiedSuccess` needs `skipped == 0`, so one skip disqualifies a run.
+- **Two reproducibility defects, both from running a check not trusting a name**: the manifest
+  recorded `git_commit:"dev"` (no ldflags under the mandated scratch build), and **`eval_results/`
+  is git-ignored**, so M4b's own "archive its full output" AC would have archived nothing.
 
-## Loop cadence + routing
+## Routing · Cost · Parked
 
-Controller `claude:claude-opus-5` · planner **opus** this iteration (`derive-planner-lane.sh` →
-`opus fail-closed:planner-lane-field-invalid`, used verbatim) · executor `codex:gpt-5.6-sol` ·
-evaluator `sonnet`. Designer rotation still degraded: gemini is read-only (`CapRemoteSandbox`),
-`codex` collides with quorum reviewer `gpt5-6-sol` — Fable is the only clean authoring lane.
-Every wait bounded; worktrees are siblings of the repo, never `/tmp`.
-
-## Cost posture · Parked on Mark
-
-Iteration 252 metered **$0.00** of $5 — every lane a quota bucket (opus ×2). **Parked on Mark:
-nothing.** One process gap named, not fixed: iter-251's quorum artifacts never persisted to
-`.ailang/state/mission-quorum/`, so a later pick could misread absence as "never reviewed".
+Controller `claude:claude-opus-5`; **no sub-agent spawned** — the deliverable was a measurement and
+its judge is the independent recomputation. Designer rotation still degraded (gemini read-only;
+`codex` collides with reviewer `gpt5-6-sol`; Fable the only clean authoring lane). No GPU, no
+`rig.lock`; every wait bounded. Metered **$0.4586** (all OpenRouter) + **$1.8749**
+*list-price-equivalent* subscription reporting, labelled per the ratified 07-27 decision, not billed.
+**Parked on Mark: nothing.**

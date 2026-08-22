@@ -16310,3 +16310,141 @@ opus planner).
 executor lane is `codex:gpt-5.6-sol` per `$MISSION_EXECUTOR_MODEL`, with the generator≠judge guard
 putting the evaluator on `sonnet`. DEFECT-1's `Tests` flag decision must be settled in the executor
 directive before M2, because the census denominator depends on it.
+
+## 253 — 2026-08-22 — Iteration 253: M4b fired — the KPI has a number, and what suppresses its denominator is Z3 skipping, not wrong programs
+
+**Pick.** M4b, the cost-per-verified-success baseline cohort run, on the ratified directive `D-26`
+(Mark, attended steering session `498a64d38`, 55 minutes before this fire: "fire it next iteration",
+$20 cap, outranks the queue under `D-28`'s BAR-FIRST rule). Not the queue head — a human directive
+outranks it, and `D-28` makes that ordering explicit until the v1.0 bar closes.
+
+**Gate 0/1.** Kill switch armed; billing tripwire **CLEAN**; gh `sunholo-voight-kampff`. Pin worktree
+clean, detached at `498a64d38` = `origin/dev`. Running skill **byte-identical** to `origin/dev`,
+`cmp` against the RESOLVED `readlink` target (main checkout, inode 47681680) — **not** the pin's own
+copy (47689960), which is a different file and green by construction. `origin/dev`: **16 checks,
+ZERO not-green**, control (parent, `rev-parse`d) **16**. Zero allowlisted directives since the
+`2026-08-22T11:36:26Z` watermark, 63 comments. Ledger **28 rows, ZERO OPEN** — the attended session
+resolved `D-24`…`D-28`. No rotation (`#745` created 08:14 CEST Monday 08-17, after the 07:00 LOCAL
+boundary; 63 < 80). Sweep not owed. Died-mid-flight clean.
+
+**Inbox: four eval-suite notifications, triaged and NOT allowed to outrank.** Two "started", two
+"0/N passed" — `0/66 in 56 s` is **0.85 s per run**, a harness-shaped failure, not a model result,
+and both runs are `motoko-local-qwen3` on the GPU rotation. No banked rows were reachable from
+either checkout (`find … -newermt '-3 hours'` → 0 in both, control 32,461 eval JSONs exist). Local-
+model rotation is an ops lane the V1 charter excludes from default iterations. Named, not picked.
+
+**I DID NOT SPEND BEFORE PROVING THE INSTRUMENT COULD PRODUCE A POSITIVE.** This is not caution for
+its own sake: the design doc's own BF-1 note mandates it — *"any future claim that verification is
+wired must be checked against the LIVE call graph, not the presence of the code"* — and BF-1 exists
+because an earlier cohort run would have bought a **guaranteed zero denominator**. Three pre-flights.
+
+**(1) Live call graph, a CALLER search rather than a call-site search.** `agent_runner_multi.go:541`,
+inside `RunAgentBenchmarkWithExecutor` — the live multi-executor path — calls
+`applyAgentVerification` (`verify.go:115`), which is the single funnel. BF-1 is genuinely closed on
+the graph, not merely in the source.
+
+**(2) The banked-data prior said the risk was real, not hypothetical.** **ZERO** of **19,027** banked
+files carry `verify_verified > 0` (same-scope control: 19,027 files contain the key at all; negative
+control, a fresh literal, **0**). All **12** pre-existing agent-mode contract runs read all-zero —
+including **four post-M4a** ones from 07-29 and 07-31. An all-zero block means the gate did not fire,
+so those four are consistent with `compileOk == false` on local models, but nothing had ever
+demonstrated a positive.
+
+**(3) The verifier arms — and my first reading was an INSTRUMENT FAILURE that I caught.**
+`ailang ai-check` on the known-good fixture `internal/bestof/testdata/contract_demo/cand_good.ail`
+returned `available:false, verified:0`, which reads exactly like a dead verifier and would have
+justified parking the whole directive. The cause was `MOD010` — a module-path mismatch failing the
+*type check* before verification ever ran, a fixture artifact. Re-run with `-relax-modules`: positive
+arm `check.passed=true, available:true, verified:1`, **rc=0**; negative arm (`cand_bad.ail`)
+`counterexample:1`, **rc=1**, with a concrete Z3 model. **`rc_pos=0` vs `rc_neg=1` — the arms
+DIFFER**, so this is a discriminator and not the false symmetry rule 3e(iii) warns about. z3 4.16.0
+present at `/opt/homebrew/bin/z3`.
+
+**The cohort was enumerated by the tool that cannot miss.** Rather than reading `agent_suite` out of
+a 221 KB `models.yml`, `eval-suite --dry-run` printed the resolved plan: **5 models × 6 contract
+benchmarks × ailang = 30 runs, estimated $0.31**, with the per-model harness routing — `gpt5-6-luna
+→ codex`, `claude-haiku-4-5`/`claude-sonnet-4-6 → claude`, two `opencode-or-* → opencode`. **Every
+lane is cloud, so no local model, so no GPU, so no `rig.lock`** — derived from the routing table, not
+assumed. Rig clear: no lock file, **0** in-flight eval processes (control: `ps` sees 20 claude
+processes, so the zero is a measurement). The per-model canary was left **ON**; disabling it "risks
+banking phantom failures from a dead subject", which is this mission's vacuous-pass class exactly.
+
+**The run.** `eval-suite --agent --models agent_suite --langs ailang --benchmarks <6 contract>
+--verify --baseline v1.0 --parallel 6`, rc=0, **7m27s**, **30 of 30 banked**, cohort hash
+`526fe7240112bb16238f91a077487dc9fbf0be5c0fbca723c2a21e6a52bd0f40`, chain `219b1fbc`. Polled on the
+ARTIFACT (result count and log bytes), never on `pgrep`, with a numeric floor on the count and a
+terminal `rc` marker file — the turn never went quiet while it ran.
+
+**THE DENOMINATOR IS NON-ZERO FOR THE FIRST TIME IN THE MISSION'S HISTORY.** `verify_verified`
+distribution across the cohort: `{0: 16, 1: 2, 2: 11, 4: 1}` — **14 of 30** runs carry a positive
+verified count, against a repo-wide historical total of zero.
+
+**THE NUMBER.** `cost_per_verified_success_usd = **$0.7778187072**`, `available: true`, strict
+command **rc=0** (AC2). `total_runs` 30 · `passed_runs` 29 · `verified_successes` **3** ·
+`unverified_passes` 0 · `verification_failures` 26 · `known_cost_usd` $2.3334561216 ·
+`unknown_stages` 0 · `incomplete_data` false.
+
+**AC3 satisfied by re-derivation, not by reading the KPI's own fields.** Summing `total_cost_usd`
+across the 30 archived run JSONs at `Decimal` precision gives **2.333456121600000036** against the
+KPI's `2.3334561216` — delta **3.6E-17**, a float artifact. Re-implementing `isVerifiedSuccess`
+independently (`verify_ok && errors==0 && counterexample==0 && skipped==0 && verified>0`) returns
+**3**, matching. That predicate is also why 14 and 3 differ: **14 runs verified something, only 3
+verified everything**, because a single skipped function disqualifies the run.
+
+**THE ITERATION'S REAL FINDING IS THE SHAPE OF THE 26 FAILURES, AND IT IS NOT THE HEADLINE.**
+Classified: **14 partial** (Z3 skipped ≥1 function) · **8 counterexample** (contract genuinely
+violated) · **4 verifier error** · **3 fully verified** · **1 did-not-compile**. Across the cohort
+**53 functions were SKIPPED against 28 VERIFIED**, nearly 2:1. So the KPI's denominator is
+suppressed mainly by **verification COVERAGE** — a property of AILANG's own contract encoder — and
+not by models writing wrong programs. That is a statement about the exact surface the v1.0
+"verified AI-orchestration language" claim rests on, and it says the cheapest available lever on the
+headline number is coverage, not model quality. Filed as `m-contract-verification-coverage` rather
+than fixed inline (Principle 3: audit before patching). Not yet diagnosed — the next step is to
+enumerate WHY functions skip from the banked `verify.results[].status` rows the cohort already
+captured (unsupported sort? recursion depth? the 5 s `--verify-timeout`?).
+
+**Provenance labelled per the ratified 2026-07-27 decision.** Of the `$2.3334561216`,
+**$0.4585978216 is real OpenRouter metered spend** (`opencode-or-deepseek-v4-flash`,
+`opencode-or-glm-5-2`) and **$1.8748583 is list-price-equivalent** subscription reporting
+(`claude-haiku-4-5`, `claude-sonnet-4-6` via the claude CLI; `gpt5-6-luna` via codex). That blend
+is exactly what the manifest's `executors` audit hook was built to make visible. Actual metered
+spend: **$0.46 against a $20 cap** — under the ordinary $5 ceiling too, so it was never raised.
+
+**TWO DEFECTS IN THE REPRODUCIBILITY MACHINERY ITSELF, BOTH FOUND BY RUNNING A CHECK RATHER THAN
+TRUSTING A NAME.** **(a) The cohort manifest cannot identify its own build.** It recorded
+`"ailang_version": "dev"` and `"git_commit": "dev"`, because `internal/version/version.go:20`
+defaults `Version = "dev"` and only `make`'s `-ldflags` overrides it (`Makefile:42`) — so the
+**scratch-directory `go build`** that this skill's own binary-provenance rule 1(a) mandates (to
+avoid `make quick-install` clobbering the shared `~/go/bin`) leaves both provenance fields blank.
+The artifact's whole stated purpose is that "a reviewer can independently recompute it"; without a
+build SHA they cannot. Guard the helper, miss the call site, aimed at a reproducibility artifact.
+The build was `498a64d38`, recorded here because the artifact could not record it.
+**(b) `eval_results/` is git-ignored** (`.gitignore:91`; control: the tracked path is not ignored,
+and the ignore control fires on `eval_results/x.json`). M4b's own acceptance criterion says "archive
+its full output" — under `git add -A` that would have archived **nothing, silently**, the same class
+as iteration 195's `.ailang/` finding. Caught by `git check-ignore` *before* committing rather than
+by noticing an empty diff afterwards. The two decision-bearing artifacts were re-routed to a tracked
+path (`design_docs/planned/v1_0_0/m-cost-per-success-kpi-baseline-v1.0-{cohort-manifest,kpi}.json`);
+the 30 run JSONs stay banked in the observatory DB, which is what `--baseline v1.0` actually reads.
+Both filed as `m-cohort-manifest-build-provenance`.
+
+**Ruled out.** That the verifier was unavailable — my own first measurement, refuted by
+`-relax-modules`, and worth recording because the refutation came from suspecting my instrument
+rather than the system. That BF-1 was still open (live call graph re-derived). That the cohort
+needed the GPU or the rig lock (harness routing enumerated, no local models). That the four
+eval-suite inbox notifications outrank the queue (local GPU rotation, harness-shaped, ops lane).
+That `#695` is this mission's PR to touch (`headRefName` `coordinator/task-d98bb271` matches no
+worktree in my clone — unattributable, left alone).
+
+**Gates** (darwin/arm64; no code shipped, so no CI matrix is implicated — this iteration's artifacts
+are documentation plus two JSON records). **No executor, no evaluator, no designer, no planner
+spawned**: the deliverable is a measurement, and its judge is the independent recomputation, which
+is a stronger check than a same-artifact judge would have been.
+
+**Outcome.** M4b **LANDED**; clause 5's last mile is closed. Two new P1-adjacent queue rows filed
+from the cohort's own data. metered **$0.4585978216** of the $20 ratified cap; quota buckets: opus
+(controller) plus the cohort's own subscription lanes.
+
+**Next.** `m-contract-verification-coverage` — enumerate the 53 skips by reason from the banked
+`verify.results[].status` rows, which cost nothing further to read. It is the cheapest lever on the
+number this iteration just published, and it is bar-gating under `D-28`.

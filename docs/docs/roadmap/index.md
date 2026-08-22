@@ -40,9 +40,9 @@ For completed features, see [Design Documents](/docs/design-docs).
 
 ## Planned for v1.0.0
 
-- [Sprint Plan: Cost-Per-Verified-Success KPI — M4a (Cohort Freeze Mechanism)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-cost-per-success-kpi-m4a-sprint-plan.md)
-- [Sprint Plan: Cost-Per-Verified-Success KPI (M1–M3)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-cost-per-success-kpi-sprint-plan.md)
-- [Cost-Per-Verified-Success KPI](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-cost-per-success-kpi.md)
+- [Sprint Plan: Cost-Per-Verified-Success KPI — M4a (Cohort Freeze Mechanism)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-cost-per-success-kpi-m4a-sprint-plan.md)
+- [Sprint Plan: Cost-Per-Verified-Success KPI (M1–M3)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-cost-per-success-kpi-sprint-plan.md)
+- [Cost-Per-Verified-Success KPI](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-cost-per-success-kpi.md)
 - [M-EFFECT-CLOCK-NET-FS-MODES: Port Clock, Net, FS to Parameterised Modes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-clock-net-fs-modes.md)
 - [M-EFFECT-REFINEMENT: Parameterised Effects and Unified Replay Contracts](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md)
 - [Sprint Plan: M-EFFECT-REPLAY-CONTRACTS (Rand pilot)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-replay-contracts-sprint-plan.md)

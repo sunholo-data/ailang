@@ -1,6 +1,6 @@
 # Cost-Per-Verified-Success KPI
 
-**Status**: Planned
+**Status**: IMPLEMENTED (all milestones; M4b baseline fired 2026-08-22, iteration 253)
 **Target**: v1.0.0
 **Priority**: P1 (clause-5 headline KPI)
 **Estimated**: 1.5 days (up to 2 days including the measured baseline run)

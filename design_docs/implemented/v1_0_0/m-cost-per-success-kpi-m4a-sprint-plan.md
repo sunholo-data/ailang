@@ -399,7 +399,7 @@ Without this, M4a-1/M4a-2 ship a freeze mechanism that provably cannot yield a n
    not metered — `out_of_scope_provenance`).
 3. `cmd/ailang/help.go`: one `eval-suite --baseline` example line near `:296-297` (CLI help is the
    single source of truth per the `cli-doc-maintainer` skill).
-4. `design_docs/planned/v1_0_0/m-cost-per-success-kpi.md`: mark M4 as split — **M4a mechanism (this sprint)**
+4. `design_docs/implemented/v1_0_0/m-cost-per-success-kpi.md`: mark M4 as split — **M4a mechanism (this sprint)**
    / **M4b measured baseline (Mark-gated spend)** — and add BF-1 to Risks & Open Questions.
 
 **Acceptance criteria**

@@ -1,0 +1,63 @@
+{
+  "baseline_id": "v1.0",
+  "source_ref_prefix": "v1.0/",
+  "eval_mode": "agent",
+  "languages": [
+    "ailang"
+  ],
+  "conditions": [
+    ""
+  ],
+  "model_suite": "agent_suite",
+  "models": [
+    "gpt5-6-luna",
+    "claude-haiku-4-5",
+    "claude-sonnet-4-6",
+    "opencode-or-deepseek-v4-flash",
+    "opencode-or-glm-5-2"
+  ],
+  "benchmarks": [
+    "contract_leap_year",
+    "contract_rle_roundtrip",
+    "contract_bst_validate",
+    "contract_sorted_merge",
+    "contract_matrix_determinant",
+    "contract_roman_numeral"
+  ],
+  "seed": 42,
+  "prompt_version": "",
+  "trials": 1,
+  "verify": true,
+  "verify_timeout": "5s",
+  "executors": [
+    {
+      "model": "claude-haiku-4-5",
+      "executor": "claude"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "executor": "claude"
+    },
+    {
+      "model": "gpt5-6-luna",
+      "executor": "codex"
+    },
+    {
+      "model": "opencode-or-deepseek-v4-flash",
+      "executor": "opencode"
+    },
+    {
+      "model": "opencode-or-glm-5-2",
+      "executor": "opencode"
+    }
+  ],
+  "frozen_at": "2026-08-22T19:56:27.504667Z",
+  "run_window": {
+    "started_at": "2026-08-22T19:56:27.504667Z",
+    "completed_at": "2026-08-22T20:03:54.358524Z"
+  },
+  "ailang_version": "dev",
+  "git_commit": "dev",
+  "chain_id": "219b1fbc-3603-42b2-912b-6f58d052a755",
+  "cohort_hash": "526fe7240112bb16238f91a077487dc9fbf0be5c0fbca723c2a21e6a52bd0f40"
+}
