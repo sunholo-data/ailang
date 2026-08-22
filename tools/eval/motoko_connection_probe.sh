@@ -35,8 +35,12 @@ is_loopback_host() {
 }
 
 or_ip_member() {
-  local host=$1 or_file=$2
-  grep -Fqx -- "$host" "$or_file"
+  # lsof renders an IPv6 peer bracketed ("[2606:4700::1]"), dig emits it bare.
+  # Compare on the bare form or every IPv6 OpenRouter peer classifies as "other" —
+  # a FALSE NEGATIVE in exactly the half of AC-M2-treatment that must not fail.
+  local host=$1 or_file=$2 bare=$1
+  bare=${bare#[}; bare=${bare%]}
+  grep -Fqx -- "$bare" "$or_file"
 }
 
 classify_lsof() {
@@ -136,7 +140,8 @@ fi
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/motoko-connection-probe.XXXXXX") || instrument_failure "could not create temporary directory"
 trap 'rm -rf "$tmp_dir"' EXIT
 or_file="$tmp_dir/or_ips"
-dig +short openrouter.ai | awk '/^([0-9]{1,3}\.){3}[0-9]{1,3}$/ || /:/' | LC_ALL=C sort -u > "$or_file"
+{ dig +short +time=5 +tries=2 A openrouter.ai; dig +short +time=5 +tries=2 AAAA openrouter.ai; } |
+  awk '/^([0-9]{1,3}\.){3}[0-9]{1,3}$/ || /:/' | LC_ALL=C sort -u > "$or_file"
 [[ -s "$or_file" ]] || instrument_failure "dig returned no addresses for openrouter.ai"
 
 descendant_pids() {

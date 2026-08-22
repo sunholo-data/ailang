@@ -56,6 +56,8 @@ motoko 101 user 10u IPv4 0x0 0t0 TCP 127.0.0.1:51000->127.0.0.1:11434 (ESTABLISH
 motoko 101 user 11u IPv4 0x0 0t0 TCP 192.0.2.10:51001->203.0.113.8:443 (ESTABLISHED)
 motoko 101 user 12u IPv6 0x0 0t0 TCP [::1]:51002->[::1]:11434 (ESTABLISHED)
 motoko 101 user 13u IPv4 0x0 0t0 TCP 192.0.2.10:51003->198.51.100.4:443 (ESTABLISHED)
+motoko 101 user 14u IPv6 0x0 0t0 TCP [2001:db8::10]:51004->[2001:db8::8]:443 (ESTABLISHED)
+motoko 101 user 15u IPv6 0x0 0t0 TCP [2001:db8::10]:51005->[2001:db8::99]:443 (ESTABLISHED)
 EOF
 
 "$probe" --classify-fixture "$tmp_dir/or_ips" "$tmp_dir/lsof.fixture" > "$tmp_dir/classified"
@@ -63,6 +65,11 @@ require_line "classification fixture" $'loopback\t127.0.0.1:11434' "$tmp_dir/cla
 require_line "classification fixture" $'openrouter\t203.0.113.8:443' "$tmp_dir/classified"
 require_line "classification fixture" $'loopback\t[::1]:11434' "$tmp_dir/classified"
 require_line "classification fixture" $'other\t198.51.100.4:443' "$tmp_dir/classified"
+# IPv6: lsof brackets the peer, dig does not. Without normalisation an IPv6
+# OpenRouter peer reads as "other" — a FALSE NEGATIVE in AC-M2-treatment's
+# negative half. The second row is the over-match control.
+require_line "classification fixture" $'openrouter\t[2001:db8::8]:443' "$tmp_dir/classified"
+require_line "classification fixture" $'other\t[2001:db8::99]:443' "$tmp_dir/classified"
 pass_arm "classification partitions loopback, OpenRouter, and other peers"
 
 cut -f2- "$tmp_dir/classified" > "$tmp_dir/all.peers"
@@ -83,6 +90,9 @@ expect_failure "treatment rejects an OpenRouter peer" "contains OpenRouter endpo
   "$probe" --assert-treatment "$tmp_dir/leaky-treatment.peers" "$tmp_dir/or_ips"
 expect_failure "control must demonstrate OpenRouter visibility" "treatment verdict is void" \
   "$probe" --assert-control "$tmp_dir/treatment.peers" "$tmp_dir/or_ips"
+printf '%s\n' '127.0.0.1:11434' '[2001:db8::8]:443' > "$tmp_dir/leaky-v6.peers"
+expect_failure "treatment rejects an OpenRouter peer reached over IPv6" "contains OpenRouter endpoint" \
+  "$probe" --assert-treatment "$tmp_dir/leaky-v6.peers" "$tmp_dir/or_ips"
 
 if [[ $(uname -s) == Darwin ]] && command -v nc >/dev/null && command -v lsof >/dev/null; then
   port=$((42000 + ($$ % 10000)))
