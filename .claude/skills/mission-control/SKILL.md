@@ -3016,6 +3016,37 @@ not share its intent (issue keywords, `@mentions`, CI directives like `[skip ci]
 scrapers), the record is an *actuator*, and Gate 4 has been treating it as a notebook. The tell:
 your commit message or PR body names an issue number, and you have not run the scan.
 
+**⚠ AND `git add` SILENTLY SKIPS AN IGNORED PATH, SO ANY STEP WHOSE DELIVERABLE IS *"BANK IT"* /
+*"ARCHIVE IT"* / *"RECORD IT"* CAN REPORT SUCCESS HAVING WRITTEN NOTHING TO THE REPO — ASSERT THE
+DESTINATION IS TRACKED BEFORE YOU CLAIM THE ARTIFACT EXISTS** (added 2026-08-22 V1 iteration 253;
+instance 1 is iteration 195, instance 2 is this iteration). Every rule in this gate polices the
+record's *content* and *base*. None asks whether the path you are writing to is one git will
+accept. That question has no tell: `git add <ignored>` prints nothing and exits **0**,
+`git status` shows nothing, and the commit succeeds — so the artifact is absent in exactly the
+voice of an artifact that landed. It is the vacuous-pass class aimed at the *archiving* step.
+Note who is most exposed: an **acceptance criterion** that says "archive the full output" is
+written by a designer or planner reasoning about deliverables, never about `.gitignore`, so the
+criterion passes as long as a file appears **on disk**.
+Measured. Instance 1: `.gitignore:77` ignores `.ailang/` with no negation, so a NEW sprint JSON
+was skipped by `git add -A` silently — 0 staged, empty output — and one milestone's state
+artifact was orphaned. Instance 2: `eval_results/` is ignored (`.gitignore:91`), and M4b's own
+acceptance criterion is *"archive its full output"*; the cohort artifacts were copied there,
+looked correct in `ls`, and would have been committed as **nothing**. Caught by running
+`git check-ignore` *before* staging rather than by noticing an empty diff afterwards.
+**Rules. (a)** Before recording that an artifact is banked, run
+`git check-ignore -v <path>` and pair it with a control on a path you KNOW is ignored, so a
+clean answer proves the instrument fires (rule 3a, aimed at your own write). **(b)** When the
+destination is ignored, do NOT reach for `git add -f` by reflex — ask first whether the repo is
+right that this class does not belong in git, and route the *decision-bearing* subset (a
+manifest, a KPI record, a summary) to a tracked path instead, leaving the bulk where the
+ignore rule intends. **(c)** Where the artifact's real home is a database or an external store,
+say so explicitly in the record, so a later reader does not search the tree for it. **(d)** An
+AC of the form "archive/bank/record X" is **vacuous** unless it names a path a reviewer can
+open; treat a criterion that only requires a file to exist on disk the same way rule 3b(vi)
+treats an AC whose gate cannot see the code. Mission-independent — every mission on this rig
+ignores build and result directories. The tell: your deliverable is *a file that must persist*,
+and the only thing you have checked is that you wrote it.
+
 **WRITE THE RECORD WHERE YOU READ THE STATE — NEVER INTO A WORKING-TREE COPY YOU HAVE NOT
 RE-CONFIRMED AGAINST ORIGIN** (added 2026-08-01 iteration 129; instance 2 of the diverged-checkout
 class after iter-128's stale *skill* — this one is the stale *charter*, and its failure mode is a
