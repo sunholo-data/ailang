@@ -163,7 +163,7 @@ through to silent `nil`. This closes both the dynamic literal path and the measu
 
 | # | Dependent | Evidence (command) | Impact under (B) |
 |---|---|---|---|
-| 1 | `ConvertTo*Slice` converters silently `return nil` on non-`[]interface{}` input | `sed -n '5,30p' internal/gen/golang/codegen_runtime_slices.go` → `if !ok { return nil }` (VL-9) | **The hazard, and it is wider than `ArrayVal`.** Unhandled input → silent empty slice, which CLAUDE.md Principle 2 forbids outright. Per the round-2 quorum, M2 **removes** the `if !ok { return nil }` branch and panics with a converter-specific message; **no converter retains a silent `nil` fallback**. Applied at both emitters (5 literal + 2 template loops at `:192`/`:315`), not to seven names — see M2's controller scope correction. |
+| 1 | `ConvertTo*Slice` converters silently `return nil` on non-`[]interface{}` input | `sed -n '5,30p' internal/gen/golang/codegen_runtime_slices.go` → `if !ok { return nil }` (VL-9) | **The hazard, and it is wider than `ArrayVal`.** Unhandled input → silent empty slice, which CLAUDE.md Principle 2 forbids outright. Per the round-2 quorum, M2 **removes** the `if !ok { return nil }` branch and panics with a converter-specific message; **no converter retains a silent `nil` fallback**. Applied to the **5 literal converters** in `codegen_runtime_slices.go`, which are the only silent ones — the template loops at `:192`/`:315` already panic (`M-DX12`), and are the pattern to copy. Not enumerated by name; see M2's corrected scope note, and note `toSlice` shares the defect outside this family. |
 | 2 | Array helpers' fast paths assume `[]interface{}`; reflection paths assume `Kind()==Slice` | VL-7, VL-8 | Fast paths miss → reflection path still correct. Return sites (`FromList`, `Set`, `Make`) must return `ArrayVal` or array-ness is lost after one operation. |
 | 3 | List-only helpers share the same assertion pattern | VL-7 (sites at `codegen_runtime_collections.go:11-121`) | None — type checker blocks arrays from reaching them (VL-4). |
 | 4 | `ToList` must keep returning plain `[]interface{}` | VL-8 | Explicitly pinned by the new fixture (`show(toList(arr))` must print `[…]`). |
@@ -201,24 +201,43 @@ Adding an `ArrayVal` arm alone routes around the hazard for one type and leaves 
 other; CLAUDE.md Principle 2 forbids the fallback itself, not one instance of it. So M2 **removes**
 `if !ok { return nil }` and fails loudly instead.
 
-> **CONTROLLER SCOPE CORRECTION, measured — apply the fix at the EMITTERS, not to seven names.**
-> "All seven converters" is true of the *generated runtime for one trivial program* and false as a
-> description of the source to edit, and patching by name would leave the defect being re-emitted
-> forever. Measured at `404226a48`: `internal/gen/golang/codegen_runtime_slices.go` writes **5**
-> converters literally (`ConvertToInt64Slice`, `String`, `Record`, `Bool`, `Float64`, at lines
-> 8/32/60/89/124) and contains **7** exact `.([]interface{})` assertions — two different sevens.
-> The generated runtime for the VL-1 probe contains **7** `ConvertTo*Slice` functions, the extra two
-> being `ConvertToOptionSlice` and `ConvertToResultSlice`, which appear **nowhere** in the codegen
-> source by name (`grep -rn 'func ConvertToOptionSlice' internal/gen/golang/*.go` → 0 hits; control
-> `grep -rn 'ConvertToInt64Slice' internal/gen/golang/*.go` → 3 hits). They come from two **template
-> loops** — `funcName := "ConvertTo" + goTypeName + "Slice"` at `codegen_runtime_slices.go:192` and
-> `:315` — which emit **one converter per ADT/record type in the compiled program**. The set is
-> therefore *generated and unbounded*: `codegen_adt_test.go:31,36` already asserts
-> `ConvertToDrawCmdSlice` and `ConvertToCameraSlice` for user types. M2 must edit **both emitters**
-> (the 5 literal writes and the 2 template loops), so that a converter for a user ADT that does not
-> exist yet also fails loudly. An acceptance criterion that enumerates seven names would pass while
-> the template kept emitting silent-nil converters — this repo's own recurring *guard the helper,
-> miss the call site* shape, and the enumeration trap the mission records at rule 3a(i-e).
+> **CONTROLLER SCOPE CORRECTION — ISSUED, THEN REFUTED BY THE PLANNER. Read the corrected version;
+> the superseded one is kept because acting on it would have sent an executor to "fix" code that is
+> already correct.**
+>
+> *What I asserted (iteration 248 controller):* that "all seven converters" was the wrong unit, and
+> that the fix belonged at **both** emitters — the 5 literal writes in
+> `internal/gen/golang/codegen_runtime_slices.go` (lines 8/32/60/89/124) **and** the two template
+> loops (`funcName := "ConvertTo" + goTypeName + "Slice"` at `:192` and `:315`), which emit one
+> converter per ADT/record type in the compiled program and are therefore an unbounded, generated
+> set (`codegen_adt_test.go:31,36` already asserts `ConvertToDrawCmdSlice` / `ConvertToCameraSlice`
+> for user types).
+>
+> *What is actually true, measured first-party after the planner refuted it:* the **template-loop
+> converters already fail loudly and are the model to copy, not a defect to fix.** Generated
+> `runtime.go:845-889`, `ConvertToOptionSlice` and `ConvertToResultSlice`, both carry
+> `// M-DX12: Fail-fast - panics on type mismatch (compiler bug detection)` and both read
+> `if !ok { panic(fmt.Sprintf("ConvertToOptionSlice: expected []interface{}, got %T", v)) }` —
+> plus a second per-element panic. Only the **5 literal** converters `return nil`.
+> So **VL-9's "7 silent sites" is wrong: there are 5**, and the quorum's removal applies to those 5.
+>
+> *How the error was made, since the mission records these:* I counted `return nil` occurrences and
+> read the `src, ok := v.([]interface{})` line of a template converter **without reading its next
+> line**, then generalised from the literal converters' shape. A transcribed pattern is not a
+> measurement (rule 3b(v)(b)). The planner read the branch.
+>
+> *What survives, and it is the part worth keeping:* **do not enumerate converters by name.** The
+> generated set really is unbounded, and the correct fix site is the emitter. The practical
+> consequence is smaller than I claimed: M2 edits the **5 literal writes** to match the fail-fast
+> pattern the template loops already use — the repo has the right answer in it, twice, and the
+> divergence is the bug.
+>
+> *Two consequences for the ACs, from the planner and verified:* **(a)** AC4's clause about a
+> template-loop converter panicking **already passes at base**, so it is a regression pin, not
+> fail-at-base evidence, and must be labelled as such. **(b)** `toSlice`
+> (`codegen_runtime_collections.go:8`) carries the same silent fallback and is **outside** the
+> `ConvertTo*` family, so M2 as scoped does not fully discharge the reviewers' universal
+> "no silent fallbacks" goal. Say so rather than implying it does; file `toSlice` as its own row.
 
 **M3 — typed aggregate preservation (day 3).**
 Change both array type mappings (`types.TArray` and `ast.ArrayType`) to `ArrayVal`, without changing
