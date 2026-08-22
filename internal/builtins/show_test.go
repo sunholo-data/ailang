@@ -82,7 +82,16 @@ func showValueCases(t *testing.T, filename string) map[string]bool {
 	file, err := parser.ParseFile(fset, filename, nil, 0)
 	require.NoError(t, err)
 	handled := make(map[string]bool)
-	ast.Inspect(file, func(node ast.Node) bool {
+	var showValue *ast.FuncDecl
+	for _, decl := range file.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if ok && fn.Name.Name == "showValue" {
+			showValue = fn
+			break
+		}
+	}
+	require.NotNil(t, showValue, "showValue declaration not found")
+	ast.Inspect(showValue.Body, func(node ast.Node) bool {
 		typeSwitch, ok := node.(*ast.TypeSwitchStmt)
 		if !ok {
 			return true

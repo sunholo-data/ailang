@@ -1,0 +1,5 @@
+module test/show_differential_depth
+
+export func main() -> () ! {IO} {
+  println(show([[[[[42]]]]]))
+}

@@ -50,6 +50,22 @@ func (g *Generator) writeRuntimeMiscHelpers() {
 	g.writef("// Show converts any value to canonical AILANG surface syntax.\n")
 	g.writef("func Show(v interface{}) string {\n")
 	g.indent++
+	g.writef("return showValue(v, 0)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("const (\n")
+	g.indent++
+	g.writef("showMaxDepth = 3\n")
+	g.writef("showMaxWidth = 80\n")
+	g.writef("showElisionPrefix = 20\n")
+	g.writef("showElisionSuffix = 20\n")
+	g.indent--
+	g.writef(")\n\n")
+
+	g.writef("func showValue(v interface{}, depth int) string {\n")
+	g.indent++
+	g.writef("if depth > showMaxDepth { return \"...\" }\n")
 	g.writef("switch x := v.(type) {\n")
 	g.writef("case string:\n")
 	g.indent++
@@ -80,42 +96,43 @@ func (g *Generator) writeRuntimeMiscHelpers() {
 	g.indent--
 	g.writef("case Tuple:\n")
 	g.indent++
-	g.writef("return showSequence(reflect.ValueOf(x), \"(\", \")\")\n")
+	g.writef("return showSequence(reflect.ValueOf(x), depth, \"(\", \")\")\n")
 	g.indent--
 	g.writef("default:\n")
 	g.indent++
-	g.writef("return showReflect(reflect.ValueOf(x))\n")
+	g.writef("return showReflect(reflect.ValueOf(x), depth)\n")
 	g.indent--
 	g.writef("}\n")
 	g.indent--
 	g.writef("}\n\n")
 
-	g.writef("func showReflect(v reflect.Value) string {\n")
+	g.writef("func showReflect(v reflect.Value, depth int) string {\n")
 	g.indent++
+	g.writef("if depth > showMaxDepth { return \"...\" }\n")
 	g.writef("if !v.IsValid() { return \"()\" }\n")
 	g.writef("if v.Kind() == reflect.Interface {\n")
 	g.indent++
 	g.writef("if v.IsNil() { return \"()\" }\n")
-	g.writef("return Show(v.Elem().Interface())\n")
+	g.writef("return showValue(v.Elem().Interface(), depth)\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("switch v.Kind() {\n")
 	g.writef("case reflect.Ptr:\n")
 	g.indent++
 	g.writef("if v.IsNil() { return \"()\" }\n")
-	g.writef("return showReflect(v.Elem())\n")
+	g.writef("return showReflect(v.Elem(), depth)\n")
 	g.indent--
 	g.writef("case reflect.Slice, reflect.Array:\n")
 	g.indent++
-	g.writef("return showSequence(v, \"[\", \"]\")\n")
+	g.writef("return showSequence(v, depth, \"[\", \"]\")\n")
 	g.indent--
 	g.writef("case reflect.Map:\n")
 	g.indent++
-	g.writef("return showMap(v)\n")
+	g.writef("return showMap(v, depth)\n")
 	g.indent--
 	g.writef("case reflect.Struct:\n")
 	g.indent++
-	g.writef("return showStruct(v)\n")
+	g.writef("return showStruct(v, depth)\n")
 	g.indent--
 	g.writef("case reflect.Func:\n")
 	g.indent++
@@ -126,15 +143,15 @@ func (g *Generator) writeRuntimeMiscHelpers() {
 	g.indent--
 	g.writef("}\n\n")
 
-	g.writef("func showSequence(v reflect.Value, open, close string) string {\n")
+	g.writef("func showSequence(v reflect.Value, depth int, open, close string) string {\n")
 	g.indent++
 	g.writef("parts := make([]string, v.Len())\n")
-	g.writef("for i := 0; i < v.Len(); i++ { parts[i] = Show(v.Index(i).Interface()) }\n")
-	g.writef("return open + strings.Join(parts, \", \") + close\n")
+	g.writef("for i := 0; i < v.Len(); i++ { parts[i] = showValue(v.Index(i).Interface(), depth+1) }\n")
+	g.writef("return truncateShow(open + strings.Join(parts, \", \") + close)\n")
 	g.indent--
 	g.writef("}\n\n")
 
-	g.writef("func showMap(v reflect.Value) string {\n")
+	g.writef("func showMap(v reflect.Value, depth int) string {\n")
 	g.indent++
 	g.writef("if v.Type().Key().Kind() != reflect.String { return \"<map>\" }\n")
 	g.writef("tag := v.MapIndex(reflect.ValueOf(\"_tag\"))\n")
@@ -147,20 +164,22 @@ func (g *Generator) writeRuntimeMiscHelpers() {
 	g.writef("sort.Strings(keys)\n")
 	g.writef("if len(keys) == 0 { return ctor }\n")
 	g.writef("parts := make([]string, len(keys))\n")
-	g.writef("for i, key := range keys { parts[i] = Show(v.MapIndex(reflect.ValueOf(key)).Interface()) }\n")
+	g.writef("for i, key := range keys { parts[i] = showValue(v.MapIndex(reflect.ValueOf(key)).Interface(), depth+1) }\n")
 	g.writef("return ctor + \"(\" + strings.Join(parts, \", \") + \")\"\n")
 	g.indent--
 	g.writef("}\n")
+	g.writef("// Go maps also back inline records. Map{...} is deliberate non-round-trippable debug notation;\n")
+	g.writef("// this shared representation must retain record syntax here.\n")
 	g.writef("keys := make([]string, 0, v.Len())\n")
 	g.writef("for _, key := range v.MapKeys() { keys = append(keys, key.String()) }\n")
 	g.writef("sort.Strings(keys)\n")
 	g.writef("parts := make([]string, len(keys))\n")
-	g.writef("for i, key := range keys { parts[i] = key + \": \" + Show(v.MapIndex(reflect.ValueOf(key)).Interface()) }\n")
-	g.writef("return \"{\" + strings.Join(parts, \", \") + \"}\"\n")
+	g.writef("for i, key := range keys { parts[i] = key + \": \" + showValue(v.MapIndex(reflect.ValueOf(key)).Interface(), depth+1) }\n")
+	g.writef("return truncateShow(\"{\" + strings.Join(parts, \", \") + \"}\")\n")
 	g.indent--
 	g.writef("}\n\n")
 
-	g.writef("func showStruct(v reflect.Value) string {\n")
+	g.writef("func showStruct(v reflect.Value, depth int) string {\n")
 	g.indent++
 	g.writef("if v.NumField() == 0 { return \"()\" }\n")
 	g.writef("if kind := v.FieldByName(\"Kind\"); kind.IsValid() {\n")
@@ -172,7 +191,7 @@ func (g *Generator) writeRuntimeMiscHelpers() {
 	g.writef("if fieldInfo.Name == \"Kind\" || field.Kind() != reflect.Ptr || field.IsNil() { continue }\n")
 	g.writef("variant := field.Elem()\n")
 	g.writef("parts := make([]string, variant.NumField())\n")
-	g.writef("for j := 0; j < variant.NumField(); j++ { parts[j] = Show(variant.Field(j).Interface()) }\n")
+	g.writef("for j := 0; j < variant.NumField(); j++ { parts[j] = showValue(variant.Field(j).Interface(), depth+1) }\n")
 	g.writef("if len(parts) == 0 { return fieldInfo.Name }\n")
 	g.writef("return fieldInfo.Name + \"(\" + strings.Join(parts, \", \") + \")\"\n")
 	g.indent--
@@ -180,17 +199,29 @@ func (g *Generator) writeRuntimeMiscHelpers() {
 	g.writef("return \"<unknown>\"\n")
 	g.indent--
 	g.writef("}\n")
-	g.writef("parts := make([]string, 0, v.NumField())\n")
+	g.writef("fields := make(map[string]reflect.Value, v.NumField())\n")
+	g.writef("keys := make([]string, 0, v.NumField())\n")
 	g.writef("for i := 0; i < v.NumField(); i++ {\n")
 	g.indent++
 	g.writef("fieldInfo := v.Type().Field(i)\n")
 	g.writef("if fieldInfo.PkgPath != \"\" { continue }\n")
 	g.writef("name := strings.ToLower(fieldInfo.Name[:1]) + fieldInfo.Name[1:]\n")
-	g.writef("parts = append(parts, name + \": \" + Show(v.Field(i).Interface()))\n")
+	g.writef("keys = append(keys, name)\n")
+	g.writef("fields[name] = v.Field(i)\n")
 	g.indent--
 	g.writef("}\n")
-	g.writef("sort.Strings(parts)\n")
-	g.writef("return \"{\" + strings.Join(parts, \", \") + \"}\"\n")
+	g.writef("sort.Strings(keys)\n")
+	g.writef("parts := make([]string, len(keys))\n")
+	g.writef("for i, key := range keys { parts[i] = key + \": \" + showValue(fields[key].Interface(), depth+1) }\n")
+	g.writef("return truncateShow(\"{\" + strings.Join(parts, \", \") + \"}\")\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("func truncateShow(s string) string {\n")
+	g.indent++
+	g.writef("if len(s) <= showMaxWidth { return s }\n")
+	g.writef("if showElisionPrefix+showElisionSuffix+3 >= len(s) { return s }\n")
+	g.writef("return s[:showElisionPrefix] + \"...\" + s[len(s)-showElisionSuffix:]\n")
 	g.indent--
 	g.writef("}\n\n")
 

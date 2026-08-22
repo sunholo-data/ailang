@@ -129,6 +129,8 @@ func showValue(v eval.Value, depth int) string {
 		return showSequence(val.Elements, depth, "(", ")")
 
 	case *eval.MapValue:
+		// Map{...} is deliberate debug notation: AILANG has no map literal, so
+		// this rendering is not round-trippable surface syntax.
 		keys := make([]string, 0, len(val.Entries))
 		for key := range val.Entries {
 			keys = append(keys, key)
