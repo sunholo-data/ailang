@@ -1774,3 +1774,106 @@ connection and paired with an OpenRouter-lane known-positive control. Doc §6's 
 precondition (`#558`) is unchanged by this landing: merging to `dev` does not put D1b or the smoke
 gate on the rig, because the installed plist runs `nightly-eval.sh` in place from V1's checkout.
 If M2's rig slot is not available, item **7** (profile restoration design) is the next ungated row.
+
+---
+
+## 18 — 2026-08-22 — the instrument landed and refused to certify its own sweep, which is the criterion working
+
+**Pick.** Queue row **6**'s named resume point, milestone **M2 (`AC-D1-live`)** of
+`m-motoko-fmt-remeasurement-instrument` — the last of five and the only one needing the rig. Not
+already landed: `tools/eval/motoko_connection_probe.sh` absent on `origin/dev` (control: an existing
+`tools/launchd/` script resolves rc=0), **0** merged PRs matching, and the single `AC-D1-live` grep hit
+is iteration 13's own record commit. Preconditions run as commands, not assumed: `rig.lock` free,
+ollama up on **IPv4 only** (`0.32.14`; `[::1]` refused, rc=7 — rule 3c's two-instance check done),
+`qwen3.6:35b-a3b-mxfp8` pulled **and loaded**, `OPENROUTER_API_KEY` SET (presence only), both lanes
+present in `models.yml` (control: 17 motoko lanes).
+
+**Outcome.** **M2 does NOT close.** PR [#829](https://github.com/sunholo-data/ailang/pull/829)
+(`3e446f8c7` + `627c67d2d`) lands the instrument; the live verdict is **VOID**.
+
+**What the sweep measured.** Under `rig.lock`, both lanes returned `driver_rc=1` with peer set `[]`
+in **8m15s / 8m17s**. `AC-M2-control` states in terms that a control which does not fire makes
+`AC-M2-treatment` **VOID — the probe proved nothing**. So the verdict is VOID, not FAIL, and the probe
+exited 1 on `INSTRUMENT FAILURE: empty peer set; absence of evidence cannot prove routing`. The
+artifact is written **before** the verdict is evaluated, so the evidence survived the refusal.
+
+**The finding, and it required separating two things that produce identical output.** "The runs never
+connected" and "the sampler is blind" are the same empty peer set. Measured apart (doc rows V36–V38):
+scoped `lsof` **does** see an ESTABLISHED peer of a child process on this rig — the probe's own command
+shape returned `curl … TCP 127.0.0.1:49914->127.0.0.1:11434 (ESTABLISHED)` against an unscoped same-call
+control of **67** lines — and the treatment lane is `rc=0` standalone (2/2, 1m53s) **and** `rc=0` under a
+faithful replication of the probe's own `run_lane` shape (2/2, 1m1s, **244** lsof lines) with
+**`127.0.0.1:11434` present**. So the observable is reachable and the probe **as shipped** breaks the runs
+it observes. **Mechanism NOT isolated** and said so rather than guessed: it lies in what the replication
+did not reproduce — the deadline-carrying `descendant_pids` or the two-lanes-in-one-process sequencing.
+The evaluator ruled out `classify_lsof` hermetically (a pure post-hoc transform called after `wait`, so it
+cannot change the driver's exit code). The probe **discards both driver logs** via its `trap … EXIT`,
+which is why the first diagnosis needed a re-run — for a lane that exits non-zero that log is the whole
+diagnostic, and keeping it is the named first fix.
+
+**Evaluator: FAIL 58/100, two blocking findings, and it earned its spawn by being pointed at me.** The
+directive named my own V36–V38 rows and my VOID disposition as targets to refute.
+**B1, reproduced first-party before acting (row V39):** `dig +short openrouter.ai` returns **A records
+only** while openrouter.ai has genuine **AAAA** records (`2606:4700::6812:373`, `:273`), and `lsof`
+brackets an IPv6 peer where `dig` emits it bare, so `grep -Fqx` could never match. Measured: a v6
+OpenRouter peer classified **`other`** while the IPv4 positive control in the same call classified
+**`openrouter`** — a **false negative in exactly the half of AC-M2-treatment that must not fail**. The
+probe would have certified "zero connections to openrouter.ai" for a run that leaked over IPv6. Fixed
+(union A+AAAA, `+time=5 +tries=2` which also bounds the judge's N2; compare on the bracket-stripped host),
+re-measured in four directions including a non-OR v6 peer that must stay `other` so the fix cannot pass by
+over-matching. **Gated, not merely fixed:** a new arm asserts a v6 leak is refused and reverting the
+normalisation **reds** it (`missing openrouter [2001:db8::8]:443`), mutant LANDED (sha256) and VALID
+(`bash -n`), restore byte-identical, suite **8/8**. The fixture already listed `2001:db8::8` in `OR_IPS`
+with nothing pointing at it — which is exactly why the path was never exercised.
+**B2 filed, not patched** (new queue row **6c**): the self-test covers `classify_lsof` and the four
+`assert_*` front doors only; ~**15** live-path refusal branches have zero coverage, demonstrated by a
+neutered darwin/arm64 gate surviving with a byte-identical `PASS: 7`. Same territory as the unisolated
+V38 defect, so it belongs to the iteration that isolates it.
+
+**The executor self-reported a surviving mutant** — `assert_control`'s OR-membership branch, as first
+delivered — and repaired the harness so `expect_success` inspects positive-arm exit codes. A
+self-reported finding is better evidence than a silent run (rule 3h(d)). **Verified first-party rather
+than banked:** mutant LANDED, VALID, killed arm 3 with rc=1 against a baseline of rc=0 / 7 arms, restore
+byte-identical from a `cp` backup.
+
+**Ruled out.** *The empty peer sets are an instrument fault* — refuted by V36/V37 above, with controls.
+*`classify_lsof` is the cause of `driver_rc=1`* — refuted hermetically by the evaluator; it runs after
+`wait` and cannot affect an exit code. *My own first `lsof` control (0 lines) showed the sampler blind* —
+**my error**: the reading was taken after the holder had exited. Re-taken against a holder asserted ALIVE
+(`kill -0`) and streaming (95,869 B), it returns the connection. That is V1 iteration 247's stale-artifact
+class met in my own instrument, and the correction is the reason V36 says what it says.
+
+**Gate 0/1.** Kill switch armed; `gh` on `sunholo-voight-kampff`; tripwire **CLEAN**; ran from the `#558`
+pin root, detached and clean at `b59255831` == `origin/dev`. Running-skill check on the **RESOLVED**
+symlink target (V1 iteration 241's rule): `~/.claude/skills/mission-control` → V1's main checkout,
+**byte-identical to origin** (`cmp` rc=0), as is this pin's copy; negative control rc=1. Noted but not
+acted on: motoko's own main checkout is **144 behind** with 7 dirty files including a modified `SKILL.md`
+— it does **not** serve the running skill, so the blast radius is zero, but it is a real divergence.
+dev **verified green, not merely un-red**: 16 exact-SHA checks, 0 not-green, `runs_total=2`, parent control
+16. **0** human directives on `#743` since the watermark (of 16 comments); ledger valid at 3 rows, **0
+OPEN**; **0** open `[nightly-eval]` alarms (control: 30 closed). Phase-0 predicates re-run as commands with
+controls — G1 `#154` OPEN (control `#161` MERGED), G2 rc=128 with mandatory control rc=0, G3 `latest=2.2.0`
+no 5.x, G4 unrunnable, G5 outstanding → rows 10/11/12 stay parked. Sweep and rotation both not due.
+AC-DEPLOY re-read with a no-pipe control (arms asserted to differ, 1 vs 0): the installed plist still runs
+V1's checkout copy, so `#558` stands.
+
+**A scope error of my own, caught by widening.** The doc's §11 cites its two quorum artifacts by a
+*repo-relative* path. Searching the pin, the motoko checkout, V1's checkout and `$HOME` returned **0** with
+controls firing at 4 and 95 — they live in `.wt-motoko-iter8-fmt/.ailang/state/`, a gitignored per-worktree
+directory, and only enumerating **every** worktree found them. Verified once found: 2 rounds, both
+reviewers `present: true`, `absent_reviewers` **empty** in both, both `blocked` — spent, not passed.
+
+**Routing.** Controller `claude:claude-opus-5`; executor `codex:gpt-5.6-sol` (probe rc=0, `ok`, 360
+tokens); evaluator **sonnet** — distinct provider, generator≠judge holds. No planner (the plan specifies
+M2 in full), no designer, no quorum. Rotation pointer untouched at `claude:claude-fable-5`. Metered
+**$0.00** of $5. GPU: `rig.lock` acquired `nowait` (bounded — the helper's `wait` mode is an unbounded
+`sleep 30` loop) and released, three times. `make quick-install` deliberately NOT run. Gates on
+**darwin/arm64 only** except where Gate 3b's matrix is cited.
+
+**Gate 5 — NO skill edit.** Both frictions are instances of rules the skill ALREADY has: the stale
+control artifact is V1 iteration 247's freshness rule, and the relative-path-to-a-worktree scope error is
+the Repo Profile's own *a relative path is a claim about where you are standing, not about which file
+runs*. They were broken, not missing, so they belong here rather than in the rulebook.
+
+**Next**: row **6c** + the V38 isolation, together — keep the driver logs, isolate why the probe's
+shipped path makes its lanes exit 1, and add a self-test arm per live-path branch. Then row 7.
