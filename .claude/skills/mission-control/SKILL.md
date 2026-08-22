@@ -3181,6 +3181,40 @@ above), but "the destination gained what the source lost" is a property of every
    + mission log, which Gate 4 already wrote. Do NOT mirror the STATUS entry into the issue.
    - `ailang messages send controlplane "<digest>" --title "Mission iteration N: <headline>"
      --from "mission-${MISSION_NAME:-control}"`
+     **⚠ THE BODY IS A POSITIONAL ARGUMENT, AND `ailang messages send` HAS NO `--body-file` FLAG —
+     IT SILENTLY ACCEPTS THE LITERAL STRING `--body-file /path` AS THE MESSAGE BODY, EXITS 0, AND
+     PUBLISHES A PUB/SUB NOTIFICATION FOR A MESSAGE WHOSE CONTENT IS GONE** (added 2026-08-22 V1
+     iteration 252; instance 1 is `mission-world` iter-110, whose cross-mission message arrived at
+     V1 with a body reading exactly `--body-file /tmp/w110_xmsg.txt` — recoverable only because
+     the file happened to still exist on the shared rig; instance 2 is V1 iteration 252's own
+     reply, which failed identically **in the same iteration that had just read World's**). The
+     form above is CORRECT — the trap is that this very gate prescribes `--body-file` for the
+     `gh` channel one line below, and the rotation step at 4.2 emphasises it hard ("`--body-file`,
+     never an inline `--body`") for good reason. So the reader learns "always `--body-file`" from
+     the loud rule and carries it to the adjacent command, where it is not a flag at all. Two
+     missions made the identical substitution; that is a property of this file's layout, not of
+     either controller.
+     Note which half of the channel survives, because it is what conceals the loss: the **title**
+     parses fine, so the message appears in `ailang messages list` looking entirely normal, and
+     the sender sees `✓ Message sent` plus `✓ Pub/Sub notification published`. Gate 0's own
+     mechanism-B rule already names this class — **a reporting command's exit code describes the
+     request, not the delivery** — and it is worse here than for `gh issue close --comment`,
+     because there is no `! already closed` warning of any kind. The recipient gets a title and a
+     path that means nothing on their machine.
+     **Rules. (a)** Pass the body POSITIONALLY, and pass flags with the single-dash Go form this
+     CLI actually parses (`-title`, `-from`); read `ailang messages send --help` rather than
+     assuming the `gh` flag vocabulary transfers. **(b)** For a long body, use a quoted command
+     substitution — `ailang messages send controlplane "$(cat /tmp/body.txt)" -title "…" -from "…"`
+     — which is safe for markdown: substituted output is not re-scanned, so backticks inside the
+     file stay data. **(c)** ASSERT THE ARTIFACT after sending: `ailang messages read <id>` and
+     confirm the body is your text, exactly as Gate 0 requires a comment count to grow. **(d)** A
+     re-send of the same title is refused as a duplicate — change the title or pass `-force`, and
+     say in the re-send why. **(e)** When a message ARRIVES looking like this, the sender's content
+     may still be on the rig at the named path; read it before replying, and tell the sender their
+     body was lost, or the same silent failure recurs in both directions forever.
+     Mission-independent, and the generalisation is this file's own recurring shape: **a flag
+     vocabulary is per-tool, and an emphatic rule about one tool becomes a bug in the tool beside
+     it.** The tell: you are about to write `--body-file` on a command that is not `gh`.
    - `gh issue comment "$MISSION_GH_ISSUE" --repo "${MISSION_REPO:-sunholo-data/ailang}" --body "<digest>"`
      — the human-facing bookkeeping thread (Mark reads by email; number comes from the driver env /
      `~/.ailang/state/mission-${MISSION_NAME}-gh-issue`, NOT hardcoded and NOT the bare,
