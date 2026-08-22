@@ -15856,3 +15856,44 @@ measured `MkBox(Array[int])` user-visible defect, then M4. Two new rows filed fr
 non-blocking findings: `m-array-record-slice-converter-arm-untested` (the one mutant of six that nothing
 killed, and it may be unreachable by construction) and `m-emitter-lint-evadable-by-rewording` (a class audit,
 not an instance fix). `D-22` and `D-23` stay parked and are re-asked unchanged.
+
+### Iteration 249 addendum — a human directive arrived 47 minutes after Gate 0, and the watermark step is what caught it
+
+Gate 0 read `#745` at `06:56Z` and `mission_directives.sh` correctly returned **0** allowlisted
+directives since the `2026-08-21T08:22:34Z` watermark. Mark commented at **`2026-08-22T07:43:04Z`**,
+while the codex executor was running. Nothing in this loop re-reads the directive channel between
+Gate 0 and Gate 5 — the message surfaced only because the Gate-5 watermark-advance step re-queries the
+issue to find the newest allowlisted comment. That step is documented as bookkeeping; here it was the
+only second read of the channel, and it is what stopped a human answer sitting unactioned for a day.
+I rolled the watermark **back** to its Gate-0 value before acting, so a crash would have re-read the
+directive rather than dropped it, and advanced it only after both halves were discharged.
+
+**`D-23: yes` — RESOLVED, and exercised the same iteration.**
+
+The interesting part is that the skill's own prescribed test for obligation 1 **fails on a healthy
+tree**. It says to compare `git patch-id --stable`; the intersection was **0 of 3**, because every one
+of those commits reached `origin/dev` inside a **squash** that bundled other commits, which changes the
+patch. Patch-id is sufficient evidence and not necessary, and D-23's predicate is *content presence*.
+Measured directly: the two skill commits' **157** added lines are **100%** present upstream; the record
+commit's log (+120) and archive (+1) likewise; its dashboard is superseded by design
+(overwrite-every-iteration); and the charter's 2 residual lines are the `ITERATION 246` STATUS stamp —
+found **in the archive**, i.e. rotated by this very iteration, the rotation working — and a queue-row
+header iteration 247 legitimately retagged when it landed that item. Controls fired both ways.
+
+Obligation 2's intersection was **not** empty: `.claude/skills/mission-control/SKILL.md` appeared in
+both sets, because earlier in this iteration I had restored it from origin's blob so the running copy
+would carry the Gate-5 edit. Its on-disk content already **equalled** `origin/dev` (`cmp` rc=0) — the
+documented expected-refusal case — so I staged origin's blob for that one path and confirmed by sha256
+that **no byte on disk changed**. Obligation 3: all 6 dirty files backed up outside the repo and
+re-verified byte-identical afterwards. Obligation 4: `git checkout -B dev origin/dev` rc=0,
+`Reset branch 'dev'`, carrying the two modified benchmark JSONs across.
+
+**Result: the main checkout is 0 ahead / 0 behind.** That is the first time in the 195–249 window. The
+one-way divergence the Repo Profile warns about — every Gate-5 edit landing by worktree, so the copy
+the loop actually executes drifts without bound — is closed, for all three missions, and the running
+copy `cmp`s clean against `origin/dev`.
+
+**`D-22` is NOT resolved.** *"need more context - what are consequences?"* is a request for
+information, not an answer. Per the decision contract an ambiguous or non-answering reply leaves the
+row OPEN, so it stays OPEN and the deliverable is the consequences write-up, posted to `#745` this
+iteration and summarised in the row itself next time it is asked.
