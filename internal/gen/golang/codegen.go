@@ -547,15 +547,13 @@ func (g *Generator) writePackageHeader() {
 		// M-CODEGEN-STDLIB-STRING: strconv needed when using string conversion functions
 		g.writef("import (\n")
 		g.writef("\t\"fmt\"\n")
-		if g.needsMathImport {
-			g.writef("\t\"math\"\n")
-		}
+		g.writef("\t\"math\"\n")
 		g.writef("\t\"reflect\"\n")
-		if g.needsStrconvImport {
-			g.writef("\t\"strconv\"\n")
-		}
+		g.writef("\t\"sort\"\n")
+		g.writef("\t\"strconv\"\n")
 		g.writef("\t\"strings\"\n")
 		g.writef(")\n\n")
+		g.writef("type Tuple []interface{}\n\n")
 		g.writeRuntimeHelpers()
 	} else if g.needsMathImport || g.needsStrconvImport || g.needsStringsImport || g.needsSortImport {
 		// M-CODEGEN-SUSTAINABILITY: Even when skipping runtime helpers,
@@ -643,6 +641,9 @@ func (g *Generator) GenerateRuntime() ([]byte, error) {
 
 	g.writef("import (\n")
 	g.writef("\t\"fmt\"\n")
+	if strings.Contains(helpersCode, "math.") || g.needsMathImport {
+		g.writef("\t\"math\"\n")
+	}
 	g.writef("\t\"reflect\"\n")
 	if strings.Contains(helpersCode, "sort.") || g.needsSortImport {
 		g.writef("\t\"sort\"\n")
@@ -653,15 +654,14 @@ func (g *Generator) GenerateRuntime() ([]byte, error) {
 	if strings.Contains(helpersCode, "strings.") || g.needsStringsImport {
 		g.writef("\t\"strings\"\n")
 	}
-	if g.needsMathImport {
-		g.writef("\t\"math\"\n")
-	}
 	g.writef(")\n\n")
 
 	// M-CODEGEN-MULTIMOD: List type alias — AILANG's bare List type (without type arg)
 	// maps to []interface{} in Go. Needed when functions have unparameterized List return types.
 	g.writef("// List is the AILANG list type (unparameterized).\n")
 	g.writef("type List = []interface{}\n\n")
+	g.writef("// Tuple preserves tuple identity for pattern matching and canonical Show output.\n")
+	g.writef("type Tuple []interface{}\n\n")
 
 	// Write the pre-generated helpers (already generated above for import detection)
 	g.buf.WriteString(helpersCode)

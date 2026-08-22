@@ -153,16 +153,15 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 		return "true", nil, nil
 
 	case *core.TuplePattern:
-		// M-CODEGEN-TUPLE: Tuple patterns extract elements from []interface{}
-		// In _impl functions, tuples are represented as []interface{} slices
-		cond := fmt.Sprintf("len(%s.([]interface{})) == %d", scrutinee, len(pat.Elements))
+		// M-CODEGEN-TUPLE: Tuple has a distinct runtime type so Show can preserve syntax.
+		cond := fmt.Sprintf("len(%s.(Tuple)) == %d", scrutinee, len(pat.Elements))
 
 		// Generate bindings for each element
 		for i, elem := range pat.Elements {
 			switch elemPat := elem.(type) {
 			case *core.VarPattern:
 				if elemPat.Name != "_" {
-					binding := fmt.Sprintf("%s := %s.([]interface{})[%d]",
+					binding := fmt.Sprintf("%s := %s.(Tuple)[%d]",
 						ToGoVarName(elemPat.Name), scrutinee, i)
 					bindings = append(bindings, binding)
 					if s := suppressUnusedStr(ToGoVarName(elemPat.Name)); s != "" {
@@ -174,7 +173,7 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 			case *core.TuplePattern:
 				// Nested tuple - generate temp var and recurse
 				tempVar := fmt.Sprintf("_tuple%d", i)
-				binding := fmt.Sprintf("%s := %s.([]interface{})[%d]", tempVar, scrutinee, i)
+				binding := fmt.Sprintf("%s := %s.(Tuple)[%d]", tempVar, scrutinee, i)
 				bindings = append(bindings, binding)
 				if s := suppressUnusedStr(tempVar); s != "" {
 					bindings = append(bindings, s)
@@ -188,7 +187,7 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 			default:
 				// Other pattern types in tuple - generate temp and recurse
 				tempVar := fmt.Sprintf("_elem%d", i)
-				binding := fmt.Sprintf("%s := %s.([]interface{})[%d]", tempVar, scrutinee, i)
+				binding := fmt.Sprintf("%s := %s.(Tuple)[%d]", tempVar, scrutinee, i)
 				bindings = append(bindings, binding)
 				_, nestedBindings, err := g.generatePatternCondition(elem, tempVar)
 				if err != nil {

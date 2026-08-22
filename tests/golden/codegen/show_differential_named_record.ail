@@ -1,0 +1,8 @@
+module test/show_differential_named_record
+
+type Config = { a: int, a1: int }
+
+export func main() -> () ! {IO} {
+  let config: Config = {a: 2, a1: 1};
+  println(show(config))
+}

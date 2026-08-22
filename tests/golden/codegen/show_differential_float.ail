@@ -1,0 +1,9 @@
+module test/show_differential_float
+
+export func main() -> () ! {IO} {
+  println(show(1.0 / 0.0))
+  println(show(-1.0 / 0.0))
+  println(show(0.0 / 0.0))
+  println(show(1e+21))
+  println(show(1e-07))
+}

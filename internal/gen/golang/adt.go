@@ -394,8 +394,7 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 		return fmt.Sprintf("[]%s", elemType)
 
 	case *ast.TupleType:
-		// Tuples become slices of interface{} for simplicity
-		return "[]interface{}"
+		return "Tuple"
 
 	case *ast.RecordType:
 		// Inline records become map[string]interface{} for simplicity

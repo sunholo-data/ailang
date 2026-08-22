@@ -125,8 +125,9 @@ func TestMathImportGeneration(t *testing.T) {
 	}
 }
 
-// TestNoMathImportWhenNotNeeded tests that math import is not added when not needed.
-func TestNoMathImportWhenNotNeeded(t *testing.T) {
+// TestRuntimeShowRequiresMathImport tests that the generated Show helper brings
+// in math even when the source program does not otherwise use std/math.
+func TestRuntimeShowRequiresMathImport(t *testing.T) {
 	g := New("test")
 
 	// Create a simple program without math functions
@@ -147,9 +148,8 @@ func TestNoMathImportWhenNotNeeded(t *testing.T) {
 
 	codeStr := string(code)
 
-	// Check that math import is NOT present
-	if strings.Contains(codeStr, `"math"`) {
-		t.Error("Generated code should NOT contain math import when not needed")
+	if !strings.Contains(codeStr, `"math"`) {
+		t.Error("Generated code should contain math import for runtime Show")
 	}
 }
 
