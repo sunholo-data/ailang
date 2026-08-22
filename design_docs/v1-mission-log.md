@@ -16154,3 +16154,159 @@ metered **$0.237173** of $5, all of it quorum; quota buckets opus ×1, fable ×2
 sprint's **M4** — `m-array-typed-boundary-lines-unpinned` first, then CHANGELOG, the doc move to
 `implemented/v0_34/`, and VL-9's in-place correction — is deferred by exactly one iteration and is
 otherwise unchanged; it was iteration 250's declared Next and lost only to the directive.
+
+## 252 — 2026-08-22 — Iteration 252: the planner found a real enumerator blind spot and attached a false consequence to it
+
+**Pick.** `m-list-accessor-api` (LC-2), the queue head and iteration 251's declared Next. The doc
+landed quorum-cleared at 251 (two rounds, 2-of-2 external both times, narrow-refinement carve-out);
+this iteration's deliverable is the sprint plan, not the code.
+
+**Gate 0/1.** Kill switch armed; billing tripwire **CLEAN**; gh `sunholo-voight-kampff`. Pin
+worktree clean, detached at `8e3928a08` = `origin/dev`. Running skill **byte-identical** to
+`origin/dev`, `cmp` against the RESOLVED `readlink` target (main checkout, inode 47397093) — and,
+separately, against the pin's own copy (47671148), which is a different file and green by
+construction. `origin/dev` `8e3928a08`: **16 checks, ZERO not-green** (control `total_count`=16
+fired). **Zero** allowlisted directives on `#745` since the `2026-08-22T11:36:26Z` watermark (62
+comments). Ledger **23 rows, ZERO OPEN**. No rotation: `#745` created `06:14:45Z` = **08:14 CEST
+Monday 08-17**, after the Monday-07:00 LOCAL boundary; 62 < 80. Weekly external-issue sweep NOT
+owed — the 08-17 rotation week's sweep ran at iteration 250. Zero open `[nightly-eval]` issues.
+Died-mid-flight sweep clean: no `.wt-iter252`; main checkout dirty only in the 5 known rig-synced
+eval artifacts, path-disjoint. The sole open PR on the shared fleet account is `#695`,
+`headRefName` `coordinator/task-d98bb271`, matching **no** worktree in my clone — unattributable,
+left alone and named, per the fleet-account rule. Blocked-external predicate RE-RUN as a command:
+`#662` state=OPEN, **1** comment (control `#613` MERGED, 2) — unchanged, measured today.
+
+**The local checkout is still 0 ahead / 0 behind**, closed at iteration 249 and holding, so Gate 4
+wrote the record in place rather than through a worktree.
+
+**CROSS-MISSION MESSAGE, TRIAGED NOT OBEYED.** `mission-world` iter-110 refuted its own candidate
+third instance of the flipped-predicate class (its `[IN-SPRINT]` row turned out correctly deferred
+— an explicit deferral was one grep away) and handed over an unrelated, checkable claim: **`go test
+-run` exits 0 on an empty match set**, so any acceptance criterion shaped *"`go test -run 'TestA|
+TestB'` passes"* is green before either test is written. Ghost discipline applied — **CONFIRMED
+first-party at V1's HEAD**: `go test ./internal/eval -run 'TestZzNoSuchTestIter252' -count=1 -v` →
+**rc=0**, **0** `=== RUN` lines, `ok ... [no tests to run]`; control `-run '^TestTaggedValue$'` →
+**rc=0**, **5** `=== RUN` lines. **Identical exit codes.** V1's exposure measured: **54** such
+invocations across **16** files in `design_docs/planned` (same-scope control 229 `go test`
+occurrences; negative control 0). The picked doc carries **zero**, so the mitigation is prophylactic
+— it went into the planner directive as a hard mandate rather than becoming a sprint of its own, and
+is filed as a `[world-DEMAND]` queue row for the repo-wide sweep, which does NOT outrank the queue.
+
+**ROUTING — the derived lane, used verbatim.** `tools/launchd/derive-planner-lane.sh` on the picked
+doc emits `opus fail-closed:planner-lane-field-invalid`, so no codex probe was run and the planner
+went to opus via the Agent tool.
+
+**A HYPOTHESIS I FORMED, MEASURED, AND REFUTED — the codex planner lane is not silently broken.**
+The doc declares `**Planner-Lane**: codex-ok` and the derivation refuses it, because the script's
+`case` matches the WHOLE value and the field carries a parenthetical. That looked like a formatting
+bug silently bypassing V1's configured quota-offload planner (`codex:gpt-5.6-sol`) to opus on every
+iteration, so I tallied the derivation across **every** doc in `design_docs/planned`: **140 of 140
+fail-closed to opus, ZERO reach codex** — 131 `field-missing`, 8 `field-invalid`, 1
+`path-not-in-codex-allowlist`. Evidence in exactly the predicted direction, and wrong. Reading what
+the allowlist actually contains refutes it: the codex path is gated to
+`tools/launchd/*`, `.claude/skills/mission-control/SKILL.md` and `.claude/skills/design-doc-creator/*`
+— **mission-infrastructure only**. Every real design doc touches product code, so 0/140 is the
+allowlist working as designed, not a defect. The positive control confirms the branch is live rather
+than dead: a bare `codex-ok` field passes the field gate and advances to the next one
+(`no-files-section`), and `opus-required` emits `declared:opus-required`. And the formatting refusal
+**never changes an outcome** in the current corpus — normalising all 8 invalid fields to their bare
+token and re-deriving gives 5 × `declared:opus-required`, 1 × `path-not-in-codex-allowlist` (the
+picked doc — its own `codex-ok` self-assessment correctly overruled by path scope), 2 still invalid.
+**Not one would have reached codex.** Rule 3d, on my own hypothesis.
+
+**I BASELINED EVERY GATE I WAS ABOUT TO HAND THE PLANNER** (rule 3e(a) aimed at the controller's own
+directive, per iteration 245). Each rc captured without a pipe: `go build ./internal/eval/...` rc=0 ·
+`go build ./cmd/ailang` rc=0 · `go vet ./internal/eval/...` rc=0 · `make check-file-sizes` rc=0 ·
+`make check-boundaries` rc=0 · `make check-changelog` rc=0 · `gofmt -l` 0 lines. **`go build ./...`
+is rc=1 on pristine dev** and was explicitly banned from the plan's gate list rather than left for
+the planner to trip over.
+
+**A DOC PREMISE CORRECTED BEFORE ROUTING.** The doc's L9 says `golang.org/x/tools` "becomes direct",
+which implies promoting an existing indirect dependency. Measured: `grep -c 'x/tools' go.mod` →
+**0** — absent entirely (control `golang.org/x` → **8**), and **0** Go files import it anywhere
+(controls: `fatih/color` → 3, `"encoding/json"` → 464; negative control 0). It is a fresh module
+addition with new `go.sum` entries, a govulncheck surface and a dependabot surface. Handed to the
+planner as a measured correction, which it adopted as DEFECT-4.
+
+**THE PLANNER'S BEST FINDING, AND THE HALF OF IT THAT IS FALSE.** DEFECT-3: `go/packages` under the
+host GOOS sees **1 of `cmd/wasm`'s 5 files**; under `GOOS=js GOARCH=wasm` it sees all 5, and the 4
+hidden files hold **3 type-confirmed `*eval.ListValue.Elements` sites**. That is real, and it is the
+enumerator-blindness class this skill already names — the `listrep` census is the programme's
+denominator, and a build-tag-blind enumerator under-counts it by construction. **The consequence the
+planner attached to it is refuted.** It concluded that no PR-triggered workflow builds wasm, so LC-4's
+field deletion would break the build *at tag-cutting time with zero prior signal*. Measured:
+`docusaurus-deploy.yml` carries a `pull_request` trigger, its `docs-changes` job filters by
+`.github/docs-build-paths.txt`, and that file contains **`internal/`** and **`cmd/`** — enforced, not
+incidental, by the workflow's own push-path drift guard. So a PR touching `internal/eval/value_list.go`
+or `cmd/wasm/main.go` sets `docs_changed=true`, runs `docs-build`, and runs `make build-wasm`. LC-4
+gets a PR-time signal. The residual is narrower and worth keeping: a PR touching **only**
+`tools/linters/listrep/**` does *not* build wasm, so the analyzer's own changes are unguarded that way.
+Note the shape — the planner caught that its first grep was scoped to `ci.yml` alone and widened it
+(33-hit control), then corrected the scope and kept the conclusion. **Widening the instrument is not
+the same as re-deriving the claim.**
+
+**Mandate compliance, verified rather than accepted.** The planner reported "all 7" `-run` criteria
+carrying an enumeration floor; my looser pattern counted **11** invocations against **10** floors,
+which needed resolving rather than waving through. The single floor-less hit is `P13`, a
+Verification-Log row *describing* the class, not a gate. All **7** acceptance criteria (lines 217,
+226, 255, 262, 287, 294, 318) plus the shared helper at 165 assert `N == <literal>` top-level
+`=== RUN` lines with `N == 0` → `exit 3, instrument failure`. The planner's count was right and its
+scope was the correct one; mine was right in a different scope — rule 3b(ix) in both directions.
+
+**Artifacts validated**: plan 455 lines naming the design doc, zero placeholders; sprint JSON
+`jq -e .` rc=0, 6 features, zero placeholders. `.gitignore:82` ignores `.ailang/` while **56** sprint
+JSONs are tracked, so the new one needed `git add -f` — confirmed first-party with `git check-ignore -v`.
+
+**Plan shape.** 6 milestones, ~1,660 Go LOC, **4.5 days** — **+0.5 over the doc's 4 and outside the
+roadmap's 3–4 band**, surfaced with three costed line items rather than compressed to fit. M1
+(accessor seam) and M2 (`x/tools` + load contract + Rule 1) are independently committable. 19 named
+mutations, one per refusal branch, each `if false && <cond>` and asserted LANDED (sha256) + BUILDING
+before its test result is read. Anti-vacuity floors are measured, not aspirational: `packages ≥ 386`,
+`distinct files ≥ 2377`, `load errors == 0`.
+
+**Ten doc defects filed.** Beyond DEFECT-3/-4 above: **DEFECT-1** `packages.Config.Tests` is
+unspecified and defaults to `false`, while **380 of 903** `.Elements` and **291 of 388** `ListValue{`
+sites are in `_test.go` — the headline census moves by ~380 sites on an unstated flag; **DEFECT-2**
+`Tests: true` double-loads (3,559 syntax files across 2,377 distinct — 1,182 loaded more than once),
+inflating a naive baseline; **DEFECT-6** AC-8 unverifiable in-sprint; **DEFECT-7** AC-2 pins
+`&tail.Elements[0] == &src.Elements[k]`, the representation-artifact pinning that objection 3 got
+AC-3 rewritten for — it survived into a sibling criterion; **DEFECT-9** the ratchet has no defined
+behaviour for a package that vanishes from the scan; **DEFECT-10** the self-test's fixture root is
+unspecified, so a missing `testdata/` yields a **green self-test on an absent instrument**;
+**DEFECT-5** the `ci.mk` edit diverges from the doc's own precedent (zero existing `check-*` gates
+are in `ci:`); **DEFECT-8** two off-by-one AC cross-references. DEFECT-1/-2/-7/-10 are the ones that
+change what the sprint must do; they are carried in the plan, not silently fixed in the doc.
+
+**Bonus, a doc risk retired with a number**: the analyzer's CI cost is budgeted at "~<2 min, vettool
+fallback"; measured **1.43 s** (Tests=false) / **1.65 s** (Tests=true) warm, 6.21 s cold, plus 8.14 s
+for the wasm pass. Over-provisioned by ~2 orders of magnitude — the vettool fallback leaves the
+critical path.
+
+**Ruled out.** That the codex planner lane is silently bypassed by a formatting bug (refuted —
+allowlist is mission-infra by design, and no invalid field would have changed an outcome). That
+LC-4's wasm exposure has no PR-time signal (refuted — `internal/` and `cmd/` are both in the PR path
+filter). That the doc owed a quorum at pick time (it is quorum-cleared; see the artifact note below).
+That `#695` is this mission's to touch. That `x/tools` was an indirect dependency awaiting promotion.
+
+**An artifact gap, named not fixed.** Gate 2 keys "does this doc need a quorum?" on
+`ls .ailang/state/mission-quorum/<doc-id>-*.json`. There is **no** `m-list-accessor-api-*.json` in
+the live pin-scope directory (in-scope control: `m-list-repr-spike` → **2** artifacts, matching
+iteration 237's two blocked rounds; negative control 0), while iteration 251 recorded two full
+rounds with exact costs, token counts and reviewer verdicts, plus two in-doc quorum logs. The quorum
+demonstrably ran; the artifact did not persist. Re-running it would spend real metered dollars to
+re-answer a question answered yesterday, so I did not — but the next iteration to pick a
+251-era doc will read an absent artifact as "never reviewed". Scope note for whoever picks this up:
+the pin worktree's `.ailang/state/mission-quorum/` is the LIVE one (7 entries, newest 2026-08-20);
+the main checkout's copy has 95 entries but stops at 2026-08-12, the driver-pin rollout.
+
+**Gates** (darwin/arm64; linux and windows legs ran only in CI). No code shipped — the deliverable is
+a plan — so there is no executor and no evaluator this iteration; the plan is reviewed by the
+sprint-executor's own gates when it runs.
+
+**Outcome.** Plan LANDED. metered **$0.00** of $5 — every lane was a quota bucket (opus controller,
+opus planner).
+
+**Next.** `sprint-executor` on `m-list-accessor-api` M1+M2, which are independently committable. The
+executor lane is `codex:gpt-5.6-sol` per `$MISSION_EXECUTOR_MODEL`, with the generator≠judge guard
+putting the evaluator on `sonnet`. DEFECT-1's `Tests` flag decision must be settled in the executor
+directive before M2, because the census denominator depends on it.

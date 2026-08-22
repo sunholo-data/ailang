@@ -1,0 +1,235 @@
+{
+  "sprint_id": "M-LIST-ACCESSOR-API",
+  "status": "not_started",
+  "created": "2026-08-22T00:00:00Z",
+  "planned_at_head": "8e3928a08",
+  "merge_base_note": "Planned in the MAIN CHECKOUT at 8e3928a08 (= origin/dev, 0 ahead / 0 behind). The design doc's own Verification Log declares base 684ebc23e = origin/dev~1 (one docs-only commit back). The executor MUST derive its base with `git merge-base origin/dev HEAD` at execution time and must NOT hardcode either SHA.",
+  "branch": "sprint/iter252-list-accessor-api",
+  "worktree": null,
+  "design_doc": "design_docs/planned/m-list-accessor-api.md",
+  "sprint_plan": "design_docs/planned/m-list-accessor-api-sprint-plan.md",
+  "programme": "LC-2 of m-list-cons-cells-decomposition.md. LC-1 COMPLETE (verdict GO). D-22 = C1 (plain cons cells {head Value, tail *cell, n int} with cached length); C2K32 DECLINED, no chunk-aware design anywhere. LC-3a/b/c (~6-8 person-days) and LC-4 are all denominated in this piece's analyzer count.",
+  "github_issues": [],
+  "github_issues_note": "#676 (the user-reported OOM) is REFERENCED ONLY - every commit uses `refs #676`, never `Fixes`/`Closes`/`Resolves`. LC-2 ships no representation change and does not fix the OOM; an auto-close would be wrong. #745 carries D-19:B and D-22:C1 and is referenced in the final commit only. Neither is listed here so no auto-close language can be generated.",
+  "risk_level": "medium",
+  "planner_lane": "codex-ok",
+  "target_release": "v0.35.0",
+  "velocity": {
+    "target_loc_per_day": 370,
+    "estimated_total_loc": 1660,
+    "estimated_report_markdown_lines": 250,
+    "estimated_days": 4.5,
+    "doc_estimate_days": 4,
+    "roadmap_band_days": "3-4",
+    "band_breach": "+0.5 day OVER the roadmap band. SURFACED, NOT ABSORBED. Three named line items: (a) DEFECT-1/2 load contract + pkg[pkg.test] fold + MUT-13/MUT-14 ~0.25d; (b) DEFECT-3 GOOS=js wasm pass + gate arm (vi) ~0.15d; (c) the 19-row mutation battery beyond the doc's single neuter ~0.10d. The controller should treat this as a band breach, not round it down.",
+    "basis": "Planner-measured first-party at 8e3928a08 (P26): 72 non-zero Go-LOC commits in the last 14 days, added+deleted per commit, band 2-1696, median ~330. All six milestones (390/430/280/260/300/0) sit inside that band."
+  },
+  "hard_constraints": {
+    "no_install": "NEVER run `make quick-install` or write into ~/go/bin - that binary is shared with concurrent agents on this rig. Build to ./bin/ or a scratch dir and invoke by path, or prepend to PATH. The listrep make targets must use `go run ./tools/linters/listrep/cmd/listrep` or a ./bin/-scoped build, never an installed name.",
+    "no_go_build_all": "`go build ./...` is rc=1 on pristine dev (P1: cmd/wasm and gen/main have no native main). It MUST NOT appear as an acceptance gate anywhere. Use scoped builds. NOTE: `go build ./... | head; echo $?` reports rc=0 because the pipe returns head's status - capture every rc UNPIPED.",
+    "no_gpu": "Pure Go compile/type-check work. rig.lock is a GPU mutex only and MUST NOT be taken.",
+    "known_dirty": "docs/static/benchmarks/os/history.json, docs/static/benchmarks/os/latest.json (nightly-owned) and 3 untracked tools/eval/*.sh scripts. Path-disjoint from this sprint. Leave them alone.",
+    "git_add_f": "P25: .gitignore:82 ignores .ailang/, but 56 sprint JSONs are tracked. This NEW file needs `git add -f`."
+  },
+  "pristine_dev_baselines": {
+    "note": "Every acceptance criterion that names a command states what that command returns on pristine dev. A criterion already red at base is a broken criterion. Measured first-party by the planner at 8e3928a08, each rc captured WITHOUT a pipe.",
+    "go build ./...": "rc=1 - NOT A GATE (cmd/wasm, gen/main have no native main)",
+    "go build ./internal/eval/...": "rc=0",
+    "go build ./cmd/ailang": "rc=0",
+    "go vet ./internal/eval/...": "rc=0",
+    "make check-file-sizes": "rc=0",
+    "make check-boundaries": "rc=0",
+    "make check-changelog": "rc=0",
+    "gofmt -l internal/eval cmd/ailang": "0 lines",
+    "grep -c 'x/tools' go.mod": "0 (control: golang.org/x -> 8). ABSENT, not indirect.",
+    "test -d tools/linters": "ABSENT (control: tools/ci PRESENT)",
+    "grep -c 'make ci' .github/workflows/ci.yml": "0 (control: 'make ' -> 37)",
+    "ci.yml YAML-parse for 'make check-listrep'": "exit 1, MISSING - correctly red at base; same-parse control finds 'make check-changelog'"
+  },
+  "vacuous_run_gate_class": {
+    "finding": "MANDATORY for every -run-shaped acceptance criterion. `go test -run <selector>` EXITS 0 when the selector matches NOTHING.",
+    "measured_negative": "go test ./internal/eval -run 'TestZzNoSuchTestIter252' -count=1 -v -> rc=0, 0 '=== RUN' lines, 'ok ... [no tests to run]'",
+    "measured_positive": "go test ./internal/eval -run '^TestTaggedValue$' -count=1 -v -> rc=0, 5 '=== RUN' lines (1 top-level + 4 subtests)",
+    "measured_partial": "go test ./internal/eval -run '^(TestTaggedValue|TestZzNope252)$' -> rc=0, top-level count 1, expected 2. Only a COUNT assertion catches an orphaned selector name.",
+    "consequence": "The exit codes are IDENTICAL. Any criterion shaped 'go test -run A|B passes' is green BEFORE either test is written and stays green if a rename orphans the selector. V1 carries 54 such floor-less invocations across 16 files in design_docs/planned; this design doc has ZERO and this plan introduces ZERO.",
+    "mandatory_floor": "go test <pkg> -run '<sel>' -count=1 -v > $LOG 2>&1; RC=$?; N=$(grep -c '^=== RUN   Test[^/]*$' $LOG); [ $N -eq 0 ] && { echo 'INSTRUMENT FAILURE: selector matched NO tests'; exit 3; }; [ $N -ne <EXPECTED_N> ] && { echo \"INSTRUMENT FAILURE: expected <EXPECTED_N>, ran $N\"; exit 3; }; [ $RC -eq 0 ] || exit 1",
+    "regex_note": "'^=== RUN   Test[^/]*$' counts TOP-LEVEL tests only; subtests are '=== RUN   TestX/sub' and also start at column 0, so the [^/]*$ anchor is load-bearing. N==0 is an INSTRUMENT FAILURE (exit 3), never a pass."
+  },
+  "doc_defects": {
+    "preamble": "Named, not silently resolved, per the mission's standing plan/doc-mismatch rule. In every case the plan takes the stricter reading and no threshold moves. If the evaluator disagrees with a resolution, THE DOC WINS and the plan is wrong.",
+    "DEFECT_1_tests_flag_unspecified": "BLOCKING for M2. packages.Config.Tests DEFAULTS TO FALSE (x/tools v0.48.0 go/packages/packages.go:217), so _test.go files are never loaded. Measured: 380 of 903 .Elements and 291 of 388 ListValue{ are in _test.go (42% / 75%). The doc never states the flag; its round-2 disposition (L28) ASSERTS 'the analyzer's ./... scan includes them' - false by default. RESOLVED: Tests:true mandatory, with a measured floor. A census that omits 42% of sites is not 'the TRUE migration count'.",
+    "DEFECT_2_tests_true_double_counts": "Consequence of DEFECT-1. Measured with Tests:true: 386 packages, 3559 syntax files, only 2377 DISTINCT, 1182 files loaded MORE THAN ONCE. `go list -test ./internal/eval` shows 4 IDs incl. 'internal/eval [internal/eval.test]' which re-compiles every NON-TEST file. A naive walk visits value.go twice and the per-package baseline gets 3-4 keys per real package. RESOLVED: dedup by absolute token.Position + fold pkg[pkg.test]/pkg_test[pkg.test]/pkg.test onto the base import path. Own fixtures + MUT-13/MUT-14.",
+    "DEFECT_3_build_tag_blindness": "A blind spot the doc's OWN scope argument forbids ('a scope restriction is invisible to a ratchet BY CONSTRUCTION' applies verbatim to build constraints). Measured: host GOOS sees 1 of cmd/wasm's 5 files; GOOS=js GOARCH=wasm sees all 5 cleanly (0 errors). The 4 hidden files hold 3 *eval.ListValue.Elements sites (effects.go:438,439; main.go:508), each inside a literal `case *eval.ListValue:` arm - type-confirmed. AND no PR-triggered workflow builds wasm: `make build-wasm` runs only in release.yml (tag push v*) and docusaurus-deploy.yml (docs-paths push). So at LC-4 the field deletion breaks the build AT TAG-CUTTING TIME with zero prior signal. RESOLVED: second packages.Load with Env GOOS=js GOARCH=wasm scoped to ./cmd/wasm/..., merged per-package; 8.1s cold. Gate arm (vi) proves it looks.",
+    "DEFECT_4_x_tools_framing": "L9/HID say x/tools 'becomes a direct dependency', implying promotion of an existing indirect. Measured: grep -c 'x/tools' go.mod -> 0 (control golang.org/x -> 8), and ZERO Go files import it. It is a FRESH MODULE ADDITION: new require entry, new go.sum h1: lines, a new govulncheck surface (ci.yml:509, reads .govulncheck-allow.yml) and a new dependabot gomod surface (.github/dependabot.yml:4-5). RESOLVED: M2 gates on all four. Mitigating: v0.48.0 already in the module cache, so make test's offline GOPROXY=off leg is unaffected.",
+    "DEFECT_5_ci_mk_diverges_from_precedent": "The doc cites L12 ('gates ship with their own self-test CI step') then plans a make/ci.mk `ci:` edit. Measured make/ci.mk:11: NOT ONE existing check-* gate is in `ci:` - check-file-sizes, check-boundaries, check-changelog, check-autoclose, check-skills are all ci.yml-only. RESOLVED: the doc wins, the edit is made, but it is explicitly NOT an acceptance criterion. AC-8 gates on the ci.yml STEP (per the doc's own L11).",
+    "DEFECT_6_ac8_unverifiable_in_sprint": "AC-8 requires 'the PR's own CI run shows ... steps executing (job log evidence)'. That evidence cannot exist before the PR runs, so AC-8 can never be green at the last commit. RESOLVED by SPLIT, no weakening: AC-8a in-sprint (YAML parse of ci.yml for both exact run: strings, with a same-run control finding the existing 'make check-changelog', plus both targets rc=0 locally); AC-8b post-PR handoff obligation, release-blocking, recorded in the implemented report.",
+    "DEFECT_7_ac2_pins_a_representation_artifact": "Round-2 objection 3 (gpt5-6-sol, CONFIRMED) rewrote AC-3 precisely because pinning a representation artifact 'makes it part of the tested API and knowingly requires a behavioral contract change during the swap'. AC-2 does the SAME THING and survived: it requires &tail.Elements[0] == &src.Elements[k]. After LC-4 there is no backing array and no Elements field, so it must be DELETED, not adapted. RESOLVED: the doc wins, AC-2 implemented in FULL, but isolated in internal/eval/value_list_reprpin_test.go headed 'DELETE AT LC-4 - pins the slice representation, not the API', and recorded as an LC-4 obligation. No assertion dropped or weakened.",
+    "DEFECT_8_ac_cross_reference_off_by_one": "Doc lines 459 ('byte-identical output (AC-10)') and 502 ('Regression-surface: AC-10's five fixtures') both point at AC-10 (census handoff) when they mean AC-9 (zero behaviour change, line 545, which is what actually names the five fixtures). Line 595 uses AC-9 correctly. RESOLVED: this plan maps the five fixtures to AC-9 throughout.",
+    "DEFECT_9_ratchet_has_no_vanished_package_class": "Exact-match correctly reds on drift in either direction and on a total collapse to 0 (0 != baseline). But a package that fails to load, is renamed, or is excluded by a config change simply STOPS APPEARING, and a comparison keyed on SCANNED packages would skip it silently - a stale-baseline hole in a design whose point is that stale baselines hide violations. RESOLVED: two-way set difference with four separately-named failure classes NEW_SITES / STALE_BASELINE / MISSING_PACKAGE / EXTRA_PACKAGE. MUT-15/MUT-16.",
+    "DEFECT_10_selftest_fixture_root_unspecified": "The driver runs its self-test over 'its own testdata/' on every run. analysistest.TestData() resolves os.Getwd()+'/testdata' - correct in a test binary, WRONG in a driver invoked from the repo root by make. If the path resolves to nothing the natural failure is '0 fixtures, 0 expected diagnostics, all matched' = A GREEN SELF-TEST ON AN ABSENT INSTRUMENT. RESOLVED: fixture root from `go env GOMOD`'s directory; missing/unreadable/short fixture set => exit 3, 'instrument failure', no verdict. Never skip, never pass. MUT-17."
+  },
+  "non_defects_checked_and_cleared": {
+    "rule_2_goes_in_green": "Re-measured WITHOUT the _test.go filter: 2 hits, both internal/parser/parser_literals.go (:248 *ast.ListLiteral, :282 *ast.ArrayLiteral) which Rule 2's type filter excludes; 0 in _test.go. copy(x.Elements -> 0 with firing control (83 copy( calls). append(x.Elements first-arg -> the same 2. Doc L13/L28 STAND, and the doc's 'first full run may surprise' risk is now measured at zero for eval values.",
+    "x_tools_offline": "v0.43/0.44/0.47/0.48 all in GOMODCACHE with .ziphash; analysistest and singlechecker both PRESENT in v0.48.0. make test's GOPROXY=off + poisoned proxy leg (make/test.mk:30) is unaffected.",
+    "symbol_collisions": "grep for func NewList|EmptyList|Cons( in internal/eval -> 1 hit, builtin_errors.go:149 func EmptyListError, a different symbol. Doc L14 confirmed.",
+    "worktree_contamination": "7 full checkouts under .claude/worktrees/. go list ./... -> 0 hits there (Go tool skips dot-dirs); BSD grep -r did not descend either. Repo-wide .Elements = 910 = 903 (internal+cmd) + 7 (spike), fully accounted for.",
+    "analyzer_ci_cost": "RETIRED as a risk. Doc budgets '~<2 min, vettool fallback'. Measured 1.43s (Tests=false) / 1.65s (Tests=true) warm, 6.21s cold, + 8.14s cold for the wasm pass. Over-provisioned by ~2 orders of magnitude. The vettool fallback leaves the critical path."
+  },
+  "measured_load_contract": {
+    "probe": "Throwaway module at /tmp/iter252scratch/pkgprobe with its own go.mod requiring golang.org/x/tools v0.48.0; packages.Config.Dir pointed at the repo. NOTHING installed into ~/go/bin. go.mod/go.sum shasum-verified UNCHANGED afterwards; git status showed only the 5 known-dirty paths.",
+    "tests_false": {"packages": 149, "withErrors": 0, "syntaxFiles": 1236, "distinctFiles": 1236, "duplicated": 0, "warm": "1.43s", "cold": "6.21s"},
+    "tests_true": {"packages": 386, "withErrors": 0, "syntaxFiles": 3559, "distinctFiles": 2377, "duplicated": 1182, "warm": "1.65s"},
+    "wasm_pass": {"pattern": "./cmd/wasm/...", "host_syntax_files": 1, "js_wasm_syntax_files": 5, "withErrors": 0, "cold": "8.14s", "hidden_listvalue_sites": 3},
+    "anti_vacuity_floors": "Asserted before ANY verdict is emitted, all measured at base: packages >= 386, distinct compiled files >= 2377, packages with load errors == 0. Any breach => exit 3. An empty or shrunken scan set can NEVER print a checkmark. NOTE: go build ./... is rc=1 but the type-check load is CLEAN (0 errors both modes) - the failure is at LINK time - so 'zero load errors' is a valid non-vacuous floor at base.",
+    "declared_blind_spots": [
+      "Other build-constraint variants: only host + js/wasm are scanned. //go:build release (gen/main/debug_types_release.go), windows/linux-only files and any future tag are unseen. Measured .Elements in gen/ = 0 (control: 7 'package main' in gen/).",
+      "Nested modules: examples/sim_stub/go.mod hides 8 .go files from ./.... Measured .Elements in examples/ = 0 (control: 18 'package ' declarations).",
+      "Dot-directories: the 7 checkouts under .claude/worktrees/ are skipped by the Go tool. Correct, and recorded so nobody 'fixes' it.",
+      "Generated code is IN scope, not out - gen/main loads cleanly and is ratcheted like any other package.",
+      "Case sensitivity is a non-issue: comparison is by types.Named identity, never text. No vendor/ directory exists.",
+      "Aliased writes (s := lv.Elements; s[0] = x): Rule 1 counts the alias, Rule 2 cannot see the write. Already in the doc's Unverified table; repeated next to the other blind spots."
+    ]
+  },
+  "features": [
+    {
+      "id": "M1_ACCESSOR_SEAM",
+      "description": "internal/eval/value_list.go: 6 accessor methods + NewList/EmptyList/Cons package-level constructors over the UNCHANGED slice representation, plus slice-equivalence and construction-correctness tests, plus the AC-2 aliasing pins isolated in a separate LC-4-disposable file. Zero dependency on x/tools or the analyzer - independently shippable.",
+      "estimated_loc": 390,
+      "estimated_days": 0.75,
+      "dependencies": [],
+      "closes_acs": ["AC-1", "AC-2", "AC-3"],
+      "checkpoints_acs": ["AC-9"],
+      "acceptance_criteria": [
+        "go build ./internal/eval/... rc=0 (pristine dev: rc=0, not red at base)",
+        "go vet ./internal/eval/... rc=0 (pristine dev: rc=0)",
+        "gofmt -l internal/eval prints 0 lines (pristine dev: 0)",
+        "AC-1+AC-3 WITH ENUMERATION FLOOR: go test ./internal/eval -run '^(TestListAccessor_Len|TestListAccessor_At|TestListAccessor_All|TestListAccessor_ToSlice|TestListAccessor_Uncons|TestListAccessor_DropPrefix|TestListAccessor_NewList|TestListAccessor_EmptyList|TestListAccessor_Cons|TestListAccessor_ConsMatchesBuiltin)$' -count=1 -v > $L 2>&1; RC=$?; N=$(grep -c '^=== RUN   Test[^/]*$' $L); N==0 => exit 3 INSTRUMENT FAILURE; N!=10 => exit 3 INSTRUMENT FAILURE; RC!=0 => exit 1. On pristine dev this is exit 3 (N=0), correctly an instrument failure and NOT a pass.",
+        "AC-2 WITH ENUMERATION FLOOR: same shape against '^(TestListAccessor_ReprPin_UnconsAliases|TestListAccessor_ReprPin_DropPrefixAliases|TestListAccessor_ReprPin_ToSliceDoesNotAlias)$', EXPECTED_N=3. Assertions live in internal/eval/value_list_reprpin_test.go headed 'DELETE AT LC-4'.",
+        "AC-9 checkpoint: git diff --name-only $(git merge-base origin/dev HEAD) -- internal/eval/ lists ONLY the three new value_list*.go files. Paired with the firing control that the UNSCOPED git diff --name-only is non-empty, or the criterion is vacuous on an empty diff.",
+        "make test rc=0",
+        "NewList doc comment carries gpt5-6-sol's verbatim ownership contract; NO test exercises post-transfer caller mutation (AC-3 round-3 carve-out); EmptyList returns a FRESH value; DropPrefix returns (nil,false) for k<0||k>Len()"
+      ],
+      "passes": null, "started": null, "completed": null, "notes": null
+    },
+    {
+      "id": "M2_XTOOLS_LOAD_CONTRACT_RULE1",
+      "description": "Add golang.org/x/tools as a FRESH direct dependency; build tools/linters/listrep with the load contract (Tests:true, dedup by token.Position, test-variant fold, anti-vacuity floors, host + GOOS=js wasm passes); implement Rule 1's three site classes and two independent exemption kinds; analysistest fixtures incl. Array/Tuple/ast decoys. Discharges DEFECT-1, 2, 3, 4. Largest and highest-risk milestone; deliberately BEFORE Rule 2 so a load-contract mistake is caught while only one rule depends on it.",
+      "estimated_loc": 430,
+      "estimated_days": 1.25,
+      "dependencies": [],
+      "closes_acs": ["AC-7"],
+      "acceptance_criteria": [
+        "DEPENDENCY (DEFECT-4), four gates: grep -c 'golang.org/x/tools' go.mod >= 1 (pristine dev: 0, control golang.org/x -> 8, so correctly RED at base); go mod verify rc=0; git diff go.sum | grep -c '^+.*golang.org/x/tools.*h1:' >= 1; and VERIFY (do not assume) that .github/dependabot.yml's gomod '/' entry already covers it and record a .govulncheck-allow.yml review note",
+        "go build ./tools/linters/... rc=0 AND go vet ./tools/linters/... rc=0 AND gofmt -l tools/linters = 0 lines - EACH paired with `test -d tools/linters/listrep || exit 3` in the same criterion, because all three are VACUOUSLY rc=0 on pristine dev where the tree is ABSENT",
+        "LOAD CONTRACT FLOORS WITH ENUMERATION FLOOR: go test ./tools/linters/listrep -run '^(TestLoadContract_TestsTrue|TestLoadContract_MinPackages|TestLoadContract_ZeroLoadErrors|TestLoadContract_DedupByPosition|TestLoadContract_FoldTestVariants|TestLoadContract_WasmPass)$' -count=1 -v; N==0 => exit 3; N!=6 => exit 3; RC!=0 => exit 1",
+        "TestLoadContract_MinPackages asserts >=386 packages and >=2377 distinct compiled files; TestLoadContract_ZeroLoadErrors asserts 0; TestLoadContract_FoldTestVariants asserts baseline keys contain no '[' or '.test' and that internal/eval appears EXACTLY ONCE; TestLoadContract_WasmPass asserts the GOOS=js pass over ./cmd/wasm/... yields 5 syntax files vs the host pass's 1 and finds EXACTLY 3 class-(a) sites",
+        "AC-7 WITH ENUMERATION FLOOR: '^(TestRule1_Classes|TestRule1_Exemptions|TestRule1_Decoys)$', EXPECTED_N=3. ArrayValue.Elements, TupleValue.Elements and an ast-style Elements struct produce ZERO diagnostics. Discrimination by types.Named identity, never text.",
+        "First full scan RECORDED (not yet committed as baseline): per-package counts with host and wasm passes separated, total compared against the textual 903/388 upper bounds with the delta explained in the commit message"
+      ],
+      "passes": null, "started": null, "completed": null, "notes": null
+    },
+    {
+      "id": "M3_RULE2_STRUCTURAL",
+      "description": "Rule 2: permanent, zero-tolerance, never ratcheted, config-driven by (type,field) pairs, with an exemption set INDEPENDENT of Rule 1's - no blanket accessor exemption, no whole-function constructor exemption. The one accepted write context is validated STRUCTURALLY (fresh allocation in the same configured-constructor body). Composite-literal initializers are NOT a Rule-2 class at LC-2 (388 sites would break CI day one); LC-4 adds the class at retarget. Four AC-13 fixtures under BOTH the LC-2 config and a simulated LC-4 cell config.",
+      "estimated_loc": 280,
+      "estimated_days": 0.75,
+      "dependencies": ["M2_XTOOLS_LOAD_CONTRACT_RULE1"],
+      "closes_acs": ["AC-13"],
+      "acceptance_criteria": [
+        "AC-13 BOTH CONFIGS WITH ENUMERATION FLOOR: go test ./tools/linters/listrep -run '^(TestRule2_MutationInAccessorBody|TestRule2_ParamRootedInConstructor|TestRule2_CompositeLitNonConstructor|TestRule2_FreshAllocInConstructor|TestRule2_CellConfig_MutationInAccessorBody|TestRule2_CellConfig_ParamRootedInConstructor|TestRule2_CellConfig_CompositeLitNonConstructor|TestRule2_CellConfig_FreshAllocInConstructor)$'; N==0 => exit 3; N!=8 => exit 3; RC!=0 => exit 1",
+        "AC-13 semantics per the doc: l.Elements[0]=x inside a fixture At MUST report; tail.Elements[0]=head inside a fixture Cons MUST report; &ListValue{Elements: xs} in a non-constructor is reported by RULE 1 under the LC-2 config and by RULE 2 under the cell config; c := &ListValue{Elements: xs}; return c inside a configured constructor produces ZERO Rule-2 diagnostics",
+        "WRITE-SHAPE COVERAGE WITH ENUMERATION FLOOR: '^(TestRule2_Shape_Assign|TestRule2_Shape_IndexAssign|TestRule2_Shape_CompoundAssign|TestRule2_Shape_IncDec|TestRule2_Shape_AddrTakeField|TestRule2_Shape_AddrTakeElem|TestRule2_Shape_CopyRooted|TestRule2_Shape_AppendFirstArgRooted|TestRule2_Shape_SpreadReadNotFlagged)$', EXPECTED_N=9. append(dst, lv.Elements...) - the spread READ - must NOT be flagged.",
+        "Rule 2 goes in GREEN on the real tree: full scan reports 0 Rule-2 diagnostics. Pre-measured as consistent at base (direct assign/index = 2 hits, both *ast nodes the type filter excludes; copy-rooted = 0 with a firing control; append-first-arg-rooted = the same 2). Anything else is triaged IN-SPRINT: latent bug => own commit; genuine constructor-shaped write => constructor restructured. NEVER loosen the rule."
+      ],
+      "passes": null, "started": null, "completed": null, "notes": null
+    },
+    {
+      "id": "M4_DRIVER_BASELINE_CENSUS",
+      "description": "Driver: unconditional self-test FIRST every run (fixture root from `go env GOMOD`; missing/short => exit 3 instrument failure, never a skip); scan host ./... + GOOS=js ./cmd/wasm/... with dedup, fold and floors; compare to baseline.json as a TWO-WAY SET DIFFERENCE with four named failure classes; -write-baseline with deterministic ordering recording scope, per-pass GOOS/GOARCH, exemption config, blind_spots and analyzer version. Commit the baseline; produce the census.",
+      "estimated_loc": 260,
+      "estimated_days": 0.75,
+      "dependencies": ["M2_XTOOLS_LOAD_CONTRACT_RULE1", "M3_RULE2_STRUCTURAL"],
+      "closes_acs": ["AC-4", "AC-6"],
+      "acceptance_criteria": [
+        "AC-4: baseline.json committed from the first full run; every module package denominated; the LC-1 spike listed as EXEMPT, NOT ABSENT; internal/embed's count (11 textual refs) matches a by-hand audit recorded in the commit message; and ALL THREE known escapes appear in analyzer output - internal/builtins/safe_cast.go:97, internal/embed/convert.go:346, internal/effects/testctx/mock_context.go:353-355. NOTE the CORRECTED third path: the doc abbreviates it as 'testctx/mock_context.go' and `internal/testctx` is DIR-ABSENT (control: internal/embed DIR-PRESENT). Any missing escape => instrument failure.",
+        "NON-VACUITY OF THE BASELINE: jq '[.packages[].count] | add' baseline.json > 0 AND jq '.packages[\"github.com/sunholo-data/ailang/internal/builtins\"].count' baseline.json > 0. A zero where textual grep shows heavy eval-value usage is a red, per the doc's own AC-4 wording.",
+        "AC-6: with the fixture expectation set emptied, ./bin/listrep -self-test-only exits EXACTLY 3 (not 0, not 1), rc captured unpiped, printing 'instrument failure'. Paired with the positive control that the UNMODIFIED expectation set exits 0 in the same script run.",
+        "RATCHET DIRECTION TESTS WITH ENUMERATION FLOOR: '^(TestRatchet_NewSitesFails|TestRatchet_DecreaseFails|TestRatchet_MissingPackageFails|TestRatchet_ExtraPackageFails|TestRatchet_ExactMatchPasses)$', EXPECTED_N=5",
+        "go test ./tools/linters/... rc=0 with a non-zero enumerated count"
+      ],
+      "passes": null, "started": null, "completed": null, "notes": null
+    },
+    {
+      "id": "M5_CI_WIRING_GATE_AND_MUTATIONS",
+      "description": "make/code-health.mk +3 script-backed targets (check-listrep, test-listrep-gate, listrep-baseline); make/ci.mk ci: aggregate +1 (made as the doc specifies but explicitly NOT an AC - DEFECT-5); .github/workflows/ci.yml +2 steps following the check-autoclose pattern at lines 146-163. scripts/test_listrep_gate.sh with SIX arms (the doc's five plus the plan's wasm arm). The 19-row mutation battery.",
+      "estimated_loc": 300,
+      "estimated_days": 0.75,
+      "dependencies": ["M4_DRIVER_BASELINE_CENSUS"],
+      "closes_acs": ["AC-5", "AC-8a", "AC-12"],
+      "acceptance_criteria": [
+        "AC-5: gate arms (i) seeded extra .Elements selector => non-zero naming it; (ii) seeded non-constructor assignment => non-zero; (iii) unmodified fixtures AND real tree => zero (the seeded-ACCEPTED arm, proving the analyzer is not simply rejecting everything)",
+        "AC-6/arm (iv): -self-test-only with emptied expectations => EXACTLY 3",
+        "AC-12/arm (v): seed a *eval.ListValue.Elements selector in a throwaway package under tools/, run the SAME ./... invocation CI uses => non-zero naming the seeded site; then delete the seed. This is the arm that would have FAILED under the round-1 scope.",
+        "PLAN ADDITION arm (vi) (DEFECT-3): seed one *eval.ListValue.Elements selector into a //go:build js && wasm file under cmd/wasm/ => driver must red naming it; then delete. Without this arm the wasm pass is a claim.",
+        "EVERY ARM asserts a SPECIFIC expected rc AND a substring of the seeded site's path in the output. An arm that merely checks 'non-zero' would pass on a crash.",
+        "AC-8a (DEFECT-6) GATES ON THE ci.yml STEP, NOT THE MAKE TARGET: a python3 yaml.safe_load parse of .github/workflows/ci.yml must find both 'make check-listrep' and 'make test-listrep-gate' among the jobs' step run: strings. On pristine dev: exit 1 with MISSING both - correctly red at base. Same-run control: the identical parse finds 'make check-changelog', which exists today, proving the parser sees the file. PLUS make check-listrep rc=0 and make test-listrep-gate rc=0 locally.",
+        "THE 19-MUTATION BATTERY PASSES IN FULL. Protocol per mutation, in order, all rcs unpiped: (a) sha256 before, apply, sha256 after, ASSERT THEY DIFFER (LANDED); (b) go build ./tools/linters/... rc=0 (mutant BUILDS); (c) ONLY THEN run the named test and assert RED; (d) restore, assert sha256 matches 'before' AND the test is GREEN. Neuter with `if false && <cond>`, NEVER by deletion, so every import stays used and 'the mutant does not build' can never masquerade as 'the guard fired'. A mutation whose (a) or (b) fails is an INSTRUMENT FAILURE, not a passing mutation.",
+        "git status --porcelain shows only the 5 pre-existing known-dirty paths - every seed directory from arms (v) and (vi) removed (script must trap cleanup)"
+      ],
+      "passes": null, "started": null, "completed": null, "notes": null
+    },
+    {
+      "id": "M6_CENSUS_REPORT_AND_HANDOFF",
+      "description": "Census table + escape classification for the implemented report; changelog under Unreleased; move the design doc to design_docs/implemented/v0_35_0/; record the two LC-4 obligations and the AC-8b job-log evidence.",
+      "estimated_loc": 0,
+      "estimated_report_markdown_lines": 250,
+      "estimated_days": 0.25,
+      "dependencies": ["M1_ACCESSOR_SEAM", "M5_CI_WIRING_GATE_AND_MUTATIONS"],
+      "closes_acs": ["AC-9", "AC-10", "AC-11"],
+      "acceptance_criteria": [
+        "AC-9: make test rc=0; make verify-examples rc=0; the five named fixtures (examples/first_non_repeat.ail, inline_tests_recursive.ail, record_cons_pattern.ail, record_list_extraction.ail, pattern_matching_adt.ail) byte-identical to merge-base output, captured by running each at merge-base and at HEAD and diff-ing, WITH the firing control that a deliberately altered expected file DOES produce a diff; and git diff --name-only $(git merge-base origin/dev HEAD) -- internal/eval/ lists only the three new value_list*.go files. NOTE: the doc cross-references these fixtures as 'AC-10' at lines 459 and 502 (DEFECT-8); they are AC-9's.",
+        "AC-10: the implemented report contains the per-package analyzer table AND the escape classification (every Rule-1 site whose selector value flows out of its function as a raw slice), enumerating >= the 3 known escapes with site IDs, explicitly labelled as LC-3a/b/c's sizing input, and stating the wall-clock of the first full run. NO migration AC anywhere in it may be stated in grep counts.",
+        "AC-11: changelog entry under Unreleased in the current changelogs/ file (root CHANGELOG.md stays an index; make check-changelog rc=0, pristine dev rc=0); design doc moved to design_docs/implemented/v0_35_0/ with the report",
+        "TWO LC-4 OBLIGATIONS recorded as a CHECKLIST, not prose: (1) add the configured-field composite-literal class to Rule 2 when retargeting (the doc's own carried-forward obligation); (2) DELETE internal/eval/value_list_reprpin_test.go - it pins the slice representation, not the API (DEFECT-7)",
+        "AC-8b recorded: the two CI job-log line references from the PR's own run. RELEASE-BLOCKING, not sprint-blocking."
+      ],
+      "passes": null, "started": null, "completed": null, "notes": null
+    }
+  ],
+  "mutation_battery": {
+    "rationale": "The milestone's headline verbs are 'reject' and 'refuse', so a single neuter proves only that SOMETHING fires. One named mutation per refusal branch. Neuter with `if false && <cond>`, never by deletion. Each asserted LANDED (sha256 differs) and BUILDING (go build rc=0) BEFORE its test result is read.",
+    "mutations": [
+      {"id": "MUT-1",  "branch": "Rule 1 class (a) selector emit",                              "edit": "if false && isListValueSelector(x)",            "must_red": "TestRule1_Classes"},
+      {"id": "MUT-2",  "branch": "Rule 1 class (b) composite-literal emit",                     "edit": "if false && isListValueCompositeLit(n)",        "must_red": "TestRule1_Classes"},
+      {"id": "MUT-3",  "branch": "types.Named type-identity discrimination",                    "edit": "if false && sameNamed(t, listValueType)",       "must_red": "TestRule1_Decoys"},
+      {"id": "MUT-4",  "branch": "Rule 1 function-identifier allowlist",                        "edit": "if false && inConstructorAllowlist(fn)",        "must_red": "TestRule1_Exemptions"},
+      {"id": "MUT-5",  "branch": "spike package exemption (both rules)",                        "edit": "if false && isExemptPackage(pkg)",              "must_red": "TestRule1_Exemptions"},
+      {"id": "MUT-6",  "branch": "Rule 2 plain field assign",                                   "edit": "if false && isFieldAssign(lhs)",                "must_red": "TestRule2_Shape_Assign"},
+      {"id": "MUT-7",  "branch": "Rule 2 index/slice-into-field assign",                        "edit": "if false && isIndexIntoField(lhs)",             "must_red": "TestRule2_Shape_IndexAssign + TestRule2_MutationInAccessorBody"},
+      {"id": "MUT-8",  "branch": "Rule 2 IncDecStmt on an element",                             "edit": "if false && isIncDecOnElem(n)",                 "must_red": "TestRule2_Shape_IncDec"},
+      {"id": "MUT-9",  "branch": "Rule 2 address-take of field / element",                      "edit": "if false && isAddrTakeOfField(n)",              "must_red": "TestRule2_Shape_AddrTakeField + ..._AddrTakeElem"},
+      {"id": "MUT-10", "branch": "Rule 2 copy/append first-arg rooted at field",                "edit": "if false && isRootedAtField(call.Args[0])",     "must_red": "TestRule2_Shape_CopyRooted + ..._AppendFirstArgRooted"},
+      {"id": "MUT-11", "branch": "Rule 2 STRUCTURAL reject of param/receiver/global-rooted writes inside a configured constructor", "edit": "if false && !isFreshlyAllocatedHere(base, fnBody)", "must_red": "TestRule2_ParamRootedInConstructor + its cell-config twin"},
+      {"id": "MUT-12", "branch": "Rule 2's one ACCEPTED branch (fresh alloc) inverted to reject","edit": "if false && isFreshlyAllocatedHere(...) on the exempt side", "must_red": "TestRule2_FreshAllocInConstructor - proves the rule is not simply rejecting everything"},
+      {"id": "MUT-13", "branch": "dedup by token.Position",                                     "edit": "if false && !seen[pos]",                        "must_red": "TestLoadContract_DedupByPosition"},
+      {"id": "MUT-14", "branch": "test-variant fold onto base import path",                     "edit": "if false && isTestVariant(pkg.ID)",             "must_red": "TestLoadContract_FoldTestVariants"},
+      {"id": "MUT-15", "branch": "ratchet STALE_BASELINE (decrease) branch",                    "edit": "if false && scanned < baseline",                "must_red": "TestRatchet_DecreaseFails"},
+      {"id": "MUT-16", "branch": "ratchet MISSING_PACKAGE branch",                              "edit": "if false && inBaselineNotInScan(p)",            "must_red": "TestRatchet_MissingPackageFails"},
+      {"id": "MUT-17", "branch": "self-test fixture-root floor",                                "edit": "if false && fixtureCount < minFixtures",        "must_red": "gate arm (iv) - if the driver still exits 0, MUT-17 has proved the floor was decorative"},
+      {"id": "MUT-18", "branch": "anti-vacuity scan floors (packages/files/load-errors)",       "edit": "if false && len(pkgs) < minPkgs",               "must_red": "TestLoadContract_MinPackages"},
+      {"id": "MUT-19", "branch": "the GOOS=js wasm pass",                                       "edit": "if false && wasmPassEnabled",                   "must_red": "TestLoadContract_WasmPass + gate arm (vi)"}
+    ]
+  },
+  "baseline_ratchet_failure_modes": {
+    "merge_conflict": "Exact-match means ANY count-touching PR regenerates baseline.json, so concurrent worktrees will conflict. Deterministic key ordering + one-key-per-line JSON keeps conflicts textual and small, and `make listrep-baseline` regenerates in one command. A conflict resolved by PICKING ONE SIDE is a silent baseline forgery - so the gate re-runs after any baseline merge and exact-match catches a mis-resolved file immediately. That is precisely the property exact-match buys over 'may only decrease'.",
+    "can_a_stale_baseline_hide_a_new_violation": "Rule 1: NO. Exact-match reds on drift in either direction, including a package silently vanishing (DEFECT-9's MISSING_PACKAGE class, which the doc did not specify and this plan adds). Rule 2: NOT APPLICABLE - it is never ratcheted; any diagnostic fails unconditionally, so no baseline can hide it. THE RESIDUAL IS THE ENUMERATOR, NOT THE RATCHET: a site the scan cannot SEE (build tag, nested module, dot-dir) is not in the baseline and never will be - which is why the blind spots are a PRINTED baseline field and a listrep -help section, not a footnote."
+  },
+  "could_not_verify": [
+    "Rule 2's structural freshness validation is implementable with local single-function analysis (no SSA). This remains the doc's own design intent, unproven until code exists. MUT-11/MUT-12 and AC-13's four fixtures are the check that it worked. Owner: LC-2 execution, M3.",
+    "AC-8b (the PR's own CI job-log evidence). Not observable from a planning session - no PR exists. Recorded as a release-blocking handoff obligation.",
+    "Whether the LC-1 spike's 7 .Elements refs include Rule-2-shaped writes. Unmeasured (they were counted as selectors, not write contexts). Moot for the gate - the package exemption covers both rules - and named in the doc's Unverified table. Owner: LC-4 spike disposition.",
+    "Whether any alias-header write (s := lv.Elements; s[0] = x) exists at HEAD. Needs data-flow, which is exactly what Rule 2 does not do. Bounded by Rule 1 counting every alias site. Owner: LC-3 lanes + LC-4.",
+    "LC-1's C1 margins (1.9524x / 0.9496x etc.). Read from the v0.34.0 M6 report; trials NOT re-run this session. Settled evidence.",
+    "Whether the simulated LC-4 cell-field config matches LC-4's real cell type. The fixture is modeled on D-22's C1 shape but LC-4 owns the real definition; the fixture proves retargetability of the mechanism, not the final config values."
+  ]
+}
