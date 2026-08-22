@@ -1,5 +1,14 @@
 module test/show_differential_array
+import std/array (fromList, get, set, make, toList)
 
 export func main() -> () ! {IO} {
-  println(show(#[1, 2, 3]))
+  let literal = #[1, 2, 3]
+  let converted = fromList([4, 5, 6])
+  println(show(literal))
+  println(show(converted))
+  println(show(set(literal, 0, 9)))
+  println(show(make(3, 7)))
+  println(show(toList(literal)))
+  println(show(get(literal, 2)))
+  println(show(get(converted, 1)))
 }

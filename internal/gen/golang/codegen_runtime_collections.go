@@ -135,21 +135,27 @@ func (g *Generator) writeRuntimeListHelpers() {
 // writeArrayRuntimeFunctions generates Go implementations for AILANG array operations.
 // M-TYPE1: These are used when compiling std/array module functions to Go.
 func (g *Generator) writeArrayRuntimeFunctions() {
-	// FromList - creates array from list (both are []interface{} in Go)
+	// FromList - creates an ArrayVal from a list
 	g.writef("// FromList creates an array from a list.\n")
-	g.writef("// In Go, both arrays and lists are []interface{}.\n")
 	g.writef("func FromList(xs interface{}) interface{} {\n")
 	g.indent++
 	g.writef("if xs == nil {\n")
 	g.indent++
-	g.writef("return []interface{}{}\n")
+	g.writef("return ArrayVal{}\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("if array, ok := xs.(ArrayVal); ok {\n")
+	g.indent++
+	g.writef("result := make(ArrayVal, len(array))\n")
+	g.writef("copy(result, array)\n")
+	g.writef("return result\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("// Fast path for []interface{}\n")
 	g.writef("if list, ok := xs.([]interface{}); ok {\n")
 	g.indent++
 	g.writef("// Return a copy to preserve immutability\n")
-	g.writef("result := make([]interface{}, len(list))\n")
+	g.writef("result := make(ArrayVal, len(list))\n")
 	g.writef("copy(result, list)\n")
 	g.writef("return result\n")
 	g.indent--
@@ -158,7 +164,7 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.writef("v := reflect.ValueOf(xs)\n")
 	g.writef("if v.Kind() == reflect.Slice {\n")
 	g.indent++
-	g.writef("result := make([]interface{}, v.Len())\n")
+	g.writef("result := make(ArrayVal, v.Len())\n")
 	g.writef("for i := 0; i < v.Len(); i++ {\n")
 	g.indent++
 	g.writef("result[i] = v.Index(i).Interface()\n")
@@ -167,7 +173,7 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.writef("return result\n")
 	g.indent--
 	g.writef("}\n")
-	g.writef("return []interface{}{}\n")
+	g.writef("return ArrayVal{}\n")
 	g.indent--
 	g.writef("}\n\n")
 
@@ -179,6 +185,13 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.writef("if arr == nil {\n")
 	g.indent++
 	g.writef("return []interface{}{}\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("if slice, ok := arr.(ArrayVal); ok {\n")
+	g.indent++
+	g.writef("result := make([]interface{}, len(slice))\n")
+	g.writef("copy(result, slice)\n")
+	g.writef("return result\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("// Fast path for []interface{}\n")
@@ -215,6 +228,11 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.writef("return int64(0)\n")
 	g.indent--
 	g.writef("}\n")
+	g.writef("if slice, ok := arr.(ArrayVal); ok {\n")
+	g.indent++
+	g.writef("return int64(len(slice))\n")
+	g.indent--
+	g.writef("}\n")
 	g.writef("// Fast path for []interface{}\n")
 	g.writef("if slice, ok := arr.([]interface{}); ok {\n")
 	g.indent++
@@ -238,6 +256,16 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.writef("func Get(arr interface{}, idx interface{}) interface{} {\n")
 	g.indent++
 	g.writef("i := toInt64(idx)\n")
+	g.writef("if slice, ok := arr.(ArrayVal); ok {\n")
+	g.indent++
+	g.writef("if i < 0 || i >= int64(len(slice)) {\n")
+	g.indent++
+	g.writef("panic(fmt.Sprintf(\"array index out of bounds: %%d (length %%d)\", i, len(slice)))\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return slice[i]\n")
+	g.indent--
+	g.writef("}\n")
 	g.writef("// Fast path for []interface{}\n")
 	g.writef("if slice, ok := arr.([]interface{}); ok {\n")
 	g.indent++
@@ -273,6 +301,16 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.writef("if i < 0 {\n")
 	g.indent++
 	g.writef("return makeOptionNone()\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("if slice, ok := arr.(ArrayVal); ok {\n")
+	g.indent++
+	g.writef("if i >= int64(len(slice)) {\n")
+	g.indent++
+	g.writef("return makeOptionNone()\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return makeOptionSome(slice[i])\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("if slice, ok := arr.([]interface{}); ok {\n")
@@ -321,6 +359,11 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.writef("func UnsafeGet(arr interface{}, idx interface{}) interface{} {\n")
 	g.indent++
 	g.writef("i := toInt64(idx)\n")
+	g.writef("if slice, ok := arr.(ArrayVal); ok {\n")
+	g.indent++
+	g.writef("return slice[i]\n")
+	g.indent--
+	g.writef("}\n")
 	g.writef("if slice, ok := arr.([]interface{}); ok {\n")
 	g.indent++
 	g.writef("return slice[i]\n")
@@ -335,6 +378,19 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.writef("func Set(arr interface{}, idx interface{}, val interface{}) interface{} {\n")
 	g.indent++
 	g.writef("i := toInt64(idx)\n")
+	g.writef("if slice, ok := arr.(ArrayVal); ok {\n")
+	g.indent++
+	g.writef("if i < 0 || i >= int64(len(slice)) {\n")
+	g.indent++
+	g.writef("panic(fmt.Sprintf(\"array index out of bounds: %%d (length %%d)\", i, len(slice)))\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("result := make(ArrayVal, len(slice))\n")
+	g.writef("copy(result, slice)\n")
+	g.writef("result[i] = val\n")
+	g.writef("return result\n")
+	g.indent--
+	g.writef("}\n")
 	g.writef("if slice, ok := arr.([]interface{}); ok {\n")
 	g.indent++
 	g.writef("if i < 0 || i >= int64(len(slice)) {\n")
@@ -342,7 +398,7 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.writef("panic(fmt.Sprintf(\"array index out of bounds: %%d (length %%d)\", i, len(slice)))\n")
 	g.indent--
 	g.writef("}\n")
-	g.writef("result := make([]interface{}, len(slice))\n")
+	g.writef("result := make(ArrayVal, len(slice))\n")
 	g.writef("copy(result, slice)\n")
 	g.writef("result[i] = val\n")
 	g.writef("return result\n")
@@ -362,7 +418,7 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.writef("n = 0\n")
 	g.indent--
 	g.writef("}\n")
-	g.writef("result := make([]interface{}, n)\n")
+	g.writef("result := make(ArrayVal, n)\n")
 	g.writef("for i := range result {\n")
 	g.indent++
 	g.writef("result[i] = defaultVal\n")

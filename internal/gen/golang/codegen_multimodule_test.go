@@ -315,12 +315,17 @@ func TestListPatternMatchGeneratesValidGo(t *testing.T) {
 	}
 
 	output := string(code)
+	matchStart := strings.Index(output, "func checkList_impl")
+	if matchStart == -1 {
+		t.Fatalf("generated source missing checkList_impl:\n%s", output)
+	}
+	matchOutput := output[matchStart:]
 	// Should use if-else path (len check), NOT switch/case
-	if strings.Contains(output, "case []interface{}") {
+	if strings.Contains(matchOutput, "case []interface{}") {
 		t.Errorf("List pattern should use if-else, not switch case. Got:\n%s", output)
 	}
 	// Should contain a length check for empty list
-	if !strings.Contains(output, "ListLen(") && !strings.Contains(output, "len(") {
+	if !strings.Contains(matchOutput, "ListLen(") && !strings.Contains(matchOutput, "len(") {
 		t.Errorf("Expected length check for empty list pattern, got:\n%s", output)
 	}
 }

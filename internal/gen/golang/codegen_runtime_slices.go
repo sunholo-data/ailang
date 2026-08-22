@@ -12,10 +12,19 @@ func (g *Generator) writeRuntimeSliceConverters() {
 	g.writef("return nil\n")
 	g.indent--
 	g.writef("}\n")
-	g.writef("slice, ok := v.([]interface{})\n")
-	g.writef("if !ok {\n")
+	g.writef("var slice []interface{}\n")
+	g.writef("switch x := v.(type) {\n")
+	g.writef("case []interface{}:\n")
 	g.indent++
-	g.writef("return nil\n")
+	g.writef("slice = x\n")
+	g.indent--
+	g.writef("case ArrayVal:\n")
+	g.indent++
+	g.writef("slice = []interface{}(x)\n")
+	g.indent--
+	g.writef("default:\n")
+	g.indent++
+	g.writef("panic(fmt.Sprintf(\"ConvertToInt64Slice: expected list or array slice, got %%T\", v))\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("result := make([]int64, len(slice))\n")
@@ -36,10 +45,19 @@ func (g *Generator) writeRuntimeSliceConverters() {
 	g.writef("return nil\n")
 	g.indent--
 	g.writef("}\n")
-	g.writef("slice, ok := v.([]interface{})\n")
-	g.writef("if !ok {\n")
+	g.writef("var slice []interface{}\n")
+	g.writef("switch x := v.(type) {\n")
+	g.writef("case []interface{}:\n")
 	g.indent++
-	g.writef("return nil\n")
+	g.writef("slice = x\n")
+	g.indent--
+	g.writef("case ArrayVal:\n")
+	g.indent++
+	g.writef("slice = []interface{}(x)\n")
+	g.indent--
+	g.writef("default:\n")
+	g.indent++
+	g.writef("panic(fmt.Sprintf(\"ConvertToStringSlice: expected list or array slice, got %%T\", v))\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("result := make([]string, len(slice))\n")
@@ -64,10 +82,19 @@ func (g *Generator) writeRuntimeSliceConverters() {
 	g.writef("return nil\n")
 	g.indent--
 	g.writef("}\n")
-	g.writef("slice, ok := v.([]interface{})\n")
-	g.writef("if !ok {\n")
+	g.writef("var slice []interface{}\n")
+	g.writef("switch x := v.(type) {\n")
+	g.writef("case []interface{}:\n")
 	g.indent++
-	g.writef("return nil\n")
+	g.writef("slice = x\n")
+	g.indent--
+	g.writef("case ArrayVal:\n")
+	g.indent++
+	g.writef("slice = []interface{}(x)\n")
+	g.indent--
+	g.writef("default:\n")
+	g.indent++
+	g.writef("panic(fmt.Sprintf(\"ConvertToRecordSlice: expected list or array slice, got %%T\", v))\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("result := make([]map[string]interface{}, len(slice))\n")
@@ -99,10 +126,19 @@ func (g *Generator) writeRuntimeSliceConverters() {
 	g.writef("return bs\n")
 	g.indent--
 	g.writef("}\n")
-	g.writef("slice, ok := v.([]interface{})\n")
-	g.writef("if !ok {\n")
+	g.writef("var slice []interface{}\n")
+	g.writef("switch x := v.(type) {\n")
+	g.writef("case []interface{}:\n")
 	g.indent++
-	g.writef("return nil\n")
+	g.writef("slice = x\n")
+	g.indent--
+	g.writef("case ArrayVal:\n")
+	g.indent++
+	g.writef("slice = []interface{}(x)\n")
+	g.indent--
+	g.writef("default:\n")
+	g.indent++
+	g.writef("panic(fmt.Sprintf(\"ConvertToBoolSlice: expected list or array slice, got %%T\", v))\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("result := make([]bool, len(slice))\n")
@@ -134,10 +170,19 @@ func (g *Generator) writeRuntimeSliceConverters() {
 	g.writef("return fs\n")
 	g.indent--
 	g.writef("}\n")
-	g.writef("slice, ok := v.([]interface{})\n")
-	g.writef("if !ok {\n")
+	g.writef("var slice []interface{}\n")
+	g.writef("switch x := v.(type) {\n")
+	g.writef("case []interface{}:\n")
 	g.indent++
-	g.writef("return nil\n")
+	g.writef("slice = x\n")
+	g.indent--
+	g.writef("case ArrayVal:\n")
+	g.indent++
+	g.writef("slice = []interface{}(x)\n")
+	g.indent--
+	g.writef("default:\n")
+	g.indent++
+	g.writef("panic(fmt.Sprintf(\"ConvertToFloat64Slice: expected list or array slice, got %%T\", v))\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("result := make([]float64, len(slice))\n")
@@ -216,9 +261,18 @@ func (g *Generator) writeADTSliceConverters() {
 		g.indent--
 		g.writef("}\n")
 
-		// Assert to []interface{}
-		g.writef("src, ok := v.([]interface{})\n")
-		g.writef("if !ok {\n")
+		// Accept list and array dynamic representations.
+		g.writef("var src []interface{}\n")
+		g.writef("switch x := v.(type) {\n")
+		g.writef("case []interface{}:\n")
+		g.indent++
+		g.writef("src = x\n")
+		g.indent--
+		g.writef("case ArrayVal:\n")
+		g.indent++
+		g.writef("src = []interface{}(x)\n")
+		g.indent--
+		g.writef("default:\n")
 		g.indent++
 		g.writef("panic(fmt.Sprintf(\"%s: expected []interface{}, got %%T\", v))\n", funcName)
 		g.indent--
@@ -336,9 +390,18 @@ func (g *Generator) writeRecordSliceConverters() {
 		g.indent--
 		g.writef("}\n")
 
-		// Assert to []interface{}
-		g.writef("src, ok := v.([]interface{})\n")
-		g.writef("if !ok {\n")
+		// Accept list and array dynamic representations.
+		g.writef("var src []interface{}\n")
+		g.writef("switch x := v.(type) {\n")
+		g.writef("case []interface{}:\n")
+		g.indent++
+		g.writef("src = x\n")
+		g.indent--
+		g.writef("case ArrayVal:\n")
+		g.indent++
+		g.writef("src = []interface{}(x)\n")
+		g.indent--
+		g.writef("default:\n")
 		g.indent++
 		g.writef("panic(fmt.Sprintf(\"%s: expected []interface{}, got %%T\", v))\n", funcName)
 		g.indent--
