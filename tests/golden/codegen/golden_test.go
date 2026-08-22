@@ -11,7 +11,55 @@ import (
 	"testing"
 )
 
-const expectedDifferentialFixtureCount = 6
+const expectedDifferentialFixtureCount = 7
+
+func TestTypedAggregateArrayGeneratedOutput(t *testing.T) {
+	outDir := t.TempDir()
+	fixture, err := filepath.Abs("show_differential_array_adt_field.ail")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("ailang", "compile", "--emit-go", "--out", outDir,
+		"--package-name", "golden", "--relax-modules", "--no-verify-go", fixture)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("ailang compile failed: %v\n%s", err, output)
+	}
+
+	goFiles, err := filepath.Glob(filepath.Join(outDir, "golden", "*.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var generated strings.Builder
+	for _, goFile := range goFiles {
+		contents, err := os.ReadFile(goFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		generated.Write(contents)
+	}
+	source := generated.String()
+	for _, want := range []string{
+		"func NewBoxMkBox(v0 ArrayVal)",
+		"Items ArrayVal",
+		"Values []int64",
+		"Values: ConvertToInt64Slice(",
+		"Dirs []*Dir",
+		"Dirs: ConvertToDirSlice(",
+	} {
+		if !strings.Contains(source, want) {
+			t.Errorf("generated source missing %q", want)
+		}
+	}
+	for _, unwanted := range []string{
+		"NewBoxMkBox(ConvertToInt64Slice(",
+		"Items: ConvertToInt64Slice(",
+		"NewPlanMkPlan(ConvertToDirSlice(",
+	} {
+		if strings.Contains(source, unwanted) {
+			t.Errorf("generated source unexpectedly contains %q", unwanted)
+		}
+	}
+}
 
 // TestGoldenCompile verifies that each .ail golden test file compiles to Go
 // that passes `go build`. This is the primary acceptance test for the codegen

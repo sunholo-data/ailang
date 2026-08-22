@@ -389,7 +389,7 @@ func isPrimitiveGoType(goType string) bool {
 // isRecordValueType returns true if the Go type is a record/struct value type (not a pointer).
 // M-DX13.2: Used to detect when we need to dereference a pointer to get a value.
 func isRecordValueType(goType string) bool {
-	if goType == "" || goType == "interface{}" {
+	if goType == "" || goType == "interface{}" || goType == "ArrayVal" {
 		return false
 	}
 	if isPrimitiveGoType(goType) {

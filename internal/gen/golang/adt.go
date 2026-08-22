@@ -380,18 +380,7 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 		return fmt.Sprintf("[]%s", elemType)
 
 	case *ast.ArrayType:
-		elemType := g.mapASTType(typ.Element)
-		// M-DX12: Same as ListType - generate typed slice for ADT elements
-		// M-CODEGEN-VALUE-TYPES: Value records use []Type instead of []*Type
-		if IsUserDefinedType(elemType) {
-			baseType := strings.TrimPrefix(elemType, "*")
-			g.adtSliceTypes[baseType] = true
-			if g.valueRecords[elemType] || strings.HasPrefix(elemType, "*") {
-				return fmt.Sprintf("[]%s", elemType)
-			}
-			return fmt.Sprintf("[]*%s", elemType)
-		}
-		return fmt.Sprintf("[]%s", elemType)
+		return "ArrayVal"
 
 	case *ast.TupleType:
 		return "Tuple"
@@ -442,7 +431,7 @@ func IsUserDefinedType(goType string) bool {
 	// Primitives that don't need interface{} wrapping
 	switch goType {
 	case "int64", "float64", "bool", "string", "interface{}", "struct{}",
-		"map[string]interface{}", "map[string]any", "[]interface{}":
+		"map[string]interface{}", "map[string]any", "[]interface{}", "ArrayVal":
 		return false
 	default:
 		// M-CODEGEN-MULTIMOD: Slice types like []string, []int64, [][]string are NOT

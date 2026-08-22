@@ -1,0 +1,35 @@
+module test/show_differential_array_adt_field
+import std/array (fromList)
+
+type Box = MkBox(Array[int])
+
+type Holder = { items: Array[int] }
+
+type ListHolder = { values: [int] }
+
+type Dir = North | South
+
+type Plan = MkPlan(Array[Dir])
+
+type DirListHolder = { dirs: [Dir] }
+
+func boxItems(box: Box) -> Array[int] = match box {
+  MkBox(items) => items
+}
+
+func planDirs(plan: Plan) -> Array[Dir] = match plan {
+  MkPlan(dirs) => dirs
+}
+
+export func main() -> () ! {IO} {
+  let box = MkBox(fromList([1, 2, 3]))
+  let holder: Holder = { items: fromList([4, 5, 6]) }
+  let listHolder: ListHolder = { values: [7, 8] }
+  let plan = MkPlan(fromList([North, South]))
+  let dirListHolder: DirListHolder = { dirs: [North, South] }
+  println(show(boxItems(box)))
+  println(show(holder.items))
+  println(show(listHolder.values))
+  println(show(planDirs(plan)))
+  println(show(dirListHolder.dirs))
+}
