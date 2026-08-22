@@ -77,11 +77,7 @@ func (tm *TypeMapper) mapTypeWithVisited(t types.Type, visited map[types.Type]bo
 		return GoType(fmt.Sprintf("[]%s", elemType)), nil
 
 	case *types.TArray:
-		elemType, err := tm.mapTypeWithVisited(typ.Element, visited)
-		if err != nil {
-			return "", err
-		}
-		return GoType(fmt.Sprintf("[]%s", elemType)), nil
+		return GoType("ArrayVal"), nil
 
 	case *types.TTuple:
 		return GoType("Tuple"), nil

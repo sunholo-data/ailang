@@ -90,6 +90,26 @@ func TestTypeMapper_MapType_List(t *testing.T) {
 	}
 }
 
+func TestTypeMapper_MapType_ArrayPreservesIdentityAndListControl(t *testing.T) {
+	tm := NewTypeMapper()
+
+	arrayGot, err := tm.mapTypeWithVisited(&types.TArray{Element: types.TInt}, make(map[types.Type]bool))
+	if err != nil {
+		t.Fatalf("mapTypeWithVisited(TArray[int]) error = %v", err)
+	}
+	if arrayGot != GoType("ArrayVal") {
+		t.Errorf("mapTypeWithVisited(TArray[int]) = %q, want %q", arrayGot, GoType("ArrayVal"))
+	}
+
+	listGot, err := tm.mapTypeWithVisited(&types.TList{Element: types.TInt}, make(map[types.Type]bool))
+	if err != nil {
+		t.Fatalf("mapTypeWithVisited(TList[int]) error = %v", err)
+	}
+	if listGot != GoType("[]int64") {
+		t.Errorf("mapTypeWithVisited(TList[int]) = %q, want %q", listGot, GoType("[]int64"))
+	}
+}
+
 // TestTypeMapper_MapType_Primitives tests basic type mappings
 func TestTypeMapper_MapType_Primitives(t *testing.T) {
 	tm := NewTypeMapper()

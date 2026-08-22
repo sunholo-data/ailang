@@ -318,16 +318,7 @@ func ailangTypeToGo(t ast.Type) string {
 		}
 		return "[]" + elemType
 	case *ast.ArrayType:
-		// M-TYPE1: Arrays use the same Go representation as lists (slices)
-		elemType := ailangTypeToGo(typ.Element)
-		// M-CODEGEN-POINTER-RETURN-TYPES: Same logic as ListType
-		if strings.HasPrefix(elemType, "*") {
-			return "[]" + elemType // []*TypeName
-		}
-		if isUserDefinedGoType(elemType) {
-			return "[]*" + elemType
-		}
-		return "[]" + elemType
+		return "ArrayVal"
 	case *ast.RecordType:
 		return "map[string]interface{}"
 	case *ast.TypeApp:
@@ -394,15 +385,7 @@ func ailangTypeToGoWithValueRecords(t ast.Type, valueRecords map[string]bool) st
 		}
 		return "[]" + elemType
 	case *ast.ArrayType:
-		// M-TYPE1: Arrays use the same Go representation as lists (slices)
-		elemType := ailangTypeToGoWithValueRecords(typ.Element, valueRecords)
-		if strings.HasPrefix(elemType, "*") {
-			return "[]" + elemType
-		}
-		if isUserDefinedGoType(elemType) {
-			return "[]" + elemType
-		}
-		return "[]" + elemType
+		return "ArrayVal"
 	case *ast.RecordType:
 		return "map[string]interface{}"
 	case *ast.TypeApp:

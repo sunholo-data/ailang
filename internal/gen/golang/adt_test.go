@@ -381,6 +381,18 @@ func TestMapASTType_Primitives(t *testing.T) {
 	}
 }
 
+func TestMapASTType_ArrayPreservesIdentityAndListControl(t *testing.T) {
+	gen := NewADTGenerator("test")
+	element := &ast.SimpleType{Name: "int"}
+
+	if got := gen.mapASTType(&ast.ArrayType{Element: element}); got != "ArrayVal" {
+		t.Errorf("mapASTType(Array[int]) = %q, want %q", got, "ArrayVal")
+	}
+	if got := gen.mapASTType(&ast.ListType{Element: element}); got != "[]int64" {
+		t.Errorf("mapASTType([int]) = %q, want %q", got, "[]int64")
+	}
+}
+
 // TestMapASTType_ADTSlices verifies M-DX12: ADT slice fields generate as typed slices
 func TestMapASTType_ADTSlices(t *testing.T) {
 	gen := NewADTGenerator("test")
