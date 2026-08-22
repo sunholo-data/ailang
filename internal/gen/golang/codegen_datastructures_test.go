@@ -42,37 +42,67 @@ func TestGenerateList(t *testing.T) {
 	}
 }
 
+// TestGenerateArrayPreservesRuntimeIdentity pins that an array literal and a list
+// literal compile to DIFFERENT Go values — the whole point of M1.
+//
+// The observable must discriminate. An earlier form of this test asserted only that
+// the strings "type ArrayVal []interface{}", "ArrayVal{" and "case ArrayVal:" appear
+// somewhere in the generated source; all three are unconditional runtime-preamble
+// boilerplate, so it passed for a program containing no array at all. Measured: with
+// core.Array swapped for core.List the old assertions still passed (rc=0), and with a
+// bare int literal too. It was vacuous, which is why the assertion below is written
+// over the emitted LITERAL — text only an array literal can produce — and is checked
+// in both directions against a list-valued twin.
 func TestGenerateArrayPreservesRuntimeIdentity(t *testing.T) {
-	prog := &core.Program{
-		Decls: []core.CoreExpr{
-			&core.Let{
-				Name: "nums",
-				Value: &core.Array{
-					Elements: []core.CoreExpr{
-						&core.Lit{Kind: core.IntLit, Value: int64(1)},
-						&core.Lit{Kind: core.IntLit, Value: int64(2)},
-						&core.Lit{Kind: core.IntLit, Value: int64(3)},
-					},
-				},
-				Body: &core.Var{Name: "nums"},
+	elements := func() []core.CoreExpr {
+		return []core.CoreExpr{
+			&core.Lit{Kind: core.IntLit, Value: int64(1)},
+			&core.Lit{Kind: core.IntLit, Value: int64(2)},
+			&core.Lit{Kind: core.IntLit, Value: int64(3)},
+		}
+	}
+	generate := func(t *testing.T, value core.CoreExpr) string {
+		t.Helper()
+		prog := &core.Program{
+			Decls: []core.CoreExpr{
+				&core.Let{Name: "nums", Value: value, Body: &core.Var{Name: "nums"}},
 			},
-		},
+		}
+		code, err := New("test").Generate(prog)
+		if err != nil {
+			t.Fatalf("Generate failed: %v", err)
+		}
+		return string(code)
 	}
 
-	gen := New("test")
-	code, err := gen.Generate(prog)
-	if err != nil {
-		t.Fatalf("Generate failed: %v", err)
+	const (
+		arrayLiteral = "ArrayVal{int64(1), int64(2), int64(3)}"
+		listLiteral  = "[]interface{}{int64(1), int64(2), int64(3)}"
+	)
+
+	fromArray := generate(t, &core.Array{Elements: elements()})
+	fromList := generate(t, &core.List{Elements: elements()})
+
+	// The array program emits an ArrayVal literal and NOT a bare slice literal.
+	if !strings.Contains(fromArray, arrayLiteral) {
+		t.Errorf("array program: generated source missing %q:\n%s", arrayLiteral, fromArray)
+	}
+	if strings.Contains(fromArray, listLiteral) {
+		t.Errorf("array program: array literal was erased to %q, which is the divergence M1 removes", listLiteral)
 	}
 
-	generated := string(code)
-	for _, want := range []string{
-		"type ArrayVal []interface{}",
-		"ArrayVal{",
-		"case ArrayVal:",
-	} {
-		if !strings.Contains(generated, want) {
-			t.Errorf("generated source missing %q:\n%s", want, generated)
+	// The list program is the negative arm: it must NOT gain array identity.
+	if strings.Contains(fromList, arrayLiteral) {
+		t.Errorf("list program: emitted %q — lists must stay []interface{}", arrayLiteral)
+	}
+	if !strings.Contains(fromList, listLiteral) {
+		t.Errorf("list program: generated source missing %q:\n%s", listLiteral, fromList)
+	}
+
+	// The rendering half: showValue must carry the ArrayVal arm, and the preamble the type.
+	for _, want := range []string{"type ArrayVal []interface{}", "case ArrayVal:"} {
+		if !strings.Contains(fromArray, want) {
+			t.Errorf("generated source missing %q:\n%s", want, fromArray)
 		}
 	}
 }
