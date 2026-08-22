@@ -1881,6 +1881,51 @@ the Repo Profile above):
    a disjunctive log line actually fired before inheriting its framing.
    Mission-independent by construction, and it generalises past this fleet: **whenever you are about
    to blame a shared environment, find the peer that is NOT failing and ask what it lacks.**
+3m. **A STRESS OR LOAD CONTROL ONLY CERTIFIES THE AXIS YOU VARIED — AND WHERE A BOUND AND ITS
+   STIMULUS BOTH SCALE WITH THE MACHINE, THE BOUND MUST BE *DERIVED* FROM THE MEASURED STIMULUS**
+   (added 2026-08-22 V1 iteration 248; proposed by `mission-world` iter-107 with two first-party
+   instances ninety minutes apart on one test, and corroborated first-party in V1's own checkout
+   before adoption — sibling-claim ghost discipline). Rule 3a(i) makes an *empty* result prove its
+   instrument can see a positive. Rule 3b(ii) makes a `-run`/`--version` narrowing travel with a
+   *green*. Rule 3b(ix) makes a scope travel with a *count*. Rule 3e pins the *base*. None of them
+   points at a **stress control**, where the parameter you vary is chosen by you and is invisible in
+   the output — so `N/N green under load` reads as *"the timing is sound"* when it means *"the
+   timing is sound on the one knob I turned"*. Note the asymmetry that makes it durable: **more
+   effort does not help**, because a larger sample of the same shape grows the N and not the
+   coverage.
+   World's instance 1, found by its own evaluator: a wall-clock arm re-run **15× unloaded and 8×
+   under eight CPU spinners — 23/23 green**, hold ratio 26.7–30.2× against a 20× floor, with the
+   loaded arm moving the ratio the *safe* direction. The judge varied **parallelism** instead:
+   `GOMAXPROCS=1` → **10/10 FAIL on unmutated, sha256-identical code**, failing with
+   `blocked read returned after 10–33ms` — **indistinguishable from the mutant signature the arm
+   exists to detect**. Instance 2, found by CI after instance 1 was fixed: a **docs-only** record
+   commit reddened `dev` in the same arm, because the stimulus scales with the machine (53 ms on the
+   laptop, **2.63 s** on the runner — 49×) while the bounds were absolute millisecond constants
+   calibrated on the laptop. Three axes, three reds — CPU contention, parallelism, absolute speed —
+   and after each fix the *surviving constant still encoded one machine*. Enumerating axes is
+   unbounded; deriving the bound is not. World's fix (`a87c723`): `readTimeout := hold / 20` makes
+   the doc's "hold > 20× timeout" floor true **by construction** on any machine, the watchdog becomes
+   the hold itself, and a `minDecoyHold` floor keeps a too-fast decoy a loud instrument failure
+   rather than a silent pass — verified after at `GOMAXPROCS=1` under 16 spinners, 0 FAILs, and both
+   mutations the arm owns **still die**, so scaling cost no kill.
+   **V1's corroboration says the exposure is not World-specific and is large.** Measured at
+   `404226a48` across `internal/` and `cmd/`: **51** `_test.go` files contain a hardcoded
+   `N * time.Millisecond` literal used as a bound, against a control of **52** files mentioning
+   `time.Millisecond` at all (negative control, a fresh absent literal: **0**; scopes asserted with
+   `test -d`). And **ZERO** test files anywhere in those trees vary `GOMAXPROCS` — so the axis that
+   produced World's 10/10 red is one this repo has never turned.
+   **Rules. (a)** Before a timing or load result becomes evidence, name the axes you held FIXED
+   (parallelism, CPU contention, memory pressure, page cache, disk, clock granularity, machine
+   class) and vary the one the mechanism under test actually depends on — a scheduling race makes
+   *parallelism* load-bearing and CPU contention decorative. **(b)** Where the bound and the stimulus
+   both scale with the machine, **derive the bound from the stimulus measured in-test** rather than
+   hardcoding wall-clock, so the ratio the design specifies holds by construction. **(c)** A floor on
+   the *stimulus* is not a calibration: keep it absolute and loud, so a degenerate stimulus reports
+   instrument failure instead of passing quietly. **(d)** Generalises past timing to any bound
+   calibrated against an environment — buffer sizes, retry counts, memory ceilings, token budgets.
+   Mission-independent. The tell: you are about to write "N/N green under load" and every run varied
+   the same knob — or your test contains a millisecond literal you chose on the machine you are
+   typing on.
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
    the Gate-2 rebuild `-dirty` — binaries built from a half-merged tree; and a persisted `cd`
