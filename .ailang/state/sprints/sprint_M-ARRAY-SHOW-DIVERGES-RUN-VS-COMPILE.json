@@ -1,0 +1,116 @@
+{
+  "sprint_id": "M-ARRAY-SHOW-DIVERGES-RUN-VS-COMPILE",
+  "created": "2026-08-22",
+  "plan_path": "design_docs/planned/m-array-show-diverges-run-vs-compile-sprint-plan.md",
+  "design_doc": "design_docs/planned/m-array-show-diverges-run-vs-compile.md",
+  "design_doc_rationale": "Quorum-cleared via the narrow-refinement carve-out (R1/R2 rounds recorded in the doc's Quorum verification log). Iteration 248 of the V1 mission; last surviving member of the show-divergence class that iteration 247 (PR #822) closed.",
+  "github_issues": [],
+  "base_commit": "404226a48",
+  "worktree": "/Users/voightkampff/dev/sunholo-data/.wt-iter248",
+  "branch": "sprint/iter248-array-show",
+  "harness_note": "MANDATORY: tests/golden/codegen/golden_test.go:37,102,109 shell out to a BARE `ailang` from PATH. Measured at this commit: rc=1 with ~/go/bin/ailang (Aug 18, pre-#822, 6 failing subtests) and rc=0 with a freshly built binary. Before EVERY golden-test run: `go build -o /tmp/i248-plan/ailang ./cmd/ailang` then `PATH=\"/tmp/i248-plan:$PATH\" go test ...`. Never `make quick-install` (~/go/bin is shared with concurrent agents). Capture exit codes as `cmd > /tmp/out 2>&1; rc=$?` — never ${PIPESTATUS[0]} (empty in zsh), never `|| echo 0` around `grep -c`.",
+  "measured_baselines": {
+    "go build ./...": "rc=1 — sole error cmd/wasm 'function main is undeclared'. NOT a usable gate; scope build gates to touched packages.",
+    "go build ./internal/gen/... ./cmd/ailang": "rc=0",
+    "go vet ./internal/gen/... ./tests/golden/...": "rc=0",
+    "go test ./internal/gen/golang/ -count=1": "rc=0",
+    "PATH=fresh go test ./tests/golden/codegen/ -count=1": "rc=0",
+    "PATH=fresh go test ./tests/golden/codegen/ -run TestInterpreterCompiledDifferential -count=1 -v": "rc=0, exactly 5 '--- PASS' subtests",
+    "make verify-examples": "rc=0 — 211 passed, 0 failed, 6 skipped; manifest in sync. Uses bin/ailang via its own build dep, immune to the PATH trap.",
+    "make check-file-sizes": "rc=0 — but codegen.go is 753/800 lines, only 47 lines of headroom, and M1+M3 both write into it.",
+    "expectedDifferentialFixtureCount": "confirmed still 5 at tests/golden/codegen/golden_test.go:14"
+  },
+  "design_doc_refutations": [
+    "R1 (changes M2): VL-9's 'if !ok { return nil }' at 7 sites is WRONG — it is 5. The two template-loop sites (emitter lines 221 and 341) already panic with converter-specific messages, tagged M-DX12 / M-CODEGEN-UNIFIED-SLICE. Confirmed first-party in generated runtime.go: 5 literal converters return nil (598/614/632/654/676), ConvertToOptionSlice (853) and ConvertToResultSlice (877) panic. Consequence: the quorum's fallback REMOVAL applies to 5 emitter sites, not 'both emitters'; and design-doc AC4 clause (b) ALREADY PASSES AT BASE — it is a regression pin, not fail-at-base evidence.",
+    "R2 (widens M3): an ArrayVal reaching a template-loop converter PANICS, it does not silently return nil. Measured: Array[UserADT] compiles to NewPlanMkPlan(ConvertToDirSlice(tmp2)) with func NewPlanMkPlan(v0 []*Dir). examples/runnable/array_adt.ail is exactly this shape and is covered by make verify-examples, so B7 becomes a first-class M3 gate, not the afterthought AC6 implies. The doc does not flag this path.",
+    "R3 (narrows M3, and corrects its edit-site list): converter selection funnels through ONE chokepoint, Generator.getSliceConversion(goType) at codegen.go:715, with exactly 4 non-test call sites — codegen_decl.go:324, codegen_expr_app.go:139, codegen_record.go:174, codegen_record.go:337. getSliceConversion(\"ArrayVal\") returns \"\" automatically, so no per-call-site surgery is needed. Conversely the doc's 'exhaustive' edit-site list OMITS codegen_decl.go (function return coercion), a 5th array path.",
+    "R4 (widens M3): ArrayVal is a NAMED type and 5 non-test sites branch on strings.HasPrefix(goType, \"[]\") — adt.go:451, codegen_match_patterns.go:34, codegen_decl.go:323, codegen_record.go:171, codegen_record.go:401. \"ArrayVal\" fails all five. Unlisted in the doc. Smaller instance of exactly why option (A) was rejected.",
+    "R5 (constrains the M2 fixture): std/array.empty and std/array.append emit undefined Empty/Append — `go build` rc=1 on the generated package. --no-verify-go (which the differential harness passes) hides it. std/array exports 10 functions; codegen emits helpers for 8. Pre-existing defect; the binding rule is that fixtures must not call append or empty.",
+    "R6 (recorded, not fixed): toSlice (codegen_runtime_collections.go:8) carries the same silent `return nil`, in a helper the source calls 'core infrastructure used by 24+ runtime helpers', reached from internal/builtins/registry_codegen_json.go:67,150 and registry_codegen_effects.go:52,245,258. Out of scope (type checker blocks arrays) but the quorum's stated universal goal is NOT met by M2 alone.",
+    "Minor: internal/gen/golang/*_test.go has ZERO references to TArray or ast.ArrayType (control: codegen_datastructures_test.go is the only test file matching 'Array' at all). The array type mappers have no unit coverage today — M3 breaks no existing test, but also has no safety net and must build one first.",
+    "Minor: go build ./... fails on cmd/wasm ONLY. The doc is right; the controller brief's additional 'gen/main' is not reproduced."
+  ],
+  "deliberate_deviation": "The design doc puts BOTH fixtures in M4, which leaves M1/M2/M3 with no end-to-end gate and violates the brief's 'green at every boundary, independently bisectable' rule. Fixtures instead land with the milestone that makes them green: M1 adds show_differential_array.ail (literals only, count 5->6), M2 extends that same file's body (count stays 6), M3 adds show_differential_array_adt_field.ail (count 6->7). Final state is identical to the doc's AC1. The count guard at golden_test.go:88-90 makes each step self-enforcing.",
+  "velocity": {
+    "target_loc_per_day": 130,
+    "estimated_total_loc": 520,
+    "estimated_days": 4,
+    "estimate_note": "Doc says 3-4 days with a 1/1/1/0.5 milestone split. Total kept at 4; the SPLIT is wrong. Re-allocated M1 0.5 / M2 1.0 / M3 2.0 / M4 0.5. Downward pressure: iteration 247 (PR #822) is the near-exact analogue — same package, same harness, created all 5 existing fixtures — and landed 482 insertions / 46 deletions across 17 files in ONE mission iteration; plus R3 removes budgeted work. Upward pressure wins: R2 + R4 + the adtSliceTypes decision + zero existing mapper coverage make M3 a 2-day milestone the doc budgets at 1. If time pressure appears, the honest cut is to ship M1+M2 and re-scope M3+M4 as a follow-up — NOT to thin M3's tests."
+  },
+  "features": [
+    {
+      "id": "M1_ARRAYVAL_REPRESENTATION_AND_RENDERING",
+      "description": "Give an array LITERAL a distinct Go identity and render it as #[...]. Emit `type ArrayVal []interface{}` at BOTH runtime-preamble sites (codegen.go:556 and :664, each directly after the existing `type Tuple []interface{}` write). Switch generateArray's []interface{} branch (codegen_ops.go:357-375) to ArrayVal{, and AUDIT the sibling typed branch at codegen_ops.go:368 which the doc does not mention (every probe emitted the interface{} branch because M-DX26 forces interface{} inside _impl, and no []int64{...} array literal appeared in any generated output — decide and record whether it can fire). Add `case ArrayVal:` -> showSequence(..., \"#[\", \"]\") directly above `case Tuple:` (codegen_runtime_misc.go:100) in the emitted showValue. Rewrite the misattributed M-TYPE1 comment at codegen_ops.go:357 to name this design doc (VL-5: M-TYPE1 743f6a539 touched only internal/types/unification.go, 8 insertions, and the borrowed tag has already cost the backlog one false blocker). Add tests/golden/codegen/show_differential_array.ail (literals only; module tail must equal the filename because the harness synthesises `func main() { show_differential_array__Main() }`) and bump expectedDifferentialFixtureCount 5 -> 6.",
+      "estimated_loc": 110,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "M1.1: go build -o /tmp/i248-plan/ailang ./cmd/ailang -> rc=0 (baseline rc=0)",
+        "M1.2 (PRIMARY GATE): PATH=/tmp/i248-plan:$PATH go test ./tests/golden/codegen/ -run TestInterpreterCompiledDifferential -count=1 -v -> rc=0 AND exactly 6 lines matching '^    --- PASS'. Baseline: rc=0 with 5. Observable is byte-identical stdout between two REAL processes (golden_test.go:102 interpreter, :133 compiled binary) — strictly downstream of emitter + Go compiler + showValue; nothing else produces those bytes.",
+        "M1.2-NONVACUITY: rc=0 ALONE IS NOT SUFFICIENT — `go test` reports ok for a package whose tests all skipped, and a fixture-count guard can pass on an empty glob. The 6 '--- PASS' subtest lines ARE the evidence.",
+        "M1.3: go test ./internal/gen/golang/ -count=1 -> rc=0 (baseline rc=0)",
+        "M1.4: grep -c 'type ArrayVal' internal/gen/golang/codegen.go -> 2 (baseline 0). Source-text lint, ADJACENT to the mechanism — a localiser, not the gate.",
+        "M1.5: new unit test generates a program with an array literal and asserts the emitted source contains 'ArrayVal{' AND the preamble contains 'type ArrayVal []interface{}' AND showValue contains 'case ArrayVal:' (fails at base — no such text)",
+        "M1.6: PATH=fresh go test ./tests/golden/codegen/ -run TestGoldenCompile -count=1 -> rc=0 (baseline rc=0) — all existing fixtures still go build + go vet clean with ArrayVal in the preamble",
+        "M1.7: make check-file-sizes -> rc=0. codegen.go is 753/800 at base; if headroom runs out, SPLIT — do not raise the limit."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_HELPER_RETURNS_AND_SILENT_FALLBACK_REMOVAL",
+      "description": "Preserve array identity through the helper chain, and satisfy the round-2 quorum. codegen_runtime_collections.go: FromList (141), Set (335), Make (357) return ArrayVal; ToList (177) KEEPS returning plain []interface{} (Conflict Surface #4, pinned by the fixture). ArrayVal fast paths in the 8 helpers are an OPTIMISATION only — the pre-existing reflect Kind()==Slice fallbacks (VL-8) already compute correct answers for ArrayVal; say so in the commit rather than implying correctness. codegen_runtime_slices.go: REMOVE `if !ok { return nil }` from the 5 LITERAL converters (emitter lines 16/40/68/103/138), replacing it with an explicit ArrayVal acceptance arm plus panic(fmt.Sprintf(\"ConvertToInt64Slice: expected list or array slice, got %T\", v)) — converter-specific message, verbatim per the quorum. PRESERVE the adjacent `v == nil { return nil }` guards at emitter lines 10/34/62/93/128: a nil input is not a type error, and deleting them is the failure mode the doc explicitly warns about. Per R1 the two TEMPLATE LOOPS (:192, :315) need NO fallback change — they already panic — but they DO need an ArrayVal acceptance arm, to prevent the R2 panic regression once M3 starts feeding them ArrayVal. Extend show_differential_array.ail in place to flow through fromList/get/set/make/toList; count stays 6. DO NOT use append or empty (R5: they emit undefined Empty/Append and fail go build).",
+      "estimated_loc": 180,
+      "dependencies": ["M1_ARRAYVAL_REPRESENTATION_AND_RENDERING"],
+      "acceptance_criteria": [
+        "M2.1 (PRIMARY GATE): PATH=fresh go test ./tests/golden/codegen/ -run TestInterpreterCompiledDifferential -count=1 -v -> rc=0 AND exactly 6 '--- PASS'. Fails at base: the extended fixture body diverges on 4 of 7 lines — measured interpreter '#[1, 2, 3] / #[4, 5, 6] / #[9, 2, 3] / #[7, 7, 7] / [1, 2, 3] / 3 / 2' vs compiled '[1, 2, 3] / [4, 5, 6] / [9, 2, 3] / [7, 7, 7] / [1, 2, 3] / 3 / 2'.",
+        "M2.2 (BEHAVIOURAL, fails at base): generated-runtime test on one of the 5 LITERAL converters — ConvertToInt64Slice(int64(7)) panics AND the recovered message equals exactly 'ConvertToInt64Slice: expected list or array slice, got int64'. Baseline: returns nil, no panic. The observable must be the MESSAGE STRING, not a bool 'it panicked' and not an error enum — any panic anywhere in the converter (e.g. index-out-of-range) satisfies a boolean; only the converter-specific message is downstream of the branch M2 edits.",
+        "M2.3 (REGRESSION PIN — ALREADY PASSES AT BASE, per R1; the design doc wrongly labels this fail-at-base): generated-runtime test on one TEMPLATE-LOOP converter for a USER-DEFINED ADT — ConvertTo<UserADT>Slice(int64(7)) panics with 'ConvertTo<UserADT>Slice: expected []interface{}, got int64'. This is the one test that proves the fix lives at the EMITTER: such converters appear nowhere in the codegen source by name (grep -rn 'func ConvertToOptionSlice' internal/gen/golang/*.go -> 0 hits; control grep -rn 'ConvertToInt64Slice' internal/gen/golang/*.go -> 3 hits).",
+        "M2.4 (fails at base): ConvertToInt64Slice(ArrayVal{int64(1),int64(2),int64(3)}) returns []int64{1,2,3} — assert LENGTH 3 **AND ELEMENT-WISE EQUALITY**; same for ConvertTo<UserADT>Slice(ArrayVal{...}). The design doc's form ('non-nil, len 3') is TOO COARSE: a converter doing make([]int64, len(src)) and never filling it returns a non-nil length-3 slice of zeros and passes. Baseline: literal converter -> nil; template converter -> panic.",
+        "M2.5 (REGRESSION PIN): ConvertToInt64Slice(nil) returns nil WITHOUT panicking — proves the legitimate `v == nil` branch survived the edit.",
+        "M2.6 (SECONDARY, source lint): over the `!ok` branches of codegen_runtime_slices.go, the count of `return nil` writes is 0 (baseline 5). Deliberately secondary to M2.2 — a grep is satisfied by moving text, and the mission's recorded failure shape is 'guard the helper, miss the call site'. Note the design doc states this grep over BOTH emitters, where it is already 0 at base and therefore partly vacuous.",
+        "M2.7: go test ./internal/gen/golang/ -count=1 AND PATH=fresh go test ./tests/golden/codegen/ -count=1 AND go vet ./internal/gen/... -> all rc=0 (all rc=0 at base)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_TYPED_AGGREGATE_PRESERVATION",
+      "description": "THE MILESTONE THAT CLOSES THE USER-VISIBLE DEFECT, and the one holding all the sprint's risk. Budgeted 2 days (doc says 1) because of R2 and R4. Measured repro at base, single probe covering BOTH boundaries: `type Box = MkBox(Array[int])` -> `return NewBoxMkBox(ConvertToInt64Slice(tmp5))`, and `type Holder = { items: Array[int] }` -> `return &Holder{Items: ConvertToInt64Slice(tmp3)}`; interpreted '#[1, 2, 3]\\n#[4, 5, 6]\\n' vs compiled '[1, 2, 3]\\n[4, 5, 6]\\n'. This extends VL-16, which measured only the ADT path. Tasks: (1) types.go:79 case *types.TArray -> GoType(\"ArrayVal\"), leaving case *types.TList (line 72) untouched. (2) adt.go:382 case *ast.ArrayType -> \"ArrayVal\", leaving *ast.ListType (320, 364) untouched. (3) DECIDE the adtSliceTypes side-effect: adt.go:386-389 registers g.adtSliceTypes[baseType]=true for user-defined array element types, and that registration is what CAUSES the template loop to emit ConvertTo<T>Slice — removing it may delete a converter a list path still needs; keeping it emits a dead one. go vet will not tell you (unused funcs are legal in Go); measure via TestGoldenCompile plus a grep on generated output, and record the decision in the commit. (4) AUDIT all 5 HasPrefix(goType, \"[]\") sites per R4 — adt.go:451, codegen_match_patterns.go:34, codegen_decl.go:323, codegen_record.go:171, codegen_record.go:401; codegen_match_patterns.go:34 (isTypedSlice) and codegen_record.go:171 (M-DX15 empty-literal) are likeliest to bite. (5) DO NOT hand-edit the four converter call sites — per R3 they all read getSliceConversion(goType) at codegen.go:715, which returns \"\" for \"ArrayVal\" automatically; VERIFY that via generated output (M3.4), do not assume it. (6) New mapper unit tests, each with its LIST CONTROL in the same test.",
+      "estimated_loc": 170,
+      "dependencies": ["M2_HELPER_RETURNS_AND_SILENT_FALLBACK_REMOVAL"],
+      "acceptance_criteria": [
+        "M3.1 (PRIMARY GATE, fails at base both ways): add tests/golden/codegen/show_differential_array_adt_field.ail containing BOTH `Box = MkBox(Array[int])` (construct, match-extract, show) AND a named-record Array[int] field (construct, field-get, show); bump expectedDifferentialFixtureCount 6 -> 7. PATH=fresh go test ./tests/golden/codegen/ -run TestInterpreterCompiledDifferential -count=1 -v -> rc=0 AND exactly 7 '--- PASS'. Both boundary generators are thereby end-to-end gated by one fixture.",
+        "M3.2 (THE R2 GATE): make verify-examples -> rc=0, '0 failed', manifest in sync. Baseline: rc=0, 211 passed / 0 failed / 6 skipped. examples/runnable/array_adt.ail is PatternPatrol(Array[Direction]) and would PANIC at runtime if an ArrayVal reached ConvertToDirSlice without M2 task 3. Not an afterthought — this is the crash-regression detector.",
+        "M3.3 (fails at base; NO SUCH TEST EXISTS TODAY): unit test asserts mapTypeWithVisited(&types.TArray{Element: TInt}) == \"ArrayVal\" WITH ITS CONTROL IN THE SAME TEST: mapTypeWithVisited(&types.TList{Element: TInt}) == \"[]int64\". Same pair for adt.mapASTType over *ast.ArrayType / *ast.ListType. The list control is the ONLY thing separating 'arrays map to ArrayVal' from 'everything maps to ArrayVal'. Baseline: both return []int64; grep -rn 'TArray\\|ArrayType' internal/gen/golang/*_test.go -> 0 hits (control: grep -rln 'Array' internal/gen/golang/*_test.go -> 1 file).",
+        "M3.4 (source-text, ADJACENT — carries its own non-vacuity control): generated-output test over the M3.1 program asserts the emitted source contains ArrayVal in the Box constructor signature AND the Holder field declaration, and contains NEITHER 'NewBoxMkBox(ConvertToInt64Slice(' NOR 'Items: ConvertToInt64Slice('. THE SAME TEST must assert a [int] LIST field still DOES emit ConvertToInt64Slice — without that control, a mutation disabling getSliceConversion entirely (breaking every list conversion) passes the absence clauses. Baseline: both converter calls present verbatim.",
+        "M3.5 (fails at base; the loudest and latest failure mode): Array[UserADT] coverage — generated code no longer calls ConvertToDirSlice on an Array[Dir], and the compiled program prints '#[North, South]' matching the interpreter. Baseline measured: NewPlanMkPlan(ConvertToDirSlice(tmp2)) with func NewPlanMkPlan(v0 []*Dir); compiled prints '[North, South]'. This is the element-type case that reaches a PANICKING converter (R2).",
+        "M3.6: go test ./internal/gen/golang/ -count=1 AND PATH=fresh go test ./tests/golden/codegen/ -count=1 AND go build ./internal/gen/... ./cmd/ailang AND go vet ./internal/gen/... AND make check-file-sizes -> all rc=0 (all rc=0 at base)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_DOCS_CHANGELOG_AND_ADJACENT_DEFECTS",
+      "description": "Write-up only — both fixtures and the 5->7 count bump already landed in M1/M3 per the deliberate deviation. (1) Extend the EXISTING '## [Unreleased]' -> 'show is deterministic and agrees across runtimes' section in changelogs/v0.18-current.md (from PR #822) rather than opening a new one; this sprint closes the last member of that class. State that generated array identity is preserved across dynamic, ADT-field and record-field representations, and that the 5 primitive slice converters now fail loudly instead of returning nil. (2) Move the design doc planned/ -> implemented/v0_34/ per .claude/rules/coding-standards.md, and CORRECT VL-9 IN PLACE (R1) so the next reader does not inherit '7 silent fallbacks'. (3) File the adjacent defects found while planning as backlog rows, NOT fixed here: std/array.empty and std/array.append emit undefined Empty/Append (R5, with reproducer); toSlice's silent return nil (R6) and the fact that the quorum's stated universal goal is not met by M2 alone; the doc already records the std/prelude diagnostic (VL-17). (4) No example-output pins change — option (B) moves compiled output TOWARD what docs/docs/reference/arrays.md already shows (33 '#[' occurrences).",
+      "estimated_loc": 60,
+      "dependencies": ["M3_TYPED_AGGREGATE_PRESERVATION"],
+      "acceptance_criteria": [
+        "M4.1: full gate sweep, all rc=0 — go build ./internal/gen/... ./cmd/ailang; go vet ./internal/gen/... ./tests/golden/...; go test ./internal/gen/golang/ -count=1; PATH=fresh go test ./tests/golden/codegen/ -count=1; make verify-examples; make check-file-sizes",
+        "M4.1-EXCLUSION: `go build ./...` is NOT a gate — rc=1 at base (cmd/wasm has no native main). A criterion using it would be broken on arrival; the fix is the criterion, not the code.",
+        "M4.2: sed -n '14p' tests/golden/codegen/golden_test.go -> 'const expectedDifferentialFixtureCount = 7' (confirmed still 5 at base)",
+        "M4.3 (fails at base): the design doc's Framing program byte-matches across backends — interpreted and compiled stdout both '#[1, 2, 3]\\n[1, 2, 3]\\n'. Baseline measured: interpreter '#[1, 2, 3]\\n[1, 2, 3]\\n', compiled '[1, 2, 3]\\n[1, 2, 3]\\n'.",
+        "M4.4: both adjacent defects (R5, R6) filed with reproducers, and VL-9 corrected in the design doc"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
