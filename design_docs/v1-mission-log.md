@@ -15897,3 +15897,139 @@ copy `cmp`s clean against `origin/dev`.
 information, not an answer. Per the decision contract an ambiguous or non-answering reply leaves the
 row OPEN, so it stays OPEN and the deliverable is the consequences write-up, posted to `#745` this
 iteration and summarised in the row itself next time it is asked.
+
+## 250 — 2026-08-22 — Iteration 250: the sprint plan enumerated two array type mappers and the design doc called the sprint self-contained; there are at least seven, in four packages
+
+**Pick.** `m-array-show-diverges-run-vs-compile` **M3**, iteration 249's declared Next — the
+milestone the plan says carries the sprint's whole risk (§2 R2/R3/R4), re-scoped by the planner from
+1 day to 2. Queue head, no competing signal: dev green (16 checks, zero not-green, control on the
+parent = 16), inbox empty, zero open `[nightly-eval]` issues, zero allowlisted directives since the
+`2026-08-22T07:43:04Z` watermark, and the 2026-08-17 rotation week's external-issue sweep already
+ran, so none was owed.
+
+**Reality-check, and the freshness sweep is why it was not optional.** The design doc's Verification
+Log declares base `404226a48`. Sweeping from that *oldest* declared base (rule 3b(vi-b)) returns
+**12** non-docs files changed, **ten** of them the exact `internal/gen/golang/` files the VL cites —
+because M1/M2 landed in between. Control: a range known to touch code (`6cb53ddd1..058feebc3`)
+returns 17. So every VL row about codegen was stale *by construction*, and inheriting any of them
+would have been transcription. Re-measured three cases first-party at `b59255831` with a binary
+freshly built into a scratch dir and prepended to PATH, using the differential harness's own recipe:
+
+| source | interpreted | compiled | generated |
+|---|---|---|---|
+| `type Box = MkBox(Array[int])` | `#[1, 2, 3]` | `[1, 2, 3]` | `NewBoxMkBox(ConvertToInt64Slice(tmp7))` |
+| `type Holder = { items: Array[int] }` | `#[4, 5, 6]` | `[4, 5, 6]` | `&Holder{Items: ConvertToInt64Slice(tmp4)}` |
+| `type Plan = MkPlan(Array[Dir])` | `#[North, South]` | `[North, South]` | `NewPlanMkPlan(ConvertToDirSlice(tmp3))` |
+
+**Instrument control in the same breath** (rule 3a): the existing M1 fixture through the identical
+recipe `cmp`s **rc=0**. The comparison can report SAME, so the divergence is a fact about the code
+rather than about the harness.
+
+**Doc↔plan divergence adjudicated and stated in the directive** (rule 3b(vii)). The doc's M4 bundles
+both fixtures at `5 → 7`; the plan's §3 lands them progressively. The count literal at HEAD is
+**6** — a value only the plan's schedule produces. Reality had already followed the plan, so the plan
+wins on fixture scheduling and the doc's M4 sentence is superseded; everywhere else the doc wins. I
+said exactly that in the executor directive rather than hoping it would notice.
+
+**Baselining my OWN gate list.** Rule 3e(a) is written for a planner's acceptance list; a direct
+controller-authored directive has no planner, which is the hole iteration 245 named. All six gates
+measured rc=0 on the pristine base before the directive was sent — including `make verify-examples`
+at `211 passed, 0 failed, 6 skipped`, matching the plan's recorded baseline exactly — and
+`go build ./...` was deliberately excluded because it is rc=1 on pristine dev.
+
+**Routing.** Executor `codex:gpt-5.6-sol` (probe rc=0), directive delivered at 11,586 B with the
+recipe's `exit 64` assertions, `< /dev/null`, a 30-min bounded background wrapper, and no git write
+operations. Finished rc=0 with a **non-empty** worktree diff — 8 entries; both assertions the recipe
+requires. Evaluator `sonnet` in **its own worktree** (iteration 199's rule — a good judge mutates
+source, and the sprint output was uncommitted). generator≠judge held: OpenAI executor, Anthropic
+judge.
+
+**The controller re-ran every gate outside the sandbox** and banked no executor-reported green: 9/9
+rc=0 under a binary built from the delivered tree and prepended to PATH, `~/go/bin` untouched
+throughout for concurrent agents. Golden suite **31 `--- PASS`, 0 FAIL, 7/7 differential subtests**;
+`gofmt -l` empty; `check-boundaries` and `check-changelog` rc=0; `verify-examples` unchanged at
+211/0/6.
+
+**The deviation is the iteration's finding, and I adjudicated it by measurement rather than by its
+stated reason** (rule 3h). The executor edited `cmd/ailang/compile_types.go` — outside
+`internal/gen/golang/`, which the design doc's Dependencies line calls the sprint's entire surface.
+Two arms, `cp` backup rather than `git checkout --`, mutant asserted LANDED (sha256) and BUILDS
+(`go build` rc=0) *before* any test result was read: as delivered **rc=0**; that one file reverted
+**rc=1**, failing exactly `TestTypedAggregateArrayGeneratedOutput` and the
+`show_differential_array_adt_field` subtest. Restored byte-identical. The plan's R3 chokepoint
+analysis was right about `getSliceConversion` and wrong about its own completeness: `adt.go` writes
+the *declaration* while `compile_types.go` populates the *call-site registry* the `Generator`
+consults — two independent sources of truth for one fact, and the generated Go does not compile
+unless they agree. The judge then ran the mirror arm I had not: reverting `adt.go` alone produces the
+mirror compile error, so **both** files are independently load-bearing and the deviation was the
+minimum, not an excess.
+
+**Controller mutants**, each LANDED + BUILDS asserted before the test result, each restored
+byte-identical: `TList` also mapping to `ArrayVal` ("everything is an array") reds the new mapper
+test's in-test list control; `getSliceConversion` neutered to `return ""` reds M3.4 with exactly its
+non-vacuity message (`missing "Values: ConvertToInt64Slice("` / `missing "Dirs: ConvertToDirSlice("`).
+**Non-vacuity was also proven end-to-end rather than argued**: one generated line carries both halves,
+`return &Both{Arr: tmp8.(ArrayVal), Lst: ConvertToInt64Slice(tmp9)}` — so "no converter calls" cannot
+be satisfied by breaking conversion outright.
+
+**The judge found the mutant I did not run, and I reproduced both halves before filing anything.**
+`sonnet`, **91/100 PASS round 1, zero blocking**, and it beat me on three of six named targets.
+Reverting `types.go`'s `TArray` case lands, builds, and reds **only its own unit test** — golden and
+differential stay rc=0 with 0 FAIL — because `funcTypeOverrides`, populated from
+`cmd/ailang/compile_types.go`, short-circuits `ExtractFuncSignature` for every AST-declared function.
+Reverting `IsUserDefinedType`'s `"ArrayVal"` case lands, builds, and reds **nothing anywhere**: unit
+rc=0, golden rc=0, `verify-examples` rc=0 at 211/0/6. Two shipped lines pinned by nothing. This is
+the over-subscribed-observable shape one level down — not "the assertion passes for the wrong
+reason" but "the mechanism's *absence* passes", which no removal-shaped drill aimed at the fix can
+find.
+
+**Two instruments converged, and only checking the condition revealed it.** SonarCloud was the one
+non-green check on the PR. Iterations 247 and 249 both met a Sonar red on this same suite and both
+correctly named it as new-code *duplication* from near-identical differential fixtures. Inheriting
+that framing was the obvious move and would have been wrong: this red is **66.7% coverage on new
+code** against an 80% bar, and `dev` is `success`, so it is PR-scoped rather than standing. It is
+measuring the same two unpinned lines the mutation drill found. Filed as the *first* task of M4
+rather than waved through as a known-benign signal.
+
+**The scope claim itself was the class defect.** The judge found two further array mappers in
+`internal/gen/lower/typeres.go`, inert today only because `--emit-go-v2` is off by default and does
+not currently build. My own repo-wide re-derivation (control: the same grep for `ast.ListType`
+returns 20; `test -d internal/gen/lower` asserts the scope exists) puts the array→Go mapping surface
+at **7+ sites across 4 packages** against the plan's 2. Every mutation drill in this sprint was
+removal-shaped, and no removal can detect a mapper nobody enumerated — rule 3a(i-e), met in the wild
+rather than in a rulebook.
+
+**Ruled out.** That the Sonar red was this suite's known duplication signal (it is coverage,
+measured). That it was inherited (`dev` = `success`). That the `[Array[int]]` list-of-array compiled
+panic the judge found is ours — two arms on identical source: base binary panics `not [][]int64`,
+post-M3 binary panics `not []main.ArrayVal`, so **pre-existing**, filed rather than blocking. That
+the executor's deviation was scope creep (both files independently load-bearing). That `#695` is this
+mission's to touch — its `headRefName` matches no worktree in my clone, so it is unattributable and
+was left alone. **Bonus the judge measured unasked**: `Array[Array[int]]` was broken at base and is
+now fixed.
+
+**Gates** — darwin/arm64 only; the linux and windows legs ran in CI, where `test-windows` and
+`Build windows-latest` both came back green.
+
+**Gate 3b.** `mergeable` read FIRST (`MERGEABLE`, the boring cause checked before any dropped-event
+theory), SHA-pinned on the full 40 characters, numeric floor on both poll counts. Head `6e8eb4cf6`:
+**22 checks, 0 pending, 4/4 required pass**. Only `SonarCloud` not green, non-required. PR
+[#828](https://github.com/sunholo-data/ailang/pull/828) → squash
+[`bbf672df0`](https://github.com/sunholo-data/ailang/commit/bbf672df0). Autoclose scan run on the
+commit message and on the PR title+body with a known-bad control firing each time; `#662` and `#745`
+asserted still OPEN across the merge.
+
+**Main checkout fast-forwarded under `D-16`'s ratified authorisation, predicate measured not
+assumed**: 0 ahead, `dirty ∩ incoming` **EMPTY** with the control firing on a file origin did change,
+all 6 dirty files re-verified byte-identical afterwards, and the running skill still `cmp`s clean
+against `origin/dev`. It stays 0 ahead / 0 behind, as it has since 249 exercised `D-23`.
+
+**Outcome.** LANDED. Evaluator 91/100 PASS round 1, zero blocking. metered **$0.00** of $5 — every
+lane was a quota bucket.
+
+**Next.** `m-array-show-diverges-run-vs-compile` **M4**, with `m-array-typed-boundary-lines-unpinned`
+as its first task rather than a follow-up — the coverage gap two independent instruments agreed on.
+Then the CHANGELOG entry, the doc move to `implemented/v0_34/`, and VL-9's in-place correction. Three
+new rows filed: `m-array-typed-boundary-lines-unpinned`, `m-duplicate-go-type-mappers`,
+`m-list-of-array-compiled-panic`. `D-22` stays parked and is re-asked unchanged; `D-23` is resolved
+and is not re-asked.
