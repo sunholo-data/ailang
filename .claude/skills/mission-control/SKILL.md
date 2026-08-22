@@ -3290,6 +3290,46 @@ above), but "the destination gained what the source lost" is a property of every
    it returns (that direction is safe — something matched), never believe its silence. The tell:
    you are about to act on "the process is gone" and the only thing that told you so printed
    nothing.
+
+   **⚠ AND THE ARTIFACT THAT REMEDY SENDS YOU TO IS AN INSTRUMENT TOO — ASSERT IT IS *FRESH*, NOT
+   MERELY PRESENT, BECAUSE A PATH YOU WRITE TO TWICE HOLDS THE PREVIOUS RUN'S ANSWER AND READS AS A
+   RESULT** (added 2026-08-22 V1 iteration 247; instance 1 is iteration 244's worktree-readiness
+   poll, instance 2 is this iteration's probe harness). Clause (a) immediately above is correct and
+   it points the whole loop at artifacts — output-file size, a final-message file, a worktree diff,
+   a built binary — precisely because processes lie. That is a good trade and it hands you a new
+   failure mode with no guard: **a process cannot be stale, and an artifact can.** `pgrep` at worst
+   tells you nothing; a leftover file tells you something *specific and wrong*, in the voice of a
+   measurement.
+   Note where this loop's existing remedy sits, because the shape is this file's own named one.
+   The codex recipe already says to give the directive file a per-iteration name — *"a fixed name
+   collides with the previous iteration's leftover"* — which is exactly this defect, guarded for
+   **one file in one recipe** while every other probe artifact you write to a fixed path is
+   unguarded: *guard the helper, miss the call site*.
+   Two shapes, and they fail in opposite directions. **(a) Present but not yet COMPLETE.**
+   Iteration 244's readiness poll greened on `grep -q .` against a log `git` was still writing
+   progress into, so work that had not started read as work that had finished. **(b) Present but
+   from a PREVIOUS run.** Iteration 247 built a compiled-vs-interpreted harness around a hardcoded
+   generated-package subdirectory; when codegen emitted a different directory name the `go build`
+   silently failed, and the harness executed the binary **left over from the previous round**. It
+   then reported three byte-identical runs and zero heap addresses — a green, for a determinism
+   property, from a binary that no longer corresponded to the tree under test. Nothing in the
+   output said "stale"; it was caught only because the *paired* interpreted-vs-compiled comparison
+   came back rc=1 with content that did not match either arm, and the natural reading of that is
+   "the fix regressed", not "my instrument is lying".
+   **Rules. (a)** DELETE the artifact before the run that is supposed to produce it, and assert it
+   EXISTS afterwards — `rm -f out; cmd; test -f out || echo "INSTRUMENT FAILURE — not a verdict"`.
+   Absence after a real run is loud; a leftover is silent. **(b)** Prefer a per-invocation path
+   (`/tmp/x_iter<N>_round<K>`) over a fixed one, generalising the codex recipe's rule from its one
+   file to every artifact you read back. **(c)** Assert the artifact is NEWER than the input that
+   produced it, not merely non-empty — `[ out -nt input ]` — which catches (b) even when the path
+   is reused. **(d)** Never let a build's exit code go unread on the way to running its output:
+   `go build ... ; rc=$?` then refuse to execute on non-zero, since "the binary is missing" and
+   "the binary is old" are the same command line away. **(e)** When a paired comparison disagrees
+   with a same-run single reading, suspect the INSTRUMENT before the code — that disagreement is
+   the only tell either shape produces. Mission-independent, and it generalises past files to any
+   reused sink: a scratch directory, a database row, a fixed branch name, an `--out` target. The
+   tell: you are about to read a path that a previous invocation also wrote, and nothing between
+   the two runs removed it.
 8. **THERE ARE TWO KINDS OF PARK AND THIS SKILL ONLY NAMES ONE — A DOC WAITING ON A QUOTA BUCKET IS
    NOT `needs-human-review`, AND FILING IT AS ONE MANUFACTURES A DECISION THE HUMAN DOES NOT HAVE**
    (added 2026-08-19 V1 iteration 229; two consecutive first-party frictions, 228 and 229). Every
