@@ -16448,3 +16448,103 @@ from the cohort's own data. metered **$0.4585978216** of the $20 ratified cap; q
 **Next.** `m-contract-verification-coverage` — enumerate the 53 skips by reason from the banked
 `verify.results[].status` rows, which cost nothing further to read. It is the cheapest lever on the
 number this iteration just published, and it is bar-gating under `D-28`.
+
+## 254 — 2026-08-23 — Iteration 254: iteration 253's routing call was wrong by 8:1 — the KPI's denominator is suppressed by a predicate that penalises runs for obeying the benchmark spec
+
+**Pick.** `m-contract-verification-coverage` — the bar-gating `[NEXT]` row under `D-28`, and
+iteration 253's own **Next**. It was filed **undiagnosed** ("the next step is to enumerate WHY
+functions skip … from the banked `verify.results[].status` rows"), so the deliverable is the
+diagnosis, over data the cohort already banked. Zero further spend.
+
+**Gate 0/1.** Kill switch armed; billing tripwire **CLEAN**; gh `sunholo-voight-kampff`. Pin
+worktree clean, detached at `329b81544` = `origin/dev`. Running skill **byte-identical** to
+`origin/dev`, `cmp` against the RESOLVED `readlink` target (main checkout, inode 47681680) — not
+the pin's own copy (47736012), which is a different file and green by construction. `origin/dev`:
+**16 checks, ZERO not-green**; CI and Build-and-Release both `success`. Zero allowlisted directives
+on `#745` since the `2026-08-22T11:36:26Z` watermark (64 comments). Ledger **28 rows, ZERO OPEN**
+at entry. No rotation (`#745` created 08:14 CEST Monday 08-17, after the 07:00 LOCAL boundary;
+64 < 80; next boundary Mon 08-24 07:00). Sweep not owed — the 08-17 week's ran at iteration 250.
+Died-mid-flight clean: no `.wt-iter253`/`.wt-iter254`; the sole open fleet-account PR is `#695`
+(`headRefName` `coordinator/task-d98bb271`), matching no worktree in my clone — unattributable,
+left alone and named, as in iteration 253. Inbox empty.
+
+**I re-derived the inherited headline before building on it, and it held.** Rule 3b(v)(b) forbids
+carrying a count out of prose; iteration 253's `53 skipped / 28 verified / 8 counterexample /
+4 error` was re-measured by **two independent routes** — the flat `verify_*` fields, and the nested
+`verify_json.verify.results[]` arrays — which agree exactly. The counts are sound.
+
+**THE CONCLUSION THOSE COUNTS CARRIED IS NOT.** Iteration 253 routed this row as *"the cheapest
+available lever on the headline KPI is raising verification COVERAGE, not model quality"* — i.e.
+the Z3 encoder. Partitioning the 53 skips by reason, exhaustively, with zero residue:
+
+| n | class |
+|---|---|
+| **24** | `no ensures clause (nothing to verify)` |
+| **20** | declaration-closure — callee not SMT-encodable |
+| **5** | callee signature uses an unencodable TYPE |
+| **4** | unencodable BUILTIN |
+
+All 29 non-`no-ensures` skips carry rejection code `UNENCODABLE_TYPE` — one coherent class.
+
+**The plurality class is not an encoder limitation. It is the benchmarks' own spec, and the models
+complied exactly.** The five functions carrying it — `isBST`, `encode`, `decode`, `toRoman`,
+`minor3` — are declared in the benchmarks' own `contract_spec` with `requires` and **no `ensures`**
+(`minor3` carries no clauses at all). The contract is carried by the separate *proof* functions
+(`roundtrip`, `singleCharEncode`, `insertPreservesBST`), which DO carry `ensures { result == true }`.
+**Control fires**: `roundtrip` and `isLeapYear`, which verified, carry explicit `ensures` in those
+same files — so the instrument distinguishes rather than matching everything. And each of the five
+is skipped in **all 5 models**: uniformity that is a property of the spec, not of any model.
+
+**Mechanism.** The flat `verify_skipped` counter aggregates *"the encoder could not encode this"*
+and *"there is nothing here to verify"* into one number, and `isVerifiedSuccess`
+(`internal/observatory/cost_per_verified_success.go:95`) requires `VerifySkipped == 0`. So a run is
+disqualified for obeying the spec it was handed.
+
+**Priced on the frozen cohort**, numerator fixed at `known_cost_usd $2.3334561216` (control:
+summing the 30 archived run JSONs gives `2.3334561216000003`):
+
+| option | denominator | cost / verified success |
+|---|---|---|
+| **A — as published** (`skipped == 0`) | **3** | **$0.7778187071999999** |
+| **B — exempt "nothing to verify"** | **11** | **$0.2121** |
+| **C — exempt every skip** (upper bound) | **12** | **$0.1945** |
+
+**My re-implementation of arm A reproduces the shipped KPI to the last digit**, which is the
+strongest available control that all three arms are one instrument with one clause changed —
+not three different measurements. **8 of the 9 recoverable runs come from the PREDICATE (A→B);
+exactly ONE from the ENCODER (B→C)**, that one being `contract_sorted_merge` / `gpt5-6-luna`,
+blocked on `sLength`. Encoder coverage is real work and is **not** the cheap lever on this number.
+
+**Routed — an AILANG fix, one systemic change (Principle 3), not a benchmark edit and not an
+encoder sprint**: split the verifier's `skipped` status into `skipped` (the encoder could not) and
+`not_applicable` (no `ensures` — nothing to verify), propagate both as distinct counters, and have
+`isVerifiedSuccess` ignore `not_applicable`. The conflation is a data-integrity defect on its own
+merits whichever way the KPI ruling goes (CLAUDE.md §2): today the encoder-coverage figure a reader
+needs — **29** — is hidden inside a **53** that is **45% not-about-the-encoder**.
+
+**Parked on `D-29` — judgment, not capacity (standing rule 8).** Whether the published headline
+moves `$0.7778 → $0.2121` changes a definition Mark ratified 2026-07-27 ("Yep ok") *before any
+cohort had ever produced a non-zero denominator*, so nothing on record shows this case was
+contemplated. The status split is correct either way; the predicate's **use** of it is Mark's call.
+The controller does not self-rule on a ratified definition that moves a published number 3.7x.
+
+**Ruled out.** That the 24 no-ensures skips are a model failure (all 5 models × all 5 functions —
+it is the spec). That they are incidental helpers (they are the benchmarks' central functions;
+`encode`/`decode` are the literal roundtrip pair of `contract_rle_roundtrip`). That iteration 253's
+53/28 counts were wrong (re-derived twice, they hold — only the conclusion drawn from them was).
+That this needed the GPU, a sprint, a designer or any spend (read-only over frozen banked data).
+
+**Gates** (darwin/arm64). Documentation only — no code shipped, so no CI matrix is implicated. **No
+designer, planner, executor or evaluator spawned**: the deliverable is a measurement over frozen
+data, and its judge is the exact reproduction of the published KPI, which is a stronger check than
+a same-artifact judge. Instrument note: the PATH binary is `v0.33.1-211-g626f5e54b-dirty` against
+`git describe` `v0.33.1-214-g329b81544` — stale and dirty per rule 1(a); no binary was load-bearing
+here, since every measurement is over banked JSON and benchmark YAML.
+
+**Outcome.** `m-contract-verification-coverage` **DIAGNOSED** and re-scoped with a named routing
+lane; `D-29` filed OPEN. metered **$0.00**; quota buckets: opus (controller) only.
+
+**Next.** `D-29` is the gate. If Mark rules (a) EXEMPT, the sprint is the status split plus a
+headline re-publish and is small. If (b) KEEP, it is a benchmark-spec sweep plus a cohort re-run,
+and the $20 cap question returns. Meanwhile the next un-blocked bar item is
+`m-effect-clock-net-fs-modes` (clause 4), which needs no ruling.
