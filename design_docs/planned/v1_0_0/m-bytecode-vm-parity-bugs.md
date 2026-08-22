@@ -4,8 +4,7 @@
 pattern-arity fix (the former Milestones B1-quicksort-half + B2) has been spun out, UNBLOCKED, into
 [m-bytecode-pattern-arity-fix.md](m-bytecode-pattern-arity-fix.md) — route that doc through
 sprint-planner/sprint-executor directly, it does not wait on this doc.
-**This doc's remaining scope (A1, A2, B1-closure-half, B3, B4) stays PARKED `needs-human-review`**
-pending a second design round that answers the A2 semantic-effect-extraction question below.
+**This doc's remaining scope (A1, A2, B1-closure-half, B3, B4) is UNPARKED — D-25, Mark attended 2026-08-22: A2 = semantic effect extraction via a new CLI surface that emits a file's resolved effect row (feasibility spike first; compiler packages stay OUT of the harness; stderr sniffer retired).** Routable to the second design round with that question answered. Was: PARKED `needs-human-review` pending it.
 Nothing should be planned from *this* doc's remaining scope until that round happens.
 **Revision 1 (post-quorum)**: both round-0 objections (unsafe effect replay mis-filed as benign;
 Net/Clock inventory arithmetic) confirmed first-party and fixed — see Verification Log.

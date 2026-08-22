@@ -1,7 +1,7 @@
 # M-EFFECT-SCOPE-PARAMS: Capability-Scoping Parameters on Effects
 
 **Status**: Planned
-**Target**: v1.0.0 (sprint-sized carve-out; LAST of the four — candidate for re-scoring to v1.1 at the release gate, see Framing)
+**Target**: v1.1.0 (**RE-SCORED from v1.0.0 — D-27, Mark attended 2026-08-22**; was: sprint-sized carve-out; LAST of the four — candidate for re-scoring to v1.1 at the release gate, see Framing)
 **Priority**: P1 — Low within the effect-refinement track
 **Estimated**: ~16 hours (~2.5 days)
 **Dependencies**:
