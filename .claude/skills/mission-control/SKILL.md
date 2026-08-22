@@ -3336,6 +3336,39 @@ above), but "the destination gained what the source lost" is a property of every
    you are about to act on "the process is gone" and the only thing that told you so printed
    nothing.
 
+   **⚠ CLAUSE (b) IS TRUE OF THE *TASK* AND FALSE OF THE *WORK* — A COMPLETION NOTIFICATION REPORTS
+   THE COMMAND YOU HANDED THE HARNESS, AND IF THAT COMMAND BACKGROUNDED ITS OWN CHILD, IT REPORTS
+   `exit code 0` THE INSTANT THE LAUNCHER RETURNS** (added 2026-08-22 V1 iteration 249; three
+   first-party instances in one iteration). Clause (b) says the notification "is authoritative", and
+   for a foreground command it is. But this file's own recipes hand you the counter-example: the
+   codex and pi recipes both wrap the real work in `( … ) &` plus a `date +%s` deadline loop, and
+   the worktree rule tells you to create a 23k-file checkout with `run_in_background: true`. A
+   launcher script whose last statement is `&` has *finished* — so `rc=0` is a true statement about
+   a shell that did nothing but fork. Note it is the same shape as Gate 0's `gh issue close
+   --comment`: **an exit code describes the request, not the delivery** — arriving here at the one
+   signal clause (b) elevates above every other.
+   Measured this iteration, three times, all benign only because the polls caught them: a
+   `go build` launcher notified `completed (exit code 0)` while the 96 MB binary was still being
+   written — a `test -f` moments later printed `INSTRUMENT FAILURE — no binary`, and the artifact
+   was present shortly after with `rc=0` in its own file; a `git worktree add` notified complete
+   while `git` was still at *"Updating files: 1% (345/23852)"*; and a five-gate baseline sweep
+   notified complete before its first gate had run. Read strictly, clause (b) authorises acting on
+   all three — and acting on the second is precisely iteration 234's half-built-worktree trap,
+   whose `git status` reports 23,835 files as deleted.
+   **Rules. (a)** A notification for a command that contains `&` means *launched*, not *done* —
+   have the backgrounded body write its own terminal marker (`echo DONE > …`, `echo "rc=$?" > …`)
+   and poll for THAT, per clause (a)'s artifact discipline aimed at the notification rather than at
+   `pgrep`. **(b)** Prefer not backgrounding twice: if you pass `run_in_background: true`, let the
+   command run in the foreground *inside* it, so the harness's notification and the work's
+   completion are the same event. Double-backgrounding is what breaks (b), and it is easy to do by
+   accident when copying a recipe that already backgrounds. **(c)** Keep the rc-file convention the
+   codex recipe already uses — the code you want is the *work's*, and it must be captured without a
+   pipe (step 3) inside the backgrounded body. **(d)** A `test -f` immediately after a notification
+   is not a refutation either: treat an absent artifact as *not yet*, and let the bounded poll
+   decide. Mission-independent, and it generalises past this harness: **wherever a launcher and its
+   work are different processes, a status from the launcher is a claim about the fork.** The tell:
+   you got a completion notification, and the command you launched ended in `&`.
+
    **⚠ AND THE ARTIFACT THAT REMEDY SENDS YOU TO IS AN INSTRUMENT TOO — ASSERT IT IS *FRESH*, NOT
    MERELY PRESENT, BECAUSE A PATH YOU WRITE TO TWICE HOLDS THE PREVIOUS RUN'S ANSWER AND READS AS A
    RESULT** (added 2026-08-22 V1 iteration 247; instance 1 is iteration 244's worktree-readiness
