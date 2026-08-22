@@ -97,6 +97,10 @@ func (g *Generator) writeRuntimeMiscHelpers() {
 	g.indent++
 	g.writef("return \"()\"\n")
 	g.indent--
+	g.writef("case ArrayVal:\n")
+	g.indent++
+	g.writef("return showSequence(reflect.ValueOf(x), depth, \"#[\", \"]\")\n")
+	g.indent--
 	g.writef("case Tuple:\n")
 	g.indent++
 	g.writef("return showSequence(reflect.ValueOf(x), depth, \"(\", \")\")\n")

@@ -42,6 +42,41 @@ func TestGenerateList(t *testing.T) {
 	}
 }
 
+func TestGenerateArrayPreservesRuntimeIdentity(t *testing.T) {
+	prog := &core.Program{
+		Decls: []core.CoreExpr{
+			&core.Let{
+				Name: "nums",
+				Value: &core.Array{
+					Elements: []core.CoreExpr{
+						&core.Lit{Kind: core.IntLit, Value: int64(1)},
+						&core.Lit{Kind: core.IntLit, Value: int64(2)},
+						&core.Lit{Kind: core.IntLit, Value: int64(3)},
+					},
+				},
+				Body: &core.Var{Name: "nums"},
+			},
+		},
+	}
+
+	gen := New("test")
+	code, err := gen.Generate(prog)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	generated := string(code)
+	for _, want := range []string{
+		"type ArrayVal []interface{}",
+		"ArrayVal{",
+		"case ArrayVal:",
+	} {
+		if !strings.Contains(generated, want) {
+			t.Errorf("generated source missing %q:\n%s", want, generated)
+		}
+	}
+}
+
 func TestGenerateRecord(t *testing.T) {
 	// { x: 10, y: 20 }
 	prog := &core.Program{

@@ -353,25 +353,11 @@ func (g *Generator) getListElementType(list *core.List) string {
 	return ""
 }
 
-// generateArray generates a Go slice literal for arrays.
-// M-TYPE1: Arrays use the same Go representation as lists (slices).
+// generateArray generates a distinct Go slice literal for arrays.
+// M-ARRAY-SHOW-DIVERGES-RUN-VS-COMPILE: ArrayVal preserves array identity at runtime.
 func (g *Generator) generateArray(arr *core.Array) error {
-	// M-DX26: In _impl functions, always generate []interface{}
-	inImplFunc := g.expectedReturnType == "interface{}"
-
-	// Try to determine element type from CoreTypeInfo
-	elemType := ""
-	if !inImplFunc {
-		elemType = g.getArrayElementType(arr)
-	}
-
-	if elemType != "" && elemType != "interface{}" {
-		// Generate typed slice (e.g., []int64{1, 2, 3})
-		g.writef("[]%s{", elemType)
-	} else {
-		// Fallback to interface{} slice
-		g.write("[]interface{}{")
-	}
+	// Both formerly dynamic and typed branches must carry the same array identity.
+	g.write("ArrayVal{")
 
 	for i, elem := range arr.Elements {
 		if i > 0 {

@@ -1,0 +1,5 @@
+module test/show_differential_array
+
+export func main() -> () ! {IO} {
+  println(show(#[1, 2, 3]))
+}

@@ -554,6 +554,7 @@ func (g *Generator) writePackageHeader() {
 		g.writef("\t\"strings\"\n")
 		g.writef(")\n\n")
 		g.writef("type Tuple []interface{}\n\n")
+		g.writef("type ArrayVal []interface{}\n\n")
 		g.writeRuntimeHelpers()
 	} else if g.needsMathImport || g.needsStrconvImport || g.needsStringsImport || g.needsSortImport {
 		// M-CODEGEN-SUSTAINABILITY: Even when skipping runtime helpers,
@@ -662,6 +663,8 @@ func (g *Generator) GenerateRuntime() ([]byte, error) {
 	g.writef("type List = []interface{}\n\n")
 	g.writef("// Tuple preserves tuple identity for pattern matching and canonical Show output.\n")
 	g.writef("type Tuple []interface{}\n\n")
+	g.writef("// ArrayVal preserves array identity for canonical Show output.\n")
+	g.writef("type ArrayVal []interface{}\n\n")
 
 	// Write the pre-generated helpers (already generated above for import detection)
 	g.buf.WriteString(helpersCode)
