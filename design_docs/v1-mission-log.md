@@ -16548,3 +16548,25 @@ lane; `D-29` filed OPEN. metered **$0.00**; quota buckets: opus (controller) onl
 headline re-publish and is small. If (b) KEEP, it is a benchmark-spec sweep plus a cohort re-run,
 and the $20 cap question returns. Meanwhile the next un-blocked bar item is
 `m-effect-clock-net-fs-modes` (clause 4), which needs no ruling.
+
+**Retro — ONE friction, and it does NOT meet the skill-edit bar, so it is pre-registered rather
+than written into the rulebook.** The gap this iteration hit is new in shape: **a count over a
+STATUS or CATEGORY bucket only identifies a lever if the bucket is HOMOGENEOUS, and nothing in the
+skill says to partition before concluding.** Iteration 253 did everything the existing rules ask —
+it re-derived its counts, quoted controls, and stated the scope — and `53 skipped vs 28 verified`
+is *correct*. The false step was attaching a causal conclusion ("the encoder is the cheapest
+lever") to an aggregate whose members turned out to be **45% a different phenomenon entirely**.
+Rule 3b(ix) governs a count's SCOPE and rule 3a(i-e) governs an enumeration's COMPLETENESS; neither
+asks whether the thing being counted is ONE thing. Note the tell is grammatical, like the
+blocked-row rule's "still": a bucket named by its **outcome** (`skipped`, `failed`, `error`,
+`timeout`, `other`) rather than by its **cause** is heterogeneous until proven otherwise, because
+the name records what the system did, not why.
+**I searched this mission's own charter and log for a prior instance and found ZERO** (`blended` /
+`decompose by tier` / `gating artifact` → 0 in both; control `known-positive` → 7 and 54, so the
+instrument fires). A closely-matching analogue exists in the controller's carried memory — the
+v0.32.0 "AILANG lost ground" reading that was 62% a gating artifact and dissolved on decomposition
+by tier — but that is **not recorded in this mission's artifacts**, and citing an inherited
+recollection as a "recorded friction" is precisely the laundering Gate 2 rule (d) forbids. So:
+**watch-item, instance 1, bar is two.** If a second lands, the edit belongs in Gate 2's rule-3
+family, one clause: *before a bucket's SIZE becomes a lever, partition it by cause and check the
+plurality class is the one your conclusion is about.*
