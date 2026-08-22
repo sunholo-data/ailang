@@ -15485,3 +15485,139 @@ share an instrument, since the declared codegen-only substitution table IS the l
 the differential is to compare rendered text at all. `D-22` still gates LC-2 and is re-asked
 unchanged.
 
+
+## 247 — 2026-08-22 — Iteration 247: a compiled AILANG program printed its own heap addresses, so its output changed on every run
+
+**Pick.** `m-show-diverges-between-run-and-compile`, iteration 246's declared Next. Its own row said
+to take it first "if the differential is to compare rendered text at all", because it makes the
+obvious instrument for the two rows above it report a divergence on every list-returning fixture.
+The row was filed as cosmetics. It is not.
+
+**Gate 2 re-measured the row at HEAD before routing, and it got worse.** The row's measurements were
+taken at `8040dfd41`, before iteration 246's codegen fix, so they were stale by construction. Both
+arms, re-run first-party on `6cb53ddd1` with a freshly built binary:
+
+| expression | `ailang run` | compiled |
+|---|---|---|
+| `show({x:5,y:10})` | `{x: 5, y: 10}` | `map[x:5 y:10]` |
+| `show(Some(42))` | `Some(42)` | `&{0 0x29de23be2150 <nil>}` |
+| `show((1,"a"))` | `<*eval.TupleValue>` | `[1 a]` |
+| `show(3.5)` | `3.5` | `3.5` |
+| `show([[1,2],[3]])` | `[[1, 2], [3]]` | `[[1 2] [3]]` |
+
+That second row is a **determinism defect**, not a rendering one, and it is the finding of the
+iteration. Three consecutive runs of one unchanged binary printed three different addresses
+(`0x29de23be2150` / `0x730d004a2100` / `0x762e31ea2100`); `cmp` on whole stdout differed on both
+pairs, while a list-only control program was byte-identical across runs — so the instrument can
+report SAME, and the difference is real. A compiled AILANG program was non-deterministic in its
+output, in a language whose first stated principle is determinism.
+
+**The interpreter half was wider than the row said.** `showValue` switches over **10** of the **17**
+live `eval.Value` implementations and sends the rest to `default: fmt.Sprintf("<%T>", val)`. Three of
+the seven are reachable in one line of ordinary code, measured: `show(zip(...))` →
+`[<*eval.TupleValue>, ...]`, `show(insert(empty(),"a",1))` → `<*eval.MapValue>`,
+`show(fromList([1,2,3]))` → `<*eval.ArrayValue>`. The row named tuples only.
+
+**Routing.** Controller `opus` (session). Designer **none** and planner **none** — both root causes
+were located at exact file:lines by Gate 2 (`internal/builtins/show.go`'s type switch;
+`internal/gen/golang/codegen_runtime_misc.go:51`'s `default: %v`), so the controller wrote the ACs,
+the same routing iterations 243/244/246 used for comparably-sized defects. The designer rotation
+pointer is untouched at `codex:gpt-5.6-sol`. Executor `codex:gpt-5.6-sol`, three bounded backgrounded
+runs, rc=0 each, zero git writes, five cumulative `.snap/M<k>/` snapshots; every commit reconstructed
+by the controller and proven faithful by sha256 manifest (11/11, 8/8, 12/12 `cmp` OK). Evaluator
+`sonnet`, **three rounds, each in its own worktree** (rule 199); generator≠judge held throughout
+(OpenAI executor, Anthropic judge). `metered = $0.00` of $5 — all lanes are quota buckets. No GPU,
+no `rig.lock`, no quorum.
+
+**Every acceptance command was baselined rc=0 on pristine dev before routing** — the rule iteration
+245's executor had to teach me and iteration 246 recorded. The directive scoped the build gate to
+`./internal/builtins/... ./internal/gen/golang/...` rather than `./...`, which is rc=1 at base.
+
+**THE EVALUATOR FOUND A REAL BLOCKING DEFECT IN EACH OF THE FIRST TWO ROUNDS, AND I REPRODUCED BOTH
+BEFORE ACTING.** Round 1, **78/100 FAIL**:
+
+- *Named records sorted wrongly.* The generated `showStruct` built each `"key: value"` string and
+  then sorted the STRINGS, comparing `' '` (0x20) against `'1'` (0x31). Reproduced: `type Config =
+  {a: int, a1: int}` → `{a: 2, a1: 1}` interpreted, `{a1: 1, a: 2}` compiled. A *named* record
+  compiles to a Go struct and takes that branch; an *inline* record compiles to a map and was
+  already correct — and round 1's single fixture used an inline record.
+- *No depth or width caps.* The interpreter truncates at depth 3 / width 80 with 20/20 elision; the
+  generated `Show` had neither. Reproduced: `[[[[...]]]]` vs `[[[[[42]]]]]`, and an elided vs a full
+  30-element list.
+
+Round 2, **80/100**, found a third in the same class: floats. `%g` plus an unconditional `.0` gave
+`+Inf.0` / `NaN.0` / `1e+21` / `1e-07` against the interpreter's `Inf` / `NaN` /
+`1000000000000000000000.0` / `0.0000001`. Reproduced first-party on all five. Float division by zero
+raises nothing in AILANG, so every non-finite value is one expression away. That branch predated the
+sprint and survived two rounds of review for a reason worth writing down: `TestShow_FloatSpecialValues`
+already pinned the interpreter's `NaN`/`Inf` strings — and only ever calls `showImpl`, so it could
+never see the other implementation. **That is the shape of every finding here: a test that checks one
+implementation, in a codebase with two.**
+
+**Each round widened the fixture set, not just the code** — the count literal went **1 → 4 → 5**. A
+fix without a fixture leaves the next member of the class exactly as invisible as these were, and
+this sprint produced three consecutive proofs of that.
+
+**Round 3: 83/100 PASS, ship.** It found one more divergence and scoped it correctly as *out* of this
+sprint: `show(fromList([1,2,3]))` is `#[1, 2, 3]` interpreted and `[1, 2, 3]` compiled. Reproduced
+first-party. The cause is structural and sits outside every file this sprint touched —
+`codegen_ops.go:357` compiles Array to the same Go type as List by an explicit M-TYPE1 decision, so
+`Show` has no runtime tag to discriminate on. Filed as its own row rather than forced into this one.
+
+**GATE 3b CAUGHT WHAT NO DARWIN COMMAND COULD.** The first push went red on `test-windows` and
+`Build windows-latest` while all 20 darwin checks were green — and the base commit had **16 checks,
+zero not-green**, so it was mine. The failing step was a real test step, not `Set up job`, so not the
+outage signature. Cause: my own new differential built its fixture binary as `fixture-bin` and exec'd
+it, which cannot work on Windows without `.exe` — all five fixtures failed identically. The product
+was never affected; **the instrument was**. Fixed in `884fae3ab`; Windows went green on both jobs.
+This is the same defect the charter records from iteration 120, and rule 3b(viii) explains why it
+recurs: the platform is a narrowing nobody types, so every command reads as unqualified.
+
+**The executor's one deviation, adjudicated by measurement rather than by prior.** It introduced a
+distinct generated `Tuple` type, touching typing and pattern matching in five files — wider than the
+directive asked. The checkable proposition is "behaviour-preserving for existing programs", and the
+command that would differ if false is a full compile sweep: **465** `.ail` files under `examples/`
+and `tests/`, pre- vs post-sprint exit codes. Run three times — after rounds 1, 2 and 3 — giving
+**0**, **0**, and **2** divergences. Both of round 3's are `pre=1 → post=0`: two example files that
+previously died on `imported and not used` now compile, an incidental fix from round 3's import
+handling. The deviation was correct and it was the right call.
+
+**Controller mutation drill** (each mutant asserted LANDED by sha256 **and** BUILDS rc=0 *before* any
+test result was read, each restored from a `cp` backup and re-verified byte-identical): interpreter
+tuple delimiters → differential red, `-skip` rc=0 so a **sole killer**; generated `Show` restored to
+`%v` → differential red, sole killer. My first attempt at the tuple mutant renamed the type and
+**did not compile** — exactly the class rule 3j names, caught before it could masquerade as a guard
+firing.
+
+**Ruled out.** That the tuple leak was the whole interpreter defect (it is 1 of 7 unhandled types,
+3 reachable). That `#[1,2,3]` is invented notation — it is genuine AILANG array-literal syntax
+(parser `parseArrayLiteral`, docs, and `ailang prompt` all agree; the executor used the language's
+own syntax where my directive was silent). That `Map{a: 1}` has precedent — **0** doc hits against a
+control of **33** for `#[`, so it is a deliberate non-round-trippable rendering, now declared as such
+in both implementations. That the round-3 float work regressed anything (465-file sweep; the only two
+moves are improvements). That `go build ./...` rc=1 is ours. That the Windows red was a product
+regression (it was my test's missing `.exe`). That the Sonar red is inherited — base was `success`.
+
+**Gates** (darwin/arm64; the linux and windows legs are unrun locally — and the windows one is
+precisely what Gate 3b caught): `go build ./internal/builtins/... ./internal/gen/golang/...`,
+`go test ./internal/builtins/ ./internal/gen/golang/ ./tests/golden/codegen/`, `make check-file-sizes`,
+`check-boundaries`, `check-changelog`, `gofmt -l` — all rc=0, under a binary built in-worktree whose
+`--version` equals `git describe`, prepended to PATH. `~/go/bin` was left untouched: it is shared
+with concurrent agents, and iteration 237's rule is that a test shelling out to `ailang` from PATH is
+where a stale binary reaches you with no `--version` to check.
+
+**Gate 3b.** SHA-addressed on the full 40 characters, `mergeable` read FIRST each time, numeric floor
+on every count. Final head `884fae3ab`: **22 checks, 0 pending, 4/4 required** (`build`, `docs-gate`,
+`lint`, `test`). `build` again appeared only *after* `test` passed — the third consecutive iteration
+where declaring green at 3/4 would have been the incomplete-check-set trap. Only `SonarCloud` not
+green: **35.7% duplication on new code**, non-required, and it is the five differential fixtures,
+which are near-identical *by design* — collapsing them is precisely what rounds 2 and 3 proved wrong.
+Named, filed as a row, not silently satisfied. PR [#822](https://github.com/sunholo-data/ailang/pull/822)
+→ squash [`058feebc3`](https://github.com/sunholo-data/ailang/commit/058feebc3). Autoclose scan run on
+all six commit messages and the PR title and body, known-bad control firing each time; issue states
+asserted unchanged across the merge.
+
+**Next.** `m-array-show-diverges-run-vs-compile` (new, structural — needs a wrapper type at the
+codegen representation layer, not a `Show` change). Then `m-codegen-claim-must-match-source` with
+`m-list-builtins-codegen-only`, which are now unblocked: the differential instrument they were
+waiting for exists and has a denominator. `D-22` and `D-23` stay parked and are re-asked unchanged.
