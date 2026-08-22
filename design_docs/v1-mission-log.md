@@ -15621,3 +15621,125 @@ asserted unchanged across the merge.
 codegen representation layer, not a `Show` change). Then `m-codegen-claim-must-match-source` with
 `m-list-builtins-codegen-only`, which are now unblocked: the differential instrument they were
 waiting for exists and has a denominator. `D-22` and `D-23` stay parked and are re-asked unchanged.
+
+## 248 — 2026-08-22 — Iteration 248: the queue row's stated blocker did not exist, and two downstream roles refuted me
+
+**Pick.** `m-array-show-diverges-run-vs-compile`, iteration 247's declared Next and the last
+surviving member of the class 247 closed. `show` on an array renders `#[1, 2, 3]` under the
+interpreter and `[1, 2, 3]` compiled, so the same program's stdout depends on the backend.
+
+**Gate 2 confirmed the defect and then refuted the row's reason for existing.** Both arms at HEAD
+(`404226a48`), binary built fresh from that tree and prepended to PATH, output artifact deleted
+before the run and asserted present-and-newer after — iteration 247's own new freshness rule, on its
+first use. Interpreted `#[1, 2, 3]`, compiled `[1, 2, 3]`.
+
+The erasure is at **construction, not at `Show`**: `show(#[1,2,3])` and `show([1,2,3])` generate
+byte-identical Go (`[]interface{}{int64(1), int64(2), int64(3)}` then `Show(tmpN)`), and `show` is a
+**builtin** rather than a type class — `dictionaries.go` in the generated output contains no `Show`,
+and `class Show`/`instance Show` return 0 hits across `std/*.ail`. So the row's "no change to `Show`
+can fix it" is right, and understated.
+
+**The row said M-TYPE1's representation-sharing was a deliberate decision needing a design pass to
+overturn. There is no such decision.** `git show --stat 743f6a539` — the commit that
+`design_docs/implemented/v0_5_6/m-type1-array-tarray-unification.md` names — is **one file**,
+`internal/types/unification.go`, **8 insertions**, and it never entered `internal/gen/golang/`. That
+doc mentions `[]interface` **0** times (control: `Array` appears **63**). `git log -S 'M-TYPE1' --
+internal/gen/golang/` returns `ea88158ef` ("working array compiles to go") and `474adf0cf` ("code
+gen fixes") — neither is the M-TYPE1 commit. The shared Go representation is an implementation
+convenience labelled with a tag belonging to an unrelated type-checker fix, and a comment was read
+as a ratified constraint for as long as the row existed.
+
+**And it is not a soundness bug.** `ailang check` rejects a list where an array is expected —
+*"cannot unify array type Array[α4] with [α5]"* — so no well-typed source reaches an array helper
+with a list. The doc is scoped to what that leaves: backend-dependent stdout, and noise in the
+differential harness two other rows depend on. Blast radius measured before routing: **21** exact
+`.([]interface{})` assertions and **10** `reflect.Slice` branches in the generated runtime, from two
+codegen source files.
+
+**Routing.** Controller `opus` (session). Designer R1 `claude:claude-fable-5` via `claude-sub`
+(billing guard at the call site; probe rc=0; **one** bounded run, so the Fable diet holds). Designer
+R2 (revision) `codex:gpt-5.6-sol`, probe rc=0 — the diet caps Fable, not the designer role, and the
+rotation pointer advances to `codex`. Planner **`opus`**, and the lane was derived rather than
+assumed: `tools/launchd/derive-planner-lane.sh` printed `opus fail-closed:planner-lane-field-missing`,
+used verbatim, so no codex probe was run for that role. No executor and no evaluator — the
+deliverable is a reviewed doc plus a plan, and M1–M4 is a 4-day sprint that does not fit one slot.
+`metered = $0.1214` of $5, all of it quorum reviewers; every model lane was a quota bucket. No GPU,
+no `rig.lock`.
+
+**Both quorum rounds blocked, both were load-bearing, and I measured every objection before routing
+it.** Round 1, 2/2 reviewers present, `absent_reviewers` empty:
+
+- `gpt5-6-sol` — the typed-slice residual. **CONFIRMED first-party.** `type Box = MkBox(Array[int])`,
+  construct with `#[1,2,3]`, match the field, `show` it: `#[1, 2, 3]` interpreted, `[1, 2, 3]`
+  compiled, because the generated constructor reads `NewBoxMkBox(ConvertToInt64Slice(tmp2))`. One
+  line of ordinary user code. The reviewer's sharper point was that the acceptance criteria would
+  have gone green over it, which is this mission's own recurring shape. Moved into scope at M3 with
+  its own fixture instead of being documented as a residual.
+- `gemini-3-1-pro` — *"re-measure using `import std/eq (==)`"*. **REFUTED.** `std/eq.ail` is
+  **ABSENT** (control, same call and same scope: `std/list.ail` EXISTS); `instance Eq` returns **0**
+  hits across the **45** `.ail` modules in `std/` (control: 45 match `export`); `std/prelude` does
+  not exist either and `import std/prelude` is a parse error. The doc records the refutation rather
+  than a fix, so the next reviewer does not raise it again.
+
+Round 2, again 2/2 present, and **both reviewers converged independently on one new objection**: the
+doc patched the `ConvertTo*Slice` converters' `if !ok { return nil }` for `ArrayVal` only, leaving a
+Principle-2 violation live for every other input. **Carve-out applied** — ratified by Mark
+2026-07-24 ("apply and route") — because the sole remaining objection carried a concrete
+reviewer-authored `proposed_fix` from *both* reviewers and disputed **completeness**, not the design
+direction, which both accepted. Both fixes are quoted verbatim in M2, with AC4 and Conflict Surface
+#1 updated exactly as their text requires.
+
+**Then the planner refuted me, and that is the correction worth the iteration.** My scope note had
+told M2 to remove the silent fallback at **both** converter emitters, asserting that the template
+loops at `codegen_runtime_slices.go:192`/`:315` emit silent-nil converters for user ADTs. They do
+not. Generated `runtime.go:845-889`: `ConvertToOptionSlice` and `ConvertToResultSlice` both carry
+`// M-DX12: Fail-fast - panics on type mismatch` and read
+`if !ok { panic(fmt.Sprintf("ConvertToOptionSlice: expected []interface{}, got %T", v)) }`, plus a
+per-element panic. So VL-9's "7 silent sites" is **5**; the repo already contains the correct
+pattern, twice; and the divergence between the two emitters is the actual bug. I had counted
+`return nil` occurrences and read a template converter's `src, ok := v.([]interface{})` line
+**without reading its next line**, then generalised from the literal converters' shape — a
+transcribed pattern, not a measurement. The correction is folded back into the doc with the
+superseded text kept visible, because acting on my version would have sent an executor to "fix"
+code that is already right. Two consequences recorded with it: AC4's template-converter panic clause
+**already passes at base**, so it is a regression pin rather than fail-at-base evidence; and
+`toSlice` (`codegen_runtime_collections.go:8`) shares the same silent fallback **outside** the
+`ConvertTo*` family, so M2 alone does not discharge the reviewers' universal goal.
+
+The planner also re-scoped M3 from one day to two, moved the fixtures to land progressively
+(5 → 6 → 7) because the doc's shape left M1–M3 with no end-to-end gate, and flagged that
+`.gitignore:82` ignores `.ailang/` so the sprint JSON needs `git add -f` (control: the 55 existing
+sprint JSONs are tracked only because they predate that line).
+
+**The stale-binary trap, met for the third consecutive iteration and confirmed with a two-arm
+control.** `go test ./tests/golden/codegen/` is **rc=1** under the stale shared PATH binary and
+**rc=0** under a freshly built one, on the identical tree. The suite shells out to bare `ailang`, so
+there is no `--version` to check and the red arrives wearing a plausible code defect — exactly
+iteration 237's rule. `~/go/bin` was left untouched throughout, for the concurrent agents that share
+it.
+
+**Gate-1 correction to an existing queue row.** `m-sonar-differential-fixture-duplication` says
+`#822` moved SonarCloud from `success` to `failure`. On `dev` it is `success` on all four most
+recent commits, **including `058feebc3`, the squash-merge of `#822` itself** — PR analysis and branch
+analysis use different new-code periods, so the 35.7% was a property of the PR's diff. There is no
+standing dev red; the row's option (c) is moot and its real question is narrower. Recorded in the row.
+
+**Ruled out.** That the `// M-TYPE1:` comment records a decision (the commit is 8 lines of
+type-checker code). That this is a soundness bug (the type checker rejects List-where-Array). That
+the tuple precedent is a struct wrapper (`type Tuple []interface{}` at generated `runtime.go:18`,
+`case Tuple:` at 436 — the designer refuted my framing and was right). That `std/eq` exists. That
+the template-emitted converters fall back silently (they panic; the planner refuted me and was
+right). That SonarCloud is a standing red on `dev`. That the fleet-account PR `#695` is this
+mission's to touch — no worktree in my own clone attributes it, so it was left alone and named.
+
+**Gates** (darwin/arm64; linux and windows legs unrun locally). Docs-only change, so no build or
+test gate applies to the diff; the measurements above were taken with a binary built fresh from
+`404226a48` and prepended to PATH. Charter rotation asserted: line-count invariant
+`after == before` held at 2806, `^## STATUS 2026` count stayed **3**, the rotated stamp landed in
+the archive (`ITERATION 245` → 1, control `ITERATION 244` → 2), and a known-present queue row was
+grepped after the edit.
+
+**Next.** Execute `m-array-show-diverges-run-vs-compile` M1/M2 from the landed plan. Then M3/M4,
+then `m-codegen-claim-must-match-source` with `m-list-builtins-codegen-only`. New row filed:
+`m-prelude-diagnostic-names-absent-module` — the equality diagnostic tells users to import a module
+that does not exist. `D-22` and `D-23` stay parked and are re-asked unchanged.
