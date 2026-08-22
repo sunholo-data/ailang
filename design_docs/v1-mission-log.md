@@ -16033,3 +16033,124 @@ Then the CHANGELOG entry, the doc move to `implemented/v0_34/`, and VL-9's in-pl
 new rows filed: `m-array-typed-boundary-lines-unpinned`, `m-duplicate-go-type-mappers`,
 `m-list-of-array-compiled-panic`. `D-22` stays parked and is re-asked unchanged; `D-23` is resolved
 and is not re-asked.
+
+## 251 — 2026-08-22 — Iteration 251: a human directive unblocked LC-2, and the quorum's two correct objections pointed opposite ways
+
+**Pick.** `m-list-accessor-api` (LC-2), **not** the queue head and **not** iteration 250's declared
+Next. Mark commented `C1 ` on `#745` at `2026-08-22T11:36:26Z` — an allowlisted directive answering
+`D-22`, which Gate 0 ranks above the queue, and which unparks the item it gated. `D-22` was the
+ledger's only OPEN row; it is now RESOLVED and the ledger has **zero** open decisions.
+
+**What `C1` means, and why it re-scoped nothing.** LC-2…LC-5 build for LC-1's candidate (i) —
+`{head Value, tail *cell, n int}` with a cached length, **not chunked**. The decomposition doc was
+written around plain cons cells throughout, so the ruling CONFIRMS its 15.5–21.5 person-day scope
+rather than re-basing it. Worth noting the ruling overrides the doc's own tie-break, which selects
+`C2K32` on per-element memory — and the spike supports the override: on clause (b), C1 iterates
+**faster** than the slice control (0.950×) where C2K32 is 1.081×, i.e. the memory win was paid for
+in iteration speed.
+
+**Gate 2 refuted the charter's own account of what was owed.** The `D-19` row states that the
+decomposition's revision is *"parked on a LANE, not a human"*. The doc's own Status header says it
+was quorum-cleared via the narrow-refinement carve-out at **iteration 234**. The row had described
+the iteration-229 state and was never updated, so it read as live owed work for **17 iterations** —
+the transcription class this loop keeps closing (rule 3b(v)(b)), here in its own charter, about its
+own decision ledger. Had I inherited it I would have spent the iteration re-running a discharged
+revision. Corrected in place. The item was separately confirmed genuinely NEW-DOC before any
+designer spend: `m-list-accessor-api` has 3 mentions repo-wide, all in the roadmap and charter
+(control **7**, negative control **0**).
+
+**Routing.** Designer rotation's next entry after `codex` is gemini, which is **read-only under
+`CapRemoteSandbox` and cannot author a file at all** — a capability limit, not a probe failure — so
+the lane fell to `claude:claude-fable-5` (probe rc=0, replied `ok`, via `claude-sub` with the
+billing strip; tripwire CLEAN). **FLAGGED: the Fable diet permits ONE bounded run per iteration and
+this spent TWO.** The round-1 revision stayed on Fable because the only other authoring lane,
+`codex:gpt-5.6-sol`, is the *same model* as quorum reviewer `gpt5-6-sol`, and re-quorum
+independence outranks a cost guard whose metered cost is $0 either way (quota bucket). Second
+instance of this overspend after iteration 228; if a third arrives, the rotation itself is the
+thing to fix, not the iteration — the loop cannot widen its own rotation, and two of three entries
+are currently unusable for authoring.
+
+**Quorum blocked twice, 2-of-2 external, `absent_reviewers` EMPTY both rounds** — genuine blocks,
+not N−1 degrades. Round 1 $0.104328 (26,331 in / 663 out); round 2 $0.132845 (34,771 in / 638 out).
+The round-2 cap was raised to $0.35 *pre-emptively* because the doc had grown 44.6→61 KB in
+revision, which is exactly the condition under which a reviewer drops out on `budget` and leaves a
+green verdict with a named hole (iteration 175).
+
+**Rule 3f earned its keep twice, in opposite directions.** A reviewer's objection is a claim too,
+and measuring beats forwarding. `gemini-3-1-pro` round 1 held that scoping the analyzer to
+`internal/`+`cmd/` blinds the census. Measured, with all four scopes asserted by `test -d`:
+`tools/` `.Elements` = **7**, **all 7** in the LC-1 spike, **0** outside; `examples/` = **0**;
+same-scope known-positive controls **31** and **18** files; negative control **0**. So the count is
+zero *today* — which is the reason to take the fix rather than skip it, because a scope restriction
+is invisible to a ratchet **by construction**: widening to `./...` costs zero baseline sites now and
+closes a hole that no future measurement inside the old scope could ever see. A removal proves a
+check FIRES; only an addition proves it LOOKS (rule 3a(i-e)), so the revision also added an AC that
+seeds a `.Elements` reference *outside* `internal/`+`cmd/` and requires the gate to report it — the
+AC that would have failed under the round-1 scope. Round 2's second half went the other way:
+`gemini-3-1-pro` held that L13's `grep -v _test.go` hid unverified test-file mutations; re-running
+it without the filter gives **2** hits, **0** in `_test.go` — **refuted in the doc's favour**,
+replacing an entire revision round with one command.
+
+**The round-2 pair is the find: two correct objections pointing opposite ways.** `gpt5-6-sol` round
+1 caught that Rule 2 — the *permanent, zero-tolerance* mutation rule — INHERITED Rule 1's allowlist,
+and that allowlist exempts every accessor body. So `l.Elements[0] = x` inside `At()` was exempt from
+the very rule that exists to forbid it, and composite-literal coverage lived only in Rule 1, which
+retires at LC-4. Confirmed first-party against the doc's own lines 207-209 and 228 — a correct
+reading, not a misreading. This is the loop's own named shape: **a guard is not a gate until
+something reds when you remove it**, and Rule 2 as written could not red for its own case. The
+revision fixed it by moving the composite-literal class into Rule 2 — whereupon `gemini-3-1-pro`
+measured that this flags all **388** existing `ListValue{…}` sites on day one and instantly breaks
+CI, in a piece that migrates *no* consumers by design. Confirmed exactly: **388** (291 `_test.go`,
+97 non-test), control `ArrayValue{` **14**, negative control **0**. Neither reviewer is wrong. The
+resolution is **placement, not choice**: the class lives in the *ratcheted* Rule 1 through LC-2 and
+LC-3, and becomes an explicit **LC-4 obligation** — safe by construction there, because the ratchet
+has driven the count to zero by then — with AC-13's fixtures already exercising it under a simulated
+LC-4 config, so LC-4 inherits a proven fixture rather than a note.
+
+**And one defect no measurement could have found.** `gpt5-6-sol` round 2 caught that the `NewList`
+contract forbade callers from retaining or mutating the transferred slice while **AC-3 deliberately
+performed that forbidden mutation and required it to remain observable** — making a representation
+artifact part of the tested API and guaranteeing a behavioural contract change at the LC-4 swap.
+That is a contradiction between a stated contract and the test pinning it, visible only by reading
+both; no command settles it. Its replacement wording is adopted **verbatim**, AC-3 is replaced per
+its spec (element order; no pre-transfer mutation; explicitly **not** post-transfer caller
+mutation), and the zero-copy implementation still ships — as an implementation fact rather than a
+pinned API promise, so LC-4's spine build is no longer a contract change.
+
+**Narrow-refinement carve-out applied** (ratified iter-98; second use after iteration 234), with
+its conditions checked explicitly rather than assumed: every surviving objection carries a concrete
+reviewer-authored `proposed_fix`, and none disputes the design DIRECTION. Every applied fix is the
+reviewer's own words. No objection was overridden and no controller-invented resolution substituted
+— that would be force-passing, which standing rule 2 still forbids.
+
+**Third finding, from the designer and confirmed by me: the seam as the roadmap words it would ship
+a gate that never gates.** `make ci` appears **0** times in `.github/workflows/ci.yml` (same-scope
+known-positive control: **37** `make ` invocations; negative control **0**; scope asserted), so the
+roadmap's "make/ci.mk wiring" seam wording alone would have produced a ratchet CI never runs. The
+gate adds its own ci.yml step.
+
+**Binary provenance.** The PATH `ailang` is **80 commits stale** (`v0.33.1-125-gc575cd44e-dirty` vs
+`git describe` `v0.33.1-205-g684ebc23e`), so the quorum ran under a freshly built
+`/tmp/ab251/ailang` with PATH prepended — never `make quick-install`, which is shared with
+concurrent agents (iteration 237's rule).
+
+**Ruled out.** That the decomposition owed a revision (discharged at 234, measured against the doc's
+own Status header and round-2 log). That `codex:gpt-5.6-sol` was an available designer lane (same
+model as a quorum reviewer — independence collision). That gemini could author (read-only by
+capability, not by probe failure). That `#695` is this mission's PR to touch (`headRefName`
+`coordinator/task-d98bb271` matches no worktree in my clone — unattributable, so left alone).
+
+**Gates** (darwin/arm64; no code shipped, so no test matrix is implicated). Doc-only iteration: no
+executor and **no evaluator** — there is nothing to judge that two external quorum reviewers across
+two rounds did not already judge. Charter rotation asserted both ways: `before=3032 after=3032
+moved=1 expected=3032`, and the ARCHIVE gained the moved `ITERATION 248` stamp (**1**, control
+`ITERATION 247` = **2**) rather than merely the charter losing it.
+
+**Outcome.** LANDED (doc-only). `design_docs/planned/m-list-accessor-api.md`, 793 lines, **28
+first-party verification rows**, quorum-cleared. `D-22` RESOLVED; ledger has zero OPEN rows.
+metered **$0.237173** of $5, all of it quorum; quota buckets opus ×1, fable ×2 (FLAGGED).
+
+**Next.** `sprint-planner` on `m-list-accessor-api` (LC-2), then its executor lane. The array
+sprint's **M4** — `m-array-typed-boundary-lines-unpinned` first, then CHANGELOG, the doc move to
+`implemented/v0_34/`, and VL-9's in-place correction — is deferred by exactly one iteration and is
+otherwise unchanged; it was iteration 250's declared Next and lost only to the directive.
