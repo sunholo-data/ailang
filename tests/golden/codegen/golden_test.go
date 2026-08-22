@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-const expectedDifferentialFixtureCount = 5
+const expectedDifferentialFixtureCount = 6
 
 // TestGoldenCompile verifies that each .ail golden test file compiles to Go
 // that passes `go build`. This is the primary acceptance test for the codegen
