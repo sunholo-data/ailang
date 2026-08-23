@@ -3186,6 +3186,31 @@ log's entry numbers are no longer a usable index: there are TWO entries numbered
 > controller edit. Cheap to close and it protects the loop's own memory: Gate 4 appends by "highest
 > existing number", which a duplicate silently corrupts.
 
+**[NEXT] m-launchd-probe-timing-arm-flaky-on-runners — a non-required CI job that fails, passes
+and cancels on the same tree, measured across four runs.** Found at iteration 259 while landing a
+**docs-only** diff (5 markdown files, zero `tools/launchd` files — control: 5 `design_docs` hits,
+0 `tools/launchd` hits). The `launchd drivers (bash 3.2)` job's motoko-connection-probe suite arm
+`bounded termination deadline refuses` failed with `lacked expected message: bounded termination
+deadline`, alongside `process-tree discovery deadline expired` / `INSTRUMENT FAILURE: process-tree
+discovery failed`. **Four observations, three different outcomes, on effectively identical trees:**
+PR head attempt 1 → **FAIL**; PR head attempt 2 → **PASS**; merge commit attempt 1 → **CANCELLED**
+after the job ran **15m20s** (13:53:23Z→14:08:43Z) while all seven sibling jobs succeeded; merge
+attempt 2 → **PASS**. Locally the whole target is `make test-launchd-drivers` **rc=0, 74 PASS /
+0 FAIL**. The job is green on `bc3f80884`, `9417c5ff7` and `ad6d08050` (`not ok - bounded
+termination` count **0** on each — and note the naive `grep -c "bounded termination deadline"`
+returns **1** on a GREEN run too, because it matches the arm's own NAME, so the discriminating
+pattern is `not ok -`).
+**This is rule 3m's shape exactly**: a wall-clock bound calibrated on the machine it was written on,
+where both the bound and the stimulus scale with the host — the arm passes on this laptop and is
+unstable on a GitHub macOS runner. **Scope it as deriving the bound from the stimulus measured
+in-test** (the fix World applied to the same class: `readTimeout := hold / 20`, making the ratio
+true by construction on any machine), plus an absolute floor on the *stimulus* so a degenerate
+runner reports instrument failure loudly instead of passing quietly — never a bigger absolute
+constant. **Not urgent**: the job is NOT in the required-contexts set (`build`, `docs-gate`, `lint`,
+`test`), so it produces `UNSTABLE`, never `BLOCKED`. **It is worth fixing anyway**, because an
+amber that everyone learns to re-run is how a required one eventually gets waved through — and
+because every iteration that trips it currently pays the same diagnosis twice (this one did).
+
 **[NEXT] m-ui-dependency-tree-unbuildable — `ui/` has not installed since 2026-07-10, and the check
 that would have said so is path-filtered and non-required** ([`#503`](https://github.com/sunholo-data/ailang/issues/503),
 whose title names the MECHANISM; this row is the measured consequence, filed as a comment there rather
