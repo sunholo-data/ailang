@@ -3294,6 +3294,18 @@ attempt 2 → **PASS**. Locally the whole target is `make test-launchd-drivers` 
 termination` count **0** on each — and note the naive `grep -c "bounded termination deadline"`
 returns **1** on a GREEN run too, because it matches the arm's own NAME, so the discriminating
 pattern is `not ok -`).
+**FIFTH OBSERVATION, iteration 261 — and the CANCEL DURATION REPRODUCES TO WITHIN 3 SECONDS, which
+is evidence for a ceiling rather than for flakiness.** PR `#843`, again a **docs-only** diff (6
+`design_docs` files + 1 sprint JSON; control: `design_docs` hits **6**, `tools/launchd` hits **0**).
+The job ran `20:40:24Z` → `20:55:41Z` = **15m17s** and concluded **`cancelled`**, against iteration
+259's merge-attempt-1 cancel at **15m20s**. All four REQUIRED contexts passed on the same SHA
+(`build`, `docs-gate`, `lint`, `test`), so the PR was `MERGEABLE`/**`UNSTABLE`**, not `BLOCKED`, and
+this did not gate the landing — recorded rather than triaged as a red, per Gate 1's non-required
+rule. **Two cancels three seconds apart is not the profile of a race**; it is the profile of
+something hitting a fixed limit, so the scoping below should first establish whether the arm is
+being killed by a job/step timeout (in which case the wall-clock bound is a symptom and the real
+finding is that the suite got slower) before deriving the bound from the stimulus.
+
 **This is rule 3m's shape exactly**: a wall-clock bound calibrated on the machine it was written on,
 where both the bound and the stimulus scale with the host — the arm passes on this laptop and is
 unstable on a GitHub macOS runner. **Scope it as deriving the bound from the stimulus measured
