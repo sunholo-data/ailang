@@ -199,22 +199,29 @@ expect_failure "bounded termination deadline refuses" "bounded termination deadl
 
 success_artifact="$tmp_dir/success/probe.json"
 mkdir -p "$tmp_dir/success"
-expect_success "hermetic live success retains both lanes diagnostics" \
+expect_success "hermetic live success path completes" \
   env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=4 \
     PROBE_STUB_STATE="$tmp_dir/lane-success" /bin/bash "$probe" treatment control "$success_artifact"
 for retained in treatment.driver.log treatment.lsof control.driver.log control.lsof; do
   [[ -s "$success_artifact.$retained" ]] || { echo "not ok - missing retained $retained" >&2; exit 1; }
 done
+# Its own arm: the expect_success above only proves the probe exited 0. An "ok" line whose label
+# claims retention, while the retention check sits outside the arm, is an assertion that cannot
+# fail for the reason it names.
+pass_arm "success path retains both lanes driver logs and lsof captures"
 
 refusal_artifact="$tmp_dir/refusal/probe.json"
 mkdir -p "$tmp_dir/refusal"
-expect_failure "refusing live path still retains both lanes diagnostics" "treatment verdict is void" \
+expect_failure "refusing live path refuses with the control-void message" "treatment verdict is void" \
   env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=4 \
     PROBE_STUB_STATE="$tmp_dir/lane-refusal" PROBE_TEST_FORCE_TREATMENT=1 \
     /bin/bash "$probe" treatment treatment "$refusal_artifact"
 for retained in treatment.driver.log treatment.lsof control.driver.log control.lsof; do
   [[ -s "$refusal_artifact.$retained" ]] || { echo "not ok - refusal lost $retained" >&2; exit 1; }
 done
+# Same reason as above, and this is the load-bearing half: a lane that REFUSES is exactly the case
+# the retained log exists for.
+pass_arm "refusal path retains both lanes driver logs and lsof captures"
 
 unwritable="$tmp_dir/not-a-directory"
 : > "$unwritable"
