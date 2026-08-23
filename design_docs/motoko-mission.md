@@ -834,8 +834,9 @@ are ordered so the UNGATED work runs first.
    workdir current — and either way remove the stale skill copy, since a diverged rulebook that
    nothing executes is indistinguishable from one that does until someone runs there · 1 iteration
 
-6e. [NEXT — found 2026-08-23 by iteration 20's Gate 3b] **`test_motoko_connection_probe.sh` arm 33 hung a
-   CI job for 15m18s and the same suite stalled the executor's sandbox — one instance each, both today**
+6e. [NEXT — found 2026-08-23 by iteration 20's Gate 3b, **CONFIRMED the same hour by a second instance on a
+   MARKDOWN-ONLY diff**] **`test_motoko_connection_probe.sh` arm 33 hangs CI for ~15m and is then cancelled;
+   twice in 40 minutes, and the second time nothing executable changed**
    · loop health · The `launchd drivers (bash 3.2)` job on PR `#838` was **cancelled after 15m18s**
    against a **~68s** success on dev's own HEAD and on 18 of the last 20 CI runs; the log stops after
    `ok 32` and never emits arm 33, *descendant discovery refuses on the real wall-clock deadline*, and the
@@ -844,8 +845,13 @@ are ordered so the UNGATED work runs first.
    `tools/launchd/mission-control.sh`, `tools/launchd/test_driver_notify.sh`), and rule 3d's strongest
    control — a **re-run on a byte-identical tree** — came back **success in 88s**, so the variable is the
    environment, not the code. The codex executor independently stalled on the same suite in its sandbox
-   and said so. That is **two observations, one day, and the arm was wired into CI only yesterday**
-   (iteration 19), so it is a watch-item with a named next step rather than a declared flake class. The
+   and said so. **INSTANCE 2, 40 minutes later, settles it:** the record PR
+   [#840](https://github.com/sunholo-data/ailang/pull/840) — whose five changed files are **all markdown**
+   (one `SKILL.md` and four `design_docs/*.md`, i.e. **zero** executable lines) — reproduced it exactly:
+   `17:38:10Z → 17:53:28Z`, **15m17s**, cancelled, log stopping after the identical `ok 32`. A markdown-only
+   diff cannot break a shell suite, so code attribution is **refuted**, not merely doubted. Three
+   observations in one iteration (two CI, one sandbox) against **~68s** on dev, for an arm wired into CI
+   only yesterday (iteration 19). This is a confirmed defect, not a watch-item. The
    shape is rule 3m's: a wall-clock/process-tree bound calibrated on the author's machine, in a suite whose
    own arm 33 already prints `UNINFORMATIVE UNDER SANDBOX` locally. Scope: derive arm 33's bound from the
    stimulus it measures in-test rather than from a constant, or give the arm its own hard cap so a hang is

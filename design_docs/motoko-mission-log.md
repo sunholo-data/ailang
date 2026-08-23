@@ -2158,8 +2158,12 @@ total deletion (the five positive arms beside them do not), and the missing chan
   `Terminate orphan process: pid (bash)` / `(make)`. Refused the co-occurrence: the diff touches no
   file the probe suite reads, and rule 3d's strongest control — a **re-run on a byte-identical
   tree** — returned **success in 88s**. Outcome divergence with the tree held constant means the
-  variable is the environment. Filed as row **6e**, one instance plus the executor's independent
-  sandbox stall, not a declared flake class.
+  variable is the environment. **Instance 2 arrived 40 minutes later on this iteration's own record
+  PR `#840`, whose five changed files are ALL markdown** — `17:38:10Z → 17:53:28Z`, 15m17s,
+  cancelled, log stopping after the identical `ok 32`. A markdown-only diff cannot break a shell
+  suite, so code attribution is refuted rather than doubted. Three observations in one iteration
+  (two CI, one sandbox) against ~68s on dev; row **6e** is a confirmed defect, not a watch-item,
+  and it is the next pick.
 - *That the clone's uncommitted residue is unfinished work.* Measured, not inherited: of **129**
   added lines across the five modified files, **125 are byte-present** in `origin/dev`'s copy of the
   same file; the 4 that are not are prose reflows of a decision-ledger block `origin/dev` carries in
