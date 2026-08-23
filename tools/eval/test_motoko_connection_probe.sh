@@ -178,8 +178,8 @@ make_dependency_path() {
 }
 for dependency in dig lsof pgrep jq ailang-stub; do
   dependency_path=$(make_dependency_path "$dependency")
-  expected_dependency=$dependency
-  [[ "$dependency" == ailang-stub ]] && expected_dependency=AILANG_BIN
+  expected_dependency="$dependency is required"
+  [[ "$dependency" == ailang-stub ]] && expected_dependency="AILANG_BIN is not executable"
   expect_failure "dependency gate rejects missing $dependency" "$expected_dependency" \
     env PATH="$dependency_path" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=2 \
       PROBE_STUB_STATE="$tmp_dir/lane" /bin/bash "$probe" treatment control "$tmp_dir/dep.json"
