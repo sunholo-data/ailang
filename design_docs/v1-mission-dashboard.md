@@ -1,49 +1,41 @@
 # Mission Dashboard — V1
 
-> Snapshot only; history in `v1-mission.md` + `v1-mission-log.md`. Written: **iter 257, 2026-08-23**.
+> Snapshot only; history in `v1-mission.md` + `v1-mission-log.md`. Written: **iter 258, 2026-08-23**.
 
 ## Where we are
-- **v0.33.1**. **BAR-FIRST** (`D-28`) until all 5 clauses close. **dev CI GREEN** at `ad6d08050`
-  (20 checks, zero not-green). **Ledger 31 rows, THREE OPEN: `D-29`, `D-30`, `D-31`.**
+- **v0.33.1**. **BAR-FIRST** (`D-28`) until all 5 clauses close. **dev CI GREEN** at `9417c5ff7`
+  (16 checks, zero not-green; control on parent = 20).
+- **`D-29` RESOLVED by Mark this morning.** Ledger 31 rows, **TWO OPEN: `D-30`, `D-31`**.
 
 ## In flight / next
-1. **`m-cohort-manifest-build-provenance`** — **RE-SCOPED TO A SPLIT.** Five quorum rounds, every
-   objection real; at round 5 `gemini-3-1-pro` **PASSES** and the only surviving rejection is
-   confined to Consumer 2. `[NEXT]`, in-loop, needs no ruling.
-2. **`m-module-cache-identity-not-compiler-bytes`** *(new)* — the consumer being split out.
-3. **`m-contract-verification-coverage`** — still parked on `D-30` (predicate re-read, unchanged).
-4. Then: `m-run-selector-enumeration-floor` · `m-effect-clock-net-fs-modes` ·
-   `m-v1-orchestration-flagship` · A1/A2 (`D-25`) · clause-3 A/B · LC-2.
+1. **`m-verify-bounded-unrolling-false-counterexample`** *(new, P0)* — the verifier reports its own
+   incompleteness as a `counterexample`, so correct recursive code is graded a verification FAILURE.
+2. **`m-cohort-manifest-build-provenance`** — re-scoped to a split at iter-257; `[NEXT]`, in-loop.
+3. **`m-module-cache-identity-not-compiler-bytes`** — the consumer split out of (2).
+4. **`m-benchmark-ensures-coverage`** *(new)* — Mark's second `D-29` clause; blocked on (1) for 4 of 5.
+5. **`m-contract-verification-coverage`** — parked on `D-30` only (predicate re-read, unchanged).
 
 ## New this iteration
-- **Round 4's two objections were about consumers round 4 never touched** — the freeze gate
-  refuses only *unstamped* builds (a `-dirty` binary can freeze release evidence), and AC-6's
-  "cache dir stays empty" proves `Store` bypass but **not** `Lookup` bypass. Both premises measured
-  first-party; both held.
-- **So round 5 was aimed at the PATTERN, not the patches.** Four rounds had each found one class —
-  *a gate whose satisfying-state set is wider than its cited purpose* — in a different consumer. A
-  systemic sweep of every gate and every AC **found three too-wide items no reviewer had named**,
-  including that **the new strict freeze gate would have opened a refusal loop with the doc's own
-  remediation recipe** (`git describe … --dirty` from a dirty tree re-fails the gate).
-- **The surviving objection is real and PRE-EXISTING**: a clean commit identifies *source* state,
-  not compiler bytes. `ModuleCacheKey` hashes only a hand-bumped format constant, the commit, the
-  source hash and dep digests — `runtime.Version()` is **0** in `internal/pipeline` vs **4**
-  repo-wide (control fires), zero build-tag/flag terms, one live call site. Filed as its own row.
-- **Lane call: DECOMPOSITION, not a sixth revision.** Rejections localising onto one of three
-  bundled consumers is a scope signal, not a quality signal.
+- **`D-29` ruled BOTH**: publish a **strict** arm (`$0.7778`, denom 3) *beside* an **effective** arm
+  (`$0.2121`, denom 11). Nothing is restated, the 2026-07-27 ratification stands, and both arms need
+  the `not_applicable` split — so the publishing milestone lands inside the `D-30`-parked doc.
+- **Scoping Mark's "ensures where it makes sense" uncovered a P0.** Same file, same clause, only
+  recursion differs: `encFlat` **verified**, `encRec` **counterexample** — on a postcondition that
+  holds at runtime for every input tried. **Structural, not depth tuning**: the witness grows with
+  the bound (depth 2 → `"AAA"`, 4 → `"ABDCA"`, 8 → `"ABCDEFGHAB"`), so no finite `k` ever verifies.
+- **`contract_sorted_merge.yml:23-24` ships that exact shape on `sLength` today** — live for the
+  frozen cohort. `isVerifiedSuccess` fails on `VerifyCounterex > 0`, so this corrupts **both** arms
+  `D-29` just ratified, in a direction no exemption repairs.
+- **Enumerated, not guessed**: 7 of 92 benchmark YAMLs carry a `contract_spec`; functions partition
+  16 `ensures` / 10 no-clauses / **5 `requires`-only** — exactly `D-29`'s five, of which only
+  `minor3` is non-recursive. (Charter self-correction: that row wrongly said `minor3` had no clauses.)
 
 ## Routing · Cost
-Controller opus · designer **fable ×2** (second run a **knowing diet overspend, FLAGGED** — the doc
-was authored last iteration, so the amendment allows one revision and I ran two cycles) · quorum ×2.
-**No planner/executor/evaluator** — quorum blocked before routing. Metered **$0.4151** of $5.
+Controller opus only. **No designer/planner/executor/evaluator spawned** — the deliverable is a
+ruling recorded and a scope measured. Metered **$0.00** of $5. Rotation pointer not advanced.
 
-## PARKED ON MARK — three one-word calls (unchanged; zero directives since 08-22)
-- **`D-29`** — does a no-`ensures` function count against `isVerifiedSuccess`? **(a) exempt** →
-  `$0.7778 → $0.2121` · **(b) keep strict** · **(c) publish both**.
+## PARKED ON MARK — two one-word calls
 - **`D-30`** — enforce the harness↔`ai-check` version coupling how? **(a) schema-version JSON** ·
-  **(b) bind child to `os.Executable()`** · **(c) accept + spot-check**.
-- **`D-31`** — the designer rotation has ONE usable authoring lane (codex *is* quorum reviewer
-  `gpt5-6-sol`; gemini cannot author). Now instance **5**, and it cost a flagged overspend today.
-  **(a) split authoring/review lanes** · **(b) widen** · **(c) accept, stop flagging**.
-
-> The un-namespaced `design_docs/mission-dashboard.md` holds **Motoko's** snapshot — left untouched.
+  **(b) bind child to `os.Executable()`** · **(c) accept + spot-check**. Blocks the KPI split.
+- **`D-31`** — the designer rotation has ONE usable authoring lane (codex *is* a quorum reviewer;
+  gemini is read-only). **Widen it**, **split authoring from review**, or **accept the Fable cost**?
