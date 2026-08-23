@@ -17557,3 +17557,44 @@ recognisable rather than rediscovered. One queue row filed for the durable artif
 **Next**: iteration 262 executes `M1_EXTRACT_PROTOCOL_PACKAGE` from `1db206fe5`'s plan. The doc is
 frozen, the plan is baselined against the pristine tree, and `D-34` already pre-authorizes the
 v0.34.0 release ask once `#764` is green on `dev` — which is the delivery World actually consumes.
+
+---
+
+## 262 — 2026-08-24 — M1 implemented and controller-green; independent evaluation parked on lane capacity
+
+**Picked**: `#764` continuation, `M1_EXTRACT_PROTOCOL_PACKAGE`, as explicitly named by iteration
+261 and the queue's P1 cross-mission ordering.
+
+**Reality check**: `origin/dev` `71692d6f1` has 16 checks and zero not-green; CI and
+Build-and-Release are successful, Docs-Deploy is path-filtered N/A. No trusted directive, nightly
+regression, or attributable orphan PR preempted the pick. Sprint JSON validated with four real
+milestones and no placeholders. The implementation was independently re-checked by the controller:
+focused build, test, vet and golangci-lint all rc=0; `serveapi/protocol` has 188 dependencies,
+exactly one non-stdlib package and exactly one module root; 16/16 transitional declarations carry
+the M2 deletion marker.
+
+**Shipped**: local branch `sprint/iter262-serveapi-protocol-m1`, commit `07b9a843e` (non-closing
+`refs #764`). M1 code and sprint bookkeeping are complete, but the item is **PARKED-ON-LANE**:
+configured `sonnet` and fallback `fable` both refused on weekly quota (reset Mon 07:00 local), and
+the Google managed-agent fallback had valid ADC but refused because its required GCP project is
+unset. No PR, merge, tag or release was attempted; generator≠judge forbids a Codex evaluator.
+
+**Routing evidence**: model=`gpt-5.6-sol` task-class=execute round1-score=n/a rounds=1 corrections=0
+provider=codex agent=codex cost=quota-bucket:subscription; evaluator model=`sonnet`
+task-class=evaluate provider=anthropic status=failed-before-run cost=quota-bucket:weekly;
+fallback model=`gemini` provider=google status=failed-before-run (missing GCP project); metered=$0.00.
+
+**Ruled out**:
+- Treating controller gate re-runs as an independent evaluation — same controller/provider lineage
+  cannot satisfy generator≠judge.
+- Falling back to the Codex executor model for the judge — explicitly forbidden.
+- Filing `needs-human-review` — the blocker is capacity/configuration with a machine-checkable
+  resume predicate, not judgment.
+- Merging because focused gates are green — Gate 3 requires the independent evaluator first.
+
+**Retro lane**: none. `PARKED-ON-LANE` already describes this exact failure mode, including role,
+refusal result, and resume condition; no new recurring gap was found.
+
+**Next**: re-probe the distinct evaluator after Mon 07:00 local (or after Google project config is
+available), evaluate M1 from its committed evaluator worktree, then PASS→land or FAIL→bounded
+executor correction. Do not start M2 before M1 lands.

@@ -1,38 +1,26 @@
 # Mission Dashboard — V1
 
-*Snapshot, overwritten every iteration. History lives in `v1-mission.md` (STATUS) + `v1-mission-log.md`.*
+*Snapshot, overwritten every iteration. History lives in `v1-mission.md` and `v1-mission-log.md`.*
 
-**Iteration 261 · 2026-08-23 · dev green (16 checks, 0 not-green @ `98ec079ca`)**
+**Iteration 262 · 2026-08-24 · dev green (16 checks @ `71692d6f1`)**
 
 ## In flight
-- **`#764` protocol-only `serveapi` module — UNPARKED AND PLANNED.** Mark answered `D-35` with
-  **(a) PLAIN PACKAGE** (19:01Z on `#745`). Design doc frozen on that ruling the same iteration
-  (`9ce91ce50`); sprint plan + JSON landed (`1db206fe5`): 4 milestones, 875 est. LOC, 21 baseline
-  rows taken on the pristine tree. **Next iteration executes M1.**
-- Planner found **7 discrepancies** in the doc. One is blocking and was confirmed first-party:
-  the round-2 reviewer's *verbatim* CI-self-test fix (`zz_intruder_test.go`) is **vacuous** —
-  `go list -deps` does not enumerate test-only imports (measured 1 dep / 0 hits vs control
-  `-test` 209 / 1). Plan uses a non-test intruder plus an arm that pins the blind spot.
+- **`#764` M1 implemented, PARKED-ON-LANE.** Commit `07b9a843e` extracts the stdlib-only
+  `serveapi/protocol` package. Controller gates are green: build/test/vet/lint rc=0; closure is
+  exactly one non-stdlib package and one module root (188 packages total).
+- No PR or merge: the executor was Codex and generator≠judge forbids a Codex judge.
 
-## Next
-- **262: execute `M1_EXTRACT_PROTOCOL_PACKAGE`.** Then M2–M4, then the `#764` reply.
-- `D-34` pre-authorizes the **v0.34.0 release ask** once `#764` is green on `dev` — that tag is
-  the delivery Ailang World actually consumes (it pins releases, so merging alone does not reach it).
+## Resume predicate / next
+- Re-run the independent evaluator after Anthropic quota resets **Mon 07:00 local**, or configure
+  the Google managed-agent GCP project. PASS lands M1; FAIL returns a bounded correction round.
+- Only after M1 lands: execute M2–M4, reply on `#764`, then surface the pre-authorized v0.34.0 ask.
 
 ## Parked on Mark (3 open decisions)
-- **`D-30`** — harness↔`ai-check` version coupling before the `not_applicable` split: (a) versioned
-  JSON schema, (b) bind to `os.Executable()`, (c) accept the residual. Skew is live on this rig.
-- **`D-31`** — split the designer rotation into authoring vs review lanes, or widen it: 2 of 3
-  entries cannot author for structural reasons, so it collapses onto Fable every time (instance 7).
-- **`D-32`** — should an `inconclusive` verification obligation be exempted from the KPI arm, as
-  your `D-29` ruling exempts `not_applicable`?
+- `D-30`: harness↔`ai-check` version coupling.
+- `D-31`: split/widen designer authoring lanes.
+- `D-32`: effective-KPI treatment of `inconclusive` verification.
 
 ## Loop health
-- Routing: controller opus · planner **opus** (`fail-closed:planner-lane-field-missing`) · designer
-  rotation collapsed on Fable (see `D-31`) · executor codex · evaluator sonnet.
-- **Running-skill drift fired and was REPAIRED** under the ratified `D-16`: main checkout was 1
-  behind, so the loop was executing a rulebook missing one commit. ff-only, controls measured.
-- Two instrument findings recorded at instance 1 (below the ≥2 bar for a skill edit): quorum
-  artifacts are written to a **CWD-relative, gitignored** path, so Gate 2's own quorum check reads
-  zero for a four-times-reviewed doc; and a *verbatim* reviewer fix proved wrong under the carve-out.
-- Cost: metered **$0.00** of $5 this iteration. Quota: opus ×2.
+- Routing: controller Codex · executor `codex:gpt-5.6-sol` · evaluator `sonnet` unavailable;
+  Fable also quota-blocked; Google fallback lacks required project config.
+- Cost: metered **$0.00**. This is a capacity park, not a human decision.
