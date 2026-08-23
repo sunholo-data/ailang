@@ -17471,3 +17471,89 @@ If a second instance appears, the fix is a `mission_decisions.sh` check that gre
 `m-serveapi-protocol-only-module` straight to sprint-planner (the doc is planner-ready; only the
 packaging milestone changes under (b)). Unanswered → the next queue item is
 `m-verify-bounded-unrolling-false-counterexample`, which iteration 259 left `[NEXT]` and routable.
+
+---
+
+## 261 — 2026-08-23 — Iteration 261: Mark answered `D-35`, so `#764` unparked and planned — and the planner refuted a reviewer's *verbatim* fix, which is the one thing the narrow-refinement carve-out assumes cannot happen
+
+**Picked**: a **human directive**, which outranks the queue. `D-35 A` from `MarkEdmondson1234` at
+`2026-08-23T19:01:24Z` on bookkeeping issue `#745` — 1 directive of 73 comments, read by
+`scripts/mission_directives.sh` (the allowlist instrument fires). `D-35` was the *sole* axis parking
+the queue head `#764` (`m-serveapi-protocol-only-module`), so the answer unparks it and the pick
+follows automatically. Applied in the SAME iteration it was read, before the watermark moved, per
+the decision-recording contract.
+
+**Reality check**:
+- **The running-skill drift check fired for real.** `cmp` rc=**1** against the RESOLVED `readlink`
+  target (main checkout, inode **48267477**) — **332,323 B running vs 334,685 B on origin** — with
+  the pin worktree's own copy (inode **48425903**) at rc=**0** as the control that both proves the
+  instrument and proves the two are different files. Delta: exactly one commit, `98ec079ca`
+  (motoko iteration 20's `MISSION_WORKDIR` rule). Read before proceeding; it does not alter any
+  gate this iteration ran.
+- **Repaired rather than routed around**, under the ratified `D-16`: main checkout **0 ahead / 1
+  behind**, incoming ∩ dirty **EMPTY** (control: incoming ∩ itself = **5**), `merge --ff-only`
+  rc=0, the 6 rig-synced dirty files preserved, running skill re-checked byte-identical.
+- `origin/dev` `98ec079ca`: **16 checks, ZERO not-green**. Docs-Deploy last ran on `ad6d08050`,
+  path-filtered — N/A, not pending.
+- Died-mid-flight sweep clean. `#695` is the usual unattributable coordinator PR: `headRefName`
+  matches no worktree in this clone, so it is left alone and named again.
+- Blocked-external predicates re-run as commands (`#764`, `#662`, `#695`, `#513`, `#612`, `#676`
+  all OPEN, unchanged; control `#613` MERGED fires).
+- **A Gate-2 instrument defect, measured — instance 1.** The mandated quorum-artifact check returns
+  **ZERO** for a doc with **four reviews**: zero across every worktree in this clone (112 artifacts
+  exist, so the scan sees positives) and zero across a bounded `find` over three roots (control
+  pattern **5**). Mechanism measured, not guessed: `ArtifactDir = ".ailang/state/mission-quorum"`
+  (`internal/mission/quorum/artifact.go:14`) is **CWD-relative**, and `.ailang/` is gitignored
+  (`.gitignore:82`, `check-ignore` control fired), so the artifact lands wherever the iteration ran
+  and never travels. Under the pin-worktree regime a fully-reviewed doc reads as unreviewed, and
+  the literal Gate-2 response is to spend money re-quorum-ing it.
+
+**Shipped**: `9ce91ce50` — ledger `D-35` OPEN→RESOLVED with answer, timestamp, author and reading
+command; design doc frozen on **(a) PLAIN PACKAGE, no promise of transparent later conversion** via
+9 substitutions each asserted to match exactly once, all four Design-Freeze boxes checked; queue row
+0a PARKED→IN-SPRINT with its resume predicate recorded as discharged.
+`1db206fe5` — sprint plan (685 lines) + sprint JSON (`jq -e` rc=0, zero placeholders), 4 milestones,
+875 estimated LOC, 21 baseline rows. No executor, no evaluator: standing rule 1, and the deliverable
+was the unpark plus a reviewed plan.
+
+**Routing evidence**: controller model=`claude:claude-opus-5` (session) task-class=triage/record.
+planner model=**opus** task-class=plan — lane token `fail-closed:planner-lane-field-missing` copied
+VERBATIM from `tools/launchd/derive-planner-lane.sh`; the `opus ` prefix forbids a codex probe, and
+none was performed. No designer (the doc was already authored and four-times reviewed). No
+evaluator (nothing was executed). generator≠judge not engaged. metered **$0.00** of $5 — no quorum
+round, no codex, no OpenRouter; quota buckets: **opus ×2** (controller + planner).
+
+**Ruled out**:
+- That the missing quorum artifacts meant the quorum never ran — the doc's own log records both
+  rounds, and the mechanism is a relative path, not a missing call.
+- That the running-skill drift was benign to route around — repaired under a ratified
+  authorization, and the repair is what makes this iteration's rulebook current.
+- That `gen/main` contributes to the base `go build ./...` failure. The rc=1 is real, but
+  `test -d gen` → **ABSENT** (control `test -d cmd/wasm` → EXISTS), so `cmd/wasm` is the sole
+  cause. This charter and the shared skill have carried the two-cause claim since iteration 145.
+- **That a reviewer's fix is safe because it is verbatim.** See below — refuted by measurement.
+- That this iteration should also run the executor, or needed the GPU, the eval rig, a designer, or
+  any metered lane.
+
+**Key find — the planner refuted the round-2 reviewer's own `proposed_fix`, and the controller
+confirmed it first-party before recording it (rule 3h).** Iteration 260 applied `gemini-3-1-pro`'s
+CI-self-test fix VERBATIM under the narrow-refinement carve-out. That fix says inject
+`serveapi/protocol/zz_intruder_test.go`. Measured in an isolated throwaway module, two arms, exit
+codes captured without a pipe: `go list -deps ./p` → **1** dep / **0** `httptest` hits; same-call
+control `go list -deps -test ./p` → **209** deps / **1** hit; asserted to DIFFER. `go list -deps`
+does not enumerate test-only imports, so the self-test would have exited on its **own anti-vacuity
+floor before reaching the intruder logic** — failing for the wrong reason, which is exactly what
+that objection existed to prevent. **The carve-out's stated premise is that a reviewer-authored fix
+needs no controller judgment; here the reviewer's own fix was mechanically wrong in a way only a
+measurement catches.** Instance 1, recorded — a skill edit needs ≥2. The plan uses a non-test
+`zz_intruder.go` plus a 4th arm asserting the `_test.go` form stays green, so the blind spot becomes
+a decision rather than a hole.
+
+**Retro lane**: none — two findings recorded at **instance 1** each (the CWD-relative quorum-artifact
+path defeating Gate 2's own check; a verbatim reviewer fix being wrong under the carve-out), both
+below the ≥2-friction bar for a skill edit. Both are pre-registered here so instance 2 is
+recognisable rather than rediscovered. One queue row filed for the durable artifact-path fix.
+
+**Next**: iteration 262 executes `M1_EXTRACT_PROTOCOL_PACKAGE` from `1db206fe5`'s plan. The doc is
+frozen, the plan is baselined against the pristine tree, and `D-34` already pre-authorizes the
+v0.34.0 release ask once `#764` is green on `dev` — which is the delivery World actually consumes.

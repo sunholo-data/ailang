@@ -124,7 +124,7 @@ handlers move there) so the published facade keeps its exact surface.
   runtime).
 - Editing ailang-world. Its allowlist literal is its own reviewable event; this design only has to
   make that edit minimal (one line) and safe (stdlib-only closure).
-- Deciding the module-boundary question (see Decision row D-A — unresolved and, since round 2, **BLOCKING**; ledger `D-35`).
+- Deciding the module-boundary question (see Decision row D-A — **RESOLVED 2026-08-23 by Mark: option (a), plain package**; ledger `D-35` RESOLVED).
 
 ---
 
@@ -208,14 +208,14 @@ inflated:
 
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |----------|-----------------|-----------|----------|-------------|
-| D-A: module boundary — plain package vs nested Go module vs separate repo | Determines downstream MVS/go.sum shape, tag scheme, release process, **and whether a main-module-only consumer keeps resolving the package at all** | **human (Mark)** — unresolved, **BLOCKING**; ledger `D-35`; see row below | **before implementation begins** (round-2 quorum, applied verbatim) | med |
+| D-A: module boundary — plain package vs nested Go module vs separate repo | Determines downstream MVS/go.sum shape, tag scheme, release process, **and whether a main-module-only consumer keeps resolving the package at all** | **human (Mark)** — **RESOLVED 2026-08-23: (a) PLAIN PACKAGE** (directive `D-35 A` on `#745`); ledger `D-35` RESOLVED; see row below | resolved **before implementation began**, exactly as the round-2 quorum demanded | med |
 | Split line: MCP handler excluded from `protocol`, kept in `serveapi` | 8 of the SDK's 9 module roots fail World's gate (V11); including it would make the package fail its own reason for existing | agent (this doc) — measured, settled | design | high to reverse |
 | `CallbackRunner` + embedded A2A `http.Handler` routed to **`serveapi`**, not `protocol` (reverses the authoring pass) | They are operational machinery outside the issue's three named categories; everything in `protocol` is public API on a shipped seam — cheap to add later, expensive to remove | iteration-260 quorum (gpt5-6-sol objection) + issue #764's own wording; routing target chosen by agent, see below | design | low (both are stdlib-only, V8/V25 — they can move later without closure consequences) |
 | Wire-error taxonomy (`ErrCallbackCapacity`, `CallbackMessage`, `AuthorizationStatus`) stays in `protocol`'s envelope framing | These map errors to the **frozen wire strings** the envelope tests assert; a downstream handler-writer (World) needs them to speak the same dialect. Deliberately the maximal point of the re-scope — a reviewer striking them to `serveapi` costs the design nothing | agent (this doc) — flagged for review | design | low |
 | Back-compat mechanism: type aliases in `serveapi`, no deprecations | `serveapi` is published API (v0.33.0/v0.33.1); aliases keep source compatibility with zero consumer edits | agent (this doc) | design | low |
 | Wire-type single-definition: full server aliases `protocol`'s a2a types rather than keeping copies | Duplicate wire structs drift (the #603 envelope-labelling incident is the cautionary case) | agent (this doc) | design | low |
 
-### Proposed decision row D-A (unresolved — needs Mark)
+### Decision row D-A — **RESOLVED 2026-08-23 (Mark): option (a), plain package**
 
 **Question:** what module boundary should `serveapi/protocol` have?
 
@@ -233,8 +233,15 @@ inflated:
 - **(c) Separate repository.** Maximum isolation, maximum ops cost, drift risk against the server
   runtime. Not recommended.
 
-**DISPOSITION — AMENDED by the iteration-260 round-2 quorum (`gpt5-6-sol`), applied verbatim. This
-row is now BLOCKING.**
+**RESOLUTION — 2026-08-23, Mark: (a) PLAIN PACKAGE.** Directive `D-35 A` on bookkeeping issue
+`#745` at `2026-08-23T19:01:24Z`, author `MarkEdmondson1234`, read first-party by
+`scripts/mission_directives.sh` at iteration 261. `serveapi/protocol` ships as a **plain package
+owned by the main module**, with **no promise of transparent later conversion**. The design-freeze
+gate is satisfied and implementation may begin.
+
+**DISPOSITION — AMENDED by the iteration-260 round-2 quorum (`gpt5-6-sol`), applied verbatim.
+Retained below because it is the record of why this decision had to be surfaced at all; it was
+BLOCKING until the ruling above.**
 
 The paragraph that stood here claimed *"(a) → (b) is a later additive change with stable import
 paths, so this decision does not gate the sprint"*. That claim was **unverified and is not safe**.
@@ -256,10 +263,12 @@ Consequently:
 - **The claim is withdrawn, not repaired.** Nothing in this doc now asserts that (a) converts to
   (b) transparently. Option (a) ships **with no promise of transparent later conversion**; a future
   move to (b) is a breaking-change project with its own doc, not a footnote here.
-- **Implementation does not begin until Mark selects.** This is filed in the mission ledger as
-  **`D-35`** and the queue row is parked `needs-human-review` on this single axis. Everything else
-  in this doc is quorum-answered.
-- **If (b) is selected**, this doc must first gain: the `serveapi/protocol/vX.Y.Z` tag scheme, the
+- **RESOLVED — implementation may begin.** Mark selected **(a)** on 2026-08-23. Ledger **`D-35`**
+  is **RESOLVED** and the queue row is **unparked**. Everything else in this doc was already
+  quorum-answered, so nothing further gates the sprint plan.
+- **(b) was NOT selected**, so none of the following is owed by this sprint. It is retained as the
+  specification that any future (a)→(b) project must satisfy before it may proceed — that project
+  must first gain: the `serveapi/protocol/vX.Y.Z` tag scheme, the
   main module's `require` directive on the nested module, the release-workflow change, the CI
   matrix entry, and the reviewer's demanded verification row — *a temporary external consumer
   running `go mod tidy`, `go list -deps` and `go test` before and after the conversion, recording
@@ -279,10 +288,11 @@ Consequently:
 - [x] Contract-vs-machinery line (runner + A2A handler out of `protocol`, into `serveapi`) —
       settled by the iteration-260 quorum + issue wording; feasibility measured V8/V25
 - [x] Back-compat via aliases — settled below
-- [ ] **D-A module boundary — UNRESOLVED and BLOCKING (round-2 quorum, `gpt5-6-sol`, applied verbatim).**
-      Filed as ledger `D-35`. Implementation does not begin until Mark selects (a) or (b).
-      The previous "non-blocking" disposition rested on an unverified (a)→(b) migration claim,
-      now withdrawn.
+- [x] **D-A module boundary — RESOLVED 2026-08-23 (Mark): (a) PLAIN PACKAGE**, shipped with **no
+      promise of transparent later conversion**. Ledger `D-35` RESOLVED (directive `D-35 A` on
+      `#745`). The round-2 design-freeze gate is satisfied; implementation may begin. The
+      unverified (a)→(b) migration claim stays **withdrawn** — a future move to (b) is a
+      breaking-change project with its own doc and its own external-consumer verification row.
 
 ---
 
@@ -647,7 +657,7 @@ check FIRES; the addition mutant proves the enumerator LOOKS.
 | Hidden semantic coupling the compiler can't see (e.g. init-order, test doubles reaching into moved internals) | Low | V19/V20 sweeps found none outside the moved test set; moved tests byte-preserved as the oracle |
 | World's gate drifts before delivery (allowlist read at `48ef27518`) | Low | Design depends only on "stdlib-only passes any prefix-admitting allowlist"; #764 reply includes re-derived numbers |
 | Alias identity change breaks a reflection-based consumer | Low | No known consumer (V17, World pre-consumption); called out in CHANGELOG |
-| D-A resolved to (b) after shipping (a) | **Not mitigated — this is why D-A blocks.** | The mitigation that stood here ("import paths stable, only tagging changes") was the unverified claim round 2 struck. A post-hoc (a)→(b) move can stop a main-module-only consumer resolving the package. Choose before implementing. |
+| D-A resolved to (b) after shipping (a) | Low — **decision frozen before implementation** | Mark selected **(a)** on 2026-08-23, which is precisely what the round-2 gate demanded. (a) ships with **no promise of transparent later conversion**; the unverified "import paths stable, only tagging changes" mitigation stays **withdrawn**, so a post-hoc (a)→(b) move is a breaking-change project with its own doc and the reviewer's demanded external-consumer verification row. |
 
 ## Timeline
 
@@ -777,9 +787,16 @@ across four distinct surfaces**, not localising onto one consumer, and no review
 pass — so the signal is an immature document being repaired, **not** a scoping error calling for
 decomposition. Recorded so a later reader can tell the two apart.
 
-**Status leaving iteration 260:** every reviewer objection is answered. The doc is **parked
-`needs-human-review` on `D-35` alone** (module boundary). It is not parked on design direction, and
-it is not `PARKED-ON-LANE` — nothing here unblocks on a clock.
+**Status leaving iteration 260:** every reviewer objection is answered. The doc was **parked
+`needs-human-review` on `D-35` alone** (module boundary). It was not parked on design direction, and
+it was not `PARKED-ON-LANE` — nothing here unblocked on a clock.
+
+**Status entering iteration 261 — UNPARKED AND FROZEN.** Mark answered `D-35` with **(a)** at
+`2026-08-23T19:01:24Z` (directive on `#745`, author `MarkEdmondson1234`). The design-freeze gate the
+round-2 quorum demanded is satisfied, ledger `D-35` is **RESOLVED**, and the doc routes to a sprint
+plan. No reviewer objection remains open, and no reviewer disputed the design direction across four
+reviews. Note for the planner: this doc had **no** sprint plan when the ruling landed, so rule
+3b(vii)'s doc↔plan divergence hazard does not apply — the plan is authored against the frozen text.
 
 No reviewer claim was found wrong. One nuance held rather than conceded: the wire-error taxonomy
 (`ErrCallbackCapacity`, `CallbackMessage`, `AuthorizationStatus`) stays in `protocol` as part of
