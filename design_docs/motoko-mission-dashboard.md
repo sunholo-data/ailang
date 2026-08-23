@@ -1,36 +1,35 @@
 # Mission Dashboard — Motoko
 
-**Snapshot** (overwritten every iteration; history lives in the charter STATUS + log)
-Last iteration: **19** · 2026-08-23 · queue row **6c** LANDED
+*Snapshot, overwritten each iteration. History lives in the charter STATUS block and the mission log.*
 
-## Where we are
-- **Latest landing**: [`c1950750c`](https://github.com/sunholo-data/ailang/commit/c1950750c) (PR
-  [#831](https://github.com/sunholo-data/ailang/pull/831)) — the connection probe's self-test was
-  wired into CI for the first time, and two of the probe's own refusals were made able to refuse.
-  Evaluator **PASS 93/100, zero blocking**. Gate 3b green, observed.
-- **Probe self-test**: 8 arms → **34**, all mutation-proven, now running in
-  `make test-launchd-drivers` (`ci.yml:507`).
+**Last iteration**: 20 · 2026-08-23 · LANDED · evaluator PASS 90/100, zero blocking
+**Release**: AILANG v0.33.1
 
-## Next picks
-1. **6d** *(new)* — the declared `MISSION_WORKDIR` holds a rulebook 160 commits stale; decide
-   whether the `#558` pin root is canonical and say so, or bring the workdir current.
-2. **6** — **M2 (`AC-D1-live`) is still the resume point**. V38 is *not* isolated: the mechanism by
-   which the probe as shipped breaks the runs it observes is still unknown. It now has the driver
-   logs it needs, and isolating it **needs the rig** (`rig.lock`).
-3. **7** profile restoration · **8** repin the stale OpenRouter motoko models.
+## In flight / next
 
-## Blocked / parked
-- **Phase 0 CLOSED** on G1 alone: `arniwesth/motoko_agent#154` is `OPEN` (control: `#161` MERGED
-  with a non-null `mergedAt`). Rows **10/11/12** stay parked. G5 — Arni's ABI-settled declaration —
-  is a permanent human residual by design.
-- Rows **9** and **13/14** wait on a green tree / on 13 first.
-- Upstream `#165` OPEN, its fix `#166` OPEN against `main_dst`. Nothing local waits on either.
+| | |
+|---|---|
+| Just landed | row **6d** — PR [#838](https://github.com/sunholo-data/ailang/pull/838) → [`50460040c`](https://github.com/sunholo-data/ailang/commit/50460040c): a HELD driver pin now reports a drifting source clone, once per doubling |
+| Next pick | row **6e** — `test_motoko_connection_probe.sh` arm 33 hung a CI job 15m18s (re-run on a byte-identical tree: 88s success, so environment not code) |
+| Then | row **7** — profile restoration design |
+| Blocked on the rig | row **6** M2 — `AC-D1-live`, needs `rig.lock` and a GPU slot; V38 still not isolated |
+| Phase-0 gated | rows 10–12 — re-measured 2026-08-23: G1 `#154` OPEN (control `#175` MERGED), G2 rc=128 w/ control rc=0, G3 registry `latest=2.2.0`. **CLOSED.** G4's *substance* passes (V30–V32) |
 
 ## Loop health
-- Cadence 12h; runs from the `#558` driver pin root. Pin / `~/.claude` resolved target / origin
-  skill copies byte-identical three ways.
-- Routing: controller opus-5 · executor `codex:gpt-5.6-sol` · evaluator sonnet (own worktree).
-- **Metered $0.00 of $5.** No GPU this iteration.
+
+- Executing root: `~/.ailang-driver-pin/motoko` (pin worktree @ `origin/dev`, re-exec'd every fire).
+- Source clone `~/dev/sunholo-data/ailang-motoko`: **170 behind**, 7 uncommitted files (all superseded — 125 of 129 added lines byte-present on `origin/dev`). **Do not start a session there.**
+- Running skill == `origin/dev` (`cmp` rc=0, three ways: pin / `~/.claude` symlink target / origin).
+- dev CI green at pick time; one cancelled job on our own PR, diagnosed environmental and re-run green.
+
+## Routing
+
+controller `claude:claude-opus-5` · designer rotation unspent · planner `opus` (fail-closed) ·
+executor `codex:gpt-5.6-sol` · evaluator `sonnet`. **metered $0.00** this iteration (budget $5).
 
 ## Parked on Mark
-**Nothing.** Decision ledger: 4 rows, **0 OPEN**. 0 directives on `#743` since the watermark.
+
+- **`D-MOTOKO-WORKDIR-1`** — reconcile the source clone with `origin/dev`, discarding its 7
+  uncommitted files? One word: **yes** / **no**. Gate 1's reconcile obligation 2 fails by
+  construction and `pin-root.sh`'s own header says the first reconcile is human. Nothing is blocked
+  meanwhile: the pin holds every fire and the drift is now visible on the bookkeeping issue.
