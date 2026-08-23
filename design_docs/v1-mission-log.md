@@ -16856,3 +16856,146 @@ diverging (the one-way drift the Repo Profile warns about).
 instrument must prove it can see a positive; this is the mirror — an instrument matching *itself*.
 Cheap remedy: anchor the pattern (`vcs\.`) and never name a scratch directory after the token you
 are about to search for. Recorded, not acted on: one instance, and the bar is two.
+
+## 257 — 2026-08-23 — Iteration 257: five quorum rounds, five real defects, and the rejections have localised onto one consumer — so the lane is decomposition, not a sixth revision
+
+**Pick.** `m-cohort-manifest-build-provenance`, the `[NEXT]` critical-path head, resuming
+iteration 256's bounded unanimous round-3 resume. `m-contract-verification-coverage` stays parked
+on `D-30`; I re-read that predicate as a command rather than transcribing it — zero allowlisted
+directives since the `2026-08-22T11:36:26Z` watermark — so it is unchanged, measured today.
+
+**I re-derived V24 first-party before building on it (rule 3b(v)(b)), with a clean control arm.**
+In the genuinely dirty main checkout (`git status --porcelain` = 6 lines):
+`git describe --tags --always --dirty` → `v0.33.1-221-gad6d08050-dirty`, i.e. dirtiness on
+**`Version`**; `git rev-parse HEAD` → `ad6d08050b5f…`, a **plain SHA**. In the clean pin worktree
+the same two commands give `v0.33.1-221-gad6d08050` and the identical SHA. `version.go`'s `init()`,
+re-read this session, puts `-dirty` on **`Commit`** via `vcs.modified`, and `Version` has no runtime
+fallback at all. The two stamping paths dirty **different fields**; neither arm alone suffices.
+
+**Round 4 — the resume was applied and the quorum blocked on two holes it had not touched.**
+The designer applied both reviewers' verbatim widening
+(`CommitClean() := CommitKnown() && !HasSuffix(Commit,"-dirty") && !HasSuffix(Version,"-dirty")`),
+documented the `Version == "dev"` + clean-`Commit` case, and added mutation row 8b — which drops
+*only* the `Version` arm, because row 8's whole-branch mutant reds regardless of which arm selected
+the bypass and therefore could not discriminate the new one. Verdict **BLOCKED, 2/2 present,
+`absent_reviewers` empty** — a full-strength reject, not the degraded pass the N−1 rule warns about,
+and `present_count` was not satisfied by my own `--controller-verdict`.
+
+Both objections were about code paths round 4 never touched, in **different consumers**:
+
+| reviewer | objection | verdict |
+|---|---|---|
+| `gpt5-6-sol` | the M4 **freeze gate** refuses only *unstamped* builds, so a `-dirty` binary can freeze release evidence the manifest cannot reproduce | **REAL** |
+| `gemini-3-1-pro` | **AC-6**'s "cache dir stays empty" proves `Store` was bypassed but not `Lookup` — in a fresh dir a wrong Lookup simply misses | **REAL** |
+
+**I measured both premises rather than forwarding them (rule 3f), and both held.** M4's branches
+are named `RefusesUnstampedVersion`/`_RefusesUnstampedCommit` with AC-11 asserting the substring
+`unstamped` — knownness-only, and a `-dirty` value *is* known. And the live release-evidence
+artifact has exactly **20** top-level keys (`jq -r 'keys[]'`) with no source diff and no
+compiler-content identity; `cohort_hash` `526fe724…` is over cohort *composition*, which the
+designer then confirmed against `cmd/ailang/eval_suite_manifest.go:118-145` (preimage
+`{eval_mode, languages, conditions, models, benchmarks, seed, prompt_version, trials}`, its comment
+explicitly excluding `git_commit`/`ailang_version`).
+
+**The round-5 directive was the pattern, not the two patches.** Four blocked rounds had each found
+one class — *a gate or assertion whose satisfying-state set is wider than the purpose it is cited
+for* — in a different consumer: round 3 the cache gate, round 4a the freeze gate, round 4b an
+acceptance assertion. Patching the two named instances buys round 6. So I directed a systemic sweep
+(CLAUDE.md §3) of **every** gate and **every** AC against that single question, plus the sharper
+form for assertions: what else, other than the mechanism under test, could produce the value this
+observes?
+
+**The sweep found three too-wide items no reviewer had named**, and one of them is consequential:
+
+- **AC-9's unstamped arm** — "prefix + non-empty suffix" is satisfied by a *constant*
+  `unstamped-deadbeef`, which is the shared-bucket defect itself. The assertion could not fail for
+  the reason it claimed.
+- **AC-13** — "entry present in the changelog" was prose, not an assertion, and
+  `make check-changelog` is rc=0 on pristine dev before any entry exists.
+- **The new strict freeze gate would have opened a refusal loop with the doc's own M4 remediation
+  recipe**, which runs `git describe … --dirty` from a dirty tree and therefore re-fails the very
+  gate it exists to satisfy. That one was created *by this round's own fix* and would not have been
+  visible to anyone reading only the reviewers' objections.
+
+AC-6 now pre-populates the cache with a dummy keyed by the ambiguous identity, so Lookup bypass is
+proved rather than inferred; mutation row **8c** names both that it kills the Lookup-hoisting
+mutant and that the old empty-directory assertion does **not** — that contrast is what makes the
+strengthening non-decorative.
+
+**I also required the reviewer's alternative (b) to be deselected on a ground other than V22/V23.**
+Quoting the 215 ms full-executable hashing measurement — taken on the *compile hot path where
+caching is on by default* — against a *once-per-release* cohort freeze is a scope-mismatched
+citation, the error this mission files under 3b(ix). The designer deselected it instead on three
+stated grounds: a content address verifies bytes you have and cannot reconstruct bytes you do not;
+embedding an uncommitted diff is a leak surface; and it legitimises evidence dependent on
+un-versioned state.
+
+**The designer corrected me and was right** (Gate 2 rule (d)). My clean-worktree control arm was
+true when taken but no longer reproducible in place, because the pin worktree had become dirty
+**from this very doc edit**. V26 records the nuance rather than transcribing my numbers — an
+instrument invalidated by the act of using it, which is the same shape as iteration 256's
+`/tmp/i256_vcs/` self-match.
+
+**Round 5 — `gemini-3-1-pro` PASS, the first pass in five rounds; `gpt5-6-sol` reject**, again 2/2
+present. Its surviving objection is the same class one level deeper and is real: `CommitClean()` is
+still weaker than the cache-correctness purpose it gates, because **a clean commit identifies
+SOURCE state, not compiler bytes** — two clean builds at one commit can differ by Go toolchain,
+build tags, build flags or generated inputs and still share a module-cache key.
+
+**Measured, and it is PRE-EXISTING at HEAD rather than introduced by this doc.** `ModuleCacheKey`
+(`internal/pipeline/cache_key.go:37`) hashes exactly four things: `cacheKeyVersion` (`"v3"`, a
+hand-bumped constant), the `compilerVersion` string, the module source hash, and sorted dep digests.
+`runtime.Version()` appears **0** times in `internal/pipeline` against **4** repo-wide (control
+fires, so the instrument can see a positive); `cache_key.go` carries **0** build-tag/`GOFLAGS`/
+`gcflags` terms; a fresh negative-control literal returns **0**; the scope was asserted with
+`test -d`; and there is exactly **one** live call site, `pipeline_module.go:276`, passing
+`version.Commit`. So the doc's M2 strictly *narrows* today's accepted path and leaves a pre-existing
+residual unfixed — which is a defect on its own merits and is now its own queue row,
+`m-module-cache-identity-not-compiler-bytes`.
+
+**Routed — decomposition, not a sixth revision.** Five rounds, every objection real, and the
+surviving rejections have localised onto exactly one of the three consumers while the other reviewer
+now passes. That is a scope signal, not a quality signal: the doc bundles a release-evidence gate, a
+compiler-cache identity and a banking bucket under one shared cause, and "what identifies compiler
+bytes" is a strictly harder question than "what identifies release evidence". Consumer 2 splits out
+carrying `gpt5-6-sol`'s objection verbatim as its opening problem statement; M1/M3/M4 stay and
+re-quorum once as a reduced doc.
+
+**Not `needs-human-review`** — nothing here awaits Mark. The split is a controller routing call and
+the residual design question belongs to a designer plus a quorum, so filing it as a human park would
+manufacture a decision he does not have (standing rule 8). **Not `PARKED-ON-LANE`** — nothing
+unblocks on a clock.
+
+**Diet — 2 Fable runs, the second a knowing overspend, FLAGGED.** Iteration 255's amendment budgets
+one authoring run plus one protocol-mandated revision per doc per iteration; this doc was authored
+in iteration 256, so a strict reading gives me one revision and I ran two revise-and-re-quorum
+cycles. I judged the second worth it and record it as an overspend rather than claiming compliance:
+it is the difference between a doc carrying two known holes and a doc where one reviewer passes and
+three unnamed defects — including a refusal loop the new gate would itself have opened — are closed.
+`D-31` is the standing fix; this is instance **5** of the rotation's structural collapse onto Fable
+(codex `gpt-5.6-sol` IS one of the two quorum reviewers, so routing it makes a doc's author its own
+judge; gemini/managed_agents is read-only under `CapRemoteSandbox` and cannot author a file). Neither
+is a probe failure, so neither was probed.
+
+**Ruled out.** That the round-3 defect recurred — it is fixed and neither reviewer re-raised it.
+That round 4's objections were caused by round 4's edits — both are pre-existing, in consumers it
+never touched. That `gpt5-6-sol`'s round-5 objection is a defect this doc introduces — measured
+pre-existing, one call site, controls firing. That alternative (b) was refuted by V22/V23 — that
+measurement is about a hot path and a freeze is once-per-release, so the citation was
+scope-mismatched. That any round-4 decision was wrong — the sweep re-checked all of them and found
+none. That this needed Mark, the GPU, or any lane beyond quorum.
+
+**Routing evidence.** controller `claude:claude-opus-5` (session); designer **fable** ×2 via the
+Agent tool's explicit `model="fable"` pin, both accepted and both run to completion — corroborating
+iteration 238's correction that the old "`fable` is REJECTED" rule is stale; quorum reviewers
+`gpt5-6-sol` + `gemini-3-1-pro`, both present in both rounds. No planner, executor or evaluator
+spawned — the quorum blocked before routing, which is the gate working as designed.
+metered **$0.415105** of $5 (round 4 $0.182935 = $0.128195 + $0.054740; round 5 $0.232190 =
+$0.162900 + $0.069290); quota buckets: opus (controller), fable ×2.
+
+**Gates** (darwin/arm64): documentation only — no code shipped, so no CI matrix is implicated; the
+design doc and this record are the whole diff.
+
+**Next.** Split Consumer 2 out of `m-cohort-manifest-build-provenance` into
+`m-module-cache-identity-not-compiler-bytes`, leave M1/M3/M4 in the parent, and re-quorum the
+reduced doc once.
