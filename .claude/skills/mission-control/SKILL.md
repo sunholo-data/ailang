@@ -615,6 +615,49 @@ proceed". Filed as `#651` for the code fix; until it lands, the count that matte
 EXTERNAL reviewers**, and zero of them is a park, not a pass. The tell: you are about to route on a
 quorum and you have not read `absent_reviewers` — or you have read it, seen a name, and let the
 green verdict speak louder than the hole.
+**AND WHEN A DOC BLOCKS ROUND AFTER ROUND, TRACK *WHICH SURFACE* EACH ROUND'S OBJECTIONS LAND ON —
+BECAUSE EVERY RULE ABOVE TELLS YOU HOW TO ANSWER A BLOCKED QUORUM AND NONE TELLS YOU WHEN TO STOP
+ANSWERING IT** (added 2026-08-23 V1 iteration 257; instance 1 is iteration 256, whose rounds 2 and 3
+each blocked on a defect introduced by the previous round's fix, instance 2 is this iteration's
+rounds 4 and 5 on the same doc, which did it twice more). The quorum machinery above is complete on
+the question *"is this round's verdict trustworthy?"* — `absent_reviewers`, the external-present
+count, the narrow-refinement carve-out, force-passing. All of it is scoped to ONE round, and each
+round's disposition is *revise and re-quorum*. So a doc that blocks repeatedly has a rule for every
+individual round and no rule for the sequence, and the loop's own discipline — every objection is
+real, so answer it — is what keeps it revising. Note the trap is made of good behaviour: refusing to
+force-pass is correct, and it is also what makes the loop unable to stop.
+**The discriminating signal is not the round COUNT, it is where the objections LAND.** Objections
+spread across surfaces mean the doc is immature — keep revising. Objections that **localise onto one
+surface while another reviewer starts passing** mean the doc's *scope* is wrong: it bundles surfaces
+with different correctness bars, and the hardest one is holding the others hostage. That is a
+**decomposition** signal, and decomposition is a lane this skill already names ("the iteration's
+deliverable is DECOMPOSITION into sprint-sized design docs") — filed under multi-week strategic
+items, where a controller working a quorum will never look.
+Measured on V1's `m-cohort-manifest-build-provenance`, five rounds, every objection real: R1 three
+rejects across three surfaces; R2 and R3 on the controller's own cache predicate; **R4 on the freeze
+gate and an acceptance assertion — neither of which R4 had touched**; R5 `gemini-3-1-pro` **PASS**
+(first pass in five rounds) with `gpt5-6-sol` rejecting on the module-cache consumer alone. The doc
+bundles three consumers — release evidence, compiler-cache identity, banking bucket — under one
+shared cause, and *"what identifies compiler bytes"* is a strictly harder question than *"what
+identifies release evidence"*. Note also what the round-5 objection turned out to be: a
+**pre-existing** property of HEAD (`ModuleCacheKey` hashes a hand-bumped format constant, the commit,
+the source hash and dep digests — `runtime.Version()` **0** in `internal/pipeline` against **4**
+repo-wide, control firing), i.e. the doc was being blocked for not fixing something it never
+introduced. **A pre-existing defect surfaced by a reviewer is a QUEUE ROW, not a revision** — file it
+on its own first-party evidence and say so, rather than growing the doc until it can absorb it.
+**Rules. (a)** From round 3 on, record per round which surface/consumer each objection names — one
+line, in the doc's quorum log. **(b)** If the objections localise while any reviewer flips to pass,
+the disposition is **SPLIT**, not revise: carry the surviving objection verbatim into the new doc's
+opening problem statement, leave the reviewer-clean remainder in the parent, and re-quorum the
+reduced doc once. **(c)** Before answering any objection, ask whether the defect is one the doc
+INTRODUCES or one it merely fails to fix; measure it at HEAD (rule 3f) and route the second kind to
+the queue. **(d)** A split is a controller routing call — it is **not** `needs-human-review`, and
+filing it as one manufactures a decision the human does not have (standing rule 8). **(e)** Say the
+round count in the report: a doc past round 4 is data about this loop's scoping, not about that doc,
+and only the human can act on the pattern. Mission-independent — every mission on this rig runs the
+same quorum. The tell: you are about to write "apply the fix and re-quorum" for the third time, and
+each round's objections have been about a different part of the same document.
+
 A design doc's status header is a claim, not a fact (M-EVAL-BENCH-UI shipped fully while its doc
 said Planned for a month). **Also confirm the item is not ALREADY LANDED on origin** — check the
 `origin/dev` queue tag (`git show origin/dev:design_docs/v1-mission.md | grep`) and any merged PR
