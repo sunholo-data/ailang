@@ -2005,6 +2005,33 @@ Fable drain). Everything long-running or mechanical rides Opus. Do not "upgrade"
 hoc; that is a routing-policy change requiring the charter's evidence rule. (Resolves the iter-36/37
 inconsistency between this clause and the old "evaluator→sonnet unless ≥3 datapoints" rule.)
 
+**⚠ THE DIET'S UNIT IS ONE BOUNDED *DOC*, NOT ONE BOUNDED *RUN* — BECAUSE THE QUORUM PROTOCOL
+MANDATES A REVISION ON A BLOCK, SO A ONE-RUN CEILING IS UNSATISFIABLE BY CONSTRUCTION EXACTLY WHEN
+THE GATE FIRES** (amended 2026-08-23 V1 iteration 255 at the ≥3-evidence bar iteration 251
+pre-registered; instances are iterations 228, 229 and this one, each of which independently reached
+the same resolution and each of which recorded it as a VIOLATION). The clause above says "at most
+**ONE** BOUNDED sub-agent run per iteration — the **designer**". Gate 2 says a blocked doc gets a
+designer revision and then **one** re-quorum. Those two rules are jointly unsatisfiable whenever the
+usable authoring rotation has a single entry, which on this rig it does: `codex:gpt-5.6-sol` **is**
+one of the two default quorum reviewers (measured — `internal/mission/quorum/call_test.go` resolves
+`gpt5-6-sol` and `gemini-3-1-pro`), so routing it makes the doc's author its own judge, and
+gemini/managed_agents is read-only under `CapRemoteSandbox` and cannot author a file at all. Neither
+is a probe failure and neither clears by re-probing — do not spend a probe on a capability limit.
+**So the controller's only compliant options were to violate the diet or to abandon a doc a reviewer
+had just told it how to fix**, and three iterations have now picked the former and apologised for it.
+An apology repeated three times is a rule that is wrong, not a controller that is careless.
+**Rule.** The Fable budget is **one design DOC per iteration**: the initial authoring run plus **at
+most one** protocol-mandated revision run. That is a ceiling, not an allowance — a second revision,
+or a designer run for a second doc, is still an overspend and still FLAGGED. Say in the evidence row
+whether the revision fired and why, so the *rate* of blocked-round-1 docs stays visible; if that rate
+is high the problem is the designer directive, not the diet. **And do not read this as widening the
+rotation** — it does not. The rotation still has one usable authoring lane, which is a separate,
+now-3-instance defect whose fix is to split "authoring lanes" from "review lanes" (or widen the
+list) rather than to keep paying for the collision one iteration at a time; that change needs a human,
+because it is a routing-policy change on a shared file. Mission-independent: every mission on this rig
+reads the same rotation list and the same reviewer defaults. The tell: you are about to abandon or
+force-pass a doc whose reviewers gave you a concrete fix, and the only reason is a budget line.
+
 Spawn pattern (heavy roles): `Agent(subagent_type="general-purpose", model="<the role's env value>",
 prompt="invoke the <skill> for <doc>/<worktree> …")` — resolve the env value first via
 `echo $MISSION_EXECUTOR_MODEL`. These are in-session Agent-tool model **aliases**.
