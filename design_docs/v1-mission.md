@@ -376,7 +376,13 @@ invokes.
    programme. Delete this rule when the bar closes.
 1. Open **P0s** first (list above), oldest-known-risk first.
 2. **Unblockers** — items other queued items depend on (e.g. m-effect-row-poly-params blocks
-   sunholo/demos).
+   sunholo/demos). **CROSS-MISSION BLOCKERS RANK HERE (`D-31`, Mark attended 2026-08-23), and
+   they outrank rule 0's BAR-FIRST clause when a sibling mission's milestone is stopped by them.**
+   A sibling's dependency ask is an unblocker whose dependent lives in another repo, which is the
+   only reason it was invisible: it never appeared in this queue at all. Issues carrying the
+   `cross-mission` label are enumerated at Gate 0 and MAY NOT sit unrouted for more than one
+   weekly sweep. Measured at ruling time: **8 open**, and of the ten such asks ever filed, the
+   only two that ever carried labels (`#662`, `#656`) are the only two that were ever picked.
 3. **P1 by impact-per-day** (the census has estimates; prefer ≤3-day items to keep iterations
    sprint-sized).
 4. **Strategic multi-week items enter only after decomposition** into sprint-sized design docs
@@ -413,6 +419,40 @@ refuses as a directive principal — the charter stamp is the durable channel):
    ratified freeze item is knowingly NARROWED by this ruling. Resume `#698` part 1 M4 per its
    queue row.
 
+
+**RATIFIED (attended, 2026-08-23) — Mark's ruling on cross-mission interdependencies.**
+Recorded as a charter stamp for the same reason the 2026-08-14 block was: the session was steered
+by Mark in person but authenticated as the bot account, which `mission_directives.sh`'s
+self-direction guard rightly refuses as a directive principal.
+
+1. **`D-31`: cross-mission blockers are prioritized** — see ordering policy rule 2 above. The
+   `cross-mission` label was created and applied 2026-08-23 to the 8 open sibling asks
+   (`#764`, `#757`, `#756`, `#755`, `#715`, `#713`, `#712`, `#498`).
+2. **`#764` TO THE QUEUE HEAD as P1** — the row immediately below.
+3. **`D-32` — standing release decision: when `#764` lands, cut v0.34.0.** World consumes upstream
+   via **pinned releases only**, so merging the fix does not reach World; the tag is the delivery.
+   Surface it in the report's DECISIONS row once the fix is green on dev. `dev` was **224 commits**
+   ahead of `v0.33.1` (2026-08-13) at ruling time. Releases remain Mark's sole decision — this
+   ruling pre-authorizes the ASK, not the tag.
+
+**0a. [NEXT — P1, cross-mission blocker, `D-31`] `#764` — a protocol-only serveapi module**
+([`sunholo-data/ailang#764`](https://github.com/sunholo-data/ailang/issues/764)) · clause-6 ·
+**This is Ailang World's SOLE remaining blocker to its M4 — the value gate, and the first moment
+any agent can use World at all.** Chain, measured 2026-08-23:
+`#764` → world item 5 `w-mcp-projection` [BLOCKED] → world item 6 `w-agent-floor-m4` [PARKED]
+→ World DESIGN.md M4. World items 2, 3 and 4 are LANDED (M1 kernel, M2 daemon `ailang-worldd`,
+M3 effect broker), so item 5 is the only one of 2–5 still open.
+**THIS IS NOT `#498` RE-OPENED, AND THAT DISTINCTION IS THE WHOLE ROW.** `#498` Lane A and Lane B
+both landed and both SHIPPED — `f5ebcc0b5` in **v0.33.0**, `6166adab8` and `b8c038647` in
+**v0.33.1** — and World's charter records that prerequisite DISCHARGED on exactly that basis.
+`#764` was filed 2026-08-17, four days AFTER v0.33.1, when World imported the released seam and
+found it is an API seam but not a DEPENDENCY seam: importing it links **479 non-stdlib packages,
+304 of them cloud/telemetry**. So this is what shipping `#498` revealed, not a regression of it.
+**WHY IT SAT.** Filed with **0 labels and 0 comments**, it was invisible to every sweep for six
+days while this loop ran eleven iterations (245–256). The defect was the routing mechanism, not
+the priority call — `#498`'s equivalent row was raised P2→P1 by directive and *was* worked. Fixed
+structurally by `D-31` above rather than by this row alone.
+Ask: a protocol-only module that does not drag the cloud/telemetry dependency tree.
 
 **Required-for-v1 (the bar's critical path):**
 
