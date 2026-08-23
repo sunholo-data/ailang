@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-SERVEAPI-PROTOCOL-ONLY",
-  "status": "planned",
+  "status": "in_progress",
   "created": "2026-08-23T00:00:00Z",
   "design_doc": "design_docs/planned/m-serveapi-protocol-only-module.md",
   "sprint_plan": "design_docs/planned/m-serveapi-protocol-only-module-sprint-plan.md",
@@ -159,10 +159,10 @@
         "Every transitional entry in protocol_compat.go carries a `// TRANSITIONAL - deleted in M2` marker (checked mechanically in M2.6)",
         "STOP-AND-RE-MEASURE: if a symbol leaks that the B15 probe did not surface (e.g. a build-tagged file outside darwin/arm64), stop and re-measure. Any symbol added to `protocol` beyond the four-file spec is a scope change needing a recorded decision, not a silent widening."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-08-23T23:00:00Z",
+      "completed": "2026-08-23T23:09:00Z",
+      "notes": "TDD red first: go test ./serveapi/protocol failed on undefined CallerSurface, ValidateMCPName, WriteMCPEnvelope, A2AError, and SessionResolver. Green boundary: build/test/vet/lint rc=0; dependency enumeration 188 total, exactly 1 non-stdlib package (github.com/sunholo-data/ailang/serveapi/protocol), exactly 1 module root (github.com/sunholo-data/ailang). 16 transitional declarations and 16 markers. Windows scan: descriptor_test.go has no path assertions, external binaries, or golden/native line-ending comparisons. No serveapi/ file changed."
     },
     {
       "id": "M2_REWIRE_SERVEAPI_EVICT_MACHINERY",

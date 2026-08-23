@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"sync"
@@ -174,65 +173,8 @@ func (h *embeddedMCPHandler) serverForRequest(r *http.Request) *mcp.Server {
 	return server
 }
 
-func requestID(body []byte) json.RawMessage {
-	var request struct {
-		ID json.RawMessage `json:"id"`
-	}
-	if json.Unmarshal(body, &request) != nil || len(request.ID) == 0 || !json.Valid(request.ID) {
-		return json.RawMessage("null")
-	}
-	return append(json.RawMessage(nil), request.ID...)
-}
-
 func writeMCPCallbackError(w http.ResponseWriter, id json.RawMessage, err error) {
 	writeMCPEnvelope(w, id, callbackMessage(err))
-}
-
-func callbackMessage(err error) string {
-	switch {
-	case errors.Is(err, ErrCallbackCapacity):
-		return "host callback capacity exceeded"
-	case errors.Is(err, context.DeadlineExceeded):
-		return "host callback timed out"
-	case errors.Is(err, context.Canceled):
-		return "host callback canceled"
-	default:
-		return "host callback failed"
-	}
-}
-
-func writeMCPEnvelope(w http.ResponseWriter, id json.RawMessage, message string) {
-	if len(id) == 0 || !json.Valid(id) {
-		id = json.RawMessage("null")
-	}
-	w.Header().Set("Content-Type", "application/json")
-	// Same reasoning as the replay path: this envelope echoes a request-controlled `id`,
-	// so label it here rather than relying on encoding/json's HTML escaping staying on by
-	// default. Without this the two response paths out of this file disagree (#603).
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(struct {
-		JSONRPC string          `json:"jsonrpc"`
-		ID      json.RawMessage `json:"id"`
-		Error   struct {
-			Code    int    `json:"code"`
-			Message string `json:"message"`
-		} `json:"error"`
-	}{JSONRPC: "2.0", ID: id, Error: struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	}{Code: -32603, Message: message}})
-}
-
-func authorizationStatus(err error) int {
-	var statusError interface{ HTTPStatus() int }
-	if errors.As(err, &statusError) {
-		status := statusError.HTTPStatus()
-		if status == http.StatusUnauthorized || status == http.StatusForbidden {
-			return status
-		}
-	}
-	return 0
 }
 
 // mcpError creates an MCP tool error result shared by standalone and embedded servers.

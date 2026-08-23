@@ -408,6 +408,13 @@ from §3 with a known base result.
 
 ### M1 — extract `serveapi/protocol` (0.75 day, ~190 new/modified LOC + ~375 moved)
 
+**Completed 2026-08-23 (iteration 262).** TDD structural compilation failed first on the absent
+package surface, then passed after extraction. Boundary measurements: 188 total dependency
+packages; exactly one non-stdlib package (`github.com/sunholo-data/ailang/serveapi/protocol`);
+exactly one module root (`github.com/sunholo-data/ailang`). All seven M1 gates passed. The moved
+descriptor tests contain no filesystem paths, external binaries, or golden/native line-ending
+comparisons, so the Windows-portability scan found no risk. Transitional shim: 16 marked entries.
+
 `serveapi/` is **not touched** in M1. Only `internal/apiserver` is rewired, behind a shim.
 
 **Tasks**
