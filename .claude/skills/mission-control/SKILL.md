@@ -878,6 +878,37 @@ the Repo Profile above):
    about to trust — `go build -o /tmp/<dir>/ailang ./cmd/ailang` then
    `PATH="/tmp/<dir>:$PATH" make test` — rather than installing. It leaves `~/go/bin` untouched,
    so concurrent agents are undisturbed, and it reaches shell-outs a `bin/ailang` build cannot.
+   **⚠ CARRY THE LDFLAGS: A BARE `go build` IN A LINKED WORKTREE PRODUCES A BINARY THAT CANNOT SAY
+   WHAT IT IS, AND NOTHING WARNS YOU** (added 2026-08-23 V1 iteration 256; instance 1 is iteration
+   253, whose frozen cohort manifest recorded `ailang_version:"dev"`/`git_commit:"dev"` and said so
+   in its own STATUS stamp because *"the artifact could not record it"*; instance 2 is this
+   iteration, which measured the cause). This rule and Gate 3's worktree rule are each correct and
+   their **intersection** is the defect: Gate 3 says never build in the shared main tree, this
+   clause says never `make quick-install`, and Go's VCS stamping **does not work in a linked git
+   worktree** — so every binary this loop builds is stamped `"dev"`, by construction, forever.
+   Measured on V1, `go version -m`, dotted `vcs\.` pattern, control = total `build` settings:
+   pin worktree (detached) **0** vcs lines / 10 settings; the main checkout, a real `.git`
+   **directory**, **4** / 14 with a correct `-dirty` commit; a linked worktree **on a branch**
+   **0** / 10 — so it is the worktree, not the detached HEAD. And the obvious fix does not work:
+   `-buildvcs=true` in a worktree exits **rc=0**, produces the binary, emits **0** vcs lines and
+   **does not error**, so there is no failure to notice. Note `Version` has no runtime fallback at
+   all — only ldflags ever sets it — while `Commit` has a `debug.ReadBuildInfo()` fallback that the
+   worktree is precisely what disables.
+   **The remedy is one flag block and it is PROVEN, not argued** — executed in a linked worktree at
+   iteration 256: `VERSION=$(git describe --tags --always --dirty); COMMIT=$(git rev-parse HEAD);
+   go build -ldflags "-X <mod>/internal/version.Version=$VERSION -X <mod>/internal/version.Commit=$COMMIT"
+   -o /tmp/<dir>/ailang ./cmd/ailang` → rc=0, and `--version` prints both fields correctly, because
+   `git` is being asked rather than Go's build system. It does **not** restore `vcs.*` (still 0
+   lines, control 11 vs 10), which is fine — the consumers read the package vars — but do not expect
+   `go version -m` to show provenance on a remediated binary and conclude the remediation failed.
+   **Why it matters beyond tidiness:** on V1 three consumers silently accept the `"dev"` — the frozen
+   release-evidence manifest whose stated purpose is independent recomputation, the module cache's
+   *compiler-identity* component (so a compiler bugfix does not invalidate cache), and the
+   `--bank-by-version` output bucket (so results from different builds pool). Mission-independent:
+   any mission whose driver or sprint work runs from a worktree builds unidentifiable binaries, and
+   under `ailang-code` the same axis is a lockfile-pinned artifact. The tell: you are about to quote
+   a binary's provenance, or bank an artifact that records one, and the build command you ran was a
+   bare `go build`.
    **(b)** Before attributing ANY test red to the diff, run the same command in both arms —
    stale PATH and fresh — and require the exit codes to DIFFER (rule 3d, aimed at a red you did
    not predict). Identical codes mean it is the code; differing codes mean it was the
