@@ -16570,3 +16570,115 @@ recollection as a "recorded friction" is precisely the laundering Gate 2 rule (d
 **watch-item, instance 1, bar is two.** If a second lands, the edit belongs in Gate 2's rule-3
 family, one clause: *before a bucket's SIZE becomes a lever, partition it by cause and check the
 plurality class is the one your conclusion is about.*
+
+## 255 — 2026-08-23 — Iteration 255: the quorum caught a milestone order that would have shipped the banned D-29 flip, then a deployment-skew hole that commit order cannot close
+
+**Pick.** `m-contract-verification-coverage`, the bar-first `[NEXT]` queue head under `D-28`,
+scoped deliberately to the half that is correct **regardless of `D-29`**: split the verifier's
+conflated `skipped` into `skipped` + `not_applicable`, and preserve today's KPI semantics
+**exactly** by making both observatory predicates read `VerifySkipped + VerifyNotApplicable`. The
+`D-29` predicate flip — the part that would move the published headline $0.7778 → $0.2121 — stayed
+out of scope throughout, with mutation `M-8` designed as a tripwire against it landing by accident.
+
+**Gate 0/1.** Kill switch armed; billing tripwire **CLEAN**; gh `sunholo-voight-kampff`. Pin
+worktree clean, detached at `30176187f` = `origin/dev`. Running skill **byte-identical** to
+`origin/dev`, `cmp` against the RESOLVED `readlink` target (main checkout, inode 47681680) — not
+the pin's own copy (47736012). `origin/dev`: **16 checks, ZERO not-green**. Zero allowlisted
+directives on `#745` since the `2026-08-22T11:36:26Z` watermark (65 comments). Ledger **29 rows,
+`D-29` OPEN** at entry. No rotation (created 08:14 CEST Mon 08-17, after the 07:00 LOCAL boundary;
+65 < 80). Sweep not owed; zero open `[nightly-eval]` issues; inbox empty. Blocked-external
+predicates re-run as commands: `#662` OPEN/1, `#695` OPEN, `#513` OPEN — unchanged, control `#613`
+MERGED fires.
+
+**Main checkout reconciled under the ratified `D-16`.** It was **0 ahead / 2 behind**; incoming ∩
+dirty was **empty** (control: incoming ∩ itself = 3); `git merge --ff-only origin/dev` rc=0; all
+three dirty tracked files **byte-identical by sha256** afterwards. Main is now 0/0, so the running
+skill is current rather than drifting another iteration.
+
+**The designer rotation collapsed onto Fable for STRUCTURAL reasons — this is instance 3, so
+iteration 251's ≥3-evidence bar for a routing-policy change is now MET.** The pointer's next entry
+is `codex:gpt-5.6-sol`, which I confirmed first-party **is** one of the two quorum reviewers
+(`internal/mission/quorum/call_test.go` resolves `gpt5-6-sol` and `gemini-3-1-pro`) — routing it
+would have had the doc judged by its own author, on a revision answering that reviewer's own
+objection. The entry after it, gemini/managed_agents, is read-only under `CapRemoteSandbox` and
+cannot author a file at all. Neither is a probe failure; neither clears by re-probing (the codex
+probe was in fact **rc=0**). I then spent a **second** Fable run on the revision — a knowing diet
+overspend, **FLAGGED**, per the 228/229 precedent that re-quorum independence outranks the diet.
+
+**Round 1 — BLOCKED, 2/2 external reviewers present.** `absent_reviewers` was **empty**, so this
+was a full-strength reject and not the degraded `proceed` iteration 175's rule warns about; the
+external present count was **2**, not satisfied by my own `--controller-verdict`. Both reviewers
+independently named the **same** defect: the milestone order was **writer-before-reader**, so
+between the emitter split and the harness field the `not_applicable` count is dropped outright,
+and between the harness and the predicate the observatory reads a shrunken `VerifySkipped` —
+landing the prohibited `D-29` behaviour for exactly those rows.
+
+**I measured the objection's premise rather than forwarding it (rule 3f).**
+`AICheckVerifyResult` (`internal/eval_harness/verify.go:36-42`) has **exactly five** fields —
+`Available`, `Verified`, `Counterexample`, `Skipped`, `Errors` — with no `not_applicable` and no
+`results[]`. The silent drop is real. Both verbatim `proposed_fix`es were applied: the order
+reversed to reader-before-writer (M1 the entire read path including both predicate sums while the
+emitters are untouched, so every intermediate state is behaviour-identical **by construction** —
+no writer exists to make `VerifyNotApplicable` non-zero — and M2 the sole writer change), plus
+`gpt5-6-sol`'s end-to-end banking test as `AC-8`, which forced promoting the three previously
+**unkilled** banking struct literals into unit-callable constructors.
+
+**Round 2 — `gemini-3-1-pro` PASS, `gpt5-6-sol` REJECT**, on the one residual the doc had named
+honestly and mitigated only by convention, and which my round-2 controller note had explicitly
+asked the reviewers to attack. **The surviving objection is real, and measuring it made it worse
+than stated.** `RunAICheck` defaults `ailangPath` to the bare string `"ailang"`, resolved through
+**PATH** by `exec.Command`, and **2 of 2** live non-test call sites pass `""` (`repair.go:76`,
+`verify.go:123`; control `PopulateVerifyMetrics` = 2, negative control 0). So the parent harness
+and its verifier child are independently versioned, and reader-before-writer *commit* order cannot
+buy reader-before-writer *deployment*. **The skew is live on this rig at this moment**: PATH
+`ailang` is `v0.33.1-211-g626f5e54b-dirty` against a parent at `v0.33.1-216-g30176187f`.
+
+**Parked as `D-30` rather than force-passed.** The narrow-refinement carve-out requires a fix that
+needs no controller judgment; choosing among (a) a new versioned JSON wire contract, (b) rebinding
+`RunAICheck` to `os.Executable()` — one line, **9** in-repo precedents, but it silently changes how
+*every* eval run resolves its verifier and collides with this loop's own mandated
+scratch-build-and-prepend-PATH rule — and (c) accepting a P0 data-integrity residual, is judgment
+(standing rule 2). This is a **judgment** park, not `PARKED-ON-LANE`: nothing here unblocks on a
+clock. Note the coupling is a **pre-existing** property of HEAD that the split would merely make
+consequential, so it is worth a ruling whichever way `D-29` goes.
+
+**The designer found two consumers my own 10-site propagation list missed, both confirmed
+first-party.** A shared `cmd/ailang/verify_filter.go` skip-emission site (**7** sites total, not 6
+— `ai_check.go` 3, `verify.go` 3, `verify_filter.go` 1; negative control 0), and `verify.go:457`
+`if *strictFlag && (skipped > 0 || errCount > 0)`, i.e. `ailang verify --strict` currently fails on
+no-ensures skips and must include `not_applicable` to stay behaviour-identical. That is the *guard
+the helper, miss the call site* shape aimed at my own hand-built list — a sub-agent correcting the
+controller is the loop working (Gate 2 rule (d)), not noise.
+
+**Instruments.** Every gate handed downstream was baselined first (rule 3e(a) / codex false-green
+#4), rc captured without a pipe: the three scoped `go build`s, `go vet`, `check-changelog`,
+`check-file-sizes`, `check-boundaries` all **rc=0**, `gofmt -l` **0** lines — and **`go build ./...`
+is rc=1 on pristine dev**, so it was banned from every criterion. AC-5 was baselined too, which is
+what makes it non-vacuous: the live KPI command returns rc=0 with
+`cost_per_verified_success_usd = 0.7778187071999999`, 3 verified successes, 26 verification
+failures, 30 runs. And I re-derived the `-run` vacuous-pass fact first-party instead of
+transcribing iteration 252's: in `internal/observatory`, `-run 'TestZzNoSuchTestIter255'` → rc=0,
+**0** `=== RUN` lines, against control `-run '^TestCostPerVerifiedSuccess'` → rc=0, **16** —
+identical exit codes.
+
+**Ruled out.** That the quorum's `proceed`-with-absent-reviewers hole applied (empty both rounds).
+That the surviving objection was a premise I could refute (measured; it is worse than stated). That
+the narrow-refinement carve-out covered it (its fix is a wire protocol or a repo-wide resolution
+change, not a bounded reviewer-specified defect). That a design doc already existed (grep with
+firing control, negative control 0). That codex or gemini could have served as designer
+(structural, not probe). That this needed the GPU or any metered lane beyond the quorum.
+
+**Routing evidence.** controller `claude:claude-opus-5` (session) · designer
+`claude:claude-fable-5` ×2 (create + revise; rotation collapsed structurally, diet overspend
+FLAGGED) · quorum `gpt5-6-sol` + `gemini-3-1-pro`, 2 rounds, both full-strength (absent=[]) ·
+**no planner, no executor, no evaluator** — the quorum blocked before routing, which is the gate
+working as designed. metered **$0.195955** of $5 (R1 $0.084946 = $0.06008 + $0.024866; R2
+$0.111009 = $0.077765 + $0.033244); quota buckets opus, fable ×2.
+
+**Outcome.** `m-contract-verification-coverage` **PARKED needs-human-review on `D-30`** with a
+730-line reviewed design doc banked and two decisions now open for Mark (`D-29` on the predicate,
+`D-30` on the version coupling). No code shipped.
+
+**Next.** `D-30` and `D-29` both gate this row. Ungated bar-first alternatives for the next
+iteration, in order: `m-cohort-manifest-build-provenance` (small, blocks a publishable clause-5
+baseline) then `m-run-selector-enumeration-floor` (world-DEMAND sweep, ~0.5–1d).
