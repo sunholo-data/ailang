@@ -1877,3 +1877,178 @@ runs*. They were broken, not missing, so they belong here rather than in the rul
 
 **Next**: row **6c** + the V38 isolation, together — keep the driver logs, isolate why the probe's
 shipped path makes its lanes exit 1, and add a self-test arm per live-path branch. Then row 7.
+
+---
+
+## 19 — 2026-08-23 — the self-test row 6c called under-covering was running nowhere, and the coverage gap was hiding a soundness defect
+
+**Pick.** Queue head, row **6c** — iteration 18's evaluator finding B2. Not already landed:
+`git log origin/dev --grep` returns only iteration 18's own record for the probe, **0** merged PRs
+matching, and the row's `[NEXT]` tag is fresh. Died-mid-flight sweep: **0** open PRs attributable to
+this mission (`#695` has no branch in this clone's `git worktree list` — mine are 5, all motoko —
+so it is not mine and was left alone), and the one uncommitted residue found is superseded, not
+unfinished (row 6d). No new design doc and no quorum: this is a bounded remediation of the artifact
+milestone M2 of `m-motoko-fmt-remeasurement-instrument` shipped, and that doc's quorum is spent.
+No planner: the sprint plan does not cover 6c and the row specifies its own scope, so the executor
+directive is controller-authored — which is exactly why its gate list was baselined first.
+
+**The row understated itself, twice, and verifying it rather than inheriting it is what found both.**
+
+**(i) It was not a weak gate. It was not a gate.** Row 6c says the self-test covers the four
+`assert_*` front doors "and NOTHING in its live path". True. What nobody had asked is whether the
+suite runs at all. Measured with a same-scope firing control:
+
+| query | result |
+|---|---|
+| `grep -rl test_motoko_connection_probe make/ .github/workflows/` | **0** files |
+| `grep -rl test_fmt_ab_schedule make/ .github/workflows/` (control) | **1** (`make/test.mk:43`) |
+| repo-wide, `*.mk` / `*.yml` / `Makefile` | **0** |
+
+So every arm iteration 18 wrote — including the IPv6 leak arm it added as a *gate* — had never
+executed outside the iteration that wrote it. Wired into `test-launchd-drivers` under an explicit
+`/bin/bash` (the rig's is **3.2.57**), and proven by making the self-test exit 1 and watching the
+target go rc=2, then restoring byte-identically.
+
+**(ii) The coverage gap was hiding a defect that could certify falsely in both directions.** Two
+arms each, exit codes captured without a pipe and printed beside each other:
+
+- `instrument_failure` does `exit 1`. Called from inside a command substitution it exits only the
+  **subshell**: repro rc=**0**, control (identical call outside `$( )`) rc=**1**.
+  `descendant_pids`'s process-tree deadline was exactly that shape, so on expiry `pids` became `""`
+  and the probe carried on.
+- `lsof -nP -iTCP -sTCP:ESTABLISHED -a -p ""` returns **75** lines, rc=0, **empty stderr** —
+  byte-for-byte the count of the same query with no `-p` at all (**75**). Control: the same shape
+  with a real pid holding no established TCP returns **0** lines, rc=1.
+
+**An empty scope argument does not narrow a query — it removes the scope.** Chained, an instrument
+whose entire job is to certify *no OpenRouter connections* would have sampled every established
+connection on the machine, then either passed on another process's `127.0.0.1:11434` or failed the
+treatment lane on an unrelated process's OpenRouter peer. Silently, behind `2>/dev/null || true`.
+`descendant_pids` now reports through a status the caller checks, and every lsof scope is asserted
+to be a non-empty comma-separated pid list before use — an empty scope fails loudly.
+
+**Row 6c's named next step, done.** The `trap … EXIT` no longer discards both lanes' driver logs and
+lsof captures. Retention runs *from* the trap, so it fires on the **refusing** path — the case the
+log exists for — and a failed copy is itself an instrument failure. The evaluator confirmed under a
+real `SIGTERM` that retention fires and the 143 is not masked.
+
+**Coverage.** Re-derived at pick time: 17 `instrument_failure` call sites + 6 `usage` refusals =
+**23** branches, of which the suite reached **4**. Iteration 18's B2 demonstration reproduced
+first-party: neutering the darwin/arm64 gate with `if false && …` (mutant LANDED by sha256, VALID by
+`bash -n`) leaves stdout **byte-identical at `PASS: 8`**, rc=0 both arms. Now **34** arms, live path
+driven hermetically through a stub `AILANG_BIN` and a pruned `PATH` — no eval run, GPU, ollama or
+network call anywhere in the suite.
+
+**The executor self-reported four unproven arms, which is better evidence than a silent run.** Its
+mutation batch had been contaminated by a concurrent process mutating the shared probe, and it said
+so unprompted rather than reporting the table as clean. Re-proved **sequentially** by the
+controller: `dig` / `lsof` / `jq` each rc **0 → 1**, each dying on its **own named message**, plus a
+`pgrep` control that also reds. Note what the executor's own tightening bought — those three die
+with *"lacked expected message"*, not *"unexpectedly succeeded"*: a later gate refuses too, so the
+**coarse assertion would have passed**. Rule 3i's "what else writes this value", met inside the
+executor's output.
+
+**A defect of my own, in the harness written to close this row.** Isolating the fourth flagged arm
+needed a mutant that keeps retention on the success path and drops it on the refusing one — the
+exact "reachable only on the success path" defect the directive named. It killed the suite (rc
+**0 → 1**, sole failure `refusal lost treatment.driver.log`) and the success arm stayed green, so
+the isolation worked. But the suite printed **`ok 29 - refusing live path still retains both lanes
+diagnostics` first**. That `expect_failure` arm observes only that the probe refuses with the
+control-void message; the retention assertion is a loop **outside any arm**. The gate had teeth and
+the *label* did not — a reader counting arms would have believed retention was verified while the
+mutant was live. Both arms renamed to what they observe, each retention loop given its own
+`pass_arm`; under the same mutant the named arm no longer prints ok (grep count **0**).
+
+**Evaluator: PASS 93/100, ZERO blocking** (sonnet, in **its own worktree** — it mutated source, as a
+good judge should, including adding a synthetic refusal branch). It was pointed at my own repair as
+a named target precisely because nobody else had reviewed it. All three non-blocking findings
+reproduced by command before being acted on — a NON-BLOCKING label is the judge's opinion of
+severity, not a measurement — and all three closed in this iteration:
+
+1. **The *real* wall-clock deadline was never exercised.** Arm 25 reached `descendant_pids`'s
+   refusal only through the `PROBE_TEST_DESCENDANT_FAILURE` short-circuit at the top of the
+   function. The `PROBE_TEST_PGREP_LOOP` stub written to drive the in-loop `date` check — it makes
+   the process tree self-referential so the queue never empties — was **defined and never used**
+   (grep returns the definition and nothing else). Now arm 33, proven by mutating that branch's
+   `return 1` → `return 0`: rc **0 → 1**, the arm dies by name, and it falls through to
+   `assert_pid_scope` — defence in depth demonstrated rather than assumed.
+2. **No gate against refusal-branch drift.** Reproduced: adding a 24th `instrument_failure` leaves
+   the suite byte-identical at `PASS: 32`, rc=0, shellcheck rc=0. Every other arm proves a branch
+   that *exists* reds when neutered — **a removal proves the check FIRES; only an addition proves it
+   LOOKS** (rule 3a(i-e)). Arm 34 counts the branches (18 + 5 = 23) and refuses when the number
+   moves, with an anti-vacuity floor so a counter matching nothing reports INSTRUMENT FAILURE rather
+   than a clean result. Proven by re-running the 24th-branch mutant: rc **0 → 1**,
+   `refusal-branch drift: probe has 24 refusal branches`.
+3. **`PROBE_TEST_FORCE_TREATMENT` was inert residue** — 1 hit in the suite, **0** in the probe
+   (control: `PROBE_TIMEOUT_SECS`, 3 hits). The refusal it suggested is produced by passing the same
+   lane name twice. Removed.
+
+**What this does NOT do, stated rather than implied. V38 is not isolated.** The mechanism by which
+the probe as shipped breaks the runs it observes still lies in the deadline-carrying
+`descendant_pids` or the two-lanes-in-one-process sequencing, and isolating it needs the rig. The
+two defects fixed here are live *candidates* and are not claimed as the mechanism. What changed is
+that the next rig run will have the driver logs — which was this row's own named next step.
+
+**Routing evidence.** Controller `claude:claude-opus-5` (session). Executor
+`codex:gpt-5.6-sol` — probe rc=0, replied `ok`, 13.6k tokens; run backgrounded under a 30-min
+`date +%s` cap, `--sandbox workspace-write`, directive `/tmp/codex_directive_iter19.txt` (10,798 B,
+≥200 B delivery assertion passed), stdin closed, four `.snap/M<k>/` snapshots delivered.
+Evaluator **sonnet**, own worktree, distinct provider from the executor so generator≠judge holds.
+**FLAGGED**: my own arm-label repair is Anthropic-authored and judged by an Anthropic evaluator —
+same provider, different model — and was named to the judge as a target for that reason. No planner,
+no designer, no quorum (reasons under **Pick**). Rotation pointer untouched at
+`claude:claude-fable-5`. **Metered $0.00 of $5** — codex and sonnet are both quota buckets. No GPU,
+no `rig.lock`: every arm added is hermetic by construction.
+
+**Reconstruction proven faithful, not assumed.** The executor's final tree was sha256-manifested
+before any commit was built; after replaying `.snap/M1` → `M4`, `shasum -c` returned **OK on all
+four files**. M2 and M3 are byte-identical snapshots — the executor declared them combined and said
+so unprompted — so they land as one commit with the reason stated rather than as a false bisection.
+M1 was verified independently green at its own boundary (`PASS: 8` through the newly wired target).
+
+**Gates.** Baselined on the unmodified tree **before the directive was written** (recipe false-green
+(4)): all seven rc=0. `go build ./...` deliberately excluded — red at base (`cmd/wasm` has no native
+`main`). Final sweep by the controller **outside** the executor sandbox, all rc=0: `bash -n` ×2 ·
+`/bin/bash` self-test (**PASS: 34**) · `shellcheck -S warning` · `make test-launchd-drivers` ·
+`check-file-sizes` · `check-changelog` · `check-skills` · `test-check-changelog`. darwin/arm64 only;
+windows and ubuntu legs unrun locally and read from Gate 3b's matrix (rule 3b(viii)).
+
+**Gate 3b GREEN, observed not predicted.** Head `7de24f03c`: **21** checks, **0** pending, **0**
+not-green, **4/4** required contexts (`build`/`docs-gate`/`lint`/`test`) pass,
+`mergeStateStatus=CLEAN`, then squash-merged as
+[`c1950750c`](https://github.com/sunholo-data/ailang/commit/c1950750c). `mergeable` was read FIRST
+per the iteration-198 rule and stayed `MERGEABLE` throughout, so no dropped-event lever was reached
+for. Autoclose scan on all five commit messages, the PR title and body, and this record's STATUS
+stamp: **0** hits, with a known-bad control string matching **1**.
+
+**Ruled out.**
+- *That the "coverage gap" was only a coverage gap.* Refuted by measurement: two refusal branches
+  could not refuse, and one of them removes the query's scope rather than narrowing it.
+- *That the executor's mutation table could be banked as delivered.* It could not, and it said so
+  itself. Three arms re-proved sequentially; the contamination was concurrency, not the arms.
+- *That the stale `~/dev/sunholo-data/ailang-motoko` residue is died-mid-flight work to adopt.* It
+  is not: both untracked files exist on `origin/dev` (`scripts/mission_decisions.sh` byte-identically,
+  `tools/launchd/test_mission_routing.sh` in a larger upstream form), and the checkout has been
+  dormant since 2026-08-15. Filed as row **6d** for what it *is* — a stale rulebook at a documented
+  path — not as work to inherit.
+- *My own first mutation attempt.* The `perl s///` carried an unescaped `/` from an interpolated
+  shell variable, so the substitution never ran; the LANDED-by-sha256 assertion caught it and
+  printed *"MUTANT DID NOT LAND — result meaningless"* instead of a survived-mutant conclusion. The
+  assertion exists for exactly this and it earned its keep on the controller's own instrument.
+- *That Phase 0 might have moved.* Re-read as a command with a control: `#154` `state=OPEN`,
+  `mergedAt=-`; control `#161` **MERGED** with a non-null `mergedAt`. Phase 0 stays CLOSED on G1
+  alone, so **no G3 verdict is claimed** — the registry probe returned empty, and an empty probe is
+  a claim, not a fact.
+
+**Gate 5 — NO skill edit.** This iteration's two frictions are instances of rules the skill already
+has: a refusal that cannot refuse is 3j's *a guard is not a gate until something reds when you
+remove it*, and an arm whose label outran its observable is 3i's *which write does this read*. They
+were broken, not missing. The one genuinely **new** shape — *an empty scope argument silently
+WIDENS a query instead of narrowing it, so the instrument returns a confident, specific, wrong
+answer with rc=0 and empty stderr* — is recorded here as **instance 1** and pre-registered rather
+than written into the rulebook on a single datapoint. It is close to 3a(i-d)'s scope trap but not
+the same: there, a bad scope returns **zero** and reads as absence; here a bad scope returns
+**everything** and reads as presence. If a second instance arrives, the bar is met.
+
+**Next**: row **6d** (the stale rulebook at the declared `MISSION_WORKDIR`), then row **6**'s M2 —
+which now needs a rig slot and, for the first time, will have the driver logs to isolate V38 with.
