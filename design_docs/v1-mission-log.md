@@ -16835,3 +16835,24 @@ left `[NEXT]` rather than parked on a human. `D-31` filed. No code shipped.
 `Version=="dev"` + clean-`Commit` case, add the two test arms both reviewers specified, re-quorum
 once, then route to sprint-planner. If it clears, the ungated bar-first queue continues with
 `m-run-selector-enumeration-floor`.
+
+**Retro (Gate 5) — ONE skill fix, two recorded frictions on the same gap.** Verification-protocol
+rule 1(a) mandates a scratch `go build` so `~/go/bin` is not clobbered for concurrent agents; Gate
+3 mandates a worktree so the shared main tree is not stomped. Both rules are right, and **their
+intersection is the defect measured above**: Go does not stamp VCS info in a linked worktree, so
+every binary this loop builds is `"dev"`, by construction, forever — and `-buildvcs=true` exits 0
+without stamping and without erroring, so nothing warns you. Instance 1 is iteration 253, whose
+frozen cohort manifest recorded `ailang_version:"dev"`/`git_commit:"dev"` and whose STATUS stamp
+had to carry the build SHA *"because the artifact could not record it"*; instance 2 is this
+iteration, which measured the cause. Rule 1(a) now carries the Makefile's own ldflags — a remedy
+**proven by execution**, not argued. It is the *guard the helper, miss the call site* shape aimed
+at two of this file's own rules at once: neither is wrong alone, and nobody had composed them.
+Landed in the same PR as this record, so origin and the running copy converge at merge rather than
+diverging (the one-way drift the Repo Profile warns about).
+
+**Watch-item, instance 1 — a scratch path you choose becomes part of your own grep corpus.** My
+`grep -c 'vcs'` returned 1 on an arm with zero VCS settings, because the binary lived in
+`/tmp/i256_vcs/` and `go version -m` prints the path it was given. Rule 3a already says an
+instrument must prove it can see a positive; this is the mirror — an instrument matching *itself*.
+Cheap remedy: anchor the pattern (`vcs\.`) and never name a scratch directory after the token you
+are about to search for. Recorded, not acted on: one instance, and the bar is two.
