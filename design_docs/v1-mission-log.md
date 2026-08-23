@@ -16999,3 +16999,113 @@ design doc and this record are the whole diff.
 **Next.** Split Consumer 2 out of `m-cohort-manifest-build-provenance` into
 `m-module-cache-identity-not-compiler-bytes`, leave M1/M3/M4 in the parent, and re-quorum the
 reduced doc once.
+
+## 258 — 2026-08-23 — Iteration 258: Mark ruled `D-29`, and scoping his second clause uncovered a verifier defect that grades correct recursive code as a verification failure
+
+**Pick.** A **human directive**, which outranks the queue.
+`scripts/mission_directives.sh --issue 745 --since 2026-08-22T11:36:26Z` returned exactly **1**
+allowlisted comment: MarkEdmondson1234 @ `2026-08-23T08:30:56Z`, verbatim —
+*"D-29 - both but update prompts to use ensures for benchmarks that make sense"*.
+The queue head (`m-cohort-manifest-build-provenance`, re-scoped to decomposition at iteration 257)
+was not taken; it is untouched and stays `[NEXT]`.
+
+**`D-29` RESOLVED in the ledger the same iteration, before the watermark moved.** Ledger still
+validates at 31 rows. The ruling is option **(c)** — publish a **strict** arm (today's
+`VerifySkipped == 0` predicate, **$0.7778**, denominator 3) beside an **effective** arm (exempting
+`not_applicable`, **$0.2121**, denominator 11). Neither replaces the other, so the 2026-07-27
+ratification is not overturned and no published number is silently restated. Both arms need the
+`skipped`/`not_applicable` split, so the publishing milestone lands **inside**
+`m-contract-verification-coverage` and inherits its `D-30` block; `D-29` now blocks nothing on its
+own, and that row's `**BLOCKED ON D-29**` paragraph was updated to say so. `D-30` and `D-31` were
+re-asked verbatim and remain OPEN — I did not infer either from adjacent work.
+
+**I enumerated the second clause rather than guessing at "makes sense".** `contract_spec` appears in
+**7 of 92** benchmark YAMLs (`test -d benchmarks` asserted; control — 92 total `.yml`). Their
+declared functions partition exactly three ways, with no residue:
+
+| class | count | members |
+|---|---|---|
+| carries `ensures` | **16** | `size`, `isLeapYear`, `daysInMonth`, `identityDet`, `zeroRowDet`, `insertPreservesBST`, `insertThenFind`, `roundtrip`×2, `singleCharEncode`, `distinctEncoding`, `sLength`, `mergePreservesSorted`, `inclusionExclusion`, `sanitizeBody`, `safeForward` |
+| **no clauses at all** (raises no obligation) | **10** | `insert`, `contains`, `det2`, `det3`, `fromRoman`, `sInsert`, `sMerge`, `sIntersect`, `isSorted`, `toStr` |
+| **`requires`, no `ensures`** | **5** | `isBST`, `minor3`, `encode`, `decode`, `toRoman` |
+
+The third class is **precisely** `D-29`'s named five, so the "no ensures clause" skip population now
+has a clean syntactic definition it did not have before.
+
+**And the enumeration corrected the charter's own inherited claim (rule 3b(v)(b)).** The `D-29` row
+said *"`minor3` carries no clauses at all"*. It carries
+`requires { row >= 0, row <= 2, col >= 0, col <= 2 }` at
+`benchmarks/contract_matrix_determinant.yml:24`, and `git log` shows that file unchanged since
+`fe92c172f` (2026-04-21) — so the claim was wrong when written, not stale. Corrected in place, and
+the correction *strengthens* the finding: the class is uniform.
+
+**The finding that changes the work: an added `ensures` on a recursive function is not neutral — it
+is graded a spurious `counterexample`, which is strictly worse than the `not_applicable` it
+replaces.** All measurements used a **stamped** scratch build
+(`go build -ldflags "-X …Version=… -X …Commit=…"` per iteration 256's rule;
+`ailang --version` → `v0.33.1-222-g9417c5ff7` = `git describe`, so the instrument is identifiable),
+with `~/go/bin` untouched.
+
+Same file, same clause, only recursion differs:
+
+| function | body | `requires`/`ensures` | verdict |
+|---|---|---|---|
+| `encFlat` | non-recursive | `length(result) <= 2 * length(s)` | **verified** |
+| `encRec` | recursive | *byte-identical* | **counterexample** |
+
+The postcondition genuinely holds — `ailang run --caps IO` prints `true` for all four inputs
+including a 6-char string — so the counterexample is spurious.
+
+**It is structural, not a depth-tuning matter. The "counterexample" input grows with the bound:**
+
+| `-verify-recursive-depth` | `encRec` | witness | `encFlat` control |
+|---|---|---|---|
+| 2 | counterexample | `"AAA"` (3 chars, `bounded_depth 2`) | verified |
+| 4 | counterexample | `"ABDCA"` (5) | verified |
+| 8 | counterexample | `"ABCDEFGHAB"` (10) | verified |
+
+For any finite `k`, Z3 instantiates the havoc'd frontier with an input longer than `k`. A second
+shape — `ensures { result >= 0 }` on a recursive ADT length — is counterexampled identically at
+depths 2/4/8, its "witness" a 4-element list whose length is plainly non-negative. **And
+`benchmarks/contract_sorted_merge.yml:23-24` ships exactly that clause on `sLength` today**, so this
+is live for the frozen cohort rather than hypothetical.
+
+**Encodability of the clause *language* is not the blocker.** A three-function probe put string-length
+postconditions on `encode`-, `decode`- and `toRoman`-shaped signatures: **verified 4, skipped 0**,
+with an arithmetic control (`controlDouble`) verifying in the same call. A third arm — an `ensures`
+that *calls a user function* — returns `skipped` with a structured
+`UNENCODABLE_TYPE` reason naming the callee, which is the **correct** disposition and shows the
+machinery to report incompleteness honestly already exists in the same binary.
+
+**Routed as two queue rows, not one sprint.**
+
+- `m-verify-bounded-unrolling-false-counterexample` (**AILANG fix, P0**). `isVerifiedSuccess` fails
+  on `VerifyCounterex > 0`, so this turns correct model output into a *verification failure* in
+  **both** arms `D-29` just ratified — a direction no exemption can repair. Same no-silent-fallback
+  class (CLAUDE.md §2) as the `skipped`/`not_applicable` conflation: an unprovable-under-unrolling
+  obligation must report `skipped`/`unknown` with a reason, never a `counterexample`.
+- `m-benchmark-ensures-coverage` (Mark's second clause, **scoped by the measurement**). Only
+  `minor3` is non-recursive and therefore safely addable today; the other four would be spuriously
+  counterexampled. `encode` is simultaneously the strongest candidate on merit —
+  `contract_rle_roundtrip.yml` states *"encoded string is never longer than 2 * length(original)"*
+  in its own prose and ships no `ensures` for it — and the clearest casualty.
+
+**Ruled out.** That Mark's clause could be executed as written this iteration (4 of 5 candidates
+would make the KPI worse, so executing it literally would have shipped a regression while appearing
+to comply). That the counterexample was my implementation's fault (runtime confirms the contract
+holds; the identical clause verifies non-recursively **in the same file and the same run**). That
+raising `-verify-recursive-depth` is a workaround (2/4/8 all fail and the witness grows with the
+bound). That the clause language is unencodable (three shapes verified, control firing). That
+`D-29`'s resolution unblocks `m-contract-verification-coverage` (it does not — `D-30` is the sole
+blocker, and its predicate was re-read as a command, not transcribed). That this needed a designer,
+planner, executor, evaluator, the GPU, or any metered lane.
+
+**Gates** (darwin/arm64; windows and ubuntu legs unrun locally). Documentation only — no code
+shipped, so no CI matrix is implicated. The single binary built was the scratch stamped build above,
+and it is the instrument every measurement rests on.
+
+**Routing evidence.** controller `claude:claude-opus-5` (session, `$CONTROLLER_ID`); designer —
+**none spawned** (no new design doc; the deliverable is a ruling recorded and a scope measured);
+planner/executor/evaluator — **none spawned**. Designer-rotation pointer
+`~/.ailang/state/mission-v1-designer-rotation` read (`claude:claude-fable-5`) and **not advanced**,
+since no designer ran. metered **$0.00** of $5; quota buckets: opus (controller) only.
