@@ -67,6 +67,7 @@ if [ "$MISSION_NAME" = "v1" ]; then
   EXEC_ONCE_FILE="$STATE_DIR/mission-executor-model-once"
   GH_ISSUE_FILE="$STATE_DIR/mission-gh-issue"
   BLOCKED_FILE="$STATE_DIR/mission-control.blocked"
+  PIN_DRIFT_FILE="$STATE_DIR/mission-control.pin-drift"
   MSG_FROM="mission-control"
 else
   LOG="/tmp/ailang-mission-${MISSION_NAME}.log"
@@ -77,6 +78,7 @@ else
   EXEC_ONCE_FILE="$STATE_DIR/mission-${MISSION_NAME}-executor-model-once"
   GH_ISSUE_FILE="$STATE_DIR/mission-${MISSION_NAME}-gh-issue"
   BLOCKED_FILE="$STATE_DIR/mission-${MISSION_NAME}.blocked"
+  PIN_DRIFT_FILE="$STATE_DIR/mission-${MISSION_NAME}.pin-drift"
   MSG_FROM="mission-${MISSION_NAME}"
 fi
 # -----------------------------------------------------------------------------
@@ -359,7 +361,9 @@ else
   PIN_DRIFT="?"
   PIN_NOTE="$REPO/tools/launchd/lib/pin-root.sh is absent — this clone predates the driver pin (#558)"
 fi
+# --- DRIVER PIN DECISION START ---
 _pin_degraded=""
+_pin_drift_degraded=""
 if [ "$PIN_STATUS" = "STALE" ]; then
   # Deliberately NOT fatal: aborting would make network/git availability a hard dependency of
   # every fire, trading rare silent staleness for common loud outage. Loud instead of fatal.
@@ -368,7 +372,44 @@ if [ "$PIN_STATUS" = "STALE" ]; then
 - driver pin: **FAILED** — \`$PIN_NOTE\`. This fire ran \`$REPO\` at \`$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null)\` ($(git -C "$REPO" rev-list --count HEAD..origin/dev 2>/dev/null || echo '?') behind \`origin/dev\`), so any landed driver/skill/charter fix newer than that commit was NOT in effect."
 else
   log "driver pin: $PIN_NOTE"
+  if [ "$PIN_STATUS" = "pinned" ]; then
+    case "$PIN_DRIFT" in
+      ''|*[!0-9]*)
+        log "driver pin drift: unknown ($PIN_DRIFT); notice suppressed"
+        ;;
+      *)
+        _pin_drift_warn="${AILANG_DRIVER_DRIFT_WARN:-25}"
+        if [ "$PIN_DRIFT" -lt "$_pin_drift_warn" ]; then
+          rm -f "$PIN_DRIFT_FILE"
+          log "driver pin drift: $PIN_DRIFT below warning threshold $_pin_drift_warn; notice re-armed"
+        else
+          _pin_drift_previous=""
+          [ -r "$PIN_DRIFT_FILE" ] && _pin_drift_previous="$(head -1 "$PIN_DRIFT_FILE" 2>/dev/null)"
+          case "$_pin_drift_previous" in
+            ''|*[!0-9]*) _pin_drift_emit=1 ;;
+            *)
+              if [ "$PIN_DRIFT" -ge $((_pin_drift_previous * 2)) ]; then
+                _pin_drift_emit=1
+              else
+                _pin_drift_emit=0
+              fi
+              ;;
+          esac
+          if [ "$_pin_drift_emit" -eq 1 ]; then
+            _pin_drift_degraded="$PIN_DRIFT"
+            printf '%s\n' "$PIN_DRIFT" > "$PIN_DRIFT_FILE"
+            log "driver pin drift: $PIN_DRIFT at/above threshold $_pin_drift_warn; notice armed (previous=${_pin_drift_previous:-none})"
+          else
+            log "driver pin drift: $PIN_DRIFT at/above threshold $_pin_drift_warn; deduped until doubling from $_pin_drift_previous"
+          fi
+        fi
+        ;;
+    esac
+  else
+    log "driver pin drift: skipped (status=$PIN_STATUS)"
+  fi
 fi
+# --- DRIVER PIN DECISION END ---
 
 # designer default is the claude-CLI lane (claude:<full-id>), NOT the bare "fable" alias: the
 # Agent tool pins only sonnet|opus|haiku (F1, iteration 31), so under an opus-first controller a
@@ -670,9 +711,9 @@ fi
 
 # DRIVER-PIN NOTICE — same site and same reasoning as the lane notice above: after every early
 # exit, so a fire that does not run cannot post. Emitted only when the pin actually FAILED, i.e.
-# only when stale code really did run. The shared clone being behind is not itself reportable —
-# once drivers pin, that drift is harmless, and posting it every 90 minutes would train the
-# channel to be ignored, which is how the original silent fallback survived twelve commits.
+# only when stale code really did run. Source-clone drift is reported separately below because it
+# is hazardous to interactive sessions; a persisted doubling threshold replaces posting it every
+# 90 minutes, which would train the channel to be ignored.
 if [ -n "$_pin_degraded" ]; then
   _pin_body="**Driver ran UNPINNED on this fire** — recorded before the iteration ran.
 ${_pin_degraded}
@@ -682,6 +723,21 @@ unknown. Fix: reconcile that clone with \`origin/dev\`, or find why the fetch fa
 every fire silently runs whatever that working tree happens to hold — the class \`#558\` tracks,
 measured twice (2026-08-03 \`#556\`, 2026-08-12 \`564cc4640\`)."
   _mc_notify "Mission ${MISSION_NAME}: driver ran UNPINNED (code provenance unknown)" "$_pin_body" "driver-pin"
+fi
+
+if [ -n "$_pin_drift_degraded" ]; then
+  _pin_drift_body="**Pinned driver held, but the source clone drifted** — this fire ran correctly pinned.
+
+Source clone: \`${AILANG_DRIVER_SRC:-$REPO}\`. Drift: **${_pin_drift_degraded} commits behind** \`origin/dev\`.
+The hazard is an interactive session started in that clone: it resolves that clone's own
+\`.claude/skills/\` and \`design_docs/\`, not the pinned driver's copies. Fix: reconcile
+\`${AILANG_DRIVER_SRC:-$REPO}\` with \`origin/dev\`. This notice repeats only when the measured
+drift doubles.
+
+\`\$REPO\` is NOT the path to reconcile: pin-root.sh exports MISSION_WORKDIR=<pin worktree> before
+re-execing, and REPO is derived from it, so on the pinned pass REPO names the throwaway worktree —
+whose drift is 0 by construction. AILANG_DRIVER_SRC is the source clone."
+  _mc_notify "Mission ${MISSION_NAME}: pinned source clone drifted (${_pin_drift_degraded} behind)" "$_pin_drift_body" "pin-drift"
 fi
 
 log "=== mission iteration starting (controller=$CONTROLLER_ID via ${MODEL_WHY}, timeout=${HARD_TIMEOUT}s | bg-wait-ceiling=${CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS}ms | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL) ==="
