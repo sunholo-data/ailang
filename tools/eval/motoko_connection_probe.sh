@@ -138,7 +138,36 @@ else
 fi
 
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/motoko-connection-probe.XXXXXX") || instrument_failure "could not create temporary directory"
-trap 'rm -rf "$tmp_dir"' EXIT
+treatment_driver_log="$tmp_dir/treatment.driver.log"
+treatment_lsof="$tmp_dir/treatment.lsof"
+control_driver_log="$tmp_dir/control.driver.log"
+control_lsof="$tmp_dir/control.lsof"
+
+retain_diagnostics() {
+  local failed=0 src dest
+  for src in "$treatment_driver_log" "$treatment_lsof" "$control_driver_log" "$control_lsof"; do
+    [[ -e "$src" ]] || continue
+    dest="$artifact.${src##*/}"
+    if cp "$src" "$dest"; then
+      echo "retained connection probe diagnostic: $dest" >&2
+    else
+      echo "INSTRUMENT FAILURE: could not retain diagnostic: $dest" >&2
+      failed=1
+    fi
+  done
+  return "$failed"
+}
+
+cleanup() {
+  local original_rc=$? retention_rc=0
+  retain_diagnostics || retention_rc=$?
+  rm -rf "$tmp_dir"
+  if (( retention_rc != 0 )); then
+    exit 1
+  fi
+  exit "$original_rc"
+}
+trap cleanup EXIT
 or_file="$tmp_dir/or_ips"
 { dig +short +time=5 +tries=2 A openrouter.ai; dig +short +time=5 +tries=2 AAAA openrouter.ai; } |
   awk '/^([0-9]{1,3}\.){3}[0-9]{1,3}$/ || /:/' | LC_ALL=C sort -u > "$or_file"
@@ -147,8 +176,15 @@ or_file="$tmp_dir/or_ips"
 descendant_pids() {
   local root=$1 deadline=$2 current child
   local -a queue=("$root") result=()
+  if [[ "${PROBE_TEST_DESCENDANT_FAILURE:-0}" == 1 ]]; then
+    echo "process-tree discovery deadline expired" >&2
+    return 1
+  fi
   while ((${#queue[@]} > 0)); do
-    (( $(date +%s) <= deadline )) || instrument_failure "process-tree discovery deadline expired"
+    if (( $(date +%s) > deadline )); then
+      echo "process-tree discovery deadline expired" >&2
+      return 1
+    fi
     current=${queue[0]}
     queue=("${queue[@]:1}")
     result+=("$current")
@@ -160,9 +196,21 @@ descendant_pids() {
   printf '%s\n' "${result[*]}"
 }
 
+assert_pid_scope() {
+  local pids=$1
+  [[ "$pids" =~ ^[0-9]+(,[0-9]+)*$ ]] || instrument_failure "invalid empty or malformed pid scope: ${pids:-<empty>}"
+}
+
 sample_tree() {
   local root=$1 raw_file=$2 deadline=$3 pids
-  pids=$(descendant_pids "$root" "$deadline")
+  if [[ -n "${PROBE_TEST_PID_SCOPE+x}" ]]; then
+    pids=$PROBE_TEST_PID_SCOPE
+  else
+    if ! pids=$(descendant_pids "$root" "$deadline"); then
+      instrument_failure "process-tree discovery failed"
+    fi
+  fi
+  assert_pid_scope "$pids"
   lsof -nP -iTCP -sTCP:ESTABLISHED -a -p "$pids" 2>/dev/null >> "$raw_file" || true
 }
 
@@ -205,11 +253,11 @@ run_lane() {
 probe_start=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 treatment_peers="$tmp_dir/treatment.peers"
 control_peers="$tmp_dir/control.peers"
-run_lane "$treatment_lane" "$treatment_peers" "$tmp_dir/treatment.lsof" "$tmp_dir/treatment.driver.log"
+run_lane "$treatment_lane" "$treatment_peers" "$treatment_lsof" "$treatment_driver_log"
 treatment_start=$lane_start
 treatment_end=$lane_end
 treatment_rc=$lane_rc
-run_lane "$control_lane" "$control_peers" "$tmp_dir/control.lsof" "$tmp_dir/control.driver.log"
+run_lane "$control_lane" "$control_peers" "$control_lsof" "$control_driver_log"
 control_start=$lane_start
 control_end=$lane_end
 control_rc=$lane_rc
