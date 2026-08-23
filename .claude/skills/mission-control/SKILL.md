@@ -111,6 +111,31 @@ improvement loop, since retro fixes must benefit all missions). What differs per
 - **The mission doc's charter header** — a `## Repo Profile` block (single source of truth,
   versioned with the mission): repo slug, bookkeeping-issue state key, the CI workflow names Gate 3b
   polls, and the **verify profile** name.
+- **⚠ `MISSION_WORKDIR` MEANS TWO DIFFERENT DIRECTORIES BEFORE AND AFTER THE PIN RE-EXEC, AND EVERY
+  GATE THAT READS IT RUNS *AFTER* — SO THE ENV FILE'S LITERAL IS NEVER WHAT EXECUTES** (added
+  2026-08-23 motoko iteration 20; instance 1 is V1 iteration 241's `readlink` rule immediately
+  above, which is this same "which copy runs?" question aimed at the SKILL path, instance 2 is this
+  iteration's own `$REPO` defect one layer down). `tools/launchd/lib/pin-root.sh` re-execs each
+  driver out of a worktree pinned to `origin/dev` and, deliberately, **exports
+  `MISSION_WORKDIR=<pin worktree>` before the `exec`** so the charter and skill move with the
+  script. The mission env file's `MISSION_WORKDIR=<source clone>` is therefore a *pre-pin default*,
+  read once and overwritten — while the charter's Repo Profile, the plists and every human's mental
+  model still say "working checkout". Measured from a live pinned session:
+  `MISSION_WORKDIR=~/.ailang-driver-pin/motoko` beside
+  `AILANG_DRIVER_SRC=~/dev/sunholo-data/ailang-motoko`, the latter **170 commits behind** with a
+  `SKILL.md` 1,063 lines short. **Two consequences.** (a) Any notice, log line or record you build
+  from `$MISSION_WORKDIR` (or from a `$0`-relative `REPO` derived from it) on the post-exec pass
+  names the **throwaway worktree**, whose drift is `0` by construction — so a staleness report built
+  that way is not merely wrong, it is *self-refuting*, and it reads as a clean bill of health. Use
+  `AILANG_DRIVER_SRC` for the clone and `MISSION_WORKDIR` for what ran. (b) A checkout the charter
+  names but nothing executes drifts **without bound and without symptom**: the pin succeeds every
+  fire, so the failure path that reports staleness never fires, and the growth sits on the success
+  path in a log nobody reads (measured: 119 → 132 → 144 → 159 → 170 over five fires before anyone
+  looked). Mission-independent — every mission on this rig is pinned this way — and the
+  generalisation is the one iteration 241 already earned, aimed at a variable instead of a symlink:
+  **a path is a claim about where you were standing when it was set, not about which tree is
+  running.** The tell: you are about to name a checkout in a record or a notice, and the variable
+  you are interpolating was set by something other than the code that is executing now.
 
 Wherever a gate below shows a literal `sunholo-data/ailang`, `design_docs/v1-mission.md`, or `329`,
 that literal is the **V1 default** — use `$MISSION_REPO` / `$MISSION_DOC` /

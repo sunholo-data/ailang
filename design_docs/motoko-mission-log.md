@@ -2052,3 +2052,142 @@ the same: there, a bad scope returns **zero** and reads as absence; here a bad s
 
 **Next**: row **6d** (the stale rulebook at the declared `MISSION_WORKDIR`), then row **6**'s M2 —
 which now needs a rig slot and, for the first time, will have the driver logs to isolate V38 with.
+
+---
+
+## 20 — 2026-08-23 — the clone went 170 commits stale because a comment said that was harmless, and half of the comment was right
+
+**Pick.** Queue head, row **6d**. Not already landed: `origin/dev`'s charter still carried the
+`[NEXT]` tag at pick time, `gh pr list --search "workdir in:title" --state merged` returned `[]`,
+and no direct-to-dev commit matched. Died-mid-flight sweep: one open PR on this account, `#695`
+(`coordinator/task-d98bb271`) — **not attributable to this mission**, since no branch of that name
+appears in this clone's `git worktree list` (mine are 5, all motoko) — left alone, per the rule that
+an unattributable PR is not yours. Four stale sprint worktrees from iterations 6–9 remain and hold
+nothing new. No new design doc, so no designer and no quorum: this is mission-infra with a
+first-party measured defect. No planner: `derive-planner-lane.sh` returns `opus
+fail-closed:planner-lane-field-missing`, and the row specifies its own scope, so the executor
+directive is controller-authored.
+
+**Gate 1, blocked-external rows re-measured as commands rather than transcribed.** Phase 0 stays
+CLOSED: G1 `#154` `state=OPEN`/`mergedAt=null` with control `#175` `MERGED`; G2 predicate rc=**128**
+(*path does not exist in 'origin/main'*) with its mandatory `README.md` control rc=**0**; G3 registry
+`versions=[1.0.0, 2.0.0, 2.1.0, 2.2.0]`, `latest=2.2.0`. No predicate has flipped.
+
+**What the row asked for, and what the measurement found instead.**
+
+Row 6d asked for a decision — is the pin root canonical, or should the workdir be brought current —
+plus "either way remove the stale skill copy". Both halves of that turn out to be blocked or
+insufficient, and the interesting answer was one level down.
+
+*Blocked:* the clone cannot be deleted (it owns the `.git` the pin worktree hangs off:
+`cat .git` in the pin reads `gitdir: …/ailang-motoko/.git/worktrees/motoko`), and it cannot be
+reconciled unattended. Gate 1's reconcile obligation 2 — *no incoming commit touches a
+locally-modified file* — fails **by construction** here, 170 commits of overlap; `pin-root.sh`'s own
+header says the same thing in its own words (*"That first reconcile is human"*). So the reconcile is
+`D-MOTOKO-WORKDIR-1`, parked.
+
+*Insufficient:* a charter edit alone leaves the next clone to drift the same way. What made **this**
+clone reach 170 unnoticed is a mechanism, and it is not an oversight — it is a documented assumption
+that has gone false. `mission-control.sh` emits its human-channel pin notice only when
+`PIN_STATUS=STALE`, and the comment above that block gives the reason in full:
+
+> "The shared clone being behind is not itself reportable — once drivers pin, that drift is
+> harmless, and posting it every 90 minutes would train the channel to be ignored, which is how the
+> original silent fallback survived twelve commits."
+
+The second clause is true and is preserved. The first is false in exactly the case this row is
+about: drift is harmless to the **driver**, whose pin holds, and not harmless to a **human session**,
+because this charter named that clone the working checkout and a session started there resolves ITS
+`.claude/skills/`. The evidence was sitting in the driver log, growing, on the **success** path:
+
+| fire | 08-21 08:02 | 08-21 22:01 | 08-22 12:13 | 08-23 03:21 | 08-23 18:16 |
+|---|---|---|---|---|---|
+| source clone behind `origin/dev` | 119 | 132 | 144 | 159 | **170** |
+
+That is Critical Principle 2 — *a fallback whose only witness is a log nobody reads* — aimed at the
+very helper written to close it. **Guard the helper, miss the call site**, this loop's own named
+recurring shape, arriving inside the fix for the previous instance of it.
+
+**The fix keeps the true half of the comment.** Notify on crossing `AILANG_DRIVER_DRIFT_WARN`
+(default 25), and thereafter only when the drift **doubles**, persisted in a per-mission state file
+that is removed below threshold so the notice re-arms after a reconcile. At most one post per
+doubling is what the original reasoning was protecting.
+
+**The controller caught the executor's body naming the wrong path, and the path it named is
+self-refuting.** The delivered notice interpolated `$REPO`. On the pinned pass `pin-root.sh` has
+already exported `MISSION_WORKDIR=<pin worktree>` and `mission-control.sh:40` derives `REPO` from it
+— so the notice would have told a human to reconcile a detached throwaway **whose drift is 0 by
+construction**. Measured from this session's own live environment, not from the code:
+`MISSION_WORKDIR=/Users/voightkampff/.ailang-driver-pin/motoko`,
+`AILANG_DRIVER_SRC=/Users/voightkampff/dev/sunholo-data/ailang-motoko`, `AILANG_DRIVER_DRIFT=170`.
+The pre-existing STALE body's `$REPO` is **correct** — that arm fires only on the pre-exec pass,
+where `REPO` really is the clone that ran the stale code — so one block holds one right and one
+wrong use of the same variable, and the evaluator confirmed the distinction independently when
+handed it as a named target.
+
+**Evidence.** `tools/launchd/test_driver_notify.sh` **17 → 27** arms, awk-extracted from the real
+blocks rather than retyped (renaming the extraction marker prints `FATAL: extraction … produced
+nothing`, rc=1 — verified by the evaluator). Every mutant LANDED by sha256, `bash -n` rc=0, restored
+from a `cp` backup and asserted byte-identical; red sets **produced by running them**:
+
+| mutant | red set |
+|---|---|
+| neuter the whole check (`if false &&`) | drift-a, c, d, f, h, i, j (**7**) |
+| drop the doubling condition | drift-b (sole) |
+| drop the `PIN_STATUS = pinned` guard | drift-e (sole) |
+| drop the numeric `PIN_DRIFT` guard | drift-f (sole) |
+| body from `$REPO` | drift-a, drift-h |
+| remove the threshold floor | drift-i (sole) |
+
+**Evaluator (sonnet, generator≠judge): PASS 90/100, ZERO blocking.** Three of five non-blocking
+findings answered in-iteration, each reproduced first-party first: a threshold of `0` persists a
+previous of `0`, after which `-ge $((0 * 2))` is true on every fire — the very outcome the doubling
+rule prevents, reached through its own knob, now floored and logged (drift-i); `PIN_DRIFT` unset
+aborts under `set -u`, unreachable through `pin-root.sh` today and therefore **pinned rather than
+assumed** (drift-j, observed red with `PIN_DRIFT: unbound variable` before the normalisation); and
+the first commit message asserted a mutation red set of four arms that nobody had run — corrected to
+the measured seven, because *a red set written into a record before anyone executed it is a claim*.
+Two findings accepted as reported and said so: drift-b/e/g are negative-property arms that survive
+total deletion (the five positive arms beside them do not), and the missing changelog entry, added.
+
+**Ruled out.**
+
+- *That the cancelled CI job was ours.* `launchd drivers (bash 3.2)` came back **cancelled after
+  15m18s** on the PR head, against **~68s** successes on dev's own HEAD (`a201237ca`) and on 18 of
+  the last 20 CI runs — the log stops after `ok 32` and never emits arm 33, then the runner reports
+  `Terminate orphan process: pid (bash)` / `(make)`. Refused the co-occurrence: the diff touches no
+  file the probe suite reads, and rule 3d's strongest control — a **re-run on a byte-identical
+  tree** — returned **success in 88s**. Outcome divergence with the tree held constant means the
+  variable is the environment. **Instance 2 arrived 40 minutes later on this iteration's own record
+  PR `#840`, whose five changed files are ALL markdown** — `17:38:10Z → 17:53:28Z`, 15m17s,
+  cancelled, log stopping after the identical `ok 32`. A markdown-only diff cannot break a shell
+  suite, so code attribution is refuted rather than doubted. Three observations in one iteration
+  (two CI, one sandbox) against ~68s on dev; row **6e** is a confirmed defect, not a watch-item,
+  and it is the next pick.
+- *That the clone's uncommitted residue is unfinished work.* Measured, not inherited: of **129**
+  added lines across the five modified files, **125 are byte-present** in `origin/dev`'s copy of the
+  same file; the 4 that are not are prose reflows of a decision-ledger block `origin/dev` carries in
+  a superseding form. Negative control (a fabricated literal) returned 0, positive control 2.
+- *That a repo-local guard could defuse the stale checkout.* Any `.claude/settings.json` hook or
+  in-repo test is **itself stale in the stale checkout**, which is the same chicken-and-egg
+  `pin-root.sh` states about itself. The only surface that reaches a human is the notice channel,
+  which is why the fix landed there.
+- *That the executor's inability to run `make test-launchd-drivers` was a real red.* It reported the
+  target stalling in its sandbox and honestly declined to claim the step passed. Run outside that
+  sandbox: **rc=0**, all 34 probe arms plus the driver suites.
+
+**Routing evidence.** controller `claude:claude-opus-5` (probe ok) · designer **none** (no new doc)
+· planner **none** (`derive-planner-lane.sh` → `opus fail-closed:planner-lane-field-missing`; not
+spawned, the row specifies its own scope) · executor `codex:gpt-5.6-sol` (probe rc=0, ~1 reply
+token; run 20m, rc=0) · evaluator `sonnet` (Agent-pinned, ≠ executor). **metered=$0.00** — codex and
+the controller are subscription/quota buckets, no quorum ran, no managed_agents run.
+Fable diet: **unspent** this iteration.
+
+**Cross-mission.** `tools/launchd/mission-control.sh` is shared by `v1`, `world` and `motoko`; all
+three gain this notice on their next fire, and all three have their own source clone that can drift.
+`PIN_DRIFT_FILE` is defined in **both** the v1-legacy (`mission-control.pin-drift`) and namespaced
+(`mission-<name>.pin-drift`) state branches, so no sibling pointer is touched. Said in the PR body
+rather than left to be discovered.
+
+**Next**: row **6e** (arm 33's hang), then row **7** (profile restoration design). Row **6**'s M2
+still needs a rig slot.
