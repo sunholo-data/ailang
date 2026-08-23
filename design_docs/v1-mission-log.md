@@ -17297,3 +17297,177 @@ and it is the instrument every measurement rests on.
 planner/executor/evaluator — **none spawned**. Designer-rotation pointer
 `~/.ailang/state/mission-v1-designer-rotation` read (`claude:claude-fable-5`) and **not advanced**,
 since no designer ran. metered **$0.00** of $5; quota buckets: opus (controller) only.
+
+---
+
+## 260 — 2026-08-23 — Iteration 260: `#764` is designed and its quorum is answered, but round 2 struck an unverified claim that was suppressing a real human decision — and the attended session's two rulings were filed under IDs already in use
+
+**Picked**: `#764` — a protocol-only `serveapi` module. The queue head, put there as P1 by Mark's
+attended 2026-08-23 ruling on cross-mission interdependencies. It is Ailang World's SOLE remaining
+blocker to its M4 (the value gate — the first moment any agent can use World at all): World items
+2/3/4 are LANDED and item 5 `w-mcp-projection` is BLOCKED on this alone.
+
+**Reality check**: NEW-DOC verified rather than assumed — only mission bookkeeping files mention
+`#764` (control: `m-verify-bounded-unrolling-false-counterexample.md` exists and greps positive);
+no `./protocol` package; fresh fetch, `git log --grep` and PR search both empty. Not landed, not
+designed, not mid-flight.
+
+**Cross-mission ghost discipline — I live-reproduced the sibling's measurement before routing.**
+It holds exactly: `go list -deps ./serveapi` → **479** non-stdlib packages, `./internal/apiserver`
+→ **478**, so a 201-line facade whose only non-stdlib import is `internal/apiserver` adds exactly
+one package over the runtime it wraps. Controls `./cmd/wasm` **12** and `./cmd/astdump` **14**
+reproduce the issue's figures exactly.
+
+**But its third control does not reproduce, and it is not drift.** The issue claims
+`cmd/registry-validator` → 6; I measure **453**. `git diff --stat v0.33.1 HEAD --
+cmd/registry-validator/` is **EMPTY** (control: the same diff over `serveapi/` shows 1 file
+changed, so the instrument fires), and `git show v0.33.1:cmd/registry-validator/main.go` already
+imports `cloud.google.com/go/storage`. A byte-identical file cannot have drifted from 6 to 453, so
+the control was mis-measured when the issue was written. The headline stands on my reproduction,
+not on the issue's — and the designer was told never to cite the "6".
+
+**Routing.** Designer `claude:claude-fable-5`; the rotation collapsed onto it for **structural**
+reasons — `D-31` instance **7**. `codex:gpt-5.6-sol` IS quorum reviewer `gpt5-6-sol`, so routing it
+makes a doc its own judge; gemini/managed_agents is read-only under `CapRemoteSandbox` and cannot
+author a file at all. Neither is a probe failure, so neither was probed. Diet-COMPLIANT under
+iteration 255's amendment: one doc = author + one protocol-mandated revision.
+
+**The designer refuted one of my own briefing numbers, and it was right** (Gate 2 rule (d)). I
+handed it "~103 external module roots" from a coarse three-segment path-prefix approximation. The
+exact instrument — `go list -deps -f '{{if not .Standard}}{{with .Module}}{{.Path}}{{end}}{{end}}'`
+— gives **66 external / 67 total**, which I re-ran and confirmed. A path prefix is not a module
+path, and I had shipped the difference downstream under a measured-looking label.
+
+**I verified the designer's three load-bearing external claims first-party before the quorum.**
+World's gate at `ailang-world@48ef275` carries exactly **11** allowlisted module roots with a
+**prefix** matcher (`d == m || strings.HasPrefix(d, m+"/")`) and an anti-vacuity error on an empty
+dependency list. Upstream `github.com/sunholo-data/ailang` is **NOT** among them (grep **0**,
+control `ailang-world` **1**) — so World must add one literal line even for a stdlib-only package,
+a consequence the issue does not state. And the MCP SDK spans **9** external module roots of which
+only `golang.org/x/sys` is allowlisted, which is what makes the doc's central split (MCP handler
+stays in `serveapi`; `protocol` is stdlib-only) rest on a verified premise rather than a preference.
+
+**Quorum: two rounds, both blocked, all four objections real — 2/2 reviewers present both times
+with `absent_reviewers` EMPTY both times.** I pre-raised the per-reviewer cap to $0.30/$0.35
+specifically to avoid iteration 259's N−1 budget-degrade hole, and it worked.
+
+**R1 objection 1 (`gpt5-6-sol`) — the proposed core was not protocol-only**, freezing
+`CallbackRunner` and an executable A2A `http.Handler` into a new PUBLIC core against the
+minimal-frozen-core axiom. **Upheld, and the settling evidence is the consumer's own words**:
+`#764` asks verbatim for *"the MCP/A2A wire types, envelope framing and the caller-supplied-surface
+interfaces"* and names neither symbol. The doc had over-included relative to the request — which on
+a published seam is the expensive direction, because adding a symbol later is cheap and removing
+one is not. Both routed to `serveapi`.
+
+**R1 objection 2 (`gemini-3-1-pro`) — V17's negative claim outran its instrument**, being bounded
+to `cmd/ internal/ serveapi/` with no stated justification. **Upheld on method, refuted on
+conclusion, and I measured it rather than forwarding it (rule 3f)**: the unbounded repo-wide sweep
+finds the same 3 files, and the authoritative instrument — `go list` over every package INCLUDING
+test imports — finds exactly **2** importing packages (`cmd/ailang`, `serveapi`). Two of the three
+directories the reviewer named (`pkg`, `test`) do not exist here, while **72** `.go` files really
+do live outside the three scanned dirs, so the bound was arbitrary and merely happened not to
+matter. The designer then swept 3 further rows for the same class rather than patching the instance.
+
+**R2 — both new objections were on surfaces R1 never named and R2's edits never touched**, i.e.
+pre-existing holes rather than regressions. `gemini-3-1-pro`: the CI self-test contradicted the
+gate's own anti-vacuity floor — a *separate temp package* cannot contain the literal
+`…/serveapi/protocol` that arm 1 requires, so the self-test would have exited 2 on vacuity
+**before reaching the intruder logic it exists to exercise**, failing for the wrong reason in a way
+that reads exactly like a gate refusing correctly. `gpt5-6-sol`: **`D-A` cannot be non-blocking,
+because the claim holding it open was never measured** — the doc asserted a later (a)→(b) move to a
+nested module is additive since import paths are stable, and *only the import path is stable*;
+module ownership and version resolution change, so a consumer requiring only
+`github.com/sunholo-data/ailang` can **stop resolving the package**.
+
+**Narrow-refinement carve-out applied by the controller** (not a third Fable run). Both R2
+objections carry concrete reviewer-authored `proposed_fix`es and neither disputes the design
+DIRECTION, which no reviewer has questioned across four reviews. Both applied **verbatim**: the
+self-test now injects a temporary intruder file into the REAL package directory, observes exit 1
+plus **count movement**, cleans up, and re-asserts a clean green — so the self-test and Mutation 1
+are the same experiment; and the migration claim is **withdrawn rather than repaired**, with `D-A`
+promoted to a blocking design-freeze gate carrying the reviewer's demanded external-consumer
+verification row marked explicitly *not yet measured*.
+
+**Round-surface tracking (Gate 2, from round 3 on).** R1: protocol scope + verification method.
+R2: module boundary + CI self-test mechanics. The objections are **spread across four distinct
+surfaces** and no reviewer has flipped to pass — so this is an immature document being repaired,
+**not** the localisation signal that calls for decomposition. Recorded so a later reader can tell
+the two apart, since iteration 257 split a doc on exactly the opposite reading.
+
+**Shipped**: parked — `design_docs/planned/m-serveapi-protocol-only-module.md` (authored + one
+revision + two controller-applied verbatim fixes), `needs-human-review` on **`D-35`** alone. No
+executor, evaluator, sprint plan or code. The park is not manufactured: a reviewer demanded it
+verbatim, the doc could not verify the claim suppressing it, and the module boundary changes the
+release/tagging model, which is Mark's sole domain. It is not `PARKED-ON-LANE` — nothing here
+unblocks on a clock.
+
+**A second, independent defect found and repaired: the attended session's two rulings were filed
+under IDs that were already in use.** The charter's RATIFIED block labelled them `D-31` and `D-32`;
+both were live OPEN ledger rows (designer-rotation split, filed iteration 256; the `inconclusive`
+KPI exemption, filed iteration 259). Measured: iteration 259's record landed `2fde160db` at
+`15:53:16+02:00`, the attended block `4e7c32ce0` at `18:08:23+02:00`, and `4e7c32ce0` touched
+**ZERO** ledger rows. Left alone, generating `DECISIONS FOR MARK` from OPEN rows would have
+re-asked `D-31`/`D-32` hours after Mark answered two *different* questions wearing those labels —
+which reads as the loop ignoring him — while a charter reader would have read the OPEN rows as
+settled. Repaired append-only: the rulings are re-filed as **`D-33`** (cross-mission prioritization)
+and **`D-34`** (the standing v0.34.0 release decision), the pre-existing OPEN rows keep their IDs
+and their questions, and the RATIFIED block carries an in-place label correction that changes no
+ruling. Ledger **35 rows, valid**.
+
+**Where the raw quorum artifacts live.** `.ailang/state/mission-quorum/m-serveapi-protocol-only-module-2026-08-23T17-08-54Z.json`
+(R1) and `…T17-24-44Z.json` (R2), on the rig only: `.ailang/` is git-ignored (`.gitignore:82`,
+`git check-ignore -v` confirmed with a firing control), so they are NOT in the repo. The
+decision-bearing content — verdicts, all four objections, their dispositions and the per-reviewer
+costs — is transcribed into the doc's own "Revision history & quorum record" section, this entry,
+and the charter STATUS stamp, all of which are tracked. Said here so a later reader does not search
+the tree for a file that was never committed.
+
+**Routing evidence.**
+- model=`claude:claude-fable-5` task-class=design round1-score=n/a rounds=2 corrections=2
+  provider=anthropic agent=claude-code cost=quota-bucket:weekly-fable
+  (designer: authoring pass + one protocol-mandated revision; diet-compliant)
+- model=`gpt5-6-sol` task-class=review rounds=2 provider=openrouter agent=design-quorum
+  cost=$0.157415 (R1 $0.066680 + R2 $0.090735) tokens_in=15975 (R2) tokens_out=362 (R2)
+- model=`gemini-3-1-pro` task-class=review rounds=2 provider=openrouter agent=design-quorum
+  cost=$0.065654 (R1 $0.027260 + R2 $0.038394) tokens_in=17433 (R2) tokens_out=294 (R2)
+- model=opus task-class=controller provider=anthropic agent=claude-code
+  cost=quota-bucket:weekly-opus (triage, first-party reproduction, premise measurement, both
+  verbatim carve-out edits, record)
+- metered total **$0.223069** of the $5 ceiling.
+
+**Ruled out**:
+- That the sibling's dependency measurement needed taking on trust — reproduced first-party,
+  479/478 exact, two of three controls exact.
+- That the issue's `registry-validator` control could be explained as drift — the file is
+  byte-identical since `v0.33.1` and already imported `cloud.google.com/go/storage`.
+- That my own "~103 module roots" was a measurement — it was a path-prefix approximation, refuted
+  by the designer at **66** with the exact instrument and re-confirmed by me.
+- That `gemini-3-1-pro`'s hidden-consumer objection changed the answer — same 2 importing packages
+  under the authoritative instrument; the objection was right about the method only.
+- That the MCP handler could live in `protocol` — 8 of its 9 external module roots fail World's
+  gate, so it would defeat the package's own reason for existing.
+- That this is a decomposition signal — the objections are spread across four surfaces, not
+  localised onto one consumer, which is the opposite of iteration 257's pattern.
+- That the doc could route to a planner today — `D-35` blocks it by the reviewer's verbatim ask.
+- That Mark's `D-34` release ruling already settles `D-35` — it ruled on release DELIVERY, not
+  module BOUNDARY; inferring resolution from adjacent work is what the decision contract forbids.
+- That this needed an executor, an evaluator, the GPU, or the eval rig.
+
+**Gates** (darwin/arm64; windows and ubuntu legs unrun locally). Documentation only — no code
+shipped, so no CI matrix is implicated. **No binary was built and `~/go/bin` was untouched**: every
+closure number came from `go list`, which reads the package graph rather than a compiled artifact,
+so iteration 256's unstamped-binary class does not arise.
+
+**Retro lane**: process-fix — the decision-ID collision is repaired in the charter (`D-33`/`D-34`
+filed, RATIFIED block annotated). No skill edit: the ID-reuse hazard is already covered by the
+decision-recording contract ("New decision IDs are append-only and MUST NOT reuse an existing ID"),
+and this is its **first** recorded instance, below the ≥2-friction bar. Pre-registered as
+**instance 1** of the class *"an attended charter stamp bypasses the ledger's own append-only
+discipline, because the human-facing block and the machine-checked block are different surfaces."*
+If a second instance appears, the fix is a `mission_decisions.sh` check that greps the charter for
+`D-<n>` labels outside the ledger and fails when one collides with an existing row.
+
+**Next**: `D-35` is the whole gate. Answered → route
+`m-serveapi-protocol-only-module` straight to sprint-planner (the doc is planner-ready; only the
+packaging milestone changes under (b)). Unanswered → the next queue item is
+`m-verify-bounded-unrolling-false-counterexample`, which iteration 259 left `[NEXT]` and routable.
