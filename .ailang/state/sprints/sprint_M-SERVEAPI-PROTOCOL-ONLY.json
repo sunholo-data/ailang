@@ -1,0 +1,311 @@
+{
+  "sprint_id": "M-SERVEAPI-PROTOCOL-ONLY",
+  "status": "planned",
+  "created": "2026-08-23T00:00:00Z",
+  "design_doc": "design_docs/planned/m-serveapi-protocol-only-module.md",
+  "sprint_plan": "design_docs/planned/m-serveapi-protocol-only-module-sprint-plan.md",
+  "github_issues": [
+    764
+  ],
+  "risk_level": "medium",
+  "metadata": {
+    "planner-model": "claude-opus-5",
+    "mission_iteration": 261,
+    "scope": "Extract a stdlib-only public package `serveapi/protocol` carrying EXACTLY issue #764's three named categories (MCP/A2A wire types, envelope framing, caller-supplied-surface interfaces + their type-owned descriptor validation), and rewire the published `serveapi` facade on top of it so it no longer imports `internal/apiserver`. All executable machinery (bounded callback runner, embedded A2A http.Handler, SDK-backed embedded MCP handler) moves to `serveapi`, NOT to `protocol`. Ship a CI-enforced closure gate with an anti-vacuity floor and its own refusal self-test.",
+    "non_scope": "D-A is RESOLVED as (a) PLAIN PACKAGE with NO promise of transparent later conversion. Therefore explicitly OUT: serveapi/protocol/go.mod; a serveapi/protocol/vX.Y.Z tag scheme; require/replace directive changes; release-workflow or release-manager changes; a CI matrix entry for a nested module; the external-consumer resolution verification row. Also out (doc Non-Goals): reimplementing MCP transport in stdlib-only code; shipping anything executable in `protocol`; shrinking internal/apiserver's own closure; editing ailang-world.",
+    "design_freeze_status": "All four Design-Freeze boxes checked in the doc at HEAD 9ce91ce50. No reviewer objection open across four reviews; no reviewer disputed design direction.",
+    "d35_provenance": "UNVERIFIED, inherited from the design doc and the iteration-261 briefing: directive `D-35 A` on issue #745 at 2026-08-23T19:01:24Z, author MarkEdmondson1234. The planner did NOT read the directive first-hand.",
+    "measurement_environment": "worktree /Users/voightkampff/dev/sunholo-data/.wt-iter261, branch docs/mission-iter261-record, HEAD 9ce91ce50, tree clean, darwin/arm64, go1.26.6, golangci-lint 2.11.4, shell /bin/zsh ($PIPESTATUS is a bashism and is EMPTY here; rc captured via `cmd > file 2>&1; echo $?`).",
+    "platform_narrowing": "Every planner gate is green on darwin/arm64 ONLY. windows-latest and ubuntu-latest CI legs are UNRUN locally for this diff. go list -deps closures are GOOS/GOARCH-sensitive; the MCP SDK subtree demonstrably contains per-arch packages (github.com/segmentio/asm/cpu/{arm,arm64,x86}), so the gate's TIGHT assertion is on module ROOTS (arch-stable) and the package COUNT assertion carries headroom (ceiling 40 vs predicted 31).",
+    "code_drift_check": "VERIFIED BY ME: `git diff --stat a201237ca HEAD -- serveapi internal/apiserver cmd/ailang make .github scripts` is EMPTY. Every source file this sprint touches is byte-identical to what the design doc measured at a201237ca.",
+    "v8_premise_reproduced": "VERIFIED BY ME: the design doc's appendix V8 probe recipe was re-run byte-for-byte. Result: BUILD_OK with NO shim file; non-stdlib lines = exactly github.com/sunholo-data/ailang/internal/protoprobe; count 1; total enumeration 188 (non-vacuous); module roots = github.com/sunholo-data/ailang only. Cleanup: rm -rf + `go build ./serveapi ./internal/apiserver` -> REPO_STILL_BUILDS, `git status --short` empty. All appendix line anchors still land on the intended code.",
+    "published_seam_rule": "serveapi shipped in v0.33.0/v0.33.1. Adding a symbol later is cheap; removing one is not. Where the doc and issue #764 could be read differently, the issue's wording governs and the smaller surface wins. This produced discrepancy D3 (moved machinery is UNEXPORTED in serveapi -> net new public symbols = 0). It did NOT override the doc's one flagged maximal call: the wire-error taxonomy (ErrCallbackCapacity, CallbackMessage, AuthorizationStatus) stays in `protocol`, because CallbackMessage switches on ErrCallbackCapacity so the three are inseparable, and moving all three to serveapi would leave a downstream handler-writer able to write an envelope but unable to emit the FROZEN #592/#603 wire strings -- which is exactly the 'envelope framing' the issue asked for.",
+    "go_build_all_is_red_at_base": "VERIFIED BY ME: `go build ./...` is rc=1 on the pristine tree. Sole failing package: cmd/wasm ('runtime.main_main.f: function main is undeclared in the main package'). It MUST NOT be an acceptance criterion at any milestone; use `go build ./serveapi/... ./internal/apiserver/...` (rc=0 at base). NOTE the charter's wording is half wrong: it names `cmd/wasm` AND `gen/main`, but `gen/` does not exist in this repo at all (`test -d gen` -> ABSENT, `go build ./gen/...` -> 'no such file or directory').",
+    "estimated_effort": "3.0 days (M1 0.75d, M2 1.0d, M3 0.9d, M4 0.35d)",
+    "loc_accounting": "estimated_loc counts NEW or MODIFIED lines only. A further ~1,545 LOC are VERBATIM MOVES (mechanical, not authored) and are tracked separately in moved_loc.",
+    "moved_loc": 1545,
+    "premises_verified_live": true,
+    "read_only_worktree": true,
+    "git_writes_by_planner": "none - the planner ran no git add/commit/stash/checkout/reset. Two scratch package dirs (internal/protoprobe, internal/probetest) were created and removed inside single tool calls; `git status --short` verified EMPTY after each."
+  },
+  "baselines": {
+    "note": "Every acceptance command below was run by the planner on the PRISTINE tree at HEAD 9ce91ce50 BEFORE being written into the plan. Platform: darwin/arm64 only; windows and ubuntu CI legs unrun locally.",
+    "B1_go_build_target_pkgs": {
+      "command": "go build ./serveapi/... ./internal/apiserver/...",
+      "base": "rc=0, no output",
+      "usable_as_gate": true
+    },
+    "B2_go_build_all": {
+      "command": "go build ./...",
+      "base": "rc=1 - cmd/wasm: function main is undeclared in the main package",
+      "usable_as_gate": false,
+      "note": "RED AT BASE. Never an acceptance criterion."
+    },
+    "B3_go_test_target_pkgs": {
+      "command": "go test -count=1 ./serveapi/... ./internal/apiserver/...",
+      "base": "rc=0: ok serveapi 3.2s; ok internal/apiserver 1.5s; ok internal/apiserver/schema 0.8s; ? internal/apiserver/templates [no test files]",
+      "usable_as_gate": true
+    },
+    "B4_protocol_pkg_absent": {
+      "command": "go list ./serveapi/protocol",
+      "base": "rc=1 'directory not found'; control IN THE SAME CALL `go list ./serveapi` -> rc=0; existence assertions `test -d serveapi` EXISTS, `test -d serveapi/protocol` ABSENT",
+      "usable_as_gate": true
+    },
+    "B5_serveapi_nonstdlib_count": {
+      "command": "go list -deps ./serveapi | awk -F/ '$1 ~ /\\./ {n++} END{print n+0}'",
+      "base": "479 non-stdlib packages IN THE ./serveapi CLOSURE",
+      "usable_as_gate": true
+    },
+    "B6_serveapi_cloud_pattern": {
+      "command": "the V22 grep -Ec cloud/telemetry pattern over B5's non-stdlib lines",
+      "base": "325 packages IN THE ./serveapi CLOSURE, grep rc=0",
+      "usable_as_gate": true
+    },
+    "B7_serveapi_module_roots": {
+      "command": "go list -deps -f '{{if not .Standard}}{{with .Module}}{{.Path}}{{end}}{{end}}' ./serveapi | sort -u | wc -l",
+      "base": "67 module roots IN THE ./serveapi CLOSURE (66 external + the ailang module)",
+      "usable_as_gate": true
+    },
+    "B8_make_target_absent": {
+      "command": "make check-protocol-closure",
+      "base": "make: *** No rule to make target 'check-protocol-closure'. Stop. Control IN THE SAME FILE: `grep -n '^check-boundaries:' make/code-health.mk` -> line 139 rc=0; `make -n check-boundaries` -> bash scripts/check_boundaries.sh",
+      "usable_as_gate": true
+    },
+    "B9_ci_step_absent": {
+      "command": "grep -c check-protocol-closure .github/workflows/ci.yml",
+      "base": "0, grep rc=1 (= 'no match', NOT 'no such file'); existence assertion `test -f .github/workflows/ci.yml` EXISTS; control IN THE SAME FILE `grep -c check-boundaries` -> 1, rc=0",
+      "usable_as_gate": true
+    },
+    "B10_make_test": {
+      "command": "make test",
+      "base": "rc=0; 113 'ok' package lines; 0 '--- FAIL'; 0 'FAIL' lines",
+      "usable_as_gate": true,
+      "note": "Repo-wide and slowest; used only at M4."
+    },
+    "B11_make_lint": {
+      "command": "make lint",
+      "base": "rc=0 'Lint complete (no bugs detected)'; reports 2 non-fatal `unused` findings, neither in serveapi/apiserver",
+      "usable_as_gate": true
+    },
+    "B12_lint_target_pkgs": {
+      "command": "golangci-lint run ./serveapi/... ./internal/apiserver/...",
+      "base": "rc=0, '0 issues'",
+      "usable_as_gate": true,
+      "note": "Proves D4's make-lint scope widening is safe at base."
+    },
+    "B13_check_boundaries": {
+      "command": "make check-boundaries",
+      "base": "rc=0 'OK: no architecture boundary violations.'",
+      "usable_as_gate": true
+    },
+    "B14_check_file_sizes": {
+      "command": "make check-file-sizes",
+      "base": "rc=0 'All files within 800 line limit'",
+      "usable_as_gate": true
+    },
+    "B15_v8_probe": {
+      "command": "the design doc's appendix V8 recipe, verbatim",
+      "base": "BUILD_OK (no shim file); non-stdlib = 1 (itself); total enumeration 188; module roots = github.com/sunholo-data/ailang only; cleanup REPO_STILL_BUILDS + clean tree",
+      "usable_as_gate": true
+    },
+    "B16_mcp_sdk_subtree": {
+      "command": "go list -deps [-f module-path] github.com/modelcontextprotocol/go-sdk/mcp",
+      "base": "29 external non-stdlib packages; 9 external module roots: google/jsonschema-go, modelcontextprotocol/go-sdk, segmentio/asm, segmentio/encoding, yosida95/uritemplate/v3, golang.org/x/{oauth2,sync,sys,time}",
+      "usable_as_gate": true,
+      "note": "Feeds the gate's 10-entry serveapi-arm allowlist (these 9 + the ailang module)."
+    },
+    "B17_intruder_visibility": {
+      "command": "scratch package internal/probetest: stdlib-only p.go + intruder file, compared under `go list -deps` and `go list -deps -test`",
+      "base": "_test.go intruder -> non-stdlib count STAYS 1, uuid ABSENT. Known-positive control in the same call: `go list -deps -test` -> count 4, uuid PRESENT. Non-test intruder (zz_intruder.go) -> count 1 -> 2, uuid NAMED, go build still rc=0.",
+      "usable_as_gate": true,
+      "note": "This is the measurement behind discrepancy D2."
+    },
+    "post_change_prediction": "./serveapi non-stdlib closure = 29 (SDK subtree, B16) + serveapi itself + serveapi/protocol = 31. Arithmetic over verified measurements, not a guess. AC2 ceiling set at 40 for cross-platform headroom.",
+    "B18_serveapi_build_imports": {
+      "command": "go list -f '{{join .Imports \"\\n\"}}' ./serveapi | grep -c 'internal/apiserver'",
+      "base": "1, grep rc=0. With TestImports appended: 2. Control IN THE SAME CALL: same command on ./cmd/ailang -> 2, rc=0.",
+      "usable_as_gate": true,
+      "note": "This is the CORRECT instrument for 'the facade no longer imports the runtime'. See discrepancy D7: the naive `grep -c 'internal/apiserver' serveapi/*.go` is WRONG and would force deleting a load-bearing test."
+    },
+    "B19_serveapi_public_surface": {
+      "command": "go doc ./serveapi | grep -c 'Runner\\|Embedded'",
+      "base": "0, grep rc=1. Control IN THE SAME CALL: `go doc ./serveapi | grep -c 'func New'` -> 1, rc=0.",
+      "usable_as_gate": true,
+      "note": "Green at base by construction; AC8 is a non-regression guard against the sprint ADDING public surface."
+    }
+  },
+  "velocity": {
+    "target_loc_per_day": 292,
+    "estimated_total_loc": 875,
+    "estimated_days": 3.0,
+    "loc_note": "875 = sum of per-milestone NEW/MODIFIED LOC. A further ~1,545 LOC are verbatim moves. VERIFIED BY ME: last-7d git window is 147 commits / 261 files / +51,829 but is dominated by mission-record docs, so it is not a code-velocity signal; the usable signal is recent sprint JSONs (M-SYNTAX-AI-FORGIVING 315/3d, M-TELEMETRY-REMOTE-READ-FASTFOLLOW 575/1.5d, M-TAKE-FLATMAP-PEAK-MEMORY 470/4d, M-STRIP-DECL-AWARE 415/1.75d, M-STD-YAML 410/1d) = roughly 105-380 new LOC/day. 292 is inside range."
+  },
+  "features": [
+    {
+      "id": "M1_EXTRACT_PROTOCOL_PACKAGE",
+      "description": "Create the stdlib-only public package serveapi/protocol by MOVING code out of internal/apiserver and serveapi (export renames only, no logic edits): descriptor.go (ToolDescriptor, AuthorizedSurface + Lookup/All, CallerSurface [was callerSurface], validateToolDescriptor, validateHeaderAnnotations, validHTTPFieldName, cloneToolDescriptor, ValidateMCPName + mcpToolNameRegex), interfaces.go (Session, SessionResolver, ToolSource, Invoker, Invocation, InvocationResult, AgentInfo, AuthorizationError), a2a_wire.go (A2ARequest, A2ATaskSendParams, A2AMessage, A2AContent, A2AError, A2AResult), envelope.go (WriteMCPEnvelope, RequestID, CallbackMessage, AuthorizationStatus, ErrCallbackCapacity). Shrink internal/apiserver/authorized_surface.go to lines 28-41 only (loadedExportMember, isExposed). Add a TRANSITIONAL internal/apiserver/protocol_compat.go so the still-resident embedded_*.go files compile. Move authorized_surface_test.go WHOLE to serveapi/protocol/descriptor_test.go (D5: it has zero stay-behind refs). serveapi/ is NOT touched in M1.",
+      "estimated_loc": 190,
+      "moved_loc": 375,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "`go build ./serveapi/... ./internal/apiserver/...` rc=0 (base B1: rc=0)",
+        "`go test -count=1 ./serveapi/... ./internal/apiserver/...` rc=0 (base B3: rc=0)",
+        "`go vet ./serveapi/... ./internal/apiserver/...` rc=0 (base: rc=0)",
+        "`go list -deps ./serveapi/protocol | awk -F/ '$1 ~ /\\./'` prints EXACTLY ONE line: github.com/sunholo-data/ailang/serveapi/protocol (base B4: rc=1 directory not found, control `go list ./serveapi` rc=0)",
+        "`go list -deps ./serveapi/protocol | wc -l` >= 2 (anti-vacuity floor; B15 saw 188 for the equivalent probe)",
+        "`go list -deps -f '{{if not .Standard}}{{with .Module}}{{.Path}}{{end}}{{end}}' ./serveapi/protocol | sort -u` = exactly github.com/sunholo-data/ailang",
+        "`golangci-lint run ./serveapi/... ./internal/apiserver/...` rc=0 (base B12: rc=0, 0 issues)",
+        "Package godoc on descriptor.go states the stdlib-only guarantee AND names `make check-protocol-closure` as the enforcing gate",
+        "Every transitional entry in protocol_compat.go carries a `// TRANSITIONAL - deleted in M2` marker (checked mechanically in M2.6)",
+        "STOP-AND-RE-MEASURE: if a symbol leaks that the B15 probe did not surface (e.g. a build-tagged file outside darwin/arm64), stop and re-measure. Any symbol added to `protocol` beyond the four-file spec is a scope change needing a recorded decision, not a silent widening."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_REWIRE_SERVEAPI_EVICT_MACHINERY",
+      "description": "Move all executable machinery out of internal/apiserver into serveapi and rewire the facade onto protocol. serveapi/callbacks.go (bounded runner, returns protocol.ErrCallbackCapacity), serveapi/a2a_handler.go (from embedded_a2a.go, + a private 7-line writeJSON copy, + len(surface.All()) replacing the cross-package private-field read at old line 65), serveapi/mcp_handler.go (from embedded_mcp.go, + a private 5-line mcpError copy; the original mcpError relocates into apiserver/mcp.go). ALL moved machinery is UNEXPORTED in serveapi (D3): callbackRunner, newCallbackRunner, runCallback, embeddedMCPConfig, newEmbeddedMCPHandler, embeddedA2AConfig, newEmbeddedA2AHandler. serveapi/serveapi.go: moved types become aliases, New() builds from local constructors, BOTH descriptor-conversion loops deleted, internal/apiserver import DELETED. Delete internal/apiserver/{embedded_mcp,embedded_a2a,callbacks}.go and every TRANSITIONAL shim entry.",
+      "estimated_loc": 200,
+      "moved_loc": 1170,
+      "dependencies": [
+        "M1_EXTRACT_PROTOCOL_PACKAGE"
+      ],
+      "acceptance_criteria": [
+        "`go build ./serveapi/... ./internal/apiserver/...` rc=0 (base B1: rc=0)",
+        "`go test -count=1 ./serveapi/... ./internal/apiserver/...` rc=0 (base B3: rc=0)",
+        "`go list -deps ./serveapi | awk -F/ '$1 ~ /\\./ {n++} END{print n+0}'` <= 40, expected 31 (base B5: 479). Record the exact number in the implementation report.",
+        "The V22 cloud-pattern `grep -Ec` over that same non-stdlib list = 0 (base B6: 325)",
+        "`go list -deps -f '{{if not .Standard}}{{with .Module}}{{.Path}}{{end}}{{end}}' ./serveapi | sort -u` = exactly the 10 roots measured at B16 + the ailang module (base B7: 67 roots)",
+        "`go list -f '{{join .Imports \"\\n\"}}' ./serveapi | grep -c 'internal/apiserver'` = 0 with rc=1 (base B18: 1 with rc=0); CONTROL IN THE SAME CALL: the same command against ./cmd/ailang -> 2 with rc=0, proving the instrument sees a positive. D7: do NOT use `grep -c 'internal/apiserver' serveapi/*.go` - serveapi_external_test.go mentions the path at lines 120 (expected compiler-error string) and 215 (the //go:build denied fixture), both of which MUST STAY, so a source-text grep asserted to 0 would demand deleting the very test that guards the internal boundary.",
+        "serveapi/serveapi_external_test.go diff is EXACTLY the two call-site renames (apiserver.RunCallback -> runCallback, lines 68 and 81) + the deleted internal/apiserver import: `git diff --stat` on that file shows <= 3 changed lines. Any further forced edit is a back-compat smell and fails the milestone.",
+        "D1 SPLIT: embedded_a2a_test.go's TestLoadedExportMembershipAndNoMCPProjection (lines 323-344, uses the unexported stay-behind loadedExportMember + 4 ExportInfo literals) STAYS in internal/apiserver; the other 9 test funcs + 4 helpers move. After M2, `grep -rn 'TestLoadedExportMembershipAndNoMCPProjection' internal/apiserver/` returns EXACTLY 1 hit.",
+        "The three embedded test files share embeddedTestHost (defined in embedded_mcp_test.go) - they move in ONE commit or none does",
+        "Moved tests byte-preserved modulo package line, imports, and writeMCPEnvelope -> protocol.WriteMCPEnvelope at embedded_mcp_replay_test.go:207. NO assertion edits. The frozen #592/#603 envelope tests are the wire oracle.",
+        "`grep -c 'TRANSITIONAL' internal/apiserver/protocol_compat.go` = 0; CONTROL IN THE SAME CALL: `grep -c 'protocol\\.' internal/apiserver/protocol_compat.go` > 0, proving the file still exists and still forwards",
+        "`golangci-lint run ./serveapi/... ./internal/apiserver/...` rc=0 (base B12: rc=0)",
+        "AC8 surface guard: `go doc ./serveapi | grep -c 'Runner\\|Embedded'` = 0 with rc=1 (base B19: 0, rc=1 - green at base, so this is a NON-REGRESSION guard against the sprint ADDING surface); CONTROL IN THE SAME CALL: `go doc ./serveapi | grep -c 'func New'` >= 1 with rc=0 (base: 1). Net new EXPORTED symbols in serveapi = 0."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_CLOSURE_REFUSAL_GATE",
+      "description": "Ship the CI-enforced closure gate whose deliverable is a REFUSAL. scripts/check_protocol_closure.sh (bash-3.2-safe: no `declare -A`, no ${v,,}) with two arms. Arm 1 (protocol): anti-vacuity floor = go list rc==0 AND enumeration non-empty AND contains the literal github.com/sunholo-data/ailang/serveapi/protocol AND contains >=1 stdlib package, else exit 2 'vacuous enumeration' and NEVER a checkmark; then every non-stdlib line must carry the protocol prefix, violators printed BY NAME, exit 1. Arm 2 (serveapi): same floor, then external module roots must be a subset of a 10-entry inline allowlist (the ailang module + the 9 SDK-subtree roots measured at B16), violators BY NAME, exit 1. Roots not counts are the tight assertion because B16 shows the SDK carries per-arch packages. Plus scripts/test_check_protocol_closure.sh with five arms, make targets check-protocol-closure + test-check-protocol-closure (the latter also running `/bin/bash -n` on the gate, exactly like test-check-changelog at make/test.mk:58), two ci.yml steps after the Check-architecture-boundaries step at line 132-133, and a full mutation run with each observed red recorded verbatim.",
+      "estimated_loc": 365,
+      "moved_loc": 0,
+      "dependencies": [
+        "M2_REWIRE_SERVEAPI_EVICT_MACHINERY"
+      ],
+      "acceptance_criteria": [
+        "`make check-protocol-closure` rc=0 (base B8: 'No rule to make target'; control `grep -n '^check-boundaries:' make/code-health.mk` -> line 139)",
+        "`make test-check-protocol-closure` rc=0 (base: target absent)",
+        "`grep -c check-protocol-closure .github/workflows/ci.yml` >= 2 (base B9: 0 with grep rc=1; in-file control check-boundaries = 1 with rc=0)",
+        "`/bin/bash -n scripts/check_protocol_closure.sh` rc=0 - the rig runs bash 3.2.57, so a script that only parses under a newer bash proves nothing about it",
+        "SELF-TEST ARM (i) INTRUDER/ADDITION: inject serveapi/protocol/zz_intruder.go - a NON-TEST file, because `go list -deps` does not enumerate test-only imports (D2/B17: a _test.go intruder leaves the count at 1 and uuid absent, so the doc's verbatim `zz_intruder_test.go` spec would NOT fire) - containing `package protocol` + `import _ \"github.com/google/uuid\"`. Require exit 1, output NAMING github.com/google/uuid, and the reported non-stdlib COUNT MOVED 1 -> 2 vs the clean run. A verdict flip alone does NOT pass. Remove the file; assert `git status --porcelain` empty.",
+        "SELF-TEST ARM (ii) VACUITY: point the gate at a nonexistent package path; require exit 2, the vacuous-enumeration message, and NO checkmark anywhere in the output",
+        "SELF-TEST ARM (iii) RESTORATION: re-run the clean gate after cleanup; require exit 0, so a self-test that leaves debris fails loudly instead of poisoning the next run",
+        "SELF-TEST ARM (iv) SCOPE (pins D2's blind spot deliberately): inject serveapi/protocol/zz_intruder_test.go with the same uuid import; require the gate to stay GREEN (exit 0) and to print the reason - the gate models a consumer's LINK closure and a consumer never links our test-only imports. Without this arm a future reader cannot tell 'deliberate scope' from 'hole'. Clean up; assert byte-identical tree.",
+        "SELF-TEST ARM (v) SERVEAPI-ARM ADDITION: inject a disallowed-module-root import into a temporary serveapi/zz_intruder.go; require exit 1 NAMING the root; clean up; assert byte-identical tree",
+        "MUTATION RUN, one neutering mutation per refusal branch, each observed red recorded verbatim: R1 drop arm-1 go-list rc check -> vacuity arm exits 0/1 not 2; R2 drop empty check -> vacuity arm reports a checkmark; R3 drop arm-1 known-positive-literal check -> pointing the gate at ./cmd/astdump exits 0 instead of 2; R4 drop stdlib-presence check -> same; R5 make the prefix test always true -> intruder arm (i) exits 0; R6 drop the arm-2 floor -> arm-2 vacuity exits 0; R7 drop arm-2 known-positive-literal check -> same; R8 make the arm-2 subset test always true -> arm (v) exits 0; R9 neuter the dot-rule stdlib classifier -> arm (i) no longer names uuid. PLUS the doc's Mutation 2 (add an internal/apiserver import to a protocol file) and Mutation 3 (re-add internal/apiserver to serveapi -> arm 2 exits 1 naming cloud.google.com/... roots, count ~31 -> ~480).",
+        "`git status --porcelain` EMPTY after the mutation run - every mutation reverted",
+        "`go test -count=1 ./serveapi/... ./internal/apiserver/...` rc=0 (base B3: rc=0)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_DOCS_LINT_SCOPE_AND_764_REPLY",
+      "description": "Documentation, lint-scope fix, CHANGELOG, and the cross-mission reply. docs/docs/guides/serve-api.md embedding section (from line 1348) gains serveapi/protocol and names the enforcing gate. .claude/rules/api-server.md path references at lines 34, 48, 55 re-point at serveapi/protocol/descriptor.go for CallerSurface/AuthorizedSurface/ValidateMCPName (mcpToolName() generation stays in internal/apiserver/mcp_schema.go), restating the one-gateway invariant. make/code-health.mk:71 adds ./serveapi/... to the `make lint` pattern list (D4: serveapi is currently unlinted by make lint). ARCHITECTURE.md gains its FIRST-EVER serveapi entry (D5) naming the two public packages and the enforced direction serveapi -> serveapi/protocol, never the reverse. changelogs/v0.18-current.md [Unreleased] records the new public package, the closure numbers AS MEASURED AT THE MERGE SHA, alias-based back-compat, and the one observable change (reflect.Type.PkgPath() on moved types now reports .../serveapi/protocol). Reply on #764.",
+      "estimated_loc": 120,
+      "moved_loc": 0,
+      "dependencies": [
+        "M3_CLOSURE_REFUSAL_GATE"
+      ],
+      "acceptance_criteria": [
+        "`make test` rc=0 with 0 FAIL lines (base B10: rc=0, 113 ok, 0 FAIL) - the only deliberately repo-wide behavioural gate in the sprint",
+        "`make lint` rc=0 WITH ./serveapi/... now in the pattern list (base B11: rc=0; base B12 proves the added scope is rc=0 today so the widening cannot flip the gate on its own)",
+        "`make check-boundaries` rc=0 (base B13: rc=0 'no architecture boundary violations')",
+        "`make check-file-sizes` rc=0 (base B14: rc=0, all files <= 800 lines)",
+        "`make check-protocol-closure` and `make test-check-protocol-closure` both rc=0",
+        "`grep -c 'serveapi' ARCHITECTURE.md` >= 1; base is 0 with grep rc=1, and the in-scope control `grep -c 'serveapi' docs/docs/guides/serve-api.md` = 4 with rc=0, so the base zero is a measurement and not a broken instrument",
+        "#764 reply states, explicitly: the package path; the measured closure (B15's shape re-run at the merge SHA); the gate location; D-A status = (a) plain package with NO promise of transparent later conversion; AND the trade - World gets the CONTRACT (descriptor types + validation, CallerSurface/AuthorizedSurface, host interfaces, A2A wire types + writers, MCP envelope writer + RequestID, wire-error taxonomy) and must still write its OWN HTTP handlers and callback-bounding machinery, or import serveapi and accept the 9-root SDK subtree its gate rejects today",
+        "#764 reply also states that World's edit is ONE allowlist line with their test code unchanged - because #764's literal 'the closure passes TestDaemonDependencyAllowlist unchanged' is unachievable by ANY new upstream package (its import path is non-stdlib and is not one of World's 11 roots)",
+        "Commit messages use `refs #764`, NOT a closing keyword, until merge"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "discrepancies_found": [
+    {
+      "id": "D1",
+      "severity": "blocking-if-unaddressed",
+      "doc_claim": "'New homes: embedded_mcp_test.go, embedded_a2a_test.go, embedded_mcp_replay_test.go, callbacks_test.go -> serveapi'",
+      "finding": "VERIFIED BY ME: embedded_a2a_test.go CANNOT move wholesale. TestLoadedExportMembershipAndNoMCPProjection (lines 323-344) calls the unexported, explicitly-stay-behind loadedExportMember and builds 4 ExportInfo literals - both of which the same doc keeps in internal/apiserver (V19/V20). Go forbids referencing unexported identifiers across packages, so the move as written does not compile. Evidence: `grep -n 'ExportInfo|loadedExportMember' internal/apiserver/embedded_a2a_test.go` -> lines 327,330,331,332,333,337, all inside the func starting at 323 (next func at 351). Same-scope negative control: the identical grep over embedded_mcp_test.go, embedded_mcp_replay_test.go and callbacks_test.go returns EMPTY; known-positive control mcp_schema_test.go (a file that stays) returns 13 ExportInfo + 13 isExposed, so the instrument is not blind.",
+      "action": "M2.4 SPLITS the file: TestLoadedExportMembershipAndNoMCPProjection stays in internal/apiserver (append to mcp_schema_test.go, which already owns the isExposed/ExportInfo assertions); the other 9 test funcs + 4 helpers move. Post-M2 assertion: exactly 1 grep hit for that test name under internal/apiserver/."
+    },
+    {
+      "id": "D2",
+      "severity": "blocking - inverts the sprint's headline gate",
+      "doc_claim": "The round-2 reviewer's fix, adopted VERBATIM: 'have the test inject a temporary file directly into the real directory (e.g. `echo 'package protocol; import _ \"github.com/google/uuid\"' > serveapi/protocol/zz_intruder_test.go`), run the script to observe the expected exit 1 and count movement'. The doc then asserts 'the self-test and Mutation 1 are now the same experiment'.",
+      "finding": "VERIFIED BY ME (B17): `go list -deps <pkg>` - the gate's OWN instrument in arm 1 - enumerates the BUILD closure and does NOT include test-only imports. Injecting a _test.go intruder leaves the enumeration unchanged: the gate exits 0, the count does not move, and the self-test's 'expect exit 1 + count movement' assertion fails FOR THE WRONG REASON - precisely the failure mode the reviewer's objection existed to prevent. Measured on scratch package internal/probetest: _test.go intruder -> non-stdlib count stays 1, uuid ABSENT; known-positive control in the same call `go list -deps -test` -> count 4, uuid PRESENT (so the intruder file is real and visible to an instrument that looks for it); non-test zz_intruder.go -> count 1 -> 2, uuid NAMED, go build still rc=0. The doc also CONTRADICTS ITSELF, which is how this surfaced: Mutation-table row 1 says 'add the import to a serveapi/protocol FILE' (correct) while the self-test spec says zz_intruder_test.go (incorrect).",
+      "action": "M3.4 arm (i) injects serveapi/protocol/zz_intruder.go with NO _test suffix. The reviewer's INTENT - inject into the REAL package directory so arm 1's anti-vacuity floor is satisfied - is preserved exactly; only the filename changes, because the filename is what decides whether the gate's instrument can see the mutation. M3.4 arm (iv) then injects the _test.go form and ASSERTS the gate stays green with a printed rationale, so the blind spot reads as a deliberate scope decision (a consumer never links our test-only imports) rather than a hole."
+    },
+    {
+      "id": "D3",
+      "severity": "published-API-seam",
+      "doc_claim": "'callbacks.go (new home): CallbackRunner, NewCallbackRunner, RunCallback moved verbatim'; 'a2a_handler.go (new home): EmbeddedA2AConfig, NewEmbeddedA2AHandler moved'. Export status is never decided anywhere in the doc.",
+      "finding": "VERIFIED BY ME: those 7 symbols are exported inside internal/apiserver, i.e. invisible to every external consumer. Moving them verbatim into serveapi - which SHIPPED in v0.33.0/v0.33.1 - makes all seven PUBLIC API for the first time. Issue #764 asks for none of them. Nothing forces export: serveapi/serveapi_external_test.go is `package serveapi` (in-package test, may use unexported identifiers - confirmed by head -12); the only other importer of internal/apiserver is cmd/ailang/serve_api.go, which does not import serveapi at all (V17 reproduced); and there are ZERO top-level name collisions between the 5 moving test files' decls and serveapi_external_test.go's decls (fixtureHost, validConfig, writeFixtureFile, externalFixtureSource, deniedFixtureSource, host).",
+      "action": "PLANNER RULING (M2.2): the moved machinery is UNEXPORTED in serveapi - callbackRunner, newCallbackRunner, runCallback, embeddedMCPConfig, newEmbeddedMCPHandler, embeddedA2AConfig, newEmbeddedA2AHandler. Net new public symbols in serveapi: ZERO, pinned by AC8. This touches NO Design-Freeze box (the freeze covers the split line, the contract-vs-machinery line, back-compat-by-alias, and D-A - not export status), preserves the doc's AC6 oracle exactly (apiserver.RunCallback -> runCallback is still two call-site renames + one import deletion), and keeps the doc's own stated follow-up cheap: if World later wants the ready-made A2A handler, exporting is additive. Also resolves a Deferred Decision as measured fact rather than choice: RunCallback[T any] is generic (internal/apiserver/callbacks.go:39) and Go has NO generic methods, so it stays a free function."
+    },
+    {
+      "id": "D4",
+      "severity": "gap",
+      "doc_claim": "The doc lists no lint-scope change; `make lint` is assumed to cover the new package.",
+      "finding": "VERIFIED BY ME: make/code-health.mk:71 runs `golangci-lint run ./cmd/... ./internal/... ./testutil/...`. ./serveapi/... is NOT in that list, and serveapi/protocol would not be either - so the new PUBLIC package would ship unlinted. Running the missing scope directly against the same repo .golangci.yml: `golangci-lint run ./serveapi/... ./internal/apiserver/...` -> rc=0, '0 issues', so adding the pattern cannot import a pre-existing red.",
+      "action": "M4.3 adds ./serveapi/... to the make lint pattern list. Baselined both ways (B11 make lint rc=0; B12 added scope rc=0), so the change cannot flip the gate on its own."
+    },
+    {
+      "id": "D5",
+      "severity": "minor",
+      "doc_claim": "(a) authorized_surface_test.go's 'stay-behind-gateway assertions (loadedExportMember, isExposed) remain in apiserver'; (b) protocol_compat.go is '~40 LOC'; (c) 'ARCHITECTURE.md one-liner for the new public package'; (d) World's gate 'passes unchanged'.",
+      "finding": "VERIFIED BY ME. (a) authorized_surface_test.go contains NEITHER loadedExportMember NOR isExposed - only ToolDescriptor (12 refs) and callerSurface (3 refs), so it moves to serveapi/protocol WHOLE; the isExposed assertions live in mcp_schema_test.go (13 refs), which stays untouched. This makes M1 SIMPLER than the doc implies. (c) ARCHITECTURE.md contains ZERO occurrences of 'serveapi' (grep rc=1; in-scope control `grep -c serveapi docs/docs/guides/serve-api.md` = 4, rc=0), so the 'one-liner' is the file's FIRST mention of the published seam, not an edit. (b) PLANNER ESTIMATE, NOT A MEASUREMENT: at the M1 boundary the shim must be roughly 2.5x 40 LOC because embedded_*.go are still resident and now reference moved-away ToolDescriptor/AuthorizedSurface/callerSurface/ErrCallbackCapacity/envelope helpers; ~55 of those LOC are transitional and must be deleted in M2. (d) UNVERIFIED, inherited from the design doc (V10, read at ailang-world 48ef27518) - I did NOT read World's checkout. Issue #764's literal 'passes TestDaemonDependencyAllowlist unchanged' is unachievable by ANY new upstream package, so the doc's reading (their test code unchanged, one data line added) is the only coherent one.",
+      "action": "(a) M1.5 moves authorized_surface_test.go whole. (b) M1.4 marks transitional entries and M2.6 makes their deletion a mechanical check with a control. (c) M4.4 adds the first serveapi entry. (d) M4.6 states the one-line edit explicitly in the #764 reply so World's loop is not surprised at link time."
+    },
+    {
+      "id": "D6",
+      "severity": "charter-correction",
+      "doc_claim": "The mission charter records `go build ./...` as rc=1 at base because 'cmd/wasm and gen/main have no native main'.",
+      "finding": "VERIFIED BY ME: `go build ./...` IS rc=1 at base - so the headline claim holds and the command must never be an acceptance criterion. But the reason is HALF WRONG: the sole failing package is cmd/wasm ('runtime.main_main.f: function main is undeclared in the main package'). `gen/` does not exist in this repo at all (`test -d gen` -> ABSENT; `go build ./gen/...` -> 'pattern ./gen/...: lstat ./gen/: no such file or directory').",
+      "action": "No sprint work. Recorded so the next planner does not go looking for gen/main. `go build ./serveapi/... ./internal/apiserver/...` (rc=0 at base, B1) is the gate this sprint uses."
+    },
+    {
+      "id": "D7",
+      "severity": "would-delete-a-load-bearing-test",
+      "doc_claim": "Implicit throughout: 'after this, serveapi no longer imports internal/apiserver at all' - with no instrument named for checking it.",
+      "finding": "VERIFIED BY ME: serveapi/serveapi_external_test.go mentions internal/apiserver THREE times and only one is the import. Line 17 is the real import (deleted by M2). Line 120 is `want := \"use of internal package github.com/sunholo-data/ailang/internal/apiserver not allowed\"`, the expected compiler error inside TestExternalModuleCanImportFacadeButNotInternal. Line 215 is inside the deniedFixtureSource const - a //go:build denied fixture whose entire purpose is to prove an external module CANNOT import the internal package. A source-text grep asserted to 0 would therefore demand deleting the very test that guards the internal boundary. Base `grep -c 'internal/apiserver' serveapi/*.go` -> serveapi.go:1, serveapi_external_test.go:3.",
+      "action": "The M2 boundary gate uses the toolchain's own import list, immune to strings-in-fixtures: `go list -f '{{join .Imports \"\\n\"}}' ./serveapi | grep -c 'internal/apiserver'` must be 0 (rc=1), with the same command against ./cmd/ailang as the same-call control (2, rc=0). Base measured at B18: 1. This also confirms the AC6 oracle arithmetic - serveapi_external_test.go's diff really is <= 3 lines, because lines 120 and 215 are untouched."
+    }
+  ],
+  "risks": [
+    "A build-tagged file outside darwin/arm64 leaks a symbol the V8 probe never compiled. Mitigation: M1's stop-and-re-measure rule (do NOT widen protocol silently); CI runs the gate on linux-amd64 and windows.",
+    "PLATFORM NARROWING: every planner gate is green on darwin/arm64 ONLY; windows-latest and ubuntu-latest legs are UNRUN locally. Mitigation: AC2's count ceiling is 40 against a predicted 31, and the gate's TIGHT assertion is on module ROOTS (arch-stable) rather than package counts (B16 shows the SDK carries per-arch packages segmentio/asm/cpu/{arm,arm64,x86}).",
+    "The three embedded test files share embeddedTestHost (defined in embedded_mcp_test.go); a partial move breaks internal/apiserver. Mitigation: M2.4 requires them in ONE commit; the M2 boundary gate runs go test over BOTH package trees.",
+    "D1's split of embedded_a2a_test.go drops the membership assertion instead of relocating it. Mitigation: M2.4 names the exact func and line range; post-M2 grep must return exactly 1 hit.",
+    "D2 RECURS: someone 'restores' the reviewer's verbatim zz_intruder_test.go filename because the design doc says so. Mitigation: the filename decision is written into M3.4 WITH the B17 measurement inline, and arm (iv) makes the _test.go form's green result an ASSERTED behaviour with a printed reason.",
+    "Alias identity change breaks a reflection-based consumer (reflect.Type.PkgPath() on moved types now reports .../serveapi/protocol). Mitigation: no known consumer (V17 reproduced; World is pre-consumption); called out in the CHANGELOG at M4.5.",
+    "World's gate drifts before delivery (allowlist read at ailang-world 48ef27518, NOT re-read by the planner). Mitigation: the design depends only on 'stdlib-only passes any prefix-admitting allowlist'; the #764 reply carries numbers re-derived at the merge SHA.",
+    "Someone plans nested-module work because the design doc still CONTAINS the full option-(b) specification. Mitigation: metadata.non_scope enumerates the six artifacts that are out of scope; the (b) text is the bar for a hypothetical FUTURE project, not this sprint.",
+    "`make test` (AC7/M4) is the only repo-wide behavioural gate and is the slowest. It is green at base (B10: rc=0, 113 ok, 0 FAIL), so a red there is collateral damage from this diff and not repo noise.",
+    "The wire-error taxonomy (ErrCallbackCapacity, CallbackMessage, AuthorizationStatus) staying in protocol is the re-scope's flagged MAXIMAL point. It is a planner ruling, not a measurement, and remains strikeable to serveapi at zero design cost if a reviewer disagrees - but note the three are inseparable (CallbackMessage switches on ErrCallbackCapacity) and striking them removes a downstream handler-writer's ability to emit the frozen #592/#603 wire strings.",
+    "A naive source-text grep is used to verify 'serveapi no longer imports internal/apiserver' (D7). Mitigation: the M2 criterion names the toolchain instrument explicitly and states, inline, which two lines of serveapi_external_test.go must survive."
+  ]
+}
