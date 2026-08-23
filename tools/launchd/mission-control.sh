@@ -373,12 +373,25 @@ if [ "$PIN_STATUS" = "STALE" ]; then
 else
   log "driver pin: $PIN_NOTE"
   if [ "$PIN_STATUS" = "pinned" ]; then
+    # Normalise once: `set -u` is in force and every reference below is bare. pin-root.sh sets
+    # PIN_DRIFT on the line after PIN_STATUS, so an unset value is unreachable today — pinned
+    # so the invariant is enforced rather than assumed.
+    PIN_DRIFT="${PIN_DRIFT:-}"
     case "$PIN_DRIFT" in
       ''|*[!0-9]*)
         log "driver pin drift: unknown ($PIN_DRIFT); notice suppressed"
         ;;
       *)
         _pin_drift_warn="${AILANG_DRIVER_DRIFT_WARN:-25}"
+        # A threshold of 0 persists a previous of 0, and `-ge $((0 * 2))` is then true on
+        # every fire — the notice-every-90-minutes outcome this whole block exists to avoid,
+        # arriving through its own knob. A default is an instrument too: floor it, loudly.
+        case "$_pin_drift_warn" in
+          ''|*[!0-9]*|0)
+            log "driver pin drift: AILANG_DRIVER_DRIFT_WARN='$_pin_drift_warn' is not a positive integer; using 25"
+            _pin_drift_warn=25
+            ;;
+        esac
         if [ "$PIN_DRIFT" -lt "$_pin_drift_warn" ]; then
           rm -f "$PIN_DRIFT_FILE"
           log "driver pin drift: $PIN_DRIFT below warning threshold $_pin_drift_warn; notice re-armed"

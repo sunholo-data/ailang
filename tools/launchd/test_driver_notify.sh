@@ -155,6 +155,38 @@ case "$T" in *"DECISION_RC:0"*"driver ran UNPINNED"*) case "$T" in *"source clon
 T=$(run_drift pinned 170 25 absent)
 arm_ok "drift-h: notice names the source clone, not the pin worktree" "$T" "/source/ailang-motoko" "/pinned/driver-worktree"
 
+# drift-i: a threshold of 0 persists a previous of 0, after which `-ge $((0 * 2))` is TRUE on every
+# fire — the post-every-90-minutes outcome the doubling rule exists to prevent, reached through the
+# block's own config knob. The floor coerces it to 25, so a drift of 3 is BELOW threshold and stays
+# silent. Remove the floor and this arm reds, because 3 -ge 0 notifies.
+T=$(run_drift pinned 3 0 absent)
+arm_ok "drift-i: a non-positive threshold is floored, not obeyed" "$T" "using 25" "AILANG:" "GH:"
+
+# drift-j: PIN_DRIFT unset under `set -u` must be handled, not abort. Unreachable through
+# pin-root.sh today (it sets PIN_STATUS and PIN_DRIFT on consecutive lines) — pinned here so the
+# invariant is enforced rather than assumed, per the evaluator's finding 4.
+T=$(/bin/bash -c '
+    set -uo pipefail
+    TRACE=""
+    log() { TRACE="$TRACE
+LOG:$*"; }
+    ailang() { TRACE="$TRACE
+AILANG:$*"; return 0; }
+    gh()     { TRACE="$TRACE
+GH:$*"; return 0; }
+    MISSION_NAME=motoko; MISSION_REPO=sunholo-data/ailang; MSG_FROM=mission-motoko
+    MISSION_GH_ISSUE=635; LOG=/tmp/x.log; REPO=/pinned/driver-worktree
+    AILANG_DRIVER_SRC=/source/ailang-motoko
+    PIN_STATUS=pinned; PIN_DRIFT_FILE=/tmp/nonexistent.$$/pin-drift; PIN_NOTE=n
+    _pin_degraded=""; _pin_drift_degraded=""
+    . "$1"
+    . "$2"
+    echo "DECISION_RC:$?"
+    . "$3"
+    printf "%s" "$TRACE"
+  ' _ "$LAB/notify.sh" "$LAB/pin_decision.sh" "$LAB/pin_drift_block.sh" 2>&1)
+arm_ok "drift-j: unset PIN_DRIFT is log-only, not a set -u abort" "$T" "LOG:driver pin drift: unknown" "AILANG:" "GH:"
+
 echo ""
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]
