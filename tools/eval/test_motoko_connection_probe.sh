@@ -214,7 +214,7 @@ refusal_artifact="$tmp_dir/refusal/probe.json"
 mkdir -p "$tmp_dir/refusal"
 expect_failure "refusing live path refuses with the control-void message" "treatment verdict is void" \
   env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=4 \
-    PROBE_STUB_STATE="$tmp_dir/lane-refusal" PROBE_TEST_FORCE_TREATMENT=1 \
+    PROBE_STUB_STATE="$tmp_dir/lane-refusal" \
     /bin/bash "$probe" treatment treatment "$refusal_artifact"
 for retained in treatment.driver.log treatment.lsof control.driver.log control.lsof; do
   [[ -s "$refusal_artifact.$retained" ]] || { echo "not ok - refusal lost $retained" >&2; exit 1; }
@@ -265,6 +265,36 @@ if [[ $(uname -s) == Darwin ]] && command -v nc >/dev/null && command -v lsof >/
 else
   echo "UNINFORMATIVE UNDER SANDBOX: live synthetic socket arm requires darwin nc+lsof; fixture arm remains authoritative"
 fi
+
+# The REAL wall-clock deadline inside descendant_pids, not the PROBE_TEST_DESCENDANT_FAILURE
+# short-circuit. The pgrep stub above returns its own argument under PROBE_TEST_PGREP_LOOP, which
+# makes the process tree self-referential and never empties the queue — the only way to reach the
+# in-loop `date` check. The stub was written for this and no invocation used it, so the branch
+# that actually bounds the walk was unexercised while an arm claimed the deadline was pinned.
+expect_failure "descendant discovery refuses on the real wall-clock deadline" "process-tree discovery failed" \
+  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=1 PROBE_TEST_PGREP_LOOP=1 \
+    PROBE_STUB_STATE="$tmp_dir/lane-pgreploop" /bin/bash "$probe" treatment control "$tmp_dir/pgreploop.json"
+
+# Refusal-branch drift gate. Every arm above proves a branch that EXISTS goes red when neutered —
+# a removal proves the check FIRES; only an addition proves it LOOKS. Adding a new refusal to the
+# probe passes the whole suite byte-identically, so the coverage claim is a one-time manual count
+# that silently rots on the next edit. Count the branches and refuse when the number moves.
+expected_refusal_branches=23
+actual_instrument_failures=$(grep -c 'instrument_failure "' "$probe")
+actual_usage_refusals=$(grep -cE '\|\| usage$' "$probe")
+# Anti-vacuity: a counter that returns zero is a broken instrument, not a clean result.
+if (( actual_instrument_failures == 0 || actual_usage_refusals == 0 )); then
+  echo "not ok - refusal-branch counter matched nothing; instrument failure, not a verdict" >&2
+  exit 1
+fi
+actual_refusal_branches=$(( actual_instrument_failures + actual_usage_refusals ))
+if (( actual_refusal_branches != expected_refusal_branches )); then
+  echo "not ok - refusal-branch drift: probe has $actual_refusal_branches refusal branches," >&2
+  echo "         this suite is written for $expected_refusal_branches. Add an arm for the new" >&2
+  echo "         branch (or delete a stale one), then update expected_refusal_branches." >&2
+  exit 1
+fi
+pass_arm "refusal-branch count still matches the set this suite covers ($actual_refusal_branches)"
 
 if (( arms == 0 )); then
   echo "not ok - zero test arms ran" >&2
