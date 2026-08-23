@@ -16682,3 +16682,156 @@ $0.111009 = $0.077765 + $0.033244); quota buckets opus, fable ×2.
 **Next.** `D-30` and `D-29` both gate this row. Ungated bar-first alternatives for the next
 iteration, in order: `m-cohort-manifest-build-provenance` (small, blocks a publishable clause-5
 baseline) then `m-run-selector-enumeration-floor` (world-DEMAND sweep, ~0.5–1d).
+
+## 256 — 2026-08-23 — Iteration 256: `go build` in a linked worktree emits an unidentifiable binary, `-buildvcs=true` does not even error, and the confirming quorum nobody required caught the last defect
+
+**Pick.** `m-cohort-manifest-build-provenance` — iteration 255's declared ungated bar-first
+alternative. `m-contract-verification-coverage` stays parked on `D-30`; I re-read that predicate
+as a command rather than transcribing it (zero allowlisted directives since the
+`2026-08-22T11:36:26Z` watermark), so it is unchanged, measured today.
+
+**The row was real at HEAD, and its root cause is wider than the row states.** The queue row says
+only `make`'s ldflags can set `Version`. That is true, and it misses that `Commit` HAS a working
+`debug.ReadBuildInfo()` fallback — which **a linked git worktree silently disables**. So the
+defect is not "we forgot ldflags"; it is that *this loop's own isolation rules guarantee
+unidentifiable binaries*: Gate 3 mandates worktrees, verification-protocol rule 1(a) mandates a
+scratch `go build` rather than `make quick-install`, and the intersection of those two correct
+rules is a binary that cannot say what it is.
+
+Four arms, `go version -m`, dotted `vcs\.` pattern, control = total `build` settings:
+
+| arm | tree | `vcs.` lines | control | `--version` |
+|---|---|---|---|---|
+| A | pin worktree (detached) | **0** | 10 | `AILANG dev`, no `Commit:` line |
+| B | main checkout (real `.git` **directory**) | **4** | 14 | `Commit: db71d2a…-dirty` |
+| C | `.wt-iter216-record`, linked worktree **on a branch** | **0** | 10 | — |
+| D | pin worktree with `-buildvcs=true` | **0** | 11 | `AILANG dev`; **rc=0, no error** |
+
+Arm C is the discriminator: it is the **worktree**, not the detached HEAD. Arm D refutes the
+cheapest imaginable fix — Go neither stamps nor complains.
+
+**Three decision-bearing consumers silently accept the `"dev"`** (CLAUDE.md §3 — audit before
+patching, one systemic fix rather than a manifest patch): `eval_suite_manifest.go:212-213` writes
+it into the frozen cohort manifest whose stated purpose is independent recomputation (the live
+`v1.0` artifact reads `ailang_version:"dev"`, `git_commit:"dev"`, with `frozen_at`/`chain_id`/
+`cohort_hash` populated as controls); `pipeline_module.go:276` passes it as the module cache's
+**compiler-identity** component, whose own comment says the point is that a new commit
+invalidates; and `eval_suite.go:191` namespaces `--bank-by-version` output by
+`releaseTag(version.Version)`, which returns `"dev"` unchanged — re-creating the cross-build
+result pooling this repo has fixed before.
+
+**The designer refuted me twice; I re-verified both first-party.** (i) My `grep -c 'vcs'` returned
+**1** on the `-buildvcs` arm because my own scratch directory was named `/tmp/i256_vcs/` — the
+instrument matched its own path. Dotted `vcs\.` returns 0 and the substance stands, but the
+lesson is rule 3a aimed at a path I chose. (ii) My three-consumer enumeration was **symbol-keyed
+and therefore incomplete**: a `version\.Version|version\.Commit` grep finds 9 files, an
+import-path grep finds 7, and **neither is a superset** — `cmd/ailang/prompt.go` and
+`cmd/ailang/mcp_status.go` alias the import as `versionpkg` and are invisible to any symbol grep
+(negative control 0). The designer also corrected `pipeline_module.go:229` → `:230`. A sub-agent
+correcting the controller is the loop working (Gate 2 rule (d)).
+
+**Quorum: three rounds, all blocked, all three finding real defects — and rounds 2 and 3 blocked
+on defects the CONTROLLER introduced.**
+
+*Round 1* (2/2 external present, `absent_reviewers` empty; controller also reject). `gpt5-6-sol`:
+V17's remediation premise was **inferential** — it only read `Makefile:27-29` and cited a row
+measured in the main checkout, so the fix we tell operators to use had never been executed in a
+worktree. `gemini-3-1-pro`: `BuildID()` returning a `-dirty` commit aliases different compiler
+bytes under one cache identity. Controller: the proposed full-executable sha256 costs
+**232/215/214 ms** per process on a 96,201,490-byte binary (control: a 2-byte file, 29 ms), on a
+path where module caching is **on by default**.
+
+**I measured `gpt5-6-sol`'s premise rather than forwarding it (rule 3f), and it passed** — the
+ldflags recipe in the linked worktree builds rc=0 and prints `AILANG v0.33.1-220-g96381331a` with
+`Full: 96381331a3e0…`, both fields correct. It also surfaced a fact nobody predicted and the doc
+now carries: it leaves `vcs\.` at **0** (control 11 settings vs 10 unstamped), so the remediation
+sets the package vars and does **not** restore Go's VCS metadata — sufficient only because all
+three consumers read the vars and never `debug.ReadBuildInfo()`.
+
+*Round 2* **BLOCKED, and `gpt5-6-sol` dropped out on `budget`** — precisely the N−1 degrade hole.
+Rather than decide the round short I **restored it** with a solo
+`design-review --max-cost-usd 0.30` (**$0.09095**), and restored it **rejected**: the
+stat-derived id I had proposed claims *"errs toward over-invalidation, never under"* and then
+names a case where it under-invalidates. That contradiction was mine. Its `proposed_fix` named
+the condition that selects between its two branches — *"If hashing cost remains unacceptable,
+route unstamped/dirty builds to cache bypass"* — so I **measured the condition instead of
+choosing by taste**: the module cache's entire benefit is `asset_path.ail` 33/34/33 ms ON vs
+46/46/44 OFF (**≈12 ms**) and `regex_log_orchestration.ail`, the heaviest example at 6 imports,
+39/38/39 vs 39/39/38 (**no measurable difference**). Paying 215 ms to protect ≤12 ms is strictly
+worse than not caching at all. The **narrow-refinement carve-out** was applied by the controller —
+not a third designer run — gating the cache on a new `Identity.CommitClean()` and bypassing
+entirely for ambiguous builds; `gemini-3-1-pro`'s un-testable-seam objection dissolved, because
+the gate reads `version.Commit`, an exported package `var` any test can set and restore.
+
+*Round 3* was a **confirming quorum the carve-out did not require** — it permits routing straight
+to sprint-planner after a bounded controller revision — **and it is the only reason the next
+defect exists on the record.** Both reviewers, independently, 2/2 present: `CommitClean()` checks
+`-dirty` on **`Commit`**, but the ldflags/Makefile contract sets `Commit=$(git rev-parse HEAD)`,
+a plain SHA; dirtiness rides on **`Version`** via `git describe --dirty`. So every
+`make`-installed dirty binary passes the gate — exactly the population the predicate was written
+to exclude. Measured read-only in the genuinely dirty main checkout (doc row V24, the row
+`gpt5-6-sol` demanded): `git describe --tags --always --dirty` → `v0.33.1-218-gdb71d2a16-dirty`,
+`git rev-parse HEAD` → `db71d2a1638bf1…`, against the clean pin worktree as control, with the
+`ReadBuildInfo` arm from that same dirty tree printing `Full: db71d2a…-dirty`. **The two stamping
+paths put `-dirty` on different fields**, and the evidence to see it was sitting in the doc's own
+V2 and V17 rows the whole time — nobody joined them.
+
+**Stopped there deliberately.** The carve-out permits ONE bounded controller revision and round 2
+was it. Rounds 2 and 3 each blocked on a defect introduced by the previous fix, and round 3's was
+mine; a third unreviewed controller revision is exactly what round 3 punished. The residue is
+also not pure transcription — `gpt5-6-sol` additionally asks for explicit handling of
+`Version == "dev"` with a clean runtime-stamped `Commit`, which is a small design decision.
+
+**Not filed `needs-human-review`.** Nothing here awaits Mark: both reviewers gave the same
+verbatim predicate, and standing rule 8 says a park whose blocker is not judgment must not
+manufacture a decision he does not have. Nor is it `PARKED-ON-LANE` — nothing unblocks on a
+clock. It is an **in-loop resume point**, tagged `[NEXT]`, with a four-step machine-checkable
+resume recorded in the doc's round-3 quorum log.
+
+**`D-31` filed.** The designer rotation's structural collapse is at instance **4** and had **no
+ledger row**: iteration 251 measured three instances and said the fix *"needs a human, because it
+is a routing-policy change on a shared file"*; iteration 255 amended the *diet* and explicitly did
+not widen the *rotation*; neither filed an ID. A park-for-human with no ledger row can never be
+generated into a `DECISIONS FOR MARK` section, so it has been re-discovered every iteration and
+answered in none. That is the decision-recording contract working only when someone actually
+writes the row.
+
+**Instruments.** `go build ./...` re-derived first-party as **rc=1 on pristine dev**
+(`cmd/wasm`, `function main is undeclared`) and banned from every acceptance criterion; `go build`
+on `./internal/version/...`, `./internal/pipeline/...`, `./cmd/ailang`, `go vet` on both,
+`make check-changelog`, `check-file-sizes`, `check-boundaries`, and `gofmt -l` are all rc=0 at
+base, each rc captured without a pipe. `internal/version` has **no test files** — a package about
+to become load-bearing with zero tests, now part of M1. All quorum runs used a freshly built
+in-worktree binary prepended to `PATH`; `~/go/bin` was left untouched for concurrent agents.
+
+**Ruled out.** That the defect is the detached HEAD (arm C refutes it). That `-buildvcs=true`
+fixes it (arm D: rc=0 and unstamped). That `make`/ldflags is broken in worktrees (executed; it
+works, and it does not restore `vcs.*`). That this is a one-line manifest patch (three consumers,
+one shared cause). That the surviving objection needs Mark (unanimous, verbatim). That the
+quorum's `proceed`-with-absent-reviewers hole applied to rounds 1 or 3 (`absent_reviewers` empty
+in both). That `#695` is this mission's to touch. That this needed the GPU or any lane beyond the
+quorum.
+
+**Gates** (darwin/arm64). Documentation only — no code shipped, so no CI matrix is implicated.
+`origin/dev` `96381331a` read at Gate 1 with `test` still `pending` at 14 checks and re-read to
+completion at **16 checks, zero not-green** rather than banked in flight.
+
+**Routing evidence.** controller `claude:claude-opus-5` (session) · designer
+`claude:claude-fable-5` ×2 (create + revise — rotation collapsed **structurally**, instance 4:
+codex IS quorum reviewer `gpt5-6-sol`, gemini is read-only under `CapRemoteSandbox`; neither is a
+probe failure, so neither was probed. **Diet-COMPLIANT** under iteration 255's DOC-unit
+amendment) · `sonnet` ×1 for the mechanical carve-out propagation, deliberately *not* a third
+Fable run · quorum `gpt5-6-sol` + `gemini-3-1-pro`, three rounds, plus one solo restore ·
+**no planner, no executor, no evaluator** — the quorum blocked before routing, which is the gate
+working as designed. metered **$0.386513** of $5 (R1 $0.107613 · R2 $0.038444 · restore
+$0.090950 · R3 $0.149506); quota buckets opus, fable ×2, sonnet ×1.
+
+**Outcome.** `m-cohort-manifest-build-provenance` designed (872 lines, 4 milestones, 14 ACs, 24
+verification rows), reviewed three times, **quorum-blocked with a bounded unanimous resume**, and
+left `[NEXT]` rather than parked on a human. `D-31` filed. No code shipped.
+
+**Next.** Apply the unanimous predicate fix
+(`CommitKnown() && !HasSuffix(Commit,"-dirty") && !HasSuffix(Version,"-dirty")`), document the
+`Version=="dev"` + clean-`Commit` case, add the two test arms both reviewers specified, re-quorum
+once, then route to sprint-planner. If it clears, the ungated bar-first queue continues with
+`m-run-selector-enumeration-floor`.
