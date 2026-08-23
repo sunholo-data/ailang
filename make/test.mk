@@ -35,13 +35,18 @@ test-nightly-classifier: ## Run nightly variance-guard contract and replay tests
 # The launchd drivers carried ZERO automated coverage until #558's second recurrence — a large
 # part of why two silent-staleness bugs shipped unnoticed. /bin/bash explicitly, not $$SHELL:
 # the rig runs 3.2.57, so a suite that only passes under a newer bash proves nothing about it.
+# The motoko connection probe's routing verdict is load-bearing; run its self-test here so CI
+# refuses when the instrument can no longer prove both treatment absence and control visibility.
 test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices + hook stdout, bash 3.2)
 	@/bin/bash tools/launchd/test_pin_root.sh
 	@/bin/bash tools/launchd/test_driver_notify.sh
 	@/bin/bash tools/launchd/test_mission_routing.sh
 	@/bin/bash tools/launchd/test_hook_stdout.sh
 	@/bin/bash tools/launchd/test_fmt_ab_schedule.sh
+	@/bin/bash tools/eval/test_motoko_connection_probe.sh
 	@for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n "$$f" || exit 1; done
+	@/bin/bash -n tools/eval/motoko_connection_probe.sh
+	@/bin/bash -n tools/eval/test_motoko_connection_probe.sh
 	@/bin/bash -n scripts/mission_decisions.sh
 	@echo "launchd drivers: tests + bash 3.2 syntax OK"
 

@@ -2,7 +2,7 @@
 set -uo pipefail
 
 script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-probe="$script_dir/motoko_connection_probe.sh"
+probe=${PROBE_UNDER_TEST:-$script_dir/motoko_connection_probe.sh}
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/test-motoko-connection-probe.XXXXXX") || exit 1
 trap 'rm -rf "$tmp_dir"' EXIT
 arms=0
@@ -94,6 +94,141 @@ printf '%s\n' '127.0.0.1:11434' '[2001:db8::8]:443' > "$tmp_dir/leaky-v6.peers"
 expect_failure "treatment rejects an OpenRouter peer reached over IPv6" "contains OpenRouter endpoint" \
   "$probe" --assert-treatment "$tmp_dir/leaky-v6.peers" "$tmp_dir/or_ips"
 
+# Build a hermetic live-path toolchain. The driver is a stub: no eval, GPU, Ollama,
+# or network access occurs. lsof derives the lane from the sampled driver's PID.
+live_bin="$tmp_dir/live-bin"
+mkdir -p "$live_bin"
+for tool in awk bash cat cp cut date grep kill mkdir mktemp rm sleep sort; do
+  tool_path=$(command -v "$tool") || exit 1
+  ln -s "$tool_path" "$live_bin/$tool"
+done
+ln -s "$(command -v jq)" "$live_bin/jq"
+cat > "$live_bin/uname" <<'EOF'
+#!/bin/bash
+echo "${PROBE_TEST_UNAME:-Darwin arm64}"
+EOF
+cat > "$live_bin/dig" <<'EOF'
+#!/bin/bash
+[[ "${PROBE_TEST_DIG_EMPTY:-0}" == 1 ]] || echo 203.0.113.8
+EOF
+cat > "$live_bin/pgrep" <<'EOF'
+#!/bin/bash
+if [[ "${PROBE_TEST_PGREP_LOOP:-0}" == 1 ]]; then
+  while [[ $# -gt 1 ]]; do shift; done
+  echo "$1"
+fi
+exit 0
+EOF
+cat > "$live_bin/lsof" <<'EOF'
+#!/bin/bash
+pid=""
+while [[ $# -gt 0 ]]; do
+  if [[ "$1" == -p ]]; then pid=$2; break; fi
+  shift
+done
+lane_file="${PROBE_STUB_STATE}.${pid}"
+[[ -f "$lane_file" ]] || exit 1
+lane=$(cat "$lane_file")
+echo "COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME"
+if [[ "$lane" == treatment ]]; then
+  echo "stub $pid user 1u IPv4 0 0t0 TCP 127.0.0.1:51000->127.0.0.1:11434 (ESTABLISHED)"
+else
+  echo "stub $pid user 1u IPv4 0 0t0 TCP 192.0.2.1:51000->203.0.113.8:443 (ESTABLISHED)"
+fi
+EOF
+cat > "$live_bin/ailang-stub" <<'EOF'
+#!/bin/bash
+lane=""
+while [[ $# -gt 0 ]]; do
+  if [[ "$1" == --models ]]; then lane=$2; break; fi
+  shift
+done
+echo "$lane" > "${PROBE_STUB_STATE}.$$"
+echo "stub driver lane=$lane"
+if [[ "${PROBE_TEST_IGNORE_TERM:-0}" == 1 ]]; then trap '' TERM; fi
+sleep "${PROBE_TEST_DRIVER_SLEEP:-2}"
+rm -f "${PROBE_STUB_STATE}.$$"
+EOF
+chmod +x "$live_bin/uname" "$live_bin/dig" "$live_bin/pgrep" "$live_bin/lsof" "$live_bin/ailang-stub"
+
+run_live() {
+  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=4 \
+    PROBE_STUB_STATE="$tmp_dir/lane" "$@" /bin/bash "$probe" treatment control "$tmp_dir/live.json"
+}
+
+expect_failure "live usage rejects wrong arity" "usage:" /bin/bash "$probe"
+expect_failure "classify usage rejects wrong arity" "usage:" /bin/bash "$probe" --classify-fixture
+expect_failure "nonempty usage rejects wrong arity" "usage:" /bin/bash "$probe" --assert-nonempty
+expect_failure "treatment usage rejects wrong arity" "usage:" /bin/bash "$probe" --assert-treatment
+expect_failure "control usage rejects wrong arity" "usage:" /bin/bash "$probe" --assert-control
+expect_failure "timeout rejects non-positive values" "positive integer" \
+  env PROBE_TIMEOUT_SECS=0 /bin/bash "$probe" treatment control "$tmp_dir/reject.json"
+expect_failure "timeout rejects non-integer values" "positive integer" \
+  env PROBE_TIMEOUT_SECS=no /bin/bash "$probe" treatment control "$tmp_dir/reject.json"
+expect_failure "platform gate rejects non-darwin arm64" "requires darwin/arm64" \
+  run_live PROBE_TEST_UNAME='Linux x86_64'
+
+make_dependency_path() {
+  local omitted=$1 dep_dir="$tmp_dir/dep-$1" name
+  mkdir -p "$dep_dir"
+  for name in "$live_bin"/*; do
+    [[ "${name##*/}" == "$omitted" ]] || ln -s "$name" "$dep_dir/${name##*/}"
+  done
+  printf '%s\n' "$dep_dir"
+}
+for dependency in dig lsof pgrep jq ailang-stub; do
+  dependency_path=$(make_dependency_path "$dependency")
+  expected_dependency="$dependency is required"
+  [[ "$dependency" == ailang-stub ]] && expected_dependency="AILANG_BIN is not executable"
+  expect_failure "dependency gate rejects missing $dependency" "$expected_dependency" \
+    env PATH="$dependency_path" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=2 \
+      PROBE_STUB_STATE="$tmp_dir/lane" /bin/bash "$probe" treatment control "$tmp_dir/dep.json"
+done
+expect_failure "empty dig result refuses the live verdict" "dig returned no addresses" \
+  run_live PROBE_TEST_DIG_EMPTY=1
+expect_failure "temporary-directory creation failure refuses" "could not create temporary directory" \
+  run_live TMPDIR="$tmp_dir/missing/parent"
+expect_failure "empty pid scope fails loudly instead of widening lsof" "invalid empty or malformed pid scope" \
+  run_live PROBE_TEST_PID_SCOPE=
+expect_failure "descendant discovery deadline refuses at the caller" "process-tree discovery failed" \
+  run_live PROBE_TEST_DESCENDANT_FAILURE=1
+expect_failure "lane sampling deadline refuses" "exceeded 1s sampling deadline" \
+  run_live PROBE_TEST_DRIVER_SLEEP=10 PROBE_TIMEOUT_SECS=1
+expect_failure "bounded termination deadline refuses" "bounded termination deadline" \
+  run_live PROBE_TEST_DRIVER_SLEEP=20 PROBE_TEST_IGNORE_TERM=1 PROBE_TIMEOUT_SECS=1
+
+success_artifact="$tmp_dir/success/probe.json"
+mkdir -p "$tmp_dir/success"
+expect_success "hermetic live success path completes" \
+  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=4 \
+    PROBE_STUB_STATE="$tmp_dir/lane-success" /bin/bash "$probe" treatment control "$success_artifact"
+for retained in treatment.driver.log treatment.lsof control.driver.log control.lsof; do
+  [[ -s "$success_artifact.$retained" ]] || { echo "not ok - missing retained $retained" >&2; exit 1; }
+done
+# Its own arm: the expect_success above only proves the probe exited 0. An "ok" line whose label
+# claims retention, while the retention check sits outside the arm, is an assertion that cannot
+# fail for the reason it names.
+pass_arm "success path retains both lanes driver logs and lsof captures"
+
+refusal_artifact="$tmp_dir/refusal/probe.json"
+mkdir -p "$tmp_dir/refusal"
+expect_failure "refusing live path refuses with the control-void message" "treatment verdict is void" \
+  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=4 \
+    PROBE_STUB_STATE="$tmp_dir/lane-refusal" \
+    /bin/bash "$probe" treatment treatment "$refusal_artifact"
+for retained in treatment.driver.log treatment.lsof control.driver.log control.lsof; do
+  [[ -s "$refusal_artifact.$retained" ]] || { echo "not ok - refusal lost $retained" >&2; exit 1; }
+done
+# Same reason as above, and this is the load-bearing half: a lane that REFUSES is exactly the case
+# the retained log exists for.
+pass_arm "refusal path retains both lanes driver logs and lsof captures"
+
+unwritable="$tmp_dir/not-a-directory"
+: > "$unwritable"
+expect_failure "JSON artifact write failure refuses" "could not write JSON artifact" \
+  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=4 \
+    PROBE_STUB_STATE="$tmp_dir/lane-write" /bin/bash "$probe" treatment control "$unwritable/probe.json"
+
 if [[ $(uname -s) == Darwin ]] && command -v nc >/dev/null && command -v lsof >/dev/null; then
   port=$((42000 + ($$ % 10000)))
   socket_deadline=$(( $(date +%s) + 5 ))
@@ -130,6 +265,36 @@ if [[ $(uname -s) == Darwin ]] && command -v nc >/dev/null && command -v lsof >/
 else
   echo "UNINFORMATIVE UNDER SANDBOX: live synthetic socket arm requires darwin nc+lsof; fixture arm remains authoritative"
 fi
+
+# The REAL wall-clock deadline inside descendant_pids, not the PROBE_TEST_DESCENDANT_FAILURE
+# short-circuit. The pgrep stub above returns its own argument under PROBE_TEST_PGREP_LOOP, which
+# makes the process tree self-referential and never empties the queue — the only way to reach the
+# in-loop `date` check. The stub was written for this and no invocation used it, so the branch
+# that actually bounds the walk was unexercised while an arm claimed the deadline was pinned.
+expect_failure "descendant discovery refuses on the real wall-clock deadline" "process-tree discovery failed" \
+  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=1 PROBE_TEST_PGREP_LOOP=1 \
+    PROBE_STUB_STATE="$tmp_dir/lane-pgreploop" /bin/bash "$probe" treatment control "$tmp_dir/pgreploop.json"
+
+# Refusal-branch drift gate. Every arm above proves a branch that EXISTS goes red when neutered —
+# a removal proves the check FIRES; only an addition proves it LOOKS. Adding a new refusal to the
+# probe passes the whole suite byte-identically, so the coverage claim is a one-time manual count
+# that silently rots on the next edit. Count the branches and refuse when the number moves.
+expected_refusal_branches=23
+actual_instrument_failures=$(grep -c 'instrument_failure "' "$probe")
+actual_usage_refusals=$(grep -cE '\|\| usage$' "$probe")
+# Anti-vacuity: a counter that returns zero is a broken instrument, not a clean result.
+if (( actual_instrument_failures == 0 || actual_usage_refusals == 0 )); then
+  echo "not ok - refusal-branch counter matched nothing; instrument failure, not a verdict" >&2
+  exit 1
+fi
+actual_refusal_branches=$(( actual_instrument_failures + actual_usage_refusals ))
+if (( actual_refusal_branches != expected_refusal_branches )); then
+  echo "not ok - refusal-branch drift: probe has $actual_refusal_branches refusal branches," >&2
+  echo "         this suite is written for $expected_refusal_branches. Add an arm for the new" >&2
+  echo "         branch (or delete a stale one), then update expected_refusal_branches." >&2
+  exit 1
+fi
+pass_arm "refusal-branch count still matches the set this suite covers ($actual_refusal_branches)"
 
 if (( arms == 0 )); then
   echo "not ok - zero test arms ran" >&2
