@@ -17000,6 +17000,194 @@ design doc and this record are the whole diff.
 `m-module-cache-identity-not-compiler-bytes`, leave M1/M3/M4 in the parent, and re-quorum the
 reduced doc once.
 
+## 259 — 2026-08-23 — Iteration 259: the false counterexample is real at 8 of 30 frozen-cohort runs, and the discriminator I handed the designer was wrong — proved three times over
+
+**Pick.** `m-verify-bounded-unrolling-false-counterexample`, the `[NEXT]` clause-5 critical-path
+head filed by iteration 258. Zero allowlisted directives on `#745` since the
+`2026-08-23T08:30:56Z` watermark, so nothing outranked the queue; the watermark was not moved
+because nothing was processed.
+
+**Reality-check before routing.** The NEW-DOC tag is a claim: `grep -ril` over `design_docs/`
+found only the v0_8_0/v0_9_1 SMT predecessors (`m-smt-bounded-recursion`,
+`m-smt-fragment-expansion`), never this row — control `m-cohort-manifest-build-provenance.md`
+present. Not already landed: fresh `git fetch`, `git log origin/dev --grep` on both
+`bounded.unroll` and `counterexample`, plus a PR search, all empty of this work (control: the
+iteration-258 record commit `bc3f80884` returns).
+
+**A stale-base read caught before it became a false re-ask.** `scripts/mission_decisions.sh --open`
+run in the main checkout still listed `D-29` as OPEN. The main checkout is **2 behind**
+`origin/dev`, and `D-29` was resolved in `bc3f80884`. Read from origin, the ledger is 29 rows with
+`D-30` and `D-31` open. Gate 1 says read mission state from origin when local is behind; the
+decision script has no such guard, so it silently answers about the tree it is standing in.
+
+**A NEW MEMBER OF ITERATION 256's UNSTAMPED-BINARY CLASS, hit on my own first command.** I built a
+scratch binary with the ldflags recipe iteration 256 ratified — and named the module
+`github.com/sunholo/ailang/internal/version` when it is `github.com/sunholo-**data**/ailang`.
+`go build` returned **rc=0**, produced a working binary, and `--version` printed `AILANG dev`.
+A wrong `-X` symbol path is ignored exactly as silently as `-buildvcs=true`. Caught only because
+the rule says to check `--version` against `git describe` rather than trust rc=0. Rebuilt with the
+module path read from `go.mod`: `AILANG v0.33.1-223-gbc3f80884`, matching exactly. Every
+measurement below was taken with that binary; `~/go/bin` was never touched.
+
+**Reproduced first-party, same-file control, one identical clause.** `/tmp/i259_probe/discrim.ail`,
+three functions all carrying `ensures { result >= 0 }`:
+
+| function | body | status |
+|---|---|---|
+| `aOk(x: int)` | `if x >= 0 then x else 0` — non-recursive, clause TRUE | **verified** |
+| `bBad(x: int)` | `x` — non-recursive, clause GENUINELY FALSE | **counterexample** |
+| `cRec(xs: SList)` | `match xs { SNil => 0, SCons(_, t) => 1 + cRec(t) }` — recursive, clause TRUE | **counterexample** |
+
+`cRec` is a list length; `result >= 0` is unconditionally true. The witness grows with the bound
+(depth 2 → a 2-element list, depth 4 → a 4-element list), with a non-recursive control verifying at
+every depth — so it is structural, not depth tuning.
+
+**The blast radius is measured and it is not hypothetical.** Over the 30 banked runs of the frozen
+`v1.0` cohort, `verify_counterexample` distributes `{0: 22, 1: 8}` — and **all 8 land on exactly
+two benchmarks**:
+
+| benchmark | runs | models | `verify_verified` |
+|---|---|---|---|
+| `contract_sorted_merge` | 4 | haiku-4-5, sonnet-4-6, deepseek-v4-flash, glm-5-2 | 0 |
+| `contract_bst_validate` | 4 | haiku-4-5, sonnet-4-6, gpt5-6-luna, glm-5-2 | 0 |
+
+Both are the recursive-ADT benchmarks. `contract_sorted_merge.yml:23-24` ships
+`sLength(xs: SList) -> int ensures { result >= 0 }` — the exact clause reproduced above.
+Uniformity across four model families is the signature of a **tool** defect, the same argument
+iteration 254 used for the skip class.
+
+**A consequence the queue row did not name, and it is arguably worse than the KPI one.**
+`internal/eval_harness/repair.go:76-86` fires `errCode = VERIFY_COUNTEREXAMPLE` on
+`Verify.Counterexample > 0` and feeds `FormatZ3RepairHint(rawJSON)` back to the model, while
+`internal/eval_harness/agent_prompt.go:595` instructs *"If Z3 reports COUNTEREXAMPLE: fix your
+logic using the counterexample inputs"*. On those 8 runs the harness spends repair turns telling
+models to break code that is correct.
+
+**And the fix is small because the information is already computed.** `vr.BoundedDepth` is set at
+`cmd/ailang/ai_check.go:400` and `cmd/ailang/verify.go:419`, *before* the status switch, guarded by
+`smt.IsRecursiveFunc`. `cmd/ailang/verify_print.go:32-33` already prints
+`✓ VERIFIED (bounded: depth N)` — `grep -c BoundedDepth` there is **2**, both inside that one
+branch. The `counterexample` branch prints `✗ VIOLATION` plus the model with **no** bounded
+qualification. **The tool is already careful to say "I only proved this to depth N" when it
+succeeds, and drops exactly that caveat when it fails** — where the caveat is the difference
+between "your code is wrong" and "I could not tell". The status ladder exists **twice**
+(`ai_check.go:370-420`, `verify.go:388-435`), near-identically.
+
+**Routing.** Designer `claude:claude-fable-5`; the rotation collapsed onto it for **structural**
+reasons — `codex:gpt-5.6-sol` IS quorum reviewer `gpt5-6-sol`, and gemini/managed_agents is
+read-only under `CapRemoteSandbox` and cannot author a file. Neither is a probe failure, so neither
+was probed. `D-31` instance **6**. Diet-compliant under iteration 255's amendment: one DOC =
+author + one protocol-mandated revision.
+
+**The designer refuted my own load-bearing premise, and I re-verified the refutation first-party
+(Gate 2 rule (d)).** I handed it, under a VERIFIED-BY-ME heading, a candidate discriminator:
+an artifact model carries a binding for the havoc'd frontier symbol (`cRec_0`, with `result` a
+`let`-expression referring to it) while a genuine one (`bBad`: `$p_x = -1`, `result = $p_x`) does
+not. The directive demanded it MEASURE this rather than reason about it. It built three recursive
+functions with genuinely false clauses and found **all three carry the frontier binding too**.
+I re-ran its fixture myself and then swept depths **1, 2, 3, 5, 8, 10** — the binding is present in
+**18 of 18** readings. So the discriminator was not merely unsound: its `counterexample` branch is
+**unreachable** on anything either of us can construct, while being the one path able to emit a
+false violation. Recorded in Ruled out because it reached a sub-agent under a VERIFIED-BY-ME label,
+which is exactly the laundering Gate 2 forbids.
+
+**Quorum: two rounds, both blocked, every objection real, every premise measured not forwarded
+(rule 3f).**
+
+*Round 1* — 2/2 external present, `absent_reviewers` empty, both reject:
+- `gpt5-6-sol`: the discriminator is unsound, and the decision table still maps a no-frontier `sat`
+  to `counterexample`, so the design can emit the exact false violation it claims impossible.
+  **SUSTAINED** — and my 18/18 sweep is a stronger argument than its own.
+- `gemini-3-1-pro`: Q6's "corrected KPI" is arithmetically impossible under the doc's own M1,
+  because a run flipping `counterexample` → `inconclusive` still fails `isVerifiedSuccess` via the
+  new `VerifyInconclusive == 0` conjunct. **CONFIRMED** — the doc's own decision table already read
+  *"run still rejected"*, and the live KPI is `$0.7778187071999999` with `verified_successes` **3**
+  and `known_cost_usd` `$2.3334561216`, bit-identical before and after.
+
+*Revision* (the one protocol-mandated run): discriminator dropped entirely for the structural
+predicate the ladders already compute, so `internal/smt` needs **zero** code changes; the blast
+radius promoted to the problem statement; the vacuous corrected-KPI deliverable deleted.
+
+*Round 2* — `gpt5-6-sol` **ABSENT on `budget`**, the exact N−1 degrade hole. I restored it with a
+solo `design-review --max-cost-usd 0.30` ($0.0875) rather than deciding the round at N−1.
+- `gemini-3-1-pro` rejected on a pure premise gap: the "zero `internal/smt` changes" claim rests on
+  `smt.IsRecursiveFunc` being exported, and no Verification Log row proved it. **Measured:**
+  `internal/smt/encodable.go:153: func IsRecursiveFunc(body core.CoreExpr, funcName string) bool`,
+  exported, with call sites **already** at `cmd/ailang/ai_check.go:399` and `verify.go:418` — the
+  very `BoundedDepth` guard lines the design reuses (negative control 0, positive control 2).
+  Premise **refuted**; the objection is a missing row, not a defect.
+- `gpt5-6-sol`, restored, rejected — **and its objection is `D-30`**. Reader-before-writer *commit*
+  order cannot prevent new-binary/old-harness skew, because `RunAICheck` resolves its verifier child
+  through **PATH**. An old harness sees `counterexample == 0`, sets `VerifyOk` true, and a mixed
+  result carrying any `verified > 0` is scored a verified success — **KPI inflation**, the opposite
+  direction from the defect being fixed. The doc's Conflict Surface item 4 had claimed the skew was
+  *"prevented by landing order"*; that claim is false.
+
+**This makes `m-verify-bounded-unrolling-false-counterexample` the SECOND doc blocked by `D-30`
+independently**, on the identical PATH-resolution mechanism that already has
+`m-contract-verification-coverage` parked. Two docs, two reviewers, two different surfaces, one
+unresolved ledger row.
+
+**Narrow-refinement carve-out applied by the controller** (not a third Fable run). Both surviving
+objections carry concrete reviewer-authored `proposed_fix`es and neither disputes the design
+DIRECTION, which no reviewer has questioned across three reviews. Applied: **V28** recording the
+`IsRecursiveFunc` measurement; Conflict Surface 4 rewritten to say the skew is DETECTED, not
+prevented, naming `D-30` as the only thing that would prevent it; and **AC-13**, the reviewer's
+verbatim ask — an old-reader/new-writer test on a fixture carrying both `verified > 0` and
+`inconclusive > 0`, asserting today's predicate does NOT score it a success. That gate is **RED at
+base by construction**, which is the point.
+
+**Disposition: `[NEXT]`, routable to sprint-planner. NOT parked.** Not `needs-human-review` — the
+design direction is unchallenged and the residual is an EXISTING open ledger row, so parking it
+would manufacture nothing new (standing rule 8). Not `PARKED-ON-LANE` — nothing unblocks on a clock.
+
+**`D-32` filed.** Whether `inconclusive` joins the effective KPI arm's exemption set — exactly the
+axis Mark ruled `D-29` on for `not_applicable`. It is the only thing that could move the headline
+number, and the doc deliberately neither decides it nor depends on it.
+
+**Ruled out.**
+- My own frontier-symbol discriminator (18/18 refutation, controls firing).
+- That the fix improves the KPI — bit-identical by construction. Its value is honest labels, repair
+  turns not spent breaking correct code, and `D-29`'s second clause unblocked.
+- That raising `-verify-recursive-depth` is a workaround — 1/2/3/5/8/10 all fail.
+- That this is one surface. `m-verify-unencodable-reported-as-error` is the same taxonomy defect on
+  the `error`-vs-`skipped` surface, reproduced this session
+  (`shapes_verify.ail` → `3 verified, 1 errors` on a tuple pattern, while an unencodable builtin
+  returns a structured `skipped`). One concept — *the verifier could not discharge this obligation*
+  — is reported **three** ways: `error`, `skipped`, `counterexample`. Only `skipped` is honest. The
+  pattern is named in the doc and the sibling row deliberately **not** absorbed: it inverts no
+  verdict, and bundling different correctness bars is what cost a sibling doc five rounds.
+- That the doc needed `internal/smt` changes — r2 has zero.
+- That an ff-only merge was authorised. Local `dev` is 0 ahead / 2 behind, but `D-16`'s
+  path-disjointness test FAILS: `comm -12` returns `.claude/skills/mission-control/SKILL.md`
+  (control fires — `design_docs/v1-mission.md` is in the incoming set). Its content is identical to
+  `origin/dev`, so the collision is nominal, but the designer was live in that tree — `D-16`'s
+  *any collision or doubt* clause applies. Record written from a worktree at `origin/dev`.
+- That this needed an executor, an evaluator, the GPU, or the eval rig.
+
+**Routing evidence.**
+
+| role | pinned | actual | outcome |
+|---|---|---|---|
+| controller | `$CONTROLLER_ID` = `claude:claude-opus-5` | opus (session) | Gates 0–5 |
+| designer | ROTATION (last-used `claude:claude-fable-5`) | `claude:claude-fable-5` via Agent `model="fable"` | **structural collapse, `D-31` instance 6** — codex IS `gpt5-6-sol`; gemini read-only. Author + 1 revision = diet-compliant |
+| quorum R1 | `gpt5-6-sol` + `gemini-3-1-pro` | both present | **blocked**, both objections real |
+| quorum R2 | `gpt5-6-sol` + `gemini-3-1-pro` | gemini only; **gpt5-6-sol absent (budget), RESTORED** | **blocked**; carve-out applied |
+| planner | `codex:gpt-5.6-sol` | **not spawned** | quorum gated first; doc now routable |
+| executor | `codex:gpt-5.6-sol` | **not spawned** | no code this iteration |
+| evaluator | `sonnet` | **not spawned** | nothing to evaluate |
+
+metered **$0.2251** of $5 — R1 $0.1013 (`gpt5-6-sol` $0.0717 + `gemini-3-1-pro` $0.0296),
+R2 $0.0363 (gemini only), `gpt5-6-sol` restore $0.0875. Quota buckets: opus (controller),
+fable ×2 (designer author + one protocol-mandated revision).
+
+**Gates** (darwin/arm64; windows and ubuntu legs unrun locally). Documentation only — no code
+shipped, so no CI matrix is implicated; the design doc plus the mission record is the whole diff.
+The one binary built was a scratch `go build` with ldflags into `/tmp`.
+
+**Next.** Route `m-verify-bounded-unrolling-false-counterexample` to sprint-planner. Then
+`m-benchmark-ensures-coverage` (`minor3` only until this lands).
+
 ## 258 — 2026-08-23 — Iteration 258: Mark ruled `D-29`, and scoping his second clause uncovered a verifier defect that grades correct recursive code as a verification failure
 
 **Pick.** A **human directive**, which outranks the queue.
