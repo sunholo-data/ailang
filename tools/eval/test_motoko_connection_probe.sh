@@ -348,11 +348,20 @@ expect_failure "arm cap override rejects invalid values" \
   "PROBE_SELFTEST_ARM_CAP_SECS must be a positive integer" \
   env PROBE_SELFTEST_ARM_CAP_SECS=invalid /bin/bash "$0"
 
+expect_failure "tree node ceiling rejects invalid values" \
+  "PROBE_MAX_TREE_NODES must be a positive integer" \
+  env PROBE_MAX_TREE_NODES=invalid /bin/bash "$probe" treatment control "$tmp_dir/invalid-node-limit.json"
+
+expect_failure "descendant discovery refuses on the node-count ceiling" "process-tree discovery exceeded 3 nodes" \
+  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=60 PROBE_MAX_TREE_NODES=3 \
+    PROBE_TEST_PGREP_LOOP=1 PROBE_STUB_STATE="$tmp_dir/lane-node-limit" \
+    /bin/bash "$probe" treatment control "$tmp_dir/node-limit.json"
+
 # Refusal-branch drift gate. Every arm above proves a branch that EXISTS goes red when neutered —
 # a removal proves the check FIRES; only an addition proves it LOOKS. Adding a new refusal to the
 # probe passes the whole suite byte-identically, so the coverage claim is a one-time manual count
 # that silently rots on the next edit. Count the branches and refuse when the number moves.
-expected_refusal_branches=23
+expected_refusal_branches=24
 actual_instrument_failures=$(grep -c 'instrument_failure "' "$probe")
 actual_usage_refusals=$(grep -cE '\|\| usage$' "$probe")
 # Anti-vacuity: a counter that returns zero is a broken instrument, not a clean result.
