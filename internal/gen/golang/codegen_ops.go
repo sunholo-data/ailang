@@ -356,7 +356,9 @@ func (g *Generator) getListElementType(list *core.List) string {
 // generateArray generates a distinct Go slice literal for arrays.
 // M-ARRAY-SHOW-DIVERGES-RUN-VS-COMPILE: ArrayVal preserves array identity at runtime.
 func (g *Generator) generateArray(arr *core.Array) error {
-	// Both formerly dynamic and typed branches must carry the same array identity.
+	// Arrays deliberately emit an untyped ArrayVal wrapper to preserve array identity.
+	// M-ARRAY-SHOW-DIVERGES-RUN-VS-COMPILE removed the per-element typed branch;
+	// reintroducing one would make run and compile diverge again.
 	g.write("ArrayVal{")
 
 	for i, elem := range arr.Elements {
@@ -369,38 +371,6 @@ func (g *Generator) generateArray(arr *core.Array) error {
 	}
 	g.write("}")
 	return nil
-}
-
-// getArrayElementType extracts the Go element type for an array from CoreTypeInfo.
-// M-TYPE1: Returns empty string if type is unknown or not an array type.
-func (g *Generator) getArrayElementType(arr *core.Array) string {
-	if g.coreTypeInfo == nil {
-		return ""
-	}
-
-	nodeID := arr.NodeID
-	if nodeID == 0 {
-		return ""
-	}
-
-	typ, ok := g.coreTypeInfo[nodeID]
-	if !ok {
-		return ""
-	}
-
-	// Map the type to Go and extract element type
-	goType, err := g.TypeMapper.MapType(typ)
-	if err != nil {
-		return ""
-	}
-
-	// Check if it's a slice type and extract element type
-	goTypeStr := string(goType)
-	if len(goTypeStr) > 2 && goTypeStr[:2] == "[]" {
-		return goTypeStr[2:]
-	}
-
-	return ""
 }
 
 // generateTuple preserves tuple identity for canonical rendering and matching.

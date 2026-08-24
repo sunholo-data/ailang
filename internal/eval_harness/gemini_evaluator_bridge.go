@@ -447,11 +447,6 @@ func ensureTrailingNL(s string) string {
 // M2 — Reasoning-only evaluator directive + structured verdict parse/validate
 // ============================================================================
 
-// geminiPassThreshold is the sprint-evaluator convention: pass requires
-// score >= 70 (and no blockers). Matches the sprint-evaluator skill's
-// pass_threshold.
-const geminiPassThreshold = 70
-
 // evaluatorReasoningInstruction is the compile-time reasoning-only directive
 // prelude, mirroring managedAgentsBridgeInstruction's role for the extract-out
 // path. It tells the sandboxed evaluator it has NO repo/test access and must
@@ -491,7 +486,7 @@ const evaluatorTruncationNote = "\nThe DIFF BUNDLE is marked TRUNCATED: some fil
 type GeminiVerdict struct {
 	// Score is 0..100; pass threshold is 70 (sprint-evaluator convention).
 	Score int `json:"score"`
-	// Pass is score >= 70 AND no blockers.
+	// Pass is score >= 70 AND no blockers; 70 matches the sprint-evaluator skill's pass_threshold.
 	Pass bool `json:"pass"`
 	// Blockers are hard-fail reasons; a non-empty Blockers ⇒ Pass==false
 	// regardless of Score.
