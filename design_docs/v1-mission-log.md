@@ -17648,3 +17648,93 @@ executor correction. Do not start M2 before M1 lands.
 **Retro lane**: none. The existing `PARKED-ON-LANE` rule already requires the role, refusal evidence, and resume predicate; no new recurring controller gap was observed.
 
 **Next**: re-probe only when a distinct evaluator lane is responsive (or a Google project is configured); PASS → land M1, FAIL → bounded executor correction. Do not start M2 first.
+
+## 266 — 2026-08-24 — `#764` M1 LANDED; the four-iteration evaluator lane park cleared once Anthropic was back
+
+**Picked**: `#764` continuation, the independent evaluation of M1 commit `07b9a843e`
+(`M1_EXTRACT_PROTOCOL_PACKAGE`) required before M1 may land — the queue head and the standing
+resume point named by iterations 262–265.
+
+**Root cause of the four-park streak (diagnosed this iteration)**: iterations 262–265 each recorded
+the evaluator (`sonnet`) and its `fable` fallback refusing "on weekly quota" or timing out at 0 B.
+The controller in all four ran on `codex:gpt-5.6-sol` — i.e. the driver's Anthropic probe was
+failing, so it fell back to the codex controller lane. `sonnet` and `fable` are BOTH Anthropic, so
+when Anthropic was unavailable the *entire* evaluator surface was down; the Monday 07:00 clock
+predicate was necessary but never sufficient. This iteration's controller is `opus` (Anthropic
+available), and the reset had passed, so the resume predicate finally fired. Standing rule 8(e): a
+lane park recurring for the same role across consecutive iterations is a routing-policy signal —
+surfaced below.
+
+**Gate 0/1 evidence**: kill switch armed; billing tripwire CLEAN (no `ANTHROPIC_API_KEY`/
+`ANTHROPIC_AUTH_TOKEN`); gh authenticated as `sunholo-voight-kampff`; pin worktree detached at
+`e3ed9467f` = `origin/dev`; running skill byte-identical to `origin/dev` via the resolved `readlink`
+target (`/Users/voightkampff/dev/sunholo-data/ailang/.claude/skills/mission-control`, a different
+inode from the pin's own copy, per iteration 241); `0` allowlisted directives on `#745` since the
+`2026-08-23T19:01:24Z` watermark (0 of 83 comments; rest are public feedback); no open
+`[nightly-eval]` issues; ledger valid (35 rows). Today is Monday 2026-08-24 09:04 CEST — past the
+07:00 quota-reset boundary. Weekly external-issue sweep: `#745` was created 2026-08-17 (last week),
+so a rotation IS owed this Monday and the sweep is owed on the first post-rotation iteration; handled
+in Gate 5 below.
+
+**Independent evaluation (generator≠judge)**: executor for M1 ran on `codex:gpt-5.6-sol` (iter 262),
+so the judge must be non-codex. Spawned the `sonnet` evaluator (Anthropic — distinct provider) via
+the Agent tool, FOREGROUND (standing rule 7 corollary (a): a synchronous spawn cannot be reaped),
+pointed at the pre-existing clean evaluator worktree `.wt-iter262-eval` (a sibling of the repo, not
+`/tmp`, detached at `07b9a843e`). Verdict: **PASS 95/100, zero blocking findings.** All 8 M1
+boundary gates re-derived first-party:
+- `go build ./serveapi/... ./internal/apiserver/...` → rc=0
+- `go test -count=1 ...` → rc=0 (serveapi, serveapi/protocol, internal/apiserver, .../schema all green)
+- `go vet ...` → rc=0
+- `go list -deps ./serveapi/protocol | awk -F/ '$1 ~ /\./'` → exactly one line: `.../serveapi/protocol`
+- `go list -deps ./serveapi/protocol | wc -l` → 188 (≥2, matches the plan's B15 prediction)
+- non-stdlib module roots → exactly `github.com/sunholo-data/ailang` (the stdlib-only guarantee)
+- `golangci-lint run ...` (2.11.4) → `0 issues`
+- transitional-marker completeness → `grep -c TRANSITIONAL` = 16, control `grep -c 'protocol\.'` = 15 (>0); every transitional entry marked.
+Adversarial checks all held: moves were git-visible (byte-identical logic modulo export renames;
+`descriptor_test.go` is an 87%-similarity rename); the `serveapi/` facade was genuinely untouched;
+no symbol invented beyond §4.2. Two NON-BLOCKING nits, deferred as queue-adjacent cleanup for M2:
+(1) orphaned doc comments left in `internal/apiserver/mcp_schema.go` after the regex/`validateMCPName`
+deletion; (2) `serveapi/protocol/interfaces.go` is a copy from `serveapi.go` (not a git-move) whose
+duplication M2.3's aliasing collapses — anticipated by the plan.
+
+**Controller confirmation**: re-ran `go build ./serveapi/... ./internal/apiserver/...` outside any
+sandbox → rc=0 (the evaluator's run was already in a real, non-sandboxed worktree, so its greens are
+bankable; this is belt-and-suspenders). Re-confirmed the stdlib-only closure independently.
+
+**Landed**: pushed `sprint/iter262-serveapi-protocol-m1`; opened PR **#848** non-closing
+(`refs #764`; auto-close-keyword scan run with a firing control before the commit, so the merge
+cannot close #764 while M2–M4 remain). CI: **16 checks, zero not-green** on head `07b9a843e` (bounded
+Gate-3b poll, SHA-addressed `check-runs`, numeric-floor asserted; required `build`/`docs-gate`/
+`lint`/`test` all pass, `test` 17m33s); `mergeable=MERGEABLE`, `mergeStateStatus=CLEAN`; squash-merged
+**`d54672b85`**. Verified post-merge: PR `MERGED`, issue `#764` still `OPEN`. Newer dev (iter 263–265
+records, #846) is docs-only — `git diff --stat 71692d6f1 origin/dev -- ':!design_docs' ':!*.md'`
+empty — so no code conflict was possible.
+
+**Routing evidence**: controller=`opus` task-class=triage/pick/record provider=anthropic
+cost=quota-bucket:subscription; evaluator=`sonnet` task-class=evaluate provider=anthropic
+status=PASS-95/100 cost=quota-bucket:subscription; executor n/a (M1 committed by `codex:gpt-5.6-sol`
+at iteration 262); designer/planner none; metered=**$0.00** of $5.
+
+**Ruled out**:
+- That the four-park streak was a genuine per-item blocker — it was a controller-provider artifact
+  (Anthropic down ⇒ codex controller ⇒ both Anthropic evaluator lanes down). The clock predicate
+  alone was never the missing piece.
+- Treating controller gate re-runs as the independent evaluation — same-provider lineage cannot
+  satisfy generator≠judge; the sonnet run is the verification, the controller run is a confirmation.
+- Merging on focused greens alone — Gate 3 requires the independent evaluator first (done) AND
+  Gate 3b requires an OBSERVED CI green (done).
+- Starting M2 before M1 lands (standing rule 1: one item; M1 landing was the item).
+- Attributing the iter-264 STATUS stamp's absence to my rotation — it was already missing on entry
+  (a prior-iteration loss, noted in the retro; not chased this iteration).
+
+**Retro lane**: no skill edit. The four-park recurrence is a routing-policy signal (standing rule
+8(e)), not a new controller gap: the `PARKED-ON-LANE` machinery worked exactly as designed, and the
+resume predicate fired correctly the first time a distinct lane was reachable. The one durable
+observation — the evaluator lane collapses entirely when Anthropic is unavailable, because both
+`sonnet` and `fable` are Anthropic and the only non-Anthropic evaluator (gemini/managed-agents) needs
+a GCP project that is unset — is surfaced to Mark below rather than acted on unilaterally (widening
+the evaluator rotation or configuring the environment is a routing-policy change for a human).
+
+**Next**: M2 (`M2` — rewire `serveapi`, unexport moved machinery, delete the `// TRANSITIONAL`
+shim, evict the machinery tests) is the queue head, unblocked. Route it next iteration under the
+normal executor→evaluator lane. The two M1 non-blocking nits fold naturally into M2.
