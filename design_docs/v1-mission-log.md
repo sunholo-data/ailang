@@ -17942,3 +17942,119 @@ first-party instance, below the ≥2 bar. Pre-registered here so a second is rec
 
 **Next**: `#764` **M4** — docs, lint scope, CHANGELOG, `#764` reply. When M4 lands, `D-34` is a
 standing pre-authorisation to *ask* for a v0.34.0 tag; the tag itself remains Mark's decision alone.
+
+## 269 — 2026-08-24 — `#764` M4 LANDED, the sprint is COMPLETE, and the lint gate had two path lists
+
+**Pick**: queue head `#764` M4 — docs, lint scope, CHANGELOG, `#764` reply. P1 cross-mission
+blocker (`D-33`), and the final milestone of the four.
+
+**Outcome**: LANDED `7e7bdffcb` (PR [#864](https://github.com/sunholo-data/ailang/pull/864),
+squash). Evaluator `sonnet` **PASS 89/100**, one blocking finding, fixed in-iteration and
+re-verified. `#764` **deliberately left OPEN** — see Delivery below.
+
+**What shipped**: `docs/docs/guides/serve-api.md` gains the contract-only import path and the
+contract-vs-machinery split; `.claude/rules/api-server.md` repoints `CallerSurface` /
+`AuthorizedSurface` / `ValidateMCPName` at `serveapi/protocol/descriptor.go` and records that
+`internal/apiserver`'s `validateMCPName` is now a thin forwarding shim; `ARCHITECTURE.md` gets its
+first-ever `serveapi` entry plus the enforced one-way direction `serveapi → serveapi/protocol`;
+`changelogs/v0.18-current.md` records the closure numbers as measured at the merge base;
+`make/code-health.mk` puts `./serveapi/...` in `make lint`.
+
+**THE MILESTONE'S REAL FINDING — `make lint` HAS TWO PATH LISTS, AND THE PLAN ONLY KNEW ABOUT ONE.**
+M4.3 as written said: add `./serveapi/...` to the golangci-lint pattern list at
+`make/code-health.mk:71`. That line number is correct at HEAD, and the edit is not sufficient. The
+`lint` target computes its VERDICT from a second, separate path list at line 89 —
+`grep -qE "^(internal|cmd|testutil)" /tmp/lint.out` — and `serveapi` is not in that alternation. So
+the planned edit would have made golangci-lint LOOK at `serveapi/` while leaving the gate unable to
+REFUSE anything it found there: an acceptance criterion ("`make lint` rc=0 with `./serveapi/...` now
+in scope") that passes identically whether the package is clean or broken. Caught at Gate 2 while
+baselining my own directive's gate list, not by the executor and not by the evaluator.
+
+**Measured rather than argued.** Three arms, against a real `govet printf` defect injected into
+`serveapi/serveapi.go` (exported, so it survives the pipeline's `grep -v "is unused"`), mutant
+asserted LANDED by grep count and BUILDS by `go build` rc=0 before any red was believed:
+
+| arm | `make lint` |
+|---|---|
+| both hunks (as delivered) | **rc=2 — refuses** |
+| scan hunk reverted, predicate kept | rc=0 — vacuous |
+| predicate reverted, scan kept | rc=0 — vacuous |
+
+Neither hunk alone suffices. This is rule 3j's *a gate's coverage is a property of its enumerator*
+arriving one level up: the enumerator was widened and the **verdict** was not. Both files restored
+from `cp` backups (never `git checkout --` on an uncommitted tree), sha256 byte-identical, zero
+probe residue.
+
+**Base measured before routing** (rule 3e(a), aimed at my own directive rather than a planner's):
+`make lint`, `check-boundaries`, `check-file-sizes`, `check-protocol-closure`,
+`test-check-protocol-closure` all rc=0 at base; `make test` rc=0 with **114 ok** packages and 0 FAIL.
+Whole-repo `go build ./...` deliberately excluded from the directive — rc=1 on untouched dev. My
+first B12 probe was WRONG and I caught it before routing: I ran raw `golangci-lint` rather than the
+`make` pipeline, which filters, so it measured a different sentence than the one the AC makes
+(rule 3b(i)).
+
+**Executor** `codex:gpt-5.6-sol`, probe rc=0, bounded 30-min cap, 8,270 B directive, **rc=0 with a
+6-entry non-empty diff**. It self-reported the M4.3 deviation and correctly labelled its own
+`make test` **UNINFORMATIVE UNDER SANDBOX** (`httptest` loopback binds). All gates re-run by the
+controller outside the sandbox: every one rc=0, `make test` **114 ok / 0 FAIL — identical to the
+measured base**, so no collateral damage.
+
+**Evaluator** `sonnet` (Anthropic; distinct from the codex executor, generator≠judge holds) in
+**its own** worktree at `01570cbd9`: **PASS 89/100**. It re-ran my three-arm drill with its own
+independently-chosen mutant and confirmed the conclusion, then found a **third** vacuity path I had
+not tested — the pipeline's `grep -v "is unused"` strips `unused` findings before the predicate
+ever sees them, so a genuinely dead function in `serveapi/` still prints a green checkmark. It
+correctly classified that as **pre-existing** (blamed to `35092b834`, 2026-04-22, four months
+before this sprint) and applying identically to `internal`/`cmd`/`testutil` — a queue row, not an
+M4 defect. That is rule 3n(b) applied by the judge without being asked.
+
+**The judge's blocking finding was right, and its stated reason was wrong — both matter.** It
+flagged that the CHANGELOG and the `#764` reply both quoted "304 cloud or telemetry packages" while
+the repo's own baseline (design doc V22, sprint plan B6) says **325**, at eight separate locations.
+It concluded 304 was fabricated: *"`git log --all -p` confirms 304 has zero provenance"*. I
+reproduced the finding before acting (and before dismissing it), and the provenance claim is a
+search-scope artifact — **304 is issue #764's own figure**, it appears in the issue title itself,
+and the charter quotes it correctly at line 508. It is not in git history because it lives on
+GitHub. The two numbers are honest counts of ONE closure under TWO patterns: the doc's V22 pattern
+additionally matches `ollama`, `openai`, `anthropics`, `aws`, `firebase`, `GoogleCloudPlatform`.
+So the defect is **rule 3b(ix) exactly — a count is only true inside the scope it was taken in, and
+the scope is the part nobody writes down** — and the fix is not to swap one bare number for
+another. Both artifacts now give 325 with its pattern named and cite the issue's 304 beside it.
+Note the number reached the executor **through my own directive**: I transcribed it from the
+charter instead of deriving it, which is the very habit rule 3b(v)(b) exists to stop.
+
+**Gate 3b**: **21** checks on the merge head, 0 pending, 0 not-green, state **CLEAN**; all four
+required contexts pass (`test` 17m55s, `lint` 3m54s, `build` 1m57s, `docs-gate` 5s). Control fired
+(dev HEAD = 16). `mergeable` read FIRST and never `CONFLICTING`.
+
+**One non-required check went red and it is NOT ours.** `launchd drivers (bash 3.2)` was
+`cancelled` after hitting its `timeout-minutes: 15` with orphan `bash` and `make` processes — i.e.
+it HUNG. Named rather than waved through, then attributed by measurement rather than by vibes:
+(a) the diff touches **zero** files that target reads (it runs `tools/launchd/*.sh` plus a network
+probe, `tools/eval/test_motoko_connection_probe.sh`); (b) the same job is `success` on dev HEAD and
+on **5 of 5** recent dev runs, each in ~75 seconds; (c) the decisive control — **re-run on a
+byte-identical tree completed `success` in 77 seconds**. Outcome divergence with no code change
+means the variable is the environment. It is not a required context, and it is now green.
+
+**Delivery — and why `#764` stays OPEN.** All four milestones are on `dev`, but World pins upstream
+by RELEASE, so merging does not reach it. Closing the issue now would tell a downstream consumer
+"done" about something they still cannot import — the same harm class as iteration 240's `#676`.
+The reply posted to `#764` says so explicitly and names the **v0.34.0** tag as the delivery.
+`D-34` pre-authorises ASKING for that tag; the tag itself remains Mark's alone.
+
+**Routing**: controller `opus`; executor `codex:gpt-5.6-sol` (quota bucket); evaluator `sonnet`
+**PASS 89/100**; designer and planner **not spawned** — the doc and plan both pre-existed, so no
+Fable spend and the rotation pointer is untouched. metered=**$0.00** of $5.
+
+**Ruled out**: that the `launchd` red was attributable to this diff (refuted by the re-run control);
+that the evaluator's "304 has no provenance" claim was correct (refuted first-party — it is the
+issue's own number); that raw `golangci-lint` rc could stand in for `make lint` rc when testing the
+AC (refuted by reading the target's filter chain).
+
+**Retro**: no skill edit. The candidate gap — *a repo artifact quoting an external reporter's
+count without naming whose pattern produced it* — has ONE first-party instance and is pre-registered
+so a second is recognisable; rule 3b(ix) already covers the general shape.
+
+**Next**: the `#764` sprint is complete. Queue head becomes the three closure/lint gate rows
+(`m-lint-unused-filter-vacuity` NEW this iteration, plus iteration 268's arm2-floor and goos-scope),
+unless Mark answers `D-34` — in which case the v0.34.0 release ask outranks.
