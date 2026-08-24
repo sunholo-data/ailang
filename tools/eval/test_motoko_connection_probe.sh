@@ -6,6 +6,11 @@ probe=${PROBE_UNDER_TEST:-$script_dir/motoko_connection_probe.sh}
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/test-motoko-connection-probe.XXXXXX") || exit 1
 trap 'rm -rf "$tmp_dir"' EXIT
 arms=0
+ARM_CAP_SECS=${PROBE_SELFTEST_ARM_CAP_SECS:-120}
+if [[ ! "$ARM_CAP_SECS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "not ok - PROBE_SELFTEST_ARM_CAP_SECS must be a positive integer" >&2
+  exit 1
+fi
 
 pass_arm() {
   arms=$((arms + 1))
@@ -20,10 +25,53 @@ require_line() {
   fi
 }
 
+run_bounded() {
+  local stdout_file=$1 stderr_file=$2 cap_secs=$3 pid deadline terminate_deadline rc
+  shift 3
+  [[ "${1:-}" == -- ]] || return 2
+  shift
+  "$@" < /dev/null >"$stdout_file" 2>"$stderr_file" &
+  pid=$!
+  deadline=$(( $(date +%s) + cap_secs ))
+  while kill -0 "$pid" 2>/dev/null; do
+    if (( $(date +%s) > deadline )); then
+      kill "$pid" 2>/dev/null || true
+      terminate_deadline=$(( $(date +%s) + 5 ))
+      while kill -0 "$pid" 2>/dev/null && (( $(date +%s) <= terminate_deadline )); do
+        sleep 1
+      done
+      if kill -0 "$pid" 2>/dev/null; then
+        kill -9 "$pid" 2>/dev/null || true
+      fi
+      wait "$pid" 2>/dev/null || true
+      return 199
+    fi
+    sleep 1
+  done
+  wait "$pid"
+  rc=$?
+  return "$rc"
+}
+
+report_arm_cap() {
+  local name=$1 cap_secs=$2
+  echo "not ok - $name exceeded its ${cap_secs}s arm cap" >&2
+  echo "--- captured stdout (last 20 lines) ---" >&2
+  tail -n 20 "$tmp_dir/stdout" >&2
+  echo "--- captured stderr (last 20 lines) ---" >&2
+  tail -n 20 "$tmp_dir/stderr" >&2
+  exit 1
+}
+
 expect_failure() {
-  local name=$1 expected=$2
+  local name=$1 expected=$2 rc
   shift 2
-  if "$@" >"$tmp_dir/stdout" 2>"$tmp_dir/stderr"; then
+  run_bounded "$tmp_dir/stdout" "$tmp_dir/stderr" "$ARM_CAP_SECS" -- "$@"
+  rc=$?
+  if (( rc == 199 )); then
+    report_arm_cap "$name" "$ARM_CAP_SECS"
+  fi
+  if (( rc == 0 )); then
     echo "not ok - $name unexpectedly succeeded" >&2
     exit 1
   fi
@@ -36,9 +84,14 @@ expect_failure() {
 }
 
 expect_success() {
-  local name=$1
+  local name=$1 rc
   shift
-  if ! "$@" >"$tmp_dir/stdout" 2>"$tmp_dir/stderr"; then
+  run_bounded "$tmp_dir/stdout" "$tmp_dir/stderr" "$ARM_CAP_SECS" -- "$@"
+  rc=$?
+  if (( rc == 199 )); then
+    report_arm_cap "$name" "$ARM_CAP_SECS"
+  fi
+  if (( rc != 0 )); then
     echo "not ok - $name failed" >&2
     cat "$tmp_dir/stderr" >&2
     exit 1
@@ -274,6 +327,26 @@ fi
 expect_failure "descendant discovery refuses on the real wall-clock deadline" "process-tree discovery failed" \
   env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=1 PROBE_TEST_PGREP_LOOP=1 \
     PROBE_STUB_STATE="$tmp_dir/lane-pgreploop" /bin/bash "$probe" treatment control "$tmp_dir/pgreploop.json"
+
+cap_start=$(date +%s)
+run_bounded "$tmp_dir/cap.stdout" "$tmp_dir/cap.stderr" 2 -- /bin/bash -c \
+  'echo $$ > "$1"; sleep 30' cap-fixture "$tmp_dir/cap.pid"
+cap_rc=$?
+cap_elapsed=$(( $(date +%s) - cap_start ))
+if (( cap_rc != 199 || cap_elapsed > 10 )); then
+  echo "not ok - arm cap terminates a hung command and reports it" >&2
+  exit 1
+fi
+cap_pid=$(cat "$tmp_dir/cap.pid")
+if kill -0 "$cap_pid" 2>/dev/null; then
+  echo "not ok - arm cap terminates a hung command and reports it: process survived as $cap_pid" >&2
+  exit 1
+fi
+pass_arm "arm cap terminates a hung command and reports it"
+
+expect_failure "arm cap override rejects invalid values" \
+  "PROBE_SELFTEST_ARM_CAP_SECS must be a positive integer" \
+  env PROBE_SELFTEST_ARM_CAP_SECS=invalid /bin/bash "$0"
 
 # Refusal-branch drift gate. Every arm above proves a branch that EXISTS goes red when neutered —
 # a removal proves the check FIRES; only an addition proves it LOOKS. Adding a new refusal to the
