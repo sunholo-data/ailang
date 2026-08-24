@@ -139,6 +139,9 @@ check-file-sizes: ## Check for files >800 lines (CI gate)
 check-boundaries: ## Check architecture layer boundaries (CI gate)
 	@bash scripts/check_boundaries.sh
 
+check-protocol-closure: ## Check serveapi protocol/facade build closures (CI gate)
+	@/bin/bash scripts/check_protocol_closure.sh
+
 check-changelog: ## Check root CHANGELOG.md stays an index, not a changelog (CI gate)
 	@bash scripts/check_changelog.sh
 
