@@ -1373,6 +1373,18 @@ log.Fatal(server.ListenAndServe())
 `Mount` registers `/mcp/`, `/.well-known/agent.json`, and `/a2a/`. A host that
 needs different paths can mount `MCPHandler()` and `A2AHandler()` itself.
 
+Hosts that need the shared wire contract but provide their own handlers can
+instead import `github.com/sunholo-data/ailang/serveapi/protocol`. That package
+contains descriptor types and validation, `CallerSurface`/`AuthorizedSurface`,
+host interfaces, A2A wire types and writers, MCP envelope framing and
+`RequestID`, and the wire-error taxonomy. Its build closure is standard-library
+only; `make check-protocol-closure` measures and enforces that guarantee in CI.
+
+The split is contract versus machinery: `serveapi/protocol` does not provide
+HTTP handlers or callback bounding. Import `serveapi` for the ready-made MCP and
+A2A handlers and bounded callback runner; its MCP handler brings the MCP SDK
+dependency subtree.
+
 ### Ownership boundary
 
 The host owns authentication, session identity, authorization policy, callback
