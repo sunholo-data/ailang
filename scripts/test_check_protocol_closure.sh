@@ -95,7 +95,60 @@ run_gate ./serveapi/protocol ./definitely/not/a/package
 run_gate ./serveapi/protocol ./cmd/astdump
 [ "$RC" -eq 2 ] && printf '%s' "$OUT" | grep -qF 'vacuous enumeration (serveapi R7)' || VACUITY_FAILURE="R7 probe: rc=$RC output=$OUT"
 
-if [ -n "$VACUITY_FAILURE" ]; then fail "vacuity arm — $VACUITY_FAILURE"; else pass "vacuity probes R1/R2/R3/R4/R6/R7 refuse with rc=2 and no checkmark"; fi
+FAKE_DIR=$(mktemp -d)
+FAKE_GO="$FAKE_DIR/go"
+cat >"$FAKE_GO" <<'EOF'
+#!/bin/sh
+is_format=0
+package=
+for arg in "$@"; do
+	case "$arg" in
+		-f) is_format=1 ;;
+		./serveapi/protocol|./serveapi) package=$arg ;;
+	esac
+done
+if [ "$is_format" -eq 1 ]; then
+	case "${FAKE_MODE:-}" in
+		r11a) printf '%s\n' 'synthetic module-root failure' >&2; exit 7 ;;
+		r11b) exit 0 ;;
+		r11c) printf '%s\n' 'github.com/google/jsonschema-go'; exit 0 ;;
+		*) printf '%s\n' 'github.com/sunholo-data/ailang'; exit 0 ;;
+	esac
+fi
+case "$package" in
+	./serveapi/protocol)
+		printf '%s\n' 'github.com/sunholo-data/ailang/serveapi/protocol' 'fmt'
+		;;
+	./serveapi)
+		printf '%s\n' 'github.com/sunholo-data/ailang/serveapi'
+		[ "${FAKE_MODE:-}" = r10 ] || printf '%s\n' 'fmt'
+		;;
+	*) exit 9 ;;
+esac
+EOF
+chmod +x "$FAKE_GO"
+
+run_vacuity_probe() {
+	_probe_name=$1
+	_probe_mode=$2
+	_probe_reason=$3
+	_guard_name=${_probe_name%%(*}
+	OUT=$(cd "$REPO_ROOT" && FAKE_MODE="$_probe_mode" GO_BIN="$FAKE_GO" /bin/bash "$GATE" 2>&1)
+	RC=$?
+	if [ "$RC" -ne 2 ] || ! printf '%s' "$OUT" | grep -qF "vacuous enumeration (serveapi $_guard_name): $_probe_reason"; then
+		VACUITY_FAILURE="$_probe_name probe: rc=$RC output=$OUT"
+	elif printf '%s' "$OUT" | grep -q '✓'; then
+		VACUITY_FAILURE="$_probe_name probe printed a checkmark: $OUT"
+	fi
+}
+
+run_vacuity_probe R10 r10 'no stdlib package was enumerated'
+run_vacuity_probe 'R11(a)' r11a 'go list module-root enumeration failed for ./serveapi (rc=7)'
+run_vacuity_probe 'R11(b)' r11b 'module-root enumeration is empty'
+run_vacuity_probe 'R11(c)' r11c 'known-positive github.com/sunholo-data/ailang is absent'
+rm -rf "$FAKE_DIR"
+
+if [ -n "$VACUITY_FAILURE" ]; then fail "vacuity arm — $VACUITY_FAILURE"; else pass "vacuity probes R1/R2/R3/R4/R6/R7/R10/R11(a)/R11(b)/R11(c) refuse with rc=2 and no checkmark"; fi
 
 # (iii) Restoration.
 run_gate
