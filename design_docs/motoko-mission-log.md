@@ -2291,3 +2291,18 @@ swept"*). Pre-registered as instance 1 each rather than spent on a single datapo
 
 **Next**: row **6e** — `test_motoko_connection_probe.sh` arm 33, still the queue head and now
 un-preempted. Then row **6f** (the sweep's 8 orphans, 2 motoko-owned) and row **7**.
+
+**Post-report correction to entry 21 (same iteration, before the slot ended).** The digest posted to
+`#850` says `DECISIONS FOR MARK: none`. That was **wrong within the hour**, and the measurement that
+refuted it is one this iteration should have taken before reporting: the reconcile is a **one-shot
+against a continuing drift**. Nothing pulls the clone — `pin-root.sh` runs `git fetch` only, and
+`git pull` appears **0** times across both drivers — so the clone was back to **4 behind** by the
+time the worktree was cleaned up. `origin/dev` lands **21.8 commits/day** (153 in 7d; corroborating
+points 17/1d, 60/3d, 353/14d), so drift re-crosses `AILANG_DRIVER_DRIFT_WARN`=25 in **~1.1 days**,
+and the doubling-dedupe re-notifies at ~50/~100/~200 — about four asks per nine days, every one of
+them resolving to the same word for the same mechanical operation. Filed as **`D-MOTOKO-WORKDIR-2`**
+and corrected on the thread. The general shape, pre-registered as instance 1: **a fix that moves a
+system to a good state is not the same as a fix that keeps it there, and this loop's own reporting
+template asks for the outcome at the moment of writing** — so a one-shot remediation reports
+identically to a durable one. The tell: you are about to write "DECISIONS: none" for an iteration
+whose deliverable restored a state nothing maintains.
