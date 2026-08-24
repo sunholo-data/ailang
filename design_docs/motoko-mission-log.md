@@ -2191,3 +2191,77 @@ rather than left to be discovered.
 
 **Next**: row **6e** (arm 33's hang), then row **7** (profile restoration design). Row **6**'s M2
 still needs a rig slot.
+
+## 21 — 2026-08-24 — the human said yes, and the reconcile the skill calls destructive turned out to have zero ahead-commits to lose
+
+**Picked**: Not the queue head. A **human directive** on `#743` — Mark answered `D-MOTOKO-WORKDIR-1`
+with one word, **"Yes"** (`MarkEdmondson1234 @ 2026-08-23T18:59:43Z`), 42 minutes after iteration
+20's report asked it. Gate 0's contract is explicit: an allowlisted answer to a parked item unparks
+it and *becomes* this iteration's pick, outranking row 6e. The drift notice iteration 20 shipped
+fired in the same window and is the inbox message this iteration opened on — **178 behind**, up from
+170, which is the doubling-dedupe working rather than a second defect.
+
+**Reality check**: The row's own numbers were re-measured first-party rather than inherited, because
+178 commits had landed since they were taken. Ahead-commits: **0** — so Gate 1's reconcile obligation
+1 ("every local ahead-commit is a duplicate of an upstream one") is satisfied *vacuously*, which is
+strictly stronger than the `patch-id` comparison it prescribes and was not knowable from the row.
+Obligation 2 fails **7 of 7**: every dirty file is also touched by an incoming commit
+(`comm -12` intersection = 7; positive control `CHANGELOG.md` = 1, negative control = 0, so the
+instrument fires in both directions). Supersession re-derived: of **136** added lines in the local
+delta, **132** are byte-present on `origin/dev`; the **4** absent are decision-ledger prose in
+`motoko-mission.md` that origin carries in a superseding form (positive/negative `git grep` controls
+both fired). The two untracked files split: `scripts/mission_decisions.sh` is **byte-identical** to
+origin's, and `tools/launchd/test_mission_routing.sh` is **superseded and would actively regress** —
+the local copy asserts the executor fallback still carries `:floor`, which origin deliberately
+dropped on 2026-08-18 with the rationale in a comment. So discarding it removes a red, not a fix.
+
+**Shipped**: The reconcile, performed and verified — **no PR, because the deliverable is a git
+operation on a clone, not a code change**. Sequence, in the order the skill prescribes:
+(1) backup of all 7 files + the full `git diff` patch to `~/.ailang/backups/motoko-clone-reconcile-2026-08-24`,
+sha256-manifested and verified byte-identical, with a **corruption negative control that fired**
+(append a byte → verifier reds → restore → verifier greens);
+(2) `git checkout -B dev origin/dev` run **as prescribed first**, which REFUSED (rc=1) naming all 7
+files and left the tree byte-unchanged — the refusal is the feature that distinguishes this from
+`reset --hard`, and it was recorded rather than routed around;
+(3) `git checkout origin/dev -- <5 tracked>` + `rm` of the 2 untracked, both under Mark's explicit
+authorization to discard;
+(4) `checkout -B` retried → `Reset branch 'dev'`.
+Verified after: **behind 0 / ahead 0**, HEAD == `origin/dev` == `e3ed9467f`, `git status --porcelain`
+**0 lines**, `SKILL.md` **3682** lines and byte-identical to the pin's copy (negative control vs
+`CLAUDE.md` fired), charter byte-identical to the pin's, and **all 8 worktrees intact** — including
+`.wt-motoko-iter8-fmt`, which holds the mission's only quorum artifacts in a gitignored directory.
+Backup re-verified `OK` on all 7 files *after* the operation.
+
+**Routing evidence**: model=`claude:claude-opus-5` task-class=mechanical
+  round1-score=n/a rounds=1 corrections=0
+  provider=anthropic agent=controller-inline cost=quota-bucket:weekly-opus
+  **No designer, no planner, no executor, no evaluator spawned.** The pick is a human-authorized ops
+  action whose procedure is written out step-by-step in Gate 1, with machine-checkable postconditions;
+  routing it to a sprint would have added a judge with no design to judge. Designer rotation pointer
+  untouched at `claude:claude-fable-5`; Fable unspent. Metered **$0.00** of $5.
+
+**Ruled out**:
+- *"The reconcile is destructive and needs the human because work would be lost."* **Refuted on the
+  numbers.** Ahead-commits are **0** and 132 of 136 added lines already exist upstream. What made it
+  a human call was Gate 1's obligation 2 — a **conservative** predicate that fails whenever an
+  incoming commit touches a dirty file, which after 178 commits is nearly unconditional. The
+  obligation is doing its job; it just cannot distinguish "you will lose work" from "your work is
+  already upstream". Recorded as **instance 1**, not written into the skill on one datapoint.
+- *"The drift notice needs manual clearing after a reconcile."* **Refuted by reading the code and
+  then running it.** `mission-control.sh:395` removes `$PIN_DRIFT_FILE` whenever drift is below
+  `AILANG_DRIVER_DRIFT_WARN` (25). Proved hermetically by extracting the real branch and driving it
+  three ways: drift=0 → state file removed ("re-armed"); drift=178 unchanged → deduped, file kept
+  (control fires); drift=356 → EMIT. Live drift is now **0**, so the next fire clears it.
+- *"67 of 76 open issues are untracked."* **Refuted as an artifact of the wrong corpus.** That count
+  is against motoko's four docs alone, and this repo's issue queue is shared with V1. Swept across
+  all **9** mission docs (positive control `#558` = 57 hits, negative control fired), the real
+  orphan count is **8 of 76**.
+
+**Retro lane**: none. This iteration's two frictions — a conservative predicate that cannot separate
+"work would be lost" from "work is already upstream", and a sweep whose corpus was narrower than its
+verdict — are both instances of shapes the skill already names (rule 3a's "establish the instrument
+before its reading counts", and the sweep rule's own *"a CLEAN verdict must carry the issue count it
+swept"*). Pre-registered as instance 1 each rather than spent on a single datapoint.
+
+**Next**: row **6e** — `test_motoko_connection_probe.sh` arm 33, still the queue head and now
+un-preempted. Then row **6f** (the sweep's 8 orphans, 2 motoko-owned) and row **7**.
