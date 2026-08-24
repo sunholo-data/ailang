@@ -31,4 +31,8 @@ was a human-authorized ops action with a prescribed procedure, not a sprint. **m
 
 ## Parked on Mark
 
-- **none** (ledger: 4 rows, 0 OPEN).
+- **`D-MOTOKO-WORKDIR-2`** — grant **standing** authorization for the clone reconcile, gated on three
+  machine-checked predicates (ahead-commits 0 · dirty set measured-superseded · verified backup)?
+  One word: **yes** / **no**. Filed 2026-08-24 because the one-shot reconcile left the clone **4
+  behind within the hour** — nothing pulls it, and dev lands ~21.8 commits/day, so the 25-commit
+  notice re-arms in ~1.1 days. (ledger: 5 rows, 1 OPEN)
