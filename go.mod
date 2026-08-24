@@ -5,9 +5,9 @@ go 1.26.6
 require (
 	cloud.google.com/go/firestore v1.25.0
 	cloud.google.com/go/kms v1.33.0
-	cloud.google.com/go/pubsub v1.51.0
+	cloud.google.com/go/pubsub v1.51.1
 	cloud.google.com/go/run v1.22.0
-	cloud.google.com/go/storage v1.64.0
+	cloud.google.com/go/storage v1.65.0
 	cloud.google.com/go/trace v1.16.0
 	firebase.google.com/go/v4 v4.21.0
 	github.com/BurntSushi/toml v1.6.0
@@ -20,12 +20,12 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.23.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/mattn/go-sqlite3 v1.14.49
+	github.com/mattn/go-sqlite3 v1.14.50
 	github.com/modelcontextprotocol/go-sdk v1.7.0
-	github.com/ollama/ollama v0.32.11
+	github.com/ollama/ollama v0.32.15
 	github.com/peterh/liner v1.2.2
 	github.com/petermattis/goid v0.0.0-20260330135022-df67b199bc81
-	github.com/stretchr/testify v1.12.0
+	github.com/stretchr/testify v1.12.1
 	go.lsp.dev/jsonrpc2 v0.10.0
 	go.lsp.dev/protocol v0.12.0
 	go.lsp.dev/uri v0.3.0
@@ -96,6 +96,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.45.0 // indirect
 	go.opentelemetry.io/otel/metric v1.45.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
