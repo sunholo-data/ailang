@@ -17612,3 +17612,21 @@ executor correction. Do not start M2 before M1 lands.
 **Retro lane**: no skill edit; the existing lane-park rule covers the disposition. An interrupted record-worktree copy was moved intact to `/tmp/wt-iter263-record-incomplete-20260824-0315`; no user work was removed.
 
 **Next**: after Mon 07:00 local, re-probe a distinct evaluator; PASS → land M1, FAIL → bounded correction. Do not start M2 first.
+
+---
+
+## 264 — 2026-08-24 — Evaluator resume predicate still false; third consecutive lane park
+
+**Picked**: `#764` continuation, independent evaluation of M1 commit `07b9a843e`.
+
+**Outcome**: `PARKED-ON-LANE`. At 04:55 CEST Monday, Sonnet's explicit 07:00 CEST quota reset had not occurred. The controller did not repeat iteration 263's pre-reset timeout. Generator≠judge forbids Codex self-review, and the Google lane still has no configured GCP project. No evaluator, executor, product edit, PR, merge, tag, release, or GPU work was attempted.
+
+**Gate 0/1 evidence**: kill switch armed; billing CLEAN; authenticated bot account; clean pin at `6950a398b` = `origin/dev`; running skill matches origin through the resolved symlink; ledger valid at 35 rows; zero trusted directives since the watermark. The sibling inbox message was a non-preempting capacity park. Exact-SHA CI has 16 checks and zero not-green; CI and Build-and-Release succeeded, Docs-Deploy is path-filtered N/A. PR `#695` remains unattributable and untouched.
+
+**Routing evidence**: controller=`codex:gpt-5.6-sol` subscription; evaluator intended=`sonnet`, status=`not-run-resume-predicate-false`; metered=$0.00. This third consecutive evaluator-role capacity park is surfaced as a routing-policy signal, not a decision for Mark.
+
+**Ruled out**: probing before the named clock predicate; controller verification as independent review; Codex as its own judge; starting M2 before M1 lands; preemption by a trusted directive, CI regression, or attributable orphan PR.
+
+**Retro lane**: none. The existing `PARKED-ON-LANE` rule covers the condition and reporting contract; no new recurring gap was observed.
+
+**Next**: after Mon 07:00 local, re-probe a distinct evaluator; PASS → land M1, FAIL → bounded executor correction. Do not start M2 first.
