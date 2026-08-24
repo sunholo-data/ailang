@@ -2,14 +2,9 @@ package apiserver
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 )
-
-// ErrCallbackCapacity is returned when no host-callback slot becomes available
-// before the bounded callback context ends.
-var ErrCallbackCapacity = errors.New("host callback capacity exceeded")
 
 // CallbackRunner bounds handler wait time and concurrently started host calls.
 // A slot remains occupied until host code actually returns, even after timeout.

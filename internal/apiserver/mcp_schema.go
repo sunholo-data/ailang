@@ -3,16 +3,12 @@ package apiserver
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"fmt"
-	"regexp"
 	"strings"
 )
 
 // mcpToolNameRegex is the strict regex enforced by Claude Desktop and most
 // current MCP clients: alphanumeric, underscore, hyphen, 1-64 chars.
 // SEP-986 would relax this to allow dots/slashes, but it isn't ratified yet.
-var mcpToolNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,64}$`)
-
 // mcpToolName generates an MCP-compliant tool name for an exported function.
 //
 // Resolution order:
@@ -100,9 +96,3 @@ func lastMeaningfulSegment(modPath string) string {
 
 // validateMCPName returns an error if name does not match the MCP tool name
 // regex. Used to vet author-supplied @mcp_name values at registration time.
-func validateMCPName(name string) error {
-	if !mcpToolNameRegex.MatchString(name) {
-		return fmt.Errorf("MCP tool name %q is invalid: must match %s", name, mcpToolNameRegex.String())
-	}
-	return nil
-}

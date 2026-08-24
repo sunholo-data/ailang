@@ -1,4 +1,4 @@
-package apiserver
+package protocol
 
 import (
 	"bytes"
@@ -8,21 +8,16 @@ import (
 )
 
 func validDescriptor(name string) ToolDescriptor {
-	return ToolDescriptor{
-		Name:         name,
-		Description:  "description-" + name,
+	return ToolDescriptor{Name: name, Description: "description-" + name,
 		InputSchema:  json.RawMessage(`{"type":"object","properties":{"x":{"type":"string"}}}`),
-		OutputSchema: json.RawMessage(`{"type":"string"}`),
-		Tags:         []string{"tag-" + name},
-		Examples:     []string{"example-" + name},
-	}
+		OutputSchema: json.RawMessage(`{"type":"string"}`), Tags: []string{"tag-" + name}, Examples: []string{"example-" + name}}
 }
 
 func TestCallerSurfaceSortLookupAndDeepCopy(t *testing.T) {
 	zeta := validDescriptor("zeta")
 	alpha := validDescriptor("alpha")
 	input := []ToolDescriptor{zeta, alpha}
-	surface, err := callerSurface(input)
+	surface, err := CallerSurface(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,8 +78,8 @@ func TestCallerSurfaceRejectsUnsafeDescriptors(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := callerSurface(test.tools); err == nil || !strings.Contains(err.Error(), test.want) {
-				t.Fatalf("callerSurface() error = %v, want containing %q", err, test.want)
+			if _, err := CallerSurface(test.tools); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("CallerSurface() error = %v, want containing %q", err, test.want)
 			}
 		})
 	}
