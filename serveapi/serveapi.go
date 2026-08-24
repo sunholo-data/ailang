@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/apiserver"
+	"github.com/sunholo-data/ailang/serveapi/protocol"
 )
 
 const (
@@ -20,59 +20,15 @@ const (
 	DefaultMaxConcurrentCallbacks = 64
 )
 
-type Session any
-
-type SessionResolver interface {
-	ResolveSession(context.Context, *http.Request) (Session, error)
-}
-
-type ToolSource interface {
-	Tools(context.Context, Session) ([]ToolDescriptor, error)
-}
-
-type Invoker interface {
-	Invoke(context.Context, Session, Invocation) (InvocationResult, error)
-}
-
-type ToolDescriptor struct {
-	Name         string
-	Description  string
-	InputSchema  json.RawMessage
-	OutputSchema json.RawMessage
-	Tags         []string
-	Examples     []string
-}
-
-type Invocation struct {
-	Name      string
-	Arguments json.RawMessage
-}
-
-type InvocationResult struct {
-	Value json.RawMessage
-}
-
-type AgentInfo struct {
-	Name        string
-	Description string
-	Version     string
-}
-
-// AuthorizationError maps resolver rejection to an HTTP 401 or 403 response.
-type AuthorizationError struct {
-	Status int
-	Err    error
-}
-
-func (e *AuthorizationError) Error() string {
-	if e.Err != nil {
-		return e.Err.Error()
-	}
-	return http.StatusText(e.Status)
-}
-
-func (e *AuthorizationError) Unwrap() error   { return e.Err }
-func (e *AuthorizationError) HTTPStatus() int { return e.Status }
+type Session = protocol.Session
+type SessionResolver = protocol.SessionResolver
+type ToolSource = protocol.ToolSource
+type Invoker = protocol.Invoker
+type ToolDescriptor = protocol.ToolDescriptor
+type Invocation = protocol.Invocation
+type InvocationResult = protocol.InvocationResult
+type AgentInfo = protocol.AgentInfo
+type AuthorizationError = protocol.AuthorizationError
 
 type Config struct {
 	Resolver               SessionResolver
@@ -87,7 +43,7 @@ type Config struct {
 // later milestones; M1 establishes and validates the host contract.
 type Server struct {
 	config     Config
-	runner     *apiserver.CallbackRunner
+	runner     *callbackRunner
 	mcpHandler http.Handler
 	a2aHandler http.Handler
 }
@@ -120,48 +76,32 @@ func New(cfg Config) (*Server, error) {
 	if cfg.MaxConcurrentCallbacks == 0 {
 		cfg.MaxConcurrentCallbacks = DefaultMaxConcurrentCallbacks
 	}
-	runner, err := apiserver.NewCallbackRunner(cfg.CallbackTimeout, cfg.MaxConcurrentCallbacks)
+	runner, err := newCallbackRunner(cfg.CallbackTimeout, cfg.MaxConcurrentCallbacks)
 	if err != nil {
 		return nil, fmt.Errorf("configure callback runner: %w", err)
 	}
 	s := &Server{config: cfg, runner: runner}
-	s.mcpHandler = apiserver.NewEmbeddedMCPHandler(apiserver.EmbeddedMCPConfig{
+	s.mcpHandler = newEmbeddedMCPHandler(embeddedMCPConfig{
 		AgentName: cfg.Agent.Name, AgentVersion: cfg.Agent.Version, Runner: runner,
 		Resolve: func(ctx context.Context, request *http.Request) (any, error) {
 			return cfg.Resolver.ResolveSession(ctx, request)
 		},
-		Tools: func(ctx context.Context, session any) ([]apiserver.ToolDescriptor, error) {
-			descriptors, err := cfg.Tools.Tools(ctx, session)
-			if err != nil {
-				return nil, err
-			}
-			result := make([]apiserver.ToolDescriptor, len(descriptors))
-			for i, descriptor := range descriptors {
-				result[i] = apiserver.ToolDescriptor(descriptor)
-			}
-			return result, nil
+		Tools: func(ctx context.Context, session any) ([]ToolDescriptor, error) {
+			return cfg.Tools.Tools(ctx, session)
 		},
 		Invoke: func(ctx context.Context, session any, name string, arguments json.RawMessage) (json.RawMessage, error) {
 			result, err := cfg.Invoker.Invoke(ctx, session, Invocation{Name: name, Arguments: arguments})
 			return result.Value, err
 		},
 	})
-	s.a2aHandler = apiserver.NewEmbeddedA2AHandler(apiserver.EmbeddedA2AConfig{
+	s.a2aHandler = newEmbeddedA2AHandler(embeddedA2AConfig{
 		AgentName: cfg.Agent.Name, AgentDescription: cfg.Agent.Description, AgentVersion: cfg.Agent.Version,
 		Runner: runner,
 		Resolve: func(ctx context.Context, request *http.Request) (any, error) {
 			return cfg.Resolver.ResolveSession(ctx, request)
 		},
-		Tools: func(ctx context.Context, session any) ([]apiserver.ToolDescriptor, error) {
-			descriptors, err := cfg.Tools.Tools(ctx, session)
-			if err != nil {
-				return nil, err
-			}
-			result := make([]apiserver.ToolDescriptor, len(descriptors))
-			for i, descriptor := range descriptors {
-				result[i] = apiserver.ToolDescriptor(descriptor)
-			}
-			return result, nil
+		Tools: func(ctx context.Context, session any) ([]ToolDescriptor, error) {
+			return cfg.Tools.Tools(ctx, session)
 		},
 		Invoke: func(ctx context.Context, session any, name string, arguments json.RawMessage) (json.RawMessage, error) {
 			result, err := cfg.Invoker.Invoke(ctx, session, Invocation{Name: name, Arguments: arguments})

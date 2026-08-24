@@ -1,4 +1,4 @@
-package apiserver
+package serveapi
 
 import (
 	"bytes"
@@ -25,11 +25,11 @@ type embeddedTestHost struct {
 
 func embeddedHandler(t *testing.T, host embeddedTestHost, timeout time.Duration, capacity int) http.Handler {
 	t.Helper()
-	runner, err := NewCallbackRunner(timeout, capacity)
+	runner, err := newCallbackRunner(timeout, capacity)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewEmbeddedMCPHandler(EmbeddedMCPConfig{
+	return newEmbeddedMCPHandler(embeddedMCPConfig{
 		AgentName: "embedded-test", AgentVersion: "1", Runner: runner,
 		Resolve: host.resolve, Tools: host.tools, Invoke: host.invoke,
 	})

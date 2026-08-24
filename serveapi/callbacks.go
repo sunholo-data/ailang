@@ -1,27 +1,29 @@
-package apiserver
+package serveapi
 
 import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/sunholo-data/ailang/serveapi/protocol"
 )
 
-// CallbackRunner bounds handler wait time and concurrently started host calls.
+// callbackRunner bounds handler wait time and concurrently started host calls.
 // A slot remains occupied until host code actually returns, even after timeout.
-type CallbackRunner struct {
+type callbackRunner struct {
 	timeout time.Duration
 	slots   chan struct{}
 }
 
-// NewCallbackRunner constructs a callback runner from effective positive limits.
-func NewCallbackRunner(timeout time.Duration, maxConcurrent int) (*CallbackRunner, error) {
+// newCallbackRunner constructs a callback runner from effective positive limits.
+func newCallbackRunner(timeout time.Duration, maxConcurrent int) (*callbackRunner, error) {
 	if timeout <= 0 {
 		return nil, fmt.Errorf("callback timeout must be positive")
 	}
 	if maxConcurrent <= 0 {
 		return nil, fmt.Errorf("maximum concurrent callbacks must be positive")
 	}
-	return &CallbackRunner{timeout: timeout, slots: make(chan struct{}, maxConcurrent)}, nil
+	return &callbackRunner{timeout: timeout, slots: make(chan struct{}, maxConcurrent)}, nil
 }
 
 type callbackResult[T any] struct {
@@ -29,9 +31,9 @@ type callbackResult[T any] struct {
 	err   error
 }
 
-// RunCallback executes callback with a bounded context. In-process callbacks
+// runCallback executes callback with a bounded context. In-process callbacks
 // cannot be forcibly terminated; a non-cooperative callback keeps its slot.
-func RunCallback[T any](ctx context.Context, runner *CallbackRunner, callback func(context.Context) (T, error)) (T, error) {
+func runCallback[T any](ctx context.Context, runner *callbackRunner, callback func(context.Context) (T, error)) (T, error) {
 	var zero T
 	callCtx, cancel := context.WithTimeout(ctx, runner.timeout)
 	defer cancel()
@@ -42,7 +44,7 @@ func RunCallback[T any](ctx context.Context, runner *CallbackRunner, callback fu
 		if ctx.Err() != nil {
 			return zero, ctx.Err()
 		}
-		return zero, ErrCallbackCapacity
+		return zero, protocol.ErrCallbackCapacity
 	}
 
 	result := make(chan callbackResult[T], 1)
