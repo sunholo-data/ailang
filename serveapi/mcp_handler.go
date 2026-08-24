@@ -1,4 +1,4 @@
-package apiserver
+package serveapi
 
 import (
 	"bytes"
@@ -9,26 +9,27 @@ import (
 	"sync"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/sunholo-data/ailang/serveapi/protocol"
 )
 
-// EmbeddedMCPConfig supplies the request-scoped host operations used by the
+// embeddedMCPConfig supplies the request-scoped host operations used by the
 // public serveapi facade without introducing an internal-to-public import.
-type EmbeddedMCPConfig struct {
+type embeddedMCPConfig struct {
 	AgentName    string
 	AgentVersion string
-	Runner       *CallbackRunner
+	Runner       *callbackRunner
 	Resolve      func(context.Context, *http.Request) (any, error)
 	Tools        func(context.Context, any) ([]ToolDescriptor, error)
 	Invoke       func(context.Context, any, string, json.RawMessage) (json.RawMessage, error)
 }
 
 type embeddedMCPHandler struct {
-	config    EmbeddedMCPConfig
+	config    embeddedMCPConfig
 	transport http.Handler
 }
 
 type embeddedMCPContext struct {
-	surface *AuthorizedSurface
+	surface *protocol.AuthorizedSurface
 	session any
 	failure *embeddedCallbackFailure
 }
@@ -40,9 +41,9 @@ type embeddedCallbackFailure struct {
 
 type embeddedMCPContextKey struct{}
 
-// NewEmbeddedMCPHandler builds the stateless SDK transport once. The server
+// newEmbeddedMCPHandler builds the stateless SDK transport once. The server
 // returned to it is still new for every authorized POST.
-func NewEmbeddedMCPHandler(config EmbeddedMCPConfig) http.Handler {
+func newEmbeddedMCPHandler(config embeddedMCPConfig) http.Handler {
 	h := &embeddedMCPHandler{config: config}
 	h.transport = mcp.NewStreamableHTTPHandler(h.serverForRequest,
 		&mcp.StreamableHTTPOptions{Stateless: true})
@@ -57,17 +58,17 @@ func (h *embeddedMCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(io.LimitReader(r.Body, mcp.DefaultMaxRequestBodyBytes+1))
 	if err != nil || len(body) > mcp.DefaultMaxRequestBodyBytes {
-		writeMCPEnvelope(w, requestID(body), "invalid MCP request body")
+		protocol.WriteMCPEnvelope(w, protocol.RequestID(body), "invalid MCP request body")
 		return
 	}
 	r.Body = io.NopCloser(bytes.NewReader(body))
-	id := requestID(body)
+	id := protocol.RequestID(body)
 
-	session, err := RunCallback(r.Context(), h.config.Runner, func(ctx context.Context) (any, error) {
+	session, err := runCallback(r.Context(), h.config.Runner, func(ctx context.Context) (any, error) {
 		return h.config.Resolve(ctx, r)
 	})
 	if err != nil {
-		if status := authorizationStatus(err); status != 0 {
+		if status := protocol.AuthorizationStatus(err); status != 0 {
 			http.Error(w, err.Error(), status)
 			return
 		}
@@ -75,16 +76,16 @@ func (h *embeddedMCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	descriptors, err := RunCallback(r.Context(), h.config.Runner, func(ctx context.Context) ([]ToolDescriptor, error) {
+	descriptors, err := runCallback(r.Context(), h.config.Runner, func(ctx context.Context) ([]ToolDescriptor, error) {
 		return h.config.Tools(ctx, session)
 	})
 	if err != nil {
 		writeMCPCallbackError(w, id, err)
 		return
 	}
-	surface, err := callerSurface(descriptors)
+	surface, err := protocol.CallerSurface(descriptors)
 	if err != nil {
-		writeMCPEnvelope(w, id, err.Error())
+		protocol.WriteMCPEnvelope(w, id, err.Error())
 		return
 	}
 
@@ -99,7 +100,7 @@ func (h *embeddedMCPHandler) serveTransport(w http.ResponseWriter, r *http.Reque
 	buffer := newBufferedResponseWriter()
 	defer func() {
 		if recover() != nil {
-			writeMCPEnvelope(w, id, "host tool registration failed")
+			protocol.WriteMCPEnvelope(w, id, "host tool registration failed")
 		}
 	}()
 	h.transport.ServeHTTP(buffer, r)
@@ -108,7 +109,7 @@ func (h *embeddedMCPHandler) serveTransport(w http.ResponseWriter, r *http.Reque
 	message := requestContext.failure.message
 	requestContext.failure.mu.Unlock()
 	if message != "" {
-		writeMCPEnvelope(w, id, message)
+		protocol.WriteMCPEnvelope(w, id, message)
 		return
 	}
 	for name, values := range buffer.header {
@@ -155,14 +156,14 @@ func (h *embeddedMCPHandler) serverForRequest(r *http.Request) *mcp.Server {
 			Name: descriptor.Name, Description: descriptor.Description,
 			InputSchema: descriptor.InputSchema, OutputSchema: descriptor.OutputSchema,
 		}, func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			result, err := RunCallback(ctx, h.config.Runner, func(callCtx context.Context) (json.RawMessage, error) {
+			result, err := runCallback(ctx, h.config.Runner, func(callCtx context.Context) (json.RawMessage, error) {
 				return h.config.Invoke(callCtx, requestContext.session, descriptor.Name, req.Params.Arguments)
 			})
 			if err != nil {
 				requestContext.failure.mu.Lock()
-				requestContext.failure.message = callbackMessage(err)
+				requestContext.failure.message = protocol.CallbackMessage(err)
 				requestContext.failure.mu.Unlock()
-				return mcpError(callbackMessage(err)), nil
+				return mcpError(protocol.CallbackMessage(err)), nil
 			}
 			return &mcp.CallToolResult{
 				Content:           []mcp.Content{&mcp.TextContent{Text: string(result)}},
@@ -174,7 +175,7 @@ func (h *embeddedMCPHandler) serverForRequest(r *http.Request) *mcp.Server {
 }
 
 func writeMCPCallbackError(w http.ResponseWriter, id json.RawMessage, err error) {
-	writeMCPEnvelope(w, id, callbackMessage(err))
+	protocol.WriteMCPEnvelope(w, id, protocol.CallbackMessage(err))
 }
 
 // mcpError creates an MCP tool error result shared by standalone and embedded servers.

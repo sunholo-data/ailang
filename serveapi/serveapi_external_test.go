@@ -13,8 +13,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/sunholo-data/ailang/internal/apiserver"
 )
 
 type fixtureHost struct{}
@@ -65,7 +63,7 @@ func TestNewValidationAndEffectiveDefaultDeadline(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := time.Now()
-	deadline, err := apiserver.RunCallback(context.Background(), server.runner, func(ctx context.Context) (time.Time, error) {
+	deadline, err := runCallback(context.Background(), server.runner, func(ctx context.Context) (time.Time, error) {
 		deadline, ok := ctx.Deadline()
 		if !ok {
 			t.Fatal("callback context has no deadline")
@@ -78,7 +76,7 @@ func TestNewValidationAndEffectiveDefaultDeadline(t *testing.T) {
 	if deadline.Before(now.Add(4*time.Second)) || deadline.After(now.Add(6*time.Second)) {
 		t.Fatalf("default deadline %v outside observed window from %v", deadline, now)
 	}
-	value, err := apiserver.RunCallback(context.Background(), server.runner, func(context.Context) (int, error) { return 137, nil })
+	value, err := runCallback(context.Background(), server.runner, func(context.Context) (int, error) { return 137, nil })
 	if err != nil || value != 137 {
 		t.Fatalf("fast callback = (%d, %v)", value, err)
 	}

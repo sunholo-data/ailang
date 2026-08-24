@@ -1,28 +1,31 @@
-package apiserver
+package serveapi
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+
+	"github.com/sunholo-data/ailang/serveapi/protocol"
 )
 
-// EmbeddedA2AConfig supplies request-scoped host operations without creating
+// embeddedA2AConfig supplies request-scoped host operations without creating
 // an internal dependency on the public serveapi package.
-type EmbeddedA2AConfig struct {
+type embeddedA2AConfig struct {
 	AgentName        string
 	AgentDescription string
 	AgentVersion     string
-	Runner           *CallbackRunner
+	Runner           *callbackRunner
 	Resolve          func(context.Context, *http.Request) (any, error)
 	Tools            func(context.Context, any) ([]ToolDescriptor, error)
 	Invoke           func(context.Context, any, string, json.RawMessage) (json.RawMessage, error)
 }
 
-type embeddedA2AHandler struct{ config EmbeddedA2AConfig }
+type embeddedA2AHandler struct{ config embeddedA2AConfig }
 
-// NewEmbeddedA2AHandler returns a recorder-friendly, request-scoped A2A handler.
-func NewEmbeddedA2AHandler(config EmbeddedA2AConfig) http.Handler {
+// newEmbeddedA2AHandler returns a recorder-friendly, request-scoped A2A handler.
+func newEmbeddedA2AHandler(config embeddedA2AConfig) http.Handler {
 	return &embeddedA2AHandler{config: config}
 }
 
@@ -44,25 +47,25 @@ func (h *embeddedA2AHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.handleTask(w, r, session, surface)
 }
 
-func (h *embeddedA2AHandler) resolveSurface(r *http.Request) (any, *AuthorizedSurface, error) {
-	session, err := RunCallback(r.Context(), h.config.Runner, func(ctx context.Context) (any, error) {
+func (h *embeddedA2AHandler) resolveSurface(r *http.Request) (any, *protocol.AuthorizedSurface, error) {
+	session, err := runCallback(r.Context(), h.config.Runner, func(ctx context.Context) (any, error) {
 		return h.config.Resolve(ctx, r)
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	descriptors, err := RunCallback(r.Context(), h.config.Runner, func(ctx context.Context) ([]ToolDescriptor, error) {
+	descriptors, err := runCallback(r.Context(), h.config.Runner, func(ctx context.Context) ([]ToolDescriptor, error) {
 		return h.config.Tools(ctx, session)
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	surface, err := callerSurface(descriptors)
+	surface, err := protocol.CallerSurface(descriptors)
 	return session, surface, err
 }
 
-func (h *embeddedA2AHandler) writeCard(w http.ResponseWriter, r *http.Request, surface *AuthorizedSurface) {
-	skills := make([]map[string]any, 0, len(surface.tools))
+func (h *embeddedA2AHandler) writeCard(w http.ResponseWriter, r *http.Request, surface *protocol.AuthorizedSurface) {
+	skills := make([]map[string]any, 0, len(surface.All()))
 	for _, descriptor := range surface.All() {
 		skills = append(skills, map[string]any{
 			"id": descriptor.Name, "name": descriptor.Name,
@@ -82,32 +85,32 @@ func (h *embeddedA2AHandler) writeCard(w http.ResponseWriter, r *http.Request, s
 	})
 }
 
-func (h *embeddedA2AHandler) handleTask(w http.ResponseWriter, r *http.Request, session any, surface *AuthorizedSurface) {
-	var req a2aRequest
+func (h *embeddedA2AHandler) handleTask(w http.ResponseWriter, r *http.Request, session any, surface *protocol.AuthorizedSurface) {
+	var req protocol.A2ARequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
-		a2aError(w, nil, -32700, "invalid JSON: "+err.Error())
+		protocol.A2AError(w, nil, -32700, "invalid JSON: "+err.Error())
 		return
 	}
 	if req.JSONRPC != "2.0" {
-		a2aError(w, req.ID, -32600, "expected jsonrpc: \"2.0\"")
+		protocol.A2AError(w, req.ID, -32600, "expected jsonrpc: \"2.0\"")
 		return
 	}
 	if req.Method != "tasks/send" {
-		a2aError(w, req.ID, -32601, "method not found: "+req.Method)
+		protocol.A2AError(w, req.ID, -32601, "method not found: "+req.Method)
 		return
 	}
-	var params a2aTaskSendParams
+	var params protocol.A2ATaskSendParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		a2aError(w, req.ID, -32602, "invalid params: "+err.Error())
+		protocol.A2AError(w, req.ID, -32602, "invalid params: "+err.Error())
 		return
 	}
 	skillID, _ := params.Metadata["skill_id"].(string)
 	if _, ok := surface.Lookup(skillID); !ok {
-		a2aError(w, req.ID, -32602, fmt.Sprintf("tool %q is not authorized", skillID))
+		protocol.A2AError(w, req.ID, -32602, fmt.Sprintf("tool %q is not authorized", skillID))
 		return
 	}
 	arguments := embeddedA2AArguments(params.Message)
-	result, err := RunCallback(r.Context(), h.config.Runner, func(ctx context.Context) (json.RawMessage, error) {
+	result, err := runCallback(r.Context(), h.config.Runner, func(ctx context.Context) (json.RawMessage, error) {
 		return h.config.Invoke(ctx, session, skillID, arguments)
 	})
 	if err != nil {
@@ -118,23 +121,23 @@ func (h *embeddedA2AHandler) handleTask(w http.ResponseWriter, r *http.Request, 
 	// different mistake from one that returns malformed JSON, and reporting the
 	// first as the second sends the embedder hunting for an encoding bug.
 	if len(result) == 0 {
-		a2aError(w, req.ID, -32603, "host callback returned no result")
+		protocol.A2AError(w, req.ID, -32603, "host callback returned no result")
 		return
 	}
 	var value any
 	if err := json.Unmarshal(result, &value); err != nil {
-		a2aError(w, req.ID, -32603, "host callback returned invalid JSON")
+		protocol.A2AError(w, req.ID, -32603, "host callback returned invalid JSON")
 		return
 	}
 	taskID := params.ID
 	if taskID == "" {
 		taskID = "embedded-task"
 	}
-	a2aResult(w, req.ID, map[string]any{"id": taskID, "status": map[string]any{"state": "completed"},
+	protocol.A2AResult(w, req.ID, map[string]any{"id": taskID, "status": map[string]any{"state": "completed"},
 		"artifacts": []map[string]any{{"parts": []map[string]any{{"type": "data", "data": map[string]any{"result": value}}, {"type": "text", "text": string(result)}}}}})
 }
 
-func embeddedA2AArguments(message a2aMessage) json.RawMessage {
+func embeddedA2AArguments(message protocol.A2AMessage) json.RawMessage {
 	for _, part := range message.Parts {
 		if part.Type == "data" && part.Data != nil {
 			if args, ok := part.Data["args"]; ok {
@@ -150,13 +153,13 @@ func embeddedA2AArguments(message a2aMessage) json.RawMessage {
 }
 
 func (h *embeddedA2AHandler) writeCallbackError(w http.ResponseWriter, r *http.Request, id json.RawMessage, card bool, err error) {
-	if status := authorizationStatus(err); status != 0 {
+	if status := protocol.AuthorizationStatus(err); status != 0 {
 		http.Error(w, err.Error(), status)
 		return
 	}
-	message := callbackMessage(err)
+	message := protocol.CallbackMessage(err)
 	if !card {
-		a2aError(w, id, -32603, message)
+		protocol.A2AError(w, id, -32603, message)
 		return
 	}
 	status := http.StatusInternalServerError
@@ -166,4 +169,12 @@ func (h *embeddedA2AHandler) writeCallbackError(w http.ResponseWriter, r *http.R
 		status = http.StatusServiceUnavailable
 	}
 	writeJSON(w, status, map[string]string{"error": message})
+}
+
+func writeJSON(w http.ResponseWriter, status int, v interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("[API] failed to write response: %v", err)
+	}
 }

@@ -11,7 +11,7 @@
 // The anti-vacuity control exists because assertions over a battery that stopped
 // reflecting anywhere would pass while measuring nothing. It forces at least one case to
 // genuinely contain the payload before the (a)/(b)/(c) checks are trusted.
-package apiserver
+package serveapi
 
 import (
 	"context"
@@ -21,6 +21,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/serveapi/protocol"
 )
 
 const htmlPayload = "<script>alert(1)</script>"
@@ -204,7 +206,7 @@ func TestEmbeddedMCPReplayDefaultsContentTypeWhenTransportOmitsIt(t *testing.T) 
 // inheriting it, and "the encoder escapes by default" is exactly such an inheritance.
 func TestWriteMCPEnvelopeIsLabelled(t *testing.T) {
 	recorder := httptest.NewRecorder()
-	writeMCPEnvelope(recorder, json.RawMessage(`"`+htmlPayload+`"`), "invalid MCP request body")
+	protocol.WriteMCPEnvelope(recorder, json.RawMessage(`"`+htmlPayload+`"`), "invalid MCP request body")
 
 	if got := recorder.Header().Get("Content-Type"); got != "application/json" {
 		t.Fatalf("Content-Type = %q, want application/json", got)

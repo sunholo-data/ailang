@@ -1,4 +1,4 @@
-package apiserver
+package serveapi
 
 import (
 	"context"
@@ -8,17 +8,19 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/serveapi/protocol"
 )
 
 func TestCallbackRunnerTimeoutAndStopsChain(t *testing.T) {
-	runner, err := NewCallbackRunner(20*time.Millisecond, 1)
+	runner, err := newCallbackRunner(20*time.Millisecond, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	release := make(chan struct{})
 	defer close(release)
 	start := time.Now()
-	_, err = RunCallback(context.Background(), runner, func(context.Context) (int, error) {
+	_, err = runCallback(context.Background(), runner, func(context.Context) (int, error) {
 		<-release
 		return 1, nil
 	})
@@ -37,11 +39,11 @@ func TestCallbackRunnerTimeoutAndStopsChain(t *testing.T) {
 	// call on a saturated runner is rejected without host code ever being entered.
 	// This fails if the token is released when the handler stops waiting.
 	var next atomic.Int32
-	_, nextErr := RunCallback(context.Background(), runner, func(context.Context) (int, error) {
+	_, nextErr := runCallback(context.Background(), runner, func(context.Context) (int, error) {
 		next.Add(1)
 		return 0, nil
 	})
-	if !errors.Is(nextErr, ErrCallbackCapacity) {
+	if !errors.Is(nextErr, protocol.ErrCallbackCapacity) {
 		t.Fatalf("follow-up call error = %v, want capacity exceeded", nextErr)
 	}
 	if next.Load() != 0 {
@@ -50,12 +52,12 @@ func TestCallbackRunnerTimeoutAndStopsChain(t *testing.T) {
 }
 
 func TestCallbackRunnerObservedDeadlineAndFastCall(t *testing.T) {
-	runner, err := NewCallbackRunner(5*time.Second, 4)
+	runner, err := newCallbackRunner(5*time.Second, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now()
-	deadline, err := RunCallback(context.Background(), runner, func(ctx context.Context) (time.Time, error) {
+	deadline, err := runCallback(context.Background(), runner, func(ctx context.Context) (time.Time, error) {
 		deadline, ok := ctx.Deadline()
 		if !ok {
 			t.Fatal("callback context has no deadline")
@@ -68,14 +70,14 @@ func TestCallbackRunnerObservedDeadlineAndFastCall(t *testing.T) {
 	if deadline.Before(now.Add(4*time.Second)) || deadline.After(now.Add(6*time.Second)) {
 		t.Fatalf("observed deadline %v outside expected window from %v", deadline, now)
 	}
-	value, err := RunCallback(context.Background(), runner, func(context.Context) (int, error) { return 137, nil })
+	value, err := runCallback(context.Background(), runner, func(context.Context) (int, error) { return 137, nil })
 	if err != nil || value != 137 {
 		t.Fatalf("fast callback = (%d, %v)", value, err)
 	}
 }
 
 func TestCallbackRunnerBoundsConcurrencyAndRecovers(t *testing.T) {
-	runner, err := NewCallbackRunner(30*time.Millisecond, 4)
+	runner, err := newCallbackRunner(30*time.Millisecond, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,12 +90,12 @@ func TestCallbackRunnerBoundsConcurrencyAndRecovers(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				_, callErr := RunCallback(context.Background(), runner, func(context.Context) (int, error) {
+				_, callErr := runCallback(context.Background(), runner, func(context.Context) (int, error) {
 					starts.Add(1)
 					<-release
 					return 0, nil
 				})
-				if errors.Is(callErr, ErrCallbackCapacity) {
+				if errors.Is(callErr, protocol.ErrCallbackCapacity) {
 					overloads.Add(1)
 				}
 			}()
@@ -125,15 +127,15 @@ func TestCallbackRunnerBoundsConcurrencyAndRecovers(t *testing.T) {
 		t.Fatal("capacity did not recover after callbacks returned")
 	}
 
-	fastRunner, _ := NewCallbackRunner(time.Second, 4)
+	fastRunner, _ := newCallbackRunner(time.Second, 4)
 	var fastOverloads atomic.Int32
 	var wg sync.WaitGroup
 	for range 40 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, callErr := RunCallback(context.Background(), fastRunner, func(context.Context) (int, error) { return 1, nil })
-			if errors.Is(callErr, ErrCallbackCapacity) {
+			_, callErr := runCallback(context.Background(), fastRunner, func(context.Context) (int, error) { return 1, nil })
+			if errors.Is(callErr, protocol.ErrCallbackCapacity) {
 				fastOverloads.Add(1)
 			}
 		}()
