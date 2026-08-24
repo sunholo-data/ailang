@@ -2257,7 +2257,33 @@ Backup re-verified `OK` on all 7 files *after* the operation.
   all **9** mission docs (positive control `#558` = 57 hits, negative control fired), the real
   orphan count is **8 of 76**.
 
-**Retro lane**: none. This iteration's two frictions — a conservative predicate that cannot separate
+**Ruled out (added post-merge, after a third friction the first draft had not yet hit)**:
+- *"The bounded Gate-3b poll I wrote was bounded."* **Refuted by watching it not stop.** The poll
+  read its three counters with `set -- $out` — and this harness's `Bash` tool runs **zsh 5.9**
+  (`SHELL=/bin/zsh`, `ZSH_VERSION=5.9`, `BASH_VERSION` unset), where an unquoted parameter is **not
+  word-split**. Measured with a same-call control: in zsh `set -- $out` on `"17 8 0"` gives
+  `$#=1`, `$1='17 8 0'`, `$2` empty; under `/bin/bash` the identical line gives `$#=3`, `$1='17'`.
+  Every `[ "$pend" -eq 0 ]` then died on `integer expression expected` **to stderr**, so the break
+  condition never evaluated and the loop ran until the harness's own 10-minute `Bash` cap ended it.
+  The same non-splitting had already broken a `for f in $FILES` sweep loop earlier in the iteration.
+- **This is instance 4 of a rule the skill ALREADY carries in full, and the rulebook is not what
+  failed — my reading of it is.** `SKILL.md:1108` (*"AND THE SAME NON-SPLITTING BREAKS `set -- $var`,
+  WHICH IS THE SHAPE THAT LANDS IN POLL READERS"*, added 2026-08-20 by V1 iteration 239) names three
+  prior instances, including iteration 107's Gate-3b poll, and prescribes the exact remedy — read
+  each value with its own command, or `set -- ${=var}`. I skimmed that block because it sits inside
+  Gate 2 rather than beside the Gate 3b poll recipe I was copying. **So no skill edit**: adding a
+  fourth instance to a correct rule buys nothing, and Gate 5's edit budget should not be spent
+  restating a remedy that is already written down.
+- **What is genuinely new is the SURFACE, and it is worth pre-registering.** Instances 1–3 all
+  produced a *false verdict* — a `TIMEOUT — PARK` over a green, a bad containment reading. Mine
+  produced **no verdict at all**: the comparison ERRORS rather than reading false, so the loop
+  cannot exit and the slot is consumed by the harness cap. That renders as a long CI wait, which is
+  the one thing a Gate-3b poll is *expected* to look like — i.e. an unbounded wait in Standing rule
+  6's sense wearing a bounded one's clothes. Recorded as instance 1 of that surface; if a second
+  appears, the remedy list's entry deserves the consequence spelled out beside the mechanism.
+
+**Retro lane**: none — see above: the one candidate resolves to a rule that already exists. This
+iteration's other frictions — a conservative predicate that cannot separate
 "work would be lost" from "work is already upstream", and a sweep whose corpus was narrower than its
 verdict — are both instances of shapes the skill already names (rule 3a's "establish the instrument
 before its reading counts", and the sweep rule's own *"a CLEAN verdict must carry the issue count it
