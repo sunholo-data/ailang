@@ -31,8 +31,11 @@ The parser has a hardcoded switch on annotation names. If a new annotation isn't
 
 One authorized-surface gateway decides membership for every endpoint enumeration
 and dispatch path. Loaded exports use `loadedExportMember`; embedded callbacks use
-`callerSurface` and the resulting `AuthorizedSurface`. Discovery and invocation
-must consume the same authorized surface rather than reconstructing authority.
+`protocol.CallerSurface` and the resulting `protocol.AuthorizedSurface`, defined
+in `serveapi/protocol/descriptor.go`. `loadedExportMember` remains the
+loaded-export gateway in `internal/apiserver`; `CallerSurface` remains the
+embedded-callback membership path. Discovery and invocation must consume the
+same authorized surface rather than reconstructing authority.
 
 `@nomcp` is the single sanctioned protocol-scoped narrowing: it is applied by the
 MCP projection only, after membership has been decided. It must remain visible to
@@ -52,4 +55,8 @@ All MCP tool names must satisfy `^[a-zA-Z0-9_-]{1,64}$` (Claude Desktop strict r
 3. `<lastModuleSegment>_<funcName>` sanitized fallback for collisions.
 4. `truncateWithHash` enforces the 64-char limit by appending a 7-char SHA1 suffix.
 
-`validateMCPName()` is the regex gatekeeper — every emitted name passes through it. When adding a new tool name source, route it through `mcpToolName` (do not handcraft names).
+`protocol.ValidateMCPName()` in `serveapi/protocol/descriptor.go` is the regex
+gatekeeper; `internal/apiserver/protocol_compat.go::validateMCPName()` is only a
+thin forwarding shim. Every emitted name passes through that validation. When
+adding a new tool name source, route generation through `mcpToolName` (do not
+handcraft names).

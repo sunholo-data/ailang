@@ -38,6 +38,8 @@ row-polymorphic records and effects, and a curated standard library.
 | `cmd/ailang/` | Main CLI entry point; subcommand dispatch. |
 | `cmd/ailang-microrag-mcp/` | MCP server exposing AILANG docs/builtins as tools. |
 | `internal/` | All compiler and runtime code (see below). |
+| `serveapi/` | Public ready-made MCP/A2A embedding handlers and callback machinery. |
+| `serveapi/protocol/` | Public stdlib-only embedding contract: descriptors, host interfaces, wire types, framing, and validation. |
 | `stdlib/` | AILANG-language standard library (`std/io`, `std/list`, etc.). |
 | `examples/` | Runnable `.ail` programs grouped by feature. |
 | `prompts/` | Teaching prompts loaded by `ailang prompt`. |
@@ -106,6 +108,11 @@ scope to, and so contributors and AI agents know which subsystem they are in.
 | **bridge / sdk** | `internal/embed` (+ `internal/runtime`, `internal/schema`) |
 
 ### Enforced import directions
+
+The public embedding packages have a one-way boundary: `serveapi` may import
+`serveapi/protocol`, but `serveapi/protocol` must never import `serveapi`. The
+protocol package's standard-library-only closure and this direction are enforced
+by `make check-protocol-closure`.
 
 The **bridge** (`internal/embed`) is the *only* sanctioned path from the
 dashboard into the compiler. `internal/embed` exposes an `Engine` that loads
