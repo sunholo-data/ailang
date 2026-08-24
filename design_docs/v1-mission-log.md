@@ -17738,3 +17738,126 @@ the evaluator rotation or configuring the environment is a routing-policy change
 **Next**: M2 (`M2` — rewire `serveapi`, unexport moved machinery, delete the `// TRANSITIONAL`
 shim, evict the machinery tests) is the queue head, unblocked. Route it next iteration under the
 normal executor→evaluator lane. The two M1 non-blocking nits fold naturally into M2.
+
+---
+
+## 267 — 2026-08-24 — `#764` M2 LANDED; the executor's deviation was more correct than the plan
+
+**Gate 0/1.** Kill switch armed; billing tripwire **CLEAN**; gh `sunholo-voight-kampff`; pin
+detached at `6ca76351e` = `origin/dev`. Running skill byte-identical to origin through the
+**resolved** `readlink` target (the pin worktree's own copy is a different inode — `48425903` vs
+`48427454` — so the relative path would have compared the wrong file). Ledger valid, **35 rows**,
+`D-30`/`D-31`/`D-32` OPEN, unchanged. **0** allowlisted directives on `#852` since the
+`2026-08-24T07:51:16Z` watermark (of 2 comments). Inbox: 3 unread, all benign — two `eval-suite`
+notifications and iteration 266's own report; no directive, no regression, nothing outranking the
+queue.
+
+Dev health, SHA-addressed on `6ca76351e`: **14** checks, zero not-green, `test` still in-flight on a
+docs-only motoko commit — not a red. Control on the parent commit: **16** checks.
+
+**Weekly external-issue sweep — owed and now discharged.** Iteration 266 rotated the thread to
+`#852` and wrote that the sweep was "handled in Gate 5 below"; no verdict was ever recorded, in the
+log or the charter. Run here: **10 orphans of 76 enumerated** (`gh` count control 76 = 76, so the
+enumeration is complete, not truncated), grepping `#<n>\b` across all four corpora — charter, log,
+status archive, dashboard — with each corpus asserted to exist first. Positive control `#764` → 15
+in the charter; negative control fired on a fresh absent literal (identifier deliberately not
+published, per the spend-a-control rule). Two of the ten are not real orphans: `#852` is V1's own
+bookkeeping thread and `#850` is Motoko's. The remaining **8** become one queue row.
+
+**Pick.** Queue head `#764` M2 — rewire `serveapi`, evict the machinery from `internal/apiserver`,
+delete the M1 transitional shims. Already-landed check: no merged PR and no direct commit for M2.
+Died-mid-flight sweep clean — the only open bot-account PR is `#695` (`coordinator/task-d98bb271`),
+which matches no worktree in this clone and stays untouched; the main checkout's 8 dirty entries are
+a concurrent agent's eval-rig work (benchmark JSON, `models.yml`, eval scripts) and were not touched.
+No worktree existed for M2.
+
+**Base measured before routing (rule 3e(a), and false-green #4 — the gate list a controller writes
+into a directive is an acceptance list nobody baselines).** The plan's own base column was measured
+at `a201237ca`, pre-M1, so it is stale. Measured first-party at `6ca76351e`: scoped
+`go build ./serveapi/... ./internal/apiserver/...` **rc=0** — already green, so it is safe to hand an
+executor, unlike the whole-repo `go build ./...` which is rc=1 on untouched dev; `./serveapi`
+non-stdlib deps **480**; module roots **67**; `serveapi`→`internal/apiserver` import **1** (control
+`./cmd/ailang` = 2); TRANSITIONAL **16** (control `protocol.` = 15). Every gate red at base in the
+direction M2 must move it — non-vacuous by construction.
+
+**Execution.** `codex:gpt-5.6-sol`, probe rc=0, bounded 30-min cap, per-iteration directive file
+(4,083 B, ≥200 B assertion), stdin closed, no git write operations. Finished **rc=0 with a 19-entry
+worktree diff** — non-empty, so not the false-green shape. All gates re-run by the controller
+**outside the sandbox** (mandatory: the diff touches socket-serving code): build/test/vet rc=0, 4/4
+packages ok; deps **31**; roots **exactly 10**; import **0** (rc=1, control 2); TRANSITIONAL **0**
+(control `protocol.` = 5, so the file still exists and still forwards).
+
+**Deviation, self-reported, adjudicated by measurement (rule 3h).** The executor left **three** test
+funcs in `internal/apiserver` where plan M2.4 named one. Restated as a checkable proposition — "these
+cannot move without new exported symbols" — and run in both arms: tree as delivered `go vet` **rc=0**;
+with `TestLoadedNoMCPRemainsInStandaloneA2ACard` moved into `serveapi`, **rc=1**,
+`undefined: nomcpTestServer`. Mutation asserted LANDED in both directions before the result was read;
+both files restored from `cp` backups (never `git checkout --` on an uncommitted tree) and verified
+byte-identical by sha256. The two extra tests exercise the **standalone** server via unexported
+identifiers (`nomcpTestServer`, `srv.buildAgentCard`, `Config`, `feedbackSurfaceServer`) that live in
+apiserver-only test files never scheduled to move; moving them would force exports M2.2 forbids. Their
+bodies are byte-identical to the parent commit. **The plan was wrong, not the executor**: its own
+arithmetic says "the other 9 test funcs move" out of a file holding 9 in total.
+
+**AC6 oracle.** `git diff --numstat` reads 2+/4− against a "≤3 changed lines" oracle. The 4th line is
+the blank import-group separator gofmt removes once the last import in a group goes. Verified rather
+than inherited: `gofmt`(parent minus that one import) reproduces the delivered file byte-for-byte in
+the import region. A first attempt at this probe inserted the blank at the wrong position (mid-list,
+where a separator is legitimate) and gofmt correctly kept it — the instrument was wrong before the
+answer was; re-run at the real position, it fired. No assertion in the file changed.
+
+**Independent evaluation (generator≠judge).** Executor ran on codex, so the judge must not be codex:
+`sonnet` (Anthropic), in **its own** clean detached worktree at `468d8a38c` (iteration 199's rule — a
+judge that follows this skill's mutation rules necessarily mutates source, and the sprint tree's work
+is uncommitted). Verdict **PASS 95/100, zero blocking**. It re-derived all 8 gate-table rows
+first-party and confirmed every number above. Handed both deviations as named targets to attack (rule
+3h(c)), it refuted neither and independently found the plan's under-count. Its mutation drills were
+anchored to the **diff** rather than to the milestone's headline (rule 3n) and that is where they
+paid: two mutants **survived** — the card-path error-envelope JSON key in `a2a_handler.go` (the test
+substring-matches the message and never asserts the key shape) and `IsError` on the moved `mcpError`
+in `mcp_handler.go` (its apiserver-side sibling *is* pinned). Both verified **pre-existing** —
+byte-identical copies of the pre-move code — so neither is an M2 regression, and both become a queue
+row rather than a silent widening of this sprint.
+
+**Landing.** Commit `468d8a38c`; git recorded the moves as **renames** at 81–99% similarity,
+corroborating byte-preservation independently of the judge. PR
+[#855](https://github.com/sunholo-data/ailang/pull/855), body and title both scanned for auto-close
+keywords with the matcher control firing (`#764` must stay OPEN for M3/M4). `mergeable` read FIRST
+(rule: the boring cause before any dropped-event theory) — `MERGEABLE`, never `CONFLICTING`. Gate 3b
+GREEN **observed**: **21** checks, 0 pending, 0 failing, `mergeStateStatus=CLEAN`, all 4 required
+contexts pass (`test` 17m29s, `lint` 3m44s, `build` 1m59s, `docs-gate` 4s). The check count climbed
+14→15→16→17→19→20→21 across the poll, so `pending=0` is a real completion and not an aggregate over
+an incomplete set. Squash-merged **`4a813b2c0`**; `#764` confirmed still **OPEN** after the merge.
+
+**Routing evidence**: controller=`opus` (quota bucket, session); executor=`codex:gpt-5.6-sol`
+(quota bucket, probe rc=0, rc=0, non-empty diff); evaluator=`sonnet`/Anthropic (quota bucket,
+**PASS 95/100**), distinct provider from the executor; designer/planner **not spawned** (the doc and
+plan both pre-existed — no Fable spend, rotation pointer untouched at `claude:claude-fable-5`);
+metered=**$0.00** of $5.
+
+**Ruled out**:
+- That the executor's deviation was a shortcut — the two-arm `go vet` (rc=0 vs rc=1) establishes the
+  compile failure by mechanism, not by its report; a "deviations are suspect" prior would have
+  discarded the more correct outcome.
+- That the AC6 overage was a rewrite — reconstructed the file from the parent by applying only the
+  specified edits plus gofmt, byte-identical.
+- That the two surviving mutants are M2 regressions — both bodies are byte-identical copies of the
+  pre-move code, so the gap predates the move and is not this sprint's to widen into.
+- That `#847` (nightly `explicit_dataflow_ssa`) outranked the queue — iteration 266 already triaged
+  and commented it as a local-model capability gap; dev CI is green, so it is not a toolchain
+  regression.
+- The dropped-webhook explanation for PR check state — `mergeable` was read first and came back
+  `MERGEABLE`, so there was never a conflict to mistake for lost events.
+
+**Retro lane**: no skill edit. The two findings that would justify one — a plan/doc milestone whose
+own task arithmetic is internally inconsistent, and a weekly sweep announced but never recorded —
+each have **one** first-party instance, below this skill's ≥2-friction bar. Both are pre-registered
+here so a second instance is recognisable rather than rediscovered. The sweep gap in particular is
+worth watching: iteration 266 wrote "handled in Gate 5 below" and the deferral is exactly the shape
+that loses an obligation, since nothing downstream re-checks a promise made mid-record.
+
+**Next**: `#764` **M3** — the refusal gate. Its deliverable is a REFUSAL, so rule 3j binds: 9 refusal
+branches, one neutering mutation each, plus an ADDITION-shaped mutant (rule 3a(i-e)) because the gate
+enumerates a package set and removal alone cannot prove an enumerator LOOKS. The plan already
+specifies all nine branches and a five-arm self-test; route it under the normal executor→evaluator
+lane.
