@@ -1,44 +1,40 @@
 # Mission Dashboard — V1
 
 *Snapshot, overwritten every iteration. History lives in the charter STATUS block and the log.*
-
-**Last iteration:** 270 · 2026-08-24 · **LANDED — `m-lint-unused-filter-vacuity` (`e194c2584`)**
+**Last iteration:** 271 · 2026-08-24 · **LANDED — `m-protocol-closure-arm2-floor` (`fffe2487b`)**
 
 ## Latest release
-v0.33.1 (dev at `e194c2584`) — **v0.34.0 is the outstanding ask, see Parked on Mark**
+**v0.33.2** (2026-08-24 19:26Z) — already contains all four `#764` milestones plus iteration 270's
+lint fix, so `D-34`'s premise ("v0.34.0 is the delivery to World") is **stale**. World told on `#764`.
 
 ## What just landed
-`make lint` filtered `unused` findings out **before** its own failure predicate, so a dead function
-anywhere in scope left the gate at rc=0 printing a green checkmark. Reproduced with **no mutant** —
-pristine `dev` reported `2 issues: * unused: 2` while `make lint` exited 0. Exposure ~7.5 months
-(`f18bc48d8`). Both hidden findings resolved with commit-level provenance. `sonnet` **PASS 94/100**.
+The iteration-268 judge row named ONE hole in the closure gate's `./serveapi` arm; reproducing it
+first-party found **two**, the unnamed one worse. Arm 2 runs a *second* enumeration — the
+module-root query the allowlist check actually consumes — with no floor at all, its exit status
+discarded as a pipeline head. Reducing it 10 roots → 0 left the gate green. `R10` + `R11` close
+both. `sonnet` **PASS 96/100**, zero blocking.
 
 ## Next picks (queue head first)
-1. `m-protocol-closure-arm2-floor` — arm 2 lacks arm 1's stdlib-presence floor leg (judge, iter-268)
-2. `m-protocol-closure-goos-scope` — closure gate blind to GOOS/build-tag files (judge, iter-268)
-3. `m-lint-tmpfile-collision` — `make lint` judges a fixed shared `/tmp/lint.out` (iter-270)
-4. `m-gemini-verdict-score-threshold` — `ValidateVerdict` enforces only half its invariant (iter-270)
-5. `m-codex-streaming-test-flake` — parallel-load flake, rule 3m shape (judge, iter-270)
-
+1. `m-protocol-closure-goos-scope` — gate blind to GOOS/build-tag files (judge, iter-268)
+2. `m-lint-tmpfile-collision` — `make lint` judges a fixed shared `/tmp/lint.out` (iter-270)
+3. `m-gemini-verdict-score-threshold` — `ValidateVerdict` enforces half its invariant (iter-270)
+4. `m-codex-streaming-test-flake` — dies under full-parallel `make test` (judge, iter-270)
 ## Loop cadence + routing
-launchd `dev.ailang.mission-control`, ~90 min. Controller `opus` · executor `codex:gpt-5.6-sol` ·
-evaluator `sonnet` · designer rotation seed `claude:claude-fable-5` (untouched — no Fable spend).
-Bookkeeping issue **#852** (namespaced key; the driver env still exports the stale bare `745`).
+launchd `dev.ailang.mission-control`, ~90 min. Controller `opus`; designer ROTATION (pointer
+`claude:claude-fable-5`, untouched — direct-fix iterations spawn none); planner/executor
+`codex:gpt-5.6-sol`; evaluator `sonnet` (≠ executor, generator≠judge holds). Metered **$0.00** of
+$5 — both quota buckets. Anthropic up; codex probe rc=0; billing tripwire CLEAN.
 
-## Parked on Mark (OPEN ledger rows only)
-- **`D-30`** — enforce the harness↔`ai-check` version coupling before the `not_applicable` split:
-  (a) schema-versioned JSON, (b) `os.Executable()` same-binary bind, (c) accept + spot-check.
-- **`D-31`** — split the designer rotation into authoring vs review lanes, or widen it? Two of its
-  three entries cannot author (one is a quorum reviewer, one is sandbox-read-only).
-- **`D-32`** — should an `inconclusive` verification obligation be exempted from the effective
-  `cost_per_verified_success` arm, as `D-29` exempts `not_applicable`?
-- **`D-34` (standing)** — `#764` is complete on `dev`; **the v0.34.0 tag is its delivery to World**,
-  which pins upstream by release. The ask is pre-authorised; the tag is Mark's alone.
-- ~~Running-skill reconcile~~ **RESOLVED in-iteration, no decision needed.** The main checkout was
-  2 ahead mid-iteration; on re-measure it was **0 ahead / clean**, which is exactly Mark's standing
-  fast-forward authorization, so `git merge --ff-only origin/dev` was applied. Main checkout is now
-  `7b637477f` = `origin/dev`, 0/0, and the **running** skill is byte-identical to origin — so
-  iteration 270's Gate-5 edit is live, not merely merged.
+## Parked on Mark (`scripts/mission_decisions.sh --open`)
+- **`D-30`** — enforce the harness↔`ai-check` version coupling: (a) versioned JSON schema,
+  (b) bind to `os.Executable()`, (c) accept + spot-check.
+- **`D-31`** — split the designer rotation into authoring vs review lanes, or widen it? Two of
+  three entries cannot author for structural reasons no probe clears. 4+ instances.
+- **`D-32`** — exempt an `inconclusive` obligation from `cost_per_verified_success`, as `D-29`
+  exempts `not_applicable`?
+- **NEW, one word** — `D-34` pre-authorised asking for **v0.34.0** as `#764`'s delivery; v0.33.2
+  already delivers it. Ask **discharged**, or still want the minor bump to signal the new public
+  `serveapi/protocol` surface?
 
-## Quota posture
-metered **$0.00** of $5. No Fable spend for three iterations. Buckets reset Mon 07:00 local — fresh.
+**Rig note:** the MAIN checkout held a concurrent session's live uncommitted work at this fire;
+left strictly alone, all writes went to worktrees.

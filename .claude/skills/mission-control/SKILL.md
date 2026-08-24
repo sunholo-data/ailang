@@ -1938,6 +1938,43 @@ the Repo Profile above):
    enumerator-fed gate needs an anti-vacuity floor: an empty set must FAIL LOUDLY, never print a
    checkmark. The tell: you are about to trust a gate whose branches you have all mutation-killed,
    and you have never asked what feeds it.
+   **AND A GATE THAT CONSULTS MORE THAN ONE LIST, ENUMERATION OR CALL HAS MORE THAN ONE PLACE TO
+   BE VACUOUS — FLOORING ONE OF THEM READS AS COVERING THE GATE** (added 2026-08-24 V1 iteration
+   271; three instances across TWO files, one first-party). The clause immediately above asks what
+   a gate's enumerator *cannot see*. This one asks a question one level to the side and cheaper to
+   answer: **how many enumerations does this gate actually run, and does each carry its own
+   floor?** Rule 3a(i-d) already states the principle — scope the known-positive to the same place
+   as the check — but it is written for a controller's ad-hoc probe, whose remedy is `test -d` and
+   a grep exit code. Here the control is a *permanent branch in committed code*, which is what
+   makes it durable: a reviewer sees a named, deliberate known-positive check a few lines above
+   and reads the gate as floored. Nobody asks *which* enumeration it floors.
+   Three instances. **(1)** Iteration 269: `make lint` has a **scan** path list and a separate
+   **verdict** path list, and the sprint plan's edit widened only the scan — golangci-lint would
+   have LOOKED at the new package while the gate stayed unable to REFUSE anything found there.
+   **(2)** Iteration 268: `check_protocol_closure.sh` floors arm 1 with four branches and arm 2
+   with two. **(3)** Iteration 271, first-party and the sharpest: *within* arm 2, the deps
+   enumeration was floored (`R6` rc/non-empty, `R7` known-positive) and the **module-root
+   enumeration was not** — no rc check (its status was discarded as the head of a pipeline), no
+   non-emptiness, no known positive. That second enumeration is the one the allowlist check
+   actually consumes, so `R7` was a control on a *different call*. Measured with a stub `go`
+   delegating every other call to the real toolchain: reducing the roots call alone from **10** to
+   **0**, plain deps untouched at **224**, left the violator loop iterating zero times and the gate
+   printing its green checkmark at rc=0.
+   Note the gradient across the three: arm-vs-arm (visible to anyone reading the file), then
+   list-vs-list inside one target, then call-vs-call inside one arm. **They get harder to see as
+   they get closer together**, and the last one is invisible to a reader who has just satisfied
+   themselves that "arm 2 has a known-positive".
+   **Rules. (a)** Enumerate the gate's *inputs* before auditing its *branches*: grep every
+   invocation that produces a list the gate later reads (`go list`, `find`, `git ls-files`, an API
+   listing, a second `grep`), and pair the count with a known-positive control so a short
+   enumeration cannot masquerade as a complete one. **(b)** Require each enumeration to carry its
+   own three legs — the producing command's status captured **without a pipe**, a non-emptiness
+   assertion, and a known positive **queried against the very file or variable the check
+   consumes**. **(c)** When you fix one, say in the commit which enumerations you audited and
+   which you floored; "the gate is floored" is a claim whose scope is exactly one list. **(d)**
+   Mission-independent, and under `ailang-code` the same shape is a check that resolves one module
+   set and asserts over another. The tell: a gate has a known-positive control you find
+   reassuring, and you have not checked that the control and the check read the same list.
 3k. **IF THE PRODUCT HANDS A HUMAN SOMETHING TO RUN, A TEST MUST RUN EXACTLY THAT — A TEST THAT
    REBUILDS THE SAME COMMAND BY A SECOND ROUTE VERIFIES YOUR ARITHMETIC, NEVER YOUR ARTIFACT**
    (added 2026-08-08 iteration 166). Rules 3a–3j police claims about the codebase, about a check's

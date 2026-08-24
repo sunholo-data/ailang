@@ -18165,3 +18165,129 @@ correct.
 **Next**: the two remaining judge-found gate rows, `m-protocol-closure-arm2-floor` and
 `m-protocol-closure-goos-scope`, plus three rows filed here. `D-34` still stands — `#764` is
 complete on `dev` and the v0.34.0 tag is its delivery to World.
+
+## 271 — 2026-08-24 — The judge's row named one hole in arm 2; reproducing it found a second, and the second was the enumeration the check actually reads
+
+**Picked**: queue head `m-protocol-closure-arm2-floor` — the row the iteration-268 `sonnet`
+evaluator filed. No competing signal outranked it: **0** allowlisted directives on `#852` since
+`2026-08-24T16:14:33Z` (of 7 comments), dev green (**16** checks, zero not-green), inbox benign
+(eval-suite 8/8 and 48/48, release-manager v0.33.2 — acked), rotation and weekly sweep both not
+owed, ledger valid at **35** rows with `D-30`/`D-31`/`D-32` OPEN and unchanged.
+
+**Reality check**: the row is an INHERITED claim, so it was reproduced first-party before any
+routing rather than forwarded. It is true — and incomplete. A stub `go` that delegates every other
+call to the real toolchain reduced `go list -deps ./serveapi` from **224** entries to the self
+literal alone (zero stdlib) while leaving the protocol call at **188**, and the gate still printed
+its green checkmark at rc=0. That is the row's hole, arm 1's `R4` missing from arm 2.
+
+Reading the script for that defect surfaced a **second, worse one the row's framing could not
+see**. Arm 2 runs *two* enumerations. `R6`/`R7` floor the first (`SERVEAPI_DEPS`). The second — the
+module-root query at line 107 — is the one the allowlist loop actually consumes, and it had **no
+floor at all**: its exit status was discarded as the head of a pipeline, and nothing asserted
+non-emptiness or a known positive. Reducing that call alone from **10** roots to **0**, with plain
+deps untouched at 224, left the violator loop iterating zero times and the gate green at rc=0. So
+`R7`'s known-positive was a control on a *different call* — rule 3a(i-d)'s scope trap, living
+inside a committed gate instead of inside a controller's probe.
+
+All three arms (delegating control, hole A, hole B) were asserted to have LANDED by measuring both
+`go list` calls under each stub, not by trusting the stub to have fired — the three initially came
+back identically green, which is exactly the false symmetry rule 3e(iii) warns about, and only the
+stub self-check separated "the defect is real" from "my instrument never ran".
+
+**Shipped**: commit `3190208d1`, squashed to `fffe2487b` via PR
+[#869](https://github.com/sunholo-data/ailang/pull/869). Two new refusal branches in
+`scripts/check_protocol_closure.sh`: `R10` mirrors arm 1's `R4` on `SERVEAPI_DEPS` using the
+existing `is_nonstdlib` helper rather than a second dot-rule; `R11` captures the module-root call's
+status **without a pipe** and applies three legs — rc, non-emptiness, and the known-positive
+`github.com/sunholo-data/ailang` queried against **the same file the allowlist loop reads**. The
+self-test's existing vacuity arm gains probes for `R10` and `R11(a)/(b)/(c)` behind an
+argument-discriminating stub, so arm 1 still passes and only the branch under test is neutered.
+`ARMS_EXPECTED` stays **5** — no new arms, so the arm-count anti-vacuity floor is unchanged.
+
+Evaluator `sonnet` in **its own** worktree at `3190208d1`: **PASS 96/100, zero blocking, zero
+non-blocking**.
+
+**Routing evidence**: controller=`opus` (session) task-class=triage/pick/drill/record ·
+designer **not spawned** (direct fix, no doc — rotation pointer untouched, no Fable spend) ·
+planner **not spawned** (no plan needed) · executor=`codex:gpt-5.6-sol` probe rc=0, bounded 30-min
+cap, 8,857 B directive, rc=0 with a 3-file non-empty diff, zero residue, zero sandbox denials,
+no directive defect reported · evaluator=`sonnet` (Anthropic ≠ the codex executor, so
+generator≠judge holds) round1-score=**96/100** rounds=**1** corrections=**0** ·
+metered=**$0.00** of the $5 ceiling (both lanes are quota buckets).
+
+**Base measured before routing** (rule 3e(a) and false-green #4, aimed at my own directive's gate
+list) — and measured **in the worktree that would execute it**, which is this iteration's own
+Gate-5 clause from iteration 270 applied on its first fire: all seven gates rc=0 on the pristine
+worktree base, and each was checked in advance for socket-binding so none would come back
+`UNINFORMATIVE UNDER SANDBOX`. None did.
+
+**Independent controller drill**, with mutant shapes deliberately different from the executor's
+(it used `if false &&` on all four branches): the two stubs that produced the original false greens
+now yield **rc=2** naming `R10` and `R11`, while the delegating control stays **rc=0** — arms
+asserted to differ programmatically rather than eyeballed. Two further stubs covered the legs those
+did not reach: a module-root call failing rc=1 hits `R11` leg (a) and prints its captured stderr;
+a root list omitting the self root hits leg (c) with **rc=2 rather than the rc=1 allowlist
+branch** — distinguishing those two is the point of that probe, so it was asserted rather than
+assumed.
+
+**The judge added a reproduction I had not run.** It drove the *parent* commit with a module-root
+call exiting **3**: the base script leaks the stderr and still greens. That is what proves
+`SERVEAPI_ROOTS_RC=$?` captures `go list`'s own status rather than a pipeline's — a claim I had
+made from reading the line, which is weaker than measuring it. It also attacked the five things I
+believed but had not exhaustively proven, and all five held: the `R11(c)` literal matches
+`go.mod`'s module line exactly and cannot false-refuse (the self-test's `./cmd/astdump` probes are
+intercepted by `R7` first); no bash-4 construct in either file under native 3.2.57; `ARMS_EXPECTED`
+still matches the live arm count; and there is **no third unfloored enumeration** — exactly three
+`go list` call sites, with the enumerating grep as its own known-positive control.
+
+**Gates re-run by the controller outside the sandbox**: `check-protocol-closure`,
+`test-check-protocol-closure`, `check-changelog`, `check-file-sizes`, `check-boundaries` and
+`bash -n` on both scripts, all rc=0. Scope stated rather than implied — the diff touches two shell
+scripts and one changelog, **no Go source**, so the Go suite is unaffected and was not re-run
+locally; measured on **darwin/arm64** (rule 3b(viii)), with the CI matrix as the instrument for
+every other leg.
+
+**A resolved decision's premise went stale, and the queue would never have re-checked it.**
+Gate 2's solved-upstream rule is written for a *blocker* you are about to plan around; pointed at
+`D-34`'s follow-up action it found the same shape. Iteration 269 recorded that `#764` must stay
+open because World pins upstream by RELEASE, and named **v0.34.0** as the delivery. Measured here:
+**v0.33.2 was published `2026-08-24T19:26:28Z`** (not a draft), and all four `#764` milestone
+commits are ancestors of it — `ba2eeb4b4`, `7e7bdffcb`, plus iteration 270's `e194c2584`;
+`serveapi/protocol` ships at the tag (**5** files, negative control on a non-existent sibling path
+**0**), as does the closure gate. The delivery had already happened under a different tag, so the
+reply we posted on `#764` was materially wrong from the moment that release cut. Corrected on
+`#764` in-iteration, with the comment count asserted **4 → 5**, telling World it can pin `v0.33.2`
+today and recording the arm-2 caveat honestly rather than hiding it.
+
+**Died-mid-flight trace (c) fired and the answer was a LIVE session, not an orphan.** The main
+checkout carries uncommitted work with mtimes **23:13–23:16**, fifteen minutes before this fire:
+untracked `internal/browser/` (5 files including `local/playwright.go`), a design doc moved
+`v0_33_2` → `v0_33_3`, and a modified `internal/executor/codex/codex_test.go`. Attributed as
+concurrent rather than abandoned on the mtime evidence and left strictly alone; every write this
+iteration made went to a worktree for that reason.
+
+**Ruled out**:
+- That the row's single named hole was the whole defect — it was one of two, and the unnamed one
+  is the more serious, since it sits on the enumeration the check consumes.
+- That the three initial stub arms coming back identically green meant the defect was not real —
+  it meant the stubs had not been proven to fire. They had; the greens were the defect.
+- That `SERVEAPI_ROOTS_RC=$?` might be reading the backslash-continued line's pipeline status
+  rather than `go list`'s — refuted by the judge's rc=3 stub, which surfaces the 3 verbatim.
+- That a third unfloored enumeration might exist — refuted by enumerating all `go list` call sites
+  (exactly 3) with the grep as its own control.
+- That the main checkout's dirty tree was a dead iteration's residue — the mtimes place it fifteen
+  minutes before this fire, i.e. a live session.
+
+**Retro**: **one skill edit**, at the ≥2-friction bar with **three instances across two files**.
+Rule 3j gains a clause: *a gate that consults more than one list, enumeration or call has more than
+one place to be vacuous, and flooring one of them reads as covering the gate.* Instance 1 is
+iteration 269 (`make lint`'s scan list vs its verdict list — the plan widened only the scan);
+instance 2 is iteration 268 (this gate's arm 1 floored, arm 2 not); instance 3 is this iteration,
+first-party (within arm 2, the deps enumeration floored and the roots enumeration not). Rule
+3a(i-d) already states the principle for a controller's own probe; what is new is the surface —
+a *committed* known-positive branch reads as flooring the gate, and nobody asks which list it
+floors. The three instances form a gradient — arm-vs-arm, list-vs-list, call-vs-call — that gets
+harder to see as the two enumerations get closer together.
+
+**Next**: `m-protocol-closure-goos-scope` (the second iteration-268 judge row), then
+`m-lint-tmpfile-collision` and `m-gemini-verdict-score-threshold`.
