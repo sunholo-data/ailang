@@ -1593,6 +1593,44 @@ the Repo Profile above):
    The generalisable point, and the reason this outranks its two instances: **an environmental
    explanation is always available for a symptom you caused**, and it is more comfortable than the
    alternative, so it wins by default unless the base is pinned down by command.
+   **AND A BASELINE IS A CLAIM ABOUT THE ENVIRONMENT YOU RAN IT IN, NOT ABOUT THE COMMAND — SO A
+   GATE LIST BASELINED IN YOUR OWN SHELL AND HANDED TO A SANDBOXED LANE CERTIFIES AN ENVIRONMENT
+   THAT WILL NEVER EXECUTE IT** (added 2026-08-24 V1 iteration 270; proposed by `mission-world`
+   iter-119 with a first-party instance, and corroborated first-party in V1's own iteration within
+   the hour before adoption — sibling-claim ghost discipline). Clauses (a) and (b) above pin the
+   *tree* a baseline runs against: pristine, uncontaminated, re-measured rather than assumed. Both
+   are silent about the *lane*. So a controller can follow 3e to the letter, and the codex recipe's
+   false-green #4 to the letter, and still hand an executor a gate that is **unsatisfiable by
+   construction** in the sandbox it is about to run in — because the axis deciding satisfiability is
+   one no rule asked about. The failure is not a misread verdict; it is a gate list that CANNOT be
+   green, married to a directive asserting every entry was measured green.
+   The mechanism is already in this file, filed one gate away: false-green #3 teaches that
+   `workspace-write` denies loopback binds, so any suite touching `httptest`/servers fails with
+   `bind: operation not permitted`, and that the CONTROLLER must re-run such gates OUTSIDE the
+   sandbox. That rule is about *reading a verdict*; nothing points it at *composing a gate list*.
+   Guard the helper, miss the call site — this file's own recurring shape, aimed at its own hands.
+   World's instance: `go test ./host/workbench ./host/daemon ./host/boundary` is rc=0 in its shell
+   and unsatisfiable inside the sandbox on two independent paths (`d.Listen()` and
+   `httptest.NewServer`), inside a drill protocol requiring that arm rc=0 as a control after EVERY
+   mutant — so the milestone could not be executed in the lane it was routed to, however correct the
+   work. V1's instance, same day: a scoped
+   `go test ./internal/gen/golang/... ./internal/eval_harness/...` baselined **rc=0** outside the
+   sandbox and shipped as gate G4 in a directive stating "every one rc=0 there", returned **rc=1**
+   inside on a denied `httptest.NewServer` bind. It cost nothing only because the directive
+   independently told the executor to label such results `UNINFORMATIVE UNDER SANDBOX`, and it did —
+   the label saved the verdict; it did not make the gate list correct.
+   **Rules. (a)** Baseline a gate list in the LANE THAT WILL EXECUTE IT, or state in the directive
+   AND the evidence row **which environment was certified** — "rc=0 on darwin/arm64 outside the
+   sandbox; G4 not established inside `workspace-write`". **(b)** Before routing, ask of each gate
+   whether it binds a socket, needs the network, writes outside the workspace, or reads a path the
+   sandbox excludes; those are the entries that differ by lane, and they are enumerable in advance
+   rather than discoverable at cost. **(c)** Prefer a gate satisfiable in the executing lane over one
+   that is thorough and is not — and where the thorough one matters, keep it as a CONTROLLER gate run
+   outside, never as an executor obligation. **(d)** Mission-independent, and it generalises past
+   sandboxes to every lane boundary: a CI runner, a different GOOS (rule 3b(viii) is this same rule
+   aimed at the host), a container, a read-only checkout. The tell: you are about to write "every one
+   of these is rc=0 at base" in a directive, and the shell you measured in is not the shell that will
+   run them.
 3f. **A REVIEWER'S OBJECTION IS A CLAIM TOO — WHEN A QUORUM BLOCKS ON AN "UNVERIFIED PREMISE", THE
    CONTROLLER'S JOB IS TO *MEASURE* IT, NOT TO FORWARD IT** (added 2026-08-06 iteration 150). Every
    rule above polices claims flowing *downward* — from a sub-agent, a designer, a judge, a document.

@@ -18058,3 +18058,110 @@ so a second is recognisable; rule 3b(ix) already covers the general shape.
 **Next**: the `#764` sprint is complete. Queue head becomes the three closure/lint gate rows
 (`m-lint-unused-filter-vacuity` NEW this iteration, plus iteration 268's arm2-floor and goos-scope),
 unless Mark answers `D-34` — in which case the v0.34.0 release ask outranks.
+
+## 270 — 2026-08-24 — The lint gate filtered its own verdict for 7.5 months, and the pristine tree was already proving it
+
+**Pick**: queue head `m-lint-unused-filter-vacuity`, the row iteration 269's `sonnet` evaluator
+found while judging M4. Direct-fix iteration — no design doc, no sprint plan, no designer or
+planner spawned.
+
+**Outcome**: LANDED `e194c2584` (PR [#866](https://github.com/sunholo-data/ailang/pull/866),
+squash of `103f62cdc`). Evaluator **PASS 94/100, zero blocking**. metered **$0.00** of $5.
+
+**What shipped**: one deleted line in `make/code-health.mk` plus the two findings that line was
+hiding, a three-line comment recording the filter chain's contract, a `generateArray` comment
+recording why arrays are deliberately untyped, and a CHANGELOG entry.
+
+**THE DEFECT NEEDED NO MUTANT.** `make lint` pipes golangci-lint through `grep -v "is unused"`
+**before** the failure predicate, and `unused` is an ENABLED linter in `.golangci.yml`. At pristine
+`origin/dev`, golangci-lint reported `2 issues: * unused: 2` — the only findings in the entire
+scope — while `make lint` exited **rc=0** printing `✓ Lint complete (no bugs detected)` directly
+beneath that count. The reproduction was the repository itself. After the fix the same command
+prints `0 issues.`
+
+**Systemic audit before patching (CLAUDE.md §3), and it is what makes a one-line fix defensible as
+complete.** Every other check-suppressing grep in the chain — `QF[0-9]`, `ST[0-9]`, `SA1019:`,
+`SA9003:`, `SA5011:`, `SA5012:` — has an exact 1:1 counterpart in `.golangci.yml`'s staticcheck
+disable list; the remaining three drop source-context lines rather than findings. `is unused` was
+the only filter suppressing a check the config turns on.
+
+**Both hidden findings investigated under CLAUDE.md's unused-code rule — and the investigation
+changed the justification without changing the action, which is the point of the rule.**
+`geminiPassThreshold` was born dead at `ae5f0a00f` (2 occurrences, zero call sites) and its
+provenance was folded into the `Pass` field comment rather than discarded. `getArrayElementType`
+is the dangerous shape and the measurement was decisive: wired at `ea88158ef` (call-sites 1),
+**deliberately unwired** by `d3b0185f5` — the `M-ARRAY-SHOW-DIVERGES-RUN-VS-COMPILE` fix, whose
+diff replaces the call with `g.write("ArrayVal{")`. Control: its twin `getListElementType` still
+reads 1. So re-wiring would have reintroduced the divergence that fix closed; deletion was correct
+and `generateArray` now says so.
+
+**Base measured before routing** (rule 3e(a), aimed at my own directive): scoped `go build`/`go
+vet`/`go test` and `make check-changelog` all rc=0; whole-repo `go build ./...` rc=1 at base and
+therefore excluded from the directive.
+
+**Executor** `codex:gpt-5.6-sol`, probe rc=0, bounded 30-min cap, 8,967 B directive, **rc=0 with a
+4-file diff** and zero residue. **It self-reported a defect in my directive and was right**: I
+specified drill Arm B as rc=1, and `make` converts the recipe's `exit 1` into rc=2 — rule 3h(d),
+a self-reported deviation is better evidence than a silent one.
+
+**Independent three-arm drill**, mutant of a different shape and package from the executor's, and
+asserted LANDED (grep 1) and BUILDS (rc=0) before any red was read: Arm B → **rc=2** naming the
+mutant; Arm C (same mutant, filter line restored) → **rc=0, vacuous again**; arms asserted to
+differ programmatically. `make/code-health.mk` restored from a `cp` backup and sha256
+byte-identical. Edit 1 is the sole killer. All gates re-run outside the sandbox: full `make test`
+**114 ok / 0 FAIL**, identical to iteration 269's measured base.
+
+**Evaluator** `sonnet` (Anthropic; distinct from the codex executor, generator≠judge holds) in
+**its own** worktree at `248db8b16`: **PASS 94/100**. It re-derived the systemic audit, ran a third
+mutant shape, tested every diff hunk by actual revert rather than by reasoning, and confirmed both
+deletion justifications from history.
+
+**The judge caught a real provenance error, and reproducing it showed the judge was also
+scoped-wrong — which is the more useful finding.** I wrote "vacuous since `35092b834`
+(2026-04-22)", **transcribed from the queue row instead of derived** — rule 3b(v)(b) exactly, and
+a recurrence of iteration 269's own 304-vs-325 lesson one iteration later. The judge corrected it
+to `e7427143c`. Measured first-party before acting *and* before dismissing: there are **three**
+honest answers, each true only in its own scope (rule 3b(ix)) — `git blame` on today's line gives
+`35092b834`, which merely **reindented** it; the line entered `make/code-health.mk` at that file's
+creation, `e7427143c` (2026-01-14); and the filter first appears anywhere at `f18bc48d8`
+(**2026-01-09**), by which point `unused` had been enabled since `a32ab5899` (2025-12-27). True
+exposure ~7.5 months, longer than either input claimed. The commit was amended to state all three
+by scope, with trees asserted identical before and after so every gate measurement survived.
+
+**Gate 3b**: **22** checks on the amended head, 0 pending, 0 not-green, state **CLEAN**; all four
+required contexts pass (`test` 18m11s, `lint` 4m36s, `build` 1m40s, `docs-gate` 2s); count climbed
+15→22, so `pending=0` was a real completion rather than a vacuously empty set.
+
+**Cross-mission** (`mission-world` iter-119, two proposed skill rules): triaged, **not**
+auto-outranked, and split. Claim 1 is already half-covered — rule 3i prescribes running each named
+mutation per row at pick/route time, so World's WB.H instance is a rule that was not applied rather
+than a gap; its genuinely novel half (a task body carrying a *self-falsifying* anti-vacuity control)
+has one instance and is pre-registered. Claim 2 adopted — see Retro. Their message arrived with its
+`--subject`/`--body` flags absorbed into the body, a degraded-delivery instance of the
+iteration-252 `ailang messages send` trap; content was readable and this was flagged back.
+
+**Routing**: controller `opus`; executor `codex:gpt-5.6-sol` (quota bucket); evaluator `sonnet`
+**PASS 94/100**; designer and planner **not spawned** — a direct-fix iteration, so no Fable spend
+and the rotation pointer is untouched. metered **$0.00**.
+
+**Ruled out**: that `getArrayElementType` was an accidentally-orphaned call of the Import System
+Disaster shape (refuted — the call site was removed deliberately, by a named fix, with the diff to
+prove it); that deleting it should be replaced by re-wiring (refuted — re-wiring reintroduces the
+divergence); that the main checkout qualified for Mark's standing fast-forward authorization
+(refuted — it is **2 commits ahead**, not 0, with a concurrent agent's dirty tree changing between
+two reads, so Critical Principle 0 governs and no reconcile was attempted).
+
+**Retro — one skill edit, at the ≥2-friction bar with one friction first-party.** Rule 3e gains a
+clause: **a baseline is a claim about the ENVIRONMENT you ran it in, not about the command.**
+3e(a)/(b) pin the *tree* and are silent about the *lane*; false-green #3 teaches the sandbox
+mechanism but points only at *reading a verdict*, never at *composing a gate list* — guard the
+helper, miss the call site, this file's own recurring shape aimed at its own hands. Friction 1:
+World's `go test ./host/...`, rc=0 in its shell and unsatisfiable inside `workspace-write` on two
+independent socket paths. Friction 2, same day and first-party: this iteration's gate G4, baselined
+by me at rc=0 outside the sandbox and returning rc=1 inside on a denied `httptest.NewServer` bind.
+The executor's `UNINFORMATIVE UNDER SANDBOX` label saved the verdict; it did not make the gate list
+correct.
+
+**Next**: the two remaining judge-found gate rows, `m-protocol-closure-arm2-floor` and
+`m-protocol-closure-goos-scope`, plus three rows filed here. `D-34` still stands — `#764` is
+complete on `dev` and the v0.34.0 tag is its delivery to World.

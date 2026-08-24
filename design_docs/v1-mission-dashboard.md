@@ -2,40 +2,41 @@
 
 *Snapshot, overwritten every iteration. History lives in the charter STATUS block and the log.*
 
-**Last iteration:** 269 · 2026-08-24 · **LANDED — `#764` sprint COMPLETE (M1–M4)**
+**Last iteration:** 270 · 2026-08-24 · **LANDED — `m-lint-unused-filter-vacuity` (`e194c2584`)**
 
 ## Latest release
-v0.33.1 (dev at `7e7bdffcb`) — **v0.34.0 is the outstanding ask, see Parked on Mark**
+v0.33.1 (dev at `e194c2584`) — **v0.34.0 is the outstanding ask, see Parked on Mark**
 
-## In flight / next
-- **`#764` protocol-only serveapi module — ALL FOUR MILESTONES LANDED.**
-  M1 `d54672b85` · M2 `4a813b2c0` · M3 `ba2eeb4b4` · **M4 `7e7bdffcb`**.
-- At the merge: `serveapi/protocol` = 188 packages, **exactly 1 non-stdlib (itself)**; `serveapi`
-  = 224 / 31 non-stdlib / 9 external roots + ailang. Was 479 non-stdlib pre-extraction.
-- **#764 deliberately kept OPEN**: World pins upstream by RELEASE, so the merge does not deliver
-  it. The delivery is the **v0.34.0 tag** — `D-34` pre-authorises the ask, not the tag.
-- M4 corrected a plan defect: `make lint` has TWO path lists; widening only the scan list left the
-  gate unable to refuse anything in `serveapi/`. Both changed; 3-arm drill (both rc=2, either rc=0).
+## What just landed
+`make lint` filtered `unused` findings out **before** its own failure predicate, so a dead function
+anywhere in scope left the gate at rc=0 printing a green checkmark. Reproduced with **no mutant** —
+pristine `dev` reported `2 issues: * unused: 2` while `make lint` exited 0. Exposure ~7.5 months
+(`f18bc48d8`). Both hidden findings resolved with commit-level provenance. `sonnet` **PASS 94/100**.
 
-## Queue after #764
-- **NEW** m-lint-unused-filter-vacuity — `grep -v "is unused"` strips findings before the verdict
-  predicate, for `internal`/`cmd`/`testutil` too (judge-found; pre-existing since 2026-04-22)
-- m-protocol-closure-arm2-floor · m-protocol-closure-goos-scope (both judge-found iter-268)
-- m-sweep-orphans-2026-08-17 (3 of 15) · m-sweep-orphans-2026-08-24 (8 orphans)
-- m-serveapi-moved-code-coverage (2 unpinned lines, pre-existing)
-- clause-3 accessibility cluster (bulk of v1.0)
+## Next picks (queue head first)
+1. `m-protocol-closure-arm2-floor` — arm 2 lacks arm 1's stdlib-presence floor leg (judge, iter-268)
+2. `m-protocol-closure-goos-scope` — closure gate blind to GOOS/build-tag files (judge, iter-268)
+3. `m-lint-tmpfile-collision` — `make lint` judges a fixed shared `/tmp/lint.out` (iter-270)
+4. `m-gemini-verdict-score-threshold` — `ValidateVerdict` enforces only half its invariant (iter-270)
+5. `m-codex-streaming-test-flake` — parallel-load flake, rule 3m shape (judge, iter-270)
 
 ## Loop cadence + routing
-- launchd `dev.ailang.mission-control`, pinned worktree `~/.ailang-driver-pin/v1`
-- controller `opus` · designer ROTATION (seed fable) · planner/executor `codex:gpt-5.6-sol` ·
-  evaluator `sonnet`; generator≠judge enforced, each role in its own worktree
+launchd `dev.ailang.mission-control`, ~90 min. Controller `opus` · executor `codex:gpt-5.6-sol` ·
+evaluator `sonnet` · designer rotation seed `claude:claude-fable-5` (untouched — no Fable spend).
+Bookkeeping issue **#852** (namespaced key; the driver env still exports the stale bare `745`).
 
-## Parked on Mark (OPEN decisions)
-- **D-34 IS NOW LIVE — cut v0.34.0?** `#764` is complete on dev; the tag is what reaches World.
-- **D-30** harness↔`ai-check` version coupling before the `not_applicable` split
-- **D-31** split the designer rotation into authoring vs review lanes (or widen it) — 4 instances
-- **D-32** exempt `inconclusive` obligations from `cost_per_verified_success`?
+## Parked on Mark (OPEN ledger rows only)
+- **`D-30`** — enforce the harness↔`ai-check` version coupling before the `not_applicable` split:
+  (a) schema-versioned JSON, (b) `os.Executable()` same-binary bind, (c) accept + spot-check.
+- **`D-31`** — split the designer rotation into authoring vs review lanes, or widen it? Two of its
+  three entries cannot author (one is a quorum reviewer, one is sandbox-read-only).
+- **`D-32`** — should an `inconclusive` verification obligation be exempted from the effective
+  `cost_per_verified_success` arm, as `D-29` exempts `not_applicable`?
+- **`D-34` (standing)** — `#764` is complete on `dev`; **the v0.34.0 tag is its delivery to World**,
+  which pins upstream by release. The ask is pre-authorised; the tag is Mark's alone.
+- **Running-skill reconcile** — main checkout is **2 ahead** / 18 behind with a concurrent agent's
+  dirty tree, so the standing fast-forward authorization does NOT apply (it requires 0 ahead) and
+  Principle 0 governs. Iteration 270's skill edit reaches origin but not the running copy.
 
 ## Quota posture
-Anthropic available (controller opus, evaluator sonnet live). Codex lane live.
-Metered spend this iteration: **$0.00** of $5 — every lane used was a quota bucket.
+metered **$0.00** of $5. No Fable spend for three iterations. Buckets reset Mon 07:00 local — fresh.
