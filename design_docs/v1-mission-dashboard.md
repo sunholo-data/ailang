@@ -2,25 +2,31 @@
 
 *Snapshot, overwritten every iteration. History lives in `v1-mission.md` and `v1-mission-log.md`.*
 
-**Iteration 262 · 2026-08-24 · dev green (16 checks @ `71692d6f1`)**
+**Iteration 266 · 2026-08-24 · dev green · latest release v0.33.1**
 
 ## In flight
-- **`#764` M1 implemented, PARKED-ON-LANE.** Commit `07b9a843e` extracts the stdlib-only
-  `serveapi/protocol` package. Controller gates are green: build/test/vet/lint rc=0; closure is
-  exactly one non-stdlib package and one module root (188 packages total).
-- No PR or merge: the executor was Codex and generator≠judge forbids a Codex judge.
+- **`#764` M1 LANDED** — squash `d54672b85` (PR #848, non-closing `refs #764`; #764 stays OPEN).
+  Extracts the stdlib-only `serveapi/protocol` package behind a transitional shim.
+- Independent `sonnet` evaluator (distinct provider from the codex executor — generator≠judge):
+  **PASS 95/100, zero blocking.** All 8 M1 gates green first-party; stdlib-only closure holds
+  (one non-stdlib line, module root `github.com/sunholo-data/ailang`); 16/16 shims marked.
+- The **four-iteration evaluator lane park (iter 262–265) is cleared.** Root cause: those runs had
+  the controller fall back to codex because Anthropic was down, so `sonnet` + `fable` (both
+  Anthropic) were both unavailable. This iteration's controller is `opus` — Anthropic up.
 
 ## Resume predicate / next
-- Re-run the independent evaluator after Anthropic quota resets **Mon 07:00 local**, or configure
-  the Google managed-agent GCP project. PASS lands M1; FAIL returns a bounded correction round.
-- Only after M1 lands: execute M2–M4, reply on `#764`, then surface the pre-authorized v0.34.0 ask.
+- **M2** — rewire `serveapi`, unexport moved machinery, delete the `// TRANSITIONAL` shim, evict
+  the machinery tests — is the unblocked queue head. Route next iteration (executor→evaluator).
+- Then M3 (refusal gate), M4, reply on `#764`, then surface the pre-authorized v0.34.0 ask.
 
-## Parked on Mark (3 open decisions)
-- `D-30`: harness↔`ai-check` version coupling.
+## Parked on Mark (3 open decisions + 1 routing-policy signal)
+- `D-30`: harness↔`ai-check` version coupling (PATH vs `os.Executable()`).
 - `D-31`: split/widen designer authoring lanes.
 - `D-32`: effective-KPI treatment of `inconclusive` verification.
+- **Routing signal (rule 8(e)):** the evaluator lane has no non-Anthropic, non-codex,
+  worktree-capable option, so an Anthropic outage wedges ALL evaluation. Fix = configure a GCP
+  project for the read-only gemini/managed-agents lane, or repair the sonnet subscription probe.
 
 ## Loop health
-- Routing: controller Codex · executor `codex:gpt-5.6-sol` · evaluator `sonnet` unavailable;
-  Fable also quota-blocked; Google fallback lacks required project config.
-- Cost: metered **$0.00**. This is a capacity park, not a human decision.
+- Routing: controller `opus` · evaluator `sonnet` (PASS) · executor n/a (M1 by codex at iter 262).
+- Cost: metered **$0.00** (all quota buckets). CI: 16 checks green on the merged head.
