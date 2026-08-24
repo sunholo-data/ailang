@@ -34,9 +34,11 @@ Bookkeeping issue **#852** (namespaced key; the driver env still exports the sta
   `cost_per_verified_success` arm, as `D-29` exempts `not_applicable`?
 - **`D-34` (standing)** — `#764` is complete on `dev`; **the v0.34.0 tag is its delivery to World**,
   which pins upstream by release. The ask is pre-authorised; the tag is Mark's alone.
-- **Running-skill reconcile** — main checkout is **2 ahead** / 18 behind with a concurrent agent's
-  dirty tree, so the standing fast-forward authorization does NOT apply (it requires 0 ahead) and
-  Principle 0 governs. Iteration 270's skill edit reaches origin but not the running copy.
+- ~~Running-skill reconcile~~ **RESOLVED in-iteration, no decision needed.** The main checkout was
+  2 ahead mid-iteration; on re-measure it was **0 ahead / clean**, which is exactly Mark's standing
+  fast-forward authorization, so `git merge --ff-only origin/dev` was applied. Main checkout is now
+  `7b637477f` = `origin/dev`, 0/0, and the **running** skill is byte-identical to origin — so
+  iteration 270's Gate-5 edit is live, not merely merged.
 
 ## Quota posture
 metered **$0.00** of $5. No Fable spend for three iterations. Buckets reset Mon 07:00 local — fresh.
