@@ -1565,6 +1565,31 @@ models:
       gate + microRAG context + contract feedback) on cheap models.
       Requires: motoko CLI + OPENROUTER_API_KEY.
 
+  motoko-or-sonnet-5:
+    api_name: "anthropic/claude-sonnet-5"
+    provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Claude Sonnet 5 via motoko on the `cloud` profile — the PAID yardstick for the zero-cost aim. Same harness + same extension set as motoko-local-qwen3-8-27b-microrag, so the only variable is the model."
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "motoko"
+    motoko_profile: "cloud"    # [compaction_ai, context_mode, ailang_docs, microrag] == ollama_microrag
+    agent_model_name: "openrouter/anthropic/claude-sonnet-5"
+    model_family: "claude-sonnet-5"
+    max_output_tokens: 64000
+    pricing:
+      input_per_1k: 0.003
+      output_per_1k: 0.010   # OpenRouter completion $10/M
+    budgets:
+      hard_timeout_secs: 3600   # matched to the local arm so the timeout decides nothing
+    notes: |
+      Added 2026-08-22. Routed via OpenRouter deliberately: the local `claude` CLI
+      is NOT logged in on this rig (`claude -p` returns "Not logged in"), which
+      silently banked 66/66 api_error rows on the first yardstick attempt — a
+      harness failure that reads as a model result. OPENROUTER_API_KEY works.
+      Pair against motoko-local-qwen3-8-27b-microrag: same harness, same
+      extensions, same timeout, same tiers -> the delta is the MODEL, and the
+      local arm's cost is $0.
+
   motoko-claude-sonnet-4-6:
     api_name: "claude-sonnet-4-6"
     provider: "anthropic"
@@ -1920,6 +1945,33 @@ models:
       2026-08-17. Smoke-test motoko on BOTH qwen3.6 and qwen3.8 before trusting
       any result from this entry — a failure here may be the upgrade, not the model.
       Requires: Ollama >= 0.32.12, qwen3.8:27b-mxfp8 pulled.
+
+  motoko-local-qwen3-8-27b-microrag:
+    api_name: "qwen3.8:27b-mxfp8"
+    provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Qwen 3.8 27B via motoko on the ollama_microrag profile — the FULL local stack. Same extension set as the `cloud` profile that frontier cloud models get, so this is the apples-to-apples zero-cost arm."
+    env_var: ""
+    agent_cli: "motoko"
+    motoko_profile: "ollama_microrag"   # [compaction_ai, context_mode, ailang_docs, microrag]
+    agent_model_name: "ollama/qwen3.8:27b-mxfp8"
+    model_family: "qwen-3-8"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    budgets:
+      hard_timeout_secs: 3600
+    notes: |
+      Added 2026-08-22. The 2026-08-19 stretch+frontier result (81.8%, +45.5pp
+      over qwen3.6, 23-0, p<1e-6) was measured on the BARE `ollama` profile —
+      [compaction_ai, context_mode] only. Meanwhile every motoko CLOUD model runs
+      the `cloud` profile, which adds ailang_docs + microrag. `ollama_microrag`
+      is the local profile with that identical extension set, so comparing this
+      arm to a cloud arm isolates the MODEL rather than confounding it with
+      harness richness.
+      Per the zero-cost aim, extension cost is wall-clock only ($0 marginal), so
+      this is a free capability lever that has never been applied to qwen3.8.
 
   motoko-local-qwen3-6-fmt:
     api_name: "qwen3.6:35b-a3b-mxfp8"

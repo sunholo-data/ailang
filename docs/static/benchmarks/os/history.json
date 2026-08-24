@@ -1,10 +1,124 @@
 [
   {
     "ailang_version": "v0.33.1",
-    "generated": "2026-08-13",
-    "trials": 0,
-    "languages": [],
-    "rows": []
+    "generated": "2026-08-24",
+    "trials": 9,
+    "languages": [
+      "ailang",
+      "go",
+      "javascript",
+      "python"
+    ],
+    "rows": [
+      {
+        "harness": "motoko",
+        "lang": {
+          "ailang": 0.5686274509803921
+        },
+        "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "frontier": {
+            "ailang": 0.21428571428571427
+          },
+          "stretch": {
+            "ailang": 0.4883720930232558
+          }
+        }
+      },
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 0.4
+        },
+        "model": "opencode-qwen3-6-35b-a3b-mxfp8",
+        "tiers": {
+          "core": {
+            "ailang": 0.5483870967741935
+          },
+          "frontier": {
+            "ailang": 0.07142857142857142
+          },
+          "stretch": {
+            "ailang": 0.4
+          }
+        }
+      },
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 1,
+          "go": 1,
+          "javascript": 1,
+          "python": 0.9090909090909091
+        },
+        "model": "opencode-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 0.8333333333333334
+          },
+          "frontier": {
+            "ailang": 1
+          },
+          "stretch": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 0.5641025641025641
+        },
+        "model": "pi-qwen3-6-35b-a3b-mxfp8",
+        "tiers": {
+          "core": {
+            "ailang": 0.7878787878787878
+          },
+          "frontier": {
+            "ailang": 0.07692307692307693
+          },
+          "stretch": {
+            "ailang": 0.53125
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 1,
+          "go": 0.9090909090909091,
+          "javascript": 1,
+          "python": 1
+        },
+        "model": "pi-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1,
+            "go": 0.8333333333333334,
+            "javascript": 1,
+            "python": 1
+          },
+          "frontier": {
+            "ailang": 1
+          },
+          "stretch": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          }
+        }
+      }
+    ]
   },
   {
     "ailang_version": "v0.33.0",
