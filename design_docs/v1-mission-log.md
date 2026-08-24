@@ -17598,3 +17598,17 @@ refusal result, and resume condition; no new recurring gap was found.
 **Next**: re-probe the distinct evaluator after Mon 07:00 local (or after Google project config is
 available), evaluate M1 from its committed evaluator worktree, then PASS→land or FAIL→bounded
 executor correction. Do not start M2 before M1 lands.
+
+---
+
+## 263 — 2026-08-24 — M1 evaluator resume predicate did not fire; second consecutive lane park surfaced
+
+**Picked**: `#764` continuation, the independent evaluation of `07b9a843e` required before M1 may land.
+
+**Outcome**: `PARKED-ON-LANE`. Gate 0 was clean at `9ba7f9d15` = `origin/dev`, with no new allowlisted directive and a valid ledger. At Monday 03:12 CEST, before the 07:00 reset, the subscription-only Sonnet probe emitted zero bytes on both streams and failed to exit within the 30-second bound; only its exact PIDs were terminated. A timeout is not `rc=0`. Generator≠judge forbids Codex, and Google's project remains unset. No evaluator, executor, product edit, PR, merge, tag, or release was attempted.
+
+**Routing evidence**: executor remains `codex:gpt-5.6-sol`; evaluator intended=`sonnet`, provider=anthropic, status=probe-timeout-before-run, stdout=0 B, stderr=0 B; metered=$0.00. This second consecutive evaluator-role park is a routing-policy signal, not a decision for Mark.
+
+**Retro lane**: no skill edit; the existing lane-park rule covers the disposition. An interrupted record-worktree copy was moved intact to `/tmp/wt-iter263-record-incomplete-20260824-0315`; no user work was removed.
+
+**Next**: after Mon 07:00 local, re-probe a distinct evaluator; PASS → land M1, FAIL → bounded correction. Do not start M2 first.
