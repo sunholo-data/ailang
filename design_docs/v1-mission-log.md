@@ -17630,3 +17630,21 @@ executor correction. Do not start M2 before M1 lands.
 **Retro lane**: none. The existing `PARKED-ON-LANE` rule covers the condition and reporting contract; no new recurring gap was observed.
 
 **Next**: after Mon 07:00 local, re-probe a distinct evaluator; PASS → land M1, FAIL → bounded executor correction. Do not start M2 first.
+
+---
+
+## 265 — 2026-08-24 — Post-reset evaluator probes still unavailable; fourth consecutive lane park
+
+**Picked**: `#764` continuation, independent evaluation of M1 commit `07b9a843e`.
+
+**Outcome**: `PARKED-ON-LANE`. The named clock predicate fired at 07:00:12 CEST. The subscription-only Sonnet probe then produced zero bytes on both streams and did not terminate inside its 45-second bound; its exact probe tree was terminated. The configured Fable fallback also failed before a real run, emitting only `Execution error`. Google ADC succeeds, but `GOOGLE_CLOUD_PROJECT`, `GCLOUD_PROJECT`, and `CLOUDSDK_CORE_PROJECT` are all unset. Generator≠judge forbids Codex, so no independent evaluator was available. No executor, product edit, PR, merge, tag, release, or GPU work was attempted.
+
+**Gate 0/1 evidence**: kill switch armed; billing CLEAN; authenticated bot account; clean pin at `06ec08795` = `origin/dev`; running skill matches origin through the resolved symlink; ledger valid at 35 rows; no unread inbox messages; zero trusted directives since the watermark. Exact-SHA CI has 16 checks, zero not-green, and two runs; CI and Build-and-Release succeeded, Docs-Deploy is path-filtered N/A. PR `#695` remains unattributable and untouched.
+
+**Routing evidence**: controller=`codex:gpt-5.6-sol`; evaluator intended=`sonnet`, status=`45s-timeout-before-run, stdout=0B, stderr=0B`; fallback=`claude-fable-5`, status=`probe-error-before-run`; Google fallback=`not-run-missing-project`; metered=$0.00. This fourth consecutive evaluator-role capacity park, and first after the named reset, is surfaced as a routing-policy signal rather than a human decision.
+
+**Ruled out**: treating the clock alone as proof of restored capacity; controller verification as independent review; Codex as its own judge; starting M2 before M1 lands; and inventing a human decision for a capacity/configuration failure.
+
+**Retro lane**: none. The existing `PARKED-ON-LANE` rule already requires the role, refusal evidence, and resume predicate; no new recurring controller gap was observed.
+
+**Next**: re-probe only when a distinct evaluator lane is responsive (or a Google project is configured); PASS → land M1, FAIL → bounded executor correction. Do not start M2 first.
