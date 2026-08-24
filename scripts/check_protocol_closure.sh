@@ -3,6 +3,9 @@
 #
 # This deliberately measures what a consumer LINKS. Test-only imports are out of
 # scope by design: they are not part of a consumer's build closure.
+# Both arms require a known-positive and at least one stdlib package. The
+# serveapi module-root enumeration is floored separately from its dependency
+# enumeration because those are two distinct go list calls.
 set -uo pipefail
 
 PROTOCOL_PACKAGE="${1:-./serveapi/protocol}"
@@ -102,10 +105,40 @@ if ! grep -qxF "$SERVEAPI_SELF" "$SERVEAPI_DEPS"; then
 	exit 2
 fi
 
+SERVEAPI_STDLIB=0
+while IFS= read -r _package; do
+	if ! is_nonstdlib "$_package"; then
+		SERVEAPI_STDLIB=$((SERVEAPI_STDLIB + 1))
+	fi
+done <"$SERVEAPI_DEPS"
+# R10
+if [ "$SERVEAPI_STDLIB" -eq 0 ]; then
+	vacuous "serveapi R10" "no stdlib package was enumerated"
+	exit 2
+fi
+
 SERVEAPI_ROOTS="$TMP_DIR/serveapi.roots"
+SERVEAPI_ROOTS_RAW="$TMP_DIR/serveapi.roots.raw"
+SERVEAPI_ROOTS_ERR="$TMP_DIR/serveapi.roots.err"
 SERVEAPI_VIOLATORS="$TMP_DIR/serveapi.violators"
 "$GO_BIN" list -deps -f '{{if not .Standard}}{{with .Module}}{{.Path}}{{end}}{{end}}' "$SERVEAPI_PACKAGE" \
-	| sed '/^$/d' | sort -u >"$SERVEAPI_ROOTS"
+	>"$SERVEAPI_ROOTS_RAW" 2>"$SERVEAPI_ROOTS_ERR"
+SERVEAPI_ROOTS_RC=$?
+# R11
+if [ "$SERVEAPI_ROOTS_RC" -ne 0 ]; then
+	vacuous "serveapi R11" "go list module-root enumeration failed for $SERVEAPI_PACKAGE (rc=$SERVEAPI_ROOTS_RC)"
+	sed 's/^/    /' "$SERVEAPI_ROOTS_ERR"
+	exit 2
+fi
+sed '/^$/d' "$SERVEAPI_ROOTS_RAW" | sort -u >"$SERVEAPI_ROOTS"
+if [ ! -s "$SERVEAPI_ROOTS" ]; then
+	vacuous "serveapi R11" "module-root enumeration is empty"
+	exit 2
+fi
+if ! grep -qxF 'github.com/sunholo-data/ailang' "$SERVEAPI_ROOTS"; then
+	vacuous "serveapi R11" "known-positive github.com/sunholo-data/ailang is absent"
+	exit 2
+fi
 : >"$SERVEAPI_VIOLATORS"
 while IFS= read -r _root; do
 	# R8
