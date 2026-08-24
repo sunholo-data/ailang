@@ -17861,3 +17861,84 @@ branches, one neutering mutation each, plus an ADDITION-shaped mutant (rule 3a(i
 enumerates a package set and removal alone cannot prove an enumerator LOOKS. The plan already
 specifies all nine branches and a five-arm self-test; route it under the normal executor→evaluator
 lane.
+
+## 268 — 2026-08-24 — `#764` M3 LANDED; the refusal gate refuses, and the judge found the branch the plan never asked for
+
+**Pick**: queue head `#764` M3 — the refusal gate. P1 cross-mission blocker (`D-33`).
+
+**Outcome**: LANDED `ba2eeb4b4` (PR [#862](https://github.com/sunholo-data/ailang/pull/862), squash).
+Evaluator `sonnet` **PASS 90/100, zero blocking**. `#764` stays OPEN — M4 remains.
+
+**What shipped**: `scripts/check_protocol_closure.sh` (134 lines) — two arms over the *build*
+closure. Arm 1 requires `./serveapi/protocol` to be stdlib-only apart from itself; arm 2 requires
+`./serveapi`'s external module roots to be a subset of a 10-entry inline allowlist. Nine labelled
+refusal branches: R1–R4/R6–R7 are the anti-vacuity floor (exit 2, "vacuous enumeration", never a
+checkmark), R5/R8 are the substantive refusals (exit 1, violators by name), R9 is the stdlib
+dot-rule classifier kept as a separate function so it can be neutered independently.
+`scripts/test_check_protocol_closure.sh` self-tests with five arms. Wired into `make` and `ci.yml`.
+
+**Premises re-measured at HEAD rather than inherited**: the plan's B16 allowlist was verified
+*before* M2 rewired `serveapi`, so it was re-derived post-M2 — arm 1 is 188 deps (187 stdlib + 1
+self), arm 2's roots `diff` byte-identically against the plan's ten. Both held.
+
+**Base measured before routing**, aimed at my own directive's gate list rather than at a planner's
+(the iteration-245 gap): `make check-protocol-closure` rc=2, ci.yml grep 0/rc=1 with the
+`check-changelog` control at 2, scoped build/test rc=0, `/bin/bash` = 3.2.57. Whole-repo
+`go build ./...` was deliberately kept out of the directive — it is rc=1 on untouched dev.
+
+**Plan defect caught at pick time**: the M3 table header says "Refusal branches (**8**)" while
+listing R1–R9 and M3.1 says "all 9". Nine is correct; the directive said so explicitly. The doc
+specifies three self-test arms and the plan five — the plan is a strict superset, so the plan wins
+and the directive named which document governed.
+
+**Mutation drill**: all nine branches plus the doc's Mutations 2 and 3 were neutered and every one
+produced an observed self-test red, each asserted LANDED by sha256 and asserted still-*parsing*
+under `bash -n`, so a syntax error could not masquerade as a guard firing. The reds are
+mechanism-specific rather than generic (R3 drives the count to 14, R9 to 0). I reproduced R5
+independently and restored from a `cp` backup, sha256 byte-identical. The self-test asserts *which
+branch* refused rather than merely that the verdict flipped, and its addition arm asserts the
+non-stdlib count moves 1→2 — a removal proves a check fires, only an addition proves it looks.
+
+**The judge's two findings, both mine to have caught**:
+1. **Arm 2 lacks arm 1's stdlib-presence floor leg.** The design doc's prose gives arm 2 the "same
+   anti-vacuity floor" (three legs); the plan's R-table specifies two (R6 rc+empty, R7 self-literal).
+   The executor implemented exactly the nine branches it was given, so **the gap is at the planning
+   stage, not the executor**. Demonstrated with a fake `GO_BIN` stub: the gate prints its green
+   checkmark over an enumeration that proves nothing. Unexploitable through a genuine toolchain.
+2. **The enumerator is blind to GOOS/build-tag files, and CI makes that permanent.** A
+   `zz_intruder_linux.go` importing uuid runs green on darwin while `GOOS=linux go list -deps` shows
+   uuid genuinely in the closure — and the gate is wired only into the ubuntu `test` job, never
+   `test-windows`. Latent today (zero platform-suffixed files in scope).
+
+Both are filed as queue rows, **not** silently widened into this sprint.
+
+**Charter-integrity repair, found by a control that failed**: the archive rotation's known-present
+control (`ITERATION <moved-1>`) read **0**. It was not a broken pattern — iteration **264's** STATUS
+stamp had been rotated out of the charter by iteration 265's record (`e3ed9467f`) and **never
+appended to the archive**: two charter commits, zero archive commits, against a control of 2/1 for
+263. This is the class iteration 190 found at 171 and 186. A bounded audit of 240–267 with a firing
+negative control found exactly **one** such loss. The stamp was recovered from `06ec08795` and
+restored in chronological order. The lesson is the control's, not the audit's: a known-present
+control that reads zero is information, and the tempting reading — "my pattern must be wrong" — is
+the one that loses the record.
+
+**Ruled out**:
+- That `#847` outranked the queue — iteration 266's on-issue verdict (local-model capability gap,
+  not a toolchain regression) stands and the charter already carries it; dev CI is green.
+- That the ci.yml wiring hunk is an undeclared unpinned hunk — removing it reds nothing, but the
+  doc's mutation row 6 declares exactly that, and the judge confirmed the declaration is accurate.
+- That the archive's apparent gaps at 246–264 were real — a `grep -o` ordering artifact; the
+  per-iteration audit shows one loss, not nineteen.
+- That `MISSION_GH_ISSUE=745` was the live thread — it is CLOSED; the namespaced state key says 852.
+
+**Routing evidence**: controller `opus`; executor `codex:gpt-5.6-sol` (probe rc=0, bounded 30-min
+cap, 10,590 B directive, rc=0 with a 5-file non-empty diff); evaluator `sonnet` (Anthropic, distinct
+provider — generator≠judge holds) in its own worktree; designer and planner **not spawned** (doc and
+plan pre-existed, so no Fable spend and the rotation pointer is untouched). metered=**$0.00** of $5.
+
+**Retro lane**: no skill edit. The one candidate — the driver exporting a stale `MISSION_GH_ISSUE`
+while the namespaced state key is authoritative, so env and state disagree silently — has **one**
+first-party instance, below the ≥2 bar. Pre-registered here so a second is recognisable.
+
+**Next**: `#764` **M4** — docs, lint scope, CHANGELOG, `#764` reply. When M4 lands, `D-34` is a
+standing pre-authorisation to *ask* for a v0.34.0 tag; the tag itself remains Mark's decision alone.
