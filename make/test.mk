@@ -7,7 +7,7 @@
 .PHONY: test-operator-assertions test-regression-guards test-builtin-consistency
 .PHONY: test-stdlib-canaries test-row-properties test-golden-types test-repl-smoke
 .PHONY: test-sim-stub test-stdlib-freeze verify-no-shim verify-lowering
-.PHONY: test-nightly-classifier test-launchd-drivers test-check-changelog test-check-autoclose
+.PHONY: test-nightly-classifier test-launchd-drivers test-check-changelog test-check-protocol-closure test-check-autoclose
 
 # Core tests. Depends on build so integration tests that shell out to the
 # ailang binary never see a stale bin/ailang — a stale binary caused phantom
@@ -58,6 +58,10 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 test-check-changelog: ## Run the changelog-index gate's own self-test (bash 3.2)
 	@/bin/bash scripts/test_check_changelog.sh
 	@/bin/bash -n scripts/check_changelog.sh
+
+test-check-protocol-closure: ## Run the protocol-closure gate's own self-test (bash 3.2)
+	@/bin/bash scripts/test_check_protocol_closure.sh
+	@/bin/bash -n scripts/check_protocol_closure.sh
 
 test-check-autoclose: ## Run the issue-autoclose gate's own self-test (bash 3.2)
 	@/bin/bash scripts/test_check_autoclose.sh

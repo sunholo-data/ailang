@@ -132,6 +132,12 @@ jobs:
     - name: Check architecture boundaries
       run: make check-boundaries
 
+    - name: Check protocol build closure
+      run: make check-protocol-closure
+
+    - name: Protocol build closure gate self-test
+      run: make test-check-protocol-closure
+
     - name: Check changelog index hygiene
       run: make check-changelog
 
