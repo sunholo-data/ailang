@@ -74,6 +74,7 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		"claude-haiku-4-5": 64000, "opencode-sonnet-4-6": 64000, "opencode-haiku": 64000,
 		"pi-claude-sonnet-4-6": 64000, "pi-claude-haiku-4-5": 64000,
 		"motoko-claude-sonnet-4-6": 64000, "motoko-claude-haiku-4-5": 64000,
+		"motoko-or-sonnet-5": 64000,
 		// Hard provider ceilings verified via the OpenRouter endpoints API
 		// (2026-07-27): max_completion_tokens across ALL upstreams.
 		"or-deepseek-v3": 16384, "or-qwen-2-5-72b": 16384,

@@ -159,18 +159,19 @@ func TestRequireProviderCredential_UnresolvableModel_LoudRefusal(t *testing.T) {
 }
 
 // TestRequireProviderCredential_AllMotokoLanesResolve (T-B6b): every
-// agent_model_name across the 17 `agent_cli: "motoko"` lanes in
+// agent_model_name across the 19 `agent_cli: "motoko"` lanes in
 // internal/eval_harness/models.yml must resolve to a non-empty provider via
 // ai.GuessProvider. This is the coverage gate that fails a future motoko lane
-// whose model string is unresolvable — TODAY, all 17 begin with ollama/ or
-// openrouter/ (measured this session; design doc §12.2 enumerates them).
+// whose model string is unresolvable — TODAY, all 19 begin with ollama/ or
+// openrouter/ (measured this session; design doc §12.2 enumerates the original
+// 17, since extended by motoko-or-sonnet-5 and motoko-local-qwen3-8-27b-microrag).
 func TestRequireProviderCredential_AllMotokoLanesResolve(t *testing.T) {
 	lanes := motokoLaneModels(t)
 	if len(lanes) == 0 {
 		t.Skip("could not locate internal/eval_harness/models.yml; lane-coverage gate not run")
 	}
-	if len(lanes) != 17 {
-		t.Errorf("expected 17 motoko lanes in models.yml, found %d", len(lanes))
+	if len(lanes) != 19 {
+		t.Errorf("expected 19 motoko lanes in models.yml, found %d", len(lanes))
 	}
 	for _, m := range lanes {
 		if ai.GuessProvider(m) == "" {
