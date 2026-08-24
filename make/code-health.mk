@@ -68,6 +68,9 @@ install-lint: ## Install/upgrade golangci-lint (auto-reinstalls when its build-G
 lint: prepare-embed ## Run linter (bug detectors only)
 	@echo "Running linter..."
 	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Run 'make install-lint'" && exit 1)
+# Each check-code grep below mirrors a disable in .golangci.yml as belt-and-braces filtering.
+# The unused linter remains enabled and deliberately unfiltered so its findings can fail this gate.
+# The ^\t and ^[[:space:]]*\^ greps remove golangci-lint source-context lines, not findings.
 	@golangci-lint run ./cmd/... ./internal/... ./serveapi/... ./testutil/... > /tmp/lint.raw 2>&1; \
 		LINT_RC=$$?; \
 		if grep -qE "can't load config|the Go language version" /tmp/lint.raw; then \
@@ -82,7 +85,6 @@ lint: prepare-embed ## Run linter (bug detectors only)
 			grep -v "SA9003:" | \
 			grep -v "SA5011:" | \
 			grep -v "SA5012:" | \
-			grep -v "is unused" | \
 			grep -v "^\t" | \
 			grep -v "^[[:space:]]*\^" | \
 			tee /tmp/lint.out; \
