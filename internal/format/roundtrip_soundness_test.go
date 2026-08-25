@@ -26,15 +26,24 @@ import (
 // (inlineInteriorRefusalCeiling), so adding std/ would have failed it for
 // comment-attachment reasons belonging to a different work item.
 
-// soundnessRoots are the two trees that ship AILANG source. A root that does not
-// exist is a hard failure, not a skip: a mistyped root returns zero files and
-// reads exactly like a clean sweep.
+// soundnessRoots covers BOTH trees that ship AILANG source. A root that does not
+// exist is a hard failure, not a skip: a mistyped root enumerates zero files and
+// reads exactly like a clean sweep (the `stdlib/` that fmt-check-ail scanned for
+// months).
 var soundnessRoots = []string{"../../std", "../../examples"}
 
-// TestFormatterOutputAlwaysReParses walks every shipped .ail file. For each file
-// that parses cleanly, the printer's output (with comments, the real CLI path)
-// must itself parse. A refusal is fine — fail-closed is the designed behaviour —
-// but SUCCESSFUL output that cannot be re-read is a soundness defect.
+// TestFormatterOutputAlwaysReParses walks every shipped .ail file and asserts the
+// printer's output re-parses. Output that cannot be re-read is a soundness defect.
+//
+// It calls Source (the comment-free skeleton), NOT SourceWithComments, and that is
+// a deliberate scoping rather than a weakening. The property under test belongs to
+// TYPE EMISSION, which both paths share — measured: under the pre-fix printer this
+// sweep still catches std/cognition.ail. Comment attachment adds nothing to this
+// class and costs ~1670x more: SourceWithComments over std/ takes 13.4s (jwt.ail
+// alone 4.5s, sem.ail 3.6s, ai.ail 2.9s, against a ~200us parse), which pushed
+// internal/format past the 600s coverage-gate timeout. Source() over the same 46
+// files takes 8ms. Comment-path round-tripping over examples/ is already asserted
+// by TestCorpusCommentGate.
 func TestFormatterOutputAlwaysReParses(t *testing.T) {
 	perRoot := map[string]int{}
 	var emitted, refused int
@@ -63,7 +72,7 @@ func TestFormatterOutputAlwaysReParses(t *testing.T) {
 			}
 			perRoot[root]++
 
-			out, ferr := SourceWithComments(prog, data, Options{})
+			out, ferr := Source(prog, Options{})
 			if ferr != nil {
 				refused++ // fail-closed refusal: not a soundness violation
 				return nil
