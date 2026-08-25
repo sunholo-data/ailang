@@ -22,6 +22,87 @@ section, write "none" rather than omitting:
 
 ---
 
+## 275 — 2026-08-25 — Wiring was never the whole job: six of the eleven unwired gates are RED, `make ci` cannot pass, and three rounds of judging turned a bypass blacklist into a whitelist
+
+**Pick.** Queue head `m-verify-targets-unwired` (filed iter-274). Ghost-disciplined: the row's
+transitive-reachability claim was re-derived first-party — 10 workflow files, 171 make targets, 44
+direct invocations, 45 reachable, known-positive control `check-file-sizes` present, negative
+control absent — and returned **exactly** the 11 targets the row names.
+
+**What the measurement changed.** The row asked for a per-target verdict (wire / exempt / delete).
+Running the eleven on a pristine worktree with a correctly-stamped binary turned that into a
+different question: **six of the eleven are RED at HEAD**, and four of those are `make ci`
+prerequisites — so `make ci`, which `.claude/rules/dev-workflow.md:22` tells every agent to run as
+*"full CI verification locally"*, **cannot pass**. The row's framing (wire the good ones, exempt
+the rest) was reasonable and incomplete; adjudication, not wiring, was the deliverable.
+
+**Two live defects the unwired gate had been hiding.** `verify-stdlib` is red on two genuine
+interface drifts: `std/zip.ail` gained `buildArchive`/`buildArchiveWithBytes` from `b2bbac8d9`
+(PR #784, 2026-08-19, 6 days' exposure) and was never re-frozen; and `std/list`'s *rendered*
+`reverse` return type moved `[a]` → `list[a]` while the **source signature is textually unchanged**
+since the golden's freeze commit `80019d4e0` — a renderer normalization from the delegation
+refactor (#814/#817), not an interface change. Both stated in the commit rather than silently
+re-frozen, as `tools/freeze-stdlib.sh` requires.
+
+**Routing evidence.** controller `opus` (session) · executor `codex:gpt-5.6-sol` (probe rc=0,
+bounded 30-min cap, 12,985 B directive, rc=0 with a 9-file non-empty diff, no commits, zero
+residue) · evaluator `sonnet` **in its own worktree** (Anthropic ≠ codex, generator≠judge holds),
+**three rounds** · designer/planner **not spawned** (direct-fix iteration — no doc, no plan, no
+Fable spend, rotation pointer untouched) · metered **$0.00** of $5.
+
+**Executor deviation (rule 3h), self-reported and correct.** It reported my directive as
+contradictory: I required the scratch binary on PATH, and `make freeze-stdlib` and the verify
+targets internally build and use `./bin/ailang`. The directive was under-specified; the executor
+did the right thing and said so.
+
+**Controller drill, anchored to the diff hunk-by-hunk (rule 3n), mutants different from the
+executor's.** It found what the executor's five could not: **CM1** the executor's golden mutant
+covered only `zip`, so the `list` hunk had no killer — reverting it alone reds `verify-stdlib`
+naming `list` with the `zip` control at 0. **CM2** the executor's `|| true` exercised only the
+in-shell branch, leaving the new `ContinueOnError` struct fields unpinned; `continue-on-error: true`
+on a wired step reds with the right assertion, sole killer. **CM3** — the finding — shrinking
+`verifyTarget` to drop `fmt-check-ail` left the **whole package rc=0**: a target outside the scope
+predicate is unchecked by construction and its orphaned exemption still looks deliberate. Fixed by
+`TestExemptionMapsAreLive`, which pins all four maps against their own predicates and immediately
+found a live redundancy (`verify-examples-trace` sat in both the unwired and the suppression map,
+and only the latter can apply).
+
+**Three evaluator rounds, and the third one is the lesson.** R1 **FAIL 63/100**, two BLOCKING;
+R2 **FAIL 45/100**, two BLOCKING; every finding reproduced first-party before acting, including
+the bash semantics (`bash -eo pipefail -c '...'`) proving each was a real bypass rather than an
+unmatched pattern. The shapes arrived in three waves — R1: `|| exit 0`, `set +e`, `make X &`;
+R2: `|| { echo f; }`, `|| (exit 0)`, `set +o errexit`, `trap ... EXIT`, and one worse in kind, a
+step-level `if:` that stops the gate RUNNING at all (the struct had no `If` field, so `yaml.v3`
+silently dropped the key). Each round's fix was another regex, and R2 also caught a regression I
+had introduced: the widened prefix class matched prose, so `echo "Great! make sure to run X"`
+yielded the target `sure` — a false RED on any future PR containing "make sure".
+**Round 3 inverted the model.** An enumeration of FORBIDDEN shapes is never complete; an
+enumeration of ALLOWED shapes is complete by construction. `TestWiredGatesAreCanonical` now
+requires a gate step to be a bare `make <target>` with optional `VAR=value` args, no `if:`, no
+truthy `continue-on-error`, a pipefail-safe shell and no errexit-disabling construct — anything
+else is a loud red demanding a stated reason. Detection moved to the target NAME on any `make`
+line, which no shell syntax can hide from, which in turn let the prose-matching regex widening be
+reverted. **All thirteen shapes from all three rounds now red, plus three neither evaluator tried
+(`| cat`, nested `bash -c`, a `for` loop)** — ten sole killers; the three that reach further are
+enumerated and explained (they also red the wiring test, because the narrow regex cannot see an
+invocation inside control flow, so the target additionally reads as unwired — loud from two
+directions rather than silent from one). Accepted trade, stated rather than hidden: the whitelist
+also flags safe shapes such as `make X || exit 1`; the price of a false positive is writing down a
+reason, the price of a false negative is a gate that cannot refuse.
+
+**Ruled out.** *"Wire the green ones and widen W2"* — refuted by measurement: six of eleven are
+red, so a blanket widening would have made the exemption map a rubber stamp, exactly as the row
+warned. *"`verify-examples-trace` is unwired"* — refuted: it IS invoked, at `ci.yml:322`, under
+`|| true`; connected and unable to refuse. *"The `list` golden drift is a stdlib interface change"*
+— refuted: the source signature is unchanged; it is a renderer normalization. *"A same-line
+substring match is enough to detect suppression"* — refuted three times over.
+
+**Not done, and named.** `make ci` remains RED on `verify-examples-toplevel` alone
+(`examples/ai_modes.ail`: *"AI requires mode=fixed; declaration provides mode=routeable"*) — filed
+as a queue row rather than fixed, because whether `AI[mode=routeable]` is a regressed capability or
+stale example sugar is a language question this sprint had no mandate to settle. Four queue rows
+filed in total.
+
 ## 0 — 2026-07-10 — Mission initialized (exploration census; no sprint run)
 
 **Picked**: n/a — charter-writing session (interactive, Fable + Mark).

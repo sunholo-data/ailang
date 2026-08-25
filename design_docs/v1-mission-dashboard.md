@@ -1,44 +1,39 @@
 # Mission Dashboard — V1
 
-*Snapshot, overwritten each iteration. History lives in the charter STATUS block + `v1-mission-log.md`.*
+*Snapshot, overwritten each iteration. History lives in `v1-mission.md` (STATUS) and
+`v1-mission-log.md`. Namespaced on purpose — never write the bare `mission-dashboard.md`.*
 
-**Last iteration:** 274 · 2026-08-25 · **LANDED** `92376bad3` (PR #876) · evaluator **80/100**
+**Last iteration:** 275 · 2026-08-25 · `m-verify-targets-unwired` **LANDED** (`fde5ea067`, PR #878)
+**Latest release:** v0.33.2 · dev CI green (21 checks on the merge, 4/4 required)
 
-## Now
-- **Latest release:** `v0.33.2` (2026-08-24). `dev` is ahead; no release owed.
-- **Just landed:** `m-ci-wiring-unpinned` — nothing validated that the repo's `make check-*` gates
-  were **wired into** GitHub Actions: deleting a gate step from `ci.yml` left all eight local gates
-  at rc=0. The audit found a bigger target the row never named: `make ci` says *"Run full CI
-  verification"* and `.claude/rules/dev-workflow.md:22` tells every agent to run it, while its
-  measured overlap with what Actions really invokes was **8 of 46**. Three assertions now live in
-  `internal/cihygiene` — already run by `go test ./...`, so the wiring gate is CI-connected **by
-  construction** rather than needing a step that could itself be un-wired. `make ci` gained 11 gates.
-- **Next picks:** `m-gemini-verdict-score-threshold` → `m-codex-streaming-test-flake`, then the two
-  rows filed this iteration (`m-verify-targets-unwired`, `m-ci-composite-action-blind-spot`).
+## In flight / next
+- **`m-make-ci-red-ai-modes`** ← next. **`make ci` is RED at HEAD**, on one prerequisite:
+  `examples/ai_modes.ail` fails effect checking (*"AI requires mode=fixed; declaration provides
+  mode=routeable"*). `.claude/rules/dev-workflow.md:22` tells every agent to run `make ci` as
+  "full CI verification locally", so this costs every agent, every day.
+- `m-fmt-check-ail-broken-and-red` — unwired AND broken: its enumerator scans a `stdlib/` that has
+  never existed (46 `.ail` files invisible), plus real drift, plus an `ailang fmt` crash.
+- `m-cli-examples-fixture-rot` — 9 of 26 documented CLI commands fail; one may be a real regression
+  (`list_sum` documented `(15, 15)`, produces `(15, 5)`).
+- `m-verify-examples-trace-suppressed` · `m-gemini-verdict-score-threshold` ·
+  `m-codex-streaming-test-flake`
 
-## Loop health
-- Cadence: nightly launchd, pinned worktree at `origin/dev`; running skill byte-identical to origin.
-- Routing: controller `opus` · executor `codex:gpt-5.6-sol` · evaluator `sonnet` (generator≠judge).
-  Designer/planner unspawned for **5** consecutive direct-fix iterations — **Fable unspent**.
-- Cost: metered **$0.00** of $5 this iteration; quota buckets only.
-- Last 5 iterations all LANDED with an evaluator PASS (274: 80 · 273: 86 · 272: 88 · 271: 96 · 270: 94).
+## Loop cadence + routing
+- launchd `dev.ailang.mission-control`, pinned worktree `~/.ailang-driver-pin/v1` at `origin/dev`.
+- controller `opus` · executor `codex:gpt-5.6-sol` · evaluator `sonnet` (own worktree) ·
+  designer rotation seeded `claude:claude-fable-5` (not spawned since iter-271 — direct-fix runs).
+- metered spend iter-275: **$0.00** of $5. Quota buckets only.
 
-## Worth knowing (from this iteration)
-- **11 `verify-*` targets are unwired from CI**, incl. `fmt-check-ail` (whose enumerator iteration 187
-  already measured as pointing at a non-existent `stdlib/`, 46 files invisible) and
-  `verify-stdlib-selftest` (the target iteration 273 had just fixed). Filed as `m-verify-targets-unwired`.
-- `make verify-examples-trace` is currently **rc=1** (2/217 examples failing) and takes 135s — an
-  orthogonal pre-existing failure nobody is watching, since no workflow invokes it.
+## Parked on Mark — 4 OPEN decisions
+- **`D-36` (new)** — an evaluator FAILED all 3 permitted rounds (63/45/38), every finding real;
+  the last 2 were fixed by the controller with the judge's own repros as controls but **no
+  independent 4th review**, and it LANDED anyway. Should a round-3 FAIL with mechanical findings
+  **land-and-flag**, **park strictly**, or **raise the budget**? The loop cannot decide this.
+- `D-30` — harness↔`ai-check` version coupling: schema / same-binary / accept.
+- `D-31` — split the designer rotation into authoring vs review lanes (4 instances now).
+- `D-32` — exempt `inconclusive` from the effective `cost_per_verified_success` arm?
 
-## Parked on Mark (3 open decisions — see the ledger, none new)
-- **D-30** — enforce the harness↔`ai-check` version coupling before the `not_applicable` split lands.
-  Options: (a) versioned JSON schema, (b) `os.Executable()` same-binary bind, (c) accept + spot-check.
-  *Blocks the headline cost-per-verified-success KPI.*
-- **D-31** — split the designer rotation into authoring vs review lanes (or widen it). Two of its three
-  entries cannot author at all; the usable rotation has ONE entry. 4 instances recorded.
-- **D-32** — should an `inconclusive` verification obligation be exempted from the effective
-  `cost_per_verified_success` arm, as `D-29` exempts `not_applicable`?
-
-## Standing
-- `D-34` discharged (iter-272): `v0.33.2` shipped `serveapi/protocol`; `#764` closed. Do not re-ask.
-- Releases remain Mark's sole decision; the loop stops at ready-to-release.
+## Health
+- Bookkeeping issue **#852** (rotates Mondays 07:00 CEST; 13 comments, no rotation owed).
+- Main checkout is **3 ahead / 7 behind** `origin/dev` on a *concurrent agent's* commits — not
+  duplicates, so no reconcile is safe. The running skill therefore lags origin by one Gate-5 edit.
