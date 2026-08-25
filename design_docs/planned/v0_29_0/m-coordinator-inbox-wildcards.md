@@ -1,7 +1,7 @@
 # M-COORDINATOR-INBOX-WILDCARDS: glob-based inbox routing in the agent registry
 
-**Status**: Planned
-**Target**: v0.19.0 (small surface, deploy-coupled)
+**Status**: Implemented (unreleased — goals 1-4 landed 2026-08-25)
+**Target**: v0.19.0 (small surface, deploy-coupled) — actually landed post-v0.33.2
 **Priority**: P1 — silent cascade failures hard to detect without
 [`cloud-cascade-debug`](../../../.claude/skills/cloud-cascade-debug/) skill
 **Estimated**: ~30 LOC core change + ~80 LOC tests + cloud config + ops doc
@@ -168,20 +168,20 @@ coordinator:
 
 ## Acceptance
 
-- [ ] `TestGetAgentForInbox_WildcardFallback` covers the 4 regression
+- [x] `TestGetAgentForInbox_WildcardFallback` covers the 4 regression
   fixtures above.
-- [ ] `TestGetAgentForInbox_LongestPrefixWins` — `pkg:sunholo/motoko_ext_abi`
+- [x] `TestGetAgentForInbox_LongestPrefixWins` — `pkg:sunholo/motoko_ext_abi`
   hits explicit agent, `pkg:sunholo/motoko_ext_other` hits family glob.
-- [ ] `TestGetAgentForInbox_CatchAll` — `pkg:*` matches arbitrary
+- [x] `TestGetAgentForInbox_CatchAll` — `pkg:*` matches arbitrary
   `pkg:vendor/name` when no other match.
-- [ ] `cloud-cascade-debug` skill updated with "wildcard registered? is
+- [x] `cloud-cascade-debug` skill updated with "wildcard registered? is
   match working?" diagnostic step.
-- [ ] Ops doc at `docs/internal/cloud-coordinator-config.md` (NEW)
+- [x] Ops doc at `docs/internal/cloud-coordinator-config.md` (NEW)
   documenting how to add a package family with the wildcard pattern.
-- [ ] Cloud config in `gs://ailang-multivac-dev-ailang-config/config.yaml`
+- [x] Cloud config in `gs://ailang-multivac-dev-ailang-config/config.yaml`
   uses `pkg:sunholo/motoko_ext_*` (after fix lands + dev coordinator
   redeployed).
-- [ ] Validation: re-publish a no-op patch bump of motoko_ext_abi 2.1.x
+- [ ] Validation (PENDING deploy): re-publish a no-op patch bump of motoko_ext_abi 2.1.x
   and verify auto-cascade fires for all 13 dependents end-to-end.
 
 ## Why this matters for AI-author workflows

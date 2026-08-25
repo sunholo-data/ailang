@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -203,7 +204,26 @@ type PluginsConfig struct {
 type AgentRegistry struct {
 	mu      sync.RWMutex
 	agents  map[string]*AgentConfig // key: agent ID
-	byInbox map[string]*AgentConfig // key: inbox name
+	byInbox map[string]*AgentConfig // key: exact inbox name
+	// wildcards holds trailing-`*` inbox patterns, sorted by prefix length
+	// DESC so the first prefix match is always the most specific one.
+	// M-COORDINATOR-INBOX-WILDCARDS: without these, every package in a family
+	// needs its own config entry, and a missing entry silently produced a task
+	// with an empty AgentID (see resolveInboxAgent in daemon_tasks_polling.go).
+	wildcards []wildcardEntry
+}
+
+// wildcardEntry is one trailing-`*` inbox pattern and the agent serving it.
+type wildcardEntry struct {
+	prefix string // pattern with the trailing "*" removed
+	agent  *AgentConfig
+}
+
+// isWildcardInbox reports whether an inbox name is a pattern rather than a
+// literal address. Only a trailing `*` is supported — full glob syntax is a
+// documented non-goal, since `?`/`[abc]` buy nothing for `pkg:vendor/family_*`.
+func isWildcardInbox(inbox string) bool {
+	return strings.HasSuffix(inbox, "*")
 }
 
 // NewAgentRegistry creates an empty agent registry.
@@ -236,9 +256,27 @@ func (r *AgentRegistry) Register(agent *AgentConfig) error {
 	if _, exists := r.byInbox[agent.Inbox]; exists {
 		return fmt.Errorf("agent with inbox %q already registered", agent.Inbox)
 	}
+	if isWildcardInbox(agent.Inbox) {
+		for _, w := range r.wildcards {
+			if w.prefix == strings.TrimSuffix(agent.Inbox, "*") {
+				return fmt.Errorf("agent with inbox %q already registered", agent.Inbox)
+			}
+		}
+	}
 
 	r.agents[agent.ID] = agent
-	r.byInbox[agent.Inbox] = agent
+	if isWildcardInbox(agent.Inbox) {
+		r.wildcards = append(r.wildcards, wildcardEntry{
+			prefix: strings.TrimSuffix(agent.Inbox, "*"),
+			agent:  agent,
+		})
+		// Longest prefix first, so GetAgentForInbox can return the first match.
+		sort.SliceStable(r.wildcards, func(i, j int) bool {
+			return len(r.wildcards[i].prefix) > len(r.wildcards[j].prefix)
+		})
+	} else {
+		r.byInbox[agent.Inbox] = agent
+	}
 	return nil
 }
 
@@ -283,7 +321,20 @@ func (r *AgentRegistry) InboxForAgent(agentID string) (string, bool) {
 func (r *AgentRegistry) GetAgentForInbox(inbox string) *AgentConfig {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.byInbox[inbox]
+
+	// Exact registration always wins over any pattern, so a family glob can be
+	// added without disturbing the packages that already name their own agent.
+	if agent, ok := r.byInbox[inbox]; ok {
+		return agent
+	}
+	// wildcards is sorted longest-prefix-first, so the first hit is the most
+	// specific pattern: `pkg:sunholo/motoko_ext_*` beats a `pkg:*` catch-all.
+	for _, w := range r.wildcards {
+		if strings.HasPrefix(inbox, w.prefix) {
+			return w.agent
+		}
+	}
+	return nil
 }
 
 // ListAgents returns all registered agents.
@@ -303,9 +354,14 @@ func (r *AgentRegistry) ListInboxes() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	inboxes := make([]string, 0, len(r.byInbox))
+	inboxes := make([]string, 0, len(r.byInbox)+len(r.wildcards))
 	for inbox := range r.byInbox {
 		inboxes = append(inboxes, inbox)
+	}
+	// Patterns are part of the routing table; omitting them would make a
+	// wildcard-routed family look unrouted to anything auditing coverage.
+	for _, w := range r.wildcards {
+		inboxes = append(inboxes, w.prefix+"*")
 	}
 	return inboxes
 }
@@ -323,6 +379,7 @@ func (r *AgentRegistry) Clear() {
 	defer r.mu.Unlock()
 	r.agents = make(map[string]*AgentConfig)
 	r.byInbox = make(map[string]*AgentConfig)
+	r.wildcards = nil
 }
 
 // Unregister removes an agent by ID.
@@ -337,7 +394,18 @@ func (r *AgentRegistry) Unregister(id string) error {
 	}
 
 	delete(r.agents, id)
-	delete(r.byInbox, agent.Inbox)
+	if isWildcardInbox(agent.Inbox) {
+		prefix := strings.TrimSuffix(agent.Inbox, "*")
+		kept := r.wildcards[:0]
+		for _, w := range r.wildcards {
+			if w.prefix != prefix {
+				kept = append(kept, w)
+			}
+		}
+		r.wildcards = kept
+	} else {
+		delete(r.byInbox, agent.Inbox)
+	}
 	return nil
 }
 
@@ -353,8 +421,17 @@ func (r *AgentRegistry) HasAgent(id string) bool {
 func (r *AgentRegistry) HasInbox(inbox string) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	_, exists := r.byInbox[inbox]
-	return exists
+	if _, exists := r.byInbox[inbox]; exists {
+		return true
+	}
+	// Must agree with GetAgentForInbox: a wildcard-served inbox IS routed, and
+	// reporting otherwise would let a caller refuse mail the dispatcher accepts.
+	for _, w := range r.wildcards {
+		if strings.HasPrefix(inbox, w.prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // Validate checks that the registry is internally consistent.
