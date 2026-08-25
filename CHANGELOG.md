@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-current.md).
+For the latest version, see [changelogs/v0.32-current.md](changelogs/v0.32-current.md).
 
 ## Changelog Archives
 
@@ -8,7 +8,9 @@ The full changelog has been split into themed files for searchability and readab
 
 | File | Versions | Theme |
 |------|----------|-------|
-| [v0.18-current.md](changelogs/v0.18-current.md) | v0.18.0+ | Eval Harness, Extensions & Agent Loop |
+| [v0.32-current.md](changelogs/v0.32-current.md) | v0.32.0+ | Stdlib Delegation & CI Gates |
+| [v0.26-v0.31-measurement-cost.md](changelogs/v0.26-v0.31-measurement-cost.md) | v0.26.0–v0.31.0 | Measurement, Cost & Mission Loop |
+| [v0.18-v0.25-eval-harness.md](changelogs/v0.18-v0.25-eval-harness.md) | v0.18.0–v0.25.0 | Eval Harness & Type Soundness |
 | [v0.10-v0.17-bytecode-vm.md](changelogs/v0.10-v0.17-bytecode-vm.md) | v0.10.0–v0.17.0 | Bytecode VM & Runtime |
 | [v0.9-cloud-pubsub.md](changelogs/v0.9-cloud-pubsub.md) | v0.9.0–v0.9.12 | Cloud Integration & Pub/Sub |
 | [v0.8-cloud-features.md](changelogs/v0.8-cloud-features.md) | v0.8.0–v0.8.1.1 | Cloud Features & Advanced Coordinator |

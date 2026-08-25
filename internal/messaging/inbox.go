@@ -108,6 +108,9 @@ func (s *Store) InsertInboxMessageWithContext(ctx context.Context, msg *InboxMes
 	if msg.MessageID == "" {
 		msg.MessageID = fmt.Sprintf("msg_%s_%s", time.Now().Format("20060102_150405"), msg.ID[:8])
 	}
+	if NormalizeInboxRouting(msg) {
+		span.SetAttributes(attribute.Bool("message.rerouted_from_empty_inbox", true))
+	}
 	if msg.Status == "" {
 		msg.Status = InboxStatusUnread
 	}

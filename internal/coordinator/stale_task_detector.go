@@ -155,9 +155,15 @@ func (d *StaleTaskDetector) postFailureNotification(ctx context.Context, task *T
 		"source":   "stale_task_detector",
 	})
 
+	// Agent ID is not an inbox name for package agents — resolve the real inbox.
+	toInbox := task.AgentID
+	if inbox, ok := d.agentRegistry.InboxForAgent(task.AgentID); ok {
+		toInbox = inbox
+	}
+
 	msg := &messaging.InboxMessage{
 		FromAgent:     task.AgentID,
-		ToInbox:       task.AgentID,
+		ToInbox:       toInbox,
 		MessageType:   "completion",
 		Title:         fmt.Sprintf("Task %s: failed (timeout)", task.ID),
 		Payload:       string(payload),

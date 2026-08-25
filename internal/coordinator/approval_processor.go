@@ -380,7 +380,12 @@ func processRejection(ctx context.Context, span trace.Span, params *ApprovalPara
 
 		// Send feedback message to agent inbox
 		if params.MsgStore != nil {
+			// Agent ID is not an inbox name for package agents — resolve the
+			// real inbox before falling back to the ID.
 			agentInbox := task.AgentID
+			if inbox, ok := params.AgentRegistry.InboxForAgent(task.AgentID); ok {
+				agentInbox = inbox
+			}
 			if agentInbox == "" {
 				agentInbox = "coordinator"
 			}

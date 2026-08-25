@@ -250,6 +250,34 @@ func (r *AgentRegistry) GetAgentByID(id string) *AgentConfig {
 	return r.agents[id]
 }
 
+// InboxForAgent resolves the inbox an agent actually watches, given its agent ID,
+// reporting false when the agent is not registered.
+//
+// Agent ID and inbox name are NOT interchangeable, though they coincide for simple
+// agents like "sprint-executor" and that coincidence hid a routing bug for months.
+// Package agents are registered as ID "pkg-sunholo-auth" watching inbox
+// "pkg:sunholo/auth". Completion handlers addressed notifications to task.AgentID,
+// so replies to package feedback were posted to a literal inbox named
+// "pkg-sunholo-auth" that no agent watches and no reader thinks to query. Prod on
+// 2026-08-25 held both spellings side by side with unread messages in each — the
+// original feedback under the colon form, the completion under the dash form.
+//
+// Callers keep the agent ID as their fallback: for ID == Inbox agents that is
+// already correct, and an unknown agent is better served by the existing behaviour
+// than by an empty inbox.
+func (r *AgentRegistry) InboxForAgent(agentID string) (string, bool) {
+	if r == nil {
+		return "", false
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	agent := r.agents[agentID]
+	if agent == nil || agent.Inbox == "" {
+		return "", false
+	}
+	return agent.Inbox, true
+}
+
 // GetAgentForInbox returns the agent configured to watch the given inbox.
 // Returns nil if no agent watches that inbox.
 func (r *AgentRegistry) GetAgentForInbox(inbox string) *AgentConfig {

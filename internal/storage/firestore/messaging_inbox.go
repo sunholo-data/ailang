@@ -34,6 +34,9 @@ func (s *MessagingStore) InsertInboxMessageWithContext(ctx context.Context, msg 
 	if msg.MessageID == "" {
 		msg.MessageID = msg.ID
 	}
+	// An empty ToInbox is unreachable by every --inbox query; reroute so failure
+	// notifications stay listable. See messaging.NormalizeInboxRouting.
+	messaging.NormalizeInboxRouting(msg)
 	if msg.Status == "" {
 		msg.Status = "unread"
 	}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/storage"
+	fsstore "github.com/sunholo-data/ailang/internal/storage/firestore"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
@@ -103,27 +104,82 @@ func messagesCommand() {
 	}
 }
 
-// openStore opens the unified collaboration database, honoring the
-// AILANG_STORAGE env var so cloud-mode CLIs (AILANG_STORAGE=gcp) can read/
-// write the same Firestore that the prod MCP server publishes feedback to.
+// messagesTarget resolves WHICH message store the inbox commands talk to, and in
+// which project, WITHOUT moving this process's coordinator or observatory backends.
 //
-// Without this, `ailang messages list --inbox public-feedback` always
-// returned "No messages found" because openStore unconditionally opened the
-// local SQLite database — invisible to the cloud-side public-feedback inbox.
+// AILANG_STORAGE is a process-wide switch over all three backends, so a machine that
+// wants its inbox on the shared cloud store but its eval banking and coordinator state
+// local could not express that with AILANG_STORAGE alone — the only way to reach the
+// canonical inbox was to move everything, which is why the docs said "never export it".
+// AILANG_MESSAGES_STORE is the scoped selector for messaging, the same shape
+// AILANG_CHAINS_READ already provides for the observatory (see openChainsReadBackend).
 //
-// Resolution order:
-//   - AILANG_STORAGE=gcp   → Firestore (requires AILANG_CLOUD_PROJECT)
-//   - AILANG_STORAGE=hybrid → SQLite (storage.NewHybridBackends uses SQLite for messaging)
-//   - unset / "local"      → SQLite at messaging.GetDefaultDatabasePath()
+// Resolution order (first non-empty wins):
+//
+//	mode:    AILANG_MESSAGES_STORE > AILANG_STORAGE > "local"
+//	project: AILANG_MESSAGES_PROJECT > AILANG_CLOUD_PROJECT
+//
+// Only "gcp" reaches Firestore; "hybrid" keeps messaging in SQLite, matching
+// storage.NewHybridBackends.
+func messagesTarget() (storage.Mode, string) {
+	mode := os.Getenv("AILANG_MESSAGES_STORE")
+	if mode == "" {
+		mode = os.Getenv("AILANG_STORAGE")
+	}
+	project := os.Getenv("AILANG_MESSAGES_PROJECT")
+	if project == "" {
+		project = os.Getenv("AILANG_CLOUD_PROJECT")
+	}
+	switch storage.Mode(mode) {
+	case storage.ModeGCP, storage.ModeHybrid:
+		return storage.Mode(mode), project
+	case storage.ModeLocal, "":
+		return storage.ModeLocal, project
+	default:
+		// Unknown value: refuse rather than silently reading the wrong store.
+		// openStore turns this into an error naming the offending value.
+		return storage.Mode(mode), project
+	}
+}
+
+// openStore opens the message store selected by messagesTarget.
+//
+// Without this, `ailang messages list --inbox public-feedback` always returned
+// "No messages found" because openStore unconditionally opened the local SQLite
+// database — invisible to the cloud-side public-feedback inbox.
+//
+// In gcp mode this builds ONLY the messaging store, not the full Backends struct:
+// storage.NewGCPBackends also constructs a coordinator store and starts its
+// background cost-sync goroutine, which a one-shot `messages list` has no use for.
 func openStore() (messaging.MessageStore, error) {
-	if storage.GetMode() == storage.ModeLocal || os.Getenv("AILANG_STORAGE") == "" {
-		// Fast path: no need to spin up the full Backends struct for SQLite.
-		dbPath := messaging.GetDefaultDatabasePath()
-		return messaging.OpenStore(dbPath)
+	mode, project := messagesTarget()
+
+	switch mode {
+	case storage.ModeLocal, storage.ModeHybrid:
+		// Both keep messaging in SQLite.
+		return messaging.OpenStore(messaging.GetDefaultDatabasePath())
+	case storage.ModeGCP:
+		if project == "" {
+			return nil, fmt.Errorf("openStore: AILANG_MESSAGES_PROJECT or AILANG_CLOUD_PROJECT must be set for gcp message store")
+		}
+		client, err := fsstore.NewClientForProject(context.Background(), project)
+		if err != nil {
+			return nil, fmt.Errorf("openStore: %w", err)
+		}
+		return fsstore.NewMessagingStore(client), nil
+	default:
+		return nil, fmt.Errorf("openStore: unknown message store mode %q (valid: local, gcp, hybrid)", string(mode))
 	}
-	backends, err := storage.NewBackends(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("openStore: %w", err)
+}
+
+// describeMessageStore returns a one-line description of the store being read, or
+// "" for the local default. Printed above listings so a session can never mistake
+// a stale dev graveyard for the canonical inbox — the failure that made prod
+// feedback invisible was indistinguishable from an empty inbox.
+func describeMessageStore() string {
+	mode, project := messagesTarget()
+	if mode == storage.ModeGCP {
+		return fmt.Sprintf("store: %s (Firestore, project %s)", mode, project)
 	}
-	return backends.Messaging, nil
+	return ""
 }

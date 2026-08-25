@@ -107,8 +107,12 @@ func runMessagesList(args []string) {
 	// Get counts for summary
 	counts, _ := store.CountInboxMessagesByStatus(*inbox)
 
-	// Print summary
+	// Print summary. Name the store whenever it is NOT the local default: an empty
+	// cloud inbox and a wrong-project read look identical otherwise.
 	fmt.Printf("\n%s\n\n", bold("Messages"))
+	if desc := describeMessageStore(); desc != "" {
+		fmt.Printf("  %s\n", dim(desc))
+	}
 	if counts[messaging.InboxStatusUnread] > 0 {
 		fmt.Printf("  Unread: %s\n", yellow(fmt.Sprintf("%d", counts[messaging.InboxStatusUnread])))
 	}
