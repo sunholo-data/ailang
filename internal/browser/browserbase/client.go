@@ -36,20 +36,39 @@ type Config struct {
 	NpxPath    string
 	MCPVersion string
 	HTTPClient *http.Client
+
+	// ContextSyncDelay is how long the refresh workflow waits for Browserbase to
+	// publish an updated Context before the new profile version is considered
+	// readable. Zero selects DefaultContextSyncDelay; a negative value disables
+	// waiting. It is a parameter rather than a literal sleep so tests can drive
+	// it deterministically.
+	ContextSyncDelay time.Duration
+	// Sleep is the injectable waiter used for ContextSyncDelay. Tests supply a
+	// recorder; production leaves it nil and gets a context-aware timer.
+	Sleep func(ctx context.Context, d time.Duration) error
+	// Now is the injectable clock used for Context expiry decisions.
+	Now func() time.Time
 }
 
 type Provider struct {
-	apiKey     string
-	projectID  string
-	baseURL    string
-	npxPath    string
-	mcpVersion string
-	client     *http.Client
-	mu         sync.Mutex
-	sessions   map[string]sessionResponse
-	specs      map[string]browser.SessionSpec
-	artifacts  map[string]string
-	stopped    map[string]browser.Usage
+	apiKey           string
+	projectID        string
+	baseURL          string
+	npxPath          string
+	mcpVersion       string
+	client           *http.Client
+	contextSyncDelay time.Duration
+	sleep            func(ctx context.Context, d time.Duration) error
+	now              func() time.Time
+	mu               sync.Mutex
+	sessions         map[string]sessionResponse
+	specs            map[string]browser.SessionSpec
+	artifacts        map[string]string
+	stopped          map[string]browser.Usage
+	// contexts holds the provider-private hosted-Context binding for each
+	// authenticated session. The Context ID lives only inside the opaque
+	// material; it is never mirrored into SessionSpec or any manifest.
+	contexts map[string]contextBinding
 }
 
 type sessionResponse struct {
@@ -88,13 +107,33 @@ func New(config Config) (*Provider, error) {
 	if config.HTTPClient == nil {
 		config.HTTPClient = &http.Client{Timeout: 30 * time.Second}
 	}
+	if config.ContextSyncDelay == 0 {
+		config.ContextSyncDelay = DefaultContextSyncDelay
+	}
+	if config.Sleep == nil {
+		config.Sleep = defaultSleep
+	}
+	if config.Now == nil {
+		config.Now = time.Now
+	}
 	return &Provider{
 		apiKey: config.APIKey, projectID: config.ProjectID,
 		baseURL: strings.TrimRight(config.BaseURL, "/"), npxPath: config.NpxPath,
 		mcpVersion: config.MCPVersion, client: config.HTTPClient,
+		contextSyncDelay: config.ContextSyncDelay, sleep: config.Sleep, now: config.Now,
 		sessions: make(map[string]sessionResponse), specs: make(map[string]browser.SessionSpec), artifacts: make(map[string]string),
-		stopped: make(map[string]browser.Usage),
+		stopped:  make(map[string]browser.Usage),
+		contexts: make(map[string]contextBinding),
 	}, nil
+}
+
+// clock reads the injectable clock. A nil clock means a zero-value Provider was
+// built by a test helper rather than by New; fall back rather than panic.
+func (p *Provider) clock() time.Time {
+	if p.now == nil {
+		return time.Now()
+	}
+	return p.now()
 }
 
 func (p *Provider) Name() string { return ProviderName }
@@ -103,6 +142,11 @@ func (p *Provider) String() string {
 	return fmt.Sprintf("%s provider (credentials=%s)", ProviderName, browser.Redacted)
 }
 
+// GoString stops %#v from falling back to Go-syntax printing of the unexported
+// fields, which would otherwise render the API key and every retained hosted
+// Context binding verbatim.
+func (p *Provider) GoString() string { return p.String() }
+
 func (p *Provider) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
 		"provider": p.Name(), "base_url": p.baseURL,
@@ -110,7 +154,15 @@ func (p *Provider) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// Create provisions an unauthenticated session. No hosted Context is attached,
+// so nothing this session does can reach a stored profile.
 func (p *Provider) Create(ctx context.Context, spec browser.SessionSpec) (browser.Session, error) {
+	return p.createSession(ctx, spec, p.sessionBody(spec), nil)
+}
+
+// sessionBody builds the provider-neutral part of a session-create request. It
+// is shared with the authenticated path so the two cannot drift.
+func (p *Provider) sessionBody(spec browser.SessionSpec) map[string]any {
 	body := map[string]any{"keepAlive": true}
 	if p.projectID != "" {
 		body["projectId"] = p.projectID
@@ -124,6 +176,24 @@ func (p *Provider) Create(ctx context.Context, spec browser.SessionSpec) (browse
 	if spec.RunID != "" {
 		body["userMetadata"] = map[string]string{"ailangRunId": spec.RunID}
 	}
+	return body
+}
+
+// browserSettings returns the request's browserSettings map, creating it if the
+// spec did not already need one. Merging rather than overwriting keeps the
+// session timeout intact when a Context is attached.
+func browserSettings(body map[string]any) map[string]any {
+	if existing, ok := body["browserSettings"].(map[string]any); ok {
+		return existing
+	}
+	settings := make(map[string]any, 1)
+	body["browserSettings"] = settings
+	return settings
+}
+
+// createSession issues the create call and records session state. binding is
+// non-nil only for authenticated sessions.
+func (p *Provider) createSession(ctx context.Context, spec browser.SessionSpec, body map[string]any, binding *contextBinding) (browser.Session, error) {
 	var response sessionResponse
 	if err := p.doJSON(ctx, http.MethodPost, "/v1/sessions", body, &response, browser.FailureProvision); err != nil {
 		return browser.Session{}, err
@@ -133,12 +203,15 @@ func (p *Provider) Create(ctx context.Context, spec browser.SessionSpec) (browse
 	}
 	createdAt := parseTime(response.CreatedAt)
 	if createdAt.IsZero() {
-		createdAt = time.Now()
+		createdAt = p.clock()
 	}
 	p.mu.Lock()
 	p.sessions[response.ID] = response
 	p.specs[response.ID] = spec
 	p.artifacts[response.ID] = spec.ArtifactDir
+	if binding != nil {
+		p.contexts[response.ID] = *binding
+	}
 	p.mu.Unlock()
 	return browser.Session{ID: response.ID, Provider: p.Name(), CreatedAt: createdAt, ArtifactDir: spec.ArtifactDir}, nil
 }
@@ -242,6 +315,9 @@ func (p *Provider) Stop(ctx context.Context, session browser.Session) (browser.U
 	delete(p.sessions, session.ID)
 	delete(p.specs, session.ID)
 	delete(p.artifacts, session.ID)
+	// The hosted-Context binding is credential-grade; drop it with the rest of
+	// the session's sensitive state rather than letting it outlive the browser.
+	delete(p.contexts, session.ID)
 	p.mu.Unlock()
 	return usage, nil
 }
@@ -263,38 +339,49 @@ func (p *Provider) Audit(ctx context.Context, sessions []browser.Session) ([]str
 }
 
 func (p *Provider) doJSON(ctx context.Context, method, path string, body any, output any, fallback browser.FailureCategory) error {
+	_, err := p.doJSONWithStatus(ctx, method, path, body, output, fallback)
+	return err
+}
+
+// doJSONWithStatus is doJSON plus the HTTP status code, which the Context
+// operations need in order to tell provider-level errors apart from
+// profile-level ones (a 404 means the Context is gone, not that the call
+// failed). The returned status is 0 when no response was received, so callers
+// can distinguish transport failures from a malformed 2xx body.
+func (p *Provider) doJSONWithStatus(ctx context.Context, method, path string, body any, output any, fallback browser.FailureCategory) (int, error) {
 	var bodyReader io.Reader
 	if body != nil {
 		encoded, err := json.Marshal(body)
 		if err != nil {
-			return browser.NewFailure(fallback, "encode Browserbase request", err)
+			return 0, browser.NewFailure(fallback, "encode Browserbase request", err)
 		}
 		bodyReader = bytes.NewReader(encoded)
 	}
 	request, err := http.NewRequestWithContext(ctx, method, p.baseURL+path, bodyReader)
 	if err != nil {
-		return browser.NewFailure(fallback, "create Browserbase request", err)
+		return 0, browser.NewFailure(fallback, "create Browserbase request", err)
 	}
 	request.Header.Set("X-BB-API-Key", p.apiKey)
 	request.Header.Set("Content-Type", "application/json")
 	response, err := p.client.Do(request)
 	if err != nil {
-		return browser.NewFailure(httpFailure(err, fallback), "call Browserbase", err)
+		return 0, browser.NewFailure(httpFailure(err, fallback), "call Browserbase", err)
 	}
 	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
+	status := response.StatusCode
+	if status < 200 || status >= 300 {
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 1<<20))
-		return browser.NewFailure(statusFailure(response.StatusCode, fallback), "call Browserbase", fmt.Errorf("HTTP %d", response.StatusCode))
+		return status, browser.NewFailure(statusFailure(status, fallback), "call Browserbase", fmt.Errorf("HTTP %d", status))
 	}
 	if output == nil {
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 1<<20))
-		return nil
+		return status, nil
 	}
 	decoder := json.NewDecoder(io.LimitReader(response.Body, 1<<20))
 	if err := decoder.Decode(output); err != nil {
-		return browser.NewFailure(fallback, "decode Browserbase response", err)
+		return status, browser.NewFailure(fallback, "decode Browserbase response", err)
 	}
-	return nil
+	return status, nil
 }
 
 func (p *Provider) getRawJSON(ctx context.Context, path string) ([]byte, error) {
