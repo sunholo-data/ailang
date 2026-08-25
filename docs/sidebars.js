@@ -184,6 +184,7 @@ const sidebars = {
             'guides/evaluation/model-configuration',
             'guides/evaluation/eval-loop',
             'guides/evaluation/model-capability-threshold',
+			'guides/evaluation/browser-sessions',
           ],
         },
         {

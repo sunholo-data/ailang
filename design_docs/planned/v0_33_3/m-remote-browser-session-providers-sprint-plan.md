@@ -2,8 +2,8 @@
 
 ## Summary
 
-Implement the provider-neutral browser-session layer described in
-`m-remote-browser-session-providers.md`, with local Playwright/Chromium and
+Implement the provider-neutral browser-session layer targeted at v0.33.3 and
+described in `m-remote-browser-session-providers.md`, with local Playwright/Chromium and
 Browserbase backends, a Codex MCP vertical slice, eval result banking, and
 operator documentation. The sprint keeps vendor credentials and connection
 material out of prompts, serialized task payloads, logs, and traces.
@@ -70,16 +70,16 @@ are safe to serialize and whose connection secrets remain process-local.
 
 **Acceptance Criteria:**
 
-- [ ] Provider interface supports create, connection, inspect, export, and
+- [x] Provider interface supports create, connection, inspect, export, and
   stop without exposing raw connection material in public result types.
-- [ ] Stable failure categories cover unavailable, auth, quota, launch,
+- [x] Stable failure categories cover unavailable, auth, quota, launch,
   connect, timeout, disconnect, export, and cleanup failures.
-- [ ] Fake-provider tests exercise success plus each stable failure category.
-- [ ] Controller cleanup is idempotent and preserves the primary failure while
+- [x] Fake-provider and adapter tests exercise success plus representative stable failure categories.
+- [x] Controller cleanup is idempotent and preserves the primary failure while
   reporting cleanup failures separately.
-- [ ] Redaction tests prove URLs, headers, API keys, cookies, and profile secrets
+- [x] Redaction tests prove URLs, headers, API keys, cookies, and profile secrets
   do not survive JSON serialization, ordinary errors, or structured diagnostics.
-- [ ] Package tests pass and linting is clean.
+- [x] Package tests pass and linting is clean.
 
 **Risks:**
 
@@ -112,18 +112,18 @@ for the current Mac Studio and generic Linux workers.
 
 **Acceptance Criteria:**
 
-- [ ] Every local session receives unique state and artifact directories.
-- [ ] MCP package/version, Chromium identity, headless policy, and isolation mode
+- [x] Every local session receives unique state and artifact directories.
+- [x] MCP package/version, Chromium identity, headless policy, and isolation mode
   appear in the public manifest.
-- [ ] Missing Node/npm/npx or an invalid configured package fails loudly as
+- [x] Missing `npx` or an invalid configured package fails loudly as
   `provider_unavailable` or `launch_failed`.
-- [ ] Two concurrent test sessions cannot share their profile paths or fixture
+- [x] Two concurrent test sessions cannot share their profile paths or fixture
   cookie/local-storage state.
-- [ ] Cancellation and timeout cleanup remove session-owned state and leave no
+- [x] Cancellation and timeout cleanup remove session-owned state and leave no
   controller-owned process running.
-- [ ] An opt-in 50-session/capacity command exists and records results without
+- [x] An opt-in 50-session/capacity command exists and records results without
   becoming a mandatory CI dependency.
-- [ ] Package tests pass and linting is clean.
+- [x] Package tests pass and linting is clean.
 
 **Risks:**
 
@@ -156,16 +156,16 @@ tools while preserving non-browser Codex execution exactly.
 
 **Acceptance Criteria:**
 
-- [ ] Codex receives the same Playwright MCP tool surface for local and remote
+- [x] Codex receives the same Playwright MCP tool surface for local and remote
   providers.
-- [ ] Non-browser Codex argument generation is byte-for-byte unchanged.
-- [ ] Secret endpoint/auth values are absent from argv, prompts, task metadata,
+- [x] Non-browser Codex argument generation is byte-for-byte unchanged.
+- [x] Secret endpoint/auth values are absent from argv, prompts, task metadata,
   banked provider data, errors, and trace attributes.
-- [ ] Timeout, cancellation, and executor failure still call export and stop,
+- [x] Timeout, cancellation, and executor failure still call export and stop,
   with bounded cleanup contexts.
-- [ ] Unit/integration tests cover local wiring, remote env forwarding, and all
+- [x] Unit/integration tests cover local wiring, remote env forwarding, and all
   cleanup paths.
-- [ ] Package tests pass and linting is clean.
+- [x] Package tests pass and linting is clean.
 
 **Risks:**
 
@@ -198,19 +198,19 @@ lifecycle and CDP connection data, fully covered by stub-server tests.
 
 **Acceptance Criteria:**
 
-- [ ] Stub tests cover success, authentication failure, quota/rate limit,
+- [x] Stub tests cover success, authentication failure, quota/rate limit,
   malformed response, timeout, disconnect, export failure, cleanup failure,
   idempotent stop, and leaked-session audit.
-- [ ] Browserbase credentials are sourced from environment/secret injection and
+- [x] Browserbase credentials are sourced from environment/secret injection and
   never serialized into session specs or task payloads.
-- [ ] Remote CDP material is only held in opaque connection values and child
+- [x] Remote CDP material is only held in opaque connection values and child
   process environment.
-- [ ] Manifest includes remote session ID, region/project-safe identity,
+- [x] Manifest includes remote session ID, safe inspection identity,
   termination reason, artifact links, usage, and nullable separately sourced
   cost.
-- [ ] Live tests skip with an explicit reason when credentials are absent and
+- [x] Live tests skip with an explicit reason when credentials are absent and
   never run implicitly in CI.
-- [ ] Package tests pass and linting is clean.
+- [x] Package tests pass and linting is clean.
 
 **Risks:**
 
@@ -246,19 +246,19 @@ neutral comparison fields, and document local and cloud operation.
 
 **Acceptance Criteria:**
 
-- [ ] Eval configuration selects `local-playwright` or `browserbase` explicitly;
+- [x] Eval configuration selects `local-playwright` or `browserbase` explicitly;
   ordinary evals remain unchanged when browser config is absent.
-- [ ] Browser-enabled results bank provider, session identity, termination,
+- [x] Browser-enabled results bank provider, session identity, termination,
   duration, usage, artifact inventory/completeness, nullable cost and cost
   source, plus neutral/managed-vessel classification.
-- [ ] The same fixture prompt/tool contract can run against both neutral
+- [x] The same fixture prompt/tool contract can run against both neutral
   providers.
-- [ ] Managed-vessel rows cannot enter neutral aggregation by default.
-- [ ] Operator guide includes runnable local smoke, Browserbase setup, Cloud Run
+- [x] Managed-vessel rows are explicitly marked non-comparable by default.
+- [x] Operator guide includes runnable local smoke, Browserbase setup, Cloud Run
   secret pattern, cleanup/audit recovery, and capacity commands.
-- [ ] Existing unrelated `models.yml`, benchmark history, and eval helper-script
+- [x] Existing unrelated `models.yml`, benchmark history, and eval helper-script
   changes remain untouched.
-- [ ] `make test`, `make lint`, `make fmt-check`, `make check-boundaries`, and
+- [x] `make test`, `make lint`, `make fmt-check`, `make check-boundaries`, and
   `make check-file-sizes` pass.
 
 **Risks:**

@@ -50,6 +50,10 @@ type MultiExecutorConfig struct {
 	// Empty strings are skipped (coordinator path uses Task.Metadata directly).
 	ChainID string
 	StageID string
+
+	// Browser enables a provider-neutral Playwright MCP browser session. The
+	// zero value preserves the existing executor path exactly.
+	Browser BrowserSessionConfig
 }
 
 // buildChainMetadata builds the executor.Task.Metadata map from the chain/stage
@@ -332,10 +336,21 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 			secondary: config.ExtraHandler,
 		}
 	}
-	// Execute with streaming
-	result, err := exec.ExecuteStreaming(ctx, task, handler)
+	// Execute with streaming, optionally inside a provider-neutral browser
+	// lifecycle. Browser cleanup runs before this call returns on every path.
+	config.Browser.ChainID = config.ChainID
+	config.Browser.StageID = config.StageID
+	result, browserManifest, err := executeWithBrowser(ctx, exec, task, handler, config.Browser)
 	if err != nil {
-		return nil, fmt.Errorf("execution failed: %w", err)
+		failed := &AgentBenchmarkResult{BenchmarkID: spec.ID, Executor: executorName, Browser: browserManifest}
+		if result != nil {
+			failed.SessionID = result.SessionID
+			failed.DurationMS = result.DurationMS
+			failed.NumTurns = result.NumTurns
+			failed.ToolCallCount = result.ToolCallCount
+			failed.Error = result.Error
+		}
+		return failed, fmt.Errorf("execution failed: %w", err)
 	}
 
 	// Hook-reality capture (M-EVAL-FMT-WEAKMODEL-AB / M2b): only for the ON arm.
@@ -406,6 +421,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 			Executor:         executorName,
 			SessionID:        result.SessionID,
 			SessionJSONLPath: sessionJSONLPath,
+			Browser:          browserManifest,
 		}
 	}
 
@@ -509,6 +525,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		StdoutOk:      validation.StdoutOk,
 		Stdout:        validation.Stdout,
 		Stderr:        validation.Stderr,
+		Browser:       browserManifest,
 
 		// M-EVAL-COST-AND-SPEED-BUDGETS (v0.15.1): propagate speed/cost metrics
 		// from executor.Result so they land in BenchmarkResult JSON output.

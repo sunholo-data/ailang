@@ -6,7 +6,9 @@ import (
 	"os"
 	osexec "os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -64,6 +66,60 @@ func TestNewCodexExecutor_CustomPathAndModel(t *testing.T) {
 	}
 }
 
+func TestBuildCodexArgs_NonBrowserUnchanged(t *testing.T) {
+	task := &executor.Task{Directive: "solve it", Model: "gpt-5.4"}
+	got, err := buildCodexArgs(task, "gpt-5.4", "solve it")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"exec", "--json", "--skip-git-repo-check",
+		"--dangerously-bypass-approvals-and-sandbox",
+		"--model", "gpt-5.4", "solve it",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("args = %#v, want byte-compatible %#v", got, want)
+	}
+}
+
+func TestBuildCodexArgs_MCPForwardsEnvNamesNotSecrets(t *testing.T) {
+	secret := "wss://connect.browserbase.example?token=do-not-leak"
+	task := &executor.Task{
+		Directive: "browse",
+		ExtraEnv:  map[string]string{"PLAYWRIGHT_MCP_CDP_ENDPOINT": secret},
+		MCPServers: []executor.MCPServerConfig{{
+			Name: "playwright", Command: "/opt/npx",
+			Args:    []string{"-y", "@playwright/mcp@0.0.79"},
+			EnvVars: []string{"PLAYWRIGHT_MCP_CDP_ENDPOINT"}, Required: true,
+		}},
+	}
+	got, err := buildCodexArgs(task, "gpt-5.4", "browse")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered := strings.Join(got, " ")
+	if strings.Contains(rendered, secret) || strings.Contains(rendered, "do-not-leak") {
+		t.Fatalf("argv leaked secret: %s", rendered)
+	}
+	for _, fragment := range []string{
+		`mcp_servers.playwright.command="/opt/npx"`,
+		`mcp_servers.playwright.args=["-y","@playwright/mcp@0.0.79"]`,
+		`mcp_servers.playwright.env_vars=["PLAYWRIGHT_MCP_CDP_ENDPOINT"]`,
+		`mcp_servers.playwright.required=true`,
+	} {
+		if !slices.Contains(got, fragment) {
+			t.Fatalf("missing config override %q in %#v", fragment, got)
+		}
+	}
+}
+
+func TestBuildCodexArgs_RejectsUnsafeMCPName(t *testing.T) {
+	_, err := buildCodexArgs(&executor.Task{MCPServers: []executor.MCPServerConfig{{Name: "bad.name", Command: "npx"}}}, "gpt", "browse")
+	if err == nil || !strings.Contains(err.Error(), "invalid MCP server name") {
+		t.Fatalf("error = %v, want invalid name", err)
+	}
+}
+
 func TestCodexCapabilities(t *testing.T) {
 	exec, _ := New(executor.DefaultConfig())
 	caps := exec.Capabilities()
@@ -74,6 +130,7 @@ func TestCodexCapabilities(t *testing.T) {
 	want := map[executor.Capability]bool{
 		executor.CapStreaming:      false,
 		executor.CapLocalWorkspace: false,
+		executor.CapMCP:            false,
 	}
 	for _, c := range caps {
 		if _, ok := want[c]; ok {

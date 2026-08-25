@@ -91,6 +91,10 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 		ExecutorName:         executorName,
 		ModelName:            modelName,
 		ConfigKey:            model, // original models.yml key for per-model timeout lookup
+		Browser:              sessionConfig.Browser,
+	}
+	if multiConfig.Browser.ArtifactDir != "" {
+		multiConfig.Browser.ArtifactDir = filepath.Join(multiConfig.Browser.ArtifactDir, workspaceID)
 	}
 
 	// M-EVAL-LOCAL-OBSERVABILITY-FOLLOWUP: thread chain_id/stage_id through

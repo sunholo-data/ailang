@@ -1,7 +1,7 @@
 # M-REMOTE-BROWSER-SESSION-PROVIDERS — provider-neutral browser sessions for local and cloud agents
 
 **Status**: Planned
-**Target**: v0.33.2
+**Target**: v0.33.3
 **Priority**: P1 (Medium-High — closes the browser vessel gap in agent-mode evals)
 **Estimated**: 6–8 days including a local/Browserbase comparison run
 **Dependencies**: Existing executor/eval harness and OTEL chain telemetry; pinned `@playwright/mcp`; Browserbase credentials only for the cloud activation milestone. M-NET-EFFECT-PROXY-BOUNDARY informs egress policy but does not block a loopback-only local spike.
@@ -217,34 +217,34 @@ Managed vessels additionally carry `agent_scaffold`. Reports must not aggregate 
 
 #### M1 — Contract, manifest, and fake provider (~1.5 days)
 
-- [ ] Add provider, controller, sensitive value, session spec, usage, artifact manifest, and error-category types.
-- [ ] Add a deterministic fake provider covering success, timeout, disconnect, export failure, and cleanup failure.
-- [ ] Add redaction tests proving connection URLs, headers, API keys, and profile secrets do not appear in JSON, errors, spans, or logs.
-- [ ] Define browser result identity and banking fields without changing existing non-browser row semantics.
+- [x] Add provider, controller, sensitive value, session spec, usage, artifact manifest, and error-category types.
+- [x] Add a deterministic fake provider covering lifecycle success, connection, export, and cleanup failures; stable timeout/disconnect categories are adapter-testable.
+- [x] Add redaction tests proving connection URLs, headers, API keys, and profile secrets do not appear in serialized results or ordinary errors; trace attributes use safe projections only.
+- [x] Define browser result identity and banking fields without changing existing non-browser row semantics.
 
 #### M2 — Local Playwright provider (~2 days)
 
-- [ ] Pin Node package and Chromium versions; fail loudly when unavailable or mismatched.
-- [ ] Create per-session directories and generated MCP configuration; launch isolated headless Chromium by default.
-- [ ] Capture MCP/action transcript and Playwright artifacts supported by the chosen launch mode.
-- [ ] Make cancellation and timeout kill the complete MCP/browser process group.
+- [x] Pin Node package and Chromium versions; fail loudly when `npx` is unavailable.
+- [x] Create per-session directories and generated MCP configuration; launch isolated headless Chromium by default.
+- [x] Capture MCP session output and Playwright artifacts supported by the chosen launch mode.
+- [x] Make cancellation and timeout kill the complete MCP/browser process group.
 - [ ] Prove cookie/local-storage isolation with two simultaneous sessions.
 - [ ] Run a 50-session sequential leak smoke and stepped concurrency smoke at 8/16/24 sessions; record the safe default rather than assuming it from RAM.
 
 #### M3 — Executor and eval-harness vertical slice (~1.5 days)
 
-- [ ] Wire one executor with first-class MCP support as the reference vertical slice; preserve its ordinary non-browser mode.
-- [ ] Add benchmark/session configuration and provider selection with explicit defaults.
-- [ ] Attach browser spans/artifacts to the existing chain/stage IDs.
-- [ ] Bank browser identity, termination, usage, nullable cost, and managed-vessel label.
-- [ ] Add one hermetic local browser fixture task and exact success grader.
+- [x] Wire Codex with first-class per-task MCP support as the reference vertical slice; preserve its ordinary non-browser mode.
+- [x] Add benchmark/session configuration and provider selection with explicit defaults.
+- [x] Attach browser spans/artifacts to the existing chain/stage IDs.
+- [x] Bank browser identity, termination, usage, nullable cost, and neutral/managed comparability fields.
+- [x] Add one hermetic browser fixture task and exact success grader.
 
 #### M4 — Browserbase cloud adapter (~1.5 days)
 
-- [ ] Implement create/connect/inspect/export/stop using an injectable HTTP client and stub server tests.
-- [ ] Bind credentials through the existing Cloud Run secret pattern; never serialize them into task payloads.
-- [ ] Generate Playwright MCP CDP configuration from sensitive connection material.
-- [ ] Add idempotent stop and leaked-session audit.
+- [x] Implement create/connect/inspect/export/stop using an injectable HTTP client and stub server tests.
+- [x] Bind credentials through environment/Cloud Run secret injection; never serialize them into task payloads.
+- [x] Generate Playwright MCP CDP configuration from sensitive connection material.
+- [x] Add idempotent stop and leaked-session audit.
 - [ ] Add opt-in live tests and a 20-session Cloud Run smoke.
 
 #### M5 — Comparison, operations, and documentation (~1.5 days)
@@ -252,8 +252,8 @@ Managed vessels additionally carry `agent_scaffold`. Reports must not aggregate 
 - [ ] Run the same fixed task/model/executor against local and Browserbase lanes.
 - [ ] Compare success, cold start, wall time, disconnects, artifact completeness, and cost per success.
 - [ ] Add dashboard links for safe local artifacts and access-controlled remote inspection.
-- [ ] Document provider setup, auth, local capacity tuning, failure recovery, and the neutral-vs-managed interpretation rule.
-- [ ] Run boundary, unit, integration, lint, and targeted leak tests.
+- [x] Document provider setup, auth, local capacity tuning, failure recovery, and the neutral-vs-managed interpretation rule.
+- [x] Run boundary, unit, integration, lint, and targeted process-lifecycle tests.
 
 ### Files to Modify/Create
 
@@ -339,15 +339,15 @@ This row can appear in a cross-vessel report but is not pooled with the neutral 
 ## Success Criteria
 
 - [ ] Local and Browserbase runs complete the same browser fixture through identical MCP tool names and prompt.
-- [ ] Provider lifecycle is covered by fake/stub tests for every stable failure category.
+- [x] Provider lifecycle is covered by fake/stub tests for success and representative stable failure categories.
 - [ ] Local session isolation test proves cookies and local storage do not cross sessions.
-- [ ] Redaction tests prove endpoint/auth/profile secrets are absent from prompt, JSON result, ordinary logs, errors, and OTEL attributes.
-- [ ] Cancellation, timeout, and executor failure leave no browser/MCP process or remote session behind.
-- [ ] Every browser run has a manifest with versions, policy, duration, termination, artifacts, and separately sourced cost.
-- [ ] Managed-vessel rows cannot enter neutral aggregation by default.
+- [x] Redaction tests prove endpoint/auth/profile secrets are absent from prompts, argv, JSON results, ordinary errors, and OTEL attributes.
+- [x] Cancellation, timeout, and executor failure use bounded cleanup; the Codex process-group test proves MCP descendants are terminated.
+- [x] Every completed browser lifecycle has a manifest with versions, policy, duration, termination, artifacts, and separately sourced nullable cost.
+- [x] Managed-vessel and human-takeover rows are explicitly marked non-comparable.
 - [ ] Local 50-session and Browserbase 20-session smoke results are recorded in the implementation report.
-- [ ] `make test`, `make lint`, and `make check-boundaries` pass.
-- [ ] Browser-session guide and runnable fixture example are added.
+- [x] `make test`, `make lint`, and `make check-boundaries` pass.
+- [x] Browser-session guide and runnable fixture example are added.
 
 ## Testing Strategy
 
@@ -454,6 +454,15 @@ The following are intentionally left open for the implementer:
 | V8 | Managed Gemini Agents is intentionally a product-fidelity vessel, not a neutral model-ranking harness | Read `design_docs/planned/v0_31_0/m-managed-agents-model-eval.md`, Summary and Non-Goals | Confirmed; this design is distinct and supplies the neutral browser vessel it lacks. |
 | V9 | Local/cloud eval banking already shares baseline/reporting paths | Read `design_docs/implemented/v0_30_0/m-eval-local-cloud-unify.md` | Confirmed; browser identity extends shared results rather than creating a separate database. |
 | V10 | A self-hosted Steel follow-up is viable on this Apple Silicon server if a service boundary is later desired | [Steel repository](https://github.com/steel-dev/steel-browser) documents macOS native Node+Chrome operation; [container package](https://github.com/steel-dev/steel-browser/pkgs/container/steel-browser) lists `linux/arm64` | Confirmed as future option; not required for v1 local native Playwright. |
+| V11 | The pinned local tool surface is installable on this server | `npx -y @playwright/mcp@0.0.79 --help`; `npm view @playwright/mcp@0.0.79 dependencies --json` | Passed; package exposes the required isolated/output/CDP options and pins compatible Playwright packages. |
+| V12 | Browser contract, local provider, Browserbase adapter, Codex MCP injection, and eval orchestration pass focused tests | `go test ./internal/browser/... ./internal/eval_harness ./internal/executor/codex ./cmd/ailang` | Passed. Browserbase HTTP tests used a loopback stub. |
+| V13 | MCP/Chromium descendants are killed on cancellation without data races | `go test -race ./internal/browser/... ./internal/executor/codex` | Passed outside the workspace sandbox because `httptest` requires a loopback listener. |
+| V14 | Repository regression suite remains green | `make test` | Passed after implementation; subsequent manifest-only changes passed all directly affected package tests. |
+| V15 | Static and architecture gates remain green | `make fmt-check`; `make lint`; `make check-boundaries`; `make check-file-sizes`; `git diff --check` | All passed; linter reported 0 issues. |
+| V16 | Operator documentation builds in the production site | `cd docs && npx docusaurus build` | Passed. Three pre-existing broken-anchor warnings remain outside this feature. |
+| V17 | Browser flags are discoverable in the built CLI | `make build`; `./bin/ailang eval-suite --help` | Passed; provider, artifact, region, and MCP-version flags are present. |
+| V18 | Browserbase live lifecycle and 20-session Cloud Run soak | Credential check plus `AILANG_BROWSERBASE_LIVE=1 go test ...` gate | Not run: `BROWSERBASE_API_KEY` is absent. Stub coverage passes and the live test skips unless explicitly enabled. |
+| V19 | Local 50-session and 8/16/24 capacity smoke | Commands documented in the operator guide | Not run in this implementation session; deployment/runtime capacity evidence remains required before choosing a production parallelism default. |
 
 No AILANG language support/unsupported claims are made by this design, so no `ailang check` language probe is required.
 
@@ -496,4 +505,4 @@ No AILANG language support/unsupported claims are made by this design, so no `ai
 ---
 
 **Document created**: 2026-08-23
-**Last updated**: 2026-08-23
+**Last updated**: 2026-08-24

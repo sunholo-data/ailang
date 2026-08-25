@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sunholo-data/ailang/internal/browser"
 	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
 )
 
@@ -44,6 +45,8 @@ type AgentBenchmarkConfig struct {
 	// agent workspace via .claude/settings.json + --settings; OFF is
 	// byte-identical to today's path. The ONLY per-arm difference in the fmt A/B.
 	FmtHook FmtHookMode
+	// Browser is optional. Empty Provider leaves agent evaluation unchanged.
+	Browser BrowserSessionConfig
 
 	// MaxTokensPerBench (M-EVAL-OS-LONGITUDINAL Phase 1, v0.23.0): hard
 	// token-budget ceiling per benchmark for thrash detection on $0 local
@@ -173,6 +176,10 @@ type AgentBenchmarkResult struct {
 	// invocation observed in the stream, classified exit-0 / defer(3) / error.
 	// Powers M3's treatment-integrity metric (was the ON arm actually treated?).
 	FmtHookEvents []FmtHookEvent `json:"fmt_hook_events,omitempty"`
+
+	// Browser is present only for provider-neutral browser-enabled runs. Its
+	// type deliberately has no connection/auth fields.
+	Browser *browser.BrowserRunManifest `json:"browser,omitempty"`
 }
 
 // FmtHookEvent is one observed run of the format_ail.sh PostToolUse hook

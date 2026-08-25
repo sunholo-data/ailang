@@ -134,6 +134,10 @@ func runEvalSuite() {
 	agentRequestsPerSecond := fs.Int("agent-rate", 1, "API requests per second (agent mode only)")
 	agentTimeout := fs.Int("agent-timeout", 60, "Timeout per benchmark in seconds (agent mode only)")
 	maxTokensPerBench := fs.Int("max-tokens-per-bench", 0, "Hard token-budget ceiling per benchmark; aborts mid-run if exceeded (0 = unlimited). M-EVAL-OS-LONGITUDINAL Phase 1: thrash detection for free local models.")
+	browserProvider := fs.String("browser-provider", "", "Agent browser session provider: local-playwright or browserbase (empty = disabled; requires MCP-capable executor)")
+	browserArtifacts := fs.String("browser-artifacts", "", "Durable browser artifact root (default: <output>/browser-sessions when browser enabled)")
+	browserRegion := fs.String("browser-region", "", "Remote browser region (Browserbase; e.g. eu-central-1)")
+	browserMCPVersion := fs.String("browser-mcp-version", "0.0.79", "Pinned @playwright/mcp version for browser-enabled agent runs")
 	numTrials := fs.Int("trials", 1, "Number of trials per (benchmark, model, language) combination. M-EVAL-OS-LONGITUDINAL Phase 3: N>=3 produces a per-benchmark pass-rate distribution in summary.json. Default 1 preserves single-trial behaviour.")
 
 	// Contract verification flags (M-CONTRACT-EVAL)
@@ -179,6 +183,10 @@ func runEvalSuite() {
 	// after an expensive metered run had already been paid for.
 	baselineSet := flagWasSet(fs, "baseline")
 	if err := validateCohortFreeze(baselineSet, *baseline, *verify); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	if err := validateBrowserEvalFlags(*agent, *browserProvider); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
@@ -672,6 +680,8 @@ func runEvalSuite() {
 		requestsPerSecond: *agentRequestsPerSecond, timeoutSeconds: *agentTimeout,
 		maxTokensPerBench: *maxTokensPerBench,
 		verify:            *verify, verifyTimeout: *verifyTimeout,
+		browserProvider: *browserProvider, browserArtifacts: *browserArtifacts,
+		browserRegion: *browserRegion, browserMCPVersion: *browserMCPVersion, outputDir: *outputDir,
 	})
 
 	// M-BRAIN-MICRORAG: For executor-based paths (claude/gemini via internal/executor),

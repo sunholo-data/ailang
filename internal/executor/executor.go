@@ -68,6 +68,11 @@ type Task struct {
 	// uniformly across every executor (the uniform executor contract).
 	ExtraEnv map[string]string
 
+	// MCPServers configures ephemeral stdio MCP servers for this task. Secret
+	// values must never appear in this structure: EnvVars contains only names
+	// to forward from ExtraEnv/the executor process environment.
+	MCPServers []MCPServerConfig
+
 	// Effort level (Claude Code 2.1.47+: "low", "medium", "high")
 	Effort string
 
@@ -151,6 +156,16 @@ type Task struct {
 	// (no silent fallback). What the agent DOES with the egress (clone what,
 	// checkout what) is caller-owned directive policy, not an executor input.
 	RequiresEgress bool
+}
+
+// MCPServerConfig is provider-neutral per-task stdio MCP configuration.
+// It is intentionally safe to serialize and log.
+type MCPServerConfig struct {
+	Name     string
+	Command  string
+	Args     []string
+	EnvVars  []string
+	Required bool
 }
 
 // PluginsConfig specifies third-party plugins to install before execution.
@@ -292,6 +307,10 @@ const (
 	CapGitHubIntegration Capability = "github_integration"
 	CapLocalWorkspace    Capability = "local_workspace"
 	CapStructuredOutput  Capability = "structured_output"
+	// CapMCP means the executor honors Task.MCPServers as per-task MCP
+	// configuration. Executors without it must fail loudly rather than ignore
+	// a requested browser/tool surface.
+	CapMCP Capability = "mcp"
 
 	// CapRemoteSandbox means the executor runs the agent in an isolated
 	// environment that does NOT share the caller's filesystem (e.g.
@@ -335,6 +354,12 @@ func ValidateTaskCapabilities(task *Task, exec Executor) error {
 			"task requires network egress but executor %q does not advertise capability %q "+
 				"(only egress-capable executors like managed_agents may honor RequiresEgress)",
 			exec.Name(), CapNetworkEgress,
+		)
+	}
+	if len(task.MCPServers) > 0 && !hasCapability(exec.Capabilities(), CapMCP) {
+		return fmt.Errorf(
+			"task configures MCP servers but executor %q does not advertise capability %q",
+			exec.Name(), CapMCP,
 		)
 	}
 	return nil

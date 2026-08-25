@@ -71,6 +71,18 @@ func TestValidateTaskCapabilities_NoEgress_NoOpOnAnyExecutor(t *testing.T) {
 	}
 }
 
+func TestValidateTaskCapabilities_MCPRequiresAdvertisedSupport(t *testing.T) {
+	task := &Task{MCPServers: []MCPServerConfig{{Name: "playwright", Command: "npx"}}}
+	without := &capExecutor{name: "claude", caps: []Capability{CapStreaming}}
+	if err := ValidateTaskCapabilities(task, without); err == nil || !strings.Contains(err.Error(), string(CapMCP)) {
+		t.Fatalf("unsupported MCP error = %v", err)
+	}
+	with := &capExecutor{name: "codex", caps: []Capability{CapStreaming, CapMCP}}
+	if err := ValidateTaskCapabilities(task, with); err != nil {
+		t.Fatalf("MCP-capable executor rejected: %v", err)
+	}
+}
+
 func TestValidateTaskCapabilities_NilInputs(t *testing.T) {
 	if err := ValidateTaskCapabilities(nil, &capExecutor{}); err != nil {
 		t.Errorf("nil task should be a no-op, got %v", err)
