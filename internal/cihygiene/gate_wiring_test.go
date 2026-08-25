@@ -18,12 +18,13 @@ var (
 	// both read as invocations, so a gate could be listed in ci: and mentioned
 	// in a comment while never actually executing. Found by the iteration-274
 	// evaluator, which demonstrated exactly that pair passing all three checks.
-	// The prefix class also admits `!` and the `if`/`while`/`until` keywords, and the
-	// flag group skips `-C <dir>` / `-s` / `-k`. Both shapes are real invocations, and
-	// before iteration 275 round 2 they were invisible -- so a gate could be called
-	// inside a conditional (where the shell CONSUMES its exit code) and read as unwired
-	// rather than as suppressed. Found by the iteration-275 evaluator.
-	makeInvocation = regexp.MustCompile(`(?m)(?:^|[;&|(!]|&&|\|\||\b(?:if|while|until)\b)[ \t]*(?:!?[ \t]*)(?:sudo[ \t]+)?make[ \t]+(?:-[A-Za-z-]+(?:[ \t]+[^ \t]+)?[ \t]+)*([A-Za-z0-9][A-Za-z0-9_.-]*)`)
+	// Flags such as `-C <dir>` / `-s` are skipped so `make -C sub target` is seen.
+	// The prefix class is deliberately NARROW: iteration 275 round 2 widened it to admit
+	// `!` and if/while/until, and it began capturing prose -- `echo "Great! make sure to
+	// run X"` yielded the target `sure`, a false RED on any future PR containing "make
+	// sure". Detection of a gate inside shell control flow is now done by NAME, in
+	// gateTargetsTouched, which no syntax can hide from.
+	makeInvocation = regexp.MustCompile(`(?m)(?:^|[;&|(]|&&|\|\|)[ \t]*(?:sudo[ \t]+)?make[ \t]+(?:-[A-Za-z-]+(?:[ \t]+[^ \t]+)?[ \t]+)*([A-Za-z0-9][A-Za-z0-9_.-]*)`)
 	// shellComment strips `#`-to-end-of-line before matching.
 	shellComment = regexp.MustCompile(`(?m)#.*$`)
 )
@@ -42,8 +43,10 @@ var notWiredIntoCIVerify = map[string]string{
 	"verify-examples-toplevel": "RED at HEAD 2026-08-25 (rc=2): examples/ai_modes.ail fails effect checking: \"AI requires mode=fixed; declaration provides mode=routeable\". NOTE: this target is a `make ci` prerequisite, so `make ci` is RED at HEAD on this one example; tracked as an open queue row — wire it when it is green, do not widen the exemption",
 }
 
-var suppressionAllowed = map[string]string{
-	"verify-examples-trace": "advisory trace-determinism sweep, currently rc=1 on 2 of 217 examples; the `|| true` is deliberate and tracked as an open queue row — REMOVE this entry when the target is green rather than leaving it suppressed",
+var nonCanonicalAllowed = map[string]string{
+	"verify-examples-trace": "advisory trace-determinism sweep, rc=1 on 2 of 217 examples at 2026-08-25; the `|| true` at ci.yml is deliberate and tracked as an open queue row -- REMOVE this entry when the target is green rather than leaving it suppressed",
+	"verify-examples":       "piped to `tee` so the job can attach the output as an artifact; safe because the step runs under the default pipefail shell, but the safety depends on that shell rather than on the line, which is why it needs a stated reason",
+	"check-autoclose":       "invoked from an if/elif shell block that selects event-scoped arguments (push vs pull_request vs workflow_dispatch); the make call itself is unsuppressed in every arm, but a multi-arm block cannot be read canonically",
 }
 
 var notInMakeCI = map[string]string{
@@ -58,7 +61,7 @@ var notInMakeCI = map[string]string{
 	// cannot be an unconditional member of the local `make ci` aggregate. CI
 	// invokes it directly with event-scoped args (ci.yml:157-175), and its
 	// self-test test-check-autoclose IS in ci:.
-	"verify-examples-trace": "advisory 42s trace-determinism sweep, rc=1 on 2 of 217 examples at 2026-08-25; invoked by ci.yml under a declared `|| true` (see suppressionAllowed) and deliberately NOT a `make ci` member -- remove BOTH entries together when the target goes green",
+	"verify-examples-trace": "advisory 42s trace-determinism sweep, rc=1 on 2 of 217 examples at 2026-08-25; invoked by ci.yml under a declared `|| true` (see nonCanonicalAllowed) and deliberately NOT a `make ci` member -- remove BOTH entries together when the target goes green",
 	"check-autoclose":       "range-shaped: anti-vacuity floor exits rc=2 on an empty commit range, which is the state of a clean freshly-pulled checkout",
 }
 
@@ -193,62 +196,55 @@ func TestVerifyTargetsAreWiredIntoAWorkflow(t *testing.T) {
 	}
 }
 
-func TestWiredGatesCanFailTheJob(t *testing.T) {
-	matched := 0
-	foundTrace := false
+func TestWiredGatesAreCanonical(t *testing.T) {
+	known := makeTargets(t)
+	scanned, sawTrace := 0, false
 	for workflowName, wf := range loadWorkflows(t) {
 		for jobID, job := range wf.Jobs {
 			for stepIndex, step := range job.Steps {
 				script := shellComment.ReplaceAllString(step.Run, "")
-				for _, line := range strings.Split(script, "\n") {
-					for _, match := range makeInvocation.FindAllStringSubmatchIndex(line, -1) {
-						target := line[match[2]:match[3]]
-						if !gateTarget(target) && !verifyTarget(target) {
-							continue
+				for target, lines := range gateTargetsTouched(script, known) {
+					scanned++
+					if target == "verify-examples-trace" {
+						sawTrace = true
+					}
+					where := workflowName + ":" + jobID + ":step " + strconv.Itoa(stepIndex)
+					var reasons []string
+					for _, line := range lines {
+						if !canonicalGateLine.MatchString(line) {
+							reasons = append(reasons, "non-canonical run line `"+strings.TrimSpace(line)+"`")
 						}
-						matched++
-						if target == "verify-examples-trace" {
-							foundTrace = true
-						}
-						where := workflowName + ":" + jobID + ":step " + strconv.Itoa(stepIndex)
-						if !pipefailSafeShell(step.Shell) && strings.Contains(line[match[1]:], "|") {
-							if _, allowed := suppressionAllowed[target]; !allowed {
-								t.Errorf("%s pipes %s under shell %q, which does not set pipefail, so the gate's exit code is discarded", where, target, step.Shell)
-							}
-						}
-						if continueOnError(job.ContinueOnError) || continueOnError(step.ContinueOnError) {
-							if _, allowed := suppressionAllowed[target]; !allowed {
-								t.Errorf("%s suppresses failure from %s with continue-on-error", where, target)
-							}
-						}
-						for _, reason := range shellSuppression(script, line, match[0], match[1]) {
-							if _, allowed := suppressionAllowed[target]; !allowed {
-								t.Errorf("%s suppresses failure from %s in-shell (%s): %s", where, target, reason, strings.TrimSpace(line))
-							}
-						}
+					}
+					if errexitDisabled.MatchString(script) {
+						reasons = append(reasons, "the step disables errexit or installs a trap")
+					}
+					if step.If != "" || job.If != "" {
+						reasons = append(reasons, "gated by an `if:` condition, so the gate may never run at all")
+					}
+					if continueOnError(job.ContinueOnError) || continueOnError(step.ContinueOnError) {
+						reasons = append(reasons, "continue-on-error")
+					}
+					if !pipefailSafeShell(step.Shell) {
+						reasons = append(reasons, "shell "+strconv.Quote(step.Shell)+" does not set pipefail")
+					}
+					if len(reasons) == 0 {
+						continue
+					}
+					if _, allowed := nonCanonicalAllowed[target]; !allowed {
+						t.Errorf("%s invokes %s in a form that may not fail the job: %s", where, target, strings.Join(reasons, "; "))
 					}
 				}
 			}
 		}
 	}
-	if matched == 0 || !foundTrace {
-		t.Fatalf("instrument failure: wired-gate scan found %d invocations; must include verify-examples-trace", matched)
+	if scanned < 15 || !sawTrace {
+		t.Fatalf("instrument failure: canonical-form scan covered %d gate invocations and saw verify-examples-trace=%v (need at least 15, including the known-suppressed trace step)", scanned, sawTrace)
 	}
 }
 
-// TestExemptionMapsAreLive pins the maps themselves. Every test above consults an
-// exemption map only for targets its predicate already selected, so a predicate
-// that SHRINKS silently drops coverage and the orphaned exemption entry keeps
-// looking deliberate -- measured 2026-08-25 (iteration 275): removing
-// `fmt-check-ail` from verifyTarget left the whole package rc=0. A removal proves
-// a check FIRES; only asserting the map against the predicate proves it still
-// LOOKS. Same for a target that is renamed, deleted, or later wired for real:
-// the exemption outlives its reason with no signal.
-// continueOnError reads GitHub's `continue-on-error`, which may be a literal bool,
-// the strings "true"/"false", or a `${{ }}` expression. An expression is treated as
-// SUPPRESSED: it MAY evaluate true, and a gate that might not fail the job is not a
-// gate. Reading it as *bool used to abort the whole package on an unmarshal error --
-// loud, but with an opaque message and no way to classify the step (evaluator N2).
+// continueOnError reads GitHub's `continue-on-error`, which may be a literal bool, the
+// strings "true"/"false", or a `${{ }}` expression. An expression is treated as
+// SUPPRESSED: it MAY evaluate true, and a gate that might not fail the job is not a gate.
 func continueOnError(value any) bool {
 	switch typed := value.(type) {
 	case nil:
@@ -262,54 +258,57 @@ func continueOnError(value any) bool {
 	}
 }
 
-// pipefailSafeShell reports whether a step's shell applies `set -o pipefail`.
-// GitHub's default for `run:` on Linux/macOS is `bash --noprofile --norc -eo pipefail`,
-// and an explicit `shell: bash` resolves to the same command line. Anything else --
-// sh, pwsh, python, a custom template -- does not, so a pipe there silently discards
-// the gate's exit code.
+// pipefailSafeShell reports whether a step's shell applies `set -o pipefail`. GitHub's
+// default for `run:` on Linux/macOS is `bash --noprofile --norc -eo pipefail`, and an
+// explicit `shell: bash` resolves to the same command line. Anything else -- sh, pwsh,
+// python, a custom template -- does not, so a pipe there discards the gate's exit code.
 func pipefailSafeShell(shell string) bool {
 	return shell == "" || shell == "bash"
 }
 
 var (
-	orFallback      = regexp.MustCompile(`\|\|[ \t]*(true\b|:[ \t]*(?:$|[;&])|echo\b|exit\b)`)
-	disablesErrexit = regexp.MustCompile(`(?m)^[ \t]*set[ \t]+[+][a-zA-Z]*e`)
-	backgrounded    = regexp.MustCompile(`&[ \t]*$`)
-	waitsForJobs    = regexp.MustCompile(`(?m)^[ \t]*wait\b`)
-	conditional     = regexp.MustCompile(`\b(?:if|while|until)\b|!`)
+	// canonicalGateLine is the ALLOWED shape: optional leading VAR=value assignments,
+	// `make`, optional flags, the target, optional trailing VAR=value arguments. No shell
+	// metacharacters, no control flow, no redirection.
+	canonicalGateLine = regexp.MustCompile(`^[ \t]*(?:[A-Za-z_][A-Za-z0-9_]*=[^ \t]*[ \t]+)*make[ \t]+(?:-[A-Za-z-]+[ \t]+)*[A-Za-z0-9][A-Za-z0-9_.-]*(?:[ \t]+[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^ \t]*))*[ \t]*$`)
+	// errexitDisabled covers `set +e`, `set +eu`, `set +o errexit` and `trap ... EXIT`.
+	errexitDisabled = regexp.MustCompile(`(?m)^[ \t]*(?:set[ \t]+[+](?:[a-zA-Z]*e[a-zA-Z]*\b|o[ \t]+errexit\b)|trap[ \t])`)
 )
 
-// shellSuppression names every way the surrounding script stops this invocation's
-// failure from failing the job. Empty means the gate can refuse.
+// targetToken matches a make target as a whole token. A plain \b boundary is wrong here:
+// `-` is a non-word character, so `\bverify-examples\b` matches INSIDE
+// `verify-examples-trace`.
+func targetToken(target string) *regexp.Regexp {
+	return regexp.MustCompile(`(^|[^A-Za-z0-9_.-])` + regexp.QuoteMeta(target) + `($|[^A-Za-z0-9_.-])`)
+}
+
+// gateTargetsTouched returns every gate- or verify-shaped target NAMED on a `make` line of
+// this script, mapped to the lines that name it.
 //
-// The first draft of this check was a same-line substring match for `|| true` /
-// `|| :` / `|| echo`. The iteration-275 evaluator landed three silent bypasses
-// through it -- `|| exit 0`, a `set +e` on an earlier line, and backgrounding with
-// `&` -- each of which leaves the step green in production regardless of the gate's
-// exit code. Substring matching on one line was the wrong model; the unit is the
-// whole step script.
-//
-// Deliberately NOT flagged: a plain pipe under the default shell (pipefail is on),
-// and `make X; other` (errexit fires on the failing command). Those are safe, and
-// flagging them would produce false reds on two existing, correct steps.
-func shellSuppression(script, line string, start, end int) []string {
-	var reasons []string
-	if disablesErrexit.MatchString(script) {
-		reasons = append(reasons, "`set +e` disables errexit for the step")
+// Detection is by NAME, not by the invocation regex, and that is the whole point. Rounds 1
+// and 2 of iteration 275 were a sequence of shell shapes the regex did not anticipate --
+// `|| true`, `|| exit 0`, `|| { echo fail; }`, `|| (exit 0)`, `set +e`, `set +o errexit`,
+// a background `&`, an `if !` condition, a `trap` -- and each fix was another pattern. An
+// enumeration of FORBIDDEN shapes is never complete. An enumeration of ALLOWED shapes is
+// complete by construction: anything that is not canonical becomes a loud red demanding a
+// stated reason, which is the same discipline the exemption maps already impose. A target
+// name on a `make` line cannot be hidden by syntax.
+func gateTargetsTouched(script string, known map[string]bool) map[string][]string {
+	touched := make(map[string][]string)
+	for _, line := range strings.Split(script, "\n") {
+		if !strings.Contains(line, "make") {
+			continue
+		}
+		for target := range known {
+			if !gateTarget(target) && !verifyTarget(target) {
+				continue
+			}
+			if targetToken(target).MatchString(line) {
+				touched[target] = append(touched[target], line)
+			}
+		}
 	}
-	if orFallback.MatchString(line[end:]) {
-		reasons = append(reasons, "`||` fallback swallows the non-zero exit")
-	}
-	if backgrounded.MatchString(strings.TrimRight(line, " \t")) && !waitsForJobs.MatchString(script) {
-		reasons = append(reasons, "backgrounded with `&` and never waited on")
-	}
-	// `start`..`end` spans the whole invocation INCLUDING its prefix, because the regex
-	// now matches `if`/`while`/`until`/`!` itself. Read the text before `make` within
-	// that span: line[:start] is EMPTY for exactly the shapes this exists to catch.
-	if span := line[start:end]; conditional.MatchString(span[:strings.Index(span, "make")]) {
-		reasons = append(reasons, "exit code consumed by an if/while/until condition or `!`")
-	}
-	return reasons
+	return touched
 }
 
 func TestExemptionMapsAreLive(t *testing.T) {
@@ -361,20 +360,20 @@ func TestExemptionMapsAreLive(t *testing.T) {
 		}
 	}
 
-	// suppressionAllowed's precondition is that the target is actually invoked.
-	for target, reason := range suppressionAllowed {
+	// nonCanonicalAllowed's precondition is that the target is actually invoked.
+	for target, reason := range nonCanonicalAllowed {
 		checked++
 		if !targets[target] {
-			t.Errorf("suppressionAllowed permits %q, which is not a make target -- stale exemption", target)
+			t.Errorf("nonCanonicalAllowed permits %q, which is not a make target -- stale exemption", target)
 		}
 		if !gateTarget(target) && !verifyTarget(target) {
-			t.Errorf("suppressionAllowed permits %q, which neither predicate selects -- the entry is dead", target)
+			t.Errorf("nonCanonicalAllowed permits %q, which neither predicate selects -- the entry is dead", target)
 		}
 		if len(invoked[target]) == 0 {
-			t.Errorf("suppressionAllowed permits %q, but no workflow invokes it -- remove the entry", target)
+			t.Errorf("nonCanonicalAllowed permits %q, but no workflow invokes it -- remove the entry", target)
 		}
 		if strings.TrimSpace(reason) == "" {
-			t.Errorf("suppressionAllowed permits %q with an empty reason", target)
+			t.Errorf("nonCanonicalAllowed permits %q with an empty reason", target)
 		}
 	}
 
