@@ -138,6 +138,12 @@ jobs:
     - name: Protocol build closure gate self-test
       run: make test-check-protocol-closure
 
+    - name: Check make recipe tmpfile hygiene
+      run: make check-tmpfile-hygiene
+
+    - name: Make recipe tmpfile hygiene gate self-test
+      run: make test-check-tmpfile-hygiene
+
     - name: Check changelog index hygiene
       run: make check-changelog
 
