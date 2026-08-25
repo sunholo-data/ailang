@@ -18591,6 +18591,114 @@ was a real open question.
 
 ---
 
+## 277 — 2026-08-25 — A gate that scanned a directory which never existed, and a scan that stopped at its first error so nobody saw the other 339
+
+**Picked**: `m-fmt-check-ail-broken-and-red` — iteration 276's stated Next, a well-specified
+three-defect row.
+
+**Reality check**: all three claims CONFIRMED first-party, and then the measurement changed the
+question.
+
+1. **Enumerator scope.** `fmt-check-ail` ran `find examples stdlib -name '*.ail' 2>/dev/null`.
+   `test -d stdlib` → NO, `test -d std` → YES. As-written **404** files, corrected **450**, so **46**
+   stdlib `.ail` files were invisible to the gate, and `2>/dev/null` swallowed `find`'s own complaint
+   (`bfs: error: stdlib: No such file or directory`). Iteration 187 measured this exact defect
+   (400 vs 446 then) and filed it; it survived **90 iterations**.
+2. **A second enumerator hole the row did not name.** The recipe's empty-set branch printed a GREEN
+   checkmark and `exit 0` — a gate that could see nothing reported everything canonical.
+3. **rc=2 at HEAD**, drift in the two named examples. Confirmed.
+4. **`ailang fmt` refuses `examples/snippets/v3_3/math/gcd.ail`** at byte 353. Confirmed.
+
+**My own first measurement was the artifact, and that is recorded rather than smoothed over.** I ran
+`ailang fmt --check $files` in the tool shell — **zsh does not word-split an unquoted variable**, so
+all 404 paths went as ONE argument and the tool answered `file name too long`. This skill's own
+documented trap, met on its own gate. Caught by a two-arm control requiring the arms to DIFFER
+(`rc_unsplit=2` vs `rc_split=1`) and re-taken through `make`, whose `/bin/sh` does split. The lesson
+that generalises: *the reader is part of the instrument, and a plausible error message is not evidence
+that the error is about the thing under test.*
+
+**THE FINDING: the row's ordering is refuted at step 1.** It said *"fix the formatter bug, widen the
+enumerator, re-measure the drift set, then wire."* There is no *a* formatter bug. `ailang fmt --check`
+**aborts the entire scan at its first error**, so the gate's own output ("2 drifted files") is a claim
+about *where the scanner stopped*, not about the corpus. A per-file scan over the corrected scope
+measured, of 450 files:
+
+| outcome | count | share |
+|---|---|---|
+| canonical | **63** | 14% |
+| drift | **341** | 76% |
+| error | **46** | 10% |
+
+The 46 errors decompose into three genuinely different problems:
+
+- **38** comment-attachment refusals — *not one bug*: 9 subtrees, both `--` and `//` forms, several
+  positions. The one diagnosed here is a comment between a `func` signature and its `tests [` block;
+  the same file's first function has no such comment and passes, which localises it to a missing
+  boundary rather than to the comment.
+- **7** parse failures in **deliberately-invalid** corpora (`examples/archive/broken`,
+  `examples/experimental`, `examples/bugs`) — files whose purpose is to be unparseable. A formatter
+  gate that scans them can never be green, so "widen the enumerator" and "which subtrees are
+  gate-eligible" are different questions the row conflated.
+- **1 SOUNDNESS DEFECT**: `std/cognition.ail` is valid input (`ailang check` rc=0) whose formatted
+  output **fails to re-parse**. Severity qualified by measurement rather than asserted: it **fails
+  closed** — `--write` on a copy exits 2 and leaves the file **sha256 byte-identical**, real file
+  untouched — so it is a correctness bug, not a corruption risk.
+
+**Landed (partial, scoped honestly)**: PR [#883](https://github.com/sunholo-data/ailang/pull/883).
+Roots are now `FMT_AIL_ROOTS := examples std`; a non-existent root and an empty enumeration each fail
+loudly; the count is printed so the scope is visible rather than implied. Per iteration 274's rule
+(read from the skill delta at Gate 1 and applied all iteration), every mutant was asserted by its
+**intended effect** against the system's own view, never by file bytes: enumerated **404 → 450**;
+missing root → rc=2 *"enumerator is broken, not clean"*; empty → rc=2 *"instrument failure, not a
+pass"*. Two-arm control on the vacuity hole: **OLD rc=0 with a green checkmark, NEW rc=2**. Note all
+three arms are rc=2 in the normal case — a false symmetry — so the discriminator asserted was the
+**message and the count**, never the exit code. The stale exemption *reason* in
+`internal/cihygiene/gate_wiring_test.go` was corrected in the same commit: its enumerator half is now
+false, and iteration 274's judge already caught one wrong exemption citation.
+
+**The gate is still RED and still UNWIRED, and the PR says so.** Wiring it at any scope would red on
+341 files.
+
+**Ruled out / refuted**
+- *"There is one formatter bug (gcd.ail)"* — **REFUTED**: 38 files, same error class, diverse shapes.
+- *"The drift set is 2 files and will grow by up to 46"* — **REFUTED**: it is 341, and the 2 was a
+  scan-abort artifact, not a scope artifact.
+- *"The `m-ailang-fmt-inline-interior` worktree is mid-flight work on this"* — **REFUTED**: that
+  sprint landed at PR #434 (iteration 70); the worktree is a stale leftover and this is a different
+  attachment class.
+- *"`//` comments are invalid and that is why those files error"* — **REFUTED**: the lexer test
+  `{"slash_slash", "x // comment", true}` accepts them and `ailang check` returns rc=0 on such a file.
+- *My own zsh-unsplit reading* — refuted by a two-arm control, above.
+
+**Decomposed** into `m-fmt-cognition-roundtrip-soundness`, `m-fmt-attach-boundary-class`,
+`m-fmt-gate-corpus-eligibility`, plus **`D-38`**: whether to reformat 341 files or treat them as
+evidence the emitter is wrong is a ruling about what canonical AILANG *is* (standing rule 2), asked
+while the formatter has a live soundness defect.
+
+**Bookkeeping-pointer defect, first-party and new**: the driver exported `MISSION_GH_ISSUE=745` —
+V1's `-prev`, and **CLOSED**. The namespaced `mission-v1-gh-issue` correctly reads **852**; the bare
+fleet-shared `mission-gh-issue` also reads `745`, i.e. the driver reads the path the Repo Profile
+forbids. My first directive query ran against the wrong closed thread and was re-run against `#852`.
+
+**Routing evidence**: controller `opus` (session). Designer / planner / executor / evaluator **not
+spawned** — the deliverable is a 3-file, 50-line mechanical gate fix plus an adjudication, so no doc,
+no plan, no Fable spend; the designer rotation pointer was left untouched. metered=**$0.00** of $5.
+
+**Gates**: darwin/arm64, other matrix legs unrun locally — `check-changelog`, `check-file-sizes`,
+`check-boundaries`, `check-skills`, `fmt-check`, `check-tmpfile-hygiene`, `go vet`,
+`go build ./cmd/ailang`, `go test ./internal/cihygiene` all rc=0 under a freshly built binary stamped
+`v0.33.2-17-g1d7040de4` (ldflags carried — a linked worktree cannot VCS-stamp).
+
+**Retro — no skill edit.** Candidate gap, pre-registered at one instance so a second is recognisable:
+*a gate whose tool aborts its own scan reports a TRUNCATED finding set, so "N files drift" is a claim
+about where the scanner stopped, not about the corpus.* Rule 3b(v)(a) covers `head -N` truncation and
+rule 3j's enumerator rules cover what a gate cannot **see**; neither covers a scan that stops early on
+the files it **can** see. The tell would be: a gate reports a small finding set and its last line is
+an error.
+
+**Next**: `m-fmt-cognition-roundtrip-soundness` — a shipped soundness defect outranks the rest — then
+`m-ai-modes-regression-window`.
+
 ## 276 — 2026-08-25 — The red was real, it was not what anyone blamed, and it had been parked for Mark four weeks ago in prose that nothing reads
 
 **Picked**: `m-make-ci-red-ai-modes` — **not** the queue head, and the reason is recorded. The head
