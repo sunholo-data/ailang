@@ -500,6 +500,24 @@ currently rc=1 on 2/217 examples &mdash; an orthogonal pre-existing failure wort
 Each needs a per-target verdict: wire it, exempt it with a stated reason, or delete it. Widening W2
 to `verify-*` without that adjudication would turn the exemption map into a rubber stamp.
 
+**[NEXT] [iter-275] m-launchd-driver-process-tree-flake** &mdash; `launchd drivers (bash 3.2)`
+failed once on a **docs-only** PR head (`45832c642`, PR #879) with two lines:
+`not ok - bounded termination deadline refuses lacked expected message: bounded termination
+deadline`, and `INSTRUMENT FAILURE: process-tree discovery failed` &mdash; the second being the
+test's OWN anti-vacuity floor, so the suite correctly reported "I could not measure" rather than
+banking a pass. **Established as a flake by outcome divergence, not by assumption** (rule 3d's
+strongest control): the same check is `success` on all four preceding dev commits
+(`fde5ea067`, `065a4f16c`, `92376bad3`, `9944e264e`) AND `success` on the merge commit
+`c448d1bf0`, whose tree differs from `fde5ea067` only by four `design_docs/` files &mdash; zero
+Go, zero shell. So the variable was the runner, not the diff. The job's log tail also shows
+`Terminate orphan process: pid (sleep)` twice, which is consistent with the process-tree probe
+racing the runner's own cleanup. This is **rule 3m's shape** &mdash; a bound that holds on one
+machine's load profile and not another's &mdash; and it is the second member of that class in this
+queue, beside `m-codex-streaming-test-flake`. Fix by deriving the bound from a stimulus measured
+in-test rather than raising a constant, and keep the instrument floor loud. Non-required, so it
+never blocked a merge; filed because a red nobody records is how a required one eventually gets
+missed.
+
 **[NEXT] [iter-275] m-make-ci-red-ai-modes** &mdash; `make ci` &mdash; which
 `.claude/rules/dev-workflow.md:22` tells every agent to run as *"full CI verification
 locally"* &mdash; is **RED at HEAD**, on exactly one of its 25 prerequisites.
