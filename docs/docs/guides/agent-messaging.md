@@ -111,10 +111,39 @@ Measured 2026-08-25 against prod:
    silently drains the unread queue, so the next session sees an empty inbox and concludes
    nothing arrived. To inspect without acking, read the body out of `--json` instead.
 
-> Historical note: cross-inbox `--unread` used to fail against prod with `FailedPrecondition`
-> because the `inbox_messages` (`status`, `created_at`) composite index did not exist. Sessions
-> fell back to per-inbox listing and so never saw inboxes they had not thought to name. The index
-> is now declared in `terraform/firestore.tf`.
+4. **A binary that predates the store selector ignores it SILENTLY.** `AILANG_MESSAGES_STORE`
+   landed in `6759ea4fa`; an older `ailang` on `PATH` does not merely fail to reach the cloud, it
+   accepts the variable, reads local SQLite, and exits 0 — so every trap above is unreachable and
+   the session believes it read the canonical store. The control is one command: a **deliberately
+   invalid** value must be REFUSED.
+
+   ```bash
+   ailang messages list --unread     # a store this does not name in its header is LOCAL
+   AILANG_MESSAGES_STORE=not-a-real-store ailang messages list --unread
+   # current binary: Error: openStore: unknown message store mode "not-a-real-store"
+   # stale binary:   prints a normal listing, rc=0  <-- you are reading local, silently
+   ```
+
+   A non-local listing names its store in the header (`store: gcp (Firestore, project ...)`).
+   No header, no cloud.
+
+> Note on the cross-inbox index, because "declared" is not "live". Cross-inbox `--unread` needs an
+> `inbox_messages` (`status` ASC, `created_at` DESC) composite index; both older indexes lead with
+> `to_inbox` and so serve only the per-inbox fallback. Without it the CLI fails
+> `FailedPrecondition` — meaning the one query trap 1 tells you to prefer is the one that cannot
+> run, and sessions fall back to naming inboxes they already thought of.
+>
+> The index is declared in `terraform/firestore.tf` **in the `ailang-multivac` deploy repo** (not
+> this one — this repo tracks zero `.tf` files). A declaration only takes effect when an apply
+> runs: on 2026-08-25 the declaration landed at 19:15 and prod still had no index at 20:33, where
+> the query failed `rc=1`, deterministic 2/2. Verify against prod rather than against the
+> Terraform, with the query itself:
+>
+> ```bash
+> AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT=ailang-multivac ailang messages list --unread
+> ```
+>
+> rc=0 means the index is live; `FailedPrecondition` means it is declared and unapplied.
 
 For real-time notification (Discord/macOS) of prod feedback, the notify daemon
 must **dual-subscribe** dev + prod — see

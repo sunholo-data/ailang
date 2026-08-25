@@ -62,6 +62,15 @@ AILANG_MESSAGES_STORE=local ailang messages list --unread
    unread queue — the next session then sees an empty inbox and concludes nothing arrived. Read bodies
    out of `--json` when you want to inspect without acking.
 
+6. **A binary predating `6759ea4fa` IGNORES `AILANG_MESSAGES_STORE` silently** — it reads local
+   SQLite and exits 0, so the whole protocol above is vacuous and the session concludes the inbox
+   is quiet. `~/go/bin/ailang` drifts by design (installing mid-run would disturb concurrent
+   agents), so assume it is stale. One-command control — an INVALID value must be refused:
+   `AILANG_MESSAGES_STORE=not-a-real-store ailang messages list --unread` must error
+   `unknown message store mode`; a normal listing means you are on local. A non-local listing also
+   names its store in the header — no `store: gcp (...)` header, no cloud. Build a fresh binary to
+   a scratch dir and prepend it to PATH rather than `make quick-install`.
+
 **Do not export `AILANG_STORAGE`** to reach the cloud inbox. It is a process-wide switch over *all
 three* backends — coordinator, messaging, and observatory
 ([backend.go:83](internal/storage/backend.go#L83)) — so exporting it also moves eval banking and
