@@ -7,7 +7,7 @@ GATE="$REPO_ROOT/scripts/check_tmpfile_hygiene.sh"
 TMP_DIR=$(mktemp -d)
 FAILED=0
 ARMS_RUN=0
-ARMS_EXPECTED=9
+ARMS_EXPECTED=11
 OUT=""; RC=0
 
 pass() { echo "  ok   — $1"; ARMS_RUN=$((ARMS_RUN + 1)); }
@@ -106,7 +106,11 @@ fi
 # from the iteration-273 controller drill (D5), where it escaped with rc=0.
 VARFIX="$TMP_DIR/varfix"
 mkdir -p "$VARFIX"
-printf 'ITER_TMP := /tmp/via_variable.txt\nfixture:\n\t@echo hi > $(ITER_TMP)\n' >"$VARFIX/Makefile"
+# The decoy recipe line carries an ACCEPTED (`$`-bearing) /tmp path purely so R3's
+# known-positive is satisfied by the recipe scan alone. Without it, reverting the
+# variable-line widening trips R3 instead of this arm's own escape branch, and the
+# arm would pass for a reason unrelated to what it claims to test.
+printf 'ITER_TMP := /tmp/via_variable.txt\nfixture:\n\t@touch /tmp/decoy.$$\n\t@echo hi > $(ITER_TMP)\n' >"$VARFIX/Makefile"
 run_gate "$VARFIX" 1
 if [ "$RC" -eq 0 ]; then
 	fail "a fixed path defined in a make variable escaped the enumerator (rc=0)"
@@ -116,9 +120,33 @@ else
 	fail "refused but never named the variable-defined path: $OUT"
 fi
 
-# (9) Explicitly pin the self-test's own arm enumeration.
-if [ "$ARMS_RUN" -ne 8 ]; then
-	fail "arm-count precondition saw $ARMS_RUN of 8 substantive arms"
+# (9) R4a: a non-integer MK_FILES_EXPECTED is an instrument failure, not a count.
+run_gate "$REPO_ROOT" "not-a-number"
+if [ "$RC" -eq 0 ]; then
+	fail "R4a accepted a non-integer MK_FILES_EXPECTED"
+elif printf '%s' "$OUT" | grep -q 'R4'; then
+	pass "R4a refuses a non-integer MK_FILES_EXPECTED"
+else
+	fail "refused a non-integer MK_FILES_EXPECTED without naming R4: $OUT"
+fi
+
+# (10) R2a: an enumerated member that is not a readable regular file. A DIRECTORY named
+# `*.mk` passes the enumerator's -e test and must then be refused, not silently skipped.
+DIRFIX="$TMP_DIR/dirfix"
+mkdir -p "$DIRFIX/make/notafile.mk"
+printf 'fixture:\n\t@touch /tmp/ok.$$\n' >"$DIRFIX/Makefile"
+run_gate "$DIRFIX" 1
+if [ "$RC" -eq 0 ]; then
+	fail "R2a admitted a non-regular enumerated member (rc=0)"
+elif printf '%s' "$OUT" | grep -q 'R2'; then
+	pass "R2a refuses an enumerated member that is not a readable file"
+else
+	fail "refused a non-regular member without naming R2: $OUT"
+fi
+
+# (11) Explicitly pin the self-test's own arm enumeration.
+if [ "$ARMS_RUN" -ne 10 ]; then
+	fail "arm-count precondition saw $ARMS_RUN of 10 substantive arms"
 else
 	pass "arm-count floor reached all substantive arms"
 fi

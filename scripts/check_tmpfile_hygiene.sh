@@ -4,8 +4,11 @@
 # SCOPE, stated rather than implied: this scans tab-led recipe lines and
 # column-0 variable assignments in `Makefile` + `make/*.mk`. It does NOT see a
 # fixed path reached via an `export FOO := ...` line, an included file outside
-# `make/`, or a path built at runtime from string concatenation. Those are
-# declared limitations, not oversights.
+# `make/`, a path built at runtime from string concatenation, a `.mk` file whose
+# name differs in case (the glob is case-sensitive), a `.mk` file nested in a
+# subdirectory of `make/` (the glob is not recursive), or an alternate root
+# makefile name such as `GNUmakefile` (which trips R1 rather than being scanned).
+# Those are declared limitations, not oversights; each was measured, iteration 273.
 set -u
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -18,7 +21,7 @@ instrument_failure() {
 	printf "%b✗ tmpfile hygiene instrument failure (%s): %s%b\n" "$RED" "$1" "$2" "$RESET"
 }
 
-TMP_DIR=$(mktemp -d)
+TMP_DIR=$(mktemp -d) || { echo "tmpfile hygiene instrument failure: mktemp -d failed" >&2; exit 2; }
 trap 'rm -rf "$TMP_DIR"' EXIT
 FILES="$TMP_DIR/files"
 VIOLATIONS="$TMP_DIR/violations"
