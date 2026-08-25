@@ -2306,3 +2306,71 @@ system to a good state is not the same as a fix that keeps it there, and this lo
 template asks for the outcome at the moment of writing** — so a one-shot remediation reports
 identically to a durable one. The tell: you are about to write "DECISIONS: none" for an iteration
 whose deliverable restored a state nothing maintains.
+
+## 22 — 2026-08-25 — row 6e: a self-test that can hang is an outage with a green history
+
+**Pick**: queue head, row **6e**. No competing signal: 0 human directives on `#850` (and `#743` re-read for
+the rotation-week catch, also 0), inbox 1 unread and informational, dev not red, Phase-0 `G1 #154` still OPEN
+(control `#175` MERGED) so rows 10/11/12 stay parked.
+
+**Outcome**: **LANDED**. PR [#871](https://github.com/sunholo-data/ailang/pull/871) → `086b72184`.
+Evaluator round 1 **FAIL 54/100** (3 blocking) → round 2 **PASS 91/100, zero blocking**.
+Gate 3b GREEN on `ddd8f3f09`: 21 checks, 0 pending, 0 not-green, 4/4 required (build/docs-gate/lint/test),
+`mergeStateStatus=CLEAN`; `mergeable` read first and `MERGEABLE` throughout, so no dropped-event lever was reached for.
+
+**What was measured, and what deliberately was not concluded.** The row named two CI cancellations; the last
+100 CI runs carry **three** (`32655443831`, `32665128080`, `32673098414` — the third a push to `dev` itself),
+all at ~918s, which is `timeout-minutes: 15` firing rather than a flake. Arm-33 attribution was verified from
+the three job logs (identical last line, `ok 33` absent) against a green control that emits the same line and
+then `ok 33` 1.06s later. **The mechanism inside arm 33 is NOT isolated and nothing here claims it is**: it has
+not recurred in ~44 runs on an unchanged file. A synthetic near-copy of the walk aborts bash 3.2 with SIGABRT
+5/5 while the shipped arm passes in 1.06s — the divergence is why that repro is recorded as an observation and
+not promoted to the mechanism. What shipped is the structural fact: the suite had no bound of its own.
+
+**Deliverable**: every arm carries a hard, validated wall-clock cap that TERMs then KILLs and prints a named
+`not ok` plus both captured output tails; `descendant_pids` is additionally bounded by node count with a
+message distinct from the clock's. Suite 34 → 39 arms, drift gate 23 → 24.
+
+**Routing evidence**: controller `claude:claude-opus-5` (session). Executor `codex:gpt-5.6-sol` — probe rc=0,
+replied `ok` — **CAPPED at the 30-minute wall, FLAGGED**, with `.snap/M1`–`M3` complete; work VERIFIED, not
+adopted, and the entire mutation drill is therefore first-party. Evaluator **sonnet**, two rounds, in its own
+worktree; distinct provider from the executor so generator≠judge holds there, **FLAGGED** that the drill and
+every round-1 fix are Anthropic-authored and Anthropic-judged — the judge was pointed at them by name for that
+reason, and it re-derived the round-1 table itself, reproducing two rows at byte-identical sha256. No planner,
+no designer, no quorum: the row specifies its own scope and the parent doc's quorum is spent. Rotation pointer
+untouched at `claude:claude-fable-5`; Fable unspent. Metered **$0.00** of $5 (codex and sonnet are quota
+buckets). No GPU, no `rig.lock`.
+
+**Ruled out / corrected**
+- *"Two cancellations"* — three, one of them on `dev`. The row's count was a transcription of what iteration 20
+  saw, not a measurement of the window.
+- *The hang is in the live synthetic socket block between `ok 32` and arm 33* — refuted by the logs: the
+  block's own closing message is the last line printed in all three, so it completed.
+- *A synthetic reproduction is the mechanism* — refuted by its own divergence from the shipped arm. Recorded as
+  instance 1 of "this stimulus sits near a bash 3.2 cliff", not as a finding.
+- *M1's snapshot is not independently green* — one boundary run redded at arm 32 and the identical command was
+  rc=0 on the next; M1's boundary is green at 36 arms. Both this and the arm-30 case below are load-shaped and
+  are recorded as observations, **not** declared a flake class off single instances.
+- **A red banked for the wrong reason.** The first batch run of the M1 mutant redded at **arm 30**, not the cap
+  arm. Re-run isolated it reds at its own arm 2/2 with the unmutated suite green 3/3. Reading the exit code
+  alone banks a pin that does not exist — rule 3j's corollary, paid for in this iteration rather than read.
+- **My own PR body was wrong.** It claimed *"fast arms are unaffected"*; the judge measured 30s → 66-93s. The
+  poll now backs off 0.05 → 0.2 → 1s (judge's re-measure: 29.89s pre-PR / 66.61s flat / 44.98-45.07s shipped),
+  and the claim was corrected in the PR body rather than left standing.
+- **Two of my own guards were decoration until mutated.** `report_arm_cap` had zero coverage; the cap arm was
+  satisfiable by a fixture exiting 199 with no TERM and no KILL. And the *first* fix for the former passed for
+  the wrong reason — with `exit 1` removed, `expect_failure` falls through to its own refusal and still exits 1
+  with every marker present, so the arm now requires that fall-through message to be ABSENT.
+- **An unscoped `sed` mutation killed the wrong arm** — `s/^  exit 1$/…/` hit the `ARM_CAP_SECS` validation too.
+  Second instance in one iteration of "read WHICH test failed, never the exit code alone". Fixed by scoping the
+  mutation to `report_arm_cap`'s line range.
+
+**Filed, not fixed**: row **6g** — `run_bounded` *and* the production `run_lane` kill the wrapper PID rather
+than the process group, so a hung grandchild reparents to `PPID 1` and survives while the suite's own
+"process survived" check passes. Pre-existing since M1 and present in production, so it is a queue row on its
+own evidence rather than a revision that grows this PR.
+
+**Gate 5**: **no skill edit.** Both frictions are instances of rules the skill already carries (3j's corollary;
+3i's "what else writes this value"), so they belong in Ruled-out, not the rulebook.
+
+**Next**: row **6f** (triage-lite the 8 orphan issues), then 6g, then 7.
