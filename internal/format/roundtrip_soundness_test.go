@@ -118,6 +118,11 @@ func TestBareArrowSoundnessByConstruct(t *testing.T) {
 		{"tuple_param", "module t\nexport func f(cb: ((int, string)) -> bool) -> bool { g(cb) }\n"},
 		{"simple_param", "module t\nexport func f(cb: (string) -> ()) -> () { g(cb) }\n"},
 		{"list_param", "module t\nexport func f(cb: ([int]) -> ()) -> () { g(cb) }\n"},
+		// LabelledType delegates to its base. A record-based label
+		// (`{a: string}<secret>`) is unreachable — the parser rejects it in type
+		// position — so the recursion is exercised here through simple bases.
+		{"labelled_param", "module t\nexport func f(cb: (string<secret>) -> ()) -> () { g(cb) }\n"},
+		{"refined_param", "module t\nexport func f(cb: (string{not secret}) -> ()) -> () { g(cb) }\n"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
