@@ -2374,3 +2374,105 @@ own evidence rather than a revision that grows this PR.
 3i's "what else writes this value"), so they belong in Ruled-out, not the rulebook.
 
 **Next**: row **6f** (triage-lite the 8 orphan issues), then 6g, then 7.
+
+## 23 — 2026-08-25 — two issues filed in the same session by the same reporter, and only one of them was ever a bug
+
+**Pick**: queue head, row **6f** — triage-lite the two motoko-owned issues from iteration 21's weekly sweep
+(`#842`, `#839`); the other six were handed to V1 then and are deliberately not re-triaged here. No competing
+signal: **0** human directives on `#850` since the watermark (of 6 comments), `#743` re-read for the
+rotation-week catch also **0**, ledger valid at 5 rows with **1 OPEN** (`D-MOTOKO-WORKDIR-2`, still
+unanswered), Phase-0 `G1 #154` still **OPEN** with control `#175` **MERGED** so rows 10/11/12 stay parked.
+Weekly sweep and rotation both not due (`#850` created `2026-08-24T07:39:32Z` = 09:39 local, after the
+Monday-07:00 local boundary; 6 comments < 80).
+
+**Outcome**: **LANDED** (bookkeeping pick). `#839` **CLOSED** with its measurement; `#842` **CONFIRMED REAL at
+HEAD** and filed as row **6h** with a pre-measured fix scope. Both verdict comments asserted landed by
+comment-count growth against a pre-count control (`#839` 1 → 2, `#842` 0 → 1), and posted as their own
+`gh issue comment --body-file` **before** any close, per the Gate-0 mechanism-B rule.
+
+**The two issues arrived together, from the same account, in the same debugging session, and the reporter
+explicitly said they were independent. They were more independent than that: one of them was never live.**
+
+`#839` (`std/net` ignores `HTTP_PROXY`/`HTTPS_PROXY`/`NO_PROXY`) is a **version skew**, not a defect. The
+report's binary is `v0.33.0` / `ae36986`, dated **2026-08-04**. The request-aware proxy transport landed
+**2026-08-20** in `e5ee6c5e5` (PR `#613`), sixteen days later. Measured with a firing control rather than
+inferred from a changelog: `git ls-tree ae36986 internal/effects/net_proxy.go` is **empty** while the control
+`internal/effects/context.go` returns a blob in the same call, and `git merge-base --is-ancestor e5ee6c5e5
+ae36986` is **false**. What makes this a *durable* close rather than bookkeeping is that the behaviour the
+reporter's decisive third repro isolates — a proxy pointed at a closed loopback port must produce
+connection-refused, not a DNS error, because the target name is never resolved locally — is covered by
+committed tests that CI runs (`go test -timeout 300s ./...`, `ci.yml:101`):
+`TestNetProxyBoundary/proxy_selected_from_environment` and
+`TestNetProxyTargetValidation/proxy_hostname_remains_unresolved`, plus `TestNetProxyNoProxy`,
+`TestNetProxyDirectPin` and `TestNetProxyRedirectControls`. `go test ./internal/effects/ -run TestNetProxy`
+→ **rc=0** (captured without a pipe), negative control `-run TestNetProxyZZZNoSuchThing` → `[no tests to run]`.
+**One of the five reports `SKIP`, and that was checked rather than counted as coverage** (rule 2 — a parked
+test is a claim): `TestNetProxyEnvProxyHelper` skips unless `AILANG_M1_PROXY_HELPER=1`, and
+`TestNetProxyBoundary` re-execs it as a subprocess with that variable set and asserts
+`--- PASS: TestNetProxyEnvProxyHelper` appears in its output. That subprocess arm is the only place production
+`http.ProxyFromEnvironment` runs instead of the injected `proxySelector` hook — i.e. the skip is the mechanism,
+not a hole. Ran that arm alone: rc=0.
+
+**`#842` is real, and the measurement says something the issue does not.** Fed the reporter's verbatim failing
+body to `openai.ParseChatStepResponse` (`internal/ai/openai/step.go:560`) with three controls in one run:
+the failing shape (`finish_reason:"stop"`, `content:null`, **no `usage` key**) returns **OK** — no error,
+`text=""`, `toolcalls=0`, `in=0 out=0 total=0`; the healthy control returns `"pong"` with real usage, so the
+instrument sees a positive; the legitimate-tool-call control (`content:null`, usage present) returns 1 tool
+call, which is exactly what a *"null content is suspicious"* heuristic would false-positive on and is why the
+reporter's choice of `usage` as the key is the right one; and the fourth control — **usage present but
+all-zero** — produces output **byte-identical to the failing arm**.
+
+**The load-bearing find is that the suggested guard is not currently expressible.**
+`ChatStepResponse.Usage` is a **value type** (`step.go:300`), so an absent `usage` key unmarshals to the zero
+struct. Asserted directly rather than argued: `absent.Usage == zeroed.Usage` → **true**. So "treat a missing
+`usage` block as a provider error" cannot be written behind the present type at all; the precondition is a
+representation change (`*ChatStepUsage`, or a raw-key presence check), which is behaviour-free and separable
+from the genuinely open policy question the reporter himself flagged.
+
+**And the blast radius is wider than filed, in the direction this mission cares about.**
+`ParseChatStepResponse` has exactly **two** production callers — `openrouter/step.go:162` and
+`openai/step.go:170` (controls: 77 hits for a common symbol in the same tree, 0 for an invented one) — and
+`internal/ai/ollama/step.go:345` builds `openai.NewClient(…)` against `<endpoint>/v1`. So **every ollama
+tool-calling turn parses through the same helper**, which puts this on our own Mac Studio eval rig, where a
+masked provider failure is indistinguishable from a local model declining to act. That is the charter
+guardrail *"never conclude model wall"* arriving from outside the mission, reported by someone who had no way
+to know it was our guardrail.
+
+**Routing evidence**: controller `claude:claude-opus-5` (session). **No designer, planner, executor or
+evaluator spawned** — the row is triage-lite and names its own procedure (ghost-discipline the repro →
+verdict comment → queue-or-close) with machine-checkable postconditions, so there is no plan to plan and no
+generated artifact for a judge to judge; same disposition and same reasoning as iteration 21's ops pick. No
+quorum (bookkeeping pick — the Gate-2 carve-out). Rotation pointer untouched at `claude:claude-fable-5`;
+Fable **unspent**. Metered **$0.00** of $5. No GPU, no `rig.lock`. Gates run on darwin/arm64 only.
+
+**dev CI was RED at pick time and this mission does not own it.** `CI` `failure` on `02bf43668`
+(run `32860399250`), 1 not-green of 15 exact-SHA checks, job `test`. Diagnosed rather than inherited: the
+failing step is *Download all Go modules* — `proxy.golang.org … stream error: stream ID 1187; INTERNAL_ERROR;
+received from peer` — and `02bf43668` is V1's **docs-only** iteration-276 record (4 markdown files, 0 code),
+which cannot affect a module download. Parent `f4828cc89` green ~2h46m earlier is the before-arm. Fired
+`gh run rerun --failed` as rule 3d's strongest control (outcome divergence on a byte-identical tree) and
+handed it to V1 on the cross-mission channel per the charter guardrail; **it did not displace this
+iteration's pick and no fix was attempted here.**
+
+**Ruled out / corrected**
+- *`#839` is a live `std/net` defect* — refuted. Fixed at HEAD sixteen days before it was filed; the reporter's
+  binary predates the fix. The three byte-identical repro outputs were correct observations of a build with no
+  proxy path.
+- *The `SKIP` in the proxy suite is a coverage gap* — refuted. It is a subprocess helper the parent test
+  re-execs and asserts on; it is the only arm exercising the production selector.
+- *`#842` is OpenRouter-specific* — refuted. The shared parser also serves the ollama `/v1` lane, so it reaches
+  the local-model rig.
+- *`#842` is a one-line guard* — refuted, twice over: the signal is not representable against the current
+  type, and the reporter's own caveat (Anthropic/Gemini paths do not share this parser; streaming usage
+  delivery is opt-in on some providers) is upheld. A uniform guard would convert a legitimate empty completion
+  into an error on a provider that simply omits usage — the same defect pointed the other way.
+- *dev's red is attributable to a recent merge* — refuted by the diff (docs-only) and by the failing step
+  (dependency download, before any repo command touched the tree).
+
+**Gate 5**: **no skill edit.** This iteration's one friction — a triage row whose two issues needed opposite
+dispositions, where the cheaper one to check was the one that turned out to be a ghost — is an instance of the
+ghost-discipline rule the skill already carries, and it *worked*: the rule is what made the version check the
+first move rather than a code read. Recorded here, not in the rulebook.
+
+**Next**: row **6g** (`run_bounded`/`run_lane` kill the wrapper PID, not the process group), then row **6h**
+(the `#842` fix), then row 7.
