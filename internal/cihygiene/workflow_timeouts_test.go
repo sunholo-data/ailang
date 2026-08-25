@@ -58,12 +58,17 @@ var osPackageInstall = regexp.MustCompile(`\b(apt-get|apt|yum|dnf|apk|brew|choco
 
 type workflow struct {
 	Jobs map[string]struct {
-		Uses           string `yaml:"uses"`
-		TimeoutMinutes *int   `yaml:"timeout-minutes"`
-		Steps          []struct {
-			Name           string `yaml:"name"`
-			Run            string `yaml:"run"`
-			TimeoutMinutes *int   `yaml:"timeout-minutes"`
+		Uses            string `yaml:"uses"`
+		TimeoutMinutes  *int   `yaml:"timeout-minutes"`
+		ContinueOnError any    `yaml:"continue-on-error"`
+		If              string `yaml:"if"`
+		Steps           []struct {
+			Name            string `yaml:"name"`
+			Run             string `yaml:"run"`
+			TimeoutMinutes  *int   `yaml:"timeout-minutes"`
+			ContinueOnError any    `yaml:"continue-on-error"`
+			Shell           string `yaml:"shell"`
+			If              string `yaml:"if"`
 		} `yaml:"steps"`
 	} `yaml:"jobs"`
 }
