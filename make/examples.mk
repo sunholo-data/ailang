@@ -146,26 +146,28 @@ verify-stdlib: build ## Verify std/ library interface stability
 # a gate that goes red on a real change is.
 verify-stdlib-selftest: build ## Prove the stdlib freeze gate fails on a real interface change
 	@echo "Gate self-test: adding a temporary export to std/option..."
-	@cp std/option.ail /tmp/_selftest_option.ail; \
-	trap "cp /tmp/_selftest_option.ail std/option.ail; rm -f /tmp/_selftest_option.ail" EXIT; \
+	@SELFTEST_BK=$$(mktemp "$${TMPDIR:-/tmp}/ailang-selftest-option.XXXXXX") || exit 1; \
+	SELFTEST_OUT=$$(mktemp "$${TMPDIR:-/tmp}/ailang-selftest-out.XXXXXX") || { rm -f "$$SELFTEST_BK"; exit 1; }; \
+	cp std/option.ail "$$SELFTEST_BK"; \
+	trap 'cp "$$SELFTEST_BK" std/option.ail; rm -f "$$SELFTEST_BK" "$$SELFTEST_OUT"' EXIT; \
 	printf '\n-- temporary export injected by verify-stdlib-selftest\nexport pure func selftestCanary(x: int) -> int = x\n' >> std/option.ail; \
-	if tools/verify-stdlib.sh >/tmp/_selftest_out.txt 2>&1; then \
+	if tools/verify-stdlib.sh >"$$SELFTEST_OUT" 2>&1; then \
 		echo "❌ SELF-TEST FAIL: gate exited 0 despite a new export in std/option"; \
-		rm -f /tmp/_selftest_out.txt; exit 1; \
+		rm -f "$$SELFTEST_OUT"; exit 1; \
 	else \
 		echo "✓ gate exited non-zero on the injected export"; \
 	fi; \
-	if grep -q "option: interface changed" /tmp/_selftest_out.txt; then \
+	if grep -q "option: interface changed" "$$SELFTEST_OUT"; then \
 		echo "✓ gate named the changed module (std/option)"; \
 	else \
 		echo "❌ SELF-TEST FAIL: gate failed but never named std/option"; \
-		cat /tmp/_selftest_out.txt; rm -f /tmp/_selftest_out.txt; exit 1; \
+		cat "$$SELFTEST_OUT"; rm -f "$$SELFTEST_OUT"; exit 1; \
 	fi; \
-	if grep -q "selftestCanary" /tmp/_selftest_out.txt; then \
+	if grep -q "selftestCanary" "$$SELFTEST_OUT"; then \
 		echo "✓ gate showed the actual diff (the new symbol appears)"; \
 	else \
 		echo "❌ SELF-TEST FAIL: no diff shown — operators cannot see WHAT changed"; \
-		cat /tmp/_selftest_out.txt; rm -f /tmp/_selftest_out.txt; exit 1; \
+		cat "$$SELFTEST_OUT"; rm -f "$$SELFTEST_OUT"; exit 1; \
 	fi; \
-	rm -f /tmp/_selftest_out.txt; \
+	rm -f "$$SELFTEST_OUT"; \
 	echo "✅ stdlib gate self-test passed: interface change -> non-zero + named module + diff"

@@ -71,14 +71,18 @@ lint: prepare-embed ## Run linter (bug detectors only)
 # Each check-code grep below mirrors a disable in .golangci.yml as belt-and-braces filtering.
 # The unused linter remains enabled and deliberately unfiltered so its findings can fail this gate.
 # The ^\t and ^[[:space:]]*\^ greps remove golangci-lint source-context lines, not findings.
-	@golangci-lint run ./cmd/... ./internal/... ./serveapi/... ./testutil/... > /tmp/lint.raw 2>&1; \
+	@LINT_RAW=$$(mktemp "$${TMPDIR:-/tmp}/ailang-lint-raw.XXXXXX") || exit 1; \
+		LINT_OUT=""; \
+		trap 'rm -f "$$LINT_RAW" "$$LINT_OUT"' EXIT; \
+		LINT_OUT=$$(mktemp "$${TMPDIR:-/tmp}/ailang-lint-out.XXXXXX") || exit 1; \
+		golangci-lint run ./cmd/... ./internal/... ./serveapi/... ./testutil/... > "$$LINT_RAW" 2>&1; \
 		LINT_RC=$$?; \
-		if grep -qE "can't load config|the Go language version" /tmp/lint.raw; then \
+		if grep -qE "can't load config|the Go language version" "$$LINT_RAW"; then \
 			echo "$(RED)$(CROSS) golangci-lint config/toolchain error — run 'make install-lint':$(RESET)"; \
-			cat /tmp/lint.raw; \
+			cat "$$LINT_RAW"; \
 			exit 1; \
 		fi; \
-		grep -v "(related information)" /tmp/lint.raw | \
+		grep -v "(related information)" "$$LINT_RAW" | \
 			grep -v "QF[0-9]" | \
 			grep -v "ST[0-9]" | \
 			grep -v "SA1019:" | \
@@ -87,8 +91,8 @@ lint: prepare-embed ## Run linter (bug detectors only)
 			grep -v "SA5012:" | \
 			grep -v "^\t" | \
 			grep -v "^[[:space:]]*\^" | \
-			tee /tmp/lint.out; \
-		if grep -qE "^(internal|cmd|serveapi|testutil)" /tmp/lint.out; then \
+			tee "$$LINT_OUT"; \
+		if grep -qE "^(internal|cmd|serveapi|testutil)" "$$LINT_OUT"; then \
 			echo "$(RED)$(CROSS) Lint errors found$(RESET)"; \
 			exit 1; \
 		fi; \
@@ -143,6 +147,13 @@ check-boundaries: ## Check architecture layer boundaries (CI gate)
 
 check-protocol-closure: ## Check serveapi protocol/facade build closures (CI gate)
 	@/bin/bash scripts/check_protocol_closure.sh
+
+check-tmpfile-hygiene: ## Refuse fixed /tmp paths in make recipes (CI gate)
+	@/bin/bash scripts/check_tmpfile_hygiene.sh
+
+test-check-tmpfile-hygiene: ## Run the tmpfile-hygiene gate's own self-test (bash 3.2)
+	@/bin/bash scripts/test_check_tmpfile_hygiene.sh
+	@/bin/bash -n scripts/check_tmpfile_hygiene.sh
 
 check-changelog: ## Check root CHANGELOG.md stays an index, not a changelog (CI gate)
 	@bash scripts/check_changelog.sh
