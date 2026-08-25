@@ -82,15 +82,27 @@ type SessionSpec struct {
 	ActionTimeout   time.Duration `json:"action_timeout,omitempty"`
 	AllowedOrigins  []string      `json:"allowed_origins,omitempty"`
 	BlockedOrigins  []string      `json:"blocked_origins,omitempty"`
-	ProfileRef      string        `json:"profile_ref,omitempty"`
-	ProfileHash     string        `json:"profile_hash,omitempty"`
-	ArtifactDir     string        `json:"-"`
-	Region          string        `json:"region,omitempty"`
-	RecordTrace     bool          `json:"record_trace,omitempty"`
-	RecordVideo     bool          `json:"record_video,omitempty"`
-	AllowDownloads  bool          `json:"allow_downloads,omitempty"`
-	AllowUploads    bool          `json:"allow_uploads,omitempty"`
-	HumanTakeover   bool          `json:"human_takeover,omitempty"`
+	// ProfileRef is the RESOLVED authenticated profile reference, "alias@version".
+	// It is never "alias@latest": latest is resolved to a concrete version before
+	// the run starts so the result records what actually ran.
+	ProfileRef string `json:"profile_ref,omitempty"`
+	// ProfileHash fingerprints the stored canonical material (the sealed blob for
+	// local profiles, the context reference for hosted ones). It identifies a
+	// version; it does not reveal one.
+	ProfileHash string `json:"profile_hash,omitempty"`
+	// AuthLeaseID correlates this session with the lease that authorized it. It is
+	// an opaque safe identifier and grants nothing on its own.
+	AuthLeaseID string `json:"auth_lease_id,omitempty"`
+	// AuthMode is "read" or "refresh". Ordinary eval and agent sessions are always
+	// "read" and discard their state.
+	AuthMode       string `json:"auth_mode,omitempty"`
+	ArtifactDir    string `json:"-"`
+	Region         string `json:"region,omitempty"`
+	RecordTrace    bool   `json:"record_trace,omitempty"`
+	RecordVideo    bool   `json:"record_video,omitempty"`
+	AllowDownloads bool   `json:"allow_downloads,omitempty"`
+	AllowUploads   bool   `json:"allow_uploads,omitempty"`
+	HumanTakeover  bool   `json:"human_takeover,omitempty"`
 }
 
 type Session struct {
@@ -204,6 +216,11 @@ type BrowserRunManifest struct {
 	MCPVersion            string           `json:"mcp_version,omitempty"`
 	PolicyVersion         string           `json:"policy_version,omitempty"`
 	ProfileHash           string           `json:"profile_hash,omitempty"`
+	AuthProfileAlias      string           `json:"auth_profile_alias,omitempty"`
+	AuthProfileVersion    string           `json:"auth_profile_version,omitempty"`
+	AuthLeaseID           string           `json:"auth_lease_id,omitempty"`
+	AuthMode              string           `json:"auth_mode,omitempty"`
+	AuthErrorCategory     string           `json:"auth_error_category,omitempty"`
 	ViewportWidth         int              `json:"viewport_width,omitempty"`
 	ViewportHeight        int              `json:"viewport_height,omitempty"`
 	Locale                string           `json:"locale,omitempty"`
@@ -224,9 +241,23 @@ type BrowserRunManifest struct {
 	NonComparableReason   string           `json:"non_comparable_reason,omitempty"`
 }
 
+// sensitiveKeyMarkers are matched as substrings of a normalized key. The list is
+// deliberately over-inclusive: over-redacting a diagnostic costs a debugging
+// round-trip, under-redacting one publishes a credential. The second group was
+// added by M-BROWSER-AUTH-PROFILES, which classifies saved browser state as a
+// credential equal to the password that produced it.
+var sensitiveKeyMarkers = []string{
+	"apikey", "token", "secret", "password", "authorization", "cookie",
+	"header", "connecturl", "endpoint", "profiledata", "signingkey",
+
+	"storagestate", "contextid", "sealed", "ciphertext", "material",
+	"passkey", "otpseed", "recoverycode", "privatekey", "localstorage",
+	"indexeddb", "credential",
+}
+
 func isSensitiveKey(key string) bool {
 	normalized := strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(key, "_", ""), "-", ""))
-	for _, marker := range []string{"apikey", "token", "secret", "password", "authorization", "cookie", "header", "connecturl", "endpoint", "profiledata", "signingkey"} {
+	for _, marker := range sensitiveKeyMarkers {
 		if strings.Contains(normalized, marker) {
 			return true
 		}

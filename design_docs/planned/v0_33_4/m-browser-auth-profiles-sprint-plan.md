@@ -108,23 +108,23 @@ or diagnostics.
 
 **Acceptance Criteria:**
 
-- [ ] `AuthProfileRef`, `SafeProfile`, `AuthProfilePolicy`, `ProfileLease`,
+- [x] `AuthProfileRef`, `SafeProfile`, `AuthProfilePolicy`, `ProfileLease`,
       `LeaseMode`, and `AuthProfileBroker` exist with the frozen semantics from
       the design doc's Core Types section.
-- [ ] All ten `browser_auth_*` categories are defined, unique, and distinct from
+- [x] All ten `browser_auth_*` categories are defined, unique, and distinct from
       the existing `browser_*` set.
-- [ ] `SensitiveProfileMaterial` redacts under `String()`, `Error()`,
+- [x] `SensitiveProfileMaterial` redacts under `String()`, `Error()`,
       `MarshalJSON`, `%v`, `%+v`, and `%#v`; `Materialize()` is the only path to
       the bytes, and a test asserts each of those six presentations.
-- [ ] Registry versions are immutable: republishing an existing version fails,
+- [x] Registry versions are immutable: republishing an existing version fails,
       `latest` resolves to a concrete version string, and revoked/expired
       profiles resolve to a terminal structured failure.
-- [ ] `BrowserRunManifest` carries alias, profile hash, and resolved version, and
+- [x] `BrowserRunManifest` carries alias, profile hash, and resolved version, and
       a test asserts the serialized manifest never contains `latest`, cookies,
       object references, or provider context IDs.
-- [ ] Existing non-authenticated browser tests pass **unmodified** — the contract
+- [x] Existing non-authenticated browser tests pass **unmodified** — the contract
       extension is additive.
-- [ ] `make test` and `make lint` clean.
+- [x] `make test` and `make lint` clean.
 
 **Risks:**
 

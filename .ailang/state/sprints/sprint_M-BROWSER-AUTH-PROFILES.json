@@ -11,7 +11,7 @@
       "id": "M-BROWSER-AUTH-PROFILES.1",
       "description": "Auth profile contract, immutable registry, and secret-safe values",
       "estimated_loc": 900,
-      "actual_loc": 0,
+      "actual_loc": 1840,
       "dependencies": [],
       "acceptance_criteria": [
         "AuthProfileRef, SafeProfile, AuthProfilePolicy, ProfileLease, LeaseMode, and AuthProfileBroker exist with the design doc's frozen semantics",
@@ -21,10 +21,10 @@
         "BrowserRunManifest carries alias, profile hash, and resolved version, and never serializes latest, cookies, object references, or provider context IDs",
         "Existing non-authenticated browser tests pass unmodified"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": ""
+      "passes": true,
+      "started": "2026-08-25T00:10:00Z",
+      "completed": "2026-08-25T01:05:00Z",
+      "notes": "Contract, immutable registry, and redaction shipped. Package deliberately does not import internal/browser so the dependency stays one-way; a parity test in internal/browser pins the two Redacted constants together. latest resolves by publish sequence, not version-string order, and an expired latest surfaces browser_auth_profile_expired rather than not_found so the operator gets an actionable signal. Existing browser tests passed unmodified. make test exit 0, lint clean, boundaries clean, file sizes clean."
     },
     {
       "id": "M-BROWSER-AUTH-PROFILES.2",
@@ -121,11 +121,11 @@
     "target_milestones_per_week": 5,
     "actual_milestones_per_week": 0,
     "estimated_total_loc": 3350,
-    "actual_total_loc": 0,
+    "actual_total_loc": 1840,
     "estimated_days": 8,
     "actual_days": 0
   },
-  "last_session": null,
-  "last_checkpoint": "sprint plan created; merged base verified green (internal/browser + internal/eval_harness)",
-  "status": "not_started"
+  "last_session": "2026-08-25T01:05:00Z",
+  "last_checkpoint": "M1 complete: make test exit 0, golangci-lint 0 issues, check-boundaries OK, check-file-sizes OK",
+  "status": "in_progress"
 }
