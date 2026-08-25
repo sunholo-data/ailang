@@ -1,38 +1,30 @@
 # Mission Dashboard — Motoko
 
-*Snapshot, overwritten each iteration. History lives in the charter STATUS block and the mission log.*
+_Snapshot after iteration 22 (2026-08-25). Overwritten each iteration; history lives in the charter STATUS block and the log._
 
-**Last iteration**: 21 · 2026-08-24 · LANDED (ops) · human directive, no evaluator route
-**Release**: AILANG v0.33.1
+**Release**: AILANG v0.33.2 · anchor `sunholo-data/ailang` (shared with V1; V1 owns dev CI red on it)
 
 ## In flight / next
+- **Just landed** — row **6e**: the probe self-test could hang for 15 minutes and be cancelled with zero
+  diagnostics. Every arm now has a hard cap; `descendant_pids` is bounded by node count as well as by the
+  clock. PR #871 → `086b72184`. Evaluator 54 → **91/100**. Suite 34 → 39 arms.
+- **Next** — row **6f**: triage-lite the 8 open issues no mission doc mentions (2 are ours: #842, #839).
+- **Then** — row **6g** (new): `run_bounded` *and* production `run_lane` kill the wrapper PID, not the
+  process group, so a hung grandchild survives. Filed from the judge's non-blocking finding.
+- **Then** — row 7 (profile restoration design), row 8 (repin stale OpenRouter models).
 
-| | |
-|---|---|
-| Just done | **`D-MOTOKO-WORKDIR-1` RESOLVED** — Mark said **Yes**; source clone reconciled **178 behind → 0**, tree clean, all 8 worktrees intact, residue backed up outside the repo |
-| Next pick | row **6e** — `test_motoko_connection_probe.sh` arm 33 hung two CI jobs ~15m each (one on a markdown-only diff, so code attribution is refuted) |
-| Then | row **7** — profile restoration design |
-| Blocked on the rig | row **6** M2 — `AC-D1-live`, needs `rig.lock` and a GPU slot; V38 still not isolated |
-| Phase-0 gated | rows 10–12 — re-measured 2026-08-24: G1 `#154` OPEN (control `#161` MERGED), G2 rc=128 w/ control rc=0, G3 registry `latest=2.2.0`. **CLOSED.** |
-| New | row **6f** — 8 orphan issues from the weekly sweep; 2 are motoko-owned, 6 handed to V1 |
+## Gated / parked
+- Phase 0 remains **CLOSED**: `arniwesth/motoko_agent#154` still OPEN (control `#175` MERGED), and G5 needs
+  Arni's ABI-settled word. Rows 10/11/12 stay parked. Rows 9/13/14 wait on a green tree.
 
-## Loop health
-
-- Executing root: `~/.ailang-driver-pin/motoko` (pin worktree @ `origin/dev`, re-exec'd every fire).
-- Source clone `~/dev/sunholo-data/ailang-motoko`: **0 behind, clean, `SKILL.md` 3682 lines == pin == origin.**
-  Safe to start a session there again. Drift notice re-arms automatically on the next fire (proved hermetically).
-- Running skill == `origin/dev` (`cmp` rc=0; `~/.claude` symlink resolves to **V1's** checkout, checked as the resolved target).
-- dev CI green at pick time: **20** exact-SHA checks, 0 not-green, `runs_total=3`, parent control 16.
-
-## Routing
-
-controller `claude:claude-opus-5` · **no designer / planner / executor / evaluator spawned** — the pick
-was a human-authorized ops action with a prescribed procedure, not a sprint. **metered $0.00** (budget $5).
+## Loop health / routing
+- Controller opus · executor `codex:gpt-5.6-sol` (**capped at 30 min this iteration, FLAGGED**) ·
+  evaluator sonnet in its own worktree · designer rotation untouched at fable, **unspent**.
+- Metered **$0.00** of $5. No GPU, no `rig.lock`.
+- Source clone `~/dev/sunholo-data/ailang-motoko`: **24 behind / 0 ahead**, clean — just under the notice
+  threshold of 25, drifting again exactly as `D-MOTOKO-WORKDIR-2` predicted.
 
 ## Parked on Mark
-
-- **`D-MOTOKO-WORKDIR-2`** — grant **standing** authorization for the clone reconcile, gated on three
-  machine-checked predicates (ahead-commits 0 · dirty set measured-superseded · verified backup)?
-  One word: **yes** / **no**. Filed 2026-08-24 because the one-shot reconcile left the clone **4
-  behind within the hour** — nothing pulls it, and dev lands ~21.8 commits/day, so the 25-commit
-  notice re-arms in ~1.1 days. (ledger: 5 rows, 1 OPEN)
+- **`D-MOTOKO-WORKDIR-2`** (OPEN, asked at iteration 21, unanswered): grant **standing** authorization to
+  reconcile the source clone to `origin/dev` unattended when three measured predicates hold? One word:
+  **yes** or **no**. Without it this returns as an ask roughly four times per nine days.
