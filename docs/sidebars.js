@@ -185,6 +185,7 @@ const sidebars = {
             'guides/evaluation/eval-loop',
             'guides/evaluation/model-capability-threshold',
 			'guides/evaluation/browser-sessions',
+			'guides/evaluation/browser-auth-profiles',
           ],
         },
         {

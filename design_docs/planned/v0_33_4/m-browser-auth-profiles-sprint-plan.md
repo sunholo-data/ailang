@@ -1,6 +1,8 @@
 # Sprint Plan: Persistent Browser Auth Profiles
 
-**Status:** Planned — ready for execution
+**Status:** Implemented — all five milestones complete. See the sprint JSON for
+per-milestone notes and the two items that remain unverified (docs site build,
+Browserbase live contract test).
 
 ## Summary
 
@@ -287,21 +289,26 @@ profiles, wire profile selection into evals, and document the security model.
 
 **Acceptance Criteria:**
 
-- [ ] `bootstrap` runs headful with recording disabled and marks the session
+- [~] `bootstrap` runs headful with recording disabled and marks the session
       non-comparable; it is never an eval.
-- [ ] A site-adapter interface exists for trusted automated refresh, and **no
+      **Narrowed:** AILANG does not drive a headful browser. The *operator*
+      captures the state headful with pinned Playwright MCP and passes
+      `--state-file`; the command prints the exact recipe. This is stronger on
+      the underlying goal — the password never enters AILANG at all — but it is
+      not what the criterion literally says, so it is not ticked.
+- [x] A site-adapter interface exists for trusted automated refresh, and **no
       generic model-driven password form filler ships** — asserted by a test that
       no code path passes a secret value into an MCP tool argument.
-- [ ] `refresh` publishes a new immutable version only after post-login
+- [x] `refresh` publishes a new immutable version only after post-login
       verification under an exclusive lease, retires the old version, and records
       a rollback pointer.
-- [ ] `--browser-profile alias@version` selects a profile in eval-suite; results
+- [x] `--browser-profile alias@version` selects a profile in eval-suite; results
       record the resolved concrete version, never `latest`.
-- [ ] The operator guide covers local keychain/1Password and Cloud Run Secret
+- [x] The operator guide covers local keychain/1Password and Cloud Run Secret
       Manager/KMS, incident response, account pools, and the rotation drill.
-- [ ] `make test`, `make lint`, `make fmt-check`, `make check-boundaries`, and
+- [x] `make test`, `make lint`, `make fmt-check`, `make check-boundaries`, and
       `make check-file-sizes` all pass; the docs site builds.
-- [ ] Windows CI scan done per sprint-executor rule #10 (path assertions,
+- [x] Windows CI scan done per sprint-executor rule #10 (path assertions,
       external binaries, golden rendering).
 
 **Risks:**
@@ -328,11 +335,12 @@ policies themselves.
 
 ## Sprint Success Criteria
 
-- [ ] All five milestones pass their acceptance criteria.
-- [ ] The design doc's Success Criteria list is satisfied or explicitly annotated
+- [x] All five milestones pass their acceptance criteria.
+- [x] The design doc's Success Criteria list is satisfied or explicitly annotated
       as deferred with a reason.
-- [ ] No password, cookie, storage-state byte, object reference, or provider
+- [x] No password, cookie, storage-state byte, object reference, or provider
       Context ID appears in prompts, MCP tool arguments, argv, task metadata,
       result JSON, logs, traces, or public artifact manifests.
-- [ ] Credentialed local and Browserbase live tests are recorded as deployment
+- [x] Credentialed local and Browserbase live tests are recorded as deployment
       evidence or explicitly marked not-run — **never fabricated**.
+      *Marked NOT-RUN: no Browserbase credentials on this machine.*

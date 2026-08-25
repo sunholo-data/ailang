@@ -30,6 +30,7 @@ type agentSuiteConfigParams struct {
 	verify             bool
 	verifyTimeout      time.Duration
 	browserProvider    string
+	browserProfile     string
 	browserArtifacts   string
 	browserRegion      string
 	browserMCPVersion  string
@@ -61,6 +62,9 @@ func buildAgentSuiteConfig(agent bool, p agentSuiteConfigParams) *eval_harness.A
 	}
 	if p.browserProvider != "" {
 		fmt.Printf("  - Browser provider: %s (Playwright MCP %s)\n", p.browserProvider, p.browserMCPVersion)
+		if p.browserProfile != "" {
+			fmt.Printf("  - Browser profile:  %s (authenticated; ordinary runs never write back)\n", p.browserProfile)
+		}
 	}
 	fmt.Println()
 	browserArtifacts := p.browserArtifacts
@@ -85,6 +89,7 @@ func buildAgentSuiteConfig(agent bool, p agentSuiteConfigParams) *eval_harness.A
 		Browser: eval_harness.BrowserSessionConfig{
 			Provider: p.browserProvider, ArtifactDir: browserArtifacts,
 			Region: p.browserRegion, MCPVersion: p.browserMCPVersion,
+			AuthProfile: p.browserProfile,
 		},
 	}
 }

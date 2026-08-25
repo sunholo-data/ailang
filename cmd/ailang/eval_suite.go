@@ -135,6 +135,7 @@ func runEvalSuite() {
 	agentTimeout := fs.Int("agent-timeout", 60, "Timeout per benchmark in seconds (agent mode only)")
 	maxTokensPerBench := fs.Int("max-tokens-per-bench", 0, "Hard token-budget ceiling per benchmark; aborts mid-run if exceeded (0 = unlimited). M-EVAL-OS-LONGITUDINAL Phase 1: thrash detection for free local models.")
 	browserProvider := fs.String("browser-provider", "", "Agent browser session provider: local-playwright or browserbase (empty = disabled; requires MCP-capable executor)")
+	browserProfile := fs.String("browser-profile", "", "Authenticated browser profile as alias@version (e.g. crm-readonly-eu@latest). Requires --browser-provider. `latest` resolves to a concrete version before the run starts.")
 	browserArtifacts := fs.String("browser-artifacts", "", "Durable browser artifact root (default: <output>/browser-sessions when browser enabled)")
 	browserRegion := fs.String("browser-region", "", "Remote browser region (Browserbase; e.g. eu-central-1)")
 	browserMCPVersion := fs.String("browser-mcp-version", "0.0.79", "Pinned @playwright/mcp version for browser-enabled agent runs")
@@ -186,7 +187,7 @@ func runEvalSuite() {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-	if err := validateBrowserEvalFlags(*agent, *browserProvider); err != nil {
+	if err := validateBrowserEvalFlags(*agent, *browserProvider, *browserProfile); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
@@ -680,7 +681,7 @@ func runEvalSuite() {
 		requestsPerSecond: *agentRequestsPerSecond, timeoutSeconds: *agentTimeout,
 		maxTokensPerBench: *maxTokensPerBench,
 		verify:            *verify, verifyTimeout: *verifyTimeout,
-		browserProvider: *browserProvider, browserArtifacts: *browserArtifacts,
+		browserProvider: *browserProvider, browserProfile: *browserProfile, browserArtifacts: *browserArtifacts,
 		browserRegion: *browserRegion, browserMCPVersion: *browserMCPVersion, outputDir: *outputDir,
 	})
 

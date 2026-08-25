@@ -2,6 +2,12 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -98,3 +104,66 @@ func (s *MemoryAuditSink) Events() []AuditEvent {
 }
 
 var _ AuditSink = (*MemoryAuditSink)(nil)
+
+// FileAuditSink appends events as JSON Lines. Profile use must leave a durable
+// trail that survives the process, and append-only JSONL is the format an
+// incident review can read without tooling.
+type FileAuditSink struct {
+	mu   sync.Mutex
+	path string
+}
+
+func NewFileAuditSink(path string) (*FileAuditSink, error) {
+	if path == "" {
+		return nil, errors.New("audit sink requires a path")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return nil, err
+	}
+	return &FileAuditSink{path: path}, nil
+}
+
+func (s *FileAuditSink) Path() string { return s.path }
+
+func (s *FileAuditSink) Record(_ context.Context, event AuditEvent) error {
+	encoded, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	file, err := os.OpenFile(s.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = file.Close() }()
+	_, err = file.Write(append(encoded, '\n'))
+	return err
+}
+
+// ReadAuditLog parses a JSONL audit file. A malformed line fails loudly rather
+// than being skipped: a silently truncated audit trail is worse than none.
+func ReadAuditLog(path string) ([]AuditEvent, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var events []AuditEvent
+	for index, line := range strings.Split(string(raw), "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		var event AuditEvent
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			return nil, fmt.Errorf("audit log line %d is unreadable: %w", index+1, err)
+		}
+		events = append(events, event)
+	}
+	return events, nil
+}
+
+var _ AuditSink = (*FileAuditSink)(nil)

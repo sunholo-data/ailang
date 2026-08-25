@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/browser"
+	"github.com/sunholo-data/ailang/internal/browser/auth"
 	"github.com/sunholo-data/ailang/internal/browser/browserbase"
 	localbrowser "github.com/sunholo-data/ailang/internal/browser/local"
 	"github.com/sunholo-data/ailang/internal/executor"
@@ -50,6 +51,61 @@ type BrowserSessionConfig struct {
 	ProjectIDEnv       string
 	ChainID            string
 	StageID            string
+
+	// AuthProfile selects a persistent authenticated identity as "alias@version".
+	// Empty means an ordinary anonymous session, which is the existing behavior.
+	AuthProfile string
+
+	// AuthBrokerInstance overrides the default on-disk broker. Tests and custom
+	// deployments use it; ordinary callers leave it nil and get the operator's
+	// profile registry.
+	AuthBrokerInstance *auth.Broker
+}
+
+// AuthProfileRoot is where the CLI and the eval harness agree profiles live.
+// AILANG_BROWSER_PROFILE_DIR overrides it so an eval never has to touch the
+// operator's real registry.
+func AuthProfileRoot() (string, error) {
+	if override := os.Getenv("AILANG_BROWSER_PROFILE_DIR"); override != "" {
+		return override, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve home directory: %w", err)
+	}
+	return filepath.Join(home, ".ailang", "browser-profiles"), nil
+}
+
+// resolveAuthBroker builds the broker an authenticated eval run uses. It fails
+// loudly rather than silently downgrading to an anonymous session: a run that
+// quietly starts logged out looks like a model failure, not a config error.
+func resolveAuthBroker(config BrowserSessionConfig) (*auth.Broker, error) {
+	if config.AuthBrokerInstance != nil {
+		return config.AuthBrokerInstance, nil
+	}
+	root, err := AuthProfileRoot()
+	if err != nil {
+		return nil, err
+	}
+	registry, err := auth.NewFileRegistry(filepath.Join(root, "profiles"))
+	if err != nil {
+		return nil, err
+	}
+	protector, err := auth.NewLocalFileKeyProtector(filepath.Join(root, "keys", "local.key"))
+	if err != nil {
+		return nil, err
+	}
+	sink, err := auth.NewFileAuditSink(filepath.Join(root, "audit.jsonl"))
+	if err != nil {
+		return nil, err
+	}
+	return auth.NewBroker(auth.BrokerOptions{
+		Registry:    registry,
+		Leases:      auth.NewLeaseManager(auth.DefaultLeaseTTL),
+		Protector:   protector,
+		Audit:       sink,
+		SessionRoot: filepath.Join(root, "materializations"),
+	})
 }
 
 func executeWithBrowser(
@@ -105,7 +161,7 @@ func executeWithBrowser(
 		maximumDuration = task.Timeout
 	}
 	controller := browser.NewController(provider, browser.ControllerOptions{CleanupTimeout: 30 * time.Second})
-	run, err := controller.Start(ctx, browser.SessionSpec{
+	spec := browser.SessionSpec{
 		RunID: task.ID, Provider: provider.Name(), ChainID: config.ChainID,
 		StageID: config.StageID, Browser: "chromium", BrowserVersion: browserVersion,
 		MCPVersion: mcpVersion, PolicyVersion: policyVersion,
@@ -114,7 +170,19 @@ func executeWithBrowser(
 		Headless: !config.Headful, MaximumDuration: maximumDuration,
 		ActionTimeout: config.ActionTimeout, ArtifactDir: artifactDir, Region: config.Region,
 		RecordTrace: true, RecordVideo: true,
-	})
+	}
+
+	var run *browser.Run
+	if config.AuthProfile == "" {
+		run, err = controller.Start(ctx, spec)
+	} else {
+		// Authenticated runs deny recordings by default: private page content is
+		// as sensitive as the login state, and the artifact-data policy that
+		// would classify it (M-BROWSER-ARTIFACT-DATA-POLICY) has not shipped.
+		// The profile's own AllowArtifacts decides what may be exported.
+		spec.RecordTrace, spec.RecordVideo = false, false
+		run, err = startAuthenticatedRun(ctx, controller, spec, task, config)
+	}
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, string(browser.FailureProvision))
@@ -182,6 +250,36 @@ func executeWithBrowser(
 		return result, &manifest, finishErr
 	}
 	return result, &manifest, nil
+}
+
+// startAuthenticatedRun leases a profile and starts an already-logged-in
+// session. The model receives the browser, never the profile.
+func startAuthenticatedRun(
+	ctx context.Context,
+	controller *browser.Controller,
+	spec browser.SessionSpec,
+	task *executor.Task,
+	config BrowserSessionConfig,
+) (*browser.Run, error) {
+	ref, err := auth.ParseRef(config.AuthProfile)
+	if err != nil {
+		return nil, fmt.Errorf("invalid browser profile %q: %w", config.AuthProfile, err)
+	}
+	broker, err := resolveAuthBroker(config)
+	if err != nil {
+		return nil, fmt.Errorf("open browser profile registry: %w", err)
+	}
+	return controller.StartAuthenticated(ctx, spec, browser.AuthConfig{
+		Broker: broker,
+		Request: auth.ProvisionRequest{
+			Ref:      ref,
+			Run:      auth.RunIdentity{RunID: task.ID, ChainID: config.ChainID, StageID: config.StageID, Principal: "eval-harness"},
+			Mode:     auth.LeaseRead, // ordinary eval runs are ALWAYS read mode
+			Provider: config.Provider,
+			// Recording is off for authenticated runs, so no artifact class is
+			// requested and the profile's deny-by-default policy stands.
+		},
+	})
 }
 
 func resolveBrowserProvider(config BrowserSessionConfig) (browser.SessionProvider, error) {
