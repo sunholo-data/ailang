@@ -28,6 +28,19 @@ var notWiredIntoCI = map[string]string{
 	"check-no-zero-arg-workarounds": "advisory sweep, not a gate: narrow grep for a historical surface-local workaround superseded by eval.CallFunction",
 }
 
+var notWiredIntoCIVerify = map[string]string{
+	"verify-lowering":          "body is `build verify-no-shim` plus one echo; verify-no-shim is already wired at ci.yml:201, so wiring this adds an alias, not coverage",
+	"verify-model-pricing":     "queries the live OpenRouter API (network + third party) and its own Makefile header declares the result ADVISORY, not a verdict; a vendor promotion reds it with nothing wrong in the repo",
+	"fmt-check-ail":            "RED at HEAD 2026-08-25 (rc=2): enumerator scans a `stdlib/` directory that has never existed (find examples stdlib -> 404 .ail files; find examples std -> 450, so 46 files are invisible), AND real fmt drift in 2 example files, AND `ailang fmt` errors on examples/snippets/v3_3/math/gcd.ail; tracked as an open queue row — wire it when it is green, do not widen the exemption",
+	"verify-cli-examples":      "RED at HEAD 2026-08-25 (rc=2): fixture examples/cli_examples.txt has rotted: 9 of 26 commands fail, incl. list_sum.ail expecting `(15, 15)` and producing `(15, 5)`, and lambdas_full.ail using `++` on strings (list-only since v0.13.0); tracked as an open queue row — wire it when it is green, do not widen the exemption",
+	"verify-examples-all":      "RED at HEAD 2026-08-25 (rc=2): 60% threshold gate over ALL examples currently exits 1; tracked as an open queue row — wire it when it is green, do not widen the exemption",
+	"verify-examples-toplevel": "RED at HEAD 2026-08-25 (rc=2): examples/ai_modes.ail fails effect checking: \"AI requires mode=fixed; declaration provides mode=routeable\". NOTE: this target is a `make ci` prerequisite, so `make ci` is RED at HEAD on this one example; tracked as an open queue row — wire it when it is green, do not widen the exemption",
+}
+
+var suppressionAllowed = map[string]string{
+	"verify-examples-trace": "advisory trace-determinism sweep, currently rc=1 on 2 of 217 examples; the `|| true` is deliberate and tracked as an open queue row — REMOVE this entry when the target is green rather than leaving it suppressed",
+}
+
 var notInMakeCI = map[string]string{
 	// Measured 2026-08-25, both arms, after the iteration-274 evaluator refuted
 	// the first draft of this reason (which said "needs AUTOCLOSE_ARGS" -- false:
@@ -108,6 +121,10 @@ func gateTarget(target string) bool {
 	return strings.HasPrefix(target, "check-") || strings.HasPrefix(target, "test-check-")
 }
 
+func verifyTarget(target string) bool {
+	return strings.HasPrefix(target, "verify-") || target == "fmt-check-ail"
+}
+
 func sortedKeys(values map[string]bool) []string {
 	keys := make([]string, 0, len(values))
 	for key := range values {
@@ -130,8 +147,7 @@ func TestWorkflowMakeTargetsExist(t *testing.T) {
 }
 
 func TestGateTargetsAreWiredIntoAWorkflow(t *testing.T) {
-	// This deliberately covers only check-* and test-check-* targets. Whether
-	// the repo's verify-* targets belong in CI is a separate policy decision.
+	// Keep check-* policy separate from verify-* policy below.
 	targets := makeTargets(t)
 	invoked := invokedTargets(t)
 	missing := make(map[string]bool)
@@ -144,6 +160,149 @@ func TestGateTargetsAreWiredIntoAWorkflow(t *testing.T) {
 	}
 	if len(missing) != 0 {
 		t.Errorf("gate-shaped make targets are not wired into any workflow: %s", strings.Join(sortedKeys(missing), ", "))
+	}
+}
+
+func TestVerifyTargetsAreWiredIntoAWorkflow(t *testing.T) {
+	targets := makeTargets(t)
+	invoked := invokedTargets(t)
+	missing := make(map[string]bool)
+	verifyCount := 0
+	for target := range targets {
+		if !verifyTarget(target) {
+			continue
+		}
+		verifyCount++
+		if len(invoked[target]) == 0 {
+			if _, exempt := notWiredIntoCIVerify[target]; !exempt {
+				missing[target] = true
+			}
+		}
+	}
+	if verifyCount < 10 || !targets["verify-stdlib"] {
+		t.Fatalf("instrument failure: verify-target enumeration found %d targets (need at least 10, including verify-stdlib)", verifyCount)
+	}
+	if len(missing) != 0 {
+		t.Errorf("verify-shaped make targets are not wired into any workflow: %s", strings.Join(sortedKeys(missing), ", "))
+	}
+}
+
+func TestWiredGatesCanFailTheJob(t *testing.T) {
+	matched := 0
+	foundTrace := false
+	for workflowName, wf := range loadWorkflows(t) {
+		for jobID, job := range wf.Jobs {
+			for stepIndex, step := range job.Steps {
+				script := shellComment.ReplaceAllString(step.Run, "")
+				for _, line := range strings.Split(script, "\n") {
+					for _, match := range makeInvocation.FindAllStringSubmatchIndex(line, -1) {
+						target := line[match[2]:match[3]]
+						if !gateTarget(target) && !verifyTarget(target) {
+							continue
+						}
+						matched++
+						if target == "verify-examples-trace" {
+							foundTrace = true
+						}
+						where := workflowName + ":" + jobID + ":step " + strconv.Itoa(stepIndex)
+						if (job.ContinueOnError != nil && *job.ContinueOnError) ||
+							(step.ContinueOnError != nil && *step.ContinueOnError) {
+							if _, allowed := suppressionAllowed[target]; !allowed {
+								t.Errorf("%s suppresses failure from %s with continue-on-error", where, target)
+							}
+						}
+						tail := line[match[1]:]
+						if strings.Contains(tail, "|| true") || strings.Contains(tail, "|| :") || strings.Contains(tail, "|| echo") {
+							if _, allowed := suppressionAllowed[target]; !allowed {
+								t.Errorf("%s suppresses failure from %s in-shell: %s", where, target, strings.TrimSpace(line))
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	if matched == 0 || !foundTrace {
+		t.Fatalf("instrument failure: wired-gate scan found %d invocations; must include verify-examples-trace", matched)
+	}
+}
+
+// TestExemptionMapsAreLive pins the maps themselves. Every test above consults an
+// exemption map only for targets its predicate already selected, so a predicate
+// that SHRINKS silently drops coverage and the orphaned exemption entry keeps
+// looking deliberate -- measured 2026-08-25 (iteration 275): removing
+// `fmt-check-ail` from verifyTarget left the whole package rc=0. A removal proves
+// a check FIRES; only asserting the map against the predicate proves it still
+// LOOKS. Same for a target that is renamed, deleted, or later wired for real:
+// the exemption outlives its reason with no signal.
+func TestExemptionMapsAreLive(t *testing.T) {
+	targets := makeTargets(t)
+	invoked := invokedTargets(t)
+	checked := 0
+
+	// Maps whose precondition is "no workflow invokes this target".
+	for _, entry := range []struct {
+		name    string
+		values  map[string]string
+		inScope func(string) bool
+	}{
+		{"notWiredIntoCI", notWiredIntoCI, gateTarget},
+		{"notWiredIntoCIVerify", notWiredIntoCIVerify, verifyTarget},
+	} {
+		for target, reason := range entry.values {
+			checked++
+			if !targets[target] {
+				t.Errorf("%s exempts %q, which is not a make target -- stale exemption", entry.name, target)
+			}
+			if !entry.inScope(target) {
+				t.Errorf("%s exempts %q, which its own predicate no longer selects -- the exemption is dead and the target is unchecked", entry.name, target)
+			}
+			if len(invoked[target]) != 0 {
+				t.Errorf("%s exempts %q, but %s invokes it -- remove the exemption rather than leaving it", entry.name, target, strings.Join(invoked[target], ", "))
+			}
+			if strings.TrimSpace(reason) == "" {
+				t.Errorf("%s exempts %q with an empty reason", entry.name, target)
+			}
+		}
+	}
+
+	// notInMakeCI's precondition is the opposite: the target IS invoked by a
+	// workflow and is deliberately absent from `make ci`.
+	for target, reason := range notInMakeCI {
+		checked++
+		if !targets[target] {
+			t.Errorf("notInMakeCI exempts %q, which is not a make target -- stale exemption", target)
+		}
+		if !gateTarget(target) {
+			t.Errorf("notInMakeCI exempts %q, which gateTarget no longer selects -- the exemption is dead", target)
+		}
+		if len(invoked[target]) == 0 {
+			t.Errorf("notInMakeCI exempts %q, but no workflow invokes it -- the exemption cannot apply", target)
+		}
+		if strings.TrimSpace(reason) == "" {
+			t.Errorf("notInMakeCI exempts %q with an empty reason", target)
+		}
+	}
+
+	// suppressionAllowed's precondition is that the target is actually invoked.
+	for target, reason := range suppressionAllowed {
+		checked++
+		if !targets[target] {
+			t.Errorf("suppressionAllowed permits %q, which is not a make target -- stale exemption", target)
+		}
+		if !gateTarget(target) && !verifyTarget(target) {
+			t.Errorf("suppressionAllowed permits %q, which neither predicate selects -- the entry is dead", target)
+		}
+		if len(invoked[target]) == 0 {
+			t.Errorf("suppressionAllowed permits %q, but no workflow invokes it -- remove the entry", target)
+		}
+		if strings.TrimSpace(reason) == "" {
+			t.Errorf("suppressionAllowed permits %q with an empty reason", target)
+		}
+	}
+
+	if checked < 8 {
+		t.Fatalf("instrument failure: exemption-map scan checked only %d entries (need at least 8 across four maps)", checked)
 	}
 }
 
