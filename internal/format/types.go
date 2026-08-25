@@ -149,18 +149,32 @@ func (p *printer) funcTypeString(n *ast.FuncType) (string, error) {
 // bareArrowSafe reports whether a sole parameter type can drop its parentheses
 // without changing what the result re-parses to.
 //
-// Two shapes must keep them:
+// Three shapes must keep them:
 //   - a FuncType parameter, because the arrow is RIGHT-associative: `(int ->
 //     int) -> int` and `int -> int -> int` are different types;
 //   - a TupleType parameter, because `(int, string) -> bool` is read as a
 //     TWO-parameter function type, not as one tuple parameter — the only
-//     spelling for the latter is `((int, string)) -> bool`.
+//     spelling for the latter is `((int, string)) -> bool`;
+//   - a RecordType parameter, because the emitted `{ a: int } -> ()` opens with
+//     `{`, which the parser reads as a BLOCK and not as a type. This is the
+//     defect that made `std/cognition.ail` (whose `subscribeMsg` takes a record-
+//     shaped callback) emit source that failed to re-parse.
 func bareArrowSafe(t ast.Type) bool {
-	switch t.(type) {
-	case *ast.FuncType, *ast.TupleType:
+	switch n := t.(type) {
+	case *ast.FuncType, *ast.TupleType, *ast.RecordType:
 		return false
-	default:
+	case *ast.LabelledType:
+		// A label/refinement prints as `<base><suffix>`, so safety is decided
+		// entirely by the base: `{a: int}<L>` still opens with `{`.
+		return bareArrowSafe(n.Base)
+	case *ast.SimpleType, *ast.TypeVar, *ast.ListType, *ast.ArrayType, *ast.TypeApp:
 		return true
+	default:
+		// Whitelist, not blacklist: an ast.Type node added later must default to
+		// KEEPING its parentheses. Verbose output is a cosmetic defect; dropping
+		// parens that turn out to be load-bearing emits source that does not
+		// re-parse, which is a soundness defect.
+		return false
 	}
 }
 
