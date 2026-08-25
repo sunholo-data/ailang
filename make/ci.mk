@@ -8,7 +8,7 @@
 all: test build ## Run tests and build
 
 # CI verification
-ci: deps fmt-check vet lint test test-nightly-classifier test-coverage-badge test-lowering verify-no-shim verify-examples verify-examples-toplevel verify-stdlib verify-mcp-tools verify-install-guide ## Run full CI verification
+ci: deps fmt-check vet lint test test-nightly-classifier test-coverage-badge test-lowering verify-no-shim verify-examples verify-examples-toplevel verify-stdlib verify-mcp-tools verify-install-guide check-boundaries check-changelog check-file-sizes check-golden-drift check-protocol-closure check-skills check-tmpfile-hygiene test-check-autoclose test-check-changelog test-check-protocol-closure test-check-tmpfile-hygiene ## Run full CI verification, including workflow gates
 	@echo "$(GREEN)$(CHECKMARK) CI verification complete$(RESET)"
 
 ci-strict: deps fmt-check vet lint test test-coverage-badge verify-lowering test-lowering test-builtin-freeze test-operator-assertions test-imports test-recursion test-iface-determinism verify-examples verify-examples-toplevel verify-mcp-tools verify-install-guide ## Extended CI with A2 milestone gates
