@@ -98,18 +98,26 @@ func (e *Failure) Error() string {
 	return message
 }
 
-func IsFailure(err error, category FailureCategory) bool {
+// AsFailure finds the *Failure in an error chain. It is the single unwrap
+// helper for this package; IsFailure, the audit builder, and tests all go
+// through it rather than each re-implementing the walk.
+func AsFailure(err error) (*Failure, bool) {
 	for err != nil {
 		if failure, ok := err.(*Failure); ok {
-			return failure.Category == category
+			return failure, true
 		}
 		unwrapper, ok := err.(interface{ Unwrap() error })
 		if !ok {
-			return false
+			return nil, false
 		}
 		err = unwrapper.Unwrap()
 	}
-	return false
+	return nil, false
+}
+
+func IsFailure(err error, category FailureCategory) bool {
+	failure, ok := AsFailure(err)
+	return ok && failure.Category == category
 }
 
 // AuthProfileRef names a profile. Alias is operator-defined and safe to log;
