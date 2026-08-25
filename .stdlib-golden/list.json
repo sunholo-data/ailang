@@ -190,7 +190,7 @@
     },
     {
       "name": "reverse",
-      "type": "(list[a])-\u003e[a]",
+      "type": "(list[a])-\u003elist[a]",
       "effects": [],
       "pure": true
     },

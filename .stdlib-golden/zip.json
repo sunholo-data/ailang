@@ -3,6 +3,18 @@
   "types": [],
   "funcs": [
     {
+      "name": "buildArchive",
+      "type": "(list[{content: string, name: string}])-\u003eResult[string,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "buildArchiveWithBytes",
+      "type": "(list[{data: string, name: string}])-\u003eResult[string,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "createArchive",
       "type": "(string,list[{content: string, name: string}])-\u003eResult[(),string]!{FS}",
       "effects": [
