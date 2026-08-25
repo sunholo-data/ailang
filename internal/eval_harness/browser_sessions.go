@@ -20,6 +20,13 @@ import (
 
 var browserSessionTracer = telemetry.Tracer("eval.browser_session")
 
+const (
+	defaultBrowserViewportWidth  = 1280
+	defaultBrowserViewportHeight = 720
+	defaultBrowserPolicyVersion  = "browser-policy-v1"
+	providerDefaultUnpinned      = "provider-default-unpinned"
+)
+
 // BrowserSessionConfig is additive: an empty Provider preserves the existing
 // non-browser eval path. ProviderInstance exists for hermetic tests and custom
 // deployments; ordinary callers select local-playwright or browserbase.
@@ -85,6 +92,14 @@ func executeWithBrowser(
 	if browserVersion == "" {
 		browserVersion = localbrowser.DefaultBrowserVersion
 	}
+	viewportWidth, viewportHeight := config.ViewportWidth, config.ViewportHeight
+	if viewportWidth <= 0 || viewportHeight <= 0 {
+		viewportWidth, viewportHeight = defaultBrowserViewportWidth, defaultBrowserViewportHeight
+	}
+	policyVersion := config.PolicyVersion
+	if policyVersion == "" {
+		policyVersion = defaultBrowserPolicyVersion
+	}
 	maximumDuration := config.MaximumDuration
 	if maximumDuration <= 0 {
 		maximumDuration = task.Timeout
@@ -93,8 +108,9 @@ func executeWithBrowser(
 	run, err := controller.Start(ctx, browser.SessionSpec{
 		RunID: task.ID, Provider: provider.Name(), ChainID: config.ChainID,
 		StageID: config.StageID, Browser: "chromium", BrowserVersion: browserVersion,
-		MCPVersion: mcpVersion, PolicyVersion: config.PolicyVersion,
-		ViewportWidth: config.ViewportWidth, ViewportHeight: config.ViewportHeight,
+		MCPVersion: mcpVersion, PolicyVersion: policyVersion,
+		ViewportWidth: viewportWidth, ViewportHeight: viewportHeight,
+		Locale: providerDefaultUnpinned, Timezone: providerDefaultUnpinned,
 		Headless: !config.Headful, MaximumDuration: maximumDuration,
 		ActionTimeout: config.ActionTimeout, ArtifactDir: artifactDir, Region: config.Region,
 		RecordTrace: true, RecordVideo: true,

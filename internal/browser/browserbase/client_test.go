@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -50,7 +51,10 @@ func TestProviderLifecycleAgainstStub(t *testing.T) {
 		t.Fatal(err)
 	}
 	artifacts := t.TempDir()
-	session, err := provider.Create(context.Background(), browser.SessionSpec{RunID: "run-1", Region: "eu-central-1", MaximumDuration: 2 * time.Minute, ArtifactDir: artifacts})
+	session, err := provider.Create(context.Background(), browser.SessionSpec{
+		RunID: "run-1", Region: "eu-central-1", MaximumDuration: 2 * time.Minute, ArtifactDir: artifacts,
+		ViewportWidth: 1280, ViewportHeight: 720, ActionTimeout: 5 * time.Second,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,6 +68,11 @@ func TestProviderLifecycleAgainstStub(t *testing.T) {
 	}
 	if strings.Contains(strings.Join(mcp.Args, " "), "secret") || len(mcp.EnvVars) != 1 {
 		t.Fatalf("secret leaked into MCP argv: %#v", mcp)
+	}
+	for _, want := range []string{"--viewport-size", "1280x720", "--timeout-action", "5000"} {
+		if !slices.Contains(mcp.Args, want) {
+			t.Fatalf("MCP args missing effective browser setting %q: %#v", want, mcp.Args)
+		}
 	}
 	inspection, err := provider.Inspect(context.Background(), session)
 	if err != nil || inspection.Ref != "browserbase-session:bb-1" {
@@ -84,6 +93,14 @@ func TestProviderLifecycleAgainstStub(t *testing.T) {
 	}
 	if _, err := provider.Stop(context.Background(), session); err != nil {
 		t.Fatalf("idempotent stop failed: %v", err)
+	}
+	provider.mu.Lock()
+	_, keptSession := provider.sessions[session.ID]
+	_, keptSpec := provider.specs[session.ID]
+	_, keptArtifact := provider.artifacts[session.ID]
+	provider.mu.Unlock()
+	if keptSession || keptSpec || keptArtifact {
+		t.Fatalf("released session retained sensitive connection state")
 	}
 	mu.Lock()
 	defer mu.Unlock()

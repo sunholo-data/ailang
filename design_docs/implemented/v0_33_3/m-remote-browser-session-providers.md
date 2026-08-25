@@ -1,6 +1,6 @@
 # M-REMOTE-BROWSER-SESSION-PROVIDERS — provider-neutral browser sessions for local and cloud agents
 
-**Status**: Planned
+**Status**: Implemented (production activation gates pending)
 **Target**: v0.33.3
 **Priority**: P1 (Medium-High — closes the browser vessel gap in agent-mode evals)
 **Estimated**: 6–8 days including a local/Browserbase comparison run
@@ -463,6 +463,8 @@ The following are intentionally left open for the implementer:
 | V17 | Browser flags are discoverable in the built CLI | `make build`; `./bin/ailang eval-suite --help` | Passed; provider, artifact, region, and MCP-version flags are present. |
 | V18 | Browserbase live lifecycle and 20-session Cloud Run soak | Credential check plus `AILANG_BROWSERBASE_LIVE=1 go test ...` gate | Not run: `BROWSERBASE_API_KEY` is absent. Stub coverage passes and the live test skips unless explicitly enabled. |
 | V19 | Local 50-session and 8/16/24 capacity smoke | Commands documented in the operator guide | Not run in this implementation session; deployment/runtime capacity evidence remains required before choosing a production parallelism default. |
+| V20 | Independent sprint evaluation | `sprint-evaluator` rubric against commit `19c8c38af`; report `.ailang/state/evaluations/eval_M-REMOTE-BROWSER-SESSIONS_round_1.json` | PASS, 80/100, 17/20 acceptance criteria verified, no hard failures. |
+| V21 | Slow artifact export cannot consume the remote-session release budget | `TestControllerReservesIndependentStopBudgetAfterExportTimeout`; focused browser/eval tests | Passed after giving export and stop separate bounded cleanup contexts. Effective viewport and explicit unpinned locale/timezone defaults are also banked and tested. |
 
 No AILANG language support/unsupported claims are made by this design, so no `ailang check` language probe is required.
 
@@ -476,10 +478,10 @@ No AILANG language support/unsupported claims are made by this design, so no `ai
 
 **Planned:**
 
-- [M-MANAGED-AGENTS-MODEL-EVAL](../v0_31_0/m-managed-agents-model-eval.md) — product-fidelity Gemini managed-agent vessel; explicitly distinct from neutral ranking.
-- [M-NET-EFFECT-PROXY-BOUNDARY](../v0_33_1/m-net-effect-proxy-boundary.md) — adjacent HTTP egress boundary whose browser/WebSocket exclusions this design preserves.
-- [M-AGENT-SAFE-RUNNER](../v1_1_0/m-agent-safe-runner.md) — operator-pinned execution policy precedent; does not supply browser infrastructure.
-- [M-EVAL-EXPERIMENT-REGISTRY](../v0_31_0/m-eval-experiment-registry.md) — future location for named browser-provider/tool-version comparisons.
+- [M-MANAGED-AGENTS-MODEL-EVAL](../../planned/v0_31_0/m-managed-agents-model-eval.md) — product-fidelity Gemini managed-agent vessel; explicitly distinct from neutral ranking.
+- [M-NET-EFFECT-PROXY-BOUNDARY](../../planned/v0_33_1/m-net-effect-proxy-boundary.md) — adjacent HTTP egress boundary whose browser/WebSocket exclusions this design preserves.
+- [M-AGENT-SAFE-RUNNER](../../planned/v1_1_0/m-agent-safe-runner.md) — operator-pinned execution policy precedent; does not supply browser infrastructure.
+- [M-EVAL-EXPERIMENT-REGISTRY](../../planned/v0_31_0/m-eval-experiment-registry.md) — future location for named browser-provider/tool-version comparisons.
 
 **Duplicate-gate result:** the skill's automatic neural/SimHash search returned unrelated high-score matches (recursion depth, flat if/else, monomorphization, and nightly measurement docs). Manual semantic/code search found no planned or implemented provider-neutral browser-session design. The related documents above overlap only in executor deployment, result banking, managed-vessel interpretation, or egress policy.
 
@@ -492,6 +494,35 @@ No AILANG language support/unsupported claims are made by this design, so no `ai
 - [Steel self-hosted browser](https://github.com/steel-dev/steel-browser) — future portable service adapter prior art
 - [Design Axioms](/docs/references/axioms)
 
+## Implementation Report
+
+**Completed**: 2026-08-23
+**Target version**: v0.33.3
+**Primary implementation commit**: `19c8c38af`
+**Independent evaluation**: PASS, 80/100
+
+### What Was Built
+
+- Provider-neutral browser contract, secret-safe connection values, stable failures, manifests, controller, and lifecycle tests.
+- Pinned local Playwright MCP provider with isolated sessions, content-addressed artifacts, and Codex process-group ownership.
+- Browserbase create/connect/inspect/export/stop/audit adapter with injectable HTTP client, stub coverage, and an explicit credential-gated live test.
+- Per-task Codex MCP configuration and executor capability validation without changing non-browser argument generation.
+- Eval/CLI selection, safe OTEL/result banking, nullable browser cost, neutral/managed comparability, fixture, operator guide, and Cloud Run secret pattern.
+- Post-evaluation hardening: independent stop cleanup budget after slow export, normalized effective viewport/policy provenance, and explicit unpinned locale/timezone provenance.
+
+### Verification Outcome
+
+Repository tests, lint, formatting, architecture boundaries, file-size checks, focused race tests, pinned MCP package smoke, CLI build/help, and Docusaurus production build passed. The evaluator verified 17 of 20 acceptance criteria and found no rubric hard fail.
+
+### Production Activation Gates
+
+- Real two-browser cookie/local-storage isolation evidence remains required; current hermetic tests prove unique process/session storage paths only.
+- The fixture prompt is runnable but its grader does not yet prove a Playwright-specific tool call. Result tool-histogram enforcement is a follow-up.
+- Browserbase live lifecycle/20-session Cloud Run soak and local 50-session plus 8/16/24 capacity measurements remain unexecuted because credentials/deployment capacity were not supplied.
+- Safe dashboard rendering/access control for artifact and inspection links remains a UI follow-up.
+
+These items block production qualification or full comparison claims, not the provider-neutral API and reference vertical slice delivered here.
+
 ## Future Work
 
 - Add AWS AgentCore Browser when microVM isolation, session replay to owned storage, OS-level actions, or enterprise IAM become requirements.
@@ -500,9 +531,10 @@ No AILANG language support/unsupported claims are made by this design, so no `ai
 - Add a dedicated browser/WebSocket egress boundary with redirect, DNS, service-worker, and proxy enforcement tests.
 - Add a full-desktop provider such as E2B under a separate `desktop` capability and result identity.
 - Add named Stagehand, Browser Use, computer-use, and managed-agent scaffold comparisons without changing the neutral baseline.
+- Implement [M-BROWSER-AUTH-PROFILES](../../planned/v0_33_4/m-browser-auth-profiles.md) before using persistent authenticated identities; its P0 egress and artifact-data-policy follow-ups block authenticated production use.
 - Consider an AILANG `Browser` effect only after the executor-side protocol and authority model have demonstrated stable semantics.
 
 ---
 
 **Document created**: 2026-08-23
-**Last updated**: 2026-08-24
+**Last updated**: 2026-08-23

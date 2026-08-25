@@ -12,6 +12,8 @@ type fakeProvider struct {
 	createErr, connectionErr, inspectErr, exportErr, stopErr error
 	calls                                                    []string
 	connection                                               SensitiveConnection
+	blockExport                                              bool
+	stopSawExpiredContext                                    bool
 }
 
 func (f *fakeProvider) Name() string { return "fake" }
@@ -27,12 +29,17 @@ func (f *fakeProvider) Inspect(context.Context, Session) (InspectionRef, error) 
 	f.calls = append(f.calls, "inspect")
 	return InspectionRef{Available: true, Ref: "safe-inspection-ref"}, f.inspectErr
 }
-func (f *fakeProvider) Export(context.Context, Session, string) (ArtifactManifest, error) {
+func (f *fakeProvider) Export(ctx context.Context, _ Session, _ string) (ArtifactManifest, error) {
 	f.calls = append(f.calls, "export")
+	if f.blockExport {
+		<-ctx.Done()
+		return ArtifactManifest{}, NewFailure(FailureArtifactExport, "export", ctx.Err())
+	}
 	return ArtifactManifest{Complete: f.exportErr == nil}, f.exportErr
 }
-func (f *fakeProvider) Stop(context.Context, Session) (Usage, error) {
+func (f *fakeProvider) Stop(ctx context.Context, _ Session) (Usage, error) {
 	f.calls = append(f.calls, "stop")
+	f.stopSawExpiredContext = ctx.Err() != nil
 	return Usage{DurationMS: 1000, ActionCount: 2}, f.stopErr
 }
 
@@ -87,6 +94,28 @@ func TestControllerPreservesPrimaryAndReportsCleanupFailure(t *testing.T) {
 	}
 	if manifest.CleanupErrorCategory != FailureCleanup || manifest.ArtifactErrorCategory != FailureArtifactExport {
 		t.Fatalf("cleanup/export categories not banked: %#v", manifest)
+	}
+}
+
+func TestControllerReservesIndependentStopBudgetAfterExportTimeout(t *testing.T) {
+	fake := &fakeProvider{
+		connection:  NewSensitiveConnection(MCPServerSpec{Name: "playwright", Command: "fake"}, nil),
+		blockExport: true,
+	}
+	c := NewController(fake, ControllerOptions{CleanupTimeout: 20 * time.Millisecond})
+	run, err := c.Start(context.Background(), SessionSpec{RunID: "run-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := run.Finish(context.Background(), TerminationExecutorFailed)
+	if !IsFailure(err, FailureArtifactExport) || manifest.ArtifactErrorCategory != FailureArtifactExport {
+		t.Fatalf("manifest=%#v err=%v, want artifact export failure", manifest, err)
+	}
+	if fake.stopSawExpiredContext {
+		t.Fatal("stop inherited the exhausted export deadline")
+	}
+	if want := []string{"create", "connection", "inspect", "export", "stop"}; !reflect.DeepEqual(fake.calls, want) {
+		t.Fatalf("calls = %v, want %v", fake.calls, want)
 	}
 }
 

@@ -75,6 +75,10 @@ func TestExecuteWithBrowserInjectsMCPAndBanksSafeManifest(t *testing.T) {
 	if manifest == nil || manifest.Provider != provider.Name() || manifest.Usage.ActionCount != 3 {
 		t.Fatalf("manifest = %#v", manifest)
 	}
+	if manifest.ViewportWidth != 1280 || manifest.ViewportHeight != 720 ||
+		manifest.PolicyVersion != "browser-policy-v1" || manifest.Locale != providerDefaultUnpinned || manifest.Timezone != providerDefaultUnpinned {
+		t.Fatalf("manifest did not bank normalized browser defaults: %#v", manifest)
+	}
 	if !manifest.Comparable || manifest.ManagedVessel || manifest.NonComparableReason != "" {
 		t.Fatalf("neutral browser manifest has wrong comparison identity: %#v", manifest)
 	}

@@ -511,7 +511,7 @@ No AILANG language support/unsupported claim is made, and this design does not t
 
 **Direct dependencies and precedents:**
 
-- [M-REMOTE-BROWSER-SESSION-PROVIDERS](../v0_33_3/m-remote-browser-session-providers.md) — provides the neutral lifecycle, opaque connection values, local/Browserbase adapters, and reserved profile reference.
+- [M-REMOTE-BROWSER-SESSION-PROVIDERS](../../implemented/v0_33_3/m-remote-browser-session-providers.md) — provides the neutral lifecycle, opaque connection values, local/Browserbase adapters, and reserved profile reference.
 - [M-SECRET-EFFECT](../../implemented/v0_26_0/m-secret-effect-remote-approval.md) — shipped/implemented 1Password resolver, safe reference, human approval, and audit precedent; browser bootstrap consumes this control-plane capability without placing secrets in model context.
 - [M-SECRET-REMOTE-APPROVAL-WIRING](../../implemented/v0_26_0/m-secret-remote-approval-wiring.md) — notification/approval operations for 2FA or refresh gates.
 - [M-PERMISSION-MODEL](../../deferred/m-permission-model.md) — future typed authority-tier alignment for credential/profile operations.

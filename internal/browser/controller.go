@@ -95,10 +95,14 @@ func (r *Run) Finish(ctx context.Context, termination Termination) (BrowserRunMa
 		return BrowserRunManifest{}, NewFailure(FailureCleanup, "finish", errors.New("nil run"))
 	}
 	r.once.Do(func() {
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), r.controller.options.CleanupTimeout)
-		defer cancel()
-		artifacts, exportErr := r.controller.provider.Export(cleanupCtx, r.session, r.spec.ArtifactDir)
-		usage, stopErr := r.controller.provider.Stop(cleanupCtx, r.session)
+		// Export and release must not share one deadline: a slow artifact API
+		// must never consume the budget needed to release a billable session.
+		exportCtx, cancelExport := context.WithTimeout(context.Background(), r.controller.options.CleanupTimeout)
+		artifacts, exportErr := r.controller.provider.Export(exportCtx, r.session, r.spec.ArtifactDir)
+		cancelExport()
+		stopCtx, cancelStop := context.WithTimeout(context.Background(), r.controller.options.CleanupTimeout)
+		usage, stopErr := r.controller.provider.Stop(stopCtx, r.session)
+		cancelStop()
 		r.manifest = BrowserRunManifest{
 			RunID:             r.spec.RunID,
 			ChainID:           r.spec.ChainID,

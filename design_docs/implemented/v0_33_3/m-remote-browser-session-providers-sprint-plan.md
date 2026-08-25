@@ -1,5 +1,7 @@
 # Sprint Plan: Remote Browser Session Providers
 
+**Status:** Implemented; independent evaluation PASS 80/100. Production activation evidence remains pending as recorded in the design implementation report.
+
 ## Summary
 
 Implement the provider-neutral browser-session layer targeted at v0.33.3 and

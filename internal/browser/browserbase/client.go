@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -46,6 +47,7 @@ type Provider struct {
 	client     *http.Client
 	mu         sync.Mutex
 	sessions   map[string]sessionResponse
+	specs      map[string]browser.SessionSpec
 	artifacts  map[string]string
 	stopped    map[string]browser.Usage
 }
@@ -90,7 +92,7 @@ func New(config Config) (*Provider, error) {
 		apiKey: config.APIKey, projectID: config.ProjectID,
 		baseURL: strings.TrimRight(config.BaseURL, "/"), npxPath: config.NpxPath,
 		mcpVersion: config.MCPVersion, client: config.HTTPClient,
-		sessions: make(map[string]sessionResponse), artifacts: make(map[string]string),
+		sessions: make(map[string]sessionResponse), specs: make(map[string]browser.SessionSpec), artifacts: make(map[string]string),
 		stopped: make(map[string]browser.Usage),
 	}, nil
 }
@@ -135,6 +137,7 @@ func (p *Provider) Create(ctx context.Context, spec browser.SessionSpec) (browse
 	}
 	p.mu.Lock()
 	p.sessions[response.ID] = response
+	p.specs[response.ID] = spec
 	p.artifacts[response.ID] = spec.ArtifactDir
 	p.mu.Unlock()
 	return browser.Session{ID: response.ID, Provider: p.Name(), CreatedAt: createdAt, ArtifactDir: spec.ArtifactDir}, nil
@@ -146,11 +149,18 @@ func (p *Provider) Connection(ctx context.Context, session browser.Session) (bro
 	}
 	p.mu.Lock()
 	record, ok := p.sessions[session.ID]
+	spec := p.specs[session.ID]
 	p.mu.Unlock()
 	if !ok || record.ConnectURL == "" {
 		return browser.SensitiveConnection{}, browser.NewFailure(browser.FailureConnect, "find Browserbase connection", fmt.Errorf("unknown session"))
 	}
 	args := []string{"-y", "@playwright/mcp@" + p.mcpVersion, "--headless"}
+	if spec.ViewportWidth > 0 && spec.ViewportHeight > 0 {
+		args = append(args, "--viewport-size", fmt.Sprintf("%dx%d", spec.ViewportWidth, spec.ViewportHeight))
+	}
+	if spec.ActionTimeout > 0 {
+		args = append(args, "--timeout-action", strconv.FormatInt(spec.ActionTimeout.Milliseconds(), 10))
+	}
 	if session.ArtifactDir != "" {
 		args = append(args, "--output-dir", session.ArtifactDir, "--save-session")
 	}
@@ -227,7 +237,11 @@ func (p *Provider) Stop(ctx context.Context, session browser.Session) (browser.U
 	}
 	p.mu.Lock()
 	p.stopped[session.ID] = usage
-	p.sessions[session.ID] = response
+	// Stop retaining the sensitive connection endpoint once the remote browser
+	// has been released. The usage record is sufficient for idempotent Stop.
+	delete(p.sessions, session.ID)
+	delete(p.specs, session.ID)
+	delete(p.artifacts, session.ID)
 	p.mu.Unlock()
 	return usage, nil
 }
