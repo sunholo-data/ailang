@@ -144,31 +144,46 @@ Look for log lines:
 | Pattern | Meaning |
 |---|---|
 | `Created task task-XXX (... inbox: pkg:sunholo/...)` | coordinator received the cascade message |
-| `Cloud dispatch: task task-XXX → Cloud Run Job (agent: , ...)` | **agent: empty** = no agent registered for the inbox; will fail |
+| `Skipping message <id>: no agent registered for inbox "..."` | no route; NOT dispatched, left unread for triage (current behaviour) |
+| `Cloud dispatch: task task-XXX → Cloud Run Job (agent: , ...)` | **agent: empty** — pre-2026-08-25 behaviour; dispatched anyway and failed on arrival |
 | `task task-XXX → failed (error=...)` | the job ran and exited with an error |
 | `task task-XXX already in terminal state "failed", skipping` | repeated retries from Pub/Sub redelivery |
 | (no logs at all) | coordinator scaled to zero AND push subscription couldn't wake it (rare) |
 
-### Step 6 — If "agent: " is empty, the agent registry isn't routing this inbox
+### Step 6 — Unrouted inbox: check this FIRST
 
-The coordinator's agent registry is loaded from `~/.ailang/config.yaml`
-(or the equivalent on the cloud instance — check via
-`coordinator describe-config` if available). The cascade tasks need a
-catch-all agent with `inbox: "pkg:*"` or per-package inboxes:
+The coordinator's agent registry is loaded from `~/.ailang/config.yaml` (or the GCS
+config on the cloud instance). Since M-COORDINATOR-INBOX-WILDCARDS an inbox with no
+match is **refused, not dispatched** — the message is left unread for triage.
+
+Inbox patterns work (a trailing `*` only — this was documented here before it was
+implemented, so older notes may mislead):
 
 ```yaml
 coordinator:
   agents:
-    - id: package-cascade-bumper
-      label: "Package Cascade Bumper"
-      inbox: "pkg:*"           # wildcard
-      capabilities: [code, package]
+    - id: pkg-motoko-ext-family
+      label: "Package family: sunholo/motoko_ext_*"
+      inbox: "pkg:sunholo/motoko_ext_*"   # trailing * = family pattern
+      capabilities: [code, test, docs]
 ```
 
-Without this, cascade tasks get created but never dispatched with a valid
-`AILANG_AGENT_ID`, and the executor's startup check
-([cmd/ailang/coordinator_cloud.go:171](cmd/ailang/coordinator_cloud.go#L171))
-fails them all.
+Precedence: exact `inbox:` wins, then longest matching prefix
+(`pkg:sunholo/motoko_ext_*` beats `pkg:sunholo/*` beats `pkg:*`), then no dispatch.
+
+**Check the registry spelling, not the directory spelling.** Packages are published
+with underscores and their directories use hyphens, and `FormatPackageInbox` does no
+normalization — `sunholo/motoko_ext_abi` routes to `pkg:sunholo/motoko_ext_abi`, never
+`pkg:sunholo/motoko-ext-abi`. Ten ailang-parse tickets were lost to exactly this.
+
+```bash
+grep -o 'inbox: "pkg:[^"]*"' config/config.cloud.yaml | sort -u
+```
+
+Pre-2026-08-25 the task was dispatched with an empty AgentID and the executor's startup
+check ([cmd/ailang/coordinator_cloud.go:171](cmd/ailang/coordinator_cloud.go#L171))
+failed them all, posting the failure to inbox `""` where nothing could read it. See
+docs/internal/cloud-coordinator-config.md.
 
 ### Step 7 — If the job ran and failed for another reason
 

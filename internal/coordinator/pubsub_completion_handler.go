@@ -172,9 +172,16 @@ func (h *CompletionHandler) postCompletionNotification(ctx context.Context, task
 		"changed_files": completion.ChangedFiles,
 	})
 
+	// Resolve the agent's INBOX, not its ID: they differ for package agents
+	// (ID "pkg-sunholo-auth" watches inbox "pkg:sunholo/auth").
+	toInbox := task.AgentID
+	if inbox, ok := h.agentRegistry.InboxForAgent(task.AgentID); ok {
+		toInbox = inbox
+	}
+
 	msg := &messaging.InboxMessage{
 		FromAgent:     completion.AgentID,
-		ToInbox:       task.AgentID, // Same inbox as the agent
+		ToInbox:       toInbox,
 		MessageType:   "completion",
 		Title:         fmt.Sprintf("Task %s: %s", completion.TaskID, completion.Status),
 		Payload:       string(payload),

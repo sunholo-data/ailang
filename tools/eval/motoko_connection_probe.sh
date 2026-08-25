@@ -123,7 +123,9 @@ artifact=$3
 benchmark=${4:-hello_world}
 ailang_bin=${AILANG_BIN:-ailang}
 timeout_secs=${PROBE_TIMEOUT_SECS:-900}
+MAX_TREE_NODES=${PROBE_MAX_TREE_NODES:-4096}
 [[ "$timeout_secs" =~ ^[1-9][0-9]*$ ]] || instrument_failure "PROBE_TIMEOUT_SECS must be a positive integer"
+[[ "$MAX_TREE_NODES" =~ ^[1-9][0-9]*$ ]] || instrument_failure "PROBE_MAX_TREE_NODES must be a positive integer"
 [[ $(uname -sm) == "Darwin arm64" ]] || instrument_failure "live probe requires darwin/arm64"
 command -v dig >/dev/null || instrument_failure "dig is required"
 command -v lsof >/dev/null || instrument_failure "lsof is required"
@@ -174,7 +176,7 @@ or_file="$tmp_dir/or_ips"
 [[ -s "$or_file" ]] || instrument_failure "dig returned no addresses for openrouter.ai"
 
 descendant_pids() {
-  local root=$1 deadline=$2 current child
+  local root=$1 deadline=$2 current child visited=0
   local -a queue=("$root") result=()
   if [[ "${PROBE_TEST_DESCENDANT_FAILURE:-0}" == 1 ]]; then
     echo "process-tree discovery deadline expired" >&2
@@ -188,6 +190,11 @@ descendant_pids() {
     current=${queue[0]}
     queue=("${queue[@]:1}")
     result+=("$current")
+    visited=$((visited + 1))
+    if (( visited > MAX_TREE_NODES )); then
+      echo "process-tree discovery exceeded $MAX_TREE_NODES nodes" >&2
+      return 1
+    fi
     while IFS= read -r child; do
       [[ -n "$child" ]] && queue+=("$child")
     done < <(pgrep -P "$current" 2>/dev/null || true)

@@ -1105,6 +1105,33 @@ the Repo Profile above):
    this mission already knows, in its sharpest form: **a mutation test needs proof the mutation
    LANDED before its result means anything**, because "the mutation didn't red" and "the mutation
    never ran" are the same exit code.
+   **AND "LANDED" IS NECESSARY, NOT SUFFICIENT — A `sed`/REGEX MUTANT CAN CHANGE THE FILE, BUILD
+   CLEANLY, AND HAVE MUTATED SOMETHING OTHER THAN WHAT YOU NAMED; THE DRILL THEN REPORTS A RED FOR
+   AN ARM THAT WAS NEVER EXERCISED** (added 2026-08-25 V1 iteration 274; two first-party frictions
+   in ONE iteration, both in the controller's own verification of a landed gate). Every mutation
+   rule in this file asks whether the mutation *happened*: sha256 differs, `go build` rc=0, the
+   file changed. All of those pass when the edit lands **in the wrong place**, so the sufficient
+   question is not *did bytes change* but **did the specific thing I named actually change state**.
+   Note the failure is invisible in the direction that matters: the arm goes red, which is what you
+   predicted, so rule 3d's negative control agrees with you for the wrong reason.
+   Measured, both in one iteration. **(a)** `sed 's/^ci: \(.*\)check-protocol-closure /ci: \1/'`
+   — the greedy `\(.*\)` matched to the LAST occurrence, so it stripped `test-check-protocol-closure`
+   and `test-check-tmpfile-hygiene` instead of the target named; the gate then reported exactly those
+   two, and **the gate's own error message is what revealed which targets had really moved**.
+   **(b)** A mutant appending a prerequisite with `sed 's/^ci: \(.*\)$/ci: \1 <target>/'` put it
+   AFTER the line's trailing `## help text`, i.e. inside a comment — so it was never a prerequisite,
+   and the arm redded on a *different* assertion than the one under test, making a false-green
+   reproduction look like a successful one.
+   **Rules. (a)** After mutating, assert the mutant's INTENDED EFFECT with a query against the
+   system's own view — `make -pn | grep -c '^ci:.*<target>'` must go 1→0, `grep -c 'run: make X'`
+   must go 1→0 — never against the file's bytes. **(b)** Prefer a structural editor (a few lines of
+   python over the parsed form) to a regex over a line whose tail you have not read; `^X: \(.*\)$`
+   on a line with a trailing comment is the commonest instance. **(c)** When an arm reds, read WHICH
+   assertion failed and confirm it is the one the mutant targets — rule 3j's corollary
+   ("read WHICH TEST failed, never the exit code alone") aimed at your own drill rather than at CI.
+   **(d)** Mission-independent, and the generalisation is this file's own recurring shape one level
+   down: **a mutation is an instrument too, so "the mutation landed" needs the same known-positive
+   discipline as "the search found nothing."**
    **AND THE SAME NON-SPLITTING BREAKS `set -- $var`, WHICH IS THE SHAPE THAT LANDS IN *POLL
    READERS* — SO THE FALSE READING ARRIVES AT THE GATE THAT DECIDES LANDED vs PARKED** (added
    2026-08-20 V1 iteration 239; instance 1 is iteration 107's `set -- $res` Gate-3b poll, which

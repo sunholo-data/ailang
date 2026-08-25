@@ -132,11 +132,32 @@ jobs:
     - name: Check architecture boundaries
       run: make check-boundaries
 
+    - name: Verify install guide consistency
+      run: make verify-install-guide
+
+    - name: Verify MCP tools
+      run: make verify-mcp-tools
+
+    - name: Verify stdlib interfaces
+      run: make verify-stdlib
+
+    - name: Stdlib interface gate self-test
+      run: make verify-stdlib-selftest
+
+    - name: Examples gate self-test
+      run: make verify-examples-gate-selftest
+
     - name: Check protocol build closure
       run: make check-protocol-closure
 
     - name: Protocol build closure gate self-test
       run: make test-check-protocol-closure
+
+    - name: Check make recipe tmpfile hygiene
+      run: make check-tmpfile-hygiene
+
+    - name: Make recipe tmpfile hygiene gate self-test
+      run: make test-check-tmpfile-hygiene
 
     - name: Check changelog index hygiene
       run: make check-changelog

@@ -22,6 +22,87 @@ section, write "none" rather than omitting:
 
 ---
 
+## 275 — 2026-08-25 — Wiring was never the whole job: six of the eleven unwired gates are RED, `make ci` cannot pass, and three rounds of judging turned a bypass blacklist into a whitelist
+
+**Pick.** Queue head `m-verify-targets-unwired` (filed iter-274). Ghost-disciplined: the row's
+transitive-reachability claim was re-derived first-party — 10 workflow files, 171 make targets, 44
+direct invocations, 45 reachable, known-positive control `check-file-sizes` present, negative
+control absent — and returned **exactly** the 11 targets the row names.
+
+**What the measurement changed.** The row asked for a per-target verdict (wire / exempt / delete).
+Running the eleven on a pristine worktree with a correctly-stamped binary turned that into a
+different question: **six of the eleven are RED at HEAD**, and four of those are `make ci`
+prerequisites — so `make ci`, which `.claude/rules/dev-workflow.md:22` tells every agent to run as
+*"full CI verification locally"*, **cannot pass**. The row's framing (wire the good ones, exempt
+the rest) was reasonable and incomplete; adjudication, not wiring, was the deliverable.
+
+**Two live defects the unwired gate had been hiding.** `verify-stdlib` is red on two genuine
+interface drifts: `std/zip.ail` gained `buildArchive`/`buildArchiveWithBytes` from `b2bbac8d9`
+(PR #784, 2026-08-19, 6 days' exposure) and was never re-frozen; and `std/list`'s *rendered*
+`reverse` return type moved `[a]` → `list[a]` while the **source signature is textually unchanged**
+since the golden's freeze commit `80019d4e0` — a renderer normalization from the delegation
+refactor (#814/#817), not an interface change. Both stated in the commit rather than silently
+re-frozen, as `tools/freeze-stdlib.sh` requires.
+
+**Routing evidence.** controller `opus` (session) · executor `codex:gpt-5.6-sol` (probe rc=0,
+bounded 30-min cap, 12,985 B directive, rc=0 with a 9-file non-empty diff, no commits, zero
+residue) · evaluator `sonnet` **in its own worktree** (Anthropic ≠ codex, generator≠judge holds),
+**three rounds** · designer/planner **not spawned** (direct-fix iteration — no doc, no plan, no
+Fable spend, rotation pointer untouched) · metered **$0.00** of $5.
+
+**Executor deviation (rule 3h), self-reported and correct.** It reported my directive as
+contradictory: I required the scratch binary on PATH, and `make freeze-stdlib` and the verify
+targets internally build and use `./bin/ailang`. The directive was under-specified; the executor
+did the right thing and said so.
+
+**Controller drill, anchored to the diff hunk-by-hunk (rule 3n), mutants different from the
+executor's.** It found what the executor's five could not: **CM1** the executor's golden mutant
+covered only `zip`, so the `list` hunk had no killer — reverting it alone reds `verify-stdlib`
+naming `list` with the `zip` control at 0. **CM2** the executor's `|| true` exercised only the
+in-shell branch, leaving the new `ContinueOnError` struct fields unpinned; `continue-on-error: true`
+on a wired step reds with the right assertion, sole killer. **CM3** — the finding — shrinking
+`verifyTarget` to drop `fmt-check-ail` left the **whole package rc=0**: a target outside the scope
+predicate is unchecked by construction and its orphaned exemption still looks deliberate. Fixed by
+`TestExemptionMapsAreLive`, which pins all four maps against their own predicates and immediately
+found a live redundancy (`verify-examples-trace` sat in both the unwired and the suppression map,
+and only the latter can apply).
+
+**Three evaluator rounds, and the third one is the lesson.** R1 **FAIL 63/100**, two BLOCKING;
+R2 **FAIL 45/100**, two BLOCKING; every finding reproduced first-party before acting, including
+the bash semantics (`bash -eo pipefail -c '...'`) proving each was a real bypass rather than an
+unmatched pattern. The shapes arrived in three waves — R1: `|| exit 0`, `set +e`, `make X &`;
+R2: `|| { echo f; }`, `|| (exit 0)`, `set +o errexit`, `trap ... EXIT`, and one worse in kind, a
+step-level `if:` that stops the gate RUNNING at all (the struct had no `If` field, so `yaml.v3`
+silently dropped the key). Each round's fix was another regex, and R2 also caught a regression I
+had introduced: the widened prefix class matched prose, so `echo "Great! make sure to run X"`
+yielded the target `sure` — a false RED on any future PR containing "make sure".
+**Round 3 inverted the model.** An enumeration of FORBIDDEN shapes is never complete; an
+enumeration of ALLOWED shapes is complete by construction. `TestWiredGatesAreCanonical` now
+requires a gate step to be a bare `make <target>` with optional `VAR=value` args, no `if:`, no
+truthy `continue-on-error`, a pipefail-safe shell and no errexit-disabling construct — anything
+else is a loud red demanding a stated reason. Detection moved to the target NAME on any `make`
+line, which no shell syntax can hide from, which in turn let the prose-matching regex widening be
+reverted. **All thirteen shapes from all three rounds now red, plus three neither evaluator tried
+(`| cat`, nested `bash -c`, a `for` loop)** — ten sole killers; the three that reach further are
+enumerated and explained (they also red the wiring test, because the narrow regex cannot see an
+invocation inside control flow, so the target additionally reads as unwired — loud from two
+directions rather than silent from one). Accepted trade, stated rather than hidden: the whitelist
+also flags safe shapes such as `make X || exit 1`; the price of a false positive is writing down a
+reason, the price of a false negative is a gate that cannot refuse.
+
+**Ruled out.** *"Wire the green ones and widen W2"* — refuted by measurement: six of eleven are
+red, so a blanket widening would have made the exemption map a rubber stamp, exactly as the row
+warned. *"`verify-examples-trace` is unwired"* — refuted: it IS invoked, at `ci.yml:322`, under
+`|| true`; connected and unable to refuse. *"The `list` golden drift is a stdlib interface change"*
+— refuted: the source signature is unchanged; it is a renderer normalization. *"A same-line
+substring match is enough to detect suppression"* — refuted three times over.
+
+**Not done, and named.** `make ci` remains RED on `verify-examples-toplevel` alone
+(`examples/ai_modes.ail`: *"AI requires mode=fixed; declaration provides mode=routeable"*) — filed
+as a queue row rather than fixed, because whether `AI[mode=routeable]` is a regressed capability or
+stale example sugar is a language question this sprint had no mandate to settle. Four queue rows
+filed in total.
+
 ## 0 — 2026-07-10 — Mission initialized (exploration census; no sprint run)
 
 **Picked**: n/a — charter-writing session (interactive, Fable + Mark).
@@ -18291,3 +18372,426 @@ harder to see as the two enumerations get closer together.
 
 **Next**: `m-protocol-closure-goos-scope` (the second iteration-268 judge row), then
 `m-lint-tmpfile-collision` and `m-gemini-verdict-score-threshold`.
+
+## 272 — 2026-08-25 — The row's own demonstration was the one case CI catches; the real escape was darwin and windows, in both arms
+
+**Pick:** queue head `m-protocol-closure-goos-scope` (JUDGE-FOUND iter-268). Human directive from Mark
+(`2026-08-24T23:35:48Z`, `#852`) — "D-34 is discharged" — actioned first; it is bookkeeping, so it did not
+displace the pick.
+
+**Directive outcome.** `D-34` ("when `#764` lands, cut v0.34.0") retired. Evidence re-derived rather than
+inherited: `serveapi/protocol` ships at `v0.33.2` (5 files, negative control 0), `ba2eeb4b4`/`7e7bdffcb` are
+ancestors of the tag, a post-tag commit is not, tag published `2026-08-24T19:26:28Z` non-draft. `#764`'s only
+stated reason for staying open had therefore lapsed on its own evidence: closed with the verdict and pin
+instruction, comment count asserted 5 → 6.
+
+**Problem.** Every `go list` in `scripts/check_protocol_closure.sh` ran at the ambient GOOS; CI invokes the gate
+only from the ubuntu `test` job (`ci.yml:136`/`:139`, `test-windows` at `:325` never does).
+
+**What reproducing it changed.** The row demonstrated a `_linux.go` intruder green on darwin — the one case CI
+catches. Measured as CI runs it: `_linux.go` rc=1 caught, `_darwin.go` rc=0 escapes, `_windows.go` rc=0 escapes.
+My own drill then found the escape covers **both** arms: a `_windows.go` under `serveapi/` escaped the facade arm
+identically, a surface the executor never probed.
+
+**Fix.** Both arms run across `GOOS_MATRIX` (default `linux darwin windows`; GOOS only, never GOARCH). Floors
+R1–R11 apply per GOOS and every message names the platform. The matrix carries its own floors — `R12` (empty →
+rc=2) and `R13` (completed ≠ expected) — applying iteration 271's retro lesson to the enumeration this iteration
+added. Self-test 5 → 9 arms.
+
+**Routing evidence.** controller=`opus` (session); executor=`codex:gpt-5.6-sol`, probe rc=0, 8,708 B directive,
+bounded 30-min cap, rc=0 with a 3-file non-empty diff, no commits, zero residue; evaluator=`sonnet` in its own
+worktree at `55a21d447`, **PASS 88/100**, one BLOCKING finding; designer/planner not spawned (direct fix — no
+Fable spend, rotation pointer untouched). metered=**$0.00** of $5.
+
+**Deviation adjudicated (rule 3h).** Executor shipped `${GOOS_MATRIX-…}` where my directive said
+`${GOOS_MATRIX:-…}`, self-reported. Measured in two arms: delivered form rc=2 naming R12; my form rc=0 with a
+green checkmark, i.e. R12 unreachable. **The directive was wrong** — second consecutive iteration where a
+self-reported executor deviation beat the instruction.
+
+**Judge's BLOCKING finding — real, reproduced, fixed in-iteration.** Stripping `[GOOS=%s]` from the `vacuous()`
+*helper* (which feeds nine floor messages) left the self-test 8/8 rc=0. This is my own finding one level down: I
+had pinned the two violator **call sites** and missed the shared **helper** — *guard the helper, miss the call
+site*, aimed at my own fix. Arm 9 added; the judge's exact mutant now reds rc=1.
+
+**Ruled out.**
+- *R13 is reachable by some input* — REFUTED. Five matrix shapes (empty, whitespace, single, multi, double-space)
+  plus the judge's glob/duplicate/newline/tab/bad-`GO_BIN` cases reach it in **zero** cases. It fires only when a
+  `continue` is inserted, so it is retained as a regression floor and **declared unreachable in the script**.
+- *A third unfloored enumeration exists* (the iter-271 defect class recurring) — REFUTED independently by me and
+  by the judge: exactly three `go list` call sites, all inside the loop, controls firing.
+- *`//go:build` under `serveapi/` means a real build constraint* — REFUTED; the single hit is a raw-string fixture
+  at `serveapi_external_test.go:211`.
+- *`env $BG go build` measured the three platforms* — REFUTED by its own output: zsh does not word-split an
+  unquoted variable, so all three arms returned rc=2 identically. A **false symmetry**, re-measured with literal
+  assignments.
+
+**Non-blocking items actioned:** GOARCH's out-of-scope status declared in the script header; `set -f` around both
+matrix loops, so `GOOS_MATRIX="linux *"` yields 2 iterations rather than the 49 repo-root entries.
+
+**Retro:** no skill edit. The candidate gap (pinning a message's call sites while leaving the shared formatting
+helper unpinned) has ONE first-party instance, pre-registered; rules 3i and 3j already cover the general shape.
+
+**Next:** `m-lint-tmpfile-collision`, then `m-gemini-verdict-score-threshold` and `m-codex-streaming-test-flake`.
+
+## 273 — 2026-08-25 — The row named one target; the audit found a second, and its shared file was a backup of a tracked source
+
+**Pick:** queue head `m-lint-tmpfile-collision` (filed iter-270 on inspection, never observed failing). No human
+directive on `#852` since the watermark (0 of 10 comments); inbox 2 unread, both informational (eval-suite start,
+`mission-world` iter-121 report — no demand, no bug, DECISIONS none), so nothing outranked the queue.
+
+**Problem, reproduced first-party because the row was filed on inspection.** Three missions plus interactive
+sessions run on this rig from **separate clones**: they do not share a checkout, they *do* share `/tmp`. The row
+named `make lint`, whose golangci-lint output goes to a fixed `/tmp/lint.raw`, whose filtered stream is `tee`d to
+a fixed `/tmp/lint.out`, and whose **verdict** is then grepped out of that shared file. Three arms, asserted to
+differ: a file holding a real finding greps rc=0 (correct FAIL); a second run's `tee` truncates it first and the
+same grep returns rc=1 — a **false green**; a clean run greping another's findings returns rc=0 — a **false red**.
+`tee` truncates on open, so the window is the whole streaming write. There is also no cleanup at all — both files
+survived the controller's own baseline run.
+
+**The systemic audit (CLAUDE.md §3) found a second target the row did not name, and it is worse.**
+`make verify-stdlib-selftest` copies the **tracked** `std/option.ail` to a fixed `/tmp/_selftest_option.ail`,
+appends a canary, and a `trap` restores the tracked file *from that backup*. Interleave two runs — A backs up, A
+appends, B backs up (now polluted), A's trap restores — and the tracked file is left carrying the canary.
+Reproduced deterministically, no timing luck: sha256 `4a5ee1b2…` → `6813b3c5…`, `git status` ` M std/option.ail`.
+The audit's third finding is the one that made the fix cheap: `make/test.mk`'s `test-stdlib-ail` is **already
+correct** (`$$$$`-suffixed, every path `rm -f`'d), so the repo supplied its own reference implementation — it was
+left untouched and now serves as the new gate's known-positive control.
+
+**Fix.** Both targets allocate per-invocation `mktemp` files and clean up via a trap on every exit path.
+`LINT_RC=$?` still immediately follows `golangci-lint`; the selftest's trap is armed *before* the tracked file is
+touched. New CI gate `check-tmpfile-hygiene` refuses fixed `/tmp` paths in make recipes with four anti-vacuity
+floors — R1 non-empty enumeration, R2 members readable, R3 a known-positive **scoped to the same file set**
+(zero `/tmp` occurrences anywhere is an instrument failure, not a clean tree), R4 an enumerated-count floor.
+
+**Routing evidence.** controller=`opus` (session); executor=`codex:gpt-5.6-sol`, probe rc=0, 10,615 B directive,
+bounded 30-min cap, **rc=0 with a 6-file non-empty diff**, no commits, zero residue; evaluator=`sonnet` in **its
+own** worktree at `cf9795d46`, **PASS 86/100, zero blocking**; designer/planner not spawned (direct fix — no doc,
+no plan, no Fable spend, rotation pointer untouched). metered=**$0.00** of $5.
+
+**Deviation adjudicated (rule 3h).** My directive said to follow the protocol-closure precedent, which puts
+`test-check-X` in `make/test.mk`, *and* said not to modify `make/test.mk`. The executor self-reported the
+conflict and honoured the prohibition, placing both targets in `make/code-health.mk`. **The directive was
+under-specified**; the placement is correct and arguably better (co-located with the gate it tests). Third
+consecutive iteration in which a self-reported executor deviation improved on the instruction.
+
+**Controller drill (mutants distinct from the executor's, anchored to the diff hunk by hunk — rule 3n).**
+Reverting either make hunk reds the gate rc=1 naming the file, so **each hunk has a killer**. An *added* fixed
+path is caught — the addition, not the removal, is what proves an enumerator LOOKS rather than merely FIRES
+(rule 3a(i-e)). A make-file set with no `/tmp` trips R3 at rc=2. **The load-bearing arm:** injecting a real
+unused Go function gives `make lint` rc=2 against a control rc=0 — the refactor did **not** make the verdict
+vacuous, which was the whole risk of moving the file the verdict is computed from. The drill also found a hole
+the executor's self-test did not cover: a fixed path parked in a column-0 make **variable** and expanded in a
+recipe escaped at rc=0. Enumerator widened to scan variable assignments, remaining scope declared in the script
+header, case promoted into committed arm 9.
+
+**The judge's most useful finding was that my own arm was decoration.** Arm 9 asserted "non-zero AND the output
+names the path", and under the reverting mutation it *did* go red — via **R3's floor**, because the fixture's only
+`/tmp` literal sat on the variable line, so a recipe-only scan saw zero occurrences. The rc=0 escape branch the arm
+exists to detect was never exercised. I had seen that R3 message during my own mutation run and read it as "still a
+correct RED" instead of as a mis-attributed one. This is the over-subscribed-observable shape (rule 3i) aimed at a
+guard I wrote *in response to* the same class one hour earlier. Fixed: the fixture now carries a decoy accepted
+(`$`-bearing) `/tmp` path on a recipe line so R3 is satisfied independently, and reverting the widening now fails
+arm 9 with its own message — *"a fixed path defined in a make variable escaped the enumerator (rc=0)"*.
+
+**Judge's other findings, all actioned or declared.** Three of seven refusal branches had no killer (neutering any
+one left a clean 9/9): **R4a** (non-integer `MK_FILES_EXPECTED`) and **R2a** (an enumerated member that is not a
+readable regular file — a *directory* named `*.mk` passes the `-e` test) are now pinned by arms proven with
+single-branch neuters; **R2b** (awk-failure detection) is left **declared** rather than faked. The gate's own
+`mktemp -d` was unguarded — inconsistent with the guarded pattern this very change introduces in the targets it
+polices — and now exits 2 loudly. Three further blind spots the judge measured are declared in the header:
+case-sensitive glob, non-recursive glob, alternate root makefile name. Self-test 9 → **11** arms.
+
+**Ruled out.**
+- *`make/test.mk` has the same defect* — REFUTED. Its temp paths are already `$$$$`-suffixed and cleaned; it is the
+  reference implementation, not an instance. Left untouched deliberately.
+- *The weekly external-issue sweep is owed* — REFUTED by measurement rather than transcribed from the last three
+  stamps: `#852` was created `2026-08-24T07:50:23Z` and iteration 267's record commit `31da92297` landed
+  `2026-08-24 12:55:56 +0200`, i.e. **after** the rotation, so its sweep discharges this rotation week.
+- *The `mktemp` refactor could have made `make lint` vacuous* — REFUTED by mutation (rc=2 vs control rc=0),
+  independently by me and by the judge with a different package and a different mutant shape.
+
+**Watch-item (instance 1, pre-registered, not a skill edit).** A controller observes a mutation red, sees it
+arrive by a *different* mechanism than the arm under test, and banks it as confirmation. Rule 3d covers a red you
+predicted; rule 3i covers an observable with too large a value set. Neither names the case where the red is real,
+the arm is real, and they are **not connected**. Bar is two frictions.
+
+## 274 — 2026-08-25 — The repo pinned what its gates CHECK and never that they were CONNECTED; the judge's best finding was already live in the tree
+
+**Pick:** queue head `m-ci-wiring-unpinned`, filed by the iteration-273 evaluator. No allowlisted directive on `#852`
+since the watermark (0 of 11 comments); inbox 4 unread, all informational (2× eval-suite, 2× nightly-eval 16/24 plus 3
+suspected flakes), so nothing outranked the queue. Rotation not owed (`#852` created after the Monday-07:00 CEST
+boundary); weekly sweep discharged by iteration 267 for this rotation week.
+
+**The row was JUDGE-FOUND, so ghost discipline applied — and it was wrong in BOTH directions.** Reproduced as filed:
+deleting the `run: make check-tmpfile-hygiene` step from `ci.yml` (mutant LANDED, sha256 `40daa117…` → `585e8850…`)
+left all eight local gates at rc=0, ci.yml restored byte-identical. But the row's claim that *"nothing in this repo
+validates the CONTENT of ci.yml"* is **over-stated**: `internal/cihygiene` already parses the workflows with a real
+YAML parser and validates job timeouts, and it is already run by `go test ./...` (`ci.yml:101`). That matters for the
+DESIGN, not just the bookkeeping — the row proposed a gate script plus a make target plus a ci.yml step, which is a
+shape that must itself be wired and therefore carries the exact defect it exists to detect. Putting the assertions in
+`cihygiene` makes them CI-connected **by construction**.
+
+**The under-stated half is the larger one, and it has a live victim.** `make ci` advertises *"Run full CI
+verification"* (`make/ci.mk:11`) and `.claude/rules/dev-workflow.md:22` instructs every agent to run it. Measured
+overlap with the targets GitHub Actions actually invokes: **8 of 46**. It omitted every `check-*` gate built in
+iterations 270–273. A first pass by direct invocation suggested 13 unwired gate targets; that enumeration was itself
+suspect (prerequisites and recipe-body sub-makes are invisible to it), so it was redone as a transitive-reachability
+walk over the parsed prerequisite graph — same answer, **13 of 29**, and it additionally showed `make ci` and
+`ci-strict` are invoked by **no workflow at all**. Two gate lists, nothing reconciling them.
+
+**Shipped.** W1 (every workflow `make X` names an existing target), W2 (every `check-*`/`test-check-*` target is
+workflow-invoked or exempt with a stated reason), W3 (`make ci` includes every workflow-invoked gate target). Each
+enumerator carries its own floors — a gate consulting two lists has two places to be vacuous. Targets come from
+`make -pn`, complete by construction, rather than a `.mk` glob that iteration 273's own residual row had already
+recorded as case-sensitive and non-recursive. `make ci` gained the 11 unconditional gates; `check-autoclose` and
+`verify-examples-trace` were excluded on measurement, not on judgement.
+
+**Ruled out / corrected by measurement.** (a) My first enumerator over-matched step NAMES — `- name: Check make recipe
+tmpfile hygiene` yields a phantom target `recipe` — which is why the shipped scan reads parsed `step.Run` scalars.
+(b) I suspected W3's `^ci:` regex would capture the `##` help text as prerequisites; measured, `make -pn` strips it.
+(c) `go build ./...` was kept OUT of the directive's gate list: it is rc=1 on pristine dev (`cmd/wasm`), the same
+finding iterations 145 and 245 recorded.
+
+**Routing evidence.** controller=`opus` (session); executor=`codex:gpt-5.6-sol`, probe rc=0, 7,815 B directive, bounded
+30-min cap, rc=0 with a 2-file non-empty diff, no commits, zero residue; evaluator=`sonnet` in **its own** worktree at
+`f7873dc45`, **PASS 80/100**; designer/planner not spawned (direct fix — no doc, no plan, **no Fable spend**, rotation
+pointer untouched). Fifth consecutive direct-fix iteration. metered=**$0.00** of $5.
+
+**The evaluator's best finding was live, not synthetic (rule 3b for judges: reproduce before acting).** It
+demonstrated that `\bmake\s+(target)` matches inside bash comments and echoes, so a gate could be listed in `ci:`,
+mentioned in a `# TODO: wire this up` comment, and never execute — all three checks passing. On reproducing it I found
+the repo already contained an instance: `update-readme` was counted as CI-wired on the strength of two comments, one
+of which reads *"Intentionally does NOT call `make update-readme` in full"*. Fixed by stripping shell comments and
+requiring `make` at a command position, and — the check that matters for a NARROWING — regression-verified by dumping
+the invoked-target set both ways: **45 → 44**, the single lost entry being exactly that false positive.
+
+**And the judge's second finding was right to fire and wrong in its replacement.** It refuted my `check-autoclose`
+exemption reason (*"needs AUTOCLOSE_ARGS"* — false; `code-health.mk:161` defaults it with `?=`) and proposed that the
+target *"runs unconditionally and cleanly"*. Measured in two arms: at `origin/dev` with an empty commit range it is
+**rc=2 `INSTRUMENT FAILURE: no records enumerated`**; one commit ahead it is **rc=0**. So both of us were wrong and the
+truth is a third thing — the target is RANGE-shaped, not event-shaped, and a developer on a freshly-pulled clean
+checkout is precisely the rc=2 case. Reason corrected in place with both arms recorded in the code. This is the
+clearest instance yet of the rule that a judge's finding must be reproduced before it is *acted on*, not only before
+it is dismissed.
+
+**My own drill error, recorded rather than smoothed over.** MU6, built to reproduce the judge's false-green, was
+mis-constructed: the `sed` appended the probe target after the `##` help comment, so the old-regex arm redded on W3
+rather than exercising W2 at all. The fix's real evidence is the live `update-readme` case, not that mutant. Same
+class as the MU3 `sed` that stripped two different targets than named — where the gate's own error message is what
+told me which targets had actually moved.
+
+**Gate 3b.** 4/4 required green on the final head `1536ef48e` (`test` 17m32s, `lint` 3m45s, `build` 1m56s,
+`docs-gate` 3s), 5/5 workflow runs success, `mergeStateStatus=CLEAN`, squash-merged `92376bad3`. Notably the
+`Run tests with timeout` step passed on the **ubuntu** runner on both heads, which is the platform evidence my
+darwin-only local greens could not supply (rule 3b(viii)) — the gate shells out to `make -pn`, so an off-darwin green
+was a real open question.
+
+**Next:** `m-gemini-verdict-score-threshold`, then `m-codex-streaming-test-flake`; the two rows filed this iteration
+(`m-verify-targets-unwired`, `m-ci-composite-action-blind-spot`) queue behind them.
+
+---
+
+## 277 — 2026-08-25 — A gate that scanned a directory which never existed, and a scan that stopped at its first error so nobody saw the other 339
+
+**Picked**: `m-fmt-check-ail-broken-and-red` — iteration 276's stated Next, a well-specified
+three-defect row.
+
+**Reality check**: all three claims CONFIRMED first-party, and then the measurement changed the
+question.
+
+1. **Enumerator scope.** `fmt-check-ail` ran `find examples stdlib -name '*.ail' 2>/dev/null`.
+   `test -d stdlib` → NO, `test -d std` → YES. As-written **404** files, corrected **450**, so **46**
+   stdlib `.ail` files were invisible to the gate, and `2>/dev/null` swallowed `find`'s own complaint
+   (`bfs: error: stdlib: No such file or directory`). Iteration 187 measured this exact defect
+   (400 vs 446 then) and filed it; it survived **90 iterations**.
+2. **A second enumerator hole the row did not name.** The recipe's empty-set branch printed a GREEN
+   checkmark and `exit 0` — a gate that could see nothing reported everything canonical.
+3. **rc=2 at HEAD**, drift in the two named examples. Confirmed.
+4. **`ailang fmt` refuses `examples/snippets/v3_3/math/gcd.ail`** at byte 353. Confirmed.
+
+**My own first measurement was the artifact, and that is recorded rather than smoothed over.** I ran
+`ailang fmt --check $files` in the tool shell — **zsh does not word-split an unquoted variable**, so
+all 404 paths went as ONE argument and the tool answered `file name too long`. This skill's own
+documented trap, met on its own gate. Caught by a two-arm control requiring the arms to DIFFER
+(`rc_unsplit=2` vs `rc_split=1`) and re-taken through `make`, whose `/bin/sh` does split. The lesson
+that generalises: *the reader is part of the instrument, and a plausible error message is not evidence
+that the error is about the thing under test.*
+
+**THE FINDING: the row's ordering is refuted at step 1.** It said *"fix the formatter bug, widen the
+enumerator, re-measure the drift set, then wire."* There is no *a* formatter bug. `ailang fmt --check`
+**aborts the entire scan at its first error**, so the gate's own output ("2 drifted files") is a claim
+about *where the scanner stopped*, not about the corpus. A per-file scan over the corrected scope
+measured, of 450 files:
+
+| outcome | count | share |
+|---|---|---|
+| canonical | **63** | 14% |
+| drift | **341** | 76% |
+| error | **46** | 10% |
+
+The 46 errors decompose into three genuinely different problems:
+
+- **38** comment-attachment refusals — *not one bug*: 9 subtrees, both `--` and `//` forms, several
+  positions. The one diagnosed here is a comment between a `func` signature and its `tests [` block;
+  the same file's first function has no such comment and passes, which localises it to a missing
+  boundary rather than to the comment.
+- **7** parse failures in **deliberately-invalid** corpora (`examples/archive/broken`,
+  `examples/experimental`, `examples/bugs`) — files whose purpose is to be unparseable. A formatter
+  gate that scans them can never be green, so "widen the enumerator" and "which subtrees are
+  gate-eligible" are different questions the row conflated.
+- **1 SOUNDNESS DEFECT**: `std/cognition.ail` is valid input (`ailang check` rc=0) whose formatted
+  output **fails to re-parse**. Severity qualified by measurement rather than asserted: it **fails
+  closed** — `--write` on a copy exits 2 and leaves the file **sha256 byte-identical**, real file
+  untouched — so it is a correctness bug, not a corruption risk.
+
+**Landed (partial, scoped honestly)**: PR [#883](https://github.com/sunholo-data/ailang/pull/883).
+Roots are now `FMT_AIL_ROOTS := examples std`; a non-existent root and an empty enumeration each fail
+loudly; the count is printed so the scope is visible rather than implied. Per iteration 274's rule
+(read from the skill delta at Gate 1 and applied all iteration), every mutant was asserted by its
+**intended effect** against the system's own view, never by file bytes: enumerated **404 → 450**;
+missing root → rc=2 *"enumerator is broken, not clean"*; empty → rc=2 *"instrument failure, not a
+pass"*. Two-arm control on the vacuity hole: **OLD rc=0 with a green checkmark, NEW rc=2**. Note all
+three arms are rc=2 in the normal case — a false symmetry — so the discriminator asserted was the
+**message and the count**, never the exit code. The stale exemption *reason* in
+`internal/cihygiene/gate_wiring_test.go` was corrected in the same commit: its enumerator half is now
+false, and iteration 274's judge already caught one wrong exemption citation.
+
+**The gate is still RED and still UNWIRED, and the PR says so.** Wiring it at any scope would red on
+341 files.
+
+**Ruled out / refuted**
+- *"There is one formatter bug (gcd.ail)"* — **REFUTED**: 38 files, same error class, diverse shapes.
+- *"The drift set is 2 files and will grow by up to 46"* — **REFUTED**: it is 341, and the 2 was a
+  scan-abort artifact, not a scope artifact.
+- *"The `m-ailang-fmt-inline-interior` worktree is mid-flight work on this"* — **REFUTED**: that
+  sprint landed at PR #434 (iteration 70); the worktree is a stale leftover and this is a different
+  attachment class.
+- *"`//` comments are invalid and that is why those files error"* — **REFUTED**: the lexer test
+  `{"slash_slash", "x // comment", true}` accepts them and `ailang check` returns rc=0 on such a file.
+- *My own zsh-unsplit reading* — refuted by a two-arm control, above.
+
+**Decomposed** into `m-fmt-cognition-roundtrip-soundness`, `m-fmt-attach-boundary-class`,
+`m-fmt-gate-corpus-eligibility`, plus **`D-38`**: whether to reformat 341 files or treat them as
+evidence the emitter is wrong is a ruling about what canonical AILANG *is* (standing rule 2), asked
+while the formatter has a live soundness defect.
+
+**Bookkeeping-pointer defect, first-party and new**: the driver exported `MISSION_GH_ISSUE=745` —
+V1's `-prev`, and **CLOSED**. The namespaced `mission-v1-gh-issue` correctly reads **852**; the bare
+fleet-shared `mission-gh-issue` also reads `745`, i.e. the driver reads the path the Repo Profile
+forbids. My first directive query ran against the wrong closed thread and was re-run against `#852`.
+
+**Routing evidence**: controller `opus` (session). Designer / planner / executor / evaluator **not
+spawned** — the deliverable is a 3-file, 50-line mechanical gate fix plus an adjudication, so no doc,
+no plan, no Fable spend; the designer rotation pointer was left untouched. metered=**$0.00** of $5.
+
+**Gates**: darwin/arm64, other matrix legs unrun locally — `check-changelog`, `check-file-sizes`,
+`check-boundaries`, `check-skills`, `fmt-check`, `check-tmpfile-hygiene`, `go vet`,
+`go build ./cmd/ailang`, `go test ./internal/cihygiene` all rc=0 under a freshly built binary stamped
+`v0.33.2-17-g1d7040de4` (ldflags carried — a linked worktree cannot VCS-stamp).
+
+**Retro — no skill edit.** Candidate gap, pre-registered at one instance so a second is recognisable:
+*a gate whose tool aborts its own scan reports a TRUNCATED finding set, so "N files drift" is a claim
+about where the scanner stopped, not about the corpus.* Rule 3b(v)(a) covers `head -N` truncation and
+rule 3j's enumerator rules cover what a gate cannot **see**; neither covers a scan that stops early on
+the files it **can** see. The tell would be: a gate reports a small finding set and its last line is
+an error.
+
+**Next**: `m-fmt-cognition-roundtrip-soundness` — a shipped soundness defect outranks the rest — then
+`m-ai-modes-regression-window`.
+
+## 276 — 2026-08-25 — The red was real, it was not what anyone blamed, and it had been parked for Mark four weeks ago in prose that nothing reads
+
+**Picked**: `m-make-ci-red-ai-modes` — **not** the queue head, and the reason is recorded. The head
+(`m-launchd-driver-process-tree-flake`) was filed by iteration 275 minutes earlier and sits on top by
+insertion convention, not by ordering; it is a single-occurrence red on a **non-required** check that
+never blocked a merge. This row blocks `make ci`, which `.claude/rules/dev-workflow.md:22` tells every
+agent to run as *"full CI verification locally"*, and it was iteration 275's own stated Next.
+
+**Reality check**: reproduced, then it refuted the row. `make ci` is RED on exactly **1** of its **27**
+prerequisites — count taken from `make -pn`, make's own view, not the file bytes (control: a known
+target present, an invented one 0). `verify-examples-toplevel` is rc=1 on the **sole** failure of
+**42** type-checked examples, `examples/ai_modes.ail`: *"Effect mode mismatch: AI requires mode=fixed;
+declaration provides mode=routeable"*.
+
+**The first reading of that gate was UNINFORMATIVE and the reason is worth more than the reading.**
+`tools/verify_examples.sh:24` prefers `./bin/ailang` over PATH, and that binary was
+`v0.33.2-9-g9944e264e` — **five commits stale** — so my carefully-stamped scratch binary on PATH was
+never consulted. Re-taken with `v0.33.2-14-gf4828cc89` in place (backup `a5c69b02af175bf5`, restored
+byte-identical): same verdict. This is the skill's stale-binary class arriving through a *script's*
+preference rather than through a command I typed, which is exactly the surface the rule says has no
+`--version` to check.
+
+**The row offered two dispositions; both are refuted.**
+- *Not stale sugar.* `design_docs/implemented/v0_15_x/m-ai-effect-modes.md` Example 2 is verbatim
+  `export func summarize_routed(text: string) -> string ! {AI[mode=routeable]} = call(text)`. The
+  example is a faithful rendering of the doc it exists to demonstrate, and it is the **only**
+  `mode=routeable` user in the repo — so migrating it would leave the feature with zero in-repo users.
+- *Not a checker regression from the sprint it was parked under.* At `7fb69c50e` (pre-M1) the file is
+  already rc=1, with a **worse** diagnostic (`Missing effects:` empty). `m-effect-replay-subsumption`
+  M2 only improved the message — precisely what `63b0ba3dd`'s commit message claimed it did.
+
+**It IS a regression, just an older one.** At `01642550e` (2026-05-04, the commit that shipped the
+example as M3 of M-AI-EFFECT-MODES) a binary built at that commit prints `✓ No errors found!` (rc=0),
+while refusing a deliberately ill-typed file at rc=1 — so the pass is real, not an instrument that
+cannot fail.
+
+**Shipped**: no code. The deliverable is an adjudication and a decision — **`D-37`**, filed in the
+authoritative ledger with four options (register the AI subsumption edge / make `std/ai.call`
+mode-polymorphic / migrate the example / quarantine it). Standing rule 2: (a) and (b) are
+language-semantics rulings and are not a controller's to force. Ledger valid at **37 rows**.
+
+**The finding that outranks the red itself.** `63b0ba3dd` (2026-07-28) says, in its own commit
+message: *"No AI edge was registered even though examples/ai_modes.ail is red at HEAD with the
+identical defect; that is PARKED for Mark as Q1."* The log carried it as `(0-subsum-ai)` in a
+"Parked-for-Mark" prose list. **It never became a ledger row.** Under the 2026-08-15
+decision-recording contract — the marked block is state, prose is only evidence — the question has
+been invisible to the human channel for four weeks while remaining the sole cause of a red `make ci`,
+and iteration 275 re-discovered its symptom as if new.
+
+**Systemic audit, because one orphan implies a class.** Measured against the ledger block (scope
+asserted non-empty; two known-present controls returned 1 each; a fresh negative literal returned 0):
+of the **12** standing items in iteration 118's last "Parked-for-Mark" list, **11 have ZERO ledger
+representation**. Only `(d)` main-tree divergence survived, as `D-16`. One of the eleven is now proven
+still live and unruled (`D-37`); the other ten are **UNMEASURED** and are explicitly not claimed
+unresolved — Mark's attended 2026-08-19 session resolved *"every remaining V1 decision"*, but against
+a **21-row** ledger, i.e. only what had been migrated. Filed as `m-prose-parked-decisions-orphaned`.
+
+**Routing evidence**: model=opus task-class=mechanical round1-score=n/a rounds=0 corrections=0
+  provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus
+  designer/planner/executor/evaluator **not spawned** — no doc, no plan, no code change, so no Fable
+  spend and the rotation pointer is untouched. metered=$0.00 of $5.
+
+**Ruled out**:
+- *`m-effect-replay-subsumption` M1/M2 caused the red* — REFUTED by the pre-M1 arm (`7fb69c50e` rc=1).
+  This was the natural reading of both the queue row and the original park, and it is wrong.
+- *The example is stale sugar predating a tightened mode system* — REFUTED by the shipped design doc.
+- *`1282767ca` (#386 effect-row soundness across pure nested calls) is the breaking commit* — REFUTED,
+  twice over: a two-arm build showed green at the commit **and** its parent, and a later clean
+  re-measure showed that reading was itself **void** (see below), with the true value rc=1 at both.
+- *`git bisect run`'s verdict* — DISCARDED as an instrument failure, not banked. It named
+  `e6d5f85c9`, a **docs-only** commit touching **0** `.go`/`.ail` files; direct re-measurement gives
+  rc=1 at that commit **and** at its parent, so the verdict does not reproduce.
+
+**My own instrument bug, root-caused and reproduced.** The bisect's GOOD seed was false because a
+helper printed `check_rc=$?` in the *same `echo` argument list* as `$(git rev-parse --short HEAD)`.
+The substitution runs first and clobbers `$?`, so the helper reported **git's** exit code. Two-armed:
+the buggy form prints `rc=0` for a command that exited 1; `rc=$?` on its own line prints `rc=1`. Since
+`e6d5f85c9^` **is** `1282767ca`, the bisect faithfully converged on the boundary of a lie. The exact
+breaking commit is therefore **NOT established** and is not claimed; the honest bracket is GREEN
+`01642550e` (2026-05-04) … RED `1282767ca` (2026-07-22), filed as
+`m-ai-modes-regression-window` with instructions to re-measure the seed rather than transcribe mine.
+
+**Housekeeping observation, not a fix**: iteration 275's log entry sits at **line 25**, above every
+older entry, while this file's own header mandates *"newest LAST (append)"*. Left in place — moving
+another iteration's record is not this gate's business — but flagged so the next reader is not misled
+into thinking the log is newest-first.
+
+**Retro lane**: none — no skill edit. The candidate gap is *the skill's own `rc=$?` remedy is safe
+only when nothing else runs first, and a `$(…)` substitution in the same argument list is something
+else running first*. Step 3 covers pipes; iteration 236 covers a pipe corrupting both arms of a
+control; neither names substitution reordering. **ONE** first-party instance, pre-registered so a
+second is recognisable. Bar is two.
+
+**Next**: `m-fmt-check-ail-broken-and-red` (unwired *and* rc=2, with a formatter crash that must be
+adjudicated first), then `m-ai-modes-regression-window`. `m-make-ci-red-ai-modes` is gated on `D-37`
+and must not be picked until Mark rules.

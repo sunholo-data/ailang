@@ -7,9 +7,11 @@ GATE="$REPO_ROOT/scripts/check_protocol_closure.sh"
 PROTOCOL_INTRUDER="$REPO_ROOT/serveapi/protocol/zz_intruder.go"
 TEST_INTRUDER="$REPO_ROOT/serveapi/protocol/zz_intruder_test.go"
 SERVEAPI_INTRUDER="$REPO_ROOT/serveapi/zz_intruder.go"
+GOOS_INTRUDER="$REPO_ROOT/serveapi/protocol/zz_goos_intruder_darwin.go"
+SERVEAPI_GOOS_INTRUDER="$REPO_ROOT/serveapi/zz_goos_intruder_windows.go"
 FAILED=0
 ARMS_RUN=0
-ARMS_EXPECTED=5
+ARMS_EXPECTED=9
 OUT=""; RC=0
 
 pass() { echo "  ok   — $1"; ARMS_RUN=$((ARMS_RUN + 1)); }
@@ -18,7 +20,7 @@ die() { echo "  FAIL — $1"; cleanup; exit 1; }
 
 BEFORE_STATUS=$(cd "$REPO_ROOT" && git status --porcelain)
 cleanup() {
-	rm -f "$PROTOCOL_INTRUDER" "$TEST_INTRUDER" "$SERVEAPI_INTRUDER"
+	rm -f "$PROTOCOL_INTRUDER" "$TEST_INTRUDER" "$SERVEAPI_INTRUDER" "$GOOS_INTRUDER" "$SERVEAPI_GOOS_INTRUDER"
 }
 trap cleanup EXIT HUP INT TERM
 
@@ -33,7 +35,7 @@ run_gate() {
 }
 
 extract_count() {
-	printf '%s\n' "$1" | sed -n 's/^protocol non-stdlib count: \([0-9][0-9]*\)$/\1/p' | tail -1
+	printf '%s\n' "$1" | sed -n 's/^\[GOOS=[^]]*\] protocol non-stdlib count: \([0-9][0-9]*\)$/\1/p' | tail -1
 }
 
 echo "protocol closure gate:"
@@ -41,6 +43,8 @@ echo "protocol closure gate:"
 [ ! -e "$PROTOCOL_INTRUDER" ] || die "$PROTOCOL_INTRUDER already exists"
 [ ! -e "$TEST_INTRUDER" ] || die "$TEST_INTRUDER already exists"
 [ ! -e "$SERVEAPI_INTRUDER" ] || die "$SERVEAPI_INTRUDER already exists"
+[ ! -e "$GOOS_INTRUDER" ] || die "$GOOS_INTRUDER already exists"
+[ ! -e "$SERVEAPI_GOOS_INTRUDER" ] || die "$SERVEAPI_GOOS_INTRUDER already exists"
 
 # Clean control and baseline count used by arm (i).
 run_gate
@@ -68,7 +72,23 @@ else
 fi
 rm -f "$PROTOCOL_INTRUDER"; assert_restored "intruder arm"
 
-# (ii) Vacuity: probe each independently-neuterable floor branch.
+# (ii) Cross-GOOS addition: prove the ambient runner looks at Darwin files.
+printf '%s\n' 'package protocol' '' 'import _ "github.com/google/uuid"' >"$GOOS_INTRUDER"
+[ -s "$GOOS_INTRUDER" ] || die "cross-GOOS arm setup did not land"
+grep -qF 'github.com/google/uuid' "$GOOS_INTRUDER" || die "cross-GOOS arm setup lacks uuid"
+run_gate
+if [ "$RC" -ne 1 ]; then
+	fail "cross-GOOS arm expected rc=1, got rc=$RC: $OUT"
+elif ! printf '%s\n' "$OUT" | grep -qF 'github.com/google/uuid'; then
+	fail "cross-GOOS arm did not name github.com/google/uuid: $OUT"
+elif ! printf '%s\n' "$OUT" | grep -qF '[GOOS=darwin] protocol closure contains non-stdlib packages'; then
+	fail "cross-GOOS arm did not attribute the refusal to darwin: $OUT"
+else
+	pass "cross-GOOS Darwin addition was seen and named"
+fi
+rm -f "$GOOS_INTRUDER"; assert_restored "cross-GOOS arm"
+
+# (iii) Vacuity: probe each independently-neuterable floor branch.
 VACUITY_FAILURE=""
 run_gate ./definitely/not/a/package
 [ "$RC" -eq 2 ] && printf '%s' "$OUT" | grep -qF 'vacuous enumeration (protocol R1)' || VACUITY_FAILURE="R1 probe: rc=$RC output=$OUT"
@@ -150,11 +170,35 @@ rm -rf "$FAKE_DIR"
 
 if [ -n "$VACUITY_FAILURE" ]; then fail "vacuity arm — $VACUITY_FAILURE"; else pass "vacuity probes R1/R2/R3/R4/R6/R7/R10/R11(a)/R11(b)/R11(c) refuse with rc=2 and no checkmark"; fi
 
-# (iii) Restoration.
+# (iv) Matrix anti-vacuity.
+OUT=$(cd "$REPO_ROOT" && GOOS_MATRIX="" /bin/bash "$GATE" 2>&1); RC=$?
+if [ "$RC" -ne 2 ]; then
+	fail "matrix anti-vacuity arm expected rc=2, got rc=$RC: $OUT"
+elif ! printf '%s\n' "$OUT" | grep -qF 'vacuous enumeration (matrix R12'; then
+	fail "matrix anti-vacuity arm did not name R12: $OUT"
+elif printf '%s\n' "$OUT" | grep -q '✓'; then
+	fail "matrix anti-vacuity arm printed a checkmark: $OUT"
+else
+	pass "empty GOOS_MATRIX refuses as matrix R12 with rc=2 and no checkmark"
+fi
+
+# (ix) Vacuity messages must themselves carry platform attribution. The two "closure
+# contains ..." violator messages are pinned by arms (ii)/(viii); the vacuous() helper
+# feeds every R1/R2/R3/R4/R6/R7/R10/R11/R12 message and was unpinned until this arm.
+run_gate ./definitely/not/a/package
+if [ "$RC" -ne 2 ]; then
+	fail "vacuity-attribution arm expected rc=2, got rc=$RC: $OUT"
+elif ! printf '%s\n' "$OUT" | grep -qF '[GOOS=linux] ✗ vacuous enumeration (protocol R1)'; then
+	fail "vacuity-attribution arm: R1 message did not carry [GOOS=linux]: $OUT"
+else
+	pass "vacuity messages carry platform attribution ([GOOS=linux] on protocol R1)"
+fi
+
+# (v) Restoration.
 run_gate
 if [ "$RC" -eq 0 ]; then pass "restoration arm clean gate passes"; else fail "restoration arm rc=$RC: $OUT"; fi
 
-# (iv) Scope: test-only imports deliberately do not enter a consumer's link closure.
+# (vi) Scope: test-only imports deliberately do not enter a consumer's link closure.
 printf '%s\n' 'package protocol' '' 'import _ "github.com/google/uuid"' >"$TEST_INTRUDER"
 [ -s "$TEST_INTRUDER" ] || die "scope arm setup did not land"
 run_gate
@@ -165,7 +209,7 @@ else
 fi
 rm -f "$TEST_INTRUDER"; assert_restored "scope arm"
 
-# (v) Serveapi addition: uuid is outside the ten-root facade allowlist.
+# (vii) Serveapi addition: uuid is outside the ten-root facade allowlist.
 printf '%s\n' 'package serveapi' '' 'import _ "github.com/google/uuid"' >"$SERVEAPI_INTRUDER"
 [ -s "$SERVEAPI_INTRUDER" ] || die "serveapi arm setup did not land"
 run_gate
@@ -177,6 +221,23 @@ else
 	pass "serveapi arm named disallowed root github.com/google/uuid"
 fi
 rm -f "$SERVEAPI_INTRUDER"; assert_restored "serveapi arm"
+
+# (viii) Serveapi cross-GOOS addition: the matrix must cover the facade arm too, not just
+# protocol. A _windows.go file is invisible to the ubuntu runner's ambient enumeration.
+printf '%s\n' 'package serveapi' '' 'import _ "github.com/google/uuid"' >"$SERVEAPI_GOOS_INTRUDER"
+[ -s "$SERVEAPI_GOOS_INTRUDER" ] || die "serveapi cross-GOOS arm setup did not land"
+grep -qF 'github.com/google/uuid' "$SERVEAPI_GOOS_INTRUDER" || die "serveapi cross-GOOS arm setup lacks uuid"
+run_gate
+if [ "$RC" -ne 1 ]; then
+	fail "serveapi cross-GOOS arm expected rc=1, got rc=$RC: $OUT"
+elif ! printf '%s\n' "$OUT" | grep -qF 'github.com/google/uuid'; then
+	fail "serveapi cross-GOOS arm did not name github.com/google/uuid: $OUT"
+elif ! printf '%s\n' "$OUT" | grep -qF '[GOOS=windows] serveapi closure contains disallowed module roots'; then
+	fail "serveapi cross-GOOS arm did not attribute the refusal to windows: $OUT"
+else
+	pass "serveapi cross-GOOS Windows addition was seen and attributed to windows"
+fi
+rm -f "$SERVEAPI_GOOS_INTRUDER"; assert_restored "serveapi cross-GOOS arm"
 
 if [ "$ARMS_RUN" -ne "$ARMS_EXPECTED" ]; then
 	echo "  FAIL — $ARMS_RUN of $ARMS_EXPECTED arms ran; refusing a vacuous green"

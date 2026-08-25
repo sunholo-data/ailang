@@ -8,11 +8,64 @@ every improvement is routed to exactly one lane — an **AILANG fix**, a **motok
 then route it. **Default bias: if it can be an extension, it is an extension — not a core change.** The
 living roadmap (benchmark ladder · extension catalog · AILANG-fix backlog) lives in PROGRAM.md.
 
-## Session start
+## Session start — every machine reads the SAME message store
 
-The SessionStart hook injects unread agent messages automatically. If there are any: summarize to the
-user, ask what to do, then `ailang messages ack --all`. If a task fails, `ailang messages unack MSG_ID`.
-Full command reference: `ailang messages --help`.
+**The canonical inbox is the shared cloud store: prod Firestore, project `ailang-multivac`.**
+Public feedback, package feedback, coordinator completions, and every other machine's agent
+traffic land there. A bare `ailang messages list` reads only *this* machine's private SQLite,
+so it shows none of that — which is why real user feedback sat unread for weeks.
+
+Every machine that does AILANG work (the voightkampff Studio, cloud sessions, Claude Code
+managed runs, this laptop) should have these exported in its shell profile:
+
+```bash
+export AILANG_MESSAGES_STORE=gcp
+export AILANG_MESSAGES_PROJECT=ailang-multivac
+```
+
+**These are safe to export** — unlike `AILANG_STORAGE`, they are scoped to messaging and leave
+coordinator and observatory (eval banking, `ailang chains`) on local storage. Confirm with
+`ailang storage status`, which must still say `Mode: local`.
+
+Then the ordinary commands just work, and non-local listings name the store in their header:
+
+```bash
+ailang messages list --unread                    # canonical inbox, all inboxes
+ailang messages list --inbox public-feedback --unread
+```
+
+Summarize to the user and ask what to do **before** acking; then `ailang messages ack <id>`
+(or `ack --all`). If a task fails, `ailang messages unack MSG_ID`.
+
+To check this machine's private local inbox, override for the one command:
+
+```bash
+AILANG_MESSAGES_STORE=local ailang messages list --unread
+```
+
+**Traps, each measured 2026-08-25 — do not rediscover these:**
+
+1. **Name the project explicitly; never rely on `AILANG_CLOUD_PROJECT`.** It is pinned per-machine
+   (`~/.zshenv` on the attended laptop points it at `ailang-multivac-dev`, a stale graveyard). That is
+   exactly why `AILANG_MESSAGES_PROJECT` exists and why it wins. Control: `ailang messages list` prints
+   `store: gcp (Firestore, project ...)` in the header whenever the store is not local — read it.
+2. **`GOOGLE_CLOUD_PROJECT` is ignored.** Only `AILANG_CLOUD_PROJECT` / `AILANG_MESSAGES_PROJECT` select
+   the project ([client.go:23](internal/storage/firestore/client.go#L23)). Setting the wrong one gives a
+   confident, wrong answer with no error — dev and prod queries returned byte-identical output.
+3. **`--inbox public-feedback` is not the whole feedback channel.** Package feedback routes to
+   `pkg:<vendor>/<name>`. Enumerate inboxes rather than assuming; `--unread` with no `--inbox` spans
+   them all.
+4. **The list view truncates IDs to 8 chars**, so every cloud `inbox_<epoch>_<hash>` renders as
+   `(inbox_17)`. You cannot ack what the list shows you — get full IDs from `--json`. (An ambiguous
+   prefix errors loudly rather than acking the wrong message, so this costs time, not correctness.)
+5. **`messages read <id>` marks it read as a side effect.** Triaging by reading silently drains the
+   unread queue — the next session then sees an empty inbox and concludes nothing arrived. Read bodies
+   out of `--json` when you want to inspect without acking.
+
+**Do not export `AILANG_STORAGE`** to reach the cloud inbox. It is a process-wide switch over *all
+three* backends — coordinator, messaging, and observatory
+([backend.go:83](internal/storage/backend.go#L83)) — so exporting it also moves eval banking and
+coordinator task state to Firestore. `AILANG_MESSAGES_STORE` is the scoped selector; use it.
 
 ---
 

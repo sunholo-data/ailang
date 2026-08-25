@@ -125,6 +125,16 @@ func (d *Daemon) initTaskProcessing() error {
 		}
 
 		for _, agent := range coordConfig.Agents {
+			// Wildcard inboxes are routing PATTERNS, not addresses. Local mode
+			// polls one SQLite adapter per literal inbox name, so an adapter for
+			// "pkg:sunholo/motoko_ext_*" would poll an inbox that cannot exist
+			// and log a misleading "Watching inbox" line. Cloud mode routes by
+			// the message's Inbox attribute through GetAgentForInbox, where the
+			// pattern does its work.
+			if isWildcardInbox(agent.Inbox) {
+				d.logger.Printf("Agent %q serves inbox pattern %q (cloud-routed; no local poller)", agent.ID, agent.Inbox)
+				continue
+			}
 			inboxAdapter := &InboxMessageAdapter{
 				store: d.msgStore,
 				inbox: agent.Inbox,

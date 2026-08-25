@@ -5,9 +5,10 @@ loads its agent registry from a per-project GCS bucket, mounted via gcsfuse.
 This doc covers:
 - Where the config actually lives in each project
 - How to add an agent for a new package family (the common case)
-- The known gap: cascade tasks fail silently when no agent matches a
-  `pkg:*` inbox (tracked in
-  [M-COORDINATOR-INBOX-WILDCARDS](../../design_docs/planned/v0_19_0/m-coordinator-inbox-wildcards.md))
+- Inbox **patterns** (`pkg:sunholo/motoko_ext_*`), which since
+  [M-COORDINATOR-INBOX-WILDCARDS](../../design_docs/planned/v0_29_0/m-coordinator-inbox-wildcards.md)
+  let one entry serve a whole family
+- The underscore-vs-hyphen naming trap that silently misroutes feedback
 
 ## TL;DR
 
@@ -46,21 +47,31 @@ message, looks up the right agent via `AgentRegistry.GetAgentForInbox(
 "pkg:vendor/name")`, and dispatches to a Cloud Run Job with
 `AILANG_AGENT_ID` set from the resolved agent.
 
-If no agent is registered for that exact inbox, the task is created with
-`agent: ""` and the Cloud Run Job exits 1 immediately:
+If no agent matches, the coordinator now **refuses to dispatch** and leaves the
+message unread for triage, logging:
+
+```
+Skipping message <id>: no agent registered for inbox "<inbox>" (left unread for triage)
+```
+
+**Before 2026-08-25** it dispatched anyway with `agent: ""`, and the Cloud Run Job
+exited 1 on arrival:
 
 ```
 error=AILANG_AGENT_ID environment variable is required
 ```
 
-The publishing CLI prints `Cascade-topic notification published` regardless,
-so failures are invisible at publish time.
+The completion was then posted to inbox `""`, unreachable by every `--inbox` query —
+36 such messages accumulated in prod and 787 in dev. The publishing CLI prints
+`Cascade-topic notification published` either way, so the failure was invisible at
+publish time. Old messages carry the second signature; grep for both.
 
-## Adding a new package agent (today, exact-match only)
+## Adding a package agent: explicit entry
 
-Until [M-COORDINATOR-INBOX-WILDCARDS](../../design_docs/planned/v0_19_0/m-coordinator-inbox-wildcards.md)
-ships, every package needs its own entry. Append under
-`coordinator.agents`:
+Use an explicit entry when the package needs its own scoping (`subdirectory`,
+`artifact_patterns`, a tighter budget) or lives outside `ailang-packages`. An exact
+`inbox:` **always wins over any pattern**, so it can override a family glob without
+removing it. Append under `coordinator.agents`:
 
 ```yaml
 - id: pkg-sunholo-mypackage
@@ -74,13 +85,13 @@ ships, every package needs its own entry. Append under
   max_cost_usd: 0.05
 ```
 
-Add one entry per package in the family. For the motoko_ext family
-(13 packages) that's 13 entries. This is the manual tax that the wildcard
-work removes.
+Prefer a family pattern (below) over one entry per package — that per-package tax is
+what lost 10 cascades on an `abi 2.1.0` republish.
 
-## Adding a new package agent (after wildcards ship)
+## Adding a package agent: family pattern (preferred)
 
-After M-COORDINATOR-INBOX-WILDCARDS, one entry per FAMILY:
+One entry per FAMILY. A new member is routed the moment it is published, with no
+config change:
 
 ```yaml
 - id: pkg-motoko-ext-cascade-bumper
@@ -91,9 +102,42 @@ After M-COORDINATOR-INBOX-WILDCARDS, one entry per FAMILY:
   capabilities: [code, package, cascade]
 ```
 
-Longest-prefix-wins, so an explicit `pkg:sunholo/motoko_ext_abi` entry
-still overrides the family glob if you want different settings for one
-specific package.
+Precedence: exact `inbox:` match, then longest matching pattern prefix
+(`pkg:sunholo/motoko_ext_*` beats `pkg:sunholo/*` beats `pkg:*`), then no dispatch.
+Only a trailing `*` is supported — full glob syntax and mid-pattern wildcards
+(`pkg:*/motoko_*`) are deliberate non-goals.
+
+Omit `subdirectory` on a family agent: it differs per package, and the prompt names the
+package so the agent can locate `packages/<name>` itself.
+
+## Naming: underscores vs hyphens
+
+The registry spells package names with **underscores**; the repo directories use
+**hyphens**:
+
+| Registry package | Inbox | Directory |
+|---|---|---|
+| `sunholo/motoko_ext_abi` | `pkg:sunholo/motoko_ext_abi` | `packages/motoko-ext-abi` |
+| `sunholo/ailang_parse` | `pkg:sunholo/ailang_parse` | `packages/ailang-parse` |
+
+`FormatPackageInbox` prefixes `pkg:` with **no normalization and no existence check**,
+so feedback submitted against the hyphen spelling mints an inbox nothing watches. On
+2026-08-25 ten tickets landed in `pkg:sunholo/ailang-parse` while the agent watched
+`pkg:sunholo/ailang_parse`. Always use the **registry** spelling.
+
+## Verifying coverage
+
+A package published with no matching entry or pattern accumulates unread mail nobody
+acts on. To find them:
+
+```bash
+ailang search "" --limit 200 | grep -oE "sunholo/[a-z0-9_-]+" | sort -u   # published
+grep -o 'inbox: "pkg:[^"]*"' config/config.cloud.yaml | sort -u           # routed
+```
+
+Measured 2026-08-25: 22 of 41 published packages had a curating agent; after adding the
+`motoko_ext_*` family plus four orphans, 40 of 41. The remaining one, `sunholo/email`,
+lives outside `ailang-packages` and needs its own workspace.
 
 ## Dev-vs-prod promotion
 
@@ -133,10 +177,10 @@ agent registration.
   Cloud Run revision restart (the `--update-labels=config-restart=...`
   trick). The proper fix is a coordinator-side filewatcher + atomic
   swap. Not in scope for v0.19.0; tracked under M2 of the wildcards doc.
-- **Wildcard precedence semantics**: longest-prefix wins is intuitive
-  but a single `pkg:*` catch-all + a per-package override has potential
-  for surprise. Document precedence rules clearly when wildcards land.
-- **Failure visibility**: even with wildcards, `agent: ""` empty-AgentID
-  bugs can still happen (e.g. typo in inbox name). The wildcards doc
-  proposes a refusal-to-dispatch + structured warning; pairs naturally
-  with a CLI-side "publish saw zero confirmed cascades" warning.
+- ~~**Wildcard precedence semantics**~~ — RESOLVED 2026-08-25: longest-prefix
+  wins with exact-match beating every pattern; see "family pattern" above.
+- ~~**Failure visibility**~~ — PARTLY RESOLVED 2026-08-25: an unrouted inbox is now
+  refused rather than dispatched, and the message is left unread. A typo in an inbox
+  name still produces a *silent backlog* rather than a *silent failure*; the
+  CLI-side "publish saw zero confirmed cascades" warning is still unbuilt, and
+  `FormatPackageInbox` still applies no name validation.

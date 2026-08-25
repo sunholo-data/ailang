@@ -1,40 +1,43 @@
 # Mission Dashboard — V1
 
-*Snapshot, overwritten every iteration. History lives in the charter STATUS block and the log.*
-**Last iteration:** 271 · 2026-08-24 · **LANDED — `m-protocol-closure-arm2-floor` (`fffe2487b`)**
+> 30-second control context. Snapshot, not a record — history lives in
+> [v1-mission.md](v1-mission.md) STATUS + [v1-mission-log.md](v1-mission-log.md).
+> Overwritten every iteration.
 
-## Latest release
-**v0.33.2** (2026-08-24 19:26Z) — already contains all four `#764` milestones plus iteration 270's
-lint fix, so `D-34`'s premise ("v0.34.0 is the delivery to World") is **stale**. World told on `#764`.
+**Last iteration**: 277 · 2026-08-25 · controller `opus` · metered **$0.00** of $5
 
-## What just landed
-The iteration-268 judge row named ONE hole in the closure gate's `./serveapi` arm; reproducing it
-first-party found **two**, the unnamed one worse. Arm 2 runs a *second* enumeration — the
-module-root query the allowlist check actually consumes — with no floor at all, its exit status
-discarded as a pipeline head. Reducing it 10 roots → 0 left the gate green. `R10` + `R11` close
-both. `sonnet` **PASS 96/100**, zero blocking.
+## In flight
+- **PR [#883](https://github.com/sunholo-data/ailang/pull/883)** — `fmt-check-ail` enumerator fix
+  (404 → 450 files; missing root and empty scan now fail loudly instead of printing a green
+  checkmark). MERGEABLE; CI polling at Gate 3b.
 
-## Next picks (queue head first)
-1. `m-protocol-closure-goos-scope` — gate blind to GOOS/build-tag files (judge, iter-268)
-2. `m-lint-tmpfile-collision` — `make lint` judges a fixed shared `/tmp/lint.out` (iter-270)
-3. `m-gemini-verdict-score-threshold` — `ValidateVerdict` enforces half its invariant (iter-270)
-4. `m-codex-streaming-test-flake` — dies under full-parallel `make test` (judge, iter-270)
-## Loop cadence + routing
-launchd `dev.ailang.mission-control`, ~90 min. Controller `opus`; designer ROTATION (pointer
-`claude:claude-fable-5`, untouched — direct-fix iterations spawn none); planner/executor
-`codex:gpt-5.6-sol`; evaluator `sonnet` (≠ executor, generator≠judge holds). Metered **$0.00** of
-$5 — both quota buckets. Anthropic up; codex probe rc=0; billing tripwire CLEAN.
+## Next picks
+1. `m-fmt-cognition-roundtrip-soundness` — **shipped formatter soundness defect**: `std/cognition.ail`
+   is valid input whose formatted output fails to re-parse. Fails closed (no corruption), but real.
+2. `m-fmt-attach-boundary-class` — 38 files, not 1, fail comment attachment.
+3. `m-ai-modes-regression-window` — narrow iteration 276's GREEN…RED bracket from a re-measured seed.
+4. `m-fmt-gate-corpus-eligibility` — gated on `D-38`(c).
 
-## Parked on Mark (`scripts/mission_decisions.sh --open`)
-- **`D-30`** — enforce the harness↔`ai-check` version coupling: (a) versioned JSON schema,
-  (b) bind to `os.Executable()`, (c) accept + spot-check.
-- **`D-31`** — split the designer rotation into authoring vs review lanes, or widen it? Two of
-  three entries cannot author for structural reasons no probe clears. 4+ instances.
-- **`D-32`** — exempt an `inconclusive` obligation from `cost_per_verified_success`, as `D-29`
-  exempts `not_applicable`?
-- **NEW, one word** — `D-34` pre-authorised asking for **v0.34.0** as `#764`'s delivery; v0.33.2
-  already delivers it. Ask **discharged**, or still want the minor bump to signal the new public
-  `serveapi/protocol` surface?
+## Headline finding (iteration 277)
+Only **63 of 450** `.ail` files (**14%**) are in `ailang fmt` canonical form: **drift=341, err=46**.
+The long-recorded "2 drifted files" was an artifact of `ailang fmt --check` **aborting its scan at the
+first error**. `fmt-check-ail` remains RED and UNWIRED — wiring it at any scope would red on 341 files.
 
-**Rig note:** the MAIN checkout held a concurrent session's live uncommitted work at this fire;
-left strictly alone, all writes went to worktrees.
+## Parked on Mark — 6 OPEN decisions
+- **`D-38`** (new) — reformat 341 files to the formatter's output, or treat them as evidence the
+  **emitter** is wrong? A ruling about what canonical AILANG *is*; asked while the formatter has a
+  live soundness defect.
+- **`D-37`** — may `!{AI[mode=routeable]}` call `std/ai.call` (`mode=fixed`)? Sole cause of RED `make ci`.
+- **`D-36`** — evaluator fails 3 rounds but findings are mechanical: PARK or LAND?
+- **`D-31`** — split the designer rotation into authoring vs review lanes (4th instance).
+- **`D-30`** — harness↔`ai-check` version coupling before the `not_applicable` split.
+- **`D-32`** — exempt `inconclusive` from the `cost_per_verified_success` arm?
+
+## Loop health
+- Bookkeeping thread **#852** (week of 2026-08-24); rotation not owed.
+- ⚠ Driver exports `MISSION_GH_ISSUE=745` — V1's **`-prev`**, and **closed**. Namespaced pointer is
+  correct (852); the driver is reading the fleet-shared bare path. Worked around, not yet fixed.
+- ⚠ Running skill still drifts from origin by `065a4f16c` (Gate-5 edit committed from a worktree).
+  Read each iteration; main checkout **3 ahead / 13 behind** with a concurrent agent's unique commits,
+  so the reconcile's first obligation fails and none is attempted.
+- Cloud inbox: 59 unread, all external-origin package feedback + coordinator notices (read, not obeyed).
