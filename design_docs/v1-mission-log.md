@@ -22,6 +22,90 @@ section, write "none" rather than omitting:
 
 ---
 
+## 279 — 2026-08-26 — The formatter dropped parentheses it needed, and the reason CI never saw it is that every formatter corpus test walked `examples/` only
+
+**Pick.** Iterations 277 and 278 both named `m-fmt-cognition-roundtrip-soundness` as Next; the
+positional queue head (`m-launchd-driver-process-tree-flake`) is a single-occurrence red on a
+non-required check that iteration 276 had already deprioritised for that reason. Ghost-disciplined
+under a freshly built, ldflags-stamped binary before any routing: `ailang check std/cognition.ail`
+**rc=0**, `ailang fmt` **rc=2** — *"formatted output failed to re-parse (formatter defect)"* — with
+`std/list.ail` rc=0 as the control. Not a ghost.
+
+**Reality check.** No design doc existed for the row (`grep -ril` across `design_docs/`, control:
+74 files mention "formatter"). Died-mid-flight traces clean: the only open PR on the fleet account
+was `#695`, the known stale coordinator PR with no matching worktree — `--author` is a FLEET
+filter, so it was left alone. A `sprint/m-ailang-fmt-inline-interior` worktree exists but dates to
+2026-07-20, is clean, and is not in `origin/dev`: month-old abandoned work, not an inherited
+iteration.
+
+**Root cause, reduced from 83 lines to 2.** `export func f(cb: ({a: string}) -> ()) -> () { g(cb) }`.
+The printer drops parens around a function type's sole parameter — deliberately, because
+`int -> int` is what `ailang prompt` teaches and always parenthesising once rewrote ten of the
+prompt's own examples. `bareArrowSafe` decided when via a **blacklist**: unsafe for `FuncType`
+(arrow associativity) and `TupleType` (reads as two parameters), safe for everything else. A record
+parameter therefore emitted `{ a: string } -> ()`, and the parser reads that leading `{` as a
+BLOCK. Confirmed two-armed: the hand-written paren-less form gives
+`PAR_UNEXPECTED_TOKEN ... expected ), got ->`, the with-parens form parses.
+
+**Shipped.** PR [#887](https://github.com/sunholo-data/ailang/pull/887) → `ec010fea3`, squash-merged
+after all four required contexts went green (`test` 27m16s, `lint`, `build`, `docs-gate`).
+`bareArrowSafe` is now a whitelist; `LabelledType` recurses on its base; an unrecognised node
+defaults to KEEPING parens, so a tenth `ast.Type` is verbose rather than unsound. New
+`TestFormatterOutputAlwaysReParses` (both roots, anti-vacuity floors on missing and empty roots)
+and `TestBareArrowSoundnessByConstruct`. Measured: std/ round-trip failures **1 → 0** (ok 39 → 40),
+examples/ **0 → 0**; `bareArrowSafe` coverage 60% → 80%.
+
+**The finding worth more than the fix.** Every formatter corpus test walked `../../examples` only:
+**0** test references to `std/`, control **1** to `examples/`. std/'s 46 files — holding the repo's
+only round-trip offender — were outside the gate *by construction*, which is why a strict gate
+(`preExistingRT != 0` is already fatal) sat green over a shipped soundness defect. The existing
+comment gate was deliberately NOT widened: its `inlineInteriorRefusalCeiling = 32` is calibrated on
+`examples/` alone and std/ adds 6 comment-unattached refusals, so widening it would have failed for
+reasons belonging to `m-fmt-attach-boundary-class`.
+
+**My own mutation drill bought iteration 274's rule.** The first mutant — deleting `RecordType`
+from the unsafe case — LANDED (sha256 moved) and BUILT and produced **no intended effect**: `fmt`
+rc stayed 0, because under the new whitelist it merely falls through to `default: return false`.
+Asserting the mutant's intended effect against the system's own view is the only thing that caught
+it; a bytes-changed check would have passed. The true mutant (restore the blacklist wholesale)
+moved `fmt` rc **0 → 2**, redded both new tests, and — with them `-skip`ped — left the package
+**rc=0**, so they are sole killers and the class had zero prior coverage. Restored from a copy, not
+`git checkout` (the worktree was uncommitted), sha256 byte-identical.
+
+**I reddened a required gate mid-iteration and fixed it in-turn.** Push 2 failed `test` at step 31
+with `internal/format 600.018s` — the 10-minute per-package ceiling. Per-file profiling located the
+cause and it was not my sweep being wasteful: parse is ~200µs while `SourceWithComments` is
+**jwt.ail 4.5s, sem.ail 3.6s, ai.ail 2.9s** (13.4s over std/), against **8ms** for the same sweep
+via comment-free `Source()`. Since the property under test is TYPE emission — shared by both paths,
+and measured to still catch `cognition.ail` under the pre-fix printer — the sweep moved to
+`Source()`: **0.04s over 443 files across both roots**, drill re-run, still sole killers.
+
+**Ruled out.** (a) That the defect was the effect row on the callback — four minimal fixtures
+(`(string) -> () ! {Msg}` and variants) all format clean; it is the record type, not the effects.
+(b) That a plain record parameter is affected — `r: {a: string}` formats fine; the arrow is
+required. (c) That widening the existing comment gate was the right pin — refuted by its
+examples-calibrated ceiling. (d) That the CI timeout was my sweep being profligate — refuted by
+profiling: the cost is in comment attachment, and the same sweep is 8ms without it. (e) That the
+first mutant refuted the fix's necessity — refuted by the whitelist's `default` arm. (f) That a
+record-based labelled type needed a test case — the parser rejects `{a: string}<secret>` in type
+position (rc=3), so that arm is unreachable from source and defensive only.
+
+**Routing evidence.** controller `opus` (session) · designer/planner/executor/evaluator **NOT
+SPAWNED** — this session's operating instructions forbid the Agent tool unless the user requests
+it, so the roles table could not be exercised at all. Recorded as a routing deviation rather than
+buried; the substitute was a controller-run, diff-anchored mutation drill, which is **not** an
+independent judge and does not carry an evaluator's score. task-class=execute+mechanical.
+metered=**$0.00** of $5; no Fable spend, rotation pointer untouched. Gates on darwin/arm64; ubuntu
+and windows legs unrun locally.
+
+**Retro lane.** none — no skill edit. The candidate gap (*a corpus gate's cost profile is part of
+its design: a sweep can be correct, catch the defect, and still be unlandable because the package it
+lives in is near a timeout*) has ONE first-party instance and is pre-registered so a second is
+recognisable.
+
+**Next**: `m-fmt-attach-boundary-class` (38 files, the sibling of this row), then
+`m-format-comment-attach-perf`.
+
 ## 275 — 2026-08-25 — Wiring was never the whole job: six of the eleven unwired gates are RED, `make ci` cannot pass, and three rounds of judging turned a bypass blacklist into a whitelist
 
 **Pick.** Queue head `m-verify-targets-unwired` (filed iter-274). Ghost-disciplined: the row's

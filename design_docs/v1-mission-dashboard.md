@@ -1,40 +1,39 @@
 # Mission Dashboard — V1
 
-> 30-second control context. Snapshot, not a record — history lives in the STATUS stamp + log.
+_Snapshot, overwritten each iteration. History: charter STATUS + `v1-mission-log.md`.
+Last written: iteration 279, 2026-08-26._
 
-**Last iteration**: 278 · 2026-08-25 · controller `opus` · metered **$0.00** of $5
-
-## In flight
-- **PR [#886](https://github.com/sunholo-data/ailang/pull/886)** — the guide said the cross-inbox
-  unread index was handled; it was not. Docs-only. MERGEABLE; CI polling at Gate 3b.
-
-## Headline finding (iteration 278)
-`ailang messages list --unread` — the command the protocol leads with, and the only one spanning
-inboxes nobody thought to name — was failing `FailedPrecondition` against prod, **rc=1 deterministic
-2/2**, hiding **59** unread (16 substantive feedback items, 10 filed that morning). Both
-`inbox_messages` indexes lead with `to_inbox`, so both served only the per-inbox *fallback*. The
-guide already described this **in the past tense**, citing a declaration written **five minutes
-after** the note — and declaring is not applying: no apply ran, prod had no index 1h19m later.
-Created → **rc=0, 2/2**. Second defect, same channel: a binary predating `6759ea4fa` **accepts
-`AILANG_MESSAGES_STORE`, reads local SQLite and exits 0**, so the protocol is vacuous and the
-session concludes the inbox is quiet.
+## Where things stand
+- **Release** v0.33.2 · `dev` at `ec010fea3` · metered **$0.00** of $5 this iteration
+- **Landed (279)** `m-fmt-cognition-roundtrip-soundness` (PR #887): `ailang fmt` emitted
+  `{ a: string } -> ()` for a record-typed callback param; the parser reads `{` as a block, so
+  the formatter's own output would not re-parse. `bareArrowSafe` blacklist → whitelist.
+  std/ round-trip failures **1 → 0**.
+- **Why it hid**: every formatter corpus test walked `examples/` only (0 test refs to `std/`,
+  control 1), so std/'s 46 files were outside the gate by construction.
 
 ## Next picks
-1. `m-fmt-cognition-roundtrip-soundness` — shipped formatter soundness defect: `std/cognition.ail`
-   is valid input whose formatted output fails to re-parse. Fails closed, but real.
-2. `m-firestore-index-provenance` — **new**: prod carries 10 composite indexes added reactively
-   after each `FailedPrecondition` (this is instance 3); nothing in-repo records what the code needs.
-3. `m-fmt-attach-boundary-class` (38 files fail comment attachment) · 4. `m-ai-modes-regression-window`.
-
-## Parked on Mark — 6 OPEN decisions (none resolved this iteration)
-`D-38` canonical-form ruling · `D-37` `routeable`→`fixed` AI edge (sole cause of RED `make ci`) ·
-`D-36` 3-round evaluator budget · `D-31` designer rotation authoring-vs-review · `D-30`
-harness↔`ai-check` coupling · `D-32` `inconclusive` exemption.
+1. `m-fmt-attach-boundary-class` — 38 comment-attachment refusals (sibling row)
+2. `m-format-comment-attach-perf` — `SourceWithComments` ~1670× slower than `Source()`
+   (jwt.ail 4.5s alone); timed `internal/format` out at 600s mid-iteration
+3. `m-format-package-near-test-timeout` — baseline 65s locally under atomic covermode;
+   one branch's `test` leg spanned 18m–27m across three pushes
+4. `m-sonar-new-code-coverage-standing-red` — red on `dev` since `6759ea4fa`; condition is
+   `new_coverage` 53.6% < 80, **not** duplication
 
 ## Loop health
-- Thread **#852**; rotation not owed. **0** allowlisted directives since the watermark.
-- ⚠ **Terraform import owed** — prod index created out of band, so upstream `messages_status_only`
-  is not in state; next apply hits `ALREADY_EXISTS`. Command in the record. Flagged, not buried.
-- ⚠ Driver still exports `MISSION_GH_ISSUE=745` (V1's `-prev`, **closed**); namespaced = 852.
-- ⚠ Running skill still drifts by `065a4f16c`; read before proceeding. Main checkout 3 ahead / 17
-  behind with a concurrent agent's unique commits → reconcile obligation 1 fails, none attempted.
+- **Routing deviation (279)**: no sub-agents spawned — this session's instructions forbid the
+  Agent tool unless the user asks. Controller-run mutation drill is *not* an independent judge.
+- **Standing**: main checkout 3 ahead / 18 behind; the ahead commits are a concurrent agent's
+  (patch-id matches nothing upstream), so the Gate-1 reconcile is not provably safe and is not
+  attempted. The **running skill** still differs from origin by `065a4f16c`.
+- **Messaging**: `~/go/bin/ailang` predates `6759ea4fa` and silently ignores
+  `AILANG_MESSAGES_STORE` — build fresh before trusting any inbox read. Cloud: **60 unread**,
+  16 substantive external-origin.
+
+## Parked on Mark
+`D-30` `D-31` `D-32` `D-36` `D-37` `D-38` (6 open, none resolved) · plus iteration 278's
+`terraform import` for the out-of-band Firestore index.
+
+## Quota
+Anthropic available; billing tripwire **CLEAN** (subscription lanes only, no API key present).
