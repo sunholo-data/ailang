@@ -39,12 +39,27 @@ ailang messages dedupe
 ailang messages dedupe --apply            # Mark duplicates
 ```
 
-## Storage Backend
+## Storage Backend — there are TWO stores, not one
 
-All messages are stored in a SQLite database:
-- **Location**: `~/.ailang/state/collaboration.db`
+Messages live in one of two places, and **a bare `ailang messages` command only ever reads the local one**:
+
+| Store | Selected by | Holds |
+|---|---|---|
+| **Local SQLite** (per-machine, private) | default — `AILANG_STORAGE` unset | that node's own agent inbox, sprint state |
+| **Canonical cloud** (prod Firestore, `ailang-multivac`) | `AILANG_STORAGE=gcp AILANG_CLOUD_PROJECT=ailang-multivac` | public + package feedback, coordinator completions, cross-machine agent traffic |
+
+- **Local location**: `~/.ailang/state/collaboration.db`
 - **Accessible via**: CLI (`ailang messages`) and Collaboration Hub dashboard
 - **Message statuses**: `unread`, `read`, `archived`, `deleted`
+
+Anything written from **outside this machine** is in the cloud store and is invisible to a bare
+`ailang messages list` — including the SessionStart hook's inbox summary. Multi-machine work (the
+voightkampff Studio, cloud sessions, Claude Code managed runs) must read the cloud store explicitly.
+See the "Session start" section of
+[CLAUDE.md](https://github.com/sunholo-data/ailang/blob/dev/CLAUDE.md) for the per-session checklist.
+
+Only `AILANG_CLOUD_PROJECT` selects the project — **`GOOGLE_CLOUD_PROJECT` is ignored**. Getting this
+wrong points you at `ailang-multivac-dev`, a stale graveyard, with no error to tell you.
 
 ## Triaging Public Feedback (READ THIS — it lives in PROD)
 
@@ -63,8 +78,30 @@ AILANG_STORAGE=gcp AILANG_CLOUD_PROJECT=ailang-multivac \
   ailang messages list --inbox "pkg:sunholo/ailang"
 ```
 
-> **Only prefix these env vars on the *feedback* command** — never export them
-> globally, or your local SQLite reads (agent inboxes, sprint state) break.
+> **Prefix these env vars on the command; never `export` them globally.**
+> `AILANG_STORAGE` is a process-wide switch over *all three* backends — coordinator,
+> messaging, **and** observatory (`storage.NewBackendsForMode`) — so exporting it also
+> moves eval banking and coordinator task state to Firestore. There is no messaging-only
+> selector yet; `ailang chains` has the pattern to copy (`AILANG_CHAINS_READ`).
+> In zsh, prefix the assignments directly or wrap them in a function — an unquoted
+> `env $VARS ailang ...` is not word-split and fails with `unknown AILANG_STORAGE mode`.
+
+### Four traps when reading the cloud store
+
+Measured 2026-08-25 against prod:
+
+1. **`--unread` without `--inbox` fails** with `FailedPrecondition` — the cross-inbox unread
+   query needs a Firestore composite index that does not exist. Filter by inbox, or pull
+   `--json` and filter client-side. (JSON goes to stdout; warnings go to stderr.)
+2. **`--inbox public-feedback` is not the whole channel.** Package feedback routes to
+   `pkg:<vendor>/<name>`, and coordinator completions carry an **empty** `to_inbox`, matching
+   no `--inbox` filter at all. Enumerate inboxes from `--json` rather than assuming.
+3. **The list view truncates IDs to 8 characters**, so every cloud `inbox_<epoch>_<hash>`
+   message renders as `(inbox_17)` and cannot be acked from what you see — take full IDs from
+   `--json`. An ambiguous prefix errors loudly rather than acking the wrong message.
+4. **`messages read <id>` marks the message read as a side effect.** Triaging by reading
+   silently drains the unread queue, so the next session sees an empty inbox and concludes
+   nothing arrived. To inspect without acking, read the body out of `--json` instead.
 
 For real-time notification (Discord/macOS) of prod feedback, the notify daemon
 must **dual-subscribe** dev + prod — see
