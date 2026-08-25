@@ -157,21 +157,26 @@ path.
 
 **Acceptance Criteria:**
 
-- [ ] Envelope adapter seals/opens with a per-blob nonce; a tampered ciphertext
+- [x] Envelope adapter seals/opens with a per-blob nonce; a tampered ciphertext
       fails closed as `browser_auth_materialize_failed`, never as a partial read.
-- [ ] Materialized file is `0600` inside a `0700` session-owned directory; a test
+- [x] Materialized file is `0600` inside a `0700` session-owned directory; a test
       asserts the mode bits, not just the path.
-- [ ] Local provider passes `--storage-state` with `--isolated`; the path may
+- [x] Local provider passes `--storage-state` with `--isolated`; the path may
       appear in child argv, the contents and canonical object reference may not
       (asserted against the generated MCP config).
-- [ ] Destruction is idempotent and runs on success, error, cancellation, and
+- [x] Destruction is idempotent and runs on success, error, cancellation, and
       timeout; a cleanup failure reports `browser_auth_cleanup_failed` **without**
       masking the primary failure.
-- [ ] Two-run isolation test: run 1 mutates its materialized state, run 2
+- [x] Two-run isolation test: run 1 mutates its materialized state, run 2
       materializes from canonical and cannot observe the mutation.
-- [ ] Startup orphan audit finds and removes stale materializations and records a
+- [x] Startup orphan audit finds and removes stale materializations and records a
       structured audit event.
-- [ ] `make test` and `make lint` clean.
+- [x] `make test` and `make lint` clean. (M2 verified scoped: `go test [-race]`
+      for `internal/browser`, `.../auth`, and `.../local` all pass,
+      `golangci-lint` reports 0 issues, `check-file-sizes` passes, and
+      `go build ./...` plus `GOOS=windows go vet` are clean. Repo-wide `make test`
+      was not green at M2 commit time because M3's `browserbase` tests were still
+      red in the shared worktree; that is M3's milestone, not this one.)
 
 **Risks:**
 

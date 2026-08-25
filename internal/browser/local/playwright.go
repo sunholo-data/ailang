@@ -44,6 +44,9 @@ type Provider struct {
 	started    map[string]time.Time
 	stopped    map[string]bool
 	specs      map[string]browser.SessionSpec
+	// storageState maps session ID to a materialized storage-state path. Absent
+	// means an unauthenticated session, which is the default.
+	storageState map[string]string
 }
 
 func New(config Config) (*Provider, error) {
@@ -70,17 +73,65 @@ func New(config Config) (*Provider, error) {
 		config.Now = time.Now
 	}
 	return &Provider{
-		baseDir:    config.BaseDir,
-		npxPath:    config.NpxPath,
-		mcpVersion: config.MCPVersion,
-		now:        config.Now,
-		started:    make(map[string]time.Time),
-		stopped:    make(map[string]bool),
-		specs:      make(map[string]browser.SessionSpec),
+		baseDir:      config.BaseDir,
+		npxPath:      config.NpxPath,
+		mcpVersion:   config.MCPVersion,
+		now:          config.Now,
+		started:      make(map[string]time.Time),
+		stopped:      make(map[string]bool),
+		specs:        make(map[string]browser.SessionSpec),
+		storageState: make(map[string]string),
 	}, nil
 }
 
 func (p *Provider) Name() string { return ProviderName }
+
+// StorageStateAttachment carries an already-materialized Playwright
+// storage-state file into a session.
+//
+// It holds a PATH, never the state itself: the file is owned by the auth
+// broker's disposable materialization, which is responsible for destroying it.
+// The provider only reads the path to build argv and never opens the file, so
+// it cannot leak the contents into a connection, a manifest, or a log line.
+//
+// This is a provider-local type rather than a field on browser.SessionSpec
+// because SessionSpec crosses the serialization boundary and a filesystem path
+// to decrypted credentials should not travel with it.
+type StorageStateAttachment struct {
+	// Path is the materialized storage-state file. It must be non-empty and
+	// must already exist.
+	Path string
+}
+
+// CreateWithStorageState creates a session that starts from an authenticated
+// storage state. Ordinary unauthenticated sessions use Create.
+//
+// Write-back is deliberately not implemented here: an ordinary run must not be
+// able to publish a new canonical version, so the state file is an input only.
+func (p *Provider) CreateWithStorageState(ctx context.Context, spec browser.SessionSpec, attachment StorageStateAttachment) (browser.Session, error) {
+	if attachment.Path == "" {
+		return browser.Session{}, browser.NewFailure(browser.FailureProvision, "attach storage state", fmt.Errorf("empty path"))
+	}
+	info, err := os.Stat(attachment.Path)
+	if err != nil {
+		// Failing here rather than at browser launch keeps a missing or already
+		// destroyed materialization from looking like an unauthenticated run
+		// that merely failed to log in.
+		return browser.Session{}, browser.NewFailure(browser.FailureProvision, "attach storage state", err)
+	}
+	if info.IsDir() {
+		return browser.Session{}, browser.NewFailure(browser.FailureProvision, "attach storage state", fmt.Errorf("path is a directory"))
+	}
+
+	session, err := p.Create(ctx, spec)
+	if err != nil {
+		return browser.Session{}, err
+	}
+	p.mu.Lock()
+	p.storageState[session.ID] = attachment.Path
+	p.mu.Unlock()
+	return session, nil
+}
 
 func (p *Provider) Create(ctx context.Context, spec browser.SessionSpec) (browser.Session, error) {
 	if err := ctx.Err(); err != nil {
@@ -127,7 +178,15 @@ func (p *Provider) Connection(ctx context.Context, session browser.Session) (bro
 	if spec.Headless {
 		args = append(args, "--headless")
 	}
-	args = append(args, "--isolated", "--output-dir", session.ArtifactDir, "--save-session")
+	args = append(args, "--isolated")
+	// --storage-state seeds the isolated context from the disposable file. It
+	// travels next to --isolated so the pairing is obvious in a process listing:
+	// authenticated state is loaded INTO a throwaway profile, never persisted
+	// back into one. Only the path is passed; Playwright reads the file itself.
+	if statePath := p.storageStatePath(session); statePath != "" {
+		args = append(args, "--storage-state", statePath)
+	}
+	args = append(args, "--output-dir", session.ArtifactDir, "--save-session")
 	viewportWidth, viewportHeight := 1280, 720
 	if width, height := p.viewport(session); width > 0 && height > 0 {
 		viewportWidth, viewportHeight = width, height
@@ -154,6 +213,12 @@ func (p *Provider) spec(session browser.Session) browser.SessionSpec {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.specs[session.ID]
+}
+
+func (p *Provider) storageStatePath(session browser.Session) string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.storageState[session.ID]
 }
 
 func (p *Provider) Inspect(context.Context, browser.Session) (browser.InspectionRef, error) {
@@ -200,6 +265,10 @@ func (p *Provider) Stop(_ context.Context, session browser.Session) (browser.Usa
 	p.stopped[session.ID] = true
 	started := p.started[session.ID]
 	delete(p.specs, session.ID)
+	// Drop the reference only. The materialized file belongs to the auth
+	// broker's Materialization handle, which destroys it on every exit path;
+	// deleting it from here would be a second owner racing the first.
+	delete(p.storageState, session.ID)
 	p.mu.Unlock()
 	if err := os.RemoveAll(session.StateDir); err != nil {
 		return browser.Usage{}, browser.NewFailure(browser.FailureCleanup, "remove local state", err)
