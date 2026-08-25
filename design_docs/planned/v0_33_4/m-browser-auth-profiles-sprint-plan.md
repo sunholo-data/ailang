@@ -206,17 +206,17 @@ and keep the Context ID out of every serialized surface.
 
 **Acceptance Criteria:**
 
-- [ ] Context create/get/delete go through the injectable client with bounded
+- [x] Context create/get/delete go through the injectable client with bounded
       timeouts; no new unbounded HTTP path is introduced.
-- [ ] Ordinary sessions send `persist:false`; only refresh mode sends
+- [x] Ordinary sessions send `persist:false`; only refresh mode sends
       `persist:true`; a read-mode lease requesting persistence is refused as
       `browser_auth_writeback_denied` **before** any HTTP request is issued.
-- [ ] Context IDs are absent from `SessionSpec`, `BrowserRunManifest`, JSON,
+- [x] Context IDs are absent from `SessionSpec`, `BrowserRunManifest`, JSON,
       logs, and errors; a redaction test asserts this on the containing structs.
-- [ ] Stub tests cover auth failure, quota, malformed response, timeout,
+- [x] Stub tests cover auth failure, quota, malformed response, timeout,
       provider synchronization delay, expiry, and deletion.
-- [ ] The live contract test stays credential-gated and is not a CI dependency.
-- [ ] `make test` and `make lint` clean.
+- [x] The live contract test stays credential-gated and is not a CI dependency.
+- [x] `make test` and `make lint` clean.
 
 **Risks:**
 
@@ -243,22 +243,22 @@ and guarantee the lease is released on every controller exit path.
 
 **Acceptance Criteria:**
 
-- [ ] Lease acquisition is compare-and-set; refresh/write mode is exclusive; read
+- [x] Lease acquisition is compare-and-set; refresh/write mode is exclusive; read
       mode is bounded by `MaxConcurrent`; conflict is deterministic and returns
       `browser_auth_lease_conflict`.
-- [ ] Account-pool allocation gives distinct profiles per worker; exhaustion is a
+- [x] Account-pool allocation gives distinct profiles per worker; exhaustion is a
       deterministic structured failure, never silent reuse of an in-use account.
-- [ ] Preflight rejects missing, expired, revoked, scope-denied, artifact-denied,
+- [x] Preflight rejects missing, expired, revoked, scope-denied, artifact-denied,
       and takeover-denied profiles **before** a browser is provisioned — asserted
       by a fake provider that fails the test if it is ever called.
-- [ ] Fail-closed: an authenticated session with no artifact policy or no egress
+- [x] Fail-closed: an authenticated session with no artifact policy or no egress
       boundary is denied, and the denial names which policy was absent.
-- [ ] The lease is released on success, error, cancellation, timeout, and panic;
+- [x] The lease is released on success, error, cancellation, timeout, and panic;
       a `-race` test with parallel workers proves no lease leaks.
-- [ ] Audit events carry alias, profile hash, version, lease safe ID, principal,
+- [x] Audit events carry alias, profile hash, version, lease safe ID, principal,
       run/chain/stage, allowed origins, mode, decision, and timestamps — and no
       secrets.
-- [ ] `make test`, `make lint`, and `go test -race ./internal/browser/...` clean.
+- [x] `make test`, `make lint`, and `go test -race ./internal/browser/...` clean.
 
 **Risks:**
 

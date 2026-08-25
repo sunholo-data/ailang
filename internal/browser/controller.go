@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/browser/auth"
 )
 
 type SessionProvider interface {
@@ -47,6 +49,11 @@ type Run struct {
 	once       sync.Once
 	manifest   BrowserRunManifest
 	err        error
+
+	// Set only for authenticated runs. Finish tears these down inside the once,
+	// so the lease is freed and the plaintext destroyed exactly once per run.
+	authBroker      *auth.Broker
+	authProvisioned *auth.Provisioned
 }
 
 func (c *Controller) Start(ctx context.Context, spec SessionSpec) (*Run, error) {
@@ -146,6 +153,16 @@ func (r *Run) Finish(ctx context.Context, termination Termination) (BrowserRunMa
 			r.manifest.CleanupErrorCategory = FailureCleanup
 			if r.err == nil {
 				r.err = classify(stopErr, FailureCleanup, "stop")
+			}
+		}
+
+		// The profile is torn down AFTER the provider session is stopped: a live
+		// browser holding the storage-state file would otherwise race deletion.
+		r.stampAuthIdentity(&r.manifest)
+		if authErr := r.teardownAuth(); authErr != nil {
+			r.manifest.AuthErrorCategory = string(auth.FailureCleanupFailed)
+			if r.err == nil {
+				r.err = authErr
 			}
 		}
 		_ = ctx // cleanup deliberately outlives an already-cancelled run context.

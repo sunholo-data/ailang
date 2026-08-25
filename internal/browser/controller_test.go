@@ -4,11 +4,16 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 )
 
 type fakeProvider struct {
+	// callsMu guards calls: the fake is shared across goroutines by the
+	// concurrent authenticated-run test, and an unguarded append is a data race
+	// in the instrument rather than in the code under test.
+	callsMu                                                  sync.Mutex
 	createErr, connectionErr, inspectErr, exportErr, stopErr error
 	calls                                                    []string
 	connection                                               SensitiveConnection
@@ -17,20 +22,34 @@ type fakeProvider struct {
 }
 
 func (f *fakeProvider) Name() string { return "fake" }
+
+func (f *fakeProvider) record(call string) {
+	f.callsMu.Lock()
+	defer f.callsMu.Unlock()
+	f.calls = append(f.calls, call)
+}
+
+// recorded returns a copy of the call log, safe to read while other goroutines
+// are still recording.
+func (f *fakeProvider) recorded() []string {
+	f.callsMu.Lock()
+	defer f.callsMu.Unlock()
+	return append([]string(nil), f.calls...)
+}
 func (f *fakeProvider) Create(context.Context, SessionSpec) (Session, error) {
-	f.calls = append(f.calls, "create")
+	f.record("create")
 	return Session{ID: "session-1", Provider: f.Name(), CreatedAt: time.Unix(10, 0)}, f.createErr
 }
 func (f *fakeProvider) Connection(context.Context, Session) (SensitiveConnection, error) {
-	f.calls = append(f.calls, "connection")
+	f.record("connection")
 	return f.connection, f.connectionErr
 }
 func (f *fakeProvider) Inspect(context.Context, Session) (InspectionRef, error) {
-	f.calls = append(f.calls, "inspect")
+	f.record("inspect")
 	return InspectionRef{Available: true, Ref: "safe-inspection-ref"}, f.inspectErr
 }
 func (f *fakeProvider) Export(ctx context.Context, _ Session, _ string) (ArtifactManifest, error) {
-	f.calls = append(f.calls, "export")
+	f.record("export")
 	if f.blockExport {
 		<-ctx.Done()
 		return ArtifactManifest{}, NewFailure(FailureArtifactExport, "export", ctx.Err())
@@ -38,8 +57,10 @@ func (f *fakeProvider) Export(ctx context.Context, _ Session, _ string) (Artifac
 	return ArtifactManifest{Complete: f.exportErr == nil}, f.exportErr
 }
 func (f *fakeProvider) Stop(ctx context.Context, _ Session) (Usage, error) {
-	f.calls = append(f.calls, "stop")
+	f.record("stop")
+	f.callsMu.Lock()
 	f.stopSawExpiredContext = ctx.Err() != nil
+	f.callsMu.Unlock()
 	return Usage{DurationMS: 1000, ActionCount: 2}, f.stopErr
 }
 
@@ -60,8 +81,8 @@ func TestControllerLifecycleSuccessAndIdempotentFinish(t *testing.T) {
 	if _, err := run.Finish(context.Background(), TerminationCompleted); err != nil {
 		t.Fatalf("second finish should be idempotent: %v", err)
 	}
-	if want := []string{"create", "connection", "inspect", "export", "stop"}; !reflect.DeepEqual(fake.calls, want) {
-		t.Fatalf("calls = %v, want %v", fake.calls, want)
+	if want := []string{"create", "connection", "inspect", "export", "stop"}; !reflect.DeepEqual(fake.recorded(), want) {
+		t.Fatalf("calls = %v, want %v", fake.recorded(), want)
 	}
 }
 
@@ -72,8 +93,8 @@ func TestControllerConnectionFailureStillStopsSession(t *testing.T) {
 	if !IsFailure(err, FailureConnect) {
 		t.Fatalf("error = %v, want %s", err, FailureConnect)
 	}
-	if want := []string{"create", "connection", "stop"}; !reflect.DeepEqual(fake.calls, want) {
-		t.Fatalf("calls = %v, want %v", fake.calls, want)
+	if want := []string{"create", "connection", "stop"}; !reflect.DeepEqual(fake.recorded(), want) {
+		t.Fatalf("calls = %v, want %v", fake.recorded(), want)
 	}
 }
 
@@ -114,8 +135,8 @@ func TestControllerReservesIndependentStopBudgetAfterExportTimeout(t *testing.T)
 	if fake.stopSawExpiredContext {
 		t.Fatal("stop inherited the exhausted export deadline")
 	}
-	if want := []string{"create", "connection", "inspect", "export", "stop"}; !reflect.DeepEqual(fake.calls, want) {
-		t.Fatalf("calls = %v, want %v", fake.calls, want)
+	if want := []string{"create", "connection", "inspect", "export", "stop"}; !reflect.DeepEqual(fake.recorded(), want) {
+		t.Fatalf("calls = %v, want %v", fake.recorded(), want)
 	}
 }
 

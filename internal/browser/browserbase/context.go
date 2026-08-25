@@ -239,3 +239,22 @@ func defaultSleep(ctx context.Context, d time.Duration) error {
 		return nil
 	}
 }
+
+// CreateAuthenticated implements browser.AuthenticatedProvider by adapting the
+// neutral attachment to this provider's hosted-Context input.
+//
+// A local storage-state path is refused rather than ignored: silently starting
+// an unauthenticated hosted session would look like a failed login.
+func (p *Provider) CreateAuthenticated(ctx context.Context, spec browser.SessionSpec, attachment browser.AuthAttachment) (browser.Session, error) {
+	if attachment.Material.Kind() != auth.MaterialProviderContext {
+		return browser.Session{}, auth.NewFailureReason(auth.FailureMaterializeFailed,
+			"attach context", "wrong_material_kind")
+	}
+	return p.CreateWithContext(ctx, spec, ContextAttachment{
+		Material: attachment.Material,
+		Mode:     attachment.Mode,
+		Persist:  attachment.Persist,
+	})
+}
+
+var _ browser.AuthenticatedProvider = (*Provider)(nil)

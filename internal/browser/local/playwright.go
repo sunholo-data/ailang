@@ -17,6 +17,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo-data/ailang/internal/browser"
+	"github.com/sunholo-data/ailang/internal/browser/auth"
 )
 
 const (
@@ -303,3 +304,24 @@ func artifactKind(path string) string {
 		return "playwright-output"
 	}
 }
+
+// CreateAuthenticated implements browser.AuthenticatedProvider by adapting the
+// neutral attachment to this provider's storage-state input.
+//
+// A hosted-context attachment is refused rather than ignored: silently starting
+// an unauthenticated session would look like a failed login in the results.
+func (p *Provider) CreateAuthenticated(ctx context.Context, spec browser.SessionSpec, attachment browser.AuthAttachment) (browser.Session, error) {
+	if attachment.StorageStatePath == "" {
+		return browser.Session{}, auth.NewFailureReason(auth.FailureMaterializeFailed,
+			"attach storage state", "no_storage_state_path")
+	}
+	if attachment.Persist {
+		// Local profiles have no write-back path at all; only the trusted
+		// refresh workflow publishes a new version, and it does not run here.
+		return browser.Session{}, auth.NewFailureReason(auth.FailureWritebackDenied,
+			"attach storage state", "local_provider_never_persists")
+	}
+	return p.CreateWithStorageState(ctx, spec, StorageStateAttachment{Path: attachment.StorageStatePath})
+}
+
+var _ browser.AuthenticatedProvider = (*Provider)(nil)

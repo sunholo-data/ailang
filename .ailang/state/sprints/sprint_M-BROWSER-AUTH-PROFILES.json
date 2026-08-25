@@ -30,7 +30,7 @@
       "id": "M-BROWSER-AUTH-PROFILES.2",
       "description": "Local encrypted storage-state materialization and destruction",
       "estimated_loc": 600,
-      "actual_loc": 0,
+      "actual_loc": 1895,
       "dependencies": [
         "M-BROWSER-AUTH-PROFILES.1"
       ],
@@ -42,16 +42,16 @@
         "Two-run isolation test proves run one's mutation is invisible to run two",
         "Startup orphan audit removes stale materializations and records a structured audit event"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": ""
+      "passes": true,
+      "started": "2026-08-25T01:10:00Z",
+      "completed": "2026-08-25T02:05:00Z",
+      "notes": "AES-256-GCM envelope with a fresh DEK and nonce per seal, header bound in as GCM additional data so a substituted key id or downgraded version reads as tampering. Tamper test flips one bit at every byte offset and requires each to fail closed with nil plaintext. RunOutcome keeps primary and cleanup failures in separate fields so masking cannot be the default. Storage-state path is a provider-local attachment type, NOT a browser.SessionSpec field, because SessionSpec crosses the serialization boundary. Windows skips POSIX mode-bit assertions (Go reports 0666/0444 there regardless of ACL). Agent verified non-vacuity against six deliberate mutations."
     },
     {
       "id": "M-BROWSER-AUTH-PROFILES.3",
       "description": "Browserbase Context adapter with non-persisting ordinary sessions",
       "estimated_loc": 550,
-      "actual_loc": 0,
+      "actual_loc": 1107,
       "dependencies": [
         "M-BROWSER-AUTH-PROFILES.1"
       ],
@@ -62,16 +62,16 @@
         "Stub tests cover auth failure, quota, malformed response, timeout, synchronization delay, expiry, and deletion",
         "The live contract test stays credential-gated and is not a CI dependency"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": ""
+      "passes": true,
+      "started": "2026-08-25T01:10:00Z",
+      "completed": "2026-08-25T01:55:00Z",
+      "notes": "Context create/get/delete on the existing injectable bounded client via a new doJSONWithStatus that exposes the status code, so a 404 on delete is success and retryable provider errors stay separable from terminal profile errors. ContextAttachment keeps the caller's Persist request separate from the lease Mode so the dangerous pairing stays expressible and testable; it is refused as browser_auth_writeback_denied before any request is built. Sync delay is an injectable waiter, not a sleep. Agent caught its own first redaction test being vacuous (an injected exported RawID field also passed) and replaced it with structural assertions. Also fixed a PRE-EXISTING leak: %#v on *Provider printed the API key verbatim. LIVE Browserbase contract test NOT run - no credentials on this machine; reported as skipped, never passed."
     },
     {
       "id": "M-BROWSER-AUTH-PROFILES.4",
       "description": "Lease, account pool, policy preflight, and audit",
       "estimated_loc": 600,
-      "actual_loc": 0,
+      "actual_loc": 2545,
       "dependencies": [
         "M-BROWSER-AUTH-PROFILES.1",
         "M-BROWSER-AUTH-PROFILES.2",
@@ -85,10 +85,10 @@
         "The lease is released on success, error, cancellation, timeout, and panic, proven by a -race test with parallel workers",
         "Audit events carry alias, profile hash, version, lease safe ID, principal, run/chain/stage, allowed origins, mode, decision, and timestamps, and no secrets"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": ""
+      "passes": true,
+      "started": "2026-08-25T01:05:00Z",
+      "completed": "2026-08-25T02:40:00Z",
+      "notes": "Two parts. Part 1 (pure): compare-and-set leases proven by a 32-worker race test asserting EXACTLY MaxConcurrent grants; refresh exclusive against every mode; expired leases swept before the conflict decision so a crashed run cannot wedge a profile; account-pool exhaustion is structured, never silent reuse; preflight check order fixed and pinned by a test that breaks every policy then repairs them one at a time; AuditEvent safe structurally (reflection test fails if a secret-capable or []byte field is added). Part 2 (broker + controller): Provision resolves, matches provider, preflights, leases, materializes - and releases the lease if materialization fails. StartAuthenticated refuses a provider lacking CreateAuthenticated rather than silently downgrading to a logged-out session. Run.Use finishes on success, error, cancellation, deadline, and panic (re-panics rather than swallowing). Verified non-vacuous against three mutations: dropped lease release, preflight-after-acquire, and removed teardown - each was caught. Also fixed a data race in the SHARED test fake (unguarded calls slice) that any concurrent controller test would have hit."
     },
     {
       "id": "M-BROWSER-AUTH-PROFILES.5",
@@ -121,11 +121,11 @@
     "target_milestones_per_week": 5,
     "actual_milestones_per_week": 0,
     "estimated_total_loc": 3350,
-    "actual_total_loc": 1840,
+    "actual_total_loc": 7387,
     "estimated_days": 8,
     "actual_days": 0
   },
-  "last_session": "2026-08-25T01:05:00Z",
-  "last_checkpoint": "M1 complete: make test exit 0, golangci-lint 0 issues, check-boundaries OK, check-file-sizes OK",
+  "last_session": "2026-08-25T02:40:00Z",
+  "last_checkpoint": "M1-M4 complete; M5 (CLI, eval wiring, docs) remains",
   "status": "in_progress"
 }
