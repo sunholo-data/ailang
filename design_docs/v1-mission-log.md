@@ -18351,3 +18351,85 @@ matrix loops, so `GOOS_MATRIX="linux *"` yields 2 iterations rather than the 49 
 helper unpinned) has ONE first-party instance, pre-registered; rules 3i and 3j already cover the general shape.
 
 **Next:** `m-lint-tmpfile-collision`, then `m-gemini-verdict-score-threshold` and `m-codex-streaming-test-flake`.
+
+## 273 — 2026-08-25 — The row named one target; the audit found a second, and its shared file was a backup of a tracked source
+
+**Pick:** queue head `m-lint-tmpfile-collision` (filed iter-270 on inspection, never observed failing). No human
+directive on `#852` since the watermark (0 of 10 comments); inbox 2 unread, both informational (eval-suite start,
+`mission-world` iter-121 report — no demand, no bug, DECISIONS none), so nothing outranked the queue.
+
+**Problem, reproduced first-party because the row was filed on inspection.** Three missions plus interactive
+sessions run on this rig from **separate clones**: they do not share a checkout, they *do* share `/tmp`. The row
+named `make lint`, whose golangci-lint output goes to a fixed `/tmp/lint.raw`, whose filtered stream is `tee`d to
+a fixed `/tmp/lint.out`, and whose **verdict** is then grepped out of that shared file. Three arms, asserted to
+differ: a file holding a real finding greps rc=0 (correct FAIL); a second run's `tee` truncates it first and the
+same grep returns rc=1 — a **false green**; a clean run greping another's findings returns rc=0 — a **false red**.
+`tee` truncates on open, so the window is the whole streaming write. There is also no cleanup at all — both files
+survived the controller's own baseline run.
+
+**The systemic audit (CLAUDE.md §3) found a second target the row did not name, and it is worse.**
+`make verify-stdlib-selftest` copies the **tracked** `std/option.ail` to a fixed `/tmp/_selftest_option.ail`,
+appends a canary, and a `trap` restores the tracked file *from that backup*. Interleave two runs — A backs up, A
+appends, B backs up (now polluted), A's trap restores — and the tracked file is left carrying the canary.
+Reproduced deterministically, no timing luck: sha256 `4a5ee1b2…` → `6813b3c5…`, `git status` ` M std/option.ail`.
+The audit's third finding is the one that made the fix cheap: `make/test.mk`'s `test-stdlib-ail` is **already
+correct** (`$$$$`-suffixed, every path `rm -f`'d), so the repo supplied its own reference implementation — it was
+left untouched and now serves as the new gate's known-positive control.
+
+**Fix.** Both targets allocate per-invocation `mktemp` files and clean up via a trap on every exit path.
+`LINT_RC=$?` still immediately follows `golangci-lint`; the selftest's trap is armed *before* the tracked file is
+touched. New CI gate `check-tmpfile-hygiene` refuses fixed `/tmp` paths in make recipes with four anti-vacuity
+floors — R1 non-empty enumeration, R2 members readable, R3 a known-positive **scoped to the same file set**
+(zero `/tmp` occurrences anywhere is an instrument failure, not a clean tree), R4 an enumerated-count floor.
+
+**Routing evidence.** controller=`opus` (session); executor=`codex:gpt-5.6-sol`, probe rc=0, 10,615 B directive,
+bounded 30-min cap, **rc=0 with a 6-file non-empty diff**, no commits, zero residue; evaluator=`sonnet` in **its
+own** worktree at `cf9795d46`, **PASS 86/100, zero blocking**; designer/planner not spawned (direct fix — no doc,
+no plan, no Fable spend, rotation pointer untouched). metered=**$0.00** of $5.
+
+**Deviation adjudicated (rule 3h).** My directive said to follow the protocol-closure precedent, which puts
+`test-check-X` in `make/test.mk`, *and* said not to modify `make/test.mk`. The executor self-reported the
+conflict and honoured the prohibition, placing both targets in `make/code-health.mk`. **The directive was
+under-specified**; the placement is correct and arguably better (co-located with the gate it tests). Third
+consecutive iteration in which a self-reported executor deviation improved on the instruction.
+
+**Controller drill (mutants distinct from the executor's, anchored to the diff hunk by hunk — rule 3n).**
+Reverting either make hunk reds the gate rc=1 naming the file, so **each hunk has a killer**. An *added* fixed
+path is caught — the addition, not the removal, is what proves an enumerator LOOKS rather than merely FIRES
+(rule 3a(i-e)). A make-file set with no `/tmp` trips R3 at rc=2. **The load-bearing arm:** injecting a real
+unused Go function gives `make lint` rc=2 against a control rc=0 — the refactor did **not** make the verdict
+vacuous, which was the whole risk of moving the file the verdict is computed from. The drill also found a hole
+the executor's self-test did not cover: a fixed path parked in a column-0 make **variable** and expanded in a
+recipe escaped at rc=0. Enumerator widened to scan variable assignments, remaining scope declared in the script
+header, case promoted into committed arm 9.
+
+**The judge's most useful finding was that my own arm was decoration.** Arm 9 asserted "non-zero AND the output
+names the path", and under the reverting mutation it *did* go red — via **R3's floor**, because the fixture's only
+`/tmp` literal sat on the variable line, so a recipe-only scan saw zero occurrences. The rc=0 escape branch the arm
+exists to detect was never exercised. I had seen that R3 message during my own mutation run and read it as "still a
+correct RED" instead of as a mis-attributed one. This is the over-subscribed-observable shape (rule 3i) aimed at a
+guard I wrote *in response to* the same class one hour earlier. Fixed: the fixture now carries a decoy accepted
+(`$`-bearing) `/tmp` path on a recipe line so R3 is satisfied independently, and reverting the widening now fails
+arm 9 with its own message — *"a fixed path defined in a make variable escaped the enumerator (rc=0)"*.
+
+**Judge's other findings, all actioned or declared.** Three of seven refusal branches had no killer (neutering any
+one left a clean 9/9): **R4a** (non-integer `MK_FILES_EXPECTED`) and **R2a** (an enumerated member that is not a
+readable regular file — a *directory* named `*.mk` passes the `-e` test) are now pinned by arms proven with
+single-branch neuters; **R2b** (awk-failure detection) is left **declared** rather than faked. The gate's own
+`mktemp -d` was unguarded — inconsistent with the guarded pattern this very change introduces in the targets it
+polices — and now exits 2 loudly. Three further blind spots the judge measured are declared in the header:
+case-sensitive glob, non-recursive glob, alternate root makefile name. Self-test 9 → **11** arms.
+
+**Ruled out.**
+- *`make/test.mk` has the same defect* — REFUTED. Its temp paths are already `$$$$`-suffixed and cleaned; it is the
+  reference implementation, not an instance. Left untouched deliberately.
+- *The weekly external-issue sweep is owed* — REFUTED by measurement rather than transcribed from the last three
+  stamps: `#852` was created `2026-08-24T07:50:23Z` and iteration 267's record commit `31da92297` landed
+  `2026-08-24 12:55:56 +0200`, i.e. **after** the rotation, so its sweep discharges this rotation week.
+- *The `mktemp` refactor could have made `make lint` vacuous* — REFUTED by mutation (rc=2 vs control rc=0),
+  independently by me and by the judge with a different package and a different mutant shape.
+
+**Watch-item (instance 1, pre-registered, not a skill edit).** A controller observes a mutation red, sees it
+arrive by a *different* mechanism than the arm under test, and banks it as confirmation. Rule 3d covers a red you
+predicted; rule 3i covers an observable with too large a value set. Neither names the case where the red is real,
+the arm is real, and they are **not connected**. Bar is two frictions.
