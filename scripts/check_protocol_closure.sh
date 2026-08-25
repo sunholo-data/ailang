@@ -5,6 +5,10 @@
 # scope by design: they are not part of a consumer's build closure.
 # The closure is checked across a GOOS matrix because a platform-suffixed Go file
 # is invisible to dependency enumeration performed for only one GOOS.
+# DECLARED SCOPE: GOARCH is deliberately NOT varied. No GOARCH-suffixed file exists
+# anywhere in the tree today, and CI runs only ubuntu and windows runners, so the
+# GOOS axis is the one that can actually differ in practice. A future _arm64.go or
+# _amd64.go under serveapi would NOT be seen by this gate.
 # Both arms require a known-positive and at least one stdlib package. The
 # serveapi module-root enumeration is floored separately from its dependency
 # enumeration because those are two distinct go list calls.
@@ -43,6 +47,10 @@ TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 # R12: The platform matrix is itself an enumeration and must not be vacuous.
+# Both matrix loops rely on word splitting, so pathname expansion is disabled around
+# them: an entry containing a glob character must stay a (bogus) GOOS token rather
+# than expanding to filenames.
+set -f
 MATRIX_EXPECTED=0
 for _matrix_goos in $GOOS_MATRIX; do
 	MATRIX_EXPECTED=$((MATRIX_EXPECTED + 1))
@@ -183,6 +191,7 @@ fi
 
 	MATRIX_COMPLETED=$((MATRIX_COMPLETED + 1))
 done
+set +f
 
 # R13: Refuse success unless every enumerated matrix entry completed both arms.
 # DECLARED SCOPE: no value of GOOS_MATRIX can reach this branch today — every loop

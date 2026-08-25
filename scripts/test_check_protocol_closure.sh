@@ -11,7 +11,7 @@ GOOS_INTRUDER="$REPO_ROOT/serveapi/protocol/zz_goos_intruder_darwin.go"
 SERVEAPI_GOOS_INTRUDER="$REPO_ROOT/serveapi/zz_goos_intruder_windows.go"
 FAILED=0
 ARMS_RUN=0
-ARMS_EXPECTED=8
+ARMS_EXPECTED=9
 OUT=""; RC=0
 
 pass() { echo "  ok   — $1"; ARMS_RUN=$((ARMS_RUN + 1)); }
@@ -180,6 +180,18 @@ elif printf '%s\n' "$OUT" | grep -q '✓'; then
 	fail "matrix anti-vacuity arm printed a checkmark: $OUT"
 else
 	pass "empty GOOS_MATRIX refuses as matrix R12 with rc=2 and no checkmark"
+fi
+
+# (ix) Vacuity messages must themselves carry platform attribution. The two "closure
+# contains ..." violator messages are pinned by arms (ii)/(viii); the vacuous() helper
+# feeds every R1/R2/R3/R4/R6/R7/R10/R11/R12 message and was unpinned until this arm.
+run_gate ./definitely/not/a/package
+if [ "$RC" -ne 2 ]; then
+	fail "vacuity-attribution arm expected rc=2, got rc=$RC: $OUT"
+elif ! printf '%s\n' "$OUT" | grep -qF '[GOOS=linux] ✗ vacuous enumeration (protocol R1)'; then
+	fail "vacuity-attribution arm: R1 message did not carry [GOOS=linux]: $OUT"
+else
+	pass "vacuity messages carry platform attribution ([GOOS=linux] on protocol R1)"
 fi
 
 # (v) Restoration.
