@@ -12,7 +12,15 @@ import (
 
 var (
 	makeTargetLine = regexp.MustCompile(`(?m)^([A-Za-z0-9][A-Za-z0-9_.-]*):`)
-	makeInvocation = regexp.MustCompile(`\bmake\s+([A-Za-z0-9][A-Za-z0-9_.-]*)`)
+	// `make` must sit at a COMMAND position: start of line, or after a shell
+	// separator. A bare \bmake\b also matches prose inside the run script --
+	// `echo "run make check-foo by hand"` and `# TODO: wire up make check-foo`
+	// both read as invocations, so a gate could be listed in ci: and mentioned
+	// in a comment while never actually executing. Found by the iteration-274
+	// evaluator, which demonstrated exactly that pair passing all three checks.
+	makeInvocation = regexp.MustCompile(`(?m)(?:^|[;&|(]|&&|\|\|)[ \t]*(?:sudo[ \t]+)?make[ \t]+([A-Za-z0-9][A-Za-z0-9_.-]*)`)
+	// shellComment strips `#`-to-end-of-line before matching.
+	shellComment = regexp.MustCompile(`(?m)#.*$`)
 )
 
 var notWiredIntoCI = map[string]string{
@@ -21,7 +29,18 @@ var notWiredIntoCI = map[string]string{
 }
 
 var notInMakeCI = map[string]string{
-	"check-autoclose": "event-shaped: needs AUTOCLOSE_ARGS; measured rc=2 with no args, so it cannot be an unconditional local gate",
+	// Measured 2026-08-25, both arms, after the iteration-274 evaluator refuted
+	// the first draft of this reason (which said "needs AUTOCLOSE_ARGS" -- false:
+	// code-health.mk defaults it with ?=). The true reason is RANGE-shaped, not
+	// event-shaped: the target carries an anti-vacuity floor and exits rc=2
+	// "no records enumerated" whenever the range is empty.
+	//   at origin/dev  (0 commits in range) -> rc=2
+	//   1 commit ahead (1 commit in range)  -> rc=0
+	// A developer on a freshly-pulled clean checkout is the rc=2 case, so this
+	// cannot be an unconditional member of the local `make ci` aggregate. CI
+	// invokes it directly with event-scoped args (ci.yml:157-175), and its
+	// self-test test-check-autoclose IS in ci:.
+	"check-autoclose": "range-shaped: anti-vacuity floor exits rc=2 on an empty commit range, which is the state of a clean freshly-pulled checkout",
 }
 
 func makeTargetsAndDatabase(t *testing.T) (map[string]bool, string) {
@@ -63,7 +82,8 @@ func invokedTargets(t *testing.T) map[string][]string {
 	for workflowName, wf := range loadWorkflows(t) {
 		for jobID, job := range wf.Jobs {
 			for stepIndex, step := range job.Steps {
-				for _, match := range makeInvocation.FindAllStringSubmatch(step.Run, -1) {
+				script := shellComment.ReplaceAllString(step.Run, "")
+				for _, match := range makeInvocation.FindAllStringSubmatch(script, -1) {
 					where := workflowName + ":" + jobID + ":step " + strconv.Itoa(stepIndex)
 					invoked[match[1]] = append(invoked[match[1]], where)
 				}
@@ -76,6 +96,14 @@ func invokedTargets(t *testing.T) map[string][]string {
 	return invoked
 }
 
+// KNOWN LIMITATION (declared, not fixed -- dormant at HEAD): loadWorkflows reads
+// only .github/workflows/*.yml|*.yaml and this scan reads only step.Run, so a
+// `make` invocation inside a composite action (uses: ./.github/actions/x) or a
+// first-party reusable workflow is invisible. Measured by the iteration-274
+// evaluator: the repo has ZERO composite actions and ZERO first-party reusable
+// workflows today, and the failure direction is a FALSE RED (the target reads as
+// unwired), which is loud rather than silent. If either is ever added, widen the
+// enumerator -- do not answer the red with an exemption-map entry.
 func gateTarget(target string) bool {
 	return strings.HasPrefix(target, "check-") || strings.HasPrefix(target, "test-check-")
 }
