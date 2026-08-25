@@ -18291,3 +18291,63 @@ harder to see as the two enumerations get closer together.
 
 **Next**: `m-protocol-closure-goos-scope` (the second iteration-268 judge row), then
 `m-lint-tmpfile-collision` and `m-gemini-verdict-score-threshold`.
+
+## 272 — 2026-08-25 — The row's own demonstration was the one case CI catches; the real escape was darwin and windows, in both arms
+
+**Pick:** queue head `m-protocol-closure-goos-scope` (JUDGE-FOUND iter-268). Human directive from Mark
+(`2026-08-24T23:35:48Z`, `#852`) — "D-34 is discharged" — actioned first; it is bookkeeping, so it did not
+displace the pick.
+
+**Directive outcome.** `D-34` ("when `#764` lands, cut v0.34.0") retired. Evidence re-derived rather than
+inherited: `serveapi/protocol` ships at `v0.33.2` (5 files, negative control 0), `ba2eeb4b4`/`7e7bdffcb` are
+ancestors of the tag, a post-tag commit is not, tag published `2026-08-24T19:26:28Z` non-draft. `#764`'s only
+stated reason for staying open had therefore lapsed on its own evidence: closed with the verdict and pin
+instruction, comment count asserted 5 → 6.
+
+**Problem.** Every `go list` in `scripts/check_protocol_closure.sh` ran at the ambient GOOS; CI invokes the gate
+only from the ubuntu `test` job (`ci.yml:136`/`:139`, `test-windows` at `:325` never does).
+
+**What reproducing it changed.** The row demonstrated a `_linux.go` intruder green on darwin — the one case CI
+catches. Measured as CI runs it: `_linux.go` rc=1 caught, `_darwin.go` rc=0 escapes, `_windows.go` rc=0 escapes.
+My own drill then found the escape covers **both** arms: a `_windows.go` under `serveapi/` escaped the facade arm
+identically, a surface the executor never probed.
+
+**Fix.** Both arms run across `GOOS_MATRIX` (default `linux darwin windows`; GOOS only, never GOARCH). Floors
+R1–R11 apply per GOOS and every message names the platform. The matrix carries its own floors — `R12` (empty →
+rc=2) and `R13` (completed ≠ expected) — applying iteration 271's retro lesson to the enumeration this iteration
+added. Self-test 5 → 9 arms.
+
+**Routing evidence.** controller=`opus` (session); executor=`codex:gpt-5.6-sol`, probe rc=0, 8,708 B directive,
+bounded 30-min cap, rc=0 with a 3-file non-empty diff, no commits, zero residue; evaluator=`sonnet` in its own
+worktree at `55a21d447`, **PASS 88/100**, one BLOCKING finding; designer/planner not spawned (direct fix — no
+Fable spend, rotation pointer untouched). metered=**$0.00** of $5.
+
+**Deviation adjudicated (rule 3h).** Executor shipped `${GOOS_MATRIX-…}` where my directive said
+`${GOOS_MATRIX:-…}`, self-reported. Measured in two arms: delivered form rc=2 naming R12; my form rc=0 with a
+green checkmark, i.e. R12 unreachable. **The directive was wrong** — second consecutive iteration where a
+self-reported executor deviation beat the instruction.
+
+**Judge's BLOCKING finding — real, reproduced, fixed in-iteration.** Stripping `[GOOS=%s]` from the `vacuous()`
+*helper* (which feeds nine floor messages) left the self-test 8/8 rc=0. This is my own finding one level down: I
+had pinned the two violator **call sites** and missed the shared **helper** — *guard the helper, miss the call
+site*, aimed at my own fix. Arm 9 added; the judge's exact mutant now reds rc=1.
+
+**Ruled out.**
+- *R13 is reachable by some input* — REFUTED. Five matrix shapes (empty, whitespace, single, multi, double-space)
+  plus the judge's glob/duplicate/newline/tab/bad-`GO_BIN` cases reach it in **zero** cases. It fires only when a
+  `continue` is inserted, so it is retained as a regression floor and **declared unreachable in the script**.
+- *A third unfloored enumeration exists* (the iter-271 defect class recurring) — REFUTED independently by me and
+  by the judge: exactly three `go list` call sites, all inside the loop, controls firing.
+- *`//go:build` under `serveapi/` means a real build constraint* — REFUTED; the single hit is a raw-string fixture
+  at `serveapi_external_test.go:211`.
+- *`env $BG go build` measured the three platforms* — REFUTED by its own output: zsh does not word-split an
+  unquoted variable, so all three arms returned rc=2 identically. A **false symmetry**, re-measured with literal
+  assignments.
+
+**Non-blocking items actioned:** GOARCH's out-of-scope status declared in the script header; `set -f` around both
+matrix loops, so `GOOS_MATRIX="linux *"` yields 2 iterations rather than the 49 repo-root entries.
+
+**Retro:** no skill edit. The candidate gap (pinning a message's call sites while leaving the shared formatting
+helper unpinned) has ONE first-party instance, pre-registered; rules 3i and 3j already cover the general shape.
+
+**Next:** `m-lint-tmpfile-collision`, then `m-gemini-verdict-score-threshold` and `m-codex-streaming-test-flake`.

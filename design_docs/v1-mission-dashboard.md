@@ -1,40 +1,36 @@
 # Mission Dashboard — V1
 
 *Snapshot, overwritten every iteration. History lives in the charter STATUS block and the log.*
-**Last iteration:** 271 · 2026-08-24 · **LANDED — `m-protocol-closure-arm2-floor` (`fffe2487b`)**
+**Last iteration:** 272 · 2026-08-25 · **LANDED — `m-protocol-closure-goos-scope`**
 
 ## Latest release
-**v0.33.2** (2026-08-24 19:26Z) — already contains all four `#764` milestones plus iteration 270's
-lint fix, so `D-34`'s premise ("v0.34.0 is the delivery to World") is **stale**. World told on `#764`.
+**v0.33.2** (2026-08-24 19:26Z). It already contains every `#764` milestone, so **no v0.34.0 is owed**
+for that work — `D-34` is **discharged** (Mark, 2026-08-24 23:35Z) and `#764` is **closed**.
 
 ## What just landed
-The iteration-268 judge row named ONE hole in the closure gate's `./serveapi` arm; reproducing it
-first-party found **two**, the unnamed one worse. Arm 2 runs a *second* enumeration — the
-module-root query the allowlist check actually consumes — with no floor at all, its exit status
-discarded as a pipeline head. Reducing it 10 roots → 0 left the gate green. `R10` + `R11` close
-both. `sonnet` **PASS 96/100**, zero blocking.
+The closure gate ran every `go list` at the ambient GOOS, and CI invokes it only from the ubuntu
+`test` job. The filed row demonstrated a `_linux.go` intruder — which is the one case CI *does*
+catch. The real escape is `_darwin.go`/`_windows.go`, and it covered **both** arms, including the
+`serveapi` facade the executor never probed. Both arms now run a GOOS matrix with their own
+anti-vacuity floors (R12/R13). Self-test 5 → 9 arms. Evaluator PASS 88/100; its one blocking
+finding (the `vacuous()` helper's platform attribution was unpinned) was reproduced and fixed
+in-iteration.
 
-## Next picks (queue head first)
-1. `m-protocol-closure-goos-scope` — gate blind to GOOS/build-tag files (judge, iter-268)
-2. `m-lint-tmpfile-collision` — `make lint` judges a fixed shared `/tmp/lint.out` (iter-270)
-3. `m-gemini-verdict-score-threshold` — `ValidateVerdict` enforces half its invariant (iter-270)
-4. `m-codex-streaming-test-flake` — dies under full-parallel `make test` (judge, iter-270)
+## Next picks
+1. `m-lint-tmpfile-collision` — `make lint` writes `/tmp/lint.raw`/`/tmp/lint.out` at fixed shared
+   paths on a rig running three missions; one agent's findings can decide another's verdict.
+2. `m-gemini-verdict-score-threshold` — `ValidateVerdict` enforces half its documented invariant.
+3. `m-codex-streaming-test-flake` — judge-found; a bound that holds on one machine's load profile.
+
 ## Loop cadence + routing
-launchd `dev.ailang.mission-control`, ~90 min. Controller `opus`; designer ROTATION (pointer
-`claude:claude-fable-5`, untouched — direct-fix iterations spawn none); planner/executor
-`codex:gpt-5.6-sol`; evaluator `sonnet` (≠ executor, generator≠judge holds). Metered **$0.00** of
-$5 — both quota buckets. Anthropic up; codex probe rc=0; billing tripwire CLEAN.
+Controller `opus` · executor `codex:gpt-5.6-sol` · evaluator `sonnet` (generator≠judge) ·
+designer rotation seeded `claude:claude-fable-5`, **not spawned** for direct-fix iterations.
+Metered spend this iteration **$0.00** of $5.
 
-## Parked on Mark (`scripts/mission_decisions.sh --open`)
-- **`D-30`** — enforce the harness↔`ai-check` version coupling: (a) versioned JSON schema,
-  (b) bind to `os.Executable()`, (c) accept + spot-check.
-- **`D-31`** — split the designer rotation into authoring vs review lanes, or widen it? Two of
-  three entries cannot author for structural reasons no probe clears. 4+ instances.
-- **`D-32`** — exempt an `inconclusive` obligation from `cost_per_verified_success`, as `D-29`
-  exempts `not_applicable`?
-- **NEW, one word** — `D-34` pre-authorised asking for **v0.34.0** as `#764`'s delivery; v0.33.2
-  already delivers it. Ask **discharged**, or still want the minor bump to signal the new public
-  `serveapi/protocol` surface?
+## Parked on Mark
+- **D-30** — harness↔`ai-check` version coupling before the `not_applicable` split: (a) schema, (b) same-binary, (c) accept.
+- **D-31** — designer rotation has ONE usable authoring lane: (a) split authoring/review lanes, (b) widen, (c) accept.
+- **D-32** — should an `inconclusive` verification obligation be exempt from the effective KPI arm, as `D-29` exempts `not_applicable`?
 
-**Rig note:** the MAIN checkout held a concurrent session's live uncommitted work at this fire;
-left strictly alone, all writes went to worktrees.
+## Quota posture
+No Fable spend this iteration. Codex probe rc=0. Anthropic available.

@@ -3,6 +3,12 @@
 #
 # This deliberately measures what a consumer LINKS. Test-only imports are out of
 # scope by design: they are not part of a consumer's build closure.
+# The closure is checked across a GOOS matrix because a platform-suffixed Go file
+# is invisible to dependency enumeration performed for only one GOOS.
+# DECLARED SCOPE: GOARCH is deliberately NOT varied. No GOARCH-suffixed file exists
+# anywhere in the tree today, and CI runs only ubuntu and windows runners, so the
+# GOOS axis is the one that can actually differ in practice. A future _arm64.go or
+# _amd64.go under serveapi would NOT be seen by this gate.
 # Both arms require a known-positive and at least one stdlib package. The
 # serveapi module-root enumeration is floored separately from its dependency
 # enumeration because those are two distinct go list calls.
@@ -13,10 +19,11 @@ SERVEAPI_PACKAGE="${2:-./serveapi}"
 PROTOCOL_SELF="github.com/sunholo-data/ailang/serveapi/protocol"
 SERVEAPI_SELF="github.com/sunholo-data/ailang/serveapi"
 GO_BIN="${GO_BIN:-go}"
+GOOS_MATRIX="${GOOS_MATRIX-linux darwin windows}"
 RED='\033[0;31m'; GREEN='\033[0;32m'; RESET='\033[0m'
 
 vacuous() {
-	printf "%b✗ vacuous enumeration (%s): %s%b\n" "$RED" "$1" "$2" "$RESET"
+	printf "%b[GOOS=%s] ✗ vacuous enumeration (%s): %s%b\n" "$RED" "${CURRENT_GOOS:-none}" "$1" "$2" "$RESET"
 }
 
 # R9: This function is intentionally separate. The dot-rule says a package is
@@ -38,6 +45,25 @@ list_deps() {
 
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
+
+# R12: The platform matrix is itself an enumeration and must not be vacuous.
+# Both matrix loops rely on word splitting, so pathname expansion is disabled around
+# them: an entry containing a glob character must stay a (bogus) GOOS token rather
+# than expanding to filenames.
+set -f
+MATRIX_EXPECTED=0
+for _matrix_goos in $GOOS_MATRIX; do
+	MATRIX_EXPECTED=$((MATRIX_EXPECTED + 1))
+done
+if [ "$MATRIX_EXPECTED" -eq 0 ]; then
+	CURRENT_GOOS=none
+	vacuous "matrix R12" "GOOS_MATRIX is empty or whitespace-only"
+	exit 2
+fi
+
+MATRIX_COMPLETED=0
+for CURRENT_GOOS in $GOOS_MATRIX; do
+	export GOOS="$CURRENT_GOOS"
 
 PROTOCOL_DEPS="$TMP_DIR/protocol.deps"
 PROTOCOL_ERR="$TMP_DIR/protocol.err"
@@ -77,14 +103,14 @@ while IFS= read -r _package; do
 	fi
 done <"$PROTOCOL_DEPS"
 
-printf 'protocol non-stdlib count: %s\n' "$PROTOCOL_NONSTDLIB"
+printf '[GOOS=%s] protocol non-stdlib count: %s\n' "$CURRENT_GOOS" "$PROTOCOL_NONSTDLIB"
 # R4
 if [ "$PROTOCOL_STDLIB" -eq 0 ]; then
 	vacuous "protocol R4" "no stdlib package was enumerated"
 	exit 2
 fi
 if [ -s "$PROTOCOL_VIOLATORS" ]; then
-	printf "%b✗ protocol closure contains non-stdlib packages outside %s:%b\n" "$RED" "$PROTOCOL_SELF" "$RESET"
+	printf "%b✗ [GOOS=%s] protocol closure contains non-stdlib packages outside %s:%b\n" "$RED" "$CURRENT_GOOS" "$PROTOCOL_SELF" "$RESET"
 	sed 's/^/    /' "$PROTOCOL_VIOLATORS"
 	exit 1
 fi
@@ -158,10 +184,27 @@ while IFS= read -r _root; do
 done <"$SERVEAPI_ROOTS"
 
 if [ -s "$SERVEAPI_VIOLATORS" ]; then
-	printf "%b✗ serveapi closure contains disallowed module roots:%b\n" "$RED" "$RESET"
+	printf "%b✗ [GOOS=%s] serveapi closure contains disallowed module roots:%b\n" "$RED" "$CURRENT_GOOS" "$RESET"
 	sed 's/^/    /' "$SERVEAPI_VIOLATORS"
 	exit 1
 fi
 
-printf "%b✓ protocol build closure is stdlib-only (%s non-stdlib package); serveapi module roots are allowed%b\n" \
-	"$GREEN" "$PROTOCOL_NONSTDLIB" "$RESET"
+	MATRIX_COMPLETED=$((MATRIX_COMPLETED + 1))
+done
+set +f
+
+# R13: Refuse success unless every enumerated matrix entry completed both arms.
+# DECLARED SCOPE: no value of GOOS_MATRIX can reach this branch today — every loop
+# iteration either exits non-zero or increments, so completed always equals expected
+# (measured across empty, whitespace, single and multi-entry matrices). It is retained
+# as a regression floor: inserting a `continue` into the loop makes it fire with
+# rc=2 "completed 0 of 3". It is therefore NOT covered by a self-test arm, because no
+# input can drive it; only an edit to this loop can.
+if [ "$MATRIX_COMPLETED" -eq 0 ] || [ "$MATRIX_COMPLETED" -ne "$MATRIX_EXPECTED" ]; then
+	CURRENT_GOOS=matrix
+	vacuous "matrix R13" "completed $MATRIX_COMPLETED of $MATRIX_EXPECTED GOOS iterations"
+	exit 2
+fi
+
+printf "%b✓ protocol and serveapi build closures hold across GOOS matrix: %s%b\n" \
+	"$GREEN" "$GOOS_MATRIX" "$RESET"
