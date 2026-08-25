@@ -18588,3 +18588,102 @@ was a real open question.
 
 **Next:** `m-gemini-verdict-score-threshold`, then `m-codex-streaming-test-flake`; the two rows filed this iteration
 (`m-verify-targets-unwired`, `m-ci-composite-action-blind-spot`) queue behind them.
+
+---
+
+## 276 — 2026-08-25 — The red was real, it was not what anyone blamed, and it had been parked for Mark four weeks ago in prose that nothing reads
+
+**Picked**: `m-make-ci-red-ai-modes` — **not** the queue head, and the reason is recorded. The head
+(`m-launchd-driver-process-tree-flake`) was filed by iteration 275 minutes earlier and sits on top by
+insertion convention, not by ordering; it is a single-occurrence red on a **non-required** check that
+never blocked a merge. This row blocks `make ci`, which `.claude/rules/dev-workflow.md:22` tells every
+agent to run as *"full CI verification locally"*, and it was iteration 275's own stated Next.
+
+**Reality check**: reproduced, then it refuted the row. `make ci` is RED on exactly **1** of its **27**
+prerequisites — count taken from `make -pn`, make's own view, not the file bytes (control: a known
+target present, an invented one 0). `verify-examples-toplevel` is rc=1 on the **sole** failure of
+**42** type-checked examples, `examples/ai_modes.ail`: *"Effect mode mismatch: AI requires mode=fixed;
+declaration provides mode=routeable"*.
+
+**The first reading of that gate was UNINFORMATIVE and the reason is worth more than the reading.**
+`tools/verify_examples.sh:24` prefers `./bin/ailang` over PATH, and that binary was
+`v0.33.2-9-g9944e264e` — **five commits stale** — so my carefully-stamped scratch binary on PATH was
+never consulted. Re-taken with `v0.33.2-14-gf4828cc89` in place (backup `a5c69b02af175bf5`, restored
+byte-identical): same verdict. This is the skill's stale-binary class arriving through a *script's*
+preference rather than through a command I typed, which is exactly the surface the rule says has no
+`--version` to check.
+
+**The row offered two dispositions; both are refuted.**
+- *Not stale sugar.* `design_docs/implemented/v0_15_x/m-ai-effect-modes.md` Example 2 is verbatim
+  `export func summarize_routed(text: string) -> string ! {AI[mode=routeable]} = call(text)`. The
+  example is a faithful rendering of the doc it exists to demonstrate, and it is the **only**
+  `mode=routeable` user in the repo — so migrating it would leave the feature with zero in-repo users.
+- *Not a checker regression from the sprint it was parked under.* At `7fb69c50e` (pre-M1) the file is
+  already rc=1, with a **worse** diagnostic (`Missing effects:` empty). `m-effect-replay-subsumption`
+  M2 only improved the message — precisely what `63b0ba3dd`'s commit message claimed it did.
+
+**It IS a regression, just an older one.** At `01642550e` (2026-05-04, the commit that shipped the
+example as M3 of M-AI-EFFECT-MODES) a binary built at that commit prints `✓ No errors found!` (rc=0),
+while refusing a deliberately ill-typed file at rc=1 — so the pass is real, not an instrument that
+cannot fail.
+
+**Shipped**: no code. The deliverable is an adjudication and a decision — **`D-37`**, filed in the
+authoritative ledger with four options (register the AI subsumption edge / make `std/ai.call`
+mode-polymorphic / migrate the example / quarantine it). Standing rule 2: (a) and (b) are
+language-semantics rulings and are not a controller's to force. Ledger valid at **37 rows**.
+
+**The finding that outranks the red itself.** `63b0ba3dd` (2026-07-28) says, in its own commit
+message: *"No AI edge was registered even though examples/ai_modes.ail is red at HEAD with the
+identical defect; that is PARKED for Mark as Q1."* The log carried it as `(0-subsum-ai)` in a
+"Parked-for-Mark" prose list. **It never became a ledger row.** Under the 2026-08-15
+decision-recording contract — the marked block is state, prose is only evidence — the question has
+been invisible to the human channel for four weeks while remaining the sole cause of a red `make ci`,
+and iteration 275 re-discovered its symptom as if new.
+
+**Systemic audit, because one orphan implies a class.** Measured against the ledger block (scope
+asserted non-empty; two known-present controls returned 1 each; a fresh negative literal returned 0):
+of the **12** standing items in iteration 118's last "Parked-for-Mark" list, **11 have ZERO ledger
+representation**. Only `(d)` main-tree divergence survived, as `D-16`. One of the eleven is now proven
+still live and unruled (`D-37`); the other ten are **UNMEASURED** and are explicitly not claimed
+unresolved — Mark's attended 2026-08-19 session resolved *"every remaining V1 decision"*, but against
+a **21-row** ledger, i.e. only what had been migrated. Filed as `m-prose-parked-decisions-orphaned`.
+
+**Routing evidence**: model=opus task-class=mechanical round1-score=n/a rounds=0 corrections=0
+  provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus
+  designer/planner/executor/evaluator **not spawned** — no doc, no plan, no code change, so no Fable
+  spend and the rotation pointer is untouched. metered=$0.00 of $5.
+
+**Ruled out**:
+- *`m-effect-replay-subsumption` M1/M2 caused the red* — REFUTED by the pre-M1 arm (`7fb69c50e` rc=1).
+  This was the natural reading of both the queue row and the original park, and it is wrong.
+- *The example is stale sugar predating a tightened mode system* — REFUTED by the shipped design doc.
+- *`1282767ca` (#386 effect-row soundness across pure nested calls) is the breaking commit* — REFUTED,
+  twice over: a two-arm build showed green at the commit **and** its parent, and a later clean
+  re-measure showed that reading was itself **void** (see below), with the true value rc=1 at both.
+- *`git bisect run`'s verdict* — DISCARDED as an instrument failure, not banked. It named
+  `e6d5f85c9`, a **docs-only** commit touching **0** `.go`/`.ail` files; direct re-measurement gives
+  rc=1 at that commit **and** at its parent, so the verdict does not reproduce.
+
+**My own instrument bug, root-caused and reproduced.** The bisect's GOOD seed was false because a
+helper printed `check_rc=$?` in the *same `echo` argument list* as `$(git rev-parse --short HEAD)`.
+The substitution runs first and clobbers `$?`, so the helper reported **git's** exit code. Two-armed:
+the buggy form prints `rc=0` for a command that exited 1; `rc=$?` on its own line prints `rc=1`. Since
+`e6d5f85c9^` **is** `1282767ca`, the bisect faithfully converged on the boundary of a lie. The exact
+breaking commit is therefore **NOT established** and is not claimed; the honest bracket is GREEN
+`01642550e` (2026-05-04) … RED `1282767ca` (2026-07-22), filed as
+`m-ai-modes-regression-window` with instructions to re-measure the seed rather than transcribe mine.
+
+**Housekeeping observation, not a fix**: iteration 275's log entry sits at **line 25**, above every
+older entry, while this file's own header mandates *"newest LAST (append)"*. Left in place — moving
+another iteration's record is not this gate's business — but flagged so the next reader is not misled
+into thinking the log is newest-first.
+
+**Retro lane**: none — no skill edit. The candidate gap is *the skill's own `rc=$?` remedy is safe
+only when nothing else runs first, and a `$(…)` substitution in the same argument list is something
+else running first*. Step 3 covers pipes; iteration 236 covers a pipe corrupting both arms of a
+control; neither names substitution reordering. **ONE** first-party instance, pre-registered so a
+second is recognisable. Bar is two.
+
+**Next**: `m-fmt-check-ail-broken-and-red` (unwired *and* rc=2, with a formatter crash that must be
+adjudicated first), then `m-ai-modes-regression-window`. `m-make-ci-red-ai-modes` is gated on `D-37`
+and must not be picked until Mark rules.
