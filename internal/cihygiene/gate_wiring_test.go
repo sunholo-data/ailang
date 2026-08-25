@@ -46,7 +46,6 @@ var notWiredIntoCIVerify = map[string]string{
 var nonCanonicalAllowed = map[string]string{
 	"verify-examples-trace": "advisory trace-determinism sweep, rc=1 on 2 of 217 examples at 2026-08-25; the `|| true` at ci.yml is deliberate and tracked as an open queue row -- REMOVE this entry when the target is green rather than leaving it suppressed",
 	"verify-examples":       "piped to `tee` so the job can attach the output as an artifact; safe because the step runs under the default pipefail shell, but the safety depends on that shell rather than on the line, which is why it needs a stated reason",
-	"check-autoclose":       "invoked from an if/elif shell block that selects event-scoped arguments (push vs pull_request vs workflow_dispatch); the make call itself is unsuppressed in every arm, but a multi-arm block cannot be read canonically",
 }
 
 var notInMakeCI = map[string]string{
@@ -270,7 +269,16 @@ var (
 	// canonicalGateLine is the ALLOWED shape: optional leading VAR=value assignments,
 	// `make`, optional flags, the target, optional trailing VAR=value arguments. No shell
 	// metacharacters, no control flow, no redirection.
-	canonicalGateLine = regexp.MustCompile(`^[ \t]*(?:[A-Za-z_][A-Za-z0-9_]*=[^ \t]*[ \t]+)*make[ \t]+(?:-[A-Za-z-]+[ \t]+)*[A-Za-z0-9][A-Za-z0-9_.-]*(?:[ \t]+[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^ \t]*))*[ \t]*$`)
+	//
+	// The unquoted value class EXCLUDES shell metacharacters, and that exclusion is
+	// load-bearing rather than tidy. Its first draft was `[^ \t]*`, and bash does not
+	// require whitespace around `||`, `&` or `;` -- so `make check-boundaries FOO=a||true`
+	// parsed as a canonical line with a harmless-looking argument and is a REAL bypass
+	// (measured: `bash -eo pipefail -c 'make -C /tmp nonexistent FOO=a||true'` exits 0
+	// against rc=2 without the `||`). The whitelist smuggled the exact suppression it
+	// exists to reject through the one syntax it declares safe. Found by the iteration-275
+	// round-3 evaluator.
+	canonicalGateLine = regexp.MustCompile(`^[ \t]*(?:[A-Za-z_][A-Za-z0-9_]*=[^ \t|&;()<>$\x60'"]*[ \t]+)*make[ \t]+(?:-[A-Za-z-]+[ \t]+)*[A-Za-z0-9][A-Za-z0-9_.-]*(?:[ \t]+[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^ \t|&;()<>$\x60'"]*))*[ \t]*$`)
 	// errexitDisabled covers `set +e`, `set +eu`, `set +o errexit` and `trap ... EXIT`.
 	errexitDisabled = regexp.MustCompile(`(?m)^[ \t]*(?:set[ \t]+[+](?:[a-zA-Z]*e[a-zA-Z]*\b|o[ \t]+errexit\b)|trap[ \t])`)
 )
