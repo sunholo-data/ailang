@@ -33,6 +33,11 @@ run_bounded() {
   "$@" < /dev/null >"$stdout_file" 2>"$stderr_file" &
   pid=$!
   deadline=$(( $(date +%s) + cap_secs ))
+  # Backoff, NOT a flat `sleep 1`. A flat one-second poll charges every arm a full
+  # second it never used to pay: measured 30s -> 66-93s for the whole suite, which
+  # refutes "fast arms are unaffected". Start sub-second and grow; BSD and GNU sleep
+  # both take a decimal, and bash 3.2 does not need it to be one.
+  poll=0.05
   while kill -0 "$pid" 2>/dev/null; do
     if (( $(date +%s) > deadline )); then
       kill "$pid" 2>/dev/null || true
@@ -46,7 +51,8 @@ run_bounded() {
       wait "$pid" 2>/dev/null || true
       return 199
     fi
-    sleep 1
+    sleep "$poll"
+    case "$poll" in 0.05) poll=0.2 ;; 0.2) poll=1 ;; esac
   done
   wait "$pid"
   rc=$?
@@ -328,13 +334,17 @@ expect_failure "descendant discovery refuses on the real wall-clock deadline" "p
   env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=1 PROBE_TEST_PGREP_LOOP=1 \
     PROBE_STUB_STATE="$tmp_dir/lane-pgreploop" /bin/bash "$probe" treatment control "$tmp_dir/pgreploop.json"
 
+cap_secs_fixture=2
 cap_start=$(date +%s)
-run_bounded "$tmp_dir/cap.stdout" "$tmp_dir/cap.stderr" 2 -- /bin/bash -c \
+run_bounded "$tmp_dir/cap.stdout" "$tmp_dir/cap.stderr" "$cap_secs_fixture" -- /bin/bash -c \
   'echo $$ > "$1"; sleep 30' cap-fixture "$tmp_dir/cap.pid"
 cap_rc=$?
 cap_elapsed=$(( $(date +%s) - cap_start ))
-if (( cap_rc != 199 || cap_elapsed > 10 )); then
-  echo "not ok - arm cap terminates a hung command and reports it" >&2
+# The 199 alone does NOT discriminate: a fixture that exits 199 of its own accord
+# satisfies it without any TERM/KILL ever happening. Require the elapsed time to reach
+# the cap as well, so only a command the cap actually STOPPED can pass this arm.
+if (( cap_rc != 199 || cap_elapsed < cap_secs_fixture || cap_elapsed > 10 )); then
+  echo "not ok - arm cap terminates a hung command and reports it (rc=$cap_rc elapsed=${cap_elapsed}s)" >&2
   exit 1
 fi
 cap_pid=$(cat "$tmp_dir/cap.pid")
@@ -343,6 +353,41 @@ if kill -0 "$cap_pid" 2>/dev/null; then
   exit 1
 fi
 pass_arm "arm cap terminates a hung command and reports it"
+
+# report_arm_cap is the code that implements this milestone's headline promise — the
+# named `not ok` line plus the captured output tails. The arm above reaches run_bounded
+# and stops there, so that function had NO coverage: neutering its `exit 1` left the
+# whole suite green. Drive it through expect_failure in a SUBSHELL, where its `exit 1`
+# terminates the subshell rather than the suite, and assert all three observables.
+: > "$tmp_dir/stdout"; : > "$tmp_dir/stderr"
+cap_report=$( {
+  ARM_CAP_SECS=2
+  expect_failure "synthetic hang for the report path" "never matched" \
+    /bin/bash -c 'echo capped-stdout-marker; echo capped-stderr-marker >&2; sleep 30'
+} 2>&1 )
+cap_report_rc=$?
+if (( cap_report_rc != 1 )); then
+  echo "not ok - arm cap reports a hung arm by name with its captured output: expected rc=1, got $cap_report_rc" >&2
+  exit 1
+fi
+# report_arm_cap must TERMINATE the arm, not merely print. If its exit is removed,
+# expect_failure falls through to its own "lacked expected message" refusal and still
+# exits 1 with all the markers present — so rc=1 plus the markers does NOT discriminate.
+# The absence of the fall-through message is what proves the cap path ended the arm.
+case "$cap_report" in
+  *"lacked expected message"*)
+    echo "not ok - arm cap reports a hung arm by name with its captured output: fell through to the message check, so report_arm_cap did not terminate the arm" >&2
+    echo "$cap_report" >&2; exit 1 ;;
+esac
+for cap_expect in "exceeded its 2s arm cap" "--- captured stdout (last 20 lines) ---" \
+                  "--- captured stderr (last 20 lines) ---" "capped-stdout-marker" "capped-stderr-marker"; do
+  case "$cap_report" in
+    *"$cap_expect"*) ;;
+    *) echo "not ok - arm cap reports a hung arm by name with its captured output: missing [$cap_expect]" >&2
+       echo "$cap_report" >&2; exit 1 ;;
+  esac
+done
+pass_arm "arm cap reports a hung arm by name with its captured output"
 
 expect_failure "arm cap override rejects invalid values" \
   "PROBE_SELFTEST_ARM_CAP_SECS must be a positive integer" \
