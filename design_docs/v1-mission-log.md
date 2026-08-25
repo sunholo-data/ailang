@@ -18433,3 +18433,77 @@ case-sensitive glob, non-recursive glob, alternate root makefile name. Self-test
 arrive by a *different* mechanism than the arm under test, and banks it as confirmation. Rule 3d covers a red you
 predicted; rule 3i covers an observable with too large a value set. Neither names the case where the red is real,
 the arm is real, and they are **not connected**. Bar is two frictions.
+
+## 274 — 2026-08-25 — The repo pinned what its gates CHECK and never that they were CONNECTED; the judge's best finding was already live in the tree
+
+**Pick:** queue head `m-ci-wiring-unpinned`, filed by the iteration-273 evaluator. No allowlisted directive on `#852`
+since the watermark (0 of 11 comments); inbox 4 unread, all informational (2× eval-suite, 2× nightly-eval 16/24 plus 3
+suspected flakes), so nothing outranked the queue. Rotation not owed (`#852` created after the Monday-07:00 CEST
+boundary); weekly sweep discharged by iteration 267 for this rotation week.
+
+**The row was JUDGE-FOUND, so ghost discipline applied — and it was wrong in BOTH directions.** Reproduced as filed:
+deleting the `run: make check-tmpfile-hygiene` step from `ci.yml` (mutant LANDED, sha256 `40daa117…` → `585e8850…`)
+left all eight local gates at rc=0, ci.yml restored byte-identical. But the row's claim that *"nothing in this repo
+validates the CONTENT of ci.yml"* is **over-stated**: `internal/cihygiene` already parses the workflows with a real
+YAML parser and validates job timeouts, and it is already run by `go test ./...` (`ci.yml:101`). That matters for the
+DESIGN, not just the bookkeeping — the row proposed a gate script plus a make target plus a ci.yml step, which is a
+shape that must itself be wired and therefore carries the exact defect it exists to detect. Putting the assertions in
+`cihygiene` makes them CI-connected **by construction**.
+
+**The under-stated half is the larger one, and it has a live victim.** `make ci` advertises *"Run full CI
+verification"* (`make/ci.mk:11`) and `.claude/rules/dev-workflow.md:22` instructs every agent to run it. Measured
+overlap with the targets GitHub Actions actually invokes: **8 of 46**. It omitted every `check-*` gate built in
+iterations 270–273. A first pass by direct invocation suggested 13 unwired gate targets; that enumeration was itself
+suspect (prerequisites and recipe-body sub-makes are invisible to it), so it was redone as a transitive-reachability
+walk over the parsed prerequisite graph — same answer, **13 of 29**, and it additionally showed `make ci` and
+`ci-strict` are invoked by **no workflow at all**. Two gate lists, nothing reconciling them.
+
+**Shipped.** W1 (every workflow `make X` names an existing target), W2 (every `check-*`/`test-check-*` target is
+workflow-invoked or exempt with a stated reason), W3 (`make ci` includes every workflow-invoked gate target). Each
+enumerator carries its own floors — a gate consulting two lists has two places to be vacuous. Targets come from
+`make -pn`, complete by construction, rather than a `.mk` glob that iteration 273's own residual row had already
+recorded as case-sensitive and non-recursive. `make ci` gained the 11 unconditional gates; `check-autoclose` and
+`verify-examples-trace` were excluded on measurement, not on judgement.
+
+**Ruled out / corrected by measurement.** (a) My first enumerator over-matched step NAMES — `- name: Check make recipe
+tmpfile hygiene` yields a phantom target `recipe` — which is why the shipped scan reads parsed `step.Run` scalars.
+(b) I suspected W3's `^ci:` regex would capture the `##` help text as prerequisites; measured, `make -pn` strips it.
+(c) `go build ./...` was kept OUT of the directive's gate list: it is rc=1 on pristine dev (`cmd/wasm`), the same
+finding iterations 145 and 245 recorded.
+
+**Routing evidence.** controller=`opus` (session); executor=`codex:gpt-5.6-sol`, probe rc=0, 7,815 B directive, bounded
+30-min cap, rc=0 with a 2-file non-empty diff, no commits, zero residue; evaluator=`sonnet` in **its own** worktree at
+`f7873dc45`, **PASS 80/100**; designer/planner not spawned (direct fix — no doc, no plan, **no Fable spend**, rotation
+pointer untouched). Fifth consecutive direct-fix iteration. metered=**$0.00** of $5.
+
+**The evaluator's best finding was live, not synthetic (rule 3b for judges: reproduce before acting).** It
+demonstrated that `\bmake\s+(target)` matches inside bash comments and echoes, so a gate could be listed in `ci:`,
+mentioned in a `# TODO: wire this up` comment, and never execute — all three checks passing. On reproducing it I found
+the repo already contained an instance: `update-readme` was counted as CI-wired on the strength of two comments, one
+of which reads *"Intentionally does NOT call `make update-readme` in full"*. Fixed by stripping shell comments and
+requiring `make` at a command position, and — the check that matters for a NARROWING — regression-verified by dumping
+the invoked-target set both ways: **45 → 44**, the single lost entry being exactly that false positive.
+
+**And the judge's second finding was right to fire and wrong in its replacement.** It refuted my `check-autoclose`
+exemption reason (*"needs AUTOCLOSE_ARGS"* — false; `code-health.mk:161` defaults it with `?=`) and proposed that the
+target *"runs unconditionally and cleanly"*. Measured in two arms: at `origin/dev` with an empty commit range it is
+**rc=2 `INSTRUMENT FAILURE: no records enumerated`**; one commit ahead it is **rc=0**. So both of us were wrong and the
+truth is a third thing — the target is RANGE-shaped, not event-shaped, and a developer on a freshly-pulled clean
+checkout is precisely the rc=2 case. Reason corrected in place with both arms recorded in the code. This is the
+clearest instance yet of the rule that a judge's finding must be reproduced before it is *acted on*, not only before
+it is dismissed.
+
+**My own drill error, recorded rather than smoothed over.** MU6, built to reproduce the judge's false-green, was
+mis-constructed: the `sed` appended the probe target after the `##` help comment, so the old-regex arm redded on W3
+rather than exercising W2 at all. The fix's real evidence is the live `update-readme` case, not that mutant. Same
+class as the MU3 `sed` that stripped two different targets than named — where the gate's own error message is what
+told me which targets had actually moved.
+
+**Gate 3b.** 4/4 required green on the final head `1536ef48e` (`test` 17m32s, `lint` 3m45s, `build` 1m56s,
+`docs-gate` 3s), 5/5 workflow runs success, `mergeStateStatus=CLEAN`, squash-merged `92376bad3`. Notably the
+`Run tests with timeout` step passed on the **ubuntu** runner on both heads, which is the platform evidence my
+darwin-only local greens could not supply (rule 3b(viii)) — the gate shells out to `make -pn`, so an off-darwin green
+was a real open question.
+
+**Next:** `m-gemini-verdict-score-threshold`, then `m-codex-streaming-test-flake`; the two rows filed this iteration
+(`m-verify-targets-unwired`, `m-ci-composite-action-blind-spot`) queue behind them.
