@@ -60,12 +60,13 @@ type workflow struct {
 	Jobs map[string]struct {
 		Uses            string `yaml:"uses"`
 		TimeoutMinutes  *int   `yaml:"timeout-minutes"`
-		ContinueOnError *bool  `yaml:"continue-on-error"`
+		ContinueOnError any    `yaml:"continue-on-error"`
 		Steps           []struct {
 			Name            string `yaml:"name"`
 			Run             string `yaml:"run"`
 			TimeoutMinutes  *int   `yaml:"timeout-minutes"`
-			ContinueOnError *bool  `yaml:"continue-on-error"`
+			ContinueOnError any    `yaml:"continue-on-error"`
+			Shell           string `yaml:"shell"`
 		} `yaml:"steps"`
 	} `yaml:"jobs"`
 }
