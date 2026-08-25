@@ -18795,3 +18795,86 @@ second is recognisable. Bar is two.
 **Next**: `m-fmt-check-ail-broken-and-red` (unwired *and* rc=2, with a formatter crash that must be
 adjudicated first), then `m-ai-modes-regression-window`. `m-make-ci-red-ai-modes` is gated on `D-37`
 and must not be picked until Mark rules.
+
+## 278 — 2026-08-25 — The canonical inbox command had been failing since the day it was documented as fixed, and the past-tense note is what would have stopped anyone re-filing it
+
+**Picked**: not the queue head, and not iteration 277's stated Next. A genuine regression on the
+mission's own inbound-feedback channel, found first-party at Gate 0 while doing nothing more exotic
+than reading the inbox the protocol tells every session to read.
+
+**The instrument was the finding, and my first reading of it was false.** The SessionStart hook
+reported 4 unread. Exporting `AILANG_MESSAGES_STORE=gcp` returned the **same 4** — and so did a
+**deliberately bogus** store value, rc=0. That is rule 3a's broken-instrument signal rather than a
+measurement: the PATH binary (`v0.33.2`, commit `63e7909`) **ignores the selector entirely** and
+reads local SQLite while reporting success. A freshly built, correctly-stamped binary REFUSES the
+bogus value (`Error: openStore: unknown message store mode`). Two arms, differing rc, so it is the
+binary and not the code — the stale-binary class arriving at the one command whose whole purpose is
+to tell you where it read from. Against prod the canonical store then read **59** unread, not 4.
+
+**And the prescribed command itself was broken.** Bare `--unread` — the only form that spans inboxes
+nobody thought to name, which is precisely why `CLAUDE.md` leads with it — returned **rc=1,
+deterministic 2/2**, `FailedPrecondition` on a missing composite index. `--inbox <name> --unread`
+returned **rc=0**. So the workaround the docs explicitly call insufficient was the only path that
+worked, and the 59 included **16** substantive feedback items, **10** of them filed that morning.
+
+**My "just create it" reading was also nearly wrong, and the control is what caught it.** A first
+index listing showed two `status+created_at` indexes and I almost banked "it already exists"; scoped
+by collection they belong to `tasks` and `obs_chains`. `inbox_messages` carried exactly
+`to_inbox+status+created_at` and `to_inbox+created_at` — both `to_inbox`-prefixed, i.e. the
+*fallback's* indexes — in **both** terraform and prod. So this was never terraform/prod drift: the
+declaration was simply never written.
+
+**The doc defect is the part worth the row.** `docs/docs/guides/agent-messaging.md` described this
+exact defect in the **past tense**, citing `terraform/firestore.tf`. I measured that path ABSENT
+(0 `.tf` files tracked at `origin/dev`; positive control 1, negative control 0) and **corrected
+myself before acting on it** — it exists, in the `ailang-multivac` deploy repo, which the relative
+path does not say. But the substance still failed: the note landed at **19:10:48** (`6759ea4fa`),
+**five minutes before** the declaration it cites existed (`05a60f3`, **19:15:38**, authored by Mark),
+and **declaring is not applying** — no apply ran, and prod still had no index at **20:33**. A reader
+who hit `FailedPrecondition` and checked the guide would have concluded it was already handled.
+
+**Shipped**: the prod index (`status` ASC, `created_at` DESC) → **READY**; cross-inbox `--unread`
+verified **rc=0, 2/2, Unread: 59**, zero index errors, header naming prod. Docs PR
+**[#886](https://github.com/sunholo-data/ailang/pull/886)**: the note now separates *declared* from
+*live*, names the deploy repo, and gives the query as its own verification (rc=0 = live,
+`FailedPrecondition` = declared-and-unapplied); plus a new trap (guide 4 / `CLAUDE.md` 6) for the
+silent stale-binary selector, with the one-command control that distinguishes them.
+
+**My own process miss, recorded rather than smoothed.** I edited `ailang-multivac` without fetching
+it first and committed a duplicate of Mark's `05a60f3` — Gate 2's already-landed check applied to my
+own repo and not to the sibling I reached into. Reverted; that repo is byte-identical to upstream,
+**0** dirty, **0** ahead/behind, my duplicate resource absent and Mark's present. I also read
+`push rc=0` through a `tail` pipe — this file's own documented trap — and the true rc was **1**.
+
+**Flagged, not buried**: the prod index was created out of band, so upstream `messages_status_only`
+is not in terraform state and the next apply will hit `ALREADY_EXISTS` unless imported first:
+`terraform import google_firestore_index.messages_status_only projects/ailang-multivac/databases/(default)/collectionGroups/inbox_messages/indexes/CICAgNiroIEK`.
+Leaving the index in place keeps the channel open; deleting it to let Terraform re-create it would
+re-break the channel for an unknown window, so the import is the cheaper correction.
+
+**Routing evidence**: controller=`opus` task-class=mechanical+adjudication round1-score=n/a rounds=0
+corrections=0 designer=not-spawned planner=not-spawned executor=not-spawned evaluator=not-spawned
+metered=$0.00 of $5. Rotation pointer untouched (no designer run).
+
+**Gates**: `check-changelog`, `check-file-sizes`, `check-skills`, `check-tmpfile-hygiene` — all rc=0
+on **darwin/arm64** under a freshly built, correctly-stamped binary; other matrix legs unrun locally.
+No changelog entry, matching the closest analogue `1d7040de4` (docs-only, same area).
+
+**Ruled out**:
+- *"The index already exists"* — refuted by scoping the listing to its collection; the two
+  `status+created_at` indexes are `tasks` and `obs_chains`.
+- *"Terraform and prod have drifted"* — refuted; both carried the same two indexes, so nothing was
+  lost in an apply. The declaration was never written until Mark wrote it at 19:15.
+- *"`terraform/firestore.tf` does not exist"* — my own claim, refuted by my own search of the sibling
+  repos before I acted on it. The citation is cross-repo, not false.
+- *"`AILANG_MESSAGES_STORE` is being honoured because local and gcp agree"* — refuted by the bogus
+  value returning the identical output at rc=0.
+
+**Retro lane**: none — no skill edit. The candidate gap is *Gate 2's already-landed discipline
+(`git fetch` + origin queue tag + merged-PR search) is written entirely about the mission repo, and
+says nothing about a sibling repo an iteration reaches into — where the same duplicate-work failure
+is likelier, because the loop has no charter, no queue and no log for that repo.* **ONE**
+first-party instance; pre-registered so a second is recognisable.
+
+**Next**: `m-fmt-cognition-roundtrip-soundness` (a shipped soundness defect outranks the rest), then
+`m-firestore-index-provenance`.
