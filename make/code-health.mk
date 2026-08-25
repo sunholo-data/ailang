@@ -21,16 +21,32 @@ fmt-check: ## Check code formatting (CI gate)
 	@echo "$(GREEN)$(CHECKMARK) Code formatting check passed$(RESET)"
 
 # AILANG canonical-form drift check (opt-in, standalone — NOT wired into `make ci`).
-# Reports `.ail` files under examples/ and stdlib/ that are not in `ailang fmt`
+# Reports `.ail` files under examples/ and std/ that are not in `ailang fmt`
 # canonical form. Exits 1 and lists the drifted paths on drift, 0 when canonical.
 # `ailang fmt --check` itself prints each non-canonical path and exits 1 on drift.
-fmt-check-ail: ## Report ailang fmt drift over examples/ + stdlib/ (opt-in; not in CI)
-	@echo "Checking AILANG canonical form (examples/ + stdlib/)..."
-	@files=$$(find examples stdlib -name '*.ail' 2>/dev/null); \
+#
+# ENUMERATOR DISCIPLINE (fixed 2026-08-25, iteration 277; filed by iteration 187):
+# this target scanned a `stdlib/` directory that has NEVER existed in this repo,
+# and `2>/dev/null` swallowed find's complaint, so 46 of std/'s .ail files were
+# invisible to it (404 enumerated vs 450 real). A missing root now FAILS LOUDLY
+# rather than silently narrowing the scope, and an empty enumeration is an
+# instrument failure rather than a green checkmark.
+FMT_AIL_ROOTS := examples std
+
+fmt-check-ail: ## Report ailang fmt drift over examples/ + std/ (opt-in; not in CI)
+	@echo "Checking AILANG canonical form ($(FMT_AIL_ROOTS))..."
+	@for d in $(FMT_AIL_ROOTS); do \
+		if [ ! -d "$$d" ]; then \
+			echo "$(RED)$(CROSS) fmt-check-ail: root '$$d' does not exist - enumerator is broken, not clean$(RESET)"; \
+			exit 2; \
+		fi; \
+	done; \
+	files=$$(find $(FMT_AIL_ROOTS) -name '*.ail'); \
 	if [ -z "$$files" ]; then \
-		echo "$(GREEN)$(CHECKMARK) No .ail files found$(RESET)"; \
-		exit 0; \
+		echo "$(RED)$(CROSS) fmt-check-ail: enumerated ZERO .ail files under $(FMT_AIL_ROOTS) - instrument failure, not a pass$(RESET)"; \
+		exit 2; \
 	fi; \
+	echo "  enumerated $$(printf '%s\n' "$$files" | wc -l | tr -d ' ') .ail files under $(FMT_AIL_ROOTS)"; \
 	if ailang fmt --check $$files; then \
 		echo "$(GREEN)$(CHECKMARK) All .ail files are canonical$(RESET)"; \
 	else \
