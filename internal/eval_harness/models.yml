@@ -2828,6 +2828,24 @@ models:
                               # 16384 with thinking billed against it, until
                               # 2026-08-13. TestPiModelsConfigMatchesRegistry now
                               # fails if the two drift apart again.
+                              # ⚠️ STILL NOT REACHING THE WIRE — RE-MEASURED 2026-08-26.
+                              # A live pi 0.73.1 probe, read back from OpenRouter's own
+                              # Broadcast trace, sent `max_completion_tokens: 32000`
+                              # while ~/.pi/agent/models.json declares 65536. Not an
+                              # OpenRouter ceiling: its /models API reports 943718 for
+                              # this slug, so 32000 is pi's own and our override is
+                              # being ignored. Second recurrence of the same class
+                              # (16384 -> 32000), and 32000 sits right on the danger
+                              # line — the or-glm-5-2 entry records a thinking phase
+                              # measured at 28-32K tokens. TestPiModelsConfigMatchesRegistry
+                              # cannot catch this: it compares two CONFIG files and
+                              # neither is the wire. Tracked as an open item; the
+                              # mission lane is protected meanwhile by the typed
+                              # stall verdict in scripts/mission_pi_run.sh.
+                              # ⚠️ DO NOT "fix" this by lowering `--thinking`. Restricting
+                              # thinking is an EVAL-only lever; the mission executor runs
+                              # at full ability, and a reasoning-effort downgrade would
+                              # silently change what the lane is measured to be capable of.
     pricing:
       # RE-MEASURED 2026-08-11 from OpenRouter's own endpoints API. The model is
       # served by 26 upstream hosts at $0.08-0.14/M input, so a single number is
@@ -2900,6 +2918,15 @@ models:
   # DeepSeek V4 standard-mode entries (2026-06-04) — companions to the opencode
   # agent entries so V4 Flash/Pro can be compared standard vs agent like glm/minimax.
   or-deepseek-v4-flash:
+    # ⚠️ REASONING-STALL CLASS (measured 2026-08-26, OpenRouter Broadcast traces).
+    # This model thinks by default and CAN return output_tokens == reasoning_tokens
+    # with completion:"" — engaged with the task, never answered. Banked as
+    # error_category=reasoning_stall (see internal/eval_harness/error_categorizer.go),
+    # NOT as api_error or compile_error, so it stops being attributed to the model's
+    # ability to write AILANG.
+    # Do NOT reach for reasoning_max_tokens here: OpenRouter's third-party upstreams
+    # do not enforce it (probed 2026-07-19, recorded on or-glm-5-2 below). Output
+    # HEADROOM is the only enforced lever, which is why max_output_tokens is 65536.
     api_name: "deepseek/deepseek-v4-flash-0731"
     provider: "openrouter"
     default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data

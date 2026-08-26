@@ -224,6 +224,33 @@ const (
 	// answer (contract_rle_roundtrip expects a final "true", produced "1q"),
 	// which is exactly the over-matching this category must never do.
 	ErrorCategoryOutputFormat = "output_format"
+
+	// The model spent its whole output budget thinking and emitted no answer:
+	// content empty, output_tokens == reasoning_tokens. HTTP 200, no provider
+	// error, and — critically — a finish_reason that is either absent (the
+	// stream was cancelled) or a perfectly normal "stop".
+	//
+	// Distinct from ErrorCategoryRefused, which is also "empty content, HTTP 200":
+	// a refusal means the safety layer declined, while this means the model
+	// engaged with the task and never came back. The reasoning text is present
+	// and on-topic; one measured instance reasoned correctly about all six target
+	// sites of its sprint before stalling.
+	//
+	// Distinct from ErrorCategoryTimeout because the cause is identifiable and
+	// lives in the model, not the clock — more wall-clock does not obviously fix
+	// it, and it should not be read as "slow but capable".
+	//
+	// MEASURED 2026-08-26 from OpenRouter Broadcast traces (the provider's own
+	// side of the wire, ingested into the prod observatory). Across the whole
+	// 08-18..08-22 corpus, 3 of 173 generations had no finish_reason; ALL THREE
+	// matched this signature, and the other 170 all carried content or tool_calls.
+	// It is not model-specific: deepseek-v4-flash-0731 under pi and z-ai/glm-5.2
+	// under OpenCode both produced it, on different provider hosts.
+	//
+	// NOTE for anyone tempted to fix this with reasoning.max_tokens: OpenRouter's
+	// third-party upstreams do NOT enforce it (probed 2026-07-19, recorded on the
+	// or-glm-5-2 entry in models.yml). Output headroom is the only enforced lever.
+	ErrorCategoryReasoningStall = "reasoning_stall"
 )
 
 // CategorizeError determines the error category based on execution results

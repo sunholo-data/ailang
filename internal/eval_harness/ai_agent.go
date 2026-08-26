@@ -2,6 +2,7 @@ package eval_harness
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -88,7 +89,33 @@ func (a *AIAgent) WithAttribution(attr *ai.Attribution) *AIAgent {
 // The whole prompt is treated as volatile, so nothing is cached. Prefer
 // GenerateCodeSplit when the prompt has a stable teaching-prompt prefix.
 func (a *AIAgent) GenerateCode(ctx context.Context, prompt string) (*GenerateResult, error) {
-	return a.adapter.generate(ctx, "", prompt)
+	return checkReasoningStall(a.adapter.generate(ctx, "", prompt))
+}
+
+// ErrReasoningStall is returned when the model spent its output budget thinking
+// and returned no code. See ErrorCategoryReasoningStall for the measurement.
+//
+// It is an ERROR rather than an empty-code success on purpose: the previous
+// behaviour handed empty code to the compiler, which banked the run as
+// compile_error and attributed a harness/provider event to the model's ability
+// to write AILANG.
+var ErrReasoningStall = errors.New("reasoning stall: model returned reasoning but no content")
+
+// checkReasoningStall converts the stall signature into a typed error.
+//
+// Deliberately wrapped around GenerateCode and GenerateCodeSplit INDIVIDUALLY
+// rather than inside adapter.generate, because GenerateCodeWarmup caps output at
+// one token by design — every warm-up call matches the stall signature and must
+// not be reported as one.
+func checkReasoningStall(res *GenerateResult, err error) (*GenerateResult, error) {
+	if err != nil || res == nil {
+		return res, err
+	}
+	if IsReasoningStall(res.Code, res.OutputTokens, res.ReasonTokens) {
+		return res, fmt.Errorf("%w (reasoning_tokens=%d output_tokens=%d finish_reason=%q)",
+			ErrReasoningStall, res.ReasonTokens, res.OutputTokens, res.FinishReason)
+	}
+	return res, nil
 }
 
 // GenerateCodeSplit generates code from a prompt already split into a stable
@@ -99,7 +126,7 @@ func (a *AIAgent) GenerateCode(ctx context.Context, prompt string) (*GenerateRes
 // at the boundary, so repeat calls in a suite re-read the teaching prompt at
 // ~10% of input price instead of re-paying it in full.
 func (a *AIAgent) GenerateCodeSplit(ctx context.Context, cachedPrefix, task string) (*GenerateResult, error) {
-	return a.adapter.generate(ctx, cachedPrefix, task)
+	return checkReasoningStall(a.adapter.generate(ctx, cachedPrefix, task))
 }
 
 // GenerateCodeWarmup issues a deliberately tiny call whose only purpose is to

@@ -1,6 +1,9 @@
 package eval_harness
 
-import "strings"
+import (
+	"errors"
+	"strings"
+)
 
 // ErrorCategoryNonAgentic: the executor returned a 0-shot answer — one turn,
 // zero tool calls — on a task that requires editing files. The run happened and
@@ -165,8 +168,50 @@ func containsAny(s string, needles ...string) bool {
 // failure. Refusals are model behavior and get their own bucket; everything
 // else stays the api_error catch-all.
 func CategorizeStandardAPIError(err error) string {
-	if err != nil && strings.Contains(strings.ToLower(err.Error()), "stop_reason=refusal") {
+	if err == nil {
+		return ErrorCategoryAPI
+	}
+	// Checked before the refusal substring: both are "empty content, HTTP 200",
+	// and only one of them is the model declining to answer.
+	if errors.Is(err, ErrReasoningStall) {
+		return ErrorCategoryReasoningStall
+	}
+	if strings.Contains(strings.ToLower(err.Error()), "stop_reason=refusal") {
 		return ErrorCategoryRefused
 	}
 	return ErrorCategoryAPI
+}
+
+// IsReasoningStall reports whether a response is the "thought until the budget
+// ran out, never answered" failure — see ErrorCategoryReasoningStall for the
+// measurement this encodes.
+//
+// Takes primitives rather than *ai.Response so it can be applied offline to
+// historical result JSONs and to OpenRouter Broadcast spans, which carry the
+// same three numbers under different names.
+//
+// All THREE conditions are required, and each one is load-bearing:
+//
+//   - reasoningTokens > 0 — without it, every empty response qualifies and this
+//     would swallow refusals and genuine provider errors.
+//   - content is blank — the whole claim is "no answer came back". A response
+//     with content is not a stall no matter how lopsided its token split.
+//   - outputTokens <= reasoningTokens — the budget went entirely to thought.
+//     Written as <= rather than == deliberately: providers disagree on whether
+//     output_tokens INCLUDES reasoning_tokens, and a strict equality silently
+//     fails closed on the ones that report them as disjoint. A live probe on
+//     2026-08-26 returned output=37/reasoning=37 WITH content "ok", which is why
+//     the blank-content condition above cannot be dropped.
+//
+// Deliberately says nothing about finish_reason. That field is what made this
+// class invisible for weeks: it read "length" before 2026-08-13 and a clean
+// "stop" after, and was absent entirely on the cancelled runs.
+func IsReasoningStall(content string, outputTokens, reasoningTokens int) bool {
+	if reasoningTokens <= 0 {
+		return false
+	}
+	if strings.TrimSpace(content) != "" {
+		return false
+	}
+	return outputTokens <= reasoningTokens
 }
