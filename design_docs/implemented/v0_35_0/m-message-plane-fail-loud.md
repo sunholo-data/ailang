@@ -1,6 +1,6 @@
 # M-MESSAGE-PLANE-FAIL-LOUD: the remaining silent seams
 
-**Status**: Planned
+**Status**: Implemented (2026-08-26 — M1 879865a8e, M2 0b817ab5d, M3 f2b5599a7, M4 d3f4d4c6a; all four verified, M4 live against prod)
 **Target**: v0.35.0
 **Priority**: P1 — the loud half shipped 2026-08-26; what remains is the half that still
 reports success while doing nothing
