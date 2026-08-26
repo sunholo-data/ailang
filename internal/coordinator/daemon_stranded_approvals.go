@@ -61,7 +61,17 @@ func (d *Daemon) sweepStrandedApprovals() {
 		}
 
 		approval, err := d.taskStore.GetApprovalRequestByTaskAnyStatus(ctx, task.ID)
-		if err != nil || approval == nil {
+		if err != nil {
+			// LOUD. The first deployment of this sweep swallowed this error and
+			// sat silent through the exact stranding it was built to recover:
+			// the Firestore lookup needs a composite index (approvals:
+			// task_id ASC, created_at DESC), it was missing, and `continue`
+			// turned FAILED_PRECONDITION into "nothing stranded". A sweep that
+			// cannot look is not a sweep that found nothing.
+			d.logger.Printf("Warning: stranded-approval sweep cannot read approval for task %s: %v", task.ID, err)
+			continue
+		}
+		if approval == nil {
 			continue
 		}
 		if !isStrandedApproval(task, approval, func(p string) error { _, err := os.Stat(p); return err }) {
