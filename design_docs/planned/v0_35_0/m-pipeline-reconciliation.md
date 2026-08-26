@@ -3,7 +3,7 @@
 **Status**: Planned — awaiting quorum + Mark's freeze decisions
 **Target**: v0.35.0
 **Priority**: P1 — every divergence here is a place the two lanes give different answers to the same question
-**Estimated**: 4–6 days across three phases; Phase 1 is config-only
+**Estimated**: 5–7 days across three phases
 **Dependencies**: M-MESSAGE-PLANE-FAIL-LOUD (landed 2026-08-26 — `triage_only_inboxes`, `execution_lane`, config CAS are all load-bearing here)
 **Author**: Claude Opus 5 + Mark
 **Created**: 2026-08-26
@@ -28,7 +28,7 @@
 | A8: Minimal Syntax | 0 | No new syntax |
 | A9: Cost Visibility | +1 | Shared model routing kills the static opus pins the cloud lane still burns |
 | A10: Composability | +1 | Chain-as-data composes: a new project binds a workspace to the existing chain instead of cloning six agent entries |
-| A11: Structured Failure | +1 | An evaluator FAIL is typed and blocks handoff; today failure-shaped results reach the approval queue looking like success |
+| A11: Structured Failure | +1 | The evaluator verdict is a closed type — PASS(score) \| FAIL(score, reasons) \| UNAVAILABLE(reason) — and absence is unrepresentable: evaluator error, timeout, or an unparsable report emits UNAVAILABLE. FAIL and UNAVAILABLE block every *automatic* progression (auto_merge, downstream handoffs) but never block the human gate — a dead evaluator must not hide work from Mark |
 | A12: System Boundary | 0 | Lane boundary already explicit via `execution_lane` (M3) |
 
 **Net Score: +7** → **Decision: Move forward**
@@ -105,7 +105,7 @@ both lanes — not one lane.
 
 | # | Decision | Options | Who decides | Cost to change later |
 |---|---|---|---|---|
-| D1 | **Where does Lane B evaluation run?** The measured constraint: approval *embeds* handoffs (`daemon_tasks_exec_run.go:528`, `merge_handoff`) — with `auto_approve_handoffs: false`, a naive `trigger_on_complete: [sprint-evaluator]` fires only **after** approval, useless as a pre-filter | **(a) In-job**: executor's cloud directive ends by running the sprint-evaluator skill; verdict lands in the completion → approval payload. No schema change, but Lane A must not double-evaluate (it runs the evaluator itself). **(b) Evaluator task pre-approval**: auto-approve only the executor→evaluator handoff; evaluator assesses the pushed branch and attaches its verdict to the *pending* approval — needs new code (attach-to-approval). **(c) Post-approval validation**: config-only, but evaluates already-merged work — a Gate-3b analogue, not a pre-filter | **Mark** | Medium — (b) adds schema; (a) is prompt-level |
+| D1 | **Where does Lane B evaluation run?** The measured constraint: approval *embeds* handoffs (`daemon_tasks_exec_run.go:528`, `merge_handoff`) — with `auto_approve_handoffs: false`, a naive `trigger_on_complete: [sprint-evaluator]` fires only **after** approval, useless as a pre-filter | **(a) In-job** — *rejected by round-1 quorum: bifurcates the topology at the stage being unified*. **(b) Evaluator task pre-approval**: auto-approve only the executor→evaluator handoff; evaluator assesses the pushed branch and attaches its verdict to the *pending* approval — needs new code (attach-to-approval). **(c) Post-approval validation**: config-only, but evaluates already-merged work — a Gate-3b analogue, not a pre-filter | **Mark** | Medium — (b) adds schema; (a) is prompt-level |
 | D2 | **Chain-as-data schema.** Replace per-project agent clones with one chain definition + per-project bindings (workspace/repo/lane), e.g. `chains: [{stages: [...], bindings: [{project: stapledon, workspace: ...}]}]` | shape of the config schema; whether dormant stapledon/twilight bindings are carried over or dropped until asked for | **Mark** (schema) | High once bindings exist |
 | D3 | **Shared model routing.** Lift Lane A's routing table (role → model chain with fallbacks) into config both lanes read; delete the static `model:` pins from chain agents | routing file location (cloud config vs repo `models.yml` extension); whether Lane B gets fallback *chains* or just the primary | **Mark** | Medium |
 | D4 | **Decision ledger.** One "pending for Mark" view spanning Lane B approvals and Lane A `awaiting_approval` stages | (a) `ailang coordinator pending` grows to read mission ledgers; (b) both write to the `approvals` inbox (now Discord-routed) as the single spine | **Mark** | Low |
@@ -117,9 +117,12 @@ both lanes — not one lane.
 - [ ] D3 routing-table location
 - [ ] D4 ledger spine
 
-**Recommendation**: D1(a) — it reuses the skill that exists, needs no schema, and the verdict
-reaches the approval payload, which since `6345f2dc1` is exactly what lands in Discord. D4(b) —
-the `approvals` inbox just became the notification spine; make it the ledger too.
+**Recommendation**: D1(**b**). Round-1 quorum (2026-08-26) rejected (a) on topology grounds —
+correctly: embedding evaluation as a prompt directive inside Lane B's executor while Lane A runs
+it as a discrete stage *maintains two pipeline topologies at exactly the stage this doc exists to
+unify*. (b) keeps evaluation a discrete stage in both lanes; the attach-to-approval code is the
+price of one topology, and Phase 2's chain definition then formalizes the same stage list for
+both. D4(b) — the `approvals` inbox just became the notification spine; make it the ledger too.
 
 ---
 
@@ -156,7 +159,10 @@ coordinator pending` reads that inbox as its spine. One query, one Discord chann
 - `internal/coordinator/agent_registry.go` — `pipelines:` expansion (~80 LOC)
 - `internal/coordinator/agent_config.go` — schema (~40 LOC)
 - `tools/cloud-config/templates/` or agent invoke directives — Phase 1 evaluation step (~30 LOC)
-- `internal/coordinator/daemon_tasks_exec_run.go` — evaluation field on approval payload (~20 LOC)
+- `internal/coordinator/daemon_tasks_exec_run.go` + approval store — `evaluation` field on the
+  approval request, updatable by correlation id after creation (~60 LOC)
+- `internal/coordinator/daemon_approval.go` — per-edge auto-approve for the read-only
+  executor→evaluator handoff (~30 LOC)
 - `.claude/skills/mission-control/SKILL.md` — routing table externalization (Gate 3 edit)
 - cloud config via `ailang coordinator config set` — chain bindings, routing table
 - `ailang_bootstrap` — sync sprint-evaluator skill (PR to that repo)
@@ -166,6 +172,8 @@ coordinator pending` reads that inbox as its spine. One query, one Discord chann
 ## Success Criteria
 
 - [ ] A Lane B approval request carries an evaluator verdict in its payload (visible in Discord)
+- [ ] Verdict is the closed type; killing the evaluator mid-task yields `UNAVAILABLE` on the approval (test)
+- [ ] `FAIL`/`UNAVAILABLE` block auto_merge and downstream handoffs; the approval still reaches the human
 - [ ] Lane A does not double-evaluate
 - [ ] Adding a project = one binding entry; `stapledon-*`/`twilight-*` clones deleted
 - [ ] Both lanes resolve models through one table; no static `model:` pins on chain agents
@@ -213,6 +221,17 @@ Run 2026-08-26 at HEAD `7f5dfac84`; config generation 1787758575840728.
 | V8 | Approvals now reach Discord | live send → daemon log | Confirmed — `🔔 Approval needed` 17:33:53 |
 | V9 | Rig pubsub sender was dev-pinned (approval class never notified) | 14:13 approval absent from daemon delivery log; config block read | Confirmed — fixed, verified via V8 |
 | V10 | `pkg-update.md` is genuinely template-shaped (wrapper variables, no skill equivalent) | read template; grep skills | Confirmed — kept as-is |
+
+## Quorum Record
+
+- **Round 1 (2026-08-26T15:36Z): BLOCKED** — artifact
+  `.ailang/state/mission-quorum/m-pipeline-reconciliation-2026-08-26T15-36-46Z.json`.
+  - `gpt5-6-sol`: A11 claimed FAIL blocks while Phase 1 said "informs"; evaluator
+    timeout/error/unparsable behavior undefined. **Accepted** → closed-type verdict with
+    `UNAVAILABLE`, automatic-progression blocking, human gate never blocked.
+  - `gemini-3-1-pro`: recommending D1(a) maintained two pipeline topologies at the stage under
+    unification. **Accepted** → recommendation flipped to D1(b); (a) marked rejected.
+- Round 2: see below (re-quorum ONCE per the guardrail).
 
 ## Related Documents
 
