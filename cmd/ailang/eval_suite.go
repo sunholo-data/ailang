@@ -267,19 +267,45 @@ func runEvalSuite() {
 	// 10, so a raw `eval-suite --agent` silently oversubscribes. Clamp to 1 here. Recurring footgun:
 	// the dead -agent-parallel flag, the 2026-05-22/23 rotations, and the 2026-06-22 contract_leap_year
 	// run that lost 7/8 trials to GPU contention. (Override with an isolated box only.)
-	// M-OLLAMA-CLOUD-PROVIDER D4: the clamp keys on eval-mode support, not on
-	// ROUTE, so an Ollama Cloud row — which loads nothing on the GPU — was being
-	// serialized as if it were on-device. Gate on UsesLocalGPU so the clamp
-	// tracks the actual contended resource. A cloud row driven via motoko still
-	// shares motoko's fixed backend port 8080; that is a separate constraint and
-	// is NOT what this clamp protects.
+	// SERIALIZATION HAS TWO INDEPENDENT CAUSES — conflating them broke a run.
+	//
+	// (1) GPU contention: the rig is one GPU, and concurrent on-device trials
+	//     thrash ollama. Ollama CLOUD rows load nothing on the GPU (measured:
+	//     concurrent cloud requests at idle latency while a 45GB model held the
+	//     GPU at 100%, `ollama ps` unchanged), so they are exempt — that is D4.
+	//
+	// (2) motoko's FIXED BACKEND PORT: every motoko profile pins
+	//     backend.port 8080 and the harness never varies it, so two motoko runs
+	//     collide REGARDLESS OF ROUTE. This has nothing to do with the GPU.
+	//
+	// The first version of D4 gated only on (1) and let 8 motoko cloud trials
+	// start in the same second: 7 crashed at startup ("terminated without
+	// emitting run_summary"), 1 survived — the one that started 5s later, after
+	// the others died and freed the port. Re-run at --parallel 1, the identical
+	// set scored 8/8. The clamp had been protecting against (2) by accident, and
+	// removing it traded a false block for a real collision.
+	//
+	// Until motoko takes a per-run port, ANY motoko row serializes.
 	if *agent && *maxConcurrent > 1 && eval_harness.GlobalModelsConfig != nil {
 		for _, m := range modelList {
-			if !eval_harness.GlobalModelsConfig.UsesLocalGPU(m) {
+			gpuBound := eval_harness.GlobalModelsConfig.UsesLocalGPU(m)
+			cli, _ := eval_harness.GlobalModelsConfig.GetAgentCLI(m)
+			motokoBound := cli == "motoko"
+			if !gpuBound && !motokoBound {
 				continue
 			}
+			// Name WHICH cause fired: they have different fixes and different
+			// resume conditions, and a single vague message is how they got
+			// conflated in the first place.
+			reason := "motoko's fixed backend port 8080 (collides regardless of route)"
+			if gpuBound {
+				reason = "single-GPU rig contention"
+				if motokoBound {
+					reason = "single-GPU rig contention + motoko's fixed port 8080"
+				}
+			}
 			if eval_harness.GlobalModelsConfig.SupportsAgentEval(m) && !eval_harness.GlobalModelsConfig.SupportsStandardEval(m) {
-				fmt.Fprintf(os.Stderr, "\u26a0 Local/agent-only model on the single-GPU rig \u2014 forcing --parallel 1 (was %d) to avoid ollama thrash + motoko crashes.\n", *maxConcurrent)
+				fmt.Fprintf(os.Stderr, "\u26a0 Serializing agent run \u2014 forcing --parallel 1 (was %d): %s.\n", *maxConcurrent, reason)
 				*maxConcurrent = 1
 				break
 			}
