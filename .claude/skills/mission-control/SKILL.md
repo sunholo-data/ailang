@@ -2566,56 +2566,67 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
        bounds a runaway run to well under $0.50, so the $5 iteration ceiling is ~65 such runs deep.
      - **Credit:** the controller finalizes commits with
        `Co-Authored-By: DeepSeek V4 Flash 0731 (pi)`.
-     - **`rc=0` FROM pi IS NOT A CLAIM THAT ANY WORK HAPPENED — READ THE PER-TURN `stopReason`
-       AND THE WORKTREE DIFF BEFORE BELIEVING THE EXIT CODE** (added 2026-08-11 iteration 173;
-       two independent frictions, three runs — iteration 172's two and this iteration's one).
-       This is the vacuous-pass class the mission keeps closing elsewhere, aimed at the executor
-       lane itself: *success reported for work never done*. The recipe's existing guards check
-       directive **delivery**, **stdin** and **sandbox verdicts**; none of them reads how the
-       model's last turn ENDED, so a run that never emitted a tool call is indistinguishable in
-       the exit code from one that shipped a milestone. The shape, stable across all three runs:
-       pi does real work for several turns (iteration 173: 10 tool executions — it read the plan,
-       both source files and the provider interface, and re-derived the baselines itself), then
-       one turn's content is a single enormous block that hits the **16,384-token output cap**
-       (`stopReason":"length"`), emitting **no tool call**. pi treats that as a normal terminal
-       state, ends the agent loop, and exits **0**. **ROOT CAUSE FOUND 2026-08-13 — the cap was
-       ours, not the model's.** pi has no max-tokens flag; it reads `maxTokens` from
-       `~/.pi/agent/models.json` and defaults to **16384** for any model that omits it, and our
-       four OpenRouter models were registered as bare `{"id": "..."}`. models.yml declared 65536
-       the whole time. DeepSeek V4 Flash 0731 thinks by default and OpenRouter bills reasoning
-       against `max_tokens`, so thinking and answer shared a budget nobody chose — which is why
-       both `thinking` (172) and `text` (173) blocks blew it. Fixed: the config now declares
-       `maxTokens` 65536, the real 1M `contextWindow`, and `reasoning: true`; canonical copy
-       `tools/pi-extensions/models.mission.json`, drift-tested by
-       `TestPiModelsConfigMatchesRegistry`. **The three assertions below stay mandatory** — a
-       4x-larger budget makes the failure rarer, not impossible, and the lane is only re-qualified
-       by runs, not by this fix. It is not sampling noise and it is not fixed
-       by prompting: iteration 172 added an explicit anti-runaway instruction and the second run
-       failed identically, and iteration 173's directive prescribed incremental per-AC edits and
-       it failed again. Note the block TYPE varies — `thinking` (~63k chars) in 172, `text`
-       (~262k chars) in 173 — so match on `stopReason`, never on the block type.
-       Three cheap post-run assertions, all mandatory before any Gate-4 verdict:
-       **(a)** `grep -c '"stopReason":"length"'` over the NDJSON must be **0**; non-zero is a
-       LANE FAILURE, not a result — fall back and FLAG, do not re-prompt in place;
-       **(b)** `git -C "$WT" status --porcelain` must be NON-EMPTY. An empty diff with `rc=0` is
-       the false-green in its pure form; refuse to record anything from such a run;
-       **(c)** assert an `agent_end` event exists (`grep -c '"type":"agent_end"'` ≥ 1). Its
-       ABSENCE with `turn_start` > `turn_end` is the tell that the loop died mid-turn — iteration
-       173 read `turn_start=7, turn_end=6, agent_end=0` while the wrapper still exited 0.
-       **Operational hazard, same run:** pi's `message_update` events replay the whole accumulated
-       message, so a runaway turn writes the NDJSON at **~3 MB/s** — iteration 173's log reached
-       **1.2 GB in six minutes** and was still growing when the cap hit. Poll the file SIZE
-       alongside the deadline and kill on a ceiling (a few hundred MB is already pathological),
-       and slice the head/tail for forensics before deleting it. A disk that fills takes the whole
-       rig down, not just the iteration.
-  3. **Fallback:** probe-fail / cap / error / any of the three assertions above → the next link in
+     - **`rc=0` FROM pi IS NOT A CLAIM THAT ANY WORK HAPPENED — AND NEITHER IS `stopReason`.
+       RUN THE LANE THROUGH `scripts/mission_pi_run.sh` AND READ ITS TYPED VERDICT.**
+       ```bash
+       scripts/mission_pi_run.sh \
+         --model "openrouter/deepseek/deepseek-v4-flash-0731" \
+         --directive /tmp/pi_directive_iter<N>.txt \
+         --workdir "$WT" \
+         --out /tmp/pi_run_iter<N>.ndjson
+       # rc 0=ok · 10=empty_worktree · 11=reasoning_stall · 12=stream_dead
+       #    13=wall_timeout · 14=launch_failed.  Anything non-zero is a LANE FAILURE,
+       #    not a result: fall back and FLAG, never re-prompt in place.
+       ```
+       **ROOT CAUSE, MEASURED 2026-08-26 FROM THE PROVIDER'S OWN SIDE OF THE WIRE.** Every
+       silent pi failure on record has one shape: the model streams ONLY reasoning tokens and
+       never emits content or a tool call. In the whole OpenRouter Broadcast corpus for
+       08-18..08-22, **3 of 173** generations had no `finish_reason`; **all three** had
+       `completion: ""` with `output_tokens == reasoning_tokens`, and the other 170 all carried
+       content or `tool_calls`. It is **not deepseek-specific** — the same signature fired on
+       `z-ai/glm-5.2` under OpenCode, on a different provider host.
+       **The runs did not fail on their own — WE killed them**, and the ceiling that killed them
+       was measuring the wrong thing. pi's `message_update` carries the WHOLE accumulated
+       message, not a delta (verified in pi 0.73.1, `dist/core/agent-session.js:421-427`), so
+       NDJSON bytes grow **quadratically** in emitted tokens: 7,130 reasoning tokens produced
+       **330 MB**. Extrapolated to the declared 65,536-token budget that is **~28 GB** — so the
+       old "poll the file size, kill at a few hundred MB" guard silently capped the lane at
+       roughly **7,000 reasoning tokens**. No prompt change could ever have fixed that, which is
+       why iterations 172 and 173 both failed after adding anti-runaway instructions.
+       **What the runner does instead:** filters `message_update` out of the banked NDJSON (size
+       becomes linear; `message_end` still carries the complete message, so nothing is lost),
+       keeps the newest update in a bounded one-record snapshot for forensics, and uses the
+       filtered file's mtime as a progress clock — which freezes *precisely* during a
+       content-free reasoning turn. It separates `reasoning_stall` (model thinking, emitting
+       nothing) from `stream_dead` (upstream host hung — measured live 2026-08-26: a bare-id
+       deepseek call hung 90s at HTTP 200 with an empty body, while 14/14 immediate retries
+       succeeded across 6 hosts, so `stream_dead` warrants ONE retry before falling back).
+       **DO NOT re-add a `stopReason` assertion.** It is now known evadable in BOTH directions —
+       `"length"` pre-2026-08-13 and a clean `"stop"` at 625 tokens post-fix — and it fired on
+       **0 of 4** real failures. The load-bearing assertion is the worktree diff, which the
+       runner makes for you (`worktree_changed_files` in the verdict JSON).
+  3. **Fallback:** probe-fail / any non-zero verdict from `mission_pi_run.sh` → the next link in
      `MISSION_<ROLE>_FALLBACK` AFTER the pi entry if one exists, else `opus` via the Agent tool
      ("end of chain", mirroring the driver's pi loop) + FLAG — never re-prompt in place, and never
      loop back to a lane that already failed this iteration (ailang#611 chain rule; see the codex
-     recipe's Fallback for the full semantics). Trial caveat stands (N=1): the replay's single miss was a discretionary refinement
+     recipe's Fallback for the full semantics).
+     **ONE exception, and only one:** verdict `stream_dead` (rc 12) is a transient upstream-host
+     hang, not a lane failure — retry the run ONCE before falling back, and record both attempts.
+     Measured 2026-08-26: one bare-id deepseek call hung 90s at HTTP 200 with an empty body while
+     14/14 immediate retries succeeded across 6 different provider hosts. Every other verdict
+     falls back on the first occurrence.
+     Trial caveat stands (N=1): the replay's single miss was a discretionary refinement
      beyond the plan's letter — this lane wants PRESCRIPTIVE, sprint-plan-shaped directives;
      vague-plan or judgment-heavy work stays on opus until ≥3 datapoints say otherwise (the
      charter's evidence rule, same bar as every routing change).
+  4. **PROMOTION RULE (Mark, attended 2026-08-26 — supersedes the `D-WORLD-20` suspension).**
+     DeepSeek returns as the **fallback link**, not yet a rotation peer, because the five failures
+     on record were all measured through instrumentation now known to be broken — they are not
+     evidence about the model. Re-qualify it on runs, not on this fix:
+     **after TWO consecutive real sprint executions returning verdict `ok` with a non-empty
+     worktree diff, the lane is promoted into the executor rotation** alongside codex, and the
+     controller records the promotion in the mission log's routing row. A single non-zero verdict
+     between them resets the count to zero. Until promotion it is reached only when codex is dry.
 - **Any other `PROVIDER`** (motoko/opencode): NOT wired (motoko needs the GPU `rig.lock`, out of
   scope). Treat as unavailable → fall back to `$MODEL` + FLAG.
 
