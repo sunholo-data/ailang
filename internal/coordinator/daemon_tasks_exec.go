@@ -175,8 +175,15 @@ func (d *Daemon) dispatchTasksCloud() error {
 				if agent.SkipApproval && agent.MergeBranch != "" {
 					params.PushBranch = agent.MergeBranch
 				}
-				if agent.Model != "" {
-					params.Model = agent.Model
+				// M5: resolve through the shared routing table (pin > role >
+				// default); a missing role is loud and skips the dispatch.
+				agentModel, mErr := ResolveModel(agent, d.coordConfigRouting())
+				if mErr != nil {
+					d.logger.Printf("ERROR: task %s not dispatched: %v", task.ID, mErr)
+					continue
+				}
+				if agentModel != "" {
+					params.Model = agentModel
 				}
 				if agent.Timeout != "" {
 					params.Timeout = agent.Timeout

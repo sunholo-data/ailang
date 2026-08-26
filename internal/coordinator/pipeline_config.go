@@ -21,6 +21,7 @@ type PipelineStage struct {
 	Skill            string   `yaml:"skill" json:"skill"`
 	Provider         string   `yaml:"provider" json:"provider,omitempty"` // default "claude"
 	Model            string   `yaml:"model" json:"model,omitempty"`
+	Role             string   `yaml:"role" json:"role,omitempty"`
 	Timeout          string   `yaml:"timeout" json:"timeout,omitempty"`
 	OutputMarkers    []string `yaml:"output_markers" json:"output_markers,omitempty"`
 	ArtifactPatterns []string `yaml:"artifact_patterns" json:"artifact_patterns,omitempty"`
@@ -97,6 +98,7 @@ func (c *CoordinatorConfig) ExpandPipelines() ([]*AgentConfig, error) {
 					Capabilities:       append([]string(nil), st.Capabilities...),
 					Provider:           provider,
 					Model:              st.Model,
+					Role:               st.Role,
 					Timeout:            st.Timeout,
 					TriggerOnComplete:  trigger,
 					SessionContinuity:  true,

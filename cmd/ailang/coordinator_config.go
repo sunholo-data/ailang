@@ -350,3 +350,47 @@ no error on either side).
 Location: $AILANG_CONFIG_BUCKET / $AILANG_CONFIG_OBJECT, defaulting to
 <AILANG_CLOUD_PROJECT>-ailang-config/config.yaml.`)
 }
+
+// coordinatorRouting implements `ailang coordinator routing [role]` — the
+// Lane A entry point to the shared model-routing table (M-PIPELINE-
+// RECONCILIATION M5, D3). With a role it prints that role's chain one model
+// per line (primary first) so a shell driver can consume it; with no args it
+// prints every role. Reads the SAME object the coordinator loads, so both
+// lanes answer "which model runs this role?" identically.
+func coordinatorRouting(args []string) error {
+	ctx := context.Background()
+	store, err := newGCSConfigStore(ctx)
+	if err != nil {
+		return err
+	}
+	data, gen, err := store.Read()
+	if err != nil {
+		return err
+	}
+	var file struct {
+		Coordinator coordinator.CoordinatorConfig `yaml:"coordinator"`
+	}
+	if err := yaml.Unmarshal(data, &file); err != nil {
+		return fmt.Errorf("config is not valid YAML: %w", err)
+	}
+	routing := file.Coordinator.ModelRouting
+	if len(routing) == 0 {
+		return fmt.Errorf("no model_routing table in gs://%s/%s (generation %d)", store.bucket, store.object, gen)
+	}
+
+	if len(args) == 0 {
+		for role, chain := range routing {
+			fmt.Printf("%s: %s\n", role, strings.Join(chain, " "))
+		}
+		return nil
+	}
+	role := args[0]
+	chain, ok := routing[role]
+	if !ok || len(chain) == 0 {
+		return fmt.Errorf("model_routing has no entry for role %q", role)
+	}
+	for _, m := range chain {
+		fmt.Println(m)
+	}
+	return nil
+}

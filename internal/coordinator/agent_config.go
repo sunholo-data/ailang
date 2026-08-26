@@ -42,6 +42,11 @@ type CoordinatorConfig struct {
 	// hand-written entries.
 	Pipelines []PipelineConfig `yaml:"pipelines" json:"pipelines,omitempty"`
 
+	// ModelRouting maps role → ordered model chain (M-PIPELINE-RECONCILIATION
+	// M5, D3). Both lanes read it: Lane B via ResolveModel at dispatch, Lane A
+	// via `ailang coordinator routing <role>`.
+	ModelRouting ModelRouting `yaml:"model_routing" json:"model_routing,omitempty"`
+
 	DefaultProvider string            `yaml:"default_provider" json:"default_provider"`
 	ClaudePath      string            `yaml:"claude_path" json:"claude_path,omitempty"` // Explicit path to Claude CLI binary (empty = auto-detect: native > PATH > NVM)
 	MergeBranch     string            `yaml:"merge_branch" json:"merge_branch"`         // Target branch for approvals (default: "dev")

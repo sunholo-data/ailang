@@ -127,6 +127,12 @@ type AgentConfig struct {
 	// which defeats its purpose as a pre-filter.
 	AutoApproveHandoffTo []string `yaml:"auto_approve_handoff_to" json:"auto_approve_handoff_to,omitempty"`
 
+	// Role names this agent's function in the pipeline (designer, planner,
+	// executor, evaluator) for model routing (M-PIPELINE-RECONCILIATION M5,
+	// D3): an agent with a Role and no explicit Model resolves through the
+	// coordinator config's model_routing table.
+	Role string `yaml:"role" json:"role,omitempty"`
+
 	// EvaluatesParent marks an agent whose completions carry an
 	// EVALUATION_VERDICT: line to be attached to the PARENT task's pending
 	// approval (M2). Set on sprint-evaluator only.

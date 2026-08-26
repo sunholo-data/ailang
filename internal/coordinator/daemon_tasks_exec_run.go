@@ -242,11 +242,24 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		AgentConfig:        agentConfig, // For system prompt construction (v0.8.0+)
 	}
 
-	// Pass per-agent model override (v0.8.0+)
-	// If agent config specifies a model, use it instead of the executor default
-	if agentConfig != nil && agentConfig.Model != "" {
-		opts.Model = agentConfig.Model
-		d.logger.Printf("Task %s using agent-configured model: %s", task.ID, agentConfig.Model)
+	// Per-agent model, resolved through the shared routing table
+	// (M-PIPELINE-RECONCILIATION M5, D3): explicit pin > role lookup > provider
+	// default. A role the table does not know FAILS THE TASK rather than
+	// silently running on the default — the whole point of one table is that a
+	// gap in it is visible.
+	if agentConfig != nil {
+		var routing ModelRouting
+		if d.coordConfig != nil {
+			routing = d.coordConfig.ModelRouting
+		}
+		model, mErr := ResolveModel(agentConfig, routing)
+		if mErr != nil {
+			return fmt.Errorf("model routing: %w", mErr)
+		}
+		if model != "" {
+			opts.Model = model
+			d.logger.Printf("Task %s using model %s (agent %s, role %q)", task.ID, model, agentConfig.ID, agentConfig.Role)
+		}
 	}
 
 	// Pass per-agent effort level (Claude Code 2.1.47+)
