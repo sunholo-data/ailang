@@ -2,7 +2,4 @@
 -- Functions capture their environment
 module examples/runnable/closures
 
-export func main() -> () ! {IO} =
-  let makeAdder = \n. \x. x + n in
-  let add10 = makeAdder(10) in
-  println("Closure: ${show(add10(5))}")
+export func main() -> () ! {IO} = let makeAdder = \n. \x. x + n in let add10 = makeAdder(10) in println("Closure: ${show(add10(5))}")

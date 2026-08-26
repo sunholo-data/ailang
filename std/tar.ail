@@ -20,16 +20,15 @@
 --   }
 
 module std/tar
-
 import std/result (Result)
 
 -- A single entry's metadata within a tar archive.
-export type TarEntry = {name: string, size: int, isDir: bool}
+export type TarEntry = { name: string, size: int, isDir: bool }
 
 -- List all entries in a tar archive with their metadata.
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
-export func listEntries(path: string) -> Result[List[TarEntry], string] ! {FS} = _tar_listEntries(path)
+export func listEntries(path: string) -> Result[[TarEntry], string] ! {FS} = _tar_listEntries(path)
 
 -- Read a text entry (UTF-8) from a tar archive.
 -- Returns Ok(string) or Err(message) if the entry is not found.
@@ -46,7 +45,7 @@ export func readEntryBytes(path: string, entry: string) -> Result[string, string
 -- Rejects tarbomb payloads (../ entries) and symlink escapes.
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
-export func extractAll(path: string, destDir: string) -> Result[List[string], string] ! {FS} = _tar_extractAll(path, destDir)
+export func extractAll(path: string, destDir: string) -> Result[[string], string] ! {FS} = _tar_extractAll(path, destDir)
 
 -- Read a single entry from a .tar.gz archive without writing a temp file.
 -- Returns the entry contents as a UTF-8 string.

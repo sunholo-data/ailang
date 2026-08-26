@@ -4,14 +4,13 @@
 -- Demonstrates: string params, length, equality, concatenation in contracts
 
 module examples/runnable/contracts/string_verify
-
 import std/string (length as strLength, startsWith)
 
 -- Concatenation always produces a longer-or-equal result
 export func safeConcat(a: string, b: string) -> string ! {}
 requires { strLength(a) >= 0, strLength(b) >= 0 }
 ensures { strLength(result) >= strLength(a) } {
-  concat_String(show(a), show(b))
+  "${a}${b}"
 }
 
 -- String equality is reflexive (trivially provable)

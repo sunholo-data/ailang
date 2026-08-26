@@ -19,13 +19,11 @@
 -- (To see the Ok branch, install a package with bundled assets and call
 --  assetPath with its real vendor/name.)
 module examples/asset_path
-
 import std/package (assetPath)
 import std/result (Result, Ok, Err)
 import std/io (println)
 
-export func main() -> () ! {IO, FS} =
-  match assetPath("nonexistent/pkg", "foo.txt") {
-    Ok(p)  => println("found: ${p}"),
-    Err(e) => println("not installed: ${e}")
-  }
+export func main() -> () ! {IO, FS} = match assetPath("nonexistent/pkg", "foo.txt") {
+  Ok(p) => println("found: ${p}"),
+  Err(e) => println("not installed: ${e}")
+}

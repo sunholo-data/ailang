@@ -1,11 +1,16 @@
 module examples/runnable/simple_func_match
-
 import std/io (println)
 
 export func test() -> () ! {IO} {
-  let x = 42;
+  let x = 42
   match x {
-    42 => { println("hi"); match x { 42 => println("done"), _ => () } },
+    42 => {
+      println("hi")
+      match x {
+        42 => println("done"),
+        _ => ()
+      }
+    },
     _ => ()
   }
 }

@@ -14,11 +14,8 @@
 -- Expect: 4 verified, 1 skipped (trimText: unencodable builtin std/string.trim)
 
 module examples/runnable/contracts/cross_module_types
-
 import examples/runnable/contracts/cross_module_types_lib (Cell, Tree)
-
 import std/list (length as listLength)
-
 import std/string (trim)
 
 -- M1 + M3a: parameter `text` shares its name with Cell.text accessor.
@@ -43,7 +40,7 @@ ensures { result.count == 0 } {
 -- declare-datatypes (plural) for the Tree <-> Record_label_subtrees cycle.
 -- Pre-M2 this would SKIP with "sort 'Tree' referenced in declaration of
 -- 'Record_label_subtrees' is not declared".
-export pure func countNodes(subtrees: list[Tree]) -> int ! {}
+export pure func countNodes(subtrees: [Tree]) -> int ! {}
 ensures { result >= 0 } {
   listLength(subtrees)
 }

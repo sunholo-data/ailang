@@ -16,7 +16,6 @@
 --   ext disabled: required workdir file not found: /tmp/missing-config.yaml
 --   provided_tools = []
 module examples/extension_self_disable
-
 import std/extension (requireWorkdirFile)
 import std/result (Result, Ok, Err)
 import std/io (println)
@@ -27,20 +26,14 @@ import std/io (println)
 -- decision.
 type Hooks = { provided_tools: [string] }
 
-func active_hooks() -> Hooks =
-  { provided_tools: ["MyTool", "OtherTool"] }
+func active_hooks() -> Hooks = { provided_tools: ["MyTool", "OtherTool"] }
 
-func disabled_hooks() -> Hooks =
-  { provided_tools: [] }
+func disabled_hooks() -> Hooks = { provided_tools: [] }
 
-export func main() -> () ! {IO, FS} =
-  let hooks = match requireWorkdirFile("/tmp", "missing-config.yaml") {
-    Ok(_) => active_hooks(),
-    Err(e) =>
-      let _ = println("ext disabled: ${e}") in
-      disabled_hooks()
-  } in
-  match hooks.provided_tools {
-    [] => println("provided_tools = []"),
-    _  => println("provided_tools = (active)")
-  }
+export func main() -> () ! {IO, FS} = let hooks = match requireWorkdirFile("/tmp", "missing-config.yaml") {
+  Ok(_) => active_hooks(),
+  Err(e) => let _ = println("ext disabled: ${e}") in disabled_hooks()
+} in match hooks.provided_tools {
+  [] => println("provided_tools = []"),
+  _ => println("provided_tools = (active)")
+}

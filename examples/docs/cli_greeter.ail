@@ -2,8 +2,8 @@
 -- Used in: docs/docs/guides/module_execution.mdx
 module examples/docs/cli_greeter
 
-export func greet(config: {name: string, greeting: string}) -> () ! {IO} = {
-    _io_print(config.greeting);
-    _io_print(" ");
-    _io_println(config.name)
+export func greet(config: { name: string, greeting: string }) -> () ! {IO} = {
+  _io_print(config.greeting)
+  _io_print(" ")
+  _io_println(config.name)
 }

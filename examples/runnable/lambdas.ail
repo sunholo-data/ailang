@@ -2,7 +2,4 @@
 -- Functions are first-class values
 module examples/runnable/lambdas
 
-export func main() -> () ! {IO} =
-  let compose = \f. \g. \x. f(g(x)) in
-  let addThenDouble = compose (\x. x * 2) (\x. x + 1) in
-  println("Lambda composition: ${show(addThenDouble(5))}")
+export func main() -> () ! {IO} = let compose = \f. \g. \x. f(g(x)) in let addThenDouble = compose(\x. x * 2)(\x. x + 1) in println("Lambda composition: ${show(addThenDouble(5))}")

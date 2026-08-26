@@ -20,20 +20,16 @@ module std/iter
 -- Signal for bounded fold handlers.
 -- Continue(a): keep folding with the new accumulator
 -- Stop(a):     end the fold immediately, returning this accumulator
-export type FoldStep[a] =
-  | Continue(a)
-  | Stop(a)
+export type FoldStep[a] = Continue(a) | Stop(a)
 
 -- isStop: true if the FoldStep is Stop(_).
-export pure func isStop[a](s: FoldStep[a]) -> bool =
-  match s {
-    Stop(_)     => true,
-    Continue(_) => false
-  }
+export pure func isStop[a](s: FoldStep[a]) -> bool = match s {
+  Stop(_) => true,
+  Continue(_) => false
+}
 
 -- fromFoldStep: extract the inner accumulator regardless of constructor.
-export pure func fromFoldStep[a](s: FoldStep[a]) -> a =
-  match s {
-    Stop(x)     => x,
-    Continue(x) => x
-  }
+export pure func fromFoldStep[a](s: FoldStep[a]) -> a = match s {
+  Stop(x) => x,
+  Continue(x) => x
+}

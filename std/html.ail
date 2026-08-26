@@ -22,7 +22,6 @@
 --   }
 
 module std/html
-
 import std/result (Result)
 import std/xml (XmlNode)
 

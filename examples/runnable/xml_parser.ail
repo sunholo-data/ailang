@@ -3,33 +3,28 @@
 --
 -- Usage: ailang run --entry main xml_parser.ail
 module examples/runnable/xml_parser
-
 import std/result (Result, Ok, Err)
 import std/xml (parse, findAll, findFirst, getText, getTag)
 
 -- Parse XML and extract information using tree queries
 export func main() -> int ! {IO} {
-  let xml = "<catalog><book id=\"1\"><title>AILANG Guide</title><author>Claude</author></book><book id=\"2\"><title>Functional Design</title><author>AI</author></book></catalog>";
-
+  let xml = "<catalog><book id=\"1\"><title>AILANG Guide</title><author>Claude</author></book><book id=\"2\"><title>Functional Design</title><author>AI</author></book></catalog>"
   match parse(xml) {
     Ok(root) => {
       -- Find all book elements
-      let books = findAll(root, "book");
-      println("Found books:");
-
+      let books = findAll(root, "book")
+      println("Found books:")
       -- Find first title element
       match findFirst(root, "title") {
         Some(titleNode) => {
-          let titleText = getText(titleNode);
+          let titleText = getText(titleNode)
           println(titleText)
         },
         None => println("No title found")
-      };
-
+      }
       -- Get tag name of root (returns string, empty for non-Element)
-      let tag = getTag(root);
+      let tag = getTag(root)
       println(tag);
-
       0
     },
     Err(msg) => {

@@ -5,7 +5,6 @@
 -- type-checked inline. Verified fixed / closed as a ghost in mission
 -- iteration 18 (2026-07-13).
 module examples/record_list_extraction
-
 import std/io (println)
 import std/list (length)
 
@@ -30,7 +29,7 @@ pure func headerCount(b: Block) -> int {
 }
 
 export func main() -> () ! {IO} {
-  let cell = {text: "h", bold: true};
-  let table = makeTable([[cell, cell], [cell]]);
+  let cell = { text: "h", bold: true }
+  let table = makeTable([[cell, cell], [cell]])
   println("headers: ${show(headerCount(table))}")
 }

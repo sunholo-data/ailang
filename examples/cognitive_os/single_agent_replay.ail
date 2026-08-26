@@ -13,7 +13,6 @@
 -- Design: design_docs/planned/v0_21_0/m-cog-runtime.md
 
 module examples/cognitive_os/single_agent_replay
-
 import std/dom (DOMPatch, AddPanel, applyPatchResult)
 import std/cognition (sendMsgResult, recvMsgResult)
 import std/result (Result, Ok, Err)
@@ -23,7 +22,7 @@ import std/io (println)
 -- Returns the assigned node_id on success or an error code.
 export func renderHeatmap(region: string, title: string, svg: string) -> string ! {DOM} = {
   match applyPatchResult(region, AddPanel(title, svg)) {
-    Ok(r)  => "rendered:${r.node_id}",
+    Ok(r) => "rendered:${r.node_id}",
     Err(e) => "dom_failed:${e.code}"
   }
 }
@@ -32,7 +31,7 @@ export func renderHeatmap(region: string, title: string, svg: string) -> string 
 -- Returns the handler-assigned msg_id (or error code).
 export func relay(to: string, payload: string) -> string ! {Msg} = {
   match sendMsgResult(to, payload) {
-    Ok(r)  => "sent:${r.msg_id}",
+    Ok(r) => "sent:${r.msg_id}",
     Err(e) => "send_failed:${e.code}"
   }
 }
@@ -41,7 +40,7 @@ export func relay(to: string, payload: string) -> string ! {Msg} = {
 -- typed error from stub when empty).
 export func consume(mailbox: string) -> string ! {Msg} = {
   match recvMsgResult(mailbox) {
-    Ok(m)  => "from:${m.from}:${m.payload}",
+    Ok(m) => "from:${m.from}:${m.payload}",
     Err(e) => "recv_failed:${e.code}"
   }
 }

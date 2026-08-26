@@ -24,7 +24,6 @@
 -- config — no caller-supplied secrets, no caller URL, no event loop.
 
 module examples/runnable/ai_call_stream
-
 import std/ai/streaming (callStream, AIError)
 import std/io (println)
 import std/result (Result, Ok, Err)
@@ -41,14 +40,13 @@ export func messagesJson() -> string {
 -- BudgetExhausted, Timeout, ProviderNotFound, CapabilityNotSupported,
 -- ProtocolError) into a structured wire-friendly string.
 export func renderError(e: AIError) -> string {
-  let retryStr = if e.retryable then "true" else "false" in
-  "stream failed: code=${e.code} retryable=${retryStr} message=${e.message}"
+  let retryStr = if e.retryable then "true" else "false" in "stream failed: code=${e.code} retryable=${retryStr} message=${e.message}"
 }
 
 export func main() -> () ! {AI, Stream, Net, IO} {
   match callStream("openai-stream-demo", "gpt-4o-mini", messagesJson()) {
     Ok(text) => {
-      println("=== streamed response ===");
+      println("=== streamed response ===")
       println(text)
     },
     Err(e) => println(renderError(e))

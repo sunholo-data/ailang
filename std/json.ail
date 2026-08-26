@@ -1,20 +1,13 @@
 -- JSON encoding for AILANG
 -- Provides ADT for JSON values and encoding function
 module std/json
-
 import std/option (Option, Some, None)
 import std/result (Result)
 import std/list (foldl, foldr, map)
 import std/math (floatToInt, intToFloat)
 
 -- JSON ADT with all JSON types
-export type Json =
-  | JNull
-  | JBool(bool)
-  | JNumber(float)
-  | JString(string)
-  | JArray(List[Json])
-  | JObject(List[{key: string, value: Json}])
+export type Json = JNull | JBool(bool) | JNumber(float) | JString(string) | JArray([Json]) | JObject([{ key: string, value: Json }])
 
 -- Encode JSON to string (Go-backed for correctness)
 export func encode(obj: Json) -> string {
@@ -54,17 +47,17 @@ export func js(s: string) -> Json {
   JString(s)
 }
 
-export func ja(xs: List[Json]) -> Json {
+export func ja(xs: [Json]) -> Json {
   JArray(xs)
 }
 
-export func jo(kvs: List[{key: string, value: Json}]) -> Json {
+export func jo(kvs: [{ key: string, value: Json }]) -> Json {
   JObject(kvs)
 }
 
 -- Helper to build object key-value pairs
-export func kv(k: string, v: Json) -> {key: string, value: Json} {
-  {key: k, value: v}
+export func kv(k: string, v: Json) -> { key: string, value: Json } {
+  { key: k, value: v }
 }
 
 -- JSON Accessor Functions
@@ -78,7 +71,7 @@ export func get(obj: Json, key: string) -> Option[Json] {
 }
 
 -- Helper: find key in list of key-value pairs
-func findInList(kvs: List[{key: string, value: Json}], key: string) -> Option[Json] {
+func findInList(kvs: [{ key: string, value: Json }], key: string) -> Option[Json] {
   match kvs {
     [] => None,
     [kv, ...rest] => if _str_eq(kv.key, key) then Some(kv.value) else findInList(rest, key)
@@ -134,16 +127,13 @@ export func asBool(j: Json) -> Option[bool] {
 export func asBoolLoose(j: Json) -> Option[bool] {
   match j {
     JBool(b) => Some(b),
-    JString(s) =>
-      if s == "true" then Some(true)
-      else if s == "false" then Some(false)
-      else None,
+    JString(s) => if s == "true" then Some(true) else if s == "false" then Some(false) else None,
     _ => None
   }
 }
 
 -- Extract array value
-export func asArray(j: Json) -> Option[List[Json]] {
+export func asArray(j: Json) -> Option[[Json]] {
   match j {
     JArray(xs) => Some(xs),
     _ => None
@@ -151,7 +141,7 @@ export func asArray(j: Json) -> Option[List[Json]] {
 }
 
 -- Extract object value as key-value list
-export func asObject(j: Json) -> Option[List[{key: string, value: Json}]] {
+export func asObject(j: Json) -> Option[[{ key: string, value: Json }]] {
   match j {
     JObject(kvs) => Some(kvs),
     _ => None
@@ -159,18 +149,18 @@ export func asObject(j: Json) -> Option[List[{key: string, value: Json}]] {
 }
 
 -- Helper: extract key from kv pair (for use with map)
-func extractKey(pair: {key: string, value: Json}) -> string {
+func extractKey(pair: { key: string, value: Json }) -> string {
   pair.key
 }
 
 -- Helper: extract value from kv pair (for use with map)
-func extractValue(pair: {key: string, value: Json}) -> Json {
+func extractValue(pair: { key: string, value: Json }) -> Json {
   pair.value
 }
 
 -- Get all keys from object (in source order)
 -- NOTE: Callers must also `import std/list (map)` for runtime resolution
-export func keys(obj: Json) -> List[string] {
+export func keys(obj: Json) -> [string] {
   match asObject(obj) {
     Some(kvs) => map(extractKey, kvs),
     None => []
@@ -179,7 +169,7 @@ export func keys(obj: Json) -> List[string] {
 
 -- Get all values from object (in source order)
 -- NOTE: Callers must also `import std/list (map)` for runtime resolution
-export func values(obj: Json) -> List[Json] {
+export func values(obj: Json) -> [Json] {
   match asObject(obj) {
     Some(kvs) => map(extractValue, kvs),
     None => []
@@ -227,7 +217,7 @@ export func getBool(obj: Json, key: string) -> Option[bool] {
 }
 
 -- getArray: Get array value from JSON object by key
-export func getArray(obj: Json, key: string) -> Option[List[Json]] {
+export func getArray(obj: Json, key: string) -> Option[[Json]] {
   match get(obj, key) {
     Some(j) => asArray(j),
     None => None

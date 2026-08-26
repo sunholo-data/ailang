@@ -2,9 +2,9 @@
 module examples/runnable/test_io_builtins
 
 export func greet() -> () ! {IO} {
-    _io_println("Hello from AILANG with builtins!")
+  _io_println("Hello from AILANG with builtins!")
 }
 
 export func greet_name(name: string) -> () ! {IO} {
-    _io_println(name)
+  _io_println(name)
 }

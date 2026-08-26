@@ -2,7 +2,6 @@
 -- Verifies: flatMapE infers (a) -> [b] ! {IO} for expansion lambda
 -- Expected: each element expands to a pair, with IO side-effects
 module examples/runnable/effectful_list_t4_flatMapE_expand
-
 import std/io (println)
 import std/list (flatMapE)
 
@@ -10,6 +9,6 @@ export func main() -> () ! {IO} {
   let result = flatMapE(\x. {
     println("  expand ${show(x)}");
     [x, x * x]
-  }, [2, 3, 4]);
+  }, [2, 3, 4])
   println("T4 flatMapE: ${show(result)}")
 }

@@ -7,8 +7,7 @@ pure func add(x: int, y: int) -> int
     ((5, 7), 12),
     ((0, 0), 0),
     ((-1, 1), 0)
-  ]
-{
+  ] {
   x + y
 }
 
@@ -19,8 +18,7 @@ pure func max(a: int, b: int) -> int
     ((3, 5), 5),
     ((7, 7), 7),
     ((-1, -5), -1)
-  ]
-{
+  ] {
   if a > b then a else b
 }
 
@@ -29,7 +27,6 @@ pure func negate(b: bool) -> bool
   tests [
     (true, false),
     (false, true)
-  ]
-{
+  ] {
   if b then false else true
 }

@@ -7,8 +7,7 @@ pure func isZero(x: int) -> bool
     (1, false),
     (-1, false),
     (100, false)
-  ]
-{
+  ] {
   x == 0
 }
 
@@ -18,8 +17,7 @@ pure func negate(x: int) -> int
     (5, -5),
     (-3, 3),
     (0, 0)
-  ]
-{
+  ] {
   0 - x
 }
 
@@ -29,8 +27,7 @@ pure func half(x: float) -> float
     (10.0, 5.0),
     (0.0, 0.0),
     (-4.0, -2.0)
-  ]
-{
+  ] {
   x / 2.0
 }
 
@@ -40,8 +37,7 @@ pure func isFoo(s: string) -> bool
     ("foo", true),
     ("bar", false),
     ("", false)
-  ]
-{
+  ] {
   s == "foo"
 }
 
@@ -52,8 +48,7 @@ pure func sum3(x: int, y: int, z: int) -> int
     ((0, 0, 0), 0),
     ((-1, 1, 0), 0),
     ((10, 20, 30), 60)
-  ]
-{
+  ] {
   x + y + z
 }
 
@@ -63,9 +58,6 @@ pure func classify(x: int) -> string
     (-5, "negative"),
     (0, "zero"),
     (5, "positive")
-  ]
-{
-  if x < 0 then "negative"
-  else if x == 0 then "zero"
-  else "positive"
+  ] {
+  if x < 0 then "negative" else if x == 0 then "zero" else "positive"
 }

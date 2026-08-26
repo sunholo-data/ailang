@@ -5,11 +5,14 @@
 module examples/runnable/contracts/record_adt_sort_verify
 
 export type Evidence = CompilerOutput(string) | TestReport(string, bool)
-export type Proposal = { name: string, evidence: list[Evidence] }
+
+export type Proposal = { name: string, evidence: [Evidence] }
 
 export func hasName(p: Proposal, n: string) -> bool ! {}
 ensures { result == (p.name == n) } {
   p.name == n
 }
 
-export func main() -> int ! {} { 0 }
+export func main() -> int ! {} {
+  0
+}

@@ -3,10 +3,10 @@ module examples/tests/test_invocation
 
 -- Simple zero-arg function
 export func greet() -> int {
-    42
+  42
 }
 
 -- Function that uses arithmetic
 export func double(x: int) -> int {
-    x * 2
+  x * 2
 }

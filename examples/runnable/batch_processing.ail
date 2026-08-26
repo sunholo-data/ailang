@@ -10,29 +10,21 @@ module examples/runnable/batch_processing
 --
 -- In batch mode, each input becomes the sole argument in getArgs().
 -- The module is compiled once and the entrypoint runs once per input.
-
 import std/env (getArgs)
 import std/io (println)
 import std/string (length, endsWith)
 
 -- Classify a file by extension
-pure func classify(name: string) -> string =
-  if endsWith(name, ".csv") then "spreadsheet"
-  else if endsWith(name, ".md") then "markdown"
-  else if endsWith(name, ".txt") then "text"
-  else if endsWith(name, ".docx") then "document"
-  else if endsWith(name, ".xlsx") then "spreadsheet"
-  else if endsWith(name, ".epub") then "ebook"
-  else "unknown"
+pure func classify(name: string) -> string = if endsWith(name, ".csv") then "spreadsheet" else if endsWith(name, ".md") then "markdown" else if endsWith(name, ".txt") then "text" else if endsWith(name, ".docx") then "document" else if endsWith(name, ".xlsx") then "spreadsheet" else if endsWith(name, ".epub") then "ebook" else "unknown"
 
 export func main() -> () ! {IO, Env} {
-  let args = getArgs();
+  let args = getArgs()
   match args {
-    [] => println("No input file provided")
+    [] => println("No input file provided"),
     [file] => {
-      let kind = classify(file);
+      let kind = classify(file)
       println("Processing: ${file} (type: ${kind}, ${show(length(file))} chars)")
-    }
+    },
     _ => println("Expected single file argument in batch mode")
   }
 }

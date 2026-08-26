@@ -9,42 +9,49 @@ type Direction = North | South | East | West
 
 -- Convert direction to degrees
 pure func directionToDegrees(d: Direction) -> int
-    tests [(North, 0), (East, 90), (South, 180), (West, 270)]
-{
-    match d {
-        North => 0,
-        East => 90,
-        South => 180,
-        West => 270
-    }
+  tests [
+    (North, 0),
+    (East, 90),
+    (South, 180),
+    (West, 270)
+  ] {
+  match d {
+    North => 0,
+    East => 90,
+    South => 180,
+    West => 270
+  }
 }
-
 
 -- Option ADT (with data constructor)
 type Option[a] = Some(a) | None
 
 -- Get value with default for Option
 pure func getOrDefault(opt: Option[int], default: int) -> int
-    tests [((Some(42), 0), 42), ((None, 100), 100)]
-{
-    match opt {
-        Some(x) => x,
-        None => default
-    }
+  tests [
+    ((Some(42), 0), 42),
+    ((None, 100), 100)
+  ] {
+  match opt {
+    Some(x) => x,
+    None => default
+  }
 }
-
 
 -- Bool ADT using directions
 pure func isNorthOrSouth(d: Direction) -> bool
-    tests [(North, true), (South, true), (East, false), (West, false)]
-{
-    match d {
-        North => true,
-        South => true,
-        _ => false
-    }
+  tests [
+    (North, true),
+    (South, true),
+    (East, false),
+    (West, false)
+  ] {
+  match d {
+    North => true,
+    South => true,
+    _ => false
+  }
 }
-
 
 -- Final expression
 directionToDegrees(North) + directionToDegrees(East)

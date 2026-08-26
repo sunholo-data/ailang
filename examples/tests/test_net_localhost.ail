@@ -1,13 +1,10 @@
 -- Test Net security: Localhost should be blocked
 -- Run with: ailang run --caps Net,IO --entry main examples/test_net_localhost.ail
 module examples/tests/test_net_localhost
-
 import std/net (httpRequest)
 import std/io (println)
 
-export func main() -> () ! {Net, IO} =
-  let _ = println("Trying to fetch http://localhost:8080...") in
-  match httpRequest("GET", "http://localhost:8080", [], "") {
-    Ok(resp) => println("ERROR: Should have been blocked!"),
-    Err(err) => println("✓ Correctly blocked localhost")
-  }
+export func main() -> () ! {Net, IO} = let _ = println("Trying to fetch http://localhost:8080...") in match httpRequest("GET", "http://localhost:8080", [], "") {
+  Ok(resp) => println("ERROR: Should have been blocked!"),
+  Err(err) => println("✓ Correctly blocked localhost")
+}

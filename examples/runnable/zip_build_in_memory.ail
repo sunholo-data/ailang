@@ -11,51 +11,40 @@
 -- which is the property the browser case depends on.
 
 module examples/runnable/zip_build_in_memory
-
 import std/zip (buildArchive, buildArchiveWithBytes)
 import std/bytes (fromBase64, fromString, toBase64, length as byteLength)
 import std/io (println)
 import std/option (Some, None)
 
 -- A minimal OOXML part list, the shape a DOCX generator produces.
-func documentParts() -> [{name: string, content: string}] = [
-  {name: "[Content_Types].xml", content: "<Types/>"},
-  {name: "word/document.xml", content: "<w:document><w:body/></w:document>"}
-]
+func documentParts() -> [{ name: string, content: string }] = [{ name: "[Content_Types].xml", content: "<Types/>" }, { name: "word/document.xml", content: "<w:document><w:body/></w:document>" }]
 
-func archiveSize(b64: string) -> string =
-  match fromBase64(b64) {
-    Some(raw) => show(byteLength(raw)),
-    None => "not base64"
-  }
+func archiveSize(b64: string) -> string = match fromBase64(b64) {
+  Some(raw) => show(byteLength(raw)),
+  None => "not base64"
+}
 
 export func main() -> () ! {IO} {
   -- Text parts: the common case for OOXML, which is XML all the way down.
   match buildArchive(documentParts()) {
     Ok(b64) => println("docx bytes: ${archiveSize(b64)}"),
     Err(msg) => println("build failed: ${msg}")
-  };
-
+  }
   -- Mixed text/binary: encode text parts with std/bytes, pass images through
   -- as base64 already.
-  let mixed = [
-    {name: "word/document.xml", data: toBase64(fromString("<w:document/>"))},
-    {name: "word/media/image1.png", data: "iVBORw0KGgo="}
-  ];
+  let mixed = [{ name: "word/document.xml", data: toBase64(fromString("<w:document/>")) }, { name: "word/media/image1.png", data: "iVBORw0KGgo=" }]
   match buildArchiveWithBytes(mixed) {
     Ok(b64) => println("mixed bytes: ${archiveSize(b64)}"),
     Err(msg) => println("build failed: ${msg}")
-  };
-
+  }
   -- An empty part list is a valid (empty) archive, not an error.
   match buildArchive([]) {
     Ok(b64) => println("empty bytes: ${archiveSize(b64)}"),
     Err(msg) => println("build failed: ${msg}")
-  };
-
+  }
   -- The security limits travel with the in-memory path: entry names are still
   -- rejected for path traversal even though nothing touches a filesystem.
-  match buildArchive([{name: "../escape.txt", content: "x"}]) {
+  match buildArchive([{ name: "../escape.txt", content: "x" }]) {
     Ok(_) => println("traversal: NOT rejected"),
     Err(msg) => println("traversal: ${msg}")
   }

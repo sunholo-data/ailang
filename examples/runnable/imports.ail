@@ -1,9 +1,8 @@
 -- Import test: multiple imports from stdlib
 module examples/runnable/imports
-
 import std/io (println, print)
 
 export func main() -> () ! {IO} {
-  print("Multiple imports: ");
+  print("Multiple imports: ")
   println("OK")
 }

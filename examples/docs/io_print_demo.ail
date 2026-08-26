@@ -3,7 +3,7 @@
 module examples/docs/io_print_demo
 
 export func main() -> () ! {IO} = {
-    _io_print("Hello");
-    _io_print(" ");
-    _io_print("World")
+  _io_print("Hello")
+  _io_print(" ")
+  _io_print("World")
 }

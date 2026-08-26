@@ -19,7 +19,6 @@
 --   ailang run --caps AI,IO --ai-stub examples/runnable/ai_call_result.ail
 
 module examples/runnable/ai_call_result
-
 import std/ai (callResult, AIError)
 import std/io (println)
 import std/result (Result, Ok, Err)
@@ -27,18 +26,14 @@ import std/result (Result, Ok, Err)
 -- Render a typed AIError with the retry-decision branch explicit.
 -- AIError shape: { code: string, message: string, retryable: bool }.
 export pure func renderError(e: AIError) -> string {
-  let retryStr = if e.retryable then "retryable" else "fatal";
+  let retryStr = if e.retryable then "retryable" else "fatal"
   "[${e.code}/${retryStr}] ${e.message}"
 }
 
 export func main() -> () ! {AI, IO} {
   match callResult("Say hi in five words.") {
-    Ok(response) =>
-      println("AI response: ${response}"),
-    Err(e) =>
-      -- Typed error gives us the retry hint directly — no message parsing.
-      if e.retryable
-      then println("Transient error (would retry): ${renderError(e)}")
-      else println("Fatal error: ${renderError(e)}")
+    Ok(response) => println("AI response: ${response}"),
+    -- Typed error gives us the retry hint directly — no message parsing.
+    Err(e) => if e.retryable then println("Transient error (would retry): ${renderError(e)}") else println("Fatal error: ${renderError(e)}")
   }
 }

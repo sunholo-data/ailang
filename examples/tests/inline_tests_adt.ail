@@ -12,8 +12,7 @@ pure func colorName(c: Color) -> string
     (Red, "red"),
     (Green, "green"),
     (Blue, "blue")
-  ]
-{
+  ] {
   match c {
     Red => "red",
     Green => "green",
@@ -27,8 +26,7 @@ pure func isRed(c: Color) -> bool
     (Red, true),
     (Green, false),
     (Blue, false)
-  ]
-{
+  ] {
   match c {
     Red => true,
     _ => false
@@ -44,8 +42,7 @@ pure func treeSize(t: Tree) -> int
     (Leaf(5), 1),
     (Node(Leaf(1), 2, Leaf(3)), 3),
     (Node(Node(Leaf(1), 2, Leaf(3)), 4, Leaf(5)), 5)
-  ]
-{
+  ] {
   match t {
     Leaf(_) => 1,
     Node(left, _, right) => 1 + treeSize(left) + treeSize(right)
@@ -58,8 +55,7 @@ pure func treeSum(t: Tree) -> int
     (Leaf(5), 5),
     (Node(Leaf(1), 2, Leaf(3)), 6),
     (Node(Leaf(10), 20, Leaf(30)), 60)
-  ]
-{
+  ] {
   match t {
     Leaf(n) => n,
     Node(left, n, right) => treeSum(left) + n + treeSum(right)
@@ -80,8 +76,7 @@ pure func evalExpr(e: Expr) -> bool
     (Or(BoolLit(false), BoolLit(false)), false),
     (Not(BoolLit(true)), false),
     (Not(BoolLit(false)), true)
-  ]
-{
+  ] {
   match e {
     BoolLit(b) => b,
     And(left, right) => evalExpr(left) && evalExpr(right),
@@ -99,8 +94,7 @@ pure func isActive(s: Status) -> bool
     (Active, true),
     (Inactive, false),
     (Pending, false)
-  ]
-{
+  ] {
   match s {
     Active => true,
     _ => false
@@ -117,8 +111,7 @@ pure func opposite(d: Direction) -> Direction
     (South, North),
     (East, West),
     (West, East)
-  ]
-{
+  ] {
   match d {
     North => South,
     South => North,
@@ -137,8 +130,7 @@ pure func natToInt(n: Nat) -> int
     (Succ(Zero), 1),
     (Succ(Succ(Zero)), 2),
     (Succ(Succ(Succ(Zero))), 3)
-  ]
-{
+  ] {
   match n {
     Zero => 0,
     Succ(n) => 1 + natToInt(n)
@@ -153,8 +145,7 @@ pure func shapeArea(s: Shape) -> float
   tests [
     (Square(5.0), 25.0),
     (Rectangle(3.0, 4.0), 12.0)
-  ]
-{
+  ] {
   match s {
     Circle(r) => r * r,  -- Simplified (no pi)
     Rectangle(w, h) => w * h,

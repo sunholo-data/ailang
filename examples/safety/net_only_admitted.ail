@@ -5,7 +5,6 @@
 -- under the policy's caps, sandbox, and budgets.
 
 module examples/safety/net_only_admitted
-
 import std/net (httpGet)
 
 export func main() -> string ! {Net} = httpGet("https://api.example.com/ok")

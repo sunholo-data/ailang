@@ -14,7 +14,6 @@
 -- example prints, demonstrating the typed-error path end to end.
 
 module examples/runnable/ai_call_json_simple_result
-
 import std/ai (callJsonSimpleResult, AIError)
 import std/result (Result, Ok, Err)
 import std/io (println)
@@ -24,12 +23,7 @@ import std/io (println)
 -- error enables.
 export func main() -> () ! {AI, IO} {
   match callJsonSimpleResult("Return the list [1,2,3] as JSON") {
-    Ok(jsonStr) =>
-      println("extracted JSON: ${jsonStr}"),
-    Err(e) =>
-      if e.retryable then
-        println("transient error (${e.code}) — caller would retry: ${e.message}")
-      else
-        println("permanent error (${e.code}) — surface to user: ${e.message}")
+    Ok(jsonStr) => println("extracted JSON: ${jsonStr}"),
+    Err(e) => if e.retryable then println("transient error (${e.code}) — caller would retry: ${e.message}") else println("permanent error (${e.code}) — surface to user: ${e.message}")
   }
 }

@@ -32,8 +32,12 @@ ensures { result >= 0 } {
 }
 
 export func fst2(pair: (int, int)) -> int ! {}
-ensures { match pair { (a, _) => result == a } } {
-  match pair { (a, _) => a }
+ensures { match pair {
+  (a, _) => result == a
+} } {
+  match pair {
+    (a, _) => a
+  }
 }
 
 export func anchor(x: int) -> int ! {}

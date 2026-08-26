@@ -18,11 +18,9 @@
 -- built-in providers like openai or anthropic.
 
 module examples/configdriven_provider_demo/main
-
 import std/ai (call)
 import std/io (println)
 
 export func main() -> () ! {AI, IO} {
-  let response = call("Give me a one-line greeting in exactly five words.") in
-  println(response)
+  let response = call("Give me a one-line greeting in exactly five words.") in println(response)
 }

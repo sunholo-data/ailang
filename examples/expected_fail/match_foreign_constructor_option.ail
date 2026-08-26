@@ -16,12 +16,11 @@
 -- M-MATCH-ADT-XCHECK has regressed.
 
 module examples/expected_fail/match_foreign_constructor_option
-
 import std/option (Option, Some, None)
 import std/result (Ok, Err)
 
 export pure func main() -> string {
-  let x: Option[string] = Some("hi");
+  let x: Option[string] = Some("hi")
   match x {
     Err(_) => "decode failed",
     Ok(m) => m

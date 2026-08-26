@@ -5,7 +5,6 @@ module examples/test_cross_function_deps
 -- 1. Chain dependencies (lcm -> gcd)
 -- 2. Mutual recursion (isEven <-> isOdd)
 -- 3. Helper function chains (sumOfSquares -> square)
-
 -- =============================================================================
 -- Pattern 1: Chain Dependency (lcm depends on gcd)
 -- =============================================================================
@@ -17,8 +16,7 @@ pure func gcd(a: int, b: int) -> int
     ((54, 24), 6),
     ((17, 19), 1),
     ((0, 5), 5)
-  ]
-{
+  ] {
   if b == 0 then a else gcd(b, a % b)
 }
 
@@ -29,9 +27,8 @@ pure func lcm(a: int, b: int) -> int
     ((3, 5), 15),
     ((12, 18), 36),
     ((1, 10), 10)
-  ]
-{
-  (a * b) / gcd(a, b)
+  ] {
+  a * b / gcd(a, b)
 }
 
 -- =============================================================================
@@ -45,8 +42,7 @@ pure func isEven(n: int) -> bool
     (1, false),
     (4, true),
     (7, false)
-  ]
-{
+  ] {
   if n == 0 then true else isOdd(n - 1)
 }
 
@@ -57,8 +53,7 @@ pure func isOdd(n: int) -> bool
     (1, true),
     (4, false),
     (7, true)
-  ]
-{
+  ] {
   if n == 0 then false else isEven(n - 1)
 }
 
@@ -73,8 +68,7 @@ pure func square(x: int) -> int
     (3, 9),
     (-4, 16),
     (5, 25)
-  ]
-{
+  ] {
   x * x
 }
 
@@ -85,8 +79,7 @@ pure func sumOfSquares(a: int, b: int) -> int
     ((0, 5), 25),
     ((2, 2), 8),
     ((1, 1), 2)
-  ]
-{
+  ] {
   square(a) + square(b)
 }
 
@@ -97,10 +90,9 @@ pure func distanceSquared(x1: int, y1: int, x2: int, y2: int) -> int
     ((1, 1, 4, 5), 25),
     ((0, 0, 0, 0), 0),
     ((0, 0, 1, 1), 2)
-  ]
-{
-  let dx = x2 - x1;
-  let dy = y2 - y1;
+  ] {
+  let dx = x2 - x1
+  let dy = y2 - y1
   square(dx) + square(dy)
 }
 
@@ -114,8 +106,7 @@ pure func add(a: int, b: int) -> int
     ((2, 3), 5),
     ((0, 0), 0),
     ((-1, 1), 0)
-  ]
-{
+  ] {
   a + b
 }
 
@@ -125,10 +116,8 @@ pure func multiply(a: int, b: int) -> int
     ((3, 4), 12),
     ((0, 5), 0),
     ((7, 1), 7)
-  ]
-{
-  if b == 0 then 0
-  else add(a, multiply(a, b - 1))
+  ] {
+  if b == 0 then 0 else add(a, multiply(a, b - 1))
 }
 
 -- Power using repeated multiplication (3-level chain: power -> multiply -> add)
@@ -138,8 +127,6 @@ pure func power(base: int, exp: int) -> int
     ((3, 2), 9),
     ((5, 0), 1),
     ((10, 1), 10)
-  ]
-{
-  if exp == 0 then 1
-  else multiply(base, power(base, exp - 1))
+  ] {
+  if exp == 0 then 1 else multiply(base, power(base, exp - 1))
 }

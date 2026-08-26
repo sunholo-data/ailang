@@ -4,7 +4,6 @@
 --   - Direct access: map, filter
 
 module examples/imports/combined_alias
-
 import std/list as List
 
 -- Qualified access via module alias
@@ -14,7 +13,7 @@ export pure func getLength(xs: [int]) -> int {
 
 -- Test entry point
 export func main() -> () ! {IO} {
-  let nums = [1, 2, 3, 4, 5];
-  let len = List.length(nums);
+  let nums = [1, 2, 3, 4, 5]
+  let len = List.length(nums)
   _io_print("List.length via module alias: " ++ show(len))
 }

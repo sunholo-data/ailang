@@ -19,7 +19,7 @@ export pure func range(n: int) -> [int] {
 }
 
 -- Find first matching element (instead of: for x in xs: if pred(x): return x)
-export pure func findFirst(xs: [int], pred: (int) -> bool) -> [int] {
+export pure func findFirst(xs: [int], pred: int -> bool) -> [int] {
   match xs {
     [] => [],
     [x, ...rest] => if pred(x) then [x] else findFirst(rest, pred)
@@ -29,6 +29,5 @@ export pure func findFirst(xs: [int], pred: (int) -> bool) -> [int] {
 -- Demo: sum of 1..10, range of 5, find first even
 -- (Results: 55, [0,1,2,3,4], [2])
 export func main() -> (int, [int], [int]) {
-  let nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] in
-  (sum(nums), range(5), findFirst(nums, \x. x % 2 == 0))
+  let nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] in (sum(nums), range(5), findFirst(nums, \x. x % 2 == 0))
 }

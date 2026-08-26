@@ -9,7 +9,6 @@
 -- and trap, or (b) use partial static analysis with false negatives.
 
 module examples/safety/lying_signature
-
 import std/fs (writeFile)
 
 -- DECLARES no effects, but body needs FS. Typechecker rejects.

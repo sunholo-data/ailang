@@ -6,47 +6,81 @@
 -- Pure functions (no effects required)
 
 module std/string
-
 import std/option (Option, Some, None)
 
-export pure func length(s: string) -> int { _str_len(s) }
-export pure func substring(s: string, start: int, end: int) -> string { _str_slice(s, start, end) }
-export pure func toUpper(s: string) -> string { _str_upper(s) }
-export pure func toLower(s: string) -> string { _str_lower(s) }
-export pure func trim(s: string) -> string { _str_trim(s) }
+export pure func length(s: string) -> int {
+  _str_len(s)
+}
+
+export pure func substring(s: string, start: int, end: int) -> string {
+  _str_slice(s, start, end)
+}
+
+export pure func toUpper(s: string) -> string {
+  _str_upper(s)
+}
+
+export pure func toLower(s: string) -> string {
+  _str_lower(s)
+}
+
+export pure func trim(s: string) -> string {
+  _str_trim(s)
+}
 
 -- compare: -1 / 0 / +1
-export pure func compare(a: string, b: string) -> int { _str_compare(a, b) }
+export pure func compare(a: string, b: string) -> int {
+  _str_compare(a, b)
+}
 
 -- returns first index or -1
-export pure func find(hay: string, needle: string) -> int { _str_find(hay, needle) }
+export pure func find(hay: string, needle: string) -> int {
+  _str_find(hay, needle)
+}
 
 -- returns true if hay contains needle
-export pure func contains(hay: string, needle: string) -> bool { find(hay, needle) >= 0 }
+export pure func contains(hay: string, needle: string) -> bool {
+  find(hay, needle) >= 0
+}
 
 -- replace: Replace all occurrences of old with new
 -- Example: replace("hello world", "world", "universe") => "hello universe"
-export pure func replace(s: string, old: string, new: string) -> string { _str_replace(s, old, new) }
+export pure func replace(s: string, old: string, new: string) -> string {
+  _str_replace(s, old, new)
+}
 
 -- startsWith: Check if string starts with prefix
 -- Example: startsWith("hello world", "hello") => true
-export pure func startsWith(s: string, prefix: string) -> bool { _str_startsWith(s, prefix) }
+export pure func startsWith(s: string, prefix: string) -> bool {
+  _str_startsWith(s, prefix)
+}
 
 -- endsWith: Check if string ends with suffix
 -- Example: endsWith("hello world", "world") => true
-export pure func endsWith(s: string, suffix: string) -> bool { _str_endsWith(s, suffix) }
+export pure func endsWith(s: string, suffix: string) -> bool {
+  _str_endsWith(s, suffix)
+}
 
 -- String parsing (returns Option)
-export pure func stringToInt(s: string) -> Option[int] { _stringToInt(s) }
-export pure func stringToFloat(s: string) -> Option[float] { _stringToFloat(s) }
+export pure func stringToInt(s: string) -> Option[int] {
+  _stringToInt(s)
+}
+
+export pure func stringToFloat(s: string) -> Option[float] {
+  _stringToFloat(s)
+}
 
 -- String splitting
-export pure func split(s: string, delimiter: string) -> list[string] { _str_split(s, delimiter) }
+export pure func split(s: string, delimiter: string) -> [string] {
+  _str_split(s, delimiter)
+}
 
 -- chars: Convert string to list of single-character strings
 -- Useful for character-by-character processing
 -- Example: chars("abc") returns ["a", "b", "c"]
-export pure func chars(s: string) -> list[string] { _str_chars(s) }
+export pure func chars(s: string) -> [string] {
+  _str_chars(s)
+}
 
 -- ============================================================================
 -- Type to String Conversion (v0.5.10)
@@ -54,10 +88,14 @@ export pure func chars(s: string) -> list[string] { _str_chars(s) }
 
 -- floatToStr: Convert a float to its string representation
 -- Uses compact format (no trailing zeros)
-export pure func floatToStr(f: float) -> string { _string_floatToStr(f) }
+export pure func floatToStr(f: float) -> string {
+  _string_floatToStr(f)
+}
 
 -- intToStr: Convert an integer to its string representation
-export pure func intToStr(n: int) -> string { _string_intToStr(n) }
+export pure func intToStr(n: int) -> string {
+  _string_intToStr(n)
+}
 
 -- ============================================================================
 -- String Building (v0.6.5)
@@ -126,23 +164,20 @@ export pure func charCode(c: string) -> int = _str_charCode(c)
 -- Equivalent to foldl(f, acc, split(s, delim)) but O(n) memory.
 -- No intermediate list allocated — segments are slices from the source string.
 -- Example: foldSlices("a,b,c", ",", 0, \acc s -> acc + length(s)) = 3
-export pure func foldSlices(s: string, delim: string, acc: a, f: (a, string) -> a) -> a
-  = _str_foldSlices(s, delim, acc, f)
+export pure func foldSlices(s: string, delim: string, acc: a, f: (a, string) -> a) -> a = _str_foldSlices(s, delim, acc, f)
 
 -- mapSlicesJoin: Split, transform each segment, and join results in O(n)
 -- Equivalent to join("", map(f, split(s, delim))) but uses a strings.Builder.
 -- No intermediate list, no O(n^2) accumulator concatenation.
 -- This is the recommended pattern for any split->transform->concatenate workflow.
 -- Example: mapSlicesJoin("a,b,c", ",", toUpper) = "ABC"
-export pure func mapSlicesJoin(s: string, delim: string, f: (string) -> string) -> string
-  = _str_mapSlicesJoin(s, delim, f)
+export pure func mapSlicesJoin(s: string, delim: string, f: string -> string) -> string = _str_mapSlicesJoin(s, delim, f)
 
 -- replaceMany: Replace multiple patterns in a single pass
 -- Uses Go's strings.NewReplacer (Aho-Corasick) for O(n) single-scan replacement.
 -- Much faster than calling replace() N times sequentially.
 -- Example: replaceMany("a&amp;b&lt;c", [("&amp;", "&"), ("&lt;", "<")]) = "a&b<c"
-export pure func replaceMany(s: string, replacements: [(string, string)]) -> string
-  = _str_replaceMany(s, replacements)
+export pure func replaceMany(s: string, replacements: [(string, string)]) -> string = _str_replaceMany(s, replacements)
 
 -- decodeQuotedPrintable: Decode RFC 2045 §6.7 quoted-printable encoding
 -- Single-pass O(n) native Go implementation — no interpreter overhead.

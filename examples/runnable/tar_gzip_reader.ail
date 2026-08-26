@@ -11,23 +11,19 @@
 -- Usage: ailang run -caps IO,FS --entry main examples/runnable/tar_gzip_reader.ail
 
 module examples/runnable/tar_gzip_reader
-
 import std/io (println)
 import std/result (Result)
 import std/tar (readFromGzip, extractAll)
 
 export func main() -> int ! {IO, FS} {
   -- Demo 1: read main.tex directly from a .tar.gz source bundle
-  println("== readFromGzip(paper.tar.gz, main.tex) ==");
-  let read_result = readFromGzip("/tmp/tar_smoke/paper.tar.gz", "main.tex") in
-  let _ = match read_result {
+  println("== readFromGzip(paper.tar.gz, main.tex) ==")
+  let read_result = readFromGzip("/tmp/tar_smoke/paper.tar.gz", "main.tex") in let _ = match read_result {
     Ok(tex) => println(tex),
     Err(msg) => println("read failed: ${msg}")
-  } in
-
+  } in println("")
+  println("== extractAll(evil.tar) — expect rejection ==")
   -- Demo 2: tarbomb defence — extractAll refuses "../" entries
-  println("");
-  println("== extractAll(evil.tar) — expect rejection ==");
   let extract_result = extractAll("/tmp/tar_smoke/evil.tar", "/tmp/tar_smoke/extracted") in
   match extract_result {
     Ok(_) => {

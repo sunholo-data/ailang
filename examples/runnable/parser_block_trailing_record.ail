@@ -10,18 +10,14 @@
 -- This example mirrors the docparse/main.ail shape that prompted the report.
 
 module examples/runnable/parser_block_trailing_record
-
 import std/io (println)
 
 export func main() -> int ! {IO} {
-  let parsed = if true
-    then {
-      println("then-branch effect");
-      {fmt: "docx", aiCalls: 0}
-    }
-    else {
-      println("else-branch effect");
-      {fmt: "txt", aiCalls: 1}
-    }
-  in parsed.aiCalls
+  let parsed = if true then {
+    println("then-branch effect");
+    { fmt: "docx", aiCalls: 0 }
+  } else {
+    println("else-branch effect");
+    { fmt: "txt", aiCalls: 1 }
+  } in parsed.aiCalls
 }

@@ -10,17 +10,14 @@
 --   askCached    → ai.stepWithCache (system-prompt caching demo)
 --   askStreaming → ai.stepWithStream (token-by-token rendering)
 module examples/wasm_step_byo_key/chat
-
 import std/ai (step, stepWithCache, stepWithStream, Message, ToolSchema, CacheBreakpoint, StreamChunk, ContentDelta, ThinkingDelta, Usage, StepResult, AIError)
 import std/result (Result, Ok, Err)
 import std/io (println)
 
 -- Single-turn ai.step. Returns the assistant text or an error string.
 export func ask(model: string, prompt: string) -> string ! {AI} = {
-  let messages: [Message] = [
-    { role: "user", content: prompt, tool_calls: [], tool_call_id: "", images: [] }
-  ];
-  let tools: [ToolSchema] = [];
+  let messages: [Message] = [{ role: "user", content: prompt, tool_calls: [], tool_call_id: "", images: [] }]
+  let tools: [ToolSchema] = []
   match step(model, messages, tools) {
     Ok(result) => result.message.content,
     Err(e) => "ERROR(${e.code}): ${e.message}"
@@ -31,14 +28,9 @@ export func ask(model: string, prompt: string) -> string ! {AI} = {
 -- forwards the breakpoints to Anthropic's cache_control field (or skips
 -- them on providers that don't support caching).
 export func askCached(model: string, system: string, prompt: string) -> string ! {AI} = {
-  let messages: [Message] = [
-    { role: "system", content: system, tool_calls: [], tool_call_id: "", images: [] },
-    { role: "user",   content: prompt, tool_calls: [], tool_call_id: "", images: [] }
-  ];
-  let tools: [ToolSchema] = [];
-  let breakpoints: [CacheBreakpoint] = [
-    { position: "system", ttl: "ephemeral" }
-  ];
+  let messages: [Message] = [{ role: "system", content: system, tool_calls: [], tool_call_id: "", images: [] }, { role: "user", content: prompt, tool_calls: [], tool_call_id: "", images: [] }]
+  let tools: [ToolSchema] = []
+  let breakpoints: [CacheBreakpoint] = [{ position: "system", ttl: "ephemeral" }]
   match stepWithCache(model, messages, tools, breakpoints) {
     Ok(result) => "[cache_read=${show(result.cache_read_input_tokens)}] ${result.message.content}",
     Err(e) => "ERROR(${e.code}): ${e.message}"
@@ -53,18 +45,16 @@ export func askCached(model: string, system: string, prompt: string) -> string !
 -- function, per the std/ai docs.
 export func renderChunk(chunk: StreamChunk) -> () ! {IO} {
   match chunk {
-    ContentDelta(text)  => println("[content] ${text}"),
+    ContentDelta(text) => println("[content] ${text}"),
     ThinkingDelta(text) => println("[thinking] ${text}"),
-    Usage(_)            => println("[usage] stream-end")
+    Usage(_) => println("[usage] stream-end")
   }
 }
 
 export func askStreaming(model: string, prompt: string) -> string ! {AI, IO} = {
-  let messages: [Message] = [
-    { role: "user", content: prompt, tool_calls: [], tool_call_id: "", images: [] }
-  ];
-  let tools: [ToolSchema] = [];
-  let breakpoints: [CacheBreakpoint] = [];
+  let messages: [Message] = [{ role: "user", content: prompt, tool_calls: [], tool_call_id: "", images: [] }]
+  let tools: [ToolSchema] = []
+  let breakpoints: [CacheBreakpoint] = []
   match stepWithStream(model, messages, tools, breakpoints, renderChunk) {
     Ok(result) => result.message.content,
     Err(e) => "ERROR(${e.code}): ${e.message}"

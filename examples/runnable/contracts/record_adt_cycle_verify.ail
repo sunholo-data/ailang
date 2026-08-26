@@ -4,12 +4,15 @@
 
 module examples/runnable/contracts/record_adt_cycle_verify
 
-export type Block = Para(string) | Container({ blocks: list[Block], kind: string })
-export type Doc = { title: string, blocks: list[Block] }
+export type Block = Para(string) | Container({ blocks: [Block], kind: string })
+
+export type Doc = { title: string, blocks: [Block] }
 
 export func titleOf(d: Doc) -> string ! {}
 ensures { result == d.title } {
   d.title
 }
 
-export func main() -> int ! {} { 0 }
+export func main() -> int ! {} {
+  0
+}

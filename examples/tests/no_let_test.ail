@@ -1,7 +1,6 @@
 module examples/no_let_test
-
 import std/io (println)
 
 export func main() -> () ! {IO} {
-    println("Hello from main!")
+  println("Hello from main!")
 }

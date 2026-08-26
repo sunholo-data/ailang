@@ -2,7 +2,6 @@ module examples/runnable/string_parsing
 
 -- Demonstrates string-to-number parsing with Option types
 -- Shows how to safely parse user input using pattern matching
-
 import std/string (stringToInt, stringToFloat)
 import std/option (Option, Some, None, getOrElse)
 import std/io (println)
@@ -76,22 +75,21 @@ pure func testNegativeAge() -> string {
 
 -- Main function demonstrating the parsing functions
 export func main() -> () ! {IO} {
-  { println("=== String Parsing Examples (M-DX10) ===");
-    println("");
-    println("Integer parsing:");
-    println(testValidInt());
-    println(testInvalidInt());
-    println("");
-    println("Float parsing:");
-    println(testValidFloat());
-    println(testInvalidFloat());
-    println("");
-    println("Option helpers:");
-    println(testDefault());
-    println("");
-    println("Validation:");
-    println(testAgeValidation());
-    println(testNegativeAge());
-    ()
-  }
+  println("=== String Parsing Examples (M-DX10) ===")
+  println("")
+  println("Integer parsing:")
+  println(testValidInt())
+  println(testInvalidInt())
+  println("")
+  println("Float parsing:")
+  println(testValidFloat())
+  println(testInvalidFloat())
+  println("")
+  println("Option helpers:")
+  println(testDefault())
+  println("")
+  println("Validation:")
+  println(testAgeValidation())
+  println(testNegativeAge());
+  ()
 }

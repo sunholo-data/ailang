@@ -23,9 +23,7 @@
 -- ============================================================================
 
 module examples/runnable/contracts/invoice
-
 import std/string (length as strLength, startsWith)
-
 import std/list (length as listLength)
 
 -- ============================================================================
@@ -110,14 +108,14 @@ ensures { result >= 0 } {
 -- ============================================================================
 
 -- Count items in invoice — Z3 proves count is non-negative
-export func itemCount(items: list[int]) -> int ! {}
+export func itemCount(items: [int]) -> int ! {}
 ensures { result >= 0 } {
   listLength(items)
 }
 
 -- Adding a line item always increases count by exactly 1
 -- Z3 proves using sequence theory: len(x :: xs) = len(xs) + 1
-export func addItem(price: int, items: list[int]) -> int ! {}
+export func addItem(price: int, items: [int]) -> int ! {}
 ensures { result == listLength(items) + 1 } {
   listLength(price :: items)
 }

@@ -5,11 +5,9 @@ module examples/runnable/array_adt
 
 type Direction = North | South | East | West
 
-type AIBehavior =
-  | PatternPatrol(Array[Direction])
-  | RandomWander
+type AIBehavior = PatternPatrol(Array[Direction]) | RandomWander
 
 export func main() -> () ! {IO} =
   -- Create an ADT value with an array literal
-  let patrol = PatternPatrol(#[North, East, South, West])
-  in println("Array in ADT works!")
+  let patrol = PatternPatrol(#[North, East, South, West]) in
+  println("Array in ADT works!")

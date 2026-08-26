@@ -119,4 +119,4 @@ export pure func E() -> float = _math_E()
 --   bitwiseOr(12, 10) == 14      bitwiseOr(0, 0) == 0
 --   bitwiseOr(255, 256) == 511   bitwiseOr(-1, 5) == -1
 --   bitwiseOr(7, 7) == 7
-export pure func bitwiseOr(a: int, b: int) -> int = ~((~a) & (~b))
+export pure func bitwiseOr(a: int, b: int) -> int = ~(~a & ~b)

@@ -3,7 +3,7 @@
 module examples/tests/micro_clock_measure
 
 export func main() -> () ! {IO, Clock} {
-  _io_println("Testing Clock effect...");
-  _clock_sleep(100);
+  _io_println("Testing Clock effect...")
+  _clock_sleep(100)
   _io_println("Sleep complete!")
 }

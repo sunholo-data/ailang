@@ -2,7 +2,6 @@ module examples/ai_devtools_workflow/discount_calculator
 
 -- A discount calculator that an AI agent might generate.
 -- Demonstrates contracts, ADTs, and effects for the AI devtools workflow.
-
 import std/io (println)
 
 -- Loyalty tier determines discount percentage

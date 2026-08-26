@@ -1,5 +1,4 @@
 module examples/runnable/block_recursion
-
 import std/io (println)
 
 -- Blocks with recursive calls
@@ -8,7 +7,7 @@ export func countdown(n: int) -> () ! {IO} {
   if n <= 0 then {
     println("Done!")
   } else {
-    println(show(n));
+    println(show(n))
     countdown(n - 1)
   }
 }

@@ -3,7 +3,6 @@
 -- Status: ✅ Working (M-R4 recursion support)
 
 module examples/runnable/recursion_factorial
-
 import std/io (println)
 
 -- Classic factorial using recursion
@@ -14,8 +13,7 @@ pure func factorial(n: int) -> int
     (5, 120),
     (10, 3628800),
     (12, 479001600)
-  ]
-{
+  ] {
   if n <= 1 then 1 else n * factorial(n - 1)
 }
 
@@ -27,15 +25,13 @@ pure func factorialTail(n: int, acc: int) -> int
     ((5, 1), 120),
     ((10, 1), 3628800),
     ((12, 1), 479001600)
-  ]
-{
+  ] {
   if n <= 1 then acc else factorialTail(n - 1, n * acc)
 }
 
 export func main() -> () ! {IO} {
-  let result1 = factorial(5);
-  let result2 = factorialTail(10, 1);
-
-  println("factorial(5) = ${show(result1)}");
+  let result1 = factorial(5)
+  let result2 = factorialTail(10, 1)
+  println("factorial(5) = ${show(result1)}")
   println("factorialTail(10, 1) = ${show(result2)}")
 }

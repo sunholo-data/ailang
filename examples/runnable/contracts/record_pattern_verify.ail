@@ -14,7 +14,7 @@ export func sumFields(p: { x: int, y: int }) -> int ! {}
 requires { p.x >= 0, p.y >= 0 }
 ensures { result >= 0 } {
   match p {
-    { x: x, y: y } => x + y
+    { x, y } => x + y
   }
 }
 
@@ -23,7 +23,7 @@ export func getXCoord(p: { x: int, y: int }) -> int ! {}
 requires { p.x >= 0 }
 ensures { result >= 0 } {
   match p {
-    { x: x, y: y } => x
+    { x, y } => x
   }
 }
 

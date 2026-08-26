@@ -6,6 +6,5 @@ module examples/runnable/micro_option_map
 import std/option (Option, Some, None, map, getOrElse)
 
 export pure func main() -> int {
-  let doubled = map(\x. x * 2, Some(21)) in
-  getOrElse(doubled, 0)
+  let doubled = map(\x. x * 2, Some(21)) in getOrElse(doubled, 0)
 }
