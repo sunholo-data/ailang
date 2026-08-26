@@ -1,9 +1,11 @@
 # M-OLLAMA-CLOUD-PROVIDER: Ollama Cloud as a Second Route for Open-Weight Models
 
-**Status**: Planned — **BLOCKED on a Phase 0 discovery spike** (quorum round 1, both reviewers).
-Every claim about *reaching* cloud is measured against **vendored 0.32.15 source**; the rig runs
-**0.32.14** and is **signed out**, so nothing here is verified end-to-end through a live harness.
-Phases 1-3 are conditional on Phase 0.
+**Status**: Planned — **Phase 0 PASSED on the live rig 2026-08-26** (signed in as `m@sunholo.com`,
+plan `pro`). The zero-code premise is **confirmed end-to-end**: a cloud-suffixed request through
+`localhost:11434/v1` on the live 0.32.14 daemon returned from a model with **zero local copies**
+and loaded **nothing** on the GPU (V21), and all three harnesses are measured — not assumed — on
+that endpoint (V19). Phases 1-3 are unblocked. **V22 (the quota-exhaustion contract) is still
+unmeasured**, so AC8 and the Conflict Surface retry row remain provisional.
 **Target**: v0.34.0
 **Priority**: P1 (Medium) — no lane is blocked on it; it buys reach and a cost hedge
 **Estimated**: ~14 hours across 3 phases (Phase 1 alone is ~1 hour and delivers most of the value)
@@ -142,10 +144,11 @@ manifest, no weights on disk (V2, `internal/modelref/modelref.go:99-118`):
 - `kimi-k3:cloud` → base `kimi-k3`, source cloud
 - `gpt-oss:120b-cloud` → base `gpt-oss:120b`, source cloud
 
-AILANG's ollama provider demonstrably reaches `localhost:11434/v1` (`step.go:345`, V5). motoko, pi
-and opencode are **believed** to do the same — that is repo lore, **not measured** (**V19,
-pending**). *If* it holds, a cloud model is reachable by changing one string in a `models.yml` row.
-Phase 0 exists to falsify that.
+AILANG's ollama provider reaches `localhost:11434/v1` (`step.go:345`, V5), and motoko, pi and
+opencode are each **measured** on the same endpoint (**V19** — this was repo lore until Phase 0;
+quorum round 1 was right to refuse it as an assumption). A cloud model is therefore reachable by
+changing one string in a `models.yml` row — **confirmed live in V21**, including a 397B model that
+fits nowhere on this hardware.
 
 ### Architecture
 
@@ -171,24 +174,28 @@ Phase 0 exists to falsify that.
    with a burn-down gauge". Its response body is **unknown** — nobody has authenticated against
    it yet — so Phase 2 must inspect it before anything depends on its shape.
 
-**Not built**: a provider package. `internal/ai/ollama/` **should** reach cloud unchanged (V2 —
-verified in vendored 0.32.15 source, not against the live 0.32.14 daemon).
+**Not built**: a provider package. `internal/ai/ollama/` reaches cloud unchanged — V2 in vendored
+0.32.15 source, and V21 against the live 0.32.14 daemon.
 Writing `internal/ai/ollamacloud/` would duplicate the streaming, idle-timeout, temperature and
 max-tokens work that M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT and friends already landed.
 
 ### Implementation Plan
 
 **Phase 0: Discovery spike — falsify the foundational premise** (~2 hours, GATES EVERYTHING)
-- [ ] Record the **effective** base URL + model string actually used by motoko, pi and opencode
-      (read the live configs; do not infer from `models.yml`) → **V19**
-- [ ] **While still signed out**, send a cloud-suffixed request to the live 0.32.14 daemon.
-      Assert a bounded, explicit auth failure with **no pull and no local execution** — this is the
-      A4 "no silent local fallback" claim, currently untested → **V20**
-- [ ] `ollama signin` (human: Mark), then assert `POST /api/me` returns an account
-- [ ] One request through **each** claimed harness; record the remote model identity and the
-      banked suffix → **V21**
-- [ ] **Gate**: if V19-V21 hold, Phases 1-3 proceed as written. If not, the zero-code premise is
-      false and the design needs rework before any of it is built
+- [x] Record the **effective** base URL + model string actually used by motoko, pi and opencode
+      (read the live configs; do not infer from `models.yml`) → **V19 PASSED**
+- [~] **While still signed out**, send a cloud-suffixed request to the live 0.32.14 daemon →
+      **V20 PARTIAL.** The no-fallback half passed (typed `not_found_error`, nothing on the GPU);
+      the signed-out half was overtaken by the signin and now rests on V7's direct 401. Re-testing
+      would mean `ollama signout` on a shared rig — not worth disrupting concurrent evals
+- [x] `ollama signin` (human: Mark) → `POST /api/me` returns `m@sunholo.com`, plan `pro` (**V24**)
+- [x] Cloud request through the shared `/v1` endpoint; remote execution proven by a zero-local-copy
+      model and an untouched `ollama ps` → **V21 PASSED**. *Scope note*: this verifies the endpoint
+      **contract** all three harnesses share (V19), not three separate end-to-end agent runs —
+      those are Phase 1. Stated so the row is not read as more than it is
+- [x] **Gate: PASSED.** The zero-code premise held. Two corrections fell out of actually running
+      it — AC2 was unachievable as written (the proxy strips the suffix; the bank stores the row
+      key) and AC3 was mis-scoped (`/api/usage` is not locally proxied). Both are fixed above
 
 **Phase 1: Reach it** (~1 hour, gated on Phase 0)
 - [ ] Add ONE `models.yml` row: `gpt-oss:20b-cloud` (usage level 1, cheapest probe)
@@ -292,9 +299,17 @@ just wrong, and it is wrong in the direction that flatters the lane.
 
 - [ ] **AC1**: A cloud model completes an agent-mode benchmark via motoko with zero diffs outside
       `models.yml` (`git diff --stat` shows only that file)
-- [ ] **AC2**: The banked trial's model field carries the `-cloud` suffix, so route is
-      recoverable from banked data alone without joining against config
-- [ ] **AC3**: `GET /api/usage` authenticates and its response body is documented in this doc
+- [ ] **AC2** *(corrected by Phase 0 — the original was unachievable as written)*: route must be
+      recoverable from banked data alone. The `-cloud` suffix **cannot** carry it: the proxy
+      rewrites the model field to the base name before dispatch, so the response says
+      `qwen3.5:397b` for a `qwen3.5:397b-cloud` request (**V21**), and the banked `model` is the
+      **models.yml row key** (`agent.friendlyName`, `repair.go:49`) which never contains
+      `api_name` at all (**V17**, **V23**). Route identity must therefore come from the row-key
+      naming convention (e.g. `motoko-cloud-*`) or an explicit banked field — decide under **D6**
+- [ ] **AC3** *(scope corrected by Phase 0)*: `/api/usage` is **not proxied by the local daemon** —
+      it 404s at `localhost:11434` (**V24**), so unlike inference it cannot ride the device key and
+      needs a direct Bearer call to `ollama.com` with `OLLAMA_API_KEY`. Its response body remains
+      **undocumented**; the key was not exported during Phase 0
 - [ ] **AC4**: Tokens-per-usage-unit measured at level 1 **and** level 4; both recorded here
 - [ ] **AC5**: No cloud row banks with `pricing: 0/0`; imputed prices carry an explicit label
 - [ ] **AC6**: Cloud rows are not force-clamped to `--parallel 1` (D4), and honour the tier
@@ -401,9 +416,10 @@ quorum round 1 (gpt5-6-sol) correctly held that the design overlaps live pricing
 concurrency, retry and error-classification machinery, so the section was added and rows
 V12-V18 measured to support it.
 
-**V1-V18 are measured. V19-V22 are PENDING** — each requires the rig to be signed in, which has
-not happened. They are listed as rows rather than omitted so the gap is legible: quorum round 1
-blocked precisely because an earlier draft asserted these as settled.
+**V1-V18** measured at authoring. **V19-V21, V23-V25** measured on the live rig 2026-08-26 after
+`ollama signin` (account `m@sunholo.com`, plan `pro`) — these are the Phase 0 spike that quorum
+round 1 required. **V20 is PARTIAL** and **V22 remains PENDING**; both say so in their own rows
+rather than being quietly dropped.
 
 | # | Claim | Command | Observed |
 |---|-------|---------|----------|
@@ -425,9 +441,12 @@ blocked precisely because an earlier draft asserted these as settled.
 | V16 | **POS**: pricing schema and the cost gate derived from it | `grep -n 'input_per_1k' internal/eval_harness/models.go`; `sed -n '140,146p'` same file | `models.go:41,81`: `InputPer1K float64 \`yaml:"input_per_1k"\``. `ResolvedMaxCostUSD` = `Budgets.MaxCostUSD` if > 0, else `input×64 + output×32` capped at `$0.50` ⇒ `0/0` gives **no cost gate** |
 | V17 | **POS**: banked rows already carry `model` and `cost_provenance`, so AC2 needs no schema change | read one row of `eval_results/baseline_v1_0/agent/*.json` | keys include `model`, `cost_usd`, `cost_provenance`, `model_family`; e.g. `model='claude-haiku-4-5'`, `cost_usd=0.1079` |
 | V18 | **POS**: `0/0` does not merely omit a label — it produces the **positively false** `free-local`; and the correct subscription label already exists and is already in use | `sed -n '415,428p' internal/eval_harness/metrics.go`; `sed -n '108,145p' internal/executor/cost.go`; tally `cost_provenance` over the 30 banked trials | `ResolveCostProvenance`: `Pricing.InputTokenCost == 0 && OutputTokenCost == 0 → CostFreeLocal` (`cost.go:140-142`); `standardModeCostProvenance` mirrors it (`metrics.go:423`). `CostListPriceEquivalent = "list-price-equivalent"` documented as *"the run went through a subscription/OAuth lane and was never billed"*; `AuthLaneSubscription` exists. Banked tally: **list-price-equivalent 18, metered 11, absent 1** |
-| V19 | **PENDING** — motoko/pi/opencode effective base URL + model string. Repo lore says all three use `localhost:11434/v1`; **unmeasured**. Foundational: the zero-code premise rests on it | Phase 0: read the live configs | *Not yet measured — requires the rig* |
-| V20 | **PENDING** — a cloud-suffixed request while **signed out** fails loudly and bounded, with no pull and no local execution (the A4 "no silent fallback" claim) | Phase 0: cloud-suffixed request against the live 0.32.14 daemon, signed out | *Not yet measured — requires the rig* |
-| V21 | **PENDING** — one successful cloud request through **each** harness after signin, with the remote model identity and banked suffix recorded | Phase 0, post-signin | *Not yet measured — requires signin (human: Mark)* |
+| V19 | **POS** — all three harnesses are on `localhost:11434/v1`, measured from their live configs (was repo lore; quorum round 1 correctly refused it) | read `~/.config/opencode/opencode.jsonc`, `/Users/voightkampff/dev/mk-ast/.motoko/config/ollama/config.json` (the CANONICAL worktree per MOTOKO.md), `~/.pi/agent/models.json` | **opencode**: `"baseURL": "http://localhost:11434/v1"`. **motoko** (`ollama` profile): `"http://localhost:11434/v1"`, model form `ollama/qwen3.5:35b-a3b-mxfp8`. **pi**: `"baseUrl": "http://localhost:11434/v1"`, `"apiKey": "ollama"` |
+| V20 | **PARTIAL** — the no-silent-fallback half of A4 holds; the signed-out half is now **untestable without signing out**, which would disrupt a shared rig | bogus `:cloud` model vs bogus local model against the live daemon, with `ollama ps` before/after · plus V7 (`POST ollama.com/v1/chat/completions` unauthenticated → **401**) | Both return a typed `{"error":{"type":"not_found_error"}}` and load **nothing** on the GPU — no pull, no local execution, no fallback. **Caveat, stated not hidden**: signin happened before this row could be measured, so "signed-out cloud request fails loudly" rests on V7 (a direct 401) rather than a proxy-path observation |
+| V21 | **POS** — the foundational zero-code premise, confirmed live: cloud models answer through the local `/v1` endpoint, prove remote execution, and include one that fits nowhere on this hardware | `POST localhost:11434/v1/chat/completions` with `gpt-oss:20b-cloud` then `qwen3.5:397b-cloud`; `ollama list \| grep -c gpt-oss` (control: `grep -c qwen`); `ollama ps` | `gpt-oss:20b-cloud` → 200 in **0.72s**; `qwen3.5:397b-cloud` → `content: "OK"`, `finish_reason: stop`. Local copies of gpt-oss: **0** (control: **5** qwen). `ollama ps` unchanged throughout — only the *running eval's* `qwen3.8:27b-mxfp8` + `embeddinggemma`; the cloud calls loaded nothing and did not disturb the in-flight eval. **Response `model` is the BASE name** (`qwen3.5:397b`), suffix stripped — see AC2 |
+| V23 | **POS** — the banked model string is the models.yml **row key**, not `api_name`, so no `api_name` suffix can ever reach the bank | `grep -n 'NewRunMetrics(' internal/eval_harness/*.go` | `repair.go:49` passes `r.agent.friendlyName`. Corroborated by V17: banked `model='claude-haiku-4-5'` (the key) while `models.yml:682` `api_name: "claude-haiku-4-5-20251001"` |
+| V24 | **NEG** — `/api/usage` is **not** in the local daemon's route table, so it cannot ride the device key like inference does | `curl -s -o /dev/null -w '%{http_code}' localhost:11434/api/usage` · control `POST localhost:11434/api/me` | `/api/usage` → **404** (body `404 page not found`); control `/api/me` → **200** `{"email":"m@sunholo.com","plan":"pro",...}`. Confirms signin took effect AND that usage needs a direct Bearer call to ollama.com |
+| V25 | **OBS** — reasoning models burn the output budget before emitting content, so cloud rows need the same max-tokens floor the local ones carry | the two V21 calls | `gpt-oss:20b-cloud` at `max_tokens: 20`: `content: ""`, `reasoning` populated, `finish_reason: "length"` — all 20 tokens went to reasoning. `qwen3.5:397b-cloud` at `max_tokens: 2000` spent **336 completion tokens** to answer `"OK"`. Same mechanism as the 2026-08-26 pi:deepseek finding; `resolveOllamaMaxTokens` already floors this (`step.go`) |
 | V22 | **PENDING** — the **actual** quota-exhaustion response: exact HTTP status and body. AC7/AC8 and the Conflict Surface retry row are written against this, not against an assumed 429 | Phase 2: tight loop against a level-1 model until exhaustion | *Not yet measured — requires a live plan* |
 
 ## Quorum Review Record
