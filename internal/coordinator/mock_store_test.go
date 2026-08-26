@@ -323,6 +323,13 @@ func (m *MockStore) ResolveApprovalRequestByTask(ctx context.Context, taskID, st
 	return nil
 }
 
+func (m *MockStore) UpdateApprovalEvaluationByTask(ctx context.Context, taskID, evaluation string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls["UpdateApprovalEvaluationByTask"]++
+	return nil
+}
+
 func (m *MockStore) DeleteOldTasks(ctx context.Context, olderThan time.Duration) (int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

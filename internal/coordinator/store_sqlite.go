@@ -109,6 +109,7 @@ func (s *SQLiteStore) migrate() error {
 		resolved_at DATETIME,
 		timeout_at DATETIME,
 		auto_reject INTEGER DEFAULT 0,
+		evaluation TEXT,
 		FOREIGN KEY (task_id) REFERENCES tasks(id)
 	);
 
@@ -147,6 +148,8 @@ func (s *SQLiteStore) migrate() error {
 	// Add new columns if they don't exist (for existing databases)
 	alterQueries := []string{
 		"ALTER TABLE tasks ADD COLUMN input_tokens INTEGER DEFAULT 0",
+		// M-PIPELINE-RECONCILIATION M1: evaluator verdict on the approval (D1(b))
+		"ALTER TABLE approval_requests ADD COLUMN evaluation TEXT",
 		"ALTER TABLE tasks ADD COLUMN output_tokens INTEGER DEFAULT 0",
 		"ALTER TABLE tasks ADD COLUMN peak_cpu REAL DEFAULT 0",
 		"ALTER TABLE tasks ADD COLUMN peak_memory_mb REAL DEFAULT 0",

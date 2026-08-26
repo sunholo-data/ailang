@@ -175,6 +175,7 @@ func approvalToMap(a *coordinator.ApprovalRequestRecord) map[string]interface{} 
 		"resolved_at":        timePtrToFirestore(a.ResolvedAt),
 		"timeout_at":         timePtrToFirestore(a.TimeoutAt),
 		"auto_reject":        a.AutoReject,
+		"evaluation":         a.Evaluation,
 		"handoffs_triggered": false,
 	}
 }
@@ -193,6 +194,7 @@ func mapToApproval(data map[string]interface{}) *coordinator.ApprovalRequestReco
 		ResolvedAt:  snapshotToTimePtr(data, "resolved_at"),
 		TimeoutAt:   snapshotToTimePtr(data, "timeout_at"),
 		AutoReject:  getBool(data, "auto_reject"),
+		Evaluation:  getString(data, "evaluation"),
 	}
 }
 

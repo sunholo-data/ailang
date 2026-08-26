@@ -238,6 +238,7 @@ type Store interface {
 	ListResolvedApprovals(ctx context.Context, limit int) ([]*ApprovalRequestRecord, error) // List resolved (approved/rejected) approvals
 	ResolveApprovalRequest(ctx context.Context, id, status, resolvedBy string) error
 	ResolveApprovalRequestByTask(ctx context.Context, taskID, status, resolvedBy string) error
+	UpdateApprovalEvaluationByTask(ctx context.Context, taskID, evaluation string) error           // Attach evaluator verdict to a task's PENDING approval (M-PIPELINE-RECONCILIATION M1); errors if none
 	MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error                        // Mark that handoffs were sent
 	ListApprovedMergeHandoffsWithoutTrigger(ctx context.Context) ([]*ApprovalRequestRecord, error) // Find missed handoffs
 

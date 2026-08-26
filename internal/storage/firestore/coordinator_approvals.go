@@ -341,3 +341,26 @@ func (s *CoordinatorStore) GetTaskEvents(ctx context.Context, taskID string, lim
 	}
 	return events, nil
 }
+
+// UpdateApprovalEvaluationByTask attaches an evaluator verdict to the PENDING
+// approval for a task (M-PIPELINE-RECONCILIATION M1, D1(b)). Keyed by task id
+// because the evaluator knows only its parent task; a missing pending approval
+// is an ERROR, not a no-op — a verdict that lands nowhere must say so.
+func (s *CoordinatorStore) UpdateApprovalEvaluationByTask(ctx context.Context, taskID, evaluation string) error {
+	iter := s.client.Collection(collApprovals).
+		Where("task_id", "==", taskID).
+		Where("status", "==", "pending").
+		Limit(1).
+		Documents(ctx)
+	defer iter.Stop()
+
+	doc, err := iter.Next()
+	if err == iterator.Done {
+		return fmt.Errorf("no pending approval for task %s: evaluator verdict %q has nowhere to land", taskID, evaluation)
+	}
+	if err != nil {
+		return err
+	}
+	_, err = doc.Ref.Update(ctx, []firestore.Update{{Path: "evaluation", Value: evaluation}})
+	return err
+}

@@ -20,6 +20,14 @@ type ApprovalRequestRecord struct {
 	ResolvedAt  *time.Time `json:"resolved_at,omitempty"`
 	TimeoutAt   *time.Time `json:"timeout_at,omitempty"`
 	AutoReject  bool       `json:"auto_reject"`
+
+	// Evaluation carries the sprint-evaluator verdict in canonical string form
+	// (ParseEvaluationVerdict round-trips it). Written AFTER creation by
+	// UpdateApprovalEvaluationByTask — the evaluator runs while this approval is
+	// pending and knows only its parent task id. Empty means the evaluator stage
+	// has not reported yet; once it has, the value is one of PASS/FAIL/UNAVAILABLE
+	// (M-PIPELINE-RECONCILIATION M1, D1(b)).
+	Evaluation string `json:"evaluation,omitempty"`
 }
 
 // CreateApprovalRequest creates a new approval request in the database
@@ -38,7 +46,7 @@ func (s *SQLiteStore) CreateApprovalRequest(ctx context.Context, req *ApprovalRe
 // GetApprovalRequest retrieves an approval request by ID
 func (s *SQLiteStore) GetApprovalRequest(ctx context.Context, id string) (*ApprovalRequestRecord, error) {
 	query := `
-		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject
+		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject, evaluation
 		FROM approval_requests WHERE id = ?
 	`
 	row := s.db.QueryRowContext(ctx, query, id)
@@ -48,7 +56,7 @@ func (s *SQLiteStore) GetApprovalRequest(ctx context.Context, id string) (*Appro
 // GetApprovalRequestByTask retrieves a pending approval request for a task
 func (s *SQLiteStore) GetApprovalRequestByTask(ctx context.Context, taskID string) (*ApprovalRequestRecord, error) {
 	query := `
-		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject
+		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject, evaluation
 		FROM approval_requests WHERE task_id = ? AND status = 'pending'
 		ORDER BY created_at DESC LIMIT 1
 	`
@@ -64,7 +72,7 @@ func (s *SQLiteStore) GetApprovalRequestByTask(ctx context.Context, taskID strin
 // Use this when you need to fetch the approval context after the request has been processed (e.g., for handoffs).
 func (s *SQLiteStore) GetApprovalRequestByTaskAnyStatus(ctx context.Context, taskID string) (*ApprovalRequestRecord, error) {
 	query := `
-		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject
+		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject, evaluation
 		FROM approval_requests WHERE task_id = ?
 		ORDER BY created_at DESC LIMIT 1
 	`
@@ -79,7 +87,7 @@ func (s *SQLiteStore) GetApprovalRequestByTaskAnyStatus(ctx context.Context, tas
 // ListPendingApprovals retrieves all pending approval requests
 func (s *SQLiteStore) ListPendingApprovals(ctx context.Context) ([]*ApprovalRequestRecord, error) {
 	query := `
-		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject
+		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject, evaluation
 		FROM approval_requests WHERE status = 'pending'
 		ORDER BY created_at ASC
 	`
@@ -103,7 +111,7 @@ func (s *SQLiteStore) ListPendingApprovals(ctx context.Context) ([]*ApprovalRequ
 // ListResolvedApprovals returns resolved (approved/rejected) approval requests
 func (s *SQLiteStore) ListResolvedApprovals(ctx context.Context, limit int) ([]*ApprovalRequestRecord, error) {
 	query := `
-		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject
+		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject, evaluation
 		FROM approval_requests
 		WHERE status IN ('approved', 'rejected')
 		ORDER BY resolved_at DESC
@@ -240,12 +248,13 @@ func (s *SQLiteStore) DeleteOldApprovals(ctx context.Context, olderThan time.Dur
 // scanApprovalRequest scans a single approval request from a row
 func (s *SQLiteStore) scanApprovalRequest(row *sql.Row) (*ApprovalRequestRecord, error) {
 	req := &ApprovalRequestRecord{}
-	var resolvedBy, contextJSON sql.NullString
+	var resolvedBy, contextJSON, evaluation sql.NullString
 	var resolvedAt, timeoutAt sql.NullTime
 
 	err := row.Scan(
 		&req.ID, &req.TaskID, &req.Type, &req.Description, &contextJSON,
 		&req.Status, &resolvedBy, &req.CreatedAt, &resolvedAt, &timeoutAt, &req.AutoReject,
+		&evaluation,
 	)
 	if err != nil {
 		return nil, err
@@ -256,6 +265,9 @@ func (s *SQLiteStore) scanApprovalRequest(row *sql.Row) (*ApprovalRequestRecord,
 	}
 	if contextJSON.Valid {
 		req.ContextJSON = contextJSON.String
+	}
+	if evaluation.Valid {
+		req.Evaluation = evaluation.String
 	}
 	if resolvedAt.Valid {
 		req.ResolvedAt = &resolvedAt.Time
@@ -270,12 +282,13 @@ func (s *SQLiteStore) scanApprovalRequest(row *sql.Row) (*ApprovalRequestRecord,
 // scanApprovalRequestFromRows scans an approval request from rows
 func (s *SQLiteStore) scanApprovalRequestFromRows(rows *sql.Rows) (*ApprovalRequestRecord, error) {
 	req := &ApprovalRequestRecord{}
-	var resolvedBy, contextJSON sql.NullString
+	var resolvedBy, contextJSON, evaluation sql.NullString
 	var resolvedAt, timeoutAt sql.NullTime
 
 	err := rows.Scan(
 		&req.ID, &req.TaskID, &req.Type, &req.Description, &contextJSON,
 		&req.Status, &resolvedBy, &req.CreatedAt, &resolvedAt, &timeoutAt, &req.AutoReject,
+		&evaluation,
 	)
 	if err != nil {
 		return nil, err
@@ -286,6 +299,9 @@ func (s *SQLiteStore) scanApprovalRequestFromRows(rows *sql.Rows) (*ApprovalRequ
 	}
 	if contextJSON.Valid {
 		req.ContextJSON = contextJSON.String
+	}
+	if evaluation.Valid {
+		req.Evaluation = evaluation.String
 	}
 	if resolvedAt.Valid {
 		req.ResolvedAt = &resolvedAt.Time
@@ -313,7 +329,7 @@ func (s *SQLiteStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID 
 func (s *SQLiteStore) ListApprovedMergeHandoffsWithoutTrigger(ctx context.Context) ([]*ApprovalRequestRecord, error) {
 	cutoff := time.Now().Add(-7 * 24 * time.Hour) // Only last 7 days
 	query := `
-		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject
+		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject, evaluation
 		FROM approval_requests
 		WHERE type = 'merge_handoff'
 		  AND status = 'approved'
@@ -336,4 +352,28 @@ func (s *SQLiteStore) ListApprovedMergeHandoffsWithoutTrigger(ctx context.Contex
 		requests = append(requests, req)
 	}
 	return requests, rows.Err()
+}
+
+// UpdateApprovalEvaluationByTask attaches an evaluator verdict to the PENDING
+// approval for a task (M-PIPELINE-RECONCILIATION M1, D1(b)).
+//
+// Keyed by task id because the evaluator knows only its parent task. A missing
+// pending approval is an ERROR, not a no-op: a verdict that lands nowhere must
+// say so, or evaluator results vanish exactly the way this program's failures
+// used to.
+func (s *SQLiteStore) UpdateApprovalEvaluationByTask(ctx context.Context, taskID, evaluation string) error {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE approval_requests SET evaluation = ? WHERE task_id = ? AND status = 'pending'`,
+		evaluation, taskID)
+	if err != nil {
+		return fmt.Errorf("update approval evaluation for task %s: %w", taskID, err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update approval evaluation for task %s: %w", taskID, err)
+	}
+	if n == 0 {
+		return fmt.Errorf("no pending approval for task %s: evaluator verdict %q has nowhere to land", taskID, evaluation)
+	}
+	return nil
 }

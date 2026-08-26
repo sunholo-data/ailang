@@ -128,6 +128,10 @@ func (m *mockStore) ListResolvedApprovals(ctx context.Context, limit int) ([]*Ap
 func (m *mockStore) ResolveApprovalRequest(ctx context.Context, id, status, resolvedBy string) error {
 	return nil
 }
+func (m *mockStore) UpdateApprovalEvaluationByTask(ctx context.Context, taskID, evaluation string) error {
+	return nil
+}
+
 func (m *mockStore) ResolveApprovalRequestByTask(ctx context.Context, taskID, status, resolvedBy string) error {
 	return nil
 }
