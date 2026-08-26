@@ -17,9 +17,22 @@ emit() {
   exit 0
 }
 
-# Step 0: an explicit non-codex planner pin always wins.
+# Step 0: only a VETTED non-opus lane may proceed to the path analysis; anything
+# else fails closed to opus.
+#
+# `pi:` joined `codex:` here for M-OLLAMA-CLOUD-PROVIDER (Mark 2026-08-26, "the
+# better models do planning only"), so an Ollama Cloud planner such as
+# pi:ollama/kimi-k3:cloud is reachable at all. Without this the pin was a SILENT
+# NO-OP: every non-codex value emitted "opus fail-closed:env-pin", so the lane
+# would read as pinned in the driver log while actually running opus — the
+# routing-never-enforced failure this file exists to prevent.
+#
+# Both lanes get the SAME treatment deliberately: the doc must still declare the
+# Planner-Lane field and every path must still clear the allowlist below. The
+# declaration value stays the literal `codex-ok` for compatibility with existing
+# design docs; read it as "a vetted non-opus lane is ok", not "codex specifically".
 case "${MISSION_PLANNER_MODEL:-}" in
-  codex:*) ;;
+  codex:*|pi:*) ;;
   *) emit "opus fail-closed:env-pin" ;;
 esac
 
@@ -105,5 +118,10 @@ for path in $paths; do
 done
 IFS=$old_ifs
 
-# Step 5: every declared path is approved infrastructure.
-emit "codex declared:codex-ok"
+# Step 5: every declared path is approved infrastructure. Emit the lane actually
+# pinned, not a hardcoded "codex" — the driver uses this value VERBATIM, so
+# naming the wrong lane here would route a pi planner to codex.
+case "${MISSION_PLANNER_MODEL:-}" in
+  pi:*) emit "${MISSION_PLANNER_MODEL} declared:codex-ok" ;;
+  *)    emit "codex declared:codex-ok" ;;
+esac

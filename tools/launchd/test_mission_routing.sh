@@ -21,8 +21,25 @@ out=$(MISSION_PLANNER_MODEL=codex:gpt-5.6-sol MISSION_ANTHROPIC_AVAILABLE=0 \
 want "planner Anthropic fallback is configurable" "$out" "codex:test-sol anthropic-fallback:fail-closed:unparsable-path-entry"
 
 driver="$ROOT/tools/launchd/mission-control.sh"
-grep -q 'MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol' "$driver" \
-  && ok "executor remains Codex Sol primary" || bad "executor remains Codex Sol primary" "missing default"
+# FLEET CHANGE (Mark 2026-08-26, attended): executor primary moved codex -> the
+# flat-rate ollama route for deepseek-v4-flash. Same weights the fallback below
+# already reaches via OpenRouter, so this is a route change, not a capability
+# change. The old assertion encoded the superseded policy and is replaced, not
+# kept alongside (no backward compatibility for stale tests).
+grep -q 'MISSION_EXECUTOR_MODEL:-pi:ollama/deepseek-v4-flash:0731-cloud}' "$driver" \
+  && ok "executor primary is the flat-rate ollama deepseek lane" || bad "executor primary is the flat-rate ollama deepseek lane" "missing default"
+# The planner carries the strongest open-weight model, per "better models do
+# planning only" — one run per iteration, so an 18x quota draw is affordable.
+grep -q 'MISSION_PLANNER_MODEL:-pi:ollama/kimi-k3:cloud}' "$driver" \
+  && ok "planner primary is the ollama kimi-k3 lane" || bad "planner primary is the ollama kimi-k3 lane" "missing default"
+# A pi: planner pin must actually REACH the lane. Before derive-planner-lane.sh
+# Step 0 accepted pi:, every non-codex value emitted "opus fail-closed:env-pin",
+# so the pin read as applied in the driver log while opus actually ran.
+out=$(MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
+want "pi planner pin reaches its lane, not a silent opus" "$out" "pi:ollama/kimi-k3:cloud declared:codex-ok"
+# ...but the allowlist must still bind it exactly as it binds codex.
+out=$(MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/a-unlisted-language-path.md")
+want "pi planner still fails closed outside the allowlist" "$out" "opus fail-closed:path-not-in-codex-allowlist"
 # Anchored on the closing brace DELIBERATELY. The previous form pinned the `:floor`
 # suffix, but a suffix-free grep would prefix-match `...-0731:floor` too and pass on
 # both values — so the brace is what keeps this assertion discriminating and makes a

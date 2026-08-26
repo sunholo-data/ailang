@@ -446,8 +446,27 @@ export MISSION_METERED_BUDGET_USD="${MISSION_METERED_BUDGET_USD:-5}"
 # CLOSED to opus unless that doc declares **Planner-Lane**: codex-ok AND every path it
 # declares is inside the D2 infra allowlist. Rollback = uncomment MISSION_PLANNER_MODEL
 # in ~/.config/ailang/mission-<name>.env (delivery mechanism added by M2 above).
-export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol}"
-export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol}"
+# FLEET (Mark 2026-08-26, attended): "the better models do planning only", and
+# "the missions should have all the same model fleets for consistency and
+# simplicity". Every mission on this rig sources THIS file, so these defaults are
+# the single fleet definition — there is no per-mission override in any plist.
+#
+# planner  = kimi-k3, the strongest open-weight model measured externally (88.3
+#            Terminal-Bench 2.1, 81.2 FrontierSWE). Draws 18x the ollama quota per
+#            token of gpt-oss (0.124 units/M, measured), which is affordable
+#            precisely because planning is ONE run per iteration and plan quality
+#            compounds across everything downstream.
+# Reachability is not assumed: `pi --model ollama/kimi-k3:cloud` probes rc=0, and
+# derive-planner-lane.sh Step 0 was extended to accept pi: lanes — without that
+# this pin is a silent no-op that routes to opus.
+export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-pi:ollama/kimi-k3:cloud}"
+# executor = deepseek-v4-flash on the FLAT-RATE ollama route. These are the same
+#            weights the fallback chain below already reaches through OpenRouter,
+#            so this is a route change, not a capability change — and it degrades
+#            to that metered twin if the ollama quota runs out. Draws 4.2x
+#            gpt-oss (0.029 units/M, measured), ~4x cheaper per token than the
+#            planner, which is what the high-volume role needs.
+export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-pi:ollama/deepseek-v4-flash:0731-cloud}"
 # EXECUTOR FALLBACK CHAIN — ailang#611 (2026-08-11).
 #
 # RATIFIED SEMANTICS (Mark 2026-08-06, restated attended 2026-08-10 and 2026-08-11):
