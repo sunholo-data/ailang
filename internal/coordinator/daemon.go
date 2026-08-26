@@ -496,6 +496,9 @@ func (d *Daemon) Run() error {
 
 			// Sync worktree manager state with disk (handles CLI-initiated cleanups)
 			d.syncWorktreeState()
+			// M-PIPELINE-RECONCILIATION M7: finalize approvals resolved on
+			// another machine for tasks whose worktree lives here.
+			d.sweepStrandedApprovals()
 
 		case <-retentionTicker.C:
 			// M-OBS-RETENTION: Run retention cleanup on observatory + coordinator DBs

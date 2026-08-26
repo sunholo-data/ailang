@@ -208,6 +208,22 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 		return result, nil
 	}
 
+	return finalizeApprovedTask(ctx, span, params, task, taskID, mergeBranch, result)
+}
+
+// finalizeApprovedTask runs the LOCAL half of an approval: auto-commit, merge,
+// task completion, chain status, embedded handoffs, GitHub close, worktree
+// cleanup. Split from processApproval for M-PIPELINE-RECONCILIATION M7: a
+// dashboard (cloud) approval of a LOCAL-lane task resolves the record and then
+// hits `worktree missing` — because the worktree is on another machine — and
+// returns success having finalized nothing. The owning coordinator's stranded-
+// approval sweep re-enters HERE, past the already-resolved record.
+//
+// Measured live 2026-08-26: task-6051f916, approved via dashboard
+// (by=dashboard-user), task left pending_approval, worktree still on the rig's
+// disk, zero log lines on the rig — the approval simply never reached the
+// machine that could act on it.
+func finalizeApprovedTask(ctx context.Context, span trace.Span, params *ApprovalParams, task *TaskRecord, taskID, mergeBranch string, result *ApprovalResult) (*ApprovalResult, error) {
 	// 4. Auto-commit any uncommitted changes in the worktree
 	if err := autoCommitWorktreeChanges(task.WorktreePath, task.Title); err != nil {
 		span.AddEvent("warning: failed to auto-commit", trace.WithAttributes(
@@ -305,6 +321,49 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 	span.SetStatus(codes.Ok, "approved and merged")
 
 	return result, nil
+}
+
+// ResumeStrandedApproval finalizes a task whose approval record is ALREADY
+// approved but whose task is still pending_approval — the cross-lane stranding
+// M7 exists for. It skips the resolve step (done, by a human, elsewhere) and
+// requires the worktree to exist on THIS machine: that is what makes this
+// coordinator the owner.
+func ResumeStrandedApproval(ctx context.Context, params *ApprovalParams, task *TaskRecord, approvedBy string) (*ApprovalResult, error) {
+	if params.Store == nil || task == nil {
+		return nil, fmt.Errorf("store and task are required")
+	}
+	if task.Status != TaskStatusPendingApproval {
+		return nil, fmt.Errorf("task %s is not pending approval (status: %s)", task.ID, task.Status)
+	}
+	if task.WorktreePath == "" {
+		return nil, fmt.Errorf("task %s has no worktree path; nothing to finalize", task.ID)
+	}
+	if _, err := os.Stat(task.WorktreePath); err != nil {
+		return nil, fmt.Errorf("worktree %s not on this machine: %w", task.WorktreePath, err)
+	}
+
+	mergeBranch := params.MergeBranch
+	if mergeBranch == "" && params.AgentRegistry != nil && task.AgentID != "" {
+		if agent := params.AgentRegistry.GetAgentByID(task.AgentID); agent != nil && agent.MergeBranch != "" {
+			mergeBranch = agent.MergeBranch
+		}
+	}
+	if mergeBranch == "" {
+		mergeBranch = "dev"
+	}
+
+	ctx, span := telemetry.StartSpan(ctx, approvalProcessorTracer, "approval.resume_stranded",
+		trace.WithAttributes(
+			attribute.String("task.id", task.ID),
+			attribute.String("approval.by", approvedBy),
+			attribute.String("approval.channel", params.Channel),
+		),
+	)
+	defer span.End()
+
+	params.ApprovedBy = approvedBy
+	result := &ApprovalResult{Success: true, Message: fmt.Sprintf("Resuming stranded approval for %s (approved by %s elsewhere)", task.ID, approvedBy)}
+	return finalizeApprovedTask(ctx, span, params, task, task.ID, mergeBranch, result)
 }
 
 // processRejection handles the rejection action.
