@@ -26,12 +26,21 @@ require_line() {
 }
 
 run_bounded() {
-  local stdout_file=$1 stderr_file=$2 cap_secs=$3 pid deadline terminate_deadline rc
+  local stdout_file=$1 stderr_file=$2 cap_secs=$3 pid deadline terminate_deadline rc group_safe
   shift 3
   [[ "${1:-}" == -- ]] || return 2
   shift
+  set -m
   "$@" < /dev/null >"$stdout_file" 2>"$stderr_file" &
   pid=$!
+  # A live negative PID proves the child PID is its PGID. Since it is not this
+  # shell's PID, the job group is distinct and a negative-PID kill is safe.
+  if jobs -p 2>/dev/null | grep -qx -- "$pid" && [[ "$pid" != "$$" ]] && kill -0 "-$pid" 2>/dev/null; then
+    group_safe=1
+  else
+    group_safe=0
+  fi
+  set +m
   deadline=$(( $(date +%s) + cap_secs ))
   # Backoff, NOT a flat `sleep 1`. A flat one-second poll charges every arm a full
   # second it never used to pay: measured 30s -> 66-93s for the whole suite, which
@@ -40,21 +49,31 @@ run_bounded() {
   poll=0.05
   while kill -0 "$pid" 2>/dev/null; do
     if (( $(date +%s) > deadline )); then
-      kill "$pid" 2>/dev/null || true
+      if (( group_safe )); then
+        kill -TERM "-$pid" 2>/dev/null || true
+      else
+        echo "instrument failure: refusing process-group TERM for pid $pid because it does not lead a distinct job group" >&2
+        kill "$pid" 2>/dev/null || true
+      fi
       terminate_deadline=$(( $(date +%s) + 5 ))
       while kill -0 "$pid" 2>/dev/null && (( $(date +%s) <= terminate_deadline )); do
         sleep 1
       done
       if kill -0 "$pid" 2>/dev/null; then
-        kill -9 "$pid" 2>/dev/null || true
+        if (( group_safe )); then
+          kill -9 "-$pid" 2>/dev/null || true
+        else
+          echo "instrument failure: refusing process-group KILL for pid $pid because it does not lead a distinct job group" >&2
+          kill -9 "$pid" 2>/dev/null || true
+        fi
       fi
-      wait "$pid" 2>/dev/null || true
+      { wait "$pid"; } >/dev/null 2>&1 || true
       return 199
     fi
     sleep "$poll"
     case "$poll" in 0.05) poll=0.2 ;; 0.2) poll=1 ;; esac
   done
-  wait "$pid"
+  { wait "$pid"; } 2>/dev/null
   rc=$?
   return "$rc"
 }
@@ -353,6 +372,43 @@ if kill -0 "$cap_pid" 2>/dev/null; then
   exit 1
 fi
 pass_arm "arm cap terminates a hung command and reports it"
+
+# A wrapper-only kill satisfies the preceding PID check while leaving its sleep
+# grandchild reparented and alive. Give the fixture a distinctive duration and cwd,
+# then enumerate that cwd so the assertion observes the grandchild itself.
+orphan_fixture_secs=2849
+orphan_fixture_dir="$tmp_dir/orphan-fixture-$orphan_fixture_secs"
+mkdir "$orphan_fixture_dir"
+orphan_fixture_dir=$(CDPATH='' cd -- "$orphan_fixture_dir" && pwd -P)
+orphan_fixture_pids() {
+  lsof -a -c sleep -d cwd 2>/dev/null |
+    awk -v fixture_dir="$orphan_fixture_dir" 'NR > 1 && $NF == fixture_dir { print $2 }'
+}
+cleanup_orphan_fixture() {
+  local survivor_pid
+  for survivor_pid in $(orphan_fixture_pids); do
+    kill "$survivor_pid" 2>/dev/null || true
+  done
+}
+orphan_pre_count=$(orphan_fixture_pids | awk 'NF { count++ } END { print count+0 }')
+if (( orphan_pre_count != 0 )); then
+  cleanup_orphan_fixture
+  echo "not ok - arm cap kills a wrapper grandchild: PRE count is $orphan_pre_count, expected 0" >&2
+  exit 1
+fi
+run_bounded "$tmp_dir/orphan.stdout" "$tmp_dir/orphan.stderr" 1 -- \
+  /bin/bash -c 'cd "$1" && /bin/bash -c '\''sleep "$1" & wait'\'' grandchild "$2"' \
+    wrapper "$orphan_fixture_dir" "$orphan_fixture_secs"
+orphan_cap_rc=$?
+orphan_survivor_count=$(orphan_fixture_pids | awk 'NF { count++ } END { print count+0 }')
+cleanup_orphan_fixture
+sleep 0.05
+orphan_post_count=$(orphan_fixture_pids | awk 'NF { count++ } END { print count+0 }')
+if (( orphan_cap_rc != 199 || orphan_survivor_count != 0 || orphan_post_count != 0 )); then
+  echo "not ok - arm cap kills a wrapper grandchild (rc=$orphan_cap_rc survivors=$orphan_survivor_count post_cleanup=$orphan_post_count)" >&2
+  exit 1
+fi
+pass_arm "arm cap kills a wrapper grandchild"
 
 # report_arm_cap is the code that implements this milestone's headline promise — the
 # named `not ok` line plus the captured output tails. The arm above reaches run_bounded
