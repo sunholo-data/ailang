@@ -1,54 +1,51 @@
 # Mission Dashboard — V1
 
-_Snapshot, overwritten each iteration. History lives in the charter STATUS block + mission log._
+_Snapshot, overwritten every iteration. History lives in the charter STATUS block and the log._
 
-**Last iteration**: 282 · 2026-08-26 · LANDED (pending CI)
+**Last iteration:** 283 · 2026-08-26 · controller `opus`
 
-## In flight / just landed
-- **`78f9f4f42`** — 342 `.ail` files reformatted to `ailang fmt` canonical form, executing Mark's
-  **`D-38`(a)** ruling. Corpus canonical **63 → 405** of 450; drift **342 → 0**.
-  Comments **7865 → 7865** (0 per-file delta, poisoned control fired); `ailang check` rc unchanged
-  on 342/342. Gates green in **both** arms.
+## Where things stand
+
+- **Latest release:** v0.33.2 · dev at `26623ca4a`
+- **Landed this iteration:** `#899` — dev was RED on the required `test` context (inherited, not ours):
+  `1a3104a49` edited `prompts/v0.16.6.md` without updating `versions.json`, so the prompt integrity
+  check fired. One-line manifest fix; two arms rc=1 → rc=0. **dev is green again.**
+- **In flight:** `#898` — `test-stdlib-freeze` delegated to the live 45-module gate.
+  Evaluator **PASS 92/100, zero blocking**. Awaiting Gate 3b on the rebased head.
+
+## D-40 verification — the reason this iteration matters
+
+`D-40` required the next unattended fire to record designer/planner/executor/evaluator as **actually
+spawned**, or the escape-clause theory is refuted. **All four ran.** designer `fable` (×2: authoring +
+one protocol-mandated revision) · planner `opus` (lane `fail-closed:planner-lane-field-missing`) ·
+executor `codex:gpt-5.6-sol` · evaluator `sonnet`, in its own worktree. Generator ≠ judge held
+(OpenAI executor, Anthropic judge). **`D-40` can be marked verified.**
+
+The judging apparatus immediately paid for itself: the quorum blocked the design **twice** (one
+objection CONFIRMED — the first draft would have permanently deleted a golden file), the planner
+refuted six things including one of the controller's own acceptance criteria, and the evaluator found
+a real gap the controller had missed.
 
 ## Next picks
-1. `m-stdlib-freeze-gate-path-mismatch` — `make test-stdlib-freeze` names `goldens/stdlib` (absent)
-   while the script writes `.stdlib-golden` (present); the gate cannot run and is in no workflow.
-2. `m-format-comment-brackets-break-wall-scan` — a `{`/`[` in comment *text* is read as the block wall.
-3. Formatter **printer** rows — all blocked on `D-39`.
 
-## Parked on Mark — 0 OPEN decisions (attended session 2026-08-26)
-**All 7 ruled.** Ledger validates at 40 rows, 0 open. Headlines only — reasoning is on the rows.
-- `D-38` → **(a) REFORMAT stands**; #893 correct and merged. Its cited directive is **no longer
-  retrievable and that is EXPECTED** — Mark posted it on #852 and then deleted it (confirmed in
-  session). A provenance note is on the row so ghost discipline does not re-open this every read.
-- `D-39` → **YES, add a line-width limit, then reformat the corpus a SECOND time.** **Scope of
-  (a) ruled explicitly: it ratifies the DIALECT and the direction of travel, NOT the line layout.**
-  So `m-fmt-typedecl-printer-needs-multiline-emit` is **UNBLOCKED, not re-gated**, and the fmt gate
-  must NOT be wired or frozen until the width fix lands and the second pass has run.
-- `D-30` → **(b) same-binary `os.Executable()`**, with NO PATH fallback (unlike all 9 in-repo
-  precedents) and an injected path in tests.
-- `D-31` → **(a) split authoring vs review lanes.** Widening has no candidate today.
-- `D-32` → **(b) keep strict** — `inconclusive` stays in the denominator, reported as its own
-  named bucket. Not the same axis as `not_applicable`.
-- `D-36` → **(c) raise the budget** while findings shrink in kind; park on new-in-kind; cap 5.
-- `D-37` → **(b) mode-polymorphic `std/ai.call`.** The (a) stopgap was DECLINED, so
-  `verify-examples-toplevel` and local `make ci` stay red until (b) lands — a REGISTERED
-  exemption, not a new one. GitHub CI is green and unaffected.
-- `D-40` **NEW** → **no independent judge for 5 iterations**; cause is a harness-injected
-  instruction absent from every file the loop can read. Driver prompt now carries an explicit
-  Agent-tool request. **UNVERIFIED until the next unattended fire** — if the routing block still
-  reads `NOT spawned`, the escape-clause theory is REFUTED and `D-40` re-opens.
+1. **`m-fmt-printer-no-line-width-limit`** — Mark ruled it queue-head in `D-39`; it was never entered
+   as a queue row. Promoted this iteration. Corpus reformat #2 follows it.
+2. `m-verify-stdlib-wrapper-exit-propagation-unpinned` — evaluator's find, reproduced first-party.
+3. `m-skills-parity-no-ci-gate` · `m-eval-suite-agent-tempdir-unguarded`
 
-**Driver defect fixed in the same PR (iteration 282's Gate-0 find):** V1 alone read the
-fleet-shared `mission-gh-issue` (**745**, CLOSED) instead of `mission-v1-gh-issue` (**852**, open);
-siblings were correctly namespaced. Gate 0 reads Mark's directives from that value.
+## Parked on Mark
 
-## Loop health
-- Bookkeeping issue: **#852** (namespaced key). ⚠ The **driver** exports `MISSION_GH_ISSUE=745`
-  (closed) — `mission-control.sh:68` reads the fleet-shared bare key for `v1` only. Filed.
-- ⚠ PATH `ailang` is stale for the **5th** consecutive iteration (ignores `AILANG_MESSAGES_STORE`);
-  every iteration must build its own ldflags-stamped binary.
-- Running skill is `065a4f16c` behind origin (main checkout 22 behind); delta read each iteration.
-- dev CI: green except the standing non-required SonarCloud `new_coverage` red.
-- Routing: controller `opus` only. **Agent tool unavailable for the 5th iteration** — no
-  designer/planner/executor/evaluator, so no independent judge. metered **$0.00** of $5.
+- **`D-41` (new)** — may an ACTIVE prompt version be edited in place? `v0.16.6`'s content changed under
+  a pinned id while `versions.json` says v0.16.5 is held byte-identical for pinned eval baselines.
+- **SonarCloud token** — none on this rig, so the false positives cannot be marked. See below.
+
+## Quota / cost
+
+metered **$0.14** of $5 (two quorum rounds only) · quota: opus, fable ×2, codex, sonnet.
+
+## Standing reds
+
+- **SonarCloud** non-required, red since `6759ea4fa`. Now TWO conditions: coverage 78.6% (<80) and a
+  **D Security Rating**, new since `#891`. All 13 vulns triaged first-party: the 2 BLOCKERs are false
+  positives (tarball.go has complete zip-slip defense), the playwright.go CRITICAL is mitigated, and
+  `math/rand` is by design. **One genuine low-impact finding:** `eval_suite_agent.go:79`.

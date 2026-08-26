@@ -22,6 +22,70 @@ section, write "none" rather than omitting:
 
 ---
 
+## 283 — 2026-08-26 — The judging apparatus was switched back on, and it caught three things in one sprint that would otherwise have shipped
+
+**Pick:** queue head `m-stdlib-freeze-gate-path-mismatch`. Second deliverable, unplanned: dev was RED
+on the REQUIRED `test` context, inherited from a commit that landed mid-iteration.
+
+**Why this iteration exists.** `D-40` (ruled attended, 08:00, `9f74e9ef3`) recorded that iterations
+278–281 had no independent judge — a harness-injected instruction forbids the Agent tool unless the
+user asks, and it is in **no local config file**, so the loop could never diagnose it. The fix was an
+authorization sentence in the driver's own prompt, and `D-40` attached a verification obligation: *the
+next unattended fire must record all four roles as actually spawned, or the theory is REFUTED.*
+**All four ran.** designer `fable` ×2 · planner `opus` · executor `codex:gpt-5.6-sol` · evaluator
+`sonnet`. `D-40` is discharged.
+
+**What the apparatus caught — the actual finding of this iteration.**
+1. The **quorum blocked twice**. Both rounds were *premise* objections, so per rule 3f I measured
+   instead of forwarding. One was refuted (the history claim). One was **confirmed and load-bearing**:
+   the draft's new selftest arm relied on the pre-existing canary EXIT trap, which restores
+   `std/option.ail` **only** — it would have **permanently deleted** `.stdlib-golden/option.sha256`.
+   A reviewer caught that, not me.
+2. The **planner refuted six things**, including one of **my own** acceptance criteria
+   (`git status --porcelain` empty is unsatisfiable mid-sprint — `.snap/` is not gitignored) and a
+   real vacuity in the design (`grep -q 'verify-stdlib'` also matches `verify-stdlib-selftest`).
+3. The **evaluator passed it 92/100 with zero blocking** and still found a gap I had missed, which I
+   reproduced first-party: both arms call `tools/verify-stdlib.sh` directly, bypassing the `make`
+   wrapper, so the gate can be silently dead with every arm green.
+
+Three independent roles each caught something the previous one missed. That is the whole argument for
+generator ≠ judge, and it is the first time in six iterations the loop could make it.
+
+**The item was bigger than filed.** `make test-stdlib-freeze` did not rot — it **never worked**.
+`FREEZE_DIR := goldens/stdlib` dates to `602b25f03` "v0.1" (2025-10-01) and that directory has never
+existed on any ref (0 adds; exhaustive 400-commit `git ls-tree` scan; controls firing). Make died at
+prerequisite resolution, so the recipe's own missing-golden floor was unreachable. Two further rots
+appeared once the path was fixed: `iface --module/--json` are both gone (rc=2), and when `iface`
+failed the recipe **hashed its error output and reported `MISMATCH`** — a tool failure wearing an
+interface change's clothes. And `80019d4e0` revived the *sibling* gate while mentioning this one
+**0** times (control: `verify-stdlib` **25**) — *guard the helper, miss the call site*, plus the third
+instance of this repo's `stdlib/` vs `std/` wrong-path habit.
+
+Delegated to the live gate: **5 modules that could not run → 45 that do.**
+
+**Ruled out / refuted this iteration:**
+- My own framing (repair the three rots) — the **designer** refuted it: a modern CI-wired gate already
+  existed, so the right move was delegation and deleting the fossil.
+- `mission-motoko`'s skill-drift handover — already stale; `cmp` shows the running skill byte-identical
+  to origin. Answered on the cross-mission channel so it is not re-filed.
+- The SonarCloud **D Security Rating** as evidence of a vulnerability — **refuted by triaging all 13
+  first-party**: 2 BLOCKERs are false positives (`tarball.go` has complete zip-slip defense), the
+  `playwright.go` CRITICAL is mitigated by `secureBrowserRoot`, `math/rand` in `rand_mode.go` is the
+  deterministic seeded-PRNG effect and correct by design. Exactly **one** genuine low-impact finding.
+- That the dev red was mine — refuted by running the failing tests on a pristine `origin/dev` (rc=1
+  there) and measuring **0** prompt files in my diff.
+
+**Traps that fired on me:** the zsh non-word-splitting bug voided a sha256 manifest; I read a
+`head`-piped rc as the command's own; and `.ailang/` is gitignored, so the sprint JSON is not banked in
+git — said plainly rather than claimed.
+
+**Process finding, pre-registered (1 instance):** a ruling's *sequencing clause* can name a queue head
+that is not a queue row. `D-39` said "width limit at the queue head"; the ruling commit did not touch
+the Queue, and that row had **0** occurrences there. Promoted this iteration.
+
+**Outcome:** `#899` merged (`26623ca4a`, dev green again); `#898` open, evaluator PASS 92/100.
+metered **$0.14** of $5.
+
 ## 282 — 2026-08-26 — Mark answered D-38; the corpus is 405/450 canonical, and executing it exposed that the printer has no line-width limit
 
 **Picked**: NOT the queue head — a **human directive**, which outranks it. Mark on
