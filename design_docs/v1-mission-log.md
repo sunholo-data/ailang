@@ -22,6 +22,90 @@ section, write "none" rather than omitting:
 
 ---
 
+## 279 — 2026-08-26 — The formatter dropped parentheses it needed, and the reason CI never saw it is that every formatter corpus test walked `examples/` only
+
+**Pick.** Iterations 277 and 278 both named `m-fmt-cognition-roundtrip-soundness` as Next; the
+positional queue head (`m-launchd-driver-process-tree-flake`) is a single-occurrence red on a
+non-required check that iteration 276 had already deprioritised for that reason. Ghost-disciplined
+under a freshly built, ldflags-stamped binary before any routing: `ailang check std/cognition.ail`
+**rc=0**, `ailang fmt` **rc=2** — *"formatted output failed to re-parse (formatter defect)"* — with
+`std/list.ail` rc=0 as the control. Not a ghost.
+
+**Reality check.** No design doc existed for the row (`grep -ril` across `design_docs/`, control:
+74 files mention "formatter"). Died-mid-flight traces clean: the only open PR on the fleet account
+was `#695`, the known stale coordinator PR with no matching worktree — `--author` is a FLEET
+filter, so it was left alone. A `sprint/m-ailang-fmt-inline-interior` worktree exists but dates to
+2026-07-20, is clean, and is not in `origin/dev`: month-old abandoned work, not an inherited
+iteration.
+
+**Root cause, reduced from 83 lines to 2.** `export func f(cb: ({a: string}) -> ()) -> () { g(cb) }`.
+The printer drops parens around a function type's sole parameter — deliberately, because
+`int -> int` is what `ailang prompt` teaches and always parenthesising once rewrote ten of the
+prompt's own examples. `bareArrowSafe` decided when via a **blacklist**: unsafe for `FuncType`
+(arrow associativity) and `TupleType` (reads as two parameters), safe for everything else. A record
+parameter therefore emitted `{ a: string } -> ()`, and the parser reads that leading `{` as a
+BLOCK. Confirmed two-armed: the hand-written paren-less form gives
+`PAR_UNEXPECTED_TOKEN ... expected ), got ->`, the with-parens form parses.
+
+**Shipped.** PR [#887](https://github.com/sunholo-data/ailang/pull/887) → `ec010fea3`, squash-merged
+after all four required contexts went green (`test` 27m16s, `lint`, `build`, `docs-gate`).
+`bareArrowSafe` is now a whitelist; `LabelledType` recurses on its base; an unrecognised node
+defaults to KEEPING parens, so a tenth `ast.Type` is verbose rather than unsound. New
+`TestFormatterOutputAlwaysReParses` (both roots, anti-vacuity floors on missing and empty roots)
+and `TestBareArrowSoundnessByConstruct`. Measured: std/ round-trip failures **1 → 0** (ok 39 → 40),
+examples/ **0 → 0**; `bareArrowSafe` coverage 60% → 80%.
+
+**The finding worth more than the fix.** Every formatter corpus test walked `../../examples` only:
+**0** test references to `std/`, control **1** to `examples/`. std/'s 46 files — holding the repo's
+only round-trip offender — were outside the gate *by construction*, which is why a strict gate
+(`preExistingRT != 0` is already fatal) sat green over a shipped soundness defect. The existing
+comment gate was deliberately NOT widened: its `inlineInteriorRefusalCeiling = 32` is calibrated on
+`examples/` alone and std/ adds 6 comment-unattached refusals, so widening it would have failed for
+reasons belonging to `m-fmt-attach-boundary-class`.
+
+**My own mutation drill bought iteration 274's rule.** The first mutant — deleting `RecordType`
+from the unsafe case — LANDED (sha256 moved) and BUILT and produced **no intended effect**: `fmt`
+rc stayed 0, because under the new whitelist it merely falls through to `default: return false`.
+Asserting the mutant's intended effect against the system's own view is the only thing that caught
+it; a bytes-changed check would have passed. The true mutant (restore the blacklist wholesale)
+moved `fmt` rc **0 → 2**, redded both new tests, and — with them `-skip`ped — left the package
+**rc=0**, so they are sole killers and the class had zero prior coverage. Restored from a copy, not
+`git checkout` (the worktree was uncommitted), sha256 byte-identical.
+
+**I reddened a required gate mid-iteration and fixed it in-turn.** Push 2 failed `test` at step 31
+with `internal/format 600.018s` — the 10-minute per-package ceiling. Per-file profiling located the
+cause and it was not my sweep being wasteful: parse is ~200µs while `SourceWithComments` is
+**jwt.ail 4.5s, sem.ail 3.6s, ai.ail 2.9s** (13.4s over std/), against **8ms** for the same sweep
+via comment-free `Source()`. Since the property under test is TYPE emission — shared by both paths,
+and measured to still catch `cognition.ail` under the pre-fix printer — the sweep moved to
+`Source()`: **0.04s over 443 files across both roots**, drill re-run, still sole killers.
+
+**Ruled out.** (a) That the defect was the effect row on the callback — four minimal fixtures
+(`(string) -> () ! {Msg}` and variants) all format clean; it is the record type, not the effects.
+(b) That a plain record parameter is affected — `r: {a: string}` formats fine; the arrow is
+required. (c) That widening the existing comment gate was the right pin — refuted by its
+examples-calibrated ceiling. (d) That the CI timeout was my sweep being profligate — refuted by
+profiling: the cost is in comment attachment, and the same sweep is 8ms without it. (e) That the
+first mutant refuted the fix's necessity — refuted by the whitelist's `default` arm. (f) That a
+record-based labelled type needed a test case — the parser rejects `{a: string}<secret>` in type
+position (rc=3), so that arm is unreachable from source and defensive only.
+
+**Routing evidence.** controller `opus` (session) · designer/planner/executor/evaluator **NOT
+SPAWNED** — this session's operating instructions forbid the Agent tool unless the user requests
+it, so the roles table could not be exercised at all. Recorded as a routing deviation rather than
+buried; the substitute was a controller-run, diff-anchored mutation drill, which is **not** an
+independent judge and does not carry an evaluator's score. task-class=execute+mechanical.
+metered=**$0.00** of $5; no Fable spend, rotation pointer untouched. Gates on darwin/arm64; ubuntu
+and windows legs unrun locally.
+
+**Retro lane.** none — no skill edit. The candidate gap (*a corpus gate's cost profile is part of
+its design: a sweep can be correct, catch the defect, and still be unlandable because the package it
+lives in is near a timeout*) has ONE first-party instance and is pre-registered so a second is
+recognisable.
+
+**Next**: `m-fmt-attach-boundary-class` (38 files, the sibling of this row), then
+`m-format-comment-attach-perf`.
+
 ## 275 — 2026-08-25 — Wiring was never the whole job: six of the eleven unwired gates are RED, `make ci` cannot pass, and three rounds of judging turned a bypass blacklist into a whitelist
 
 **Pick.** Queue head `m-verify-targets-unwired` (filed iter-274). Ghost-disciplined: the row's
@@ -18795,3 +18879,261 @@ second is recognisable. Bar is two.
 **Next**: `m-fmt-check-ail-broken-and-red` (unwired *and* rc=2, with a formatter crash that must be
 adjudicated first), then `m-ai-modes-regression-window`. `m-make-ci-red-ai-modes` is gated on `D-37`
 and must not be picked until Mark rules.
+
+## 278 — 2026-08-25 — The canonical inbox command had been failing since the day it was documented as fixed, and the past-tense note is what would have stopped anyone re-filing it
+
+**Picked**: not the queue head, and not iteration 277's stated Next. A genuine regression on the
+mission's own inbound-feedback channel, found first-party at Gate 0 while doing nothing more exotic
+than reading the inbox the protocol tells every session to read.
+
+**The instrument was the finding, and my first reading of it was false.** The SessionStart hook
+reported 4 unread. Exporting `AILANG_MESSAGES_STORE=gcp` returned the **same 4** — and so did a
+**deliberately bogus** store value, rc=0. That is rule 3a's broken-instrument signal rather than a
+measurement: the PATH binary (`v0.33.2`, commit `63e7909`) **ignores the selector entirely** and
+reads local SQLite while reporting success. A freshly built, correctly-stamped binary REFUSES the
+bogus value (`Error: openStore: unknown message store mode`). Two arms, differing rc, so it is the
+binary and not the code — the stale-binary class arriving at the one command whose whole purpose is
+to tell you where it read from. Against prod the canonical store then read **59** unread, not 4.
+
+**And the prescribed command itself was broken.** Bare `--unread` — the only form that spans inboxes
+nobody thought to name, which is precisely why `CLAUDE.md` leads with it — returned **rc=1,
+deterministic 2/2**, `FailedPrecondition` on a missing composite index. `--inbox <name> --unread`
+returned **rc=0**. So the workaround the docs explicitly call insufficient was the only path that
+worked, and the 59 included **16** substantive feedback items, **10** of them filed that morning.
+
+**My "just create it" reading was also nearly wrong, and the control is what caught it.** A first
+index listing showed two `status+created_at` indexes and I almost banked "it already exists"; scoped
+by collection they belong to `tasks` and `obs_chains`. `inbox_messages` carried exactly
+`to_inbox+status+created_at` and `to_inbox+created_at` — both `to_inbox`-prefixed, i.e. the
+*fallback's* indexes — in **both** terraform and prod. So this was never terraform/prod drift: the
+declaration was simply never written.
+
+**The doc defect is the part worth the row.** `docs/docs/guides/agent-messaging.md` described this
+exact defect in the **past tense**, citing `terraform/firestore.tf`. I measured that path ABSENT
+(0 `.tf` files tracked at `origin/dev`; positive control 1, negative control 0) and **corrected
+myself before acting on it** — it exists, in the `ailang-multivac` deploy repo, which the relative
+path does not say. But the substance still failed: the note landed at **19:10:48** (`6759ea4fa`),
+**five minutes before** the declaration it cites existed (`05a60f3`, **19:15:38**, authored by Mark),
+and **declaring is not applying** — no apply ran, and prod still had no index at **20:33**. A reader
+who hit `FailedPrecondition` and checked the guide would have concluded it was already handled.
+
+**Shipped**: the prod index (`status` ASC, `created_at` DESC) → **READY**; cross-inbox `--unread`
+verified **rc=0, 2/2, Unread: 59**, zero index errors, header naming prod. Docs PR
+**[#886](https://github.com/sunholo-data/ailang/pull/886)**: the note now separates *declared* from
+*live*, names the deploy repo, and gives the query as its own verification (rc=0 = live,
+`FailedPrecondition` = declared-and-unapplied); plus a new trap (guide 4 / `CLAUDE.md` 6) for the
+silent stale-binary selector, with the one-command control that distinguishes them.
+
+**My own process miss, recorded rather than smoothed.** I edited `ailang-multivac` without fetching
+it first and committed a duplicate of Mark's `05a60f3` — Gate 2's already-landed check applied to my
+own repo and not to the sibling I reached into. Reverted; that repo is byte-identical to upstream,
+**0** dirty, **0** ahead/behind, my duplicate resource absent and Mark's present. I also read
+`push rc=0` through a `tail` pipe — this file's own documented trap — and the true rc was **1**.
+
+**Flagged, not buried**: the prod index was created out of band, so upstream `messages_status_only`
+is not in terraform state and the next apply will hit `ALREADY_EXISTS` unless imported first:
+`terraform import google_firestore_index.messages_status_only projects/ailang-multivac/databases/(default)/collectionGroups/inbox_messages/indexes/CICAgNiroIEK`.
+Leaving the index in place keeps the channel open; deleting it to let Terraform re-create it would
+re-break the channel for an unknown window, so the import is the cheaper correction.
+
+**Routing evidence**: controller=`opus` task-class=mechanical+adjudication round1-score=n/a rounds=0
+corrections=0 designer=not-spawned planner=not-spawned executor=not-spawned evaluator=not-spawned
+metered=$0.00 of $5. Rotation pointer untouched (no designer run).
+
+**Gates**: `check-changelog`, `check-file-sizes`, `check-skills`, `check-tmpfile-hygiene` — all rc=0
+on **darwin/arm64** under a freshly built, correctly-stamped binary; other matrix legs unrun locally.
+No changelog entry, matching the closest analogue `1d7040de4` (docs-only, same area).
+
+**Ruled out**:
+- *"The index already exists"* — refuted by scoping the listing to its collection; the two
+  `status+created_at` indexes are `tasks` and `obs_chains`.
+- *"Terraform and prod have drifted"* — refuted; both carried the same two indexes, so nothing was
+  lost in an apply. The declaration was never written until Mark wrote it at 19:15.
+- *"`terraform/firestore.tf` does not exist"* — my own claim, refuted by my own search of the sibling
+  repos before I acted on it. The citation is cross-repo, not false.
+- *"`AILANG_MESSAGES_STORE` is being honoured because local and gcp agree"* — refuted by the bogus
+  value returning the identical output at rc=0.
+
+**Retro lane**: none — no skill edit. The candidate gap is *Gate 2's already-landed discipline
+(`git fetch` + origin queue tag + merged-PR search) is written entirely about the mission repo, and
+says nothing about a sibling repo an iteration reaches into — where the same duplicate-work failure
+is likelier, because the loop has no charter, no queue and no log for that repo.* **ONE**
+first-party instance; pre-registered so a second is recognisable.
+
+**Next**: `m-fmt-cognition-roundtrip-soundness` (a shipped soundness defect outranks the rest), then
+`m-firestore-index-provenance`.
+
+## 280 — 2026-08-26 — 38 files, 7 causes — and the one nobody would have looked for is a brace inside a comment
+
+**Picked**: iteration 279's stated Next, `m-fmt-attach-boundary-class`, ghost-disciplined first. Every
+claim in the row reproduced at HEAD `427514a2d` under a freshly built, ldflags-stamped binary: **38**
+files at rc=2, all *"comment at byte N could not be attached to any boundary"*, across the same **9**
+subtrees with the same per-subtree counts the row states. The arithmetic against iteration 277's
+`err=46` also reconciles: **45 = 38 + 7** rc=3 parse failures, and the 46th was `std/cognition.ail`,
+which iteration 279 fixed and which has now joined the drift set (341 → 342). Full scan of 450 files:
+**ok=63, drift=342, attach=38, parse-fail=7**.
+
+**The deliverable was classification, and it is measured rather than asserted.** 38 files reduce to
+**7 causes**. Each class has a minimal repro that `ailang check` accepts (rc=0) and `ailang fmt --check`
+refuses (rc=2), plus a second arm with the comment removed that returns rc=1 — **12 of 12 shapes
+DISCRIMINATE**, so the comment's POSITION is the cause in every class, never the surrounding syntax.
+Positive control: a leading comment above a top-level declaration is rc=0, so the instrument can see an
+attachable comment. Classes: sole-expression function body head/tail **11** · top-level tail **9** ·
+`tests [...]` list **7** · type-declaration body **6** · brackets-in-comment-text **3** ·
+signature↔`tests` gap **1** · `if`/`else` arm **1**.
+
+**My first classifier was wrong, and it is recorded rather than smoothed.** A regex/heuristic pass over
+machine-extracted context misfiled **3 of 38** and left 2 unclassified. Rather than keep patching the
+heuristic I re-derived the taxonomy from minimal repros against the formatter's own behaviour — rule
+3a(iii), prefer the tool that cannot miss. Two structural facts fell out and are the guidance for
+whoever fixes this: the registered multi-line child lists are exactly **four** (file top-level, braced
+`*ast.Block`, `*ast.Match` cases, let-chains — `internal/format/attach.go:106-268`), with `tests [...]`
+lists and type-declaration bodies appearing nowhere in `walkExpr`/`walkNode`; and a braced block with
+**≥2** statements attaches comments in every position while a block with **ONE** does not
+(`blk_lead`/`blk_mid`/`blk_tail` rc=1 against `blk1_lead`/`blk1_tail` rc=2), because `{ expr }` and
+`= expr` produce the same AST, so there is no `Block` node to own a boundary. A sole body expression
+that IS a let-chain attaches fine, which is why that class excludes them.
+
+**One of the seven is not a boundary at all, and it is the finding worth more than the classification.**
+`openBraceBefore` (`attach.go:411-419`) scans left byte-by-byte for the block's enclosing wall and skips
+only `a.env.inStringSpan(j)`. There is **no comment-span predicate anywhere in `internal/format`** —
+**0** occurrences against a control of **9** `inStringSpan` uses, negative control on an invented literal
+**0** — so a `{` or `[` inside COMMENT TEXT is read as the opening delimiter and the comment is orphaned.
+`WidenLeft` (`envelope.go:309-334`) has the identical shape, and its own doc comment at `envelope.go:324`
+reads *"Never widen into a literal region **or comment**"* above code that tests strings alone. Measured
+two-armed on byte-identical files differing only in one comment's text: `-- Header: {"alg":"RS256"}` →
+**rc=2** against a brace-free comment → **rc=1**; `-- Returns []` → **rc=2** against `-- Returns empty` →
+**rc=1**. A string literal containing `{` is correctly exempt, so this is specific to comments.
+Neutralising bracket characters in all comment text cures exactly **3 of the 38**, with the control (the
+same transformation on a currently-passing file) holding. Filed as
+`m-format-comment-brackets-break-wall-scan`. No amount of list registration fixes it, and it re-appears
+on any comment containing JSON, a record shape or an empty list.
+
+**A second, separable defect, found by refusing a convenient explanation.**
+`examples/runnable/typeclasses.ail` reports its failure at byte 282 with plenty of content after it,
+which contradicts the top-level-tail class. Inventing an eighth class would have been the cheap move;
+measuring gave a different answer. `printf '1 + 1\n-1 + 1\n'` formats to **`1 + 1 - 1 + 1`** — a
+top-level statement beginning with `-` is absorbed into the previous statement — while the control
+`1 + 1` / `2 + 1` round-trips as two statements. Confirmed on the real file two-armed: as-is the
+offender is byte **282**; with its single `-42 + 100` changed to `42 + 100` the offender moves to byte
+**2148**, the genuine file tail. So `typeclasses.ail` is an ordinary top-level-tail case, and the gluing
+is its own row (`m-parser-script-leading-minus-glues-statements`). It matters beyond the formatter:
+that file is a *teaching* example whose text documents `-42 + 100` with `-- Output: 58`, and
+`docs/LIMITATIONS.md:68-70` documents forgiving statement separators inside `{ }` blocks while saying
+nothing about top level.
+
+**Honest scope, stated with the counts rather than after them.** `ailang fmt --check` reports only the
+FIRST unattachable comment per file, so the 38 are **exemplars, not instances** — a fix for one class
+may expose another class's comment in the same file. What the counts establish is the class SET. The
+per-file assignment for the 35 non-bracket files is a reading of machine-extracted source context;
+every class's EXISTENCE is repro-measured, and the bracket class's membership was assigned mechanically
+by a cure-and-control transformation.
+
+**Shipped**: no source change. The row's deliverable was explicitly *classify all 38 before fixing any*,
+and with no independent judge available this iteration, shipping a formatter change on my own verdict
+alone would have been the weaker call. Charter row rewritten with the classification; two new rows
+filed on their own first-party evidence.
+
+**Dev health — the named red is still red and has grown.** SHA-addressed on `427514a2d`: **16** checks
+(control: parent **20**) with `SonarCloud Code Analysis: failure`. Walked back over 8 commits — green
+through `6193bb712`, `failure` from **`6759ea4fa`** onward, now **5** commits standing against the 3
+iteration 279 recorded. Condition read rather than inherited: **`new_coverage` 52.8% < 80**, not
+duplication. Non-required, so named and left as a queue row rather than made the pick.
+
+**Routing evidence**: controller=`opus` task-class=measurement+classification round1-score=n/a rounds=0
+corrections=1 (my own classifier, self-caught) designer=not-spawned planner=not-spawned
+executor=not-spawned evaluator=not-spawned metered=$0.00 of $5. Rotation pointer untouched (no designer
+run). Sub-agent routing unavailable for the **third consecutive iteration** — this session's operating
+instructions forbid the Agent tool unless Mark asks — so the roles table could not be exercised and no
+independent judge saw this work.
+
+**Gates**: `check-changelog`, `check-file-sizes`, `check-skills`, `check-tmpfile-hygiene` — all rc=0 on
+**darwin/arm64** under a freshly built, correctly-stamped binary; other matrix legs unrun locally. No
+changelog entry: docs-only, matching the closest analogue `1d7040de4`.
+
+**Ruled out**:
+- *"The 38 are one shape"* — refuted; 7 distinct causes, each independently repro'd.
+- *"They are all missing boundaries"* — refuted; 3 of 38 are a lexical scan defect that no boundary
+  registration would fix.
+- *"`typeclasses.ail` needs an eighth class"* — refuted by the leading-minus two-arm measurement; it is
+  an ordinary top-level-tail case.
+- *"A comment inside a braced block always attaches"* — refuted; it depends on the statement COUNT, and
+  a one-statement block has no `Block` node at all.
+- *"Brackets in strings have the same problem"* — refuted; `inStringSpan` covers them (`let s = "a { b"`
+  → rc=1). The gap is comments only.
+- *"My heuristic classifier's output can be banked"* — refuted by its own misfires; replaced with repros.
+
+**Retro lane**: none — no skill edit. The candidate gap is *a diagnostic that reports only the first
+offender per file makes a per-file count read as a per-instance count, so any classification built on it
+is a census of exemplars rather than of instances.* **ONE** first-party instance; pre-registered so a
+second is recognisable. Rule 3b(v)(a) covers `head -N` truncation and iteration 277 recorded the sibling
+case (a scan that aborts at its first error across FILES), but neither covers a per-item diagnostic that
+is itself first-only WITHIN an item.
+
+**Next**: fix `m-fmt-attach-boundary-class` by class, cheapest first — classes 4 (type bodies) and 3
+(`tests [...]`) are pure additions to the list enumerator — re-running the per-file scan after each so
+the residue is measured rather than predicted; then
+`m-format-comment-brackets-break-wall-scan`.
+
+---
+
+## 281 — 2026-08-26 — The queue's own plan for the formatter was built on a false premise, and following it would have shipped a change that silently deletes user comments
+
+**Picked**: `m-fmt-attach-boundary-class`, iteration 280's stated Next, whose deliverable was
+*"fix by class, cheapest first (4 and 3 are pure additions to the list enumerator)"*. Positionally
+ahead rows were left alone for the reasons prior iterations recorded (`m-sonar-…` is a non-required
+standing red; `m-launchd-…` a single-occurrence non-required red).
+
+**Reality check**: the row's facts reproduce EXACTLY at HEAD `2fc0c8b77` under a freshly built
+ldflags-stamped binary — of 450 `.ail` files under `examples` + `std`, **ok=63, drift=342,
+attach-refusal(rc=2)=38, parse-fail(rc=3)=7**, and all three minimal repros behave as documented
+(`check=0`/`fmt=2`, comment-removed arm `fmt=1`, positive control rc≠2). The row's *facts* were
+never the problem; its *implementation route* was, and Gate 2's ghost discipline does not cover a
+route, because a route is a prediction rather than a measurement.
+
+**Shipped**: parked — **no source change, deliberately**. The fix was implemented in full and then
+withdrawn on evidence. Enumerator groundwork (widening `MinAnchor`/`addList`/`subtreeEnd`/
+`openBraceBefore` from `ast.Node` to `any`, since `*ast.Constructor`/`*ast.RecordField`/`*ast.TestCase`
+carry a `Pos` but have no `Position()` — 0 of 4 — while `visitAnchors` is already reflective and
+`childSpan.node` is read in exactly ONE place) was verified behaviour-neutral, whole suite rc=0.
+Registering the class-3 and class-4 lists then moved every repro `fmt` **2 → 1**, and that improvement
+is FALSE: `TestCorpusCommentGate` reddened with `comment count changed 50 -> 17`, `43 -> 12`, `13 -> 9`.
+Two arms on one tree isolated it — **ARM A (TypeDecl only) rc=0 green, ARM B (`tests` list only) rc=1**,
+byte-identical DEFECT lines. Class 4 was then measured to have the same defect *which the corpus gate
+did not catch*: `std/dom.ail` **OLD rc=2 / zero output** → **NEW rc=0 / 54 → 50 comment lines**,
+`std/ai/streaming.ail` **135 → 132**, losses being exactly the ADT-variant descriptions. Complete scan
+(450 of 450, marker asserted): rc=2 **38 → 34** — four files cured by destroying comments in all four.
+Experiment restored from copies (never `git checkout --`); worktree **0 dirty** vs `origin/dev`.
+Record landed by PR; charter row corrected and `m-fmt-typedecl-printer-needs-multiline-emit` filed
+BLOCKED on `D-38`.
+
+**Routing evidence**: model=claude-opus-5 task-class=execute round1-score=n/a rounds=1 corrections=0
+  provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus metered=$0.00
+  <!-- DEVIATION, 4th consecutive iteration: designer/planner/executor/evaluator NOT spawned — this
+       session's operating instructions forbid the Agent tool unless the user requests it, so the
+       roles table could not be exercised and there was no independent judge. That is precisely why
+       the formatter change would have shipped on my own verdict alone; the repo's own corpus gate,
+       not a judge, is what caught the first half. Rotation pointer untouched; no Fable spend. -->
+
+**Ruled out**:
+- *"Classes 4 and 3 are pure additions to the list enumerator"* (iteration 280) — REFUTED for both.
+  Attachment and emission are COUPLED: `printer.algebraicType` is `strings.Join(parts, " | ")` and
+  `recordTypeString` returns a flat string, so a type-decl body has no emission points at all.
+- *"`fmt --check` rc improving 2 → 1 measures progress"* — REFUTED. rc=2 fails CLOSED (nothing
+  written); rc=0/1 with a dropped comment is strictly worse. Rc alone is not a safety signal for this
+  class of change; comment-count preservation is.
+- *"The corpus gate passing means the change is safe"* — REFUTED first-party: it passed for class 4
+  while class 4 was losing four comments in `std/dom.ail`.
+- *"Class 4 affects 6 files"* — the per-file class assignments are predictions; **4** files move.
+- An earlier scan diff showing only 2 changed files was computed at **442/450** with the done-marker
+  ABSENT, and was discarded as VOID rather than banked.
+
+**Retro lane**: none (no skill edit). Candidate gap now at **TWO** first-party instances and
+pre-registered: *a queue row's stated implementation ROUTE, written by an iteration that measured the
+diagnosis but never attempted the fix, is an unverified premise that ghost discipline does not catch —
+because every fact in the row reproduces.* Not edited this iteration because the running skill is
+already adrift from origin and a Gate-5 edit saved here would widen that gap.
+
+**Next**: `m-format-comment-brackets-break-wall-scan` (class 5 — purely lexical, needs no printer
+change and no ruling), then confirm class 2's owner is the already-registered file top-level list.
+`m-fmt-typedecl-printer-needs-multiline-emit` waits on `D-38`.
