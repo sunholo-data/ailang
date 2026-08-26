@@ -92,11 +92,12 @@ const pkgInboxPrefix = "pkg:"
 func humanTriageInbox(inbox string) bool {
 	return inbox == "public-feedback" ||
 		inbox == "user" ||
+		inbox == "approvals" ||
 		strings.HasPrefix(inbox, pkgInboxPrefix)
 }
 
 // messageNotification builds a Notification for an inbox message. Human-triaged
-// inboxes (public-feedback, user, pkg:*) get a dedicated 🌐 prefix and the
+// inboxes (public-feedback, user, approvals, pkg:*) get a dedicated prefix and the
 // "public-feedback" EventType, which the Discord allow-list accepts; everything
 // else uses the generic shape and stays EventType "message" (macOS only, dropped
 // by Discord).
@@ -109,13 +110,25 @@ func messageNotification(m *messaging.InboxMessage) (notify.Notification, bool) 
 		// label an internal notice as external — the title is what a person reads
 		// in Discord, and mislabelling it costs trust in the channel.
 		title := "🌐 External feedback"
-		if m.ToInbox == "user" {
+		body := fmt.Sprintf("[%s] %s", m.ToInbox, m.Title)
+		switch m.ToInbox {
+		case "user":
 			title = "📥 For you"
+		case "approvals":
+			// M-MESSAGE-PLANE-FAIL-LOUD follow-up (audited 2026-08-26): approval
+			// requests are the one message class that BY DEFINITION needs the
+			// human, and they were the one class not reaching Discord — a live
+			// "Approval Required" sat unread for 3h while feedback tickets pinged
+			// fine. Carry the payload too: it holds the exact
+			// `ailang coordinator approve <id>` command, so the notification is
+			// actionable from a phone rather than a prompt to go find a terminal.
+			title = "🔔 Approval needed"
+			body = fmt.Sprintf("%s — %s", m.Title, m.Payload)
 		}
 		return notify.Notification{
 			Title:     title,
 			Subtitle:  m.FromAgent,
-			Body:      truncate(fmt.Sprintf("[%s] %s", m.ToInbox, m.Title), messageBodyMax),
+			Body:      truncate(body, messageBodyMax),
 			Sound:     "Pop",
 			Group:     "ailang-public-feedback",
 			URL:       inboxURL(m.ToInbox),

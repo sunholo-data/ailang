@@ -144,6 +144,7 @@ func TestIsExternalFeedbackInbox(t *testing.T) {
 		"pkg:sunholo/ailang": true,
 		"pkg:":               true,
 		"user":               true, // the human's own inbox — Discord, not an agent
+		"approvals":          true, // coordinator approval requests — the definitional human decision
 		"controlplane":       false,
 		"sprint-executor":    false,
 		"feedback":           false, // note: not the literal "public-feedback"
@@ -153,6 +154,32 @@ func TestIsExternalFeedbackInbox(t *testing.T) {
 		if got := humanTriageInbox(inbox); got != want {
 			t.Errorf("humanTriageInbox(%q) = %v, want %v", inbox, got, want)
 		}
+	}
+}
+
+// M-MESSAGE-PLANE-FAIL-LOUD follow-up: approval requests must reach Discord and
+// must carry the approve command so the notification is actionable. Audited
+// 2026-08-26: this was the one human-decision inbox NOT in humanTriageInbox — a
+// live "Approval Required" sat unread for ~3h while feedback tickets pinged fine.
+func TestMessageNotification_ApprovalsReachDiscordWithCommand(t *testing.T) {
+	n, fire := messageNotification(&messaging.InboxMessage{
+		MessageID: "msg_appr",
+		ToInbox:   "approvals",
+		FromAgent: "coordinator",
+		Title:     "Approval Required: Routing probe",
+		Payload:   "Review and approve via dashboard or CLI:\n`ailang coordinator approve appr-123`",
+	})
+	if !fire {
+		t.Fatal("expected fire=true")
+	}
+	if n.EventType != "public-feedback" {
+		t.Errorf("approvals must use the Discord-allow-listed EventType, got %q", n.EventType)
+	}
+	if !strings.Contains(n.Title, "Approval needed") {
+		t.Errorf("expected the approval title, got %q", n.Title)
+	}
+	if !strings.Contains(n.Body, "ailang coordinator approve appr-123") {
+		t.Errorf("body must carry the approve command so the ping is actionable from a phone, got %q", n.Body)
 	}
 }
 
