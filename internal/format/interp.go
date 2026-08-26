@@ -167,6 +167,11 @@ func (p *printer) holeText(e ast.Expr) (string, bool) {
 	if err := sub.expr(e, precLowest); err != nil {
 		return "", false
 	}
+	// The preceding error path deliberately discards sub.expr's concrete error;
+	// only this path propagates a successful sub.expr with measurementErr set.
+	// TestMeasurementErrorAlwaysAccompaniesRenderError measured that live cell
+	// empty across 312 injected corpus sites. Keep the propagation as fail-closed
+	// defence; M2's continuation layout is the change most likely to make it live.
 	if sub.measurementErr != nil {
 		p.measurementErr = sub.measurementErr
 		return "", false

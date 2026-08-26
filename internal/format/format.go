@@ -102,6 +102,14 @@ func Source(program *ast.Program, options Options) ([]byte, error) {
 	if err := p.file(program.File); err != nil {
 		return nil, err
 	}
+	// Redundant on the measured domain: expr's error sources are AST-shape
+	// errors, and TestMeasurementErrorAlwaysAccompaniesRenderError injects
+	// ast.Error at 312 corpus sites; measurementErr and p.file errors coincide
+	// every time, leaving the measurementErr-without-file-error cell empty. Keep
+	// this fail-closed defence deliberately: silent wrong formatter output is the
+	// worst failure. Mutant B is expected to survive today. M2's continuation
+	// layout is the change most likely to make this check live, at which point
+	// that test's render-error assertion will fail.
 	if p.measurementErr != nil {
 		return nil, p.measurementErr
 	}
@@ -146,6 +154,10 @@ func SourceWithComments(program *ast.Program, source []byte, options Options) ([
 	if err := p.file(program.File); err != nil {
 		return nil, err
 	}
+	// See TestMeasurementErrorAlwaysAccompaniesRenderError: this is measured-
+	// redundant across 312 injected corpus sites, but retained as fail-closed
+	// defence. Mutant B is expected to survive until a change such as M2's
+	// continuation layout makes measurement failure independent of p.file error.
 	if p.measurementErr != nil {
 		return nil, p.measurementErr
 	}
