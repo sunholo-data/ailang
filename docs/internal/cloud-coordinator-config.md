@@ -1,5 +1,9 @@
 # Cloud coordinator config: how it works, how to update it
 
+> For the wider picture — which projects exist, which switch moves which backend,
+> and what each machine is wired to — see
+> [message-plane-topology.md](./message-plane-topology.md).
+
 The cloud coordinator daemon (Cloud Run service `ailang{,-dev}-coordinator`)
 loads its agent registry from a per-project GCS bucket, mounted via gcsfuse.
 This doc covers:

@@ -70,6 +70,12 @@ AILANG_MESSAGES_STORE=local ailang messages list --unread
    `unknown message store mode`; a normal listing means you are on local. A non-local listing also
    names its store in the header — no `store: gcp (...)` header, no cloud. Build a fresh binary to
    a scratch dir and prepend it to PATH rather than `make quick-install`.
+   (Confirmed on the Studio 2026-08-26: its v0.33.2 binary made both exports inert and it kept
+   reading local SQLite — the missing `store:` header was the only visible tell.)
+
+Topology — which projects exist, which switch moves which backend, what each machine is
+wired to, and how package feedback flows end to end:
+[docs/internal/message-plane-topology.md](docs/internal/message-plane-topology.md).
 
 **Do not export `AILANG_STORAGE`** to reach the cloud inbox. It is a process-wide switch over *all
 three* backends — coordinator, messaging, and observatory
