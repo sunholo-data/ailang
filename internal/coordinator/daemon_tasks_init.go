@@ -60,12 +60,28 @@ func (d *Daemon) initTaskProcessing() error {
 		d.enableFeedbackGate(coordConfig.FeedbackGate)
 	}
 
-	// Build agent registry
+	// Build agent registry — literal entries plus pipeline expansion
+	// (M-PIPELINE-RECONCILIATION M4). Expansion failure is fatal via the
+	// initTaskProcessing error path (M1): a config whose pipelines cannot
+	// expand is a config we do not understand, and half-loading it would serve
+	// some inboxes and silently drop others.
 	d.agentRegistry = NewAgentRegistry()
 	for _, agent := range coordConfig.Agents {
 		if regErr := d.agentRegistry.Register(agent); regErr != nil {
 			d.logger.Printf("Warning: Failed to register agent %q: %v", agent.ID, regErr)
 		}
+	}
+	expandedAgents, expErr := coordConfig.ExpandPipelines()
+	if expErr != nil {
+		return fmt.Errorf("pipeline expansion failed: %w", expErr)
+	}
+	for _, agent := range expandedAgents {
+		if regErr := d.agentRegistry.Register(agent); regErr != nil {
+			d.logger.Printf("Warning: Failed to register pipeline agent %q: %v", agent.ID, regErr)
+		}
+	}
+	if len(expandedAgents) > 0 {
+		d.logger.Printf("Pipeline expansion: %d agent(s) from %d pipeline(s)", len(expandedAgents), len(coordConfig.Pipelines))
 	}
 	// M-MESSAGE-PLANE-FAIL-LOUD M2 (D2): declare the inboxes that are
 	// deliberately served by no agent, so an unrouted inbox is distinguishable

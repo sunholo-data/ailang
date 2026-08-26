@@ -36,6 +36,12 @@ type CoordinatorConfig struct {
 	// here is what makes "unrouted" mean INTENDED rather than FORGOTTEN.
 	TriageOnlyInboxes []string `yaml:"triage_only_inboxes" json:"triage_only_inboxes,omitempty"`
 
+	// Pipelines declare a stage chain once and bind it per project
+	// (M-PIPELINE-RECONCILIATION M4, D2). ExpandPipelines materializes bindings
+	// into AgentConfigs at load time; expanded agents behave identically to
+	// hand-written entries.
+	Pipelines []PipelineConfig `yaml:"pipelines" json:"pipelines,omitempty"`
+
 	DefaultProvider string            `yaml:"default_provider" json:"default_provider"`
 	ClaudePath      string            `yaml:"claude_path" json:"claude_path,omitempty"` // Explicit path to Claude CLI binary (empty = auto-detect: native > PATH > NVM)
 	MergeBranch     string            `yaml:"merge_branch" json:"merge_branch"`         // Target branch for approvals (default: "dev")
@@ -614,13 +620,29 @@ func LoadAgentRegistry() (*AgentRegistry, error) {
 		return nil, fmt.Errorf("failed to load coordinator config: %w", err)
 	}
 
+	return buildRegistryFromConfig(cfg)
+}
+
+// buildRegistryFromConfig registers literal agents AND pipeline-expanded ones
+// (M-PIPELINE-RECONCILIATION M4). Expansion errors are fatal: a config whose
+// pipelines cannot expand is a config we do not understand.
+func buildRegistryFromConfig(cfg *CoordinatorConfig) (*AgentRegistry, error) {
 	registry := NewAgentRegistry()
 	for _, agent := range cfg.Agents {
 		if err := registry.Register(agent); err != nil {
 			return nil, fmt.Errorf("failed to register agent %q: %w", agent.ID, err)
 		}
 	}
-
+	expanded, err := cfg.ExpandPipelines()
+	if err != nil {
+		return nil, fmt.Errorf("pipeline expansion failed: %w", err)
+	}
+	for _, agent := range expanded {
+		if err := registry.Register(agent); err != nil {
+			return nil, fmt.Errorf("failed to register pipeline agent %q: %w", agent.ID, err)
+		}
+	}
+	registry.SetTriageOnlyInboxes(cfg.TriageOnlyInboxes)
 	return registry, nil
 }
 
@@ -630,15 +652,7 @@ func LoadAgentRegistryFrom(configPath string) (*AgentRegistry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load coordinator config from %q: %w", configPath, err)
 	}
-
-	registry := NewAgentRegistry()
-	for _, agent := range cfg.Agents {
-		if err := registry.Register(agent); err != nil {
-			return nil, fmt.Errorf("failed to register agent %q: %w", agent.ID, err)
-		}
-	}
-
-	return registry, nil
+	return buildRegistryFromConfig(cfg)
 }
 
 // SampleAgentConfig returns a sample configuration string for documentation.
