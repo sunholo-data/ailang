@@ -1,6 +1,6 @@
 # M-PIPELINE-RECONCILIATION: one pipeline definition, two execution lanes
 
-**Status**: Planned — awaiting quorum + Mark's freeze decisions
+**Status**: Planned — quorum rounds spent (see Quorum Record); awaiting Mark's D1–D4 ratification
 **Target**: v0.35.0
 **Priority**: P1 — every divergence here is a place the two lanes give different answers to the same question
 **Estimated**: 5–7 days across three phases
@@ -128,13 +128,28 @@ both. D4(b) — the `approvals` inbox just became the notification spine; make i
 
 ## Solution Design
 
-### Phase 1 — evaluation before approval (D1) — ~1 day if (a)
+### Phase 1 — evaluation before approval (D1) — ~2 days under (b)
 
-Per D1(a): the sprint-executor **cloud directive** (not the shared skill — Lane A runs the
-evaluator itself and must not double-run) gains a final step: run the sprint-evaluator skill
-against the worktree, write the scored verdict into the completion payload. The approval request
-then carries `evaluation: PASS 84/100` (or the failure detail) into the `approvals` inbox →
-Discord. A FAIL does not block — it informs; blocking thresholds are a later knob.
+Evaluation is a **discrete stage in both lanes** — Lane A already runs it that way; Lane B gets
+the same stage, not a prompt-embedded imitation of it. Mechanics per D1(b):
+
+1. `sprint-executor` auto-approves the executor→evaluator handoff **only** — justified because
+   the evaluator is read-only: it assesses the pushed branch and merges nothing.
+2. The evaluator task scores the branch against the sprint plan and **attaches its verdict to
+   the still-pending merge approval** (new code: an `evaluation` field on the approval request,
+   updatable by correlation id). The approval payload — which since `6345f2dc1` is what lands in
+   Discord — then reads `evaluation: PASS 84/100` or the failure detail.
+
+**Failure semantics (closed type, absence unrepresentable):**
+
+- Verdict ∈ `PASS(score)` | `FAIL(score, reasons)` | `UNAVAILABLE(reason)`.
+- Evaluator error, timeout, or an unparsable report ⇒ `UNAVAILABLE(reason)` is written to the
+  approval — never a silently missing field.
+- `FAIL` and `UNAVAILABLE` **block every automatic progression** (auto_merge, any downstream
+  handoff) — typed, per A11.
+- Neither ever blocks the *human* gate: the approval still reaches Mark, prominently marked. A
+  dead evaluator must not hide work from the person; availability of the human gate outranks
+  completeness of the machine one.
 
 Note: the `ailang_bootstrap` plugin lacks `sprint-evaluator` (verified — plugin has 7 skills,
 evaluator absent), but cloud jobs clone the repo, whose `.claude/skills/sprint-evaluator` is
@@ -231,7 +246,19 @@ Run 2026-08-26 at HEAD `7f5dfac84`; config generation 1787758575840728.
     `UNAVAILABLE`, automatic-progression blocking, human gate never blocked.
   - `gemini-3-1-pro`: recommending D1(a) maintained two pipeline topologies at the stage under
     unification. **Accepted** → recommendation flipped to D1(b); (a) marked rejected.
-- Round 2: see below (re-quorum ONCE per the guardrail).
+- **Round 2 (2026-08-26T15:38Z): BLOCKED** — artifact
+  `.ailang/state/mission-quorum/m-pipeline-reconciliation-2026-08-26T15-38-17Z.json`.
+  Both reviewers caught the same thing: the round-1 Phase-1 rewrite had **silently no-opped** —
+  the edit script's `replace()` for that one section carried no assert, its anchor missed by one
+  word ("double-run" vs "double-evaluate"), and the doc shipped with D1(b) frozen while Phase 1
+  still prescribed D1(a). The objection was correct and purely mechanical; the authored fix is
+  now actually in the file, grep-verified in both directions (stale strings 0, new strings
+  present).
+- **Re-quorum-ONCE guardrail is spent.** Per the skill, a still-blocked doc is handed to the
+  human with its gaps labelled rather than ground through further rounds. Status:
+  **pending Mark's ratification** of D1–D4 — which the freeze table needed anyway.
+- Meta-note the loop should keep: both failures this doc suffered (an unasserted edit, a
+  fail-loud doc with a silent failure mode) are instances of its own subject.
 
 ## Related Documents
 
