@@ -14,8 +14,7 @@
 -- Requires: FS capability (--caps FS)
 
 module std/package
-
-import std/result(Result, Ok, Err)
+import std/result (Result, Ok, Err)
 
 -- Resolve an asset shipped inside an installed package.
 -- pkg_name must be the canonical vendor/name (e.g. "sunholo/motoko_ext_mcp").
@@ -28,5 +27,4 @@ import std/result(Result, Ok, Err)
 --     Ok(p)  => spawnNode(p),
 --     Err(e) => Delegate
 --   }
-export func assetPath(pkg_name: string, rel_path: string) -> Result[string, string] ! {FS} =
-  _pkg_asset_path(pkg_name, rel_path)
+export func assetPath(pkg_name: string, rel_path: string) -> Result[string, string] ! {FS} = _pkg_asset_path(pkg_name, rel_path)

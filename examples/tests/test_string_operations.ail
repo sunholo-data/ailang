@@ -8,8 +8,7 @@ pure func concat(a: string, b: string) -> string
     (("test", ""), "test"),
     (("", ""), ""),
     (("a", "b"), "ab")
-  ]
-{
+  ] {
   a ++ b
 }
 
@@ -21,8 +20,7 @@ pure func stringEq(a: string, b: string) -> bool
     (("", ""), true),
     (("a", "A"), false),
     (("test", "test"), true)
-  ]
-{
+  ] {
   a == b
 }
 
@@ -34,8 +32,7 @@ pure func stringNeq(a: string, b: string) -> bool
     (("", ""), false),
     (("a", "A"), true),
     (("test", "test"), false)
-  ]
-{
+  ] {
   a != b
 }
 
@@ -47,8 +44,7 @@ pure func isEmpty(s: string) -> bool
     ("hello", false),
     (" ", false),
     ("test string", false)
-  ]
-{
+  ] {
   s == ""
 }
 
@@ -60,7 +56,6 @@ pure func startsWithHello(s: string) -> bool
     ("goodbye", false),
     ("", false),
     ("hell", false)
-  ]
-{
+  ] {
   s == "hello" || s == "hello world"
 }

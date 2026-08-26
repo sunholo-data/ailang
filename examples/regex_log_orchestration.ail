@@ -12,7 +12,6 @@
 -- Run: ailang run --caps IO examples/regex_log_orchestration.ail
 
 module examples/regex_log_orchestration
-
 import std/io (println)
 import std/regex as R
 import std/string (split)
@@ -20,25 +19,23 @@ import std/list (nth_or, forEachE)
 import std/result (Ok, Err)
 import std/option (Some, None)
 
-export func noGroup() -> {start: int, end: int, text: string} = {
-  {start: -1, end: -1, text: ""}
+export func noGroup() -> { start: int, end: int, text: string } = {
+  { start: -1, end: -1, text: "" }
 }
 
 export func main() -> () ! {IO} = {
-  let logs = "[INFO] service started\n[ERROR] disk full\ngarbage line\n[WARN] low memory";
+  let logs = "[INFO] service started\n[ERROR] disk full\ngarbage line\n[WARN] low memory"
   match R.compile("^\\[([A-Z]+)\\]\\s+(.*)$") {
     Err(e) => println("bad pattern: ${e}"),
     Ok(re) => {
-      println("routing log lines:");
+      println("routing log lines:")
       -- Parse "[LEVEL] body", alert on ERROR, drop unparseable lines.
       forEachE(\line. match R.findFirst(re, line) {
         None => println("  (skipped unstructured line: '${line}')"),
         Some(m) => {
-          let level = nth_or(m.groups, 1, noGroup()).text;
-          let body = nth_or(m.groups, 2, noGroup()).text;
-          if level == "ERROR"
-            then println("  ALERT [${level}]: ${body}")
-            else println("  ok    [${level}]: ${body}")
+          let level = (nth_or(m.groups, 1, noGroup())).text
+          let body = (nth_or(m.groups, 2, noGroup())).text
+          if level == "ERROR" then println("  ALERT [${level}]: ${body}") else println("  ok    [${level}]: ${body}")
         }
       }, split(logs, "\n"))
     }

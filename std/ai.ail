@@ -48,7 +48,6 @@
 -- declare an `[ai_provider.streaming]` sub-block consumed by std/ai/streaming.
 
 module std/ai
-
 import std/result (Result, Ok, Err)
 
 -- ============================================================================
@@ -64,11 +63,7 @@ import std/result (Result, Ok, Err)
 --   message   : human-readable, may include provider name verbatim
 --   retryable : true for transient/network/load conditions; false for
 --               configuration / auth / schema mismatches
-export type AIError = {
-  code: string,
-  message: string,
-  retryable: bool
-}
+export type AIError = { code: string, message: string, retryable: bool }
 
 -- ToolCall is one tool invocation emitted by the model in a step response.
 -- The host dispatches it (looking up `name` in the registered tool catalog),
@@ -77,20 +72,13 @@ export type AIError = {
 --
 -- arguments is JSON-encoded as a string — caller decodes per the advertised
 -- parameters schema.
-export type ToolCall = {
-  id: string,
-  name: string,
-  arguments: string
-}
+export type ToolCall = { id: string, name: string, arguments: string }
 
 -- ImagePart is one vision-input image attached to a Message
 -- (M-STD-AI-VISION-INPUT, v0.30.0).
 --   source : base64 payload or data-URI (local-path sources are a follow-up)
 --   mime   : IANA media type, e.g. "image/png", "image/jpeg"
-export type ImagePart = {
-  source: string,
-  mime: string
-}
+export type ImagePart = { source: string, mime: string }
 
 -- Message is one entry in a multi-turn conversation.
 --   role         : "user" | "assistant" | "tool" | "system"
@@ -100,21 +88,11 @@ export type ImagePart = {
 --   tool_call_id : "tool" role only — references a prior ToolCall.id
 --   images       : vision-input images for this message; [] = text-only
 --                  (required field — AILANG records are closed)
-export type Message = {
-  role: string,
-  content: string,
-  tool_calls: [ToolCall],
-  tool_call_id: string,
-  images: [ImagePart]
-}
+export type Message = { role: string, content: string, tool_calls: [ToolCall], tool_call_id: string, images: [ImagePart] }
 
 -- ToolSchema declares one tool the model may call. Parameters is the raw
 -- JSON Schema string (same shape as Request.ResponseSchema).
-export type ToolSchema = {
-  name: string,
-  description: string,
-  parameters: string
-}
+export type ToolSchema = { name: string, description: string, parameters: string }
 
 -- CacheBreakpoint is one opt-in prompt-cache hint (M-AI-PROMPT-CACHING, v0.18.4).
 -- Empty list = no caching, bit-for-bit identical wire shape to today.
@@ -134,10 +112,7 @@ export type ToolSchema = {
 --   Gemini:    NO-OP for v0.18.4. Explicit CachedContent API deferred.
 --   OpenRouter: dispatches based on model-string prefix.
 --   Ollama:    silent NO-OP (local model).
-export type CacheBreakpoint = {
-  position: string,
-  ttl: string
-}
+export type CacheBreakpoint = { position: string, ttl: string }
 
 -- StepResult is what one agent turn produces. When tool_calls is non-empty,
 -- the loop driver should dispatch each ToolCall, append the results as
@@ -151,15 +126,7 @@ export type CacheBreakpoint = {
 -- cache_read only (their APIs don't surface a separate cache-write count);
 -- providers without prompt caching leave both at 0. Useful for eval-harness
 -- cost telemetry that distinguishes cold-cache vs warm-cache per-step costs.
-export type StepResult = {
-  message: Message,
-  tool_calls: [ToolCall],
-  finish_reason: string,
-  input_tokens: int,
-  output_tokens: int,
-  cache_read_input_tokens: int,
-  cache_creation_input_tokens: int
-}
+export type StepResult = { message: Message, tool_calls: [ToolCall], finish_reason: string, input_tokens: int, output_tokens: int, cache_read_input_tokens: int, cache_creation_input_tokens: int }
 
 -- ============================================================================
 -- Result-returning single-shot calls (typed errors)
@@ -172,23 +139,18 @@ export type StepResult = {
 
 -- callResult: Result-returning variant of call.
 -- On success returns Ok(text); on failure returns Err(AIError).
-export func callResult(input: string) -> Result[string, AIError] ! {AI} =
-  _ai_call_result(input)
+export func callResult(input: string) -> Result[string, AIError] ! {AI} = _ai_call_result(input)
 
 -- callJsonResult: Result-returning variant of callJson.
 -- Same schema-enforced JSON output, but typed errors via Err(AIError).
-export func callJsonResult(input: string, schema: string)
-  -> Result[string, AIError] ! {AI} =
-  _ai_call_json_result(input, schema)
+export func callJsonResult(input: string, schema: string) -> Result[string, AIError] ! {AI} = _ai_call_json_result(input, schema)
 
 -- callJsonSimpleResult: Result-returning variant of callJsonSimple.
 -- Same no-schema raw-JSON-string output, but typed errors via Err(AIError).
 -- Prefer this over callJsonSimple on the high-volume extraction path so a
 -- transient provider 5xx returns a catchable Err(AIError{retryable}) instead
 -- of crashing the host with an uncaught {AI} effect error.
-export func callJsonSimpleResult(input: string)
-  -> Result[string, AIError] ! {AI} =
-  _ai_call_json_simple_result(input)
+export func callJsonSimpleResult(input: string) -> Result[string, AIError] ! {AI} = _ai_call_json_simple_result(input)
 
 -- ============================================================================
 -- Multi-turn / tool-aware step
@@ -200,12 +162,7 @@ export func callJsonSimpleResult(input: string)
 -- appended as tool-role messages.
 --
 -- Pass model="" to use the handler-bound model.
-export func step(
-  model: string,
-  messages: [Message],
-  tools: [ToolSchema]
-) -> Result[StepResult, AIError] ! {AI} =
-  _ai_step(model, messages, tools)
+export func step(model: string, messages: [Message], tools: [ToolSchema]) -> Result[StepResult, AIError] ! {AI} = _ai_step(model, messages, tools)
 
 -- stepWithCache: cache-aware variant of step (M-AI-PROMPT-CACHING, v0.18.4).
 --
@@ -222,13 +179,7 @@ export func step(
 --   }
 --
 -- See CacheBreakpoint type for per-provider behavior.
-export func stepWithCache(
-  model: string,
-  messages: [Message],
-  tools: [ToolSchema],
-  cache_breakpoints: [CacheBreakpoint]
-) -> Result[StepResult, AIError] ! {AI} =
-  _ai_step_with_cache(model, messages, tools, cache_breakpoints)
+export func stepWithCache(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint]) -> Result[StepResult, AIError] ! {AI} = _ai_step_with_cache(model, messages, tools, cache_breakpoints)
 
 -- ============================================================================
 -- Streaming variant (M-AI-STEP-STREAMING, v0.18.7)
@@ -278,15 +229,7 @@ export func stepWithCache(
 --   Ollama / config-driven providers:
 --     NO-OP fallback — calls stepWithCache and fires one synthetic
 --     ContentDelta(full_text) + one Usage. No ThinkingDelta surfaces.
-export type StreamChunk =
-    ContentDelta(string)
-  | ThinkingDelta(string)
-  | Usage({
-      input_tokens: int,
-      output_tokens: int,
-      cache_read_input_tokens: int,
-      cache_creation_input_tokens: int
-    })
+export type StreamChunk = ContentDelta(string) | ThinkingDelta(string) | Usage({ input_tokens: int, output_tokens: int, cache_read_input_tokens: int, cache_creation_input_tokens: int })
 
 -- stepWithStream: streaming variant of stepWithCache.
 --
@@ -327,24 +270,14 @@ export type StreamChunk =
 --
 -- For providers without native streaming, the callback fires exactly twice:
 -- once with ContentDelta(full_text) then once with Usage(...).
-export func stepWithStream(
-  model: string,
-  messages: [Message],
-  tools: [ToolSchema],
-  cache_breakpoints: [CacheBreakpoint],
-  on_chunk: (StreamChunk) -> () ! {IO}
-) -> Result[StepResult, AIError] ! {AI} =
-  _ai_step_with_stream(model, messages, tools, cache_breakpoints, on_chunk)
+export func stepWithStream(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint], on_chunk: StreamChunk -> () ! {IO}) -> Result[StepResult, AIError] ! {AI} = _ai_step_with_stream(model, messages, tools, cache_breakpoints, on_chunk)
 
 -- RecordedStream is what stepWithStreamRecorded returns: the exact ordered
 -- list of observed chunks plus the final typed outcome. `chunks` is populated
 -- on BOTH outcomes — a stream that fails part-way still returns every chunk
 -- observed before the failure, which is the case a deterministic recorder
 -- most depends on.
-export type RecordedStream = {
-  chunks: [StreamChunk],
-  outcome: Result[StepResult, AIError]
-}
+export type RecordedStream = { chunks: [StreamChunk], outcome: Result[StepResult, AIError] }
 
 -- stepWithStreamRecorded: stepWithStream that also returns what it streamed.
 --
@@ -352,14 +285,7 @@ export type RecordedStream = {
 -- rendering is unchanged. The returned `chunks` is an exact, non-duplicating
 -- record of the same sequence, which lets a caller record a live exchange and
 -- replay it deterministically without widening the callback's effect row.
-export func stepWithStreamRecorded(
-  model: string,
-  messages: [Message],
-  tools: [ToolSchema],
-  cache_breakpoints: [CacheBreakpoint],
-  on_chunk: (StreamChunk) -> () ! {IO}
-) -> RecordedStream ! {AI} =
-  _ai_step_with_stream_recorded(model, messages, tools, cache_breakpoints, on_chunk)
+export func stepWithStreamRecorded(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint], on_chunk: StreamChunk -> () ! {IO}) -> RecordedStream ! {AI} = _ai_step_with_stream_recorded(model, messages, tools, cache_breakpoints, on_chunk)
 
 -- runTools: convenience loop driver for multi-turn tool dispatch.
 --
@@ -380,29 +306,14 @@ export func stepWithStreamRecorded(
 -- Effect row: declared as ! {AI}. The dispatch callback's effects (if any)
 -- propagate via row polymorphism — pass a dispatch with effects {FS, Process}
 -- and the runTools call site will infer ! {AI, FS, Process} automatically.
-export func runTools(
-  model: string,
-  messages: [Message],
-  tools: [ToolSchema],
-  dispatch: (ToolCall) -> string,
-  step_budget: int
-) -> Result[[Message], AIError] ! {AI} {
-  if step_budget <= 0
-  then Err({
-    code: "Internal",
-    message: "runTools: step budget exhausted",
-    retryable: false
-  })
-  else match step(model, messages, tools) {
+export func runTools(model: string, messages: [Message], tools: [ToolSchema], dispatch: ToolCall -> string, step_budget: int) -> Result[[Message], AIError] ! {AI} {
+  if step_budget <= 0 then Err({ code: "Internal", message: "runTools: step budget exhausted", retryable: false }) else match step(model, messages, tools) {
     Err(e) => Err(e),
-    Ok(result) =>
-      if result.finish_reason != "tool_calls"
-      then Ok(messages ++ [result.message])
-      else {
-        let toolMessages = dispatchToolCalls(result.tool_calls, dispatch);
-        let nextMessages = (messages ++ [result.message]) ++ toolMessages;
-        runTools(model, nextMessages, tools, dispatch, step_budget - 1)
-      }
+    Ok(result) => if result.finish_reason != "tool_calls" then Ok(messages ++ [result.message]) else {
+      let toolMessages = dispatchToolCalls(result.tool_calls, dispatch)
+      let nextMessages = messages ++ [result.message] ++ toolMessages
+      runTools(model, nextMessages, tools, dispatch, step_budget - 1)
+    }
   }
 }
 
@@ -413,21 +324,12 @@ export func runTools(
 --
 -- Note: not exported — internal helper for runTools. Effect row inferred
 -- from dispatch's row.
-func dispatchToolCalls(
-  calls: [ToolCall],
-  dispatch: (ToolCall) -> string
-) -> [Message] {
+func dispatchToolCalls(calls: [ToolCall], dispatch: ToolCall -> string) -> [Message] {
   match calls {
     [] => [],
     [call, ...rest] => {
-      let result = dispatch(call);
-      let msg: Message = {
-        role: "tool",
-        content: result,
-        tool_calls: [],
-        tool_call_id: call.id,
-        images: []
-      };
+      let result = dispatch(call)
+      let msg: Message = { role: "tool", content: result, tool_calls: [], tool_call_id: call.id, images: [] };
       [msg] ++ dispatchToolCalls(rest, dispatch)
     }
   }
@@ -445,14 +347,12 @@ export func call(input: string) -> string ! {AI} = _ai_call(input)
 -- callJson: Call the AI oracle requesting schema-enforced JSON output
 -- The provider enforces the schema on the response.
 -- Returns the raw JSON string. Use std/json.decode to parse.
-export func callJson(input: string, schema: string) -> string ! {AI} =
-  _ai_call_json(input, schema)
+export func callJson(input: string, schema: string) -> string ! {AI} = _ai_call_json(input, schema)
 
 -- callJsonSimple: Call the AI oracle requesting valid JSON (no schema)
 -- The provider returns valid JSON but without schema enforcement.
 -- Returns the raw JSON string. Use std/json.decode to parse.
-export func callJsonSimple(input: string) -> string ! {AI} =
-  _ai_call_json_simple(input)
+export func callJsonSimple(input: string) -> string ! {AI} = _ai_call_json_simple(input)
 
 -- callImage: Generate an image via AI and save to file
 -- Calls an image generation model (e.g., Gemini gemini-2.5-flash-image)
@@ -460,12 +360,10 @@ export func callJsonSimple(input: string) -> string ! {AI} =
 -- Options is a JSON string: {"aspect_ratio": "16:9", "mime_type": "image/png"}
 -- Returns the output path on success.
 -- Requires both AI and FS capabilities.
-export func callImage(prompt: string, output_path: string, options: string) -> string ! {AI, FS} =
-  _ai_call_image(prompt, output_path, options)
+export func callImage(prompt: string, output_path: string, options: string) -> string ! {AI, FS} = _ai_call_image(prompt, output_path, options)
 
 -- callImageBase64: Generate an image via AI and return as base64 JSON
 -- Returns a JSON string: {"base64": "...", "mime_type": "image/png"}
 -- Use std/bytes.fromBase64 to decode the base64 data to bytes.
 -- Only requires AI capability (no file system access).
-export func callImageBase64(prompt: string, options: string) -> string ! {AI} =
-  _ai_call_image_base64(prompt, options)
+export func callImageBase64(prompt: string, options: string) -> string ! {AI} = _ai_call_image_base64(prompt, options)

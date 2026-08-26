@@ -6,17 +6,12 @@ module examples/tests/test_m_r7_comprehensive
 export func main() -> int =
   -- Test 1: Basic modulo
   let m1 = 5 % 3 in
-
   -- Test 2: Modulo with variables
-  let m2 = (let x = 10 in let y = 3 in x % y) in
-
+  let m2 = let x = 10 in let y = 3 in x % y in
+  -- Test 5: Float in conditional
   -- Test 3: Float literal comparison (returns bool, not usable in arithmetic)
   -- let f1 = 0.0 == 0.0 in
-
   -- Test 4: Float variable comparison (returns bool, not usable in arithmetic)
   -- let f2 = (let x = 5.0 in x == 0.0) in
-
-  -- Test 5: Float in conditional
-  let f3 = (let x = 3.14 in if x == 3.14 then 1 else 0) in
-
+  let f3 = let x = 3.14 in if x == 3.14 then 1 else 0 in
   m1 + m2 + f3

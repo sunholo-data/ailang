@@ -6,6 +6,6 @@ import std/string (toUpper)
 import std/option (Some, getOrElse)
 
 export func main() -> () ! {IO} {
-  let s = toUpper("hello");
+  let s = toUpper("hello")
   println("Result: ${s}")
 }

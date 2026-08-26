@@ -31,7 +31,7 @@ export func delete(namespace: string, key: string) -> unit ! {SharedIndex} {
 -- top_k: max results, max_scan: max entries to scan (0 = unlimited)
 -- deterministic: true for consistent ordering, false for best-effort
 -- @requires SharedIndex capability
-export func findSimhash(namespace: string, querySimhash: int, topK: int, maxScan: int, deterministic: bool) -> list[{key: string, score: float, version: int, timestamp: int}] ! {SharedIndex} {
+export func findSimhash(namespace: string, querySimhash: int, topK: int, maxScan: int, deterministic: bool) -> [{ key: string, score: float, version: int, timestamp: int }] ! {SharedIndex} {
   _sharedindex_find_simhash(namespace, querySimhash, topK, maxScan, deterministic)
 }
 
@@ -43,20 +43,20 @@ export func entryCount(namespace: string) -> int ! {SharedIndex} {
 
 -- Get all namespace names in the index
 -- @requires SharedIndex capability
-export func namespaces(u: unit) -> list[string] ! {SharedIndex} {
+export func namespaces(u: unit) -> [string] ! {SharedIndex} {
   _sharedindex_namespaces(u)
 }
 
 -- Insert or update an entry with a neural embedding
 -- Like upsert but also stores an embedding vector for cosine similarity search
 -- @requires SharedIndex capability
-export func upsertWithEmbedding(namespace: string, key: string, simhash: int, embedding: list[float], version: int, timestamp: int) -> unit ! {SharedIndex} {
+export func upsertWithEmbedding(namespace: string, key: string, simhash: int, embedding: [float], version: int, timestamp: int) -> unit ! {SharedIndex} {
   _sharedindex_upsert_emb(namespace, key, simhash, embedding, version, timestamp)
 }
 
 -- Find entries similar to a query embedding using cosine similarity
 -- Returns list of {key, score, version, timestamp} sorted by similarity
 -- @requires SharedIndex capability
-export func findByEmbedding(namespace: string, queryEmbedding: list[float], topK: int, maxScan: int, deterministic: bool) -> list[{key: string, score: float, version: int, timestamp: int}] ! {SharedIndex} {
+export func findByEmbedding(namespace: string, queryEmbedding: [float], topK: int, maxScan: int, deterministic: bool) -> [{ key: string, score: float, version: int, timestamp: int }] ! {SharedIndex} {
   _sharedindex_find_by_embedding(namespace, queryEmbedding, topK, maxScan, deterministic)
 }

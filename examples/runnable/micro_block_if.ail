@@ -1,5 +1,4 @@
 module examples/runnable/micro_block_if
-
 import std/io (println)
 
 -- Blocks work in if-then-else branches

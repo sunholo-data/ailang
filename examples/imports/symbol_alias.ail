@@ -2,7 +2,6 @@
 -- import std/list (length as listLength) renames on import
 
 module examples/imports/symbol_alias
-
 import std/list (length as listLength, head as listHead)
 
 -- Use aliased symbol names directly
@@ -12,7 +11,7 @@ export pure func getLen(xs: [int]) -> int {
 
 -- Test entry point
 export func main() -> () ! {IO} {
-  let nums = [1, 2, 3, 4, 5];
-  let len = listLength(nums);
+  let nums = [1, 2, 3, 4, 5]
+  let len = listLength(nums)
   _io_print("Length via alias: " ++ show(len))
 }

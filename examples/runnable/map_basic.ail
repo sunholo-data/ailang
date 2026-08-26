@@ -10,26 +10,24 @@ import std/option (Option, Some, None)
 
 export func main() -> () ! {IO} {
   -- Build a map from a list of tuples
-  let colors = M.fromList([("red", "#FF0000"), ("green", "#00FF00"), ("blue", "#0000FF")]);
-
+  let colors = M.fromList([("red", "#FF0000"), ("green", "#00FF00"), ("blue", "#0000FF")])
   -- Lookup returns Option
-  let red = M.lookup(colors, "red");
-  let redStr = match red { Some(v) => v, None => "not found" };
-  println("red = ${redStr}");
-
+  let red = M.lookup(colors, "red")
+  let redStr = match red {
+    Some(v) => v,
+    None => "not found"
+  }
+  println("red = ${redStr}")
   -- Member check
-  let hasGreen = M.member(colors, "green");
-  let hasGreenStr = if hasGreen then "true" else "false";
-  println("has green? ${hasGreenStr}");
-
+  let hasGreen = M.member(colors, "green")
+  let hasGreenStr = if hasGreen then "true" else "false"
+  println("has green? ${hasGreenStr}")
   -- Size
-  println("map size: ${intToStr(M.size(colors))}");
-
+  println("map size: ${intToStr(M.size(colors))}")
   -- Insert returns a new map
-  let colors2 = M.insert(colors, "yellow", "#FFFF00");
-  println("after insert, size: ${intToStr(M.size(colors2))}");
-
+  let colors2 = M.insert(colors, "yellow", "#FFFF00")
+  println("after insert, size: ${intToStr(M.size(colors2))}")
   -- Remove
-  let colors3 = M.remove(colors2, "red");
+  let colors3 = M.remove(colors2, "red")
   println("after remove red, size: ${intToStr(M.size(colors3))}")
 }

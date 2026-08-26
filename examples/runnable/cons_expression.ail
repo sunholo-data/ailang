@@ -12,7 +12,6 @@
 // Type: (a, [a]) -> [a]
 
 module examples/runnable/cons_expression
-
 import std/io (println)
 
 // Basic prepend
@@ -20,8 +19,7 @@ pure func prepend(x: int, xs: [int]) -> [int]
   tests [
     ((1, [2, 3]), [1, 2, 3]),
     ((0, []), [0])
-  ]
-{
+  ] {
   x :: xs
 }
 
@@ -29,8 +27,7 @@ pure func prepend(x: int, xs: [int]) -> [int]
 pure func buildList() -> [int]
   tests [
     ((), [1, 2, 3])
-  ]
-{
+  ] {
   1 :: 2 :: 3 :: []
 }
 
@@ -39,8 +36,7 @@ pure func maybeAdd(x: int, xs: [int]) -> [int]
   tests [
     ((5, [1, 2]), [5, 1, 2]),
     ((-1, [1, 2]), [1, 2])
-  ]
-{
+  ] {
   if x > 0 then x :: xs else xs
 }
 
@@ -49,8 +45,7 @@ pure func duplicate_head(xs: [int]) -> [int]
   tests [
     ([1, 2, 3], [1, 1, 2, 3]),
     ([], [])
-  ]
-{
+  ] {
   match xs {
     [] => [],
     x :: rest => x :: x :: rest
@@ -61,21 +56,18 @@ pure func duplicate_head(xs: [int]) -> [int]
 pure func greet(name: string) -> [string]
   tests [
     ("Alice", ["Hello", "Alice"])
-  ]
-{
+  ] {
   "Hello" :: name :: []
 }
 
 export func main() -> () ! {IO} {
-  println("=== Cons (::) Expression Examples ===");
-  println("");
-
-  println("prepend(1, [2, 3]) = ${show(prepend(1, [2, 3]))}");
-  println("buildList() = ${show(buildList())}");
-  println("maybeAdd(5, [1, 2]) = ${show(maybeAdd(5, [1, 2]))}");
-  println("maybeAdd(-1, [1, 2]) = ${show(maybeAdd(-1, [1, 2]))}");
-  println("duplicate_head([1, 2, 3]) = ${show(duplicate_head([1, 2, 3]))}");
+  println("=== Cons (::) Expression Examples ===")
+  println("")
+  println("prepend(1, [2, 3]) = ${show(prepend(1, [2, 3]))}")
+  println("buildList() = ${show(buildList())}")
+  println("maybeAdd(5, [1, 2]) = ${show(maybeAdd(5, [1, 2]))}")
+  println("maybeAdd(-1, [1, 2]) = ${show(maybeAdd(-1, [1, 2]))}")
+  println("duplicate_head([1, 2, 3]) = ${show(duplicate_head([1, 2, 3]))}")
   println("greet(\"Alice\") = ${show(greet("Alice"))}");
-
   ()
 }

@@ -8,7 +8,7 @@ type Config = { host: string, port: int }
 
 -- Test 1: Direct record construction with type annotation
 func createConfig() -> Config {
-  let config = { host: "localhost", port: 8080 };
+  let config = { host: "localhost", port: 8080 }
   config
 }
 
@@ -24,20 +24,14 @@ func getPort(config: Config) -> int {
 
 -- Test 4: Record update
 func updateHost(config: Config, newHost: string) -> Config {
-  {
-    host: newHost,
-    port: config.port
-  }
+  { host: newHost, port: config.port }
 }
 
 -- Test 5: Multiple records
 type AuthError = { code: int, message: string }
 
 func createError() -> AuthError {
-  {
-    code: 401,
-    message: "Unauthorized"
-  }
+  { code: 401, message: "Unauthorized" }
 }
 
 -- Test 6: Record pattern matching

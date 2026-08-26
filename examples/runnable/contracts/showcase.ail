@@ -9,9 +9,7 @@
 -- Expect: 8 verified, 1 violation (brokenPrefixCheck)
 
 module examples/runnable/contracts/showcase
-
 import std/string (length as strLength, startsWith as strStartsWith)
-
 import std/list (length as listLength)
 
 -- ============================================================================
@@ -69,7 +67,7 @@ ensures { result == strLength(s) > 0 } {
 -- Prefixed string is always longer than the prefix itself
 export func prefixedLength(prefix: string, body: string) -> int ! {}
 ensures { result >= strLength(prefix) } {
-  strLength(concat_String(show(prefix), show(body)))
+  strLength("${prefix}${body}")
 }
 
 -- ============================================================================
@@ -77,13 +75,13 @@ ensures { result >= strLength(prefix) } {
 -- ============================================================================
 
 -- List length is always non-negative
-export func itemCount(items: list[int]) -> int ! {}
+export func itemCount(items: [int]) -> int ! {}
 ensures { result >= 0 } {
   listLength(items)
 }
 
 -- Prepending preserves the original elements (head of new list is the added item)
-export func prependAndCheck(x: int, xs: list[int]) -> bool ! {}
+export func prependAndCheck(x: int, xs: [int]) -> bool ! {}
 ensures { result == true } {
   _list_head(x :: xs) == x
 }

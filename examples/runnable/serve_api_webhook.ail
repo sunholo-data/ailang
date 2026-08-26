@@ -12,7 +12,6 @@
 -- list-only since v0.13.0).
 
 module examples/runnable/serve_api_webhook
-
 import std/json (Json, getString, decode)
 import std/string (length)
 
@@ -22,11 +21,11 @@ import std/string (length)
 -- This handles hyphenated keys like "Stripe-Signature" that dot notation can't.
 @raw
 @route("POST", "/webhooks/example")
-export func handleWebhook(request: {body: string, headers: Json, method: string, path: string}) -> string ! {IO} {
+export func handleWebhook(request: { body: string, headers: Json, method: string, path: string }) -> string ! {IO} {
   let sig = match getString(request.headers, "X-Signature") {
     Some(s) => s,
     None => "no-signature"
-  };
+  }
   "received webhook with signature: ${sig} body length: ${show(length(request.body))}"
 }
 
@@ -51,13 +50,8 @@ export pure func metrics() -> string {
 -- synthetic request so the file both type-checks and runs cleanly.
 export func main() -> () ! {IO} {
   let response = match decode("{\"X-Signature\": \"abc123\"}") {
-    Ok(headers) => handleWebhook({
-      body: "{\"event\": \"test\"}",
-      headers: headers,
-      method: "POST",
-      path: "/webhooks/example"
-    }),
+    Ok(headers) => handleWebhook({ body: "{\"event\": \"test\"}", headers: headers, method: "POST", path: "/webhooks/example" }),
     Err(e) => "could not decode headers: ${e}"
-  };
+  }
   println(response)
 }

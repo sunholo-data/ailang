@@ -35,7 +35,6 @@
 -- the AI cap + budget tracker apply uniformly.
 
 module std/stream
-
 import std/result (Result, Ok, Err)
 
 -- ============================================================================
@@ -65,7 +64,7 @@ export type StreamStatus = Connecting | Open | Closing | StreamClosed
 export type StreamHeader = { name: string, value: string }
 
 -- Configuration for stream connections
-export type StreamConfig = { headers: list[StreamHeader] }
+export type StreamConfig = { headers: [StreamHeader] }
 
 -- ============================================================================
 -- Stream Effect Wrappers
@@ -75,7 +74,7 @@ export type StreamConfig = { headers: list[StreamHeader] }
 -- url: WebSocket URL (wss:// or ws:// with AllowHTTP)
 -- config: record with headers list, e.g. {headers: [{name: "Authorization", value: "Bearer TOKEN"}]}
 -- Returns Ok(StreamConn(id)) or Err(StreamErrorKind)
-export func connect(url: string, config: { headers: list[{ name: string, value: string }] }) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
+export func connect(url: string, config: { headers: [{ name: string, value: string }] }) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
   _stream_connect(url, config)
 }
 
@@ -97,7 +96,7 @@ export func transmitBinary(conn: StreamConn, data: bytes) -> Result[unit, Stream
 -- Register an event handler callback
 -- conn: StreamConn handle (unwrap from connect result first)
 -- handler: function receiving StreamEvent, returning bool (true=continue, false=stop)
-export func onEvent(conn: StreamConn, handler: (StreamEvent) -> bool ! {e}) -> unit ! {Stream, e} {
+export func onEvent(conn: StreamConn, handler: StreamEvent -> bool ! {e}) -> unit ! {Stream, e} {
   _stream_onEvent(conn, handler)
 }
 
@@ -143,7 +142,7 @@ export func asyncReadStdinLines(name: string, priority: int) -> StreamSource ! {
 -- Highest-priority sources are checked first (deterministic ordering).
 -- Same-priority sources use round-robin to prevent starvation.
 -- Stops when handler returns false, idle timeout, or max duration.
-export func selectEvents(sources: list[StreamSource], handler: (StreamEvent) -> bool ! {e}) -> unit ! {Stream, e} {
+export func selectEvents(sources: [StreamSource], handler: StreamEvent -> bool ! {e}) -> unit ! {Stream, e} {
   _stream_select_events(sources, handler)
 }
 
@@ -156,7 +155,7 @@ export func selectEvents(sources: list[StreamSource], handler: (StreamEvent) -> 
 -- name: Source name for SourceBytes(name, data) matching
 -- priority: Dispatch priority (higher = checked first)
 -- chunkSize: Bytes per SourceBytes event (e.g. 4096 for audio, 65536 for video)
-export func asyncExecProcess(cmd: string, args: list[string], name: string, priority: int, chunkSize: int) -> StreamSource ! {Stream} {
+export func asyncExecProcess(cmd: string, args: [string], name: string, priority: int, chunkSize: int) -> StreamSource ! {Stream} {
   _stream_async_exec_process(cmd, args, name, priority, chunkSize)
 }
 
@@ -166,7 +165,7 @@ export func asyncExecProcess(cmd: string, args: list[string], name: string, prio
 
 -- Create a default empty config (no custom headers).
 -- For custom headers: {headers: [{name: "Authorization", value: "Bearer TOKEN"}]}
-export pure func defaultConfig(u: unit) -> { headers: list[{ name: string, value: string }] } {
+export pure func defaultConfig(u: unit) -> { headers: [{ name: string, value: string }] } {
   { headers: [] }
 }
 
@@ -175,7 +174,7 @@ export pure func defaultConfig(u: unit) -> { headers: list[{ name: string, value
 -- url: WebSocket URL
 -- handler: event handler function receiving StreamEvent, returning bool (true=continue, false=stop)
 -- Returns Ok(StreamConn) on success or Err(StreamErrorKind) on connection failure
-export func withStream(url: string, handler: (StreamEvent) -> bool ! {e}) -> Result[StreamConn, StreamErrorKind] ! {Stream, e} {
+export func withStream(url: string, handler: StreamEvent -> bool ! {e}) -> Result[StreamConn, StreamErrorKind] ! {Stream, e} {
   let result = connect(url, { headers: [] })
   match result {
     Ok(conn) => {
@@ -198,7 +197,7 @@ export func withStream(url: string, handler: (StreamEvent) -> bool ! {e}) -> Res
 -- config: record with headers list
 -- Returns Ok(StreamConn(id)) or Err(StreamErrorKind)
 -- Events are delivered as SSEData(eventType, data) to the handler
-export func sseConnect(url: string, config: { headers: list[{ name: string, value: string }] }) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
+export func sseConnect(url: string, config: { headers: [{ name: string, value: string }] }) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
   _stream_sse_connect(url, config)
 }
 
@@ -210,7 +209,7 @@ export func sseConnect(url: string, config: { headers: list[{ name: string, valu
 -- config: record with headers list (e.g. Authorization: Bearer)
 -- Content-Type defaults to application/json.
 -- Returns Ok(StreamConn(id)) or Err(StreamErrorKind)
-export func ssePost(url: string, body: string, config: { headers: list[{ name: string, value: string }] }) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
+export func ssePost(url: string, body: string, config: { headers: [{ name: string, value: string }] }) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
   _stream_sse_post(url, body, config)
 }
 
@@ -225,7 +224,7 @@ export func ssePost(url: string, body: string, config: { headers: list[{ name: s
 -- Unlike ssePost, the response Content-Type is not validated — choosing this
 -- function is the caller's explicit opt-in to NDJSON parsing.
 -- Returns Ok(StreamConn(id)) or Err(StreamErrorKind).
-export func ndjsonPost(url: string, body: string, config: { headers: list[{ name: string, value: string }] }) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
+export func ndjsonPost(url: string, body: string, config: { headers: [{ name: string, value: string }] }) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
   _stream_ndjson_post(url, body, config)
 }
 
@@ -234,7 +233,7 @@ export func ndjsonPost(url: string, body: string, config: { headers: list[{ name
 -- handler: event handler function receiving StreamEvent, returning bool (true=continue, false=stop)
 -- Returns Ok(StreamConn) on success or Err(StreamErrorKind) on connection failure
 -- Events are delivered as SSEData(eventType, data) to the handler.
-export func withSSE(url: string, handler: (StreamEvent) -> bool ! {e}) -> Result[StreamConn, StreamErrorKind] ! {Stream, e} {
+export func withSSE(url: string, handler: StreamEvent -> bool ! {e}) -> Result[StreamConn, StreamErrorKind] ! {Stream, e} {
   let result = sseConnect(url, { headers: [] })
   match result {
     Ok(conn) => {

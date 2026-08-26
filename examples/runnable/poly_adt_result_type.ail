@@ -12,7 +12,6 @@
 --   Err : forall a. string -> Result[a]  (CORRECT - only accepts string)
 
 module examples/runnable/poly_adt_result_type
-
 import std/io (println)
 
 -- Define a Result type commonly used for error handling
@@ -27,37 +26,19 @@ func getOk() -> Result[int] = Ok(42)
 func getErr() -> Result[int] = Err("something went wrong")
 
 -- Function that conditionally returns Ok or Err
-func divide(a: int, b: int) -> Result[int] =
-  if b == 0
-    then Err("division by zero")
-    else Ok(a / b)
+func divide(a: int, b: int) -> Result[int] = if b == 0 then Err("division by zero") else Ok(a / b)
 
 -- Main function demonstrating Result usage
-func main() -> unit ! {IO} =
-  let _ = println("Testing polymorphic ADT Result type:") in
-  let _ = println("") in
-
-  let ok_result = getOk() in
-  let err_result = getErr() in
-  let div1 = divide(10, 2) in
-  let div2 = divide(10, 0) in
-
-  let _ = match ok_result {
-    Ok(_) => println("getOk() returned: Ok"),
-    Err(msg) => println("getOk() returned: Err(${msg})")
-  } in
-
-  let _ = match err_result {
-    Ok(_) => println("getErr() returned: Ok"),
-    Err(msg) => println("getErr() returned: Err(${msg})")
-  } in
-
-  let _ = match div1 {
-    Ok(_) => println("divide(10, 2) returned: Ok"),
-    Err(msg) => println("divide(10, 2) returned: Err(${msg})")
-  } in
-
-  match div2 {
-    Ok(_) => println("divide(10, 0) returned: Ok"),
-    Err(msg) => println("divide(10, 0) returned: Err(${msg})")
-  }
+func main() -> unit ! {IO} = let _ = println("Testing polymorphic ADT Result type:") in let _ = println("") in let ok_result = getOk() in let err_result = getErr() in let div1 = divide(10, 2) in let div2 = divide(10, 0) in let _ = match ok_result {
+  Ok(_) => println("getOk() returned: Ok"),
+  Err(msg) => println("getOk() returned: Err(${msg})")
+} in let _ = match err_result {
+  Ok(_) => println("getErr() returned: Ok"),
+  Err(msg) => println("getErr() returned: Err(${msg})")
+} in let _ = match div1 {
+  Ok(_) => println("divide(10, 2) returned: Ok"),
+  Err(msg) => println("divide(10, 2) returned: Err(${msg})")
+} in match div2 {
+  Ok(_) => println("divide(10, 0) returned: Ok"),
+  Err(msg) => println("divide(10, 0) returned: Err(${msg})")
+}

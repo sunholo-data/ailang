@@ -17,7 +17,6 @@
 --   _embedding_decode(bytes) -> Option[list[float]]
 
 module std/embedding
-
 import std/option (Option, Some, None)
 import std/list (map, foldl, length, zip)
 
@@ -30,11 +29,11 @@ import std/list (map, foldl, length, zip)
 --
 -- Example:
 --   dot([1.0, 2.0], [3.0, 4.0])  -- 11.0 (1*3 + 2*4)
-export pure func dot(a: list[float], b: list[float]) -> float {
+export pure func dot(a: [float], b: [float]) -> float {
   dot_helper(a, b, 0.0)
 }
 
-pure func dot_helper(a: list[float], b: list[float], acc: float) -> float {
+pure func dot_helper(a: [float], b: [float], acc: float) -> float {
   match a {
     [] => acc,
     [x, ...xs] => match b {
@@ -48,7 +47,7 @@ pure func dot_helper(a: list[float], b: list[float], acc: float) -> float {
 --
 -- Example:
 --   magnitude([3.0, 4.0])  -- 5.0
-export pure func magnitude(v: list[float]) -> float {
+export pure func magnitude(v: [float]) -> float {
   _math_sqrt(dot(v, v))
 }
 
@@ -57,10 +56,8 @@ export pure func magnitude(v: list[float]) -> float {
 --
 -- Example:
 --   normalize([3.0, 4.0])  -- [0.6, 0.8]
-export pure func normalize(v: list[float]) -> list[float] {
-  let mag = magnitude(v)
-  in if mag == 0.0 then v
-     else map(\x. x / mag, v)
+export pure func normalize(v: [float]) -> [float] {
+  let mag = magnitude(v) in if mag == 0.0 then v else map(\x. x / mag, v)
 }
 
 -- cosine: Compute cosine similarity between two vectors
@@ -73,11 +70,8 @@ export pure func normalize(v: list[float]) -> list[float] {
 --   cosine([1.0, 0.0], [1.0, 0.0])   -- 1.0 (identical)
 --   cosine([1.0, 0.0], [0.0, 1.0])   -- 0.0 (orthogonal)
 --   cosine([1.0, 0.0], [-1.0, 0.0])  -- -1.0 (opposite)
-export pure func cosine(a: list[float], b: list[float]) -> float {
-  let mag_a = magnitude(a)
-  in let mag_b = magnitude(b)
-  in if mag_a == 0.0 || mag_b == 0.0 then 0.0
-     else dot(a, b) / (mag_a * mag_b)
+export pure func cosine(a: [float], b: [float]) -> float {
+  let mag_a = magnitude(a) in let mag_b = magnitude(b) in if mag_a == 0.0 || mag_b == 0.0 then 0.0 else dot(a, b) / (mag_a * mag_b)
 }
 
 -- ============================================================================
@@ -110,21 +104,20 @@ export pure func cosine_encoded(a: bytes, b: bytes) -> float {
 --
 -- Example:
 --   euclidean_distance([0.0, 0.0], [3.0, 4.0])  -- 5.0
-export pure func euclidean_distance(a: list[float], b: list[float]) -> float {
-  let diff = subtract_vectors(a, b)
-  in magnitude(diff)
+export pure func euclidean_distance(a: [float], b: [float]) -> float {
+  let diff = subtract_vectors(a, b) in magnitude(diff)
 }
 
-pure func subtract_vectors(a: list[float], b: list[float]) -> list[float] {
+pure func subtract_vectors(a: [float], b: [float]) -> [float] {
   subtract_helper(a, b)
 }
 
-pure func subtract_helper(a: list[float], b: list[float]) -> list[float] {
+pure func subtract_helper(a: [float], b: [float]) -> [float] {
   match a {
     [] => [],
     [x, ...xs] => match b {
       [] => a,  -- b shorter, keep rest of a
-      [y, ...ys] => (x - y) :: subtract_helper(xs, ys)
+      [y, ...ys] => x - y :: subtract_helper(xs, ys)
     }
   }
 }
@@ -133,7 +126,7 @@ pure func subtract_helper(a: list[float], b: list[float]) -> list[float] {
 --
 -- Example:
 --   scale(2.0, [1.0, 2.0])  -- [2.0, 4.0]
-export pure func scale(s: float, v: list[float]) -> list[float] {
+export pure func scale(s: float, v: [float]) -> [float] {
   map(\x. x * s, v)
 }
 
@@ -141,16 +134,16 @@ export pure func scale(s: float, v: list[float]) -> list[float] {
 --
 -- Example:
 --   add_vectors([1.0, 2.0], [3.0, 4.0])  -- [4.0, 6.0]
-export pure func add_vectors(a: list[float], b: list[float]) -> list[float] {
+export pure func add_vectors(a: [float], b: [float]) -> [float] {
   add_helper(a, b)
 }
 
-pure func add_helper(a: list[float], b: list[float]) -> list[float] {
+pure func add_helper(a: [float], b: [float]) -> [float] {
   match a {
     [] => b,
     [x, ...xs] => match b {
       [] => a,
-      [y, ...ys] => (x + y) :: add_helper(xs, ys)
+      [y, ...ys] => x + y :: add_helper(xs, ys)
     }
   }
 }

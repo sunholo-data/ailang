@@ -11,13 +11,7 @@
 --   3. SourceText events from stdin with source tagging
 
 module examples/runnable/stream_multi_source
-
-import std/stream (
-  connect, onEvent, disconnect, defaultConfig,
-  sourceOfConn, asyncReadStdinLines, selectEvents,
-  StreamConn, StreamSource, StreamEvent,
-  Message, Closed, StreamError, SourceText, SourceBytes, StreamErrorKind
-)
+import std/stream (connect, onEvent, disconnect, defaultConfig, sourceOfConn, asyncReadStdinLines, selectEvents, StreamConn, StreamSource, StreamEvent, Message, Closed, StreamError, SourceText, SourceBytes, StreamErrorKind)
 import std/result (Result, Ok, Err)
 
 -- Multi-source event handler: dispatches events from any source
@@ -42,7 +36,7 @@ export func multiHandler(event: StreamEvent) -> bool ! {IO} {
 
 -- Main: read from stdin using selectEvents with a single source
 export func main() -> unit ! {Stream, IO} {
-  let stdin = asyncReadStdinLines("stdin", 10);
-  selectEvents([stdin], multiHandler);
+  let stdin = asyncReadStdinLines("stdin", 10)
+  selectEvents([stdin], multiHandler)
   _io_println("done")
 }

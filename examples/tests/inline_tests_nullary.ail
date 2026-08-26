@@ -8,8 +8,7 @@ module examples/tests/inline_tests_nullary
 pure func getConstant() -> int
   tests [
     ((), 42)
-  ]
-{
+  ] {
   42
 }
 
@@ -17,8 +16,7 @@ pure func getConstant() -> int
 pure func getCurrentYear() -> int
   tests [
     ((), 2025)
-  ]
-{
+  ] {
   2025
 }
 
@@ -26,8 +24,7 @@ pure func getCurrentYear() -> int
 pure func getGreeting() -> string
   tests [
     ((), "Hello, AILANG!")
-  ]
-{
+  ] {
   "Hello, AILANG!"
 }
 
@@ -35,8 +32,7 @@ pure func getGreeting() -> string
 pure func isValid() -> bool
   tests [
     ((), true)
-  ]
-{
+  ] {
   true
 }
 
@@ -44,8 +40,7 @@ pure func isValid() -> bool
 pure func getPi() -> float
   tests [
     ((), 3.14159)
-  ]
-{
+  ] {
   3.14159
 }
 
@@ -53,23 +48,20 @@ pure func getPi() -> float
 pure func getZero() -> int
   tests [
     ((), 0)
-  ]
-{
+  ] {
   0
 }
 
 pure func getOne() -> int
   tests [
     ((), 1)
-  ]
-{
+  ] {
   1
 }
 
 pure func getTwo() -> int
   tests [
     ((), 2)
-  ]
-{
+  ] {
   2
 }

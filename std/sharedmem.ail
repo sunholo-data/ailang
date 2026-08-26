@@ -3,7 +3,6 @@
 -- Part of M-DX15 (Semantic Caching MVP)
 
 module std/sharedmem
-
 import std/option (Option, Some, None)
 
 -- ============================================================================
@@ -37,7 +36,7 @@ export func delete(key: string) -> unit ! {SharedMem} {
 }
 
 -- Get all keys currently in the cache
-export func keys(u: unit) -> list[string] ! {SharedMem} {
+export func keys(u: unit) -> [string] ! {SharedMem} {
   _sharedmem_keys(u)
 }
 
@@ -47,12 +46,18 @@ export func keys(u: unit) -> list[string] ! {SharedMem} {
 
 -- Check if a key is present in the cache
 export func has_key(key: string) -> bool ! {SharedMem} {
-  match get(key) { Some(_) => true, None => false }
+  match get(key) {
+    Some(_) => true,
+    None => false
+  }
 }
 
 -- Get a value or return a default if not found
 export func get_or(key: string, default: bytes) -> bytes ! {SharedMem} {
-  match get(key) { Some(v) => v, None => default }
+  match get(key) {
+    Some(v) => v,
+    None => default
+  }
 }
 
 -- Put a value only if the key doesn't already exist

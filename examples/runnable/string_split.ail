@@ -1,5 +1,4 @@
 module examples/runnable/string_split
-
 import std/string (split, chars)
 
 export func main() -> () ! {IO} {
@@ -21,7 +20,7 @@ func printList(xs: [string]) -> () ! {IO} {
   match xs {
     [] => (),
     head :: tail => {
-      println(head);
+      println(head)
       printList(tail)
     }
   }

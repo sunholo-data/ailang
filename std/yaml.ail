@@ -3,7 +3,6 @@
 -- The conversion is a thin wrapper over the _yaml_to_json builtin (yaml.v3 -> JSON);
 -- decode reuses std/json.decode so YAML and JSON share one Json ADT.
 module std/yaml
-
 import std/result (Result, Ok, Err)
 import std/json (Json, decode as jsonDecode)
 

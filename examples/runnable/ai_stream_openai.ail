@@ -30,13 +30,9 @@
 -- the [[ai_provider]] config — no caller-supplied secrets, no caller URL.
 
 module examples/runnable/ai_stream_openai
-
 import std/ai/streaming (openaiCompatStream, onEvent, runEventLoop, disconnect)
-
 import std/stream (StreamEvent, SSEData, Closed, StreamError)
-
 import std/io (println)
-
 import std/result (Result, Ok, Err)
 
 -- A messages array as a JSON string. v1 callers serialize manually;
@@ -61,7 +57,7 @@ export func handler(event: StreamEvent) -> bool ! {IO} {
 }
 
 export func main() -> () ! {AI, Stream, Net, IO} {
-  let result = openaiCompatStream("openai-stream-demo", "gpt-4o-mini", messagesJson(())) in match result {
+  let result = openaiCompatStream("openai-stream-demo", "gpt-4o-mini", messagesJson()) in match result {
     Ok(conn) => {
       println("connected; streaming...")
       onEvent(conn, handler)

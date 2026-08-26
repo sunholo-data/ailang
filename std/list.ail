@@ -49,14 +49,17 @@ export pure func zip[a, b](xs: [a], ys: [b]) -> [(a, b)] {
 
 -- Apply a function to each element, returning a new list.
 -- M-ITERATIVE-LIST: Delegates to Go-level iterative builtin for O(1) stack usage.
-export pure func map[a, b](f: (a) -> b, xs: [a]) -> [b] = _list_map(f, xs)
+export pure func map[a, b](f: a -> b, xs: [a]) -> [b] = _list_map(f, xs)
 
-export pure func filter[a](p: (a) -> bool, xs: [a]) -> [a] = _list_filter(p, xs)
+export pure func filter[a](p: a -> bool, xs: [a]) -> [a] = _list_filter(p, xs)
 
 export pure func foldl[a, b](f: (b, a) -> b, acc: b, xs: [a]) -> b = _list_foldl(f, acc, xs)
 
 export pure func foldr[a, b](f: (a, b) -> b, acc: b, xs: [a]) -> b {
-  match xs { [] => acc, [x, ...rest] => f(x, foldr(f, acc, rest)) }
+  match xs {
+    [] => acc,
+    [x, ...rest] => f(x, foldr(f, acc, rest))
+  }
 }
 
 -- ============================================================================
@@ -70,9 +73,9 @@ export pure func sortBy[a](cmp: (a, a) -> int, xs: [a]) -> [a] {
     [] => [],
     [x] => [x],
     _ => {
-      let mid = length(xs) / 2;
-      let left = take(mid, xs);
-      let right = drop(mid, xs);
+      let mid = length(xs) / 2
+      let left = take(mid, xs)
+      let right = drop(mid, xs)
       mergeBy(cmp, sortBy(cmp, left), sortBy(cmp, right))
     }
   }
@@ -84,17 +87,14 @@ pure func mergeBy[a](cmp: (a, a) -> int, xs: [a], ys: [a]) -> [a] {
     [] => ys,
     [x, ...xr] => match ys {
       [] => xs,
-      [y, ...yr] => if cmp(x, y) <= 0
-        then [x] ++ mergeBy(cmp, xr, ys)
-        else [y] ++ mergeBy(cmp, xs, yr)
+      [y, ...yr] => if cmp(x, y) <= 0 then [x] ++ mergeBy(cmp, xr, ys) else [y] ++ mergeBy(cmp, xs, yr)
     }
   }
 }
 
 -- take: Take first n elements
 export pure func take[a](n: int, xs: [a]) -> [a] {
-  if n <= 0 then []
-  else match xs {
+  if n <= 0 then [] else match xs {
     [] => [],
     [x, ...rest] => [x] ++ take(n - 1, rest)
   }
@@ -111,17 +111,14 @@ export pure func drop[a](n: int, xs: [a]) -> [a] = _list_drop(n, xs)
 -- nth: Get element at index (0-based). Returns None for negative or out-of-bounds.
 -- Uses O(1) builtin for direct index access instead of O(n) recursive traversal.
 export pure func nth[a](xs: [a], idx: int) -> Option[a] {
-  if idx < 0 then None
-  else if idx >= _list_length(xs) then None
-  else Some(_list_nth(xs, idx))
+  if idx < 0 then None else if idx >= _list_length(xs) then None else Some(_list_nth(xs, idx))
 }
 
 -- last: Get last element of list
 -- Uses O(1) builtin for direct index access instead of O(n) recursive traversal.
 export pure func last[a](xs: [a]) -> Option[a] {
-  let len = _list_length(xs);
-  if len == 0 then None
-  else Some(_list_nth(xs, len - 1))
+  let len = _list_length(xs)
+  if len == 0 then None else Some(_list_nth(xs, len - 1))
 }
 
 -- nth_or: Element at index, or a default if negative/out-of-bounds.
@@ -154,7 +151,7 @@ export pure func last_or[a](xs: [a], default: a) -> a {
 
 -- any: Check if any element satisfies predicate (short-circuits on first match)
 -- Note: 'exists' is a reserved keyword in AILANG, so we use 'any' instead
-export pure func any[a](p: (a) -> bool, xs: [a]) -> bool {
+export pure func any[a](p: a -> bool, xs: [a]) -> bool {
   match xs {
     [] => false,
     [x, ...rest] => if p(x) then true else any(p, rest)
@@ -162,12 +159,12 @@ export pure func any[a](p: (a) -> bool, xs: [a]) -> bool {
 }
 
 -- findIndex: Find index of first element matching predicate
-export pure func findIndex[a](p: (a) -> bool, xs: [a]) -> Option[int] {
+export pure func findIndex[a](p: a -> bool, xs: [a]) -> Option[int] {
   findIndexHelper(p, xs, 0)
 }
 
 -- Helper for findIndex with accumulator
-pure func findIndexHelper[a](p: (a) -> bool, xs: [a], idx: int) -> Option[int] {
+pure func findIndexHelper[a](p: a -> bool, xs: [a], idx: int) -> Option[int] {
   match xs {
     [] => None,
     [x, ...rest] => if p(x) then Some(idx) else findIndexHelper(p, rest, idx + 1)
@@ -182,7 +179,9 @@ pure func findIndexHelper[a](p: (a) -> bool, xs: [a], idx: int) -> Option[int] {
 -- zipWith(\a b. a + b, [1,2,3], [10,20,30]) => [11, 22, 33]
 -- Stops at the shorter list (same as zip).
 export pure func zipWith[a, b, c](f: (a, b) -> c, xs: [a], ys: [b]) -> [c] {
-  map(\pair. match pair { (x, y) => f(x, y) }, zip(xs, ys))
+  map(\pair. match pair {
+    (x, y) => f(x, y)
+  }, zip(xs, ys))
 }
 
 -- ============================================================================
@@ -190,7 +189,7 @@ export pure func zipWith[a, b, c](f: (a, b) -> c, xs: [a], ys: [b]) -> [c] {
 -- ============================================================================
 
 -- flatMap: Apply function returning list to each element, flatten results
-export pure func flatMap[a, b](f: (a) -> [b], xs: [a]) -> [b] {
+export pure func flatMap[a, b](f: a -> [b], xs: [a]) -> [b] {
   match xs {
     [] => [],
     [x, ...rest] => concat(f(x), flatMap(f, rest))
@@ -202,13 +201,13 @@ export pure func flatMap[a, b](f: (a) -> [b], xs: [a]) -> [b] {
 -- bound peak memory by n:
 --   peak = source residency + largest single f(x) + n retained
 -- If one f(x) can itself be large, bound it inside f.
-export pure func takeFlatMap[a, b](n: int, f: (a) -> [b], xs: [a]) -> [b] = _list_takeFlatMap(n, f, xs)
+export pure func takeFlatMap[a, b](n: int, f: a -> [b], xs: [a]) -> [b] = _list_takeFlatMap(n, f, xs)
 
 -- Fused take + map: retains at most n outputs and invokes f on at most n
 -- inputs. It does NOT bound peak memory by n:
 --   peak = source residency + largest single f(x) + n retained
 -- If one f(x) can itself be large, bound it inside f.
-export pure func takeMap[a, b](n: int, f: (a) -> b, xs: [a]) -> [b] = _list_takeMap(n, f, xs)
+export pure func takeMap[a, b](n: int, f: a -> b, xs: [a]) -> [b] = _list_takeMap(n, f, xs)
 
 -- ============================================================================
 -- Effectful Combinators (v0.7.3) - map/filter/fold with effects
@@ -218,7 +217,7 @@ export pure func takeMap[a, b](n: int, f: (a) -> b, xs: [a]) -> [b] = _list_take
 -- All effectful combinators evaluate elements left-to-right, sequentially.
 
 -- mapE: Apply an effectful function to each element (left-to-right)
-export func mapE[a, b, e](f: (a) -> b ! {e}, xs: [a]) -> [b] ! {e} {
+export func mapE[a, b, e](f: a -> b ! {e}, xs: [a]) -> [b] ! {e} {
   match xs {
     [] => [],
     [x, ...rest] => {
@@ -229,11 +228,11 @@ export func mapE[a, b, e](f: (a) -> b ! {e}, xs: [a]) -> [b] ! {e} {
 }
 
 -- filterE: Effectful predicate per element (left-to-right)
-export func filterE[a, e](p: (a) -> bool ! {e}, xs: [a]) -> [a] ! {e} {
+export func filterE[a, e](p: a -> bool ! {e}, xs: [a]) -> [a] ! {e} {
   match xs {
     [] => [],
     [x, ...rest] => {
-      let keep = p(x);
+      let keep = p(x)
       if keep then [x] ++ filterE(p, rest) else filterE(p, rest)
     }
   }
@@ -244,29 +243,29 @@ export func foldlE[a, b, e](f: (b, a) -> b ! {e}, acc: b, xs: [a]) -> b ! {e} {
   match xs {
     [] => acc,
     [x, ...rest] => {
-      let newAcc = f(acc, x);
+      let newAcc = f(acc, x)
       foldlE(f, newAcc, rest)
     }
   }
 }
 
 -- flatMapE: Effectful flatMap (map then flatten, left-to-right)
-export func flatMapE[a, b, e](f: (a) -> [b] ! {e}, xs: [a]) -> [b] ! {e} {
+export func flatMapE[a, b, e](f: a -> [b] ! {e}, xs: [a]) -> [b] ! {e} {
   match xs {
     [] => [],
     [x, ...rest] => {
-      let ys = f(x);
+      let ys = f(x)
       concat(ys, flatMapE(f, rest))
     }
   }
 }
 
 -- forEachE: Execute effect per element, discard results (left-to-right)
-export func forEachE[a, e](f: (a) -> () ! {e}, xs: [a]) -> () ! {e} {
+export func forEachE[a, e](f: a -> () ! {e}, xs: [a]) -> () ! {e} {
   match xs {
     [] => (),
     [x, ...rest] => {
-      f(x);
+      f(x)
       forEachE(f, rest)
     }
   }

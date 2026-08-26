@@ -7,25 +7,22 @@
 -- output is deterministic, and reads frame_count() (starts at 0) from the Clock
 -- capability to show the effectful call site.
 module examples/runnable/stdlib_game
-
 import std/io (println)
 import std/game (frame_count)
 
 -- Advance a 1-D position by velocity * dt for each simulated frame.
 -- Pure: the caller supplies the fixed dt so the demo is reproducible.
 export func simulate(frames: int, velocity: float, dt: float) -> float {
-  if frames <= 0 then 0.0
-  else simulate(frames - 1, velocity, dt) + velocity * dt
+  if frames <= 0 then 0.0 else simulate(frames - 1, velocity, dt) + velocity * dt
 }
 
 export func main() -> () ! {IO, Clock} {
   -- Effectful Clock read — frame_count() is 0 at program start.
-  let f = frame_count();
-  println("frame_count at start: ${show(f)}");
-
+  let f = frame_count()
+  println("frame_count at start: ${show(f)}")
   -- Headline: frame-rate-independent movement with a fixed timestep.
-  let dt = 0.016;          -- ~60fps
-  let velocity = 100.0;    -- units per second
-  let after60 = simulate(60, velocity, dt);
+  let dt = 0.016  -- ~60fps
+  let velocity = 100.0  -- units per second
+  let after60 = simulate(60, velocity, dt)
   println("position after 60 frames @ dt=${show(dt)}: ${show(after60)}")
 }

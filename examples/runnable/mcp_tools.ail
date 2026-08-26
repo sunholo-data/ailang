@@ -5,7 +5,6 @@
 -- MCP tools/list will show only @route functions with doc comment descriptions.
 -- Internal helpers are hidden via @noexpose or auto-excluded.
 module examples/runnable/mcp_tools
-
 import std/string (split, intToStr)
 import std/list (length)
 import std/json (getString)
@@ -20,11 +19,7 @@ export func parseDocument(content: string) -> int ! {IO} {
 -- Authenticated endpoint that reads API key from request headers.
 -- The _headers parameter receives all HTTP request headers as Json.
 @route("POST", "/api/v1/secure-parse")
-export func secureParse(content: string, _headers: Json) -> string ! {IO} =
-  let apiKey = getString(_headers, "x-api-key") in
-  let wordCount = intToStr(length(split(content, " "))) in
-  if apiKey == "" then "error: missing x-api-key header"
-  else "parsed ${wordCount} words (authenticated)"
+export func secureParse(content: string, _headers: Json) -> string ! {IO} = let apiKey = getString(_headers, "x-api-key") in let wordCount = intToStr(length(split(content, " "))) in if apiKey == "" then "error: missing x-api-key header" else "parsed ${wordCount} words (authenticated)"
 
 -- Internal helper hidden from MCP/HTTP via @noexpose.
 @noexpose
@@ -33,5 +28,4 @@ export func escapeXml(s: string) -> string {
 }
 
 -- Demo entrypoint for verify-examples
-export func main() -> string ! {IO} =
-  "MCP tools example: ${intToStr(parseDocument("hello world test"))}"
+export func main() -> string ! {IO} = "MCP tools example: ${intToStr(parseDocument("hello world test"))}"

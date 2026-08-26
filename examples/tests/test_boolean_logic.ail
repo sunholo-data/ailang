@@ -7,8 +7,7 @@ pure func andLogic(a: bool, b: bool) -> bool
     ((true, false), false),
     ((false, true), false),
     ((false, false), false)
-  ]
-{
+  ] {
   a && b
 }
 
@@ -19,8 +18,7 @@ pure func orLogic(a: bool, b: bool) -> bool
     ((true, false), true),
     ((false, true), true),
     ((false, false), false)
-  ]
-{
+  ] {
   a || b
 }
 
@@ -29,8 +27,7 @@ pure func notLogic(a: bool) -> bool
   tests [
     (true, false),
     (false, true)
-  ]
-{
+  ] {
   if a then false else true
 }
 
@@ -41,9 +38,8 @@ pure func demorgan1(a: bool, b: bool) -> bool
     ((true, false), true),
     ((false, true), true),
     ((false, false), true)
-  ]
-{
-  if (a && b) then false else true
+  ] {
+  if a && b then false else true
 }
 
 // Test compound AND conditions
@@ -53,8 +49,7 @@ pure func compoundAnd(a: bool, b: bool, c: bool) -> bool
     ((true, true, false), false),
     ((true, false, true), false),
     ((false, false, false), false)
-  ]
-{
+  ] {
   a && b && c
 }
 
@@ -65,8 +60,7 @@ pure func compoundOr(a: bool, b: bool, c: bool) -> bool
     ((true, true, false), true),
     ((true, false, false), true),
     ((false, false, false), false)
-  ]
-{
+  ] {
   a || b || c
 }
 
@@ -77,9 +71,8 @@ pure func shortCircuitAnd(x: int, y: int) -> bool
     ((5, 10), true),
     ((5, 0), false),
     ((0, 0), false)
-  ]
-{
-  (x > 0) && (y > 0)
+  ] {
+  x > 0 && y > 0
 }
 
 // Test short-circuit OR (if first is true, second shouldn't matter)
@@ -89,9 +82,8 @@ pure func shortCircuitOr(x: int, y: int) -> bool
     ((5, 0), true),
     ((5, 10), true),
     ((0, 0), false)
-  ]
-{
-  (x > 0) || (y > 0)
+  ] {
+  x > 0 || y > 0
 }
 
 // Test conditional with boolean result
@@ -101,8 +93,7 @@ pure func boolIf(x: int) -> bool
     (0, false),
     (-3, false),
     (100, true)
-  ]
-{
+  ] {
   if x > 0 then true else false
 }
 
@@ -113,10 +104,6 @@ pure func complexLogic(x: int, y: int) -> bool
     ((5, 2), false),
     ((2, 10), false),
     ((2, 2), true)
-  ]
-{
-  if x > 0 && y > 0 then
-    if x < y then true else y == x
-  else
-    false
+  ] {
+  if x > 0 && y > 0 then if x < y then true else y == x else false
 }

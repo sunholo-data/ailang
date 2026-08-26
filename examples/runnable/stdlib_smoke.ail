@@ -7,21 +7,17 @@
 -- caller-supplied dispatch closure for each, printing an OK marker per tool.
 -- okSuite prints the conventional final "OK:" line the gate greps for.
 module examples/runnable/stdlib_smoke
-
 import std/io (println)
 import std/smoke (dispatchAllTools, dispatchTool, okSuite)
 
 -- A package under test typically wires `dispatch` to its real tool handler;
 -- here it just records that each advertised tool was reached without crashing.
 export func main() -> () ! {IO} {
-  let tools = ["search", "fetch", "summarize"];
-
+  let tools = ["search", "fetch", "summarize"]
   -- Headline: exercise every advertised tool with one call.
-  dispatchAllTools(tools, \name. println("  -> exercised ${name}"));
-
+  dispatchAllTools(tools, \name. println("  -> exercised ${name}"))
   -- Single-tool variant for opt-in probing.
-  dispatchTool("healthcheck", \name. println("  -> exercised ${name}"));
-
+  dispatchTool("healthcheck", \name. println("  -> exercised ${name}"))
   -- Conventional suite-complete marker.
   okSuite("demo_package")
 }

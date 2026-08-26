@@ -34,17 +34,16 @@ export func main() -> () ! {IO} {
   match safeDiv(84, 2) {
     Some(x) => println("safeDiv(84, 2) = ${show(x)}"),
     None => println("safeDiv(84, 2) = undefined")
-  };
+  }
   match safeDiv(1, 0) {
     Some(x) => println("safeDiv(1, 0) = ${show(x)}"),
     None => println("safeDiv(1, 0) = undefined")
-  };
-
+  }
   -- Construct + match Result, no import:
   match classify(42) {
     Ok(msg) => println("classify(42) = Ok(${msg})"),
     Err(msg) => println("classify(42) = Err(${msg})")
-  };
+  }
   match classify(-1) {
     Ok(msg) => println("classify(-1) = Ok(${msg})"),
     Err(msg) => println("classify(-1) = Err(${msg})")

@@ -20,7 +20,6 @@
 -- ask for JSON in the prompt and decode the assistant text yourself (as below).
 
 module examples/runnable/ai_vision_input
-
 import std/ai (step, ImagePart, Message)
 import std/io (println)
 
@@ -31,19 +30,13 @@ export func redPixelPng() -> string {
 }
 
 export func main() -> () ! {AI, IO} {
-  let img: ImagePart = { source: redPixelPng(), mime: "image/png" };
-
+  let img: ImagePart = { source: redPixelPng(), mime: "image/png" }
   -- Vision + structured output via prompt-level schema. The assistant text is
   -- expected to be JSON like {"color":"...","confidence":"..."}.
-  let prompt =
-    "Look at the image. Respond ONLY with JSON matching {\"color\": string, \"confidence\": string}. No prose.";
-
-  let msgs: [Message] = [
-    { role: "user", content: prompt, tool_calls: [], tool_call_id: "", images: [img] }
-  ];
-
+  let prompt = "Look at the image. Respond ONLY with JSON matching {\"color\": string, \"confidence\": string}. No prose."
+  let msgs: [Message] = [{ role: "user", content: prompt, tool_calls: [], tool_call_id: "", images: [img] }]
   match step("", msgs, []) {
     Ok(result) => println("vision JSON: ${result.message.content}"),
-    Err(e)     => println("vision failed (${e.code}): ${e.message}")
+    Err(e) => println("vision failed (${e.code}): ${e.message}")
   }
 }

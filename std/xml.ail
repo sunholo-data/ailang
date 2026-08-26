@@ -20,7 +20,6 @@
 --   match parseLenient("<r><p>Apex Consulting & Partners</p></r>") { ... }
 
 module std/xml
-
 import std/result (Result)
 import std/option (Option)
 import std/iter (FoldStep, Continue, Stop)
@@ -28,19 +27,13 @@ import std/iter (FoldStep, Continue, Stop)
 -- XmlNode ADT — represents an XML document tree.
 -- Constructors match the Go builtins in internal/builtins/xml.go.
 -- M-CODEGEN-MULTIMOD: Type declaration required for Go codegen to emit struct definitions.
-export type XmlNode =
-  | Element(string, [{name: string, value: string}], [XmlNode])
-  | Text(string)
-  | Comment(string)
+export type XmlNode = Element(string, [{ name: string, value: string }], [XmlNode]) | Text(string) | Comment(string)
 
 -- NodeKind classifies an XmlNode without string-equality on the tag.
 -- Returned by nodeKind(node) so callers can pattern-match exhaustively
 -- instead of testing `getTag(n) == ""` to detect text. Constructors are
 -- prefixed to avoid name collision with XmlNode's Element/Text/Comment.
-export type NodeKind =
-  | KindElement
-  | KindText
-  | KindComment
+export type NodeKind = KindElement | KindText | KindComment
 
 -- Parse XML string into XmlNode tree
 -- Returns Ok(XmlNode) or Err(message) for malformed XML
@@ -75,7 +68,7 @@ export pure func parseLenient(xml: string) -> Result[XmlNode, string] = parse(sa
 
 -- Find all descendant elements matching tag name
 -- Searches recursively through the tree
-export pure func findAll(node: XmlNode, tag: string) -> List[XmlNode] = _xml_findAll(node, tag)
+export pure func findAll(node: XmlNode, tag: string) -> [XmlNode] = _xml_findAll(node, tag)
 
 -- Find first descendant element matching tag name
 -- Returns Some(node) or None
@@ -94,7 +87,7 @@ export pure func getAttr(node: XmlNode, name: string) -> Option[string] = _xml_g
 
 -- Get child nodes of an element
 -- Returns empty list for non-Element nodes
-export pure func getChildren(node: XmlNode) -> List[XmlNode] = _xml_getChildren(node)
+export pure func getChildren(node: XmlNode) -> [XmlNode] = _xml_getChildren(node)
 
 -- Get tag name of an element
 -- Returns tag string for Element, empty string for Text/CData/Comment
@@ -102,15 +95,15 @@ export pure func getTag(node: XmlNode) -> string = _xml_getTag(node)
 
 -- Bulk: find all matching elements and extract their text content
 -- Equivalent to map(findAll(node, tag), getText) but in one Go call
-export pure func findAllTexts(node: XmlNode, tag: string) -> List[string] = _xml_findAllTexts(node, tag)
+export pure func findAllTexts(node: XmlNode, tag: string) -> [string] = _xml_findAllTexts(node, tag)
 
 -- Bulk: find all matching elements and extract a named attribute
 -- Equivalent to filterMap(findAll(node, tag), \n -> getAttr(n, attr)) but in one Go call
-export pure func findAllAttrs(node: XmlNode, tag: string, attr: string) -> List[string] = _xml_findAllAttrs(node, tag, attr)
+export pure func findAllAttrs(node: XmlNode, tag: string, attr: string) -> [string] = _xml_findAllAttrs(node, tag, attr)
 
 -- Stream-parse: extract up to N elements matching a tag without building full tree
 -- Memory: O(largest element) instead of O(entire document). For large XLSX/XML files.
-export pure func parseElements(xml: string, tag: string, maxResults: int) -> Result[List[XmlNode], string] = _xml_parseElements(xml, tag, maxResults)
+export pure func parseElements(xml: string, tag: string, maxResults: int) -> Result[[XmlNode], string] = _xml_parseElements(xml, tag, maxResults)
 
 -- Fold over XML elements matching a tag. Calls handler for each match
 -- with an accumulator, returning the final accumulated value.
@@ -127,8 +120,7 @@ export pure func parseFold[a](xml: string, tag: string, init: a, f: (a, XmlNode)
 --
 -- COST MODEL:
 --   parseFoldStep(xml, tag, init, f)  O(prefix), early-terminating
-export pure func parseFoldStep[a](xml: string, tag: string, init: a, f: (a, XmlNode) -> FoldStep[a]) -> Result[a, string] =
-  _xml_parseFoldStep(xml, tag, init, f)
+export pure func parseFoldStep[a](xml: string, tag: string, init: a, f: (a, XmlNode) -> FoldStep[a]) -> Result[a, string] = _xml_parseFoldStep(xml, tag, init, f)
 
 -- Parse with node count limit — returns Err if tree exceeds maxNodes
 -- Safety valve for large documents that might exhaust memory
@@ -152,7 +144,7 @@ export pure func escapeXml(text: string) -> string = _escapeXml(text)
 -- Build XML trees programmatically instead of string concatenation
 
 -- Create an Element node with tag, attributes, and children
-export pure func xmlElement(tag: string, attrs: [{name: string, value: string}], children: [XmlNode]) -> XmlNode = _xmlElement(tag, attrs, children)
+export pure func xmlElement(tag: string, attrs: [{ name: string, value: string }], children: [XmlNode]) -> XmlNode = _xmlElement(tag, attrs, children)
 
 -- Create a Text node
 export pure func xmlText(content: string) -> XmlNode = _xmlText(content)
@@ -171,24 +163,20 @@ export pure func xmlComment(content: string) -> XmlNode = _xmlComment(content)
 -- Fold over direct children of an Element without materialising [XmlNode].
 -- Non-Element nodes return init unchanged.
 -- Replaces: foldl(f, init, getChildren(node)).
-export pure func foldChildren[a](node: XmlNode, init: a, f: (a, XmlNode) -> a) -> a
-  = _xml_foldChildren(node, init, f)
+export pure func foldChildren[a](node: XmlNode, init: a, f: (a, XmlNode) -> a) -> a = _xml_foldChildren(node, init, f)
 
 -- Bounded variant of foldChildren. Handler returns Continue(a) | Stop(a).
 -- Stop(acc') halts the walk immediately and returns acc'.
-export pure func foldChildrenStep[a](node: XmlNode, init: a, f: (a, XmlNode) -> FoldStep[a]) -> a
-  = _xml_foldChildrenStep(node, init, f)
+export pure func foldChildrenStep[a](node: XmlNode, init: a, f: (a, XmlNode) -> FoldStep[a]) -> a = _xml_foldChildrenStep(node, init, f)
 
 -- All attributes of an Element as Map[string, string]. Non-Element nodes return empty map.
 -- Replaces: N separate getAttr calls when extracting multiple attributes from one node.
 -- Duplicate attribute names: last write wins.
-export pure func getAttrMap(node: XmlNode) -> Map[string, string]
-  = _xml_getAttrMap(node)
+export pure func getAttrMap(node: XmlNode) -> Map[string, string] = _xml_getAttrMap(node)
 
 -- Classify a node as KindElement | KindText | KindComment without string-equality on the tag.
 -- Use instead of `getTag(n) == ""` text-detection patterns.
-export pure func nodeKind(node: XmlNode) -> NodeKind
-  = _xml_nodeKind(node)
+export pure func nodeKind(node: XmlNode) -> NodeKind = _xml_nodeKind(node)
 
 -- Go-iterative flatMap over direct children. Use this — NOT foldChildren —
 -- when the walker produces a flat list of outputs. Internally appends into
@@ -197,10 +185,8 @@ export pure func nodeKind(node: XmlNode) -> NodeKind
 -- fold accumulator would incur.
 --
 -- Replaces: flatMap(f, getChildren(node)).
-export pure func flatMapChildren[a](node: XmlNode, f: (XmlNode) -> [a]) -> [a]
-  = _xml_flatMapChildren(node, f)
+export pure func flatMapChildren[a](node: XmlNode, f: XmlNode -> [a]) -> [a] = _xml_flatMapChildren(node, f)
 
 -- Go-iterative map over direct children. Use when f produces exactly one
 -- output element per child. Replaces: map(f, getChildren(node)).
-export pure func mapChildren[a](node: XmlNode, f: (XmlNode) -> a) -> [a]
-  = _xml_mapChildren(node, f)
+export pure func mapChildren[a](node: XmlNode, f: XmlNode -> a) -> [a] = _xml_mapChildren(node, f)

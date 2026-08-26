@@ -22,7 +22,6 @@
 -- Expect: 4 verified, 2 violations (injectedForward, externalLeak)
 
 module examples/runnable/contracts/inbox_injection
-
 import std/string (length as strLength, endsWith)
 
 -- The data that would go on the wire.

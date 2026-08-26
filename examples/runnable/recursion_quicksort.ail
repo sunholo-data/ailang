@@ -3,33 +3,29 @@
 -- Status: ✅ Working
 
 module examples/runnable/recursion_quicksort
-
 import std/io (println)
 import std/list (filter, concat, sortBy)
 
 -- Custom quicksort implementation using filter
-func quicksort(lst: [int]) -> [int] =
-  match lst {
-    [] => [],
-    [x] => [x],
-    [pivot, ...rest] => {
-      let lesser = filter(\x. x <= pivot, rest);
-      let greater = filter(\x. x > pivot, rest);
-      concat(quicksort(lesser), concat([pivot], quicksort(greater)))
-    }
+func quicksort(lst: [int]) -> [int] = match lst {
+  [] => [],
+  [x] => [x],
+  [pivot, ...rest] => {
+    let lesser = filter(\x. x <= pivot, rest)
+    let greater = filter(\x. x > pivot, rest)
+    concat(quicksort(lesser), concat([pivot], quicksort(greater)))
   }
+}
 
 -- Comparison function for sortBy
 func cmpInt(a: int, b: int) -> int = a - b
 
 export func main() -> () ! {IO} {
-  let input = [3, 1, 4, 1, 5, 9, 2, 6];
-
+  let input = [3, 1, 4, 1, 5, 9, 2, 6]
   -- Using custom quicksort
-  let qs = quicksort(input);
-  println("Quicksort: ${show(qs)}");
-
+  let qs = quicksort(input)
+  println("Quicksort: ${show(qs)}")
   -- Using std/list sortBy (merge sort)
-  let ms = sortBy(cmpInt, input);
+  let ms = sortBy(cmpInt, input)
   println("sortBy:    ${show(ms)}")
 }

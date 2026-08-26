@@ -8,9 +8,6 @@
 -- Code after exit() is unreachable. Requires IO capability.
 
 module examples/runnable/exit_code
-
 import std/io (println, exit)
 
-export func main() -> () ! {IO} =
-  let _ = println("Exiting with code 42") in
-  exit(42)
+export func main() -> () ! {IO} = let _ = println("Exiting with code 42") in exit(42)

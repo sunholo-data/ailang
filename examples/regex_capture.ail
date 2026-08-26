@@ -8,7 +8,6 @@
 -- Run: ailang run --caps IO examples/regex_capture.ail
 
 module examples/regex_capture
-
 import std/io (println)
 import std/regex as R
 import std/result (Ok, Err)
@@ -16,8 +15,8 @@ import std/option (Some, None)
 import std/list (nth_or)
 
 -- A missing group falls back to this empty match.
-export func noGroup() -> {start: int, end: int, text: string} = {
-  {start: -1, end: -1, text: ""}
+export func noGroup() -> { start: int, end: int, text: string } = {
+  { start: -1, end: -1, text: "" }
 }
 
 export func main() -> () ! {IO} = {
@@ -27,10 +26,10 @@ export func main() -> () ! {IO} = {
     Ok(re) => match R.findFirst(re, "port=8080") {
       None => println("no match"),
       Some(m) => {
-        let key = nth_or(m.groups, 1, noGroup()).text;
-        let val = nth_or(m.groups, 2, noGroup()).text;
-        println("whole match: '${m.text}' at rune [${show(m.start)}, ${show(m.end)})");
-        println("key = ${key}");
+        let key = (nth_or(m.groups, 1, noGroup())).text
+        let val = (nth_or(m.groups, 2, noGroup())).text
+        println("whole match: '${m.text}' at rune [${show(m.start)}, ${show(m.end)})")
+        println("key = ${key}")
         println("value = ${val}")
       }
     }

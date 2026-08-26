@@ -1,8 +1,6 @@
 -- hello.ail - Simple hello world program
 module examples/runnable/hello
-
 import std/io (print)
 
 -- Entry module with exported main function
-export func main() -> () ! {IO} =
-  print("Hello, AILANG!")
+export func main() -> () ! {IO} = print("Hello, AILANG!")

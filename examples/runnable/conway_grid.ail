@@ -2,49 +2,62 @@ module examples/runnable/conway_grid
 
 -- Conway's Game of Life on an Array grid
 -- Exercises: Arrays (spatial state), ADTs (cell state), Inline tests (invariants)
-
 import std/array (make as arrayMake, get as arrayGet, set as arraySet)
 
 -- Cell state as ADT
 export type Cell = Alive | Dead
 
 -- Grid dimensions (5x5 for simplicity)
-pure func gridSize() -> int { 5 }
+pure func gridSize() -> int {
+  5
+}
 
 -- Convert 2D coordinates to 1D array index
 pure func toIndex(x: int, y: int) -> int
-  tests [((0, 0), 0), ((1, 0), 1), ((0, 1), 5), ((2, 3), 17)]
-{ y * gridSize() + x }
+  tests [
+    ((0, 0), 0),
+    ((1, 0), 1),
+    ((0, 1), 5),
+    ((2, 3), 17)
+  ] {
+  y * gridSize() + x
+}
 
 -- Check if coordinates are in bounds
 pure func inBounds(x: int, y: int) -> bool
-  tests [((0, 0), true), ((4, 4), true), ((-1, 0), false), ((5, 0), false)]
-{ x >= 0 && x < gridSize() && y >= 0 && y < gridSize() }
+  tests [
+    ((0, 0), true),
+    ((4, 4), true),
+    ((-1, 0), false),
+    ((5, 0), false)
+  ] {
+  x >= 0 && x < gridSize() && y >= 0 && y < gridSize()
+}
 
 -- Safely get cell (returns Dead for out-of-bounds)
 pure func getCell(grid: Array[Cell], x: int, y: int) -> Cell {
-    if inBounds(x, y) then
-        arrayGet(grid, toIndex(x, y))
-    else
-        Dead
+  if inBounds(x, y) then arrayGet(grid, toIndex(x, y)) else Dead
 }
 
 -- Helper: check if cell is alive (returns 1 if alive, 0 if dead)
 pure func cellValue(cell: Cell) -> int {
-    match cell { Alive => 1, Dead => 0 }
+  match cell {
+    Alive => 1,
+    Dead => 0
+  }
 }
 
 -- Count alive neighbors (8-directional)
 pure func countNeighbors(grid: Array[Cell], x: int, y: int) -> int {
-    let n0 = cellValue(getCell(grid, x - 1, y - 1));
-    let n1 = cellValue(getCell(grid, x,     y - 1));
-    let n2 = cellValue(getCell(grid, x + 1, y - 1));
-    let n3 = cellValue(getCell(grid, x - 1, y));
-    let n4 = cellValue(getCell(grid, x + 1, y));
-    let n5 = cellValue(getCell(grid, x - 1, y + 1));
-    let n6 = cellValue(getCell(grid, x,     y + 1));
-    let n7 = cellValue(getCell(grid, x + 1, y + 1));
-    n0 + n1 + n2 + n3 + n4 + n5 + n6 + n7
+  let n0 = cellValue(getCell(grid, x - 1, y - 1))
+  let n1 = cellValue(getCell(grid, x, y - 1))
+  let n2 = cellValue(getCell(grid, x + 1, y - 1))
+  let n3 = cellValue(getCell(grid, x - 1, y))
+  let n4 = cellValue(getCell(grid, x + 1, y))
+  let n5 = cellValue(getCell(grid, x - 1, y + 1))
+  let n6 = cellValue(getCell(grid, x, y + 1))
+  let n7 = cellValue(getCell(grid, x + 1, y + 1))
+  n0 + n1 + n2 + n3 + n4 + n5 + n6 + n7
 }
 
 -- Apply Conway rules: returns 1 if cell should be alive, 0 if dead
@@ -61,89 +74,78 @@ pure func shouldLive(isAlive: int, neighbors: int) -> int
     ((0, 2), 0),
     ((0, 3), 1),
     ((0, 4), 0)
-  ]
-{
-    if isAlive == 1 then
-        if neighbors == 2 || neighbors == 3 then 1 else 0
-    else
-        if neighbors == 3 then 1 else 0
+  ] {
+  if isAlive == 1 then if neighbors == 2 || neighbors == 3 then 1 else 0 else if neighbors == 3 then 1 else 0
 }
 
 -- Create empty grid (all Dead)
 pure func emptyGrid() -> Array[Cell] {
-    arrayMake(25, Dead)
+  arrayMake(25, Dead)
 }
 
 -- Set a cell in the grid (returns new grid)
 pure func setGridCell(grid: Array[Cell], x: int, y: int, value: Cell) -> Array[Cell] {
-    if inBounds(x, y) then
-        arraySet(grid, toIndex(x, y), value)
-    else
-        grid
+  if inBounds(x, y) then arraySet(grid, toIndex(x, y), value) else grid
 }
 
 -- Create a blinker pattern (oscillates between horizontal and vertical)
 pure func makeBlinker() -> Array[Cell] {
-    let grid = emptyGrid();
-    let g1 = setGridCell(grid, 2, 1, Alive);
-    let g2 = setGridCell(g1, 2, 2, Alive);
-    setGridCell(g2, 2, 3, Alive)
+  let grid = emptyGrid()
+  let g1 = setGridCell(grid, 2, 1, Alive)
+  let g2 = setGridCell(g1, 2, 2, Alive)
+  setGridCell(g2, 2, 3, Alive)
 }
 
 -- Display a cell as character
 pure func cellChar(cell: Cell) -> string {
-    match cell { Alive => "#", Dead => "." }
+  match cell {
+    Alive => "#",
+    Dead => "."
+  }
 }
 
 -- Display a row of the grid
 pure func showRow(grid: Array[Cell], y: int, x: int, acc: string) -> string {
-    if x >= gridSize() then acc
-    else showRow(grid, y, x + 1, "${acc}${cellChar(getCell(grid, x, y))}")
+  if x >= gridSize() then acc else showRow(grid, y, x + 1, "${acc}${cellChar(getCell(grid, x, y))}")
 }
 
 -- Display entire grid as string
 pure func showGrid(grid: Array[Cell], y: int, acc: string) -> string {
-    if y >= gridSize() then acc
-    else showGrid(grid, y + 1, "${acc}${showRow(grid, y, 0, "")}\n")
+  if y >= gridSize() then acc else showGrid(grid, y + 1, "${acc}${showRow(grid, y, 0, "")}\n")
 }
 
 -- Compute next cell state
 pure func nextCell(grid: Array[Cell], x: int, y: int) -> Cell {
-    let current = getCell(grid, x, y);
-    let isAlive = cellValue(current);
-    let neighbors = countNeighbors(grid, x, y);
-    if shouldLive(isAlive, neighbors) == 1 then Alive else Dead
+  let current = getCell(grid, x, y)
+  let isAlive = cellValue(current)
+  let neighbors = countNeighbors(grid, x, y)
+  if shouldLive(isAlive, neighbors) == 1 then Alive else Dead
 }
 
 -- Compute next generation (iterate through all cells)
 pure func evolveRow(grid: Array[Cell], newGrid: Array[Cell], y: int, x: int) -> Array[Cell] {
-    if x >= gridSize() then newGrid
-    else evolveRow(grid, setGridCell(newGrid, x, y, nextCell(grid, x, y)), y, x + 1)
+  if x >= gridSize() then newGrid else evolveRow(grid, setGridCell(newGrid, x, y, nextCell(grid, x, y)), y, x + 1)
 }
 
 pure func evolveGrid(grid: Array[Cell], newGrid: Array[Cell], y: int) -> Array[Cell] {
-    if y >= gridSize() then newGrid
-    else evolveGrid(grid, evolveRow(grid, newGrid, y, 0), y + 1)
+  if y >= gridSize() then newGrid else evolveGrid(grid, evolveRow(grid, newGrid, y, 0), y + 1)
 }
 
 pure func evolve(grid: Array[Cell]) -> Array[Cell] {
-    evolveGrid(grid, emptyGrid(), 0)
+  evolveGrid(grid, emptyGrid(), 0)
 }
 
 -- Main function to run and display Conway's Game of Life
 export func main() -> () ! {IO} = {
-    println("Conway's Game of Life - Blinker Pattern\n");
-    println("========================================\n");
-
-    let gen0 = makeBlinker();
-    println("\nGeneration 0:\n");
-    println(showGrid(gen0, 0, ""));
-
-    let gen1 = evolve(gen0);
-    println("Generation 1:\n");
-    println(showGrid(gen1, 0, ""));
-
-    let gen2 = evolve(gen1);
-    println("Generation 2 (back to original):\n");
-    println(showGrid(gen2, 0, ""))
+  println("Conway's Game of Life - Blinker Pattern\n")
+  println("========================================\n")
+  let gen0 = makeBlinker()
+  println("\nGeneration 0:\n")
+  println(showGrid(gen0, 0, ""))
+  let gen1 = evolve(gen0)
+  println("Generation 1:\n")
+  println(showGrid(gen1, 0, ""))
+  let gen2 = evolve(gen1)
+  println("Generation 2 (back to original):\n")
+  println(showGrid(gen2, 0, ""))
 }

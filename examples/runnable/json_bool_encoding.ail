@@ -12,39 +12,32 @@
 -- but a naive encoder may have sent the string). asBoolLoose() tolerates
 -- both JBool(b) and JString "true"/"false"; use it ONLY at that boundary.
 module examples/runnable/json_bool_encoding
-
 import std/json (jb, js, asBool, asBoolLoose, jo, kv, encode, Json)
 import std/option (Option, Some, None)
 import std/io (println)
 
 -- Render an Option[bool] for display
-func showOpt(o: Option[bool]) -> string =
-  match o {
-    Some(v) => "Some(${v})",
-    None => "None"
-  }
+func showOpt(o: Option[bool]) -> string = match o {
+  Some(v) => "Some(${v})",
+  None => "None"
+}
 
 -- Correct encoder: booleans use jb()
-func encodeFlag(b: bool) -> Json =
-  jo([kv("enabled", jb(b))])
+func encodeFlag(b: bool) -> Json = jo([kv("enabled", jb(b))])
 
 export func main() -> () ! {IO} = {
   -- Correct roundtrip: jb() then asBool() is inverse
-  println("encode(jb(true))            = ${encode(jb(true))}");
-  println("asBool(jb(true))           = ${showOpt(asBool(jb(true)))}");
-
+  println("encode(jb(true))            = ${encode(jb(true))}")
+  println("asBool(jb(true))           = ${showOpt(asBool(jb(true)))}")
   -- The footgun: js("true") is a JSON STRING, not a boolean
-  println("encode(js(\"true\"))         = ${encode(js("true"))}");
-  println("asBool(js(\"true\"))         = ${showOpt(asBool(js("true")))}");
-
+  println("encode(js(\"true\"))         = ${encode(js("true"))}")
+  println("asBool(js(\"true\"))         = ${showOpt(asBool(js("true")))}")
   -- At a system boundary, asBoolLoose() accepts either shape
-  println("asBoolLoose(js(\"true\"))    = ${showOpt(asBoolLoose(js("true")))}");
-  println("asBoolLoose(js(\"false\"))   = ${showOpt(asBoolLoose(js("false")))}");
-  println("asBoolLoose(jb(false))     = ${showOpt(asBoolLoose(jb(false)))}");
-
+  println("asBoolLoose(js(\"true\"))    = ${showOpt(asBoolLoose(js("true")))}")
+  println("asBoolLoose(js(\"false\"))   = ${showOpt(asBoolLoose(js("false")))}")
+  println("asBoolLoose(jb(false))     = ${showOpt(asBoolLoose(jb(false)))}")
   -- Non-boolean input is structured failure, never a silent default
-  println("asBoolLoose(js(\"maybe\"))   = ${showOpt(asBoolLoose(js("maybe")))}");
-
+  println("asBoolLoose(js(\"maybe\"))   = ${showOpt(asBoolLoose(js("maybe")))}")
   -- A correctly-encoded object
   println("encodeFlag(true)           = ${encode(encodeFlag(true))}")
 }

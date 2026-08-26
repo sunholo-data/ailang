@@ -9,7 +9,6 @@
 -- high-level withStream helper. Uses typed ADTs for events.
 
 module examples/runnable/stream_websocket
-
 import std/stream (connect, transmit, onEvent, runEventLoop, disconnect, defaultConfig, withStream, StreamConn, StreamEvent, Message, Closed, StreamError, StreamErrorKind)
 import std/result (Result, Ok, Err)
 
@@ -25,16 +24,16 @@ export func handler(event: StreamEvent) -> bool {
 
 -- Low-level API: explicit connect/send/disconnect with Result unwrapping
 export func main() -> unit ! {Stream, IO} {
-  let config = defaultConfig(());
-  let result = connect("wss://echo.websocket.events", config);
+  let config = defaultConfig()
+  let result = connect("wss://echo.websocket.events", config)
   match result {
     Ok(conn) => {
-      _io_println("connected");
-      let sent = transmit(conn, "Hello from AILANG!");
-      _io_println("message sent");
-      onEvent(conn, handler);
-      runEventLoop(conn);
-      disconnect(conn);
+      _io_println("connected")
+      let sent = transmit(conn, "Hello from AILANG!")
+      _io_println("message sent")
+      onEvent(conn, handler)
+      runEventLoop(conn)
+      disconnect(conn)
       _io_println("done")
     },
     Err(e) => _io_println("connection failed")
@@ -43,6 +42,6 @@ export func main() -> unit ! {Stream, IO} {
 
 -- High-level API: withStream manages the full lifecycle
 export func mainSimple() -> unit ! {Stream, IO} {
-  let result = withStream("wss://echo.websocket.events", handler);
+  let result = withStream("wss://echo.websocket.events", handler)
   _io_println("done")
 }

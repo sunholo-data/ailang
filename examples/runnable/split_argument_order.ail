@@ -28,20 +28,17 @@
 -- Run me:  ailang run --caps IO --entry main examples/runnable/split_argument_order.ail
 
 module examples/runnable/split_argument_order
-
 import std/string (split)
 import std/list (length)
 import std/io (println)
 
 export func main() -> () ! {IO} {
-  let name = "api/keys/user123";
-
+  let name = "api/keys/user123"
   -- CORRECT: string first, delimiter second -> ["api", "keys", "user123"]
-  let right = split(name, "/");
-  let _ = println("correct  split(name, \"/\") -> ${show(length(right))} parts");
-
+  let right = split(name, "/")
+  let _ = println("correct  split(name, \"/\") -> ${show(length(right))} parts")
   -- WRONG (reversed): splits "/" by `name` -> ["/"] (1 element).
   -- The compiler warns about this line but does NOT block the run.
-  let wrong = split("/", name);
+  let wrong = split("/", name)
   println("reversed split(\"/\", name) -> ${show(length(wrong))} part(s)")
 }

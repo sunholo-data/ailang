@@ -14,7 +14,6 @@
 -- Design: design_docs/planned/v0_21_0/m-cog-runtime.md
 
 module std/cognition
-
 import std/result (Result, Ok, Err)
 
 -- Send a payload to a mailbox (typically a NodeID or topic name).
@@ -24,7 +23,7 @@ import std/result (Result, Ok, Err)
 -- Named sendMsg (not send) because `send` is reserved for planned CSP/channel
 -- syntax (M-CSP-SESSION-TYPES, v1.1.0). Same for recvMsg vs recv.
 -- @requires Msg capability
-export func sendMsg(to: string, payload: string) -> ({msg_id: string, clock: int, budget_remaining: int}) ! {Msg} {
+export func sendMsg(to: string, payload: string) -> { msg_id: string, clock: int, budget_remaining: int } ! {Msg} {
   _msg_send(to, payload)
 }
 
@@ -34,7 +33,7 @@ export func sendMsg(to: string, payload: string) -> ({msg_id: string, clock: int
 -- synchronous tests). The real browser-bridged handler blocks until a
 -- message arrives or the transport closes.
 -- @requires Msg capability
-export func recvMsg(mailbox: string) -> ({msg_id: string, from: string, to: string, payload: string, clock: int}) ! {Msg} {
+export func recvMsg(mailbox: string) -> { msg_id: string, from: string, to: string, payload: string, clock: int } ! {Msg} {
   _msg_recv(mailbox)
 }
 
@@ -45,7 +44,7 @@ export func recvMsg(mailbox: string) -> ({msg_id: string, from: string, to: stri
 --            Ok(r) => "sent at clock " ++ show(r.clock),
 --            Err(e) => "send failed: " ++ e.code
 --          }
-export func sendMsgResult(to: string, payload: string) -> (Result[{msg_id: string, clock: int, budget_remaining: int}, {code: string, message: string}]) ! {Msg} {
+export func sendMsgResult(to: string, payload: string) -> Result[{ msg_id: string, clock: int, budget_remaining: int }, { code: string, message: string }] ! {Msg} {
   _msg_send_result(to, payload)
 }
 
@@ -53,7 +52,7 @@ export func sendMsgResult(to: string, payload: string) -> (Result[{msg_id: strin
 -- Empty-mailbox cases surface as Err({code: "NO_MESSAGE", ...}) in the stub;
 -- in the real handler, only transport-close conditions produce Err.
 -- @requires Msg capability
-export func recvMsgResult(mailbox: string) -> (Result[{msg_id: string, from: string, to: string, payload: string, clock: int}, {code: string, message: string}]) ! {Msg} {
+export func recvMsgResult(mailbox: string) -> Result[{ msg_id: string, from: string, to: string, payload: string, clock: int }, { code: string, message: string }] ! {Msg} {
   _msg_recv_result(mailbox)
 }
 
@@ -78,6 +77,6 @@ export func drain(timeout_ms: int) -> int ! {Cog} {
 -- Subscribe to messages arriving in a mailbox. The callback fires
 -- asynchronously via drain — the registration is non-blocking.
 -- @requires Msg + Cog capabilities
-export func subscribeMsg(mailbox: string, callback: ({msg_id: string, from: string, to: string, payload: string, clock: int}) -> () ! {Msg, Cog}) -> () ! {Msg, Cog} {
+export func subscribeMsg(mailbox: string, callback: ({ msg_id: string, from: string, to: string, payload: string, clock: int }) -> () ! {Msg, Cog}) -> () ! {Msg, Cog} {
   _msg_subscribe(mailbox, callback)
 }

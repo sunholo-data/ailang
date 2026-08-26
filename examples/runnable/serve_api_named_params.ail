@@ -10,7 +10,6 @@
 --   curl -X POST http://localhost:8080/api/examples/runnable/serve_api_named_params/greet \
 --     -d '{"args": ["Alice", "formal"]}'
 module examples/runnable/serve_api_named_params
-
 import std/string (toUpper)
 
 -- Named params: agents send {"name": "Alice", "greeting_style": "formal"}
@@ -29,5 +28,4 @@ export func search(query: string) -> string {
 }
 
 -- Demo entrypoint for verify-examples
-export func main() -> string =
-  "${greet("World", "formal")} | ${search("ailang")}"
+export func main() -> string = "${greet("World", "formal")} | ${search("ailang")}"

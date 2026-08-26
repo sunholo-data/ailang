@@ -6,7 +6,6 @@
 --
 -- Usage: ailang run --caps IO --entry main html_parser.ail
 module examples/runnable/html_parser
-
 import std/result (Result, Ok, Err)
 import std/option (Option, Some, None)
 import std/html (parse, parseFragment)
@@ -17,17 +16,14 @@ import std/io (println)
 export func main() -> int ! {IO} {
   -- Real-world HTML5 with unclosed paragraphs, mixed-case tags,
   -- and a boolean attribute. A strict XML parser would reject this.
-  let html = "<!DOCTYPE html><HTML><body><p>first<p>second<input type=\"checkbox\" checked><a href=\"https://example.com\">link</a></body></HTML>";
-
+  let html = "<!DOCTYPE html><HTML><body><p>first<p>second<input type=\"checkbox\" checked><a href=\"https://example.com\">link</a></body></HTML>"
   match parse(html) {
     Ok(root) => {
       -- Root is the <html> element (lower-cased by HTML5 parser).
-      println("root tag: ${getTag(root)}");
-
+      println("root tag: ${getTag(root)}")
       -- Lenient parse splits <p>first<p>second into two siblings.
-      let paragraphs = findAll(root, "p");
-      println("paragraphs: ${show(List.length(paragraphs))}");
-
+      let paragraphs = findAll(root, "p")
+      println("paragraphs: ${show(List.length(paragraphs))}")
       -- Find the link and extract its href.
       match findFirst(root, "a") {
         Some(a) => match getAttr(a, "href") {
@@ -35,8 +31,7 @@ export func main() -> int ! {IO} {
           None => println("no href")
         },
         None => println("no link found")
-      };
-
+      }
       -- Find the boolean attribute on <input>. HTML5 emits value "" for it.
       match findFirst(root, "input") {
         Some(inp) => match getAttr(inp, "checked") {
@@ -45,7 +40,6 @@ export func main() -> int ! {IO} {
         },
         None => println("no input")
       };
-
       0
     },
     Err(msg) => {

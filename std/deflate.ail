@@ -29,7 +29,6 @@
 --     inflateZlib(b64)
 
 module std/deflate
-
 import std/result (Result)
 
 -- Inflate a base64-encoded raw deflate (RFC 1951) stream.

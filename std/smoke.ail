@@ -15,7 +15,6 @@
 -- See M-EXT-PORTABILITY-GATE (v0.19.0) and follow-up F1 (v0.19.1).
 
 module std/smoke
-
 import std/io (println)
 
 -- Iterate `tools`, calling `dispatch(name)` for each. Prints
@@ -37,17 +36,10 @@ import std/io (println)
 --       ()
 --     }
 --   )
-export func dispatchAllTools(
-  tools: [string],
-  dispatch: (string) -> () ! {e}
-) -> () ! {IO | e} =
-  match tools {
-    [] => (),
-    name :: rest =>
-      let _ = dispatch(name) in
-      let _ = println("OK: tool ${name} dispatched without crash") in
-      dispatchAllTools(rest, dispatch)
-  }
+export func dispatchAllTools(tools: [string], dispatch: string -> () ! {e}) -> () ! {IO, e} = match tools {
+  [] => (),
+  name :: rest => let _ = dispatch(name) in let _ = println("OK: tool ${name} dispatched without crash") in dispatchAllTools(rest, dispatch)
+}
 
 -- Single-tool variant for packages that want to opt-in / opt-out per tool.
 -- Same shape as dispatchAllTools but for one name; trivial sugar that exists
@@ -56,12 +48,7 @@ export func dispatchAllTools(
 -- @example
 --   import std/smoke (dispatchTool)
 --   dispatchTool("Search", \name. exa_search.dispatch(ctx, name))
-export func dispatchTool(
-  name: string,
-  dispatch: (string) -> () ! {e}
-) -> () ! {IO | e} =
-  let _ = dispatch(name) in
-  println("OK: tool ${name} dispatched without crash")
+export func dispatchTool(name: string, dispatch: string -> () ! {e}) -> () ! {IO, e} = let _ = dispatch(name) in println("OK: tool ${name} dispatched without crash")
 
 -- Print the conventional OK marker that the parent Makefile :: verify-extensions
 -- greps for ("^OK:"). Use as the last line of a bespoke _smoke.ail when
@@ -70,5 +57,4 @@ export func dispatchTool(
 -- @example
 --   import std/smoke (okSuite)
 --   okSuite("compaction_ai")  -- prints "OK: compaction_ai smoke complete"
-export func okSuite(name: string) -> () ! {IO} =
-  println("OK: ${name} smoke complete")
+export func okSuite(name: string) -> () ! {IO} = println("OK: ${name} smoke complete")

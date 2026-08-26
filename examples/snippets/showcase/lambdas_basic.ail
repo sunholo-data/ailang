@@ -4,41 +4,35 @@ module examples/snippets/showcase/lambdas_basic
 
 export func main() -> () ! {IO} =
   let _ = println("=== Basic Lambda Syntax ===") in
-
   -- Identity function: simplest possible lambda
   let id = \x. x in
   let _ = println("Identity function:") in
   let _ = println("  id(42) = " ++ show(id(42))) in
   let _ = println("  id(\"hello\") = " ++ show(id("hello"))) in
-
   -- Simple arithmetic lambda
   let add_one = \x. x + 1 in
   let _ = println("") in
   let _ = println("Simple arithmetic lambda:") in
   let _ = println("  add_one(5) = " ++ show(add_one(5))) in
   let _ = println("  add_one(10) = " ++ show(add_one(10))) in
-
   -- Lambda with expression body
   let double = \x. x * 2 in
   let _ = println("") in
   let _ = println("Lambda with multiplication:") in
   let _ = println("  double(3) = " ++ show(double(3))) in
   let _ = println("  double(7) = " ++ show(double(7))) in
-
   -- More complex expression
   let complex = \x. x * 2 + 1 in
   let _ = println("") in
   let _ = println("Complex expression:") in
   let _ = println("  complex(3) = " ++ show(complex(3))) in
   let _ = println("  complex(5) = " ++ show(complex(5))) in
-
   -- Binary lambda (addition)
   let add = \x. \y. x + y in
   let _ = println("") in
   let _ = println("Binary lambda (add):") in
   let _ = println("  add(10)(20) = " ++ show(add(10)(20))) in
   let _ = println("  add(5)(7) = " ++ show(add(5)(7))) in
-
   -- Comparison operators in lambdas (fixed in v0.3.17!)
   let max = \x. \y. if x > y then x else y in
   let min = \x. \y. if x < y then x else y in

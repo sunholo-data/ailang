@@ -40,9 +40,7 @@
 --   design_docs/implemented/v0_30_0/m-effect-replay-contracts.md (Phase 3 dispatch)
 
 module examples/modal_rand
-
 import std/rand (rand_int)
-
 import std/io (println)
 
 -- Bare !{Rand} — desugars to !{Rand[mode=os]} via the default-mode table.
@@ -66,16 +64,16 @@ export func crypto_roll() -> int ! {Rand[mode=crypto]} = rand_int(1, 1000000)
 
 -- main demonstrates only os-mode forms end-to-end.
 export func main() -> () ! {Rand, IO} = {
-  let r1 = roll_d6(()) in println(concat_String("roll_d6 (bare Rand → mode=os): ", show(show(r1))))
-  let r2 = roll_d20(()) in println(concat_String("roll_d20 (Rand[mode=os]): ", show(show(r2))))
+  let r1 = roll_d6() in println("roll_d6 (bare Rand → mode=os): ${show(r1)}")
+  let r2 = roll_d20() in println("roll_d20 (Rand[mode=os]): ${show(r2)}")
 }
 
 export func main_seeded() -> () ! {Rand[mode=seeded], IO} = {
-  let r1 = seeded_roll(()) in println(concat_String("seeded roll 1: ", show(show(r1))))
-  let r2 = seeded_roll(()) in println(concat_String("seeded roll 2: ", show(show(r2))))
-  let r3 = seeded_roll(()) in println(concat_String("seeded roll 3: ", show(show(r3))))
+  let r1 = seeded_roll() in println("seeded roll 1: ${show(r1)}")
+  let r2 = seeded_roll() in println("seeded roll 2: ${show(r2)}")
+  let r3 = seeded_roll() in println("seeded roll 3: ${show(r3)}")
 }
 
 export func main_crypto() -> () ! {Rand[mode=crypto], IO} = {
-  let r = crypto_roll(()) in println(concat_String("crypto roll: ", show(show(r))))
+  let r = crypto_roll() in println("crypto roll: ${show(r)}")
 }

@@ -8,12 +8,11 @@
 -- match a Result with Some/None when they really want Ok/Err.
 
 module examples/expected_fail/match_foreign_constructor_result
-
 import std/result (Result, Ok, Err)
 import std/option (Some, None)
 
 export pure func main() -> string {
-  let x: Result[string, string] = Ok("hi");
+  let x: Result[string, string] = Ok("hi")
   match x {
     Some(s) => s,
     None => "none"

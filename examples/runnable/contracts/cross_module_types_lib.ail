@@ -18,4 +18,4 @@ export type Cell = { text: string, count: int }
 -- Post-M2, this is encoded as a single
 --   (declare-datatypes ((Tree 0) (Record_label_subtrees 0)) (...))
 -- block, which Z3 accepts.
-export type Tree = LeafNode({ value: int }) | SectionNode({ label: string, subtrees: list[Tree] })
+export type Tree = LeafNode({ value: int }) | SectionNode({ label: string, subtrees: [Tree] })

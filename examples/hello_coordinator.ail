@@ -1,7 +1,5 @@
 -- hello_coordinator.ail - Example created by coordinator task
 module examples/hello_coordinator
-
 import std/io (println)
 
-export func main() -> () ! {IO} =
-  println("Hello from Coordinator!")
+export func main() -> () ! {IO} = println("Hello from Coordinator!")

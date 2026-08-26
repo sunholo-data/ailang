@@ -3,7 +3,6 @@
 -- Key fetching is the caller's responsibility (use std/net).
 
 module std/jwt
-
 import std/result (Result, Ok, Err)
 import std/option (Option, Some, None)
 import std/json (Json, JString, JArray, JNumber, decode, get, getString, asString, asNumber)
@@ -28,44 +27,30 @@ import std/math (floatToInt)
 --
 -- Returns:
 --   Result[{header: Json, payload: Json, signature: bytes, signed: string}, string]
-export pure func decodeJWT(token: string) -> Result[{header: Json, payload: Json, signature: bytes, signed: string}, string] = {
-  let parts = split(token, ".") in
-  if length(parts) != 3 then
-    Err("invalid JWT: expected 3 dot-separated segments")
-  else
-    match parts {
-      [headerB64, payloadB64, sigB64] =>
-        match decodeSegment(headerB64, "header") {
-          Err(e) => Err(e),
-          Ok(header) =>
-            match decodeSegment(payloadB64, "payload") {
-              Err(e) => Err(e),
-              Ok(payload) =>
-                match fromBase64URL(sigB64) {
-                  None => Err("invalid base64url in signature"),
-                  Some(sigBytes) =>
-                    Ok({
-                      header: header,
-                      payload: payload,
-                      signature: sigBytes,
-                      signed: "${headerB64}.${payloadB64}"
-                    })
-                }
-            }
-        },
-      _ => Err("invalid JWT: expected 3 dot-separated segments")
-    }
+export pure func decodeJWT(token: string) -> Result[{ header: Json, payload: Json, signature: bytes, signed: string }, string] = {
+  let parts = split(token, ".") in if length(parts) != 3 then Err("invalid JWT: expected 3 dot-separated segments") else match parts {
+    [headerB64, payloadB64, sigB64] => match decodeSegment(headerB64, "header") {
+      Err(e) => Err(e),
+      Ok(header) => match decodeSegment(payloadB64, "payload") {
+        Err(e) => Err(e),
+        Ok(payload) => match fromBase64URL(sigB64) {
+          None => Err("invalid base64url in signature"),
+          Some(sigBytes) => Ok({ header: header, payload: payload, signature: sigBytes, signed: "${headerB64}.${payloadB64}" })
+        }
+      }
+    },
+    _ => Err("invalid JWT: expected 3 dot-separated segments")
+  }
 }
 
 -- Helper: base64url-decode a segment and JSON-parse it
 pure func decodeSegment(b64: string, name: string) -> Result[Json, string] = {
   match fromBase64URL(b64) {
     None => Err("invalid base64url in ${name}"),
-    Some(rawBytes) =>
-      match decode(toString(rawBytes)) {
-        Err(e) => Err("invalid JSON in ${name}: ${e}"),
-        Ok(json) => Ok(json)
-      }
+    Some(rawBytes) => match decode(toString(rawBytes)) {
+      Err(e) => Err("invalid JSON in ${name}: ${e}"),
+      Ok(json) => Ok(json)
+    }
   }
 }
 
@@ -87,22 +72,15 @@ pure func decodeSegment(b64: string, name: string) -> Result[Json, string] = {
 export pure func verifyRS256(token: string, publicKeyPEM: string) -> Result[Json, string] = {
   match decodeJWT(token) {
     Err(e) => Err(e),
-    Ok(jwt) =>
-      match getString(jwt.header, "alg") {
-        None => Err("missing 'alg' in JWT header"),
-        Some(alg) =>
-          if alg != "RS256" then
-            Err("unsupported algorithm: ${alg} (expected RS256)")
-          else {
-            let signedBytes = fromString(jwt.signed) in
-            match rsaVerifyPKCS1v15(signedBytes, jwt.signature, publicKeyPEM) {
-              Err(e) => Err("key error: ${e}"),
-              Ok(valid) =>
-                if valid then Ok(jwt.payload)
-                else Err("invalid signature")
-            }
-          }
+    Ok(jwt) => match getString(jwt.header, "alg") {
+      None => Err("missing 'alg' in JWT header"),
+      Some(alg) => if alg != "RS256" then Err("unsupported algorithm: ${alg} (expected RS256)") else {
+        let signedBytes = fromString(jwt.signed) in match rsaVerifyPKCS1v15(signedBytes, jwt.signature, publicKeyPEM) {
+          Err(e) => Err("key error: ${e}"),
+          Ok(valid) => if valid then Ok(jwt.payload) else Err("invalid signature")
+        }
       }
+    }
   }
 }
 
@@ -126,34 +104,24 @@ export pure func verifyRS256(token: string, publicKeyPEM: string) -> Result[Json
 export pure func verifyWithKid(token: string, keys: Json) -> Result[Json, string] = {
   match decodeJWT(token) {
     Err(e) => Err(e),
-    Ok(jwt) =>
-      match getString(jwt.header, "kid") {
-        None => Err("missing 'kid' in JWT header"),
-        Some(kid) =>
-          match get(keys, kid) {
-            None => Err("unknown kid: ${kid}"),
-            Some(keyJson) =>
-              match asString(keyJson) {
-                None => Err("key for kid '${kid}' is not a string"),
-                Some(pem) =>
-                  match getString(jwt.header, "alg") {
-                    None => Err("missing 'alg' in JWT header"),
-                    Some(alg) =>
-                      if alg != "RS256" then
-                        Err("unsupported algorithm: ${alg}")
-                      else {
-                        let signedBytes = fromString(jwt.signed) in
-                        match rsaVerifyPKCS1v15(signedBytes, jwt.signature, pem) {
-                          Err(e) => Err("key error for kid ${kid}: ${e}"),
-                          Ok(valid) =>
-                            if valid then Ok(jwt.payload)
-                            else Err("invalid signature for kid: ${kid}")
-                        }
-                      }
-                  }
+    Ok(jwt) => match getString(jwt.header, "kid") {
+      None => Err("missing 'kid' in JWT header"),
+      Some(kid) => match get(keys, kid) {
+        None => Err("unknown kid: ${kid}"),
+        Some(keyJson) => match asString(keyJson) {
+          None => Err("key for kid '${kid}' is not a string"),
+          Some(pem) => match getString(jwt.header, "alg") {
+            None => Err("missing 'alg' in JWT header"),
+            Some(alg) => if alg != "RS256" then Err("unsupported algorithm: ${alg}") else {
+              let signedBytes = fromString(jwt.signed) in match rsaVerifyPKCS1v15(signedBytes, jwt.signature, pem) {
+                Err(e) => Err("key error for kid ${kid}: ${e}"),
+                Ok(valid) => if valid then Ok(jwt.payload) else Err("invalid signature for kid: ${kid}")
               }
+            }
           }
+        }
       }
+    }
   }
 }
 

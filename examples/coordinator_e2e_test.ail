@@ -1,6 +1,4 @@
 module examples/coordinator_e2e_test
-
 import std/io (println)
 
-export func main() -> () ! {IO} =
-  println("Coordinator E2E Test Works!")
+export func main() -> () ! {IO} = println("Coordinator E2E Test Works!")

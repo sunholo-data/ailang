@@ -4,14 +4,13 @@
 --
 -- Usage: ailang run --caps IO,FS --entry main zip_reader.ail
 module examples/runnable/zip_reader
-
 import std/result (Result, Ok, Err)
 import std/zip (listEntries, readEntry, readEntryBytes)
 
 -- Example: inspect a .docx file (which is a ZIP archive)
 -- .docx contains: word/document.xml, [Content_Types].xml, etc.
 export func main() -> int ! {IO, FS} {
-  let path = "test.docx";
+  let path = "test.docx"
   match listEntries(path) {
     Ok(entries) => {
       println("Archive entries:");

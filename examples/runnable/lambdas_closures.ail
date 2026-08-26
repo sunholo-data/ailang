@@ -4,14 +4,12 @@ module examples/runnable/lambdas_closures
 
 export func main() -> () ! {IO} =
   let _ = println("=== Closures ===") in
-
   -- Basic closure - capturing outer variable
   let x = 10 in
   let addX = \y. x + y in
   let _ = println("Basic closure (x = 10):") in
   let _ = println("  addX(5) = ${show(addX(5))}") in
   let _ = println("  addX(20) = ${show(addX(20))}") in
-
   -- Closure factory - function that returns a function
   let makeAdder = \n. \x. n + x in
   let add5 = makeAdder(5) in
@@ -20,7 +18,6 @@ export func main() -> () ! {IO} =
   let _ = println("Closure factory (makeAdder):") in
   let _ = println("  add5(3) = ${show(add5(3))}") in
   let _ = println("  add100(3) = ${show(add100(3))}") in
-
   -- Multiple variables captured
   let a = 2 in
   let b = 3 in
@@ -29,7 +26,6 @@ export func main() -> () ! {IO} =
   let _ = println("Multiple variables captured (a=2, b=3):") in
   let _ = println("  compute(5) = ${show(compute(5))}") in
   let _ = println("  compute(10) = ${show(compute(10))}") in
-
   -- Nested closures
   let makeMultiplier = \factor. \x. factor * x in
   let double = makeMultiplier(2) in

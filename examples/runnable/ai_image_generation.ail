@@ -13,7 +13,6 @@
 --   - Effect composition: {AI, FS} for file-writing, {AI} for base64
 
 module examples/runnable/ai_image_generation
-
 import std/ai as AI
 import std/io (println)
 
@@ -21,25 +20,15 @@ export func main() -> string ! {AI, FS, IO} =
   let _ = println("AILANG AI Image Generation Demo") in
   let _ = println("===============================") in
   let _ = println("") in
-
   -- Generate and save an image
   let _ = println("1. Generating image and saving to file...") in
-  let path = AI.callImage(
-    "A simple geometric pattern with blue circles on white background",
-    "/tmp/ailang_demo_image.png",
-    "{}"
-  ) in
+  let path = AI.callImage("A simple geometric pattern with blue circles on white background", "/tmp/ailang_demo_image.png", "{}") in
   let _ = println("   Saved to: ${path}") in
-
   -- Generate with base64 output
   let _ = println("") in
   let _ = println("2. Generating image as base64...") in
-  let b64json = AI.callImageBase64(
-    "A small red square on white background",
-    "{\"aspect_ratio\": \"1:1\"}"
-  ) in
+  let b64json = AI.callImageBase64("A small red square on white background", "{\"aspect_ratio\": \"1:1\"}") in
   let _ = println("   Got base64 JSON response") in
-
   let _ = println("") in
   let _ = println("Done!") in
   path

@@ -20,13 +20,12 @@
 -- - No silent fallbacks (nil handler = error)
 
 module examples/runnable/ai_effect
-
 import std/ai (call)
 import std/io (println)
 
 -- Ask the AI a question and print the response
 export func main() -> () ! {IO, AI} {
-    println("Asking AI: What is the capital of France?");
-    let response = call("What is the capital of France? Reply in one word.");
-    println("AI says: ${response}")
+  println("Asking AI: What is the capital of France?")
+  let response = call("What is the capital of France? Reply in one word.")
+  println("AI says: ${response}")
 }

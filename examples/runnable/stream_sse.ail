@@ -12,7 +12,6 @@
 -- the SSE event: field (e.g. "content_block_delta", "message_stop").
 
 module examples/runnable/stream_sse
-
 import std/stream (sseConnect, onEvent, runEventLoop, disconnect, defaultConfig, withSSE, StreamConn, StreamEvent, SSEData, Closed, StreamError, StreamErrorKind)
 import std/result (Result, Ok, Err)
 
@@ -28,14 +27,14 @@ export func handler(event: StreamEvent) -> bool {
 
 -- Low-level API: explicit connect/listen/disconnect with Result unwrapping
 export func main() -> unit ! {Stream, IO} {
-  let config = defaultConfig(());
-  let result = sseConnect("https://echo.websocket.events/sse", config);
+  let config = defaultConfig()
+  let result = sseConnect("https://echo.websocket.events/sse", config)
   match result {
     Ok(conn) => {
-      _io_println("connected to SSE");
-      onEvent(conn, handler);
-      runEventLoop(conn);
-      disconnect(conn);
+      _io_println("connected to SSE")
+      onEvent(conn, handler)
+      runEventLoop(conn)
+      disconnect(conn)
       _io_println("done")
     },
     Err(e) => _io_println("connection failed")
@@ -44,6 +43,6 @@ export func main() -> unit ! {Stream, IO} {
 
 -- High-level API: withSSE manages the full lifecycle
 export func mainSimple() -> unit ! {Stream, IO} {
-  let result = withSSE("https://echo.websocket.events/sse", handler);
+  let result = withSSE("https://echo.websocket.events/sse", handler)
   _io_println("done")
 }

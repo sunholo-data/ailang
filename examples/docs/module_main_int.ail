@@ -2,5 +2,4 @@
 -- Used in: docs/docs/guides/module_execution.mdx
 module examples/docs/module_main_int
 
-export func main() -> int =
-    42
+export func main() -> int = 42

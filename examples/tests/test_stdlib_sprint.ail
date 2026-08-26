@@ -1,5 +1,4 @@
 module examples/test_stdlib_sprint
-
 import std/io (println)
 
 export func main() {

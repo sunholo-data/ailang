@@ -16,7 +16,6 @@
 -- Expect: 3 verified (quadruple, sumBound, mixed)
 
 module examples/runnable/contracts/cross_module_functions
-
 import examples/runnable/contracts/cross_module_functions_lib (double, sumTo)
 
 -- INLINE PATH: double is inlined as a define-fun.

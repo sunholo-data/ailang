@@ -17,30 +17,28 @@
 // In --strict-syntax mode, only the canonical form is allowed.
 
 module examples/runnable/pattern_sugar
-
 import std/io (println)
 
 // Example 1: Basic head extraction with sugar
 // Compare with canonical form in examples/list_pattern_cons.ail
-pure func head(list: List[int]) -> int
+pure func head(list: [int]) -> int
   tests [
     ([1, 2, 3], 1),
     ([42], 42),
     ([10, 20, 30], 10),
     ([], 0)
-  ]
-{
+  ] {
   match list {
-    x :: xs => x,     // NEW sugar syntax
+    x :: xs => x,  // NEW sugar syntax
     [] => 0
   }
 }
 
 // Example 2: Tail extraction with wildcard
 // NOTE: Inline tests for List return types not yet supported (M-TESTING-LIST-EXPECTED)
-func tail(list: List[int]) -> List[int] {
+func tail(list: [int]) -> [int] {
   match list {
-    _ :: xs => xs,    // Wildcard + sugar
+    _ :: xs => xs,  // Wildcard + sugar
     [] => []
   }
 }
@@ -48,23 +46,22 @@ func tail(list: List[int]) -> List[int] {
 // Example 3: Right-associativity demonstration
 // Pattern a :: b :: c means a :: (b :: c)
 // This matches lists with at least 2 elements
-pure func sumFirstTwo(list: List[int]) -> int
+pure func sumFirstTwo(list: [int]) -> int
   tests [
     ([1, 2, 3, 4, 5], 3),
     ([10, 20], 30),
     ([5, 7, 9], 12),
     ([1], 0),
     ([], 0)
-  ]
-{
+  ] {
   match list {
-    a :: b :: c => a + b,   // Right-associative chaining
+    a :: b :: c => a + b,  // Right-associative chaining
     _ => 0
   }
 }
 
 // Example 4: Three-element list with sugar
-pure func sumThree(list: List[int]) -> int
+pure func sumThree(list: [int]) -> int
   tests [
     ([1, 2, 3, 4, 5], 6),
     ([10, 20, 30], 60),
@@ -72,8 +69,7 @@ pure func sumThree(list: List[int]) -> int
     ([1, 2], 0),
     ([1], 0),
     ([], 0)
-  ]
-{
+  ] {
   match list {
     a :: b :: c :: rest => a + b + c,
     _ => 0
@@ -82,26 +78,25 @@ pure func sumThree(list: List[int]) -> int
 
 // Example 5: Mixed sugar and canonical forms in same match
 // Both forms are equivalent and can be used together
-pure func describe(list: List[int]) -> string
+pure func describe(list: [int]) -> string
   tests [
     ([], "empty"),
     ([42], "singleton: 42"),
     ([1, 2], "pair: 1, 2"),
     ([1, 2, 3], "many: starts with 1, 2"),
     ([10, 20, 30, 40], "many: starts with 10, 20")
-  ]
-{
+  ] {
   match list {
     [] => "empty",
-    x :: [] => "singleton: ${show(x)}",            // Sugar
-    ::(x, ::(y, [])) => "pair: ${show(x)}, ${show(y)}",  // Canonical
+    x :: [] => "singleton: ${show(x)}",  // Sugar
+    x :: y :: [] => "pair: ${show(x)}, ${show(y)}",  // Canonical
     x :: y :: rest => "many: starts with ${show(x)}, ${show(y)}",  // Sugar
     _ => "other"
   }
 }
 
 // Example 6: Nested patterns with tuples
-func firstPair(kvs: List[(string, int)]) -> (string, int) {
+func firstPair(kvs: [(string, int)]) -> (string, int) {
   match kvs {
     (k, v) :: rest => (k, v),
     [] => ("", 0)
@@ -109,15 +104,14 @@ func firstPair(kvs: List[(string, int)]) -> (string, int) {
 }
 
 // Example 9: Recursive list sum using sugar
-pure func sum(xs: List[int]) -> int
+pure func sum(xs: [int]) -> int
   tests [
     ([], 0),
     ([1], 1),
     ([1, 2, 3], 6),
     ([10, 20, 30], 60),
     ([1, 2, 3, 4, 5], 15)
-  ]
-{
+  ] {
   match xs {
     x :: xs => x + sum(xs),
     [] => 0
@@ -125,15 +119,14 @@ pure func sum(xs: List[int]) -> int
 }
 
 // Example 10: List length using sugar
-pure func length(xs: List[int]) -> int
+pure func length(xs: [int]) -> int
   tests [
     ([], 0),
     ([1], 1),
     ([1, 2, 3], 3),
     ([1, 2, 3, 4, 5], 5),
     ([10, 20, 30, 40, 50, 60], 6)
-  ]
-{
+  ] {
   match xs {
     _ :: xs => 1 + length(xs),
     [] => 0
@@ -142,41 +135,34 @@ pure func length(xs: List[int]) -> int
 
 // Main function to demonstrate all examples
 export func main() -> () ! {IO} {
-  println("=== S-CONS Pattern Sugar Examples (v0.4.3) ===");
-  println("");
-
-  let nums = [1, 2, 3, 4, 5];
-  let empty: List[int] = [];
-  let single = [42];
-
+  println("=== S-CONS Pattern Sugar Examples (v0.4.3) ===")
+  println("")
+  let nums = [1, 2, 3, 4, 5]
+  let empty: [int] = []
+  let single = [42]
   // Test head and tail
-  println("head([1,2,3,4,5]) = ${show(head(nums))}");
-  println("tail([1,2,3,4,5]) = ${show(tail(nums))}");
-  println("");
-
+  println("head([1,2,3,4,5]) = ${show(head(nums))}")
+  println("tail([1,2,3,4,5]) = ${show(tail(nums))}")
+  println("")
   // Test right-associativity
-  println("sumFirstTwo([1,2,3,4,5]) = ${show(sumFirstTwo(nums))}");
-  println("sumThree([1,2,3,4,5]) = ${show(sumThree(nums))}");
-  println("");
-
+  println("sumFirstTwo([1,2,3,4,5]) = ${show(sumFirstTwo(nums))}")
+  println("sumThree([1,2,3,4,5]) = ${show(sumThree(nums))}")
+  println("")
   // Test describe with mixed forms
-  println("describe([]) = ${describe(empty)}");
-  println("describe([42]) = ${describe(single)}");
-  println("describe([1,2]) = ${describe([1, 2])}");
-  println("describe([1,2,3,4,5]) = ${describe(nums)}");
-  println("");
-
+  println("describe([]) = ${describe(empty)}")
+  println("describe([42]) = ${describe(single)}")
+  println("describe([1,2]) = ${describe([1, 2])}")
+  println("describe([1,2,3,4,5]) = ${describe(nums)}")
+  println("")
   // Test recursive functions
-  println("sum([1,2,3,4,5]) = ${show(sum(nums))}");
-  println("length([1,2,3,4,5]) = ${show(length(nums))}");
-  println("");
-
+  println("sum([1,2,3,4,5]) = ${show(sum(nums))}")
+  println("length([1,2,3,4,5]) = ${show(length(nums))}")
+  println("")
   // Test with tuples
-  let kvs = [("a", 1), ("b", 2), ("c", 3)];
-  let pair = firstPair(kvs);
-  println("firstPair([(\"a\",1),...]) = ${show(pair)}");
-  println("");
-
+  let kvs = [("a", 1), ("b", 2), ("c", 3)]
+  let pair = firstPair(kvs)
+  println("firstPair([(\"a\",1),...]) = ${show(pair)}")
+  println("")
   println("✓ All examples complete!");
   ()
 }

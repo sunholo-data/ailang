@@ -4,10 +4,10 @@ module examples/runnable/stdlib_demo_simple
 
 -- Simple greeting using println
 export func main() -> () ! {IO} {
-    _io_println("Hello from AILANG stdlib!")
+  _io_println("Hello from AILANG stdlib!")
 }
 
 -- Echo a message
 export func echo(msg: string) -> () ! {IO} {
-    _io_println(msg)
+  _io_println(msg)
 }

@@ -7,7 +7,6 @@
 -- Run: ailang run --caps IO --entry main examples/url_parse_basics.ail
 
 module examples/url_parse_basics
-
 import std/net (parseUrl, parseQuery)
 import std/result (Result, Ok, Err)
 import std/list (nth_or)
@@ -18,19 +17,18 @@ export func main() -> () ! {IO} {
     Err(e) => println("bad url: ${e}"),
     Ok(u) => {
       -- Direct .field access on the Url record — no accessor boilerplate.
-      println("scheme:   ${u.scheme}");     -- https
-      println("host:     ${u.host}");       -- api.example.com  (no userinfo, no port)
-      println("port:     ${u.port}");       -- 8443
-      println("path:     ${u.path}");       -- /v1/users
-      println("query:    ${u.query}");      -- q=hello%20world&r=2  (raw, still encoded)
-      println("fragment: ${u.fragment}");   -- top
-
+      println("scheme:   ${u.scheme}")  -- https
+      println("host:     ${u.host}")  -- api.example.com  (no userinfo, no port)
+      println("port:     ${u.port}")  -- 8443
+      println("path:     ${u.path}")  -- /v1/users
+      println("query:    ${u.query}")  -- q=hello%20world&r=2  (raw, still encoded)
+      println("fragment: ${u.fragment}")  -- top
       -- Decode the query into {name,value} pairs (values percent-DECODED).
-      let params = parseQuery(u.query);
-      let q = nth_or(params, 0, {name: "", value: ""});
-      let r = nth_or(params, 1, {name: "", value: ""});
-      println("param 0:  ${q.name}=${q.value}");   -- q=hello world
-      println("param 1:  ${r.name}=${r.value}")     -- r=2
+      let params = parseQuery(u.query)
+      let q = nth_or(params, 0, { name: "", value: "" })
+      let r = nth_or(params, 1, { name: "", value: "" })
+      println("param 0:  ${q.name}=${q.value}")  -- q=hello world
+      println("param 1:  ${r.name}=${r.value}")  -- r=2
     }
   }
 }

@@ -1,25 +1,24 @@
 -- Fused bounded list combinators avoid materializing outputs for unvisited inputs.
 module examples/runnable/bounded_take_flatmap
-
 import std/list (flatMap, map, take, takeFlatMap, takeMap)
 
 pure func duplicate(x: int) -> [int] = [x, x]
+
 pure func allocate(x: int) -> [int] = [x, x + 10]
 
 export func main() -> () ! {IO} {
   -- Unfused flatMap visits every input and materializes the complete intermediate list.
-  let unfusedFlatMap = take(4, flatMap(duplicate, [1, 2, 3, 4, 5]));
+  let unfusedFlatMap = take(4, flatMap(duplicate, [1, 2, 3, 4, 5]))
   -- Fused takeFlatMap invokes duplicate only for the input prefix needed for 4 outputs.
-  let fusedFlatMap = takeFlatMap(4, duplicate, [1, 2, 3, 4, 5]);
+  let fusedFlatMap = takeFlatMap(4, duplicate, [1, 2, 3, 4, 5])
   -- Neither form bounds peak by n: fused peak is source residency + largest f(x) + n retained.
-  let _ = println("unfused flatMap: ${show(unfusedFlatMap)}");
-  let _ = println("fused takeFlatMap: ${show(fusedFlatMap)}");
-
+  let _ = println("unfused flatMap: ${show(unfusedFlatMap)}")
+  let _ = println("fused takeFlatMap: ${show(fusedFlatMap)}")
   -- Unfused map evaluates allocate for every input before take discards the suffix.
-  let unfusedMap = take(3, map(allocate, [1, 2, 3, 4, 5]));
+  let unfusedMap = take(3, map(allocate, [1, 2, 3, 4, 5]))
   -- Fused takeMap invokes allocate on at most 3 inputs.
-  let fusedMap = takeMap(3, allocate, [1, 2, 3, 4, 5]);
+  let fusedMap = takeMap(3, allocate, [1, 2, 3, 4, 5])
   -- takeMap also does not bound peak by n: the source and largest single f(x) remain resident.
-  let _ = println("unfused map: ${show(unfusedMap)}");
+  let _ = println("unfused map: ${show(unfusedMap)}")
   println("fused takeMap: ${show(fusedMap)}")
 }

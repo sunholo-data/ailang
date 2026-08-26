@@ -22,6 +22,92 @@ section, write "none" rather than omitting:
 
 ---
 
+## 282 — 2026-08-26 — Mark answered D-38; the corpus is 405/450 canonical, and executing it exposed that the printer has no line-width limit
+
+**Picked**: NOT the queue head — a **human directive**, which outranks it. Mark on
+[#852](https://github.com/sunholo-data/ailang/issues/852) @ `2026-08-26T04:49:43Z`: *"D38 - those
+examples were done pre formatter so let's update them to respect the new formatter"*. That is
+`D-38` option **(a) REFORMAT**, and its stated ground (the corpus predates the formatter)
+explicitly rejects (b) "the emitter is what is wrong". The ledger row was updated OPEN →
+**RESOLVED** in the same iteration, before the watermark moved, per the decision-recording contract.
+
+**Reality check**: the `D-38` baseline reproduced EXACTLY at HEAD under a freshly built,
+ldflags-stamped `v0.33.2-26-gfadbdc4e2` — **ok=63, drift=342, attach-refusal=38, parse-fail=7** of
+450. Roots asserted with `test -d` (`stdlib/` **ABSENT**, `std/` present — rule 3a(i-d)), and
+`-name` vs `-iname` agreed at 450, so the enumerator is not case-blind here.
+
+**Shipped**: `78f9f4f42` — 342 files reformatted, +3099/−4448. Canonical **63 → 405**; drift
+**342 → 0**; refusals **38 → 38** and parse-failures **7 → 7** unchanged, because they fail closed
+and were never touched. No evaluator: the Agent tool is unavailable this session (see Routing).
+
+**Verification that the change is safe** (the load-bearing part, since a sibling change one
+iteration ago silently deleted comments):
+- **Comments** — counted with the repo's OWN `lexer.CollectComments`, built as a throwaway helper
+  and deleted afterwards (tree verified 0 dirty). Total **7865 → 7865**; per-file delta **0** over
+  450 joined pairs. The comparison was proven non-vacuous by a **poisoned arm that FIRED**
+  (1 detection), so the zero is a measurement, not a broken `join`. Instrument itself controlled
+  first: 0 comments on a comment-free file, 2 on a two-comment file.
+- **Typecheck** — `ailang check` rc unchanged on **342 of 342** joined pairs (279 rc=0 / 63 rc=1
+  both before and after). Nothing's check status moved.
+- **Gates, TWO arms against a pristine base, rc captured without a pipe** — `verify-examples`,
+  `verify-stdlib`, `test-stdlib-ail`, `go test ./internal/format/...` **rc=0 in BOTH arms**.
+
+**Key find (outranks the change)**: executing (a) made a latent emitter property visible and
+measurable. The printer collapses a multi-line equation body onto ONE line with **no width limit**,
+so across the reformatted set max line length went **267 → 1315** chars and lines >120 chars went
+**57 → 147** (worst: `examples/runnable/list_extremes.ail`). `examples/` is the corpus taught to
+eval models and rendered on the website, so this is load-bearing. Raised as **`D-39`**, deliberately
+widened to the whole class — because `D-38`(a) *ratifies* the emitter, every queued printer-form
+change is now a proposal against an affirmed canonical form, so Mark gets ONE ask rather than two.
+`m-fmt-typedecl-printer-needs-multiline-emit` was re-gated `D-38` → `D-39` rather than silently
+unblocked.
+
+**Second find**: `make test-stdlib-freeze` **cannot run**. `Makefile:59` sets
+`FREEZE_DIR := goldens/stdlib` (**ABSENT**) while `tools/freeze-stdlib.sh` writes `.stdlib-golden/`
+(**EXISTS**), so make aborts `No rule to make target`. It is in **no** workflow (control:
+`verify-examples` appears 5× in `ci.yml`). That is rule 3j's *a guard is not a gate* in its purest
+form — and it is precisely the instrument that should have independently checked this iteration's
+own 30-file `std/` reformat. Filed as `m-stdlib-freeze-gate-path-mismatch`, and it is Next.
+
+**Gate-0 defect found, and it is the DRIVER, not the skill**: the driver exported
+`MISSION_GH_ISSUE=`**745**, a **CLOSED** thread. `tools/launchd/mission-control.sh:68` reads the
+fleet-shared bare `mission-gh-issue` when `MISSION_NAME=v1`, while the `else` branch at line 79 is
+correctly namespaced — so *every sibling mission is protected and V1 alone is not*. Iteration 246
+namespaced the SKILL and the DRIVER kept the literal: this loop's own *guard the helper, miss the
+call site* shape. Had I trusted the env, Gate 0 would have read a dead thread and reported **0
+directives**; the namespaced `mission-v1-gh-issue` = **852** found Mark's.
+
+**Routing evidence**: controller=`opus` (session), task-class=execute+record. designer / planner /
+executor / evaluator **NOT spawned** — for the fifth consecutive iteration this session's operating
+instructions forbid the Agent tool unless the user asks, so the roles table could not be exercised.
+Recorded as a routing deviation rather than buried: a 342-file corpus change shipped on my own
+verdict plus the repo's own gates, with **no independent judge**. Designer-rotation pointer
+untouched; no Fable spend. metered=**$0.00** of $5.
+
+**Ruled out**:
+- *"the reformat broke `test-stdlib-freeze`"* — **REFUTED**: rc=2 in BOTH arms, logs `diff`-identical
+  (rc=0). A one-arm run would have blamed the change; rule 3e(a) earned its place here.
+- *"`ailang fmt --write` might drop comments, as the iteration-281 change did"* — **REFUTED by
+  measurement**, not by reasoning: 7865 → 7865, 0 per-file deltas, poisoned control firing. The
+  281 defect required *registering new lists*; at HEAD the refusals stay refusals.
+- *"the change is whitespace-only"* — **REFUTED**: whitespace-stripped hashes differ for
+  `std/ai.ail`; the formatter also removes `;` statement separators and joins `let … in` chains.
+  Semantics are preserved (separators are optional), which is what the `ailang check` parity shows.
+- *"`fmt-check-ail` will now be green"* — **FALSE**: it is rc=2 in both arms. But for a *different*
+  reason: base listed drift files, treated lists **0**. The residual red is the separate,
+  already-filed attach-refusal class, not drift.
+- *the store-selector control* — the PATH binary returned **rc=0** on an invalid store (the
+  broken-instrument signal); the fresh binary refuses it (rc=1). Fifth consecutive iteration.
+
+**Retro lane**: **process-fix, filed not applied** — the `MISSION_GH_ISSUE` bug is driver code, and
+the skill's Repo Profile already prescribes the namespaced path (I followed it and it is what found
+the directive). No skill edit: the running skill is already adrift from origin, and a Gate-5 edit
+saved here would widen that gap.
+
+**Next**: `m-stdlib-freeze-gate-path-mismatch` (self-contained, needs no ruling), then
+`m-format-comment-brackets-break-wall-scan`. The formatter *printer* rows wait on `D-39`.
+
+
 ## 279 — 2026-08-26 — The formatter dropped parentheses it needed, and the reason CI never saw it is that every formatter corpus test walked `examples/` only
 
 **Pick.** Iterations 277 and 278 both named `m-fmt-cognition-roundtrip-soundness` as Next; the

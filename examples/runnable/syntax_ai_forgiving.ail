@@ -4,23 +4,24 @@
 -- the form small models naturally write; it produces exactly the same AST as the
 -- braced form, so behaviour is identical.
 module examples/runnable/syntax_ai_forgiving
-
 import std/io (println)
 
 -- R1: `;`-sequence in a `=` body (no braces needed).
-pure func classify(n: int) -> string =
-  let doubled = n * 2;
-  let big = doubled > 10;
-  if big then "big" else "small"
-
--- The canonical braced form parses to the same AST — shown here for contrast.
-pure func classifyBraced(n: int) -> string {
-  let doubled = n * 2;
-  let big = doubled > 10;
+pure func classify(n: int) -> string {
+  let doubled = n * 2
+  let big = doubled > 10
   if big then "big" else "small"
 }
 
-export func main() -> () ! {IO} =
-  println(classify(3));
-  println(classify(8));
+-- The canonical braced form parses to the same AST — shown here for contrast.
+pure func classifyBraced(n: int) -> string {
+  let doubled = n * 2
+  let big = doubled > 10
+  if big then "big" else "small"
+}
+
+export func main() -> () ! {IO} {
+  println(classify(3))
+  println(classify(8))
   println(classifyBraced(8))
+}

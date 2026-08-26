@@ -3,6 +3,6 @@
 module examples/docs/io_println_demo
 
 export func main() -> () ! {IO} = {
-    _io_println("Line 1");
-    _io_println("Line 2")
+  _io_println("Line 1")
+  _io_println("Line 2")
 }

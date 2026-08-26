@@ -8,8 +8,7 @@ pure func gt(a: int, b: int) -> bool
     ((5, 5), false),
     ((-1, -5), true),
     ((0, -1), true)
-  ]
-{
+  ] {
   a > b
 }
 
@@ -21,8 +20,7 @@ pure func lt(a: int, b: int) -> bool
     ((5, 5), false),
     ((-1, -5), false),
     ((0, -1), false)
-  ]
-{
+  ] {
   a < b
 }
 
@@ -34,8 +32,7 @@ pure func gte(a: int, b: int) -> bool
     ((5, 5), true),
     ((-1, -5), true),
     ((0, -1), true)
-  ]
-{
+  ] {
   a >= b
 }
 
@@ -47,8 +44,7 @@ pure func lte(a: int, b: int) -> bool
     ((5, 5), true),
     ((-1, -5), false),
     ((0, -1), false)
-  ]
-{
+  ] {
   a <= b
 }
 
@@ -60,8 +56,7 @@ pure func eq(a: int, b: int) -> bool
     ((0, 0), true),
     ((-1, -1), true),
     ((-1, 1), false)
-  ]
-{
+  ] {
   a == b
 }
 
@@ -73,8 +68,7 @@ pure func neq(a: int, b: int) -> bool
     ((0, 0), false),
     ((-1, -1), false),
     ((-1, 1), true)
-  ]
-{
+  ] {
   a != b
 }
 
@@ -86,8 +80,7 @@ pure func gtFloat(a: float, b: float) -> bool
     ((5.0, 5.0), false),
     ((-1.5, -5.5), true),
     ((0.0, -0.5), true)
-  ]
-{
+  ] {
   a > b
 }
 
@@ -99,8 +92,7 @@ pure func eqFloat(a: float, b: float) -> bool
     ((0.0, 0.0), true),
     ((-1.5, -1.5), true),
     ((-1.5, -1.6), false)
-  ]
-{
+  ] {
   a == b
 }
 
@@ -112,7 +104,6 @@ pure func inRange(x: int, lo: int, hi: int) -> bool
     ((15, 0, 10), false),
     ((0, 0, 10), true),
     ((10, 0, 10), true)
-  ]
-{
+  ] {
   x >= lo && x <= hi
 }

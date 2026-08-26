@@ -5,8 +5,7 @@ import std/list (map, foldl)
 -- No effects - completely pure computation
 
 export pure func sumDoubles(numbers: [int]) -> int {
-  let doubled = map(\x. x * 2, numbers) in
-  foldl(\acc. \x. acc + x, 0, doubled)
+  let doubled = map(\x. x * 2, numbers) in foldl(\acc. \x. acc + x, 0, doubled)
 }
 
 -- Example: sumDoubles([1,2,3]) should return 12

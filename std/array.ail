@@ -8,6 +8,7 @@
 module std/array
 import std/option (Option, Some, None)
 import std/list (map as listMap, foldl as listFoldl, filter as listFilter)
+
 --
 -- INDEXING: 0-based (first element at index 0, last at length-1)
 -- IMMUTABILITY: All operations return new arrays (copy-on-write)
@@ -23,7 +24,6 @@ import std/list (map as listMap, foldl as listFoldl, filter as listFilter)
 -- TIP: For hot loops, minimize set() calls by batching updates
 -- or using intermediate data structures.
 -- ============================================================================
-
 -- Array creation
 
 -- Create empty array with zero elements. O(1).
@@ -59,9 +59,7 @@ export pure func get[a](arr: Array[a], idx: int) -> a {
 
 -- Safe get: returns Some(element) if in bounds, None otherwise.
 export pure func getOpt[a](arr: Array[a], idx: int) -> Option[a] {
-  if idx < 0 then None
-  else if idx >= _array_length(arr) then None
-  else Some(_array_get(arr, idx))
+  if idx < 0 then None else if idx >= _array_length(arr) then None else Some(_array_get(arr, idx))
 }
 
 -- Unsafe get: panics if out of bounds. Use only when you've verified bounds.

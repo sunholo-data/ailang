@@ -7,7 +7,6 @@
 -- Usage:
 --   ailang run --caps IO --entry main examples/runnable/yaml_config.ail
 module examples/runnable/yaml_config
-
 import std/yaml (decode)
 import std/json (getString, getInt)
 import std/option (Some, None)
@@ -16,14 +15,13 @@ import std/result (Ok, Err)
 export func main() -> () ! {IO} {
   -- A small human-authored catalogue entry, exactly the kind of config that
   -- could equally have been JSON.
-  let config = "title: Fysik A\nyear: 2026\nsubject: physics\n";
-
+  let config = "title: Fysik A\nyear: 2026\nsubject: physics\n"
   match decode(config) {
     Ok(cat) => {
       match getString(cat, "title") {
         Some(t) => println("title: ${t}"),
         None => println("title: <missing>")
-      };
+      }
       match getInt(cat, "year") {
         Some(y) => println("year: ${show(y)}"),
         None => println("year: <missing>")

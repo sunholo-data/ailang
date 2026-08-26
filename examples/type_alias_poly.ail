@@ -17,7 +17,6 @@
 --   ailang run --caps IO --entry main examples/type_alias_poly.ail
 
 module examples/type_alias_poly
-
 import std/io (println)
 
 -- Record-body alias: Box[a] = { items: [a] }
@@ -54,13 +53,11 @@ export func firstItem(b: Box[int]) -> int {
 }
 
 export func main() -> () ! {IO} {
-  let b = mkBox([10, 20, 30]);
-  println("firstItem(Box[int]): ${show(firstItem(b))}");
-
-  let y = idInt(42);
-  println("idInt(Ident[int]): ${show(y)}");
-
-  let p = mkPair(7, "seven");
+  let b = mkBox([10, 20, 30])
+  println("firstItem(Box[int]): ${show(firstItem(b))}")
+  let y = idInt(42)
+  println("idInt(Ident[int]): ${show(y)}")
+  let p = mkPair(7, "seven")
   match p {
     (n, s) => println("mkPair(Pair[int,string]): ${show(n)} = ${s}")
   }

@@ -6,7 +6,6 @@
 -- UTF-8 text, raw bytes, and base64. Highly repetitive text compresses well,
 -- which the example verifies (compressed base64 is shorter than the input).
 module examples/runnable/stdlib_gzip
-
 import std/io (println)
 import std/gzip (compress, decompress)
 import std/bytes (fromString, toString, toBase64, fromBase64, length)
@@ -14,7 +13,7 @@ import std/result (Result)
 
 -- Compress text, then decompress it, returning the recovered text (or an error).
 export func roundTrip(text: string) -> Result[string, string] {
-  let b64In = toBase64(fromString(text));
+  let b64In = toBase64(fromString(text))
   match compress(b64In, 9) {
     Err(e) => Err("compress: ${e}"),
     Ok(gzB64) => match decompress(gzB64) {
@@ -28,9 +27,8 @@ export func roundTrip(text: string) -> Result[string, string] {
 }
 
 export func main() -> () ! {IO} {
-  let original = "AILANG AILANG AILANG AILANG AILANG AILANG AILANG AILANG";
-  println("original bytes: ${show(length(fromString(original)))}");
-
+  let original = "AILANG AILANG AILANG AILANG AILANG AILANG AILANG AILANG"
+  println("original bytes: ${show(length(fromString(original)))}")
   -- Headline: verify a lossless round-trip.
   match roundTrip(original) {
     Err(e) => println("error: ${e}"),

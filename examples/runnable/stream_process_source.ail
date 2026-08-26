@@ -11,12 +11,7 @@
 --   3. Combining subprocess + stdin in one selectEvents loop
 
 module examples/runnable/stream_process_source
-
-import std/stream (
-  asyncExecProcess, asyncReadStdinLines, selectEvents,
-  StreamSource, StreamEvent,
-  SourceText, SourceBytes
-)
+import std/stream (asyncExecProcess, asyncReadStdinLines, selectEvents, StreamSource, StreamEvent, SourceText, SourceBytes)
 import std/bytes (toString)
 
 -- Event handler: dispatches subprocess bytes and stdin text
@@ -36,8 +31,8 @@ export func handler(event: StreamEvent) -> bool ! {IO} {
 
 -- Main: spawn echo subprocess + stdin reader, multiplex with selectEvents
 export func main() -> unit ! {Stream, Process, IO} {
-  let proc = asyncExecProcess("echo", ["hello", "from", "subprocess"], "echo", 5, 4096);
-  let stdin = asyncReadStdinLines("stdin", 10);
-  selectEvents([proc, stdin], handler);
+  let proc = asyncExecProcess("echo", ["hello", "from", "subprocess"], "echo", 5, 4096)
+  let stdin = asyncReadStdinLines("stdin", 10)
+  selectEvents([proc, stdin], handler)
   _io_println("done")
 }
