@@ -64,7 +64,7 @@ make doctor                # Validate builtin registry
 
 # Stdlib
 make test-stdlib-canaries  # Test stdlib health (std/io, std/net)
-make test-stdlib-freeze    # Verify stdlib interfaces haven't changed
+make test-stdlib-freeze    # Verify stdlib interfaces haven't changed (alias of verify-stdlib)
 make freeze-stdlib         # Generate SHA256 golden files for stdlib
 make verify-stdlib         # Verify stdlib against golden hashes
 
@@ -139,7 +139,7 @@ make freeze-stdlib         # Update golden hashes
 
 # 4. Run health checks
 make test-stdlib-canaries  # Tests std/io, std/net work
-make test-stdlib-freeze    # Verify stdlib interface freeze
+make test-stdlib-freeze    # Verify stdlib interface freeze (alias of verify-stdlib)
 ```
 
 ### Stdlib Tools

@@ -54,16 +54,10 @@ WARNING := ⚠️
 ARROW := →
 LINE := ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Stdlib paths (for freeze/verify)
-STDLIB := std/option.ail std/result.ail std/list.ail std/string.ail std/io.ail
-FREEZE_DIR := goldens/stdlib
-TOOLS := ailang
-
 # Export for sub-Makefiles
 export BINARY BUILD_DIR VERSION COMMIT BUILD_TIME
 export GOCMD GOBUILD GOCLEAN GOTEST GOGET GOMOD GOFMT GOVET LDFLAGS
 export GREEN RED YELLOW CYAN BOLD RESET CHECKMARK CROSS WARNING ARROW LINE
-export STDLIB FREEZE_DIR TOOLS
 
 # =============================================================================
 # INCLUDE SUB-MAKEFILES
