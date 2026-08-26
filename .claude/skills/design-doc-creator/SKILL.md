@@ -336,12 +336,51 @@ The design doc MUST include a **Conflict Surface** section (see [resources/desig
 
 **Axiom Compliance:** Every feature must score against all 12 axioms. Hard violations on A1/A3/A4/A7 = automatic rejection, net score must be ≥ +2. See `resources/design_doc_structure.md` for full scoring matrix and examples.
 
-**Quorum review (OPTIONAL, off-Anthropic — M-MISSION-FLEET-AB Phase B):** Before a
-design doc proceeds to planning, you MAY run an independent N-reviewer quorum that scores it
-against these same hard gates (premise verification, Conflict Surface, axiom compliance) using
-non-Anthropic frontier models — a cheap (cents/doc), off-quota second opinion that catches bad
-premises before an Opus sprint is spent on them. This is an **optional documented step, not a
-contract change**: the design-doc-creator flow is unchanged if you skip it.
+**Quorum review (off-Anthropic — M-MISSION-FLEET-AB Phase B):** Before a design doc proceeds to
+planning, run an independent N-reviewer quorum that scores it against these same hard gates
+(premise verification, Conflict Surface, axiom compliance) using non-Anthropic frontier models — a
+cheap (cents/doc), off-quota second opinion that catches bad premises before an Opus sprint is
+spent on them.
+
+**Unattended (mission-loop) docs: ALWAYS run it.** There is no human in the loop to catch a bad
+premise, so the quorum is the only gate.
+
+**Attended sessions: run it when ANY of these four triggers fires.** The triggers are mechanical
+on purpose — "use judgement" drifts, a checklist does not. State in the doc which trigger fired,
+or that none did.
+
+| # | Trigger | Why |
+|---|---------|-----|
+| 1 | The doc has **design-freeze items** | A human is about to ratify something. A bad premise means they decide on false grounds — the most expensive error in the loop |
+| 2 | It **overrides shared machinery** — any Conflict Surface row whose decision is "override" rather than "reuse" | Other lanes depend on that behavior and will not know it changed |
+| 3 | It touches **cost/KPI semantics or banked-data schema** | Errors here are silent and corrupt historical comparisons retroactively |
+| 4 | Load-bearing premises are about **external systems we do not control** | In-repo claims can be re-checked any time; a vendor's API contract cannot |
+
+**Skip when ALL are false**: no freeze items (every decision agent-resolvable), localized to files
+no other lane reads, no cost/banking/schema surface, premises verifiable entirely in-repo. Most
+bug-fix and refactor docs skip on all four — do not spend the quorum on them.
+
+**Two failure modes to avoid, both measured 2026-08-26 on `m-ollama-cloud-provider` (2 rounds,
+$0.167, blocked both times — every objection correct):**
+
+1. **Sweep for unlogged claims BEFORE round 0.** Reviewers surface objections roughly
+   one-per-round, so a doc with three gaps burns the re-quorum-ONCE guardrail on gap one. In that
+   session the `eval_suite.go` clamp premise drove two acceptance criteria while carrying no
+   Verification Log row — one grep at authoring time, one whole round at review time. Re-read the
+   negative-existence sweep above and apply it to *every* load-bearing claim, not just negatives.
+2. **When the remaining objections can only be closed by an action OUTSIDE the session** — a
+   signin, a deploy, a live measurement against a third party — **stop and hand over. Do not spend
+   the round.** The guardrail assumes objections are answerable; when they are not, the honest fix
+   is to recast the doc's *status* (gate the phases behind a discovery spike, list the unmeasured
+   premises as explicitly PENDING rows) and give it to the human with its gaps labelled. Grinding
+   rounds is what parks sound designs (m-ailang-fmt, iter 49).
+
+**Accept objections; do not argue them.** In the 2026-08-26 run the author was *technically*
+exempt from the Conflict Surface rule (no parser/typechecker/codegen files) and wrote the section
+anyway — it immediately surfaced that `isRetryableError` returns true on any `"429"` substring, so
+quota exhaustion would have retried into a spent bucket, and that `0/0` pricing maps to a
+*positively false* `free-local` label rather than merely an absent one. Both would have shipped.
+A reject that is wrong on the rule can still be right on the substance.
 
 ```bash
 # One reviewer (reject-by-default; exits non-zero if it can't produce a verdict):
