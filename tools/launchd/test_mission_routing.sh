@@ -31,11 +31,14 @@ grep -q 'MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol' "$driver" \
 # Executor fallback: SAME deepseek-v4-flash weights, flat-rate ollama route
 # instead of metered OpenRouter. The ratified codex->deepseek->opus chain is
 # preserved; only the route changed. Brace-anchored so a prefix cannot pass.
-grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:ollama/deepseek-v4-flash:0731-cloud}' "$driver" \
-  && ok "executor fallback is the flat-rate ollama deepseek lane" || bad "executor fallback is the flat-rate ollama deepseek lane" "missing or wrong route"
+# Each ollama rung must be BACKED BY ITS OPENROUTER TWIN, so exhausting the
+# Ollama Cloud quota (unpublished denominator, so unpredictable) degrades the
+# ROUTE and not the model. Asserted as a full chain, brace-anchored.
+grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:ollama/deepseek-v4-flash:0731-cloud,pi:openrouter/deepseek/deepseek-v4-flash-0731}' "$driver" \
+  && ok "executor chain is ollama -> openrouter twin" || bad "executor chain is ollama -> openrouter twin" "missing or unchained"
 # Planner fallback: kimi-k3 sits BETWEEN codex and opus, so opus stays last resort.
-grep -q 'MISSION_PLANNER_FALLBACK:-pi:ollama/kimi-k3:cloud}' "$driver" \
-  && ok "planner fallback is the ollama kimi-k3 lane, ahead of opus" || bad "planner fallback is the ollama kimi-k3 lane, ahead of opus" "missing or still bare opus"
+grep -q 'MISSION_PLANNER_FALLBACK:-pi:ollama/kimi-k3:cloud,pi:openrouter/moonshotai/kimi-k3}' "$driver" \
+  && ok "planner chain is ollama -> openrouter twin" || bad "planner chain is ollama -> openrouter twin" "missing or unchained"
 # A pi: pin must actually REACH its lane. Before derive-planner-lane.sh Step 0
 # accepted pi:, every non-codex value emitted "opus fail-closed:env-pin", so a pi
 # lane would read as pinned in the driver log while opus actually ran. This stays
@@ -70,13 +73,20 @@ grep -v '^[[:space:]]*#' "$driver" | grep -q 'claude-opus-4-8' \
   || ok "opus-4.8 stays removed"
 # NO-SINGLE-PROVIDER-ROLE: the evaluator was the only role with no fallback at
 # all. Every role must now name at least two providers across its chain.
-grep -q 'MISSION_EVALUATOR_FALLBACK:-pi:ollama/glm-5.2:cloud}' "$driver" \
-  && ok "evaluator has a non-Anthropic fallback" || bad "evaluator has a non-Anthropic fallback" "missing evaluator fallback"
+grep -q 'MISSION_EVALUATOR_FALLBACK:-pi:ollama/minimax-m3:cloud,pi:openrouter/minimax/minimax-m3}' "$driver" \
+  && ok "evaluator chain is ollama -> openrouter twin" || bad "evaluator chain is ollama -> openrouter twin" "missing evaluator chain"
+# The chain walker must exist, or a comma value would be passed to pi as ONE
+# model name and every fallback would 404.
+grep -q '_chain_head()' "$driver" && grep -q 'CHAIN_REMAINING' "$driver" \
+  && ok "driver has the chain walker" || bad "driver has the chain walker" "helpers or remaining-var missing"
 # The evaluator fallback must not collide with planner or executor lanes, or the
 # judge would share a model with a generator.
-grep -q 'MISSION_EVALUATOR_FALLBACK:-pi:ollama/\(kimi-k3\|deepseek\)' "$driver" \
-  && bad "evaluator fallback is distinct from planner/executor" "evaluator shares a model with a generator" \
-  || ok "evaluator fallback is distinct from planner/executor"
+# VENDOR-level, not model-level. deepseek-v4-pro vs deepseek-v4-flash are
+# different models but the same vendor and generation, and a shared systematic
+# blind spot is exactly what generator!=judge is for. This guard caught that.
+grep -q 'MISSION_EVALUATOR_FALLBACK:-pi:ollama/\(kimi\|deepseek\)' "$driver" \
+  && bad "evaluator vendor is distinct from planner/executor" "evaluator shares a VENDOR with a generator" \
+  || ok "evaluator vendor is distinct from planner/executor"
 grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol' "$driver" \
   && ok "controller has Codex Sol fallback" || bad "controller has Codex Sol fallback" "missing fallback"
 

@@ -2453,11 +2453,17 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      clause is the in-iteration half the issue explicitly required — a codex 1-token probe can
      return **rc=0 on a spent bucket**, so quota exhaustion is sometimes visible only HERE, on the
      real Gate-3 run, after every driver probe passed). If the pre-flight probe fails, or the real
-     run errors / hits the cap: read `MISSION_<ROLE>_FALLBACK` (driver defaults as of 2026-08-26: executor
-     `pi:ollama/deepseek-v4-flash:0731-cloud`, planner `pi:ollama/kimi-k3:cloud`, evaluator
-     `pi:ollama/glm-5.2:cloud` — all flat-rate Ollama Cloud lanes reached through pi's `ollama`
-     provider at `localhost:11434/v1`. The executor's OpenRouter `:floor` default is RETIRED: same
-     deepseek weights, flat-rate route) and hand the
+     run errors / hits the cap: read `MISSION_<ROLE>_FALLBACK`, which since 2026-08-26 may be a
+     **COMMA-SEPARATED CHAIN walked left to right**, with opus as the implicit tail — so the
+     full ladder per role is `codex → ollama-cloud → openrouter-twin → opus`, i.e. flat-rate
+     → metered → Anthropic. Take the FIRST entry; if that lane fails, advance to the next
+     rather than dropping to opus. Driver defaults:
+     executor `pi:ollama/deepseek-v4-flash:0731-cloud,pi:openrouter/deepseek/deepseek-v4-flash-0731`;
+     planner `pi:ollama/kimi-k3:cloud,pi:openrouter/moonshotai/kimi-k3`;
+     evaluator `pi:ollama/deepseek-v4-pro:0813-cloud,pi:openrouter/deepseek/deepseek-v4-pro-0813`.
+     Each OpenRouter rung is the SAME WEIGHTS as the ollama rung before it, so exhausting the
+     Ollama Cloud quota — whose denominator is unpublished, hence unpredictable — degrades the
+     ROUTE, not the model. The executor's old OpenRouter `:floor` default is RETIRED and hand the
      role to that value under its OWN lane recipe, probe included — a `pi:*` value enters the pi
      recipe below, an alias enters the Agent tool. Only when the chain value is absent, already the
      failed lane, or itself fails does the role fall to `$MODEL` via the Agent tool. FLAG every

@@ -512,14 +512,14 @@ export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol}"
 # are preserved exactly. Same deepseek-v4-flash weights; the flat-rate ollama route
 # replaces the metered OpenRouter one. Measured 0.029 ollama usage-units/M tokens.
 # ROLLBACK: restore pi:openrouter/deepseek/deepseek-v4-flash-0731 here.
-export MISSION_EXECUTOR_FALLBACK="${MISSION_EXECUTOR_FALLBACK:-pi:ollama/deepseek-v4-flash:0731-cloud}"
+export MISSION_EXECUTOR_FALLBACK="${MISSION_EXECUTOR_FALLBACK:-pi:ollama/deepseek-v4-flash:0731-cloud,pi:openrouter/deepseek/deepseek-v4-flash-0731}"
 # kimi-k3 sits between codex and opus rather than degrading straight to opus:
 # strongest open-weight model measured externally (88.3 Terminal-Bench 2.1), and
 # a flat-rate lane is the right thing to try before spending Anthropic quota.
 # Draws 18x gpt-oss per token (0.124 units/M) — affordable because planning is ONE
 # run per iteration. The pi probe loop degrades it to opus if unusable, so opus
 # remains the last resort exactly as before. ROLLBACK: set this back to `opus`.
-export MISSION_PLANNER_FALLBACK="${MISSION_PLANNER_FALLBACK:-pi:ollama/kimi-k3:cloud}"
+export MISSION_PLANNER_FALLBACK="${MISSION_PLANNER_FALLBACK:-pi:ollama/kimi-k3:cloud,pi:openrouter/moonshotai/kimi-k3}"
 # When a design doc requires the Anthropic planner lane but the controller probe
 # has proved the Anthropic subscription unavailable, use Codex Sol rather than
 # wedging or silently inheriting the failed controller. derive-planner-lane.sh
@@ -550,6 +550,20 @@ _cx_failed=":"   # models whose probe failed
 # mis-attributed to a spent quota, before iter-23 found the real cause. A fallback visible only in
 # a routing-evidence row written AFTER the fact is still a silent fallback (Critical Principle 2):
 # by then the iteration has already run on the wrong lane.
+# ROLE FALLBACK CHAINS (2026-08-26). MISSION_<ROLE>_FALLBACK may now be a
+# COMMA-SEPARATED chain, walked left to right, with opus as the implicit tail:
+#
+#   codex -> pi:ollama/<m>:cloud -> pi:openrouter/<twin> -> opus
+#            flat-rate             metered                 Anthropic
+#
+# The Ollama Cloud quota is a subscription with an UNPUBLISHED denominator
+# (/api/usage reports consumption but no limit), so we cannot predict exhaustion
+# — only survive it. The OpenRouter rung is the same weights on a metered route,
+# so exhaustion degrades the ROUTE and not the model.
+# bash 3.2 (L19/L21): plain string splitting, no arrays or ${x//}.
+_chain_head() { printf '%s' "${1%%,*}"; }
+_chain_tail() { case "$1" in *,*) printf '%s' "${1#*,}" ;; *) printf '' ;; esac; }
+
 # Accumulate here; emit ONCE below, AFTER every early exit and BEFORE the iteration starts.
 # bash 3.2 (L19/L21): no associative arrays — ';'-delimited "model=rc", newline-delimited ledger.
 _lane_degraded=""   # newline-delimited markdown bullets, one per degraded role
@@ -580,7 +594,11 @@ for role in PLANNER EXECUTOR; do
       # is probed by the pi loop below, which degrades to opus on its own failure —
       # that is what makes codex -> deepseek -> opus a real chain. `%s` rather than
       # a bare format string: the value is data, and a stray % would be a directive.
-      fbvar="MISSION_${role}_FALLBACK"; fb="${!fbvar:-opus}"
+      fbvar="MISSION_${role}_FALLBACK"; _chain="${!fbvar:-opus}"
+      fb=$(_chain_head "$_chain")
+      # Remember what is left so the pi loop can advance instead of jumping to opus.
+      remvar="MISSION_${role}_CHAIN_REMAINING"
+      printf -v "$remvar" '%s' "$(_chain_tail "$_chain")"; export "$remvar"
       log "codex ${role_lc} lane -> falling back to '$fb' for this fire (model '$cx_model')"
       _cx_rc_for=$(printf '%s' "$_cx_rcmap" | tr ';' '\n' | grep "^${cx_model}=" | head -1 | cut -d= -f2)
       [ -n "$_cx_rc_for" ] || _cx_rc_for="unknown"
@@ -600,7 +618,11 @@ done
 _pi_probed=":"   # models probed this fire (dedupe: planner+executor could share one)
 _pi_failed=":"   # models whose probe failed
 for role in PLANNER EXECUTOR; do
-  var="MISSION_${role}_MODEL"; val="${!var}"
+  var="MISSION_${role}_MODEL"
+  # while-loop so a chain advance re-enters the probe for the NEW value; a
+  # non-pi value (or a settled pi value) breaks out at the bottom.
+  while :; do
+  val="${!var}"
   case "$val" in pi:*)
     pi_model="${val#pi:}"
     case "$_pi_probed" in *":${pi_model}:"*) : ;; *)   # not yet probed
@@ -618,14 +640,30 @@ for role in PLANNER EXECUTOR; do
     ;; esac
     case "$_pi_failed" in *":${pi_model}:"*)
       role_lc=$(printf '%s' "$role" | tr 'A-Z' 'a-z')   # ${role,,} is bash-4.0-only (L21)
-      log "pi ${role_lc} lane -> falling back to opus for this fire (model '$pi_model')"
       _pi_rc_for=$(printf '%s' "$_pi_rcmap" | tr ';' '\n' | grep "^${pi_model}=" | head -1 | cut -d= -f2)
       [ -n "$_pi_rc_for" ] || _pi_rc_for="unknown"
+      # Advance along the chain rather than jumping to opus. The Ollama Cloud rung
+      # can be exhausted by a quota whose denominator is unpublished, so the
+      # OpenRouter twin — same weights, metered route — is the rung that keeps the
+      # loop on the SAME model instead of degrading capability.
+      remvar="MISSION_${role}_CHAIN_REMAINING"; _rem="${!remvar:-}"
+      if [ -n "$_rem" ]; then
+        _next=$(_chain_head "$_rem")
+        printf -v "$remvar" '%s' "$(_chain_tail "$_rem")"; export "$remvar"
+        log "pi ${role_lc} lane '$pi_model' unusable -> advancing to '$_next'"
+        _lane_degraded="${_lane_degraded}
+- \`${role_lc}\`: **pi** lane \`${pi_model}\` unusable (probe rc=\`${_pi_rc_for}\`$([ "$_pi_rc_for" = "124" ] && printf ' — TIMEOUT after %ss' "$PROBE_TIMEOUT")) → advanced to \`${_next}\`"
+        printf -v "$var" '%s' "$_next"; export "$var"
+        continue
+      fi
+      log "pi ${role_lc} lane -> falling back to opus for this fire (model '$pi_model')"
       _lane_degraded="${_lane_degraded}
 - \`${role_lc}\`: **pi** lane \`${pi_model}\` unusable (probe rc=\`${_pi_rc_for}\`$([ "$_pi_rc_for" = "124" ] && printf ' — TIMEOUT after %ss' "$PROBE_TIMEOUT")) → handed to \`opus\` (end of chain)"
       printf -v "$var" 'opus'; export "$var"
     ;; esac
   ;; esac
+  break
+  done
 done
 # evaluator default = sonnet (2026-07-16, Mark directive on #399: "default can be gemini (if able
 # to git clone the codebase etc)? otherwise sonnet-5"). gemini managed_agents is NOT viable as the
@@ -643,22 +681,29 @@ export MISSION_EVALUATOR_MODEL="${MISSION_EVALUATOR_MODEL:-sonnet}"
 # at all — sonnet or nothing — so an Anthropic outage wedged Gate 4 while every
 # other role had a cross-provider chain.
 #
-# glm-5.2 is chosen deliberately: it tops open-weight coding benchmarks (81.0
-# Terminal-Bench 2.1) and our own banked 78% for it is the KNOWN thinking-token
-# truncation artifact, not the model (verdict retracted). It appears NOWHERE else
-# in the fleet, so judging stays independent of planner (kimi-k3) and executor
-# (deepseek-v4-flash). Probed rc=0 via pi's ollama provider, not assumed.
+# minimax-m3, after TWO corrections in one session — both caught by a guard, not
+# by taste. First pick glm-5.2 (retracted-verdict narrative) carries the SMALLEST
+# headroom of the top tier: max_completion 262,144, and thinking-token truncation
+# is exactly what produced glm-5.2's bogus 78%. Second pick deepseek-v4-pro fixed
+# headroom (943,717) but shares VENDOR AND GENERATION with the executor
+# (deepseek-v4-flash) — different models, but a shared systematic blind spot is
+# precisely what generator!=judge exists to prevent, and the distinctness test
+# went red on it.
 #
-# It runs LOCALLY via pi, so unlike gemini managed_agents it can see the sprint's
-# uncommitted worktree and re-run tests — the requirement that disqualified gemini
-# at iteration 38.
+# minimax-m3 satisfies all three at once: independent vendor (MiniMax, distinct
+# from Moonshot/kimi-k3 planner and DeepSeek/deepseek-flash executor), 512,000
+# headroom (~2x glm-5.2), and the HIGHEST banked agent-mode score of any model we
+# have measured (95.6%, n=160) — which is the right instrument here, because it
+# measures driving our harness rather than raw capability.
+#
+# Runs LOCALLY via pi, so unlike gemini managed_agents it sees the sprint's
+# uncommitted worktree and can re-run tests — the requirement that disqualified
+# gemini at iteration 38. Both rungs probed rc=0, not assumed.
 #
 # HONEST LIMIT: the skill's generator!=judge guard compares PROVIDERS. If the
-# executor has ALSO degraded to its ollama fallback, this evaluator shares that
-# provider and the guard will FLAG the collision. That is the correct visible
-# behaviour — a flag, not a silent violation — and the guard, not this default,
-# stays the authority.
-export MISSION_EVALUATOR_FALLBACK="${MISSION_EVALUATOR_FALLBACK:-pi:ollama/glm-5.2:cloud}"
+# executor has ALSO degraded to a pi lane, the guard will FLAG the collision.
+# That is correct visible behaviour, and the guard stays the authority.
+export MISSION_EVALUATOR_FALLBACK="${MISSION_EVALUATOR_FALLBACK:-pi:ollama/minimax-m3:cloud,pi:openrouter/minimax/minimax-m3}"
 
 # 1. Kill switch — the intended "off" state, exit silently.
 if [ -f "$KILL_SWITCH" ]; then
