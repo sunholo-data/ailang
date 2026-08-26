@@ -1,6 +1,6 @@
 # M-PIPELINE-RECONCILIATION: one pipeline definition, two execution lanes
 
-**Status**: Planned — quorum rounds spent (see Quorum Record); awaiting Mark's D1–D4 ratification
+**Status**: Planned — D1–D4 RATIFIED by Mark (attended, 2026-08-26); quorum record below; sprint may proceed
 **Target**: v0.35.0
 **Priority**: P1 — every divergence here is a place the two lanes give different answers to the same question
 **Estimated**: 5–7 days across three phases
@@ -110,12 +110,17 @@ both lanes — not one lane.
 | D3 | **Shared model routing.** Lift Lane A's routing table (role → model chain with fallbacks) into config both lanes read; delete the static `model:` pins from chain agents | routing file location (cloud config vs repo `models.yml` extension); whether Lane B gets fallback *chains* or just the primary | **Mark** | Medium |
 | D4 | **Decision ledger.** One "pending for Mark" view spanning Lane B approvals and Lane A `awaiting_approval` stages | (a) `ailang coordinator pending` grows to read mission ledgers; (b) both write to the `approvals` inbox (now Discord-routed) as the single spine | **Mark** | Low |
 
-### Design Freeze
+### Design Freeze — ALL RATIFIED (Mark, attended, 2026-08-26)
 
-- [ ] D1 evaluation placement
-- [ ] D2 chain-as-data schema
-- [ ] D3 routing-table location
-- [ ] D4 ledger spine
+- [x] **D1 = (b)** — evaluation is a discrete pre-approval stage in both lanes; read-only
+  executor→evaluator handoff auto-approved; verdict attached to the pending approval
+- [x] **D2 = drop dormant bindings** — chain-as-data replaces the clones; stapledon/twilight
+  deleted, re-added as one-line bindings only when those projects wake; fixture test pins
+  expansion ≡ today's config first
+- [x] **D3 = CAS-managed cloud config** — one routing table both lanes read, via the M4
+  machinery (stale writes refused, validated pre-write); static model pins deleted
+- [x] **D4 = approvals inbox as spine** — Lane A's awaiting_approval stages also post there;
+  `ailang coordinator pending` reads it
 
 **Recommendation**: D1(**b**). Round-1 quorum (2026-08-26) rejected (a) on topology grounds —
 correctly: embedding evaluation as a prompt directive inside Lane B's executor while Lane A runs
@@ -254,9 +259,10 @@ Run 2026-08-26 at HEAD `7f5dfac84`; config generation 1787758575840728.
   still prescribed D1(a). The objection was correct and purely mechanical; the authored fix is
   now actually in the file, grep-verified in both directions (stale strings 0, new strings
   present).
-- **Re-quorum-ONCE guardrail is spent.** Per the skill, a still-blocked doc is handed to the
-  human with its gaps labelled rather than ground through further rounds. Status:
-  **pending Mark's ratification** of D1–D4 — which the freeze table needed anyway.
+- **Re-quorum-ONCE guardrail is spent.** Per the skill, the doc went to the human with its
+  gaps labelled. **Mark ratified D1–D4 in the attended session the same day** (each with the
+  recommended option), which supersedes the blocked synthesis: the round-2 objection was the
+  mechanical no-op edit, already fixed and grep-verified.
 - Meta-note the loop should keep: both failures this doc suffered (an unasserted edit, a
   fail-loud doc with a silent failure mode) are instances of its own subject.
 
