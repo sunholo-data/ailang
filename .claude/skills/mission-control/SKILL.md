@@ -2453,9 +2453,11 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      clause is the in-iteration half the issue explicitly required — a codex 1-token probe can
      return **rc=0 on a spent bucket**, so quota exhaustion is sometimes visible only HERE, on the
      real Gate-3 run, after every driver probe passed). If the pre-flight probe fails, or the real
-     run errors / hits the cap: read `MISSION_<ROLE>_FALLBACK` (driver defaults: executor
-     `pi:openrouter/deepseek/deepseek-v4-flash-0731:floor`, planner `opus`; the `:floor` suffix is
-     an OpenRouter price-routing variant — part of the MODEL ID, not chain syntax) and hand the
+     run errors / hits the cap: read `MISSION_<ROLE>_FALLBACK` (driver defaults as of 2026-08-26: executor
+     `pi:ollama/deepseek-v4-flash:0731-cloud`, planner `pi:ollama/kimi-k3:cloud`, evaluator
+     `pi:ollama/glm-5.2:cloud` — all flat-rate Ollama Cloud lanes reached through pi's `ollama`
+     provider at `localhost:11434/v1`. The executor's OpenRouter `:floor` default is RETIRED: same
+     deepseek weights, flat-rate route) and hand the
      role to that value under its OWN lane recipe, probe included — a `pi:*` value enters the pi
      recipe below, an alias enters the Agent tool. Only when the chain value is absent, already the
      failed lane, or itself fails does the role fall to `$MODEL` via the Agent tool. FLAG every

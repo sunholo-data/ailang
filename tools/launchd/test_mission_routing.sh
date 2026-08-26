@@ -58,6 +58,25 @@ want "pi planner still fails closed outside the allowlist" "$out" "opus fail-clo
 grep -q 'MISSION_EXECUTOR_FALLBACK:-[^}]*:floor' "$driver" \
   && bad "executor fallback is never price-pinned (:floor)" "fallback is :floor-pinned" \
   || ok "executor fallback is never price-pinned (:floor)"
+# opus-4.8 REMOVED from the controller ladder (Mark 2026-08-26). Negative
+# assertion so a silent reintroduction is RED, not merely unasserted.
+grep -q 'MISSION_MODEL_PREFS:-claude-opus-5,claude-fable-5}' "$driver" \
+  && ok "controller ladder is opus-5 -> fable-5 (no opus-4.8)" || bad "controller ladder is opus-5 -> fable-5 (no opus-4.8)" "wrong ladder"
+# ACTIVE lines only: a comment recording the removal must not trip the guard,
+# but a real reintroduction must. (This distinction is why the first version of
+# this assertion went red on its own changelog note.)
+grep -v '^[[:space:]]*#' "$driver" | grep -q 'claude-opus-4-8' \
+  && bad "opus-4.8 stays removed" "opus-4.8 reappeared in active driver code" \
+  || ok "opus-4.8 stays removed"
+# NO-SINGLE-PROVIDER-ROLE: the evaluator was the only role with no fallback at
+# all. Every role must now name at least two providers across its chain.
+grep -q 'MISSION_EVALUATOR_FALLBACK:-pi:ollama/glm-5.2:cloud}' "$driver" \
+  && ok "evaluator has a non-Anthropic fallback" || bad "evaluator has a non-Anthropic fallback" "missing evaluator fallback"
+# The evaluator fallback must not collide with planner or executor lanes, or the
+# judge would share a model with a generator.
+grep -q 'MISSION_EVALUATOR_FALLBACK:-pi:ollama/\(kimi-k3\|deepseek\)' "$driver" \
+  && bad "evaluator fallback is distinct from planner/executor" "evaluator shares a model with a generator" \
+  || ok "evaluator fallback is distinct from planner/executor"
 grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol' "$driver" \
   && ok "controller has Codex Sol fallback" || bad "controller has Codex Sol fallback" "missing fallback"
 

@@ -16,8 +16,8 @@
 # GPU-touching sprint steps take it per-step inside the session).
 #
 # MODEL SELECTION (fleet Phase A, 2026-07-14): ordered preference probing.
-# MISSION_MODEL_PREFS (default "claude-opus-5,claude-opus-4-8,claude-fable-5"
-# — Opus 5 first since 2026-07-27 (Mark), 4.8 kept as probe fallback — OPUS-FIRST
+# MISSION_MODEL_PREFS (default "claude-opus-5,claude-fable-5"
+# — Opus 5 first since 2026-07-27 (Mark); the 4.8 rung was dropped 2026-08-26 — OPUS-FIRST
 # since 2026-07-16, Mark: Fable is reserved for high-cognition ROLES — design
 # synthesis + evaluation, both bounded pinned sub-agents — never the long
 # orchestration session, which burned the weekly Fable bucket at 2h cadence)
@@ -164,7 +164,10 @@ _mc_stalled() {
 # ----------------------------------------------------------------------------
 
 # --- model selection (fleet Phase A) -----------------------------------------
-PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,claude-opus-4-8,claude-fable-5}"
+# claude-opus-4-8 REMOVED 2026-08-26 (Mark, attended). The ladder keeps a
+# same-provider step (fable) and then crosses providers via CONTROLLER_FALLBACK
+# below, so dropping the middle Anthropic rung costs no cross-provider coverage.
+PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,claude-fable-5}"
 CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol}"
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
 PROBE_TIMEOUT="${MISSION_PROBE_TIMEOUT:-120}"   # per-probe wall-clock cap, seconds
@@ -321,7 +324,7 @@ TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_err
 # (deep spec synthesis, fired only when a new doc is needed) and the evaluator (adversarial judge,
 # ≠ the opus executor → generator≠judge holds).
 # NB: these are in-session Agent/Task-tool model ALIASES (opus|fable|sonnet|haiku) — NOT the full
-# IDs (claude-opus-4-8) the driver's own `claude -p --model` flag takes. Two different interfaces:
+# IDs (claude-opus-5) the driver's own `claude -p --model` flag takes. Two different interfaces:
 # the controller session is launched with a full ID; the sub-agents it spawns are pinned by alias.
 # A "provider:model" value (e.g. codex:gpt-5.6-sol) instead signals cross-provider agent routing via
 # provider_executor (fleet Phase C), which the skill resolves — not the Agent tool.
@@ -635,6 +638,27 @@ done
 # tests locally). This also RETIRES the per-iteration fable→sonnet re-route (iters 31/36) into a
 # standing default. gemini-as-evaluator is a queued follow-up (diff-bridge + backend reliability).
 export MISSION_EVALUATOR_MODEL="${MISSION_EVALUATOR_MODEL:-sonnet}"
+# NO-SINGLE-PROVIDER-ROLE (Mark 2026-08-26, attended: "make sure each role is not
+# only reliant on one provider"). The evaluator was the last role with no fallback
+# at all — sonnet or nothing — so an Anthropic outage wedged Gate 4 while every
+# other role had a cross-provider chain.
+#
+# glm-5.2 is chosen deliberately: it tops open-weight coding benchmarks (81.0
+# Terminal-Bench 2.1) and our own banked 78% for it is the KNOWN thinking-token
+# truncation artifact, not the model (verdict retracted). It appears NOWHERE else
+# in the fleet, so judging stays independent of planner (kimi-k3) and executor
+# (deepseek-v4-flash). Probed rc=0 via pi's ollama provider, not assumed.
+#
+# It runs LOCALLY via pi, so unlike gemini managed_agents it can see the sprint's
+# uncommitted worktree and re-run tests — the requirement that disqualified gemini
+# at iteration 38.
+#
+# HONEST LIMIT: the skill's generator!=judge guard compares PROVIDERS. If the
+# executor has ALSO degraded to its ollama fallback, this evaluator shares that
+# provider and the guard will FLAG the collision. That is the correct visible
+# behaviour — a flag, not a silent violation — and the guard, not this default,
+# stays the authority.
+export MISSION_EVALUATOR_FALLBACK="${MISSION_EVALUATOR_FALLBACK:-pi:ollama/glm-5.2:cloud}"
 
 # 1. Kill switch — the intended "off" state, exit silently.
 if [ -f "$KILL_SWITCH" ]; then
