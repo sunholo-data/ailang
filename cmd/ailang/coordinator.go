@@ -20,6 +20,8 @@ func coordinatorCommand(args []string) error {
 		return coordinatorStop(subargs)
 	case "status":
 		return coordinatorStatus(subargs)
+	case "config":
+		return coordinatorConfig(subargs)
 	case "pending":
 		return coordinatorPending(subargs)
 	case "list":
