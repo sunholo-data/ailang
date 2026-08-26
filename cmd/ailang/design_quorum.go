@@ -12,14 +12,15 @@ import (
 )
 
 // runDesignQuorum implements `ailang design-quorum` (M-MISSION-FLEET-AB Phase B2):
-// it composes N off-Anthropic reviewers (default gpt5-6-sol + gemini-3-1-pro)
+// it composes N off-Anthropic reviewers (default gpt5-6-sol + gemini-3-1-pro +
+// oc-glm-5-2 — OpenAI, Google and Ollama Cloud, three independent priors)
 // in parallel into one quorum verdict, records a machine JSON artifact + an
 // optional mission-log markdown block, and degrades gracefully to N-1 (naming
 // any absent reviewer). The Claude controller's own review is IN-SESSION (not
 // an API call) and can be folded in via flags.
 func runDesignQuorum() {
 	fs := flag.NewFlagSet("design-quorum", flag.ExitOnError)
-	reviewers := fs.String("reviewers", "gpt5-6-sol,gemini-3-1-pro", "comma-separated reviewer model ids from models.yml")
+	reviewers := fs.String("reviewers", "gpt5-6-sol,gemini-3-1-pro,oc-glm-5-2", "comma-separated reviewer model ids from models.yml")
 	maxCost := fs.Float64("max-cost-usd", quorum.DefaultMaxCostUSD, "per-reviewer budget cap in USD")
 	artifactDir := fs.String("artifact-dir", quorum.ArtifactDir, "directory for the machine JSON artifact")
 	logPath := fs.String("mission-log", "", "optional mission log path to append the markdown block")
@@ -103,10 +104,10 @@ const designQuorumHelp = `ailang design-quorum — N-reviewer quorum verdict on 
 
 USAGE:
   ailang design-quorum <doc.md> [flags]
-  ailang design-quorum --reviewers gpt5-6-sol,gemini-3-1-pro < doc.md
+  ailang design-quorum --reviewers gpt5-6-sol,gemini-3-1-pro,oc-glm-5-2 < doc.md
 
 FLAGS:
-  --reviewers <csv>          reviewer model ids (default gpt5-6-sol,gemini-3-1-pro)
+  --reviewers <csv>          reviewer model ids (default gpt5-6-sol,gemini-3-1-pro,oc-glm-5-2)
   --max-cost-usd <n>         per-reviewer budget cap in USD (default 0.10)
   --artifact-dir <dir>       machine JSON artifact dir (default .ailang/state/mission-quorum)
   --mission-log <path>       append the human markdown block to this mission log

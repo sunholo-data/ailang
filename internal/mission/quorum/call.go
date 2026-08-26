@@ -10,6 +10,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/ai/gemini"
+	"github.com/sunholo-data/ailang/internal/ai/ollama"
 	"github.com/sunholo-data/ailang/internal/ai/openai"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
@@ -100,6 +101,8 @@ func reviewerMaxTokens(mc *eval_harness.ModelConfig) (int, error) {
 //   - google  → Vertex ADC (env_var is "" in models.yml; GEMINI_API_KEY is NOT
 //     consulted — that is the rig-absent var the design doc flagged), with the
 //     model's gcp_project exported so ADC resolves the right project.
+//   - ollama  → the local daemon, which proxies `-cloud`-suffixed models to
+//     ollama.com signed with the device key. No API key is involved.
 //
 // It refuses (hard error, Principle 2) when the required auth is unavailable
 // rather than silently falling back to a different provider/model.
@@ -143,8 +146,27 @@ func ResolveCaller(modelID string) (JSONCaller, *eval_harness.ModelConfig, error
 		}
 		provider = client
 
+	case ai.ProviderOllama:
+		// Ollama Cloud reviewer (M-OLLAMA-CLOUD-PROVIDER). A third vendor for the
+		// quorum: gpt5-6-sol is OpenAI and gemini-3-1-pro is Google, so a
+		// `-cloud`-suffixed ollama model adds an independent prior without
+		// touching the local GPU — the daemon proxies it to ollama.com.
+		//
+		// There is NO API key to check here: inference rides the DEVICE key
+		// registered by `ollama signin`, and OLLAMA_API_KEY is only for
+		// ollama.com's own /api/usage, which the local daemon does not proxy.
+		// Same Principle-2 posture as the other lanes — refuse loudly if the
+		// daemon is unreachable rather than letting a reviewer silently vanish
+		// (an absent reviewer degrades the quorum to N-1, which must be a
+		// reported fact, not an accident).
+		client, oerr := ollama.NewClient()
+		if oerr != nil {
+			return nil, nil, fmt.Errorf("reviewer %q needs a reachable ollama daemon (ollama provider) — %w", modelID, oerr)
+		}
+		provider = client
+
 	default:
-		return nil, nil, fmt.Errorf("reviewer %q provider %q unsupported for quorum (want openai or google)", modelID, mc.Provider)
+		return nil, nil, fmt.Errorf("reviewer %q provider %q unsupported for quorum (want openai, google, or ollama)", modelID, mc.Provider)
 	}
 
 	maxTokens, err := reviewerMaxTokens(mc)

@@ -1896,6 +1896,34 @@ models:
       Not in ollama_suite until smoke gate passes.
       Requires: Ollama running on localhost:11434, model pulled, motoko CLI.
 
+  oc-glm-5-2:
+    api_name: "glm-5.2:cloud"                          # Ollama Cloud route (M-OLLAMA-CLOUD-PROVIDER)
+    provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "GLM-5.2 via Ollama Cloud — DESIGN-QUORUM REVIEWER lane. Tops open-weight coding benchmarks (81.0 Terminal-Bench 2.1); our banked 78% is the known thinking-truncation artifact, not the model."
+    env_var: ""                                        # device key via `ollama signin`
+    model_family: "glm-5"
+    max_output_tokens: 32768
+    pricing:
+      # PROVISIONAL — D1 UNRATIFIED. NOT 0/0 (that maps to the false `free-local`
+      # provenance). Imputed from the OpenRouter twin z-ai/glm-5.2, list price read
+      # from the OpenRouter models API 2026-08-26.
+      input_per_1k: 0.00119
+      output_per_1k: 0.00374
+    notes: |
+      Third design-quorum reviewer, alongside gpt5-6-sol (OpenAI) and
+      gemini-3-1-pro (Google). Three vendors, three independent priors.
+
+      Why GLM-5.2 is the right model for THIS role specifically: its known
+      weakness is OUTPUT headroom (max_completion 262,144 on OpenRouter — the
+      smallest of the top tier), and a quorum verdict is SHORT. The role reads a
+      long document and emits a brief structured judgement, so the weakness that
+      disqualified it as evaluator does not bind here.
+
+      Independent of the designer rotation by construction: the skill forbids
+      routing a designer to a model that is also a reviewer of the same doc, and
+      the rotation is fable-5 -> kimi-k3, neither of which is this model.
+
   motoko-cloud-kimi-k3:
     api_name: "kimi-k3:cloud"                          # untagged model -> `:cloud`
     provider: "ollama"                                 # local daemon proxies to ollama.com (M-OLLAMA-CLOUD-PROVIDER)

@@ -33,9 +33,9 @@ scoring them 0 is the honest answer, not an evasion.
 | A9: Cost Visibility | +1 | Forces the imputed-cost question into the open (D1) rather than letting a subscription lane bank as `0/0` and silently corrupt cost-per-verified-success. Net **improves** cost legibility by making the imputation explicit and labelled. |
 | A10: Composability | +1 | Reuses the existing `provider: ollama` path end-to-end — same rows, same harnesses, same banking. No new provider package, no new wire protocol. |
 | A11: Structured Failure | 0 | Quota exhaustion surfaces as an HTTP error through the existing `error_category` path. AC7 requires it not be miscategorised as `api_error`. |
-| A12: System Boundary | +1 | Makes a boundary crossing explicit that is currently invisible: today `provider: ollama` unambiguously means "on this GPU". After this, the `-cloud` suffix in `api_name` marks the row as leaving the machine. |
+| A12: System Boundary | **0** | *Corrected by quorum reviewer `oc-glm-5-2`, which caught this doc contradicting its own log.* The boundary is explicit in the REQUEST — ollama's own parser routes on the suffix (V2) — but is **not preserved in banked output**: the proxy rewrites the model field to the base name before dispatch (V21) and the bank stores the models.yml row KEY, never `api_name` (V23). The row-key convention (`motoko-cloud-*`) is an unenforced human agreement, not a structural marker. Scores +1 only if **D6** resolves to `RemoteModel`/`RemoteHost` **and V35 is verified on the `/v1` path** all three harnesses actually use — which it is not. |
 
-**Net Score: +4** → **Decision: Move forward**
+**Net Score: +3** → **Decision: Move forward** (was +4; A12 corrected 0 by quorum review. Still clears the +2 threshold, and no hard-violation axiom is negative.)
 
 ### Hard Violation Check
 
@@ -297,15 +297,19 @@ just wrong, and it is wrong in the direction that flatters the lane.
 
 ## Success Criteria
 
-- [ ] **AC1**: A cloud model completes an agent-mode benchmark via motoko with zero diffs outside
-      `models.yml` (`git diff --stat` shows only that file)
+- [ ] **AC1** *(rescoped by quorum review — it read as a whole-design claim and contradicted
+      "Files to Modify", which lists 5 files)*: **Phase 0/1 exit gate only** — reaching a cloud model
+      requires zero diffs outside `models.yml`. Phases 2-3 deliberately change other files.
 - [ ] **AC2** *(corrected by Phase 0 — the original was unachievable as written)*: route must be
       recoverable from banked data alone. The `-cloud` suffix **cannot** carry it: the proxy
       rewrites the model field to the base name before dispatch, so the response says
       `qwen3.5:397b` for a `qwen3.5:397b-cloud` request (**V21**), and the banked `model` is the
       **models.yml row key** (`agent.friendlyName`, `repair.go:49`) which never contains
       `api_name` at all (**V17**, **V23**). Route identity must therefore come from the row-key
-      naming convention (e.g. `motoko-cloud-*`) or an explicit banked field — decide under **D6**
+      naming convention (e.g. `motoko-cloud-*`) or an explicit banked field — decide under **D6**.
+      **BLOCKED on D6 resolution AND on V35 being verified for the `/v1` path** (V35 observed
+      `RemoteModel`/`RemoteHost` on the native `ChatResponse`; whether `/v1` surfaces an equivalent
+      is unverified, and `/v1` is the path all three harnesses use, V19)
 - [x] **AC3 SATISFIED** — `/api/usage` authenticates and its body is documented in **V26**. Two
       scope corrections came out of it: it is **not proxied by the local daemon** (404 at
       `localhost:11434`, **V24**) so it needs a direct Bearer call, and **it reports no
