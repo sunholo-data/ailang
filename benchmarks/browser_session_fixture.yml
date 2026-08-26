@@ -1,0 +1,19 @@
+id: browser_session_fixture
+description: "Hermetic Playwright MCP browser-session tool fixture"
+languages: ["ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "easy"
+expected_gain: "diagnostic"
+task_prompt: |
+  Before writing code, use the Playwright MCP browser tools to navigate to
+  {{MOCK_HTTP_URL}}/browser-session-fixture?expected=browser_fixture_ok and
+  inspect the response. Then write an AILANG program that prints exactly:
+  browser_fixture_ok
+
+  Do not use curl or another shell HTTP client for the inspection. Output only
+  the code in the solution file, with no explanation.
+expected_stdout: |
+  browser_fixture_ok
+tier: experimental
+tags: [effects_io]

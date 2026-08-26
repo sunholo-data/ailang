@@ -131,18 +131,15 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 	//   --skip-git-repo-check         allow non-git workspaces
 	//   --dangerously-bypass-approvals-and-sandbox  permission bypass
 	//   --model <name>                model selection
-	args := []string{
-		"exec",
-		"--json",
-		"--skip-git-repo-check",
-		"--dangerously-bypass-approvals-and-sandbox",
-		"--model", e.getModel(task),
-		directive,
+	args, err := buildCodexArgs(task, e.getModel(task), directive)
+	if err != nil {
+		return nil, err
 	}
 
 	codexPath := e.codexPath
 
 	cmd := exec.CommandContext(ctx, codexPath, args...)
+	configureProcessTree(cmd)
 	if task.Workspace != "" {
 		cmd.Dir = task.Workspace
 	}
@@ -339,14 +336,14 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 						if deltaIn > 0 || deltaOut > 0 {
 							if _, exceeded := task.Budget.Add(deltaIn, deltaOut); exceeded {
 								costKilled = true
-								_ = cmd.Process.Kill()
+								killProcessTree(cmd)
 							}
 						}
 						if task.MaxTokensPerBench > 0 && !thrashKilled &&
 							inputTokens+outputTokens > task.MaxTokensPerBench {
 							thrashKilled = true
 							thrashKilledAtTokens = inputTokens + outputTokens
-							_ = cmd.Process.Kill()
+							killProcessTree(cmd)
 						}
 					}
 				}
@@ -413,14 +410,14 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 					if deltaIn > 0 || deltaOut > 0 {
 						if _, exceeded := task.Budget.Add(deltaIn, deltaOut); exceeded {
 							costKilled = true
-							_ = cmd.Process.Kill()
+							killProcessTree(cmd)
 						}
 					}
 					if task.MaxTokensPerBench > 0 && !thrashKilled &&
 						inputTokens+outputTokens > task.MaxTokensPerBench {
 						thrashKilled = true
 						thrashKilledAtTokens = inputTokens + outputTokens
-						_ = cmd.Process.Kill()
+						killProcessTree(cmd)
 					}
 				}
 
@@ -486,7 +483,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 	for {
 		select {
 		case <-hardTimer.C:
-			_ = cmd.Process.Kill()
+			killProcessTree(cmd)
 			timeoutErr := fmt.Errorf("timeout after %v (hard ceiling)", timeout)
 			handler.OnError(timeoutErr)
 			span.RecordError(timeoutErr)
@@ -516,7 +513,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			}, nil
 
 		case <-ttftTimer.C:
-			_ = cmd.Process.Kill()
+			killProcessTree(cmd)
 			ttftErr := fmt.Errorf("codex produced no output within %v (prefill timeout)", ttftTimeout)
 			handler.OnError(ttftErr)
 			span.RecordError(ttftErr)
@@ -543,7 +540,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			last := time.Unix(0, lastActivity.Load())
 			idle := time.Since(last)
 			if idle >= idleTimeout {
-				_ = cmd.Process.Kill()
+				killProcessTree(cmd)
 				idleErr := fmt.Errorf("codex idle for %v mid-generation (no output)", idle.Round(time.Second))
 				handler.OnError(idleErr)
 				span.RecordError(idleErr)
@@ -708,6 +705,7 @@ func (e *CodexExecutor) Capabilities() []executor.Capability {
 	return []executor.Capability{
 		executor.CapStreaming,
 		executor.CapLocalWorkspace,
+		executor.CapMCP,
 	}
 }
 

@@ -306,6 +306,9 @@ func main() {
 	case "eval-suite":
 		runEvalSuite()
 
+	case "browser-profile":
+		runBrowserProfile(os.Args[2:])
+
 	case "eval-elo":
 		// Per-language (AILANG vs Python) ELO leaderboard + benchmark difficulty
 		runEvalELO()

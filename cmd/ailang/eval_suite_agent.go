@@ -29,6 +29,12 @@ type agentSuiteConfigParams struct {
 	maxTokensPerBench  int
 	verify             bool
 	verifyTimeout      time.Duration
+	browserProvider    string
+	browserProfile     string
+	browserArtifacts   string
+	browserRegion      string
+	browserMCPVersion  string
+	outputDir          string
 }
 
 // buildAgentSuiteConfig assembles the AgentBenchmarkConfig for an agent-mode run
@@ -54,7 +60,17 @@ func buildAgentSuiteConfig(agent bool, p agentSuiteConfigParams) *eval_harness.A
 	if p.verify {
 		fmt.Printf("  - Contract verification: ON (ai-check, %s per-function Z3 timeout)\n", p.verifyTimeout)
 	}
+	if p.browserProvider != "" {
+		fmt.Printf("  - Browser provider: %s (Playwright MCP %s)\n", p.browserProvider, p.browserMCPVersion)
+		if p.browserProfile != "" {
+			fmt.Printf("  - Browser profile:  %s (authenticated; ordinary runs never write back)\n", p.browserProfile)
+		}
+	}
 	fmt.Println()
+	browserArtifacts := p.browserArtifacts
+	if p.browserProvider != "" && browserArtifacts == "" {
+		browserArtifacts = filepath.Join(p.outputDir, "browser-sessions")
+	}
 
 	return &eval_harness.AgentBenchmarkConfig{
 		MaxTokensPerBench:  p.maxTokensPerBench,
@@ -70,6 +86,11 @@ func buildAgentSuiteConfig(agent bool, p agentSuiteConfigParams) *eval_harness.A
 		AgentPromptContent: loadAgentCodingPrompt(p.conditions),
 		MicroragMode:       evalMicroragMode, // M-BRAIN-MICRORAG: subprocess env mode
 		FmtHook:            evalFmtHookMode,  // M-EVAL-FMT-WEAKMODEL-AB: fmt PostToolUse hook A/B toggle
+		Browser: eval_harness.BrowserSessionConfig{
+			Provider: p.browserProvider, ArtifactDir: browserArtifacts,
+			Region: p.browserRegion, MCPVersion: p.browserMCPVersion,
+			AuthProfile: p.browserProfile,
+		},
 	}
 }
 
