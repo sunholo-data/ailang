@@ -110,6 +110,13 @@ done
 [ -d "$WORKDIR" ]   || { echo "mission_pi_run.sh: workdir not found: $WORKDIR" >&2; exit 14; }
 [ -n "$VERDICT" ]   || VERDICT="${OUT}.verdict.json"
 
+# The run cds into $WORKDIR, so every path we hand the filter must be absolute or the
+# output lands somewhere the caller is not looking. Resolve rather than require.
+case "$OUT" in /*) ;; *) OUT="$(pwd)/$OUT" ;; esac
+case "$VERDICT" in /*) ;; *) VERDICT="$(pwd)/$VERDICT" ;; esac
+case "$DIRECTIVE" in /*) ;; *) DIRECTIVE="$(pwd)/$DIRECTIVE" ;; esac
+WORKDIR=$(cd "$WORKDIR" && pwd)
+
 SNAP="${OUT}.snapshot.ndjson"
 ERR="${OUT}.stderr"
 : > "$OUT"; : > "$SNAP"; : > "$ERR"
@@ -138,6 +145,13 @@ now() { date +%s; }
 # the negative-pid kill reaches pi's children, which is the whole point of killing at all.
 set -m
 (
+  # RUN IN THE WORKTREE. pi edits files relative to its CWD, and --workdir is what we
+  # later assert the git diff of. Without this cd the two are different directories:
+  # the model does real work somewhere else and the verdict reads empty_worktree — or,
+  # worse, reads `ok` off a worktree that was dirty for unrelated reasons. Caught live
+  # 2026-08-26 when a run reported 4 tool executions and 0 changed files, and the
+  # model's own closing message said it could not find the file and created it.
+  cd "$WORKDIR" || exit 14
   pi --mode json --no-session --model "$MODEL" < "$DIRECTIVE" 2>"$ERR" |
     awk -v out="$OUT" -v snap="$SNAP" -v every="$SNAP_EVERY" '
       /"type":"message_update"/ {
@@ -217,7 +231,10 @@ PI_RC=$?
 ELAPSED=$(( $(now) - START ))
 DIFF_LINES=$(git -C "$WORKDIR" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
 AGENT_END=$(grep -c '"type":"agent_end"' "$OUT" 2>/dev/null | tr -d ' ')
-TOOL_CALLS=$(grep -c '"type":"tool_execution"' "$OUT" 2>/dev/null | tr -d ' ')
+# pi emits tool_execution_START/_UPDATE/_END, never a bare "tool_execution" — an
+# exact-match grep on the bare name silently reports 0 on a run that used tools.
+# Counting _end (completed calls) is the number a reader actually wants.
+TOOL_CALLS=$(grep -c '"type":"tool_execution_end"' "$OUT" 2>/dev/null | tr -d ' ')
 OUT_BYTES=$(wc -c < "$OUT" 2>/dev/null | tr -d ' ')
 
 case "$OUTCOME" in

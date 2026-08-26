@@ -38,7 +38,7 @@ mkrepo() { # mkrepo <dir> <dirty|clean>
 }
 
 echo "TEST 1: happy path -> ok (rc 0)"
-mkstub 'printf "%s\n" "{\"type\":\"tool_execution\"}" "{\"type\":\"agent_end\"}"'
+mkstub 'printf "%s\n" "{\"type\":\"tool_execution_end\"}" "{\"type\":\"agent_end\"}"'
 mkrepo "$TMP/wt1" dirty; echo "do the thing" > "$TMP/d1.txt"
 "$SUT" --model m --directive "$TMP/d1.txt" --workdir "$TMP/wt1" --out "$TMP/o1.ndjson" \
        --max-seconds 30 --stall-seconds 10 >/dev/null 2>&1
@@ -75,13 +75,30 @@ check "stream dead" 12 $? stream_dead "$TMP/o4.ndjson.verdict.json"
 echo "TEST 5: progress keeps the clock alive past the stall bound (no false positive)"
 # The guard must NOT fire on a slow-but-working run, or it just re-creates the old
 # 300 MB ceiling in a new costume.
-mkstub 'for i in 1 2 3 4 5 6 7 8; do printf "{\"type\":\"tool_execution\",\"i\":%s}\n" "$i"; sleep 2; done; printf "{\"type\":\"agent_end\"}\n"'
+mkstub 'for i in 1 2 3 4 5 6 7 8; do printf "{\"type\":\"tool_execution_end\",\"i\":%s}\n" "$i"; sleep 2; done; printf "{\"type\":\"agent_end\"}\n"'
 mkrepo "$TMP/wt5" dirty; echo d > "$TMP/d5.txt"
 "$SUT" --model m --directive "$TMP/d5.txt" --workdir "$TMP/wt5" --out "$TMP/o5.ndjson" \
        --max-seconds 90 --stall-seconds 6 >/dev/null 2>&1
 check "slow-but-working run survives" 0 $? ok "$TMP/o5.ndjson.verdict.json"
 
-echo "TEST 6: bad arguments -> launch_failed (rc 14)"
+echo "TEST 6: pi runs INSIDE --workdir, not the caller's cwd"
+# Regression pin. Caught live 2026-08-26: a real run reported 4 tool executions and 0
+# changed files because pi edited the caller's cwd while the git assertion read
+# --workdir. A guard asserting on a directory the model never touched is worse than no
+# guard — it reports empty_worktree for good work, and would report ok for none.
+mkstub 'pwd > cwd_marker.txt; printf "{\"type\":\"agent_end\"}\n"'
+mkrepo "$TMP/wt7" clean; echo d > "$TMP/d7.txt"
+( cd "$TMP" && "$SUT" --model m --directive "$TMP/d7.txt" --workdir "$TMP/wt7" \
+       --out "$TMP/o7.ndjson" --max-seconds 30 --stall-seconds 10 ) >/dev/null 2>&1
+if [ -f "$TMP/wt7/cwd_marker.txt" ]; then
+  echo "  PASS: pi ran in the worktree ($(cat "$TMP/wt7/cwd_marker.txt"))"; PASS=$((PASS+1))
+else
+  echo "  FAIL: pi ran outside --workdir; marker not in worktree"; FAIL=$((FAIL+1))
+fi
+# ...and the run it just did must therefore register as real work.
+check "worktree write is seen by the verdict" 0 0 ok "$TMP/o7.ndjson.verdict.json"
+
+echo "TEST 7: bad arguments -> launch_failed (rc 14)"
 "$SUT" --model m --directive /nonexistent/nope --workdir "$TMP" --out "$TMP/o6.ndjson" >/dev/null 2>&1
 [ $? -eq 14 ] && { echo "  PASS: missing directive rejected"; PASS=$((PASS+1)); } \
               || { echo "  FAIL: missing directive not rejected"; FAIL=$((FAIL+1)); }
