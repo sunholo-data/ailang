@@ -124,6 +124,16 @@ what we already have.
 | How hard is a benchmark, really? | `ailang eval-elo <dir> --json` — fits difficulty separately from model strength, so it survives baseline shifts that raw pass rates do not. |
 | Did an A/B actually measure anything? | `ailang eval-paired <on> <off>` — reports discordant pairs and a headroom warning, not just aggregate rates. |
 | Why did a run fail? | `error_category` on the banked row FIRST. `api_error` is the catch-all meaning "cause unknown", not "model failed". |
+| **What did the PROVIDER actually see and return?** | OpenRouter **Broadcast** traces, in the prod observatory — `curl "https://dashboard.ailang.sunholo.com/api/observatory/spans?limit=1000&start_after=<RFC3339>&start_before=<RFC3339>"`. Each `LLM Generation` span carries ~92 attributes: the **full `rawRequest`** (so you can read the budget and reasoning config that actually went on the wire, not the one we declared), the completion text, the token split incl. `output_tokens.reasoning`, `finish_reason`, the provider host, and a `cancelled` flag. This is a SECOND, independent instrument on every OpenRouter call — use it before theorising from our own logs. |
+
+The provider-side trace is the one that settles arguments our own logs cannot. On
+2026-08-26 it showed that all five "pi:deepseek returned zero bytes" failures were one
+mechanism — the model streamed only reasoning tokens and never emitted content — and that
+**we** killed every one of them with a size ceiling measuring pi's quadratic event replay
+rather than the model. Two prompt-level fixes had already been aimed at a model problem
+that did not exist. The account key is an inference key, so `/api/v1/key` and
+`/api/v1/generation?id=<gen-id>` work but `/api/v1/activity` returns 403 (needs a
+management key) — go via the observatory, which is indexed by time anyway.
 
 Asking "what did the agent DO?" and inferring the rest is how `ailang fmt` spent two weeks telling every
 eval model its correct code was non-canonical — the message was in the session JSONL the whole time.

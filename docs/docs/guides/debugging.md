@@ -670,6 +670,77 @@ AILANG_TRACE=deep ailang run your_program.ail --emit-trace auto
 ailang trace list --hours 1   # look for FS.exists.sandbox.reject events
 ```
 
+## Debugging an LLM call from the PROVIDER's side (OpenRouter Broadcast)
+
+For any OpenRouter call the rig makes, there is a second, independent record of what
+happened — pushed by OpenRouter itself into the prod observatory
+(`M-OPENROUTER-BROADCAST-INGEST`, v0.33.1). Reach for it **before** theorising from our
+own logs: it is the only instrument that shows the request we actually sent, as opposed
+to the one we believe we configured.
+
+```bash
+curl -s "https://dashboard.ailang.sunholo.com/api/observatory/spans?limit=1000&start_after=2026-08-18T00:00:00Z&start_before=2026-08-19T00:00:00Z" > /tmp/spans.json
+
+# One row per generation: model, provider host, finish_reason, token split.
+jq -r '.[] | select(.name=="LLM Generation") | [
+    .start_time, (.duration_ms|tostring)+"ms",
+    (.attributes["gen_ai.request.model"]//"-"),
+    (.attributes["trace.metadata.openrouter.provider_name"]//"-"),
+    (.attributes["gen_ai.response.finish_reason"]//"NONE(cancelled)"),
+    "out="+((.attributes["gen_ai.usage.output_tokens"]//0)|tostring),
+    "reasoning="+((.attributes["gen_ai.usage.output_tokens.reasoning"]//0)|tostring)
+  ] | @tsv' /tmp/spans.json | sort
+```
+
+Attributes live on the **`LLM Generation`** span (~92 of them). The sibling `generation`
+and `provider attempt N: <host>` spans carry only 4 and 10 — querying those and concluding
+"the traces have no model data" is a mistake already made once.
+
+The two highest-value fields:
+
+```bash
+# 1. The REQUEST WE ACTUALLY SENT — budget, reasoning config, tool count.
+#    This is how the pi lane was found still sending max_completion_tokens=32000
+#    while its config declared 65536.
+jq -rc '.[] | select(.name=="LLM Generation") | (.attributes["gen_ai.completion"]|tostring|fromjson? // {}) | .rawRequest | select(.!=null)' /tmp/spans.json | head -1
+
+# 2. The COMPLETION, split into content and reasoning. `{"completion":"","reasoning":"..."}`
+#    with output_tokens == reasoning_tokens is the reasoning-stall signature
+#    (error_category=reasoning_stall) — the model engaged and never answered.
+jq -rc '.[] | select(.name=="LLM Generation") | (.attributes["gen_ai.completion"]|tostring|fromjson? // {}) | select(.reasoning!=null) | {content: .completion, reasoning_head: (.reasoning|tostring|.[0:160])}' /tmp/spans.json | head -5
+```
+
+**Finding the failures fast.** A cancelled generation has no `finish_reason` and
+`cancelled: true`, and OpenRouter does not bill it — so a dead run costs `$0` and leaves
+no trace in our own spend ledger:
+
+```bash
+jq -r '.[] | select(.name=="LLM Generation")
+       | select((.attributes["gen_ai.response.finish_reason"]//null)==null)
+       | [.start_time, (.attributes["gen_ai.request.model"]//"-"),
+          (.attributes["span.metadata.openrouter_generation.app.title"]//"-"),
+          "reasoning="+((.attributes["gen_ai.usage.output_tokens.reasoning"]//0)|tostring)] | @tsv' /tmp/spans.json
+```
+
+### Gotchas, each one measured
+
+- **An empty window is not a broken pipe.** Ingest showed zero spans for 08-23..08-26 and
+  the key reported `usage_weekly: 0` — there was simply no traffic. Prove liveness with a
+  positive control (make one call, re-query) before reporting an outage.
+- **`/api/v1/activity` returns 403.** The account key is an inference key
+  (`is_management_key: false`). `/api/v1/key`, `/api/v1/credits` and
+  `/api/v1/generation?id=<gen-id>` all work; account-wide lookup by time does not. Use the
+  observatory, which is time-indexed anyway.
+- **`finish_reason` proves nothing about whether work happened.** It read `length` before
+  2026-08-13, a clean `stop` at 625 tokens after, and was absent on the cancelled runs. It
+  fired on 0 of 4 real pi-lane failures. Assert on output, never on how the turn ended.
+- **pi's NDJSON size is not a proxy for tokens.** `message_update` replays the whole
+  accumulated message per delta (pi 0.73.1, `dist/core/agent-session.js:421-427`), so bytes
+  are *quadratic*: 7,130 reasoning tokens produced 330 MB. Use
+  `scripts/mission_pi_run.sh`, which filters the updates out and gives a typed verdict.
+- **pi hangs forever on an open stdin.** Redirect from a file or `/dev/null`; a run that
+  produces zero bytes of stdout *and* stderr is this, not a provider problem.
+
 ## See Also
 
 - [Telemetry & Tracing](/docs/guides/telemetry) - Distributed tracing for performance analysis and debugging
