@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/messaging"
 	"strings"
 	"time"
 
@@ -121,18 +122,52 @@ func (d *Daemon) sendHandoffMessage(targetAgent *AgentConfig, task *TaskRecord, 
 		metadata = string(data)
 	}
 
-	// Create message in the target agent's inbox
-	// We create a new thread for the handoff
-	_, err := d.msgStore.CreateMessage(
+	// THE DELIVERY: an inbox row the poller reads. CreateMessage below is only
+	// the human-visible thread trail — on Firestore it reaches no inbox at all
+	// (see deliverHandoffToInbox).
+	if err := d.deliverHandoffToInbox(targetAgent, task, fmt.Sprintf("Handoff: %s", task.Title), message); err != nil {
+		return fmt.Errorf("handoff inbox delivery failed: %w", err)
+	}
+
+	// Thread trail (best-effort; the inbox row above is what triggers work).
+	if _, err := d.msgStore.CreateMessage(
 		"",                               // New thread (empty ThreadID)
 		"ailang_instance", "coordinator", // from
 		targetAgent.Inbox, targetAgent.ID, // to (inbox and agent)
 		"handoff", // kind
 		message,
 		metadata,
-	)
+	); err != nil {
+		d.logger.Printf("Warning: handoff thread trail not recorded: %v", err)
+	}
+	return nil
+}
 
-	return err
+// deliverHandoffToInbox is THE delivery step of a handoff: an inbox row the
+// poller actually reads.
+//
+// Found live 2026-08-26 by the M-PIPELINE-RECONCILIATION e2e test: handoffs
+// were sent with msgStore.CreateMessage, which on the Firestore backend writes
+// ONLY the thread-messages collection — no inbox row — while the task poller
+// consumes ListInboxMessages. So on a gcp-storage coordinator the handoff was
+// "sent", logged as auto-approved, and landed in a collection nothing polls:
+// the executor completed, and the evaluator it handed off to never existed.
+// SQLite happened to work because its tables coincide; the parity gap was
+// invisible until the first local-mode coordinator ran on shared storage
+// (the rig joined the plane the same day).
+func (d *Daemon) deliverHandoffToInbox(targetAgent *AgentConfig, task *TaskRecord, title, message string) error {
+	msg := &messaging.InboxMessage{
+		FromAgent:     "coordinator",
+		ToInbox:       targetAgent.Inbox,
+		MessageType:   "handoff",
+		Title:         title,
+		Payload:       message,
+		CorrelationID: task.ID,
+		ParentTaskID:  task.ID,
+		ChainID:       task.ChainID,
+		Status:        messaging.InboxStatusUnread,
+	}
+	return d.msgStore.InsertInboxMessage(msg)
 }
 
 // requestHandoffApproval creates an approval request for a handoff
@@ -616,17 +651,20 @@ func (d *Daemon) processHandoffApproval(ctx context.Context, req *ApprovalReques
 		metadata = string(data)
 	}
 
-	// Send to target agent's inbox
-	_, err = d.msgStore.CreateMessage(
+	// THE DELIVERY: an inbox row the poller reads (see deliverHandoffToInbox).
+	if err := d.deliverHandoffToInbox(targetAgent, task, fmt.Sprintf("Handoff: %s", task.Title), message); err != nil {
+		return fmt.Errorf("handoff inbox delivery failed: %w", err)
+	}
+	// Thread trail (best-effort).
+	if _, terr := d.msgStore.CreateMessage(
 		"",                               // New thread
 		"ailang_instance", "coordinator", // from
 		targetAgent.Inbox, targetAgent.ID, // to
 		"handoff",
 		message,
 		metadata,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to send handoff message: %w", err)
+	); terr != nil {
+		d.logger.Printf("Warning: handoff thread trail not recorded: %v", terr)
 	}
 
 	d.logger.Printf("Handoff approved: %s → %s (task: %s)",
