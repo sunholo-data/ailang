@@ -252,13 +252,53 @@ func (c *ModelsConfig) GetProvider(name string) (string, error) {
 	return model.Provider, nil
 }
 
+// IsOllamaCloudRoute reports whether an api_name/agent_model_name selects an
+// Ollama CLOUD model rather than an on-device one.
+//
+// Ollama marks the route with a name suffix, parsed as a pure string by the
+// local daemon (internal/modelref/modelref.go): an untagged model takes
+// ":cloud" (kimi-k3:cloud) and a tagged one appends "-cloud" to the TAG
+// (deepseek-v4-flash:0731-cloud). The daemon proxies such a request to
+// ollama.com and it never touches the GPU — measured 2026-08-26: three
+// concurrent cloud requests ran at idle-latency while a 45GB local model held
+// the GPU at 100%, and `ollama ps` was byte-identical throughout. A cloud
+// model also occupies no OLLAMA_MAX_LOADED_MODELS slot, so it cannot evict the
+// on-device model the way an extra local load would.
+//
+// This mirrors ollama's own suffix grammar rather than inventing one, so the
+// two cannot disagree about which route a request takes.
+func IsOllamaCloudRoute(name string) bool {
+	n := strings.ToLower(strings.TrimSpace(name))
+	if i := strings.LastIndex(n, ":"); i >= 0 {
+		suffix := n[i+1:]
+		if suffix == "cloud" {
+			return true
+		}
+		return !strings.Contains(suffix, "/") && strings.HasSuffix(suffix, "-cloud")
+	}
+	return false
+}
+
 // UsesLocalGPU reports whether a model runs on the local Ollama GPU — the
 // shared single-GPU rig that the rig lock protects. Cloud/API models return
 // false. Unknown model names return false: they fail model validation later,
 // and an ad-hoc cloud model name must not grab the rig lock.
+//
+// Ollama-provider rows are NOT automatically local: a `-cloud`-suffixed row is
+// proxied to ollama.com and shares nothing with the rig, so serializing it
+// behind the GPU lock buys nothing and costs wall-clock (M-OLLAMA-CLOUD-PROVIDER
+// D4). The port-8080 concern for concurrent *motoko* runs is a separate
+// constraint and deliberately not conflated with this one — motoko pins that
+// port for local and cloud rows alike, so it is not a GPU question.
 func (c *ModelsConfig) UsesLocalGPU(name string) bool {
 	model, err := c.GetModel(name)
 	if err != nil {
+		return false
+	}
+	if IsOllamaCloudRoute(model.APIName) {
+		return false
+	}
+	if model.AgentModelName != nil && IsOllamaCloudRoute(*model.AgentModelName) {
 		return false
 	}
 	if model.Provider == "ollama" {

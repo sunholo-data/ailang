@@ -267,8 +267,17 @@ func runEvalSuite() {
 	// 10, so a raw `eval-suite --agent` silently oversubscribes. Clamp to 1 here. Recurring footgun:
 	// the dead -agent-parallel flag, the 2026-05-22/23 rotations, and the 2026-06-22 contract_leap_year
 	// run that lost 7/8 trials to GPU contention. (Override with an isolated box only.)
+	// M-OLLAMA-CLOUD-PROVIDER D4: the clamp keys on eval-mode support, not on
+	// ROUTE, so an Ollama Cloud row — which loads nothing on the GPU — was being
+	// serialized as if it were on-device. Gate on UsesLocalGPU so the clamp
+	// tracks the actual contended resource. A cloud row driven via motoko still
+	// shares motoko's fixed backend port 8080; that is a separate constraint and
+	// is NOT what this clamp protects.
 	if *agent && *maxConcurrent > 1 && eval_harness.GlobalModelsConfig != nil {
 		for _, m := range modelList {
+			if !eval_harness.GlobalModelsConfig.UsesLocalGPU(m) {
+				continue
+			}
 			if eval_harness.GlobalModelsConfig.SupportsAgentEval(m) && !eval_harness.GlobalModelsConfig.SupportsStandardEval(m) {
 				fmt.Fprintf(os.Stderr, "\u26a0 Local/agent-only model on the single-GPU rig \u2014 forcing --parallel 1 (was %d) to avoid ollama thrash + motoko crashes.\n", *maxConcurrent)
 				*maxConcurrent = 1
