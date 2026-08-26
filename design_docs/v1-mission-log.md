@@ -18962,3 +18962,115 @@ first-party instance; pre-registered so a second is recognisable.
 
 **Next**: `m-fmt-cognition-roundtrip-soundness` (a shipped soundness defect outranks the rest), then
 `m-firestore-index-provenance`.
+
+## 280 — 2026-08-26 — 38 files, 7 causes — and the one nobody would have looked for is a brace inside a comment
+
+**Picked**: iteration 279's stated Next, `m-fmt-attach-boundary-class`, ghost-disciplined first. Every
+claim in the row reproduced at HEAD `427514a2d` under a freshly built, ldflags-stamped binary: **38**
+files at rc=2, all *"comment at byte N could not be attached to any boundary"*, across the same **9**
+subtrees with the same per-subtree counts the row states. The arithmetic against iteration 277's
+`err=46` also reconciles: **45 = 38 + 7** rc=3 parse failures, and the 46th was `std/cognition.ail`,
+which iteration 279 fixed and which has now joined the drift set (341 → 342). Full scan of 450 files:
+**ok=63, drift=342, attach=38, parse-fail=7**.
+
+**The deliverable was classification, and it is measured rather than asserted.** 38 files reduce to
+**7 causes**. Each class has a minimal repro that `ailang check` accepts (rc=0) and `ailang fmt --check`
+refuses (rc=2), plus a second arm with the comment removed that returns rc=1 — **12 of 12 shapes
+DISCRIMINATE**, so the comment's POSITION is the cause in every class, never the surrounding syntax.
+Positive control: a leading comment above a top-level declaration is rc=0, so the instrument can see an
+attachable comment. Classes: sole-expression function body head/tail **11** · top-level tail **9** ·
+`tests [...]` list **7** · type-declaration body **6** · brackets-in-comment-text **3** ·
+signature↔`tests` gap **1** · `if`/`else` arm **1**.
+
+**My first classifier was wrong, and it is recorded rather than smoothed.** A regex/heuristic pass over
+machine-extracted context misfiled **3 of 38** and left 2 unclassified. Rather than keep patching the
+heuristic I re-derived the taxonomy from minimal repros against the formatter's own behaviour — rule
+3a(iii), prefer the tool that cannot miss. Two structural facts fell out and are the guidance for
+whoever fixes this: the registered multi-line child lists are exactly **four** (file top-level, braced
+`*ast.Block`, `*ast.Match` cases, let-chains — `internal/format/attach.go:106-268`), with `tests [...]`
+lists and type-declaration bodies appearing nowhere in `walkExpr`/`walkNode`; and a braced block with
+**≥2** statements attaches comments in every position while a block with **ONE** does not
+(`blk_lead`/`blk_mid`/`blk_tail` rc=1 against `blk1_lead`/`blk1_tail` rc=2), because `{ expr }` and
+`= expr` produce the same AST, so there is no `Block` node to own a boundary. A sole body expression
+that IS a let-chain attaches fine, which is why that class excludes them.
+
+**One of the seven is not a boundary at all, and it is the finding worth more than the classification.**
+`openBraceBefore` (`attach.go:411-419`) scans left byte-by-byte for the block's enclosing wall and skips
+only `a.env.inStringSpan(j)`. There is **no comment-span predicate anywhere in `internal/format`** —
+**0** occurrences against a control of **9** `inStringSpan` uses, negative control on an invented literal
+**0** — so a `{` or `[` inside COMMENT TEXT is read as the opening delimiter and the comment is orphaned.
+`WidenLeft` (`envelope.go:309-334`) has the identical shape, and its own doc comment at `envelope.go:324`
+reads *"Never widen into a literal region **or comment**"* above code that tests strings alone. Measured
+two-armed on byte-identical files differing only in one comment's text: `-- Header: {"alg":"RS256"}` →
+**rc=2** against a brace-free comment → **rc=1**; `-- Returns []` → **rc=2** against `-- Returns empty` →
+**rc=1**. A string literal containing `{` is correctly exempt, so this is specific to comments.
+Neutralising bracket characters in all comment text cures exactly **3 of the 38**, with the control (the
+same transformation on a currently-passing file) holding. Filed as
+`m-format-comment-brackets-break-wall-scan`. No amount of list registration fixes it, and it re-appears
+on any comment containing JSON, a record shape or an empty list.
+
+**A second, separable defect, found by refusing a convenient explanation.**
+`examples/runnable/typeclasses.ail` reports its failure at byte 282 with plenty of content after it,
+which contradicts the top-level-tail class. Inventing an eighth class would have been the cheap move;
+measuring gave a different answer. `printf '1 + 1\n-1 + 1\n'` formats to **`1 + 1 - 1 + 1`** — a
+top-level statement beginning with `-` is absorbed into the previous statement — while the control
+`1 + 1` / `2 + 1` round-trips as two statements. Confirmed on the real file two-armed: as-is the
+offender is byte **282**; with its single `-42 + 100` changed to `42 + 100` the offender moves to byte
+**2148**, the genuine file tail. So `typeclasses.ail` is an ordinary top-level-tail case, and the gluing
+is its own row (`m-parser-script-leading-minus-glues-statements`). It matters beyond the formatter:
+that file is a *teaching* example whose text documents `-42 + 100` with `-- Output: 58`, and
+`docs/LIMITATIONS.md:68-70` documents forgiving statement separators inside `{ }` blocks while saying
+nothing about top level.
+
+**Honest scope, stated with the counts rather than after them.** `ailang fmt --check` reports only the
+FIRST unattachable comment per file, so the 38 are **exemplars, not instances** — a fix for one class
+may expose another class's comment in the same file. What the counts establish is the class SET. The
+per-file assignment for the 35 non-bracket files is a reading of machine-extracted source context;
+every class's EXISTENCE is repro-measured, and the bracket class's membership was assigned mechanically
+by a cure-and-control transformation.
+
+**Shipped**: no source change. The row's deliverable was explicitly *classify all 38 before fixing any*,
+and with no independent judge available this iteration, shipping a formatter change on my own verdict
+alone would have been the weaker call. Charter row rewritten with the classification; two new rows
+filed on their own first-party evidence.
+
+**Dev health — the named red is still red and has grown.** SHA-addressed on `427514a2d`: **16** checks
+(control: parent **20**) with `SonarCloud Code Analysis: failure`. Walked back over 8 commits — green
+through `6193bb712`, `failure` from **`6759ea4fa`** onward, now **5** commits standing against the 3
+iteration 279 recorded. Condition read rather than inherited: **`new_coverage` 52.8% < 80**, not
+duplication. Non-required, so named and left as a queue row rather than made the pick.
+
+**Routing evidence**: controller=`opus` task-class=measurement+classification round1-score=n/a rounds=0
+corrections=1 (my own classifier, self-caught) designer=not-spawned planner=not-spawned
+executor=not-spawned evaluator=not-spawned metered=$0.00 of $5. Rotation pointer untouched (no designer
+run). Sub-agent routing unavailable for the **third consecutive iteration** — this session's operating
+instructions forbid the Agent tool unless Mark asks — so the roles table could not be exercised and no
+independent judge saw this work.
+
+**Gates**: `check-changelog`, `check-file-sizes`, `check-skills`, `check-tmpfile-hygiene` — all rc=0 on
+**darwin/arm64** under a freshly built, correctly-stamped binary; other matrix legs unrun locally. No
+changelog entry: docs-only, matching the closest analogue `1d7040de4`.
+
+**Ruled out**:
+- *"The 38 are one shape"* — refuted; 7 distinct causes, each independently repro'd.
+- *"They are all missing boundaries"* — refuted; 3 of 38 are a lexical scan defect that no boundary
+  registration would fix.
+- *"`typeclasses.ail` needs an eighth class"* — refuted by the leading-minus two-arm measurement; it is
+  an ordinary top-level-tail case.
+- *"A comment inside a braced block always attaches"* — refuted; it depends on the statement COUNT, and
+  a one-statement block has no `Block` node at all.
+- *"Brackets in strings have the same problem"* — refuted; `inStringSpan` covers them (`let s = "a { b"`
+  → rc=1). The gap is comments only.
+- *"My heuristic classifier's output can be banked"* — refuted by its own misfires; replaced with repros.
+
+**Retro lane**: none — no skill edit. The candidate gap is *a diagnostic that reports only the first
+offender per file makes a per-file count read as a per-instance count, so any classification built on it
+is a census of exemplars rather than of instances.* **ONE** first-party instance; pre-registered so a
+second is recognisable. Rule 3b(v)(a) covers `head -N` truncation and iteration 277 recorded the sibling
+case (a scan that aborts at its first error across FILES), but neither covers a per-item diagnostic that
+is itself first-only WITHIN an item.
+
+**Next**: fix `m-fmt-attach-boundary-class` by class, cheapest first — classes 4 (type bodies) and 3
+(`tests [...]`) are pure additions to the list enumerator — re-running the per-file scan after each so
+the residue is measured rather than predicted; then
+`m-format-comment-brackets-break-wall-scan`.
