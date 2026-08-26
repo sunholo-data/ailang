@@ -19074,3 +19074,66 @@ is itself first-only WITHIN an item.
 (`tests [...]`) are pure additions to the list enumerator — re-running the per-file scan after each so
 the residue is measured rather than predicted; then
 `m-format-comment-brackets-break-wall-scan`.
+
+---
+
+## 281 — 2026-08-26 — The queue's own plan for the formatter was built on a false premise, and following it would have shipped a change that silently deletes user comments
+
+**Picked**: `m-fmt-attach-boundary-class`, iteration 280's stated Next, whose deliverable was
+*"fix by class, cheapest first (4 and 3 are pure additions to the list enumerator)"*. Positionally
+ahead rows were left alone for the reasons prior iterations recorded (`m-sonar-…` is a non-required
+standing red; `m-launchd-…` a single-occurrence non-required red).
+
+**Reality check**: the row's facts reproduce EXACTLY at HEAD `2fc0c8b77` under a freshly built
+ldflags-stamped binary — of 450 `.ail` files under `examples` + `std`, **ok=63, drift=342,
+attach-refusal(rc=2)=38, parse-fail(rc=3)=7**, and all three minimal repros behave as documented
+(`check=0`/`fmt=2`, comment-removed arm `fmt=1`, positive control rc≠2). The row's *facts* were
+never the problem; its *implementation route* was, and Gate 2's ghost discipline does not cover a
+route, because a route is a prediction rather than a measurement.
+
+**Shipped**: parked — **no source change, deliberately**. The fix was implemented in full and then
+withdrawn on evidence. Enumerator groundwork (widening `MinAnchor`/`addList`/`subtreeEnd`/
+`openBraceBefore` from `ast.Node` to `any`, since `*ast.Constructor`/`*ast.RecordField`/`*ast.TestCase`
+carry a `Pos` but have no `Position()` — 0 of 4 — while `visitAnchors` is already reflective and
+`childSpan.node` is read in exactly ONE place) was verified behaviour-neutral, whole suite rc=0.
+Registering the class-3 and class-4 lists then moved every repro `fmt` **2 → 1**, and that improvement
+is FALSE: `TestCorpusCommentGate` reddened with `comment count changed 50 -> 17`, `43 -> 12`, `13 -> 9`.
+Two arms on one tree isolated it — **ARM A (TypeDecl only) rc=0 green, ARM B (`tests` list only) rc=1**,
+byte-identical DEFECT lines. Class 4 was then measured to have the same defect *which the corpus gate
+did not catch*: `std/dom.ail` **OLD rc=2 / zero output** → **NEW rc=0 / 54 → 50 comment lines**,
+`std/ai/streaming.ail` **135 → 132**, losses being exactly the ADT-variant descriptions. Complete scan
+(450 of 450, marker asserted): rc=2 **38 → 34** — four files cured by destroying comments in all four.
+Experiment restored from copies (never `git checkout --`); worktree **0 dirty** vs `origin/dev`.
+Record landed by PR; charter row corrected and `m-fmt-typedecl-printer-needs-multiline-emit` filed
+BLOCKED on `D-38`.
+
+**Routing evidence**: model=claude-opus-5 task-class=execute round1-score=n/a rounds=1 corrections=0
+  provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus metered=$0.00
+  <!-- DEVIATION, 4th consecutive iteration: designer/planner/executor/evaluator NOT spawned — this
+       session's operating instructions forbid the Agent tool unless the user requests it, so the
+       roles table could not be exercised and there was no independent judge. That is precisely why
+       the formatter change would have shipped on my own verdict alone; the repo's own corpus gate,
+       not a judge, is what caught the first half. Rotation pointer untouched; no Fable spend. -->
+
+**Ruled out**:
+- *"Classes 4 and 3 are pure additions to the list enumerator"* (iteration 280) — REFUTED for both.
+  Attachment and emission are COUPLED: `printer.algebraicType` is `strings.Join(parts, " | ")` and
+  `recordTypeString` returns a flat string, so a type-decl body has no emission points at all.
+- *"`fmt --check` rc improving 2 → 1 measures progress"* — REFUTED. rc=2 fails CLOSED (nothing
+  written); rc=0/1 with a dropped comment is strictly worse. Rc alone is not a safety signal for this
+  class of change; comment-count preservation is.
+- *"The corpus gate passing means the change is safe"* — REFUTED first-party: it passed for class 4
+  while class 4 was losing four comments in `std/dom.ail`.
+- *"Class 4 affects 6 files"* — the per-file class assignments are predictions; **4** files move.
+- An earlier scan diff showing only 2 changed files was computed at **442/450** with the done-marker
+  ABSENT, and was discarded as VOID rather than banked.
+
+**Retro lane**: none (no skill edit). Candidate gap now at **TWO** first-party instances and
+pre-registered: *a queue row's stated implementation ROUTE, written by an iteration that measured the
+diagnosis but never attempted the fix, is an unverified premise that ghost discipline does not catch —
+because every fact in the row reproduces.* Not edited this iteration because the running skill is
+already adrift from origin and a Gate-5 edit saved here would widen that gap.
+
+**Next**: `m-format-comment-brackets-break-wall-scan` (class 5 — purely lexical, needs no printer
+change and no ruling), then confirm class 2's owner is the already-registered file top-level list.
+`m-fmt-typedecl-printer-needs-multiline-emit` waits on `D-38`.
