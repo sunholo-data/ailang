@@ -67,8 +67,16 @@ func (d *Daemon) initTaskProcessing() error {
 			d.logger.Printf("Warning: Failed to register agent %q: %v", agent.ID, regErr)
 		}
 	}
+	// M-MESSAGE-PLANE-FAIL-LOUD M2 (D2): declare the inboxes that are
+	// deliberately served by no agent, so an unrouted inbox is distinguishable
+	// from a forgotten one.
+	d.agentRegistry.SetTriageOnlyInboxes(coordConfig.TriageOnlyInboxes)
+
 	d.logger.Printf("Agent registry initialized with %d agent(s): %v",
 		d.agentRegistry.Count(), d.agentRegistry.ListInboxes())
+	if len(coordConfig.TriageOnlyInboxes) > 0 {
+		d.logger.Printf("Human-triage inboxes (no agent by design): %v", coordConfig.TriageOnlyInboxes)
+	}
 
 	// Validate agent references
 	if issues := d.agentRegistry.Validate(); len(issues) > 0 {

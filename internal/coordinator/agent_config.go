@@ -24,7 +24,18 @@ func defaultConfigPath() string {
 
 // CoordinatorConfig is the coordinator section of the global config file.
 type CoordinatorConfig struct {
-	Agents          []*AgentConfig    `yaml:"agents" json:"agents"`
+	Agents []*AgentConfig `yaml:"agents" json:"agents"`
+
+	// TriageOnlyInboxes are inboxes deliberately served by no agent because a
+	// human triages them (M-MESSAGE-PLANE-FAIL-LOUD M2, decision D2).
+	//
+	// public-feedback is the canonical case: submit_feedback documents
+	// auto_dispatch as "default false — files for human triage", so anonymous
+	// input is never handed to something that acts on it, and Discord is the
+	// routing (humanTriageInbox in internal/daemon/handlers.go). Declaring it
+	// here is what makes "unrouted" mean INTENDED rather than FORGOTTEN.
+	TriageOnlyInboxes []string `yaml:"triage_only_inboxes" json:"triage_only_inboxes,omitempty"`
+
 	DefaultProvider string            `yaml:"default_provider" json:"default_provider"`
 	ClaudePath      string            `yaml:"claude_path" json:"claude_path,omitempty"` // Explicit path to Claude CLI binary (empty = auto-detect: native > PATH > NVM)
 	MergeBranch     string            `yaml:"merge_branch" json:"merge_branch"`         // Target branch for approvals (default: "dev")

@@ -211,6 +211,15 @@ type AgentRegistry struct {
 	// needs its own config entry, and a missing entry silently produced a task
 	// with an empty AgentID (see resolveInboxAgent in daemon_tasks_polling.go).
 	wildcards []wildcardEntry
+	// triageOnly holds inboxes that are DELIBERATELY unserved by any agent
+	// because a human triages them (M-MESSAGE-PLANE-FAIL-LOUD M2, decision D2).
+	//
+	// Without this, "no agent" and "agent forgotten" are the same state. On
+	// 2026-08-26 that ambiguity sent a triage session chasing a phantom routing
+	// gap on public-feedback and filing an issue (#900) for behaviour that was
+	// deliberate: anonymous input is not handed to something that acts on it,
+	// and Discord is the routing (verified delivering the same day).
+	triageOnly map[string]bool
 }
 
 // wildcardEntry is one trailing-`*` inbox pattern and the agent serving it.
@@ -229,8 +238,9 @@ func isWildcardInbox(inbox string) bool {
 // NewAgentRegistry creates an empty agent registry.
 func NewAgentRegistry() *AgentRegistry {
 	return &AgentRegistry{
-		agents:  make(map[string]*AgentConfig),
-		byInbox: make(map[string]*AgentConfig),
+		agents:     make(map[string]*AgentConfig),
+		byInbox:    make(map[string]*AgentConfig),
+		triageOnly: make(map[string]bool),
 	}
 }
 
@@ -639,4 +649,41 @@ func (a *AgentConfig) GetEffectiveApprovalConfig() *ApprovalConfig {
 		return a.Approval
 	}
 	return DefaultApprovalConfig(a.ID)
+}
+
+// SetTriageOnlyInboxes declares which inboxes are deliberately human-triaged and
+// therefore intentionally have no agent. Replaces any previous declaration.
+func (r *AgentRegistry) SetTriageOnlyInboxes(inboxes []string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.triageOnly = make(map[string]bool, len(inboxes))
+	for _, in := range inboxes {
+		if in != "" {
+			r.triageOnly[in] = true
+		}
+	}
+}
+
+// IsTriageOnly reports whether an inbox is declared human-triaged.
+//
+// This never changes dispatch behaviour — a triage-only inbox resolves to no
+// agent exactly as before, and resolveInboxAgent still refuses it. It changes
+// only whether the refusal is EXPECTED or a config gap worth reporting.
+func (r *AgentRegistry) IsTriageOnly(inbox string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.triageOnly[inbox]
+}
+
+// IsUndeclaredUnrouted reports an inbox that has neither an agent nor a
+// triage_only declaration — i.e. the third state D2 exists to eliminate.
+//
+// Every inbox should be one of: served by an agent, or declared human-triaged.
+// Anything else is a config gap, and saying so is the difference between the
+// operator learning about it now and rediscovering it during an incident.
+func (r *AgentRegistry) IsUndeclaredUnrouted(inbox string) bool {
+	if r.GetAgentForInbox(inbox) != nil {
+		return false
+	}
+	return !r.IsTriageOnly(inbox)
 }

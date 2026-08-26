@@ -78,7 +78,17 @@ func (d *Daemon) pollAndProcessTasks() error {
 		if !ok {
 			// Leave the messages unread: dispatching them would burn a Cloud Run
 			// execution and post the failure to an unreachable inbox.
-			d.logger.Printf("Skipping inbox %q: no agent registered (%d message(s) left unread for triage)", inbox, len(messages))
+			//
+			// M-MESSAGE-PLANE-FAIL-LOUD M2 (D2): distinguish DECLARED from
+			// FORGOTTEN. Both skip — the refusal is unchanged — but only one is
+			// something an operator should act on. Logging them identically is
+			// what let public-feedback read as a routing gap for a whole triage
+			// session when it was deliberate.
+			if d.agentRegistry.IsUndeclaredUnrouted(inbox) {
+				d.logger.Printf("CONFIG GAP: inbox %q has no agent and is not declared in triage_only_inboxes (%d message(s) left unread). Either register an agent or declare it human-triaged.", inbox, len(messages))
+			} else {
+				d.logger.Printf("Skipping inbox %q: human-triage inbox, no agent by design (%d message(s) left for triage)", inbox, len(messages))
+			}
 			continue
 		}
 		for _, msg := range messages {
