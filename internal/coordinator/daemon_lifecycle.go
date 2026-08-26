@@ -56,6 +56,18 @@ func (d *Daemon) Stop() error {
 // This must be called when done with the daemon to release file handles.
 // On Windows, this is required before the log file can be deleted.
 func (d *Daemon) Close() error {
+	// Release the task store first: initTaskProcessing opens it BEFORE the
+	// steps that can fail, so a daemon that exited on a failed init (M1's
+	// fatal path) still holds the SQLite handle. Harmless on a process exit,
+	// but anything embedding the daemon — tests included — leaks the handle,
+	// and Windows cannot delete an open database file (caught by CI's windows
+	// lane as a TempDir cleanup failure).
+	if d.taskStore != nil {
+		if closer, ok := d.taskStore.(interface{ Close() error }); ok {
+			_ = closer.Close()
+		}
+		d.taskStore = nil
+	}
 	if d.logFile != nil {
 		if err := d.logFile.Close(); err != nil {
 			return fmt.Errorf("failed to close log file: %w", err)
