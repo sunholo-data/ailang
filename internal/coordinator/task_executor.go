@@ -95,6 +95,41 @@ func (te *TaskExecutor) Execute(ctx context.Context, task *AnalyzedTask, opts *E
 		}, nil
 	}
 
+	// An agent that DECLARES a provider gets that provider or a loud failure.
+	//
+	// Found live 2026-08-26 (M-PIPELINE-RECONCILIATION e2e): selectProvider
+	// returns the first registered provider whose CanHandle is true, and
+	// ExecutorProvider.CanHandle is unconditionally true — so with
+	// registration order varying per process, an eval-rig task declared
+	// `provider: claude` executed under motoko-cli on one restart and would
+	// have under opencode-cli on another. The agent's provider config was
+	// decorative in the local path (the cloud path selects its job template
+	// deterministically; only local execution had the roulette).
+	if opts.AgentConfig != nil && opts.AgentConfig.Provider != "" {
+		want := opts.AgentConfig.Provider
+		var chosen Provider
+		for _, p := range te.providers {
+			name := p.Name()
+			if name == want || strings.HasPrefix(name, want+"-") {
+				chosen = p
+				break
+			}
+		}
+		if chosen == nil {
+			names := make([]string, 0, len(te.providers))
+			for _, p := range te.providers {
+				names = append(names, p.Name())
+			}
+			return &ExecuteResult{
+				Success: false,
+				Error: fmt.Sprintf("agent %q declares provider %q, which is not registered (have: %s) — refusing to run on a different provider",
+					opts.AgentConfig.ID, want, strings.Join(names, ", ")),
+			}, nil
+		}
+		fmt.Printf("[DEBUG] TaskExecutor: Selected provider '%s' (declared by agent %q)\n", chosen.Name(), opts.AgentConfig.ID)
+		return chosen.Execute(ctx, task, opts)
+	}
+
 	// Find the best AI provider for this task
 	provider := te.selectProvider(task)
 	if provider == nil {
