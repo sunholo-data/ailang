@@ -248,7 +248,7 @@ run_lane() {
       if (( group_safe )); then
         kill -TERM "-$pid" 2>/dev/null || true
       else
-        echo "INSTRUMENT FAILURE: refusing process-group TERM for pid $pid because it does not lead a distinct job group" >&2
+        echo "INSTRUMENT DEGRADED: refusing process-group TERM for pid $pid because it does not lead a distinct job group" >&2
         kill "$pid" 2>/dev/null || true
       fi
       terminate_deadline=$(( $(date +%s) + 5 ))
@@ -257,7 +257,7 @@ run_lane() {
           if (( group_safe )); then
             kill -9 "-$pid" 2>/dev/null || true
           else
-            echo "INSTRUMENT FAILURE: refusing process-group KILL for pid $pid because it does not lead a distinct job group" >&2
+            echo "INSTRUMENT DEGRADED: refusing process-group KILL for pid $pid because it does not lead a distinct job group" >&2
             kill -9 "$pid" 2>/dev/null || true
           fi
           { wait "$pid"; } >/dev/null 2>&1 || true
