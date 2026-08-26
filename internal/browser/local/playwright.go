@@ -67,7 +67,7 @@ func New(config Config) (*Provider, error) {
 	if config.BaseDir == "" {
 		config.BaseDir = filepath.Join(os.TempDir(), "ailang-browser")
 	}
-	if err := os.MkdirAll(config.BaseDir, 0700); err != nil {
+	if err := secureBrowserRoot(config.BaseDir); err != nil {
 		return nil, browser.NewFailure(browser.FailureProvision, "create browser root", err)
 	}
 	if config.Now == nil {
