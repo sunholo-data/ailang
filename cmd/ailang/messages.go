@@ -44,7 +44,9 @@ func (d *humanDuration) Set(s string) error {
 }
 
 // messagesCommand handles the 'messages' (alias: 'msg') subcommand.
-// This uses the unified collaboration.db for both CLI and dashboard access.
+// The store is selected by messagesTarget: the canonical cloud store when
+// AILANG_MESSAGES_STORE=gcp, otherwise this machine's local collaboration.db.
+// Both are also readable by the Collaboration Hub dashboard.
 func messagesCommand() {
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()

@@ -68,12 +68,46 @@ Time: 2025-12-10T14:30:55Z
 - **Periodic checks** - User asks "any updates from agents?"
 - **Debugging** - To see agent communication history
 
-## Storage Backend
+## Storage Backend — TWO stores, and the default is the private one
 
-All messages stored in SQLite database:
-- **Location**: `~/.ailang/state/collaboration.db`
+| Store | Selected by | Who sees it |
+|---|---|---|
+| **Canonical cloud** (prod Firestore, `ailang-multivac`) | `AILANG_MESSAGES_STORE=gcp` + `AILANG_MESSAGES_PROJECT=ailang-multivac` | every machine |
+| Local SQLite (`~/.ailang/state/collaboration.db`) | default | only this machine |
+
+Public feedback, package feedback, coordinator completions and other machines' agent
+traffic all land in the **canonical** store. A bare `ailang messages list` reads local
+SQLite and will not show any of it — measured 2026-08-26, the session banner reported
+16 unread while the canonical store held 74.
+
+Any listing against a non-local store prints its store in the header:
+
+```
+  store: gcp (Firestore, project ailang-multivac)
+```
+
+**No `store:` line means you are reading local only.** Two causes: the vars are not set,
+or the binary predates v0.34.0 and ignores them silently. Control for the second —
+an invalid value must be REFUSED:
+
+```bash
+AILANG_MESSAGES_STORE=not-a-real-store ailang messages list --unread
+# current binary: errors "unknown message store mode"
+# old binary:     lists normally  -> your counts are local-only
+```
+
 - **Accessible via**: CLI (`ailang messages`) and Collaboration Hub dashboard
 - **Message statuses**: `unread`, `read`, `archived`, `deleted`
+
+### Traps
+
+- `messages read <id>` marks it read as a side effect — triaging by reading drains the
+  queue. Read bodies from `--json` to inspect without acking.
+- The list view truncates IDs to 8 chars, so every cloud message shows as `(inbox_17)`.
+  Take full IDs from `--json`. An ambiguous prefix errors loudly rather than acking the
+  wrong message.
+- `ack --all` spans every inbox by default, including other people's package feedback.
+  Scope with `--inbox`, or ack by ID.
 
 ## Available Commands
 

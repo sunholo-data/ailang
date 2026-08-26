@@ -3,7 +3,8 @@
 #
 # This script is called by Claude Code when a session starts.
 # It checks the user inbox for new messages from autonomous agents
-# using the ailang messages CLI (backed by unified collaboration.db).
+# using the ailang messages CLI, pinned to the CANONICAL store (prod Firestore).
+# Hooks do not inherit a login shell, so the store is exported explicitly below.
 #
 # Hook configuration (.claude/hooks.json):
 # {
@@ -122,13 +123,36 @@ log "User ID: $USER_ID"
 #   ailang messages import-github --inbox design-doc-creator
 log "GitHub import handled by coordinator (github_sync enabled)"
 
-# Use ailang messages CLI to get unread messages (SQLite-backed)
-# The CLI handles all inbox types via the unified collaboration.db
+# Read the CANONICAL message store, not this machine's local SQLite.
+#
+# Hooks do not inherit a login shell, so exports in ~/.zshenv are NOT in scope here.
+# Without pinning the store the hook queries local SQLite and reports a number that
+# has nothing to do with the shared inbox: measured 2026-08-26, the banner said
+# "16 unread" while the canonical store held 74, including four months of public
+# feedback nobody had seen. A quiet banner is the single most effective way to make
+# a full inbox look empty, so pin it explicitly rather than inheriting.
+#
+# Overridable: set AILANG_MESSAGES_STORE/_PROJECT before the hook to point elsewhere
+# (e.g. =local to inspect this machine's private inbox).
+export AILANG_MESSAGES_STORE="${AILANG_MESSAGES_STORE:-gcp}"
+export AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}"
+
 # Cap the startup injection at 5 most-recent unread messages; full backlog
 # is still visible via `ailang messages list --unread`.
 INBOX_DUMP_LIMIT="${AILANG_INBOX_DUMP_LIMIT:-5}"
 ALL_MESSAGES_JSON=$(ailang messages list --unread --json 2>/dev/null || echo "[]")
 UNREAD_COUNT=$(echo "$ALL_MESSAGES_JSON" | jq 'length' 2>/dev/null || echo "0")
+
+# A binary older than v0.34.0 ignores AILANG_MESSAGES_STORE silently — it reads local
+# SQLite and exits 0, so the count above would be wrong with no error anywhere. Probe
+# with an INVALID value: a current binary refuses it, an old one lists normally.
+STORE_LABEL="canonical (prod)"
+if AILANG_MESSAGES_STORE=__invalid__ ailang messages list --unread --json >/dev/null 2>&1; then
+    # An invalid store value SUCCEEDED, so this binary is not reading the variable
+    # at all — the count above came from local SQLite regardless of what we exported.
+    STORE_LABEL="LOCAL ONLY — binary predates v0.34.0, run 'make quick-install'"
+    log "WARNING: ailang binary ignores AILANG_MESSAGES_STORE; inbox count is local-only"
+fi
 MESSAGES_JSON=$(echo "$ALL_MESSAGES_JSON" | jq ".[:${INBOX_DUMP_LIMIT}]" 2>/dev/null || echo "[]")
 
 # Function to query brain for relevant context based on recent files
@@ -275,7 +299,7 @@ if [ "$UNREAD_COUNT" -eq 0 ]; then
 
     # Output context (will appear in system reminders)
     echo "📦 AILANG $CURRENT_VERSION"
-    echo "📭 Agent inbox: No unread messages from autonomous agents."
+    echo "📭 Agent inbox: No unread messages — store: $STORE_LABEL"
     if [ -n "$SPRINT_CONTEXT" ]; then
         echo "$SPRINT_CONTEXT"
     fi
@@ -320,7 +344,7 @@ fi
 # Build formatted context string for Claude
 # The MESSAGES_JSON comes from the CLI and has format:
 # [{"id":"msg_xxx","from_agent":"test","to_inbox":"user","title":"Title","payload":"...","status":"unread","created_at":"..."}]
-INBOX_HEADER="📬 AGENT INBOX: $UNREAD_COUNT unread message(s) from autonomous agents"
+INBOX_HEADER="📬 AGENT INBOX: $UNREAD_COUNT unread — store: $STORE_LABEL"
 if [ "$UNREAD_COUNT" -gt "$INBOX_DUMP_LIMIT" ] 2>/dev/null; then
     INBOX_HEADER="$INBOX_HEADER (showing $INBOX_DUMP_LIMIT most recent)"
 fi
