@@ -1,6 +1,6 @@
 # M-OLLAMA-CLOUD-PROVIDER: Ollama Cloud as a Second Route for Open-Weight Models
 
-**Status**: Planned — **Phase 0 PASSED on the live rig 2026-08-26** (signed in as `m@sunholo.com`,
+**Status**: Planned — **Phase 0 AND Phase 1 PASSED on the live rig 2026-08-26**; a full motoko agent benchmark runs on Ollama Cloud (V31) (signed in as `m@sunholo.com`,
 plan `pro`). The zero-code premise is **confirmed end-to-end**: a cloud-suffixed request through
 `localhost:11434/v1` on the live 0.32.14 daemon returned from a model with **zero local copies**
 and loaded **nothing** on the GPU (V21), and all three harnesses are measured — not assumed — on
@@ -322,7 +322,7 @@ just wrong, and it is wrong in the direction that flatters the lane.
       without this the harness retries into a spent bucket. **The discriminator must be written
       against the response shape observed in V22, not assumed** — exhaustion may be 429, 402, 403
       or a 200 payload, and a carve-out keyed on the wrong shape is worse than none
-- [ ] **AC9** *(added by Phase 1)*: the ollama provider reports real token counts. `client.go:203-205`
+- [ ] **AC9** *(added by Phase 1; scope narrowed by V32 — **standard mode only**, agent mode already reports correctly)*: the ollama provider reports real token counts. `client.go:203-205`
       and `step.go:495-497` hardcode 0 (**V27**); the `/v1` response already carries `usage` and the
       native path carries `PromptEvalCount`/`EvalCount`. Until this lands, imputed pricing cannot
       produce a non-zero `cost_usd`, and the `budgets.max_tokens_per_bench` WORK gate has nothing
@@ -460,6 +460,9 @@ rather than being quietly dropped.
 | V28 | **POS — the standard-mode cloud eval PASSED end-to-end, and provenance came out right** | `ailang eval -model motoko-cloud-gpt-oss-20b -benchmark fizzbuzz -langs ailang`, then read the banked row + `/api/usage` | `compile_ok`/`runtime_ok`/`stdout_ok` all **true** — real AILANG fizzbuzz from the cloud model. `cost_provenance` = **`metered`**, NOT `free-local` — the non-zero imputed pricing did its job (contrast V18). Cloud `request_count` 6→7 confirms the call went remote. **But** `input/output/total_tokens` all **0** and `cost_usd` **0**, per V27 |
 | V29 | **POS — D4 confirmed live, not just inferred from source**: a cloud row IS wrongly serialized by the single-GPU clamp | `ailang eval-suite --agent --models motoko-cloud-gpt-oss-20b --benchmarks fizzbuzz --dry-run` | Emits `⚠ Local/agent-only model on the single-GPU rig — forcing --parallel 1 (was 10)`. The row is not GPU-bound at all. V12 predicted this from the predicate; V29 observes it |
 | V30 | **NEG — the motoko agent path is blocked by a PRE-EXISTING fault, not by anything in this design** | canary run + `ls -t $TMPDIR/motoko-stderr-*.log` + `grep -c motoko_ext_abi <lock>` | Canary fails: `module loading error: ... package "sunholo/motoko_ext_abi" not found in ailang.lock`, **before any model is contacted**. Identical failures logged at **09:33 and 09:37**, an hour before this row existed (10:38) ⇒ model-independent. Main checkout has **no `ailang.lock`**; `mk-ast` has it with **2** `motoko_ext_abi` hits. Same class as the known motoko fork-sync lockfile issue |
+| V31 | **POS — THE DESIGN'S CENTRAL CLAIM, PROVEN END-TO-END.** A full motoko agent-mode benchmark runs on Ollama Cloud with zero code change: only a `models.yml` row | `ailang eval-suite --agent --models motoko-cloud-gpt-oss-20b --benchmarks fizzbuzz --langs ailang` (after the V30 blocker was cleared) | **Success 1/1 (100%)**, 40s wall-clock. Banked row: `stdout_ok=true`, `error_category='none'`, `duration_ms=35094`. Cloud-side `request_count` 7→18 confirms remote. The canary that had timed out at 4m0s for four consecutive runs now passes |
+| V32 | **POS/NEG — AC9's scope is NARROWER than V27 implied.** Token accounting works in **agent** mode and is zeroed only on the **direct-provider** path | same banked row as V31, vs the V28 standard-mode row | Agent row: `input_tokens=282048`, `output_tokens=1971`, `total_tokens=284019`, **`cost_usd=0.00868`**, `cost_provenance='metered'`. Standard row (V28): all tokens **0**, `cost_usd` **0**. motoko supplies its own accounting, so it bypasses the hardcoded zeros at `client.go:203-205`/`step.go:495-497`. **AC9 therefore fixes standard mode; agent mode is already correct.** Also corroborates V10's ~300k/trial estimate from banked history — measured 284k |
+| V33 | **POS — first quota calibration: `usage` finally moved off zero** | `/api/usage` before and after the V31 run | `session.usage` **0 → 0.002** across 11 requests / ~290k tokens, all on the **level-1** model `gpt-oss:20b`. `activity.cost` remained **"0.00000"**, reconfirming no per-token billing. **Rate: ~0.002 usage units per ~290k-token agent trial at level 1.** Extrapolating V11's 56-benchmark pass (~17M tokens) ⇒ **~0.12 units per model per full pass**. **The denominator is still unpublished (V26)**, so "0.12 of what?" is unanswered — do NOT read 0.002 as 0.2% without evidence the cap is 1.0. The level-4 multiplier remains unmeasured |
 
 ## Quorum Review Record
 
