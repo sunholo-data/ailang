@@ -98,7 +98,7 @@ pin_root_to_committed_ref() {
     return 0
   fi
 
-  local ref src script wt target short drift fetch_s rc onboarding_key_count
+  local ref src script wt target short drift fetch_s rc onboarding_key_count projects_len
   ref="${AILANG_DRIVER_REF:-origin/dev}"
   fetch_s="${AILANG_DRIVER_FETCH_TIMEOUT:-120}"
   script=$(basename "$0")
@@ -196,9 +196,25 @@ pin_root_to_committed_ref() {
   elif ! command -v jq >/dev/null 2>&1; then
     _pin_stale "cannot verify Claude Code onboarding for $wt (jq not found) — refusing to pin into a possibly-unusable checkout"; return 1
   else
+    # THREE distinct refusals, because a diagnosis that cannot tell them apart sends the next
+    # reader down the wrong path — which is the exact defect this gate was fixed for.
+    #   (a) the file cannot be read as `.projects`-shaped  -> instrument unreadable
+    #   (b) `.projects` is non-empty and NO entry carries either key -> Claude Code schema drift
+    #   (c) `.projects` is readable and this path is simply not onboarded -> the human fix
+    # (a) and (b) are NOT the same event: (b) means the gate needs a new key, (a) means the file
+    # is missing/malformed. Both stay fail-closed; only the sentence changes.
+    projects_len=$(jq -r 'if (.projects|type) == "object" then (.projects|length) else "NOTOBJ" end' "$HOME/.claude.json" 2>/dev/null)
+    case "${projects_len:-}" in
+      ''|*[!0-9]*)
+        _pin_stale "cannot read a .projects object from $HOME/.claude.json (missing file, invalid JSON, or unexpected shape) — refusing to pin into an unverifiable checkout"; return 1 ;;
+    esac
     onboarding_key_count=$(jq '[.projects[]? | select(has("hasCompletedProjectOnboarding") or has("hasTrustDialogAccepted"))] | length' "$HOME/.claude.json" 2>/dev/null)
-    if [ "${onboarding_key_count:-0}" -eq 0 ]; then
-      _pin_stale "neither hasCompletedProjectOnboarding nor hasTrustDialogAccepted exists in ANY project entry of $HOME/.claude.json — Claude Code schema drift; the onboarding gate needs a new key, not human onboarding"; return 1
+    case "${onboarding_key_count:-}" in
+      ''|*[!0-9]*)
+        _pin_stale "could not count onboarding keys in $HOME/.claude.json — refusing to pin into an unverifiable checkout"; return 1 ;;
+    esac
+    if [ "$projects_len" -gt 0 ] && [ "$onboarding_key_count" -eq 0 ]; then
+      _pin_stale "neither hasCompletedProjectOnboarding nor hasTrustDialogAccepted exists in ANY of the $projects_len project entries of $HOME/.claude.json — Claude Code schema drift; the onboarding gate needs a new key, not human onboarding"; return 1
     elif [ "$(_pin_onboarded "$wt")" != "true" ] && [ "$(_pin_onboarded "$src")" != "true" ]; then
       _pin_stale "neither $wt nor its source clone $src is onboarded in Claude Code — every model probe would hang there (charter V22). Run once, interactively: cd $src && claude"; return 1
     fi

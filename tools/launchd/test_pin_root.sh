@@ -147,7 +147,9 @@ echo "== 7. un-onboarded pin target => REFUSE, do not exec into a probe-hang =="
 # seen, and pinning into one makes every model probe hang to its timeout, then the driver refuses
 # with "NO usable model in prefs" — reading as a quota outage. Cost motoko its whole first fire
 # (charter V22). Staleness is the strictly smaller harm, so the pin must decline.
-printf '{"projects":{"%s":{"hasTrustDialogAccepted":true}}}' "/some/unrelated/path" > "$HOME/.claude.json"
+# An EMPTY .projects map is "nothing is onboarded yet" — the ordinary refusal, NOT schema drift.
+# The gate distinguishes them on `.projects | length`, so this fixture stays the natural one.
+printf '{"projects":{}}' > "$HOME/.claude.json"
 UO=$(/bin/bash "$DRV" 2>&1)
 check "refuses to pin"                   "$UO" "STATUS=STALE"
 check "names the onboarding cause"       "$UO" "onboarded in Claude Code"
@@ -198,6 +200,31 @@ check "reason names schema drift"         "$SD" "Claude Code schema drift"
 check "reason names legacy key"           "$SD" "hasCompletedProjectOnboarding"
 check "reason names current key"          "$SD" "hasTrustDialogAccepted"
 checkno "not ordinary onboarding refusal" "$SD" "neither $T/pinwt nor its source clone"
+checkno "not the unreadable diagnosis"    "$SD" "cannot read a .projects object"
+
+echo "== 8f. an UNREADABLE ~/.claude.json is NOT schema drift — three refusals, three sentences =="
+# The whole point of the drift diagnosis is to tell the next reader that the GATE needs a new key.
+# Saying that about a malformed or missing file sends them to fix the wrong thing, which is this
+# gate's own original defect one level down. So invalid JSON, a non-object `.projects`, and a
+# missing file all get the unreadable sentence instead.
+printf '{"projects": ' > "$HOME/.claude.json"           # truncated => invalid JSON
+BJ=$(/bin/bash "$DRV" 2>&1)
+check "invalid JSON => STALE"             "$BJ" "STATUS=STALE"
+check "names the unreadable cause"        "$BJ" "cannot read a .projects object"
+checkno "not called schema drift"         "$BJ" "Claude Code schema drift"
+checkno "not ordinary onboarding refusal" "$BJ" "Run once, interactively"
+checkno "never reports pinned"            "$BJ" "STATUS=pinned"
+
+printf '{"projects":"not-an-object"}' > "$HOME/.claude.json"
+NO=$(/bin/bash "$DRV" 2>&1)
+check "non-object .projects => STALE"     "$NO" "STATUS=STALE"
+check "also names the unreadable cause"   "$NO" "cannot read a .projects object"
+checkno "also not called schema drift"    "$NO" "Claude Code schema drift"
+
+rm -f "$HOME/.claude.json"
+MF=$(/bin/bash "$DRV" 2>&1)
+check "missing file => STALE"             "$MF" "STATUS=STALE"
+check "missing file names it unreadable"  "$MF" "cannot read a .projects object"
 
 echo "== 9. undeterminable (no jq) fails SAFE, not open =="
 mkdir -p "$T/nojq"
