@@ -159,14 +159,16 @@ func TestRequireProviderCredential_UnresolvableModel_LoudRefusal(t *testing.T) {
 }
 
 // TestRequireProviderCredential_AllMotokoLanesResolve (T-B6b): every
-// agent_model_name across the 22 `agent_cli: "motoko"` lanes in
+// agent_model_name across the 32 `agent_cli: "motoko"` lanes in
 // internal/eval_harness/models.yml must resolve to a non-empty provider via
 // ai.GuessProvider. This is the coverage gate that fails a future motoko lane
-// whose model string is unresolvable — TODAY, all 22 begin with ollama/ or
+// whose model string is unresolvable — TODAY, all 32 begin with ollama/ or
 // openrouter/ (design doc §12.2 enumerates the original 17, since extended by
 // motoko-or-sonnet-5, motoko-local-qwen3-8-27b-microrag,
 // motoko-cloud-gpt-oss-20b, and — added by 4394a2a59 — motoko-cloud-kimi-k3
-// and motoko-cloud-deepseek-v4-flash).
+// and motoko-cloud-deepseek-v4-flash; then by 0a8548419 the ten Ollama Cloud
+// flat-rate twins: deepseek-v4-pro, glm-5-1, glm-5-2, gpt-oss-120b, kimi-k2-6,
+// kimi-k2-7-code, minimax-m2-7, minimax-m3, nemotron-3-ultra, qwen3-5-397b).
 //
 // The count is a deliberate tripwire: adding a lane must be a conscious act that
 // re-runs the resolvability check, not a silent widening. Bump it WITH the lane.
@@ -175,8 +177,8 @@ func TestRequireProviderCredential_AllMotokoLanesResolve(t *testing.T) {
 	if len(lanes) == 0 {
 		t.Skip("could not locate internal/eval_harness/models.yml; lane-coverage gate not run")
 	}
-	if len(lanes) != 22 {
-		t.Errorf("expected 22 motoko lanes in models.yml, found %d — bump this count in the same commit that adds a lane", len(lanes))
+	if len(lanes) != 32 {
+		t.Errorf("expected 32 motoko lanes in models.yml, found %d — bump this count in the same commit that adds a lane", len(lanes))
 	}
 	for _, m := range lanes {
 		if ai.GuessProvider(m) == "" {
