@@ -306,10 +306,10 @@ just wrong, and it is wrong in the direction that flatters the lane.
       **models.yml row key** (`agent.friendlyName`, `repair.go:49`) which never contains
       `api_name` at all (**V17**, **V23**). Route identity must therefore come from the row-key
       naming convention (e.g. `motoko-cloud-*`) or an explicit banked field — decide under **D6**
-- [ ] **AC3** *(scope corrected by Phase 0)*: `/api/usage` is **not proxied by the local daemon** —
-      it 404s at `localhost:11434` (**V24**), so unlike inference it cannot ride the device key and
-      needs a direct Bearer call to `ollama.com` with `OLLAMA_API_KEY`. Its response body remains
-      **undocumented**; the key was not exported during Phase 0
+- [x] **AC3 SATISFIED** — `/api/usage` authenticates and its body is documented in **V26**. Two
+      scope corrections came out of it: it is **not proxied by the local daemon** (404 at
+      `localhost:11434`, **V24**) so it needs a direct Bearer call, and **it reports no
+      denominator** — see V26 and the amended risk row
 - [ ] **AC4**: Tokens-per-usage-unit measured at level 1 **and** level 4; both recorded here
 - [ ] **AC5**: No cloud row banks with `pricing: 0/0`; imputed prices carry an explicit label
 - [ ] **AC6**: Cloud rows are not force-clamped to `--parallel 1` (D4), and honour the tier
@@ -398,7 +398,8 @@ value on its own. Phases 2-3 exist to make the eval lane *safe*, not to make clo
 | Quota exhausts mid-rotation, banking a cohort with a hole | **High** | D2 keeps cloud rows out of banked rotations until the exchange rate is known. AC7 makes exhaustion legible rather than a mystery `api_error` |
 | Imputed pricing corrupts cost-per-verified-success | **High** | D1 is a design-freeze item and needs Mark. Precedent exists (list-price-equivalent, ratified 2026-07-28), so this is applying a decision, not inventing one |
 | The models we want are the ones that drain quota fastest | Med | Structural, not fixable: `deepseek-v4-pro` is explicitly named a level-4 "extra heavy" model (V9). Phase 2 measures the level-4 multiplier specifically so this is priced in rather than discovered mid-rotation |
-| `/api/usage` is undocumented and may change or vanish without notice | Med | Treat it as best-effort. Do not make banking correctness depend on it — it is a gauge, not a gate. AC3 records the observed shape so drift is detectable |
+| `/api/usage` is undocumented and may change or vanish without notice | Med | Treat it as best-effort. Do not make banking correctness depend on it — it is a gauge, not a gate. V26 records the observed shape so drift is detectable |
+| **The quota gauge has no denominator** — corrected 2026-08-26, this was overstated in the original draft | **High** | V26: `/api/usage` returns consumption (`usage`, per-model `request_count`) but publishes **no limit**, so "% remaining" and any pre-flight "refuse to start if quota is low" check are **not implementable from it**. What IS implementable: consumption *rate* and a trip-wire on absolute request counts. The earlier claim that this endpoint makes eval rotations safe does not survive contact with the body — it makes them *observable*, which is less. D2 should weigh that |
 | Pro's 3-model concurrency cap slows rotations | Low | Requests over the cap are **queued, not rejected** (V9), so this costs wall-clock and not failures. Agent evals are already clamped to `--parallel 1` today, so this is not a regression |
 | Ollama Cloud availability/routing differs from OpenRouter for the same model, confounding A/B | Med | Keep the OpenRouter rows. Any cross-route comparison is a paired run, never a pooled aggregate — the same discipline the three local-model baseline boundaries already require |
 | Harness retries into a spent quota bucket | **High** | `isRetryableError` retries any `"429"` today (V15). AC8 makes the carve-out a tested requirement rather than implementer latitude. Surfaced by quorum review, not by design — it would have shipped |
@@ -448,6 +449,7 @@ rather than being quietly dropped.
 | V24 | **NEG** — `/api/usage` is **not** in the local daemon's route table, so it cannot ride the device key like inference does | `curl -s -o /dev/null -w '%{http_code}' localhost:11434/api/usage` · control `POST localhost:11434/api/me` | `/api/usage` → **404** (body `404 page not found`); control `/api/me` → **200** `{"email":"m@sunholo.com","plan":"pro",...}`. Confirms signin took effect AND that usage needs a direct Bearer call to ollama.com |
 | V25 | **OBS** — reasoning models burn the output budget before emitting content, so cloud rows need the same max-tokens floor the local ones carry | the two V21 calls | `gpt-oss:20b-cloud` at `max_tokens: 20`: `content: ""`, `reasoning` populated, `finish_reason: "length"` — all 20 tokens went to reasoning. `qwen3.5:397b-cloud` at `max_tokens: 2000` spent **336 completion tokens** to answer `"OK"`. Same mechanism as the 2026-08-26 pi:deepseek finding; `resolveOllamaMaxTokens` already floors this (`step.go`) |
 | V22 | **PENDING** — the **actual** quota-exhaustion response: exact HTTP status and body. AC7/AC8 and the Conflict Surface retry row are written against this, not against an assumed 429 | Phase 2: tight loop against a level-1 model until exhaustion | *Not yet measured — requires a live plan* |
+| V26 | **POS/NEG** — `/api/usage` works and per-model request counting is accurate, **but it publishes no limit, so headroom is not computable** | `GET https://ollama.com/api/usage -H "Authorization: Bearer $OLLAMA_API_KEY"`, read before and after a 7-request / ~6,000-token burst | **200.** Shape: `activity{cost, period{type:"last_4_weeks",starting_at,ending_at}, models[]}` + `limits{session{usage,models[]}, weekly{usage,models[]}}`, where each `models[]` entry is `{name, request_count}`. **Accurate**: counted exactly my calls (`gpt-oss:20b` 1→4→6, `qwen3.5:397b` 1) — an independent third instrument confirming remote execution. **`usage` stayed `0`** across all 7 requests and ~6k tokens, so it is coarse and is *not* a token counter. **`activity.cost` stayed `"0.00000"` and `activity.models` stayed `[]`** — the provider reports no per-token cost, which is direct evidence that D1 imputation is the only option. **Critically: `limits.{session,weekly}` contain ONLY `usage` and `models` — no `limit`, `max`, `remaining` or `reset_at`.** The gauge is a numerator with no denominator |
 
 ## Quorum Review Record
 
