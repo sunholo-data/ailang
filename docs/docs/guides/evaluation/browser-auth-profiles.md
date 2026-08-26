@@ -275,6 +275,6 @@ All of these are stable and queryable from banked results:
 ## Related
 
 - [Browser Sessions](./browser-sessions.md) — the anonymous provider layer this builds on
-- `design_docs/planned/v0_33_4/m-browser-auth-profiles.md` — the full design and threat model
+- `design_docs/implemented/v0_33_4/m-browser-auth-profiles.md` — the full design and threat model
 - [Playwright authentication](https://playwright.dev/docs/auth)
 - [Browserbase Contexts](https://docs.browserbase.com/platform/browser/core-features/contexts)

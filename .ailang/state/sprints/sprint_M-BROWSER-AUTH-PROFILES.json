@@ -3,8 +3,8 @@
   "created": "2026-08-25T00:00:00Z",
   "estimated_duration_days": 8,
   "correlation_id": "sprint_M-BROWSER-AUTH-PROFILES",
-  "design_doc": "design_docs/planned/v0_33_4/m-browser-auth-profiles.md",
-  "markdown_plan": "design_docs/planned/v0_33_4/m-browser-auth-profiles-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_33_4/m-browser-auth-profiles.md",
+  "markdown_plan": "design_docs/implemented/v0_33_4/m-browser-auth-profiles-sprint-plan.md",
   "github_issues": [],
   "features": [
     {
@@ -127,5 +127,6 @@
   },
   "last_session": "2026-08-25T04:10:00Z",
   "last_checkpoint": "All 5 milestones complete. Full make test exit 0, -race clean, lint/fmt/boundaries/file-sizes clean, GOOS=windows build+vet clean, CLI smoke-tested end to end. NOT DONE: docs site build unverified until npm deps installed; Browserbase live contract test not run (no credentials); authenticated production use still blocked on the two P0 follow-ups.",
-  "status": "completed"
+  "status": "completed",
+  "completed": "2026-08-26T05:04:03Z"
 }

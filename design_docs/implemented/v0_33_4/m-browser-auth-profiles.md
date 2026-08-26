@@ -1,6 +1,6 @@
 # M-BROWSER-AUTH-PROFILES — persistent authenticated identity without password exposure
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.33.4
 **Priority**: P1 (Medium-High — required before browser agents access private production systems)
 **Estimated**: 7–9 engineering days, excluding provider/account onboarding
@@ -511,13 +511,13 @@ No AILANG language support/unsupported claim is made, and this design does not t
 
 **Direct dependencies and precedents:**
 
-- [M-REMOTE-BROWSER-SESSION-PROVIDERS](../../implemented/v0_33_3/m-remote-browser-session-providers.md) — provides the neutral lifecycle, opaque connection values, local/Browserbase adapters, and reserved profile reference.
-- [M-SECRET-EFFECT](../../implemented/v0_26_0/m-secret-effect-remote-approval.md) — shipped/implemented 1Password resolver, safe reference, human approval, and audit precedent; browser bootstrap consumes this control-plane capability without placing secrets in model context.
-- [M-SECRET-REMOTE-APPROVAL-WIRING](../../implemented/v0_26_0/m-secret-remote-approval-wiring.md) — notification/approval operations for 2FA or refresh gates.
+- [M-REMOTE-BROWSER-SESSION-PROVIDERS](../v0_33_3/m-remote-browser-session-providers.md) — provides the neutral lifecycle, opaque connection values, local/Browserbase adapters, and reserved profile reference.
+- [M-SECRET-EFFECT](../v0_26_0/m-secret-effect-remote-approval.md) — shipped/implemented 1Password resolver, safe reference, human approval, and audit precedent; browser bootstrap consumes this control-plane capability without placing secrets in model context.
+- [M-SECRET-REMOTE-APPROVAL-WIRING](../v0_26_0/m-secret-remote-approval-wiring.md) — notification/approval operations for 2FA or refresh gates.
 - [M-PERMISSION-MODEL](../../deferred/m-permission-model.md) — future typed authority-tier alignment for credential/profile operations.
-- [M-AGENT-SAFE-RUNNER](../v1_1_0/m-agent-safe-runner.md) — operator-pinned policy and hostile-caller boundary precedent.
-- [M-NET-EFFECT-PROXY-BOUNDARY](../v0_33_1/m-net-effect-proxy-boundary.md) — adjacent HTTP policy that explicitly does not yet contain browser/WebSocket traffic.
-- [M-EVAL-EXPERIMENT-REGISTRY](../v0_31_0/m-eval-experiment-registry.md) — future home for named profile/provider/tool-version comparison experiments.
+- [M-AGENT-SAFE-RUNNER](../../planned/v1_1_0/m-agent-safe-runner.md) — operator-pinned policy and hostile-caller boundary precedent.
+- [M-NET-EFFECT-PROXY-BOUNDARY](../../planned/v0_33_1/m-net-effect-proxy-boundary.md) — adjacent HTTP policy that explicitly does not yet contain browser/WebSocket traffic.
+- [M-EVAL-EXPERIMENT-REGISTRY](../../planned/v0_31_0/m-eval-experiment-registry.md) — future home for named profile/provider/tool-version comparison experiments.
 
 ## Suggested Follow-Up Design Queue
 

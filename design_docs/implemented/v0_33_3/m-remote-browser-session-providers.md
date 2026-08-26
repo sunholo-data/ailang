@@ -531,7 +531,7 @@ These items block production qualification or full comparison claims, not the pr
 - Add a dedicated browser/WebSocket egress boundary with redirect, DNS, service-worker, and proxy enforcement tests.
 - Add a full-desktop provider such as E2B under a separate `desktop` capability and result identity.
 - Add named Stagehand, Browser Use, computer-use, and managed-agent scaffold comparisons without changing the neutral baseline.
-- Implement [M-BROWSER-AUTH-PROFILES](../../planned/v0_33_4/m-browser-auth-profiles.md) before using persistent authenticated identities; its P0 egress and artifact-data-policy follow-ups block authenticated production use.
+- [M-BROWSER-AUTH-PROFILES](../v0_33_4/m-browser-auth-profiles.md) implements persistent authenticated identities on top of this layer; its P0 egress and artifact-data-policy follow-ups still block authenticated production use.
 - Consider an AILANG `Browser` effect only after the executor-side protocol and authority model have demonstrated stable semantics.
 
 ---
