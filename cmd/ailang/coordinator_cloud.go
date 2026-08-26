@@ -443,6 +443,27 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		}
 	}
 
+	// A NEW branch needs its own emptiness check. `git log origin/BRANCH..HEAD`
+	// exits 128 when the remote ref is absent, so logOutput is empty because the
+	// command FAILED, not because there is nothing to push — which is why the
+	// check below is gated on !newBranch. Without a separate test, a task that
+	// changed nothing pushed an empty branch and then asked GitHub to open a PR
+	// for it:
+	//
+	//   pr create failed: 422 "No commits between main and coordinator/task-…"
+	//
+	// Observed 2026-08-26 on task-90d5eeef, an acknowledge-only probe. Every
+	// no-op cloud task left an orphan branch behind and logged a failure for
+	// doing exactly the right thing. Compare against the clone point instead.
+	if newBranch {
+		aheadCmd := exec.CommandContext(ctx, "git", "-C", workDir, "log", clonePoint+"..HEAD", "--oneline")
+		if aheadOut, aheadErr := aheadCmd.Output(); aheadErr == nil && len(strings.TrimSpace(string(aheadOut))) == 0 {
+			fmt.Println("execute-job: no commits to push (agent made no changes) — not creating branch or PR")
+			changedFiles := discoverChangedFilesFromCommit(workDir, clonePoint)
+			return branchName, execResult, changedFiles, nil
+		}
+	}
+
 	if !newBranch && len(strings.TrimSpace(string(logOutput))) == 0 {
 		fmt.Println("execute-job: no commits to push")
 		changedFiles := discoverChangedFilesFromCommit(workDir, clonePoint)
