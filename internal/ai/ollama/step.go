@@ -460,8 +460,10 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 
 	var response strings.Builder
 	var toolCalls []ai.ToolCall
+	var tally tokenTally
 	err := c.client.Chat(ctx, chatReq, func(resp ollamaapi.ChatResponse) error {
 		response.WriteString(resp.Message.Content)
+		tally.observe(resp.Metrics)
 		// Tool calls arrive in the message (possibly across streamed chunks).
 		for _, tc := range resp.Message.ToolCalls {
 			toolCalls = append(toolCalls, ai.ToolCall{
@@ -491,11 +493,8 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		Model:        req.Model,
 		FinishReason: finish,
 		ToolCalls:    toolCalls,
-		// Ollama doesn't report tokens uniformly across versions; leave at 0.
-		InputTokens:  0,
-		OutputTokens: 0,
-		TotalTokens:  0,
 	}
+	tally.apply(out)
 	logOllamaResponse(out)
 	return out, nil
 }

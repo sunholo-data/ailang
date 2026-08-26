@@ -169,8 +169,10 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	}
 
 	// Use Chat API for instruction following
+	var tally tokenTally
 	err := c.client.Chat(ctx, chatReq, func(resp ollamaapi.ChatResponse) error {
 		response.WriteString(resp.Message.Content)
+		tally.observe(resp.Metrics)
 		return nil
 	})
 
@@ -191,19 +193,19 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		return nil, ai.NewProviderError("ollama", 0, ctxErr.Error(), ctxErr)
 	}
 
-	// Note: Ollama doesn't report tokens the same way, so we leave them at 0
 	span.SetAttributes(
 		attribute.String("ai.response_model", req.Model),
 		attribute.String("ai.response_preview", telemetry.Truncate(response.String(), 100)),
+		attribute.Int("ai.tokens_in", tally.in),
+		attribute.Int("ai.tokens_out", tally.out),
 	)
 
-	return &ai.Response{
-		Text:         response.String(),
-		Model:        req.Model,
-		InputTokens:  0, // Ollama doesn't report tokens the same way
-		OutputTokens: 0,
-		TotalTokens:  0,
-	}, nil
+	out := &ai.Response{
+		Text:  response.String(),
+		Model: req.Model,
+	}
+	tally.apply(out)
+	return out, nil
 }
 
 // Name implements ai.Provider.
