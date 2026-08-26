@@ -1,6 +1,9 @@
 # M-PIPELINE-RECONCILIATION: one pipeline definition, two execution lanes
 
-**Status**: Planned — D1–D4 RATIFIED by Mark (attended, 2026-08-26); quorum record below; sprint may proceed
+**Status**: Implemented (2026-08-26, same-day: 7/7 milestones).
+M1 `44c88c6a8` verdict type · M2 `c3d9749a8`+`21967a17c` per-edge + attach · M3 config gen-1787759…+[bootstrap#6](https://github.com/sunholo-data/ailang_bootstrap/pull/6) · M4 `b251bb3d3` chain-as-data (sextet deleted live) · M5 `eb34766e1` routing table (CLI verified against prod) · M6 `06bf805b9` decision spine · M7 `01c158292` cross-lane sweep — **live fixture recovered**: task-6051f916, stranded by a dashboard approval at 14:37, finalized 18:10:44 with original attribution.
+Windows lane: `aaa222743` (mission loop) + `20d01ed5a` fixed two real defects the new tests exposed — platform-relative lane inference and a leaked store handle on the fatal-init path.
+**Deliberately deferred**: mission-driver wiring to `coordinator routing` (loops live); cloud coordinator image deploy (Go changes reach Lane B cloud on next release); Lane B evaluation end-to-end awaits that deploy (parse-ticket replay is the acceptance test).
 **Target**: v0.35.0
 **Priority**: P1 — every divergence here is a place the two lanes give different answers to the same question
 **Estimated**: 5–7 days across three phases
