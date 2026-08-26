@@ -2563,3 +2563,116 @@ forward-looking and went to the queue.
 
 **Next**: row **6h** (a provider failure parsing as a successful empty completion — reaches the
 ollama `/v1` lane, i.e. our own rig), then the newly filed row **6i**.
+
+## 25 — 2026-08-26 — the pin gate had been refusing unconditionally, and the suite asserted the defect was correct
+
+**Pick.** Not the queue head. `tools/launchd/lib/pin-root.sh` gates the launchd driver pin on
+`~/.claude.json`'s `.projects[<path>].hasCompletedProjectOnboarding`; Claude Code retired that key, so
+the predicate answered `false` for every path and the *"neither path onboarded"* branch was
+unconditionally true. Every fire of every mission had been refusing to pin. A genuine regression
+outranks the queue, and **this fire was the instance** — the driver logged `DRIVER PIN FAILED` at
+21:05:14 and executed the source clone at `e3ed9467f`, **152 commits behind** `origin/dev`.
+
+**Measurement, three readings in one call, both controls firing.**
+
+| reading | count |
+|---|---|
+| project entries carrying `hasCompletedProjectOnboarding` | **0 of 15** (whole-file `grep -c`: 0) |
+| project entries carrying `hasTrustDialogAccepted` (positive control) | **15 of 15** |
+| project entries carrying an invented key (negative control) | **0** |
+
+Simulated before the change: motoko, v1 and world all `REFUSE-TO-PIN`. V1's fire in the same window
+reported the identical shape (`MISSION_WORKDIR unset`) on its own bookkeeping issue — the
+two-mission corroboration rule 3l asks for before anything is called fleet-wide. The gate was added
+2026-08-12 (`019568cf1`) to fix the class tracked at #558; it was correct then. It has been a stale
+**capability claim about the harness** ever since — the shape the skill's own model table warns about,
+arriving in a shell predicate instead.
+
+**The suite could not have caught it, and asserted the opposite.** `test_pin_root.sh` writes its own
+synthetic `~/.claude.json` fixtures that still carry the retired key, and its arm 8 asserted that
+*the only key which now exists must be REFUSED*. A green gate pinning the production defect as
+correct. That is the fixture-vs-world gap: a gate can be complete over its own inputs and blind to
+the schema those inputs model — and no mutation of the code could reveal it, because the code and
+the fixture agreed.
+
+**Outcome.** PR [#923](https://github.com/sunholo-data/ailang/pull/923) →
+[`ff0da7445`](https://github.com/sunholo-data/ailang/commit/ff0da7445). Suite **35 → 53** arms.
+Evaluator round 1 **PASS 98/100, zero blocking**. Gate 3b GREEN on the merge: 16 checks, 0 pending,
+required `test`/`lint`/`build` success (`docs-gate` N/A by path filter on the merge; it passed on the
+PR head where the merge button was gated), and **`launchd drivers (bash 3.2)` — the job this change
+lives in — success** on both.
+
+**The reading that matters is that the fix restores discrimination.** Against the real
+`~/.claude.json` afterwards: motoko **PIN-OK**, v1 **PIN-OK**, world **REFUSE-TO-PIN** — and world's
+refusal is a *true* verdict, since that clone genuinely carries neither key, so the human fix its
+message names is the right advice. A change that made all three pin would have been
+indistinguishable from deleting the gate.
+
+**The half that outlives this bug** is the anti-vacuity floor: when neither key appears in any entry,
+the gate reports **Claude Code schema drift** — fail-closed still, #558's ratified posture
+deliberately unchanged, only the sentence moves — so the next rename is loud on its first fire
+instead of silent forever.
+
+**The judge found a defect this branch introduced, in the exact faculty the branch exists to
+improve.** Round 1 passed with one non-blocking finding: the new drift diagnosis fired identically
+for a missing, invalid-JSON or non-object `~/.claude.json`, telling the next reader the **gate**
+needs a new key when the **file** is broken. That is this gate's own original defect one level down,
+so it was fixed here rather than filed. Three refusals, three sentences. A consequence worth naming:
+an **empty** `.projects` map is *"nothing onboarded yet"*, i.e. the ordinary case — so arm 7's
+natural `{"projects":{}}` fixture was **restored**, the executor's earlier fixture change having been
+a correct workaround for the two-way split and unnecessary under the three-way one.
+
+**Mutation drill, anchored to the diff hunk by hunk (rule 3n), re-run at the final tree.** Each
+mutant asserted LANDED (sha256), PARSING (`bash -n`) and **effect-verified against the queried form
+rather than the file's bytes** — V1 iteration 274's rule, which reached this iteration only because
+the running-skill delta was read first. Each restored byte-identical from a `cp` backup.
+
+| mutant | result |
+|---|---|
+| A — `_pin_onboarded` → legacy-key-only | 3 arms red, **sole killer** |
+| B — neuter the drift branch | 4 arms red |
+| E — neuter the unreadable branch | 3 arms red |
+| F — drop the `projects_len > 0` guard | 2 arms red (an empty map misdiagnosed as drift) |
+| C — revert the supporting `local` declaration hunk | **zero killers** — recorded UNPINNED, not claimed as covered |
+| D — revert arm 7's fixture | 2 arms red — adjudicates the executor's self-reported deviation in its favour |
+
+**The load-bearing observation is which assertion did NOT move.** Under B and E the `STATUS=STALE`
+assertion stayed **green**, because every refusal produces STALE. Only the message *text*
+discriminates. That is rule 3i's *what else writes this value* met first-party, and it is why these
+arms assert prose rather than status — an arm checking only the status would have passed for the
+wrong reason in both drills.
+
+**The judge attacked beyond its brief and the fix held**: it built its own *widening-into-a-no-op*
+mutant (suite caught it, 7 arms red), ran the jq edge cases end-to-end through the real driver rather
+than in isolation, and neutered the **precondition** of all three new arms — all three died, so none
+passes for a second reason. `/bin/bash` confirmed 3.2.57 on the rig.
+
+**Ruled out.**
+- *That the running rulebook was this checkout's copy.* It is not. `~/.claude/skills/mission-control`
+  resolves to **V1's** checkout (inode `51683298`), byte-identical to `origin/dev`, while this fire's
+  CWD carries a copy **139 lines short** (inode `48752546`). The 187-line delta was read before any
+  gate ran. On an unpinned fire the relative-path form of that check is actively wrong — iteration
+  241's hazard, met from the other direction.
+- *That the SonarCloud red came from this merge.* Inherited: `failure` on the merge and on all three
+  preceding commits, all V1's; negative control `3f5ca3df9` carries no Sonar check at all.
+  Non-required. Conditions re-read rather than inherited from iteration 24's framing (rule 3n(d)):
+  **56.9% coverage on new code** *and*, newly, **B security rating on new code** — the second is new
+  since iteration 24 saw coverage alone. This diff is shell and markdown, which Go coverage does not
+  measure.
+- *That the `launchd drivers` CI failures were caused by a motoko diff.* Measured across the last 60
+  CI runs on `dev`: **55 success / 2 failure / 1 cancelled**, all three non-success on **unrelated V1
+  coordinator commits**, all three at arm 33. Filed as row **6j**, not picked.
+- *That `shellcheck` findings were this diff's doing.* rc=1 with 5 identical findings at base and at
+  head; not a CI gate in this repo.
+
+**Routing evidence.** Controller `claude:claude-opus-5` (session). Executor `codex:gpt-5.6-sol` —
+probe rc=0 replied `ok`, **one** run, no cap, no fallback, and it **self-reported** a directive
+tension (arm 7's fixture) which measurement then vindicated. Evaluator **sonnet** in its **own
+worktree** (iteration-199 rule), distinct provider from the executor so generator≠judge holds. No
+designer, no planner, no quorum — a measured regression with a named fix is not a design question.
+Designer rotation pointer untouched at `claude:claude-fable-5`; **Fable unspent**. Metered **$0.00**
+of $5 — codex and sonnet are quota buckets. No GPU, no `rig.lock`. Gates on **darwin/arm64**; for
+`launchd drivers (bash 3.2)` that IS the CI leg, macOS-only by design for bash 3.2, so the local
+green is that leg rather than a proxy for it. Windows and ubuntu legs read from Gate 3b's matrix.
+
+**Next.** Row **6h** — the provider failure arriving as a successful empty completion.
