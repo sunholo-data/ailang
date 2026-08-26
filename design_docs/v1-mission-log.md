@@ -22,6 +22,108 @@ section, write "none" rather than omitting:
 
 ---
 
+## 285 — 2026-08-26 — The judge overrode its own passing score, and the red that blocked the whole repo arrived from a sibling mid-iteration
+
+**Picked**: `m-fmt-printer-no-line-width-limit`, the queue head per `D-39`, whose design doc was
+authored and quorum-refined by iteration 284 and whose stated next stop was sprint-planner. All four
+roles were spawned — the first iteration in **five** to do so. Iterations 281–284 each recorded the
+same deviation (*"designer/planner/executor/evaluator NOT spawned — this session's operating
+instructions forbid the Agent tool unless the user requests it"*), so the loop had been running with
+**no independent judge at all**; this run's operating prompt authorised the Agent tool explicitly,
+which is the only reason the blocking defect below was found rather than shipped.
+
+**Reality check**: doc present (575 lines, committed `6b022fc66`, clean). Quorum: TWO rounds, both
+`blocked`, both with `absent_reviewers: []` — no N−1 hole, and `presentCount` was not satisfied by the
+controller. Iteration 284's carve-out claims were re-derived first-party rather than inherited:
+`newWriter` leaves `depth` at its zero value (`doc.go:22`) and `write` indents `for i := 0; i <
+w.depth; i++` (`doc.go:34`), so `gemini-3-1-pro`'s double-count objection is genuinely REFUTED; and
+`decl.go:174` consults the predicate BEFORE `p.w.write(" =")` at `:175`, so `gpt5-6-sol`'s objection is
+genuinely REAL. Three predicate sites confirmed exactly (`expr.go:266`, `decl.go:174`, `decl.go:572`).
+Corpus **scope** pinned, which the row had left implicit: the doc's "159 over-long lines" is
+`examples/` (404 files, 95) **plus** `std/` (46 files, 64) = 450/159 — so M3 must reformat BOTH roots.
+Not already landed; no died-mid-flight traces attributable to this item.
+
+**Shipped**: **NOT LANDED — PR [#918](https://github.com/sunholo-data/ailang/pull/918) open, evaluator
+FAIL 78/100.** M0 (width plumbing + mode-locked measurement printer, new `internal/format/width.go`)
+and M1 (width-widened predicate at all three sites) delivered, gated and snapshotted; M2/M3 not started
+(30-min executor cap). Two bisectable commits `2cf43d7d6`, `ae245613f`, reconstructed from the
+executor's per-milestone snapshots and proved faithful — `shasum -a 256 -c` over all 8 files, **8/8 OK**.
+The judge scored 78 (above the 70 bar) and **overrode itself to FAIL** on one blocking defect, which is
+the loop working exactly as designed: a `let..in` at beginning-of-line reads `writer.col == 0` because
+deferred indentation has not flushed, and it emitted a **122-rune line under `MaxWidth=120`** — a silent
+violation of the feature's own central property, at one of the three sites M1 claims to fix. The AC13
+test for that site, `TestLetInWidthBoundary`, cannot catch it: it fakes the column with
+`p.w.write(strings.Repeat(" ", n))`, which flushes `atBOL` and sidesteps the real
+`hardline`→`atBOL`→undercounted-`col` sequence. Rule 3i in its purest form — an observable set
+*alongside* the mechanism rather than *by* it.
+
+**Also shipped, and it outranked the queue**: `dev` was **RED on the REQUIRED `test` context**.
+`cmd/ailang/eval_suite.go` went from exactly **800** to **826** lines at `2c8498886` — a sibling
+agent's commit, pushed into the shared main checkout at 15:22 **while this iteration was in Gate 1** —
+tripping `make check-file-sizes` and blocking every PR in the repo, #918's own `test` job included.
+V1 owns this repo, so it outranked the queue. PR
+[#919](https://github.com/sunholo-data/ailang/pull/919): the serialization clamp extracted into
+`clampConcurrencyForSerializedLanes` in `eval_suite_models.go`, **826 → 778**. Behaviour preservation
+measured, not asserted — code-statements-only comparison gives **22 vs 22** with exactly ONE difference
+(`*agent` → `agent`, the intended by-value parameter) and all **298** comment words preserved. Gate two
+arms: **rc=2 → rc=0**.
+
+**Routing evidence**: designer=**not spawned** (doc already refined; Fable diet UNSPENT, $0) ·
+planner=`opus` task-class=plan reason-token=`fail-closed:planner-lane-field-missing` (from
+`derive-planner-lane.sh`, used verbatim; no codex probe performed for the planner) ·
+executor=`codex:gpt-5.6-sol` task-class=execute (probe rc=0, directive delivered 7739B, run rc=0,
+terminal marker present) · evaluator=`sonnet` task-class=evaluate round1-score=**78/100** rounds=1
+corrections=0 verdict=**FAIL** · provider=anthropic+openai agent=claude-code+codex
+cost=quota-bucket:weekly-opus + quota-bucket:sonnet + codex-subscription **metered=$0.00**
+(no quorum round was needed, so the iteration spent nothing metered against the $5 ceiling).
+generator≠judge HELD: executor OpenAI, evaluator Anthropic, distinct providers. Judge given its OWN
+worktree (`.wt-iter285-eval`), byte-identical by manifest, so its mutation testing could not touch the
+sprint tree — it used `cp` backups throughout and returned all 8 files sha256-identical.
+
+**Ruled out**:
+- *"The two wide-suite failures are attributable to this diff"* — REFUTED. `TestIdleReader_IdleWindow`
+  (`internal/ai/ollama`) and `TestSolve_HardTimeout_FakeSolverIgnoringT` (`internal/smt`) both failed
+  in the 110-package run. Neither package depends on `internal/format` (**0** deps; control `net/http`
+  = 15 fires), and both are **rc=0 in BOTH arms** run in isolation. Wall-clock-bound tests buckling
+  under this iteration's own concurrent agents — rule 3m, not a regression. The sprint worktree is
+  correctly NOT under `/tmp`, so the known location-induced class is excluded too.
+- *"`gemini-3-1-pro`'s indent double-count is a real defect of the specified mechanism"* — REFUTED
+  first-party, independently of iteration 284's claim, at `doc.go:22`/`:34`.
+- *"AC13 arm (b) is isolated to `letIn`"* — REFUTED by the judge: `all pendingPrefix → 3` also flips
+  both `TestChainWidthBoundaryAtEverySite` subtests, because `letIn` re-checks the same node at the
+  real post-`" = "` column where `prefixLetIn=0` is correct precisely to avoid double-counting.
+  GATES.md's characterisation is incomplete; the shipped value is right.
+- *"`writer.col`'s rune accumulator is what AC15 pins"* — REFUTED by the judge: mutating `w.col` to
+  `len(s)` does NOT trip `TestWidthUsesRunesNotBytes`; the load-bearing site is
+  `utf8.RuneCountInString(line)` in `inlineWidth`. The AC holds; the test's name is imprecise about
+  which line carries it.
+- *"The executor's `holeText` deviation is scope creep"* — REFUTED by measurement in both arms.
+  Reverting only that hunk (mutant BUILDS, rc=0) reds `TestFmtDoesNotDriftFromTeachingPrompt` and
+  `TestInterpolationRoundTripsAsWritten/let-block_in_hole`, by the exact mechanism the executor named.
+  A third state-propagation site the plan's R4 never anticipated — a finding about the plan.
+- *"`go build ./...` and `make check-file-sizes` are usable acceptance gates"* — REFUTED at base
+  first-party (rc=1 and rc=2 respectively on the pristine tree), before they reached the directive.
+
+**Retro lane**: none — no skill edit. The running skill is byte-identical to `origin/dev`
+(`cmp` rc=0 through the RESOLVED `readlink` target, both paths sharing inode `51683298`), and no
+candidate gap reached the ≥2-recorded-friction bar this iteration. Two watch-items pre-registered:
+**(1)** `ailang messages list --unread --json` silently pages at **20** — the full unread set was
+**29**, and the truncation is invisible (instance 2; iteration 284 hit it too, so this is at the bar
+but belongs to the CLI, not the skill). **(2)** the *four consecutive* iterations that ran without any
+independent judge were caused by a harness-level Agent-tool restriction the loop cannot see or fix
+from inside; the standing remedy is the driver's own `$PROMPT` authorisation, and it worked here.
+
+**Next**: **round 2 on `m-fmt-printer-line-width-limit`** — the judge's one required fix before M2/M3:
+make `letIn`'s width check indentation-aware at beginning-of-line (flush pending indentation into
+`p.w.col`, or add `depth*len(indent)` to `pending` when `atBOL`), plus a regression test driven through
+a real `hardline()`-then-block-statement path rather than a synthetic column fake. M3 must not run
+before it, or the corpus reformat will silently bank >120-char lines from this exact mechanism and
+undermine AC3. Secondary, non-blocking: the AC11 depth-60 committed fixture with a wall-clock ceiling
+(removing the recursion guard currently crashes the test binary with a stack overflow from *real
+corpus content* — worse than the clean red AC11 was designed to give); a test for the
+`measurementErr` propagation path, which has **no killer** today; and correct GATES.md on AC13 arm (b).
+Then land [#919](https://github.com/sunholo-data/ailang/pull/919) to clear the required-context red.
+
 ## 284 — 2026-08-26 — The red that outranked the queue was found by the one check that is complete by construction, and the judge found the hole under the fix
 
 **Pick.** Preempted. Gate 1's SHA-addressed `check-runs` read surfaced `Build macos-latest` failure with three legs cancelled, then the REQUIRED `test` context failure — a red on `dev`, which V1 owns, so it outranked the queue head. The queue head (`m-fmt-printer-no-line-width-limit`, per `D-39`) was still routed to the designer and its doc delivered; planner and executor were not reached.

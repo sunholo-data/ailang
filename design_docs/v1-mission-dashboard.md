@@ -2,34 +2,42 @@
 
 *Snapshot, overwritten every iteration. History lives in `v1-mission.md` (STATUS) and `v1-mission-log.md`.*
 
-**Last iteration:** 284 · 2026-08-26 · controller `opus`
+**Last iteration:** 285 · 2026-08-26 · controller `opus`
 
 ## Release
 - **v0.34.0** shipped 2026-08-26. Next planned bucket: `v0_35_0`.
 
 ## In flight / next
-1. **`m-fmt-printer-line-width-limit`** — design doc written (iter-284, `design_docs/planned/v0_35_0/`),
-   quorum **blocked twice**, both rounds' objections applied. **Ready for sprint-planner.** Per `D-39`
-   this is the queue head; it also gates `m-fmt-typedecl-printer-needs-multiline-emit` and forbids
-   wiring/freezing the `fmt` gate until it lands + the 2nd `fmt --write` pass runs.
-2. `m-motoko-lane-enumerator-field-order-blind` — NEW (iter-284, judge-found, controller-reproduced).
-3. `m-verify-stdlib-wrapper-exit-propagation-unpinned` · `m-skills-parity-no-ci-gate` ·
-   `m-eval-suite-agent-tempdir-unguarded` (all iter-283).
+1. **`m-fmt-printer-line-width-limit` M0+M1 — PR [#918](https://github.com/sunholo-data/ailang/pull/918), NOT LANDED.**
+   Evaluator **FAIL 78/100**, overriding a numeric pass on one blocking defect: a `let..in` at
+   beginning-of-line reads `writer.col == 0` before deferred indentation flushes, so the formatter
+   emitted a **122-rune line under `MaxWidth=120`**. `TestLetInWidthBoundary` misses it because it
+   fakes the column with `p.w.write(spaces)`, which flushes `atBOL`. **Round 2 owed** — fix + a
+   regression test driven through a real `hardline()`, then M2/M3.
+2. **Dev red fix — PR [#919](https://github.com/sunholo-data/ailang/pull/919), awaiting CI.**
+3. `m-motoko-lane-enumerator-field-order-blind` (iter-284) · `m-verify-stdlib-wrapper-exit-propagation-unpinned` ·
+   `m-skills-parity-no-ci-gate` · `m-eval-suite-agent-tempdir-unguarded` (iter-283).
+4. **NEW `m-weekly-sweep-orphans-2026-08-26`** — 18 orphans of 92 open issues, mostly the GitHub
+   mirrors of the unrouted public-feedback queue, including `#900` which tracks that unrouting.
 
 ## Loop health
-- **Cadence:** launchd, driver ran **UNPINNED** this fire (`MISSION_WORKDIR` unset) — code provenance
-  is the main checkout's working tree, not a pin. Reported to controlplane; see iter-284 STATUS.
-- **Routing:** designer `fable` (only authoring-capable lane, `D-31`(a)) · planner lane derives
-  `opus fail-closed:planner-lane-field-missing` · executor `codex:gpt-5.6-sol` · evaluator `sonnet`.
-  Designer + evaluator both spawned this iteration; planner/executor **not reached** (see STATUS).
-- **Running skill == origin** (`cmp` rc=0 through the resolved `readlink` target).
+- **`dev` WAS RED on the REQUIRED `test` context** — `cmd/ailang/eval_suite.go` went 800 → **826**
+  at `2c8498886`, tripping `make check-file-sizes`. Blocked every PR in the repo, including #918's
+  own `test` job. V1 owns this repo, so it outranked the queue. Fix in #919 (826 → 778).
+- **Cadence:** launchd; driver ran **UNPINNED** again (`MISSION_WORKDIR`/`AILANG_DRIVER_SRC` both unset).
+- **Routing (all four roles spawned):** designer **not needed** (doc ready from iter-284, Fable diet
+  unspent) · planner `opus` (`fail-closed:planner-lane-field-missing`) · executor `codex:gpt-5.6-sol`
+  (probe rc=0) · evaluator `sonnet`. generator≠judge held.
+- **Running skill == origin** (`cmp` rc=0 through the resolved `readlink` target; same inode).
+- **Two wall-clock-bound tests fail under concurrent-agent load** — `TestIdleReader_IdleWindow`
+  (`internal/ai/ollama`) and `TestSolve_HardTimeout_FakeSolverIgnoringT` (`internal/smt`). Both rc=0
+  in both arms when isolated; neither package depends on `internal/format`. Rule-3m class.
 
 ## Parked on Mark
 - **`D-41` (the ONLY open row; 41 total, 40 resolved)** — may an ACTIVE prompt version be edited in
   place, or must a content change bump the version? Bears on eval-baseline reproducibility.
-- **SonarCloud has no token on this rig** (all three env names UNSET), so the standing
-  `new_coverage` + D-security-rating reds cannot be durably triaged by the loop. iter-283 triaged
-  all 13 vulns first-party: 12 not defects, 1 real and filed.
+- **SonarCloud has no token on this rig**; standing `new_coverage` red, 8 consecutive commits.
 
 ## Quota / spend
-- Iteration 284 metered **$0.17** of $5 (two quorum rounds). Quota buckets: opus, fable, sonnet.
+- Iteration 285 metered **$0.00** (no quorum round; doc was already refined). Quota buckets: opus
+  (controller + planner), codex (executor), sonnet (evaluator).
