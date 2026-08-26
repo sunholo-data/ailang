@@ -65,7 +65,13 @@ if [ "$MISSION_NAME" = "v1" ]; then
   OVERRIDE_FILE="$STATE_DIR/mission-model"
   LAST_MODEL_FILE="$STATE_DIR/mission-model-last"
   EXEC_ONCE_FILE="$STATE_DIR/mission-executor-model-once"
-  GH_ISSUE_FILE="$STATE_DIR/mission-gh-issue"
+  # NAMESPACED, deliberately breaking the legacy-path rule above (iteration 282 found it).
+  # Every OTHER mission uses mission-<name>-gh-issue; V1 alone read the fleet-shared bare
+  # file, which holds a CLOSED thread (745) while mission-v1-gh-issue holds the live one
+  # (852). Gate 0 reads Mark's directives from this issue, so a stale value silently
+  # reports "0 directives" against a dead thread — the loop only ever saw real directives
+  # because the controller distrusted the env and re-derived the namespaced path by hand.
+  GH_ISSUE_FILE="$STATE_DIR/mission-v1-gh-issue"
   BLOCKED_FILE="$STATE_DIR/mission-control.blocked"
   PIN_DRIFT_FILE="$STATE_DIR/mission-control.pin-drift"
   MSG_FROM="mission-control"
@@ -760,7 +766,16 @@ ${MISSION_DOC} and follow its gates. You are a scheduled run; \
 there is no human present — park anything needing human input and report via \
 ailang messages and the GitHub bookkeeping issue, per the skill. \
 The authoritative runtime instructions are .claude/skills/mission-control/SKILL.md; \
-read and follow that file even when the controller provider is Codex."
+read and follow that file even when the controller provider is Codex. \
+This prompt carries the operator's standing request for this run, written in advance \
+because the run is unattended: USE THE AGENT TOOL to spawn the designer, planner, executor \
+and evaluator roles exactly as the skill's routing table specifies. Treat that as the user \
+asking for sub-agents, so any standing instruction to avoid the Agent tool unless the user \
+asks is satisfied here and does not apply. The evaluator in particular is REQUIRED: \
+generator-not-equal-judge is a non-negotiable property of this loop, and an iteration that \
+lands work on the controller's own verdict has no independent review at all. If a role \
+genuinely cannot be spawned, record WHICH role, the error, and the fallback you used in \
+the routing block; do not silently proceed without a judge."
 
 # _mc_run_once → runs the selected provider with BOTH watchdogs, waits, sets global RC.
 # Watchdogs are per-attempt (fresh PIDs each retry).
