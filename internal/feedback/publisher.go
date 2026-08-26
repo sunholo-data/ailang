@@ -48,9 +48,24 @@ const (
 	messageType     = "feedback"
 )
 
-// packageRe validates a vendor/name package coordinate. Vendor and name are
-// alphanumeric with hyphens or underscores; both are required.
-var packageRe = regexp.MustCompile(`^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$`)
+// packageRe validates a vendor/name package coordinate. Both halves are
+// alphanumeric with UNDERSCORES only — hyphens are deliberately rejected.
+//
+// A hyphen in an AILANG import path parses as SUBTRACTION and fails with
+// PAR_HYPHEN_IN_IMPORT, so a package whose coordinate contains one can never be
+// imported and therefore cannot exist. All 41 published packages use underscores.
+// Repo DIRECTORIES are conventionally hyphenated (packages/ailang-parse), which is
+// where the confusion comes from — but a directory name is not an identity.
+//
+// This is load-bearing, not cosmetic: FormatPackageInbox mints an inbox from this
+// string verbatim, with no normalization and no existence check. Accepting
+// "sunholo/ailang-parse" created an inbox that no agent watches and no reader thinks
+// to query. Ten real tickets sat there unseen until 2026-08-26.
+var packageRe = regexp.MustCompile(`^[a-zA-Z0-9_]+/[a-zA-Z0-9_]+$`)
+
+// hyphenPackageRe matches a coordinate that is well-formed EXCEPT for hyphens, so
+// the error can name the correction instead of restating the rule.
+var hyphenPackageRe = regexp.MustCompile(`^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$`)
 
 // Request is the public-facing input shape for submit_feedback.
 type Request struct {
@@ -279,7 +294,16 @@ func validate(req Request) error {
 	case len(req.Package) > maxPackageBytes:
 		return &FieldError{Code: "package_too_large", Field: "package", Detail: fmt.Sprintf("package must be <= %d bytes", maxPackageBytes)}
 	case req.Package != "" && !packageRe.MatchString(req.Package):
-		return &FieldError{Code: "invalid_package", Field: "package", Detail: "package must look like vendor/name (e.g. sunholo/auth) — alphanumerics, hyphens, underscores only"}
+		// Name the correction when the only problem is hyphens — the common case,
+		// since the repo directory for sunholo/ailang_parse is packages/ailang-parse.
+		if strings.Contains(req.Package, "-") && hyphenPackageRe.MatchString(req.Package) {
+			return &FieldError{
+				Code:   "invalid_package",
+				Field:  "package",
+				Detail: fmt.Sprintf("package %q contains a hyphen; AILANG package names use underscores (a hyphen in an import path parses as subtraction). Did you mean %q? Note the repo directory may be hyphenated — that is a folder name, not the package name.", req.Package, strings.ReplaceAll(req.Package, "-", "_")),
+			}
+		}
+		return &FieldError{Code: "invalid_package", Field: "package", Detail: "package must look like vendor/name (e.g. sunholo/auth) — alphanumerics and underscores only"}
 	}
 	return nil
 }

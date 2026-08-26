@@ -377,8 +377,13 @@ func runMessagesForward(args []string) {
 
 	if *toInbox == "" {
 		fmt.Fprintf(os.Stderr, "%s: --to flag is required\n", red("Error"))
-		fmt.Fprintf(os.Stderr, "\nUsage: ailang messages forward <MSG_ID> --to <inbox>\n")
-		fmt.Fprintf(os.Stderr, "\nAvailable inboxes: user, design-doc-creator, sprint-planner, sprint-executor, coordinator\n")
+		// Flags MUST precede the message ID: Go's flag package stops parsing at the
+		// first non-flag argument, so `forward <ID> --to X` never sees --to and dies
+		// on "--to is required" while pointing at the very form that cannot work.
+		fmt.Fprintf(os.Stderr, "\nUsage: ailang messages forward --to <inbox> [--reason <text>] <MSG_ID>\n")
+		fmt.Fprintf(os.Stderr, "       (flags must come BEFORE the message ID)\n")
+		fmt.Fprintf(os.Stderr, "\nInboxes include: user, coordinator, design-doc-creator, sprint-planner,\n")
+		fmt.Fprintf(os.Stderr, "sprint-executor, and package inboxes like pkg:sunholo/ailang_parse\n")
 		os.Exit(1)
 	}
 
