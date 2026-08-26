@@ -200,27 +200,27 @@ max-tokens work that M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT and friends already land
       key) and AC3 was mis-scoped (`/api/usage` is not locally proxied). Both are fixed above
 
 **Phase 1: Reach it** (~1 hour, gated on Phase 0)
-- [ ] Add ONE `models.yml` row: `gpt-oss:20b-cloud` (usage level 1, cheapest probe)
-- [ ] Run one smoke benchmark through motoko; confirm zero diffs outside `models.yml`
+- [x] Add ONE `models.yml` row: `gpt-oss:20b-cloud` **(done; roster is now 14 cloud rows)**
+- [x] Run one smoke benchmark through motoko; zero diffs outside `models.yml` **(V31)**
 
 **Phase 2: Measure the quota AND the exhaustion contract** (~4 hours)
-- [ ] Authenticate against `GET /api/usage` and record what the body actually contains
-- [ ] Calibration run: read usage → run one benchmark of known token volume against a **level 1**
+- [x] Authenticate against `GET /api/usage` and record the body **(V26)**
+- [x] Calibration run against a **level 1**
       model → re-read usage. Derive tokens-per-unit.
-- [ ] Repeat against a **level 4** model (`deepseek-v4-pro:cloud`) to derive the weight multiplier
-- [ ] **Observe the actual exhaustion response** — deliberately exhaust a low-level model in a tight
+- [x] Repeat at higher weight classes to derive the multiplier **(V36: 0.0069 / 0.029 / 0.124 units/M across three classes; V46: the agentic shape is ~2x cheaper than one-shot)**
+- [x] **Observe the actual exhaustion response** **(V22 — 429 + `type:"api_error"`, discriminable only by message text)** — originally: exhaust a low-level model in a tight
       loop and record the exact HTTP status and body → **V22**. AC7/AC8 and the Conflict Surface
       retry row must then be rewritten to match the observed contract
-- [ ] Publish the exchange rate and the implied trials-per-$20 into this doc, and feed D1/D2
+- [x] Publish the exchange rate and implied trials-per-window **(V36, V46, V50 — the denominator is 1.0, so these are absolutes not ratios)**
 
 **Phase 3: Wire it in** (~10 hours, **gated on D1 + D2**)
-- [ ] Implement the D1 pricing treatment with an explicit imputed-cost label
-- [ ] Add rows for the five rig-infeasible models (`qwen3.5:397b`, `mistral-large-3:675b`,
+- [x] Implement the D1 pricing treatment with an explicit imputed-cost label **(V42)**
+- [~] **PARTIAL** — rows added for every cloud model with an OpenRouter twin to impute from (14 rows). `mistral-large-3:675b`, `gemma4:31b`, `nemotron-3-super`, `nemotron-3-nano:30b` and the two `:preview` tags have NO twin, so per D1 their price needs an explicit human call rather than an invented number. Originally listed as (`qwen3.5:397b`, `mistral-large-3:675b`,
       `deepseek-v4-pro`, `nemotron-3-ultra`, `nemotron-3-super`)
-- [ ] Resolve D4: exempt cloud rows from the single-GPU `--parallel` clamp, bounded by the
+- [x] Resolve D4 **(V41, corrected V44 — the clamp must ALSO fire on motoko's fixed port)**: exempt cloud rows from the single-GPU clamp, bounded by the
       plan's concurrency cap
-- [ ] Ensure quota exhaustion maps to a distinct `error_category`, not `api_error`
-- [ ] Optional (D3): plumb `OLLAMA_API_KEY` through the two hardcoded dummy-key sites
+- [x] Ensure quota exhaustion maps to a distinct `error_category`, not `api_error` **(V22, V51)**
+- [ ] **Optional (D3), NOT done**: plumb `OLLAMA_API_KEY` through the two hardcoded dummy-key sites. Only needed to reach cloud WITHOUT a local daemon (cloud CI, Cloud Run); every path used today rides the device key
 
 ### Files to Modify/Create
 
@@ -332,9 +332,9 @@ just wrong, and it is wrong in the direction that flatters the lane.
       produce a non-zero `cost_usd`, and the `budgets.max_tokens_per_bench` WORK gate has nothing
       to count on this path. **Affects every ollama row, not just cloud** — it was masked because
       they are all priced `0/0`
-- [ ] All tests passing
-- [ ] Documentation updated (`docs/docs/guides/evaluation.md`)
-- [ ] Examples added
+- [x] All tests passing **(15 packages; `make check-boundaries` clean)**
+- [~] **PARTIAL** — added `docs/docs/guides/mission-model-fleet.md` (published, sidebar-wired). `docs/docs/guides/evaluation/` has NOT been updated with the `-cloud` suffix convention or the signin prerequisite; that is a real gap
+- [~] **N/A** — the repo rule (`examples/feature_name.ail` per language feature) does not apply: this adds no AILANG language surface, only harness config and routing
 
 ## Testing Strategy
 
@@ -483,7 +483,6 @@ rather than being quietly dropped.
 | V23 | **POS** — the banked model string is the models.yml **row key**, not `api_name`, so no `api_name` suffix can ever reach the bank | `grep -n 'NewRunMetrics(' internal/eval_harness/*.go` | `repair.go:49` passes `r.agent.friendlyName`. Corroborated by V17: banked `model='claude-haiku-4-5'` (the key) while `models.yml:682` `api_name: "claude-haiku-4-5-20251001"` |
 | V24 | **NEG** — `/api/usage` is **not** in the local daemon's route table, so it cannot ride the device key like inference does | `curl -s -o /dev/null -w '%{http_code}' localhost:11434/api/usage` · control `POST localhost:11434/api/me` | `/api/usage` → **404** (body `404 page not found`); control `/api/me` → **200** `{"email":"m@sunholo.com","plan":"pro",...}`. Confirms signin took effect AND that usage needs a direct Bearer call to ollama.com |
 | V25 | **OBS** — reasoning models burn the output budget before emitting content, so cloud rows need the same max-tokens floor the local ones carry | the two V21 calls | `gpt-oss:20b-cloud` at `max_tokens: 20`: `content: ""`, `reasoning` populated, `finish_reason: "length"` — all 20 tokens went to reasoning. `qwen3.5:397b-cloud` at `max_tokens: 2000` spent **336 completion tokens** to answer `"OK"`. Same mechanism as the 2026-08-26 pi:deepseek finding; `resolveOllamaMaxTokens` already floors this (`step.go`) |
-| V22 | **PENDING** — the **actual** quota-exhaustion response: exact HTTP status and body. AC7/AC8 and the Conflict Surface retry row are written against this, not against an assumed 429 | Phase 2: tight loop against a level-1 model until exhaustion | *Not yet measured — requires a live plan* |
 | V26 | **POS/NEG** — `/api/usage` works and per-model request counting is accurate, **but it publishes no limit, so headroom is not computable** | `GET https://ollama.com/api/usage -H "Authorization: Bearer $OLLAMA_API_KEY"`, read before and after a 7-request / ~6,000-token burst | **200.** Shape: `activity{cost, period{type:"last_4_weeks",starting_at,ending_at}, models[]}` + `limits{session{usage,models[]}, weekly{usage,models[]}}`, where each `models[]` entry is `{name, request_count}`. **Accurate**: counted exactly my calls (`gpt-oss:20b` 1→4→6, `qwen3.5:397b` 1) — an independent third instrument confirming remote execution. **`usage` stayed `0`** across all 7 requests and ~6k tokens, so it is coarse and is *not* a token counter. **`activity.cost` stayed `"0.00000"` and `activity.models` stayed `[]`** — the provider reports no per-token cost, which is direct evidence that D1 imputation is the only option. **Critically: `limits.{session,weekly}` contain ONLY `usage` and `models` — no `limit`, `max`, `remaining` or `reset_at`.** The gauge is a numerator with no denominator |
 | V27 | **NEG/POS — Phase 1 blocker the design did not anticipate.** The ollama provider **hardcodes token counts to 0**, so imputed pricing (D1) is *necessary but not sufficient*: `cost_usd` is 0 regardless | `grep -rn 'InputTokens\|OutputTokens\|TotalTokens' internal/ai/ollama/*.go` · control: same grep on `internal/ai/openrouter/` | `client.go:203-205` and `step.go:495-497` both set `InputTokens/OutputTokens/TotalTokens: 0` with the comment *"Ollama doesn't report tokens the same way"*. **Control**: `openrouter/chat.go:193-194` reads `result.Usage.PromptTokens`. **The comment is stale** — the `/v1` path returns usage in standard OpenAI shape (measured: `{"prompt_tokens":76,"completion_tokens":900,"total_tokens":976}`), and the native path exposes `PromptEvalCount`/`EvalCount`. Invisible until now because **every** ollama row is priced `0/0`, so cost was 0 by both routes at once |
 | V28 | **POS — the standard-mode cloud eval PASSED end-to-end, and provenance came out right** | `ailang eval -model motoko-cloud-gpt-oss-20b -benchmark fizzbuzz -langs ailang`, then read the banked row + `/api/usage` | `compile_ok`/`runtime_ok`/`stdout_ok` all **true** — real AILANG fizzbuzz from the cloud model. `cost_provenance` = **`metered`**, NOT `free-local` — the non-zero imputed pricing did its job (contrast V18). Cloud `request_count` 6→7 confirms the call went remote. **But** `input/output/total_tokens` all **0** and `cost_usd` **0**, per V27 |
