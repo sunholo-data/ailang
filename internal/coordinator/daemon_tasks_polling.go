@@ -39,6 +39,24 @@ func (d *Daemon) resolveInboxAgent(inbox string) (string, bool) {
 	return agent.ID, true
 }
 
+// isOutcomeNotice reports whether a message is a report ABOUT work rather than a
+// request FOR work.
+//
+// Completion notices are posted into the agent's own inbox (see
+// pubsub_completion_handler). A CLOUD-mode coordinator never re-reads them: it takes
+// work from Pub/Sub and does not poll inboxes. A LOCAL-mode coordinator on shared
+// storage — the configuration that lets a bare-metal worker join the fleet — polls the
+// very inbox those notices land in, so without this filter each failure becomes a new
+// task, whose failure becomes another task.
+//
+// Measured 2026-08-26 on the voightkampff rig: 40 tasks in ~3 hours, each spawned by the
+// previous one's failure notice, every task dying at dispatch. Cheap per iteration and
+// therefore quiet — it burned container starts, not tokens, and nothing in the unread
+// counts moved because completions are auto-read.
+func isOutcomeNotice(msg *Message) bool {
+	return msg != nil && msg.Kind == "completion"
+}
+
 // pollAndProcessTasks polls for new messages and queues them as tasks.
 // M-CLOUD-E2E: In cloud mode, pulls from PubSub adapter and routes by message Inbox attribute.
 func (d *Daemon) pollAndProcessTasks() error {
@@ -64,6 +82,10 @@ func (d *Daemon) pollAndProcessTasks() error {
 			continue
 		}
 		for _, msg := range messages {
+			if isOutcomeNotice(msg) {
+				// A report about work already done is not a request for work.
+				continue
+			}
 			allMessages = append(allMessages, inboxMessage{
 				inbox:   inbox,
 				agentID: agentID,
@@ -336,6 +358,13 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 	d.logger.Printf("Cloud mode: received %d message(s) from Pub/Sub", len(messages))
 
 	for _, msg := range messages {
+		if isOutcomeNotice(msg) {
+			// Symmetric with the local path. Cloud mode does not currently deliver
+			// completions here, but the guard belongs with the rule, not with the
+			// transport that happens to make it unnecessary today.
+			continue
+		}
+
 		inbox := msg.Inbox
 		if inbox == "" {
 			inbox = "coordinator" // Fallback if Inbox attribute not set
