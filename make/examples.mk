@@ -171,3 +171,22 @@ verify-stdlib-selftest: build ## Prove the stdlib freeze gate fails on a real in
 	fi; \
 	rm -f "$$SELFTEST_OUT"; \
 	echo "✅ stdlib gate self-test passed: interface change -> non-zero + named module + diff"
+	@echo "Gate self-test (missing-golden arm): removing option's golden..."
+	@( GOLDEN_BK=$$(mktemp "$${TMPDIR:-/tmp}/ailang-selftest-golden.XXXXXX") || exit 1; \
+	ARM_OUT=$$(mktemp "$${TMPDIR:-/tmp}/ailang-selftest-arm-out.XXXXXX") || { rm -f "$$GOLDEN_BK"; exit 1; }; \
+	cp .stdlib-golden/option.sha256 "$$GOLDEN_BK" || { rm -f "$$GOLDEN_BK" "$$ARM_OUT"; exit 1; }; \
+	trap 'cp "$$GOLDEN_BK" .stdlib-golden/option.sha256; rm -f "$$GOLDEN_BK" "$$ARM_OUT"' EXIT; \
+	rm -f .stdlib-golden/option.sha256; \
+	if tools/verify-stdlib.sh >"$$ARM_OUT" 2>&1; then \
+		echo "❌ SELF-TEST FAIL: gate exited 0 with option's golden missing"; exit 1; \
+	fi; \
+	grep -q "option: no golden file" "$$ARM_OUT" || { \
+		echo "❌ SELF-TEST FAIL: gate failed but never reported option as UNCOVERED"; \
+		cat "$$ARM_OUT"; exit 1; }; \
+	echo "✓ missing golden -> non-zero + module reported UNCOVERED" )
+	@echo "Gate self-test (alias-integrity arm): the historical name must reach the live gate..."
+	@$(MAKE) -pn 2>/dev/null | grep -qE '^test-stdlib-freeze:[[:space:]]*verify-stdlib[[:space:]]*$$' || { \
+		echo "❌ SELF-TEST FAIL: test-stdlib-freeze no longer delegates to verify-stdlib"; exit 1; }
+	@$(MAKE) -n test-stdlib-freeze 2>&1 | grep -q 'tools/verify-stdlib.sh' || { \
+		echo "❌ SELF-TEST FAIL: test-stdlib-freeze does not reach tools/verify-stdlib.sh"; exit 1; }
+	@echo "✓ alias intact: test-stdlib-freeze -> verify-stdlib -> tools/verify-stdlib.sh"
