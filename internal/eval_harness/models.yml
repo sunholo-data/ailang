@@ -1990,6 +1990,266 @@ models:
 
       Cheap on OpenRouter too ($0.017/trial), so the cost argument here is weak;
       the argument is route diversity and quota independence.
+  motoko-cloud-deepseek-v4-pro:
+    api_name: "deepseek-v4-pro:0813-cloud"
+    provider: "ollama"                                 # local daemon proxies to ollama.com
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "deepseek-v4-pro:0813 via motoko on Ollama Cloud — flat-rate twin of the OpenRouter row deepseek/deepseek-v4-pro-0813."
+    env_var: ""                                        # device key via `ollama signin`
+    agent_cli: "motoko"
+    motoko_profile: "ollama"
+    agent_model_name: "ollama/deepseek-v4-pro:0813-cloud"
+    model_family: "deepseek-v4"
+    max_output_tokens: 65536
+    pricing:
+      # IMPUTED from the OpenRouter twin deepseek/deepseek-v4-pro-0813, list price read from the
+      # OpenRouter models API 2026-08-26. NOT 0/0 — that maps to the false
+      # `free-local` provenance. Banks as `list-price-equivalent` (D1).
+      input_per_1k: 0.00132
+      output_per_1k: 0.00396
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    notes: |
+      Ollama Cloud row for deepseek-v4-pro:0813. Paired control is deepseek/deepseek-v4-pro-0813;
+      keep BOTH — same weights, different route, and the routing/quantization
+      equivalence is unverified. Not in any suite until a tier is assigned.
+
+  motoko-cloud-glm-5-1:
+    api_name: "glm-5.1:cloud"
+    provider: "ollama"                                 # local daemon proxies to ollama.com
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "glm-5.1 via motoko on Ollama Cloud — flat-rate twin of the OpenRouter row z-ai/glm-5.1."
+    env_var: ""                                        # device key via `ollama signin`
+    agent_cli: "motoko"
+    motoko_profile: "ollama"
+    agent_model_name: "ollama/glm-5.1:cloud"
+    model_family: "glm-5"
+    max_output_tokens: 65536
+    pricing:
+      # IMPUTED from the OpenRouter twin z-ai/glm-5.1, list price read from the
+      # OpenRouter models API 2026-08-26. NOT 0/0 — that maps to the false
+      # `free-local` provenance. Banks as `list-price-equivalent` (D1).
+      input_per_1k: 0.00126
+      output_per_1k: 0.00396
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    notes: |
+      Ollama Cloud row for glm-5.1. Paired control is z-ai/glm-5.1;
+      keep BOTH — same weights, different route, and the routing/quantization
+      equivalence is unverified. Not in any suite until a tier is assigned.
+
+  motoko-cloud-glm-5-2:
+    api_name: "glm-5.2:cloud"
+    provider: "ollama"                                 # local daemon proxies to ollama.com
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "glm-5.2 via motoko on Ollama Cloud — flat-rate twin of the OpenRouter row z-ai/glm-5.2."
+    env_var: ""                                        # device key via `ollama signin`
+    agent_cli: "motoko"
+    motoko_profile: "ollama"
+    agent_model_name: "ollama/glm-5.2:cloud"
+    model_family: "glm-5"
+    max_output_tokens: 65536
+    pricing:
+      # IMPUTED from the OpenRouter twin z-ai/glm-5.2, list price read from the
+      # OpenRouter models API 2026-08-26. NOT 0/0 — that maps to the false
+      # `free-local` provenance. Banks as `list-price-equivalent` (D1).
+      input_per_1k: 0.00119
+      output_per_1k: 0.00374
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    notes: |
+      Ollama Cloud row for glm-5.2. Paired control is z-ai/glm-5.2;
+      keep BOTH — same weights, different route, and the routing/quantization
+      equivalence is unverified. Not in any suite until a tier is assigned.
+
+  motoko-cloud-gpt-oss-120b:
+    api_name: "gpt-oss:120b-cloud"
+    provider: "ollama"                                 # local daemon proxies to ollama.com
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "gpt-oss:120b via motoko on Ollama Cloud — flat-rate twin of the OpenRouter row openai/gpt-oss-120b."
+    env_var: ""                                        # device key via `ollama signin`
+    agent_cli: "motoko"
+    motoko_profile: "ollama"
+    agent_model_name: "ollama/gpt-oss:120b-cloud"
+    model_family: "gpt-oss"
+    max_output_tokens: 65536
+    pricing:
+      # IMPUTED from the OpenRouter twin openai/gpt-oss-120b, list price read from the
+      # OpenRouter models API 2026-08-26. NOT 0/0 — that maps to the false
+      # `free-local` provenance. Banks as `list-price-equivalent` (D1).
+      input_per_1k: 0.00004
+      output_per_1k: 0.00017
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    notes: |
+      Ollama Cloud row for gpt-oss:120b. Paired control is openai/gpt-oss-120b;
+      keep BOTH — same weights, different route, and the routing/quantization
+      equivalence is unverified. Not in any suite until a tier is assigned.
+
+  motoko-cloud-kimi-k2-6:
+    api_name: "kimi-k2.6:cloud"
+    provider: "ollama"                                 # local daemon proxies to ollama.com
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "kimi-k2.6 via motoko on Ollama Cloud — flat-rate twin of the OpenRouter row moonshotai/kimi-k2.6."
+    env_var: ""                                        # device key via `ollama signin`
+    agent_cli: "motoko"
+    motoko_profile: "ollama"
+    agent_model_name: "ollama/kimi-k2.6:cloud"
+    model_family: "kimi-k2"
+    max_output_tokens: 65536
+    pricing:
+      # IMPUTED from the OpenRouter twin moonshotai/kimi-k2.6, list price read from the
+      # OpenRouter models API 2026-08-26. NOT 0/0 — that maps to the false
+      # `free-local` provenance. Banks as `list-price-equivalent` (D1).
+      input_per_1k: 0.00095
+      output_per_1k: 0.00400
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    notes: |
+      Ollama Cloud row for kimi-k2.6. Paired control is moonshotai/kimi-k2.6;
+      keep BOTH — same weights, different route, and the routing/quantization
+      equivalence is unverified. Not in any suite until a tier is assigned.
+
+  motoko-cloud-kimi-k2-7-code:
+    api_name: "kimi-k2.7-code:cloud"
+    provider: "ollama"                                 # local daemon proxies to ollama.com
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "kimi-k2.7-code via motoko on Ollama Cloud — flat-rate twin of the OpenRouter row moonshotai/kimi-k2.7-code."
+    env_var: ""                                        # device key via `ollama signin`
+    agent_cli: "motoko"
+    motoko_profile: "ollama"
+    agent_model_name: "ollama/kimi-k2.7-code:cloud"
+    model_family: "kimi-k2"
+    max_output_tokens: 65536
+    pricing:
+      # IMPUTED from the OpenRouter twin moonshotai/kimi-k2.7-code, list price read from the
+      # OpenRouter models API 2026-08-26. NOT 0/0 — that maps to the false
+      # `free-local` provenance. Banks as `list-price-equivalent` (D1).
+      input_per_1k: 0.00067
+      output_per_1k: 0.00340
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    notes: |
+      Ollama Cloud row for kimi-k2.7-code. Paired control is moonshotai/kimi-k2.7-code;
+      keep BOTH — same weights, different route, and the routing/quantization
+      equivalence is unverified. Not in any suite until a tier is assigned.
+
+  motoko-cloud-minimax-m2-7:
+    api_name: "minimax-m2.7:cloud"
+    provider: "ollama"                                 # local daemon proxies to ollama.com
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "minimax-m2.7 via motoko on Ollama Cloud — flat-rate twin of the OpenRouter row minimax/minimax-m2.7."
+    env_var: ""                                        # device key via `ollama signin`
+    agent_cli: "motoko"
+    motoko_profile: "ollama"
+    agent_model_name: "ollama/minimax-m2.7:cloud"
+    model_family: "minimax-m2"
+    max_output_tokens: 65536
+    pricing:
+      # IMPUTED from the OpenRouter twin minimax/minimax-m2.7, list price read from the
+      # OpenRouter models API 2026-08-26. NOT 0/0 — that maps to the false
+      # `free-local` provenance. Banks as `list-price-equivalent` (D1).
+      input_per_1k: 0.00030
+      output_per_1k: 0.00120
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    notes: |
+      Ollama Cloud row for minimax-m2.7. Paired control is minimax/minimax-m2.7;
+      keep BOTH — same weights, different route, and the routing/quantization
+      equivalence is unverified. Not in any suite until a tier is assigned.
+
+  motoko-cloud-minimax-m3:
+    api_name: "minimax-m3:cloud"
+    provider: "ollama"                                 # local daemon proxies to ollama.com
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "minimax-m3 via motoko on Ollama Cloud — flat-rate twin of the OpenRouter row minimax/minimax-m3."
+    env_var: ""                                        # device key via `ollama signin`
+    agent_cli: "motoko"
+    motoko_profile: "ollama"
+    agent_model_name: "ollama/minimax-m3:cloud"
+    model_family: "minimax-m3"
+    max_output_tokens: 65536
+    pricing:
+      # IMPUTED from the OpenRouter twin minimax/minimax-m3, list price read from the
+      # OpenRouter models API 2026-08-26. NOT 0/0 — that maps to the false
+      # `free-local` provenance. Banks as `list-price-equivalent` (D1).
+      input_per_1k: 0.00030
+      output_per_1k: 0.00120
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    notes: |
+      Ollama Cloud row for minimax-m3. Paired control is minimax/minimax-m3;
+      keep BOTH — same weights, different route, and the routing/quantization
+      equivalence is unverified. Not in any suite until a tier is assigned.
+
+  motoko-cloud-nemotron-3-ultra:
+    api_name: "nemotron-3-ultra:cloud"
+    provider: "ollama"                                 # local daemon proxies to ollama.com
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "nemotron-3-ultra via motoko on Ollama Cloud — flat-rate twin of the OpenRouter row nvidia/nemotron-3-ultra-550b-a55b."
+    env_var: ""                                        # device key via `ollama signin`
+    agent_cli: "motoko"
+    motoko_profile: "ollama"
+    agent_model_name: "ollama/nemotron-3-ultra:cloud"
+    model_family: "nemotron-3"
+    max_output_tokens: 65536
+    pricing:
+      # IMPUTED from the OpenRouter twin nvidia/nemotron-3-ultra-550b-a55b, list price read from the
+      # OpenRouter models API 2026-08-26. NOT 0/0 — that maps to the false
+      # `free-local` provenance. Banks as `list-price-equivalent` (D1).
+      input_per_1k: 0.00060
+      output_per_1k: 0.00360
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    notes: |
+      Ollama Cloud row for nemotron-3-ultra. Paired control is nvidia/nemotron-3-ultra-550b-a55b;
+      keep BOTH — same weights, different route, and the routing/quantization
+      equivalence is unverified. Not in any suite until a tier is assigned.
+
+      ⚠ COLD-START LATENCY, measured 2026-08-26: a trivial "ok" prompt took
+      1m58s end to end (550B params). A 90s probe timed out on it and read as a
+      dead lane; at 300s it answered fine. Any probe or per-step timeout applied
+      to this row must clear ~2 MINUTES, or the row will be scored as broken when
+      it is merely large. This is the only row in the set with that property.
+
+  motoko-cloud-qwen3-5-397b:
+    api_name: "qwen3.5:397b-cloud"
+    provider: "ollama"                                 # local daemon proxies to ollama.com
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "qwen3.5:397b via motoko on Ollama Cloud — flat-rate twin of the OpenRouter row qwen/qwen3.5-397b-a17b."
+    env_var: ""                                        # device key via `ollama signin`
+    agent_cli: "motoko"
+    motoko_profile: "ollama"
+    agent_model_name: "ollama/qwen3.5:397b-cloud"
+    model_family: "qwen-3-5"
+    max_output_tokens: 65536
+    pricing:
+      # IMPUTED from the OpenRouter twin qwen/qwen3.5-397b-a17b, list price read from the
+      # OpenRouter models API 2026-08-26. NOT 0/0 — that maps to the false
+      # `free-local` provenance. Banks as `list-price-equivalent` (D1).
+      input_per_1k: 0.00039
+      output_per_1k: 0.00234
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    notes: |
+      Ollama Cloud row for qwen3.5:397b. Paired control is qwen/qwen3.5-397b-a17b;
+      keep BOTH — same weights, different route, and the routing/quantization
+      equivalence is unverified. Not in any suite until a tier is assigned.
+      HEADROOM CEILING: the twin caps max_completion at 65,536 — the SMALLEST in this
+      set. For a reasoning model that is a truncation risk, and a starved thinking budget
+      reads as a capability failure (the GLM-5.2 retraction). Read a poor score here as
+      suspect until headroom is ruled out.
+
   motoko-cloud-gpt-oss-20b:
     api_name: "gpt-oss:20b-cloud"                      # the `-cloud` suffix IS the route (M-OLLAMA-CLOUD-PROVIDER)
     provider: "ollama"                                 # SAME provider as local — the local daemon proxies it
