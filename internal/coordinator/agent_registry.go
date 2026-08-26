@@ -99,10 +99,22 @@ type ApprovalConfig struct {
 // AgentConfig represents a configured agent in the coordinator system.
 // Each agent has an inbox, workspace, and capabilities for task execution.
 type AgentConfig struct {
-	ID                  string   `yaml:"id" json:"id"`
-	Label               string   `yaml:"label" json:"label"`
-	Inbox               string   `yaml:"inbox" json:"inbox"`                                 // Message inbox to watch
-	Workspace           string   `yaml:"workspace" json:"workspace"`                         // Base directory for worktrees
+	ID        string `yaml:"id" json:"id"`
+	Label     string `yaml:"label" json:"label"`
+	Inbox     string `yaml:"inbox" json:"inbox"`         // Message inbox to watch
+	Workspace string `yaml:"workspace" json:"workspace"` // Base directory for worktrees
+
+	// ExecutionLane declares WHERE this agent's work runs: "cloud" (a Cloud Run
+	// Job that clones Repo) or "local" (a bare-metal worker using Workspace as a
+	// checkout). Empty means infer — see ResolveLane, which defaults to cloud.
+	// M-MESSAGE-PLANE-FAIL-LOUD M3 / decision D3.
+	ExecutionLane ExecutionLane `yaml:"execution_lane" json:"execution_lane,omitempty"`
+
+	// Repo is the GitHub coordinate (org/repo) to clone for cloud execution.
+	// Separated from Workspace so one field stops meaning two things; see
+	// ResolveRepo for the back-compatible fallback.
+	Repo string `yaml:"repo" json:"repo,omitempty"`
+
 	Capabilities        []string `yaml:"capabilities" json:"capabilities"`                   // e.g., ["code", "research", "docs"]
 	TriggerOnComplete   []string `yaml:"trigger_on_complete" json:"trigger_on_complete"`     // Agent IDs to trigger when this agent completes
 	AutoApproveHandoffs bool     `yaml:"auto_approve_handoffs" json:"auto_approve_handoffs"` // Skip approval for agent-to-agent handoffs

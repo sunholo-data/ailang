@@ -118,10 +118,30 @@ func (d *Daemon) dispatchTasksCloud() error {
 			// the agent config here so the cloud agent receives the same fully
 			// templated prompt the local executor would build.
 			directive := task.Content
+			var agentCfg *AgentConfig
 			if d.agentRegistry != nil {
 				if agent := d.agentRegistry.GetAgentByID(task.AgentID); agent != nil {
+					agentCfg = agent
 					directive = BuildDirectiveFromConfig(task, agent)
 				}
+			}
+
+			// M-MESSAGE-PLANE-FAIL-LOUD M3 (D3): a LOCAL-lane agent must never be
+			// cloud-dispatched. Measured 2026-08-26: 10 consecutive Cloud Run jobs
+			// died on arrival for agent=eval-rig because the job received a Mac
+			// Studio filesystem path as its clone target — and even with a valid
+			// coordinate the lane is wrong, since the rig's whole purpose is local
+			// GPU and ollama models a Cloud Run job does not have.
+			if agentCfg.ResolveLane() == LaneLocal {
+				d.logger.Printf("Task %s: agent %q is execution_lane=local; leaving it for its bare-metal worker instead of dispatching to Cloud Run", task.ID, task.AgentID)
+				continue
+			}
+
+			// Prefer the agent's resolved coordinate over the task's workspace
+			// string, so `workspace` stops doubling as a repo coordinate.
+			repoURL := deriveRepoURL(task.Workspace)
+			if repo := agentCfg.ResolveRepo(); repo != "" {
+				repoURL = deriveRepoURL(repo)
 			}
 			params := DispatchParams{
 				TaskID:    task.ID,
@@ -129,7 +149,7 @@ func (d *Daemon) dispatchTasksCloud() error {
 				Workspace: task.Workspace,
 				Provider:  provider,
 				Directive: directive,
-				RepoURL:   deriveRepoURL(task.Workspace),
+				RepoURL:   repoURL,
 				Branch:    task.BaseBranch, // From task record, defaults handled by job
 				// M-PKG-CASCADE-DETERMINISTIC-FIRST: propagate cascade envelope so the
 				// Cloud Run Job wrapper can decide deterministic-bump vs AI-escalation.

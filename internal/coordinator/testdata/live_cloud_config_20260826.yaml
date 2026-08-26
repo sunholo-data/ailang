@@ -1,0 +1,1175 @@
+# AILANG Cloud Coordinator Configuration
+# M-CI-BUILD-SPEED prod smoke test 20260430T082604Z — verify <90s fast-path landing
+# M-CI-BUILD-SPEED M4 verification: config-only trigger smoke test 20260429T094517Z
+#
+# This config is used by Cloud Run services. It mirrors the structure
+# of ~/.ailang/config.yaml but with cloud-specific settings:
+#   - No local paths (workspaces are git URLs)
+#   - Pub/Sub enabled for messaging transport
+#   - Firestore for storage (AILANG_STORAGE=gcp)
+
+github:
+  expected_user: sunholo-voight-kampff
+  default_repo: sunholo-data/ailang
+  create_labels:
+    - ailang-message
+  watch_labels: []
+  auto_import: true
+
+# Pub/Sub configuration (M-PUBSUB)
+pubsub:
+  enabled: true
+  project_id: ""  # Set via AILANG_CLOUD_PROJECT env var
+  topic_prefix: "ailang"
+  laptop_subscription: false  # Cloud doesn't need laptop sub
+
+# Coordinator configuration
+coordinator:
+  mode: cloud
+  default_provider: claude
+
+  agents:
+    # ═══════════════════════════════════════════════════════════
+    # AILANG CORE WORKFLOW
+    # ═══════════════════════════════════════════════════════════
+
+    - id: design-doc-creator
+      label: "Design Doc Creator"
+      inbox: design-doc-creator
+      workspace: sunholo-data/ailang
+      capabilities: [research, docs]
+      provider: claude
+      model: opus
+      timeout: "20m"
+      idle_timeout: "3m"
+      trigger_on_complete: [sprint-planner]
+      auto_approve_handoffs: false
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: skill
+        name: design-doc-creator
+      output_markers:
+        - "DESIGN_DOC_PATH:"
+      artifact_patterns:
+        - "design_docs/**/*.md"
+      approval:
+        needs_label: needs-design-approval
+        approved_label: design-approved
+        github_comment_template: design_doc
+
+    - id: sprint-planner
+      label: "Sprint Planner"
+      inbox: sprint-planner
+      workspace: sunholo-data/ailang
+      capabilities: [research, docs, planning]
+      provider: claude
+      timeout: "15m"
+      idle_timeout: "3m"
+      trigger_on_complete: [sprint-executor]
+      auto_approve_handoffs: false
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: skill
+        name: sprint-planner
+      output_markers:
+        - "SPRINT_PLAN_PATH:"
+        - "SPRINT_JSON_PATH:"
+      artifact_patterns:
+        - "design_docs/**/*.md"
+        - ".ailang/state/sprints/*.json"
+      approval:
+        needs_label: needs-sprint-approval
+        approved_label: sprint-approved
+        github_comment_template: sprint_plan
+
+    - id: sprint-executor
+      label: "Sprint Executor"
+      inbox: sprint-executor
+      workspace: sunholo-data/ailang
+      capabilities: [code, test, docs]
+      provider: claude
+      model: opus
+      executor_variant: go
+      timeout: "60m"
+      idle_timeout: "5m"
+      trigger_on_complete: []
+      auto_approve_handoffs: false
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: skill
+        name: sprint-executor
+      output_markers:
+        - "IMPLEMENTATION_COMPLETE:"
+        - "BRANCH_NAME:"
+        - "FILES_CREATED:"
+        - "FILES_MODIFIED:"
+      artifact_patterns:
+        - "**/*.go"
+        - "**/*.md"
+        - "**/*.json"
+        - "**/*.ail"
+      approval:
+        needs_label: needs-implementation-approval
+        approved_label: implementation-approved
+        github_comment_template: implementation
+
+    - id: coordinator
+      label: "General Coordinator"
+      inbox: coordinator
+      workspace: sunholo-data/ailang
+      capabilities: [code, test, docs, research]
+      provider: claude
+      trigger_on_complete: []
+      auto_approve_handoffs: false
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 2
+
+    # M-COORD-TAG-ROUTING-LASTMILE (ailang v0.23.0): motoko as a cloud-side
+    # worker. Tag-routed messages with `requires: ["agent:motoko"]` reach
+    # this agent via the M-COORD-MULTI-HOST-WORKERS tag matcher; the cloud
+    # coordinator dispatches them to the agent-executor-motoko Cloud Run
+    # Job. The same tag is also advertised by the Studio bare-metal worker
+    # (~/.ailang/config.yaml on the eval-rig agent), so when the Studio is
+    # online it takes the work (prompt cache warm, lower latency); when
+    # offline, this cloud Job picks up the slack.
+    - id: motoko
+      label: "Motoko (AILANG-native, OpenRouter-routed)"
+      inbox: motoko
+      workspace: sunholo-data/ailang
+      capabilities: [code, test, docs]
+      provider: motoko
+      executor_variant: motoko
+      worker_tags:
+        - agent:motoko
+      trigger_on_complete: []
+      auto_approve_handoffs: false
+      auto_merge: false
+      session_continuity: false
+      max_concurrent_tasks: 1
+      timeout: "60m"
+      idle_timeout: "5m"
+
+    # ═══════════════════════════════════════════════════════════
+    # STAPLEDONS VOYAGE
+    # ═══════════════════════════════════════════════════════════
+
+    - id: stapledon-design-doc
+      label: "Stapledon Design Doc Creator"
+      inbox: stapledon-design-doc
+      workspace: sunholo-data/stapledons_voyage
+      merge_branch: main
+      capabilities: [research, docs]
+      provider: claude
+      trigger_on_complete: [stapledon-sprint-planner]
+      auto_approve_handoffs: false
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: skill
+        name: design-doc-creator
+      output_markers:
+        - "DESIGN_DOC_PATH:"
+      artifact_patterns:
+        - "design_docs/**/*.md"
+
+    - id: stapledon-sprint-planner
+      label: "Stapledon Sprint Planner"
+      inbox: stapledon-sprint-planner
+      workspace: sunholo-data/stapledons_voyage
+      merge_branch: main
+      capabilities: [research, docs, planning]
+      provider: claude
+      trigger_on_complete: [stapledon-sprint-executor]
+      auto_approve_handoffs: false
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: skill
+        name: sprint-planner
+      output_markers:
+        - "SPRINT_PLAN_PATH:"
+      artifact_patterns:
+        - "design_docs/**/*.md"
+
+    - id: stapledon-sprint-executor
+      label: "Stapledon Sprint Executor"
+      inbox: stapledon-sprint-executor
+      workspace: sunholo-data/stapledons_voyage
+      merge_branch: main
+      capabilities: [code, test, docs]
+      provider: claude
+      trigger_on_complete: []
+      auto_approve_handoffs: false
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: skill
+        name: sprint-executor
+      output_markers:
+        - "IMPLEMENTATION_COMPLETE:"
+      artifact_patterns:
+        - "**/*.go"
+        - "**/*.ail"
+
+    # ═══════════════════════════════════════════════════════════
+    # TWILIGHT GAME
+    # ═══════════════════════════════════════════════════════════
+
+    - id: twilight-design-doc
+      label: "TwilightGame Design Doc Creator"
+      inbox: twilight-design-doc
+      workspace: MarkEdmondson1234/TwilightGame
+      merge_branch: main
+      capabilities: [research, docs]
+      provider: claude
+      trigger_on_complete: [twilight-sprint-planner]
+      auto_approve_handoffs: false
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang/templates/twilight-design-doc.md
+      output_markers:
+        - "DESIGN_DOC_PATH:"
+
+    - id: twilight-sprint-planner
+      label: "TwilightGame Sprint Planner"
+      inbox: twilight-sprint-planner
+      workspace: MarkEdmondson1234/TwilightGame
+      merge_branch: main
+      capabilities: [research, docs, planning]
+      provider: claude
+      trigger_on_complete: [twilight-sprint-executor]
+      auto_approve_handoffs: false
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang/templates/twilight-sprint-planner.md
+      output_markers:
+        - "SPRINT_PLAN_PATH:"
+
+    - id: twilight-sprint-executor
+      label: "TwilightGame Sprint Executor"
+      inbox: twilight-sprint-executor
+      workspace: MarkEdmondson1234/TwilightGame
+      merge_branch: main
+      capabilities: [code, test, docs]
+      provider: claude
+      timeout: "60m"
+      idle_timeout: "5m"
+      trigger_on_complete: []
+      auto_approve_handoffs: false
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang/templates/twilight-sprint-executor.md
+      output_markers:
+        - "IMPLEMENTATION_COMPLETE:"
+
+    # ═══════════════════════════════════════════════════════════
+    # AILANG PACKAGES (ailang-packages monorepo)
+    # M-PKG-AUTONOMOUS-UPDATES: Package agents watch pkg:* inboxes.
+    # Autonomy levels adjusted dynamically by change class (A/B/C).
+    # ═══════════════════════════════════════════════════════════
+
+    - id: pkg-sunholo-auth
+      label: "Package: sunholo/auth"
+      inbox: "pkg:sunholo/auth"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/auth
+      capabilities: [code, test, docs]
+      provider: claude
+      model: sonnet
+      timeout: "30m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: true
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "PUBLISH_RESULT:"
+        - "VERSION:"
+      artifact_patterns:
+        - "packages/auth/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-gcp-auth
+      label: "Package: sunholo/gcp_auth"
+      inbox: "pkg:sunholo/gcp_auth"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/gcp-auth
+      capabilities: [code, test, docs]
+      provider: claude
+      model: sonnet
+      timeout: "30m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: true
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "PUBLISH_RESULT:"
+      artifact_patterns:
+        - "packages/gcp-auth/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-http-helpers
+      label: "Package: sunholo/http_helpers"
+      inbox: "pkg:sunholo/http_helpers"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/http-helpers
+      capabilities: [code, test, docs]
+      provider: claude
+      model: sonnet
+      timeout: "30m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: true
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "PUBLISH_RESULT:"
+      artifact_patterns:
+        - "packages/http-helpers/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-logging
+      label: "Package: sunholo/logging"
+      inbox: "pkg:sunholo/logging"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/logging
+      capabilities: [code, test, docs]
+      provider: claude
+      model: sonnet
+      timeout: "30m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: true
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "PUBLISH_RESULT:"
+      artifact_patterns:
+        - "packages/logging/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-config
+      label: "Package: sunholo/config"
+      inbox: "pkg:sunholo/config"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/config
+      capabilities: [code, test, docs]
+      provider: claude
+      model: sonnet
+      timeout: "30m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: true
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "PUBLISH_RESULT:"
+      artifact_patterns:
+        - "packages/config/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-testing-utils
+      label: "Package: sunholo/testing_utils"
+      inbox: "pkg:sunholo/testing_utils"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/testing-utils
+      capabilities: [code, test, docs]
+      provider: claude
+      model: sonnet
+      timeout: "30m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: true
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "PUBLISH_RESULT:"
+      artifact_patterns:
+        - "packages/testing-utils/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-firestore
+      label: "Package: sunholo/firestore"
+      inbox: "pkg:sunholo/firestore"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/firestore
+      capabilities: [code, test, docs]
+      provider: claude
+      model: sonnet
+      timeout: "30m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: true
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "PUBLISH_RESULT:"
+      artifact_patterns:
+        - "packages/firestore/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-billing-entitlements
+      label: "Package: sunholo/billing_entitlements"
+      inbox: "pkg:sunholo/billing_entitlements"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/billing-entitlements
+      capabilities: [code, test, docs]
+      provider: claude
+      model: sonnet
+      timeout: "30m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: true
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "PUBLISH_RESULT:"
+      artifact_patterns:
+        - "packages/billing-entitlements/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-billing-proposals
+      label: "Package: sunholo/billing_proposals"
+      inbox: "pkg:sunholo/billing_proposals"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/billing-proposals
+      capabilities: [code, test, docs]
+      provider: claude
+      model: sonnet
+      timeout: "30m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: true
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "PUBLISH_RESULT:"
+      artifact_patterns:
+        - "packages/billing-proposals/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-billing-store
+      label: "Package: sunholo/billing_store"
+      inbox: "pkg:sunholo/billing_store"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/billing-store
+      capabilities: [code, test, docs]
+      provider: claude
+      model: sonnet
+      timeout: "30m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: true
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "PUBLISH_RESULT:"
+      artifact_patterns:
+        - "packages/billing-store/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-billing-stripe
+      label: "Package: sunholo/billing_stripe"
+      inbox: "pkg:sunholo/billing_stripe"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/billing-stripe
+      capabilities: [code, test, docs]
+      provider: claude
+      model: sonnet
+      timeout: "30m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: true
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "PUBLISH_RESULT:"
+      artifact_patterns:
+        - "packages/billing-stripe/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-billing-service-api
+      label: "Package: sunholo/billing_service_api"
+      inbox: "pkg:sunholo/billing_service_api"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/billing-service-api
+      capabilities: [code, test, docs]
+      provider: claude
+      model: sonnet
+      timeout: "30m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: true
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "PUBLISH_RESULT:"
+      artifact_patterns:
+        - "packages/billing-service-api/**/*"
+      git_mode: guardrails
+
+    # NOTE: pkg-sunholo-docparse-access-gate removed 2026-04-30 — the
+    # docparse_access_gate package was never published to the registry, so
+    # cascade messages with that inbox would never have a real recipient.
+    # Reinstate when/if sunholo/docparse_access_gate is published.
+
+    # ─── Newly-registered packages from coverage audit (haiku for now,
+    #     promote to sonnet once cascade behavior is well-validated) ───
+    #
+    # Cascade end-to-end was validated 2026-05-03 against the test_pkg/
+    # test_pkg_consumer fixtures: deterministic Class A bump (PR #14)
+    # and AI-driven repair on a breaking signature change (PR #15) both
+    # fired autonomously. Newly-registered packages can be promoted to
+    # sonnet on a per-package basis as confidence grows.
+
+    - id: pkg-sunholo-duckdb
+      label: "Package: sunholo/duckdb"
+      inbox: "pkg:sunholo/duckdb"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/duckdb
+      capabilities: [code, test, docs]
+      provider: claude
+      model: haiku
+      timeout: "15m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: false
+      auto_merge: false
+      skip_approval: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "FEEDBACK_ACTION:"
+        - "ISSUE_URL:"
+        - "PR_URL:"
+        - "DECISION:"
+      artifact_patterns:
+        - "packages/duckdb/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-a2ui
+      label: "Package: sunholo/a2ui"
+      inbox: "pkg:sunholo/a2ui"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/a2ui
+      capabilities: [code, test, docs]
+      provider: claude
+      model: haiku
+      timeout: "15m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: false
+      auto_merge: false
+      skip_approval: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "FEEDBACK_ACTION:"
+        - "ISSUE_URL:"
+        - "PR_URL:"
+        - "DECISION:"
+      artifact_patterns:
+        - "packages/a2ui/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-ailang-parse
+      label: "Package: sunholo/ailang_parse"
+      inbox: "pkg:sunholo/ailang_parse"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/ailang-parse
+      capabilities: [code, test, docs]
+      provider: claude
+      model: haiku
+      timeout: "15m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: false
+      auto_merge: false
+      skip_approval: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "FEEDBACK_ACTION:"
+        - "ISSUE_URL:"
+        - "PR_URL:"
+        - "DECISION:"
+      artifact_patterns:
+        - "packages/ailang-parse/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-firebase-auth
+      label: "Package: sunholo/firebase_auth"
+      inbox: "pkg:sunholo/firebase_auth"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/firebase-auth
+      capabilities: [code, test, docs]
+      provider: claude
+      model: haiku
+      timeout: "15m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: false
+      auto_merge: false
+      skip_approval: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "FEEDBACK_ACTION:"
+        - "ISSUE_URL:"
+        - "PR_URL:"
+        - "DECISION:"
+      artifact_patterns:
+        - "packages/firebase-auth/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-gcs-storage
+      label: "Package: sunholo/gcs_storage"
+      inbox: "pkg:sunholo/gcs_storage"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/gcs-storage
+      capabilities: [code, test, docs]
+      provider: claude
+      model: haiku
+      timeout: "15m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: false
+      auto_merge: false
+      skip_approval: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "FEEDBACK_ACTION:"
+        - "ISSUE_URL:"
+        - "PR_URL:"
+        - "DECISION:"
+      artifact_patterns:
+        - "packages/gcs-storage/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-gemini-files
+      label: "Package: sunholo/gemini_files"
+      inbox: "pkg:sunholo/gemini_files"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/gemini-files
+      capabilities: [code, test, docs]
+      provider: claude
+      model: haiku
+      timeout: "15m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: false
+      auto_merge: false
+      skip_approval: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "FEEDBACK_ACTION:"
+        - "ISSUE_URL:"
+        - "PR_URL:"
+        - "DECISION:"
+      artifact_patterns:
+        - "packages/gemini-files/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-gemini-live
+      label: "Package: sunholo/gemini_live"
+      inbox: "pkg:sunholo/gemini_live"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/gemini-live
+      capabilities: [code, test, docs]
+      provider: claude
+      model: haiku
+      timeout: "15m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: false
+      auto_merge: false
+      skip_approval: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "FEEDBACK_ACTION:"
+        - "ISSUE_URL:"
+        - "PR_URL:"
+        - "DECISION:"
+      artifact_patterns:
+        - "packages/gemini-live/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-registry-validator
+      label: "Package: sunholo/registry_validator"
+      inbox: "pkg:sunholo/registry_validator"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/registry-validator
+      capabilities: [code, test, docs]
+      provider: claude
+      model: haiku
+      timeout: "15m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: false
+      auto_merge: false
+      skip_approval: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "FEEDBACK_ACTION:"
+        - "ISSUE_URL:"
+        - "PR_URL:"
+        - "DECISION:"
+      artifact_patterns:
+        - "packages/registry-validator/**/*"
+      git_mode: guardrails
+
+    # Test target for the package-feedback loop. Safe to send synthetic
+    # submit_feedback traffic at pkg:sunholo/test_pkg — agent will triage,
+    # open issues / open docs PRs, and stop. Never auto-merges; never
+    # publishes a release. Used by scripts/integration/test_pkg_feedback_loop.sh.
+    - id: pkg-sunholo-test-pkg
+      label: "Package: sunholo/test_pkg (integration test target)"
+      inbox: "pkg:sunholo/test_pkg"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/test-pkg
+      capabilities: [code, test, docs]
+      provider: claude
+      model: haiku
+      timeout: "15m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: false
+      auto_merge: false
+      skip_approval: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "FEEDBACK_ACTION:"
+        - "ISSUE_URL:"
+        - "PR_URL:"
+        - "DECISION:"
+      artifact_patterns:
+        - "packages/test-pkg/**/*"
+      # guardrails: allow push to feature branch so docs PRs can be opened,
+      # but auto_merge=false above ensures a human approves before merge.
+      git_mode: guardrails
+
+    # Cascade-fixture dependent of sunholo/test_pkg. When test_pkg publishes
+    # a new version, the M-PKG-AUTONOMOUS-CASCADE-SAFE flow routes a cascade
+    # message to this inbox. Agent bumps the dependency in ailang.toml,
+    # runs ailang check + test, and opens a PR labeled "smoke-test".
+    # Used by scripts/integration/test_cascade_e2e.sh.
+    - id: pkg-sunholo-test-pkg-consumer
+      label: "Package: sunholo/test_pkg_consumer (cascade smoke fixture)"
+      inbox: "pkg:sunholo/test_pkg_consumer"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/test-pkg-consumer
+      capabilities: [code, test, docs]
+      provider: claude
+      model: haiku
+      timeout: "15m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: false
+      auto_merge: false
+      skip_approval: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "FEEDBACK_ACTION:"
+        - "ISSUE_URL:"
+        - "PR_URL:"
+        - "DECISION:"
+      artifact_patterns:
+        - "packages/test-pkg-consumer/**/*"
+      git_mode: guardrails
+
+    # ═══════════════════════════════════════════════════════════
+    # M-COORDINATOR-INBOX-WILDCARDS: family routing
+    #
+    # A trailing `*` matches by longest prefix, and an exact `inbox:` entry
+    # above always wins over a pattern. One entry serves the whole
+    # motoko_ext_* family (16 packages today) so a NEW extension is routed
+    # the moment it is published, with no config change.
+    #
+    # This closes the gap that made an abi 2.1.0 republish fail 10 dependent
+    # cascades in silence: with no agent registered for the inbox, each task
+    # was created with an empty AgentID, dispatched to a Cloud Run Job, and
+    # died on arrival with "AILANG_AGENT_ID environment variable is required".
+    #
+    # No `subdirectory` here — it differs per package, and the prompt names
+    # the package so the agent can locate packages/<name> itself. Note the
+    # registry spells packages with underscores and the directories use
+    # hyphens (motoko_ext_abi -> packages/motoko-ext-abi).
+    # ═══════════════════════════════════════════════════════════
+
+    - id: pkg-motoko-ext-family
+      label: "Package family: sunholo/motoko_ext_*"
+      inbox: "pkg:sunholo/motoko_ext_*"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      capabilities: [code, test, docs]
+      provider: claude
+      model: sonnet
+      timeout: "20m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: false
+      auto_merge: false
+      skip_approval: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "FEEDBACK_ACTION:"
+        - "PUBLISH_RESULT:"
+        - "VERSION:"
+      artifact_patterns:
+        - "packages/motoko-ext-*/**/*"
+      git_mode: guardrails
+
+    # Published packages that are not part of a family and had no agent,
+    # so their feedback and cascades went to an inbox nothing watched.
+
+    - id: pkg-sunholo-deontic
+      label: "Package: sunholo/deontic"
+      inbox: "pkg:sunholo/deontic"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/deontic
+      capabilities: [code, test, docs]
+      provider: claude
+      model: haiku
+      timeout: "20m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: false
+      auto_merge: false
+      skip_approval: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "FEEDBACK_ACTION:"
+        - "PUBLISH_RESULT:"
+        - "VERSION:"
+      artifact_patterns:
+        - "packages/deontic/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-external-backend
+      label: "Package: sunholo/external_backend"
+      inbox: "pkg:sunholo/external_backend"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/external-backend
+      capabilities: [code, test, docs]
+      provider: claude
+      model: haiku
+      timeout: "20m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: false
+      auto_merge: false
+      skip_approval: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "FEEDBACK_ACTION:"
+        - "PUBLISH_RESULT:"
+        - "VERSION:"
+      artifact_patterns:
+        - "packages/external-backend/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-linkedin
+      label: "Package: sunholo/linkedin"
+      inbox: "pkg:sunholo/linkedin"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/linkedin
+      capabilities: [code, test, docs]
+      provider: claude
+      model: haiku
+      timeout: "20m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: false
+      auto_merge: false
+      skip_approval: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "FEEDBACK_ACTION:"
+        - "PUBLISH_RESULT:"
+        - "VERSION:"
+      artifact_patterns:
+        - "packages/linkedin/**/*"
+      git_mode: guardrails
+
+    - id: pkg-sunholo-ollama-stream
+      label: "Package: sunholo/ollama_stream"
+      inbox: "pkg:sunholo/ollama_stream"
+      workspace: sunholo-data/ailang-packages
+      merge_branch: main
+      subdirectory: packages/ollama-stream
+      capabilities: [code, test, docs]
+      provider: claude
+      model: haiku
+      timeout: "20m"
+      idle_timeout: "3m"
+      auto_approve_handoffs: false
+      auto_merge: false
+      skip_approval: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: prompt
+        template_file: /etc/ailang-config/templates/pkg-update.md
+        template_by_message_type:
+          feedback: /etc/ailang-config/templates/pkg-feedback.md
+      output_markers:
+        - "FEEDBACK_ACTION:"
+        - "PUBLISH_RESULT:"
+        - "VERSION:"
+      artifact_patterns:
+        - "packages/ollama-stream/**/*"
+      git_mode: guardrails
+
+    # ═══════════════════════════════════════════════════════════
+    # WEBSITE BUILDER
+    # ═══════════════════════════════════════════════════════════
+
+    - id: website-builder
+      label: "Website Builder"
+      inbox: website-builder
+      workspace: sunholo-data/sunholo-websites
+      capabilities: [code, docs]
+      provider: claude
+      model: sonnet
+      timeout: "15m"
+      idle_timeout: "3m"
+      trigger_on_complete: []
+      auto_approve_handoffs: false
+      auto_merge: false
+      skip_approval: true  # Push directly to main, no approval step (user-specific subdirs)
+      session_continuity: true
+      max_concurrent_tasks: 1
+      invoke:
+        type: skill
+        name: website-builder
+      output_markers:
+        - "BUILD_COMPLETE:"
+        - "FILES_CREATED:"
+      merge_branch: main
+      plugins:
+        marketplaces:
+          - anthropics/claude-code
+        install:
+          - frontend-design@anthropics-claude-code
+
+  github_sync:
+    enabled: true
+    repos:
+      - repo: sunholo-data/ailang
+        enabled: true
+        interval_secs: 300
+        target_inbox: design-doc-creator
+        watch_labels: []
+        resync_labels: true
+        resync_interval_secs: 3600
+
+      - repo: MarkEdmondson1234/TwilightGame
+        enabled: true
+        interval_secs: 300
+        target_inbox: twilight-design-doc
+        watch_labels: []
+
+# Workspace configuration
+workspaces:
+  derive_from_path: false  # Cloud uses explicit workspace IDs
+  mappings:
+    - pattern: "sunholo-data/ailang*"
+      workspace: "sunholo-data/ailang"
+    - pattern: "sunholo-data/stapledons_voyage*"
+      workspace: "sunholo-data/stapledons_voyage"
+    - pattern: "MarkEdmondson1234/TwilightGame*"
+      workspace: "MarkEdmondson1234/TwilightGame"
+    - pattern: "sunholo-data/sunholo-websites*"
+      workspace: "sunholo-data/sunholo-websites"
+    - pattern: "sunholo-data/ailang-packages*"
+      workspace: "sunholo-data/ailang-packages"
+
+# Budget configuration
+budgets:
+  global:
+    workspace_budget: 1000.0
+    daily_budget: 500.0
+    task_max_cost: 250.0
+    warning_threshold: 0.8
+  providers:
+    claude:
+      daily_budget: 300.0
+      task_max_cost: 150.0
+      hard_limit: false
+      warning_threshold: 0.8
+    gemini:
+      daily_budget: 20.0
+      task_max_cost: 10.0
+      hard_limit: true
+      warning_threshold: 0.75
