@@ -118,12 +118,25 @@ type AgentConfig struct {
 	Capabilities        []string `yaml:"capabilities" json:"capabilities"`                   // e.g., ["code", "research", "docs"]
 	TriggerOnComplete   []string `yaml:"trigger_on_complete" json:"trigger_on_complete"`     // Agent IDs to trigger when this agent completes
 	AutoApproveHandoffs bool     `yaml:"auto_approve_handoffs" json:"auto_approve_handoffs"` // Skip approval for agent-to-agent handoffs
-	AutoMerge           bool     `yaml:"auto_merge" json:"auto_merge"`                       // Automatically merge approved work
-	SkipApproval        bool     `yaml:"skip_approval" json:"skip_approval"`                 // Skip approval workflow entirely (for script agents)
-	Provider            string   `yaml:"provider" json:"provider"`                           // "claude" or "gemini"
-	MergeBranch         string   `yaml:"merge_branch" json:"merge_branch"`                   // Target branch for merges (e.g., "dev", "main")
-	MaxConcurrentTasks  int      `yaml:"max_concurrent_tasks" json:"max_concurrent_tasks"`   // 0 = unlimited
-	SessionContinuity   bool     `yaml:"session_continuity" json:"session_continuity"`       // Use --resume for Claude Code / --conversation-id for Gemini
+
+	// AutoApproveHandoffTo lists SPECIFIC targets whose handoff skips approval
+	// even while AutoApproveHandoffs is false (M-PIPELINE-RECONCILIATION M2,
+	// D1(b)). The motivating edge is executor→evaluator: the evaluator is
+	// read-only — it assesses the pushed branch and merges nothing — so gating
+	// that edge behind the human would run evaluation only AFTER approval,
+	// which defeats its purpose as a pre-filter.
+	AutoApproveHandoffTo []string `yaml:"auto_approve_handoff_to" json:"auto_approve_handoff_to,omitempty"`
+
+	// EvaluatesParent marks an agent whose completions carry an
+	// EVALUATION_VERDICT: line to be attached to the PARENT task's pending
+	// approval (M2). Set on sprint-evaluator only.
+	EvaluatesParent    bool   `yaml:"evaluates_parent" json:"evaluates_parent,omitempty"`
+	AutoMerge          bool   `yaml:"auto_merge" json:"auto_merge"`                     // Automatically merge approved work
+	SkipApproval       bool   `yaml:"skip_approval" json:"skip_approval"`               // Skip approval workflow entirely (for script agents)
+	Provider           string `yaml:"provider" json:"provider"`                         // "claude" or "gemini"
+	MergeBranch        string `yaml:"merge_branch" json:"merge_branch"`                 // Target branch for merges (e.g., "dev", "main")
+	MaxConcurrentTasks int    `yaml:"max_concurrent_tasks" json:"max_concurrent_tasks"` // 0 = unlimited
+	SessionContinuity  bool   `yaml:"session_continuity" json:"session_continuity"`     // Use --resume for Claude Code / --conversation-id for Gemini
 
 	// Generic workflow configuration (v0.6.3+)
 	Invoke           *InvokeConfig   `yaml:"invoke" json:"invoke,omitempty"`                       // How to invoke this agent

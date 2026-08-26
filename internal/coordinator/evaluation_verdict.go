@@ -138,3 +138,56 @@ func truncateVerdict(s string, n int) string {
 	}
 	return s[:n] + "…"
 }
+
+// EvaluationVerdictMarker is the output line an EvaluatesParent agent emits.
+const EvaluationVerdictMarker = "EVALUATION_VERDICT:"
+
+// ExtractEvaluationVerdict finds the LAST verdict line in an evaluator's
+// output. Absence is UNAVAILABLE: a completed evaluator that emitted no
+// verdict did not pass anything.
+func ExtractEvaluationVerdict(output string) EvaluationVerdict {
+	var last string
+	found := false
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, EvaluationVerdictMarker) {
+			last = strings.TrimSpace(strings.TrimPrefix(line, EvaluationVerdictMarker))
+			found = true
+		}
+	}
+	if !found {
+		return UnavailableVerdict("evaluator completed without emitting an " + EvaluationVerdictMarker + " line")
+	}
+	return ParseEvaluationVerdict(last)
+}
+
+// AutoApprovesHandoffTo reports whether a handoff from this agent to target
+// skips the approval gate: either the blanket bool, or a per-edge entry.
+func (a *AgentConfig) AutoApprovesHandoffTo(target string) bool {
+	if a == nil {
+		return false
+	}
+	if a.AutoApproveHandoffs {
+		return true
+	}
+	for _, t := range a.AutoApproveHandoffTo {
+		if t == target {
+			return true
+		}
+	}
+	return false
+}
+
+// AllowsAutomation reports whether this approval may be progressed by
+// AUTOMATION (auto_merge, auto-approved downstream handoffs). An empty
+// Evaluation means no evaluator stage is configured and does not block —
+// making absence block would freeze every non-evaluated flow. Any present
+// value must parse to PASS; FAIL, UNAVAILABLE, and garbage all block. The
+// HUMAN gate never consults this — a person may approve anything, with the
+// verdict displayed.
+func (r *ApprovalRequestRecord) AllowsAutomation() bool {
+	if r == nil || r.Evaluation == "" {
+		return true
+	}
+	return !ParseEvaluationVerdict(r.Evaluation).BlocksAutomation()
+}
