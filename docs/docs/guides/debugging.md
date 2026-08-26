@@ -722,6 +722,20 @@ jq -r '.[] | select(.name=="LLM Generation")
           "reasoning="+((.attributes["gen_ai.usage.output_tokens.reasoning"]//0)|tostring)] | @tsv' /tmp/spans.json
 ```
 
+### Asserting what pi actually sends
+
+`scripts/check_pi_wire_budget.sh` (or `make check-pi-wire-budget`) makes one real pi call
+and reads the request back from the Broadcast trace, comparing the budget pi's registry
+declares against what the wire carried. It is deliberately NOT a CI gate: it costs a
+fraction of a cent, needs `OPENROUTER_API_KEY`, and depends on ingest.
+
+It exists because **every other guard on that number compares one config file to another,
+and none of them is the wire.** pi-ai's `buildBaseOptions` clamps to
+`Math.min(model.maxTokens, 32000)` whenever the caller passes no explicit `maxTokens` —
+which pi-coding-agent never does for main agent turns — so a 2x understatement sat green
+in CI for weeks while `TestPiModelsConfigMatchesRegistry` happily compared 65536 to 65536.
+Measured: declaring 20000 sends 20000; declaring 65536 sends 32000.
+
 ### Gotchas, each one measured
 
 - **An empty window is not a broken pipe.** Ingest showed zero spans for 08-23..08-26 and

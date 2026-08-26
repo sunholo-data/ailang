@@ -36,6 +36,18 @@ MODEL_OUTCOME_CATEGORIES = {
     # being one number. Classifying it as run-unmeasured would silently
     # forgive a real failure.
     "output_format",
+    # The model spent its whole output budget thinking and returned no answer
+    # (empty content, output_tokens == reasoning_tokens, HTTP 200). A MODEL
+    # outcome, by the same precedent as step_exhausted and resource_limit: both
+    # are "hit a budget the harness set", and both live here. The infrastructure
+    # worked — the model engaged with the task and never came back — so calling
+    # it run-unmeasured would forgive a real failure, exactly as the
+    # output_format note above argues.
+    # NOTE it IS sensitive to configured headroom: under-provisioning
+    # max_output_tokens manufactures these. If this category starts trending,
+    # check the declared budget actually reaching the wire BEFORE reading it as
+    # a capability signal (scripts/check_pi_wire_budget.sh).
+    "reasoning_stall",
 }
 PAGING_CLASSES = {"regression", "sustained-failure"}
 DATE_RE = re.compile(r"nightly_eval_(\d{8})_rag_on")

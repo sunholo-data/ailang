@@ -2,7 +2,7 @@
 # CODE HEALTH & ORGANIZATION TARGETS
 # =============================================================================
 
-.PHONY: check-file-sizes report-file-sizes codebase-health largest-files
+.PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget
 .PHONY: fmt fmt-check fmt-check-ail vet lint install-lint
 
 # Code formatting
@@ -180,6 +180,12 @@ check-autoclose: ## Refuse issue-closing phrases in docs-only commit/PR records 
 
 check-skills: ## Check .claude/skills/*/SKILL.md have name+description frontmatter (CI gate)
 	@bash scripts/check_skills.sh
+
+check-pi-wire-budget: ## Assert the output budget pi ACTUALLY sends (real API call; NOT a CI gate)
+	@# Deliberately outside `make ci`: it costs a fraction of a cent, needs
+	@# OPENROUTER_API_KEY, and depends on Broadcast ingest. Every config-vs-config
+	@# test is blind to this — pi-ai clamps to 32000 downstream of every config file.
+	@bash scripts/check_pi_wire_budget.sh $(MODEL)
 
 report-file-sizes: ## Report all files >500 lines
 	@echo "$(BOLD)=== File Size Report ===$(RESET)"

@@ -38,7 +38,24 @@ const piModelsCanonicalPath = "../../tools/pi-extensions/models.mission.json"
 // task.MaxOutputTokens, and CI was green the whole time.
 //
 // So the invariant is asserted where it can be: every model in the canonical pi
-// config must declare the same budget as the models.yml entries that name it.
+// config must declare the same budget as the PI-LANE models.yml entries that name it.
+//
+// ⚠️ CORRECTED 2026-08-26 — this test's original premise was too strong, and its
+// original claim ("closes the gap that made models.yml's declared budget a fiction")
+// was FALSE. Neither file it compares is the wire, and pi-ai clamps the budget
+// downstream of BOTH: buildBaseOptions (dist/providers/simple-options.js:4) computes
+// Math.min(model.maxTokens, 32000) whenever the caller passes no explicit maxTokens,
+// which pi-coding-agent never does for main agent turns. Proven on the wire via
+// OpenRouter Broadcast: declaring 20000 sent 20000, declaring 65536 sent 32000.
+//
+// Two consequences encoded below:
+//   - Comparison is scoped to PI-LANE rows. A model's effective budget is
+//     HARNESS-dependent, so pi declaring 32000 while opencode/motoko declare 65536
+//     for the same slug is CORRECT, not drift.
+//   - Only a real request can confirm the clamp constant itself. That check is
+//     scripts/check_pi_wire_budget.sh, which reads the request back from the
+//     provider's own trace. A config-vs-config test cannot do it, and believing
+//     otherwise is what let a 2x understatement sit green in CI for weeks.
 func TestPiModelsConfigMatchesRegistry(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Clean(piModelsCanonicalPath))
 	if err != nil {
@@ -61,6 +78,13 @@ func TestPiModelsConfigMatchesRegistry(t *testing.T) {
 	// (provider, api_name) -> every registry row that names it.
 	declared := map[string]map[string][]entry{}
 	for name, m := range c.Models {
+		// PI-LANE ROWS ONLY. The same slug legitimately carries different budgets on
+		// different harnesses — pi clamps to 32000, our own Go client does not — so
+		// comparing pi's config against an opencode or motoko row measures the
+		// harness, not drift.
+		if m.AgentCLI == nil || *m.AgentCLI != "pi" {
+			continue
+		}
 		if declared[m.Provider] == nil {
 			declared[m.Provider] = map[string][]entry{}
 		}
@@ -105,10 +129,11 @@ func TestPiModelsConfigMatchesRegistry(t *testing.T) {
 			checked++
 			totalChecked++
 
-			// The registry must not disagree with ITSELF about one model. It did:
-			// the qwen rows declared 32768 on motoko-local-* and 8192 on
-			// pi-/opencode-*, so a cross-harness comparison was partly measuring
-			// the harness's budget rather than the model.
+			// The registry must not disagree with itself about one model ON ONE
+			// HARNESS. Originally this compared across harnesses, which was wrong:
+			// the effective budget is harness-dependent (pi clamps at 32000). It is
+			// still worth asserting within the pi lane, because two pi rows naming
+			// the same slug DO share a wire.
 			budgets := map[int][]string{}
 			for _, e := range entries {
 				budgets[e.budget] = append(budgets[e.budget], e.key)
@@ -120,7 +145,7 @@ func TestPiModelsConfigMatchesRegistry(t *testing.T) {
 					lines = append(lines, strings.Join(keys, ", ")+" -> "+strconv.Itoa(b))
 				}
 				sort.Strings(lines)
-				t.Errorf("models.yml declares MORE THAN ONE max_output_tokens for %q: %v — same model, same wire, so at most one of these is being honoured",
+				t.Errorf("models.yml declares MORE THAN ONE max_output_tokens for %q: %v — same model, same harness, same wire, so at most one of these is being honoured",
 					m.ID, lines)
 			}
 

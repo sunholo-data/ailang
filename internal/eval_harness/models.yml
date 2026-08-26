@@ -1459,7 +1459,15 @@ models:
     agent_cli: "pi"
     agent_model_name: "anthropic/claude-haiku-4-5"   # pi provider/model shorthand
     model_family: "claude-haiku-4-5"                 # Cross-harness grouping: pairs with claude-haiku-4-5 + opencode-haiku
-    max_output_tokens: 64000  # M-EVAL-TOKEN-HEADROOM: was 16000; family ceiling (non-streaming Messages API)
+    max_output_tokens: 64000  # ⚠️ OVER-DECLARED, but not by the flat pi clamp.
+                              # The anthropic path adds a thinking budget on top of the
+                              # clamped base: adjustMaxTokensForThinking gives
+                              # min(32000 + budget, model.maxTokens), so the wire carries
+                              # 33,024 (minimal) .. 48,384 (high) — never 64000. Left as
+                              # 64000 rather than pinned to a wrong single number, because
+                              # the real value is thinking-level dependent and this field
+                              # is static. See PI_WIRE_CLAMP on pi-or-deepseek-v4-flash.
+                              # M-EVAL-TOKEN-HEADROOM: was 16000; family ceiling (non-streaming Messages API)
     pricing:
       input_per_1k: 0.001    # $1.00 per 1M — CORRECTED 2026-08-13 (was 0.00025, Haiku 3.5 rates)
       output_per_1k: 0.005   # $5.00 per 1M — must match the canonical claude-haiku-4-5 row (same api_name)
@@ -1481,7 +1489,14 @@ models:
     agent_cli: "pi"
     agent_model_name: "anthropic/claude-sonnet-4-6"
     model_family: "claude-sonnet-4-6"                # Pairs with claude-sonnet-4-6 + opencode-sonnet-4-6
-    max_output_tokens: 64000
+    max_output_tokens: 64000  # ⚠️ OVER-DECLARED, but not by the flat pi clamp.
+                              # The anthropic path adds a thinking budget on top of the
+                              # clamped base: adjustMaxTokensForThinking gives
+                              # min(32000 + budget, model.maxTokens), so the wire carries
+                              # 33,024 (minimal) .. 48,384 (high) — never 64000. Left as
+                              # 64000 rather than pinned to a wrong single number, because
+                              # the real value is thinking-level dependent and this field
+                              # is static. See PI_WIRE_CLAMP on pi-or-deepseek-v4-flash.
     pricing:
       input_per_1k: 0.003   # $3 per million
       output_per_1k: 0.015  # $15 per million
@@ -1500,7 +1515,7 @@ models:
     agent_cli: "pi"
     agent_model_name: "openai/gpt-5.4"
     model_family: "gpt5-4"                           # Pairs with gpt5-4 + opencode-gpt5-4
-    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
+    max_output_tokens: 32000  # PI_WIRE_CLAMP (was 65536; M-EVAL-TOKEN-HEADROOM had raised it from 128000)
     pricing:
       input_per_1k: 0.0025
       output_per_1k: 0.015
@@ -1518,7 +1533,7 @@ models:
     agent_cli: "pi"
     agent_model_name: "google/gemini-3-flash-preview"
     model_family: "gemini-3-flash"                   # Pairs with gemini-3-flash + opencode-gemini-3-flash
-    max_output_tokens: 65536
+    max_output_tokens: 32000  # PI_WIRE_CLAMP (was 65536)
     pricing:
       input_per_1k: 0.0005  # $0.50 per 1M
       output_per_1k: 0.003  # $3.00 per 1M
@@ -2292,7 +2307,7 @@ models:
     agent_model_name: "ollama/qwen3.5:35b-a3b-mxfp8"
     model_family: "qwen-3-5"
     # Aligned 2026-08-13 — one budget per model; rationale on opencode-qwen3-5-35b-a3b-mxfp8.
-    max_output_tokens: 32768
+    max_output_tokens: 32000  # PI_WIRE_CLAMP (was 32768)
     ttft_timeout: 900
     generation_timeout: 1200
     budgets:
@@ -2357,7 +2372,7 @@ models:
     agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"
     model_family: "qwen-3-6"
     # Aligned 2026-08-13 — one budget per model; rationale on opencode-qwen3-5-35b-a3b-mxfp8.
-    max_output_tokens: 32768
+    max_output_tokens: 32000  # PI_WIRE_CLAMP (was 32768)
     ttft_timeout: 900
     generation_timeout: 1200
     budgets:
@@ -2429,7 +2444,7 @@ models:
     agent_cli: "pi"
     agent_model_name: "ollama/qwen3.8:27b-mxfp8"
     model_family: "qwen-3-8"
-    max_output_tokens: 32768
+    max_output_tokens: 32000  # PI_WIRE_CLAMP (was 32768)
     ttft_timeout: 1800
     generation_timeout: 3600
     budgets:
@@ -2494,7 +2509,7 @@ models:
     agent_cli: "pi"
     agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"
     model_family: "qwen-3-6"
-    max_output_tokens: 32768
+    max_output_tokens: 32000  # PI_WIRE_CLAMP (was 32768)
     ttft_timeout: 1800
     generation_timeout: 3600
     budgets:
@@ -2814,7 +2829,7 @@ models:
     # the cache resets. A hard pin needs provider.only, which pi cannot express.
     agent_model_name: "openrouter/deepseek/deepseek-v4-flash-0731:floor"
     model_family: "deepseek-v4"
-    max_output_tokens: 65536  # matches or-/opencode- siblings. Declared ceilings
+    max_output_tokens: 32000  # PI_WIRE_CLAMP (was 65536)  # matches or-/opencode- siblings. Declared ceilings
                               # (endpoints API 2026-08-06): first-party DeepSeek
                               # 384K, most hosts >=131K, min-host Venice 32768 —
                               # routing roulette can undercut this cap on Venice.
@@ -2828,24 +2843,29 @@ models:
                               # 16384 with thinking billed against it, until
                               # 2026-08-13. TestPiModelsConfigMatchesRegistry now
                               # fails if the two drift apart again.
-                              # ⚠️ STILL NOT REACHING THE WIRE — RE-MEASURED 2026-08-26.
-                              # A live pi 0.73.1 probe, read back from OpenRouter's own
-                              # Broadcast trace, sent `max_completion_tokens: 32000`
-                              # while ~/.pi/agent/models.json declares 65536. Not an
-                              # OpenRouter ceiling: its /models API reports 943718 for
-                              # this slug, so 32000 is pi's own and our override is
-                              # being ignored. Second recurrence of the same class
-                              # (16384 -> 32000), and 32000 sits right on the danger
-                              # line — the or-glm-5-2 entry records a thinking phase
-                              # measured at 28-32K tokens. TestPiModelsConfigMatchesRegistry
-                              # cannot catch this: it compares two CONFIG files and
-                              # neither is the wire. Tracked as an open item; the
-                              # mission lane is protected meanwhile by the typed
-                              # stall verdict in scripts/mission_pi_run.sh.
-                              # ⚠️ DO NOT "fix" this by lowering `--thinking`. Restricting
-                              # thinking is an EVAL-only lever; the mission executor runs
-                              # at full ability, and a reasoning-effort downgrade would
-                              # silently change what the lane is measured to be capable of.
+                              # ✅ ROOT-CAUSED 2026-08-26. THE CEILING IS pi's, AND IT IS 32000.
+                              # `buildBaseOptions` in pi-ai
+                              # (dist/providers/simple-options.js:4) computes
+                              #   maxTokens: options?.maxTokens
+                              #              ?? (model.maxTokens > 0
+                              #                  ? Math.min(model.maxTokens, 32000)
+                              #                  : undefined)
+                              # and pi-coding-agent passes NO options.maxTokens for main
+                              # agent turns (only compaction and branch-summarisation do).
+                              # So every pi lane is clamped to 32000 no matter what any
+                              # config declares. EVERY provider goes through this function.
+                              # PROVEN ON THE WIRE, not inferred: declaring 20000 produced
+                              # max_completion_tokens=20000, declaring 65536 produced 32000
+                              # — i.e. the rule is exactly min(declared, 32000).
+                              # There is no escape hatch: pi has no max-tokens CLI flag and
+                              # its extension API exposes no request-options hook.
+                              # So this entry now declares the TRUTH. Do not "restore" 65536:
+                              # it was never reachable, and CI pinning it made the harness
+                              # believe a budget the wire never carried.
+                              # NOT currently binding: zero finish_reason=length across the
+                              # whole OpenRouter Broadcast corpus, and the most any pi lane
+                              # has ever emitted is 11,602 output tokens.
+                              # Verify with: scripts/check_pi_wire_budget.sh
     pricing:
       # RE-MEASURED 2026-08-11 from OpenRouter's own endpoints API. The model is
       # served by 26 upstream hosts at $0.08-0.14/M input, so a single number is

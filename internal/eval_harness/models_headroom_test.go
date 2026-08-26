@@ -78,6 +78,23 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		// Hard provider ceilings verified via the OpenRouter endpoints API
 		// (2026-07-27): max_completion_tokens across ALL upstreams.
 		"or-deepseek-v3": 16384, "or-qwen-2-5-72b": 16384,
+
+		// HARNESS ceiling, not a provider one — and the only one here proven by
+		// reading the actual request rather than a vendor doc. pi-ai's
+		// buildBaseOptions (dist/providers/simple-options.js:4) computes
+		// Math.min(model.maxTokens, 32000) whenever the caller passes no explicit
+		// maxTokens, and pi-coding-agent never does for main agent turns. So every
+		// openai-compat pi lane is capped at 32000 regardless of what any config
+		// says, and pi exposes neither a max-tokens flag nor a request hook to
+		// raise it.
+		//
+		// Measured on the wire 2026-08-26 via OpenRouter Broadcast: declaring
+		// 20000 sent max_completion_tokens=20000, declaring 65536 sent 32000 —
+		// i.e. exactly min(declared, 32000). These rows now declare the truth;
+		// restoring 65536 would only reinstate a fiction CI was pinning.
+		// Re-verify with scripts/check_pi_wire_budget.sh.
+		"pi-gpt5-4": 32000, "pi-gemini-3-flash-preview": 32000,
+		"pi-or-deepseek-v4-flash": 32000,
 	}
 
 	c, err := LoadModelsConfig("models.yml")
