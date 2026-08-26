@@ -1,36 +1,40 @@
 # Mission Dashboard — Motoko
 
-_Snapshot after iteration 23 (2026-08-25). Overwritten each iteration; history lives in the charter STATUS block and the log._
+_Snapshot after iteration 24 (2026-08-26). Overwritten each iteration; history lives in the charter STATUS block and the log._
 
 **Release**: AILANG v0.33.2 · anchor `sunholo-data/ailang` (shared with V1; V1 owns dev CI red on it)
 
 ## In flight / next
-- **Just landed** — row **6f**: triage-lite of the two motoko-owned sweep issues. `#839` (`std/net` ignores
-  proxy env) **CLOSED** — a version skew: the reporter's `v0.33.0` binary predates the fix (`e5ee6c5e5`,
-  PR #613) by 16 days; closed against CI-run regression tests, not bookkeeping. `#842` **CONFIRMED REAL**
-  and re-filed as row 6h.
-- **Next** — row **6g**: `run_bounded` *and* production `run_lane` kill the wrapper PID, not the process
-  group, so a hung grandchild survives at `PPID 1`.
-- **Then** — row **6h** (new): a provider failure parses as a successful empty completion, and the guard the
-  reporter suggests is **not expressible** — `ChatStepResponse.Usage` is a value type, so
-  `absent.Usage == zeroed.Usage`. Reaches the **ollama `/v1` lane**, i.e. our own eval rig.
-- **Then** — row 7 (profile restoration design), row 8 (repin stale OpenRouter models).
+- **Just landed** — row **6g**: `run_bounded` and production `run_lane` killed the wrapper PID, leaving a
+  hung grandchild alive at `PPID 1`. PR [#892](https://github.com/sunholo-data/ailang/pull/892) →
+  [`fd1fa9e01`](https://github.com/sunholo-data/ailang/commit/fd1fa9e01). Guarded process-group kill via
+  `set -m`; suite 39 → **40 arms**. Evaluator round 1 **PASS 82/100, zero blocking**.
+- **Next** — row **6h**: a provider failure parses as a successful empty completion; the reporter's guard is
+  **not expressible** (`ChatStepResponse.Usage` is a value type, so `absent == zeroed`). Reaches the ollama
+  `/v1` lane, i.e. our own rig.
+- **Then** — row **6i** (new, from this iteration's own drill): the **production** `run_lane` group-kill has
+  **zero test coverage** — reverting the whole hunk leaves the suite green 40/40; its only gate is `bash -n`.
+  That is the half row 6g called "the one that matters".
 
 ## Gated / parked
-- Phase 0 remains **CLOSED**: `arniwesth/motoko_agent#154` still OPEN (control `#175` MERGED), and G5 needs
-  Arni's ABI-settled word. Rows 10/11/12 stay parked. Rows 9/13/14 wait on a green tree.
+- Phase 0 **CLOSED**: `arniwesth/motoko_agent#154` still OPEN (re-measured as a command; control `#175`
+  MERGED) and G5 needs Arni's word. Rows 10/11/12 parked; rows 9/13/14 wait on a green tree.
 
 ## Loop health / routing
-- Controller opus · **no designer/planner/executor/evaluator spawned** (triage-lite row names its own
-  procedure) · designer rotation untouched at fable, **unspent**.
-- Metered **$0.00** of $5. No GPU, no `rig.lock`. Gates run on darwin/arm64 only.
-- **dev CI RED and handed to V1**: `test` job on `02bf43668` failed at *Download all Go modules*
-  (`proxy.golang.org` stream error) on V1's docs-only record commit; re-run fired, not our pick.
-- Source clone `~/dev/sunholo-data/ailang-motoko`: **35 behind / 0 ahead**, clean — crossed the notice
-  threshold (25) exactly as `D-MOTOKO-WORKDIR-2` predicted, up from 24 one iteration ago.
+- Controller opus · executor `codex:gpt-5.6-sol` (probe rc=0) · evaluator **sonnet, own worktree**
+  (generator≠judge) · no designer/planner/quorum (row names its own scope) · rotation at fable, **unspent**.
+- Metered **$0.00** of $5. No GPU. Gates on darwin/arm64 — the ONLY platform the `launchd drivers (bash 3.2)`
+  CI job runs on, deliberately, so the local green IS the CI leg.
+- **Executor run 1 was wasted by MY gate list, not the lane**: the full suite is unsatisfiable under codex
+  `--sandbox workspace-write` (arm 33's loopback bind kills the session). Re-issued, re-run outside.
+- **`~/go/bin/ailang` silently ignores `AILANG_MESSAGES_STORE`** (invalid value → rc=0). Fresh binary built
+  to read the canonical cloud inbox: **62** unread there vs 12 locally.
+- **dev CI: SonarCloud red, handed to V1** — *52.8% coverage on new code (≥80% required)*, green at
+  `6193bb712`, red from `6759ea4fa` (V1's messaging-store change). Not required, not ours.
+- Source clone: **46 behind / 0 ahead**, clean — up from 35, above the notice threshold for a third
+  consecutive iteration.
 
 ## Parked on Mark
-- **`D-MOTOKO-WORKDIR-2`** (OPEN since iteration 21, unanswered — this is the second ask): grant **standing**
-  authorization to reconcile the source clone to `origin/dev` unattended when three measured predicates hold?
-  One word: **yes** or **no**. Without it this returns roughly four times per nine days, each time resolving
-  to the same word for the same mechanical operation.
+- **`D-MOTOKO-WORKDIR-2`** (OPEN since iteration 21 — **third** ask): grant **standing** authorization to
+  reconcile the source clone to `origin/dev` unattended when three measured predicates hold? One word:
+  **yes** or **no**. Drift has gone 0 → 24 → 35 → 46 in four iterations.

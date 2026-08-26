@@ -2476,3 +2476,90 @@ first move rather than a code read. Recorded here, not in the rulebook.
 
 **Next**: row **6g** (`run_bounded`/`run_lane` kill the wrapper PID, not the process group), then row **6h**
 (the `#842` fix), then row 7.
+
+## 24 — 2026-08-26 — the cap killed the wrapper, and the fix for the half that matters is pinned by nothing
+
+**Pick**: queue head, row **6g** — `run_bounded` (self-test) and `run_lane` (production) bound a
+child with a wall-clock cap and, on expiry, kill the **wrapper PID only**, so a hung grandchild is
+reparented to `PPID 1` and survives. Landed as PR
+[#892](https://github.com/sunholo-data/ailang/pull/892).
+
+**Ghost discipline, before any routing.** The row's evidence was iteration 22's evaluator, i.e. an
+inherited claim. Reproduced first-party against the shipped code with controls firing: PRE 0 live
+fixtures, cap fires `rc=199`, **1 survivor at `PPID 1`** afterwards, wrapper count **0**, POST
+cleanup back to 0. The middle two lines are the finding — the suite's existing "process survived"
+check passes *because* the wrapper really is dead, so the arm passed for exactly the reason it
+should have failed.
+
+**Mechanism measured before it was specified, not after.** `setsid` does not exist on macOS
+(`which setsid` → not found) and every process-group precedent in this repo is Go-side
+(`SysProcAttr{Setpgid:true}`), unusable from bash. Two arms, and they differ, which is what makes
+this a discriminator rather than a preference: **without** `set -m` the child's pgid (9361) **is
+the script's own**, so a negative-PID kill would kill the suite itself, and a single-PID kill
+leaves 1 orphan; **with** it, pgid == pid (9379), differs from the script's, and the group kill
+leaves 0. That measurement is why the shipped group kill is *guarded* — `jobs -p` membership,
+`pid != $$`, and a live `kill -0 "-$pid"` — rather than unconditional.
+
+**THE FINDING THAT OUTRANKS THE FIX: the production hunk is pinned by nothing.** Walking the diff
+hunk-by-hunk rather than reasoning from the defect (rule 3n), the third mutant reverts
+`tools/eval/motoko_connection_probe.sh` **entirely** to its `origin/dev` version — and the suite
+stays **green at 40/40, rc=0**. Zero killers. Its only gate is `bash -n`. So the half of row 6g
+that the row itself calls *"the one that matters"* — the production lane bound on the GPU rig,
+where a surviving descendant is indistinguishable from a model declining to act — shipped with no
+behavioural pin at all. Filed as row **6i** rather than growing this PR, per the rule that a hunk
+with no killer is a finding and not a failure. The self-test half **is** pinned: mutant A (group →
+single-PID kill) is the **SOLE KILLER**, `survivors=1`, 34 arms green before it; mutant B (neuter
+`set -m`) fires the safety refusal twice and the suite **reports** the failure instead of killing
+itself, which is the guard's whole purpose.
+
+**MY OWN GATE LIST WAS UNSATISFIABLE IN THE LANE I ROUTED IT TO, AND THE EXECUTOR CAUGHT IT.** Run
+1 of the executor stopped with zero files changed and reported that G3 — the full self-test suite —
+never produced an rc: under codex `--sandbox workspace-write` it reaches arm 32, prints
+`UNINFORMATIVE UNDER SANDBOX: loopback bind denied`, and arm 33's live-socket bind then **terminates
+the enclosing session**. It stopped because my directive told it a base-red gate is a finding, not
+an obstacle — so it obeyed the rule correctly and the rule was pointed at a gate that could never
+be green there. This is the skill's own iteration-270 defect (*a baseline is a claim about the
+environment you ran it in*): I baselined all three gates **outside** the sandbox, in my own shell,
+and handed them to a lane that cannot satisfy one of them. Re-issued with G3 labelled
+`UNINFORMATIVE UNDER SANDBOX`, a satisfiable in-sandbox harness in its place, and the full suite
+re-run by the controller outside — which is what false-green #3 already prescribes. Cost: one
+executor run. Not a lane failure and not a fallback; the lane was fine and the directive was wrong.
+
+**A GREP-SHAPED LEAK CHECK MATCHED A PROCESS THAT ONLY *MENTIONED* THE FIXTURE.** After the green
+suite run, `ps | grep "sleep 2849"` returned **1** and read as a leaked orphan. It was a codex
+computer-use notification process whose argv embeds the executor's own report, which contains the
+string. Scoped correctly to `comm == sleep` the count is **0**, with the control firing (1 while a
+real `sleep 2849` runs, 0 after it is killed). Worth recording because it *vindicates the
+executor's deviation from my directive*: I specified matching a distinctive sleep duration; it
+instead scoped by a unique fixture **cwd** via `lsof -c sleep`. Its design is strictly better and
+mine is the one that produced a false positive within minutes of being written.
+
+**Evaluator (sonnet, own worktree, distinct provider from the codex executor): round 1 PASS
+82/100, ZERO blocking.** It reproduced **all five** controller claims exactly — including mutant
+C's zero-killer result — tried and failed to construct a false positive for the `group_safe` guard,
+confirmed `set -m` leaks no job-status lines by diffing arm lines against the 39-arm baseline, and
+verified `{ wait "$pid"; } 2>/dev/null || rc=$?` still propagates a real exit code (42, 5/5). Of its
+three non-blocking findings, one names a defect **this PR introduced** — the guarded fallback
+printed `INSTRUMENT FAILURE:`, byte-for-byte the prefix of `instrument_failure()`, which prints that
+string and then `exit 1`, while the fallback does not exit; a log-grep for the abort signal matched
+**4** lines where only **2** meant termination. Fixed in the second commit (`INSTRUMENT DEGRADED:`,
+verified against the parsed form: 4 → 2 and 0 → 2). The other two are pre-existing or
+forward-looking and went to the queue.
+
+**Ruled out**
+- *"The `ailang` binary on PATH honours `AILANG_MESSAGES_STORE`"* — **refuted at Gate 0.** The
+  control (`AILANG_MESSAGES_STORE=not-a-real-store`) must error `unknown message store mode`; the
+  PATH binary returned **rc=0** and listed local SQLite. Built a fresh binary to a scratch dir with
+  the version ldflags (a bare `go build` in a linked worktree stamps `"dev"`), confirmed
+  `v0.33.2-26-gfadbdc4e2`, and the control then correctly returned **rc=1**. The cloud inbox has
+  **62** unread against the local store's 12 — they are different queues.
+- *"The suite leaks an orphan"* — refuted, see above; the instrument was wrong, not the suite.
+- *"SonarCloud's red is ours"* — refuted by walking it back commit by commit: green at `6193bb712`
+  (18:55), red at `6759ea4fa` (19:14) and on every commit since. V1's messaging-store change, and
+  the condition is *52.8% coverage on new code (required ≥80%)*. Handed over, not triaged here.
+- *`pgrep`/`ps` as a liveness or leak instrument* — refuted twice in one iteration (the argv match
+  above; and the skill's own rule that an empty `pgrep` is *unknown*, not *dead*). Polled artifacts
+  throughout: the rc file, the log size, the worktree diff.
+
+**Next**: row **6h** (a provider failure parsing as a successful empty completion — reaches the
+ollama `/v1` lane, i.e. our own rig), then the newly filed row **6i**.
