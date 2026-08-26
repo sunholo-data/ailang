@@ -43,7 +43,8 @@ func (p *printer) newMeasurementPrinter() *printer {
 func (p *printer) inlineWidth(n ast.Expr) int {
 	measurement := p.newMeasurementPrinter()
 	if err := measurement.expr(n, precLowest); err != nil {
-		panic("format: inline width measurement failed: " + err.Error())
+		p.measurementErr = err
+		return 0
 	}
 	line, _, _ := strings.Cut(measurement.w.string(), "\n")
 	return utf8.RuneCountInString(line)
@@ -53,5 +54,9 @@ func (p *printer) exceedsWidth(n ast.Expr, pending int) bool {
 	if p.measuring {
 		return false
 	}
-	return p.w.col+pending+p.inlineWidth(n) > p.maxWidth
+	width := p.inlineWidth(n)
+	if p.measurementErr != nil {
+		return false
+	}
+	return p.w.col+pending+width > p.maxWidth
 }

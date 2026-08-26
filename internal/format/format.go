@@ -40,6 +40,7 @@ type printer struct {
 	maxWidth         int
 	measuring        bool
 	measurementDepth int
+	measurementErr   error
 }
 
 // attachIndex is a fast lookup over the attachment set, keyed by owner pointer.
@@ -101,6 +102,9 @@ func Source(program *ast.Program, options Options) ([]byte, error) {
 	if err := p.file(program.File); err != nil {
 		return nil, err
 	}
+	if p.measurementErr != nil {
+		return nil, p.measurementErr
+	}
 	out := p.w.string()
 	// Guarantee exactly one trailing newline (LF), even for an empty file.
 	out = ensureSingleTrailingNewline(out)
@@ -141,6 +145,9 @@ func SourceWithComments(program *ast.Program, source []byte, options Options) ([
 	}
 	if err := p.file(program.File); err != nil {
 		return nil, err
+	}
+	if p.measurementErr != nil {
+		return nil, p.measurementErr
 	}
 	out := ensureSingleTrailingNewline(p.w.string())
 	return []byte(out), nil

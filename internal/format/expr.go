@@ -263,7 +263,7 @@ func (p *printer) funcLit(n *ast.FuncLit) error {
 //     boundaries. The `in` is written BEFORE any trailing comment so a `--` comment
 //     cannot swallow syntax.
 func (p *printer) letIn(n *ast.Let) error {
-	if n.Body != nil && p.hasAnyAttachment(n) {
+	if n.Body != nil && (p.hasAnyAttachment(n) || p.exceedsWidth(n, prefixLetIn)) {
 		return p.letChainMultiline(n)
 	}
 	return p.letInInline(n)

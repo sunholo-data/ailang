@@ -157,8 +157,18 @@ func isConcatString(n *ast.FuncCall) bool {
 // Any refusal falls back to printing the chain in ordinary call form, which is
 // always correct — just not the taught spelling.
 func (p *printer) holeText(e ast.Expr) (string, bool) {
-	sub := &printer{w: newWriter(p.w.indent), att: p.att}
+	sub := &printer{
+		w:                newWriter(p.w.indent),
+		att:              p.att,
+		maxWidth:         p.maxWidth,
+		measuring:        p.measuring,
+		measurementDepth: p.measurementDepth,
+	}
 	if err := sub.expr(e, precLowest); err != nil {
+		return "", false
+	}
+	if sub.measurementErr != nil {
+		p.measurementErr = sub.measurementErr
 		return "", false
 	}
 	s := sub.w.buf.String()
