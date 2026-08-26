@@ -69,8 +69,16 @@
     <key>StandardErrorPath</key>
     <string>/tmp/ailang-coordinator-launchd.log</string>
 
+    <!-- Must be a git checkout, not $HOME. initTaskProcessing creates a
+         "default" worktree manager with an empty repo path
+         (daemon_tasks_init.go:185), which resolves the git root from CWD; from
+         $HOME that is `git rev-parse` exit 128, initTaskProcessing returns an
+         error, and the daemon drops into STANDBY MODE — no message processing
+         at all, logged once at startup as a Warning and never again.
+         Measured 2026-08-26: the rig coordinator had been in standby, silently
+         processing nothing, across every restart. -->
     <key>WorkingDirectory</key>
-    <string>@USER_HOME@</string>
+    <string>@COORDINATOR_WORKDIR@</string>
 
     <!-- Throttle to one launch every 10s — prevents tight crash loops while
          still allowing normal restarts after transient failures. -->
@@ -93,6 +101,22 @@
              `install_coordinator.sh --port N`. -->
         <key>PORT</key>
         <string>@HTTP_PORT@</string>
+        <!-- Repo coordinate for cloud dispatch. deriveRepoURL
+             (daemon_tasks_exec.go:14) prefers the agent's `workspace` when it
+             looks like a GitHub org/repo, and falls back to this env var when
+             `workspace` is a local path (leading "/").
+
+             That fallback is the ONLY correct way to supply both: `workspace`
+             is declared as "Base directory for worktrees"
+             (agent_registry.go:105) and is chdir'd into by NewWorktreeManager
+             (daemon_tasks_init.go:151). Setting `workspace` to a bare
+             org/repo to satisfy cloud dispatch breaks the worktree manager —
+             measured 2026-08-26, the daemon logged "failed to prune
+             worktrees: chdir sunholo-data/ailang" every 30s because
+             WorkingDirectory is $HOME. Keep `workspace` local; set the repo
+             here. -->
+        <key>AILANG_REPO_URL</key>
+        <string>@AILANG_REPO_URL@</string>
     </dict>
 </dict>
 </plist>

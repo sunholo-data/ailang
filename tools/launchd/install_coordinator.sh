@@ -116,6 +116,15 @@ resolve_cloud_project() {
     fi
 }
 
+# Repo coordinate handed to the coordinator as AILANG_REPO_URL. See the
+# template's AILANG_REPO_URL comment for why this is an env var and not the
+# agent's `workspace` field.
+REPO_URL="${REPO_URL:-https://github.com/sunholo-data/ailang.git}"
+
+# CWD for the daemon. MUST be a git checkout — see the template's
+# WorkingDirectory comment (standby mode otherwise).
+COORDINATOR_WORKDIR="${COORDINATOR_WORKDIR:-$HOME/dev/sunholo-data/ailang}"
+
 render_plist() {
     sed \
         -e "s|@USER_HOME@|$HOME|g" \
@@ -123,6 +132,8 @@ render_plist() {
         -e "s|@AILANG_CLOUD_PROJECT@|$CLOUD_PROJECT|g" \
         -e "s|@HTTP_PORT@|$HTTP_PORT|g" \
         -e "s|@PATH_PREFIX@|$PATH_PREFIX|g" \
+        -e "s|@AILANG_REPO_URL@|$REPO_URL|g" \
+        -e "s|@COORDINATOR_WORKDIR@|$COORDINATOR_WORKDIR|g" \
         "$TEMPLATE"
 }
 
