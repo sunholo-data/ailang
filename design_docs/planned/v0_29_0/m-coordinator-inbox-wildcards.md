@@ -1,6 +1,12 @@
 # M-COORDINATOR-INBOX-WILDCARDS: glob-based inbox routing in the agent registry
 
-**Status**: Implemented (unreleased — goals 1-4 landed 2026-08-25)
+**Status**: Implemented for `pkg:*` routing (goals 1-4, released in v0.34.0)
+
+> **Scope caution.** This doc only ever covered **package** inboxes (`pkg:*`). It does
+> NOT cover `public-feedback` or `user`, which are deliberately unrouted and notify a
+> human via Discord instead (see `humanTriageInbox` in internal/daemon/handlers.go).
+> Marking this "Implemented" without saying so invited #900, which read the unrouted
+> `public-feedback` inbox as an unfinished part of this work. It is not.
 **Target**: v0.19.0 (small surface, deploy-coupled) — actually landed post-v0.33.2
 **Priority**: P1 — silent cascade failures hard to detect without
 [`cloud-cascade-debug`](../../../.claude/skills/cloud-cascade-debug/) skill
