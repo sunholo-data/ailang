@@ -23,8 +23,10 @@ import (
 
 // Options controls formatter layout. Indent is the per-level indentation unit;
 // an empty Indent defaults to two spaces (the canonical AILANG layout).
+// MaxWidth is the preferred line width; zero defaults to 120.
 type Options struct {
-	Indent string
+	Indent   string
+	MaxWidth int
 }
 
 // printer holds the mutable emission state for one Source call.
@@ -34,6 +36,10 @@ type printer struct {
 	// nil when formatting comment-free input (Phase-1 path), so the comment-free
 	// output is byte-identical to Phase 1.
 	att *attachIndex
+
+	maxWidth         int
+	measuring        bool
+	measurementDepth int
 }
 
 // attachIndex is a fast lookup over the attachment set, keyed by owner pointer.
@@ -91,7 +97,7 @@ func Source(program *ast.Program, options Options) ([]byte, error) {
 	if indent == "" {
 		indent = "  "
 	}
-	p := &printer{w: newWriter(indent)}
+	p := &printer{w: newWriter(indent), maxWidth: resolveMaxWidth(options)}
 	if err := p.file(program.File); err != nil {
 		return nil, err
 	}
@@ -128,7 +134,11 @@ func SourceWithComments(program *ast.Program, source []byte, options Options) ([
 	if indent == "" {
 		indent = "  "
 	}
-	p := &printer{w: newWriter(indent), att: newAttachIndex(env, atts)}
+	p := &printer{
+		w:        newWriter(indent),
+		att:      newAttachIndex(env, atts),
+		maxWidth: resolveMaxWidth(options),
+	}
 	if err := p.file(program.File); err != nil {
 		return nil, err
 	}

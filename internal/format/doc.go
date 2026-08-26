@@ -1,14 +1,16 @@
 package format
 
-import "strings"
+import (
+	"strings"
+	"unicode/utf8"
+)
 
 // The document builder is a small, intentionally imperative pretty-printer core.
 // Rather than concatenating ad-hoc strings, printers emit into a *writer that
 // tracks the current indentation depth and column, and renders hard newlines
-// deterministically. Phase 1 uses only hard-line layout (no adaptive width
-// reflow); soft-line and group primitives are provided so the emitters express
-// intent uniformly and so a later phase can add width-sensitive reflow without
-// rewriting every printer.
+// deterministically. The emitters use hard-line layout; width-sensitive choices
+// select between existing layouts rather than relying on soft-line/group
+// primitives.
 
 // writer accumulates formatted output with indentation tracking.
 type writer struct {
@@ -16,6 +18,7 @@ type writer struct {
 	indent string // the per-level indentation unit (e.g. "  ")
 	depth  int    // current indentation depth
 	atBOL  bool   // true when the cursor is at the beginning of a line
+	col    int    // current column, counted in runes
 }
 
 // newWriter creates a writer using the given indentation unit.
@@ -33,10 +36,12 @@ func (w *writer) write(s string) {
 	if w.atBOL {
 		for i := 0; i < w.depth; i++ {
 			w.buf.WriteString(w.indent)
+			w.col += utf8.RuneCountInString(w.indent)
 		}
 		w.atBOL = false
 	}
 	w.buf.WriteString(s)
+	w.col += utf8.RuneCountInString(s)
 }
 
 // hardline emits a mandatory line break. Trailing indentation is deferred until
@@ -44,6 +49,7 @@ func (w *writer) write(s string) {
 func (w *writer) hardline() {
 	w.buf.WriteByte('\n')
 	w.atBOL = true
+	w.col = 0
 }
 
 // blankline emits exactly one empty line (two consecutive newlines). It is a
