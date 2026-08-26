@@ -446,27 +446,26 @@ export MISSION_METERED_BUDGET_USD="${MISSION_METERED_BUDGET_USD:-5}"
 # CLOSED to opus unless that doc declares **Planner-Lane**: codex-ok AND every path it
 # declares is inside the D2 infra allowlist. Rollback = uncomment MISSION_PLANNER_MODEL
 # in ~/.config/ailang/mission-<name>.env (delivery mechanism added by M2 above).
-# FLEET (Mark 2026-08-26, attended): "the better models do planning only", and
-# "the missions should have all the same model fleets for consistency and
-# simplicity". Every mission on this rig sources THIS file, so these defaults are
-# the single fleet definition — there is no per-mission override in any plist.
+# FLEET — Ollama Cloud sits at the FIRST FALLBACK, not primary (Mark 2026-08-26,
+# attended; corrected from an earlier over-reach that made these the defaults).
 #
-# planner  = kimi-k3, the strongest open-weight model measured externally (88.3
-#            Terminal-Bench 2.1, 81.2 FrontierSWE). Draws 18x the ollama quota per
-#            token of gpt-oss (0.124 units/M, measured), which is affordable
-#            precisely because planning is ONE run per iteration and plan quality
-#            compounds across everything downstream.
-# Reachability is not assumed: `pi --model ollama/kimi-k3:cloud` probes rc=0, and
-# derive-planner-lane.sh Step 0 was extended to accept pi: lanes — without that
-# this pin is a silent no-op that routes to opus.
-export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-pi:ollama/kimi-k3:cloud}"
+# codex keeps both primary roles: it has months of track record in them, whereas
+# the cloud lanes have external benchmarks, one fizzbuzz agent eval and an rc=0
+# reachability probe — and NO evidence in the planner/executor roles specifically.
+# An unattended nightly loop is the wrong place to find that out. The fallback
+# slot exercises them for real whenever the codex bucket is spent, so evidence
+# accumulates in the actual roles before anything is promoted.
+#
+# Same fleet for every mission: they all source THIS file and no plist overrides
+# these vars, so there is one definition, not four kept in sync.
+export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol}"
 # executor = deepseek-v4-flash on the FLAT-RATE ollama route. These are the same
 #            weights the fallback chain below already reaches through OpenRouter,
 #            so this is a route change, not a capability change — and it degrades
 #            to that metered twin if the ollama quota runs out. Draws 4.2x
 #            gpt-oss (0.029 units/M, measured), ~4x cheaper per token than the
 #            planner, which is what the high-volume role needs.
-export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-pi:ollama/deepseek-v4-flash:0731-cloud}"
+export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol}"
 # EXECUTOR FALLBACK CHAIN — ailang#611 (2026-08-11).
 #
 # RATIFIED SEMANTICS (Mark 2026-08-06, restated attended 2026-08-10 and 2026-08-11):
@@ -505,8 +504,19 @@ export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-pi:ollama/deepseek-v4-f
 # call 2 => ~4.8x cheaper per repeat call). Accepted deliberately: a lane that returns
 # zero bytes has worse economics than any cache multiplier can repair. ROLLBACK: re-add
 # the `:floor` suffix here, or override MISSION_EXECUTOR_FALLBACK per mission env file.
-export MISSION_EXECUTOR_FALLBACK="${MISSION_EXECUTOR_FALLBACK:-pi:openrouter/deepseek/deepseek-v4-flash-0731}"
-export MISSION_PLANNER_FALLBACK="${MISSION_PLANNER_FALLBACK:-opus}"
+# ROUTE CHANGE, NOT MODEL CHANGE (2026-08-26): the ratified semantics — "codex as
+# default but deepseek to be replacement when codex out of quota", then opus last —
+# are preserved exactly. Same deepseek-v4-flash weights; the flat-rate ollama route
+# replaces the metered OpenRouter one. Measured 0.029 ollama usage-units/M tokens.
+# ROLLBACK: restore pi:openrouter/deepseek/deepseek-v4-flash-0731 here.
+export MISSION_EXECUTOR_FALLBACK="${MISSION_EXECUTOR_FALLBACK:-pi:ollama/deepseek-v4-flash:0731-cloud}"
+# kimi-k3 sits between codex and opus rather than degrading straight to opus:
+# strongest open-weight model measured externally (88.3 Terminal-Bench 2.1), and
+# a flat-rate lane is the right thing to try before spending Anthropic quota.
+# Draws 18x gpt-oss per token (0.124 units/M) — affordable because planning is ONE
+# run per iteration. The pi probe loop degrades it to opus if unusable, so opus
+# remains the last resort exactly as before. ROLLBACK: set this back to `opus`.
+export MISSION_PLANNER_FALLBACK="${MISSION_PLANNER_FALLBACK:-pi:ollama/kimi-k3:cloud}"
 # When a design doc requires the Anthropic planner lane but the controller probe
 # has proved the Anthropic subscription unavailable, use Codex Sol rather than
 # wedging or silently inheriting the failed controller. derive-planner-lane.sh

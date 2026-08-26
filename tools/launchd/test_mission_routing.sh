@@ -21,32 +21,43 @@ out=$(MISSION_PLANNER_MODEL=codex:gpt-5.6-sol MISSION_ANTHROPIC_AVAILABLE=0 \
 want "planner Anthropic fallback is configurable" "$out" "codex:test-sol anthropic-fallback:fail-closed:unparsable-path-entry"
 
 driver="$ROOT/tools/launchd/mission-control.sh"
-# FLEET CHANGE (Mark 2026-08-26, attended): executor primary moved codex -> the
-# flat-rate ollama route for deepseek-v4-flash. Same weights the fallback below
-# already reaches via OpenRouter, so this is a route change, not a capability
-# change. The old assertion encoded the superseded policy and is replaced, not
-# kept alongside (no backward compatibility for stale tests).
-grep -q 'MISSION_EXECUTOR_MODEL:-pi:ollama/deepseek-v4-flash:0731-cloud}' "$driver" \
-  && ok "executor primary is the flat-rate ollama deepseek lane" || bad "executor primary is the flat-rate ollama deepseek lane" "missing default"
-# The planner carries the strongest open-weight model, per "better models do
-# planning only" — one run per iteration, so an 18x quota draw is affordable.
-grep -q 'MISSION_PLANNER_MODEL:-pi:ollama/kimi-k3:cloud}' "$driver" \
-  && ok "planner primary is the ollama kimi-k3 lane" || bad "planner primary is the ollama kimi-k3 lane" "missing default"
-# A pi: planner pin must actually REACH the lane. Before derive-planner-lane.sh
-# Step 0 accepted pi:, every non-codex value emitted "opus fail-closed:env-pin",
-# so the pin read as applied in the driver log while opus actually ran.
+# FLEET (Mark 2026-08-26, attended): codex KEEPS both primary roles; the Ollama
+# Cloud lanes sit at the FIRST FALLBACK. Asserting the primaries explicitly so a
+# future promotion has to be deliberate rather than accidental.
+grep -q 'MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol' "$driver" \
+  && ok "executor primary remains Codex Sol" || bad "executor primary remains Codex Sol" "missing default"
+grep -q 'MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol' "$driver" \
+  && ok "planner primary remains Codex Sol" || bad "planner primary remains Codex Sol" "missing default"
+# Executor fallback: SAME deepseek-v4-flash weights, flat-rate ollama route
+# instead of metered OpenRouter. The ratified codex->deepseek->opus chain is
+# preserved; only the route changed. Brace-anchored so a prefix cannot pass.
+grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:ollama/deepseek-v4-flash:0731-cloud}' "$driver" \
+  && ok "executor fallback is the flat-rate ollama deepseek lane" || bad "executor fallback is the flat-rate ollama deepseek lane" "missing or wrong route"
+# Planner fallback: kimi-k3 sits BETWEEN codex and opus, so opus stays last resort.
+grep -q 'MISSION_PLANNER_FALLBACK:-pi:ollama/kimi-k3:cloud}' "$driver" \
+  && ok "planner fallback is the ollama kimi-k3 lane, ahead of opus" || bad "planner fallback is the ollama kimi-k3 lane, ahead of opus" "missing or still bare opus"
+# A pi: pin must actually REACH its lane. Before derive-planner-lane.sh Step 0
+# accepted pi:, every non-codex value emitted "opus fail-closed:env-pin", so a pi
+# lane would read as pinned in the driver log while opus actually ran. This stays
+# load-bearing now that the planner FALLBACK is a pi: lane.
 out=$(MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
 want "pi planner pin reaches its lane, not a silent opus" "$out" "pi:ollama/kimi-k3:cloud declared:codex-ok"
 # ...but the allowlist must still bind it exactly as it binds codex.
 out=$(MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/a-unlisted-language-path.md")
 want "pi planner still fails closed outside the allowlist" "$out" "opus fail-closed:path-not-in-codex-allowlist"
-# Anchored on the closing brace DELIBERATELY. The previous form pinned the `:floor`
-# suffix, but a suffix-free grep would prefix-match `...-0731:floor` too and pass on
-# both values — so the brace is what keeps this assertion discriminating and makes a
-# silent return of the price-pin RED. `:floor` was dropped 2026-08-18 (routed the
-# executor to the least-healthy endpoint; see the driver's own note).
-grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:openrouter/deepseek/deepseek-v4-flash-0731}' "$driver" \
-  && ok "executor DeepSeek fallback is provider-unpinned (no :floor)" || bad "executor DeepSeek fallback is provider-unpinned (no :floor)" "missing or price-pinned fallback"
+# The `:floor` guard, generalised. It previously pinned the OpenRouter route, which
+# broke when the fallback moved to the flat-rate ollama route (same deepseek-v4-flash
+# weights). The route is now asserted above; what must survive ANY route change is
+# the rule itself: never price-pin the executor fallback. `:floor` is OpenRouter
+# provider.sort=price, so it routes to the CHEAPEST endpoint — and the two cheapest
+# for this model carry NEGATIVE health (StreamLake -2, Decart -5 of 28, measured
+# 2026-08-18). World iteration 91 then returned rc=0 with ZERO BYTES CHANGED twice at
+# stopReason=stop, so the guard's own stopReason assertion passed on a total failure.
+# Written as a NEGATIVE assertion so it keeps biting if the fallback ever returns to
+# OpenRouter, instead of silently passing because the string no longer matches.
+grep -q 'MISSION_EXECUTOR_FALLBACK:-[^}]*:floor' "$driver" \
+  && bad "executor fallback is never price-pinned (:floor)" "fallback is :floor-pinned" \
+  || ok "executor fallback is never price-pinned (:floor)"
 grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol' "$driver" \
   && ok "controller has Codex Sol fallback" || bad "controller has Codex Sol fallback" "missing fallback"
 
