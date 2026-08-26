@@ -32,6 +32,7 @@ var (
 var notWiredIntoCI = map[string]string{
 	"check-claude":                  "developer-local: needs the Claude CLI installed; CI has no Claude auth",
 	"check-no-zero-arg-workarounds": "advisory sweep, not a gate: narrow grep for a historical surface-local workaround superseded by eval.CallFunction",
+	"check-pi-wire-budget":          "developer-local: makes a REAL paid pi/OpenRouter call, needs OPENROUTER_API_KEY (CI has none), and reads the result back from OpenRouter Broadcast ingest, so a quiet ingest reds it with nothing wrong in the repo. It is an on-demand instrument, not a verdict: it exists precisely because every config-vs-config gate is blind to the wire — pi-ai clamps the output budget to min(declared, 32000) downstream of every config file, and TestPiModelsConfigMatchesRegistry compared 65536 to 65536 and passed for weeks while every request went out at 32000",
 }
 
 var notWiredIntoCIVerify = map[string]string{
