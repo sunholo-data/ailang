@@ -180,25 +180,10 @@ test-sim-stub: install ## Test Go codegen pipeline (sim_stub example)
 	@echo "Testing sim_stub example..."
 	@cd examples/sim_stub && make clean && make test
 
-# Stdlib freeze
-test-stdlib-freeze: $(FREEZE_DIR)/option.sha256 $(FREEZE_DIR)/result.sha256 \
-                    $(FREEZE_DIR)/list.sha256 $(FREEZE_DIR)/string.sha256 \
-                    $(FREEZE_DIR)/io.sha256 ## Verify std/ interfaces haven't changed
-	@ok=0; \
-	for m in $(STDLIB); do \
-	  name=$$(basename $${m} .ail | sed 's/^/std\//'); \
-	  tmp=$$(mktemp); \
-	  $(TOOLS) iface --module "$$name" --json > $$tmp || ok=1; \
-	  sum=$$(shasum -a 256 $$tmp | awk '{print $$1}'); \
-	  golden="$(FREEZE_DIR)/$$(basename $$name).sha256"; \
-	  if [ ! -f $$golden ]; then echo "MISSING $$golden"; ok=1; else \
-	    exp=$$(cat $$golden); \
-	    if [ "$$sum" != "$$exp" ]; then \
-	      echo "MISMATCH $$name"; ok=1; \
-	    fi; \
-	  fi; \
-	done; \
-	exit $$ok
+# Stdlib freeze — historical name, kept because v0.2.0 acceptance docs and the
+# sprint-executor skill reference it. The live gate is verify-stdlib
+# (tools/verify-stdlib.sh over .stdlib-golden/); do not grow a second implementation.
+test-stdlib-freeze: verify-stdlib ## Verify std/ interfaces haven't changed (alias of verify-stdlib)
 
 # Fuzzing
 # fuzz-parser retries the Go-fuzzing fuzztime-boundary "context deadline exceeded"
