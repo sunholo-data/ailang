@@ -225,32 +225,53 @@ lane_start=""
 lane_end=""
 lane_rc=0
 run_lane() {
-  local lane=$1 peers_file=$2 raw_file=$3 driver_log=$4 deadline pid now terminate_deadline
+  local lane=$1 peers_file=$2 raw_file=$3 driver_log=$4 deadline pid now terminate_deadline group_safe
   lane_rc=0
   lane_start=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   : > "$raw_file"
+  set -m
   "$ailang_bin" eval-suite --agent --models "$lane" --benchmarks "$benchmark" --trials 1 --dry-run=false \
     > "$driver_log" 2>&1 &
   pid=$!
+  # A live negative PID proves the child PID is its PGID. Since it is not this
+  # shell's PID, the job group is distinct and a negative-PID kill is safe.
+  if jobs -p 2>/dev/null | grep -qx -- "$pid" && [[ "$pid" != "$$" ]] && kill -0 "-$pid" 2>/dev/null; then
+    group_safe=1
+  else
+    group_safe=0
+  fi
+  set +m
   deadline=$(( $(date +%s) + timeout_secs ))
   while kill -0 "$pid" 2>/dev/null; do
     now=$(date +%s)
     if (( now > deadline )); then
-      kill "$pid" 2>/dev/null || true
+      if (( group_safe )); then
+        kill -TERM "-$pid" 2>/dev/null || true
+      else
+        echo "INSTRUMENT FAILURE: refusing process-group TERM for pid $pid because it does not lead a distinct job group" >&2
+        kill "$pid" 2>/dev/null || true
+      fi
       terminate_deadline=$(( $(date +%s) + 5 ))
       while kill -0 "$pid" 2>/dev/null; do
         (( $(date +%s) <= terminate_deadline )) || {
-          kill -9 "$pid" 2>/dev/null || true
+          if (( group_safe )); then
+            kill -9 "-$pid" 2>/dev/null || true
+          else
+            echo "INSTRUMENT FAILURE: refusing process-group KILL for pid $pid because it does not lead a distinct job group" >&2
+            kill -9 "$pid" 2>/dev/null || true
+          fi
+          { wait "$pid"; } >/dev/null 2>&1 || true
           instrument_failure "lane $lane exceeded its bounded termination deadline"
         }
         sleep 1
       done
+      { wait "$pid"; } >/dev/null 2>&1 || true
       instrument_failure "lane $lane exceeded ${timeout_secs}s sampling deadline"
     fi
     sample_tree "$pid" "$raw_file" "$deadline"
     sleep 1
   done
-  wait "$pid" || lane_rc=$?
+  { wait "$pid"; } 2>/dev/null || lane_rc=$?
   lane_end=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   classify_lsof "$or_file" "$raw_file" | cut -f2- | LC_ALL=C sort -u > "$peers_file"
   echo "lane=$lane driver_rc=$lane_rc peers:" >&2
