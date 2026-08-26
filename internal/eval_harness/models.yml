@@ -1896,6 +1896,49 @@ models:
       Not in ollama_suite until smoke gate passes.
       Requires: Ollama running on localhost:11434, model pulled, motoko CLI.
 
+  motoko-cloud-gpt-oss-20b:
+    api_name: "gpt-oss:20b-cloud"                      # the `-cloud` suffix IS the route (M-OLLAMA-CLOUD-PROVIDER)
+    provider: "ollama"                                 # SAME provider as local — the local daemon proxies it
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "gpt-oss 20B via motoko on OLLAMA CLOUD — Phase 1 smoke of M-OLLAMA-CLOUD-PROVIDER. Routed through localhost:11434/v1; the daemon proxies to ollama.com and signs with the device key. Ollama's own usage level 1 (lightest)."
+    env_var: ""                                        # No API key for INFERENCE — device key via `ollama signin`. OLLAMA_API_KEY is only for /api/usage.
+    agent_cli: "motoko"
+    motoko_profile: "ollama"                           # unchanged lean profile -> localhost:11434/v1 (V19)
+    agent_model_name: "ollama/gpt-oss:20b-cloud"       # slash form; suffix must survive to the wire
+    model_family: "gpt-oss"
+    max_output_tokens: 32768
+    pricing:
+      # PROVISIONAL — D1 IS NOT DECIDED. Deliberately NOT 0/0: `ResolveCostProvenance`
+      # maps 0/0 to `free-local` (executor/cost.go:140-142), which for a subscription
+      # lane is a POSITIVELY FALSE label, not merely a missing one.
+      # Imputed from the OpenRouter twin `openai/gpt-oss-20b`, list price read from
+      # the OpenRouter models API 2026-08-26: $0.000030/1k in, $0.000130/1k out.
+      # Ollama Cloud itself reports NO per-token cost (`activity.cost` = "0.00000",
+      # V26), so imputation is the only available route — see the design doc's D1.
+      input_per_1k: 0.00003
+      output_per_1k: 0.00013
+    budgets:
+      # Same 3.0M WORK ceiling every other agent lane carries (#545 policy).
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    notes: |
+      PHASE 1 SMOKE ROW — not in any suite, not in rotation.
+      design_docs/planned/v0_34_0/m-ollama-cloud-provider.md
+
+      Reaches Ollama Cloud with ZERO code change: the local daemon carries cloud
+      passthrough on /v1/chat/completions and selects the route by parsing the
+      `-cloud` suffix off the model name. Verified live 2026-08-26 (V21): a
+      cloud-suffixed request returned from a model with 0 local copies and loaded
+      nothing on the GPU.
+
+      Requires: `ollama signin` on the rig (device key). Does NOT require
+      OLLAMA_API_KEY — that is only needed for the /api/usage quota gauge, which
+      is not proxied locally (V24).
+
+      Two open items before this row is fit for a banked rotation:
+        D1 — the pricing above is PROVISIONAL and unratified.
+        D2 — whether cloud rows enter banked rotations at all.
+
   motoko-local-qwen3-6-35b-a3b-mxfp8:
     api_name: "qwen3.6:35b-a3b-mxfp8"
     provider: "ollama"
