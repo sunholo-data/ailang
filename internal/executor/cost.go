@@ -2,6 +2,7 @@ package executor
 
 import (
 	"math"
+	"strings"
 	"sync/atomic"
 )
 
@@ -182,4 +183,46 @@ func DefaultMaxCostUSD(inputPer1K, outputPer1K float64) float64 {
 		return formula
 	}
 	return ceilingUSD
+}
+
+// IsOllamaCloudRoute reports whether a model name selects an Ollama CLOUD model
+// rather than an on-device one.
+//
+// Ollama marks the route with a name suffix parsed as a pure string by its own
+// daemon: an untagged model takes ":cloud" (kimi-k3:cloud) and a tagged one
+// appends "-cloud" to the TAG (deepseek-v4-flash:0731-cloud). Mirroring that
+// grammar rather than inventing one means the two cannot disagree about which
+// route a request takes.
+//
+// Lives in this package because it is needed BOTH for cost provenance (here)
+// and for GPU-contention decisions in eval_harness, which imports executor.
+func IsOllamaCloudRoute(name string) bool {
+	n := strings.ToLower(strings.TrimSpace(name))
+	if i := strings.LastIndex(n, ":"); i >= 0 {
+		suffix := n[i+1:]
+		if suffix == "cloud" {
+			return true
+		}
+		return !strings.Contains(suffix, "/") && strings.HasSuffix(suffix, "-cloud")
+	}
+	return false
+}
+
+// AuthLaneForModel decides how a run authenticates, from the model name alone.
+//
+// D1 (Mark-ratified 2026-08-26): an Ollama Cloud row is a SUBSCRIPTION lane —
+// a flat plan covers it and no per-token charge lands anywhere. Its prices in
+// models.yml are IMPUTED from an equivalent metered route so the figure is
+// comparable arithmetic over real tokens, which is exactly what
+// CostListPriceEquivalent means ("went through a subscription/OAuth lane and
+// was never billed"). Reporting these rows as `metered` would claim a spend
+// that never happened.
+//
+// Everything else stays AuthLaneBilled, which is what the executors asserted
+// unconditionally before this existed.
+func AuthLaneForModel(model string) AuthLane {
+	if IsOllamaCloudRoute(model) {
+		return AuthLaneSubscription
+	}
+	return AuthLaneBilled
 }

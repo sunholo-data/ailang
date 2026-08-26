@@ -94,6 +94,7 @@ const sidebars = {
           items: [
             'guides/agent-workflows',
             'guides/mission-bootstrap',
+            'guides/mission-model-fleet',
             'guides/state-system-workflow',
             'guides/agent-messaging',
             'guides/cross-project-messaging',

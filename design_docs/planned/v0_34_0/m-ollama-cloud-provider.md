@@ -114,15 +114,17 @@ provider package, and without letting a subscription-priced lane corrupt cost-pe
 
 Before implementation begins, these must be resolved:
 
-- [ ] **D1** — imputed per-token prices for subscription-metered rows. *Recommendation: impute
-      from the OpenRouter twin and let the EXISTING `AuthLaneSubscription` → `list-price-equivalent`
-      path label it (V18) — that constant's own doc comment describes this exact case ("the run went
-      through a subscription/OAuth lane and was never billed"), and 18 of 30 banked trials already
-      carry it. Most cloud models have a twin; the five rig-infeasible ones do not and need an
-      explicit call from you.*
-- [ ] **D2** — banked rotation vs executor-only. *Recommendation: executor/day-to-day only until
-      the Phase 2 calibration produces an exchange rate. This is a sequencing recommendation, not
-      a permanent exclusion.*
+- [x] **D1 RATIFIED (Mark, attended 2026-08-26) — recommendation accepted and IMPLEMENTED.**
+      Impute from the OpenRouter twin and label via the existing
+      `AuthLaneSubscription` → `list-price-equivalent` path. Implemented in V42: the motoko and pi
+      executors had hardcoded `AuthLaneBilled`, so a subscription row banked as `metered` — a claim
+      of spend that never happened. Models with **no** OpenRouter twin (e.g. `mistral-large-3`)
+      still need an explicit price when they are added; none is in the fleet today.
+- [x] **D2 RATIFIED (Mark, attended 2026-08-26) — executor/day-to-day, not banked rotations.**
+      Better informed than when written: the consumption RATE is now measured per model (V36), but
+      the DENOMINATOR is still unpublished (V26), so a pre-flight "refuse to start if quota is low"
+      gate remains unbuildable. Today's mission-fleet work is executor-side and consistent with
+      this. Revisit when V22 lands.
 
 D3/D4/D5 are not freeze items: D3 and D4 are agent-resolvable and D5 is a low-cost human pick
 that does not block Phase 1.
@@ -297,7 +299,7 @@ just wrong, and it is wrong in the direction that flatters the lane.
 
 ## Success Criteria
 
-- [ ] **AC1** *(rescoped by quorum review — it read as a whole-design claim and contradicted
+- [x] **AC1 DONE (V21)** *(rescoped by quorum review — it read as a whole-design claim and contradicted
       "Files to Modify", which lists 5 files)*: **Phase 0/1 exit gate only** — reaching a cloud model
       requires zero diffs outside `models.yml`. Phases 2-3 deliberately change other files.
 - [ ] **AC2** *(corrected by Phase 0 — the original was unachievable as written)*: route must be
@@ -315,7 +317,8 @@ just wrong, and it is wrong in the direction that flatters the lane.
       `localhost:11434`, **V24**) so it needs a direct Bearer call, and **it reports no
       denominator** — see V26 and the amended risk row
 - [ ] **AC4**: Tokens-per-usage-unit measured at level 1 **and** level 4; both recorded here
-- [ ] **AC5**: No cloud row banks with `pricing: 0/0`; imputed prices carry an explicit label
+- [x] **AC5 DONE (V42)**: No cloud row banks with `pricing: 0/0`, and imputed prices carry the
+      explicit `list-price-equivalent` label rather than the false `metered`
 - [x] **AC6 DONE (V41)**: Cloud rows are not force-clamped to `--parallel 1` (D4), and honour the tier
       concurrency cap
 - [ ] **AC7**: A quota-exhausted request banks the **existing** `error_category` `quota_exhausted`
@@ -500,6 +503,7 @@ rather than being quietly dropped.
 | V39 | **NEG/CORRECTED — the rig lock is GPU-scoped and over-broad for cloud rows, but exempting them exposes a MASKED port collision** *(Mark corrected my first reading, which had rationalised the block as legitimate)* | attempted a motoko agent run on cloud rows while `os-rotation-filler.sh` (PID 24713) held the lock; then read the lock message, the harness, and every motoko profile | The lock refuses with *"The rig is a **single GPU**; running concurrently thrashes ollama"* — GPU serialization is its **stated and only** purpose, and cloud rows load nothing on the GPU (V21, `ollama ps` unchanged). **So the block is over-broad and cloud rows should be exempt.** The catch: **every** motoko profile pins `backend.port: 8080` (8/8 profiles checked) and the harness **never** sets it (0 hits for `8080` in `internal/eval_harness/*.go`), so concurrent motoko runs collide on a fixed port — the documented zombie needing manual clearing. That collision is currently **masked** by the lock serializing everything. **D4 therefore has a prerequisite: exempt cloud rows from the GPU lock AND give motoko a per-run backend port.** Doing only the first trades a false block for a real collision. Standard-mode cloud runs need neither and ran fine alongside the lock |
 | V40 | **POS — local GPU and cloud run CONCURRENTLY with no interference. This is the direct evidence for the D4 exemption** (Mark asked the question; measured rather than reasoned) | 3 concurrent `deepseek-v4-flash:0731-cloud` requests fired while `os-rotation-filler` (40min elapsed) held the rig lock and the GPU was fully loaded; `ollama ps` read before and after | All 3 succeeded — **607/682/682ms**, the same range as when the rig was idle, so **no degradation in either direction**. `ollama ps` **byte-identical** before and after: `qwen3.8:27b-mxfp8` (45GB, 100%) + `embeddinggemma` (673MB, 100%). The rotation continued undisturbed. **Critically, the cloud model NEVER appears in `ollama ps`** — it occupies no `OLLAMA_MAX_LOADED_MODELS` slot. With that cap at 2 (one LLM + one embedder), a cloud model taking a slot would have EVICTED the running eval's 45GB model, the documented embedder-eviction failure mode. It cannot. **Conclusion: serializing cloud rows behind the GPU lock buys nothing and costs wall-clock** |
 | V41 | **POS — D4 ENACTED and proven in both directions.** Cloud rows now run concurrently with a GPU job; local rows are still protected | new `IsOllamaCloudRoute` gating `UsesLocalGPU` (`models.go`) + the `--parallel` clamp (`eval_suite.go`); ran a cloud agent eval WHILE `os-rotation-filler` held the lock, plus a local control | **Cloud**: `motoko-cloud-deepseek-v4-flash` agent eval **PASSED** in **32s** concurrently with the rotation — 101,526 tokens, `cost_usd=0.00611`, provenance `metered`. The rotation **survived untouched** (45:17 elapsed, `ollama ps` unchanged). **Local control**: `motoko-local-qwen3-8-27b` STILL emits `forcing --parallel 1` AND `Error: the rig is busy` — protection intact, so this is an exemption, not a removal. 14 sub-tests pin the suffix grammar in both directions (a false positive would drop a real GPU job out of the lock). 8 packages pass, 0 failures |
+| V42 | **POS — D1 IMPLEMENTED and verified in BOTH directions.** A subscription row now banks `list-price-equivalent`; a genuinely metered row is untouched | added `executor.IsOllamaCloudRoute` + `AuthLaneForModel`; rewired 4 hardcoded `AuthLaneBilled` sites (motoko x2, pi x2) and `standardModeCostProvenance`; ran a cloud row and an OpenRouter control | `motoko-cloud-deepseek-v4-flash` → `cost_provenance` **`list-price-equivalent`** (was `metered`), `cost_usd=0.00174744`, 28,395 tokens, benchmark PASSED. **Control** `or-deepseek-v4-flash` → still **`metered`**. The route grammar was MOVED down into `internal/executor` (the lower layer, imported by eval_harness) so cost provenance and GPU-contention share ONE definition that cannot drift. 9 packages pass; 20 routing tests pass |
 
 ## Quorum Review Record
 

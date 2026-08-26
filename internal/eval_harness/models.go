@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/sunholo-data/ailang/internal/executor"
 )
 
 //go:embed models.yml
@@ -252,32 +254,10 @@ func (c *ModelsConfig) GetProvider(name string) (string, error) {
 	return model.Provider, nil
 }
 
-// IsOllamaCloudRoute reports whether an api_name/agent_model_name selects an
-// Ollama CLOUD model rather than an on-device one.
-//
-// Ollama marks the route with a name suffix, parsed as a pure string by the
-// local daemon (internal/modelref/modelref.go): an untagged model takes
-// ":cloud" (kimi-k3:cloud) and a tagged one appends "-cloud" to the TAG
-// (deepseek-v4-flash:0731-cloud). The daemon proxies such a request to
-// ollama.com and it never touches the GPU — measured 2026-08-26: three
-// concurrent cloud requests ran at idle-latency while a 45GB local model held
-// the GPU at 100%, and `ollama ps` was byte-identical throughout. A cloud
-// model also occupies no OLLAMA_MAX_LOADED_MODELS slot, so it cannot evict the
-// on-device model the way an extra local load would.
-//
-// This mirrors ollama's own suffix grammar rather than inventing one, so the
-// two cannot disagree about which route a request takes.
-func IsOllamaCloudRoute(name string) bool {
-	n := strings.ToLower(strings.TrimSpace(name))
-	if i := strings.LastIndex(n, ":"); i >= 0 {
-		suffix := n[i+1:]
-		if suffix == "cloud" {
-			return true
-		}
-		return !strings.Contains(suffix, "/") && strings.HasSuffix(suffix, "-cloud")
-	}
-	return false
-}
+// IsOllamaCloudRoute reports whether a name selects an Ollama CLOUD model.
+// Thin delegate to executor.IsOllamaCloudRoute — the grammar lives in the lower
+// layer because cost provenance needs it too, and two copies could disagree.
+func IsOllamaCloudRoute(name string) bool { return executor.IsOllamaCloudRoute(name) }
 
 // UsesLocalGPU reports whether a model runs on the local Ollama GPU — the
 // shared single-GPU rig that the rig lock protects. Cloud/API models return

@@ -563,7 +563,7 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// motoko's run_summary cost comes from whatever provider it routed to.
 	// OpenRouter-routed models bill real credits; local ollama models carry
 	// zero rates in models.yml and resolve to free-local regardless of lane.
-	result.CostProvenance = executor.ResolveCostProvenance(task, executor.AuthLaneBilled)
+	result.CostProvenance = executor.ResolveCostProvenance(task, executor.AuthLaneForModel(task.Model))
 
 	// Surface metrics for any MetricsHandler observers.
 	if mh, ok := handler.(executor.MetricsHandler); ok {
@@ -572,7 +572,7 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			InputTokens:    result.InputTokens,
 			OutputTokens:   result.OutputTokens,
 			CostUSD:        result.CostUSD,
-			CostProvenance: executor.ResolveCostProvenance(task, executor.AuthLaneBilled),
+			CostProvenance: executor.ResolveCostProvenance(task, executor.AuthLaneForModel(task.Model)),
 			DurationMS:     result.DurationMS,
 			SessionID:      result.SessionID,
 			Success:        result.Success,

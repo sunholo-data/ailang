@@ -423,6 +423,13 @@ func standardModeCostProvenance(model string) string {
 	if cfg.Pricing.InputPer1K == 0 && cfg.Pricing.OutputPer1K == 0 {
 		return string(executor.CostFreeLocal)
 	}
+	// D1 (Mark-ratified 2026-08-26): Ollama Cloud is a subscription lane, so its
+	// non-zero prices are IMPUTED from a metered twin rather than charged. Saying
+	// `metered` would claim a spend that never happened.
+	if IsOllamaCloudRoute(cfg.APIName) ||
+		(cfg.AgentModelName != nil && IsOllamaCloudRoute(*cfg.AgentModelName)) {
+		return string(executor.CostListPriceEquivalent)
+	}
 	return string(executor.CostMetered)
 }
 
