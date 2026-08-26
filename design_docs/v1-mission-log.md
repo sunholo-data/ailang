@@ -22,6 +22,107 @@ section, write "none" rather than omitting:
 
 ---
 
+## 287 — 2026-08-26 — An iteration died holding a finished fix, and the only reason it was found is that a worktree outlives the agent that made it
+
+**Picked**: `m-fmt-printer-no-line-width-limit` — the queue head, tagged `[NEXT — ROUND 2 OWED]`.
+But the pick was *reframed* by Gate 2's died-mid-flight trace before any work started: `git worktree
+list` showed `.wt-iter286` on `sprint/iter286-fmt-width-round2` and `.wt-iter286-eval`, while the
+charter's newest stamp read **ITERATION 285**. **Iteration 286 ran, built the entire round-2 fix,
+force-pushed all four commits onto PR #918 — and recorded nothing.** Measured: `grep -ci "ITERATION
+286"` = **0** in charter, log and status archive (control: `ITERATION 285` → **3** in the charter).
+The driver log names the death exactly: `STALL: claude 24810 idle with a descendant alive ≥2400s
+across 3 samples (unbounded poll loop?) — killing early`, `iteration exited rc=143` at 19:49 —
+Standing rule 7's shape, an iteration that went quiet waiting on a background role. The watchdog
+failed **LOUDLY**, which is the only reason this was recoverable; the silent `rc=0` variant leaves
+no such line. Per Gate 2 the deliverable was therefore to **verify and land it, not redo it**.
+
+**Reality check**: the inherited work is a claim, not a fact — nobody had reviewed it since the agent
+that wrote it stopped existing, and its commit body is unusually confident (a 40-line message
+asserting its own mutation drill). Re-derived first-party rather than inherited: the M1b mutant
+reverting `p.w.effectiveCol()` → `p.w.col` (the exact round-1 defect) **LANDED** (sha256 differs),
+its **intended effect** asserted against the system's own view rather than file bytes (`effectiveCol`
+call sites in `width.go` **1 → 0**), **BUILDS** (`go build ./internal/format/` rc=0) — and then all 4
+subtests fail with `MaxWidth=121 emitted a 122-rune line`, reproducing round 1's defect signature
+precisely. The inverse arm (same mutant, `-skip` the new test) is **rc=0 with 0 FAIL lines**, so the
+new test is the **sole killer** in the package — a criterion valid here only because the mutant's
+blast radius was measured to be single-test, not assumed. Restored from a **copy** (never `git
+checkout --`, which in a sprint worktree deletes uncommitted work) and re-verified byte-identical.
+Corpus scope asserted rather than quoted: `find examples std -name '*.ail'` = **450**, `-iname`
+control also 450, `test -d stdlib` **ABSENT** (the repo's recurring wrong-path habit).
+
+**Shipped**: **LANDED — `0c7f58351`** (PR [#918](https://github.com/sunholo-data/ailang/pull/918),
+squash-merged to match repo convention; #898's three milestone commits collapsed the same way).
+Content asserted **on `dev` itself**, not inferred from the merge exit code: `width.go:61` reads
+`p.w.effectiveCol()`, `doc.go` defines `effectiveCol` (**1**), `width_bol_test.go` present, and a
+deliberately-absent control file is absent. **Evaluator (`sonnet`, its own worktree): PASS 85/100,
+"safe to land".** 13 mutants, each asserted LANDED and BUILDS *before* any test result was read. It
+went beyond the directive in two ways worth recording: it reproduced the defect through the
+**compiled product** rather than printer arithmetic (mutant binary max line **121** under
+`MaxWidth=120`; fixed binary **66**), and it ran the precondition-neutering drill — rewriting the
+fixture so the chain is *not* at BOL makes all 4 subtests **die loudly** on the test's own guard
+instead of passing silently, which is what distinguishes a real pin from round 1's fake one. It
+independently re-derived corpus-neutrality (**405** formattable / **45** fail-closed on both sides,
+hash listings `diff` empty), so M2/M3 are provably unaffected. **Scope stated, not overstated:** this
+is M0+M1+M1b; **M2 and M3 are unbuilt**, AC3/AC8 unmet by design, the doc stays in
+`design_docs/planned/`, and ~116 corpus lines remain >120 runes in categories the doc defers.
+
+**Two reds handled, neither ours.** (1) #918's REQUIRED `test` context was **failing** and iteration
+286 never saw it. It is **not the outage signature** (`steps=53`, not 0) and it is **not the diff**:
+the failing step is **6, "Download all Go modules"** — `sum.golang.org` returning HTTP/2
+`INTERNAL_ERROR` mid-stream on `bytedance/sonic/loader`, before any repo command ran. Controls:
+`bytedance|sonic` appears **0×** in the diff (control `format` → **79**) and **0×** in `go.mod`
+(control `require` → **2**). The decisive control was outcome divergence on a **byte-identical
+tree** — re-run turned `test` `failure` → `success`. (2) Mid-iteration the sibling motoko mission
+merged `#923`, moving `dev` and turning #918 **CONFLICTING/DIRTY** on the one overlapping file. A
+base-inherited conflict is fixed by rebasing, never by waiting on auto-merge. Rebased onto
+`ff0da7445`, kept **both** changelog sections, and — the load-bearing assertion — the
+**`internal/format` tree hash is IDENTICAL across the rebase** (`a579999da691…`), so the evaluator's
+verification carries to the new SHA rather than needing to be repeated. Confirmed independently that
+dev's new commits touch `internal/format` **0** times (control: `internal/` → **19**).
+
+**Routing evidence**: controller=`claude:claude-opus-5` task-class=triage/verify/land/record
+round1-score=85 rounds=1 corrections=0 provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus ·
+designer=**not spawned** (no doc needed — the doc was authored iteration 284 and the work was already
+built; **Fable diet UNSPENT**, $0) · planner=**not spawned** (plan existed from iteration 285) ·
+executor=**not spawned** — the work was inherited from iteration 286, and Gate 2 requires
+verify-and-land over redo; the original executor was `codex:gpt-5.6-sol` (credited in the commit
+trailers) · evaluator=`sonnet` provider=anthropic agent=claude-code cost=quota-bucket:weekly-sonnet,
+in its **own** worktree, zero git writes, all 7 mutated files restored byte-identical by sha256.
+**generator≠judge HELD**: the code was written by an OpenAI model (codex) and judged by an Anthropic
+one (sonnet), and the judge is distinct from the opus controller. metered=**$0.00** of $5.
+Gates on **darwin/arm64**; ubuntu and windows legs unrun locally (CI covers them).
+
+**Ruled out**:
+- *"Iteration 286 never opened a PR"* — **REFUTED by me, mid-iteration.** It had force-pushed all
+  four commits onto the existing #918 (`git ls-remote` showed the branch at `d01ae2ef6`). My first
+  reading came from `gh pr list`'s `headRefName` still saying `sprint/iter285-fmt-width-limit`;
+  reading `headRefOid` settled it. A branch NAME is not a branch STATE.
+- *"The #918 `test` red is a regression from the fmt diff"* — REFUTED: the failure precedes any repo
+  command, the package is not in our dependency graph, and a re-run on an identical tree went green.
+- *"The red is the CI-provider outage class"* — REFUTED: `steps=53` with a real step failing, so the
+  `steps=0`/failed-before-checkout family does not apply, and `git revert` was never the instinct.
+- *"`#900` closed means feedback dispatch now routes"* — **REFUTED**: `#900` closed `14:27:39Z`
+  (cause: `AILANG_AGENT_ID required`); the next dispatch failed `19:18:40Z`, 4h51m later, on a
+  *different* cause — `chdir /workspace/task-9d538100/packages/ailang-parse: no such file`. `/workspace`
+  does not exist on this machine. The task-id suffix `9d538100` matches the feedback id
+  `fb_93ccadd89d538100`, which is the instrument that ties the two together. Filed, not fixed.
+- *"The evaluator's `att: nil` finding is the same as round 1's `measurementErr` finding"* — REFUTED
+  by the judge itself: they are distinct hunks with distinct mutants, and both survive the suite.
+
+**Retro lane**: none — no skill edit. The running skill is byte-identical to `origin/dev` (`cmp` rc=0
+through the **resolved** `readlink` target, inode `51683298` shared with the repo copy — asserted, not
+assumed). Candidate gap pre-registered at **one** first-party instance, below the ≥2 bar: *Gate 2's
+died-mid-flight traces enumerate a stale worktree, an open PR and uncommitted state, but nothing tells
+you to check whether the orphan's PR is **already green or already red** — iteration 286's work sat
+behind a REQUIRED red that no rule pointed at, and the natural reading of "verify and land" is to
+verify the CODE, not the PR's check set.* If a second instance arrives, the fix is one line in trace
+(a): read the orphan PR's required contexts, not merely its existence.
+
+**Next**: **M2 (continuation layout), then M3 (corpus reformat)** — in that order; M3 first would bank
+lines M2 would have wrapped, undermining AC3. Before M2 closes, pick up the two unpinned-hunk rows
+this iteration filed (`m-fmt-measurement-att-isolation-unpinned`, and the re-confirmed
+`m-fmt-measurementerr-propagation-no-killer`), since both live in the code M2 will extend.
+
 ## 285 — 2026-08-26 — The judge overrode its own passing score, and the red that blocked the whole repo arrived from a sibling mid-iteration
 
 **Picked**: `m-fmt-printer-no-line-width-limit`, the queue head per `D-39`, whose design doc was
