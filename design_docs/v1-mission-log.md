@@ -22,6 +22,56 @@ section, write "none" rather than omitting:
 
 ---
 
+## 284 — 2026-08-26 — The red that outranked the queue was found by the one check that is complete by construction, and the judge found the hole under the fix
+
+**Pick.** Preempted. Gate 1's SHA-addressed `check-runs` read surfaced `Build macos-latest` failure with three legs cancelled, then the REQUIRED `test` context failure — a red on `dev`, which V1 owns, so it outranked the queue head. The queue head (`m-fmt-printer-no-line-width-limit`, per `D-39`) was still routed to the designer and its doc delivered; planner and executor were not reached.
+
+**Why the instrument mattered.** The hand-maintained workflow-name loop (`CI`, `Build and Release`, `Docs-Deploy`) read `in_progress` and told me nothing. The SHA-addressed check-set read — added because a name allowlist is blind by construction — is what showed the failure. Recording this because the two instruments disagreed and only one of them can.
+
+**Not an outage.** The failing job ran 17 steps and a real step (`Run tests`) failed; the three sibling `Build` legs are fail-fast cancellations. So the steps=0 / failed-before-checkout family did not apply and `git revert` was never the right instinct.
+
+**Attribution, measured.** Using the same `agent_cli`/`agent_model_name` walk the gate itself consumes (control: the pattern reads 22 on the working tree, so a zero would have meant a broken enumerator, not an absence):
+
+| commit | lanes | tripwire | |
+|---|---|---|---|
+| `e49ed32f3` | 20 | 20 | consistent |
+| **`4394a2a59`** | **22** | **20** | breaks here |
+| `d574ae957` | 22 | 20 | inherited |
+| `46136949d` | 22 | 20 | inherited |
+
+`4394a2a59` added two motoko lanes without bumping the deliberate count tripwire — exactly what that test's own error text asks for.
+
+**Delivered.** [#916](https://github.com/sunholo-data/ailang/pull/916) → `04bff807d`, one file. Two arms on an identical tree, rc captured without a pipe: base rc=1, fix rc=0 — arms differ. Non-vacuity proven with an **addition** mutant rather than a removal (a removal shows a gate fires; only an addition shows it still looks): a 23rd lane moves the gate's own enumerator 22→23, the mutant builds, the test reds with `expected 22 … found 23`; `models.yml` restored from a copy, sha256 byte-identical. Gate 3b: 21 checks, 0 not-green, 4/4 required, `CLEAN`.
+
+**Routing evidence.**
+
+| Role | Model | Ran? | Outcome |
+|---|---|---|---|
+| Controller | `opus` (session) | yes | triage, pick, the fix, both quorum rounds, record |
+| Designer | `fable` (Agent tool, explicit pin — accepted) | yes | authored `m-fmt-printer-line-width-limit.md`; one protocol-mandated revision. Within the one-DOC diet. Only authoring-capable lane under `D-31`(a) |
+| Planner | derived VERBATIM `opus fail-closed:planner-lane-field-missing` | **no** | not reached — capacity, after preempting onto the dev red |
+| Executor | `codex:gpt-5.6-sol` | **no** | not reached; the landing work was a one-integer controller fix |
+| Evaluator | `sonnet`, own worktree `.wt-iter284-eval` | yes | **PASS 90/100, zero blocking** |
+
+generator≠judge held: opus generated the landed change, sonnet judged it. metered **$0.17** of $5 (two quorum rounds); quota buckets opus, fable ×2, sonnet.
+
+**The judge's find, reproduced first-party.** `motokoLaneModels` — the enumerator the entire tripwire rests on — carries a global `inMotoko` flag and is blind to a lane block whose `agent_model_name` precedes its `agent_cli`. I reproduced it: the gate's own view stayed at 22 and `go test` returned **rc=0** over a lane with a deliberately unresolvable model string. Filed as `m-motoko-lane-enumerator-field-order-blind` rather than smuggled into a PR whose whole virtue was being one integer while dev was red. Fourth instance of *a gate's coverage is a property of its enumerator* after iterations 181, 187, 283.
+
+**The doc, and the two measurements that changed its scope.** (1) The multi-line emitter already exists (`letChainMultiline`) and is gated on the single predicate `p.hasAnyAttachment(n)` at `expr.go:266` — two arms, identical program modulo one comment: no comment → one line, 88 chars; one comment → multi-line, max 33. So a comment-free chain collapses regardless of length and `D-39`'s fix is a predicate widening. (2) The designer's construct breakdown **refuted my hypothesis**: the 159 over-long lines are only **20** let-chains, though those 20 own the entire tail. M1+M2 is therefore a *partial* execution of `D-39`(a) with a ~98-line residual, and the doc says so.
+
+**Quorum.** Blocked twice, both rounds with both external reviewers present (`absent_reviewers: []`). R1's objection (under-specified width measurement) went to the designer with a first-party measurement attached rather than a paraphrase. R2's two were adjudicated by measurement per rule 3f — `gpt5-6-sol`'s pending-` = ` objection **CONFIRMED** (`decl.go:174` consults the predicate before writing ` =`), `gemini-3-1-pro`'s indent double-count **REFUTED** (`newWriter` leaves `depth` at zero; `write` emits indentation `w.depth` times, i.e. none) — then applied under the narrow-refinement carve-out, because neither disputed the design direction and both carried concrete fixes.
+
+**Ruled out.**
+- *The dev red is the provider outage / a flaky runner.* Refuted: 17 steps ran, a named step failed, and the same failure appears on three platforms (judge-measured from CI logs).
+- *The red came from `f45d4f0fe`.* Refuted by reading the run's OWN `head_sha` (`46136949d`) rather than the selector I had filtered by — my own instrument error, corrected in-iteration.
+- *`gemini-3-1-pro`'s indent double-count.* Refuted by measurement at `doc.go:22-40`. The spec gap behind it is real and was pinned as an invariant plus AC14 anyway.
+- *`mission-motoko`'s handover that V1's running skill is 27 lines behind origin.* Already stale: `cmp` through the resolved `readlink` target is rc=0.
+- *My own hypothesis that the over-long lines are mostly let-chains.* Refuted by the designer's breakdown, 20 of 159.
+
+**Not done, said plainly.** Two new external `public-feedback` items arrived today (optional/defaultable record fields; an addendum on effect rows over function-typed record fields) and were **read but not triaged** — the preemption consumed the budget. They are external-origin, so they never outranked anything, and they remain unacked.
+
+**Next.** Route `m-fmt-printer-line-width-limit` to sprint-planner — the doc is ready and the lane derives `opus`. Then `m-motoko-lane-enumerator-field-order-blind`.
+
 ## 283 — 2026-08-26 — The judging apparatus was switched back on, and it caught three things in one sprint that would otherwise have shipped
 
 **Pick:** queue head `m-stdlib-freeze-gate-path-mismatch`. Second deliverable, unplanned: dev was RED

@@ -1,51 +1,35 @@
 # Mission Dashboard — V1
 
-_Snapshot, overwritten every iteration. History lives in the charter STATUS block and the log._
+*Snapshot, overwritten every iteration. History lives in `v1-mission.md` (STATUS) and `v1-mission-log.md`.*
 
-**Last iteration:** 283 · 2026-08-26 · controller `opus`
+**Last iteration:** 284 · 2026-08-26 · controller `opus`
 
-## Where things stand
+## Release
+- **v0.34.0** shipped 2026-08-26. Next planned bucket: `v0_35_0`.
 
-- **Latest release:** v0.33.2 · dev at `26623ca4a`
-- **Landed this iteration:** `#899` — dev was RED on the required `test` context (inherited, not ours):
-  `1a3104a49` edited `prompts/v0.16.6.md` without updating `versions.json`, so the prompt integrity
-  check fired. One-line manifest fix; two arms rc=1 → rc=0. **dev is green again.**
-- **In flight:** `#898` — `test-stdlib-freeze` delegated to the live 45-module gate.
-  Evaluator **PASS 92/100, zero blocking**. Awaiting Gate 3b on the rebased head.
+## In flight / next
+1. **`m-fmt-printer-line-width-limit`** — design doc written (iter-284, `design_docs/planned/v0_35_0/`),
+   quorum **blocked twice**, both rounds' objections applied. **Ready for sprint-planner.** Per `D-39`
+   this is the queue head; it also gates `m-fmt-typedecl-printer-needs-multiline-emit` and forbids
+   wiring/freezing the `fmt` gate until it lands + the 2nd `fmt --write` pass runs.
+2. `m-motoko-lane-enumerator-field-order-blind` — NEW (iter-284, judge-found, controller-reproduced).
+3. `m-verify-stdlib-wrapper-exit-propagation-unpinned` · `m-skills-parity-no-ci-gate` ·
+   `m-eval-suite-agent-tempdir-unguarded` (all iter-283).
 
-## D-40 verification — the reason this iteration matters
-
-`D-40` required the next unattended fire to record designer/planner/executor/evaluator as **actually
-spawned**, or the escape-clause theory is refuted. **All four ran.** designer `fable` (×2: authoring +
-one protocol-mandated revision) · planner `opus` (lane `fail-closed:planner-lane-field-missing`) ·
-executor `codex:gpt-5.6-sol` · evaluator `sonnet`, in its own worktree. Generator ≠ judge held
-(OpenAI executor, Anthropic judge). **`D-40` can be marked verified.**
-
-The judging apparatus immediately paid for itself: the quorum blocked the design **twice** (one
-objection CONFIRMED — the first draft would have permanently deleted a golden file), the planner
-refuted six things including one of the controller's own acceptance criteria, and the evaluator found
-a real gap the controller had missed.
-
-## Next picks
-
-1. **`m-fmt-printer-no-line-width-limit`** — Mark ruled it queue-head in `D-39`; it was never entered
-   as a queue row. Promoted this iteration. Corpus reformat #2 follows it.
-2. `m-verify-stdlib-wrapper-exit-propagation-unpinned` — evaluator's find, reproduced first-party.
-3. `m-skills-parity-no-ci-gate` · `m-eval-suite-agent-tempdir-unguarded`
+## Loop health
+- **Cadence:** launchd, driver ran **UNPINNED** this fire (`MISSION_WORKDIR` unset) — code provenance
+  is the main checkout's working tree, not a pin. Reported to controlplane; see iter-284 STATUS.
+- **Routing:** designer `fable` (only authoring-capable lane, `D-31`(a)) · planner lane derives
+  `opus fail-closed:planner-lane-field-missing` · executor `codex:gpt-5.6-sol` · evaluator `sonnet`.
+  Designer + evaluator both spawned this iteration; planner/executor **not reached** (see STATUS).
+- **Running skill == origin** (`cmp` rc=0 through the resolved `readlink` target).
 
 ## Parked on Mark
+- **`D-41` (the ONLY open row; 41 total, 40 resolved)** — may an ACTIVE prompt version be edited in
+  place, or must a content change bump the version? Bears on eval-baseline reproducibility.
+- **SonarCloud has no token on this rig** (all three env names UNSET), so the standing
+  `new_coverage` + D-security-rating reds cannot be durably triaged by the loop. iter-283 triaged
+  all 13 vulns first-party: 12 not defects, 1 real and filed.
 
-- **`D-41` (new)** — may an ACTIVE prompt version be edited in place? `v0.16.6`'s content changed under
-  a pinned id while `versions.json` says v0.16.5 is held byte-identical for pinned eval baselines.
-- **SonarCloud token** — none on this rig, so the false positives cannot be marked. See below.
-
-## Quota / cost
-
-metered **$0.14** of $5 (two quorum rounds only) · quota: opus, fable ×2, codex, sonnet.
-
-## Standing reds
-
-- **SonarCloud** non-required, red since `6759ea4fa`. Now TWO conditions: coverage 78.6% (<80) and a
-  **D Security Rating**, new since `#891`. All 13 vulns triaged first-party: the 2 BLOCKERs are false
-  positives (tarball.go has complete zip-slip defense), the playwright.go CRITICAL is mitigated, and
-  `math/rand` is by design. **One genuine low-impact finding:** `eval_suite_agent.go:79`.
+## Quota / spend
+- Iteration 284 metered **$0.17** of $5 (two quorum rounds). Quota buckets: opus, fable, sonnet.
