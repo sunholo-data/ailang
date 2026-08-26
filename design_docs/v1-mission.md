@@ -442,7 +442,7 @@ for `D-38`; worst offender `examples/runnable/list_extremes.ail`. `D-39` also UN
 `m-fmt-typedecl-printer-needs-multiline-emit` (it ratifies the dialect, **not** the line layout), and
 forbids wiring/freezing the **fmt** gate until this lands and the second `fmt --write` pass has run.
 
-**[LANDING iter-285] m-eval-suite-file-size-ceiling** &mdash; **`dev` was RED on the REQUIRED `test` context
+**[LANDED iter-285] m-eval-suite-file-size-ceiling** &mdash; merged as `db9cb0fe7`; `eval_suite.go` is **778** lines on `dev` and the `test` context is green again. &mdash; **`dev` was RED on the REQUIRED `test` context
 and it blocked every PR in the repo.** `cmd/ailang/eval_suite.go` went from exactly **800** to **826** lines at
 `2c8498886` &mdash; a sibling agent's commit pushed into the shared main checkout at 15:22 **while iteration 285
 was in Gate 1** &mdash; tripping the `make check-file-sizes` step of the `test` job. V1 owns this repo, so it
