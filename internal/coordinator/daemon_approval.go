@@ -75,7 +75,7 @@ func (d *Daemon) handleAgentHandoffs(task *TaskRecord, result *ExecuteResult) er
 			"Please continue this work.",
 			sourceAgentID, task.ID, task.Content, result.Output)
 
-		if sourceAgent.AutoApproveHandoffs {
+		if sourceAgent.AutoApprovesHandoffTo(targetAgentID) {
 			// Auto-approve: send message directly to target agent's inbox
 			if err := d.sendHandoffMessage(targetAgent, task, handoffMessage, sessionID); err != nil {
 				d.logger.Printf("Warning: Failed to send handoff to %s: %v", targetAgentID, err)

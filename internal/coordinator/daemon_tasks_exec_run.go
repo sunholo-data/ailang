@@ -498,6 +498,12 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			d.updateChainMetrics(taskCtx, task, result)
 			d.logger.Printf("Task %s completed (skip_approval=true, cost: $%.4f, tokens: %d)",
 				task.ID, result.Cost, result.TokensUsed)
+
+			// M-PIPELINE-RECONCILIATION M2: an evaluator's completion carries a
+			// verdict for its PARENT task's pending approval.
+			if d.agentEvaluatesParent(task) {
+				d.attachEvaluationToParent(taskCtx, task, result.Output, "")
+			}
 		} else {
 			// Normal agents: mark as pending approval
 			if err := d.taskStore.MarkTaskPendingApproval(taskCtx, task.ID, worktreePath, worktreeBranch, baseBranch, baseCommit, result); err != nil {
@@ -526,7 +532,15 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			if d.agentRegistry != nil && task.AgentID != "" {
 				agent := d.agentRegistry.GetAgentByID(task.AgentID)
 				if agent != nil && len(agent.TriggerOnComplete) > 0 && !agent.AutoApproveHandoffs {
-					handoffTargets = agent.TriggerOnComplete
+					// M-PIPELINE-RECONCILIATION M2: per-edge auto-approved targets
+					// (AutoApproveHandoffTo) are dispatched immediately by
+					// handleAgentHandoffs and must NOT also be embedded here —
+					// embedding would trigger them a second time on approval.
+					for _, tgt := range agent.TriggerOnComplete {
+						if !agent.AutoApprovesHandoffTo(tgt) {
+							handoffTargets = append(handoffTargets, tgt)
+						}
+					}
 					// Build context with embedded handoff data
 					handoffContext := map[string]interface{}{
 						"handoff_targets": handoffTargets,
@@ -596,6 +610,13 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		}
 		if err := d.taskStore.MarkTaskFailed(taskCtx, task.ID, fmt.Errorf("%s", result.Error)); err != nil {
 			d.logger.Printf("Warning: Failed to mark task failed: %v", err)
+		}
+		// M-PIPELINE-RECONCILIATION M2: an evaluator DYING is itself a verdict —
+		// UNAVAILABLE — and must reach the parent's approval, or the approver
+		// sees an evaluation-less approval indistinguishable from "no evaluator
+		// configured".
+		if d.agentEvaluatesParent(task) {
+			d.attachEvaluationToParent(taskCtx, task, result.Output, result.Error)
 		}
 		// M-CHAINS-SIMPLIFY: Update stage and chain status
 		d.updateChainStageStatus(taskCtx, task, observatory.StageStatusFailed)
