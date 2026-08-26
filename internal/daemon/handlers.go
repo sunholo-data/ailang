@@ -68,29 +68,52 @@ func taskNotification(t pubsub.TaskCompletion) (notify.Notification, bool) {
 // internal/feedback/publisher.go.
 const pkgInboxPrefix = "pkg:"
 
-// isExternalFeedbackInbox reports whether an inbox carries externally-sourced
-// user feedback that should reach Discord. Today that is the literal
-// "public-feedback" inbox OR any package-scoped "pkg:*" inbox (which the
-// feedback publisher routes package feedback to). Naming the rule here keeps it
-// unit-testable and gives a single place for a future Source=external flag to
-// extend it — instead of widening the Discord allow-list to all "message"
-// traffic (which would leak internal inbox chatter to Discord).
-func isExternalFeedbackInbox(inbox string) bool {
-	return inbox == "public-feedback" || strings.HasPrefix(inbox, pkgInboxPrefix)
+// humanTriageInbox reports whether an inbox is one a HUMAN triages, and whose
+// arrivals should therefore reach Discord.
+//
+// Three today:
+//   - "public-feedback" — anonymous external reports
+//   - "pkg:*"           — package-scoped feedback from the publisher
+//   - "user"            — the human's own inbox (release notices, agent handovers)
+//
+// `user` is here deliberately, and it is the reason this is no longer called
+// isExternalFeedbackInbox: `user` is internal, not external, but it is still
+// triaged by a person rather than an agent. The organising idea is WHO ACTS on
+// the message, not where it came from.
+//
+// Note what stays out. Neither public-feedback nor user has a registered agent,
+// and that is by design — `submit_feedback` documents auto_dispatch as "default
+// false — files for human triage", so anonymous input is not handed to something
+// that acts on it. Discord IS the routing for these; an agent entry is not.
+//
+// The original caution still applies: do NOT widen this to all "message"
+// traffic, which would leak internal inbox chatter (coordinator completions,
+// agent-to-agent handoffs) into Discord.
+func humanTriageInbox(inbox string) bool {
+	return inbox == "public-feedback" ||
+		inbox == "user" ||
+		strings.HasPrefix(inbox, pkgInboxPrefix)
 }
 
-// messageNotification builds a Notification for an inbox message. Externally-
-// sourced feedback (public-feedback + pkg:* inboxes) gets a dedicated 🌐 prefix
-// and the "public-feedback" EventType (which the Discord allow-list accepts);
-// everything else uses the generic shape and stays EventType "message" (macOS
-// only, dropped by Discord).
+// messageNotification builds a Notification for an inbox message. Human-triaged
+// inboxes (public-feedback, user, pkg:*) get a dedicated 🌐 prefix and the
+// "public-feedback" EventType, which the Discord allow-list accepts; everything
+// else uses the generic shape and stays EventType "message" (macOS only, dropped
+// by Discord).
 func messageNotification(m *messaging.InboxMessage) (notify.Notification, bool) {
 	if m == nil {
 		return notify.Notification{}, false
 	}
-	if isExternalFeedbackInbox(m.ToInbox) {
+	if humanTriageInbox(m.ToInbox) {
+		// Same EventType for both (Discord's allow-list keys on it), but do not
+		// label an internal notice as external — the title is what a person reads
+		// in Discord, and mislabelling it costs trust in the channel.
+		title := "🌐 External feedback"
+		if m.ToInbox == "user" {
+			title = "📥 For you"
+		}
 		return notify.Notification{
-			Title:     "🌐 External feedback",
+			Title:     title,
 			Subtitle:  m.FromAgent,
 			Body:      truncate(fmt.Sprintf("[%s] %s", m.ToInbox, m.Title), messageBodyMax),
 			Sound:     "Pop",

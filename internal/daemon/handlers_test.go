@@ -106,7 +106,9 @@ func TestMessageNotification_PkgInboxIsExternalFeedback(t *testing.T) {
 		{"public-feedback", "public-feedback", "public-feedback", true, true},
 		{"pkg scoped", "pkg:sunholo/auth", "public-feedback", true, true},
 		{"pkg ailang", "pkg:sunholo/ailang", "public-feedback", true, true},
-		{"internal user", "user", "message", false, false},
+		// "user" is human-triaged: it reaches Discord (EventType public-feedback)
+		// but must NOT be labelled external — it is the human's own inbox.
+		{"human-triaged user", "user", "public-feedback", false, true},
 		{"internal controlplane", "controlplane", "message", false, false},
 		{"internal agent", "sprint-executor", "message", false, false},
 	}
@@ -141,15 +143,15 @@ func TestIsExternalFeedbackInbox(t *testing.T) {
 		"pkg:sunholo/auth":   true,
 		"pkg:sunholo/ailang": true,
 		"pkg:":               true,
-		"user":               false,
+		"user":               true, // the human's own inbox — Discord, not an agent
 		"controlplane":       false,
 		"sprint-executor":    false,
 		"feedback":           false, // note: not the literal "public-feedback"
 		"":                   false,
 	}
 	for inbox, want := range cases {
-		if got := isExternalFeedbackInbox(inbox); got != want {
-			t.Errorf("isExternalFeedbackInbox(%q) = %v, want %v", inbox, got, want)
+		if got := humanTriageInbox(inbox); got != want {
+			t.Errorf("humanTriageInbox(%q) = %v, want %v", inbox, got, want)
 		}
 	}
 }
@@ -157,7 +159,9 @@ func TestIsExternalFeedbackInbox(t *testing.T) {
 func TestMessageNotification_GenericInbox(t *testing.T) {
 	n, fire := messageNotification(&messaging.InboxMessage{
 		MessageID: "msg_abc",
-		ToInbox:   "user",
+		// "user" is no longer generic — it is human-triaged and reaches Discord.
+		// controlplane is internal agent chatter, which must stay macOS-only.
+		ToInbox:   "controlplane",
 		FromAgent: "sprint-executor",
 		Title:     "Sprint M-FOO complete",
 	})
