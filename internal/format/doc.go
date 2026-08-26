@@ -52,6 +52,17 @@ func (w *writer) hardline() {
 	w.col = 0
 }
 
+// effectiveCol reports the column the next written rune will occupy. hardline
+// DEFERS indentation (atBOL is set and col reset to 0; the indent runes are emitted
+// by the next write), so a width predicate consulted at beginning-of-line reads
+// col == 0 and undercounts by exactly the pending indentation.
+func (w *writer) effectiveCol() int {
+	if w.atBOL {
+		return w.depth * utf8.RuneCountInString(w.indent)
+	}
+	return w.col
+}
+
 // blankline emits exactly one empty line (two consecutive newlines). It is a
 // no-op if the cursor is already at the beginning of a fresh line preceded by a
 // blank line boundary; callers control blank-line placement explicitly.

@@ -58,5 +58,5 @@ func (p *printer) exceedsWidth(n ast.Expr, pending int) bool {
 	if p.measurementErr != nil {
 		return false
 	}
-	return p.w.col+pending+width > p.maxWidth
+	return p.w.effectiveCol()+pending+width > p.maxWidth
 }
