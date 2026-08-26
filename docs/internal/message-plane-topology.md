@@ -98,7 +98,7 @@ flowchart TB
   STORE[("<b>Canonical store</b><br/>prod Firestore<br/>ailang-multivac<br/><br/>public-feedback<br/>pkg:vendor/name<br/>agent inboxes")]
 
   LAP["<b>Laptop</b> — attended<br/>messages: canonical<br/>coordinator+observatory: local"]
-  STU["<b>voightkampff Studio</b> — rig<br/>messages: canonical<br/>coordinator+observatory: local"]
+  STU["<b>voightkampff Studio</b> — rig<br/>ALL THREE: prod Firestore<br/>tag-gated job taker"]
   CR["<b>Cloud Run coordinator</b><br/>ALL THREE: prod Firestore"]
   JOB["Cloud Run Jobs<br/>one per dispatched task"]
 
@@ -114,9 +114,10 @@ flowchart TB
   style CR fill:#1a3d5c,stroke:#3d7ab5,color:#fff
 ```
 
-Laptop and Studio are **peers on the message plane, not the execution plane.** They see
-the same inbox. They do not see each other's task records, so a task dispatched in the
-cloud does not appear in a local `ailang coordinator list`.
+The **Cloud Run coordinator and the Studio are both on the execution plane** — both hold
+all three backends in prod, both claim work, the Studio only what its tags match. The
+**laptop is on the message plane only**: same inbox, its own local workbench, and it never
+takes jobs.
 
 ## How package feedback actually flows
 
@@ -167,54 +168,98 @@ The registry spells packages with **underscores**; repo directories use **hyphen
 against the hyphen spelling mints an inbox nobody watches. Always use the **registry**
 spelling.
 
+The parser settles the rule: a hyphen in an import path parses as **subtraction** and
+fails with `PAR_HYPHEN_IN_IMPORT`. So underscores are not a convention, they are the only
+thing that compiles. Hyphens are legal in exactly one place — a repo directory name,
+which is never an identity.
+
+The teaching prompt shipped `import pkg/sunholo/gcp-auth/token` until 2026-08-26, so every
+model taught from `ailang prompt` learned an external-package import that cannot parse.
+Fixed in v0.16.6; frozen archives left as a record.
+
+**Still open:** `submit_feedback` accepts any `package` string and mints an inbox from it
+verbatim. Validating it against the registry at that boundary is what stops a phantom
+inbox being created — this is how ten `pkg:sunholo/ailang-parse` tickets ended up
+somewhere nothing watches.
+
 Agents may claim a family with a trailing `*` (`pkg:sunholo/motoko_ext_*`). Precedence is
 exact match, then longest matching prefix, then no dispatch. See
 [cloud-coordinator-config.md](./cloud-coordinator-config.md).
 
 ## Current wiring (2026-08-26)
 
-| Node | Messages | Coordinator / Observatory | Notes |
+| Node | Messages | Coordinator / Observatory | Takes jobs |
 |---|---|---|---|
-| Laptop | canonical (prod) ✅ | local | attended; `~/.zshenv` |
-| Studio — CLI | canonical (prod) ✅ | local | `~/.zshenv` |
-| Studio — notify daemon | primary **dev**, prod via `--also-subscribe` | dev | pings work; home store is dev |
-| Studio — coordinator | local SQLite | local | ⚠️ points at `aitana-multivac-dev` |
-| Cloud Run coordinator | prod ✅ | prod ✅ | the only fully-resident node |
+| Cloud Run coordinator | prod | prod | yes — default lane |
+| Studio — coordinator | prod | prod | yes — tag-gated |
+| Studio — notify daemon | prod | prod | n/a (notifier) |
+| Studio — CLI | prod | local | n/a |
+| Laptop | prod | local | **no** — attended only |
 
-### Known issues
+**Everything operational is prod.** `ailang-multivac-dev` and `-test` exist to stage
+infrastructure changes and nothing else. `aitana-multivac-dev` appears nowhere.
 
-1. **Studio coordinator names a client project.** `dev.ailang.coordinator.plist` sets
-   `AILANG_CLOUD_PROJECT=aitana-multivac-dev`, which owns no `ailang-*` topics. With
-   `AILANG_STORAGE` unset it also runs entirely on local SQLite. Net effect: **the Studio
-   cannot claim any cloud-dispatched work.** Should be an AILANG project.
-2. **Studio notify daemon's primary env is dev.** Prod was bolted on as
-   `--also-subscribe prod` rather than made primary (`.bak-pre-prod` shows this). Prod
-   *messages* are watched with a correctly-scoped per-project client; prod *events* are
-   not.
+The laptop deliberately keeps `AILANG_MESSAGES_STORE` rather than `AILANG_STORAGE`: it
+takes no jobs, and moving it wholesale would orphan 144 MB of `coordinator.db` and 73 MB
+of `observatory.db` as the default view for nothing gained. Shared inbox, local
+workbench. One line to flip if fleet-wide `chains`/`coordinator list` is ever wanted
+there.
 
-## The open design question: can the Studio take jobs?
+### How the rig receives work
 
-The mechanism exists — M-COORD-MULTI-HOST-WORKERS (v0.24.0) lets a bare-metal host
-advertise `worker_tags` so tag-routed messages on the shared topic are claimed only by a
-host advertising the tag. That is the right shape for "send GPU work to the rig".
+The Studio runs **local mode over prod storage** — it polls the prod `eval-rig` inbox
+every 30s. It deliberately does *not* set `COORDINATOR_MODE=cloud`: that path is
+push-based (`POST /pubsub/push`), and a machine behind NAT cannot receive push. Polling
+is the right shape for a bare-metal worker.
 
-The obstacle is the switch granularity. Joining the shared **task** plane means
-`AILANG_STORAGE=gcp`, which also moves the **observatory** — and the rig's
-`observatory.db` is 350 MB of eval spans that has no business in prod Firestore.
+Which work it takes is gated by `worker_tags` + `worker_host_id` on the `eval-rig` agent
+in its `~/.ailang/config.yaml`. An untagged worker cannot claim tag-routed work, so the
+rig only picks up what asks for it:
 
-Scoped to the coordinator process this is narrower than it sounds: the nightly-eval
-launchd job sets no storage env, so eval banking stays local regardless. But the
-coordinator's own span writes would move.
+```
+studio.eval-rig   ollama:gemma4-26b-ailang, gpu:m4-max-40core, local-models,
+                  claude:studio, agent:{opencode,codex,motoko,pi},
+                  eval:{smoke,core,full}, voight-kampff
+```
 
-The clean answer mirrors what already exists for messaging: an `AILANG_COORDINATOR_STORE`
-selector, so a node can join the shared task plane while keeping its observatory local —
-the same way `AILANG_MESSAGES_STORE` lets it join the shared inbox without surrendering
-`ailang chains`. That is a design doc, not an env var.
+Verified end to end 2026-08-26: a message sent from the laptop to the prod `eval-rig`
+inbox produced `Created task task-4067cd6a (agent: eval-rig)` on the Studio, with a
+thread and execution chain.
+
+### Two real limits
+
+1. **Cross-host `workers list` does not work.** Heartbeats go to a local JSON file;
+   `FileHeartbeatStore`'s own comment notes Firestore as a v0.25 roadmap item. Each host
+   sees only itself. Dispatch is unaffected — claiming goes through the inbox/tag match,
+   not the heartbeat.
+2. **The feedback-gate classifier fails closed on the rig** — `ANTHROPIC_API_KEY` is not
+   set there, so heuristic-flagged submissions are filed but never dispatched.
+
+## Resolved: the Studio takes jobs
+
+Settled 2026-08-26. The rig runs `AILANG_STORAGE=gcp` against `ailang-multivac` and is
+gated by `worker_tags`. No scoped coordinator selector was needed — once everything
+operational is prod, the granularity problem disappears.
+
+The observatory concern turned out to be smaller than it looked. The rig's
+`observatory.db` is 352 MB, but that is **92,230 spans over exactly 7 days** and
+terraform already sets a 7-day TTL on `obs_spans`, so it is self-bounding rather than
+growing. Realistically $1–2/month. The nightly-eval launchd job sets no storage env, so
+eval banking stays local regardless — only the coordinator's own span writes moved.
+
+Getting there needed one index nobody had built. A **local-mode coordinator on Firestore
+storage** calls `ListUnread` with the collapse-duplicates filter
+(`dup_of` + `status` + `to_inbox` + `created_at`). The Cloud Run coordinator never hits
+it — in cloud mode it takes messages from Pub/Sub and never calls `ListUnread` — so prod
+had worked for months with the index absent. The rig polled correctly every 30s and every
+poll failed `FailedPrecondition` while a message sat unread in its inbox: registered,
+tagged, alive, and silently claiming nothing.
 
 ## Quick reference
 
+An **attended node** (reads the shared inbox, takes no work):
+
 ```bash
-# Canonical inbox (export these; safe, scoped to messaging)
 export AILANG_MESSAGES_STORE=gcp
 export AILANG_MESSAGES_PROJECT=ailang-multivac
 
@@ -223,6 +268,19 @@ ailang storage status                  # must still say Mode: local
 
 AILANG_MESSAGES_STORE=local ailang messages list --unread   # this machine's private inbox
 ```
+
+A **job-taking node** (joins the execution plane; needs worker_tags to gate what it
+claims):
+
+```bash
+export AILANG_STORAGE=gcp
+export AILANG_CLOUD_PROJECT=ailang-multivac
+# plus worker_tags + worker_host_id on its agent in ~/.ailang/config.yaml
+```
+
+Do NOT set `COORDINATOR_MODE=cloud` on a machine behind NAT — that path is push-based
+and unreachable. Local mode over prod storage polls instead, which is what a bare-metal
+worker wants.
 
 Listings against a non-local store print `store: gcp (Firestore, project …)` in the
 header. Read it — an empty inbox and a read against the wrong project are otherwise
