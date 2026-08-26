@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -41,9 +42,9 @@ func TestApprovalEvaluation_UpdateByTask(t *testing.T) {
 	}
 }
 
-// Updating a task with no pending approval is an error, not a no-op: a verdict
-// that lands nowhere must say so (fail loud), or evaluator results silently
-// vanish exactly the way this program's failures used to.
+// A verdict for a task with NO approval at all is an error, not a no-op: it
+// must say so (fail loud). (A RESOLVED approval is different — the verdict
+// late-attaches for audit; see TestApprovalEvaluation_LateAttach.)
 func TestApprovalEvaluation_UpdateWithNoApprovalIsLoud(t *testing.T) {
 	store, err := NewSQLiteStore(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
@@ -53,5 +54,36 @@ func TestApprovalEvaluation_UpdateWithNoApprovalIsLoud(t *testing.T) {
 
 	if err := store.UpdateApprovalEvaluationByTask(context.Background(), "task-ghost", "PASS score=99"); err == nil {
 		t.Fatal("expected an error when no pending approval exists for the task")
+	}
+}
+
+// The race measured live 2026-08-26: the human approved while the evaluator
+// was scoring, and PASS score=95 was dropped. A late verdict now attaches to
+// the resolved approval, marked as late.
+func TestApprovalEvaluation_LateAttachAfterResolution(t *testing.T) {
+	store, err := NewSQLiteStore(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("store: %v", err)
+	}
+	defer func() { _ = store.Close() }()
+	ctx := context.Background()
+
+	req := &ApprovalRequestRecord{ID: "appr-2", TaskID: "task-raced", Type: "merge", Description: "x", Status: "pending"}
+	if err := store.CreateApprovalRequest(ctx, req); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := store.ResolveApprovalRequest(ctx, "appr-2", "approved", "dashboard-user"); err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+
+	if err := store.UpdateApprovalEvaluationByTask(ctx, "task-raced", "PASS score=95"); err != nil {
+		t.Fatalf("late attach must succeed on a resolved approval, got: %v", err)
+	}
+	got, err := store.GetApprovalRequest(ctx, "appr-2")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.Evaluation == "" || !strings.Contains(got.Evaluation, "late") {
+		t.Errorf("late verdict must be recorded and marked late, got %q", got.Evaluation)
 	}
 }

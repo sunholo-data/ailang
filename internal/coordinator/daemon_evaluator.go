@@ -3,6 +3,8 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/pubsub"
 )
 
 // M-PIPELINE-RECONCILIATION M2 (D1(b)): attach an evaluator's verdict to the
@@ -57,4 +59,24 @@ func (d *Daemon) agentEvaluatesParent(task *TaskRecord) bool {
 	}
 	agent := d.agentRegistry.GetAgentByID(task.AgentID)
 	return agent != nil && agent.EvaluatesParent
+}
+
+// publishInboxNotification tells the message plane an inbox row exists.
+//
+// InsertInboxMessage writes the STORE; subscribers (the notify daemon, hence
+// Discord) hear only the Pub/Sub notification, which the CLI send publishes
+// but the coordinator historically did not — so coordinator-created approval
+// requests never pinged anyone. Nil publisher (pure-local setups) is a no-op;
+// on the shared plane init guarantees one.
+func (d *Daemon) publishInboxNotification(msg *messaging.InboxMessage) {
+	if d.pubsubPublisher == nil || msg == nil {
+		return
+	}
+	if err := d.pubsubPublisher.PublishMessage(d.ctx, msg.ID, pubsub.MessageAttributes{
+		Inbox:       msg.ToInbox,
+		FromAgent:   msg.FromAgent,
+		MessageType: msg.MessageType,
+	}); err != nil {
+		d.logger.Printf("Warning: inbox notification not published for %s (row stored; Discord will not ping): %v", msg.ID, err)
+	}
 }

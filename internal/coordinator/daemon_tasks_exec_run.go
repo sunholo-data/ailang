@@ -602,6 +602,10 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 				}
 				if msgErr := d.msgStore.InsertInboxMessage(approvalMsg); msgErr != nil {
 					d.logger.Printf("Warning: Failed to create approval inbox message: %v", msgErr)
+				} else {
+					// The ping IS the product here: an approval nobody hears
+					// about gets approved blind from a context-free queue.
+					d.publishInboxNotification(approvalMsg)
 				}
 			}
 

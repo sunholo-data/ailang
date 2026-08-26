@@ -373,7 +373,26 @@ func (s *SQLiteStore) UpdateApprovalEvaluationByTask(ctx context.Context, taskID
 		return fmt.Errorf("update approval evaluation for task %s: %w", taskID, err)
 	}
 	if n == 0 {
-		return fmt.Errorf("no pending approval for task %s: evaluator verdict %q has nowhere to land", taskID, evaluation)
+		// LATE ATTACH (measured 2026-08-26): a human approved task-f8dd8186
+		// from the dashboard while the evaluator was still scoring; the
+		// pending-only update then dropped a PASS score=95 on the floor. The
+		// human may out-race the machine — that is legal — but the verdict
+		// still belongs on the record for audit. Attach to the LATEST approval
+		// whatever its status; only a task with no approval at all errors.
+		res2, err2 := s.db.ExecContext(ctx,
+			`UPDATE approval_requests SET evaluation = ?
+			 WHERE id = (SELECT id FROM approval_requests WHERE task_id = ? ORDER BY created_at DESC LIMIT 1)`,
+			evaluation+" (late: attached after resolution)", taskID)
+		if err2 != nil {
+			return fmt.Errorf("late-attach approval evaluation for task %s: %w", taskID, err2)
+		}
+		n2, err2 := res2.RowsAffected()
+		if err2 != nil {
+			return fmt.Errorf("late-attach approval evaluation for task %s: %w", taskID, err2)
+		}
+		if n2 == 0 {
+			return fmt.Errorf("no approval at all for task %s: evaluator verdict %q has nowhere to land", taskID, evaluation)
+		}
 	}
 	return nil
 }

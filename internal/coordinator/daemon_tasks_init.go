@@ -60,6 +60,22 @@ func (d *Daemon) initTaskProcessing() error {
 		d.enableFeedbackGate(coordConfig.FeedbackGate)
 	}
 
+	// M-PIPELINE-RECONCILIATION follow-up (measured 2026-08-26): a LOCAL-mode
+	// coordinator on SHARED storage writes approval rows the notify daemon can
+	// only see via Pub/Sub — and initPubSub ran only in cloud mode, so every
+	// coordinator-created approval was silent in Discord. Mark approved two
+	// merges "blind" from the dashboard queue because the ping that would have
+	// carried the context never existed. On the shared plane the publisher is
+	// REQUIRED; failing to build it fails init (and, per M1, the daemon).
+	// Pure-local single-machine setups keep no publisher and are unaffected.
+	// (AILANG_STORAGE read directly: internal/storage imports this package, so
+	// the mode helper would be an import cycle. gcp|hybrid = shared plane.)
+	if sm := os.Getenv("AILANG_STORAGE"); (sm == "gcp" || sm == "hybrid") && d.pubsubClient == nil {
+		if err := d.initPubSub(d.ctx); err != nil {
+			return fmt.Errorf("shared-plane coordinator needs a Pub/Sub publisher (approvals would be silent): %w", err)
+		}
+	}
+
 	// Build agent registry — literal entries plus pipeline expansion
 	// (M-PIPELINE-RECONCILIATION M4). Expansion failure is fatal via the
 	// initTaskProcessing error path (M1): a config whose pipelines cannot

@@ -356,7 +356,16 @@ func (s *CoordinatorStore) UpdateApprovalEvaluationByTask(ctx context.Context, t
 
 	doc, err := iter.Next()
 	if err == iterator.Done {
-		return fmt.Errorf("no pending approval for task %s: evaluator verdict %q has nowhere to land", taskID, evaluation)
+		// Late attach (see the SQLite twin): the human resolved the approval
+		// before the evaluator finished. Record the verdict on the latest
+		// approval regardless of status rather than dropping it.
+		rec, aerr := s.GetApprovalRequestByTaskAnyStatus(ctx, taskID)
+		if aerr != nil || rec == nil {
+			return fmt.Errorf("no approval at all for task %s: evaluator verdict %q has nowhere to land", taskID, evaluation)
+		}
+		_, uerr := s.client.Doc(collApprovals, rec.ID).Update(ctx,
+			[]firestore.Update{{Path: "evaluation", Value: evaluation + " (late: attached after resolution)"}})
+		return uerr
 	}
 	if err != nil {
 		return err

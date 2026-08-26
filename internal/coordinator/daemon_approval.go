@@ -167,7 +167,13 @@ func (d *Daemon) deliverHandoffToInbox(targetAgent *AgentConfig, task *TaskRecor
 		ChainID:       task.ChainID,
 		Status:        messaging.InboxStatusUnread,
 	}
-	return d.msgStore.InsertInboxMessage(msg)
+	if err := d.msgStore.InsertInboxMessage(msg); err != nil {
+		return err
+	}
+	// Cross-machine chains hear handoffs only via Pub/Sub; the notify daemon
+	// drops non-human inboxes, so this cannot spam Discord.
+	d.publishInboxNotification(msg)
+	return nil
 }
 
 // requestHandoffApproval creates an approval request for a handoff
