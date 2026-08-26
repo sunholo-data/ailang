@@ -147,7 +147,7 @@ echo "== 7. un-onboarded pin target => REFUSE, do not exec into a probe-hang =="
 # seen, and pinning into one makes every model probe hang to its timeout, then the driver refuses
 # with "NO usable model in prefs" — reading as a quota outage. Cost motoko its whole first fire
 # (charter V22). Staleness is the strictly smaller harm, so the pin must decline.
-printf '{"projects":{}}' > "$HOME/.claude.json"
+printf '{"projects":{"%s":{"hasTrustDialogAccepted":true}}}' "/some/unrelated/path" > "$HOME/.claude.json"
 UO=$(/bin/bash "$DRV" 2>&1)
 check "refuses to pin"                   "$UO" "STATUS=STALE"
 check "names the onboarding cause"       "$UO" "onboarded in Claude Code"
@@ -155,15 +155,16 @@ check "gives the exact human fix"        "$UO" "&& claude"
 check "fire still runs, unpinned"        "$UO" "MARKER=STALE-CONTENT"
 checkno "never reports pinned"           "$UO" "STATUS=pinned"
 
-echo "== 8. the gate reads the MEASURED flag, not the one the error text names =="
-# 76ee4056c: ailang-world has trust=false / onboarded=true and WORKS. So trust alone must not
-# satisfy the gate, or we would be right by accident and wrong in the reason.
+echo "== 8. current trust flag satisfies the onboarding gate =="
+# Measured, not assumed: on 2026-08-26 hasCompletedProjectOnboarding was absent from 15/15
+# live project entries while hasTrustDialogAccepted was present in 15/15 (control), so the
+# 2026-08-12 preference for hasCompletedProjectOnboarding is void.
 printf '{"projects":{"%s":{"hasTrustDialogAccepted":true}}}' "$T/pinwt" > "$HOME/.claude.json"
 TR=$(/bin/bash "$DRV" 2>&1)
-check "trust flag alone does NOT satisfy" "$TR" "STATUS=STALE"
+check "trust flag alone DOES satisfy"     "$TR" "STATUS=pinned"
 printf '{"projects":{"%s":{"hasCompletedProjectOnboarding":true}}}' "$T/pinwt" > "$HOME/.claude.json"
 OB=$(/bin/bash "$DRV" 2>&1)
-check "onboarding flag DOES satisfy"      "$OB" "STATUS=pinned"
+check "legacy onboarding flag DOES satisfy" "$OB" "STATUS=pinned"
 
 echo "== 8b. SOURCE-clone onboarding satisfies it — the case the first cut got WRONG =="
 # Measured 2026-08-12: `claude -p` runs fine from ~/.ailang-driver-pin/v1 while ~/.claude.json
@@ -175,13 +176,28 @@ SC=$(/bin/bash "$DRV" 2>&1)
 check "source onboarding is enough"       "$SC" "STATUS=pinned"
 check "and it really pinned"              "$SC" "MARKER=FRESH-CONTENT"
 
-echo "== 8c. NEITHER onboarded => still refuse (the motoko shape) =="
+echo "== 8c. SOURCE-clone trust satisfies it — the exact live rig shape =="
+printf '{"projects":{"%s":{"hasTrustDialogAccepted":true}}}' "$T/clone" > "$HOME/.claude.json"
+SCT=$(/bin/bash "$DRV" 2>&1)
+check "source trust is enough"            "$SCT" "STATUS=pinned"
+check "and source trust really pinned"    "$SCT" "MARKER=FRESH-CONTENT"
+
+echo "== 8d. NEITHER onboarded => still refuse (the motoko shape) =="
 # The gate must not have been widened into a no-op: a fresh clone with nothing onboarded anywhere
 # is exactly what cost motoko iteration 1, and it must still be refused.
 printf '{"projects":{"%s":{"hasCompletedProjectOnboarding":true}}}' "/some/unrelated/path" > "$HOME/.claude.json"
 NN=$(/bin/bash "$DRV" 2>&1)
 check "neither path onboarded => STALE"   "$NN" "STATUS=STALE"
 check "message names BOTH paths"          "$NN" "nor its source clone"
+
+echo "== 8e. schema drift is distinct from ordinary un-onboarded refusal =="
+printf '{"projects":{"%s":{"lastCost":1.25}}}' "/some/unrelated/path" > "$HOME/.claude.json"
+SD=$(/bin/bash "$DRV" 2>&1)
+check "schema drift => STALE"             "$SD" "STATUS=STALE"
+check "reason names schema drift"         "$SD" "Claude Code schema drift"
+check "reason names legacy key"           "$SD" "hasCompletedProjectOnboarding"
+check "reason names current key"          "$SD" "hasTrustDialogAccepted"
+checkno "not ordinary onboarding refusal" "$SD" "neither $T/pinwt nor its source clone"
 
 echo "== 9. undeterminable (no jq) fails SAFE, not open =="
 mkdir -p "$T/nojq"

@@ -98,7 +98,7 @@ pin_root_to_committed_ref() {
     return 0
   fi
 
-  local ref src script wt target short drift fetch_s rc
+  local ref src script wt target short drift fetch_s rc onboarding_key_count
   ref="${AILANG_DRIVER_REF:-origin/dev}"
   fetch_s="${AILANG_DRIVER_FETCH_TIMEOUT:-120}"
   script=$(basename "$0")
@@ -182,22 +182,26 @@ pin_root_to_committed_ref() {
   # onboarded anywhere) and accepts the worktree-of-a-good-clone shape. `$wt` is still checked
   # first because AILANG_DRIVER_PIN_DIR can point somewhere that is NOT a worktree of $src.
   #
-  # `hasCompletedProjectOnboarding`, NOT the `hasTrustDialogAccepted` the error text names —
-  # 76ee4056c measured ailang-world (trust=false, onboarded=true) WORKING, the control proving
-  # the flag the message points at is not the gate.
+  # Claude Code has used both `hasCompletedProjectOnboarding` (legacy) and
+  # `hasTrustDialogAccepted` (current) for this state, so either true value is sufficient.
   #
   # Undeterminable is treated as un-onboarded, deliberately: pinning blind risks ~12 min of hung
   # probes and a dead loop, refusing costs staleness that is already reported. jq lives at
   # /usr/bin/jq, inside launchd's default PATH, so its absence means something is genuinely wrong.
   _pin_onboarded() {  # $1 = path -> echoes true/false
-    jq -r --arg p "$1" '.projects[$p].hasCompletedProjectOnboarding // false' "$HOME/.claude.json" 2>/dev/null
+    jq -r --arg p "$1" '((.projects[$p].hasCompletedProjectOnboarding == true) or (.projects[$p].hasTrustDialogAccepted == true))' "$HOME/.claude.json" 2>/dev/null
   }
   if [ -n "${AILANG_DRIVER_SKIP_ONBOARD_CHECK:-}" ]; then
     :
   elif ! command -v jq >/dev/null 2>&1; then
     _pin_stale "cannot verify Claude Code onboarding for $wt (jq not found) — refusing to pin into a possibly-unusable checkout"; return 1
-  elif [ "$(_pin_onboarded "$wt")" != "true" ] && [ "$(_pin_onboarded "$src")" != "true" ]; then
-    _pin_stale "neither $wt nor its source clone $src is onboarded in Claude Code — every model probe would hang there (charter V22). Run once, interactively: cd $src && claude"; return 1
+  else
+    onboarding_key_count=$(jq '[.projects[]? | select(has("hasCompletedProjectOnboarding") or has("hasTrustDialogAccepted"))] | length' "$HOME/.claude.json" 2>/dev/null)
+    if [ "${onboarding_key_count:-0}" -eq 0 ]; then
+      _pin_stale "neither hasCompletedProjectOnboarding nor hasTrustDialogAccepted exists in ANY project entry of $HOME/.claude.json — Claude Code schema drift; the onboarding gate needs a new key, not human onboarding"; return 1
+    elif [ "$(_pin_onboarded "$wt")" != "true" ] && [ "$(_pin_onboarded "$src")" != "true" ]; then
+      _pin_stale "neither $wt nor its source clone $src is onboarded in Claude Code — every model probe would hang there (charter V22). Run once, interactively: cd $src && claude"; return 1
+    fi
   fi
 
   # MISSION_WORKDIR moves too, and that is the point: mission-control.sh:40 reads it AHEAD of
