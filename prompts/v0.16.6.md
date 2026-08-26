@@ -2288,9 +2288,14 @@ Use `pkg/` prefix for external packages:
 ```ailang
 import std/io (println)                            -- Stdlib (bundled)
 import myproject/utils (helper)                    -- Local module
-import pkg/sunholo/gcp-auth/token (getAccessToken) -- External package
-import pkg/sunholo/auth/keys (validateKeyHash)      -- External package
+import pkg/sunholo/gcp_auth/token (getAccessToken) -- External package
+import pkg/sunholo/auth/keys (validateKeyHash)     -- External package
 ```
+
+Package names use **underscores**, never hyphens. A hyphen in an import path parses as
+subtraction and fails with `PAR_HYPHEN_IN_IMPORT`. The registry name is canonical
+(`sunholo/gcp_auth`); the repo directory may be spelled `packages/gcp-auth`, but that is
+a folder name, never an import path.
 
 ### Registry Workflow (recommended)
 

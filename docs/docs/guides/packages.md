@@ -396,10 +396,11 @@ ailang search "auth" --tag gcp
 ailang pkg-docs sunholo/gcp-auth
 
 # 3. Install with hash verification
-ailang install sunholo/gcp-auth@0.1.0
+#    Package names use underscores - the registry name is canonical.
+ailang install sunholo/gcp_auth@0.1.0
 
-# 4. Use in code
-# import pkg/sunholo/gcp-auth/token (getAccessToken)
+# 4. Use in code (a hyphen here parses as subtraction: PAR_HYPHEN_IN_IMPORT)
+# import pkg/sunholo/gcp_auth/token (getAccessToken)
 
 # 5. Publish reusable work back to the registry
 ailang publish --dry-run    # Validate first
