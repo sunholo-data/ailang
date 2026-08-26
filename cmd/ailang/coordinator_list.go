@@ -69,6 +69,16 @@ func coordinatorPending(args []string) error {
 		return enc.Encode(pending)
 	}
 
+	// M-PIPELINE-RECONCILIATION M6 (D4, ratified 2026-08-26): the `approvals`
+	// INBOX is the cross-lane decision spine — coordinator approval requests
+	// land there (and reach Discord), and Lane A mission stages post their
+	// awaiting_approval items there too. Union it into this view with
+	// provenance, because the store half of this command is LOCAL SQLite: a
+	// machine running storage=gcp keeps its approval records in Firestore, and
+	// without the inbox union this command silently shows a subset and calls
+	// it everything.
+	printApprovalsInboxPending()
+
 	// Non-interactive mode: --approve <id> or --approve-all
 	if approveID != "" || approveAll {
 		pending, err := store.ListPendingApprovals(ctx)
@@ -767,4 +777,33 @@ func showTaskDetail(ctx context.Context, store *coordinator.SQLiteStore, task *c
 			fmt.Println("Unknown action:", input)
 		}
 	}
+}
+
+// printApprovalsInboxPending lists unread approval_request messages from the
+// `approvals` inbox on the CANONICAL message store (honors
+// AILANG_MESSAGES_STORE), with provenance per row. Best-effort: a store error
+// is printed, never silently dropped — an unreachable spine must not read as
+// an empty one.
+func printApprovalsInboxPending() {
+	msgStore, err := openStore()
+	if err != nil {
+		fmt.Println(yellow("⚠"), "approvals inbox unavailable:", err)
+		return
+	}
+	defer func() { _ = msgStore.Close() }()
+
+	msgs, err := msgStore.ListInboxMessages(messaging.InboxListOptions{Inbox: "approvals", UnreadOnly: true, Limit: 50})
+	if err != nil {
+		fmt.Println(yellow("⚠"), "approvals inbox unavailable:", err)
+		return
+	}
+	if len(msgs) == 0 {
+		return
+	}
+	fmt.Println()
+	fmt.Println(cyan("Decision spine — unread in the `approvals` inbox:"))
+	for _, m := range msgs {
+		fmt.Printf("  ● %-22s %s  (from %s, %s)\n", m.ID, m.Title, m.FromAgent, m.CreatedAt.Format("01-02 15:04"))
+	}
+	fmt.Println("  Resolve via dashboard, `ailang coordinator approve <id>`, or ack the message when handled elsewhere.")
 }

@@ -2809,6 +2809,24 @@ handed — those zeros came from this skill. So:
 - **Tokens**: every metered stage posts `tokens_in`/`tokens_out` from the provider's own usage
   report (quorum reviewers included — a reviewer bill without tokens is what produced iter-190).
   Quota lanes still post zero, as they always have.
+- **awaiting_approval also posts to the DECISION SPINE** (M-PIPELINE-RECONCILIATION M6, D4,
+  ratified 2026-08-26). Any stage you record as `awaiting_approval` — a design frozen pending
+  ratification, an executor result parked for a human — ALSO sends one message to the `approvals`
+  inbox, which is the single "waiting on Mark" view (it reaches Discord as "🔔 Approval needed",
+  and `ailang coordinator pending` unions it):
+
+  ```bash
+  ailang messages send approvals \
+    "<one-paragraph: what is waiting, what deciding it unblocks, where the artifact lives>" \
+    --title "Approval Required: <mission>/iter-<N> <stage role>: <short subject>" \
+    --type approval_request --from "mission-${MISSION_NAME:-v1}" || true
+  ```
+
+  When the decision lands (directive, ratification, or explicit skip), **ack that message** —
+  Gate 0's inbox triage treats a stale unread approval row as noise you created. Do NOT post
+  quorum-internal pauses here; the spine is for decisions a HUMAN must make, not for the loop's
+  own machinery.
+
 - **Status**: post what actually happened. `ailang chains post-iteration` now prints a stderr
   notice naming how many stages posted no status and will read `pending` forever.
   **Do NOT blanket-post `completed`** — a stage that failed must be posted `failed`. Marking
