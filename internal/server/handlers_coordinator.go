@@ -21,6 +21,7 @@ type CoordinatorApprovalStore interface {
 	// Firestore coordinator stores already implement this.
 	CreateApprovalRequest(ctx context.Context, req *coordinator.ApprovalRequestRecord) error
 	GetApprovalRequest(ctx context.Context, id string) (*coordinator.ApprovalRequestRecord, error)
+	GetApprovalRequestByTaskAnyStatus(ctx context.Context, taskID string) (*coordinator.ApprovalRequestRecord, error) // #921: persisted-diff lookup for cross-lane tasks
 	ListPendingApprovals(ctx context.Context) ([]*coordinator.ApprovalRequestRecord, error)
 	ListResolvedApprovals(ctx context.Context, limit int) ([]*coordinator.ApprovalRequestRecord, error)
 	ResolveApprovalRequest(ctx context.Context, id string, status string, resolvedBy string) error
@@ -511,20 +512,59 @@ func (s *Server) handleTaskDiff(w http.ResponseWriter, r *http.Request, taskID s
 		return
 	}
 
+	// #921: prefer the diff the OWNING coordinator persisted on the approval
+	// record at completion. This server may be on a different machine than the
+	// worktree (local-lane task, cloud dashboard) — the old behavior stat'd
+	// the path, found nothing, and answered "Worktree has been deleted", which
+	// the UI rendered as a confident "Files (0)" on the consent card.
+	servePersisted := func() bool {
+		if s.approvalStore == nil {
+			return false
+		}
+		rec, aerr := s.approvalStore.GetApprovalRequestByTaskAnyStatus(ctx, taskID)
+		if aerr != nil || rec == nil || rec.ContextJSON == "" {
+			return false
+		}
+		var cctx struct {
+			Diff     string `json:"diff"`
+			DiffStat string `json:"diff_stat"`
+		}
+		if err := json.Unmarshal([]byte(rec.ContextJSON), &cctx); err != nil || cctx.Diff == "" {
+			return false
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
+			"task_id":   taskID,
+			"diff":      cctx.Diff,
+			"diff_stat": cctx.DiffStat,
+			"source":    "persisted", // computed at completion by the owning coordinator
+		}); err != nil {
+			log.Printf("Failed to encode diff response: %v", err)
+		}
+		return true
+	}
+
 	if task.WorktreePath == "" {
+		if servePersisted() {
+			return
+		}
 		http.Error(w, "Task has no worktree", http.StatusNotFound)
 		return
 	}
 
-	// Check if worktree directory exists
+	// Worktree path not visible from THIS machine: cross-lane, or cleaned up
+	// after merge. The persisted diff is authoritative either way; only when
+	// none exists do we say so — and honestly, not as "deleted".
 	if _, err := os.Stat(task.WorktreePath); os.IsNotExist(err) {
-		// Worktree was deleted - return empty diff with explanation
+		if servePersisted() {
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"task_id":       taskID,
 			"worktree_path": task.WorktreePath,
 			"diff":          "",
-			"error":         "Worktree has been deleted",
+			"error":         "Worktree is not on this machine (or was cleaned up) and no persisted diff exists for this task",
 		}); err != nil {
 			log.Printf("Failed to encode diff response: %v", err)
 		}

@@ -40,6 +40,16 @@ type UIApproval struct {
 	Summary      string `json:"summary,omitempty"`   // Short summary for display
 	// Display info for consistent rendering
 	StatusDisplay *display.StatusDisplay `json:"status_display,omitempty"`
+
+	// #921 — the fields the card exists to show. Evaluation is the sprint-
+	// evaluator verdict from the approval record (PASS/FAIL/UNAVAILABLE, may
+	// carry a "(late…)" suffix). DiffStat and ChangedFiles come from the diff
+	// the OWNING coordinator persisted at completion — the dashboard cannot
+	// stat a worktree on another machine, and rendered "Files (0)" for every
+	// local-lane task until it stopped trying.
+	Evaluation   string   `json:"evaluation,omitempty"`
+	DiffStat     string   `json:"diff_stat,omitempty"`
+	ChangedFiles []string `json:"changed_files,omitempty"`
 }
 
 // mapCoordinatorApprovalToUI maps a coordinator ApprovalRequestRecord to the UI format
@@ -65,6 +75,18 @@ func (s *Server) mapCoordinatorApprovalToUI(ctx context.Context, rec *coordinato
 		approval.Impact = "low"
 	} else if rec.Type == "merge" {
 		approval.Impact = "high"
+	}
+
+	approval.Evaluation = rec.Evaluation
+	if rec.ContextJSON != "" {
+		var cctx struct {
+			DiffStat     string   `json:"diff_stat"`
+			ChangedFiles []string `json:"changed_files"`
+		}
+		if err := json.Unmarshal([]byte(rec.ContextJSON), &cctx); err == nil {
+			approval.DiffStat = cctx.DiffStat
+			approval.ChangedFiles = cctx.ChangedFiles
+		}
 	}
 
 	if rec.ResolvedBy != "" {

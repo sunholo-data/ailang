@@ -140,6 +140,13 @@ export interface ApprovalData {
   files_changed?: string[];
   diff_summary?: string;
   diff_preview?: string;
+  // #921: the decision context the card exists to show. evaluation is the
+  // sprint-evaluator verdict from the approval record; diff_stat/changed_files
+  // are computed by the OWNING coordinator at completion, so they render even
+  // when the worktree lives on another machine.
+  evaluation?: string;
+  diff_stat?: string;
+  changed_files?: string[];
   branch_name?: string;
   worktree_path?: string;
   // Multi-channel approval workflow fields (M-DASHBOARD-APPROVAL-INTEGRATION)
@@ -369,6 +376,22 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
             )}
             {approval.channel && (
               <ChannelBadge channel={approval.channel} />
+            )}
+            {approval.evaluation && (
+              <span
+                className={styles.typeBadge}
+                title="Sprint-evaluator verdict for this work"
+                style={{
+                  backgroundColor: approval.evaluation.startsWith('PASS')
+                    ? 'var(--color-success-bg, #dcfce7)'
+                    : 'var(--color-danger-bg, #fee2e2)',
+                  color: approval.evaluation.startsWith('PASS')
+                    ? 'var(--color-success-fg, #166534)'
+                    : 'var(--color-danger-fg, #991b1b)',
+                }}
+              >
+                {approval.evaluation}
+              </span>
             )}
             <span className={`${styles.typeBadge} ${styles[`type${capitalize(approval.type || approval.request_type || 'merge')}`]}`}>
               {approval.type || approval.request_type || 'merge'}
@@ -702,12 +725,34 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
                     }
                   })()}
 
-                  {/* Generic context for non-cost approvals */}
+                  {/* #921: what approving actually DOES, before any raw context */}
+                  {(approval.diff_stat || (approval.changed_files && approval.changed_files.length > 0)) && (
+                    <div className={styles.contextSection}>
+                      <h3>What changes</h3>
+                      {approval.diff_stat && <p><code>{approval.diff_stat}</code></p>}
+                      {approval.changed_files && approval.changed_files.length > 0 && (
+                        <ul>
+                          {approval.changed_files.map((f) => (
+                            <li key={f}><code>{f}</code></li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                  {/* Generic context for non-cost approvals. The persisted diff
+                      is EXCLUDED here — it renders properly in the Files tab;
+                      dumped raw it is 200KB of escaped patch. */}
                   {approval.type !== 'cost' && approval.request_type !== 'cost' && approval.context_json && (
                     <div className={styles.contextSection}>
                       <h3>Context</h3>
                       <pre className={styles.contextJson}>
-                        {(() => { try { return JSON.stringify(JSON.parse(approval.context_json), null, 2); } catch { return approval.context_json; } })()}
+                        {(() => {
+                          try {
+                            const ctx = JSON.parse(approval.context_json);
+                            delete ctx.diff;
+                            return JSON.stringify(ctx, null, 2);
+                          } catch { return approval.context_json; }
+                        })()}
                       </pre>
                     </div>
                   )}

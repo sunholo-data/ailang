@@ -539,8 +539,9 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			// Create approval request record for the CLI/dashboard to show
 			approvalID := fmt.Sprintf("apr-%s", task.ID[5:]) // apr-<hash> from task-<hash>
 
-			// Check if handoffs are pending for this agent (will be embedded in approval)
-			var contextJSON string
+			// The approval's context map. Handoff embedding fills part of it;
+			// the persisted diff (below) fills the rest.
+			approvalContext := map[string]interface{}{}
 			var handoffTargets []string
 			if d.agentRegistry != nil && task.AgentID != "" {
 				agent := d.agentRegistry.GetAgentByID(task.AgentID)
@@ -554,16 +555,33 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 							handoffTargets = append(handoffTargets, tgt)
 						}
 					}
-					// Build context with embedded handoff data
-					handoffContext := map[string]interface{}{
-						"handoff_targets": handoffTargets,
-						"session_id":      result.SessionID,
-						"source_agent":    task.AgentID,
-					}
-					if contextBytes, err := json.Marshal(handoffContext); err == nil {
-						contextJSON = string(contextBytes)
-					}
+					approvalContext["handoff_targets"] = handoffTargets
+					approvalContext["session_id"] = result.SessionID
+					approvalContext["source_agent"] = task.AgentID
 					d.logger.Printf("Embedding handoff to %v in merge approval for task %s", handoffTargets, task.ID)
+				}
+			}
+
+			// #921: persist the diff ON THE RECORD at creation time, computed by
+			// the one machine that can see the worktree. The dashboard runs
+			// elsewhere: its /tasks/{id}/diff endpoint stats the worktree path,
+			// finds nothing cross-lane, and rendered "Files (0)" — a confident
+			// zero — on the exact card whose job is informed consent. Measured
+			// 2026-08-26: Mark approved two merges blind from that card.
+			if worktreePath != "" {
+				if diffText, dErr := GetWorktreeDiff(taskCtx, worktreePath, baseBranch, baseCommit); dErr == nil && diffText != "" {
+					approvalContext["diff_stat"] = diffStatFromPatch(diffText)
+					approvalContext["changed_files"] = filesFromPatch(diffText)
+					approvalContext["diff"] = capPatch(diffText, approvalDiffCapBytes)
+				} else if dErr != nil {
+					d.logger.Printf("Warning: approval diff not persisted for %s (card will fall back to live worktree): %v", task.ID, dErr)
+				}
+			}
+
+			var contextJSON string
+			if len(approvalContext) > 0 {
+				if contextBytes, err := json.Marshal(approvalContext); err == nil {
+					contextJSON = string(contextBytes)
 				}
 			}
 

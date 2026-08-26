@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -54,6 +55,15 @@ func NewMockApprovalStore() *MockApprovalStore {
 func (m *MockApprovalStore) CreateApprovalRequest(ctx context.Context, req *coordinator.ApprovalRequestRecord) error {
 	m.approvals[req.ID] = req
 	return nil
+}
+
+func (m *MockApprovalStore) GetApprovalRequestByTaskAnyStatus(ctx context.Context, taskID string) (*coordinator.ApprovalRequestRecord, error) {
+	for _, r := range m.approvals {
+		if r.TaskID == taskID {
+			return r, nil
+		}
+	}
+	return nil, errors.New("no approval for task " + taskID)
 }
 
 func (m *MockApprovalStore) GetApprovalRequest(ctx context.Context, id string) (*coordinator.ApprovalRequestRecord, error) {
