@@ -1896,6 +1896,72 @@ models:
       Not in ollama_suite until smoke gate passes.
       Requires: Ollama running on localhost:11434, model pulled, motoko CLI.
 
+  motoko-cloud-kimi-k3:
+    api_name: "kimi-k3:cloud"                          # untagged model -> `:cloud`
+    provider: "ollama"                                 # local daemon proxies to ollama.com (M-OLLAMA-CLOUD-PROVIDER)
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Kimi K3 via motoko on Ollama Cloud — best open-weight model by external benchmarks (88.3 Terminal-Bench 2.1, 81.2 FrontierSWE). Mission-fleet candidate."
+    env_var: ""                                        # device key via `ollama signin`; OLLAMA_API_KEY is only for /api/usage
+    agent_cli: "motoko"
+    motoko_profile: "ollama"
+    agent_model_name: "ollama/kimi-k3:cloud"
+    model_family: "kimi-k3"
+    max_output_tokens: 65536                           # HEADROOM, not a cap: the GLM-5.2 retraction showed a starved
+                                                       # thinking budget reads as a capability failure. These are
+                                                       # reasoning models — starve the budget and you measure the harness.
+    pricing:
+      # PROVISIONAL — D1 UNRATIFIED. Deliberately NOT 0/0 (that maps to the false
+      # `free-local` provenance). Imputed from the OpenRouter twin, list price read
+      # from the OpenRouter models API 2026-08-26.
+      input_per_1k: 0.003
+      output_per_1k: 0.015
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    notes: |
+      QUOTA/COST MEASUREMENT ROW — not in any suite, not in rotation.
+      design_docs/planned/v0_34_0/m-ollama-cloud-provider.md
+
+      Why this model on THIS route: at OpenRouter list price a measured agent
+      trial (282k in / 2k out, V31) costs $0.876, so the $62.56 remaining on the
+      $100/mo OpenRouter cap buys ~71 runs. On Ollama Cloud the same weights are
+      flat-rate. That difference is the whole reason this row exists.
+
+      Expect a HIGH ollama usage level (1-4; deepseek-v4-pro is named level 4).
+      Consumption per trial is the thing being measured.
+  motoko-cloud-deepseek-v4-flash:
+    api_name: "deepseek-v4-flash:0731-cloud"           # tagged model -> `-cloud` on the TAG
+    provider: "ollama"                                 # local daemon proxies to ollama.com (M-OLLAMA-CLOUD-PROVIDER)
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "DeepSeek V4 Flash 0731 via motoko on Ollama Cloud — same weights as the mission executor first fallback, on a flat-rate route."
+    env_var: ""                                        # device key via `ollama signin`; OLLAMA_API_KEY is only for /api/usage
+    agent_cli: "motoko"
+    motoko_profile: "ollama"
+    agent_model_name: "ollama/deepseek-v4-flash:0731-cloud"
+    model_family: "deepseek-v4"
+    max_output_tokens: 65536                           # HEADROOM, not a cap: the GLM-5.2 retraction showed a starved
+                                                       # thinking budget reads as a capability failure. These are
+                                                       # reasoning models — starve the budget and you measure the harness.
+    pricing:
+      # PROVISIONAL — D1 UNRATIFIED. Deliberately NOT 0/0 (that maps to the false
+      # `free-local` provenance). Imputed from the OpenRouter twin, list price read
+      # from the OpenRouter models API 2026-08-26.
+      input_per_1k: 0.00006
+      output_per_1k: 0.00012
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    notes: |
+      QUOTA/COST MEASUREMENT ROW — not in any suite, not in rotation.
+      design_docs/planned/v0_34_0/m-ollama-cloud-provider.md
+
+      These are ALREADY the sprint-executor first fallback, routed as
+      pi:openrouter/deepseek/deepseek-v4-flash-0731:floor — metered. This row is
+      the same weights on the flat-rate route, the cleanest like-for-like the
+      fleet could adopt.
+
+      Cheap on OpenRouter too ($0.017/trial), so the cost argument here is weak;
+      the argument is route diversity and quota independence.
   motoko-cloud-gpt-oss-20b:
     api_name: "gpt-oss:20b-cloud"                      # the `-cloud` suffix IS the route (M-OLLAMA-CLOUD-PROVIDER)
     provider: "ollama"                                 # SAME provider as local — the local daemon proxies it
