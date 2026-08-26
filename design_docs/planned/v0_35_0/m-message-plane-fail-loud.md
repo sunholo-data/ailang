@@ -106,7 +106,7 @@ and *not doing its job* without saying so in a machine-readable way.
 2. Two machines editing the shared prod config cannot silently lose each other's writes.
 3. `workspace` has exactly one meaning; the local/cloud execution lane is chosen by an explicit
    field, not by inferring intent from whether a string starts with `/`.
-4. `public-feedback` either routes or is explicitly declared human-triage-only — not neither.
+4. Every configured inbox has either an agent or an explicit `triage_only: true` — "neither" becomes unrepresentable.
 5. Every claim in this list is verifiable by a command, and each has a regression test.
 
 ---
@@ -115,17 +115,40 @@ and *not doing its job* without saying so in a machine-readable way.
 
 | # | Decision | Options | Who decides | Cost to change later |
 |---|---|---|---|---|
-| D1 | Should standby be **fatal** or **degraded-but-running**? | (a) exit non-zero so launchd's `KeepAlive` restarts and the failure is loud; (b) stay up, serve `/health` as `degraded`, keep the HTTP surface for diagnosis | **Mark** | Low — one branch in `Run()` |
-| D2 | Does `public-feedback` get an agent, or an explicit `triage_only: true`? | (a) register a triage agent; (b) new config field marking the inbox deliberately human-owned, so "unrouted" stops being ambiguous between *forgotten* and *intended* | **Mark** | Medium — (b) adds a config field other lanes read |
-| D3 | How is the execution lane chosen? | (a) new `execution_lane: local\|cloud` field on the agent; (b) keep inferring from `workspace` shape | **Mark** | High once other agents depend on it |
+| # | Decision | **RATIFIED (Mark, 2026-08-26)** | Cost to change later |
+|---|---|---|---|
+| D1 | Standby behaviour | **(a) FATAL EXIT.** `initTaskProcessing` failure exits non-zero. launchd `KeepAlive.SuccessfulExit=false` restarts it, `ThrottleInterval: 10` bounds the loop, and a daemon that cannot work is never reachable-but-inert. | Low — one branch in `Run()` |
+| D2 | `public-feedback` routing | **(b) EXPLICIT `triage_only: true`.** No agent — anonymous input is never handed to something that acts on it. Discord is the routing, and the marker makes "no agent" mean *intended* rather than *forgotten*. | Medium — new config field |
+| D3 | Execution lane selection | **(a) EXPLICIT `execution_lane: local\|cloud`.** Inference from `workspace` shape is what produced the 3.5-hour worktree loop. | High once agents depend on it |
 
 ### Design Freeze
 
-- [ ] D1 decided
-- [ ] D2 decided
-- [ ] D3 decided
+- [x] **D1 decided** — fatal exit
+- [x] **D2 decided** — explicit `triage_only`, Discord is the routing
+- [x] **D3 decided** — explicit `execution_lane`
 
-**Nothing in Phase 2 or 3 starts before D3.** Phase 1 is independent and can proceed.
+**All three ratified 2026-08-26. Sprint may proceed on all phases.**
+
+#### D2 addendum — verified, and it narrows the work
+
+`public-feedback` reaching Discord is **not** an assumption. Verified 2026-08-26 in
+`/tmp/ailang-daemon.log`, daemon PID 50131 running `--env prod`, `channels=[discord macos]`:
+
+```
+09:02:24  delivered fb_1cce034a84df5cec [from=mcp-public, inbox=public-feedback] -> "🌐 External feedback"
+12:03:31  delivered fb_f7ecc535fde19c8e [from=mcp-public, inbox=public-feedback] -> "🌐 External feedback"
+12:04:10  delivered fb_c1cf1a339764a683 [from=mcp-public, inbox=public-feedback] -> "🌐 External feedback"
+```
+
+All ten `pkg:sunholo/ailang-parse` tickets were delivered the same way at 09:02. `humanTriageInbox`
+([handlers.go](../../../internal/daemon/handlers.go), commit `926901474`) already covers
+`public-feedback`, `user`, and `pkg:*`.
+
+**Consequence:** the visibility half of D2 already works. The remaining work is only to make the
+*intent* legible in config — today "no agent" is indistinguishable from "agent forgotten", which is
+what sent this session chasing a phantom routing gap. #900 must be corrected, not implemented:
+the 36 dispatch failures were real, but the fix was the `resolveInboxAgent` refusal (shipped), not
+registering an agent.
 
 ---
 
@@ -248,7 +271,7 @@ $ ailang coordinator config set --agent pkg-sunholo-ailang-parse --workspace sun
 - [ ] `NewWorktreeManager` with a nonexistent `repoDir` returns an error at construction
 - [ ] A config write against a stale generation is refused with the live generation named
 - [ ] `eval-rig` has an explicit lane; no eval-rig task is dispatched to Cloud Run
-- [ ] `public-feedback` routes, or is explicitly marked triage-only (D2)
+- [ ] `public-feedback` carries `triage_only: true`; an inbox with neither an agent nor the marker is a startup error
 - [ ] Regression test per row in the Verification Log
 - [ ] All tests passing; docs updated
 

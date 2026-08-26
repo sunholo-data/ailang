@@ -43,6 +43,18 @@ func NewWorktreeManager(repoDir, baseDir string, maxWorktrees int) (*WorktreeMan
 		if err != nil {
 			return nil, fmt.Errorf("failed to find git root: %w", err)
 		}
+	} else if err := validateRepoDir(repoDir); err != nil {
+		// M-MESSAGE-PLANE-FAIL-LOUD M1: a SUPPLIED path was previously taken on
+		// trust — only the empty case above ever resolved anything. So an
+		// unresolvable path constructed cleanly, the daemon logged "Worktree
+		// manager ready", and the failure surfaced later on every CleanupOrphaned
+		// tick instead of at the point the mistake was made.
+		//
+		// Measured 2026-08-26: the rig logged "failed to prune worktrees: chdir
+		// sunholo-data/ailang: no such file or directory" every 30s for ~3.5
+		// hours, because an agent's `workspace` held a GitHub coordinate
+		// (relative) while the daemon's CWD was $HOME.
+		return nil, err
 	}
 
 	if baseDir == "" {
@@ -274,6 +286,31 @@ func (wm *WorktreeManager) loadExisting() error {
 }
 
 // findGitRoot finds the root of the current git repository
+// validateRepoDir reports whether repoDir can actually back worktree operations.
+//
+// Three failure shapes, each with its own message because they have different
+// fixes: a relative coordinate (someone put a GitHub `org/repo` where a path
+// belongs), a path that does not exist, and a real directory that is not a git
+// repository. Every worktree operation shells out to git with -C repoDir, so all
+// three are fatal — the only question is whether we say so now or once per tick
+// forever.
+func validateRepoDir(repoDir string) error {
+	if !filepath.IsAbs(repoDir) {
+		return fmt.Errorf("worktree repo dir %q is not an absolute path: a bare coordinate resolves against the daemon's working directory, not a repository — set it to the checkout path (a GitHub org/repo belongs in the repo coordinate, not here)", repoDir)
+	}
+	info, err := os.Stat(repoDir)
+	if err != nil {
+		return fmt.Errorf("worktree repo dir %q is unusable: %w", repoDir, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("worktree repo dir %q is not a directory", repoDir)
+	}
+	if err := exec.Command("git", "-C", repoDir, "rev-parse", "--git-dir").Run(); err != nil {
+		return fmt.Errorf("worktree repo dir %q is not a git repository: %w", repoDir, err)
+	}
+	return nil
+}
+
 func findGitRoot() (string, error) {
 	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
 	output, err := cmd.Output()

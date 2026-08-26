@@ -343,13 +343,34 @@ func (d *Daemon) Run() error {
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 
-	// Initialize task processing components
+	// Initialize task processing components.
+	//
+	// M-MESSAGE-PLANE-FAIL-LOUD M1 (decision D1, ratified 2026-08-26): FATAL.
+	//
+	// This used to log one Warning and continue in "standby mode (no message
+	// processing)". Standby is indistinguishable from idle from outside the
+	// process: `coordinator status` says running, /health answers, and the log
+	// prints "Checking for new tasks..." on every tick forever. Nothing ever
+	// restates the warning.
+	//
+	// Measured on the rig 2026-08-26: 20 standby startups against 11 healthy,
+	// first on 2026-05-25 — three months of a registered, tagged, alive worker
+	// claiming nothing. The trigger is that initTaskProcessing builds a default
+	// worktree manager with an empty repo path, which resolves the git root from
+	// CWD; launchd's WorkingDirectory was $HOME. So the SAME BINARY was healthy
+	// launched from a terminal in the repo and inert under launchd — which is how
+	// a manual end-to-end verification passed while production processed nothing.
+	//
+	// Returning the error exits non-zero (Start returns it, and the CLI
+	// propagates). launchd's KeepAlive.SuccessfulExit=false restarts, and
+	// ThrottleInterval=10 bounds the loop, so a misconfigured daemon crash-loops
+	// visibly instead of idling silently. Per CLAUDE.md Critical Principle 2, a
+	// fallback that changes whether work happens at all is not a fallback.
 	if err := d.initTaskProcessing(); err != nil {
-		d.logger.Printf("Warning: Failed to initialize task processing: %v", err)
-		d.logger.Println("Daemon running in standby mode (no message processing)")
-	} else {
-		d.logger.Println("Daemon running, polling for tasks...")
+		d.logger.Printf("FATAL: cannot initialize task processing: %v", err)
+		return fmt.Errorf("cannot initialize task processing (daemon would be reachable but process no messages): %w", err)
 	}
+	d.logger.Println("Daemon running, polling for tasks...")
 
 	// Start HTTP health server if PORT env var is set (Cloud Run convention)
 	if port := os.Getenv("PORT"); port != "" {
