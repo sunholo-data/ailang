@@ -34,6 +34,26 @@ const (
 	LaneLocal ExecutionLane = "local"
 )
 
+// isPathNotCoordinate reports whether s is a filesystem path rather than a
+// GitHub coordinate.
+//
+// Deliberately NOT just filepath.IsAbs: that answers "is this absolute on the
+// HOST I am running on", and the config is shared across hosts. A POSIX path
+// like /Users/x/dev/ailang is not IsAbs on Windows, so a Windows reader would
+// classify a bare-metal worker as cloud — measured on test-windows 2026-08-26,
+// where TestExecutionLane_InfersLocalForAbsolutePath got "cloud".
+//
+// A coordinate is org/repo: exactly one slash, no leading separator. Anything
+// with a leading "/" is a POSIX path on every platform, and IsAbs still catches
+// Windows drive letters. The question is about the STRING's shape, not the
+// reader's OS.
+func isPathNotCoordinate(s string) bool {
+	if s == "" {
+		return false
+	}
+	return strings.HasPrefix(s, "/") || filepath.IsAbs(s)
+}
+
 // looksLikeOrgRepo reports whether s has the shape of a GitHub coordinate:
 // exactly one slash and not an absolute path. This is the same test
 // deriveRepoURL has always used, named so the intent is legible.
@@ -59,7 +79,7 @@ func (a *AgentConfig) ResolveLane() ExecutionLane {
 	case LaneLocal, LaneCloud:
 		return a.ExecutionLane
 	}
-	if a.Workspace != "" && filepath.IsAbs(a.Workspace) {
+	if isPathNotCoordinate(a.Workspace) {
 		return LaneLocal
 	}
 	return LaneCloud

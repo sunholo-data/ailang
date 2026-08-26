@@ -147,3 +147,39 @@ func TestExecutionLane_LiveFleetStillInfersCloud(t *testing.T) {
 		}
 	}
 }
+
+// PLATFORM INDEPENDENCE — the config is shared across hosts, so lane inference
+// must depend on the STRING's shape, not on the reader's OS.
+//
+// filepath.IsAbs alone answers "is this absolute on the machine I am running
+// on". A POSIX path is not IsAbs on Windows, so a Windows reader classified the
+// rig's /Users/... workspace as CLOUD — caught by test-windows 2026-08-26
+// (TestExecutionLane_InfersLocalForAbsolutePath got "cloud"), not by any local
+// run on macOS or the Linux CI job.
+func TestExecutionLane_PathShapeIsPlatformIndependent(t *testing.T) {
+	paths := []string{
+		"/Users/voightkampff/dev/sunholo-data/ailang", // POSIX
+		"/home/runner/work/ailang",                    // POSIX (Linux CI)
+		"/var/tmp/checkout",                           // POSIX
+	}
+	for _, p := range paths {
+		a := &AgentConfig{ID: "worker", Workspace: p}
+		if got := a.ResolveLane(); got != LaneLocal {
+			t.Errorf("POSIX path %q must infer local on EVERY platform, got %q", p, got)
+		}
+		if got := a.ResolveRepo(); got != "" {
+			t.Errorf("POSIX path %q must never resolve as a repo coordinate, got %q", p, got)
+		}
+	}
+}
+
+// A coordinate must still read as cloud even though it contains a slash — this
+// is the other side of the same boundary.
+func TestExecutionLane_CoordinateIsNotAPath(t *testing.T) {
+	for _, c := range []string{"sunholo-data/ailang", "org/repo"} {
+		a := &AgentConfig{ID: "x", Workspace: c}
+		if got := a.ResolveLane(); got != LaneCloud {
+			t.Errorf("coordinate %q must infer cloud, got %q", c, got)
+		}
+	}
+}

@@ -368,6 +368,17 @@ func (d *Daemon) Run() error {
 	// fallback that changes whether work happens at all is not a fallback.
 	if err := d.initTaskProcessing(); err != nil {
 		d.logger.Printf("FATAL: cannot initialize task processing: %v", err)
+		// initTaskProcessing opens the task store BEFORE the step that usually
+		// fails here, so bailing out leaks the SQLite handle. The process is
+		// about to exit either way, but an unreleased file handle is not
+		// harmless everywhere: on Windows an open file cannot be deleted, so the
+		// leak surfaces as a cleanup failure rather than a leak (caught by
+		// test-windows, 2026-08-26). Release it on the way out.
+		if closer, ok := d.taskStore.(interface{ Close() error }); ok && closer != nil {
+			if cerr := closer.Close(); cerr != nil {
+				d.logger.Printf("also failed to close task store: %v", cerr)
+			}
+		}
 		return fmt.Errorf("cannot initialize task processing (daemon would be reachable but process no messages): %w", err)
 	}
 	d.logger.Println("Daemon running, polling for tasks...")
