@@ -208,7 +208,18 @@ func isRetryableError(err error) bool {
 
 	errStr := err.Error()
 
-	// Rate limiting errors
+	// AC8 (M-OLLAMA-CLOUD). Quota exhaustion must be checked BEFORE the 429
+	// rule below, because it ARRIVES AS A 429 and would otherwise be retried.
+	// An Ollama Cloud session limit does not clear until the 5-hour window
+	// rolls, and a weekly limit takes days — so retrying is not merely
+	// unhelpful, it burns the remaining run against a bucket that cannot
+	// recover. Shares one definition with the error categoriser so the two
+	// cannot disagree about the same error.
+	if isQuotaExhaustion(strings.ToLower(errStr)) {
+		return false
+	}
+
+	// Rate limiting errors — transient, genuinely worth retrying.
 	if strings.Contains(errStr, "rate limit") ||
 		strings.Contains(errStr, "429") {
 		return true

@@ -113,14 +113,7 @@ func CategorizeAgentError(err error, finishReason string) string {
 	// Quota exhaustion — provider account/key cap. Distinct from a transient
 	// 429: a quota kill says nothing about model capability and should be
 	// excluded from capability scoring (see ShouldExcludeFromCapability).
-	if containsAny(msg,
-		"key limit exceeded",
-		"monthly limit",
-		"insufficient_quota",
-		"insufficient quota",
-		"quota exceeded",
-		"billing",
-	) {
+	if isQuotaExhaustion(msg) {
 		return ErrorCategoryQuotaExhausted
 	}
 
@@ -214,4 +207,38 @@ func IsReasoningStall(content string, outputTokens, reasoningTokens int) bool {
 		return false
 	}
 	return outputTokens <= reasoningTokens
+}
+
+// isQuotaExhaustion reports whether an error message means "this account's
+// allowance is spent", as opposed to "you are going too fast right now".
+//
+// The distinction is invisible from the HTTP status. Ollama Cloud returns
+// exhaustion as **429 with type "api_error"** — the same status a transient
+// rate-limit uses — and only the message separates them. Measured verbatim
+// 2026-08-26 by deliberately exhausting a session window (M-OLLAMA-CLOUD V22):
+//
+//	429 {"error":{"message":"you (marked) have reached your session usage limit,
+//	     upgrade for higher limits: https://ollama.com/upgrade ...",
+//	     "type":"api_error","param":null,"code":null}}
+//
+// Why it matters that these are separated: a rate-limit clears in seconds and
+// SHOULD be retried; an Ollama session limit does not clear until the 5-hour
+// window rolls, and a weekly limit takes days. Retrying into either burns the
+// run for nothing. This helper is the single definition shared by the error
+// categoriser and the retry predicate, so the two cannot drift into disagreeing
+// about the same error.
+func isQuotaExhaustion(msg string) bool {
+	return containsAny(msg,
+		// Ollama Cloud (V22, verbatim above). Both windows.
+		"session usage limit",
+		"weekly usage limit",
+		"usage limit, upgrade",
+		// Other providers.
+		"key limit exceeded",
+		"monthly limit",
+		"insufficient_quota",
+		"insufficient quota",
+		"quota exceeded",
+		"billing",
+	)
 }
