@@ -6,6 +6,12 @@ description: How model capability correlates with AILANG performance — and why
 
 # Model Capability Threshold
 
+> **DATED SNAPSHOT — not auto-refreshed.** The per-model table below was measured at
+> the version stated in the text and is maintained by hand. For current numbers see
+> [Benchmarks: Performance](/docs/benchmarks/performance) and
+> [Benchmarks: ELO Ratings](/docs/benchmarks/elo), which stamp their own release and date.
+
+
 One of the most striking patterns in AILANG's eval data is that **above a certain capability level, models score *higher* on AILANG than on Python** for the same coding tasks. Below that threshold, the gap reverses sharply.
 
 This page documents the threshold, what predicts it, and what it means for AILANG's design goals.

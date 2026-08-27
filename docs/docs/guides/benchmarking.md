@@ -60,40 +60,26 @@ ailang eval --benchmark adt_option --model claude-3 --seed 42
 | `cli_args` | Read file, process, sum | Hard | IO + FS |
 | `adt_option` | Option/Maybe monad ops | Medium | Algebraic types |
 
-## Latest Benchmark Results (v0.3.5)
+## Latest Benchmark Results
 
-**Model:** Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
-**Date:** October 13, 2025
-**Success Rate:** 10/19 (52.6%)
+Results are **published live** — this guide deliberately carries no numbers, because a
+hand-maintained table here went stale for ~10 months (it showed v0.3.5 / Oct 2025 numbers,
+19 benchmarks, while the suite had grown past 90) and readers had no way to tell.
 
-| Benchmark | Compile | Runtime | Output | Status |
-|-----------|---------|---------|--------|--------|
-| adt_option | Yes | Yes | Yes | **PASS** |
-| cli_args | No | No | No | FAIL |
-| error_handling | Yes | Yes | Yes | **PASS** |
-| fizzbuzz | Yes | Yes | Yes | **PASS** |
-| float_eq | No | No | No | FAIL |
-| higher_order_functions | Yes | Yes | Yes | **PASS** |
-| json_parse | No | No | No | FAIL |
-| list_comprehension | Yes | Yes | No | FAIL |
-| list_operations | Yes | Yes | Yes | **PASS** |
-| nested_records | Yes | Yes | Yes | **PASS** |
-| numeric_modulo | Yes | No | No | FAIL |
-| pattern_matching_complex | No | No | No | FAIL |
-| pipeline | No | No | No | FAIL |
-| record_update | Yes | Yes | Yes | **PASS** |
-| records_person | Yes | Yes | Yes | **PASS** |
-| recursion_factorial | Yes | Yes | No | FAIL |
-| recursion_fibonacci | No | No | No | FAIL |
-| string_manipulation | Yes | Yes | Yes | **PASS** |
-| targeted_repair_test | Yes | Yes | Yes | **PASS** |
+| What you want | Where it lives |
+|---|---|
+| Model leaderboard, per-tier pass rates, trends over releases | [Benchmarks: Performance](/docs/benchmarks/performance) |
+| Benchmark difficulty + model capability (anchored ELO) | [Benchmarks: ELO Ratings](/docs/benchmarks/elo) |
+| Cost / quality / speed tradeoffs | [Benchmarks: Value](/docs/benchmarks/value) |
+| Per-harness agent-mode comparison | [Benchmarks: Explorer](/docs/benchmarks/explorer) |
+| On-device (local model) leaderboard + release trend | [Benchmarks: OS Models](/docs/benchmarks/os-model-leaderboard) |
+| Every benchmark's prompt, expected output, sample solutions | [Benchmarks: Gallery](/docs/benchmarks/gallery) |
 
-**Key Insights:**
-- **Strong areas:** Records, ADTs, basic recursion, string operations
-- **Needs improvement:** File I/O, JSON parsing, complex pattern matching, numeric operations
-- **Compile success:** 16/19 (84.2%) - AI understands AILANG syntax well
-- **Runtime success:** 14/19 (73.7%) - Most syntax issues resolved
-- **Output correctness:** 10/19 (52.6%) - Logic errors in complex scenarios
+Each of those pages stamps the release and date its numbers came from.
+
+To reproduce locally: `ailang eval-suite --models <model> --tier core --langs ailang,python`,
+then `ailang eval-report <results_dir> <version> --format=json` (never redirect its stdout —
+it writes and history-merges the dashboard artifact itself).
 
 ## Command-Line Options
 
@@ -261,6 +247,8 @@ make eval-clean
 ## Interpreting Results
 
 ### Token Reduction
+
+> **Note:** any cost/token figures below are illustrative only and are NOT refreshed. Live per-model cost and token data is on [Benchmarks: Value](/docs/benchmarks/value).
 
 **Good**: 30-50% reduction
 - Indicates AILANG's concise syntax is effective

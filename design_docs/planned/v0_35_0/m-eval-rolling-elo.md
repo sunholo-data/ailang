@@ -304,6 +304,26 @@ Not a parser/typechecker change, but it overrides shared machinery — enumerate
 - Provenance stamps (version + timestamp from `latest.json`) on the 5 pages missing them; extend the existing `benchmarkFetchWithSource` staleness badge from ValueDashboard to the other surfaces (reuse, not rebuild).
 - **VERIFY**: (a) data-logic unit tests on the history-entry builder; (b) Docusaurus build green on Node 20; (c) headless `--dump-dom` post-hydration shows the chart rows; (d) Mark confirms visuals (repo norm: user verifies frontend).
 
+> **M5 VERIFY EXECUTED — 2026-08-27, in-session sprint.**
+> - **Axiom Scorecard staleness**: now computes its own age from the artifact timestamp and shows
+>   `⚠ … N days old (static file, not auto-refreshed)` past 45 days. It had been showing
+>   v0.15.0 / 2026-05-04 numbers for ~115 days with no indicator. (Wiring it into the publish
+>   pipeline is a separate change; saying how old it is was the honest minimum.)
+> - **Hardcoded "46 benchmarks"** on the homepage → derived from the artifact, and the clause is
+>   omitted entirely when the data is absent rather than printing a wrong number.
+> - **Broken Explorer link** `/ailang/docs/...` (old GitHub-Pages baseUrl) → `/docs/...`.
+> - **`guides/benchmarking.md`**: the hand-maintained v0.3.5 / Oct-2025 results table (19
+>   benchmarks, 52.6%) is replaced by a routing table to the six live pages, each of which now
+>   stamps its own release + date. The undated cost/token table below it is marked illustrative.
+> - **`model-capability-threshold.md`**: stamped DATED SNAPSHOT with pointers to the live pages.
+> - **Deletions, each with a zero-consumer grep first** (coding-standards rule — never delete on
+>   "unused" alone): `docs/docs/static/benchmarks/latest.json` (v0.3.12 / 2025-10-17, sat inside
+>   the docs CONTENT dir so `staticDirectories: ['static']` never served it — genuinely
+>   unreachable), and 4 orphaned components (`LanguageChart`, `SpeedRadar`,
+>   `BenchmarkChampionsTable`, `DollarsPerPassTable`) — git history shows they were superseded by
+>   the May-2026 move of cost/speed analysis to the Value page, not abandoned mid-refactor.
+> - Frontend: all 10 touched files + the untouched control parse clean.
+
 **M5 — Hygiene sweep** (parallelizable, ~2 days)
 - Axiom Scorecard: wire `axiom_scorecard.json` into the publish path or add a staleness banner (currently v0.15.0/2026-05-04, no indicator).
 - `BenchmarkMini` hardcoded "46 benchmarks" → data-driven; fix Explorer's stale `/ailang/docs/...` link; delete the dead `docs/docs/static/benchmarks/latest.json` (v0.3.12) and the 4 orphaned components (per coding standards: check git history for why-unused first); replace `guides/benchmarking.md`'s hand-written v0.3.5 tables with links to the live pages; same for `model-capability-threshold.md` (or stamp it as a dated snapshot).

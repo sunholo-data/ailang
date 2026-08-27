@@ -544,7 +544,7 @@ export default function BenchmarkExplorer() {
       <h3 style={{ marginTop: 0, marginBottom: 8, fontSize: '1rem' }}>Pass Rate by Model × Language</h3>
       <p style={{ fontSize: '0.8rem', color: 'var(--ifm-color-emphasis-600)', marginBottom: 8 }}>
         <strong>Agent mode only.</strong> Standard 0-shot API results are excluded — see the{' '}
-        <a href="/ailang/docs/benchmarks/performance">benchmarks page</a> for those.
+        <a href="/docs/benchmarks/performance">benchmarks page</a> for those.
         Green ≥ 85% · Yellow 50–84% · Red &lt; 30% · — = no agent results for this model × language.
       </p>
 
