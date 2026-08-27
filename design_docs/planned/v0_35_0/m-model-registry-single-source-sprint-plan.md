@@ -281,8 +281,44 @@ never run under an agentic harness. Per the project's standing rule, standard-mo
 transfer to agent mode. At $0.075/$0.25 per 1M an agent-mode smoke tier costs on the order of
 $0.06 — cheaper than the meeting about whether to run it — so M5 measures rather than assumes.
 
+**Status: PARTIAL — blocked on the agent-mode gate, which cannot run on this machine.**
+
 **Acceptance criteria**
-- Fixture covers all 34 agents; pre/post resolution identical for the 33 pinned ones
+- [x] Fixture covers all 34 agents; **zero move** when `model_routing` is deleted — M7's deletion
+      is now measured inert, not assumed. Snapshot at
+      `internal/coordinator/testdata/cloud_agents_20260827.json`
+- [x] `motoko-or-glm-5-3-flash` registered: `agent_cli: motoko`,
+      `agent_model_name: openrouter/z-ai/glm-5.3-flash`, `max_output_tokens: 65536`
+- [ ] **AGENT-MODE smoke tier passes — BLOCKED, see below**
+- [ ] `motoko` pinned in `config.cloud.yaml` (gated on the line above)
+- [x] The D2(a) blast radius is measured: exactly **one** agent (`motoko`) resolves to no model.
+      That test is written and correctly RED; it is held out of the tree and lands with M6, when
+      the pin makes it green
+
+#### ⚠️ Blocker — the agent-mode gate cannot run here
+
+Two attempts, both defeated by motoko's **fixed port 8080**:
+
+1. First run, 22/23 failed with `Failed to start server. Is port 8080 in use?`. Cause was mine:
+   `eval-suite --parallel` defaults to **10**, so ten motoko instances raced for one port. (Its
+   `--agent-timeout` also defaults to 60s against a row budgeted at 3600 — a second latent
+   misconfiguration.) **This is not a model result** and must not be read as one.
+2. Second run, sequential (`--parallel 0 --agent-timeout 900`), still hit the port: **another
+   agent is running an `os-rolling` motoko rotation on this machine right now**
+   (`--models opencode-qwen3-8-27b,pi-qwen3-8-27b,motoko-local-qwen3-8-27b`). Motoko's fixed port
+   means the two runs cannot coexist — and mine risked corrupting theirs, so I stopped mine.
+   Their rotation was verified still alive afterwards.
+
+Of 3 benchmarks attempted before stopping, 1 completed cleanly — so the model plausibly works under
+motoko, but **n=1 is not a gate pass** and this is explicitly not a verdict on GLM-5.3-Flash.
+
+**To finish M5**: run the 23-benchmark agent-mode tier with `--parallel 0` in a window when no
+other motoko work is active, then pin `motoko` and land the held M6 gate test. Cost is ~$0.06;
+the constraint is exclusivity, not money.
+
+**Worth routing separately**: motoko's fixed port 8080 makes agent-mode eval unparallelisable and
+makes any two concurrent motoko consumers mutually destructive. That is a harness defect the whole
+fleet pays for, not something this sprint should absorb.
 - `motoko-or-glm-5-3-flash` registered with `agent_cli: motoko` and the `openrouter/z-ai/…` string
 - **Agent-mode smoke tier on `motoko-or-glm-5-3-flash` passes** before the pin goes live — the
   first agentic measurement this model has; a failure routes back to Mark, not to a silent revert
