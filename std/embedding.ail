@@ -71,7 +71,9 @@ export pure func normalize(v: [float]) -> [float] {
 --   cosine([1.0, 0.0], [0.0, 1.0])   -- 0.0 (orthogonal)
 --   cosine([1.0, 0.0], [-1.0, 0.0])  -- -1.0 (opposite)
 export pure func cosine(a: [float], b: [float]) -> float {
-  let mag_a = magnitude(a) in let mag_b = magnitude(b) in if mag_a == 0.0 || mag_b == 0.0 then 0.0 else dot(a, b) / (mag_a * mag_b)
+  let mag_a = magnitude(a) in
+  let mag_b = magnitude(b) in
+  if mag_a == 0.0 || mag_b == 0.0 then 0.0 else dot(a, b) / (mag_a * mag_b)
 }
 
 -- ============================================================================

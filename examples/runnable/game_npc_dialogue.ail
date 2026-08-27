@@ -15,10 +15,13 @@ import std/ai (call)
 import std/io (println)
 
 -- Build dialogue prompt for an NPC
-func make_prompt(npc_name: string, role: string, personality: string, topic: string) -> string = "You are ${npc_name}, a ${role} in a fantasy RPG. Personality: ${personality}. Generate ONE short line of dialogue (1-2 sentences) about: ${topic}"
+func make_prompt(npc_name: string, role: string, personality: string, topic: string) -> string =
+  "You are ${npc_name}, a ${role} in a fantasy RPG. Personality: ${personality}. Generate ONE short line of dialogue (1-2 sentences) about: ${topic}"
 
 -- Generate NPC dialogue using AI
-func ask_npc(npc_name: string, role: string, personality: string, topic: string) -> string ! {AI} = let prompt = make_prompt(npc_name, role, personality, topic) in call(prompt)
+func ask_npc(npc_name: string, role: string, personality: string, topic: string) -> string ! {AI} =
+  let prompt = make_prompt(npc_name, role, personality, topic) in
+  call(prompt)
 
 -- Main: demonstrate NPC dialogue generation
 export func main() -> () ! {IO, AI} {
@@ -27,7 +30,8 @@ export func main() -> () ! {IO, AI} {
   -- Blacksmith dialogue
   println("[At the Forge]")
   println("Player: Can you forge me an enchanted sword?")
-  let blacksmith_says = ask_npc("Grimnar", "blacksmith", "gruff but kind, speaks tersely", "forging an enchanted sword") in println("Grimnar: ${blacksmith_says}")
+  let blacksmith_says = ask_npc("Grimnar", "blacksmith", "gruff but kind, speaks tersely", "forging an enchanted sword") in
+  println("Grimnar: ${blacksmith_says}")
   println("")
   println("[At the Tavern]")
   println("Player: What do you know about the dragon?")

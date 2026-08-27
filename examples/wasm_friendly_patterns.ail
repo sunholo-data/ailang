@@ -106,7 +106,8 @@ export pure func good_unpack_score(r: Result[Score, string]) -> (bool, float, fl
 -- ============================================================================
 
 -- BAD: `.sentiment.x` four times inside string interpolation
-export pure func bad_format(st: Score, target: Score) -> string = "x=${show(st.x)}, y=${show(st.y)}, tx=${show(target.x)}, ty=${show(target.y)}"
+export pure func bad_format(st: Score, target: Score) -> string =
+  "x=${show(st.x)}, y=${show(st.y)}, tx=${show(target.x)}, ty=${show(target.y)}"
 
 -- GOOD: let-bind intermediate record once. Easier to read AND lighter on
 -- the WASM substitution chain.

@@ -14,13 +14,15 @@ import std/net (httpRequest, HttpResponse, NetError)
 import std/result (Result, Ok, Err)
 
 -- Make OpenAI API request to list models
-func listModels(apiKey: string) -> string ! {Net} = let headers = [{ name: "Authorization", value: "Bearer " ++ apiKey }, { name: "Content-Type", value: "application/json" }] in match httpRequest("GET", "https://api.openai.com/v1/models", headers, "") {
-  Ok(resp) => if resp.ok then resp.body else "HTTP error (non-200 status)",
-  Err(Transport(msg)) => "Network error: " ++ msg,
-  Err(DisallowedHost(host)) => "Blocked host: " ++ host,
-  Err(InvalidHeader(hdr)) => "Invalid header: " ++ hdr,
-  Err(BodyTooLarge(size)) => "Response too large: " ++ size
-}
+func listModels(apiKey: string) -> string ! {Net} =
+  let headers = [{ name: "Authorization", value: "Bearer " ++ apiKey }, { name: "Content-Type", value: "application/json" }] in
+  match httpRequest("GET", "https://api.openai.com/v1/models", headers, "") {
+    Ok(resp) => if resp.ok then resp.body else "HTTP error (non-200 status)",
+    Err(Transport(msg)) => "Network error: " ++ msg,
+    Err(DisallowedHost(host)) => "Blocked host: " ++ host,
+    Err(InvalidHeader(hdr)) => "Invalid header: " ++ hdr,
+    Err(BodyTooLarge(size)) => "Response too large: " ++ size
+  }
 
 -- Extract API key or return error string
 func extractKey(result: Result[string, EnvError]) -> string = match result {

@@ -27,21 +27,23 @@ import std/math (floatToInt)
 --
 -- Returns:
 --   Result[{header: Json, payload: Json, signature: bytes, signed: string}, string]
-export pure func decodeJWT(token: string) -> Result[{ header: Json, payload: Json, signature: bytes, signed: string }, string] = {
-  let parts = split(token, ".") in if length(parts) != 3 then Err("invalid JWT: expected 3 dot-separated segments") else match parts {
-    [headerB64, payloadB64, sigB64] => match decodeSegment(headerB64, "header") {
-      Err(e) => Err(e),
-      Ok(header) => match decodeSegment(payloadB64, "payload") {
+export pure func decodeJWT(token: string) -> Result[{ header: Json, payload: Json, signature: bytes, signed: string }, string] =
+  {
+    let parts = split(token, ".") in
+    if length(parts) != 3 then Err("invalid JWT: expected 3 dot-separated segments") else match parts {
+      [headerB64, payloadB64, sigB64] => match decodeSegment(headerB64, "header") {
         Err(e) => Err(e),
-        Ok(payload) => match fromBase64URL(sigB64) {
-          None => Err("invalid base64url in signature"),
-          Some(sigBytes) => Ok({ header: header, payload: payload, signature: sigBytes, signed: "${headerB64}.${payloadB64}" })
+        Ok(header) => match decodeSegment(payloadB64, "payload") {
+          Err(e) => Err(e),
+          Ok(payload) => match fromBase64URL(sigB64) {
+            None => Err("invalid base64url in signature"),
+            Some(sigBytes) => Ok({ header: header, payload: payload, signature: sigBytes, signed: "${headerB64}.${payloadB64}" })
+          }
         }
-      }
-    },
-    _ => Err("invalid JWT: expected 3 dot-separated segments")
+      },
+      _ => Err("invalid JWT: expected 3 dot-separated segments")
+    }
   }
-}
 
 -- Helper: base64url-decode a segment and JSON-parse it
 pure func decodeSegment(b64: string, name: string) -> Result[Json, string] = {

@@ -58,7 +58,8 @@ let complex =
   if equal then "yes" else "no"  -- Result: "yes"
 
 -- Main expression demonstrating all features
-let main = { arithmetic: simple, floats: ratios, equality: test_eq, ordering: test_ord, mixed: mixed, polymorphic: test_poly, complex: complex }
+let main =
+  { arithmetic: simple, floats: ratios, equality: test_eq, ordering: test_ord, mixed: mixed, polymorphic: test_poly, complex: complex }
 
 -- Print results
 println("=== Type Classes Demo ===")

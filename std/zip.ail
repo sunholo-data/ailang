@@ -36,7 +36,8 @@ export func readEntry(path: string, entry: string) -> Result[string, string] ! {
 -- Returns Ok(string) with base64 content, or Err(message)
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
-export func readEntryBytes(path: string, entry: string) -> Result[string, string] ! {FS} = _zip_readEntryBytes(path, entry)
+export func readEntryBytes(path: string, entry: string) -> Result[string, string] ! {FS} =
+  _zip_readEntryBytes(path, entry)
 
 -- M-STREAMING-ZIP-XML: Streaming ZIP+XML fold
 
@@ -49,7 +50,8 @@ export func readEntryBytes(path: string, entry: string) -> Result[string, string
 --   Peak memory: ~4 KB XML buffer + accumulator size
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
-export func scanFold[a](path: string, entry: string, tag: string, init: a, f: (a, XmlNode) -> a) -> Result[a, string] ! {FS} = _zip_xml_scanFold(path, entry, tag, init, f)
+export func scanFold[a](path: string, entry: string, tag: string, init: a, f: (a, XmlNode) -> a) -> Result[a, string] ! {FS} =
+  _zip_xml_scanFold(path, entry, tag, init, f)
 
 -- Bounded variant: handler returns FoldStep[a] = Continue(a) | Stop(a).
 -- Returning Stop(acc') halts the scan without reading the rest of the entry.
@@ -58,7 +60,8 @@ export func scanFold[a](path: string, entry: string, tag: string, init: a, f: (a
 -- COST MODEL:
 --   scanFoldStep(path, entry, tag, init, f)  O(prefix) scan, stops on Stop(_)
 -- @requires FS capability
-export func scanFoldStep[a](path: string, entry: string, tag: string, init: a, f: (a, XmlNode) -> FoldStep[a]) -> Result[a, string] ! {FS} = _zip_xml_scanFoldStep(path, entry, tag, init, f)
+export func scanFoldStep[a](path: string, entry: string, tag: string, init: a, f: (a, XmlNode) -> FoldStep[a]) -> Result[a, string] ! {FS} =
+  _zip_xml_scanFoldStep(path, entry, tag, init, f)
 
 -- M-DOCPARSE-DX M4: ZIP write capabilities
 
@@ -67,14 +70,16 @@ export func scanFoldStep[a](path: string, entry: string, tag: string, init: a, f
 -- Returns Ok(()) on success, Err(message) on failure
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
-export func createArchive(path: string, entries: [{ name: string, content: string }]) -> Result[(), string] ! {FS} = _zip_createArchive(path, entries)
+export func createArchive(path: string, entries: [{ name: string, content: string }]) -> Result[(), string] ! {FS} =
+  _zip_createArchive(path, entries)
 
 -- Create a ZIP archive with binary entries (base64-encoded data)
 -- Each entry is {name: string, data: string} where data is base64
 -- For embedding images, fonts, or other binary content in DOCX/PPTX
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
-export func createArchiveWithBytes(path: string, entries: [{ name: string, data: string }]) -> Result[(), string] ! {FS} = _zip_createArchiveWithBytes(path, entries)
+export func createArchiveWithBytes(path: string, entries: [{ name: string, data: string }]) -> Result[(), string] ! {FS} =
+  _zip_createArchiveWithBytes(path, entries)
 
 -- ailang#644: in-memory ZIP construction (no filesystem, no FS effect)
 
@@ -87,7 +92,8 @@ export func createArchiveWithBytes(path: string, entries: [{ name: string, data:
 -- Returns Ok(base64 of the archive) or Err(message).
 -- Output is deterministic: entries carry the MS-DOS epoch, not the wall clock.
 -- Security: path traversal rejected, 10K entry limit, 100MB total content limit.
-export pure func buildArchive(entries: [{ name: string, content: string }]) -> Result[string, string] = _zip_buildArchive(entries)
+export pure func buildArchive(entries: [{ name: string, content: string }]) -> Result[string, string] =
+  _zip_buildArchive(entries)
 
 -- Build a ZIP archive in memory from binary entries and return it base64-encoded.
 -- Each entry is {name: string, data: string} where data is base64.
@@ -96,4 +102,5 @@ export pure func buildArchive(entries: [{ name: string, content: string }]) -> R
 -- encode text parts with std/bytes (toBase64 . fromString).
 -- Returns Ok(base64 of the archive) or Err(message).
 -- Security: path traversal rejected, 10K entry limit, 100MB total content limit.
-export pure func buildArchiveWithBytes(entries: [{ name: string, data: string }]) -> Result[string, string] = _zip_buildArchiveWithBytes(entries)
+export pure func buildArchiveWithBytes(entries: [{ name: string, data: string }]) -> Result[string, string] =
+  _zip_buildArchiveWithBytes(entries)
