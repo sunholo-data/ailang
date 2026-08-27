@@ -290,8 +290,12 @@ accident, on the provider the fleet just migrated off. Two consequences folded i
 and the model gets its first agent-mode measurement before the pin goes live, since every existing
 GLM-5.3-Flash result is standard-mode.
 
-## Scope lever
+## Scope: full, M8 included
 
-If 6–7 days is too long, **defer M8 to v0.36.0** — that is exactly the D3(b) fallback. Cloud gets
-the single source now; missions adopt later. Cost: one of the four sources stays alive and the
-divergence needs documenting. Saves ~1 day and removes the sprint's highest-consequence risk.
+**M8 confirmed in scope** (Mark, 2026-08-27), after the D3(b) defer option was put to him
+explicitly. The sprint retires all four assignment sources, not three.
+
+One scheduling consequence: M8 requires an **attended window** — it is the sprint's only milestone
+that can take down live infrastructure (bash 3.2.57, zero CI coverage, three loops, ~290
+iterations). Sequence it for a time when someone is watching rather than as an end-of-day landing.
+The fallback-to-env-pins branch is an acceptance criterion, not a nicety.
