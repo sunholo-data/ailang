@@ -1,5 +1,5 @@
 {
-  "_comment": "Snapshot of ailang-multivac/config/config.cloud.yaml, measured 2026-08-27 at the start of M-MODEL-REGISTRY-SINGLE-SOURCE. This is the PRE-migration truth the fixture pins: deleting model_routing (M7) must not change any of these 34 resolutions.",
+  "_comment": "Snapshot of ailang-multivac/config/config.cloud.yaml, re-taken 2026-08-27 AFTER M5 pinned motoko to GLM-5.3-Flash. Two things it pins: (1) deleting model_routing (M7) must not move any of these 34 resolutions; (2) no agent falls through to a provider default, which is the D2(a) precondition M6 depends on.",
   "agents": [
     {
       "id": "design-doc-creator",
@@ -29,7 +29,7 @@
     {
       "id": "motoko",
       "role": "",
-      "model": ""
+      "model": "openrouter/z-ai/glm-5.3-flash"
     },
     {
       "id": "pkg-sunholo-auth",

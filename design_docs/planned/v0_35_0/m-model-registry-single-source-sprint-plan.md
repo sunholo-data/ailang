@@ -281,7 +281,7 @@ never run under an agentic harness. Per the project's standing rule, standard-mo
 transfer to agent mode. At $0.075/$0.25 per 1M an agent-mode smoke tier costs on the order of
 $0.06 — cheaper than the meeting about whether to run it — so M5 measures rather than assumes.
 
-**Status: PARTIAL — blocked on the agent-mode gate, which cannot run on this machine.**
+**Status: COMPLETE 2026-08-27.** The agent-mode gate passed 23/23 on an exclusive host.
 
 **Acceptance criteria**
 - [x] Fixture covers all 34 agents; **zero move** when `model_routing` is deleted — M7's deletion
@@ -289,13 +289,28 @@ $0.06 — cheaper than the meeting about whether to run it — so M5 measures ra
       `internal/coordinator/testdata/cloud_agents_20260827.json`
 - [x] `motoko-or-glm-5-3-flash` registered: `agent_cli: motoko`,
       `agent_model_name: openrouter/z-ai/glm-5.3-flash`, `max_output_tokens: 65536`
-- [ ] **AGENT-MODE smoke tier passes — BLOCKED, see below**
-- [ ] `motoko` pinned in `config.cloud.yaml` (gated on the line above)
+- [x] **AGENT-MODE smoke tier passes** — 23/23 `compile=✓ runtime=✓ stdout=✓`, zero errors, sequential on an exclusive host (chain `e01fa9aa`). Cleaner than the model's standard-mode smoke (22/23). Cost **$0.26**, not the ~$0.06 estimated: agent mode bills ~2 calls per benchmark at ~300k input tokens each, so ~$0.011/benchmark rather than ~$0.0026
+- [x] `motoko` pinned to `openrouter/z-ai/glm-5.3-flash` in `config.cloud.yaml`, with the gate result recorded inline. **Zero of 34 agents now fall through to a provider default** — the D2(a) precondition is met and M6 is unblocked
 - [x] The D2(a) blast radius is measured: exactly **one** agent (`motoko`) resolves to no model.
       That test is written and correctly RED; it is held out of the tree and lands with M6, when
       the pin makes it green
 
-#### ⚠️ Blocker — the agent-mode gate cannot run here
+#### Blocker — RESOLVED 2026-08-27
+
+Mark authorised stopping the competing rotation. Done to protocol: a hold file at
+`~/.ailang/state/launchd-hold/dev.ailang.os-rotation-filler` placed **before** `launchctl bootout`,
+because a bare bootout is re-bootstrapped by rig-watchdog within 60s. Verified held after 65s, gate
+run on a clear host, **hold released and the rotation re-bootstrapped afterwards**. The rotation
+runs `--skip-existing --bank-by-version`, so it resumed rather than restarted; at most one in-flight
+benchmark was discarded.
+
+**The before/after is itself the proof for the filed defect**: 22 failures under `--parallel 10`,
+**zero** across 23 sequential runs on an exclusive host. Same model, same benchmarks, same binary.
+The 22/23 was contention, not capability.
+
+<details><summary>Original blocker analysis, kept for the record</summary>
+
+##### The agent-mode gate cannot run here
 
 Two attempts, both defeated by motoko's **fixed port 8080**:
 
@@ -315,6 +330,8 @@ motoko, but **n=1 is not a gate pass** and this is explicitly not a verdict on G
 **To finish M5**: run the 23-benchmark agent-mode tier with `--parallel 0` in a window when no
 other motoko work is active, then pin `motoko` and land the held M6 gate test. Cost is ~$0.06;
 the constraint is exclusivity, not money.
+
+</details>
 
 **Worth routing separately**: motoko's fixed port 8080 makes agent-mode eval unparallelisable and
 makes any two concurrent motoko consumers mutually destructive. That is a harness defect the whole

@@ -76,3 +76,27 @@ func TestCloudAgents_ResolveIdenticallyWithoutModelRouting(t *testing.T) {
 			len(moved), len(f.Agents))
 	}
 }
+
+// The D2(a) blast radius: exactly which agents fall through to a provider
+// default today. Each one hard-fails the moment M6 removes the defaults, so
+// each needs a deliberate pin or role first.
+func TestCloudAgents_NoAgentReliesOnAProviderDefault(t *testing.T) {
+	f := loadCloudFixture(t)
+
+	var unpinned []string
+	for _, a := range f.Agents {
+		agent := &AgentConfig{ID: a.ID, Role: a.Role, Model: a.Model}
+		model, err := ResolveModel(agent, f.ModelRouting)
+		if err == nil && model == "" {
+			// ("", nil) is ResolveModel saying "no opinion" — the provider
+			// default applies, which is precisely the hardcoded literal M6 deletes.
+			unpinned = append(unpinned, a.ID)
+		}
+	}
+
+	if len(unpinned) > 0 {
+		t.Errorf("these agents resolve to no model and would hard-fail under D2(a): %v\n"+
+			"Give each a deliberate `model:` pin or a `role:` BEFORE M6 removes the "+
+			"defaults in internal/executor. This is the D2 sequencing condition.", unpinned)
+	}
+}
