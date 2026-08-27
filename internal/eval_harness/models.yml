@@ -4041,6 +4041,35 @@ models:
       either side. Token profile: 5.3-flash thinks MORE (median 2699 vs 90
       reason toks — 5.2 ran unusually light thinking this day) at similar
       wall-clock (median ~65s both).
+      FRONTIER (discriminator #2) 2026-08-27, N=3, AILANG, vs or-glm-5-2:
+      8/24 (33.3%) vs 7/24 (29.2%), cost $0.155 vs $2.772 (~18x). Trial-level
+      paired: 4 candidate-only vs 3 incumbent-only discordant cells, exact sign
+      test p=1.000 — STATISTICALLY INDISTINGUISHABLE. Do not read the +1 as a
+      win. Fleet context: frontier's banked ceiling is 5/8 (claude-opus-5,
+      claude-fable-5 on 2026-08-03), so BOTH GLMs sit well below the top tier
+      here; this tier separates them from the frontier fleet, not from each other.
+      Both fail docx_reimplement + markdown_reimplement 0/3 — that is the
+      standard-mode input_files gap (design_docs .../m-eval-standard-mode-input-files-gap,
+      filed 2026-08-04, unimplemented), a HARNESS handicap affecting the whole
+      fleet, not a model gap. Zero truncation either side at 65536.
+      Failure-shape difference worth tracking (NOT significance-tested): the
+      candidate's failures skew compile_error 7 / logic 5, the incumbent's skew
+      logic 7 / compile 5 — parse failures in 5 of 19 candidate runs vs 2 of 21
+      incumbent runs, concentrated in the long structurally-complex outputs
+      (quine, markdown/docx_reimplement). Reads as syntax discipline degrading
+      on long generations rather than weaker reasoning. Re-check at next gate.
+      ELO 2026-08-27 (ailang, standard): 1994.8 "Very hard", PROVISIONAL n=31,
+      rank 9 of 19 — just under claude-sonnet-5 (2022.3), just over the retired
+      or-glm-5-2 (1910.2). ⚠️ Fit on a CLEAN pool = v0.32.0 baseline + core +
+      frontier ONLY. Including smoke rows and de-flake retrials rated it 2763
+      (rank 1, above claude-opus-5) — a pure artifact: cloud models never run
+      smoke so those benchmarks carry ~2 fleet rows and their difficulty is
+      unidentifiable, and retrials only ever run on failures so their passes are
+      selection-biased upward. Never fit ELO on a pool containing either.
+      Cross-date caveat: refitting or-glm-5-2 on the 2026-08-03 baseline alone
+      gives 1787.6 vs 1910.2 pooled with today's runs, so ~+123 of any rating
+      here is "today's AILANG is better", not model strength; the candidate's
+      drift-adjusted figure is ~1872 and the honest same-day gap is +84.6.
       VERDICT: core TIE after de-flake, at ~1/13 the cost — the skill's
       "tie at higher cost → keep incumbent" logic inverts in the candidate's
       favor. RECOMMENDED to replace or-glm-5-2 in extended_suite; roster swaps
