@@ -1,9 +1,24 @@
 package prompt
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
+
+func TestVersionMetadata_FrozenFieldRoundTrips(t *testing.T) {
+	var manifest VersionsManifest
+	err := json.Unmarshal([]byte(`{"versions":{"f":{"frozen":{"at":"2026-08-27","reason":"banked","evidence_count":7,"evidence_example":"x.json"}},"m":{}}}`), &manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if manifest.Versions["f"].Frozen == nil || manifest.Versions["f"].Frozen.EvidenceCount != 7 {
+		t.Fatalf("marker lost: %#v", manifest)
+	}
+	if manifest.Versions["m"].Frozen != nil {
+		t.Fatal("unmarked entry became frozen")
+	}
+}
 
 func TestLoadPrompt_ActiveVersion(t *testing.T) {
 	// Test loading with empty string (should use active version)

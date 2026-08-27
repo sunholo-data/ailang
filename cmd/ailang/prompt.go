@@ -13,6 +13,11 @@ import (
 // runPrompt handles the 'ailang prompt' command
 // Displays AILANG teaching prompt for AI code generation
 func runPrompt() {
+	sub := flag.Args()[1:]
+	if len(sub) > 0 && sub[0] == "freeze" {
+		runPromptFreeze(sub[1:])
+		return
+	}
 	// Parse prompt subcommand flags
 	promptFS := flag.NewFlagSet("prompt", flag.ExitOnError)
 	versionFlag := promptFS.String("version", "", "Prompt version to display (e.g., v0.3.24, v0.4.2, or 'latest')")
@@ -142,6 +147,11 @@ OPTIONS:
   --list              List all available prompt versions
   --info              Show metadata for specified version (requires --version)
   --help              Show this help message
+
+FREEZE:
+  ailang prompt freeze <version>  Freeze a corpus-evidenced prompt version
+  ailang prompt freeze --migrate  Record the initial banked/legacy split
+  ailang prompt freeze --check    Check derivation and hash-integrity invariants
 
 EXAMPLES:
   # Display current/latest prompt

@@ -10,7 +10,13 @@
         "baseline",
         "production"
       ],
-      "notes": "Original teaching prompt from v0.3.0 release. Comprehensive coverage of language features with clear syntax rules and examples."
+      "notes": "Original teaching prompt from v0.3.0 release. Comprehensive coverage of language features with clear syntax rules and examples.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.3.0-hints": {
       "file": "prompts/v0.3.0-hints.md",
@@ -21,7 +27,13 @@
         "experimental",
         "error-hints"
       ],
-      "notes": "Adds 6 common error pattern sections (PAR_001, TC_REC_001, TC_INT_001, EQ_001, CAP_001, MOD_001) with wrong/correct examples. Hypothesis: Explicit error warnings reduce first-attempt failures and improve repair success rate."
+      "notes": "Adds 6 common error pattern sections (PAR_001, TC_REC_001, TC_INT_001, EQ_001, CAP_001, MOD_001) with wrong/correct examples. Hypothesis: Explicit error warnings reduce first-attempt failures and improve repair success rate.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.3.2": {
       "file": "prompts/v0.3.2.md",
@@ -32,7 +44,13 @@
         "production",
         "planning"
       ],
-      "notes": "Adds proactive architecture planning with :propose and :scaffold commands. Includes plan schema, validation rules, and best practices. Teaches AI agents to validate architecture BEFORE coding. Derived from v0.3.0-hints with 24 validation error codes added."
+      "notes": "Adds proactive architecture planning with :propose and :scaffold commands. Includes plan schema, validation rules, and best practices. Teaches AI agents to validate architecture BEFORE coding. Derived from v0.3.0-hints with 24 validation error codes added.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.3.5": {
       "file": "prompts/v0.3.5.md",
@@ -42,7 +60,13 @@
       "tags": [
         "production"
       ],
-      "notes": "Adds support for: 1) Anonymous function syntax func(x) -> T { body }, 2) letrec keyword for recursive lambdas, 3) intToFloat/floatToInt builtins. Derived from v0.3.0 baseline."
+      "notes": "Adds support for: 1) Anonymous function syntax func(x) -> T { body }, 2) letrec keyword for recursive lambdas, 3) intToFloat/floatToInt builtins. Derived from v0.3.0 baseline.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.3.8": {
       "file": "prompts/v0.3.8.md",
@@ -52,7 +76,13 @@
       "tags": [
         "production"
       ],
-      "notes": "Major improvements: 1) std/prelude auto-imported (no more Ord/Eq imports needed), 2) Record update syntax {r | field: val}, 3) Multi-line ADTs with optional leading pipe, 4) Operator lowering fixes. 49.1% success rate (+10.5% from v0.3.7). All v0.3.5 features included."
+      "notes": "Major improvements: 1) std/prelude auto-imported (no more Ord/Eq imports needed), 2) Record update syntax {r | field: val}, 3) Multi-line ADTs with optional leading pipe, 4) Operator lowering fixes. 49.1% success rate (+10.5% from v0.3.7). All v0.3.5 features included.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.3.9": {
       "file": "prompts/v0.3.9.md",
@@ -62,7 +92,13 @@
       "tags": [
         "production"
       ],
-      "notes": "AI API integration features: 1) JSON encoding with std/json (encode, jo, ja, kv, js, jnum), 2) HTTP headers with httpRequest() and Result-based error handling, 3) NetError ADT (Transport, InvalidHeader, DisallowedHost, BodyTooLarge), 4) Verified with real Claude Haiku API call. All v0.3.8 features included."
+      "notes": "AI API integration features: 1) JSON encoding with std/json (encode, jo, ja, kv, js, jnum), 2) HTTP headers with httpRequest() and Result-based error handling, 3) NetError ADT (Transport, InvalidHeader, DisallowedHost, BodyTooLarge), 4) Verified with real Claude Haiku API call. All v0.3.8 features included.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.3.12": {
       "file": "prompts/v0.3.12.md",
@@ -72,7 +108,13 @@
       "tags": [
         "production"
       ],
-      "notes": "Recovery release restoring show() builtin (accidentally removed in v0.3.10). Prominent show() examples added to teach proper string conversion. All v0.3.9 features included. Testing hypothesis: Emphasizing show() will reduce syntax errors and improve AILANG success rates from 0% baseline."
+      "notes": "Recovery release restoring show() builtin (accidentally removed in v0.3.10). Prominent show() examples added to teach proper string conversion. All v0.3.9 features included. Testing hypothesis: Emphasizing show() will reduce syntax errors and improve AILANG success rates from 0% baseline.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.3.15": {
       "file": "prompts/v0.3.15.md",
@@ -84,7 +126,13 @@
         "latest",
         "vision-aligned"
       ],
-      "notes": "MAJOR upgrade addressing vision benchmark failures: 1) Effect system docs (~200 lines), 2) State threading patterns (~80 lines), 3) Canonical list operations (~120 lines). Targets: Effect 6%\u219270%, State 0%\u219260%, Canonical 0%\u219270%. Expected: 36.5%\u219270% AILANG success."
+      "notes": "MAJOR upgrade addressing vision benchmark failures: 1) Effect system docs (~200 lines), 2) State threading patterns (~80 lines), 3) Canonical list operations (~120 lines). Targets: Effect 6%\u219270%, State 0%\u219260%, Canonical 0%\u219270%. Expected: 36.5%\u219270% AILANG success.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.3.6": {
       "file": "prompts/v0.3.6.md",
@@ -95,7 +143,13 @@
         "experimental",
         "failed"
       ],
-      "notes": "FAILED: Two iterations showed 10% worse performance than v0.3.5. Longer prompts with anti-patterns and import checklists caused information overload. Conclusion: Prompt engineering is counter-productive; language changes (auto-import, record update syntax) are the solution."
+      "notes": "FAILED: Two iterations showed 10% worse performance than v0.3.5. Longer prompts with anti-patterns and import checklists caused information overload. Conclusion: Prompt engineering is counter-productive; language changes (auto-import, record update syntax) are the solution.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.2.0": {
       "file": "prompts/v0.2.0.md",
@@ -105,7 +159,13 @@
       "tags": [
         "historical"
       ],
-      "notes": "Pre-records, pre-recursion, pre-blocks. Kept for historical comparison."
+      "notes": "Pre-records, pre-recursion, pre-blocks. Kept for historical comparison.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "python": {
       "file": "prompts/python.md",
@@ -116,7 +176,13 @@
         "control",
         "python"
       ],
-      "notes": "Used for baseline comparison - how well do models do with Python vs AILANG?"
+      "notes": "Used for baseline comparison - how well do models do with Python vs AILANG?",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 6537,
+        "evidence_example": "eval_results/baselines/v0.11.2/agent/adt_option_python_claude-sonnet-4-5_1776087516.json"
+      }
     },
     "v0.3.16": {
       "file": "prompts/v0.3.16.md",
@@ -128,7 +194,13 @@
         "latest",
         "ai-first"
       ],
-      "notes": "Entry-module prelude: print builtin automatically available in modules with 'export func main' (no import needed). Libraries still explicit. AI-First DX: minimize syntactic entropy for benchmarks while keeping libraries explicit. All v0.3.15 features included."
+      "notes": "Entry-module prelude: print builtin automatically available in modules with 'export func main' (no import needed). Libraries still explicit. AI-First DX: minimize syntactic entropy for benchmarks while keeping libraries explicit. All v0.3.15 features included.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.3.17": {
       "file": "prompts/v0.3.17.md",
@@ -138,7 +210,13 @@
       "tags": [
         "production"
       ],
-      "notes": "Fix httpRequest documentation: remove false HTTP headers limitation and add httpRequest() examples"
+      "notes": "Fix httpRequest documentation: remove false HTTP headers limitation and add httpRequest() examples",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.3.18": {
       "file": "prompts/v0.3.18.md",
@@ -149,7 +227,13 @@
         "experimental",
         "failed"
       ],
-      "notes": "FAILED: Over-optimization (-59% tokens) collapsed success rate to 4.8%. Removed too many examples and context. See .claude/skills/prompt-manager/OPTIMIZATION_FAILURE_ANALYSIS.md"
+      "notes": "FAILED: Over-optimization (-59% tokens) collapsed success rate to 4.8%. Removed too many examples and context. See .claude/skills/prompt-manager/OPTIMIZATION_FAILURE_ANALYSIS.md",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.3.19": {
       "file": "prompts/v0.3.19.md",
@@ -161,7 +245,13 @@
         "latest",
         "optimized"
       ],
-      "notes": "SUCCESS: Phase 1 optimization (-2.5% tokens, 5189\u21925058 words). Added quick reference, condensed verbose sections, kept all 64 examples. Validated: 41.9% AILANG success rate. Conservative incremental approach proven effective."
+      "notes": "SUCCESS: Phase 1 optimization (-2.5% tokens, 5189\u21925058 words). Added quick reference, condensed verbose sections, kept all 64 examples. Validated: 41.9% AILANG success rate. Conservative incremental approach proven effective.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.3.20": {
       "file": "prompts/v0.3.20.md",
@@ -173,7 +263,13 @@
         "testing",
         "broken"
       ],
-      "notes": "BROKEN: Incorrect pattern matching syntax in Quick Reference (pipes before patterns). Caused -4.8% regression (40.0% \u2192 35.2%). Fixed in v0.3.21. Added testing features from v0.3.20: unit tests (test \"name\" = expr) and property-based tests (property \"name\" (x: type) = expr). Includes 100-case generation with automatic shrinking. Size: 5262 words (+4% from v0.3.19). Run with: ailang test file.ail"
+      "notes": "BROKEN: Incorrect pattern matching syntax in Quick Reference (pipes before patterns). Caused -4.8% regression (40.0% \u2192 35.2%). Fixed in v0.3.21. Added testing features from v0.3.20: unit tests (test \"name\" = expr) and property-based tests (property \"name\" (x: type) = expr). Includes 100-case generation with automatic shrinking. Size: 5262 words (+4% from v0.3.19). Run with: ailang test file.ail",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.3.21": {
       "file": "prompts/v0.3.21.md",
@@ -185,7 +281,13 @@
         "testing",
         "hotfix"
       ],
-      "notes": "CRITICAL HOTFIX: Fixed 3 syntax errors in v0.3.20: (1) Pattern matching (no pipes before patterns, commas between arms), (2) Import syntax (no quotes on module paths), (3) Tuple destructuring (use `match tuple { (x, y) => ... }` NOT `let (x, y) = tuple`). State threading examples corrected. All v0.3.20 testing features included. Expected: AILANG success 35.2% \u2192 40.0%+"
+      "notes": "CRITICAL HOTFIX: Fixed 3 syntax errors in v0.3.20: (1) Pattern matching (no pipes before patterns, commas between arms), (2) Import syntax (no quotes on module paths), (3) Tuple destructuring (use `match tuple { (x, y) => ... }` NOT `let (x, y) = tuple`). State threading examples corrected. All v0.3.20 testing features included. Expected: AILANG success 35.2% \u2192 40.0%+",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 210,
+        "evidence_example": "eval_results/baselines/v0.3.21-with-repair/adt_option_ailang_claude-haiku-4-5_1761578492.json"
+      }
     },
     "v0.3.22": {
       "file": "prompts/v0.3.22.md",
@@ -197,7 +299,13 @@
         "latest",
         "m-eval-http-fix"
       ],
-      "notes": "M-EVAL-HTTP-FIX Milestone 2: (1) Enhanced parser error messages for JavaScript/Python patterns (PAR014: const keyword, PAR015: bare assignment), (2) HTTP POST example moved from line 218 \u2192 line 107 (-51% position). Target: Reduce api_call_json failures from 75% by guiding AIs toward correct AILANG syntax earlier in prompt. All v0.3.21 testing features included."
+      "notes": "M-EVAL-HTTP-FIX Milestone 2: (1) Enhanced parser error messages for JavaScript/Python patterns (PAR014: const keyword, PAR015: bare assignment), (2) HTTP POST example moved from line 218 \u2192 line 107 (-51% position). Target: Reduce api_call_json failures from 75% by guiding AIs toward correct AILANG syntax earlier in prompt. All v0.3.21 testing features included.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.3.23": {
       "file": "prompts/v0.3.23.md",
@@ -208,7 +316,13 @@
         "production",
         "latest"
       ],
-      "notes": "Add note: print() auto-adds newline, don't concatenate \\n"
+      "notes": "Add note: print() auto-adds newline, don't concatenate \\n",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 32,
+        "evidence_example": "eval_results/baselines/v0.3.23/agent/fizzbuzz_ailang_claude-haiku-4-5_1761670751.json"
+      }
     },
     "v0.3.24": {
       "file": "prompts/v0.3.24.md",
@@ -219,7 +333,13 @@
         "production",
         "latest"
       ],
-      "notes": "Add zero-argument function call syntax documentation"
+      "notes": "Add zero-argument function call syntax documentation",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.4.0": {
       "file": "prompts/v0.4.0.md",
@@ -229,7 +349,13 @@
       "tags": [
         "production"
       ],
-      "notes": "Add Env effect, Net effect, and v0.4.0 features"
+      "notes": "Add Env effect, Net effect, and v0.4.0 features",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 38,
+        "evidence_example": "eval_results/baselines/v0.4.0/agent/deterministic_list_transform_ailang_claude-haiku-4-5_1761990967.json"
+      }
     },
     "v0.4.1": {
       "file": "prompts/v0.4.1.md",
@@ -240,7 +366,13 @@
         "production",
         "latest"
       ],
-      "notes": "Added syntactic sugar documentation: S-CONS (:: cons operator, expressions only), S-ARROWTYPE (-> function types), S-CALL0 (f() zero-arg calls, NOW WORKS at statement level!). IMPORTANT: :: sugar only works in expressions, NOT in patterns - use ::(h, t) in match. Includes --strict-syntax flag documentation. M-S-CALL0: Completed statement-level parsing for f() calls."
+      "notes": "Added syntactic sugar documentation: S-CONS (:: cons operator, expressions only), S-ARROWTYPE (-> function types), S-CALL0 (f() zero-arg calls, NOW WORKS at statement level!). IMPORTANT: :: sugar only works in expressions, NOT in patterns - use ::(h, t) in match. Includes --strict-syntax flag documentation. M-S-CALL0: Completed statement-level parsing for f() calls.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 76,
+        "evidence_example": "eval_results/baselines/v0.4.1/agent/deterministic_list_transform_ailang_claude-haiku-4-5_1762109126.json"
+      }
     },
     "v0.4.2": {
       "file": "prompts/v0.4.2.md",
@@ -251,7 +383,13 @@
         "production",
         "latest"
       ],
-      "notes": "Fix stdlib docs + remove Cons reference + clarify S-CONS limitation"
+      "notes": "Fix stdlib docs + remove Cons reference + clarify S-CONS limitation",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 38,
+        "evidence_example": "eval_results/baselines/v0.4.3/agent/deterministic_list_transform_ailang_claude-haiku-4-5_1762447321.json"
+      }
     },
     "v0.4.4": {
       "file": "prompts/v0.4.4.md",
@@ -262,7 +400,13 @@
         "production",
         "latest"
       ],
-      "notes": "Add S-CONS pattern sugar (x :: xs syntax)"
+      "notes": "Add S-CONS pattern sugar (x :: xs syntax)",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 38,
+        "evidence_example": "eval_results/baselines/v0.4.4/agent/deterministic_list_transform_ailang_claude-haiku-4-5_1763061148.json"
+      }
     },
     "v0.4.5": {
       "file": "prompts/v0.4.5.md",
@@ -273,7 +417,13 @@
         "production",
         "latest"
       ],
-      "notes": "Fix string concatenation (++) operator type inference"
+      "notes": "Fix string concatenation (++) operator type inference",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 38,
+        "evidence_example": "eval_results/baselines/v0.4.5/agent/deterministic_list_transform_ailang_claude-haiku-4-5_1763304852.json"
+      }
     },
     "v0.4.6": {
       "file": "prompts/v0.4.6.md",
@@ -284,7 +434,13 @@
         "production",
         "latest"
       ],
-      "notes": "Add teaching improvements: What NOT to have, multi-module, JSON, operators, effects emphasis, HTTP/Net capabilities"
+      "notes": "Add teaching improvements: What NOT to have, multi-module, JSON, operators, effects emphasis, HTTP/Net capabilities",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 38,
+        "evidence_example": "eval_results/baselines/v0.4.6/agent/deterministic_list_transform_ailang_claude-haiku-4-5_1763581870.json"
+      }
     },
     "v0.4.7": {
       "file": "prompts/v0.4.7.md",
@@ -295,7 +451,13 @@
         "production",
         "latest"
       ],
-      "notes": "Add inline tests documentation with cross-function deps (M-TESTING-DEPS)"
+      "notes": "Add inline tests documentation with cross-function deps (M-TESTING-DEPS)",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 62,
+        "evidence_example": "eval_results/baselines/v0.4.7/agent/deterministic_list_transform_ailang_claude-haiku-4-5_1764275585.json"
+      }
     },
     "v0.4.8": {
       "file": "prompts/v0.4.8.md",
@@ -306,7 +468,13 @@
         "production",
         "latest"
       ],
-      "notes": "Add mandatory template, stronger structure emphasis"
+      "notes": "Add mandatory template, stronger structure emphasis",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 138,
+        "evidence_example": "eval_results/baselines/v0.4.8/agent/adt_option_ailang_claude-haiku-4-5_1764418074.json"
+      }
     },
     "v0.4.10": {
       "file": "prompts/v0.4.10.md",
@@ -317,7 +485,13 @@
         "production",
         "latest"
       ],
-      "notes": "Add Array type with O(1) indexed access"
+      "notes": "Add Array type with O(1) indexed access",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.5.0": {
       "file": "prompts/v0.5.0.md",
@@ -328,7 +502,13 @@
         "production",
         "latest"
       ],
-      "notes": "Add AI effect for multi-provider AI oracle"
+      "notes": "Add AI effect for multi-provider AI oracle",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 138,
+        "evidence_example": "eval_results/baselines/v0.5.0/agent/adt_option_ailang_claude-haiku-4-5_1764697665.json"
+      }
     },
     "v0.5.2": {
       "file": "prompts/v0.5.2.md",
@@ -339,7 +519,13 @@
         "production",
         "latest"
       ],
-      "notes": "Add relaxed module matching (--relax-modules flag, AILANG_RELAX_MODULES env var)"
+      "notes": "Add relaxed module matching (--relax-modules flag, AILANG_RELAX_MODULES env var)",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.5.10": {
       "file": "prompts/v0.5.10.md",
@@ -350,7 +536,13 @@
         "production",
         "optimized"
       ],
-      "notes": "REWRITE v2: Added back critical sections lost in streamlining. Includes negative examples (\u274c WRONG / \u2705 RIGHT) for let/in scoping and curried function calls. Key sections: Block vs expression let bindings, curried function chaining, Option patterns, ADT state machine. 2,204 words (71% smaller than v0.4.4)."
+      "notes": "REWRITE v2: Added back critical sections lost in streamlining. Includes negative examples (\u274c WRONG / \u2705 RIGHT) for let/in scoping and curried function calls. Key sections: Block vs expression let bindings, curried function chaining, Option patterns, ADT state machine. 2,204 words (71% smaller than v0.4.4).",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.5.11": {
       "file": "prompts/v0.5.11.md",
@@ -362,7 +554,13 @@
         "semantic-caching",
         "embeddings"
       ],
-      "notes": "Major additions: (1) Semantic Caching Doctrine - SharedMem/SharedIndex as cognitive working memory, namespace conventions, canonical patterns (cache-or-compute, deduplication, multi-agent CAS). (2) Embeddings Doctrine - when/what/how to use neural embeddings for paraphrase detection, hybrid retrieval pattern. All v0.5.10 features included."
+      "notes": "Major additions: (1) Semantic Caching Doctrine - SharedMem/SharedIndex as cognitive working memory, namespace conventions, canonical patterns (cache-or-compute, deduplication, multi-agent CAS). (2) Embeddings Doctrine - when/what/how to use neural embeddings for paraphrase detection, hybrid retrieval pattern. All v0.5.10 features included.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.6.2": {
       "file": "prompts/v0.6.2.md",
@@ -374,7 +572,13 @@
         "record-patterns",
         "deriving-eq"
       ],
-      "notes": "Record pattern matching for destructuring records in match expressions. Syntax: {name}, {name: var}, {name, age}, {user: {name}} for nested patterns, {name, ...} for rest patterns. M-DX19: Auto-derive Eq for ADT types using `type Color = Red | Green | Blue deriving (Eq)` syntax. Enables == and != operators via structural equality comparison. All v0.5.11 features included."
+      "notes": "Record pattern matching for destructuring records in match expressions. Syntax: {name}, {name: var}, {name, age}, {user: {name}} for nested patterns, {name, ...} for rest patterns. M-DX19: Auto-derive Eq for ADT types using `type Color = Red | Green | Blue deriving (Eq)` syntax. Enables == and != operators via structural equality comparison. All v0.5.11 features included.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 114,
+        "evidence_example": "eval_results/baselines/v0.6.2/agent/adt_option_ailang_claude-haiku-4-5_1767366188.json"
+      }
     },
     "v0.6.3": {
       "file": "prompts/v0.6.3.md",
@@ -385,7 +589,13 @@
         "production",
         "stdlib-docs"
       ],
-      "notes": "AGENT DISCOVERABILITY: Added explicit documentation for std/math (floatToInt, intToFloat, floor, ceil, round) and expanded std/string (substring, contains, stringToInt, intToStr, floatToStr). Analysis of agent transcripts showed models were implementing their own broken versions of functions that already exist in stdlib but weren't documented in the prompt."
+      "notes": "AGENT DISCOVERABILITY: Added explicit documentation for std/math (floatToInt, intToFloat, floor, ceil, round) and expanded std/string (substring, contains, stringToInt, intToStr, floatToStr). Analysis of agent transcripts showed models were implementing their own broken versions of functions that already exist in stdlib but weren't documented in the prompt.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.6.4": {
       "file": "prompts/v0.6.4.md",
@@ -396,7 +606,13 @@
         "production",
         "json-helpers"
       ],
-      "notes": "JSON CONVENIENCE FUNCTIONS: Added getString, getNumber, getInt, getBool, getArray, getObject to std/json.ail. These combine get()+asX() to reduce nested Option matching from 4 levels to 2. Also added prominent import reminder warning to reduce 'forgot to import' errors. Target: json_parse benchmark turns <25 (down from 47 in v0.6.3)."
+      "notes": "JSON CONVENIENCE FUNCTIONS: Added getString, getNumber, getInt, getBool, getArray, getObject to std/json.ail. These combine get()+asX() to reduce nested Option matching from 4 levels to 2. Also added prominent import reminder warning to reduce 'forgot to import' errors. Target: json_parse benchmark turns <25 (down from 47 in v0.6.3).",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.6.5": {
       "file": "prompts/v0.6.5.md",
@@ -410,7 +626,13 @@
         "prelude-fix",
         "language-gaps"
       ],
-      "notes": "PRELUDE FIX: println is now in prelude (no import needed), print (no newline) requires import std/io (print). STDLIB GAPS (M-STDLIB-GAPS): Added std/list functions (nth, last, any, findIndex), std/string join and chars, JSON array extraction. LANGUAGE GAP WARNINGS (from agent analysis): Added letrec for recursive lambdas section, type annotations for HOFs section, expanded 'What AILANG Does NOT Have' table (tuple let-destructuring, lambda tuple syntax outside foldl, nested func syntax)."
+      "notes": "PRELUDE FIX: println is now in prelude (no import needed), print (no newline) requires import std/io (print). STDLIB GAPS (M-STDLIB-GAPS): Added std/list functions (nth, last, any, findIndex), std/string join and chars, JSON array extraction. LANGUAGE GAP WARNINGS (from agent analysis): Added letrec for recursive lambdas section, type annotations for HOFs section, expanded 'What AILANG Does NOT Have' table (tuple let-destructuring, lambda tuple syntax outside foldl, nested func syntax).",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 1,
+        "evidence_example": "eval_results/baselines/v0.6.5/agent/agent/config_file_parser_ailang_claude-haiku-4-5_1767632692.json"
+      }
     },
     "v0.6.6": {
       "file": "prompts/v0.6.6.md",
@@ -422,7 +644,13 @@
         "row-polymorphism",
         "width-subtyping"
       ],
-      "notes": "RECORD WIDTH SUBTYPING (M-GAP4): Added open record types for functions that accept extra fields. Syntax: {field: T | r} with explicit row variable, or {field: T, ...} sugar with fresh variable. Exact records (default) reject extra fields. Open records enable generic field extractors and flexible APIs."
+      "notes": "RECORD WIDTH SUBTYPING (M-GAP4): Added open record types for functions that accept extra fields. Syntax: {field: T | r} with explicit row variable, or {field: T, ...} sugar with fresh variable. Exact records (default) reject extra fields. Open records enable generic field extractors and flexible APIs.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 92,
+        "evidence_example": "eval_results/baselines/v0.7.0/agent/adt_option_ailang_claude-sonnet-4-5_1769088989.json"
+      }
     },
     "v0.7.0": {
       "file": "prompts/v0.7.0.md",
@@ -434,7 +662,13 @@
         "latest",
         "gap-analysis"
       ],
-      "notes": "Gap analysis integration from v0.6.2\u2192v0.7.0 eval comparison: (1) Strengthened block brace requirements with explicit examples, (2) Added import checklist reminder, (3) Enhanced JSON patterns with getString/getNumber examples. Target: Reduce AILANG eval failures from import errors and missing braces."
+      "notes": "Gap analysis integration from v0.6.2\u2192v0.7.0 eval comparison: (1) Strengthened block brace requirements with explicit examples, (2) Added import checklist reminder, (3) Enhanced JSON patterns with getString/getNumber examples. Target: Reduce AILANG eval failures from import errors and missing braces.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.7.3": {
       "file": "prompts/v0.7.3.md",
@@ -446,7 +680,13 @@
         "effectful-combinators",
         "structured-ai-output"
       ],
-      "notes": "Structured AI output: callJson (schema-enforced), callJsonSimple (no schema) for validated JSON responses from AI providers. All 4 providers wired (Gemini, OpenAI, Anthropic, Ollama). Effectful list combinators: mapE, filterE, foldlE, flatMapE, forEachE for effect-polymorphic HOFs. Pure flatMap added. Effect row variable syntax enabled."
+      "notes": "Structured AI output: callJson (schema-enforced), callJsonSimple (no schema) for validated JSON responses from AI providers. All 4 providers wired (Gemini, OpenAI, Anthropic, Ollama). Effectful list combinators: mapE, filterE, foldlE, flatMapE, forEachE for effect-polymorphic HOFs. Pure flatMap added. Effect row variable syntax enabled.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.7.4": {
       "file": "prompts/v0.7.4.md",
@@ -459,7 +699,13 @@
         "smt-verification",
         "contracts"
       ],
-      "notes": "Static contract verification: ailang verify command uses Z3 to mathematically prove requires/ensures contracts hold for ALL inputs. Covers decidable fragment (int/bool/enum ADTs, arithmetic, comparison, if/let/match). Shows counterexamples when violations found. Flags: --verbose (SMT-LIB), --json (machine-readable), --strict (fail on skipped). Replaced old --experimental-binop-shim requirement."
+      "notes": "Static contract verification: ailang verify command uses Z3 to mathematically prove requires/ensures contracts hold for ALL inputs. Covers decidable fragment (int/bool/enum ADTs, arithmetic, comparison, if/let/match). Shows counterexamples when violations found. Flags: --verbose (SMT-LIB), --json (machine-readable), --strict (fail on skipped). Replaced old --experimental-binop-shim requirement.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 61,
+        "evidence_example": "eval_results/baselines/v0.8.0/agent/adt_option_ailang_claude-sonnet-4-5_1771081134.json"
+      }
     },
     "v0.7.4-compact": {
       "file": "prompts/v0.7.4-compact.md",
@@ -470,7 +716,13 @@
         "production",
         "compact"
       ],
-      "notes": "Conservative 71% size reduction. Keeps: type system table, effect syntax, module syntax, contract syntax, critical gotchas. Removes: extended examples, design rationale, historical notes. For full reference: ailang prompt"
+      "notes": "Conservative 71% size reduction. Keeps: type system table, effect syntax, module syntax, contract syntax, critical gotchas. Removes: extended examples, design rationale, historical notes. For full reference: ailang prompt",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.8.0": {
       "file": "prompts/v0.8.0.md",
@@ -480,7 +732,13 @@
       "tags": [
         "production"
       ],
-      "notes": "Add getArgs/stdin docs, fix CLI args benchmark gap"
+      "notes": "Add getArgs/stdin docs, fix CLI args benchmark gap",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.8.1": {
       "file": "prompts/v0.8.1.md",
@@ -491,7 +749,13 @@
         "production",
         "latest"
       ],
-      "notes": "Contracts section rewritten with agent-centric framing (specify-implement-verify workflow). Updated all examples to use stdlib imports (std/string, std/list) instead of raw builtins. Moved contracts before Testing to reflect importance. Documents stdlib transparency in Z3 verification."
+      "notes": "Contracts section rewritten with agent-centric framing (specify-implement-verify workflow). Updated all examples to use stdlib imports (std/string, std/list) instead of raw builtins. Moved contracts before Testing to reflect importance. Documents stdlib transparency in Z3 verification.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.8.2": {
       "file": "prompts/v0.8.2.md",
@@ -502,7 +766,13 @@
         "production",
         "streaming-dx"
       ],
-      "notes": "M-STREAM-DX sprint: (1) Added zipWith to std/list docs, (2) Added std/bytes section (fromString, toString, toBase64, fromBase64, slice), (3) Added std/stream section (connect, transmit, transmitBinary, ssePost, withSSE, SSEData events), (4) Added newtype record field access docs (single-constructor ADT auto-unwrap), (5) Added show recommendation over intToStr/floatToStr for simple cases."
+      "notes": "M-STREAM-DX sprint: (1) Added zipWith to std/list docs, (2) Added std/bytes section (fromString, toString, toBase64, fromBase64, slice), (3) Added std/stream section (connect, transmit, transmitBinary, ssePost, withSSE, SSEData events), (4) Added newtype record field access docs (single-constructor ADT auto-unwrap), (5) Added show recommendation over intToStr/floatToStr for simple cases.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.9.0": {
       "file": "prompts/v0.9.0.md",
@@ -514,7 +784,13 @@
         "latest",
         "streaming"
       ],
-      "notes": "M-ASYNC-IO Phase 1+2: (1) Multi-source multiplexing (selectEvents, sourceOfConn, asyncReadStdinLines), (2) Subprocess stdout streaming (asyncExecProcess with SourceBytes events), (3) Correct StreamEvent ADT (11 variants including SourceText, SourceBytes), (4) Fixed return types to StreamErrorKind. All v0.8.2 features included."
+      "notes": "M-ASYNC-IO Phase 1+2: (1) Multi-source multiplexing (selectEvents, sourceOfConn, asyncReadStdinLines), (2) Subprocess stdout streaming (asyncExecProcess with SourceBytes events), (3) Correct StreamEvent ADT (11 variants including SourceText, SourceBytes), (4) Fixed return types to StreamErrorKind. All v0.8.2 features included.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 57,
+        "evidence_example": "eval_results/baselines/v0.11.2/agent/adt_option_ailang_claude-sonnet-4-5_1776087513.json"
+      }
     },
     "v0.11.4": {
       "file": "prompts/v0.11.4.md",
@@ -524,7 +800,13 @@
       "tags": [
         "production"
       ],
-      "notes": "Add v0.10.x + v0.11.x: short-circuit semantics, Map/iter/jwt/trace stdlib, parseFoldStep, bitwise ops, new string builtins, exit(), polymorphic comparison lambdas"
+      "notes": "Add v0.10.x + v0.11.x: short-circuit semantics, Map/iter/jwt/trace stdlib, parseFoldStep, bitwise ops, new string builtins, exit(), polymorphic comparison lambdas",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 62,
+        "evidence_example": "eval_results/baselines/v0.12.0/agent/adt_option_ailang_claude-sonnet-4-5_1776436817.json"
+      }
     },
     "v0.12.1": {
       "file": "prompts/v0.12.1.md",
@@ -536,7 +818,13 @@
         "latest",
         "string-interpolation"
       ],
-      "notes": "M-CONCAT-DISAMBIG Phase 1: Introduces \"${expr}\" interpolation as the idiomatic way to build strings. Desugars to concat_String(..., show(expr), ...) chains via Show type-class dispatch (show_String is identity). Supports nested braces, arbitrary expressions, and \\${ escape. ++ still works for strings today but will be restricted to lists only in v0.13.0 (Phase 2)."
+      "notes": "M-CONCAT-DISAMBIG Phase 1: Introduces \"${expr}\" interpolation as the idiomatic way to build strings. Desugars to concat_String(..., show(expr), ...) chains via Show type-class dispatch (show_String is identity). Supports nested braces, arbitrary expressions, and \\${ escape. ++ still works for strings today but will be restricted to lists only in v0.13.0 (Phase 2).",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "banked",
+        "evidence_count": 51,
+        "evidence_example": "eval_results/baselines/v0.13.0/agent/api_call_json_ailang_claude-sonnet-4-5_1776772769.json"
+      }
     },
     "go": {
       "file": "prompts/go.md",
@@ -547,7 +835,13 @@
         "control",
         "go"
       ],
-      "notes": "Used for Go vs AILANG baseline comparison in multi-language evals"
+      "notes": "Used for Go vs AILANG baseline comparison in multi-language evals",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "javascript": {
       "file": "prompts/javascript.md",
@@ -558,7 +852,13 @@
         "control",
         "javascript"
       ],
-      "notes": "Used for JavaScript vs AILANG baseline comparison in multi-language evals"
+      "notes": "Used for JavaScript vs AILANG baseline comparison in multi-language evals",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "moonbit": {
       "file": "prompts/moonbit.md",
@@ -570,11 +870,17 @@
         "moonbit",
         "three-camps"
       ],
-      "notes": "Closest ML-family peer to AILANG in the three-camps survey (verification camp via constrained sampling, MoonBitlang ICSE 2024). Targets apples-to-apples FP comparison on smoke + selected gap benchmarks. Built single-file `moon run` runner (no project scaffold needed)."
+      "notes": "Closest ML-family peer to AILANG in the three-camps survey (verification camp via constrained sampling, MoonBitlang ICSE 2024). Targets apples-to-apples FP comparison on smoke + selected gap benchmarks. Built single-file `moon run` runner (no project scaffold needed).",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "aver": {
       "file": "prompts/aver.md",
-      "hash": "190bf4244a00bb0605d41ac01d4de415a6131a3a961aa6bca1689b23bc4d521d",
+      "hash": "1f5c9654e39c411bcbedc35446ffa96c1d6dc8d7b9dd0fbec01b95ecf35f0157",
       "description": "Aver language teaching prompt for eval harness (M-THREE-CAMPS Verification-camp peer)",
       "created": "2026-05-21",
       "tags": [
@@ -583,7 +889,13 @@
         "three-camps",
         "verification"
       ],
-      "notes": "Verification-camp peer with verify blocks, decision blocks (ADRs in code), Lean 4 proof export. Indentation-based, match-only branching, namespaced constructors. Installed via `cargo install aver-lang` (aver-lang 0.21.0 verified). Single-file `aver run` mode."
+      "notes": "Verification-camp peer with verify blocks, decision blocks (ADRs in code), Lean 4 proof export. Indentation-based, match-only branching, namespaced constructors. Installed via `cargo install aver-lang` (aver-lang 0.21.0 verified). Single-file `aver run` mode.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.16.0": {
       "file": "prompts/v0.16.0.md",
@@ -596,7 +908,13 @@
         "labels",
         "m-taint-types"
       ],
-      "notes": "Adds Phase 1+2 IFC label syntax to the AILANG teaching prompt. Includes the inbox-injection worked example and the DECLASS rule. AI modes section added in M-AI-EFFECT-MODES (v0.15.0)."
+      "notes": "Adds Phase 1+2 IFC label syntax to the AILANG teaching prompt. Includes the inbox-injection worked example and the DECLASS rule. AI modes section added in M-AI-EFFECT-MODES (v0.15.0).",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.16.1": {
       "file": "prompts/v0.16.1.md",
@@ -607,7 +925,13 @@
         "production",
         "stdlib-coverage"
       ],
-      "notes": "Additive patch over v0.16.0 (no syntax changes). Closes ~50 stdlib documentation gaps surfaced by M-VERA-BENCH audit. Worst pre-fix offenders: std/clock (0/2 documented), std/datetime (1/22), std/math trig family (0/10), std/option helpers (3/6), std/result helpers (2/6). Token budget impact: ~600 extra tokens. Same hash discipline as prior versions."
+      "notes": "Additive patch over v0.16.0 (no syntax changes). Closes ~50 stdlib documentation gaps surfaced by M-VERA-BENCH audit. Worst pre-fix offenders: std/clock (0/2 documented), std/datetime (1/22), std/math trig family (0/10), std/option helpers (3/6), std/result helpers (2/6). Token budget impact: ~600 extra tokens. Same hash discipline as prior versions.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.16.2": {
       "file": "prompts/v0.16.2.md",
@@ -619,7 +943,13 @@
         "latest",
         "output-discipline"
       ],
-      "notes": "Active from v0.26.0 benchmark cycle. Additive patch over v0.16.1 (no syntax changes): adds an Output Discipline section instructing exact byte-for-byte stdout (no labels/prefixes/status lines). Validated by A/B on claude-opus-4-8 standard (14/24 -> 19/24; type_unify 1/3->3/3, mini_interpreter 2/3->3/3, csv_to_json 0/3->2/3; zero control regressions). Removes a verbosity grading tax that disproportionately hit frontier models. Full multi-model re-baseline deferred to the next release."
+      "notes": "Active from v0.26.0 benchmark cycle. Additive patch over v0.16.1 (no syntax changes): adds an Output Discipline section instructing exact byte-for-byte stdout (no labels/prefixes/status lines). Validated by A/B on claude-opus-4-8 standard (14/24 -> 19/24; type_unify 1/3->3/3, mini_interpreter 2/3->3/3, csv_to_json 0/3->2/3; zero control regressions). Removes a verbosity grading tax that disproportionately hit frontier models. Full multi-model re-baseline deferred to the next release.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.16.3": {
       "file": "prompts/v0.16.3.md",
@@ -630,7 +960,13 @@
         "production",
         "fmt-discoverability"
       ],
-      "notes": "Additive patch over v0.16.2 (no syntax changes, byte-identical prefix): appends a ~6-line Formatting section so agents can discover `ailang fmt`. Command-usage only (no code snippet) to avoid an `ailang check` verification surface. Activated as part of the fmt adoption rollout; v0.16.2 remains served byte-identical for pinned eval baselines."
+      "notes": "Additive patch over v0.16.2 (no syntax changes, byte-identical prefix): appends a ~6-line Formatting section so agents can discover `ailang fmt`. Command-usage only (no code snippet) to avoid an `ailang check` verification surface. Activated as part of the fmt adoption rollout; v0.16.2 remains served byte-identical for pinned eval baselines.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.16.4": {
       "file": "prompts/v0.16.4.md",
@@ -641,7 +977,13 @@
         "production",
         "dialect-alignment"
       ],
-      "notes": "Two fixes, both verified against the toolchain rather than assumed. (1) v0.16.3 taught that `letrec` with a `= ...` body is a PARSE ERROR; it type-checks AND runs correctly (verified with `ailang check` + `ailang run`) -- the claim went stale when M-SYNTAX-AI-FORGIVING R1 made an equation body a `;`-separated statement sequence. Teaching models to avoid valid syntax is the same failure class as `ailang fmt` contradicting the prompt. The section now states both forms work and recommends the block because that is what fmt emits. (2) `List[T]` -> `[T]` in 4 places (1 ailang block, 3 prose): `[T]` is taught 64 times and is what fmt emits, so `List[T]` was a spelling fmt would rewrite. Both parse to the identical TypeApp. v0.16.3 remains served byte-identical for pinned eval baselines."
+      "notes": "Two fixes, both verified against the toolchain rather than assumed. (1) v0.16.3 taught that `letrec` with a `= ...` body is a PARSE ERROR; it type-checks AND runs correctly (verified with `ailang check` + `ailang run`) -- the claim went stale when M-SYNTAX-AI-FORGIVING R1 made an equation body a `;`-separated statement sequence. Teaching models to avoid valid syntax is the same failure class as `ailang fmt` contradicting the prompt. The section now states both forms work and recommends the block because that is what fmt emits. (2) `List[T]` -> `[T]` in 4 places (1 ailang block, 3 prose): `[T]` is taught 64 times and is what fmt emits, so `List[T]` was a spelling fmt would rewrite. Both parse to the identical TypeApp. v0.16.3 remains served byte-identical for pinned eval baselines.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.16.5": {
       "file": "prompts/v0.16.5.md",
@@ -653,7 +995,13 @@
         "latest",
         "stdlib-discoverability"
       ],
-      "notes": "Prompted by issue #609, where a field agent reported a string's raw bytes were 'unreachable from AILANG' and asked for toInts. The reach claim was FALSE -- byteAt has shipped since v0.21.0 and was already taught in the bytes function list, and byteAt+length transcodes the reporter's exact Latin-1 payload correctly at HEAD (verified with ailang run before any change). What was actually missing was discoverability and shape. The common-imports line read `import std/bytes (fromString, toString, toBase64, fromBase64, length, slice)` -- not one byte-level function -- so an agent copying that canonical line saw a bytes module with no way into the bytes. The toInts entry also states explicitly that charCode/string indexing return U+FFFD for non-UTF-8 bytes and that fromString+toInts is the way through, because that specific wrong turn is what the report documented. v0.16.4 remains served byte-identical for pinned eval baselines."
+      "notes": "Prompted by issue #609, where a field agent reported a string's raw bytes were 'unreachable from AILANG' and asked for toInts. The reach claim was FALSE -- byteAt has shipped since v0.21.0 and was already taught in the bytes function list, and byteAt+length transcodes the reporter's exact Latin-1 payload correctly at HEAD (verified with ailang run before any change). What was actually missing was discoverability and shape. The common-imports line read `import std/bytes (fromString, toString, toBase64, fromBase64, length, slice)` -- not one byte-level function -- so an agent copying that canonical line saw a bytes module with no way into the bytes. The toInts entry also states explicitly that charCode/string indexing return U+FFFD for non-UTF-8 bytes and that fromString+toInts is the way through, because that specific wrong turn is what the report documented. v0.16.4 remains served byte-identical for pinned eval baselines.",
+      "frozen": {
+        "at": "2026-08-27",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.16.6": {
       "file": "prompts/v0.16.6.md",
