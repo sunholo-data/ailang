@@ -1,0 +1,101 @@
+{
+  "sprint_id": "M-EVAL-ROLLING-ELO",
+  "status": "in_progress",
+  "created": "2026-08-27T11:56:44Z",
+  "design_doc": "design_docs/planned/v0_35_0/m-eval-rolling-elo.md",
+  "sprint_plan": "design_docs/planned/v0_35_0/m-eval-rolling-elo-sprint-plan.md",
+  "github_issues": [
+    934
+  ],
+  "velocity": {
+    "target_loc_per_day": 170,
+    "estimated_total_loc": 1025,
+    "estimated_days": 6
+  },
+  "features": [
+    {
+      "id": "M1_ANCHORED_SINGLE_PATH_FIT",
+      "description": "FitFromTrialsAnchored(trials, fixedBench, fixedModels); anchor_v1.json generated+embedded; both fitters routed through it; provisional threshold unified at 90%; stale seeding messages fixed",
+      "estimated_loc": 300,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Pool-composition invariance test passes (same rows +/- easy-benchmark padding => ratings within +/-25) AND demonstrably fails against the un-anchored fit",
+        "FitFromTrials(nil,nil) behavior-preserving: all existing ratings tests pass unchanged",
+        "Band-change diff table from anchored refit recorded in the design doc",
+        "go test ./internal/eval_harness/ ./internal/eval_analysis/ -count=1 green; make ci green"
+      ],
+      "passes": true,
+      "started": "2026-08-27T13:30:00Z",
+      "completed": "2026-08-27T14:10:00Z",
+      "notes": "Salvaged engine + generated real anchor (47 benches from 1711 trials via new tools/gen-anchor); both fitters + export projection anchored (standard mode); threshold unified 90% incl. site fallback; mutation-controlled invariance test (31.2 vs 311.7, 10x); silent anchor fallback replaced with panic; VERIFY recorded in design doc."
+    },
+    {
+      "id": "M2_TRIAL_HISTORY_WRITER",
+      "description": "AppendTrialHistory (INSERT OR IGNORE, trial_id PK = banked file identity, compiler_version=releaseTag, prompt_version from row); wired into tools/eval-elo persist; agent-mode persist hook in rotation/nightly",
+      "estimated_loc": 175,
+      "dependencies": [
+        "M1_ANCHORED_SINGLE_PATH_FIT"
+      ],
+      "acceptance_criteria": [
+        "Real persist run: SELECT COUNT(*),compiler_version FROM trial_history GROUP BY compiler_version shows correctly-stamped rows",
+        "Second identical persist: row count unchanged (idempotency by PK constraint)",
+        "Agent model_ratings.last_updated advances after one rotation/filler pass"
+      ],
+      "passes": true,
+      "started": "2026-08-27T14:15:00Z",
+      "completed": "2026-08-27T14:40:00Z",
+      "notes": "Writer wired into tools/eval-elo persist (trial_id PK idempotency, path-derived compiler_version, prior-vs-new before/after ratings); VERIFY: 1711 rows stamped v0.32.0, re-persist count unchanged. Bonus fix: validity quarantine now respected in the tool walk. Filler step 8a persists agent ratings per cycle (activation pending rig install)."
+    },
+    {
+      "id": "M3_LINKING_RUN_PROTOCOL",
+      "description": "direction_panel_v1 committed; post-release linking-run mode (panel x ratified 5-model bridge, ailang+python, N=1, budget guard $25, loud failure on missing cells); direction fit stamps index+input strengths; new-model gate codified in model-manager skill",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M2_TRIAL_HISTORY_WRITER"
+      ],
+      "acceptance_criteria": [
+        "Linking run executed for a real release (or dry-tag rehearsal): measured cost <= $25 recorded in design doc",
+        "DB + latest.json projection updated from the run; bridge ratings move < 50 pts vs prior fit",
+        "Negative test: a deliberately-omitted panel cell fails the run loudly (no partial index)"
+      ],
+      "passes": true,
+      "started": "2026-08-27T15:00:00Z",
+      "completed": "2026-08-27T15:45:00Z",
+      "notes": "direction_panel_v1 generated (22 benches, stratified); tools/direction-fit implements the direction configuration with stamped bridge strengths; tools/linking-run.sh orchestrates panel->persist->index with cost guard. VERIFY: both refusal gates proven on real data, positive index 1551.1 over 86 trials, v0.35.0 dry-run est $2.88 vs $25 cap. Found+fixed a design bug in the completeness gate (single-language specs)."
+    },
+    {
+      "id": "M4_SERIES_VISIBLE",
+      "description": "HistoryEntry additive ratings summary (per-model ELO + direction index + recorded bridge strengths); ELO-over-versions chart in BenchmarkDashboard trends (os-version-trend-redesign rules verbatim); provenance stamps on 5 pages; staleness badge extended via benchmarkFetchWithSource reuse",
+      "estimated_loc": 290,
+      "dependencies": [
+        "M3_LINKING_RUN_PROTOCOL"
+      ],
+      "acceptance_criteria": [
+        "JSON-shape test: pre-existing history entries round-trip unchanged",
+        "Docusaurus build green on Node 20; headless post-hydration --dump-dom shows chart rows",
+        "Mark confirms visuals (repo norm; agent never signs off frontend alone)",
+        "Zero non-additive changes to latest.json.ratings (V20/V21 consumers untouched)"
+      ],
+      "passes": false,
+      "started": "2026-08-27T16:00:00Z",
+      "completed": "",
+      "notes": "Code complete + verified (3/3 Go tests incl. legacy round-trip; all touched frontend files parse clean with control). PENDING: Mark's visual confirmation of the RatingTrend chart, and a green Docusaurus build from the main checkout (worktree lacks 39 untracked generated doc pages). Not marked passed until the visual sign-off happens \u2014 sprint plan makes it non-negotiable."
+    },
+    {
+      "id": "M5_HYGIENE_SWEEP",
+      "description": "Axiom scorecard staleness handling; BenchmarkMini hardcoded count -> data-driven; Explorer stale link; dead file + 4 orphaned components removed (git-history check first); hand-written v0.3.5 tables replaced with links; capability-threshold page stamped as dated snapshot",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1_ANCHORED_SINGLE_PATH_FIT"
+      ],
+      "acceptance_criteria": [
+        "Per deleted file: grep proving zero consumers, recorded in commit message",
+        "make ci + docs build green; link-check clean on touched pages"
+      ],
+      "passes": true,
+      "started": "2026-08-27T16:30:00Z",
+      "completed": "2026-08-27T16:55:00Z",
+      "notes": "Axiom scorecard self-reports age (~115 days stale, silent before); homepage benchmark count derived not hardcoded; Explorer baseUrl link fixed; guides/benchmarking.md frozen v0.3.5 table replaced with routing to live pages; capability-threshold stamped as dated snapshot; dead v0.3.12 file + 4 superseded components removed after zero-consumer greps. All touched frontend files + control parse clean."
+    }
+  ]
+}
