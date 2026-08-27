@@ -457,6 +457,20 @@ fi
 #    that release's cloud baseline already exists (mid-cycle before a release it
 #    won't, and cloud-only stays authoritative until post-release re-publishes).
 #    Committed to the same LOCAL-only-by-default policy as the OS JSON above.
+# 8a) Agent-mode rating persist (M-EVAL-ROLLING-ELO M2): keep observatory.db's
+#     agent ratings fresh from the rotation bank instead of manual-only refits
+#     (they were 4 weeks stale, 3 models, when this landed). Standard mode is
+#     persisted at release time by the post-release skill; the rotation is the
+#     agent-mode corpus. Failure is logged, never fatal — ratings staleness must
+#     not block publishing.
+if [ -d "$ROLL/$VERSION" ]; then
+  if go run ./tools/eval-elo "$ROLL/$VERSION" --mode agent --persist "$HOME/.ailang/state/observatory.db" >>"$LOG" 2>&1; then
+    log "agent ratings + trial_history persisted from $ROLL/$VERSION"
+  else
+    log "agent rating persist FAILED (non-fatal; see log)"
+  fi
+fi
+
 AILANG_VER="$(tr -d '[:space:]' < std/VERSION 2>/dev/null || true)"
 if [ -n "$AILANG_VER" ] && [ -d "eval_results/baselines/${AILANG_VER}" ]; then
   if bash tools/publish-unified-dashboard.sh "$AILANG_VER" >>"$LOG" 2>&1; then

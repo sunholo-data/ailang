@@ -215,6 +215,21 @@ Not a parser/typechecker change, but it overrides shared machinery — enumerate
 - Fix the two stale seeding instructions (`eval_saturation.go:87`, `eval_confidence.go:46`).
 - **VERIFY**: (a) new regression test: fit the same model's rows in two pool compositions (with/without extra easy-benchmark rows) → ratings agree within ±25 (this is the 2763-vs-1995 artifact, pinned); (b) refit the current corpus anchored, record the band-change diff table in this doc; (c) `go test ./internal/eval_harness/ ./internal/eval_analysis/`, `make ci` green.
 
+> **M2 VERIFY EXECUTED — 2026-08-27, in-session sprint.**
+> - Real persist (scratch DB, corpus `baselines/v0.32.0`): **1,711 trial_history rows**, all
+>   `compiler_version = v0.32.0` (path-derived — banked rows carry no version field, V18's
+>   `releaseTag`-shaped dir layout is the authority), 2 distinct `prompt_version` values,
+>   before/after ratings recorded (e.g. gpt5-6-terra 1500.0 seed → 2109.9 anchored-blended).
+> - Identical re-persist: **count unchanged at 1,711** — idempotency by `trial_id` PK
+>   (`INSERT OR IGNORE`), not by convention.
+> - BONUS defect fixed in passing: the tool's raw JSON walk ignored the validity quarantine, so
+>   infrastructure 520s counted as losses in the authoritative DB — the sol-vs-terra
+>   contamination in the persist path. Quarantined rows now excluded from fit AND history.
+> - Agent-mode automation: filler step 8a persists agent ratings + trial_history from the
+>   rotation bank each cycle (`bash -n` clean; bash-3.2-safe). ⚠️ ACTIVATION PENDING the rig's
+>   plist/script install cycle — repo edits do not reach the running rig by themselves (the
+>   documented launchd trap); mechanism proven by the manual run above.
+
 **M2 — trial_history writer + agent-mode automation** (~2 days)
 - `tools/eval-elo` appends `trial_history` rows on every persist: `compiler_version` = `releaseTag()` of the run's banked version dir, `prompt_version` = the banked row's own `PromptVersion` field (exists on every result — V19), outcome, before/after ratings (from `UpdateTrial` deltas during the anchored fit's final epoch, or recomputed post-fit — implementer's choice, D4 latitude).
 - Idempotency by constraint: `trial_id` is the table's PRIMARY KEY (V17b); the writer sets it to the banked trial-file identity and uses `INSERT OR IGNORE`, so re-running a persist over the same corpus is a no-op enforced by the schema.
