@@ -1,6 +1,6 @@
 # M-MODEL-REGISTRY-SINGLE-SOURCE: models.yml becomes the one place models are assigned
 
-**Status**: Planned — **blocked on Mark's ratification of D1–D3**; D4 decided, Phase 0 added, V9–V11 amended 2026-08-27
+**Status**: **Ratified — ready for sprint planning.** D1(a)/D2(a)/D3(a) decided by Mark 2026-08-27; D4(a) decided by Claude; Phase 0 added, V9–V11 amended
 **Target**: v0.35.0
 **Priority**: P1 — model assignment is edited "quite often as new models come out" (Mark, 2026-08-27) and currently requires editing four places, one of which needs a code release
 **Estimated**: 5–6 days, ~950 LOC (re-estimated 2026-08-27 after V9/V10 — see Phase 0)
@@ -70,11 +70,13 @@ It already is the registry of model FACTS: 136 models across six providers, with
 | **D3** | **Does the mission driver read the registry directly, or keep its env pins?** The loops are live and their pins are battle-tested (~290 iterations). | **(a)** Driver resolves roles via `ailang models role <role>` with env pins still overriding — one source, escape hatch intact. **(b)** Registry is authoritative for cloud only; missions keep shell pins (documented divergence). | **Mark** | Medium |
 | **D4** | **Where does role resolution live?** V9: `internal/eval_harness` **already imports `internal/executor`** ([models.go:12](../../../internal/eval_harness/models.go#L12)), so Phase 3 as originally drafted — executors calling `eval_harness.ResolveRole` — is a guaranteed import cycle and does not compile. Inverting is not available: eval_harness uses ten executor symbols (`Task`, `Result`, `EventHandler`, the cost classes, `ValidateTaskCapabilities`). | **(a)** Extract the registry into a true leaf package `internal/modelreg` (models.go + the `roles:` block + `IsOllamaCloudRoute`'s string grammar, which has no executor state); `executor` and `eval_harness` both import it; `eval_harness` keeps type aliases so its 66 existing call sites are untouched. **(b)** Duplicate a minimal resolver inside `executor` — no cycle, but re-introduces a second source, which is the defect this doc exists to remove. **(c)** Executors never resolve; only the coordinator does, and it always passes an explicit model — leaves the ten defaults reachable by any other caller. | **Claude** (architectural, low cost to change) | Low |
 
-### Design Freeze
-- [ ] D1 registry reach / precedence
-- [ ] D2 executor default behavior
-- [ ] D3 mission driver adoption
+### Design Freeze — CLOSED 2026-08-27
+- [x] D1 registry reach / precedence — **(a)** precedence inversion with provenance (Mark). (c) rejected: a *new* model still needs its `api_name`/pricing in the embedded half, so it solves adoption but not addition — and addition is the stated pain. (b) rejected as the status quo restated.
+- [x] D2 executor default behavior — **(a)** fail loudly (Mark). Sequencing condition: the 34-agent fixture test lands **before** the defaults are removed, so no live agent is proven to rely on one at the moment it disappears.
+- [x] D3 mission driver adoption — **(a)** driver resolves via the registry, env pins still override (Mark). Two conditions, both from live-system constraints: **(i)** the read path must degrade to today's env pins on any non-zero exit or empty output from `ailang models role` — `~/go/bin/ailang` drifts by design (CLAUDE.md: assume it is stale), so the driver *will* meet a binary without the subcommand; **(ii)** adopt in an attended window.
 - [x] D4 role-resolution package placement — **(a)**, decided 2026-08-27 (technically forced; (b) recreates the defect, (c) leaves the defaults live)
+
+**Consequences of D1(a) accepted knowingly**: pricing rides in the same file the observatory consumes, so a bad publish can now reach cost accounting without a rebuild — mitigated by CAS + schema validation on publish (Phase 2). Publishing is repo-canonical and push-driven (`reference_cloud_config_source_of_truth`): the criterion is "one file, one **push**, no **rebuild**", not "no deploy"; hand-edits to the bucket get reverted by the config-only trigger.
 
 **Recommendation**: D1(a) — precedence inversion is the only option that satisfies "updated quite often" without a release per update, and provenance logging keeps it honest. D2(a) — the migration's entire purpose is defeated by an Anthropic fallback. D3(a) — one source with env override preserves the loops' rollback ergonomics while ending the divergence.
 
