@@ -19742,3 +19742,155 @@ via a cheaper/more reliable signal than `~/.claude.json`, or confirm whether hea
 refresh trust state at all. Filed as an attended charter-record rather than only a GitHub issue
 comment, per this charter's own "charter-record first, issue comment as public trace only"
 convention.
+
+---
+
+## 290 — 2026-08-27 — M3 landed and the sprint is complete; the judge found two defects in my own record, both the class I had just diagnosed one criterion over
+
+**Picked**: **M3 — the second corpus reformat**, the final milestone of
+`design_docs/planned/v0_35_0/m-fmt-printer-line-width-limit.md` and the queue head under `D-39`.
+Doc and sprint plan both existed, so neither the designer nor the planner was spawned.
+
+**Reality check**: quorum **re-derived, not inherited** — 2 artifacts on disk, round 1 and round 2
+both `blocked` with `absent_reviewers: []` *both rounds* (so the iteration-175 "proceed with a named
+hole" trap does not apply), resolved at round 2 under the ratified narrow-refinement carve-out and
+recorded in the doc's own Quorum Round 2 section. A mid-sprint milestone of an already-cleared doc is
+not a re-litigation, so no re-quorum was run. Died-mid-flight traces all clean: one open PR on the
+fleet account (`#695`, a coordinator task branch) had **no matching worktree in my clone**, so it is
+unattributable — left alone and said so, per the rule that `--author` is a fleet filter and not a
+mission filter. **The plan's baselines were STALE and were treated as such**: its `159 / 1315 /
+7865 / 405-38-7` come from iteration 282 at an older HEAD, and the design doc itself says "re-count
+at M3 time since HEAD moves". I re-measured the width metrics myself at the real base `98467151b`
+(159 / 282 / 1315, 450 files, `test -d std` YES and `test -d stdlib` **NO**) and handed the executor
+the rest **labelled UNVERIFIED-inherited, with an explicit instruction to re-derive**. It did, and
+that instruction is what surfaced a mislabel: `405/38/7` is the **`ailang fmt`** distribution, not
+`ailang check`, which is 374/76.
+
+**Shipped**: **LANDED** — PR [#931](https://github.com/sunholo-data/ailang/pull/931), squash
+`0911d1089`. 53 files: 50 reformatted `.ail` (38 `examples/`, 12 `std/`), the design doc + sprint
+plan moved to `implemented/v0_35_0/`, one changelog entry. **No printer code touched.**
+Corpus lines >120 runes **159 → 100** (AC3 needs ≤105); max line **1315 → 316** (needs ≤350);
+`LET_CHAIN_2PLUS` residual **20 → 0**.
+
+**Verification — every invariant re-run by me OUTSIDE the sandbox, none banked from the executor**:
+
+| Invariant | Result | Control |
+|---|---|---|
+| comments (`lexer.CollectComments`, per-file join) | 7,865 → 7,865, 450 pairs | poison arm **FIRED** (`before=7 after=8`), clean on revert |
+| comments, second independent instrument | lines with `--`: 7,225 → 7,225 | absent-token 0, present-token (`module`) 517 |
+| `ailang check` rc, per-file join | 450 pairs, **0** changes, 374/76 both sides | inverted predicate returns 450 |
+| 45 fail-closed files byte-identical | `comm -12`(changed, fail-closed) **EMPTY** | self-intersection 50 |
+| idempotence | 0 differing sha rows / 450 | poison fires, `cp` restore byte-identical |
+| AC9 no gate wiring | 0 paths under `.github/`/`make/` | known-positive control 1 |
+| six gates, after vs pristine base | all **0/0** | `go build ./...` excluded — rc=1 at base by design |
+
+**Three of my own instruments were broken this iteration, and every time the control agreed with
+the error instead of catching it.** This is the iteration's real finding.
+
+1. **BSD `awk` on macOS returns `length()` in BYTES even under `LC_ALL=en_US.UTF-8`** — a 3-byte,
+   1-rune character measures **3**; `python3` measures **1**. So my directive's "byte and rune
+   instruments agree" was two readings from **one** instrument, and their agreement was an artifact
+   of the shared reader, not evidence. **The EXECUTOR caught this**, self-reported it as a deviation,
+   and refused to coerce its number to my stated agreement. It was right: true rune counts are
+   **281** base / **236** after at >100, against 282/237 in bytes. AC3 is unaffected — at >120,
+   where it is decided, the two genuinely agree.
+2. **`find | xargs shasum` does not emit rows in a stable order.** My first idempotence check read
+   **16 differing rows** and looked like a genuine failure; sorted by path it is **0**. The poisoned
+   control fired `rc=1` in exactly the predicted direction and so *corroborated the false finding*,
+   and the byte-identical `cp` restore also read as a mismatch. Both cleared on sorting.
+3. **`for f in $changed` in zsh runs ONCE**, with all 50 paths as a single argument. It manufactured
+   a fail-closed "violation" that does not exist. Only the `while IFS= read -r` control in the same
+   call separated instrument from finding.
+
+   A fourth, caught late: **`grep -P` on this rig returns 0 with rc=1 even against genuinely
+   non-ASCII input** (probed against a literal em dash). An earlier "13 of 450 files contain
+   non-ASCII" reading is therefore void — it was never a measurement.
+
+**Evaluator**: `sonnet`, **its own worktree** detached at the sprint commit, zero git writes.
+**PASS 94/100, zero blocking.** Generator ≠ judge held on both axes — OpenAI wrote it, Anthropic
+judged it, both distinct from the `opus` controller. It re-derived all six named targets with
+instruments it wrote itself (its own comment state machine, its own residual classifier, its own
+rune counter) and ran one neither of us did: **whitespace-stripped before/after content is identical
+across all 50 files**, proving a pure layout transformation with zero token-level change — strictly
+stronger than AC6's rc-preservation.
+
+**The judge found two real defects in MY record. Both reproduced first-party before acting, both
+fixed in `bc7c1de4e`:**
+
+- **AC8's *Base* column summed to 167 against a stated total of 159.** I transcribed V11's ordered
+  list into a labelled table and shifted the tail by one position. V11 is authoritative
+  (`RECORD_LIST 9 / OTHER 8 / TYPE_DECL 6 / MATCH_ARM 5 / IF_CHAIN 4 / COMMENT 2`). Both column
+  sums are now re-derived **from the file**, not restated. This is the transcribed-value defect the
+  skill already names, committed by the controller inside the record that documents it.
+- **AC10's "112 runes" was 112 BYTES** — 110 runes; one em dash accounts for the delta exactly.
+  The width came from `awk`, i.e. **the identical BSD-awk defect I had just diagnosed for AC3 in
+  the same document and failed to apply one criterion over.** *Guard the helper, miss the call
+  site*, inside the audit that found the helper.
+
+**The most valuable finding is not a defect: all 50 corpus rewrites are pinned by NOTHING.** The
+judge reverted `examples/ai_modes.ail` and `std/crypto.ail` to their base spellings (sha-confirmed
+mutants) and re-ran every gate — all stayed **rc=0**. Structural, not an oversight:
+`TestCorpusCommentFreeRoundTrips` asserts `Format(Format(x)) == Format(x)` and AST round-trip, never
+`data == Format(data)`. By design under `D-39`, which sequences the fmt gate freeze *behind* this
+work — but the corpus's canonical form is now **evidence-gated, not CI-gated**, and any hand edit or
+concurrent agent can de-canonicalise all 450 files with CI fully green. Filed as the new queue head.
+
+**Ruled out**:
+- *"The plan's baselines still describe the tree"* — REFUTED as a method even though the width
+  numbers happened to match (159/1315 at base, because M0–M2 change the printer and not the corpus).
+  The `405/38/7` label was wrong, and only re-measuring found it.
+- *"Byte and rune counters agreeing is evidence they are independent"* — REFUTED, measured. See
+  finding 1. Agreement between two arms is worth nothing until the reader itself is probed.
+- *"16 differing sha rows means idempotence failed"* — REFUTED, it was row ordering.
+- *"`grep -P` works on this rig"* — REFUTED against a known-positive em dash.
+- *"The nightly-eval issue `#847` needs a fresh verdict"* — it does not; iteration 266 already
+  triaged it (capability gap on one local model, `runtime_error`, left open deliberately) and the
+  verdict comment is on the issue. Re-checked, not re-litigated.
+- *"`SonarCloud` red on dev is this push's doing"* — REFUTED by walking the same check back over
+  **six** consecutive commits: `failure` on every one, so inherited. And re-read rather than
+  inherited from iterations 247/249/250's *duplication* framing: the failing conditions are **60.1%
+  coverage on new code** (needs ≥80%) and a **B security rating on new code**. Non-required, named,
+  not the pick.
+
+**Routing evidence**: controller=`claude-opus-5` · designer=**NOT SPAWNED** (doc exists — the Fable
+diet is UNSPENT this iteration) · planner=**NOT SPAWNED** (plan exists; `derive-planner-lane.sh` not
+consulted for the same reason) · executor=`codex:gpt-5.6-sol` (probe rc=0 before the real run;
+`--sandbox workspace-write`, GOCACHE/GOMODCACHE added, stdin closed, per-iteration directive file
+with the ≥200-byte delivery assertion — 11,488 B delivered) · evaluator=`sonnet` (Agent tool, its
+own worktree, distinct provider from the executor so generator≠judge holds without a re-route).
+**metered=$0.00** of $5 — every lane this iteration was a quota bucket; no quorum reviewer ran.
+Gates on **darwin/arm64**; ubuntu and windows legs unrun locally and covered by CI.
+
+**Deviations adjudicated by measurement** (rule 3h):
+- **D1, mine, FLAGGED**: I raised the codex wall-clock cap from the recipe's **1800 s** to **2700 s**
+  because M3 is bulk mechanical work over 450 files × several passes and a 30-minute cap risked
+  spending the slot for nothing. Still hard-bounded; the run finished inside it. Recorded rather
+  than quietly taken.
+- **D2, the executor's, ACCEPTED and it was RIGHT**: it refused my "byte and rune agree" premise.
+  Measured — see finding 1. This is the loop working; the executor did Gate-2 work for me.
+- **D3, the executor's, ACCEPTED**: `405/38/7` is the `fmt` distribution, not `ailang check`. It
+  measured both and kept them distinct rather than reconciling them.
+- **D4, the executor's, ACCEPTED WITH A RESIDUAL**: its V11 classifier was reconstructed from the
+  doc's prose (the doc records V11's output, never its regex program) and validated by reproducing
+  the base table exactly before use. The judge then wrote a **third** classifier and found the
+  per-category counts diverge on compound lines under a different tie-break order — while the two
+  conclusions the doc actually draws (`LET_CHAIN_2PLUS` closes to 0; `FUNC_DECL_ONELINE` is the
+  largest residual) survive under all three. **Residual named, not papered over**: the AC8 table's
+  category split is tie-break-dependent, and the follow-on reflow decision should treat the totals
+  and the two conclusions as solid, and the per-category split as indicative.
+- **D5, the executor's, ACCEPTED**: its first corpus-write invocation was interrupted and the resume
+  produced duplicate manifest rows. Adjudicated by the strong check rather than the manifest — the
+  judge ran `ailang fmt --check` over all 450 on the committed tree and got **zero** would-change,
+  so the tree is a fixed point and nothing was skipped.
+
+**Retro lane**: **none — no skill edit.** No candidate reached the ≥2-friction bar. Watch-item
+pre-registered at **ONE** first-party instance: *a locale-dependent stdlib primitive can silently
+make two "independent" arms one instrument.* This is the false-symmetry class the skill already
+names for pipes and `jq`, but with a new mechanism — the arms differed in **locale flag** rather than
+in reader, and the flag was inert. The generalisation, if a second instance arrives: **before
+reporting that two encodings/collations/locales agree, probe the reader itself on a known input
+whose two answers must differ.** Not written into the skill on one instance.
+
+**Next**: `m-fmt-corpus-gate-freeze` — the fmt gate freeze `D-39` sequences here, now with the
+judge's measurement of why it matters. `m-browser-session-serving-mode` (AITANA-DEMAND, ghost-
+disciplined REAL at HEAD) sits below it.
