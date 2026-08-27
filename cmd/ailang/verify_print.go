@@ -10,14 +10,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/smt"
 )
 
 // printVerifyHuman prints human-readable verification results.
-func printVerifyHuman(results []verifyResult, filename string, verified, counterexample, skipped, errCount int, verbose bool) {
-	total := verified + counterexample + skipped + errCount
+func printVerifyHuman(results []verifyResult, filename string, verified, counterexample, skipped, errCount, uncontracted int, verbose bool) {
+	total := verified + counterexample + skipped + errCount + uncontracted
 
 	fmt.Printf("\n%s Verifying contracts in %s\n", cyan("→"), filename)
 	if z3ver := smt.Z3Version(); z3ver != "" {
@@ -55,6 +56,9 @@ func printVerifyHuman(results []verifyResult, filename string, verified, counter
 					}
 				}
 			}
+		case "uncontracted":
+			// Rendered as one grouped line after the loop — a module with 14 of
+			// these would otherwise bury the results that carry information.
 		case "error", "unknown":
 			fmt.Printf("  %s %s\n", red("! ERROR"), bold(r.Function))
 			if r.Reason != "" {
@@ -73,9 +77,23 @@ func printVerifyHuman(results []verifyResult, filename string, verified, counter
 		}
 	}
 
+	// Uncontracted exports, grouped. Names are listed so a function that was
+	// meant to carry a contract and silently lost one is auditable without
+	// diffing the source by hand.
+	if uncontracted > 0 {
+		var names []string
+		for _, r := range results {
+			if r.Status == "uncontracted" {
+				names = append(names, r.Function)
+			}
+		}
+		sort.Strings(names)
+		fmt.Printf("  %s %s\n", yellow("○ NO CONTRACTS"), dim(strings.Join(names, ", ")))
+	}
+
 	// Summary line
 	fmt.Println()
-	summary := fmt.Sprintf("  %d functions: ", total)
+	summary := fmt.Sprintf("  %d exported functions: ", total)
 	parts := []string{}
 	if verified > 0 {
 		parts = append(parts, green(fmt.Sprintf("%d verified", verified)))
@@ -88,6 +106,9 @@ func printVerifyHuman(results []verifyResult, filename string, verified, counter
 	}
 	if errCount > 0 {
 		parts = append(parts, red(fmt.Sprintf("%d errors", errCount)))
+	}
+	if uncontracted > 0 {
+		parts = append(parts, yellow(fmt.Sprintf("%d without contracts", uncontracted)))
 	}
 	if len(parts) == 0 {
 		parts = append(parts, "no functions with contracts")
@@ -102,13 +123,15 @@ func printVerifyHuman(results []verifyResult, filename string, verified, counter
 }
 
 // printVerifyJSON outputs verification results as JSON.
-func printVerifyJSON(results []verifyResult, filename string, verified, counterexample, skipped, errCount int) {
+func printVerifyJSON(results []verifyResult, filename string, verified, counterexample, skipped, errCount, uncontracted int) {
 	output := struct {
 		File           string         `json:"file"`
 		Verified       int            `json:"verified"`
 		Counterexample int            `json:"counterexample"`
 		Skipped        int            `json:"skipped"`
 		Errors         int            `json:"errors"`
+		Uncontracted   int            `json:"uncontracted"`
+		TotalExported  int            `json:"total_exported"`
 		Results        []verifyResult `json:"results"`
 	}{
 		File:           filename,
@@ -116,6 +139,8 @@ func printVerifyJSON(results []verifyResult, filename string, verified, countere
 		Counterexample: counterexample,
 		Skipped:        skipped,
 		Errors:         errCount,
+		Uncontracted:   uncontracted,
+		TotalExported:  verified + counterexample + skipped + errCount + uncontracted,
 		Results:        results,
 	}
 

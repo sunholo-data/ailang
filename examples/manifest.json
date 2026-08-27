@@ -2769,14 +2769,35 @@
         "stdout": "response has no 'fields' key\n{}\n",
         "exit_code": 0
       }
+    },
+    {
+      "path": "string_char_access.ail",
+      "status": "working",
+      "tags": [
+        "string",
+        "option",
+        "total-accessor",
+        "stdlib"
+      ],
+      "description": "Total character access: charAtOpt / charAt_or vs partial charAt",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/option",
+        "std/string"
+      ],
+      "expected": {
+        "stdout": "h\n\nstarts with h\nempty\n[a, ?, c]\n\ud83c\udf89\n",
+        "exit_code": 0
+      }
     }
   ],
   "statistics": {
-    "total": 198,
-    "working": 190,
+    "total": 199,
+    "working": 191,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9595959595959596,
+    "coverage": 0.9597989949748744,
     "experimental": 0
   },
   "milestones": {

@@ -148,9 +148,20 @@ func TestVerify_CrossFunctionIntChainStillVerifies(t *testing.T) {
 	if len(payload.Results) == 0 {
 		t.Fatalf("no results for cross_function.ail:\n%s", stdout)
 	}
+	// "uncontracted" entries are exported functions that carry no contract at
+	// all — they are reported for denominator honesty, not decided by the gate.
+	// This test is about the gate, so only contract-bearing results are graded.
+	contracted := 0
 	for _, r := range payload.Results {
+		if r.Status == "uncontracted" {
+			continue
+		}
+		contracted++
 		if r.Status != "verified" {
 			t.Fatalf("cross_function %q status = %q, want \"verified\" (gate false-positive?)", r.Function, r.Status)
 		}
+	}
+	if contracted == 0 {
+		t.Fatalf("instrument failure: no contract-bearing results in cross_function.ail:\n%s", stdout)
 	}
 }
