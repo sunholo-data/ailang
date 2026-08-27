@@ -12,4 +12,5 @@ export pure func multiply(x: int, y: int) -> int = x * y
 
 export pure func factorial(n: int) -> int = if n <= 1 then 1 else n * factorial(n - 1)
 
-export pure func fibonacci(n: int) -> int = if n <= 0 then 0 else if n == 1 then 1 else fibonacci(n - 1) + fibonacci(n - 2)
+export pure func fibonacci(n: int) -> int =
+  if n <= 0 then 0 else if n == 1 then 1 else fibonacci(n - 1) + fibonacci(n - 2)

@@ -16,4 +16,7 @@ pure func countNodes(tree: Tree) -> int = match tree {
   Node(left, _, right) => 1 + countNodes(left) + countNodes(right)
 }
 
-export func main() -> () ! {IO} = let tree = Node(Leaf(1), 2, Node(Leaf(3), 4, Leaf(5))) in let _ = println("Tree sum: ${show(sumTree(tree))}") in println("Node count: ${show(countNodes(tree))}")
+export func main() -> () ! {IO} =
+  let tree = Node(Leaf(1), 2, Node(Leaf(3), 4, Leaf(5))) in
+  let _ = println("Tree sum: ${show(sumTree(tree))}") in
+  println("Node count: ${show(countNodes(tree))}")

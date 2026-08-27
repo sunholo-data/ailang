@@ -16,10 +16,16 @@ pure func deleteSubstring() -> string = replace("hello world", " world", "")
 pure func utf8Replace() -> string = replace("café résumé", "é", "e")
 
 -- Compose find + substring correctly on multi-byte strings
-pure func utf8FindSubstring() -> string = let s = "café world" in let pos = find(s, "world") in substring(s, pos, length(s))
+pure func utf8FindSubstring() -> string =
+  let s = "café world" in
+  let pos = find(s, "world") in
+  substring(s, pos, length(s))
 
 -- Chain replacements
-pure func chainReplace(s: string) -> string = let step1 = replace(s, "\n", " ") in let step2 = replace(step1, "\t", " ") in replace(step2, "  ", " ")
+pure func chainReplace(s: string) -> string =
+  let step1 = replace(s, "\n", " ") in
+  let step2 = replace(step1, "\t", " ") in
+  replace(step2, "  ", " ")
 
 export func main() -> () ! {IO} {
   println("replace basic:    ${basicReplace()}")

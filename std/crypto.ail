@@ -83,4 +83,5 @@ export pure func constantTimeEqual(a: string, b: string) -> bool = _crypto_const
 --     Ok(false) => println("Invalid signature"),
 --     Err(e) => println("Key error: " ++ e)
 --   }
-export pure func rsaVerifyPKCS1v15(message: bytes, signature: bytes, publicKeyPEM: string) -> Result[bool, string] = _crypto_rsa_verify_pkcs1v15(message, signature, publicKeyPEM)
+export pure func rsaVerifyPKCS1v15(message: bytes, signature: bytes, publicKeyPEM: string) -> Result[bool, string] =
+  _crypto_rsa_verify_pkcs1v15(message, signature, publicKeyPEM)

@@ -8,10 +8,12 @@ import std/json (Json)
 import std/result (Result)
 
 -- Test creating a sem_frame using the pure constructor
-let test_frame: sem_frame = make_frame_at("test-123", "The quick brown fox jumps over the lazy dog", _bytes_from_string("{\"source\": \"test\"}"), 1702555200)
+let test_frame: sem_frame =
+  make_frame_at("test-123", "The quick brown fox jumps over the lazy dog", _bytes_from_string("{\"source\": \"test\"}"), 1702555200)
 
 -- Test creating another frame for similarity comparison
-let similar_frame: sem_frame = make_frame_at("test-124", "The quick brown fox jumps over the lazy cat", _bytes_from_string("{\"source\": \"test\"}"), 1702555201)
+let similar_frame: sem_frame =
+  make_frame_at("test-124", "The quick brown fox jumps over the lazy cat", _bytes_from_string("{\"source\": \"test\"}"), 1702555201)
 
 -- Test similarity check
 let are_similar = is_similar(test_frame, similar_frame, 10)

@@ -14,7 +14,8 @@ import std/string (floatToStr, intToStr)
 
 -- Helper: Create a sem_frame from text content
 pure func make_frame(frame_id: string, frame_content: string, frame_ver: int, frame_ts: int) -> sem_frame {
-  let hash = _simhash(frame_content) in { id: frame_id, content: frame_content, opaque: "{}", ver: frame_ver, ts: frame_ts, embedding: "", simhash: hash }
+  let hash = _simhash(frame_content) in
+  { id: frame_id, content: frame_content, opaque: "{}", ver: frame_ver, ts: frame_ts, embedding: "", simhash: hash }
 }
 
 -- Main: Demonstrate semantic retrieval workflow
@@ -60,6 +61,7 @@ func main() -> string ! {IO, SharedMem, SharedIndex} {
 func print_results(results: [search_result]) -> unit ! {IO} {
   match results {
     [] => _io_println("  No results found"),
-    [first, ...rest] => let _ = _io_println("  Key: " ++ first.key ++ " (score: " ++ floatToStr(first.score) ++ ")") in print_results(rest)
+    [first, ...rest] => let _ = _io_println("  Key: " ++ first.key ++ " (score: " ++ floatToStr(first.score) ++ ")") in
+    print_results(rest)
   }
 }

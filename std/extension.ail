@@ -23,4 +23,6 @@ import std/result (Result, Ok, Err)
 --     Ok(())  => activeHooks(workdir),
 --     Err(_)  => disabledHooks   -- empty provided_tools, host skips us
 --   }
-export func requireWorkdirFile(workdir: string, rel: string) -> Result[(), string] ! {FS} = let path = "${workdir}/${rel}" in if fileExists(path) then Ok() else Err("required workdir file not found: ${path}")
+export func requireWorkdirFile(workdir: string, rel: string) -> Result[(), string] ! {FS} =
+  let path = "${workdir}/${rel}" in
+  if fileExists(path) then Ok() else Err("required workdir file not found: ${path}")

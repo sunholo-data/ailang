@@ -115,13 +115,15 @@ export func readFileResult(path: string) -> Result[string, string] ! {FS} = _fs_
 -- @example match writeFileResult("out.txt", "hi") { Ok(_) => true, Err(_) => false }
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
-export func writeFileResult(path: string, content: string) -> Result[(), string] ! {FS} = _fs_writeFileResult(path, content)
+export func writeFileResult(path: string, content: string) -> Result[(), string] ! {FS} =
+  _fs_writeFileResult(path, content)
 
 -- Append string content to a file, returning Result instead of panicking
 -- @example match appendFileResult("log.txt", "entry\n") { Ok(_) => true, Err(_) => false }
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
-export func appendFileResult(path: string, content: string) -> Result[(), string] ! {FS} = _fs_appendFileResult(path, content)
+export func appendFileResult(path: string, content: string) -> Result[(), string] ! {FS} =
+  _fs_appendFileResult(path, content)
 
 -- Remove a file, returning Result instead of panicking
 -- @example match removeFileResult("/tmp/old.txt") { Ok(_) => true, Err(_) => false }

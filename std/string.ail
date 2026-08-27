@@ -164,14 +164,16 @@ export pure func charCode(c: string) -> int = _str_charCode(c)
 -- Equivalent to foldl(f, acc, split(s, delim)) but O(n) memory.
 -- No intermediate list allocated — segments are slices from the source string.
 -- Example: foldSlices("a,b,c", ",", 0, \acc s -> acc + length(s)) = 3
-export pure func foldSlices(s: string, delim: string, acc: a, f: (a, string) -> a) -> a = _str_foldSlices(s, delim, acc, f)
+export pure func foldSlices(s: string, delim: string, acc: a, f: (a, string) -> a) -> a =
+  _str_foldSlices(s, delim, acc, f)
 
 -- mapSlicesJoin: Split, transform each segment, and join results in O(n)
 -- Equivalent to join("", map(f, split(s, delim))) but uses a strings.Builder.
 -- No intermediate list, no O(n^2) accumulator concatenation.
 -- This is the recommended pattern for any split->transform->concatenate workflow.
 -- Example: mapSlicesJoin("a,b,c", ",", toUpper) = "ABC"
-export pure func mapSlicesJoin(s: string, delim: string, f: string -> string) -> string = _str_mapSlicesJoin(s, delim, f)
+export pure func mapSlicesJoin(s: string, delim: string, f: string -> string) -> string =
+  _str_mapSlicesJoin(s, delim, f)
 
 -- replaceMany: Replace multiple patterns in a single pass
 -- Uses Go's strings.NewReplacer (Aho-Corasick) for O(n) single-scan replacement.

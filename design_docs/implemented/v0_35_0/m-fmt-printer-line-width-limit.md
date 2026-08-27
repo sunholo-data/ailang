@@ -1,6 +1,7 @@
 # M-FMT-PRINTER-LINE-WIDTH-LIMIT: A Width Predicate for the Printer's Existing Multi-Line Layouts, Then the Second Corpus Reformat
 
-**Status**: Planned
+**Status**: Implemented (all milestones landed 2026-08-27, iteration 290)
+**Milestones**: M0+M1+M1b `0c7f58351` (iter 287) · M2 `3ee848bb0` PR #928 (iter 289) · M3 corpus reformat (iter 290) — see "M3 results" at the end of this document
 **Target**: v0.35.0
 **Priority**: P0 (queue head by ruling — `D-39` places the width limit ahead of everything else in the fmt lane, and the fmt gate freeze is sequenced BEHIND it)
 **Estimated**: 3 days (M0–M2 = 2 days, M3 corpus reformat = 1 day)
@@ -573,3 +574,141 @@ have LOCALISED onto one surface (M0's width arithmetic) rather than spreading �
 measurement printer's mode, round 2 the formula's terms. No reviewer has yet flipped to
 pass, so the SPLIT signal is not triggered; if a third round blocks on M0 again while the
 other milestones stay clean, the disposition is to split M0 out rather than revise again.
+
+---
+
+## M3 results — the second corpus reformat (iteration 290, 2026-08-27)
+
+Executed by `codex:gpt-5.6-sol` at base `98467151b`; every number below was **re-derived
+first-party by the controller outside the sandbox** before it was recorded. Where the two
+disagreed, the disagreement is recorded rather than reconciled away.
+
+**Scope.** 450 `.ail` files under `examples/` + `std/` (`test -d examples` YES, `test -d std`
+YES, `test -d stdlib` **NO** — the path has never been `stdlib/`; the widened `-iname`
+control also returns 450, so the enumerator is not case-blind). 50 files changed:
+38 under `examples/`, 12 under `std/`.
+
+### Width — AC3 MET
+
+| Metric | Base (98467151b) | After M3 | AC3 requirement |
+|---|---:|---:|---|
+| lines > 120 runes | 159 | **100** | ≤ 105 ✅ |
+| lines > 100 runes | 281 | 236 | — |
+| max line (runes) | 1315 | **316** | ≤ 350 ✅ |
+| max line location | `examples/runnable/list_extremes.ail:24` | `examples/runnable/ai_streaming.ail:58` | — |
+
+⚠ **Instrument note, and it corrects this iteration's own controller baseline.** The
+controller's directive asserted that a byte counter and a rune counter *agree*. They do at
+the acceptance threshold (>120 = 159 base / 100 after, both ways) and on the maximum, and
+they do **not** at >100: bytes give 282/237, runes give 281/236. The executor reported the
+one-line discrepancy as a deviation rather than coercing it to the controller's stated
+agreement, and the executor was right. Root cause, measured: **BSD `awk` on macOS returns
+`length()` in BYTES even under `LC_ALL=en_US.UTF-8`** — a 3-byte, 1-rune character measures
+**3**, where `python3` measures **1**. The controller's two "independent" arms were therefore
+one instrument, so their agreement was an artifact of the shared reader, not evidence.
+Re-measured with a genuinely rune-aware counter, the executor's numbers reproduce exactly.
+None of this moves AC3, which is decided at >120 where the instruments agree.
+
+### AC8 — per-construct residual classification (the sole input to the follow-on reflow decision)
+
+Classifier reconstructed from V11's described lexical categories and **validated by
+reproducing the published V11 base table exactly** (62/23/20/10/10/9/8/6/5/4/2, sum 159)
+before being applied to the residual.
+
+| Construct | Base >120 | Residual >120 after M3 |
+|---|---:|---:|
+| FUNC_DECL_ONELINE | 62 | 31 |
+| LET_SINGLE | 23 | 9 |
+| LET_CHAIN_2PLUS | 20 | **0** |
+| IMPORT | 10 | 10 |
+| STRING_DOM | 10 | 10 |
+| RECORD_LIST | 10 | 10 |
+| OTHER | 9 | 12 |
+| TYPE_DECL | 8 | 6 |
+| MATCH_ARM | 6 | 5 |
+| IF_CHAIN | 5 | 5 |
+| COMMENT | 4 | 2 |
+| **Total** | **159** | **100** |
+
+Reading for the follow-on: `LET_CHAIN_2PLUS` is **fully closed** (20 → 0) — that is M1
+doing exactly what it was designed for. `IMPORT`, `STRING_DOM` and `RECORD_LIST` are
+**untouched at 10 each**, which is by design: import-list wrapping needs a new canonical
+form plus a new attach list (the iteration-281 comment-loss hazard shape) and is deferred
+with the typedecl work. `FUNC_DECL_ONELINE` halved but is still the largest residual class
+at 31, so it is where a reflow engine would buy the most.
+
+### AC4 idempotence — MET
+
+A second corpus-wide `fmt --write` produced **zero** content change: sha-256 manifest over
+all 450 files, **0 differing rows**, verified independently by the controller.
+
+⚠ **A second instrument note, on the controller's own drill.** The first controller run of
+this check reported **16 differing rows** and looked like a genuine idempotence failure. It
+was not: `find | xargs shasum` does **not** emit rows in a stable order, so an unsorted
+manifest `diff` reports position swaps as content changes. Worse, the poisoned control fired
+`rc=1` in exactly the predicted direction and so *agreed with the false finding for the wrong
+reason*, and the byte-identical `cp` restore also read as a mismatch. Sorting both manifests
+by path before comparing gives 0 rows for the idempotence check and 0 for the restore.
+**A manifest is not comparable until it is ordered**, and a control that shares the broken
+reader cannot separate the arms.
+
+### AC5 comment safety — MET, with a control that fires
+
+`lexer.CollectComments`, per-file join: **7,865 → 7,865** over **450** joined pairs, 0
+mismatches. The poisoned arm **fired**:
+
+```
+MISMATCH examples/ai_devtools_workflow/discount_calculator.ail before=7 after=8
+POISON_JOIN=450 MISMATCHES=1
+```
+
+and after reverting, `REVERTED_JOIN=450 MISMATCHES=0`.
+
+Corroborated by a **second, independent** controller instrument that does not use the lexer
+at all — lines containing `--`: **7,225 → 7,225**, with both a known-absent control (0) and a
+known-present control (`module`, 517) firing. Different unit, same invariant.
+
+### AC6 semantics — MET
+
+`ailang check` rc per file, joined before/after: **450 pairs, 0 rc changes**, distribution
+**374 rc=0 / 76 rc=1** on both sides. Controller-measured on both trees (the pristine base
+being a separate checkout at the same commit), anti-vacuity floor asserted at 450, and the
+inverted-predicate control returns 450.
+
+The sprint plan's historical `405 / 38 / 7` is **not** an `ailang check` distribution — it is
+the `ailang fmt` distribution (405 canonical / 38 attach-refusals / 7 parse-failures), which
+also reproduces exactly. The executor caught the mislabel in the controller's directive.
+
+### Fail-closed invariant — HOLDS
+
+The 45 fail-closed files (38 `fmt` rc=2 attach-refusals + 7 rc=3 parse-failures) must be
+byte-unchanged. `comm -12` over the sorted changed-file list and the sorted fail-closed list
+is **EMPTY**, with the self-intersection control returning 50. This is the sharp invariant
+over 45 of 450 that guards against a real regression hiding in a bulk diff.
+
+### AC9 no gate wiring (negative) — MET
+
+`git diff --name-only | grep -cE '^(\.github/|make/)'` = **0**, with a known-positive control
+on a matching string returning **1**. `internal/cihygiene/gate_wiring_test.go` sha-256
+unchanged. `internal/format/` untouched by this milestone (0 files, control 1).
+
+### AC10 teaching surface — MET
+
+8 `in let ` occurrences across `prompts/` (v0.12.1 and v0.16.0–v0.16.6), **each 112 runes**,
+**0** exceeding 120, so **0 prompt files changed**. Recording the 8 is what distinguishes
+"checked and clear" from "the grep pattern was wrong".
+
+### Gates — all rc=0, base and after, re-run by the controller OUTSIDE the sandbox
+
+| Gate | Base rc | After rc |
+|---|---:|---:|
+| `make verify-examples` | 0 | 0 |
+| `make verify-stdlib` | 0 | 0 |
+| `make test-stdlib-ail` | 0 | 0 |
+| `go test ./internal/format/...` | 0 | 0 |
+| `go build ./cmd/ailang ./internal/...` | 0 | 0 |
+| `make check-changelog` | — | 0 |
+
+`go build ./...` is **excluded by design**: it is rc=1 on pristine `dev` (`cmd/wasm` has no
+native `main`), so it can neither pass nor attribute. Platform: **darwin/arm64**; the ubuntu
+and windows legs were not run locally and are covered by CI.

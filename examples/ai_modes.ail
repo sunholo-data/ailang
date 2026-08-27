@@ -54,7 +54,10 @@ export func summarize_routeable(text: string) -> string ! {AI[mode=routeable]} =
 -- function cannot be passed where !{AI[mode=routeable]} is expected and
 -- vice versa, since unification is invariant on params).
 export func main() -> () ! {AI, IO} = {
-  let r1 = summarize_default("AILANG is a deterministic language for AI code synthesis.") in println("summarize_default (bare AI -> AI[mode=fixed]): ${r1}")
-  let r2 = summarize_explicit_fixed("AILANG is a deterministic language for AI code synthesis.") in println("summarize_explicit_fixed (AI[mode=fixed]): ${r2}")
-  let r3 = summarize_routeable("AILANG is a deterministic language for AI code synthesis.") in println("summarize_routeable (AI[mode=routeable]): ${r3}")
+  let r1 = summarize_default("AILANG is a deterministic language for AI code synthesis.") in
+  println("summarize_default (bare AI -> AI[mode=fixed]): ${r1}")
+  let r2 = summarize_explicit_fixed("AILANG is a deterministic language for AI code synthesis.") in
+  println("summarize_explicit_fixed (AI[mode=fixed]): ${r2}")
+  let r3 = summarize_routeable("AILANG is a deterministic language for AI code synthesis.") in
+  println("summarize_routeable (AI[mode=routeable]): ${r3}")
 }
