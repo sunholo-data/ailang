@@ -349,9 +349,21 @@ fi
 # makes the process tree self-referential and never empties the queue — the only way to reach the
 # in-loop `date` check. The stub was written for this and no invocation used it, so the branch
 # that actually bounds the walk was unexercised while an arm claimed the deadline was pinned.
+# WIDER CAP FOR THIS ARM ONLY (deflake, 2026-08-27). The self-referential pgrep
+# walk normally trips the probe's 1s internal deadline in a second or two — but
+# each loop iteration SPAWNS a stub process, and on a contended shared CI runner
+# those spawns degrade until total wall time blows through the global 120s arm
+# cap long before the per-iteration date check accumulates to its limit. CI run
+# 33001432738 (2026-08-26) failed exactly here on a commit touching no related
+# files, and the identical suite passed on the next commit. The refusal itself
+# is what this arm proves and it still MUST happen — the generosity only widens
+# how long we wait for a degraded runner to get there, and stays bounded.
+_arm_cap_saved=$ARM_CAP_SECS
+ARM_CAP_SECS=$(( ARM_CAP_SECS * 5 ))
 expect_failure "descendant discovery refuses on the real wall-clock deadline" "process-tree discovery failed" \
   env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=1 PROBE_TEST_PGREP_LOOP=1 \
     PROBE_STUB_STATE="$tmp_dir/lane-pgreploop" /bin/bash "$probe" treatment control "$tmp_dir/pgreploop.json"
+ARM_CAP_SECS=$_arm_cap_saved
 
 cap_secs_fixture=2
 cap_start=$(date +%s)
