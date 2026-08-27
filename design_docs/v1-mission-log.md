@@ -19480,6 +19480,74 @@ the residue is measured rather than predicted; then
 
 ---
 
+## 288 — 2026-08-27 — Three hunks nothing exercised, pinned or declared — and the judge failed round 1 because my own declaration claimed a measurement nobody took
+
+**Picked**: `m-fmt-measurement-att-isolation-unpinned` + `m-fmt-measurementerr-propagation-no-killer`,
+taken together as iteration 287's stated Next ("picking up the two unpinned-hunk rows first, since both
+live in the code M2 extends"). The positionally-first row (M2/M3) was deliberately left: M3 before M2
+banks lines M2 would have wrapped, and both unpinned hunks sit in the code M2 extends.
+
+**Reality check**: both rows are judge-sourced claims from earlier iterations, so both were reproduced
+first-party before any routing. Each mutant asserted **LANDED** (sha256 differs), **EFFECT against the
+system's own view** (`att: nil` 1→0 / `att: p.att` 0→1; guards 2→0 / neutered 0→2 — never "the file
+changed"), and **BUILDS** (`go build ./internal/format/` rc=0) *before* any test result was read. Both
+left `go test ./internal/format/` rc=0 with 0 FAIL, so both rows were real. Baseline on the pristine
+worktree rc=0/0 FAIL; `internal/format` has **0** `exec.Command`, so the stale-PATH-binary class does
+not apply here.
+
+**Shipped**: PR [#926](https://github.com/sunholo-data/ailang/pull/926), 4 commits. Production diff is
+**comments only**. `TestMeasurementIgnoresInheritedAttachments` pins attachment isolation by comparing
+the isolated measurement against a hand-built *inheriting* shadow — a value written BY the mechanism,
+not alongside it — and mutant A is its **sole killer** (`-skip` inverse rc=0, 0 FAIL, on a mutant
+measured single-test). `TestMeasurementErrorAlwaysAccompaniesRenderError` converts the `measurementErr`
+redundancy from *reasoned* to *measured*: **312** `ast.Error` injections across widths {120,40,20},
+joint cell `measurementErr && p.file()==nil` **empty 312/312**, instrument proven alive by a pristine
+control (1329 renders, `measurementErr` set **0** times). The guards are KEPT and DECLARED, not deleted.
+A **third** hunk nobody had named — dropping `p.measurementErr = err` at `width.go:46` — was found and
+sole-killed. Commits reconstructed from executor snapshots with the suite green at every boundary and
+proven faithful (`shasum -c` 5/5 OK).
+
+**The blocking finding, which was mine**: the judge FAILED round 1 at **68/100**. My M2 comment in
+`interp.go` claimed the 312-injection test *"measured that live cell empty"*. It did not — `holeText` is
+reachable only from `interp.go:94` while rendering an interpolation hole, structurally disconnected from
+that test's top-level `Let.Value`/`Let.Body` injections. The judge instrumented it (`holeText` called
+**3313** times, both error branches **0** — *unvisited*, not *measured empty*); I confirmed the mechanism
+first-party before acting (one call site; the test mentions `holeText`/`show(` **0** times, control
+`measurementErr` **5**). That would have shipped an unearned declaration in the sprint whose purpose is
+removing unearned declarations. Fixed `2f820b00c`; round 2 **PASS 92/100**, the judge re-deriving
+3313/0/0 from scratch under fresh instrumentation rather than trusting mine.
+
+**Ruled out**:
+- *"Mutant A might be a live bug via nested-owner comments"* — my own hypothesis, from measuring that
+  `hasAnyAttachment(owner)` matches `k.owner == owner` exactly and does not recurse. REFUTED two ways:
+  compiled-product corpus sweep **405 identical / 0 divergent / 45 fail-closed of 450** with a firing
+  known-positive control (`defaultMaxWidth` 120→60 → **21** divergences), and the planner's finding that
+  nested-interior comments are **unrepresentable** (`AttachComments` fails closed on all 6 placements).
+  So "latent, not live" is now measured rather than assumed.
+- *"Corpus neutrality is evidence for this diff"* — REFUTED by the judge (N3): the diff is comments-only,
+  so byte-identity is true by construction. Accepted; do not cite it as delta evidence.
+- *The plan's prediction that mutant C's blast radius would exceed one test* — did not hold; measured
+  sole killer. Recorded so nobody later cites the prediction as validated.
+
+**Routing evidence**: controller=claude-opus-5 · designer=NOT SPAWNED (no new doc needed; rows live under
+an existing design doc, grep-verified — **Fable diet UNSPENT**) · planner=opus (lane derived VERBATIM as
+`opus fail-closed:planner-lane-field-missing`) · executor=`codex:gpt-5.6-sol` (probe rc=0, directive
+4393B, terminal marker rc=0) · evaluator=`sonnet` in its OWN worktree, zero git writes, every mutated
+file restored byte-identical. generator≠judge **HELD** (OpenAI wrote, Anthropic judged, judge distinct
+from the opus controller). rounds=2 round1-score=68 round2-score=92 corrections=1
+metered=**$0.00** of $5. Gates on darwin/arm64; ubuntu and windows legs unrun locally.
+
+**Deviations adjudicated by measurement** (rule 3h): D1 — the executor flattened the fixture loop after
+its presence gate printed `3` (subtest PASS lines matched the parent name); judge measured it weakens
+*diagnostics only*, filed as a queue row. D2 — mutant C's EFFECT check used removal + preservation
+rather than an addition, correct for a deletion-shaped mutant. D3 — production diff confirmed
+comments-only, nothing smuggled.
+
+**Next**: `m-fmt-printer-line-width-limit` **M2 (continuation layout) then M3 (corpus reformat)**, in
+that order. Both new tests carry explicit re-check notes telling M2 to re-run the differential, because
+M2 is the change most likely to lift either mask.
+
+
 ## 281 — 2026-08-26 — The queue's own plan for the formatter was built on a false premise, and following it would have shipped a change that silently deletes user comments
 
 **Picked**: `m-fmt-attach-boundary-class`, iteration 280's stated Next, whose deliverable was
