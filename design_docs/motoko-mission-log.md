@@ -2676,3 +2676,101 @@ of $5 — codex and sonnet are quota buckets. No GPU, no `rig.lock`. Gates on **
 green is that leg rather than a proxy for it. Windows and ubuntu legs read from Gate 3b's matrix.
 
 **Next.** Row **6h** — the provider failure arriving as a successful empty completion.
+
+## 26 — 2026-08-27 — iteration 25's fix is correct and cannot run: the pin gate is loaded from the tree the pin exists to replace
+
+**Pick.** Not the queue head. A genuine regression outranks it and **this fire is the instance —
+again**. The driver logged `DRIVER PIN FAILED` at `11:56:34` and executed the source clone at
+`e3ed9467f`, now **172** commits behind `origin/dev`, up from **152** one fire earlier.
+
+**The finding.** Iteration 25 diagnosed the retired-key predicate correctly and fixed it correctly
+(`ff0da7445`). **The fix does not run.** launchd invokes the *source clone's*
+`tools/launchd/mission-control.sh` (`ProgramArguments`, read from the installed plist), which sources
+the *source clone's* `tools/launchd/lib/pin-root.sh` — and that copy is 172 commits behind, so it
+carries the **pre-fix** `_pin_onboarded`. The gate that decides whether to execute committed code is
+itself loaded from the stale tree the pin exists to bypass. **The fix for "the pin refuses" was
+landed into the only tree the refusal prevents from running.**
+
+**Measurement — both predicates run verbatim against the live `~/.claude.json`, in one call.**
+
+| predicate (which copy) | pin worktree | source clone | verdict |
+|---|---|---|---|
+| clone's, retired key only — **the one that ran** | false | false | **REFUSE-TO-PIN** |
+| `origin/dev`'s, per `ff0da7445` — **the one that didn't** | false | **true** | **PIN-OK** |
+
+Controls in the same call: retired `hasCompletedProjectOnboarding` **0** occurrences whole-file;
+`hasTrustDialogAccepted` **15** (positive); an invented key **0** (negative); **15** entries
+enumerated. So the fix is not merely plausible — it is measured to pass **on this exact machine and
+this exact state**. The refusal branch requires *both* paths false; the fixed predicate returns
+`true` for the clone, so the gate would open.
+
+**A count would have read as coverage; reading it is what caught it.** `grep -c
+'hasTrustDialogAccepted'` against the clone's `pin-root.sh` returns **1**, not 0 — and that single
+occurrence is a **comment at line 185**, not code (`origin/dev`'s copy returns **4**; invented-token
+negative control **0** in both). A bare non-zero count is exactly what "the fix is present" looks
+like.
+
+**Motoko-specific, not fleet-wide — and the third arm is what says so (rule 3l).**
+
+| mission | clone behind | `pin-root.sh` fix hits | `DRIVER PIN FAILED` in driver log |
+|---|---|---|---|
+| control (V1) | 0 | **4** | 4 |
+| world | 0 | *file absent* | 0 |
+| motoko | **172** | 1 (a comment) | 3 |
+
+Positive control per log (`iteration`): 19 / 15 / 5; negative control 0 in all three. V1 escaped
+because its clone **happens to be current**, not because of anything the fix did. World has no
+`tools/launchd/lib/pin-root.sh` at all — its empty grep was *file absence*, verified with `ls` rather
+than read as a zero (rule 3a). So the mission that found and fixed the bug is the only one still
+living with it, and the reason is **drift, not code**.
+
+**Why nothing landed this iteration could have fixed it.** Any change I write goes to `origin/dev` —
+which is precisely the tree the broken clone cannot reach. A class fix to `pin-root.sh` would be
+**inert for motoko** (live for V1, whose clone is current), i.e. it would repeat iteration 25's
+mistake one level up: landing the remedy where the defect prevents it from being read. Recognising
+that is the iteration's actual deliverable; the class is filed as row **6l** rather than executed.
+
+**The remedy is one word, and this is the fifth ask.** `D-MOTOKO-WORKDIR-2` — standing authorization
+to reconcile the source clone. The skill's four non-destructiveness obligations are **measured, not
+assumed**: **0** commits ahead (so no local work to duplicate-check), **0** dirty lines in the clone
+and **0** in all eight sibling worktrees (so nothing to back up, and the incoming-vs-modified
+intersection is empty by construction), and `git checkout -B dev origin/dev` is the protective form
+that errors rather than clobbers. What has changed since asks 1–4 is the **class of the ask**:
+iterations 21–25 raised it as hygiene against a predicted cost. The cost is now **measured** — the
+loop cannot heal itself, iteration 25's landed work is dead letter, and the drift grew 152 → 172 in
+a single day. Standing authorization is a human decision, not a controller one, so it is parked and
+not taken.
+
+**Ruled out.**
+- *That this fire was unpinned for a new reason.* It is the same retired-key predicate, run verbatim
+  and measured false for both paths — not inferred from the log line.
+- *That it is fleet-wide.* Three-arm table above; V1 and world are both fine, for different reasons,
+  and only one of those reasons is the fix.
+- *That editing `~/.claude.json` to re-add the retired key is an acceptable unblock.* It **would**
+  work — the stale gate would pass and the loop would self-heal on the next fire. Rejected anyway:
+  it satisfies a **retired schema** to trick a gate that has already been correctly fixed upstream,
+  it mutates shared out-of-repo harness state that no review gate can see, and Claude Code may
+  rewrite that file at any time. Named for Mark as an option; not taken unattended.
+- *That the SonarCloud red is ours.* `failure` on `origin/dev` HEAD and on V1's `20ce815bf` and
+  `0911d1089`; `71693ead0` carries **no** Sonar check at all (negative control). Non-required;
+  `sunholo-data/ailang` is V1's to own.
+- *That the queue head had landed.* Re-checked at a fresh origin: `ChatStepResponse.Usage` is still a
+  **value type** at `internal/ai/openai/step.go:300`, no merged PR matches, issue reported at #842 is
+  still OPEN. Row **6h** is genuinely open and stays the next pick.
+- *That an orphaned iteration left work behind.* The only open PR on the fleet account is `#695`
+  (`coordinator/task-d98bb271`), absent from this clone's 9-entry worktree list, so **not
+  attributable** to this mission — left alone per the fleet-filter rule.
+
+**Routing evidence.** Controller `claude:claude-opus-5` (session) — **and no other role ran**. No
+designer, no planner, no executor, no evaluator, no quorum: the deliverable is a measurement and an
+escalation, and the only remedy is human-gated, so spawning an executor would have produced code
+that cannot execute. Designer rotation pointer untouched at `claude:claude-fable-5`; **Fable
+unspent**. Metered **$0.00** of $5. No GPU, no `rig.lock`. Gates on **darwin/arm64**. Running-skill
+check on the **resolved symlink**: `~/.claude/skills/mission-control` → V1's checkout (inode
+`51683298`), **byte-identical to `origin/dev`** (`cmp` rc=0), while this fire's CWD carries a copy
+**139 lines short** (inode `48752546`, `cmp` rc=1) — the 139-line delta was read before any gate ran
+and contains the designer-rotation replacement, the comma-separated fallback chains, the
+`mission_pi_run.sh` typed-verdict lane and three new Gate-2 rules.
+
+**Next.** Row **6h** — unless the reconcile lands first, in which case the next iteration's first act
+is to confirm the pin actually succeeded rather than assume it.

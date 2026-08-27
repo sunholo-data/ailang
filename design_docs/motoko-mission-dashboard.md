@@ -1,42 +1,41 @@
 # Mission Dashboard — Motoko
 
-_Snapshot, overwritten each iteration. History: `motoko-mission.md` (STATUS) + `motoko-mission-log.md`.
-Written at iteration 25, 2026-08-26._
+*Snapshot, overwritten every iteration. History lives in the charter STATUS block and the mission log.*
 
-## Where we are
+**Last iteration**: 26 · 2026-08-27 · **PARKED on a human decision** (no code landed, by design)
 
-- **Landed (iter 25)**: the launchd **driver pin had been refusing unconditionally** — `~/.claude.json`'s
-  `hasCompletedProjectOnboarding` no longer exists (**0 of 15** live entries; control
-  `hasTrustDialogAccepted` **15 of 15**), so every fire of every mission ran unverified working-tree code.
-  PR #923 → `ff0da7445`, evaluator **PASS 98/100 zero blocking**, Gate 3b GREEN. Suite 35 → 53 arms.
-- **In flight**: nothing.
-- **Next**: row **6h** — a provider failure arrives as a *successful empty completion* (`#842`); the guard
-  the reporter suggests is not expressible against the current value type, so step 1 is making absence
-  observable. Then 6i · 6j · 7.
+## ⚠ The loop is running stale code and cannot fix itself
+
+The launchd driver pin has failed on **every** motoko fire. Iteration 25 found the cause and landed
+the correct fix (`ff0da7445`) — **it has never executed**, because launchd runs the *source clone's*
+`pin-root.sh`, and that clone is **172 commits behind** `origin/dev`, so it still carries the
+pre-fix gate. The fix was landed into the only tree the defect prevents from being read.
+
+Measured: the clone's predicate → `REFUSE-TO-PIN`; `origin/dev`'s → **`PIN-OK`** on this exact
+machine. The fix works; it is unreachable. **Motoko-only** — V1's clone is 0 behind and self-healed,
+world has no `pin-root.sh`. Drift grew **152 → 172 in one day** and is unbounded.
+
+## Parked on Mark — one word, fifth ask
+
+**`D-MOTOKO-WORKDIR-2`** — standing authorization to reconcile the source clone to `origin/dev`
+unattended when three predicates hold. **`yes`** (standing) or **`no`** (keep asking each time).
+All four non-destructiveness obligations measured today: **0** ahead · **0** dirty in the clone and
+all 8 worktrees · nothing to back up · `checkout -B` refuses rather than clobbers.
+
+*Manual alternative, ~10s:* `cd ~/dev/sunholo-data/ailang-motoko && git checkout -B dev origin/dev`
+
+## Queue
+
+| | row | state |
+|---|---|---|
+| next | **6h** provider failure arrives as a successful empty completion (#842) | NEXT — verified still open |
+| then | **6i** production `run_lane` group-kill pinned by nothing | NEXT |
+| then | **6j** `launchd drivers (bash 3.2)` arm 33 intermittent hang | NEXT |
+| new | **6l** pin gate loaded from the tree it replaces (bootstrap trap) | blocked-by-design on the reconcile |
+| parked | 10 / 11 / 12 Phase-0 gated | G1 `#154` re-measured OPEN |
 
 ## Loop health
 
-- **This fire ran UNPINNED — and that is what the pick fixed.** After #923, simulation against the real
-  `~/.claude.json`: motoko **PIN-OK**, v1 **PIN-OK**, world **REFUSE-TO-PIN** (a *true* verdict — that
-  clone carries neither key). The next fire tests whether pinning actually resumes.
-- Source clone: **152 behind**, 0 ahead, 0 dirty. Running skill resolves to V1's checkout,
-  byte-identical to `origin/dev`; this checkout's copy is 139 lines short (delta read before the gates).
-- **dev CI**: required contexts green. One standing non-required red, `SonarCloud`, inherited from V1's
-  commits — 56.9% coverage on new code, plus a **new** second condition, B security rating. Handed to V1.
-- **Filed, not picked** (row 6j): `launchd drivers (bash 3.2)` arm 33 is intermittent — 3 non-success of
-  58 runs today, all on unrelated commits, all at that arm; ~1s locally against a 120s cap on the runner.
-
-## Routing / cost
-
-controller `claude:claude-opus-5` · executor `codex:gpt-5.6-sol` (1 run, no fallback) · evaluator
-`sonnet`, own worktree, generator≠judge holds. Designer rotation at `claude:claude-fable-5`, **Fable
-unspent**. Metered **$0.00** of $5. No GPU.
-
-## Parked on Mark
-
-- **`D-MOTOKO-WORKDIR-2` (OPEN, 4th ask)** — grant *standing* authorization to reconcile the source clone
-  to `origin/dev` unattended when three predicates hold (ahead == 0; every dirty file's added lines
-  byte-present upstream or byte-identical; a sha256-verified backup re-verifies after)? One word **yes**
-  or **no**. Today all three hold trivially: 0 ahead, 0 dirty.
-- Phase-0 rows 10/11/12 stay parked on upstream `arniwesth/motoko_agent#154`, re-measured **OPEN**
-  (control `#175` MERGED). A predicate re-run each iteration, not a human ask.
+- **CI on `dev`**: 20 checks, 1 not-green — `SonarCloud`, inherited from V1's commits, non-required.
+- **Routing**: controller `claude:claude-opus-5` only. Fable **unspent**. Metered **$0.00** of $5.
+- **Cadence**: unpinned fires — every iteration runs whatever the stale clone holds.
