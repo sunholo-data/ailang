@@ -9,6 +9,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"strings"
 
@@ -76,7 +77,7 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string, rou
 	}
 
 	// Look up model in config
-	model, err := eval_harness.GlobalModelsConfig.GetModel(aiModel)
+	model, err := modelreg.GlobalModelsConfig.GetModel(aiModel)
 	if err != nil {
 		// Model not in config - try direct usage with guessed provider
 		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy, attr)
@@ -88,7 +89,7 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string, rou
 // setupAIHandlerFromConfig configures the AI effect handler from a resolved
 // models.yml entry. Extracted from setupAIHandler so tests can drive the
 // dispatch path (built-in switch + config-driven registry default) without
-// going through eval_harness.GlobalModelsConfig.
+// going through modelreg.GlobalModelsConfig.
 func setupAIHandlerFromConfig(effCtx *effects.EffContext, model *eval_harness.ModelConfig, aiModel string, routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution) error {
 	// Get API key from environment (may be empty for Google ADC)
 	apiKey := os.Getenv(model.EnvVar)

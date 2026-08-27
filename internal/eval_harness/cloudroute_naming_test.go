@@ -1,6 +1,7 @@
 package eval_harness
 
 import (
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"strings"
 	"testing"
 )
@@ -32,7 +33,7 @@ func TestCloudRowsAreIdentifiableFromTheirKey(t *testing.T) {
 
 	var offenders []string
 	var cloudRows int
-	for key, cfg := range GlobalModelsConfig.Models {
+	for key, cfg := range modelreg.GlobalModelsConfig.Models {
 		isCloud := IsOllamaCloudRoute(cfg.APIName) ||
 			(cfg.AgentModelName != nil && IsOllamaCloudRoute(*cfg.AgentModelName))
 		if !isCloud {
@@ -68,7 +69,7 @@ func TestNonCloudRowsAreNotMislabelled(t *testing.T) {
 	if err := InitModelsConfig(); err != nil {
 		t.Fatalf("load models.yml: %v", err)
 	}
-	for key, cfg := range GlobalModelsConfig.Models {
+	for key, cfg := range modelreg.GlobalModelsConfig.Models {
 		if !strings.Contains(key, "cloud") && !strings.HasPrefix(key, "oc-") {
 			continue
 		}

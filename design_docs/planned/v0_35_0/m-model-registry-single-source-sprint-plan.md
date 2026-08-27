@@ -44,12 +44,33 @@ direction (`executor` → `modelreg`, never the reverse).
 the milestone mechanical: **66 call sites across 17 non-test files compile unchanged.**
 
 **Acceptance criteria**
-- `go list -deps ./internal/modelreg` contains **no** `internal/executor` — the hard gate
-- `go build ./...` and `make test` clean with zero call-site edits outside the two packages
-- `make check-file-sizes` still green
-- `executor.IsOllamaCloudRoute` retains its behavior (existing tests unmodified and passing)
+- [x] `go list -deps ./internal/modelreg` contains **no** `internal/executor` — the hard gate.
+      Guarded by `TestModelregIsALeaf`; deps are exactly `gopkg.in/yaml.v3` + itself
+- [x] `go build ./...` and `go vet ./...` clean
+- [x] `make check-file-sizes` still green
+- [x] `executor.IsOllamaCloudRoute` retains its behavior (existing tests unmodified and passing)
+- [x] `make test` clean — zero FAIL lines across the suite
 
-**Files**: `internal/modelreg/` (new), `internal/eval_harness/models.go`, `internal/executor/cost.go`
+**Two things measurement changed about this milestone:**
+
+1. **The guard test passed vacuously on its first run.** It asserted "some dep starts with the
+   module path" as its instrument check — but `go list -deps .` always lists the package *itself*,
+   so the control could never fail and the absence assertion underneath it was worthless. The
+   control now requires `gopkg.in/yaml.v3`, a dependency the registry genuinely has, and was
+   confirmed RED before the move and GREEN after. This is the same false-pass shape
+   `scripts/check_boundaries.sh` warns about in its own header comment.
+2. **`GlobalModelsConfig` could not be aliased.** The plan said type aliases would cover the call
+   sites. That holds for the ~66 sites naming types and functions, but `GlobalModelsConfig` is a
+   mutable package variable that `InitModelsConfig` writes: a second declaration in `eval_harness`
+   would be a *copy* of the pointer, stale for anyone who read it before initialization — a silent
+   divergence on the exact data this sprint is trying to make single-sourced. Its ~40 call sites
+   across 13 files now name `modelreg.GlobalModelsConfig` directly. Larger diff, one variable.
+
+Also folded in: 40 references to the literal path `internal/eval_harness/models.yml` across tools,
+scripts and skills, and 9 test loads that resolved `models.yml` relative to the old package dir.
+
+**Files**: `internal/modelreg/` (new), `internal/eval_harness/models_alias.go` (new),
+`internal/executor/cost.go`, +50 files for the variable and path rewires
 
 ---
 

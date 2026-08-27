@@ -2,9 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
-
-	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 // resolveEvalModelList determines the model list for an eval-suite run from the
@@ -19,19 +18,19 @@ func resolveEvalModelList(models string, fullSuite, agent bool) []string {
 		// User specified models explicitly. Recognize named suites as a
 		// single token (e.g. --models agent_suite) and expand them to the
 		// composite from models.yml. Otherwise fall back to comma-split.
-		modelList = expandModelSuite(models, eval_harness.GlobalModelsConfig)
+		modelList = expandModelSuite(models, modelreg.GlobalModelsConfig)
 	} else if fullSuite {
 		// Full suite: use extended suite (5 models) from models.yml
-		if eval_harness.GlobalModelsConfig != nil && len(eval_harness.GlobalModelsConfig.ExtendedSuite) > 0 {
-			modelList = eval_harness.GlobalModelsConfig.ExtendedSuite
+		if modelreg.GlobalModelsConfig != nil && len(modelreg.GlobalModelsConfig.ExtendedSuite) > 0 {
+			modelList = modelreg.GlobalModelsConfig.ExtendedSuite
 		} else {
 			// Fallback if models.yml not loaded
 			modelList = []string{"gpt5-2-codex", "claude-opus-4-6", "claude-sonnet-4-6", "gemini-3-pro", "gemini-2-5-pro"}
 		}
 	} else {
 		// Default: use dev models from models.yml
-		if eval_harness.GlobalModelsConfig != nil && len(eval_harness.GlobalModelsConfig.DevModels) > 0 {
-			modelList = eval_harness.GlobalModelsConfig.DevModels
+		if modelreg.GlobalModelsConfig != nil && len(modelreg.GlobalModelsConfig.DevModels) > 0 {
+			modelList = modelreg.GlobalModelsConfig.DevModels
 		} else {
 			// Fallback if models.yml not loaded
 			modelList = []string{"gpt5-mini", "claude-haiku-4-5", "gemini-2-5-flash"}
@@ -44,12 +43,12 @@ func resolveEvalModelList(models string, fullSuite, agent bool) []string {
 	// Cloud models (anthropic/openai/google/openrouter) that ALSO have an agent_cli
 	// — Claude, GPT, Gemini — are dual-mode and run standard natively; they must
 	// NOT be blocked (they have hundreds of standard-mode runs across baselines).
-	if !agent && eval_harness.GlobalModelsConfig != nil {
+	if !agent && modelreg.GlobalModelsConfig != nil {
 		var agentOnlyModels []string
 		for _, m := range modelList {
-			if eval_harness.GlobalModelsConfig.SupportsAgentEval(m) &&
-				!eval_harness.GlobalModelsConfig.SupportsStandardEval(m) {
-				cli, _ := eval_harness.GlobalModelsConfig.GetAgentCLI(m)
+			if modelreg.GlobalModelsConfig.SupportsAgentEval(m) &&
+				!modelreg.GlobalModelsConfig.SupportsStandardEval(m) {
+				cli, _ := modelreg.GlobalModelsConfig.GetAgentCLI(m)
 				agentOnlyModels = append(agentOnlyModels, fmt.Sprintf("%s (agent_cli: %q)", m, cli))
 			}
 		}
@@ -100,10 +99,10 @@ func clampConcurrencyForSerializedLanes(agent bool, maxConcurrent *int, modelLis
 	// removing it traded a false block for a real collision.
 	//
 	// Until motoko takes a per-run port, ANY motoko row serializes.
-	if agent && *maxConcurrent > 1 && eval_harness.GlobalModelsConfig != nil {
+	if agent && *maxConcurrent > 1 && modelreg.GlobalModelsConfig != nil {
 		for _, m := range modelList {
-			gpuBound := eval_harness.GlobalModelsConfig.UsesLocalGPU(m)
-			cli, _ := eval_harness.GlobalModelsConfig.GetAgentCLI(m)
+			gpuBound := modelreg.GlobalModelsConfig.UsesLocalGPU(m)
+			cli, _ := modelreg.GlobalModelsConfig.GetAgentCLI(m)
 			motokoBound := cli == "motoko"
 			if !gpuBound && !motokoBound {
 				continue
@@ -118,7 +117,7 @@ func clampConcurrencyForSerializedLanes(agent bool, maxConcurrent *int, modelLis
 					reason = "single-GPU rig contention + motoko's fixed port 8080"
 				}
 			}
-			if eval_harness.GlobalModelsConfig.SupportsAgentEval(m) && !eval_harness.GlobalModelsConfig.SupportsStandardEval(m) {
+			if modelreg.GlobalModelsConfig.SupportsAgentEval(m) && !modelreg.GlobalModelsConfig.SupportsStandardEval(m) {
 				fmt.Fprintf(os.Stderr, "\u26a0 Serializing agent run \u2014 forcing --parallel 1 (was %d): %s.\n", *maxConcurrent, reason)
 				*maxConcurrent = 1
 				break

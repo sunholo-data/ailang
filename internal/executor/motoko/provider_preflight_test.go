@@ -160,7 +160,7 @@ func TestRequireProviderCredential_UnresolvableModel_LoudRefusal(t *testing.T) {
 
 // TestRequireProviderCredential_AllMotokoLanesResolve (T-B6b): every
 // agent_model_name across the 32 `agent_cli: "motoko"` lanes in
-// internal/eval_harness/models.yml must resolve to a non-empty provider via
+// internal/modelreg/models.yml must resolve to a non-empty provider via
 // ai.GuessProvider. This is the coverage gate that fails a future motoko lane
 // whose model string is unresolvable — TODAY, all 32 begin with ollama/ or
 // openrouter/ (design doc §12.2 enumerates the original 17, since extended by
@@ -175,7 +175,7 @@ func TestRequireProviderCredential_UnresolvableModel_LoudRefusal(t *testing.T) {
 func TestRequireProviderCredential_AllMotokoLanesResolve(t *testing.T) {
 	lanes := motokoLaneModels(t)
 	if len(lanes) == 0 {
-		t.Skip("could not locate internal/eval_harness/models.yml; lane-coverage gate not run")
+		t.Skip("could not locate internal/modelreg/models.yml; lane-coverage gate not run")
 	}
 	if len(lanes) != 32 {
 		t.Errorf("expected 32 motoko lanes in models.yml, found %d — bump this count in the same commit that adds a lane", len(lanes))
@@ -187,7 +187,7 @@ func TestRequireProviderCredential_AllMotokoLanesResolve(t *testing.T) {
 	}
 }
 
-// findRepoRoot walks up from the test cwd until it finds internal/eval_harness/models.yml.
+// findRepoRoot walks up from the test cwd until it finds internal/modelreg/models.yml.
 func findRepoRoot(t *testing.T) string {
 	t.Helper()
 	dir, err := os.Getwd()

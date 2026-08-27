@@ -37,7 +37,7 @@ budget_stopped() {
 # Usage: get_ollama_models "opencode-gemma4-e4b,claude-sonnet-4-5"
 get_ollama_models() {
     local model_ids="$1"
-    local yml="internal/eval_harness/models.yml"
+    local yml="internal/modelreg/models.yml"
     [[ -f "$yml" ]] || return 0
 
     local IFS=','
@@ -175,7 +175,7 @@ resolve_benchmarks_in_tiers() {
 # newline-separated model IDs. Empty output on any parse failure (fail-open —
 # caller treats "no models" the same as "everything is new").
 extended_suite_models() {
-    local yml="internal/eval_harness/models.yml"
+    local yml="internal/modelreg/models.yml"
     [[ -f "$yml" ]] || return 0
     awk '
         /^extended_suite:/ { insuite=1; next }

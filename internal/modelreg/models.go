@@ -1,4 +1,4 @@
-package eval_harness
+package modelreg
 
 import (
 	_ "embed"
@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
-
-	"github.com/sunholo-data/ailang/internal/executor"
 )
 
 //go:embed models.yml
@@ -209,8 +207,8 @@ func InitModelsConfig() error {
 
 	// Fall back to file system (for development)
 	paths := []string{
-		"internal/eval_harness/models.yml",
-		"../internal/eval_harness/models.yml",
+		"internal/modelreg/models.yml",
+		"../internal/modelreg/models.yml",
 		"models.yml", // If already in the same directory
 	}
 
@@ -254,10 +252,26 @@ func (c *ModelsConfig) GetProvider(name string) (string, error) {
 	return model.Provider, nil
 }
 
-// IsOllamaCloudRoute reports whether a name selects an Ollama CLOUD model.
-// Thin delegate to executor.IsOllamaCloudRoute — the grammar lives in the lower
-// layer because cost provenance needs it too, and two copies could disagree.
-func IsOllamaCloudRoute(name string) bool { return executor.IsOllamaCloudRoute(name) }
+// IsOllamaCloudRoute reports whether a name selects an Ollama CLOUD model
+// (ollama.com), as opposed to a model on the local GPU rig.
+//
+// M-MODEL-REGISTRY-SINGLE-SOURCE M1: this grammar used to live in
+// internal/executor with a delegate here. It moved DOWN so that modelreg stays
+// a leaf (D4(a)) — executor now delegates up to this copy. It is pure string
+// grammar over a model name with no executor state, so the layer it belongs to
+// is the registry that owns model names. There is still exactly one copy;
+// cost provenance and the registry cannot disagree.
+func IsOllamaCloudRoute(name string) bool {
+	n := strings.ToLower(strings.TrimSpace(name))
+	if i := strings.LastIndex(n, ":"); i >= 0 {
+		suffix := n[i+1:]
+		if suffix == "cloud" {
+			return true
+		}
+		return !strings.Contains(suffix, "/") && strings.HasSuffix(suffix, "-cloud")
+	}
+	return false
+}
 
 // UsesLocalGPU reports whether a model runs on the local Ollama GPU — the
 // shared single-GPU rig that the rig lock protects. Cloud/API models return

@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"path/filepath"
 	"sort"
@@ -220,7 +221,7 @@ func buildOSLeaderboardJSON(releaseTag, ailangVersion string, current map[string
 	sort.Strings(langs)
 
 	harnessOf := func(model string) string {
-		if cfg := eval_harness.GlobalModelsConfig; cfg != nil {
+		if cfg := modelreg.GlobalModelsConfig; cfg != nil {
 			if mc, ok := cfg.Models[model]; ok && mc.AgentCLI != nil && *mc.AgentCLI != "" {
 				return *mc.AgentCLI
 			}

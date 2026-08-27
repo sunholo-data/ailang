@@ -1,9 +1,8 @@
 package eval_analysis
 
 import (
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"sort"
-
-	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 // Per-executor agent aggregates (claude, gemini, etc.) extracted from
@@ -222,7 +221,7 @@ type harnessTotals struct {
 //
 // benchmarkTier maps benchmark ID -> tier name (smoke/core/stretch); pass nil to skip tier breakdown.
 func buildHarnessAggregates(agentResults []*BenchmarkResult, benchmarkTier map[string]string) map[string]interface{} {
-	cfg := eval_harness.GlobalModelsConfig
+	cfg := modelreg.GlobalModelsConfig
 	perHarness := make(map[string]*harnessTotals)
 
 	for _, r := range agentResults {
