@@ -1005,7 +1005,7 @@
     },
     "v0.16.6": {
       "file": "prompts/v0.16.6.md",
-      "hash": "43d4ebd680202845b08a5c68849a772219077ef5015b8c5416d08bb43538ea61",
+      "hash": "875232bb1a20abcebffd865692c728feb14fc40fd52b42774fdb360f23b7738c",
       "description": "v0.16.5 + strict-evaluation guidance for fused takeFlatMap and allocating-f takeMap forms.",
       "created": "2026-08-12",
       "tags": [
