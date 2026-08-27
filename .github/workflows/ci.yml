@@ -192,6 +192,18 @@ jobs:
     - name: Check skill frontmatter
       run: make check-skills
 
+    # `make ci` is a LOCAL aggregate: CI never invokes it (measured — 0 occurrences
+    # in this file), so every gate reaches CI only via its own step. Adding a target
+    # to `ci:` is necessary and NOT sufficient. This gate also needs `origin/dev` to
+    # exist as a remote-tracking ref, because its L3(c) arm diffs frozen entries
+    # against `git merge-base HEAD origin/dev`; the fetch below makes that explicit
+    # and fails loudly rather than letting the gate error on a missing ref.
+    - name: Fetch origin/dev for the prompt-freeze merge-base
+      run: git fetch --no-tags origin +refs/heads/dev:refs/remotes/origin/dev
+
+    - name: Check frozen prompt immutability and mirror agreement
+      run: make check-prompt-freeze
+
     - name: Check coverage gate (M-P2)
       run: make test-coverage-gate
 

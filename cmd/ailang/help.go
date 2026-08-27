@@ -282,6 +282,7 @@ func printHelp() {
 	fmt.Println()
 	fmt.Println("Development Tools:")
 	fmt.Printf("  %s [--version V]   Display AILANG teaching prompt (for AI code generation)\n", cyan("prompt"))
+	fmt.Printf("  %s        Check frozen prompt immutability and embedded mirrors\n", cyan("prompt freeze --check"))
 	fmt.Printf("  %s [--version V]   Display AILANG dev tools reference (for AI agents)\n", cyan("devtools-prompt"))
 	fmt.Printf("  %s                     List available stdlib modules\n", cyan("docs --list"))
 	fmt.Printf("  %s               Show stdlib module documentation\n", cyan("docs <module>"))

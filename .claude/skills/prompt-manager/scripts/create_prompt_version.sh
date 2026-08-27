@@ -93,10 +93,22 @@ mv "$TMP_FILE" prompts/versions.json
 echo "✓ Added $NEW_VERSION to prompts/versions.json"
 echo "✓ Set as active version"
 
+# Mirror BOTH artefacts into cmd/ailang/prompts/, which is what gets embedded into
+# the binary and what agent mode reads FIRST (internal/prompt/loader.go). The two
+# registries are required to be byte-identical, and `make check-prompt-freeze`
+# enforces it — so a source-only write leaves the tree inconsistent and the gate red.
+cp "$NEW_FILE" "cmd/ailang/$NEW_FILE"
+cp prompts/versions.json cmd/ailang/prompts/versions.json
+echo "✓ Mirrored $NEW_FILE and the registry into cmd/ailang/prompts/"
+
 echo ""
 echo "Next steps:"
 echo "  1. Edit $NEW_FILE to make your changes"
 echo "  2. Run .claude/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh $NEW_VERSION"
 echo "  3. Update hash: shasum -a 256 $NEW_FILE"
-echo "  4. Test with: ailang repl (check if changes work)"
-echo "  5. Commit: git add $NEW_FILE prompts/versions.json"
+echo "  4. RE-MIRROR after any edit (steps 1 and 3 desync the embedded copy):"
+echo "       cp $NEW_FILE cmd/ailang/$NEW_FILE"
+echo "       cp prompts/versions.json cmd/ailang/prompts/versions.json"
+echo "  5. Test with: ailang repl (check if changes work)"
+echo "  6. Run make check-prompt-freeze before committing"
+echo "  7. Commit: git add $NEW_FILE cmd/ailang/$NEW_FILE prompts/versions.json cmd/ailang/prompts/versions.json"

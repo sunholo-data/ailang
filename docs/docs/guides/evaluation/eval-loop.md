@@ -60,6 +60,12 @@ make eval-prompt-list
 
 **Hash Verification**: SHA256 prevents accidental modification mid-experiment
 
+Frozen prompt versions are also protected by the CI gate `make check-prompt-freeze`. The gate
+compares versions frozen at the branch's `origin/dev` merge-base with the working tree, rejecting
+changes to their registry `file` or `hash` fields and to their Markdown bytes. It also requires the
+frozen source entries and prompt bytes to agree with `cmd/ailang/prompts/`, which is embedded into
+agent-mode binaries.
+
 ### 3. Fix Validation (Milestone 3)
 
 Prove fixes work before committing:

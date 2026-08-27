@@ -151,7 +151,7 @@ OPTIONS:
 FREEZE:
   ailang prompt freeze <version>  Freeze a corpus-evidenced prompt version
   ailang prompt freeze --migrate  Record the initial banked/legacy split
-  ailang prompt freeze --check    Check derivation and hash-integrity invariants
+  ailang prompt freeze --check    Check derivation, hash, immutability, and mirror invariants
 
 EXAMPLES:
   # Display current/latest prompt
