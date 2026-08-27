@@ -67,6 +67,24 @@ echo ""
 cp "$BASE_FILE" "$NEW_FILE"
 echo "✓ Copied $BASE_FILE → $NEW_FILE"
 
+# Rewrite line 1 so the header names THIS version.
+# The cp above copies the base version's header verbatim; leaving it is how 15 of 54
+# prompt files came to misidentify their own version, including the active one that
+# `ailang prompt` serves (fixed iteration 293). Runs BEFORE the hash is computed.
+HEADER_TMP=$(mktemp)
+awk -v ver="$NEW_VERSION" 'NR==1{ sub(/^# AILANG v[0-9]+\.[0-9]+\.[0-9]+/, "# AILANG " ver) } {print}' \
+    "$NEW_FILE" > "$HEADER_TMP"
+mv "$HEADER_TMP" "$NEW_FILE"
+
+# Fail loudly rather than silently shipping a mislabelled prompt (no silent fallbacks).
+if ! head -1 "$NEW_FILE" | grep -q "^# AILANG ${NEW_VERSION} "; then
+    echo "Error: could not rewrite the version header of $NEW_FILE" >&2
+    echo "       line 1 is: $(head -1 "$NEW_FILE")" >&2
+    echo "       expected it to start: # AILANG ${NEW_VERSION} " >&2
+    exit 1
+fi
+echo "✓ Header set to: $(head -1 "$NEW_FILE")"
+
 # Compute hash
 HASH=$(shasum -a 256 "$NEW_FILE" | awk '{print $1}')
 echo "✓ Computed hash: $HASH"
