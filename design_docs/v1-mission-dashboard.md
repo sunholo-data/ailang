@@ -11,18 +11,18 @@
 
 ## In flight / next
 
-1. **[NEXT] m-openrouter-session-chain-registration** — blocked on **D-45**. `M-MISSION-LOOP-UNIFIED-TELEMETRY`
+1. **[NEXT] m-openrouter-session-chain-registration** — **unblocked, scope settled, ~15 LOC.** `M-MISSION-LOOP-UNIFIED-TELEMETRY`
    M1's *read* side is live and tested; its *write* side was never built, so every OpenRouter Broadcast
    trace is still unjoinable. Measured: `sessions_keyed_by_a_chain_id` = **0** (controls 19262 / 18947);
    prod 72 h — 97 spans carry `session.id`, **0** resolve to a chain.
 2. **m-prompt-freeze-mirror-all-versions** — design written (iter-293 planner), re-scope against `4d8705699`.
 3. **m-git-binary-resolution-sweep** — has a doc, needs a quorum run before planning.
 
-## Parked on Mark — 5 open decisions
+## Parked on Mark — 4 open decisions
 
-`scripts/mission_decisions.sh --open` is authoritative (46 rows, valid).
+`scripts/mission_decisions.sh --open` is authoritative (46 rows, valid). D-45 was filed this
+iteration and **withdrawn by measurement** — the evaluator showed it was not a real decision.
 
-- **D-45** — OpenRouter session→chain registration: `chain` or `stage`? Gates the [NEXT] pick.
 - **D-46** — who reconciles the `M-MISSION-LOOP-UNIFIED-TELEMETRY` sprint JSON: `mine` or `loop`?
 - **D-42** — standing authorisation to reconcile the main checkout against origin (17 behind today).
 - **D-43** — should `std/string.charAt` itself become total (breaking)?
