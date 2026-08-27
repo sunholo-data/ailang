@@ -32,20 +32,7 @@ type orderedRegistry struct {
 	Notes         []string
 }
 
-type registryJSON struct {
-	SchemaVersion string                    `json:"schema_version"`
-	Versions      map[string]*registryEntry `json:"versions"`
-	Active        string                    `json:"active"`
-	Notes         []string                  `json:"notes"`
-}
-
 func (e *registryEntry) UnmarshalJSON(data []byte) error {
-	type wire struct {
-		File, Hash, Description, Created string
-		Tags                             []string
-		Notes                            string
-		Frozen                           *eval_harness.FrozenMarker
-	}
 	var w struct {
 		File        string                     `json:"file"`
 		Hash        string                     `json:"hash"`
