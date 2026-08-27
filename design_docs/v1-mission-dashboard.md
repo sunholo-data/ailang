@@ -1,27 +1,32 @@
 # Mission Dashboard — V1
 
-_Snapshot after iteration 292 (2026-08-27). Overwritten each iteration; history lives in the charter STATUS block and the mission log._
+_Snapshot after iteration 293 (2026-08-27). Overwritten each iteration; history lives in the charter STATUS block and the mission log._
 
 ## Latest
-- **Release**: v0.34.0 · `origin/dev` @ `445ccb550`
-- **Landed this iteration**: [#937](https://github.com/sunholo-data/ailang/pull/937) → squash `445ccb550` — **M2** of `m-prompt-version-freeze-on-first-bank`: the frozen-prompt CI gate
-- **The gate is proven to RUN in CI**, not merely declared: both new steps report `completed/success` in the `test` job on the merged head. `make ci` is never invoked by CI (measured, 0 occurrences), so `ci:` membership alone would have shipped a guard that never fires.
-- **Evaluator FAILED round 1 (78/100)** on a real blocking defect and it was fixed before merge: the workflow this sprint documents (`create_prompt_version.sh` → step 5) left the tree inconsistent and the gate red. Its proposed remedy was declined with a measurement; the writer was fixed instead.
+- **Release**: v0.34.0 · `origin/dev` @ `caea1f9e1`
+- **In flight**: PR [#940](https://github.com/sunholo-data/ailang/pull/940) — the served teaching prompt now identifies its own version, and the writer stops propagating the stale header
+- **Evaluator**: `sonnet` **PASS 97/100, zero blocking** — it out-drilled the controller, enumerating all 8 refusal branches and finding the joint mutant that silently ships a mislabelled prompt
 
-## In flight / next
-1. **M3** — close the agent-mode verification hole (`internal/prompt/loader.go` never verifies the prompt hash; `langreg` converts a load FAILURE into a SUCCESS attributed `"default"`). Highest-risk milestone of this sprint.
-2. **M4** — bank-time `prompt_sha256` byte evidence.
-3. `m-prompt-freeze-mutable-mirror-unchecked` — **new, from the iteration-292 judge**: for a MUTABLE version the embedded `.md` is checked by nothing (L3(d) is frozen-only by design). Reproduced: registry hand-synced, mirror `.md` deleted, gate rc=0.
-4. `m-fmt-corpus-gate-freeze` (`D-39` sequences it here) · `m-browser-session-serving-mode` (AITANA-DEMAND).
+## What iteration 293 found
+- **`ailang prompt` was serving the RIGHT bytes under the WRONG name.** The external report ("serves v0.16.2 on a v0.34.0 binary") was wrong on mechanism — `active` is `v0.16.6` and the served bytes match it exactly. The defect is that the file's own line 1 said `v0.16.2`.
+- **Systemic, with a named mechanism**: 15 of 54 prompt files misidentify themselves because `create_prompt_version.sh` copies the base file and never rewrites the header. 14 of the 15 are FROZEN and must stay as they are; only `v0.16.6` was editable.
+- **The freeze gate's hole is wider than the queue row said** (planner measurement): a mutable version's `.md` can be stale, diverged, or absent in BOTH copies at rc=0 — and `//go:embed all:prompts` means a missing prompt compiles clean and fails only for users of a released binary.
+- **dev CI red was infrastructure, not code**: a `sum.golang.org` HTTP/2 stream error in `Get dependencies`. Re-run on the byte-identical tree went green. No revert, no fix-forward.
 
-## Loop / routing
-- Cadence: launchd `dev.ailang.mission-control`, pinned worktree `~/.ailang-driver-pin/v1`.
-- This iteration: controller `opus` · designer **not spawned** (doc exists — Fable diet UNSPENT) · planner **not spawned** (plan exists) · executor `codex:gpt-5.6-sol` · evaluator `sonnet` (own worktree). generator≠judge held on both axes.
-- metered **$0.00** of $5.
+## Next picks
+1. `m-prompt-freeze-mirror-all-versions` — the EXTEND decision, design already written by iteration 293's planner
+2. `m-string-charat-totality` — `charAt` panics where every sibling accessor returns `Option`; needs a breaking-change call
+3. `m-dx-papercuts-docs-verify-parser` · `m-prompt-teaching-gaps-yaml` · `m-std-smt` (needs a design doc + quorum)
+
+## Loop health
+- **Routing**: controller `opus` · designer NOT SPAWNED (doc existed — **Fable diet UNSPENT**) · planner `opus` (`fail-closed:planner-lane-field-missing`) · executor `codex:gpt-5.6-sol` · evaluator `sonnet`, own worktree
+- **metered = $0.00** of $5
+- **Known lane constraint (new)**: `.agents/` is read-only under codex `--sandbox workspace-write`, so a milestone touching it cannot run in that lane
+- **PATH binary drifts by design** — it was 39 commits stale this fire; build to a scratch dir with ldflags, never `make quick-install` mid-run
 
 ## Parked on Mark
-- **`D-42`** (the only OPEN ledger row): standing authorisation to reconcile this checkout to `origin/dev` unattended? **Not exercised this iteration and not needed** — local dev was 0 ahead / 0 behind at Gate 1 for the first time in weeks.
+- **`D-42`** is the only OPEN ledger row (standing authorisation for a local↔origin reconcile). Not exercised this iteration — local dev == origin/dev exactly.
+- **No decisions are being asked this iteration.**
 
-## Quota posture
-- Anthropic available (`MISSION_ANTHROPIC_AVAILABLE=1`); codex probe rc=0; billing tripwire **CLEAN**.
-- `SonarCloud Code Analysis` red on 5 of the last 6 analysed dev commits — **inherited, non-required, named, not the pick**.
+## Standing
+- Non-required `SonarCloud` is red on new-code coverage (63.3%, needs 80%) and a B security rating. **Not attributable to any one merge** — the new-code period spans 2404 issues. Filed with two candidate dispositions.
