@@ -11,12 +11,13 @@ import (
 
 // PromptVersion represents metadata about a prompt version
 type PromptVersion struct {
-	File        string   `json:"file"`
-	Hash        string   `json:"hash"`
-	Description string   `json:"description"`
-	Created     string   `json:"created"`
-	Tags        []string `json:"tags"`
-	Notes       string   `json:"notes"`
+	File        string        `json:"file"`
+	Hash        string        `json:"hash"`
+	Description string        `json:"description"`
+	Created     string        `json:"created"`
+	Tags        []string      `json:"tags"`
+	Notes       string        `json:"notes"`
+	Frozen      *FrozenMarker `json:"frozen,omitempty"`
 }
 
 // PromptRegistry contains all registered prompt versions
@@ -73,21 +74,19 @@ func (l *PromptLoader) LoadPrompt(versionID string) (string, error) {
 		return "", fmt.Errorf("failed to read prompt %q: %w", version.File, err)
 	}
 
-	// Verify hash (skip if placeholder)
+	if version.Frozen != nil {
+		if !IsHexSHA256(version.Hash) {
+			return "", FrozenUnenforceableHashError(versionID, version)
+		}
+		if actual := computeSHA256(content); actual != version.Hash {
+			return "", FrozenHashMismatchError(versionID, version, actual)
+		}
+		return string(content), nil
+	}
+	// never-banked: the PLACEHOLDER development escape hatch remains available.
 	if version.Hash != "PLACEHOLDER" {
-		actualHash := computeSHA256(content)
-		if actualHash != version.Hash {
-			// Truncate hashes for error message (safely handle short hashes)
-			expectedPreview := version.Hash
-			if len(expectedPreview) > 16 {
-				expectedPreview = expectedPreview[:16] + "..."
-			}
-			actualPreview := actualHash
-			if len(actualPreview) > 16 {
-				actualPreview = actualPreview[:16] + "..."
-			}
-			return "", fmt.Errorf("hash mismatch for %q: expected %s, got %s (file may have been modified)",
-				versionID, expectedPreview, actualPreview)
+		if actual := computeSHA256(content); actual != version.Hash {
+			return "", MutableHashMismatchError(versionID, version, actual)
 		}
 	}
 

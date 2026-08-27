@@ -17,14 +17,23 @@ func SetEmbeddedFS(efs fs.FS) {
 	embeddedPrompts = efs
 }
 
+// FrozenMarker records that a prompt version's bytes are immutable.
+type FrozenMarker struct {
+	At              string `json:"at"`
+	Reason          string `json:"reason"`
+	EvidenceCount   int    `json:"evidence_count"`
+	EvidenceExample string `json:"evidence_example"`
+}
+
 // VersionMetadata represents metadata for a prompt version
 type VersionMetadata struct {
-	File        string   `json:"file"`
-	Hash        string   `json:"hash"`
-	Description string   `json:"description"`
-	Created     string   `json:"created"`
-	Tags        []string `json:"tags"`
-	Notes       string   `json:"notes"`
+	File        string        `json:"file"`
+	Hash        string        `json:"hash"`
+	Description string        `json:"description"`
+	Created     string        `json:"created"`
+	Tags        []string      `json:"tags"`
+	Notes       string        `json:"notes"`
+	Frozen      *FrozenMarker `json:"frozen,omitempty"`
 }
 
 // VersionsManifest represents the versions.json file structure
