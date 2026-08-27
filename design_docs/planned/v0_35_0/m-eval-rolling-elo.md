@@ -290,11 +290,17 @@ Not a parser/typechecker change, but it overrides shared machinery — enumerate
 >   (An earlier ad-hoc babel invocation "failed" 5 files — the control failed too, proving the
 >   INSTRUMENT was wrong, not the code. Recorded because that is the trap this project keeps
 >   re-learning.)
-> - ⚠️ **Docusaurus production build NOT run to completion in the worktree**: it fails on 39
->   generated doc pages (`packages/sunholo/*`, several `reference/*`) that exist untracked in the
->   main checkout only — 143 files here vs 182 there. PRE-EXISTING worktree condition, reproduced
->   before any of my changes were involved; CI builds from the main checkout. Must still be
->   green there before merge.
+> - ✅ **Docusaurus production build VERIFIED GREEN** (2026-08-27, re-run after the initial
+>   worktree failure): `npm run build` on Node 20 → "Generated static files in build". The
+>   earlier failure was a worktree artifact — `docs/.gitignore:40` (`/docs/packages/*/`) ignores
+>   39 GENERATED doc pages, so a fresh worktree lacks them while the main checkout has them.
+>   Repopulating them (rsync, ignore-existing) made the build pass with all M4/M5 changes in
+>   place. The 3 remaining warnings are pre-existing broken anchors in guides this sprint never
+>   touched (notify-daemon, strict-fallbacks, wasm-ai-step-byo-key).
+> - ⚠️ **CI COVERAGE GAP found while closing the above**: `.github/workflows/docusaurus-deploy.yml`
+>   triggers only on `push` to `main`/`dev` — **never on pull requests**. A PR that breaks the
+>   docs build therefore shows all-green and only fails AFTER merge, on the deploy. Not caused by
+>   this sprint; filed separately.
 > - ⏸️ **PENDING: Mark's visual confirmation of the chart** — the sprint plan makes this
 >   non-negotiable and no agent may sign it off.
 
