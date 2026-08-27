@@ -277,11 +277,14 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	clonePoint := strings.TrimSpace(string(clonePointOutput))
 
 	// Step 1.5: Inject AGENTS.md from plugin if repo doesn't have one.
-	// M-PKG-CASCADE-DETERMINISTIC-FIRST: skip injection for cascade tasks —
-	// AGENTS.md is generic agent guidance and just clutters the cascade PR
-	// (which has a single deterministic toml bump as its diff). Cascade
-	// tasks are detected via AILANG_CASCADE_ROOT_PACKAGE.
-	if pluginDir != "" && os.Getenv("AILANG_CASCADE_ROOT_PACKAGE") == "" {
+	//
+	// The cascade-only skip that used to guard this is GONE. It existed because
+	// "AGENTS.md is generic agent guidance and just clutters the cascade PR" —
+	// true, and true of every other PR too. injectAgentsMD now excludes the
+	// injected copy via .git/info/exclude, so it clutters nothing anywhere and
+	// cascade needs no special case. The old guard fixed one caller and left the
+	// rest committing the file into four ailang-parse PRs.
+	if pluginDir != "" {
 		injectAgentsMD(pluginDir, workDir)
 	}
 

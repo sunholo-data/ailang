@@ -4368,29 +4368,30 @@ default: "claude-sonnet-4-6"
 # designer fallback. Neither exists in the live table and no agent carries a
 # `package` role, so adding them here would be inventing policy under a
 # Non-Goal. Add them when something actually asks for them.
-# CHAIN ORDER = PREFERENCE, and the fallback is for AUTH FAILURE, not for lane
-# (Mark, 2026-08-27). Entry 1 is the subscription/OAuth lane; later entries are
-# the metered API-key lane to fall through to when OAuth is unavailable or spent
-# — the same shape the mission driver already uses for its CONTROLLER via
-# MISSION_MODEL_PREFS + _mc_probe.
+# TRANSCRIBED from config.cloud.yaml's model_routing as it stood 2026-08-27,
+# before M7 deleted that table. Changing WHICH models a role runs is an explicit
+# Non-Goal of M-MODEL-REGISTRY-SINGLE-SOURCE; these chains say exactly what the
+# table said, and TestCloudAgents_RegistryMatchesTheDeletedRoutingTable pins that.
 #
-# Both lanes share one chain. An earlier draft split them, on the theory that
-# Cloud Run could not do OAuth. That was WRONG: terraform's `agent_executor` job
-# takes CLAUDE_CODE_OAUTH_TOKEN from Secret Manager and is deployed. So there is
-# no auth reason for the lanes to differ, and they no longer do.
+# A SUBSCRIPTION-FIRST ORDER WAS DRAFTED AND REVERTED (2026-08-27). Mark's design
+# is that one chain serves both lanes, leading with the subscription/OAuth model
+# and falling through to the metered API-key lane when OAuth is spent — the shape
+# the mission driver already uses for its controller. It was reverted with M8,
+# not rejected: adopting it here would have shipped a fleet policy change as a
+# side effect of a parked milestone, and the draft was a poor model of what the
+# driver actually does (two-deep chains on `pi`, an ollama-cloud flat-rate tier
+# first, and a mission-form string that is NOT agent_cli:agent_model_name).
+# It belongs in the follow-up design doc that models those properly.
 #
-# ⚠️ ENTRIES 2+ ARE DECLARATIVE, NOT LIVE. Nothing consumes them yet:
-# coordinator.ResolveModel takes chain[0] and stops, and the mission driver
-# probes-and-falls-back for its CONTROLLER only — its four per-role values are
-# plain env defaults with no probe. Stating this here on purpose: the table this
-# block replaced carried a comment claiming Lane A read it, which a grep showed
-# was never true, and a second paper guarantee is not an improvement. Making the
-# fallbacks real needs a per-role probe in both consumers.
+# Entries beyond the first are DECLARATIVE. coordinator.ResolveModel takes
+# chain[0] and stops; the mission driver probes-and-falls-back for its CONTROLLER
+# only. Said plainly because the table this replaced carried a comment claiming
+# Lane A read it, which a grep showed was never true.
 roles:
-  designer:  [claude-fable-5, opencode-or-kimi-k3]
+  designer:  [opencode-or-kimi-k3]
   planner:   [gpt5-6-sol, opencode-or-kimi-k3]
   executor:  [gpt5-6-sol, opencode-or-deepseek-v4-flash]
-  evaluator: [claude-sonnet-4-6, opencode-or-minimax-m3]
+  evaluator: [opencode-or-minimax-m3, opencode-or-deepseek-v4-flash]
 
 benchmark_suite:
   - "gpt5-6-sol"       # OpenAI flagship (Jul 2026) — replaced gpt5-5 (core tie 25/26 at identical $5/$30, newer gen)

@@ -188,11 +188,27 @@ func discoverChangedFilesFromCommit(workDir, clonePoint string) []string {
 }
 
 // injectAgentsMD copies AGENTS.md from the plugin directory into the workspace
-// if the workspace doesn't already have one.
+// if the workspace doesn't already have one, and EXCLUDES the injected copy from
+// git.
+//
+// The exclusion is the point. AGENTS.md is the HARNESS's instruction file, not
+// agent output — but it landed in the workspace untracked and unignored, so the
+// commit step swept it up. Four ailang-parse PRs (#26, #27, #28, #30) each
+// carried an identical `AGENTS.md +60/-0`, and two carried nothing else: a run
+// that produced no work looked like a change. That is worse than an empty PR,
+// because it hides the real defect behind a plausible diff.
+//
+// The cascade path had spotted the same clutter and skipped injection when
+// AILANG_CASCADE_ROOT_PACKAGE was set. That protected one caller and left every
+// other task committing the file — patching the symptom where it was noticed
+// instead of fixing it where it lives (CLAUDE.md Principle 3). With the
+// exclusion here, that special case is no longer needed.
 func injectAgentsMD(pluginDir, workDir string) {
 	src := filepath.Join(pluginDir, "AGENTS.md")
 	dst := filepath.Join(workDir, "AGENTS.md")
 
+	// A repo that ships its own AGENTS.md keeps it: it is tracked content and
+	// must stay committable. Only the copy WE inject gets excluded.
 	if _, err := os.Stat(dst); err == nil {
 		fmt.Printf("execute-job: AGENTS.md already exists in repo, skipping injection\n")
 		return
@@ -207,7 +223,63 @@ func injectAgentsMD(pluginDir, workDir string) {
 		fmt.Fprintf(os.Stderr, "warning: failed to inject AGENTS.md: %v\n", err)
 		return
 	}
-	fmt.Printf("execute-job: injected AGENTS.md from plugin into workspace\n")
+
+	// Exclude BEFORE the agent runs, so no commit can race it.
+	if err := excludeFromGit(workDir, "AGENTS.md"); err != nil {
+		// Loud, because the failure mode is silent PR pollution rather than a
+		// crash: the job still works, and every PR it makes is misleading.
+		fmt.Fprintf(os.Stderr,
+			"warning: injected AGENTS.md but could NOT exclude it from git (%v) — "+
+				"it may be committed into this task's PR and make an empty run look like a change\n", err)
+		return
+	}
+	fmt.Printf("execute-job: injected AGENTS.md from plugin into workspace (excluded from git)\n")
+}
+
+// excludeFromGit adds a path to the repository's .git/info/exclude — the
+// per-clone ignore list.
+//
+// info/exclude rather than .gitignore on purpose: .gitignore is tracked content,
+// so writing to it would itself be a change the agent commits, which is the very
+// problem being fixed. info/exclude is local to the clone and invisible to the
+// diff.
+//
+// Resolved via `git rev-parse --git-dir` rather than assuming <workDir>/.git,
+// because in a worktree .git is a FILE pointing elsewhere and the naive path
+// would silently write a regular file that git never reads.
+func excludeFromGit(workDir, pattern string) error {
+	out, err := exec.Command("git", "-C", workDir, "rev-parse", "--git-dir").Output()
+	if err != nil {
+		return fmt.Errorf("resolve git dir: %w", err)
+	}
+	gitDir := strings.TrimSpace(string(out))
+	if !filepath.IsAbs(gitDir) {
+		gitDir = filepath.Join(workDir, gitDir)
+	}
+
+	infoDir := filepath.Join(gitDir, "info")
+	if err := os.MkdirAll(infoDir, 0o755); err != nil {
+		return fmt.Errorf("create %s: %w", infoDir, err)
+	}
+	excludePath := filepath.Join(infoDir, "exclude")
+
+	existing, err := os.ReadFile(excludePath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("read %s: %w", excludePath, err)
+	}
+	// Idempotent: a job may re-run in a reused workspace.
+	for _, line := range strings.Split(string(existing), "\n") {
+		if strings.TrimSpace(line) == pattern {
+			return nil
+		}
+	}
+
+	body := string(existing)
+	if body != "" && !strings.HasSuffix(body, "\n") {
+		body += "\n"
+	}
+	body += pattern + "\n"
+	return os.WriteFile(excludePath, []byte(body), 0o644)
 }
 
 // writeTaskArtifacts writes execution artifacts to the GCS-mounted artifact directory.
