@@ -4331,6 +4331,14 @@ benchmark_suite:
 extended_suite:
   - "gpt5-6-sol"        # OpenAI flagship (Jul 2026) — gated 2026-07-11: core 26/26 N=1, tie 25/26 with gpt5-5
     # after N=3 de-flake of explicit_dataflow_ssa (both fail it 3/3; every OpenAI model fails it).
+    # ^ STALE as of 2026-08-27: sol passed explicit_dataflow_ssa 1/3 and terra 2/3 in a clean N=3
+    #   (zero api_error) paired run — the benchmark is now flaky-passable for OpenAI models, not a
+    #   stable fail. Same run: sol 17/27 vs terra 16/27 on the 9-cell discriminating set, sign test
+    #   p=1.000 — INDISTINGUISHABLE in aggregate at 2.4x the cost, but with stable complementary
+    #   specializations (terra 3/3 vs sol 1/3 on contract_sorted_merge + legal_obligation_engine;
+    #   sol 3/3 vs terra 0/3 on ssa_constant_fold, and sol alone cracked gauntlet_10 + quine 1/3).
+    #   Sol's baseline-apparent deficit was partly two OpenAI-520 harness kills, correctly
+    #   quarantined by the validity filter (n=35 vs 37 in eval-elo was that filter working).
     # Identical $5/$30 pricing → same-cost generational refresh, gpt5-5 kept opt-in for longitudinal compare.
   - "gpt5-6-terra"      # OpenAI mid tier (Jul 2026) — added 2026-07-11 for new-release tracking (per Mark).
     # Gate: core 24/26 at $1.82 — ties sonnet-4-6 anchor at ~70% of its cost. No incumbent displaced.
