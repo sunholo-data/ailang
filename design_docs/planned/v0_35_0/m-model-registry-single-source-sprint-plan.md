@@ -131,12 +131,34 @@ content is a transcription rather than a new decision (Non-Goal: this sprint doe
 *which* models are chosen).
 
 **Acceptance criteria**
-- `ResolveRole` returns the ordered chain for each of designer/planner/executor/evaluator/package
-- A `--lane cloud` resolution never returns an ollama entry; `--lane local` may
-- A missing role returns a typed error naming the roles that **do** exist
-- Chains transcribed from `config.cloud.yaml` resolve to byte-identical model strings
+- [x] `ResolveRole` returns the ordered chain for designer/planner/executor/evaluator
+- [x] A `--lane cloud` resolution never returns an ollama entry — with a control asserting the
+      registry actually *has* local-GPU rows, so the absence is not vacuous
+- [x] A missing role returns a typed error naming the roles that **do** exist
+- [x] Chains transcribed from `config.cloud.yaml` resolve to byte-identical model strings.
+      **Negative control run**: perturbing one link fails with the expected message; restoring
+      returns to green
 
-**Files**: `internal/modelreg/models.yml`, `internal/modelreg/roles.go`, tests
+**Three findings that shaped the implementation:**
+
+1. **Chains must name friendly names — `(role, lane)` alone is not decidable.** The live
+   `model_routing` entries are raw per-harness strings whose map back to the registry is
+   many-to-one: `openrouter/deepseek/deepseek-v4-flash-0731` is *both*
+   `motoko-or-deepseek-v4-flash` and `opencode-or-deepseek-v4-flash`. They are not even derived
+   uniformly — `gpt-5.6-sol` comes from `api_name`, because the codex row has no
+   `agent_model_name`. A friendly name picks the row, and the row carries the harness and the exact
+   wire string. `GetExecutorForModel` already implements `agent_model_name`-else-`api_name`, so
+   `ResolveRole` reuses it rather than writing a second rule.
+2. **The `package:` role and the `fable-5` designer fallback in the design doc's sketch do not
+   exist.** No agent carries a `package` role and neither appears in the live table. Transcribing
+   them would invent policy under an explicit Non-Goal, so they were left out.
+3. **One recorded judgement call**: for the deepseek and minimax links the *opencode* twin was
+   chosen over the *motoko* twin. Both yield a byte-identical wire string, so the transcription is
+   faithful either way; opencode matches the designer link, which is unambiguously opencode. The
+   choice becomes observable only in M7, when the coordinator starts consuming `RoleEntry.Executor`.
+
+**Files**: `internal/modelreg/models.yml` (`roles:` block), `internal/modelreg/roles.go` (new),
+`internal/modelreg/roles_test.go` (new)
 
 ---
 

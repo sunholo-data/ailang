@@ -4307,6 +4307,42 @@ default: "claude-sonnet-4-6"
 
 # Core benchmark suite - top model from each provider (3 models)
 # Use for: Regular CI, quick comparisons, development validation
+# ─────────────────────────────────────────────────────────────────────────────
+# roles: which model plays which role (M-MODEL-REGISTRY-SINGLE-SOURCE M3)
+#
+# models.yml has always held model FACTS. This is model POLICY, and it
+# SUPERSEDES the `model_routing` table in ailang-multivac/config/config.cloud.yaml
+# (M-PIPELINE-RECONCILIATION M5), which answered the same question in a second
+# place that needed a separate deploy.
+#
+# Entries are FRIENDLY NAMES (keys in `models:` above), never wire strings.
+# That is what makes the table unambiguous: the live model_routing chains are
+# raw per-harness strings and map back many-to-one — "openrouter/deepseek/
+# deepseek-v4-flash-0731" is BOTH motoko-or-deepseek-v4-flash and
+# opencode-or-deepseek-v4-flash. A friendly name picks the row; the row carries
+# the harness (agent_cli) and the exact wire string.
+#
+# TRANSCRIBED VERBATIM from config.cloud.yaml:61-64 as measured 2026-08-27.
+# Changing which models a role runs is an explicit Non-Goal of this sprint;
+# TestResolveRole_TranscribesLiveChainsByteIdentically pins the wire strings.
+#
+# One judgement call, recorded so it can be revisited: for the deepseek and
+# minimax links the opencode twin was chosen over the motoko twin. Both resolve
+# to a BYTE-IDENTICAL wire string, so the transcription is faithful either way;
+# opencode was picked for consistency with the designer link, which is
+# unambiguously opencode. The choice only becomes observable in M7, where the
+# coordinator starts consuming RoleEntry.Executor.
+#
+# NOT transcribed: the design doc sketched a `package:` role and a `fable-5`
+# designer fallback. Neither exists in the live table and no agent carries a
+# `package` role, so adding them here would be inventing policy under a
+# Non-Goal. Add them when something actually asks for them.
+roles:
+  designer:  [opencode-or-kimi-k3]
+  planner:   [gpt5-6-sol, opencode-or-kimi-k3]
+  executor:  [gpt5-6-sol, opencode-or-deepseek-v4-flash]
+  evaluator: [opencode-or-minimax-m3, opencode-or-deepseek-v4-flash]
+
 benchmark_suite:
   - "gpt5-6-sol"       # OpenAI flagship (Jul 2026) — replaced gpt5-5 (core tie 25/26 at identical $5/$30, newer gen)
   - "claude-opus-5"    # Anthropic flagship (Jul 2026) — REPLACED claude-opus-4-8 2026-07-27.

@@ -162,6 +162,11 @@ func (m *ModelConfig) ResolvedHardTimeoutSecs() int {
 
 // ModelsConfig represents the entire models.yml configuration
 type ModelsConfig struct {
+	// Roles maps a role name to an ordered fallback chain of FRIENDLY NAMES
+	// (models.yml keys, not wire strings). M-MODEL-REGISTRY-SINGLE-SOURCE M3;
+	// see roles.go. Absent in older registries, which simply have no roles.
+	Roles map[string][]string `yaml:"roles"`
+
 	Models           map[string]ModelConfig `yaml:"models"`
 	Default          string                 `yaml:"default"`
 	BenchmarkSuite   []string               `yaml:"benchmark_suite"`
