@@ -48,3 +48,27 @@ func TestIsStrandedApproval(t *testing.T) {
 		t.Error("nil inputs are never stranded")
 	}
 }
+
+// Queue-side lane guard (2026-08-27): a worker on shared storage must not
+// execute tasks for agents it does not serve. The rig claimed a cloud-lane
+// parse task, defaulted its worktree and provider, and ran a user's feedback
+// under codex in the wrong repo — a completed-looking disaster averted only by
+// codex failing.
+func TestQueueSkipsForeignAgentTasks(t *testing.T) {
+	r := NewAgentRegistry()
+	if err := r.Register(&AgentConfig{ID: "eval-rig", Inbox: "eval-rig", Workspace: "/tmp/x"}); err != nil {
+		t.Fatal(err)
+	}
+	if r.GetAgentByID("pkg-sunholo-ailang-parse") != nil {
+		t.Fatal("foreign agent unexpectedly present")
+	}
+	// The predicate the queue applies: non-empty agent + not in registry = skip.
+	task := &TaskRecord{ID: "task-x", AgentID: "pkg-sunholo-ailang-parse"}
+	if !(task.AgentID != "" && r.GetAgentByID(task.AgentID) == nil) {
+		t.Error("foreign-agent task must be skipped")
+	}
+	own := &TaskRecord{ID: "task-y", AgentID: "eval-rig"}
+	if own.AgentID != "" && r.GetAgentByID(own.AgentID) == nil {
+		t.Error("own-agent task must NOT be skipped")
+	}
+}

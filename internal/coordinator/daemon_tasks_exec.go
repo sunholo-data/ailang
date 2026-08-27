@@ -56,6 +56,20 @@ func (d *Daemon) executeTaskQueue() error {
 	}
 
 	for _, task := range tasks {
+		// A shared task store holds EVERY coordinator's tasks. This worker must
+		// only execute tasks for agents it actually serves — measured 2026-08-27:
+		// the rig claimed a pending pkg-sunholo-ailang-parse task (a cloud-lane
+		// agent absent from its registry), fell through to the default
+		// "coordinator" worktree manager and the legacy provider path, and ran a
+		// user's feedback task under codex in the wrong repo. This is the
+		// queue-side mirror of the cloud dispatcher's local-lane skip (M3) and
+		// the inbox refusal (resolveInboxAgent): work you cannot own, you do not
+		// touch. Empty-agent tasks keep legacy default handling — they exist
+		// only in single-machine setups.
+		if task.AgentID != "" && d.agentRegistry != nil && d.agentRegistry.GetAgentByID(task.AgentID) == nil {
+			d.logger.Printf("Skipping task %s: agent %q is not served by this coordinator (left pending for its owner)", task.ID, task.AgentID)
+			continue
+		}
 		if err := d.executeTask(task); err != nil {
 			d.logger.Printf("Failed to execute task %s: %v", task.ID, err)
 			// Mark task as failed
