@@ -19628,3 +19628,79 @@ change and no ruling), then confirm class 2's owner is the already-registered fi
 - Blocking objections (return to author before planning):
   - gpt5-6-sol: The central zero-code integration premise is not verified end-to-end: the document asserts that motoko, pi, and opencode all use the localhost Ollama `/v1` route and that the live 0.32.14 daemon transparently proxies cloud-suffixed models, but the verification log inspects only AILANG/vendored 0.32.15 source and performs no signed-in cloud request through any of those harnesses. Phase 1 is therefore testing the architecture’s foundational claim, not implementing an already-verified design.
   - gemini-3-1-pro: The design mandates modifying `isRetryableError` to carve out a 'quota-exhaustion 429' (AC8, Conflict Surface) and asserts that Ollama Cloud signals quota exhaustion via HTTP status. This is a critical unverified premise. Verification logs (V7, V9) confirm the author has not observed the quota exhaustion state, and the Testing Strategy explicitly refuses to verify it ('burning the weekly quota to test is not worth it'). Without verifying whether Ollama Cloud returns a 429, 403, 402, or a custom 200 payload for exhaustion, the required error-parsing logic is pure speculation and risks mapping true exhaustion to a retry loop or generic `api_error`.
+
+## 289 — 2026-08-27 — M2 landed, and the judge and I refuted each other: it corrected my under-statement, then I measured its correction and it was wrong
+
+**Picked**: M2 (continuation layout for long non-chain equation bodies) of
+`design_docs/planned/v0_35_0/m-fmt-printer-line-width-limit.md` — the queue head, and iteration
+287/288's own stated Next. Doc and plan both already existed, so **no designer and no planner were
+spawned** and the Fable diet stayed UNSPENT. Nothing outranked the queue: 0 allowlisted directives,
+and the only two `failed` inbox rows were coordinator **workspace misconfiguration**
+(`chdir …/packages/ailang-parse: no such file or directory`; `AILANG_REPO_URL is required`) — the
+known `workspace`-overload class, ops lane, not a regression.
+
+**Reality check**: quorum re-derived rather than inherited — 2 artifacts, both `blocked`, both
+`absent_reviewers: []`, so no N−1 hole and `presentCount` was not satisfied by the controller.
+Round 2's surviving objection (the predicate omits the pending ` = ` between column and body) is
+**already discharged in code**, verified first-party: `exceedsWidth(n ast.Expr, pending int)`
+(`width.go:61`), `prefixEquationBody = len(" = ")` (`width.go:14`), `effectiveCol()` (`doc.go:59`),
+same-scope control firing at 4, fresh invented symbol at 0. Every gate in the directive was
+**baselined by me** at the real base `8879a1b66` — not transcribed from the plan, whose baselines
+were taken at the older `2c8498886` — independently reproducing `go build ./...` rc=1 (disqualified).
+
+**Shipped**: **LANDED** — PR #928, squash `3ee848bb0`. Two hunks in `internal/format/decl.go`
+(14 lines) plus a 166-line `width_continuation_test.go`. All 5 runs green on the full 40-char head
+SHA, all 4 required contexts pass, `MERGEABLE CLEAN` read *before* any dropped-event reasoning, and
+merged on checks green **now** rather than armed behind an auto-merge prediction. Runs then asserted
+to exist on the merge commit (3; control rev-parsed, not hand-expanded → 2).
+
+**Routing evidence**: controller=`claude-opus-5` · designer=NOT SPAWNED (doc exists; Fable diet
+unspent) · planner=NOT SPAWNED (plan exists) · executor=`codex:gpt-5.6-sol` (probe rc=0, directive
+8725B with the ≥200B delivery assert, terminal marker rc=0) · evaluator=`sonnet` in its OWN worktree
+from the sprint commit, zero git writes. generator≠judge **HELD** (OpenAI wrote, Anthropic judged,
+both distinct from the opus controller). round1-score=90/100 rounds=1 blocking=0. metered=$0.00 of
+$5. Gates on darwin/arm64; ubuntu and windows legs unrun locally, CI covers them.
+
+**Verification**: gates re-run OUTSIDE the sandbox rather than banked from the executor — gofmt
+clean · build rc=0 · vet rc=0 · `go test ./internal/format/...` rc=0 (ok 23.155s) · golangci-lint
+"0 issues." · max file 597 · `make verify-stdlib` rc=0 · `make test-stdlib-ail` rc=0. Mutation drill
+anchored to the **diff, hunk by hunk** (rule 3n), each mutant asserted LANDED (sha), intended-effect
+(queried against the file) and BUILDS rc=0 *before* any test result was read: neuter `funcBody`
+continuation → 3 M2 tests FAIL; neuter `topLevelLet` continuation → sole killer; prefixes→0 → 4
+FAIL; neuter the M1 chain branch → `TestInlineInterior_LetChainPreservedAndIdempotent` FAIL. Both
+hunks have a killer. Restored byte-identical (`477f7942…`) by `cp`, never `git checkout --`.
+
+**Ruled out**:
+- **The judge's convergence claim — REFUTED by measurement.** Handed the weak-pin finding as a named
+  target, `sonnet` said I had UNDER-stated it: that no wide-chain test *could* discriminate, because
+  M2's fall-through converges byte-identically via `letIn`→`letChainMultiline`, and it recommended
+  correcting the design doc's and sprint plan's rationale. Measured on a wide unattached chain:
+  pristine emits it across **3 lines**, the chain-branch mutant emits it **inline on 1** — because
+  after M2's hardline+indent, `letIn`'s own width check runs at the **new column**, where the chain
+  now fits under 120. Predicate order **is** load-bearing for wide chains; doc and plan are
+  **correct**; the recommended edit would have written an error into the reviewed artifact and was
+  **NOT made**. The judge's finding #1 stands (on my own measurement); its mechanism and remedy do not.
+- **A bad control of my own, caught before it was recorded.** Asserting the archive gained the
+  rotated stamp, I chose `ITERATION 286` as the known-present control; it returned 0 — but 286 is
+  documented as having recorded *nothing anywhere* (it died holding its work), so that 0 was a fact
+  about my control choice, not a broken pattern. Re-run against 284/283/282 → 2/2/2, negative
+  control 0. A control has to be known-present for a *verified* reason, not an assumed one.
+- **My own ldflags were wrong and the binary silently stamped `dev`** — module path is
+  `github.com/sunholo-data/ailang`, not `github.com/sunholo/ailang`. Corrected; rebuilt binary reads
+  `v0.34.0-71-g8879a1b66` == `git describe`. The gates had run under a freshly built binary
+  throughout, so the staleness class was closed; only self-identification was missing.
+- **The `--json` 20-row paging trap fired for the sixth time** — header said 25 unread, `--json`
+  returned 20. Caught only because the two numbers were compared; `-limit 200` gives 25 of 25.
+- **SonarCloud red is NOT from any recent push** — walked back 6 consecutive parents, every one
+  `failure`. Inherited, non-required, named rather than picked.
+
+**Retro**: NO SKILL EDIT — no candidate reached the ≥2-friction bar. Watch-item pre-registered at
+ONE first-party instance: *this skill has a rule for reproducing a judge's FINDING before acting on
+it or dismissing it, and no rule for reproducing a judge's proposed REMEDY — here a correct finding
+came with an incorrect mechanism and a documentation edit that would have introduced an error into
+the reviewed artifact.* If a second instance appears, the fix belongs in Gate 2's judge rule.
+
+**Next**: **M3 — the second corpus reformat**, the last milestone of this doc, with iteration 282's
+evidence discipline reproduced in full (poisoned comment-count control that FIRES, per-file
+`ailang check` rc joins, two-armed gates against a pristine base, the residual width table). Then
+the doc moves to `implemented/` **with its sprint plan**.
