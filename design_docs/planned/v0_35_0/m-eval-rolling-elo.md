@@ -82,18 +82,28 @@ AILANG's benchmark instrument is how we know whether the language is improving, 
 |----------|-----------------|-----------|----------|-------------|
 | D1: Scale anchor = frozen reference panel of benchmark difficulties (recommended) vs mean-centering | Everything downstream assumes cross-fit comparability; wrong choice = re-anchor everything later | human | design | high |
 | D2: `observatory.db` becomes the single authoritative rating store; `latest.json.ratings` becomes a projection | Kills the dual-fit split; changes what "the rating" means for 6 site components + 2 shell scripts + benchmark selection | human | design | high |
-| D3: Full baselines retired as default; per-release measurement = linking run (~15-25 discriminating benchmarks × 3-model bridge panel); full run demoted to quarterly re-anchoring | Changes release cost/KPI semantics and what banked per-version data exists | human | design | high |
+| D3: Full baselines retired as default; per-release measurement = linking run (fixed direction panel × 5-model bridge across all three majors + current OpenRouter picks); full run demoted to quarterly re-anchoring | Changes release cost/KPI semantics and what banked per-version data exists | human | design | high |
 | D4: Version lives on the **trial** (`trial_history.compiler_version` via `releaseTag()`), not in the ratings PK; per-version series are derived views | Avoids a PK migration; keeps `SaveRatings`/consumers untouched; determines all downstream queries | agent | design | med |
 | D5: `Band()` predicate and its 4 consumers frozen as-is | Saturation gating (nightly A/B, rotation priority, post-release gate, site) all key off `Band(r)=="Trivial"` | agent | design | low |
 | D6: Uncertainty = existing provisional/coverage gating only; no Glicko/CI in this milestone | Scope control (simplicity); n is recorded, intervals deferred | agent | design | low |
 
 ### Design Freeze
 
-Before implementation begins, these must be resolved (recommendations pre-filled; Mark ratifies):
+All three RATIFIED by Mark (attended, 2026-08-27) — D3 with an amended bridge panel (Mark:
+first proposal was "stale and dont include anthropic; we want a mix between all three main
+providers and open router current choices"):
 
-- [ ] **D1**: Anchor via frozen reference panel — freeze the current fitted difficulties of the ~52 discriminating standard benchmarks as `anchor_v1` (versioned JSON, committed). Re-anchoring is an explicit, versioned event (see Risks), never silent.
-- [ ] **D2**: `observatory.db` authoritative; `eval-report` reads ratings from the DB (or refits *with the anchor* and writes back) instead of fitting independently. `latest.json.ratings` shape unchanged (additive fields only).
-- [ ] **D3**: Release protocol = linking run; `make eval-baseline FULL=true` kept for quarterly re-anchor + longitudinal spot-checks. Bridge panel recommendation: `gemini-3-flash` + `gpt5-4-mini` + `or-glm-5-3-flash` (three vendors, all cheap, span 1837–1995 on the current scale), flagship added quarterly.
+- [x] **D1**: Anchor via frozen reference panel — freeze the current fitted difficulties of the ~52 discriminating standard benchmarks as `anchor_v1` (versioned JSON, committed). Re-anchoring is an explicit, versioned event (see Risks), never silent.
+- [x] **D2**: `observatory.db` authoritative; `eval-report` reads ratings from the DB (or refits *with the anchor* and writes back) instead of fitting independently. `latest.json.ratings` shape unchanged (additive fields only).
+- [x] **D3**: Release protocol = linking run; `make eval-baseline FULL=true` kept for quarterly re-anchor + longitudinal spot-checks. **Bridge panel (amended + ratified 2026-08-27)** — current-generation, all three majors + current OpenRouter picks:
+  - `claude-sonnet-5` (Anthropic, $3/$15, ELO 2022) — requires `ANTHROPIC_API_KEY` at the release-run site (the standing full-baseline constraint, not a new one; the attended laptop strips the key by billing posture)
+  - `gpt5-6-terra` (OpenAI, $2/$12, ELO 2074) — N=3-characterized 2026-08-27, capability-tied with the flagship on AILANG
+  - `gemini-3-7-flash` (Google via Vertex ADC, $0.75/$3.75) — current Flash slot-holder since 2026-08-13
+  - `or-glm-5-3-flash` (OpenRouter/z.ai, $0.075/$0.25, ELO 1995) — ratified into extended_suite 2026-08-27
+  - `or-deepseek-v4-flash` (OpenRouter/DeepSeek, $0.06/$0.12, ELO 1852) — pins the low end of the scale
+
+  Five members so the overlap-swap protocol tolerates any single vendor retirement; scale span
+  1852–2091; estimated linking-run cost ~$12–16, inside the $25 guard (Sonnet 5 + Terra dominate).
 
 ## Solution Design
 
@@ -267,7 +277,7 @@ Not a parser/typechecker change, but it overrides shared machinery — enumerate
 | Risk | Mitigation |
 |------|------------|
 | **Anchor drift**: as AILANG improves, frozen difficulties become absolutely wrong (they encode 2026-08 reality) | That's by design — model ratings stay comparable *because* the anchor is frozen; language improvement is read from the *refit* difficulty series, not the anchor. Quarterly `FULL=true` re-anchor creates `anchor_v2` with an explicit linking fit between anchor versions; anchors are versioned artifacts, never edited in place |
-| **Bridge-model retirement** (vendors kill models) | 3-model panel from 3 vendors; swap protocol = one overlap run (old + new bridge in the same fit) before retiring a member |
+| **Bridge-model retirement** (vendors kill models) | 5-model panel across 5 vendors (3 majors + 2 OpenRouter); swap protocol = one overlap run (old + new bridge in the same fit) before retiring a member |
 | **Discriminating set saturates over time** | `--benchmarks-by-confidence` already re-selects each run; saturation of the *anchor panel* is tolerable (anchored members don't need to discriminate, only to pin) |
 | **Frontend mixed-build regression** (the OSVersionTrend failure mode) | The 6 rules from `m-eval-os-version-trend-redesign` adopted verbatim; component changed once |
 | **React consumers break on ratings-block changes** | Additive-only contract, asserted by a JSON-shape test on the projection |
