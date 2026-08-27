@@ -180,13 +180,50 @@ observatory cost accounting without a rebuild. Schema validation on publish is t
 it must cover the pricing fields, not only `roles:`.
 
 **Acceptance criteria**
-- Precedence order verified by test at each of the three levels, including fall-through when the
-  higher one is absent or unparseable
-- An unparseable published registry falls back to embed **and says so loudly** in the log line
-- Startup emits source + version; the line is greppable and asserted by a test
-- Schema validation rejects a registry with malformed pricing, not just malformed roles
+- [x] Precedence order verified by test at each of the three levels, including fall-through when
+      the higher one is absent or unparseable. **Negative control run**: forcing the old embed-first
+      order fails `TestPrecedence_PublishedBeatsEmbedded` with the expected message
+- [x] An unparseable published registry falls back to embed **and says so loudly** — `Source.Degraded`
+      names the rejected path, asserted by test
+- [x] Startup emits source + version; greppable, asserted, and emitted from **one** place inside
+      `initModelsConfigFrom` rather than at the six `InitModelsConfig` call sites, which would be
+      one refactor away from a binary that answers "which registry?" with silence
+- [x] Validation rejects malformed pricing, not just malformed roles — with zero pricing explicitly
+      allowed, since local ollama rows are genuinely free and flagging them would train publishers
+      to ignore the validator
+- [ ] **The registry reaches the bucket** — see the open question below
 
-**Files**: `internal/modelreg/models.go`, `ailang-multivac/config/`, tests
+**Version is a content digest.** models.yml carries no version field, so the honest identifier is
+what the bytes hash to. It distinguishes two registries without claiming a semantic version nobody
+maintains.
+
+#### ⚠️ Open question — how does the registry get into the bucket without becoming a second copy?
+
+The Go side of M4 is done and tested. The publish path has a genuine decision the design doc did
+not surface, and getting it wrong costs either clobbered publishes or a duplicated registry — the
+exact defect this sprint removes.
+
+`config.cloud.yaml` is repo-canonical in **ailang-multivac**, uploaded by
+`google_storage_bucket_object.coordinator_config` and redeployed by the config-only trigger on
+every push. `models.yml` is canonical in **ailang**. Terraform-managing a copy in multivac would
+create two registries that can drift.
+
+**Grounded reading**: the 2026-08-26 clobbers happened because terraform *owns that specific
+object*, so a direct write is reverted on the next config push. A registry published as a
+**separate object that terraform does not declare** is not in terraform's state and would not be
+reverted. The CAS write path already exists — `writeConfigCAS` / `gcsConfigStore` in
+[coordinator_config.go](../../../cmd/ailang/coordinator_config.go), built by
+M-MESSAGE-PLANE-FAIL-LOUD M4 — and `Validate()` is now the gate in front of it.
+
+**Recommendation**: publish `models.yml` from the ailang repo via the existing CAS path, as a
+bucket object terraform never declares, and mount it read-only onto the agent jobs using the
+gcsfuse block M2 found. Source of truth stays in ailang, where the file lives.
+
+**Needs Mark's nod before implementing** — it decides which repo owns the published registry, and
+that is the same class of decision as D1 itself.
+
+**Files**: `internal/modelreg/provenance.go` (new), `internal/modelreg/validate.go` (new),
+`internal/modelreg/models.go`, tests; terraform + publish pending the question above
 
 ---
 

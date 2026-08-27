@@ -200,35 +200,16 @@ func LoadModelsConfig(path string) (*ModelsConfig, error) {
 
 // InitModelsConfig loads the global models configuration
 func InitModelsConfig() error {
-	// Try embedded models.yml first (available in installed binary)
-	if len(embeddedModelsYAML) > 0 {
-		var config ModelsConfig
-		if err := yaml.Unmarshal(embeddedModelsYAML, &config); err == nil {
-			GlobalModelsConfig = &config
-			return nil
-		}
-		// If embedded parse fails, fall through to file system
-	}
-
-	// Fall back to file system (for development)
-	paths := []string{
-		"internal/modelreg/models.yml",
-		"../internal/modelreg/models.yml",
-		"models.yml", // If already in the same directory
-	}
-
-	var lastErr error
-	for _, path := range paths {
-		config, err := LoadModelsConfig(path)
-		if err == nil {
-			GlobalModelsConfig = config
-			return nil
-		}
-		lastErr = err
-	}
-
-	return fmt.Errorf("failed to load models config from any path: %w", lastErr)
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M4 (D1(a)): precedence is explicit path ->
+	// published -> embedded floor, and the winner is recorded in LoadedSource.
+	// See provenance.go for why the old embed-first order was the defect.
+	_, err := initModelsConfigFrom()
+	return err
 }
+
+// yamlUnmarshal is the single yaml entry point provenance.go shares with this
+// file, so the embed path and the disk path cannot drift apart.
+func yamlUnmarshal(b []byte, out interface{}) error { return yaml.Unmarshal(b, out) }
 
 // GetModel returns the configuration for a model by friendly name
 func (c *ModelsConfig) GetModel(name string) (*ModelConfig, error) {
