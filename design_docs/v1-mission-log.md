@@ -19745,6 +19745,125 @@ convention.
 
 ---
 
+## 291 — 2026-08-27 — A human directive landed 15 minutes after the last iteration ended; answering it uncovered a live defect that had been failing silently in the tree
+
+**Picked**: **D-41**, by directive rather than by queue. Mark commented `D41 - C` on `#852` at
+`2026-08-27T07:26:21Z` — 15 minutes *after* iteration 290 finished, so it was genuinely
+unprocessed. That answers the open ledger row: a prompt version is **MUTABLE UNTIL FIRST BANKED
+USE, then frozen.** An allowlisted directive outranks the queue, so `m-fmt-gate-freeze` (290's
+declared Next) was deferred. Directive control: the same script over a wider window still returns
+the comment, so the channel is live, and re-running at the new watermark returns 0.
+
+**Reality check**: the ruling's state was **not representable**: 59 versions in
+`prompts/versions.json`, **0** with any `frozen`/`banked` field; hash verification is LOAD-TIME
+only (`internal/eval_harness/prompt_loader.go:77-86`) and is a pure change-detector that fires
+identically whether or not a version has ever been banked.
+
+**I wrote a false fact into the charter and caught it by measurement 20 minutes later.** My first
+draft of the D-41 evidence cell said banked results live in a per-machine store and are invisible
+to CI. `.gitignore:91-93` ignores `eval_results/` but **NEGATES** `!eval_results/baselines/`, so
+**17,343** baseline JSON files are repo-TRACKED and **7,821** carry a `prompt_version`. Corrected
+in place before commit rather than shipped. The observatory is *not* an alternative source —
+`eval_baselines` has 7 columns and none is a prompt version — so the tracked corpus is the only
+attributable bank.
+
+**Shipped**: **LANDED** — PR [#936](https://github.com/sunholo-data/ailang/pull/936), squash
+`ed5600da6`. All **4** required contexts green (build · docs-gate · lint · test), `MERGEABLE` read
+before any dropped-event reasoning, merged on checks green **now** rather than armed behind an
+auto-merge prediction. Runs asserted to exist on the merge commit (3; control **rev-parsed**, not
+hand-expanded, 3). `UNSTABLE` is SonarCloud only — failure on my base `70f4e0660` too, so
+inherited, non-required, named not fixed.
+
+**The find that justifies the iteration: a live defect nobody had noticed.** The registry recorded
+a **stale hash for `aver`** in both registries, so `LoadPrompt("aver")` **failed outright**.
+Measured before/after with the same probe: before, `aver` FAILS while `v0.16.6`/`python` load;
+after, all load. Whole-registry audit **58 ok / 1 bad → 59 ok / 0 bad**. `aver` has **0** banked
+rows, so under (c) it is mutable and regenerating the change-detector is the *authorized* repair,
+not a version bump — the ruling decided the disposition of a bug found while implementing it.
+Surfaced by the planner, reproduced first-party before I acted.
+
+**The other find is a provenance hole in the KPI pipeline itself**, from the designer, all three
+claims reproduced by me: `internal/prompt/loader.go` has **1** `Hash` occurrence (the struct field)
+against **8** in the same-scope standard-mode loader — agent mode never verifies the hash; and
+`langreg/ailang.go` `LoadSyntaxRef` returns `(DefaultPrompt(), "default", nil)`, i.e. it converts a
+load failure into a **success** attributed `"default"` (`python.go:36` identical). The bank is
+uncontaminated today — **0** `default` and **0** `agent-prompt` rows across 17,343 files, control
+`v0.3.21` = 210 exactly — so the fix is prospective. Scoped as M3.
+
+**Quorum — two of five objections REFUTED by measurement rather than forwarded** (rule 3f). r1
+blocked 3/3 present; r2 blocked with `gemini-3-1-pro` flipping to **pass**; `absent_reviewers: []`
+both rounds. Refuted: the registry∩corpus intersection holds exactly (19 present, 0 missing incl.
+the 1-citation `v0.6.5`; controls `python`→True, invented id→False), and no baseline reader uses
+strict decoding (`DisallowUnknownFields` **0** across `cmd/ internal/`, reviewer's own prescribed
+control `json.NewDecoder` firing at 10/122). Confirmed: agent mode reads the **embedded** registry
+first (`loader.go:106-108`, disk fallback at `:120`), so a source-only migration would make M3
+vacuous on the rigs. r3 applied the surviving `proposed_fix` texts **VERBATIM** under the ratified
+narrow-refinement carve-out — controller-applied, no third designer run, no objection overridden.
+
+**I nearly banked a false refutation of the judge, and the "which assertion failed" rule caught
+it.** The evaluator filed `TestRealRegistry_PostMigrationSplitCounts` as a totals-pin that would
+survive a wrong id→reason assignment. My first mutant swapped two reasons in the **source registry
+only**; the test went red and I almost recorded the judge as wrong. It had failed on the
+**mirror-equality** assertion — a bystander. Swapping in **both** registries, with totals preserved
+and the mirror assertion disarmed, the test **PASSES** while `python` is labelled `legacy` and
+`v0.3.0-baseline` `banked`. **The judge was right.** Non-blocking (the two reasons are
+behaviourally identical — both freeze), so it is a queue row, not a silent sprint widening.
+
+**Verification — every gate re-run by me OUTSIDE the sandbox, none banked from the executor**: the
+executor's `rc=1` on `internal/eval_harness` was a sandbox loopback-bind denial, which it correctly
+labelled `UNINFORMATIVE` rather than reporting as a failure; outside the sandbox it is rc=0 in
+16.952s. gofmt · build (3 scopes) · vet · `internal/prompt` · check-file-sizes all rc=0; 15
+`--- PASS` across the new tests, read from verbose output because `go test -run <Nonexistent>`
+exits rc=0. `go build ./...` is **rc=1 at base** and was disqualified as a gate, not chased.
+
+**Mutation drill anchored to the diff** (rule 3n), each mutant asserted LANDED (sha256) and BUILDS
+rc=0 *before* any test result was read, each restored byte-identical by `cp`: neutering the frozen
+branch fails exactly the 2 frozen tests; dropping the `internal/prompt` schema field fails that
+package's **test build** — a compile-time pin, which is the only possible pin for a pure schema
+addition, and the round-trip test asserts both arms.
+
+**Evaluator**: `sonnet`, **its own worktree** detached at the sprint commit, zero git writes.
+**PASS 91/100, zero blocking.** Generator ≠ judge on both axes — OpenAI wrote, Anthropic judged,
+both distinct from the opus controller. It re-derived the 19/39/1 split independently, matched
+`evidence_count` digit-for-digit for all 19, used a sharper `aver` instrument than mine
+(word-boundary, to exclude "average"/"coverage"), and **disagreed with both the executor and me**
+on the `.snap/M1/` omission, calling the executor's justification unsound.
+
+**Ruled out**:
+- *"The sprint plan's `go build ./...` gate is a finding about our code"* — no, rc=1 at base,
+  the fourth iteration to re-measure this.
+- *"SonarCloud red came from this PR"* — no, `failure` on the base commit too.
+- *"The judge's split-test finding is wrong"* — I refuted it, then refuted my refutation; the
+  first mutant was killed by a bystander assertion.
+
+**Routing evidence**: controller=`claude-opus-5` · designer=**`pi:ollama/kimi-k3:cloud` FAILED,
+fell back to `claude:claude-fable-5`** · planner=`opus` (lane derived VERBATIM
+`opus fail-closed:planner-lane-field-missing`) · executor=`codex:gpt-5.6-sol` (probe rc=0,
+directive 11,160B delivered with the ≥200B assert, terminal marker `rc=0`) · evaluator=`sonnet`.
+**metered=$0.25** of $5 (two quorum rounds: $0.1106 + $0.1420; the pi lane is flat-rate $0.00).
+
+**Deviations adjudicated by measurement** (rule 3h):
+- *Executor did not create `.snap/M1/`*, reasoning the file allowlist did not include it.
+  **Self-reported.** No functional impact (single milestone, so snapshots buy nothing), but the
+  **judge ruled the justification unsound** — §1.2 is an unconditional ground rule, not gated by
+  §5.1's deliverable table. Recorded as the judge's call, not mine.
+- *Executor 45-min cap instead of the recipe's 30*, my call, FLAGGED — M1 is ~800 LOC; it finished
+  inside it.
+- *I routed the planner to the `Plan` subagent type, which is READ-ONLY* — my error. It could not
+  write its two deliverables; I materialized them from its output. Cost: no rework, but the plan
+  is controller-transcribed rather than planner-written, and that is a provenance downgrade.
+
+**Retro lane**: **none — no skill edit.** No candidate reached the ≥2-friction bar. Two watch-items
+pre-registered at ONE first-party instance each: (1) *a mutation applied to only one of two files
+that a test compares can be killed by the comparison rather than by the assertion under test — a
+two-file invariant makes every single-file mutant a bystander kill*; (2) *the `Plan` subagent type
+cannot write files, so routing a file-producing role to it silently converts a deliverable into
+prose.*
+
+**Next**: **M2** (the CI gate) — it is what makes this class unable to recur silently, and the
+`aver` incident is the argument for it, measured rather than assumed. Then M3 (the agent-mode hole,
+which is a live provenance gap in a mission KPI) and M4.
+
 ## 290 — 2026-08-27 — M3 landed and the sprint is complete; the judge found two defects in my own record, both the class I had just diagnosed one criterion over
 
 **Picked**: **M3 — the second corpus reformat**, the final milestone of

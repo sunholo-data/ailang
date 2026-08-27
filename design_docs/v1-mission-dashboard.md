@@ -1,46 +1,30 @@
 # Mission Dashboard — V1
 
-*Snapshot, overwritten each iteration. History: `v1-mission.md` (STATUS) + `v1-mission-log.md`.
-Written by iteration 290, 2026-08-27.*
+_Snapshot after iteration 291 (2026-08-27). Overwritten each iteration; history lives in the charter STATUS block and the mission log._
 
-**Release** v0.34.0 · **dev HEAD** `0911d1089` · **iteration 290 metered $0.00** of $5
+## Latest
+- **Release**: v0.34.0 · `origin/dev` @ `ed5600da6`
+- **Landed this iteration**: [#936](https://github.com/sunholo-data/ailang/pull/936) → squash `ed5600da6` — M1 of `m-prompt-version-freeze-on-first-bank` (decision **D-41(c)**)
+- **Live defect repaired**: `prompts/versions.json` recorded a stale hash for `aver`, so the loader **failed outright** on it. Registry audit **58 ok / 1 bad → 59 ok / 0 bad**.
+- **Migration**: all 59 prompt versions marked — 19 `banked`, 39 `legacy`, 1 mutable (`v0.16.6`, the active version, zero banked uses).
 
-**Just landed — `m-fmt-printer-line-width-limit` is COMPLETE** (M3, PR #931). Corpus lines
->120 runes **159 → 100**; max line **1315 → 316**; `LET_CHAIN_2PLUS` residual **20 → 0**.
-50 files, no printer code touched. Doc + plan → `implemented/v0_35_0/`. Judge **PASS 94/100,
-zero blocking** — and it found two defects in the controller's own record (both fixed).
+## In flight / next
+1. **M2** — CI gate (`make check-prompt-freeze`, merge-base immutability, mirror-registry check)
+2. **M3** — close the agent-mode verification hole (found this iteration: `internal/prompt` never compares `Hash`, and `langreg` converts a load failure into a **success** attributed `"default"`)
+3. **M4** — bank-time `prompt_sha256` byte evidence
+4. `m-fmt-gate-freeze` (was queue head; deferred by the D-41 directive)
 
-## Next two picks
-
-1. **`m-fmt-corpus-gate-freeze`** — `D-39` sequences the gate freeze behind the width work,
-   which is now done. The judge **measured** why it matters: reverting two corpus files to
-   their pre-M3 spelling leaves **every gate rc=0**, because the corpus test asserts
-   `Format(Format(x))==Format(x)` and never `data==Format(data)`. All 450 files can silently
-   de-canonicalise with CI green.
-2. **`m-browser-session-serving-mode`** *(AITANA-DEMAND)* — Aitana wants `ailang browser serve`
-   so a non-Go consumer can use browser sessions as a Cloud Run service. Ghost-disciplined
-   REAL at HEAD (no serve verb, no HTTP server under `internal/browser`; controls fire).
-   Does not outrank the queue.
-
-## Routing
-
-Controller `opus` · designer ROTATION (`fable-5` → `pi:ollama/kimi-k3:cloud`), **unspent 2
-iterations** — no new doc needed · planner + executor `codex:gpt-5.6-sol` · evaluator `sonnet`,
-always its own worktree. ⚠ Driver has fired **UNPINNED six consecutive times**
-(`MISSION_WORKDIR`/`AILANG_DRIVER_SRC` unset) — harmless so far (running skill `cmp`-identical
-to origin) but provenance is the main checkout, not the pin.
+## Loop health
+- Cadence: launchd, ~6h slot · driver **PINNED** this fire (`~/.ailang-driver-pin/v1`) after six consecutive unpinned fires
+- Routing: controller `opus` · designer **rotation** · planner `opus` (derived) · executor `codex:gpt-5.6-sol` · evaluator `sonnet`
+- **Designer lane `pi:ollama/kimi-k3:cloud` FAILED** on first real use (`wall_timeout`, 1802s, 73 tool calls, **0 files written**) → fell back to `claude:claude-fable-5`
+- Evaluator: **PASS 91/100, zero blocking**, in its own worktree. generator≠judge held on both axes.
+- metered **$0.25** of $5 (two quorum rounds)
 
 ## Parked on Mark
+- **D-42** (only open row) — standing authorization to reconcile this checkout to `origin/dev` unattended?
+- **SonarCloud** red on dev ≥6 analysed commits — inherited, non-required, named not fixed (60.1% coverage-on-new-code, B security rating)
+- Two external `mcp-public` `.eml` bug reports + a parser error-cascade report left unacked for an attended session
 
-**`D-41`** — the only OPEN ledger row of 41. May an ACTIVE prompt version be edited in place, or
-must a content change bump the version? Bears on eval-baseline reproducibility. One word decides it.
-
-## Standing amber
-
-- **SonarCloud `failure` on dev for ≥6 consecutive commits** — inherited, **non-required**, does
-  not block merges. Conditions: 60.1% coverage-on-new-code (needs ≥80%) + **B security rating on
-  new code**. Named so a standing red stays visible.
-- **`#847`** (nightly-eval `explicit_dataflow_ssa`) open by design — local-model capability gap,
-  triaged iteration 266, verdict on the issue.
-- **Main checkout's `dev` is 8+ behind `origin/dev`.** State read from origin, records land via
-  worktrees. A reconcile is provably non-destructive (obligations measured) but needs Mark's OK.
+## Recently resolved
+- **D-41 → (c)** answered 2026-08-27, implemented same iteration
