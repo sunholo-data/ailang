@@ -2,44 +2,60 @@ package modelreg
 
 import "testing"
 
-// M-MODEL-REGISTRY-SINGLE-SOURCE M3.
+// M-MODEL-REGISTRY-SINGLE-SOURCE M3, revised M8 (Mark, 2026-08-27).
 //
-// The chains are TRANSCRIBED from config.cloud.yaml's model_routing (the table
-// this supersedes). Changing which models a role runs is an explicit Non-Goal
-// of this sprint, so the test that matters is byte-identity with what the
-// coordinator resolves today.
-func TestResolveRole_TranscribesLiveChainsByteIdentically(t *testing.T) {
+// Chain order is PREFERENCE: entry 1 is the subscription/OAuth lane, later
+// entries the metered API-key lane to fall through to when OAuth is unavailable.
+// Entry 1 therefore reproduces what the MISSION DRIVER runs today — the values
+// Mark called "ok for first flush" — and the previous cloud-side values survive
+// as the fallbacks.
+//
+// This replaces an assertion of byte-identity with the old config.cloud.yaml
+// table. That assertion was correct while the chains were a pure transcription;
+// it is obsolete now that the content changed by direction, and keeping it would
+// have blocked a decision rather than protected one.
+func TestResolveRole_LeadsWithSubscriptionLaneAndFallsBackToMetered(t *testing.T) {
 	if err := InitModelsConfig(); err != nil {
 		t.Fatalf("InitModelsConfig: %v", err)
 	}
 	c := GlobalModelsConfig
 
-	// Verbatim from ailang-multivac/config/config.cloud.yaml:61-64, measured
-	// 2026-08-27. These are the strings the coordinator hands an executor.
-	want := map[string][]string{
-		"designer":  {"openrouter/moonshotai/kimi-k3"},
-		"planner":   {"gpt-5.6-sol", "openrouter/moonshotai/kimi-k3"},
-		"executor":  {"gpt-5.6-sol", "openrouter/deepseek/deepseek-v4-flash-0731"},
-		"evaluator": {"openrouter/minimax/minimax-m3", "openrouter/deepseek/deepseek-v4-flash-0731"},
+	// Entry 1: the model the mission driver runs today, by REGISTRY ROW — not by
+	// string. Two of the four differ in string SHAPE from the driver's env value
+	// (`claude:fable` vs `claude:claude-fable-5`; `claude:sonnet` vs bare
+	// `sonnet`) while naming the same model. That gap is why M8 lands in shadow
+	// mode rather than flipping the driver's values outright.
+	wantPrimary := map[string]string{
+		"designer":  "claude-fable-5",
+		"planner":   "gpt5-6-sol",
+		"executor":  "gpt5-6-sol",
+		"evaluator": "claude-sonnet-4-6",
+	}
+	// Entry 2+: the metered lane, i.e. what the cloud fleet ran before this.
+	wantFallback := map[string]string{
+		"designer":  "openrouter/moonshotai/kimi-k3",
+		"planner":   "openrouter/moonshotai/kimi-k3",
+		"executor":  "openrouter/deepseek/deepseek-v4-flash-0731",
+		"evaluator": "openrouter/minimax/minimax-m3",
 	}
 
-	for role, wantChain := range want {
-		got, err := c.ResolveRole(role, LaneCloud)
+	for role, wantRow := range wantPrimary {
+		chain, err := c.ResolveRole(role, LaneCloud)
 		if err != nil {
 			t.Errorf("ResolveRole(%q): %v", role, err)
 			continue
 		}
-		if len(got) != len(wantChain) {
-			t.Errorf("role %q: chain length %d, want %d (%v)", role, len(got), len(wantChain), got)
+		if chain[0].FriendlyName != wantRow {
+			t.Errorf("role %q entry 0 = %q, want %q (the subscription lane leads)",
+				role, chain[0].FriendlyName, wantRow)
+		}
+		if len(chain) < 2 {
+			t.Errorf("role %q has no fallback; every role needs a metered lane to "+
+				"fall through to when OAuth is spent", role)
 			continue
 		}
-		for i, w := range wantChain {
-			if got[i].ModelName != w {
-				t.Errorf("role %q entry %d: ModelName = %q, want %q", role, i, got[i].ModelName, w)
-			}
-			if got[i].Executor == "" {
-				t.Errorf("role %q entry %d (%s): empty Executor", role, i, got[i].FriendlyName)
-			}
+		if chain[1].ModelName != wantFallback[role] {
+			t.Errorf("role %q entry 1 = %q, want %q", role, chain[1].ModelName, wantFallback[role])
 		}
 	}
 }

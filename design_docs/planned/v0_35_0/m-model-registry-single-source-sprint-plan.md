@@ -442,7 +442,35 @@ failed runs. Their causes are elsewhere: a `workspace` chdir bug and a 3-minute 
 
 ---
 
-### M8 — Mission driver adoption (D3(a)) — **attended window only**
+### M8 — Mission driver adoption (D3(a)) — **PARKED 2026-08-27 (Mark: "if it ain't broken won't fix")**
+
+**Parked because the milestone's premise was wrong.** M8 was scoped as "read a value from a CLI"
+(~80 LOC of shell). What the driver actually has is a multi-tier, multi-provider routing scheme with
+ratified rationale at every level, and two ways a naive wiring would have silently degraded three
+live loops:
+
+1. **`claude:fable` would downgrade the designer to opus.** The driver pins the designer as
+   `claude:claude-fable-5` (full ID) precisely because *"the Agent tool pins only sonnet|opus|haiku
+   (F1, iteration 31), so under an opus-first controller a bare `fable` would silently fall back to
+   opus"*. The registry yields `claude:fable` from `agent_model_name` — correct for evals, wrong here.
+2. **Per-role fallbacks already exist and are richer than the registry's.**
+   `MISSION_{EXECUTOR,PLANNER,EVALUATOR}_FALLBACK` are two-deep, run on **`pi`** (chosen because it
+   *"sees the sprint's uncommitted worktree and can re-run tests"*), and lead with an **ollama-cloud
+   flat-rate tier** before metered OpenRouter. There is also a `PLANNER_ANTHROPIC_FALLBACK` the
+   registry cannot express. The evaluator's minimax-m3 was picked (Mark, 2026-08-26) after two
+   guard-caught corrections for vendor independence, headroom, and banked agent-mode score.
+
+Adopting the registry as it stands would have replaced that with a flatter, worse table. Making it
+*better* needs the registry to model three-deep chains, the `pi` harness, the ollama-cloud tier, and
+a mission-form string that is not `agent_cli:agent_model_name` — its own design doc, not this
+sprint's tail.
+
+**What the sprint still delivered for Lane A**: `ailang models role` exists and is the read path
+whenever that doc happens.
+
+<details><summary>Original M8 scope</summary>
+
+#### Mission driver adoption (D3(a)) — attended window only
 
 **~80 LOC shell**
 
@@ -464,7 +492,9 @@ Two conditions from the ratification, both load-bearing:
 - `MISSION_PLANNER_MODEL=opus` still overrides — the rollback ergonomic survives
 - One full attended iteration completes green before the loops are left unattended
 
-**Files**: `tools/launchd/mission-control.sh`
+**Files**: none — parked
+
+</details>
 
 ---
 
