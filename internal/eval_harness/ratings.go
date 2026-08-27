@@ -1,9 +1,34 @@
 package eval_harness
 
 import (
+	_ "embed"
+	"encoding/json"
 	"math"
 	"sort"
 )
+
+//go:embed anchor_v1.json
+var anchorV1JSON []byte
+
+// AnchorPanelV1 is the frozen reference panel of benchmark difficulties from v0.32.0 baseline + banked runs.
+// When fitting ratings, these benchmark difficulties are held fixed to anchor the ELO scale,
+// making ratings comparable across pool compositions (M-EVAL-ROLLING-ELO M1).
+var AnchorPanelV1 map[string]float64
+
+func init() {
+	var anchor struct {
+		Benchmarks map[string]float64 `json:"benchmarks"`
+	}
+	if err := json.Unmarshal(anchorV1JSON, &anchor); err != nil {
+		// If anchor fails to load, leave it nil. Code must guard with nil checks.
+		return
+	}
+	AnchorPanelV1 = anchor.Benchmarks
+}
+
+// DefaultCoverageThreshold is the provisional threshold for gating evaluation decisions.
+// Unified to 90% to match the site's ELO_COVERAGE_FRACTION and prevent drift between Go and JavaScript.
+const DefaultCoverageThreshold = 0.9
 
 // ELO-style rating engine for the eval rig (M-EVAL-RATING-EFFICIENCY).
 //
@@ -47,12 +72,16 @@ func UpdateTrial(modelRating, benchRating float64, pass bool, k float64) (newMod
 	return modelRating + delta, benchRating - delta
 }
 
-// FitFromTrials fits converged ELO ratings over a static set of trials by
-// iterating the update with a decaying step (≈32 → 4). It is DETERMINISTIC: the
-// trials are processed in a fixed (bench, model) order every epoch, so the same
-// input always produces the same ratings. Returns model ratings and benchmark
-// ratings (benchmark rating = derived difficulty: higher = harder).
-func FitFromTrials(trials []Trial) (modelRatings, benchRatings map[string]float64) {
+// FitFromTrialsAnchored fits converged ELO ratings over a static set of trials by
+// iterating the update with a decaying step (≈32 → 4), holding designated entities fixed.
+// Entities present in fixedBench or fixedModels keep their given rating; deltas to those
+// entities are discarded. It is DETERMINISTIC: same trials + same fixed sets ⇒ same ratings.
+//
+// Usage:
+//   - Placement fit (default): fixedBench=anchor_vN, fixedModels=nil → model ratings change, benchmark panel fixed
+//   - Direction fit: fixedBench=nil, fixedModels=bridge_strengths → benchmark ratings change, bridge models fixed
+//   - Legacy (no anchor): fixedBench=nil, fixedModels=nil → behavior-preserving delegation for existing code
+func FitFromTrialsAnchored(trials []Trial, fixedBench, fixedModels map[string]float64) (modelRatings, benchRatings map[string]float64) {
 	modelRatings = make(map[string]float64)
 	benchRatings = make(map[string]float64)
 	for _, t := range trials {
@@ -62,6 +91,13 @@ func FitFromTrials(trials []Trial) (modelRatings, benchRatings map[string]float6
 		if _, ok := benchRatings[t.Bench]; !ok {
 			benchRatings[t.Bench] = DefaultInitialRating
 		}
+	}
+	// Apply initial fixed values (if provided, they override the default seed).
+	for model, rating := range fixedModels {
+		modelRatings[model] = rating
+	}
+	for bench, rating := range fixedBench {
+		benchRatings[bench] = rating
 	}
 	ordered := append([]Trial(nil), trials...)
 	sort.Slice(ordered, func(i, j int) bool {
@@ -75,10 +111,27 @@ func FitFromTrials(trials []Trial) (modelRatings, benchRatings map[string]float6
 		k := 4 + 28*math.Exp(-float64(e)/80.0)
 		for _, t := range ordered {
 			nm, nb := UpdateTrial(modelRatings[t.Model], benchRatings[t.Bench], t.Pass, k)
-			modelRatings[t.Model], benchRatings[t.Bench] = nm, nb
+			// Apply update only if entity is not fixed (not in the fixed map).
+			if _, isFixed := fixedModels[t.Model]; !isFixed {
+				modelRatings[t.Model] = nm
+			}
+			if _, isFixed := fixedBench[t.Bench]; !isFixed {
+				benchRatings[t.Bench] = nb
+			}
 		}
 	}
 	return modelRatings, benchRatings
+}
+
+// FitFromTrials fits converged ELO ratings over a static set of trials by
+// iterating the update with a decaying step (≈32 → 4). It is DETERMINISTIC: the
+// trials are processed in a fixed (bench, model) order every epoch, so the same
+// input always produces the same ratings. Returns model ratings and benchmark
+// ratings (benchmark rating = derived difficulty: higher = harder).
+//
+// This is now a behavior-preserving delegation to FitFromTrialsAnchored with no fixed entities.
+func FitFromTrials(trials []Trial) (modelRatings, benchRatings map[string]float64) {
+	return FitFromTrialsAnchored(trials, nil, nil)
 }
 
 // Band maps an ELO rating to a difficulty band (descriptive, emergent from data).
