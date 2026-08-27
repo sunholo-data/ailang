@@ -121,6 +121,40 @@ fixes in `internal/coordinator`; none touch executor, storage schema, or billing
    plain inbox sends, GitHub-driven approvals, the rejection feedback loop (including its
    retrigger, now with logging), `pkg-*` cloud-agent task flow.
 
+### Addendum (2026-08-27 ~15:15, same incident, discovered after this doc's first commit)
+
+A fourth defect cluster, measured when the two duplicate revision tasks never actually ran:
+
+4. **The worktree cap fails tasks silently into a pending state that nothing retries.** Both
+   revision tasks hit `max worktrees limit reached (3)` at creation (14:31:50 / 14:33:48),
+   logged one WARN each ("resetting to pending for retry"), and were then never re-attempted:
+   after the slots were freed (15:10:50, daemon itself logged "Synced worktrees for agent
+   eval-rig: removed 3 orphaned slot(s)"), **40+ minutes passed with zero retry** while the
+   poll loop ticked every 30s. Whether a retry mechanism exists at all is TO-DIAGNOSE; either
+   way the operator-visible behavior is a dispatch that reports nothing and does nothing.
+5. **Stale pending-approval tasks pin worktree slots indefinitely.** Two probe tasks from the
+   previous day's e2e test ("Final probe", "Showcase" — both still pending approval) each held
+   a slot; the third was held by the *rejected* task's preserved worktree. Net effect: a
+   rejection's own feedback-loop retrigger was starved by the worktree the rejection preserved
+   — the feedback loop can deadlock itself at cap ≤ pending-approval depth + 1.
+6. **Manual worktree removal is currently the only unblock**, and it works (branches survive;
+   the manager reconciles removals cleanly) — but it is undocumented operator surgery.
+
+These add scope to M3 (below) as **M4 — worktree-slot lifecycle**: a real retry loop (bounded
+backoff) for cap-blocked pending tasks + a loud alert when a task waits more than N cycles at
+cap; slot accounting that distinguishes active-execution worktrees from preserved-for-review
+ones (preserved worktrees should not starve new dispatch, or the cap must be raised/split);
+and a documented disposition path for the two zombie pending tasks (`task-5f0bad80`,
+`task-78a9624b`) and the two stale probe approvals (`apr-98b7f19f`, `apr-88af7580`) left in
+the store by this incident — the fixing agent should cancel/close them with the new tooling
+(coordinate with [m-coord-cli-shared-store](m-coord-cli-shared-store.md)'s `coordinator
+cancel`).
+
+**VERIFY (M4)**: cap-blocked task retries and completes once a slot frees (test with cap=1);
+a task held at cap > N cycles produces the alert; preserved-for-review worktrees no longer
+block new dispatch; the four zombie records from 2026-08-27 are closed and named in the
+commit.
+
 ### Implementation Plan
 
 **M1 — accept-then-work + diagnosis (~1 day)**
@@ -190,6 +224,9 @@ fixes in `internal/coordinator`; none touch executor, storage schema, or billing
 | V7 | The evaluator inbox→task path itself works when fed directly | 2026-08-26 21:13:07 `Created task task-b88b68e3 … (agent: sprint-evaluator)` from a direct inbox message |
 | V8 | Empty-target embed logs as routine | 14:19:17 `Embedding handoff to [] in merge approval for task task-08f450a0` |
 | V9 | Handoff send path and its success-return shape | `daemon_approval.go` read: auto-approve branch calls `sendHandoffMessage`, logs success, no follow-up tracking of the message's fate |
+| V10 | Worktree cap fails dispatch silently into pending | 14:31:50 + 14:33:48 `WARN: … worktree limit reached, resetting to pending for retry` + `Failed to execute task …: max worktrees limit reached (3)` for both revision tasks; no other surfacing |
+| V11 | Cap pinned by preserved + stale-approval worktrees | The 3 slots held: rejected `task-08f450a0` (worktree preserved by rejection) + probe tasks `task-98b7f19f`, `task-88af7580` (pending approval since 2026-08-26, ~$0.04 each); all three had work committed to `coordinator/task-*` branches |
+| V12 | No retry after slots freed | Manual `git worktree remove` ×3 at ~15:05; daemon reconciled 15:10:50 ("removed 3 orphaned slot(s)"); poll loop ticking every 30s; zero `Starting execution` for either task in the following 40+ min |
 
 ## Related Documents
 
