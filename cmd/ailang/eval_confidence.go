@@ -43,7 +43,7 @@ func selectBenchmarksByConfidence(dbPath, mode string, max int) ([]string, error
 		return nil, err
 	}
 	if len(benches) == 0 {
-		return nil, fmt.Errorf("no %s benchmark ratings in %s — seed it first:\n  eval-elo <baseline_dir> --mode %s --persist %s", mode, dbPath, mode, dbPath)
+		return nil, fmt.Errorf("no %s benchmark ratings in %s — populate with anchored fit first:\n  eval-elo <baseline_dir> --mode %s --anchor --persist %s", mode, dbPath, mode, dbPath)
 	}
 	models, err := observatory.LoadModelRatings(ctx, db, mode)
 	if err != nil {

@@ -84,7 +84,7 @@ func runEvalTrendSaturation() {
 		}
 	}
 	if !any {
-		fmt.Fprintf(os.Stderr, "\nno ratings found in %s — seed it: eval-elo <baseline> --mode all --persist %s\n", path, path)
+		fmt.Fprintf(os.Stderr, "\nno ratings found in %s — populate it with anchored fit: eval-elo <baseline> --mode all --anchor --persist %s\n", path, path)
 		os.Exit(1)
 	}
 }

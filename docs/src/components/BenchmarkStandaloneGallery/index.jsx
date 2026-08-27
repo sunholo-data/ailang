@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
 import BenchmarkGallery from '../BenchmarkDashboard/BenchmarkGallery';
+import DataProvenance from '../DataProvenance';
 
 export default function BenchmarkStandaloneGallery() {
   const [data, setData] = useState(null);
@@ -17,5 +18,10 @@ export default function BenchmarkStandaloneGallery() {
   if (!data) return <p>Loading benchmarks…</p>;
   if (!data.benchmarks) return <p>No benchmark data found.</p>;
 
-  return <BenchmarkGallery benchmarks={data.benchmarks} ratings={data.ratings} />;
+  return (
+    <div>
+      <DataProvenance version={data.version} timestamp={data.timestamp} />
+      <BenchmarkGallery benchmarks={data.benchmarks} ratings={data.ratings} />
+    </div>
+  );
 }

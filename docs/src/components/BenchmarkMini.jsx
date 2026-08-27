@@ -30,7 +30,10 @@ export default function BenchmarkMini() {
     return null;
   }
 
-  const { aggregates, version, totalRuns, history, languages } = data;
+  const { aggregates, version, totalRuns, history, languages, benchmarks } = data;
+  // Was hardcoded to 46 — the count drifts every time a benchmark is added
+  // (M-EVAL-ROLLING-ELO M5). Derive it, or omit the clause entirely.
+  const benchCount = benchmarks ? Object.keys(benchmarks).length : null;
   const zeroShot = (aggregates.zeroShotSuccess * 100).toFixed(0);
   const final = (aggregates.finalSuccess * 100).toFixed(0);
   const agent = (aggregates.agentSuccessRate * 100).toFixed(0);
@@ -43,7 +46,7 @@ export default function BenchmarkMini() {
       <div style={styles.header}>
         <h2 style={styles.title}>Real Benchmark Results</h2>
         <p style={styles.subtitle}>
-          {totalRuns} runs across 46 benchmarks • {version}
+          {totalRuns} runs{benchCount ? ` across ${benchCount} benchmarks` : ""} • {version}
         </p>
       </div>
 

@@ -429,6 +429,31 @@ type HistoryEntry struct {
 	// one tier retroactively (pre-v0.14.0 baselines use the CURRENT tier
 	// mapping — docs describe this as an approximation).
 	Tiers map[string]*TierHistoryPoint `json:"tiers,omitempty"`
+	// M-EVAL-ROLLING-ELO M4: the per-version RATING series. Before this the
+	// artifact carried 47 versions of pass-rate history and ZERO versions of
+	// rating history, so ELO had no time axis anywhere. Additive and omitempty:
+	// entries banked before this field existed round-trip unchanged.
+	Ratings *RatingsHistoryPoint `json:"ratings,omitempty"`
+}
+
+// RatingsHistoryPoint is one release's rating snapshot: anchored model
+// capability plus the language-direction index (M-EVAL-ROLLING-ELO M4).
+//
+// The two halves answer different questions and must not be conflated:
+//   - Models: "how strong is each model on the anchored scale" (placement fit)
+//   - DirectionIndex: "how hard is AILANG for a FIXED bridge" (direction fit) —
+//     FALLING = the language/prompt got easier = we are moving the right way.
+//
+// BridgeStrengths records the inputs the index was computed with, so a later
+// refit of those models never silently rewrites history (quorum R2 objection).
+type RatingsHistoryPoint struct {
+	AnchorVersion   string             `json:"anchor_version,omitempty"`
+	PanelVersion    string             `json:"panel_version,omitempty"`
+	Models          map[string]float64 `json:"models,omitempty"`
+	DirectionIndex  float64            `json:"direction_index,omitempty"`
+	DirectionByTier map[string]float64 `json:"direction_by_tier,omitempty"`
+	BridgeStrengths map[string]float64 `json:"bridge_strengths_used,omitempty"`
+	Trials          int                `json:"trials,omitempty"`
 }
 
 // Validate checks if a DashboardJSON structure is valid

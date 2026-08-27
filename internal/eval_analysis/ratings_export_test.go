@@ -24,7 +24,7 @@ func TestRatingsForMode_ByLang(t *testing.T) {
 		)
 	}
 
-	block := ratingsForMode(results)
+	block := ratingsForMode(results, false)
 	if block == nil {
 		t.Fatal("ratingsForMode returned nil")
 	}
@@ -97,7 +97,7 @@ func TestRatingsForMode_Coverage(t *testing.T) {
 	}
 	results = append(results, mk("b1", "sparse", true))
 
-	block := ratingsForMode(results)
+	block := ratingsForMode(results, false)
 	if got, ok := block["maxCoverage"].(int); !ok || got != 3 {
 		t.Fatalf("maxCoverage = %v, want 3", block["maxCoverage"])
 	}
