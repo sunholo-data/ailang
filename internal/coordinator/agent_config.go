@@ -42,10 +42,11 @@ type CoordinatorConfig struct {
 	// hand-written entries.
 	Pipelines []PipelineConfig `yaml:"pipelines" json:"pipelines,omitempty"`
 
-	// ModelRouting maps role → ordered model chain (M-PIPELINE-RECONCILIATION
-	// M5, D3). Both lanes read it: Lane B via ResolveModel at dispatch, Lane A
-	// via `ailang coordinator routing <role>`.
-	ModelRouting ModelRouting `yaml:"model_routing" json:"model_routing,omitempty"`
+	// model_routing was DELETED by M-MODEL-REGISTRY-SINGLE-SOURCE M7. The
+	// registry (internal/modelreg, `roles:` in models.yml) answers "which model
+	// runs this role?" now, so the table no longer has a second home here that
+	// needs its own deploy. Proven inert before removal: zero of the 34 cloud
+	// agents change resolution without it.
 
 	DefaultProvider string            `yaml:"default_provider" json:"default_provider"`
 	ClaudePath      string            `yaml:"claude_path" json:"claude_path,omitempty"` // Explicit path to Claude CLI binary (empty = auto-detect: native > PATH > NVM)

@@ -412,11 +412,31 @@ streaming-parse cases) was extracted to `opencode_streaming_test.go` rather than
   construction (pre-flight), proven by M5's fixture.
 - Per-agent `model:` pins survive as deliberate overrides.
 
+**Status: COMPLETE 2026-08-27.**
+
 **Acceptance criteria**
-- `ailang models role executor` returns identical output on rig and cloud
-- Coordinator resolution equals the M5 fixture for all 34 agents after `model_routing` is gone
-- `internal/coordinator/model_routing.go` and its config key removed; no dangling references
-- `go build ./...` clean — no import cycle (the M1 gate re-asserted at the coordinator)
+- [x] `ailang models role executor` returns identical output on rig and cloud
+- [x] Coordinator resolution equals the M5 fixture for all 34 agents after `model_routing` is gone
+- [x] `internal/coordinator/model_routing.go` and its config key removed; no dangling references
+- [x] `go build ./...` clean — no import cycle. This is the coordinator's **first** dependency on
+      the registry (V7 flagged the risk); it is safe only because M1 made `modelreg` a leaf
+
+**The fixture was weaker than it looked, and got fixed.** Its first version logged
+*"34 agents checked; **0** resolved via a role rather than a pin"* — every agent carries a pin, so
+the role path was never exercised and "the registry matches the old table" was a claim about code no
+real agent runs. It now drops the pin from each of the four role-bearing agents and requires the
+registry to name what the table named: **4 role resolutions verified**. Negative control run —
+perturbing one chain fails with `registry says … the deleted table said …`.
+
+**`ailang coordinator routing` forwards rather than 404s.** It read the deleted table; it now prints
+a retirement note and calls `models role`, so muscle memory and any driver land on the replacement
+*with the answer in hand*. The output shape differs (friendly name · wire string · harness), so
+anything parsing it must move to field 2.
+
+**Verified against the two agents from the `pkg:ailang-parse` incident** (Mark's suggested test
+case): `pkg-sunholo-ailang-parse` and `design-doc-creator` resolve byte-identically before and
+after. That is the point — M7 is inert for them, so it demonstrably is **not** the fix for those
+failed runs. Their causes are elsewhere: a `workspace` chdir bug and a 3-minute `idle_timeout`.
 
 **Files**: `cmd/ailang/models.go` (new), `internal/coordinator/`, `ailang-multivac/config/`
 
