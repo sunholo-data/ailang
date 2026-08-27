@@ -25,6 +25,28 @@ func attachRatingsToHistoryEntry(entry *HistoryEntry, standard []*BenchmarkResul
 		})
 	}
 	modelELO, _ := eval_harness.FitFromTrialsAnchored(trials, eval_harness.AnchorPanelV1, nil)
+
+	// Drop models whose rating is UNIDENTIFIABLE rather than publishing a
+	// meaningless number. In a placement fit the benchmark side is fixed, so a
+	// model with no passes (or no failures) has no finite equilibrium — its
+	// value is an artifact of the epoch count, not a measurement. This is the
+	// standard Elo/Bradley-Terry degeneracy for a winless or undefeated
+	// competitor. Measured 2026-08-27 while backfilling: gpt5-mini went 0/51 in
+	// v0.11.2 and fitted to -213, a negative ELO that would have been published
+	// on the site as if it meant something.
+	wins := map[string]int{}
+	runs := map[string]int{}
+	for _, t := range trials {
+		runs[t.Model]++
+		if t.Pass {
+			wins[t.Model]++
+		}
+	}
+	for m := range modelELO {
+		if wins[m] == 0 || wins[m] == runs[m] {
+			delete(modelELO, m)
+		}
+	}
 	idxPath := filepath.Join("eval_results", "baselines", entry.Version, "direction_index.json")
 	if _, err := os.Stat(idxPath); err != nil {
 		idxPath = ""

@@ -1,6 +1,14 @@
 # M-EVAL-ROLLING-ELO: one anchored rating series across models and AILANG versions
 
-**Status**: Planned — quorum run twice (both rounds' objections accepted + incorporated, see Quorum Record); awaiting Mark's ratification of Design Freeze D1–D3
+**Status**: IN PROGRESS — freeze D1–D3 **RATIFIED** by Mark 2026-08-27 (incl. the amended
+5-model bridge panel); quorum run twice beforehand, both rounds' objections accepted (see
+Quorum Record). Implemented in-session the same day on
+[PR #939](https://github.com/sunholo-data/ailang/pull/939): **M1, M2, M3, M5 verified and
+passed; M4 code-complete and awaiting Mark's visual confirmation of the rating chart** (the
+one gate no agent may sign off). Each milestone's VERIFY block below carries its executed
+results. Two named gaps remain: the rotation filler's agent-persist hook is not active until
+the rig's plist install cycle runs, and the linking run has not yet executed against a real
+release tag.
 **Target**: v0.35.0
 **Priority**: P1 — this is the instrument we measure ourselves with; Mark (2026-08-27): "key and how we measure our own performance so critical to get right … this time, lets concentrate on value and simplicity"
 **Estimated**: ~2 weeks across 5 milestones (M1–M3 core, M4 site, M5 hygiene — M5 parallelizable)
@@ -301,6 +309,19 @@ Not a parser/typechecker change, but it overrides shared machinery — enumerate
 >   triggers only on `push` to `main`/`dev` — **never on pull requests**. A PR that breaks the
 >   docs build therefore shows all-green and only fails AFTER merge, on the deploy. Not caused by
 >   this sprint; filed separately.
+> - ✅ **BACKFILL (added 2026-08-27 at Mark's request, so the first deploy shows real data)**:
+>   historical baselines now join the model-capability series — anchoring is exactly what makes
+>   that legitimate, since every release's fit is on the same scale. Result: **38 of 47 history
+>   entries carry real anchored ratings**, range 1162–2315, five models with enough coverage to
+>   render as lines. The direction index is deliberately NOT backfilled — it is a stamped
+>   release-time measurement and inventing one for a past release would be fabrication, so older
+>   entries carry the model half only.
+> - 🐞 **DEFECT FOUND BY THE BACKFILL AND FIXED**: v0.11.2's gpt5-mini went 0-for-51 and fitted to
+>   **-213 ELO**, which would have been published on the site as if it meant something. With the
+>   benchmark side held fixed, a winless (or undefeated) model has no finite equilibrium — the
+>   standard Elo/Bradley-Terry degeneracy — so the value was an artifact of the epoch count.
+>   Such models are now OMITTED rather than published, pinned by
+>   `TestAttachRatings_DropsUnidentifiableModels`. Post-fix: zero non-positive ratings.
 > - ⏸️ **PENDING: Mark's visual confirmation of the chart** — the sprint plan makes this
 >   non-negotiable and no agent may sign it off.
 

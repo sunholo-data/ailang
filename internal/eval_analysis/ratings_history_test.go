@@ -2,6 +2,7 @@ package eval_analysis
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -94,4 +95,46 @@ func keysOf(m map[string]any) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+// TestAttachRatings_DropsUnidentifiableModels pins the fix for a real defect:
+// backfilling v0.11.2 fitted gpt5-mini (0 passes in 51 runs) to -213 ELO, which
+// would have been published on the site. With the benchmark side fixed, a
+// winless or undefeated model has no finite equilibrium — its rating is an
+// artifact of the epoch count. Such models must be OMITTED, not published.
+func TestAttachRatings_DropsUnidentifiableModels(t *testing.T) {
+	var results []*BenchmarkResult
+	add := func(model, bench string, pass bool) {
+		results = append(results, &BenchmarkResult{
+			ID: bench, Model: model, Lang: "ailang",
+			CompileOk: true, RuntimeOk: true, StdoutOk: pass,
+		})
+	}
+	for i := 0; i < 6; i++ {
+		b := fmt.Sprintf("bench%02d", i)
+		add("winless-model", b, false)
+		add("perfect-model", b, true)
+		add("normal-model", b, i%2 == 0)
+	}
+
+	entry := HistoryEntry{Version: "vtest"}
+	attachRatingsToHistoryEntry(&entry, results)
+
+	if entry.Ratings == nil {
+		t.Fatal("expected ratings to attach for the identifiable model")
+	}
+	if v, ok := entry.Ratings.Models["winless-model"]; ok {
+		t.Errorf("winless model must be omitted, got %v", v)
+	}
+	if v, ok := entry.Ratings.Models["perfect-model"]; ok {
+		t.Errorf("undefeated model must be omitted, got %v", v)
+	}
+	if _, ok := entry.Ratings.Models["normal-model"]; !ok {
+		t.Error("identifiable model must be present")
+	}
+	for m, v := range entry.Ratings.Models {
+		if v <= 0 {
+			t.Errorf("published rating must be positive: %s = %v", m, v)
+		}
+	}
 }
