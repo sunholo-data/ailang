@@ -4,6 +4,7 @@ import { buildCoverage } from '@site/src/components/BenchmarkDashboard/coverageG
 import LocalCloudBadge from '@site/src/components/LocalCloudBadge';
 import { isLocalModel, formatLocalName, LOCAL_CAVEAT } from '@site/src/lib/localModel';
 import styles from './styles.module.css';
+import DataProvenance from '../DataProvenance';
 
 const LANG_LABEL = { ailang: 'AILANG', python: 'Python', javascript: 'JavaScript', go: 'Go' };
 const LANG_SHORT = { ailang: 'AILANG', python: 'Python', javascript: 'JS', go: 'Go' };
@@ -523,6 +524,7 @@ export default function BenchmarkExplorer() {
 
   return (
     <div>
+      <DataProvenance version={data?.version} timestamp={data?.timestamp} />
       <FilterBar
         harnesses={allHarnesses}
         activeHarness={activeHarness}

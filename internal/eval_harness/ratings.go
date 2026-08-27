@@ -16,8 +16,14 @@ var anchorV1JSON []byte
 // making ratings comparable across pool compositions (M-EVAL-ROLLING-ELO M1).
 var AnchorPanelV1 map[string]float64
 
+// AnchorVersion is the embedded anchor's version label, stamped into published
+// rating history so a reader can tell which scale a number was fitted on
+// (re-anchoring produces anchor_v2 and this changes with it).
+var AnchorVersion string
+
 func init() {
 	var anchor struct {
+		Version    string             `json:"version"`
 		Benchmarks map[string]float64 `json:"benchmarks"`
 	}
 	if err := json.Unmarshal(anchorV1JSON, &anchor); err != nil {
@@ -31,6 +37,7 @@ func init() {
 		panic("eval_harness: embedded anchor_v1.json has an empty benchmark panel")
 	}
 	AnchorPanelV1 = anchor.Benchmarks
+	AnchorVersion = anchor.Version
 }
 
 // DefaultCoverageThreshold is the provisional threshold for gating evaluation decisions.

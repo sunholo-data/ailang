@@ -463,6 +463,10 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	if tp := buildHistoricalTierPoints(standardResults, benchmarkTier); len(tp) > 0 {
 		newHistoryEntry.Tiers = tp
 	}
+	// M-EVAL-ROLLING-ELO M4: give ratings a time axis. The anchored model fit
+	// comes from this run; the direction index is READ from the release's
+	// stamped artifact (never recomputed — that would rewrite history).
+	attachRatingsToHistoryEntry(&newHistoryEntry, standardResults)
 
 	// Merge with existing history (preserves old entries, updates if version exists)
 	mergeHistory(dashboard, newHistoryEntry)

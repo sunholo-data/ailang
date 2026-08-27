@@ -267,6 +267,37 @@ Not a parser/typechecker change, but it overrides shared machinery — enumerate
 - Demote `FULL=true` to quarterly re-anchor duty; document the re-anchor protocol (see Risks).
 - **VERIFY**: run the linking run for the next release (v0.35.0): (a) measured cost ≤ $25 recorded here; (b) DB + `latest.json.ratings` updated with the release's fit; (c) sanity: bridge-panel models' ratings move < 50 points release-over-release absent a real regression.
 
+> **M4 VERIFY EXECUTED — 2026-08-27, in-session sprint. ONE ITEM OPEN (Mark's visual sign-off).**
+> - `HistoryEntry.Ratings` (additive, `omitempty`) + `RatingsHistoryPoint` carry per-release model
+>   ELO, the direction index (overall + per tier), the anchor/panel versions, and the
+>   `bridge_strengths_used` that make a historical index replayable. Wired into the export path;
+>   the index is READ from the release's stamped artifact, never recomputed.
+> - **Round-trip test PASSES**: a legacy history entry (no `ratings` key) unmarshals with
+>   `Ratings == nil` and re-serializes with an identical key set — the 47 published entries cannot
+>   be silently rewritten. Plus tests for reading the stamped index and for the
+>   no-artifact case (model half only, never a fabricated index). 3/3 green.
+> - `RatingTrend.jsx` folded into the proven `BenchmarkDashboard` (m-eval-os-version-trend-redesign
+>   rules: props from the parent's runtime fetch, no build-time import, no cache-busting, changed
+>   ONCE). Two views: model capability, and the direction index on an INVERTED axis so
+>   "up = better" holds in both. Renders a "not enough history yet" state below 2 points and never
+>   interpolates a missing release.
+> - `DataProvenance` shared component now stamps version + date on all five surfaces that showed
+>   none (Leaderboard, ELO, Explorer, Value, Gallery), and carries the stale-fallback badge —
+>   previously 1 of 13 fetch sites had any staleness indicator.
+> - **Frontend verification** (repo norm: babel/parse + data-logic + CI; headless Chrome is
+>   explicitly not the tool): all 8 touched files parse clean under the Docusaurus syntax set,
+>   **with an untouched control file in the same run** to prove the instrument sees a positive.
+>   (An earlier ad-hoc babel invocation "failed" 5 files — the control failed too, proving the
+>   INSTRUMENT was wrong, not the code. Recorded because that is the trap this project keeps
+>   re-learning.)
+> - ⚠️ **Docusaurus production build NOT run to completion in the worktree**: it fails on 39
+>   generated doc pages (`packages/sunholo/*`, several `reference/*`) that exist untracked in the
+>   main checkout only — 143 files here vs 182 there. PRE-EXISTING worktree condition, reproduced
+>   before any of my changes were involved; CI builds from the main checkout. Must still be
+>   green there before merge.
+> - ⏸️ **PENDING: Mark's visual confirmation of the chart** — the sprint plan makes this
+>   non-negotiable and no agent may sign it off.
+
 **M4 — The series becomes visible** (~3 days)
 - `HistoryEntry` gains an additive `ratings` summary: per-model anchored ELO + the language-direction index (mean anchored panel difficulty, overall + per tier) for that version.
 - One site chart: ELO-over-versions (models as lines) + the difficulty index (inverted axis or companion line), following the `m-eval-os-version-trend-redesign` rules verbatim: runtime `fetch` only, fold into an existing proven component (`BenchmarkDashboard` trends tab), change once, Node 20 build, headless post-hydration check.

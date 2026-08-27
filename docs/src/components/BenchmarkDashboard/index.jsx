@@ -8,6 +8,7 @@ import ModelTokenChart from './ModelTokenChart';
 import BenchmarkGallery from './BenchmarkGallery';
 import SuccessTrend from './SuccessTrend';
 import PerModelTrend from './PerModelTrend';
+import RatingTrend from './RatingTrend';
 import ModelDeltaTrend from './ModelDeltaTrend';
 import RadarCharts from './RadarCharts';
 import AxiomScorecard from './AxiomScorecard';
@@ -19,6 +20,7 @@ import FailureCategoryBars from './FailureCategoryBars';
 // ValueScoreTable + QualityScatter also live on the dedicated value page.
 // This file keeps the leaderboard view focused on success-rate trends.
 import styles from './styles.module.css';
+import DataProvenance from '../DataProvenance';
 
 // Tier order + labels for the M6 toggle. Core is the headline tier
 // (primary metric), so it's the default selection when the tiers block
@@ -292,6 +294,7 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
 
   return (
     <div className={styles.dashboard}>
+      <DataProvenance version={version} timestamp={data?.timestamp} />
       {/* Tier Toggle (M6) */}
       {tiers && Object.keys(tiers).length > 0 && (
         <TierToggle
@@ -352,6 +355,20 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
         <div className={styles.section}>
           <h3>Success Rate Over Time</h3>
           <SuccessTrend history={history} languages={languages} events={events} selectedTier={selectedTier} coverage={coverage} />
+        </div>
+      )}
+
+      {/* Rating trend over releases (M-EVAL-ROLLING-ELO M4): ELO finally has a
+          time axis — model capability on the anchored scale, and the
+          language-direction index (falling = AILANG got easier for fixed models). */}
+      {history && history.some(h => h.ratings) && (
+        <div className={styles.section}>
+          <h3>Rating Trend Over Releases</h3>
+          <p className={styles.sectionSubtitle}>
+            Anchored ELO across AILANG versions, and whether the language is getting easier
+            for a constant panel of models
+          </p>
+          <RatingTrend history={history} />
         </div>
       )}
 
