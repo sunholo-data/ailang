@@ -180,6 +180,13 @@ func (p *printer) funcBody(body ast.Expr) error {
 			})
 			return err
 		}
+		if p.exceedsWidth(blk.Exprs[0], prefixEquationBody) {
+			p.w.write(" =")
+			p.w.hardline()
+			var err error
+			p.w.indented(func() { err = p.expr(blk.Exprs[0], precLowest) })
+			return err
+		}
 		p.w.write(" = ")
 		return p.expr(blk.Exprs[0], precLowest)
 	}
@@ -576,6 +583,13 @@ func (p *printer) topLevelLet(d *ast.Let) error {
 		p.w.indented(func() {
 			err = p.letChainMultiline(val)
 		})
+		return err
+	}
+	if p.exceedsWidth(d.Value, prefixTopLevelLetValue) {
+		p.w.write(" =")
+		p.w.hardline()
+		var err error
+		p.w.indented(func() { err = p.expr(d.Value, precLowest) })
 		return err
 	}
 	p.w.write(" = ")
