@@ -50,7 +50,7 @@ func TestNew_PathDefaultsApplyButModelDoesNot(t *testing.T) {
 	// the model does not. Finding the `motoko` binary on PATH is a lookup that
 	// decides nothing, while choosing a model decides billing and availability —
 	// motoko's default was openrouter/anthropic/claude-haiku-4-5, on the provider
-	// the fleet has migrated off.
+	// a model nobody chose, on an account nobody was watching.
 	exec, err := New(&executor.Config{MotokoPath: "", MotokoModel: "", MotokoProfile: ""})
 	if err != nil {
 		t.Fatalf("construction must succeed with no model (the coordinator supplies it per task): %v", err)

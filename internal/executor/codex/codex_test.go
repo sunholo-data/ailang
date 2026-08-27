@@ -39,7 +39,7 @@ func TestNewCodexExecutor(t *testing.T) {
 func TestNewCodexExecutor_EmptyConfigFailsLoudly(t *testing.T) {
 	// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)). This once asserted a fallback to
 	// "gpt-5-codex" — the defect: an unpinned agent silently ran a model nobody chose,
-	// on a provider the fleet has migrated off.
+	// a model nobody chose, on an account nobody was watching.
 	//
 	// The check is at EXECUTION, not construction. The coordinator builds an
 	// executor before it knows the task and then supplies Task.Model per task

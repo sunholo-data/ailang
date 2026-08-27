@@ -13,12 +13,17 @@ import (
 // No executor may name a model. The registry decides; an executor that cannot
 // resolve one fails loudly.
 //
-// WHY THIS GUARD EXISTS AT ALL. The fleet migrated off Anthropic on 2026-08-27
-// because Claude-CLI OAuth for headless agents is being retired. Every one of
-// these literals was a silent path back onto it: drop an agent's pin and it
-// quietly ran claude-haiku-4-5 again, invisible until an invoice or an outage.
-// That is a silent fallback on a billing-and-availability path, which CLAUDE.md
-// Critical Principle 2 forbids outright.
+// WHY THIS GUARD EXISTS AT ALL. Four of the ten literals were
+// claude-haiku-4-5. Drop an agent's pin and it silently ran a model nobody
+// chose, on an account nobody was watching — invisible until an invoice or an
+// outage. A fallback that changes which model runs, and so what it costs, is a
+// data-integrity fallback, which CLAUDE.md Critical Principle 2 forbids.
+//
+// NOT because "Claude OAuth is being retired" — an earlier version of this
+// comment said that, and it is wrong. Anthropic announced that change for
+// 2026-06-15 and PAUSED it that day (verified 2026-08-27); `claude -p` still
+// draws on subscription. Cloud Run jobs also DO run Claude on subscription
+// OAuth via CLAUDE_CODE_OAUTH_TOKEN. The defect never needed that premise.
 //
 // WHY IT SCANS factory.go AND NOT JUST THE FIVE SUBPACKAGES. The defect was TEN
 // literals in two layers, not five. factory.go's DefaultConfig() fills

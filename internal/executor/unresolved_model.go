@@ -9,12 +9,31 @@ import (
 //
 // What replaced the ten hardcoded model defaults.
 //
-// Each executor used to substitute a literal when nothing set a model — four of
-// them claude-haiku-4-5. The fleet migrated off Anthropic on 2026-08-27 because
-// Claude-CLI OAuth for headless agents is being retired, so every one of those
-// literals was a silent path back onto a provider we are leaving, invisible
-// until an invoice or an outage. CLAUDE.md Critical Principle 2: a fallback that
-// changes billing or availability is not a convenience, it is a defect.
+// WHY THE DEFAULTS WERE A DEFECT — stated accurately, because the first version
+// of this comment was not.
+//
+// Four of the ten literals were claude-haiku-4-5. An agent whose pin was dropped
+// silently ran a model nobody chose, on an account nobody was watching. That is
+// the defect on its own terms: a fallback that changes which model runs, and
+// therefore what it costs, is a data-integrity fallback (CLAUDE.md Critical
+// Principle 2), whatever the provider.
+//
+// WHAT THIS COMMENT USED TO CLAIM, AND WHY IT WAS WRONG. It said the fleet moved
+// off Anthropic "because Claude-CLI OAuth for headless agents is being retired".
+// Verified against Anthropic's own help centre 2026-08-27: that change was
+// ANNOUNCED for 2026-06-15 and PAUSED on the day. `claude -p` still draws on
+// subscription limits; the separate API-rate credit was never issued. Anthropic
+// say they will give notice before anything takes effect.
+//
+// And Cloud Run jobs DO run Claude on subscription OAuth: the `agent_executor`
+// job template takes CLAUDE_CODE_OAUTH_TOKEN from Secret Manager, deliberately
+// kept apart from the `agent_executor_apikey` template so the two auth modes
+// cannot mix. So neither "OAuth is going away" nor "containers cannot do OAuth"
+// is true.
+//
+// The 2026-08-27 fleet migration stands on its own reasons — cost visibility and
+// single-lane metering — and as a hedge against a PAUSED change. It is not a
+// response to a live one.
 //
 // The error names the agent AND the roles the registry knows, because the two
 // questions an operator has next are "which agent broke?" and "what may I pin it
@@ -44,7 +63,7 @@ func (e *UnresolvedModelError) Error() string {
 	}
 	b.WriteString(". Hardcoded provider defaults were removed deliberately " +
 		"(M-MODEL-REGISTRY-SINGLE-SOURCE D2(a)): a silent fallback here would " +
-		"put an unpinned agent back on a provider the fleet has migrated off")
+		"put an unpinned agent on a model nobody chose")
 	return b.String()
 }
 
