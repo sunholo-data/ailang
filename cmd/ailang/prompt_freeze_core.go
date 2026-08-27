@@ -369,5 +369,9 @@ func checkRegistries(repoRoot string) ([]string, error) {
 			v = append(v, fmt.Sprintf("cmd/ailang/prompts/versions.json: entry %s differs from source", id))
 		}
 	}
+	v, err = checkGitPromptFreezeInvariants(repoRoot, source, mirror, v)
+	if err != nil {
+		return nil, err
+	}
 	return v, nil
 }

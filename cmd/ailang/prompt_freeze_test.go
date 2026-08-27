@@ -24,9 +24,16 @@ func freezeFixture(t *testing.T) string {
 		r.VersionKeys = append(r.VersionKeys, id)
 		r.Versions[id] = e
 		os.WriteFile(filepath.Join(root, e.File), content, 0o644)
+		os.WriteFile(filepath.Join(root, "cmd", "ailang", e.File), content, 0o644)
 	}
 	writeOrderedRegistry(filepath.Join(root, "prompts", "versions.json"), r)
 	writeOrderedRegistry(filepath.Join(root, "cmd", "ailang", "prompts", "versions.json"), r)
+	runFreezeCheckGit(t, root, "init", "-q")
+	runFreezeCheckGit(t, root, "config", "user.email", "freeze-check@example.invalid")
+	runFreezeCheckGit(t, root, "config", "user.name", "Freeze Check")
+	runFreezeCheckGit(t, root, "add", ".")
+	runFreezeCheckGit(t, root, "commit", "-q", "-m", "base")
+	runFreezeCheckGit(t, root, "update-ref", "refs/remotes/origin/dev", "HEAD")
 	old := corpusScanner
 	corpusScanner = func(string) (map[string]corpusEvidence, error) {
 		return map[string]corpusEvidence{"b1": {210, "eval_results/baselines/a.json"}, "b2": {38, "eval_results/baselines/b.json"}, "b3": {1, "eval_results/baselines/c.json"}}, nil
