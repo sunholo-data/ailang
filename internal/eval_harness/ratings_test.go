@@ -188,27 +188,41 @@ func TestFitFromTrialsAnchored_PoolCompositionInvariance(t *testing.T) {
 	}
 	mFit2, _ := FitFromTrialsAnchored(contaminatedTrials, extendedAnchor, nil)
 
-	// Compare: with anchoring, the model's rating should change minimally
-	// (±25 ELO) even though the pool composition changed. Without anchoring,
-	// the same model could drift by hundreds of ELO points.
-	const tolerance = 25.0
+	// Invariance criterion (measured basis, 2026-08-27, per the design doc's
+	// deferred-decision latitude on this constant): adding 3 all-pass easy
+	// games (+60% game count) legitimately moves the equilibrium — more wins
+	// IS new information — so exact invariance is not the claim. The claim is
+	// (a) the anchored drift stays small in absolute terms (≤50 ELO here vs
+	// the measured 768-point unanchored artifact), and (b) anchoring buys at
+	// least 5x less drift than the unanchored fit on the same pools (measured
+	// 31.2 vs 311.7 = 10x at authoring time).
+	const absTolerance = 50.0
+	const minRatio = 5.0
 	_, ok1 := mFit1["model"]
 	_, ok2 := mFit2["model"]
 	if !ok1 || !ok2 {
 		t.Fatalf("model rating missing from fits")
 	}
 	diff := math.Abs(mFit1["model"] - mFit2["model"])
-	if diff > tolerance {
-		t.Logf("pool composition changed rating: fit1=%.1f fit2=%.1f (diff=%.1f)\n"+
-			"Note: Without anchoring, this diff could be >100 ELO (the 2763-vs-1995 artifact).\n"+
-			"With anchoring, it should stay within ±25. If this fails, anchoring is ineffective.",
-			mFit1["model"], mFit2["model"], diff)
-		// For now, relaxed tolerance to account for the math of the fit algorithm:
-		// minor differences are OK as long as they're much smaller than the 2763-vs-1995 gap.
-		if diff > 50 {
-			t.Errorf("pool composition drift too large: %.1f ELO", diff)
-		}
+	if diff > absTolerance {
+		t.Errorf("anchored fit drifted %.1f ELO under pool-composition change (fit1=%.1f fit2=%.1f, tolerance %.0f)",
+			diff, mFit1["model"], mFit2["model"], absTolerance)
 	}
+
+	// MUTATION CONTROL — the instrument must see a positive: the SAME scenario
+	// through the UNANCHORED fit must diverge by far more than the tolerance,
+	// or this test could pass vacuously against a fit where anchoring is a
+	// no-op (the 2763-vs-1995 artifact, measured 2026-08-27: a contaminated
+	// pool moved a real model +768 ELO).
+	um1, _ := FitFromTrials(coreTrials)
+	um2, _ := FitFromTrials(contaminatedTrials)
+	unanchoredDiff := math.Abs(um1["model"] - um2["model"])
+	if unanchoredDiff < diff*minRatio {
+		t.Errorf("mutation control failed: unanchored drift %.1f is not >= %.0fx the anchored drift %.1f — "+
+			"the scenario no longer discriminates anchored from unanchored fitting", unanchoredDiff, minRatio, diff)
+	}
+	t.Logf("anchored drift %.1f vs unanchored drift %.1f (ratio %.1fx, required >= %.0fx)",
+		diff, unanchoredDiff, unanchoredDiff/math.Max(diff, 1), minRatio)
 }
 
 // TestFitFromTrialsAnchored_AnchorImmobility verifies that anchored entities keep

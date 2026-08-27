@@ -38,8 +38,16 @@ export function buildCoverage(ratings) {
       if (n > maxCoverage) maxCoverage = n;
     }
   }
+  // The ELO provisional fraction is emitted by the Go exporter
+  // (ratings.provisionalCoverageFraction, M-EVAL-ROLLING-ELO M1) so the two
+  // sides cannot drift again; the local constant is only the fallback for
+  // artifacts published before the field existed.
+  const eloFraction =
+    (ratings && typeof ratings.provisionalCoverageFraction === 'number')
+      ? ratings.provisionalCoverageFraction
+      : ELO_COVERAGE_FRACTION;
   const threshold = Math.max(1, Math.round(maxCoverage * RATE_COVERAGE_FRACTION));
-  const eloThreshold = Math.max(1, Math.ceil(maxCoverage * ELO_COVERAGE_FRACTION));
+  const eloThreshold = Math.max(1, Math.ceil(maxCoverage * eloFraction));
   return {
     maxCoverage,
     threshold,

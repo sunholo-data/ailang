@@ -22,12 +22,18 @@ var graderArtifactFlags = map[string]string{
 // per mode. Mode-separated because standard and agent saturate differently.
 func buildRatingsBlock(standard, agent []*BenchmarkResult) map[string]interface{} {
 	out := map[string]interface{}{}
-	if m := ratingsForMode(standard); m != nil {
+	// Standard mode uses the PLACEMENT fit (anchored to the frozen panel,
+	// M-EVAL-ROLLING-ELO M1) so this projection matches the persisted DB fit.
+	// Agent mode has no anchor yet and stays unanchored.
+	if m := ratingsForMode(standard, true); m != nil {
 		out["standard"] = m
 	}
-	if m := ratingsForMode(agent); m != nil {
+	if m := ratingsForMode(agent, false); m != nil {
 		out["agent"] = m
 	}
+	// One provenance-bearing constant for provisional gating: Go and the site
+	// must not drift again (was 50% in the CLI vs 90% on the site).
+	out["provisionalCoverageFraction"] = eval_harness.DefaultCoverageThreshold
 	// Like-for-like agent uplift (M-EVAL-VALIDITY-DISCIPLINE W3): standard→agent
 	// delta over ONLY shared benchmarks + matching model identity. Attached so the
 	// dashboard can show a VALID uplift instead of ad-hoc cross-cohort subtraction.
@@ -44,11 +50,11 @@ func buildRatingsBlock(standard, agent []*BenchmarkResult) map[string]interface{
 // also attaches a per-language "byLang" sub-map so consumers can read the
 // AILANG-vs-Python story separately. The top-level models/benchmarks/saturation
 // keys stay unchanged (both languages blended) for backward compatibility.
-func ratingsForMode(results []*BenchmarkResult) map[string]interface{} {
+func ratingsForMode(results []*BenchmarkResult, anchored bool) map[string]interface{} {
 	if len(results) == 0 {
 		return nil
 	}
-	block := fitLeaderboard(results)
+	block := fitLeaderboard(results, anchored)
 
 	// Per-language fits: group by .Lang and fit each language independently so a
 	// benchmark's difficulty and a model's capability are measured against a
@@ -62,7 +68,7 @@ func ratingsForMode(results []*BenchmarkResult) map[string]interface{} {
 		if lang == "" {
 			continue
 		}
-		if lb := fitLeaderboard(rs); lb != nil {
+		if lb := fitLeaderboard(rs, anchored); lb != nil {
 			byLang[lang] = lb
 		}
 	}
@@ -76,7 +82,7 @@ func ratingsForMode(results []*BenchmarkResult) map[string]interface{} {
 // block: {models, benchmarks, saturation}. A trial Pass = CompileOk && RuntimeOk
 // && StdoutOk. This is the reusable body shared by the combined fit and each
 // per-language fit in ratingsForMode.
-func fitLeaderboard(results []*BenchmarkResult) map[string]interface{} {
+func fitLeaderboard(results []*BenchmarkResult, anchored bool) map[string]interface{} {
 	if len(results) == 0 {
 		return nil
 	}
@@ -97,7 +103,12 @@ func fitLeaderboard(results []*BenchmarkResult) map[string]interface{} {
 		}
 		modelBenches[r.Model][r.ID] = true
 	}
-	modelRatings, benchRatings := eval_harness.FitFromTrials(trials)
+	var modelRatings, benchRatings map[string]float64
+	if anchored {
+		modelRatings, benchRatings = eval_harness.FitFromTrialsAnchored(trials, eval_harness.AnchorPanelV1, nil)
+	} else {
+		modelRatings, benchRatings = eval_harness.FitFromTrials(trials)
+	}
 
 	// Coverage: how many distinct benchmarks each model actually ran. ELO across
 	// models that played DIFFERENT benchmark sets is not comparable, so we surface

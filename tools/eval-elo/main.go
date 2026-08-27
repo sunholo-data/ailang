@@ -118,7 +118,16 @@ func main() {
 }
 
 func renderAndMaybePersist(mode string, trials []eval_harness.Trial, db *sql.DB, persist string) {
-	mRat, bRat := eval_harness.FitFromTrials(trials)
+	// Placement fit (M-EVAL-ROLLING-ELO M1): standard mode is anchored — the
+	// frozen panel pins the scale so ratings are comparable across corpora.
+	// Agent-mode difficulty is a different scale with no anchor yet; it stays
+	// unanchored (documented limitation, revisit when an agent anchor exists).
+	var mRat, bRat map[string]float64
+	if mode == "standard" {
+		mRat, bRat = eval_harness.FitFromTrialsAnchored(trials, eval_harness.AnchorPanelV1, nil)
+	} else {
+		mRat, bRat = eval_harness.FitFromTrials(trials)
+	}
 
 	bp := map[string][2]int{}
 	modelTrials := map[string]int{}

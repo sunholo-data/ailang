@@ -3,6 +3,7 @@ package eval_harness
 import (
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"math"
 	"sort"
 )
@@ -20,8 +21,14 @@ func init() {
 		Benchmarks map[string]float64 `json:"benchmarks"`
 	}
 	if err := json.Unmarshal(anchorV1JSON, &anchor); err != nil {
-		// If anchor fails to load, leave it nil. Code must guard with nil checks.
-		return
+		// The anchor is an embedded build artifact: if it does not parse, the
+		// binary is broken and every anchored fit would silently degrade to an
+		// unanchored one — the exact incomparability this file exists to kill.
+		// NO SILENT FALLBACKS (CLAUDE.md §2): fail at init, loudly.
+		panic(fmt.Sprintf("eval_harness: embedded anchor_v1.json is invalid: %v", err))
+	}
+	if len(anchor.Benchmarks) == 0 {
+		panic("eval_harness: embedded anchor_v1.json has an empty benchmark panel")
 	}
 	AnchorPanelV1 = anchor.Benchmarks
 }

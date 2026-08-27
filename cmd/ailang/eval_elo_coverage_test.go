@@ -30,12 +30,22 @@ func TestBuildELOModeReport_CoverageGating(t *testing.T) {
 			CompileOk: true, RuntimeOk: true, StdoutOk: true,
 		})
 	}
-	// mid-model runs exactly at the threshold (20 = 50% of 40 → NOT provisional).
-	for i := 0; i < 20; i++ {
+	// mid-model runs exactly at the unified 90% threshold (ceil(0.9*40) = 36 →
+	// NOT provisional). M-EVAL-ROLLING-ELO M1 unified this with the site's
+	// ELO_COVERAGE_FRACTION; the old CLI threshold was 50%.
+	for i := 0; i < 36; i++ {
 		id := fmt.Sprintf("bench%02d", i)
 		results = append(results, &eval_analysis.BenchmarkResult{
 			ID: id, Lang: "ailang", Model: "mid-model", EvalMode: "agent",
 			CompileOk: true, RuntimeOk: true, StdoutOk: i%3 == 0,
+		})
+	}
+	// near-model sits one below the threshold (35 < 36 → provisional).
+	for i := 0; i < 35; i++ {
+		id := fmt.Sprintf("bench%02d", i)
+		results = append(results, &eval_analysis.BenchmarkResult{
+			ID: id, Lang: "ailang", Model: "near-model", EvalMode: "agent",
+			CompileOk: true, RuntimeOk: true, StdoutOk: i%4 == 0,
 		})
 	}
 
@@ -62,10 +72,14 @@ func TestBuildELOModeReport_CoverageGating(t *testing.T) {
 		t.Fatalf("sparse-model coverage want 5, got %d", got)
 	}
 	if !byModel["sparse-model"].Provisional {
-		t.Fatal("sparse-model (5 < 20 threshold) MUST be provisional")
+		t.Fatal("sparse-model (5 < 36 threshold) MUST be provisional")
 	}
-	if byModel["mid-model"].Benchmarks != 20 || byModel["mid-model"].Provisional {
-		t.Fatalf("mid-model (20 == threshold) must NOT be provisional; got cov=%d prov=%v",
+	if byModel["mid-model"].Benchmarks != 36 || byModel["mid-model"].Provisional {
+		t.Fatalf("mid-model (36 == ceil(0.9*40)) must NOT be provisional; got cov=%d prov=%v",
 			byModel["mid-model"].Benchmarks, byModel["mid-model"].Provisional)
+	}
+	if byModel["near-model"].Benchmarks != 35 || !byModel["near-model"].Provisional {
+		t.Fatalf("near-model (35 < 36 threshold) MUST be provisional; got cov=%d prov=%v",
+			byModel["near-model"].Benchmarks, byModel["near-model"].Provisional)
 	}
 }
