@@ -236,6 +236,31 @@ Not a parser/typechecker change, but it overrides shared machinery — enumerate
 - Wire agent-mode persistence into the nightly/rotation path so agent ratings stop going stale (currently 3 models, 2026-07-31).
 - **VERIFY**: (a) after one real run, `SELECT COUNT(*), compiler_version FROM trial_history GROUP BY compiler_version` returns rows with correct version stamps; (b) re-run the same persist → count unchanged; (c) agent-mode `model_ratings.last_updated` advances after a rotation cycle.
 
+> **M3 VERIFY EXECUTED — 2026-08-27, in-session sprint.**
+> - `direction_panel_v1.json` GENERATED (`tools/gen-anchor --direction-out`): **22 benchmarks**,
+>   difficulty-stratified even stride over the 47-member anchor panel → tier spread core 9 /
+>   stretch 6 / frontier 4 / vision 2 / experimental 1. Deterministic, never hand-picked.
+> - `tools/direction-fit` implements the DIRECTION configuration (bridge strengths fixed, panel
+>   difficulties free) and stamps `bridge_strengths_used` into the artifact — the replayability
+>   requirement from quorum R2.
+> - **NEGATIVE test 1 (unrated bridge member)**: refused — "bridge model gemini-3-7-flash has no
+>   standard placement rating … run the placement persist first". No seeding, no silent default.
+> - **NEGATIVE test 2 (partial panel)**: refused, naming all 3 missing cells — matching an
+>   independent coverage scan exactly.
+> - **POSITIVE path** (rehearsal on v0.32.0 + 6 freshly-run fill cells, bridge
+>   gemini-3-flash/gpt5-4-mini, 86 trials): index **1551.1** overall; by tier core 1328.6,
+>   stretch 1339.3, experimental 1710.9, frontier 1996.0, vision 2218.4.
+> - **DESIGN BUG found by this VERIFY and fixed**: the completeness gate demanded every panel
+>   benchmark × every requested language, but specs may declare a single language
+>   (`ai_effect_json_schema: languages: ["ailang"]`) — the index would have been permanently
+>   unachievable. Required set is now `requested ∩ spec.Languages`, with a loud failure if a
+>   panel member declares none of them.
+> - `tools/linking-run.sh` (bash-3.2 safe, `bash -n` clean): panel verbatim (never
+>   confidence-selected), `--bank-by-version --skip-existing`, post-hoc cost check, then
+>   placement persist → direction stamp. **Dry-run for v0.35.0: 5 models × 22 benchmarks ×
+>   2 langs = 220 runs, est. $2.88** — well inside the $25 cap and far under a full baseline.
+> - REMAINING for a real release (not blocking M3): execute against an actual new release tag.
+
 **M3 — Linking-run protocol replaces the full baseline** (~3 days)
 - New script (post-release skill step): the **fixed direction panel** (committed list, ~20-25 benchmarks) × bridge panel (D3) × `--langs ailang,python`, `--trials 1`, banked under the release version, persisted through M1+M2; the direction fit runs immediately after and stamps the index + its input bridge strengths into the release's HistoryEntry. Optionally, `--benchmarks-by-confidence` appends extra placement-value cells beyond the panel. Budget guard: abort if projected cost > $25. Missing panel cells fail the run loudly (no partial index).
 - Codify the new-model gate (today's protocol: smoke floor → core vs incumbent → frontier N=3 → anchored placement) as a model-manager skill reference section with measured costs.
