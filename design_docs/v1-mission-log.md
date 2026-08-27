@@ -19704,3 +19704,41 @@ the reviewed artifact.* If a second instance appears, the fix belongs in Gate 2'
 evidence discipline reproduced in full (poisoned comment-count control that FIRES, per-file
 `ailang check` rc joins, two-armed gates against a pristine base, the residual width table). Then
 the doc moves to `implemented/` **with its sprint plan**.
+
+---
+
+## ATTENDED NOTE — 2026-08-27 (Mark + interactive Claude Code session; not an iteration retro)
+
+**Second recorded instance of the driver-pin friction class — the fix's discrimination logic is
+confirmed live in code, but the underlying Claude Code onboarding STATE for V1's source clone
+independently flaked, which the fix does not address.**
+
+Motoko's PR [#923](https://github.com/sunholo-data/ailang/pull/923) (`ff0da7445`, merged
+2026-08-26 ~22:56) fixed the SCHEMA-drift half: `~/.claude.json` retired
+`hasCompletedProjectOnboarding`, so `pin-root.sh`'s onboarding gate refused every clone
+unconditionally. That fix is present in V1's executing code
+(`git merge-base --is-ancestor ff0da7445 HEAD` = yes, checked directly against the primary clone).
+Despite that, V1's own log recorded `DRIVER PIN FAILED — neither <pin-dir> nor its source clone is
+onboarded` on 3 consecutive fires the next morning (2026-08-27, 00:58 / 04:03 / 07:10), each
+falling back to the unpinned source-clone path — the pre-fix failure mode, with the fix already
+live.
+
+Measured directly: `~/.claude.json` shows `hasTrustDialogAccepted: true` for
+`/Users/voightkampff/dev/sunholo-data/ailang` as of file-mtime 07:29:03 — 19 minutes after the
+07:10:03 failure, and coincident with a fresh interactive `claude` session opening in that exact
+directory (the driver's own prescribed remediation: *"Run once, interactively: cd <src> &&
+claude"*). Not proven — no snapshot of the key's value before 07:29 exists — but the timing is
+tight. **Root cause of the STATE lapse itself is still open**: candidate, unconfirmed — whether
+headless `claude -p` invocations (what every unattended mission fire itself uses for the
+controller role) ever fail to set/refresh `hasTrustDialogAccepted`, vs. only a genuine
+interactive/TTY session setting it durably.
+
+This is the SECOND recorded instance of "driver runs unpinned despite the schema fix landing"
+(instance 1 = the schema-drift bug, fixed in #923; instance 2 = this state-flake, still open). Per
+this skill's ≥2-instance bar, Gate 5 should evaluate whether a durable fix belongs here —
+`AILANG_DRIVER_SKIP_ONBOARD_CHECK` is an existing escape hatch but bypasses the safety gate
+entirely rather than fixing the underlying state; a narrower fix might re-probe onboarding state
+via a cheaper/more reliable signal than `~/.claude.json`, or confirm whether headless fires can
+refresh trust state at all. Filed as an attended charter-record rather than only a GitHub issue
+comment, per this charter's own "charter-record first, issue comment as public trace only"
+convention.
