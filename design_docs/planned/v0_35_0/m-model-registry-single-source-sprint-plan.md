@@ -53,22 +53,46 @@ the milestone mechanical: **66 call sites across 17 non-test files compile uncha
 
 ---
 
-### M2 — Prove the gcsfuse mount (Phase 0b) — **spike, can reopen D1**
+### M2 — Prove the gcsfuse mount (Phase 0b) — ✅ **RESOLVED 2026-08-27, D1(a) stands**
 
-**~60 LOC** (mostly job config + a read-back assertion)
+**~5 LOC** (was estimated 60; no spike code needed — the mechanism is already in production)
 
-The one assumption underneath D1(a) that no measurement supports. The coordinator mounts its
-config this way; **no agent job does today.** Mount a registry into one agent job and read it back.
+**The design doc's premise was wrong, in our favour.** It recorded "no agent job does [mount a
+bucket] today" and made that the one unverified assumption under D1(a). Measurement refutes it.
 
-Runs in parallel with M1 — it is infrastructure, not Go, and shares no files.
+Live spec of the deployed job `ailang-agent-executor-opencode` (europe-west1, ailang-multivac):
+
+```json
+volumes:      [{"csi": {"driver": "gcsfuse.run.googleapis.com",
+                        "volumeAttributes": {"bucketName": "ailang-multivac-ailang-artifacts"}},
+                "name": "artifacts"}]
+volumeMounts: [{"mountPath": "/artifacts", "name": "artifacts"}]
+```
+
+That is gcsfuse (`gcsfuse.run.googleapis.com` CSI driver), on an **agent** job, deployed and
+running. Terraform carries the same block on **16** agent jobs (`cloud_run_jobs.tf`). The
+coordinator service mounts the *config* bucket the same way (`cloud_run.tf:154-164`).
+
+So the delta for M4 is not "prove a new mechanism" but "add a second, read-only volume pointing at
+the config/registry bucket" — a copy of a block that is already deployed sixteen times. Folded
+into M4; no separate milestone work remains.
+
+**Two things measurement turned up that the plan should carry:**
+
+1. **Terraform/deployment drift**: `agent_executor_motoko` exists in `cloud_run_jobs.tf:1521` but
+   is **not deployed** — `gcloud run jobs list` returns 15 jobs, none of them motoko. M5 must
+   establish where motoko actually executes before pinning it; the pin is still required either
+   way (the coordinator resolves the model regardless of where the executor runs), but "it runs as
+   a cloud job" is not an assumption M5 may make.
+2. Verified against the **deployed** spec, not the terraform source — per the launchd lesson that
+   repo files are source and installed copies drift.
 
 **Acceptance criteria**
-- One agent job starts with a registry mounted and logs the path it read
-- The mounted content round-trips: publish a registry with a sentinel field, job reports it
-- **If the mount does not work, STOP and reopen D1** — (a) has no delivery mechanism without it,
-  and discovering that on day 1 costs a day, on day 4 costs the sprint
+- [x] An agent job demonstrably reads a gcsfuse-mounted bucket — proven by the live spec above
+- [x] Mechanism identified for M4 to reuse (second read-only volume on the same jobs)
+- [x] D1(a) has a delivery mechanism — **no reopen needed**
 
-**Files**: `ailang-multivac/` job config, a read-back check
+**Files**: none this milestone; the terraform volume block lands in M4
 
 ---
 
