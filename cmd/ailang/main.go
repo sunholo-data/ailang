@@ -420,6 +420,12 @@ func main() {
 	case "budget":
 		budgetCommand()
 
+	case "models":
+		if err := modelsCommand(flag.Args()[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
 	case "coordinator":
 		if err := coordinatorCommand(flag.Args()[1:]); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)

@@ -1,0 +1,192 @@
+{
+  "_comment": "Snapshot of ailang-multivac/config/config.cloud.yaml, measured 2026-08-27 at the start of M-MODEL-REGISTRY-SINGLE-SOURCE. This is the PRE-migration truth the fixture pins: deleting model_routing (M7) must not change any of these 34 resolutions.",
+  "agents": [
+    {
+      "id": "design-doc-creator",
+      "role": "designer",
+      "model": "openrouter/moonshotai/kimi-k3"
+    },
+    {
+      "id": "sprint-planner",
+      "role": "planner",
+      "model": "gpt-5.6-sol"
+    },
+    {
+      "id": "sprint-executor",
+      "role": "executor",
+      "model": "gpt-5.6-sol"
+    },
+    {
+      "id": "sprint-evaluator",
+      "role": "evaluator",
+      "model": "openrouter/minimax/minimax-m3"
+    },
+    {
+      "id": "coordinator",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "motoko",
+      "role": "",
+      "model": ""
+    },
+    {
+      "id": "pkg-sunholo-auth",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-gcp-auth",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-http-helpers",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-logging",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-config",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-testing-utils",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-firestore",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-billing-entitlements",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-billing-proposals",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-billing-store",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-billing-stripe",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-billing-service-api",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-duckdb",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-a2ui",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-ailang-parse",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-firebase-auth",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-gcs-storage",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-gemini-files",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-gemini-live",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-registry-validator",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-test-pkg",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-test-pkg-consumer",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-motoko-ext-family",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-deontic",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-external-backend",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-linkedin",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "pkg-sunholo-ollama-stream",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    },
+    {
+      "id": "website-builder",
+      "role": "",
+      "model": "openrouter/deepseek/deepseek-v4-flash-0731"
+    }
+  ],
+  "model_routing": {
+    "designer": [
+      "openrouter/moonshotai/kimi-k3"
+    ],
+    "planner": [
+      "gpt-5.6-sol",
+      "openrouter/moonshotai/kimi-k3"
+    ],
+    "executor": [
+      "gpt-5.6-sol",
+      "openrouter/deepseek/deepseek-v4-flash-0731"
+    ],
+    "evaluator": [
+      "openrouter/minimax/minimax-m3",
+      "openrouter/deepseek/deepseek-v4-flash-0731"
+    ]
+  }
+}

@@ -198,6 +198,19 @@ func LoadModelsConfig(path string) (*ModelsConfig, error) {
 	return &config, nil
 }
 
+// LoadModelsConfigBytes parses a registry from memory.
+//
+// Publishing validates the EXACT BYTES it is about to write rather than a
+// re-read of the file: anything else leaves a gap where the validated document
+// and the published document are not the same one.
+func LoadModelsConfigBytes(data []byte) (*ModelsConfig, error) {
+	var config ModelsConfig
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to parse models config: %w", err)
+	}
+	return &config, nil
+}
+
 // InitModelsConfig loads the global models configuration
 func InitModelsConfig() error {
 	// M-MODEL-REGISTRY-SINGLE-SOURCE M4 (D1(a)): precedence is explicit path ->

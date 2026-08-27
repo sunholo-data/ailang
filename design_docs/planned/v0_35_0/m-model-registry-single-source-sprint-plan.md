@@ -197,7 +197,26 @@ it must cover the pricing fields, not only `roles:`.
 what the bytes hash to. It distinguishes two registries without claiming a semantic version nobody
 maintains.
 
-#### ⚠️ Open question — how does the registry get into the bucket without becoming a second copy?
+#### ✅ D5 — publish path RATIFIED (Mark, 2026-08-27)
+
+**Decision: publish `models.yml` from the ailang repo via the existing CAS path, as a bucket object
+terraform never declares.** Source of truth stays in the repo where the file lives; terraform keeps
+owning `config.cloud.yaml` and nothing else. This is D1-class — it settles which repo owns the
+published registry — so it is recorded here as **D5** rather than as an implementation note.
+
+The reasoning it rests on: the 2026-08-26 clobbers happened because terraform *owns that specific
+object* and reverts direct writes to it on the next config push. An object terraform never declares
+is not in its state and is therefore not reverted. `writeConfigCAS` / `gcsConfigStore` already
+exist (M-MESSAGE-PLANE-FAIL-LOUD M4), and `Validate()` is now the gate in front of them.
+
+**A consequence to hold onto**: the published registry is now the one artifact in the config bucket
+that terraform cannot recreate. If it is deleted, `terraform apply` will not bring it back — the
+embedded floor covers the outage (that is what the floor is for), but the registry must be
+re-published by hand. Worth a line in the runbook when M4b lands.
+
+<details><summary>Original open question, kept for the record</summary>
+
+##### How does the registry get into the bucket without becoming a second copy?
 
 The Go side of M4 is done and tested. The publish path has a genuine decision the design doc did
 not surface, and getting it wrong costs either clobbered publishes or a duplicated registry — the
@@ -221,6 +240,8 @@ gcsfuse block M2 found. Source of truth stays in ailang, where the file lives.
 
 **Needs Mark's nod before implementing** — it decides which repo owns the published registry, and
 that is the same class of decision as D1 itself.
+
+</details>
 
 **Files**: `internal/modelreg/provenance.go` (new), `internal/modelreg/validate.go` (new),
 `internal/modelreg/models.go`, tests; terraform + publish pending the question above
