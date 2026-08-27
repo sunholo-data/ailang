@@ -3957,7 +3957,7 @@ models:
     api_name: "z-ai/glm-5.2"
     provider: "openrouter"
     default_thinking: "always_on"
-    description: "GLM-5.2 via OpenRouter (standard mode) — newest z-ai (2026-06-16), replaced GLM-5.1 in extended_suite 2026-07-19"
+    description: "GLM-5.2 via OpenRouter (standard mode) — RETIRED from extended_suite 2026-08-27 (displaced by or-glm-5-3-flash, core tie at ~1/13 cost); opt-in for longitudinal compare"
     env_var: "OPENROUTER_API_KEY"
     max_output_tokens: 65536  # always-thinking model; at 32768 its thinking phase (observed
                               # 28-32K tokens) hit OUR cap and truncated: 6 finish=length
@@ -4294,9 +4294,10 @@ benchmark_suite:
 # Cost: ~$3-6 per full benchmark run (+~$16 for fable on core,stretch)
 # Standard mode only — cloud models never run the smoke tier (smoke is the local
 # OS-model iteration loop); release baselines run core,stretch.
-# OS roster: glm-5.2 (replaced 5.1 2026-07-19), minimax-m3, kimi k2.7-code + k3,
-# deepseek-v4 flash/pro. Roster last changed 2026-08-13 (gemini-3-7-flash in, 3-6-flash
-# out of the Flash slot; before that 2026-07-27, claude-opus-5 in, 4.8 out);
+# OS roster: glm-5.3-flash (replaced 5.2 2026-08-27; 5.2 replaced 5.1 2026-07-19),
+# minimax-m3, kimi k2.7-code + k3, deepseek-v4 flash/pro. Roster last changed
+# 2026-08-27 (or-glm-5-3-flash in, or-glm-5-2 out — core tie at ~1/13 cost; before
+# that 2026-08-13, gemini-3-7-flash in, 3-6-flash out of the Flash slot);
 # see the per-entry annotations below for each gate record.
 extended_suite:
   - "gpt5-6-sol"        # OpenAI flagship (Jul 2026) — gated 2026-07-11: core 26/26 N=1, tie 25/26 with gpt5-5
@@ -4367,9 +4368,15 @@ extended_suite:
     # THIS model's scores first and most visibly. The numbers above are the 2026-07-22 baseline to
     # lift. Same near-miss-watchlist philosophy as the motoko-or-* OS entries, but promoted to a
     # standing suite slot because Mark wants it tracked every release, not just opt-in.
-  - "or-glm-5-2"        # z.ai GLM-5.2 — replaced or-glm-5-1 2026-07-19 (Mark): with 64K
-                        # thinking headroom 5.2 beats 5.1 on AILANG (80% vs 77%), Python
-                        # (81% vs 79%) and agent (77% vs 73%). 5.1 retired to opt-in.
+  - "or-glm-5-3-flash"  # z.ai GLM-5.3-Flash — REPLACED or-glm-5-2 2026-08-27 (Mark): core
+                        # head-to-head TIE after N=3 de-flake of the only discordant cell
+                        # (22/23 vs 23/23 N=1, ast_patch_roundtrip missing-import flake,
+                        # both 3/3 on escalation) at ~1/13 the cost ($0.072 vs $0.920 per
+                        # core tier; $0.075/$0.25 vs $1.19/$3.74 per 1M). 5.2 retired to
+                        # opt-in (longitudinal compare, same as 5.1 before it). NOTE: the
+                        # agent_suite twin opencode-or-glm-5-2 stays until an
+                        # opencode-or-glm-5-3-flash twin is registered and gated — the
+                        # standard-suite swap does not decide the agent slot.
   - "or-kimi-k2-7-code" # Kimi K2.7 Code — 91% std, 100% agent smoke 2026-06-16, $0.75/$3.50/M
   - "or-kimi-k3"        # Kimi K3 (general successor, 1M ctx) — 96% std smoke 2026-07-19 (22/23, only
     # dense_operator_program IMP010 bug), beat K2.7 Code sibling. Frontier-priced $3/$15/M — capability
