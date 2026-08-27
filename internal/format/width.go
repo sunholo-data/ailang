@@ -31,7 +31,15 @@ func (p *printer) newMeasurementPrinter() *printer {
 	if measurementPrinterHook != nil {
 		measurementPrinterHook(depth)
 	}
-	// Unlike holeText in interp.go, measurement deliberately inherits no attachments.
+	// Measurement deliberately inherits no attachments: inline width is a property
+	// of the expression, independent of comments owned by the rendering printer.
+	// TestMeasurementIgnoresInheritedAttachments pins that invariant. At product
+	// level it is currently double-masked by the hasAnyAttachment(X) ||
+	// p.exceedsWidth(X, ...) short-circuits in expr.go:266, decl.go:174, and
+	// decl.go:572, and by the fail-closed attachment boundary set. The measured
+	// corpus differential saw 88 measurements, 82 with a populated attachment
+	// index, and 0 divergences. M2's continuation layout must re-run that
+	// differential because it may lift either mask.
 	return &printer{
 		w:                newWriter(p.w.indent), // depth intentionally remains zero
 		att:              nil,

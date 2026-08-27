@@ -167,6 +167,18 @@ func (p *printer) holeText(e ast.Expr) (string, bool) {
 	if err := sub.expr(e, precLowest); err != nil {
 		return "", false
 	}
+	// The preceding error path deliberately discards sub.expr's concrete error;
+	// only this path propagates a successful sub.expr with measurementErr set.
+	//
+	// SCOPE, stated precisely: this branch is NOT exercised by
+	// TestMeasurementErrorAlwaysAccompaniesRenderError. That test injects ast.Error
+	// into top-level Let.Value/Let.Body, while holeText is reached only from
+	// interp.go:94 when rendering a string-interpolation hole -- structurally
+	// disconnected, so neither of holeText's error branches is entered by it at all
+	// (measured: holeText called 3313 times under that test, both error branches 0).
+	// The redundancy here is therefore REASONED-CONSISTENT with the measured
+	// format.go result, not independently measured. Keep the propagation as
+	// fail-closed defence; pinning it would need an interpolation-shaped injection.
 	if sub.measurementErr != nil {
 		p.measurementErr = sub.measurementErr
 		return "", false
