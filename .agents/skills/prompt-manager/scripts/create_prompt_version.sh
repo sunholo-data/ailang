@@ -81,6 +81,9 @@ if ! head -1 "$NEW_FILE" | grep -q "^# AILANG ${NEW_VERSION} "; then
     echo "Error: could not rewrite the version header of $NEW_FILE" >&2
     echo "       line 1 is: $(head -1 "$NEW_FILE")" >&2
     echo "       expected it to start: # AILANG ${NEW_VERSION} " >&2
+    # Remove the copy: leaving it would strand an UNREGISTERED prompt carrying the
+    # base version's header on disk -- the exact artifact this guard exists to prevent.
+    rm -f "$NEW_FILE"
     exit 1
 fi
 echo "✓ Header set to: $(head -1 "$NEW_FILE")"
