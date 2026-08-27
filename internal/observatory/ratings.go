@@ -107,3 +107,52 @@ func LoadModelRatings(ctx context.Context, db *sql.DB, mode string) ([]ModelRati
 	}
 	return out, rows.Err()
 }
+
+// TrialHistoryEntry is one row of trial_history (audit log for ratings changes).
+type TrialHistoryEntry struct {
+	TrialID           string // Primary key: banked trial-file identity
+	BenchmarkID       string
+	ModelID           string
+	Mode              string // 'standard' or 'agent'
+	Outcome           int    // 1 = pass, 0 = fail
+	PromptVersion     string // Banked row's PromptVersion field
+	CompilerVersion   string // releaseTag() of the run's version dir
+	BenchRatingBefore float64
+	ModelRatingBefore float64
+	BenchRatingAfter  float64
+	ModelRatingAfter  float64
+	RecordedAt        time.Time
+}
+
+// AppendTrialHistory appends a trial record to trial_history with idempotency.
+// Using INSERT OR IGNORE with trial_id as the primary key ensures re-persisting
+// the same corpus is a no-op (re-persistence uses the same trial-file identity as
+// trial_id, so the second insert is silently ignored by the constraint).
+//
+// Designed for batch appending from eval-elo persist runs (M-EVAL-ROLLING-ELO M2).
+func AppendTrialHistory(ctx context.Context, db *sql.DB, entries []TrialHistoryEntry) error {
+	if len(entries) == 0 {
+		return nil
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin trial_history append: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	for _, e := range entries {
+		if _, err := tx.ExecContext(ctx, `
+			INSERT OR IGNORE INTO trial_history
+			(trial_id, benchmark_id, model_id, mode, outcome, prompt_version,
+			 compiler_version, benchmark_rating_before, model_rating_before,
+			 benchmark_rating_after, model_rating_after, recorded_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, e.TrialID, e.BenchmarkID, e.ModelID, e.Mode, e.Outcome,
+			e.PromptVersion, e.CompilerVersion,
+			e.BenchRatingBefore, e.ModelRatingBefore,
+			e.BenchRatingAfter, e.ModelRatingAfter, e.RecordedAt); err != nil {
+			return fmt.Errorf("append trial %s: %w", e.TrialID, err)
+		}
+	}
+	return tx.Commit()
+}
