@@ -133,16 +133,39 @@ D2's ratification carried a sequencing condition: prove no live agent depends on
 1. Fixture test: all 34 cloud agents resolve post-migration exactly as their current pins specify.
    Because 33 are explicitly pinned, this is a strong, cheap assertion — it proves the M7 deletion
    of `model_routing` is inert.
-2. Give `motoko` an explicit pin or a role. **This is a model-selection decision, not a mechanical
-   one** — it is the one place this sprint changes which model something runs, because today's
-   answer is an accident of `factory.go`. Surface it to Mark rather than picking silently.
+2. Pin `motoko` to **GLM-5.3-Flash** (Mark, 2026-08-27), replacing the accidental
+   `openrouter/anthropic/claude-haiku-4-5` it inherits from `factory.go`.
+
+**The pin needs a registry entry that does not exist yet.** `or-glm-5-3-flash`
+(`models.yml:3999`) is a **standard-mode** entry: no `agent_cli`, no `agent_model_name`. Motoko is
+an agentic harness and resolves through `agent_model_name`, following the `motoko-*` twin pattern
+(`motoko-glm-5-1`, `motoko-or-deepseek-v4-flash`, …). So M5 adds:
+
+```yaml
+  motoko-or-glm-5-3-flash:
+    api_name: "z-ai/glm-5.3-flash"
+    provider: "openrouter"
+    agent_cli: "motoko"
+    agent_model_name: "openrouter/z-ai/glm-5.3-flash"
+    max_output_tokens: 65536   # always-thinking; the GLM-5.2 truncation lesson
+```
+
+**And the evidence behind the choice is standard-mode only.** GLM-5.3-Flash's smoke, core and
+frontier records (2026-08-27) were all run in **standard** mode; it is not in `agent_suite` and has
+never run under an agentic harness. Per the project's standing rule, standard-mode results do not
+transfer to agent mode. At $0.075/$0.25 per 1M an agent-mode smoke tier costs on the order of
+$0.06 — cheaper than the meeting about whether to run it — so M5 measures rather than assumes.
 
 **Acceptance criteria**
 - Fixture covers all 34 agents; pre/post resolution identical for the 33 pinned ones
-- `motoko` resolves to a deliberately chosen model, recorded in the config with a comment
+- `motoko-or-glm-5-3-flash` registered with `agent_cli: motoko` and the `openrouter/z-ai/…` string
+- **Agent-mode smoke tier on `motoko-or-glm-5-3-flash` passes** before the pin goes live — the
+  first agentic measurement this model has; a failure routes back to Mark, not to a silent revert
+- `motoko` resolves to it, recorded in the config with a comment naming the decision and date
 - Test fails loudly if a new agent is added with neither pin nor role
 
-**Files**: `internal/coordinator/` tests, `ailang-multivac/config/config.cloud.yaml`
+**Files**: `internal/modelreg/models.yml`, `internal/coordinator/` tests,
+`ailang-multivac/config/config.cloud.yaml`
 
 ---
 
@@ -258,12 +281,14 @@ M2 (mount spike) ───┴── M4 (publish) ┴── M7 (CLI + coordinator
 | M8 wedges three live loops via a stale binary | Explicit fallback branch is an acceptance criterion, not a nicety; attended window; `MISSION_DRY_RUN` first |
 | A bad publish reaches pricing without a rebuild (accepted D1(a) cost) | Schema validation on publish must cover pricing fields; CAS; embed remains the floor |
 
-## Open question for Mark
+## Decisions taken during planning
 
-**M5: what should `motoko` run?** It is the one agent with neither a pin nor a role, so today it
-silently runs `openrouter/anthropic/claude-haiku-4-5` from `factory.go` — an accident, on the
-provider the fleet just migrated off. Removing the default forces an explicit answer: pin it, or
-give it a role. This is the sprint's only model-selection decision and it is yours, not mechanical.
+**M5 — `motoko` runs GLM-5.3-Flash** (Mark, 2026-08-27). It was the one agent with neither a pin
+nor a role, silently running `openrouter/anthropic/claude-haiku-4-5` from `factory.go` — an
+accident, on the provider the fleet just migrated off. Two consequences folded into M5: a
+`motoko-or-glm-5-3-flash` agent twin must be registered (the existing entry is standard-mode only),
+and the model gets its first agent-mode measurement before the pin goes live, since every existing
+GLM-5.3-Flash result is standard-mode.
 
 ## Scope lever
 
