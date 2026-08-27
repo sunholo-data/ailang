@@ -4003,7 +4003,7 @@ models:
                                    # "Reasoning is mandatory for this endpoint and cannot be
                                    # disabled"; default probe emitted 890 reasoning tokens,
                                    # finish=stop (provider GMICloud).
-    description: "GLM-5.3-Flash via OpenRouter (standard mode) — z.ai 320B-A18B MIT release 2026-08-26 (previewed as Ox Alpha), natively multimodal, 1M ctx. Smoke PASSED 2026-08-27; core run pending."
+    description: "GLM-5.3-Flash via OpenRouter (standard mode) — z.ai 320B-A18B MIT release 2026-08-26 (previewed as Ox Alpha), natively multimodal, 1M ctx. Smoke + core PASSED 2026-08-27 (core ties or-glm-5-2 after N=3 de-flake, at ~1/13 cost); suite promotion awaits ratification."
     env_var: "OPENROUTER_API_KEY"
     max_output_tokens: 65536  # always-thinking model — headroom, per the GLM-5.2 truncation
                               # lesson. Declared ceilings 2026-08-27 (/endpoints): Z.AI
@@ -4029,9 +4029,31 @@ models:
       reason_tokens 22–5263/bench, zero finish=length. Sole failure adt_option
       (runtime "expected float arguments" — the known Int/Fractional dict-crash
       class, v0.32.0 failure mining) went 2/2 PASS on immediate retry: flaky,
-      not a stable gap. Floor cleared = QUALIFIES only; whether it joins or
-      replaces or-glm-5-2 in extended_suite is a --tier core decision
-      (candidate + incumbent + sonnet-4-6 anchor in ONE command), not yet run.
+      not a stable gap.
+      CORE (discriminator) 2026-08-27, head-to-head vs incumbent or-glm-5-2,
+      AILANG, one command, N=1: 22/23 vs 23/23, total $0.072 vs $0.920
+      ($0.0033 vs $0.0400 per pass). The ONLY discordant cell,
+      ast_patch_roundtrip (compile_error: `decode` used without importing
+      std/json — missing-import slip, not invented syntax), was escalated to
+      N=3 per the model-manager rule (never flip on a 1-benchmark N=1 delta):
+      BOTH models 3/3 PASS. Zero both-fail cells (nothing to check against the
+      sonnet-4-6 banked anchor: 20/23 on 2026-08-03). Zero finish=length on
+      either side. Token profile: 5.3-flash thinks MORE (median 2699 vs 90
+      reason toks — 5.2 ran unusually light thinking this day) at similar
+      wall-clock (median ~65s both).
+      VERDICT: core TIE after de-flake, at ~1/13 the cost — the skill's
+      "tie at higher cost → keep incumbent" logic inverts in the candidate's
+      favor. RECOMMENDED to replace or-glm-5-2 in extended_suite; roster swaps
+      are ratified by Mark (precedent: 5.1→5.2, 2026-07-19), so NOT applied
+      unilaterally. Note the sonnet-4-6 anchor was NOT re-run (deliberate:
+      this machine strips ANTHROPIC_API_KEY; banked anchor + zero both-fails
+      made a live anchor unnecessary). Agent-mode twin (opencode-) not yet
+      registered or gated — the 5.1→5.2 swap included agent evidence, so an
+      agent_suite decision needs that first.
+      Same-day incumbent context: or-glm-5-2 scored 23/23 today vs its banked
+      5/7 partial on 2026-08-03 (both banked fails passed today) — consistent
+      with post-08-03 stdlib/prompt improvements, though N=1 on both dates;
+      do not read cross-date deltas as model movement.
 
   or-minimax-m3:
     api_name: "minimax/minimax-m3"
