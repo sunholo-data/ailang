@@ -10,4 +10,5 @@ export pure func hello(name: string) -> string = "Hello, " ++ name ++ "!"
 
 export pure func farewell(name: string) -> string = "Goodbye, " ++ name ++ ". Until next time!"
 
-export pure func welcome(name: string) -> string = encode(jo([kv("message", js("Welcome, " ++ name ++ "!")), kv("name", js(name))]))
+export pure func welcome(name: string) -> string =
+  encode(jo([kv("message", js("Welcome, " ++ name ++ "!")), kv("name", js(name))]))

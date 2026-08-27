@@ -17,7 +17,8 @@ import std/io (println)
 import std/option (Some, None)
 
 -- A minimal OOXML part list, the shape a DOCX generator produces.
-func documentParts() -> [{ name: string, content: string }] = [{ name: "[Content_Types].xml", content: "<Types/>" }, { name: "word/document.xml", content: "<w:document><w:body/></w:document>" }]
+func documentParts() -> [{ name: string, content: string }] =
+  [{ name: "[Content_Types].xml", content: "<Types/>" }, { name: "word/document.xml", content: "<w:document><w:body/></w:document>" }]
 
 func archiveSize(b64: string) -> string = match fromBase64(b64) {
   Some(raw) => show(byteLength(raw)),

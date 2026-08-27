@@ -32,7 +32,8 @@ func store_belief_with_embedding(ns: string, key: string, content: string, versi
 
 -- Helper: Search by embedding similarity
 func search_by_embedding(ns: string, query: string, top_k: int) -> [{ key: string, score: float, version: int, timestamp: int }] ! {IO, SharedIndex} {
-  let query_embedding = _ollama_embed("embeddinggemma", query) in _sharedindex_find_by_embedding(ns, query_embedding, top_k, 100, true)
+  let query_embedding = _ollama_embed("embeddinggemma", query) in
+  _sharedindex_find_by_embedding(ns, query_embedding, top_k, 100, true)
 }
 
 -- Main demonstration
@@ -70,6 +71,7 @@ func main() -> string ! {IO, SharedIndex} {
 func print_results(results: [{ key: string, score: float, version: int, timestamp: int }]) -> unit ! {IO} {
   match results {
     [] => _io_println("  (no results)"),
-    [first, ...rest] => let _ = _io_println("  " ++ first.key ++ " (score: " ++ floatToStr(first.score) ++ ")") in print_results(rest)
+    [first, ...rest] => let _ = _io_println("  " ++ first.key ++ " (score: " ++ floatToStr(first.score) ++ ")") in
+    print_results(rest)
   }
 }

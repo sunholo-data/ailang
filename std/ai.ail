@@ -143,7 +143,8 @@ export func callResult(input: string) -> Result[string, AIError] ! {AI} = _ai_ca
 
 -- callJsonResult: Result-returning variant of callJson.
 -- Same schema-enforced JSON output, but typed errors via Err(AIError).
-export func callJsonResult(input: string, schema: string) -> Result[string, AIError] ! {AI} = _ai_call_json_result(input, schema)
+export func callJsonResult(input: string, schema: string) -> Result[string, AIError] ! {AI} =
+  _ai_call_json_result(input, schema)
 
 -- callJsonSimpleResult: Result-returning variant of callJsonSimple.
 -- Same no-schema raw-JSON-string output, but typed errors via Err(AIError).
@@ -162,7 +163,8 @@ export func callJsonSimpleResult(input: string) -> Result[string, AIError] ! {AI
 -- appended as tool-role messages.
 --
 -- Pass model="" to use the handler-bound model.
-export func step(model: string, messages: [Message], tools: [ToolSchema]) -> Result[StepResult, AIError] ! {AI} = _ai_step(model, messages, tools)
+export func step(model: string, messages: [Message], tools: [ToolSchema]) -> Result[StepResult, AIError] ! {AI} =
+  _ai_step(model, messages, tools)
 
 -- stepWithCache: cache-aware variant of step (M-AI-PROMPT-CACHING, v0.18.4).
 --
@@ -179,7 +181,8 @@ export func step(model: string, messages: [Message], tools: [ToolSchema]) -> Res
 --   }
 --
 -- See CacheBreakpoint type for per-provider behavior.
-export func stepWithCache(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint]) -> Result[StepResult, AIError] ! {AI} = _ai_step_with_cache(model, messages, tools, cache_breakpoints)
+export func stepWithCache(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint]) -> Result[StepResult, AIError] ! {AI} =
+  _ai_step_with_cache(model, messages, tools, cache_breakpoints)
 
 -- ============================================================================
 -- Streaming variant (M-AI-STEP-STREAMING, v0.18.7)
@@ -270,7 +273,8 @@ export type StreamChunk = ContentDelta(string) | ThinkingDelta(string) | Usage({
 --
 -- For providers without native streaming, the callback fires exactly twice:
 -- once with ContentDelta(full_text) then once with Usage(...).
-export func stepWithStream(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint], on_chunk: StreamChunk -> () ! {IO}) -> Result[StepResult, AIError] ! {AI} = _ai_step_with_stream(model, messages, tools, cache_breakpoints, on_chunk)
+export func stepWithStream(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint], on_chunk: StreamChunk -> () ! {IO}) -> Result[StepResult, AIError] ! {AI} =
+  _ai_step_with_stream(model, messages, tools, cache_breakpoints, on_chunk)
 
 -- RecordedStream is what stepWithStreamRecorded returns: the exact ordered
 -- list of observed chunks plus the final typed outcome. `chunks` is populated
@@ -285,7 +289,8 @@ export type RecordedStream = { chunks: [StreamChunk], outcome: Result[StepResult
 -- rendering is unchanged. The returned `chunks` is an exact, non-duplicating
 -- record of the same sequence, which lets a caller record a live exchange and
 -- replay it deterministically without widening the callback's effect row.
-export func stepWithStreamRecorded(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint], on_chunk: StreamChunk -> () ! {IO}) -> RecordedStream ! {AI} = _ai_step_with_stream_recorded(model, messages, tools, cache_breakpoints, on_chunk)
+export func stepWithStreamRecorded(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint], on_chunk: StreamChunk -> () ! {IO}) -> RecordedStream ! {AI} =
+  _ai_step_with_stream_recorded(model, messages, tools, cache_breakpoints, on_chunk)
 
 -- runTools: convenience loop driver for multi-turn tool dispatch.
 --
@@ -360,7 +365,8 @@ export func callJsonSimple(input: string) -> string ! {AI} = _ai_call_json_simpl
 -- Options is a JSON string: {"aspect_ratio": "16:9", "mime_type": "image/png"}
 -- Returns the output path on success.
 -- Requires both AI and FS capabilities.
-export func callImage(prompt: string, output_path: string, options: string) -> string ! {AI, FS} = _ai_call_image(prompt, output_path, options)
+export func callImage(prompt: string, output_path: string, options: string) -> string ! {AI, FS} =
+  _ai_call_image(prompt, output_path, options)
 
 -- callImageBase64: Generate an image via AI and return as base64 JSON
 -- Returns a JSON string: {"base64": "...", "mime_type": "image/png"}

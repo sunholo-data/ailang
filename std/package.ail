@@ -27,4 +27,5 @@ import std/result (Result, Ok, Err)
 --     Ok(p)  => spawnNode(p),
 --     Err(e) => Delegate
 --   }
-export func assetPath(pkg_name: string, rel_path: string) -> Result[string, string] ! {FS} = _pkg_asset_path(pkg_name, rel_path)
+export func assetPath(pkg_name: string, rel_path: string) -> Result[string, string] ! {FS} =
+  _pkg_asset_path(pkg_name, rel_path)

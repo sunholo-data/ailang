@@ -38,14 +38,16 @@ export func readEntry(path: string, entry: string) -> Result[string, string] ! {
 -- Read a binary entry from a tar archive as a base64-encoded string.
 -- Mirrors std/zip.readEntryBytes — use std/bytes primitives to decode.
 -- @requires FS capability
-export func readEntryBytes(path: string, entry: string) -> Result[string, string] ! {FS} = _tar_readEntryBytes(path, entry)
+export func readEntryBytes(path: string, entry: string) -> Result[string, string] ! {FS} =
+  _tar_readEntryBytes(path, entry)
 
 -- Extract all entries from a tar archive into destDir.
 -- Returns the ordered list of written paths.
 -- Rejects tarbomb payloads (../ entries) and symlink escapes.
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
-export func extractAll(path: string, destDir: string) -> Result[[string], string] ! {FS} = _tar_extractAll(path, destDir)
+export func extractAll(path: string, destDir: string) -> Result[[string], string] ! {FS} =
+  _tar_extractAll(path, destDir)
 
 -- Read a single entry from a .tar.gz archive without writing a temp file.
 -- Returns the entry contents as a UTF-8 string.
@@ -55,4 +57,5 @@ export func readFromGzip(path: string, entry: string) -> Result[string, string] 
 
 -- Read a single binary entry from a .tar.gz archive, base64-encoded.
 -- @requires FS capability
-export func readFromGzipBytes(path: string, entry: string) -> Result[string, string] ! {FS} = _tar_readFromGzipBytes(path, entry)
+export func readFromGzipBytes(path: string, entry: string) -> Result[string, string] ! {FS} =
+  _tar_readFromGzipBytes(path, entry)

@@ -38,7 +38,9 @@ import std/io (println)
 --   )
 export func dispatchAllTools(tools: [string], dispatch: string -> () ! {e}) -> () ! {IO, e} = match tools {
   [] => (),
-  name :: rest => let _ = dispatch(name) in let _ = println("OK: tool ${name} dispatched without crash") in dispatchAllTools(rest, dispatch)
+  name :: rest => let _ = dispatch(name) in
+  let _ = println("OK: tool ${name} dispatched without crash") in
+  dispatchAllTools(rest, dispatch)
 }
 
 -- Single-tool variant for packages that want to opt-in / opt-out per tool.
@@ -48,7 +50,9 @@ export func dispatchAllTools(tools: [string], dispatch: string -> () ! {e}) -> (
 -- @example
 --   import std/smoke (dispatchTool)
 --   dispatchTool("Search", \name. exa_search.dispatch(ctx, name))
-export func dispatchTool(name: string, dispatch: string -> () ! {e}) -> () ! {IO, e} = let _ = dispatch(name) in println("OK: tool ${name} dispatched without crash")
+export func dispatchTool(name: string, dispatch: string -> () ! {e}) -> () ! {IO, e} =
+  let _ = dispatch(name) in
+  println("OK: tool ${name} dispatched without crash")
 
 -- Print the conventional OK marker that the parent Makefile :: verify-extensions
 -- greps for ("^OK:"). Use as the last line of a bespoke _smoke.ail when
