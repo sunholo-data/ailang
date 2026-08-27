@@ -19,6 +19,15 @@ import styles from './styles.module.css';
 // runtime-fetched latest.json), no build-time import, no cache-busting, folded
 // into the proven dashboard rather than a new standalone page.
 const MODEL_COLORS = ['#2563eb', '#16a34a', '#db2777', '#ea580c', '#7c3aed', '#0891b2', '#ca8a04', '#dc2626'];
+// Release order must come from the VERSION, not the timestamp: baselines get
+// re-banked and back-filled, so timestamps do not increase monotonically with
+// release (observed 2026-08-27 — the x-axis came out shuffled). Same helper
+// shape as OSReleaseTrend's semverKey.
+const MAX_LINES = 8;
+function semverKey(v) {
+  const p = String(v || '').replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);
+  return p[0] * 1e6 + (p[1] || 0) * 1e3 + (p[2] || 0);
+}
 
 export default function RatingTrend({ history }) {
   const [view, setView] = useState('direction');
@@ -36,17 +45,26 @@ export default function RatingTrend({ history }) {
         panel: h.ratings.panel_version,
         trials: h.ratings.trials,
       }))
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      .sort((a, b) => semverKey(a.version) - semverKey(b.version));
   }, [history]);
 
   const modelNames = useMemo(() => {
+    // Selection favours the CURRENT fleet. A pure "appears in >=50% of releases"
+    // rule silently excluded every model we actually run today (they only exist
+    // in the last few baselines) and drew a chart of retired models — reported
+    // 2026-08-27. Rule now: models from the most recent release first, then the
+    // best-covered historical models to fill the remaining slots.
+    if (points.length === 0) return [];
     const counts = {};
     points.forEach((p) => Object.keys(p.models).forEach((m) => { counts[m] = (counts[m] || 0) + 1; }));
-    // Only models present in a majority of points — a one-off model produces a
-    // single dot and reads as a broken line.
-    return Object.keys(counts)
-      .filter((m) => counts[m] >= Math.max(2, Math.ceil(points.length / 2)))
-      .sort();
+    const latest = points[points.length - 1];
+    const current = Object.keys(latest.models || {}).sort(
+      (a, b) => (latest.models[b] || 0) - (latest.models[a] || 0),
+    );
+    const historical = Object.keys(counts)
+      .filter((m) => !current.includes(m) && counts[m] >= 2)
+      .sort((a, b) => counts[b] - counts[a]);
+    return [...current, ...historical].slice(0, MAX_LINES);
   }, [points]);
 
   const chartData = useMemo(
@@ -73,9 +91,13 @@ export default function RatingTrend({ history }) {
 
   const latest = points[points.length - 1];
   const first = points[0];
-  const delta = latest.directionIndex && first.directionIndex
-    ? latest.directionIndex - first.directionIndex
-    : null;
+  // Points that actually carry a direction index. Historical releases carry the
+  // model half only (the index is a stamped release-time measurement and is
+  // never backfilled), so this is usually empty until the first linking run.
+  const dirPoints = points.filter((p) => p.directionIndex != null);
+  const firstDir = dirPoints[0];
+  const lastDir = dirPoints[dirPoints.length - 1];
+  const delta = dirPoints.length >= 2 ? lastDir.directionIndex - firstDir.directionIndex : null;
 
   return (
     <div className={styles.chartContainer}>
@@ -104,10 +126,19 @@ export default function RatingTrend({ history }) {
             constant. <strong>Lower is better</strong> — it means the same models find AILANG
             easier. Axis is inverted so improvement reads upward.
             {delta !== null && (
-              <> Since {first.version}: <strong>{delta < 0 ? '↓' : '↑'} {Math.abs(delta).toFixed(1)} ELO</strong>
+              <> Since {firstDir.version}: <strong>{delta < 0 ? '↓' : '↑'} {Math.abs(delta).toFixed(1)} ELO</strong>
                 {delta < 0 ? ' (easier — improving)' : ' (harder)'}.</>
             )}
           </p>
+          {dirPoints.length === 0 && (
+            <p className={styles.chartNote}>
+              <strong>No release has published a direction index yet</strong>, so there is nothing
+              to plot here. It is produced by the per-release linking run and is deliberately
+              never backfilled — inventing one for a past release would be fabrication. The
+              <em> Model capability</em> tab has data now.
+            </p>
+          )}
+          {dirPoints.length > 0 && (
           <ResponsiveContainer width="100%" height={320}>
             <LineChart data={chartData} margin={{ top: 8, right: 24, bottom: 8, left: 8 }}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -118,6 +149,7 @@ export default function RatingTrend({ history }) {
               <Line type="monotone" dataKey="directionIndex" name="Language-direction index" stroke="#16a34a" strokeWidth={2} connectNulls={false} />
             </LineChart>
           </ResponsiveContainer>
+          )}
         </>
       ) : (
         <>
