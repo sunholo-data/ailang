@@ -1,39 +1,35 @@
-# Mission Dashboard — V1
+# V1 Mission Dashboard — snapshot, OVERWRITTEN each iteration (history lives in the charter + log)
 
-*Snapshot, overwritten every iteration. History lives in `v1-mission.md` (STATUS) and `v1-mission-log.md`.*
+**As of:** 2026-08-27 · **iteration 289** · controller `opus`
 
-**Last iteration:** 288 · 2026-08-27 · controller `opus`
-
-## Release
-- **v0.34.0** shipped 2026-08-26. Next planned bucket: `v0_35_0`.
+## Latest
+- **Release:** v0.34.0 · `dev` HEAD `3ee848bb0`
+- **Just landed:** **M2 — continuation layout for long non-chain equation bodies** (PR #928).
+  Evaluator PASS 90/100, zero blocking. All 4 required contexts green before merge.
 
 ## In flight / next
-1. **`m-fmt-measurement-att-isolation-unpinned` + `m-fmt-measurementerr-propagation-no-killer` —
-   LANDED (PR #926), evaluator PASS 92/100 at round 2 after a round-1 FAIL.** Three unpinned hunks in
-   `internal/format` now pinned or explicitly declared. Production diff is **comments only**;
-   corpus-neutral (405 identical / 0 divergent / 45 fail-closed of 450, control fires at 21).
-2. **NEXT: `m-fmt-printer-line-width-limit` M2 (continuation layout) then M3 (corpus reformat).**
-   M3 first would bank lines M2 would have wrapped. Residual ~116 corpus lines >120 runes.
-   Both new tests carry re-check notes telling M2 to re-run the differential.
-3. **NEW `m-fmt-att-isolation-test-diagnostic-narrowing`** (round-1 judge, non-blocking N1) — the
-   isolation test loops a map with `t.Fatalf`, so a red run reports only the first fixture visited
-   (measured 19/20 vs 1/20 across 20 runs). Both fixtures independently kill the mutant; the gap is
-   diagnostic, not correctness. `t.Run` + anchored grep fixes it.
-4. **`m-feedback-dispatch-workspace-path`** — feedback still does not route (`chdir /workspace/...`).
+- **NEXT: M3 — the second corpus reformat**, the LAST milestone of
+  `design_docs/planned/v0_35_0/m-fmt-printer-line-width-limit.md`.
+  Needs iteration 282's evidence discipline in full: poisoned comment-count control that FIRES,
+  per-file `ailang check` rc joins, two-armed gates, the residual width table.
+  When it lands, the doc moves to `implemented/` **with its sprint plan**.
+- Ordering was load-bearing and is now discharged: M2 before M3, so M3 cannot bank lines M2 wraps.
 
 ## Loop cadence + routing
-- controller `opus` · designer rotation `claude-fable-5` -> `pi:ollama/kimi-k3:cloud` · planner lane
-  derived VERBATIM (`opus fail-closed:planner-lane-field-missing`) · executor `codex:gpt-5.6-sol`
-  · evaluator `sonnet`. generator≠judge held (OpenAI wrote, Anthropic judged).
-- **Fable diet UNSPENT** this iteration (no new design doc was needed). metered **$0.00** of $5.
+- controller `opus` · designer ROTATION (`claude:claude-fable-5` → `pi:ollama/kimi-k3:cloud`)
+  · planner `codex:gpt-5.6-sol` · executor `codex:gpt-5.6-sol` · evaluator `sonnet`
+- generator≠judge held this iteration (OpenAI wrote, Anthropic judged).
+- **Fable diet UNSPENT** for the 4th consecutive iteration — doc and plan both already existed.
 
 ## Parked on Mark
-- **`D-41`** (only OPEN ledger row) — may an ACTIVE prompt version be edited in place, or must a
-  content change bump the version? Bears on eval-baseline reproducibility.
-- **`D-42` (NEW)** — standing authorization to reconcile this checkout to `origin/dev` unattended?
-  Now has a **measured** cost, not a predicted one: motoko's driver-pin fix `ff0da7445` is not an
-  ancestor of local HEAD, so V1's driver kept running unpinned this fire.
+- **`D-41` (the only OPEN row of 41):** may an ACTIVE prompt version be edited in place, or must a
+  fix bump the version? Bears on eval-baseline reproducibility. Options (a) active-is-mutable,
+  (b) immutable-always, (c) mutable-until-first-banked-use.
 
-## Quota posture
-- Anthropic available (`MISSION_ANTHROPIC_AVAILABLE=1`); codex probe rc=0. SonarCloud standing red
-  (no token on this rig), non-required, inherited across ≥6 commits — named, not this iteration's pick.
+## Known reds / posture
+- **SonarCloud red, INHERITED ≥6 consecutive commits**, non-required (UNSTABLE ≠ BLOCKED). Named
+  each iteration, never the pick. No Sonar token on this rig.
+- **Driver ran UNPINNED for the 5th consecutive fire** (`MISSION_WORKDIR`/`AILANG_DRIVER_SRC` unset).
+- Local `dev` clone runs **6 behind origin**; reconcile obligations all measured as satisfiable,
+  but standing authorisation is a human call, so the loop routes around origin instead.
+- metered spend this iteration **$0.00** of $5.
