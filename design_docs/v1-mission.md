@@ -402,6 +402,24 @@ invokes.
 
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
+**[NEXT] [cross-mission, rule 2] [filed by attended session 2026-08-27, at Mark's request] ailang#885 — serveapi/protocol has no MCP dispatch**
+&mdash; **Cross-mission blocker, now labeled `cross-mission` (was unlabeled since filing 2026-08-25, which
+per rule 2's own measurement is why 8 of 10 prior asks like it never got picked).** Filed by the Ailang
+World mission with concrete demand evidence, same shape as `ailang#477`: World's zero-cloud dependency
+gate (`TestDaemonDependencyAllowlist`) measured that pulling `modelcontextprotocol/go-sdk/mcp` adds 34
+packages across 5 new module roots, 28 of them disallowed (an OAuth/credential stack that collides with
+clause 2's zero-cloud-core and clause 3's no-ambient-authority rules) &mdash; so World's `serveapi/protocol`
+consumer is stuck between reimplementing MCP JSON-RPC dispatch by hand (forbidden by the design freeze
+that #498/#764 exist to enforce) and breaching its own dependency guardrail. **The ask is narrowly scoped
+and has an existence proof already in this repo**: `serveapi/a2a_handler.go` already implements the A2A
+half of the same seam in 180 lines, stdlib + `serveapi/protocol` only, zero SDK imports (verified:
+`git show v0.33.2:serveapi/a2a_handler.go | grep -c modelcontextprotocol/go-sdk` &rarr; 0). `protocol`
+itself already carries the MCP envelope helpers (`WriteMCPEnvelope`, `RequestID`, `ValidateMCPName`,
+`AuthorizationStatus`) &mdash; only method dispatch is missing. This blocks World's approval-inbox chain
+(row 39 &rarr; row 40 &rarr; item 5 &rarr; clause 4), which is the dependency standing between World and
+actual human use of it &mdash; concretely why this is ranked here rather than left in the generic
+iter-285 orphan-sweep batch it was found in.
+
 **[NEXT — M3 ONLY] [iter-283, per `D-39`] [M0+M1+M1b LANDED iter-287 `0c7f58351`] [M2 LANDED iter-289 `3ee848bb0` PR #928] m-fmt-printer-no-line-width-limit**
 &mdash; **M2 IS DONE AND MERGED (iteration 289, `3ee848bb0`, PR #928).** `funcBody` (equation form) and
 `topLevelLet` (nil Body) now emit the EXISTING continuation layout &mdash; ` =` + hardline + body indented
