@@ -3,6 +3,7 @@ package pi
 import (
 	"bufio"
 	"context"
+	"errors"
 	"os"
 	osexec "os/exec"
 	"path/filepath"
@@ -38,17 +39,32 @@ func TestNewPiExecutor(t *testing.T) {
 	}
 }
 
-func TestNewPiExecutor_EmptyConfigUsesFallbacks(t *testing.T) {
-	cfg := &executor.Config{}
-	e, err := New(cfg)
+func TestNewPiExecutor_EmptyConfigFailsLoudly(t *testing.T) {
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)). This once asserted a fallback to
+	// "anthropic/claude-haiku-4-5" — the defect: an unpinned agent silently ran a model nobody chose,
+	// on a provider the fleet has migrated off.
+	//
+	// The check is at EXECUTION, not construction. The coordinator builds an
+	// executor before it knows the task and then supplies Task.Model per task
+	// (provider_executor.go), so failing at construction would break the normal
+	// path — which is exactly what a first cut of this milestone did.
+	e, err := New(&executor.Config{})
 	if err != nil {
-		t.Fatalf("New: %v", err)
+		t.Fatalf("construction must still succeed with no model: %v", err)
 	}
-	if e.piPath != "pi" {
-		t.Errorf("piPath fallback = %q, want \"pi\"", e.piPath)
+	_, err = e.Execute(context.Background(), &executor.Task{ID: "t", Directive: "hi"})
+	if err == nil {
+		t.Fatal("executing with no model anywhere must fail rather than pick one")
 	}
-	if e.model != "anthropic/claude-haiku-4-5" {
-		t.Errorf("model fallback = %q, want \"anthropic/claude-haiku-4-5\"", e.model)
+	var ume *executor.UnresolvedModelError
+	if !errors.As(err, &ume) {
+		t.Fatalf("want *executor.UnresolvedModelError, got %T: %v", err, err)
+	}
+	if ume.Executor != "pi" {
+		t.Errorf("Executor = %q, want %q", ume.Executor, "pi")
+	}
+	if !strings.Contains(err.Error(), "model") || !strings.Contains(err.Error(), "role") {
+		t.Errorf("error should name both remedies; got: %v", err)
 	}
 }
 
@@ -388,6 +404,7 @@ func TestExecuteStreaming_ToolUseFixture(t *testing.T) {
 	cfg := &executor.Config{
 		PiPath:         filepath.Join(dir, "pi"),
 		TimeoutSeconds: 10,
+		PiModel:        "anthropic/claude-haiku-4-5", // D2(a): model is required
 	}
 	e, _ := New(cfg)
 
@@ -460,6 +477,7 @@ func TestExecuteStreaming_NonJSONPreambleTolerated(t *testing.T) {
 	cfg := &executor.Config{
 		PiPath:         filepath.Join(dir, "pi"),
 		TimeoutSeconds: 10,
+		PiModel:        "anthropic/claude-haiku-4-5", // D2(a): model is required
 	}
 	e, _ := New(cfg)
 	task := &executor.Task{
@@ -480,6 +498,7 @@ func TestExecuteStreaming_BinaryNotFound(t *testing.T) {
 	cfg := &executor.Config{
 		PiPath:         "/nonexistent/pi-bin",
 		TimeoutSeconds: 5,
+		PiModel:        "anthropic/claude-haiku-4-5", // D2(a): model is required
 	}
 	e, _ := New(cfg)
 	task := &executor.Task{
@@ -494,7 +513,7 @@ func TestExecuteStreaming_BinaryNotFound(t *testing.T) {
 }
 
 func TestHealthCheck_MissingBinary(t *testing.T) {
-	cfg := &executor.Config{PiPath: "/nonexistent/pi-does-not-exist"}
+	cfg := &executor.Config{PiPath: "/nonexistent/pi-does-not-exist", PiModel: "anthropic/claude-haiku-4-5"} // D2(a): model required; this test is about the BINARY
 	e, _ := New(cfg)
 	if err := e.HealthCheck(context.Background()); err == nil {
 		t.Error("expected HealthCheck to fail for missing binary")
@@ -510,6 +529,7 @@ func TestHealthCheck_WithFakeBinary(t *testing.T) {
 	cfg := &executor.Config{
 		PiPath:         filepath.Join(dir, "pi"),
 		TimeoutSeconds: 5,
+		PiModel:        "anthropic/claude-haiku-4-5", // D2(a): model is required
 	}
 	e, _ := New(cfg)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -536,12 +556,17 @@ func TestInit_RegistersPi(t *testing.T) {
 		t.Fatalf("init() did not register 'pi'; factory.ListAvailable() = %v", available)
 	}
 
-	e, err := factory.GetExecutor("pi")
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)): the factory still BUILDS the
+	// executor with no model configured — construction is not where the check
+	// lives, because the coordinator builds an executor before it knows the
+	// task and supplies Task.Model per task. The fail-loud is at execution
+	// entry; see TestNew ...EmptyConfig/EmptyModel FailsLoudly in this package.
+	exec, err := factory.GetExecutor("pi")
 	if err != nil {
-		t.Fatalf("factory.GetExecutor(\"pi\") failed: %v", err)
+		t.Fatalf("factory.GetExecutor(%q) failed: %v", "pi", err)
 	}
-	if e.Name() != "pi" {
-		t.Errorf("built executor has wrong name: %q", e.Name())
+	if exec.Name() != "pi" {
+		t.Errorf("built executor has wrong name: %q", exec.Name())
 	}
 }
 
@@ -566,7 +591,7 @@ func TestLiveRun_Pi(t *testing.T) {
 		t.Skipf("pi binary not found on PATH: %v", err)
 	}
 
-	cfg := executor.DefaultConfig()
+	cfg := testConfig()
 	e, err := New(cfg)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)

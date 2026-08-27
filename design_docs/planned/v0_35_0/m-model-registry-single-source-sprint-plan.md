@@ -360,13 +360,39 @@ The guard test greps executor sources for hardcoded provider/model literals and 
 `factory.go`**. A guard scoped to the five subpackages is precisely the guard that would pass
 while the defect survives.
 
+**Status: COMPLETE 2026-08-27.**
+
 **Acceptance criteria**
-- All ten literals gone; `factory.go` no longer names a model
-- Guard test fails if any provider literal is reintroduced anywhere under `internal/executor/`,
-  including `factory.go` — verified by temporarily reintroducing one
-- ~10 `executor.DefaultConfig()` test call-sites rewritten to pin explicitly (per the testing
-  policy these are rewritten, not kept compatible)
-- An unpinned, unroled agent fails at construction with a message naming known roles
+- [x] All ten literals gone; `factory.go` no longer names a model
+- [x] Guard test fails if any provider literal is reintroduced anywhere under `internal/executor/`,
+      including `factory.go` — **verified twice** by temporarily reintroducing one, which the guard
+      caught at `factory.go:68` both times
+- [x] Test call-sites rewritten to pin explicitly (per the testing policy these are rewritten, not
+      kept compatible)
+- [x] An unpinned, unroled agent fails at construction with a typed `UnresolvedModelError` naming
+      the agent, the config field, and the known roles
+
+**A design error I made and corrected, worth recording:**
+
+My first cut put the fail-loud at **construction** — an executor built with no model returned an
+error. Every test went green and the guard passed. It was wrong, and the coordinator is what proved
+it: `NewExecutorProvider` ([provider_executor.go:32](../../../internal/coordinator/provider_executor.go#L32))
+builds an executor from the global factory **before it knows the task**, and the model arrives later
+as `Task.Model` (`daemon_tasks_exec_run.go:255`). Failing at construction therefore broke the normal
+production path — `TestExecutorRegistration_AutoDiscovery` failed for all five harnesses, which is
+the coordinator telling me the check was in the wrong place.
+
+The check now lives at **execution entry** (`requireModel`, called first in `Execute` and
+`ExecuteStreaming`), where both sources of a model are known. Construction stays permissive; nothing
+silently substitutes a model; and the coordinator path is unbroken. It also means M6 does **not**
+depend on M7 after all — the earlier note claiming they were coupled was an artefact of the wrong
+design, not a property of the problem.
+2. **Path defaults survive; model defaults do not.** Finding `motoko` or `codex` on PATH is a
+   lookup that decides nothing; choosing a model decides billing and availability. The tests that
+   asserted both kinds of default were split accordingly.
+
+`opencode_test.go` crossed the 800-line gate once explicit pins were added; a cohesive block (the
+streaming-parse cases) was extracted to `opencode_streaming_test.go` rather than shaving lines.
 
 **Files**: `internal/executor/factory.go`, `internal/executor/{opencode,pi,motoko,claude,codex}/`, tests
 

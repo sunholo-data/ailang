@@ -58,9 +58,11 @@ func New(cfg *executor.Config) (*PiExecutor, error) {
 	}
 
 	model := cfg.PiModel
-	if model == "" {
-		model = "anthropic/claude-haiku-4-5"
-	}
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)): NO DEFAULT. An empty model is
+	// permitted HERE because the coordinator constructs an executor before it
+	// knows the task, then supplies Task.Model per task. The fail-loud lives at
+	// the point of USE (getModel) rather than construction — checking here would
+	// reject the normal path where the model arrives with the task.
 
 	return &PiExecutor{
 		piPath:         piPath,
@@ -76,12 +78,18 @@ func (e *PiExecutor) Name() string {
 
 // Execute runs a task and returns the result.
 func (e *PiExecutor) Execute(ctx context.Context, task *executor.Task) (*executor.Result, error) {
+	if err := e.requireModel(task); err != nil {
+		return nil, err
+	}
 	return e.ExecuteStreaming(ctx, task, &executor.NoOpEventHandler{})
 }
 
 // ExecuteStreaming runs a task with real-time event callbacks, parsing the
 // pi NDJSON stream into normalized executor events.
 func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+	if err := e.requireModel(task); err != nil {
+		return nil, err
+	}
 	ctx, span := telemetry.StartSpan(ctx, piTracer, "pi.execute",
 		trace.WithAttributes(
 			attribute.String("executor.name", "pi"),
@@ -534,6 +542,21 @@ func (e *PiExecutor) getModel(task *executor.Task) string {
 		return task.Model
 	}
 	return e.model
+}
+
+// requireModel is the D2(a) fail-loud point (M-MODEL-REGISTRY-SINGLE-SOURCE M6).
+//
+// The check lives at the ENTRY to execution rather than at construction,
+// because the coordinator builds an executor before it knows the task and
+// then supplies Task.Model per task — rejecting an empty model at
+// construction would break the normal path. It lives here rather than inside
+// getModel to avoid threading an error through every call site of a helper
+// that runs after this guard has already passed.
+func (e *PiExecutor) requireModel(task *executor.Task) error {
+	if e.getModel(task) == "" {
+		return executor.ErrUnresolvedModel("pi", "PiModel")
+	}
+	return nil
 }
 
 // buildPiArgs assembles the pi CLI argument vector.

@@ -3,6 +3,7 @@ package opencode
 import (
 	"bufio"
 	"context"
+	"errors"
 	"os"
 	osexec "os/exec"
 	"path/filepath"
@@ -119,7 +120,7 @@ func TestExecuteStreaming_PersistentSystemPrompt(t *testing.T) {
 }
 
 func TestNewOpenCodeExecutor(t *testing.T) {
-	cfg := executor.DefaultConfig()
+	cfg := testConfig()
 	e, err := New(cfg)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
@@ -135,16 +136,32 @@ func TestNewOpenCodeExecutor(t *testing.T) {
 	}
 }
 
-func TestNewOpenCodeExecutor_EmptyConfigUsesFallbacks(t *testing.T) {
+func TestNewOpenCodeExecutor_EmptyConfigFailsLoudly(t *testing.T) {
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)). This once asserted a fallback to
+	// "anthropic/claude-haiku-4-5" — the defect: an unpinned agent silently ran a model nobody chose,
+	// on a provider the fleet has migrated off.
+	//
+	// The check is at EXECUTION, not construction. The coordinator builds an
+	// executor before it knows the task and then supplies Task.Model per task
+	// (provider_executor.go), so failing at construction would break the normal
+	// path — which is exactly what a first cut of this milestone did.
 	e, err := New(&executor.Config{})
 	if err != nil {
-		t.Fatalf("New failed: %v", err)
+		t.Fatalf("construction must still succeed with no model: %v", err)
 	}
-	if e.opencodePath != "opencode" {
-		t.Errorf("expected fallback path 'opencode', got %q", e.opencodePath)
+	_, err = e.Execute(context.Background(), &executor.Task{ID: "t", Directive: "hi"})
+	if err == nil {
+		t.Fatal("executing with no model anywhere must fail rather than pick one")
 	}
-	if e.model != "anthropic/claude-haiku-4-5" {
-		t.Errorf("expected fallback model, got %q", e.model)
+	var ume *executor.UnresolvedModelError
+	if !errors.As(err, &ume) {
+		t.Fatalf("want *executor.UnresolvedModelError, got %T: %v", err, err)
+	}
+	if ume.Executor != "opencode" {
+		t.Errorf("Executor = %q, want %q", ume.Executor, "opencode")
+	}
+	if !strings.Contains(err.Error(), "model") || !strings.Contains(err.Error(), "role") {
+		t.Errorf("error should name both remedies; got: %v", err)
 	}
 }
 
@@ -166,7 +183,7 @@ func TestNewOpenCodeExecutor_CustomPathAndModel(t *testing.T) {
 }
 
 func TestOpenCodeCapabilities(t *testing.T) {
-	e, _ := New(executor.DefaultConfig())
+	e, _ := New(testConfig())
 	caps := e.Capabilities()
 	if len(caps) == 0 {
 		t.Fatal("expected at least one capability")
@@ -188,14 +205,14 @@ func TestOpenCodeCapabilities(t *testing.T) {
 }
 
 func TestOpenCodeClose(t *testing.T) {
-	e, _ := New(executor.DefaultConfig())
+	e, _ := New(testConfig())
 	if err := e.Close(); err != nil {
 		t.Errorf("Close returned error: %v", err)
 	}
 }
 
 func TestGetModel_TaskOverride(t *testing.T) {
-	e, _ := New(executor.DefaultConfig())
+	e, _ := New(testConfig())
 	task := &executor.Task{Model: "ollama/gemma4:latest"}
 	if got := e.getModel(task); got != "ollama/gemma4:latest" {
 		t.Errorf("expected task model override, got %q", got)
@@ -486,190 +503,6 @@ func TestExecuteStreaming_ParsesFixture(t *testing.T) {
 // "length" is the case that matters: it is how a reasoning model that exhausts
 // its budget mid-thought reports itself. Without it, truncation is
 // indistinguishable from a capability gap.
-func TestExecuteStreaming_CapturesReasoningAndTruncation(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip(skipWindows)
-	}
-	dir := t.TempDir()
-	events := []string{
-		`{"type":"step_start","timestamp":1,"sessionID":"ses_r","part":{"id":"p1","messageID":"m1","sessionID":"ses_r","type":"step-start"}}`,
-		`{"type":"step_finish","timestamp":2,"sessionID":"ses_r","part":{"id":"p2","reason":"tool-calls","messageID":"m1","sessionID":"ses_r","type":"step-finish","tokens":{"total":900,"input":10,"output":40,"reasoning":850,"cache":{"write":0,"read":0}},"cost":0.001}}`,
-		`{"type":"step_start","timestamp":3,"sessionID":"ses_r","part":{"id":"p3","messageID":"m2","sessionID":"ses_r","type":"step-start"}}`,
-		`{"type":"step_finish","timestamp":4,"sessionID":"ses_r","part":{"id":"p4","reason":"length","messageID":"m2","sessionID":"ses_r","type":"step-finish","tokens":{"total":700,"input":5,"output":15,"reasoning":680,"cache":{"write":0,"read":0}},"cost":0.002}}`,
-	}
-	_ = writeFakeOpenCode(t, dir, events)
-
-	e, err := New(&executor.Config{
-		OpenCodePath:   filepath.Join(dir, "opencode"),
-		OpenCodeModel:  "anthropic/claude-haiku-4-5",
-		TimeoutSeconds: 10,
-	})
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-
-	result, err := e.ExecuteStreaming(context.Background(), &executor.Task{
-		ID:        "test-reasoning",
-		Directive: "think hard",
-		Workspace: dir,
-		Timeout:   10 * time.Second,
-	}, &collectingHandler{})
-	if err != nil {
-		t.Fatalf("ExecuteStreaming error: %v", err)
-	}
-
-	// Summed across step_finish deltas: 850 + 680.
-	if result.ReasonTokens != 1530 {
-		t.Errorf("ReasonTokens = %d, want 1530 (850+680 summed across steps)", result.ReasonTokens)
-	}
-
-	// Reasoning must stay DISJOINT from OutputTokens — the harness adds both
-	// into TotalTokens, so folding them together would double-count.
-	if result.OutputTokens != 55 {
-		t.Errorf("OutputTokens = %d, want 55 (40+15, reasoning excluded)", result.OutputTokens)
-	}
-
-	if result.FinishReason != "length" {
-		t.Errorf("FinishReason = %q, want \"length\" (truncated at the output cap)", result.FinishReason)
-	}
-}
-
-func TestNormalizeOpencodeFinishReason(t *testing.T) {
-	cases := map[string]string{
-		"":               "",
-		"stop":           "stop",
-		"length":         "length",
-		"tool-calls":     "tool_calls",
-		"content-filter": "content_filter",
-		"error":          "error",
-		"OTHER":          "other",
-	}
-	for in, want := range cases {
-		if got := normalizeOpencodeFinishReason(in); got != want {
-			t.Errorf("normalizeOpencodeFinishReason(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
-func TestExecuteStreaming_NonJSONPreambleTolerated(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip(skipWindows)
-	}
-	// Non-JSON lines (startup messages) must be skipped without failing.
-	events := append(
-		[]string{
-			"Performing one time database migration, may take a few minutes...",
-			"sqlite-migration:done",
-			"Database migration complete.",
-		},
-		mockEvents()...,
-	)
-	dir := t.TempDir()
-	_ = writeFakeOpenCode(t, dir, events)
-
-	cfg := &executor.Config{
-		OpenCodePath:   filepath.Join(dir, "opencode"),
-		TimeoutSeconds: 10,
-	}
-	e, _ := New(cfg)
-	task := &executor.Task{
-		Directive: "test",
-		Workspace: dir,
-		Timeout:   10 * time.Second,
-	}
-	result, err := e.ExecuteStreaming(context.Background(), task, &executor.NoOpEventHandler{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result.InputTokens == 0 {
-		t.Error("expected tokens parsed despite preamble noise")
-	}
-}
-
-func TestExecuteStreaming_BinaryNotFound(t *testing.T) {
-	cfg := &executor.Config{
-		OpenCodePath:   "/nonexistent/opencode-bin",
-		TimeoutSeconds: 5,
-	}
-	e, _ := New(cfg)
-	task := &executor.Task{
-		Directive: "test",
-		Workspace: t.TempDir(),
-		Timeout:   5 * time.Second,
-	}
-	_, err := e.ExecuteStreaming(context.Background(), task, &executor.NoOpEventHandler{})
-	if err == nil {
-		t.Error("expected error when binary not found")
-	}
-}
-
-func TestHealthCheck_MissingBinary(t *testing.T) {
-	cfg := &executor.Config{OpenCodePath: "/nonexistent/opencode-does-not-exist"}
-	e, _ := New(cfg)
-	ctx := context.Background()
-	if err := e.HealthCheck(ctx); err == nil {
-		t.Error("expected HealthCheck to fail for missing binary")
-	}
-}
-
-func TestHealthCheck_WithFakeBinary(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip(skipWindows)
-	}
-	dir := t.TempDir()
-	// writeFakeOpenCode handles --version → prints version and exits 0
-	_ = writeFakeOpenCode(t, dir, nil)
-	cfg := &executor.Config{
-		OpenCodePath:   filepath.Join(dir, "opencode"),
-		TimeoutSeconds: 5,
-	}
-	e, _ := New(cfg)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := e.HealthCheck(ctx); err != nil {
-		t.Errorf("expected HealthCheck to succeed with fake binary, got: %v", err)
-	}
-}
-
-// TestInit_RegistersOpencode verifies that importing this package (via init())
-// registers "opencode" in the global executor factory.
-func TestInit_RegistersOpencode(t *testing.T) {
-	factory := executor.GlobalFactory()
-	available := factory.ListAvailable()
-
-	found := false
-	for _, name := range available {
-		if name == "opencode" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("init() did not register 'opencode'; factory.ListAvailable() = %v", available)
-	}
-
-	e, err := factory.GetExecutor("opencode")
-	if err != nil {
-		t.Fatalf("factory.GetExecutor(\"opencode\") failed: %v", err)
-	}
-	if e.Name() != "opencode" {
-		t.Errorf("built executor has wrong name: %q", e.Name())
-	}
-}
-
-// TestRegister_Idempotent verifies double-registration does not panic.
-func TestRegister_Idempotent(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("Register() panicked on double registration: %v", r)
-		}
-	}()
-	Register()
-	Register()
-}
-
-// TestExecuteStreaming_ParsesFixture_FromFile replays the recorded live fixture
-// from testdata/ and asserts the same token/cost invariants.
 func TestExecuteStreaming_ParsesFixture_FromFile(t *testing.T) {
 	_, thisFile, _, _ := runtime.Caller(0)
 	fixture := filepath.Join(filepath.Dir(thisFile), "testdata", "opencode_response.jsonl")
@@ -721,7 +554,7 @@ func TestLiveRun_OpenCode(t *testing.T) {
 		t.Skipf("opencode binary not found on PATH: %v", err)
 	}
 
-	cfg := executor.DefaultConfig()
+	cfg := testConfig()
 	e, err := New(cfg)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)

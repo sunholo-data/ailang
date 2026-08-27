@@ -17,7 +17,7 @@ import (
 // the EXECUTOR_SHAPE.md §3 contract — without it the coordinator's
 // NewExecutorProvider("motoko") would fail to resolve.
 func TestRegistration_Motoko(t *testing.T) {
-	cfg := executor.DefaultConfig()
+	cfg := testConfig()
 	executor.SetGlobalFactory(executor.NewFactory(cfg))
 	Register()
 
@@ -36,7 +36,7 @@ func TestRegistration_Motoko(t *testing.T) {
 // TestRegister_Idempotent verifies Register() can be called multiple times
 // without panic (factory.Register overwrites cleanly).
 func TestRegister_Idempotent(t *testing.T) {
-	executor.SetGlobalFactory(executor.NewFactory(executor.DefaultConfig()))
+	executor.SetGlobalFactory(executor.NewFactory(testConfig()))
 	Register()
 	Register()
 	Register()
@@ -45,23 +45,25 @@ func TestRegister_Idempotent(t *testing.T) {
 
 // TestNew_DefaultsApply verifies New() applies default values when the Config
 // fields are empty strings (the EXECUTOR_SHAPE.md §2 contract for constructors).
-func TestNew_DefaultsApply(t *testing.T) {
-	exec, err := New(&executor.Config{
-		MotokoPath:    "",
-		MotokoModel:   "",
-		MotokoProfile: "",
-	})
+func TestNew_PathDefaultsApplyButModelDoesNot(t *testing.T) {
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)). Path and profile still default;
+	// the model does not. Finding the `motoko` binary on PATH is a lookup that
+	// decides nothing, while choosing a model decides billing and availability —
+	// motoko's default was openrouter/anthropic/claude-haiku-4-5, on the provider
+	// the fleet has migrated off.
+	exec, err := New(&executor.Config{MotokoPath: "", MotokoModel: "", MotokoProfile: ""})
 	if err != nil {
-		t.Fatalf("New() failed: %v", err)
+		t.Fatalf("construction must succeed with no model (the coordinator supplies it per task): %v", err)
 	}
 	if exec.motokoPath != "motoko" {
 		t.Errorf("motokoPath = %q, want \"motoko\"", exec.motokoPath)
 	}
-	if exec.model == "" {
-		t.Errorf("model is empty, want a default openrouter/* string")
+	if exec.model != "" {
+		t.Errorf("model = %q, want empty: no default may be substituted", exec.model)
 	}
-	if exec.profile != "dogfood" {
-		t.Errorf("profile = %q, want \"dogfood\"", exec.profile)
+	// And with no model anywhere, execution — not construction — is what fails.
+	if err := exec.requireModel(&executor.Task{ID: "t"}); err == nil {
+		t.Error("requireModel must fail when neither task nor executor names a model")
 	}
 }
 
@@ -90,7 +92,7 @@ func TestNew_ConfigOverrides(t *testing.T) {
 // actually supports (streaming via JSONL file growth, local workspace,
 // structured JSONL output).
 func TestCapabilities(t *testing.T) {
-	exec, _ := New(executor.DefaultConfig())
+	exec, _ := New(testConfig())
 	caps := exec.Capabilities()
 
 	want := map[executor.Capability]bool{
@@ -114,7 +116,9 @@ func TestCapabilities(t *testing.T) {
 // rule: an error value is reachable from every branch, so the observable must
 // be the path — plan §3.1, row T-B1).
 func TestHealthCheck_BinaryMissing(t *testing.T) {
-	exec, _ := New(&executor.Config{MotokoPath: "/definitely/not/a/real/binary/motoko-xyz"})
+	exec, _ := New(&executor.Config{MotokoPath: "/definitely/not/a/real/binary/motoko-xyz",
+		MotokoModel: "openrouter/anthropic/claude-haiku-4-5", // D2(a): model is required
+	})
 	err := exec.HealthCheck(context.Background())
 	if err == nil {
 		t.Fatal("HealthCheck succeeded for missing binary; expected error")
@@ -134,7 +138,9 @@ func TestHealthCheck_PathIsDirectory(t *testing.T) {
 	if err := os.MkdirAll(dirPath, 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	exec, _ := New(&executor.Config{MotokoPath: dirPath})
+	exec, _ := New(&executor.Config{MotokoPath: dirPath,
+		MotokoModel: "openrouter/anthropic/claude-haiku-4-5", // D2(a): model is required
+	})
 	err := exec.HealthCheck(context.Background())
 	if err == nil {
 		t.Fatal("HealthCheck succeeded against a directory; expected error")
@@ -162,7 +168,9 @@ func TestHealthCheck_NotExecutable(t *testing.T) {
 	if err := os.WriteFile(mockPath, []byte("#!/bin/bash\nnot a real binary\n"), 0o644); err != nil {
 		t.Fatalf("write non-executable file: %v", err)
 	}
-	exec, _ := New(&executor.Config{MotokoPath: mockPath})
+	exec, _ := New(&executor.Config{MotokoPath: mockPath,
+		MotokoModel: "openrouter/anthropic/claude-haiku-4-5", // D2(a): model is required
+	})
 	err := exec.HealthCheck(context.Background())
 	if err == nil {
 		t.Fatal("HealthCheck succeeded for a non-executable file; expected error")
@@ -203,7 +211,9 @@ func TestHealthCheck_MockBinary_VersionQueryAndNoKeyRefusal(t *testing.T) {
 		t.Fatalf("failed to write mock binary: %v", err)
 	}
 
-	exec, _ := New(&executor.Config{MotokoPath: mockPath})
+	exec, _ := New(&executor.Config{MotokoPath: mockPath,
+		MotokoModel: "openrouter/anthropic/claude-haiku-4-5", // D2(a): model is required
+	})
 	if err := exec.HealthCheck(context.Background()); err != nil {
 		t.Errorf("HealthCheck failed with key unset (was nil refusal): %v", err)
 	}
@@ -215,7 +225,7 @@ func TestHealthCheck_MockBinary_VersionQueryAndNoKeyRefusal(t *testing.T) {
 
 // TestClose verifies Close is a no-op (no resources to release).
 func TestClose(t *testing.T) {
-	exec, _ := New(executor.DefaultConfig())
+	exec, _ := New(testConfig())
 	if err := exec.Close(); err != nil {
 		t.Errorf("Close() returned error: %v", err)
 	}
