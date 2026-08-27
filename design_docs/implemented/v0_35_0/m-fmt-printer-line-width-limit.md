@@ -622,12 +622,12 @@ before being applied to the residual.
 | LET_CHAIN_2PLUS | 20 | **0** |
 | IMPORT | 10 | 10 |
 | STRING_DOM | 10 | 10 |
-| RECORD_LIST | 10 | 10 |
-| OTHER | 9 | 12 |
-| TYPE_DECL | 8 | 6 |
-| MATCH_ARM | 6 | 5 |
-| IF_CHAIN | 5 | 5 |
-| COMMENT | 4 | 2 |
+| RECORD_LIST | 9 | 10 |
+| OTHER | 8 | 12 |
+| TYPE_DECL | 6 | 6 |
+| MATCH_ARM | 5 | 5 |
+| IF_CHAIN | 4 | 5 |
+| COMMENT | 2 | 2 |
 | **Total** | **159** | **100** |
 
 Reading for the follow-on: `LET_CHAIN_2PLUS` is **fully closed** (20 → 0) — that is M1
@@ -694,8 +694,8 @@ unchanged. `internal/format/` untouched by this milestone (0 files, control 1).
 
 ### AC10 teaching surface — MET
 
-8 `in let ` occurrences across `prompts/` (v0.12.1 and v0.16.0–v0.16.6), **each 112 runes**,
-**0** exceeding 120, so **0 prompt files changed**. Recording the 8 is what distinguishes
+8 `in let ` occurrences across `prompts/` (v0.12.1 and v0.16.0–v0.16.6), **each 112 BYTES / 110 runes**,
+**0** exceeding 120 on either instrument, so **0 prompt files changed**. Recording the 8 is what distinguishes
 "checked and clear" from "the grep pattern was wrong".
 
 ### Gates — all rc=0, base and after, re-run by the controller OUTSIDE the sandbox
@@ -712,3 +712,53 @@ unchanged. `internal/format/` untouched by this milestone (0 files, control 1).
 `go build ./...` is **excluded by design**: it is rc=1 on pristine `dev` (`cmd/wasm` has no
 native `main`), so it can neither pass nor attribute. Platform: **darwin/arm64**; the ubuntu
 and windows legs were not run locally and are covered by CI.
+
+### Independent evaluation (iteration 290, `sonnet`, own worktree)
+
+**PASS 94/100, zero blocking.** Generator ≠ judge held on both axes: OpenAI wrote the
+milestone, Anthropic judged it, and both are distinct from the `opus` controller. The judge
+re-derived every named target with instruments it wrote itself rather than reusing the
+executor's — its own comment-counting state machine, its own residual classifier, its own
+rune counter — and all six named targets held, including a novel check neither the executor
+nor the controller ran: **stripping all whitespace from the before/after content of all 50
+changed files and diffing gives 0 mismatches**, which proves the diff is a pure layout
+transformation with zero token-level change. That is a strictly stronger statement than
+AC6's rc-preservation.
+
+**Two non-blocking findings, both against this document, both reproduced first-party by the
+controller and both FIXED above:**
+
+1. **The AC8 *Base* column was arithmetically wrong.** As first written it read
+   `62,23,20,10,10,10,9,8,6,5,4` — sum **167**, against a stated total of 159 — because the
+   controller transcribed V11's ordered list into a labelled table and mis-aligned the tail
+   by one position. V11 (Verification Log, above) is authoritative:
+   `RECORD_LIST 9 / OTHER 8 / TYPE_DECL 6 / MATCH_ARM 5 / IF_CHAIN 4 / COMMENT 2`. Corrected,
+   and the sums are now re-derived **from the file** rather than restated: Base 159,
+   Residual 100. This is the transcribed-value defect the mission skill already names —
+   a quantity copied out of prose is a claim about that prose, not a measurement.
+
+2. **AC10's "112 runes" was 112 BYTES; the true rune count is 110.** The width came from
+   `awk '{print length($0)}'`, i.e. the *same* BSD-awk byte/rune defect the controller had
+   diagnosed and corrected for AC3 in this very document — and did not apply to the
+   neighbouring criterion. The line carries one em dash (3 bytes, 1 rune), so the delta is
+   exactly 2. AC10's verdict is unchanged (110 and 112 are both far below 120), but the
+   label was wrong in an audited artifact. *Guard the helper, miss the call site*, inside the
+   audit that found the helper.
+
+**And one finding that is not a defect but is the most useful thing here — it is now
+measured rather than assumed. All 50 corpus rewrites are pinned by NOTHING.** The judge
+reverted `examples/ai_modes.ail` and `std/crypto.ail` to their base spellings (sha-confirmed
+mutants) and re-ran every gate — `go test ./internal/format/...`, `verify-examples`,
+`verify-stdlib`, `test-stdlib-ail` — and **all stayed rc=0**. The reason is structural:
+`TestCorpusCommentFreeRoundTrips` asserts `Format(Format(x)) == Format(x)` and AST
+round-trip; it never asserts `data == Format(data)`, so it cannot see a non-canonical
+spelling. This is **by design** — AC9 and `D-39` sequence the fmt gate freeze explicitly
+*behind* this work — but it means the corpus's new canonical form is **evidence-gated, not
+CI-gated**, and any hand edit or concurrent agent can silently de-canonicalise it with every
+gate staying green. That is the concrete argument for the gate-freeze follow-on, and it is
+now a measurement rather than a plan.
+
+Also noted, and out of scope for M3: the sprint plan's AC9 baseline hash prefix
+(`8e805c026…`) does not match `internal/cihygiene/gate_wiring_test.go`'s actual hash
+(`045b0336…`, identical on base and after). A stale planning-time snapshot; the comparison
+AC9 actually needs — base versus after — holds.
