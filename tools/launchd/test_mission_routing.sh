@@ -48,6 +48,36 @@ want "pi planner pin reaches its lane, not a silent opus" "$out" "pi:ollama/kimi
 # ...but the allowlist must still bind it exactly as it binds codex.
 out=$(MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/a-unlisted-language-path.md")
 want "pi planner still fails closed outside the allowlist" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+
+# --- PER-MISSION ALLOWLIST (M-DOCS-MISSION, 2026-08-28) --------------------------
+# The allowlist is infra-only by default, which SILENTLY defeats any mission whose
+# subject matter is docs/: the cheap planner pin reads as configured in the driver
+# log while opus actually runs, every iteration. Four assertions, because the risk
+# is symmetric — widening must work, and it must not become a hole.
+DOCS_AL='tools/launchd/*|.claude/skills/mission-control/SKILL.md|.claude/skills/design-doc-creator/*|docs/*|examples/*|README.md|CHANGELOG.md'
+
+# 1. DEFAULT allowlist still denies docs paths => v1/world/motoko are unaffected.
+out=$(MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/o-docs-mission-paths.md")
+want "docs paths fail closed under the DEFAULT allowlist" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+
+# 2. WIDENED allowlist reaches the pinned cheap lane (the whole point).
+out=$(MISSION_PLANNER_ALLOWLIST="$DOCS_AL" MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/o-docs-mission-paths.md")
+want "docs paths reach the cheap lane under a widened allowlist" "$out" "pi:ollama/kimi-k3:cloud declared:codex-ok"
+
+# 3. Widening for docs must NOT admit compiler paths — still an allowlist, not an off switch.
+out=$(MISSION_PLANNER_ALLOWLIST="$DOCS_AL" MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/a-unlisted-language-path.md")
+want "widened allowlist still denies compiler paths" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+
+# 4. `docs/../internal/...` must not ride a `docs/*` prefix out of the sandbox.
+out=$(MISSION_PLANNER_ALLOWLIST="$DOCS_AL" MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/p-docs-traversal-escape.md")
+want "traversal cannot escape an allowlisted prefix" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+
+# 5. `set -f` in the matcher is load-bearing: this script runs with cwd = the repo,
+# so an unquoted `tools/launchd/*` in the matcher loop would PATHNAME-EXPAND into the
+# real file list and then match none of the DECLARED paths. Asserted behaviourally,
+# from the repo root, using the default allowlist's own literal prefix.
+out=$(cd "$ROOT" && MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
+want "allowlist globs are patterns, not repo-cwd pathname expansions" "$out" "pi:ollama/kimi-k3:cloud declared:codex-ok"
 # The `:floor` guard, generalised. It previously pinned the OpenRouter route, which
 # broke when the fallback moved to the flat-rate ollama route (same deepseek-v4-flash
 # weights). The route is now asserted above; what must survive ANY route change is

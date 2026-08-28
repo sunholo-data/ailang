@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  dev.ailang.mission-docs.plist — the AILANG website upkeep loop (4th mission).
+
+  Fires every 6h and runs ONE mission-control iteration against
+  design_docs/docs-mission.md: pick the top queue item, route it through
+  design-doc -> sprint-plan -> execute -> evaluate, record, retro.
+
+  LOW STAKES BY CONSTRUCTION. Every primary lane is flat-rate Ollama Cloud or a
+  subscription bucket (see ~/.config/ailang/mission-docs.env); the blast radius is
+  docs/, examples/ and the two root markdown files, enforced at the planner gate by
+  MISSION_PLANNER_ALLOWLIST. No GPU work, so it takes NO rig.lock.
+
+  Installation (one-time, deliberate — this arms an autonomous loop).
+  SET THE KILL SWITCH FIRST: RunAtLoad=true means `bootstrap` fires immediately,
+  and an unratified charter must never spend tokens unattended.
+    touch ~/.ailang/state/mission-docs.disabled
+    cp tools/launchd/dev.ailang.mission-docs.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$UID ~/Library/LaunchAgents/dev.ailang.mission-docs.plist
+  The switch comes off deliberately, after iteration 0 ratifies the charter.
+
+  Dry-run the wiring (no tokens spent):
+    MISSION_PROFILE=docs MISSION_DRY_RUN=1 bash tools/launchd/mission-control.sh
+
+  Kick one iteration manually:
+    launchctl kickstart gui/$UID/dev.ailang.mission-docs
+
+  Kill switch (survives reboots, no unload needed):
+    touch ~/.ailang/state/mission-docs.disabled
+
+  Logs: /tmp/ailang-mission-docs.log
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.ailang.mission-docs</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/voightkampff/dev/sunholo-data/ailang-docs/tools/launchd/mission-control.sh</string>
+    </array>
+
+    <!-- PATH IS LOAD-BEARING (World iteration 23). The shared driver only PREPENDS
+         go/bin and .local/bin; a plist with no PATH leaves the job homebrew-less, so
+         codex/gh/go/node all resolve rc=127, every model pre-flight false-negatives,
+         and every role degrades to opus — silently, and reading exactly like a quota
+         outage. The World mission mis-attributed this for five iterations. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>MISSION_PROFILE</key>
+        <string>docs</string>
+        <key>PATH</key>
+        <string>/Users/voightkampff/go/bin:/Users/voightkampff/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>/Users/voightkampff</string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/voightkampff/dev/sunholo-data/ailang-docs</string>
+
+    <!-- 6h (Mark, 2026-08-28). Website drift is slow, and every primary lane is
+         flat-rate, so this contends with v1 (5400s), world (14400s) and motoko
+         (46800s) for almost nothing. StartInterval counts from LOAD, so the phase
+         offset is set by WHEN you bootstrap it — bootstrap it off the hour to keep
+         it clear of the other three. -->
+    <key>StartInterval</key>
+    <integer>21600</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/ailang-mission-docs.stdout</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/ailang-mission-docs.stderr</string>
+
+    <!-- RunAtLoad=true: fire once at every login/boot so a reboot can never silently
+         kill the cadence (the 2026-07-20 18h-outage lesson). Not a daemon: no KeepAlive. -->
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>

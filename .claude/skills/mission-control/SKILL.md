@@ -150,11 +150,22 @@ Gates 1–3b run its commands instead of `make` literals:
 |---|---|---|---|---|
 | `go-compiler` | `make quick-install && make build` (BOTH binaries) | `make test` | `~/go/bin/ailang` (PATH) + `bin/ailang` go stale independently — confirm `--version` == `git describe` before trusting output | **V1** (this repo compiles the toolchain) |
 | `ailang-code` | `ailang install` (binary ships prebuilt — nothing to compile) | `ailang check` (types) · `ailang test` (tests) · `ailang ai-check` (unified check+verify) | binary is a released artifact, pinned in the mission's lockfile — no `-dirty` staleness class | **Ailang World** (an AILANG-code repo) |
+| `docs-site` | nothing to rebuild — the site is the artifact | `make docs-build` (Docusaurus production build; the deploy workflow runs the same thing, so a green local build is the cheap pre-image of Gate 3b) · `make verify-examples` · `ailang check <file>` for any `.ail` touched | no dual-binary class — but the binary running `verify-examples` **can** be stale, so confirm `ailang --version` before quoting its output | **Docs** (the website upkeep loop) |
 
 Under `ailang-code`, verification IS the binary's own gates: `ailang check` (types), `ailang test`
 (tests), and `ailang ai-check` — the UNIFIED check+verify (types + Z3 in one JSON; do **not**
 reinvent a split gate). Gate 2's Go-only steps (`make quick-install`, `bin/ailang` staleness,
 `t.Skip` un-skip) apply to `go-compiler` **only**; under `ailang-code` the shipped binary is the gate.
+
+Under `docs-site` there is no compile step and no dual-binary staleness class, so the `go-compiler`
+rules about `~/go/bin/ailang` and `bin/ailang` drifting apart do not apply. Two things replace them.
+**(a)** The gate is the *site build*, and it is path-filtered in CI (`docs/**`, `prompts/**`,
+`llms.txt`, `CHANGELOG.md`) while `CI` itself has no push paths filter — so a docs-only commit still
+runs full CI, and Gate 3b must wait for it rather than reading a path-filtered skip as "not
+applicable". **(b)** The staleness class moves rather than vanishing: `make verify-examples` is only
+as current as the `ailang` binary running it, which is exactly the trap `go-compiler` warns about,
+wearing different clothes.
+
 
 Everything else in this skill is already repo-agnostic and ports UNCHANGED: the directive-author
 allowlist (`MarkEdmondson1234`), quorum-at-pick, the billing tripwire, the pidfile/overlap guard,
