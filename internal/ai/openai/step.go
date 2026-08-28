@@ -297,7 +297,11 @@ type ChatStepResponse struct {
 	Object  string           `json:"object"`
 	Model   string           `json:"model"`
 	Choices []ChatStepChoice `json:"choices"`
-	Usage   ChatStepUsage    `json:"usage"`
+	// Usage is a pointer so an omitted usage key (nil) remains distinguishable
+	// from a present but all-zero usage block. A value field made that distinction
+	// inexpressible; deciding policy from it is deliberately future work tracked
+	// by row 6h step 2 and issue #842.
+	Usage *ChatStepUsage `json:"usage"`
 }
 
 // ChatStepChoice is one completion choice. Message.Content is RawMessage so
@@ -624,16 +628,20 @@ func ParseChatStepResponse(body []byte, requestedModel string) (*ai.Response, *a
 		model = requestedModel
 	}
 
+	usage := ChatStepUsage{}
+	if raw.Usage != nil {
+		usage = *raw.Usage
+	}
 	cacheRead := 0
-	if raw.Usage.PromptTokensDetails != nil {
-		cacheRead = raw.Usage.PromptTokensDetails.CachedTokens
+	if usage.PromptTokensDetails != nil {
+		cacheRead = usage.PromptTokensDetails.CachedTokens
 	}
 	return &ai.Response{
 		Text:                 text,
 		Reasoning:            reasoning,
-		InputTokens:          raw.Usage.PromptTokens,
-		OutputTokens:         raw.Usage.CompletionTokens,
-		TotalTokens:          raw.Usage.TotalTokens,
+		InputTokens:          usage.PromptTokens,
+		OutputTokens:         usage.CompletionTokens,
+		TotalTokens:          usage.TotalTokens,
 		CacheReadInputTokens: cacheRead,
 		Model:                model,
 		ToolCalls:            toolCalls,
