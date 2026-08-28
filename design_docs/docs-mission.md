@@ -16,8 +16,9 @@ most of clauses 1-3 and must be USED, not reimplemented (Critical Principle 1).
 guard. Staggered against v1 (5400s), world (14400s) and motoko (46800s) — `StartInterval` counts
 from load, so the phase offset is set by when the job is bootstrapped.
 **Log**: [docs-mission-log.md](docs-mission-log.md) — append-only, one entry per iteration.
-**Human-facing reporting**: GitHub issue #**TBD** — created at arming time, seeded into
-`~/.ailang/state/mission-docs-gh-issue`. Every iteration posts its report there; driver crashes too.
+**Human-facing reporting**: GitHub issue [#953](https://github.com/sunholo-data/ailang/issues/953)
+(created 2026-08-28; seeded into `~/.ailang/state/mission-docs-gh-issue`; rotates weekly). Every
+iteration posts its report there; driver crashes too.
 
 ## Repo Profile (M-MISSION-PORTABILITY M2 — the per-mission values mission-control reads)
 
@@ -28,7 +29,7 @@ from load, so the phase offset is set by when the job is bootstrapped.
 - **Checkout**: `/Users/voightkampff/dev/sunholo-data/ailang-docs` — **its own clone of this repo**.
   The V1 loop mutates this same repo every 90 minutes from a different tree; two loops in one
   working tree is precisely the concurrent-agent hazard. Separate clone = the motoko precedent.
-- **Bookkeeping issue**: `#TBD`, rotates weekly; live number in `~/.ailang/state/mission-docs-gh-issue`
+- **Bookkeeping issue**: `#953`, rotates weekly; live number in `~/.ailang/state/mission-docs-gh-issue`
 - **CI workflows Gate 3b / Gate 1 poll**: `Deploy Documentation to GitHub Pages` (the docs gate,
   path-filtered on `docs/**`, `prompts/**`, `llms.txt`, `CHANGELOG.md`), and `CI` (which runs on
   every push — this repo has no push paths filter, so a docs-only commit still runs full CI and
@@ -56,17 +57,36 @@ model budget; the append-only history lives in the log + archive.
 ## STATUS 2026-08-28 — ITERATION 0 PENDING: charter written, **not yet ratified**, loop armed-but-silent
 
 Charter drafted attended with Mark 2026-08-28. Bar clauses 1-7 are Mark's own selection and must
-still be **ratified through the design quorum at iteration 0** before any sprint routes. The kill
-switch `~/.ailang/state/mission-docs.disabled` is set; every fire exits at Gate 0 until it is
-removed deliberately.
+still be **ratified through the design quorum at iteration 0** before any sprint routes.
 
-One infrastructure defect was found and fixed *before* the loop existed, because it would have
-silently inverted the mission's entire purpose: `derive-planner-lane.sh` fails closed to **opus**
-for any path outside an infra-only allowlist, so every docs design doc would have routed the
-planner to the most expensive model in the fleet while the driver log reported the cheap pin.
-Measured with a discriminating control; fixed as per-mission data (`MISSION_PLANNER_ALLOWLIST`,
-default unchanged); five regression assertions added to `tools/launchd/test_mission_routing.sh`
-(25/25 green).
+**ARMED-BUT-SILENT as of 2026-08-28 07:59.** `dev.ailang.mission-docs` is installed and
+bootstrapped; the kill switch `~/.ailang/state/mission-docs.disabled` is set, so every fire exits at
+Gate 0 until it is removed deliberately. The whole chain is proven live at **zero token cost**:
+launchd fired the job, the plist's `MISSION_PROFILE=docs` resolved, the source clone was correctly
+`ailang-docs` (so `WorkingDirectory` took effect), the driver pin advanced to latest `origin/dev` at
+0 behind, the kill switch caught it, exit 0. **Iteration 0 is charter ratification, run ATTENDED** —
+it is not a sprint.
+
+**Two infrastructure defects were found and fixed *before* the loop ever ran**, both in
+`derive-planner-lane.sh`, and both of the same shape: a cheap pin that reads as configured in the
+driver log while an expensive model actually runs.
+
+1. **Fail-closed to opus on every docs item.** The path allowlist was infra-only, so every docs
+   design doc emitted `opus fail-closed:path-not-in-codex-allowlist` — routing the planner to the
+   most expensive model in the fleet, on the mission built to avoid it. Fixed as per-mission data
+   (`MISSION_PLANNER_ALLOWLIST`; default unchanged, so v1/world/motoko are byte-for-byte
+   unaffected).
+2. **The emitted lane dropped its model.** Step 5 emitted a hardcoded bare `codex` for any `codex:*`
+   pin. Invisible on V1 by coincidence — its pin is `gpt-5.6-sol` and the consumer default is also
+   sol, so the dropped value equalled the fallback. Not invisible here: this mission pins
+   `gpt-5.6-luna` ($0.20/$1.20 per M) and would have planned on `gpt-5.6-sol` ($2/$10) every
+   iteration. Found end-to-end, by routing a real docs doc through the *pinned* driver with the live
+   mission env — not by reading the script.
+
+Both measured with discriminating controls. `tools/launchd/test_mission_routing.sh` is at **34/34**,
+with 9 new assertions covering both directions of each risk (widening must work and must not become
+a hole; the lane must keep its model, asserted with two different codex models so a re-hardcoded
+literal cannot satisfy both).
 
 ## CURRENT GOAL
 
