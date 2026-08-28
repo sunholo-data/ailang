@@ -141,6 +141,9 @@ jobs:
     - name: Verify install guide consistency
       run: make verify-install-guide
 
+    - name: Verify embedded pi assets are in sync
+      run: make verify-pi-assets
+
     - name: Verify MCP tools
       run: make verify-mcp-tools
 
