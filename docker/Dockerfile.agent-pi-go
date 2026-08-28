@@ -1,0 +1,14 @@
+# AILANG Agent Executor — pi-go variant (pi coding agent + Go toolchain)
+#
+# M-EXECUTOR-VARIANTS. Added 2026-08-28 because pi became the fleet default
+# (opencode is our worst-measured harness) but every Go-capable image was built
+# on a different harness — agent-go (claude), agent-codex-go, agent-gemini-go,
+# agent-eval-go. sprint-executor needs the Go toolchain, so without this it was
+# the one agent that could not follow the fleet onto pi.
+ARG PROJECT
+FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-pi:latest
+
+# Go toolchain — matches go.mod version in the ailang repo
+COPY --from=golang:1.26-bookworm /usr/local/go /usr/local/go
+ENV PATH="/usr/local/go/bin:${PATH}"
+ENV GOPATH="/home/ailang/go"
