@@ -3,10 +3,33 @@ package gitexec
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
+
+// fakeGit creates a real, executable-looking git at a temp path and returns it.
+//
+// The name is platform-dependent on purpose. On Windows os/exec resolves an
+// absolute path through lookExtensions, which consults PATHEXT and REFUSES a
+// suffix-less file at exec.Command time — so a bare "git" makes Cmd.Err
+// "executable file not found in %PATH%" and any later assertion about WHY the
+// command failed is testing the fixture instead of the code. The file must also
+// actually exist for the same reason.
+func fakeGit(t *testing.T) string {
+	t.Helper()
+	name := "git"
+	if runtime.GOOS == "windows" {
+		name = "git.exe"
+	}
+	p := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(p, nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
 
 func resetForTest(t *testing.T, look func() (string, error)) {
 	t.Helper()
@@ -47,7 +70,7 @@ func TestCommand_DeferredError(t *testing.T) {
 }
 
 func TestCommand_UsesAbsolutePath(t *testing.T) {
-	p := filepath.Join(t.TempDir(), "git")
+	p := fakeGit(t)
 	cmd := commandWith(context.Background(), func() (string, error) { return p, nil }, "status")
 	if cmd.Path != p || cmd.Args[0] != p {
 		t.Fatalf("Path/Args = %q/%q, want %q", cmd.Path, cmd.Args[0], p)
