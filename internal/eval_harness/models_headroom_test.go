@@ -25,7 +25,7 @@ var validThinkingStates = map[string]bool{
 // here: a wrong label silently corrupts an efficiency comparison, whereas
 // "unknown" correctly withholds the row from one.
 func TestModels_DefaultThinkingIsExplicit(t *testing.T) {
-	c, err := LoadModelsConfig("models.yml")
+	c, err := LoadModelsConfig("../modelreg/models.yml")
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		"pi-or-deepseek-v4-flash": 32000,
 	}
 
-	c, err := LoadModelsConfig("models.yml")
+	c, err := LoadModelsConfig("../modelreg/models.yml")
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}

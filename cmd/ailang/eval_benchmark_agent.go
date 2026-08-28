@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"path/filepath"
 	"strings"
@@ -66,7 +67,7 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 	if modelName == "" {
 		// Look up executor and model from models.yml
 		var err error
-		executorName, modelName, err = eval_harness.GlobalModelsConfig.GetExecutorForModel(model)
+		executorName, modelName, err = modelreg.GlobalModelsConfig.GetExecutorForModel(model)
 		if err != nil {
 			return false, fmt.Errorf("could not determine executor for model %q in agent mode: %w\n"+
 				"Ensure model has agent_cli and agent_model_name configured in models.yml", model, err)
@@ -75,7 +76,7 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 	} else {
 		// Model name overridden via --agent-model; still need executor name for routing
 		var err error
-		executorName, _, err = eval_harness.GlobalModelsConfig.GetExecutorForModel(model)
+		executorName, _, err = modelreg.GlobalModelsConfig.GetExecutorForModel(model)
 		if err != nil {
 			return false, fmt.Errorf("could not determine executor for model %q in agent mode: %w\n"+
 				"Ensure model has agent_cli configured in models.yml", model, err)
@@ -226,8 +227,8 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 	// motoko entries silently ran `dogfood` for weeks while advertising
 	// microRAG+DP7, and nothing noticed because nothing compared them.
 	var claimedProfile string
-	if eval_harness.GlobalModelsConfig != nil {
-		if mc, err := eval_harness.GlobalModelsConfig.GetModel(model); err == nil {
+	if modelreg.GlobalModelsConfig != nil {
+		if mc, err := modelreg.GlobalModelsConfig.GetModel(model); err == nil {
 			claimedProfile = mc.MotokoProfile
 		}
 	}

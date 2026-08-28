@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"strings"
 	"sync"
@@ -110,7 +111,7 @@ func ResolveCaller(modelID string) (JSONCaller, *eval_harness.ModelConfig, error
 	if err := eval_harness.InitModelsConfig(); err != nil {
 		return nil, nil, fmt.Errorf("load models.yml: %w", err)
 	}
-	mc, err := eval_harness.GlobalModelsConfig.GetModel(modelID)
+	mc, err := modelreg.GlobalModelsConfig.GetModel(modelID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("model %q not in models.yml: %w", modelID, ErrUnknownModel)
 	}

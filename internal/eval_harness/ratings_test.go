@@ -135,6 +135,120 @@ func TestFitFromTrials_TierAgnostic(t *testing.T) {
 	}
 }
 
+// TestFitFromTrialsAnchored_PoolCompositionInvariance is the critical regression
+// test for M1 anchoring: when fitting with an anchored panel, the same model's
+// rating should NOT drift when the pool composition changes (this pins the
+// 2763-vs-1995 artifact where a model's rating differed based on which
+// benchmarks were included). The test verifies that with a fixed benchmark
+// anchor, a model's rating stays consistent regardless of extra benchmarks.
+func TestFitFromTrialsAnchored_PoolCompositionInvariance(t *testing.T) {
+	// Core trials represent a clean corpus: benchmarks with fixed anchor values.
+	// A model passes/fails against these benchmarks.
+	coreTrials := []Trial{
+		{"model", "anchor_bench_1", true},
+		{"model", "anchor_bench_2", false},
+		{"model", "anchor_bench_3", true},
+		{"model", "anchor_bench_4", true},
+		{"model", "anchor_bench_5", false},
+	}
+
+	// Fitted anchor (as if from a clean run): represents the true difficulty of
+	// these benchmarks. We fix these values so the model is rated consistently.
+	anchor := map[string]float64{
+		"anchor_bench_1": 1550.0,
+		"anchor_bench_2": 1650.0,
+		"anchor_bench_3": 1500.0,
+		"anchor_bench_4": 1600.0,
+		"anchor_bench_5": 1700.0,
+	}
+
+	// Fit 1: Core trials only, anchored.
+	mFit1, _ := FitFromTrialsAnchored(coreTrials, anchor, nil)
+
+	// Fit 2: Same core trials + "contaminating" extra benchmarks (like smoke tests
+	// or easy padding that shouldn't affect the model's core rating).
+	contaminatedTrials := append(coreTrials,
+		Trial{"model", "extra_easy_1", true},
+		Trial{"model", "extra_easy_2", true},
+		Trial{"model", "extra_easy_3", true},
+		Trial{"dummy_model", "extra_easy_1", true},
+		Trial{"dummy_model", "extra_easy_2", false},
+		Trial{"dummy_model", "extra_easy_3", true},
+	)
+	// Extend anchor with the extra benchmarks so they're fixed too.
+	extendedAnchor := map[string]float64{
+		"anchor_bench_1": 1550.0,
+		"anchor_bench_2": 1650.0,
+		"anchor_bench_3": 1500.0,
+		"anchor_bench_4": 1600.0,
+		"anchor_bench_5": 1700.0,
+		"extra_easy_1":   1250.0,
+		"extra_easy_2":   1200.0,
+		"extra_easy_3":   1280.0,
+	}
+	mFit2, _ := FitFromTrialsAnchored(contaminatedTrials, extendedAnchor, nil)
+
+	// Invariance criterion (measured basis, 2026-08-27, per the design doc's
+	// deferred-decision latitude on this constant): adding 3 all-pass easy
+	// games (+60% game count) legitimately moves the equilibrium — more wins
+	// IS new information — so exact invariance is not the claim. The claim is
+	// (a) the anchored drift stays small in absolute terms (≤50 ELO here vs
+	// the measured 768-point unanchored artifact), and (b) anchoring buys at
+	// least 5x less drift than the unanchored fit on the same pools (measured
+	// 31.2 vs 311.7 = 10x at authoring time).
+	const absTolerance = 50.0
+	const minRatio = 5.0
+	_, ok1 := mFit1["model"]
+	_, ok2 := mFit2["model"]
+	if !ok1 || !ok2 {
+		t.Fatalf("model rating missing from fits")
+	}
+	diff := math.Abs(mFit1["model"] - mFit2["model"])
+	if diff > absTolerance {
+		t.Errorf("anchored fit drifted %.1f ELO under pool-composition change (fit1=%.1f fit2=%.1f, tolerance %.0f)",
+			diff, mFit1["model"], mFit2["model"], absTolerance)
+	}
+
+	// MUTATION CONTROL — the instrument must see a positive: the SAME scenario
+	// through the UNANCHORED fit must diverge by far more than the tolerance,
+	// or this test could pass vacuously against a fit where anchoring is a
+	// no-op (the 2763-vs-1995 artifact, measured 2026-08-27: a contaminated
+	// pool moved a real model +768 ELO).
+	um1, _ := FitFromTrials(coreTrials)
+	um2, _ := FitFromTrials(contaminatedTrials)
+	unanchoredDiff := math.Abs(um1["model"] - um2["model"])
+	if unanchoredDiff < diff*minRatio {
+		t.Errorf("mutation control failed: unanchored drift %.1f is not >= %.0fx the anchored drift %.1f — "+
+			"the scenario no longer discriminates anchored from unanchored fitting", unanchoredDiff, minRatio, diff)
+	}
+	t.Logf("anchored drift %.1f vs unanchored drift %.1f (ratio %.1fx, required >= %.0fx)",
+		diff, unanchoredDiff, unanchoredDiff/math.Max(diff, 1), minRatio)
+}
+
+// TestFitFromTrialsAnchored_AnchorImmobility verifies that anchored entities keep
+// their fixed ratings and do not update during the fit (delta is discarded).
+func TestFitFromTrialsAnchored_AnchorImmobility(t *testing.T) {
+	trials := []Trial{
+		{"m", "anchor_bench", true}, // Would normally raise anchor_bench, but it's fixed
+		{"m", "anchor_bench", true}, // Another pass
+		{"m", "free_bench", false},  // Would raise free_bench
+	}
+	fixedBench := map[string]float64{
+		"anchor_bench": 1700.0,
+	}
+	_, br := FitFromTrialsAnchored(trials, fixedBench, nil)
+
+	// anchor_bench must stay at 1700 exactly (never updated).
+	if br["anchor_bench"] != 1700.0 {
+		t.Errorf("anchored benchmark changed: want 1700.0, got %.1f", br["anchor_bench"])
+	}
+
+	// free_bench should move (it's free to update).
+	if br["free_bench"] <= DefaultInitialRating {
+		t.Errorf("free benchmark should have moved above seed: got %.1f", br["free_bench"])
+	}
+}
+
 func TestBand(t *testing.T) {
 	cases := []struct {
 		r    float64

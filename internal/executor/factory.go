@@ -58,20 +58,23 @@ func DefaultConfig() *Config {
 	return &Config{
 		DefaultExecutor:  "claude", // Gemini CLI retired in v0.22.0 (M-MANAGED-AGENTS); claude is the safe default
 		ClaudePath:       "claude",
-		ClaudeModel:      "haiku",
 		ClaudeTools:      []string{"Bash", "Read", "Write", "Edit", "Grep", "Glob"},
 		ClaudePermission: "bypassPermissions",
 		CodexPath:        "codex",
-		CodexModel:       "gpt-5-codex",
 		OpenCodePath:     "opencode",
-		OpenCodeModel:    "anthropic/claude-haiku-4-5",
 		PiPath:           "pi",
-		PiModel:          "anthropic/claude-haiku-4-5",
 		MotokoPath:       "motoko",
-		MotokoModel:      "openrouter/anthropic/claude-haiku-4-5",
 		MotokoProfile:    "dogfood",
-		TimeoutSeconds:   300,
-		WorkspaceDir:     os.TempDir(),
+		// NO *Model DEFAULTS (M-MODEL-REGISTRY-SINGLE-SOURCE M6, D2(a)).
+		//
+		// This block used to seed ClaudeModel/CodexModel/OpenCodeModel/PiModel/
+		// MotokoModel, and it is the UPSTREAM half of the defect: it filled
+		// cfg.*Model, so each executor's own default only ever fired when this
+		// one had not. Removing only the per-executor five would have been a
+		// no-op. The registry decides which model runs; an executor handed none
+		// returns ErrUnresolvedModel rather than quietly picking one.
+		TimeoutSeconds: 300,
+		WorkspaceDir:   os.TempDir(),
 	}
 }
 

@@ -2,6 +2,7 @@ package eval_harness
 
 import (
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"testing"
 )
 
@@ -21,7 +22,7 @@ func TestModelFamilyParsed(t *testing.T) {
 		{"opencode-haiku", "claude-haiku-4-5"},
 	}
 	for _, tc := range cases {
-		cfg, ok := GlobalModelsConfig.Models[tc.key]
+		cfg, ok := modelreg.GlobalModelsConfig.Models[tc.key]
 		if !ok {
 			t.Errorf("model %q not found in models.yml", tc.key)
 			continue
@@ -33,8 +34,8 @@ func TestModelFamilyParsed(t *testing.T) {
 	// harness_suite was 7 prior to v0.18.0; M-MOTOKO-EXECUTOR-ADAPTER added
 	// motoko-claude-sonnet-4-6 (4-way claude-sonnet-4-6 family with claude/
 	// opencode/pi/motoko all running the same model through different harnesses).
-	if len(GlobalModelsConfig.HarnessSuite) != 8 {
-		t.Errorf("harness_suite: expected 8 models, got %d: %v", len(GlobalModelsConfig.HarnessSuite), GlobalModelsConfig.HarnessSuite)
+	if len(modelreg.GlobalModelsConfig.HarnessSuite) != 8 {
+		t.Errorf("harness_suite: expected 8 models, got %d: %v", len(modelreg.GlobalModelsConfig.HarnessSuite), modelreg.GlobalModelsConfig.HarnessSuite)
 	}
 }
 
@@ -42,7 +43,7 @@ func TestTTFTConfigParsed(t *testing.T) {
 	if err := InitModelsConfig(); err != nil {
 		t.Fatalf("InitModelsConfig: %v", err)
 	}
-	cfg, ok := GlobalModelsConfig.Models["opencode-gemma4-e4b"]
+	cfg, ok := modelreg.GlobalModelsConfig.Models["opencode-gemma4-e4b"]
 	if !ok {
 		t.Fatal("opencode-gemma4-e4b not found")
 	}
@@ -54,5 +55,5 @@ func TestTTFTConfigParsed(t *testing.T) {
 	if cfg.GenerationTimeoutSeconds != 120 {
 		t.Errorf("expected GenerationTimeoutSeconds=120, got %d", cfg.GenerationTimeoutSeconds)
 	}
-	fmt.Printf("OllamaSuite: %v\n", GlobalModelsConfig.OllamaSuite)
+	fmt.Printf("OllamaSuite: %v\n", modelreg.GlobalModelsConfig.OllamaSuite)
 }

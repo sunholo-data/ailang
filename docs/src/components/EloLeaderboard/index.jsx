@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
 import { ELO_COVERAGE_FRACTION } from '@site/src/components/BenchmarkDashboard/coverageGate';
+import DataProvenance from '../DataProvenance';
 
 // ELO leaderboard + difficulty-banded benchmark view (M-EVAL-DASHBOARD-REDESIGN).
 // Reads the per-mode `ratings` block emitted into latest.json by eval-report:
@@ -166,6 +167,7 @@ export default function EloLeaderboard() {
 
   return (
     <div>
+      <DataProvenance version={data?.version} timestamp={data?.timestamp} />
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
         {modes.map((m) => (
           <button key={m} style={btn(m === activeMode)} onClick={() => setMode(m)}>

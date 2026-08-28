@@ -1761,6 +1761,37 @@ models:
       iteration (~90-180s on csv_to_json under opencode); motoko harness
       may surface the same pattern with different finish_reason signals.
 
+  motoko-or-glm-5-3-flash:
+    api_name: "z-ai/glm-5.3-flash"
+    provider: "openrouter"
+    default_thinking: "always_on"  # inherited from or-glm-5-3-flash: explicit reasoning disable
+                                   # returns 400 "Reasoning is mandatory for this endpoint".
+    description: "GLM-5.3-Flash under motoko (agent mode) — the agent twin of or-glm-5-3-flash. Registered 2026-08-27 for M-MODEL-REGISTRY-SINGLE-SOURCE M5, to give the `motoko` coordinator agent a deliberate pin instead of factory.go's accidental Anthropic default."
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "motoko"
+    motoko_profile: "cloud"                            # .motoko/config/cloud — matches the other cloud-routed motoko rows
+    agent_model_name: "openrouter/z-ai/glm-5.3-flash"
+    model_family: "glm-5"
+    max_output_tokens: 65536  # always-thinking model — headroom, per the GLM-5.2 truncation lesson
+                              # (at 32768 its thinking phase hit OUR cap: 6 finish=length, 3 with
+                              # ZERO content). Within every provider's declared ceiling (131072+).
+    pricing:
+      input_per_1k: 0.000075  # $0.075 per 1M (OpenRouter API, verified 2026-08-27)
+      output_per_1k: 0.00025  # $0.25 per 1M (OpenRouter API, verified 2026-08-27)
+    budgets:
+      max_cost_usd: 0.50
+      hard_timeout_secs: 3600
+    notes: |
+      AGENT-MODE TWIN, added 2026-08-27 (Mark chose GLM-5.3-Flash for the motoko
+      agent). The standard-mode row or-glm-5-3-flash cannot serve this: it has no
+      agent_cli and no agent_model_name, and motoko resolves through the latter.
+
+      NOT YET MEASURED IN AGENT MODE. Every GLM-5.3-Flash result on record — smoke
+      22/23, core 22/23 vs or-glm-5-2's 23/23, frontier 8/24 vs 7/24 — is STANDARD
+      mode. The model is not in agent_suite and has never run under an agentic
+      harness. Standard-mode results do not transfer to agent mode, so this row is
+      registered but its pin is gated on an agent-mode smoke tier (~$0.06 at this
+      pricing). Do not read the standard-mode record as evidence for this row.
   motoko-minimax-m3:
     api_name: "minimax/minimax-m3"
     provider: "openrouter"
@@ -4307,6 +4338,61 @@ default: "claude-sonnet-4-6"
 
 # Core benchmark suite - top model from each provider (3 models)
 # Use for: Regular CI, quick comparisons, development validation
+# ─────────────────────────────────────────────────────────────────────────────
+# roles: which model plays which role (M-MODEL-REGISTRY-SINGLE-SOURCE M3)
+#
+# models.yml has always held model FACTS. This is model POLICY, and it
+# SUPERSEDES the `model_routing` table in ailang-multivac/config/config.cloud.yaml
+# (M-PIPELINE-RECONCILIATION M5), which answered the same question in a second
+# place that needed a separate deploy.
+#
+# Entries are FRIENDLY NAMES (keys in `models:` above), never wire strings.
+# That is what makes the table unambiguous: the live model_routing chains are
+# raw per-harness strings and map back many-to-one — "openrouter/deepseek/
+# deepseek-v4-flash-0731" is BOTH motoko-or-deepseek-v4-flash and
+# opencode-or-deepseek-v4-flash. A friendly name picks the row; the row carries
+# the harness (agent_cli) and the exact wire string.
+#
+# TRANSCRIBED VERBATIM from config.cloud.yaml:61-64 as measured 2026-08-27.
+# Changing which models a role runs is an explicit Non-Goal of this sprint;
+# TestResolveRole_TranscribesLiveChainsByteIdentically pins the wire strings.
+#
+# One judgement call, recorded so it can be revisited: for the deepseek and
+# minimax links the opencode twin was chosen over the motoko twin. Both resolve
+# to a BYTE-IDENTICAL wire string, so the transcription is faithful either way;
+# opencode was picked for consistency with the designer link, which is
+# unambiguously opencode. The choice only becomes observable in M7, where the
+# coordinator starts consuming RoleEntry.Executor.
+#
+# NOT transcribed: the design doc sketched a `package:` role and a `fable-5`
+# designer fallback. Neither exists in the live table and no agent carries a
+# `package` role, so adding them here would be inventing policy under a
+# Non-Goal. Add them when something actually asks for them.
+# TRANSCRIBED from config.cloud.yaml's model_routing as it stood 2026-08-27,
+# before M7 deleted that table. Changing WHICH models a role runs is an explicit
+# Non-Goal of M-MODEL-REGISTRY-SINGLE-SOURCE; these chains say exactly what the
+# table said, and TestCloudAgents_RegistryMatchesTheDeletedRoutingTable pins that.
+#
+# A SUBSCRIPTION-FIRST ORDER WAS DRAFTED AND REVERTED (2026-08-27). Mark's design
+# is that one chain serves both lanes, leading with the subscription/OAuth model
+# and falling through to the metered API-key lane when OAuth is spent — the shape
+# the mission driver already uses for its controller. It was reverted with M8,
+# not rejected: adopting it here would have shipped a fleet policy change as a
+# side effect of a parked milestone, and the draft was a poor model of what the
+# driver actually does (two-deep chains on `pi`, an ollama-cloud flat-rate tier
+# first, and a mission-form string that is NOT agent_cli:agent_model_name).
+# It belongs in the follow-up design doc that models those properly.
+#
+# Entries beyond the first are DECLARATIVE. coordinator.ResolveModel takes
+# chain[0] and stops; the mission driver probes-and-falls-back for its CONTROLLER
+# only. Said plainly because the table this replaced carried a comment claiming
+# Lane A read it, which a grep showed was never true.
+roles:
+  designer:  [opencode-or-kimi-k3]
+  planner:   [gpt5-6-sol, opencode-or-kimi-k3]
+  executor:  [gpt5-6-sol, opencode-or-deepseek-v4-flash]
+  evaluator: [opencode-or-minimax-m3, opencode-or-deepseek-v4-flash]
+
 benchmark_suite:
   - "gpt5-6-sol"       # OpenAI flagship (Jul 2026) — replaced gpt5-5 (core tie 25/26 at identical $5/$30, newer gen)
   - "claude-opus-5"    # Anthropic flagship (Jul 2026) — REPLACED claude-opus-4-8 2026-07-27.

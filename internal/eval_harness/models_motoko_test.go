@@ -10,7 +10,7 @@ import (
 // agent_model_name in the openrouter/* form, and the env_var pointing at
 // OPENROUTER_API_KEY (NOT ANTHROPIC_API_KEY — Design Freeze cost-control rule).
 func TestMotokoModelsResolve(t *testing.T) {
-	cfg, err := LoadModelsConfig("models.yml")
+	cfg, err := LoadModelsConfig("../modelreg/models.yml")
 	if err != nil {
 		t.Fatalf("LoadModelsConfig: %v", err)
 	}

@@ -24,23 +24,23 @@ func initPricing() {
 	pricingConfigOnce.Do(func() {
 		// Search paths for models.yml
 		searchPaths := []string{
-			"internal/eval_harness/models.yml",
-			"../internal/eval_harness/models.yml",
-			"../../internal/eval_harness/models.yml",
+			"internal/modelreg/models.yml",
+			"../internal/modelreg/models.yml",
+			"../../internal/modelreg/models.yml",
 		}
 
 		// Also try from home directory for installed binaries
 		if home, err := os.UserHomeDir(); err == nil {
 			// Check go/src path for development
-			searchPaths = append(searchPaths, filepath.Join(home, "go/src/github.com/sunholo-data/ailang/internal/eval_harness/models.yml"))
+			searchPaths = append(searchPaths, filepath.Join(home, "go/src/github.com/sunholo-data/ailang/internal/modelreg/models.yml"))
 		}
 
 		// Try cwd-based paths first
 		if cwd, err := os.Getwd(); err == nil {
 			for _, rel := range []string{
-				"internal/eval_harness/models.yml",
-				"../internal/eval_harness/models.yml",
-				"../../internal/eval_harness/models.yml",
+				"internal/modelreg/models.yml",
+				"../internal/modelreg/models.yml",
+				"../../internal/modelreg/models.yml",
 			} {
 				searchPaths = append(searchPaths, filepath.Join(cwd, rel))
 			}

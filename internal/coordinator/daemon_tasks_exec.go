@@ -191,7 +191,7 @@ func (d *Daemon) dispatchTasksCloud() error {
 				}
 				// M5: resolve through the shared routing table (pin > role >
 				// default); a missing role is loud and skips the dispatch.
-				agentModel, mErr := ResolveModel(agent, d.coordConfigRouting())
+				agentModel, mErr := ResolveModel(agent)
 				if mErr != nil {
 					d.logger.Printf("ERROR: task %s not dispatched: %v", task.ID, mErr)
 					continue

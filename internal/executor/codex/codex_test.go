@@ -3,6 +3,7 @@ package codex
 import (
 	"bufio"
 	"context"
+	"errors"
 	"os"
 	osexec "os/exec"
 	"path/filepath"
@@ -18,7 +19,7 @@ import (
 )
 
 func TestNewCodexExecutor(t *testing.T) {
-	cfg := executor.DefaultConfig()
+	cfg := testConfig()
 	exec, err := New(cfg)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
@@ -35,17 +36,32 @@ func TestNewCodexExecutor(t *testing.T) {
 	}
 }
 
-func TestNewCodexExecutor_EmptyConfigUsesFallbacks(t *testing.T) {
-	// Empty config (no defaults) should still produce a working executor.
-	exec, err := New(&executor.Config{})
+func TestNewCodexExecutor_EmptyConfigFailsLoudly(t *testing.T) {
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)). This once asserted a fallback to
+	// "gpt-5-codex" — the defect: an unpinned agent silently ran a model nobody chose,
+	// a model nobody chose, on an account nobody was watching.
+	//
+	// The check is at EXECUTION, not construction. The coordinator builds an
+	// executor before it knows the task and then supplies Task.Model per task
+	// (provider_executor.go), so failing at construction would break the normal
+	// path — which is exactly what a first cut of this milestone did.
+	e, err := New(&executor.Config{})
 	if err != nil {
-		t.Fatalf("New failed: %v", err)
+		t.Fatalf("construction must still succeed with no model: %v", err)
 	}
-	if exec.codexPath != "codex" {
-		t.Errorf("expected fallback path 'codex', got %q", exec.codexPath)
+	_, err = e.Execute(context.Background(), &executor.Task{ID: "t", Directive: "hi"})
+	if err == nil {
+		t.Fatal("executing with no model anywhere must fail rather than pick one")
 	}
-	if exec.model != "gpt-5-codex" {
-		t.Errorf("expected fallback model 'gpt-5-codex', got %q", exec.model)
+	var ume *executor.UnresolvedModelError
+	if !errors.As(err, &ume) {
+		t.Fatalf("want *executor.UnresolvedModelError, got %T: %v", err, err)
+	}
+	if ume.Executor != "codex" {
+		t.Errorf("Executor = %q, want %q", ume.Executor, "codex")
+	}
+	if !strings.Contains(err.Error(), "model") || !strings.Contains(err.Error(), "role") {
+		t.Errorf("error should name both remedies; got: %v", err)
 	}
 }
 
@@ -121,7 +137,7 @@ func TestBuildCodexArgs_RejectsUnsafeMCPName(t *testing.T) {
 }
 
 func TestCodexCapabilities(t *testing.T) {
-	exec, _ := New(executor.DefaultConfig())
+	exec, _ := New(testConfig())
 	caps := exec.Capabilities()
 	if len(caps) == 0 {
 		t.Fatal("expected at least one capability")
@@ -145,7 +161,7 @@ func TestCodexCapabilities(t *testing.T) {
 }
 
 func TestCodexCostModel(t *testing.T) {
-	exec, _ := New(executor.DefaultConfig())
+	exec, _ := New(testConfig())
 	cm := exec.CostModel()
 
 	if cm.ProviderName != "openai" {
@@ -194,10 +210,14 @@ func TestInit_RegistersCodex(t *testing.T) {
 		t.Fatalf("init() did not register 'codex'; factory.ListAvailable() = %v", available)
 	}
 
-	// Also verify the factory can actually build the executor.
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)): the factory still BUILDS the
+	// executor with no model configured — construction is not where the check
+	// lives, because the coordinator builds an executor before it knows the
+	// task and supplies Task.Model per task. The fail-loud is at execution
+	// entry; see TestNew ...EmptyConfig/EmptyModel FailsLoudly in this package.
 	exec, err := factory.GetExecutor("codex")
 	if err != nil {
-		t.Fatalf("factory.GetExecutor(\"codex\") failed: %v", err)
+		t.Fatalf("factory.GetExecutor(%q) failed: %v", "codex", err)
 	}
 	if exec.Name() != "codex" {
 		t.Errorf("built executor has wrong name: %q", exec.Name())
@@ -205,14 +225,14 @@ func TestInit_RegistersCodex(t *testing.T) {
 }
 
 func TestCodexClose(t *testing.T) {
-	exec, _ := New(executor.DefaultConfig())
+	exec, _ := New(testConfig())
 	if err := exec.Close(); err != nil {
 		t.Errorf("Close returned error: %v", err)
 	}
 }
 
 func TestGetModel_TaskOverride(t *testing.T) {
-	exec, _ := New(executor.DefaultConfig())
+	exec, _ := New(testConfig())
 	task := &executor.Task{Model: "override-model"}
 	if got := exec.getModel(task); got != "override-model" {
 		t.Errorf("expected task model override, got %q", got)
@@ -588,7 +608,7 @@ func TestExecuteStreaming_TolerantToNonJSONPreamble(t *testing.T) {
 	tmpDir := t.TempDir()
 	fake := writeFakeCodex(t, tmpDir, body)
 
-	exec, _ := New(&executor.Config{CodexPath: fake, TimeoutSeconds: 10})
+	exec, _ := New(&executor.Config{CodexPath: fake, CodexModel: "gpt-5-codex", TimeoutSeconds: 10})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -612,7 +632,7 @@ func TestExecuteStreaming_NoResultMeansFailure(t *testing.T) {
 	tmpDir := t.TempDir()
 	fake := writeFakeCodex(t, tmpDir, body)
 
-	exec, _ := New(&executor.Config{CodexPath: fake, TimeoutSeconds: 10})
+	exec, _ := New(&executor.Config{CodexPath: fake, CodexModel: "gpt-5-codex", TimeoutSeconds: 10})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -628,6 +648,7 @@ func TestExecuteStreaming_NoResultMeansFailure(t *testing.T) {
 func TestExecuteStreaming_BinaryNotFound(t *testing.T) {
 	exec, _ := New(&executor.Config{
 		CodexPath:      "/nonexistent/path/to/codex-xyz-not-real",
+		CodexModel:     "gpt-5-codex", // D2(a): a model is required; this test is about the BINARY
 		TimeoutSeconds: 5,
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -645,7 +666,7 @@ func TestExecute_DelegatesToExecuteStreaming(t *testing.T) {
 	tmpDir := t.TempDir()
 	fake := writeFakeCodex(t, tmpDir, body)
 
-	exec, _ := New(&executor.Config{CodexPath: fake, TimeoutSeconds: 10})
+	exec, _ := New(&executor.Config{CodexPath: fake, CodexModel: "gpt-5-codex", TimeoutSeconds: 10})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -659,7 +680,9 @@ func TestExecute_DelegatesToExecuteStreaming(t *testing.T) {
 }
 
 func TestHealthCheck_MissingBinary(t *testing.T) {
-	exec, _ := New(&executor.Config{CodexPath: "/nonexistent/codex-not-here-xyz"})
+	exec, _ := New(&executor.Config{CodexPath: "/nonexistent/codex-not-here-xyz",
+		CodexModel: "gpt-5-codex", // D2(a): model is required
+	})
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err := exec.HealthCheck(ctx); err == nil {
@@ -678,7 +701,9 @@ func TestHealthCheck_SucceedsWhenBinaryRespondsToVersion(t *testing.T) {
 	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
 		t.Fatalf("write script: %v", err)
 	}
-	exec, _ := New(&executor.Config{CodexPath: scriptPath})
+	exec, _ := New(&executor.Config{CodexPath: scriptPath,
+		CodexModel: "gpt-5-codex", // D2(a): model is required
+	})
 	// Generous: the fake-binary exec only needs ms, but CI runners under load have
 	// blown the old 3s deadline (test-windows flake). A real hang still trips go test.
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -699,7 +724,7 @@ func TestLiveRun_Codex(t *testing.T) {
 		t.Skipf("codex binary not found on PATH: %v", err)
 	}
 
-	cfg := executor.DefaultConfig()
+	cfg := testConfig()
 	e, err := New(cfg)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)

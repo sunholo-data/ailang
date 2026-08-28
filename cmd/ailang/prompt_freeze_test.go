@@ -24,9 +24,16 @@ func freezeFixture(t *testing.T) string {
 		r.VersionKeys = append(r.VersionKeys, id)
 		r.Versions[id] = e
 		os.WriteFile(filepath.Join(root, e.File), content, 0o644)
+		os.WriteFile(filepath.Join(root, "cmd", "ailang", e.File), content, 0o644)
 	}
 	writeOrderedRegistry(filepath.Join(root, "prompts", "versions.json"), r)
 	writeOrderedRegistry(filepath.Join(root, "cmd", "ailang", "prompts", "versions.json"), r)
+	runFreezeCheckGit(t, root, "init", "-q")
+	runFreezeCheckGit(t, root, "config", "user.email", "freeze-check@example.invalid")
+	runFreezeCheckGit(t, root, "config", "user.name", "Freeze Check")
+	runFreezeCheckGit(t, root, "add", ".")
+	runFreezeCheckGit(t, root, "commit", "-q", "-m", "base")
+	runFreezeCheckGit(t, root, "update-ref", "refs/remotes/origin/dev", "HEAD")
 	old := corpusScanner
 	corpusScanner = func(string) (map[string]corpusEvidence, error) {
 		return map[string]corpusEvidence{"b1": {210, "eval_results/baselines/a.json"}, "b2": {38, "eval_results/baselines/b.json"}, "b3": {1, "eval_results/baselines/c.json"}}, nil
@@ -101,6 +108,17 @@ func TestPromptFreezeMigrate_RefusesStaleHash(t *testing.T) {
 		t.Fatal("registry changed on refusal")
 	}
 }
+func TestPromptFreezeMigrate_RefusesStaleActiveHash(t *testing.T) {
+	root := freezeFixture(t)
+	p := filepath.Join(root, "prompts", "active.md")
+	if err := os.WriteFile(p, []byte("tampered"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, _, _, err := migrateRegistries(root, "2026-08-27")
+	if err == nil || !strings.Contains(err.Error(), "active") {
+		t.Fatalf("want stale active hash refusal, got %v", err)
+	}
+}
 func TestPromptFreezeMigrate_Idempotent(t *testing.T) {
 	root := freezeFixture(t)
 	migrateRegistries(root, "2026-08-27")
@@ -115,7 +133,7 @@ func TestPromptFreezeMigrate_Idempotent(t *testing.T) {
 func TestPromptFreezeCheck_GreenOnMigratedFixture(t *testing.T) {
 	root := freezeFixture(t)
 	migrateRegistries(root, "2026-08-27")
-	v, err := checkRegistries(root)
+	v, _, err := checkRegistries(root)
 	if err != nil || len(v) != 0 {
 		t.Fatalf("%v %v", v, err)
 	}
@@ -128,7 +146,7 @@ func TestPromptFreezeCheck_RedOnMissingMarker(t *testing.T) {
 	r.Versions["b1"].Frozen = nil
 	writeOrderedRegistry(pair.Source, r)
 	writeOrderedRegistry(pair.Mirror, r)
-	v, err := checkRegistries(root)
+	v, _, err := checkRegistries(root)
 	if err != nil || len(v) != 1 || !strings.Contains(v[0], "b1") || !strings.Contains(v[0], "corpus-evidenced but not frozen") {
 		t.Fatalf("%v %v", v, err)
 	}

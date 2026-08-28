@@ -143,9 +143,11 @@ func New(cfg *executor.Config) (*MotokoExecutor, error) {
 	}
 
 	model := cfg.MotokoModel
-	if model == "" {
-		model = "openrouter/anthropic/claude-haiku-4-5"
-	}
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)): NO DEFAULT. An empty model is
+	// permitted HERE because the coordinator constructs an executor before it
+	// knows the task, then supplies Task.Model per task. The fail-loud lives at
+	// the point of USE (getModel) rather than construction — checking here would
+	// reject the normal path where the model arrives with the task.
 
 	profile := cfg.MotokoProfile
 	if profile == "" {
@@ -167,6 +169,9 @@ func (e *MotokoExecutor) Name() string {
 
 // Execute runs a task and returns the result.
 func (e *MotokoExecutor) Execute(ctx context.Context, task *executor.Task) (*executor.Result, error) {
+	if err := e.requireModel(task); err != nil {
+		return nil, err
+	}
 	return e.ExecuteStreaming(ctx, task, &executor.NoOpEventHandler{})
 }
 
@@ -174,6 +179,9 @@ func (e *MotokoExecutor) Execute(ctx context.Context, task *executor.Task) (*exe
 // JSONL file as it grows (M2 will add the streaming goroutine; M1 ships with
 // post-completion parse only).
 func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+	if err := e.requireModel(task); err != nil {
+		return nil, err
+	}
 	// D1 (M-MOTOKO-FMT-REMEASUREMENT-INSTRUMENT §12.2): per-task resolved-
 	// provider credential refusal, at the choke point through which ALL motoko
 	// work passes. Runs STRICTLY DOWNSTREAM of repo discovery: the eval harness
@@ -628,6 +636,16 @@ func (e *MotokoExecutor) getModel(task *executor.Task) string {
 		return task.Model
 	}
 	return e.model
+}
+
+// requireModel is the D2(a) fail-loud point (M-MODEL-REGISTRY-SINGLE-SOURCE M6).
+// See the sibling executors: the check is at execution entry, not construction,
+// because the coordinator builds the executor before it knows the task.
+func (e *MotokoExecutor) requireModel(task *executor.Task) error {
+	if e.getModel(task) == "" {
+		return executor.ErrUnresolvedModel("motoko", "MotokoModel")
+	}
+	return nil
 }
 
 // Register registers the motoko executor with the global factory.

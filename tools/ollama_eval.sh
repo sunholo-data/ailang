@@ -18,7 +18,7 @@ set -euo pipefail
 
 OLLAMA_EVAL_KEEPALIVE="${OLLAMA_EVAL_KEEPALIVE:-60m}"
 OLLAMA_API="${OLLAMA_HOST:-http://localhost:11434}"
-MODELS_YML="internal/eval_harness/models.yml"
+MODELS_YML="internal/modelreg/models.yml"
 
 # --- helpers ---
 

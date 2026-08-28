@@ -14,13 +14,13 @@ const zeroRateModel = "motoko-local-qwen3-5-35b-a3b-mxfp8"
 
 // ensurePricingLoaded points the pricing loader at the repo models.yml. The
 // observatory pricing loader searches relative paths; from the package test cwd
-// (internal/observatory) the models.yml lives at ../eval_harness/models.yml, which
+// (internal/observatory) the models.yml lives at ../modelreg/models.yml, which
 // is NOT one of the default search paths, so we chdir to the repo root for the test.
 func ensurePricingLoaded(t *testing.T) {
 	t.Helper()
 	ResetPricingConfig()
 
-	// Walk up from cwd to find the repo root (dir containing internal/eval_harness/models.yml).
+	// Walk up from cwd to find the repo root (dir containing internal/modelreg/models.yml).
 	dir, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("getwd: %v", err)
@@ -45,7 +45,7 @@ func ensurePricingLoaded(t *testing.T) {
 		}
 		dir = filepath.Dir(dir)
 	}
-	t.Skip("could not locate internal/eval_harness/models.yml; skipping")
+	t.Skip("could not locate internal/modelreg/models.yml; skipping")
 }
 
 func TestResolveCostFromTokens_DistinguishesUnresolvableFromZeroRate(t *testing.T) {

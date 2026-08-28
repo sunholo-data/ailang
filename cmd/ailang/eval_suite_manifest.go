@@ -21,13 +21,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/version"
 )
 
@@ -172,9 +172,9 @@ func resolveCohortExecutors(models []string) []CohortModelExecutor {
 	out := make([]CohortModelExecutor, 0, len(models))
 	for _, m := range sortedCopy(models) {
 		row := CohortModelExecutor{Model: m}
-		if eval_harness.GlobalModelsConfig == nil {
+		if modelreg.GlobalModelsConfig == nil {
 			row.Error = "models.yml not loaded"
-		} else if execName, _, err := eval_harness.GlobalModelsConfig.GetExecutorForModel(m); err != nil {
+		} else if execName, _, err := modelreg.GlobalModelsConfig.GetExecutorForModel(m); err != nil {
 			row.Error = err.Error()
 		} else {
 			row.Executor = execName

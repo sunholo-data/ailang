@@ -1,4 +1,4 @@
-# AILANG v0.16.2 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.6 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -193,7 +193,7 @@ export func main() -> () ! {IO, AI} = println(call("What is 2+2?"))
 | `if x { ... }` | `if x then ... else ...` - NO braces! |
 | mixing `let x = e in` with `;` | Use ONE style consistently |
 | `let (x, y) = tuple` | Use `match tuple { (x, y) => ... }` |
-| `\(a, b). body` pair syntax | Use `func(a: T, b: U) -> R { body }` |
+| `\(a, b). body` or `\a, b. body` | Inline: **curry** — `\a. \b. body`. Named: `func(a: T, b: U) -> R { body }` |
 | nested `func f(...) =` | Use `let f = \x. body` for nested functions |
 | `!condition` | Both `!x` and `not x` work — prefer `not` for readability |
 | `concat(a, b)` for strings | `"${a}${b}"` interpolation — `++` is list-only in v0.13.0+ |

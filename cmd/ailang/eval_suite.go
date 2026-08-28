@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -250,7 +251,7 @@ func runEvalSuite() {
 			// Agent mode REQUIRES models.yml for executor routing -- fail fast
 			fmt.Fprintf(os.Stderr, "Error: Could not load models.yml: %v\n", err)
 			fmt.Fprintf(os.Stderr, "Agent mode requires models.yml for executor routing (agent_cli, agent_model_name).\n")
-			fmt.Fprintf(os.Stderr, "Ensure models.yml exists at internal/eval_harness/models.yml or is embedded in the binary.\n")
+			fmt.Fprintf(os.Stderr, "Ensure models.yml exists at internal/modelreg/models.yml or is embedded in the binary.\n")
 			os.Exit(1)
 		}
 		fmt.Fprintf(os.Stderr, "Warning: Could not load models.yml: %v\n", err)
@@ -329,9 +330,9 @@ func runEvalSuite() {
 	// AILANG_RIG_LOCK_HELD=1, which riglock.Acquire honours so it never
 	// deadlocks against its own parent.
 	needsRigLock := false
-	if eval_harness.GlobalModelsConfig != nil {
+	if modelreg.GlobalModelsConfig != nil {
 		for _, m := range modelList {
-			if eval_harness.GlobalModelsConfig.UsesLocalGPU(m) {
+			if modelreg.GlobalModelsConfig.UsesLocalGPU(m) {
 				needsRigLock = true
 				break
 			}
@@ -400,10 +401,10 @@ func runEvalSuite() {
 			fmt.Printf("  ⚠ %d model×benchmark pair(s) have no pricing in models.yml — priced as $0, excluded from the total above\n", est.UnknownPricing)
 		}
 
-		if eval_harness.GlobalModelsConfig != nil {
+		if modelreg.GlobalModelsConfig != nil {
 			fmt.Printf("\nHarness routing (agent_cli per model):\n")
 			for _, m := range modelList {
-				if cfg, ok := eval_harness.GlobalModelsConfig.Models[m]; ok {
+				if cfg, ok := modelreg.GlobalModelsConfig.Models[m]; ok {
 					cli := "<none>"
 					if cfg.AgentCLI != nil && *cfg.AgentCLI != "" {
 						cli = *cfg.AgentCLI
@@ -419,20 +420,20 @@ func runEvalSuite() {
 
 	// Filter models for agent mode
 	if *agent {
-		if eval_harness.GlobalModelsConfig == nil {
+		if modelreg.GlobalModelsConfig == nil {
 			fmt.Fprintf(os.Stderr, "Error: models.yml not loaded, cannot determine agent support\n")
 			os.Exit(1)
 		}
 
 		// Filter to only models that support agent eval
 		originalModels := modelList
-		modelList = eval_harness.GlobalModelsConfig.FilterAgentSupportedModels(modelList)
+		modelList = modelreg.GlobalModelsConfig.FilterAgentSupportedModels(modelList)
 
 		// Warn about skipped models
 		if len(modelList) < len(originalModels) {
 			skipped := []string{}
 			for _, model := range originalModels {
-				if !eval_harness.GlobalModelsConfig.SupportsAgentEval(model) {
+				if !modelreg.GlobalModelsConfig.SupportsAgentEval(model) {
 					skipped = append(skipped, model)
 				}
 			}

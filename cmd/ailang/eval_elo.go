@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -166,8 +167,11 @@ func buildELOModeReport(mode string, results []*eval_analysis.BenchmarkResult) *
 	if len(results) == 0 {
 		return nil
 	}
-	ailang := fitLang(results, "ailang")
-	python := fitLang(results, "python")
+	// Standard mode uses the anchored placement fit (M-EVAL-ROLLING-ELO M1);
+	// agent mode has no anchor yet.
+	anchored := mode == "standard"
+	ailang := fitLang(results, "ailang", anchored)
+	python := fitLang(results, "python", anchored)
 
 	// --- Model leaderboard: union of models across both languages ---
 	modelSet := map[string]bool{}
@@ -188,7 +192,10 @@ func buildELOModeReport(mode string, results []*eval_analysis.BenchmarkResult) *
 			maxCov = len(bs)
 		}
 	}
-	covThreshold := maxCov / 2
+	// Unified with the site's ELO gate (DefaultCoverageThreshold = 0.9): a
+	// rating needs near-full coverage before it stops being provisional. Was
+	// maxCov/2, which called a model non-provisional at coverage the site dims.
+	covThreshold := int(math.Ceil(float64(maxCov) * eval_harness.DefaultCoverageThreshold))
 	var models []eloModelRow
 	for m := range modelSet {
 		row := eloModelRow{Model: m}
@@ -244,7 +251,7 @@ func buildELOModeReport(mode string, results []*eval_analysis.BenchmarkResult) *
 }
 
 // fitLang runs the deterministic ELO fit over only the results for one language.
-func fitLang(results []*eval_analysis.BenchmarkResult, lang string) langFit {
+func fitLang(results []*eval_analysis.BenchmarkResult, lang string, anchored bool) langFit {
 	trials := make([]eval_harness.Trial, 0, len(results))
 	pass := map[string][2]int{}
 	modelBenches := map[string]map[string]bool{}
@@ -265,7 +272,12 @@ func fitLang(results []*eval_analysis.BenchmarkResult, lang string) langFit {
 		}
 		modelBenches[r.Model][r.ID] = true
 	}
-	modelELO, benchELO := eval_harness.FitFromTrials(trials)
+	var modelELO, benchELO map[string]float64
+	if anchored {
+		modelELO, benchELO = eval_harness.FitFromTrialsAnchored(trials, eval_harness.AnchorPanelV1, nil)
+	} else {
+		modelELO, benchELO = eval_harness.FitFromTrials(trials)
+	}
 	return langFit{modelELO: modelELO, benchELO: benchELO, pass: pass, modelBenches: modelBenches}
 }
 

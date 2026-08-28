@@ -44,31 +44,76 @@ direction (`executor` → `modelreg`, never the reverse).
 the milestone mechanical: **66 call sites across 17 non-test files compile unchanged.**
 
 **Acceptance criteria**
-- `go list -deps ./internal/modelreg` contains **no** `internal/executor` — the hard gate
-- `go build ./...` and `make test` clean with zero call-site edits outside the two packages
-- `make check-file-sizes` still green
-- `executor.IsOllamaCloudRoute` retains its behavior (existing tests unmodified and passing)
+- [x] `go list -deps ./internal/modelreg` contains **no** `internal/executor` — the hard gate.
+      Guarded by `TestModelregIsALeaf`; deps are exactly `gopkg.in/yaml.v3` + itself
+- [x] `go build ./...` and `go vet ./...` clean
+- [x] `make check-file-sizes` still green
+- [x] `executor.IsOllamaCloudRoute` retains its behavior (existing tests unmodified and passing)
+- [x] `make test` clean — zero FAIL lines across the suite
 
-**Files**: `internal/modelreg/` (new), `internal/eval_harness/models.go`, `internal/executor/cost.go`
+**Two things measurement changed about this milestone:**
+
+1. **The guard test passed vacuously on its first run.** It asserted "some dep starts with the
+   module path" as its instrument check — but `go list -deps .` always lists the package *itself*,
+   so the control could never fail and the absence assertion underneath it was worthless. The
+   control now requires `gopkg.in/yaml.v3`, a dependency the registry genuinely has, and was
+   confirmed RED before the move and GREEN after. This is the same false-pass shape
+   `scripts/check_boundaries.sh` warns about in its own header comment.
+2. **`GlobalModelsConfig` could not be aliased.** The plan said type aliases would cover the call
+   sites. That holds for the ~66 sites naming types and functions, but `GlobalModelsConfig` is a
+   mutable package variable that `InitModelsConfig` writes: a second declaration in `eval_harness`
+   would be a *copy* of the pointer, stale for anyone who read it before initialization — a silent
+   divergence on the exact data this sprint is trying to make single-sourced. Its ~40 call sites
+   across 13 files now name `modelreg.GlobalModelsConfig` directly. Larger diff, one variable.
+
+Also folded in: 40 references to the literal path `internal/eval_harness/models.yml` across tools,
+scripts and skills, and 9 test loads that resolved `models.yml` relative to the old package dir.
+
+**Files**: `internal/modelreg/` (new), `internal/eval_harness/models_alias.go` (new),
+`internal/executor/cost.go`, +50 files for the variable and path rewires
 
 ---
 
-### M2 — Prove the gcsfuse mount (Phase 0b) — **spike, can reopen D1**
+### M2 — Prove the gcsfuse mount (Phase 0b) — ✅ **RESOLVED 2026-08-27, D1(a) stands**
 
-**~60 LOC** (mostly job config + a read-back assertion)
+**~5 LOC** (was estimated 60; no spike code needed — the mechanism is already in production)
 
-The one assumption underneath D1(a) that no measurement supports. The coordinator mounts its
-config this way; **no agent job does today.** Mount a registry into one agent job and read it back.
+**The design doc's premise was wrong, in our favour.** It recorded "no agent job does [mount a
+bucket] today" and made that the one unverified assumption under D1(a). Measurement refutes it.
 
-Runs in parallel with M1 — it is infrastructure, not Go, and shares no files.
+Live spec of the deployed job `ailang-agent-executor-opencode` (europe-west1, ailang-multivac):
+
+```json
+volumes:      [{"csi": {"driver": "gcsfuse.run.googleapis.com",
+                        "volumeAttributes": {"bucketName": "ailang-multivac-ailang-artifacts"}},
+                "name": "artifacts"}]
+volumeMounts: [{"mountPath": "/artifacts", "name": "artifacts"}]
+```
+
+That is gcsfuse (`gcsfuse.run.googleapis.com` CSI driver), on an **agent** job, deployed and
+running. Terraform carries the same block on **16** agent jobs (`cloud_run_jobs.tf`). The
+coordinator service mounts the *config* bucket the same way (`cloud_run.tf:154-164`).
+
+So the delta for M4 is not "prove a new mechanism" but "add a second, read-only volume pointing at
+the config/registry bucket" — a copy of a block that is already deployed sixteen times. Folded
+into M4; no separate milestone work remains.
+
+**Two things measurement turned up that the plan should carry:**
+
+1. **Terraform/deployment drift**: `agent_executor_motoko` exists in `cloud_run_jobs.tf:1521` but
+   is **not deployed** — `gcloud run jobs list` returns 15 jobs, none of them motoko. M5 must
+   establish where motoko actually executes before pinning it; the pin is still required either
+   way (the coordinator resolves the model regardless of where the executor runs), but "it runs as
+   a cloud job" is not an assumption M5 may make.
+2. Verified against the **deployed** spec, not the terraform source — per the launchd lesson that
+   repo files are source and installed copies drift.
 
 **Acceptance criteria**
-- One agent job starts with a registry mounted and logs the path it read
-- The mounted content round-trips: publish a registry with a sentinel field, job reports it
-- **If the mount does not work, STOP and reopen D1** — (a) has no delivery mechanism without it,
-  and discovering that on day 1 costs a day, on day 4 costs the sprint
+- [x] An agent job demonstrably reads a gcsfuse-mounted bucket — proven by the live spec above
+- [x] Mechanism identified for M4 to reuse (second read-only volume on the same jobs)
+- [x] D1(a) has a delivery mechanism — **no reopen needed**
 
-**Files**: `ailang-multivac/` job config, a read-back check
+**Files**: none this milestone; the terraform volume block lands in M4
 
 ---
 
@@ -86,12 +131,34 @@ content is a transcription rather than a new decision (Non-Goal: this sprint doe
 *which* models are chosen).
 
 **Acceptance criteria**
-- `ResolveRole` returns the ordered chain for each of designer/planner/executor/evaluator/package
-- A `--lane cloud` resolution never returns an ollama entry; `--lane local` may
-- A missing role returns a typed error naming the roles that **do** exist
-- Chains transcribed from `config.cloud.yaml` resolve to byte-identical model strings
+- [x] `ResolveRole` returns the ordered chain for designer/planner/executor/evaluator
+- [x] A `--lane cloud` resolution never returns an ollama entry — with a control asserting the
+      registry actually *has* local-GPU rows, so the absence is not vacuous
+- [x] A missing role returns a typed error naming the roles that **do** exist
+- [x] Chains transcribed from `config.cloud.yaml` resolve to byte-identical model strings.
+      **Negative control run**: perturbing one link fails with the expected message; restoring
+      returns to green
 
-**Files**: `internal/modelreg/models.yml`, `internal/modelreg/roles.go`, tests
+**Three findings that shaped the implementation:**
+
+1. **Chains must name friendly names — `(role, lane)` alone is not decidable.** The live
+   `model_routing` entries are raw per-harness strings whose map back to the registry is
+   many-to-one: `openrouter/deepseek/deepseek-v4-flash-0731` is *both*
+   `motoko-or-deepseek-v4-flash` and `opencode-or-deepseek-v4-flash`. They are not even derived
+   uniformly — `gpt-5.6-sol` comes from `api_name`, because the codex row has no
+   `agent_model_name`. A friendly name picks the row, and the row carries the harness and the exact
+   wire string. `GetExecutorForModel` already implements `agent_model_name`-else-`api_name`, so
+   `ResolveRole` reuses it rather than writing a second rule.
+2. **The `package:` role and the `fable-5` designer fallback in the design doc's sketch do not
+   exist.** No agent carries a `package` role and neither appears in the live table. Transcribing
+   them would invent policy under an explicit Non-Goal, so they were left out.
+3. **One recorded judgement call**: for the deepseek and minimax links the *opencode* twin was
+   chosen over the *motoko* twin. Both yield a byte-identical wire string, so the transcription is
+   faithful either way; opencode matches the designer link, which is unambiguously opencode. The
+   choice becomes observable only in M7, when the coordinator starts consuming `RoleEntry.Executor`.
+
+**Files**: `internal/modelreg/models.yml` (`roles:` block), `internal/modelreg/roles.go` (new),
+`internal/modelreg/roles_test.go` (new)
 
 ---
 
@@ -113,13 +180,71 @@ observatory cost accounting without a rebuild. Schema validation on publish is t
 it must cover the pricing fields, not only `roles:`.
 
 **Acceptance criteria**
-- Precedence order verified by test at each of the three levels, including fall-through when the
-  higher one is absent or unparseable
-- An unparseable published registry falls back to embed **and says so loudly** in the log line
-- Startup emits source + version; the line is greppable and asserted by a test
-- Schema validation rejects a registry with malformed pricing, not just malformed roles
+- [x] Precedence order verified by test at each of the three levels, including fall-through when
+      the higher one is absent or unparseable. **Negative control run**: forcing the old embed-first
+      order fails `TestPrecedence_PublishedBeatsEmbedded` with the expected message
+- [x] An unparseable published registry falls back to embed **and says so loudly** — `Source.Degraded`
+      names the rejected path, asserted by test
+- [x] Startup emits source + version; greppable, asserted, and emitted from **one** place inside
+      `initModelsConfigFrom` rather than at the six `InitModelsConfig` call sites, which would be
+      one refactor away from a binary that answers "which registry?" with silence
+- [x] Validation rejects malformed pricing, not just malformed roles — with zero pricing explicitly
+      allowed, since local ollama rows are genuinely free and flagging them would train publishers
+      to ignore the validator
+- [ ] **The registry reaches the bucket** — see the open question below
 
-**Files**: `internal/modelreg/models.go`, `ailang-multivac/config/`, tests
+**Version is a content digest.** models.yml carries no version field, so the honest identifier is
+what the bytes hash to. It distinguishes two registries without claiming a semantic version nobody
+maintains.
+
+#### ✅ D5 — publish path RATIFIED (Mark, 2026-08-27)
+
+**Decision: publish `models.yml` from the ailang repo via the existing CAS path, as a bucket object
+terraform never declares.** Source of truth stays in the repo where the file lives; terraform keeps
+owning `config.cloud.yaml` and nothing else. This is D1-class — it settles which repo owns the
+published registry — so it is recorded here as **D5** rather than as an implementation note.
+
+The reasoning it rests on: the 2026-08-26 clobbers happened because terraform *owns that specific
+object* and reverts direct writes to it on the next config push. An object terraform never declares
+is not in its state and is therefore not reverted. `writeConfigCAS` / `gcsConfigStore` already
+exist (M-MESSAGE-PLANE-FAIL-LOUD M4), and `Validate()` is now the gate in front of them.
+
+**A consequence to hold onto**: the published registry is now the one artifact in the config bucket
+that terraform cannot recreate. If it is deleted, `terraform apply` will not bring it back — the
+embedded floor covers the outage (that is what the floor is for), but the registry must be
+re-published by hand. Worth a line in the runbook when M4b lands.
+
+<details><summary>Original open question, kept for the record</summary>
+
+##### How does the registry get into the bucket without becoming a second copy?
+
+The Go side of M4 is done and tested. The publish path has a genuine decision the design doc did
+not surface, and getting it wrong costs either clobbered publishes or a duplicated registry — the
+exact defect this sprint removes.
+
+`config.cloud.yaml` is repo-canonical in **ailang-multivac**, uploaded by
+`google_storage_bucket_object.coordinator_config` and redeployed by the config-only trigger on
+every push. `models.yml` is canonical in **ailang**. Terraform-managing a copy in multivac would
+create two registries that can drift.
+
+**Grounded reading**: the 2026-08-26 clobbers happened because terraform *owns that specific
+object*, so a direct write is reverted on the next config push. A registry published as a
+**separate object that terraform does not declare** is not in terraform's state and would not be
+reverted. The CAS write path already exists — `writeConfigCAS` / `gcsConfigStore` in
+[coordinator_config.go](../../../cmd/ailang/coordinator_config.go), built by
+M-MESSAGE-PLANE-FAIL-LOUD M4 — and `Validate()` is now the gate in front of it.
+
+**Recommendation**: publish `models.yml` from the ailang repo via the existing CAS path, as a
+bucket object terraform never declares, and mount it read-only onto the agent jobs using the
+gcsfuse block M2 found. Source of truth stays in ailang, where the file lives.
+
+**Needs Mark's nod before implementing** — it decides which repo owns the published registry, and
+that is the same class of decision as D1 itself.
+
+</details>
+
+**Files**: `internal/modelreg/provenance.go` (new), `internal/modelreg/validate.go` (new),
+`internal/modelreg/models.go`, tests; terraform + publish pending the question above
 
 ---
 
@@ -156,8 +281,61 @@ never run under an agentic harness. Per the project's standing rule, standard-mo
 transfer to agent mode. At $0.075/$0.25 per 1M an agent-mode smoke tier costs on the order of
 $0.06 — cheaper than the meeting about whether to run it — so M5 measures rather than assumes.
 
+**Status: COMPLETE 2026-08-27.** The agent-mode gate passed 23/23 on an exclusive host.
+
 **Acceptance criteria**
-- Fixture covers all 34 agents; pre/post resolution identical for the 33 pinned ones
+- [x] Fixture covers all 34 agents; **zero move** when `model_routing` is deleted — M7's deletion
+      is now measured inert, not assumed. Snapshot at
+      `internal/coordinator/testdata/cloud_agents_20260827.json`
+- [x] `motoko-or-glm-5-3-flash` registered: `agent_cli: motoko`,
+      `agent_model_name: openrouter/z-ai/glm-5.3-flash`, `max_output_tokens: 65536`
+- [x] **AGENT-MODE smoke tier passes** — 23/23 `compile=✓ runtime=✓ stdout=✓`, zero errors, sequential on an exclusive host (chain `e01fa9aa`). Cleaner than the model's standard-mode smoke (22/23). Cost **$0.26**, not the ~$0.06 estimated: agent mode bills ~2 calls per benchmark at ~300k input tokens each, so ~$0.011/benchmark rather than ~$0.0026
+- [x] `motoko` pinned to `openrouter/z-ai/glm-5.3-flash` in `config.cloud.yaml`, with the gate result recorded inline. **Zero of 34 agents now fall through to a provider default** — the D2(a) precondition is met and M6 is unblocked
+- [x] The D2(a) blast radius is measured: exactly **one** agent (`motoko`) resolves to no model.
+      That test is written and correctly RED; it is held out of the tree and lands with M6, when
+      the pin makes it green
+
+#### Blocker — RESOLVED 2026-08-27
+
+Mark authorised stopping the competing rotation. Done to protocol: a hold file at
+`~/.ailang/state/launchd-hold/dev.ailang.os-rotation-filler` placed **before** `launchctl bootout`,
+because a bare bootout is re-bootstrapped by rig-watchdog within 60s. Verified held after 65s, gate
+run on a clear host, **hold released and the rotation re-bootstrapped afterwards**. The rotation
+runs `--skip-existing --bank-by-version`, so it resumed rather than restarted; at most one in-flight
+benchmark was discarded.
+
+**The before/after is itself the proof for the filed defect**: 22 failures under `--parallel 10`,
+**zero** across 23 sequential runs on an exclusive host. Same model, same benchmarks, same binary.
+The 22/23 was contention, not capability.
+
+<details><summary>Original blocker analysis, kept for the record</summary>
+
+##### The agent-mode gate cannot run here
+
+Two attempts, both defeated by motoko's **fixed port 8080**:
+
+1. First run, 22/23 failed with `Failed to start server. Is port 8080 in use?`. Cause was mine:
+   `eval-suite --parallel` defaults to **10**, so ten motoko instances raced for one port. (Its
+   `--agent-timeout` also defaults to 60s against a row budgeted at 3600 — a second latent
+   misconfiguration.) **This is not a model result** and must not be read as one.
+2. Second run, sequential (`--parallel 0 --agent-timeout 900`), still hit the port: **another
+   agent is running an `os-rolling` motoko rotation on this machine right now**
+   (`--models opencode-qwen3-8-27b,pi-qwen3-8-27b,motoko-local-qwen3-8-27b`). Motoko's fixed port
+   means the two runs cannot coexist — and mine risked corrupting theirs, so I stopped mine.
+   Their rotation was verified still alive afterwards.
+
+Of 3 benchmarks attempted before stopping, 1 completed cleanly — so the model plausibly works under
+motoko, but **n=1 is not a gate pass** and this is explicitly not a verdict on GLM-5.3-Flash.
+
+**To finish M5**: run the 23-benchmark agent-mode tier with `--parallel 0` in a window when no
+other motoko work is active, then pin `motoko` and land the held M6 gate test. Cost is ~$0.06;
+the constraint is exclusivity, not money.
+
+</details>
+
+**Worth routing separately**: motoko's fixed port 8080 makes agent-mode eval unparallelisable and
+makes any two concurrent motoko consumers mutually destructive. That is a harness defect the whole
+fleet pays for, not something this sprint should absorb.
 - `motoko-or-glm-5-3-flash` registered with `agent_cli: motoko` and the `openrouter/z-ai/…` string
 - **Agent-mode smoke tier on `motoko-or-glm-5-3-flash` passes** before the pin goes live — the
   first agentic measurement this model has; a failure routes back to Mark, not to a silent revert
@@ -182,13 +360,39 @@ The guard test greps executor sources for hardcoded provider/model literals and 
 `factory.go`**. A guard scoped to the five subpackages is precisely the guard that would pass
 while the defect survives.
 
+**Status: COMPLETE 2026-08-27.**
+
 **Acceptance criteria**
-- All ten literals gone; `factory.go` no longer names a model
-- Guard test fails if any provider literal is reintroduced anywhere under `internal/executor/`,
-  including `factory.go` — verified by temporarily reintroducing one
-- ~10 `executor.DefaultConfig()` test call-sites rewritten to pin explicitly (per the testing
-  policy these are rewritten, not kept compatible)
-- An unpinned, unroled agent fails at construction with a message naming known roles
+- [x] All ten literals gone; `factory.go` no longer names a model
+- [x] Guard test fails if any provider literal is reintroduced anywhere under `internal/executor/`,
+      including `factory.go` — **verified twice** by temporarily reintroducing one, which the guard
+      caught at `factory.go:68` both times
+- [x] Test call-sites rewritten to pin explicitly (per the testing policy these are rewritten, not
+      kept compatible)
+- [x] An unpinned, unroled agent fails at construction with a typed `UnresolvedModelError` naming
+      the agent, the config field, and the known roles
+
+**A design error I made and corrected, worth recording:**
+
+My first cut put the fail-loud at **construction** — an executor built with no model returned an
+error. Every test went green and the guard passed. It was wrong, and the coordinator is what proved
+it: `NewExecutorProvider` ([provider_executor.go:32](../../../internal/coordinator/provider_executor.go#L32))
+builds an executor from the global factory **before it knows the task**, and the model arrives later
+as `Task.Model` (`daemon_tasks_exec_run.go:255`). Failing at construction therefore broke the normal
+production path — `TestExecutorRegistration_AutoDiscovery` failed for all five harnesses, which is
+the coordinator telling me the check was in the wrong place.
+
+The check now lives at **execution entry** (`requireModel`, called first in `Execute` and
+`ExecuteStreaming`), where both sources of a model are known. Construction stays permissive; nothing
+silently substitutes a model; and the coordinator path is unbroken. It also means M6 does **not**
+depend on M7 after all — the earlier note claiming they were coupled was an artefact of the wrong
+design, not a property of the problem.
+2. **Path defaults survive; model defaults do not.** Finding `motoko` or `codex` on PATH is a
+   lookup that decides nothing; choosing a model decides billing and availability. The tests that
+   asserted both kinds of default were split accordingly.
+
+`opencode_test.go` crossed the 800-line gate once explicit pins were added; a cohesive block (the
+streaming-parse cases) was extracted to `opencode_streaming_test.go` rather than shaving lines.
 
 **Files**: `internal/executor/factory.go`, `internal/executor/{opencode,pi,motoko,claude,codex}/`, tests
 
@@ -208,17 +412,65 @@ while the defect survives.
   construction (pre-flight), proven by M5's fixture.
 - Per-agent `model:` pins survive as deliberate overrides.
 
+**Status: COMPLETE 2026-08-27.**
+
 **Acceptance criteria**
-- `ailang models role executor` returns identical output on rig and cloud
-- Coordinator resolution equals the M5 fixture for all 34 agents after `model_routing` is gone
-- `internal/coordinator/model_routing.go` and its config key removed; no dangling references
-- `go build ./...` clean — no import cycle (the M1 gate re-asserted at the coordinator)
+- [x] `ailang models role executor` returns identical output on rig and cloud
+- [x] Coordinator resolution equals the M5 fixture for all 34 agents after `model_routing` is gone
+- [x] `internal/coordinator/model_routing.go` and its config key removed; no dangling references
+- [x] `go build ./...` clean — no import cycle. This is the coordinator's **first** dependency on
+      the registry (V7 flagged the risk); it is safe only because M1 made `modelreg` a leaf
+
+**The fixture was weaker than it looked, and got fixed.** Its first version logged
+*"34 agents checked; **0** resolved via a role rather than a pin"* — every agent carries a pin, so
+the role path was never exercised and "the registry matches the old table" was a claim about code no
+real agent runs. It now drops the pin from each of the four role-bearing agents and requires the
+registry to name what the table named: **4 role resolutions verified**. Negative control run —
+perturbing one chain fails with `registry says … the deleted table said …`.
+
+**`ailang coordinator routing` forwards rather than 404s.** It read the deleted table; it now prints
+a retirement note and calls `models role`, so muscle memory and any driver land on the replacement
+*with the answer in hand*. The output shape differs (friendly name · wire string · harness), so
+anything parsing it must move to field 2.
+
+**Verified against the two agents from the `pkg:ailang-parse` incident** (Mark's suggested test
+case): `pkg-sunholo-ailang-parse` and `design-doc-creator` resolve byte-identically before and
+after. That is the point — M7 is inert for them, so it demonstrably is **not** the fix for those
+failed runs. Their causes are elsewhere: a `workspace` chdir bug and a 3-minute `idle_timeout`.
 
 **Files**: `cmd/ailang/models.go` (new), `internal/coordinator/`, `ailang-multivac/config/`
 
 ---
 
-### M8 — Mission driver adoption (D3(a)) — **attended window only**
+### M8 — Mission driver adoption (D3(a)) — **PARKED 2026-08-27 (Mark: "if it ain't broken won't fix")**
+
+**Parked because the milestone's premise was wrong.** M8 was scoped as "read a value from a CLI"
+(~80 LOC of shell). What the driver actually has is a multi-tier, multi-provider routing scheme with
+ratified rationale at every level, and two ways a naive wiring would have silently degraded three
+live loops:
+
+1. **`claude:fable` would downgrade the designer to opus.** The driver pins the designer as
+   `claude:claude-fable-5` (full ID) precisely because *"the Agent tool pins only sonnet|opus|haiku
+   (F1, iteration 31), so under an opus-first controller a bare `fable` would silently fall back to
+   opus"*. The registry yields `claude:fable` from `agent_model_name` — correct for evals, wrong here.
+2. **Per-role fallbacks already exist and are richer than the registry's.**
+   `MISSION_{EXECUTOR,PLANNER,EVALUATOR}_FALLBACK` are two-deep, run on **`pi`** (chosen because it
+   *"sees the sprint's uncommitted worktree and can re-run tests"*), and lead with an **ollama-cloud
+   flat-rate tier** before metered OpenRouter. There is also a `PLANNER_ANTHROPIC_FALLBACK` the
+   registry cannot express. The evaluator's minimax-m3 was picked (Mark, 2026-08-26) after two
+   guard-caught corrections for vendor independence, headroom, and banked agent-mode score.
+
+Adopting the registry as it stands would have replaced that with a flatter, worse table. Making it
+*better* needs the registry to model three-deep chains, the `pi` harness, the ollama-cloud tier, and
+a mission-form string that is not `agent_cli:agent_model_name` — its own design doc, not this
+sprint's tail.
+
+**What the sprint still delivered for Lane A**: `ailang models role` exists and is the read path
+whenever that doc happens.
+
+<details><summary>Original M8 scope</summary>
+
+#### Mission driver adoption (D3(a)) — attended window only
 
 **~80 LOC shell**
 
@@ -240,7 +492,9 @@ Two conditions from the ratification, both load-bearing:
 - `MISSION_PLANNER_MODEL=opus` still overrides — the rollback ergonomic survives
 - One full attended iteration completes green before the loops are left unattended
 
-**Files**: `tools/launchd/mission-control.sh`
+**Files**: none — parked
+
+</details>
 
 ---
 

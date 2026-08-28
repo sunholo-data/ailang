@@ -162,7 +162,7 @@ fi
 echo "FAIL: wire budget is $ACTUAL, expected $EXPECTED."
 if [ "$ACTUAL" -gt "$CLAMP" ]; then
   echo "  actual EXCEEDS the clamp — pi-ai may have raised or removed it."
-  echo "  If so, the pi rows in internal/eval_harness/models.yml are now UNDER-declared"
+  echo "  If so, the pi rows in internal/modelreg/models.yml are now UNDER-declared"
   echo "  and should be raised, along with PI_WIRE_CLAMP here and in models_headroom_test.go."
 fi
 exit 1

@@ -443,17 +443,45 @@ func verifyCommand() {
 		results = append(results, vr)
 	}
 
+	// Account for exported functions that carry no contract at all.
+	//
+	// These never enter the loop above (`len(meta.Contracts) == 0` skips them),
+	// so before this they were absent from the denominator entirely: a module
+	// with 25 exports of which 11 had contracts reported "11 functions: 11
+	// verified" and said nothing about the other 14. The teaching prompt asks
+	// agents to maximise the surface area of verified code, which is a ratio
+	// the tool has to be willing to print the bottom half of.
+	uncontracted := 0
+	for _, fd := range surfaceAST.Funcs {
+		if !fd.IsExport {
+			continue
+		}
+		meta, ok := coreProg.Meta[fd.Name]
+		if ok && len(meta.Contracts) > 0 {
+			continue
+		}
+		results = append(results, verifyResult{
+			Function: fd.Name,
+			Status:   "uncontracted",
+			Reason:   "no contract annotations (not a verification candidate)",
+		})
+		uncontracted++
+	}
+
 	// Output results
 	if *jsonFlag {
-		printVerifyJSON(results, filename, verified, counterexample, skipped, errCount)
+		printVerifyJSON(results, filename, verified, counterexample, skipped, errCount, uncontracted)
 	} else {
-		printVerifyHuman(results, filename, verified, counterexample, skipped, errCount, *verboseFlag)
+		printVerifyHuman(results, filename, verified, counterexample, skipped, errCount, uncontracted, *verboseFlag)
 	}
 
 	// Exit code logic
 	if counterexample > 0 {
 		os.Exit(1) // Contract violations found
 	}
+	// Strict mode is deliberately unchanged: an uncontracted function is not a
+	// verification failure, it is a function nobody has written a contract for.
+	// Counting it here would turn --strict red on every module with a helper.
 	if *strictFlag && (skipped > 0 || errCount > 0) {
 		os.Exit(1) // Strict mode: non-verifiable functions are failures
 	}

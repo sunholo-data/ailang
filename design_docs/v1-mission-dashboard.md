@@ -1,30 +1,42 @@
 # Mission Dashboard — V1
 
-_Snapshot after iteration 291 (2026-08-27). Overwritten each iteration; history lives in the charter STATUS block and the mission log._
+*Snapshot, overwritten each iteration. History lives in the charter STATUS block and the mission log.*
+
+**As of**: 2026-08-28 06:50 CEST · iteration **297** · `origin/dev` = `5e5c77dee`
 
 ## Latest
-- **Release**: v0.34.0 · `origin/dev` @ `ed5600da6`
-- **Landed this iteration**: [#936](https://github.com/sunholo-data/ailang/pull/936) → squash `ed5600da6` — M1 of `m-prompt-version-freeze-on-first-bank` (decision **D-41(c)**)
-- **Live defect repaired**: `prompts/versions.json` recorded a stale hash for `aver`, so the loader **failed outright** on it. Registry audit **58 ok / 1 bad → 59 ok / 0 bad**.
-- **Migration**: all 59 prompt versions marked — 19 `banked`, 39 `legacy`, 1 mutable (`v0.16.6`, the active version, zero banked uses).
+- **v0.34.0** released. Last landing: **PR #949 → `5e5c77dee`** (iteration 297) — the prompt-freeze
+  CI gate now checks **every** registry entry, not only frozen ones.
+- Why it mattered: 59 registry entries, 58 frozen, **1 mutable — `v0.16.6`, which is also `active`**,
+  i.e. the prompt every agent reads. Its `.md` could diverge, be deleted, or have its embedded mirror
+  deleted, all at rc=0. Now rc=1 with a named violation. Merge-base immutability stays frozen-only.
 
 ## In flight / next
-1. **M2** — CI gate (`make check-prompt-freeze`, merge-base immutability, mirror-registry check)
-2. **M3** — close the agent-mode verification hole (found this iteration: `internal/prompt` never compares `Hash`, and `langreg` converts a load failure into a **success** attributed `"default"`)
-3. **M4** — bank-time `prompt_sha256` byte evidence
-4. `m-fmt-gate-freeze` (was queue head; deferred by the D-41 directive)
+- **`m-openrouter-session-chain-registration`** — PARKED on **`D-47`**. PR #945 is a DRAFT; the
+  mechanism misattributes spans rather than merely failing to resolve them. Do not re-route until D-47 lands.
+- Next picks: `m-std-smt` (external feature request, needs a doc) · `sonarcloud-new-code-gate-red`
+  (premise re-measured iter-294) · `m-git-binary-resolution-sweep` (doc written, quorum not yet run).
 
 ## Loop health
-- Cadence: launchd, ~6h slot · driver **PINNED** this fire (`~/.ailang-driver-pin/v1`) after six consecutive unpinned fires
-- Routing: controller `opus` · designer **rotation** · planner `opus` (derived) · executor `codex:gpt-5.6-sol` · evaluator `sonnet`
-- **Designer lane `pi:ollama/kimi-k3:cloud` FAILED** on first real use (`wall_timeout`, 1802s, 73 tool calls, **0 files written**) → fell back to `claude:claude-fable-5`
-- Evaluator: **PASS 91/100, zero blocking**, in its own worktree. generator≠judge held on both axes.
-- metered **$0.25** of $5 (two quorum rounds)
+- Cadence nominal. Iterations 295/296/297 all completed end-to-end; no reaped slots.
+- Routing this iteration: controller `opus` · designer `fable` (Agent-tool pin) · planner `opus`
+  (lane derived verbatim) · executor `codex:gpt-5.6-sol` · evaluator `sonnet` (own worktree).
+  generator≠judge held on both axes.
+- **FLAGGED, instance 2 (after iter-294)**: the designer rotation's next entry is
+  `pi:ollama/kimi-k3:cloud`, which the Agent tool cannot express, so the pointer did not advance.
+  The rotation has one Agent-tool-expressible authoring lane. Routing-policy fix needs a human.
+- `SonarCloud Code Analysis` has been `failure` on dev for 9+ consecutive commits. Non-required,
+  named every iteration, never the pick. `sonarcloud-new-code-gate-red` is the queue row for it.
 
-## Parked on Mark
-- **D-42** (only open row) — standing authorization to reconcile this checkout to `origin/dev` unattended?
-- **SonarCloud** red on dev ≥6 analysed commits — inherited, non-required, named not fixed (60.1% coverage-on-new-code, B security rating)
-- Two external `mcp-public` `.eml` bug reports + a parser error-cascade report left unacked for an attended session
+## Parked on Mark — 5 open decisions
+| ID | One-line |
+|----|----------|
+| **D-42** | Standing authorization to reconcile this clone to `origin/dev` unattended? Local `dev` is now **21 behind**; a fleet-wide driver fix cannot reach a clone that never advances. |
+| **D-43** | Should `std/string.charAt` itself become total, or does the new `charAtOpt`/`charAt_or` pair close it? |
+| **D-44** | May `ai_check.go`'s verify denominator be corrected, given it moves a KPI with a banked baseline? |
+| **D-46** | Who reconciles the `M-MISSION-LOOP-UNIFIED-TELEMETRY` sprint JSON — `mine` or `loop`? |
+| **D-47** | OpenRouter session registration is chain-grained; the doc asks for stage-bound. Chain-only, per-request id, or redesign the join? |
 
-## Recently resolved
-- **D-41 → (c)** answered 2026-08-27, implemented same iteration
+## Quota / cost posture
+- Iteration 297 metered spend: **$0.2358** of the $5 ceiling — two quorum rounds only.
+- No managed_agents call, no pi lane, no GPU. codex lane probed rc=0 and was used for the executor.

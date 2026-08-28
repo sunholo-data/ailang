@@ -83,9 +83,45 @@ func TestLoadPrompt_InvalidVersion(t *testing.T) {
 		t.Fatal("LoadPrompt(\"v99.99.99\") should have failed but didn't")
 	}
 
-	// Error should mention the version wasn't found
-	if !strings.Contains(err.Error(), "not found") {
-		t.Errorf("Error message should mention 'not found', got: %v", err)
+	// The error must name the unresolvable version and point somewhere useful.
+	assertUnresolvedVersionError(t, err, "v99.99.99")
+}
+
+// TestLoadPrompt_BinaryVersionExplainsNamespace guards the distinction that
+// caused an external report to read a healthy toolchain as eighteen minor
+// versions of drift: prompt versions are their own series, so asking for the
+// BINARY's version must say so rather than just "not found".
+func TestLoadPrompt_BinaryVersionExplainsNamespace(t *testing.T) {
+	_, err := LoadPrompt("0.34.0")
+	if err == nil {
+		t.Fatal("LoadPrompt(\"0.34.0\") should have failed but didn't")
+	}
+	if !strings.Contains(err.Error(), "their own series") {
+		t.Errorf("a binary-shaped version should explain the namespace, got: %v", err)
+	}
+
+	// A plain typo within the prompt series must NOT get that explanation —
+	// otherwise the hint is noise that appears on every mistake.
+	_, err = LoadPrompt("v0.3.999")
+	if err == nil {
+		t.Fatal("LoadPrompt(\"v0.3.999\") should have failed but didn't")
+	}
+	if strings.Contains(err.Error(), "their own series") {
+		t.Errorf("an in-series typo should not get the namespace explanation, got: %v", err)
+	}
+}
+
+// assertUnresolvedVersionError checks the shared shape of an unknown-version
+// error: it names the version the caller asked for, and tells them how to find
+// the real ones.
+func assertUnresolvedVersionError(t *testing.T, err error, version string) {
+	t.Helper()
+	msg := err.Error()
+	if !strings.Contains(msg, version) {
+		t.Errorf("error should name the requested version %q, got: %v", version, err)
+	}
+	if !strings.Contains(msg, "--list") {
+		t.Errorf("error should point at 'ailang prompt --list', got: %v", err)
 	}
 }
 
@@ -187,9 +223,7 @@ func TestGetVersionMetadata_Invalid(t *testing.T) {
 		t.Fatal("GetVersionMetadata(\"v99.99.99\") should have failed but didn't")
 	}
 
-	if !strings.Contains(err.Error(), "not found") {
-		t.Errorf("Error message should mention 'not found', got: %v", err)
-	}
+	assertUnresolvedVersionError(t, err, "v99.99.99")
 }
 
 func TestLoadVersionsManifest(t *testing.T) {

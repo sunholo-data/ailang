@@ -69,10 +69,22 @@ M1 → M2 → M3 → M4 (M4's chart needs ≥1 stamped release entry from M3; it
 
 Recent 7 days show the loop landing ~1 substantive milestone/day alongside docs traffic (prompt-freeze M1 `ed5600da6`, corpus M3, fmt pins). 5 milestones ≈ 6 working days with the 20-30% buffer already applied to per-milestone estimates.
 
-## Success metrics (sprint-level)
+## Success metrics (sprint-level) — status 2026-08-27
 
-- Pool-composition regression test in CI, failing against the old fit (mutation-checked)
-- `trial_history` > 0 rows, idempotent, version-stamped; agent ratings auto-refresh
-- One real release measured ≤ $25 with the index stamped
-- ELO trend + provenance visible; Mark-confirmed
-- Zero non-additive changes to `latest.json.ratings`; all V20/V21 consumers untouched and passing
+- [x] Pool-composition regression test in CI, failing against the old fit (mutation-checked)
+      — anchored drift 31.2 vs unanchored 311.7 ELO (10x); the control fails if the scenario
+      ever stops discriminating.
+- [x] `trial_history` > 0 rows, idempotent, version-stamped — 1,711 rows stamped v0.32.0;
+      identical re-persist leaves the count unchanged (PK constraint, not convention).
+      ⚠️ *agent ratings auto-refresh*: code landed (filler step 8a) but NOT ACTIVE on the rig
+      until its plist/script install cycle runs — mechanism proven by a manual run.
+- [~] One real release measured ≤ $25 with the index stamped — protocol proven end to end
+      (both refusal gates + a positive index of 1551.1 over 86 trials) and the v0.35.0 dry run
+      costs **$2.88** against the $25 cap, but it has not yet run against an actual release tag.
+- [~] ELO trend + provenance visible — implemented and CI `docs-build` green; **Mark's visual
+      confirmation still outstanding by design** (no agent may sign this off).
+- [x] Zero non-additive changes to `latest.json.ratings`; V20/V21 consumers untouched
+      — additive fields only; legacy-history round-trip test proves the 47 published entries
+      serialize with an identical key set.
+
+Legend: [x] done · [~] done-with-a-named-gap (see the design doc's VERIFY blocks for detail).

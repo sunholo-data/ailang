@@ -145,12 +145,33 @@ export pure func splitAny(s: string, delimiters: [string]) -> [string] = _str_sp
 -- Example: foldChars(\acc c -> acc ++ c, "", "abc") = "abc"
 export pure func foldChars(f: (a, string) -> a, acc: a, s: string) -> a = _str_foldChars(f, acc, s)
 
--- charAt: Get character at rune index (0-based)
+-- charAt: Get character at rune index (0-based) — ABORTS out of bounds
+-- WARNING: this is a PARTIAL accessor. Out of range — including index 0 of the
+-- empty string — it aborts the program rather than returning a value. Its type
+-- gives no hint of that, so prefer charAtOpt or charAt_or whenever the index is
+-- derived from data rather than from a literal you have already bounds-checked.
+-- The abort exits non-zero, which makes it invisible to a test that asserts
+-- rejection by exit code alone: such a suite stays green while the program
+-- crashes on every input.
 -- Cost: O(i) — decodes forward to i, allocating nothing proportional to the
 -- string. It is NOT O(1): a left-to-right scan written with charAt is still
 -- quadratic in the string length. Use foldChars for sequential access.
--- Example: charAt("hello", 1) = "e"
+-- Example: charAt("hello", 1) = "e"; charAt("", 0) aborts
 export pure func charAt(s: string, i: int) -> string = _str_charAt(s, i)
+
+-- charAtOpt: Total character access at rune index (0-based)
+-- Returns None for every out-of-range index instead of aborting, matching the
+-- shape of every other partial accessor in the stdlib (list.nth, list.head,
+-- string.stringToInt, json.asString, bytes.slice).
+-- Example: charAtOpt("hello", 1) = Some("e"); charAtOpt("", 0) = None
+export pure func charAtOpt(s: string, i: int) -> Option[string] =
+  if i >= 0 && i < length(s) then Some(_str_charAt(s, i)) else None
+
+-- charAt_or: Character at rune index, or a caller-supplied default
+-- Total for every index. Mirrors nth_or in std/list.
+-- Example: charAt_or("hello", 9, "?") = "?"
+export pure func charAt_or(s: string, i: int, default: string) -> string =
+  if i >= 0 && i < length(s) then _str_charAt(s, i) else default
 
 -- Get Unicode code point of a single-character string
 -- Example: charCode("a") = 97, charCode("🎉") = 127881

@@ -452,6 +452,21 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 				if tp := buildHistoricalTierPoints(baseline.Results, benchmarkTier); len(tp) > 0 {
 					histEntry.Tiers = tp
 				}
+				// M-EVAL-ROLLING-ELO M4: backfill the per-version MODEL rating
+				// series from this baseline's own standard rows. This is exactly
+				// what anchoring buys — a fit against the frozen panel is
+				// comparable to every other release's fit, so historical
+				// baselines can join the series instead of starting it empty.
+				// (The direction index is NOT backfilled: it is a stamped
+				// release-time measurement and inventing one for a past release
+				// would be fabrication. Old entries carry the model half only.)
+				var baselineStandard []*BenchmarkResult
+				for _, r := range baseline.Results {
+					if r.EvalMode != "agent" {
+						baselineStandard = append(baselineStandard, r)
+					}
+				}
+				attachRatingsToHistoryEntry(&histEntry, baselineStandard)
 				// Merge this entry into the dashboard history
 				mergeHistory(dashboard, histEntry)
 			}
@@ -463,6 +478,10 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	if tp := buildHistoricalTierPoints(standardResults, benchmarkTier); len(tp) > 0 {
 		newHistoryEntry.Tiers = tp
 	}
+	// M-EVAL-ROLLING-ELO M4: give ratings a time axis. The anchored model fit
+	// comes from this run; the direction index is READ from the release's
+	// stamped artifact (never recomputed — that would rewrite history).
+	attachRatingsToHistoryEntry(&newHistoryEntry, standardResults)
 
 	// Merge with existing history (preserves old entries, updates if version exists)
 	mergeHistory(dashboard, newHistoryEntry)

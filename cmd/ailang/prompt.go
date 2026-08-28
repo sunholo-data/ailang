@@ -151,7 +151,7 @@ OPTIONS:
 FREEZE:
   ailang prompt freeze <version>  Freeze a corpus-evidenced prompt version
   ailang prompt freeze --migrate  Record the initial banked/legacy split
-  ailang prompt freeze --check    Check derivation and hash-integrity invariants
+  ailang prompt freeze --check    Check derivation, hash, immutability, and mirror invariants
 
 EXAMPLES:
   # Display current/latest prompt
@@ -180,16 +180,21 @@ DESCRIPTION:
   These prompts are used by AI models to generate AILANG code and are validated
   through multi-model evaluation benchmarks.
 
-  Each prompt version corresponds to a specific AILANG language version and
-  includes comprehensive syntax reference, examples, and limitations.
-
-  The active version (v0.16.0) covers the IFC label system: T<label>
-  source annotations, T{not LABEL} sink refinements, and the Declassify
-  effect for prompt-injection-resistant agent code. Use --version v0.12.1
-  for the prior version without IFC labels.
+  Each prompt version is a curated teaching document — syntax reference,
+  examples, and limitations — revised when the teaching needs to change, not
+  once per language release.
 
   Prompts are versioned and tracked in prompts/versions.json.
+
+  NOTE: prompt versions are their own series. They do NOT track the binary's
+  release version — the active prompt is numbered independently of
+  'ailang --version', so a prompt numbered below the binary is expected, not
+  drift. Cross-check the stdlib surface with 'ailang docs', which is generated
+  from std/ at build time and is always current.
 `)
+	if active, err := prompt.GetActiveVersion(); err == nil && active != "" {
+		fmt.Printf("\n  Active prompt version: %s (binary: %s)\n", active, versionpkg.Version)
+	}
 }
 
 // listPromptVersions lists all available prompt versions

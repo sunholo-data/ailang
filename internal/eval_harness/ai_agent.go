@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"strings"
 	"time"
 
@@ -44,8 +45,8 @@ func NewAIAgent(model string, seed int64) (*AIAgent, error) {
 	// Wire max_output_tokens from models.yml. Reasoning models (Gemini 3.x,
 	// GPT-5, Claude 4.x thinking) need this to avoid burning the whole 4K
 	// default budget on hidden thoughts and returning empty content.
-	if GlobalModelsConfig != nil {
-		if cfg, lookupErr := GlobalModelsConfig.GetModel(model); lookupErr == nil {
+	if modelreg.GlobalModelsConfig != nil {
+		if cfg, lookupErr := modelreg.GlobalModelsConfig.GetModel(model); lookupErr == nil {
 			if cfg.MaxOutputTokens > 0 {
 				adapter.setMaxTokens(cfg.MaxOutputTokens)
 			}

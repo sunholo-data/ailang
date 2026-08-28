@@ -9,6 +9,18 @@
       "pure": true
     },
     {
+      "name": "charAtOpt",
+      "type": "(string,int)-\u003eOption[string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "charAt_or",
+      "type": "(string,int,string)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "charCode",
       "type": "(string)-\u003eint",
       "effects": [],

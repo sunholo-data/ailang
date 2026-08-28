@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"os"
@@ -15,6 +14,7 @@ import (
 type moduleDoc struct {
 	Name        string      // e.g., "std/io"
 	Description string      // First comment block (module description)
+	Types       []typeDoc   // Exported type declarations
 	Exports     []exportDoc // Exported functions
 	Examples    []string    // Usage examples from comments
 	FilePath    string      // Full path to .ail file
@@ -25,6 +25,16 @@ type exportDoc struct {
 	Name      string // Function name
 	Signature string // Full signature line
 	DocLine   string // Comment line above export
+}
+
+// typeDoc represents an exported type declaration (record or sum type).
+// The shape of a returned record is often the single most important thing a
+// caller needs — `std/process.exec` is useless without knowing ProcessOutput
+// has .stdout/.stderr/.exitCode and that .stdout is bytes, not string.
+type typeDoc struct {
+	Name    string   // Type name, e.g. "ProcessOutput"
+	Decl    []string // Declaration lines, as written (multi-line shapes preserved)
+	DocLine string   // Summary line from the comment block above
 }
 
 // docsCommand implements `ailang docs` command
@@ -187,16 +197,19 @@ func discoverModules(stdlibPath string) []moduleDoc {
 	return modules
 }
 
-// parseModuleFile parses a stdlib .ail file for documentation
+// parseModuleFile parses a stdlib .ail file for documentation.
+//
+// Reads the whole file up front and scans by index: both the multi-line
+// `export func` signature and the multi-line `export type` declaration need
+// to look ahead, and a bufio.Scanner can only over-read.
 func parseModuleFile(filePath string) moduleDoc {
-	file, err := os.Open(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return moduleDoc{}
 	}
-	defer file.Close()
 
 	mod := moduleDoc{FilePath: filePath}
-	scanner := bufio.NewScanner(file)
+	lines := strings.Split(string(data), "\n")
 
 	var headerComments []string
 	var currentDoc string
@@ -209,10 +222,10 @@ func parseModuleFile(filePath string) moduleDoc {
 	exportFuncRe := regexp.MustCompile(`^export\s+(?:pure\s+)?func\s+(\w+)`)
 	// Match both short form (export func f(x) = ...) and block form (export func f(x) -> T { ... })
 	exportSigRe := regexp.MustCompile(`^export\s+(?:pure\s+)?func\s+\w+\s*(?:\[[^\]]+\])?\s*\([^)]*\)(?:\s*->\s*[^{=]+)?`)
+	exportTypeRe := regexp.MustCompile(`^export\s+type\s+(\w+)`)
 
-	for scanner.Scan() {
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
+	for i := 0; i < len(lines); i++ {
+		trimmed := strings.TrimSpace(lines[i])
 
 		// Track example blocks
 		if strings.Contains(trimmed, "Usage:") || strings.Contains(trimmed, "Example") {
@@ -221,8 +234,7 @@ func parseModuleFile(filePath string) moduleDoc {
 
 		// Collect header comments (module description)
 		if inHeaderBlock && strings.HasPrefix(trimmed, "--") {
-			comment := strings.TrimPrefix(trimmed, "--")
-			comment = strings.TrimSpace(comment)
+			comment := strings.TrimSpace(strings.TrimPrefix(trimmed, "--"))
 			headerComments = append(headerComments, comment)
 
 			if exampleBlock && comment != "" && !strings.HasPrefix(comment, "=") {
@@ -250,9 +262,45 @@ func parseModuleFile(filePath string) moduleDoc {
 			continue
 		}
 
-		// Documentation comment before export
+		// Documentation comment before an export.
+		//
+		// The FIRST meaningful line of the contiguous comment block is the
+		// summary. Taking the last line instead — which this did until the
+		// std/process report — makes the description whatever the block
+		// happened to end on: `exec` documented itself as "}", the closing
+		// brace of the `match` in its own example, and `spawnProcess`
+		// documented itself as a call to `closeProcessStdin`.
 		if strings.HasPrefix(trimmed, "--") {
-			currentDoc = strings.TrimSpace(strings.TrimPrefix(trimmed, "--"))
+			comment := strings.TrimSpace(strings.TrimPrefix(trimmed, "--"))
+			if currentDoc == "" && isSummaryLine(comment) {
+				currentDoc = comment
+			}
+			continue
+		}
+
+		// A blank line ends a comment block, so a section banner cannot leak
+		// its text onto the next export.
+		if trimmed == "" {
+			currentDoc = ""
+			continue
+		}
+
+		// Exported type declaration. The shape of a returned record is often
+		// the one thing a caller cannot proceed without: `exec` is unusable
+		// without knowing ProcessOutput carries .stdout/.stderr/.exitCode and
+		// that .stdout is bytes rather than string.
+		if match := exportTypeRe.FindStringSubmatch(trimmed); match != nil {
+			decl := []string{trimmed}
+			for typeDeclContinues(decl, lines, i+1) {
+				i++
+				decl = append(decl, strings.TrimSpace(lines[i]))
+			}
+			mod.Types = append(mod.Types, typeDoc{
+				Name:    match[1],
+				Decl:    decl,
+				DocLine: currentDoc,
+			})
+			currentDoc = ""
 			continue
 		}
 
@@ -264,10 +312,11 @@ func parseModuleFile(filePath string) moduleDoc {
 			// (e.g., params spanning multiple lines)
 			fullLine := trimmed
 			for strings.Count(fullLine, "(") > strings.Count(fullLine, ")") {
-				if !scanner.Scan() {
+				if i+1 >= len(lines) {
 					break
 				}
-				fullLine += " " + strings.TrimSpace(scanner.Text())
+				i++
+				fullLine += " " + strings.TrimSpace(lines[i])
 			}
 
 			// Extract full signature from joined line
@@ -276,18 +325,44 @@ func parseModuleFile(filePath string) moduleDoc {
 				sig = sigMatch
 			}
 
-			export := exportDoc{
+			mod.Exports = append(mod.Exports, exportDoc{
 				Name:      funcName,
 				Signature: sig,
 				DocLine:   currentDoc,
-			}
-			mod.Exports = append(mod.Exports, export)
+			})
 			currentDoc = ""
+			continue
 		}
+
+		// Any other code line ends the pending comment block.
+		currentDoc = ""
 	}
 
 	mod.Examples = examples
 	return mod
+}
+
+// isSummaryLine reports whether a comment line can serve as an export summary.
+// Section banners ("-- =====") and blank comment lines cannot.
+func isSummaryLine(c string) bool {
+	if c == "" {
+		return false
+	}
+	return strings.Trim(c, "=-") != ""
+}
+
+// typeDeclContinues reports whether lines[next] belongs to the `export type`
+// declaration accumulated so far. Records continue while a brace is unbalanced;
+// sum types continue while the following line opens with `|`.
+func typeDeclContinues(decl []string, lines []string, next int) bool {
+	if next >= len(lines) {
+		return false
+	}
+	joined := strings.Join(decl, " ")
+	if strings.Count(joined, "{") > strings.Count(joined, "}") {
+		return true
+	}
+	return strings.HasPrefix(strings.TrimSpace(lines[next]), "|")
 }
 
 // showModuleDocs displays documentation for a specific module
@@ -326,6 +401,27 @@ func showModuleDocs(stdlibPath, moduleName string, showExamples bool) {
 		fmt.Printf("%s\n", mod.Description)
 	}
 	fmt.Println()
+
+	// Print exported types before the functions that return them: a caller
+	// reading `exec(...) -> Result[ProcessOutput, ProcessError]` needs the
+	// shape of ProcessOutput to do anything with the result.
+	if len(mod.Types) > 0 {
+		fmt.Println("## Types")
+		fmt.Println()
+		for _, t := range mod.Types {
+			if t.DocLine != "" {
+				fmt.Printf("  %s\n", dim(t.DocLine))
+			}
+			for j, d := range t.Decl {
+				if j == 0 || d == "}" {
+					fmt.Printf("  %s\n", d)
+				} else {
+					fmt.Printf("    %s\n", d)
+				}
+			}
+			fmt.Println()
+		}
+	}
 
 	// Print exports
 	if len(mod.Exports) > 0 {

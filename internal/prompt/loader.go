@@ -6,6 +6,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 // embeddedPrompts is set by SetEmbeddedFS (called from main)
@@ -63,7 +65,7 @@ func LoadPrompt(version string) (string, error) {
 	// Look up version metadata
 	metadata, ok := manifest.Versions[targetVersion]
 	if !ok {
-		return "", fmt.Errorf("version %q not found in versions.json", targetVersion)
+		return "", unknownVersionError(manifest, targetVersion)
 	}
 
 	var content []byte
@@ -211,8 +213,67 @@ func GetVersionMetadata(version string) (*VersionMetadata, error) {
 
 	metadata, ok := manifest.Versions[targetVersion]
 	if !ok {
-		return nil, fmt.Errorf("version %q not found in versions.json", targetVersion)
+		return nil, unknownVersionError(manifest, targetVersion)
 	}
 
 	return &metadata, nil
+}
+
+// unknownVersionError explains an unresolvable prompt version.
+//
+// Teaching prompts carry their own version series, which is INDEPENDENT of the
+// binary's release version: v0.16.6 is the current prompt on a v0.34.0 binary,
+// and there has never been a prompt numbered v0.34.0. The bare
+// "not found in versions.json" gave no hint of that, so `--version 0.34.0` read
+// as eighteen minor versions of drift rather than as a category error.
+func unknownVersionError(manifest *VersionsManifest, targetVersion string) error {
+	msg := fmt.Sprintf("%q is not a known prompt version", targetVersion)
+
+	if looksLikeBinaryVersion(manifest, targetVersion) {
+		msg += "\n\n  Prompt versions are their own series and do not track the binary's" +
+			"\n  release version — there is no prompt numbered for each AILANG release."
+	}
+	if manifest.Active != "" {
+		msg += fmt.Sprintf("\n\n  Active prompt version: %s  (omit --version, or pass --version latest)", manifest.Active)
+	}
+	msg += "\n  List every available version: ailang prompt --list"
+	return fmt.Errorf("%s", msg)
+}
+
+// looksLikeBinaryVersion reports whether the requested version is plausibly the
+// caller's binary version rather than a typo'd prompt version: it parses as a
+// version and sorts above every prompt version on record.
+func looksLikeBinaryVersion(manifest *VersionsManifest, target string) bool {
+	tMajor, tMinor, ok := parseMajorMinor(target)
+	if !ok {
+		return false
+	}
+	for v := range manifest.Versions {
+		vMajor, vMinor, ok := parseMajorMinor(v)
+		if !ok {
+			continue
+		}
+		if vMajor > tMajor || (vMajor == tMajor && vMinor >= tMinor) {
+			return false
+		}
+	}
+	return true
+}
+
+// parseMajorMinor extracts major/minor from a "vX.Y.Z" or "X.Y.Z" string.
+func parseMajorMinor(v string) (int, int, bool) {
+	v = strings.TrimPrefix(v, "v")
+	parts := strings.SplitN(v, ".", 3)
+	if len(parts) < 2 {
+		return 0, 0, false
+	}
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, 0, false
+	}
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return 0, 0, false
+	}
+	return major, minor, true
 }

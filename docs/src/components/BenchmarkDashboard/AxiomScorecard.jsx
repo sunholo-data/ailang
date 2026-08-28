@@ -76,6 +76,19 @@ export default function AxiomScorecard() {
     }
   };
 
+  // Staleness: this card is fed by a STATIC file (no runtime refresh path), so
+  // it silently showed v0.15.0/2026-05-04 numbers for ~4 months and ~19 releases
+  // with nothing saying so (M-EVAL-ROLLING-ELO M5). Until it is wired into the
+  // publish pipeline, say how old it is rather than implying it is current.
+  const scorecardAge = (() => {
+    if (!data?.timestamp) return null;
+    const then = new Date(data.timestamp);
+    if (!(then.getFullYear() > 2000)) return null;
+    const days = Math.floor((Date.now() - then.getTime()) / 86400000);
+    return { days, when: then.toISOString().slice(0, 10) };
+  })();
+  const isStale = scorecardAge && scorecardAge.days > 45;
+
   return (
     <div className={styles.card}>
       <div className={styles.cardHeader}>
@@ -85,6 +98,25 @@ export default function AxiomScorecard() {
           {grade}
         </span>
       </div>
+      {scorecardAge && (
+        <div
+          style={{
+            fontSize: '0.8rem',
+            opacity: 0.85,
+            padding: '0 1rem',
+            fontWeight: isStale ? 600 : 400,
+          }}
+          title={
+            isStale
+              ? 'This scorecard is published as a static file and is not refreshed by the benchmark pipeline.'
+              : undefined
+          }
+        >
+          {isStale ? '⚠ ' : ''}
+          Scorecard data: {data.version || 'unknown version'}, {scorecardAge.when}
+          {isStale ? ` — ${scorecardAge.days} days old (static file, not auto-refreshed)` : ''}
+        </div>
+      )}
       <div className={styles.cardContent}>
         {/* Progress bar */}
         <div className={styles.progressContainer}>

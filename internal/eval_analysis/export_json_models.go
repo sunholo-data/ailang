@@ -1,9 +1,8 @@
 package eval_analysis
 
 import (
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"sort"
-
-	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 // modelsResult bundles the outputs of buildModelsJS so ExportBenchmarkJSON
@@ -182,7 +181,7 @@ func buildModelsJS(
 			},
 		}
 		// M-BENCHMARK-SECTION: provider_type and timeout_scale for cloud/local badge.
-		if cfg := eval_harness.GlobalModelsConfig; cfg != nil {
+		if cfg := modelreg.GlobalModelsConfig; cfg != nil {
 			if mc, ok := cfg.Models[name]; ok {
 				providerType := "cloud"
 				if mc.Provider == "ollama" {
@@ -402,7 +401,7 @@ func buildModelsJS(
 				}
 			}
 			// Attach models.yml metadata.
-			if cfg := eval_harness.GlobalModelsConfig; cfg != nil {
+			if cfg := modelreg.GlobalModelsConfig; cfg != nil {
 				if mc, ok := cfg.Models[modelName]; ok {
 					if mc.AgentCLI != nil && *mc.AgentCLI != "" {
 						entry["agent_cli"] = *mc.AgentCLI

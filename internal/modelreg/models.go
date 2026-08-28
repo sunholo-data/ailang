@@ -1,4 +1,4 @@
-package eval_harness
+package modelreg
 
 import (
 	_ "embed"
@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
-
-	"github.com/sunholo-data/ailang/internal/executor"
 )
 
 //go:embed models.yml
@@ -164,6 +162,11 @@ func (m *ModelConfig) ResolvedHardTimeoutSecs() int {
 
 // ModelsConfig represents the entire models.yml configuration
 type ModelsConfig struct {
+	// Roles maps a role name to an ordered fallback chain of FRIENDLY NAMES
+	// (models.yml keys, not wire strings). M-MODEL-REGISTRY-SINGLE-SOURCE M3;
+	// see roles.go. Absent in older registries, which simply have no roles.
+	Roles map[string][]string `yaml:"roles"`
+
 	Models           map[string]ModelConfig `yaml:"models"`
 	Default          string                 `yaml:"default"`
 	BenchmarkSuite   []string               `yaml:"benchmark_suite"`
@@ -195,37 +198,31 @@ func LoadModelsConfig(path string) (*ModelsConfig, error) {
 	return &config, nil
 }
 
+// LoadModelsConfigBytes parses a registry from memory.
+//
+// Publishing validates the EXACT BYTES it is about to write rather than a
+// re-read of the file: anything else leaves a gap where the validated document
+// and the published document are not the same one.
+func LoadModelsConfigBytes(data []byte) (*ModelsConfig, error) {
+	var config ModelsConfig
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to parse models config: %w", err)
+	}
+	return &config, nil
+}
+
 // InitModelsConfig loads the global models configuration
 func InitModelsConfig() error {
-	// Try embedded models.yml first (available in installed binary)
-	if len(embeddedModelsYAML) > 0 {
-		var config ModelsConfig
-		if err := yaml.Unmarshal(embeddedModelsYAML, &config); err == nil {
-			GlobalModelsConfig = &config
-			return nil
-		}
-		// If embedded parse fails, fall through to file system
-	}
-
-	// Fall back to file system (for development)
-	paths := []string{
-		"internal/eval_harness/models.yml",
-		"../internal/eval_harness/models.yml",
-		"models.yml", // If already in the same directory
-	}
-
-	var lastErr error
-	for _, path := range paths {
-		config, err := LoadModelsConfig(path)
-		if err == nil {
-			GlobalModelsConfig = config
-			return nil
-		}
-		lastErr = err
-	}
-
-	return fmt.Errorf("failed to load models config from any path: %w", lastErr)
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M4 (D1(a)): precedence is explicit path ->
+	// published -> embedded floor, and the winner is recorded in LoadedSource.
+	// See provenance.go for why the old embed-first order was the defect.
+	_, err := initModelsConfigFrom()
+	return err
 }
+
+// yamlUnmarshal is the single yaml entry point provenance.go shares with this
+// file, so the embed path and the disk path cannot drift apart.
+func yamlUnmarshal(b []byte, out interface{}) error { return yaml.Unmarshal(b, out) }
 
 // GetModel returns the configuration for a model by friendly name
 func (c *ModelsConfig) GetModel(name string) (*ModelConfig, error) {
@@ -254,10 +251,26 @@ func (c *ModelsConfig) GetProvider(name string) (string, error) {
 	return model.Provider, nil
 }
 
-// IsOllamaCloudRoute reports whether a name selects an Ollama CLOUD model.
-// Thin delegate to executor.IsOllamaCloudRoute — the grammar lives in the lower
-// layer because cost provenance needs it too, and two copies could disagree.
-func IsOllamaCloudRoute(name string) bool { return executor.IsOllamaCloudRoute(name) }
+// IsOllamaCloudRoute reports whether a name selects an Ollama CLOUD model
+// (ollama.com), as opposed to a model on the local GPU rig.
+//
+// M-MODEL-REGISTRY-SINGLE-SOURCE M1: this grammar used to live in
+// internal/executor with a delegate here. It moved DOWN so that modelreg stays
+// a leaf (D4(a)) — executor now delegates up to this copy. It is pure string
+// grammar over a model name with no executor state, so the layer it belongs to
+// is the registry that owns model names. There is still exactly one copy;
+// cost provenance and the registry cannot disagree.
+func IsOllamaCloudRoute(name string) bool {
+	n := strings.ToLower(strings.TrimSpace(name))
+	if i := strings.LastIndex(n, ":"); i >= 0 {
+		suffix := n[i+1:]
+		if suffix == "cloud" {
+			return true
+		}
+		return !strings.Contains(suffix, "/") && strings.HasSuffix(suffix, "-cloud")
+	}
+	return false
+}
 
 // UsesLocalGPU reports whether a model runs on the local Ollama GPU — the
 // shared single-GPU rig that the rig lock protects. Cloud/API models return

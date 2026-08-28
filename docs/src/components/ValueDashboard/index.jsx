@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { benchmarkFetchWithSource } from '@site/src/lib/benchmarkFetch';
+import DataProvenance from '../DataProvenance';
 import QualityScatter from '@site/src/components/BenchmarkDashboard/QualityScatter';
 import ValueScoreTable from '@site/src/components/BenchmarkDashboard/ValueScoreTable';
 import HeadlineKpiCard from '@site/src/components/ValueDashboard/HeadlineKpiCard';
@@ -66,6 +67,7 @@ export default function ValueDashboard() {
 
   return (
     <div>
+      <DataProvenance version={data?.version} timestamp={data?.timestamp} source={dataSource} />
       {/* M-COST-PER-SUCCESS-KPI (M3): headline metric ABOVE the Quality-vs-Cost /
           Value Score lenses. Renders available / zero-denominator / incomplete /
           absent states + a Fallback / stale-data badge. */}

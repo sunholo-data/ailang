@@ -47,7 +47,7 @@ ensure_repo_root() {
 _eval_lib_yaml_list() {
   local key="$1"
   local yml
-  yml="$(_eval_lib_repo_root)/internal/eval_harness/models.yml" || return 1
+  yml="$(_eval_lib_repo_root)/internal/modelreg/models.yml" || return 1
   [ -f "$yml" ] || { echo "eval_lib: models.yml not found at $yml" >&2; return 1; }
   awk -v key="$key" '
     $0 ~ "^"key":"            { in_block=1; next }

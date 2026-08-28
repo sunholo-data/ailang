@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"path/filepath"
 	"testing"
@@ -129,7 +130,7 @@ func TestBuildCohortManifest_ModelsAreDataDrivenFromModelsYML(t *testing.T) {
 	if err := eval_harness.InitModelsConfig(); err != nil {
 		t.Skipf("models.yml unavailable: %v", err)
 	}
-	cfg := eval_harness.GlobalModelsConfig
+	cfg := modelreg.GlobalModelsConfig
 	if cfg == nil {
 		t.Skip("models.yml not loaded")
 	}
@@ -478,7 +479,7 @@ func TestCohortManifest_ExecutorsAreTheProvenanceAuditHook(t *testing.T) {
 	if err := eval_harness.InitModelsConfig(); err != nil {
 		t.Skipf("models.yml unavailable: %v", err)
 	}
-	cfg := eval_harness.GlobalModelsConfig
+	cfg := modelreg.GlobalModelsConfig
 	if cfg == nil {
 		t.Skip("models.yml not loaded")
 	}

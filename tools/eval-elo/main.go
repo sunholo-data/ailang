@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/observatory"
@@ -52,7 +53,9 @@ func main() {
 	}
 
 	// Bucket trials by the mode segment of their path (standard|agent).
-	byMode := map[string][]eval_harness.Trial{}
+	// Each trial keeps its banked-file identity + metadata so the persist path
+	// can append trial_history rows (M-EVAL-ROLLING-ELO M2).
+	byMode := map[string][]trialMeta{}
 	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || !strings.HasSuffix(p, ".json") {
 			return nil
@@ -75,6 +78,15 @@ func main() {
 		if json.Unmarshal(raw, &rec) != nil {
 			return nil
 		}
+		// Measurement contract: quarantined rows (validity.valid == false) are
+		// NOT measurements and must not reach the fit — an infrastructure 520
+		// counted as a loss is exactly the sol-vs-terra contamination
+		// (measured 2026-08-27). Mirrors eval_analysis.LoadResults' default.
+		if v, ok := rec["validity"].(map[string]any); ok {
+			if valid, ok := v["valid"].(bool); ok && !valid {
+				return nil
+			}
+		}
 		co, ok1 := rec["compile_ok"].(bool)
 		ro, ok2 := rec["runtime_ok"].(bool)
 		so, ok3 := rec["stdout_ok"].(bool)
@@ -83,7 +95,13 @@ func main() {
 		if !(ok1 && ok2 && ok3) || b == "" || mod == "" {
 			return nil
 		}
-		byMode[m] = append(byMode[m], eval_harness.Trial{Model: mod, Bench: b, Pass: co && ro && so})
+		pv, _ := rec["prompt_version"].(string)
+		byMode[m] = append(byMode[m], trialMeta{
+			Trial:           eval_harness.Trial{Model: mod, Bench: b, Pass: co && ro && so},
+			TrialID:         strings.TrimSuffix(filepath.Base(p), ".json"),
+			PromptVersion:   pv,
+			CompilerVersion: versionFromPath(p, sep),
+		})
 		return nil
 	})
 
@@ -108,17 +126,54 @@ func main() {
 	}
 
 	for _, mo := range modes {
-		trials := byMode[mo]
-		if len(trials) == 0 {
+		metas := byMode[mo]
+		if len(metas) == 0 {
 			fmt.Fprintf(os.Stderr, "no %s trials found in %s\n", mo, dir)
 			continue
 		}
-		renderAndMaybePersist(mo, trials, db, persist)
+		renderAndMaybePersist(mo, metas, db, persist)
 	}
 }
 
-func renderAndMaybePersist(mode string, trials []eval_harness.Trial, db *sql.DB, persist string) {
-	mRat, bRat := eval_harness.FitFromTrials(trials)
+// trialMeta carries a fit trial plus the banked-row identity and provenance
+// needed for trial_history (M-EVAL-ROLLING-ELO M2).
+type trialMeta struct {
+	eval_harness.Trial
+	TrialID         string
+	PromptVersion   string
+	CompilerVersion string
+}
+
+// versionFromPath extracts the banked version label: the path component
+// immediately preceding the standard/agent mode segment — which is how
+// --bank-by-version lays out result dirs (eval_results/.../<vX.Y.Z>/<mode>/...).
+// A dir not banked by version yields that dir's own name (e.g. "v0.32.0" for
+// baselines/v0.32.0/standard/...), which is the same authority.
+func versionFromPath(p, sep string) string {
+	parts := strings.Split(p, sep)
+	for i, seg := range parts {
+		if (seg == "standard" || seg == "agent") && i > 0 {
+			return parts[i-1]
+		}
+	}
+	return ""
+}
+
+func renderAndMaybePersist(mode string, metas []trialMeta, db *sql.DB, persist string) {
+	trials := make([]eval_harness.Trial, len(metas))
+	for i, m := range metas {
+		trials[i] = m.Trial
+	}
+	// Placement fit (M-EVAL-ROLLING-ELO M1): standard mode is anchored — the
+	// frozen panel pins the scale so ratings are comparable across corpora.
+	// Agent-mode difficulty is a different scale with no anchor yet; it stays
+	// unanchored (documented limitation, revisit when an agent anchor exists).
+	var mRat, bRat map[string]float64
+	if mode == "standard" {
+		mRat, bRat = eval_harness.FitFromTrialsAnchored(trials, eval_harness.AnchorPanelV1, nil)
+	} else {
+		mRat, bRat = eval_harness.FitFromTrials(trials)
+	}
 
 	bp := map[string][2]int{}
 	modelTrials := map[string]int{}
@@ -163,10 +218,59 @@ func renderAndMaybePersist(mode string, trials []eval_harness.Trial, db *sql.DB,
 	fmt.Println()
 
 	if db != nil {
-		if err := observatory.SaveRatings(context.Background(), db, mode, mRat, bRat, modelTrials, benchTrials); err != nil {
+		ctx := context.Background()
+		// trial_history (M-EVAL-ROLLING-ELO M2): "before" ratings are the
+		// stored values PRIOR to this persist overwriting them (fit seed for
+		// entities never stored). INSERT OR IGNORE on the trial_id PK makes a
+		// re-persist of the same corpus a no-op by schema constraint.
+		prevModel := map[string]float64{}
+		prevBench := map[string]float64{}
+		if rows, err := observatory.LoadModelRatings(ctx, db, mode); err == nil {
+			for _, r := range rows {
+				prevModel[r.ModelID] = r.Rating
+			}
+		}
+		if rows, err := observatory.LoadBenchmarkRatings(ctx, db, mode); err == nil {
+			for _, r := range rows {
+				prevBench[r.BenchmarkID] = r.Rating
+			}
+		}
+		before := func(m map[string]float64, k string) float64 {
+			if v, ok := m[k]; ok {
+				return v
+			}
+			return eval_harness.DefaultInitialRating
+		}
+		now := time.Now().UTC()
+		entries := make([]observatory.TrialHistoryEntry, 0, len(metas))
+		for _, t := range metas {
+			outcome := 0
+			if t.Pass {
+				outcome = 1
+			}
+			entries = append(entries, observatory.TrialHistoryEntry{
+				TrialID:           t.TrialID,
+				BenchmarkID:       t.Bench,
+				ModelID:           t.Model,
+				Mode:              mode,
+				Outcome:           outcome,
+				PromptVersion:     t.PromptVersion,
+				CompilerVersion:   t.CompilerVersion,
+				BenchRatingBefore: before(prevBench, t.Bench),
+				ModelRatingBefore: before(prevModel, t.Model),
+				BenchRatingAfter:  bRat[t.Bench],
+				ModelRatingAfter:  mRat[t.Model],
+				RecordedAt:        now,
+			})
+		}
+		if err := observatory.AppendTrialHistory(ctx, db, entries); err != nil {
+			fmt.Fprintf(os.Stderr, "append trial_history (%s): %v\n", mode, err)
+			os.Exit(1)
+		}
+		if err := observatory.SaveRatings(ctx, db, mode, mRat, bRat, modelTrials, benchTrials); err != nil {
 			fmt.Fprintf(os.Stderr, "persist %s ratings: %v\n", mode, err)
 			os.Exit(1)
 		}
-		fmt.Printf("persisted %d model + %d benchmark %s ratings → %s\n\n", len(mRat), len(bRat), mode, persist)
+		fmt.Printf("persisted %d model + %d benchmark %s ratings + %d trial_history rows → %s\n\n", len(mRat), len(bRat), mode, len(entries), persist)
 	}
 }

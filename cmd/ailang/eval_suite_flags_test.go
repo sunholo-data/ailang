@@ -266,7 +266,7 @@ func captureStdout(t *testing.T, fn func()) string {
 // This guards against adding a suite to models.yml but forgetting to register
 // it in expandModelSuite()'s switch statement.
 func TestExpandModelSuite(t *testing.T) {
-	cfg, err := eval_harness.LoadModelsConfig("../../internal/eval_harness/models.yml")
+	cfg, err := eval_harness.LoadModelsConfig("../../internal/modelreg/models.yml")
 	if err != nil {
 		t.Skipf("models.yml not available: %v", err)
 	}

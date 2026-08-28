@@ -56,6 +56,21 @@ func (e *ClaudeExecutor) getModel(task *executor.Task) string {
 	return e.model
 }
 
+// requireModel is the D2(a) fail-loud point (M-MODEL-REGISTRY-SINGLE-SOURCE M6).
+//
+// The check lives at the ENTRY to execution rather than at construction,
+// because the coordinator builds an executor before it knows the task and
+// then supplies Task.Model per task — rejecting an empty model at
+// construction would break the normal path. It lives here rather than inside
+// getModel to avoid threading an error through every call site of a helper
+// that runs after this guard has already passed.
+func (e *ClaudeExecutor) requireModel(task *executor.Task) error {
+	if e.getModel(task) == "" {
+		return executor.ErrUnresolvedModel("claude", "ClaudeModel")
+	}
+	return nil
+}
+
 // claudeHeadlessResult matches Claude CLI output structure
 type claudeHeadlessResult struct {
 	Type         string      `json:"type"`

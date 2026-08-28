@@ -89,6 +89,11 @@ Grouped by phase:
 - `internal/executor` — agent backends (Claude, Gemini, Codex, etc.)
   used by the coordinator.
 - `internal/messaging` — inter-agent message bus + Pub/Sub.
+- `internal/modelreg` — **the model registry** (`models.yml`): model facts, pricing,
+  per-harness names. A deliberate LEAF: it imports no other ailang package, so
+  `executor` and `eval_harness` can both depend on it. Introduced by
+  M-MODEL-REGISTRY-SINGLE-SOURCE M1 (D4(a)) because `eval_harness` imports
+  `executor`, making `executor → eval_harness` an import cycle.
 - `internal/eval_harness` — runs benchmarks against language models.
 
 ## Architecture boundaries
@@ -121,6 +126,8 @@ touch the parser, type checker, or elaborator directly.
 
 | Direction | Allowed? | Enforced by |
 |---|---|---|
+| `modelreg` → `executor` | **No** — `modelreg` is a leaf | `TestModelregIsALeaf` (+ the compiler, once `executor` imports it) |
+| `executor` → `modelreg` | Yes — that is the point | (by construction) |
 | apps → core | **No** — only via `internal/embed` | `scripts/check_boundaries.sh` |
 | core → apps | **No** — core must never depend on a service/UI | `scripts/check_boundaries.sh` |
 | tools → core | Yes | (documented; not policed) |
