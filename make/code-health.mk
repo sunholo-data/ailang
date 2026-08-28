@@ -181,7 +181,7 @@ check-autoclose: ## Refuse issue-closing phrases in docs-only commit/PR records 
 check-skills: ## Check .claude/skills/*/SKILL.md have name+description frontmatter (CI gate)
 	@bash scripts/check_skills.sh
 
-check-prompt-freeze: ## Check frozen prompt immutability and mirror agreement (CI gate)
+check-prompt-freeze: ## Check prompt registry integrity (all entries) + frozen immutability (CI gate)
 	@go run ./cmd/ailang prompt freeze --check
 
 check-pi-wire-budget: ## Assert the output budget pi ACTUALLY sends (real API call; NOT a CI gate)

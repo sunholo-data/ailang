@@ -1,0 +1,307 @@
+{
+  "sprint_id": "M-PROMPT-FREEZE-MIRROR-ALL-VERSIONS",
+  "status": "planned",
+  "created": "2026-08-28",
+  "design_doc": "design_docs/planned/m-prompt-freeze-mirror-all-versions.md",
+  "sprint_plan": "design_docs/planned/m-prompt-freeze-mirror-all-versions-sprint-plan.md",
+  "risk_level": "low",
+  "milestone_count": 1,
+  "metadata": {
+    "mission": "v1",
+    "iteration": 297,
+    "planner_role": "sprint-planner",
+    "planner_lane": "opus fail-closed:planner-lane-field-missing",
+    "executor_lane": "codex:gpt-5.6-sol",
+    "executor_sandbox": "workspace-write",
+    "worktree": "/Users/voightkampff/dev/sunholo-data/.wt-iter297",
+    "worktree_head": "3d80bf91005a3c57042e0d6358373c4b4f005a4a",
+    "base_origin_dev": "0917693792d07c75ae0c4d233d2cc7e592fa9272",
+    "platform": "darwin/arm64",
+    "go_version": "go1.26.6 darwin/arm64",
+    "single_milestone_rationale": "checkRegistries signature change ([]string,error) -> ([]string,int,error) has 4 callers in one package (measured). Any split lands a non-compiling intermediate commit, i.e. a non-bisectable boundary. Splitting around it would create a milestone containing only a mechanical arity change with no behavior and no test.",
+    "gates_disqualified": [
+      "go build ./... is rc=1 AT BASE (cmd/wasm has no native main) and MUST NOT appear in any acceptance criterion"
+    ]
+  },
+  "velocity": {
+    "target_days": 1,
+    "estimated_hours": 6,
+    "estimated_production_loc": 46,
+    "estimated_test_loc": 174,
+    "commits_last_14_days_measured": 412,
+    "note": "Diff-size figures are the DESIGNER's estimate (doc Files-to-modify), carried forward unverified. The 412-commit figure is planner-measured (git log --since=14.days --oneline | wc -l) and is context only: per-sprint scope, not commit count, is the binding constraint on this mission."
+  },
+  "measured_baseline": {
+    "measured_by": "sprint-planner, first-party, this session",
+    "measured_at_head": "3d80bf91005a3c57042e0d6358373c4b4f005a4a",
+    "tree_state": "clean",
+    "gates": [
+      {"id": "G1", "command": "go build ./cmd/ailang/...", "rc_at_base": 0},
+      {"id": "G2", "command": "go vet ./cmd/ailang/...", "rc_at_base": 0},
+      {"id": "G3", "command": "test -z \"$(gofmt -l cmd/ailang)\"", "rc_at_base": 0},
+      {"id": "G4", "command": "go test ./cmd/ailang/ -run 'Freeze|Prompt' -count=1", "rc_at_base": 0, "note": "ok github.com/sunholo-data/ailang/cmd/ailang 2.367s"},
+      {"id": "G5", "command": "go run ./cmd/ailang prompt freeze --check", "rc_at_base": 0, "note": "STDOUT IS EMPTY at base (only the 'Observatory: 429MB' stderr log line) - this is what makes AC1's count-line assertion falsifiable"},
+      {"id": "G6", "command": "make check-prompt-freeze", "rc_at_base": 0}
+    ],
+    "toolchain_probes": [
+      {"claim": "-skip is supported", "command": "go test ./cmd/ailang/ -run 'Freeze|Prompt' -skip '^TestFreezeCheck_UnmodifiedTreeIsGreen$' -count=1", "rc": 0}
+    ],
+    "structural_facts": {
+      "source_registry_versions": 59,
+      "frozen_entries": 58,
+      "mutable_entries": ["v0.16.6"],
+      "active_entry": "v0.16.6",
+      "mirror_registry_versions": 59,
+      "source_md_files": 62,
+      "mirror_md_files": 62,
+      "v0166_hash_fresh_everywhere": "2a868106214d3a4fc94dcb5431560cebacbec05c1e1835a168b8dcb15f804b67 == source registry == mirror registry == shasum of prompts/v0.16.6.md == shasum of cmd/ailang/prompts/v0.16.6.md",
+      "expected_pristine_count_line": "checked 59 registry entries",
+      "checkRegistries_callers": [
+        "cmd/ailang/prompt_freeze.go:69",
+        "cmd/ailang/prompt_freeze_check_git_test.go:134",
+        "cmd/ailang/prompt_freeze_test.go:125",
+        "cmd/ailang/prompt_freeze_test.go:138"
+      ],
+      "imports_needed": "neither cmd/ailang/prompt_freeze_core.go nor cmd/ailang/prompt_freeze_check_git.go currently imports errors or io/fs; both need them. core.go already has crypto/sha256 and encoding/hex.",
+      "test_fixture_entry_count": 1,
+      "test_fixture_count_arithmetic": "newFreezeCheckRepo has ONE source entry v1.0.0 -> checked 1; with one mirror-only entry added -> checked MUST move to 2"
+    }
+  },
+  "doc_vs_plan_reconciliation": {
+    "doc_milestones_section_says": "AC1-AC8",
+    "doc_acceptance_criteria_table_contains": ["AC1","AC2","AC3","AC4","AC5","AC6","AC7","AC8","AC9","AC10"],
+    "plan_task_list_closes": ["AC1","AC2","AC3","AC4","AC5","AC6","AC7","AC8-REG","AC8-D","AC9","AC10"],
+    "divergence": "The doc's Milestones section string 'AC1-AC8' is stale r1 text that the r2 revision did not update. It is internal to the doc, not a scope ruling: the same milestone sentence also says 'all tests in the mutation table', and mutants M8/M9 name TestFreezeCheck_InvalidHashAndMissingSourceEmitsBoth and TestFreezeCheck_BothTreesDeletedEmitsBoth, whose fixtures ARE AC9 and AC10 verbatim.",
+    "ruling": "THE DOC WINS. The doc's own AC table and mutation table are the doc. The milestone closes AC1-AC10. No reviewed decision is overridden.",
+    "planner_amendments": [
+      "AC8 SPLIT into AC8-REG (regression guard, at its target state at base BY DESIGN, labelled as such) and AC8-D (the mirror-deletion rename, base string differs so it IS falsifiable). No criterion is weakened; the at-target-at-base half is no longer passed off as a progress gate."
+    ],
+    "acs_dropped": [],
+    "mutants_dropped": []
+  },
+  "features": [
+    {
+      "id": "T0_BASELINE_SMOKE",
+      "milestone": "M1",
+      "description": "Before touching anything, re-run G1-G6 and record every rc. All six must be 0.",
+      "estimated_hours": 0.33,
+      "files": [],
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Six rc values recorded in the executor report, all 0.",
+        "If ANY is non-zero: STOP and escalate to the controller. The environment differs from the plan's measured baseline and every subsequent rc is uninterpretable. This is an environment escalation, NEVER a code fix.",
+        "This task is also the sandbox probe for risk R1 (TMPDIR / GOCACHE writability)."
+      ],
+      "passes": null
+    },
+    {
+      "id": "T1_T5_WIDEN_CHECKREGISTRIES",
+      "milestone": "M1",
+      "description": "Widen the per-entry loop in checkRegistries into the three INDEPENDENT arms of Solution Design section 1 (hash-enforceability, source-existence, source-bytes-vs-hash) carrying a state label; adjudicate missing source as violation S5 (rc=1) for fs.ErrNotExist only; add the mirror-only sweep emitting S10; add the checked counter incremented as the LAST statement of each visiting loop body; change the signature to ([]string, int, error); update all four callers; print 'checked %d registry entries' to stdout on every completed --check run.",
+      "estimated_loc": 34,
+      "estimated_hours": 1.67,
+      "files": [
+        "cmd/ailang/prompt_freeze_core.go",
+        "cmd/ailang/prompt_freeze.go",
+        "cmd/ailang/prompt_freeze_check_git_test.go",
+        "cmd/ailang/prompt_freeze_test.go"
+      ],
+      "dependencies": ["T0_BASELINE_SMOKE"],
+      "acceptance_criteria": [
+        "go build ./cmd/ailang/... rc=0 (base rc=0, measured).",
+        "go vet ./cmd/ailang/... rc=0 (base rc=0, measured).",
+        "test -z \"$(gofmt -l cmd/ailang)\" rc=0 (base rc=0, measured).",
+        "Frozen strings S1 and S3 stay BYTE-IDENTICAL: the '(unenforceable freeze)' suffix is preserved by a suffix switch on e.Frozen != nil, not by a duplicated branch.",
+        "The arm dependency set is EXACTLY the doc's section 3 table: hash-enforceable depends on nothing; source-existence depends on nothing; source-bytes-vs-hash depends on hashOK AND sourceExists. No other dependency is permitted.",
+        "Non-ErrNotExist read errors still return (nil, 0, err) so they remain rc=2.",
+        "checked is a PRODUCT of the per-entry work - incremented inside the visiting loop bodies, NEVER a len() computed beside the work. (This is r2 quorum objection 2; see risk R5.)",
+        "All four callers updated by name: prompt_freeze.go:69, prompt_freeze_check_git_test.go:134, prompt_freeze_test.go:125, prompt_freeze_test.go:138. Go is the enforcer: 3 results cannot be assigned to 2 variables, so a stale zero is impossible."
+      ],
+      "passes": null
+    },
+    {
+      "id": "T6_T8_WIDEN_MIRROR_AND_MIGRATE",
+      "milestone": "M1",
+      "description": "Widen the mirror loop in prompt_freeze_check_git.go (replace the Frozen==nil continue at line 51 with the state label; make mirror existence UNCONDITIONAL so a missing source cannot hide a missing/diverged mirror; emit S8 on fs.ErrNotExist; keep S6/S7 for divergence only; leave sameFrozenRegistryEntry dedupe as-is). Widen the migrateRegistries VALIDATION loop only.",
+      "estimated_loc": 12,
+      "estimated_hours": 0.75,
+      "files": [
+        "cmd/ailang/prompt_freeze_check_git.go",
+        "cmd/ailang/prompt_freeze_core.go"
+      ],
+      "dependencies": ["T1_T5_WIDEN_CHECKREGISTRIES"],
+      "acceptance_criteria": [
+        "DO NOT TOUCH prompt_freeze_check_git.go:28 - the merge-base loop's 'if baseEntry.Frozen == nil { continue }'. Merge-base IMMUTABILITY stays frozen-only (Non-Goals). The controller verifies line 28 is absent from the diff.",
+        "AC10's fixture emits BOTH S5 and S8 - mirror existence must not be gated on source existence.",
+        "migrateRegistries: the VALIDATION loop at prompt_freeze_core.go:251 drops 'id == r.Active || e.Frozen != nil'; the FREEZE-WRITING loop at :267 keeps BOTH skips unchanged, so migrate still never freezes the active entry.",
+        "go build / go vet / gofmt all still clean."
+      ],
+      "passes": null
+    },
+    {
+      "id": "T9_T10_TESTS",
+      "milestone": "M1",
+      "description": "Add 10 tests. Nine in prompt_freeze_check_git_test.go using newFreezeCheckRepo + writeFreezeCheckRegistries(..., frozen=false) for mutable fixtures: _MutablePlaceholderIsRed, _MutableSourceDivergenceIsRed, _SourceMissingIsViolationNotError (frozen + mutable sub-cases), _MutableMirrorDivergenceIsRed, _MirrorMissingIsRed (frozen + mutable), _MirrorOnlyEntryIsRed, _InvalidHashAndMissingSourceEmitsBoth, _BothTreesDeletedEmitsBoth, _CheckedCountMovesOnAddition. One in prompt_freeze_test.go: TestPromptFreezeMigrate_RefusesStaleActiveHash.",
+      "estimated_loc": 174,
+      "estimated_hours": 1.5,
+      "files": [
+        "cmd/ailang/prompt_freeze_check_git_test.go",
+        "cmd/ailang/prompt_freeze_test.go"
+      ],
+      "dependencies": ["T6_T8_WIDEN_MIRROR_AND_MIGRATE"],
+      "acceptance_criteria": [
+        "go test ./cmd/ailang/ -run 'Freeze|Prompt' -count=1 rc=0 (base rc=0, measured) with all 10 new tests present and running - verify with -v that none reports 'no tests to run'.",
+        "EVERY new test asserts BOTH the in-process checkRegistries violation slice (exact S-string via hasViolation) AND the helper-subprocess rc. Both are strictly downstream of the mechanism.",
+        "NO test seeds a verdict by raw fixture. Every test drives the REAL check path against a synthetic git repo. This is how the parent sprint's tests once stayed green while a writer did not exist.",
+        "rc semantics pinned: fs.ErrNotExist moves from the rc=2 bucket to the rc=1 bucket; every other error stays rc=2. _SourceMissingIsViolationNotError and _MirrorMissingIsRed exist specifically to pin that boundary.",
+        "PAUSE POINT: if this is not green, the sprint does NOT proceed to T11. A mutation matrix run against a red suite measures nothing."
+      ],
+      "passes": null
+    },
+    {
+      "id": "T11_MUTATION_MATRIX",
+      "milestone": "M1",
+      "description": "Run all 10 mutants (M1-M9 + M-ADD) under the mutation discipline. See the mutation_plan block of this file for the full matrix and the per-mutant protocol.",
+      "estimated_hours": 1.25,
+      "files": [],
+      "dependencies": ["T9_T10_TESTS"],
+      "acceptance_criteria": [
+        "Every mutant is the NEUTERING form 'if false && <cond>' (or the condition-WRAPPING form for M7/M8/M9). NO block is deleted, NO statement is deleted, NO import is removed - so 'the mutant does not compile' can never masquerade as 'the guard fired'.",
+        "Per mutant, BEFORE any test result is read: LANDED (shasum -a 256 differs from the pre-mutation value) AND BUILDS (go build ./cmd/ailang/... rc=0).",
+        "Per mutant, the actual failing-test set is ENUMERATED by running, not predicted, and a Criterion A or B verdict is recorded from that observation.",
+        "Criterion A (single-test): failing set is exactly {target} AND the inverse arm 'go test ./cmd/ailang/ -run Freeze|Prompt -skip ^<target>$ -count=1' returns rc=0. -skip support probed at base, rc=0.",
+        "Criterion B (broad blast): failing set has >1 member; Criterion A is unsatisfiable by construction. Required evidence is the enumerated set itself, plus (i) the target IS in the set and (ii) EVERY other member is explained by one sentence naming the shared code path. An unexplained member is a finding, not noise.",
+        "The planner's per-mutant 'prior' column is UNVERIFIED and carries no authority. If the observation contradicts the prior, the observation wins and the executor notes it.",
+        "RESTORE by cp from a pre-mutation backup, asserted byte-identical by sha256. NEVER 'git checkout -- <file>' and NEVER 'git stash' - the sprint's own uncommitted work lives in these exact files.",
+        "After the matrix, every touched file's sha256 equals its pre-mutation value."
+      ],
+      "passes": null
+    },
+    {
+      "id": "T12_T14_DOCS_AND_FINAL_GATES",
+      "milestone": "M1",
+      "description": "Update make/code-health.mk:184 help text to 'Check prompt registry integrity (all entries) + frozen immutability (CI gate)' (comment/help only; the recipe at :185 is unchanged). Add the CHANGELOG entry. Remove any .mutbak/ scratch. Re-run G1-G6.",
+      "estimated_loc": 8,
+      "estimated_hours": 0.5,
+      "files": ["make/code-health.mk", "CHANGELOG.md"],
+      "dependencies": ["T11_MUTATION_MATRIX"],
+      "acceptance_criteria": [
+        "G1-G6 all rc=0, each recorded.",
+        "make check-prompt-freeze rc=0 AND its stdout contains 'checked 59 registry entries'.",
+        "CHANGELOG records the 'checked N registry entries' stdout line as a behavior CHANGE, not merely a fix - base stdout is empty (measured).",
+        "No scratch directory (.mutbak/) is left in the worktree.",
+        "NO git add / commit / stash / checkout is performed by the executor. The controller builds the commit."
+      ],
+      "passes": null
+    }
+  ],
+  "acceptance_criteria": [
+    {"id": "AC1", "criterion": "Pristine stays green AND the count line appears", "command": "repo-root: make check-prompt-freeze ; probe: pristine --check", "rc_at_base_measured": 0, "base_note": "rc=0 AND STDOUT EMPTY - no count line exists at base", "required_post": "rc=0 and stdout contains 'checked 59 registry entries'", "falsifiable_at_base": "via the stdout half only; the rc half is a regression guard", "owner": "executor (repo-root half) + controller (probe half)"},
+    {"id": "AC2", "criterion": "Mutable source divergence refused", "command": "printf 'x' >> prompts/v0.16.6.md ; --check", "rc_at_base_measured": 0, "base_note": "THE HOLE", "required_post": "rc=1 containing 'mutable version v0.16.6: file bytes do not match recorded hash'", "falsifiable_at_base": "yes", "owner": "controller"},
+    {"id": "AC3", "criterion": "Mutable source deletion refused, named", "command": "rm prompts/v0.16.6.md ; --check", "rc_at_base_measured": 0, "base_note": "THE HOLE", "required_post": "rc=1 containing 'mutable version v0.16.6: prompt file missing at prompts/v0.16.6.md'", "falsifiable_at_base": "yes", "owner": "controller"},
+    {"id": "AC4", "criterion": "Mutable mirror divergence refused", "command": "printf 'x' >> cmd/ailang/prompts/v0.16.6.md ; --check", "rc_at_base_measured": 0, "base_note": "THE HOLE", "required_post": "rc=1 containing 'mutable version v0.16.6: mirror bytes differ at cmd/ailang/prompts/v0.16.6.md'", "falsifiable_at_base": "yes", "owner": "controller"},
+    {"id": "AC5", "criterion": "Mutable PLACEHOLDER refused", "command": "set v0.16.6 hash to PLACEHOLDER in BOTH registries ; --check", "rc_at_base_measured": 0, "base_note": "THE HOLE", "required_post": "rc=1 containing 'mutable version v0.16.6: recorded hash is not a 64-hex sha256 (unenforceable)'", "falsifiable_at_base": "yes", "owner": "controller"},
+    {"id": "AC6", "criterion": "Mirror-only entry refused AND counted", "command": "add v9.9.9-extra to the MIRROR registry only ; --check", "rc_at_base_measured": 0, "base_note": "THE HOLE; and no count line exists at base", "required_post": "rc=1 containing 'entry v9.9.9-extra missing from source registry' AND stdout reads 'checked 60 registry entries' (AC1 pins pristine at 59, so the 59->60 move is the assertion, not the verdict alone)", "falsifiable_at_base": "yes", "owner": "controller"},
+    {"id": "AC7", "criterion": "Missing FROZEN source is a named violation, not an abort", "command": "rm prompts/v0.3.21.md ; --check", "rc_at_base_measured": 2, "base_note": "stderr exactly 'open <root>/prompts/v0.3.21.md: no such file or directory' and NOTHING ELSE - the abort hides every other violation", "required_post": "rc=1 containing 'frozen version v0.3.21: prompt file missing at prompts/v0.3.21.md'", "falsifiable_at_base": "yes", "owner": "controller"},
+    {"id": "AC8-REG", "criterion": "REGRESSION GUARD - frozen source divergence and frozen mirror divergence stay byte-identical; existing tests keep passing", "command": "probe cells: printf 'x' >> prompts/v0.3.21.md ; printf 'x' >> cmd/ailang/prompts/v0.3.21.md ; repo-root: go test ./cmd/ailang/ -run 'Freeze|Prompt' -count=1", "rc_at_base_measured": 1, "base_note": "AC8a rc=1 with exactly the three frozen strings ('file bytes do not match recorded hash', 'immutability violation in prompts/v0.3.21.md bytes', 'mirror bytes differ at cmd/ailang/prompts/v0.3.21.md'); AC8b rc=1 with the mirror-differ string; test rc=0", "required_post": "identical rc and identical strings; test rc=0", "falsifiable_at_base": "NO - AT ITS TARGET STATE AT BASE BY DESIGN. Labelled a no-drift guard, NOT a progress gate. Retained because T1 rewrites the block producing S1/S3, so frozen-path string drift is a real risk of this diff (see risk R2).", "owner": "executor (test half) + controller (probe half)"},
+    {"id": "AC8-D", "criterion": "PROGRESS - frozen mirror DELETION is reported honestly (the S8 rename)", "command": "rm cmd/ailang/prompts/v0.3.21.md ; --check", "rc_at_base_measured": 1, "base_note": "rc=1 but with the MISLEADING string 'frozen version v0.3.21: mirror bytes differ at cmd/ailang/prompts/v0.3.21.md'", "required_post": "rc=1 CONTAINING 'frozen version v0.3.21: mirror file missing at cmd/ailang/prompts/v0.3.21.md' AND NOT containing 'mirror bytes differ at cmd/ailang/prompts/v0.3.21.md'", "falsifiable_at_base": "yes - via the negative half; the rc alone is unchanged, which is exactly why the NOT-contains clause is mandatory", "owner": "controller"},
+    {"id": "AC9", "criterion": "COMPOUND - invalid hash AND missing source emit BOTH named violations", "command": "set v0.16.6 hash to PLACEHOLDER in both registries AND rm prompts/v0.16.6.md ; --check", "rc_at_base_measured": 0, "base_note": "THE COMPOUND HOLE - neither S2 nor S5 fires", "required_post": "rc=1 with BOTH 'mutable version v0.16.6: recorded hash is not a 64-hex sha256 (unenforceable)' AND 'mutable version v0.16.6: prompt file missing at prompts/v0.16.6.md'", "falsifiable_at_base": "yes", "owner": "controller"},
+    {"id": "AC10", "criterion": "COMPOUND - source AND mirror both deleted emit BOTH named violations", "command": "rm prompts/v0.3.21.md cmd/ailang/prompts/v0.3.21.md ; --check", "rc_at_base_measured": 2, "base_note": "stderr names only the FIRST missing file; the mirror deletion is INVISIBLE", "required_post": "rc=1 with BOTH 'frozen version v0.3.21: prompt file missing at prompts/v0.3.21.md' AND 'frozen version v0.3.21: mirror file missing at cmd/ailang/prompts/v0.3.21.md'", "falsifiable_at_base": "yes", "owner": "controller"}
+  ],
+  "acceptance_criteria_provenance": {
+    "measured_by": "sprint-planner, first-party, this session - NOT transcribed from the design doc",
+    "probe_protocol": "/tmp/i297p/repo <- prompts/, cmd/ailang/prompts/, empty eval_results/baselines/ copied from the worktree; git init + one commit + git update-ref refs/remotes/origin/dev HEAD; tar --exclude .git snapshot restored before AND after every cell; probe binary 'go build -o /tmp/i297p/bin/ailang ./cmd/ailang'; invocation '/tmp/i297p/bin/ailang prompt freeze --check --repo /tmp/i297p/repo'",
+    "restore_control": "post-restore cell rc=0 - the restore is byte-faithful, so each cell's rc is attributable to that cell",
+    "positive_controls": "cells AC8-REG(a), AC8-REG(b) and AC8-D returned rc=1 with the exact frozen violation strings. Reds in the same instrument make the six rc=0 cells measurements of a hole, not a broken probe.",
+    "at_target_at_base_audit": "9 of 11 rows are falsifiable at base outright. AC1 is rc=0 at base and rc=0 after, falsifiable ONLY through its stdout half - which is why the stdout assertion is mandatory and not decorative. AC8-REG is at its target state at base by construction and is explicitly labelled a regression guard, not a progress gate."
+  },
+  "sandbox_split": {
+    "executor_constraints": "codex:gpt-5.6-sol under --sandbox workspace-write: cannot bind loopback sockets, cannot write outside the worktree",
+    "executor_gates": [
+      "G1 go build ./cmd/ailang/...",
+      "G2 go vet ./cmd/ailang/...",
+      "G3 gofmt -l cmd/ailang",
+      "G4 go test ./cmd/ailang/ -run 'Freeze|Prompt' -count=1 (harness writes to t.TempDir() under TMPDIR and runs git init THERE, not in the repo; go test also writes GOCACHE - T0 probes this before any edit)",
+      "G5 go run ./cmd/ailang prompt freeze --check (in-worktree, read-only git merge-base/show, no sockets)",
+      "G6 make check-prompt-freeze",
+      "T11 mutation matrix (edits and restores files INSIDE the worktree only)"
+    ],
+    "controller_gates": [
+      "AC1-AC10 probe-matrix cells: they construct a synthetic repo OUTSIDE the worktree (/tmp/i297p/repo) and run git init/commit/update-ref in it. Outside-worktree writes are NOT an executor obligation.",
+      "CI (.github/workflows/ci.yml:205): post-commit, needs network.",
+      "The commit itself."
+    ],
+    "note": "The Go tests of T9/T10 are the executor-side encoding of the probe matrix's coverage - which is why every AC row has a corresponding test row in the mutation plan. If the executor cannot satisfy an AC because it is a controller gate, that is not a failure; failing to have written the corresponding test IS."
+  },
+  "mutation_plan": {
+    "discipline": [
+      "NEUTERING FORM ONLY: 'if false && <cond>' (or the condition-WRAPPING form for M7/M8/M9). Never delete a block, a statement, or an import - with the block intact every import stays used, so 'the mutant does not compile' can never masquerade as 'the guard fired'.",
+      "LANDED before reading any test result: shasum -a 256 before and after MUST differ.",
+      "BUILDS before reading any test result: go build ./cmd/ailang/... rc=0.",
+      "RESTORE by cp from a pre-mutation backup, asserted byte-identical by sha256. NEVER 'git checkout -- <file>', NEVER 'git stash' - the sprint's own uncommitted work lives in these files. Keep backups at <worktree>/.mutbak/ if /tmp is not writable; delete in T12-T14.",
+      "ORDER: backup -> mutate -> LANDED -> BUILDS -> run -> record -> restore -> sha256-equality assert.",
+      "BLAST RADIUS IS MEASURED, NOT PREDICTED: run the mutant, enumerate the actual failing test names, then pick Criterion A or B from the observation."
+    ],
+    "criteria": {
+      "A_single_test": "failing set is exactly {target}; ADDITIONALLY the inverse arm 'go test ./cmd/ailang/ -run Freeze|Prompt -skip ^<target>$ -count=1' must be rc=0. This is the strongest evidence and is REQUIRED when the set is a singleton. -skip probed working at base (rc=0).",
+      "B_broad_blast": "failing set has >1 member; Criterion A is unsatisfiable BY CONSTRUCTION. Required evidence is the enumerated set itself plus (i) the target IS in the set and (ii) every other member explained by one sentence naming the shared code path. An unexplained member is a finding."
+    },
+    "mutants": [
+      {"id": "M1", "branch": "S2 mutable hash-enforceable", "mutation": "if false && !eval_harness.IsHexSHA256(e.Hash)", "test": "TestFreezeCheck_MutablePlaceholderIsRed", "observable": "violation containing 'unenforceable' AND rc 1->0; only this branch emits S2", "planner_prior_UNVERIFIED": "A"},
+      {"id": "M2", "branch": "S4 mutable bytes-vs-hash", "mutation": "if false && (hex.EncodeToString(sum[:]) != e.Hash) on a frozen=false fixture", "test": "TestFreezeCheck_MutableSourceDivergenceIsRed", "observable": "S4 string + rc; the frozen branch cannot fire on a frozen:false fixture", "planner_prior_UNVERIFIED": "A"},
+      {"id": "M3", "branch": "S5 missing source file", "mutation": "if false && errors.Is(srcErr, fs.ErrNotExist)", "test": "TestFreezeCheck_SourceMissingIsViolationNotError (frozen + mutable sub-cases)", "observable": "neutered -> the read error propagates -> checkRegistries returns err -> in-process t.Fatal path AND helper rc=2, not 1. The test asserts rc==1 AND the S5 string; both are produced only by the branch.", "planner_prior_UNVERIFIED": "A"},
+      {"id": "M4", "branch": "S7 mutable mirror divergence", "mutation": "if false && !bytes.Equal(sourceBytes, mirrorBytes)", "test": "TestFreezeCheck_MutableMirrorDivergenceIsRed", "observable": "S7 string + rc; no other arm reads mirror .md bytes", "planner_prior_UNVERIFIED": "B plausible - this is the SHARED S6/S7 comparison, so the existing frozen TestFreezeCheck_MirrorMdDivergenceIsRed may also go red. If so that is Criterion B with one explained member. MEASURE IT."},
+      {"id": "M5", "branch": "S8 mirror file missing", "mutation": "if false && errors.Is(mirrorErr, fs.ErrNotExist)", "test": "TestFreezeCheck_MirrorMissingIsRed (frozen + mutable)", "observable": "neutered -> falls to 'else if mirrorErr != nil -> return nil, err' -> rc=2, so the rc==1 assertion goes red for the reason it claims", "planner_prior_UNVERIFIED": "A"},
+      {"id": "M6", "branch": "S10 mirror-only entry", "mutation": "if false && (source.Versions[id] == nil)", "test": "TestFreezeCheck_MirrorOnlyEntryIsRed", "observable": "S10 string + rc; no other loop visits mirror-only keys", "planner_prior_UNVERIFIED": "B plausible - the same mutant also suppresses the checked++ inside that sweep, so TestFreezeCheck_CheckedCountMovesOnAddition is expected to go red too. Both members are targets of the same branch; enumerate and explain."},
+      {"id": "M7", "branch": "migrate validation widening", "mutation": "restore the skip as 'if false || id == r.Active { continue }' inside the VALIDATION loop only", "test": "TestPromptFreezeMigrate_RefusesStaleActiveHash (new)", "observable": "migrate's returned error is the direct product of the validation loop; with the skip restored, migrate succeeds and the error assertion fails", "planner_prior_UNVERIFIED": "A"},
+      {"id": "M8", "branch": "ARM INDEPENDENCE - source-existence must not depend on hash validity", "mutation": "wrap arm 2's emission as 'if hashOK && !sourceExists' (reintroduces round-1 masking; no block deleted, all imports stay used)", "test": "TestFreezeCheck_InvalidHashAndMissingSourceEmitsBoth (AC9 fixture: frozen=false, hash PLACEHOLDER, source absent)", "observable": "asserts BOTH S2 and S5; under the mutant only S2 is emitted -> red SPECIFICALLY on the S5 assertion", "planner_prior_UNVERIFIED": "A"},
+      {"id": "M9", "branch": "ARM INDEPENDENCE - mirror-existence must not depend on source existence", "mutation": "wrap the S8 emission as 'if sourceExists && errors.Is(mirrorErr, fs.ErrNotExist)'", "test": "TestFreezeCheck_BothTreesDeletedEmitsBoth (AC10 fixture: both .md removed)", "observable": "asserts BOTH S5 and S8; under the mutant only S5 is emitted -> red SPECIFICALLY on the S8 assertion", "planner_prior_UNVERIFIED": "A"},
+      {"id": "M-ADD", "branch": "enumerator completeness - an ADDITION, not a removal. Every removal proves the check FIRES; only an addition proves it LOOKS.", "mutation": "fixture-side: ADD v9.9.9-extra to the mirror registry of an otherwise-green fixture. NO production edit, so LANDED/BUILDS apply to the TEST file.", "test": "TestFreezeCheck_CheckedCountMovesOnAddition", "observable": "checked counts VISITS and is incremented inside the visiting body. Fixture arithmetic (planner-measured: newFreezeCheckRepo has ONE source entry): 1 source entry alone -> checked 1; with the mirror-only entry -> checked MUST move to 2 AND S10 must fire. An enumerator that never visits mirror-only keys contributes neither -> red ON THE COUNT, not merely on the verdict.", "planner_prior_UNVERIFIED": "A"}
+    ],
+    "observable_scope_note": "The checked count detects ENUMERATION BLINDNESS (an entry no loop visits). It structurally CANNOT detect a neutered arm inside a VISITED body - the entry is still visited and still counted. Those defects are killed by M1-M9. The two observables are deliberately complementary; both are asserted."
+  },
+  "day_by_day": [
+    {"band": "H0 0:00-0:20", "tasks": ["T0"], "exit": "six rc=0 recorded; any non-zero -> STOP + escalate"},
+    {"band": "H1 0:20-2:00", "tasks": ["T1","T2","T3","T4","T5"], "exit": "go build / go vet / gofmt clean. Freeze|Prompt tests MAY be red here - expected, T9 has not run."},
+    {"band": "H2 2:00-2:45", "tasks": ["T6","T7","T8"], "exit": "same three clean; diff touches prompt_freeze_check_git.go:49-72 and prompt_freeze_core.go:251-266 but NOT prompt_freeze_check_git.go:28"},
+    {"band": "H3 2:45-4:15", "tasks": ["T9","T10"], "exit": "go test ./cmd/ailang/ -run 'Freeze|Prompt' -count=1 rc=0 with all 10 new tests present and passing. PAUSE POINT."},
+    {"band": "H4 4:15-5:30", "tasks": ["T11"], "exit": "all 10 mutants: LANDED + BUILDS + enumerated failing set + Criterion A/B verdict + sha256-verified restore"},
+    {"band": "H5 5:30-6:00", "tasks": ["T12","T13","T14"], "exit": "G1-G6 all rc=0; .mutbak/ removed; report written"},
+    {"band": "post (controller)", "tasks": ["AC probe matrix","commit","CI"], "exit": "every AC row at its required post-state"}
+  ],
+  "risks": [
+    {"id": "R1", "risk": "Sandbox denies TMPDIR or GOCACHE writes, so go test / go build fail for environmental reasons and the executor misreads it as a code failure. The whole test harness builds repos in t.TempDir().", "likelihood": "low", "impact": "sprint-fatal if misdiagnosed", "mitigation": "T0 runs FIRST and is the probe. A T0 failure is an environment escalation to the controller, NEVER a code fix."},
+    {"id": "R2", "risk": "Frozen-path string drift. T1 rewrites the block producing S1 and S3; the '(unenforceable freeze)' vs '(unenforceable)' suffix is one if away from silently changing 58 entries' messages.", "likelihood": "medium", "impact": "high", "mitigation": "AC8-REG pins the frozen cells to byte-identical strings; TestFreezeCheck_FrozenPlaceholderIsRed and _MirrorMdDivergenceIsRed already assert them."},
+    {"id": "R3", "risk": "Accidentally widening merge-base immutability (the tempting 'just delete the Frozen guards' refactor), which would make the legitimate mutable edit+hash-regen workflow red.", "likelihood": "medium", "impact": "high", "mitigation": "T7 is an explicit do-not-touch task naming prompt_freeze_check_git.go:28; the controller verifies line 28 is absent from the diff."},
+    {"id": "R4", "risk": "Signature change leaves a caller behind, producing a non-compiling commit.", "likelihood": "low", "impact": "medium", "mitigation": "4 callers enumerated by name (planner-measured). Go is the enforcer: 3 results cannot be assigned to 2 variables, so this fails loudly at go build, never silently as a stale zero."},
+    {"id": "R5", "risk": "checked implemented as a len() beside the work instead of an in-body increment - exactly the r2 quorum objection - producing a count that is green while the enumerator is blind.", "likelihood": "medium", "impact": "high", "mitigation": "T3 states the constraint; M-ADD's kill condition is ON THE COUNT. NOTE: a len(source.VersionKeys)+len(mirrorOnly) implementation STILL PASSES M-ADD, so the code review MUST read the increment site. Flagged for the evaluator."},
+    {"id": "R6", "risk": "The 'checked N' stdout line breaks a consumer.", "likelihood": "low", "impact": "medium", "mitigation": "Designer inventory (V21, carried forward unverified) finds exactly one invocation, make/code-health.mk:185, which neither pipes nor parses stdout. Planner confirms base stdout is currently EMPTY (measured), so this IS a genuine behavior change - hence T13 records it in CHANGELOG as Changed, not merely Fixed."},
+    {"id": "R7", "risk": "Mutation restore via git checkout destroys the sprint's uncommitted work in the same files.", "likelihood": "low", "impact": "catastrophic", "mitigation": "Mutation discipline rule 4 forbids it explicitly; restore is cp + sha256 equality assert."},
+    {"id": "R8", "risk": "Committed PLACEHOLDER becomes a CI violation and breaks someone's flow.", "likelihood": "very low", "impact": "low", "mitigation": "Cost today is ZERO: 0 of 59 entries use PLACEHOLDER - the one mutable entry is 64-hex (measured), the 58 frozen were already banned. The loader's runtime hatch is untouched."},
+    {"id": "R9", "risk": "Existing TestPromptFreezeCheck_RedOnMissingMarker sets b1.Frozen = nil, making b1 MUTABLE and newly subject to all four widened arms; it asserts len(v) == 1.", "likelihood": "low", "impact": "medium", "mitigation": "freezeFixture writes fresh hashes and matching .md in both trees from one in-memory r (planner-measured), so the widened arms emit nothing for b1 and the count stays 1. Detected immediately by T9's test run if wrong."}
+  ],
+  "rollback": [
+    "PRE-MERGE: the controller simply does not commit. The worktree is discarded. There is no released artifact and no state written anywhere by this change.",
+    "POST-MERGE, gate too strict: revert the single commit. make check-prompt-freeze returns to frozen-only behavior. NO data is rolled back - the change reads files and returns an exit code; it writes nothing except one stdout line.",
+    "POST-MERGE, partial: to drop only the count observable, remove the fmt.Printf in prompt_freeze.go and revert the signature to ([]string, error). The four widened arms are independent of the count and stay.",
+    "WHAT ROLLBACK CANNOT UNDO: nothing. --migrate is not run by CI, freezeVersion is untouched, and no registry bytes are written by any code path this sprint modifies."
+  ],
+  "out_of_scope": [
+    "merge-base immutability widening (prompt_freeze_check_git.go:28) - Non-Goals",
+    "either loader (internal/prompt/loader.go, internal/eval_harness/prompt_loader.go)",
+    "registering the 3 unregistered .md files under prompts/",
+    "changing freezeVersion",
+    "any CI/Makefile WIRING change (the code-health.mk edit is help text only)",
+    "go build ./... - rc=1 at base for an unrelated reason (cmd/wasm has no native main)"
+  ],
+  "executor_prohibitions": [
+    "NO git add / git commit / git stash / git checkout / git reset - the controller builds the commit, and the sandbox cannot commit in a linked worktree anyway",
+    "NO writes outside the worktree",
+    "NO 'go build ./...' as a gate",
+    "NO deleting a block or an import to create a mutant"
+  ],
+  "discrepancies_found": [],
+  "github_issues": [],
+  "completed": null,
+  "evaluation": null
+}

@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -250,9 +252,6 @@ func migrateRegistries(repoRoot, today string) (int, int, int, error) {
 	}
 	for _, id := range r.VersionKeys {
 		e := r.Versions[id]
-		if id == r.Active || e.Frozen != nil {
-			continue
-		}
 		if !eval_harness.IsHexSHA256(e.Hash) {
 			return 0, 0, 0, fmt.Errorf("%s: recorded hash is not enforceable", id)
 		}
@@ -332,21 +331,22 @@ func freezeVersion(repoRoot, versionID, today string) error {
 	return writeOrderedRegistry(pair.Mirror, r)
 }
 
-func checkRegistries(repoRoot string) ([]string, error) {
+func checkRegistries(repoRoot string) ([]string, int, error) {
 	pair := promptRegistryPair(repoRoot)
 	source, err := loadOrderedRegistry(pair.Source)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	mirror, err := loadOrderedRegistry(pair.Mirror)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	evidence, err := corpusScanner(repoRoot)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	var v []string
+	checked := 0
 	for id, ev := range evidence {
 		if e := source.Versions[id]; e != nil && e.Frozen == nil {
 			v = append(v, fmt.Sprintf("corpus-evidenced but not frozen: %s (%d citations, e.g. %s)", id, ev.Count, ev.Example))
@@ -354,13 +354,29 @@ func checkRegistries(repoRoot string) ([]string, error) {
 	}
 	for _, id := range source.VersionKeys {
 		e := source.Versions[id]
+		state := "mutable"
 		if e.Frozen != nil {
-			if !eval_harness.IsHexSHA256(e.Hash) {
-				v = append(v, fmt.Sprintf("frozen version %s: recorded hash is not a 64-hex sha256 (unenforceable freeze)", id))
-			} else if h, xerr := fileHash(filepath.Join(repoRoot, e.File)); xerr != nil {
-				return nil, xerr
-			} else if h != e.Hash {
-				v = append(v, fmt.Sprintf("frozen version %s: file bytes do not match recorded hash", id))
+			state = "frozen"
+		}
+		hashOK := eval_harness.IsHexSHA256(e.Hash)
+		if !hashOK {
+			suffix := "(unenforceable)"
+			if e.Frozen != nil {
+				suffix = "(unenforceable freeze)"
+			}
+			v = append(v, fmt.Sprintf("%s version %s: recorded hash is not a 64-hex sha256 %s", state, id, suffix))
+		}
+		sourceBytes, srcErr := os.ReadFile(filepath.Join(repoRoot, e.File))
+		sourceExists := !errors.Is(srcErr, fs.ErrNotExist)
+		if !sourceExists {
+			v = append(v, fmt.Sprintf("%s version %s: prompt file missing at %s", state, id, e.File))
+		} else if srcErr != nil {
+			return nil, 0, srcErr
+		}
+		if hashOK && sourceExists {
+			sum := sha256.Sum256(sourceBytes)
+			if hex.EncodeToString(sum[:]) != e.Hash {
+				v = append(v, fmt.Sprintf("%s version %s: file bytes do not match recorded hash", state, id))
 			}
 		}
 		a, _ := json.Marshal(e)
@@ -368,10 +384,17 @@ func checkRegistries(repoRoot string) ([]string, error) {
 		if !bytes.Equal(a, b) {
 			v = append(v, fmt.Sprintf("cmd/ailang/prompts/versions.json: entry %s differs from source", id))
 		}
+		checked++
+	}
+	for _, id := range mirror.VersionKeys {
+		if source.Versions[id] == nil {
+			v = append(v, fmt.Sprintf("cmd/ailang/prompts/versions.json: entry %s missing from source registry", id))
+			checked++
+		}
 	}
 	v, err = checkGitPromptFreezeInvariants(repoRoot, source, mirror, v)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return v, nil
+	return v, checked, nil
 }

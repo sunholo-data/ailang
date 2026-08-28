@@ -66,7 +66,7 @@ func runPromptFreeze(args []string) {
 		return
 	}
 	if *check {
-		violations, err := checkRegistries(*repo)
+		violations, checked, err := checkRegistries(*repo)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
@@ -74,6 +74,7 @@ func runPromptFreeze(args []string) {
 		for _, v := range violations {
 			fmt.Fprintln(os.Stderr, v)
 		}
+		fmt.Printf("checked %d registry entries\n", checked)
 		if len(violations) > 0 {
 			os.Exit(1)
 		}
