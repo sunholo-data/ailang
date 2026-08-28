@@ -123,6 +123,22 @@
       "pure": true
     },
     {
+      "name": "renameFile",
+      "type": "(string,string)-\u003e()!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "renameFileResult",
+      "type": "(string,string)-\u003eResult[(),string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
       "name": "writeFile",
       "type": "(string,string)-\u003e()!{FS}",
       "effects": [
