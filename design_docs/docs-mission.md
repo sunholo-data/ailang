@@ -130,9 +130,10 @@ Mark selected all seven clauses attended on 2026-08-28; clauses 5-7 are his addi
   on. Do not widen the allowlist to make an item fit; the allowlist is the definition of this
   mission's scope, not an obstacle to it.
 - **No designer on Fable.** The shared skill's designer rotation is
-  `claude:claude-fable-5 → pi:ollama/kimi-k3:cloud`; this mission seeds it at the kimi lane and
-  should stay there. Fable is reserved for high-cognition spec synthesis, and docs items are drift
-  repair. Most items here need **no design doc at all** — prefer a Gate-2 reality-check straight
+  `claude:claude-fable-5 → pi:ollama/deepseek-v4-flash:0731-cloud` (kimi removed fleet-wide
+  2026-08-28, V1 charter D-48); this mission seeds the rotation at sonnet (see Routing policy) and
+  must not fall to the Fable entry. Fable is reserved for high-cognition spec synthesis, and docs
+  items are drift repair. Most items here need **no design doc at all** — prefer a Gate-2 reality-check straight
   into a sprint. If an item truly needs deep design, that is a signal it belongs in V1.
 - **Deleting published pages is an outward-facing change.** Clause 5 makes removal routine, which
   makes it dangerous. Before deleting or merging a page: check inbound internal links, and leave a
