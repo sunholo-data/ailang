@@ -62,8 +62,8 @@ answer changes the row to `RESOLVED` in the same iteration that consumes the dir
 <!-- decision-ledger:start -->
 | ID | Status | Decision / recorded answer | Evidence |
 |---|---|---|---|
-| D-1 | OPEN | **Widen `.claude/skills/docs-sync/*` into the planner allowlist so the mission can fix its own sync tooling?** `check_examples.sh` passes ABSOLUTE paths to `ailang run`, tripping false `MOD010` module-path-mismatch failures for nearly every example carrying a `module` declaration — its raw output (12 passed / 29 failed / 176 skipped) has been silently over-reporting broken examples. (a) widen the allowlist to cover `.claude/skills/docs-sync/scripts/*` (b) route the fix to V1 as shared-skill infra (c) leave it and require every sprint to manually work around it with a relative-path re-derivation, as docs-2 did | Measured first-party (controller) and independently re-derived from scratch by the sprint-evaluator: same 9 genuine failures, same absolute-path MOD010 mechanism, same corrected 166/9/42 split across 217 `examples/runnable/*.ail` files. `docs/docs-sync-findings.md` DOCS-2-01 (also DOCS-2-04, a related population-count mismatch between `audit_design_docs.sh` and `derive_roadmap_versions.sh` in the same script family). PR [#955](https://github.com/sunholo-data/ailang/pull/955) → `a8f904aac`. |
-| D-2 | OPEN | **Widen `MISSION_PLANNER_ALLOWLIST`'s `docs/*` entry to cover `docs/docs/**` and `docs/src/**`?** The current entry is a SINGLE-LEVEL glob — it only reaches files directly under `docs/` (like the findings page docs-2 just created), not the nested paths where essentially every published page and website source constant actually live. Under the current allowlist, automated sprints can DIAGNOSE clause 1-5 drift (stale versions, orphaned pages, taxonomy) but cannot FIX most of it — docs-3, docs-4, and docs-7 all hit this wall. (a) widen to `docs/**` (b) widen to a named allowlist of specific nested paths as each item needs them (c) leave narrow and route nested-content fixes to a human/other mechanism | `docs-mission.md`'s own Guardrails section quotes the single-level restriction verbatim ("this brief only declares top-level `docs/` paths"). Concretely blocks fixing the stale `v0.16.0` prompt reference in `docs/docs/intro.mdx` (`docs/docs-sync-findings.md` DOCS-2-02, `check_versions.sh` output verified both by the controller and the sprint-evaluator) and the five nested pages `audit_design_docs.sh` flagged (inspected this iteration, currently non-findings but the mission has no mechanical way to fix any that DO turn out stale). |
+| D-1 | OPEN | **RE-FRAMED 2026-08-28 (attended) — still open, and the original framing was wrong.** The ask was "widen the allowlist **so the mission can** fix its own sync tooling", which presumes the allowlist is a write gate. It is not (see the Guardrails correction): a path outside the list is still fully editable, it just plans on `opus` instead of the cheap pinned planner. So this was never a capability question and no widening is needed to *act*. What remains genuinely open is **policy plus cost**: (a) fix `check_examples.sh` in this mission and add `.claude/skills/docs-sync/scripts/*` to the allowlist so it also plans cheap; (b) route it to V1 as shared-skill infra; (c) fix it here but leave the allowlist narrow, accepting one opus planning pass. **The underlying finding stands regardless and is high value**: `check_examples.sh` passes ABSOLUTE paths to `ailang`, tripping false `MOD010` failures — raw 12/29/176 against a corrected 166 pass / 9 genuine fail / 42 no-module. | Measured first-party by the controller and independently re-derived from scratch by the sprint-evaluator across 217 `examples/runnable/*.ail`: same 9 failures, same mechanism, same corrected split. `docs/docs-sync-findings.md` DOCS-2-01 and DOCS-2-04. PR [#955](https://github.com/sunholo-data/ailang/pull/955) → `a8f904aac`. |
+| D-2 | RESOLVED | **MOOT — nothing to widen; the premise was false (measured, attended 2026-08-28).** The ask assumed `docs/*` is "a SINGLE-LEVEL glob" reaching only files directly under `docs/`. It is not. These are `case` glob patterns, not shell pathname expansion, so `*` matches `/` — `docs/docs/**` and `docs/src/**` were reachable the entire time. The second half of the premise was also false: the allowlist is not a write gate, so even a genuine miss would mean *plans on opus*, never *cannot fix*. **DOCS-2-02 (the stale `v0.16.0` reference in `docs/docs/intro.mdx`) and every nested-page item deferred on this basis are UNBLOCKED and should be picked up.** Note the failure mode for future iterations: this row cited the charter's own Guardrails bullet as its evidence, and that bullet was an unverified human-authored claim — so a false statement in the charter became self-citing. A charter claim about what a mechanism DOES now has to carry the command that demonstrates it. | Discriminating control, run against the live mission env and the real `derive-planner-lane.sh`: `docs/docs/intro.mdx` → `codex:gpt-5.6-luna declared:codex-ok`, while `internal/eval_harness/models.yml` → `opus fail-closed:path-not-in-codex-allowlist` in the same run. Separately, `grep -rn MISSION_PLANNER_ALLOWLIST tools/ .claude/` returns only `derive-planner-lane.sh` and the driver's `export` — no write-scope enforcement exists anywhere, including `sprint-executor`. |
 <!-- decision-ledger:end -->
 
 ---
@@ -362,10 +362,34 @@ Mark selected all seven clauses attended on 2026-08-28; clauses 5-7 are his addi
 ## Guardrails (mission-specific; the skill's Standing Rules always apply on top)
 
 - **Blast radius is `docs/`, `examples/`, `README.md`, `CHANGELOG.md`, plus `tools/`
-  (non-`internal/`, non-`cmd/`).** Enforced mechanically at the planner gate by
-  `MISSION_PLANNER_ALLOWLIST`. Widened from `tools/launchd/*` to `tools/*` on 2026-08-28 (Mark,
-  attended — commit `29a467cac`) specifically to unblock docs-1's inbox-routing trigger, which
-  clause 7 makes a mandatory deliverable but which had no buildable path under the narrower list.
+  (non-`internal/`, non-`cmd/`).** This is a **POLICY** guardrail — a rule this mission follows,
+  enforced by the loop reading it here. Widened from `tools/launchd/*` to `tools/*` on 2026-08-28
+  (Mark, attended — commit `29a467cac`) to unblock docs-1's inbox-routing trigger.
+
+  **⚠ CORRECTION 2026-08-28 (attended) — an earlier version of this bullet said the blast radius was
+  "enforced mechanically at the planner gate by `MISSION_PLANNER_ALLOWLIST`". That was FALSE, it was
+  authored by a human, and it cost the mission real work before anyone checked it.** Two facts,
+  each measured with a discriminating control:
+
+  1. **`MISSION_PLANNER_ALLOWLIST` is not a write gate and never was.** It appears in exactly two
+     places in the whole repo — `derive-planner-lane.sh` and the driver's `export` — and nowhere
+     else; there is no write-scope enforcement in `sprint-executor` at all. What it decides is
+     **which model may PLAN the work**: every declared path inside the list → the cheap pinned
+     planner; anything outside → `opus fail-closed:path-not-in-codex-allowlist`. A path outside the
+     list is *expensive to plan*, never *impossible to edit*.
+  2. **`docs/*` is NOT single-level.** These are `case` glob patterns, not shell pathname
+     expansion, so `*` matches `/`. Measured: `docs/docs/intro.mdx` routes to
+     `codex:gpt-5.6-luna declared:codex-ok`, while the `internal/` control is denied in the same
+     run. Nested pages under `docs/docs/**` and `docs/src/**` were always reachable.
+
+  **How this propagated, because the mechanism matters more than the fact.** The false sentence was
+  written into this charter by a human; iteration 1 read it, believed it, deferred DOCS-2-01 and
+  DOCS-2-02 as mechanically impossible, and then opened decision `D-2` **citing this very bullet as
+  its evidence**. A charter is read as ground truth by every iteration, so an unverified mechanical
+  claim in it does not merely mislead once — it becomes self-citing, and the loop cannot tell it
+  from a measurement. **Rule: a claim in this charter about what a mechanism DOES must carry the
+  command that demonstrates it, or must not be stated.** Where a restriction is a judgement rather
+  than a mechanism, say "policy" — as this bullet now does.
   `internal/**` and `cmd/**` remain denied — if an item genuinely needs a change there, that is a
   **V1 backlog item, not a docs item** — file it across and move on. Do not widen the allowlist
   further to make an item fit; the allowlist is the definition of this mission's scope, not an
@@ -451,7 +475,15 @@ loud stop instead of a silent bill.
    sweep gives 166 pass / 9 genuine fail / 42 no-module across 217 files. Independently re-derived
    by the sprint-evaluator (sonnet) from scratch — PASS 92/100, zero blocking. Follow-ups spawned
    as docs-5 through docs-8 below.
-3. `[NEXT]` **docs-5 · clause 2 · examples hygiene — fix the 9 genuinely-failing runnable
+3. `[NEXT]` **docs-9 · clause 1 · FIX THE STALE PUBLISHED PAGE — the first item that corrects
+   content a reader actually sees.** `docs/docs/intro.mdx` names IFC Labels as `v0.16.0` while the
+   active prompt is `v0.16.6` (`check_versions.sh`: `[STALE] intro.mdx references v0.16.0, latest
+   is v0.16.6`; verified by both the controller and the sprint-evaluator, `docs-sync-findings.md`
+   DOCS-2-02). Was deferred by `docs-7` as mechanically impossible; that was false and is now
+   measured — the path routes to the cheap planner. Small, verifiable, and it moves the metric that
+   matters: **files changed under `docs/` that a reader sees**, which is still 0. Gate with
+   `make docs-build`. Est. 1 iteration, well under.
+4. `[NEXT]` **docs-5 · clause 2 · examples hygiene — fix the 9 genuinely-failing runnable
    examples.** `block_demo.ail`, `test_module_minimal.ail`, `simple_func_match.ail`,
    `match_arm_block.ail`, `match_in_block.ail`, `nested_match_minimal.ail` have no `main`
    entrypoint (helper/library files being swept as if runnable); `batch_processing.ail` and
@@ -460,7 +492,7 @@ loud stop instead of a silent bill.
    capability-usage comments is a normal sprint. Do NOT touch
    `.claude/skills/docs-sync/scripts/check_examples.sh` itself (see docs-6). Source:
    `docs/docs-sync-findings.md` DOCS-2-05 through DOCS-2-13.
-4. `[PARKED — needs Mark, see DECISIONS]` **docs-6 · clause 1 · fix `check_examples.sh`'s
+5. `[PARKED — needs Mark, see DECISIONS]` **docs-6 · clause 1 · fix `check_examples.sh`'s
    absolute-path bug.** The instrument this mission's whole clause-1/2 sweep depends on has been
    silently over-reporting broken examples (see docs-2's findings, DOCS-2-01). Fixing it means
    editing `.claude/skills/docs-sync/scripts/check_examples.sh`, which sits outside this mission's
@@ -468,22 +500,26 @@ loud stop instead of a silent bill.
    `design-doc-creator/*`). Also folds in DOCS-2-04 (the audit_design_docs.sh vs
    derive_roadmap_versions.sh design-doc population-count mismatch — same script family, same
    scope question).
-5. `[PARKED — needs Mark, see DECISIONS]` **docs-7 · clause 1 · the mission cannot edit its own
-   published content.** `MISSION_PLANNER_ALLOWLIST`'s `docs/*` entry is a SINGLE-LEVEL glob — it
-   covers files directly under `docs/` (like the findings page docs-2 just created) but NOT
-   `docs/docs/**` or `docs/src/**`, which is where essentially every published page and the stale
-   `v0.16.0` prompt reference in `intro.mdx` (DOCS-2-02) actually live. Under the current
-   allowlist, automated sprints can DIAGNOSE clause 1-5 drift but cannot FIX most of it. This is
-   the load-bearing scope gap this iteration found; docs-3's benchmark audit and docs-4's taxonomy
-   pass will hit the identical wall.
-6. `[PARKED]` **docs-8 · clause 1 · 126 overdue planned design docs (aggregate).** Everything under
+6. `[RULED OUT]` **docs-7 · "the mission cannot edit its own published content" — DISSOLVED
+   2026-08-28 (attended): the premise was false, measured.** This item asserted that
+   `MISSION_PLANNER_ALLOWLIST`'s `docs/*` is a single-level glob excluding `docs/docs/**` and
+   `docs/src/**`. It is not — these are `case` glob patterns, not shell pathname expansion, so `*`
+   matches `/`. Control run against the live env and the real script: `docs/docs/intro.mdx` →
+   `codex:gpt-5.6-luna declared:codex-ok`, while `internal/eval_harness/models.yml` →
+   `opus fail-closed:path-not-in-codex-allowlist` in the same run. And the allowlist is not a write
+   gate in the first place (see D-2 and the Guardrails correction), so even a real miss would mean
+   *plans on opus*, never *cannot fix*. **Nothing was ever blocked.** The work this item was
+   guarding is now `docs-9`. Kept as `[RULED OUT]` rather than deleted, because the interesting
+   part is the mechanism: this item was created from a false sentence in this charter, which then
+   got cited back as its own evidence — see the Guardrails correction for the rule that closes it.
+7. `[PARKED]` **docs-8 · clause 1 · 126 overdue planned design docs (aggregate).** Everything under
    `design_docs/planned/` targeting v0.29.0 through v0.31.0 while the repo ships v0.34.0
    (DOCS-2-03). `design_docs/` is also outside the current sprint allowlist — moving a doc to
    `implemented/` is normally the mission CONTROLLER's own Gate-4 bookkeeping (as v1-mission does),
    not a sprint-executor task, so this can proceed without an allowlist change, just not via the
    automated inner loop. Sequence after docs-6/docs-7 land or are ruled out, since triaging 126
    docs by hand is exactly the kind of large sweep worth doing once against settled tooling.
-7. `[NEXT]` **docs-1 · clause 7 · build the inbox-routing TRIGGER.** `send` and `forward` are
+8. `[NEXT]` **docs-1 · clause 7 · build the inbox-routing TRIGGER.** `send` and `forward` are
    verified working primitives (see clause 7's verification log) — no `internal/`/`cmd/` change is
    needed for those, and this item should not touch Go code. The missing piece is a **trigger**:
    something that periodically decides doc-related traffic exists (in `public-feedback`,
@@ -495,9 +531,9 @@ loud stop instead of a silent bill.
    `tools/messaging/docs_inbox_router.sh` is in scope (see Guardrails). Deliverable: a message sent
    from outside, observed arriving via the verified read command in clause 7, acked. Est. 1
    iteration.
-8. `[PARKED]` **docs-3 · clause 6 · benchmark surface audit.** Blocked on nothing, but sequence it
+9. `[PARKED]` **docs-3 · clause 6 · benchmark surface audit.** Blocked on nothing, but sequence it
    after docs-2 so the drift picture is known first.
-9. `[PARKED]` **docs-4 · clause 5 · taxonomy pass.** The `docs/docs/guides/` directory holds 40+
+10. `[PARKED]` **docs-4 · clause 5 · taxonomy pass.** The `docs/docs/guides/` directory holds 40+
    guides accreted over time. Deferred until clauses 1-3 are green — consolidating pages that are
    also factually stale does both jobs badly. Also blocked on docs-7's allowlist question, since
    `docs/docs/guides/` is nested.
