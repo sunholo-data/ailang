@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/gitexec"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/pkg"
@@ -453,10 +454,10 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 							d.logger.Printf("Deterministic version bump: %s → %s (%s) for %s",
 								manifest.Package.Version, newVersion, bumpType, agentConfig.ID)
 							// Commit the version bump
-							commitCmd := exec.Command("git", "-C", worktreePath, "add", "-A")
+							commitCmd := gitexec.Command("-C", worktreePath, "add", "-A")
 							commitCmd.Run()
 							commitMsg := fmt.Sprintf("chore: bump %s %s → %s (%s update)", manifest.Package.Name, manifest.Package.Version, newVersion, bumpType)
-							exec.Command("git", "-C", worktreePath, "commit", "-m", commitMsg).Run()
+							gitexec.Command("-C", worktreePath, "commit", "-m", commitMsg).Run()
 						}
 					} else {
 						d.logger.Printf("Warning: Version bump failed for %s: %v", agentConfig.ID, bumpErr)
@@ -677,7 +678,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 // but don't affect task completion.
 func (d *Daemon) enrichResolutionEnvelope(ctx context.Context, task *TaskRecord, worktreePath string) {
 	// Get git diff (HEAD~1..HEAD)
-	diffCmd := exec.Command("git", "diff", "HEAD~1..HEAD", "--stat")
+	diffCmd := gitexec.Command("diff", "HEAD~1..HEAD", "--stat")
 	diffCmd.Dir = worktreePath
 	diffOutput, err := diffCmd.Output()
 	if err != nil {
@@ -686,7 +687,7 @@ func (d *Daemon) enrichResolutionEnvelope(ctx context.Context, task *TaskRecord,
 	}
 
 	// Get commit message
-	logCmd := exec.Command("git", "log", "-1", "--pretty=%B")
+	logCmd := gitexec.Command("log", "-1", "--pretty=%B")
 	logCmd.Dir = worktreePath
 	commitMsg, err := logCmd.Output()
 	if err != nil {

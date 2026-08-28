@@ -4,9 +4,10 @@ package coordinator
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/gitexec"
 )
 
 // MergeResult contains the result of a merge operation.
@@ -108,7 +109,7 @@ func GetWorktreeDiff(ctx context.Context, worktreePath, baseBranch, baseCommit s
 	}
 
 	// Compare against the base to show all changes made by this task
-	cmd := exec.CommandContext(ctx, "git", "diff", base+"..HEAD")
+	cmd := gitexec.CommandContext(ctx, "diff", base+"..HEAD")
 	cmd.Dir = worktreePath
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -119,7 +120,7 @@ func GetWorktreeDiff(ctx context.Context, worktreePath, baseBranch, baseCommit s
 
 // getWorktreeBranch returns the current branch name in the worktree.
 func getWorktreeBranch(ctx context.Context, worktreePath string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd := gitexec.CommandContext(ctx, gitCommandRevParse, "--abbrev-ref", "HEAD")
 	cmd.Dir = worktreePath
 	output, err := cmd.Output()
 	if err != nil {
@@ -142,7 +143,7 @@ func getChangedFiles(ctx context.Context, worktreePath, baseBranch, baseCommit s
 		}
 	}
 
-	cmd := exec.CommandContext(ctx, "git", "diff", "--name-only", base+"..HEAD")
+	cmd := gitexec.CommandContext(ctx, "diff", gitFlagNameOnly, base+"..HEAD")
 	cmd.Dir = worktreePath
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -170,7 +171,7 @@ func getMainRepoPath(worktreePath string) string {
 	}
 
 	// Get the git directory of the worktree
-	cmd := exec.Command("git", "rev-parse", "--git-dir")
+	cmd := gitexec.Command(gitCommandRevParse, "--git-dir")
 	cmd.Dir = worktreePath
 	output, err := cmd.Output()
 	if err != nil {
@@ -192,7 +193,7 @@ func getMainRepoPath(worktreePath string) string {
 
 // gitCheckout checks out a branch in the given repo.
 func gitCheckout(ctx context.Context, repoPath, branch string) error {
-	cmd := exec.CommandContext(ctx, "git", "checkout", branch)
+	cmd := gitexec.CommandContext(ctx, "checkout", branch)
 	cmd.Dir = repoPath
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -203,7 +204,7 @@ func gitCheckout(ctx context.Context, repoPath, branch string) error {
 
 // gitMerge merges a branch into the current branch.
 func gitMerge(ctx context.Context, repoPath, branch string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", "merge", "--no-edit", branch)
+	cmd := gitexec.CommandContext(ctx, "merge", "--no-edit", branch)
 	cmd.Dir = repoPath
 	output, err := cmd.CombinedOutput()
 	return string(output), err
@@ -211,7 +212,7 @@ func gitMerge(ctx context.Context, repoPath, branch string) (string, error) {
 
 // gitMergeAbort aborts an in-progress merge.
 func gitMergeAbort(ctx context.Context, repoPath string) error {
-	cmd := exec.CommandContext(ctx, "git", "merge", "--abort")
+	cmd := gitexec.CommandContext(ctx, "merge", "--abort")
 	cmd.Dir = repoPath
 	_, err := cmd.CombinedOutput()
 	return err
@@ -219,7 +220,7 @@ func gitMergeAbort(ctx context.Context, repoPath string) error {
 
 // getHeadCommit returns the HEAD commit hash.
 func getHeadCommit(ctx context.Context, repoPath string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", "rev-parse", "HEAD")
+	cmd := gitexec.CommandContext(ctx, gitCommandRevParse, "HEAD")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {

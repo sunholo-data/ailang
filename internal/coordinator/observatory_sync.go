@@ -7,12 +7,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/gitexec"
 	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
@@ -214,7 +214,7 @@ func (s *ObservatorySync) generateAssignmentID(taskID, agentID string) string {
 
 // getGitRemote returns the git remote URL for a path, or empty string if not a git repo.
 func (s *ObservatorySync) getGitRemote(path string) string {
-	cmd := exec.Command("git", "-C", path, "remote", "get-url", "origin")
+	cmd := gitexec.Command("-C", path, "remote", "get-url", "origin")
 	output, err := cmd.Output()
 	if err != nil {
 		return ""
