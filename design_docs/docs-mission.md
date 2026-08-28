@@ -54,6 +54,77 @@ At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the arc
 iteration re-reads this charter — unbounded STATUS history is a per-read token tax on the scarcest
 model budget; the append-only history lives in the log + archive.
 
+## STATUS 2026-08-28 — ITERATION 0 RUN: quorum BLOCKED twice, one bounded revision applied, **still not ratified** — parked for Mark
+
+First unattended fire of `dev.ailang.mission-docs` (kill switch had been removed since the prior
+stamp). Gate 0 found no docs-mission-specific inbox traffic and no comments on bookkeeping issue
+`#953`, so proceeded per Gate 2's QUORUM-AT-PICK: this charter had no quorum artifact yet, so ran
+`ailang design-quorum` on it before any routing, exactly as any picked design doc would get.
+
+**Round 1** (`docs-mission-2026-08-28T06-29-56Z.json`, $0.057): BLOCKED, all three reviewers
+rejected — two premise objections on clause 7 (no verified read command for the prod inbox;
+`send`/`forward` asserted as working with zero verification evidence, unlike every other claim in
+the doc) and one design objection (queue item docs-1's inbox-routing deliverable has no identified
+implementation path inside the mission's own blast-radius allowlist).
+
+**Controller measurement before revising (rule 3f — measure premises, don't just forward them):**
+ran `ailang messages send docs-quorum-test-scratch "..."` then
+`ailang messages forward --to docs-mission --reason "..." <id>` then
+`AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT=ailang-multivac ailang messages list --inbox
+docs-mission --unread --json`, live against prod Firestore — the message arrived and was readable,
+confirming both CLI primitives work with no registration and no `internal/`/`cmd/` change involved.
+Paired with a known-positive control (`pkg:sunholo/ailang_parse`, real unread message) and a
+known-negative one (a fabricated inbox name, `null`) so the read instrument's emptiness elsewhere
+is trusted. This refuted 2 of 3 round-1 objections directly; the third (blast-radius scope for
+docs-1) is a genuine open design question, not a measurable premise.
+
+**Revision**: spawned a pinned-sonnet designer sub-agent (independent process from this
+controller's own pass verdict) with the measurements above, to make ONE bounded, targeted fix:
+cite the verified commands and correct read incantation in clause 7, reframe docs-1 as building a
+**trigger** (not the already-working primitives) with the blast-radius question surfaced as an
+explicit, unanswered, one-word ask for Mark, and reconcile the CURRENT-GOAL/Queue inconsistency in
+the Queue's favor. Confirmed scope held: clauses 1-6, Guardrails, Routing policy, and the
+ARMED-BUT-SILENT/not-yet-ratified STATUS language are all byte-identical to before.
+
+**Round 2** (`docs-mission-2026-08-28T06-35-00Z.json`, $0.062): BLOCKED again, different surface
+each time — sign of a doc still being probed broadly, not close to convergence (Gate 2's
+round-tracking rule). gpt5-6-sol re-rejected the SAME docs-1 scope point (correctly — it's the
+genuine open question, deliberately left unanswered rather than invented). gemini-3-1-pro raised a
+NEW objection calling `derive-planner-lane.sh`'s Step 0 opus-fallback a "silent fallback" violating
+the no-silent-fallbacks axiom. oc-glm-5-2 raised a NEW objection that the Repo Profile's CI
+path-filter claims are asserted without a workflow-file citation.
+
+**Controller measurement on round 2 (before parking, not before a 3rd revision — Gate 2 allows one
+revision + one re-quorum, both now spent):**
+- `gemini-3-1-pro`'s objection is **REFUTED**: `tools/launchd/derive-planner-lane.sh` lines 57-58
+  read *"Step 0: only a VETTED non-opus lane may proceed to the path analysis; anything else fails
+  closed to opus"* — a deliberate, documented, LABELED fail-closed-to-safety default (every exit
+  path emits a distinct reason token, e.g. `opus fail-closed:env-pin`, per lines 63-64's own
+  comment explaining exactly why: *"every non-codex value emitted 'opus fail-closed:env-pin', so
+  the lane would read as pinned in the driver log while actually running opus"* — i.e. this script
+  was ALREADY hardened against the silent-failure shape the reviewer describes). Not a bug to fix;
+  the doc's framing (route around it via pin choice) is correct.
+- `oc-glm-5-2`'s objection is **PARTIALLY CONFIRMED**: `.github/workflows/ci.yml`'s `on.push` has
+  no `paths:` key (lines 3-9) — the doc's "no push paths filter" claim is TRUE. But
+  `docusaurus-deploy.yml`'s `on.push.paths` is **broader** than the Repo Profile states: besides
+  `docs/**`, `prompts/**`, `llms.txt`, `CHANGELOG.md`, it ALSO triggers on
+  `.github/workflows/docusaurus-deploy.yml`, `internal/**`, `cmd/**`, `go.mod`, `go.sum`, `web/**`
+  (WASM/REPL rebuild triggers) — meaning V1's own code changes can fire this mission's Gate-3b/
+  Gate-1 watched workflow too. Worth a citation fix next revision; not itself a ratification
+  blocker, and it sharpens the V1/docs shared-CI-signal risk flagged in round 1's controller note.
+
+**Disposition: `PARKED-needs-human-review` on `docs-0`.** The blast-radius question for docs-1 is a
+genuine judgment call only Mark can make (Standing Rule 8) — the doc deliberately declines to
+invent an answer. No sprint routes this iteration (the charter's own gate: "iteration 0 ratifies it
+via the quorum before any sprint routes"), so docs-1/docs-2/docs-3/docs-4 all stay `[NEXT]`/
+`[PARKED]` unchanged. Planner/executor/sprint-evaluator: N/A — no sprint executed. The
+generator(designer)≠judge property this iteration's actual deliverable (the charter revision) needed
+was supplied structurally by the 3-reviewer quorum (gpt5-6-sol/gemini-3-1-pro/oc-glm-5-2), all
+independent of both the sonnet controller and the sonnet designer sub-agent.
+
+**Metered cost this iteration: $0.119** of the $1 ceiling (two quorum rounds, $0.057 + $0.062).
+Quota buckets: sonnet (controller + designer sub-agent).
+
 ## STATUS 2026-08-28 — ITERATION 0 PENDING: charter written, **not yet ratified**, loop armed-but-silent
 
 Charter drafted attended with Mark 2026-08-28. Bar clauses 1-7 are Mark's own selection and must
@@ -92,8 +163,12 @@ literal cannot satisfy both).
 
 1. **Iteration 0 (definition)**: ratify the bar below with Mark through the design quorum, then
    score the backlog against it into `required` / `nice` / `post`. Output: an ordered queue in this
-   doc. **Also at iteration 0**: stand up the `docs-mission` inbox routing that clause 7 depends on
-   (see clause 7 — it has no delivery mechanism yet).
+   doc. Standing up the `docs-mission` inbox-routing **trigger** that clause 7 depends on is queue
+   item **docs-1** (see Queue and clause 7) — a later, separate iteration, not part of iteration 0
+   itself. (Reconciled 2026-08-28 during quorum revision: this line previously said routing was
+   "also at iteration 0," contradicting the Queue's listing of docs-1 as its own 1-iteration item
+   after docs-0. The Queue is correct — docs-1 carries an open scope question, below, that must not
+   gate ratification.)
 2. **Then**: work the queue through the inner loop (design-doc → sprint-plan → execute → evaluate),
    one sprint-sized item per iteration, recording routing evidence every time.
 
@@ -133,14 +208,43 @@ Mark selected all seven clauses attended on 2026-08-28; clauses 5-7 are his addi
 - **Clause 7 — Doc-related requests are answered.** *(Mark, 2026-08-28.)* The mission owns its own
   inbox and works it: doc-related GitHub issues on `sunholo-data/ailang`, and `ailang messages`
   requests routed to the **`docs-mission`** inbox.
-  **This clause has no delivery mechanism yet — building it is iteration 0 work, not an assumption.**
-  What is verified: `ailang messages send <inbox>` takes a free-form inbox name, so `docs-mission`
-  needs no registration, and `ailang messages forward <id> --to docs-mission` exists. What is NOT
-  built: anything that *routes* doc-related traffic there. Public feedback lands in
-  `public-feedback` and `pkg:<vendor>/<name>`, and **feedback dispatch has never worked** (36/36
-  failures since 2026-04-27, ailang#900) — so do not assume arrival. The canonical store is prod
-  Firestore; a bare `ailang messages list` reads local SQLite and will show an empty, reassuring,
-  wrong inbox.
+  **This clause has no delivery mechanism (trigger) yet — building one is queue item docs-1, not an
+  assumption baked into this charter.**
+
+  **Verified before being written down** (2026-08-28, both rc=0, run live against prod Firestore,
+  not simulated):
+  ```
+  export AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT=ailang-multivac
+
+  # 1. send to a scratch inbox (simulating externally-originated traffic)
+  ailang messages send docs-quorum-test-scratch "iteration-0 quorum premise check..." \
+    --title "docs-mission premise check 20260828T063048Z" --from "docs-quorum-probe"
+  # => Message sent to 'docs-quorum-test-scratch' (ID: inbox_1787898648354_20138c15)
+
+  # 2. forward it to docs-mission — NOTE: flags must come BEFORE the message id, or you get
+  #    "Error: --to flag is required"
+  ailang messages forward --to docs-mission --reason "quorum premise verification" \
+    inbox_1787898648354_20138c15
+  # => Forwarded message from 'docs-quorum-test-scratch' to 'docs-mission'
+
+  # 3. confirm arrival with the CORRECT canonical-store read command (see this repo's root
+  #    CLAUDE.md — cited explicitly here so this clause doesn't leave it implicit):
+  ailang messages list --inbox docs-mission --unread --json
+  # => returned the forwarded message; acked as test cleanup
+  ```
+  Controls run alongside: a known-positive read (`--inbox "pkg:sunholo/ailang_parse"` returned a
+  real unread message) and a known-negative read (a made-up inbox name returned `null`) — so the
+  read instrument is confirmed not vacuously empty either way.
+
+  This confirms `ailang messages send <inbox>` takes a free-form inbox name (`docs-mission` needs
+  no registration) and `ailang messages forward --to <inbox> <id>` works — both **already-existing
+  CLI verbs, verified with no `internal/`/`cmd/` change involved**. What is NOT built is a
+  **trigger**: something that decides *when* to call `forward` for doc-related traffic sitting in
+  `public-feedback`, `pkg:<vendor>/<name>`, or GitHub issues. Public feedback dispatch has never
+  worked end-to-end (36/36 failures since 2026-04-27, ailang#900), so a trigger must **poll** those
+  sources — it cannot assume anything currently pushes traffic anywhere. See docs-1 in the Queue for
+  scope. The canonical store is prod Firestore; a bare `ailang messages list` (no env vars) reads
+  local SQLite and will show an empty, reassuring, wrong inbox.
 
 ## Guardrails (mission-specific; the skill's Standing Rules always apply on top)
 
@@ -208,10 +312,18 @@ loud stop instead of a silent bill.
 
 1. `[NEXT]` **docs-0 · iteration 0 · ratify this charter.** Quorum-review clauses 1-7 with Mark;
    score the backlog into required/nice/post. Est. 1 iteration.
-2. `[NEXT]` **docs-1 · clause 7 · build the inbox routing.** Clause 7 is the only clause with no
-   delivery mechanism. Decide and implement how doc-related traffic reaches the `docs-mission`
-   inbox, against the known-broken dispatch path (ailang#900). Deliverable: a message sent from
-   outside, observed arriving, acked. Est. 1 iteration.
+2. `[NEXT]` **docs-1 · clause 7 · build the inbox-routing TRIGGER.** `send` and `forward` are
+   verified working primitives (see clause 7's verification log) — no `internal/`/`cmd/` change is
+   needed for those, and this item should not touch Go code. The missing piece is a **trigger**:
+   something that periodically decides doc-related traffic exists (in `public-feedback`,
+   `pkg:<vendor>/<name>`, or GitHub issues on `sunholo-data/ailang`) and calls
+   `forward --to docs-mission` — on top of a dispatch path that has never worked end-to-end (36/36
+   failures, ailang#900), so this must poll rather than assume a push.
+   **Open scope question for Mark, not answered by this charter: may docs-1 add a script under
+   `tools/` (outside this mission's stated blast radius of `docs/`, `examples/`, `README.md`,
+   `CHANGELOG.md`), or must the mechanism live entirely within that blast radius (e.g. driven from
+   CI config)?** Do not start this item until that's answered. Deliverable: a message sent from
+   outside, observed arriving via the verified read command in clause 7, acked. Est. 1 iteration.
 3. `[NEXT]` **docs-2 · clauses 1+3 · first real sweep.** Run `docs-sync` end to end and turn its
    output into a scored, clause-tagged queue. This is the item that converts "the website is
    probably drifting" into a measured backlog. Est. 1 iteration.
