@@ -78,6 +78,47 @@ want "traversal cannot escape an allowlisted prefix" "$out" "opus fail-closed:pa
 # from the repo root, using the default allowlist's own literal prefix.
 out=$(cd "$ROOT" && MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
 want "allowlist globs are patterns, not repo-cwd pathname expansions" "$out" "pi:ollama/kimi-k3:cloud declared:codex-ok"
+
+# --- DOCS MISSION LADDER (2026-08-28) -------------------------------------------
+# The docs mission runs a subscription-first cost ladder: subscription -> flat-rate
+# -> metered. Asserted on the VERSIONED env copy, because the live file in
+# ~/.config/ailang is not reviewable and drifts silently.
+docsenv="$ROOT/tools/launchd/mission-env/mission-docs.env"
+[ -r "$docsenv" ] && ok "docs mission env profile exists" || bad "docs mission env profile exists" "missing"
+
+# THE TRAP THIS GUARDS: derive-planner-lane.sh Step 0 accepts only codex:* or pi:*.
+# A bare Anthropic alias as the PLANNER pin emits "opus fail-closed:env-pin" and
+# silently runs OPUS — the most expensive model in the fleet, on the mission built to
+# avoid it. Negative assertion, so a well-meaning "put sonnet first everywhere" edit
+# is RED rather than silently expensive.
+grep -qE '^MISSION_PLANNER_MODEL="\$\{MISSION_PLANNER_MODEL:-(codex|pi):' "$docsenv" \
+  && ok "docs planner pin is a vetted non-opus lane (not a bare alias)" \
+  || bad "docs planner pin is a vetted non-opus lane (not a bare alias)" "bare alias fails closed to opus"
+
+# The allowlist widening is what makes that pin reach its lane at all.
+grep -q 'MISSION_PLANNER_ALLOWLIST' "$docsenv" \
+  && ok "docs mission widens the planner allowlist" \
+  || bad "docs mission widens the planner allowlist" "missing — planner would fail closed to opus every fire"
+
+# Rung 2 -> rung 3 must be the SAME WEIGHTS on two routes, so exhausting the
+# flat-rate quota costs money and never capability.
+grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:ollama/glm-5.3-flash:cloud,pi:openrouter/z-ai/glm-5.3-flash}' "$docsenv" \
+  && ok "docs executor chain is flat-rate -> metered twin (same weights)" \
+  || bad "docs executor chain is flat-rate -> metered twin (same weights)" "missing or unchained"
+grep -q 'MISSION_PLANNER_FALLBACK:-pi:ollama/glm-5.3-flash:cloud,pi:openrouter/z-ai/glm-5.3-flash}' "$docsenv" \
+  && ok "docs planner chain is flat-rate -> metered twin (same weights)" \
+  || bad "docs planner chain is flat-rate -> metered twin (same weights)" "missing or unchained"
+
+# GENERATOR != JUDGE, asserted as VENDOR DISJOINTNESS ACROSS THE WHOLE CHAIN, not just
+# the primary. The executor walks OpenAI -> Z-AI -> Z-AI; an evaluator on the same
+# ladder would share a vendor at every rung, which is exactly the shared blind spot the
+# rule exists to prevent.
+grep -qE '^MISSION_EVALUATOR_FALLBACK=.*minimax' "$docsenv" \
+  && ok "docs evaluator chain is vendor-disjoint from the executor" \
+  || bad "docs evaluator chain is vendor-disjoint from the executor" "evaluator shares the executor vendor"
+grep -qE '^MISSION_EVALUATOR_FALLBACK=.*(glm|deepseek|gpt-)' "$docsenv" \
+  && bad "docs evaluator never shares an executor-chain vendor" "evaluator chain contains an executor vendor" \
+  || ok "docs evaluator never shares an executor-chain vendor"
 # The `:floor` guard, generalised. It previously pinned the OpenRouter route, which
 # broke when the fallback moved to the flat-rate ollama route (same deepseek-v4-flash
 # weights). The route is now asserted above; what must survive ANY route change is

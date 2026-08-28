@@ -151,23 +151,37 @@ Uses the **shared** per-role routing from `mission-control`, with this mission's
 `~/.config/ailang/mission-docs.env` (versioned copy:
 [tools/launchd/mission-env/mission-docs.env](../tools/launchd/mission-env/mission-docs.env)).
 
-This mission **promotes the flat-rate Ollama Cloud lanes from first-fallback to primary** — a
-deliberate, scoped departure from the fleet policy ratified 2026-08-26. That policy's own reasoning
-licenses the exception: the objection was the absence of role-specific evidence plus the cost of
-learning it somewhere consequential. A docs loop is the cheapest venue to generate exactly that
-evidence, and every routing row recorded here feeds the promotion rule for the fleet.
+The ladder is ordered by **cost type, not model quality** (Mark, attended 2026-08-28): spend the
+subscriptions already paid for, then the flat-rate route, and only reach metered dollars at the last
+rung. Every step down is cheaper in real money than the one above it.
 
-| Role | Lane | Why |
+| Rung | Cost type | Lane |
 |---|---|---|
-| **Controller** | `claude-sonnet-5` (fallback `codex:gpt-5.6-sol`) | Biggest line item — a long session re-reading a ~3.8k-line skill each fire. Opus-first is right for a loop shipping compiler changes, not for one fixing doc drift. |
-| **Designer** | `pi:ollama/kimi-k3:cloud` | Flat-rate. Rotation seeded off Fable deliberately (see Guardrails). |
-| **Planner** | `pi:ollama/kimi-k3:cloud` → `pi:openrouter/moonshotai/kimi-k3` | Strongest open-weight model measured externally, in the role Mark already scoped it to. |
-| **Executor** | `pi:ollama/deepseek-v4-flash:0731-cloud` → `pi:openrouter/deepseek/deepseek-v4-flash-0731` | The high-VOLUME role, so flat-rate pays here. Same weights the fleet already uses as first fallback — a route change, not a capability change. |
-| **Evaluator** | `sonnet` → `pi:ollama/minimax-m3:cloud` → `pi:openrouter/minimax/minimax-m3` | **Deliberately NOT down-tiered.** On a mission whose generator is cheap on purpose, the judge is the wrong economy: a cheap executor checked by a cheap judge means nobody catches anything and the loop reports success it did not earn. Also keeps generator≠judge structurally sound (Anthropic judging DeepSeek) and off the executor's quota pool. |
+| 1 | subscription (already paid for) | `claude-sonnet-5` / `codex:gpt-5.6-luna` |
+| 2 | flat-rate (Ollama Cloud pro) | `pi:ollama/<model>:cloud` |
+| 3 | metered, cheapest available | `pi:openrouter/<same weights>` |
 
-**Metered ceiling**: `$1`/iteration (fleet default is `$5`). Every primary lane is flat-rate or
-subscription, so a fire spending real dollars has already fallen off its intended route — a low
-ceiling makes that a loud stop instead of a silent bill.
+Rungs 2 and 3 are deliberately **the same weights on two routes**, so exhausting the flat-rate quota
+(whose denominator is unpublished) costs money and never capability.
+
+| Role | Chain | Notes |
+|---|---|---|
+| **Controller** | `claude-sonnet-5` → `codex:gpt-5.6-luna` | The driver's controller ladder speaks only Anthropic model IDs plus ONE codex fallback, so it cannot express rungs 2-3. Down from opus — this is the biggest line item, a long session re-reading a ~3.8k-line skill each fire. |
+| **Designer** | `claude:claude-sonnet-5` (seed) | Seed only: the designer is a skill-side **rotation**, not a chain — the driver has no `MISSION_DESIGNER_FALLBACK`. Seeded off the Fable default. Most docs items need no design doc at all (see Guardrails). |
+| **Planner** | `codex:gpt-5.6-luna` → `pi:ollama/glm-5.3-flash:cloud` → `pi:openrouter/z-ai/glm-5.3-flash` | Starts at rung 1b, **not** sonnet, and that is forced: `derive-planner-lane.sh` Step 0 accepts only `codex:*` or `pi:*`, so a bare `sonnet` pin emits `opus fail-closed:env-pin` and silently runs opus. Drops the fleet's kimi-k3 rung — free on flat-rate, but $3/$15 per M on its OpenRouter twin, i.e. 40x glm-5.3-flash and dearer than gpt-5.6-sol. As the last rung of a cost ladder that is backwards. |
+| **Executor** | `codex:gpt-5.6-luna` → `pi:ollama/glm-5.3-flash:cloud` → `pi:openrouter/z-ai/glm-5.3-flash` | The high-volume role, so the ladder pays most here. The driver dedupes the shared probe, so planner+executor cost one probe. |
+| **Evaluator** | `sonnet` → `pi:ollama/minimax-m3:cloud` → `pi:openrouter/minimax/minimax-m3` | **Deliberately vendor-disjoint from the executor at every rung.** Two reasons, the second structural: (1) on a mission whose generator is cheap on purpose, a cheap judge means nobody catches anything and the loop reports success it did not earn; (2) the executor chain is OpenAI → Z-AI → Z-AI, so an evaluator walking the *same* ladder would share a vendor at every rung — precisely the shared blind spot generator≠judge exists to prevent. |
+
+**Verified before being written down** (2026-08-28, both rc=0): `codex exec --model gpt-5.6-luna`
+returned "ok" on the subscription lane (7,930 tokens); `ollama run glm-5.3-flash:cloud` returned
+"ok". Live OpenRouter prices read the same day — `z-ai/glm-5.3-flash` $0.075/$0.250 per M at
+1,310,720 context. `deepseek/deepseek-v4-flash-0731` is marginally cheaper ($0.060/$0.120) but
+glm-5.3-flash is the newer generation at a trivial delta on this mission's volume; recorded so the
+choice reads as a decision rather than an oversight.
+
+**Metered ceiling**: `$1`/iteration (fleet default is `$5`). Rungs 1-2 are subscription and
+flat-rate, so a fire spending real dollars has already fallen to rung 3 — a low ceiling makes that a
+loud stop instead of a silent bill.
 
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
