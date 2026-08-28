@@ -3,6 +3,7 @@ package eval_harness
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"path/filepath"
 	"strings"
@@ -372,14 +373,14 @@ func (l *MetricsLogger) Log(m *RunMetrics) error {
 // This provides accurate pricing based on models.yml configuration
 // Returns 0.0 if model not found - FAIL LOUDLY, NO SILENT FALLBACKS
 func CalculateCostWithBreakdown(model string, inputTokens, outputTokens int) float64 {
-	// CRITICAL: GlobalModelsConfig MUST be initialized
-	if GlobalModelsConfig == nil {
+	// CRITICAL: modelreg.GlobalModelsConfig MUST be initialized
+	if modelreg.GlobalModelsConfig == nil {
 		// Return 0 to make it obvious something is wrong
 		// Better to see $0.00 in reports than trust wrong data
 		return 0.0
 	}
 
-	cost, err := GlobalModelsConfig.CalculateCostForModel(model, inputTokens, outputTokens)
+	cost, err := modelreg.GlobalModelsConfig.CalculateCostForModel(model, inputTokens, outputTokens)
 	if err != nil {
 		// Model not found in config - return 0 to force investigation
 		// NO SILENT FALLBACKS - we want to know when pricing is missing
@@ -393,11 +394,11 @@ func CalculateCostWithBreakdown(model string, inputTokens, outputTokens int) flo
 // run's prompt-cache reads. inputTokens must be FRESH input, disjoint from
 // cacheReadTokens. Same no-silent-fallback stance: an unpriced model returns 0.
 func CalculateCostWithCache(model string, inputTokens, outputTokens, cacheReadTokens int) float64 {
-	if GlobalModelsConfig == nil {
+	if modelreg.GlobalModelsConfig == nil {
 		return 0.0
 	}
 
-	cost, err := GlobalModelsConfig.CalculateCostForModelWithCache(model, inputTokens, outputTokens, cacheReadTokens)
+	cost, err := modelreg.GlobalModelsConfig.CalculateCostForModelWithCache(model, inputTokens, outputTokens, cacheReadTokens)
 	if err != nil {
 		return 0.0
 	}
@@ -413,10 +414,10 @@ func CalculateCostWithCache(model string, inputTokens, outputTokens, cacheReadTo
 // on-device and free. An unresolvable model yields unknown rather than a guess,
 // matching CalculateCostWithBreakdown's no-silent-fallback stance.
 func standardModeCostProvenance(model string) string {
-	if GlobalModelsConfig == nil {
+	if modelreg.GlobalModelsConfig == nil {
 		return string(executor.CostProvenanceUnknown)
 	}
-	cfg, ok := GlobalModelsConfig.Models[model]
+	cfg, ok := modelreg.GlobalModelsConfig.Models[model]
 	if !ok {
 		return string(executor.CostProvenanceUnknown)
 	}

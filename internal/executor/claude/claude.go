@@ -61,9 +61,11 @@ func New(cfg *executor.Config) (*ClaudeExecutor, error) {
 	}
 
 	model := cfg.ClaudeModel
-	if model == "" {
-		model = "haiku"
-	}
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)): NO DEFAULT. An empty model is
+	// permitted HERE because the coordinator constructs an executor before it
+	// knows the task, then supplies Task.Model per task. The fail-loud lives at
+	// the point of USE (getModel) rather than construction — checking here would
+	// reject the normal path where the model arrives with the task.
 
 	tools := cfg.ClaudeTools
 	if len(tools) == 0 {
@@ -92,11 +94,17 @@ func (e *ClaudeExecutor) Name() string {
 
 // Execute runs a task and returns the result
 func (e *ClaudeExecutor) Execute(ctx context.Context, task *executor.Task) (*executor.Result, error) {
+	if err := e.requireModel(task); err != nil {
+		return nil, err
+	}
 	return e.ExecuteStreaming(ctx, task, &executor.NoOpEventHandler{})
 }
 
 // ExecuteStreaming runs a task with real-time event callbacks
 func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+	if err := e.requireModel(task); err != nil {
+		return nil, err
+	}
 	// Start OTEL span for Claude execution
 	ctx, span := telemetry.StartSpan(ctx, claudeTracer, "claude.execute",
 		trace.WithAttributes(

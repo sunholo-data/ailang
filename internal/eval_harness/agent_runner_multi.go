@@ -6,6 +6,7 @@ package eval_harness
 import (
 	"context"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"path/filepath"
 	"strings"
@@ -87,9 +88,9 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	modelName := config.ModelName // Use provided model name (e.g., "gemini-3-flash-preview")
 
 	// If executor not provided, look up from model config
-	if executorName == "" && GlobalModelsConfig != nil {
+	if executorName == "" && modelreg.GlobalModelsConfig != nil {
 		var err error
-		executorName, modelName, err = GlobalModelsConfig.GetExecutorForModel(config.ModelName)
+		executorName, modelName, err = modelreg.GlobalModelsConfig.GetExecutorForModel(config.ModelName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get executor for model %s: %w", config.ModelName, err)
 		}
@@ -249,8 +250,8 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	if config.ConfigKey != "" {
 		lookupKey = config.ConfigKey
 	}
-	if GlobalModelsConfig != nil {
-		if cfg, ok := GlobalModelsConfig.Models[lookupKey]; ok {
+	if modelreg.GlobalModelsConfig != nil {
+		if cfg, ok := modelreg.GlobalModelsConfig.Models[lookupKey]; ok {
 			if cfg.TTFTTimeoutSeconds > 0 {
 				task.TTFTTimeout = time.Duration(cfg.TTFTTimeoutSeconds) * time.Second
 			}
@@ -510,8 +511,8 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		Usage:              tokenUsageFromResult(result),
 		TTFTSeconds:        ttftTracker.seconds,
 		ModelFamily: func() string {
-			if GlobalModelsConfig != nil {
-				if cfg, ok := GlobalModelsConfig.Models[lookupKey]; ok {
+			if modelreg.GlobalModelsConfig != nil {
+				if cfg, ok := modelreg.GlobalModelsConfig.Models[lookupKey]; ok {
 					return cfg.ModelFamily
 				}
 			}
@@ -730,10 +731,10 @@ func persistentSystemPromptEnabled() bool {
 // to executors that drive a separate runtime so a reasoning model isn't truncated
 // mid-<think> by a small default (M-OLLAMA-PER-MODEL-MAX-TOKENS).
 func modelMaxOutputTokens(modelName string) int {
-	if GlobalModelsConfig == nil {
+	if modelreg.GlobalModelsConfig == nil {
 		return 0
 	}
-	if m, err := GlobalModelsConfig.GetModel(modelName); err == nil {
+	if m, err := modelreg.GlobalModelsConfig.GetModel(modelName); err == nil {
 		return m.MaxOutputTokens
 	}
 	return 0

@@ -57,5 +57,5 @@ cat <<JSON
   }
 JSON
 echo ""
-echo "Then add an entry to internal/eval_harness/models.yml using"
+echo "Then add an entry to internal/modelreg/models.yml using"
 echo "opencode-gemma4-26b as a template (swap api_name and agent_model_name)."

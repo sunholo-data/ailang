@@ -93,7 +93,7 @@ func main() {
 	// Result.CostUSD field exercise the env-var pricing path. The eval
 	// harness derives this from models.yml; the smoke runner doesn't have
 	// that wired (it's a one-off CLI), so we hardcode the haiku-4-5 rates.
-	// Updating: keep in sync with internal/eval_harness/models.yml entry
+	// Updating: keep in sync with internal/modelreg/models.yml entry
 	// "motoko-claude-haiku-4-5".pricing (input_per_1k=0.00025, output=0.00125).
 	startTime := time.Now()
 	res, err := exec.Execute(ctx, &executor.Task{

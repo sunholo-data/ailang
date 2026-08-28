@@ -242,17 +242,13 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		AgentConfig:        agentConfig, // For system prompt construction (v0.8.0+)
 	}
 
-	// Per-agent model, resolved through the shared routing table
-	// (M-PIPELINE-RECONCILIATION M5, D3): explicit pin > role lookup > provider
-	// default. A role the table does not know FAILS THE TASK rather than
-	// silently running on the default — the whole point of one table is that a
-	// gap in it is visible.
+	// Per-agent model, resolved through the REGISTRY
+	// (M-MODEL-REGISTRY-SINGLE-SOURCE M7, superseding M-PIPELINE-RECONCILIATION
+	// M5's config-side table): explicit pin > role lookup > no opinion. A role
+	// the registry does not know FAILS THE TASK rather than running on some
+	// default — the whole point of one source is that a gap in it is visible.
 	if agentConfig != nil {
-		var routing ModelRouting
-		if d.coordConfig != nil {
-			routing = d.coordConfig.ModelRouting
-		}
-		model, mErr := ResolveModel(agentConfig, routing)
+		model, mErr := ResolveModel(agentConfig)
 		if mErr != nil {
 			return fmt.Errorf("model routing: %w", mErr)
 		}

@@ -2,6 +2,7 @@ package eval_harness
 
 import (
 	"encoding/json"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/executor"
@@ -11,10 +12,10 @@ import (
 // HTTP APIs, so a priced model is genuinely billed — unlike agent mode, where
 // the codex/claude CLIs run on subscriptions. Unresolvable must not guess.
 func TestStandardModeCostProvenance(t *testing.T) {
-	saved := GlobalModelsConfig
-	t.Cleanup(func() { GlobalModelsConfig = saved })
+	saved := modelreg.GlobalModelsConfig
+	t.Cleanup(func() { modelreg.GlobalModelsConfig = saved })
 
-	GlobalModelsConfig = &ModelsConfig{Models: map[string]ModelConfig{
+	modelreg.GlobalModelsConfig = &ModelsConfig{Models: map[string]ModelConfig{
 		"gpt5-6-luna": {Pricing: Pricing{InputPer1K: 0.0002, OutputPer1K: 0.0012}},
 		"local-gemma": {Pricing: Pricing{}},
 	}}
@@ -30,7 +31,7 @@ func TestStandardModeCostProvenance(t *testing.T) {
 		}
 	}
 
-	GlobalModelsConfig = nil
+	modelreg.GlobalModelsConfig = nil
 	if got := standardModeCostProvenance("gpt5-6-luna"); got != string(executor.CostProvenanceUnknown) {
 		t.Errorf("no config loaded: got %q, want unknown", got)
 	}
@@ -40,9 +41,9 @@ func TestStandardModeCostProvenance(t *testing.T) {
 // label ships with the row, and its ABSENCE on a pre-2026-07-30 baseline
 // decodes as unknown rather than silently reading as metered.
 func TestRunMetrics_CostProvenanceRoundTrip(t *testing.T) {
-	saved := GlobalModelsConfig
-	t.Cleanup(func() { GlobalModelsConfig = saved })
-	GlobalModelsConfig = &ModelsConfig{Models: map[string]ModelConfig{
+	saved := modelreg.GlobalModelsConfig
+	t.Cleanup(func() { modelreg.GlobalModelsConfig = saved })
+	modelreg.GlobalModelsConfig = &ModelsConfig{Models: map[string]ModelConfig{
 		"gpt5-6-luna": {Pricing: Pricing{InputPer1K: 0.0002, OutputPer1K: 0.0012}},
 	}}
 
@@ -99,7 +100,7 @@ func TestResolvedMaxTokensPerBench(t *testing.T) {
 // now carry an explicit token gate, and the subscription lanes must all land on
 // the SAME effective work ceiling.
 func TestAgentSuiteGatesAreConsistent(t *testing.T) {
-	cfg, err := LoadModelsConfig("models.yml")
+	cfg, err := LoadModelsConfig("../modelreg/models.yml")
 	if err != nil {
 		t.Fatalf("load models.yml: %v", err)
 	}

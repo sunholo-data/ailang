@@ -61,7 +61,7 @@ var billedProviders = map[string]bool{
 // is therefore a hard gate — and it is the failure that survives being offline,
 // because two rows cannot BOTH be right no matter what the vendor charges.
 func TestModels_PricingIsSlugConsistent(t *testing.T) {
-	c, err := LoadModelsConfig("models.yml")
+	c, err := LoadModelsConfig("../modelreg/models.yml")
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestModels_PricingIsSlugConsistent(t *testing.T) {
 // live API reports a -1/token sentinel for it) and `or-laguna-xs-2` (a `:free`
 // tier, where $0 is correct by construction).
 func TestModels_PricingIsPlausible(t *testing.T) {
-	c, err := LoadModelsConfig("models.yml")
+	c, err := LoadModelsConfig("../modelreg/models.yml")
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -201,7 +201,7 @@ func TestModels_PricingIsPlausible(t *testing.T) {
 // party's downtime must not turn us red — would mean the one failure we can
 // predict to the day is only caught if somebody remembers to run the tool.
 func TestModels_PricingScheduleIsHonoured(t *testing.T) {
-	c, err := LoadModelsConfig("models.yml")
+	c, err := LoadModelsConfig("../modelreg/models.yml")
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}

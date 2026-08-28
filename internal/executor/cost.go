@@ -1,8 +1,8 @@
 package executor
 
 import (
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"math"
-	"strings"
 	"sync/atomic"
 )
 
@@ -196,17 +196,11 @@ func DefaultMaxCostUSD(inputPer1K, outputPer1K float64) float64 {
 //
 // Lives in this package because it is needed BOTH for cost provenance (here)
 // and for GPU-contention decisions in eval_harness, which imports executor.
-func IsOllamaCloudRoute(name string) bool {
-	n := strings.ToLower(strings.TrimSpace(name))
-	if i := strings.LastIndex(n, ":"); i >= 0 {
-		suffix := n[i+1:]
-		if suffix == "cloud" {
-			return true
-		}
-		return !strings.Contains(suffix, "/") && strings.HasSuffix(suffix, "-cloud")
-	}
-	return false
-}
+// M-MODEL-REGISTRY-SINGLE-SOURCE M1 (D4(a)): the grammar moved to
+// internal/modelreg so the registry could become a leaf that executors are
+// free to import. This delegate keeps executor's callers and its exported API
+// unchanged; there is one implementation, not two.
+func IsOllamaCloudRoute(name string) bool { return modelreg.IsOllamaCloudRoute(name) }
 
 // AuthLaneForModel decides how a run authenticates, from the model name alone.
 //

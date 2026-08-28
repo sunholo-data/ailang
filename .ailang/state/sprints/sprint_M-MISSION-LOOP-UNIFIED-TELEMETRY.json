@@ -39,10 +39,10 @@
         "A session.id with no matching row leaves chain_id empty and does not error",
         "go test ./internal/observatory/... green"
       ],
-      "passes": true,
+      "passes": null,
       "started": "2026-08-13T09:00:00Z",
-      "completed": "2026-08-13T12:00:00Z",
-      "notes": "Landed 56b449d01 (before this branch). LookupChainBySessionID added to the Backend interface + all impls; the chain-extraction block was patched in BOTH convertLogToSpan and convertSpan - Broadcast exports traces, not logs, so the logs-only first patch left the end-to-end test red. Covered by internal/observatory/session_chain_linkage_test.go."
+      "completed": null,
+      "notes": "RE-QUEUED 2026-08-27 (Mark). The sprint was marked completed on 2026-08-13 while its PR #695 stayed OPEN and CONFLICTING: iteration_post.go reached dev by another route, but iteration_legs.go and chains_remote.go never landed, and the design doc was never moved to implemented/. Status reset so 'completed' does not hide unlanded work. PR #695 closed rather than rebased - 1498 lines across a two-week-old split is worse value than redoing against current dev. Prior notes follow. || Landed 56b449d01 (before this branch). LookupChainBySessionID added to the Backend interface + all impls; the chain-extraction block was patched in BOTH convertLogToSpan and convertSpan - Broadcast exports traces, not logs, so the logs-only first patch left the end-to-end test red. Covered by internal/observatory/session_chain_linkage_test.go."
     },
     {
       "id": "M2_MISSION_STAGE_ACCOUNTING",
@@ -56,10 +56,10 @@
         "Chain total equals the sum of its stages - regression fixture built from the real iter-190 shape: 4 stages, 3 providers, two stages with cost-but-zero-tokens",
         "A post that omits Status still works and defaults to today's behaviour (version skew between the skill and the CLI)"
       ],
-      "passes": true,
+      "passes": null,
       "started": "2026-08-13T13:00:00Z",
-      "completed": "2026-08-13T13:40:00Z",
-      "notes": "Writer-side: IterationStage gained a per-stage Status (pending|running|awaiting_approval|completed|failed); PostIteration now calls UpdateStageStatus. Empty stays valid and leaves the stage pending (version skew with the mission-control skill); an unrecognised value is REJECTED by Validate rather than coerced. Aggregation: stage cost/tokens summed into UpdateChainMetrics, which nothing credited before (iter-190 read $0.0000 holding $0.1077). Caller-side: .claude/skills/mission-control/SKILL.md Gate 4 now supplies real tokens_in/tokens_out and a per-stage status, with the do-not-blanket-complete rule stated inline. Tests: iteration_post_test.go (SQLite read-back; runs in CI where cgo is on) + iteration_sink_test.go (same semantics through a fake sink, runs without cgo) incl. the iter-190 fixture, the failed-stage criterion, StagesCompleted excluding the failed stage, and call-ordering."
+      "completed": null,
+      "notes": "RE-QUEUED 2026-08-27 (Mark). The sprint was marked completed on 2026-08-13 while its PR #695 stayed OPEN and CONFLICTING: iteration_post.go reached dev by another route, but iteration_legs.go and chains_remote.go never landed, and the design doc was never moved to implemented/. Status reset so 'completed' does not hide unlanded work. PR #695 closed rather than rebased - 1498 lines across a two-week-old split is worse value than redoing against current dev. Prior notes follow. || Writer-side: IterationStage gained a per-stage Status (pending|running|awaiting_approval|completed|failed); PostIteration now calls UpdateStageStatus. Empty stays valid and leaves the stage pending (version skew with the mission-control skill); an unrecognised value is REJECTED by Validate rather than coerced. Aggregation: stage cost/tokens summed into UpdateChainMetrics, which nothing credited before (iter-190 read $0.0000 holding $0.1077). Caller-side: .claude/skills/mission-control/SKILL.md Gate 4 now supplies real tokens_in/tokens_out and a per-stage status, with the do-not-blanket-complete rule stated inline. Tests: iteration_post_test.go (SQLite read-back; runs in CI where cgo is on) + iteration_sink_test.go (same semantics through a fake sink, runs without cgo) incl. the iter-190 fixture, the failed-stage criterion, StagesCompleted excluding the failed stage, and call-ordering."
     },
     {
       "id": "M3_NODE_GENERIC_CLOUD_ROUTING",
@@ -75,10 +75,10 @@
         "With no cloud configured, behaviour is byte-identical to today",
         "Node-generic: nothing hardcodes the rig. The node is a parameter."
       ],
-      "passes": true,
+      "passes": null,
       "started": "2026-08-13T13:40:00Z",
-      "completed": "2026-08-13T14:30:00Z",
-      "notes": "PostIteration refactored onto a narrow IterationSink (a strict subset of observatory.Backend, so the Firestore ObservatoryStore satisfies it \u2014 compile-time assertion added there). UpdateStageEvalAssessment is SQLite-only, so it is an OPTIONAL IterationModelSink upgrade whose absence is reported on stderr, never silent. New internal/observatory/iteration_legs.go: PostToLegs/FlushLegs write to every configured destination with PER-LEG spools \u2014 a shared spool would replay a post the local leg already stored and duplicate the chain on every flush. cmd/ailang/chains_post.go builds the legs: local always, cloud only when AILANG_STORAGE=gcp (hybrid resolves the observatory to local SQLite, so it is deliberately NOT a cloud leg). Nothing is rig-specific. Opt-in remote READ: --remote on chains list/view via openChainBackend; with no cloud configured it ERRORS rather than silently answering from SQLite. NOT DONE: the live cloud end-to-end confirmation, which needs credentials this sandbox does not have \u2014 recorded in the design doc and the handover."
+      "completed": null,
+      "notes": "RE-QUEUED 2026-08-27 (Mark). The sprint was marked completed on 2026-08-13 while its PR #695 stayed OPEN and CONFLICTING: iteration_post.go reached dev by another route, but iteration_legs.go and chains_remote.go never landed, and the design doc was never moved to implemented/. Status reset so 'completed' does not hide unlanded work. PR #695 closed rather than rebased - 1498 lines across a two-week-old split is worse value than redoing against current dev. Prior notes follow. || PostIteration refactored onto a narrow IterationSink (a strict subset of observatory.Backend, so the Firestore ObservatoryStore satisfies it \u2014 compile-time assertion added there). UpdateStageEvalAssessment is SQLite-only, so it is an OPTIONAL IterationModelSink upgrade whose absence is reported on stderr, never silent. New internal/observatory/iteration_legs.go: PostToLegs/FlushLegs write to every configured destination with PER-LEG spools \u2014 a shared spool would replay a post the local leg already stored and duplicate the chain on every flush. cmd/ailang/chains_post.go builds the legs: local always, cloud only when AILANG_STORAGE=gcp (hybrid resolves the observatory to local SQLite, so it is deliberately NOT a cloud leg). Nothing is rig-specific. Opt-in remote READ: --remote on chains list/view via openChainBackend; with no cloud configured it ERRORS rather than silently answering from SQLite. NOT DONE: the live cloud end-to-end confirmation, which needs credentials this sandbox does not have \u2014 recorded in the design doc and the handover."
     }
   ],
   "definition_of_done": [
@@ -90,6 +90,7 @@
     "CHANGELOG updated; design doc + sprint plan moved planned/ -> implemented/ on green"
   ],
   "risk_level": "medium",
-  "status": "completed",
-  "environment_note": "Executed in a sandbox with CGO_ENABLED=0 and no C toolchain, so every go-sqlite3-backed test in internal/observatory fails to open a database (177 such failures at baseline, ALL environmental \u2014 zero non-cgo failures before or after this sprint). The new SQLite read-back tests therefore compile and vet here but are first EXECUTED in CI. That is why each M2/M3 accounting rule is ALSO covered by a cgo-free fake-sink test that was run and passed locally."
+  "status": "requeued",
+  "environment_note": "Executed in a sandbox with CGO_ENABLED=0 and no C toolchain, so every go-sqlite3-backed test in internal/observatory fails to open a database (177 such failures at baseline, ALL environmental \u2014 zero non-cgo failures before or after this sprint). The new SQLite read-back tests therefore compile and vet here but are first EXECUTED in CI. That is why each M2/M3 accounting rule is ALSO covered by a cgo-free fake-sink test that was run and passed locally.",
+  "requeue_note": "Closed PR #695 (branch coordinator/task-d98bb271 retained). Redo against current dev; design doc remains at design_docs/planned/v0_33_2/m-mission-loop-unified-telemetry.md."
 }
