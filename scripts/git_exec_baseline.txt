@@ -1,0 +1,16 @@
+cmd/ailang/chains_diff.go 4
+cmd/ailang/coordinator_browse.go 11
+cmd/ailang/coordinator_cloud.go 14
+cmd/ailang/coordinator_cloud_github.go 2
+cmd/ailang/coordinator_inspect.go 4
+cmd/ailang/coordinator_utils.go 3
+cmd/ailang/messages_send.go 3
+internal/coordinator/approval_processor.go 6
+internal/coordinator/artifact_discovery.go 5
+internal/coordinator/daemon_tasks_exec_run.go 4
+internal/coordinator/daemon_tasks_worktrees.go 3
+internal/coordinator/merge.go 8
+internal/coordinator/observatory_sync.go 1
+internal/coordinator/worktree.go 15
+internal/eval_harness/gemini_evaluator_bridge.go 1
+internal/pkg/gitcache.go 5

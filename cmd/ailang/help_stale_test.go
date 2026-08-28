@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -370,43 +369,6 @@ func TestGitBinaryIsAbsolute(t *testing.T) {
 	}
 	if !filepath.IsAbs(got) {
 		t.Fatalf("git resolved to %q, which is not an absolute path", got)
-	}
-}
-
-// TestResolveGitRefusesAnythingNotAbsolute drives the real resolver, not a
-// re-implementation of its predicate, across every way it can fail. The
-// positive arm is what stops the refusals passing vacuously.
-func TestResolveGitRefusesAnythingNotAbsolute(t *testing.T) {
-	// Derive the absolute path at runtime rather than writing a POSIX literal:
-	// filepath.IsAbs("/usr/bin/git") is FALSE on windows, which needs a volume
-	// name, so a hardcoded path would red for the platform and not for the code.
-	absGit := filepath.Join(t.TempDir(), "git")
-	if !filepath.IsAbs(absGit) {
-		t.Fatalf("instrument failure: %q must be absolute on this platform", absGit)
-	}
-	if got := resolveGit(func() (string, error) { return absGit, nil }); got != absGit {
-		t.Fatalf("an absolute path must be accepted; got %q", got)
-	}
-	for _, tc := range []struct {
-		why  string
-		path string
-		err  error
-	}{
-		{"git is not on PATH at all", "", exec.ErrNotFound},
-		{"lookup errored but still returned a usable-looking path", "ERRPATH", exec.ErrNotFound},
-		{"git resolved to a RELATIVE path", "bin/git", nil},
-		{"git resolved to a bare name", "git", nil},
-		{"git resolved to a CWD-relative path", "./git", nil},
-	} {
-		t.Run(tc.why, func(t *testing.T) {
-			path := tc.path
-			if path == "ERRPATH" {
-				path = absGit // absolute AND erroring: only the error may refuse it
-			}
-			if got := resolveGit(func() (string, error) { return path, tc.err }); got != "" {
-				t.Fatalf("must refuse %q (%s); got %q", tc.path, tc.why, got)
-			}
-		})
 	}
 }
 

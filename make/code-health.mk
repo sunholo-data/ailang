@@ -161,6 +161,14 @@ check-file-sizes: ## Check for files >800 lines (CI gate)
 check-boundaries: ## Check architecture layer boundaries (CI gate)
 	@bash scripts/check_boundaries.sh
 
+check-git-exec: ## Refuse bare-name git exec sites outside internal/gitexec (CI gate)
+	@bash scripts/check_git_exec.sh
+
+test-check-git-exec: ## Run the git-exec gate's own self-test (bash 3.2)
+	@/bin/bash scripts/test_check_git_exec.sh
+	@/bin/bash -n scripts/check_git_exec.sh
+	@go test ./tools/check-git-exec/... -count=1
+
 check-protocol-closure: ## Check serveapi protocol/facade build closures (CI gate)
 	@/bin/bash scripts/check_protocol_closure.sh
 

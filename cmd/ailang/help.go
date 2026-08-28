@@ -8,8 +8,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/gitexec"
 )
 
 // staleCheckDirs are the source directories the staleness heuristic samples.
@@ -158,33 +159,14 @@ func isFullSHA(s string) bool {
 	return true
 }
 
-var (
-	gitPathOnce sync.Once
-	gitPath     string
-)
-
-// resolveGit returns an ABSOLUTE path to git, or "" if look cannot produce one.
-//
-// Requiring an absolute result is deliberate: this check runs on an ordinary
-// `ailang` invocation, so it must not execute whatever a relative or writable
-// PATH entry happens to call "git". An empty result makes both probes report
-// undeterminable, which SHOWS the warning rather than suppressing it — a
-// failure here costs a spurious warning, never a silenced real one.
-func resolveGit(look func() (string, error)) string {
-	p, err := look()
+// gitBinary maps resolution failure to "", preserving the stale check's
+// undeterminable -> show the warning behavior.
+func gitBinary() string {
+	p, err := gitexec.Path()
 	if err != nil {
 		return ""
 	}
-	if !filepath.IsAbs(p) {
-		return ""
-	}
 	return p
-}
-
-// gitBinary resolves git once per process.
-func gitBinary() string {
-	gitPathOnce.Do(func() { gitPath = resolveGit(func() (string, error) { return exec.LookPath("git") }) })
-	return gitPath
 }
 
 // gitHead returns the HEAD sha of the checkout at dir, running the git at the

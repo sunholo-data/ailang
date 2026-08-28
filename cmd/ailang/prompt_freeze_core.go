@@ -9,11 +9,11 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/gitexec"
 )
 
 type registryPair struct{ Source, Mirror string }
@@ -193,7 +193,7 @@ type corpusEvidence struct {
 }
 
 func scanCorpus(repoRoot string) (map[string]corpusEvidence, error) {
-	cmd := exec.Command("git", "ls-files", "eval_results/baselines/*.json")
+	cmd := gitexec.Command("ls-files", "eval_results/baselines/*.json")
 	cmd.Dir = repoRoot
 	out, err := cmd.Output()
 	if err != nil {

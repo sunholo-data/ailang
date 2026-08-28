@@ -132,6 +132,12 @@ jobs:
     - name: Check architecture boundaries
       run: make check-boundaries
 
+    - name: Check git exec sites
+      run: make check-git-exec
+
+    - name: Git exec gate self-test
+      run: make test-check-git-exec
+
     - name: Verify install guide consistency
       run: make verify-install-guide
 
