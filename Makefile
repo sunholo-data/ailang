@@ -363,3 +363,16 @@ mcp-local: build snapshot
 # =============================================================================
 
 .DEFAULT_GOAL := help
+
+## pi-assets: sync .pi/extensions → cmd/ailang/pi_assets (embed source; commit both)
+pi-assets:
+	@mkdir -p cmd/ailang/pi_assets
+	@for f in .pi/extensions/*.ts .pi/extensions/README.md; do \
+		[ -f "$$f" ] && cp "$$f" cmd/ailang/pi_assets/ || true; \
+	done
+	@echo "pi_assets synced from .pi/extensions"
+
+## verify-pi-assets: drift-check embedded pi assets against .pi/extensions (M-DX-PI-HARNESS Distribution v2)
+verify-pi-assets:
+	@diff -rq -x '.*' .pi/extensions cmd/ailang/pi_assets 2>/dev/null || \
+		{ echo "DRIFT: cmd/ailang/pi_assets is stale vs .pi/extensions — run 'make pi-assets'"; exit 1; }

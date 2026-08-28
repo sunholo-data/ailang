@@ -1,0 +1,89 @@
+# Session Protocol Gate + Dev-Harness Extensions
+
+Project-local pi extensions for the AILANG repo (M-DX-SESSION-GATE, M-DX-PI-HARNESS).
+Tested against pi **0.84.3**.
+
+## Distribution — who gets what, how
+
+### Tier 1 — any pi session inside the ailang repo (laptop, Studio): automatic
+
+The extensions live in this repo under `.pi/extensions/`. On any machine:
+
+```bash
+git pull                    # in the ailang repo — that's the whole install
+```
+
+First session per machine prompts once to trust the project; after that every
+session arms the gate and gets the tools (`ailang_check`, `builtins_search`,
+`freshness_report`, `quota_report`). Verify with `pi -p --no-session "call quota_report"`.
+
+### Tier 2 — every repo on a machine (global): install as a pi package
+
+To get the suite in repos OTHER than ailang, publish this directory as a pi
+git-package and install globally (planned: `sunholo-data/ail-pi-kit`):
+
+```bash
+pi install git:github.com/sunholo-data/ail-pi-kit    # once per machine
+pi update --extensions                               # pull updates later
+```
+
+Global extensions apply to ALL repos on the machine. The ailang-specific guards
+(builtin ceremony, stdlib references) degrade gracefully elsewhere; per-extension
+disable is available via `pi config` if a repo wants a subset.
+
+### Tier 3 — cloud/fleet (Cloud Run agents): NOT yet covered (register F5)
+
+Fleet images (`Dockerfile.agent-pi*`) run pi in cloned workspaces, so repo-scoped
+`.pi/extensions/` never reach them. Options (needs image rebuild — human-owned):
+bake the kit into `Dockerfile.agent-pi` via `pi install git:…` at build time, or
+COPY the extensions into the image's global extensions dir. Tracked as M-DX-PI-HARNESS
+F5 / design-doc Future Work until an image ships with them.
+
+| Extension | What it does |
+|---|---|
+| `session-protocol-gate.ts` | Blocks edit/write + fail-closes bash until the session protocol is acked (see below); **also appends `Co-Authored-By: pi (<provider>/<model>)` to allowed git commits** — the pi-analogue of Claude Code's convention, naming the model per session |
+| `binary-freshness.ts` | `freshness_report` tool + `/fresh`: is the installed ailang binary fresh vs HEAD? (FRESH/STALE/DIRTY/UNKNOWN, fail-closed) |
+| `sprint-steward.ts` | `/sprint-start <id>`, `/sprint-complete <id> <milestone>` — mechanical constrained-modification on sprint JSONs |
+| `unowned-dirty.ts` | Warns (never blocks) when a git add/stash/checkout may sweep dirty files this session didn't write — authority is `git status --porcelain` itself |
+| `builtin-sprint.ts` | `/builtin-finish`: golden refresh + **stdlib freeze** + verify + doctor + inventory count |
+| `provider-quota.ts` | `quota_report` tool + `/quota`: OpenRouter budget (CRITICAL ≥95%, WARN ≥80%), ollama status, current session lane — key never exposed |
+| `ailang-lsp-lite.ts` | `ailang_check(path)` → structured {code,message,file,line,col,hint}; `builtins_search({query,module})` → filtered real inventory |
+
+All subprocesses run under the Subprocess Contract (per-command timeouts, structured
+TIMEOUT failures, 64KB output caps, no silent retries).
+
+## Session Protocol Gate
+
+## What it does
+
+While **armed**, a pi session in this repo cannot execute `edit`/`write`
+(absolutely) or any `bash` command outside a read-only allowlist (fail-closed).
+The gate disarms only after `session_protocol_ack` succeeds:
+
+- **Interactive TUI**: the ack requires a real human `confirm` keypress.
+- **Headless (`-p`/RPC)**: the ack verifies the protocol's observable steps in
+  session history — a `read` of `CLAUDE.md` and a bash `ailang messages` call.
+- Ack state persists across `/resume` (reconstructed from the session branch,
+  the documented State Management pattern) and **fails closed**: ambiguous
+  state re-arms the gate. Read-only tools are never blocked.
+
+## How to disarm
+
+Call the `session_protocol_ack` tool after doing the protocol steps. In TUI
+mode the human confirms; in headless mode the session history must show the
+steps. Read-only tools stay available, so the protocol can always be
+completed.
+
+## Escape hatches (Fail-open register)
+
+`--no-extensions` / `-ne` disables all project extensions including this
+gate — **forbidden in this repo's workflow** (register F1; the mechanical
+gate is one layer of a two-layer defense whose other layer, AGENTS.md,
+survives). Full register: design doc, F1–F8.
+
+## Compatibility notes
+
+- Tested against pi **0.84.3**. Platform claims are verified in the design
+  doc's Verification Log (V1–V12); re-verify after `pi update`.
+- Unit tests: `node --experimental-strip-types --test .pi/extensions/.session-protocol-gate.test.ts`
+- Coordinator-spawned sessions: inheritance not yet verified (register F5).

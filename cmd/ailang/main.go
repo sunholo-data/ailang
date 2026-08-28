@@ -399,6 +399,9 @@ func main() {
 	case "editor":
 		editorCommand()
 
+	case "pi":
+		piCommand()
+
 	case "axioms":
 		axiomsCommand()
 

@@ -12,3 +12,7 @@ FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-pi:latest
 COPY --from=golang:1.26-bookworm /usr/local/go /usr/local/go
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV GOPATH="/home/ailang/go"
+
+# M-DX-PI-HARNESS Distribution v2 (F5): fleet sessions get the pi extension
+# suite (session gate + dev tools) from the binary's embedded assets.
+RUN ailang pi install
