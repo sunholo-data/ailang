@@ -143,10 +143,10 @@
         "[base 0 -> >=1] `grep -c 'gitexec' internal/coordinator/merge.go` >= 1",
         "REGRESSION GATE (rc=0 before and after): `go test ./internal/coordinator/... -count=1`"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "NOT executed in iteration 298. Deferred by design; the M1 gate already prevents the class from growing while this waits."
+      "passes": true,
+      "started": "2026-08-28T14:47:00+02:00",
+      "completed": "2026-08-28T14:55:15+02:00",
+      "notes": "Completed in mission iteration 300 on sprint/iter300-git-exec-m2: converted exactly 42 internal/coordinator bare-name Git subprocess sites across the seven planned files to internal/gitexec, preserving arguments, Dir conventions, error behavior, and all four M2 silent swallows. daemon_tasks_exec_run.go retains os/exec solely for the non-Git ailang publish command. Fresh AST and regex measurements agree at 47; the 89-site baseline failed with the expected tighten-the-baseline diagnostics before being ratcheted to 47. Coordinator and gitexec tests, narrowed build, full make test, lint, formatting, file-size, boundary, changelog, gate self-test, and missing-fixture anti-vacuity checks all passed."
     },
     {
       "id": "M3_CMD_AILANG_SWEEP",

@@ -2,9 +2,10 @@ package coordinator
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/gitexec"
 )
 
 // ArtifactDiscovery provides deterministic artifact discovery using git diff.
@@ -83,7 +84,7 @@ func (ad *ArtifactDiscovery) getChangedFiles() ([]string, error) {
 	// NOTE: Uses two-dot (..) not three-dot (...) to show only what HEAD added,
 	// not symmetric difference which would show changes from parallel branches
 	if base != "" {
-		cmd := exec.Command("git", "diff", "--name-only", base+"..HEAD")
+		cmd := gitexec.Command("diff", "--name-only", base+"..HEAD")
 		cmd.Dir = ad.WorktreePath
 		output, err := cmd.Output()
 		if err == nil && len(output) > 0 {
@@ -97,7 +98,7 @@ func (ad *ArtifactDiscovery) getChangedFiles() ([]string, error) {
 	}
 
 	// Also check uncommitted changes (staged + unstaged)
-	cmd := exec.Command("git", "diff", "--name-only", "HEAD")
+	cmd := gitexec.Command("diff", "--name-only", "HEAD")
 	cmd.Dir = ad.WorktreePath
 	output, err := cmd.Output()
 	if err == nil && len(output) > 0 {
@@ -110,7 +111,7 @@ func (ad *ArtifactDiscovery) getChangedFiles() ([]string, error) {
 	}
 
 	// Get staged changes (in case HEAD doesn't exist yet)
-	cmd = exec.Command("git", "diff", "--name-only", "--cached")
+	cmd = gitexec.Command("diff", "--name-only", "--cached")
 	cmd.Dir = ad.WorktreePath
 	output, err = cmd.Output()
 	if err == nil && len(output) > 0 {
@@ -123,7 +124,7 @@ func (ad *ArtifactDiscovery) getChangedFiles() ([]string, error) {
 	}
 
 	// Get untracked files
-	cmd = exec.Command("git", "ls-files", "--others", "--exclude-standard")
+	cmd = gitexec.Command("ls-files", "--others", "--exclude-standard")
 	cmd.Dir = ad.WorktreePath
 	output, err = cmd.Output()
 	if err == nil && len(output) > 0 {
@@ -172,7 +173,7 @@ func (ad *ArtifactDiscovery) detectBaseBranch() string {
 
 // branchExists checks if a branch exists in the worktree.
 func (ad *ArtifactDiscovery) branchExists(branch string) bool {
-	cmd := exec.Command("git", "rev-parse", "--verify", branch)
+	cmd := gitexec.Command("rev-parse", "--verify", branch)
 	cmd.Dir = ad.WorktreePath
 	err := cmd.Run()
 	return err == nil

@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/gitexec"
 )
 
 // syncWorktreeState syncs worktree manager in-memory state with actual git worktrees.
@@ -123,7 +124,7 @@ func (d *Daemon) cleanupWorktreesForTerminalTasks() {
 // This ensures agent work is captured even if the agent forgot to commit.
 func autoCommitWorktree(worktreePath, taskTitle string, logger *log.Logger) error {
 	// Check for uncommitted changes (including untracked files)
-	statusCmd := exec.Command("git", "status", "--porcelain")
+	statusCmd := gitexec.Command("status", "--porcelain")
 	statusCmd.Dir = worktreePath
 	output, err := statusCmd.Output()
 	if err != nil {
@@ -140,7 +141,7 @@ func autoCommitWorktree(worktreePath, taskTitle string, logger *log.Logger) erro
 	logger.Printf("Changes:\n%s", string(output))
 
 	// Add all changes (including untracked files)
-	addCmd := exec.Command("git", "add", "-A")
+	addCmd := gitexec.Command("add", "-A")
 	addCmd.Dir = worktreePath
 	if err := addCmd.Run(); err != nil {
 		return fmt.Errorf("git add failed: %w", err)
@@ -150,7 +151,7 @@ func autoCommitWorktree(worktreePath, taskTitle string, logger *log.Logger) erro
 	commitMsg := fmt.Sprintf("Auto-commit: %s\n\nCommitted by AILANG coordinator after agent completion.\n\n🤖 Generated with Claude Code", taskTitle)
 
 	// Commit the changes
-	commitCmd := exec.Command("git", "commit", "-m", commitMsg)
+	commitCmd := gitexec.Command("commit", "-m", commitMsg)
 	commitCmd.Dir = worktreePath
 	commitOutput, err := commitCmd.CombinedOutput()
 	if err != nil {

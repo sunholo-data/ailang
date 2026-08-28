@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/gitexec"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/telemetry"
@@ -525,7 +525,7 @@ func processRejection(ctx context.Context, span trace.Span, params *ApprovalPara
 // autoCommitWorktreeChanges commits any uncommitted changes in the worktree.
 func autoCommitWorktreeChanges(worktreePath, taskTitle string) error {
 	// Check for changes
-	statusCmd := exec.Command("git", "-C", worktreePath, "status", "--porcelain")
+	statusCmd := gitexec.Command("-C", worktreePath, "status", "--porcelain")
 	statusOutput, err := statusCmd.Output()
 	if err != nil {
 		return fmt.Errorf("failed to check git status: %w", err)
@@ -536,14 +536,14 @@ func autoCommitWorktreeChanges(worktreePath, taskTitle string) error {
 	}
 
 	// Add all changes
-	addCmd := exec.Command("git", "-C", worktreePath, "add", "-A")
+	addCmd := gitexec.Command("-C", worktreePath, "add", "-A")
 	if output, err := addCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to stage changes: %s", output)
 	}
 
 	// Commit
 	commitMsg := fmt.Sprintf("Agent work: %s\n\nAuto-committed on approval", taskTitle)
-	commitCmd := exec.Command("git", "-C", worktreePath, "commit", "-m", commitMsg)
+	commitCmd := gitexec.Command("-C", worktreePath, "commit", "-m", commitMsg)
 	if output, err := commitCmd.CombinedOutput(); err != nil {
 		// Check if it's just "nothing to commit"
 		if strings.Contains(string(output), "nothing to commit") {
@@ -562,17 +562,17 @@ func cleanupWorktree(worktreePath string) {
 	}
 
 	// Get the branch name before removing worktree
-	branchCmd := exec.Command("git", "-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD")
+	branchCmd := gitexec.Command("-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD")
 	branchOutput, _ := branchCmd.Output()
 	branchName := strings.TrimSpace(string(branchOutput))
 
 	// Remove the worktree
-	removeCmd := exec.Command("git", "worktree", "remove", worktreePath, "--force")
+	removeCmd := gitexec.Command("worktree", "remove", worktreePath, "--force")
 	removeCmd.Run() // Ignore errors
 
 	// Also delete the branch
 	if branchName != "" && branchName != "HEAD" {
-		deleteCmd := exec.Command("git", "branch", "-D", branchName)
+		deleteCmd := gitexec.Command("branch", "-D", branchName)
 		deleteCmd.Run() // Ignore errors
 	}
 }
