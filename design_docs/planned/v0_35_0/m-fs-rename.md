@@ -149,6 +149,46 @@ else may build on it until this doc is approved. The doc's design supersedes the
 - `std/fs.ail` — +2 exports with doc comments (~20 LOC)
 - `internal/effects/fs_test.go` — +6 test cases (~120 LOC)
 
+## Conflict Surface
+
+**Trigger:** touches `internal/effects/` — required per design-doc-creator. No parser/lexer/AST/typechecker positions are touched; the positions are the FS *op namespace*, the *builtin registry namespace*, and the *std/fs export surface*.
+
+### Positions touched
+
+- Adds two entries to the FS op table registered in `internal/effects/fs.go` `init()` (`RegisterOp("FS", "renameFile"/"renameFileResult", …)`)
+- Adds two builtins to the `_fs_*` namespace in `internal/builtins/fs.go`
+- Adds two exports to `std/fs.ail`'s module surface
+- Adds one row to the codegen effect-stub table in `internal/builtins/registry_codegen_io.go`
+
+**Effect-row algebra is NOT changed**: no new capability, no change to the `FS` effect set, no change to how `! {FS}` is inferred. The change is invisible to the type checker beyond two new typed constants.
+
+### What else lives in these positions
+
+| Position | Existing valid form | Shape |
+|----------|--------------------|-------|
+| FS op namespace (`RegisterOp("FS", …)`) | 18 ops (verified V2): `readFile`, `readFileBytes`, `writeFile`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `exists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile` + 5 `*Result` variants | `("<opName>", <func>)` string-keyed; op names unique strings |
+| `_fs_*` builtin namespace | 12 registered `_fs_*` builtins (fs.go) | `RegisterEffectBuiltin(BuiltinSpec{Module: "std/fs", Name: "_fs_<name>"…})` |
+| `std/fs` export surface | 19 exported functions incl. `removeFile` / `removeFileResult` (read, verified V5) | `export func <camelCase>(…) -> … ! {FS} = _fs_<name>(…)` |
+| Codegen stub table | 9 `_fs_*` rows (read, registry_codegen_io.go:34–42); `*Result` variants deliberately absent | `{"_fs_name", "std/fs", "stdlibName", "GoFuncName", "FS", arity}` |
+
+**Disambiguation:** none required — no grammar changes; op/builtin/export names are collision-free by V1/V2 (greps empty). The only name-resolution path is the stdlib export → `_fs_` family mapping, which `stdlib_codegen_resolution_test.go` enforces mechanically.
+
+### Programs that MUST still work (regression fixtures — all verified to exist and read)
+
+1. `examples/runnable/directory_ops.ail` — uses `mkdir, mkdirAll, isDir, isFile, fileExists, writeFile, removeFile` with `! {IO, FS}`; must run unchanged
+2. `examples/runnable/effects_fs_io.ail` — `fileExists/readFile/writeFile` under `! {IO, FS}`; must run unchanged
+3. `examples/tests/test_effect_fs.ail` — FS effect test program
+4. `TestFSExists_Success` (internal/effects/fs_test.go:118) — asserts `exists` returns `BoolValue` true for an existing temp file and false for `/nonexistent/file.txt`
+5. `TestFSSandbox_AbsolutePathOutsideSandbox` (fs_test.go:303) — asserts sandbox rejection of absolute paths escaping the sandbox
+
+### Regression-surface tests (required)
+
+Fixtures 4–5 are the pinned existing tests — they must keep passing unmodified (failures are regressions, not churn). Fixtures 1–3 are `ailang run` smoke-checked in Phase 3. New-surface tests (rename success/missing/escape×2/Result) are additive and listed in the Testing Strategy.
+
+### Deliberately changes
+
+Nothing. Purely additive: no existing op, builtin, export, or test behavior changes.
+
 ## Examples
 
 ### Example 1: Atomic publish (the issue #897 use case)
@@ -191,6 +231,10 @@ match renameFileResult("run.json.tmp", "run.json") {
 
 **Unit tests (internal/effects/fs_test.go):** six cases listed in Phase 3; sandbox tests follow
 the `ctx.Env.Sandbox = <tmpdir>` pattern already used by `TestFSReadFile_Sandbox*`.
+
+**Regression-surface (Conflict Surface fixtures):**
+- `TestFSExists_Success` + `TestFSSandbox_AbsolutePathOutsideSandbox` pass **unmodified**
+- `ailang run examples/runnable/directory_ops.ail`, `effects_fs_io.ail`, `examples/tests/test_effect_fs.ail` — output unchanged
 
 **Registry tests:** existing `stdlib_codegen_resolution_test.go` must pass unmodified — proves the
 new stdlib export resolves through the `_fs_` family.
