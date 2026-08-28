@@ -192,7 +192,8 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
 
   // WebSocket for real-time updates
   const connect = useCallback(() => {
-    const url = wsUrl || `ws://${window.location.host}/ws`;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = wsUrl || `${protocol}//${window.location.host}/ws`;
 
     try {
       const ws = new WebSocket(url);
