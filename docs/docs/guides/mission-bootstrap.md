@@ -31,6 +31,47 @@ The single skill is the point: every improvement the loop discovers about *how t
 the skill per mission and you lose that. What varies per mission is data — the charter and a small
 env profile — not logic.
 
+## Reaching the host machine (from a laptop)
+
+Most of what follows runs **on the always-on host**, not on your laptop — the checkout, the launchd
+job, `~/.config/ailang/`, and `~/.ailang/state/` all live there. The fleet reaches it over
+[Tailscale](https://tailscale.com), which gives the host a stable address that survives the laptop
+changing networks.
+
+For AILANG's own rig the host is `voights-mac-studio` at **`100.83.21.3`**:
+
+```bash
+ssh voightkampff@100.83.21.3
+```
+
+The hostname works too (`ssh voightkampff@voights-mac-studio`) when MagicDNS is on. To list what is
+on the tailnet and confirm an address before trusting a written-down one:
+
+```bash
+/Applications/Tailscale.app/Contents/MacOS/Tailscale status
+```
+
+The GUI app ships the CLI at that path but does **not** put it on `PATH`, so a bare `tailscale`
+often returns a Swift `Fatal error: The current bundleIdentifier is unknown to the registry` — that
+is the wrapper refusing to run outside its bundle, not a network problem. Use the full path.
+
+**Prefer a durable shell for anything long.** Plain SSH freezes on every network roam or laptop
+sleep: the TCP socket dies while `sshd` holds it `ESTABLISHED`, leaving a ghost session where
+"commands don't go through". On the AILANG rig `~/.local/bin/cx` starts the work inside `tmux` so a
+drop is survivable:
+
+```bash
+cx --bare          # durable plain shell
+cx -c              # claude --continue, in tmux
+```
+
+Two caveats worth knowing before you fight them. **mosh has no scrollback at all** — its protocol
+syncs the current screen and never sends a byte stream, so there is no backlog for any client to
+show; that is a property of mosh, not a setting. And Claude Code repaints its TUI in place rather
+than appending lines, so even `tmux` copy-mode history of a Claude session is gappy. If you want
+readable history of a long session, use plain SSH (accepting the freeze risk) or drive it from the
+mobile app via `cx -r`, where the history lives in the app rather than the terminal.
+
 ## Prerequisites (hard preconditions)
 
 Do these once on the machine that will host the loop:
@@ -80,6 +121,32 @@ Do these once on the machine that will host the loop:
    **This bites only missions whose `MISSION_WORKDIR` is a NEW checkout.** A mission anchored on an
    already-used working tree (V1) never sees it, which is why four prior mission bootstraps did not
    surface it.
+
+   > **⚠ This step may now be obsolete — settle it before paying for it (open, 2026-08-28).**
+   > `claude --help` (v2.1.228) states, under `-p/--print`, that "the workspace trust dialog **is
+   > skipped** when Claude is run in non-interactive mode (via `-p`, or when stdout is not a TTY)".
+   > `claude -p` is exactly how the driver invokes the controller. If that holds, the whole
+   > interactive step above is unnecessary and `pin-root.sh`'s onboarding gate refuses valid targets
+   > for nothing — which costs staleness on every fire, permanently.
+   >
+   > This has **not** been verified, and the failed attempt is worth recording because it is a
+   > standing trap: a probe run from a tooling shell returned `Not logged in · Please run /login`,
+   > and **its control from a known-trusted directory failed identically** — so that instrument
+   > could not discriminate trust at all. An environment without claude auth cannot answer this
+   > question, and a probe that fails for the wrong reason looks exactly like a probe that failed
+   > for the right one.
+   >
+   > **The experiment that would settle it** — run from a shell that HAS working claude auth (an
+   > interactive login shell on the host), in a git repo with no `~/.claude.json` entry:
+   >
+   > ```bash
+   > mkdir -p /tmp/trust-probe && cd /tmp/trust-probe && git init -q . && claude -p 'reply with exactly: ok'
+   > ```
+   >
+   > An `ok` means the dialog is skipped under `-p`, the step is dead, and the gate in
+   > `tools/launchd/lib/pin-root.sh` should be relaxed. A hang to timeout means the step stands.
+   > Do not relax the gate on the strength of the help string alone: staleness is the strictly
+   > smaller harm than a dead loop, which is the reasoning the gate was built on.
 
 ## Step 1 — Write the charter
 
