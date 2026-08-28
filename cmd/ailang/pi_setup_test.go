@@ -23,10 +23,6 @@ func TestDecidePiInstall(t *testing.T) {
 			diskHash: sha256Hex([]byte(embeddedContent)),
 			managed:  &piManagedFile{SHA256: sha256Hex([]byte(embeddedContent)), Version: v2},
 			want:     "current"},
-		{name: "managed identical, same binary → current",
-			diskHash: sha256Hex([]byte(embeddedContent)),
-			managed:  &piManagedFile{SHA256: sha256Hex([]byte(embeddedContent)), Version: v2},
-			want:     "current"},
 		{name: "managed identical but older binary → update (stamp refresh)",
 			diskHash: sha256Hex([]byte(embeddedContent)),
 			managed:  &piManagedFile{SHA256: sha256Hex([]byte(embeddedContent)), Version: "v0.34.0"},
@@ -54,6 +50,3 @@ func TestDecidePiInstall(t *testing.T) {
 		})
 	}
 }
-
-// v2 constant mirror for tests (Version is a build-time var)
-const v2 = "v0.35.0"

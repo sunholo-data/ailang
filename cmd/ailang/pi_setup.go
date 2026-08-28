@@ -139,16 +139,12 @@ func readPiManaged(home string) map[string]piManagedFile {
 }
 
 func writePiManaged(home string, files map[string]piManagedFile) error {
-	m := struct {
-		ManagedBy string                   `json:"managed_by"`
-		Version   string                   `json:"ailang_version"`
-		Files     map[string]piManagedFile `json:"files"`
-	}{
+	manifest := piManagedManifest{
 		ManagedBy: "ailang pi install — files listed here are updated/removed by `ailang pi install|uninstall`. Files NOT listed here are never touched.",
 		Version:   Version,
 		Files:     files,
 	}
-	data, err := json.MarshalIndent(m, "", "  ")
+	data, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return err
 	}
