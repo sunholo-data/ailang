@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/gitexec"
 )
 
 // ErrWorktreeLimitReached is returned when no worktrees are available.
@@ -305,7 +307,7 @@ func validateRepoDir(repoDir string) error {
 	if !info.IsDir() {
 		return fmt.Errorf("worktree repo dir %q is not a directory", repoDir)
 	}
-	if err := exec.Command("git", "-C", repoDir, "rev-parse", "--git-dir").Run(); err != nil {
+	if err := gitexec.Command("-C", repoDir, "rev-parse", "--git-dir").Run(); err != nil {
 		return fmt.Errorf("worktree repo dir %q is not a git repository: %w", repoDir, err)
 	}
 	return nil

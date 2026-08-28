@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/gitexec"
 )
 
 func checkGitPromptFreezeInvariants(repoRoot string, source, mirror *orderedRegistry, violations []string) ([]string, error) {
@@ -90,7 +91,7 @@ func gitOutput(repoRoot string, args ...string) (string, error) {
 }
 
 func gitBytes(repoRoot string, args ...string) ([]byte, error) {
-	cmd := exec.Command("git", args...)
+	cmd := gitexec.Command(args...)
 	cmd.Dir = repoRoot
 	out, err := cmd.Output()
 	if err != nil {

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/gitexec"
 	// Import to trigger init() registration — same as local coordinator (provider_executor.go)
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
 	_ "github.com/sunholo-data/ailang/internal/executor/managed_agents"
@@ -459,7 +460,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	// no-op cloud task left an orphan branch behind and logged a failure for
 	// doing exactly the right thing. Compare against the clone point instead.
 	if newBranch {
-		aheadCmd := exec.CommandContext(ctx, "git", "-C", workDir, "log", clonePoint+"..HEAD", "--oneline")
+		aheadCmd := gitexec.CommandContext(ctx, "-C", workDir, "log", clonePoint+"..HEAD", "--oneline")
 		if aheadOut, aheadErr := aheadCmd.Output(); aheadErr == nil && len(strings.TrimSpace(string(aheadOut))) == 0 {
 			fmt.Println("execute-job: no commits to push (agent made no changes) — not creating branch or PR")
 			changedFiles := discoverChangedFilesFromCommit(workDir, clonePoint)

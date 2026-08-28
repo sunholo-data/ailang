@@ -15,7 +15,7 @@
     "estimated_days": 4
   },
   "risk_level": "medium",
-  "status": "planned",
+  "status": "in_progress",
   "measured_baselines": {
     "note": "Measured on the pristine worktree at 110bbb7c0 during planning. rc values are the BASE rc, before any edit.",
     "REJECTED_go_build_all": "go build ./... => rc=1 at base (cmd/wasm: 'function main is undeclared in the main package'). NOT an acceptance command. Use the narrowed form.",
@@ -116,10 +116,10 @@
         "E5 fixture named x_test.go adds 0; THE SAME BYTES renamed x.go add 1 | kills a vacuous _test.go exclusion (one that matches nothing rather than filtering by suffix)",
         "E6 a file with a Go syntax error -> exit 2 naming the file | kills a silent skip of unparseable files (the planning prototype had exactly this hole)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "Plan-time design refinements to the doc, each justified in section 6 of the sprint plan: R1 gitBinary() survives as a 3-line gitexec.Path() adapter (the doc says delete, but deleting removes the only site mapping a resolution error to the \"\" that gitHead/gitDirty read as 'undeterminable -> SHOW the warning'); R2 the AST/regex cross-check runs over the real tree only, because the doc's HID-6 clauses 2 and 3 contradict each other (measured: the multi-line fixture makes AST=1, regex=0); R3 internal/gitexec is NOT excluded from the exec enumeration (it never calls exec.Command(\"git\",...), so the exclusion is a hiding place, not a necessity); R4 an unparseable .go file is exit 2, not a skip; R5 the variable-first-arg fixture is a NEGATIVE control asserted at 0, and the multi-line fixture carries the count-moves-by-addition requirement; R6 the enumerator lives in tools/ because .golangci.yml excludes scripts/ from make lint."
+      "passes": true,
+      "started": "2026-08-28T09:12:00+02:00",
+      "completed": "2026-08-28T09:30:00+02:00",
+      "notes": "M1 complete: added the success-only cached absolute git resolver, AST enumerator and ratcheting CI gate, converted exactly the four flagged calls, migrated help.go, wired two CI steps, and seeded the freshly measured 89-site baseline. All B1-B6/G1-G7 neutering mutants and the E1 multi-line addition mutant were build-verified and killed by their named arms. M2-M4 remain intentionally unexecuted."
     },
     {
       "id": "M2_COORDINATOR_SWEEP",
