@@ -1,0 +1,213 @@
+{
+  "sprint_id": "M-GIT-BINARY-RESOLUTION-SWEEP",
+  "design_doc": "design_docs/planned/v0_35_0/m-git-binary-resolution-sweep.md",
+  "plan_path": "design_docs/planned/v0_35_0/m-git-binary-resolution-sweep-sprint-plan.md",
+  "created": "2026-08-28",
+  "iteration": 298,
+  "worktree": "/Users/voightkampff/dev/sunholo-data/.wt-iter298",
+  "branch": "sprint/iter298-git-exec-sweep",
+  "base_commit": "110bbb7c0",
+  "scope_note": "EXECUTE M1 ONLY this iteration, and land it as its own PR. M1 is independently executable and independently landable: it freezes the failure/caching contract, builds the go/ast enumerator and its CI gate, and converts only the 4 Sonar-flagged sites plus cmd/ailang/help.go. M2-M4 are bulk mechanical conversions against the contract M1 froze; they add no new decision, land as separate PRs later, and are safe to defer indefinitely because the M1 gate already prevents the class from growing. No M1 acceptance criterion references a post-M1 count.",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 1050,
+    "estimated_days": 4
+  },
+  "risk_level": "medium",
+  "status": "planned",
+  "measured_baselines": {
+    "note": "Measured on the pristine worktree at 110bbb7c0 during planning. rc values are the BASE rc, before any edit.",
+    "REJECTED_go_build_all": "go build ./... => rc=1 at base (cmd/wasm: 'function main is undeclared in the main package'). NOT an acceptance command. Use the narrowed form.",
+    "go_build_narrow": "go build ./internal/gitexec/... ./cmd/ailang/... ./internal/coordinator/... => rc=1 (gitexec absent)",
+    "go_test_gitexec": "go test ./internal/gitexec/... -count=1 => rc=1 (setup failed, no such package)",
+    "make_check_git_exec": "rc=2 (No rule to make target 'check-git-exec')",
+    "make_test_check_git_exec": "rc=2 (no such target)",
+    "bare_git_exec_sites": 93,
+    "bare_git_exec_sites_ast_arm": 93,
+    "bare_git_exec_files": 18,
+    "lookpath_git_outside_gitexec": 1,
+    "func_resolveGit_in_help_go": 1,
+    "grep_gitexec_in_changelog": 0,
+    "grep_make_check_git_exec_in_ci_yml": 0,
+    "grep_check_git_exec_in_ci_mk": 0,
+    "regression_gates_green_at_base": [
+      "go test ./cmd/ailang/... -count=1 => rc=0 (24.3s)",
+      "go test ./internal/coordinator/... ./internal/pkg/... ./internal/eval_harness/... -count=1 => rc=0",
+      "make check-boundaries => rc=0",
+      "make check-file-sizes => rc=0",
+      "make check-changelog => rc=0",
+      "gofmt -l cmd internal tools scripts => empty, rc=0",
+      "go vet ./cmd/ailang/... => rc=0"
+    ]
+  },
+  "ci_wiring": {
+    "make_ci_is_not_invoked_by_ci_yml": true,
+    "evidence": "grep -n 'run: make ' .github/workflows/ci.yml lists 31 targets; 'ci' is not among them. A target wired only into `make ci` does NOT run in CI.",
+    "code_health_mk": "make/code-health.mk — insert after line 162 (the `@bash scripts/check_boundaries.sh` recipe of the check-boundaries target at line 161): targets `check-git-exec` and `test-check-git-exec`, mirroring the check-tmpfile-hygiene / test-check-tmpfile-hygiene pair at lines 167-172.",
+    "ci_mk": "make/ci.mk line 11 — append `check-git-exec test-check-git-exec` to the `ci:` prerequisite list.",
+    "ci_yml": ".github/workflows/ci.yml — insert two steps after line 133 (`run: make check-boundaries`, under `- name: Check architecture boundaries` at line 132) and before line 135 (`- name: Verify install guide consistency`). Both land in the `test:` job (runs-on: ubuntu-latest, ci.yml:17-18), which runs `make install` at line 60 so Go tooling is available."
+  },
+  "changelog_target": "changelogs/v0.32-current.md under '## [Unreleased]'. Root CHANGELOG.md is INDEX-ONLY and `make check-changelog` (scripts/check_changelog.sh) fails on ANY heading other than '## Changelog Archives'.",
+  "features": [
+    {
+      "id": "M1_GITEXEC_CONTRACT_AND_GATE",
+      "description": "Create internal/gitexec (stdlib-only leaf: ErrUnresolvable, resolveWith test seam, mutex-guarded SUCCESS-ONLY cache, Path/Command/CommandContext with the deferred exec.Cmd.Err failure contract). Create the go/ast enumerator tools/check-git-exec (the doc's HID-6 commitment; bash cannot walk go/ast, and the doc omits this file from its file list). Create scripts/check_git_exec.sh (fixture anti-vacuity control -> AST enumeration -> per-file ratchet baseline -> LookPath positive invariant -> residual-class printout -> AST/regex cross-check scoped to the REAL TREE ONLY). Convert the 4 Sonar-flagged sites and migrate cmd/ailang/help.go off its private resolveGit/gitBinary. Wire the gate into make/code-health.mk, make/ci.mk:11, and TWO ci.yml steps. This milestone is independently landable as its own PR.",
+      "estimated_loc": 860,
+      "dependencies": [],
+      "files": [
+        "internal/gitexec/gitexec.go (NEW, ~130 LOC)",
+        "internal/gitexec/gitexec_test.go (NEW, ~230 LOC)",
+        "tools/check-git-exec/main.go (NEW, ~180 LOC) — go/ast enumerator; in tools/ NOT scripts/ because .golangci.yml sets exclude-dirs: scripts",
+        "tools/check-git-exec/main_test.go (NEW, ~200 LOC)",
+        "scripts/check_git_exec.sh (NEW, ~130 LOC)",
+        "scripts/test_check_git_exec.sh (NEW, ~200 LOC) — mirrors scripts/test_check_tmpfile_hygiene.sh incl. its ARMS_EXPECTED floor",
+        "scripts/testdata/git_exec_gate_positive.txt (NEW) — single-line AND multi-line exec.Command(\\n \"git\", ...) shapes; .txt so gofmt -l . and the sweep never see it",
+        "scripts/testdata/git_exec_gate_blindspot.txt (NEW) — variable-first-arg (g := \"git\") and bash -c shapes; NEGATIVE control, asserted count 0",
+        "scripts/git_exec_baseline.txt (NEW, 16 lines) — SEEDED BY FRESH MEASUREMENT after the 4 conversions; expected sum 89",
+        "cmd/ailang/prompt_freeze_check_git.go:82 (MODIFY, gitBytes)",
+        "cmd/ailang/prompt_freeze_core.go:194 (MODIFY, scanCorpus)",
+        "internal/coordinator/worktree.go:308 (MODIFY, repo-dir probe)",
+        "cmd/ailang/coordinator_cloud.go:459 (MODIFY, ahead-log probe)",
+        "cmd/ailang/help.go (MODIFY: delete resolveGit; replace gitBinary() body with a 3-line gitexec.Path() adapter mapping error -> \"\")",
+        "cmd/ailang/help_stale_test.go (MODIFY: resolveGit cases at 387-406 move to gitexec_test.go; 6 gitBinary() call sites at 223/230/240/243/367/427 keep compiling)",
+        "make/code-health.mk (MODIFY, +8 LOC after line 162)",
+        "make/ci.mk (MODIFY, line 11, +2 words)",
+        ".github/workflows/ci.yml (MODIFY, +6 LOC after line 133)",
+        "changelogs/v0.32-current.md (MODIFY, ~12 LOC under '## [Unreleased]')"
+      ],
+      "acceptance_criteria": [
+        "AC1 [base rc=1: 'pattern ./internal/gitexec/...: lstat: no such file or directory'] `go build ./internal/gitexec/... ./cmd/ailang/... ./internal/coordinator/...` => rc=0. NOTE: `go build ./...` is REJECTED as an acceptance command — it is rc=1 on the untouched tree (cmd/wasm has no native main).",
+        "AC2 [base rc=1, setup failed] `go test ./internal/gitexec/... -count=1` => rc=0",
+        "AC3 [base 93] AST enumerator total over cmd+internal (non-test) == 89, re-derived by measurement, not copied from this JSON",
+        "AC4 [base 1, cmd/ailang/help.go] `grep -rln 'LookPath(\"git\")' cmd internal --include='*.go' | grep -v '_test\\.go' | grep -cv '^internal/gitexec/'` == 0",
+        "AC5 [base rc=2, no such target] `make check-git-exec` => rc=0",
+        "AC6 [base rc=2, no such target] `make test-check-git-exec` => rc=0",
+        "AC7 [base 0] `grep -c 'make check-git-exec' .github/workflows/ci.yml` >= 1",
+        "AC8 [base 0] `grep -c 'make test-check-git-exec' .github/workflows/ci.yml` >= 1",
+        "AC9 [base 0] `grep -c 'check-git-exec' make/ci.mk` >= 1",
+        "AC10 [base 1] `grep -c 'func resolveGit' cmd/ailang/help.go` == 0",
+        "AC11 [base 0] `grep -c 'gitexec' changelogs/v0.32-current.md` >= 1 (root CHANGELOG.md must NOT be touched)",
+        "AC12 [base rc=2, no output] `make check-git-exec 2>&1 | grep -c 'variable first argument'` >= 1 — the gate names its residual classes in its OWN output every run (HID-6 clause 4)",
+        "AC13 anti-vacuity: with scripts/testdata/git_exec_gate_positive.txt moved aside, `bash scripts/check_git_exec.sh` => rc=2 and output contains 'INSTRUMENT BROKEN'. Green-when-fixture-missing is itself a failure.",
+        "AC14 mutation evidence for all 13 branches B1-B6 and G1-G7. Protocol per mutant, IN THIS ORDER: cp backup to /tmp (never `git checkout --`, the tree is uncommitted by construction); apply `if false && <cond>` (never delete a block — a non-compiling mutant makes red masquerade as the guard firing); assert the mutant LANDED (sha256 differs); assert the mutant BUILDS (`go build ./internal/gitexec/... ./cmd/ailang/...` rc=0, or `bash -n scripts/check_git_exec.sh` rc=0); ONLY THEN run the named test and require rc!=0; restore from backup and require rc=0.",
+        "AC15 [base: both arms 93, per-file diff empty] AST arm and regex arm both report 89 over cmd+internal with an empty per-file diff; a disagreement is a gate FAILURE — scoped to the REAL TREE ONLY, never to the fixtures (see contradiction 1)",
+        "REGRESSION GATES (rc=0 at base AND after; NOT acceptance criteria, they cannot fail for the right reason): `go test ./cmd/ailang/... -count=1`; `go test ./internal/coordinator/... ./internal/pkg/... ./internal/eval_harness/... -count=1`; `make check-boundaries`; `make check-file-sizes`; `make check-changelog`; `gofmt -l cmd internal tools scripts` empty; `go vet ./cmd/ailang/...`",
+        "NOT FALSIFIABLE FROM THE BRANCH, deliberately excluded: the SonarCloud metric. Sonar re-analyses only on a merged push and its leak period is defined against previous_version=v0.33.2, so 'the 4 flagged go:S4036 issues are resolved' is a post-merge observation, not an acceptance criterion. The rating is NOT asserted to reach A: the resolver's own LookPath is expected to keep one finding (follow-up M-GIT-RESOLVER-S4036-CLOSURE)."
+      ],
+      "test_plan": [
+        "B1 look() errors -> refuse | TestResolveWith_LookError | kills mutant `if false && err != nil`",
+        "B2 relative path -> refuse | TestResolveWith_RelativeRefused (\"git\" and \"./git\") | kills `if false && !filepath.IsAbs(p)`",
+        "B3 failed resolve -> Cmd.Err | TestCommand_DeferredError, asserting error identity from Run(), not from construction | kills `if false && resolveErr != nil` at the Cmd.Err assignment",
+        "B4 success -> Cmd.Path is absolute | TestCommand_UsesAbsolutePath (+ cancelled ctx aborts CommandContext) | kills `Path: \"git\"` bare-literal swap (which BUILDS)",
+        "B5 success IS cached | TestPath_CachesSuccess (look invoked exactly once across two Path() calls) | kills `if false && err == nil { cached = p }`",
+        "B6 failure is NOT cached (HID-3) | TestPath_DoesNotCacheFailure (first Path fails, second re-invokes look and succeeds) | kills the named mutation 'cache the failure too'",
+        "G1 fixture missing -> exit 2 | self-test S2 | kills `if false && [ ! -f \"$POSITIVE_FIXTURE\" ]`",
+        "G2 fixture yields 0 matches -> exit 2 | self-test S2b | kills `if false && [ \"$FIXTURE_COUNT\" -eq 0 ]`",
+        "G3 file above baseline -> exit 1 naming file:line | self-test S3 | kills `if false && [ \"$n\" -gt \"$base\" ]`",
+        "G4 file below baseline -> exit 1 'tighten the baseline' | self-test S4 | kills `if false && [ \"$n\" -lt \"$base\" ]`",
+        "G5 file with matches absent from baseline -> exit 1 | self-test S3b | kills `if false && [ -z \"$base\" ]`",
+        "G6 LookPath(\"git\") outside internal/gitexec -> exit 1 | self-test S5 | kills `if false && [ \"$LOOKPATH_OUTSIDE\" -gt 0 ]`",
+        "G7 AST vs regex disagree on the real tree -> exit 1 | self-test S6 (plant a multi-line git site in a temp tree copy) | kills `if false && [ \"$AST_TOTAL\" -ne \"$RX_TOTAL\" ]`",
+        "E1 ADDITION ARM (the load-bearing one): temp tree count N; copy the MULTI-LINE fixture in as .go; count == N+1 | kills a regression of the enumerator to line-oriented grep. A removal-only test proves a check FIRES; only this addition proves it LOOKS.",
+        "E2 blind-spot fixture (g := \"git\"; exec.Command(g,...) and bash -c \"git status\") adds EXACTLY 0 | kills a silent widening that leaves the declared residual list stale",
+        "E3 exec.Command(\"git-lfs\",...) and exec.Command(\"gitfoo\") add 0 | kills prefix matching instead of strconv.Unquote(lit) == \"git\"",
+        "E4 exec.CommandContext(ctx, \"git\", ...) counted at arg index 1; a \"git\" at arg 2 is not | kills an off-by-one in the arg index",
+        "E5 fixture named x_test.go adds 0; THE SAME BYTES renamed x.go add 1 | kills a vacuous _test.go exclusion (one that matches nothing rather than filtering by suffix)",
+        "E6 a file with a Go syntax error -> exit 2 naming the file | kills a silent skip of unparseable files (the planning prototype had exactly this hole)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Plan-time design refinements to the doc, each justified in section 6 of the sprint plan: R1 gitBinary() survives as a 3-line gitexec.Path() adapter (the doc says delete, but deleting removes the only site mapping a resolution error to the \"\" that gitHead/gitDirty read as 'undeterminable -> SHOW the warning'); R2 the AST/regex cross-check runs over the real tree only, because the doc's HID-6 clauses 2 and 3 contradict each other (measured: the multi-line fixture makes AST=1, regex=0); R3 internal/gitexec is NOT excluded from the exec enumeration (it never calls exec.Command(\"git\",...), so the exclusion is a hiding place, not a necessity); R4 an unparseable .go file is exit 2, not a skip; R5 the variable-first-arg fixture is a NEGATIVE control asserted at 0, and the multi-line fixture carries the count-moves-by-addition requirement; R6 the enumerator lives in tools/ because .golangci.yml excludes scripts/ from make lint."
+    },
+    {
+      "id": "M2_COORDINATOR_SWEEP",
+      "description": "Mechanical conversion of the remaining 42 internal/coordinator sites to gitexec.Command / gitexec.CommandContext, preserving each site's cmd.Dir vs -C convention verbatim. No new decision; the contract is frozen by M1. Lands as its own PR after M1. Five sites in this repo already discard the error (_ = cmd.Run(): daemon_tasks_exec_run.go:461,463; worktree.go:239; and coordinator_browse.go:87,240 in M3) — conversion PRESERVES that silent swallow, which the design explicitly does not fix.",
+      "estimated_loc": 90,
+      "dependencies": ["M1_GITEXEC_CONTRACT_AND_GATE"],
+      "files": [
+        "internal/coordinator/worktree.go (15 remaining)",
+        "internal/coordinator/merge.go (8)",
+        "internal/coordinator/approval_processor.go (6)",
+        "internal/coordinator/artifact_discovery.go (5)",
+        "internal/coordinator/daemon_tasks_exec_run.go (4)",
+        "internal/coordinator/daemon_tasks_worktrees.go (3)",
+        "internal/coordinator/observatory_sync.go (1)",
+        "scripts/git_exec_baseline.txt (ratchet 89 -> 47)",
+        "changelogs/v0.32-current.md"
+      ],
+      "acceptance_criteria": [
+        "[base at M2 start: 89] AST enumerator total over cmd+internal == 47, re-derived by measurement",
+        "[base at M2 start: rc=1 'tighten the baseline'] `make check-git-exec` => rc=0 with the ratcheted baseline (the below-baseline branch G4 makes an unratcheted baseline fail loudly, so this AC IS falsifiable at M2's own base)",
+        "[base 0 -> >=1] `grep -c 'gitexec' internal/coordinator/merge.go` >= 1",
+        "REGRESSION GATE (rc=0 before and after): `go test ./internal/coordinator/... -count=1`"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "NOT executed in iteration 298. Deferred by design; the M1 gate already prevents the class from growing while this waits."
+    },
+    {
+      "id": "M3_CMD_AILANG_SWEEP",
+      "description": "Mechanical conversion of the remaining 41 cmd/ailang sites. No new decision. Lands as its own PR after M2.",
+      "estimated_loc": 85,
+      "dependencies": ["M2_COORDINATOR_SWEEP"],
+      "files": [
+        "cmd/ailang/coordinator_cloud.go (14 remaining)",
+        "cmd/ailang/coordinator_browse.go (11)",
+        "cmd/ailang/chains_diff.go (4)",
+        "cmd/ailang/coordinator_inspect.go (4)",
+        "cmd/ailang/messages_send.go (3)",
+        "cmd/ailang/coordinator_utils.go (3)",
+        "cmd/ailang/coordinator_cloud_github.go (2)",
+        "scripts/git_exec_baseline.txt (ratchet 47 -> 6)",
+        "changelogs/v0.32-current.md"
+      ],
+      "acceptance_criteria": [
+        "[base at M3 start: 47] AST enumerator total over cmd+internal == 6, re-derived by measurement",
+        "[base at M3 start: rc=1 'tighten the baseline'] `make check-git-exec` => rc=0 with the ratcheted baseline",
+        "[base at M3 start: 7 files under cmd/ailang in the baseline] the baseline contains ZERO cmd/ailang entries",
+        "REGRESSION GATE (rc=0 before and after): `go test ./cmd/ailang/... -count=1`"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "NOT executed in iteration 298."
+    },
+    {
+      "id": "M4_TOOLS_LAYER_SWEEP",
+      "description": "Convert the last 6 sites in the tools layer, ratchet the baseline to 0, and turn on the standing positive invariant (exactly one exec.LookPath(\"git\") in the repo, inside internal/gitexec/). The fixture control (AC13) is what keeps the now-empty gate non-vacuous forever after.",
+      "estimated_loc": 15,
+      "dependencies": ["M3_CMD_AILANG_SWEEP"],
+      "files": [
+        "internal/pkg/gitcache.go (5)",
+        "internal/eval_harness/gemini_evaluator_bridge.go (1)",
+        "scripts/git_exec_baseline.txt (ratchet 6 -> 0; asserts emptiness)",
+        "changelogs/v0.32-current.md"
+      ],
+      "acceptance_criteria": [
+        "[base at M4 start: 6] AST enumerator total over cmd+internal == 0, re-derived by measurement",
+        "[base at M4 start: rc=1 'tighten the baseline'] `make check-git-exec` => rc=0 on an EMPTY baseline",
+        "[falsifiable anti-vacuity on an empty gate] with the positive fixture moved aside, `bash scripts/check_git_exec.sh` => rc=2 'INSTRUMENT BROKEN'. An empty enumeration must never be green on its own.",
+        "[base 1 in internal/gitexec] exactly one exec.LookPath(\"git\") repo-wide and it is inside internal/gitexec/ — enforced by the gate, not only asserted",
+        "REGRESSION GATE (rc=0 before and after): `go test ./internal/pkg/... ./internal/eval_harness/... -count=1`"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "NOT executed in iteration 298."
+    }
+  ],
+  "contradictions_found_at_plan_time": [
+    "The doc's HID-6 clauses 2 and 3 are mutually inconsistent: clause 2 makes an AST/regex disagreement a gate FAILURE, clause 3 ships a fixture designed to make them disagree. Measured on such a fixture: AST=1, regex=0. Resolved by scoping the cross-check to cmd/ + internal/.",
+    "The doc's 'Files to Modify/Create' omits the Go file HID-6 requires. It lists scripts/check_git_exec.sh (~120 LOC bash) as the enumerator, but bash cannot walk go/ast. tools/check-git-exec/main.go + main_test.go (~380 LOC) are missing from the doc's file list and LOC estimate.",
+    "Excluding internal/gitexec/ from the exec enumeration (doc, gate step 2) is unnecessary AND a hole: gitexec calls exec.Command(absPath, ...), never exec.Command(\"git\", ...), so the exclusion only creates a directory where a bare site can hide. Only the LookPath invariant needs that scoping.",
+    "V17 CONFIRMED by a stronger, independent instrument: a real go/ast enumerator built during planning returns 93 with a per-file diff against the regex of exactly ZERO. The doc used a whitespace-collapsing python regex; an AST walk is a genuinely independent arm and it agrees.",
+    "exec.Cmd.Err was doc-verified (go doc) but not behaviour-verified. Verified during planning on go1.26.6: (&exec.Cmd{Path:\"\", Err: wrapped}).Run() and .Output() both return the wrapped error and satisfy errors.Is. The failure contract is sound.",
+    "A .go fixture would break make fmt-check: it runs `gofmt -l .` repo-wide and gofmt does NOT skip testdata/. Fixtures must stay .txt; go/parser.ParseFile accepts source bytes regardless of extension, so this costs nothing.",
+    ".golangci.yml sets exclude-dirs: [..., scripts]. A Go enumerator under scripts/ would escape make lint silently. Hence tools/.",
+    "The doc's instruction to delete gitBinary() is under-specified: deleting it removes the only site mapping a resolution error to the \"\" that gitHead/gitDirty treat as 'undeterminable -> show the warning'. Kept as a 3-line adapter; resolveGit's deletion is the falsifiable part (AC10).",
+    "9 of the 18 sweep files changed between the doc's original base e38c0c493 and 999d4c1dd, so every count must be re-derived at execution time. Re-derived at plan time: still 93 across 18 files, per-file distribution unchanged."
+  ]
+}

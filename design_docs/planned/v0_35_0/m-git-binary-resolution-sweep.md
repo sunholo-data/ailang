@@ -391,9 +391,21 @@ V7) + a ci.yml step after "Check architecture boundaries" (ci.yml:133, V7) + mem
      resolves to `exec.Command`/`exec.CommandContext` with a `"git"` string literal in the
      command-name position. Physical line breaks are then irrelevant by construction, which
      is what makes this complete for the Go/literal class rather than complete-by-inspection.
-  2. The line-oriented regex MAY be retained only as a cross-check. If both run, a
-     **disagreement between them is a gate FAILURE**, not a warning — that difference is the
-     only cheap signal that one enumerator has gone blind.
+  2. The line-oriented regex MAY be retained only as a cross-check, **scoped to the REAL
+     TREE (`cmd/` + `internal/`) and to nothing else**. Within that scope a **disagreement
+     between the two arms is a gate FAILURE**, not a warning — that difference is the only
+     cheap signal that one enumerator has gone blind. Today the two arms agree exactly
+     (both **93**, per-file diff empty — V17, and independently re-derived by the sprint
+     planner with a real `go/ast` walker), which is what makes equality a usable invariant.
+
+     **The scoping in clause 2 is load-bearing, and its absence was a defect in this
+     document's first draft of HID-6** (found by the sprint planner, reproduced by the
+     controller before acting). Clause 2 as originally written said only "a disagreement
+     between them is a gate FAILURE", with no scope — and clause 3 requires shipping a
+     fixture whose entire purpose is to make the two arms disagree. Measured on exactly that
+     fixture: regex arm **0**, AST arm **1**. So the two clauses were jointly unsatisfiable,
+     and an executor implementing both literally would have produced a gate that fails on its
+     own test fixture. The fixtures are enumerator INPUTS, never cross-check inputs.
   3. **Anti-vacuity by ADDITION, not only by removal** (this repo's rule 3a(i-e): a removal
      proves a check FIRES, only an addition proves it LOOKS). The gate ships a fixture
      containing a **multi-line** `exec.Command(\n "git", …)` and a **variable-first-arg**
