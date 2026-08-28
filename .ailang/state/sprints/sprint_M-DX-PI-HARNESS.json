@@ -9,7 +9,7 @@
   ],
   "velocity": {
     "target_loc_per_day": 440,
-    "estimated_total_loc": 460,
+    "estimated_total_loc": 570,
     "estimated_days": 2
   },
   "features": [
@@ -77,6 +77,23 @@
       "started": "2026-08-28T12:25:00Z",
       "completed": "2026-08-28T12:40:00Z",
       "notes": "E2E verified on /tmp scratch repo; debugging surfaced pi runner block-short-circuit (runner.js returns on first block) \u2014 consolidation into the gate removes the ordering dependency"
+    },
+    {
+      "id": "M5_PROVIDER_QUOTA",
+      "description": "Approved addendum: provider-quota extension \u2014 quota_report tool + /quota command. OpenRouter /api/v1/key budget (CRITICAL>=95%, WARN>=80%), ollama status, current session lane. Motivated by enabling the openrouter lane (key found at 98.8% used)",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1_STREAM_A_EXTENSIONS"
+      ],
+      "acceptance_criteria": [
+        "threshold tests (WARN>=80, CRITICAL>=95, UNLIMITED, UNKNOWN)",
+        "e2e: fresh gated -p session reports current session lane + OpenRouter CRITICAL state",
+        "key never appears in tool output"
+      ],
+      "passes": true,
+      "started": "2026-08-28T13:05:00Z",
+      "completed": "2026-08-28T13:15:00Z",
+      "notes": "Fetch-based (no subprocess); async factory (typebox); ollama cloud quota has no public API \u2014 documented as dashboard-only. Switching lanes: pi --provider openrouter --model <id>; ailang exec pi inherits OPENROUTER_API_KEY via os.Environ"
     }
   ]
 }
