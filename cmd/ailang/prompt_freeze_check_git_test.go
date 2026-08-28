@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -276,6 +277,29 @@ func runFreezeCheck(t *testing.T, root string) ([]string, int) {
 		t.Fatal(err)
 	}
 	return violations, rc
+}
+
+// TestFreezeCheck_CountLinePrintedToStdout pins the CLI wiring that PRINTS the
+// count, which is a different mechanism from the count itself.
+// TestFreezeCheck_CheckedCountMovesOnAddition pins checkRegistries' returned int;
+// it stays green if the command never prints it, because it never looks at stdout.
+// This arm reads the bytes the command actually emits, so it dies when the Printf
+// is removed. AC1's rc half is a regression guard (rc is 0 at base and after), so
+// this stdout line is AC1's only falsifiable half and it needs a killer in Go.
+func TestFreezeCheck_CountLinePrintedToStdout(t *testing.T) {
+	root := newFreezeCheckRepo(t)
+	cmd := exec.Command(os.Args[0], "-test.run=^TestFreezeCheckHelperProcess$")
+	cmd.Env = append(os.Environ(), "AILANG_FREEZE_CHECK_HELPER=1", "AILANG_FREEZE_CHECK_REPO="+root)
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("green fixture must exit 0, got %v (stdout=%q)", err, stdout.String())
+	}
+	// The fixture registry holds exactly one entry, so the count is derivable and
+	// a wrong count fails as loudly as a missing line.
+	if want := "checked 1 registry entries"; !strings.Contains(stdout.String(), want) {
+		t.Fatalf("stdout must carry %q, got %q", want, stdout.String())
+	}
 }
 
 func hasViolation(violations []string, parts ...string) bool {
