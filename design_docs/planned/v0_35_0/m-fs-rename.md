@@ -16,7 +16,7 @@
 | A1: Determinism | 0 | No impact — os.Rename on a given filesystem state is deterministic for same-fs targets |
 | A2: Replayability | 0 | Trace records the op + args as with other FS ops; no new nondeterminism |
 | A3: Effect Legibility | +1 | Makes an FS mutation explicit in `! {FS}` signatures instead of hiding it in a Process call |
-| A4: Explicit Authority | +1 | FS capability already gates it; BOTH paths sandbox-resolved (a one-sided resolve would be an escape primitive) |
+| A4: Explicit Authority | +1 | FS capability already gates it; BOTH paths sandbox-resolved, matching the existing (lexical) guarantee every FS op provides — no new ambient access (V11 records the resolver's symlink limitation as pre-existing and out of scope) |
 | A5: Bounded Verification | +1 | `ailang check` fully verifies calls; no new type machinery |
 | A6: Safe Concurrency | 0 | No concurrency changes |
 | A7: Machines First | +1 | Agents publishing `run.json`/state files get torn-read-free writes without shelling out to `mv` |
@@ -48,6 +48,10 @@ Every load-bearing claim in this doc, verified 2026-08-28 at `007184b7b` (v0.34.
 | V5 | `IMP010: symbol 'renameFile' not exported by 'std/fs'` reproduces the issue's claim | Read `std/fs.ail` export list — no rename/move export | Confirmed (matches issue #897 repro) |
 | V6 | No new error code is proposed; failures are Go-wrapped runtime messages like sibling ops | Read `fsRemoveFile` / `fsRemoveFileResult` — `fmt.Errorf("removeFile: %w", err)` pattern | Confirmed (nothing to grep-allocate) |
 | V7 | stdlib.md needs no change (module-level table only) | Read `docs/docs/reference/stdlib.md` I/O section — lists modules, not functions | Confirmed |
+| V8 | Atomicity is POSIX-scoped, not universal | Go `os.Rename` documentation: "OS-specific restrictions may apply… on non-Unix platforms Rename is not an atomic operation"; Windows uses `MoveFileEx(MOVEFILE_REPLACE_EXISTING)` without a cross-reader atomicity guarantee | Confirmed — guarantee restated as POSIX-scoped; Windows documented as best-effort (see Solution Design) |
+| V9 | Codegen behavior for a registered builtin WITHOUT a stub-table row | Read `internal/gen/golang/codegen_registry.go:13-56` — `resolveBuiltinViaRegistry` returns `""` when no spec exists → each *call site* fails to resolve (loud compile error); the module itself still compiles. Corrects the quorum objection's "undefined-symbol module failure" mechanism — omission is loud, not silent. Decision: `_fs_rename` gets a stub row (sibling-consistent with `_fs_removeFile`); `_fs_renameResult` follows the established `*Result` omission (round-2 quorum catch — adding it would DIVERGE from the actual sibling pattern) | Confirmed |
+| V10 | Parked WIP semantics match this design (adoption is evidence-based) | Read `internal/effects/fs_dir.go:159-190, 226-253` (this session): both `fsRenameFile` and `fsRenameFileResult` resolve **both** paths via `resolveSandboxPath` when sandbox set (lines 174-182 / 240-248), call `os.Rename` directly (no copy fallback), wrap errors as `renameFile: %w` / `Err("cannot rename file: …")` | Confirmed — adoption no longer rests on unverified WIP |
+| V11 | Sandbox confinement is LEXICAL, not symlink/race-safe | Read `resolveSandboxPath` (`internal/effects/fs.go:55-67`): pure string resolution (`filepath.Clean` + prefix check) — no `EvalSymlinks`, no TOCTOU protection. A destination whose parent contains a symlink pointing outside the sandbox passes the prefix check and `os.Rename` mutates outside. **Pre-existing property shared by ALL FS ops using this resolver** (writeFile, removeFile, …), not introduced by rename | Confirmed — scoped out of this additive feature; systemic fix tracked as follow-up (see Non-Goals) |
 
 ## Problem Statement
 
@@ -109,7 +113,10 @@ renameFileResult(oldPath, newPath) -> Result[(), string] ! {FS}
 
 - Sandbox: when `AILANG_FS_SANDBOX` is set, **both** paths pass through
   `resolveSandboxPath` (`internal/effects/fs.go:55`); either escaping → error, nothing renamed.
-- `os.Rename` atomicity: readers of `newPath` see either old or new content, never partial.
+- `os.Rename` semantics: **on POSIX, rename(2) is atomic with respect to readers** — `newPath`
+  resolves to either the old or the new file, never a partial one (V8). **On non-Unix platforms Go
+  documents Rename as non-atomic** — the atomic-publish promise is POSIX-scoped and Windows behavior
+  is documented in the builtin metadata as best-effort replacement, never silently assumed.
 - Errors: missing source, permission denied, cross-device link (EXDEV), non-empty-dir
   constraints per Go `os.Rename` — surfaced as `Err("cannot rename file: …")` in the Result variant,
   runtime error in the panicking variant (matches `removeFile` pair, V6).
@@ -118,9 +125,12 @@ renameFileResult(oldPath, newPath) -> Result[(), string] ! {FS}
 
 `internal/effects/fs_dir.go` already contains unregistered `fsRenameFile` (line 163) and
 `fsRenameFileResult` (line 230), written 2026-08-28 in a session that violated the work-routing
-gate and was parked uncommitted per AGENTS.md. **Sprint-executor decides: adopt (register +
-wrap + test), adapt, or rewrite from the doc.** The WIP is inert (V4) and uncommitted; nothing
-else may build on it until this doc is approved. The doc's design supersedes the WIP text where they differ.
+gate and was parked uncommitted per AGENTS.md. **V10 verifies the WIP's actual behavior against
+this doc's semantics** (both-paths sandbox resolution, no silent fallback) — the quorum's
+"adopting unverified WIP" objection is resolved by verification, not assertion. Sprint-executor
+adopts the WIP as Phase 1 material; any test-time behavior contradicting V10 is a regression to
+report, not a silent fix. The WIP remains inert (V4) and uncommitted until this doc is approved;
+where this doc and the WIP text differ, the doc supersedes.
 
 ### Implementation Plan
 
@@ -130,7 +140,7 @@ else may build on it until this doc is approved. The doc's design supersedes the
 
 **Phase 2: Builtin + stdlib layer** (~1h)
 - [ ] `_fs_rename` / `_fs_renameResult` registrations in `internal/builtins/fs.go` (full metadata, `Since: v0.35.0`)
-- [ ] `_fs_rename` effect-stub entry in `internal/builtins/registry_codegen_io.go` (next to `_fs_removeFile`; Result variants follow the existing table's precedent of omission)
+- [ ] `_fs_rename` effect-stub row in `internal/builtins/registry_codegen_io.go` (matches `_fs_removeFile`; `_fs_renameResult` follows the established `*Result` omission per V9 — loud per-call-site error, documented)
 - [ ] `renameFile` / `renameFileResult` exports + doc comments in `std/fs.ail`
 
 **Phase 3: Tests + validation** (~2h)
@@ -145,7 +155,7 @@ else may build on it until this doc is approved. The doc's design supersedes the
 - `internal/effects/fs_dir.go` — parked WIP adopted/adapted (+~55 LOC net)
 - `internal/effects/fs.go` — +2 RegisterOp lines
 - `internal/builtins/fs.go` — +2 registrations (~70 LOC)
-- `internal/builtins/registry_codegen_io.go` — +1 stub-table entry
+- `internal/builtins/registry_codegen_io.go` — +1 stub-table row (`_fs_rename`, sibling-consistent)
 - `std/fs.ail` — +2 exports with doc comments (~20 LOC)
 - `internal/effects/fs_test.go` — +6 test cases (~120 LOC)
 
@@ -158,7 +168,7 @@ else may build on it until this doc is approved. The doc's design supersedes the
 - Adds two entries to the FS op table registered in `internal/effects/fs.go` `init()` (`RegisterOp("FS", "renameFile"/"renameFileResult", …)`)
 - Adds two builtins to the `_fs_*` namespace in `internal/builtins/fs.go`
 - Adds two exports to `std/fs.ail`'s module surface
-- Adds one row to the codegen effect-stub table in `internal/builtins/registry_codegen_io.go`
+- Adds one stub row (`_fs_rename`) to the codegen effect-stub table in `internal/builtins/registry_codegen_io.go`
 
 **Effect-row algebra is NOT changed**: no new capability, no change to the `FS` effect set, no change to how `! {FS}` is inferred. The change is invisible to the type checker beyond two new typed constants.
 
@@ -169,7 +179,7 @@ else may build on it until this doc is approved. The doc's design supersedes the
 | FS op namespace (`RegisterOp("FS", …)`) | 18 ops (verified V2): `readFile`, `readFileBytes`, `writeFile`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `exists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile` + 5 `*Result` variants | `("<opName>", <func>)` string-keyed; op names unique strings |
 | `_fs_*` builtin namespace | 12 registered `_fs_*` builtins (fs.go) | `RegisterEffectBuiltin(BuiltinSpec{Module: "std/fs", Name: "_fs_<name>"…})` |
 | `std/fs` export surface | 19 exported functions incl. `removeFile` / `removeFileResult` (read, verified V5) | `export func <camelCase>(…) -> … ! {FS} = _fs_<name>(…)` |
-| Codegen stub table | 9 `_fs_*` rows (read, registry_codegen_io.go:34–42); `*Result` variants deliberately absent | `{"_fs_name", "std/fs", "stdlibName", "GoFuncName", "FS", arity}` |
+| Codegen stub table | 9 `_fs_*` rows (read, registry_codegen_io.go:34–42); `*Result` variants absent (their absence yields loud per-call-site errors, V9 — not module failures). `_fs_rename` joins the plain-name rows; `_fs_renameResult` follows the `*Result` omission | `{"_fs_name", "std/fs", "stdlibName", "GoFuncName", "FS", arity}` |
 
 **Disambiguation:** none required — no grammar changes; op/builtin/export names are collision-free by V1/V2 (greps empty). The only name-resolution path is the stdlib export → `_fs_` family mapping, which `stdlib_codegen_resolution_test.go` enforces mechanically.
 
@@ -252,6 +262,8 @@ success + out-of-sandbox rejection with a readable error.
 - **Copy-based move fallback** — silently degrades atomicity; no-silent-fallback principle.
 - **`fs.move` alias** — one name per concept; `renameFile` is the issue-requested name.
 - **Windows reserved-name / long-path handling** — Go stdlib behavior inherited as-is, same as sibling ops.
+- **Symlink-aware sandbox confinement** — V11 shows `resolveSandboxPath` is lexical; hardening it (EvalSymlinks / race-safety) is a systemic fix across ALL FS ops, tracked as a separate follow-up design doc, not smuggled into this additive feature.
+- **Windows atomicity guarantees** — documented as best-effort (V8); not engineered here.
 
 ## Timeline
 
@@ -262,7 +274,7 @@ success + out-of-sandbox rejection with a readable error.
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
 | One-sided sandbox resolution escapes the sandbox | High (security) | Both paths resolved; two dedicated escape tests block regression |
-| Rename used as partial-write vector | Low | Doc comment prescribes write-temp-then-rename pattern; EXDEV surfaces loudly |
+| Sandbox symlink escape (destination parent symlinked outside sandbox) | Med | V11: pre-existing lexical-resolver limitation shared by ALL FS ops, NOT introduced here; systemic resolver fix tracked as follow-up (Non-Goals) |
 | Parked WIP drifts from approved doc | Low | Sprint-executor explicitly re-reviews WIP against this doc before adopting |
 
 ## Related Documents
