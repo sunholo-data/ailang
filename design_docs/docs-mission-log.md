@@ -124,3 +124,77 @@ before editing). No role fell back, no routing-policy violation, no billing anom
   - gpt5-6-sol: The mandatory docs-1 trigger has no conflict-surface analysis: the document proposes a new polling script without inventorying existing GitHub ingestion, public-feedback dispatch, message routing, scheduling, deduplication, or acknowledgement machinery and without justifying why none can be reused. Verification of `send` and `forward` does not establish that a parallel router is the correct extension point.
   - gemini-3-1-pro: Clause 1 asserts the existence and utility of 'audit_design_docs.sh' and 'check_versions.sh' within the 'docs-sync' skill without providing any verification evidence. This violates the premise verification hard gate, as these critical codebase instruments are asserted as working tools but entirely lack execution traces or proof of existence, contrasting sharply with the rigorously verified CLI commands in Clause 7.
   - oc-glm-5-2: The doc's own STATUS section records that iteration 0 quorum was BLOCKED twice and the charter is 'still not ratified,' yet the Queue and CURRENT GOAL already treat clauses 1-7 as the binding bar. The doc is simultaneously an unratified draft and an operational charter with a live launchd job, 5 clauses already tagged to queue items, and a cost ladder claimed as 'verified before being written down.' A self-admittedly unratified document cannot also be the source of truth for its own ratification — the doc pre-commits to its own bar before the quorum that exists to check it has run.
+
+## ITERATION 1 — 2026-08-28T07:26Z
+
+**Pick**: `docs-2` (queue head, `[NEXT]`). No allowlisted directive and no genuine regression
+outranked it — 11 unread inbox messages, all triaged as non-directive (V1's own reports/approvals,
+a stale coordinator task `task-a0628a5f` unreachable from this local session, and `mcp-public`
+package feedback for a different package); zero comments on bookkeeping issue `#953` since the
+watermark.
+
+**Routing evidence**:
+| Role | Model | Outcome |
+|---|---|---|
+| Controller | `claude-sonnet-5` (session) | Gate 0-2 preflight; baselined all 5 docs-sync diagnostics on pristine `origin/dev` before routing (rule 3e); discovered and diagnosed the `check_examples.sh` absolute-path `MOD010` instrument defect first-party, before handing it to the planner as a verified fact. |
+| Designer | not spawned | Guardrails: "most items here need no design doc at all" — `docs-2-brief.md` (a routing declaration, not a design doc) already existed from a prior session. No quorum needed. |
+| Planner | `codex:gpt-5.6-luna` (probe rc=0; ephemeral detached worktree `.planner-wt-iter1-docs-2` off `origin/dev`) | Produced `sprint_docs-2.json` + `sprint-plan-docs-2.md`, 3 milestones, faithfully carrying forward the controller's verified findings and the blast-radius constraints (single-level `docs/*`, no `.claude/skills/docs-sync/**`). Both artifacts copied to the main checkout paths; worktree removed. |
+| Executor | `codex:gpt-5.6-luna` (same lane; directive worktree `.wt-iter1-docs-2`, `sprint/iter1-docs-2` branch, no git-write operations per the cross-provider recipe) | Built the prescribed ldflags-stamped scratch binary, ran the corrected relative-path sweep (166/9/42, matching the controller's baseline exactly), wrote `docs/docs-sync-findings.md` (13 scored findings), asserted `git check-ignore -v` empty. Controller reviewed the uncommitted diff and finalized the commit (`b896d70e6`) crediting the executor. |
+| Evaluator | `sonnet` (Agent-tool pin; own isolated worktree `.wt-iter1-docs-2-eval` from the executor's commit) | Independently re-derived every load-bearing claim from a fresh build and its own from-scratch 217-file sweep script (not reusing the executor's) — identical 166/9/42 split, identical 9 failing filenames, confirmed the Env-capability gap and the population-count mismatch by direct command. **PASS 92/100, zero blocking.** |
+
+**Outcome**: **LANDED**. [PR #955](https://github.com/sunholo-data/ailang/pull/955) → squash
+`a8f904aac`. All required + non-required checks green on the PR head; re-verified on the MERGE
+COMMIT itself (Gate 3b's squash-produces-a-new-commit rule) — 20 checks, 19 green, one INHERITED
+non-required SonarCloud red (identical conclusion on the immediate parent commit `8a993bb89`,
+before this PR ever merged; a coverage/security-rating gate over "new code" unrelated to a
+docs-only diff — flagged to V1, not actioned).
+
+**Key find**: `.claude/skills/docs-sync/scripts/check_examples.sh` passes ABSOLUTE paths to
+`ailang run`, so any example declaring `module examples/runnable/X` fails `MOD010` — the script's
+own raw output (12 passed / 29 failed / 176 skipped) has been silently over-reporting broken
+examples, possibly for as long as the script has existed, and nobody noticed because a
+`docs-site`-profile checkout normally has no `bin/ailang` to trigger the failure mode at all. A
+freshly built binary with relative paths gives the true split: 166 pass / 9 genuine fail / 42
+no-module across 217 files, independently reproduced exactly by the evaluator. Two further genuine
+findings: `batch_processing.ail`/`cli_args_demo.ail` need an `Env` capability the generic checker
+never grants; `audit_design_docs.sh` and `derive_roadmap_versions.sh` report different design-doc
+population totals (159/1030 vs 126/682) with no stated scope difference.
+
+**Also found, load-bearing for the queue**: this mission's OWN blast-radius allowlist cannot fix
+most of what it just found. `MISSION_PLANNER_ALLOWLIST`'s `docs/*` is single-level, excluding
+`docs/docs/**` (where the stale-version bug and essentially all published content live);
+`.claude/skills/docs-sync/**` isn't covered at all (where the checker's own bug lives). Filed as
+`D-1`/`D-2` in a newly created Human Decision Ledger (none existed yet on this mission's charter —
+created following V1's exact format and marker syntax, validated with
+`scripts/mission_decisions.sh --check`, 2 rows).
+
+**Cost**: metered $0.00 of $1 ceiling — both codex runs rode the subscription-lane rung
+(`gpt-5.6-luna`), never falling to a flat-rate or metered rung. Quota buckets: sonnet (controller +
+evaluator).
+
+**Next**: `docs-5` (queue head, `[NEXT]`) — in-scope examples hygiene for the 9 genuine failures,
+answerable without waiting on D-1/D-2. `docs-1` (clause 7 trigger) is next after that if docs-5
+is picked first, or vice versa; both are unblocked.
+
+**Ruled out**: nothing this iteration contradicted a prior finding. The `launchd drivers (bash
+3.2)` CI red observed at Gate 1 was confirmed FLAKY (same test failed on 2 unrelated commits in
+the preceding hour, interspersed with passes on other commits; re-passed on this iteration's own
+PR) rather than attributed to anything in this diff.
+
+**DECISIONS FOR MARK**:
+- **D-1 (new)** — widen `.claude/skills/docs-sync/*` into the planner allowlist so the mission can
+  fix its own sync tooling's absolute-path bug? (a) widen the allowlist (b) route to V1 as shared
+  infra (c) leave it, require every sprint to work around it by hand.
+- **D-2 (new)** — widen `MISSION_PLANNER_ALLOWLIST`'s `docs/*` entry to cover `docs/docs/**` and
+  `docs/src/**`, where nearly all published content and the stale-version bug actually live? (a)
+  widen to `docs/**` (b) widen per-item as needed (c) leave narrow, route nested-content fixes
+  elsewhere.
+
+**FLAGGED**: two pre-existing CI reds on `sunholo-data/ailang` observed and reported to V1 (the
+repo owner for CI-outranks-queue purposes) via the `controlplane` inbox — the `launchd drivers`
+flake (confirmed transient) and the inherited SonarCloud dev-branch quality-gate red (confirmed
+pre-existing on the parent commit). Neither actioned further; outside this mission's domain.
+
+**Retro**: no skill edit — the one friction this iteration (asserting `gh pr checks`' pending-count
+is numeric before comparing it) was already covered by this skill's existing `case … [!0-9]*)`
+prescription and worked as documented; not a gap.
