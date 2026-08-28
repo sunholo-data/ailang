@@ -163,6 +163,35 @@ works.
 `ailang_check`/`builtins_search` tools applied — tooling exists; agents need to reach
 for it (a prompt/gate-level nudge, not new tools).
 
+## Distribution v2 — the binary is the channel (ratified direction, 2026-08-28)
+
+User decision: the pi extension suite must reach users of the **binaries** (install.sh /
+release tarballs), not just repo cloners — and the same treatment covers editor integrations.
+The codebase already proves the pattern: `ailang editor install vscode` embeds
+`editor_assets/vscode/extension.js` (committed build output from `tools/vscode-extension-build/bundle.sh`)
+and materializes it version-managed into the editor.
+
+**Tier 0 (new, primary): `ailang pi install` / `uninstall` / `status`**
+- `//go:embed all:pi_assets` in cmd/ailang — the six extensions ship inside every release binary
+- Source of truth stays `.pi/extensions/` (repo sessions keep working); a Makefile step copies
+  to `cmd/ailang/pi_assets/` (committed, like editor_assets) with a CI drift-check
+  (pi_assets == .pi/extensions, mirroring verify-install-guide)
+- Materializes to `~/.pi/agent/extensions/` (global — applies to every repo on the machine),
+  idempotent, version-stamped per file, with a `.ailang-managed.json` manifest recording
+  which files ailang owns: **never clobbers user-modified or unmanaged files** (they get a
+  warning + a `.ailang-suggested/` copy instead)
+- `ailang pi status` reports per-file drift (binary version vs installed)
+- Uninstall removes only managed files
+- **Fleet (F5 resolution)**: the agent images already contain the ailang binary —
+  `Dockerfile.agent-pi` adds `RUN ailang pi install` at build; every fleet session inherits
+  the suite with zero repo coupling
+- VS Code parity already exists (`ailang editor install vscode`) — this makes pi the second,
+  and the two share the established install/uninstall mechanics
+
+**Superseded:** the tier-2 npm/git kit repo (`ail-pi-kit`) — the binary channel replaces it
+(no separate package/version lifecycle to maintain). Repo-scoped `.pi/extensions/` remains
+for repo cloners (tier 1, unchanged).
+
 ## Solution Design
 
 ### Overview
