@@ -1,0 +1,69 @@
+{
+  "sprint_id": "M-FS-RENAME",
+  "status": "not_started",
+  "created": "2026-08-28T09:06:20Z",
+  "design_doc": "design_docs/planned/v0_35_0/m-fs-rename.md",
+  "sprint_plan": "design_docs/planned/v0_35_0/m-fs-rename-sprint-plan.md",
+  "github_issues": [
+    897
+  ],
+  "velocity": {
+    "target_loc_per_day": 270,
+    "estimated_total_loc": 272,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1_EFFECT_LAYER",
+      "description": "Effect layer — adopt V10-verified WIP (fsRenameFile/fsRenameFileResult, both-path sandbox, no fallback) + RegisterOp entries in internal/effects/fs.go",
+      "estimated_loc": 57,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Call(ctx, \"FS\", \"renameFile\", ...) renames a file within the sandbox",
+        "Sandbox escape rejected on BOTH oldPath and newPath (nothing renamed on either)",
+        "renameFileResult returns Ok(()) on success and Err(message) on missing source"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "WIP at internal/effects/fs_dir.go:159-253 verified by design-doc V10; adopt, verify against V10 during testing"
+    },
+    {
+      "id": "M2_BUILTIN_STDLIB_CODEGEN",
+      "description": "_fs_rename/_fs_renameResult registrations with full metadata in internal/builtins/fs.go; _fs_rename stub row in registry_codegen_io.go (sibling-consistent with _fs_removeFile, *Result omission per design V9); renameFile/renameFileResult exports in std/fs.ail",
+      "estimated_loc": 90,
+      "dependencies": [
+        "M1_EFFECT_LAYER"
+      ],
+      "acceptance_criteria": [
+        "ailang builtins list shows both builtins with complete metadata (Since v0.35.0)",
+        "ailang doctor builtins clean",
+        "stdlib_codegen_resolution_test.go passes unmodified",
+        "Issue #897 repro (import std/fs (renameFile)) passes ailang check"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_TESTS_VERIFICATION_DOCS",
+      "description": "6 effect tests (success, dir rename in sandbox, missing source, sandbox escape x2, Result variant); regression fixtures; CHANGELOG entry under v0.35.0",
+      "estimated_loc": 125,
+      "dependencies": [
+        "M2_BUILTIN_STDLIB_CODEGEN"
+      ],
+      "acceptance_criteria": [
+        "6 new tests pass in internal/effects/fs_test.go",
+        "TestFSExists_Success and TestFSSandbox_AbsolutePathOutsideSandbox pass unmodified",
+        "ailang run examples/runnable/directory_ops.ail, effects_fs_io.ail, examples/tests/test_effect_fs.ail behave unchanged",
+        "make test green; make fmt clean",
+        "CHANGELOG entry added under v0.35.0"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Final commit uses Fixes #897; development commits use refs #897"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "sprint_id": "M-DX-SESSION-GATE",
+  "status": "not_started",
+  "created": "2026-08-28T09:06:20Z",
+  "design_doc": "design_docs/planned/v0_35_0/m-dx-session-protocol-gate.md",
+  "sprint_plan": "design_docs/planned/v0_35_0/m-dx-session-gate-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 210,
+    "estimated_total_loc": 210,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1_EXTENSION_CORE",
+      "description": ".pi/extensions/session-protocol-gate.ts: session_start arming (V4), session_protocol_ack tool with prerequisite enforcement (ctx.ui.confirm in TUI per V11; getBranch scan for CLAUDE.md-touch + ailang messages bash call in headless per V10), tool_call interceptor with quoted block contract (V1); pure shouldBlock predicate",
+      "estimated_loc": 120,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Fresh interactive session: edit/write blocked with the standard reason",
+        "Bash commands outside the read-only allowlist blocked while armed",
+        "Ack refused while prerequisites unmet, listing the missing steps",
+        "Read-only tools (read, grep, ailang messages list) never blocked"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Block contract quoted from pi 0.84.3 extensions.md line 774; pi APIs verified V1-V12"
+    },
+    {
+      "id": "M2_PERSISTENCE_EDGES",
+      "description": "Ack reconstruction via documented State Management pattern (getBranch scan for ack tool-result details, V10); fail-closed re-arm on ambiguity; /reload and /resume re-derivation",
+      "estimated_loc": 30,
+      "dependencies": [
+        "M1_EXTENSION_CORE"
+      ],
+      "acceptance_criteria": [
+        "Resumed session with prior ack: not blocked",
+        "New session after ack: armed again",
+        "Fail-closed: ambiguous reconstruction re-arms the gate",
+        "/reload does not duplicate gates or disarm"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_VALIDATION_DOCS",
+      "description": "Table-driven shouldBlock tests; Phase-3 validation matrix (fresh block, pi -p identical, resumed unblocked, F5 coordinator inheritance check); .pi/extensions/README.md; CHANGELOG entry under v0.35.0 DX section",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M2_PERSISTENCE_EDGES"
+      ],
+      "acceptance_criteria": [
+        "shouldBlock table tests pass (tool x bash command x acked)",
+        "pi -p headless behaves identically to TUI (V6)",
+        "make fmt .claude/ hook and @ollama/pi-web-search extension unaffected",
+        "README documents disarm steps and F1 --no-extensions as forbidden in this repo",
+        "All design-doc Success Criteria boxes pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Ships via git - other machines inherit the gate on pull"
+    }
+  ]
+}
