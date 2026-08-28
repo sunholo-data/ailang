@@ -85,7 +85,15 @@ func (c *Client) CheckConnection(ctx context.Context) error {
 }
 
 // Generate implements ai.Provider.
-// It uses Ollama's Chat API for instruction following.
+// It uses Ollama's Generate API (/api/generate) rather than Chat (/api/chat):
+// for a single-turn tool-less request they are semantically equivalent (the
+// model template is applied either way, with System as the system override),
+// but measured on the rig (ollama 0.33.1, gemma4:e4b, 2026-08-28) the same
+// byte-identical schema-enforced request takes ~0.6s via /api/generate and
+// 15-26s via /api/chat, with server-side runner time ~1-2s in both cases —
+// the gap is in ollama's chat-endpoint scheduling. fb_2dbfd79dbe2d1d3c.
+// The tool paths (Step, streaming Step) still use /api/chat because they need
+// multi-turn messages and tool definitions, which Generate cannot express.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
 	// Bound the call so a stalled native /api/chat stream can't hang forever
 	// (M-OLLAMA-NATIVE-TIMEOUT; mirrors Step). No-op when called via Step, which
@@ -114,21 +122,6 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 
 	var response strings.Builder
 
-	// Build messages
-	messages := []ollamaapi.Message{}
-
-	if req.SystemPrompt != "" {
-		messages = append(messages, ollamaapi.Message{
-			Role:    "system",
-			Content: req.SystemPrompt,
-		})
-	}
-
-	messages = append(messages, ollamaapi.Message{
-		Role:    "user",
-		Content: req.FullUserPrompt(),
-	})
-
 	// Build options
 	options := map[string]interface{}{
 		"seed": int64(42), // Deterministic by default
@@ -151,27 +144,28 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		options["temperature"] = req.Temperature
 	}
 
-	// Build chat request (strip any "ollama:"/"ollama/" routing prefix — Ollama
-	// rejects the prefixed form as an invalid model name).
-	chatReq := &ollamaapi.ChatRequest{
-		Model:    bareModel(req.Model),
-		Messages: messages,
-		Options:  options,
+	// Build generate request (strip any "ollama:"/"ollama/" routing prefix —
+	// Ollama rejects the prefixed form as an invalid model name).
+	genReq := &ollamaapi.GenerateRequest{
+		Model:   bareModel(req.Model),
+		Prompt:  req.FullUserPrompt(),
+		System:  req.SystemPrompt,
+		Options: options,
 	}
 
 	// Add JSON format if structured output requested
 	if req.ResponseFormat == "json" {
 		if req.ResponseSchema != "" {
-			chatReq.Format = json.RawMessage(req.ResponseSchema)
+			genReq.Format = json.RawMessage(req.ResponseSchema)
 		} else {
-			chatReq.Format = json.RawMessage(`"json"`)
+			genReq.Format = json.RawMessage(`"json"`)
 		}
 	}
 
-	// Use Chat API for instruction following
+	// Use Generate API for instruction following
 	var tally tokenTally
-	err := c.client.Chat(ctx, chatReq, func(resp ollamaapi.ChatResponse) error {
-		response.WriteString(resp.Message.Content)
+	err := c.client.Generate(ctx, genReq, func(resp ollamaapi.GenerateResponse) error {
+		response.WriteString(resp.Response)
 		tally.observe(resp.Metrics)
 		return nil
 	})

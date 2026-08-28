@@ -299,10 +299,11 @@ func TestStep_NativePath_TimesOut(t *testing.T) {
 // Generate via the same ollama chat endpoint.
 func TestStep_NoMessages_DelegatesToGenerate(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Ollama Chat API streams NDJSON. Emit a single response chunk
-		// with done=true so the streaming loop terminates immediately.
+		// The tool-less path now goes through Generate (/api/generate), which
+		// streams NDJSON GenerateResponse chunks. Emit a single chunk with
+		// done=true so the streaming loop terminates immediately.
 		w.Header().Set("Content-Type", "application/x-ndjson")
-		_, _ = w.Write([]byte(`{"model":"llama3.2","created_at":"2026-05-05T13:00:00Z","message":{"role":"assistant","content":"hi from Generate"},"done":true}` + "\n"))
+		_, _ = w.Write([]byte(`{"model":"llama3.2","created_at":"2026-05-05T13:00:00Z","response":"hi from Generate","done":true}` + "\n"))
 	}))
 	defer srv.Close()
 
