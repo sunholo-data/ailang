@@ -94,6 +94,8 @@ _fs_readFileBytes : string -> Result[string, string] ! {FS}
 _fs_readFileResult : string -> Result[string, string] ! {FS}
 _fs_removeFile : string -> () ! {FS}
 _fs_removeFileResult : string -> Result[(), string] ! {FS}
+_fs_rename : (string, string) -> () ! {FS}
+_fs_renameResult : (string, string) -> Result[(), string] ! {FS}
 _fs_writeFile : (string, string) -> () ! {FS}
 _fs_writeFileBytes : (string, bytes) -> () ! {FS}
 _fs_writeFileResult : (string, string) -> Result[(), string] ! {FS}

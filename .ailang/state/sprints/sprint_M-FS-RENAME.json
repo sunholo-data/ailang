@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-FS-RENAME",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-08-28T09:06:20Z",
   "design_doc": "design_docs/planned/v0_35_0/m-fs-rename.md",
   "sprint_plan": "design_docs/planned/v0_35_0/m-fs-rename-sprint-plan.md",
@@ -15,7 +15,7 @@
   "features": [
     {
       "id": "M1_EFFECT_LAYER",
-      "description": "Effect layer — adopt V10-verified WIP (fsRenameFile/fsRenameFileResult, both-path sandbox, no fallback) + RegisterOp entries in internal/effects/fs.go",
+      "description": "Effect layer \u2014 adopt V10-verified WIP (fsRenameFile/fsRenameFileResult, both-path sandbox, no fallback) + RegisterOp entries in internal/effects/fs.go",
       "estimated_loc": 57,
       "dependencies": [],
       "acceptance_criteria": [
@@ -23,10 +23,10 @@
         "Sandbox escape rejected on BOTH oldPath and newPath (nothing renamed on either)",
         "renameFileResult returns Ok(()) on success and Err(message) on missing source"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "WIP at internal/effects/fs_dir.go:159-253 verified by design-doc V10; adopt, verify against V10 during testing"
+      "passes": true,
+      "started": "2026-08-28T09:20:00Z",
+      "completed": "2026-08-28T09:26:00Z",
+      "notes": "WIP adopted + registered; 6/6 rename tests green after fixing test-harness sandbox wiring"
     },
     {
       "id": "M2_BUILTIN_STDLIB_CODEGEN",
@@ -41,10 +41,10 @@
         "stdlib_codegen_resolution_test.go passes unmodified",
         "Issue #897 repro (import std/fs (renameFile)) passes ailang check"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-08-28T09:26:00Z",
+      "completed": "2026-08-28T11:10:00Z",
+      "notes": "builtins registered (fs=20), codegen stub row, std/fs.ail wrappers; repro compiles; doctor clean"
     },
     {
       "id": "M3_TESTS_VERIFICATION_DOCS",
@@ -60,10 +60,10 @@
         "make test green; make fmt clean",
         "CHANGELOG entry added under v0.35.0"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "Final commit uses Fixes #897; development commits use refs #897"
+      "passes": true,
+      "started": "2026-08-28T11:10:00Z",
+      "completed": "2026-08-28T11:20:00Z",
+      "notes": "6 tests green; 3 regression example programs pass; make test: only pre-existing coordinator flake + golden updated (2 new signatures); CHANGELOG added"
     }
   ]
 }
