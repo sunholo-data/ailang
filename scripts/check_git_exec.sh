@@ -50,9 +50,16 @@ while read -r file base; do
 	fi
 done <"$BASELINE"
 
-LOOKPATH_ALL=$(grep -R -n -F 'exec.LookPath("git")' "$SCAN_ROOT/cmd" "$SCAN_ROOT/internal" --include='*.go' | grep -v '_test.go:' || true)
-LOOKPATH_TOTAL=$(printf '%s\n' "$LOOKPATH_ALL" | awk 'NF {n++} END {print n+0}')
-LOOKPATH_OUTSIDE=$(printf '%s\n' "$LOOKPATH_ALL" | grep -v '/internal/gitexec/' | awk 'NF {n++} END {print n+0}')
+# AST-based, for the same reason the exec.Command enumeration is (HID-6): a
+# line-oriented matcher cannot see a gofmt-canonical multi-line call, nor an
+# aliased os/exec import. Both evasions were demonstrated against the previous
+# grep form by the iteration-298 evaluator and reproduced by the controller.
+LOOKPATH_ALL=$(sed -n 's/^LOOKPATH //p' "$TMP_DIR/ast.out")
+LOOKPATH_TOTAL=$(sed -n 's/^LOOKPATH_TOTAL //p' "$TMP_DIR/ast.out" | head -1)
+case "$LOOKPATH_TOTAL" in ''|*[!0-9]*)
+	printf 'INSTRUMENT BROKEN: enumerator emitted no LOOKPATH_TOTAL\n' >&2; exit 2 ;;
+esac
+LOOKPATH_OUTSIDE=$(printf '%s\n' "$LOOKPATH_ALL" | grep -v '^internal/gitexec/' | awk 'NF {n++} END {print n+0}')
 if [ "$LOOKPATH_OUTSIDE" -gt 0 ]; then
 	printf 'LookPath("git") outside internal/gitexec:\n%s\n' "$LOOKPATH_ALL" >&2; FAILED=1
 fi
@@ -66,6 +73,6 @@ if [ "$AST_TOTAL" -ne "$RX_TOTAL" ]; then
 fi
 
 printf 'git exec AST total: %s; regex total: %s; fixture total: %s\n' "$AST_TOTAL" "$RX_TOTAL" "$FIXTURE_COUNT"
-printf 'Residual classes (not covered): variable first argument; dataflow/aliasing; shell strings; syscall.Exec; non-Go surfaces. Test files are excluded.\n'
+printf 'Residual classes (not covered): command name via a variable or constant (dataflow); dot-imports of os/exec; shell strings; syscall.Exec; non-Go surfaces. Test files are excluded. Aliased os/exec imports and multi-line calls ARE covered: both arms resolve through the AST and the import declarations.\n'
 [ "$FAILED" -eq 0 ] || exit 1
 printf 'git exec gate: OK\n'

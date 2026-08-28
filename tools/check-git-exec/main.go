@@ -18,10 +18,58 @@ type finding struct {
 	Line int
 }
 
-func enumerate(root string, paths []string) ([]finding, error) {
-	var out []finding
+// execNames returns the set of identifiers that refer to package os/exec in f.
+//
+// Resolving through the import declarations rather than matching the literal
+// identifier "exec" is what makes an aliased import (`import exe "os/exec"`)
+// visible. A name-only check is evaded by one keystroke, and the evasion is
+// gofmt-canonical, so nothing else in the toolchain would surface it.
+func execNames(f *ast.File) map[string]bool {
+	names := map[string]bool{}
+	for _, imp := range f.Imports {
+		p, err := strconv.Unquote(imp.Path.Value)
+		if err != nil || p != "os/exec" {
+			continue
+		}
+		switch {
+		case imp.Name == nil:
+			names["exec"] = true
+		case imp.Name.Name == "." || imp.Name.Name == "_":
+			// A dot-import puts Command/LookPath in file scope unqualified and a
+			// blank import cannot call anything. Neither is matchable by the
+			// selector walk below; both are declared residuals, not silent passes.
+		default:
+			names[imp.Name.Name] = true
+		}
+	}
+	return names
+}
+
+// gitLiteralAt reports whether call's argument at idx is the string literal "git".
+func gitLiteralAt(call *ast.CallExpr, idx int) bool {
+	if len(call.Args) <= idx {
+		return false
+	}
+	lit, ok := call.Args[idx].(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING {
+		return false
+	}
+	v, err := strconv.Unquote(lit.Value)
+	return err == nil && v == "git"
+}
+
+// enumerate walks every non-test .go file under root/paths and returns, per
+// AST rather than per line, the bare-name git exec sites and the LookPath("git")
+// sites.
+//
+// Both are AST-based for the same reason (design HID-6): grep is line-anchored,
+// and gofmt wraps an argument list as soon as it grows or a comment anchors it,
+// so a line-oriented matcher cannot see the shape the formatter itself produces.
+// The LookPath arm was line-oriented until the iteration-298 evaluator planted a
+// gofmt-canonical multi-line duplicate resolver and the gate reported OK.
+func enumerate(root string, paths []string) (cmds []finding, lookPaths []finding, err error) {
 	for _, base := range paths {
-		err := filepath.Walk(filepath.Join(root, base), func(path string, info os.FileInfo, err error) error {
+		walkErr := filepath.Walk(filepath.Join(root, base), func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -35,10 +83,16 @@ func enumerate(root string, paths []string) ([]finding, error) {
 				return nil
 			}
 			fset := token.NewFileSet()
-			f, err := parser.ParseFile(fset, path, nil, 0)
+			f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 			if err != nil {
 				return fmt.Errorf("parse %s: %w", path, err)
 			}
+			names := execNames(f)
+			if len(names) == 0 {
+				return nil
+			}
+			rel, _ := filepath.Rel(root, path)
+			rel = filepath.ToSlash(rel)
 			ast.Inspect(f, func(n ast.Node) bool {
 				call, ok := n.(*ast.CallExpr)
 				if !ok {
@@ -49,43 +103,44 @@ func enumerate(root string, paths []string) ([]finding, error) {
 					return true
 				}
 				id, ok := sel.X.(*ast.Ident)
-				if !ok || id.Name != "exec" {
+				if !ok || !names[id.Name] {
 					return true
 				}
-				idx := 0
-				if sel.Sel.Name == "CommandContext" {
-					idx = 1
-				} else if sel.Sel.Name != "Command" {
-					return true
+				line := fset.Position(call.Pos()).Line
+				switch sel.Sel.Name {
+				case "Command":
+					if gitLiteralAt(call, 0) {
+						cmds = append(cmds, finding{rel, line})
+					}
+				case "CommandContext":
+					if gitLiteralAt(call, 1) {
+						cmds = append(cmds, finding{rel, line})
+					}
+				case "LookPath":
+					if gitLiteralAt(call, 0) {
+						lookPaths = append(lookPaths, finding{rel, line})
+					}
 				}
-				if len(call.Args) <= idx {
-					return true
-				}
-				lit, ok := call.Args[idx].(*ast.BasicLit)
-				if !ok || lit.Kind != token.STRING {
-					return true
-				}
-				v, err := strconv.Unquote(lit.Value)
-				if err != nil || v != "git" {
-					return true
-				}
-				rel, _ := filepath.Rel(root, path)
-				out = append(out, finding{filepath.ToSlash(rel), fset.Position(call.Pos()).Line})
 				return true
 			})
 			return nil
 		})
-		if err != nil {
-			return nil, err
+		if walkErr != nil {
+			return nil, nil, walkErr
 		}
 	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].File == out[j].File {
-			return out[i].Line < out[j].Line
+	sortFindings(cmds)
+	sortFindings(lookPaths)
+	return cmds, lookPaths, nil
+}
+
+func sortFindings(fs []finding) {
+	sort.Slice(fs, func(i, j int) bool {
+		if fs[i].File == fs[j].File {
+			return fs[i].Line < fs[j].Line
 		}
-		return out[i].File < out[j].File
+		return fs[i].File < fs[j].File
 	})
-	return out, nil
 }
 
 func main() {
@@ -95,13 +150,13 @@ func main() {
 	if len(paths) == 0 {
 		paths = []string{"cmd", "internal"}
 	}
-	fs, err := enumerate(*root, paths)
+	cmds, lookPaths, err := enumerate(*root, paths)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
 	counts := map[string]int{}
-	for _, f := range fs {
+	for _, f := range cmds {
 		counts[f.File]++
 		fmt.Printf("SITE %s:%d\n", f.File, f.Line)
 	}
@@ -113,5 +168,9 @@ func main() {
 	for _, f := range files {
 		fmt.Printf("COUNT %s %d\n", f, counts[f])
 	}
-	fmt.Printf("TOTAL %d\n", len(fs))
+	fmt.Printf("TOTAL %d\n", len(cmds))
+	for _, f := range lookPaths {
+		fmt.Printf("LOOKPATH %s:%d\n", f.File, f.Line)
+	}
+	fmt.Printf("LOOKPATH_TOTAL %d\n", len(lookPaths))
 }
