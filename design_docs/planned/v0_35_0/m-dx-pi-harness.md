@@ -35,10 +35,14 @@ Repo developer-experience tooling (pi extensions), not language surface. Scores 
 
 ## Verification Log
 
-pi-platform claims inherit from M-DX-SESSION-PROTOCOL-GATE V1–V12 (verified against pi 0.84.3 docs and live sessions). New claims verified this session:
+pi-platform claims — verified against pi 0.84.3 and demonstrated by SHIPPED code in this repo (the
+session gate, e2e-validated 2026-08-28); the load-bearing rows are inlined here so this doc is
+self-contained (round-2 quorum fix):
 
 | # | Claim | Method | Result |
 |---|-------|--------|--------|
+| V11 | `pi.registerTool` registers LLM-callable tools (`parameters` + `execute` → `{content, details}`) | extensions.md "Custom Tools"; **demonstrated live**: the shipped session-protocol-gate.ts registers `session_protocol_ack` this way, exercised end-to-end in `-p` mode today | Confirmed by working code |
+| V12 | `tool_call` interception can inspect bash input and warn without blocking; per-session state reconstructs via `getBranch()` | extensions.md `tool_call` contract (gate doc V1); the gate's interceptor + getBranch ack-reconstruction run in production in this repo today; warnings use `ctx.ui.notify` (documented fire-and-forget in TUI+RPC) | Confirmed by working code |
 | V1 | `ailang builtins list --json` emits structured inventory (name, module, signature, effect, num_args, description) | Ran it live: single-line JSON array covering all std modules incl. `std/fs` (20 builtins) | Confirmed |
 | V2 | `.pi/extensions/` currently contains exactly the session gate + README (+ dotfile test) | `ls .pi/extensions/` | Confirmed — no existing extension does anything proposed here |
 | V3 | `ailang check` failures carry structured codes (IMP010/TCxxx/MODxxx/EFF_*) with file:line:col spans | Live: `builtinHint` e2e output 2026-08-28; import-hint machinery in `internal/importhint` | Confirmed |
@@ -145,8 +149,20 @@ Five extensions across two streams, each self-contained (≤150 LOC), each wrapp
 **A2 `sprint-steward` (commands)**
 - `/sprint:start <id>` / `/sprint:complete <milestone>`: updates only `passes`/`started`/`completed`/`notes` in the named sprint JSON, then schema-validates (no placeholder IDs, LOC sum matches, ≥2 features). Rejects everything else — the constrained-modification contract becomes mechanical.
 
-**A3 `tree-ownership` (tool_call hook)**
-- Maintains a per-session set of files this session has itself written. On `git add`/`git stash`/`git checkout` bash commands, emits a non-blocking warning (`notify`) when the command's file set intersects *long-dirty files not in this session's set* — the ollama/client.go incident. Blocking here would be wrong (legitimate cross-agent coordination exists); the guard makes silent sweeps visible.
+**A3 `unowned-dirty` warning (tool_call + notify)**
+- **Honest scope (round-2 redesign):** parsing "the command's file set" from arbitrary bash is
+  impossible pre-execution (`git add .`, `$(find …)` evaluate dynamically), and "ownership" inferred
+  from an in-memory session set is a heuristic, not authority. The guard therefore claims neither.
+  It is a **visibility warning**, mechanically grounded in git itself:
+  - Session's own files = files written via this session's `edit`/`write` toolCalls (getBranch
+    reconstruction, V10 pattern — the same mechanism the shipped session gate uses, live-verified).
+  - Trigger: bash command matches `git add`/`git stash`/`git checkout`. The hook runs
+    `git status --porcelain` (the AUTHORITY for what is dirty — 10s subprocess timeout) and warns:
+    `"This operation may sweep N dirty file(s) not written by this session: […]"`.
+  - Never blocks, never claims ownership — it converts a silent sweep into a visible one, and its
+    output names itself a heuristic.
+- If this session wrote no files (e.g. a triage session), the warning fires only when unowned dirty
+  files exist — pure git authority, zero inference about other sessions.
 
 **A4 `builtin-sprint` (command)**
 - `/builtin:finish`: chains golden refresh → `doctor builtins` → `builtins list --json` diff vs previous → CHANGELOG stub location hint. The four-step ceremony in one command, output structured.
