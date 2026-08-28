@@ -1,42 +1,38 @@
 # Mission Dashboard — V1
 
-*Snapshot, overwritten each iteration. History lives in the charter STATUS block and the mission log.*
+*Snapshot, overwritten every iteration. History lives in the charter STATUS block and the mission log.*
 
-**As of**: 2026-08-28 06:50 CEST · iteration **297** · `origin/dev` = `5e5c77dee`
+**Last iteration**: 298 · 2026-08-28 · LANDED
 
 ## Latest
-- **v0.34.0** released. Last landing: **PR #949 → `5e5c77dee`** (iteration 297) — the prompt-freeze
-  CI gate now checks **every** registry entry, not only frozen ones.
-- Why it mattered: 59 registry entries, 58 frozen, **1 mutable — `v0.16.6`, which is also `active`**,
-  i.e. the prompt every agent reads. Its `.md` could diverge, be deleted, or have its embedded mirror
-  deleted, all at rc=0. Now rc=1 with a named violation. Merge-base immutability stays frozen-only.
 
-## In flight / next
-- **`m-openrouter-session-chain-registration`** — PARKED on **`D-47`**. PR #945 is a DRAFT; the
-  mechanism misattributes spans rather than merely failing to resolve them. Do not re-route until D-47 lands.
-- Next picks: `m-std-smt` (external feature request, needs a doc) · `sonarcloud-new-code-gate-red`
-  (premise re-measured iter-294) · `m-git-binary-resolution-sweep` (doc written, quorum not yet run).
+- **Landed**: `m-git-binary-resolution-sweep` **M1** — PR [#954](https://github.com/sunholo-data/ailang/pull/954) → squash `8a993bb89`. All four required contexts green **on the merge commit**. Evaluator PASS 91/100 with one BLOCKING, reproduced and fixed before merge.
+- `internal/gitexec` now exists; 4 SonarCloud-flagged `go:S4036` sites + `help.go` converted; `make check-git-exec` runs in CI as a `go/ast` ratchet gate.
+- **89 of 93 sites remain** — that is M2/M3/M4, and it is deliberate, not a shortfall.
+
+## Next picks
+
+1. **`m-git-binary-resolution-sweep` M2** — the 43 `internal/coordinator` sites. Mechanical against a contract M1 froze; largest single block. Re-seed the ratchet baseline by measurement, never from the doc.
+2. `m-std-smt` — external feature request, still needs a design doc + quorum.
+3. `m-coordinator-child-env-opencode-retry-storm` — NEW this iteration from inbox triage.
 
 ## Loop health
-- Cadence nominal. Iterations 295/296/297 all completed end-to-end; no reaped slots.
-- Routing this iteration: controller `opus` · designer `fable` (Agent-tool pin) · planner `opus`
-  (lane derived verbatim) · executor `codex:gpt-5.6-sol` · evaluator `sonnet` (own worktree).
-  generator≠judge held on both axes.
-- **FLAGGED, instance 2 (after iter-294)**: the designer rotation's next entry is
-  `pi:ollama/kimi-k3:cloud`, which the Agent tool cannot express, so the pointer did not advance.
-  The rotation has one Agent-tool-expressible authoring lane. Routing-policy fix needs a human.
-- `SonarCloud Code Analysis` has been `failure` on dev for 9+ consecutive commits. Non-required,
-  named every iteration, never the pick. `sonarcloud-new-code-gate-red` is the queue row for it.
 
-## Parked on Mark — 5 open decisions
-| ID | One-line |
-|----|----------|
-| **D-42** | Standing authorization to reconcile this clone to `origin/dev` unattended? Local `dev` is now **21 behind**; a fleet-wide driver fix cannot reach a clone that never advances. |
-| **D-43** | Should `std/string.charAt` itself become total, or does the new `charAtOpt`/`charAt_or` pair close it? |
-| **D-44** | May `ai_check.go`'s verify denominator be corrected, given it moves a KPI with a banked baseline? |
-| **D-46** | Who reconciles the `M-MISSION-LOOP-UNIFIED-TELEMETRY` sprint JSON — `mine` or `loop`? |
-| **D-47** | OpenRouter session registration is chain-grained; the doc asks for stage-bound. Chain-only, per-request id, or redesign the join? |
+- Designer rotation **advanced** to `pi:ollama/deepseek-v4-flash:0731-cloud` after its first real run (verdict `ok`, 214s, $0 flat-rate). This closes the two-iteration FLAG where the rotation had no lane the controller could express.
+- **Fable diet UNSPENT** this iteration — the rotation designer was the pi lane.
+- Routing: controller `opus` · designer `pi/deepseek` · planner `opus` (lane derived verbatim) · executor `codex:gpt-5.6-sol` · evaluator `sonnet`. generator≠judge held on both axes.
+- **metered $0.2262 of $5** — two quorum rounds only.
+- Local `dev` is **4 behind** origin (`D-42`, still OPEN, not reconciled). Every write went to a worktree branched from `origin/dev`.
 
-## Quota / cost posture
-- Iteration 297 metered spend: **$0.2358** of the $5 ceiling — two quorum rounds only.
-- No managed_agents call, no pi lane, no GPU. codex lane probed rc=0 and was used for the executor.
+## Parked on Mark
+
+- `D-42` — standing authorisation to reconcile the main checkout to origin? (recurs every iteration)
+- `D-43` — should `charAt` itself become total at a prompt-version boundary?
+- `D-44` — `ai_check.go:289` has the same verify blindness; correcting it moves a KPI with a recorded baseline.
+- `D-46` — open.
+- `D-47` — OpenRouter session registration is chain-grained while the doc asks for stage-bound; gates `m-openrouter-session-chain-registration`. An approval-spine message is outstanding.
+
+## Standing notes
+
+- `SonarCloud Code Analysis` is a **standing inherited red** on dev — non-required, measured `failure` across preceding commits each iteration. Not attributable to recent work.
+- Public feedback `fb_8b1ba5865c7e2b01` (ailang-parse eml defect, 308 of 80,042 messages) is routed to its own product lane, deliberately left unacked for its owner.
