@@ -18,7 +18,7 @@ Repo developer-experience tooling (pi extensions), not language surface. Scores 
 | A2: Replayability | 0 | No trace impact |
 | A3: Effect Legibility | 0 | No effect system change |
 | A4: Explicit Authority | +1 | Stream A adds mechanical guards (binary-freshness, tree-ownership, sprint-schema) — authority checks that today are tribal knowledge |
-| A5: Bounded Verification | +1 | Stream B puts the real builtin inventory and structured diagnostics inside the agent's context, shrinking guess-and-check loops |
+| A5: Bounded Verification | +1 | Every wrapper subprocess runs under an explicit timeout contract (see Subprocess Contract) — a hang degrades to a structured TIMEOUT result, never an indefinite block; Stream B additionally puts the real builtin inventory inside the agent's context |
 | A6: Safe Concurrency | 0 | No concurrency surface |
 | A7: Machines First | +1 | The entire workstream is machine ergonomics: structured diagnostics over CLI text, mechanical guards over conventions |
 | A8: Minimal Syntax | 0 | No syntax |
@@ -47,6 +47,8 @@ pi-platform claims inherit from M-DX-SESSION-PROTOCOL-GATE V1–V12 (verified ag
 | V6 | Sprint JSONs use a constrained-modification contract (only `passes`/timestamps/`notes` change) | Schema created today: `.ailang/state/sprints/sprint_M-*.json` | Confirmed — currently enforced by nothing mechanical |
 | V7 | Full `make test` takes minutes (coordinator suite alone 28s, and flaky) | Timed this session | Confirmed — targeted ceremony has real value |
 | V8 | No prior design doc covers pi as a *development* harness | `m-exec-pi-harness.md` (v0.14.2, implemented) covers pi as an *executor* for evals — complementary, cited below | Confirmed |
+| V9 | A1's freshness stamp mechanism exists and is machine-readable | Ran `ailang version` live: prints `Commit: 46abe77` + `Full: <hash>[-dirty]` + `Built: <RFC3339>`. The `-dirty` suffix on Full is itself the DIRTY-TREE signal — no stamp extraction beyond parsing this output. Fallback: version output without a Commit line → A1 reports UNKNOWN (fail-closed, never false-FRESH) | Confirmed |
+| V10 | A4's automated commands exist and behave as claimed | `UPDATE_GOLDEN=1 go test -v ./internal/pipeline -run TestBuiltinTypes_GoldenSnapshot` is the documented update path (builtin_golden_types_test.go:28) and was RUN LIVE this session (regenerated the golden for the two new builtins); `ailang doctor builtins` was run live (clean; per-module counts incl. `std/fs: 20`) | Confirmed |
 
 ## Problem Statement
 
@@ -111,6 +113,21 @@ Implications for this workstream:
    (MOTOKO.md: only `dev/mk-ast` at `sunholo/eval-canonical` is canonical).
 4. **Symmetry is the point**: pi extensions inform motoko's design; motoko's measured
    techniques feed pi. This workstream is the pi-side half of that loop.
+
+## Subprocess contract (applies to every extension that shells out)
+
+All five extensions spawn subprocesses (`ailang check`, `ailang builtins list --json`, `git`,
+`go test`). Bounded waits apply to any tool that spawns a subprocess — a hung `ailang check`
+(e.g. a stale or broken binary, exactly A1's DIRTY-TREE scenario) must degrade to a structured
+failure, never an indefinite block:
+
+| Property | Contract |
+|---|---|
+| Timeouts | `ailang check` 30s · `builtins list --json` 15s · `git` read ops 10s · golden refresh (`go test`) 120s · `doctor` 30s |
+| On timeout | Kill child; return structured `{code:"TIMEOUT", command, elapsedMs}` — no silent retry; the caller decides |
+| Output caps | 64KB per stream; truncated output carries `{truncated: true}` |
+| No silent retries | Fail loud once; retrying is the caller's explicit choice |
+| Env | Subprocesses inherit cwd; `AILANG_FS_SANDBOX` unset unless a tool explicitly sets it |
 
 ## Solution Design
 
