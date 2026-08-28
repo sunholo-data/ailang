@@ -5,7 +5,7 @@ Ships via git — every machine inherits on pull. Tested against pi **0.84.3**.
 
 | Extension | What it does |
 |---|---|
-| `session-protocol-gate.ts` | Blocks edit/write + fail-closes bash until the session protocol is acked (see below) |
+| `session-protocol-gate.ts` | Blocks edit/write + fail-closes bash until the session protocol is acked (see below); **also appends `Co-Authored-By: pi (<provider>/<model>)` to allowed git commits** — the pi-analogue of Claude Code's convention, naming the model per session |
 | `binary-freshness.ts` | `freshness_report` tool + `/fresh`: is the installed ailang binary fresh vs HEAD? (FRESH/STALE/DIRTY/UNKNOWN, fail-closed) |
 | `sprint-steward.ts` | `/sprint-start <id>`, `/sprint-complete <id> <milestone>` — mechanical constrained-modification on sprint JSONs |
 | `unowned-dirty.ts` | Warns (never blocks) when a git add/stash/checkout may sweep dirty files this session didn't write — authority is `git status --porcelain` itself |

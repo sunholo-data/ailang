@@ -63,6 +63,64 @@ export function shouldBlock(
 	return null; // read-only and other tools are never blocked
 }
 
+/**
+ * Commit attribution (M-DX-PI-HARNESS addendum): the pi-analogue of Claude Code's
+ * Co-Authored-By convention. Lives in the GATE (not a separate extension) because the
+ * gate's tool_call handler is the single guaranteed observer of every bash call — a
+ * separate extension's handler can be skipped when the gate blocks (runner.js returns
+ * on first block).
+ */
+export const ATTR_EMAIL = "noreply@ailang.dev";
+
+export function attributionTrailer(model: { provider?: string; id?: string } | undefined | null): string {
+	if (model?.provider && model?.id) {
+		return `Co-Authored-By: pi (${model.provider}/${model.id}) <${ATTR_EMAIL}>`;
+	}
+	return `Co-Authored-By: pi-coding-agent <${ATTR_EMAIL}>`;
+}
+
+export function hasAttribution(command: string): boolean {
+	return /Co-Authored-By:|Assisted-By:/i.test(command);
+}
+
+function hasDynamicMessage(command: string): boolean {
+	return /\$\(|`/.test(command.split(/(?:-m|--message)\s/).pop() ?? "");
+}
+
+/**
+ * Pure: append the trailer to the LAST -m/--message argument of a `git commit` command.
+ * Returns patched/original command, or null when this isn't a commit (not our business).
+ * Conservative: skips command-substitution messages and editor-flow commits (notify path).
+ */
+export function appendAttribution(
+	command: string,
+	trailer: string,
+): { command: string; changed: boolean; skipped?: string } | null {
+	if (!/\bgit\b[^&|;]*\bcommit\b/.test(command)) return null;
+	if (hasAttribution(command)) return { command, changed: false, skipped: "already-attributed" };
+	if (hasDynamicMessage(command)) {
+		return { command, changed: false, skipped: "dynamic-message" };
+	}
+	const re = /(?:^|\s)(?:--message(?:\s*=\s*|\s+)|-[a-zA-Z]*m[a-zA-Z]*(?:\s*=\s*|\s+))(?:"([^"]*)"|'([^']*)'|([^\s"'][^\s]*))/g;
+	let last: { full: string; body: string; quote: '"' | "'" | "" } | null = null;
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(command)) !== null) {
+		last = {
+			full: m[0],
+			body: m[1] ?? m[2] ?? m[3] ?? "",
+			quote: m[1] !== undefined ? '"' : m[2] !== undefined ? "'" : "",
+		};
+	}
+	if (!last || last.body.trim() === "") return { command, changed: false, skipped: "editor-flow" };
+	const patched = command.replace(
+		last.full,
+		last.full.slice(0, last.full.length - (last.quote ? 1 : 0)) +
+			`\n\n${trailer}` +
+			(last.quote ?? ""),
+	);
+	return { command: patched, changed: true };
+}
+
 /** Does the session branch show evidence of the protocol's observable steps? */
 export function headlessPrerequisitesMet(branch: unknown[]): {
 	met: boolean;
@@ -127,16 +185,25 @@ export default async function (pi: ExtensionAPI) {
 		}
 	});
 
-	// The gate: block mutating tools while armed.
-	pi.on("tool_call", async (event, _ctx) => {
-		const reason = shouldBlock(
-			event.toolName,
-			event.toolName === "bash"
-				? (event.input as { command?: string } | undefined)?.command
-				: undefined,
-			acked,
-		);
+	// The gate: block mutating tools while armed. When a command PASSES the gate
+	// and is a git commit lacking attribution, append the trailer here — a single
+	// handler sees every bash call, so patching cannot be skipped by the
+	// block-short-circuit in pi's multi-handler dispatch (runner.js: returns on
+	// first block). M-DX-PI-HARNESS commit-attribution lives here by design.
+	pi.on("tool_call", async (event, ctx) => {
+		const command = (event.toolName === "bash")
+			? (event.input as { command?: string } | undefined)?.command
+			: undefined;
+		const reason = shouldBlock(event.toolName, command, acked);
 		if (reason) return { block: true, reason };
+		// Allowed bash: attribute git commits (best-effort, conservative)
+		if (command && event.toolName === "bash") {
+			const trailer = attributionTrailer(ctx.model as { provider?: string; id?: string } | undefined);
+			const result = appendAttribution(command, trailer);
+			if (result?.changed) {
+				(event.input as { command: string }).command = result.command;
+			}
+		}
 		return;
 	});
 

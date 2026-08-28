@@ -9,7 +9,7 @@
   ],
   "velocity": {
     "target_loc_per_day": 440,
-    "estimated_total_loc": 390,
+    "estimated_total_loc": 460,
     "estimated_days": 2
   },
   "features": [
@@ -61,6 +61,22 @@
       "started": null,
       "completed": "2026-08-28T12:15:00Z",
       "notes": "F5 deferred (register); compat matrix pi 0.84.3 in README; session-gate regression OK (all e2e runs included it); BONUS: caught + fixed dev CI RED (stdlib freeze goldens for #897) \u2014 second snapshot mechanism folded into /builtin-finish ceremony"
+    },
+    {
+      "id": "M4_COMMIT_ATTRIBUTION",
+      "description": "Approved addendum: commit-attribution folded INTO the session gate (single tool_call handler \u2014 a separate extension was skippable under pi's block short-circuit). Appends Co-Authored-By: pi (<provider>/<model-id>) <noreply@ailang.dev> to allowed git commits; conservative (skips dynamic messages/editor flow); distinguishes pi+model from Claude Code and the human",
+      "estimated_loc": 70,
+      "dependencies": [
+        "M1_STREAM_A_EXTENSIONS"
+      ],
+      "acceptance_criteria": [
+        "9+ table tests (flag clusters -am/-m=, idempotence, dynamic-message skip, harness fallback)",
+        "E2E: fresh gated -p session commit carries 'Co-Authored-By: pi (ollama/glm-5.3-flash:cloud)'"
+      ],
+      "passes": true,
+      "started": "2026-08-28T12:25:00Z",
+      "completed": "2026-08-28T12:40:00Z",
+      "notes": "E2E verified on /tmp scratch repo; debugging surfaced pi runner block-short-circuit (runner.js returns on first block) \u2014 consolidation into the gate removes the ordering dependency"
     }
   ]
 }
