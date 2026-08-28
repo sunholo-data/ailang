@@ -3,9 +3,22 @@
 This document summarizes the key facts an agent should know while working in this repository. Review it before making changes.
 
 ## Start Here (Required)
-- **Read `CLAUDE.md` first.** It is the operational source of truth for AILANG workflows, message handling, coordinator commands, and critical guardrails.
-- **Session start routine:** Check for messages with `ailang messages list --unread`, summarize any to the user, and acknowledge with `ailang messages ack --all` after handling.
+- **Read `CLAUDE.md` first — hard gate, not a suggestion.** It is the operational source of truth for AILANG workflows, message handling, coordinator commands, and critical guardrails. If you catch yourself about to edit code without having read it, stop and read it now.
+- **Session start routine (before any work):** Check for messages with `ailang messages list --unread`, summarize any to the user, and ask what to do **before** acking (`ailang messages ack <id>` / `--all`).
 - **Programming in AILANG:** Use `ailang prompt` to get the current teaching prompt before writing or editing `.ail` code.
+
+## Work Routing (do not self-approve)
+Classify every task BEFORE touching code, and pass its gate:
+
+| Scope | Examples | Gate |
+|---|---|---|
+| Read-only | triage, messages, issues, analysis, reading docs | None — proceed |
+| Trivial fix | typo, log line, one-line fix with obvious semantics | State the exact change, get explicit user OK, then act |
+| Feature / semantics | new builtins, stdlib changes, effects/parser/types, multi-file refactors | `design-doc-creator` → **user approval** → `sprint-planner` → user says "execute sprint" → `sprint-executor` → `sprint-evaluator` |
+
+- **Never implement without the gate for its scope.** Skills live in `.agents/skills/` — load the relevant skill at each step instead of improvising the process.
+- **If you find uncommitted work with no approved plan (yours or inherited): leave it parked uncommitted, tell the user, and propose the plan.** Do not continue it, and do not discard it (see Critical Guardrails).
+- **Advisory text gets skipped — this has been measured.** A prior session was told "Read CLAUDE.md first" in this very file, skipped it, and started implementing a feature. Assume any pointer you have not followed is a pointer you will violate; follow the gate mechanically, not from memory.
 
 ## Project Overview
 - **Language focus**: AILANG is a purely functional, effect-typed language designed as a deterministic execution substrate for AI-generated code.
