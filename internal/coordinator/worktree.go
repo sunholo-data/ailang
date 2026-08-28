@@ -112,7 +112,7 @@ func (wm *WorktreeManager) CreateWorktree(taskID, baseBranch string) (*Worktree,
 	// Capture the commit hash of baseBranch BEFORE creating worktree
 	// This is stable - the branch ref may move later, but this commit is fixed
 	baseCommit := ""
-	commitCmd := gitexec.Command("rev-parse", baseBranch)
+	commitCmd := gitexec.Command(gitCommandRevParse, baseBranch)
 	commitCmd.Dir = wm.repoDir
 	if commitOutput, err := commitCmd.Output(); err == nil {
 		baseCommit = strings.TrimSpace(string(commitOutput))
@@ -247,7 +247,7 @@ func (wm *WorktreeManager) CleanupAll() error {
 
 // loadExisting loads existing worktrees from git
 func (wm *WorktreeManager) loadExisting() error {
-	cmd := gitexec.Command("worktree", "list", "--porcelain")
+	cmd := gitexec.Command("worktree", "list", gitFlagPorcelain)
 	cmd.Dir = wm.repoDir
 	output, err := cmd.Output()
 	if err != nil {
@@ -306,14 +306,14 @@ func validateRepoDir(repoDir string) error {
 	if !info.IsDir() {
 		return fmt.Errorf("worktree repo dir %q is not a directory", repoDir)
 	}
-	if err := gitexec.Command("-C", repoDir, "rev-parse", "--git-dir").Run(); err != nil {
+	if err := gitexec.Command("-C", repoDir, gitCommandRevParse, "--git-dir").Run(); err != nil {
 		return fmt.Errorf("worktree repo dir %q is not a git repository: %w", repoDir, err)
 	}
 	return nil
 }
 
 func findGitRoot() (string, error) {
-	cmd := gitexec.Command("rev-parse", "--show-toplevel")
+	cmd := gitexec.Command(gitCommandRevParse, "--show-toplevel")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", err
@@ -332,7 +332,7 @@ func (wm *WorktreeManager) HasChanges(taskID string) (bool, error) {
 	}
 
 	// Check for uncommitted changes using git status
-	cmd := gitexec.Command("status", "--porcelain")
+	cmd := gitexec.Command("status", gitFlagPorcelain)
 	cmd.Dir = wt.Path
 	output, err := cmd.Output()
 	if err != nil {
@@ -360,7 +360,7 @@ func (wm *WorktreeManager) GetChangeSummary(taskID string) (*WorktreeChanges, er
 	}
 
 	// Get list of changed files
-	cmd := gitexec.Command("status", "--porcelain")
+	cmd := gitexec.Command("status", gitFlagPorcelain)
 	cmd.Dir = wt.Path
 	output, err := cmd.Output()
 	if err != nil {

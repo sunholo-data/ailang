@@ -120,7 +120,7 @@ func GetWorktreeDiff(ctx context.Context, worktreePath, baseBranch, baseCommit s
 
 // getWorktreeBranch returns the current branch name in the worktree.
 func getWorktreeBranch(ctx context.Context, worktreePath string) (string, error) {
-	cmd := gitexec.CommandContext(ctx, "rev-parse", "--abbrev-ref", "HEAD")
+	cmd := gitexec.CommandContext(ctx, gitCommandRevParse, "--abbrev-ref", "HEAD")
 	cmd.Dir = worktreePath
 	output, err := cmd.Output()
 	if err != nil {
@@ -143,7 +143,7 @@ func getChangedFiles(ctx context.Context, worktreePath, baseBranch, baseCommit s
 		}
 	}
 
-	cmd := gitexec.CommandContext(ctx, "diff", "--name-only", base+"..HEAD")
+	cmd := gitexec.CommandContext(ctx, "diff", gitFlagNameOnly, base+"..HEAD")
 	cmd.Dir = worktreePath
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -171,7 +171,7 @@ func getMainRepoPath(worktreePath string) string {
 	}
 
 	// Get the git directory of the worktree
-	cmd := gitexec.Command("rev-parse", "--git-dir")
+	cmd := gitexec.Command(gitCommandRevParse, "--git-dir")
 	cmd.Dir = worktreePath
 	output, err := cmd.Output()
 	if err != nil {
@@ -220,7 +220,7 @@ func gitMergeAbort(ctx context.Context, repoPath string) error {
 
 // getHeadCommit returns the HEAD commit hash.
 func getHeadCommit(ctx context.Context, repoPath string) (string, error) {
-	cmd := gitexec.CommandContext(ctx, "rev-parse", "HEAD")
+	cmd := gitexec.CommandContext(ctx, gitCommandRevParse, "HEAD")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {

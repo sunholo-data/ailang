@@ -123,7 +123,7 @@
     },
     {
       "id": "M2_COORDINATOR_SWEEP",
-      "description": "Mechanical conversion of the remaining 42 internal/coordinator sites to gitexec.Command / gitexec.CommandContext, preserving each site's cmd.Dir vs -C convention verbatim. No new decision; the contract is frozen by M1. Lands as its own PR after M1. Five sites in this repo already discard the error (_ = cmd.Run(): daemon_tasks_exec_run.go:461,463; worktree.go:239; and coordinator_browse.go:87,240 in M3) — conversion PRESERVES that silent swallow, which the design explicitly does not fix.",
+      "description": "Mechanical conversion of the remaining 42 internal/coordinator sites to gitexec.Command / gitexec.CommandContext, preserving each site's cmd.Dir vs -C convention verbatim. No new decision; the contract is frozen by M1. Lands as its own PR after M1. Eight sites across M2+M3 already discard the error: six in M2 (approval_processor.go 2, daemon_tasks_exec_run.go 2, worktree.go 2) and two in M3 (coordinator_browse.go 2). Conversion PRESERVES those silent swallows, which the design explicitly does not fix.",
       "estimated_loc": 90,
       "dependencies": ["M1_GITEXEC_CONTRACT_AND_GATE"],
       "files": [
@@ -139,14 +139,14 @@
       ],
       "acceptance_criteria": [
         "[base at M2 start: 89] AST enumerator total over cmd+internal == 47, re-derived by measurement",
-        "[base at M2 start: rc=1 'tighten the baseline'] `make check-git-exec` => rc=0 with the ratcheted baseline (the below-baseline branch G4 makes an unratcheted baseline fail loudly, so this AC IS falsifiable at M2's own base)",
+        "[pristine M2 base with matching 89-site baseline: rc=0; negative control after conversion with the 89-site baseline preserved: rc=1 with seven 'tighten the baseline' diagnostics] `make check-git-exec` => rc=0 with the ratcheted 47-site baseline (the below-baseline branch G4 makes the preserved baseline fail loudly, so this AC is falsifiable on the converted tree)",
         "[base 0 -> >=1] `grep -c 'gitexec' internal/coordinator/merge.go` >= 1",
         "REGRESSION GATE (rc=0 before and after): `go test ./internal/coordinator/... -count=1`"
       ],
       "passes": true,
       "started": "2026-08-28T14:47:00+02:00",
       "completed": "2026-08-28T14:55:15+02:00",
-      "notes": "Completed in mission iteration 300 on sprint/iter300-git-exec-m2: converted exactly 42 internal/coordinator bare-name Git subprocess sites across the seven planned files to internal/gitexec, preserving arguments, Dir conventions, error behavior, and all four M2 silent swallows. daemon_tasks_exec_run.go retains os/exec solely for the non-Git ailang publish command. Fresh AST and regex measurements agree at 47; the 89-site baseline failed with the expected tighten-the-baseline diagnostics before being ratcheted to 47. Coordinator and gitexec tests, narrowed build, full make test, lint, formatting, file-size, boundary, changelog, gate self-test, and missing-fixture anti-vacuity checks all passed."
+      "notes": "Completed in mission iteration 300 on sprint/iter300-git-exec-m2: converted exactly 42 internal/coordinator bare-name Git subprocess sites across the seven planned files to internal/gitexec, preserving arguments, Dir conventions, error behavior, and all six M2 silent swallows. daemon_tasks_exec_run.go retains os/exec solely for the non-Git ailang publish command. Fresh AST and regex measurements agree at 47; on the converted tree the preserved 89-site baseline failed with seven expected tighten-the-baseline diagnostics before being ratcheted to 47. PR #958 follow-up: its first Sonar analysis was red at 31.0% new-code coverage and 3.9% duplicated-line density, so focused real-repository tests were added for merge, worktree inspection/cleanup, and both auto-commit paths; artifact-path accumulation was factored to remove the duplicate block; and four reported repeated Git tokens moved to package constants. A local coverprofile mapped 50/57 diff-added executable lines covered (87.7%); Sonar must remeasure after push. Coordinator and gitexec tests, narrowed build, full make test, lint, formatting, file-size, boundary, changelog, gate self-test, and missing-fixture anti-vacuity checks all passed."
     },
     {
       "id": "M3_CMD_AILANG_SWEEP",

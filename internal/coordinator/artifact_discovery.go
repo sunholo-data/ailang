@@ -84,59 +84,48 @@ func (ad *ArtifactDiscovery) getChangedFiles() ([]string, error) {
 	// NOTE: Uses two-dot (..) not three-dot (...) to show only what HEAD added,
 	// not symmetric difference which would show changes from parallel branches
 	if base != "" {
-		cmd := gitexec.Command("diff", "--name-only", base+"..HEAD")
+		cmd := gitexec.Command("diff", gitFlagNameOnly, base+"..HEAD")
 		cmd.Dir = ad.WorktreePath
 		output, err := cmd.Output()
-		if err == nil && len(output) > 0 {
-			files := strings.Split(strings.TrimSpace(string(output)), "\n")
-			for _, f := range files {
-				if f != "" {
-					allFiles = append(allFiles, f)
-				}
-			}
+		if err == nil {
+			allFiles = appendUniqueFiles(allFiles, output)
 		}
 	}
 
 	// Also check uncommitted changes (staged + unstaged)
-	cmd := gitexec.Command("diff", "--name-only", "HEAD")
+	cmd := gitexec.Command("diff", gitFlagNameOnly, "HEAD")
 	cmd.Dir = ad.WorktreePath
 	output, err := cmd.Output()
-	if err == nil && len(output) > 0 {
-		files := strings.Split(strings.TrimSpace(string(output)), "\n")
-		for _, f := range files {
-			if f != "" && !sliceContains(allFiles, f) {
-				allFiles = append(allFiles, f)
-			}
-		}
+	if err == nil {
+		allFiles = appendUniqueFiles(allFiles, output)
 	}
 
 	// Get staged changes (in case HEAD doesn't exist yet)
-	cmd = gitexec.Command("diff", "--name-only", "--cached")
+	cmd = gitexec.Command("diff", gitFlagNameOnly, "--cached")
 	cmd.Dir = ad.WorktreePath
 	output, err = cmd.Output()
-	if err == nil && len(output) > 0 {
-		files := strings.Split(strings.TrimSpace(string(output)), "\n")
-		for _, f := range files {
-			if f != "" && !sliceContains(allFiles, f) {
-				allFiles = append(allFiles, f)
-			}
-		}
+	if err == nil {
+		allFiles = appendUniqueFiles(allFiles, output)
 	}
 
 	// Get untracked files
 	cmd = gitexec.Command("ls-files", "--others", "--exclude-standard")
 	cmd.Dir = ad.WorktreePath
 	output, err = cmd.Output()
-	if err == nil && len(output) > 0 {
-		files := strings.Split(strings.TrimSpace(string(output)), "\n")
-		for _, f := range files {
-			if f != "" && !sliceContains(allFiles, f) {
-				allFiles = append(allFiles, f)
-			}
-		}
+	if err == nil {
+		allFiles = appendUniqueFiles(allFiles, output)
 	}
 
 	return allFiles, nil
+}
+
+func appendUniqueFiles(files []string, output []byte) []string {
+	for _, file := range strings.Split(strings.TrimSpace(string(output)), "\n") {
+		if file != "" && !sliceContains(files, file) {
+			files = append(files, file)
+		}
+	}
+	return files
 }
 
 // detectBaseBranch determines which branch to use as the base for comparison.
@@ -173,7 +162,7 @@ func (ad *ArtifactDiscovery) detectBaseBranch() string {
 
 // branchExists checks if a branch exists in the worktree.
 func (ad *ArtifactDiscovery) branchExists(branch string) bool {
-	cmd := gitexec.Command("rev-parse", "--verify", branch)
+	cmd := gitexec.Command(gitCommandRevParse, "--verify", branch)
 	cmd.Dir = ad.WorktreePath
 	err := cmd.Run()
 	return err == nil

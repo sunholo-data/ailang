@@ -525,7 +525,7 @@ func processRejection(ctx context.Context, span trace.Span, params *ApprovalPara
 // autoCommitWorktreeChanges commits any uncommitted changes in the worktree.
 func autoCommitWorktreeChanges(worktreePath, taskTitle string) error {
 	// Check for changes
-	statusCmd := gitexec.Command("-C", worktreePath, "status", "--porcelain")
+	statusCmd := gitexec.Command("-C", worktreePath, "status", gitFlagPorcelain)
 	statusOutput, err := statusCmd.Output()
 	if err != nil {
 		return fmt.Errorf("failed to check git status: %w", err)
@@ -562,7 +562,7 @@ func cleanupWorktree(worktreePath string) {
 	}
 
 	// Get the branch name before removing worktree
-	branchCmd := gitexec.Command("-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD")
+	branchCmd := gitexec.Command("-C", worktreePath, gitCommandRevParse, "--abbrev-ref", "HEAD")
 	branchOutput, _ := branchCmd.Output()
 	branchName := strings.TrimSpace(string(branchOutput))
 

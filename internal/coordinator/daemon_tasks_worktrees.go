@@ -124,7 +124,7 @@ func (d *Daemon) cleanupWorktreesForTerminalTasks() {
 // This ensures agent work is captured even if the agent forgot to commit.
 func autoCommitWorktree(worktreePath, taskTitle string, logger *log.Logger) error {
 	// Check for uncommitted changes (including untracked files)
-	statusCmd := gitexec.Command("status", "--porcelain")
+	statusCmd := gitexec.Command("status", gitFlagPorcelain)
 	statusCmd.Dir = worktreePath
 	output, err := statusCmd.Output()
 	if err != nil {
