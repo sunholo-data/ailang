@@ -61,6 +61,36 @@ want "codex planner lane keeps its model (luna)" "$out" "codex:gpt-5.6-luna decl
 out=$(MISSION_PLANNER_MODEL='codex:gpt-5.6-sol' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
 want "codex planner lane keeps its model (sol)" "$out" "codex:gpt-5.6-sol declared:codex-ok"
 
+# --- DELIVERY MECHANISM, NOT JUST THE CONSUMER (docs iteration 1, 2026-08-28) ------
+# THE MISS THIS GUARDS, stated plainly because it defeated 34 passing tests: every
+# assertion above invokes the script as `MISSION_PLANNER_ALLOWLIST=... "$DERIVE" ...`,
+# which exports the variable FOR THAT COMMAND. The production path does something
+# different — the driver SOURCES a mission env file whose entries are bare
+# assignments, and `derive-planner-lane.sh` runs as a CHILD PROCESS, which inherits
+# only EXPORTED variables. So the allowlist was set and never delivered, every docs
+# design doc failed closed to opus, and the whole widening was inert in production
+# while its tests were green. Found by the docs mission itself, live
+# (`env | grep MISSION_PLANNER_ALLOWLIST` empty in a real session), fixed by
+# exporting it in the driver.
+#
+# Rule this encodes: a variable's TEST must exercise the same delivery path as its
+# USE. Setting it on the command line tests the consumer and proves nothing about
+# whether anything ever sets it.
+grep -qE '^export MISSION_PLANNER_ALLOWLIST' "$driver" \
+  && ok "driver EXPORTS the planner allowlist (bare assignment never reaches the child)" \
+  || bad "driver EXPORTS the planner allowlist (bare assignment never reaches the child)" "not exported — allowlist is inert in production"
+
+# Order is load-bearing: `export VAR="${VAR:-default}"` only picks up a mission's
+# value if the env file was sourced FIRST. Asserted by line number so a reordering
+# that silently reverts every mission to the default default is RED.
+_src_line=$(grep -n 'config/ailang/mission-\${MISSION_NAME}.env' "$driver" | head -1 | cut -d: -f1)
+_exp_line=$(grep -n '^export MISSION_PLANNER_ALLOWLIST' "$driver" | head -1 | cut -d: -f1)
+if [ -n "$_src_line" ] && [ -n "$_exp_line" ] && [ "$_exp_line" -gt "$_src_line" ]; then
+  ok "allowlist export comes AFTER the mission env file is sourced (line $_exp_line > $_src_line)"
+else
+  bad "allowlist export comes AFTER the mission env file is sourced" "src=$_src_line exp=$_exp_line"
+fi
+
 # --- PER-MISSION ALLOWLIST (M-DOCS-MISSION, 2026-08-28) --------------------------
 # The allowlist is infra-only by default, which SILENTLY defeats any mission whose
 # subject matter is docs/: the cheap planner pin reads as configured in the driver
