@@ -59,6 +59,29 @@ At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the arc
 iteration re-reads this charter — unbounded STATUS history is a per-read token tax on the scarcest
 model budget; the append-only history lives in the log + archive.
 
+## STATUS 2026-08-28 — **BAR RATIFIED ATTENDED**; queue reordered so the next fire touches the website
+
+Mark closed `docs-0` by human decision after reading iteration 0's result. Two changes, both his:
+
+1. **The bar is ratified** — not by a passing quorum, but because the seven clauses are Mark's own
+   attended selection, so a quorum blocking them second-guesses the human it exists to represent.
+   The objections that survived measurement were about **queue items' implementation**, not the bar;
+   they are preserved and re-enter at each item's own design gate, where they are actionable.
+2. **`docs-2` promoted above `docs-1`.** The original ordering was an authoring error that put
+   clause-7 infrastructure ahead of every clause that changes a published page. The measurement that
+   forced this: after a full iteration, **files changed under `docs/` was zero**.
+
+**The mechanism-level lesson, routed to the shared skill rather than to this mission:** charter
+ratification and design review are different jobs. Running a backlog-bearing governance document
+through a design quorum blocks at the wrong gate — the reviewers keep finding new things to say
+about work that has not been designed yet, so each round raises *new* objections instead of
+converging. Three rounds, no convergence, **6 of 9 objections refuted by direct measurement**.
+
+Iteration 0's real yield is kept and was never the ratification: two corrections to the
+human-authored charter (the CI path-filter citation, the fail-closed framing), a refuted
+"silent fallback" claim, and one **fleet-wide** skill fix (`0e341cc57`) — the shared Gate-0
+Current-State block had been reading V1's kill switch, queue and log for *every* non-V1 mission.
+
 ## STATUS 2026-08-28 — ITERATION 0 RUN: quorum BLOCKED 3x across 2 revisions (1 human-directed mid-flight), **still not ratified** — parked for Mark
 
 First unattended fire of `dev.ailang.mission-docs` (kill switch had been removed since the prior
@@ -351,9 +374,32 @@ loud stop instead of a silent bill.
 
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
-1. `[NEXT]` **docs-0 · iteration 0 · ratify this charter.** Quorum-review clauses 1-7 with Mark;
-   score the backlog into required/nice/post. Est. 1 iteration.
-2. `[NEXT]` **docs-1 · clause 7 · build the inbox-routing TRIGGER.** `send` and `forward` are
+1. `[LANDED]` **docs-0 · ratify this charter — RATIFIED ATTENDED 2026-08-28 (Mark).** Closed by
+   human decision after three quorum rounds, not by a passing quorum. The reasoning, recorded so a
+   later iteration does not reopen it: the bar's seven clauses are **Mark's own selection**, made
+   attended, so a quorum blocking them is second-guessing a decision by the human it exists to
+   represent. And the objections that survived measurement were not about the **bar** at all —
+   round 3's surviving `gpt5-6-sol` objection asks `docs-1` to inventory existing ingestion
+   machinery before adding a router, which is a **queue-item design** question. This charter carries
+   an entire backlog, so the quorum kept finding new things to say about work not yet designed, and
+   each round raised *new* objections rather than converging.
+   **The mechanism-level lesson (route to the shared skill, not to this mission):** charter
+   ratification and design review are different jobs, and running a backlog-bearing governance doc
+   through a design quorum blocks at the wrong gate. Every surviving objection is preserved and
+   re-enters at its own item's design gate, where it is actionable.
+   Iteration 0's real yield was elsewhere and is kept: 6 of 9 objections refuted by direct
+   measurement, two corrections to the human-authored charter, and one fleet-wide skill fix
+   (`0e341cc57`).
+2. `[NEXT]` **docs-2 · clauses 1+3 · FIRST REAL SWEEP — the first item that touches the website.**
+   Run `docs-sync` end to end and turn its output into a scored, clause-tagged queue. This converts
+   "the website is probably drifting" into a measured backlog.
+   **Promoted above `docs-1` on 2026-08-28 (Mark, attended).** The original ordering was an
+   authoring error: it put infrastructure for clause 7 ahead of every clause that changes a
+   published page, so after a full iteration the count of files changed under `docs/` was **zero**.
+   This item also uses the **existing** `docs-sync` skill rather than new machinery, which answers
+   `gpt5-6-sol`'s reuse objection instead of arguing with it (Critical Principle 1). Est. 1
+   iteration.
+3. `[NEXT]` **docs-1 · clause 7 · build the inbox-routing TRIGGER.** `send` and `forward` are
    verified working primitives (see clause 7's verification log) — no `internal/`/`cmd/` change is
    needed for those, and this item should not touch Go code. The missing piece is a **trigger**:
    something that periodically decides doc-related traffic exists (in `public-feedback`,
@@ -365,9 +411,6 @@ loud stop instead of a silent bill.
    `tools/messaging/docs_inbox_router.sh` is in scope (see Guardrails). Deliverable: a message sent
    from outside, observed arriving via the verified read command in clause 7, acked. Est. 1
    iteration.
-3. `[NEXT]` **docs-2 · clauses 1+3 · first real sweep.** Run `docs-sync` end to end and turn its
-   output into a scored, clause-tagged queue. This is the item that converts "the website is
-   probably drifting" into a measured backlog. Est. 1 iteration.
 4. `[PARKED]` **docs-3 · clause 6 · benchmark surface audit.** Blocked on nothing, but sequence it
    after docs-2 so the drift picture is known first.
 5. `[PARKED]` **docs-4 · clause 5 · taxonomy pass.** The `docs/docs/guides/` directory holds 40+
@@ -375,5 +418,7 @@ loud stop instead of a silent bill.
    also factually stale does both jobs badly.
 
 ---
-**Document created**: 2026-08-28 (attended, with Mark). Iteration 0 ratifies it via the quorum
-before any sprint routes.
+**Document created**: 2026-08-28 (attended, with Mark). **Bar RATIFIED attended 2026-08-28** after
+three quorum rounds — see `docs-0` for why by human decision rather than by a passing quorum. Sprints
+route from `docs-2` onward; each queue item still passes its OWN design quorum at its own gate, which
+is where the surviving iteration-0 objections re-enter.
