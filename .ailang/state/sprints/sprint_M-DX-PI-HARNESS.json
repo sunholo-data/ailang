@@ -1,0 +1,66 @@
+{
+  "sprint_id": "M-DX-PI-HARNESS",
+  "status": "in_progress",
+  "created": "2026-08-28T09:51:37Z",
+  "design_doc": "design_docs/planned/v0_35_0/m-dx-pi-harness.md",
+  "sprint_plan": "design_docs/planned/v0_35_0/m-dx-pi-harness-sprint-plan.md",
+  "github_issues": [
+    934
+  ],
+  "velocity": {
+    "target_loc_per_day": 440,
+    "estimated_total_loc": 390,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1_STREAM_A_EXTENSIONS",
+      "description": "binary-freshness (version-stamp classify + /fresh + freshness_report), sprint-steward (/sprint-start|complete, constrained JSON), unowned-dirty (git-authority warn on git add/stash/checkout), builtin-sprint (/builtin-finish ceremony chain)",
+      "estimated_loc": 260,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Predicate tests: freshness classify incl -dirty+UNKNOWN; constrained write refuses non-conforming edits; unowned intersection; version-output parsing",
+        "All four load clean alongside the session gate in pi -p and TUI"
+      ],
+      "passes": null,
+      "started": "2026-08-28T11:55:00Z",
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_STREAM_B_LSP_LITE",
+      "description": "ailang-lsp-lite.ts: ailang_check tool (30s timeout, structured {code,message,file,line,col,hint}) + builtins_search tool (15s, filtered --json inventory, cap 10 on query); shared subprocess helper per Subprocess Contract",
+      "estimated_loc": 90,
+      "dependencies": [
+        "M1_STREAM_A_EXTENSIONS"
+      ],
+      "acceptance_criteria": [
+        "B1 returns code-tagged diagnostics for seeded IMP010 and a TC error",
+        "B2 returns <=10 matches on query, full inventory without query",
+        "Parser handles live error formats (V3)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_HARDENING_DOCS",
+      "description": "F5 coordinator-session inheritance check; compat matrix (pi 0.84.3) in README; README index; CHANGELOG DX entries; session-gate regression check",
+      "estimated_loc": 40,
+      "dependencies": [
+        "M1_STREAM_A_EXTENSIONS",
+        "M2_STREAM_B"
+      ],
+      "acceptance_criteria": [
+        "All design-doc Success Criteria pass or deferred with register entry",
+        "Session gate arms/acks with all extensions loaded",
+        "CHANGELOG updated"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
