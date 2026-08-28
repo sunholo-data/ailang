@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/core"
@@ -759,21 +760,10 @@ func validateModulePath(mod *loader.LoadedModule, modID string, cfg *Config) err
 	shouldRelax := cfg.RelaxModules || isTempPath
 
 	if shouldRelax {
-		// Emit warning (once per path)
-		if cfg.mod010WarnedPaths == nil {
-			cfg.mod010WarnedPaths = make(map[string]bool)
-		}
-		if !cfg.mod010WarnedPaths[modID] {
-			cfg.mod010WarnedPaths[modID] = true
-
-			var reason string
-			if isTempPath {
-				reason = "temp-path"
-			} else {
-				reason = "relaxed"
-			}
-			warnMOD010Relaxed(mod.File.Module.Path, canonicalID, reason)
-		}
+		// Emit warning — process-level dedup: each named-test body gets a fresh
+		// pipeline cfg, so per-cfg dedup still emitted N copies of the same
+		// relaxed-MOD010 warning (observed 2026-08-28: 6 warnings for 1 module).
+		warnMOD010Relaxed(mod.File.Module.Path, canonicalID, mod010Reason(isTempPath))
 		return nil
 	}
 
@@ -782,9 +772,31 @@ func validateModulePath(mod *loader.LoadedModule, modID string, cfg *Config) err
 		mod.File.Module.Path, canonicalID, canonicalID, mod.File.Module.Path)
 }
 
+// mod010WarnedOnce dedups relaxed-MOD010 warnings at process level: each named-test
+// body runs its own pipeline cfg, so per-cfg dedup still warned once per test
+// (observed 2026-08-28: 6 identical warnings for one module).
+var mod010WarnedOnce = struct {
+	sync.Mutex
+	seen map[string]bool
+}{seen: make(map[string]bool)}
+
+func mod010Reason(isTempPath bool) string {
+	if isTempPath {
+		return "temp-path"
+	}
+	return "relaxed"
+}
+
 // warnMOD010Relaxed emits a warning for module path mismatch in relaxed mode.
-// The warning is printed to stderr with context about why it was relaxed.
+// Deduplicated at process level per (declaredPath, canonicalPath) pair.
 func warnMOD010Relaxed(declaredPath, canonicalPath, reason string) {
+	mod010WarnedOnce.Lock()
+	defer mod010WarnedOnce.Unlock()
+	k := declaredPath + "\x00" + canonicalPath
+	if mod010WarnedOnce.seen[k] {
+		return
+	}
+	mod010WarnedOnce.seen[k] = true
 	switch reason {
 	case "temp-path":
 		fmt.Fprintf(os.Stderr, "WARNING MOD010 (%s): module '%s' does not match canonical path '%s'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n",

@@ -55,6 +55,17 @@ func initPackageCommand(args []string) error {
 		return fmt.Errorf("package name must be vendor/name format, got %q\nExample: ailang init package --name sunholo/mylib", name)
 	}
 
+	// For hyphenated package names: module paths use underscores (PAR_HYPHEN_IN_MODULE)
+	// and the validator compares exports against the package name verbatim, so a
+	// hyphenated scaffold would be an unsatisfiable manifest. Auto-set module_prefix
+	// to the underscored last segment so the generated exports are valid
+	// (observed 2026-08-28 with sunholo/ail-diag; internal/pkg.InitManifest also
+	// normalizes the generated module path).
+	if strings.Contains(name, "-") {
+		prefix := strings.SplitN(name, "/", 2)[1]
+		*modulePrefixFlag = strings.ReplaceAll(prefix, "-", "_")
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get working directory: %w", err)
@@ -64,7 +75,7 @@ func initPackageCommand(args []string) error {
 		return err
 	}
 
-	// Add module_prefix if specified
+	// Add module_prefix if specified (auto-derived for hyphenated names)
 	if *modulePrefixFlag != "" {
 		if strings.Contains(*modulePrefixFlag, "/") {
 			return fmt.Errorf("module-prefix must be a single segment (no slashes), got %q", *modulePrefixFlag)
@@ -75,6 +86,8 @@ func initPackageCommand(args []string) error {
 	}
 
 	fmt.Printf("%s Created %s\n", green("✓"), pkg.ManifestFile)
+	absPath, _ := filepath.Abs(pkg.ManifestFile)
+	fmt.Printf("  Path: %s\n", cyan(absPath))
 	fmt.Printf("  Package: %s\n", cyan(name))
 	if *modulePrefixFlag != "" {
 		fmt.Printf("  Module prefix: %s\n", cyan(*modulePrefixFlag))

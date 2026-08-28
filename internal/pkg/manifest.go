@@ -257,7 +257,7 @@ func (m *PackageManifest) Validate() error {
 		return fmt.Errorf("[package].version is required")
 	}
 	if m.Package.Edition == "" {
-		return fmt.Errorf("[package].edition is required")
+		return fmt.Errorf("[package].edition is required (add: edition = \"1\" under [package])")
 	}
 
 	// Validate ailang version constraint format if present (optional field)
@@ -289,6 +289,13 @@ func (m *PackageManifest) Validate() error {
 		matchesPrefix := m.Package.ModulePrefix != "" &&
 			(strings.HasPrefix(mod, m.Package.ModulePrefix+"/") || mod == m.Package.ModulePrefix)
 		if !matchesPkgName && !matchesPrefix {
+			// Hyphens are illegal in module paths (PAR_HYPHEN_IN_MODULE) — a hyphenated
+			// package name can never prefix a valid module. Say so instead of leaving
+			// the author stuck (observed 2026-08-28, sunholo/ail-diag scaffold).
+			if strings.Contains(m.Package.Name, "-") {
+				return fmt.Errorf("exported module %q must start with package name %q, but package names with hyphens cannot prefix module paths (modules use underscores: PAR_HYPHEN_IN_MODULE). Fix: set module_prefix to the underscored name (e.g. %q) and declare modules under it",
+					mod, m.Package.Name, strings.ReplaceAll(m.Package.Name[strings.Index(m.Package.Name, "/")+1:], "-", "_"))
+			}
 			if m.Package.ModulePrefix != "" {
 				return fmt.Errorf("exported module %q must start with package name %q or module_prefix %q",
 					mod, m.Package.Name, m.Package.ModulePrefix)
@@ -426,6 +433,18 @@ func InitManifest(dir, name, ailangVersion string) error {
 	// Default stability
 	stability := "experimental"
 
+	// Modules cannot contain hyphens (PAR_HYPHEN_IN_MODULE), so the generated
+	// export module must derive from an underscored name. For hyphenated package
+	// names the validator can never match the raw name — the generated module must
+	// be prefix-relative ("ail_diag/core"), pairing with the module_prefix that
+	// initPackageCommand auto-sets (observed 2026-08-28, sunholo/ail-diag).
+	var moduleBase string
+	if strings.Contains(name, "-") {
+		moduleBase = strings.ReplaceAll(name[strings.Index(name, "/")+1:], "-", "_")
+	} else {
+		moduleBase = name
+	}
+
 	ailangLine := ""
 	constraint := FormatVersionConstraint(ailangVersion)
 	if constraint != "" {
@@ -445,7 +464,7 @@ max = []
 
 [stability]
 level = %q
-`, name, ailangLine, name+"/core", stability)
+`, name, ailangLine, moduleBase+"/core", stability)
 
 	return os.WriteFile(path, []byte(content), 0644)
 }
