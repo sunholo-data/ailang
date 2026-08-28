@@ -133,6 +133,36 @@ failure, never an indefinite block:
 | No silent retries | Fail loud once; retrying is the caller's explicit choice |
 | Env | Subprocesses inherit cwd; `AILANG_FS_SANDBOX` unset unless a tool explicitly sets it |
 
+## Stream B dogfooding findings (2026-08-28, sunholo/ail_diag@0.1.0 published)
+
+A full package lifecycle (init → write → check → test → publish → install-round-trip)
+was executed in pi, cataloguing friction for the next iteration:
+
+**Tooling papercuts (fast-track candidates):**
+1. `init package` scaffolds into cwd — pollutes parent dirs that hold sibling projects
+2. `init package` generates hyphenated `[exports]` that the validator REJECTS
+   (PAR_HYPHEN_IN_MODULE vs "must start with package name") — an unsatisfiable manifest
+   from the tool's own output
+3. Hyphenated package names are unsatisfiable; the validator error never hints "use
+   underscores like email_parse" (the house convention)
+4. `test --package` discovers only `*_test.ail` files; inline `test` blocks (the
+   convention real packages use) need per-file `ailang test <file>` — two conventions,
+   one discoverer
+5. Handwritten manifests surface required `edition` only as a lock-time error
+6. MOD010 relaxed warnings ×N per test run = agent-visible noise (#575 quirk again)
+7. No Eq instances for records/Options → span assertions need match-helpers
+   (`derive Eq` or ==-for-Options would streamline test writing)
+
+**Language learnings:** lambda separator is `.` not `->` (error was precise — GOOD);
+chained `let` needs `in` per binding (positional errors cost 2 rounds); Option/record
+Eq absence shapes test style. Positives: check loop fast, spans precise, pure-effect
+package validates with ceiling [], publish one command, registry install round-trip
+works.
+
+**Agent-behavior finding:** the author used bash+grep out of habit even where the new
+`ailang_check`/`builtins_search` tools applied — tooling exists; agents need to reach
+for it (a prompt/gate-level nudge, not new tools).
+
 ## Solution Design
 
 ### Overview
