@@ -1,28 +1,35 @@
 # Docs Mission Dashboard (snapshot — history lives in the charter + log)
 
-**Last updated**: 2026-08-28T06:49Z, iteration 0.
+**Last updated**: 2026-08-28T08:49Z, iteration 1.
 
 ## Status
-Charter drafted attended with Mark 2026-08-28. **NOT YET RATIFIED.** Quorum blocked THREE times
-(rounds in `.ailang/state/mission-quorum/docs-mission-*.json`). Two designer revisions applied (the
-second folding in a mid-iteration human decision). No sprint has run — the charter's own gate
-blocks all sprint routing until ratification lands. No reviewer has passed in any round yet;
-objections have landed on a new surface each round rather than converging.
+Charter ratified attended 2026-08-28 (Mark). First real sprint (`docs-2`, first-ever `docs-sync`
+sweep) LANDED this iteration: [PR #955](https://github.com/sunholo-data/ailang/pull/955) →
+`a8f904aac`. Sprint-evaluator (sonnet) independently re-derived every load-bearing claim from
+scratch — PASS 92/100, zero blocking.
 
 ## Blocking on Mark
-**D-DOCS-1 — RESOLVED** (attended, commit `29a467cac`): blast radius now includes `tools/`.
-**D-DOCS-2 (open)**: should docs-1's full implementation protocol be specified in the charter now,
-or deferred to its own sprint plan? **D-DOCS-3 (open)**: does an "unratified but operationally
-live" doc need an explicit banner, or is that inherent to any doc mid-quorum-review? See
-`design_docs/docs-mission-log.md` iteration 0 for full objection text and refutations.
+Two NEW open decisions, both about this mission's own blast-radius allowlist blocking it from
+fixing what it just found:
+- **D-1**: widen `.claude/skills/docs-sync/*` into the allowlist so the mission can fix
+  `check_examples.sh`'s absolute-path `MOD010` bug (found this iteration — it has been silently
+  over-reporting broken examples: true split is 166 pass / 9 fail / 42 no-module vs the script's
+  own unreliable 12/29/176).
+- **D-2**: widen `docs/*` (currently single-level) to cover `docs/docs/**`/`docs/src/**`, where
+  nearly all published content and a stale `v0.16.0` version reference actually live.
+Full options and evidence: `design_docs/docs-mission.md`'s Human Decision Ledger (D-1, D-2) and
+`design_docs/docs-mission-log.md` ITERATION 1.
 
-## Queue (top = next, but ALL gated behind docs-0 ratifying)
-1. `[NEXT]` docs-0 · ratify charter — **PARKED-needs-human-review**, blocked on D-DOCS-2/D-DOCS-3.
-2. `[NEXT]` docs-1 · clause 7 · build the inbox-routing trigger — blast radius unblocked, still
-   gated behind docs-0 ratifying.
-3. `[NEXT]` docs-2 · clauses 1+3 · first `docs-sync` sweep.
-4. `[PARKED]` docs-3 · clause 6 · benchmark surface audit.
-5. `[PARKED]` docs-4 · clause 5 · taxonomy pass.
+## Queue (top = next)
+1. `[LANDED]` docs-2 · clauses 1+3 · first `docs-sync` sweep.
+2. `[NEXT]` docs-5 · clause 2 · fix the 9 genuinely-failing runnable examples (in scope, no
+   allowlist change needed).
+3. `[PARKED — needs Mark]` docs-6 · clause 1 · fix `check_examples.sh`'s absolute-path bug (D-1).
+4. `[PARKED — needs Mark]` docs-7 · clause 1 · mission cannot edit its own published content (D-2).
+5. `[PARKED]` docs-8 · clause 1 · 126 overdue planned design docs (aggregate triage).
+6. `[NEXT]` docs-1 · clause 7 · build the inbox-routing trigger.
+7. `[PARKED]` docs-3 · clause 6 · benchmark surface audit.
+8. `[PARKED]` docs-4 · clause 5 · taxonomy pass (also blocked on D-2, nested paths).
 
 ## Loop cadence + routing
 launchd `dev.ailang.mission-docs`, every 6h, staggered against v1/world/motoko. Routing ladder is
@@ -31,7 +38,11 @@ cost-type ordered: subscription (`claude-sonnet-5`/`codex:gpt-5.6-luna`) → fla
 rung. Metered ceiling $1/iteration (fleet default $5).
 
 ## Cost this iteration
-$0.197 of $1 ceiling (three design-quorum rounds). Quota: sonnet (controller + 2 designer runs).
+$0.00 of $1 ceiling — both codex runs (planner + executor) rode the subscription-lane rung
+(`gpt-5.6-luna`), no flat-rate/metered fallback. Quota: sonnet (controller + evaluator).
 
 ## Quota posture
-No fallback triggered this iteration; no lane exhaustion observed.
+No fallback triggered this iteration; no lane exhaustion observed. Two pre-existing CI reds on
+`sunholo-data/ailang` observed and handed to V1 (repo owner): a flaky `launchd drivers` timing
+test (confirmed transient) and an inherited SonarCloud dev-branch quality-gate red (confirmed
+pre-existing, unrelated to this mission's diff).
