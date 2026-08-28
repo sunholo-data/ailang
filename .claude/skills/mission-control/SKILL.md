@@ -174,11 +174,24 @@ on one rig from colliding.
 
 ## Current State
 
-- **Kill switch**: !'test -f ~/.ailang/state/mission-control.disabled && echo "DISABLED — STOP" || echo "armed"'
+**⚠ EVERY LINE BELOW IS A V1-SHAPED DEFAULT — namespace it per the ACTUAL mission before trusting
+it** (added 2026-08-28, docs-mission iteration 0; instance 5 of the "bare `~/.ailang/state/`
+literal in this shared skill is fleet-shared, not per-mission" class this file has already fixed
+four times over — designer-rotation, `mission-gh-issue`, `mission-dashboard.md` — and each time
+called for auditing "the whole path list", which this is). `tools/launchd/mission-control.sh`
+itself resolves the kill switch to `mission-control.disabled` **for V1 only** (bit-for-bit legacy
+compat) and to `mission-${MISSION_NAME}.disabled` for every other mission — so the bare literal
+below is CORRECT for V1 and WRONG for docs/world/motoko, and a controller who runs it as-written
+for a non-V1 mission gets a confident "armed" reading from a file that mission never writes to.
+Measured first-party: docs-mission's own charter STATUS names `~/.ailang/state/mission-docs.disabled`
+as ITS kill switch; checking the bare path instead would have silently missed a real disable. The
+"Queue head" and "Last log entry" lines have the identical defect one file over — `v1-mission.md`/
+`v1-mission-log.md` are V1's own filenames, not this skill's.
+- **Kill switch**: !'K="$HOME/.ailang/state/mission-control.disabled"; [ "${MISSION_NAME:-v1}" = "v1" ] || K="$HOME/.ailang/state/mission-${MISSION_NAME}.disabled"; test -f "$K" && echo "DISABLED — STOP ($K)" || echo "armed ($K)"'
 - **Branch / tree**: !'git branch --show-current && git status --porcelain | head -5'
 - **gh account**: !'gh auth status 2>&1 | grep -E "Active account|Logged in" | head -2'
-- **Queue head**: !'grep -A2 "^## Queue" design_docs/v1-mission.md | tail -2'
-- **Last log entry**: !'grep "^## " design_docs/v1-mission-log.md | tail -1'
+- **Queue head**: !'grep -A2 "^## Queue" "${MISSION_DOC:-design_docs/v1-mission.md}" | tail -2'
+- **Last log entry**: !'grep "^## " "design_docs/${MISSION_NAME:-v1}-mission-log.md" | tail -1'
 - **Unread inbox**: !'ailang messages list --unread 2>/dev/null | head -8 || echo "none"'
 - **Parked evaluations**: !'ls .ailang/state/evaluations/ 2>/dev/null | tail -3 || echo "none"'
 
