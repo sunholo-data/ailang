@@ -80,7 +80,6 @@ type Config struct {
 	DebugTypesNode uint64 // Filter debug output to specific node (0 = all nodes)
 
 	// Warning tracking (to avoid duplicate warnings)
-	mod010WarnedPaths map[string]bool // Tracks paths that have already been warned for MOD010
 
 	// Environment from REPL (optional)
 	TypeEnv   *types.TypeEnv
