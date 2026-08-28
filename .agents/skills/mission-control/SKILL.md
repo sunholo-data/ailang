@@ -1,6 +1,6 @@
 ---
 name: mission-control
-description: Run ONE outer-loop iteration of a long-running mission (default: the V1 mission) — observe mission state, pick the top backlog item, route it through design-doc-creator → sprint-planner → sprint-executor → sprint-evaluator with the mission's model routing policy, record a log entry, and run the retro. Use when user says "run mission control", "mission iteration", "work the v1 backlog", or when fired nightly by the dev.ailang.mission-control launchd job.
+description: 'Run ONE outer-loop iteration of a long-running mission (default: the V1 mission) — observe mission state, pick the top backlog item, route it through design-doc-creator → sprint-planner → sprint-executor → sprint-evaluator with the mission''s model routing policy, record a log entry, and run the retro. Use when user says "run mission control", "mission iteration", "work the v1 backlog", or when fired nightly by the dev.ailang.mission-control launchd job.'
 ---
 
 # Mission Control — one outer-loop iteration
