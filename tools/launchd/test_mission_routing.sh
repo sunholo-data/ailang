@@ -49,6 +49,18 @@ want "pi planner pin reaches its lane, not a silent opus" "$out" "pi:ollama/kimi
 out=$(MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/a-unlisted-language-path.md")
 want "pi planner still fails closed outside the allowlist" "$out" "opus fail-closed:path-not-in-codex-allowlist"
 
+# THE EMITTED LANE MUST CARRY ITS MODEL (2026-08-28). Step 5 used to emit a bare
+# `codex` for any codex:* pin, dropping the model. Invisible on V1 by coincidence —
+# its pin is codex:gpt-5.6-sol and the consumer default is also sol, so the dropped
+# value equalled the fallback. NOT invisible on a mission pinned to a cheaper tier:
+# the docs mission pins codex:gpt-5.6-luna ($0.20/$1.20 per M) and would have
+# planned on gpt-5.6-sol ($2/$10) every iteration. Asserted with TWO different
+# codex models so a re-hardcoded literal cannot satisfy both.
+out=$(MISSION_PLANNER_MODEL='codex:gpt-5.6-luna' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
+want "codex planner lane keeps its model (luna)" "$out" "codex:gpt-5.6-luna declared:codex-ok"
+out=$(MISSION_PLANNER_MODEL='codex:gpt-5.6-sol' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
+want "codex planner lane keeps its model (sol)" "$out" "codex:gpt-5.6-sol declared:codex-ok"
+
 # --- PER-MISSION ALLOWLIST (M-DOCS-MISSION, 2026-08-28) --------------------------
 # The allowlist is infra-only by default, which SILENTLY defeats any mission whose
 # subject matter is docs/: the cheap planner pin reads as configured in the driver

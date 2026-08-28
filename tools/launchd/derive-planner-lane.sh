@@ -155,9 +155,28 @@ done
 IFS=$old_ifs
 
 # Step 5: every declared path is approved infrastructure. Emit the lane actually
-# pinned, not a hardcoded "codex" — the driver uses this value VERBATIM, so
-# naming the wrong lane here would route a pi planner to codex.
+# pinned, not a hardcoded literal — the driver and the skill use this value
+# VERBATIM, so naming the wrong lane here routes a pinned planner somewhere else.
+#
+# BOTH branches now emit the full pinned value. Until 2026-08-28 only the `pi:`
+# branch did, and `codex:*` collapsed to a bare `codex` — DROPPING THE MODEL. The
+# comment above already described that bug; it had been fixed for one branch and
+# left in the other.
+#
+# It was invisible on V1 by coincidence: its pin is `codex:gpt-5.6-sol` and the
+# consumer's default is also sol, so the value being dropped happened to equal the
+# value fallen back to. That coincidence does not hold for a mission pinned to a
+# CHEAPER tier — the docs mission pins `codex:gpt-5.6-luna` ($0.20/$1.20 per M) and
+# would have silently planned on gpt-5.6-sol ($2/$10) on every single iteration, on
+# the mission created specifically to be cheap.
+#
+# The skill's own rule already assumes the full form ("Any `codex:*` result enters
+# the codex planner recipe"), and a bare `codex` does not match its
+# `^([a-z_]+):(.+)$` split at all — so the emitted value was not merely lossy, it
+# was unparseable by its documented consumer.
 case "${MISSION_PLANNER_MODEL:-}" in
-  pi:*) emit "${MISSION_PLANNER_MODEL} declared:codex-ok" ;;
-  *)    emit "codex declared:codex-ok" ;;
+  codex:*|pi:*) emit "${MISSION_PLANNER_MODEL} declared:codex-ok" ;;
+  # Unreachable in practice — Step 0 already refuses anything else — but a
+  # defensive default beats an empty emit if that gate is ever widened.
+  *)            emit "codex declared:codex-ok" ;;
 esac
