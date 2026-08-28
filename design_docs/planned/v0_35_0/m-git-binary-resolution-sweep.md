@@ -1,4 +1,4 @@
-# M-GIT-BINARY-RESOLUTION-SWEEP: One Absolute-Path Git Resolver for All 92 Exec Sites
+# M-GIT-BINARY-RESOLUTION-SWEEP: One Absolute-Path Git Resolver for All 93 Exec Sites
 
 **Status**: Planned
 **Target**: v0.35.0
@@ -18,10 +18,10 @@ resolve `git` through whatever `PATH` happens to contain at run time (Verificati
 
 Those 4 sites are not special. They are merely the 4 members of an identical class that were
 *touched inside the new-code period* (`previous_version = v0.33.2`, 2026-08-26). The full class
-is **92 bare-name git exec sites** across `cmd/ailang` (43), `internal/coordinator` (43),
+is **93 bare-name git exec sites** across `cmd/ailang` (44), `internal/coordinator` (43),
 `internal/pkg` (5), and `internal/eval_harness` (1) — and **zero** Go files outside `cmd/` and
 `internal/` contain any (V2, V9, V13). Fixing only the flagged 4 would turn the gate green while
-leaving 88 identical sites in place: gate-satisfying, not a fix. Per the mission's standing rule
+leaving 89 identical sites in place: gate-satisfying, not a fix. Per the mission's standing rule
 (3n(d)), a new-code gate hit is *evidence about the unswept class*, never a threshold to satisfy.
 
 Meanwhile, the repo already contains the correct pattern — and uses it exactly once.
@@ -33,32 +33,53 @@ consumer count outside its own file is **zero** (V3). The knowledge exists; the 
 share it does not.
 
 **Current State:**
-- 92 bare-name git exec sites, 0 of which route through the existing resolver (V2, V3)
-- 4 of 92 visible to Sonar's new-code gate; 88 invisible because they are old (V1 vs V2)
+- 93 bare-name git exec sites, 0 of which route through the existing resolver (V2, V3)
+- 4 of 93 visible to Sonar's new-code gate; 89 invisible because they are old (V1 vs V2)
 - The one hardened resolver is trapped in `package main` (`cmd/ailang/help.go:173,185`) (V3, V4)
 - No CI gate prevents new bare-name git exec sites from being added (no such check exists in
   `make/*.mk` or `scripts/` — V7 shows the boundary gate; nothing polices exec sites)
 
 **Impact:**
-- Security posture: every one of the 92 sites executes whatever `PATH` resolves `git` to,
-  in daemons (coordinator), eval harnesses, and CLI paths. Severity is MINOR per Sonar, but
-  the class is broad and includes long-running privileged-ish processes (worktree management,
-  cloud task execution).
+- Security posture (current state): every one of the 93 sites executes whatever `PATH`
+  resolves `git` to, in daemons (coordinator), eval harnesses, and CLI paths. Severity is
+  MINOR per Sonar, but the class is broad and includes long-running privileged-ish processes
+  (worktree management, cloud task execution). **What this sweep delivers** (and what it does
+  not): it eliminates **relative-path and empty-PATH-entry** resolution and reduces 93
+  independent resolution points to ONE auditable one. It does **NOT** validate that the
+  resolved directory is unwriteable, and it does **NOT** defend against replacement of the
+  binary after resolution (TOCTOU) — both are explicitly non-properties of this design
+  (HID-5), because `exec.LookPath` returning an absolute path is the only property the
+  resolver enforces (V4).
 - Process: the Sonar gate stays red on `new_security_rating` until the flagged sites change,
-  and *any* future PR touching one of the 88 old sites re-flags it — a slow drip of
+  and *any* future PR touching one of the 89 old sites re-flags it — a slow drip of
   one-off "fix the flagged line" patches unless the class is closed once.
 
 ## Goals
 
-**Primary Goal:** Every git execution in the repo goes through one shared absolute-path
-resolver, and CI makes a new bare-name git exec site a build failure.
+**Primary Goal:** Every *direct Go `os/exec` git execution with a literal `"git"` command
+name* goes through one shared absolute-path resolver, and CI makes a new such site a build
+failure.
+
+**The narrowing in that sentence is load-bearing and was added under the round-2 carve-out**
+(HID-6), because `gpt5-6-sol` correctly objected that the original wording — "every git
+execution in the repo" — is wider than any static gate can enforce, so CI could report zero
+while prohibited executions remained. What the gate CANNOT see is enumerated in the Conflict
+Surface and printed by the gate on every run: a variable first argument, dataflow/aliasing, a
+shell string (`bash -c "… git …"`), `syscall.Exec`, and every non-Go surface (scripts,
+Makefiles, launchd plists). Those are named residual classes with their own owners — not
+coverage this design claims.
 
 **Success Metrics:**
-- Bare-name git exec sites (non-test): 92 → 0 by end of M4, with the residual count stated
-  explicitly at each milestone (88 after M1, 46 after M2, 6 after M3, 0 after M4)
+- Bare-name git exec sites (non-test): 93 → 0 by end of M4, with the residual stated at each
+  milestone. Residuals are **derived at execution time**, not hardcoded: the gate baseline is
+  SEEDED FROM A FRESH MEASUREMENT the moment M1 lands, so the numbers below are illustrative
+  of the ratchet's shape, not a contract (see "CI gate"). At HEAD they are 89 after M1, 47
+  after M2, 6 after M3, 0 after M4.
 - `LookPath("git")` call sites repo-wide: exactly 1, inside the new shared package (V6 shows 1 today, in `help.go`; it moves)
-- Sonar `go:S4036` open issues in the class: 4 → 0 flagged sites converted (the resolver's own
-  single `LookPath` may attract one residual finding — see "Sonar interaction")
+- Sonar `go:S4036`: the 4 flagged NEW-CODE sites are converted to route through `gitexec`.
+  The resolver's own single `LookPath` is EXPECTED to keep `go:S4036` present on that one
+  auditable site; the rating is NOT claimed to reach A. Closing that residual is a named,
+  separate follow-up, not something this sweep asserts away (see "Sonar interaction", HID-5).
 - CI gate `make check-git-exec` exists, runs in ci.yml, and fails loudly on an empty
   enumeration (anti-vacuity fixture)
 
@@ -66,20 +87,114 @@ resolver, and CI makes a new bare-name git exec site a build failure.
 
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |----------|-----------------|-----------|----------|-------------|
-| Failure contract: deferred error via `exec.Cmd.Err` (os/exec's own Go 1.19+ contract), **no** bare-`"git"` fallback, **no** panic | Dictates the shape of all 92 conversions and the UX for a user without git | agent (this doc) | design | high after M2 starts |
+| Failure contract: deferred error via `exec.Cmd.Err` (os/exec's own Go 1.19+ contract), **no** bare-`"git"` fallback, **no** panic | Dictates the shape of all 93 conversions and the UX for a user without git | agent (this doc) | design | high after M2 starts |
+| Caching contract: **cache SUCCESS only**; a failed resolution is re-attempted on the next call | A once-per-process failure cache would permanently break all 43 coordinator git tasks after one early miss (HID-3) | agent (this doc) | design | low |
 | Helper location: new stdlib-only leaf package `internal/gitexec` | Must be importable by `package main` AND `internal/{coordinator,pkg,eval_harness}` without violating layer rules | agent (this doc) | design | med |
 | CI gate is a per-file baseline **ratchet** (fails on increase AND on untightened decrease) with a known-positive anti-vacuity fixture | A count-only or vacuously-green gate lets the class recur silently | agent (this doc) | design | low |
-| Milestone split with explicit residuals (4 → then 42 → 40 → 6) | Prevents the doc being read as claiming full coverage at M1 | agent (this doc) | design | low |
+| Milestone split with explicit residuals (4 → then 42 → 41 → 6), **derived by re-measurement at execution time**, not hardcoded | Prevents the doc being read as claiming full coverage at M1, and prevents a stale hardcoded baseline from rotting the moment anyone adds a site | agent (this doc) | design | low |
+| Security model: **(i) absolute-only** (chosen) vs (ii) absolute + directory-writability check | Determines whether S4036 is actually closed or merely centralised (HID-5) | agent (this doc) | design | med |
 
-No design-freeze items: every decision above is agent-resolvable, preserves today's observable
-failure behavior for users, and touches no cost/KPI/banked-data semantics.
+No design-freeze items: every decision above is agent-resolvable and touches no
+cost/KPI/banked-data semantics. The caching contract (HID-3) *changes* one observable
+behaviour for the better rather than merely preserving it: today every one of the 93 sites
+re-resolves git per call; after, the success path resolves once per process while the
+failure path keeps today's per-call re-resolution, so a long-lived process recovers if git
+appears on PATH after startup — the recovery behaviour is preserved exactly, and the success
+path is strictly cheaper. The security model (HID-5) is scoped to what the resolver
+actually enforces.
+
+**HID-3 — Caching contract: success only.** The previous draft cached resolution success
+AND failure in a `sync.Once`, which is a demonstrable regression for the coordinator daemon
+(43 of the 93 sites live in `internal/coordinator`, the long-lived process): if git is absent
+at daemon startup but appears on PATH later, today every site re-resolves per call and the
+daemon recovers on its next git call; a cached failure would make all 43 sites fail
+permanently without a daemon restart. This revision caches **success only**. The cache is a
+mutex-guarded string (not `sync.Once`, which is wrong for a retryable op): it stays empty
+until a resolution succeeds, and on failure it is left empty so the next `Path()` re-resolves.
+A mutex (rather than `sync.Once`) is required because the coordinator calls git from multiple
+goroutines. Cost accepted: a **permanently**-missing git means one `LookPath("git")` per
+`Path()` call instead of one per process. That path is only hot on a genuinely broken
+environment (git never present), and each call is a cheap PATH walk that immediately returns
+the same `ErrUnresolvable`-wrapped error the site already handles today — this is exactly the
+per-call cost every one of the 93 sites already pays in the status quo, so the failure path
+costs no more than today, and the success path is strictly cheaper. The caching test inverts
+the old contract accordingly (Testing Strategy).
+
+**HID-5 — Security model: absolute-only (i).** The previous draft claimed the resolver
+"must not execute whatever a relative **or writable** PATH entry happens to call git" and
+dispositioned the remaining Sonar `go:S4036` finding as reviewed-safe. That claim is not
+enforced: the resolver checks `filepath.IsAbs(p)` and nothing else (V4) — it does not stat
+the resolved directory, check ownership, or check write permission, and `exec.LookPath` can
+return `/tmp/bin/git` from a writable PATH directory. The binary or its directory can also
+be swapped after resolution (TOCTOU). This design therefore chooses **(i) absolute-only**:
+it narrows the claim to the property actually delivered (refuse relative/empty-PATH results,
+centralise to one auditable site) and deletes the unearned "reviewed-safe" disposition. The
+cost of choosing (ii) — an added `stat` + directory-writability check on the resolved parent
+dir — is that it can refuse on a maintainer's own laptop, because Homebrew's
+`/usr/local/bin` (and `/opt/homebrew/bin`) are commonly group-writable; option (ii) would
+therefore make `ailang`/the coordinator fail git tasks on the exact machine where the
+developer most needs them. That consequence would be *discovered* not *designed* under (ii),
+so (i) is chosen here and the residual S4036 finding is left as an explicit, named follow-up
+(`M-GIT-RESOLVER-S4036-CLOSURE`) rather than closed by assertion.
+
+## Quorum Verification (revision pass)
+
+**Round 1 — BLOCKED.** Quorum ran 3/3 reviewers present (gpt5-6-sol, gemini-3-1-pro,
+oc-glm-5-2), 0 absent, all three REJECTED. One-line objections and this revision's response:
+
+- **gpt5-6-sol — security claim over-stated** (CONFIRMED): the resolver enforces only
+  `filepath.IsAbs`, so it cannot claim to guarantee unwriteable directories nor defend
+  TOCTOU, and the "reviewed-safe" S4036 disposition was unearned. → Rewrote the security
+  posture (Impact), the Success Metric, the Sonar interaction, added HID-5 choosing
+  absolute-only, removed "or writable" from the planned doc comment, and replaced
+  "reviewed-safe" with a named follow-up (`M-GIT-RESOLVER-S4036-CLOSURE`).
+- **oc-glm-5-2 — failure-caching regression** (CONFIRMED): a process-wide cache that stores
+  resolution failure permanently breaks all 43 coordinator git tasks after one early miss
+  without a daemon restart. → Added HID-3 (cache success only, mutex-guarded), changed the
+  `Path()` contract, bound the per-call cost, and inverted the caching test.
+- **gemini-3-1-pro — unverified error-text consumers** (REFUTED by measurement): claimed the
+  88-site error-handling sweep risked silent breakage on string-matching
+  `executable file not found`. Repo-wide grep at HEAD finds **0** producers of that concern
+  and the typed `exec.ErrNotFound` sentinel is confined to out-of-scope files; recorded in
+  V14–V15. No design change; the contract requirement is now stated explicitly.
+
+Additionally re-derived every count at HEAD `999d4c1dd` (the doc's base `e38c0c493` was
+stale): **93** sites (was 92), and made milestone residuals derived-by-measurement rather
+than hardcoded. See V14–V16.
+
+**Round 2 — BLOCKED, and the objections LOCALISED onto one surface.** 3/3 reviewers present,
+0 absent. `gemini-3-1-pro` **flipped to PASS** (its round-1 objection was answered by
+measurement). The two survivors are both about the CI gate's **enumerator**, and neither
+disputes the design direction — so the mission skill's **narrow-refinement carve-out**
+applies, and the controller made a bounded round-2 revision applying the reviewers' own
+fixes verbatim rather than buying a third designer round:
+
+- **gpt5-6-sol** — "It then makes AST-based detection only a 'SHOULD,' allowing M4 and CI to
+  report zero while prohibited git executions remain." → **HID-6**: the enumerator MUST be
+  `go/ast`-based (committed, not executor discretion); the regex is demoted to an optional
+  cross-check whose disagreement is a gate FAILURE; and the **Primary Goal is narrowed** to
+  the class a static gate can actually enforce, with every residual class named and printed
+  by the gate on every run.
+- **oc-glm-5-2** — "A CI gate with a known blind spot for the exact shape it exists to catch
+  does not satisfy its stated primary goal; punting the fix to the executor makes the design
+  incomplete." → same HID-6, plus an **anti-vacuity-by-ADDITION** requirement: the gate ships
+  a multi-line and a variable-first-arg fixture and self-tests that its COUNT MOVES when they
+  are present. A removal proves a check fires; only an addition proves it looks.
+
+**One shared premise in both objections was REFUTED by controller measurement (V17), and it
+changes the urgency without changing the fix.** Both read `internal/eval_harness/watchdog.go:57`
+as an existing git site the regex misses. It is `exec.Command("bash", "-c", …)` — not git —
+exactly as V12 already recorded. A multi-line-aware enumeration over 1,254 non-test Go files
+returns **93**, byte-identical to the single-line count, with an EMPTY differing-file list. So
+there is nothing to recover today and nothing to stop a `gofmt`-wrapped git call being invisible
+tomorrow: the blind spot is **prospective, not present**, and HID-6 closes it prospectively.
 
 **Quorum trigger analysis** (per design-doc-creator checklist): trigger 1 (freeze items) — no.
 Trigger 2 (overrides shared machinery) — no: it *creates* shared machinery and converts callers;
 `scripts/check_boundaries.sh` is reused as a pattern, not modified. Trigger 3 (cost/KPI/schema)
 — no. Trigger 4 (external-system premises) — **arguably yes**: the problem statement leans on
 SonarCloud's leak-period semantics (`sinceLeakPeriod=true`, an API whose sibling parameter
-`inNewCodePeriod` is silently ignored — V1's control). The design's *substance* (92 sites, the
+`inNewCodePeriod` is silently ignored — V1's control). The design's *substance* (93 sites, the
 resolver, the gate) is verifiable entirely in-repo. Recommendation: run `ailang design-quorum`
 before planning, since this is an unattended-loop doc.
 
@@ -116,12 +231,14 @@ package gitexec
 
 // ErrUnresolvable is returned (wrapped) whenever git cannot be resolved to an
 // ABSOLUTE path. Requiring an absolute result is deliberate: callers must not
-// execute whatever a relative or writable PATH entry happens to call "git".
+// execute whatever a relative PATH entry happens to call "git".
 var ErrUnresolvable = errors.New("git is not resolvable to an absolute path")
 
 // Path returns the process-wide cached absolute path to git, or an error
-// wrapping ErrUnresolvable. Resolution runs once per process (sync.Once),
-// caching success AND failure.
+// wrapping ErrUnresolvable. Only SUCCESS is cached (HID-3): on a failed
+// resolution the cache stays empty and the next call re-resolves, so a
+// long-lived process recovers if git appears on PATH after startup. The cache
+// is a mutex-guarded string, safe under concurrent use from many goroutines.
 func Path() (string, error)
 
 // Command returns an *exec.Cmd for the resolved absolute git path.
@@ -143,7 +260,7 @@ func resolveWith(look func() (string, error)) (string, error)
 - **Chosen: deferred error via `Cmd.Err`.** On resolution failure, `gitexec.Command` returns a
   `*exec.Cmd` with `Err` set to `fmt.Errorf("gitexec: %w: %v", ErrUnresolvable, cause)`;
   `Run`/`Output` return that error. This mirrors what `os/exec` itself already does when
-  `exec.Command("git", ...)` cannot find git — so **every one of the 92 call sites keeps its
+  `exec.Command("git", ...)` cannot find git — so **every one of the 93 call sites keeps its
   existing error-handling control flow unchanged**. A user whose git is genuinely not on PATH
   sees the same failure point as today (the `Run`/`Output` error path), with a *sharper*
   message: today `exec: "git": executable file not found in $PATH`; after,
@@ -151,14 +268,14 @@ func resolveWith(look func() (string, error)) (string, error)
   No new failure mode, no behavioral cliff, and `errors.Is(err, gitexec.ErrUnresolvable)` is
   available to any site that wants to special-case it.
 - **Rejected: `(cmd, err)` two-value return.** Correct but forces a second error check at all
-  92 sites *before* the existing `Run`/`Output` check — roughly doubling the diff and creating
-  92 opportunities for a careless `_ =` swallow. The deferred contract achieves the same
+  93 sites *before* the existing `Run`/`Output` check — roughly doubling the diff and creating
+  93 opportunities for a careless `_ =` swallow. The deferred contract achieves the same
   loudness through the error path every site already has — **except at the sites that already
   discard it**, and there are at least five: `internal/coordinator/daemon_tasks_exec_run.go:461,463`,
   `cmd/ailang/coordinator_browse.go:87,240`, and `internal/coordinator/worktree.go:239`
   (`_ = cmd.Run()`, "Ignore errors"). Those keep today's silent-swallow behaviour after
   conversion — this design neither improves nor worsens them, and the claim of uniform
-  improved diagnostics across "every one of the 92" does **not** hold for them. They are a
+  improved diagnostics across "every one of the 93" does **not** hold for them. They are a
   pre-existing class, listed here rather than fixed, so no reader mistakes conversion for
   diagnosis.
 - **Rejected: fallback to bare `"git"` on resolution failure.** This is a silent fallback in
@@ -207,7 +324,7 @@ V7) + a ci.yml step after "Check architecture boundaries" (ci.yml:133, V7) + mem
 2. **Enumerate** bare-name git exec sites over all `*.go` under the repo root, excluding
    `_test.go`, `vendor/`, and `internal/gitexec/` (the one sanctioned site), with the regex
    `exec\.Command(Context)?\([^)"]*"git"` (validated in this doc: narrow and wide variants
-   agree at 92 with zero diff — V2; nothing exists outside cmd/ and internal/ — V13).
+   agree at 93 with zero diff — V2; nothing exists outside cmd/ and internal/ — V13).
 3. **Compare against a per-file baseline** (`scripts/git_exec_baseline.txt`, `path count`
    lines). Failure conditions, all loud: (a) a file with matches that is absent from the
    baseline; (b) a count above baseline for any file; (c) **a count below baseline** — the
@@ -242,23 +359,68 @@ V7) + a ci.yml step after "Check architecture boundaries" (ci.yml:133, V7) + mem
   shape and missed that it is *also* a multi-line call, which is exactly how a blind spot
   hides: the site was looked at, through the wrong lens). `gofmt` produces this shape
   naturally as soon as an argument list grows, so a future `git` call is more likely to be
-  invisible the longer it is. **Mitigation for the sprint:** the gate SHOULD join logical
-  lines before matching (`gofmt`-normalise, or match over `go/ast` rather than text) — and if
-  the executor keeps the textual form, this limitation must be restated in the gate's own
-  output, not only here.
+  invisible the longer it is.
+
+  **DECIDED — HID-6 (controller, round-2 carve-out): the enumerator MUST be AST-based, and
+  this is a committed design decision, not executor discretion.** Round 2 blocked on exactly
+  this clause being a `SHOULD`, from two reviewers independently:
+
+  > **gpt5-6-sol:** "It then makes AST-based detection only a 'SHOULD,' allowing M4 and CI to
+  > report zero while prohibited git executions remain."
+  >
+  > **oc-glm-5-2:** "The proposed mitigation ('the gate SHOULD join logical lines before
+  > matching') is a SHOULD, not a committed design decision, leaving it to executor
+  > discretion. A CI gate with a known blind spot for the exact shape it exists to catch does
+  > not satisfy its stated primary goal; punting the fix to the executor makes the design
+  > incomplete."
+
+  Both are right about the `SHOULD`, and both are wrong about one premise, which the
+  controller measured at HEAD `999d4c1dd` rather than forwarding (V17): they read
+  `watchdog.go:57` as an existing **git** site the regex misses. It is not — it is
+  `exec.Command("bash", "-c", …)`, which is what V12 already said. **A multi-line-aware
+  enumeration finds exactly 93 sites, byte-identical to the single-line count, with ZERO
+  files where joining logical lines finds more.** So the blind spot is **prospective, not
+  present**: there is nothing to recover today, and nothing to stop a `gofmt`-wrapped git
+  call being invisible tomorrow. That distinction changes the urgency and not the fix — a
+  gate whose whole job is to make a class unable to grow must be able to see the shape the
+  formatter produces.
+
+  **The committed contract, replacing the `SHOULD`:**
+  1. `scripts/check_git_exec.sh` enumerates over **`go/ast`** — parse each non-test `.go`
+     file under `cmd/` and `internal/`, walk `*ast.CallExpr`, and flag a call whose function
+     resolves to `exec.Command`/`exec.CommandContext` with a `"git"` string literal in the
+     command-name position. Physical line breaks are then irrelevant by construction, which
+     is what makes this complete for the Go/literal class rather than complete-by-inspection.
+  2. The line-oriented regex MAY be retained only as a cross-check. If both run, a
+     **disagreement between them is a gate FAILURE**, not a warning — that difference is the
+     only cheap signal that one enumerator has gone blind.
+  3. **Anti-vacuity by ADDITION, not only by removal** (this repo's rule 3a(i-e): a removal
+     proves a check FIRES, only an addition proves it LOOKS). The gate ships a fixture
+     containing a **multi-line** `exec.Command(\n "git", …)` and a **variable-first-arg**
+     shape, and a self-test asserting the enumerator's COUNT MOVES when the fixture is
+     present. A gate that flags the fixture-missing case green is itself a failure (exit 2,
+     loud), as the existing anti-vacuity requirement already states.
+  4. The residual classes below — variable first argument, dataflow/aliasing, shell strings,
+     `syscall.Exec`, and every non-Go surface — are **NOT** closed by the AST enumerator and
+     the gate must say so **in its own output**, every run, not only in this document.
+     Accordingly the Primary Goal is scoped to what the gate can actually enforce (see the
+     Goals section), because a goal stated wider than its instrument is the defect
+     gpt5-6-sol named: CI reporting zero while prohibited executions remain.
 - `syscall.Exec`, execution of scripts under `tools/` or launchd plists that themselves call
   git, and any non-Go surface (shell scripts, Makefiles). These are different classes with
   different owners; the gate is honest about only policing direct Go `os/exec` use of `"git"`.
 
 **Sonar interaction:** converting the 4 flagged sites resolves the 4 `go:S4036` issues
 (the flagged lines stop invoking `exec.Command("git", ...)`). The resolver's own single
-`LookPath("git")` may attract one residual S4036 finding; if it does, it is marked reviewed-safe
-via the `sonarcloud-triage` flow with a justification pointing at this doc — a per-site
-disposition on the one auditable site, **not** a repo-wide rule suppression.
+`LookPath("git")` is **expected** to keep one `go:S4036` finding present on that auditable
+site (HID-5 chooses absolute-only, which does not validate unwriteability). This revision does
+**not** disposition that residual as reviewed-safe: closing it is a named, separate follow-up
+(`M-GIT-RESOLVER-S4036-CLOSURE`), and this sweep does not claim the security rating reaches A.
 
 ### Implementation Plan
 
-**M1 — helper + flagged sites + gate (1.5d).** Residual after M1: **88 bare sites remain.**
+**M1 — helper + flagged sites + gate (1.5d).** Residual after M1: **89 bare sites remain**
+(derived: 93 − 4 flagged).
 - Create `internal/gitexec` (resolver, `Path`, `Command`, `CommandContext`, test seam).
 - Convert the 4 Sonar-flagged sites: `cmd/ailang/prompt_freeze_check_git.go:82` (`gitBytes`),
   `cmd/ailang/prompt_freeze_core.go:194` (`scanCorpus`), `internal/coordinator/worktree.go:308`
@@ -267,19 +429,19 @@ disposition on the one auditable site, **not** a repo-wide rule suppression.
   (site bodies read at V8's companion reads; see V1 for the flagged list).
 - Migrate `cmd/ailang/help.go` off its private `resolveGit`/`gitBinary` (delete both; rewrite
   `help_stale_test.go` accordingly).
-- Land `scripts/check_git_exec.sh` + make target + ci.yml step, baseline seeded at the
-  measured post-M1 per-file counts (sum = 88).
-- Refusal-branch tests + neutering mutations (below).
+- Land `scripts/check_git_exec.sh` + make target + ci.yml step, baseline **seeded by a fresh
+  measurement** of the post-M1 per-file counts (sum = 89 at HEAD), not hardcoded.
+- Refusal-branch tests + neutering mutations + the inverted caching test (below).
 
 **M2 — `internal/coordinator` sweep (1d).** Converts the remaining 42 coordinator sites
 (`worktree.go` 15 more, `merge.go` 8, `approval_processor.go` 6, `artifact_discovery.go` 5,
 `daemon_tasks_exec_run.go` 4, `daemon_tasks_worktrees.go` 3, `observatory_sync.go` 1 — V9).
-Baseline ratchets 88 → **46 remain.**
+Baseline ratchets → **47 remain** (derived: 89 − 42).
 
-**M3 — `cmd/ailang` sweep (1d).** Converts the remaining 40 cmd sites (`coordinator_cloud.go`
+**M3 — `cmd/ailang` sweep (1d).** Converts the remaining 41 cmd sites (`coordinator_cloud.go`
 14 more, `coordinator_browse.go` 11, `chains_diff.go` 4, `coordinator_inspect.go` 4,
-`messages_send.go` 3, `coordinator_utils.go` 3, `coordinator_cloud_github.go` 1 — V9).
-Baseline ratchets 46 → **6 remain.**
+`messages_send.go` 3, `coordinator_utils.go` 3, `coordinator_cloud_github.go` 2 — V9).
+Baseline ratchets → **6 remain** (derived: 47 − 41).
 
 **M4 — tools layer sweep (0.5d).** Converts `internal/pkg/gitcache.go` (5) and
 `internal/eval_harness/gemini_evaluator_bridge.go` (1). Baseline ratchets 6 → **0**; the
@@ -302,7 +464,8 @@ to a follow-up commit after that session lands, and say so in the sprint log.
 - `internal/gitexec/gitexec.go` — NEW (~120 LOC): resolver, ErrUnresolvable, Path/Command/CommandContext, test seam
 - `internal/gitexec/gitexec_test.go` — NEW (~200 LOC): refusal-branch tests + mutation protocol comments
 - `scripts/check_git_exec.sh` — NEW (~120 LOC): gate with anti-vacuity fixture + ratchet baseline
-- `scripts/git_exec_baseline.txt` — NEW: per-file allowed counts (seeded at 88, ratchets to 0)
+- `scripts/git_exec_baseline.txt` — NEW: per-file allowed counts (**seeded from a fresh
+  measurement** at M1 landing — sum 89 at HEAD — then ratcheted to 0)
 - `scripts/testdata/git_exec_gate_positive.txt` — NEW: known-positive fixture for the instrument check
 - `make/code-health.mk` — MODIFY (+6 LOC): `check-git-exec` target beside `check-boundaries` (V7)
 - `make/ci.mk` — MODIFY (+1 word): add `check-git-exec` to the `ci:` aggregate (line 11 — V7)
@@ -316,7 +479,7 @@ to a follow-up commit after that session lands, and say so in the sprint log.
 ## Conflict Surface
 
 This design touches no parser/lexer/typechecker/codegen path, so the mandatory trigger does
-not fire; the section is included because the sweep's blast radius is wide (18 files, 92
+not fire; the section is included because the sweep's blast radius is wide (18 files, 93
 sites) and the honest answer is not "no conflicts".
 
 ### Positions touched
@@ -357,8 +520,14 @@ path: `internal/gitexec/` is the only directory allowed to name `"git"` in an ex
   corner executes the relative git; after, the site's error path fires with `ErrUnresolvable`.
   This is the point of the design.
 - Error text at failing sites changes from `exec: "git": executable file not found in $PATH`
-  to the wrapped `gitexec: ...` form. Anything parsing that string would break — no in-repo
-  code matches on it (checked while reading the 4 flagged sites; none inspect error text).
+  to the wrapped `gitexec: ...` form. Anything parsing that string would break — measured
+  repo-wide, nothing does (V14, with its known-positive control). Separately, the new package
+  returns a typed `gitexec.ErrUnresolvable` rather than `exec.ErrNotFound`, so any **future**
+  caller that wants to detect "is git missing" must test `errors.Is(err, gitexec.ErrUnresolvable)`
+  instead. No current caller needs to change: the typed-sentinel enumeration (V15) shows the
+  only production consumer of `exec.ErrNotFound` is `internal/effects/process.go` (std
+  `process.exec`), which resolves an arbitrary user-supplied binary — not git — and is outside
+  this sweep's scope. This is stated as a measured contract, not an assurance.
 
 ## Testing Strategy
 
@@ -376,9 +545,16 @@ it fails under its paired mutant.
 | B3 | `Command`/`CommandContext` after failed resolve → returned Cmd carries `Err`; `Run` fails with `errors.Is(_, ErrUnresolvable)` | run a Cmd built under an injected failing resolver; assert error identity from `Run()`, not just construction | `if false && resolveErr != nil` at the `Cmd.Err` assignment |
 | B4 | Success path → `Cmd.Path` is the absolute resolved path; `Args[0]` sane; context honored for `CommandContext` | `resolveWith(-> "/abs/git", nil)`; assert `cmd.Path == "/abs/git"` and a cancelled context aborts `Run` | swap the assignment to the bare literal: `Path: "git"` (builds; B4's absolute-path assertion kills it) |
 
-Plus one **caching** test (not a refusal branch): the `look` func is invoked exactly once
-across two `Path()` calls, including when the first call *failed* — failure is cached too, and
-the test asserts the second call returns the same error without re-invoking `look`.
+Plus two **caching** tests (not refusal branches), enforcing HID-3:
+
+- **Success is cached.** Two consecutive `Path()` calls that both succeed invoke `look`
+  exactly once — the second call returns the cached path without re-resolving.
+- **Failure is NOT cached (falsifiable arm).** This arm inverts the old contract: a first
+  `Path()` that FAILS must leave the cache empty, so a second `Path()` call re-invokes `look`
+  and returns whatever the environment now resolves to (e.g. a later success). The named
+  mutation that kills it is **"cache the failure too"** — store the error in the cache slot on
+  failure — under which the second call returns the stale error without re-invoking `look`,
+  failing the assertion. This is the daemon-recovery behaviour the design preserves (HID-3).
 
 ### Gate self-tests
 - Instrument test: run the script against a tree copy with the fixture removed from the
@@ -399,50 +575,70 @@ the test asserts the second call returns the same error without re-invoking `loo
   use of `"git"` (stated as enumerator blind spots above).
 - Repo-wide suppression of Sonar rule `go:S4036` — per-site disposition on the single
   sanctioned resolver only.
-- Vendoring or shelling to a pinned git version; PATH is still *read* once at resolve time —
-  the change is that its result must be absolute and is resolved at one auditable site.
+- Vendoring or shelling to a pinned git version; PATH is still *read* at resolve time —
+  once on the success path (cached) and per call on the failure path (HID-3) — and the
+  change is that its result must be absolute and is resolved at one auditable site.
 
 ## Success Criteria
 
 - [ ] M1: `internal/gitexec` exists; the 4 Sonar-flagged sites and `help.go` route through it;
-      refusal-branch tests pass and each documented mutant is killed; `make check-git-exec`
-      runs in CI with baseline sum = **88** — the doc and the baseline both state that
-      **88 bare sites remain** (this criterion is unmeetable by a doc claiming full coverage)
-- [ ] M2: coordinator sweep done; baseline sum = **46 remaining**
-- [ ] M3: cmd/ailang sweep done; baseline sum = **6 remaining**
+      refusal-branch tests pass and each documented mutant is killed; the caching tests enforce
+      HID-3 (success cached, failure re-resolved); `make check-git-exec` runs in CI with a
+      baseline **seeded by fresh measurement** (sum 89 at HEAD) — the baseline, not this doc,
+      is the contract, and both state that **89 bare sites remain**
+- [ ] M2: coordinator sweep done; baseline sum = **47 remaining** (derived)
+- [ ] M3: cmd/ailang sweep done; baseline sum = **6 remaining** (derived)
 - [ ] M4: baseline sum = **0**; positive invariant (exactly 1 `LookPath("git")`, in
       `internal/gitexec/`) enforced by the gate
 - [ ] Gate anti-vacuity verified: fixture-missing run exits 2 (loud), never green
-- [ ] Sonar: 4 `go:S4036` new-code issues no longer attach to the converted lines; any
-      residual finding on the resolver is dispositioned per-site with a justification
+- [ ] Sonar: the 4 flagged NEW-CODE `go:S4036` sites are converted (their lines stop invoking
+      `exec.Command("git", ...)`). The rating is NOT asserted to reach A: the resolver's single
+      `LookPath` is expected to keep S4036 present, and that residual is a named follow-up
+      (`M-GIT-RESOLVER-S4036-CLOSURE`), not a disposition this sweep makes
 - [ ] All tests passing; CHANGELOG updated per milestone; no edits to the six
       concurrent-session files
 
 ## Verification Log
 
-Every "the codebase currently does X" claim above is backed by a row here. Commands were run
-at `e38c0c493` (origin/dev) from the repo root on 2026-08-27. Empty/negative results carry a
-same-call, same-path known-positive control.
+Every "the codebase currently does X" claim above is backed by a row here. This revision
+re-derived all counts at HEAD `999d4c1dd` (origin/dev, 2026-08-28); the original draft was
+measured at `e38c0c493` (2026-08-27). Empty/negative results carry a same-call, same-path
+known-positive control.
 
 | # | Claim | Command | Observed |
 |---|-------|---------|----------|
 | V1 | Exactly 4 new-code `go:S4036` issues, at the 4 named sites; leak-period narrows (instrument works) | `curl -s "https://sonarcloud.io/api/issues/search?componentKeys=sunholo-data_ailang&sinceLeakPeriod=true&rules=go:S4036&ps=50"` piped to python; controls: same query without `rules` (`&ps=1`) and without `sinceLeakPeriod` | `total: 4` — `prompt_freeze_check_git.go:82`, `prompt_freeze_core.go:194`, `worktree.go:308`, `coordinator_cloud.go:459`, all MINOR/OPEN. Controls: `leak: 19`, `all: 2404` (the leak-period filter demonstrably narrows; `inNewCodePeriod` is the known-broken parameter, not used) |
-| V2 | 92 bare-name git exec sites (non-test) in cmd+internal; regex not under-matching | narrow `grep -rn --include='*.go' -E 'exec\.Command(Context)?\((ctx, )?"git"' cmd internal \| grep -v '_test.go' \| wc -l`; wide `[^)"]*"git"` variant; `diff` of sorted outputs; control incl. tests | narrow = **92**, wide = **92**, diff = empty; control including `_test.go` = 108 (≥ 92, instrument sees positives); known-positive control `grep -n 'exec.Command' cmd/ailang/prompt_freeze_check_git.go` → line 82 |
+| V2 | 93 bare-name git exec sites (non-test) in cmd+internal; regex not under-matching | narrow `grep -rn --include='*.go' -E 'exec\.Command(Context)?\((ctx, )?"git"' cmd internal \| grep -v '_test\.go' \| wc -l`; wide `[^)"]*"git"` variant; `diff` of sorted outputs; control incl. tests | narrow = **93**, wide = **93**, diff = empty; control including `_test.go` = 113 (≥ 93, instrument sees positives); known-positive control `grep -n 'exec.Command' cmd/ailang/prompt_freeze_check_git.go` → line 82 |
 | V3 | The existing resolver has zero consumers outside its own file (+ its tests) | `grep -rn --include='*.go' 'gitBinary(' cmd internal` | Hits only in `cmd/ailang/help.go` (:41, :185 def) and `cmd/ailang/help_stale_test.go` (6 refs) |
 | V4 | `resolveGit`/`gitBinary` exist at help.go:173/185, require ABSOLUTE, `""` = show-warning semantics | `sed -n '160,220p' cmd/ailang/help.go` | Doc comment: "must not execute whatever a relative or writable PATH entry happens to call \"git\"… empty result makes both probes report undeterminable, which SHOWS the warning"; `sync.Once` cache confirmed |
 | V5 | No existing package could host this (negative-existence) | `ls internal \| grep -i 'git\|osutil\|executil'` with control `ls internal \| grep -c 'coordinator'` | grep exit=1 (no match); control = 1 (the pipeline finds known packages) |
 | V6 | Exactly one `LookPath("git")` in the repo (non-test) | `grep -rn --include='*.go' 'LookPath("git")' cmd internal \| grep -v '_test.go'` | Single hit: `cmd/ailang/help.go:186` (this is also the positive control for the pattern) |
 | V7 | Boundary gate = fixed name-set rules; `check-boundaries` lives in make/code-health.mk:161, aggregate in make/ci.mk:11, CI step at ci.yml:133; `gitexec` in no policed set | `make -n check-boundaries`; `grep -rn 'check-boundaries' make/*.mk`; `sed -n '128,138p' .github/workflows/ci.yml`; `sed -n '1,80p' scripts/check_boundaries.sh` | `bash scripts/check_boundaries.sh`; `make/code-health.mk:161`, `make/ci.mk:11`; ci.yml step "Check architecture boundaries"; CORE_PKGS/DASHBOARD_PKGS/CORE_SURFACE_PKGS arrays contain fixed names, none is `gitexec` |
 | V8 | The six concurrent-session files contain ZERO git exec sites | `grep -n -E 'exec\.Command(Context)?\([^)"]*"git"' cmd/ailang/docs.go cmd/ailang/prompt.go cmd/ailang/verify.go internal/prompt/loader.go` with control `grep -c <same pattern> cmd/ailang/prompt_freeze_check_git.go` | exit=1 (no matches); control = 1 (same regex, known positive). The two non-Go files (`std/string.ail`, `prompts/versions.json`) are outside `--include='*.go'` scope by construction |
-| V9 | Per-file distribution: cmd 43, coordinator 43, pkg 5, eval_harness 1; 69 `Command` + 23 `CommandContext` | `grep -rc --include='*.go' -E '<wide pattern>' cmd internal \| grep -v ':0$' \| grep -v '_test.go'`; per-package `cut -d/ -f1-2 \| sort \| uniq -c`; split greps | 18 files, counts as listed in Implementation Plan; 43+43+5+1 = 92 ✓; 69+23 = 92 ✓ |
+| V9 | Per-file distribution: cmd 44, coordinator 43, pkg 5, eval_harness 1; 70 `Command` + 23 `CommandContext` | `grep -rc --include='*.go' -E '<wide pattern>' cmd internal \| grep -v ':0$' \| grep -v '_test\.go'`; per-package `cut -d/ -f1-2 \| sort \| uniq -c`; split greps | 18 files, counts as listed in Implementation Plan; 44+43+5+1 = 93 ✓; 70+23 = 93 ✓ |
 | V10 | Go 1.26.6; `exec.Cmd.Err` exists (deferred-error contract available) | `head -5 go.mod`; `go doc os/exec.Cmd.Err` | `go 1.26.6`; `Err error  // LookPath error, if any.` |
 | V11 | Variable-first-arg git exec shapes exist (enumerator blind spot is real) | `grep -n 'exec.CommandContext(ctx, git,' cmd/ailang/help.go` | Hits at help.go:204 and :222 (first arg is the variable `git`) |
 | V12 | A `bash -c` exec site exists (shell-string blind spot is real); it is out of the git class | `grep -rn --include='*.go' -E '"(sh\|bash)", "-c"' cmd internal \| grep -v '_test.go'`; then read the site | Single hit `internal/eval_harness/watchdog.go:57`; site body is process-tree cleanup, no git invocation |
-| V13 | ZERO git exec sites outside cmd/ and internal/ (negative + control) | root grep with `--exclude-dir={cmd,internal,vendor,node_modules,.git}`; control: same root grep including cmd+internal | exit=1 (none outside); control = **92** exactly (instrument sees the known positives through the identical invocation) |
+| V13 | ZERO git exec sites outside cmd/ and internal/ (negative + control) | root grep with `--exclude-dir={cmd,internal,vendor,node_modules,.git}`; control: same root grep including cmd+internal | exit=1 (none outside); control = **93** exactly (instrument sees the known positives through the identical invocation) |
 
 **Not reproduced from the commissioning brief:** the brief estimated "roughly 95" sites; the
-measured count is **92** (V2, cross-checked three ways: narrow regex, wide regex, root-wide
-control). All other commissioned facts reproduced exactly.
+measured count was **92** at the original base and is **93** at HEAD `999d4c1dd` (V2,
+cross-checked three ways: narrow regex, wide regex, root-wide control) — a single new bare
+git site was added between the two bases. 9 of the 18 sweep files changed since `e38c0c493`
+(`cmd/ailang/coordinator_cloud.go`, `docs.go`, `prompt.go`, `prompt_freeze_check_git.go`,
+`prompt_freeze_core.go`, `verify.go`, `internal/coordinator/daemon_tasks_exec_run.go`,
+`internal/prompt/loader.go`, `std/string.ail`), which is why counts must be re-derived at
+execution time and the gate baseline is seeded by measurement, not hardcoded.
+
+## Additional Verification (revision pass, at HEAD `999d4c1dd`)
+
+| # | Claim | Command | Observed |
+|---|-------|---------|----------|
+| V14 | No Go code in cmd/ or internal/ string-matches os/exec's not-found error text (negative + control) | `grep -rn "executable file not found" cmd internal --include='*.go' \| grep -v '_test\.go'`; then `grep -rniE 'strings\.(Contains|HasPrefix|HasSuffix)\([^)]*(not found in \$PATH|executable file not found|exec: )' cmd internal --include='*.go'`; known-positive control `grep -rniE 'strings\.(Contains|HasPrefix|HasSuffix)\(' cmd internal --include='*.go' \| wc -l` | Literal-text grep: 0 hits, rc=1. Matcher grep: 0 hits, rc=1. **Control = 2918** — the instrument demonstrably fires on `strings.Contains/HasPrefix/HasSuffix` usage, so a 0 here is a real absence, not a blind instrument. Supports the "no in-repo code parses the old error text" claim (What deliberately changes) |
+| V15 | Typed-sentinel `exec.ErrNotFound` is confined to out-of-sweep files; the only production consumer is not git | `grep -rn "exec.ErrNotFound" cmd internal --include='*.go'` | 7 hits: `cmd/ailang/help_stale_test.go:395,396` (test; M1 rewrites this file anyway), `internal/notify/macos_test.go:73,99,100,153` (test; terminal-notifier/osascript, not git), `internal/effects/process.go:197` (**PRODUCTION**: `errors.Is(err, exec.ErrNotFound)`). Cross-check: `grep -c '"git"' internal/effects/process.go` → **0** — that consumer is std `process.exec`, resolving an arbitrary user-supplied binary (line 123), NOT git, and no sweep milestone touches it. So no current caller of the git path needs to change; future callers must test `gitexec.ErrUnresolvable` |
+| V16 | Resolver enforces only `filepath.IsAbs` (basis for HID-5) | `sed -n '173,181p' cmd/ailang/help.go` | `resolveGit` returns `""` on `look()` error OR `if !filepath.IsAbs(p) { return "" }` — an absolute-path check and **nothing else**; no `stat`, no ownership check, no write-permission check. Doc comment reads "must not execute whatever a relative or writable PATH entry happens to call git" (the "writable" half is not enforced — the basis for removing it from the planned comment). `sync.Once` cache confirmed at help.go:186 |
+
+| V17 | The multi-line enumerator blind spot is PROSPECTIVE, not present: a multi-line-aware count equals the single-line count exactly, and the site both round-2 reviewers cited as an existing miss is not a git call | Single-line arm: `grep -rEn 'exec\.Command(Context)?\((ctx, )?"git"' cmd internal --include='*.go' \| grep -v '_test\.go' \| wc -l`. Multi-line arm: a python3 walk of all non-test `.go` files under `cmd/`+`internal/` collapsing whitespace (`re.sub(r'\s+',' ',src)`) before matching `exec\.Command(Context)?\(\s*(?:<ident>\s*,\s*)?"git"`, printing every file where the joined count exceeds the single-line count. Then `sed -n '50,62p' internal/eval_harness/watchdog.go` | Single-line **93**; multi-line-aware **93** over **1254** files scanned; the differing-file list is **EMPTY**. `watchdog.go:57` reads `exec.Command("bash", "-c", …)` — multi-line, and NOT git, exactly as V12 states. So both round-2 objections are correct that the `SHOULD` was not a commitment (fixed as HID-6) and incorrect that a git site is being missed today. Measured by the controller at HEAD `999d4c1dd` under the round-2 narrow-refinement carve-out, per this repo's rule 3f (measure a premise objection, never forward it) |
 
 ## Related Documents
 
@@ -464,7 +660,7 @@ resolution or an exec-hardening sweep — nearest neighbours, each distinct:
 
 | Day | Work |
 |-----|------|
-| 1–1.5 | M1: gitexec package, 4 flagged sites, help.go migration, tests+mutants, gate landed (baseline 88) |
-| 2.5 | M2: coordinator sweep (baseline → 46) |
-| 3.5 | M3: cmd/ailang sweep (baseline → 6) |
+| 1–1.5 | M1: gitexec package, 4 flagged sites, help.go migration, tests+mutants, gate landed (baseline seeded from measurement: 89 at HEAD) |
+| 2.5 | M2: coordinator sweep (baseline → 47, derived) |
+| 3.5 | M3: cmd/ailang sweep (baseline → 6, derived) |
 | 4 | M4: pkg + eval_harness sweep (baseline → 0), positive invariant on, CHANGELOG |
