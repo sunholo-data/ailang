@@ -29,6 +29,21 @@ func importHint(name string) string {
 	return fmt.Sprintf(" — `%s` is exported by %s; add the matching import", name, strings.Join(mods, ", "))
 }
 
+// builtinHint returns a self-discovery clause for undefined variables that follow the
+// builtin naming convention (leading underscore, e.g. `_fs_rename`, `_str_len`). Builtins
+// are compiled into the ailang binary — an unknown `_x` name is therefore either a typo
+// (fix: `ailang builtins list` shows the real inventory) or std/binary drift (fix:
+// rebuild the binary). Both are one-step self-discovery for an agent; without the hint,
+// the error invites the agent to "fix" std/*.ail — which is how a stale-binary type
+// error in std/fs (M-FS-RENAME downstream, 2026-08-28) reads as a stdlib bug.
+// Returns "" for non-builtin names so genuine undefined-variable errors are untouched.
+func builtinHint(name string) string {
+	if !strings.HasPrefix(name, "_") {
+		return ""
+	}
+	return fmt.Sprintf(" — '%s' follows the builtin naming convention; builtins are compiled into this ailang binary, not importable source. Run `ailang builtins list` for the real inventory. If your std/ was updated but the binary wasn't rebuilt, rebuild it (make quick-install) — do not edit std/ to define a builtin", name)
+}
+
 // localResolutionHint returns a truth-telling residual clause for the
 // "resolution diverges by syntactic position" family (#323 → #327 → #366): when
 // an "undefined variable: X" is raised for X that IS a module-level function of
