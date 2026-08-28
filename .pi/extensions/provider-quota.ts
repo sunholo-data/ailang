@@ -85,7 +85,18 @@ async function ollamaCloudUsage(): Promise<string> {
 		const week = d.limits?.weekly?.usage;
 		const cost = d.activity?.cost ?? "?";
 		const periodEnd = d.activity?.period?.ending_at ?? "?";
-		return `session usage ${sess ?? "?"}, weekly usage ${week ?? "?"} (coarse numerator — denominator unpublished, % remaining NOT computable); activity cost ${cost}, period ends ${periodEnd}`;
+		// usage is a 0..1 fraction of the (unpublished) window allowance — V50.
+		// Classify like the OpenRouter gauge: >=0.8 WARN, >=0.95 CRITICAL.
+		const status = (u: number | undefined) =>
+			typeof u !== "number" ? "?" : u >= 0.95 ? "CRITICAL" : u >= 0.8 ? "WARN" : "ok";
+		const top = (models: Array<{ name?: string; request_count?: number }> | undefined, k = 3) =>
+			(models ?? []).slice(0, 3).map((mm) => `${mm.name}×${mm.request_count ?? 0}`).join(", ");
+		return [
+			`session ${sess ?? "?"} (${status(sess)}), weekly ${week ?? "?"} (${status(week)}) — windows are 0..1 fractions, denominator unpublished`,
+			`session top: ${(d.limits?.session?.models ?? []).slice(0, 3).map((mm) => `${mm.name}×${mm.request_count}`).join(", ") || "none"}`,
+			`weekly top: ${(d.limits?.weekly?.models ?? []).slice(0, 3).map((mm) => `${mm.name} ×${mm.request_count}`).join(", ") || "none"}`,
+			`activity cost ${cost}, period ends ${periodEnd}`,
+		].join("; ");
 	} catch (e) {
 		return `query failed (${String(e)})`;
 	}
