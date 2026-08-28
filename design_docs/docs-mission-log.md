@@ -36,51 +36,91 @@ bookkeeping issue #953).
 **Routing evidence**:
 | Role | Model | Outcome |
 |---|---|---|
-| Controller | `claude-sonnet-5` (session) | Ran Gate 0-2 preflight, ran `ailang design-quorum` round 1 (controller-verdict pass), measured 2 of 3 round-1 objections live against prod Firestore (see below), ran round 2 quorum, measured 2 of 3 round-2 objections. |
-| Designer | `claude:claude-sonnet-5` (Agent-tool pin, per this mission's seed — not a fallback) | ONE bounded revision to `design_docs/docs-mission.md`, scoped to the round-1 objections + controller's measurements. Confirmed post-hoc: clauses 1-6, Guardrails, Routing policy, STATUS ARMED-BUT-SILENT language all unchanged. |
+| Controller | `claude-sonnet-5` (session) | Ran Gate 0-3 preflight/quorum across 3 rounds, measured premises live (prod Firestore send/forward, `derive-planner-lane.sh` source, `docusaurus-deploy.yml`/`ci.yml` path filters, `docs-sync` script existence), applied the mid-iteration directive, wrote a separately-justified skill fix. |
+| Designer | `claude:claude-sonnet-5` (Agent-tool pin, per this mission's seed — not a fallback) — spawned TWICE | Revision 1: scoped to round-1 objections + controller's measurements. Revision 2: folded in Mark's `29a467cac` decision + round-2 measured fixes. Confirmed post-hoc both times: clauses 1-6, CURRENT GOAL body, STATUS ARMED-BUT-SILENT language untouched outside the intended sections. |
 | Planner / Executor / Sprint-evaluator | N/A | Not spawned — no sprint routed. The charter's own gate ("iteration 0 ratifies it via the quorum before any sprint routes") blocks all sprint work until ratification, and ratification did not land this iteration. |
 | generator≠judge | quorum reviewers `gpt5-6-sol` / `gemini-3-1-pro` / `oc-glm-5-2` | All three are independent of the sonnet controller AND the sonnet designer sub-agent — this iteration's actual deliverable (the charter text) got independent review structurally, without needing a separate sprint-evaluator role that had nothing to evaluate. |
 
-**Outcome**: **PARKED — needs-human-review** on `docs-0`. Quorum blocked twice (round 1 $0.057,
-round 2 $0.062); one revision applied between rounds per Gate 2's protocol (one revision + one
-re-quorum, both now spent). The charter is NOT ratified. No other queue item advanced.
+**Mid-iteration directive**: while round 2 was in progress, Mark (attended) reviewed the
+round-1/2 blast-radius objection directly and committed `29a467cac`, widening
+`MISSION_PLANNER_ALLOWLIST` from `tools/launchd/*` to `tools/*` — answering what became `D-DOCS-1`
+before it was even formally asked. Actioned in-iteration per this skill's mid-iteration-directive
+rule: spawned a second pinned-sonnet designer revision folding the resolution in, plus the two
+round-2 measured fixes, and re-ran the quorum a third time.
 
-**Key find**: 4 of the 6 objections across both rounds were refuted or resolved by direct
-measurement rather than needing a human call — `ailang messages send`/`forward --to` verified
-working end-to-end against prod Firestore (not simulated), the derive-planner-lane.sh "silent
-fallback" objection refuted (it's a deliberately labeled fail-closed-to-opus design, every exit
-path emits a distinct reason token), and the CI workflow "no push paths filter" claim confirmed
-true for `ci.yml` while `docusaurus-deploy.yml`'s actual filter list is broader than the Repo
-Profile states (also triggers on `internal/**`, `cmd/**`, `go.mod`, `go.sum`, `web/**`, the
-workflow file itself — not just docs/prompts/llms.txt/CHANGELOG.md). Only ONE objection is a
-genuine judgment call: whether docs-1's inbox-routing trigger may live under `tools/` (outside the
-stated blast radius) or must stay inside `docs/`/CI config. The charter deliberately declines to
-invent that answer.
+**Outcome**: **PARKED — needs-human-review** on `docs-0`, after THREE quorum rounds (round 1
+$0.057, round 2 $0.062, round 3 $0.078) and TWO designer revisions (the second justified only by
+Mark's live mid-iteration answer, not by round 2 merely re-blocking). Round 3 blocked on three
+entirely new objections — no reviewer has passed in any round, and objections keep landing on a
+fresh surface each time rather than converging, so continuing to revise unattended risks chasing a
+moving bar rather than closing a bounded gap. Stopped per Gate 2's round-tracking rule and Standing
+Rule 2 (never force a guardrail). The charter is NOT ratified. No other queue item advanced.
 
-**Cost**: metered $0.119 of $1 ceiling (two quorum rounds) · quota: sonnet (controller + designer).
+**Key find**: 6 of the 9 objections across three rounds were refuted or resolved by direct
+measurement, none needing a human call — `ailang messages send`/`forward --to` verified working
+end-to-end against prod Firestore; the derive-planner-lane.sh "silent fallback" objection refuted
+(deliberately labeled fail-closed-to-opus design); the CI "no push paths filter" claim confirmed
+true for `ci.yml` while `docusaurus-deploy.yml`'s real filter is broader than first stated (also
+`internal/**`, `cmd/**`, `go.mod`, `go.sum`, `web/**`); and round 3's `audit_design_docs.sh`/
+`check_versions.sh` existence objection refuted by an `ls` I'd already run earlier this same
+iteration. ONE objection (blast-radius scope for docs-1) was resolved not by measurement but by
+Mark's live mid-iteration decision. THREE round-3 objections remain unresolved: gpt5-6-sol wants a
+full conflict-surface/protocol spec for docs-1 written into the charter itself (arguably scope
+creep — that belongs in docs-1's own sprint plan, per the charter's own "most items need no design
+doc" guardrail); oc-glm-5-2's objection that an admittedly-unratified doc reads as operationally
+binding is a structural property of any doc mid-quorum-review, not something a text edit fixes.
 
-**Next**: once Mark answers the docs-1 scope question (and, optionally, confirms the two measured
-corrections — the CI path-filter citation and the "not a silent fallback" framing — should be
-folded into the next revision), a third quorum round should pass cleanly; all objections raised so
-far are either already fixed or reduce to that one open question. No other queue item can be picked
-before ratification.
+**Cost**: metered $0.197 of $1 ceiling (three quorum rounds) · quota: sonnet (controller + two
+designer sub-agent runs). Plus a separately-justified skill fix (see FLAGGED/retro), zero additional
+metered cost.
 
-**Ruled out**: the two premise objections about `ailang messages send`/`forward` not working for an
-unregistered inbox — both refuted by live measurement against prod Firestore, not simulation.
-The `derive-planner-lane.sh` opus-fallback being an unfixed "silent fallback" bug — refuted; it is
-a deliberately labeled fail-closed-to-safety default, already hardened against exactly the silent
-failure mode described (see script lines 57-64).
+**Next**: Mark's read on the two open round-3 objections decides whether a 4th (bounded) revision
+is worth spawning, or whether the quorum bar itself needs recalibrating for a mission-charter
+document vs. a feature design doc (this doc has now gone through more rounds with less convergence
+than typical feature docs this fleet quoriums — worth watching for a 2nd instance before treating
+it as a pattern). Once resolved, docs-1 (already unblocked on blast radius) is likely the next
+pick.
+
+**Ruled out**: the two round-1 premise objections about `ailang messages send`/`forward` not
+working for an unregistered inbox — refuted by live measurement against prod Firestore. The
+`derive-planner-lane.sh` opus-fallback being an unfixed "silent fallback" bug — refuted; it is a
+deliberately labeled fail-closed-to-safety default (script lines 57-64). Round 3's claim that
+`docs-sync`'s `audit_design_docs.sh`/`check_versions.sh` are unverified — refuted, both files exist
+(`ls .claude/skills/docs-sync/scripts/`).
 
 **DECISIONS FOR MARK**:
-- **D-DOCS-1 (new)** — may queue item `docs-1`'s inbox-routing trigger add a script under `tools/`
-  (outside this mission's stated blast radius of `docs/`, `examples/`, `README.md`,
-  `CHANGELOG.md`), or must the mechanism live entirely within that blast radius (e.g. driven from
-  CI config)? This is the one substantive objection blocking charter ratification after two quorum
-  rounds; everything else raised so far has a measured answer already folded into the doc.
-- Charter ratification itself: given the above is the only open point, does the charter read as
-  ready to ratify once D-DOCS-1 is answered and a trivial CI-path-filter citation fix + a
-  "not a silent fallback" framing fix are folded into one more revision, or would you rather review
-  the current diff yourself first? (one word: (a) proceed unattended once D-DOCS-1 lands / (b) I'll
-  review it myself)
+- **D-DOCS-1 — RESOLVED** (attended, commit `29a467cac`): blast radius widened to include `tools/`
+  (non-`internal/`, non-`cmd/`). Folded into the charter.
+- **D-DOCS-2 (new)** — round 3's gpt5-6-sol objection wants docs-1's full implementation protocol
+  (source enumeration, dedup keys, retry/timeout semantics, scheduling ownership) specified in the
+  CHARTER before ratification. Is that right for a mission charter, or does that belong in docs-1's
+  own sprint plan once picked (per the charter's existing "most items need no design doc" guardrail)?
+  One word: (a) charter must specify it now / (b) defer to docs-1's own sprint planning.
+- **D-DOCS-3 (new)** — round 3's oc-glm-5-2 objection is that an unratified doc cannot simultaneously
+  read as operationally binding (live queue, live launchd job). Is this charter-specific, or an
+  inherent tension in quorum-reviewing any live mission doc that should be a standing skill note
+  instead? One word: (a) add an "UNRATIFIED — proposed, not binding" banner to this charter / (b)
+  it's inherent, not this doc's problem, dismiss.
+- Given two open objections after 3 rounds and no reviewer pass yet: would you rather review the
+  current diff yourself, or should the loop keep revising unattended? One word: (a) I'll review it
+  myself / (b) keep going unattended.
 
-**FLAGGED**: none — no role fell back, no routing-policy violation, no billing anomaly.
+**FLAGGED**: one skill fix applied (Gate 5, ≥2-friction bar met by the established "bare
+`~/.ailang/state/` literal" class — designer-rotation, `mission-gh-issue`, `mission-dashboard.md`,
+now the kill-switch/queue/log paths, 5th instance): the shared skill's Gate-0 "Current State"
+preflight literals (`mission-control.disabled`, `v1-mission.md`, `v1-mission-log.md`) are V1-only
+and silently wrong for every other mission — fixed in `0e341cc57`, main-checkout worktree (the
+symlinked skill resolves there, not to this pinned worktree — confirmed via `readlink`/`stat -f %i`
+before editing). No role fell back, no routing-policy violation, no billing anomaly.
+
+#### Design-quorum review — `design_docs/docs-mission.md` (2026-08-28T06:49:08Z)
+
+- **Synthesis: BLOCKED** (total $0.0783, 23594 in / 943 out tok)
+- `gpt5-6-sol` → **reject** ($0.0489, 7677/351 tok) — The mandatory docs-1 trigger has no conflict-surface analysis: the document proposes a new polling script without inventorying existing GitHub ingestion, public-feedback dispatch, message routing, scheduling, deduplication, or acknowledgement machinery and without justifying why none can be reused. Verification of `send` and `forward` does not establish that a parallel router is the correct extension point.
+- `gemini-3-1-pro` → **reject** ($0.0188, 8275/190 tok) — Clause 1 asserts the existence and utility of 'audit_design_docs.sh' and 'check_versions.sh' within the 'docs-sync' skill without providing any verification evidence. This violates the premise verification hard gate, as these critical codebase instruments are asserted as working tools but entirely lack execution traces or proof of existence, contrasting sharply with the rigorously verified CLI commands in Clause 7.
+- `oc-glm-5-2` → **reject** ($0.0106, 7642/402 tok) — The doc's own STATUS section records that iteration 0 quorum was BLOCKED twice and the charter is 'still not ratified,' yet the Queue and CURRENT GOAL already treat clauses 1-7 as the binding bar. The doc is simultaneously an unratified draft and an operational charter with a live launchd job, 5 clauses already tagged to queue items, and a cost ladder claimed as 'verified before being written down.' A self-admittedly unratified document cannot also be the source of truth for its own ratification — the doc pre-commits to its own bar before the quorum that exists to check it has run.
+- controller (in-session, not an API call) → **pass** — Round-3 verdict. All three round-2 objections now resolved: (1) gpt5-6-sol's docs-1 blast-radius objection -- Mark himself, attended, authorized widening MISSION_PLANNER_ALLOWLIST from tools/launchd/* to tools/* mid-iteration (commit 29a467cac, verified both directions before asking per that commit's own message), and this revision folds that into the Guardrails/docs-1 text with a citation; (2) gemini-3-1-pro's silent-fallback objection -- refuted by measurement in round 2 (derive-planner-lane.sh Step 0 is a deliberately labeled fail-closed-to-opus default, every exit path emits a distinct reason token specifically to prevent silent misreads) and now the doc's own wording ('silently runs opus' -> 'deliberately runs opus (labeled fail-closed default)') matches that measurement instead of contradicting it; (3) oc-glm-5-2's CI-citation-completeness objection -- the Repo Profile now cites the actual on.push.paths list from docusaurus-deploy.yml (confirmed via cat, includes internal/**, cmd/**, go.mod, go.sum, web/**, the workflow file itself, beyond the four paths previously stated) and confirms ci.yml has no push paths filter. I independently verified all of these commands/files myself, not merely accepted the designer's claims. Scope check: git diff shows only Repo Profile, Guardrails, Routing-policy Planner row, and Queue docs-1 touched; clauses 1-6, CURRENT GOAL, and STATUS are untouched. PASS from the controller.
+- Blocking objections (return to author before planning):
+  - gpt5-6-sol: The mandatory docs-1 trigger has no conflict-surface analysis: the document proposes a new polling script without inventorying existing GitHub ingestion, public-feedback dispatch, message routing, scheduling, deduplication, or acknowledgement machinery and without justifying why none can be reused. Verification of `send` and `forward` does not establish that a parallel router is the correct extension point.
+  - gemini-3-1-pro: Clause 1 asserts the existence and utility of 'audit_design_docs.sh' and 'check_versions.sh' within the 'docs-sync' skill without providing any verification evidence. This violates the premise verification hard gate, as these critical codebase instruments are asserted as working tools but entirely lack execution traces or proof of existence, contrasting sharply with the rigorously verified CLI commands in Clause 7.
+  - oc-glm-5-2: The doc's own STATUS section records that iteration 0 quorum was BLOCKED twice and the charter is 'still not ratified,' yet the Queue and CURRENT GOAL already treat clauses 1-7 as the binding bar. The doc is simultaneously an unratified draft and an operational charter with a live launchd job, 5 clauses already tagged to queue items, and a cost ladder claimed as 'verified before being written down.' A self-admittedly unratified document cannot also be the source of truth for its own ratification — the doc pre-commits to its own bar before the quorum that exists to check it has run.

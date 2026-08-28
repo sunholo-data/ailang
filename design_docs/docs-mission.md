@@ -30,10 +30,15 @@ iteration posts its report there; driver crashes too.
   The V1 loop mutates this same repo every 90 minutes from a different tree; two loops in one
   working tree is precisely the concurrent-agent hazard. Separate clone = the motoko precedent.
 - **Bookkeeping issue**: `#953`, rotates weekly; live number in `~/.ailang/state/mission-docs-gh-issue`
-- **CI workflows Gate 3b / Gate 1 poll**: `Deploy Documentation to GitHub Pages` (the docs gate,
-  path-filtered on `docs/**`, `prompts/**`, `llms.txt`, `CHANGELOG.md`), and `CI` (which runs on
-  every push — this repo has no push paths filter, so a docs-only commit still runs full CI and
-  Gate 3b must wait for it rather than reading its absence as "not applicable").
+- **CI workflows Gate 3b / Gate 1 poll**: `Deploy Documentation to GitHub Pages` (the docs gate;
+  per `.github/workflows/docusaurus-deploy.yml`'s `on.push.paths`, it is path-filtered on
+  `docs/**`, `prompts/**`, `llms.txt`, `CHANGELOG.md`, `.github/workflows/docusaurus-deploy.yml`,
+  and — as WASM/REPL rebuild triggers — `internal/**`, `cmd/**`, `go.mod`, `go.sum`, `web/**`. That
+  last group means V1's own Go-source commits can also trigger this mission's watched deploy
+  workflow, not just docs-mission's own commits), and `CI` (which runs on every push — per
+  `.github/workflows/ci.yml`'s `on.push`, this repo has no push paths filter, so a docs-only commit
+  still runs full CI and Gate 3b must wait for it rather than reading its absence as "not
+  applicable").
 - **Verify profile**: `docs-site` — a THIRD profile, because neither shipped profile fits a
   website. `go-compiler` rebuilds a Go toolchain this mission never touches; `ailang-code` treats
   the binary as the gate for AILANG source. Here the gates are:
@@ -54,7 +59,7 @@ At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the arc
 iteration re-reads this charter — unbounded STATUS history is a per-read token tax on the scarcest
 model budget; the append-only history lives in the log + archive.
 
-## STATUS 2026-08-28 — ITERATION 0 RUN: quorum BLOCKED twice, one bounded revision applied, **still not ratified** — parked for Mark
+## STATUS 2026-08-28 — ITERATION 0 RUN: quorum BLOCKED 3x across 2 revisions (1 human-directed mid-flight), **still not ratified** — parked for Mark
 
 First unattended fire of `dev.ailang.mission-docs` (kill switch had been removed since the prior
 stamp). Gate 0 found no docs-mission-specific inbox traffic and no comments on bookkeeping issue
@@ -113,14 +118,46 @@ revision + one re-quorum, both now spent):**
   Gate-1 watched workflow too. Worth a citation fix next revision; not itself a ratification
   blocker, and it sharpens the V1/docs shared-CI-signal risk flagged in round 1's controller note.
 
-**Disposition: `PARKED-needs-human-review` on `docs-0`.** The blast-radius question for docs-1 is a
-genuine judgment call only Mark can make (Standing Rule 8) — the doc deliberately declines to
-invent an answer. No sprint routes this iteration (the charter's own gate: "iteration 0 ratifies it
-via the quorum before any sprint routes"), so docs-1/docs-2/docs-3/docs-4 all stay `[NEXT]`/
-`[PARKED]` unchanged. Planner/executor/sprint-evaluator: N/A — no sprint executed. The
-generator(designer)≠judge property this iteration's actual deliverable (the charter revision) needed
-was supplied structurally by the 3-reviewer quorum (gpt5-6-sol/gemini-3-1-pro/oc-glm-5-2), all
-independent of both the sonnet controller and the sonnet designer sub-agent.
+**A directive landed MID-ITERATION and changed the disposition above.** While round 2 was being
+written up, Mark reviewed the round-1/2 blast-radius objection in an attended session and committed
+`29a467cac` ("widen planner allowlist tools/launchd/* -> tools/*"), authorising exactly the scope
+docs-1 needed, verified in both directions before asking. Per this skill's mid-iteration-directive
+rule, actioned in-iteration rather than deferred: spawned a second pinned-sonnet designer revision
+folding the resolution into Guardrails/docs-1, plus the two round-2 measured fixes (the
+"silent"→"deliberate" fallback wording, the full CI path-filter citation), and re-ran the quorum a
+third time.
+
+**Round 3** (`docs-mission-2026-08-28T06-49-08Z.json`, $0.078): **BLOCKED AGAIN — a third distinct
+surface each round, no reviewer has passed yet.** gpt5-6-sol escalated from "no extension mechanism"
+to demanding a full conflict-surface/protocol spec for docs-1 (dedup keys, retry/timeout semantics,
+scheduling ownership) inside the CHARTER itself — this asks the ratification gate to absorb docs-1's
+own future sprint-planning scope, which the charter's own Guardrails explicitly says most items
+don't need ("prefer a Gate-2 reality-check straight into a sprint"). gemini-3-1-pro objected that
+Clause 1's `audit_design_docs.sh`/`check_versions.sh` citations are unverified — **REFUTED by a
+check already run earlier this iteration**: `ls .claude/skills/docs-sync/scripts/` lists both files
+(plus `check_examples.sh`, `derive_roadmap_versions.sh`, `generate_report.sh`). oc-glm-5-2 raised a
+meta-objection that an admittedly-unratified doc cannot simultaneously read as an operational
+charter with a live queue — true of any draft under quorum review, not specific to this doc's
+content, and not something a text revision resolves.
+
+**Disposition: STOP HERE and `PARKED-needs-human-review` on `docs-0`.** Gate 2's protocol is one
+revision + one re-quorum; this iteration already spent that budget AND a second bounded revision
+(justified only because genuinely new information — Mark's live decision — arrived mid-iteration,
+not because round 2 merely re-blocked). Per the round-tracking rule, objections have spread across
+a *new* surface each round rather than localising or any reviewer starting to pass — the doc is
+either still immature or the reviewers are progressively raising the bar past what a charter (vs. a
+feature design doc) should need before its OWN queue items get their own design/sprint treatment.
+Either reading argues for a human decision, not a fourth revision. No sprint routes this iteration
+(the charter's own gate), so docs-1/docs-2/docs-3/docs-4 stay `[NEXT]`/`[PARKED]` unchanged.
+Planner/executor/sprint-evaluator: N/A — no sprint executed. generator(designer)≠judge was supplied
+structurally by the 3-reviewer quorum, independent of both the sonnet controller and the sonnet
+designer sub-agent, across all three rounds.
+
+**Metered cost, corrected total: $0.197** of the $1 ceiling (three quorum rounds: $0.057 + $0.062 +
+$0.078). Quota: sonnet (controller + two designer sub-agent runs). Plus one unrelated, separately
+justified skill fix this iteration (see Gate 5 retro): the shared skill's Gate-0 kill-switch/queue/
+log-path preflight literals were V1-only and silently wrong for every other mission — fixed in
+`0e341cc57`, 5th instance of the "bare `~/.ailang/state/` literal in this shared skill" class.
 
 **Metered cost this iteration: $0.119** of the $1 ceiling (two quorum rounds, $0.057 + $0.062).
 Quota buckets: sonnet (controller + designer sub-agent).
@@ -248,11 +285,15 @@ Mark selected all seven clauses attended on 2026-08-28; clauses 5-7 are his addi
 
 ## Guardrails (mission-specific; the skill's Standing Rules always apply on top)
 
-- **Blast radius is `docs/`, `examples/`, `README.md`, `CHANGELOG.md`.** Enforced mechanically at
-  the planner gate by `MISSION_PLANNER_ALLOWLIST`. If an item genuinely needs a change under
-  `internal/` or `cmd/`, that is a **V1 backlog item, not a docs item** — file it across and move
-  on. Do not widen the allowlist to make an item fit; the allowlist is the definition of this
-  mission's scope, not an obstacle to it.
+- **Blast radius is `docs/`, `examples/`, `README.md`, `CHANGELOG.md`, plus `tools/`
+  (non-`internal/`, non-`cmd/`).** Enforced mechanically at the planner gate by
+  `MISSION_PLANNER_ALLOWLIST`. Widened from `tools/launchd/*` to `tools/*` on 2026-08-28 (Mark,
+  attended — commit `29a467cac`) specifically to unblock docs-1's inbox-routing trigger, which
+  clause 7 makes a mandatory deliverable but which had no buildable path under the narrower list.
+  `internal/**` and `cmd/**` remain denied — if an item genuinely needs a change there, that is a
+  **V1 backlog item, not a docs item** — file it across and move on. Do not widen the allowlist
+  further to make an item fit; the allowlist is the definition of this mission's scope, not an
+  obstacle to it.
 - **No designer on Fable.** The shared skill's designer rotation is
   `claude:claude-fable-5 → pi:ollama/deepseek-v4-flash:0731-cloud` (kimi removed fleet-wide
   2026-08-28, V1 charter D-48); this mission seeds the rotation at sonnet (see Routing policy) and
@@ -293,7 +334,7 @@ Rungs 2 and 3 are deliberately **the same weights on two routes**, so exhausting
 |---|---|---|
 | **Controller** | `claude-sonnet-5` → `codex:gpt-5.6-luna` | The driver's controller ladder speaks only Anthropic model IDs plus ONE codex fallback, so it cannot express rungs 2-3. Down from opus — this is the biggest line item, a long session re-reading a ~3.8k-line skill each fire. |
 | **Designer** | `claude:claude-sonnet-5` (seed) | Seed only: the designer is a skill-side **rotation**, not a chain — the driver has no `MISSION_DESIGNER_FALLBACK`. Seeded off the Fable default. Most docs items need no design doc at all (see Guardrails). |
-| **Planner** | `codex:gpt-5.6-luna` → `pi:ollama/glm-5.3-flash:cloud` → `pi:openrouter/z-ai/glm-5.3-flash` | Starts at rung 1b, **not** sonnet, and that is forced: `derive-planner-lane.sh` Step 0 accepts only `codex:*` or `pi:*`, so a bare `sonnet` pin emits `opus fail-closed:env-pin` and silently runs opus. Drops the fleet's kimi-k3 rung — free on flat-rate, but $3/$15 per M on its OpenRouter twin, i.e. 40x glm-5.3-flash and dearer than gpt-5.6-sol. As the last rung of a cost ladder that is backwards. |
+| **Planner** | `codex:gpt-5.6-luna` → `pi:ollama/glm-5.3-flash:cloud` → `pi:openrouter/z-ai/glm-5.3-flash` | Starts at rung 1b, **not** sonnet, and that is forced: `derive-planner-lane.sh` Step 0 accepts only `codex:*` or `pi:*`, so a bare `sonnet` pin emits the labeled fail-closed default `opus fail-closed:env-pin` and deliberately runs opus (a documented fail-closed-to-safety default, not a silent one — every exit path emits a distinct reason token precisely so the lane never reads as pinned in the driver log while actually running opus). Drops the fleet's kimi-k3 rung — free on flat-rate, but $3/$15 per M on its OpenRouter twin, i.e. 40x glm-5.3-flash and dearer than gpt-5.6-sol. As the last rung of a cost ladder that is backwards. |
 | **Executor** | `codex:gpt-5.6-luna` → `pi:ollama/glm-5.3-flash:cloud` → `pi:openrouter/z-ai/glm-5.3-flash` | The high-volume role, so the ladder pays most here. The driver dedupes the shared probe, so planner+executor cost one probe. |
 | **Evaluator** | `sonnet` → `pi:ollama/minimax-m3:cloud` → `pi:openrouter/minimax/minimax-m3` | **Deliberately vendor-disjoint from the executor at every rung.** Two reasons, the second structural: (1) on a mission whose generator is cheap on purpose, a cheap judge means nobody catches anything and the loop reports success it did not earn; (2) the executor chain is OpenAI → Z-AI → Z-AI, so an evaluator walking the *same* ladder would share a vendor at every rung — precisely the shared blind spot generator≠judge exists to prevent. |
 
@@ -319,11 +360,11 @@ loud stop instead of a silent bill.
    `pkg:<vendor>/<name>`, or GitHub issues on `sunholo-data/ailang`) and calls
    `forward --to docs-mission` — on top of a dispatch path that has never worked end-to-end (36/36
    failures, ailang#900), so this must poll rather than assume a push.
-   **Open scope question for Mark, not answered by this charter: may docs-1 add a script under
-   `tools/` (outside this mission's stated blast radius of `docs/`, `examples/`, `README.md`,
-   `CHANGELOG.md`), or must the mechanism live entirely within that blast radius (e.g. driven from
-   CI config)?** Do not start this item until that's answered. Deliverable: a message sent from
-   outside, observed arriving via the verified read command in clause 7, acked. Est. 1 iteration.
+   The blast radius was widened to include `tools/` on 2026-08-28 (Mark, attended — commit
+   `29a467cac`) for exactly this purpose, so docs-1 may now proceed once picked; a script such as
+   `tools/messaging/docs_inbox_router.sh` is in scope (see Guardrails). Deliverable: a message sent
+   from outside, observed arriving via the verified read command in clause 7, acked. Est. 1
+   iteration.
 3. `[NEXT]` **docs-2 · clauses 1+3 · first real sweep.** Run `docs-sync` end to end and turn its
    output into a scored, clause-tagged queue. This is the item that converts "the website is
    probably drifting" into a measured backlog. Est. 1 iteration.
