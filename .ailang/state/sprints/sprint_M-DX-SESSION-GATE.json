@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-DX-SESSION-GATE",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-08-28T09:06:20Z",
   "design_doc": "design_docs/planned/v0_35_0/m-dx-session-protocol-gate.md",
   "sprint_plan": "design_docs/planned/v0_35_0/m-dx-session-gate-sprint-plan.md",
@@ -22,10 +22,10 @@
         "Ack refused while prerequisites unmet, listing the missing steps",
         "Read-only tools (read, grep, ailang messages list) never blocked"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "Block contract quoted from pi 0.84.3 extensions.md line 774; pi APIs verified V1-V12"
+      "passes": true,
+      "started": "2026-08-28T11:35:00Z",
+      "completed": "2026-08-28T11:30:00Z",
+      "notes": "Core + predicate; 7/7 table tests; e2e: fresh -p session blocked write vector with contract reason"
     },
     {
       "id": "M2_PERSISTENCE_EDGES",
@@ -40,10 +40,10 @@
         "Fail-closed: ambiguous reconstruction re-arms the gate",
         "/reload does not duplicate gates or disarm"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-08-28T11:30:00Z",
+      "notes": "getBranch reconstruction (V10), fail-closed on ambiguity, /reload + /resume re-derivation"
     },
     {
       "id": "M3_VALIDATION_DOCS",
@@ -59,10 +59,10 @@
         "README documents disarm steps and F1 --no-extensions as forbidden in this repo",
         "All design-doc Success Criteria boxes pass"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": "Ships via git - other machines inherit the gate on pull"
+      "completed": "2026-08-28T11:32:00Z",
+      "notes": "E2E matrix: block/ack/unlock + forced-ack compliance all pass; README written; CHANGELOG added; F5 coordinator inheritance deferred (register)"
     }
   ]
 }
