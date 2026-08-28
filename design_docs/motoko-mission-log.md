@@ -2774,3 +2774,141 @@ and contains the designer-rotation replacement, the comma-separated fallback cha
 
 **Next.** Row **6h** — unless the reconcile lands first, in which case the next iteration's first act
 is to confirm the pin actually succeeded rather than assume it.
+
+## 27 — 2026-08-28 — the guard was not missing, it was inexpressible: a value type made absence and zero the same value
+
+**Pick.** The queue head, row **6h** — and it is the first iteration since 23 to reach the queue head,
+because 24, 25 and 26 were each preempted by a loop-health regression. Re-verified at a fresh
+`origin/dev` before routing rather than inherited from iteration 26's note:
+`ChatStepResponse.Usage` is still a **value type** at `internal/ai/openai/step.go:300`, issue #842 is
+still `OPEN` (1 comment), and no merged PR or direct-to-dev commit touches it
+(`git log -S 'ChatStepUsage' -- internal/ai/openai/step.go` returns only the 2026-era feature commit).
+
+**The finding, and it is a finding about REPRESENTATION rather than about policy.** The reporter asked
+for a guard against a provider failure that arrives as a *successful empty completion* —
+`finish_reason:"stop"`, `"content":null`, no `usage` key. The guard could not be written, and the
+reason is one line of type declaration: `Usage` was a value, so an omitted `usage` key unmarshals to
+the zero struct and `absent.Usage == allZero.Usage` is **true**. There is no expression over that type
+that separates the two cases. Changing it to `*ChatStepUsage` is the whole deliverable of step 1, and
+it is deliberately ALL of it — deciding a policy is step 2 and stays deferred, because the Anthropic
+and Gemini paths do not share this parser and streaming usage delivery is opt-in on some providers, so
+a uniform guard converts a legitimate empty completion into an error: the same defect pointed the
+other way. The standing negative control for any future guard is the legitimate tool call, which also
+carries `content:null` and *does* report usage.
+
+**Blast radius was measured, not assumed, and it is wider than the report.** `ChatStepResponse` is
+referenced ONLY in `internal/ai/openai/step.go` (declaration at :295, sole use at :561) and by **zero**
+test files; `raw.Usage.*` is read at exactly five sites, all at :628-636; `ParseChatStepResponse` has
+exactly two production callers. Controls in the same call: `ChatStepUsage` **4** hits, an invented
+symbol **0**. The consequence that matters for this mission: `internal/ai/ollama/step.go:345` builds an
+`openai` client against `<endpoint>/v1`, so **every ollama tool-calling turn parses through this path**
+— the defect sits on our own eval rig, where a masked provider failure is indistinguishable from a
+local model declining to act. That is the *never conclude model wall* guardrail arriving from inside
+our own parser.
+
+**Mutation drill, anchored to the diff hunk by hunk rather than to the defect (rule 3n).** Each mutant
+asserted **LANDED** (sha256), **BUILDS**, and — per V1 iteration 274's rule — **effect-verified against
+the gofmt-parsed form rather than the file's bytes**; each restored from a `cp` backup and re-verified
+byte-identical, with the post-restore suite rc=0.
+
+- **M1** break the `usage` json tag → builds; reds **2** top-level tests (the new arms and the
+  pre-existing `TestStep_TextOnly_HappyPath`). Kill-set member, **not** sole killer.
+- **M2** nil no longer yields zero tokens → builds; **SOLE KILLER** of the new no-behaviour-change arm.
+  Blast radius is one test, so the inverse arm is applicable and was run: the suite `-skip`-ing my own
+  test, under the mutant, returns **rc=0** — which is what proves my arm is the killer rather than a
+  bystander.
+- **M3** neuter the deref guard → builds; reds **only** the PRE-EXISTING happy-path test. The hunk is
+  pinned; it is not pinned by anything this branch wrote, and that is reported as such.
+- **M4** revert to the value type → **DOES NOT BUILD**
+  (`invalid operation: raw.Usage != nil (mismatched types ChatStepUsage and untyped nil)`). This is the
+  "mutant does not build" class the skill warns about, and here it is not a defect in the drill — it is
+  the row's own finding restated by the compiler. Recorded honestly as a **compile-time arm**, never as
+  a behavioural kill.
+
+**The judge found the gap my drill missed, and it is the interesting half of the iteration.** Evaluator
+round 1 **PASS 94/100, ZERO blocking**, in its own worktree (iteration-199 rule). It reproduced every
+controller claim including M2's inverse arm, then went past them: it built a **16-case differential
+harness** across parent `d5305fa79` versus this branch — `usage:null`, `usage:[]`, `usage:"none"`,
+`usage:42`, negative tokens, malformed JSON, `prompt_tokens_details` present and absent — and found the
+output **byte-identical in all 16**. That is stronger evidence for "no behaviour change" than anything I
+produced, and it covers the two cases I explicitly named as untested when I briefed it.
+
+**Its non-blocking finding #1 is a real zero-killer hunk, reproduced first-party before it was
+believed.** `cacheRead = usage.PromptTokensDetails.CachedTokens` — inside this diff's second hunk — has
+**no killer anywhere**: mutated to `+ 999` it LANDS, BUILDS, effect-verifies 0→1 on the parsed form, and
+leaves openai, openrouter and ollama at **rc=0 with 0 FAIL lines in total**. The apparent coverage is a
+mirage of exactly rule 3i's shape — *which write does this read?* — and the judge named the mechanism:
+`cache_usage_test.go` contains **0** references to `ParseChatStepResponse` and **7** to `Generate`, a
+different code path that never reaches this function. Per the rule that *a hunk with no killer is a
+finding, not a failure*, it is filed as row **6m** rather than used to widen the PR — the same
+disposition iteration 24 gave its own zero-killer hunk at row 6i.
+
+**A stale binary was 43 commits adrift and would have reached the suite through a test's own
+shell-out.** Per V1 iteration 237's rule the gates ran with a freshly built, ldflag-stamped binary
+prepended to `PATH` — `v0.34.0-118-gd5305fa79-dirty`, matching `git describe` exactly — rather than
+`make quick-install`, which would have mutated a `~/go/bin` shared with every concurrent agent on the
+rig. The system copy reads `v0.34.0-75-gfb6084f4b-dirty`. Nothing in this diff depended on it, but the
+provenance is stated because "the tests pass" from an unidentifiable build is not a claim.
+
+**My own gate list was baselined in the wrong lane once, and the rule caught it before the executor
+did.** Fifteen test files across the three `internal/ai` packages bind loopback sockets, which
+`workspace-write` denies — so a full-suite gate handed to codex would have been unsatisfiable by
+construction (V1 iteration 270's rule, which iteration 24 paid for first-party). The directive
+therefore carried three in-sandbox-satisfiable gates and named the three suites explicitly as
+`UNINFORMATIVE UNDER SANDBOX`, with the controller re-running all of them outside. The executor ran
+exactly that and reported no base-red gates.
+
+**Ruled out.**
+- *That the drift is fleet-wide.* It is motoko's alone: source clone **205** behind `origin/dev`
+  (0 ahead, 0 dirty), pin worktree exactly at `origin/dev`, world with **0** pin failures ever.
+- *That "how far behind" is the predicate — this refutes iteration 26's own framing, which said V1
+  escaped "because its clone happens to be current".* It is not current: V1's clone is **18** commits
+  behind and pins **cleanly**, its last `DRIVER PIN FAILED` dated 2026-08-27 07:10 with clean fires
+  since. The predicate is whether the clone CARRIES THE FIX —
+  `git merge-base --is-ancestor ff0da7445 HEAD` → **NO** motoko / **YES** V1, corroborated by
+  non-comment `hasTrustDialogAccepted` occurrences **0** vs **3** (motoko's single hit is the
+  line-185 comment iteration 26 already identified; invented-token negative control **0** in both).
+  So V1 **recovered** by crossing the fix, which motoko structurally cannot.
+- *That the SonarCloud red is ours, or new.* Walked commit by commit: green at `7dff0942d`, first red
+  at `caea1f9e1` (V1's M-EVAL-ROLLING-ELO merge). Conditions read from the check's own output rather
+  than inherited from iteration 25's framing — **64.2% coverage on new code** (was 56.9% at iteration
+  25, 52.8% at 24, so the gate is live rather than stuck) and **B security rating on new code**.
+  Non-required; handed to V1 with delivery asserted.
+- *That `cache_usage_test.go` covers the cacheRead path.* It does not — 0 references to the parser.
+- *That a value-type revert is a behavioural mutant.* It is a compile error, and calling it a kill
+  would have been the "mutant does not build" vacuous pass.
+
+**A finding I nearly recorded backwards, and the correction is the point.** The driver logged
+`WARNING: driver-pin notice FAILED to send via ailang messages` on this fire, and the natural reading —
+*queue row 2's loud lane-degradation notice is silent for exactly the event it exists to report* — is
+**false**. Counting the two arms separately rather than the warning as a whole:
+`FAILED to send via ailang messages` **3**, `FAILED to post to issue` **0**, `no issue notice possible`
+**0**, positive control `DRIVER PIN FAILED` **4**, negative control **0**. The GitHub half succeeded
+every time and the comments are visible on `#850` (`2026-08-28T00:03:18Z` plus two predecessors), so
+Mark's channel worked and the mechanism did what Critical Principle 2 asks of it. A second hypothesis
+died the same way: the send passes `gh`-style `--title`/`--from`, which iteration 252's rule makes the
+obvious suspect, and re-running the identical form live returns **rc=0** — Go's flag package accepts
+both dash forms. What survives is narrow: the send carries `2>/dev/null`, so three consecutive failures
+produced **zero** information about their cause. That is the *robustness wrapper hides the cause* class,
+it is driver territory (V1-owned), and it is handed over rather than picked. Worth recording chiefly
+because the wrong version of this sentence was already written into this iteration's STATUS stamp
+before the arms were counted.
+
+**Routing evidence.** Controller `claude:claude-opus-5` (session). Executor `codex:gpt-5.6-sol` —
+probe rc=0 replying `ok`, ONE run, no cap hit, no fallback traversed. Evaluator **sonnet in its own
+worktree**, a distinct provider from the codex executor, so generator≠judge holds. **No designer, no
+planner, no quorum**: the row specifies its own scope and step 2 is explicitly out of it. Designer
+rotation pointer untouched at `claude:claude-fable-5`; **Fable unspent**. Metered **$0.00** of $5 —
+codex and sonnet are both quota buckets. No GPU, no `rig.lock`. Gates on **darwin/arm64**; windows and
+ubuntu legs unrun locally and read from Gate 3b.
+
+**Two configuration observations, recorded rather than acted on.** (a) `MISSION_EXECUTOR_FALLBACK` on
+this rig is still the single old value `pi:openrouter/deepseek/deepseek-v4-flash-0731`, while the
+running skill has documented comma-separated chains with an ollama-cloud rung ahead of it since
+2026-08-26 — the mission env file has not caught up. Not exercised this iteration (codex probed
+green), so it is one datapoint, not a defect claim. (b) The codex executor spent its opening turns on
+the repo `CLAUDE.md`'s "Session start" inbox instruction, which cannot complete inside
+`workspace-write`; it bounded the wait itself and proceeded. Neither has a second instance yet.
+
+**Next.** Row **6i** (the production `run_lane` group kill, pinned by nothing), then the new row **6m**,
+then 6j. `D-MOTOKO-WORKDIR-2` remains the only OPEN decision and this is the **sixth** ask.
