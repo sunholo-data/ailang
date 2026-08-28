@@ -618,4 +618,71 @@ func registerFS() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to register _fs_mkdirAllResult: %v", err))
 	}
+
+	// _fs_rename
+	implRename := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "renameFile", args)
+	}
+	typeRename := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String(), T.String()).Returns(T.Unit()).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_rename", NumArgs: 2, IsPure: false, Effect: "FS", Type: typeRename, Impl: implRename,
+		Metadata: &BuiltinMetadata{
+			Description: "Atomically rename (move) a file or directory on the same filesystem",
+			Params: []ParamDoc{
+				{Name: "oldPath", Description: "Current path of the file or directory"},
+				{Name: "newPath", Description: "Destination path"},
+			},
+			Returns: "Unit (no return value)",
+			Examples: []Example{
+				{Code: `_fs_rename("run.json.tmp", "run.json")`, Description: "Atomically publishes run.json"},
+			},
+			LongDesc:  "Atomic on POSIX: readers of newPath see either the old or the new file, never a partial one. On non-Unix platforms Go documents Rename as non-atomic — treat as best-effort replacement. Cross-filesystem renames surface an EXDEV error (no copy fallback). Respects AILANG_FS_SANDBOX: BOTH paths must stay inside the sandbox.",
+			SeeAlso:   []string{"_fs_renameResult", "_fs_writeFile", "_fs_removeFile"},
+			Since:     "v0.35.0",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "file", "rename", "move", "atomic", "publish"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_rename: %v", err))
+	}
+
+	// _fs_renameResult
+	implRenameResult := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "renameFileResult", args)
+	}
+	typeRenameResult := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String(), T.String()).Returns(
+			T.App("Result", T.Unit(), T.String()),
+		).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_renameResult", NumArgs: 2, IsPure: false, Effect: "FS",
+		Type: typeRenameResult, Impl: implRenameResult,
+		Metadata: &BuiltinMetadata{
+			Description: "Atomically rename (move) a file or directory, returning Result instead of panicking on failure",
+			Params: []ParamDoc{
+				{Name: "oldPath", Description: "Current path of the file or directory"},
+				{Name: "newPath", Description: "Destination path"},
+			},
+			Returns: "Result[(), string] - Ok(()) on success, Err(message) on failure",
+			Examples: []Example{
+				{Code: `_fs_renameResult("run.json.tmp", "run.json")`, Description: "Returns Ok(()) or Err(\"cannot rename file: ...\")"},
+			},
+			LongDesc:  "Result-returning variant of _fs_rename. Atomic on POSIX (see _fs_rename for platform caveats). Returns Err if the source doesn't exist, paths escape the AILANG_FS_SANDBOX, or the rename crosses filesystems (EXDEV) — never a copy fallback.",
+			SeeAlso:   []string{"_fs_rename", "_fs_writeFileResult", "_fs_removeFileResult"},
+			Since:     "v0.35.0",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "file", "rename", "move", "atomic", "result", "safe"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_renameResult: %v", err))
+	}
 }

@@ -328,3 +328,197 @@ func TestFSSandbox_AbsolutePathOutsideSandbox(t *testing.T) {
 		t.Error("readFile: expected error for path outside sandbox, got nil")
 	}
 }
+
+// ============================================================================
+// M-FS-RENAME: FS.renameFile / FS.renameFileResult (issue #897)
+// ============================================================================
+
+func TestFSRenameFile_Success(t *testing.T) {
+	ctx := NewEffContext([]string{})
+	ctx.Grant(NewCapability("FS"))
+
+	sandbox, err := os.MkdirTemp("", "rename-sandbox-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sandbox)
+
+	src := filepath.Join(sandbox, "run.json.tmp")
+	dst := filepath.Join(sandbox, "run.json")
+	if err := os.WriteFile(src, []byte(`{"ok":true}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Call(ctx, "FS", "renameFile", []eval.Value{
+		&eval.StringValue{Value: src},
+		&eval.StringValue{Value: dst},
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if _, ok := result.(*eval.UnitValue); !ok {
+		t.Fatalf("expected UnitValue, got %T", result)
+	}
+	if _, err := os.Stat(src); !os.IsNotExist(err) {
+		t.Error("source should no longer exist after rename")
+	}
+	if data, err := os.ReadFile(dst); err != nil || string(data) != `{"ok":true}` {
+		t.Errorf("destination missing or wrong content: %v %q", err, string(data))
+	}
+}
+
+func TestFSRenameFile_DirectoryWithinSandbox(t *testing.T) {
+	ctx := NewEffContext([]string{})
+	ctx.Grant(NewCapability("FS"))
+
+	sandbox, err := os.MkdirTemp("", "rename-dir-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sandbox)
+
+	src := filepath.Join(sandbox, "olddir")
+	dst := filepath.Join(sandbox, "newdir")
+	if err := os.Mkdir(src, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Call(ctx, "FS", "renameFile", []eval.Value{
+		&eval.StringValue{Value: src},
+		&eval.StringValue{Value: dst},
+	}); err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if _, err := os.Stat(dst); err != nil {
+		t.Errorf("renamed directory should exist: %v", err)
+	}
+}
+
+func TestFSRenameFile_MissingSource(t *testing.T) {
+	ctx := NewEffContext([]string{})
+	ctx.Grant(NewCapability("FS"))
+
+	sandbox, err := os.MkdirTemp("", "rename-missing-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sandbox)
+
+	_, err = Call(ctx, "FS", "renameFile", []eval.Value{
+		&eval.StringValue{Value: filepath.Join(sandbox, "nope.tmp")},
+		&eval.StringValue{Value: filepath.Join(sandbox, "out.json")},
+	})
+	if err == nil {
+		t.Fatal("expected error for missing source")
+	}
+	if !strings.Contains(err.Error(), "renameFile:") {
+		t.Errorf("expected error prefixed renameFile:, got: %v", err)
+	}
+}
+
+func TestFSRenameFile_SandboxEscape_OldPath(t *testing.T) {
+	ctx := NewEffContext([]string{})
+	ctx.Grant(NewCapability("FS"))
+
+	sandbox, err := os.MkdirTemp("", "rename-esc-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sandbox)
+	ctx.Env.Sandbox = sandbox
+
+	outside, err := os.MkdirTemp("", "rename-outside-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(outside)
+
+	src := filepath.Join(outside, "victim.tmp")
+	if err := os.WriteFile(src, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	dst := filepath.Join(sandbox, "stolen.json")
+
+	if _, err := Call(ctx, "FS", "renameFile", []eval.Value{
+		&eval.StringValue{Value: src},
+		&eval.StringValue{Value: dst},
+	}); err == nil {
+		t.Fatal("expected sandbox escape error for oldPath outside sandbox")
+	}
+	if _, err := os.Stat(src); err != nil {
+		t.Error("source must remain untouched when oldPath escapes sandbox")
+	}
+}
+
+func TestFSRenameFile_SandboxEscape_NewPath(t *testing.T) {
+	ctx := NewEffContext([]string{})
+	ctx.Grant(NewCapability("FS"))
+
+	sandbox, err := os.MkdirTemp("", "rename-esc2-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sandbox)
+	ctx.Env.Sandbox = sandbox
+
+	outside, err := os.MkdirTemp("", "rename-out2-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(outside)
+
+	src := filepath.Join(sandbox, "run.json.tmp")
+	if err := os.WriteFile(src, []byte("data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	dst := filepath.Join(outside, "escaped.json")
+
+	if _, err := Call(ctx, "FS", "renameFile", []eval.Value{
+		&eval.StringValue{Value: src},
+		&eval.StringValue{Value: dst},
+	}); err == nil {
+		t.Fatal("expected sandbox escape error for newPath outside sandbox")
+	}
+	if _, err := os.Stat(src); err != nil {
+		t.Error("source must remain untouched when newPath escapes sandbox")
+	}
+}
+
+func TestFSRenameFileResult_OkAndErr(t *testing.T) {
+	ctx := NewEffContext([]string{})
+	ctx.Grant(NewCapability("FS"))
+
+	sandbox, err := os.MkdirTemp("", "rename-res-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sandbox)
+
+	src := filepath.Join(sandbox, "a.tmp")
+	dst := filepath.Join(sandbox, "b.txt")
+	if err := os.WriteFile(src, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Ok path
+	result, err := Call(ctx, "FS", "renameFileResult", []eval.Value{
+		&eval.StringValue{Value: src},
+		&eval.StringValue{Value: dst},
+	})
+	if err != nil {
+		t.Fatalf("expected no escape error, got: %v", err)
+	}
+	if _, ok := assertResultOk(t, result).(*eval.UnitValue); !ok {
+		t.Fatal("expected UnitValue inside Ok")
+	}
+
+	// Err path (missing source) — must NOT escape as a Go error
+	result, err = Call(ctx, "FS", "renameFileResult", []eval.Value{
+		&eval.StringValue{Value: filepath.Join(sandbox, "gone.tmp")},
+		&eval.StringValue{Value: dst},
+	})
+	if err != nil {
+		t.Fatalf("Result variant must not escape errors, got: %v", err)
+	}
+	assertResultErrContains(t, result, "cannot rename file")
+}

@@ -98,6 +98,15 @@ export func isFile(path: string) -> bool ! {FS} = _fs_isFile(path)
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func removeFile(path: string) -> () ! {FS} = _fs_removeFile(path)
 
+-- Atomically rename (move) a file or directory on the same filesystem (M-FS-RENAME, since v0.35.0)
+-- Atomic on POSIX: readers of newPath see either the old or the new file, never partial.
+-- On non-Unix platforms, treat as best-effort replacement. Cross-filesystem renames
+-- surface an EXDEV error — there is no copy fallback.
+-- @example renameFile("run.json.tmp", "run.json")  -- atomic publish
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX — BOTH paths must stay inside the sandbox
+export func renameFile(oldPath: string, newPath: string) -> () ! {FS} = _fs_rename(oldPath, newPath)
+
 -- ============================================================================
 -- Result-returning variants (M-AILANG-FS-RESULT, since v0.16.0)
 -- ============================================================================
@@ -136,3 +145,10 @@ export func removeFileResult(path: string) -> Result[(), string] ! {FS} = _fs_re
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func mkdirAllResult(path: string) -> Result[(), string] ! {FS} = _fs_mkdirAllResult(path)
+
+-- Atomically rename (move) a file or directory, returning Result instead of panicking (M-FS-RENAME, since v0.35.0)
+-- @example match renameFileResult("run.json.tmp", "run.json") { Ok(_) => (), Err(msg) => () }
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX — BOTH paths must stay inside the sandbox
+export func renameFileResult(oldPath: string, newPath: string) -> Result[(), string] ! {FS} =
+  _fs_renameResult(oldPath, newPath)

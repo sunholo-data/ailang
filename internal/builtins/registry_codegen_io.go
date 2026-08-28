@@ -40,6 +40,7 @@ func registerIOCodegenSpecs() {
 		{"_fs_isDir", "std/fs", "isDir", "IsDir", "FS", 1},
 		{"_fs_isFile", "std/fs", "isFile", "IsFile", "FS", 1},
 		{"_fs_removeFile", "std/fs", "removeFile", "RemoveFile", "FS", 1},
+		{"_fs_rename", "std/fs", "renameFile", "RenameFile", "FS", 2},
 		{"_zip_readEntry", "std/zip", "readEntry", "ReadEntry", "zip", 0},
 		{"_zip_readEntryBytes", "std/zip", "readEntryBytes", "ReadEntryBytes", "zip", 0},
 		{"_zip_listEntries", "std/zip", "listEntries", "ListEntries", "zip", 0},

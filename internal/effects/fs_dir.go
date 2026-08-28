@@ -156,6 +156,46 @@ func fsRemoveFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	return &eval.UnitValue{}, nil
 }
 
+// fsRenameFile implements FS.renameFile(oldPath, newPath: String) -> ()
+// Atomically renames (moves) a file or directory on the same filesystem.
+// If AILANG_FS_SANDBOX is set, BOTH paths are restricted to the sandbox —
+// renaming across the boundary would otherwise be a sandbox-escape primitive.
+func fsRenameFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("renameFile: expected 2 arguments, got %d", len(args))
+	}
+
+	oldPathVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("renameFile: expected String oldPath, got %T", args[0])
+	}
+	newPathVal, ok := args[1].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("renameFile: expected String newPath, got %T", args[1])
+	}
+
+	oldPath := oldPathVal.Value
+	newPath := newPathVal.Value
+	if ctx.Env.Sandbox != "" {
+		resolvedOld, err := resolveSandboxPath(ctx.Env.Sandbox, oldPath)
+		if err != nil {
+			return nil, err
+		}
+		resolvedNew, err := resolveSandboxPath(ctx.Env.Sandbox, newPath)
+		if err != nil {
+			return nil, err
+		}
+		oldPath = resolvedOld
+		newPath = resolvedNew
+	}
+
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return nil, fmt.Errorf("renameFile: %w", err)
+	}
+
+	return &eval.UnitValue{}, nil
+}
+
 // ============================================================================
 // M-AILANG-FS-RESULT (v0.16.0): Result-returning dir/remove variants
 // ============================================================================
@@ -181,6 +221,42 @@ func fsRemoveFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) 
 
 	if err := os.Remove(path); err != nil {
 		return fsMakeErr(fmt.Sprintf("cannot remove file: %v", err)), nil
+	}
+	return fsMakeOk(&eval.UnitValue{}), nil
+}
+
+// fsRenameFileResult implements FS.renameFileResult(oldPath, newPath: String) -> Result[(), String]
+// Result-returning variant of fsRenameFile: sandbox applies to BOTH paths.
+func fsRenameFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("renameFileResult: expected 2 arguments, got %d", len(args))
+	}
+	oldPathVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("renameFileResult: expected String oldPath, got %T", args[0])
+	}
+	newPathVal, ok := args[1].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("renameFileResult: expected String newPath, got %T", args[1])
+	}
+
+	oldPath := oldPathVal.Value
+	newPath := newPathVal.Value
+	if ctx.Env.Sandbox != "" {
+		resolvedOld, err := resolveSandboxPath(ctx.Env.Sandbox, oldPath)
+		if err != nil {
+			return nil, err
+		}
+		resolvedNew, err := resolveSandboxPath(ctx.Env.Sandbox, newPath)
+		if err != nil {
+			return nil, err
+		}
+		oldPath = resolvedOld
+		newPath = resolvedNew
+	}
+
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot rename file: %v", err)), nil
 	}
 	return fsMakeOk(&eval.UnitValue{}), nil
 }

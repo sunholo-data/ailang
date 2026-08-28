@@ -79,6 +79,8 @@ func init() {
 	RegisterOp("FS", "isDir", fsIsDir)
 	RegisterOp("FS", "isFile", fsIsFile)
 	RegisterOp("FS", "removeFile", fsRemoveFile)
+	RegisterOp("FS", "renameFile", fsRenameFile)
+	RegisterOp("FS", "renameFileResult", fsRenameFileResult)
 
 	// M-AILANG-FS-RESULT (v0.16.0): Result-returning variants for agent
 	// runtimes that need to recover from fs syscall failures without
