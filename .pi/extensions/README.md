@@ -1,7 +1,43 @@
 # Session Protocol Gate + Dev-Harness Extensions
 
 Project-local pi extensions for the AILANG repo (M-DX-SESSION-GATE, M-DX-PI-HARNESS).
-Ships via git — every machine inherits on pull. Tested against pi **0.84.3**.
+Tested against pi **0.84.3**.
+
+## Distribution — who gets what, how
+
+### Tier 1 — any pi session inside the ailang repo (laptop, Studio): automatic
+
+The extensions live in this repo under `.pi/extensions/`. On any machine:
+
+```bash
+git pull                    # in the ailang repo — that's the whole install
+```
+
+First session per machine prompts once to trust the project; after that every
+session arms the gate and gets the tools (`ailang_check`, `builtins_search`,
+`freshness_report`, `quota_report`). Verify with `pi -p --no-session "call quota_report"`.
+
+### Tier 2 — every repo on a machine (global): install as a pi package
+
+To get the suite in repos OTHER than ailang, publish this directory as a pi
+git-package and install globally (planned: `sunholo-data/ail-pi-kit`):
+
+```bash
+pi install git:github.com/sunholo-data/ail-pi-kit    # once per machine
+pi update --extensions                               # pull updates later
+```
+
+Global extensions apply to ALL repos on the machine. The ailang-specific guards
+(builtin ceremony, stdlib references) degrade gracefully elsewhere; per-extension
+disable is available via `pi config` if a repo wants a subset.
+
+### Tier 3 — cloud/fleet (Cloud Run agents): NOT yet covered (register F5)
+
+Fleet images (`Dockerfile.agent-pi*`) run pi in cloned workspaces, so repo-scoped
+`.pi/extensions/` never reach them. Options (needs image rebuild — human-owned):
+bake the kit into `Dockerfile.agent-pi` via `pi install git:…` at build time, or
+COPY the extensions into the image's global extensions dir. Tracked as M-DX-PI-HARNESS
+F5 / design-doc Future Work until an image ships with them.
 
 | Extension | What it does |
 |---|---|
