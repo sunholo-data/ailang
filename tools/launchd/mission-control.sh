@@ -462,6 +462,16 @@ export MISSION_METERED_BUDGET_USD="${MISSION_METERED_BUDGET_USD:-5}"
 # Same fleet for every mission: they all source THIS file and no plist overrides
 # these vars, so there is one definition, not four kept in sync.
 export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol}"
+# MISSION_PLANNER_ALLOWLIST (M-DOCS-MISSION, 2026-08-28 docs iteration 1): the per-mission
+# env files (~/.config/ailang/mission-<name>.env) set this WITHOUT `export`, so sourcing
+# them only defines a local shell variable in THIS script's process — it never reached the
+# spawned claude session, and derive-planner-lane.sh's own fallback default
+# (`tools/launchd/*` only) silently took over, re-closing every non-infra docs item to opus
+# on "path-not-in-codex-allowlist" even after the path list was correctly widened in the env
+# file. Live-measured: `env | grep MISSION_PLANNER_ALLOWLIST` was empty in a real docs-mission
+# controller session while every other MISSION_PLANNER_* var was present. Re-export it here,
+# same pattern as every other role var on this list, so the sourced value actually propagates.
+export MISSION_PLANNER_ALLOWLIST="${MISSION_PLANNER_ALLOWLIST:-tools/launchd/*|.claude/skills/mission-control/SKILL.md|.claude/skills/design-doc-creator/*}"
 # executor = deepseek-v4-flash on the FLAT-RATE ollama route. These are the same
 #            weights the fallback chain below already reaches through OpenRouter,
 #            so this is a route change, not a capability change — and it degrades
