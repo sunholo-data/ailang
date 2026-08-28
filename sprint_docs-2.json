@@ -1,0 +1,114 @@
+{
+  "sprint_id": "docs-2",
+  "title": "Docs-sync diagnostic sweep and scored drift register",
+  "design_doc": null,
+  "brief": "design_docs/docs-2-brief.md",
+  "mission": "docs",
+  "status": "planned",
+  "planner_lane": "codex-ok",
+  "target_version": "v0.34.0",
+  "estimated_days": 1,
+  "scope": {
+    "primary_deliverable": "docs/docs-sync-findings.md",
+    "allowed_paths": [
+      "tools/*",
+      "docs/*",
+      "examples/*",
+      "README.md",
+      "CHANGELOG.md",
+      ".claude/skills/mission-control/SKILL.md",
+      ".claude/skills/design-doc-creator/*"
+    ],
+    "out_of_scope": [
+      "design_docs/docs-mission.md",
+      "design_docs/docs-mission-log.md",
+      ".claude/skills/docs-sync/**",
+      "docs/docs/**",
+      "docs/src/**",
+      "internal/**",
+      "cmd/**",
+      "benchmark reruns or eval banking"
+    ]
+  },
+  "verified_by_controller": [
+    "check_examples.sh uses absolute runnable-example paths and therefore produces false MOD010 module-path failures for declarations such as module examples/runnable/X; this is a tooling defect, not a language regression",
+    "The defective script reported 12 passed and 29 failed among 41 verdicts, with 176 no-module skips; those raw counts must not be used as the truth source",
+    "Using the same freshly built binary with relative paths from repo root produced 166 pass, 9 genuine failures, and 42 no-module/non-running cases across 217 runnable examples; block_demo.ail lacks main and may be a helper/library classification issue",
+    "check_versions.sh: git and website stable release are v0.34.0, latest prompt is v0.16.6, and docs/docs/intro.mdx references v0.16.0",
+    "derive_roadmap_versions.sh --full --check found 126 planned design docs, including overdue v0.29.0-v0.31.0 material; the roadmap-pages-vs-folders consistency control was clean",
+    "audit_design_docs.sh flagged debug-tools.mdx, adding-operators.md, anf.md, architecture/index.md, and types.md; each must be inspected to distinguish a valid future claim from stale status",
+    "The five flagged architecture pages are nested paths and cannot be edited under this sprint's single-level docs/* allowlist"
+  ],
+  "milestones": [
+    {
+      "id": "M1_REPRODUCE",
+      "name": "Re-run diagnostics and establish evidence ledger",
+      "estimated_hours": 2,
+      "tasks": [
+        "Run audit_design_docs.sh, check_versions.sh, check_examples.sh, derive_roadmap_versions.sh --full --check, and generate_report.sh against current HEAD; record command, rc, date, and material output",
+        "Build the prescribed fresh bin/ailang with version and commit ldflags",
+        "Run the corrected examples sweep from repo root with relative paths; separate pass, genuine failure, no module declaration, helper/library classification, and runtime/environment noise",
+        "Confirm docs/docs-sync-findings.md is not ignored with git check-ignore -v and preserve a clean starting git status"
+      ],
+      "files": ["bin/ailang (gitignored scratch binary only)", "docs/docs-sync-findings.md"],
+      "acceptance_criteria": [
+        "All five diagnostics were attempted and their return codes are recorded",
+        "The raw absolute-path check_examples.sh counts are explicitly labelled unreliable",
+        "Corrected example evidence uses relative paths and does not count observatory warnings as syntax failures"
+      ]
+    },
+    {
+      "id": "M2_CLASSIFY",
+      "name": "Classify and score drift by clauses 1-7",
+      "estimated_hours": 3,
+      "tasks": [
+        "Create one small future-queue-ready row per actionable drift item, with ID, one-line description, clause tag, severity, evidence/source, disposition, and recommended follow-up",
+        "Include the HIGH clause-1-adjacent check_examples.sh instrument defect as a prominent standalone row; state that fixing it requires widening the allowlist to .claude/skills/docs-sync/scripts/* or routing to V1, and do not edit the script",
+        "Include the moderate stale v0.16.0 intro reference as a clause-1 row, but mark the nested-file fix as deferred/out of scope",
+        "Include one aggregate HIGH/MEDIUM clause-1 row for the 126 overdue planned docs; do not adjudicate or rewrite all 126, and optionally list only trivially verified implemented mislabels",
+        "Inspect all five audit hits and score only those that still make a false planned/future claim; record valid planned claims as controls or non-findings",
+        "Classify the corrected example results under clause 2, distinguishing genuine defects from helper examples and unclassified no-module cases",
+        "Capture any clause-3, clause-4, clause-5, clause-6, or clause-7 observations only when supported by the diagnostics or a bounded spot-check; explicitly record clean controls"
+      ],
+      "files": ["docs/docs-sync-findings.md"],
+      "acceptance_criteria": [
+        "Every finding has a unique ID, one-line description, exactly one primary clause tag from 1-7, rough severity, and actionable next disposition",
+        "Findings are scored/prioritized so the controller can lift rows directly into the mission queue",
+        "Known controller-verified facts are carried forward without re-litigating their established mechanism",
+        "No nested docs page, docs-sync script, mission controller file, or internal/cmd file is proposed for modification"
+      ]
+    },
+    {
+      "id": "M3_BANK",
+      "name": "Write, lint, and gate the findings register",
+      "estimated_hours": 1,
+      "tasks": [
+        "Write docs/docs-sync-findings.md as an internal, non-published-nav tracking page with summary counts, methodology caveats, scored table, clean controls, and follow-up routing",
+        "Apply only trivial fixes that are genuinely within the allowlist; do not fix the nested intro/version constant or docs-sync script in this sprint",
+        "Run markdown/content sanity checks, re-run any affected example or ailang check required by an in-scope syntax-bearing change, and verify the file is non-empty and not ignored"
+      ],
+      "files": ["docs/docs-sync-findings.md", "examples/* only if a trivial verified fix is justified"],
+      "acceptance_criteria": [
+        "test -s docs/docs-sync-findings.md succeeds",
+        "git check-ignore -v docs/docs-sync-findings.md emits no output",
+        "The findings page contains no sidebar/nav entry and no unsupported claim that a blocked nested-file fix landed",
+        "Any changed .ail file passes make verify-examples; any syntax-bearing docs change passes ailang check on its source example",
+        "No git commit is created"
+      ]
+    }
+  ],
+  "hard_constraints": [
+    "Do not edit design_docs/docs-mission.md or design_docs/docs-mission-log.md",
+    "Do not modify any file under .claude/skills/docs-sync/",
+    "Do not plan edits outside the stated blast radius; docs/* is single-level",
+    "Do not run or bank evals and do not acquire a rig lock",
+    "Do not use the check_examples.sh absolute-path pass/fail totals as corrected truth",
+    "Do not commit; the controller finalizes the commit after executor review"
+  ],
+  "final_gates": [
+    "All five diagnostic commands attempted and evidence recorded",
+    "test -s docs/docs-sync-findings.md",
+    "git check-ignore -v docs/docs-sync-findings.md is empty",
+    "git status confirms no forbidden-path changes and no commit was made"
+  ]
+}
