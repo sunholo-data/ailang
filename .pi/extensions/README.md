@@ -1,8 +1,21 @@
-# Session Protocol Gate
+# Session Protocol Gate + Dev-Harness Extensions
 
-A project-local pi extension that mechanically enforces the AILANG session
-protocol (see `AGENTS.md` → "Work Routing" and
-`design_docs/planned/v0_35_0/m-dx-session-protocol-gate.md`).
+Project-local pi extensions for the AILANG repo (M-DX-SESSION-GATE, M-DX-PI-HARNESS).
+Ships via git — every machine inherits on pull. Tested against pi **0.84.3**.
+
+| Extension | What it does |
+|---|---|
+| `session-protocol-gate.ts` | Blocks edit/write + fail-closes bash until the session protocol is acked (see below) |
+| `binary-freshness.ts` | `freshness_report` tool + `/fresh`: is the installed ailang binary fresh vs HEAD? (FRESH/STALE/DIRTY/UNKNOWN, fail-closed) |
+| `sprint-steward.ts` | `/sprint-start <id>`, `/sprint-complete <id> <milestone>` — mechanical constrained-modification on sprint JSONs |
+| `unowned-dirty.ts` | Warns (never blocks) when a git add/stash/checkout may sweep dirty files this session didn't write — authority is `git status --porcelain` itself |
+| `builtin-sprint.ts` | `/builtin-finish`: golden refresh + **stdlib freeze** + verify + doctor + inventory count |
+| `ailang-lsp-lite.ts` | `ailang_check(path)` → structured {code,message,file,line,col,hint}; `builtins_search({query,module})` → filtered real inventory |
+
+All subprocesses run under the Subprocess Contract (per-command timeouts, structured
+TIMEOUT failures, 64KB output caps, no silent retries).
+
+## Session Protocol Gate
 
 ## What it does
 

@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-DX-PI-HARNESS",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-08-28T09:51:37Z",
   "design_doc": "design_docs/planned/v0_35_0/m-dx-pi-harness.md",
   "sprint_plan": "design_docs/planned/v0_35_0/m-dx-pi-harness-sprint-plan.md",
@@ -22,10 +22,10 @@
         "Predicate tests: freshness classify incl -dirty+UNKNOWN; constrained write refuses non-conforming edits; unowned intersection; version-output parsing",
         "All four load clean alongside the session gate in pi -p and TUI"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-08-28T11:55:00Z",
-      "completed": null,
-      "notes": null
+      "completed": "2026-08-28T12:10:00Z",
+      "notes": "4 extensions shipped; 12 predicate tests green (incl. echo-redirect + IMP010-format catches); e2e load verified with gate"
     },
     {
       "id": "M2_STREAM_B_LSP_LITE",
@@ -39,10 +39,10 @@
         "B2 returns <=10 matches on query, full inventory without query",
         "Parser handles live error formats (V3)"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-08-28T12:12:00Z",
+      "notes": "lsp-lite shipped; e2e: ailang_check clean on relative path (abs-path MOD010 quirk documented), builtins_search full std/fs inventory; parser handles IMP010 + TC + hint formats after 2 live-format fixes"
     },
     {
       "id": "M3_HARDENING_DOCS",
@@ -57,10 +57,10 @@
         "Session gate arms/acks with all extensions loaded",
         "CHANGELOG updated"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-08-28T12:15:00Z",
+      "notes": "F5 deferred (register); compat matrix pi 0.84.3 in README; session-gate regression OK (all e2e runs included it); BONUS: caught + fixed dev CI RED (stdlib freeze goldens for #897) \u2014 second snapshot mechanism folded into /builtin-finish ceremony"
     }
   ]
 }
