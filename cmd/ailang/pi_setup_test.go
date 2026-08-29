@@ -23,7 +23,7 @@ func TestDecidePiInstall(t *testing.T) {
 		suggested bool
 	}{
 		{name: "absent → install", diskHash: "", managed: nil, want: "install"},
-		{name: "identical unmanaged → adopt", diskHash: sha256Hex([]byte(embeddedContent)), managed: nil, want: "adopt"},
+		{name: "identical unmanaged → conflict, preserve", diskHash: sha256Hex([]byte(embeddedContent)), managed: nil, want: "conflict-unmanaged", suggested: true},
 		{name: "managed identical, same binary → current",
 			diskHash: sha256Hex([]byte(embeddedContent)),
 			managed:  &piManagedFile{SHA256: sha256Hex([]byte(embeddedContent)), Version: v2},
@@ -238,6 +238,60 @@ func TestPiInstallPreservesUnmanagedConflict(t *testing.T) {
 	}
 	if !bytes.Equal(suggested, embedded[name]) {
 		t.Fatal("unmanaged conflict suggestion differs from embedded asset")
+	}
+}
+
+func TestPiIdenticalUnmanagedAssetRemainsUnmanaged(t *testing.T) {
+	home := t.TempDir()
+	extDir := piExtensionsDir(home)
+	if err := os.MkdirAll(extDir, 0o755); err != nil {
+		t.Fatalf("mkdir extension dir: %v", err)
+	}
+	embedded, _, err := piEmbeddedFiles()
+	if err != nil {
+		t.Fatalf("embedded files: %v", err)
+	}
+	name := "provider-quota.ts"
+	target := filepath.Join(extDir, name)
+	if err := os.WriteFile(target, embedded[name], 0o644); err != nil {
+		t.Fatalf("write identical unmanaged asset: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	if err := installPiExtensions(home, &stdout, &stderr); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	if got, err := os.ReadFile(target); err != nil || !bytes.Equal(got, embedded[name]) {
+		t.Fatalf("identical unmanaged asset was not preserved: got %q, err %v", got, err)
+	}
+	if _, managed := readPiManifestForTest(t, home).Files[name]; managed {
+		t.Fatal("identical unmanaged asset was adopted into the managed manifest")
+	}
+	if !strings.Contains(stderr.String(), name+" — preserved") {
+		t.Fatalf("identical unmanaged warning missing:\n%s", stderr.String())
+	}
+	suggested, err := os.ReadFile(piSuggestedPath(home, name))
+	if err != nil {
+		t.Fatalf("read identical unmanaged suggestion: %v", err)
+	}
+	if !bytes.Equal(suggested, embedded[name]) {
+		t.Fatal("identical unmanaged suggestion differs from embedded asset")
+	}
+
+	stdout.Reset()
+	if err := statusPiExtensions(home, &stdout); err != nil {
+		t.Fatalf("status: %v", err)
+	}
+	if !strings.Contains(stdout.String(), "UNMANAGED  "+name) {
+		t.Fatalf("status did not report identical unmanaged asset as UNMANAGED:\n%s", stdout.String())
+	}
+
+	stdout.Reset()
+	if err := uninstallPiExtensions(home, &stdout); err != nil {
+		t.Fatalf("uninstall: %v", err)
+	}
+	if got, err := os.ReadFile(target); err != nil || !bytes.Equal(got, embedded[name]) {
+		t.Fatalf("uninstall removed or changed identical unmanaged asset: got %q, err %v", got, err)
 	}
 }
 
