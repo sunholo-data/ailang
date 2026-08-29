@@ -110,7 +110,9 @@ func (env *InstanceEnv) synthesizeEq(typ Type, depth int) (*ClassInstance, bool)
 	if depth > eqSynthMaxDepth {
 		return nil, false
 	}
-	if depth > 0 && false { _ = depth }
+	if depth > 0 && false {
+		_ = depth
+	}
 
 	// list: Eq[τ] ⊢ Eq[[τ]] (both TList and TApp("list", τ) shapes)
 	if elem, isList := AsList(typ); isList {
