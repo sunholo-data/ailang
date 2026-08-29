@@ -98,7 +98,7 @@ pin_root_to_committed_ref() {
     return 0
   fi
 
-  local ref src script wt target short drift fetch_s rc onboarding_key_count projects_len
+  local ref src script wt target short drift fetch_s rc onboarding_key_count projects_len refreshed_helper
   ref="${AILANG_DRIVER_REF:-origin/dev}"
   fetch_s="${AILANG_DRIVER_FETCH_TIMEOUT:-120}"
   script=$(basename "$0")
@@ -122,6 +122,40 @@ pin_root_to_committed_ref() {
   if [ -z "$target" ]; then
     _pin_stale "cannot resolve $ref in $src"; return 1
   fi
+
+  # BOOTSTRAP THE GATE FROM THE REF BEFORE THE GATE DECIDES. This helper is initially sourced
+  # from the mutable source clone, so without this hop an old onboarding predicate can refuse
+  # the very pin that would replace it. Fetching above is not enough: shell functions already
+  # loaded from the stale tree do not change when origin/dev moves.
+  #
+  # The marker is the full target oid, not a boolean. A nested caller that deliberately changes
+  # AILANG_DRIVER_REF must refresh again, while the ordinary re-entry through the same blob is
+  # exactly one hop. The temp file is removed before sourcing returns control to this function;
+  # bash has parsed the sourced definitions by then. Failure stays loud and fail-closed.
+  if [ "${AILANG_DRIVER_PIN_GATE_REFRESHED:-}" != "$target" ]; then
+    refreshed_helper=$(mktemp -t pin_root_ref) || {
+      _pin_stale "cannot create a temporary file for $ref's pin gate"; return 1
+    }
+    if ! git -C "$src" show "$target:tools/launchd/lib/pin-root.sh" >"$refreshed_helper" 2>/dev/null; then
+      rm -f "$refreshed_helper"
+      _pin_stale "$ref has no tools/launchd/lib/pin-root.sh — cannot refresh the pin gate"; return 1
+    fi
+    if ! /bin/bash -n "$refreshed_helper" 2>/dev/null; then
+      rm -f "$refreshed_helper"
+      _pin_stale "$ref has an invalid tools/launchd/lib/pin-root.sh — refusing to run an unverified pin gate"; return 1
+    fi
+    AILANG_DRIVER_PIN_GATE_REFRESHED="$target"
+    export AILANG_DRIVER_PIN_GATE_REFRESHED
+    . "$refreshed_helper"
+    rc=$?
+    rm -f "$refreshed_helper"
+    if [ "$rc" -ne 0 ]; then
+      _pin_stale "could not load $ref's tools/launchd/lib/pin-root.sh (rc=$rc)"; return 1
+    fi
+    pin_root_to_committed_ref "$@"
+    return $?
+  fi
+
   short=$(git -C "$src" rev-parse --short "$target" 2>/dev/null)
   drift=$(git -C "$src" rev-list --count "HEAD..$ref" 2>/dev/null)
   [ -n "$drift" ] || drift="?"

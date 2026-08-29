@@ -25,6 +25,7 @@ export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 # inherited AILANG_DRIVER_PINNED makes every case short-circuit as "already
 # pinned", which turns CI green while the test fails on the rig it protects.
 unset AILANG_DRIVER_PINNED AILANG_DRIVER_DRIFT AILANG_DRIVER_SRC AILANG_DRIVER_REF
+unset AILANG_DRIVER_PIN_GATE_REFRESHED
 unset MISSION_WORKDIR
 
 PASS=0; FAIL=0
@@ -69,6 +70,16 @@ git push --quiet origin dev 2>/dev/null
 
 # clone that will go stale
 git clone --quiet --branch dev "$T/origin.git" "$T/clone" 2>/dev/null
+
+# Make the clone's already-installed gate stale while origin/dev retains the current gate. This
+# models the bootstrap trap directly: the local predicate knows only the retired legacy key, but
+# still carries the durable refresh hop added by this row. If the hop is removed, arm 8c reds.
+perl -0pi -e 's/\(\(\.projects\[\$p\]\.hasCompletedProjectOnboarding == true\) or \(\.projects\[\$p\]\.hasTrustDialogAccepted == true\)\)/(\.projects[\$p].hasCompletedProjectOnboarding == true)/' "$T/clone/tools/launchd/lib/pin-root.sh"
+if ! grep -q 'hasCompletedProjectOnboarding == true)' "$T/clone/tools/launchd/lib/pin-root.sh" ||
+   grep -q 'hasCompletedProjectOnboarding == true) or' "$T/clone/tools/launchd/lib/pin-root.sh"; then
+  echo "fixture error: failed to install stale local onboarding predicate" >&2
+  exit 1
+fi
 
 # advance origin ONE commit: the clone is now genuinely behind
 echo "FRESH-CONTENT" > MARKER
@@ -181,7 +192,7 @@ check "and it really pinned"              "$SC" "MARKER=FRESH-CONTENT"
 echo "== 8c. SOURCE-clone trust satisfies it — the exact live rig shape =="
 printf '{"projects":{"%s":{"hasTrustDialogAccepted":true}}}' "$T/clone" > "$HOME/.claude.json"
 SCT=$(/bin/bash "$DRV" 2>&1)
-check "source trust is enough"            "$SCT" "STATUS=pinned"
+check "fetched gate overrides stale local predicate" "$SCT" "STATUS=pinned"
 check "and source trust really pinned"    "$SCT" "MARKER=FRESH-CONTENT"
 
 echo "== 8d. NEITHER onboarded => still refuse (the motoko shape) =="
@@ -191,6 +202,7 @@ printf '{"projects":{"%s":{"hasCompletedProjectOnboarding":true}}}' "/some/unrel
 NN=$(/bin/bash "$DRV" 2>&1)
 check "neither path onboarded => STALE"   "$NN" "STATUS=STALE"
 check "message names BOTH paths"          "$NN" "nor its source clone"
+checkno "refreshed gate does not delete refusal" "$NN" "STATUS=pinned"
 
 echo "== 8e. schema drift is distinct from ordinary un-onboarded refusal =="
 printf '{"projects":{"%s":{"lastCost":1.25}}}' "/some/unrelated/path" > "$HOME/.claude.json"
