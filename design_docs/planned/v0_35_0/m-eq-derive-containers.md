@@ -47,6 +47,8 @@ All premises probed live 2026-08-28 with the dev binary (`check` + `run`):
 | V7 | Container synthesis machinery exists to build on: `InstanceEnv.Lookup/Add`, `canonicalKey`, `deriveEqFromOrd` (an Ord→Eq derivation precedent), and dict synthesis in `internal/types/dictionaries.go` | Read instances.go 28–135, dictionaries.go | Confirmed |
 | V8 | Polymorphic derive is explicitly deferred ("deferred to v0.7+", file_funcs.go:168) | Read | Confirmed — container parameters must not silently re-open that door |
 | V9 | Eq dictionary shape: instances carry `Dict{"eq","neq"}` impl names; operator `==` dispatches via the instance env | instances.go Eq Int/Float/String/Bool builtin rows | Confirmed |
+| V10 | `DictionaryEntry.Impl` is `interface{}` — it can carry a nested marker/dict object, so the resolved child `Eq[τ]` IMPL can be captured inside a container marker | dictionaries.go:25 `Impl interface{} // The actual implementation` (read this session) | Confirmed — child-dictionary threading mechanism is type-safe as designed |
+| V11 | The marker pattern already drives evaluator behavior: `DerivedADTEquality{TypeName}` markers are special-cased in the evaluator (structural TaggedValue comparison) rather than compiled to field-wise dict calls | dictionaries.go:12–19 marker type + comment | Confirmed — containers mirror this with the child dict captured, not a name string |
 
 ## Problem Statement
 
@@ -103,9 +105,14 @@ What else lives there: builtin Eq/Ord/Show rows (primitives), `deriveEqFromOrd` 
 
 Two coordinated changes, both inside the existing typeclass dictionary machinery:
 
-1. **Record-shape instances** (elaborate): on a `*ast.RecordType` decl with `deriving (Eq)`,
-   register a synthesized Eq keyed by the EXPANDED structural shape (field names + types),
-   matching what unification produces — not the alias name.
+1. **Record derives via the declared ALIAS, module-scoped** (round-2 redesign — gemini's
+   action-at-a-distance objection): records do NOT register global structural-shape instances.
+   A record type with `deriving (Eq)` resolves `==` through its OWN alias name
+   (`derivedEqTypes[aliasName]`, elaborated per module) — an unrelated anonymous
+   `{x: int}` record gains nothing and stays a loud failure (A5 local reasoning preserved;
+   two independent `type A/B = {x: int} deriving (Eq)` never collide).
+   Runtime: a `DerivedRecordEquality` marker carrying per-field CHILD Eq dicts
+   (`{fieldName → childEqImpl}`) — field-wise comparison through each field's resolved Eq.
 2. **Container composition** (instances.Lookup): when `Eq[T]` is requested for a
    one-parameter container application (Option-shaped, list-shaped), synthesize from an
    `Eq[param]` result — recursively, depth-capped (8), memoized per canonicalKey. A missing
@@ -113,7 +120,12 @@ Two coordinated changes, both inside the existing typeclass dictionary machinery
 
 The composition dict for containers is a fixed evaluator-level implementation (like M-DX19's
 ADT dict): `eq_opt` and `eq_list` runtime helpers — two new dict implementations registered
-beside the existing primitive `eq_*` ones.
+beside the existing primitive `eq_*` ones. For records the runtime marker
+(`DerivedRecordEquality{fields → child Eq impls}`, V10) compares FIELD-WISE through each
+field's resolved Eq dictionary — so record equality honors custom element Eq (ADT elements
+compose their own derived comparison) without any name-keyed global registry.
+Cap-exceed (depth > 8) returns the distinct E_EQ_SYNTH_DEPTH error specified below — never
+a silent "No instance"
 
 ### Container composition ABI (round-1 quorum premise, now verified)
 
