@@ -87,6 +87,16 @@ and `[α]` — by composing instances for the parts that already have them.
 - [ ] Confirm lookup-time synthesis + record-shape registration as the two-part scope
 - [ ] Confirm depth cap (8) and the missing-element error attribution shape
 
+## Conflict Surface
+
+Touches `internal/types/` (instances.go, dictionaries.go) and `internal/elaborate/` — MANDATORY per the type-system gate. Positions:
+
+1. `internal/types/instances.go` `Lookup` — synthesis for container TApps (Option/list) and composed record shapes
+2. `internal/elaborate/file_funcs.go` `*ast.RecordType` arm — derive-aware registration of the expanded structural shape
+3. `internal/types/dictionaries.go` — `DerivedContainerEquality` marker (mirrors `DerivedADTEquality`)
+
+What else lives there: builtin Eq/Ord/Show rows (primitives), `deriveEqFromOrd` derivation, record-alias expansion (M-FIX-RECORD-UPDATE), `==` lowering to dict calls. Must-still-work fixtures: M-DX19 ADT derives (V1), ail_diag's 6 inline tests, email-parse packages/email primitives equality, the polymorphic-derive rejection (V8). Regression tests: the four probe matrix positives + element-lacks-Eq negatives + cap-exceed. Deliberately changes: nothing — previously-failing equalities remain failing only when a constituent genuinely lacks Eq.
+
 ## Solution Design
 
 ### Overview
@@ -104,6 +114,35 @@ Two coordinated changes, both inside the existing typeclass dictionary machinery
 The composition dict for containers is a fixed evaluator-level implementation (like M-DX19's
 ADT dict): `eq_opt` and `eq_list` runtime helpers — two new dict implementations registered
 beside the existing primitive `eq_*` ones.
+
+### Container composition ABI (round-1 quorum premise, now verified)
+
+The mechanism rides the existing M-DX19 marker pattern, which the evaluator already handles:
+`DerivedADTEquality{TypeName}` is a **marker** the evaluator special-cases by structural
+comparison of TaggedValues (dictionaries.go:12–19). For containers the marker becomes
+`DerivedContainerEquality{Container: "option"|"list", Child Eq/LanguageImpl}` — the RESOLVED
+count child `Eq[τ]` implementation is captured inside the marker's Dict and invoked by the
+evaluator for Some/Some and element pairs (None/None → true; mismatched constructors → false).
+This is precisely the child-dictionary threading gpt5-6-sol's round-1 objection demanded:
+the child dict is captured in the marker's Impl field (DictionaryEntry.Impl is `interface{}`),
+not a name-only reference. Frozen-core placement: Option and [α] are core types, and AILANG
+has no user-space parameterized-instance declaration yet (instances are Go-registered, V7);
+this marker machinery is the natural foundation for user-space parameterized instances when
+they land — superseded by them, not duplicated by them.
+
+### Depth-cap behavior (round-1 quorum gap, now specified)
+
+Exactly the failure mode oc-glm-5-2 flagged: a silent `No instance` naming the type at depth
+9 would be a misleading fallback. Instead, cap-exceed returns a DISTINCT error:
+
+```
+E_EQ_SYNTH_DEPTH: Eq synthesis depth cap (8) exceeded while resolving Eq[<type>] —
+nesting is deeper than the cap supports. Fix: compare a shallower shape, or declare an
+explicit Eq instance for the intermediate type.
+```
+
+No silent fallthrough to the ordinary missing-instance message; the error is unit-tested
+(synthesis at depth 9 with all levels Eq-capable).
 
 ### Implementation Plan
 
@@ -162,7 +201,8 @@ match nth(ds, 0) { Some(d) => d == want, None => false }   -- a Diag deriving (E
 ## Testing Strategy
 
 **Unit tests (Go):** Lookup synthesis depth/negative; record-shape registration; dict shapes.
-**E2E (AILANG):** the probe matrix from Verification Log as live fixtures.
+**E2E (AILANG):** the probe matrix from Verification Log as live fixtures, plus a
+cap-exceed fixture (a 9-deep Option chain) asserting the distinct E_EQ_SYNTH_DEPTH error.
 **Manual:** `ailang repl` spot-checks for Option/list/record equality.
 
 ## Deferred Decisions
