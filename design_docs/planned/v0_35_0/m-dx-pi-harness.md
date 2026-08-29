@@ -192,6 +192,27 @@ and materializes it version-managed into the editor.
 (no separate package/version lifecycle to maintain). Repo-scoped `.pi/extensions/` remains
 for repo cloners (tier 1, unchanged).
 
+## Doctrine — the harness self-improves (Mark, 2026-08-28)
+
+**Standing policy**: when a pi workflow friction bites **twice**, the fix is encoded as a
+`.pi/extensions/` addition (fast-track, stated-change scale) — never re-solved manually
+session after session. Extensions ship via the binary (`ailang pi install`) so the fix
+reaches every user, and become the knowledge source for motoko ports and Claude Code
+hook diffs. Landed this way so far: session gate, quota, attribution, prepush gates,
+fmt autolint (below).
+
+**Diffusion map** — each technique exists in the three harnesses:
+
+| Concern | pi (this repo) | Motoko (AILANG-native) | Claude Code |
+|---|---|---|---|
+| Protocol/governance | session-protocol-gate (tool_call block) | mission gate; quorum roles | PreToolUse hook + rules |
+| Save-time formatting | ail-fmt-autolint (this addition) | `fmt` profile (A/B measured) | `.claude/` fmt hook (shipped) |
+| Push hygiene | prepush-gate (gofmt/lint/sizes) | fallback-chain doctrine | PreToolUse block |
+| Tree ownership | unowned-dirty (warn) | single-writer discipline | — |
+| Quota/lane visibility | provider-quota (/api/v1/key + /api/usage) | quota multiplier (measured, V36) | — |
+| Structured diagnostics | ail-lsp-lite (slots before bash) | `ailang_docs`/`microrag` contexts | MCP server |
+| Provenance | commit-attribution (in gate) | Co-Authored-By precedent | Co-Authored-By: Claude |
+
 ## Solution Design
 
 ### Overview
