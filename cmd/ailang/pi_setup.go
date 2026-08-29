@@ -55,11 +55,10 @@ type piManagedManifest struct {
 
 // decidePiInstall returns the action for one embedded file:
 //   - "install"   absent on disk → write + record
-//   - "adopt"     present, content identical to embedded, previously unmanaged → record only
 //   - "current"   present, managed, content identical, same binary version → nothing
 //   - "update"    managed content is unchanged since install and this binary ships a newer asset → replace safely
 //   - "conflict-user-modified"  managed file whose content changed on disk → preserve, suggest
-//   - "conflict-unmanaged"      present, unmanaged, different content → preserve, suggest
+//   - "conflict-unmanaged"      present and unmanaged → preserve, suggest
 func decidePiInstall(
 	name string,
 	embedded []byte,
@@ -71,22 +70,19 @@ func decidePiInstall(
 	if diskHash == "" {
 		return "install", false
 	}
+	if managed == nil {
+		return "conflict-unmanaged", true
+	}
 	if diskHash == embeddedHash {
-		if managed != nil {
-			if managed.Version == binaryVersion {
-				return "current", false
-			}
-			return "update", false
+		if managed.Version == binaryVersion {
+			return "current", false
 		}
-		return "adopt", false
+		return "update", false
 	}
-	if managed != nil {
-		if diskHash == managed.SHA256 {
-			return "update", false
-		}
-		return "conflict-user-modified", true
+	if diskHash == managed.SHA256 {
+		return "update", false
 	}
-	return "conflict-unmanaged", true
+	return "conflict-user-modified", true
 }
 
 // ── embedded assets + manifest IO ────────────────────────────────────────────
@@ -169,7 +165,7 @@ func installPiExtensions(home string, stdout, stderr io.Writer) error {
 	}
 	managed := readPiManaged(home)
 
-	var installed, updated, adopted, unchanged, conflicts int
+	var installed, updated, unchanged, conflicts int
 	for _, name := range names {
 		data := embedded[name]
 		target := filepath.Join(extDir, name)
@@ -191,9 +187,6 @@ func installPiExtensions(home string, stdout, stderr io.Writer) error {
 			}
 			managed[name] = piManagedFile{SHA256: sha256Hex(data), Version: Version, Size: int64(len(data))}
 			installed++
-		case "adopt":
-			managed[name] = piManagedFile{SHA256: sha256Hex(data), Version: Version, Size: int64(len(data))}
-			adopted++
 		case "current":
 			unchanged++
 		case "update":
@@ -226,8 +219,8 @@ func installPiExtensions(home string, stdout, stderr io.Writer) error {
 	}
 
 	fmt.Fprintf(stdout, "%s pi extensions in %s\n", green("✓"), extDir)
-	fmt.Fprintf(stdout, "  installed: %d, updated: %d, adopted: %d, current: %d, conflicts preserved: %d\n",
-		installed, updated, adopted, unchanged, conflicts)
+	fmt.Fprintf(stdout, "  installed: %d, updated: %d, current: %d, conflicts preserved: %d\n",
+		installed, updated, unchanged, conflicts)
 	if installed+updated > 0 {
 		fmt.Fprintf(stdout, "  %s restart pi sessions to load the refreshed extension set\n", cyan("ℹ"))
 	}
