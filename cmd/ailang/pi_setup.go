@@ -21,6 +21,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -56,7 +57,7 @@ type piManagedManifest struct {
 //   - "install"   absent on disk → write + record
 //   - "adopt"     present, content identical to embedded, previously unmanaged → record only
 //   - "current"   present, managed, content identical, same binary version → nothing
-//   - "update"    managed, content identical to embedded but installed by an older binary → rewrite manifest stamp
+//   - "update"    managed content is unchanged since install and this binary ships a newer asset → replace safely
 //   - "conflict-user-modified"  managed file whose content changed on disk → preserve, suggest
 //   - "conflict-unmanaged"      present, unmanaged, different content → preserve, suggest
 func decidePiInstall(
@@ -80,6 +81,9 @@ func decidePiInstall(
 		return "adopt", false
 	}
 	if managed != nil {
+		if diskHash == managed.SHA256 {
+			return "update", false
+		}
 		return "conflict-user-modified", true
 	}
 	return "conflict-unmanaged", true
@@ -153,22 +157,15 @@ func writePiManaged(home string, files map[string]piManagedFile) error {
 
 // ── commands ─────────────────────────────────────────────────────────────────
 
-func piInstallCommand() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: cannot determine home directory: %v\n", err)
-		os.Exit(1)
-	}
+func installPiExtensions(home string, stdout, stderr io.Writer) error {
 	extDir := piExtensionsDir(home)
 	if err := os.MkdirAll(extDir, 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "error: cannot create %s: %v\n", extDir, err)
-		os.Exit(1)
+		return fmt.Errorf("cannot create %s: %w", extDir, err)
 	}
 
 	embedded, names, err := piEmbeddedFiles()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: embedded assets: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("embedded assets: %w", err)
 	}
 	managed := readPiManaged(home)
 
@@ -190,8 +187,7 @@ func piInstallCommand() {
 		switch action {
 		case "install":
 			if err := os.WriteFile(target, data, 0o644); err != nil {
-				fmt.Fprintf(os.Stderr, "error: write %s: %v\n", target, err)
-				os.Exit(1)
+				return fmt.Errorf("write %s: %w", target, err)
 			}
 			managed[name] = piManagedFile{SHA256: sha256Hex(data), Version: Version, Size: int64(len(data))}
 			installed++
@@ -201,51 +197,48 @@ func piInstallCommand() {
 		case "current":
 			unchanged++
 		case "update":
-			// content already matches what this binary ships; refresh the stamp
-			managed[name] = piManagedFile{SHA256: diskHash, Version: Version, Size: size}
+			// The file still matches either the previous managed hash or this
+			// binary's embedded asset, so replacing it cannot clobber user work.
+			if err := os.WriteFile(target, data, 0o644); err != nil {
+				return fmt.Errorf("update %s: %w", target, err)
+			}
+			managed[name] = piManagedFile{SHA256: sha256Hex(data), Version: Version, Size: int64(len(data))}
 			updated++
 		case "conflict-user-modified", "conflict-unmanaged":
 			if err := os.MkdirAll(filepath.Dir(piSuggestedPath(home, name)), 0o755); err != nil {
-				fmt.Fprintf(os.Stderr, "error: %v\n", err)
-				os.Exit(1)
+				return err
 			}
 			if err := os.WriteFile(piSuggestedPath(home, name), data, 0o644); err != nil {
-				fmt.Fprintf(os.Stderr, "error: write suggestion %s: %v\n", piSuggestedPath(home, name), err)
-				os.Exit(1)
+				return fmt.Errorf("write suggestion %s: %w", piSuggestedPath(home, name), err)
 			}
 			conflicts++
-			fmt.Fprintf(os.Stderr, "%s %s — preserved; this binary's version written to %s\n",
+			fmt.Fprintf(stderr, "%s %s — preserved; this binary's version written to %s\n",
 				color.New(color.FgYellow).Sprintf("⚠"), name, piSuggestedPath(home, name))
 		default:
 			if suggested {
-				fmt.Fprintf(os.Stderr, "%s %s\n", color.New(color.FgYellow).Sprint("⚠"), action)
+				fmt.Fprintf(stderr, "%s %s\n", color.New(color.FgYellow).Sprint("⚠"), action)
 			}
 		}
 	}
 
 	if err := writePiManaged(home, managed); err != nil {
-		fmt.Fprintf(os.Stderr, "error: write manifest: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("write manifest: %w", err)
 	}
 
-	fmt.Printf("%s pi extensions in %s\n", green("✓"), extDir)
-	fmt.Printf("  installed: %d, updated: %d, adopted: %d, current: %d, conflicts preserved: %d\n",
+	fmt.Fprintf(stdout, "%s pi extensions in %s\n", green("✓"), extDir)
+	fmt.Fprintf(stdout, "  installed: %d, updated: %d, adopted: %d, current: %d, conflicts preserved: %d\n",
 		installed, updated, adopted, unchanged, conflicts)
 	if installed+updated > 0 {
-		fmt.Printf("  %s restart pi sessions to load the refreshed extension set\n", cyan("ℹ"))
+		fmt.Fprintf(stdout, "  %s restart pi sessions to load the refreshed extension set\n", cyan("ℹ"))
 	}
+	return nil
 }
 
-func piUninstallCommand() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: cannot determine home directory: %v\n", err)
-		os.Exit(1)
-	}
+func uninstallPiExtensions(home string, stdout io.Writer) error {
 	managed := readPiManaged(home)
 	if len(managed) == 0 {
-		fmt.Println("nothing to uninstall (no managed pi extension files)")
-		return
+		fmt.Fprintln(stdout, "nothing to uninstall (no managed pi extension files)")
+		return nil
 	}
 	var removed, preserved int
 	for name, mf := range managed {
@@ -254,32 +247,31 @@ func piUninstallCommand() {
 		if diskErr == nil && diskHash != mf.SHA256 {
 			// Modified after ailang installed it — do not delete user work.
 			preserved++
-			fmt.Printf("  %s kept %s (modified since install — remove manually if intended)\n", yellow("⚠"), name)
+			fmt.Fprintf(stdout, "  %s kept %s (modified since install — remove manually if intended)\n", yellow("⚠"), name)
 			continue
 		}
-		if err := os.Remove(filepath.Join(piExtensionsDir(home), name)); err == nil {
+		if err := os.Remove(target); err == nil {
 			removed++
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("remove %s: %w", target, err)
 		}
 	}
-	_ = os.Remove(piManifestPath(home))
-	fmt.Printf("%s removed %d managed pi extension file(s); %d modified file(s) kept. Unmanaged files were left untouched.\n",
+	if err := os.Remove(piManifestPath(home)); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove manifest: %w", err)
+	}
+	fmt.Fprintf(stdout, "%s removed %d managed pi extension file(s); %d modified file(s) kept. Unmanaged files were left untouched.\n",
 		green("✓"), removed, preserved)
+	return nil
 }
 
-func piStatusCommand() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: cannot determine home directory: %v\n", err)
-		os.Exit(1)
-	}
+func statusPiExtensions(home string, stdout io.Writer) error {
 	managed := readPiManaged(home)
 	embedded, names, err := piEmbeddedFiles()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: embedded assets: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("embedded assets: %w", err)
 	}
 
-	fmt.Printf("ailang pi extensions (binary %s)\n", Version)
+	fmt.Fprintf(stdout, "ailang pi extensions (binary %s)\n", Version)
 	for _, name := range names {
 		want := sha256Hex(embedded[name])
 		target := filepath.Join(piExtensionsDir(home), name)
@@ -289,20 +281,23 @@ func piStatusCommand() {
 		mf, wasManaged := managed[name]
 		switch {
 		case diskErr != nil:
-			fmt.Printf("  %s MISSING    %s\n", color.New(color.FgRed).Sprint("✗"), name)
+			fmt.Fprintf(stdout, "  %s MISSING    %s\n", color.New(color.FgRed).Sprint("✗"), name)
 		case !wasManaged:
-			fmt.Printf("  %s UNMANAGED  %s (present, not installed by ailang)\n", color.New(color.FgYellow).Sprint("⚠"), name)
+			fmt.Fprintf(stdout, "  %s UNMANAGED  %s (present, not installed by ailang)\n", color.New(color.FgYellow).Sprint("⚠"), name)
 		case diskHash != want:
-			fmt.Printf("  %s DRIFT      %s (modified locally, or installed by an older binary)\n", color.New(color.FgYellow).Sprint("⚠"), name)
+			fmt.Fprintf(stdout, "  %s DRIFT      %s (modified locally, or installed by an older binary)\n", color.New(color.FgYellow).Sprint("⚠"), name)
 		case mf.Version != Version:
-			fmt.Printf("  %s OLDER      %s (content current, installed by binary %s)\n", color.New(color.FgCyan).Sprint("ℹ"), name, mf.Version)
+			fmt.Fprintf(stdout, "  %s OLDER      %s (content current, installed by binary %s)\n", color.New(color.FgCyan).Sprint("ℹ"), name, mf.Version)
 		default:
-			fmt.Printf("  %s FRESH      %s\n", green("✓"), name)
+			fmt.Fprintf(stdout, "  %s FRESH      %s\n", green("✓"), name)
 		}
 	}
 
 	// Foreign (user-owned) files in the managed dir — listed, never touched.
-	entries, _ := os.ReadDir(piExtensionsDir(home))
+	entries, readErr := os.ReadDir(piExtensionsDir(home))
+	if readErr != nil && !os.IsNotExist(readErr) {
+		return fmt.Errorf("read extension directory: %w", readErr)
+	}
 	var foreign []string
 	for _, e := range entries {
 		if e.IsDir() || strings.HasPrefix(e.Name(), ".") {
@@ -316,7 +311,41 @@ func piStatusCommand() {
 	}
 	if len(foreign) > 0 {
 		sort.Strings(foreign)
-		fmt.Printf("  %s user files present (untouched): %s\n", cyan("ℹ"), strings.Join(foreign, ", "))
+		fmt.Fprintf(stdout, "  %s user files present (untouched): %s\n", cyan("ℹ"), strings.Join(foreign, ", "))
+	}
+	return nil
+}
+
+func piInstallCommand() {
+	home, err := os.UserHomeDir()
+	if err == nil {
+		err = installPiExtensions(home, os.Stdout, os.Stderr)
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func piUninstallCommand() {
+	home, err := os.UserHomeDir()
+	if err == nil {
+		err = uninstallPiExtensions(home, os.Stdout)
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func piStatusCommand() {
+	home, err := os.UserHomeDir()
+	if err == nil {
+		err = statusPiExtensions(home, os.Stdout)
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
 	}
 }
 

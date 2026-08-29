@@ -8,3 +8,7 @@ FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 USER root
 RUN npm install -g @mariozechner/pi-coding-agent
 USER ailang
+
+# M-DX-PI-HARNESS Distribution v2 (F5): install the binary-embedded suite
+# only after switching to the runtime user, so it lands in /home/ailang/.pi.
+RUN ailang pi install

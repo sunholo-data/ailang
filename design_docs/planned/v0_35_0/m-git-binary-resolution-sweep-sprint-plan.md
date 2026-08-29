@@ -300,7 +300,7 @@ answers: *what would this still pass under, if the claim were false?*
 
 ---
 
-## 4. M2-M4 — mechanical conversions (NOT this iteration)
+## 4. M2-M4 — mechanical conversions (separate iterations)
 
 Each is its own PR, each ratchets `scripts/git_exec_baseline.txt` downward, each adds **no**
 new decision. The contract is frozen by M1; the only per-site work is replacing
@@ -308,14 +308,26 @@ new decision. The contract is frozen by M1; the only per-site work is replacing
 `exec.CommandContext(ctx, "git", args…)` with `gitexec.CommandContext(ctx, args…)`,
 preserving each site's `cmd.Dir` vs `-C` convention verbatim.
 
-### M2 — `internal/coordinator` (1d, 42 sites, 7 files)
+### M2 — `internal/coordinator` (1d, 42 sites, 7 files) — ✅ completed iteration 300
 `worktree.go` 15, `merge.go` 8, `approval_processor.go` 6, `artifact_discovery.go` 5,
 `daemon_tasks_exec_run.go` 4, `daemon_tasks_worktrees.go` 3, `observatory_sync.go` 1.
 Acceptance: baseline sum = **47** (89 − 42, re-derived); `make check-git-exec` rc=0;
 `go test ./internal/coordinator/... -count=1` rc=0 (base rc=0, regression gate).
-Note: 5 sites here and in M3 already discard the error (`_ = cmd.Run()`,
-`daemon_tasks_exec_run.go:461,463`, `coordinator_browse.go:87,240`, `worktree.go:239`).
+The pristine M2 base with its matching 89-site baseline is rc=0. The falsifiable negative
+control is the converted tree with that 89-site baseline preserved: rc=1 with seven
+`tighten the baseline` diagnostics. Ratcheting the baseline to 47 restores rc=0.
+Note: 8 sites here and in M3 already discard the error: 6 in M2
+(`approval_processor.go` 2, `daemon_tasks_exec_run.go` 2, `worktree.go` 2) and 2 in M3
+(`coordinator_browse.go` 2).
 Conversion **preserves** that silent swallow; the design explicitly does not fix them.
+
+Execution deviation for PR #958: the mechanical conversion's first Sonar analysis was red
+on new-code coverage (31.0%) and duplicated-line density (3.9%). The executor added focused
+real-repository tests for merge, worktree inspection/cleanup, and both auto-commit paths;
+factored artifact-path accumulation to remove the reported duplicate block; and replaced the
+four reported repeated Git tokens with package constants. A local coverprofile mapped 50 of
+57 diff-added executable lines as covered (87.7%) before push; Sonar itself must remeasure
+after the follow-up commit is pushed.
 
 ### M3 — `cmd/ailang` (1d, 41 sites, 7 files)
 `coordinator_cloud.go` 14, `coordinator_browse.go` 11, `chains_diff.go` 4,
