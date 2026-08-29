@@ -172,7 +172,7 @@ The codebase already proves the pattern: `ailang editor install vscode` embeds
 and materializes it version-managed into the editor.
 
 **Tier 0 (new, primary): `ailang pi install` / `uninstall` / `status`**
-- `//go:embed all:pi_assets` in cmd/ailang — the six extensions ship inside every release binary
+- `//go:embed all:pi_assets` in cmd/ailang — eight extensions plus README ship inside every release binary
 - Source of truth stays `.pi/extensions/` (repo sessions keep working); a Makefile step copies
   to `cmd/ailang/pi_assets/` (committed, like editor_assets) with a CI drift-check
   (pi_assets == .pi/extensions, mirroring verify-install-guide)
