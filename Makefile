@@ -367,6 +367,7 @@ mcp-local: build snapshot
 ## pi-assets: sync .pi/extensions → cmd/ailang/pi_assets (embed source; commit both)
 pi-assets:
 	@mkdir -p cmd/ailang/pi_assets
+	@find cmd/ailang/pi_assets -mindepth 1 -maxdepth 1 -type f \( -name '*.ts' -o -name 'README.md' \) -delete
 	@for f in .pi/extensions/*.ts .pi/extensions/README.md; do \
 		[ -f "$$f" ] && cp "$$f" cmd/ailang/pi_assets/ || true; \
 	done

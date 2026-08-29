@@ -1,7 +1,7 @@
 # Sprint Plan: M-DX-PI-HARNESS-P2 — Distribution v2: ailang pi install
 
 ## Summary
-Ship the binary channel: embed the six extensions in the ailang binary (`pi_assets`), add `ailang pi install|uninstall|status` mirroring `ailang editor install vscode`, managed-file manifest for ~/.pi/agent/extensions, fleet image hook (closes F5).
+Ship the binary channel: embed the eight extensions plus README in the ailang binary (`pi_assets`), add `ailang pi install|uninstall|status` mirroring `ailang editor install vscode`, managed-file manifest for ~/.pi/agent/extensions, fleet image hook (closes F5).
 
 **Design doc:** m-dx-pi-harness.md — Distribution v2 (ratified 2026-08-28)
 **Duration:** 1 session (~400 LOC + tests)
