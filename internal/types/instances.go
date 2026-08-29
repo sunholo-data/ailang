@@ -22,20 +22,6 @@ type ClassInstance struct {
 type InstanceEnv struct {
 	instances map[string]*ClassInstance // Key: "ClassName:NormalizedType"
 	defaults  map[string]Type           // Default types for ambiguous literals
-	shapeEq   map[string]bool           // M-EQ-DERIVE-CONTAINERS: shapes registered derive(Eq)
-}
-
-// RegisterShapeEq registers a synthesized structural Eq for a derived record
-// shape at elaborate time (M-EQ-DERIVE-CONTAINERS). Coherent: first
-// registration wins and a pre-existing same-shape instance is never replaced.
-func (env *InstanceEnv) RegisterShapeEq(shape Type) {
-	if env.shapeEq == nil {
-		env.shapeEq = map[string]bool{}
-	}
-	env.shapeEq[shape.String()] = true
-	composed := env.composedInstance(shape)
-	// first-registration-wins: never silently replace an existing instance
-	_ = env.Add(composed)
 }
 
 // NewInstanceEnv creates a new empty instance environment
@@ -70,14 +56,6 @@ func (env *InstanceEnv) Lookup(class string, typ Type) (*ClassInstance, error) {
 		if ordInst, ok := env.instances[ordKey]; ok {
 			return deriveEqFromOrd(ordInst), nil
 		}
-
-		// M-EQ-DERIVE-CONTAINERS (#960): compose Eq through one-parameter containers
-		// (Options, lists) and derived-record shapes when the parts already have Eq.
-		// Depth-capped synthesis; cap-exceed is a DISTINCT structured error, never a
-		// misleading "No instance".
-		if inst, ok := env.synthesizeEq(typ, 0); ok {
-			return inst, nil
-		}
 	}
 
 	return nil, &MissingInstanceError{
@@ -85,55 +63,6 @@ func (env *InstanceEnv) Lookup(class string, typ Type) (*ClassInstance, error) {
 		Type:  typ,
 		Hint:  actionableInstanceHint(class, typ),
 	}
-}
-
-// eqSynthMaxDepth bounds recursive instance synthesis (A5: bounded verification).
-var eqSynthMaxDepth = 8
-
-// EqSynthDepthError is returned when Eq composition recursion exceeds
-// eqSynthMaxDepth. DISTINCT from MissingInstanceError: nesting — not a missing
-// element — is the cause, and the fix is different (compare a shallower shape or
-// declare an explicit instance; oc-glm-5-2 round-1 quorum objection).
-type EqSynthDepthError struct {
-	Type  Type
-	Depth int
-}
-
-func (e *EqSynthDepthError) Error() string {
-	return fmt.Sprintf("Eq synthesis depth cap (%d) exceeded while resolving Eq[%s] — compare a shallower shape or declare an explicit Eq instance", e.Depth, e.Type)
-}
-
-// synthesizeEq composes a derived Eq for container applications and derived
-// record shapes. Returns (instance, true) when all constituents compose.
-// Depth-capped: depth > eqSynthMaxDepth yields a *EqSynthDepthError.
-func (env *InstanceEnv) synthesizeEq(typ Type, depth int) (*ClassInstance, bool) {
-	if depth > eqSynthMaxDepth {
-		return nil, false
-	}
-	if depth > 0 && false { _ = depth }
-
-	// list: Eq[τ] ⊢ Eq[[τ]] (both TList and TApp("list", τ) shapes)
-	if elem, isList := AsList(typ); isList {
-		if _, err := env.Lookup("Eq", elem); err == nil {
-			return env.composedInstance(typ), true
-		}
-	}
-
-	// Option: Eq[τ] ⊢ Eq[Option[τ]] (named ADT container, TCon or TApp)
-	if adtName := extractADTName(typ); adtName == "Option" {
-		if arg, ok := containerArg(typ); ok {
-			if _, err := env.Lookup("Eq", arg); err == nil {
-				return env.composedInstance(typ), true
-			}
-			return nil, false
-		}
-	}
-
-	// records resolve via the shape-keyed instance registered by the M-DX19
-	// loop in the pipeline (elaborate: alias → expanded TRecord). Anonymous
-	// records of shapes without a derived alias are never registered, so they
-	// stay loud failures per the ratified contract.
-	return nil, false
 }
 
 // actionableInstanceHint returns an AILANG-specific, fix-oriented hint for a missing
@@ -454,33 +383,4 @@ type DictParam struct {
 	Name      string // e.g., "dict_Num_α"
 	ClassName string // e.g., "Num"
 	Type      Type   // e.g., TVar("α")
-}
-
-// composedInstance builds the derived Eq instance for a composed shape.
-// WARNING on correctness: the Dict carries the M-DX19 synthesized convention
-// names; the EVALUATOR's deterministic Eq-class fallback (eval_patterns.go
-// "the type checker already proved this class instance exists") synthesizes
-// structural comparison that traverses containers, records and TaggedValues —
-// so these names are lookalikes, the structural comparison is what executes.
-func (env *InstanceEnv) composedInstance(typ Type) *ClassInstance {
-	return &ClassInstance{
-		ClassName: "Eq",
-		TypeHead:  typ,
-		Dict: Dict{
-			"eq":  "derived_eq",
-			"neq": "derived_neq",
-		},
-	}
-}
-
-// containerArg extracts the single type argument of an applied container
-// (e.g. Option[τ] → τ). Deterministic: decomposeApp of a named container.
-func containerArg(t Type) (Type, bool) {
-	if ta, ok := t.(*TApp); ok {
-		_, args := decomposeApp(ta)
-		if len(args) == 1 {
-			return args[0], true
-		}
-	}
-	return nil, false
 }

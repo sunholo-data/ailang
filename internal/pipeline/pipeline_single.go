@@ -328,14 +328,6 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 			}
 		}
 
-		// M-EQ-DERIVE-CONTAINERS (#960): ① the constraint type for `==` arrives as
-		// the ALIAS-EXPANDED TRecord (unification), so key one instance on the
-		// expanded shape too — the TCon-keyed instance above can never match it.
-		if aliasBody, ok := elaborator.GetTypeAliases()[typeName]; ok {
-			shaped := types.ClassInstance{ClassName: "Eq", TypeHead: aliasBody, Dict: inst.Dict}
-			_ = cfg.InstEnv.Add(&shaped)
-		}
-
 		// M-DX19: Also register in DictionaryRegistry for runtime lookup
 		// This tells the evaluator to use structural TaggedValue comparison
 		cfg.DictReg.RegisterDerivedEq(typeName)
