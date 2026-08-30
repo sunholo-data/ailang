@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-DX-PI-HARNESS",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-08-28T09:51:37Z",
-  "design_doc": "design_docs/planned/v0_35_0/m-dx-pi-harness.md",
-  "sprint_plan": "design_docs/planned/v0_35_0/m-dx-pi-harness-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_35_0/m-dx-pi-harness.md",
+  "sprint_plan": "design_docs/implemented/v0_35_0/m-dx-pi-harness-sprint-plan.md",
   "github_issues": [
     934
   ],
@@ -101,16 +101,16 @@
       "estimated_loc": 260,
       "dependencies": [],
       "acceptance_criteria": [
-        "install writes 6 extensions + manifest to ~/.pi/agent/extensions; re-run idempotent",
+        "install writes 9 extensions + README + manifest to ~/.pi/agent/extensions; re-run idempotent",
         "unmanaged/user-modified conflicts \u2192 .ailang-suggested/ + warning, original preserved",
         "uninstall removes only managed files",
         "status reports per-file FRESH/DRIFT/UNMANAGED/MISSING",
         "pi -e loads installed extensions (tool surface present)"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-08-28T13:00:00Z",
-      "completed": null,
-      "notes": null
+      "completed": "2026-08-29T22:18:44Z",
+      "notes": "Distribution v2 landed in 83d306bff; lifecycle correction merged as PR #961 / 45503bac6; byte-identical unmanaged ownership correction merged as PR #965 / 4c9431ec2. Independent iteration-301 evaluator PASS 86/100 r2; iteration-304 reconciliation evaluator PASS 88/100. D-49 remains open for global-vs-repo-local precedence policy."
     }
   ]
 }

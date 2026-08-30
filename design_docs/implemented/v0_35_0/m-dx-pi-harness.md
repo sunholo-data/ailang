@@ -1,6 +1,6 @@
 # M-DX-PI-HARNESS — pi as a first-class development harness for AILANG (two streams)
 
-**Status**: Planned
+**Status**: Implemented (2026-08-29; Distribution v2 corrections through PR #965 / `4c9431ec2`)
 **Target**: v0.35.0
 **Priority**: P1
 **Estimated**: Phase 1 ~1 session; Phase 2 ~1 session; Phase 3 hardening ~0.5 session
