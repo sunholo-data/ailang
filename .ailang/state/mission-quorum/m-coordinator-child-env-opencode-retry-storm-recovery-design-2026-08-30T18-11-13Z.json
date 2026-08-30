@@ -1,0 +1,64 @@
+{
+  "doc": "design_docs/planned/v0_35_0/m-coordinator-child-env-opencode-retry-storm-recovery-design.md",
+  "iso_ts": "2026-08-30T18:11:13Z",
+  "reviewers": [
+    {
+      "model": "gpt5-6-sol",
+      "cost_usd": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "present": false,
+      "absent_reason": "budget",
+      "error": "estimated cost $0.1053 (doc ~14915 input tok) exceeds cap $0.1000 (pre-flight refusal, zero spend)",
+      "landed": null
+    },
+    {
+      "model": "gemini-3-1-pro",
+      "cost_usd": 0.032884,
+      "tokens_in": 14702,
+      "tokens_out": 290,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The design dictates using `status.Code(err)` for all retry classification and explicitly asserts that handling `*googleapi.Error` is only needed for 'a future caller' using the generated REST client. However, the verification log contains no proof that `internal/dispatch/cloudrun/dispatcher.go` currently uses the gRPC SDK (`cloud.google.com/go/run/apiv2`) rather than the REST SDK (`google.golang.org/api/run/...`). If the current dispatcher actually uses the REST SDK, `status.Code(err)` will return `Unknown` for all underlying HTTP errors, silently classifying all network and readiness failures as permanent and bypassing the intended generation retry budget.",
+        "catch": "Unverified premise regarding the GCP client library currently in use for Cloud Run dispatch.",
+        "proposed_fix": "Add a verification log entry proving the current client type in `dispatcher.go` (e.g., `rg 'cloud.google.com/go/run/apiv2' internal/dispatch/cloudrun/dispatcher.go`). If it currently uses the REST client, amend the 'Bounded external effects and typed retry classification' section to include checking `*googleapi.Error` and mapping its HTTP status codes to the required retryable categories."
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-glm-5-2",
+      "cost_usd": 0.037673700000000004,
+      "tokens_in": 13342,
+      "tokens_out": 5828,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The doc modifies `internal/pubsub/topics.go` (adding three fields to the `TaskCompletion` struct) and `internal/pubsub/pubsub_test.go` (decode tests), and explicitly names `m-coord-dispatch-integrity` as a sibling mission owning 'correlation/message-ingress dedup' — an inbound concern that almost certainly touches the same `TaskCompletion` wire struct and its decode path. The conflict-surface table lists 'Completion wire' as a general surface but never verifies whether `m-coord-dispatch-integrity`'s implemented or planned scope also modifies `topics.go` or `pubsub_test.go`. If both missions add fields to the same struct, there is an unanalyzed file-level and wire-format merge conflict with no stated coordination strategy (field ordering, merge sequencing, or non-overlap proof).",
+        "catch": "The conflict-surface analysis covers the *behavioral* overlap (who owns outbound reservation authority vs. inbound correlation) but not the *file/struct* overlap. V49 verifies `TaskCompletion` exists at `topics.go:47` and decode tests at `pubsub_test.go:289/316`, but no verification row checks whether the sibling mission's file surface intersects this sprint's `internal/pubsub/topics.go` or `internal/pubsub/pubsub_test.go` modifications.",
+        "proposed_fix": "Add a verification row (e.g., V54) that checks whether `m-coord-dispatch-integrity`'s implemented or planned design modifies `internal/pubsub/topics.go` or `internal/pubsub/pubsub_test.go` — for example by reading the sibling's design doc file surface or grepping its diff. If overlap exists, add a conflict-surface row to the table specifying field-ordering coordination or a merge-sequencing plan. If no overlap, record the command that proves it (e.g., `git diff` or file-surface inspection of the sibling's scope)."
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Round-1 blockers addressed: completion fencing now requires generation plus unique reservation identity; ResolveModel, worktree reset, all file surfaces, and changelog target were verified first-party and recorded."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "gemini-3-1-pro: The design dictates using `status.Code(err)` for all retry classification and explicitly asserts that handling `*googleapi.Error` is only needed for 'a future caller' using the generated REST client. However, the verification log contains no proof that `internal/dispatch/cloudrun/dispatcher.go` currently uses the gRPC SDK (`cloud.google.com/go/run/apiv2`) rather than the REST SDK (`google.golang.org/api/run/...`). If the current dispatcher actually uses the REST SDK, `status.Code(err)` will return `Unknown` for all underlying HTTP errors, silently classifying all network and readiness failures as permanent and bypassing the intended generation retry budget.",
+      "oc-glm-5-2: The doc modifies `internal/pubsub/topics.go` (adding three fields to the `TaskCompletion` struct) and `internal/pubsub/pubsub_test.go` (decode tests), and explicitly names `m-coord-dispatch-integrity` as a sibling mission owning 'correlation/message-ingress dedup' — an inbound concern that almost certainly touches the same `TaskCompletion` wire struct and its decode path. The conflict-surface table lists 'Completion wire' as a general surface but never verifies whether `m-coord-dispatch-integrity`'s implemented or planned scope also modifies `topics.go` or `pubsub_test.go`. If both missions add fields to the same struct, there is an unanalyzed file-level and wire-format merge conflict with no stated coordination strategy (field ordering, merge sequencing, or non-overlap proof)."
+    ],
+    "absent_reviewers": [
+      {
+        "model": "gpt5-6-sol",
+        "reason": "budget"
+      }
+    ],
+    "total_cost_usd": 0.0705577,
+    "total_tokens_in": 28044,
+    "total_tokens_out": 6118
+  }
+}

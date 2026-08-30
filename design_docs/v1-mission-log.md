@@ -20347,3 +20347,19 @@ Applied under the **narrow-refinement carve-out** (ratified at iterations 251/28
 **Retro:** no skill edit. The skill's died-mid-flight trace worked exactly as intended and prevented duplicate implementation. The friction is artifact durability: recovery sprint JSON is ignored by default, so it is force-added with the record rather than left only in a worktree.
 
 **Next:** wait for D-50. If approved, fresh quorum the narrowed plan, then execute in a clean worktree from current origin: M1 transplant, OpenCode-only M2a, M3 emulator evidence, M4 bounded/CAS gates, independent evaluation, and Gate 3b. Otherwise continue to the next `[NEXT]` queue item.
+
+## 306 — 2026-08-30 — Human approval did not waive the independent quorum
+
+**Pick/resume:** Mark answered `D49 - A` and `D50 - approve` on bookkeeping issue #852 at `2026-08-30T08:11:12Z`. D-49 is resolved as repo-local Pi extensions winning with duplicates suppressed. D-50 supplied approval and `execute sprint`, un-parking the retry-storm recovery for fresh quorum.
+
+**Four-role loop:** designer `gpt-5.6-sol` audited the recovered artifacts, found missing generation/reservation fencing and stale-update/requeue hazards, and wrote a self-contained narrowed recovery design. Fresh quorum r1 BLOCKED 3/3 ($0.1031). One protocol-mandated revision added unique reservation identity, same-generation completion fencing, generic-update preservation, requeue semantics, nil-safe validation, and verified file/API premises. Re-quorum BLOCKED again ($0.0706): `gpt5-6-sol` absent on budget, while Gemini rejected the unrecorded gRPC-vs-REST premise and GLM rejected the unrecorded sibling completion-wire conflict analysis. Planner `gpt-5.6-terra` returned PARKED. Executor `gpt-5.6-sol` made no changes, preserved M1 `3500db0a7`, and passed all 15 focused M1 tests from a disposable archive. Independent evaluator `gpt-5.6-luna` PASS 84/100 confirmed the safe park. generator!=judge holds.
+
+**Outcome:** PARKED `needs-human-review`; the gate permits one revision/re-quorum and it is exhausted. D-50 remains recorded as resolved and is not re-asked, but a new human directive is required to reopen another canonical-design amendment/review. M1 is reviewable evidence only; parked broad M2-M4 remains unusable as a base. No production code changed.
+
+**Gate 1 context:** dev `0b35abd5d` was red. Executor reproduced `TestPiFilesystemLifecycle` expecting 10 assets after `quality-monitor.ts` made 11; launchd separately failed its bounded-termination timing arm. Neither surface overlaps M1 or the narrowed recovery, so they were recorded as unrelated owner-repo reds, not blamed on this sprint.
+
+**Routing evidence:** operator-required Agent-tool roles all spawned successfully. Configured Fable/DeepSeek/Sonnet aliases are not expressible by this harness, so explicit fallbacks were designer=`gpt-5.6-sol`, planner=`gpt-5.6-terra`, executor=`gpt-5.6-sol`, evaluator=`gpt-5.6-luna`. No role was silently omitted. Metered quorum spend=$0.1737 of $5; no GPU.
+
+**Retro:** no skill edit. The quorum gate and generator-not-equal-judge property worked: human approval moved the item to review, while independent reviewers prevented implementation over two unresolved conflict/premise surfaces.
+
+**Next:** route the unrelated dev reds to their owning work or take the next `[NEXT]` row. Retry-storm recovery remains parked until explicitly reopened.

@@ -1,14 +1,14 @@
 {
   "sprint_id": "M-COORDINATOR-CHILD-ENV-OPENCODE-RETRY-STORM-RECOVERY",
-  "status": "blocked_pending_fresh_quorum",
-  "iteration": 305,
-  "base_commit": "3fc7be9b88d5198c9954a5ba5b8775705bbd6dd6",
+  "status": "needs-human-review",
+  "iteration": 306,
+  "base_commit": "0b35abd5d0e7e494d0f678c0c252770c3a94d2e4",
   "recovered_m1_commit": "3500db0a77146f0bd4709951a8554c433998be23",
   "recovered_worktree": "/Users/voightkampff/dev/sunholo-data/.wt-iter302",
   "sprint_plan": "design_docs/planned/v0_35_0/m-coordinator-child-env-opencode-retry-storm-recovery-plan.md",
   "blocking_gates": [
-    "fresh quorum PASS after bounded M2a scope",
-    "explicit user approval and execute-sprint instruction",
+    "human reopen after the single permitted re-quorum remained BLOCKED",
+    "fresh quorum PASS after an authorized canonical-design amendment",
     "isolated Firestore-emulator CI with named transaction PASS evidence"
   ],
   "features": [

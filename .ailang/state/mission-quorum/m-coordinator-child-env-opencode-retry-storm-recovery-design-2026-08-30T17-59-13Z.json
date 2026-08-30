@@ -1,0 +1,64 @@
+{
+  "doc": "design_docs/planned/v0_35_0/m-coordinator-child-env-opencode-retry-storm-recovery-design.md",
+  "iso_ts": "2026-08-30T17:59:13Z",
+  "reviewers": [
+    {
+      "model": "gpt5-6-sol",
+      "cost_usd": 0.05387,
+      "tokens_in": 9202,
+      "tokens_out": 262,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "Generation-only completion fencing is insufficient. The design permits up to three at-least-once RunJob calls in one generation, yet every resulting child emits the same generation value. If an earlier ambiguously accepted attempt completes after a later attempt, `FinishTaskIfActive` accepts whichever completion reaches the CAS first. Different results can therefore win based on timing, violating deterministic behavior and leaving same-generation stale writers unfenced.",
+        "catch": "The acceptance and race plans cover prior-generation and duplicate completions but omit conflicting completions from different reservations within the same generation—the exact case created by timeout/crash recovery after an accepted RunJob.",
+        "proposed_fix": "Propagate `reservation_id` and attempt through `DispatchParams`, `AILANG_DISPATCH_RESERVATION_ID`, and `TaskCompletion`. Persist a completion-authority token and require `FinishTaskIfActive` to match both generation and the currently authorized reservation. Define explicitly when a newer reservation supersedes an older one and whether completion from an ambiguously failed reservation remains eligible. Add barrier tests where attempt 1 is accepted but appears failed, attempt 2 is reserved, and both return conflicting completions; the specified authoritative reservation must win regardless of completion arrival order."
+      },
+      "landed": null
+    },
+    {
+      "model": "gemini-3-1-pro",
+      "cost_usd": 0.022302000000000002,
+      "tokens_in": 9999,
+      "tokens_out": 192,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The document relies on unverified codebase premises for its core design and conflict surface analysis. It asserts that route normalization will 'Resolve the model through the existing ResolveModel(agent) path' and claims 'local-lane Worktree-limit recovery calls ResetTaskToPending'. The Verification Log completely omits checks for the existence, signature, or current behavior of the ResolveModel API and the local-lane worktree limit recovery path.",
+        "catch": "Unverified codebase premises (ResolveModel API and local-lane worktree recovery behavior).",
+        "proposed_fix": "Add verification log entries for both claims: | V21 | ResolveModel API exists | rg -n 'func ResolveModel' internal/coordinator | Confirmed | and | V22 | Worktree recovery calls ResetTaskToPending | rg 'ResetTaskToPending' internal/local | Verified |."
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-glm-5-2",
+      "cost_usd": 0.02692324,
+      "tokens_in": 9148,
+      "tokens_out": 4288,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The verification log (V1–V20) thoroughly validates behavioral claims but does not verify the existence or expected content of at least eight non-'New' files listed under 'Files to Modify/Create' that the design plan depends on modifying: `internal/coordinator/cloud_dispatcher.go`, `internal/coordinator/store_sqlite_queries.go`, `internal/coordinator/daemon_tasks_budget.go`, `internal/coordinator/daemon_tasks_init.go`, `internal/storage/firestore/coordinator_convert.go`, `internal/storage/firestore/coordinator_transitions.go`, `internal/storage/firestore/coordinator_approvals.go`, and `internal/pubsub/topics.go`. V2 only confirms these paths did not drift between two commits; an empty `git diff --stat` cannot distinguish 'file exists and unchanged' from 'file does not exist.' The design assumes specific functions, types, and call sites inside these files (e.g., `taskToMap` in `coordinator_tasks.go` is verified by V14, but the Firestore transition/approval files that must preserve dispatch fields are not). Additionally, `changelogs/v0.32-current.md` is cited as the changelog to update for a v0.35.0 target without any verification that this filename is correct and current.",
+        "catch": "Every file listed for modification that is not marked 'New' must have a verification-log row proving it exists at `origin/dev` and naming the specific symbol (function, struct, method, or map builder) the design depends on. The changelog filename must be verified against the repository's current changelog convention.",
+        "proposed_fix": "Add verification-log rows V21–V29 (or equivalent) as follows:\n\n| V21 | `cloud_dispatcher.go` exists and contains the dispatch entry point | `test -f internal/coordinator/cloud_dispatcher.go \u0026\u0026 rg -n 'func .*Dispatch' internal/coordinator/cloud_dispatcher.go` | \u003cobserved function names\u003e |\n| V22 | `store_sqlite_queries.go` exists and contains query constants used by UpdateTask | `test -f internal/coordinator/store_sqlite_queries.go \u0026\u0026 rg -n 'UPDATE|INSERT' internal/coordinator/store_sqlite_queries.go | head` | \u003cobserved\u003e |\n| V23 | `daemon_tasks_budget.go` and `daemon_tasks_init.go` exist | `test -f internal/coordinator/daemon_tasks_budget.go -a -f internal/coordinator/daemon_tasks_init.go \u0026\u0026 echo OK` | \u003cobserved\u003e |\n| V24 | `coordinator_convert.go` exists and performs task conversion | `test -f internal/storage/firestore/coordinator_convert.go \u0026\u0026 rg -n 'func ' internal/storage/firestore/coordinator_convert.go` | \u003cobserved\u003e |\n| V25 | `coordinator_transitions.go` and `coordinator_approvals.go` exist | `test -f internal/storage/firestore/coordinator_transitions.go -a -f internal/storage/firestore/coordinator_approvals.go \u0026\u0026 echo OK` | \u003cobserved\u003e |\n| V26 | `topics.go` contains TaskCompletion struct | `rg -n 'TaskCompletion' internal/pubsub/topics.go` | \u003cobserved\u003e |\n| V27 | `changelogs/v0.32-current.md` is the active changelog | `test -f changelogs/v0.32-current.md \u0026\u0026 ls changelogs/` | \u003cobserved: confirm no newer changelog file exists\u003e |\n\nThese rows close the gap between 'no drift detected' and 'file exists with the expected interface.'"
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Human approved narrowed recovery via D-50; designer independently audited HEAD and revised the design to include generation fencing, generic-update preservation, bulk/stage requeue semantics, nil-safe validation, and bounded parent-preserving deadlines."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "gpt5-6-sol: Generation-only completion fencing is insufficient. The design permits up to three at-least-once RunJob calls in one generation, yet every resulting child emits the same generation value. If an earlier ambiguously accepted attempt completes after a later attempt, `FinishTaskIfActive` accepts whichever completion reaches the CAS first. Different results can therefore win based on timing, violating deterministic behavior and leaving same-generation stale writers unfenced.",
+      "gemini-3-1-pro: The document relies on unverified codebase premises for its core design and conflict surface analysis. It asserts that route normalization will 'Resolve the model through the existing ResolveModel(agent) path' and claims 'local-lane Worktree-limit recovery calls ResetTaskToPending'. The Verification Log completely omits checks for the existence, signature, or current behavior of the ResolveModel API and the local-lane worktree limit recovery path.",
+      "oc-glm-5-2: The verification log (V1–V20) thoroughly validates behavioral claims but does not verify the existence or expected content of at least eight non-'New' files listed under 'Files to Modify/Create' that the design plan depends on modifying: `internal/coordinator/cloud_dispatcher.go`, `internal/coordinator/store_sqlite_queries.go`, `internal/coordinator/daemon_tasks_budget.go`, `internal/coordinator/daemon_tasks_init.go`, `internal/storage/firestore/coordinator_convert.go`, `internal/storage/firestore/coordinator_transitions.go`, `internal/storage/firestore/coordinator_approvals.go`, and `internal/pubsub/topics.go`. V2 only confirms these paths did not drift between two commits; an empty `git diff --stat` cannot distinguish 'file exists and unchanged' from 'file does not exist.' The design assumes specific functions, types, and call sites inside these files (e.g., `taskToMap` in `coordinator_tasks.go` is verified by V14, but the Firestore transition/approval files that must preserve dispatch fields are not). Additionally, `changelogs/v0.32-current.md` is cited as the changelog to update for a v0.35.0 target without any verification that this filename is correct and current."
+    ],
+    "absent_reviewers": [],
+    "total_cost_usd": 0.10309524,
+    "total_tokens_in": 28349,
+    "total_tokens_out": 4742
+  }
+}
