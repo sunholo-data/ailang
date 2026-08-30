@@ -75,6 +75,32 @@ At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the arc
 iteration re-reads this charter — unbounded STATUS history is a per-read token tax on the scarcest
 model budget; the append-only history lives in the log + archive.
 
+## STATUS 2026-08-31 — ITERATION 2: docs-9 change prepared; parked on unavailable docs build and shared CI reds
+
+Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`; no unread inbox directives,
+no open decision-ledger rows, and no Mark comments since the watermark. Gate 1: `origin/dev`
+`0b35abd5d` has a successful documentation deploy but red CI/Build-and-Release checks. The failures
+are outside this mission's ownership and were handed to V1 via controlplane: `TestPiFilesystemLifecycle`
+finds 11 embedded assets but expects 10, and the launchd-driver bounded-termination test gets process-tree
+discovery timeout instead of its expected diagnostic.
+
+**PICK: `docs-9` (queue head).** The designer fallback confirmed the existing bounded brief needs no
+new design doc. Planner, executor, and evaluator were all spawned through the Agent tool per the
+unattended operator request. The executor changed only `docs/docs/intro.mdx`, `v0.16.0` → `v0.16.6`;
+`check_versions.sh` and `git diff --check` passed. Independent evaluator: PASS 84/100, no implementation
+blockers; it confirmed the same one-line diff. `make docs-build` could not complete because `docusaurus`
+is unavailable, and Gate 3b cannot be green while shared dev checks are red. Parked pending environment
+dependency restoration and owner CI triage; preserve the one-line diff for resume.
+
+**Routing exceptions:** configured `fable` designer spawn failed with `Unknown model fable`; explicit
+GPT-5.6-luna Agent fallback used. Configured Sonnet evaluator spawn failed with `Unknown model sonnet`;
+explicit GPT-5.6-sol Agent fallback used. Executor/planner used GPT-5.6-luna Agent pins at operator request.
+Evaluator was independent by model and role, but not provider-diverse: both GPT fallbacks are the same
+provider family. No role was silently omitted.
+
+**Next:** resume docs-9 after `docusaurus` is available and Gate 3b is green; otherwise docs-5 remains
+the alternate queue item. No human decision was invented.
+
 ## STATUS 2026-08-28 — ITERATION 1: docs-2 LANDED; the sync tool it depends on was found broken, and fixing it needs two allowlist decisions
 
 First real sprint since ratification. Gate 0: kill switch armed; billing CLEAN; gh
@@ -475,7 +501,8 @@ loud stop instead of a silent bill.
    sweep gives 166 pass / 9 genuine fail / 42 no-module across 217 files. Independently re-derived
    by the sprint-evaluator (sonnet) from scratch — PASS 92/100, zero blocking. Follow-ups spawned
    as docs-5 through docs-8 below.
-3. `[NEXT]` **docs-9 · clause 1 · FIX THE STALE PUBLISHED PAGE — the first item that corrects
+3. `[PARKED]` **docs-9 · clause 1 · FIX THE STALE PUBLISHED PAGE — prepared this iteration; awaiting
+   Docusaurus availability and Gate-3b green; preserve the one-line diff for resume.**
    content a reader actually sees.** `docs/docs/intro.mdx` names IFC Labels as `v0.16.0` while the
    active prompt is `v0.16.6` (`check_versions.sh`: `[STALE] intro.mdx references v0.16.0, latest
    is v0.16.6`; verified by both the controller and the sprint-evaluator, `docs-sync-findings.md`

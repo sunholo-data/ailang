@@ -198,3 +198,32 @@ pre-existing on the parent commit). Neither actioned further; outside this missi
 **Retro**: no skill edit — the one friction this iteration (asserting `gh pr checks`' pending-count
 is numeric before comparing it) was already covered by this skill's existing `case … [!0-9]*)`
 prescription and worked as documented; not a gap.
+
+## ITERATION 2 — 2026-08-31T01:35Z
+
+**Pick**: `docs-9` (queue head; no human directive or regression owned by this mission outranked it).
+
+**Routing evidence**:
+| Role | Model | Outcome |
+|---|---|---|
+| Designer | `gpt-5.6-luna` Agent fallback | Configured `fable` spawn failed: `Unknown model fable`; fallback confirmed existing brief needs no new design doc. |
+| Planner | `gpt-5.6-luna` Agent pin | One-milestone plan; no implementation. |
+| Executor | `gpt-5.6-luna` Agent pin | Changed only `docs/docs/intro.mdx`; version checker and diff check passed; local docs build failed because `docusaurus` is unavailable. |
+| Evaluator | `gpt-5.6-sol` Agent fallback | Sonnet spawn failed: `Unknown model sonnet`; independent review PASS 84/100, no implementation blockers, same one-line diff. |
+| generator≠judge | partial | Distinct executor/evaluator models and roles; provider diversity unavailable on this Agent surface, explicitly flagged. |
+
+**Gate 1**: origin/dev `0b35abd5d` has red CI/Build-and-Release checks. `TestPiFilesystemLifecycle`
+finds 11 assets but expects 10; launchd-driver bounded-termination also fails its diagnostic assertion.
+These are outside docs ownership and were handed to V1 via verified controlplane message
+`inbox_1788132832151_90bd973f` (runs `33307399225`, `33307399206`).
+
+**Outcome**: **PARKED** — evaluator PASS 84/100, but `make docs-build` is unavailable locally and
+Gate 3b is not green on the shared dev head. The intended one-line diff is preserved for resume.
+
+**Cost**: metered $0; Agent fallback lanes only. **Next**: resume docs-9 after Docusaurus is available
+and Gate 3b is green; docs-5 remains the next alternate queue item.
+
+**DECISIONS FOR MARK**: none.
+
+**FLAGGED**: fable designer and Sonnet evaluator Agent pins unavailable; evaluator fallback was run and
+reported. No skill edit or routing-policy change.
