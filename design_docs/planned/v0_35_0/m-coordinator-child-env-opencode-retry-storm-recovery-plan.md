@@ -1,7 +1,7 @@
 # Recovery Plan: M-COORDINATOR-CHILD-ENV-OPENCODE-RETRY-STORM
 
-**Iteration:** 305  
-**Status:** `blocked_pending_fresh_quorum` — not executable unattended  
+**Iteration:** 305
+**Status:** `blocked_pending_fresh_quorum` — not executable unattended
 **Base:** `origin/dev` at `3fc7be9b8`
 
 ## Verdict
