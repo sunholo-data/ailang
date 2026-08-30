@@ -20322,3 +20322,10 @@ Applied under the **narrow-refinement carve-out** (ratified at iterations 251/28
 **Delivery:** commit `5b3b94972`, PR **#961**, auto-merge enabled; CI pending at record time, therefore not claimed LANDED. **D-49 OPEN** parks the unresolved global-vs-repo-local extension precedence/deduplication policy.
 
 **Routing:** the requested Agent-tool roles all spawned. This harness could not express the skill's Fable/DeepSeek/Sonnet aliases, so explicit fallbacks were designer=`gpt-5.6-sol`, planner=`gpt-5.6-terra`, executor=`gpt-5.6-sol`, evaluator=`gpt-5.6-luna`; generator≠judge holds. The first designer spawn failed because full-history forks reject an explicit agent type; it was retried with `fork_turns=none`, and the error/fallback is recorded here.
+## 304 — 2026-08-30 — Completed implementation, stale sprint record
+
+**Pick/resume:** reconcile `M-DX-PI-HARNESS` Distribution v2 after the driver reported M5 active. Origin proved the implementation and corrections already landed (#961 `45503bac6`, #965 `4c9431ec2`). #847 had no evidence newer than V1 iteration 266 and remained an eval capability gap.
+
+**Independent loop:** designer `gpt-5.6-sol`, planner `gpt-5.6-terra`, and executor `gpt-5.6-sol` independently recommended no production-code sprint. Evaluator `gpt-5.6-luna` (generator≠judge) returned **PASS 88/100 r1**, blocking only on Gate-4 bookkeeping closure.
+
+**Outcome:** sprint JSON completed; M5 acceptance count corrected to 9 extensions + README; design doc and both sprint plans moved to implemented. D-49 remains OPEN. Next: reproduce/root-cause `m-coordinator-child-env-opencode-retry-storm` at HEAD before routing. No production code changed; metered=$0.00.
