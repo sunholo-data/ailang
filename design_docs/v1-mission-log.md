@@ -20329,3 +20329,21 @@ Applied under the **narrow-refinement carve-out** (ratified at iterations 251/28
 **Independent loop:** designer `gpt-5.6-sol`, planner `gpt-5.6-terra`, and executor `gpt-5.6-sol` independently recommended no production-code sprint. Evaluator `gpt-5.6-luna` (generator≠judge) returned **PASS 88/100 r1**, blocking only on Gate-4 bookkeeping closure.
 
 **Outcome:** sprint JSON completed; M5 acceptance count corrected to 9 extensions + README; design doc and both sprint plans moved to implemented. D-49 remains OPEN. Next: reproduce/root-cause `m-coordinator-child-env-opencode-retry-storm` at HEAD before routing. No production code changed; metered=$0.00.
+
+## 305 — 2026-08-30 — Recovered iteration 302, confirmed root cause, parked the blocked quorum honestly
+
+**Pick/resume:** `m-coordinator-child-env-opencode-retry-storm`. PR #966 had merged with all required checks green, closing iteration 304's resume point. Gate 2's died-mid-flight traces found iteration 302's owned worktree: commit `3500db0a7`, a full design, two quorum artifacts, sprint plan/JSON, and 26 modified plus 10 untracked implementation files. The work was preserved and independently audited rather than restarted or adopted.
+
+**Reality check:** the live incident was not a stripped child `PATH`. The coordinator combined the global default `provider=opencode` with the agent's `executor_variant=codex`, launching the codex Cloud Run image and asking it to execute OpenCode. Unconditional dispatch-error reset-to-pending and non-atomic terminal transitions then produced 41 failed dispatches, eight stale-terminalization attempts, and repeated notifications. Relevant origin code had not changed since the recovered design base.
+
+**Four-role loop:** designer `gpt-5.6-sol` reused the recovered design and found its five-adapter executable-pinning milestone broader than the measured incident. Planner `gpt-5.6-terra` returned **BLOCKED**: the round-2 quorum artifact explicitly says `blocked`, while the design requires a fresh pass; it wrote a recovery plan narrowing executable pinning to OpenCode and keeping route coherence plus durable attempts/terminal CAS. Executor `gpt-5.6-sol` made no changes, cleanly transplanted M1 to current origin in a disposable clone, and passed targeted `internal/coordinator`, `internal/dispatch/cloudrun`, and `cmd/ailang` tests. Independent evaluator `gpt-5.6-luna` returned **PASS 96/100 r1** on the recovery/park disposition. generator≠judge holds.
+
+**Outcome:** PARKED `needs-human-review`; **D-50 OPEN** asks approval of the narrowed recovery plan plus explicit `execute sprint`. M1 is preservable but not landable yet. The parked uncommitted M2-M4 diff is evidence only and must not be used as a base. No production code changed; metered=$0.00.
+
+**Routing evidence:** the operator explicitly required Agent-tool spawns. This Codex harness cannot express the configured Fable/DeepSeek/Sonnet provider aliases, so the same explicit fallbacks recorded in iterations 301/304 were used: designer=`gpt-5.6-sol`, planner=`gpt-5.6-terra`, executor=`gpt-5.6-sol`, evaluator=`gpt-5.6-luna`. All four roles spawned successfully; no role silently omitted. Evaluator is distinct from designer/executor.
+
+**Ruled out:** stripped daemon/child PATH as the incident cause; missing/dangling local OpenCode; stale daemon measurement; treating a blocked quorum as approved through prose; adopting the five-adapter resolver sweep as incident scope; landing M1 merely because it cherry-picks and targeted tests pass.
+
+**Retro:** no skill edit. The skill's died-mid-flight trace worked exactly as intended and prevented duplicate implementation. The friction is artifact durability: recovery sprint JSON is ignored by default, so it is force-added with the record rather than left only in a worktree.
+
+**Next:** wait for D-50. If approved, fresh quorum the narrowed plan, then execute in a clean worktree from current origin: M1 transplant, OpenCode-only M2a, M3 emulator evidence, M4 bounded/CAS gates, independent evaluation, and Gate 3b. Otherwise continue to the next `[NEXT]` queue item.
