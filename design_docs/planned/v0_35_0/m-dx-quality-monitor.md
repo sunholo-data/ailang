@@ -1,9 +1,11 @@
 # M-DX-QUALITY-MONITOR — empty/looping-output detection with corrective steering + bounded tool-result excerpts
 
-**Status**: Planned
+**Status**: Implemented (pi-layer Q1–Q4 landed 2026-08-30; rig A/B pending next rotation window)
 **Target**: v0.35.0
 **Priority**: P1
 **Estimated**: ~1 session (Q1+Q2 ~0.5d, Q3+Q4 ~0.5d, telemetry e2e ~0.25d)
+**Sprint plan**: [m-dx-quality-monitor-sprint-plan.md](m-dx-quality-monitor-sprint-plan.md) — executed same day
+**Implementation note (2026-08-30)**: shipped as `.pi/extensions/quality-monitor.ts` (suite member #9, event-only, zero subprocess calls). API deltas vs this doc, resolved by pi docs + live e2e: steering = `pi.sendUserMessage(text, {deliverAs: "steer"})` (`ctx.sendUserMessage` exists only on replacement-session contexts); Q4 = `pi.setThinkingLevel("off")` (clamped to model capabilities) instead of payload patching. Live e2e on `ollama/gemma4:e4b` (headless `--mode json`): 3rd identical call blocked with directive; 90KB tool result delivered as 2,211-byte head+tail excerpt with `details.excerpted` provenance; an *organic* reasoning-only empty turn was detected and steered once, after which the model answered with content; kill switch `PI_QUALITY_MONITOR=0` fully inert; `--mode json` banked `pi_events` + session `quality:*` entries are the harness channel (no Go change needed for capture). Harness `quality_*` result fields + `error_categorizer` taxonomy remain deferred per below. 22 unit tests green: `node --experimental-strip-types --test .pi/extensions/.quality-monitor.test.ts`
 **Dependencies**: M-DX-PI-HARNESS (shipped — suite, Subprocess Contract, distribution) · observatory span access (existing `curl` instrument, CLAUDE.md)
 
 ## Axiom Compliance

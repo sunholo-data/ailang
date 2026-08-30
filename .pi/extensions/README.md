@@ -1,7 +1,8 @@
 # Session Protocol Gate + Dev-Harness Extensions
 
-The eight-extension AILANG pi suite (M-DX-SESSION-GATE, M-DX-PI-HARNESS).
-Tested against pi **0.84.3**.
+The nine-extension AILANG pi suite (M-DX-SESSION-GATE, M-DX-PI-HARNESS,
+M-DX-QUALITY-MONITOR). Tested against pi **0.84.3** (0.84.4 verified for
+quality-monitor).
 
 ## Distribution — who gets what, how
 
@@ -50,6 +51,8 @@ human-owned release operations.
 | `provider-quota.ts` | `quota_report` tool + `/quota`: OpenRouter budget (CRITICAL ≥95%, WARN ≥80%), ollama status, current session lane — key never exposed |
 | `ailang-lsp-lite.ts` | `ailang_check(path)` → structured {code,message,file,line,col,hint}; `builtins_search({query,module})` → filtered real inventory |
 | `prepush-gate.ts` | Blocks `git push` when gofmt, lint, or the repository file-size gate fails |
+| `ail-fmt-autolint.ts` | After a successful write/edit of a `.ail` file, runs `ailang fmt --write` so saved AILANG is canonically formatted (motoko-measured fmt arm) |
+| `quality-monitor.ts` | Bounded-excerpt rewrite of >16KB tool results (head+tail + narrowing directive); blocks the 3rd identical consecutive tool call with a directive; detects empty/zero-content turns and steers once (capped); opt-in thinking-budget fallback (`PI_QUALITY_THINKING_FALLBACK=1`). Kill switch `PI_QUALITY_MONITOR=0` (M-DX-QUALITY-MONITOR) |
 
 All subprocesses run under the Subprocess Contract (per-command timeouts, structured
 TIMEOUT failures, 64KB output caps, no silent retries).
