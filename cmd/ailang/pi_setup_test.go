@@ -119,9 +119,19 @@ func TestPiFilesystemLifecycle(t *testing.T) {
 	if err := installPiExtensions(home, &stdout, &stderr); err != nil {
 		t.Fatalf("idempotent install: %v", err)
 	}
-	expectedCurrent := fmt.Sprintf("current: %d", len(expectedAssets))
-	if !strings.Contains(stdout.String(), expectedCurrent) {
-		t.Fatalf("second install did not report all assets current:\n%s", stdout.String())
+	expectedSummary := fmt.Sprintf(
+		"installed: 0, updated: 0, current: %d, conflicts preserved: 0",
+		len(expectedAssets),
+	)
+	foundSummary := false
+	for _, line := range strings.Split(stdout.String(), "\n") {
+		if strings.TrimSpace(line) == expectedSummary {
+			foundSummary = true
+			break
+		}
+	}
+	if !foundSummary {
+		t.Fatalf("second install summary missing exact line %q:\n%s", expectedSummary, stdout.String())
 	}
 	manifestAfter := readPiManifestForTest(t, home)
 	if !piManifestsEqual(manifestBefore, manifestAfter) {
