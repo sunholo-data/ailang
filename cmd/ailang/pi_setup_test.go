@@ -3,11 +3,26 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
+
+var expectedPiExtensions = []string{
+	"ail-fmt-autolint.ts",
+	"ailang-lsp-lite.ts",
+	"binary-freshness.ts",
+	"builtin-sprint.ts",
+	"prepush-gate.ts",
+	"provider-quota.ts",
+	"quality-monitor.ts",
+	"session-protocol-gate.ts",
+	"sprint-steward.ts",
+	"unowned-dirty.ts",
+}
 
 // M-DX-PI-HARNESS Distribution v2: the managed-file install contract.
 // decidePiInstall must never plan a clobber of user-owned content.
@@ -71,8 +86,12 @@ func TestPiFilesystemLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("embedded files: %v", err)
 	}
-	if got, want := len(names), 10; got != want {
-		t.Fatalf("embedded asset count = %d, want %d (9 extensions + README)", got, want)
+	expectedAssets := append([]string{"README.md"}, expectedPiExtensions...)
+	if !slices.Equal(names, expectedAssets) {
+		t.Fatalf("embedded asset inventory = %q, want %q", names, expectedAssets)
+	}
+	if got, want := len(names), len(expectedAssets); got != want {
+		t.Fatalf("embedded asset count = %d, want %d (%d extensions + README)", got, want, len(expectedPiExtensions))
 	}
 	var extensionCount int
 	for _, name := range names {
@@ -87,8 +106,8 @@ func TestPiFilesystemLifecycle(t *testing.T) {
 			t.Errorf("installed %s differs from embedded asset", name)
 		}
 	}
-	if extensionCount != 9 {
-		t.Fatalf("installed extension count = %d, want 9", extensionCount)
+	if extensionCount != len(expectedPiExtensions) {
+		t.Fatalf("installed extension count = %d, want %d", extensionCount, len(expectedPiExtensions))
 	}
 
 	manifestBefore := readPiManifestForTest(t, home)
@@ -100,7 +119,8 @@ func TestPiFilesystemLifecycle(t *testing.T) {
 	if err := installPiExtensions(home, &stdout, &stderr); err != nil {
 		t.Fatalf("idempotent install: %v", err)
 	}
-	if !strings.Contains(stdout.String(), "current: 10") {
+	expectedCurrent := fmt.Sprintf("current: %d", len(expectedAssets))
+	if !strings.Contains(stdout.String(), expectedCurrent) {
 		t.Fatalf("second install did not report all assets current:\n%s", stdout.String())
 	}
 	manifestAfter := readPiManifestForTest(t, home)
