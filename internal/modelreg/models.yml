@@ -4074,14 +4074,18 @@ models:
       tokens vs flash's flat ~28k) without approaching the ceiling. Same-day
       incumbent re-run settles the 2026-08-27 adt_option flake question: it
       passed first try in BOTH models today.
-      CORE (ranking) PENDING — needs the paired head-to-head vs incumbent
-      or-glm-5-3-flash in ONE same-day command: `ailang eval-suite --models
-      or-glm-5-3,or-glm-5-3-flash --tier core --langs ailang --output
-      /tmp/core_or-glm-5-3 --parallel 4` (est ~$1.4 at current rates; deferred
-      on OpenRouter budget exhaustion 2026-08-31, $1.45 of $200 left). Per
-      skill §5.5: only promote/replace if the flagship matches-or-beats flash
-      on core — a tie at ~18x the cost does NOT earn the extended_suite slot
-      (precedent: the flash-vs-5.2 swap logic). Smoke pass alone = opt-in.
+      CORE (ranking) PENDING — per Mark 2026-08-31: this model does NOT compete
+      with or-glm-5-3-flash for the extended_suite slot (flash keeps it); the
+      lineage gate is vs or-glm-5-2, the predecessor it would replace (same
+      base weights, gains from post-training — vendor's own README). Run:
+      `ailang eval-suite --models or-glm-5-3,or-glm-5-2 --tier core --langs
+      ailang --output /tmp/core_or-glm-5-3 --parallel 4` (est ~$2.2 total at
+      current rates: 5.3 ~$1.3 + 5.2's $0.92 baseline from the 2026-08-27
+      record; deferred on OpenRouter budget exhaustion $1.45 of $200 left).
+      Outcome if the flagship matches-or-beats 5.2: it takes over the family's
+      opt-in longitudinal row and 5.2 retires fully as 5.1 did. If it loses:
+      stays opt-in flagship, nothing displaced either way — flash's suite slot
+      is not part of this decision at all.
 
   or-glm-5-3-flash:
     api_name: "z-ai/glm-5.3-flash"
