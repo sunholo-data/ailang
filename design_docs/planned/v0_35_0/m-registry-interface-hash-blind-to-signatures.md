@@ -480,7 +480,7 @@ Go source is changed by this document.
 ## Quorum verification log (controller-recorded, iteration 310)
 
 The quorum artifacts themselves live at `.ailang/state/mission-quorum/`, which `.gitignore:82`
-excludes (`git check-ignore` rc=0; known-ignored control `eval_results/` also rc=0; **0** quorum
+excludes (`git check-ignore` rc=0; known-ignored control `eval_results/x` rc=0 &mdash; **note the `/x`**: the bare directory `eval_results/` returns **rc=1**, because `eval_results/.gitignore` negates subpaths (`!eval_results/baselines/`, `!eval_results/performance_tables/`). The iteration-310 evaluator caught this doc quoting the control without its path; the command actually run was the file form. The substantive claim is independently true either way; **0** quorum
 artifacts are tracked on `origin/dev` against a control of 1473 tracked files under `design_docs/`).
 They are therefore recorded here, in the tracked artifact, rather than force-added.
 
