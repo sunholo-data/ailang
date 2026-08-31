@@ -475,14 +475,22 @@ loud stop instead of a silent bill.
    sweep gives 166 pass / 9 genuine fail / 42 no-module across 217 files. Independently re-derived
    by the sprint-evaluator (sonnet) from scratch — PASS 92/100, zero blocking. Follow-ups spawned
    as docs-5 through docs-8 below.
-3. `[NEXT]` **docs-9 · clause 1 · FIX THE STALE PUBLISHED PAGE — the first item that corrects
-   content a reader actually sees.** `docs/docs/intro.mdx` names IFC Labels as `v0.16.0` while the
-   active prompt is `v0.16.6` (`check_versions.sh`: `[STALE] intro.mdx references v0.16.0, latest
-   is v0.16.6`; verified by both the controller and the sprint-evaluator, `docs-sync-findings.md`
-   DOCS-2-02). Was deferred by `docs-7` as mechanically impossible; that was false and is now
-   measured — the path routes to the cheap planner. Small, verifiable, and it moves the metric that
-   matters: **files changed under `docs/` that a reader sees**, which is still 0. Gate with
-   `make docs-build`. Est. 1 iteration, well under.
+3. `[RULED OUT]` **docs-9 · clause 1 · "intro.mdx is stale at v0.16.0" — DISSOLVED 2026-08-31
+   (controller live-repro): the check's premise was false, measured.** `check_versions.sh` Check 3
+   greps the first `vX.Y.Z` string anywhere in `intro.mdx` and compares it to the latest prompt
+   file, with no awareness that the "Recent Additions" section intentionally lists each feature's
+   historical **ship**-version (`IFC Labels (v0.16.0)`, `Tiered Eval Suite (v0.14.0)`, `List-only
+   ++ (v0.13.0)`, `Three-tier OTEL Tracing (v0.12.0)`, `New Stdlib Modules (v0.12.0)` — none match
+   `STABLE_RELEASE`/`ACTIVE_PROMPT` by design, and none ever will). Diffing `prompts/v0.16.0.md`
+   against `prompts/v0.16.6.md` found zero IFC/`declassify`/`T<label>` content changes across all
+   six intervening revisions — the IFC Labels annotation is factually correct as `v0.16.0` and
+   bumping it would misrepresent when the feature shipped. **Nothing in `intro.mdx` needed to
+   change.** The real defect was the instrument: Check 3 is deleted in this sprint (see the
+   script's own header comment for why), since a bare regex over prose cannot distinguish
+   "current-version claim" from "historical ship-version annotation" without a marker convention
+   the file doesn't have. Kept as `[RULED OUT]` rather than deleted, matching `docs-7`'s
+   convention, because the interesting part is the mechanism: a queue item inherited a tool's raw
+   `[STALE]` line without checking whether the tool's premise was sound.
 4. `[NEXT]` **docs-5 · clause 2 · examples hygiene — fix the 9 genuinely-failing runnable
    examples.** `block_demo.ail`, `test_module_minimal.ail`, `simple_func_match.ail`,
    `match_arm_block.ail`, `match_in_block.ail`, `nested_match_minimal.ail` have no `main`
