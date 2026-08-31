@@ -463,54 +463,21 @@ func printPhaseTimings(timings map[string]int64) {
 	}
 }
 
+// outputInterfacePackageDir is the packageDir `ailang iface` passes to
+// pipeline.BuildCanonicalJSON. It MUST stay empty.
+//
+// An empty packageDir makes packageSearchDir anchor the ailang.toml/ailang.lock
+// search at the ENTRY FILE's directory; a non-empty one wins outright and
+// anchors at that value instead. Passing "." therefore re-introduces ailang#671
+// ("could not resolve its own package imports ... invoke ailang from inside the
+// package") for every `ailang iface` run from outside the package root.
+// Pinned by TestOutputInterface_ResolvesIntraPackageImportsFromRepoRoot.
+const outputInterfacePackageDir = ""
+
 func outputInterface(modulePath string, compact bool) {
-	// Read the file
-	filename := modulePath
-	if !strings.HasSuffix(filename, ".ail") {
-		// Try to resolve as module path
-		filename = strings.ReplaceAll(modulePath, "/", string(filepath.Separator)) + ".ail"
-	}
-
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: cannot read file '%s': %v\n", red("Error"), filename, err)
-		os.Exit(1)
-	}
-
-	// Type check and build interface
-	cfg := pipeline.Config{
-		DryLink: true, // Don't evaluate, just check
-	}
-	src := pipeline.Source{
-		Code:     string(content),
-		Filename: filename,
-		IsREPL:   false,
-	}
-
-	result, err := pipeline.Run(cfg, src)
+	jsonBytes, err := pipeline.BuildCanonicalJSON(context.Background(), outputInterfacePackageDir, modulePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-		os.Exit(1)
-	}
-
-	// Check for errors
-	if len(result.Errors) > 0 {
-		for _, e := range result.Errors {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), e)
-		}
-		os.Exit(1)
-	}
-
-	// Get the interface
-	if result.Interface == nil {
-		fmt.Fprintf(os.Stderr, "%s: no interface generated for module\n", red("Error"))
-		os.Exit(1)
-	}
-
-	// Output normalized JSON
-	jsonBytes, err := result.Interface.ToNormalizedJSON()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: failed to serialize interface: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
 
