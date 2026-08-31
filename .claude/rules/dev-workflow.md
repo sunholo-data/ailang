@@ -39,42 +39,23 @@ make check-file-sizes     # Fails if >800 lines
 | `AILANG_TRACE_MAX_SPANS=N` | Per-trace span budget (default 500). Overflow emits `trace.truncated` rollup |
 | `AILANG_NO_TRACE=1` | Back-compat alias for `AILANG_TRACE=off` |
 | `AILANG_EVAL_MAX_RSS=8G` | Eval memory cap per generated-code run (process-group RSS, default 8G, `off` disables). Breach → tree killed, banked as `resource_limit` |
-| `AILANG_OLLAMA_NUM_CTX=N` | Pin ollama's `num_ctx`. **Unset (default) = send no `num_ctx`**, so ollama sizes context from the model (measured 2026-08-13: 262144 for qwen3.6:35b-a3b-mxfp8) — matching the `/v1` lanes pi and opencode already use. Both option maps in `internal/ai/ollama` previously hardcoded **8192**, below the 28k–44k-token prompts the eval harness sends these models. Affects the non-tool paths only (`Generate`, tool-less chat, and the legacy native tool path incl. motoko's `compaction_ai`); motoko's tool-calling turns route via `/v1`, where `num_ctx` is not expressible. Raise/lower only for VRAM: the KV cache scales with it |
-| `AILANG_OLLAMA_V1_STREAM=1` | Opt into the streaming ollama `/v1` path (v0.34.0, default **off**). Exactly `"1"` opts in — flag-off wire bytes are unchanged. Changes what `AILANG_OLLAMA_HTTP_TIMEOUT_SEC` means (see below) |
-| `AILANG_OLLAMA_IDLE_TIMEOUT_SEC=120` | Streaming only. Max silence **between** bytes before the stream is failed with a typed `idle-timeout`. Default 120. Unparseable/`<= 0` falls back to the default |
-| `AILANG_OLLAMA_TTFT_TIMEOUT_SEC=600` | Streaming only. Max silence **before the first byte** (cold 35B load under GPU contention). Default 600. Unparseable/`<= 0` falls back to the default |
-| `AILANG_OLLAMA_HTTP_TIMEOUT_SEC` | **Semantics depend on the flag.** Flag-off (buffered `/v1`): HTTP client + whole-call cap, default **300**, `0` means *no timeout*. Flag-on (streaming): the **mandatory hard deadline** on the whole stream, default **3600**, and `0`/negative/unparseable is **REJECTED** at construction (typed error, no request sent) rather than meaning unbounded. **Two delivery sites on the rig** — see below |
+| `AILANG_OLLAMA_NUM_CTX=N` | Pin ollama's `num_ctx`. **Unset (default) sends none** — ollama sizes from the model. Non-tool paths only; raise/lower only for VRAM. Details: debugging guide |
+| `AILANG_OLLAMA_V1_STREAM=1` | Streaming ollama `/v1` path (v0.34.0, default **off**; exactly `"1"` opts in). Flips the meaning of `HTTP_TIMEOUT_SEC` |
+| `AILANG_OLLAMA_IDLE_TIMEOUT_SEC=120` | Streaming only: max silence between bytes (typed `idle-timeout`) |
+| `AILANG_OLLAMA_TTFT_TIMEOUT_SEC=600` | Streaming only: max silence before first byte (cold-load allowance) |
+| `AILANG_OLLAMA_HTTP_TIMEOUT_SEC` | Whole-call cap — **semantics flip with the streaming flag** (300 buffered / 3600 streaming, where `0` is rejected). Read the guide before touching it on the rig |
 | `--trace-tier off\|standard\|deep` | Tracing tier CLI flag (overrides env) |
 | `--timeout 30s` | Compilation timeout with stack dump (CLI flag) |
 | `--debug-compile` | Phase timing breakdown (CLI flag) |
 | `-cpuprofile FILE` | Write Go CPU profile (CLI flag) |
 | `-memprofile FILE` | Write memory allocation profile (CLI flag) |
 
-**Rig gotcha — `AILANG_OLLAMA_*` reaches a launchd job by TWO paths.** The plist's
-`EnvironmentVariables` block, *and* the launchd **user-domain global** set by `launchctl setenv`.
-No plist edit touches the global, and no `grep` over the repo can see it. Audit the live value with
-a control, never the plist alone:
-
-```bash
-launchctl getenv AILANG_OLLAMA_HTTP_TIMEOUT_SEC   # empty == not pinned
-launchctl getenv AILANG_NOT_A_REAL_VAR            # control: also empty, so empty is a measurement
-```
-
-Measured 2026-08-11: both repo plists were cleaned and every grep read green while the domain
-global still held `1800`, so streamed requests kept logging `effective_deadline_sec = 1800` instead
-of the 3600s default. A grep-over-files criterion cannot see site 2 — that is a property of the
-instrument, not of the config.
-
-**Two more things that bite in this order.** The repo plists are *source*: the installed copies in
-`~/Library/LaunchAgents/` are regular files (not symlinks), updated by a manual
-`cp` + `launchctl load` (`tools/launchd/nightly-eval.sh:19-21`), so **editing the repo changes
-nothing on the rig**. And clearing site 2 is **ordered** — while `AILANG_OLLAMA_V1_STREAM` is off,
-the buffered path's `ollamaV1Timeout()` falls back to **300s** and the global is the only thing
-raising it, so `launchctl unsetenv` *before* the flag-on plists are installed re-creates the
-#618 defect (895 retries / ~74.6 GPU-hours, `b67d415cd`). Install the flag-on plists first,
-`launchctl unsetenv` second.
-
-**Full guide**: See `docs/docs/guides/debugging.md`
+**Rig gotcha:** `AILANG_OLLAMA_*` reaches a launchd job by TWO paths — the plist AND a
+`launchctl setenv` domain global that no plist edit or repo grep can see. Installed plists are
+copies, not symlinks, and clearing the global is order-sensitive (wrong order re-creates #618).
+Before touching any of it on the rig, read "Ollama Streaming Timeouts" in
+`docs/docs/guides/debugging.md`; audit live values with
+`launchctl getenv <var>` paired with a known-unset control.
 
 ## Telemetry & Traces
 

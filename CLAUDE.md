@@ -10,77 +10,28 @@ living roadmap (benchmark ladder · extension catalog · AILANG-fix backlog) liv
 
 ## Session start — every machine reads the SAME message store
 
-**The canonical inbox is the shared cloud store: prod Firestore, project `ailang-multivac`.**
-Public feedback, package feedback, coordinator completions, and every other machine's agent
-traffic land there. A bare `ailang messages list` reads only *this* machine's private SQLite,
-so it shows none of that — which is why real user feedback sat unread for weeks.
-
-Every machine that does AILANG work (the voightkampff Studio, cloud sessions, Claude Code
-managed runs, this laptop) should have these exported in its shell profile:
+**The canonical inbox is prod Firestore, project `ailang-multivac`.** A bare
+`ailang messages list` reads only *this* machine's private SQLite — real user feedback once sat
+unread for weeks that way. Every machine doing AILANG work exports:
 
 ```bash
 export AILANG_MESSAGES_STORE=gcp
 export AILANG_MESSAGES_PROJECT=ailang-multivac
 ```
 
-**These are safe to export** — unlike `AILANG_STORAGE`, they are scoped to messaging and leave
-coordinator and observatory (eval banking, `ailang chains`) on local storage. Confirm with
-`ailang storage status`, which must still say `Mode: local`.
+These are scoped to messaging only (`ailang storage status` must still say `Mode: local`).
+**Never export `AILANG_STORAGE` for this** — it moves coordinator and observatory to Firestore
+too ([backend.go:83](internal/storage/backend.go#L83)).
 
-Then the ordinary commands just work, and non-local listings name the store in their header:
+Then `ailang messages list --unread` spans all inboxes, and a non-local listing names its store
+in the header — **no `store: gcp (...)` header means you are reading local**, usually a stale
+binary. Summarize to the user and ask **before** acking. Triage via `list --unread --json`
+(full IDs + bodies; the list view truncates IDs, and `messages read` marks read as a side
+effect). Ack per message id — `ack --all` also sweeps outbound cross-mission inboxes;
+`unack <id>` if a task fails.
 
-```bash
-ailang messages list --unread                    # canonical inbox, all inboxes
-ailang messages list --inbox public-feedback --unread
-```
-
-Summarize to the user and ask what to do **before** acking; then `ailang messages ack <id>`
-(or `ack --all`). If a task fails, `ailang messages unack MSG_ID`.
-
-To check this machine's private local inbox, override for the one command:
-
-```bash
-AILANG_MESSAGES_STORE=local ailang messages list --unread
-```
-
-**Traps, each measured 2026-08-25 — do not rediscover these:**
-
-1. **Name the project explicitly; never rely on `AILANG_CLOUD_PROJECT`.** It is pinned per-machine
-   (`~/.zshenv` on the attended laptop points it at `ailang-multivac-dev`, a stale graveyard). That is
-   exactly why `AILANG_MESSAGES_PROJECT` exists and why it wins. Control: `ailang messages list` prints
-   `store: gcp (Firestore, project ...)` in the header whenever the store is not local — read it.
-2. **`GOOGLE_CLOUD_PROJECT` is ignored.** Only `AILANG_CLOUD_PROJECT` / `AILANG_MESSAGES_PROJECT` select
-   the project ([client.go:23](internal/storage/firestore/client.go#L23)). Setting the wrong one gives a
-   confident, wrong answer with no error — dev and prod queries returned byte-identical output.
-3. **`--inbox public-feedback` is not the whole feedback channel.** Package feedback routes to
-   `pkg:<vendor>/<name>`. Enumerate inboxes rather than assuming; `--unread` with no `--inbox` spans
-   them all.
-4. **The list view truncates IDs to 8 chars**, so every cloud `inbox_<epoch>_<hash>` renders as
-   `(inbox_17)`. You cannot ack what the list shows you — get full IDs from `--json`. (An ambiguous
-   prefix errors loudly rather than acking the wrong message, so this costs time, not correctness.)
-5. **`messages read <id>` marks it read as a side effect.** Triaging by reading silently drains the
-   unread queue — the next session then sees an empty inbox and concludes nothing arrived. Read bodies
-   out of `--json` when you want to inspect without acking.
-
-6. **A binary predating `6759ea4fa` IGNORES `AILANG_MESSAGES_STORE` silently** — it reads local
-   SQLite and exits 0, so the whole protocol above is vacuous and the session concludes the inbox
-   is quiet. `~/go/bin/ailang` drifts by design (installing mid-run would disturb concurrent
-   agents), so assume it is stale. One-command control — an INVALID value must be refused:
-   `AILANG_MESSAGES_STORE=not-a-real-store ailang messages list --unread` must error
-   `unknown message store mode`; a normal listing means you are on local. A non-local listing also
-   names its store in the header — no `store: gcp (...)` header, no cloud. Build a fresh binary to
-   a scratch dir and prepend it to PATH rather than `make quick-install`.
-   (Confirmed on the Studio 2026-08-26: its v0.33.2 binary made both exports inert and it kept
-   reading local SQLite — the missing `store:` header was the only visible tell.)
-
-Topology — which projects exist, which switch moves which backend, what each machine is
-wired to, and how package feedback flows end to end:
-[docs/internal/message-plane-topology.md](docs/internal/message-plane-topology.md).
-
-**Do not export `AILANG_STORAGE`** to reach the cloud inbox. It is a process-wide switch over *all
-three* backends — coordinator, messaging, and observatory
-([backend.go:83](internal/storage/backend.go#L83)) — so exporting it also moves eval banking and
-coordinator task state to Firestore. `AILANG_MESSAGES_STORE` is the scoped selector; use it.
+The measured traps (stale-binary control, project pinning, `pkg:*` inboxes) and the full
+topology: [docs/internal/message-plane-topology.md](docs/internal/message-plane-topology.md).
 
 ---
 
@@ -112,17 +63,12 @@ gh auth status                              # Check active account
 gh auth switch --user sunholo-voight-kampff  # Switch if needed
 ```
 
-### 1. ALWAYS USE EXISTING TOOLS FIRST
+### 1. Look the question up, not the tool
 
-Before writing ANY new script or code: check `make help`, check `tools/`, then
-`grep -r "function_name" internal/`.
-
-**The `ailang` CLI exists to make YOUR life easier.** Use `ailang chains`, `ailang messages`,
-`ailang eval-*`, and `ailang dashboard` instead of raw SQLite queries or ad-hoc scripts.
-
-**Look the question up, not the tool.** Knowing a tool exists is not the same as knowing
-which question it answers — the gap between those two is where we rebuild worse versions of
-what we already have.
+Before writing a new script, check `make help`, `tools/`, and the `ailang` CLI (`chains`,
+`messages`, `eval-*`, `dashboard`) — raw SQLite queries and ad-hoc scripts rebuild worse
+versions of what exists. Knowing a tool exists is not the same as knowing which question it
+answers; that gap is where we rebuild things.
 
 | Question | Instrument |
 |----------|-----------|
@@ -132,28 +78,25 @@ what we already have.
 | Why did a run fail? | `error_category` on the banked row FIRST. `api_error` is the catch-all meaning "cause unknown", not "model failed". |
 | **What did the PROVIDER actually see and return?** | OpenRouter **Broadcast** traces, in the prod observatory — `curl "https://dashboard.ailang.sunholo.com/api/observatory/spans?limit=1000&start_after=<RFC3339>&start_before=<RFC3339>"`. Each `LLM Generation` span carries ~92 attributes: the **full `rawRequest`** (so you can read the budget and reasoning config that actually went on the wire, not the one we declared), the completion text, the token split incl. `output_tokens.reasoning`, `finish_reason`, the provider host, and a `cancelled` flag. This is a SECOND, independent instrument on every OpenRouter call — use it before theorising from our own logs. |
 
-The provider-side trace is the one that settles arguments our own logs cannot. On
-2026-08-26 it showed that all five "pi:deepseek returned zero bytes" failures were one
-mechanism — the model streamed only reasoning tokens and never emitted content — and that
-**we** killed every one of them with a size ceiling measuring pi's quadratic event replay
-rather than the model. Two prompt-level fixes had already been aimed at a model problem
-that did not exist. The account key is an inference key, so `/api/v1/key` and
-`/api/v1/generation?id=<gen-id>` work but `/api/v1/activity` returns 403 (needs a
-management key) — go via the observatory, which is indexed by time anyway.
+The provider-side trace settles arguments our own logs cannot (2026-08-26: it proved five
+"model returned zero bytes" failures were our own size ceiling, after two prompt fixes had been
+aimed at a model problem that did not exist). The OpenRouter account key is inference-only —
+`/api/v1/activity` 403s — so go via the observatory, which is indexed by time anyway.
 
-Asking "what did the agent DO?" and inferring the rest is how `ailang fmt` spent two weeks telling every
-eval model its correct code was non-canonical — the message was in the session JSONL the whole time.
+Asking "what did the agent DO?" and inferring the rest is how `ailang fmt` spent two weeks telling
+every eval model its correct code was non-canonical — the message was in the session JSONL the
+whole time.
 
-### 2. NO SILENT FALLBACKS - FAIL LOUDLY
+### 2. No silent fallbacks — fail loudly
 
-If the fallback value affects data integrity, business logic, or user decisions → **NO FALLBACK**. Return zero, null, or error instead.
+If a fallback value would affect data integrity, business logic, or user decisions (pricing,
+model configs, required env vars, validation), return zero/null/error instead. Fallbacks are
+fine for UI defaults, optional features, and caching.
 
-**Apply to:** Pricing/costs, model configs, required env vars, data validation.
-**Fallbacks OK for:** UI defaults, optional features, caching.
+### 3. Systemic fixes — audit before patching
 
-### 3. SYSTEMIC FIXES - AUDIT BEFORE PATCHING
-
-Before fixing a bug, ALWAYS ask: "Is this part of a larger pattern?" Search for similar code paths. Design ONE unified fix instead of patching case-by-case.
+Before fixing a bug, ask whether it's part of a larger pattern; search for similar code paths
+and design one unified fix instead of patching case-by-case.
 
 ---
 
