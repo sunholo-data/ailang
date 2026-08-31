@@ -2,24 +2,27 @@
 
 _Snapshot, overwritten every iteration. History lives in `v1-mission.md` STATUS + `v1-mission-log.md`._
 
-**Last iteration:** 308 · 2026-08-31 · dev CI-red preemption (V1 owns `sunholo-data/ailang`)
+**Last iteration:** 308 · 2026-08-31 · dev CI-red preemption ×3 (V1 owns `sunholo-data/ailang`)
 
 ## Now
-- **dev is GREEN** at `8bb982220`: `pending=0`, `launchd drivers` success. Only not-green is the
-  standing **non-required** `SonarCloud Code Analysis`, inherited (also red on `84eb49237`, `3fc7be9b8`).
-- **Landed this iteration:** #969 → `c29ec1d00` — pi embedded-asset inventory pinned by exact filename
-  list (was two magic counts); closes the substring vacuity in the idempotence assertion.
-- **Parked (draft):** #971 — process-tree discovery deadline decoupling. Structurally sound, but does
-  NOT deliver the determinism its message claims: identical commit `8a384e81b` ran **success then
-  failure** on `launchd drivers`. Not merged.
-- **Open finding:** #975 — the `descendant discovery refuses on the real wall-clock deadline` arm has
-  **three** measured failure modes in five days; root cause unconfirmed, not locally reproducible.
+- **Landed:** #969 → `c29ec1d00` (pi embedded-asset inventory pinned by exact filename list, closing a
+  substring vacuity) · #977 → `9f267cf1f` (driver-notify lab never supplied `STATE_DIR`, which
+  `149e47667`'s episode-gating reads inside the extracted blocks — all 22 arms aborted under `set -u`;
+  harness-only, 5/22 → **27/0**, judge PASS 88/100).
+- **Parked (draft):** #971 — process-tree discovery deadline decoupling. Structurally sound but does NOT
+  deliver the determinism its message claims: identical commit `8a384e81b` ran **success then failure**.
+- **Open findings:** **#975** — that probe arm now has **FOUR** measured failure modes in five days; root
+  cause unconfirmed, not locally reproducible, and it reddened #977 despite that PR touching no
+  `tools/eval/` file, so it gates anything needing this required job. **#978** — episode-gating
+  suppression + recovery-reset have zero coverage (both guards deletable, suite still green).
 
 ## Next
-1. Diagnose #975 on a CI runner (gated `PS4`/`set -x` around `descendant_pids` + the
-   `PROBE_TEST_PGREP_LOOP` stub) **before** any fourth calibration attempt. Then #971 can be revisited.
-2. Weekly-sweep orphans batched: #959, #960, #962, #963, #941 (triage-lite, normal ordering).
-3. #968 (recovered retry-storm design + quorum artifacts) is CONFLICTING and waits on **D-50**.
+1. Diagnose **#975** on a CI runner (gated `PS4`/`set -x` around `descendant_pids` + the
+   `PROBE_TEST_PGREP_LOOP` stub) before any fourth calibration; consider an interim CI quarantine so a
+   known-flaky instrument stops blocking correct work. Then #971 can be revisited.
+2. **#978** coverage arms (needs an optional external state dir in `run()`).
+3. Weekly-sweep orphans batched: #959, #960, #962, #963, #941 (triage-lite, normal ordering).
+4. #968 (recovered retry-storm design + quorum artifacts) is CONFLICTING and waits on **D-50**.
 
 ## Parked on Mark
 - **D-49** — Pi extension precedence: global `~/.pi/agent/extensions` vs repo-local `.pi/extensions`.
@@ -29,12 +32,11 @@ _Snapshot, overwritten every iteration. History lives in `v1-mission.md` STATUS 
 
 ## Loop + routing
 - Bookkeeping issue **#972** (rotated from #852 this iteration — Monday boundary + 83 comments).
-- Roles this fire: controller `claude-opus-5` · designer `claude:claude-fable-5` (did not fire — no new
-  doc) · planner `pi:ollama/kimi-k3:cloud` (did not fire) · executor `pi:ollama/deepseek-v4-flash:0731-cloud`
-  · evaluator `sonnet` (2 rounds).
-- **Codex lane quota-exhausted** this fire (usage limit, resets ~09:36) — planner/executor auto-routed
-  to the pi/ollama lanes by the driver. `PARKED-ON-LANE`-class, no human decision needed.
+- Roles: controller `claude-opus-5` · executor `pi:ollama/deepseek-v4-flash:0731-cloud` (verdict
+  `wall_timeout` rc=13, FLAGGED — diff was complete, so verified rather than discarded) · evaluator
+  `sonnet` ×3 rounds. Designer/planner did not fire: a CI-red preemption produces no design doc or plan.
+- **Codex lanes quota-exhausted** this fire (probe rc=1, resets ~09:36) — `PARKED-ON-LANE`, no decision needed.
 
 ## Cost
-- metered **$0.00** this iteration. Executor ran flat-rate on Ollama Cloud (1,575,679 in / 33,785 out).
-- Quota buckets touched: opus (controller), sonnet (evaluator ×2).
+- metered **$0.00**. Executor ran flat-rate on Ollama Cloud (1,575,679 in / 33,785 out).
+- Quota buckets: opus (controller), sonnet (evaluator ×3).
