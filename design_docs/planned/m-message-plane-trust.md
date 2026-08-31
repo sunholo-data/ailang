@@ -1,6 +1,6 @@
 # M-MESSAGE-PLANE-TRUST: make "a message was sent" mean "a job ran and reported back"
 
-**Status**: IN PROGRESS — three fixes landed 2026-08-31 (`a4098b6a0`, `23066345e`, `8131b4101`); rest below.
+**Status**: IN PROGRESS — M1 and M2 landed 2026-08-31 (`91716b092`, `f83fbd0b1`) on top of `a4098b6a0`, `23066345e`, `8131b4101`. M3–M5 open.
 **Target**: this week.
 **Priority**: P1. Everything downstream — provenance chains, ELO routing, cost KPIs — reads data this path is supposed to produce.
 **Related**: [m-feature-provenance-chains.md](m-feature-provenance-chains.md) (consumes this), [message-plane-topology.md](../../docs/internal/message-plane-topology.md) (the map).
@@ -23,8 +23,8 @@ Measured first-party 2026-08-31 against prod (`ailang-multivac`):
 | dispatch → container | 88% of 92 job executions failed since April | variant picks the image, provider picks the binary, nothing checked they agree | **FIXED** `23066345e` |
 | hooks → sessions | 2 tool rows since April against 6,508 sessions | `session_tools` FK-rejected events for sessions predating the server; endpoint still returned 200 | **FIXED** `8131b4101` |
 | stage → chain counter | all 99 prod chains read "0 stages" while holding stages | Firestore never incremented `stages_completed`; its list reports that field | **FIXED** `8131b4101` |
-| Firestore → coordinator | a missed notification is permanent, not slow | cloud intake reads the Pub/Sub adapter ONLY, never Firestore | **OPEN — M1** |
-| job → completion | 92 of 99 chains stuck `active`, oldest since April | nothing closes a chain when its job dies | **OPEN — M2** |
+| Firestore → coordinator | a missed notification is permanent, not slow | cloud intake reads the Pub/Sub adapter ONLY, never Firestore | **FIXED** `91716b092` (report-only by default) |
+| job → completion | 92 of 99 chains stuck `active`, oldest since April | stale detector marked the TASK failed and never touched the chain | **FIXED** `f83fbd0b1` |
 | gate → visibility | `ANTHROPIC_API_KEY not set: heuristic-flagged submissions filed, never dispatched` | fail-closed posture is announced once at startup, in a log nobody reads | **OPEN — M3** |
 
 **The pattern is one thing, not seven.** Each seam reports success on the happy path and silence on
@@ -44,6 +44,27 @@ and unobservable is indistinguishable from unreliable when you are deciding whet
 | V6 | Config is internally consistent | every agent's provider matches its variant (pi/pi ×31, codex/codex, codex/codex-go, motoko/motoko) — so V5 predates the current config, and the GUARD is what stops it recurring |
 | V7 | `pi` has never run | `ailang-agent-executor-pi` has no `latestCreatedExecution` — the 31 pi agents have never dispatched |
 | V8 | Coordinator is healthy, not stuck | heartbeat `status: idle` updated within minutes; `minScale=0` + push subscriptions is a correct pairing, and cold start cost 22s |
+
+## Open finding — the fail-loud guard for this exact class is RED at HEAD
+
+`TestRun_FailsLoudlyWhenTaskProcessingCannotInit` fails on a clean checkout (verified by reverting
+every change in this session). It guards M-MESSAGE-PLANE-FAIL-LOUD, whose own comment describes the
+problem this doc exists to solve:
+
+> *standby mode is indistinguishable from idle from the outside: `coordinator status` reports
+> "running", the health port answers, and the log prints "Checking for new tasks..." on every tick.
+> Measured 2026-08-26 on the rig: 20 standby startups against 11 healthy ones ... production claimed
+> nothing for three months.*
+
+Probed directly: `initTaskProcessing()` now returns **nil** when CWD is not a git repository, so the
+fatal branch never runs and `Run()` falls through to the poll loop — which is what the test times out
+on.
+
+**This needs a ruling, not a unilateral fix.** Either the guard is stale (the cloud coordinator
+demonstrably processes messages from a non-repo CWD — we watched it route a probe in 23s, so
+"CWD is not a repo" is no longer sufficient to mean "broken"), or the fail-loud condition was
+weakened and the standby regression can recur. Deleting a three-month-outage guard on the first
+reading would be exactly the mistake the guard was written to prevent.
 
 ## Design decisions
 
