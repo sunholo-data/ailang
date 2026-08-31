@@ -1,40 +1,46 @@
 # Mission Dashboard — V1
 
-*Snapshot, overwritten every iteration. History lives in the charter STATUS block and the mission log.*
+*Snapshot, overwritten each iteration. History lives in `v1-mission.md` (STATUS) and `v1-mission-log.md`.*
 
-**Last iteration**: 311 · 2026-08-31 · [PRODUCT] · M1 LANDED (Sprint 1, 1 of 5 milestones)
-**Latest release**: v0.34.0 (origin/dev `3ad55d53b`)
-**dev CI**: 16 checks at `3ad55d53b`; the one non-green is SonarCloud — non-required, **inherited** (same `failure` on parent `bd17d9643`).
+**Last iteration:** 312 · 2026-09-01 · LANDED · [PRODUCT]
+
+## Latest release
+v0.34.0. `dev` is 265 commits past the tag.
 
 ## In flight
-- `m-registry-interface-hash-blind-to-signatures` — **Sprint 1 M1 LANDED**: `internal/iface/
-  hash_projection.go`, alias-excluded `HashProjection` + injective `SignatureSet`. Unwired dead
-  code by design; nothing changes behaviour until M5. **M2–M5 remain (~3.5d)**: `internal-dump-iface`,
-  the subprocess wrapper + `PublishLimits`, `InterfaceHashV2`, the `U`-class classifier.
-  Sprint 2 (M6–M9) stays DEFERRED — its blast-radius precondition needs the live registry.
+- **`m-registry-interface-hash-blind-to-signatures`** (IN-SPRINT, Sprint 1 of 2).
+  M1 landed iter-311, **M2 landed iter-312**. M3–M5 remain (~3d).
+  Sprint 2 (irreversible: registry writes, backfill) is DEFERRED by design.
+  ⚠ M3 must pass the module's **package root** as `internal-dump-iface <package-dir>`, never the CWD
+  (ailang#671 class; pinned by `TestInternalDumpIface_WrongPackageDirFailsLoudly`).
 
-## Next up (ready, no blockers)
-1. Same row, **M2** — `iface.BuildCanonicalJSON` + the hidden `internal-dump-iface` subcommand.
-2. `m-coordinator-config-route-preflight` **(a) only** — validation above the `identical` early return in `config diff`; `(b)` stays unroutable until `ExecutionRoute` lands on dev.
-3. `m-openrouter-session-chain-registration` — un-parked by `D-47`; ~2 LOC, fully specified.
-4. `m-registry-validator-unbounded-compile` — untrusted uploads compiled with no timeout.
-5. `m-weekly-sweep-orphans-2026-08-31` — triage-lite 5 zero-mention open issues.
+## Next picks (banked, ready)
+1. `m-registry-interface-hash-blind-to-signatures` **M3** — subprocess wrapper + `PublishLimits`.
+2. `m-registry-validator-unbounded-compile` — public HTTP server compiles untrusted uploads with no
+   timeout/cancellation. Confirmed at HEAD; `validate.go:76` uses `exec.Command`, not `CommandContext`.
+3. `m-canonical-json-drylink-unpinned` — `DryLink: false` mutant survives the whole suite; M3 will
+   call that library function from the publish path. <0.5d.
 
 ## Loop health
-- **Cadence**: 308–311 all recorded. Of 296–310, **6** (299, 300, 302, 303, 306, 307) were never written — reaped slots, ~40%.
-- **Routing**: executor `codex:gpt-5.6-sol` (probe rc=0); evaluator `sonnet` (Agent tool),
-  **PASS 92/100, zero blocking**. No designer/planner needed — both landed at iteration 310.
-- **Cost**: metered **$0.00** — no quorum round, no metered lane. Ceiling $5.
-- **STATUS rotation audited HEALTHY**: 270 archive stamps; every recorded iteration 296–310 resolves to charter or archive; the 6 gaps are reaped slots, not rotation loss (`git log -S`).
-- **Loop defect FIXED**: the skill named the wrong path for the quorum absence key. Corrected live.
-- **Still open**: nothing reconciles a queue row's PARK tag against the decision ledger.
+- Cadence: launchd, ~16 fires/day. Reaped-slot rate ~40% over 296–310 (see D-52).
+- Routing this iteration: controller opus · executor `codex:gpt-5.6-sol` (×2) · evaluator sonnet (×2).
+  Designer and planner not spawned — doc and plan already existed.
+- Metered spend: **$0.00** of the $5 ceiling. All lanes were quota buckets.
+- Evaluator rounds: 1 = **FAIL 66/100**, 2 = **PASS 95/100**. generator≠judge held (OpenAI vs Anthropic).
+
+## dev CI
+16 checks. Sole non-green: **SonarCloud** — *inherited*, `failure` on 5 consecutive commits
+(`origin/dev~0..~4`), two of them docs-only. **Not a required context**
+(required = `test`, `lint`, `build`, `docs-gate`). Failing on 72.4% coverage-on-new-code (needs ≥80%)
+and B security-rating-on-new-code (needs A). Named, not picked.
 
 ## Parked on Mark
-**None.** `mission_decisions.sh --check` → 50 rows valid; `--open` → zero. A zero here does *not*
-imply the queue is clean — see the stale-park defect above.
+- **D-51** — ratify or replace the charter's countable finish-line unit. Loop recommends (b),
+  milestone burn-down. Default if unanswered: status quo, every Progress line stays provisional.
+- **D-52** — is the ~40% reaped-slot rate worth one iteration to diagnose? Loop recommends (a),
+  a per-gate heartbeat artifact. Default if unanswered: (b), nothing changes.
 
-## Charter goal (PROVISIONAL — Mark to ratify or replace)
-**Unit: open queue rows**, `grep -cE '^\*\*\[<TAG>'` at iteration 311: **68** `[NEXT]` · **1**
-`[PARKED]` · **2** `[IN-SPRINT]` · **29** `[LANDED]`. Distance = `[NEXT]`+`[PARKED]` → 0.
-Iteration 311 moved it by **0**: milestone progress inside a row does not change the row count,
-which is the weakness the goal block itself names.
+Both filed by iteration 311; neither has been answered. Nothing else is blocked on a human.
+
+## Quota posture
+Anthropic available (`MISSION_ANTHROPIC_AVAILABLE=1`). codex probe rc=0. No lane parked on quota.
