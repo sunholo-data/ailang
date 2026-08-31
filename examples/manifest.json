@@ -145,7 +145,10 @@
         "demo",
         "blocks"
       ],
-      "description": "Block Demo example"
+      "description": "Block Demo example",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "block_recursion.ail",
@@ -902,7 +905,10 @@
       "tags": [
         "pattern-matching"
       ],
-      "description": "Match arm with explicit block containing match"
+      "description": "Match arm with explicit block containing match",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "match_arm_block_io.ail",
@@ -921,7 +927,10 @@
       "tags": [
         "pattern-matching"
       ],
-      "description": "Even simpler: block with let THEN match"
+      "description": "Even simpler: block with let THEN match",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "math_trig.ail",
@@ -998,7 +1007,10 @@
         "pattern-matching",
         "records"
       ],
-      "description": "Absolute minimal case: single nested match with block arms"
+      "description": "Absolute minimal case: single nested match with block arms",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "nested_match_simple.ail",
@@ -2660,7 +2672,10 @@
       "tags": [
         "testing"
       ],
-      "description": "Test Module Minimal example"
+      "description": "Test Module Minimal example",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "type_classes.ail",
