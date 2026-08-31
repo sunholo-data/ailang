@@ -198,3 +198,108 @@ pre-existing on the parent commit). Neither actioned further; outside this missi
 **Retro**: no skill edit — the one friction this iteration (asserting `gh pr checks`' pending-count
 is numeric before comparing it) was already covered by this skill's existing `case … [!0-9]*)`
 prescription and worked as documented; not a gap.
+
+## ITERATION 2 — 2026-08-31T07:58Z (recovering a died-mid-flight prior fire)
+
+**Pick**: none picked fresh — Gate 2's died-mid-flight check found a complete, unlanded iteration
+already sitting on the repo: an open PR (`sprint/iter2-docs-9`, #973), three orphaned worktrees
+(`.wt-iter2-docs-9`, `.planner-wt-iter2-docs-9`, `.wt-iter2-docs-9-eval`), and zero trace of
+"ITERATION 2" anywhere in the charter/log/archive (`grep -c "ITERATION 2"` = 0/0/0, known-present
+control `grep -c "ITERATION 1\b"` = 1 in the log — instrument confirmed working). That prior fire
+had run the full inner loop on `docs-9` (queue head at the time) to completion and died before
+Gate 4/5. This iteration's deliverable was to **verify and land it**, per the skill's died-
+mid-flight instruction, not redo the work.
+
+**What the orphaned fire found (docs-9, re-verified first-party before landing, not taken on
+trust)**: `docs-9` claimed `docs/docs/intro.mdx` was stale — IFC Labels tagged `v0.16.0` while the
+active teaching prompt is `v0.16.6`. Live-repro found the claim false: the "Recent Additions"
+section intentionally annotates each feature's historical **ship**-version, not a "current
+version" claim — five bullets, five different version numbers (`v0.16.0`/`v0.14.0`/`v0.13.0`
+(x2)/`v0.12.0` (x2)), confirmed by direct read. `diff <(grep -i "declassify|IFC|T<label>|taint"
+prompts/v0.16.0.md) <(... v0.16.6.md)` shows only the title line differs across all six
+intervening revisions — zero IFC/declassify content changed, so bumping the annotation would
+misrepresent when the feature shipped. The actual defect was the instrument:
+`check_versions.sh` Check 3 grepped the first `vX.Y.Z`-shaped string anywhere in `intro.mdx` with
+no way to distinguish "current-version claim" from "historical ship-version annotation" —
+permanently false-positiving. Fix: delete Check 3 (Checks 1/2, unambiguous "must match" semantics,
+untouched), rule `docs-9` `[RULED OUT]` with the refutation evidence, fix a self-contradictory
+evidence-summary line the evaluator caught, annotate `docs-sync-findings.md` DOCS-2-02 refuted.
+Zero changes to `docs/docs/intro.mdx` itself — nothing there was actually stale.
+
+**Routing evidence (from the orphaned fire's PR body, re-verified rather than transcribed)**:
+| Role | Model | Outcome |
+|---|---|---|
+| Planner+Executor | `codex:gpt-5.6-luna` declared, fell back to session `sonnet` alias (Agent tool in that session could not express a `provider:model` pin) — **FLAGGED** by that fire's own PR body | Diff scope exactly 4 files, none under `internal/`/`cmd/` |
+| Evaluator | `opus` (re-routed off the `sonnet` fallback to preserve generator≠judge, since the assumed OpenAI/Z-AI-disjoint chain didn't materialize) | **PASS 79/100, zero blocking** — independently re-derived the semantic claim via its own `prompts/v0.16.0.md` vs `v0.16.6.md` diff, confirmed diff scope, re-ran every acceptance check from scratch |
+
+**This iteration's own verification before landing** (not inherited): re-ran the ship-version spot
+check on `docs/docs/intro.mdx` directly (5 distinct version numbers, confirmed); re-ran the
+`prompts/v0.16.0.md`↔`v0.16.6.md` diff directly (title-only); confirmed all three worktrees had
+zero uncommitted state (`git status --porcelain` empty in all three — the fire finished cleanly,
+it just never reached Gate 4/5); confirmed `#973` `mergeable=MERGEABLE`, `mergeStateStatus=CLEAN`,
+21 checks, none non-green.
+
+**Outcome**: **LANDED**. Squash-merged [PR #973](https://github.com/sunholo-data/ailang/pull/973)
+→ `ad7542ba5`. Local `dev` fast-forwarded to match. CI (`CI`, `Deploy Documentation to GitHub
+Pages`) polled on the merge commit itself (Gate 3b's squash-produces-a-new-commit rule) — see
+STATUS stamp for final read; both were still `in_progress` as this entry was written and were
+polled to completion before the report was sent (Standing rule 7 — turn kept alive with chained
+bounded polls, not ended mid-wait). Orphaned worktrees removed; remote branch `sprint/iter2-docs-9`
+was never pushed (local-only), nothing to delete there.
+
+**Gate 0 weekly external-issue sweep (first iteration after the Monday 07:00 CEST rotation
+boundary — issue #953 created 2026-08-28T05:58:39Z / 07:58 CEST, before today's 07:00 CEST
+boundary)**: enumerated `gh issue list --repo sunholo-data/ailang --state open --limit 100` → 92
+issues, asserted against `gh issue list ... | jq length` → 92 (match; first attempt used
+`--limit 50` and silently truncated to 50 — caught by the length assertion before it shipped, per
+rule 3a(i)). Grepped each `#N\b` across this mission's own corpus (charter, log, status archive,
+dashboard) with a known-positive control (`#953` → 4/2/0/0=6) and a known-absent control
+(`#88214` → 0/0/0/0) both firing correctly. **First pass showed 92/92 orphaned — that number was
+wrong and self-caught before being recorded**: the per-file loop indexed a zsh array as
+`${FILES[0]}`..`${FILES[3]}`, and zsh arrays are 1-indexed, so `${FILES[0]}` is empty and every
+`grep` ran with no file argument, reading a closed/empty stdin and silently returning empty rather
+than "0". Re-run with `${FILES[1]}`..`${FILES[4]}`: **89 of 92 orphaned**, control counts
+unchanged. Full per-issue table (charter/log/archive/dashboard/total) generated at
+`/tmp/docs_sweep_table.md` this iteration; not inlined here (92 rows) but reproducible verbatim
+from the command above — available on request.
+Of the 89 orphans, 87 are plainly outside this mission's domain (motoko_agent, Z3/SMT encoder,
+formatter, ailang-parse, email-parse, world, nightly-eval, CLI/effect-system internals — V1's or a
+sibling mission's territory). **Two are not**: [#670](https://github.com/sunholo-data/ailang/issues/670)
+and [#654](https://github.com/sunholo-data/ailang/issues/654), both about `make verify-examples` —
+this mission's own Repo Profile names it as one of two verify-profile gates. Re-confirmed live at
+this iteration's HEAD (not taken on the issue's word): `grep -c "checked == 0"
+scripts/validate_manifest.go` → 0 (no anti-vacuity floor, #654's claim), `grep -c "expected.stdout"
+scripts/verify_examples.go` → 0 (never compared, #670's claim). Both still genuinely present.
+Batched into ONE new queue row, `docs-10`, positioned after `docs-6` (same class of work — fixing
+the sweep's own instruments, not docs content) — per Gate 0 rule 5, a sweep finding never outranks
+the existing pick by itself, and this one didn't: `docs-9`'s recovery was already this iteration's
+item before the sweep ran.
+
+**Cost**: metered $0.00 of $1 ceiling (the orphaned fire's own subscription-lane codex/sonnet/opus
+runs; this iteration made no further model-role spawns — Gate 2's reality-check, the sweep, and
+Gate 4/5 bookkeeping are all controller-session work). Quota buckets: sonnet (controller, this
+session).
+
+**Next**: `docs-5` or `docs-1` (both `[NEXT]`, both unblocked, as iteration 1 already noted) —
+`docs-10` (new) is also unblocked and cheap; `docs-6` should probably precede `docs-5` since it
+fixes the instrument `docs-5`'s own acceptance criteria will need to trust.
+
+**Ruled out**: nothing new contradicted; docs-9's rule-out (see above) was the orphaned fire's
+finding, re-confirmed rather than re-derived from zero.
+
+**DECISIONS FOR MARK**: none — D-1 and D-2 are already `RESOLVED` in the ledger; no new ask this
+iteration.
+
+**FLAGGED**: (1) the orphaned fire's own PR body flags that its session's Agent tool could not
+express `codex:gpt-5.6-luna` as a pin and fell back to `sonnet`/`opus` aliases — carried forward
+here rather than re-litigated, since re-probing a capability limit is itself a rule-3a(i) vacuous
+check (Gate 3 roles table). (2) `launchd drivers (bash 3.2)` is still red on `origin/dev`'s
+immediate ancestry (confirmed failing on 2 of the last 2 non-in-progress commits checked) —
+already flagged to V1 (repo owner) by iteration 1; not re-flagged, just noted so this entry doesn't
+read as newly-discovered.
+
+**Retro**: process note, not a skill edit (single-instance, below the ≥2-friction bar) — this
+iteration's own sweep script hit the shared skill's own documented zsh 1-indexed-array trap
+(rule 3a's "AND THE ARRAY THIS RULE JUST PRESCRIBED IS 1-INDEXED IN ZSH" clause) on its first
+draft and self-corrected via the length-assertion discipline the same rule prescribes. Filed here
+as a confirmation the existing rule works as written, not as a gap.
