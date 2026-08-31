@@ -1,14 +1,14 @@
 # Session Protocol Gate + Dev-Harness Extensions
 
-The ten-extension AILANG pi suite (M-DX-SESSION-GATE, M-DX-PI-HARNESS,
-M-DX-QUALITY-MONITOR). Tested against pi **0.84.3** (0.84.4 verified for
-quality-monitor).
+The eleven-extension AILANG pi suite (M-DX-SESSION-GATE, M-DX-PI-HARNESS,
+M-DX-QUALITY-MONITOR, M-DX-MICRORAG-CONTEXT). Tested against pi **0.84.3**
+(0.84.4 verified for quality-monitor and microrag-context).
 
 ## Distribution — who gets what, how
 
 ### Tier 0 — every repo on a machine: install from the ailang binary
 
-Release binaries embed all ten `.ts` extensions plus this README. Install the
+Release binaries embed all eleven `.ts` extensions plus this README. Install the
 managed global copy into `~/.pi/agent/extensions/` with:
 
 ```bash
@@ -53,6 +53,7 @@ human-owned release operations.
 | `prepush-gate.ts` | Blocks `git push` when gofmt, lint, or the repository file-size gate fails |
 | `ail-fmt-autolint.ts` | After a successful write/edit of a `.ail` file, runs `ailang fmt --write` so saved AILANG is canonically formatted (motoko-measured fmt arm) |
 | `quality-monitor.ts` | Bounded-excerpt rewrite of >16KB tool results (head+tail + narrowing directive); blocks the 3rd identical consecutive tool call with a directive; detects empty/zero-content turns and steers once (capped); opt-in thinking-budget fallback (`PI_QUALITY_THINKING_FALLBACK=1`). Kill switch `PI_QUALITY_MONITOR=0` (M-DX-QUALITY-MONITOR) |
+| `microrag-context.ts` | μRAG retrieval frontend for pi: prompt-intent injection (`before_agent_start`, trailing message only — never a system-prompt edit), error-triggered injection from the last `ailang_check` failure (the lane no other frontend has), and the `microrag_search` tool. Engine untouched — rides `ailang micro-rag user-prompt`. REQUIRES explicit `AILANG_MICRORAG_ENABLED=1` (unset/0 = fully inert, eval-arm parity); knobs `PI_MICRORAG_INJECT=0` (no auto-injection), `PI_MICRORAG_TOOL=0` (no tool), kill switch `PI_MICRORAG_CONTEXT=0` (M-DX-MICRORAG-CONTEXT) |
 
 All subprocesses run under the Subprocess Contract (per-command timeouts, structured
 TIMEOUT failures, 64KB output caps, no silent retries).
@@ -91,4 +92,5 @@ survives). Full register: design doc, F1–F8.
 - Tested against pi **0.84.3**. Platform claims are verified in the design
   doc's Verification Log (V1–V12); re-verify after `pi update`.
 - Unit tests: `node --experimental-strip-types --test .pi/extensions/.session-protocol-gate.test.ts`
+- microrag-context unit tests: `node --experimental-strip-types --test .pi/extensions/.microrag-context.test.ts`
 - Fleet inheritance is provided by the `Dockerfile.agent-pi` build-time install.
