@@ -7,12 +7,13 @@ set -euo pipefail
 if [ $# -ne 2 ]; then
     echo "Usage: $0 <provider> <model-name>"
     echo ""
-    echo "Providers: openai, anthropic, google"
+    echo "Providers: openai, anthropic, google, ollama-cloud"
     echo ""
     echo "Examples:"
     echo "  $0 openai gpt-5.1"
     echo "  $0 anthropic claude-sonnet-4-5-20250929"
     echo "  $0 google gemini-3-pro-preview-11-2025"
+    echo "  $0 ollama-cloud glm-5.3-flash   # tag WITHOUT :cloud — the script adds it"
     exit 1
 fi
 
@@ -191,9 +192,82 @@ case "$PROVIDER" in
         echo "✓ Ready to add to models.yml"
         ;;
 
+    ollama-cloud)
+        # Ollama Cloud INFERENCE rides the local daemon (device key via `ollama signin`).
+        # OLLAMA_API_KEY is only for the /api/usage gauge, which the daemon does NOT proxy.
+        # See resources/provider_endpoints.md and design_docs/planned/v0_34_0/m-ollama-cloud-provider.md.
+        if ! command -v ollama &> /dev/null; then
+            echo "✗ ollama CLI not found"
+            exit 1
+        fi
+        echo "✓ ollama CLI found"
+
+        # Sign-in check (inference auth) — /api/me is POST-only (V24)
+        if ! curl -s -XPOST localhost:11434/api/me | grep -q '"email"'; then
+            echo "✗ Not signed in to ollama cloud"
+            echo "Run: ollama signin"
+            exit 1
+        fi
+        echo "✓ Signed in ($(curl -s -XPOST localhost:11434/api/me | python3 -c 'import sys, json; print(json.load(sys.stdin).get("email","?"))' 2>/dev/null))"
+
+        # Catalogue membership (route must exist; 200 unauthenticated)
+        if ! curl -s https://ollama.com/v1/models | grep -q "\"$MODEL\""; then
+            echo "✗ Model '$MODEL' not in the ollama cloud catalogue"
+            echo "  Live catalogue: $(curl -s https://ollama.com/v1/models | python3 -c 'import sys, json; print(" ".join(m["id"] for m in json.load(sys.stdin)["data"]))')"
+            exit 1
+        fi
+        echo "✓ Model in cloud catalogue"
+
+        # Quota gauge BEFORE (Bearer OLLAMA_API_KEY, direct to ollama.com). Numerator only:
+        # /api/usage publishes no denominator, so this is a level, not headroom.
+        if [ -z "${OLLAMA_API_KEY:-}" ]; then
+            echo "⚠ OLLAMA_API_KEY not set — skipping quota snapshot (inference unaffected)"
+        else
+            QUOTA=$(curl -s https://ollama.com/api/usage -H "Authorization: Bearer $OLLAMA_API_KEY" | python3 -c 'import sys, json; d=json.load(sys.stdin)["limits"]; print("session=%.3f weekly=%.3f" % (d["session"]["usage"], d["weekly"]["usage"]))' 2>/dev/null || echo 'unparseable — see /api/usage')
+            echo "✓ Quota before: $QUOTA"
+        fi
+
+        # Inference probe through the local daemon (V21: proxies to ollama.com, loads
+        # nothing on the GPU). max_tokens 2000 — reasoning models can burn a small
+        # budget entirely on thinking (V25, same lesson as GLM-5.2 truncation).
+        RESPONSE=$(curl -s localhost:11434/v1/chat/completions \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"model\": \"$MODEL:cloud\",
+            \"messages\": [{\"role\": \"user\", \"content\": \"Say hello in exactly 3 words\"}],
+            \"max_tokens\": 2000
+          }")
+
+        if echo "$RESPONSE" | grep -q '"error"'; then
+            echo "✗ Inference failed (cloud route)"
+            echo "$RESPONSE" | python3 -m json.tool
+            exit 1
+        fi
+        echo "✓ Cloud inference successful"
+
+        # The proxy strips the :cloud suffix from the response model field (V21/AC2)
+        ACTUAL_MODEL=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['model'])")
+        INPUT_TOKENS=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['usage']['prompt_tokens'])")
+        OUTPUT_TOKENS=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['usage'].get('completion_tokens', 0))")
+
+        echo "✓ Model: $ACTUAL_MODEL (base name — proxy strips :cloud, V21)"
+        echo "✓ Tokens: $INPUT_TOKENS input, $OUTPUT_TOKENS output (/v1 path reports usage, V27 fix)"
+        echo "✓ Marginal cost: \$0.00000 (flat-rate subscription — models.yml imputes the"
+        echo "  OpenRouter twin's rate per D1 and banks list-price-equivalent, never 0/0)"
+
+        if [ -n "${OLLAMA_API_KEY:-}" ]; then
+            QUOTA=$(curl -s https://ollama.com/api/usage -H "Authorization: Bearer $OLLAMA_API_KEY" | python3 -c 'import sys, json; d=json.load(sys.stdin)["limits"]; print("session=%.3f weekly=%.3f" % (d["session"]["usage"], d["weekly"]["usage"]))' 2>/dev/null || echo 'unparseable — see /api/usage')
+            echo "✓ Quota after: $QUOTA"
+        fi
+
+        echo ""
+        echo "✓ Ready to add to models.yml (row key convention: motoko-cloud-* for agent rows;"
+        echo "  api_name \"$MODEL:cloud\"; provider ollama; pricing imputed from OpenRouter twin per D1)"
+        ;;
+
     *)
         echo "✗ Unknown provider: $PROVIDER"
-        echo "Supported providers: openai, anthropic, google"
+        echo "Supported providers: openai, anthropic, google, ollama-cloud"
         exit 1
         ;;
 esac

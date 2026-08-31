@@ -42,101 +42,136 @@ curl -s https://api.anthropic.com/v1/messages \
   -H "x-api-key: $ANTHROPIC_API_KEY" \
   -H "anthropic-version: 2023-06-01" \
   -d '{
-    "model": "claude-sonnet-4-5-20250929",
-    "messages": [{"role": "user", "content": "Hello"}],
-    "max_tokens": 10
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 10,
+    "messages": [{"role": "user", "content": "Hello"}]
   }'
 ```
 
 **Important notes**:
-- API key goes in `x-api-key` header, not `Authorization`
-- Requires `anthropic-version` header
-- Model names include full date suffix (e.g., `claude-sonnet-4-5-20250929`)
-- Token fields: `input_tokens`, `output_tokens` (not `prompt_tokens`/`completion_tokens`)
+- Uses `x-api-key` header, NOT Bearer token
+- Requires `anthropic-version` header (2023-06-01 is current)
+- System prompt goes in a separate `system` field, not a message role
 
-**Documentation**: https://docs.anthropic.com/en/api/getting-started
+**Documentation**: https://docs.anthropic.com/en/api/messages
 
 ---
 
 ## Google Gemini (Vertex AI)
 
-**Endpoint**: `https://{REGION}-aiplatform.googleapis.com/v1/projects/{PROJECT}/locations/{REGION}/publishers/google/models/{MODEL}:generateContent`
+**Endpoint**: `https://aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/google/models/MODEL:generateContent`
 
-**Authentication**: OAuth2 via `gcloud` Application Default Credentials
+**Authentication**: OAuth2 via `gcloud auth application-default login` (Bearer access token)
 
-**Setup**:
-```bash
-# Install gcloud
-# https://cloud.google.com/sdk/docs/install
-
-# Authenticate
-gcloud auth application-default login
-
-# Set project
-gcloud config set project YOUR_PROJECT_ID
-```
+**Requirements**:
+- `gcloud` CLI installed and authenticated
+- GCP project set: `gcloud config set project PROJECT_ID`
 
 **Test command**:
 ```bash
-# Get access token
 ACCESS_TOKEN=$(gcloud auth application-default print-access-token)
-PROJECT_ID=$(gcloud config get-value project)
-REGION="us-central1"
-MODEL="gemini-2.5-pro"
-
-curl -s -X POST \
-  "https://$REGION-aiplatform.googleapis.com/v1/projects/$PROJECT_ID/locations/$REGION/publishers/google/models/$MODEL:generateContent" \
+curl -s -X POST "https://aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/global/publishers/google/models/gemini-3-pro:generateContent" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "contents": [{
+    "contents": {
       "role": "user",
       "parts": [{"text": "Hello"}]
-    }]
+    }
   }'
 ```
 
 **Important notes**:
-- Uses Vertex AI, not public Gemini API
-- No API key needed - uses `gcloud` authentication
-- Token fields: `promptTokenCount`, `candidatesTokenCount`, `totalTokenCount`
-- New models may not be available immediately (typically 1-2 weeks after announcement)
-- Check availability: Look for 404 errors
+- Gemini 3+ requires the `global` location
+- Reasoning tokens in `usageMetadata.thoughtsTokenCount`
+- Model availability varies by region/project allowlist
 
-**Documentation**: https://cloud.google.com/vertex-ai/docs/generative-ai/model-reference/gemini
+**Documentation**: https://cloud.google.com/vertex-ai/docs
+
+---
+
+## Ollama Cloud (flat-rate open-weight route)
+
+Cloud-hosted open-weight inference that **rides the local ollama daemon** — the naming
+convention IS the code path. Canonical design:
+[design_docs/planned/v0_34_0/m-ollama-cloud-provider.md](../../../design_docs/planned/v0_34_0/m-ollama-cloud-provider.md).
+
+**Endpoints**:
+| Purpose | Endpoint | Auth |
+|---|---|---|
+| Catalogue (which models exist) | `GET https://ollama.com/v1/models` | none (200 unauthenticated) |
+| INFERENCE | `POST http://localhost:11434/v1/chat/completions` with model `"<tag>:cloud"` | **device key** via `ollama signin` (the daemon proxies to ollama.com; no env var involved) |
+| Quota gauge | `GET https://ollama.com/api/usage` | Bearer `OLLAMA_API_KEY` (**gauge only** — the local daemon does NOT proxy this route, V24) |
+
+**Test command** (inference through the daemon, per V21):
+```bash
+curl -s http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "glm-5.3-flash:cloud",
+    "messages": [{"role": "user", "content": "Hello"}],
+    "max_tokens": 2000
+  }'
+```
+
+**Quota gauge**:
+```bash
+curl -s https://ollama.com/api/usage -H "Authorization: Bearer $OLLAMA_API_KEY" \
+  | jq '{session: .limits.session.usage, weekly: .limits.weekly.usage,
+         by_model: .limits.session.models}'
+```
+
+**Important notes**:
+- `OLLAMA_API_KEY` is **only** for `/api/usage`. Direct Bearer inference against
+  ollama.com is NOT wired (D3 future work) — inference goes through the local daemon.
+- `/api/usage` is a **numerator with no denominator**: `limits.{session,weekly}.usage`
+  is a coarse level, no limit/remaining/reset_at field is published (V26), so a
+  pre-flight "refuse to start if quota is low" gate is unbuildable.
+- `activity.cost` always reports `"0.00000"` — flat-rate subscription, which is exactly
+  why models.yml pricing is IMPUTED from the OpenRouter twin (D1) and banks as
+  `list-price-equivalent`, never `0/0` (that maps to the false `free-local` provenance).
+- Model weights × (input, cached input, output) tokens meter at **usage levels 1–4**
+  (`gpt-oss:20b` = 1, `deepseek-v4-pro` = 4). Session limit resets 5h; weekly 7d.
+  Tiers (V9): Free = 1 concurrent model, Pro = 3, Max = 10 (Max paused for new subs).
+- The response `model` field is the BASE name (suffix stripped by the proxy, V21) and
+  ollama's ollama provider historically reported 0 tokens from the native API path —
+  the `/v1` path returns standard OpenAI usage shape (V27, fixed).
+- Reasoning models can burn the whole output budget on thinking at low `max_tokens`
+  (V25) — same lesson as the GLM-5.2 truncation; probe with ≥2000.
+- Concurrency: cloud rows are EXEMPT from the single-GPU serial clamp (D4, they load
+  nothing on the GPU), but ANY motoko row still serializes on its fixed backend port.
+
+**Documentation**: https://docs.ollama.com/cloud · https://ollama.com/pricing (V9)
 
 ---
 
 ## Common Errors
 
 ### 401 Unauthorized
-- **OpenAI**: Check `OPENAI_API_KEY` is set
-- **Anthropic**: Check `ANTHROPIC_API_KEY` is set
-- **Google**: Run `gcloud auth application-default login`
+- OpenAI/Anthropic/Google: key missing, revoked, or wrong header shape
+- Ollama Cloud: not signed in (`ollama signin`) for inference; bad/expired
+  `OLLAMA_API_KEY` for the gauge
 
 ### 403 Forbidden
-- **OpenAI**: API key may be invalid or quota exceeded
-- **Anthropic**: API key invalid or account issue
-- **Google**: Check GCP project permissions
+- Key lacks access to the model or region
+- Google: model not allowlisted for your project
 
 ### 404 Not Found
-- **OpenAI**: Model name incorrect (check for typos)
-- **Anthropic**: Model name incorrect (check date suffix)
-- **Google**: Model not yet available in Vertex AI (check again in 1-2 weeks)
+- Model not available yet (OpenAI/Vertex: check again in 1-2 weeks)
+- Ollama Cloud: model not in `GET https://ollama.com/v1/models`
+- Ollama `/api/usage` 404 on the LOCAL daemon: wrong host — the gauge lives on
+  ollama.com only (V24)
 
 ### 429 Rate Limit
-- Wait and retry with exponential backoff
-- Consider upgrading API tier (OpenAI)
-- Check quota limits (Google Cloud Console)
-
----
+- Transient burst limit, distinct from account cap
+- Ollama Cloud over-concurrency: requests are **queued, not rejected**
 
 ## Pricing Endpoints
 
-**OpenAI**: https://openai.com/api/pricing/
-**Anthropic**: https://www.anthropic.com/pricing
-**Google**: https://ai.google.dev/pricing
-
-Convert pricing:
-- **Per 1M tokens** → **Per 1K tokens**: Divide by 1000
-- Example: $1.25 per 1M = $0.00125 per 1K
+- OpenAI: https://openai.com/api/pricing/
+- Anthropic: https://www.anthropic.com/api#pricing
+- Google: https://cloud.google.com/vertex-ai/pricing
+- OpenRouter (all vendors, machine-readable): `GET https://openrouter.ai/api/v1/models` —
+  used by `make verify-model-pricing` to diff models.yml rates against the live catalogue
+- Ollama: subscription tiers (Free/Pro/Max) — no per-token price published; impute
+  from the OpenRouter twin per D1
