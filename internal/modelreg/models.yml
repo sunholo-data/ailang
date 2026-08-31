@@ -4066,10 +4066,22 @@ models:
       Headroom: at 65536 the worst-case output bill is $0.29/run at $4.40/M —
       thinking is NOT trivial at this price (unlike flash ≈ $0.016), so budget
       max_cost_usd to the or-kimi-k3 precedent (0.60) rather than flash's 0.30.
-      SMOKE + CORE GATES: PENDING — opt-in only via `--models or-glm-5-3`.
-      Gate path per skill §5/§5.5: `--tier smoke` floor, then core head-to-head
-      vs the family incumbent (or-glm-5-3-flash) + sonnet-4-6 anchor in ONE
-      command. Do not suite-promote on a smoke pass (saturated floor).
+      SMOKE (floor) 2026-08-31: PASSED — 23/23 first pass, whole tier $1.38
+      (vs flash's same-day 23/23 at $0.0567 — ~24x per the list-price gap),
+      zero finish=length at 65536 anywhere (the GLM-5.2 trap is clear),
+      reason_tokens median ~1,228 max 23,573 — thinks harder on the structured
+      benches (fold_reduce/parallel_map_reduce/adt_option run 42-51k total
+      tokens vs flash's flat ~28k) without approaching the ceiling. Same-day
+      incumbent re-run settles the 2026-08-27 adt_option flake question: it
+      passed first try in BOTH models today.
+      CORE (ranking) PENDING — needs the paired head-to-head vs incumbent
+      or-glm-5-3-flash in ONE same-day command: `ailang eval-suite --models
+      or-glm-5-3,or-glm-5-3-flash --tier core --langs ailang --output
+      /tmp/core_or-glm-5-3 --parallel 4` (est ~$1.4 at current rates; deferred
+      on OpenRouter budget exhaustion 2026-08-31, $1.45 of $200 left). Per
+      skill §5.5: only promote/replace if the flagship matches-or-beats flash
+      on core — a tie at ~18x the cost does NOT earn the extended_suite slot
+      (precedent: the flash-vs-5.2 swap logic). Smoke pass alone = opt-in.
 
   or-glm-5-3-flash:
     api_name: "z-ai/glm-5.3-flash"
