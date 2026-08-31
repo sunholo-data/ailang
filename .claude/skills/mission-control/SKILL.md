@@ -3539,17 +3539,37 @@ above), but "the destination gained what the source lost" is a property of every
      — the human-facing bookkeeping thread (Mark reads by email; number comes from the driver env /
      `~/.ailang/state/mission-${MISSION_NAME}-gh-issue`, NOT hardcoded and NOT the bare,
      fleet-shared `mission-gh-issue` — see the Repo Profile).
-   **The digest — ≤20 lines / ≤1,500 chars, exactly these sections, nothing else:**
+   **The digest — ≤26 lines / ≤2,200 chars, exactly these sections, nothing else (Mark directive
+   2026-08-31: the report exists so Mark can PRIORITIZE — goal distance, the banked queue and
+   complete decision asks go IN; narrative goes OUT):**
    ```
    **Iteration N — <one-line headline>**
    - **Pick**: <item> (<why in ≤1 clause, only if not the queue head>)
-   - **Outcome**: LANDED/PARKED/none · evaluator <score> · <commit SHAs as links>
-   - **Key find**: <≤2 sentences — only if genuinely load-bearing, else omit the row>
+   - **Outcome**: LANDED/PARKED/none · [PRODUCT|HARNESS|ADMIN|REFUTATION] · evaluator <score> · <commit SHAs as links>
+   - **Progress**: <distance to the charter's finish line, in the charter's own countable unit —
+     e.g. "sweep 7/93 sites converted (M1 of 4 milestones)" — then what THIS iteration moved.
+     A HARNESS/ADMIN iteration writes "goal unmoved" in those words.>
+   - **Up next (banked)**: <top 2-3 READY queue items, each "<item> — <why it ranks>" on one line>
+   - **Key find**: <≤2 sentences, ONLY if it should change Mark's priorities — else omit the row>
    - **Cost**: metered $<x> · quota buckets <list>
-   - **Next**: <one line>
-   - **DECISIONS FOR MARK**: <bulleted asks phrased for one-word replies, or "none">
+   - **DECISIONS FOR MARK**: "none", or one bullet per ask. A complete ask carries INLINE: the
+     question in one sentence · each option with a one-line consequence · the loop's own
+     recommendation · the default if unanswered (and when it triggers). Model on
+     D-MOTOKO-WORKDIR-2, answered in 21 characters BECAUSE the ask was complete. An ask Mark
+     must research before answering is not an ask; it is homework, and it will sit unanswered.
    Full record: <link to the charter STATUS entry / log>
    ```
+   Work-class tags (tag honestly — the weekly report aggregates the mix, and "everything is
+   HARNESS" is itself the signal Mark is watching for): PRODUCT = an AILANG user or eval model
+   experiences the change (language, stdlib, prompts, examples, published docs, registry, eval
+   benchmarks as a surface); HARNESS = loop/CI/routing/observability/git-hygiene machinery;
+   ADMIN = bookkeeping only; REFUTATION = a premise died, nothing shipped.
+   Mirror the class tag into the Gate-4 log headline (trailing `[CLASS]`) and repeat the same
+   `**Progress**:` line inside the log entry — `tools/mission-weekly-report.py` parses both the
+   way it already parses `**Next**` (the log keeps its `**Next**` field; only the digest replaces
+   Next with the banked list). If the charter defines no measurable finish line, write
+   "Progress: charter has no finish line" — and that sentence is a standing Gate-5 process-fix
+   trigger to add one (a goal block with a countable unit), outranking other retro lanes.
    The DECISIONS row is first-class — it is the one section Mark acts on; never bury an ask in
    prose. No gate-by-gate narration, no routing-evidence dump, no war stories (those belong in
    Gate 4's charter/log record). End the body with:

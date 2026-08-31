@@ -827,13 +827,28 @@ export CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS="${CLAUDE_CODE_PRINT_BG_WAIT_CEILING
 # dependency of every fire. Instead, a post failure is itself LOUD in the driver log — the one
 # thing the old code never was.
 if [ -n "$_lane_degraded" ]; then
-  _deg_body="**Executor/planner lane degraded on this fire** — recorded before the iteration ran.
+  # EPISODE-GATED (Mark 2026-08-31: identical per-fire notices train the channel to be ignored —
+  # the motoko thread was 10/12 machine boilerplate during one weekend dry-out). Same protocol as
+  # BLOCKED_FILE: announce on the FIRST fire of an episode and on any CHANGE, stay quiet while the
+  # fingerprint holds, clear the marker the moment the condition heals so the next episode
+  # announces again. The fingerprint strips digits so a moving counter (drift, rc) cannot defeat
+  # the gate. Suppressed fires still log — the driver log keeps the full series.
+  _lane_ep="$STATE_DIR/mission-${MISSION_NAME:-control}-lane-degraded.episode"
+  _lane_fp=$(printf '%s' "$_lane_degraded" | tr -d '0-9')
+  log "LANE DEGRADED this fire:$(printf '%s' "$_lane_degraded" | tr '\n' ' ')"
+  if [ -f "$_lane_ep" ] && [ "$(cat "$_lane_ep" 2>/dev/null)" = "$_lane_fp" ]; then
+    log "lane degradation unchanged this episode — notice suppressed ($_lane_ep)"
+  else
+    printf '%s' "$_lane_fp" > "$_lane_ep"
+    _deg_body="**Executor/planner lane degraded on this fire** — recorded before the iteration ran.
 ${_lane_degraded}
 
 Controller: \`${MODEL}\` (${MODEL_WHY}). Effective roles now: designer=\`${MISSION_DESIGNER_MODEL}\` planner=\`${MISSION_PLANNER_MODEL}\` executor=\`${MISSION_EXECUTOR_MODEL}\` evaluator=\`${MISSION_EVALUATOR_MODEL}\`.
-Driver log: \`${LOG}\`. If this repeats across fires, the lane is down — check the bucket, and check that this mission's plist carries a PATH that reaches the CLI (the World mission lost five iterations to exactly that)."
-  log "LANE DEGRADED this fire:$(printf '%s' "$_lane_degraded" | tr '\n' ' ')"
-  _mc_notify "Mission ${MISSION_NAME}: executor/planner lane degraded" "$_deg_body" "lane-degradation"
+Driver log: \`${LOG}\`. If this repeats across fires, the lane is down — check the bucket, and check that this mission's plist carries a PATH that reaches the CLI (the World mission lost five iterations to exactly that). Identical notices are suppressed until the degradation changes or heals."
+    _mc_notify "Mission ${MISSION_NAME}: executor/planner lane degraded" "$_deg_body" "lane-degradation"
+  fi
+else
+  rm -f "$STATE_DIR/mission-${MISSION_NAME:-control}-lane-degraded.episode"
 fi
 
 # DRIVER-PIN NOTICE — same site and same reasoning as the lane notice above: after every early
@@ -842,14 +857,27 @@ fi
 # is hazardous to interactive sessions; a persisted doubling threshold replaces posting it every
 # 90 minutes, which would train the channel to be ignored.
 if [ -n "$_pin_degraded" ]; then
-  _pin_body="**Driver ran UNPINNED on this fire** — recorded before the iteration ran.
+  # EPISODE-GATED — same gate and reasoning as the lane notice above (Mark 2026-08-31). The
+  # digit-stripped fingerprint means a growing behind-count alone does not re-post; the REASON
+  # changing (different clone, different failure) does.
+  _pin_ep="$STATE_DIR/mission-${MISSION_NAME:-control}-driver-pin.episode"
+  _pin_fp=$(printf '%s' "$_pin_degraded" | tr -d '0-9')
+  if [ -f "$_pin_ep" ] && [ "$(cat "$_pin_ep" 2>/dev/null)" = "$_pin_fp" ]; then
+    log "driver-pin failure unchanged this episode — notice suppressed ($_pin_ep)"
+  else
+    printf '%s' "$_pin_fp" > "$_pin_ep"
+    _pin_body="**Driver ran UNPINNED on this fire** — recorded before the iteration ran.
 ${_pin_degraded}
 
 Mission \`${MISSION_NAME}\`. Driver log: \`${LOG}\`. The fire still ran; only its code provenance is
 unknown. Fix: reconcile that clone with \`origin/dev\`, or find why the fetch failed. Until then
 every fire silently runs whatever that working tree happens to hold — the class \`#558\` tracks,
-measured twice (2026-08-03 \`#556\`, 2026-08-12 \`564cc4640\`)."
-  _mc_notify "Mission ${MISSION_NAME}: driver ran UNPINNED (code provenance unknown)" "$_pin_body" "driver-pin"
+measured twice (2026-08-03 \`#556\`, 2026-08-12 \`564cc4640\`). Identical notices are suppressed
+until the failure changes or the pin recovers."
+    _mc_notify "Mission ${MISSION_NAME}: driver ran UNPINNED (code provenance unknown)" "$_pin_body" "driver-pin"
+  fi
+else
+  rm -f "$STATE_DIR/mission-${MISSION_NAME:-control}-driver-pin.episode"
 fi
 
 if [ -n "$_pin_drift_degraded" ]; then
@@ -970,6 +998,7 @@ if [ "$RC" -ne 0 ]; then
     # The mission log gained a record during this run: the work landed and the
     # non-zero exit is a late kill of a lingering child, not a lost iteration.
     log "iteration exited rc=$RC AFTER recording itself — late kill, work landed"
+    rm -f "$STATE_DIR/mission-${MISSION_NAME:-control}-rcfail.episode"   # not a crash episode
     ailang messages send controlplane \
       "mission-control iteration exited rc=$RC AFTER its mission-log record landed (late watchdog kill of a lingering child, not a lost iteration). Record: ${post_last_record:0:160}. Log: $LOG" \
       --title "Mission iteration killed post-record (rc=$RC) — work landed" --from "$MSG_FROM" 2>/dev/null
@@ -977,14 +1006,26 @@ if [ "$RC" -ne 0 ]; then
       --body "ℹ️ Mission iteration exited **rc=$RC after landing its record** at $(date '+%F %H:%M %Z') — the mission log gained an entry during this run, so this was a late watchdog kill of a lingering child, not a lost iteration. The queue advanced normally. Log on the rig: \`$LOG\`." 2>/dev/null
   else
     log "iteration exited rc=$RC"
-    ailang messages send controlplane \
-      "mission-control iteration exited rc=$RC (timeout or crash). Log: $LOG" \
-      --title "Mission iteration FAILED (rc=$RC)" --from "$MSG_FROM" 2>/dev/null
-    [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-      --body "⚠️ Mission iteration **FAILED to complete** (rc=$RC — timeout or crash) at $(date '+%F %H:%M %Z'). Log on the rig: \`$LOG\`. The queue is untouched; the next interval will retry." 2>/dev/null
+    # EPISODE-GATED on the rc value (Mark 2026-08-31): consecutive identical crashes post ONCE,
+    # then stay quiet until the rc changes or an iteration completes — motoko's weekend dry-out
+    # put four identical rc=1 comments on the thread with zero new information. The driver log
+    # keeps every occurrence; the marker clears on any rc=0 (and on the landed-record branch,
+    # which posts its own distinct notice).
+    _rc_ep="$STATE_DIR/mission-${MISSION_NAME:-control}-rcfail.episode"
+    if [ -f "$_rc_ep" ] && [ "$(cat "$_rc_ep" 2>/dev/null)" = "$RC" ]; then
+      log "rc=$RC failure unchanged this episode — notice suppressed ($_rc_ep)"
+    else
+      printf '%s' "$RC" > "$_rc_ep"
+      ailang messages send controlplane \
+        "mission-control iteration exited rc=$RC (timeout or crash). Log: $LOG" \
+        --title "Mission iteration FAILED (rc=$RC)" --from "$MSG_FROM" 2>/dev/null
+      [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
+        --body "⚠️ Mission iteration **FAILED to complete** (rc=$RC — timeout or crash) at $(date '+%F %H:%M %Z'). Log on the rig: \`$LOG\`. The queue is untouched; the next interval will retry. Further identical failures are silent until the rc changes or an iteration completes." 2>/dev/null
+    fi
   fi
 else
   log "iteration complete (rc=0)"
+  rm -f "$STATE_DIR/mission-${MISSION_NAME:-control}-rcfail.episode"
   # The skill itself sends the substantive report (Gate 5, both channels).
 fi
 exit "$RC"
