@@ -323,8 +323,34 @@ func (s *ObservatoryStore) UpdateStageStatus(ctx context.Context, stageID string
 	if stageStatus == obs.StageStatusCompleted || stageStatus == obs.StageStatusFailed {
 		updates = append(updates, firestore.Update{Path: "completed_at", Value: time.Now()})
 	}
-	_, err := s.client.Doc(collObsChainStages, stageID).Update(ctx, updates)
-	return err
+	if _, err := s.client.Doc(collObsChainStages, stageID).Update(ctx, updates); err != nil {
+		return err
+	}
+	if stageStatus != obs.StageStatusCompleted {
+		return nil
+	}
+
+	// Parity with the SQLite store (store_chains.go: "increment chain's
+	// stages_completed counter"). This backend's ListChains REPORTS that
+	// denormalized field rather than counting stage documents, so without the
+	// increment every cloud chain reads "0 stages" however many it really
+	// holds — which is precisely how a populated store came to look empty.
+	// The status write above is already durable; a counter failure is returned
+	// named rather than swallowed, so it cannot silently reappear as 0.
+	stage, err := s.GetStage(ctx, stageID)
+	if err != nil {
+		return fmt.Errorf("stage status written, but reading it back for the chain counter failed: %w", err)
+	}
+	if stage.ChainID == "" {
+		return nil
+	}
+	if _, err := s.client.Doc(collObsChains, stage.ChainID).Update(ctx, []firestore.Update{
+		{Path: "stages_completed", Value: firestore.Increment(1)},
+		{Path: "updated_at", Value: time.Now()},
+	}); err != nil {
+		return fmt.Errorf("stage status written, but incrementing stages_completed on chain %s failed: %w", stage.ChainID, err)
+	}
+	return nil
 }
 
 func (s *ObservatoryStore) UpdateStageSession(ctx context.Context, stageID, sessionID string) error {

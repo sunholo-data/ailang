@@ -124,14 +124,8 @@ func (s *Server) handleClaudeSessionStart(ctx context.Context, p ClaudeHookPaylo
 		return
 	}
 
-	var corr *observatory.SessionCorrelation
-	if p.TaskID != "" || p.ChainID != "" || p.StageID != "" || p.MessageID != "" {
-		corr = &observatory.SessionCorrelation{
-			TaskID:    p.TaskID,
-			ChainID:   p.ChainID,
-			StageID:   p.StageID,
-			MessageID: p.MessageID,
-		}
+	corr := hookCorrelation(p)
+	if corr != nil {
 		log.Printf("claude-hooks: SessionStart with correlation task=%s chain=%s stage=%s msg=%s",
 			p.TaskID, p.ChainID, p.StageID, p.MessageID)
 	}
@@ -154,11 +148,43 @@ func (s *Server) handleClaudeSessionStart(ctx context.Context, p ClaudeHookPaylo
 	}
 }
 
+// hookCorrelation builds the AILANG correlation record from the headers the
+// coordinator sets, or nil when this session carries no correlation at all.
+func hookCorrelation(p ClaudeHookPayload) *observatory.SessionCorrelation {
+	if p.TaskID == "" && p.ChainID == "" && p.StageID == "" && p.MessageID == "" {
+		return nil
+	}
+	return &observatory.SessionCorrelation{
+		TaskID:    p.TaskID,
+		ChainID:   p.ChainID,
+		StageID:   p.StageID,
+		MessageID: p.MessageID,
+	}
+}
+
+// ensureSessionForHook guarantees the parent sessions row exists before a child
+// row points at it. session_tools carries a FOREIGN KEY onto sessions, so any
+// session that began before this server was listening — every session already
+// running when the process starts — has EVERY tool event rejected for the rest
+// of its life while the hook still answers 200. The upsert is idempotent and
+// COALESCEs the correlation ids, so calling it on each tool event cannot lose
+// what SessionStart recorded.
+func (s *Server) ensureSessionForHook(ctx context.Context, p ClaudeHookPayload) {
+	if p.SessionID == "" || p.Cwd == "" {
+		return
+	}
+	if err := s.obsBackend.UpsertSessionWithCorrelation(ctx, p.SessionID, p.Cwd, p.Model, "http-hook", hookCorrelation(p)); err != nil {
+		log.Printf("claude-hooks: ensure-session upsert error: %v", err)
+	}
+}
+
 func (s *Server) handleClaudePreToolUse(ctx context.Context, p ClaudeHookPayload) {
 	if p.SessionID == "" || p.ToolName == "" {
 		log.Printf("claude-hooks: PreToolUse missing session_id or tool_name")
 		return
 	}
+
+	s.ensureSessionForHook(ctx, p)
 
 	toolUseID := p.ToolUseID
 	if toolUseID == "" {
