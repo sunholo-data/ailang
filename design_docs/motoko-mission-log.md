@@ -3060,10 +3060,17 @@ this fire started, so the owning-mission rule held twice over: the red did not d
 no duplicate fix was opened — the `#758`/`#759` lesson. It merged as `f78b1d451` and this branch was
 rebased onto it before landing.
 
-**Gate 3b.** GREEN on PR head `1caf02e44`: **21** checks, **0** pending, **0** not-green,
-`mergeable` read first per the iteration-198 rule (`MERGEABLE`/`CLEAN`), all **4/4** required contexts
-(`test`, `lint`, `build`, `docs-gate`) green. Merged as
-[`4bd58bef6`](https://github.com/sunholo-data/ailang/commit/4bd58bef6).
+**Gate 3b — read on the MERGE, not merely on the PR head.** PR head `1caf02e44`: **21** checks,
+**0** pending, **0** not-green, `mergeable` read first per the iteration-198 rule
+(`MERGEABLE`/`CLEAN`), all **4/4** required contexts green. Merged as
+[`4bd58bef6`](https://github.com/sunholo-data/ailang/commit/4bd58bef6), whose own check set is
+**16** checks, **0** pending, **1** not-green: `SonarCloud Code Analysis`. Rule 3d's parent-walk
+before attributing it — it is `failure` on the parent `f78b1d451` and on `15cec372b` and `d3e4e59cf`,
+while `d65a0900c` and `ebc089c33` carry **no Sonar check at all**, which is the negative control. So
+it is inherited, non-required, and V1's to own; it is named here rather than left invisible.
+`docs-gate` does not appear on the merge commit at all — path-filtered — and passed on the PR head,
+where the merge button was gated; that is the reading iteration 25 recorded and it still holds.
+`launchd drivers (bash 3.2)`, the CI leg that actually executes this suite, is **success** on both.
 
 **Weekly sweep, and its headline number is a property of the fleet rather than a backlog.** **94**
 open issues enumerated — the list length quoted beside the verdict so a truncated enumeration cannot
