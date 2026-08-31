@@ -2,56 +2,41 @@
 
 *Snapshot, overwritten every iteration. History lives in the charter STATUS block and the mission log.*
 
-**Last iteration**: 27 · 2026-08-28 · **LANDED** — first iteration since 23 to reach the queue head
-(24, 25 and 26 were each preempted by a loop-health regression).
+**Last iteration**: 30 · 2026-08-31 · **LANDED** [HARNESS] — and it recovered **two** dead slots
+(28 and 29) that had left no record at all.
 
 ## What landed
 
-Row **6h** — PR [#946](https://github.com/sunholo-data/ailang/pull/946), evaluator round 1
-**PASS 94/100, ZERO blocking**. `openai.ChatStepResponse.Usage` was a **value type**, so an omitted
-`usage` key unmarshalled to the zero struct and the guard issue #842 asked for was not merely missing,
-it was **inexpressible**. Now `*ChatStepUsage`. Representation only — a 16-case differential harness
-built by the judge shows byte-identical output vs the parent for every input including `usage:null`
-and `usage:[]`. Policy (step 2) stays deferred on purpose. `internal/ai/ollama` parses through this
-path, so the defect sat on our own eval rig.
+Row **6i** — PR [#985](https://github.com/sunholo-data/ailang/pull/985) → `4bd58bef6`, evaluator
+round 1 **PASS 87/100, ZERO blocking**. The production `run_lane` process-group kill now has a
+behavioural gate: reverting it to a single-PID kill takes the suite from rc=0/41 ok to **rc=1 with
+arm 36 the only `not ok`** (`survivors=1`, emergency outer cap not fired). Before this row, the same
+revert left the suite green **40/40**.
 
-## ⚠ The loop is still running stale code and cannot fix itself
+The milestone was written by iteration **29**'s codex executor, which died before pushing it; 30
+inherited the branch, re-derived every load-bearing claim first-party, and landed the missing design
+doc and sprint plan. Iteration **28** likewise landed `61859c35d` and discharged `D-MOTOKO-WORKDIR-2`
+without writing a single record row. Both are credited in the log now.
 
-This fire logged `DRIVER PIN FAILED` at **02:03:09** and executed the source clone at `e3ed9467f` —
-now **205** commits behind `origin/dev` (172 one day ago, 152 the day before). Sprint work was done in
-worktrees branched from `origin/dev`, so nothing shipped from the stale tree; the cost is that every
-iteration pays a re-derivation tax and iteration 25's own fix has still never executed here.
+## Loop health
 
-**The predicate is sharper than "how far behind"** (measured this iteration, both clones, one command):
-`git merge-base --is-ancestor ff0da7445 HEAD` — **NO** for motoko, **YES** for V1. V1 is *still 18
-commits behind* and pins fine, so currency was never the condition; carrying the fix is. V1's last
-`DRIVER PIN FAILED` was 2026-08-27 07:10 and it has fired cleanly since — it **recovered**. motoko
-structurally cannot, because the tree that would have to read the fix is the one that is stale.
+- **Two consecutive slots died mid-flight.** The loop cannot diagnose why; the frequency is the signal.
+- Dev CI was red on V1's embedded-pi-assets drift — not motoko's, already fixed in flight by `#983`.
+  Recorded; no duplicate fix opened.
+- Running skill, source clone and pin worktree are **all three byte-identical to `origin/dev`** — the
+  first fire on record where that holds. The clone self-reconciled under Mark's standing authorization.
 
-## Parked on Mark — one decision, and this is the sixth ask
+## Up next (banked)
 
-**`D-MOTOKO-WORKDIR-2`** — grant *standing* authorization to reconcile the source clone to
-`origin/dev` unattended when three predicates hold (0 ahead · no dirty file whose content differs from
-origin · sha256-verified backup). Measured again this iteration: **0 ahead, 0 dirty in the clone and 0
-across all nine worktrees**. One word: **yes** (standing) or **no** (keep asking).
+1. **6n** — the wall-clock discovery arm cannot fail for the reason it names (reported at `#975`,
+   reproduced first-party here). Same class as 6i, one arm over.
+2. **6o** — only the TERM half of the group kill is pinned; the SIGKILL escalation has zero killers.
+3. **6j** — `launchd drivers (bash 3.2)` arm 33 hangs intermittently on the runner.
 
-## Queue
+Migration epic (10/11/12) stays Phase-0 gated: upstream `motoko_agent#154` re-read as a command, still **OPEN**.
 
-- **Next**: row **6i** — the production `run_lane` process-group kill is pinned by nothing
-- then **6m** (new, filed this iteration): `cacheRead = usage.PromptTokensDetails.CachedTokens` has
-  zero killers; `cache_usage_test.go` looks like coverage and reaches a different code path entirely
-- then **6j** (`launchd drivers` arm 33 hangs on the runner), **6l** (pin bootstrap trap, blocked by
-  the decision above), **7**, **8**
-- **Parked, Phase-0 gated**: rows 10/11/12 — re-measured as a command this iteration, upstream
-  `arniwesth/motoko_agent#154` still **OPEN** (control `#175` **MERGED**, negative control 404s)
+## Routing · cost · parked
 
-## Loop posture
-
-Cadence 12h · controller `claude:claude-opus-5` · executor `codex:gpt-5.6-sol` (probe rc=0, one run,
-no fallback) · evaluator **sonnet** in its own worktree · no designer, no planner, no quorum.
-Designer rotation pointer untouched at `claude:claude-fable-5`; **Fable unspent**.
-Metered **$0.00** of $5 — every lane used was a quota bucket. No GPU, no `rig.lock`.
-
-**dev CI**: one not-green, inherited and not ours — `SonarCloud Code Analysis`, non-required, first red
-at `caea1f9e1` (V1's M-EVAL-ROLLING-ELO merge), conditions *64.2% coverage on new code* and
-*B security rating on new code*. Handed to V1 with delivery asserted.
+Controller `claude:claude-opus-5`; evaluator `sonnet`, own worktree, distinct provider from the codex
+executor; no designer/planner/executor ran (all three inherited from 29). Fable unspent, metered
+**$0.00** of $5. **Parked on Mark: nothing** — ledger is 5 rows, 0 OPEN, the first such iteration since 21.
