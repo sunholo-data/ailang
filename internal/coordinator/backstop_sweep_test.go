@@ -195,3 +195,87 @@ func TestBackstopSweepOffDoesNotSweepOnStartup(t *testing.T) {
 		t.Errorf("off mode swept anyway and enqueued %d", n)
 	}
 }
+
+// TestBackstopSweepCarriesDispatchSemantics is the regression arm for the prod
+// loop of 2026-08-31.
+//
+// The sweep built its Message from six fields and dropped two that decide what
+// happens next: Kind (isOutcomeNotice reads it) and CreatedAt (the task inherits
+// it and the stale detector ages the task from it). Both losses are silent — the
+// message is enqueued, dispatch "succeeds", and the damage shows up one hop away.
+//
+// MU: delete either field from the Enqueue in backstop_sweep.go and this fails.
+func TestBackstopSweepCarriesDispatchSemantics(t *testing.T) {
+	reg := NewAgentRegistry()
+	mustRegister(t, reg, "docparse", "docparse")
+
+	created := time.Date(2026, 8, 31, 10, 20, 58, 0, time.UTC)
+	store := &sweepStore{msgs: []messaging.InboxMessage{
+		{
+			ID:          "inbox_req",
+			ToInbox:     "docparse",
+			FromAgent:   "ailang-parse-c",
+			Title:       "Redeploy needed",
+			MessageType: "request",
+			CreatedAt:   created,
+		},
+	}}
+
+	adapter := &PubSubInboxAdapter{logger: log.New(io.Discard, "", 0)}
+	s := NewBackstopSweep(store, reg, adapter, log.New(io.Discard, "", 0))
+	s.mode = BackstopDispatch
+	s.SweepOnce(context.Background())
+
+	if len(adapter.buffered) != 1 {
+		t.Fatalf("recovered %d message(s), want 1", len(adapter.buffered))
+	}
+	got := adapter.buffered[0]
+
+	if got.Kind != "request" {
+		t.Errorf("Kind = %q, want %q — dropping Kind makes every completion notice "+
+			"read as a request for work", got.Kind, "request")
+	}
+	if !got.CreatedAt.Equal(created) {
+		t.Errorf("CreatedAt = %v, want %v — a zero CreatedAt reaches the task record, "+
+			"and time.Since(zero) is ~292 years, so the stale detector kills the task "+
+			"on the first tick after dispatch", got.CreatedAt, created)
+	}
+}
+
+// TestBackstopSweepIgnoresOutcomeNotices: a completion notice is posted INTO the
+// inbox of the agent that ran the task, so it is unread and routable by
+// construction. Counting it as "push did not deliver this" reports a permanent
+// backlog for a healthy plane, and recovering it dispatches a report as work —
+// whose failure posts another report.
+//
+// MU: remove the isOutcomeNotice guard from the filter loop and this fails.
+func TestBackstopSweepIgnoresOutcomeNotices(t *testing.T) {
+	reg := NewAgentRegistry()
+	mustRegister(t, reg, "docparse", "docparse")
+
+	store := &sweepStore{msgs: []messaging.InboxMessage{
+		{ID: "inbox_notice", ToInbox: "docparse", FromAgent: "docparse",
+			Title: "Task task-a855b349: failed (timeout)", MessageType: "completion",
+			CreatedAt: time.Now()},
+		{ID: "inbox_real", ToInbox: "docparse", FromAgent: "ailang-parse-c",
+			Title: "Redeploy needed", MessageType: "request", CreatedAt: time.Now()},
+	}}
+
+	var logBuf strings.Builder
+	adapter := &PubSubInboxAdapter{logger: log.New(io.Discard, "", 0)}
+	s := NewBackstopSweep(store, reg, adapter, log.New(&logBuf, "", 0))
+	s.mode = BackstopDispatch
+	s.SweepOnce(context.Background())
+
+	if len(adapter.buffered) != 1 {
+		t.Fatalf("recovered %d message(s), want exactly 1 (the request, not the notice)",
+			len(adapter.buffered))
+	}
+	if got := adapter.buffered[0].ID; got != "inbox_real" {
+		t.Errorf("recovered %q, want inbox_real — a completion notice is not lost work", got)
+	}
+	// The count in the log is the operator-facing signal; a notice must not inflate it.
+	if strings.Contains(logBuf.String(), "found 2 unread") {
+		t.Errorf("sweep counted the completion notice as undelivered work:\n%s", logBuf.String())
+	}
+}

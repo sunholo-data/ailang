@@ -34,6 +34,19 @@ First session per machine prompts once to trust the project; after that every
 session arms the gate and gets the tools (`ailang_check`, `builtins_search`,
 `freshness_report`, `quota_report`). Verify with `pi -p --no-session "call quota_report"`.
 
+**⚠ Headless sessions never see that prompt and are silently extension-less until
+trust is saved** (measured 2026-08-31 on pi 0.84.4; pi ≤0.73 had no gate at all).
+`-p` / `--mode json` / `--mode rpc` show no trust prompt — with no saved decision they
+fall back to `defaultProjectTrust: "ask"`, which *ignores* project resources and reports
+no error anywhere. The fix is one saved decision in `~/.pi/agent/trust.json` (flat map,
+canonical path → `true`, parent directories inherit): trust the PARENT that contains all
+checkouts and worktrees, e.g. on the rig `/Users/voightkampff/dev/sunholo-data` and
+`/Users/voightkampff/.ailang-driver-pin`. Fresh mission worktrees are new paths every
+fire, so per-project trust does not scale — parent trust is the mechanism. And when
+verifying, require `tool_execution_start`/`end` events in the JSON stream: a substring
+match on the tool name is satisfied by the model merely *echoing* it, and `pi list`
+lists settings-installed packages only, not repo-auto extensions.
+
 ### Tier 2 — cloud/fleet images: installed at build time
 
 `docker/Dockerfile.agent-pi` runs `ailang pi install` as the `ailang` runtime

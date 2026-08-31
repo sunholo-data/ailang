@@ -4,13 +4,73 @@ set -uo pipefail
 script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 probe=${PROBE_UNDER_TEST:-$script_dir/motoko_connection_probe.sh}
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/test-motoko-connection-probe.XXXXXX") || exit 1
-trap 'rm -rf "$tmp_dir"' EXIT
+trap '[[ -z "${active_fixture_dir:-}" ]] || cleanup_fixture_sleeps "$active_fixture_dir" || true; rm -rf "$tmp_dir"' EXIT
 arms=0
 ARM_CAP_SECS=${PROBE_SELFTEST_ARM_CAP_SECS:-120}
 if [[ ! "$ARM_CAP_SECS" =~ ^[1-9][0-9]*$ ]]; then
   echo "not ok - PROBE_SELFTEST_ARM_CAP_SECS must be a positive integer" >&2
   exit 1
 fi
+
+host_os=$(uname -s 2>/dev/null || printf '%s\n' unknown)
+REAL_LSOF=$(command -p -v lsof 2>/dev/null || true)
+skip_run_lane_fixture=0
+case "$REAL_LSOF" in
+  /*) [[ -x "$REAL_LSOF" ]] || REAL_LSOF="" ;;
+  *) REAL_LSOF="" ;;
+esac
+if [[ "$host_os" == Darwin && -z "$REAL_LSOF" ]]; then
+  echo "not ok - run_lane fixture arm requires real lsof on Darwin CI target" >&2
+  exit 1
+fi
+if [[ "$host_os" != Darwin ]]; then
+  skip_run_lane_fixture=1
+fi
+
+# One exact-cwd oracle serves both process-group fixtures. REAL_LSOF is resolved
+# before live_bin exists, so the stub lsof THIS SUITE installs below can only serve
+# production TCP sampling and cannot make a cwd survivor verdict vacuously green.
+# Scope that claim honestly: it covers the stub we install, not every hostile PATH.
+# Measured on the CI shell (GNU bash 3.2.57, arm64-apple-darwin25): `command -p -v`
+# still consults the ambient PATH, so a shadowing lsof placed ahead of
+# `getconf PATH` BEFORE this script starts resolves as REAL_LSOF
+# (control: clean PATH and a hostile dir without lsof both give /usr/sbin/lsof).
+# Hardening that resolution against an ambient hijack is tracked as charter row 6o.
+fixture_sleep_pids() {
+  local fixture_dir=$1
+  [[ -z "${FIXTURE_SLEEP_MARKER:-}" ]] ||
+    printf 'fixture-lsof path=%s cwd=%s\n' "$REAL_LSOF" "$fixture_dir" >> "$FIXTURE_SLEEP_MARKER"
+  "$REAL_LSOF" -a -c sleep -d cwd 2>/dev/null |
+    awk -v fixture_dir="$fixture_dir" 'NR > 1 && $NF == fixture_dir { print $2 }'
+}
+
+fixture_sleep_count() {
+  fixture_sleep_pids "$1" | awk 'NF { count++ } END { print count+0 }'
+}
+
+cleanup_fixture_sleeps() {
+  local fixture_dir=$1 survivor_pid deadline remaining
+  for survivor_pid in $(fixture_sleep_pids "$fixture_dir"); do
+    kill -TERM "$survivor_pid" 2>/dev/null || true
+  done
+  deadline=$(( $(date +%s) + 5 ))
+  remaining=$(fixture_sleep_count "$fixture_dir")
+  while (( remaining != 0 && $(date +%s) <= deadline )); do
+    sleep 0.05
+    remaining=$(fixture_sleep_count "$fixture_dir")
+  done
+  if (( remaining != 0 )); then
+    for survivor_pid in $(fixture_sleep_pids "$fixture_dir"); do
+      kill -9 "$survivor_pid" 2>/dev/null || true
+    done
+    deadline=$(( $(date +%s) + 5 ))
+    while (( remaining != 0 && $(date +%s) <= deadline )); do
+      sleep 0.05
+      remaining=$(fixture_sleep_count "$fixture_dir")
+    done
+  fi
+  (( remaining == 0 ))
+}
 
 pass_arm() {
   arms=$((arms + 1))
@@ -176,21 +236,24 @@ expect_failure "treatment rejects an OpenRouter peer reached over IPv6" "contain
 # or network access occurs. lsof derives the lane from the sampled driver's PID.
 live_bin="$tmp_dir/live-bin"
 mkdir -p "$live_bin"
-for tool in awk bash cat cp cut date grep kill mkdir mktemp rm sleep sort; do
+for tool in awk bash cat cp cut date grep kill mkdir mktemp mv rm sleep sort; do
   tool_path=$(command -v "$tool") || exit 1
   ln -s "$tool_path" "$live_bin/$tool"
 done
 ln -s "$(command -v jq)" "$live_bin/jq"
 cat > "$live_bin/uname" <<'EOF'
 #!/bin/bash
+[[ -z "${PROBE_TEST_MARKER:-}" ]] || printf 'uname %s\n' "$*" >> "$PROBE_TEST_MARKER"
 echo "${PROBE_TEST_UNAME:-Darwin arm64}"
 EOF
 cat > "$live_bin/dig" <<'EOF'
 #!/bin/bash
+[[ -z "${PROBE_TEST_MARKER:-}" ]] || printf 'dig %s\n' "$*" >> "$PROBE_TEST_MARKER"
 [[ "${PROBE_TEST_DIG_EMPTY:-0}" == 1 ]] || echo 203.0.113.8
 EOF
 cat > "$live_bin/pgrep" <<'EOF'
 #!/bin/bash
+[[ -z "${PROBE_TEST_MARKER:-}" ]] || printf 'pgrep %s\n' "$*" >> "$PROBE_TEST_MARKER"
 if [[ "${PROBE_TEST_PGREP_LOOP:-0}" == 1 ]]; then
   while [[ $# -gt 1 ]]; do shift; done
   echo "$1"
@@ -199,6 +262,7 @@ exit 0
 EOF
 cat > "$live_bin/lsof" <<'EOF'
 #!/bin/bash
+[[ -z "${PROBE_TEST_MARKER:-}" ]] || printf 'path-lsof %s\n' "$*" >> "$PROBE_TEST_MARKER"
 pid=""
 while [[ $# -gt 0 ]]; do
   if [[ "$1" == -p ]]; then pid=$2; break; fi
@@ -216,14 +280,36 @@ fi
 EOF
 cat > "$live_bin/ailang-stub" <<'EOF'
 #!/bin/bash
+args=$*
 lane=""
 while [[ $# -gt 0 ]]; do
   if [[ "$1" == --models ]]; then lane=$2; break; fi
   shift
 done
+[[ -z "${PROBE_TEST_MARKER:-}" ]] || printf 'ailang-stub lane=%s args=%s\n' "$lane" "$args" >> "$PROBE_TEST_MARKER"
 echo "$lane" > "${PROBE_STUB_STATE}.$$"
 echo "stub driver lane=$lane"
 if [[ "${PROBE_TEST_IGNORE_TERM:-0}" == 1 ]]; then trap '' TERM; fi
+if [[ -n "${PROBE_TEST_RUN_LANE_GRANDCHILD_CWD:-}" ]]; then
+  expected_cwd=$PROBE_TEST_RUN_LANE_GRANDCHILD_CWD
+  ready_file=${PROBE_TEST_RUN_LANE_GRANDCHILD_READY:?}
+  ready_tmp=${PROBE_TEST_RUN_LANE_GRANDCHILD_READY_TMP:?}
+  cd "$expected_cwd" || exit 71
+  actual_cwd=$(pwd -P) || exit 72
+  [[ "$actual_cwd" == "$expected_cwd" ]] || exit 73
+  sleep "${PROBE_TEST_RUN_LANE_GRANDCHILD_SECS:-2847}" &
+  child_pid=$!
+  {
+    printf 'wrapper_pid=%s\n' "$$"
+    printf 'child_pid=%s\n' "$child_pid"
+    printf 'cwd=%s\n' "$actual_cwd"
+  } > "$ready_tmp" || exit 74
+  mv "$ready_tmp" "$ready_file" || exit 75
+  wait "$child_pid"
+  child_rc=$?
+  rm -f "${PROBE_STUB_STATE}.$$"
+  exit "$child_rc"
+fi
 sleep "${PROBE_TEST_DRIVER_SLEEP:-2}"
 rm -f "${PROBE_STUB_STATE}.$$"
 EOF
@@ -392,17 +478,10 @@ orphan_fixture_secs=2849
 orphan_fixture_dir="$tmp_dir/orphan-fixture-$orphan_fixture_secs"
 mkdir "$orphan_fixture_dir"
 orphan_fixture_dir=$(CDPATH='' cd -- "$orphan_fixture_dir" && pwd -P)
-orphan_fixture_pids() {
-  lsof -a -c sleep -d cwd 2>/dev/null |
-    awk -v fixture_dir="$orphan_fixture_dir" 'NR > 1 && $NF == fixture_dir { print $2 }'
-}
 cleanup_orphan_fixture() {
-  local survivor_pid
-  for survivor_pid in $(orphan_fixture_pids); do
-    kill "$survivor_pid" 2>/dev/null || true
-  done
+  cleanup_fixture_sleeps "$orphan_fixture_dir"
 }
-orphan_pre_count=$(orphan_fixture_pids | awk 'NF { count++ } END { print count+0 }')
+orphan_pre_count=$(fixture_sleep_count "$orphan_fixture_dir")
 if (( orphan_pre_count != 0 )); then
   cleanup_orphan_fixture
   echo "not ok - arm cap kills a wrapper grandchild: PRE count is $orphan_pre_count, expected 0" >&2
@@ -412,15 +491,166 @@ run_bounded "$tmp_dir/orphan.stdout" "$tmp_dir/orphan.stderr" 1 -- \
   /bin/bash -c 'cd "$1" && /bin/bash -c '\''sleep "$1" & wait'\'' grandchild "$2"' \
     wrapper "$orphan_fixture_dir" "$orphan_fixture_secs"
 orphan_cap_rc=$?
-orphan_survivor_count=$(orphan_fixture_pids | awk 'NF { count++ } END { print count+0 }')
+orphan_survivor_count=$(fixture_sleep_count "$orphan_fixture_dir")
 cleanup_orphan_fixture
 sleep 0.05
-orphan_post_count=$(orphan_fixture_pids | awk 'NF { count++ } END { print count+0 }')
+orphan_post_count=$(fixture_sleep_count "$orphan_fixture_dir")
 if (( orphan_cap_rc != 199 || orphan_survivor_count != 0 || orphan_post_count != 0 )); then
   echo "not ok - arm cap kills a wrapper grandchild (rc=$orphan_cap_rc survivors=$orphan_survivor_count post_cleanup=$orphan_post_count)" >&2
   exit 1
 fi
 pass_arm "arm cap kills a wrapper grandchild"
+
+# Pin the production run_lane process-group kill, not a copy of its timeout
+# logic. The surrounding run_bounded cap is emergency containment only: it is
+# deliberately ten seconds later than run_lane's own deadline and must not fire.
+if (( skip_run_lane_fixture )); then
+  echo "UNINFORMATIVE: run_lane fixture arm requires real lsof for cwd survivor checks"
+else
+  run_lane_timeout_secs=2
+  run_lane_ready_cap_secs=5
+  run_lane_outer_cap_secs=$(( run_lane_timeout_secs + 10 ))
+  run_lane_fixture_secs=2861
+  run_lane_fixture_dir="$tmp_dir/run-lane-fixture-$run_lane_fixture_secs"
+  mkdir "$run_lane_fixture_dir"
+  run_lane_fixture_dir=$(CDPATH='' cd -- "$run_lane_fixture_dir" && pwd -P)
+  run_lane_ready_file="$run_lane_fixture_dir/ready"
+  run_lane_ready_tmp="$run_lane_fixture_dir/ready.tmp"
+  run_lane_marker="$tmp_dir/run-lane.marker"
+  run_lane_evidence="$tmp_dir/run-lane.evidence"
+  run_lane_stdout="$tmp_dir/run-lane.stdout"
+  run_lane_stderr="$tmp_dir/run-lane.stderr"
+  run_lane_outer_stdout="$tmp_dir/run-lane-outer.stdout"
+  run_lane_outer_stderr="$tmp_dir/run-lane-outer.stderr"
+  run_lane_artifact="$tmp_dir/run-lane.json"
+  active_fixture_dir=$run_lane_fixture_dir
+  : > "$run_lane_marker"
+  : > "$run_lane_evidence"
+
+  run_lane_fixture_harness() {
+    local probe_pid deadline probe_rc wrapper_pid child_pid ready_cwd ready_lines
+    env PATH="$live_bin" AILANG_BIN=ailang-stub \
+      PROBE_TIMEOUT_SECS="$run_lane_timeout_secs" \
+      PROBE_STUB_STATE="$tmp_dir/lane-run-lane" \
+      PROBE_TEST_MARKER="$run_lane_marker" \
+      PROBE_TEST_RUN_LANE_GRANDCHILD_CWD="$run_lane_fixture_dir" \
+      PROBE_TEST_RUN_LANE_GRANDCHILD_READY="$run_lane_ready_file" \
+      PROBE_TEST_RUN_LANE_GRANDCHILD_READY_TMP="$run_lane_ready_tmp" \
+      PROBE_TEST_RUN_LANE_GRANDCHILD_SECS="$run_lane_fixture_secs" \
+      /bin/bash "$probe" treatment control "$run_lane_artifact" numeric_modulo \
+        > "$run_lane_stdout" 2> "$run_lane_stderr" &
+    probe_pid=$!
+    deadline=$(( $(date +%s) + run_lane_ready_cap_secs ))
+    while [[ ! -f "$run_lane_ready_file" ]]; do
+      if ! kill -0 "$probe_pid" 2>/dev/null; then
+        { wait "$probe_pid"; } 2>/dev/null
+        probe_rc=$?
+        printf 'readiness_failure=probe_exited_before_ready probe_rc=%s\n' "$probe_rc" >> "$run_lane_evidence"
+        return 81
+      fi
+      if (( $(date +%s) > deadline )); then
+        printf 'readiness_failure=ready_cap_exceeded cap_secs=%s\n' "$run_lane_ready_cap_secs" >> "$run_lane_evidence"
+        # Production is itself bounded. Waiting here lets run_lane clean up first;
+        # if that invariant has also regressed, the later outer cap owns this group.
+        { wait "$probe_pid"; } 2>/dev/null
+        return 82
+      fi
+      sleep 0.05
+    done
+
+    ready_lines=$(awk 'END { print NR+0 }' "$run_lane_ready_file")
+    wrapper_pid=$(awk -F= '$1 == "wrapper_pid" { sub(/^[^=]*=/, ""); print }' "$run_lane_ready_file")
+    child_pid=$(awk -F= '$1 == "child_pid" { sub(/^[^=]*=/, ""); print }' "$run_lane_ready_file")
+    ready_cwd=$(awk -F= '$1 == "cwd" { sub(/^[^=]*=/, ""); print }' "$run_lane_ready_file")
+    if (( ready_lines != 3 )) || [[ ! "$wrapper_pid" =~ ^[0-9]+$ ]] ||
+       [[ ! "$child_pid" =~ ^[0-9]+$ ]] || [[ "$ready_cwd" != "$run_lane_fixture_dir" ]] ||
+       [[ "$wrapper_pid" == "$child_pid" || "$wrapper_pid" == "$probe_pid" || "$child_pid" == "$probe_pid" ]]; then
+      printf 'readiness_failure=invalid_ready_payload lines=%s wrapper_pid=%s child_pid=%s cwd=%s probe_pid=%s\n' \
+        "$ready_lines" "$wrapper_pid" "$child_pid" "$ready_cwd" "$probe_pid" >> "$run_lane_evidence"
+      { wait "$probe_pid"; } 2>/dev/null
+      return 83
+    fi
+    if ! kill -0 "$child_pid" 2>/dev/null; then
+      printf 'readiness_failure=child_not_live wrapper_pid=%s child_pid=%s cwd=%s\n' \
+        "$wrapper_pid" "$child_pid" "$ready_cwd" >> "$run_lane_evidence"
+      { wait "$probe_pid"; } 2>/dev/null
+      return 84
+    fi
+    {
+      printf 'ready=yes\n'
+      printf 'wrapper_pid=%s\n' "$wrapper_pid"
+      printf 'child_pid=%s\n' "$child_pid"
+      printf 'cwd=%s\n' "$ready_cwd"
+      printf 'pre_timeout_child_live=yes\n'
+    } >> "$run_lane_evidence"
+    { wait "$probe_pid"; } 2>/dev/null
+    probe_rc=$?
+    printf 'probe_rc=%s\n' "$probe_rc" >> "$run_lane_evidence"
+    return 0
+  }
+
+  run_bounded "$run_lane_outer_stdout" "$run_lane_outer_stderr" "$run_lane_outer_cap_secs" -- \
+    run_lane_fixture_harness
+  run_lane_outer_cap_rc=$?
+  if (( run_lane_outer_cap_rc == 199 )); then
+    printf 'outer-cap fired=yes rc=%s cap_secs=%s\n' "$run_lane_outer_cap_rc" "$run_lane_outer_cap_secs" >> "$run_lane_marker"
+  else
+    printf 'outer-cap fired=no rc=%s cap_secs=%s\n' "$run_lane_outer_cap_rc" "$run_lane_outer_cap_secs" >> "$run_lane_marker"
+  fi
+
+  if (( run_lane_outer_cap_rc != 0 )); then
+    cleanup_fixture_sleeps "$run_lane_fixture_dir" || true
+    active_fixture_dir=""
+    if (( run_lane_outer_cap_rc == 199 )); then
+      echo "not ok - production run_lane fixture harness emergency outer cap fired (rc=$run_lane_outer_cap_rc cap=${run_lane_outer_cap_secs}s)" >&2
+    else
+      echo "not ok - production run_lane fixture readiness failed (outer_rc=$run_lane_outer_cap_rc)" >&2
+      cat "$run_lane_evidence" >&2
+      cat "$run_lane_stderr" >&2
+    fi
+    exit 1
+  fi
+
+  run_lane_ready=$(awk -F= '$1 == "ready" { print $2 }' "$run_lane_evidence")
+  run_lane_wrapper_pid=$(awk -F= '$1 == "wrapper_pid" { print $2 }' "$run_lane_evidence")
+  run_lane_child_pid=$(awk -F= '$1 == "child_pid" { print $2 }' "$run_lane_evidence")
+  run_lane_ready_cwd=$(awk -F= '$1 == "cwd" { sub(/^[^=]*=/, ""); print }' "$run_lane_evidence")
+  run_lane_child_live=$(awk -F= '$1 == "pre_timeout_child_live" { print $2 }' "$run_lane_evidence")
+  run_lane_probe_rc=$(awk -F= '$1 == "probe_rc" { print $2 }' "$run_lane_evidence")
+  FIXTURE_SLEEP_MARKER=$run_lane_marker
+  run_lane_survivor_count=$(fixture_sleep_count "$run_lane_fixture_dir")
+  cleanup_fixture_sleeps "$run_lane_fixture_dir"
+  run_lane_cleanup_rc=$?
+  run_lane_cleanup_count=$(fixture_sleep_count "$run_lane_fixture_dir")
+  unset FIXTURE_SLEEP_MARKER
+  active_fixture_dir=""
+
+  run_lane_timeout_observed=no
+  grep -Fq -- "INSTRUMENT FAILURE: lane treatment exceeded ${run_lane_timeout_secs}s sampling deadline" \
+    "$run_lane_stderr" && run_lane_timeout_observed=yes
+  run_lane_markers_complete=yes
+  for run_lane_expected_marker in "uname -sm" "dig +short +time=5 +tries=2 A openrouter.ai" \
+      "dig +short +time=5 +tries=2 AAAA openrouter.ai" \
+      "ailang-stub lane=treatment args=eval-suite --agent --models treatment --benchmarks numeric_modulo --trials 1 --dry-run=false" \
+      "pgrep -P " "path-lsof -nP -iTCP -sTCP:ESTABLISHED -a -p " "fixture-lsof path=$REAL_LSOF cwd=$run_lane_fixture_dir"; do
+    grep -Fq -- "$run_lane_expected_marker" "$run_lane_marker" || run_lane_markers_complete=no
+  done
+
+  printf '# run_lane evidence ready=%s wrapper_pid=%s child_pid=%s cwd=%s pre_timeout_child_live=%s timeout=%s outer_cap_fired=no outer_cap_rc=%s survivors=%s cleanup=%s probe_rc=%s markers=%s real_lsof=%s\n' \
+    "$run_lane_ready" "$run_lane_wrapper_pid" "$run_lane_child_pid" "$run_lane_ready_cwd" \
+    "$run_lane_child_live" "$run_lane_timeout_observed" "$run_lane_outer_cap_rc" \
+    "$run_lane_survivor_count" "$run_lane_cleanup_count" "$run_lane_probe_rc" \
+    "$run_lane_markers_complete" "$REAL_LSOF"
+
+  if [[ "$run_lane_ready" != yes || "$run_lane_child_live" != yes ||
+        "$run_lane_timeout_observed" != yes || "$run_lane_markers_complete" != yes ]] ||
+     [[ ! "$run_lane_probe_rc" =~ ^[1-9][0-9]*$ ]] || (( run_lane_survivor_count != 0 )) ||
+     (( run_lane_cleanup_rc != 0 || run_lane_cleanup_count != 0 )); then
+    echo "not ok - production run_lane timeout kills wrapper grandchild (outer_rc=$run_lane_outer_cap_rc survivors=$run_lane_survivor_count cleanup=$run_lane_cleanup_count probe_rc=$run_lane_probe_rc)" >&2
+    exit 1
+  fi
+  pass_arm "production run_lane timeout kills wrapper grandchild"
+fi
 
 # report_arm_cap is the code that implements this milestone's headline promise — the
 # named `not ok` line plus the captured output tails. The arm above reaches run_bounded

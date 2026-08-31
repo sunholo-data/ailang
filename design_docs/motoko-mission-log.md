@@ -2912,3 +2912,202 @@ the repo `CLAUDE.md`'s "Session start" inbox instruction, which cannot complete 
 
 **Next.** Row **6i** (the production `run_lane` group kill, pinned by nothing), then the new row **6m**,
 then 6j. `D-MOTOKO-WORKDIR-2` remains the only OPEN decision and this is the **sixth** ask.
+
+## 28 — 2026-08-29 — RECOVERED RECORD: the pin-gate bootstrap landed and the slot died before it could say so [HARNESS]
+
+Reconstructed by iteration 30 from the traces the fire left, and labelled as reconstruction rather
+than as a first-person record — nobody has reviewed this iteration's reasoning since the agent that
+held it stopped existing. What is certain is what is on disk and on origin.
+
+**Pick.** Row **6l**, the class fix iteration 26 filed and deliberately did not execute: the launchd
+pin gate is loaded from the *source clone's* `tools/launchd/lib/pin-root.sh`, i.e. from the very tree
+the pin exists to bypass, so iteration 25's correct fix could never execute on this mission.
+
+**What landed.** [`61859c35d`](https://github.com/sunholo-data/ailang/commit/61859c35d) —
+*"fix(driver): bootstrap pin gate from committed ref"* — merged as PR `#964` at `2026-08-29 22:14:26Z`.
+Worktrees `.wt-motoko-iter28-pin-bootstrap` and `.wt-motoko-iter28-eval` both survive at `d622898a7`,
+which is that commit pre-squash, so the sprint and its evaluation both ran.
+
+**What it also did, and this is the half that matters for the ledger.** The same commit stamped
+`D-MOTOKO-WORKDIR-2` **RESOLVED** — Mark answered `MOTOKO-WORKDIR-2: Yes` on `#850` at
+`2026-08-29T09:09:20Z`, granting standing authorization to reconcile the source clone unattended when
+the three safety predicates hold. The row records iteration 28 re-measuring **0 ahead / 0 dirty /
+292 behind** and advancing `e3ed9467f` → `bd0bb157d` with `git checkout -B dev origin/dev`, post-verified
+**0 dirty**. So the six-times-asked decision that had blocked iterations 21 through 27 was answered and
+discharged in this slot.
+
+**What it did not do.** Write a STATUS stamp or a log entry. Measured by iteration 30:
+`grep -ci 'ITERATION 28'` returns **1** in the charter — that ledger row, and nothing else — and **0**
+in the log and **0** in the STATUS archive, against control `ITERATION 27` at **5** and **3**. The
+charter therefore recorded a resolved decision whose iteration appeared never to have run.
+
+## 29 — 2026-08-31 — RECOVERED RECORD: a slot died holding a finished, unreviewed, unpushed milestone [HARNESS]
+
+Also reconstructed by iteration 30. This one died later in the loop than 28 did, and therefore left
+more.
+
+**Pick.** The queue head, row **6i**.
+
+**What it left, in three places no single Gate-2 trace looks at.**
+
+- A **complete milestone**: commit `4bd9e7110`, *"test(eval): pin run_lane process-group cleanup"*,
+  **+237/−13** in `tools/eval/test_motoko_connection_probe.sh`, on branch
+  `sprint/motoko-iter29-run-lane-harness`, authored `2026-08-31 05:12:05 +0200` — **never pushed**, so
+  invisible to every remote check.
+- Its **design doc and sprint plan**, 573 and 237 lines, written at 04:49 and 04:53 and left
+  **untracked in the driver's pin worktree** — invisible to a `design_docs/` grep on origin.
+- Two worktrees, `.wt-motoko-iter29-exec` and `.wt-motoko-iter29-eval`, the second created at the
+  sprint commit, which is what says the evaluation had at least been set up.
+
+**Its quorum history, which is the part worth keeping.** Four artifacts exist for the doc, at
+`2026-08-30T12:50:38Z`, `12:51:44Z`, `12:57:04Z` and `2026-08-31T02:45:23Z`. **All four read
+`blocked`** and every objection in them is real. Round 4's two — `gpt5-6-sol` on the emergency outer
+bound and full-descendant reaping under macOS bash 3.2, `gemini-3-1-pro` on a missing real `lsof`
+having to hard-fail on Darwin rather than structured-skip — each carried a concrete reviewer-authored
+`proposed_fix` and disputed no design *direction*, which is exactly the narrow-refinement carve-out.
+Iteration 29 applied both **verbatim**: they are the last two rows of the doc's own Quorum
+Verification Log, and they are the two design properties the shipped code implements. Round 4's third
+reviewer, `oc-glm-5-2`, is recorded `absent(invalid)` on a malformed JSON response whose raw fragment
+nonetheless begins `"verdict":"reject"` — the tracked defect reported at #941, and the reason the
+round's `presentCount` is 2, not 3.
+
+**Why the record could not be inherited.** No STATUS stamp, no log entry, no charter row, no PR. The
+routing decision it made — apply the carve-out at round 4 rather than park — is recoverable only from
+the artifacts above, which is why iteration 30 re-derived every load-bearing claim first-party instead
+of transcribing this reconstruction into a verdict.
+
+## 30 — 2026-08-31 — two slots died in a row, and the second died holding a finished, unreviewed, unpushed milestone [HARNESS]
+
+**Progress**: row 6i LANDED — motoko queue rows 6a–6i now all closed; 6j, 6m, 6n, 6o open on the
+loop-health track, and the Phase-0-gated migration epic (rows 10/11/12) is unmoved because its
+external predicate is unmoved.
+
+**Pick.** The queue head, row **6i** — but reached by *inheriting* iteration 29's corpse rather than
+by routing a fresh sprint, per Gate 2's died-mid-flight rule: verify and land, do not redo.
+
+**The traces, and which one actually worked.** Trace (a), the fleet-account open-PR filter, returned
+**four** PRs — `iter305`, `iter306`, `iter296`, `iter308` — **all V1's**, none with a branch in this
+clone's **15**-entry worktree list, so the trace that exists to find work you should adopt said
+*nothing exists*. Trace (b), `git worktree list`, is the one scoped to this clone by construction and
+it named `.wt-motoko-iter29-exec` and `.wt-motoko-iter28-*`. Trace (c), uncommitted/untracked state,
+is what turned "an attempt happened" into "a milestone exists": the pin worktree's two untracked design
+documents. **Two dead slots in a row is reported as a pattern, not as two incidents** — the loop cannot
+diagnose why its own slots die, but it can make the frequency visible.
+
+**Verification of the inherited work — as an inherited claim, not as a colleague's word.**
+
+| check | command | result |
+|---|---|---|
+| baseline, rebased tree | `/bin/bash tools/eval/test_motoko_connection_probe.sh` | **rc=0**, 41 ok, 0 not ok (was 40) |
+| arm 36 is not vacuous | its own evidence line | `ready=yes` · distinct wrapper/child PIDs · `pre_timeout_child_live=yes` · `timeout=yes` · `outer_cap_fired=no` · `survivors=0` · `real_lsof=/usr/sbin/lsof` |
+| **M1**, the row's own mutant | group kill → single-PID (`kill -TERM "-$pid"` → `"$pid"`, same for `-9`); LANDED by sha256, PARSES `bash -n` rc=0, intended effect asserted against the system's own view (group-kill sites 1→0) | **rc=1, SOLE KILLER** — arm 36 the only `not ok`, `survivors=1 outer_cap_fired=no`, 35 arms still pass |
+| restore | `cp` backup | sha256 byte-identical, `git status` clean, site count back to 1 |
+
+`survivors=1` with `outer_cap_fired=no` is the load-bearing reading: the red is the **production**
+timeout's cleanup regressing, not the emergency containment firing. The M1 red arrives in exactly the
+direction predicted, so it is paired against the baseline on the identical tree — rc=0 versus rc=1,
+outcomes **differ** — which is what makes it evidence rather than co-occurrence.
+
+**The judge found the half the drill could not see, and that is the iteration's best result.**
+Evaluator **PASS 87/100, zero blocking** (sonnet, own worktree, distinct provider from the codex
+executor, so generator≠judge holds). Both non-blocking findings were reproduced first-party **before
+being believed and before being dismissed**:
+
+- **A.** Mutating **only** the SIGKILL escalation site — `kill -9 "-$pid"` → `kill -9 "$pid"`, with
+  the group `-TERM` site left untouched (asserted: group `-9` sites 1→0, group `-TERM` sites stay 1)
+  — leaves the suite **rc=0, 41 ok, survivors=0**. The fixture's grandchild is a plain `sleep` with no
+  SIGTERM trap, so it dies at the TERM stage and the escalation is never reached: that stage is
+  dead-for-discrimination. Row 6i's mandated mutant changes **both** sites at once, so it reds on the
+  TERM half alone and the doc's acceptance bar is honestly met — the gap is one the bar itself could
+  not see. That is rule (i-e)'s shape: a removal proves a check **fires**, only a differently-shaped
+  mutant proves it **looks**.
+- **B.** `REAL_LSOF` is resolved with `command -p -v`, and POSIX's standard-path guarantee for `-p`
+  **does not hold on the CI shell**. Measured on GNU bash **3.2.57** (arm64-apple-darwin25), which is
+  the `launchd drivers (bash 3.2)` target rather than a proxy for it: a shadowing `lsof` placed ahead
+  of `getconf PATH` in the **ambient** environment resolves as `REAL_LSOF`. Arm → the hijack; control,
+  clean PATH → `/usr/sbin/lsof`; negative control, hostile directory with no `lsof` in it →
+  `/usr/sbin/lsof`. The defence the design doc actually names — the stub PATH this suite installs for
+  *itself* — holds, and was separately confirmed by the `markers=yes` evidence distinguishing
+  `path-lsof` calls from `fixture-lsof path=$REAL_LSOF` calls. Only the code comment's *"can never"*
+  was too wide.
+
+Disposition: **B's comment was narrowed to what is actually defended** (`1caf02e44`) — comment-only,
+no executable line changed, so the evaluation over the executable tree still stands — and **both
+findings were filed as row 6o** rather than used to widen a passing PR.
+
+**A third defect arrived from another mission's judge and was ghost-disciplined before adoption.**
+Reported at #975 by V1 iteration 308's evaluator, against *motoko's* instrument: the arm named
+`descendant discovery refuses on the real wall-clock deadline` cannot fail for the reason it names.
+Reproduced at motoko's own HEAD rather than inherited — neuter the in-loop check with
+`if false && (( $(date +%s) > deadline )); then`, mutant LANDED by sha256 and PARSING, intended effect
+asserted (neutered sites 0→1) — and the suite stays **rc=0, 41 ok, 0 not ok**, this arm included. Real,
+pre-existing, and the same class as row 6i one arm over: an assertion over an over-subscribed
+observable. Filed as row **6n**. Its B3 half (on the runner, discovery refuses with *neither*
+diagnostic message) is recorded **UNREPRODUCED**, because it can only be measured on the runner.
+
+**Four blocked quorum rounds is data about this loop's scoping, not about that document.** Per V1
+iteration 257's rule the *surfaces* were tracked rather than the round count: R1 survivor oracle /
+helper duplication / stub conflict-surface; R2 hermetic-drive premise / helper duplication / hermetic
+premise; R3 readiness determinism / real-vs-stub `lsof` / platform-specific verification; R4 outer
+bound / Darwin hard-fail. They are **spread across surfaces** and **no reviewer flipped to pass**, so
+the disposition is *immature, keep revising* — **not** SPLIT, which is what localisation plus a flip
+would have indicated. Recorded here because only a human can act on the pattern.
+
+**Dev CI was red, it was not ours, and nothing was done to it.** `test` failed at `d65a0900c` on step
+*Verify embedded pi assets are in sync*; walked back per commit, first red at `ebc089c33` (V1's
+README-only edit), green at `15cec372b` and `9f267cf1f`. V1 already had `#983` open with the fix when
+this fire started, so the owning-mission rule held twice over: the red did not displace the pick, and
+no duplicate fix was opened — the `#758`/`#759` lesson. It merged as `f78b1d451` and this branch was
+rebased onto it before landing.
+
+**Gate 3b — read on the MERGE, not merely on the PR head.** PR head `1caf02e44`: **21** checks,
+**0** pending, **0** not-green, `mergeable` read first per the iteration-198 rule
+(`MERGEABLE`/`CLEAN`), all **4/4** required contexts green. Merged as
+[`4bd58bef6`](https://github.com/sunholo-data/ailang/commit/4bd58bef6), whose own check set is
+**16** checks, **0** pending, **1** not-green: `SonarCloud Code Analysis`. Rule 3d's parent-walk
+before attributing it — it is `failure` on the parent `f78b1d451` and on `15cec372b` and `d3e4e59cf`,
+while `d65a0900c` and `ebc089c33` carry **no Sonar check at all**, which is the negative control. So
+it is inherited, non-required, and V1's to own; it is named here rather than left invisible.
+`docs-gate` does not appear on the merge commit at all — path-filtered — and passed on the PR head,
+where the merge button was gated; that is the reading iteration 25 recorded and it still holds.
+`launchd drivers (bash 3.2)`, the CI leg that actually executes this suite, is **success** on both.
+
+**Weekly sweep, and its headline number is a property of the fleet rather than a backlog.** **94**
+open issues enumerated — the list length quoted beside the verdict so a truncated enumeration cannot
+wear a complete one's clothes — each grepped `-cE '#<n>\b'` across **four** corpora (charter, log,
+STATUS archive, dashboard) and printed as a per-issue table, never a summary sentence. Negative
+control fired. **79 of 94** carry zero mentions, which is expected and not actionable as a backlog:
+this repository carries four missions and motoko's charter is deliberately scoped to the harness. The
+motoko-territory orphan that mattered is `#975`, now row **6n**.
+
+**Ruled out.** That the two dead slots were a rotation defect — the STATUS-rotation deletion class
+this loop has paid for twice — is refuted: `grep -ci 'ITERATION 28'` returns **1** in the charter
+(the ledger row iteration 28 itself wrote) and **0** in the log and archive, whereas a rotation
+deletion removes a stamp that was *there*, leaving a `git log -S` trail on the charter and none on the
+archive. There is no such trail here; the stamp was never written. That the M1 red might be an
+artifact of the rebase is refuted by running the baseline on the identical rebased tree (rc=0). That
+`#975` might be a ghost inherited from a sibling is refuted by first-party reproduction.
+
+**Routing evidence.** Controller `claude:claude-opus-5`. **No designer, planner or executor ran this
+iteration** — all three are iteration 29's, inherited, and Gate 2 requires verify-and-land rather than
+redo; spawning them would have re-authored a doc that already exists and re-run a milestone that was
+already finished. Evaluator: **`sonnet`, Agent-tool-pinned, in its own worktree**
+(`.wt-motoko-iter29-eval`, branch `eval/motoko-iter30-run-lane-harness`), distinct provider from the
+`codex:gpt-5.6-sol` executor, so the generator≠judge guard holds without a re-route. Designer rotation
+pointer untouched at `claude:claude-fable-5`; Fable **unspent**. Metered **$0.00** of $5 this
+iteration; iteration 29's fourth quorum round spent **$0.1108** and is attributed there. No GPU, no
+`rig.lock`. Gates on **darwin/arm64** and on the CI shell's own bash 3.2.57; windows and ubuntu legs
+unrun locally and read from Gate 3b.
+
+**Gate 5 — no skill edit.** Every friction here is an instance of a rule the rulebook already carries
+and that *worked*: the died-mid-flight traces found the corpse, the fleet-`--author` rule kept this
+mission off three sibling PRs, the owning-mission rule kept it off V1's red, ghost discipline turned a
+sibling's claim into a first-party measurement, and reproduce-before-dismissing turned two
+"non-blocking" findings into a queue row. The one candidate — that trace (a) is near-useless on a
+shared push identity while trace (c) did the work — is already written into the skill as the
+fleet-filter rule and as trace (c) itself, so this is a second instance of a documented gap that has
+already been closed, not a new one.
+
+**Next.** Row **6n** (#975's wall-clock arm), then **6o** (the escalation half of the group kill), then
+6j and 6m. Decision ledger: **5** rows, **0 OPEN** — `D-MOTOKO-WORKDIR-2` was answered and discharged
+by iteration 28, so for the first time since iteration 21 this mission is asking nothing of Mark.

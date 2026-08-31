@@ -7,7 +7,19 @@ import (
 )
 
 // taskToMap converts a TaskRecord to a Firestore document map.
+//
+// A zero CreatedAt is stamped rather than written as null, matching
+// observatory_tasks.go which has always done this. The asymmetry was load-bearing:
+// timeToFirestore turns a zero time into a Firestore null, the task reads back with
+// a zero CreatedAt, and the stale-task detector then aged it from the zero time and
+// killed it seconds after dispatch. Persisting "unknown" as null let a missing
+// timestamp travel; stamping it at the write boundary keeps every task row orderable
+// and ageable. Fixing this does NOT excuse the caller from setting CreatedAt — the
+// detector reports an unknowable age loudly rather than acting on one.
 func taskToMap(t *coordinator.TaskRecord) map[string]interface{} {
+	if t.CreatedAt.IsZero() {
+		t.CreatedAt = time.Now()
+	}
 	m := map[string]interface{}{
 		"id":               t.ID,
 		"message_id":       t.MessageID,
