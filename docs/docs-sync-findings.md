@@ -9,7 +9,7 @@ item and has one primary mission clause.
 | Instrument | Result |
 |---|---|
 | `audit_design_docs.sh` | `rc=0`; five architecture pages referenced planned material; all 159/1030 design-doc counts were reported as audit scope |
-| `check_versions.sh` | `rc=0`; git and stable release `v0.34.0`, active/latest prompt `v0.16.6`; `intro.mdx` contains stale `v0.16.0` |
+| `check_versions.sh` | `rc=0`; git and stable release `v0.34.0`, active/latest prompt `v0.16.6`; the `intro.mdx` "stale `v0.16.0`" flag (Check 3) was a permanent false positive — see DOCS-2-02, refuted and removed 2026-08-31 |
 | `check_examples.sh` | `rc=0`; raw output 12 passed / 29 failed / 176 skipped is unreliable because it passes absolute paths |
 | `derive_roadmap_versions.sh --full --check` | `rc=0`; 126 planned docs, 682 implemented docs in this instrument's scope; roadmap consistency clean |
 | `generate_report.sh` | `rc=0`; report generated; repeats the version status, five future-page hits, and embedded-snippet warning |
