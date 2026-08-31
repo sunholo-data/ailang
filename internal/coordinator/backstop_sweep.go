@@ -89,6 +89,23 @@ func (s *BackstopSweep) Run(ctx context.Context) {
 		return
 	}
 	s.logger.Printf("backstop sweep: started (interval=%v, mode=%s)", s.interval, s.mode)
+
+	// Sweep ONCE on startup, before the first tick.
+	//
+	// This is load-bearing in the deployment we actually have, not a nicety.
+	// The cloud coordinator runs as a Cloud Run service with minScale=0, woken
+	// by Pub/Sub push and killed again when idle. Measured in dev 2026-08-31,
+	// straight after this shipped: consecutive instance lifetimes of 34s and
+	// 12s. A 10-minute ticker inside a process that lives seconds would never
+	// fire once — the sweep would be running, logging that it started, and
+	// silently doing nothing. That is the exact failure shape this whole design
+	// doc exists to remove, so it must not be reintroduced by the sweep itself.
+	//
+	// Startup is the one moment this process is reliably alive, so that is when
+	// the work happens. The ticker remains for long-lived hosts (local mode, the
+	// rig) where an instance does outlive the interval.
+	s.SweepOnce(ctx)
+
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 

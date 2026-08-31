@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
 )
@@ -124,5 +125,73 @@ func TestBackstopSweepSilentWhenNothingToRecover(t *testing.T) {
 	s.SweepOnce(context.Background())
 	if logBuf.String() != "" {
 		t.Errorf("sweep must be silent with nothing to recover, got:\n%s", logBuf.String())
+	}
+}
+
+// TestBackstopSweepRunsOnStartup pins the fix for a defect this sweep shipped
+// with and which its own deployment exposed.
+//
+// The cloud coordinator is a Cloud Run service with minScale=0: Pub/Sub push
+// wakes it, idleness kills it. Measured in dev on 2026-08-31, minutes after the
+// sweep first deployed, consecutive instance lifetimes were 34s and 12s. A
+// 10-minute ticker inside a process that lives seconds fires zero times — the
+// sweep would log "started", do nothing, and be indistinguishable from working.
+// Startup is the only moment the process is reliably alive.
+func TestBackstopSweepRunsOnStartup(t *testing.T) {
+	s, store, adapter, _ := sweepFixture(t, BackstopDispatch)
+	s.interval = time.Hour // guarantee no tick can fire during this test
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { s.Run(ctx); close(done) }()
+
+	// Wait for the startup pass rather than sleeping a fixed amount.
+	deadline := time.After(2 * time.Second)
+	for {
+		adapter.mu.Lock()
+		n := len(adapter.buffered)
+		adapter.mu.Unlock()
+		if n > 0 {
+			break
+		}
+		select {
+		case <-deadline:
+			cancel()
+			<-done
+			t.Fatal("sweep did nothing before the first tick: on a scale-to-zero host it would never run at all")
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+	cancel()
+	<-done
+
+	if store.opts.UnreadOnly != true {
+		t.Error("the startup pass must be a real sweep, not a no-op")
+	}
+}
+
+// TestBackstopSweepOffDoesNotSweepOnStartup: "off" must mean off, including the
+// new startup pass.
+func TestBackstopSweepOffDoesNotSweepOnStartup(t *testing.T) {
+	s, _, adapter, _ := sweepFixture(t, BackstopOff)
+	s.interval = time.Hour
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { s.Run(ctx); close(done) }()
+	select {
+	case <-done: // Run returns immediately when off
+	case <-time.After(2 * time.Second):
+		cancel()
+		<-done
+		t.Fatal("Run should return immediately when the sweep is off")
+	}
+	cancel()
+
+	adapter.mu.Lock()
+	n := len(adapter.buffered)
+	adapter.mu.Unlock()
+	if n != 0 {
+		t.Errorf("off mode swept anyway and enqueued %d", n)
 	}
 }
