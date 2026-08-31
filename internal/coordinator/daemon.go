@@ -136,6 +136,7 @@ type Daemon struct {
 	// Pub/Sub cloud mode (M-PUBSUB)
 	pubsubClient    *pubsub.Client
 	pubsubPublisher *pubsub.Publisher
+	taskPublisher   taskAuditPublisher
 
 	// Cloud mode adapters (M-CLOUD-E2E / M-CLOUD-PUSH):
 	// In push mode, HTTP handlers call HandleNotification/HandleCompletion directly.

@@ -64,10 +64,14 @@ func validateCoordinatorConfigBytes(data []byte) error {
 	if len(agents) == 0 {
 		return errors.New("config declares no agents: refusing to publish a config that would leave every inbox unserved")
 	}
+	coordinator.ApplyCoordinatorConfigDefaults(&file.Coordinator)
 
 	seenID := make(map[string]bool, len(agents))
 	seenInbox := make(map[string]string, len(agents))
 	for _, a := range agents {
+		if a == nil {
+			return errors.New("config contains a null agent")
+		}
 		if a.ID == "" {
 			return errors.New("an agent has no id")
 		}
@@ -85,6 +89,9 @@ func validateCoordinatorConfigBytes(data []byte) error {
 			}
 			seenInbox[a.Inbox] = a.ID
 		}
+	}
+	if err := coordinator.ValidateCloudExecutionRoutes(&file.Coordinator); err != nil {
+		return err
 	}
 	return nil
 }

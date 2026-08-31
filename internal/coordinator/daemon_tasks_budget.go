@@ -8,6 +8,19 @@ import (
 	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
+func taskMaxCostForProvider(cfg *BudgetsConfig, provider string) float64 {
+	if cfg == nil {
+		return 0
+	}
+	if providerCfg := cfg.Providers[provider]; providerCfg != nil && providerCfg.TaskMaxCost > 0 {
+		return providerCfg.TaskMaxCost
+	}
+	if cfg.Global != nil && cfg.Global.TaskMaxCost > 0 {
+		return cfg.Global.TaskMaxCost
+	}
+	return 0
+}
+
 // checkBudgetBeforeExecution checks if the task can proceed within budget limits.
 // Returns (blocked, error) where blocked=true means task should wait for approval.
 func (d *Daemon) checkBudgetBeforeExecution(ctx context.Context, task *TaskRecord, agentConfig *AgentConfig) (bool, error) {

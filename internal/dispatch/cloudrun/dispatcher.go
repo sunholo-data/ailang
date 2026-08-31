@@ -178,6 +178,13 @@ func jobSuffixForVariant(variant, authMode string) (string, error) {
 // The job is identified by the pattern: projects/{project}/locations/{region}/jobs/{prefix}-agent-executor
 // This matches the Terraform-defined job name in cloud_run_jobs.tf.
 func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchParams) error {
+	// Defend the external-effect boundary even when a caller bypasses the
+	// coordinator daemon. Validation happens before job-name construction and,
+	// critically, before RunJob.
+	if err := coordinator.ValidateExecutionRoute(params.AgentID, params.Provider, params.ExecutorVariant); err != nil {
+		return err
+	}
+
 	// M-EXECUTOR-VARIANTS + M-CLOUD-DUAL-AUTH: select the Cloud Run Job template.
 	// Each variant has its own job with the corresponding Docker image baked in.
 	// Auth mode selects between OAuth and API-key job templates within each variant.

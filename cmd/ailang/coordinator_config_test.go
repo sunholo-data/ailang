@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
 // M-MESSAGE-PLANE-FAIL-LOUD M4.
@@ -134,5 +136,75 @@ func TestConfigCAS_RejectsAgentMissingWorkspace(t *testing.T) {
 func TestConfigCAS_AcceptsValidConfig(t *testing.T) {
 	if err := validateCoordinatorConfigBytes([]byte(validConfig)); err != nil {
 		t.Fatalf("a valid config must pass validation, got: %v", err)
+	}
+}
+
+func TestConfigCAS_AppliesProviderDefaultsBeforeRouteValidation(t *testing.T) {
+	store := &fakeConfigStore{data: []byte(validConfig), generation: 1}
+	candidate := `coordinator:
+  default_provider: codex
+  agents:
+    - id: planner
+      inbox: planner
+      workspace: org/repo
+      executor_variant: codex
+      model: model-a
+`
+
+	if err := writeConfigCAS(store, []byte(candidate), 1); err != nil {
+		t.Fatalf("inherited codex provider should validate with codex variant: %v", err)
+	}
+	if store.writes != 1 {
+		t.Fatalf("writes = %d, want 1", store.writes)
+	}
+}
+
+func TestConfigCAS_RejectsProviderVariantMismatchBeforeWriting(t *testing.T) {
+	store := &fakeConfigStore{data: []byte(validConfig), generation: 1}
+	candidate := `coordinator:
+  default_provider: opencode
+  agents:
+    - id: planner
+      inbox: planner
+      workspace: org/repo
+      executor_variant: codex
+      model: model-a
+`
+
+	err := writeConfigCAS(store, []byte(candidate), 1)
+	if err == nil {
+		t.Fatal("provider/variant mismatch must be rejected")
+	}
+	var permanent *coordinator.PermanentDispatchError
+	if !errors.As(err, &permanent) {
+		t.Fatalf("error type = %T, want *coordinator.PermanentDispatchError: %v", err, err)
+	}
+	for _, want := range []string{"planner", "opencode", "codex"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not name %q", err, want)
+		}
+	}
+	if store.writes != 0 {
+		t.Fatalf("invalid route must be rejected before GCS write; writes = %d", store.writes)
+	}
+}
+
+func TestConfigCAS_LocalLaneIsExemptFromCloudRouteMatrix(t *testing.T) {
+	store := &fakeConfigStore{data: []byte(validConfig), generation: 1}
+	candidate := `coordinator:
+  agents:
+    - id: local-rig
+      inbox: local-rig
+      workspace: /srv/ailang
+      execution_lane: local
+      provider: ollama
+      executor_variant: local-ollama
+`
+
+	if err := writeConfigCAS(store, []byte(candidate), 1); err != nil {
+		t.Fatalf("local lane must be exempt from Cloud Run compatibility: %v", err)
+	}
+	if store.writes != 1 {
+		t.Fatalf("writes = %d, want 1", store.writes)
 	}
 }

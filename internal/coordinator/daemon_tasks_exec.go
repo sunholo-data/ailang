@@ -1,12 +1,17 @@
 package coordinator
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
+
+type taskAuditPublisher interface {
+	PublishTask(ctx context.Context, taskID, agentID, workspace, provider string) error
+}
 
 // deriveRepoURL converts a workspace identifier into a Git repo URL.
 // In cloud mode, workspace is a GitHub org/repo (e.g., "sunholo-data/ailang").
@@ -113,20 +118,42 @@ func (d *Daemon) dispatchTasksCloud() error {
 	}
 
 	for _, task := range tasks {
+		var agentCfg *AgentConfig
+		if d.agentRegistry != nil {
+			agentCfg = d.agentRegistry.GetAgentByID(task.AgentID)
+		}
+
+		// Local agents are owned by a bare-metal worker and never enter Cloud Run
+		// route validation or queue reservation.
+		if agentCfg != nil && agentCfg.ResolveLane() == LaneLocal {
+			d.logger.Printf("Task %s: agent %q is execution_lane=local; leaving it for its bare-metal worker instead of dispatching to Cloud Run", task.ID, task.AgentID)
+			continue
+		}
+
+		// Resolve the complete route before queued state or any external call. A
+		// bad route cannot become valid through retrying and must not reserve or
+		// spend anything.
+		route, routeErr := ResolveExecutionRoute(task.AgentID, agentCfg)
+		if routeErr != nil {
+			d.logger.Printf("ERROR: task %s not dispatched: %v", task.ID, routeErr)
+			continue
+		}
+
 		// Mark as queued before publishing
 		if err := d.taskStore.MarkTaskQueued(d.ctx, task.ID); err != nil {
 			d.logger.Printf("Failed to mark task %s as queued: %v", task.ID, err)
 			continue
 		}
 
-		// Determine provider from coordinator config
-		provider := "claude"
-		if d.coordConfig != nil && d.coordConfig.DefaultProvider != "" {
-			provider = d.coordConfig.DefaultProvider
-		}
-
 		// Publish task to Pub/Sub for audit trail / event streaming.
-		if err := d.pubsubPublisher.PublishTask(d.ctx, task.ID, task.AgentID, task.Workspace, provider); err != nil {
+		publisher := d.taskPublisher
+		if publisher == nil {
+			publisher = d.pubsubPublisher
+		}
+		if publisher == nil {
+			return fmt.Errorf("cloud task publisher is not configured")
+		}
+		if err := publisher.PublishTask(d.ctx, task.ID, task.AgentID, task.Workspace, route.Provider()); err != nil {
 			d.logger.Printf("Failed to publish task %s to Pub/Sub: %v", task.ID, err)
 			_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
 			continue
@@ -142,23 +169,8 @@ func (d *Daemon) dispatchTasksCloud() error {
 			// the agent config here so the cloud agent receives the same fully
 			// templated prompt the local executor would build.
 			directive := task.Content
-			var agentCfg *AgentConfig
-			if d.agentRegistry != nil {
-				if agent := d.agentRegistry.GetAgentByID(task.AgentID); agent != nil {
-					agentCfg = agent
-					directive = BuildDirectiveFromConfig(task, agent)
-				}
-			}
-
-			// M-MESSAGE-PLANE-FAIL-LOUD M3 (D3): a LOCAL-lane agent must never be
-			// cloud-dispatched. Measured 2026-08-26: 10 consecutive Cloud Run jobs
-			// died on arrival for agent=eval-rig because the job received a Mac
-			// Studio filesystem path as its clone target — and even with a valid
-			// coordinate the lane is wrong, since the rig's whole purpose is local
-			// GPU and ollama models a Cloud Run job does not have.
-			if agentCfg.ResolveLane() == LaneLocal {
-				d.logger.Printf("Task %s: agent %q is execution_lane=local; leaving it for its bare-metal worker instead of dispatching to Cloud Run", task.ID, task.AgentID)
-				continue
+			if agentCfg != nil {
+				directive = BuildDirectiveFromConfig(task, agentCfg)
 			}
 
 			// Prefer the agent's resolved coordinate over the task's workspace
@@ -168,13 +180,15 @@ func (d *Daemon) dispatchTasksCloud() error {
 				repoURL = deriveRepoURL(repo)
 			}
 			params := DispatchParams{
-				TaskID:    task.ID,
-				AgentID:   task.AgentID,
-				Workspace: task.Workspace,
-				Provider:  provider,
-				Directive: directive,
-				RepoURL:   repoURL,
-				Branch:    task.BaseBranch, // From task record, defaults handled by job
+				TaskID:          task.ID,
+				AgentID:         task.AgentID,
+				Workspace:       task.Workspace,
+				Provider:        route.Provider(),
+				Directive:       directive,
+				RepoURL:         repoURL,
+				Branch:          task.BaseBranch, // From task record, defaults handled by job
+				Model:           route.Model(),
+				ExecutorVariant: route.ExecutorVariant(),
 				// M-PKG-CASCADE-DETERMINISTIC-FIRST: propagate cascade envelope so the
 				// Cloud Run Job wrapper can decide deterministic-bump vs AI-escalation.
 				RootPackage:       task.RootPackage,
@@ -192,22 +206,12 @@ func (d *Daemon) dispatchTasksCloud() error {
 			// Use agent config for branch resolution and skip_approval push mode.
 			// The agent's MergeBranch is the correct clone branch for repos that
 			// don't use "dev" as default (e.g., sunholo-websites uses "main").
-			if agent := d.agentRegistry.GetAgentByID(task.AgentID); agent != nil {
+			if agent := agentCfg; agent != nil {
 				if agent.MergeBranch != "" && params.Branch == "" {
 					params.Branch = agent.MergeBranch
 				}
 				if agent.SkipApproval && agent.MergeBranch != "" {
 					params.PushBranch = agent.MergeBranch
-				}
-				// M5: resolve through the shared routing table (pin > role >
-				// default); a missing role is loud and skips the dispatch.
-				agentModel, mErr := ResolveModel(agent)
-				if mErr != nil {
-					d.logger.Printf("ERROR: task %s not dispatched: %v", task.ID, mErr)
-					continue
-				}
-				if agentModel != "" {
-					params.Model = agentModel
 				}
 				if agent.Timeout != "" {
 					params.Timeout = agent.Timeout
@@ -219,10 +223,6 @@ func (d *Daemon) dispatchTasksCloud() error {
 				// M-GIT-GUARDRAILS: Per-agent git mode for PreToolUse hook enforcement.
 				if agent.GitMode != "" {
 					params.GitMode = agent.GitMode
-				}
-				// M-EXECUTOR-VARIANTS: Per-agent Docker image variant selection.
-				if agent.ExecutorVariant != "" {
-					params.ExecutorVariant = agent.ExecutorVariant
 				}
 				// M-PKG-AUTONOMOUS-UPDATES: Pass subdirectory for monorepo package agents.
 				if agent.Subdirectory != "" {
@@ -238,15 +238,7 @@ func (d *Daemon) dispatchTasksCloud() error {
 			}
 			// M-CLOUD-PROGRESS-TRACKING: Pass per-task cost budget for mid-execution enforcement.
 			if budgetsCfg, budgetErr := LoadBudgetsConfig(); budgetErr == nil && budgetsCfg != nil {
-				var taskMaxCost float64
-				if budgetsCfg.Providers != nil {
-					if provCfg, ok := budgetsCfg.Providers[provider]; ok && provCfg != nil && provCfg.TaskMaxCost > 0 {
-						taskMaxCost = provCfg.TaskMaxCost
-					}
-				}
-				if taskMaxCost == 0 && budgetsCfg.Global != nil && budgetsCfg.Global.TaskMaxCost > 0 {
-					taskMaxCost = budgetsCfg.Global.TaskMaxCost
-				}
+				taskMaxCost := taskMaxCostForProvider(budgetsCfg, route.Provider())
 				if taskMaxCost > 0 {
 					params.MaxCostUSD = taskMaxCost
 				}
@@ -265,9 +257,11 @@ func (d *Daemon) dispatchTasksCloud() error {
 				_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
 				continue
 			}
-			d.logger.Printf("Cloud dispatch: task %s → Cloud Run Job (agent: %s, provider: %s)", task.ID, task.AgentID, provider)
+			d.logger.Printf("Cloud dispatch: task %s → Cloud Run Job (agent: %s, provider: %s, variant: %s, model: %s)",
+				task.ID, route.AgentID(), route.Provider(), route.ExecutorVariant(), route.Model())
 		} else {
-			d.logger.Printf("Cloud dispatch: published task %s to Pub/Sub only (no dispatcher, agent: %s, provider: %s)", task.ID, task.AgentID, provider)
+			d.logger.Printf("Cloud dispatch: published task %s to Pub/Sub only (no dispatcher, agent: %s, provider: %s, variant: %s, model: %s)",
+				task.ID, route.AgentID(), route.Provider(), route.ExecutorVariant(), route.Model())
 		}
 	}
 

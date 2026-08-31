@@ -41,8 +41,9 @@ func TestDispatchJobName(t *testing.T) {
 	d := newDispatcherWithClient(mock, "my-project", "europe-west1", "ailang")
 
 	err := d.Dispatch(context.Background(), coordinator.DispatchParams{
-		TaskID:  "task-abc123",
-		AgentID: "sprint-executor",
+		TaskID:   "task-abc123",
+		AgentID:  "sprint-executor",
+		Provider: "claude",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -129,7 +130,8 @@ func TestDispatchErrorPropagation(t *testing.T) {
 	d := newDispatcherWithClient(mock, "proj-1", "us-central1", "test")
 
 	err := d.Dispatch(context.Background(), coordinator.DispatchParams{
-		TaskID: "task-fail",
+		TaskID:   "task-fail",
+		Provider: "claude",
 	})
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -193,8 +195,9 @@ func TestDispatchWithoutPluginRepo(t *testing.T) {
 
 	// No PluginRepo set — should NOT include AILANG_PLUGIN_REPO env var
 	params := coordinator.DispatchParams{
-		TaskID:  "task-no-plugin",
-		AgentID: "sprint-executor",
+		TaskID:   "task-no-plugin",
+		AgentID:  "sprint-executor",
+		Provider: "claude",
 	}
 
 	err := d.Dispatch(context.Background(), params)
@@ -217,6 +220,7 @@ func TestDispatchAPIKeyMode(t *testing.T) {
 	params := coordinator.DispatchParams{
 		TaskID:   "task-apikey-1",
 		AgentID:  "external-agent",
+		Provider: "claude",
 		AuthMode: "apikey",
 		APIKey:   "sk-ant-test-key-123",
 	}
@@ -265,8 +269,9 @@ func TestDispatchOAuthModeDefault(t *testing.T) {
 
 	// Default (no AuthMode) should use oauth job template
 	params := coordinator.DispatchParams{
-		TaskID:  "task-oauth-1",
-		AgentID: "internal-agent",
+		TaskID:   "task-oauth-1",
+		AgentID:  "internal-agent",
+		Provider: "claude",
 	}
 
 	err := d.Dispatch(context.Background(), params)
@@ -337,6 +342,7 @@ func TestDispatchGoVariantJobName(t *testing.T) {
 	err := d.Dispatch(context.Background(), coordinator.DispatchParams{
 		TaskID:          "task-sprint-1",
 		AgentID:         "sprint-executor",
+		Provider:        "claude",
 		ExecutorVariant: "go",
 	})
 	if err != nil {
@@ -355,6 +361,7 @@ func TestDispatchUnknownVariantReturnsError(t *testing.T) {
 
 	err := d.Dispatch(context.Background(), coordinator.DispatchParams{
 		TaskID:          "task-bad",
+		Provider:        "claude",
 		ExecutorVariant: "not-a-real-variant",
 	})
 	if err == nil {
@@ -362,6 +369,61 @@ func TestDispatchUnknownVariantReturnsError(t *testing.T) {
 	}
 	if mock.lastReq != nil {
 		t.Error("RunJob should not have been called for unknown variant")
+	}
+}
+
+func TestDispatchRejectsProviderVariantMismatchBeforeRunJob(t *testing.T) {
+	mock := &mockJobRunner{}
+	d := newDispatcherWithClient(mock, "proj-1", "europe-west1", "ailang")
+
+	err := d.Dispatch(context.Background(), coordinator.DispatchParams{
+		TaskID:          "task-bad-route",
+		AgentID:         "planner",
+		Provider:        "opencode",
+		ExecutorVariant: "codex",
+	})
+	if err == nil {
+		t.Fatal("expected provider/variant compatibility error")
+	}
+	var permanent *coordinator.PermanentDispatchError
+	if !errors.As(err, &permanent) {
+		t.Fatalf("error type = %T, want *coordinator.PermanentDispatchError: %v", err, err)
+	}
+	for _, want := range []string{"planner", "opencode", "codex"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not name %q", err, want)
+		}
+	}
+	if mock.lastReq != nil {
+		t.Fatal("RunJob must not be called for an invalid route")
+	}
+}
+
+func TestDispatchCodexRouteControlsJobProviderAndModelTogether(t *testing.T) {
+	mock := &mockJobRunner{}
+	d := newDispatcherWithClient(mock, "proj-1", "europe-west1", "ailang")
+
+	err := d.Dispatch(context.Background(), coordinator.DispatchParams{
+		TaskID:          "task-historical",
+		AgentID:         "planner",
+		Provider:        "codex",
+		ExecutorVariant: "codex",
+		Model:           "openai/codex-model",
+	})
+	if err != nil {
+		t.Fatalf("Dispatch: %v", err)
+	}
+	if want := "projects/proj-1/locations/europe-west1/jobs/ailang-agent-executor-codex"; mock.lastReq.Name != want {
+		t.Fatalf("job name = %q, want %q", mock.lastReq.Name, want)
+	}
+	env := map[string]string{}
+	for _, item := range mock.lastReq.Overrides.ContainerOverrides[0].Env {
+		if value, ok := item.Values.(*runpb.EnvVar_Value); ok {
+			env[item.Name] = value.Value
+		}
+	}
+	if env["AILANG_PROVIDER"] != "codex" || env["AILANG_MODEL"] != "openai/codex-model" {
+		t.Fatalf("route env = provider %q, model %q", env["AILANG_PROVIDER"], env["AILANG_MODEL"])
 	}
 }
 
@@ -381,7 +443,7 @@ func TestDispatchDifferentRegions(t *testing.T) {
 			mock := &mockJobRunner{}
 			d := newDispatcherWithClient(mock, "p", tt.region, tt.prefix)
 
-			err := d.Dispatch(context.Background(), coordinator.DispatchParams{TaskID: "task-1"})
+			err := d.Dispatch(context.Background(), coordinator.DispatchParams{TaskID: "task-1", Provider: "claude"})
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

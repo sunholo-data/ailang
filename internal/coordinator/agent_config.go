@@ -572,6 +572,18 @@ func LoadCoordinatorConfigFrom(configPath string) (*CoordinatorConfig, error) {
 
 	// Validate and apply defaults
 	cfg := config.Coordinator
+	ApplyCoordinatorConfigDefaults(cfg)
+
+	return cfg, nil
+}
+
+// ApplyCoordinatorConfigDefaults normalizes a parsed coordinator config in
+// memory. Config publication and config loading share this function so route
+// validation observes the same inherited provider values the daemon will use.
+func ApplyCoordinatorConfigDefaults(cfg *CoordinatorConfig) {
+	if cfg == nil {
+		return
+	}
 	if cfg.DefaultProvider == "" {
 		cfg.DefaultProvider = "claude"
 	}
@@ -615,8 +627,6 @@ func LoadCoordinatorConfigFrom(configPath string) (*CoordinatorConfig, error) {
 			}
 		}
 	}
-
-	return cfg, nil
 }
 
 // LoadAgentRegistry loads agents from config and returns a populated registry.

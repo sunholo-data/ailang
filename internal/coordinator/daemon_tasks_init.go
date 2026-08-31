@@ -382,6 +382,7 @@ func (d *Daemon) initPubSub(ctx context.Context) error {
 
 	d.pubsubClient = client
 	d.pubsubPublisher = pubsub.NewPublisher(client)
+	d.taskPublisher = d.pubsubPublisher
 
 	d.logger.Printf("Pub/Sub initialized (project=%s, prefix=%s)", projectID, prefix)
 	return nil
