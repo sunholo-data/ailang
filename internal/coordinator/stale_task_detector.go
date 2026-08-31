@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // StaleTaskDetector periodically checks for tasks stuck in queued/running status
@@ -24,6 +25,7 @@ type StaleTaskDetector struct {
 	store         Store
 	agentRegistry *AgentRegistry
 	msgStore      messaging.MessageStore
+	obsBackend    observatory.Backend // may be nil; chain closure is skipped when absent
 	logger        *log.Logger
 	interval      time.Duration // Check interval (default: 2 min)
 
@@ -31,6 +33,14 @@ type StaleTaskDetector struct {
 	cacheMu     sync.RWMutex
 	cachedTasks []*TaskRecord
 	cacheExpiry time.Time
+}
+
+// WithObservatory attaches the observatory backend so a timed-out task also
+// closes its execution chain. Without it, chain closure is skipped (and said so
+// once), which is the pre-existing behaviour.
+func (d *StaleTaskDetector) WithObservatory(b observatory.Backend) *StaleTaskDetector {
+	d.obsBackend = b
+	return d
 }
 
 // NewStaleTaskDetector creates a detector that checks for stale tasks periodically.
@@ -91,8 +101,34 @@ func (d *StaleTaskDetector) detectAndMarkStale(ctx context.Context) {
 		d.cachedTasks = nil
 		d.cacheMu.Unlock()
 
+		d.closeChainForFailedTask(ctx, task, errMsg)
 		d.postFailureNotification(ctx, task, errMsg)
 	}
+}
+
+// closeChainForFailedTask drives the task's execution chain to a terminal state.
+//
+// MarkTaskFailed moved only the TASK. Nothing reconciled the chain, and chain
+// closure otherwise happens solely on the approval/rejection path
+// (approval_processor.go) — which a job that died before completing never
+// reaches. So a chain opened at dispatch stayed `active` forever.
+//
+// Measured 2026-08-31 in prod: 92 of 99 chains were `active`, the oldest since
+// 2026-04-27. That makes "running right now" and "died in April" the same
+// reading, which is worse than no status at all — a stuck chain is invisible
+// precisely because it looks busy.
+func (d *StaleTaskDetector) closeChainForFailedTask(ctx context.Context, task *TaskRecord, errMsg string) {
+	if d.obsBackend == nil || task.ChainID == "" {
+		return
+	}
+	if err := d.obsBackend.UpdateChainStatus(ctx, task.ChainID, observatory.ChainStatusFailed); err != nil {
+		// Loud, not fatal: the task IS failed and the notification still goes out.
+		// A chain left open is a reporting defect, not a lost outcome.
+		d.logger.Printf("stale task detector: task %s marked failed but chain %s could not be closed: %v",
+			task.ID, task.ChainID, err)
+		return
+	}
+	d.logger.Printf("stale task detector: closed chain %s as failed (task %s: %s)", task.ChainID, task.ID, errMsg)
 }
 
 // getCachedOrQueryTasks returns queued/running tasks, using a 90-second TTL cache

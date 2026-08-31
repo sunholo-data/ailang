@@ -411,7 +411,8 @@ func (d *Daemon) Run() error {
 	// Catches container failures, Pub/Sub delivery failures, and missed completions.
 	// M-COST1: Skip in dev mode to reduce Firestore reads.
 	if IsCloudMode() && d.taskStore != nil && !d.config.DevMode {
-		detector := NewStaleTaskDetector(d.taskStore, d.agentRegistry, d.msgStore, d.logger)
+		detector := NewStaleTaskDetector(d.taskStore, d.agentRegistry, d.msgStore, d.logger).
+			WithObservatory(d.obsBackend)
 		go detector.Run(d.ctx)
 		d.logger.Println("Cloud mode: stale task detector started (interval=2m)")
 	} else if d.config.DevMode {
