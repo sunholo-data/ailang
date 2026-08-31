@@ -1,6 +1,6 @@
 # M-MESSAGE-PLANE-TRUST: make "a message was sent" mean "a job ran and reported back"
 
-**Status**: IN PROGRESS — M1 and M2 landed 2026-08-31 (`91716b092`, `f83fbd0b1`) on top of `a4098b6a0`, `23066345e`, `8131b4101`. M3–M5 open.
+**Status**: IN PROGRESS — M1/M2/M3 landed 2026-08-31 (`91716b092`, `f83fbd0b1`, `cc5cdd736`) on top of `a4098b6a0`, `23066345e`, `8131b4101`. M4/M5 open and BLOCKED (see below).
 **Target**: this week.
 **Priority**: P1. Everything downstream — provenance chains, ELO routing, cost KPIs — reads data this path is supposed to produce.
 **Related**: [m-feature-provenance-chains.md](m-feature-provenance-chains.md) (consumes this), [message-plane-topology.md](../../docs/internal/message-plane-topology.md) (the map).
@@ -25,7 +25,7 @@ Measured first-party 2026-08-31 against prod (`ailang-multivac`):
 | stage → chain counter | all 99 prod chains read "0 stages" while holding stages | Firestore never incremented `stages_completed`; its list reports that field | **FIXED** `8131b4101` |
 | Firestore → coordinator | a missed notification is permanent, not slow | cloud intake reads the Pub/Sub adapter ONLY, never Firestore | **FIXED** `91716b092` (report-only by default) |
 | job → completion | 92 of 99 chains stuck `active`, oldest since April | stale detector marked the TASK failed and never touched the chain | **FIXED** `f83fbd0b1` |
-| gate → visibility | `ANTHROPIC_API_KEY not set: heuristic-flagged submissions filed, never dispatched` | fail-closed posture is announced once at startup, in a log nobody reads | **OPEN — M3** |
+| gate → visibility | `ANTHROPIC_API_KEY not set: heuristic-flagged submissions filed, never dispatched` | fail-closed posture announced once at startup, in a log nobody reads | **PARTLY — `cc5cdd736`** (`messages health`; gate row still owed) |
 
 **The pattern is one thing, not seven.** Each seam reports success on the happy path and silence on
 the failure path. `|| true`, a discarded error, a denormalized counter nobody increments, a `200
@@ -99,6 +99,37 @@ clone per occurrence to discover a static config fact.
 
 Explicitly sequenced (Mark, 2026-08-31). Cleaning first would destroy the evidence that tells us
 whether the fixes worked, and would make a broken writer look healthy.
+
+## Blocked on the operator
+
+1. **Two Firestore composite indexes do not exist**, and each reads as a query failure at every call
+   site. `obs_chain_stages(chain_id, stage_number)` — makes `chains view --remote gcp` fail.
+   `inbox_messages(dup_of, status, created_at DESC)` — makes the unread sweep and `messages health`
+   fail. Creating them is a cloud infrastructure mutation, deliberately not performed here:
+
+   ```
+   gcloud firestore indexes composite create --project=ailang-multivac \
+     --collection-group=obs_chain_stages \
+     --field-config=field-path=chain_id,order=ascending \
+     --field-config=field-path=stage_number,order=ascending
+
+   gcloud firestore indexes composite create --project=ailang-multivac \
+     --collection-group=inbox_messages \
+     --field-config=field-path=dup_of,order=ascending \
+     --field-config=field-path=status,order=ascending \
+     --field-config=field-path=created_at,order=descending
+   ```
+
+   These belong in `firestore.indexes.json` in the terraform repo (D6) so they stop being
+   rediscovered as outages.
+
+2. **Nothing here is live in cloud.** The coordinator runs a deployed image; these commits are on
+   local `dev` and unpushed. The backstop sweep, chain closure and dispatch guard take effect only
+   after push + image rebuild + deploy.
+
+3. **M4 and M5 are gated on a measurement that needs 1 + 2 first.** Run the sweep in `report` mode
+   for a day; its count is what decides whether `dispatch` is worth enabling and whether re-announcing
+   the stranded messages is safe.
 
 ## Milestones
 
