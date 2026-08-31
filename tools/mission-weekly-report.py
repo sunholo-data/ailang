@@ -87,7 +87,7 @@ def open_decisions(charter, cap=4):
     """
     if not os.path.exists(charter):
         return []
-    RETIRED = re.compile(r'~~|\bWas:|RESOLVED|LANDED|ANSWERED|DONE\b|Escalation', re.I)
+    RETIRED = re.compile(r'~~|\bWas:|RESOLVED|LANDED|ANSWERED|DONE\b|Escalation|leave as-is', re.I)
     ROW = re.compile(r'^\s*(?:[-*]|\d+\.)\s')
     # PARKED-ON-A-HUMAN only. `[PARKED — Phase-0 gated]` waits on ARNI, and
     # `[PARKED until 2-5 land]` waits on other queue items — neither is an ask of Mark,
@@ -95,13 +95,65 @@ def open_decisions(charter, cap=4):
     LIVE = re.compile(r'needs-human-review|DECISION\s+D-?\d+|awaiting Mark|PARKED[^]]*\bhuman', re.I)
     GATED = re.compile(r'gated|until \d|blocked on #|green tree', re.I)
     out = []
-    for l in open(charter, errors="replace").read().split("\n"):
+    lines = open(charter, errors="replace").read().split("\n")
+    for i, l in enumerate(lines):
         if ROW.match(l) and LIVE.search(l) and not RETIRED.search(l) and not GATED.search(l):
-            out.append(clean(l, 130))
+            # Render as a sentence, not a raw queue row (Mark 2026-08-31: the one section
+            # built for decisions was the least decidable part of the report). Charter
+            # bullets wrap, so pull up to 2 indented continuation lines before cleaning —
+            # a single-line read cut every wrapped ask mid-question. Emphasis strips
+            # BEFORE the bracket-tag strip: the rows are written `**[PARKED …]**`, and
+            # a `[` behind `**` defeats a start-anchored pattern.
+            row = l
+            for j in range(i + 1, min(i + 3, len(lines))):
+                if not lines[j].strip() or ROW.match(lines[j]) or lines[j].startswith("#"):
+                    break
+                row += " " + lines[j].strip()
+            row = re.sub(r'^\s*(?:[-*]|\d+\.)\s*', '', row).strip()
+            row = re.sub(r'[*`_]', '', row)
+            row = re.sub(r'^\[([^\]]*)\]\s*', r'\1 — ', row)
+            did = re.search(r'\bD-[A-Z]*-?\d+\b', row)
+            row = clean(row, 250)
+            out.append(f"**{did.group(0)}** — {row}" if did else row)
     return out[:cap]
 
 
 NEXT_RE = re.compile(r'^\*\*Next\*\*\s*[:—-]?\s*(.+)$')
+PROG_RE = re.compile(r'^\s*-?\s*\*\*Progress\*\*\s*[:—-]?\s*(.+)$')
+CLASS_RE = re.compile(r'\[(PRODUCT|HARNESS|ADMIN|REFUTATION)\]')
+
+
+def goal_distance(log):
+    """The mission's own last `**Progress**:` claim — goal distance in the charter's unit.
+
+    Same philosophy as roadmap(): one authoritative line the mission wrote about itself
+    beats a heuristic over the charter. Mandated in the Gate-5 digest and mirrored into
+    the Gate-4 log entry since 2026-08-31; entries predating that have no such line, so
+    None here means "no iteration has reported since the mandate", not "no progress".
+    """
+    if not os.path.exists(log):
+        return None
+    for l in reversed(open(log, errors="replace").read().split("\n")):
+        m = PROG_RE.match(l)
+        if m and len(m.group(1).strip()) > 8:
+            return clean(m.group(1), 200)
+    return None
+
+
+def class_mix(iters):
+    """Work-class mix from Gate-4 headline tags ([PRODUCT] etc., mandated 2026-08-31).
+
+    This is the instrument for "is the loop stuck in admin?" — untagged counts stay
+    visible rather than being folded away, so a mission that never tags reads as
+    unmeasured, not as healthy.
+    """
+    mix = {}
+    for i in iters:
+        m = CLASS_RE.search(i["headline"])
+        k = m.group(1).lower() if m else "untagged"
+        mix[k] = mix.get(k, 0) + 1
+    order = ["product", "harness", "admin", "refutation", "untagged"]
+    return " · ".join(f"{k} {mix[k]}" for k in order if mix.get(k))
 
 
 def roadmap(charter, log, plist_name):
@@ -178,7 +230,7 @@ def main():
     print(f"# {title}\n")
     print(f"**Window** last {a.hours}h (since {since}) · **generated** {datetime.now():%Y-%m-%d %H:%M}\n")
 
-    rows, landed, decisions, plan = [], {}, {}, {}
+    rows, landed, decisions, plan, dist = [], {}, {}, {}, {}
     for name, repo, log, charter, share, job in MISSIONS:
         repo = os.path.expanduser(repo)
         iters, total = parse_log(os.path.join(repo, log), since)
@@ -206,6 +258,7 @@ def main():
         landed[name] = iters
         decisions[name] = open_decisions(os.path.join(repo, charter))
         plan[name] = roadmap(os.path.join(repo, charter), os.path.join(repo, log), job)
+        dist[name] = goal_distance(os.path.join(repo, log))
 
     print("| mission | iters (wk/all) | commits | lines+ | metered $ | opus | opus/it | refuted | ref/it |")
     print("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
@@ -222,12 +275,19 @@ def main():
     print(f"\n`$` is a **lower bound** (fail-soft posting) · `~` shared repo, subject-attributed · "
           f"fleet tokens **{ftok}** (all chains incl. evals; per-mission not exposed)\n")
 
+    print("## Goal distance — each mission's own claim\n")
+    print("_Source: the last `**Progress**` line in the mission log (self-reported at Gate 4,")
+    print("mandated 2026-08-31). \"not yet reported\" = no iteration has run since the mandate._\n")
+    for name, _, _, _, _, _ in [m for m in MISSIONS if not sel or m[0] == sel]:
+        print(f"- **{name}** — {dist.get(name) or 'not yet reported'}")
+    print()
+
     print("## Landed\n")
     for name, _, _, _, _, _ in [m for m in MISSIONS if not sel or m[0] == sel]:
         its = landed.get(name) or []
         if not its:
             print(f"**{name}** — no iterations in window\n"); continue
-        print(f"**{name}** — {len(its)} iterations, latest first")
+        print(f"**{name}** — {len(its)} iterations ({class_mix(its)}), latest first")
         for i in reversed(its[-5:]):
             print(f"- `#{i['n']}` {i['date']} · {clean(i['headline'], W)}")
         if len(its) > 5:
@@ -252,7 +312,10 @@ def main():
     for name, _, _, _, _, _ in [m for m in MISSIONS if not sel or m[0] == sel]:
         for d in decisions.get(name) or []:
             print(f"- **{name}** — {d}"); any_d = True
-    if not any_d:
+    if any_d:
+        print("\n_Answer by replying on that mission's bookkeeping thread with the D-id —"
+              " one word usually suffices._")
+    else:
         print("Nothing parked on a human decision.\n")
 
     print("\n---\n*Lines-added is volume, not efficiency: the highest-value output of a loop is often a")
