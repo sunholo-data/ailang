@@ -28,8 +28,14 @@ if [[ "$host_os" != Darwin ]]; then
 fi
 
 # One exact-cwd oracle serves both process-group fixtures. REAL_LSOF is resolved
-# before live_bin exists, so the hostile PATH lsof below can only serve production
-# TCP sampling and can never make a cwd survivor verdict vacuously green.
+# before live_bin exists, so the stub lsof THIS SUITE installs below can only serve
+# production TCP sampling and cannot make a cwd survivor verdict vacuously green.
+# Scope that claim honestly: it covers the stub we install, not every hostile PATH.
+# Measured on the CI shell (GNU bash 3.2.57, arm64-apple-darwin25): `command -p -v`
+# still consults the ambient PATH, so a shadowing lsof placed ahead of
+# `getconf PATH` BEFORE this script starts resolves as REAL_LSOF
+# (control: clean PATH and a hostile dir without lsof both give /usr/sbin/lsof).
+# Hardening that resolution against an ambient hijack is tracked as charter row 6o.
 fixture_sleep_pids() {
   local fixture_dir=$1
   [[ -z "${FIXTURE_SLEEP_MARKER:-}" ]] ||
