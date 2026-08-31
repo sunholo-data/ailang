@@ -79,7 +79,7 @@ GH:$*"; return 0; }
     PIN_DRIFT_FILE="$4/pin-drift"; PIN_NOTE="pinned test note"
     # The extracted blocks read STATE_DIR (episode gating: _lane_ep, _pin_ep). The lab
     # supplies every other driver variable but never this one, so under `set -u` the block
-    # aborts on an unbound variable before any assertion runs — 12 arms failing for the
+    # aborts on an unbound variable before any assertion runs — 9 arms here failing for the
     # harness rather than for the code. Point it at the same per-arm temp dir as $4.
     STATE_DIR="$4"
     _pin_degraded=""; _pin_drift_degraded=""
@@ -190,14 +190,13 @@ GH:$*"; return 0; }
     MISSION_GH_ISSUE=635; LOG=/tmp/x.log; REPO=/pinned/driver-worktree
     AILANG_DRIVER_SRC=/source/ailang-motoko
     PIN_STATUS=pinned; PIN_DRIFT_FILE=/tmp/nonexistent.$$/pin-drift; PIN_NOTE=n
-    STATE_DIR="$4"
     _pin_degraded=""; _pin_drift_degraded=""
     . "$1"
     . "$2"
     echo "DECISION_RC:$?"
     . "$3"
     printf "%s" "$TRACE"
-  ' _ "$LAB/notify.sh" "$LAB/pin_decision.sh" "$LAB/pin_drift_block.sh" "$(mktemp -d)" 2>&1)
+  ' _ "$LAB/notify.sh" "$LAB/pin_decision.sh" "$LAB/pin_drift_block.sh" 2>&1)
 arm_ok "drift-j: unset PIN_DRIFT is log-only, not a set -u abort" "$T" "LOG:driver pin drift: unknown" "AILANG:" "GH:"
 
 echo ""
