@@ -152,6 +152,10 @@ func Run(cfg Config, src Source) (Result, error) {
 // RunWithContext runs the compilation pipeline with an explicit context for tracing.
 // Use this when you have a parent span that should be the root of compilation traces.
 func RunWithContext(ctx context.Context, cfg Config, src Source) (Result, error) {
+	if err := ctx.Err(); err != nil {
+		return Result{}, err
+	}
+
 	// Initialize metrics collector (only active if AILANG_METRICS=1)
 	isModule := !(src.IsREPL || src.Filename == "" || src.Filename == "<repl>")
 	metrics := NewMetricsCollector(src.Filename, isModule)

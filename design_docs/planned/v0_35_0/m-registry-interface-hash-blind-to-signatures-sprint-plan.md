@@ -266,7 +266,28 @@ hashed), and it is trivially revertible.
 
 ---
 
-### M2 — `iface.BuildCanonicalJSON` + the hidden `internal-dump-iface` subcommand (0.5 day, ~110 LOC + ~70 test LOC)
+### M2 — `pipeline.BuildCanonicalJSON` + the hidden `internal-dump-iface` subcommand (0.5 day, ~110 LOC + ~70 test LOC)
+
+> **CORRECTED 2026-09-01, iteration 312 — this milestone shipped as
+> `pipeline.BuildCanonicalJSON` in `internal/pipeline`, NOT `iface.BuildCanonicalJSON` in
+> `internal/iface`.** The original target is unimplementable: `internal/iface` cannot import
+> `internal/pipeline`, because `internal/pipeline` imports `internal/iface` in **7** non-test
+> production files. Measured two-arm in a throwaway worktree — adding that import gives
+> `go build ./internal/iface/` rc=1 `import cycle not allowed`; removing it, rc=0. The first
+> executor run refused the milestone on exactly this ground and the refusal was confirmed
+> first-party before being acted on.
+>
+> `internal/pipeline` is the derived home, not a preferred one: it already imports `iface`,
+> already owns `RunWithContext` and `Config`, and `cmd/ailang` already imports both. It does
+> **not** need to be importable by `internal/pkg` — `internal/pipeline` transitively imports
+> `internal/pkg`, which is precisely why **M3 is a subprocess wrapper**. M3 is unaffected.
+>
+> **M3 must pass the module's PACKAGE ROOT as the subcommand's `<package-dir>`**, not the CWD and
+> not a repo root. A non-empty `packageDir` wins outright in `packageSearchDir`, defeating the
+> entry-file-directory anchor added for ailang#671. Pinned by
+> `TestInternalDumpIface_WrongPackageDirFailsLoudly`.
+>
+> Read every `iface.BuildCanonicalJSON` below as `pipeline.BuildCanonicalJSON`.
 
 **Ships:** `iface.BuildCanonicalJSON(ctx, packageDir, modulePath) ([]byte, error)` — resolves
 `filepath.Join(packageDir, modulePath) + ".ail"` (the loader rule, `internal/loader/loader.go:372`),
