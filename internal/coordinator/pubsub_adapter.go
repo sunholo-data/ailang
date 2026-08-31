@@ -235,6 +235,21 @@ func (a *PubSubInboxAdapter) Start(ctx context.Context) {
 	}()
 }
 
+// Enqueue buffers a message that did NOT arrive over Pub/Sub.
+//
+// The backstop sweep uses this to hand recovered messages to the SAME drain the
+// push path feeds (ListUnread → pollAndProcessTasksCloud), so dedup, agent
+// resolution and the feedback gate apply identically. Recovered work must not
+// travel a second, differently-guarded route into task creation.
+func (a *PubSubInboxAdapter) Enqueue(msg *Message) {
+	if msg == nil {
+		return
+	}
+	a.mu.Lock()
+	a.buffered = append(a.buffered, msg)
+	a.mu.Unlock()
+}
+
 // ListUnread returns buffered messages and clears the buffer.
 func (a *PubSubInboxAdapter) ListUnread() ([]*Message, error) {
 	a.mu.Lock()

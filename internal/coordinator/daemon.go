@@ -415,6 +415,14 @@ func (d *Daemon) Run() error {
 			WithObservatory(d.obsBackend)
 		go detector.Run(d.ctx)
 		d.logger.Println("Cloud mode: stale task detector started (interval=2m)")
+
+		// M-MESSAGE-PLANE-TRUST M1: receive-side floor under Pub/Sub delivery.
+		// Cloud intake reads the adapter only, so an undelivered notification is
+		// permanent rather than late. Defaults to report-only.
+		if d.cloudInboxAdapter != nil && d.msgStore != nil && d.agentRegistry != nil {
+			sweep := NewBackstopSweep(d.msgStore, d.agentRegistry, d.cloudInboxAdapter, d.logger)
+			go sweep.Run(d.ctx)
+		}
 	} else if d.config.DevMode {
 		d.logger.Println("Dev mode: stale task detector disabled")
 	}
