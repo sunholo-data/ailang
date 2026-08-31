@@ -1,0 +1,261 @@
+{
+  "sprint_id": "M-REGISTRY-INTERFACE-HASH-BLIND-TO-SIGNATURES",
+  "status": "planned",
+  "created": "2026-08-31T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_35_0/m-registry-interface-hash-blind-to-signatures.md",
+  "sprint_plan": "design_docs/planned/v0_35_0/m-registry-interface-hash-blind-to-signatures-sprint-plan.md",
+  "github_issues": [],
+  "metadata": {
+    "planner-model": "claude-opus-5",
+    "mission_iteration": 310,
+    "planned_at_head": "66add3b4865116ba93a669ac1e2c690fe0a9860c",
+    "worktree": "/Users/voightkampff/.ailang-driver-pin/.planner-wt-iter310",
+    "verdict": "PROCEED WITH RE-SCOPE",
+    "scope": "Sprint 1 = M1-M5 only: a signature-sensitive v2 interface hash + signature set + an isolated subprocess iface builder + an honest 4-class change classifier, all landed DARK (no binary emits a v2 hash, no registry record changes, no published package identity moves). NON-SCOPE, deferred to Sprint 2: wiring cmd/ailang/pkg_publish.go (M6), wiring cmd/registry-validator (M7), persisting interface_signatures end-to-end (M8), and the GCS registry backfill (M9).",
+    "estimated_effort": "Sprint 1 = 4 days (M1 0.5d, M2 0.5d, M3 1d, M4 1d, M5 1d). Sprint 2 = 5 days. TOTAL HONEST = 9 days versus the design doc's claimed 4.",
+    "ordering_rule": "Riskiest reversible thing first (M3, the subprocess builder), irreversible thing last (all registry writes are in Sprint 2, deferred). Every Sprint 1 milestone is independently committable, leaves the tree green, and is cleanly git-revertable at its boundary.",
+    "premises_verified_live": true,
+    "verification_method": "Read-only source reads plus executed baselines at HEAD 66add3b48 in the planner worktree. Exit codes captured WITHOUT a pipe (cmd > /tmp/out 2>&1; rc=$?) because ${PIPESTATUS[0]} is silently empty in zsh. Every negative grep is paired with a known-positive control scoped to the same path in the same command.",
+    "verification_date": "2026-08-31",
+    "no_git_write_commands_run": true,
+    "gitignore_warning": "THIS FILE IS GITIGNORED. `git check-ignore -v .ailang/state/sprints/x.json` returns rc=0 via .gitignore:82. A plain `git add` will NOT stage it. The controller must `git add -f` or accept that only the markdown sprint plan is committed.",
+    "build_assertion_trap": "`go build ./...` is rc=1 on unmodified HEAD (cmd/wasm: 'function main is undeclared in the main package'). It MUST NOT be used as a gate. The narrow assertion used instead is `go build ./internal/pkg/... ./internal/messaging/... ./internal/iface/... ./cmd/ailang ./cmd/registry-validator`, measured rc=0 at base.",
+    "acceptance_command_form": "Every acceptance command asserts on the `--- PASS:` line, never on the go exit code alone. Measured both directions in one session: a nonexistent test under the corrected form reports RED (while plain `go test -run X` reports rc=0 with '[no tests to run]'), and an existing test (TestClassifyChange) under the identical form reports GREEN. This also fails a t.Skipf, closing the FindAilangBinary stale-binary silent-skip hole (internal/testutil/ailangbin.go:74-79).",
+    "slow_gate_warning": "`go test ./cmd/ailang/...` measured rc=0 in 311.052s. The design doc's AC9 names it unscoped. Every cmd/ailang acceptance command in this plan is scoped with -run '^Test...$'.",
+    "blocking_precondition_for_sprint2": "The design doc's V-log #37 blast-radius measurement (how many published versions lack _smoke.ail and would newly be refused by the D7a publish gate) is UNVERIFIED and could not be measured from this session — the live registry is unreachable here. M6 and M9 must not ship before a human or later iteration runs it."
+  },
+  "velocity": {
+    "target_loc_per_day": 373,
+    "estimated_total_loc": 1490,
+    "estimated_days": 4,
+    "loc_note": "1490 = exact sum of the five Sprint-1 milestone estimates (impl ~720 + tests ~770). Deliberately test-heavy: the sprint's whole value is a hash whose sensitivity is pinned, so most LOC is package fixtures plus sensitivity/determinism/cancellation tests. The 4-day budget is gated by subprocess and timing correctness (M3), not typing volume."
+  },
+  "discrepancies_found": [
+    {
+      "id": "D1",
+      "severity": "blocking",
+      "doc_claim": "AC table: AC1-AC9 and AC12-AC19 'Passes on unmodified HEAD? No — test does not exist.'",
+      "finding": "FALSE. `go test -run <regex>` with a non-matching regex exits 0. Measured: `go test ./internal/pkg/ -run TestInterfaceHashV2_SensitiveToAddedExport > /tmp/ac1.txt 2>&1; rc=$?` gives rc=0 and 'ok ... [no tests to run]'. Control in the same session, a test that does exist: `go test ./internal/pkg/ -run TestInterfaceHash_` also rc=0. 16 of the 19 acceptance gates are therefore GREEN at base and can never go red; an executor could ship zero tests and report all-green. Compounded by internal/testutil.FindAilangBinary (ailangbin.go:49) calling t.Skipf on a stale binary (:74-79), which is also rc=0 — so the subprocess ACs would be green-by-skip on any machine with a stale bin/ailang, the repo's normal state.",
+      "action": "Every acceptance command in this plan asserts the `--- PASS: <TestName>` line AND rc=0. Verified both directions: nonexistent test -> RED, existing test (TestClassifyChange) -> GREEN, same form, same session. This also fails a skip."
+    },
+    {
+      "id": "D2",
+      "severity": "blocking",
+      "doc_claim": "D7c: `pkg.BuildModuleIface(ctx, packageDir, modulePath) (*iface.Iface, error)` 'parses the returned canonical JSON, and returns the *iface.Iface'.",
+      "finding": "NOT IMPLEMENTABLE. The canonical JSON renders each export's type as a string (FuncJSON.Type string, internal/iface/json.go:33) while iface.IfaceItem.Type is a *types.Scheme (internal/iface/iface.go:29). Reconstruction needs a string->Scheme parser and none exists: `grep -rn 'func.*FromNormalizedJSON|func.*ParseIface|func.*UnmarshalIface' internal/iface/` is empty (control, same file, the one-way direction: `grep -rn 'func (i \\*Iface) ToNormalizedJSON' internal/iface/json.go` hits :46), and `grep -rn 'func ParseType|func ParseScheme' internal/types/ internal/parser/` is empty (control: `grep -rc 'func ' internal/types/types.go` = 41).",
+      "action": "Signature corrected to `BuildModuleIface(ctx, packageDir, modulePath) (*iface.InterfaceJSON, error)`. Nothing downstream needs a *types.Scheme — the v2 hash and the signature set are pure functions of the canonical JSON. Strictly simpler than the design; removes a deserializer from scope."
+    },
+    {
+      "id": "D3",
+      "severity": "blocking",
+      "doc_claim": "D5 classification table: 'old side signatures ABSENT | any new side | U (unknown)'.",
+      "finding": "As written this stalls EVERY cascade the day M3/M5 lands. Before backfill and before either binary is wired, no package carries a signature set, so every comparison is legacy-vs-legacy and returns U. U forbids auto-apply and routes to review, so the coordinator stops auto-applying anything for every package until backfill completes. That is the mirror image of the harm the doc set out to avoid: a confident-wrong 'patch' is replaced by a total review stall.",
+      "action": "Classifier is a 2x2 on WHICH SIDES carry signatures, not a 1-D test on the old side. legacy/legacy -> today's hash-only A/C, byte-identical to current behaviour (not a fallback: it is the unchanged legacy path for a wholly-legacy comparison). legacy-old/v2-new -> U (the genuine transition window, D5's real case). v2/v2 -> A/B/C by signature diff. v2-old/legacy-new -> U. Preserves D5's non-negotiable (U is explicit, never a silent A) while bounding the blast radius to packages that actually crossed the migration boundary. Guarded by TestClassifyChange_BothLegacy_UnchangedBehaviour (M5-A1)."
+    },
+    {
+      "id": "D4",
+      "severity": "non-blocking",
+      "doc_claim": "M1: 'canonical, alias-excluded serialization (reuse ToNormalizedJSON machinery minus TypeAliases)' feeding one subcommand that also backs outputInterface.",
+      "finding": "ToNormalizedJSON deliberately EMITS aliases (internal/iface/json.go:29 `Alias string json:\"alias,omitempty\"`, populated at :91-92) and `ailang iface --compact` reads the field back (cmd/ailang/check.go:533). It exists because of M-IFACE-RECORD-FIELDS so an agent can build/destructure a record type from the compact interface instead of cat-ing the source. If internal-dump-iface emits alias-EXCLUDED JSON and outputInterface is refactored onto it as M1 instructs, that agent-facing capability is silently deleted.",
+      "action": "internal-dump-iface emits the FULL normalized JSON, byte-identical to `ailang iface`. Alias exclusion moves one layer later into a pure projection iface.HashProjection(*InterfaceJSON) []byte that drops types[].alias. FIX-1's single-definition property is preserved. Guarded by M2-A5 (subcommand output must diff-clean against `ailang iface`) and M4-A7 (TestInterfaceHashV2_IgnoresTypeAliases)."
+    },
+    {
+      "id": "D5",
+      "severity": "non-blocking",
+      "doc_claim": "M1: 'Refactor the CLI's outputInterface to call BuildModuleIface and os.Exit(1) on its error.'",
+      "finding": "BuildModuleIface is a subprocess wrapper, so this makes every `ailang iface foo.ail` fork an `ailang internal-dump-iface` child — a per-invocation process fork on a hot, user-facing, agent-facing command, for zero safety benefit. FIX-1's isolation requirement is about the registry SERVER compiling UNTRUSTED uploads (main.go:70 ListenAndServe), not about a local user compiling their own source. It is also a recursion hazard if the subcommand is ever wired through the same helper.",
+      "action": "Two functions, one definition. iface.BuildCanonicalJSON(ctx, packageDir, modulePath) ([]byte, error) is the IN-PROCESS single definition; internal-dump-iface is a thin main-side wrapper that prints it; pkg.BuildModuleIface is the SUBPROCESS wrapper used only by publish and the validator; outputInterface calls BuildCanonicalJSON directly. FIX-1 satisfied (still exactly one serialization) without the fork. Guarded by M2-A4 (golden byte-identity against the pre-refactor binary)."
+    },
+    {
+      "id": "D6",
+      "severity": "non-blocking",
+      "doc_claim": "D4/FIX-1: the hidden subcommand 'dissolves' the two-binary drift problem; AC9 guards it.",
+      "finding": "It dissolves CODE duplication, not VERSION SKEW. The publisher resolves its helper via os.Executable() (cmd/ailang/pkg_publish.go:156); the validator resolves via bare exec.Command(\"ailang\", ...) from PATH (cmd/registry-validator/validate.go:76,95,116). In production those are different binaries at different versions — a deployed container image versus whatever the user installed. Any type-renderer change makes them emit different canonical JSON for the same source, so publisher and validator disagree about package identity: exactly the D4 harm. AC9 builds both binaries from one tree at one commit and is structurally incapable of observing skew.",
+      "action": "Deferred to Sprint 2 M7 with a concrete guard: the canonical JSON carries the producing binary's version, and the validator COMPARES the publisher-submitted v2 hash against its own recomputation and rejects the upload with HTTP 400 on mismatch (loud failure per CLAUDE.md section 2) instead of silently overwriting it as main.go:214 does today. Guard: TestValidatorRejectsHashMismatch."
+    },
+    {
+      "id": "D7",
+      "severity": "non-blocking",
+      "doc_claim": "AC9: `go test ./cmd/registry-validator/...` and `go test ./cmd/ailang/...`",
+      "finding": "`go test ./cmd/ailang/...` measured rc=0 in 311.052s — a 5-minute acceptance gate, named unscoped.",
+      "action": "Every cmd/ailang acceptance command in this plan is scoped with -run '^Test...$'. The registry-validator suite is fine unscoped (measured rc=0, 3.117s)."
+    },
+    {
+      "id": "D8",
+      "severity": "non-blocking",
+      "doc_claim": "Mutation table: 'TypeAlias excluded from v2 hash | re-enable the Alias field in the canonical serialization | TestXModAlias_DigestIgnoresTypeAliases goes RED'.",
+      "finding": "INVALID MUTATION. TestXModAlias_DigestIgnoresTypeAliases calls b.computeDigest(...) directly (internal/iface/xmod_alias_digest_test.go:32,36) — the BUILDER's digest, which this sprint does not touch. It is untouched by any change to the new hash projection, so the mutant stays green and the guard is vacuous.",
+      "action": "The alias-exclusion guard is a NEW test on the v2 hash: TestInterfaceHashV2_IgnoresTypeAliases (M4-A7). TestXModAlias* is retained only as an unrelated regression lock (measured GREEN at base: 2 `--- PASS: TestXModAlias` lines, rc=0)."
+    },
+    {
+      "id": "D9-confirmed",
+      "severity": "informational",
+      "doc_claim": "D7c: 'context propagated into pipeline.Run'; D7b: module path -> file resolution.",
+      "finding": "CONFIRMED, no refutation. pipeline.RunWithContext(ctx, cfg, src) exists at internal/pipeline/pipeline.go:154, and pipeline.Config.PackageDir exists at :94-96 overriding where ailang.toml/ailang.lock are found. Running the child with cmd.Dir = packageDir (the pattern runAilangCheck already uses) covers the loader's CWD-relative basePath. Also confirmed: internal/pkg -> internal/iface is a legal import (internal/pkg already imports internal/builtins, a CORE package, and `bash scripts/check_boundaries.sh` is rc=0), and `internal-dump-iface` is a free name (grep hits only the design doc; control `grep -c iface cmd/ailang/main.go` = 7).",
+      "action": "No change required. Recorded so the executor does not re-derive."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_HASH_PROJECTION",
+      "description": "internal/iface/hash_projection.go: HashProjection(*InterfaceJSON) ([]byte, error), a pure deterministic alias-dropping projection of the normalized interface JSON (per D4), plus SignatureSet(*InterfaceJSON) []string producing sorted module:name:signature strings. No compiler, no subprocess, no fixtures, no binary — pure functions over a struct, so the one decision the whole sprint rests on (what exactly gets hashed) gets the fastest possible feedback and is trivially revertible.",
+      "estimated_loc": 210,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "M1-A1 [base: RED] go test ./internal/iface/ -run '^TestHashProjection_ExcludesAlias$' -v > /tmp/o 2>&1; rc=$?; grep -q -- '--- PASS: TestHashProjection_ExcludesAlias' /tmp/o && [ $rc -eq 0 ]",
+        "M1-A2 [base: RED] same form, ^TestHashProjection_Deterministic$ (100 iterations over a map-bearing input)",
+        "M1-A3 [base: RED] same form, ^TestSignatureSet_SortedAndStable$",
+        "M1-A4 [base: GREEN, must stay green] go test ./internal/iface/ -run '^TestXModAlias' -v > /tmp/o 2>&1; rc=$?; [ \"$(grep -c -- '--- PASS: TestXModAlias' /tmp/o)\" -eq 2 ] && [ $rc -eq 0 ]  (measured at base: 2 PASS lines, rc=0)",
+        "M1-A5 [base: GREEN] go build ./internal/pkg/... ./internal/messaging/... ./internal/iface/... ./cmd/ailang ./cmd/registry-validator  (rc=0) AND go vet same targets (rc=0) AND bash scripts/check_boundaries.sh (rc=0). NEVER use `go build ./...` — measured rc=1 at base (cmd/wasm)."
+      ],
+      "mutations": [
+        "alias exclusion: in HashProjection, `if false && t.Alias != \"\" { t.Alias = \"\" }` (still compiles) -> TestHashProjection_ExcludesAlias RED",
+        "SUPPORTING HUNK array sorting: `if false && true { sort.Strings(sigs) }` in SignatureSet -> TestSignatureSet_SortedAndStable RED",
+        "SUPPORTING HUNK ctor retention: `if false && len(t.Ctors) > 0 { out.Ctors = t.Ctors }` -> TestHashProjection_Deterministic RED (fixture carries an ADT)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_BUILD_CANONICAL_JSON_AND_SUBCOMMAND",
+      "description": "iface.BuildCanonicalJSON(ctx, packageDir, modulePath) ([]byte, error): resolves filepath.Join(packageDir, modulePath)+\".ail\" (the loader rule, internal/loader/loader.go:372), runs pipeline.RunWithContext(ctx, Config{DryLink:true, PackageDir:packageDir}, src), returns result.Interface.ToNormalizedJSON(). Returns errors, never os.Exit — the library-shaped requirement of D7c, satisfied one layer lower. Plus the `case \"internal-dump-iface\":` arm in cmd/ailang/main.go's dispatch switch, deliberately absent from printHelp (cmd/ailang/help.go:231; there is no printUsage). outputInterface is repointed at BuildCanonicalJSON IN-PROCESS per D5 — same bytes as today, os.Exit(1) handling stays in the CLI. This is the single definition FIX-1 demands.",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M1_HASH_PROJECTION"
+      ],
+      "acceptance_criteria": [
+        "M2-A1 [base: RED] go test ./internal/iface/ -run '^TestBuildCanonicalJSON_ReturnsErrorNotExit$' -v, --- PASS assertion form",
+        "M2-A2 [base: RED] ^TestBuildCanonicalJSON_ModulePathResolution$ — a declared [exports] path with no .ail file returns an error naming the missing file",
+        "M2-A3 [base: RED] ^TestBuildCanonicalJSON_ContextCancelled$ — cancelled ctx returns ctx.Err()",
+        "M2-A4 [base: cmd/ailang suite measured rc=0 in 311.052s, so SCOPE IT] go test ./cmd/ailang/ -run '^TestOutputInterface' -v with the --- PASS assertion. Executor must add TestOutputInterface_ByteIdenticalToPreRefactor against a golden captured from the PRE-refactor binary; that golden is the gate (guards D4/D5).",
+        "M2-A5 [base: RED] ./bin/ailang internal-dump-iface <fixture-dir> <mod> > /tmp/d.json 2>&1; rc=$?; ./bin/ailang iface <fixture-dir>/<mod>.ail > /tmp/i.json 2>&1; diff /tmp/d.json /tmp/i.json — subcommand and public command must agree byte-for-byte (D4). Base measurement: `grep -rn internal-dump-iface .` hits only the design doc; control `grep -c iface cmd/ailang/main.go` = 7.",
+        "M2-A6 [base: GREEN] shared build/vet/boundaries block (rc=0/0/0)"
+      ],
+      "mutations": [
+        "+\".ail\" resolution: `if false && !strings.HasSuffix(f, \".ail\") { f += \".ail\" }` -> TestBuildCanonicalJSON_ModulePathResolution RED",
+        "ctx propagation: pass context.Background() instead of ctx to RunWithContext -> TestBuildCanonicalJSON_ContextCancelled RED",
+        "error-not-exit shape: replace the missing-file `return nil, err` with os.Exit(1) -> TestBuildCanonicalJSON_ReturnsErrorNotExit RED",
+        "SUPPORTING HUNK switch-arm registration (the hunk that ships unpinned): delete `case \"internal-dump-iface\":` from cmd/ailang/main.go -> M2-A5 RED",
+        "SUPPORTING HUNK PackageDir wiring: `if false && packageDir != \"\" { cfg.PackageDir = packageDir }` — intra-package imports stop resolving -> TestBuildCanonicalJSON_ResolvesIntraPackageImport RED"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_BUILD_MODULE_IFACE_SUBPROCESS",
+      "description": "internal/pkg/iface_subprocess.go: BuildModuleIface(ctx, packageDir, modulePath) (*iface.InterfaceJSON, error) — SIGNATURE CORRECTED PER D2, the design's *iface.Iface return is not implementable. Invokes `ailang internal-dump-iface` via exec.CommandContext with cmd.Dir=packageDir, its own process group (setProcessGroup, mirroring internal/pkg/process_unix.go:13 as publish_validator.go already does), and a per-module context.WithTimeout. Plus the PublishLimits struct (overall 60s / per-module 10s / max 64 exported modules) as the one named tuning point. Binary resolution: os.Executable() for the publisher, exec.LookPath(\"ailang\") for the validator, injectable for tests. HIGHEST-RISK REVERSIBLE ITEM — lands before anything irreversible.",
+      "estimated_loc": 380,
+      "dependencies": [
+        "M2_BUILD_CANONICAL_JSON_AND_SUBCOMMAND"
+      ],
+      "acceptance_criteria": [
+        "M3-A1 [base: RED] go test ./internal/pkg/ -run '^TestBuildModuleIface_ReturnsError$' -v, --- PASS form — missing file / type error / non-zero child all yield an error, never os.Exit",
+        "M3-A2 [base: RED] ^TestBuildModuleIface_Cancellation$ — cancelling the caller kills the child and returns ctx.Err()",
+        "M3-A3 [base: RED] ^TestBuildModuleIface_PerModuleDeadline$ — inject a 50ms deadline against a blocking fixture (do NOT sleep 10s) and assert a typed timeout error",
+        "M3-A4 [base: RED] ^TestBuildModuleIface_ExportLimit$ — more than PublishLimits.MaxExportedModules refuses",
+        "M3-A5 [base: RED] ^TestBuildModuleIface_MatchesInProcess$ — subprocess bytes == iface.BuildCanonicalJSON bytes",
+        "M3-A6 [base: GREEN, measured rc=0 in 1.255s] go test ./internal/pkg/ > /tmp/o 2>&1; rc=$?  — whole package still green",
+        "M3-A7 [base: GREEN] shared build/vet/boundaries block"
+      ],
+      "mutations": [
+        "per-module timeout: `if false && lim.PerModule > 0 { ctx, cancel = context.WithTimeout(ctx, lim.PerModule) }` -> TestBuildModuleIface_PerModuleDeadline RED",
+        "ctx into the child: exec.Command(...) instead of exec.CommandContext(ctx, ...) -> TestBuildModuleIface_Cancellation RED",
+        "export cap: `if false && len(mods) > lim.MaxExportedModules { return err }` -> TestBuildModuleIface_ExportLimit RED",
+        "SUPPORTING HUNK cmd.Dir: `if false && packageDir != \"\" { cmd.Dir = packageDir }` — child runs in the wrong CWD -> TestBuildModuleIface_MatchesInProcess RED",
+        "SUPPORTING HUNK process-group kill: drop setProcessGroup(cmd) -> TestBuildModuleIface_Cancellation RED (orphan child outlives cancel)",
+        "SUPPORTING HUNK PublishLimits defaults: zero the struct literal's defaults -> TestBuildModuleIface_PerModuleDeadline RED"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "SILENT-GREEN TRAP: do NOT gate these on internal/testutil.FindAilangBinary — it calls t.Skipf on a stale binary (internal/testutil/ailangbin.go:74-79) and a skip is rc=0, the repo's normal state. Build the child once in TestMain via `go build -o <t.TempDir()>/ailang ./cmd/ailang` and t.Fatal if that build fails. The --- PASS: assertion in every command above also catches a skip."
+    },
+    {
+      "id": "M4_INTERFACE_HASH_V2",
+      "description": "pkg.InterfaceHashV2(ctx, packageDir, m *PackageManifest) (string, []string, error) returning `sha256:ifacev2:<64hex>` AND the signature set. Folds, per exported module sorted by path, iface.HashProjection of that module's canonical JSON, then package name / edition / sorted max effects — the legacy fields retained so a v2 hash is a strict superset of what legacy folded. Plus InterfaceHashVersion(string) int -> 0 | 2. Legacy pkg.InterfaceHash (internal/pkg/hasher.go:73) is UNTOUCHED. Nothing calls InterfaceHashV2 yet: this milestone is pure library and the tree stays dark.",
+      "estimated_loc": 380,
+      "dependencies": [
+        "M3_BUILD_MODULE_IFACE_SUBPROCESS"
+      ],
+      "acceptance_criteria": [
+        "M4-A1 [base: RED] go test ./internal/pkg/ -run '^TestInterfaceHashV2_SensitiveToAddedExport$' -v, --- PASS form — the reporter's exact field case (design V5: sunholo/external_backend 0.1.0->0.2.0 adding describeProcessError)",
+        "M4-A2 [base: RED] ^TestInterfaceHashV2_SensitiveToRemovedExport$",
+        "M4-A3 [base: RED] ^TestInterfaceHashV2_SensitiveToRetype$",
+        "M4-A4 [base: RED] ^TestInterfaceHashV2_Deterministic$ — same dir hashed 10x yields identical",
+        "M4-A5 [base: RED] ^TestInterfaceHashV2_OrderIndependent$ — reordering [exports] and [effects] max yields identical",
+        "M4-A6 [base: RED] ^TestInterfaceHashVersion$ — 'sha256:ifacev2:...'->2, 'sha256:...'->0, garbage->0",
+        "M4-A7 [base: RED] ^TestInterfaceHashV2_IgnoresTypeAliases$ — THE REAL D6 GUARD; the design's AC10 mutation is invalid (see discrepancy D8)",
+        "M4-A8 [base: GREEN, measured rc=0] go test ./internal/pkg/ -run '^TestInterfaceHash_' -v — legacy tests still pass (design AC11)",
+        "M4-A9 [base: GREEN, measured 2 PASS lines rc=0] go test ./internal/iface/ -run '^TestXModAlias' -v — regression lock only",
+        "M4-A10 [base: GREEN] shared build/vet/boundaries block"
+      ],
+      "mutations": [
+        "fold the module projection: `if false && len(proj) > 0 { h.Write(proj) }` -> TestInterfaceHashV2_SensitiveToAddedExport RED (and A2, A3)",
+        "canonical not raw: fold ToNormalizedJSON output instead of HashProjection -> TestInterfaceHashV2_IgnoresTypeAliases RED",
+        "ifacev2 marker: `if false && true { prefix = \"sha256:ifacev2:\" }` -> TestInterfaceHashVersion RED",
+        "SUPPORTING HUNK sort of [exports]: `if false && true { sort.Strings(exports) }` -> TestInterfaceHashV2_OrderIndependent RED",
+        "SUPPORTING HUNK error propagation: `if false && err != nil { return \"\", nil, err }` — a broken module silently yields a hash -> TestInterfaceHashV2_RefusesOnBrokenModule RED",
+        "SUPPORTING HUNK effects fold retained: drop the `effect:` writes -> TestInterfaceHashV2_SensitiveToEffectCeiling RED"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_CLASSIFY_CHANGE_WITH_UNKNOWN",
+      "description": "Signatures []string added to messaging.PackageVersionInfo (internal/messaging/pkg_events.go:13-20). classifyChange rewritten from the 9-line dead-branch function (pkg_events.go:162-170, whose ContentHash arm is dead code — both remaining branches return \"A\") to the 2x2 of discrepancy D3, returning A/B/C/U. ChangeClass/Breaking set on EmitInterfaceChangeNotice and EmitUpgradeAvailable. internal/coordinator/autonomy_router.go:61 (PkgMsgInterfaceChange) extended so U routes to review (ChangeClassC), not auto-apply. The existing TestClassifyChange (pkg_events_test.go:191) is REPLACED, not extended, per .claude/rules/coding-standards.md — its 'content only' and 'no change' cases encode the dead-code behaviour and must not survive. Last in Sprint 1 because it changes cascade routing; under the D3 2x2 it is dark while no producer emits signatures.",
+      "estimated_loc": 340,
+      "dependencies": [
+        "M4_INTERFACE_HASH_V2"
+      ],
+      "acceptance_criteria": [
+        "M5-A1 [base: RED] go test ./internal/messaging/ -run '^TestClassifyChange_BothLegacy_UnchangedBehaviour$' -v, --- PASS form — THE D3 GUARD: legacy/legacy still yields today's A/C",
+        "M5-A2 [base: RED] ^TestClassifyChange_AdditiveVsBreaking$ — v2/v2, new superset of old yields B; removal or retype yields C",
+        "M5-A3 [base: RED] ^TestClassifyChange_UnknownOldSide$ — legacy old + v2 new yields U",
+        "M5-A4 [base: RED] ^TestClassifyChange_UnknownNewSide$ — v2 old + legacy new yields U",
+        "M5-A5 [base: RED] go test ./internal/coordinator/ -run '^TestAutonomyRouter_UnknownRoutesToReview$' -v, --- PASS form",
+        "M5-A6 [base: GREEN, measured rc=0 in 5.222s] go test ./internal/messaging/ > /tmp/o 2>&1; rc=$?",
+        "M5-A7 [base: RED, control measured = 1] grep -c 'content only' internal/messaging/pkg_events_test.go must be 0 — the stale dead-code case is DELETED, not left passing",
+        "M5-A8 [base: GREEN] shared build/vet/boundaries block"
+      ],
+      "mutations": [
+        "U on legacy-old + v2-new: `if false && old.Signatures == nil && new.Signatures != nil { return \"U\" }` -> TestClassifyChange_UnknownOldSide RED",
+        "legacy/legacy stays hash-only: `if false && old.Signatures == nil && new.Signatures == nil { return legacyClassify(old,new) }` — falls into U -> TestClassifyChange_BothLegacy_UnchangedBehaviour RED",
+        "superset yields B: `if false && isSuperset(new.Signatures, old.Signatures) { return \"B\" }` -> TestClassifyChange_AdditiveVsBreaking RED",
+        "SUPPORTING HUNK ChangeClass actually set on the envelope: `if false && cls != \"\" { env.Package.ChangeClass = cls }` -> TestEmitInterfaceChangeNotice_CarriesChangeClass RED",
+        "SUPPORTING HUNK router case: delete the `case \"U\":` arm in internal/coordinator/autonomy_router.go -> TestAutonomyRouter_UnknownRoutesToReview RED"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "deferred_to_sprint_2": [
+    {
+      "id": "M6_WIRE_PUBLISHER",
+      "estimated_days": 0.5,
+      "why_deferred": "First user-visible behaviour change: publish refuses on a broken exported module (design D7a), with an UNMEASURED blast radius (design V-log #37 is UNVERIFIED and the live registry is unreachable from this session). Land behind AILANG_PKG_IFACE_V2=1, default off, until the radius is measured."
+    },
+    {
+      "id": "M7_WIRE_VALIDATOR_AND_SKEW_GUARD",
+      "estimated_days": 1,
+      "why_deferred": "IRREVERSIBLE — registry writes. The moment cmd/registry-validator/main.go:214 emits a v2 hash, newly published packages carry a v2 identity. Must also carry the D6 version-skew guard: the validator compares the publisher-submitted hash to its own recomputation and rejects HTTP 400 on mismatch rather than silently overwriting."
+    },
+    {
+      "id": "M8_PERSIST_SIGNATURES",
+      "estimated_days": 1,
+      "why_deferred": "IRREVERSIBLE — schema on published records. Threads interface_signatures through PackageMetadata (internal/pkg/registry_types.go:39 neighbourhood), PackageVersionInfo, lockfile, pubsub, coordinator SQLite rows and the Firestore converter — the 8 persistence points in the design's Conflict Surface."
+    },
+    {
+      "id": "M9_REGISTRY_BACKFILL",
+      "estimated_days": 2.5,
+      "why_deferred": "IRREVERSIBLE — rewrites historical registry metadata. The design budgets 1 day; a resumable, checkpointed, retrying batch job over an object store with two distinct failure taxonomies (failed vs unbackfillable) is not a 1-day item, and the design's own FIX-2 requirements (AC18 bounded batch, AC19 checkpointed resume) each imply persistence plus a resume path. Blocked on the same V-log #37 measurement as M6."
+    }
+  ]
+}
