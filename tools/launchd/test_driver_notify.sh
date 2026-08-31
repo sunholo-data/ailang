@@ -27,6 +27,11 @@ checkno(){ case "$2" in *"$3"*) bad "$1" "$(printf '%s' "$2"|tr '\n' '|')";; *) 
 
 run() { # $1=block  $2=degraded-value  -> prints trace; env AILANG_RC/GH_RC/ISSUE tweak it
   local block="$1" val="$2"
+  # A FRESH state dir per arm, not a shared one: the blocks now episode-GATE on files under
+  # STATE_DIR, so two arms sharing it would let the first arm's episode marker silently
+  # suppress the second's notice — an arm passing because it was deduped, not because the
+  # code is right.
+  local state_dir; state_dir=$(mktemp -d)
   /bin/bash -c '
     set -uo pipefail
     TRACE=""
@@ -40,6 +45,7 @@ GH:$*"; return ${GH_RC:-0}; }
     MISSION_GH_ISSUE="${ISSUE-635}"; LOG=/tmp/x.log; REPO=/tmp/repo
     MODEL=claude-opus-5; MODEL_WHY="probe ok"
     MISSION_DESIGNER_MODEL=d; MISSION_PLANNER_MODEL=p; MISSION_EXECUTOR_MODEL=e; MISSION_EVALUATOR_MODEL=v
+    STATE_DIR="$5"   # episode gating (_lane_ep/_pin_ep) reads this; unbound => set -u abort
     _pin_degraded=""; _lane_degraded=""
     . "$1"            # _mc_notify
     eval "$3=\"$4\""  # set the ledger under test
@@ -48,7 +54,8 @@ GH:$*"; return ${GH_RC:-0}; }
     echo "
 RC:$?"
   ' _ "$LAB/notify.sh" "$LAB/$block.sh" \
-    "$( [ "$block" = pin_block ] && echo _pin_degraded || echo _lane_degraded )" "$val" 2>&1
+    "$( [ "$block" = pin_block ] && echo _pin_degraded || echo _lane_degraded )" "$val" "$state_dir" 2>&1
+  rm -rf "$state_dir"
 }
 
 run_drift() { # $1=status $2=drift $3=threshold $4=state-value (absent for no file)
@@ -70,6 +77,11 @@ GH:$*"; return 0; }
     AILANG_DRIVER_SRC=/source/ailang-motoko
     PIN_STATUS="$1"; PIN_DRIFT="$2"; AILANG_DRIVER_DRIFT_WARN="$3"
     PIN_DRIFT_FILE="$4/pin-drift"; PIN_NOTE="pinned test note"
+    # The extracted blocks read STATE_DIR (episode gating: _lane_ep, _pin_ep). The lab
+    # supplies every other driver variable but never this one, so under `set -u` the block
+    # aborts on an unbound variable before any assertion runs — 9 arms here failing for the
+    # harness rather than for the code. Point it at the same per-arm temp dir as $4.
+    STATE_DIR="$4"
     _pin_degraded=""; _pin_drift_degraded=""
     . "$5"
     . "$6"

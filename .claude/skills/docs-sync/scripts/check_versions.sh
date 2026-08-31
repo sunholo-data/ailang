@@ -52,14 +52,13 @@ else
     echo "  ACTION: Update docs/src/constants/version.js"
 fi
 
-# Check 3: References in intro.mdx
-INTRO_FILE="$PROJECT_ROOT/docs/docs/intro.mdx"
-if [[ -f "$INTRO_FILE" ]]; then
-    INTRO_PROMPT_REF=$(grep -o "v[0-9]\+\.[0-9]\+\.[0-9]\+" "$INTRO_FILE" | head -1 || echo "none")
-    if [[ "$INTRO_PROMPT_REF" != "$LATEST_PROMPT" && "$INTRO_PROMPT_REF" != "none" ]]; then
-        echo "  [STALE] intro.mdx references $INTRO_PROMPT_REF, latest is $LATEST_PROMPT"
-    fi
-fi
+# Check 3 (removed 2026-08-31): used to grep the first vX.Y.Z string anywhere in
+# intro.mdx and flag it if not equal to the latest prompt file. This is structurally
+# unsound: intro.mdx's "Recent Additions" section intentionally lists historical
+# ship-versions per feature (e.g. "IFC Labels (v0.16.0)"), which will essentially
+# never equal the latest prompt version. False-positived permanently — see
+# design_docs/docs-mission.md docs-9 [RULED OUT] and docs-sync-findings.md DOCS-2-02.
+# Genuine intro.mdx content drift is a content-review concern, not a version-string grep.
 
 echo ""
 echo "=== Quick Fix ==="

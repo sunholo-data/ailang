@@ -75,6 +75,57 @@ At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the arc
 iteration re-reads this charter — unbounded STATUS history is a per-read token tax on the scarcest
 model budget; the append-only history lives in the log + archive.
 
+## STATUS 2026-08-31 — ITERATION 2: recovered a died-mid-flight fire (docs-9 RULED OUT, PR #973 landed); Gate-0 weekly sweep found docs-10
+
+Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. `dev` == `origin/dev` at
+pick time (`c16911e0b`), no divergence. 11 unread canonical-inbox messages, none docs-mission
+directives (V1's own controlplane traffic, `docparse`/`aitana-platform` package feedback for a
+different product, eval-suite run notifications) — same finding as iteration 1. Zero directives on
+bookkeeping issue `#953` since the watermark (`scripts/mission_directives.sh`, 0 of 16 comments).
+Decision ledger valid, 2 rows, both `RESOLVED` (D-1, D-2) — no new ask.
+
+Gate 1: `origin/dev` HEAD check-runs showed **two** non-green: `SonarCloud Code Analysis` and
+`launchd drivers (bash 3.2)`, both confirmed **inherited** from the immediate parent commit
+(`c16911e0b`, identical conclusions on both) — not caused by anything this mission is about to do,
+already flagged to V1 (repo owner) by iteration 1, not re-flagged. Skill copy confirmed matching
+`origin/dev` (`cmp` clean).
+
+**PICK: none fresh — Gate 2's died-mid-flight check found a complete, unlanded prior fire.** Open
+PR `#973` (`sprint/iter2-docs-9`) plus three orphaned worktrees, zero "ITERATION 2" trace anywhere
+in charter/log/archive (0/0/0, known-present control `ITERATION 1` = 1). The prior fire had run
+the full inner loop on `docs-9` to completion — `[RULED OUT]`, the intro.mdx staleness claim was a
+permanent false-positive of `check_versions.sh` Check 3 — and died before Gate 4/5. Re-verified
+first-party rather than trusted: intro.mdx's version annotations are ship-versions (5 bullets, 5
+different versions, confirmed by direct read); `prompts/v0.16.0.md` vs `v0.16.6.md` diff only the
+title line; all three worktrees clean (no uncommitted state — the fire finished, it just never
+landed); PR `#973` `MERGEABLE`/`CLEAN`, 21 checks, none non-green.
+
+**Outcome: LANDED.** Squash-merged [PR #973](https://github.com/sunholo-data/ailang/pull/973) →
+`ad7542ba5`. Local `dev` fast-forwarded. CI polled to completion on the merge commit itself:
+`Deploy Documentation to GitHub Pages` green; `CI` conclusion `failure` — but check-runs isolate it
+to the SAME two reds (`SonarCloud Code Analysis`, `launchd drivers (bash 3.2)`), both confirmed
+identical-conclusion on the parent commit — inherited, not introduced by this merge. Orphaned
+worktrees removed.
+
+**Gate 0 weekly external-issue sweep** (first iteration after the Monday 2026-08-31 07:00 CEST
+rotation boundary — `#953` created before it): 92 open issues enumerated (`--limit 100`, asserted
+against `jq length` = 92 — first attempt used `--limit 50` and silently truncated, caught before
+recording). Per-issue `#N\b` grep across charter/log/archive/dashboard, known-positive control
+(`#953` → 6) and known-absent control (`#88214` → 0) both firing. First pass read 92/92 orphaned —
+wrong, self-caught: a zsh 1-indexed-array bug (`${FILES[0]}` empty) made every grep run with no
+file argument. Corrected: **89/92 orphaned**, 87 plainly out of domain, **2 in-domain**:
+[#670](https://github.com/sunholo-data/ailang/issues/670)/[#654](https://github.com/sunholo-data/ailang/issues/654),
+both showing `make verify-examples` (this mission's own verify-profile gate) never actually
+verifies output and has no anti-vacuity floor. Re-confirmed live at HEAD (both defects still
+present). Filed as new queue item **`docs-10`**, positioned after `docs-6`.
+
+**Metered cost this iteration: $0.00** of $1 ceiling — no new model-role spawns; this iteration was
+controller-session verification + bookkeeping only. Quota buckets: sonnet (controller).
+
+Bookkeeping issue rotated: `#953` → `#979` (Monday 07:00 boundary rule; `#953` had 16 comments,
+under the 80 threshold, but was created before this week's boundary).
+
+
 ## STATUS 2026-08-28 — ITERATION 1: docs-2 LANDED; the sync tool it depends on was found broken, and fixing it needs two allowlist decisions
 
 First real sprint since ratification. Gate 0: kill switch armed; billing CLEAN; gh
@@ -168,109 +219,6 @@ Iteration 0's real yield is kept and was never the ratification: two corrections
 human-authored charter (the CI path-filter citation, the fail-closed framing), a refuted
 "silent fallback" claim, and one **fleet-wide** skill fix (`0e341cc57`) — the shared Gate-0
 Current-State block had been reading V1's kill switch, queue and log for *every* non-V1 mission.
-
-## STATUS 2026-08-28 — ITERATION 0 RUN: quorum BLOCKED 3x across 2 revisions (1 human-directed mid-flight), **still not ratified** — parked for Mark
-
-First unattended fire of `dev.ailang.mission-docs` (kill switch had been removed since the prior
-stamp). Gate 0 found no docs-mission-specific inbox traffic and no comments on bookkeeping issue
-`#953`, so proceeded per Gate 2's QUORUM-AT-PICK: this charter had no quorum artifact yet, so ran
-`ailang design-quorum` on it before any routing, exactly as any picked design doc would get.
-
-**Round 1** (`docs-mission-2026-08-28T06-29-56Z.json`, $0.057): BLOCKED, all three reviewers
-rejected — two premise objections on clause 7 (no verified read command for the prod inbox;
-`send`/`forward` asserted as working with zero verification evidence, unlike every other claim in
-the doc) and one design objection (queue item docs-1's inbox-routing deliverable has no identified
-implementation path inside the mission's own blast-radius allowlist).
-
-**Controller measurement before revising (rule 3f — measure premises, don't just forward them):**
-ran `ailang messages send docs-quorum-test-scratch "..."` then
-`ailang messages forward --to docs-mission --reason "..." <id>` then
-`AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT=ailang-multivac ailang messages list --inbox
-docs-mission --unread --json`, live against prod Firestore — the message arrived and was readable,
-confirming both CLI primitives work with no registration and no `internal/`/`cmd/` change involved.
-Paired with a known-positive control (`pkg:sunholo/ailang_parse`, real unread message) and a
-known-negative one (a fabricated inbox name, `null`) so the read instrument's emptiness elsewhere
-is trusted. This refuted 2 of 3 round-1 objections directly; the third (blast-radius scope for
-docs-1) is a genuine open design question, not a measurable premise.
-
-**Revision**: spawned a pinned-sonnet designer sub-agent (independent process from this
-controller's own pass verdict) with the measurements above, to make ONE bounded, targeted fix:
-cite the verified commands and correct read incantation in clause 7, reframe docs-1 as building a
-**trigger** (not the already-working primitives) with the blast-radius question surfaced as an
-explicit, unanswered, one-word ask for Mark, and reconcile the CURRENT-GOAL/Queue inconsistency in
-the Queue's favor. Confirmed scope held: clauses 1-6, Guardrails, Routing policy, and the
-ARMED-BUT-SILENT/not-yet-ratified STATUS language are all byte-identical to before.
-
-**Round 2** (`docs-mission-2026-08-28T06-35-00Z.json`, $0.062): BLOCKED again, different surface
-each time — sign of a doc still being probed broadly, not close to convergence (Gate 2's
-round-tracking rule). gpt5-6-sol re-rejected the SAME docs-1 scope point (correctly — it's the
-genuine open question, deliberately left unanswered rather than invented). gemini-3-1-pro raised a
-NEW objection calling `derive-planner-lane.sh`'s Step 0 opus-fallback a "silent fallback" violating
-the no-silent-fallbacks axiom. oc-glm-5-2 raised a NEW objection that the Repo Profile's CI
-path-filter claims are asserted without a workflow-file citation.
-
-**Controller measurement on round 2 (before parking, not before a 3rd revision — Gate 2 allows one
-revision + one re-quorum, both now spent):**
-- `gemini-3-1-pro`'s objection is **REFUTED**: `tools/launchd/derive-planner-lane.sh` lines 57-58
-  read *"Step 0: only a VETTED non-opus lane may proceed to the path analysis; anything else fails
-  closed to opus"* — a deliberate, documented, LABELED fail-closed-to-safety default (every exit
-  path emits a distinct reason token, e.g. `opus fail-closed:env-pin`, per lines 63-64's own
-  comment explaining exactly why: *"every non-codex value emitted 'opus fail-closed:env-pin', so
-  the lane would read as pinned in the driver log while actually running opus"* — i.e. this script
-  was ALREADY hardened against the silent-failure shape the reviewer describes). Not a bug to fix;
-  the doc's framing (route around it via pin choice) is correct.
-- `oc-glm-5-2`'s objection is **PARTIALLY CONFIRMED**: `.github/workflows/ci.yml`'s `on.push` has
-  no `paths:` key (lines 3-9) — the doc's "no push paths filter" claim is TRUE. But
-  `docusaurus-deploy.yml`'s `on.push.paths` is **broader** than the Repo Profile states: besides
-  `docs/**`, `prompts/**`, `llms.txt`, `CHANGELOG.md`, it ALSO triggers on
-  `.github/workflows/docusaurus-deploy.yml`, `internal/**`, `cmd/**`, `go.mod`, `go.sum`, `web/**`
-  (WASM/REPL rebuild triggers) — meaning V1's own code changes can fire this mission's Gate-3b/
-  Gate-1 watched workflow too. Worth a citation fix next revision; not itself a ratification
-  blocker, and it sharpens the V1/docs shared-CI-signal risk flagged in round 1's controller note.
-
-**A directive landed MID-ITERATION and changed the disposition above.** While round 2 was being
-written up, Mark reviewed the round-1/2 blast-radius objection in an attended session and committed
-`29a467cac` ("widen planner allowlist tools/launchd/* -> tools/*"), authorising exactly the scope
-docs-1 needed, verified in both directions before asking. Per this skill's mid-iteration-directive
-rule, actioned in-iteration rather than deferred: spawned a second pinned-sonnet designer revision
-folding the resolution into Guardrails/docs-1, plus the two round-2 measured fixes (the
-"silent"→"deliberate" fallback wording, the full CI path-filter citation), and re-ran the quorum a
-third time.
-
-**Round 3** (`docs-mission-2026-08-28T06-49-08Z.json`, $0.078): **BLOCKED AGAIN — a third distinct
-surface each round, no reviewer has passed yet.** gpt5-6-sol escalated from "no extension mechanism"
-to demanding a full conflict-surface/protocol spec for docs-1 (dedup keys, retry/timeout semantics,
-scheduling ownership) inside the CHARTER itself — this asks the ratification gate to absorb docs-1's
-own future sprint-planning scope, which the charter's own Guardrails explicitly says most items
-don't need ("prefer a Gate-2 reality-check straight into a sprint"). gemini-3-1-pro objected that
-Clause 1's `audit_design_docs.sh`/`check_versions.sh` citations are unverified — **REFUTED by a
-check already run earlier this iteration**: `ls .claude/skills/docs-sync/scripts/` lists both files
-(plus `check_examples.sh`, `derive_roadmap_versions.sh`, `generate_report.sh`). oc-glm-5-2 raised a
-meta-objection that an admittedly-unratified doc cannot simultaneously read as an operational
-charter with a live queue — true of any draft under quorum review, not specific to this doc's
-content, and not something a text revision resolves.
-
-**Disposition: STOP HERE and `PARKED-needs-human-review` on `docs-0`.** Gate 2's protocol is one
-revision + one re-quorum; this iteration already spent that budget AND a second bounded revision
-(justified only because genuinely new information — Mark's live decision — arrived mid-iteration,
-not because round 2 merely re-blocked). Per the round-tracking rule, objections have spread across
-a *new* surface each round rather than localising or any reviewer starting to pass — the doc is
-either still immature or the reviewers are progressively raising the bar past what a charter (vs. a
-feature design doc) should need before its OWN queue items get their own design/sprint treatment.
-Either reading argues for a human decision, not a fourth revision. No sprint routes this iteration
-(the charter's own gate), so docs-1/docs-2/docs-3/docs-4 stay `[NEXT]`/`[PARKED]` unchanged.
-Planner/executor/sprint-evaluator: N/A — no sprint executed. generator(designer)≠judge was supplied
-structurally by the 3-reviewer quorum, independent of both the sonnet controller and the sonnet
-designer sub-agent, across all three rounds.
-
-**Metered cost, corrected total: $0.197** of the $1 ceiling (three quorum rounds: $0.057 + $0.062 +
-$0.078). Quota: sonnet (controller + two designer sub-agent runs). Plus one unrelated, separately
-justified skill fix this iteration (see Gate 5 retro): the shared skill's Gate-0 kill-switch/queue/
-log-path preflight literals were V1-only and silently wrong for every other mission — fixed in
-`0e341cc57`, 5th instance of the "bare `~/.ailang/state/` literal in this shared skill" class.
-
-**Metered cost this iteration: $0.119** of the $1 ceiling (two quorum rounds, $0.057 + $0.062).
-Quota buckets: sonnet (controller + designer sub-agent).
 
 ## CURRENT GOAL
 
@@ -475,14 +423,22 @@ loud stop instead of a silent bill.
    sweep gives 166 pass / 9 genuine fail / 42 no-module across 217 files. Independently re-derived
    by the sprint-evaluator (sonnet) from scratch — PASS 92/100, zero blocking. Follow-ups spawned
    as docs-5 through docs-8 below.
-3. `[NEXT]` **docs-9 · clause 1 · FIX THE STALE PUBLISHED PAGE — the first item that corrects
-   content a reader actually sees.** `docs/docs/intro.mdx` names IFC Labels as `v0.16.0` while the
-   active prompt is `v0.16.6` (`check_versions.sh`: `[STALE] intro.mdx references v0.16.0, latest
-   is v0.16.6`; verified by both the controller and the sprint-evaluator, `docs-sync-findings.md`
-   DOCS-2-02). Was deferred by `docs-7` as mechanically impossible; that was false and is now
-   measured — the path routes to the cheap planner. Small, verifiable, and it moves the metric that
-   matters: **files changed under `docs/` that a reader sees**, which is still 0. Gate with
-   `make docs-build`. Est. 1 iteration, well under.
+3. `[RULED OUT]` **docs-9 · clause 1 · "intro.mdx is stale at v0.16.0" — DISSOLVED 2026-08-31
+   (controller live-repro): the check's premise was false, measured.** `check_versions.sh` Check 3
+   greps the first `vX.Y.Z` string anywhere in `intro.mdx` and compares it to the latest prompt
+   file, with no awareness that the "Recent Additions" section intentionally lists each feature's
+   historical **ship**-version (`IFC Labels (v0.16.0)`, `Tiered Eval Suite (v0.14.0)`, `List-only
+   ++ (v0.13.0)`, `Three-tier OTEL Tracing (v0.12.0)`, `New Stdlib Modules (v0.12.0)` — none match
+   `STABLE_RELEASE`/`ACTIVE_PROMPT` by design, and none ever will). Diffing `prompts/v0.16.0.md`
+   against `prompts/v0.16.6.md` found zero IFC/`declassify`/`T<label>` content changes across all
+   six intervening revisions — the IFC Labels annotation is factually correct as `v0.16.0` and
+   bumping it would misrepresent when the feature shipped. **Nothing in `intro.mdx` needed to
+   change.** The real defect was the instrument: Check 3 is deleted in this sprint (see the
+   script's own header comment for why), since a bare regex over prose cannot distinguish
+   "current-version claim" from "historical ship-version annotation" without a marker convention
+   the file doesn't have. Kept as `[RULED OUT]` rather than deleted, matching `docs-7`'s
+   convention, because the interesting part is the mechanism: a queue item inherited a tool's raw
+   `[STALE]` line without checking whether the tool's premise was sound.
 4. `[NEXT]` **docs-5 · clause 2 · examples hygiene — fix the 9 genuinely-failing runnable
    examples.** `block_demo.ail`, `test_module_minimal.ail`, `simple_func_match.ail`,
    `match_arm_block.ail`, `match_in_block.ail`, `nested_match_minimal.ail` have no `main`
@@ -500,7 +456,24 @@ loud stop instead of a silent bill.
    `design-doc-creator/*`). Also folds in DOCS-2-04 (the audit_design_docs.sh vs
    derive_roadmap_versions.sh design-doc population-count mismatch — same script family, same
    scope question).
-6. `[RULED OUT]` **docs-7 · "the mission cannot edit its own published content" — DISSOLVED
+6. `[NEXT]` **docs-10 · clause 1 · `make verify-examples` is vacuous on two independent axes —
+   found by Gate 0's weekly external-issue sweep (2026-08-31), not by this mission's own tooling.**
+   Docs-mission's Repo Profile names `make verify-examples` as one of its two verify-profile gates
+   ("every published example still verifies"). Two open, unmentioned-anywhere-in-this-charter
+   issues, both measured with a mutant-and-restore, show it cannot actually do that:
+   [#670](https://github.com/sunholo-data/ailang/issues/670) — `expected.stdout` in
+   `examples/manifest.json` is never compared (`scripts/verify_examples.go`'s `runExample` passes
+   an example on `err == nil` alone; corrupting one entry's `expected.stdout` to a deliberately
+   wrong literal still returns `rc=0`); [#654](https://github.com/sunholo-data/ailang/issues/654) —
+   `scripts/validate_manifest.go` prints its `checked` count but never asserts it against a floor,
+   so an enumeration that silently returns zero (a glob change, a path move) still prints a green
+   "✓ … in sync" line and exits 0. Re-confirmed still present at this iteration's HEAD (`grep -c
+   "checked == 0"` and `grep -c "expected.stdout"` both **0** in the two scripts). In scope:
+   `scripts/*` is Go but not `internal/**`/`cmd/**`, so it is editable by this mission per the
+   Guardrails' non-write-gate correction — it plans on `opus` rather than the cheap `codex` lane
+   (not in `MISSION_PLANNER_ALLOWLIST`), which is a cost note, not a blocker. Sequenced after
+   docs-6 since both are fixes to the sweep's own instruments, not to docs content.
+7. `[RULED OUT]` **docs-7 · "the mission cannot edit its own published content" — DISSOLVED
    2026-08-28 (attended): the premise was false, measured.** This item asserted that
    `MISSION_PLANNER_ALLOWLIST`'s `docs/*` is a single-level glob excluding `docs/docs/**` and
    `docs/src/**`. It is not — these are `case` glob patterns, not shell pathname expansion, so `*`
@@ -512,14 +485,14 @@ loud stop instead of a silent bill.
    guarding is now `docs-9`. Kept as `[RULED OUT]` rather than deleted, because the interesting
    part is the mechanism: this item was created from a false sentence in this charter, which then
    got cited back as its own evidence — see the Guardrails correction for the rule that closes it.
-7. `[PARKED]` **docs-8 · clause 1 · 126 overdue planned design docs (aggregate).** Everything under
+8. `[PARKED]` **docs-8 · clause 1 · 126 overdue planned design docs (aggregate).** Everything under
    `design_docs/planned/` targeting v0.29.0 through v0.31.0 while the repo ships v0.34.0
    (DOCS-2-03). `design_docs/` is also outside the current sprint allowlist — moving a doc to
    `implemented/` is normally the mission CONTROLLER's own Gate-4 bookkeeping (as v1-mission does),
    not a sprint-executor task, so this can proceed without an allowlist change, just not via the
    automated inner loop. Sequence after docs-6/docs-7 land or are ruled out, since triaging 126
    docs by hand is exactly the kind of large sweep worth doing once against settled tooling.
-8. `[NEXT]` **docs-1 · clause 7 · build the inbox-routing TRIGGER.** `send` and `forward` are
+9. `[NEXT]` **docs-1 · clause 7 · build the inbox-routing TRIGGER.** `send` and `forward` are
    verified working primitives (see clause 7's verification log) — no `internal/`/`cmd/` change is
    needed for those, and this item should not touch Go code. The missing piece is a **trigger**:
    something that periodically decides doc-related traffic exists (in `public-feedback`,
@@ -531,9 +504,9 @@ loud stop instead of a silent bill.
    `tools/messaging/docs_inbox_router.sh` is in scope (see Guardrails). Deliverable: a message sent
    from outside, observed arriving via the verified read command in clause 7, acked. Est. 1
    iteration.
-9. `[PARKED]` **docs-3 · clause 6 · benchmark surface audit.** Blocked on nothing, but sequence it
+10. `[PARKED]` **docs-3 · clause 6 · benchmark surface audit.** Blocked on nothing, but sequence it
    after docs-2 so the drift picture is known first.
-10. `[PARKED]` **docs-4 · clause 5 · taxonomy pass.** The `docs/docs/guides/` directory holds 40+
+11. `[PARKED]` **docs-4 · clause 5 · taxonomy pass.** The `docs/docs/guides/` directory holds 40+
    guides accreted over time. Deferred until clauses 1-3 are green — consolidating pages that are
    also factually stale does both jobs badly. Also blocked on docs-7's allowlist question, since
    `docs/docs/guides/` is nested.

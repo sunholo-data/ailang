@@ -168,7 +168,17 @@ _mc_stalled() {
 # same-provider step (fable) and then crosses providers via CONTROLLER_FALLBACK
 # below, so dropping the middle Anthropic rung costs no cross-provider coverage.
 PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,claude-fable-5}"
-CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol}"
+# CONTROLLER_FALLBACK is an ordered COMMA CHAIN walked left to right (Mark, attended
+# 2026-08-31: "a longer chain of redundancies after codex", explicitly NOT a new default —
+# codex keeps its rung; the pi rungs exist so a simultaneous Anthropic+codex dry-out no
+# longer refuses the fire outright, which the 08-29..31 weekend did to motoko and docs).
+# Rung order mirrors the role chains' philosophy: flat-rate Ollama Cloud first, then the
+# same-weights OpenRouter metered twin, so the last rungs change the BILL, not the model.
+# Both GLM rungs probed rc=0 on 2026-08-31 (full glm-5.3, not the -flash variant).
+# Known residual, deliberately unsolved here: a codex 1-token probe cannot see a spent
+# bucket (reference measured 2026-07; the weekend's motoko rc=1s), so the codex rung can
+# still pass its probe and die mid-run — the chain below it is the mitigation, not a fix.
+CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3}"
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
 PROBE_TIMEOUT="${MISSION_PROBE_TIMEOUT:-120}"   # per-probe wall-clock cap, seconds
 
@@ -238,6 +248,7 @@ _mc_set_controller() {
   MODEL_WHY="$2"
   case "$requested" in
     codex:*) CONTROLLER_PROVIDER=codex; MODEL="${requested#codex:}"; MISSION_ANTHROPIC_AVAILABLE=0 ;;
+    pi:*) CONTROLLER_PROVIDER=pi; MODEL="${requested#pi:}"; MISSION_ANTHROPIC_AVAILABLE=0 ;;
     claude:*) CONTROLLER_PROVIDER=claude; MODEL="${requested#claude:}"; MISSION_ANTHROPIC_AVAILABLE=1 ;;
     *) CONTROLLER_PROVIDER=claude; MODEL="$requested"; MISSION_ANTHROPIC_AVAILABLE=1 ;;
   esac
@@ -270,17 +281,38 @@ select_model() {
       2) log "model $m unusable (auth/transient) — falling through" ;;
     esac
   done
-  case "$CONTROLLER_FALLBACK" in
-    codex:*)
-      m="${CONTROLLER_FALLBACK#codex:}"
-      log "all Anthropic controller candidates unavailable — probing $CONTROLLER_FALLBACK"
-      if _mc_probe_codex "$m"; then
-        _mc_set_controller "$CONTROLLER_FALLBACK" "Anthropic unavailable; subscription fallback"
-        return 0
-      fi
-      ;;
-    *) log "unsupported MISSION_CONTROLLER_FALLBACK '$CONTROLLER_FALLBACK' (expected codex:<model>)" ;;
-  esac
+  # 4. cross-provider fallback CHAIN, walked in order (Mark 2026-08-31 — see the
+  # CONTROLLER_FALLBACK comment above). Every rung is probe-gated; an unsupported
+  # entry is skipped loudly rather than aborting the walk, so one typo cannot
+  # disable the rungs behind it.
+  log "all Anthropic controller candidates unavailable — walking fallback chain ($CONTROLLER_FALLBACK)"
+  local fb
+  for fb in $(printf '%s' "$CONTROLLER_FALLBACK" | tr ',' ' '); do
+    case "$fb" in
+      codex:*)
+        m="${fb#codex:}"
+        if _mc_probe_codex "$m"; then
+          _mc_set_controller "$fb" "Anthropic unavailable; subscription fallback"
+          return 0
+        fi
+        ;;
+      pi:*)
+        m="${fb#pi:}"
+        # Same probe shape as the role-lane pi loop: --no-tools keeps it ~1 reply
+        # token, --no-session avoids polluting ~/.pi/sessions; rc is the verdict.
+        # rc captured explicitly: after `if cmd; then...fi` falls through, $? is the
+        # IF's status (0), not cmd's — logging it would report every failure as rc=0.
+        _mc_bounded "$PROBE_TIMEOUT" pi --mode json --no-session --no-tools --model "$m" -p 'reply with exactly: ok'
+        rcode=$?
+        if [ "$rcode" -eq 0 ]; then
+          _mc_set_controller "$fb" "Anthropic+codex unavailable; pi fallback rung"
+          return 0
+        fi
+        log "pi controller rung '$m' probe failed (rc=$rcode within ${PROBE_TIMEOUT}s) — falling through"
+        ;;
+      *) log "unsupported CONTROLLER_FALLBACK entry '$fb' (expected codex:<model> or pi:<model>) — skipping" ;;
+    esac
+  done
   return 1
 }
 # ----------------------------------------------------------------------------
@@ -920,6 +952,18 @@ _mc_run_once() {
     codex exec --skip-git-repo-check \
       --dangerously-bypass-approvals-and-sandbox \
       --model "$MODEL" -C "$REPO" "$PROMPT" >>"$LOG" 2>&1 &
+  elif [ "$CONTROLLER_PROVIDER" = "pi" ]; then
+    # Last-resort rungs (Mark 2026-08-31): a pi-driven GLM controller is weaker than
+    # opus/codex but keeps the loop breathing through a joint Anthropic+codex dry-out —
+    # a degraded iteration that parks honestly beats a refused fire. Tools stay ON
+    # (unlike the probe) — the controller's job IS shell work. Text mode, not
+    # --mode json: pi's message_update replay is quadratic in emitted tokens and this
+    # log is append-only. cwd via subshell — pi has no -C/--cwd equivalent here, and
+    # the parent shell's cwd must not move (the driver's own paths are relative-safe
+    # but the overlap guard's pidfile is not re-derived).
+    # Session kept (no --no-session): a controller run's transcript is forensic
+    # evidence the observatory can import; only probes suppress sessions.
+    ( cd "$REPO" && pi --model "$MODEL" -p "$PROMPT" ) >>"$LOG" 2>&1 &
   else
     claude -p "$PROMPT" \
       --model "$MODEL" \
