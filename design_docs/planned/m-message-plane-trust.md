@@ -1,6 +1,6 @@
 # M-MESSAGE-PLANE-TRUST: make "a message was sent" mean "a job ran and reported back"
 
-**Status**: IN PROGRESS — M1/M2/M3 landed 2026-08-31 (`91716b092`, `f83fbd0b1`, `cc5cdd736`) on top of `a4098b6a0`, `23066345e`, `8131b4101`. M4/M5 open and BLOCKED (see below).
+**Status**: IN PROGRESS — M1/M2/M3 landed 2026-08-31 (`91716b092`, `f83fbd0b1`, `cc5cdd736`) on top of `a4098b6a0`, `23066345e`, `8131b4101`. M4/M5 open. **Both operator blockers below are now CLEARED**; a NEW blocker (coordinator cannot deploy — gcsfuse) replaces them. See "Incident 2026-08-31".
 **Target**: this week.
 **Priority**: P1. Everything downstream — provenance chains, ELO routing, cost KPIs — reads data this path is supposed to produce.
 **Related**: [m-feature-provenance-chains.md](m-feature-provenance-chains.md) (consumes this), [message-plane-topology.md](../../docs/internal/message-plane-topology.md) (the map).
@@ -66,6 +66,81 @@ demonstrably processes messages from a non-repo CWD — we watched it route a pr
 weakened and the standby regression can recur. Deleting a three-month-outage guard on the first
 reading would be exactly the mistake the guard was written to prevent.
 
+## Incident 2026-08-31 — the sweep amplified one message into 591
+
+**M1 shipped in `dispatch` mode in prod, and dispatch had a hole.** One legitimate message
+(`inbox_1788157708771_a855b349`, from `ailang-parse-claude`, "Redeploy needed", 06:28Z) produced
+**591 self-addressed notification messages and 59 Cloud Run job executions in 96 minutes** on the
+`docparse` inbox. It ran unnoticed because every individual step logged success.
+
+### Mechanism — one omission, two symptoms
+
+`BackstopSweep.SweepOnce` built its `Message` from six fields and dropped two that decide what
+happens next:
+
+| Dropped | Consumer | Effect |
+|---|---|---|
+| `Kind` | `isOutcomeNotice` | A completion notice read as a request FOR work. Each failure notice became a task whose failure posted another notice. |
+| `CreatedAt` | `StaleTaskDetector.getTaskAge` | Task persisted with `created_at = null`; `time.Since(zero)` ≈ 292 years; task killed on the first tick after dispatch (~57s). |
+
+The `isOutcomeNotice` guard (`e49ed32f3`, written for this exact loop on 2026-08-26) was **already
+correct and already deployed**. It was reasoning about a `Kind` the sweep had thrown away. That
+commit's comment justified itself with *"A CLOUD-mode coordinator never re-reads them: it takes work
+from Pub/Sub and does not poll inboxes"* — M1's Firestore sweep made that premise false and did not
+inherit the guard. **A guard whose correctness argument names a premise should be re-checked when
+that premise is what a later milestone changes.**
+
+Third, independent: `taskToMap` wrote `created_at = null` for a zero `CreatedAt` because
+`timeToFirestore` maps zero to nil. `observatory_tasks.go` has always stamped this; the coordinator
+writer did not. That asymmetry also explains why the `tasks` collection appeared to hold nothing
+newer than 08-27 while tasks were being created every ten minutes — **a null field is skipped by any
+query that orders on it**, so the standard listing was blind to exactly the rows that mattered.
+
+### What the loop cost, and what hid it
+
+Each execution pulled an image and cloned 24,032 files. The job reported `succeeded_count=1` while
+the task recorded `failed (timeout)`, and the real completion arrived 4 minutes after the task had
+already been marked terminal (`"already in terminal state \"failed\", skipping"`). **Job success and
+task success were never reconciled** — that seam is still open.
+
+`messages health` also over-reported: it counted these notices as "routable but never dispatched"
+when they had in fact been dispatched (repeatedly). Completion notices are unread and routable *by
+construction*, so they are a permanent false backlog. The sweep now excludes them from its
+recoverable set for the same reason.
+
+### Fixed — `e0b12bf5f`
+
+Sweep carries `Kind` + `CreatedAt` and skips outcome notices; `getTaskAge` reports an unknowable age
+loudly and never acts on one; `taskToMap` stamps a zero `CreatedAt`. Five mutation arms, each
+verified RED before the fix:
+
+| MU | Mutation | Arm |
+|----|----|----|
+| MU-1 | drop `Kind` from `Enqueue` | `TestBackstopSweepCarriesDispatchSemantics` |
+| MU-2 | drop `CreatedAt` from `Enqueue` | `TestBackstopSweepCarriesDispatchSemantics` |
+| MU-3 | remove the notice filter | `TestBackstopSweepIgnoresOutcomeNotices` |
+| MU-4 | restore the zero-age fallback | `TestUnknownAgeIsNotATimeout` |
+| MU-5 | drop the `created_at` stamp | `TestTaskToMapNeverWritesNullCreatedAt` |
+
+### Mitigation, and what is still owed
+
+The fix **cannot be deployed** (gcsfuse, above). `AILANG_BACKSTOP_SWEEP=report` was written to the
+service spec but traffic remains on 00061, which still runs `dispatch`. The loop was stopped instead
+by draining its fuel: `ailang messages ack --all --inbox docparse` (592 messages). The sweep lists
+`UnreadOnly`, so an empty inbox starves it. Verified: routable-undelivered went 592 → **0**, pi
+executions flat afterwards.
+
+Still owed:
+1. **Re-file the root message.** It was acked with the rest. Full payload preserved; the work is also
+   written up at `sunholo-data/ailang-parse -> design_docs/planned/v0_40_0/HANDOFF_docparse_redeploy.md`
+   (redeploy docparse: hosted service reports v0.33.0, target ailang_parse 0.39.2 / runtime >= 0.33.1;
+   includes a v0.35.0 HTML-injection fix). **This is real, unaddressed, security-relevant work.**
+2. **Unblock the coordinator deploy**, then let the fixed image land before re-enabling `dispatch`.
+3. **Reconcile job success against task success** — the seam that let a succeeded job read as a
+   timed-out task.
+4. **Decide `dispatch` vs `report` deliberately.** `backstop_sweep.go` documents `report` as the
+   default and M4 gates dispatch on a day of report-mode measurement; prod had `dispatch` on anyway.
+
 ## Design decisions
 
 ### D1 — Push stays the fast path; Firestore becomes the backstop
@@ -102,7 +177,38 @@ whether the fixes worked, and would make a broken writer look healthy.
 
 ## Blocked on the operator
 
-1. **Two Firestore composite indexes do not exist**, and each reads as a query failure at every call
+> **BOTH ITEMS BELOW WERE RESOLVED 2026-08-31 — re-measured, not assumed.** Kept for the record
+> because the measurements are the evidence.
+>
+> 1. **Indexes exist and are READY.** `gcloud firestore indexes composite list --project=ailang-multivac`
+>    shows both `obs_chain_stages(chain_id, stage_number)` and
+>    `inbox_messages(dup_of, status, created_at)` in state READY. `messages health` runs against prod.
+> 2. **The code IS live in cloud.** Coordinator revision `ailang-coordinator-00061-p8w` deployed
+>    2026-08-31T10:14Z from build `ailang-core-dev` @ `f78b1d451`; `/health` answers
+>    `{"component":"coordinator","status":"ok"}`. M2 is verifiably working: every chain created on
+>    08-31 reaches a terminal state, while every chain from 08-27 and earlier is still `active`
+>    (that older corpus is M5 cleanup, not a live defect).
+>
+> **A third blocker replaced them: the coordinator can no longer deploy at all.** Two consecutive
+> `gcloud run services update` attempts (revisions 00062, 00063) failed identically, with the SAME
+> image digest and volume config as the working 00061:
+>
+> ```
+> Error: mountWithStorageHandle: fs.NewServer: create file system: SetUpBucket: BucketHandle:
+> storageLayout call failed: GetStorageLayout for
+> "projects/_/buckets/ailang-multivac-ailang-config/storageLayout" failed:
+> rpc error: code = Unimplemented desc = this function is not implemented
+> ```
+>
+> gcsfuse 3.11.2, CSI driver `gcsfuse.run.googleapis.com`, bucket `ailang-multivac-ailang-config`
+> (EUROPE-WEST1, regional, no hierarchical namespace). The bucket reads fine over `gsutil`, and
+> 00061 mounted the identical volume at 10:14Z, so this is environmental and appeared between
+> 10:14Z and 11:55Z. **Consequence: no coordinator fix can reach prod until this is resolved**,
+> and any config change lands in the spec while traffic stays on 00061. Needs an operator (retry
+> later, pin the CSI/gcsfuse version, or drop to an env/secret-based config path).
+
+1. ~~**Two Firestore composite indexes do not exist**~~ **RESOLVED — both READY, see above.**
+   Each read as a query failure at every call
    site. `obs_chain_stages(chain_id, stage_number)` — makes `chains view --remote gcp` fail.
    `inbox_messages(dup_of, status, created_at DESC)` — makes the unread sweep and `messages health`
    fail. Creating them is a cloud infrastructure mutation, deliberately not performed here:
