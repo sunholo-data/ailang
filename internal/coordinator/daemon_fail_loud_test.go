@@ -30,6 +30,17 @@ func TestRun_FailsLoudlyWhenTaskProcessingCannotInit(t *testing.T) {
 	// initTaskProcessing resolves the default worktree manager's repo from CWD.
 	// Point CWD at a directory that is not a git repository to reproduce exactly
 	// the launchd-in-$HOME condition.
+	// The daemon loads its agent registry from AILANG_CONFIG, falling back to
+	// ~/.ailang/config.yaml — the DEVELOPER'S REAL CONFIG. Without this the test
+	// asserts on whatever agents that machine happens to declare, and it was
+	// measured green on CI and red on a workstation for exactly that reason: a
+	// local `coordinator` agent whose workspace is a real repo gives
+	// initTaskProcessing a worktree manager, so the failing fallback this test
+	// depends on is never reached and Run() proceeds instead of bailing out.
+	// Point it at an empty file so the reproduction is the launchd condition and
+	// nothing else.
+	t.Setenv("AILANG_CONFIG", filepath.Join(t.TempDir(), "empty-config.yaml"))
+
 	origWD, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("getwd: %v", err)

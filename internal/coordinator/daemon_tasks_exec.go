@@ -38,6 +38,16 @@ func (d *Daemon) executeTaskQueue() error {
 		return nil // No executor available
 	}
 
+	// The daemon may be shutting down: Close() releases the task store and sets
+	// the field to nil (daemon_lifecycle.go), and a tick already in flight would
+	// otherwise dereference it and take the process down with a nil-pointer
+	// panic. Reported as an error rather than a quiet `return nil`, because
+	// "the store is gone" and "there is nothing to do" are different facts and
+	// only one of them is normal.
+	if d.taskStore == nil {
+		return fmt.Errorf("task store unavailable (daemon shutting down?)")
+	}
+
 	// Get pending tasks, ordered by priority (highest first)
 	filter := &TaskFilter{
 		Status:    []TaskStatus{TaskStatusPending},
