@@ -82,7 +82,15 @@ func (d *StaleTaskDetector) detectAndMarkStale(ctx context.Context) {
 
 	for _, task := range tasks {
 		timeout := d.getTaskTimeout(task)
-		age := d.getTaskAge(task)
+		age, known := d.getTaskAge(task)
+		if !known {
+			// Loud, and every pass: this is a writer defect upstream (a task
+			// persisted with no created_at), and staying quiet about it is how it
+			// survived long enough to be discovered from its blast radius.
+			d.logger.Printf("stale task detector: task %s has no created_at and no started_at — "+
+				"age unknowable, NOT marking stale (upstream writer defect)", task.ID)
+			continue
+		}
 
 		if age <= timeout {
 			continue
@@ -168,12 +176,24 @@ func (d *StaleTaskDetector) getTaskTimeout(task *TaskRecord) time.Duration {
 	return 90 * time.Minute
 }
 
-// getTaskAge returns how long a task has been in its current status.
-func (d *StaleTaskDetector) getTaskAge(task *TaskRecord) time.Duration {
-	if task.StartedAt != nil {
-		return time.Since(*task.StartedAt)
+// getTaskAge reports how long the task has been outstanding, and whether that
+// is knowable at all.
+//
+// NO SILENT FALLBACK. A task with neither StartedAt nor CreatedAt used to fall
+// through to time.Since(zero) — about 292 years — so every such task exceeded
+// every timeout and was killed on the first tick after dispatch. Measured in
+// prod 2026-08-31: task-a855b349 and task-133e933b were both written with
+// created_at = null, marked "timed out ... within 22m30s (age=2562047h47m16s)"
+// roughly 57s after being queued, and each failure notice then fed a dispatch
+// loop. An unknown age is a data defect to report, never a timeout to act on.
+func (d *StaleTaskDetector) getTaskAge(task *TaskRecord) (time.Duration, bool) {
+	if task.StartedAt != nil && !task.StartedAt.IsZero() {
+		return time.Since(*task.StartedAt), true
 	}
-	return time.Since(task.CreatedAt)
+	if !task.CreatedAt.IsZero() {
+		return time.Since(task.CreatedAt), true
+	}
+	return 0, false
 }
 
 // postFailureNotification posts a failure message to the agent's inbox

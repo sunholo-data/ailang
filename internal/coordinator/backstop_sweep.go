@@ -148,6 +148,15 @@ func (s *BackstopSweep) SweepOnce(_ context.Context) {
 		if agent := s.agentRegistry.GetAgentForInbox(m.ToInbox); agent == nil {
 			continue
 		}
+		// A completion notice is a report ABOUT work, addressed to the inbox of
+		// the agent that did it. It is unread and routable by construction, so it
+		// looks exactly like a dropped dispatch to the test above and would be
+		// re-found on every pass forever. The drain refuses it (isOutcomeNotice),
+		// but counting it here would report a permanent non-zero backlog for a
+		// plane that is in fact healthy — and the count is the whole signal.
+		if isOutcomeNotice(&Message{Kind: m.MessageType}) {
+			continue
+		}
 		recoverable = append(recoverable, m)
 	}
 
@@ -166,13 +175,32 @@ func (s *BackstopSweep) SweepOnce(_ context.Context) {
 				m.ID, m.ToInbox, m.FromAgent, truncateForLog(m.Title))
 			continue
 		}
+		// The recovered message re-enters the drain as a full envelope, not a
+		// summary of one. Two fields carry dispatch semantics and dropping either
+		// is silently destructive:
+		//
+		//   Kind      — isOutcomeNotice reads it. A completion notice is posted
+		//               INTO the agent's own inbox, so it is unread + routable by
+		//               construction and this sweep will find it on every pass.
+		//               Enqueued without Kind it reads as a request FOR work, and
+		//               each failure notice becomes a task whose failure posts
+		//               another notice. Measured in prod 2026-08-31: one real
+		//               message at 06:28 became 13 notices and 5 Cloud Run
+		//               executions in 28 minutes.
+		//   CreatedAt — the task inherits it (daemon_tasks_polling: CreatedAt:
+		//               msg.CreatedAt) and the stale detector ages the task from
+		//               it. Zero here means time.Since(zero) ≈ 292 years, so the
+		//               task is marked timed-out on the first tick after dispatch
+		//               — about 57s — and its failure feeds the loop above.
 		s.adapter.Enqueue(&Message{
-			ID:      m.ID,
-			From:    m.FromAgent,
-			Title:   m.Title,
-			Content: m.Payload,
-			Inbox:   m.ToInbox,
-			Type:    m.Category,
+			ID:        m.ID,
+			From:      m.FromAgent,
+			Title:     m.Title,
+			Content:   m.Payload,
+			Inbox:     m.ToInbox,
+			Type:      m.Category,
+			Kind:      m.MessageType,
+			CreatedAt: m.CreatedAt,
 		})
 		s.logger.Printf("backstop sweep: recovered %s (inbox=%s) into the normal drain", m.ID, m.ToInbox)
 	}
