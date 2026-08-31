@@ -69,9 +69,14 @@ func runMessagesHealth(args []string) {
 		src = messaging.GetConfigPath()
 	}
 	fmt.Printf("  registry: %s (%d agents)\n", src, len(registry.ListAgents()))
-	if mode == storage.ModeGCP {
+	// Only warn when the registry was IMPLIED. An operator who named one with
+	// --registry has already made the choice this warning exists to prompt, and
+	// repeating it there would be false: the path shown may well BE the cloud
+	// coordinator's config, pulled from the bucket.
+	if mode == storage.ModeGCP && *registryPath == "" {
 		fmt.Printf("            %s this is THIS machine's config, not the cloud coordinator's\n", yellow("!"))
-		fmt.Printf("            (that reads gs://%s-ailang-config/config.yaml — they can diverge)\n", project)
+		fmt.Printf("            (that reads gs://%s-ailang-config/config.yaml — they can diverge;\n", project)
+		fmt.Printf("             pass --registry <path> to judge against a copy of that one)\n")
 	}
 
 	store, err := openStore()
