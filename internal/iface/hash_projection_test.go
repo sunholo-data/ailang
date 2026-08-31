@@ -3,6 +3,7 @@ package iface
 import (
 	"encoding/json"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -15,6 +16,12 @@ func TestHashProjection_ExcludesAlias(t *testing.T) {
 			Name: "Card", Params: []string{"a"}, Alias: "{value: a}",
 		}},
 		Funcs: []FuncJSON{{Name: "make", Type: "a -> Card[a]", Effects: []string{}, Pure: true}},
+	}
+
+	// Anti-vacuity floor: the negative assertion below passes trivially if the fixture
+	// carries no alias, so an empty fixture is an INSTRUMENT FAILURE, not a pass.
+	if j.Types[0].Alias == "" {
+		t.Fatal("instrument failure: fixture must carry a non-empty Alias")
 	}
 
 	got, err := HashProjection(j)
@@ -78,7 +85,7 @@ func TestSignatureSet_SortedAndStable(t *testing.T) {
 	}
 	want := []string{
 		"example/shapes:ctor:Shape:Circle(float)",
-		"example/shapes:ctor:Shape:Rectangle(float, float)",
+		`example/shapes:ctor:Shape:Rectangle(float\, float)`, // comma escaped — see escapeSigField
 		"example/shapes:func:area:Shape[a] -> float:",
 		"example/shapes:func:paint:Shape[a] -> Shape[a]:IO,State",
 		"example/shapes:type:AliasOnly/0",
@@ -110,6 +117,14 @@ func TestHashProjection_DoesNotMutateInput(t *testing.T) {
 		Funcs:  []FuncJSON{{Name: "draw", Type: "Shape -> unit", Effects: []string{"State", "IO"}, Pure: false}},
 	}
 
+	// Anti-vacuity floor (iteration 311 evaluator): this arm only detects a Ctors-aliasing
+	// in-place sort while the fixture's Ctors are OUT of order. Re-running the same real bug
+	// against an already-sorted fixture made it invisible — so a well-meaning "tidy the
+	// fixture alphabetically" edit would silently disable the check with no signal.
+	if sort.StringsAreSorted(j.Types[0].Ctors) {
+		t.Fatal("instrument failure: fixture Ctors must be deliberately UNSORTED")
+	}
+
 	if _, err := HashProjection(j); err != nil {
 		t.Fatalf("HashProjection: %v", err)
 	}
@@ -117,5 +132,48 @@ func TestHashProjection_DoesNotMutateInput(t *testing.T) {
 		before, _ := json.Marshal(want)
 		after, _ := json.Marshal(j)
 		t.Fatalf("HashProjection mutated input:\nbefore %s\n after %s", before, after)
+	}
+}
+
+// TestSignatureSet_EncodingIsInjective pins the fix for the collision the iteration-311
+// sprint evaluator found and the controller reproduced: before escapeSigField, the pair
+// below produced the byte-identical signature "mod:func:run:A:B:". M5 diffs these sets to
+// classify a release, so a collision is a wrong ChangeClass, not a cosmetic defect.
+func TestSignatureSet_EncodingIsInjective(t *testing.T) {
+	cases := []struct {
+		name string
+		a, b *InterfaceJSON
+	}{
+		{
+			"type-colon vs effect-colon",
+			&InterfaceJSON{Module: "mod", Funcs: []FuncJSON{{Name: "run", Type: "A:B", Effects: []string{}}}},
+			&InterfaceJSON{Module: "mod", Funcs: []FuncJSON{{Name: "run", Type: "A", Effects: []string{"B:"}}}},
+		},
+		{
+			"one effect with a comma vs two effects",
+			&InterfaceJSON{Module: "mod", Funcs: []FuncJSON{{Name: "run", Type: "T", Effects: []string{"IO,FS"}}}},
+			&InterfaceJSON{Module: "mod", Funcs: []FuncJSON{{Name: "run", Type: "T", Effects: []string{"IO", "FS"}}}},
+		},
+		{
+			"colon in a ctor vs in the type name",
+			&InterfaceJSON{Module: "mod", Types: []TypeJSON{{Name: "T", Ctors: []string{"C:D"}}}},
+			&InterfaceJSON{Module: "mod", Types: []TypeJSON{{Name: "T:C", Ctors: []string{"D"}}}},
+		},
+	}
+	for _, c := range cases {
+		sa, sb := SignatureSet(c.a), SignatureSet(c.b)
+		if reflect.DeepEqual(sa, sb) {
+			t.Errorf("%s: distinct interfaces share a signature set %#v", c.name, sa)
+		}
+	}
+
+	// Control: the escaping must not break the ordinary case, and it must be stable.
+	plain := &InterfaceJSON{Module: "mod", Funcs: []FuncJSON{{Name: "run", Type: "int -> int", Effects: []string{"IO"}}}}
+	want := []string{"mod:func:run:int -> int:IO"}
+	if got := SignatureSet(plain); !reflect.DeepEqual(got, want) {
+		t.Errorf("unescaped input changed shape: got %#v want %#v", got, want)
+	}
+	if !reflect.DeepEqual(SignatureSet(plain), SignatureSet(plain)) {
+		t.Error("SignatureSet is not stable across calls")
 	}
 }
