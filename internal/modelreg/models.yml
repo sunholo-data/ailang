@@ -1988,6 +1988,39 @@ models:
 
       Expect a HIGH ollama usage level (1-4; deepseek-v4-pro is named level 4).
       Consumption per trial is the thing being measured.
+  opencode-or-glm-5-3-flash:
+    api_name: "z-ai/glm-5.3-flash"
+    provider: "openrouter"
+    default_thinking: "always_on"  # inherited from or-glm-5-3-flash: explicit reasoning disable
+                                   # returns 400 "Reasoning is mandatory for this endpoint".
+    description: "GLM-5.3-Flash via opencode+OpenRouter — REPLACES opencode-or-glm-5-2 in agent_suite 2026-08-31 (Mark), same seat at ~16x lower cost; agent smoke gate on the 2026-09-01 reset."
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "opencode"
+    agent_model_name: "openrouter/z-ai/glm-5.3-flash"
+    model_family: "glm-5"
+    max_output_tokens: 65536  # always-thinking model — headroom, per the GLM-5.2 truncation lesson
+    pricing:
+      input_per_1k: 0.000075  # $0.075 per 1M (OpenRouter API, verified 2026-08-31)
+      output_per_1k: 0.00025  # $0.25 per 1M (OpenRouter API, verified 2026-08-31)
+    budgets:
+      # WORK GATE (2026-07-31, Mark): 3.0M blended-token ceiling shared with agent_suite.
+      # Price-scaled dollar cap (qwen3-8-27b precedent): 5.2's seat carried $0.30 at
+      # $1.19/$3.74 per 1M; flash at $0.075/$0.25 needs ~16x less dollars for the same
+      # token budget — set slightly above that ($0.05) for retry headroom, still trivial.
+      max_tokens_per_bench: 3000000
+      max_cost_usd: 0.10
+      hard_timeout_secs: 600
+    notes: |
+      Agent-mode twin of or-glm-5-3-flash — same wire model (openrouter/
+      z-ai/glm-5.3-flash), opencode harness, replacing opencode-or-glm-5-2 in
+      agent_suite per Mark 2026-08-31 (same-seat generational swap; 5.2's own
+      agent-mode re-verdict 77% vs 73% over 5.1 is on the 5.2 rows).
+      AGENT SMOKE GATE: PENDING — scheduled 2026-09-01 with the OpenRouter
+      budget reset, alongside the or-glm-5-3 core lineage run. Standard-mode
+      gate already passed 23/23 (2026-08-27) and the motoko twin is registered.
+      opencode stalls (the reason 2026-08-03 removed opencode-or-deepseek-v4-pro)
+      are the watch-item for this harness.
+
   motoko-cloud-deepseek-v4-flash:
     api_name: "deepseek-v4-flash:0731-cloud"           # tagged model -> `-cloud` on the TAG
     provider: "ollama"                                 # local daemon proxies to ollama.com (M-OLLAMA-CLOUD-PROVIDER)
@@ -3560,7 +3593,7 @@ models:
     api_name: "moonshotai/kimi-k2.7-code"
     provider: "openrouter"
     default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
-    description: "Kimi K2.7 Code via OpenRouter standard mode — companion to opencode-or-kimi-k2-7-code"
+    description: "Kimi K2.7 Code via OpenRouter standard mode — RETIRED from extended_suite 2026-08-31 (Mark: fleet slimming); opt-in for longitudinal compare"
     env_var: "OPENROUTER_API_KEY"
     model_family: "kimi"
     max_output_tokens: 65536  # thinking headroom (reasons by default; see or-glm-5-2 truncation retraction)
@@ -3573,6 +3606,9 @@ models:
     notes: |
       Standard-mode companion to opencode-or-kimi-k2-7-code.
       Smoke gate: PASSED 21/23 (91%) standard mode 2026-06-16. Added to extended_suite.
+      RETIRED from extended_suite 2026-08-31 per Mark (fleet slimming toward the
+      qwen3.8-flash gate — kimi-k3 keeps its own capability-probe seat). Kept
+      opt-in for longitudinal comparison, same as 5.1/5.2 precedent.
 
   # Kimi K3 (Moonshot AI) — general successor to the K2.x line, NOT the coding
   # variant. 1M context window (4x K2.7 Code's 256K). Priced like a frontier
@@ -4179,7 +4215,7 @@ models:
     api_name: "minimax/minimax-m3"
     provider: "openrouter"
     default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
-    description: "MiniMax M3 via OpenRouter (standard mode) — newest MiniMax, 1M ctx"
+    description: "MiniMax M3 via OpenRouter (standard mode) — RETIRED from extended_suite 2026-08-31 (Mark: OS-roster refresh, displaced toward qwen3.8-flash); opt-in for longitudinal compare"
     env_var: "OPENROUTER_API_KEY"
     max_output_tokens: 65536  # thinking headroom (reasons by default; see or-glm-5-2 truncation retraction)
     model_family: "minimax-m3"
@@ -4192,6 +4228,9 @@ models:
     notes: |
       Standard-mode companion to motoko-minimax-m3. Direct version-over-version
       comparison against or-minimax-m2-7. Added 2026-06-04.
+      RETIRED from extended_suite 2026-08-31 per Mark (fleet slimming — the OS
+      seat goes to or-qwen3-8-flash once its gate passes). Kept opt-in for
+      longitudinal comparison, same as 5.1/5.2 precedent.
 
   or-qwen3-6-35b-a3b:
     api_name: "qwen/qwen3.6-35b-a3b"
@@ -4261,7 +4300,7 @@ models:
                             # emitted 51 reasoning tokens, finish=stop; explicit
                             # reasoning:{enabled:false} succeeds with 0 reasoning tokens,
                             # so thinking is default-on but disableable (evals leave it ON).
-    description: "Qwen3.8-Flash-Next via OpenRouter (standard mode) — open-weight Qwen4-architecture preview (125B-A6B MoE, multimodal), released 2026-08-26. Smoke gate PENDING."
+    description: "Qwen3.8-Flash-Next via OpenRouter (standard mode) — open-weight Qwen4-architecture preview (125B-A6B MoE, multimodal), released 2026-08-26. Smoke gate PENDING (attempt 1 invalidated by upstream 429s)."
     env_var: "OPENROUTER_API_KEY"
     max_output_tokens: 65536  # expected-thinking headroom (GLM-5.2 truncation lesson).
                               # Declared ceiling 2026-08-27 (/endpoints): Alibaba (sole
@@ -4288,6 +4327,12 @@ models:
       is REAL though: roughly half of probes 429 on the shared upstream pool,
       so early api_error rows against this model are infrastructure, not
       capability — re-run before counting them.
+      SMOKE GATE ATTEMPT 1 2026-08-31 (standard, --tier smoke): INVALID as a
+      gate — 19/23 trials api_error (429 "temporarily rate-limited upstream",
+      Alibaba shared pool), only 4 passed. Matches the day-one congestion note
+      above; zero capability signal either way. Re-run scheduled 2026-09-01
+      with the OpenRouter budget reset (extended_suite entry waits on it — the
+      row does not enter the suite on an infra-foiled gate).
 
   or-glm-4-7-flash:
     api_name: "z-ai/glm-4.7-flash"
@@ -4463,17 +4508,25 @@ benchmark_suite:
     # sweep, i.e. Opus 5 is marginally CHEAPER despite 1.9x the output tokens, because input
     # tokens (~816K, identical) dominate at core-tier prompt sizes.
   - "gemini-3-1-pro"   # Google flagship (Feb 2026)
+  - "or-glm-5-3"       # z.ai flagship (Aug 2026, 753B) — added 2026-08-31 (Mark): smoke PASSED
+    # 23/23 first pass (zero finish=length at 65536, whole tier $1.38). Lineage core
+    # gate vs or-glm-5-2 PENDING (2026-09-01 post-budget-reset; per the row notes,
+    # this seat does NOT contest 5.3-flash's extended_suite slot). If the flagship
+    # loses to 5.2 on core, revisit this membership.
 
-# Extended suite - flagship frontier + modern open-source (18 models)
+# Extended suite - flagship frontier + modern open-source (16 models)
 # Use for: Release baselines, comprehensive comparisons, cloud-vs-OS cost/quality.
 # Cost: ~$3-6 per full benchmark run (+~$16 for fable on core,stretch)
 # Standard mode only — cloud models never run the smoke tier (smoke is the local
 # OS-model iteration loop); release baselines run core,stretch.
 # OS roster: glm-5.3-flash (replaced 5.2 2026-08-27; 5.2 replaced 5.1 2026-07-19),
-# minimax-m3, kimi k2.7-code + k3, deepseek-v4 flash/pro. Roster last changed
-# 2026-08-27 (or-glm-5-3-flash in, or-glm-5-2 out — core tie at ~1/13 cost; before
-# that 2026-08-13, gemini-3-7-flash in, 3-6-flash out of the Flash slot);
-# see the per-entry annotations below for each gate record.
+# kimi k3, deepseek-v4 flash/pro. Roster last changed 2026-08-31 (Mark):
+# or-minimax-m3 + or-kimi-k2-7-code retired to opt-in; or-qwen3-8-flash is the
+# designated replacement but its smoke gate is still PENDING (attempt 1
+# 2026-08-31 invalidated by upstream Alibaba 429s — see its row), so it enters
+# only when the gate passes (scheduled with the 2026-09-01 budget reset);
+# before that 2026-08-27, or-glm-5-3-flash in, or-glm-5-2 out — core tie at
+# ~1/13 cost. See the per-entry annotations below for each gate record.
 extended_suite:
   - "gpt5-6-sol"        # OpenAI flagship (Jul 2026) — gated 2026-07-11: core 26/26 N=1, tie 25/26 with gpt5-5
     # after N=3 de-flake of explicit_dataflow_ssa (both fail it 3/3; every OpenAI model fails it).
@@ -4556,27 +4609,30 @@ extended_suite:
                         # (22/23 vs 23/23 N=1, ast_patch_roundtrip missing-import flake,
                         # both 3/3 on escalation) at ~1/13 the cost ($0.072 vs $0.920 per
                         # core tier; $0.075/$0.25 vs $1.19/$3.74 per 1M). 5.2 retired to
-                        # opt-in (longitudinal compare, same as 5.1 before it). NOTE: the
-                        # agent_suite twin opencode-or-glm-5-2 stays until an
-                        # opencode-or-glm-5-3-flash twin is registered and gated — the
-                        # standard-suite swap does not decide the agent slot.
-  - "or-kimi-k2-7-code" # Kimi K2.7 Code — 91% std, 100% agent smoke 2026-06-16, $0.75/$3.50/M
+                        # opt-in (longitudinal compare, same as 5.1 before it). ALSO in
+                        # dev_models since 2026-08-31 (cheapest row). Agent seat: the
+                        # opencode twin opencode-or-glm-5-3-flash is registered 2026-08-31
+                        # and replaces opencode-or-glm-5-2 in agent_suite per Mark, with its
+                        # agent smoke gate run on the 2026-09-01 budget reset.
   - "or-kimi-k3"        # Kimi K3 (general successor, 1M ctx) — 96% std smoke 2026-07-19 (22/23, only
     # dense_operator_program IMP010 bug), beat K2.7 Code sibling. Frontier-priced $3/$15/M — capability
     # probe, ADDITION not a K2.7-Code replacement (different lineage + 4x cost).
-  - "or-minimax-m3"     # MiniMax M3 — 87% std, $0.30/1M (ties opus/gpt5 at 1/16 cost)
   - "or-deepseek-v4-flash" # DeepSeek V4 Flash — 75% std, $0.10/1M (cheapest viable; re-gated 2026-06-04)
   - "or-deepseek-v4-pro"   # DeepSeek V4 Pro — REPOINTED 2026-08-13 to the 0813 GA slug
     # (core N=3 67/69 vs the preview's 65/69, and ~2.7x cheaper). Pre-2026-08-13 rows
     # under this name are the April preview — see the entry's baseline-boundary note.
 
-# Development models - cheap and fast (3 models)
+# Development models - cheap and fast (4 models)
 # Use for: Development iteration, testing eval infrastructure
 # Cost: ~$0.10-0.50 per full benchmark run
 dev_models:
   - "gpt5-4-mini"      # OpenAI cheap same-gen as gpt5-4 (Mar 2026)
   - "claude-haiku-4-5" # Anthropic cheap
   - "gemini-3-flash"   # Google cheap + smart (Dec 2025)
+  - "or-glm-5-3-flash" # z.ai cheapest row ($0.075/$0.25 per 1M) — added 2026-08-31
+                       # (Mark): cheapest cloud row on both axes (cheaper than gemini-3-flash),
+                       # already a gated suite member (smoke 23/23 2026-08-27, core tie), so this
+                       # adds an OS lane to the dev loop at no extra gate cost.
 
 # Agent CLI suite - one model per agentic CLI harness (M-EXEC-EXPAND / v0.15.0)
 # Use for: Cross-harness agent evals (claude + gemini + codex, opencode added
@@ -4599,8 +4655,9 @@ agent_suite:
   # release baseline). Was "OS agent champion (97%)" per the 2026-06-04 re-test; re-add once
   # the opencode-side stall is understood, or once V4 Flash's -0731 successor lands for Pro.
   - "opencode-or-deepseek-v4-flash"   # opencode — OS best-value (weak standard 54%)
-  - "opencode-or-glm-5-2"             # opencode — GLM-5.2 (SETTLED 2026-07-19: beats 5.1 in
-                                      # agent mode 77% vs 73%; 5.1 retired from suite per Mark)
+  - "opencode-or-glm-5-3-flash"       # opencode — GLM-5.3-Flash, REPLACES opencode-or-glm-5-2
+                                      # 2026-08-31 (Mark) — same seat, 16x cheaper; agent smoke
+                                      # gate runs on the 2026-09-01 budget reset (pending)
 
 # Language × Harness suite - cheapest model per harness for 4-language sweep
 # Use for: Post-release language/harness Explorer data (ailang,python,js,go × 4 harnesses)
