@@ -156,6 +156,33 @@ def class_mix(iters):
     return " · ".join(f"{k} {mix[k]}" for k in order if mix.get(k))
 
 
+def harness_drift():
+    """Installed vs registry-latest for the agent harness CLIs (Mark 2026-08-31:
+    "careful on upgrades but keep on top of them" — weekly SURFACING here; APPLYING
+    an upgrade stays attended-only, per docs/internal/harness-upgrade-runbook.md).
+    Fail-soft throughout: any probe error renders n/a rather than wedging rotation.
+    """
+    rows = []
+    for name, cmd, pkg in [
+        ("pi", "pi --version", "@earendil-works/pi-coding-agent"),
+        ("codex", "codex --version", "@openai/codex"),
+        ("opencode", "opencode --version", "opencode-ai"),
+    ]:
+        out = sh(cmd)
+        cur = out.split()[-1] if out else "n/a"
+        latest = sh(f"npm view {pkg} version") or "n/a"
+        flag = "" if "n/a" in (cur, latest) or cur == latest else " — **behind**"
+        rows.append(f"- **{name}** {cur} (npm latest {latest}){flag}")
+    cl = sh("claude --version")
+    rows.append(f"- **claude** {cl.split()[0] if cl else 'n/a'} (self-updating channel)")
+    ol = sh("ollama --version")
+    rows.append(f"- **ollama** {ol.split()[-1] if ol else 'n/a'} — upgrades are BANKED eval "
+                "boundaries, never mid-rotation")
+    nb = sh("brew outdated --quiet | wc -l").strip()
+    rows.append(f"- **brew outdated**: {nb or 'n/a'} formulae")
+    return rows
+
+
 def roadmap(charter, log, plist_name):
     """What each mission says it will do next — its OWN declaration, not my inference.
 
@@ -304,6 +331,13 @@ def main():
         nxt, blk, nom = plan.get(nm, (None, 0, None))
         obs = next((r["it"] for r in rows if r["n"] == nm), 0)
         print(f"| **{nm}** | {obs}{f' ({nom})' if nom else ''} | {blk} | {nxt or '—'} |")
+    print()
+
+    print("## Harness drift\n")
+    print("_Surfaced weekly; upgrading is attended-only — see"
+          " docs/internal/harness-upgrade-runbook.md._\n")
+    for r in harness_drift():
+        print(r)
     print()
 
     print("## Needs you\n")
