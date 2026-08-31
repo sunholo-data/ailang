@@ -20387,3 +20387,98 @@ Applied under the **narrow-refinement carve-out** (ratified at iterations 251/28
 **Retro lane**: **process-fix (charter)** — two of two queue rows tagged PARKED cite decisions the authoritative ledger marks RESOLVED. `D-47` was answered attended on 2026-08-28 with its consequence named verbatim, and iterations 305–309 all ran without applying it; `scripts/mission_decisions.sh --open` returns **zero** rows, so the one instrument that looks at decisions cannot see a stale park. Row un-parked this iteration. The general gap — nothing reconciles a queue row's PARK tag against the ledger row it cites — is recorded for Gate 5 but is **not** a skill edit this iteration: `m-quorum-absent-reviewers-key-does-not-exist` independently reached its second instance here (`jq 'has("absent_reviewers")'` → `false`, and verdicts live under `.result`, not `.reviewers[].verdict`), and Gate 5 permits one skill edit per iteration.
 **Next**: land the sprint plan and start M1 of the interface-hash sprint; then the two cheap unblocked rows — the `config diff` validation-ordering fix (standalone, needs no route machinery) and the ~2 LOC `D-47` chain-only registration. Do NOT route the `config check` half until `ExecutionRoute` is on `dev`.
 **Progress**: charter has no finish line — the V1 queue is a prioritized backlog with no countable goal unit, so per Gate 5 this is a standing process-fix trigger to add a goal block. This iteration moved one PRODUCT defect from field report to quorum-cleared design, and corrected four queue rows.
+
+## 311 — 2026-08-31 — A judge found a collision in the encoding the controller prescribed [PRODUCT]
+
+**Pick**: Sprint 1 **M1** of `m-registry-interface-hash-blind-to-signatures` — the IN-SPRINT row,
+not the queue head. Iteration 310 landed both the design and an opus sprint plan; M1 is a pure
+function over a struct, so it is the fastest feedback on the one decision the whole sprint rests on
+(what exactly gets hashed), and it is trivially revertible.
+
+**Progress**: Sprint 1 is **1 of 5 milestones** complete (M1; M2–M5 ≈ 3.5d remain; Sprint 2 stays
+DEFERRED on a precondition the loop cannot satisfy). Against the charter's provisional countable
+unit — open queue rows — the delta is **0**: **68** `[NEXT]` + **1** `[PARKED]` before and after.
+Milestone progress inside an existing row does not move a row count, which is precisely the weakness
+the goal block names about itself.
+
+**Outcome**: LANDED. `internal/iface/hash_projection.go` (+ tests): `HashProjection`, a pure
+deterministic alias-dropping projection of the normalized interface JSON, and `SignatureSet`, the
+sorted **injective** `module:kind:name:signature` strings M5 will diff. Unwired dead code by design
+(**0** references outside the new file) — nothing changes behaviour until M5.
+
+**Routing evidence**:
+| Role | Configured | Actual | Notes |
+|---|---|---|---|
+| Controller | `$CONTROLLER_ID` | `claude:claude-opus-5` | session |
+| Designer | rotation | **not spawned** | doc landed at iteration 310; a designer run would have been redundant |
+| Planner | `codex:gpt-5.6-sol` | **not spawned** | plan landed at iteration 310 (opus, via `derive-planner-lane.sh`) |
+| Executor | `codex:gpt-5.6-sol` | `codex:gpt-5.6-sol` | probe rc=0 first try; no fallback link traversed |
+| Evaluator | `sonnet` | `sonnet` (Agent tool) | own worktree; generator≠judge holds on provider AND model |
+metered=**$0.00** — no quorum round this iteration and no metered lane. Ceiling $5.
+
+**What the evaluator bought.** `sonnet`, in its own worktree, returned **PASS 92/100, zero
+blocking** — and its first non-blocking finding was a real defect in the encoding **the controller**
+prescribed. `SignatureSet` was **non-injective**: `{Type:"A:B", Effects:[]}` and
+`{Type:"A", Effects:["B:"]}` both render `mod:func:run:A:B:`. Reproduced first-party before acting.
+M5 diffs these sets to decide ADDED vs REMOVED vs RETYPED, and M7 will feed them from untrusted
+registry uploads, so a collision is a wrong release classification, not a cosmetic issue. Fixed
+in-milestone rather than filed — the function is new, unwired and reversible, and a queue row M5
+might not read is a worse outcome than a five-line fix now. The guard is **proven, not asserted**:
+restoring the pre-fix encoding as a mutant LANDED (sha256 delta), BUILT (rc=0), and reds
+`TestSignatureSet_EncodingIsInjective` on the exact assertion under test. Blast radius **2** —
+`TestSignatureSet_SortedAndStable` also reds, because its golden now carries the escaped comma; that
+is the mutant's phenotype, explained, so the `-skip` rc=0 inverse is correctly **not** applied.
+
+Two further judge findings acted on. **Anti-vacuity floors** were added to the two arms whose own
+fixtures could silently disable them — the judge showed that re-running a real Ctors-aliasing bug
+against an alphabetised fixture made it **invisible**, so a well-meaning "tidy the fixture" edit
+would have retired a regression check with no signal. Both floors were then confirmed to FIRE. And
+the controller's own `Params` comment was **overstated**: the guarantee is structural, because
+`HashProjection` returns only `[]byte` and never hands the projection struct to a caller.
+
+**Verification the controller did NOT inherit from the executor.** Every gate was re-run
+independently, and the whole gate list was baselined on a pristine worktree **before routing** —
+the false-green #4 rule aimed at the controller's own directive. The load-bearing baseline:
+`go test -run <non-matching-regex>` exits **0** with **0** PASS lines, so every gate asserts
+`--- PASS: <Name>` AND rc=0. Beyond the plan's three named mutations, three **diff-anchored**
+mutants (rule 3n) were run: the funcs sort and the effects sort are each SOLE-killed by
+`TestHashProjection_Deterministic`; the defensive `Params` copy has **NO KILLER**, which is reported
+and declared in the code rather than given a test that could only assert an implementation detail.
+Containment: the main checkout carried exactly the 3 pre-existing dirty files it had at Gate 2.
+
+**Ruled out**:
+- *"The STATUS rotation has been dropping stamps."* REFUTED. The archive's tail reads iteration 295,
+  which looks like twelve lost iterations. It is not append-ordered: **270** stamps are present, and
+  every recorded iteration 296–310 resolves to charter or archive. The 6 genuinely missing
+  (299, 300, 302, 303, 306, 307) have **0** charter commits each by `git log -S` — reaped slots, not
+  rotation loss. The controller's own first reading of the file tail was the error.
+- *"`absent_reviewers` does not exist in the quorum artifact"* (iterations 309 and 310, both).
+  REFUTED and corrected. It exists at `.synthesis.absent_reviewers`, present in **22 of 22**
+  artifacts (control `has("synthesis")` = 22), written by `internal/mission/quorum/quorum.go:51`;
+  verdicts live at `.reviewers[].result.verdict`. The writer was never at fault and no code fix is
+  owed — only the skill's documented path was wrong.
+- *A CHANGELOG entry is owed for this milestone.* NOT ACTED ON, deliberately: the milestone ships
+  unwired dead code inside a five-milestone sprint, the entry belongs with the user-visible landing,
+  and `make check-changelog` (the actual CI gate) is rc=0.
+- *Alias-body retype is a hole M1 missed.* NO. It is design doc **D6**'s named, accepted scope limit,
+  mirroring the pre-existing `TestXModAlias_DigestIgnoresTypeAliases` lock.
+
+**Bookkeeping**: PR **#968** (CONFLICTING since 2026-08-30, untouched for five iterations) closed as
+superseded — but not before rescuing the one genuinely orphaned file it still owned: the
+**57,990 B** retry-storm design doc, absent from `origin/dev` (control: 25 files present in that
+directory) with **0** mentions across the charter and this log, while its own sprint plan had
+landed. Its `Needs Human Review` header is intact; landing it documents a decision, it does not
+authorise one. The item's code merge stays PARKED exactly as iteration 309 left it.
+
+**Gate-5 skill fix** (one edit, bar met at 3 instances — 309, 310, and this iteration's
+measurement, which CORRECTS the first two): the quorum rule told controllers to read
+`absent_reviewers` and `.reviewers[].verdict`. Both paths are one level off and return `null` — the
+vacuous pass the rule exists to prevent, reached by obeying the rule. The correct reads are now in
+the skill, with the measurement and a general form: pair any documented `jq` read with a
+known-present sibling key, because a wrong path returns `null` rather than an error. Saved in the
+main checkout (so it is live for every mission immediately) **and** landed here.
+
+**Next**: M2 — `iface.BuildCanonicalJSON` + the hidden `internal-dump-iface` subcommand. Its gates
+are already baselined in the plan, and M2 is the milestone that should split
+`TestHashProjection_Deterministic` into per-invariant assertions while it is in this file.
+

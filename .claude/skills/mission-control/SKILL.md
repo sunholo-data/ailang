@@ -651,6 +651,35 @@ is non-empty: re-run each absent reviewer alone with a raised cap
 re-run is cents against the $5 iteration ceiling and is the cheapest gate in this loop. If a
 reviewer genuinely cannot be restored, then everywhere the verdict is quoted downstream it reads
 "PROCEED at N−1, `<model>` absent (`<reason>`)" — never a bare "quorum passed".
+**⚠ BUT THE PATH THIS RULE NAMES IS WRONG, AND THE WRONG PATH FAILS IN THE EXACT DIRECTION THE
+RULE EXISTS TO PREVENT — `jq '.absent_reviewers'` RETURNS `null`, WHICH READS AS "NOBODY WAS
+ABSENT"** (fixed 2026-08-31 V1 iteration 311; instance 1 is iteration 309, instance 2 is iteration
+310, both of which recorded the friction as a queue row and could not spend their one Gate-5 skill
+edit on it, and this iteration measured the writer). The rule above says *"read `absent_reviewers`"*
+and the neighbouring rule says the verdicts are the reviewers'. **Both are one level off**, and a
+controller who types the documented path gets a confident `null` — the vacuous pass this whole rule
+was written to close, reached by following the rule.
+Measured across **22 of 22** artifacts in `.ailang/state/mission-quorum/` (complete enumeration, not
+a sample; control — `has("synthesis")` = **22**): top-level `has("absent_reviewers")` = **0**, and
+`[.reviewers[] | select(has("verdict"))] | length` > 0 in **0**. The keys DO exist, one level down
+— `Synthesis.AbsentReviewers` at `internal/mission/quorum/quorum.go:51` and the reviewer verdict
+under `.result`, the reviewer object's keys being `cost_usd, landed, model, present, result,
+tokens_in, tokens_out`. **This CORRECTS instances 1 and 2**, which both concluded *"there is no
+`absent_reviewers` key at all"*: there is, it is populated correctly, and it is `.synthesis`-nested
+— so the writer was never at fault and no code fix is owed.
+**The correct reads, all three verified first-party on live artifacts:**
+```bash
+jq -r '.synthesis.absent_reviewers'                        # absence, authoritative
+jq -r '[.reviewers[] | select(.present==false) | .model]'  # the same fact, cross-checked
+jq -r '[.reviewers[].result.verdict]'                      # per-reviewer verdicts
+```
+Cross-check confirms they agree: the one artifact on disk with a real absentee
+(`m-cohort-manifest-build-provenance-2026-08-23T04-06-…`) names `gpt5-6-sol` in BOTH.
+Mission-independent — every mission on this rig reads the same artifact schema — and the
+generalisation is this file's own recurring shape aimed at itself: **a rule that prescribes a
+QUERY is only as good as the query's path, and a wrong path returns `null` rather than an error.**
+Pair any documented `jq` read with a known-present sibling key in the same call (rule 3a aimed at a
+JSON path), so a `null` proves the key is absent rather than that you spelled it wrong.
 **And check `presentCount` has not been satisfied by YOU.** V1's artifacts carry three syntheses
 reading `proceed` with **zero of two** model reviewers present
 (`m-check-strict-fallbacks-2026-07-17T07-58-22Z`, `m-gemini-evaluator-diff-bridge-2026-07-16T23-03-39Z`,
