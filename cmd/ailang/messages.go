@@ -95,6 +95,8 @@ func messagesCommand() {
 		runMessagesImportGitHub(args)
 	case "reply":
 		runMessagesReply(args)
+	case "health":
+		runMessagesHealth(args)
 	case "triage":
 		runMessagesTriage(args)
 	case "--help", "-h", "help":
