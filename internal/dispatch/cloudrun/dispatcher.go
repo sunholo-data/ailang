@@ -74,9 +74,83 @@ var knownVariants = map[string]bool{
 	"codex-go":  true,
 	"opencode":  true,
 	"pi":        true,
+	"pi-go":     true, // Dockerfile.agent-pi-go + job ailang-agent-executor-pi-go both exist
 	"motoko":    true, // M-MOTOKO-EXECUTOR-ADAPTER (v0.18.0): AILANG-native agent
 	"eval":      true,
 	"eval-go":   true,
+}
+
+// providersForVariant maps an executor variant to the executor binaries baked
+// into that variant's image. Ground truth is docker/Dockerfile.agent-<variant>:
+// the Cloud Run Jobs API cannot override an image per execution, so the variant
+// IS the image, and the image decides which binary exists on $PATH.
+//
+// A nil value means "any provider" — only agent-eval installs every CLI.
+var providersForVariant = map[string][]string{
+	"":          {"claude"},   // Dockerfile.agent: @anthropic-ai/claude-code
+	"default":   {"claude"},   //   ditto
+	"go":        {"claude"},   // Dockerfile.agent-go: FROM agent
+	"codex":     {"codex"},    // Dockerfile.agent-codex: @openai/codex
+	"codex-go":  {"codex"},    // FROM agent-codex
+	"gemini":    {"gemini"},   // Dockerfile.agent-gemini: @google/gemini-cli
+	"gemini-go": {"gemini"},   // FROM agent-gemini
+	"opencode":  {"opencode"}, // Dockerfile.agent-opencode: opencode-ai
+	"pi":        {"pi"},       // Dockerfile.agent-pi: @mariozechner/pi-coding-agent
+	"pi-go":     {"pi"},       // FROM agent-pi
+	"motoko":    {"motoko"},   // Dockerfile.agent-motoko
+	"eval":      nil,          // agent-eval: claude + gemini + codex + opencode + pi
+	"eval-go":   nil,          // FROM agent-eval
+}
+
+// binarylessProviders reach a remote API and shell out to nothing, so they are
+// runnable in any image and must never be refused on image grounds.
+var binarylessProviders = map[string]bool{
+	"managed_agents": true,
+}
+
+// checkVariantProviderAgreement refuses a dispatch whose executor binary cannot
+// exist in the image it would run in.
+//
+// ExecutorVariant selects the Cloud Run Job, and therefore the image. The
+// separate AILANG_PROVIDER env var selects which executor runs INSIDE it
+// (cmd/ailang/coordinator_cloud.go passes it to executor.GetExecutor). Nothing
+// tied the two together, so a mismatch was discoverable only by the container,
+// at the END of its setup. Measured 2026-08-28: task-a0628a5f dispatched to
+// ailang-agent-executor-codex, logged "running opencode executor (unified path)"
+// and died on
+//
+//	exec: "opencode": executable file not found in $PATH
+//
+// AFTER cloning 24,032 files and cutting its branch. Every such dispatch burns a
+// full container start and repo clone to learn something knowable before launch.
+// Refusing here turns a silent late failure into a loud early one.
+func checkVariantProviderAgreement(variant, provider string) error {
+	if provider == "" || binarylessProviders[provider] {
+		return nil
+	}
+	allowed, known := providersForVariant[variant]
+	if !known || allowed == nil {
+		// Unknown variants are rejected by jobSuffixForVariant; nil means the
+		// image carries every CLI.
+		return nil
+	}
+	for _, p := range allowed {
+		if p == provider {
+			return nil
+		}
+	}
+	return fmt.Errorf("executor_variant %q runs image agent-%s, which has %v on $PATH, but provider is %q: "+
+		"the job would clone the repo and then fail with %q: executable file not found in $PATH. "+
+		"Fix the agent's provider/executor_variant pair in config.cloud.yaml",
+		variant, variantImageName(variant), allowed, provider, provider)
+}
+
+// variantImageName renders the image basename for a variant, for error text.
+func variantImageName(variant string) string {
+	if variant == "" || variant == "default" {
+		return "agent"
+	}
+	return variant
 }
 
 // jobSuffixForVariant returns the Cloud Run Job name suffix for a variant + auth mode pair.
@@ -109,6 +183,9 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 	// Auth mode selects between OAuth and API-key job templates within each variant.
 	jobSuffix, err := jobSuffixForVariant(params.ExecutorVariant, params.AuthMode)
 	if err != nil {
+		return err
+	}
+	if err := checkVariantProviderAgreement(params.ExecutorVariant, params.Provider); err != nil {
 		return err
 	}
 	jobName := fmt.Sprintf("projects/%s/locations/%s/jobs/%s-%s",
