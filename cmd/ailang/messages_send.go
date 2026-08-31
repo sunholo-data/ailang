@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/storage"
 )
 
 // Send and reply operations for messages
@@ -156,7 +157,14 @@ func runMessagesSend(args []string) {
 
 	// Dual-write: publish notification to Pub/Sub if enabled (M-PUBSUB)
 	// This is non-fatal — message is already safely in SQLite/Firestore.
-	cfg, _ := messaging.LoadConfig()
+	// The config error is REPORTED, not discarded: an unreadable config is the
+	// difference between "will be worked on" and "will sit forever", and the
+	// caller cannot tell those apart from a bare success line.
+	cfg, cfgErr := messaging.LoadConfig()
+	if cfgErr != nil {
+		fmt.Fprintf(os.Stderr, "%s messaging config unreadable (%v) — cannot determine whether this message will be dispatched\n", yellow("!"), cfgErr)
+	}
+	notified := false
 	if cfg != nil && cfg.PubSub != nil && cfg.PubSub.Enabled {
 		notifier, notifyErr := messaging.NewPubSubNotifier(cfg.PubSub)
 		if notifyErr != nil {
@@ -166,10 +174,12 @@ func runMessagesSend(args []string) {
 			if notifyErr := notifier.Notify(context.Background(), msg); notifyErr != nil {
 				fmt.Fprintf(os.Stderr, "%s Pub/Sub notify failed: %v\n", yellow("!"), notifyErr)
 			} else {
+				notified = true
 				fmt.Printf("%s Pub/Sub notification published\n", green("✓"))
 			}
 		}
 	}
+	warnIfFiledButUndispatchable(inbox, notified)
 
 	// Compute envelope (M-SEMANTIC-ENVELOPE)
 	// Auto-detects git context unless --no-envelope is set
@@ -588,4 +598,36 @@ func isSourceFile(path string) bool {
 		}
 	}
 	return false
+}
+
+// warnIfFiledButUndispatchable says so when a message has been FILED but will
+// never be DISPATCHED.
+//
+// The cloud coordinator's intake is Pub/Sub ONLY: pollAndProcessTasksCloud reads
+// the Pub/Sub adapter (internal/coordinator/daemon_tasks_polling.go) and never
+// queries Firestore. So a message written to the cloud store whose notification
+// did not publish is invisible to it — permanently, not slowly.
+//
+// Printing a bare "✓ Message sent" in that case is exactly the failure this
+// guards against: the write genuinely succeeded, the caller reasonably believed
+// work had been queued, and nothing ever ran. Measured 2026-08-31 — three
+// pkg:sunholo/ailang_parse reports sat unread with no task and no job, because
+// this machine's config carries no pubsub section at all.
+//
+// Local and hybrid stores are silent here on purpose: that daemon polls the
+// store directly, so no notification is required for work to start.
+func warnIfFiledButUndispatchable(inbox string, notified bool) {
+	if notified {
+		return
+	}
+	mode, project := messagesTarget()
+	if mode != storage.ModeGCP {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "\n%s FILED, NOT DISPATCHED — no Pub/Sub notification was published.\n", yellow("!"))
+	fmt.Fprintf(os.Stderr, "  The message IS in Firestore (project %s, inbox %q) and is readable with\n", project, inbox)
+	fmt.Fprintf(os.Stderr, "    ailang messages list --inbox %q\n", inbox)
+	fmt.Fprintf(os.Stderr, "  but the cloud coordinator takes work from Pub/Sub only, so nothing will pick it up.\n")
+	fmt.Fprintf(os.Stderr, "  Fix — add to %s:\n", messaging.GetConfigPath())
+	fmt.Fprintf(os.Stderr, "    pubsub:\n      enabled: true\n      project_id: %s\n", project)
 }

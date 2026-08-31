@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -165,5 +167,73 @@ func TestSendViaHTTP_ErrorWhenUnreachable(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "make coord-install") {
 		t.Errorf("error message should suggest `make coord-install`: %v", err)
+	}
+}
+
+// captureStderr runs fn with os.Stderr redirected and returns what it wrote.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	orig := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	os.Stderr = w
+	done := make(chan string, 1)
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, r)
+		done <- buf.String()
+	}()
+	fn()
+	_ = w.Close()
+	os.Stderr = orig
+	return <-done
+}
+
+// TestWarnIfFiledButUndispatchable pins the guard on the seam that let three
+// pkg:sunholo/ailang_parse reports sit unread with no task and no job: the write
+// to Firestore succeeded, no Pub/Sub notification was published, and the CLI
+// still printed a bare success line. The cloud coordinator's intake is Pub/Sub
+// ONLY, so silence there means the work never starts.
+func TestWarnIfFiledButUndispatchable(t *testing.T) {
+	tests := []struct {
+		name     string
+		store    string
+		project  string
+		notified bool
+		wantWarn bool
+	}{
+		{"gcp store, not notified -> WARN", "gcp", "ailang-multivac", false, true},
+		{"gcp store, notified -> silent", "gcp", "ailang-multivac", true, false},
+		{"local store, not notified -> silent (daemon polls the store)", "local", "", false, false},
+		{"hybrid store keeps messaging in SQLite -> silent", "hybrid", "", false, false},
+		{"unset store defaults local -> silent", "", "", false, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("AILANG_MESSAGES_STORE", tc.store)
+			t.Setenv("AILANG_MESSAGES_PROJECT", tc.project)
+			t.Setenv("AILANG_STORAGE", "")
+			t.Setenv("AILANG_CLOUD_PROJECT", "")
+
+			out := captureStderr(t, func() {
+				warnIfFiledButUndispatchable("pkg:sunholo/ailang_parse", tc.notified)
+			})
+
+			gotWarn := strings.Contains(out, "FILED, NOT DISPATCHED")
+			if gotWarn != tc.wantWarn {
+				t.Errorf("warn = %v, want %v\nstderr:\n%s", gotWarn, tc.wantWarn, out)
+			}
+			if tc.wantWarn {
+				// The warning has to be ACTIONABLE, not just loud: it must name
+				// the inbox the message is readable from and the config fix.
+				for _, want := range []string{"pkg:sunholo/ailang_parse", "pubsub:", "enabled: true", "ailang-multivac"} {
+					if !strings.Contains(out, want) {
+						t.Errorf("warning missing %q\nstderr:\n%s", want, out)
+					}
+				}
+			}
+		})
 	}
 }
