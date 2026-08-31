@@ -1,7 +1,7 @@
 # Sprint Plan: M-DX-QUALITY-MONITOR — empty/looping-output detection + bounded excerpts
 
 ## Summary
-Ship the `quality-monitor.ts` extension (suite member #9, event-only, zero subprocess
+Ship the `quality-monitor.ts` extension (suite member #10, event-only, zero subprocess
 calls): Q3 bounded-excerpt rewrite of oversized tool results, Q2 identical-call loop
 detection with block-then-inform, Q1 empty-content detection with capped corrective
 steering, Q4 opt-in thinking-budget fallback. Pure pi-layer state via `pi.appendEntry`.
@@ -83,7 +83,7 @@ steering, Q4 opt-in thinking-budget fallback. Pure pi-layer state via `pi.append
 - Table-driven unit suite `.pi/extensions/.quality-monitor.test.ts`
   (dot-prefixed: pi skips discovery; `node --experimental-strip-types --test`).
 - `.pi/extensions/README.md` table row (also fixes measured README drift: add
-  `ail-fmt-autolint.ts`, landed f57603cd7 but unlisted); counts eight→nine.
+  `ail-fmt-autolint.ts`, landed f57603cd7 but unlisted); counts eight→ten.
 - `make pi-assets` + `make verify-pi-assets` (Tier-0 embedded copy).
 - Design doc status flip; commit on `dev` with `Co-Authored-By: pi (anthropic/claude-opus-4-6)`.
 

@@ -1,6 +1,6 @@
 # Session Protocol Gate + Dev-Harness Extensions
 
-The nine-extension AILANG pi suite (M-DX-SESSION-GATE, M-DX-PI-HARNESS,
+The ten-extension AILANG pi suite (M-DX-SESSION-GATE, M-DX-PI-HARNESS,
 M-DX-QUALITY-MONITOR). Tested against pi **0.84.3** (0.84.4 verified for
 quality-monitor).
 
@@ -8,7 +8,7 @@ quality-monitor).
 
 ### Tier 0 — every repo on a machine: install from the ailang binary
 
-Release binaries embed all eight `.ts` extensions plus this README. Install the
+Release binaries embed all ten `.ts` extensions plus this README. Install the
 managed global copy into `~/.pi/agent/extensions/` with:
 
 ```bash
