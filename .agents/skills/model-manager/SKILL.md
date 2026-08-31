@@ -132,6 +132,31 @@ Checking Vertex AI for: gemini-3-pro-preview-11-2025
 Recommendation: Monitor for availability, check again in 1-2 weeks
 ```
 
+### `scripts/measure_ollama_credit_rate.sh <tag1> [tag2 ...]`
+Empirical Ollama Cloud credit-rate comparison (V36/V46 method) — the only way to
+answer "how many credits does model X cost vs model Y" without a published rate:
+
+```bash
+# Compare credit burn per token, e.g. the GLM-5.3 family
+scripts/measure_ollama_credit_rate.sh glm-5.3-flash glm-5.3
+```
+
+**Output:** per-arm sessions-numerator delta over real tokens burned → units/M,
+plus the cross-model ratio:
+```
+model                    tokens   credits  units/M
+glm-5.3-flash            142486    +0.004   0.0281
+glm-5.3                 140543    +0.011   0.0783
+
+credit ratio: glm-5.3 costs 2.79x the credits per token of glm-5.3-flash
+```
+
+**Measured 2026-08-31 (three runs, one-shot shape):** glm-5.3-flash ≈ 0.03
+units/M (page level: Medium), glm-5.3 ≈ 0.08–0.14 units/M (High) — ratio ≈ 3x,
+consistent with the published ~3-4x-per-level ladder (V36: gpt-oss:20b 0.0069,
+deepseek-v4-flash 0.029, kimi-k3 0.124). Precision is capped by the 3-decimal
+numerator: prefer ≥140k tokens per arm, and re-run if an arm shows ≤2 ticks.
+
 ### `scripts/run_test_benchmark.sh <model-name>`
 Run a small test benchmark to verify model works end-to-end.
 
@@ -292,6 +317,17 @@ naming convention on an existing row shape — no new provider code. Canonical d
    after any manual test (the script does this), and expect the numbers to move
    from unrelated traffic: anything else running on the flat route burns the
    same quota (e.g. a coordinator agent session on `glm-5.3-flash:cloud`).
+8. **Credit-rate comparison** — before adding a cloud row, and whenever a cost
+   question needs answering in Ollama terms:
+   `scripts/measure_ollama_credit_rate.sh <tags…>` measures each model's
+   units-per-M on the session numerator (V36 method) and prints the ratio
+   (measured 2026-08-31: glm-5.3 costs ~3x glm-5.3-flash per token; both match
+   their published page levels Medium/High). Rules: one-shot shape unless you
+   say otherwise (V46 — agentic meters ~2x cheaper); ≥140k tokens per arm
+   because the gauge rounds to 3 decimals; snapshots inside ONE script run;
+   cross-check the ratio against the models' published page levels. This
+   complements, never replaces, D1: banked dollars stay the OpenRouter twin's
+   list price, the credits here are the flat-plan's own internal currency.
 
 ### 3. Update models.yml
 
