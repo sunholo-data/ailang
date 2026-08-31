@@ -167,6 +167,22 @@ func reportSendPath(mode storage.Mode, project string) bool {
 	if p == "" {
 		p = project
 	}
+	// A notification published to a DIFFERENT project than the one the message
+	// was written to reaches a coordinator that will never see the message. The
+	// write succeeds, the publish succeeds, both report ok — and the work is
+	// invisible to the only process that could do it.
+	//
+	// Measured 2026-08-31: a probe written to ailang-multivac-dev published its
+	// notification to ailang-multivac because the pubsub block pins project_id.
+	// Both facts were already on this screen, one line apart, and reading them
+	// as a pair is exactly what a health check is for.
+	if p != project {
+		fmt.Printf("  send path: %s pubsub publishes to %q but this store is %q\n", red("SPLIT"), p, project)
+		fmt.Printf("             A notification sent to the wrong project reaches a coordinator that\n")
+		fmt.Printf("             cannot see the message. Set pubsub.project_id to %q in %s,\n", project, messaging.GetConfigPath())
+		fmt.Printf("             or unset it so it follows the store.\n")
+		return false
+	}
 	fmt.Printf("  send path: %s pubsub enabled (project %s)\n", green("ok"), p)
 	return true
 }

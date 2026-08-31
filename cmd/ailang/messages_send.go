@@ -166,7 +166,7 @@ func runMessagesSend(args []string) {
 	}
 	notified := false
 	if cfg != nil && cfg.PubSub != nil && cfg.PubSub.Enabled {
-		notifier, notifyErr := messaging.NewPubSubNotifier(cfg.PubSub)
+		notifier, notifyErr := messaging.NewPubSubNotifier(notifyConfigForStore(cfg.PubSub))
 		if notifyErr != nil {
 			fmt.Fprintf(os.Stderr, "%s Pub/Sub notify failed: %v\n", yellow("!"), notifyErr)
 		} else if notifier != nil {
@@ -630,4 +630,60 @@ func warnIfFiledButUndispatchable(inbox string, notified bool) {
 	fmt.Fprintf(os.Stderr, "  but the cloud coordinator takes work from Pub/Sub only, so nothing will pick it up.\n")
 	fmt.Fprintf(os.Stderr, "  Fix — add to %s:\n", messaging.GetConfigPath())
 	fmt.Fprintf(os.Stderr, "    pubsub:\n      enabled: true\n      project_id: %s\n", project)
+}
+
+// notifyConfigForStore makes the notification follow the store the message was
+// actually written to.
+//
+// NewPubSubNotifier resolves its project from config.project_id, then
+// AILANG_CLOUD_PROJECT, then GOOGLE_CLOUD_PROJECT — none of which know which
+// store the write went to. So a message written to one project could be
+// announced in another, reaching a coordinator that cannot see it. The write
+// succeeds, the publish succeeds, both report ok, and the work is invisible to
+// the only process that could do it.
+//
+// Measured 2026-08-31: a probe written to ailang-multivac-dev published its
+// notification to ailang-multivac, because the pubsub block pinned project_id
+// to prod. The dev coordinator was never told and the task never ran.
+//
+// Notifying a project you did not write to is never correct, so the store wins
+// and a pinned mismatch is reported rather than honoured.
+func notifyConfigForStore(pc *messaging.PubSubConfig) *messaging.PubSubConfig {
+	mode, storeProject := messagesTarget()
+	if mode != storage.ModeGCP || storeProject == "" || pc == nil {
+		return pc
+	}
+	if pc.ProjectID != "" && pc.ProjectID != storeProject {
+		fmt.Fprintf(os.Stderr, "%s pubsub.project_id is %q but this message was written to %q; notifying %q so the right coordinator hears it\n",
+			yellow("!"), pc.ProjectID, storeProject, storeProject)
+	}
+	clone := *pc
+	clone.ProjectID = storeProject
+	// The topic prefix is per-environment infrastructure, not a user preference:
+	// terraform sets AILANG_TOPIC_PREFIX = var.prefix, giving ailang / ailang-dev
+	// / ailang-test alongside ailang-multivac{,-dev,-test}. Carrying prod's
+	// prefix into a dev store publishes to a topic that does not exist there —
+	// measured 2026-08-31, the probe failed on ailang-messages in a project whose
+	// topic is ailang-dev-messages. Derive it with the project so the pair always
+	// agrees; an unrecognised project keeps whatever was configured, and the
+	// FILED, NOT DISPATCHED warning still fires if that turns out to be wrong.
+	if derived, ok := topicPrefixForProject(storeProject); ok {
+		clone.TopicPrefix = derived
+	}
+	return &clone
+}
+
+// topicPrefixForProject maps ailang-multivac{,-dev,-test} to the topic prefix
+// terraform provisions for it. Returns false for anything it does not recognise,
+// so an unknown project is never silently given a guessed prefix.
+func topicPrefixForProject(project string) (string, bool) {
+	switch project {
+	case "ailang-multivac":
+		return "ailang", true
+	case "ailang-multivac-dev":
+		return "ailang-dev", true
+	case "ailang-multivac-test":
+		return "ailang-test", true
+	}
+	return "", false
 }

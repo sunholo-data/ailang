@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/sunholo-data/ailang/internal/messaging"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -235,5 +236,70 @@ func TestWarnIfFiledButUndispatchable(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestTopicPrefixForProject pins the project→prefix pairing. The prefix is
+// per-environment infrastructure (terraform sets AILANG_TOPIC_PREFIX = var.prefix),
+// so carrying one environment's prefix into another publishes to a topic that
+// does not exist there.
+func TestTopicPrefixForProject(t *testing.T) {
+	for _, tc := range []struct {
+		project string
+		want    string
+		ok      bool
+	}{
+		{"ailang-multivac", "ailang", true},
+		{"ailang-multivac-dev", "ailang-dev", true},
+		{"ailang-multivac-test", "ailang-test", true},
+		// An unknown project must NOT get a guessed prefix: a wrong topic is a
+		// silently undelivered message, which is the whole failure class here.
+		{"some-other-project", "", false},
+		{"", "", false},
+	} {
+		got, ok := topicPrefixForProject(tc.project)
+		if got != tc.want || ok != tc.ok {
+			t.Errorf("topicPrefixForProject(%q) = (%q,%v), want (%q,%v)", tc.project, got, ok, tc.want, tc.ok)
+		}
+	}
+}
+
+// TestNotifyConfigForStoreFollowsStore pins the fix for the split-brain measured
+// 2026-08-31: a probe written to ailang-multivac-dev published its notification
+// to ailang-multivac because the config pinned project_id to prod. The dev
+// coordinator was never told and the task never ran. Notifying a project you did
+// not write to is never correct, so the store wins.
+func TestNotifyConfigForStoreFollowsStore(t *testing.T) {
+	t.Setenv("AILANG_MESSAGES_STORE", "gcp")
+	t.Setenv("AILANG_MESSAGES_PROJECT", "ailang-multivac-dev")
+	t.Setenv("AILANG_STORAGE", "")
+	t.Setenv("AILANG_CLOUD_PROJECT", "")
+
+	in := &messaging.PubSubConfig{Enabled: true, ProjectID: "ailang-multivac", TopicPrefix: "ailang"}
+	out := notifyConfigForStore(in)
+
+	if out.ProjectID != "ailang-multivac-dev" {
+		t.Errorf("ProjectID = %q, want the STORE's project", out.ProjectID)
+	}
+	if out.TopicPrefix != "ailang-dev" {
+		t.Errorf("TopicPrefix = %q, want ailang-dev — project and prefix must move together", out.TopicPrefix)
+	}
+	// The caller's config must not be mutated underneath them.
+	if in.ProjectID != "ailang-multivac" || in.TopicPrefix != "ailang" {
+		t.Errorf("input config was mutated: %+v", in)
+	}
+}
+
+// TestNotifyConfigForStoreLeavesLocalAlone: a local store needs no notification
+// and must not have its config rewritten.
+func TestNotifyConfigForStoreLeavesLocalAlone(t *testing.T) {
+	t.Setenv("AILANG_MESSAGES_STORE", "local")
+	t.Setenv("AILANG_MESSAGES_PROJECT", "")
+	t.Setenv("AILANG_STORAGE", "")
+	t.Setenv("AILANG_CLOUD_PROJECT", "")
+
+	in := &messaging.PubSubConfig{Enabled: true, ProjectID: "ailang-multivac", TopicPrefix: "ailang"}
+	if out := notifyConfigForStore(in); out != in {
+		t.Errorf("local store should pass the config through unchanged, got %+v", out)
 	}
 }
