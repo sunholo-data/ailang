@@ -1,6 +1,6 @@
 # M-MOTOKO-DISCOVERY-ARM-DISCRIMINATING-REFUSAL: make the real wall-clock discovery refusal observable and reachable
 
-**Status**: Planned
+**Status**: PARKED — needs-human-review (design quorum BLOCKED 3/3 in both rounds; see Quorum Verification Log)
 **Target**: v0.34.1
 **Priority**: P1 (High — a REQUIRED-adjacent CI gate is vacuous: arm 33 of the 41-arm self-test cannot fail for the reason its name claims)
 **Estimated**: 1 iteration (~3-4 hours implementation + mutation validation)
@@ -90,19 +90,30 @@ Each arm now asserts a distinct observable, so no two arms can pass for the same
 
 The wall clock fires on **wall time** (`date +%s > deadline`, ~1s with `PROBE_TIMEOUT_SECS=1`); the node
 ceiling fires on **iteration count** (`visited > MAX_TREE_NODES`). Which fires first is a race that
-depends on machine speed. This design does **not** try to win that race: the arm no longer asserts on
-*which* bound fired, so it does not need to. It asserts a message only the wall-clock branch can emit
-(`process-tree discovery deadline expired (wall clock)`), so the arm's verdict is independent of which
-bound fires first. The node ceiling stays at its **default** `MAX_TREE_NODES` (4096) as a fail-fast
-backstop: if the ceiling ever won the race, the arm would RED (loudly, correctly) rather than pass
-vacuously — which is the property the arm has always lacked.
+depends on machine speed. **Corrected wording (evaluator finding 2, iteration 31): an earlier draft of
+this paragraph claimed the arm's verdict is "independent of which bound fires", and that is false and
+self-contradictory.** The arm's verdict depends on the wall clock firing — that is the entire point of
+the fix, and T1 is the demonstration. What actually changes is the FAILURE MODE of losing the race: the
+arm asserts a message only the wall-clock branch can emit (`process-tree discovery deadline expired
+(wall clock)`), so if the node ceiling ever won, the arm would RED — loudly, and on a clean tree —
+rather than pass vacuously. Today it passes either way, which is the defect. The node ceiling stays at
+its **default** `MAX_TREE_NODES` (4096) as a fail-fast backstop.
+**This trade is exactly what both quorum rounds rejected**, from opposite directions, and it is the
+open question the park hands to the human: trading a silent false PASS for a possible loud false RED is
+an improvement only if the false RED is rare on the CI host, and that rate is not measured (decision
+(d)). See D4 for the synthesis that would avoid the trade altogether.
 
-Measured (iteration 31): on the machine previously claimed to exhibit the race, at the DEFAULT ceiling,
+Measured (iteration 31), on the machine E7/E8/T1 all ran on — the controller's own pin worktree; no row
+here establishes that it is the same machine as any other referenced in this doc (evaluator finding 4).
+At the DEFAULT ceiling,
 the wall clock is what fires (E8: minimal fix only, no ceiling change → rc=0, 41 ok, 0 not ok, 50s). The
 `PROBE_MAX_TREE_NODES=1000000` mechanism is **not needed for the arm to pass** and is deleted.
 
-The 5x widened arm cap (test_motoko_connection_probe.sh:447-452) is **kept**. Measured evidence: E8 clean
-= 50s whole-suite, T1 mutant = 44s whole-suite. The widening exists for a CONTENDED CI runner, which is
+The 5x widened arm cap (test_motoko_connection_probe.sh:447-452) is **kept**. **The justification is the
+CI incident the code comment already cites (run 33001432738, 2026-08-26), NOT the timings below**
+(evaluator finding 3: neither run comes near even the un-widened 120s cap, so they bear on nothing).
+For the record: E8 clean = 50s whole-suite, T1 mutant = 44s whole-suite. The widening exists for a
+CONTENDED CI runner, which is
 not measured here (see decision (d)); removing it is a separate, runner-dependent change this doc has no
 measurement for, and keeping it costs nothing because the arm now reds on a message rather than waiting
 for a cap.
@@ -292,6 +303,59 @@ T1 is the load-bearing acceptance: it is red at base (V8) and must be green afte
 the wall-clock arm no longer depends on the node ceiling. T3 proves the extended gate still catches new
 refusal branches. T1 and T2 (E7) were measured by the controller at iteration 31; the executor must
 re-run them on the modified tree.
+
+## Quorum Verification Log
+
+| Round | Artifact | Verdict | Reviewers present | Surface every objection landed on |
+|---|---|---|---|---|
+| 1 | `.ailang/state/mission-quorum/m-motoko-discovery-arm-discriminating-refusal-2026-09-01T00-35-20Z.json` | **BLOCKED** ($0.0806) | 3/3 external (`gpt5-6-sol`, `gemini-3-1-pro`, `oc-glm-5-2`) — **no absentees** | `PROBE_MAX_TREE_NODES=1000000`: makes one outcome likely rather than guaranteed; forces a 120s hang on regression; efficacy shown only where the race is absent |
+| 2 | `.ailang/state/mission-quorum/m-motoko-discovery-arm-discriminating-refusal-2026-09-01T00-43-50Z.json` | **BLOCKED** ($0.0781) | 3/3 external — **no absentees** | the same surface from the other side: removing the override leaves the wall-clock-versus-ceiling race in place, so a fast CI runner could hit the ceiling and the arm would spuriously RED on a clean tree |
+
+Per the mission-control rule on repeated blocks, the surface each round's objections landed on was
+tracked rather than the round count. Both rounds localise on ONE surface (the race), and **no
+reviewer flipped to pass in either round** — so the disposition is not SPLIT. The one revision and
+the one re-quorum the protocol allows are spent, and no remaining objection carries a concrete
+reviewer-authored fix that does not simply re-propose the mechanism the previous round rejected, so
+the narrow-refinement carve-out does not apply. **Disposition: PARK `needs-human-review`.** This is a
+JUDGMENT park, not a capacity park: nothing unblocks it on a clock.
+
+### E9 — the controller's refutation of the reviewers' shared premise, AND ITS CORRECTION
+
+All three reviewers rest on one empirical premise: that a CI runner might process 4096
+`descendant_pids` iterations inside the 1-second wall-clock window, so the node ceiling would win and
+the arm would spuriously red.
+
+**E9 as first measured (WRONG INSTRUMENT — recorded because the corrected number is what a human
+must read).** The controller benchmarked the **system** `pgrep` at ~79 iterations/second (3 trials:
+79.1 / 78.8 / 79.0; spawn-free control loop 11,433 iter/s), giving 4096 iterations ≈ 52s and a
+claimed ~52x margin.
+
+**E9 CORRECTED (iteration 31 evaluator, reproduced first-party by the controller).** Arm :449 sets
+`PATH="$live_bin"`, and this suite installs its **own** `pgrep` stub at
+`test_motoko_connection_probe.sh:254-262` — a bash script that echoes its last argument. The walk
+therefore never calls system `pgrep`. Benchmarked against the suite's actual stub: **474.9 / 652.7 /
+648.6 iter/s**, i.e. 4096 iterations ≈ **6.3-8.6 seconds** against a 1-second window — a **~6-9x
+margin, not ~52x**. The wrong instrument, re-run for the side-by-side, reads 92.1 iter/s / 44.5s;
+negative control confirms the stub is what resolves first on the arm's PATH. The evaluator's own
+independent instrument (isolating arm 33) measured ~455 iter/s / ~9s, which agrees.
+
+**What survives and what does not.** The *conclusion* survives and never rested on E9: E8 and T1
+measured the arm's behaviour DIRECTLY rather than inferring it from a rate. What does not survive is
+the SIZE of the margin offered as grounds for reconsidering three unanimous rejections — it is ~6x
+smaller than stated. A ~6-9x local margin on this hardware is materially weaker evidence about a
+different, historically contention-prone CI host than a ~52x one, and the human decision should be
+taken on the corrected number.
+
+### D4 — a design the doc, its author and all three reviewers missed (evaluator, iteration 31)
+
+Scoping `PROBE_MAX_TREE_NODES` to arm :449's own `env` line — rather than raising it globally or
+deleting the override entirely — makes the ceiling structurally unreachable inside the wall-clock
+window while leaving every other arm at the default. The evaluator measured it as free on the happy
+path (41/41 ok, 47.1s, indistinguishable from baseline). A middle value (e.g. 50,000) would keep a
+bounded fail-fast backstop rather than either the ~6-9s the default gives or the ~600s the old
+widened cap gave. This is the synthesis both quorum rounds were circling and neither reached; it is
+recorded here rather than applied, because the revision budget is spent and applying it would be a
+controller-invented resolution to a blocked quorum.
 
 ## Deferred Decisions
 
