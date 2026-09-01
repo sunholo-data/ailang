@@ -385,6 +385,20 @@ Nothing calls `InterfaceHashV2` yet — this milestone is pure library.
 
 **Acceptance** (all `./internal/pkg/`, `--- PASS` form, all **RED at base**, measured):
 
+> **⚠ THE `--- PASS` SHORTHAND DROPS THE `-v` THAT MAKES IT MEAN ANYTHING** (added iteration 313,
+> measured first-party). M1-A1/M1-A4 above spell the command out and correctly carry `-v`; from M2
+> onward the acceptance tables abbreviate to *"`--- PASS` form"*, and a reader who expands that
+> shorthand without `-v` gets a gate that **cannot fail for the right reason**. Measured on
+> `./internal/pkg/`: `go test -run '^TestInterfaceHash' ./internal/pkg/` (no `-v`) → **rc=0 with 0
+> `--- PASS:` lines** for a suite of 5 genuinely passing tests, byte-indistinguishable from
+> `go test -run '^TestZZNoSuch$'` → **rc=0, 0 PASS lines, `[no tests to run]`**. With `-v` the same
+> control returns **5** PASS lines. So the abbreviated form silently reproduces the exact
+> silent-green trap §D1 of this plan exists to close. **Every expansion of "`--- PASS` form" MUST be
+> `go test -v -run '<regex>' <pkg>` and assert BOTH rc=0 AND the named `--- PASS:` line.** This bit
+> iteration 313's own pre-routing baseline and was caught only because its known-positive control
+> came back 0 — a value that cannot be true.
+
+
 - M4-A1 `^TestInterfaceHashV2_SensitiveToAddedExport$` — the reporter's exact field case (V5)
 - M4-A2 `^TestInterfaceHashV2_SensitiveToRemovedExport$`
 - M4-A3 `^TestInterfaceHashV2_SensitiveToRetype$`
