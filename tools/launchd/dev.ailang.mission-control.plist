@@ -42,14 +42,20 @@
         <string>/Users/voightkampff/dev/sunholo-data/ailang/tools/launchd/mission-control.sh</string>
     </array>
 
-    <!-- Continuous mode (2026-07-10, Mark): fire every 2h; the driver's overlap
-         guard yields while an iteration is still running, so this is
-         "back-to-back iterations, at most 2h idle gap". No GPU/rig-lock clash —
-         iterations are cloud-model work; subscription rate limits are the
-         natural throttle. Revert to a StartCalendarInterval block for
-         nightly-only cadence. -->
+    <!-- Continuous mode (2026-07-10, Mark): the driver's overlap guard yields while
+         an iteration is still running, so this is "back-to-back iterations, at most
+         one interval of idle gap". No GPU/rig-lock clash — iterations are cloud-model
+         work; subscription rate limits are the natural throttle. Revert to a
+         StartCalendarInterval block for nightly-only cadence.
+         60m (Mark, 2026-09-01, attended): tightened from 5400s off the back of a
+         quota reset. Measured before the change: ~144min iterations against a 90min
+         interval, i.e. a flat ~90min idle gap on every cycle (~4.0h effective).
+         60m halves that gap. The weekly Claude bucket, NOT the fire rate, is the real
+         ceiling here — the previous bucket drained after >=28 controller sessions and
+         left the fleet on the codex/pi fallback for 2.5 of 7 days. If that repeats
+         sooner than ~day 3, this is the first number to put back. -->
     <key>StartInterval</key>
-    <integer>5400</integer>
+    <integer>3600</integer>
 
     <key>EnvironmentVariables</key>
     <dict>
