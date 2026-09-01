@@ -179,12 +179,12 @@ descendant_pids() {
   local root=$1 deadline=$2 current child visited=0
   local -a queue=("$root") result=()
   if [[ "${PROBE_TEST_DESCENDANT_FAILURE:-0}" == 1 ]]; then
-    echo "process-tree discovery deadline expired" >&2
+    echo "process-tree discovery deadline expired (test stub)" >&2
     return 1
   fi
   while ((${#queue[@]} > 0)); do
     if (( $(date +%s) > deadline )); then
-      echo "process-tree discovery deadline expired" >&2
+      echo "process-tree discovery deadline expired (wall clock)" >&2
       return 1
     fi
     current=${queue[0]}

@@ -446,8 +446,8 @@ fi
 # how long we wait for a degraded runner to get there, and stays bounded.
 _arm_cap_saved=$ARM_CAP_SECS
 ARM_CAP_SECS=$(( ARM_CAP_SECS * 5 ))
-expect_failure "descendant discovery refuses on the real wall-clock deadline" "process-tree discovery failed" \
-  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=1 PROBE_TEST_PGREP_LOOP=1 \
+expect_failure "descendant discovery refuses on the real wall-clock deadline" "process-tree discovery deadline expired (wall clock)" \
+  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=1 PROBE_MAX_TREE_NODES=50000 PROBE_TEST_PGREP_LOOP=1 \
     PROBE_STUB_STATE="$tmp_dir/lane-pgreploop" /bin/bash "$probe" treatment control "$tmp_dir/pgreploop.json"
 ARM_CAP_SECS=$_arm_cap_saved
 
@@ -700,19 +700,34 @@ expect_failure "descendant discovery refuses on the node-count ceiling" "process
     PROBE_TEST_PGREP_LOOP=1 PROBE_STUB_STATE="$tmp_dir/lane-node-limit" \
     /bin/bash "$probe" treatment control "$tmp_dir/node-limit.json"
 
+# The D4 ceiling override belongs on arm :449's own env line and nowhere else. A per-command
+# env assignment never persists into this shell, so this is invariantly quiet on a correct
+# tree. It fires on exactly two leak shapes: an edit that promotes the override to a
+# file-global assignment or export, and an ambient PROBE_MAX_TREE_NODES in the caller's
+# environment — which would silently re-parameterise every arm that does not pin its own
+# ceiling. Both un-hermeticize the suite.
+if [[ -n "${PROBE_MAX_TREE_NODES:-}" ]]; then
+  echo "not ok - PROBE_MAX_TREE_NODES is set at suite scope; the ceiling override must stay on arm env lines" >&2
+  exit 1
+fi
+
 # Refusal-branch drift gate. Every arm above proves a branch that EXISTS goes red when neutered —
 # a removal proves the check FIRES; only an addition proves it LOOKS. Adding a new refusal to the
 # probe passes the whole suite byte-identically, so the coverage claim is a one-time manual count
 # that silently rots on the next edit. Count the branches and refuse when the number moves.
-expected_refusal_branches=24
+expected_refusal_branches=27
+# Every counter below reads $probe. Assert it resolves to a file BEFORE any of them run, so
+# that no grep in this gate can fall through to reading stdin.
+[[ -f "$probe" ]] || { echo "not ok - refusal-branch gate: \$probe does not resolve to a file; instrument failure, not a verdict" >&2; exit 1; }
 actual_instrument_failures=$(grep -c 'instrument_failure "' "$probe")
 actual_usage_refusals=$(grep -cE '\|\| usage$' "$probe")
+actual_echo_refusals=$(grep -c 'echo "process-tree discovery' "$probe")
 # Anti-vacuity: a counter that returns zero is a broken instrument, not a clean result.
-if (( actual_instrument_failures == 0 || actual_usage_refusals == 0 )); then
+if (( actual_instrument_failures == 0 || actual_usage_refusals == 0 || actual_echo_refusals == 0 )); then
   echo "not ok - refusal-branch counter matched nothing; instrument failure, not a verdict" >&2
   exit 1
 fi
-actual_refusal_branches=$(( actual_instrument_failures + actual_usage_refusals ))
+actual_refusal_branches=$(( actual_instrument_failures + actual_usage_refusals + actual_echo_refusals ))
 if (( actual_refusal_branches != expected_refusal_branches )); then
   echo "not ok - refusal-branch drift: probe has $actual_refusal_branches refusal branches," >&2
   echo "         this suite is written for $expected_refusal_branches. Add an arm for the new" >&2
