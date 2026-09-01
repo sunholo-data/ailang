@@ -14,6 +14,9 @@
 // as warnings (pre-existing stale entries), not hard failures, so a legacy drift
 // doesn't wedge CI — modules drift on a RESOLVABLE file is the hard gate.
 //
+// Enumerating ZERO modules is itself a hard failure, in both modes: a run that
+// checked nothing is a broken instrument, not a clean manifest.
+//
 //	go run ./scripts/validate_manifest.go            # report
 //	go run ./scripts/validate_manifest.go --ci       # non-zero on drift
 package main
@@ -99,6 +102,16 @@ func main() {
 			return green("0")
 		}(),
 		yellow(fmt.Sprintf("%d", missingCount)))
+
+	// Anti-vacuity floor: a sweep that enumerated nothing cannot testify that the
+	// manifest is in sync. Unconditional on --ci — this is not a drift-tolerance
+	// question, it is a broken instrument.
+	if checked == 0 {
+		fmt.Fprintf(os.Stderr, "\n%s validate_manifest enumerated 0 modules (%d entries in manifest, %d missing on disk)\n",
+			red("INSTRUMENT FAILURE:"), len(m.Examples), missingCount)
+		fmt.Fprintf(os.Stderr, "A zero-enumeration means the instrument is broken, not that the manifest is clean.\n")
+		os.Exit(1)
+	}
 
 	if driftCount > 0 {
 		fmt.Fprintf(os.Stderr, "\n%s %d manifest `modules` entr(ies) are out of date.\n", red("DRIFT:"), driftCount)
