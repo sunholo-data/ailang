@@ -454,48 +454,100 @@ Key takeaways for the model-manager workflow:
      Genuine prompt-following gap.
    - `runtime_error` — compiled but crashed. Logic bug in generation.
 
-### 5.5 Smoke is a FLOOR, not a RANKING — use `--tier core` to decide add/replace (HARD RULE)
+### 5.5 Smoke is a FLOOR, not a RANKING — place the candidate on the ANCHORED ELO series (HARD RULE)
 
 > **Passing smoke is necessary but NOT sufficient. Smoke says "this model can
 > speak AILANG at all"; it does NOT say "this model is good enough to add" or
 > "this model beats the incumbent." Those are RANKING questions, and smoke is
 > saturated — every frontier-class model scores ~the same on it. Never make an
-> add/keep/replace decision on smoke numbers. Make it on `--tier core`.**
+> add/keep/replace decision on smoke numbers.**
 
 Why: the smoke tier is deliberately fundamental ("can it speak AILANG"), so any
 viable model passes ~all of it. A smoke **tie is the expected outcome**, not a
-signal — it carries zero ranking information. The discriminator is the **core
-tier** (`--tier core`, ~26 benchmarks incl. `csv_to_json_converter`, the
-contract/state-machine tests) where frontier models genuinely spread.
+signal — it carries zero ranking information. The discriminator is `--tier core`
+(~26 benchmarks incl. `csv_to_json_converter`, the contract/state-machine tests),
+plus `--tier frontier` when you want placement at the hard end.
 
-**Decision flow once a candidate PASSES smoke:**
-1. **New vendor/family, no incumbent** — run `--tier core` head-to-head vs the
-   `claude-sonnet-4-6` anchor to size where it lands. Add to suites if it earns it.
-2. **Replacing or competing with an incumbent** (e.g. GLM-5.2 vs GLM-5.1) — run
-   `--tier core` for **candidate + incumbent + anchor in ONE command**, `--langs
-   ailang`. **Only promote/replace if the candidate matches-or-beats the incumbent
-   on core.** A core tie at higher cost → keep the incumbent. A clear core win →
-   the cost bump may be justified.
-3. **Close call on N=1** — core is ~26 single-shot runs; OS-model variance is real.
-   If candidate and incumbent are within 1–2 benchmarks, escalate to N≥3 trials
-   before deciding (don't flip an incumbent on a 1-benchmark N=1 delta).
+#### ⛔ Run the CANDIDATE ALONE. Do not re-run incumbents or anchors.
+
+**M-EVAL-ROLLING-ELO (landed 2026-08-27, PRs #939/#942) changed this.** ELO
+ratings used to be incomparable across fits — `FitFromTrials` seeded every model
+*and* benchmark at 1500 with no scale anchor, so the same rows produced different
+absolute numbers in different pools (measured: or-glm-5-3-flash rated **2763** in
+one pool vs **1995** in another over comparable rows). That is why the old
+protocol re-ran candidate + incumbent + anchor together — a shared pool was the
+only way to make numbers mean anything.
+
+That is no longer true, and doing it now is pure waste:
+
+- `internal/eval_harness/anchor_v1.json` freezes the fitted difficulties of the
+  discriminating standard benchmarks. Standard-mode fits hold that panel fixed
+  and let model ratings move ([`cmd/ailang/eval_elo.go:172`](../../../cmd/ailang/eval_elo.go)).
+- So a candidate run **alone** is *placed* onto the same scale as every model
+  ever measured. Anchored drift is **31.2** ELO vs **311.7** unanchored.
+- **D3 retired full baselines as the default release measurement.** The full run
+  is demoted to quarterly re-anchoring (`make eval-baseline FULL=true`).
 
 ```bash
-# The discriminating run — candidate vs incumbent vs anchor, core tier, one command:
-ailang eval-suite --models <candidate>,<incumbent>,claude-sonnet-4-6 \
-  --tier core --langs ailang --output /tmp/core_<candidate> --parallel 4
+# CORRECT — candidate only; the anchored fit places it against banked history.
+ailang eval-suite --models <candidate> --tier core,frontier --langs ailang \
+  --output /tmp/cf_<candidate> --parallel 4
+
+ailang eval-elo /tmp/cf_<candidate> --json     # read-only ANCHORED placement fit
+go run ./tools/eval-elo --persist /tmp/cf_<candidate>   # bank it into the series
 ```
 
-> **⚠️ Anti-pattern (2026-06-16, GLM-5.2 vs GLM-5.1):** GLM-5.2 (newest z-ai,
-> reasoning model, 1M ctx, +43% price) cleared standard smoke at **22/23 — an
-> exact tie with GLM-5.1** (both failed only `dense_operator_program`, which the
-> `claude-sonnet-4-6` anchor ALSO failed → a benchmark/harness issue, not a model
-> gap). The first-pass conclusion was *"tie at +43% cost → keep GLM-5.1."* **That
-> was WRONG.** A smoke tie is meaningless because smoke is saturated — it proves
-> only that GLM-5.2 cleared the floor and QUALIFIES. The replacement decision had
-> to be made on `--tier core`, where the two versions can actually separate. Rule:
-> when a candidate ties the incumbent on smoke, that's your cue to run core, NOT
+`ailang eval-elo` does NOT persist — it refuses `--persist` and tells you to use
+`tools/eval-elo`. Persisting through the cmd path silently no-ops (it swallowed
+`--persist` for weeks; see `project_agent_ratings_seeding_evalelo`).
+
+Compare the resulting rating to the **banked** ratings already in
+`observatory.db` (`LoadModelRatings`) — that is what the series is for.
+
+#### When you DO still co-run models
+
+Three cases, and only these:
+
+1. **Agent mode.** There is no agent-mode anchor yet — `eval_elo.go:171-172`
+   anchors standard mode only, agent fits are unanchored. For an agent-mode
+   ranking question the old same-pool rule still holds.
+2. **The incumbent's banked rating predates a baseline-moving language change.**
+   The anchor pins benchmark *difficulty*, not the harness or stdlib. A change
+   that moves what models can do (e.g. the 2026-07-29 extension fix) invalidates
+   older per-benchmark rates. Check the banked rating's version/date provenance
+   first; if it is stale, re-run **just the incumbent** — never the whole panel.
+3. **A paired/discordant analysis**, where `ailang eval-paired <on> <off>` needs
+   both arms from the same run by construction.
+
+When you genuinely do run several models, they must still go in **ONE**
+`eval-suite` command — it overwrites its output directory (`.claude/rules/eval.md`).
+That rule is about not clobbering results; it is not a reason to add models.
+
+#### Deciding promote / replace
+
+- **Match-or-beat the incumbent** to promote. A tie at higher cost keeps the
+  incumbent; a tie at equal-or-lower cost favours the newer generation.
+- **Close call on N=1** — core is ~26 single-shot runs and OS-model variance is
+  real. Within 1–2 benchmarks (or overlapping ELO bands), escalate to N≥3 before
+  deciding. Never flip an incumbent on a 1-benchmark N=1 delta.
+- **Read `finish_reason` + `reason_tokens` on every failure** before calling it
+  capability (§2a). A `finish=length` with large reasoning is truncation.
+
+> **⚠️ Anti-pattern (2026-06-16, GLM-5.2 vs GLM-5.1):** GLM-5.2 cleared standard
+> smoke at **22/23 — an exact tie with GLM-5.1** (both failed only
+> `dense_operator_program`, which the anchor ALSO failed → a benchmark/harness
+> issue, not a model gap). The first-pass conclusion was *"tie at +43% cost →
+> keep GLM-5.1."* **That was WRONG.** A smoke tie is meaningless because smoke is
+> saturated — it proves only that the candidate cleared the floor and QUALIFIES.
+> When a candidate ties the incumbent on smoke, that is your cue to run core, NOT
 > your answer.
+
+> **⚠️ Anti-pattern (2026-09-01, Hy4 preview):** after Hy4 passed smoke 23/23, the
+> placement run was launched as **six models × 31 benchmarks = 186 runs, ~$3.75** —
+> candidate plus incumbent plus four comparators, on the pre-rolling-ELO reflex
+> that a shared pool was needed. It was not: five of those six models already had
+> banked anchored ratings, and the candidate alone costs **$0.23**. Killed at
+> $0.24. **A comparator you re-run is a comparator you pay for twice.**
 
 ### 6. Document the Model
 
@@ -505,17 +557,21 @@ ailang eval-suite --models <candidate>,<incumbent>,claude-sonnet-4-6 \
 - Document authentication requirements
 - Add to teaching prompts if needed
 
-### 7. Optional: Run Full Eval
+### 7. Bank the placement — do NOT run a full baseline
 
-**If model looks good:**
+Once the candidate has its core/frontier placement, persist it into the anchored
+series so the next question can be answered from banked data instead of a re-run:
 
 ```bash
-# Run small eval suite
-ailang eval-suite --models <model-name> --benchmarks fizzbuzz,recursion_factorial
-
-# Run full suite (expensive!)
-make eval-baseline EVAL_VERSION=vX.Y.Z FULL=true
+go run ./tools/eval-elo --persist /tmp/cf_<candidate>
 ```
+
+**`make eval-baseline FULL=true` is NOT part of adding a model.** D3 of
+M-EVAL-ROLLING-ELO demoted the full baseline to a **quarterly re-anchoring**
+event (and longitudinal spot-checks). Running one to place a new model costs
+$5-25 + hours of wall clock to produce a number the anchored fit already gives
+you for well under a dollar. If you think you need a full baseline, you almost
+certainly need a linking run instead — re-read §5.5.
 
 ## Resources
 
