@@ -537,6 +537,27 @@ statement (which gate, last_age, elapsed), not a rate.
   Named rather than absorbed, per the mission's rule that a pre-existing defect surfaced during
   design is a queue row and not a scope expansion.
 
+- **R9 — `UNCLASSIFIED` IS SPECIFIED AND UNREACHABLE; `CRASHED` ABSORBS IT. Found by the round-3
+  evaluator, reproduced first-party, filed as a queue row.** This doc names `UNCLASSIFIED` five
+  times — in the Q4 decision table's final row and, more importantly, in **Q6's anti-vacuity
+  argument**, which reads *"its fall-through is `UNCLASSIFIED`, which is loud"*. The shipped
+  classify `case` ends `*:*) _mc_slot_verdict="CRASHED at=..."`, and `*:*` matches unconditionally
+  once a colon is present, so it absorbs both *"other ≠0"* and *"anything else"*. Measured:
+  `grep -c UNCLASSIFIED` = **0** in `tools/launchd/mission-control.sh` against **5** in this doc
+  (control: `CRASHED` = 1 in the driver).
+  **The floor property still holds** — `CRASHED` is loud and is not a checkmark, so nothing passes
+  vacuously — but the doc and the code disagree, and the distinct *"instrument confusion at rc=0"*
+  signal the table specifies is silently relabelled as *"the process crashed"*. Exposure is narrow
+  by construction: reaching it needs a heartbeat file whose last stamp is outside the closed label
+  set, and the writer validates labels. Present unchanged since M2 (`6c53a0a20`). Fix is a queue
+  row — either make the branch reachable or delete it from the table and say why — not a re-open.
+
+- **R10 — the helper's unknown-label rejection has no test.** `mission-heartbeat.sh` refuses an
+  out-of-enum label (`unknown label`, exit 2), and the suite never exercises it: `grep -c 'unknown
+  label'` = **1** in the helper, **0** in `test_mission_heartbeat.sh` (control: the suite mentions
+  `stamp` **22** times). This is rule 3j's shape — a refusal branch with no killer — on the one
+  guard that keeps R9's unreachable state unreachable. Cheap queue row.
+
 ## Round 3 — narrow-refinement carve-out (controller, iteration 315)
 
 Round 2 returned **BLOCKED, 3/3 reject**, with all three reviewers PRESENT (`oc-glm-5-2` was
