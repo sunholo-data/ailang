@@ -504,6 +504,32 @@ go run ./tools/eval-elo --persist /tmp/cf_<candidate>   # bank it into the serie
 Compare the resulting rating to the **banked** ratings already in
 `observatory.db` (`LoadModelRatings`) — that is what the series is for.
 
+> **⚠️ CHECK THE BANKED SERIES IS ACTUALLY ANCHORED BEFORE COMPARING.** An
+> anchored placement and a pre-anchor banked rating are on DIFFERENT SCALES, and
+> nothing in the output warns you. Measured 2026-09-01 on the dev box: every
+> `model_ratings` row for `mode='standard'` was stamped **2026-08-03** — before
+> the anchor landed (2026-08-28) — so those 19 values are unanchored, and
+> `trial_history` held **agent-mode rows only** (739 rows, 3 models), meaning
+> there were no banked standard trials to re-level them from. Reading Hy4's
+> anchored 1915.5 against that table would have been exactly the 2763-vs-1995
+> error the anchor exists to prevent.
+>
+> ```bash
+> sqlite3 ~/.ailang/state/observatory.db \
+>   "SELECT model_id, ROUND(rating,1), n_trials, substr(last_updated,1,10)
+>      FROM model_ratings WHERE mode='standard' ORDER BY rating DESC;"
+> sqlite3 ~/.ailang/state/observatory.db \
+>   "SELECT mode, COUNT(*), COUNT(DISTINCT model_id) FROM trial_history GROUP BY mode;"
+> ```
+>
+> If `last_updated` predates the anchor, or `trial_history` has no rows for the
+> mode you are placing in, you have a placement but **no valid comparison set**.
+> Say so plainly rather than ranking against stale numbers. Report the candidate's
+> pass profile against the **anchored benchmark difficulties** (which the fit does
+> give you) and treat the leaderboard position as unavailable until the series is
+> re-fit. Do NOT "fix" this by re-running comparators — that is the anti-pattern
+> above; the fix is banking standard-mode trials so the series can accumulate.
+
 #### When you DO still co-run models
 
 Three cases, and only these:
