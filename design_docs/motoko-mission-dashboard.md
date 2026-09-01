@@ -1,35 +1,36 @@
 # Mission Dashboard — Motoko
 
-*Snapshot, overwritten every iteration. History lives in the charter STATUS + mission log.*
+_Snapshot, overwritten every iteration. History lives in the charter STATUS block and the mission log._
 
-**Last iteration**: 31 — 2026-09-01 — *the quorum blocked twice on one surface, and my refutation of
-it measured the wrong binary* `[HARNESS]`
-**Release**: v0.34.0 · **dev CI**: not red, unfinished (`checks=18` on `a223e7274`, only `test`
-pending — V1's iteration-312 merge; `sunholo-data/ailang` is V1's to own)
+**Last iteration:** 32 — 2026-09-01 · [PRODUCT-adjacent HARNESS] · **LANDED**
+
+## Latest
+- **PR [#1008](https://github.com/sunholo-data/ailang/pull/1008)** — the wall-clock discovery arm now
+  asserts its own refusal. 4 commits, 21/21 checks green, `mergeStateStatus=CLEAN`.
+- The defect reported at `#975` is closed by measurement, not by assertion: neutering the wall-clock
+  branch used to leave the suite 41/41 green.
 
 ## In flight / next
-- **6o** *(next)* — only the TERM half of the production group kill is pinned; the SIGKILL
-  escalation's group form has zero killers.
-- **6p** — `descendant_pids` bounds its walk by two racing mechanisms and nothing chooses between
-  them. Pre-existing at HEAD. Candidate fix is the evaluator's D4.
-- **6q** — the refusal-branch count gate is blind to the three `echo` refusals this whole arc is
-  about (measured: adding one leaves the suite 41/41).
-- **6n** — **PARKED needs-human-review**. Design written and the fix measured to work; quorum
-  BLOCKED 3/3 in both rounds on the wall-clock-vs-ceiling race.
-- Rows **10/11/12** — Phase-0 gated, unmoved: upstream `#154` still OPEN (re-measured as a command
-  this iteration; control `#175` MERGED, negative control 404s).
+- **6q** — folded into this PR (the drift gate now counts echo-shaped refusals, 24 → 27).
+- **6p** — the ceiling calibration. D4 landed at 50,000; the residual is that the backstop leg's
+  headroom is load-dependent (2.2x–5.7x), stated in the doc as a trade rather than a satisfied bound.
+- **6o** — SIGKILL-escalation group form has zero killers; **6m** — `cacheRead` pinned by nothing.
+- **7** — profile restoration · **8** — repin stale OpenRouter motoko models.
 
-## Loop cadence + routing
-Controller `claude:claude-opus-5` · designer **rotation now at
-`pi:ollama/deepseek-v4-flash:0731-cloud`** (used twice this iteration, verdict `ok` both) · planner
-`codex:gpt-5.6-sol` · executor `codex:gpt-5.6-sol` · evaluator **sonnet**, own worktree.
-Last iteration ran **no planner and no executor** — the doc parked before a plan existed.
+## Loop health
+- Iterations 28 and 29 died without records; 30 recovered them. 31 and 32 both completed.
+- Designer rotation advanced `pi:deepseek-v4-flash` → `claude:claude-fable-5` (used this iteration).
+- Source clone was **55 commits behind**; reconciled under the standing authorization D-MOTOKO-WORKDIR-2
+  (0 ahead / 0 dirty measured first-party; now 0 behind, 17 worktrees intact).
+
+## Routing this iteration
+designer `claude:claude-fable-5` (Agent pin) · planner `opus` (`derive-planner-lane.sh` →
+`fail-closed:planner-lane-field-missing`) · executor `codex:gpt-5.6-sol` · evaluator `sonnet`.
+generator≠judge holds (OpenAI executor vs Anthropic judge).
 
 ## Parked on Mark
-- **D-MOTOKO-6N-1** *(new, 2026-09-01)* — ship the measured minimal fix for the discovery arm now
-  **(A)**, hold one iteration for the race-free construction the evaluator found **(B, recommended)**,
-  or neither **(C)**. Default if unanswered by **2026-09-08**: **(B)**, as a normal queue pick.
+**None.** `D-MOTOKO-6N-1` was answered attended on 2026-09-01 and is consumed by this iteration.
 
-## Quota posture
-Metered **$0.1587** of $5 last iteration (two quorum rounds). **Fable unspent.** The pi designer lane
-is flat-rate $0.00. No GPU, no `rig.lock`.
+## Quota / cost
+Metered this iteration: **$0.2179** (quorum rounds 3 and 4) against the $5 ceiling. Quota buckets:
+opus (controller, planner), fable (designer), sonnet (evaluator), codex (executor).
