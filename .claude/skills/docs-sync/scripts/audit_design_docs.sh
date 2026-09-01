@@ -17,6 +17,7 @@ echo "Project root: $PROJECT_ROOT"
 echo ""
 
 # Count design docs
+# Scope: these totals count every Markdown file in each lifecycle directory, including sprint plans and other supporting docs; they intentionally need not match feature-only roadmap totals from derive_roadmap_versions.sh.
 PLANNED_COUNT=$(find "$PROJECT_ROOT/design_docs/planned" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
 IMPLEMENTED_COUNT=$(find "$PROJECT_ROOT/design_docs/implemented" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
 
