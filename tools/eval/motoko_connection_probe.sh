@@ -124,8 +124,10 @@ benchmark=${4:-hello_world}
 ailang_bin=${AILANG_BIN:-ailang}
 timeout_secs=${PROBE_TIMEOUT_SECS:-900}
 MAX_TREE_NODES=${PROBE_MAX_TREE_NODES:-4096}
+TREE_DISCOVERY_SECS=${PROBE_TREE_DISCOVERY_SECS:-30}
 [[ "$timeout_secs" =~ ^[1-9][0-9]*$ ]] || instrument_failure "PROBE_TIMEOUT_SECS must be a positive integer"
 [[ "$MAX_TREE_NODES" =~ ^[1-9][0-9]*$ ]] || instrument_failure "PROBE_MAX_TREE_NODES must be a positive integer"
+[[ "$TREE_DISCOVERY_SECS" =~ ^[1-9][0-9]*$ ]] || instrument_failure "PROBE_TREE_DISCOVERY_SECS must be a positive integer"
 [[ $(uname -sm) == "Darwin arm64" ]] || instrument_failure "live probe requires darwin/arm64"
 command -v dig >/dev/null || instrument_failure "dig is required"
 command -v lsof >/dev/null || instrument_failure "lsof is required"
@@ -209,11 +211,12 @@ assert_pid_scope() {
 }
 
 sample_tree() {
-  local root=$1 raw_file=$2 deadline=$3 pids
+  local root=$1 raw_file=$2 pids discovery_deadline
+  discovery_deadline=$(( $(date +%s) + TREE_DISCOVERY_SECS ))
   if [[ -n "${PROBE_TEST_PID_SCOPE+x}" ]]; then
     pids=$PROBE_TEST_PID_SCOPE
   else
-    if ! pids=$(descendant_pids "$root" "$deadline"); then
+    if ! pids=$(descendant_pids "$root" "$discovery_deadline"); then
       instrument_failure "process-tree discovery failed"
     fi
   fi
@@ -268,7 +271,7 @@ run_lane() {
       { wait "$pid"; } >/dev/null 2>&1 || true
       instrument_failure "lane $lane exceeded ${timeout_secs}s sampling deadline"
     fi
-    sample_tree "$pid" "$raw_file" "$deadline"
+    sample_tree "$pid" "$raw_file"
     sleep 1
   done
   { wait "$pid"; } 2>/dev/null || lane_rc=$?

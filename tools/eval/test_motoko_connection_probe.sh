@@ -359,7 +359,7 @@ expect_failure "descendant discovery deadline refuses at the caller" "process-tr
 expect_failure "lane sampling deadline refuses" "exceeded 1s sampling deadline" \
   run_live PROBE_TEST_DRIVER_SLEEP=10 PROBE_TIMEOUT_SECS=1
 expect_failure "bounded termination deadline refuses" "bounded termination deadline" \
-  run_live PROBE_TEST_DRIVER_SLEEP=20 PROBE_TEST_IGNORE_TERM=1 PROBE_TIMEOUT_SECS=1
+  run_live PROBE_TEST_DRIVER_SLEEP=20 PROBE_TEST_IGNORE_TERM=1 PROBE_TIMEOUT_SECS=1 PROBE_TREE_DISCOVERY_SECS=30
 
 success_artifact="$tmp_dir/success/probe.json"
 mkdir -p "$tmp_dir/success"
@@ -435,21 +435,18 @@ fi
 # makes the process tree self-referential and never empties the queue — the only way to reach the
 # in-loop `date` check. The stub was written for this and no invocation used it, so the branch
 # that actually bounds the walk was unexercised while an arm claimed the deadline was pinned.
-# WIDER CAP FOR THIS ARM ONLY (deflake, 2026-08-27). The self-referential pgrep
-# walk normally trips the probe's 1s internal deadline in a second or two — but
-# each loop iteration SPAWNS a stub process, and on a contended shared CI runner
-# those spawns degrade until total wall time blows through the global 120s arm
-# cap long before the per-iteration date check accumulates to its limit. CI run
-# 33001432738 (2026-08-26) failed exactly here on a commit touching no related
-# files, and the identical suite passed on the next commit. The refusal itself
-# is what this arm proves and it still MUST happen — the generosity only widens
-# how long we wait for a degraded runner to get there, and stays bounded.
-_arm_cap_saved=$ARM_CAP_SECS
-ARM_CAP_SECS=$(( ARM_CAP_SECS * 5 ))
+# DETERMINISTIC BY CONSTRUCTION (de-race, 2026-08-31): discovery and the lane deadline are now
+# independently bounded. This arm pins the discovery deadline to a 1s bound
+# (PROBE_TREE_DISCOVERY_SECS=1) so the process-tree walk trips its in-loop date check in about a
+# second no matter how fast or slow the machine is, while the LANE deadline is raised to 60s
+# (PROBE_TIMEOUT_SECS=60) so the lane's bounded-termination branch can NEVER win the race. The
+# scoped high node ceiling keeps that independent refusal structurally unreachable during the
+# arm's window. The discriminating wall-clock message must fire promptly, so no widened arm cap
+# is needed.
 expect_failure "descendant discovery refuses on the real wall-clock deadline" "process-tree discovery deadline expired (wall clock)" \
-  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=1 PROBE_MAX_TREE_NODES=50000 PROBE_TEST_PGREP_LOOP=1 \
-    PROBE_STUB_STATE="$tmp_dir/lane-pgreploop" /bin/bash "$probe" treatment control "$tmp_dir/pgreploop.json"
-ARM_CAP_SECS=$_arm_cap_saved
+  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=60 PROBE_TREE_DISCOVERY_SECS=1 \
+    PROBE_MAX_TREE_NODES=50000 PROBE_TEST_PGREP_LOOP=1 PROBE_STUB_STATE="$tmp_dir/lane-pgreploop" \
+    /bin/bash "$probe" treatment control "$tmp_dir/pgreploop.json"
 
 cap_secs_fixture=2
 cap_start=$(date +%s)
@@ -695,12 +692,16 @@ expect_failure "tree node ceiling rejects invalid values" \
   "PROBE_MAX_TREE_NODES must be a positive integer" \
   env PROBE_MAX_TREE_NODES=invalid /bin/bash "$probe" treatment control "$tmp_dir/invalid-node-limit.json"
 
+expect_failure "tree discovery deadline rejects invalid values" \
+  "PROBE_TREE_DISCOVERY_SECS must be a positive integer" \
+  env PROBE_TREE_DISCOVERY_SECS=invalid /bin/bash "$probe" treatment control "$tmp_dir/invalid-tree-discovery.json"
+
 expect_failure "descendant discovery refuses on the node-count ceiling" "process-tree discovery exceeded 3 nodes" \
   env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=60 PROBE_MAX_TREE_NODES=3 \
     PROBE_TEST_PGREP_LOOP=1 PROBE_STUB_STATE="$tmp_dir/lane-node-limit" \
     /bin/bash "$probe" treatment control "$tmp_dir/node-limit.json"
 
-# The D4 ceiling override belongs on arm :449's own env line and nowhere else. A per-command
+# The D4 ceiling override belongs on the wall-clock discovery arm's own env line and nowhere else. A per-command
 # env assignment never persists into this shell, so this is invariantly quiet on a correct
 # tree. It fires on exactly two leak shapes: an edit that promotes the override to a
 # file-global assignment or export, and an ambient PROBE_MAX_TREE_NODES in the caller's
@@ -715,7 +716,7 @@ fi
 # a removal proves the check FIRES; only an addition proves it LOOKS. Adding a new refusal to the
 # probe passes the whole suite byte-identically, so the coverage claim is a one-time manual count
 # that silently rots on the next edit. Count the branches and refuse when the number moves.
-expected_refusal_branches=27
+expected_refusal_branches=28
 # Every counter below reads $probe. Assert it resolves to a file BEFORE any of them run, so
 # that no grep in this gate can fall through to reading stdin.
 [[ -f "$probe" ]] || { echo "not ok - refusal-branch gate: \$probe does not resolve to a file; instrument failure, not a verdict" >&2; exit 1; }
