@@ -88,6 +88,15 @@ attempt=2; . "$attempt_block"; out=$(run_verdict "$t" 0 2)
 check "attempt 2 pre-gate-0 => DIED-PRE-GATE-0 attempt=2" "printf '%s' \"$out\" | grep -q 'DIED-PRE-GATE-0.*attempt=2/3'"
 rm -rf "$t"
 
+skill="$ROOT/.claude/skills/mission-control/SKILL.md"
+span_ok=0
+for pair in 'Gate 0:gate-0' 'Gate 1:gate-1' 'Gate 2:gate-2' 'Gate 3 —:gate-3' 'Gate 3b:gate-3b' 'Gate 4:gate-4' 'Gate 5:gate-5'; do
+  heading=${pair%%:*}; label=${pair#*:}
+  if awk -v h="$heading" -v l="stamp $label" 'index($0,"## " h)==1 {inspan=1; next} inspan && /^## Gate/ {exit} inspan && index($0,l) {found=1} END {exit !found}' "$skill"; then span_ok=$((span_ok + 1)); fi
+done
+if awk 'index($0,"## Gate 5")==1 {inspan=1; next} inspan && /^## Gate/ {exit} inspan && /stamp complete/ {found=1} END {exit !found}' "$skill"; then span_ok=$((span_ok + 1)); fi
+check "every gate section carries its own stamp instruction (8/8)" "[ '$span_ok' -eq 8 ] && grep -q 'stamp abort <reason>' '$skill'"
+
 if [ "${MISSION_HEARTBEAT_MUTATION:-}" = "BUFFERED" ]; then bad "sigkill mid-gate-1 leaves last label gate-1"; fi
 if [ "${MISSION_HEARTBEAT_MUTATION:-}" = "SHARED_PATH" ]; then bad "v1 and world stamps land in distinct files"; bad "MISSION_NAME unset writes no file"; fi
 
