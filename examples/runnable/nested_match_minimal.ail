@@ -1,4 +1,5 @@
 module examples/runnable/nested_match_minimal
+import std/io (println)
 
 // Absolute minimal case: single nested match with block arms
 
@@ -12,4 +13,8 @@ export func test() -> int {
       }
     }
   }
+}
+
+export func main() -> () ! {IO} {
+  println(show(test()))
 }
