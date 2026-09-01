@@ -3802,8 +3802,6 @@ After every Gate-5 report has been sent and this iteration is fully complete, ru
    STILL RUNNING** (added 2026-08-08 V1 iteration 167; proposed by `mission-world` iter-65, which
    shares this skill but cannot edit it, and corroborated first-party in V1's own driver log before
    adoption — sibling-claim ghost discipline). This is rule 6's mirror, and the two collide in a way
-   The per-gate `mission-heartbeat.sh` stamps above are the durable attribution contract for this
-   failure class; never skip or defer a gate's first-action stamp.
    that is lethal precisely because rule 6 is correct: rule 6 tells you to bound your waits, and the
    most natural way to "wait" for a background agent is to stop making tool calls and let the
    harness hold the slot for you. **That is the fatal move.** `claude -p` terminates still-running
@@ -3821,6 +3819,8 @@ After every Gate-5 report has been sent and this iteration is fully complete, ru
    **2** in `/tmp/ailang-mission-world.log` — World's *only* two orphaned slots in 67 iterations.
    Both V1 hits sit immediately above a transcript reading "Gates 0–2 complete; sprint-planner
    running", i.e. the controller had just spawned a background role and stopped.
+   The per-gate `mission-heartbeat.sh` stamps above are the durable attribution contract for this
+   failure class; never skip or defer a gate's first-action stamp.
    **The rule:** while any background work you spawned is outstanding, keep the turn alive with
    *chained bounded waits* — a `Monitor`, a bounded `date +%s` poll, or repeated short status reads
    — so the harness never sees you stop. Rule 6 still binds each individual wait; what changes is
