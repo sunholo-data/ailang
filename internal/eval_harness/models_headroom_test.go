@@ -70,7 +70,8 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		// this repo. 2.3% under target; not worth a hard 400 to close.
 		"claude-opus-5": 64000, "claude-opus-4-8": 64000, "claude-opus-4-7": 64000,
 		"claude-opus-4-6": 64000, "claude-opus-4-5": 64000, "claude-fable-5": 64000,
-		"claude-sonnet-5": 64000, "claude-sonnet-4-6": 64000, "claude-sonnet-4-5": 64000,
+		"claude-fable-5-1": 64000,
+		"claude-sonnet-5":  64000, "claude-sonnet-4-6": 64000, "claude-sonnet-4-5": 64000,
 		"claude-haiku-4-5": 64000, "opencode-sonnet-4-6": 64000, "opencode-haiku": 64000,
 		"pi-claude-sonnet-4-6": 64000, "pi-claude-haiku-4-5": 64000,
 		"motoko-claude-sonnet-4-6": 64000, "motoko-claude-haiku-4-5": 64000,

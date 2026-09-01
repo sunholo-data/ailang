@@ -785,6 +785,61 @@ models:
       No smoke tier (smoke is the local OS-model iteration loop; cloud models run core,stretch).
       API access verified 2026-06-09.
 
+  # Anthropic Claude Fable 5.1 (released September 1, 2026)
+  claude-fable-5-1:
+    api_name: "claude-fable-5-1"   # Dash form on the direct API; OpenRouter mirrors it
+      # as anthropic/claude-fable-5.1 (vendorMirror in tools/verify-model-pricing
+      # rewrites -5-1 → -5.1, so the pricing cross-check resolves without a special case).
+    provider: "anthropic"
+    default_thinking: "always_on"
+    description: "Claude Fable 5.1 - most capable widely released model (Sep 2026)"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"  # Supports Claude Code CLI for agent evals
+    agent_model_name: "claude-fable-5-1"  # NOT the "fable" alias. Same trap documented on
+      # claude-opus-5 / claude-sonnet-5: a CLI alias silently re-points at the newest model
+      # in the family, which would benchmark 5.1 under whichever label asked for it. Inert
+      # in practice — this row is standard-eval-only (see eval policy below) — but the full
+      # id is the only value that cannot drift. ⚠️ claude-fable-5's row still carries
+      # agent_model_name: "fable"; if fable rows are ever admitted to agent_suite, pin that
+      # one to "claude-fable-5" first.
+    model_family: "claude-fable-5-1"
+    max_output_tokens: 64000  # Anthropic family cap for the non-streaming Messages API in
+      # this repo (vendor declares 128K; ALL sibling Claude rows sit at 64000 — see
+      # TestModels_CloudHeadroomEqualised). Equal headroom is what keeps a 5 vs 5.1
+      # comparison from measuring the budget instead of the model.
+    pricing:
+      input_per_1k: 0.010   # $10 per million = $0.010 per 1K — UNCHANGED from Fable 5
+      output_per_1k: 0.050  # $50 per million = $0.050 per 1K — UNCHANGED from Fable 5
+    notes: |
+      Anthropic's most capable widely released model (September 1, 2026).
+      Supersedes Claude Fable 5 at IDENTICAL pricing ($10/$50 per 1M) — vendor-stated
+      gains concentrate in agentic coding, long-running agentic workflows, and knowledge
+      work (long refactors, front-end/visual work).
+      Adaptive thinking ALWAYS ON (explicit {"type":"disabled"} is a 400 at any effort);
+      default effort "high". Registered as {Adaptive:true, CanDisable:false} in
+      internal/ai/reasoning_anthropic.go, same generation as Fable 5.
+      1M token context window, 128K vendor max output (this row caps at 64000, above).
+      Cached input: $1/M (10% of base). Batch API: 50% off.
+      Uses the Opus 4.7+ tokenizer — same as Fable 5, so token counts are comparable
+      between the two rows (unlike a 4.6→4.7 comparison).
+      Retirement commitment: not sooner than 2026-09-01 + 1yr (2027-09-01).
+      Available on Claude API, Bedrock (anthropic.claude-fable-5-1), Vertex AI,
+      Microsoft Foundry, Claude Platform on AWS.
+      Model id + pricing + limits verified 2026-09-01 against platform.claude.com
+      models overview AND the OpenRouter endpoints API (3 upstreams, all 1M/128K).
+      Eval policy: STANDARD eval only, mirroring claude-fable-5 — NOT in agent_suite
+      (agent multi-turn loops are cost-prohibitive at $10/$50 per 1M).
+      No smoke tier (smoke is the local OS-model iteration loop; cloud rows run core,stretch).
+      ⚠️ SUITE MEMBERSHIP: OPT-IN ONLY. Smoke is a floor, not a ranking (model-manager
+      skill §5.5) — and fable rows are exempt from smoke anyway. The question that
+      decides whether 5.1 takes claude-fable-5's extended_suite seat is a CORE-tier
+      head-to-head, which had NOT been run when this row was added:
+        ailang eval-suite --models claude-fable-5-1,claude-fable-5,claude-sonnet-4-6 \
+          --tier core --langs ailang --output /tmp/core_fable_5_1 --parallel 4
+      Cost ~$16/model/core sweep. Since pricing is identical, a core TIE is sufficient
+      to promote (newer generation at the same rate); a core LOSS keeps Fable 5.
+      Requires ANTHROPIC_API_KEY — standard mode is direct HTTP and has no OAuth path.
+
   # Anthropic Claude Opus 5 (released July 2026)
   claude-opus-5:
     api_name: "claude-opus-5"
