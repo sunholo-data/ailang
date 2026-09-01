@@ -3963,6 +3963,37 @@ After every Gate-5 report has been sent and this iteration is fully complete, ru
    reused sink: a scratch directory, a database row, a fixed branch name, an `--out` target. The
    tell: you are about to read a path that a previous invocation also wrote, and nothing between
    the two runs removed it.
+   **⚠ AND EVERY WORD OF RULE 7 IS ADDRESSED TO THE CONTROLLER, SO THE SUB-AGENTS THIS SKILL SPAWNS
+   INHERIT NONE OF IT — A ROLE THAT ENDS ITS TURN ON A WAIT COSTS YOU A WHOLE RESUME CYCLE, AND ITS
+   REPORT IS SIMPLY ABSENT** (added 2026-09-01 motoko iteration 32; instance 1 is iteration 176's
+   controller, which read this very rule and then reasoned *"I'll wait for the next event"*, instance 2
+   is this iteration's EVALUATOR, which ended its turn with *"I'll pause here and wait for the Monitor
+   notification to arrive before compiling the report"*). Rule 7 and its four amendments are complete on
+   the question *"what must I not do while background work runs?"* — and every one of them is written in
+   the second person to the loop's own session. The designer, planner, executor and evaluator never read
+   this file. For a cross-provider role that is obvious; the trap is the **Agent-tool** roles, which run
+   on the same harness, hit the same `Monitor`-is-not-a-wait semantics, and are the ones you are most
+   likely to assume already know. Guard the helper, miss the call site — this file's own named shape,
+   aimed at the directives it tells you to write.
+   Note the failure is quiet in the direction that matters: the sub-agent does not crash and does not
+   report an error, it returns a *plausible* closing sentence announcing an intention. Iteration 32's
+   evaluator returned exactly one line of output after 37 minutes and 93 tool calls; the score, the
+   findings and the mutation drills existed nowhere. Recovering it cost a `SendMessage` resume, and the
+   resumed run then produced the single most valuable result of the iteration (the T3 drill neither the
+   executor nor the controller had run). Had the controller banked that one-line return as the
+   evaluation, the iteration would have landed with no judge — standing rule 7's vacuous pass, arriving
+   through a role rather than through the slot.
+   **Rule.** Every spawn directive for a role that may background work carries the operative half of
+   rule 7 in its own words: *poll the artifact inside a bounded `date +%s` loop; a `Monitor` is an event
+   stream, not a wait; nothing will re-invoke you when it fires, so do not end your turn announcing one.*
+   Two corollaries. **(a)** When a role returns a suspiciously short result — a single sentence, no
+   deliverable, a stated intention — treat it as **not finished** rather than as a verdict, and resume it
+   by name (`SendMessage` keeps its transcript, so nothing is re-run). **(b)** A resumed role must be
+   told what to do about the thing it was waiting for: recover the result from disk, or declare it
+   UNMEASURED — otherwise it waits again. Mission-independent: every mission on this rig spawns the same
+   four roles through the same harness. The tell: a sub-agent's last sentence contains the words "wait",
+   "pause" or "once it completes", and there is no deliverable attached to it.
+
 8. **THERE ARE TWO KINDS OF PARK AND THIS SKILL ONLY NAMES ONE — A DOC WAITING ON A QUOTA BUCKET IS
    NOT `needs-human-review`, AND FILING IT AS ONE MANUFACTURES A DECISION THE HUMAN DOES NOT HAVE**
    (added 2026-08-19 V1 iteration 229; two consecutive first-party frictions, 228 and 229). Every
