@@ -147,15 +147,55 @@ serves an open clause* — applied to clauses **2–5**; clause 1 is CLOSED and 
   new features that must ship before 1.0 enter the count. Report it every iteration as
   **`N remaining (was M, ±k this iteration, reason)`**.
 
-**OWED — first-party inventory, in the iteration that consumes `D-51`.** Publish the in-scope docs
-grouped by clause, each with the tag it currently carries, and the resulting **N**. Classify against
-the clause TEXT, not the folder. Anything you cannot confidently classify goes in a named
-**UNCLASSIFIED** bucket for Mark to rule on — never silently included, never silently dropped. The
-attended session that ratified this unit measured the starting inventory but deliberately recorded
-**no N**: `planned/v1_0_0/` holds 13 files (4 sprint plans, 1 re-scored to v1.1 → ~8 candidates),
-clause 4 names ≥3 undoc'd pieces, clause 2's bar text names `m-bytecode-vm-parity-bugs` as its
-residue — an honest range of **10–13**, not a count, because clauses 3 and 4 are written as prose
-with strikethrough history and need the classification pass rather than a grep.
+**DELIVERED — first-party inventory, iteration 315 (2026-09-01).** Classified against the clause
+TEXT, not the folder, per the cutoff rule above. Scope asserted (`test -d`), and every count below
+carries a same-scope control; `planned/v1_0_0/` holds **13** `.md` files = **6** sprint plans
+(which never count) + **7** design docs.
+
+**N = 10** — 7 existing design docs + 3 NEW-DOC units. Inside the attended session's honest range
+of 10–13, at its bottom edge.
+
+| clause | IN (existing docs) | IN (NEW-DOC units) | subtotal |
+|---|---|---|---|
+| 2 — soundness | `m-bytecode-vm-parity-bugs` (named verbatim as the clause's residue); `m-effect-row-var-unification` (P0 effect-soundness hole filed as `#616` under the `### Clause 2` heading — it falsifies the clause's dated "zero P0s ✅") | `m-run-selector-enumeration-floor` (no doc anywhere; `find` → **0**, control → **1**) | **3** |
+| 3 — fleet-tier accessibility | `m-eval-slim-prompt-self-discovery` (= R3.1, named inside the clause's own gate sentence) | prompt-deletion pass **R1.2** — the clause's `≤1,500`-line teaching-prompt bar is unmet and measurable: active prompt `v0.16.6` is **2552** lines | **2** |
+| 4 — orchestration flagship | `m-effect-clock-net-fs-modes` (effect sprint 3/4; the only unlanded doc of the sprints 1–3 the clause requires) | `m-v1-orchestration-flagship` (the verified multi-step AI pipeline; `find` → **0**) | **2** |
+| 5 — cost credibility | `m-contract-verification-coverage`; `m-verify-bounded-unrolling-false-counterexample`; `m-cohort-manifest-build-provenance` | none | **3** |
+
+**Correction of record — clause 4's own text is stale, and it moved N down by 2.** The clause says
+the *"linear-time regex + URL-parse builtins (both verified absent)"*. **Both landed on
+2026-07-11/12** and are live at HEAD: `m-stdlib-regex.md` and `m-stdlib-url-parse.md` are both in
+`design_docs/implemented/v0_30_0/` (queue item 12's own row says *"Closes v1.0 bar clause 4's
+URL-parse half"*), and `internal/builtins` carries `_regex_` in **1** file and `_net_url_parse` in
+**2** (negative control, a fabricated builtin name: **0**). So clause 4 names **1** undoc'd piece,
+not the ≥3 the attended estimate read out of that stale parenthetical.
+
+**OUT, with reasons** (the ones worth recording): `m-effect-scope-params` — re-scored to v1.1 by
+`D-27`, the precedent `D-51` names. `m-dialect-keyword-diagnostics` — self-disclaims bar membership
+(*"not a v1.0 release bar"*), the `m-mcp-exact-tool-surface` exclusion. `m-effect-refinement` —
+umbrella doc whose decomposition routes every open phase to a sprint doc; counting it would
+double-count sprint 3. `m-bytecode-pattern-arity-fix` — LANDED (`git merge-base --is-ancestor
+0625059d3 HEAD` rc=0) but never moved out of `planned/`, i.e. folder-as-evidence failing exactly as
+the unit's rules anticipate. `m-contracts-as-code-vertical` — folds in as the flagship's worked
+example; one doc counts once.
+
+**UNCLASSIFIED — 4 items, for Mark. Ruling them all IN gives N = 14.** Recorded rather than
+silently included or dropped, per the unit's own rule.
+1. `m-serve-api-live-tool-registry` and 2. `m-agent-step-cancellation` — both sit under the
+   `### Clause 4` **section heading**, which reads *"(Mark: full surface in)"*, while clause 4's
+   **text** names only effect sprints 1–3, the flagship pipeline and the two (landed) builtins.
+   `m-agent-step-cancellation` additionally carries a `**[GATING clause-4]**` queue tag. Question:
+   does the heading's "full surface in" extend the clause text, or was it superseded by the
+   2026-07-11 bar v2 wording? The tag is a queue annotation and `D-51` says the clause text governs
+   — which is why this is a question and not a classification.
+3. `m-benchmark-ensures-coverage` (NEW-DOC) — is adding `ensures` to benchmarks part of clause 5's
+   *"measured baseline"*, or corpus work on the normal road? `D-29`'s second clause was ruled
+   "scoped, not blanket", and iteration 258 measured only **1 of 5** candidates as safe.
+4. `m-module-cache-identity-not-compiler-bytes` (NEW-DOC) — its own row says it is *"PRE-EXISTING
+   and independent of that doc's fate"*. Clause 5, clause 2 (soundness), or post-v1?
+
+**Reporting convention from here:** `N remaining (was M, ±k this iteration, reason)`. Iteration 315
+establishes the baseline, so it reports `N = 10 (baseline established; ±0)`.
 
 ## STATUS 2026-09-01 — ITERATION 314: **Three shipped hunks were pinned by nothing, and the fix that was supposed to close the third was refuted by re-measuring it.** Gate 0/1: kill switch armed; billing tripwire CLEAN; gh `sunholo-voight-kampff`; running skill `cmp`-identical to `origin/dev` against the **RESOLVED** symlink target (`readlink -f` → main checkout, inode `60291442`; the pin's own copy is `61105181`, a different file). Canonical cloud inbox with the invalid-store control FIRING (`unknown message store mode`, rc=1 read WITHOUT a pipe — the first attempt read `head`'s status and reported a false rc=0); **42 unread**, none directive-class — `mission-world`'s two are a sibling approval request and a skill proposal iteration 311 already answered, and the `pkg/sunholo/ailang_parse` traffic is another repo's package feedback. **0 directives** on #972 AND on #852. Ledger **52 rows, 2 OPEN** (D-51, D-52; both awaiting Mark, neither blocking). No rotation owed: Tuesday, and #972 was created `05:56:11Z` **after** Monday's 07:00-local boundary (`05:00Z`); 10 comments, cap 80. dev HEAD `0e8314549` **checks=16, one NOT-GREEN — SonarCloud**, and it is INHERITED, not ours: `failure` on **8 of 8** consecutive commits walked back, so it pre-dates every recent merge and is not a pick. Main checkout **11 behind / 3 ahead with 4 dirty files** — the standing one-way divergence; route-around applied (record written in a worktree branched from `origin/dev`), reconcile still a human decision. **Pick = Sprint 1 M4**, continuing the IN-SPRINT row rather than the queue head. Confirmed unlanded first-party at a fresh `origin/dev` (`InterfaceHashV2` **0**, `InterfaceHashVersion` **0**, `ifacev2` **0**; same-scope controls `InterfaceHash` **97** and M3's `BuildModuleIface` **40**, proving the tree was the right one; fresh negative literal **0**; both roots `test -d`-asserted). Died-mid-flight sweep: 2 open PRs on the shared fleet account, both attributed — #971 and #945 are V1's own deliberately-carried drafts. **The gate list was baselined before routing, and its known-positive control is what made the baseline readable**: A1–A7 all read rc=0 with **0** `--- PASS:` lines at base, which is what a RED looks like for a test that does not exist — indistinguishable from a passing suite without `-v` — while the control `TestInterfaceHash_` read **5** and A8/A9 read **5**/**2**. `go build ./...` is **rc=1 on pristine dev** (`cmd/wasm`, `gen/main`), so the directive's mutant-BUILDS gate was `go build ./internal/... ./cmd/ailang` (rc=0 at base) — iteration 245's lesson applied before the defect rather than after. Executor `codex:gpt-5.6-sol` (probe rc=0), one run, sandboxed worktree, no git writes, rc=0, 280 LOC; its single red gate was a `workspace-write` loopback-bind denial it correctly labelled UNINFORMATIVE, and the controller's out-of-sandbox re-run is **rc=0**. Evaluator `sonnet` in its OWN worktree, **PASS 89/100, ZERO blocking**, seven non-blocking. **Three of those were one shape — a shipped hunk with no killer — and all three were reproduced first-party before being acted on.** (1) M4's export-limit check was **fully masked** by M3's identical check, which re-loads the manifest from **disk**: neutering it left all 11 arms green (measured, LANDED+BUILDS asserted). (2) `name:`/`edition:`/`ailang:` had **zero** coverage — each mutant reddened nothing. (3) The signature set was built by **ranging a map**, so its order was nondeterministic before the sort — a latent defect, since M5 diffs these sets. All three are closed and each fix is proven: exportlimit, name, edition and ailang mutants are now **SOLE killers**. **The correction that matters is mine.** My first fix for (3) widened the fixture from two exports to six and asserted, in a code comment, that this bounded the flake at `1/6! = 1/720`. Re-measured: **4 kills in 8 runs** — the reasoning was wrong (Go rotates single-bucket map iteration rather than permuting it), so a larger sample bought nothing. The real fix was to remove the nondeterminism, not to enlarge the sample; the sort is now a **DECLARED RESIDUAL** whose mutant reds **nothing** (measured, red set EMPTY) with the three invariants that make it redundant written in the code, and the arm is **0 failures in 10 runs**. `export:` is likewise declared unpinnable-by-construction — the module path is already inside each folded projection. → PR [#1002](https://github.com/sunholo-data/ailang/pull/1002). Metered **$0.00** of the $5 ceiling; every lane a quota bucket. Designer rotation pointer untouched (`pi:ollama/deepseek-v4-flash:0731-cloud`) — no designer ran, the doc and plan both pre-exist.
 
