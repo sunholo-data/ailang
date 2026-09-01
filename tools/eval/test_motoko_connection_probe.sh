@@ -446,8 +446,8 @@ fi
 # how long we wait for a degraded runner to get there, and stays bounded.
 _arm_cap_saved=$ARM_CAP_SECS
 ARM_CAP_SECS=$(( ARM_CAP_SECS * 5 ))
-expect_failure "descendant discovery refuses on the real wall-clock deadline" "process-tree discovery failed" \
-  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=1 PROBE_TEST_PGREP_LOOP=1 \
+expect_failure "descendant discovery refuses on the real wall-clock deadline" "process-tree discovery deadline expired (wall clock)" \
+  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=1 PROBE_MAX_TREE_NODES=50000 PROBE_TEST_PGREP_LOOP=1 \
     PROBE_STUB_STATE="$tmp_dir/lane-pgreploop" /bin/bash "$probe" treatment control "$tmp_dir/pgreploop.json"
 ARM_CAP_SECS=$_arm_cap_saved
 
