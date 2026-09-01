@@ -2219,6 +2219,41 @@ the Repo Profile above):
    the very lines its own drill had missed. **(e)** Mission-independent: under `ailang-code` the diff
    is still the enumeration and `ailang test` is still the killer. The tell: every mutant you ran was
    a sole killer, and you chose all of them by thinking about the bug.
+   **AND A MUTANT THAT REDS *SOMETIMES* IS NEITHER A KILLER NOR A MISS — IT IS A REPORT THAT YOUR
+   SYSTEM IS NONDETERMINISTIC, AND THE MOVE IT INVITES (ENLARGE THE SAMPLE UNTIL THE KILL LOOKS
+   RELIABLE) IS THE ONE MOVE THAT CANNOT WORK** (added 2026-09-01 V1 iteration 314; instance 1 is
+   rule 3m's World sequence, three rounds of adjusting a stress control's parameters where the fix
+   was to DERIVE the bound; instance 2 is this iteration, which made the mistake in a code comment
+   after the judge had already handed it the measurement). Every mutation rule above is binary: the
+   mutant reds or it does not, and 3n(b) offers exactly two dispositions for a hunk — declared
+   unreachable, or a queue row. Neither covers the middle case, and the middle case has a default
+   that feels like diligence: the arm *does* kill, just not every run, so you make the fixture
+   bigger. That treats variance as a sampling problem when it is a property of the code, and it
+   leaves the nondeterminism shipped.
+   Measured here. The judge found the `sort.Strings` mutant on a signature set killing ~**1 in 15**
+   runs, because the set was built by ranging a map. The controller widened the fixture from two
+   exports to six and wrote into a code comment that this bounded survival at `1/6! = 1/720`. Re-
+   measured: **4 kills in 8 runs** — no better than two elements. The probability model was simply
+   false (Go rotates single-bucket map iteration rather than permuting it), and it was a claim about
+   a mechanism nobody had measured, sitting in a comment no later reader would ever re-derive. The
+   real fix was to remove the nondeterminism — collect in encounter order behind a seen-set — after
+   which the arm is **0 failures in 10 runs**, the sort's mutant reds **nothing**, and the sort is an
+   honest declared residual with its three invariants written in the code. Note what the widening
+   would have bought if the arithmetic had been right: a *quieter* flake, i.e. the same defect with
+   a longer mean time to discovery.
+   **Rules. (a)** An intermittent kill is a finding about the SYSTEM, not about the drill — find the
+   nondeterminism (map iteration, goroutine scheduling, wall-clock, filesystem order, a random seed)
+   and remove it, then re-classify the hunk as sole-killer or declared residual. **(b)** Never quote
+   a probability you have not measured; a survival rate is an experiment (`for i in $(seq 1 N)`),
+   and a closed-form bound is a claim about a mechanism, which is rule 3f's discipline aimed at your
+   own reasoning. **(c)** Never write an unmeasured probability into code or a record — it is
+   unfalsifiable in place and will be inherited as fact. **(d)** Enlarging a sample is legitimate
+   only to MEASURE a rate, never to make a flaky assertion pass; if the honest outcome is "no
+   killer", say so, which is what 3n(b) already asks. **(e)** Mission-independent, and it
+   generalises past mutation to every flaky gate this loop meets: a re-run that goes green is
+   iteration 153's environment-divergence control, and a re-run that goes green *often enough* is
+   not a fix. The tell: you are about to make a fixture, timeout, or retry count bigger, and your
+   justification is a number you calculated rather than one you ran.
 
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
