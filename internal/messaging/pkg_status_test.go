@@ -1,6 +1,7 @@
 package messaging
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -202,5 +203,22 @@ func TestDeduplicatePackageReports(t *testing.T) {
 	}
 	if deduped != 2 {
 		t.Errorf("expected 2 deduped, got %d", deduped)
+	}
+}
+
+// TestTriagePackageMessage_UnknownChangeClass pins the "U" arm added with M5.
+// Without it, "U" fell into the trailing else and was reported as an ordinary
+// content change — a stronger claim than an incomparable pair supports.
+func TestTriagePackageMessage_UnknownChangeClass(t *testing.T) {
+	env := &PackageMessageEnvelope{
+		Kind:    PkgMsgUpgradeAvailable,
+		Package: PackageRef{Name: "sunholo/auth", ChangeClass: "U"},
+	}
+	got := TriagePackageMessage(env)
+	if got.Action != TriageMigrate {
+		t.Fatalf("action: got %q, want %q for an unknown change class", got.Action, TriageMigrate)
+	}
+	if !strings.Contains(got.Reason, "Unknown change class") {
+		t.Errorf("reason: got %q, want it to name the unknown class", got.Reason)
 	}
 }
