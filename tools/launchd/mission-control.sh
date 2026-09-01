@@ -945,16 +945,21 @@ lands work on the controller's own verdict has no independent review at all. If 
 genuinely cannot be spawned, record WHICH role, the error, and the fallback you used in \
 the routing block; do not silently proceed without a judge."
 
+# Resolve the heartbeat/history state root once. Every producer and consumer below
+# uses this value so the helper/driver seam cannot drift between attempts.
+# --- HEARTBEAT STATE DIR START ---
+_mc_slot_state="${AILANG_STATE_DIR:-$STATE_DIR}"
+# --- HEARTBEAT STATE DIR END ---
+
 # _mc_run_once → runs the selected provider with BOTH watchdogs, waits, sets global RC.
 # Watchdogs are per-attempt (fresh PIDs each retry).
 _mc_run_once() {
   # --- ATTEMPT HEARTBEAT START ---
   MISSION_ATTEMPT="$attempt"
   export MISSION_ATTEMPT
-  _mc_hb_state="${AILANG_STATE_DIR:-$STATE_DIR}"
-  mkdir -p "$_mc_hb_state"
-  _mc_heartbeat="$_mc_hb_state/mission-${MISSION_NAME}-heartbeat" # mission-heartbeat, namespaced
-  _mc_history="$_mc_hb_state/mission-${MISSION_NAME}-slot-verdicts.log"
+  mkdir -p "$_mc_slot_state"
+  _mc_heartbeat="$_mc_slot_state/mission-${MISSION_NAME}-heartbeat" # mission-heartbeat, namespaced
+  _mc_history="$_mc_slot_state/mission-${MISSION_NAME}-slot-verdicts.log"
   printf '%s\t%s\tfired\t%s\t\n' "$(date +%s)" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$MISSION_ATTEMPT" > "$_mc_heartbeat"
   # --- ATTEMPT HEARTBEAT END ---
   if [ "$CONTROLLER_PROVIDER" = "codex" ]; then
@@ -1034,13 +1039,16 @@ while : ; do
   case "$RC" in 143|137) break ;; esac   # watchdog kill — never retry
   if [ "$attempt" -lt "$TRANSIENT_RETRIES" ] \
      && tail -n +$((logpos + 1)) "$LOG" 2>/dev/null | grep -qiE "$TRANSIENT_SIG"; then
-    _mc_retry_last=$(tail -1 "${AILANG_STATE_DIR:-$STATE_DIR}/mission-${MISSION_NAME}-heartbeat" 2>/dev/null | awk -F '\t' '{print $3}')
+    # --- RETRY HISTORY START ---
+    _mc_retry_last=$(tail -1 "$_mc_slot_state/mission-${MISSION_NAME}-heartbeat" 2>/dev/null | awk -F '\t' '{print $3}')
     _mc_retry_iso=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-    _mc_retry_history="${AILANG_STATE_DIR:-$STATE_DIR}/mission-${MISSION_NAME}-slot-verdicts.log"
-    printf '%s verdict=RETRIED at=%s rc=%s attempt=%s/%s elapsed_s=0 stamps=%s controller=%s\n' \
+    _mc_retry_history="$_mc_slot_state/mission-${MISSION_NAME}-slot-verdicts.log"
+    _mc_retry_elapsed=$(( $(date +%s) - START_EPOCH ))
+    printf '%s verdict=RETRIED at=%s rc=%s attempt=%s/%s elapsed_s=%s stamps=%s controller=%s\n' \
       "$_mc_retry_iso" "${_mc_retry_last:-fired}" "$RC" "$attempt" "$TRANSIENT_RETRIES" \
-      "$(wc -l < "${AILANG_STATE_DIR:-$STATE_DIR}/mission-${MISSION_NAME}-heartbeat" 2>/dev/null || echo 0)" "$CONTROLLER_ID" >> "$_mc_retry_history"
+      "$_mc_retry_elapsed" "$(wc -l < "$_mc_slot_state/mission-${MISSION_NAME}-heartbeat" 2>/dev/null || echo 0)" "$CONTROLLER_ID" >> "$_mc_retry_history"
     tail -n 200 "$_mc_retry_history" > "${_mc_retry_history}.tmp.$$" && mv "${_mc_retry_history}.tmp.$$" "$_mc_retry_history"
+    # --- RETRY HISTORY END ---
     backoff=$(( TRANSIENT_BACKOFF * attempt ))
     log "transient API error (rc=$RC) attempt $attempt/$TRANSIENT_RETRIES — retrying in ${backoff}s (Anthropic capacity)"
     sleep "$backoff"
@@ -1051,7 +1059,6 @@ while : ; do
 done
 
 # --- SLOT VERDICT START ---
-_mc_slot_state="${AILANG_STATE_DIR:-$STATE_DIR}"
 _mc_slot_hb="$_mc_slot_state/mission-${MISSION_NAME}-heartbeat"
 _mc_slot_history="$_mc_slot_state/mission-${MISSION_NAME}-slot-verdicts.log"
 _mc_slot_now=$(date +%s)
@@ -1086,9 +1093,10 @@ tail -n 200 "$_mc_slot_history" > "${_mc_slot_history}.tmp.$$" && mv "${_mc_slot
 
 rm -f "$PIDFILE"   # this instance owns the run; yield paths above never reach here
 
+# --- SLOT NOTIFY START ---
 case "$_mc_slot_verdict" in
-  REAPED*|DIED-PRE-GATE-0|HEARTBEAT-MISSING|UNCLASSIFIED)
-    _mc_slot_episode="$STATE_DIR/mission-${MISSION_NAME}-reaped.episode"
+  REAPED*|DIED-PRE-GATE-0|HEARTBEAT-MISSING)
+    _mc_slot_episode="$_mc_slot_state/mission-${MISSION_NAME}-reaped.episode"
     if [ ! -f "$_mc_slot_episode" ] || [ "$(cat "$_mc_slot_episode" 2>/dev/null)" != "$_mc_slot_verdict" ]; then
       printf '%s' "$_mc_slot_verdict" > "$_mc_slot_episode"
       _mc_bounded 30 ailang messages send controlplane \
@@ -1098,8 +1106,9 @@ case "$_mc_slot_verdict" in
         --body "⚠️ Mission slot verdict: **$_mc_slot_verdict** (rc=$RC, attempt=${MISSION_ATTEMPT:-1}/$TRANSIENT_RETRIES). Log: \`$LOG\`." || true
     fi
     ;;
-  COMPLETED) rm -f "$STATE_DIR/mission-${MISSION_NAME}-reaped.episode" ;;
+  COMPLETED) rm -f "$_mc_slot_state/mission-${MISSION_NAME}-reaped.episode" ;;
 esac
+# --- SLOT NOTIFY END ---
 
 if [ "$RC" -ne 0 ]; then
   post_last_record=$(grep '^## ' "$MISSION_LOG_FILE" 2>/dev/null | tail -1)

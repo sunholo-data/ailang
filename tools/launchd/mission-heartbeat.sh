@@ -24,5 +24,5 @@ heartbeat="$state_dir/mission-${MISSION_NAME}-heartbeat"
 attempt="${MISSION_ATTEMPT:-1}"
 epoch=$(date +%s)
 iso=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-note="${3:-}"
+note="${*:3}"
 printf '%s\t%s\t%s\t%s\t%s\n' "$epoch" "$iso" "$label" "$attempt" "$note" >> "$heartbeat"

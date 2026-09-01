@@ -34,12 +34,16 @@ sleep 1; kill -9 "$pid" 2>/dev/null; wait "$pid" 2>/dev/null || true
 check "sigkill mid-gate-1 leaves last label gate-1" "[ \"\$(tail -1 '$t/mission-v1-heartbeat' | awk -F '\t' '{print \$3}')\" = gate-1 ]"
 rm -rf "$t"
 
-t=$(tmpdir)
-AILANG_STATE_DIR="$t"; STATE_DIR="$(tmpdir)"; MISSION_NAME=v1; MISSION_ATTEMPT=1
-hb_dir="${AILANG_STATE_DIR:-$STATE_DIR}"; printf '0\tnow\tfired\t1\t\n' > "$hb_dir/mission-v1-heartbeat"
+state_block=$(tmpdir)/state-dir.sh
+awk '/^# --- HEARTBEAT STATE DIR START ---/,/^# --- HEARTBEAT STATE DIR END ---/' "$DRIVER" > "$state_block"
+if [ ! -s "$state_block" ]; then echo "FATAL: extraction of heartbeat state dir produced nothing" >&2; exit 2; fi
+t=$(tmpdir); fallback=$(tmpdir)
+AILANG_STATE_DIR="$t"; STATE_DIR="$fallback"; MISSION_NAME=v1; MISSION_ATTEMPT=1
+. "$state_block"
+printf '0\tnow\tfired\t1\t\n' > "$_mc_slot_state/mission-v1-heartbeat"
 MISSION_NAME=v1 MISSION_ATTEMPT=1 AILANG_STATE_DIR="$AILANG_STATE_DIR" "$HELPER" stamp gate-0 >/dev/null
-check "driver and helper resolve the same artifact path" "[ \"\$(wc -l < '$t/mission-v1-heartbeat' | tr -d ' ')\" -eq 2 ]"
-rm -rf "$t" "$STATE_DIR"
+check "S-1 driver and helper resolve AILANG_STATE_DIR identically" "[ \"\$(wc -l < '$t/mission-v1-heartbeat' | tr -d ' ')\" -eq 2 ] && [ ! -e '$fallback/mission-v1-heartbeat' ]"
+rm -rf "$t" "$fallback"
 
 verdict_block=$(tmpdir)/slot-verdict.sh
 awk '/^# --- SLOT VERDICT START ---/,/^# --- SLOT VERDICT END ---/' "$DRIVER" > "$verdict_block"
@@ -49,7 +53,7 @@ run_verdict() {
   state="$1"; rc="$2"; run_attempt="${3:-1}"
   (
     set -u
-    AILANG_STATE_DIR="$state"; STATE_DIR="$state"; MISSION_NAME=v1; MISSION_ATTEMPT="$run_attempt"
+    AILANG_STATE_DIR="$state"; STATE_DIR="$state"; _mc_slot_state="$state"; MISSION_NAME=v1; MISSION_ATTEMPT="$run_attempt"
     TRANSIENT_RETRIES=3; RC="$rc"; START_EPOCH=$(date +%s); CONTROLLER_ID=test:test; LOG="$state/driver.log"
     log() { echo "$*" >> "$LOG"; }
     . "$verdict_block"
@@ -73,19 +77,57 @@ t=$(tmpdir); MISSION_NAME=v1 AILANG_STATE_DIR="$t" "$HELPER" stamp gate-1 >/dev/
 check "sigkill mid-gate-1 => REAPED at=gate-1" "printf '%s' \"$out\" | grep -q 'REAPED at=gate-1'"
 rm -rf "$t"
 
+t=$(tmpdir); MISSION_NAME=v1 AILANG_STATE_DIR="$t" "$HELPER" stamp abort "operator requested stop" >/dev/null; out=$(run_verdict "$t" 0)
+check "rc=0 last=abort => ABORTED" "printf '%s' \"$out\" | grep -q 'slot-verdict: ABORTED rc=0'"
+rm -rf "$t"
+
+t=$(tmpdir); MISSION_NAME=v1 AILANG_STATE_DIR="$t" "$HELPER" stamp gate-3 >/dev/null; out=$(run_verdict "$t" 143)
+check "rc=143 last=gate-3 => KILLED" "printf '%s' \"$out\" | grep -q 'slot-verdict: KILLED at=gate-3 rc=143'"
+rm -rf "$t"
+
+t=$(tmpdir); MISSION_NAME=v1 AILANG_STATE_DIR="$t" "$HELPER" stamp gate-2 >/dev/null; out=$(run_verdict "$t" 1)
+check "rc=1 last=gate-2 => CRASHED" "printf '%s' \"$out\" | grep -q 'slot-verdict: CRASHED at=gate-2 rc=1'"
+rm -rf "$t"
+
 t=$(tmpdir); i=1; while [ "$i" -le 250 ]; do MISSION_NAME=v1 AILANG_STATE_DIR="$t" "$HELPER" stamp complete >/dev/null; run_verdict "$t" 0 >/dev/null; i=$((i + 1)); done
 check "250 appends leave exactly 200 lines" "[ \"\$(wc -l < '$t/mission-v1-slot-verdicts.log' | tr -d ' ')\" -eq 200 ]"
 rm -rf "$t"
 
-check "superseded attempt leaves verdict=RETRIED row" "grep -q 'verdict=RETRIED' '$DRIVER'"
+retry_block=$(tmpdir)/retry-history.sh
+awk '/^    # --- RETRY HISTORY START ---/,/^    # --- RETRY HISTORY END ---/' "$DRIVER" > "$retry_block"
+if [ ! -s "$retry_block" ]; then echo "FATAL: extraction of retry history produced nothing" >&2; exit 2; fi
+t=$(tmpdir); _mc_slot_state="$t"; MISSION_NAME=v1; RC=75; attempt=1; TRANSIENT_RETRIES=3; CONTROLLER_ID=test:retry; START_EPOCH=$(( $(date +%s) - 4 ))
+printf '0\tnow\tgate-2\t1\t\n' > "$t/mission-v1-heartbeat"
+. "$retry_block"
+check "superseded attempt appends runtime RETRIED history row" "awk '/verdict=RETRIED/ && /at=gate-2/ && /rc=75/ && /attempt=1\/3/ && /elapsed_s=[1-9][0-9]*/ && /stamps= *1/ && /controller=test:retry/ { found=1 } END { exit !found }' '$t/mission-v1-slot-verdicts.log'"
+rm -rf "$t"
 attempt_block=$(tmpdir)/attempt-heartbeat.sh
 awk '/^  # --- ATTEMPT HEARTBEAT START ---/,/^  # --- ATTEMPT HEARTBEAT END ---/' "$DRIVER" > "$attempt_block"
 if [ ! -s "$attempt_block" ]; then echo "FATAL: extraction of attempt heartbeat produced nothing" >&2; exit 2; fi
-t=$(tmpdir); AILANG_STATE_DIR="$t"; STATE_DIR="$t"; MISSION_NAME=v1; attempt=1
+t=$(tmpdir); AILANG_STATE_DIR="$t"; STATE_DIR="$t"; _mc_slot_state="$t"; MISSION_NAME=v1; attempt=1
 . "$attempt_block"
 MISSION_NAME=v1 MISSION_ATTEMPT=1 AILANG_STATE_DIR="$t" "$HELPER" stamp gate-4 >/dev/null
 attempt=2; . "$attempt_block"; out=$(run_verdict "$t" 0 2)
 check "attempt 2 pre-gate-0 => DIED-PRE-GATE-0 attempt=2" "printf '%s' \"$out\" | grep -q 'DIED-PRE-GATE-0.*attempt=2/3'"
+rm -rf "$t"
+
+end_line=$(grep -n '^# --- SLOT VERDICT END ---' "$DRIVER" | cut -d: -f1)
+release_line=$(grep -n 'rm -f "$PIDFILE"   # this instance owns' "$DRIVER" | cut -d: -f1)
+start_line=$(grep -n '^# --- SLOT VERDICT START ---' "$DRIVER" | cut -d: -f1)
+run_line=$(grep -n '^  _mc_run_once; RC=\$?' "$DRIVER" | cut -d: -f1)
+check "slot verdict completes before PIDFILE guard release" "case '$end_line:$release_line' in *[!0-9:]*|:*|*:) false ;; *) [ '$end_line' -lt '$release_line' ] ;; esac"
+check "slot verdict starts after _mc_run_once retry call" "case '$start_line:$run_line' in *[!0-9:]*|:*|*:) false ;; *) [ '$start_line' -gt '$run_line' ] ;; esac"
+
+notify_block=$(tmpdir)/slot-notify.sh
+awk '/^# --- SLOT NOTIFY START ---/,/^# --- SLOT NOTIFY END ---/' "$DRIVER" > "$notify_block"
+if [ ! -s "$notify_block" ]; then echo "FATAL: extraction of slot notify produced nothing" >&2; exit 2; fi
+t=$(tmpdir); _mc_slot_state="$t"; MISSION_NAME=v1; RC=0; MISSION_ATTEMPT=1; TRANSIENT_RETRIES=3; LOG="$t/driver.log"; MSG_FROM=test; MISSION_GH_ISSUE=; calls="$t/calls"
+_mc_bounded() { printf '%s\n' "$*" >> "$calls"; }
+_mc_slot_verdict='REAPED at=gate-2'; . "$notify_block"; . "$notify_block"
+_mc_slot_verdict='REAPED at=gate-3'; . "$notify_block"
+_mc_slot_verdict=COMPLETED; . "$notify_block"
+_mc_slot_verdict='REAPED at=gate-3'; . "$notify_block"
+check "phase-2 notices use _mc_bounded and dedupe verdict episodes" "[ \"\$(wc -l < '$calls' | tr -d ' ')\" -eq 3 ] && [ \"\$(grep -c '^30 ailang messages send' '$calls')\" -eq 3 ] && [ -f '$t/mission-v1-reaped.episode' ]"
 rm -rf "$t"
 
 skill="$ROOT/.claude/skills/mission-control/SKILL.md"
@@ -97,11 +139,7 @@ done
 if awk 'index($0,"## Gate 5")==1 {inspan=1; next} inspan && /^## Gate/ {exit} inspan && /stamp complete/ {found=1} END {exit !found}' "$skill"; then span_ok=$((span_ok + 1)); fi
 check "every gate section carries its own stamp instruction (8/8)" "[ '$span_ok' -eq 8 ] && grep -q 'stamp abort <reason>' '$skill'"
 
-if [ "${MISSION_HEARTBEAT_MUTATION:-}" = "BUFFERED" ]; then bad "sigkill mid-gate-1 leaves last label gate-1"; fi
-if [ "${MISSION_HEARTBEAT_MUTATION:-}" = "SHARED_PATH" ]; then bad "v1 and world stamps land in distinct files"; bad "MISSION_NAME unset writes no file"; fi
-
 if [ "$fail" -eq 0 ]; then
-  if grep -q '^# --- SLOT VERDICT START ---' "$DRIVER"; then echo "mutations: 7/7 killed"; else echo "mutations: 2/2 killed"; fi
   echo "PASS: $pass heartbeat arms ran"
   exit 0
 fi
