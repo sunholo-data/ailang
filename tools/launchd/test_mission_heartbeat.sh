@@ -50,10 +50,10 @@ awk '/^# --- SLOT VERDICT START ---/,/^# --- SLOT VERDICT END ---/' "$DRIVER" > 
 if [ ! -s "$verdict_block" ]; then echo "FATAL: extraction of slot_verdict produced nothing" >&2; exit 2; fi
 
 run_verdict() {
-  state="$1"; rc="$2"; run_attempt="${3:-1}"
+  state="$1"; rc="$2"; run_attempt="${3:-1}"; fallback_state="${4:-$state}"; inline_state="${5:-$state}"
   (
     set -u
-    AILANG_STATE_DIR="$state"; STATE_DIR="$state"; _mc_slot_state="$state"; MISSION_NAME=v1; MISSION_ATTEMPT="$run_attempt"
+    AILANG_STATE_DIR="$inline_state"; STATE_DIR="$fallback_state"; _mc_slot_state="$state"; MISSION_NAME=v1; MISSION_ATTEMPT="$run_attempt"
     TRANSIENT_RETRIES=3; RC="$rc"; START_EPOCH=$(date +%s); CONTROLLER_ID=test:test; LOG="$state/driver.log"
     log() { echo "$*" >> "$LOG"; }
     . "$verdict_block"
@@ -81,6 +81,14 @@ t=$(tmpdir); MISSION_NAME=v1 AILANG_STATE_DIR="$t" "$HELPER" stamp abort "operat
 check "rc=0 last=abort => ABORTED" "printf '%s' \"$out\" | grep -q 'slot-verdict: ABORTED rc=0'"
 rm -rf "$t"
 
+t=$(tmpdir); MISSION_NAME=v1 AILANG_STATE_DIR="$t" "$HELPER" stamp abort operator requested immediate stop >/dev/null
+check "unquoted multi-word abort reason fills complete note column" "awk -F '\t' '\$3==\"abort\" && \$5==\"operator requested immediate stop\" { found=1 } END { exit !found }' '$t/mission-v1-heartbeat'"
+rm -rf "$t"
+
+t=$(tmpdir); fallback=$(tmpdir); inline=$(tmpdir); MISSION_NAME=v1 AILANG_STATE_DIR="$t" "$HELPER" stamp complete >/dev/null; out=$(run_verdict "$t" 0 1 "$fallback" "$inline")
+check "rc=0 last=complete => COMPLETED from consolidated state dir" "printf '%s' \"$out\" | grep -q 'slot-verdict: COMPLETED rc=0' && grep -q 'verdict=COMPLETED' '$t/mission-v1-slot-verdicts.log' && [ ! -e '$fallback/mission-v1-slot-verdicts.log' ]"
+rm -rf "$t" "$fallback" "$inline"
+
 t=$(tmpdir); MISSION_NAME=v1 AILANG_STATE_DIR="$t" "$HELPER" stamp gate-3 >/dev/null; out=$(run_verdict "$t" 143)
 check "rc=143 last=gate-3 => KILLED" "printf '%s' \"$out\" | grep -q 'slot-verdict: KILLED at=gate-3 rc=143'"
 rm -rf "$t"
@@ -104,12 +112,13 @@ rm -rf "$t"
 attempt_block=$(tmpdir)/attempt-heartbeat.sh
 awk '/^  # --- ATTEMPT HEARTBEAT START ---/,/^  # --- ATTEMPT HEARTBEAT END ---/' "$DRIVER" > "$attempt_block"
 if [ ! -s "$attempt_block" ]; then echo "FATAL: extraction of attempt heartbeat produced nothing" >&2; exit 2; fi
-t=$(tmpdir); AILANG_STATE_DIR="$t"; STATE_DIR="$t"; _mc_slot_state="$t"; MISSION_NAME=v1; attempt=1
+t=$(tmpdir); fallback=$(tmpdir); inline=$(tmpdir); AILANG_STATE_DIR="$inline"; STATE_DIR="$fallback"; _mc_slot_state="$t"; MISSION_NAME=v1; attempt=1
 . "$attempt_block"
 MISSION_NAME=v1 MISSION_ATTEMPT=1 AILANG_STATE_DIR="$t" "$HELPER" stamp gate-4 >/dev/null
 attempt=2; . "$attempt_block"; out=$(run_verdict "$t" 0 2)
+check "attempt consumers use consolidated state dir" "[ \"$_mc_heartbeat\" = '$t/mission-v1-heartbeat' ] && [ \"$_mc_history\" = '$t/mission-v1-slot-verdicts.log' ] && [ ! -e '$fallback/mission-v1-heartbeat' ]"
 check "attempt 2 pre-gate-0 => DIED-PRE-GATE-0 attempt=2" "printf '%s' \"$out\" | grep -q 'DIED-PRE-GATE-0.*attempt=2/3'"
-rm -rf "$t"
+rm -rf "$t" "$fallback" "$inline"
 
 end_line=$(grep -n '^# --- SLOT VERDICT END ---' "$DRIVER" | cut -d: -f1)
 release_line=$(grep -n 'rm -f "$PIDFILE"   # this instance owns' "$DRIVER" | cut -d: -f1)
@@ -128,6 +137,10 @@ _mc_slot_verdict='REAPED at=gate-3'; . "$notify_block"
 _mc_slot_verdict=COMPLETED; . "$notify_block"
 _mc_slot_verdict='REAPED at=gate-3'; . "$notify_block"
 check "phase-2 notices use _mc_bounded and dedupe verdict episodes" "[ \"\$(wc -l < '$calls' | tr -d ' ')\" -eq 3 ] && [ \"\$(grep -c '^30 ailang messages send' '$calls')\" -eq 3 ] && [ -f '$t/mission-v1-reaped.episode' ]"
+calls_before=$(wc -l < "$calls" | tr -d ' '); _mc_slot_verdict=DIED-PRE-GATE-0; . "$notify_block"
+check "phase-2 notifies DIED-PRE-GATE-0 through _mc_bounded" "[ \"\$(wc -l < '$calls' | tr -d ' ')\" -eq $((calls_before + 1)) ] && tail -1 '$calls' | grep -q 'DIED-PRE-GATE-0'"
+calls_before=$(wc -l < "$calls" | tr -d ' '); _mc_slot_verdict=HEARTBEAT-MISSING; . "$notify_block"
+check "phase-2 notifies HEARTBEAT-MISSING through _mc_bounded" "[ \"\$(wc -l < '$calls' | tr -d ' ')\" -eq $((calls_before + 1)) ] && tail -1 '$calls' | grep -q 'HEARTBEAT-MISSING'"
 rm -rf "$t"
 
 skill="$ROOT/.claude/skills/mission-control/SKILL.md"
