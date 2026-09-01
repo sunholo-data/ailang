@@ -4118,6 +4118,68 @@ models:
       DECIDED 2026-07-19 (Mark): 5.2 REPLACES 5.1 in extended_suite; opencode
       twin replaces opencode-or-glm-5-1 in agent_suite. 5.1 retired to opt-in.
 
+  # Tencent Hy4 preview (listed on OpenRouter 2026-08-27) — GATE PENDING, not in any suite
+  or-hy4-preview:
+    api_name: "tencent/hy4-preview"
+    provider: "openrouter"
+    default_thinking: "on"   # probed 2026-09-01: thinks by DEFAULT (402 reasoning tokens of 626
+                             # completion on the primes probe, max_tokens 3000, finish=stop), but
+                             # unlike GLM-5.3 the reasoning IS disableable — an explicit
+                             # reasoning:{enabled:false} returned 200 with reasoning_tokens=0, no
+                             # 400. Hence "on", not "always_on". The harness sends no thinking
+                             # control, so runs take the vendor default: thinking ON (skill §2a —
+                             # a thinking-tuned model with thinking suppressed is not the model
+                             # being gated).
+    description: "Tencent Hy4 preview via OpenRouter (standard mode) — 770B MoE, 49B active, 1M ctx, text-only, aimed at coding agents and tool-use workflows. Access verified 2026-09-01; smoke gate PENDING."
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 64000  # HARD PROVIDER CEILING, not a policy choice: /endpoints reports a
+                              # single upstream (Tencent first-party) with max_completion_tokens
+                              # 64000, so the 65536 fleet target is unreachable. No routing
+                              # roulette to pin against — one upstream is the whole route.
+    model_family: "hy4"
+    pricing:
+      input_per_1k: 0.000834   # $0.834 per 1M (OpenRouter API, verified 2026-09-01)
+      output_per_1k: 0.002501  # $2.501 per 1M (OpenRouter API, verified 2026-09-01)
+    budgets:
+      max_cost_usd: 0.60
+      hard_timeout_secs: 600
+    notes: |
+      Registered 2026-09-01 as a GATE CANDIDATE ONLY — deliberately in no suite.
+      Vendor positioning: mixture-of-experts, 49B active of 770B total, built for
+      coding agents, complex tool-use workflows, and productivity tasks. 1M ctx,
+      text-only. Supports tools, structured_outputs, reasoning_effort.
+      Price is the draw: $0.83/$2.50 per 1M at 1M context — ~12x cheaper on input
+      than claude-fable-5-1 for the same context size.
+      REASONING PROBE 2026-09-01 (skill §2a, the GLM-5.2 truncation lesson):
+      thinks by default — 402 reasoning tokens of 626 completion (~64%), finish=stop,
+      no truncation at max_tokens 3000. Reasoning bills as OUTPUT at $2.501/M, so
+      cost projections must use output+reasoning, not output alone.
+      SMOKE GATE: PASSED 23/23 on 2026-09-01, first pass, canonical --tier smoke,
+      standard mode, --langs ailang, N=1. Whole tier cost $0.8634.
+      Zero finish=length across all 23 runs, so the 64000 ceiling was never the
+      binding constraint — this is capability, not a budget artifact (the check the
+      GLM-5.2 truncation lesson exists to force).
+      Control: or-glm-5-3 in the SAME command scored 22/23; its one FAIL
+      (fold_reduce) was error_category=api_error with cost_usd=0, and it PASSED on
+      re-run — infrastructure, not a broken tier. So the anchor is effectively 23/23
+      and the instrument was working.
+      Context for how unusual this is: on 2026-05-04 ZERO open-source candidates
+      passed even the 3-benchmark subset, with WRONG_LANG (model emits Python
+      instead of AILANG) the dominant failure mode. Hy4 produced no WRONG_LANG,
+      no syntax errors, and no wrong-output at all.
+      Thinking cost: 133,278 reasoning tokens over the tier (~5,794/benchmark),
+      2.4x the anchor's 56,387. Reasoning bills as OUTPUT at $2.501/M, so roughly
+      $0.33 of the $0.86 tier cost was thinking. Any cost projection for this row
+      must use output+reasoning.
+      ⚠️ SMOKE IS A FLOOR, NOT A RANKING (model-manager skill §5.5). Passing it
+      QUALIFIES this row; it does not earn a suite slot and does not rank Hy4
+      against any incumbent. The next question is a CORE-tier head-to-head:
+        ailang eval-suite --models or-hy4-preview,or-glm-5-3-flash,claude-sonnet-4-6 \
+          --tier core --langs ailang --output /tmp/core_hy4 --parallel 4
+      Until that runs, this row stays OPT-IN and in no suite.
+      Preview status: "hy4-preview" is a preview endpoint — re-verify the slug and
+      pricing before any promotion; preview models get renamed and repriced.
+
   or-glm-5-3:
     api_name: "z-ai/glm-5.3"
     provider: "openrouter"

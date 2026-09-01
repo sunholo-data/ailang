@@ -79,6 +79,11 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		// Hard provider ceilings verified via the OpenRouter endpoints API
 		// (2026-07-27): max_completion_tokens across ALL upstreams.
 		"or-deepseek-v3": 16384, "or-qwen-2-5-72b": 16384,
+		// Tencent Hy4 preview (2026-09-01): /endpoints reports ONE upstream
+		// (Tencent first-party) at max_completion_tokens 64000, so 65536 is
+		// unreachable — and with a single route there is no provider order to
+		// pin that would raise it.
+		"or-hy4-preview": 64000,
 
 		// HARNESS ceiling, not a provider one — and the only one here proven by
 		// reading the actual request rather than a vendor doc. pi-ai's
