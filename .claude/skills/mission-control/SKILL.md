@@ -2922,6 +2922,45 @@ Sonnet, inline, is fine.
   named files, because the tree is not yours alone. Mission-independent; under `ailang-code` the same
   hazard is a judge re-running `ailang check` against a tree someone else is editing.
 
+  **AND ON ROUND 2+ THE DIRECTIVE YOU HAND THE NEXT JUDGE IS ITSELF AN INSTRUMENT, DESCRIBING A TREE
+  THAT NO LONGER EXISTS — EVERY MEASUREMENT AND EVERY HUNK LIST IN IT WAS TAKEN BEFORE YOU FIXED THE
+  THING IT IS ABOUT** (added 2026-09-01 V1 iteration 316; two first-party frictions in one iteration,
+  both caught by the judge rather than by the controller who wrote them). The three-round evaluator
+  loop is well covered above: independent worktree, generator≠judge, max 3 rounds, park on a
+  round-3 fail. All of it is about the JUDGE. Nothing is about the thing the controller writes
+  *between* rounds — and that artifact is load-bearing in a way a first-round directive is not,
+  because a fresh judge has no memory of round 1 and takes the summary as its starting map. Note the
+  asymmetry that makes this durable: the round-1 directive is written *about* a tree you are looking
+  at, while the round-N directive is written *about a tree you have just changed*, and the natural
+  way to write it is to copy forward the measurements you took while diagnosing.
+  Measured here, both by the round-N judge. **(a) An omitted hunk.** The round-2 summary listed five
+  changes and left out a 3-line production hunk the controller had itself shipped in round 1; the
+  judge found it only by re-walking the full `git diff` as instructed, and correctly filed the
+  omission as a process gap even though the hunk was fine. **(b) A stale red set.** The round-3
+  directive quoted a mutation's red set as two tests and "nothing else". The judge measured three.
+  Re-measuring on the current tree showed the judge was right and the controller's number was
+  **STALE, not wrong** — the set had grown because the round-2 fix ADDED a test after the reading was
+  taken. That is rule 3b(v)(b) with the usual roles reversed: not a value transcribed from someone
+  else's document, but the controller's own correct measurement, forwarded past its expiry.
+  **Rules. (a)** Before re-spawning, RE-RUN every measurement the new directive quotes, on the tree
+  the judge will actually see — mutation red sets, gate rc/`--- PASS:` counts, greps and their
+  controls. A measurement's validity is bounded by the tree it was taken on, and between rounds the
+  tree is exactly what changed. **(b)** Derive the "what changed" list from `git diff`, never from
+  memory of what you edited; state it as an exhaustive list and invite the judge to name anything you
+  missed — that framing is what converted (a) from a silent omission into a finding. **(c)** Where a
+  measurement genuinely cannot be re-taken, date it and name the tree
+  ("red set measured at `<sha>`, before the round-2 arm was added"), so a discrepancy reads as
+  staleness rather than as an error to argue about. **(d)** A judge that contradicts a number in your
+  directive is the loop WORKING — re-measure before replying, and record the correction in Ruled out
+  (Gate 2 rule (d), aimed at the controller's own arithmetic). **(e)** Carry forward the round-N−1
+  verdict and its findings by NAME, so the new judge can adjudicate each as closed or not rather than
+  re-deriving them; a finding silently dropped between rounds looks identical to one that was fixed.
+  Mission-independent — every mission on this rig runs the same multi-round evaluator — and the
+  generalisation is this file's own recurring shape aimed at its own hands: **a remedy is an
+  instrument too, so the document you write to fix a round is subject to every rule you apply to the
+  round.** The tell: you are writing "what changed since round 1" and the numbers in it were produced
+  by commands you ran before you made those changes.
+
 **METERED-SPEND LEDGER (Mark 2026-07-18 — "make sure costs don't go crazy"):** keep a running
 per-iteration tally of METERED dollars (every codex run's reported cost, every managed_agents
 `CostUSD`, every quorum reviewer bill — subscription/quota-bucket spend does NOT count). BEFORE
