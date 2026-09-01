@@ -343,6 +343,64 @@ as ITS kill switch; checking the bare path instead would have silently missed a 
    infer resolution merely because related code landed. New decision IDs are append-only and MUST
    NOT reuse an existing ID. A report's `DECISIONS FOR MARK` section is generated from OPEN rows
    only; a resolved row must never be asked again unless a new, uniquely named decision supersedes it.
+   **ATTENDED LEDGER EDITS — THE SECOND HUMAN CHANNEL, EQUAL IN RANK TO A BOOKKEEPING-ISSUE
+   DIRECTIVE** (Mark, attended 2026-09-01; supersedes nothing — `mission_directives.sh` is unchanged
+   and the bookkeeping issue REMAINS the default, because it is how Mark answers from his email, away
+   from the terminal). Until now a decision could be answered only by commenting on the week's PUBLIC
+   issue as an allowlisted author, because that comment was the only artifact carrying human
+   provenance you could check. That made the FAST path the slow one: Mark sitting in the repo looking
+   at the ask had to leave the session, find the issue, and wait a whole fire for the answer to come
+   back. He may now ALSO answer by editing the ledger row directly from an attended session, via
+   `scripts/mission_answer.sh --id D-nn --answer-file ruling.txt`. Both channels write the SAME
+   ledger rows.
+   **Rules. (a)** A `RESOLVED` row carrying an **`Attended ruling <date>`** stamp is a human answer
+   with the SAME rank as a directive: it outranks the queue, it unparks its item, and it is NEVER
+   re-asked, re-opened, or "confirmed" by asking again on the issue. Acknowledge it in the report
+   exactly as you acknowledge a directive — Mark must see the channel worked.
+   **(b) PROVENANCE IS THE WHOLE CONTRACT.** The commit that flipped the row must be authored by an
+   attended identity, never the fleet account. For any ledger row that changed since your last
+   watermark, check it first-party:
+   `git log -1 --format='%an <%ae>' -S'| D-nn |' -- <charter>`. If the flip was authored by
+   `sunholo-voight-kampff`, that is **SELF-RESOLUTION** — the exact failure `mission_directives.sh`'s
+   self-direction guard exists to prevent, arriving through the other door. Re-open the row, FLAG it,
+   and report it; do not action it.
+   **(c) YOU MAY NOT USE THIS CHANNEL.** The loop never runs `mission_answer.sh`, never authors a
+   commit with an attended identity, and never resolves a row on its own behalf. The script refuses
+   the fleet identity in code (arms `4a`–`4d` of `scripts/test_mission_answer.sh`, each mutation-proven
+   to have a sole killer); do not route around it, and do not "helpfully" record a decision you
+   believe Mark has already made verbally — an inferred resolution is the thing the recording
+   contract above forbids.
+   **(d) Scope.** Attended edits cover decision rows and the charter text a ruling ratifies (a Goal
+   block, a bar clause). Code, gates and benchmark curation still route through the loop: the
+   2026-08-04 attended-side-session guardrail stands unchanged, and it is what this rule is careful
+   not to reopen — the reason curation was pulled INTO the loop was that an attended session moved 12
+   benchmarks without the gates that pin them, and doc-only ledger rows have no such gates to miss.
+   **(e) A mid-flight iteration can find the ledger changed under it.** You already re-read the ledger
+   after the origin fetch; keep doing that, and REBASE your record rather than forcing it. An attended
+   answer landing while you run is normal, not a conflict to resolve in your favour. **Rebase it, do
+   not let git auto-merge a whole-block rewrite** — the attended session that wrote this rule watched
+   a clean-exit rebase silently eat this charter's `decision-ledger:end` marker and its entire Goal
+   block, because a STATUS insert had shifted the context its replacement was anchored on. It exited
+   0. `scripts/mission_decisions.sh --check` caught it; nothing else would have.
+   **(f) Mission-independent** — all four missions run this one skill file, and every mission's
+   charter takes attended rulings the same way.
+   **(g) TWO CHANNELS, ONE LEDGER — SO THE SAME ASK CAN BE ANSWERED TWICE, AND YOU MUST NOT TREAT
+   THE SECOND ANSWER AS NOISE.** Both channels exist on purpose and BOTH stay live. Nothing about the
+   issue path changes: you still generate `DECISIONS FOR MARK` from OPEN rows, still post it, still
+   read directives with `mission_directives.sh`, and an attended answer simply removes that row from
+   the next report because the row is no longer OPEN. The collision is the case worth naming: a row
+   you find already `RESOLVED` by an attended edit, answered AGAIN by a directive (or the reverse — an
+   email answer Mark forgets he already gave in-session). **Reconcile, never silently drop.** If the
+   two answers AGREE, record that the ask was answered twice, cite both, and move on — no re-ask, no
+   re-open. If they DISAGREE, the LATER human statement wins by timestamp (compare the directive's
+   `createdAt` against the attended stamp's date and the commit time), and you must (1) record BOTH
+   answers in the row, (2) say plainly in the report which one you actioned and why, and (3) if the
+   disagreement is substantive rather than a rewording, file a NEW uniquely-named decision asking Mark
+   to confirm, rather than adjudicating between two things he said. Never resolve a disagreement by
+   picking the one that matches your recommendation. Note the honest failure this rule prevents: the
+   recording contract says a resolved row is never re-asked, so without this, a second answer arriving
+   through the other door reads as "already handled" and is discarded unread — including one that
+   CHANGES the ruling.
 7. **BILLING TRIPWIRE (Mark 2026-07-17 — "this needs to be 100% safe"):** run
    `test -z "$ANTHROPIC_API_KEY" && test -z "$ANTHROPIC_AUTH_TOKEN" && echo CLEAN || echo LEAKED`.
    If LEAKED, the `~/.zshenv` subscription-only guard has regressed: **all `claude:` CLI lanes are
