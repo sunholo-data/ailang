@@ -199,6 +199,9 @@ as ITS kill switch; checking the bare path instead would have silently missed a 
 
 ## Gate 0 — PREFLIGHT (deterministic; abort = exit silently with a controlplane message)
 
+First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-0`. Before every silent Gate-0
+abort, run `bash tools/launchd/mission-heartbeat.sh stamp abort <reason>` with a short reason token.
+
 1. Kill switch set → STOP (no message needed; this is the intended off state).
 2. `gh auth status` must show `sunholo-voight-kampff` before any push. Wrong account → fix with
    `gh auth switch --user sunholo-voight-kampff` or park all push steps.
@@ -415,6 +418,8 @@ as ITS kill switch; checking the bare path instead would have silently missed a 
    one line each — Mark must SEE the channel worked.
 
 ## Gate 1 — OBSERVE (cheap, read-only)
+
+First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-1`.
 
 **Sync to origin FIRST — the local checkout LIES when a prior run merged via GitHub** (added
 2026-07-12 iteration 12; second instance of the same gap — iteration 9's watch-list already flagged
@@ -650,6 +655,8 @@ LANDED; it becomes a resume point, named as such in the charter. The tell you ar
 this: you are reading a red run's logs and finding nothing, and reaching for `git revert`.
 
 ## Gate 2 — PICK + REALITY-CHECK
+
+First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-2`.
 
 Take the top `[NEXT]` queue item. **Before any work, verify the doc's claimed status against repo
 reality**: `git log --grep`, does the code/test already exist, does `make test` already cover it.
@@ -2327,6 +2334,8 @@ the Repo Profile above):
 
 ## Gate 3 — ROUTE + EXECUTE (the inner loop, with the routing policy)
 
+First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-3`.
+
 **Routing is ENFORCED per-role model pinning — NOT session-model inheritance.** Running every role
 on the controller's single session model is the routing-never-enforced bug: with the driver on
 Fable, 100% of every iteration billed Fable (fixed 2026-07-15, m-mission-agentic-provider-routing
@@ -3010,6 +3019,8 @@ into sprint-sized design docs (≤3–4 days each), queued individually.
 
 ## Gate 3b — CI GREEN (an item is not LANDED until remote CI passes on its merge)
 
+First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-3b`.
+
 After any push to dev, wait for CI **with a hard deadline** (Standing rule 6). A headless run has
 no human to notice a hang, and a bare `gh run watch … --exit-status` blocks FOREVER if the run
 never leaves `queued` (no runner). Iteration 13 (2026-07-12) wedged 4h in exactly this class of
@@ -3347,6 +3358,8 @@ failure, and you have not yet run the one-line check for the boring one.
 
 ## Gate 4 — RECORD (append-only; the log is the mission's memory)
 
+First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-4`.
+
 **FIRST: overwrite `design_docs/${MISSION_NAME}-mission-dashboard.md`** (Mark 2026-08-04: the
 30-second control context for fresh sessions — his long-lived thread was burning 14%/week of quota
 as cache-rebuild). Keep it ≤40 lines, OVERWRITE never append: latest release · in-flight/next
@@ -3609,6 +3622,10 @@ above), but "the destination gained what the source lost" is a property of every
 
 ## Gate 5 — RETRO + REPORT
 
+First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-5`.
+After every Gate-5 report has been sent and this iteration is fully complete, run
+`bash tools/launchd/mission-heartbeat.sh stamp complete` as the final gate action.
+
 1. Scan this iteration's friction (evaluator feedback, executor corrections, your own dead ends)
    plus unread `docs/sprint-retros/` material. Route each item to exactly ONE lane:
    - **skill fix** — edit the offending SKILL.md. Max ONE skill edit per iteration; requires ≥2
@@ -3802,6 +3819,8 @@ above), but "the destination gained what the source lost" is a property of every
    **2** in `/tmp/ailang-mission-world.log` — World's *only* two orphaned slots in 67 iterations.
    Both V1 hits sit immediately above a transcript reading "Gates 0–2 complete; sprint-planner
    running", i.e. the controller had just spawned a background role and stopped.
+   The per-gate `mission-heartbeat.sh` stamps above are the durable attribution contract for this
+   failure class; never skip or defer a gate's first-action stamp.
    **The rule:** while any background work you spawned is outstanding, keep the turn alive with
    *chained bounded waits* — a `Monitor`, a bounded `date +%s` poll, or repeated short status reads
    — so the harness never sees you stop. Rule 6 still binds each individual wait; what changes is
