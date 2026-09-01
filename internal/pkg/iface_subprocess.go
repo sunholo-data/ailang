@@ -43,9 +43,28 @@ func (e *ModuleIfaceTimeoutError) Error() string {
 
 func (e *ModuleIfaceTimeoutError) Unwrap() error { return context.DeadlineExceeded }
 
-var resolveIfaceBinary = func() (string, error) {
+// isAilangBinaryPath reports whether path names the ailang compiler itself.
+//
+// Extracted from resolveIfaceBinary so it can be pinned directly: every test
+// that drives BuildModuleIface overrides resolveIfaceBinary wholesale, so
+// replacing that function's entire body with an always-failing stub left the
+// whole suite green (measured, iteration 313 — the sprint evaluator's finding,
+// reproduced first-party). This predicate decides WHICH binary gets exec'd, so
+// it is the half worth pinning.
+func isAilangBinaryPath(path string) bool {
+	if path == "" {
+		return false
+	}
+	base := filepath.Base(path)
+	return strings.TrimSuffix(base, filepath.Ext(base)) == "ailang"
+}
+
+// realResolveIfaceBinary is the production implementation. It is a named
+// function so tests can reach it even while the resolveIfaceBinary var is
+// overridden (TestMain replaces the var for every BuildModuleIface arm).
+func realResolveIfaceBinary() (string, error) {
 	executablePath, executableErr := os.Executable()
-	if executableErr == nil && strings.TrimSuffix(filepath.Base(executablePath), filepath.Ext(executablePath)) == "ailang" {
+	if executableErr == nil && isAilangBinaryPath(executablePath) {
 		return executablePath, nil
 	}
 	path, lookupErr := exec.LookPath("ailang")
@@ -54,6 +73,8 @@ var resolveIfaceBinary = func() (string, error) {
 	}
 	return path, nil
 }
+
+var resolveIfaceBinary = realResolveIfaceBinary
 
 // BuildModuleIface compiles modulePath in an isolated ailang subprocess and
 // returns its canonical interface representation.
