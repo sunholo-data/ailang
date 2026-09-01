@@ -40,4 +40,9 @@
 
 ## Parked on Mark
 - **D-53** — rule on the 4 UNCLASSIFIED docs (N=10 vs N=14). Loop recommends 1 and 2 IN, 3 and 4
-  OUT → N=12. Default if unanswered: keep reporting N=10 with the bucket named. Nothing stalls.
+  OUT → N=12. Default: keep reporting N=10 with the bucket named. Nothing stalls.
+- **D-54 (new)** — **9 commits are unpushed in the main checkout**, incl. `m-spawn-pin-enforcement`
+  (a queue row + design doc you filed attended) which is therefore **invisible to every unattended
+  pick**. All 9 are `+` by `git cherry`, so D-23's duplicate case does not apply and D-42's
+  0-ahead precondition can never fire. Loop recommends **(b)**: authorise it to open a PR from
+  those commits. Default: keep flagging and skipping; nothing lost, queue stays incomplete.
