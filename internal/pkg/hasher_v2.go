@@ -23,7 +23,12 @@ func InterfaceHashV2(ctx context.Context, packageDir string, m *PackageManifest,
 	sort.Strings(exports)
 
 	h := sha256.New()
-	signatures := make(map[string]struct{})
+	// Collected in encounter order behind a seen-set rather than by ranging a map:
+	// Go randomizes map iteration, so a map-built slice makes the RETURNED signature
+	// set order-nondeterministic before the sort below. M5 diffs these sets, so a
+	// nondeterministic order is a latent defect and not merely a test annoyance.
+	signatures := make([]string, 0)
+	seen := make(map[string]struct{})
 	for _, modulePath := range exports {
 		j, err := BuildModuleIface(ctx, packageDir, modulePath, lim)
 		if err != nil {
@@ -41,7 +46,11 @@ func InterfaceHashV2(ctx context.Context, packageDir string, m *PackageManifest,
 				_, _ = h.Write(projection)
 			}
 			for _, signature := range iface.SignatureSet(j) {
-				signatures[signature] = struct{}{}
+				if _, dup := seen[signature]; dup {
+					continue
+				}
+				seen[signature] = struct{}{}
+				signatures = append(signatures, signature)
 			}
 		}
 	}
@@ -60,12 +69,16 @@ func InterfaceHashV2(ctx context.Context, packageDir string, m *PackageManifest,
 		fmt.Fprintf(h, "effect:%s\n", effect)
 	}
 
-	resultSignatures := make([]string, 0, len(signatures))
-	for signature := range signatures {
-		resultSignatures = append(resultSignatures, signature)
-	}
-	sort.Strings(resultSignatures)
-	return interfaceHashV2Prefix + hex.EncodeToString(h.Sum(nil)), resultSignatures, nil
+	// DECLARED RESIDUAL (iteration 314): no test kills this sort, and none can.
+	// With collection now deterministic, global sortedness already follows from three
+	// invariants — exports are iterated in sorted path order, iface.SignatureSet sorts
+	// each module's own set, and every signature is prefixed by its module. The sort is
+	// kept as an explicit normalization so the guarantee survives any of those three
+	// changing, not because a mutant reds without it. Removing it was measured killing
+	// TestInterfaceHashV2_SignatureSetSortedAndDeduplicated in only 4 of 8 runs while
+	// collection was map-based; that flake is now gone rather than papered over.
+	sort.Strings(signatures)
+	return interfaceHashV2Prefix + hex.EncodeToString(h.Sum(nil)), signatures, nil
 }
 
 // InterfaceHashVersion reports the recognized interface-hash format version.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -36,18 +37,29 @@ func TestInterfaceHashV2_Deterministic(t *testing.T) {
 }
 
 func TestInterfaceHashV2_SignatureSetSortedAndDeduplicated(t *testing.T) {
-	modules := []v2Module{{"test/pkg/main", "export func zed() -> int = 1\nexport func alpha() -> int = 2\n"}}
+	// SIX exports, not two, and an exact-sequence assertion rather than a bare
+	// sortedness check: this pins de-duplication, per-signature content AND order in
+	// one arm. It does NOT pin the sort itself — see the declared residual in
+	// hasher_v2.go. Widening the fixture from two to six was measured at iteration 314
+	// as taking the sort-removal kill from ~1-in-15 to 4-in-8, i.e. still a coin flip,
+	// which refuted the "1/6! per run" reasoning that motivated the widening; the real
+	// fix was to make collection deterministic instead of enlarging the sample.
+	modules := []v2Module{{"test/pkg/main", "export func zed() -> int = 1\nexport func alpha() -> int = 2\n" +
+		"export func mid() -> int = 3\nexport func beta() -> int = 4\n" +
+		"export func yak() -> int = 5\nexport func delta() -> int = 6\n"}}
 	dir, manifest := writeV2Package(t, modules, nil)
 	manifest.Exports.Modules = append(manifest.Exports.Modules, manifest.Exports.Modules[0])
 	_, signatures := mustV2Hash(t, dir, manifest, DefaultPublishLimits())
-	if len(signatures) != 2 {
-		t.Fatalf("signature set = %#v, want two de-duplicated signatures", signatures)
+	if len(signatures) != 6 {
+		t.Fatalf("signature set = %#v, want six de-duplicated signatures", signatures)
 	}
-	if signatures[0] >= signatures[1] {
+	if !sort.StringsAreSorted(signatures) {
 		t.Fatalf("signature set is not sorted: %#v", signatures)
 	}
-	if !strings.Contains(signatures[0], ":func:alpha:") || !strings.Contains(signatures[1], ":func:zed:") {
-		t.Fatalf("signature set = %#v, want alpha and zed exports", signatures)
+	for i, want := range []string{"alpha", "beta", "delta", "mid", "yak", "zed"} {
+		if !strings.Contains(signatures[i], ":func:"+want+":") {
+			t.Fatalf("signature set[%d] = %q, want the %q export", i, signatures[i], want)
+		}
 	}
 }
 
@@ -135,6 +147,61 @@ func TestInterfaceHashV2_EnforcesExportLimit(t *testing.T) {
 	lim.MaxExportedModules = 1
 	if _, _, err := InterfaceHashV2(context.Background(), dir, manifest, lim); err == nil {
 		t.Fatal("over-limit package succeeded")
+	}
+
+	// The arms above are satisfied by BuildModuleIface's own identical check
+	// (iface_subprocess.go), which re-loads the manifest from DISK — so neutering
+	// InterfaceHashV2's check leaves them green (measured, iteration 314). This arm
+	// discriminates the two: InterfaceHashV2 must enforce the limit against the
+	// manifest it was HANDED, which is the caller's view and the one that gets
+	// hashed. Here the in-memory manifest lists two exports while the on-disk one
+	// lists one, so only InterfaceHashV2's own check can refuse.
+	single, inMemory := writeV2Package(t, []v2Module{{"test/pkg/main", "export func a() -> int = 1\n"}}, nil)
+	inMemory.Exports.Modules = append(inMemory.Exports.Modules, inMemory.Exports.Modules[0])
+	onDisk, err := LoadManifest(single)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(onDisk.Exports.Modules) != 1 {
+		t.Fatalf("instrument failure: on-disk manifest lists %d exports, want 1", len(onDisk.Exports.Modules))
+	}
+	lim.MaxExportedModules = 1
+	_, _, err = InterfaceHashV2(context.Background(), single, inMemory, lim)
+	if err == nil {
+		t.Fatal("in-memory over-limit manifest was accepted; the caller-supplied export list is not checked")
+	}
+	if !strings.Contains(err.Error(), "exceeding limit of 1") {
+		t.Fatalf("error does not come from the export-limit check, got: %v", err)
+	}
+}
+
+// TestInterfaceHashV2_SensitiveToPackageIdentity pins the legacy identity fields the
+// v2 fold retains so a v2 hash stays a strict superset of what InterfaceHash folds.
+// Measured at iteration 314: dropping any of the name:, edition: or ailang: writes
+// reddened NOTHING in the suite as delivered. The export: write is deliberately not
+// pinned here and cannot be — the module path is already inside each module's folded
+// projection, so export: is redundant-by-construction parity with the legacy encoding
+// rather than a discriminating input. That is a declared residual, not an oversight.
+func TestInterfaceHashV2_SensitiveToPackageIdentity(t *testing.T) {
+	dir, manifest := writeV2Package(t, []v2Module{{"test/pkg/main", "export func a() -> int = 1\n"}}, nil)
+	lim := DefaultPublishLimits()
+	base, _ := mustV2Hash(t, dir, manifest, lim)
+
+	for _, tc := range []struct {
+		field  string
+		mutate func(m *PackageManifest)
+	}{
+		{"name", func(m *PackageManifest) { m.Package.Name = m.Package.Name + "-renamed" }},
+		{"edition", func(m *PackageManifest) { m.Package.Edition = m.Package.Edition + "-next" }},
+		{"ailang", func(m *PackageManifest) { m.Package.AILANG = ">=0.35.0" }},
+	} {
+		altered := *manifest
+		altered.Package = manifest.Package
+		tc.mutate(&altered)
+		got, _ := mustV2Hash(t, dir, &altered, lim)
+		if got == base {
+			t.Fatalf("changing package %s did not change the v2 hash (%q)", tc.field, base)
+		}
 	}
 }
 
