@@ -733,6 +733,13 @@ expect_failure "descendant discovery refuses on the node-count ceiling" "process
     PROBE_TEST_PGREP_LOOP=1 PROBE_STUB_STATE="$tmp_dir/lane-node-limit" \
     /bin/bash "$probe" treatment control "$tmp_dir/node-limit.json"
 
+# Placed AFTER every wall-clock-bounded arm on purpose: this arm costs one more fork/exec, and
+# the judge measured that inserting it EARLIER correlates with downstream 4s-deadline arms
+# tipping over under host contention. Position is the cheapest way to make that mechanism
+# unreachable by construction rather than argue about a rate.
+expect_failure "descendant discovery stub refusal carries its own message" "process-tree discovery deadline expired (test stub)" \
+  run_live PROBE_TEST_DESCENDANT_FAILURE=1
+
 # The D4 ceiling override belongs on the wall-clock discovery arm's own env line and nowhere else. A per-command
 # env assignment never persists into this shell, so this is invariantly quiet on a correct
 # tree. It fires on exactly two leak shapes: an edit that promotes the override to a

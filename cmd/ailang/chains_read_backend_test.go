@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sunholo-data/ailang/internal/testutil"
+
 	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
@@ -27,7 +29,7 @@ import (
 func hermeticLocalObservatory(t *testing.T) {
 	t.Helper()
 	home := t.TempDir()
-	setHomeDir(t, home)
+	testutil.SetHomeDir(t, home)
 	if err := os.MkdirAll(filepath.Join(home, ".ailang", "state"), 0o755); err != nil {
 		t.Fatalf("create hermetic state dir: %v", err)
 	}

@@ -4078,6 +4078,41 @@ After every Gate-5 report has been sent and this iteration is fully complete, ru
    reused sink: a scratch directory, a database row, a fixed branch name, an `--out` target. The
    tell: you are about to read a path that a previous invocation also wrote, and nothing between
    the two runs removed it.
+   **⚠ AND REMEDY (a) IS VOID WHILE THE PREVIOUS WRITER IS STILL ALIVE — `rm -f` DELETES A FILE,
+   NOT A FILE DESCRIPTOR, SO A POLLER YOU THOUGHT WAS FINISHED RE-CREATES THE PATH AND ITS VERDICT
+   LANDS IN YOUR NEW LOG AS IF IT WERE ABOUT YOUR NEW SUBJECT** (added 2026-09-02 V1 iteration 320;
+   instance 1 is iteration 247's rule immediately above, whose remedy (a) I followed to the letter,
+   instance 2 is this iteration, where following it produced the failure). Clause (a) is written
+   about a *previous* run — one that has ENDED, leaving a corpse. It says nothing about a
+   *concurrent* one, and standing rule 7 is what manufactures those: it tells you to bound every
+   wait with a `date +%s` deadline, so a 30-minute CI poller keeps running long after the thing it
+   watched has been superseded. Delete its log and it simply appends again. Note the two failure
+   surfaces differ in kind: the `.done` marker is written by whichever writer finishes FIRST, so it
+   can be the stale one; and the log ends up INTERLEAVED, which is worse than stale, because the
+   two verdicts are individually true and their juxtaposition is not.
+   Measured here, at the gate that decides LANDED vs parked: a first poller was watching a
+   pre-rebase head; I force-pushed, `rm -f`'d both artifacts and launched a second poller on the new
+   head; the first then wrote **`ALL COMPLETE`** into the fresh log — a correct verdict about a
+   commit that no longer existed — and created `.done`. A `tail` showed `ALL COMPLETE` at the top
+   and `pending=3` at the bottom of the same file. Read as prescribed, that is a green for a run
+   still in flight. It was caught only because the two lines contradicted each other, i.e. by rule
+   (e), not by rule (a).
+   **Rules. (a-bis)** Before reusing an artifact path, prove the previous writer is DEAD — not that
+   the file is gone. In this harness a background task's completion notification is that proof;
+   `pgrep` is not (standing rule 7's own amendment: believe a PID it returns, never its silence).
+   **(b-bis)** Better, obey (b) rather than (a): give every poller a per-invocation path
+   (`/tmp/ci_iter<N>_head<sha7>.log`), which makes the question moot and, unlike (a), cannot be
+   defeated by a writer you forgot about. **(c-bis)** Put the SUBJECT in the verdict —
+   `ALL COMPLETE for <sha>` rather than `ALL COMPLETE` — so a stale line identifies itself the
+   moment it is read; that one change turns this whole class from silent into loud. **(d-bis)** When
+   a superseding event happens (a force-push, a rebase, a re-run), KILL the poller watching the old
+   subject rather than letting its deadline expire; a bounded wait is bounded in time, not in
+   relevance. Mission-independent, and the generalisation is this file's own recurring shape aimed
+   at the intersection of two of its own rules: **rule 7 tells you to spawn bounded background
+   watchers, and the stale-artifact rule assumes writers stop when you stop caring — the two are
+   only jointly safe if the artifact path names its subject.** The tell: you deleted a file to get
+   a clean reading, and something that was writing to it before you deleted it has not notified you
+   that it finished.
    **⚠ AND EVERY WORD OF RULE 7 IS ADDRESSED TO THE CONTROLLER, SO THE SUB-AGENTS THIS SKILL SPAWNS
    INHERIT NONE OF IT — A ROLE THAT ENDS ITS TURN ON A WAIT COSTS YOU A WHOLE RESUME CYCLE, AND ITS
    REPORT IS SIMPLY ABSENT** (added 2026-09-01 motoko iteration 32; instance 1 is iteration 176's
