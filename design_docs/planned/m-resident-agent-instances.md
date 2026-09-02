@@ -71,6 +71,44 @@ The subject-identity design for the customer-facing case is Aitana's to own and
 is security-critical: the agent must NOT be able to name the user it acts for.
 See their doc's Decision 5.
 
+### D1c — Two execution modes, and streaming is required
+
+Decided with Mark 2026-09-02. Output must reach a user live, which the current
+build does not do: it captures the pane as an artifact on state change and
+serves `tasks/transcript` on demand, so a caller polls and sees nothing until
+something moves.
+
+**Do not stream the terminal.** Forwarding `agent.read` as it changes streams a
+TUI — ANSI, redraws, a cursor repainting text already sent. It would look like
+streaming and be unusable; `strip_ansi` cannot fix a screen that repaints
+itself. The unit of streamed content is an *agent event*, never a terminal
+frame.
+
+`pi --mode json` emits NDJSON, and this repo already normalises that stream in
+`internal/executor/pi/pi.go`. That parser is the streaming source — reuse it
+rather than writing a second one.
+
+**The two modes are genuinely different shapes and both are needed:**
+
+| | `interactive` (today) | `stream` (`pi --mode json`) |
+|---|---|---|
+| herdr sees | a TUI it can classify | a process with no TUI |
+| `blocked` detection | works — the one state herdr classifies positively | **lost** |
+| Human attach (`herdr --remote`) | the reason herdr was adopted | pointless |
+| Output | terminal text only | clean NDJSON events |
+| Fits | sessions a person will join | programmatic runs whose output must stream |
+
+So mode is a **per-run parameter**, like the model: the A2A request selects it,
+defaulting to `interactive`. This doubles the execution paths inside
+`messageSend`, which is a real cost and the reason it is written down rather
+than drifted into.
+
+⚠️ **Consequence to design for, not discover:** a `stream` run cannot report
+`input-required`, because that state comes from herdr's TUI detection. A run
+that needs to ask a question must either be `interactive`, or the NDJSON stream
+must carry its own equivalent — check what pi's event schema exposes before
+assuming the second.
+
 ### D2 — herdr is the supervisor; the contract to the outside is A2A
 
 herdr supervises the pane and classifies agent state. It stays **inside** the
