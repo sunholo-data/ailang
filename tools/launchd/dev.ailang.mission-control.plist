@@ -47,15 +47,25 @@
          one interval of idle gap". No GPU/rig-lock clash — iterations are cloud-model
          work; subscription rate limits are the natural throttle. Revert to a
          StartCalendarInterval block for nightly-only cadence.
-         60m (Mark, 2026-09-01, attended): tightened from 5400s off the back of a
-         quota reset. Measured before the change: ~144min iterations against a 90min
-         interval, i.e. a flat ~90min idle gap on every cycle (~4.0h effective).
-         60m halves that gap. The weekly Claude bucket, NOT the fire rate, is the real
-         ceiling here — the previous bucket drained after >=28 controller sessions and
-         left the fleet on the codex/pi fallback for 2.5 of 7 days. If that repeats
-         sooner than ~day 3, this is the first number to put back. -->
+         REVERTED to 90m (Mark, attended 2026-09-02) after ONE day at 60m. The 60m trial
+         and its rationale are kept below because the measurement that killed it is the
+         useful part:
+           date         starts  stalls  rate
+           2026-08-31       18       1     6%
+           2026-09-02       18       6    33%   <- first full day at the tightened cadence
+         Every stall was the same signature — "claude idle with a descendant alive >=2400s"
+         — so each burned 40min before the watchdog killed it, and 3 of v1's 7 fires died
+         that way. Total starts did NOT rise (19 -> 18): we paid the contention and got no
+         extra throughput. Confound checked and rejected: the attended git/merge work that
+         day ran 09:35-11:20 and ALL SIX stalls fell between 14:02 and 18:42.
+         Mechanism (inferred, not proven): tightening v1+world+docs together made three
+         controllers overlap against one quota bucket, sub-agents slowed, controllers sat
+         idle, the watchdog fired. The original 60m rationale still stands on its own terms
+         — there IS a flat ~90min idle gap per cycle — but the gap is not the binding
+         constraint; the bucket and the box are. Do not re-tighten one loop without holding
+         the other two, and re-read the stall rate the next day. -->
     <key>StartInterval</key>
-    <integer>3600</integer>
+    <integer>5400</integer>
 
     <key>EnvironmentVariables</key>
     <dict>

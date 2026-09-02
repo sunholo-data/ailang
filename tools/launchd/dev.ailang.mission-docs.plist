@@ -60,17 +60,18 @@
     <key>WorkingDirectory</key>
     <string>/Users/voightkampff/dev/sunholo-data/ailang-docs</string>
 
-    <!-- 3h (Mark, 2026-09-01, attended) — doubled from the 6h set 2026-08-28.
-         Website drift is slow, and every primary lane is flat-rate, so this contends
-         with v1 (3600s), world (9000s) and motoko (46800s) for almost nothing.
-         This is the cheapest loop to run hot: measured iterations are 13-25min
-         against a 6h fire (~23h/day idle), and the controller is sonnet, not the
-         opus that drains the scarce weekly bucket.
+    <!-- 6h — RESTORED (Mark, attended 2026-09-02) after a one-day trial at 3h.
+         The 3h case was sound in isolation (13-25min iterations against a 6h fire is
+         ~23h/day idle, and the controller is sonnet, not the opus that drains the weekly
+         bucket) but it was not taken in isolation: v1 and world were tightened the same
+         hour, and the fleet stall rate went 5% -> 33% the next day, docs itself losing one
+         of five fires. The cost of running this loop hot is not paid by this loop.
+         Contends with v1 (5400s), world (14400s) and motoko (46800s).
          StartInterval counts from LOAD, so the phase offset is set by WHEN you
          bootstrap it — bootstrap it off the hour to keep it clear of the other
          three. -->
     <key>StartInterval</key>
-    <integer>10800</integer>
+    <integer>21600</integer>
 
     <key>StandardOutPath</key>
     <string>/tmp/ailang-mission-docs.stdout</string>
