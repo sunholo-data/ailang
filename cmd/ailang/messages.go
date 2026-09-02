@@ -97,6 +97,8 @@ func messagesCommand() {
 		runMessagesReply(args)
 	case "health":
 		runMessagesHealth(args)
+	case "activity":
+		runMessagesActivity(args)
 	case "triage":
 		runMessagesTriage(args)
 	case "--help", "-h", "help":

@@ -42,7 +42,15 @@ func runMessagesHealth(args []string) {
 	fmt.Println()
 
 	if desc := describeMessageStore(); desc != "" {
-		fmt.Printf("  %s\n", desc) // describeMessageStore renders its own "store: " prefix
+		// Name the PLANE, not just the project. `ailang-multivac` and
+		// `ailang-multivac-dev` differ by a suffix and are entirely separate
+		// planes; reading one and concluding about the other is easy and
+		// expensive (M-COORDINATOR-EXECUTION-TRUST M4).
+		if plane := planeLabel(project); plane != "" {
+			fmt.Printf("  %s  %s\n", desc, bold("["+strings.ToUpper(plane)+" PLANE]"))
+		} else {
+			fmt.Printf("  %s\n", desc) // describeMessageStore renders its own "store: " prefix
+		}
 	} else {
 		fmt.Printf("  store:    local SQLite (%s)\n", messaging.GetDefaultDatabasePath())
 	}

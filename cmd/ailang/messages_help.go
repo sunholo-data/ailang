@@ -15,6 +15,7 @@ func printMessagesHelp() {
 	fmt.Printf("  %s <query>           Semantic search for messages\n", cyan("search"))
 	fmt.Printf("  %s                   Find and mark duplicate messages\n", cyan("dedupe"))
 	fmt.Printf("  %s                   Cluster unread messages by envelope similarity\n", cyan("triage"))
+	fmt.Printf("  %s                 Fleet activity for a window: what ran and what it produced\n", cyan("activity"))
 	fmt.Printf("  %s <id>                Mark message as read\n", cyan("ack"))
 	fmt.Printf("  %s <id>              Mark message as unread\n", cyan("unack"))
 	fmt.Printf("  %s <inbox> <msg>      Send a message\n", cyan("send"))

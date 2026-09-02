@@ -585,8 +585,13 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 		d.logger.Printf("Created task %s (type: %s, agent: %s, inbox: %s) from cloud message %s",
 			task.ID, task.Type, agentID, im.inbox, msg.ID)
 
-		// PubSub messages are acked on receipt — MarkAsRead is a no-op
+		// The WIRE message is acked on receipt, so the adapter's MarkAsRead is a
+		// no-op by design. The STORE row is a separate fact and must be written
+		// here, or the message stays unread forever after being dispatched and
+		// `messages health` keeps counting it as never dispatched
+		// (M-COORDINATOR-EXECUTION-TRUST M4).
 		d.cloudInboxAdapter.MarkAsRead(msg.ID)
+		markDispatchedMessageRead(d.msgStore, msg.ID, d.logger)
 		d.tasksRun++
 	}
 
