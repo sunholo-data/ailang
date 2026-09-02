@@ -145,11 +145,11 @@ func TestMessageWatcherStart(t *testing.T) {
 		stopFloorPeriods = 10
 		maximumStimulus  = time.Second
 	)
-	// Defensive only: the surrounding select makes a latency at or above
-	// maximumStimulus unreachable by construction, and a positive elapsed time
-	// is an invariant of the monotonic clock rather than behavior under test.
-	if schedulingLatency <= 0 || schedulingLatency >= maximumStimulus {
-		t.Fatalf("instrument failure: initial task scheduling latency %v is outside (0, %v)", schedulingLatency, maximumStimulus)
+	// A zero latency is expected on coarse-clock platforms such as Windows; the
+	// absolute floor below keeps that measurement safe. The surrounding select's
+	// timeout branch makes a latency at or above maximumStimulus unreachable.
+	if schedulingLatency < 0 || schedulingLatency >= maximumStimulus {
+		t.Fatalf("instrument failure: initial task scheduling latency %v is outside [0, %v)", schedulingLatency, maximumStimulus)
 	}
 	absoluteFloor := stopFloorPeriods * pollInterval
 	stopBudget := stopBudgetFactor * schedulingLatency
