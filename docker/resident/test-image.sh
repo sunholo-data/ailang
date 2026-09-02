@@ -70,7 +70,33 @@ have "herdr socket at the explicit path"  '[ -S "${HERDR_SOCKET_PATH}" ]'
 have "agent home probe cleaned up"        '[ ! -f /tmp/fake-home/.boot-probe ]'
 have "boot reported the sandbox live"     'grep -q "effect sandbox live" /tmp/boot.log'
 
-echo "=== 4. A2A surface (Decision 2c) ==="
+echo "=== 4. program allowlist (Decision 6) ==="
+# Default-deny: no manifest means nothing runs. An agent that can reason but not
+# act is degraded; one that runs anything because a file was missing is an
+# incident.
+out=$(PROGRAM_ALLOWLIST_FILE=/nonexistent resident-run anything 2>&1); rc=$?
+have "no manifest -> denies (default-deny)"   '[ "$rc" = "2" ]'
+have "  ...and says why"                      'echo "$out" | grep -q "Default-deny"'
+
+cat > /tmp/allow.json <<'JSON'
+{"programs":{"ok":{"path":"/tmp/ok.ail","caps":["IO"]},"badcap":{"path":"/tmp/ok.ail","caps":["IO","Nope"]},"needsfs":{"path":"/tmp/ok.ail","caps":["FS"]}}}
+JSON
+out=$(PROGRAM_ALLOWLIST_FILE=/tmp/allow.json resident-run not-listed 2>&1); rc=$?
+have "unlisted program refused"               '[ "$rc" = "2" ]'
+have "  ...and lists what IS allowed"         'echo "$out" | grep -q "Allowed: ok"'
+
+out=$(PROGRAM_ALLOWLIST_FILE=/tmp/allow.json resident-run badcap 2>&1)
+have "unknown capability refused, not dropped" 'echo "$out" | grep -q "unknown capabilities: Nope"'
+
+out=$(PROGRAM_ALLOWLIST_FILE=/tmp/allow.json env -u AILANG_FS_SANDBOX resident-run needsfs 2>&1)
+have "FS entry refused when sandbox unset"    'echo "$out" | grep -q "NO sandbox"'
+
+echo "" > /tmp/ok.ail
+out=$(PROGRAM_ALLOWLIST_FILE=/tmp/allow.json AILANG_FS_SANDBOX=/workspace resident-run ok 2>&1)
+have "allowed program passes ONLY its caps"   'echo "$out" | grep -q -- "--caps IO /tmp/ok.ail"'
+have "  ...and does not grant the union"      '! echo "$out" | grep -qE -- "--caps [A-Za-z,]*FS"'
+
+echo "=== 5. A2A surface (Decision 2c) ==="
 RPC() { curl -s -X POST localhost:8080/a2a -H 'content-type: application/json' -d "$1"; }
 curl -s localhost:8080/.well-known/agent.json > /tmp/card.json 2>/dev/null
 
@@ -104,7 +130,7 @@ have "push notification config round-trips"        'grep -q "localhost:9/hook" /
 RPC '{"jsonrpc":"2.0","id":6,"method":"tasks/get","params":{"id":"nope"}}' > /tmp/r6.json
 have "unknown task -> visible error, not empty ok"  'grep -q -- "-32001" /tmp/r6.json'
 
-echo "=== 5. restart idempotence ==="
+echo "=== 6. restart idempotence ==="
 # The 7-day ceiling makes restarts routine, so a second boot must behave like
 # the first rather than tripping over its own leftovers.
 kill $BOOT 2>/dev/null; pkill -f "herdr server" 2>/dev/null; sleep 3

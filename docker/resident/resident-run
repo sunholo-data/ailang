@@ -1,0 +1,75 @@
+#!/usr/bin/env node
+// resident-run — the ONLY way a resident agent may execute a program.
+//
+// Decision 6 (v6.40.0): what the agent can do to the world is bounded by
+// AILANG's capability system, not by asking it nicely. This is the gate:
+//
+//   * A program must be on the allowlist. Nothing else runs, ever.
+//   * Each entry declares the capabilities that program needs, and it gets
+//     ONLY those — `ailang run --caps <declared>`. Least privilege per program
+//     rather than one blanket grant covering the union of everything.
+//   * FS stays inside AILANG_FS_SANDBOX, which boot.sh has already proved live.
+//
+// DEFAULT-DENY. With no allowlist configured, nothing runs. An agent that can
+// read and reason but not act is a degraded agent; an agent that can run
+// anything because a config file was missing is an incident. The absent case
+// therefore denies rather than permits — the same reasoning as boot.sh
+// refusing an unset AILANG_FS_SANDBOX, where the upstream default was the
+// dangerous direction.
+//
+// ⚠️ This gate is only as good as the premise that AILANG is the agent's SOLE
+// route to acting. A CLI that keeps its own shell or file-write tools bypasses
+// this entirely — see the design doc. Disabling those is a separate control,
+// not something this script can enforce.
+import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+
+const MANIFEST = process.env.PROGRAM_ALLOWLIST_FILE || "/etc/resident/allowlist.json";
+const KNOWN_CAPS = ["AI", "Clock", "Debug", "Env", "FS", "IO", "Net", "Process", "Secret", "Stream"];
+
+function die(msg, code = 2) {
+  console.error(`resident-run: ${msg}`);
+  process.exit(code);
+}
+
+const [name, ...rest] = process.argv.slice(2);
+if (!name) die("usage: resident-run <program-name> [args...]");
+
+let manifest;
+try {
+  manifest = JSON.parse(readFileSync(MANIFEST, "utf8"));
+} catch (e) {
+  die(`no program allowlist at ${MANIFEST} (${e.code || e.message}). ` +
+      `Default-deny: nothing runs without one.`);
+}
+
+const programs = manifest.programs || {};
+const entry = programs[name];
+if (!entry) {
+  const known = Object.keys(programs).join(", ") || "(none)";
+  die(`program ${JSON.stringify(name)} is not on the allowlist. Allowed: ${known}`);
+}
+if (!entry.path) die(`allowlist entry ${JSON.stringify(name)} declares no path`);
+
+const caps = Array.isArray(entry.caps) ? entry.caps : [];
+const unknown = caps.filter((c) => !KNOWN_CAPS.includes(c));
+if (unknown.length) {
+  // A typo'd capability would otherwise be silently dropped by the runtime and
+  // the program would fail somewhere less obvious.
+  die(`allowlist entry ${JSON.stringify(name)} requests unknown capabilities: ${unknown.join(", ")}. ` +
+      `Known: ${KNOWN_CAPS.join(", ")}`);
+}
+
+if (!process.env.AILANG_FS_SANDBOX && caps.includes("FS")) {
+  die("entry requests the FS capability but AILANG_FS_SANDBOX is unset — " +
+      "AILANG treats that as NO sandbox, so FS would be unconfined. Refusing.");
+}
+
+const args = ["run"];
+if (caps.length) args.push("--caps", caps.join(","));
+args.push(entry.path, ...rest);
+
+console.error(`resident-run: ${name} -> ailang ${args.join(" ")}` +
+              `  [caps: ${caps.join(",") || "none"}]`);
+const r = spawnSync("ailang", args, { stdio: "inherit" });
+process.exit(r.status === null ? 1 : r.status);

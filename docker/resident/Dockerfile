@@ -27,8 +27,9 @@ RUN curl -fsSL "$HERDR_URL" -o /usr/local/bin/herdr \
 
 COPY boot.sh /usr/local/bin/boot.sh
 COPY server.mjs /usr/local/bin/server.mjs
+COPY resident-run /usr/local/bin/resident-run
 COPY lib/ /usr/local/bin/lib/
-RUN chmod 0755 /usr/local/bin/boot.sh /usr/local/bin/server.mjs
+RUN chmod 0755 /usr/local/bin/boot.sh /usr/local/bin/server.mjs /usr/local/bin/resident-run
 
 USER ailang
 
@@ -40,7 +41,8 @@ ENV HERDR_SOCKET_PATH=/home/ailang/.herdr/herdr.sock \
     RESIDENT_PORT=8080 \
     AGENT_HOME=/agent-home \
     AILANG_FS_SANDBOX=/workspace \
-    PI_HOME=/home/ailang/.pi
+    PI_HOME=/home/ailang/.pi \
+    PROGRAM_ALLOWLIST_FILE=/etc/resident/allowlist.json
 
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/boot.sh"]

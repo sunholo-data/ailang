@@ -1,0 +1,15 @@
+{
+  "_comment": "Program allowlist for resident-run. Deployment config, not image content — mount or inject it. Each entry grants ONLY the capabilities it declares; AILANG denies the rest. Keep this list short and specific: it is the whole write boundary.",
+  "programs": {
+    "fmt-check": {
+      "path": "/workspace/tools/fmt_check.ail",
+      "caps": ["IO", "FS"],
+      "description": "Format-check the workspace. Reads and writes inside AILANG_FS_SANDBOX only."
+    },
+    "summarise": {
+      "path": "/workspace/tools/summarise.ail",
+      "caps": ["IO", "AI"],
+      "description": "Summarise a document. No FS: it takes its input on stdin, so it cannot read the corpus at will."
+    }
+  }
+}
