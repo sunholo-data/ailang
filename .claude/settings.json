@@ -201,6 +201,11 @@
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/coordinator_hook.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/push_dev_on_stop.sh",
+            "timeout": 70
           }
         ]
       }

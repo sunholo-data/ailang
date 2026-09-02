@@ -303,3 +303,157 @@ iteration's own sweep script hit the shared skill's own documented zsh 1-indexed
 (rule 3a's "AND THE ARRAY THIS RULE JUST PRESCRIBED IS 1-INDEXED IN ZSH" clause) on its first
 draft and self-corrected via the length-assertion discipline the same rule prescribes. Filed here
 as a confirmation the existing rule works as written, not as a gap.
+
+## ITERATION 3 — died mid-flight, credited retroactively by iteration 4 (2026-09-02)
+
+**Pick**: this iteration's own record was never written — Gate 2's died-mid-flight check (iteration
+4) found three merged PRs bearing this mission's routing conventions and a fourth, unmerged, sitting
+in an orphaned worktree, with zero trace of "ITERATION 3" anywhere in the charter/log
+(`grep -c "ITERATION 3\b"` = 0/0, known-present control `grep -c "ITERATION 2\b"` = 1/1 in log/none
+elsewhere — instrument confirmed working). The fire worked the queue in order (`docs-5` → `docs-6` →
+`docs-10`, all `[NEXT]` per iteration 2's own **Next** field) then began `docs-1`, producing a
+complete brief + sprint plan before dying — recovered separately as iteration 4's own pick (see
+below). This entry is retroactive bookkeeping only; none of the verification below was re-derived
+from zero by iteration 4 beyond what's noted, since the PRs' own routing/test-plan sections and a
+fresh `make verify-examples`/`check_examples.sh` run (iteration 4, see its own entry) already
+constitute independent confirmation.
+
+**Outcome**: **LANDED** (3 items).
+- `docs-5` (examples hygiene): [PR #997](https://github.com/sunholo-data/ailang/pull/997) →
+  merged 2026-09-01T03:21Z. Added `main` entrypoints to 7 fixtures; fixed a manifest module-drift
+  on 5 of them (evaluator-caught). `batch_processing.ail`/`cli_args_demo.ail` (the other 2 of the
+  original 9 findings) already had entrypoints on `dev` — resolved independently, out of scope.
+  Evaluator round 1 blocking (manifest drift), round 2 PASS.
+- `docs-6` (fix `check_examples.sh`'s absolute-path bug + DOCS-2-04 scope comments):
+  [PR #1004](https://github.com/sunholo-data/ailang/pull/1004) → merged 2026-09-01T10:19Z.
+  Routing: planner+executor `codex:gpt-5.6-luna`, evaluator `sonnet` — **PASS 98/100**, zero
+  blocking, mutation-checked (reverting the fix reproduces the pre-fix 12/29/176 counts).
+- `docs-10` (verify-examples vacuous on two axes, #670/#654):
+  [PR #1010](https://github.com/sunholo-data/ailang/pull/1010) → merged 2026-09-01T21:44Z.
+  Routing: designer `claude-sonnet-5`, planner+executor fell back to `opus` (Agent tool in that
+  session could not express the `codex:gpt-5.6-luna` pin — same limitation iteration 2 recorded,
+  FLAGGED again there, not re-litigated here), evaluator `sonnet` — **PASS 97/100**, zero blocking,
+  11 acceptance criteria plus 5 adversarial mutations independently re-run from scratch.
+
+**Iteration 4's own re-verification before crediting these landed** (not inherited): fresh
+`make verify-examples` run — 211 passed, 0 failed, 6 skipped, manifest "193 modules checked, 0
+drift, 1 missing-on-disk", "✅ verify-examples: all examples pass and manifest is in sync"; fresh
+`check_examples.sh` run — 173 passed, 2 failed (`batch_processing.ail`, `cli_args_demo.ail` — the
+known, explicitly out-of-scope Env-capability gap), 42 skipped, matching PR #1004's own claimed
+counts exactly. Both are real, non-vacuous greens under `docs-10`'s anti-vacuity floor, not
+inherited from the pre-fix instrument.
+
+**Cost**: metered $0.00 (codex/sonnet/opus are all subscription-lane per this mission's routing
+table; no `pi:`/managed_agents/quorum-reviewer calls in any of the three PRs' routing sections).
+Quota buckets: codex (planner+executor, docs-6), opus (planner+executor fallback, docs-10),
+claude-sonnet-5 (designer, docs-10), sonnet (evaluator, all three).
+
+**Next**: `docs-1` (iteration 4's own pick — see below).
+
+**Ruled out**: nothing new; no ruled-out claims in any of the three PR bodies.
+
+**DECISIONS FOR MARK**: none — nothing in these three PRs raised a new ask.
+
+**FLAGGED**: `docs-10`'s planner+executor could not express `codex:gpt-5.6-luna` via the Agent tool
+in that session and fell back to `opus`, per PR #1010's own Routing section — same capability
+limitation iteration 2 already flagged; carried forward rather than re-litigated (re-probing a
+capability limit is a rule-3a(i) vacuous check).
+
+**Retro**: no skill edit — this entry's only job is closing the "orphaned iteration" gap Gate 2's
+died-mid-flight rule warns about (skipping a number silently). Two consecutive died-mid-flight
+fires (this one, and the docs-1 planner run recovered as PR #1016) in the same short window is a
+pattern worth naming for whoever reviews mission health, not a single-instance skill gap.
+
+## ITERATION 4 — 2026-09-02T04:08Z
+
+**Pick**: Gate 2's died-mid-flight check found an open, `MERGEABLE` PR
+([#1016](https://github.com/sunholo-data/ailang/pull/1016)) recovering iteration 3's complete
+`docs-1` brief + sprint plan from an orphaned worktree (`.wt-docs-iter3-docs1` under the pin root,
+detached at the same commit as the PR head, clean, no uncommitted state), plus a second, unrelated
+stale worktree (`.planner-wt-iter3-docs-5`, a superseded routing-declaration commit predating
+`docs-5`'s already-landed fix — pruned, nothing to recover). Also found `docs-5`/`docs-6`/`docs-10`
+all landed on `origin/dev` while the charter still tagged them `[NEXT]` — see iteration 3's own
+retroactive entry above. Picked `docs-1` (this iteration's real item) after re-verifying the other
+three genuinely landed rather than redoing them.
+
+**Gate 1 CI health**: `CI` and `Deploy Documentation to GitHub Pages` both `success` on
+`origin/dev`'s HEAD; SHA-addressed `commits/<sha>/check-runs` showed **16** checks, one NOT-GREEN
+(`SonarCloud Code Analysis: failure`) — confirmed inherited from the parent commit too (not from
+any recent merge), and out of this mission's domain per Gate 1's repo-ownership scoping
+(`sunholo-data/ailang` is V1's territory for CI reds); not actioned, noted for the report.
+
+**PR #1016's own CI**: one job red (`launchd drivers (bash 3.2)`) on a PR touching only two
+markdown planning files — a known-flaky wall-clock-deadline test in the launchd driver suite (the
+failing assertion was `descendant discovery refuses on the real wall-clock deadline`), confirmed
+unrelated to the diff (same check reads `success` on both the PR's base and `origin/dev`'s current
+tip). Re-ran the failed job (rule 3d — negative control before crediting a red to anything): green
+on re-run, confirming the flake diagnosis rather than assuming it. Merged
+[PR #1016](https://github.com/sunholo-data/ailang/pull/1016) → `4f94edf70`.
+
+**Execution**: routed `docs-1` to `codex:gpt-5.6-luna` (executor, per the mission's routing table)
+in an isolated worktree, using the recovered brief + sprint plan verbatim (no re-planning). Codex
+probe rc=0 before the real run.
+
+- **Round 1**: codex built `tools/messaging/docs_inbox_router.sh` (238 lines). Controller
+  independently re-verified every acceptance command before committing (not trusting the
+  executor's self-report): `bash -n` rc=0, `shellcheck` rc=0, `--selftest` rc=0 (reproduced
+  checked=5/forwarded=3 then checked=3/forwarded=0 duplicate suppression), forced total-store
+  failure rc=1 with empty stdout and a clear stderr message, no process-wide
+  `export AILANG_MESSAGES*`, forward shape (`--to docs-mission --reason "..." <id>`) matches
+  clause 7's verification log verbatim, diff scope exactly one new file under `tools/`. Committed,
+  opened [PR #1018](https://github.com/sunholo-data/ailang/pull/1018).
+- **Evaluator round 1** (sonnet, own isolated worktree, generator≠judge held — codex executor vs
+  sonnet evaluator, distinct providers): **FAIL 58/100**. Live-reproduced a BLOCKING bug:
+  `poll_messages`/`poll_github` fed a `jq` command substitution into a `while read` heredoc
+  (`<<EOF\n$(jq ...)\nEOF`); when the store legitimately returns zero items — the ordinary,
+  most-common state for a low-traffic poller — the heredoc still contains one blank line, so the
+  loop executes once with `message_id=""` and hits the "item without an ID" guard, aborting the
+  ENTIRE run on a VALID empty read. Non-blocking: no `pipefail` on `is_doc_related`'s
+  `jq | grep` pipe (lower risk, input pre-validated upstream); `record_key` is O(n²) per append
+  (not a concern at this router's traffic).
+- **Round 2**: routed the evaluator's exact finding back to `codex:gpt-5.6-luna` (same worktree,
+  continuing work, not a re-plan). Fix: capture `jq` output into a variable, gate loop entry on
+  non-emptiness (`done <<<"$rows"` behind `[ -n "$rows" ]`), applied to both poll functions; added
+  a `--selftest` empty-poll case. Controller independently reproduced BOTH the original failure (on
+  the round-1 commit, with hand-built `[]`-returning fixtures distinct from the script's own
+  `--selftest` fixtures) and the fix (on the round-2 commit, same fixtures) — not taken on the
+  executor's or the evaluator's word alone. Re-ran the forced-failure regression check (still rc=1,
+  clean) and the export/scope checks (still clean). Committed, pushed.
+- **Evaluator round 2** (sonnet, same isolated worktree, updated to the new commit): **PASS
+  90/100**, zero blocking. Independently rebuilt its own `[]`-returning fixtures (not the script's),
+  confirmed the round-1 bug is genuinely fixed, re-confirmed the failure-regression check, and
+  scanned the round-2 diff itself for new defects (jq-failure propagation via `|| die`, and whether
+  `[ -n "$rows" ]` could misfire on an all-empty-field-but-real item — tested and confirmed no).
+  Non-blocking: no CHANGELOG entry (correctly scoped low-severity — internal ops tool, not
+  public-facing).
+
+**Gate 3b**: merged [PR #1018](https://github.com/sunholo-data/ailang/pull/1018) (squash) →
+`e65e96b15`. Polled the merge commit itself (squash produces a new SHA) with bounded chained waits
+until all 16 checks settled: 15 green, the same pre-existing `SonarCloud Code Analysis` red as Gate
+1 found (confirmed inherited, V1's domain, not actioned). **LANDED.**
+
+**Cost**: metered $0.00 (codex is subscription-lane; both evaluator rounds were sonnet Agent-tool
+sub-agents, Anthropic quota, not metered $). Quota buckets: codex (executor, 2 rounds), sonnet
+(evaluator, 2 rounds + controller session).
+
+**Next**: queue is now empty of `[NEXT]` items — remaining rows are `[PARKED]`
+(`docs-3`, `docs-4`, `docs-8`) or `[LANDED]`/`[RULED OUT]`. `docs-8` (126 overdue planned design
+docs) is the only PARKED item explicitly sequenced to become available now that `docs-6`/`docs-7`
+are resolved ("Sequence after docs-6/docs-7 land or are ruled out") — flagging as the natural next
+pick for a future iteration, not picked here since Standing rule 1 caps this iteration at one
+backlog item (bookkeeping-only picks aside) and `docs-1` was already substantial.
+
+**Ruled out**: nothing new.
+
+**DECISIONS FOR MARK**: none — no new ask this iteration.
+
+**FLAGGED**: none new. `SonarCloud Code Analysis` remains red on `origin/dev` (inherited, V1's
+domain) — noted, not re-flagged as newly-discovered (already visible in this mission's iteration 1
+FLAGGED row).
+
+**Retro**: no skill edit this iteration (no ≥2-friction gap found in the shared skill itself — the
+died-mid-flight, negative-control, and generator≠judge disciplines all worked exactly as
+documented). Process observation for this mission's own charter, not the shared skill: two
+consecutive died-mid-flight fires in one short window (iteration 3, and the `docs-1` planner run
+recovered as PR #1016) is a pattern worth Mark's attention if it recurs a third time — not yet at
+the evidence bar for a charter change.

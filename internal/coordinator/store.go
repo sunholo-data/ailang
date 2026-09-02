@@ -7,13 +7,22 @@ import (
 
 // TaskRecord represents a task stored in the database
 type TaskRecord struct {
-	ID           string     `json:"id"`
-	MessageID    string     `json:"message_id,omitempty"`
-	ThreadID     string     `json:"thread_id,omitempty"`      // Thread in collaboration.db for dashboard visibility
-	ParentTaskID string     `json:"parent_task_id,omitempty"` // Parent task for hierarchy tracking (handoffs)
-	Title        string     `json:"title"`
-	Content      string     `json:"content"`
-	Type         TaskType   `json:"type"`
+	ID           string   `json:"id"`
+	MessageID    string   `json:"message_id,omitempty"`
+	ThreadID     string   `json:"thread_id,omitempty"`      // Thread in collaboration.db for dashboard visibility
+	ParentTaskID string   `json:"parent_task_id,omitempty"` // Parent task for hierarchy tracking (handoffs)
+	Title        string   `json:"title"`
+	Content      string   `json:"content"`
+	Type         TaskType `json:"type"`
+	// AttemptCount is how many Cloud Run executions this task has consumed, and
+	// ChainLinkIndex which model link the latest one ran on
+	// (M-COORDINATOR-EXECUTION-TRUST M3). Persisted rather than held in memory:
+	// the coordinator scales to zero, and a cap that a restart forgets is not a
+	// cap. Written in the same update that transitions status, so the two
+	// cannot disagree.
+	AttemptCount   int `json:"attempt_count,omitempty"`
+	ChainLinkIndex int `json:"chain_link_index,omitempty"`
+
 	Kind         string     `json:"kind,omitempty"`   // "directive" or "question" or message_type (e.g. "feedback") - affects template selection
 	Source       string     `json:"source,omitempty"` // Pub/Sub topic the message arrived on: "cascade" = authoritative bump (M-PKG-AUTONOMOUS-CASCADE-SAFE M1)
 	Priority     int        `json:"priority"`

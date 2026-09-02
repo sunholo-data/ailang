@@ -25,7 +25,10 @@ const (
 
 // Client implements ai.Provider for Anthropic's Claude API.
 type Client struct {
+	// apiKey holds the credential. Which HEADER it goes in — and therefore
+	// whether the run is billed — depends on authMode; see auth.go.
 	apiKey     string
+	authMode   AuthMode
 	baseURL    string
 	apiVersion string
 	httpClient *http.Client
@@ -151,6 +154,17 @@ type anthropicUsage struct {
 	OutputTokens             int `json:"output_tokens"`
 	CacheReadInputTokens     int `json:"cache_read_input_tokens"`
 	CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+	// OutputTokensDetails carries the thinking/answer split. Thinking tokens are
+	// INCLUDED in OutputTokens (and billed there) — this is a decomposition of
+	// that number, not an addition to it, so never sum the two.
+	OutputTokensDetails anthropicOutputTokensDetails `json:"output_tokens_details"`
+}
+
+// anthropicOutputTokensDetails is the `usage.output_tokens_details` object.
+// Absent on models that do not think, in which case ThinkingTokens is 0 — which
+// is also the honest answer for a thinking model that chose not to think.
+type anthropicOutputTokensDetails struct {
+	ThinkingTokens int `json:"thinking_tokens"`
 }
 
 // messagesResponse represents the response from the Messages API.
@@ -309,8 +323,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-api-key", c.apiKey)
-	httpReq.Header.Set("anthropic-version", c.apiVersion)
+	c.applyAuthHeaders(httpReq.Header)
 
 	// Execute request
 	resp, err := c.httpClient.Do(httpReq)
@@ -431,10 +444,20 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		// produced the GLM-5.2 misdiagnosis. "max_tokens" normalizes to "length".
 		// The agent path (step.go) has always mapped this; only Generate dropped it.
 		//
-		// NOTE: ReasonTokens is deliberately NOT set. Anthropic reports no separate
-		// thinking-token count — thinking is billed inside Usage.OutputTokens — so
-		// any split here would be fabricated. Leaving it 0 keeps cost math honest
-		// at the price of no thinking/answer decomposition on Anthropic rows.
+		// ReasonTokens comes from usage.output_tokens_details.thinking_tokens.
+		//
+		// This comment previously asserted that "Anthropic reports no separate
+		// thinking-token count" and left the field at 0 on purpose. That was
+		// TRUE when written and is FALSE now — the field exists and populates
+		// (live-probed 2026-09-02: 298 thinking of 1160 output tokens, content
+		// blocks ["thinking","text"]). The stale claim cost us the
+		// thinking/answer split on every Anthropic row of the Fable 5.1
+		// core+frontier run, which read as 0 reasoning tokens for an always-on
+		// thinking model.
+		//
+		// Cost math is unaffected either way: thinking is billed INSIDE
+		// OutputTokens, so this decomposes that figure rather than adding to it.
+		ReasonTokens: result.Usage.OutputTokensDetails.ThinkingTokens,
 		FinishReason: mapStopReason(result.StopReason),
 		Model:        result.Model,
 	}, nil

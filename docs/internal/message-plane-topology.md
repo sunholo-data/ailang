@@ -255,6 +255,36 @@ had worked for months with the index absent. The rig polled correctly every 30s 
 poll failed `FailedPrecondition` while a message sat unread in its inbox: registered,
 tagged, alive, and silently claiming nothing.
 
+## Session-triage traps (each measured 2026-08-25/26 — do not rediscover)
+
+1. **Name the project explicitly; never rely on `AILANG_CLOUD_PROJECT`.** It is pinned
+   per-machine (the attended laptop's `~/.zshenv` points it at the stale `-dev` graveyard) —
+   that is exactly why `AILANG_MESSAGES_PROJECT` exists and why it wins
+   ([client.go:23](../../internal/storage/firestore/client.go#L23)). `GOOGLE_CLOUD_PROJECT` is
+   ignored entirely; the wrong project gives a confident, wrong answer with no error — dev and
+   prod queries returned byte-identical output. Control: a non-local listing prints
+   `store: gcp (Firestore, project …)` in its header — read it.
+2. **`--inbox public-feedback` is not the whole feedback channel.** Package feedback routes to
+   `pkg:<vendor>/<name>`. `--unread` with no `--inbox` spans all inboxes; enumerate rather than
+   assume.
+3. **The list view truncates IDs to 8 chars**, so every cloud `inbox_<epoch>_<hash>` renders as
+   `(inbox_17)`. Get full IDs from `--json`. (An ambiguous prefix errors loudly rather than
+   acking the wrong message, so this costs time, not correctness.)
+4. **`messages read <id>` marks the message read as a side effect.** Triaging by reading silently
+   drains the unread queue — the next session sees an empty inbox and concludes nothing arrived.
+   Inspect bodies via `--json` when you don't intend to ack.
+5. **`ack --all` sweeps outbound cross-mission messages too.** When sent messages are in flight,
+   ack per message id; after any `ack --all`, verify the recipient inbox and `unack` as needed.
+6. **A binary predating `6759ea4fa` IGNORES `AILANG_MESSAGES_STORE` silently** — it reads local
+   SQLite and exits 0, making the whole protocol vacuous. `~/go/bin/ailang` drifts by design
+   (installing mid-run would disturb concurrent agents), so assume it is stale. One-command
+   control — an INVALID value must be refused:
+   `AILANG_MESSAGES_STORE=not-a-real-store ailang messages list --unread` must error
+   `unknown message store mode`; a normal listing means you are reading local. Build a fresh
+   binary to a scratch dir and prepend it to PATH rather than `make quick-install`. (Confirmed
+   on the Studio 2026-08-26: its v0.33.2 binary made both exports inert and kept reading local
+   SQLite — the missing `store:` header was the only visible tell.)
+
 ## Quick reference
 
 An **attended node** (reads the shared inbox, takes no work):

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
@@ -129,8 +130,13 @@ func checkAPIKeys(models []string) {
 				warnings = append(warnings, fmt.Sprintf("%s OPENAI_API_KEY not set (needed for %s)", yellow("⚠️"), model))
 			}
 		case strings.Contains(model, "claude"):
-			if os.Getenv("ANTHROPIC_API_KEY") == "" {
-				warnings = append(warnings, fmt.Sprintf("%s ANTHROPIC_API_KEY not set (needed for %s)", yellow("⚠️"), model))
+			// EITHER lane authenticates: a metered API key or an OAuth access
+			// token on a Claude subscription. Warning about a missing
+			// ANTHROPIC_API_KEY while a perfectly good ANTHROPIC_AUTH_TOKEN is
+			// set would be a false alarm — and a stale "key not set" line is
+			// exactly what makes a reader conclude the run cannot work.
+			if _, err := ai.ResolveAnthropicCredential(); err != nil {
+				warnings = append(warnings, fmt.Sprintf("%s no Anthropic credential set — need ANTHROPIC_API_KEY (metered) or ANTHROPIC_AUTH_TOKEN (subscription) for %s", yellow("⚠️"), model))
 			}
 		case strings.Contains(model, "gemini"):
 			if os.Getenv("GOOGLE_API_KEY") == "" {
@@ -146,7 +152,8 @@ func checkAPIKeys(models []string) {
 		fmt.Println()
 		fmt.Println("Set API keys to run with real models:")
 		fmt.Println("  export OPENAI_API_KEY='sk-...'")
-		fmt.Println("  export ANTHROPIC_API_KEY='sk-ant-...'")
+		fmt.Println("  export ANTHROPIC_API_KEY='sk-ant-...'      # metered")
+		fmt.Println("  export ANTHROPIC_AUTH_TOKEN='...'          # OR: Claude subscription (OAuth)")
 		fmt.Println("  export GOOGLE_API_KEY='...'")
 		fmt.Println()
 	}

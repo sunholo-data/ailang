@@ -482,7 +482,7 @@ fi
 echo "Running eval baseline for $VERSION..."
 echo "Tier scope: $TIER_FLAG ($BENCHMARK_COUNT benchmarks)"
 if [[ -n "$FULL_FLAG" ]]; then
-    echo "Mode: FULL (extended_suite, 18 models incl. claude-fable-5 + claude-opus-5, + agent_suite)"
+    echo "Mode: FULL (extended_suite, 18 models incl. claude-fable-5-1 + claude-opus-5, + agent_suite)"
     echo "Expected cost: run \`ailang eval-suite --full --tier $TIER_FLAG --dry-run\` for a real"
     echo "  computed estimate (M-EVAL-STANDARD-CONFIDENCE-GATING) — recent full releases banked"
     echo "  \$98-135 combined (standard+agent); see SKILL.md's Cost & time section for the real figures."

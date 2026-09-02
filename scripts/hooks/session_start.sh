@@ -357,10 +357,10 @@ $INBOX_HEADER
 
 $(echo "$MESSAGES_JSON" | jq -r '.[] | "ID: \(.id)\nFrom: \(.from_agent)\nTitle: \(.title)\nTime: \(.created_at)\n"')
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💡 Use 'ailang messages read --all-unread' to view all
-   Use 'ailang messages read <id>' for a specific message
-   Use 'ailang messages list --compact' for machine-parseable list
-   Use 'ailang messages ack --all' to mark all as read
+💡 Triage: 'ailang messages list --unread --json' (full IDs + bodies;
+   'messages read' marks read as a side effect — triage via --json instead)
+   After handling: 'ailang messages ack <id>' per message
+   ('ack --all' also sweeps outbound cross-mission inboxes — avoid)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 $TRIAGE_SUMMARY
 $SPRINT_CONTEXT

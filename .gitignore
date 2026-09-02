@@ -111,3 +111,6 @@ code-harness-skills/
 smoke-motoko
 /tmp
 design_docs/research/*.pdf
+
+# Machine-local pi state (per-session agent-name marker; never versioned)
+.ailang_voice

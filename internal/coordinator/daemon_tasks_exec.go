@@ -199,6 +199,12 @@ func (d *Daemon) dispatchTasksCloud() error {
 				if agent.SkipApproval && agent.MergeBranch != "" {
 					params.PushBranch = agent.MergeBranch
 				}
+				// M-COORDINATOR-EXECUTION-TRUST M1a: resolve the permission tier
+				// from the TRUSTED registry entry, after PushBranch is final —
+				// ResolveWorkTier refuses tier 1 on a direct-push dispatch, which
+				// has no PR containment (design doc V24).
+				params.WorkTier = string(ResolveWorkTier(agent, params.PushBranch))
+				params.AcknowledgeOnly = agent.AcknowledgeOnly
 				// M5: resolve through the shared routing table (pin > role >
 				// default); a missing role is loud and skips the dispatch.
 				agentModel, mErr := ResolveModel(agent)

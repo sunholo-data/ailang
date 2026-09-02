@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"flag"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/devtoolsprompt"
 	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/prompt"
 	"github.com/sunholo-data/ailang/internal/schema"
 	ailangTesting "github.com/sunholo-data/ailang/internal/testing"
@@ -266,6 +268,18 @@ func main() {
 			os.Exit(1)
 		}
 		outputInterface(ifaceFS.Arg(0), *ifaceCompact)
+
+	case "internal-dump-iface":
+		if flag.NArg() != 3 {
+			fmt.Fprintln(os.Stderr, "Usage: ailang internal-dump-iface <package-dir> <module-path>")
+			os.Exit(1)
+		}
+		jsonBytes, err := pipeline.BuildCanonicalJSON(context.Background(), flag.Arg(1), flag.Arg(2))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		fmt.Println(string(jsonBytes))
 
 	case "select-best":
 		runSelectBest()

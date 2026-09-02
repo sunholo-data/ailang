@@ -14,7 +14,7 @@ Classify every task BEFORE touching code, and pass its gate:
 |---|---|---|
 | Read-only | triage, messages, issues, analysis, reading docs | None — proceed |
 | Trivial fix | typo, log line, one-line fix with obvious semantics | State the exact change, get explicit user OK, then act |
-| Feature / semantics | new builtins, stdlib changes, effects/parser/types, multi-file refactors | `design-doc-creator` → **user approval** → `sprint-planner` → user says "execute sprint" → `sprint-executor` → `sprint-evaluator` |
+| Feature / semantics | new builtins, stdlib changes, effects/parser/types, multi-file refactors | `design-doc-creator` (optional: `ailang design-quorum` — N-reviewer verdict before approval) → **user approval** → `sprint-planner` → user says "execute sprint" → `sprint-executor` → `sprint-evaluator` |
 
 - **Never implement without the gate for its scope.** Skills live in `.agents/skills/` — load the relevant skill at each step instead of improvising the process.
 - **If you find uncommitted work with no approved plan (yours or inherited): leave it parked uncommitted, tell the user, and propose the plan.** Do not continue it, and do not discard it (see Critical Guardrails).

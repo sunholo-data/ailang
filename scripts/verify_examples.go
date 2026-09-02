@@ -14,8 +14,11 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/manifest"
+	"github.com/sunholo-data/ailang/scripts/internal/importextract"
 	"github.com/sunholo-data/ailang/scripts/internal/reporttypes"
 )
 
@@ -58,6 +61,10 @@ func main() {
 	// Set global flag for findAllExamples
 	useAllExamples = allExamples
 
+	// Build the manifest expected.stdout index BEFORE any goroutine starts, so
+	// the parallel sweep only ever reads it (no mutex needed).
+	loadPinnedStdout()
+
 	if updateBaselines {
 		runUpdateBaselines()
 		return
@@ -79,6 +86,85 @@ var (
 	updateBaselines = false
 	parallelism     = 8 // max concurrent example runs
 )
+
+// manifestPath is the oracle this verifier compares captured stdout against.
+// Deliberately NOT a flag: the gate must not be able to point itself at a
+// weaker oracle.
+const manifestPath = "examples/manifest.json"
+
+var (
+	// pinnedStdout maps a resolved on-disk example path (slash-normalized) to
+	// the non-empty expected.stdout committed in the manifest. Populated once
+	// from main() before any goroutine starts, then read-only.
+	pinnedStdout map[string]string
+	// pinnedTotal counts manifest entries carrying a non-empty expected.stdout,
+	// resolvable on disk or not. Diagnostic only (see enforceStdoutFloor).
+	pinnedTotal int
+	// stdoutChecked counts comparisons actually performed, whatever the outcome.
+	stdoutChecked atomic.Int64
+)
+
+// loadPinnedStdout builds the resolved-path -> expected.stdout index from the
+// manifest. Path resolution reuses importextract.ResolvePath — the same helper
+// validate_manifest.go uses — so the two tools cannot disagree about which file
+// a manifest entry names (106 of 199 entries use a bare "hello.ail"-style path
+// that only resolves under examples/runnable/).
+//
+// A manifest that cannot be loaded is a HARD failure: a verifier that cannot
+// read its own oracle must not go on to report a clean run (CLAUDE.md #2).
+func loadPinnedStdout() {
+	pinnedStdout = make(map[string]string)
+
+	m, err := manifest.Load(manifestPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "INSTRUMENT FAILURE: verify_examples could not load %s: %v\n", manifestPath, err)
+		os.Exit(1)
+	}
+
+	for _, ex := range m.Examples {
+		if ex.Expected == nil || ex.Expected.Stdout == "" {
+			continue
+		}
+		pinnedTotal++
+		full, ok := importextract.ResolvePath("examples", ex.Path)
+		if !ok {
+			continue
+		}
+		pinnedStdout[filepath.ToSlash(filepath.Clean(full))] = ex.Expected.Stdout
+	}
+}
+
+// stripRunPreamble removes `ailang run`'s status preamble — "→ Type checking...",
+// "→ Effect checking...", "✓ Running <path>" — from captured output. The runner
+// prints that preamble to STDOUT, not stderr, so a raw comparison against a
+// manifest pin would mismatch on every single pinned entry.
+//
+// The strip anchors on the example's OWN path, so it is deterministic and
+// cannot eat program output unless the program prints that exact line. (Adding
+// --quiet to the run instead would change result.Output for every example and
+// run the pinned examples under different flags from the rest of the set.)
+func stripRunPreamble(out, filename string) string {
+	anchor := "✓ Running " + filepath.ToSlash(filename) + "\n"
+	if idx := strings.Index(out, anchor); idx >= 0 {
+		return out[idx+len(anchor):]
+	}
+	return out
+}
+
+// enforceStdoutFloor turns a sweep that compared ZERO pinned expected.stdout
+// values into a hard failure. A gate performing no comparisons is
+// indistinguishable from one whose oracle is broken, and must never be reported
+// as a clean run. Not applied under --trace (comparison is deliberately
+// disabled there) nor in --update-baselines (a generator, not a gate).
+func enforceStdoutFloor() {
+	if useTrace {
+		return
+	}
+	if stdoutChecked.Load() == 0 {
+		fmt.Fprintf(os.Stderr, "INSTRUMENT FAILURE: verify_examples compared 0 pinned expected.stdout values (manifest has %d non-empty pins)\n", pinnedTotal)
+		os.Exit(1)
+	}
+}
 
 // skippedExamples lists files that are intentionally excluded from
 // verify-examples because they exercise behavior that cannot succeed
@@ -280,6 +366,26 @@ done:
 			result.Error = stderrStr
 		} else {
 			result.Status = "passed"
+		}
+	}
+
+	// Compare captured stdout against the manifest's pinned expected.stdout (#670).
+	// Skipped under --trace, where the run emits trace JSONL interleaved on
+	// stdout — a comparison there would be measuring the trace, not the program.
+	// Skipped for non-passing examples: they already have a verdict, and must
+	// not be double-reported or counted toward the floor.
+	if !useTrace && result.Status == "passed" {
+		if want, ok := pinnedStdout[filepath.ToSlash(filepath.Clean(filename))]; ok {
+			stdoutChecked.Add(1)
+			got := stripRunPreamble(stdout.String(), filename)
+			// Byte-exact apart from TRAILING newlines only (hello.ail emits no
+			// trailing newline while its pin carries one). No leading-whitespace
+			// trim, no interior normalization, no substring fallback — each of
+			// those would re-introduce the vacuity this check exists to remove.
+			if strings.TrimRight(got, "\n") != strings.TrimRight(want, "\n") {
+				result.Status = "failed"
+				result.Error = fmt.Sprintf("stdout mismatch vs manifest expected.stdout\n  expected: %q\n  actual:   %q", want, got)
+			}
 		}
 	}
 
@@ -687,6 +793,7 @@ func verifyExamplesPlain(threshold float64) {
 	fmt.Printf("  Passed: %d\n", passed)
 	fmt.Printf("  Failed: %d\n", failed)
 	fmt.Printf("  Skipped: %d\n", skipped)
+	fmt.Printf("  Stdout pins checked: %d\n", stdoutChecked.Load())
 
 	if useTrace {
 		summary := computeTraceSummary(allResults)
@@ -701,6 +808,8 @@ func verifyExamplesPlain(threshold float64) {
 
 	// One-line summary (useful for CI)
 	fmt.Printf("\nExamples: %d/%d passed (%.1f%%)\n", passed, total, passRate)
+
+	enforceStdoutFloor()
 
 	// Threshold check
 	if threshold > 0 && passRate < threshold {
@@ -756,6 +865,9 @@ func verifyExamplesJSON(threshold float64) {
 		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
 		os.Exit(1)
 	}
+
+	// After the report is on stdout, so a tripped floor still leaves the artifact.
+	enforceStdoutFloor()
 
 	// Threshold check
 	passRate := 0.0
@@ -843,6 +955,8 @@ func verifyExamplesMarkdown() {
 	fmt.Println()
 	fmt.Printf("**Summary:** %d passed, %d failed, %d skipped (Total: %d)\n",
 		len(passed), len(failed), len(skipped), len(passed)+len(failed)+len(skipped))
+
+	enforceStdoutFloor()
 
 	if len(failed) > 0 {
 		os.Exit(1)

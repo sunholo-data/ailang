@@ -87,8 +87,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		return nil, e
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-api-key", c.apiKey)
-	httpReq.Header.Set("anthropic-version", c.apiVersion)
+	c.applyAuthHeaders(httpReq.Header)
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
@@ -132,8 +131,11 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		TotalTokens:              result.Usage.InputTokens + result.Usage.OutputTokens,
 		CacheReadInputTokens:     result.Usage.CacheReadInputTokens,
 		CacheCreationInputTokens: result.Usage.CacheCreationInputTokens,
-		Model:                    result.Model,
-		FinishReason:             mapStopReason(result.StopReason),
+		// Thinking/answer split, same source as Generate. Included in
+		// OutputTokens, not additional to it.
+		ReasonTokens: result.Usage.OutputTokensDetails.ThinkingTokens,
+		Model:        result.Model,
+		FinishReason: mapStopReason(result.StopReason),
 	}
 
 	var textParts []string

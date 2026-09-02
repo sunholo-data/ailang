@@ -154,6 +154,9 @@ $ DEBUG_PARSER=1 ailang run test.ail
 | `DEBUG_MONO_VERBOSE=1` | Monomorphization tracing | Type issues | Specialization details |
 | `DEBUG_OPERATOR_LOWERING=1` | Operator resolution | Dispatch issues | Builtin selection |
 | `DEBUG_PARSER=1` | Token position tracing | Parser bugs | Token flow |
+| `DEBUG_CODEGEN=1` | Record type fallback warnings | Codegen issues | Fallback warnings |
+| `DEBUG_APPROVAL_WATCHER=1` | ApprovalWatcher polling | Coordinator approval flow | Poll tracing |
+| `DEBUG_CONCURRENCY=1` | Per-request evaluator Fork/Call/Done tracing | Concurrency issues | Goroutine IDs |
 
 ### Ollama Streaming Timeouts (v0.34.0)
 
@@ -232,6 +235,19 @@ default. The `effective_deadline_sec` read-back is what exposed it — which is
 exactly why that field is read back from the context rather than reported from
 the configured value.
 :::
+
+### Ollama Context Window (`AILANG_OLLAMA_NUM_CTX`)
+
+Pins ollama's `num_ctx`. **Unset (the default) sends no `num_ctx` at all**, so
+ollama sizes the context from the model (measured 2026-08-13: 262144 for
+`qwen3.6:35b-a3b-mxfp8`) — matching the `/v1` lanes pi and opencode already use.
+Both option maps in `internal/ai/ollama` previously hardcoded **8192**, below the
+28k–44k-token prompts the eval harness sends these models.
+
+Affects the non-tool paths only (`Generate`, tool-less chat, and the legacy
+native tool path incl. motoko's `compaction_ai`); motoko's tool-calling turns
+route via `/v1`, where `num_ctx` is not expressible. Raise or lower only for
+VRAM: the KV cache scales with it.
 
 When request logging is enabled — `AILANG_OLLAMA_LOG_REQUESTS=<path>`, or a path
 written to the `~/.ailang/state/ollama-log-requests` **sentinel file** whose

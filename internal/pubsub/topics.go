@@ -55,6 +55,14 @@ type TaskCompletion struct {
 	// Used by external clients (portal, sidecar) to know which files were created/modified.
 	ChangedFiles []string `json:"changed_files,omitempty"`
 
+	// ModelUsed / ChainLinkIndex record WHICH link of the model chain actually
+	// produced this result (M-COORDINATOR-EXECUTION-TRUST M3). Without them a
+	// retry is unattributable and the banked model field is a guess — which
+	// also makes per-task cost attribution wrong for exactly the runs that
+	// changed lane.
+	ModelUsed      string `json:"model_used,omitempty"`
+	ChainLinkIndex int    `json:"chain_link_index,omitempty"`
+
 	// Executor metrics (populated when using full executor infrastructure)
 	SessionID     string  `json:"session_id,omitempty"`
 	NumTurns      int     `json:"num_turns,omitempty"`

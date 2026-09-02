@@ -147,6 +147,13 @@ func TriagePackageMessage(env *PackageMessageEnvelope) TriageResult {
 		} else if env.Package.ChangeClass == "C" {
 			result.Action = TriageMigrate
 			result.Reason = "Contract change; downstream verification required"
+		} else if env.Package.ChangeClass == "U" {
+			// "U" means the two sides could not be compared (only one carries
+			// v2 signature metadata). Falling into the else branch below would
+			// report it as an ordinary content change, which is a stronger
+			// claim than we can make.
+			result.Action = TriageMigrate
+			result.Reason = "Unknown change class (incomparable interface metadata); downstream verification required"
 		} else {
 			result.Action = TriageVerifyLocal
 			result.Reason = "Content change; local verification recommended"

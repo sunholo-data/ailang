@@ -3111,3 +3111,258 @@ already been closed, not a new one.
 **Next.** Row **6n** (#975's wall-clock arm), then **6o** (the escalation half of the group kill), then
 6j and 6m. Decision ledger: **5** rows, **0 OPEN** — `D-MOTOKO-WORKDIR-2` was answered and discharged
 by iteration 28, so for the first time since iteration 21 this mission is asking nothing of Mark.
+
+## 32 — 2026-09-01 — the attended ruling landed, and the measurement I ran to answer the reviewers partly refuted the doc I was defending [HARNESS]
+
+**Progress**: loop-health track — rows **6n**, **6q** CLOSED and **6p** closed on its design half with
+a named residual; 6o, 6j, 6m and the new 6r open. The wall-clock discovery arm reported at `#975` now
+asserts a message only the wall-clock branch can emit, and the drift gate is proven to LOOK rather than
+merely fire. The Phase-0-gated migration epic (rows 10/11/12) is **unmoved**: upstream `#165` is still
+OPEN, last touched 2026-08-20, re-read as a command this iteration.
+
+**Pick.** Not the queue head. `D-MOTOKO-6N-1` was answered **attended** by Mark on 2026-09-01 — commit
+`878e0a5a0`, author `mark@aitanalabs.com`, provenance checked first-party per the attended-ledger
+contract (an attended identity the fleet account does not hold and the loop may not author with). An
+attended ruling outranks the queue and unparks its item. The ruling: **(B) HOLD for D4** — scope
+`PROBE_MAX_TREE_NODES` to arm :449's own `env` line and remove the race structurally rather than betting
+on a 6–9x margin. The ruling arrived AFTER iteration 31's own record landed (`b926c6a84`, `#999`), so it
+was unconsumed. Acknowledged here as Mark must see the channel worked: **the second human channel was
+used, and it changed this iteration's pick.**
+
+**Outcome.** **LANDED** — [#1008](https://github.com/sunholo-data/ailang/pull/1008), squashed to
+`64ca81852`. Four commits: three code milestones, each independently green at its boundary, plus docs.
+
+**The iteration's real finding is about my own evidence, not about the code.** Rounds 1–3 of the quorum
+blocked 3/3 external on ONE surface — the race between a wall clock (wall time) and a node ceiling
+(iteration count). `gemini-3-1-pro` **flipped to pass at round 3**, the first pass in three rounds, and
+round 3's two remaining objections were both *premise* objections. So I measured them rather than
+forwarding them:
+
+- `gpt5-6-sol` — *"a sufficiently fast runner can exceed 25,000 iter/s, so the arm is still
+  race-dependent."* **REFUTED.** The walk forks one process per iteration by construction
+  (`pgrep -P "$current"`), and bare `/usr/bin/true` — no bash, no script, the absolute physical floor —
+  spawns at **205–250/s** on this machine (`date`-timed and `perf_counter`-timed, agreeing). 25,000
+  iter/s is ~**100x the hardware's bare-spawn ceiling**, which is a bound rather than an extrapolation.
+- `oc-glm-5-2` — *"the rates were measured at `a223e7274`, the doc is baselined at `48817dcdd`, and the
+  stub at :254-262 may have changed."* **Mechanism refuted; ask satisfied; and it partly UPHELD me
+  wrong.** The test file is **byte-identical** between the two commits (whole-file `cmp` SAME, stub
+  region sha256 `abffefd3…` both sides), so the stub cannot have changed. But re-measuring as asked
+  found **181–200 iter/s** against iteration 31's **474–653** — a **3.3–3.6x spread from ambient load
+  alone** (load average **20.59 on 16 CPUs**; a `perf_counter` clock agrees with `date +%s`, refuting
+  granularity as the cause). That makes the race leg *stronger* and the backstop leg *weaker* than the
+  doc claimed (headroom **2.2x–5.7x**, not 5.7x) and **empties the doc's own feasible interval at its
+  stated margins**. The doc now states this as an explicit trade — satisfy the leg whose violation is a
+  WRONG VERDICT (a spurious red on a clean tree), accept degradation in the leg whose violation is only
+  a WRONG EXPLANATION (a correct red, cap-shaped rather than message-shaped) — rather than as a
+  satisfied constraint. **This is the reviewer being right for a reason the reviewer did not name**,
+  and it is the part of this iteration worth re-reading.
+
+Round 4 then blocked on two consistency defects **I** had introduced while correcting §(c) — a stale T1
+row I had failed to propagate the new figures into, and a `grep` whose target-file premise was
+unverified. Both carried concrete reviewer-authored fixes and neither disputed the design direction, so
+they were applied verbatim under the narrow-refinement carve-out. **The surface finally moved off the
+design after three rounds stuck on it**, which is the signal that the doc was ready.
+
+**Two instrument failures, both caught by prescribed controls rather than by luck.**
+1. My commit-reconstruction script read the executor's snapshots at nested paths when they are flat.
+   The recipe's mandatory sha256 manifest check reported `FAILED` on the second file. No work was lost
+   — the snapshots were intact — and the retry verified byte-identical. The check exists for exactly
+   this and it earned its keep.
+2. **The executor's T1 line is EXCLUDED from this iteration's evidence.** It reported
+   `rc=1 ok=27 not_ok=1 wall=51s` with none of the three refusal messages. The judge could not
+   reproduce it in any dimension and explained why it is not a possible reading: arm 28 is
+   `hermetic live success path completes`, which drives a small finite tree at the default ceiling and
+   has no code path to the wall-clock branch. The judge's own T1 reds the **correct** arm 33 at 641s,
+   cap-shaped — the degradation the sprint plan pre-authorised for exactly this contention. A number I
+   relayed from a sub-agent was wrong and an independent judge caught it.
+
+**Gate 3b.** GREEN on the PR head: **21/21 checks complete, 0 not-green, `mergeStateStatus=CLEAN`**,
+control firing (16 checks on the then-`origin/dev`). Among them **`launchd drivers (bash 3.2): success`**
+— the leg decision (d) named as the ONLY place the runner's behaviour is observable, and the same leg
+that failed on V1's `#971` carrying this exact discovery error. That discharges the doc's deferred
+runner measurement in the affirmative rather than leaving it owed.
+
+**Evaluator: PASS 93/100, ZERO blocking, 3 non-blocking** (sonnet, its own worktree at `23e153a80`,
+distinct provider from the codex executor and the opus controller, so generator≠judge holds). It
+reproduced C1–C4 first-party, including running C3 in **both** arms to prove the new locality guard is a
+gate and not decoration (rc=0/41-ok at base, rc=1 on the merged tree). **It also ran T3, which the
+executor never reached** — its 50-minute cap killed it before it could report — and T3 is the drill that
+answers row 6q's actual question: a dead-but-real refusal branch, guarded by `false &&` so it never
+executes, still moves the count **27 → 28** and reds the gate. The gate reads the file's SHAPE. It
+LOOKS. Finding 1 (the `(test stub)` hunk has no behavioural killer, only a static grep) is filed as new
+row **6r** rather than absorbed, per the rule that a hunk with no killer is a finding.
+
+**Second, bookkeeping pick — authorised, not invented.** The source clone was **55 commits behind**.
+Reconciled under the standing authorisation `D-MOTOKO-WORKDIR-2` with all three safety predicates
+re-measured at the moment of use (**0 ahead / 0 dirty / 55 behind**), `git checkout -B dev origin/dev`
+rc=0, post-verified **0 behind, 0 dirty, all 17 worktrees intact**.
+
+**Ruled out.**
+- *"The stub got slower because the code changed"* (`oc-glm-5-2`'s stated mechanism) — **REFUTED**: the
+  file is byte-identical between the two commits. The variable is load, not code.
+- *"`date +%s` granularity explains the 3.3x rate spread"* — **REFUTED** by a `perf_counter` arm that
+  agrees with `date` to within 10%.
+- *"A fast CI runner could win the race at a 50,000 ceiling"* — **REFUTED** by the bare-spawn ceiling.
+- *"The executor's T1 measured the wall-clock mutant"* — **REFUTED** by the judge; excluded from evidence.
+- *"The doc's `[≈39,000, ≈57,000]` feasible interval holds"* — **REFUTED**: it was non-empty only
+  because both legs were evaluated at quiet-machine rates. At the full observed range it is empty.
+
+**A red I do not own.** `SonarCloud Code Analysis` is `failure` on `origin/dev` and was failure on the
+four preceding analysed commits — inherited, not from this push, and it is `success` on this PR's own
+head. `sunholo-data/ailang` is **V1's** repo, so per the owning-mission rule this is recorded and handed
+over on the cross-mission channel rather than allowed to displace motoko's pick.
+
+**Routing evidence.** Controller `claude:claude-opus-5` (session). Designer **`claude:claude-fable-5`**
+— rotation advanced from `pi:ollama/deepseek-v4-flash:0731-cloud`, spawned with an explicit Agent-tool
+`fable` pin (accepted, ran to completion), ONE revision run, within the one-doc Fable diet; pointer
+written back. Planner **`opus`** via the Agent tool — `derive-planner-lane.sh` returned
+`opus fail-closed:planner-lane-field-missing`, used VERBATIM, so no codex probe was spent on the planner
+role. Executor **`codex:gpt-5.6-sol`** via the cross-provider recipe (probe rc=0; the real run hit its
+**50-minute cap** and was killed before emitting a final message — **FLAGGED**; its work was intact in
+the worktree and every gate was re-run by the controller outside the sandbox). Evaluator **`sonnet`**
+via the Agent tool, in its own worktree. generator≠judge holds on provider (OpenAI executor vs Anthropic
+judge). **Metered: $0.2179** (quorum round 3 $0.1403, round 4 $0.0776) against the $5 ceiling. Round 4
+was **N−1** — `gpt5-6-sol` absent on budget, recorded rather than silently passed; the verdict was
+BLOCKED either way, so the degradation could not manufacture a false pass.
+
+**Next.** Row **6r** (the unpinned `(test stub)` hunk) is bookkeeping-sized and adjacent to work just
+landed. Then **6o** (the SIGKILL-escalation group form, zero killers), then **6p**'s residual — and note
+what that residual now is: not "pick a better constant" but *derive the bound from a stimulus measured
+in-test*, so the ratio holds by construction on any machine. This iteration produced the measurement
+that makes that the obvious fix.
+
+## 31 — 2026-09-01 — the quorum blocked twice on one surface, and my refutation of it measured the wrong binary [HARNESS]
+
+**Progress**: row 6n's stated blocker DISCHARGED (the runner half of the defect reported at #975 is
+now measured) and its design written, but the row is **PARKED needs-human-review**, not landed —
+the design quorum blocked 3/3 in both rounds. Loop-health track: 6a–6i closed, 6n parked, 6o next,
+6j/6m/6p/6q open. The Phase-0-gated migration epic (rows 10/11/12) is **unmoved**: upstream `#154`
+is still OPEN, re-measured as a command this iteration.
+
+**Pick.** The queue head, row **6n** — "the wall-clock discovery arm cannot fail for the reason it
+names", reported at #975 by V1 iteration 308's evaluator against motoko's own instrument.
+
+**The row's own blocker, discharged from a sibling's CI.** Row 6n said finding B3 *"is unreproduced
+here and must be measured on the runner, not locally, before any fix is designed"*. The measurement
+was sitting unread in another mission's pull request. The `launchd drivers (bash 3.2)` job
+`99402730557` on **V1's open PR #971** (head `8a384e81b`) fails with exactly
+
+    not ok - descendant discovery refuses on the real wall-clock deadline
+             lacked expected message: process-tree discovery failed
+
+and the surrounding log reads `lane=treatment driver_rc=0 peers: []`, `lane=control driver_rc=0
+peers: []`, `INSTRUMENT FAILURE: empty peer set`. So #975's *"refuses with NEITHER message"*
+understates it: under that configuration discovery **did not refuse at all** — both lanes completed
+and the run died downstream on the empty-peer-set guard. Control that the log was really parsed:
+**32** passing `ok` lines in the same fetch. **Scope, and it is load-bearing: that certifies #971's
+tree, not motoko's HEAD**, whose own `launchd drivers` leg was `success` at `4bd58bef6`.
+
+**The defect, reproduced and then sharpened.** Every mutant LANDED (sha256), PARSES (`bash -n`
+rc=0), effect-asserted against the system's own view, restored from a `cp` backup byte-identical
+with `git status --porcelain` **0**.
+
+| # | mutant | result |
+|---|---|---|
+| baseline | none | **rc=0**, 41 ok, 0 not ok, 50s |
+| E2 | neuter the in-loop wall clock alone | **rc=0, 41/41**, arm 33 still `ok` — the row's claim, re-derived |
+| E7 | neuter the node ceiling alone | **rc=1**, 39 ok, **only arm 40** reds, arm 33 still `ok` |
+| E8 | the minimal fix alone (3 distinct messages + arm 33 asserting the wall-clock one), **no ceiling change** | **rc=0, 41/41, 50s** |
+| T1 | E8's fix **plus** E2's mutant, ceiling untouched | **rc=1 in 44s**, arm 33 the failing arm on the exact message |
+
+E2 and E7 together are the statement row 6n did not have: **each branch independently suffices for
+arm 33 to pass**, so the arm cannot discriminate them by construction. T1 is the load-bearing
+acceptance and it was *run*, not predicted — clean rc=0/50s against mutant rc=1/44s, printed side by
+side, outcomes differing, and the mutant *faster* than the clean run rather than a hang.
+
+**A correction to my own inference, and it is the root of what went wrong afterwards.** Neutering
+both bounds hangs the suite past a 600s bound; I read that as *"the node ceiling is what terminates
+this arm at HEAD"*. It does not follow — the sound reading is only *"with the wall clock dead, the
+ceiling stops the walk"* — and that inference is what seeded the design the quorum then rejected.
+E8 refuted it directly. A reviewer (`oc-glm-5-2`) attacked it before I did.
+
+**The quorum blocked twice, on one surface, from opposite directions.** Round 1
+(`…2026-09-01T00-35-20Z.json`, $0.0806) and round 2 (`…T00-43-50Z.json`, $0.0781), **3/3 external
+reviewers rejecting both times, no absentees** — read at the correct nested path
+(`.synthesis.absent_reviewers`), not the top-level one that returns `null`. Per the objection-surface
+rule the surfaces were tracked rather than the round count: both rounds localise on **one** surface,
+the wall-clock-versus-ceiling race, and **no reviewer flipped to pass**, so the disposition is
+*immature*, not SPLIT. Round 1 rejected raising `MAX_TREE_NODES`; round 2 rejected **not** raising
+it. The one revision and the one re-quorum the protocol allows are spent, and the surviving
+`gpt5-6-sol` objection carries no concrete reviewer-authored fix, so the narrow-refinement carve-out
+does not apply. **Park.** Standing rule 2 forecloses force-passing over three unanimous rejections
+however good the controller's argument feels — and this iteration is the argument for that rule.
+
+**The evaluator's blocking finding is against me and it is correct.** To answer the reviewers'
+shared empirical premise — *a CI runner might do 4096 iterations inside the 1-second window* — I
+benchmarked **system `pgrep`** at ~**79** iter/s and reported a **~52×** margin. Arm 33 sets
+`PATH="$live_bin"`, and this suite installs its **own** `pgrep` stub at
+`test_motoko_connection_probe.sh:254-262`; the walk never calls system `pgrep`. Re-derived
+first-party against the actual stub: **474.9 / 652.7 / 648.6** iter/s → 4096 iterations ≈
+**6.3–8.6s**, a **~6–9× margin**. The wrong instrument, re-run for the side-by-side, reads **92.1**
+iter/s; the negative control confirms the stub resolves first on that PATH; the judge's independent
+instrument measured ~455 iter/s and agrees. The *conclusion* survives and never rested on that
+number — E8 and T1 measured the behaviour directly — but the figure offered to Mark as grounds for
+reconsidering three unanimous rejections was inflated ~6×, and it is corrected in the doc before he
+reads it. This is the scope trap aimed at a **binary** rather than a directory: my control ran, and
+it ran against the wrong executable.
+
+**The evaluator also found the synthesis both quorum rounds circled and neither reached (D4):**
+scope `PROBE_MAX_TREE_NODES` to arm 33's own `env` line rather than raising it globally or deleting
+it — measured free on the happy path (41/41, 47.1s) — which makes the ceiling structurally
+unreachable inside the window while every other arm keeps the default. **Recorded, not applied**:
+the revision budget is spent, and applying it would be a controller-invented resolution to a blocked
+quorum. It is filed as row **6p**.
+
+**Evaluator: PASS 78/100, 1 blocking, 4 non-blocking** (sonnet, its own detached worktree at
+`b76b0823a`, distinct provider from the pi/deepseek designer and from the opus controller, so
+generator≠judge holds). It reproduced **every** controller claim before ruling — C0 through C4
+including T1's 43.76s timing — and it ran the addition-shaped mutant on the branch-count gate,
+confirming the current gate at `expected_refusal_branches=24` is **silently blind** to an added
+echo-shaped refusal branch (41/41 ok with the branch added). That is filed as row **6q**. Findings
+2, 3 and 4 are applied to the doc verbatim.
+
+**A live collision, attributed and left alone.** The fleet-account open-PR filter returned **3** —
+`#997`, `#971`, `#945` — none with a branch in this clone's **16**-entry worktree list. `#971`
+touches **exactly** row 6n's two files and is `MERGEABLE`/`UNSTABLE`, but branch `mission/iter306-*`
+is V1's numbering (V1 is at 312, motoko at 31), so it is not attributable to this mission: read,
+never touched, and handed over on the cross-mission channel. It neither supersedes this work nor is
+superseded by it — `PROBE_TREE_DISCOVERY_SECS` is **0** occurrences at motoko HEAD in both files
+(controls `PROBE_MAX_TREE_NODES` **2**/**3**, negative control **0**).
+
+**Ruled out.**
+- *"The node ceiling fires first on the controller's machine"* — my own E3 inference. **REFUTED** by
+  E8. Do not rebuild a design on it.
+- *"A CI runner could process 4096 iterations in under a second"* — the reviewers' shared premise.
+  **Not refuted**, only bounded: the local margin is ~6–9×, measured against the right binary, and
+  contention slows spawns, which moves it the protective way. The CI host's own rate is unmeasured.
+- *"~52× margin"* — **my own error**, from the wrong binary. Superseded by ~6–9×.
+- *"#971 supersedes row 6n"* — **false**, measured: #971 changes which deadline bounds discovery and
+  leaves arm 33 asserting the generic wrapper.
+- *"The race is something this doc introduces"* — **false**: it is PRE-EXISTING at HEAD, so it is a
+  queue row (6p), not a revision.
+
+**Routing evidence.** Controller `claude:claude-opus-5` (session). Designer
+**`pi:ollama/deepseek-v4-flash:0731-cloud`** — the rotation's next entry after the pointer's
+`claude:claude-fable-5`; probe rc=0; two runs via `scripts/mission_pi_run.sh`, verdict `ok` both
+(366s / 91s, 1 changed file each); pointer advanced to it. **No planner and no executor ran** — the
+doc parked before a plan existed, so there was nothing to plan or execute. Evaluator **sonnet**, own
+worktree. **Fable unspent.** Metered **$0.1587** of $5 (two quorum rounds at $0.0806 + $0.0781; the
+pi lane is flat-rate $0.00). No GPU, no `rig.lock`. Gates on **darwin/arm64** against GNU bash
+3.2.57; windows and ubuntu legs unrun locally.
+
+**Bookkeeping second pick.** Row 6i's design doc and sprint plan moved `planned/` →
+`implemented/v0_35_0/`, and the doc's status header corrected from `Planned` — which it still said a
+day after the work merged — to the merge it actually landed as (`4bd58bef6`, PR #985).
+
+**Gate 5 — no skill edit.** The rule that mattered most this iteration (reproduce a judge's finding
+before believing it) worked and caught a real error of mine. My own failure — benchmarking the wrong
+binary — is an instance of a rule the skill already carries (scope the known-positive control to the
+same thing the check reads), mis-applied rather than missing, so it is a second instance of a
+documented gap and not a new one. One candidate is **recorded and below the bar**: a bare
+`ailang messages list --unread --json` returns **20** rows while `--limit 200` returns **41**, so the
+default limit silently halves the triage queue and nothing in the output says so. One instance.
+
+**Next.** Row **6o** (the SIGKILL-escalation half of the group kill), then **6p** (the race, with the
+evaluator's D4 as the candidate fix), then **6q** (the blind branch-count gate), then 6j and 6m.
+Decision ledger: **6** rows, **1 OPEN** — `D-MOTOKO-6N-1`, a ship-or-hold call with three lettered
+options, a recommendation and a dated default.

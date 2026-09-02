@@ -6,6 +6,7 @@ package cloudrun
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	run "cloud.google.com/go/run/apiv2"
@@ -195,6 +196,14 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 		{Name: "AILANG_TASK_ID", Values: &runpb.EnvVar_Value{Value: params.TaskID}},
 		{Name: "AILANG_AGENT_ID", Values: &runpb.EnvVar_Value{Value: params.AgentID}},
 		{Name: "AILANG_WORKSPACE", Values: &runpb.EnvVar_Value{Value: params.Workspace}},
+		// M-COORDINATOR-EXECUTION-TRUST M1a: the permission tier the session-protocol
+		// gate runs under. Resolved by coordinator.ResolveWorkTier from the trusted
+		// agent registry — never from message content (design doc V18).
+		{Name: "AILANG_WORK_TIER", Values: &runpb.EnvVar_Value{Value: params.WorkTier}},
+		// M2: was this run supposed to produce a diff? Trusted metadata, not the
+		// content-derived task type. Only an explicit "true" suppresses the
+		// no_changes outcome, so an unset value stays loud.
+		{Name: "AILANG_ACKNOWLEDGE_ONLY", Values: &runpb.EnvVar_Value{Value: strconv.FormatBool(params.AcknowledgeOnly)}},
 		{Name: "AILANG_PROVIDER", Values: &runpb.EnvVar_Value{Value: params.Provider}},
 		{Name: "AILANG_DIRECTIVE", Values: &runpb.EnvVar_Value{Value: params.Directive}},
 		{Name: "AILANG_REPO_URL", Values: &runpb.EnvVar_Value{Value: params.RepoURL}},

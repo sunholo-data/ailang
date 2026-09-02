@@ -30,7 +30,7 @@ log(){ :; }
 OVERRIDE_FILE="$TMP/nonexistent-override"
 PROBE_TIMEOUT=5
 MISSION_MODEL=""
-PREFS="claude-opus-5,claude-fable-5"
+PREFS="claude-opus-5,claude-fable-5-1"
 CONTROLLER_FALLBACK="codex:gpt-5.6-sol,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3"
 
 _mc_probe(){ return 1; }                        # every Anthropic rung quota-limited

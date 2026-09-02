@@ -34,6 +34,22 @@ type DispatchParams struct {
 	Subdirectory    string  // Monorepo subdirectory for package agents — M-PKG-AUTONOMOUS-UPDATES
 	ExecutorVariant string  // Docker image variant — M-EXECUTOR-VARIANTS ("", "go", "codex", etc.)
 
+	// WorkTier is the permission tier the session-protocol gate runs under
+	// ("tier1"/"tier2") — M-COORDINATOR-EXECUTION-TRUST M1a. Always set via
+	// ResolveWorkTier, never from message content (design doc V18) and never
+	// from a sender-chosen inbox (V25). Empty is read as tier 2 by the gate.
+	WorkTier string
+
+	// AcknowledgeOnly marks a dispatch that is NOT expected to change files.
+	// Trusted metadata (from the agent registry), the same authority boundary as
+	// WorkTier, and deliberately NOT the content-derived task type (V18).
+	//
+	// Stated as "acknowledge-only" rather than "expect changes" so the Go zero
+	// value is the LOUD direction: a dispatch that forgets to set this reports a
+	// no-diff run as no_changes, instead of silently inheriting the lenient
+	// behaviour this milestone exists to remove.
+	AcknowledgeOnly bool
+
 	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope fields, propagated
 	// from TaskRecord so the Cloud Run Job wrapper can decide deterministic-
 	// bump vs AI-escalation without re-fetching the task. Empty/false for

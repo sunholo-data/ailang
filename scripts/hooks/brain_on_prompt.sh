@@ -34,9 +34,13 @@ MIN_LEN="${AILANG_BRAIN_MIN_PROMPT_LEN:-40}"
 MIN_SCORE="${AILANG_BRAIN_MIN_SCORE:-0.70}"
 LIMIT="${AILANG_BRAIN_PROMPT_LIMIT:-3}"
 
+# macOS ships no coreutils timeout; without a bound the search runs until the
+# hook harness kills it at its 4s cap (measured 28/28 prompts timing out under
+# GPU contention). perl's alarm is the portable fallback — same pattern as
+# session_start.sh's run_bounded.
 if command -v gtimeout >/dev/null 2>&1; then TIMEOUT=(gtimeout 3s)
 elif command -v timeout >/dev/null 2>&1; then TIMEOUT=(timeout 3s)
-else TIMEOUT=(); fi
+else TIMEOUT=(perl -e 'alarm shift; exec @ARGV' 3); fi
 
 # Flags must come BEFORE the positional query (Go stdlib flag parser).
 RESULT=$("${TIMEOUT[@]}" ailang cache search -json -limit "$LIMIT" -scope both "$PROMPT" 2>/dev/null)

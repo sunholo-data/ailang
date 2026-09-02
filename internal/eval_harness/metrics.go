@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/executor"
 )
 
@@ -429,6 +430,15 @@ func standardModeCostProvenance(model string) string {
 	// `metered` would claim a spend that never happened.
 	if IsOllamaCloudRoute(cfg.APIName) ||
 		(cfg.AgentModelName != nil && IsOllamaCloudRoute(*cfg.AgentModelName)) {
+		return string(executor.CostListPriceEquivalent)
+	}
+	// Same reasoning for Anthropic on the OAuth lane (M-EVAL-STANDARD-OAUTH):
+	// standard mode can now authenticate with a subscription access token, in
+	// which case the priced arithmetic is real but nobody was charged. Calling
+	// that `metered` would invent spend — the exact defect this field exists to
+	// prevent. Reads the same resolver the client used, so the label cannot
+	// disagree with the lane that actually ran.
+	if cfg.Provider == string(ai.ProviderAnthropic) && ai.AnthropicLaneIsOAuth() {
 		return string(executor.CostListPriceEquivalent)
 	}
 	return string(executor.CostMetered)
