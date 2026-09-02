@@ -32,7 +32,11 @@ mkdir -p "$(dirname "$LOG")" 2>/dev/null
 # Never let git block on a credential prompt in a headless session.
 export GIT_TERMINAL_PROMPT=0
 
-log() { printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >> "$LOG" 2>/dev/null; }
+# The log is shared across every clone that installs this hook (main checkout, ailang-docs,
+# ailang-motoko, the separate ailang-world repo), so every line names its repo — otherwise a
+# "pushed 2 commits" line is unattributable and the log stops being evidence.
+REPO_NAME="$(basename "$ROOT")"
+log() { printf '[%s] [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$REPO_NAME" "$*" >> "$LOG" 2>/dev/null; }
 
 # perl alarm — the portable bound this repo already uses (macOS ships no timeout/gtimeout).
 bounded() { local s="$1"; shift; perl -e 'alarm(shift @ARGV); exec @ARGV' "$s" "$@"; }
