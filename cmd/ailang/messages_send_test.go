@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/sunholo-data/ailang/internal/messaging"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +10,9 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // TestSplitAndTrim covers the comma-separated --requires parsing.
@@ -157,7 +159,7 @@ func TestSendViaHTTP_ErrorWhenUnreachable(t *testing.T) {
 	// and point HOME at a dir without a launchd plist.
 	t.Setenv("AILANG_COORD_HTTP_PORT", "")
 	t.Setenv("PORT", "")
-	t.Setenv("HOME", t.TempDir())
+	testutil.SetHomeDir(t, t.TempDir())
 
 	err := sendViaHTTP("eval-rig", "t", "c", "f", "", "", []string{"agent:motoko"})
 	if err == nil {

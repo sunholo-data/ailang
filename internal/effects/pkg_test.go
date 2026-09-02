@@ -6,24 +6,14 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
-
-// setHomeDirForTest redirects os.UserHomeDir to the given tempdir for the
-// duration of the test. On Unix that's HOME; on Windows os.UserHomeDir
-// reads USERPROFILE first (falling back to HOMEDRIVE+HOMEPATH), so HOME
-// alone has no effect there. Setting both keeps the test cross-platform
-// without each call site needing runtime.GOOS branches.
-func setHomeDirForTest(t *testing.T, home string) {
-	t.Helper()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
-}
 
 // TestPkgAssetPath_Resolves verifies that an installed package's asset is
 // resolved to an absolute path under the registry cache.
 func TestPkgAssetPath_Resolves(t *testing.T) {
 	home := t.TempDir()
-	setHomeDirForTest(t, home)
+	testutil.SetHomeDir(t, home)
 
 	pkgDir := filepath.Join(home, ".ailang", "cache", "registry", "test", "pkg", "0.1.0", AssetsDir)
 	if err := os.MkdirAll(pkgDir, 0755); err != nil {
@@ -55,7 +45,7 @@ func TestPkgAssetPath_Resolves(t *testing.T) {
 // installed, the lexically-highest version is selected.
 func TestPkgAssetPath_PicksLatestVersion(t *testing.T) {
 	home := t.TempDir()
-	setHomeDirForTest(t, home)
+	testutil.SetHomeDir(t, home)
 	base := filepath.Join(home, ".ailang", "cache", "registry", "test", "pkg")
 	for _, v := range []string{"0.1.0", "0.2.0", "0.10.0"} {
 		dir := filepath.Join(base, v, AssetsDir)
@@ -87,7 +77,7 @@ func TestPkgAssetPath_PicksLatestVersion(t *testing.T) {
 // TestPkgAssetPath_PackageMissing returns Err when the package is not installed.
 func TestPkgAssetPath_PackageMissing(t *testing.T) {
 	home := t.TempDir()
-	setHomeDirForTest(t, home)
+	testutil.SetHomeDir(t, home)
 
 	got, err := pkgAssetPath(nil, []eval.Value{
 		&eval.StringValue{Value: "test/pkg"},
@@ -110,7 +100,7 @@ func TestPkgAssetPath_PackageMissing(t *testing.T) {
 // the asset file is absent.
 func TestPkgAssetPath_AssetMissing(t *testing.T) {
 	home := t.TempDir()
-	setHomeDirForTest(t, home)
+	testutil.SetHomeDir(t, home)
 	pkgDir := filepath.Join(home, ".ailang", "cache", "registry", "test", "pkg", "0.1.0", AssetsDir)
 	if err := os.MkdirAll(pkgDir, 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
@@ -133,7 +123,7 @@ func TestPkgAssetPath_AssetMissing(t *testing.T) {
 // relative paths.
 func TestPkgAssetPath_RejectsBadInputs(t *testing.T) {
 	home := t.TempDir()
-	setHomeDirForTest(t, home)
+	testutil.SetHomeDir(t, home)
 
 	cases := []struct {
 		name string

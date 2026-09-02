@@ -10,6 +10,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/modelreg"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // TestStandardModeCostProvenance: standard mode reaches providers over metered
@@ -211,7 +212,7 @@ func TestStandardModeCostProvenance_AnthropicOAuthIsNotMetered(t *testing.T) {
 			// cannot decide the outcome — the resolver falls back to it, so
 			// without this the "no credential" row passes or fails depending on
 			// whose machine runs the suite.
-			t.Setenv("HOME", t.TempDir())
+			testutil.SetHomeDir(t, t.TempDir())
 			t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
 			t.Setenv("ANTHROPIC_API_KEY", tt.apiKey)
 			t.Setenv("ANTHROPIC_AUTH_TOKEN", tt.authToken)
@@ -233,7 +234,7 @@ func TestStandardModeCostProvenance_CredentialFileIsSubscription(t *testing.T) {
 	}}
 
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testutil.SetHomeDir(t, home)
 	t.Setenv("ANTHROPIC_API_KEY", "")
 	t.Setenv("ANTHROPIC_AUTH_TOKEN", "")
 	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
