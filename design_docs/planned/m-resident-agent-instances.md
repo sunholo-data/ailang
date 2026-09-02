@@ -166,7 +166,7 @@ on a 1 GiB instance). Allocation was OOM-killed at ~800 MiB, and **the
 container survived**: the cgroup killed the child, not the supervisor. cgroup
 files are unreadable under the sandbox, so limits must be passed in as env.
 
-**herdr runs headless with no controlling terminal** — confirmed. Three traps,
+**herdr runs headless with no controlling terminal** — confirmed. Five traps,
 each of which cost time and would cost more unattended:
 
 - `setsid herdr server` **fails silently** — no output, empty log, no server.
@@ -174,6 +174,18 @@ each of which cost time and would cost more unattended:
   readiness loop keyed on its exit code never waits. Probe `api snapshot`.
 - `workspace list` / `pane list` return successful **empty** results with no
   server running, indistinguishable from a healthy idle one.
+- **`agent.start` returns before the agent can accept input.** Prompting
+  immediately fails with "not an active named agent" while herdr simultaneously
+  reports `agents: 1`. `AgentInfo` carries `interactive_ready` and
+  `launch_pending` for exactly this — wait on them, never on a guessed sleep.
+- **`agent.prompt` without a `wait` object does not reliably submit.** Observed
+  live: the prompt sat in pi's input box with context at `0.0%/1.3M`, so no
+  model call was made and the task hung at `working` indefinitely. The
+  socket-api docs are explicit that passing `wait` (`{until, timeout_ms}`) is
+  what "submits the prompt and starts the wait in one request". The same
+  paragraph documents a refusal that must not be swallowed: if the agent is
+  already `blocked`, `agent.prompt` returns **`agent_blocked` without sending
+  input** — ignoring that response is how a prompt silently vanishes.
 
 `HERDR_SOCKET_PATH`, not `HOME`, is the isolation lever.
 

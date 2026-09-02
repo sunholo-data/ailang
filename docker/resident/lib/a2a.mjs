@@ -201,8 +201,21 @@ export async function messageSend(params) {
   // Wait for the CLI to be able to take input: agent.start returns as soon as
   // the process is launched, not when it is ready.
   await herdr.waitInteractive({ target: agentName });
-  await herdr.agentPrompt({ target: agentName, text });
-  watch(task, agentName);
+  // Submits AND waits in one request. Fire-and-forget so the A2A call returns
+  // a task promptly rather than holding the connection for the whole run.
+  herdr
+    .agentPrompt({ target: agentName, text })
+    .then(async () => {
+      await captureOutput(task, agentName);
+      watch(task, agentName);
+    })
+    .catch(async (e) => {
+      await captureOutput(task, agentName).catch(() => {});
+      setState(task, TaskState.failed, {
+        role: "agent", messageId: randomUUID(), kind: "message",
+        parts: [{ kind: "text", text: `prompt failed: ${e.message}` }],
+      });
+    });
   return task;
 }
 

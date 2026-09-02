@@ -53,7 +53,34 @@ export async function agentStart({ name, kind, paneId, args = [], timeoutMs = 30
   return call("agent.start", { name, kind, pane_id: paneId, args, timeout_ms: timeoutMs });
 }
 
-export async function agentPrompt({ target, text }) { return call("agent.prompt", { target, text }); }
+// agent.prompt WITHOUT a `wait` object does not reliably submit: observed live
+// 2026-09-02 with the prompt sitting in pi's input box and context stuck at
+// 0.0%, so no model call was ever made and the task hung at `working`.
+//
+// The socket-api docs are explicit: "agent.prompt accepts an optional `wait`
+// object with `until` and `timeout_ms`; this submits the prompt and starts the
+// wait in one request, avoiding a race between separate calls." So the wait
+// object is what makes it a submission, and it removes a race we would
+// otherwise have to handle ourselves.
+//
+// The same paragraph documents a refusal we MUST NOT swallow: "If the resolved
+// agent is already blocked, agent.prompt returns agent_blocked without sending
+// input." Ignoring that is how a prompt silently vanishes.
+export async function agentPrompt({ target, text, until = ["idle", "blocked", "done"], timeoutMs = 600000 }) {
+  const r = await call(
+    "agent.prompt",
+    { target, text, wait: { until, timeout_ms: timeoutMs } },
+    { timeoutMs: timeoutMs + 10000 },
+  );
+  const type = r?.type ?? r?.result?.type;
+  if (type === "agent_blocked" || r?.agent_blocked) {
+    throw Object.assign(
+      new Error(`agent ${target} was already blocked; herdr refused to send the prompt (agent_blocked)`),
+      { agentBlocked: true },
+    );
+  }
+  return r;
+}
 
 // agent.start RETURNS BEFORE THE AGENT CAN ACCEPT INPUT. Prompting straight
 // after it fails with "not an active named agent" — observed live 2026-09-02 on
