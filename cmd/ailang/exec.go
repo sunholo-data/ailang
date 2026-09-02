@@ -95,13 +95,16 @@ func runExec() {
 
 	// Parse arguments (normalize flags first)
 	args := flag.Args()[1:] // Skip "exec" command
-	normalizable := []string{
-		"workspace", "model", "timeout", "task-id", "parent-task-id",
-		"system-prompt", "api-only", "register-task", "dry-run",
-		"stream-json", "quiet", "json", "clone-repo", "clone-sha",
+	// The flag names come from fs itself (M-COORDINATOR-EXECUTION-TRUST M5).
+	// This used to be a hand-maintained list plus routingFlagNames(); a list that
+	// must track a FlagSet drifts, and it could not say which flags take a value —
+	// so a bool flag swallowed the following positional and a dash-leading value
+	// shifted every later token.
+	args, normErr := normalizeArgsForFlags(args, fs)
+	if normErr != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), normErr)
+		os.Exit(1)
 	}
-	normalizable = append(normalizable, routingFlagNames()...)
-	args = normalizeArgsForFlags(args, normalizable)
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)

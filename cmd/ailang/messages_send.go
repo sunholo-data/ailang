@@ -54,7 +54,11 @@ func runMessagesSend(args []string) {
 
 	// Normalize args: move flags before positional arguments
 	// Go's flag package requires flags to come first, but users often put them at the end
-	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation", "force", "parent-task", "envelope-code", "envelope-context", "no-envelope", "github", "type", "repo", "github-user", "requires"})
+	args, normErr := normalizeArgsForFlags(args, fs)
+	if normErr != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), normErr)
+		os.Exit(1)
+	}
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -422,49 +426,100 @@ func runMessagesReply(args []string) {
 	fmt.Printf("%s Reply added to GitHub issue #%d in %s\n", green("✓"), *msg.GitHubIssue, targetRepo)
 }
 
-// normalizeArgsForFlags moves flags to the front of args so Go's flag package can parse them.
-// Go's flag package stops parsing when it sees a non-flag argument, but users often put
-// flags at the end (e.g., "send inbox message --title foo" instead of "send --title foo inbox message").
-func normalizeArgsForFlags(args []string, flagNames []string) []string {
-	// Build a set of known flag names (with -- prefix)
-	knownFlags := make(map[string]bool)
-	for _, name := range flagNames {
-		knownFlags["--"+name] = true
-		knownFlags["-"+name] = true
+// normalizeArgsForFlags moves flags to the front of args so Go's flag package
+// can parse them. Go stops parsing at the first non-flag argument, but users
+// naturally write `send inbox message --title foo` rather than
+// `send --title foo inbox message`.
+//
+// The flag set is read from fs itself rather than a hand-maintained list of
+// names. The old signature took []string, which meant every caller repeated the
+// names — and a list that must be kept in step with a FlagSet is a list that
+// drifts. It also could not distinguish a boolean flag from one taking a value,
+// which was the second half of the bug below.
+//
+// M-COORDINATOR-EXECUTION-TRUST M5 (design doc V29). The previous version
+// decided whether the NEXT token was a value with `!strings.HasPrefix(next, "-")`.
+// The intent was to avoid swallowing a following flag; the effect was to reject
+// any legitimate value that begins with a dash, drop it into the positional
+// list, and shift every later token. Measured 2026-09-02:
+//
+//	ailang messages send diag-argparse "body" \
+//	  --title "--help is inconsistent" --from "diag-sender"
+//
+// delivered the message to inbox "diag-sender", set from_agent to the "cli"
+// default, set the title to the literal string "--from" — and printed
+// "✓ Message sent". A misrouted message that reports success is exactly the
+// failure class this milestone exists to remove, one layer earlier than the rest.
+//
+// Two rules now:
+//
+//  1. Whether the next token is this flag's value is decided by the FLAG, not by
+//     the token's first character. A value flag always takes the next token; a
+//     boolean flag never does. Dash-leading values therefore survive, and a bool
+//     flag no longer swallows the positional after it.
+//  2. A value flag with nothing left to consume is an ERROR. Silently shifting is
+//     how routing became a side effect of a parse that half-failed.
+func normalizeArgsForFlags(args []string, fs *flag.FlagSet) ([]string, error) {
+	if fs == nil {
+		return args, nil
 	}
 
-	var flags []string
-	var positional []string
+	// takesValue[name] reports whether that flag consumes the following token.
+	// Booleans are identified the way the flag package itself does it.
+	takesValue := make(map[string]bool)
+	fs.VisitAll(func(f *flag.Flag) {
+		isBool := false
+		if bv, ok := f.Value.(interface{ IsBoolFlag() bool }); ok && bv.IsBoolFlag() {
+			isBool = true
+		}
+		takesValue[f.Name] = !isBool
+	})
+
+	// flagNameOf returns the bare flag name for "-x"/"--x", and whether it is one
+	// this set knows.
+	flagNameOf := func(arg string) (string, bool) {
+		if !strings.HasPrefix(arg, "-") {
+			return "", false
+		}
+		name := strings.TrimLeft(arg, "-")
+		if name == "" {
+			return "", false
+		}
+		_, known := takesValue[name]
+		return name, known
+	}
+
+	var flags, positional []string
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
-		// Check if this is a known flag
-		isFlag := false
-		for flagName := range knownFlags {
-			if arg == flagName {
-				isFlag = true
-				// Flag with separate value
+
+		// "--name=value" carries its own value; nothing to consume.
+		if eq := strings.IndexByte(arg, '='); eq > 0 {
+			if _, known := flagNameOf(arg[:eq]); known {
 				flags = append(flags, arg)
-				if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-					i++
-					flags = append(flags, args[i])
-				}
-				break
-			}
-			if strings.HasPrefix(arg, flagName+"=") {
-				isFlag = true
-				// Flag with = value
-				flags = append(flags, arg)
-				break
+				continue
 			}
 		}
-		if !isFlag {
+
+		name, known := flagNameOf(arg)
+		if !known {
 			positional = append(positional, arg)
+			continue
 		}
+
+		flags = append(flags, arg)
+		if !takesValue[name] {
+			continue // boolean: must not eat the next token
+		}
+		if i+1 >= len(args) {
+			return nil, fmt.Errorf("flag --%s needs a value", name)
+		}
+		i++
+		flags = append(flags, args[i])
 	}
 
-	// Flags first, then positional arguments
-	return append(flags, positional...)
+	return append(flags, positional...), nil
 }
 
 // resolveEnvelopeCodeFiles determines which files to use for the code envelope slot.
