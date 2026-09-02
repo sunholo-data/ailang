@@ -1,7 +1,7 @@
 # M-COORDINATOR-EXECUTION-TRUST: make "a job ran" mean "work was attempted, and we know the outcome"
 
 **Status**: Planned — attended, standalone critical-infrastructure work, deliberately off the mission queue (Mark, 2026-09-02).
-**Scope**: **M1a + M2 + M3 (landed 2026-09-02) + M4 (queue visibility) + M5 (send-path misrouting, found by the end-to-end test).** The general per-repo manifest system split to [M-PACKAGE-PROTOCOL-MANIFESTS](m-package-protocol-manifests.md) 2026-09-02 (Mark, attended) — three quorum rounds put every unresolved objection there, while M2/M3's closed and stayed closed.
+**Scope**: **M1a + M2 + M3 (landed 2026-09-02) + M4 (queue visibility) + M5 (send-path misrouting) + M6 (pi extension self-collision) — M5 and M6 both found by the end-to-end test.** The general per-repo manifest system split to [M-PACKAGE-PROTOCOL-MANIFESTS](m-package-protocol-manifests.md) 2026-09-02 (Mark, attended) — three quorum rounds put every unresolved objection there, while M2/M3's closed and stayed closed.
 **Rulings**: **All of D1–D4 ruled by Mark 2026-09-02 (attended)** — see Decisions. D2 REVERSED the author's recommendation and improved the design. Design freeze is CLOSED; sprint may proceed.
 **Target**: v0.35.0
 **Priority**: P0. Every autonomous lane downstream — package agents, cascade, feedback triage, cross-repo handoffs — dispatches through this path and has been producing nothing for six days without saying so.
@@ -25,6 +25,7 @@ predecessor, one level up: **the parts work, the outcome is unobservable.**
 
 | Seam | Symptom | Root cause | Milestone |
 |---|---|---|---|
+| plugin → pi startup | Any task whose workspace IS the AILANG repo dies before turn 1 | the globally installed pi suite collides with the repo's own `.pi/extensions/` on tool names (V30) | **M6** |
 | gate → executor | Agent reads the repo, diagnoses the bug correctly, writes nothing, exits 0 | The session-protocol gate is baked into the pi executor image at `/home/ailang/.pi` and arms in **every** workspace; the disarm is a tool call the pinned executor model never makes | **M1** |
 | executor → completion | 4 of 4 recent tasks report `completed` with `changed_files: null` and no pushed branch | A no-op path added for acknowledge-only probes returns `nil`, so `publishCompletion("completed", …)` fires for both "nothing to do" and "structurally prevented" | **M2** |
 | send → inbox | A message is delivered to a DIFFERENT inbox than addressed, and says `✓ Message sent` | a flag value starting with `-` is refused by `normalizeArgsForFlags`, shifting every later token (V29) | **M5** |
@@ -80,6 +81,7 @@ Every load-bearing claim below was checked against the code or against prod
 | **V27** | **`ailang-multivac` is PROD, and the automatic builds do not touch it.** `ailang-core-dev` runs with `_TARGET_PROJECT=ailang-multivac-dev`, `_PREFIX=ailang-dev`. A full parallel plane exists there (`ailang-dev-coordinator`, `ailang-dev-agent-executor-*`) with its own Firestore and an `ailang-dev` topic prefix. Prod updates via the `ailang-multivac-prod` trigger or `promote-to-prod` ("copy images, no rebuild") | `gcloud builds describe` substitutions; `gcloud run services/jobs list --project ailang-multivac-dev` | **CORRECTS the first Rollout draft**, which read as though a dev build reached the plane this doc audits. It does not — and the dev plane is therefore a safe place to test |
 | **V28** | **CORRECTION — the ack is INTERMITTENT, not never.** This doc said the pinned executor model "never makes" the `session_protocol_ack` call. Measured on the dev plane 2026-09-02 (`task-f8213acd`, same model `deepseek-v4-flash-0731`): the model hit the gate, then **called `session_protocol_ack` in turn 1** and unlocked. `task-4e415b46` on 08-31 never called it across twelve minutes | dev-plane executor logs, both runs | **Falsifies the doc's own wording.** The gate is a *flaky* blocker, not a deterministic one — which is worse for diagnosis, because the failure then looks like model variance rather than a harness defect. M1a's floor is still the right fix: it removes the coin-flip |
 | **V29** | **NEW DEFECT, same class as this doc's thesis: a message can be delivered to the WRONG INBOX while reporting success.** `normalizeArgsForFlags` (`cmd/ailang/messages_send.go:448`) refuses to consume a flag value beginning with `-`, so the value falls through to positional and every later token shifts. Minimal repro: `ailang messages send diag-argparse "body" --title "--help is inconsistent" --from "diag-sender"` → the message lands in inbox **`diag-sender`**, `from_agent` falls back to `cli`, `title` becomes the literal string `--from`, and the CLI prints `✓ Message sent`. Control with a title not starting with `-` routes correctly | reproduced 5×, isolated to the dash-prefixed flag VALUE (not the body) | **Found by the end-to-end test this doc motivated.** Any report whose title starts with `--help`, `-v`, `--json`… is silently misrouted |
+| **V30** | **BLOCKING: every pi executor task whose workspace is the AILANG repo dies at startup.** `ailang pi install` materialises the suite into `~/.pi/agent/extensions/` — its own help text says *"global — every repo on this machine"* — and the AILANG repo ALSO ships `.pi/extensions/` with the same files. pi loads both and refuses: `Failed to load extension ".../ailang-lsp-lite.ts": Tool "ailang_check" conflicts with /workspace/task-X/.pi/extensions/ailang-lsp-lite.ts`, then `exit status 1` | dev plane 2026-09-02: `task-6825b3fc` and `task-48a365bb` (workspace `sunholo-data/ailang`) both failed identically; `task-f8213acd` (workspace `sunholo-data/ailang-packages`) did not | **Structural, and pre-existing** — the Dockerfile has always run `ailang pi install`. It went unseen because prod pi tasks target package repos. It takes out `design-doc-creator`, `sprint-planner`, `sprint-evaluator` and `coordinator` — the whole AILANG-repo pipeline on the pi provider |
 
 **Not verified, deliberately deferred:** why executor GitHub writes return `422` on every REST
 and GraphQL issue-create (token scopes read healthy). It cost the agent ~2 of its 15 minutes but
@@ -496,6 +498,29 @@ shift.** The routing outcome must never be a side effect of a parse that half-fa
 **Arms:** a title beginning with `--help` routes to the addressed inbox, keeps its `--from`, and
 keeps its title; a genuinely missing flag value errors instead of shifting; the existing
 non-dash cases stay byte-identical.
+
+### M6 — The globally installed pi suite must not collide with the repo that owns it (V30)
+
+The most consequential thing the end-to-end test found, and the one that makes M1a unobservable
+on this repo: **a pi task cloning `sunholo-data/ailang` never reaches turn 1.** The suite is
+installed globally into `~/.pi/agent/extensions/` so that it applies in every workspace — which
+is exactly what D2 wanted — and the AILANG repo carries the same files in `.pi/extensions/`, so pi
+sees two registrations of `ailang_check` and exits 1.
+
+Note the shape: **this is the same global-install decision that makes the gate apply everywhere.**
+D2 got the goal right; the mechanism has a self-collision nobody had exercised, because prod pi
+tasks all target package repos.
+
+**Options, in preference order:**
+1. Make the loader prefer the repo-local copy and skip the global one on a name clash — a
+   workspace that ships its own suite is stating a preference, and honouring it is strictly more
+   correct than failing.
+2. Have `ailang pi install` skip files the workspace already provides.
+3. Detect the AILANG repo at execute-job time and not inject the global suite. Weakest: it special-
+   cases one repo, and every package repo that later adds `.pi/extensions/` hits the same wall.
+
+**Arm:** a pi executor run whose workspace is the AILANG repo reaches turn 1. There is no such
+test today, which is precisely why four agents were dead on this provider without anyone knowing.
 
 ### Files to Modify/Create
 
