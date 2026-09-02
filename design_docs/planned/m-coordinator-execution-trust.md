@@ -66,6 +66,10 @@ Every load-bearing claim below was checked against the code or against prod
 | V15 | The two gate copies are currently byte-identical, and a `make` target syncs them | `diff -q .pi/extensions/session-protocol-gate.ts cmd/ailang/pi_assets/session-protocol-gate.ts` → silent; `Makefile:368` defines `pi-assets` | **Confirmed** |
 | V16 | The guard protecting the deleted routing table exists — **under a different name than the code cites** | `model_resolution.go:21` cites `TestCloudAgents_ResolveIdenticallyWithoutModelRouting`, which exists nowhere. The real guard is `TestCloudAgents_RegistryMatchesTheDeletedRoutingTable` (`agents_fixture_test.go:56`) | **Corrected** — fix the comment in M3 |
 | V17 | Nothing in this doc can reach prod on the current images | Latest coordinator image built **2026-08-31T11:13:36Z**; prod rev `00064-4w6` still counts outcome notices in the backstop sweep, which `e0b12bf5f` skips | **Confirmed — see Rollout** |
+| **V18** | **The tier source is untrusted.** A closed `TaskType` enum exists (`provider.go:11-21`, incl. `TaskTypeUnknown`) and is on the Task (`store.go:16`) — **but it is assigned by `classifyTaskType(task.Content)` (`analyzer.go:31,65`), a substring match over sender-controlled message text.** The bug-fix branch is tested FIRST with the broadest list: `bug, fix, error, crash, broken, issue, problem, fail, wrong` | read the classifier | **REFUTES the doc's original M1.** "The task type is already on the record" was true; "so the classifier need not guess" was false. Nearly every inbound message classifies tier 1 |
+| **V19** | **The real consumers of completion status are Go switch sites, not the four reporting surfaces the doc named.** `pubsub_completion_handler.go` :85 (terminality), :95 (`Success:`), :111 (`switch`), :169, :186; `observatory_sync.go` :66/:136/:138; `daemon_tasks_worktrees.go:103` (orphan-worktree cleanup); `event_handler.go:238`; `store_sqlite_queries.go` :185/:229 | `grep -rn "\.Status\b"` across `internal/coordinator`, `internal/pubsub`, `cmd/ailang` | **Corrects M2.** The named list was wrong *in kind* |
+| **V20** | The terminality check at `pubsub_completion_handler.go:85` is a **literal string comparison** — `task.Status == "completed" \|\| "failed" \|\| "cancelled"` — not an enum switch | read the site | A new `no_changes` would **not** register as terminal and the task could be re-processed. The exact silent failure D3 was chosen to avoid |
+| **V21** | There is **no central prerequisite floor** in the gate today — `headlessPrerequisitesMet` is a single hard-coded pair with nothing above it to inherit from | read `.pi/extensions/session-protocol-gate.ts` | **Confirmed (negative).** So "repo-declared protocol" as originally written had nothing to be bounded by |
 
 **Not verified, deliberately deferred:** why executor GitHub writes return `422` on every REST
 and GraphQL issue-create (token scopes read healthy). It cost the agent ~2 of its 15 minutes but
@@ -273,24 +277,43 @@ Any consumer treating `completed` as "work landed" was already wrong; after M2 i
 
 Two changes, one to each axis.
 
-**Tiering (D1).** `shouldBlock` consults a work tier. Tier 1 — bug-fix, triage, reply, docs —
-unblocks once `headlessPrerequisitesMet()` is satisfied, with no ack required; the ack tool stays
-registered and its call is still recorded when a capable model makes it, so a mission-loop
-controller or an attended session produces exactly the audit line it does today. Tier 2 —
-feature/semantics — has **no auto-path**: an explicit ack plus the design-doc and sprint-plan
-evidence, checked rather than asserted. The interactive `ctx.hasUI` confirm path is unchanged in
-both tiers.
+**Tiering (D1), with a trusted authority boundary.** Quorum round 0 blocked the first draft here
+and was right; V18 then showed the hole is worse than the objection stated.
 
-The failure this fixes is not "the model was too weak". On `task-4e415b46` the model satisfied
-both prerequisites in three turns and then spent twelve minutes blocked (V6). **The gate had all
-the evidence it needed and asked for a password anyway.** Tier 1 is that floor. Tier 2 is where
-the ack finally does work it was never doing.
+> **The first draft said "the task type is already on the record, so the classifier need not
+> guess." The field is on the record. It is also computed by `classifyTaskType()`, a substring
+> match over sender-controlled message content, whose bug-fix branch is tested first against
+> `bug, fix, error, crash, broken, issue, problem, fail, wrong`. Almost every inbound message
+> classifies as tier 1 — so "feature work has no auto-path" would have been vacuous, and any
+> sender could have chosen their own tier by word choice.**
 
-**Generalisation (D2).** The gate stays loaded in every workspace, and the *protocol* becomes
-repo-declared instead of AILANG-hardcoded. A repo publishes its prerequisite set; a repo that
-declares nothing inherits today's AILANG set unchanged. This is what turns the gate from a
-convention in one repository into the permission layer for the package ecosystem — which is the
-stated goal, and a larger thing than the bug that exposed it.
+The tier is therefore **not** read from `classifyTaskType`:
+
+1. **Source.** `work_tier` is a closed enum set by the **coordinator at dispatch time** from
+   trusted routing metadata (agent config + inbox), carried on the task, and **not derivable from
+   message content**. The executor and the model can read it and can neither set nor downgrade it.
+2. **Fail-closed.** Missing, unknown, conflicting, or model-supplied values resolve to **tier 2**
+   and prohibit mutation pending an explicit ack plus verified design evidence. `classifyTaskType`
+   keeps its existing job — shaping the system prompt (`meta_prompt.go:19`) — and gains no
+   authority it does not already have.
+3. **Floor.** The gate always enforces a **centrally defined minimum prerequisite set**. There is
+   none today (V21), so M1 creates it.
+
+**Generalisation (D2), bounded by that floor.** The gate stays loaded in every workspace, and a
+repo may publish a **versioned manifest that ADDS prerequisites — never removes or weakens the
+floor.** Without that bound, a repository we dispatch into could declare an empty protocol and
+unlock write access to itself: repository-controlled content deciding its own permission
+requirements. A malformed or unsupported-version manifest **blocks mutation** with a structured
+terminal reason rather than falling back to the default — no silent fallback (Principle 2).
+
+The floor must also be **generic**, not AILANG-specific: a foreign workspace with no manifest and
+no `CLAUDE.md` must still be able to satisfy it. This resolves the conflict the reviewer spotted
+between the clean-foreign-workspace success criterion and inheriting an AILANG default that
+requires a file the repo does not have.
+
+The failure M1 fixes remains the one measured in V6 — the model satisfied both prerequisites in
+three turns and stayed blocked for twelve minutes. Tier 1 is that floor. Tier 2, now that its
+input is trustworthy, is where the ack finally does work it was never doing.
 
 ### M2 — A no-op is an outcome, not a silence (D3 still open)
 
@@ -308,12 +331,26 @@ which way should it be wrong?
 | New status value `no_changes` | *not* `completed` → counts as not-success | **safe** |
 | Boolean flag on `completed` | `completed` → counts as success | **unsafe** |
 
-**RULED: the new status value `no_changes`.** It fails in the direction that surfaces the
-problem rather than hiding it, which is the entire thesis of this doc and its predecessor; a
-boolean would be ignored by exactly the queries that matter. **M2 must enumerate every consumer
-that switches on status and add a case to each** — the backstop sweep, the dashboard,
-`messages health`, and the banked task corpus. Discovering them at runtime is how a fail-safe
-value becomes a silent one.
+**RULED: the new status value `no_changes`** — it fails in the direction that surfaces the
+problem rather than hiding it, which is the entire thesis of this doc and its predecessor.
+
+Quorum round 0 blocked on the consumer list and was right: the first draft named four *reporting
+surfaces* (sweep, dashboard, `messages health`, banked corpus) and asserted they were exhaustive
+without proof. **V19 shows the real consumers are in-process Go switch sites**, and the list was
+wrong in kind. Enumerated, each needs a case:
+
+| Site | What it decides | Risk if missed |
+|---|---|---|
+| `pubsub_completion_handler.go:85` | **terminality** — and it is a literal string compare, not an enum switch (V20) | `no_changes` not recognised as terminal → task re-processed. **The exact silent failure D3 was chosen to avoid** |
+| `pubsub_completion_handler.go:95` | `Success: completion.Status == "completed"` | a no-op counts as neither success nor failure — intended, but must be deliberate |
+| `pubsub_completion_handler.go:111` | the completion `switch` | unhandled branch |
+| `pubsub_completion_handler.go:169,186` | banked payload + notification title | reporting only |
+| `observatory_sync.go:66,136,138` | `convertTaskStatus`, agent assignment status | dashboard mis-state |
+| `daemon_tasks_worktrees.go:103` | **orphaned-worktree cleanup keyed on status** | worktrees leak for every no-op task |
+| `event_handler.go:238`, `store_sqlite_queries.go:185,229` | event + persistence round-trip | value fails to survive a reload |
+
+**AC:** a test enumerates the switch sites and fails when a new status value is added without a
+case at each — otherwise this list goes stale the first time someone adds a status.
 
 ### M3 — The fallback chain, cheapest tier first (D4)
 
@@ -363,10 +400,16 @@ guard, and this doc exists because three code paths had none.
 | MU-2 | Drop the `ctx.hasUI` branch | `TestInteractiveStillRequiresHumanConfirm` |
 | MU-3 | Allow tier-2 work through the tier-1 auto-path | `TestFeatureWorkHasNoAutoPath` (D1's load-bearing arm) |
 | MU-4 | Remove the ack recording when a model does call it | `TestAckIsStillRecordedWhenMade` (keeps the audit line real) |
-| MU-5 | Hard-code the AILANG prerequisite set | `TestRepoDeclaredProtocolOverridesDefault` (D2) |
+| MU-5 | Let a repo manifest remove or weaken a floor prerequisite | `TestManifestMayOnlyAddToTheFloor` (**quorum round 0, gpt5-6-sol**) |
+| MU-5b | Fall back to the default on a malformed/unsupported manifest | `TestMalformedManifestBlocksMutation` (no silent fallback) |
+| MU-5c | Make the floor require an AILANG-specific file | `TestFloorSatisfiableInAForeignRepo` |
+| MU-5d | Derive `work_tier` from `classifyTaskType` / message content | `TestTierIsNotDerivableFromMessageContent` (**V18 — the load-bearing arm**) |
+| MU-5e | Default a missing/unknown/model-supplied tier to tier 1 | `TestUnknownTierFailsClosedToTier2` |
 | MU-6 | Make the gate inert outside the AILANG repo | `TestGateAppliesInForeignWorkspace` (D2 — the reversed decision) |
 | MU-7 | Detach attribution from the gate handler | `TestAttributionObservesEveryBashCall` (Conflict Surface #2) |
 | MU-8 | Report a zero-diff bug-fix task as `completed` | `TestNoDiffTaskIsNotCompleted` |
+| MU-8b | Omit `no_changes` from the terminality check at :85 | `TestNoChangesIsTerminal` (**V20**) |
+| MU-8c | Add a status value with no case at a switch site | `TestEveryStatusConsumerHandlesEveryStatus` (keeps V19's list from going stale) |
 | MU-9 | Report an acknowledge-only probe as failed | `TestAcknowledgeOnlyTaskStillCompletesCleanly` (Conflict Surface #4) |
 | MU-10 | Return `chain[0]` from `ResolveModel` | `TestResolveModelReturnsWholeChain` |
 | MU-11 | Treat a model refusal as retryable | `TestOnlyTransportFailuresAdvanceTheChain` (D5) |
@@ -471,6 +514,9 @@ is currently the only thing preventing a repeat of the 1,146-message amplificati
 | ~~D2 silently drops commit attribution~~ | — | **Deleted by the D2 ruling** — the gate stays loaded everywhere, so the coupling is never broken. MU-7 keeps it that way. |
 | D2 enforces AILANG conventions on repos that never adopted them | High | Repo-declared prerequisite sets, AILANG as default (Conflict Surface #2b, MU-5). |
 | Tier-1 auto-disarm is read as removing the permission system | Med | It adds a floor beneath the ack, and tier 2 enforces a clause that is unenforced today (A4 rationale). MU-3 is the arm. |
+| **A sender picks their own tier by word choice** | **High** | **Found by quorum round 0 + V18.** `work_tier` comes from trusted dispatch metadata, never from message content; fail-closed to tier 2. MU-5d/MU-5e. |
+| **A repo declares an empty protocol and unlocks itself** | **High** | **Found by quorum round 0.** Manifests may only ADD to a central floor; malformed manifests block rather than fall back. MU-5/MU-5b. |
+| A new status value is added later with no case at a switch site | Med | MU-8c asserts exhaustiveness rather than trusting V19's list to stay current. |
 | Re-dispatch doubles cost on a bad day | Med | Hard cap of 2 executions per task, infra-class only (MU-12, MU-13). |
 | The two gate copies drift | Med | MU covered by `make pi-assets` in CI; V15 records they are in sync today. |
 | M3 re-creates a second routing table | Med | Chain semantics stay in `modelreg`; `TestCloudAgents_RegistryMatchesTheDeletedRoutingTable` is the guard. |
@@ -482,8 +528,19 @@ is currently the only thing preventing a repeat of the 1,146-message amplificati
 
 **Attended session. Triggers #1, #2 and #3 fire** — M1 overrides machinery shared with interactive
 sessions (Conflict Surface #1), D3 changes banked-data schema, and a design-freeze item remains
-open. **D1, D2 and D4 are now ruled**, so reviewers would see decided premises. **D3 is settled, so the quorum runs now**, before planning — and reviewers are pointed at the A4
-rationale and Conflict Surface #2b, the two places this design is most attackable.
+open. **D1, D2 and D4 are now ruled**, so reviewers would see decided premises. **Round 0 — 2026-09-02, BLOCKED. Both reviewers rejected; both were right.**
+Artifact: `.ailang/state/mission-quorum/m-coordinator-execution-trust-2026-09-02T06-10-11Z.json`
+($0.087, 2/2 present, no absences).
+
+| Reviewer | Objection | Disposition |
+|---|---|---|
+| `gpt5-6-sol` | M1 defines no trusted authority boundary for the work tier, and a repo-declared protocol could weaken or empty the gate | **ACCEPTED IN FULL.** V18 then showed it was worse than stated: the tier field is computed by substring match over sender-controlled content. M1 rewritten — trusted dispatch metadata, fail-closed to tier 2, central floor a manifest may only extend |
+| `gemini-3-1-pro` | The four named status consumers were asserted exhaustive without a Verification Log row | **ACCEPTED IN FULL.** V19/V20 enumerate the real sites; the list was wrong in kind, and `:85` is a string compare that would not have recognised `no_changes` as terminal |
+
+Neither objection was argued. The doc was technically exempt from the Conflict Surface rule and
+wrote one anyway; the same instinct applies here — a reject that lands on substance is worth more
+than the round it costs. **Round 1 is the re-quorum-ONCE guardrail: if it blocks again, this hands
+over rather than grinding.**
 
 ```bash
 ailang design-quorum design_docs/planned/m-coordinator-execution-trust.md \
