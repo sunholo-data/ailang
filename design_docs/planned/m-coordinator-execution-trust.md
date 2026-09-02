@@ -670,6 +670,24 @@ cleanup chore.
 `planned/` — moving it to `implemented/` today would bank a false completion, which is the exact
 failure mode both documents exist to prevent.
 
+## OPEN — prod carries a known ceiling inversion until its next deploy
+
+**Ruled by Mark 2026-09-02 (attended): leave it.** Prod runs agents at a 2h wall-clock against a
+1h platform `taskTimeout`. A prod task that runs past **one hour** will be killed by Cloud Run
+before its own timeout fires, so **no completion is published and the outcome is lost** rather
+than reported.
+
+- **Risk is bounded and currently unrealised.** The longest task measured today was ~17 minutes.
+- **It closes on the next `ailang-multivac-prod` run**, which is the only path that applies
+  terraform. `promote-to-prod` cannot close it — it copies images and does not run terraform
+  (V39). The tfvars already say `14400s`; nothing further needs writing, only applying.
+- **Until then the 2h agent ceiling is not actually usable in prod.** Anything expected to exceed
+  an hour should wait for that apply.
+
+Whoever runs the next prod deploy: verify `gcloud run jobs describe ailang-agent-executor-pi
+--project ailang-multivac` reports `taskTimeout: 14400` afterwards. Three times today a green
+pipeline did not mean the value had moved (V40).
+
 ## Rollout — two pipelines, two planes
 
 **The first draft of this section was wrong twice, and the corrections are V26/V27.** It read as
