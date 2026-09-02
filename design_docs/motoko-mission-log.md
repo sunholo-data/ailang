@@ -3112,6 +3112,129 @@ already been closed, not a new one.
 6j and 6m. Decision ledger: **5** rows, **0 OPEN** — `D-MOTOKO-WORKDIR-2` was answered and discharged
 by iteration 28, so for the first time since iteration 21 this mission is asking nothing of Mark.
 
+## 33 — 2026-09-02 — the judge's blocking finding was about where I put the arm, not what it asserts [HARNESS]
+
+**Pick.** Queue head, row **6r** — the `(test stub)` refusal message pinned by a static grep and by
+nothing behavioural. Named as Next by iteration 32.
+
+**Progress.** The bar's clause 1 (the tree gates green from source) is the countable unit this row
+serves, and the suite's arm count is its proxy: **43 self-test arms, up from 42**, with all three
+`descendant_pids` refusal branches now asserting their own discriminating message instead of two of
+three. Sprint-sized backlog: 6r closes; 6j and 6p gain evidence; 6s is new. Ungated queue now
+**6o → 6p → 6s → 7 → 8**.
+
+**Outcome.** LANDED — PR [#1027](https://github.com/sunholo-data/ailang/pull/1027) squashed to
+[`115184a2e`](https://github.com/sunholo-data/ailang/commit/115184a2e). Three commits reconstructed
+from the executor's snapshots plus one controller commit (M3) that the evaluation forced.
+
+**The defect, reproduced before routing.** A judge's finding is a claim until you run it. Copy of the
+probe with ` (test stub)` stripped: suite **rc=0, 42 ok, 0 not ok** — the mutant survives. Same-scope
+known-positive control, strip ` (wall clock)` instead: **rc=1, 32 ok**, failing arm by name
+`descendant discovery refuses on the real wall-clock deadline`. Outcomes DIFFER, so the green is a
+measurement, not a broken harness. Then the fix itself was proven before it was designed: a
+throwaway test-side mutant asserting the stub message is rc=0/42 ok on the pristine probe and
+rc=1/24 ok against the stripped one, failing by name.
+
+**Quorum: BLOCKED twice, and every round-1 objection was a premise objection I measured.**
+R1 3/3 reject, `.synthesis.absent_reviewers` `[]`, $0.0628.
+- `oc-glm-5-2` — is `expect_failure` a substring matcher? **REFUTED**, two ways: source
+  (`grep -Fq -- "$expected"` over the whole stderr, test:163) and the behavioural arms above.
+- `gemini-3-1-pro` — `assert_pid_scope` and the anti-vacuity floor were unverified. **UPHELD
+  procedurally; the facts are TRUE.** probe:208/223, and the message carries a `: ${pids:-<empty>}`
+  suffix the doc had quoted short. Controls: `instrument_failure` **21**, invented `assert_zzz_scope`
+  **0**.
+- `gpt5-6-sol` — T3 is vacuous. **UPHELD, a real defect in my own test plan.** `grep -Fq` is a
+  substring match, so appending ` X` still matches: measured rc=0 for the append form, rc=1 for the
+  substring-breaking `(stub)` form.
+
+R2 2 reject / 1 pass, zero absentees, $0.0875, `oc-glm-5-2` flipped to pass. Objection SURFACES
+tracked per V1 iteration 257's rule: R1 was test-plan validity / log completeness / harness
+semantics, R2 was conflict-surface provenance / fail-fast ordering — **spread, not localised**, so
+not the SPLIT signal. Both R2 survivors carried concrete reviewer-authored fixes and disputed no
+design direction → **narrow-refinement carve-out**, applied VERBATIM. `gpt5-6-sol`'s own
+`git show --stat` command was run; every Conflict-Surface bullet now carries its verified subject
+and diffstat, with an enumeration control (`git log --oneline -6` over the two files) and a negative
+control (`7292ec780`, docs-only, lists no files).
+
+**The evaluator's blocking finding, and why it changed the code.** Evaluator **PASS 76/100, 1
+blocking** (sonnet, own worktree at `5fb1e2306`; executor was `codex:gpt-5.6-sol`, controller opus →
+generator≠judge holds). It reproduced all three mutant sha256 hashes bit-for-bit and re-derived the
+base-vs-HEAD defect independently. Finding: placed immediately after the caller-message arm, the new
+arm sits **ahead of every wall-clock-bounded arm**, adding a fork/exec before the 4s
+`refusing live path` arm and before `production run_lane fixture readiness` — and it reproduced one
+of my two intermittent reds **verbatim**, underlying line included (base 5/5 clean, arm-at-26 4/5).
+
+I measured it three ways rather than arguing: one probe, interleaved, five rounds, test file the only
+variable — base **5/5**, arm-at-26 **4/5**, arm-at-42 **5/5**. Pooled with my earlier runs and the
+judge's own A/B: **base 0 reds in 17, arm-at-26 4 in 19, arm-at-42 0 in 5.** M3 moved the arm behind
+the bounded arms. The disposition rests on the **mechanism, not the rate**: those arms now start at
+the same wall-clock offset as at base, so the effect is unreachable by construction. Cost none —
+43 ok, and the strip mutant still reds with this arm the sole failing arm by name. Adjacency turned
+out to buy nothing: the harness is fail-fast, so any mutant reddening the caller arm masks the later
+one at any distance; *beside-not-instead-of* still holds and now means "both present", not
+"adjacent".
+
+**Gate 3b.** Merge `115184a2e`: **14** checks, **0** pending, required **4/4**
+(`test`/`lint`/`build`/`docs-gate`), and **`launchd drivers (bash 3.2): success`** — the only leg
+where this suite runs — green on both the PR head and the merge. Two non-required reds,
+`test-windows` and `Build windows-latest`, attributed by measurement rather than assumed: both are
+`success` on my base `7292ec780` AND its parent `f5d031161`; the failing tests are
+`TestResolveAnthropicCredential_FallsBackToClaudeCredentialsFile` and
+`TestStandardModeCostProvenance_CredentialFileIsSubscription`, Go credential tests a two-line shell
+diff cannot touch; `origin/dev` itself is red on the identical two right now; the cause `f3301a44c`
+landed **after** my base and is on dev; and a PR's checks run on the **test-merge**, not the head.
+V1 owns dev CI red on this repo per the charter guardrail and has `sprint/iter320-home-isolation` in
+flight. Recorded, handed over, pick kept.
+
+**Ruled out.**
+- *"The two intermittent reds are caused by my diff's content"* — **REFUTED**: the same reds appear
+  with an arm whose content is irrelevant to them, and vanish when the arm moves behind them. It is
+  position and cost, not semantics.
+- *"The Windows red is mine"* — **REFUTED** by the parent walk and by dev's own current state.
+- *"Adjacency to the caller-message arm is load-bearing"* — **REFUTED** by the judge: fail-fast makes
+  the two arms ordered rather than independent at any distance.
+- *"Appending text to the asserted message is a valid mutation"* — **REFUTED** by `grep -Fq`
+  semantics, measured.
+
+**Three instrument failures of my own, all caught by the prescribed controls.**
+1. `sed > file` creates mode **644**, and the suite invokes `"$probe" --classify-fixture` directly at
+   test:201 — so my first two mutant arms redded at arm **1** (`ok=0`,
+   `not ok - classification fixture: missing loopback`) for the file MODE, not the mutation. Caught by
+   reading WHICH arm failed instead of the exit code.
+2. `grep -c PROBE_TIMEOUT_SECS` over `git diff` counted a **context** line and read 1; the added lines
+   are 2 and neither matches. Corrected with `grep '^+[^+]'`.
+3. `derive-planner-lane.sh` reported *"design document is missing or unreadable"* from the pin
+   worktree, because the doc lives in the sprint worktree — rule 3a(i-d)'s scope trap. Re-run from the
+   right CWD it returns `opus fail-closed:planner-lane-field-missing`.
+
+**Routing evidence.** controller `claude:claude-opus-5` · designer
+**`pi:ollama/deepseek-v4-flash:0731-cloud`** (rotation entry after the pointer's
+`claude:claude-fable-5`; probe rc=0; verdict `ok` both runs, 377s authoring / 264s revision, 1 changed
+file each; pointer advanced; ONE doc = initial + one protocol-mandated revision, which is the diet)
+· planner **`opus`**, lane from `derive-planner-lane.sh` used VERBATIM
+(`opus fail-closed:planner-lane-field-missing`), spawned via the Agent tool · executor
+**`codex:gpt-5.6-sol`** (probe rc=0; 30-min bounded background wrapper; no git writes; `.snap/M1` +
+`.snap/M2`; reconstruction proven byte-identical, `shasum -c` rc=0) · evaluator **`sonnet`** in its
+own worktree. Fable **unspent**. **metered=$0.1503** of the $5 ceiling — both quorum rounds; the pi
+designer lane is flat-rate $0.00. No GPU, no `rig.lock`. All local gates on **darwin/arm64, GNU bash
+3.2.57**, `/usr/sbin` on PATH; windows and ubuntu legs unrun locally and read from Gate 3b.
+
+**Executor deviations, adjudicated by measurement.** (a) It preserved relative paths in `.snap/M<k>/`
+rather than the plan's flat-copy example — benign, and no acceptance criterion is sensitive to it;
+the judge confirmed independently. (b) It reported that detached background processes were killed
+when their command sessions closed, so after two bounded artifact polls expired it re-ran the
+identical drill in a retained session and **explicitly refused to infer any verdict from the aborted
+launches** — the correct response to an untrustworthy instrument, and its reported numbers reproduced
+in full, by me and by the judge. A self-reported deviation is better evidence than a silent one.
+
+**Bookkeeping note.** The sprint JSON is at `.ailang/state/sprints/`, which `.gitignore:82` excludes
+(`git check-ignore -v` fires on it and is silent on the plan `.md`), so it is deliberately NOT in git;
+the decision-bearing content is the committed plan. Same disposition as the preceding sprint.
+
+**Next.** Row **6o** (the SIGKILL-escalation group form with zero killers, and the `REAL_LSOF` PATH
+assertion), then **6p** — now with iteration 33's corroboration that the derive-the-bound work is owed
+by at least three arms rather than one, so it is better shaped as a suite-wide helper than a constant.
+
 ## 32 — 2026-09-01 — the attended ruling landed, and the measurement I ran to answer the reviewers partly refuted the doc I was defending [HARNESS]
 
 **Progress**: loop-health track — rows **6n**, **6q** CLOSED and **6p** closed on its design half with
