@@ -1,6 +1,7 @@
 # M-COORDINATOR-EXECUTION-TRUST: make "a job ran" mean "work was attempted, and we know the outcome"
 
-**Status**: Planned — not queued on any mission; this is attended, standalone critical-infrastructure work (Mark, 2026-09-02)
+**Status**: Planned — attended, standalone critical-infrastructure work, deliberately off the mission queue (Mark, 2026-09-02).
+**Rulings**: D1, D2, D4 ruled by Mark 2026-09-02 (attended) — see Decisions. **D3 remains open.** D2 REVERSED the author's recommendation and improved the design.
 **Target**: v0.35.0
 **Priority**: P0. Every autonomous lane downstream — package agents, cascade, feedback triage, cross-repo handoffs — dispatches through this path and has been producing nothing for six days without saying so.
 **Estimated**: ~3 days (M1 ~0.5d, M2 ~0.5d, M3 ~1.5d, rollout ~0.5d)
@@ -81,7 +82,7 @@ is not on this doc's critical path — see Non-Goals.
 | A1: Determinism | +1 | A task's reported status becomes a function of what the run actually produced, not of whether a gate happened to be armed. Today the same work yields `completed` either way. |
 | A2: Replayability | +1 | M3 records **which chain link actually ran** on the completion payload; today a retry (when one is added) would be unattributable, and the banked model field would be a guess. |
 | A3: Effect Legibility | +1 | M2 makes "this run mutated nothing" an explicit, queryable outcome instead of an absence. |
-| A4: Explicit Authority | **0** | The most contestable row — see below. M1 removes a *ceremony* (the self-attested ack call) while keeping the *verifiable evidence* (`headlessPrerequisitesMet`). Net neutral on authority, and D2 arguably increases it. |
+| A4: Explicit Authority | **+1** | Raised from 0 after D1/D2 were ruled. The tiered model makes authority *stronger*, not weaker: tier-2 (feature/semantics) work now has **no** auto-path and requires an explicit recorded ack, where today a model that skips the ack simply does nothing and the clause is never tested. D2 extends the gate to every repo the executor touches. See the honest cost below. |
 | A5: Bounded Verification | +1 | Each milestone lands a mutation arm that fails RED first; today the whole path has zero test coverage (V10). |
 | A6: Safe Concurrency | 0 | No concurrency change. Retry in M3 is strictly sequential within one task. |
 | A7: Machines First | +1 | The consumer of every one of these signals is a machine — the coordinator, the sweep, the dashboard. A status that cannot distinguish two outcomes is unanalysable by construction. |
@@ -91,7 +92,7 @@ is not on this doc's critical path — see Non-Goals.
 | A11: Structured Failure | +1 | A stalled provider becomes a typed, retried, recorded transport failure instead of a dead task. |
 | A12: System Boundary | +1 | D2 makes the AILANG work-routing protocol stop at the AILANG repo boundary, where its authority actually ends. |
 
-**Net Score: +9** → **Decision: Move forward**
+**Net Score: +10** → **Decision: Move forward**
 
 ### Hard Violation Check
 
@@ -100,16 +101,30 @@ is not on this doc's critical path — see Non-Goals.
 - [x] A4 (Authority): no ambient access granted — argued below.
 - [x] A7 (Machines First): the whole doc optimises machine analysability.
 
-**On A4, stated plainly, because this is the row a reviewer should attack.** The gate's own
-design doc ([m-dx-session-protocol-gate.md](v0_35_0/m-dx-session-protocol-gate.md)) claims
-A4 +1 on the grounds that mutating tools unlock behind *"verifiable prerequisites (human
-`ctx.ui.confirm` in TUI, V11; **observable protocol steps in session history** in headless mode,
-V10) — not bare self-attestation."* In headless mode the authority therefore comes from
-`headlessPrerequisitesMet()`, and the ack call is a *wrapper* around that check, not an
-independent source of authority. M1 keeps the check and drops the wrapper. Nothing that was
-verified stops being verified. **The interactive human-confirm path is untouched.** If a
-reviewer disagrees, D1 option (B) preserves the ack call exactly and is a one-line
-alternative — that is why it is a design-freeze item and not an implementer's choice.
+**On A4, stated plainly, because this is the row a reviewer should attack.** The honest cost of
+auto-disarm is not the verification — `headlessPrerequisitesMet()` still runs, and the gate's own
+design doc grounds headless authority in *"observable protocol steps in session history"*, not in
+the ack call. The cost is the **assertion**: today an ack in the session log means a model
+consciously claimed it had done the protocol; under tier-1 auto-disarm, mutation can occur
+without that claim.
+
+Three things follow, and the design answers each:
+
+1. **The prerequisites are substring checks, not comprehension checks.** They prove a `read` of a
+   path containing `CLAUDE.md` happened and a bash command containing `ailang messages` ran. They
+   do not prove anything was understood. **This is equally true before and after auto-disarm** —
+   removing the ceremony does not weaken a check that was already weak. If we want a stronger
+   gate, the lever is the prerequisite set, not the ack.
+2. **The "feature/semantics work needs a design doc + sprint plan" clause is unverifiable today
+   and unenforced in practice.** Nothing in `headlessPrerequisitesMet()` checks it; the ack only
+   made a model *assert* it. Tier 2 is what actually closes this: no auto-path, explicit ack
+   required, and the evidence checked rather than asserted.
+3. **Under D2 the gate is now the only thing standing between a cloud agent and a foreign repo.**
+   That makes it more load-bearing, not less — which is the argument for strengthening the
+   prerequisites (Future Work) rather than for keeping a ceremony that a flash-class model
+   demonstrably will not perform.
+
+The interactive human-confirm path is untouched throughout.
 
 ---
 
@@ -130,26 +145,64 @@ transport failure gets a second lane before it becomes a dead task.
 
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |---|---|---|---|---|
-| **D1** — How a headless session disarms: (A) auto-disarm when `headlessPrerequisitesMet()` is satisfied · (B) keep the ack call, inject an explicit instruction into the executor system prompt · (C) both | Determines whether the gate's A4 claim survives, and whether the fix depends on a flash-class model following an instruction — the exact thing that already failed | **human** | design | high |
-| **D2** — Does the gate apply to workspaces outside the AILANG repo at all? | The AILANG work-routing protocol has no authority over `ailang-parse`. But the gate's `tool_call` handler is also the **single guaranteed observer for commit attribution** — scoping it off silently drops `Co-Authored-By` from every foreign-repo commit | **human** | design | high |
-| **D3** — Shape of the no-op outcome: a new status value (`no_changes`) vs. a boolean on `completed` | Status is banked historical data. A new enum value ripples to the sweep, the dashboard, `messages health` and every existing query; a boolean does not, but is easier to ignore | **human** | design | high |
-| **D4** — Where the retry chain lives: coordinator re-dispatch (new Cloud Run execution per link) vs. in-container retry (one execution, executor walks the chain) | Re-dispatch costs a fresh 24k-file clone and image pull per link (~60s); in-container retry is cheap but the coordinator cannot see which link ran unless the executor reports it | **human** | design | high |
-| **D5** — What counts as a retryable transport failure | Too broad and we retry a real model refusal into a spent bucket; too narrow and V14's idle-stall stays fatal | agent | design | med |
-| **D6** — Whether to convert the 35 `model:` pins to `role:` in the cloud config | Without it M3 ships correct code that never executes (V13) | agent | compile | med |
+| **D1** — How a session disarms the gate | Determines whether the permission system stays a real, recorded approval or degrades to a checkbox | **human** | design | high |
+| **D2** — Does the gate apply outside the AILANG repo? | Decides whether this is an AILANG-repo convention or the permission layer for the whole package ecosystem | **human** | design | high |
+| **D3** — Shape of the no-op outcome: new status value vs. flag on `completed` | Status is banked historical data; every consumer that switches on it is affected | **human** | design | high |
+| **D4** — Where retry lives: in-container vs. coordinator re-dispatch | Re-dispatch costs a fresh 24k-file clone and image pull per attempt (~60s) | **human** | design | high |
+| **D5** — What counts as a retryable transport failure | Too broad and we retry a refusal into a spent bucket; too narrow and the idle-stall stays fatal | agent | design | med |
+| **D6** — Convert the 35 `model:` pins to `role:` | Without it M3 ships correct code that never executes (V13) | agent | compile | med |
+
+### Rulings — 2026-09-02, Mark, attended
+
+**D1 — RULED: tiered. The ack stays; auto-disarm is a floor, not a replacement.**
+Mark's steer: *"I want the permission system to be acked and approved by models such as
+yourself in a mission loop or in a session like this."* So the ack is the mechanism, not a
+ceremony to delete — and the fix for the executor deadlock is a floor beneath it, not a
+substitute for it.
+
+| Tier | Work | Disarm path |
+|---|---|---|
+| **1 — routine** (bug-fix, triage, reply, docs) | Mutation allowed once `headlessPrerequisitesMet()` is satisfied. The ack is still offered and still **recorded when made** — a capable model's explicit approval remains a first-class, logged event. | auto, on verified evidence |
+| **2 — feature / semantics** | No auto-path. Requires an explicit ack **plus** the design-doc + sprint-plan evidence the gate's own description already demands. A model that cannot make the call cannot do tier-2 work. | ack only |
+
+This is what makes the ack meaningful rather than decorative: it stops being the thing that
+blocks a flash model from fixing a typo, and starts being the thing that gates feature work.
+
+**D2 — RULED, REVERSING the author's recommendation: the gate applies everywhere.**
+Mark: *"gates apply outside of ailang repo — we want a general ailang message system for our
+packages as well."* Two consequences, one good and one new:
+
+- **Good:** Conflict Surface #2 dissolves. Commit attribution stays coupled to the gate, nothing
+  needs splitting out, and the highest-rated risk in this doc is deleted outright.
+- **New requirement:** the protocol must become **per-repo declared, not AILANG-hardcoded.**
+  `headlessPrerequisitesMet()` currently demands a `CLAUDE.md` read and an `ailang messages`
+  call. That is an AILANG-repo convention being enforced on repos that never agreed to it. A
+  package repo declares its own protocol (default: the AILANG one) and the gate reads that.
+  **This changes what the doc is:** not a bug fix to an executor, but the permission layer for
+  the AILANG package ecosystem.
+
+**D3 — OPEN.** Reframed for a decision, with a recommendation, in Solution Design M2 below.
+
+**D4 — RULED: two-tier retry, cheapest first.**
+Mark: *"retry in container first, try one re-dispatch if they fail."* This maps exactly onto the
+failure taxonomy, better than either option originally offered:
+
+| Failure class | Example | Handled by | Cost |
+|---|---|---|---|
+| model / provider | idle stall (V14), 429, provider 5xx | **in-container**: walk the chain inside the existing 15m timeout | ~0 — no re-clone, no image pull |
+| infrastructure | container died, OOM, Cloud Run preemption | **one re-dispatch**, on the next chain link | full clone + pull (~60s) |
+
+In-container retry is *impossible by definition* for the infra class — the container is gone —
+which is precisely why the second tier exists. **Hard cap: 2 Cloud Run executions per task.**
 
 ### Design Freeze
 
 Every `high` row above. **sprint-executor must PAUSE if any is unchecked.**
 
-- [ ] **D1** — headless disarm mechanism
-- [ ] **D2** — gate scope outside the AILANG repo, *and* where commit attribution goes if the gate is scoped off
-- [ ] **D3** — no-op outcome shape (new status vs. flag)
-- [ ] **D4** — retry location: coordinator re-dispatch vs. in-container
-
-**Recommendation, for the record:** D1 = (A), D2 = scope off but **first** split commit
-attribution into its own extension so it survives, D3 = new status value (the banked-schema cost
-is real but a boolean will be ignored by exactly the queries that matter), D4 = in-container,
-with the executor reporting the link on the completion.
+- [x] **D1** — tiered: ack stays as the recorded approval; auto-disarm is the tier-1 floor
+- [x] **D2** — gate applies everywhere; protocol becomes per-repo declared
+- [ ] **D3** — no-op outcome shape (**still open** — see M2)
+- [x] **D4** — in-container chain walk, then at most one re-dispatch; cap 2 executions/task
 
 ---
 
@@ -166,15 +219,20 @@ headless path must leave `ctx.hasUI` behaviour byte-identical.
 *Must still work:* an interactive pi session in this repo still requires the human `confirm`
 keypress before `edit`/`write` unlock.
 
-**2. Commit attribution is coupled to the gate, by explicit design.**
-From `session-protocol-gate.ts`: attribution *"lives in the GATE (not a separate extension)
-because the gate's `tool_call` handler is the single guaranteed observer of every bash call — a
-separate extension's handler can be skipped when the gate blocks (runner.js returns on first
-block)."* **So D2's "just don't load the gate in foreign repos" silently removes
-`Co-Authored-By` from every commit those agents make.** The reasoning that put attribution
-inside the gate is sound and still holds; it simply did not anticipate the gate becoming
-conditional. Split attribution out *before* scoping the gate, or scope only `shouldBlock` while
-leaving the extension registered.
+**2. ~~Commit attribution is coupled to the gate~~ — DISSOLVED by the D2 ruling.**
+The original risk: attribution *"lives in the GATE (not a separate extension) because the gate's
+`tool_call` handler is the single guaranteed observer of every bash call"*, so scoping the gate
+off in foreign repos would have silently dropped `Co-Authored-By` from those commits. **D2 keeps
+the gate loaded everywhere, so the coupling is never broken and nothing needs splitting out.**
+Recorded rather than deleted: it is the reason a future "just disable it over there" shortcut is
+not available, and MU-4 stays as the guard.
+
+**2b. The protocol itself is AILANG-specific and now runs everywhere (new, from D2).**
+`headlessPrerequisitesMet()` hard-codes a `CLAUDE.md` read and an `ailang messages` call. Under
+D2 that convention is enforced on package repos that never adopted it — and a repo with no
+`CLAUDE.md` can satisfy the gate *only by accident*. The prerequisite set must become
+repo-declared with the AILANG set as the default.
+*Must still work:* a repo that declares nothing gets today's AILANG behaviour, unchanged.
 
 **3. There are two copies of the gate and a `make` target between them.**
 `.pi/extensions/` is the source; `cmd/ailang/pi_assets/` is what `ailang pi install` bakes into
@@ -207,55 +265,84 @@ Any consumer treating `completed` as "work landed" was already wrong; after M2 i
 
 ## Solution Design
 
-### M1 — The gate must not silently disable the agent it is protecting
+### M1 — A permission system with a floor, applied everywhere (D1 + D2)
 
-Headless runs disarm on **verified evidence**, not on a ceremony. When `ctx.hasUI` is false and
-`headlessPrerequisitesMet()` is satisfied, `acked` flips without waiting for the tool call; the
-tool stays registered so a model that *does* call it still works, and the interactive path is
-untouched. Per D2, `shouldBlock` additionally goes inert when the workspace is not the AILANG
-repo — with attribution split out first (Conflict Surface #2).
+Two changes, one to each axis.
 
-The failure this fixes is not "the model was too weak". The model satisfied both prerequisites
-in three turns and then spent twelve minutes blocked. **The gate had all the evidence it needed
-and required a password anyway.**
+**Tiering (D1).** `shouldBlock` consults a work tier. Tier 1 — bug-fix, triage, reply, docs —
+unblocks once `headlessPrerequisitesMet()` is satisfied, with no ack required; the ack tool stays
+registered and its call is still recorded when a capable model makes it, so a mission-loop
+controller or an attended session produces exactly the audit line it does today. Tier 2 —
+feature/semantics — has **no auto-path**: an explicit ack plus the design-doc and sprint-plan
+evidence, checked rather than asserted. The interactive `ctx.hasUI` confirm path is unchanged in
+both tiers.
 
-### M2 — A no-op is an outcome, not a silence
+The failure this fixes is not "the model was too weak". On `task-4e415b46` the model satisfied
+both prerequisites in three turns and then spent twelve minutes blocked (V6). **The gate had all
+the evidence it needed and asked for a password anyway.** Tier 1 is that floor. Tier 2 is where
+the ack finally does work it was never doing.
+
+**Generalisation (D2).** The gate stays loaded in every workspace, and the *protocol* becomes
+repo-declared instead of AILANG-hardcoded. A repo publishes its prerequisite set; a repo that
+declares nothing inherits today's AILANG set unchanged. This is what turns the gate from a
+convention in one repository into the permission layer for the package ecosystem — which is the
+stated goal, and a larger thing than the bug that exposed it.
+
+### M2 — A no-op is an outcome, not a silence (D3 still open)
 
 At `coordinator_cloud.go:465` and :475 the "no commits" path returns `nil`. Keep the branch and
-PR suppression exactly as-is (V9) and change only what is *reported*: a run that produced no
-diff and pushed no branch gets its own terminal state (D3), carried through
-`pubsub.TaskCompletion` to `pubsub_completion_handler.go:172`.
+PR suppression exactly as-is (V9) and change only what is *reported*. The distinction that
+matters is **intent**: an acknowledge-only task is *supposed* to change nothing; a bug-fix task
+that changes nothing has failed. The task type is already on the record, so the classifier need
+not guess.
 
-The distinction that matters is **intent**: an acknowledge-only task is *supposed* to change
-nothing; a bug-fix task that changes nothing has failed. The task type is already on the record,
-so the classifier does not need to guess.
+**D3, reframed as one question:** when a consumer that has never heard of this outcome reads it,
+which way should it be wrong?
 
-### M3 — The coordinator gets the fallback chain the mission loops already have
+| Option | An old consumer sees | Fails |
+|---|---|---|
+| New status value `no_changes` | *not* `completed` → counts as not-success | **safe** |
+| Boolean flag on `completed` | `completed` → counts as success | **unsafe** |
 
-`ResolveModel` returns the resolved `[]ModelRef`, not `chain[0]`. The dispatcher walks it: on a
-**transport-class** failure (idle-timeout, zero-byte completion, 429, provider 5xx) it advances
-to the next link; on a model-class outcome (a real refusal, a wrong answer) it does not. The
-completion records the link that ran. Per D6, the cloud config's `model:` pins become `role:`
-wherever the pin is just "the default everyone got" — otherwise M3 ships correct and dead (V13).
+**Recommendation: the new status value.** It costs more — every consumer that switches on status
+(the sweep, the dashboard, `messages health`, the banked task corpus) needs a case — but it fails
+in the direction that surfaces the problem rather than hiding it, which is the entire thesis of
+this doc and its predecessor. A boolean would be ignored by exactly the queries that matter.
+**This is an agent-resolvable call if you would rather not spend a ruling on it** — say so and it
+ships as the enum.
 
-This is deliberately the same posture the mission loops already run under, where a probe-failed
-lane falls to the next entry and the fallback is recorded LOUDLY. The coordinator dispatches
-unattended, so it needs this *more* than the driver does, not less — the comment claiming retry
-chains are "a driver concern" was written when the driver was the only dispatcher.
+### M3 — The fallback chain, cheapest tier first (D4)
+
+`ResolveModel` returns the resolved `[]ModelRef`, not `chain[0]`. Retry is two-tier, per Mark's
+ruling, matched to the failure taxonomy:
+
+- **In-container (model/provider class).** The executor walks the chain inside the existing 15m
+  timeout on an idle-stall, 429 or provider 5xx (D5 names the predicate — a named list, never a
+  substring match on `"429"`, which would retry into a spent bucket). Costs nothing extra: no
+  re-clone, no image pull.
+- **One re-dispatch (infrastructure class).** If the container itself dies — OOM, preemption, a
+  job execution that never reports — the coordinator re-dispatches **once**, on the next chain
+  link. In-container retry is impossible by definition here, which is exactly why this tier
+  exists. **Hard cap: 2 Cloud Run executions per task.**
+
+The completion records which link ran, in which tier. Per D6, the cloud config's `model:` pins
+become `role:` wherever the pin is just "the default everyone got" — otherwise M3 ships correct
+and dead (V13). Chain semantics stay in `modelreg.ResolveRole`; nothing here re-creates the
+routing table M-MODEL-REGISTRY-SINGLE-SOURCE deleted.
 
 ### Files to Modify/Create
 
 **Modified:**
-- `.pi/extensions/session-protocol-gate.ts` — headless auto-disarm; workspace scoping; attribution split per D2 (~50 LOC)
+- `.pi/extensions/session-protocol-gate.ts` — work tiering; tier-1 auto-disarm; repo-declared prerequisite sets (~70 LOC). **No attribution split — D2 keeps the gate loaded everywhere.**
 - `cmd/ailang/pi_assets/session-protocol-gate.ts` — **regenerated by `make pi-assets`, never hand-edited** (V15)
 - `cmd/ailang/coordinator_cloud.go` — no-op classification at the two return sites and the `publishCompletion` call (~30 LOC)
 - `internal/coordinator/pubsub_completion_handler.go` — carry the new outcome (~10 LOC)
 - `internal/coordinator/model_resolution.go` — return the chain; fix the V16 comment (~40 LOC)
-- `internal/coordinator/daemon_tasks_exec.go` (:204), `daemon_tasks_exec_run.go` (:252) — chain-aware dispatch (~60 LOC)
+- `internal/coordinator/daemon_tasks_exec.go` (:204), `daemon_tasks_exec_run.go` (:252) — chain-aware dispatch; the one infra-class re-dispatch and its 2-execution cap (~80 LOC)
 - `gs://ailang-multivac-ailang-config/config.yaml` — `model:` → `role:` per D6 (config, not code)
 
 **New:**
-- `.pi/extensions/.session-gate-headless.test.ts` — M1 arms (~80 LOC)
+- `.pi/extensions/.session-gate-tiers.test.ts` — M1 arms MU-1..MU-7 (~140 LOC)
 - `cmd/ailang/coordinator_cloud_completion_test.go` — M2 arms; **the first test to touch this path at all** (V10) (~120 LOC)
 - `internal/coordinator/model_chain_test.go` — M3 arms (~100 LOC)
 
@@ -268,15 +355,20 @@ guard, and this doc exists because three code paths had none.
 
 | MU | Mutation | Arm |
 |----|----------|-----|
-| MU-1 | Re-require the ack call in headless mode | `TestHeadlessDisarmsOnVerifiedPrerequisites` |
+| MU-1 | Re-require the ack for tier-1 work | `TestTier1DisarmsOnVerifiedPrerequisites` |
 | MU-2 | Drop the `ctx.hasUI` branch | `TestInteractiveStillRequiresHumanConfirm` |
-| MU-3 | Arm the gate in a non-AILANG workspace | `TestGateInertOutsideOwningRepo` |
-| MU-4 | Remove the attribution split | `TestAttributionSurvivesGateScoping` (Conflict Surface #2) |
-| MU-5 | Report a zero-diff bug-fix task as `completed` | `TestNoDiffTaskIsNotCompleted` |
-| MU-6 | Report an acknowledge-only probe as failed | `TestAcknowledgeOnlyTaskStillCompletesCleanly` (Conflict Surface #4) |
-| MU-7 | Return `chain[0]` from `ResolveModel` | `TestResolveModelReturnsWholeChain` |
-| MU-8 | Treat a model refusal as retryable | `TestOnlyTransportFailuresAdvanceTheChain` |
-| MU-9 | Drop the link field from the completion | `TestCompletionRecordsWhichLinkRan` |
+| MU-3 | Allow tier-2 work through the tier-1 auto-path | `TestFeatureWorkHasNoAutoPath` (D1's load-bearing arm) |
+| MU-4 | Remove the ack recording when a model does call it | `TestAckIsStillRecordedWhenMade` (keeps the audit line real) |
+| MU-5 | Hard-code the AILANG prerequisite set | `TestRepoDeclaredProtocolOverridesDefault` (D2) |
+| MU-6 | Make the gate inert outside the AILANG repo | `TestGateAppliesInForeignWorkspace` (D2 — the reversed decision) |
+| MU-7 | Detach attribution from the gate handler | `TestAttributionObservesEveryBashCall` (Conflict Surface #2) |
+| MU-8 | Report a zero-diff bug-fix task as `completed` | `TestNoDiffTaskIsNotCompleted` |
+| MU-9 | Report an acknowledge-only probe as failed | `TestAcknowledgeOnlyTaskStillCompletesCleanly` (Conflict Surface #4) |
+| MU-10 | Return `chain[0]` from `ResolveModel` | `TestResolveModelReturnsWholeChain` |
+| MU-11 | Treat a model refusal as retryable | `TestOnlyTransportFailuresAdvanceTheChain` (D5) |
+| MU-12 | Re-dispatch on a model-class failure | `TestOnlyInfraFailuresReDispatch` (D4 tier boundary) |
+| MU-13 | Allow a third Cloud Run execution | `TestTwoExecutionCapIsHard` (D4 cost cap) |
+| MU-14 | Drop the link field from the completion | `TestCompletionRecordsWhichLinkRan` |
 
 **Integration (the one that would have caught all of this):** a pi executor run against a clean
 throwaway workspace that must produce a diff. Metric 1 above is exactly this test.
@@ -287,16 +379,57 @@ throwaway workspace that must produce a diff. Metric 1 above is exactly this tes
 
 ## Success Criteria
 
-- [ ] Pi executor writes a file in a clean non-AILANG workspace (MU-3, integration arm)
+- [ ] Pi executor writes a file in a clean non-AILANG workspace (integration arm)
+- [ ] Tier-2 (feature/semantics) work still has no auto-path (MU-3)
+- [ ] An explicit ack is still recorded when a capable model makes one (MU-4)
 - [ ] Interactive TUI gate behaviour byte-identical (MU-2)
-- [ ] Commit attribution present on a foreign-repo commit after D2 (MU-4)
-- [ ] Zero-diff bug-fix task reports its own terminal state (MU-5); acknowledge-only probe unaffected (MU-6)
-- [ ] A stalled first link completes on the second, with the link recorded (MU-7/8/9)
+- [ ] The gate applies in a foreign workspace, with that repo's declared protocol (MU-5, MU-6)
+- [ ] Commit attribution present on a foreign-repo commit (MU-7)
+- [ ] Zero-diff bug-fix task reports its own terminal state (MU-8); acknowledge-only probe unaffected (MU-9)
+- [ ] A stalled first link completes on the second in-container, with the link recorded (MU-10/11/14)
+- [ ] Only infra-class failures re-dispatch, and never more than twice total (MU-12/13)
 - [ ] `make pi-assets` leaves the tree clean
 - [ ] One real inbound report reaches a pushed branch, unattended
 - [ ] CHANGELOG.md updated; this doc moved to `implemented/v0_35_0/`
 
 ---
+
+## Predecessor status — M-MESSAGE-PLANE-TRUST, re-measured 2026-09-02
+
+Asked directly: is it done, and should it be finished first? **Not done, and no — but its open
+items now have answers, and one of its milestones has been silently completed.**
+
+| Milestone | State 2026-09-02 | Evidence |
+|---|---|---|
+| M1 backstop sweep | **Landed**, running in `report` mode in prod | `91716b092`; sweep log lines every 5m |
+| M2 terminal-state reconciliation | **Landed and working** | **Zero** coordinator/task chains remain `active` — the 92-chain corpus M5 was written to clean up is already closed |
+| M3 health surface | **Landed** | `ailang messages health` answers against prod |
+| M4 re-announce the stranded | **Open, and now unblocked — but must sequence AFTER this doc's M1** | see below |
+| M5 cleanup | **Open, and its scope is WRONG** | see below |
+
+**The measurement M4 and M5 were gated on has now run.** That doc's condition was: *"Run the
+sweep in `report` mode for a day; its count is what decides whether `dispatch` is worth enabling
+and whether re-announcing the stranded messages is safe."* It has run since 08-31. The count is
+**7**, of which 4 are outcome notices (which `e0b12bf5f` excludes and which are unread-and-routable
+by construction) and 3 were in fact dispatched. **Push dropped nothing.** The premise behind M4's
+"don't dispatch into an 88% failure rate" is also gone.
+
+**So M4 is safe — and still should not run yet.** Re-announcing real work into an execution layer
+that cannot write files reproduces exactly the silence that made it stranded in the first place.
+**M4 sequences after this doc's M1**, and then becomes a five-minute job.
+
+**M5's scope needs correcting, not executing.** Its target — 92 stuck-active coordinator chains —
+is already closed by M2. But `chains active` still reaches back to 2026-08-28, and every one of
+those rows is an `eval_suite` (16) or `manual:mission` (4) chain. **AC6 still fails, for a
+different reason than M5 assumed:** those producers have no closer at all, where the stale-task
+detector covers coordinator jobs only. That is a new finding about a different code path, not a
+cleanup chore.
+
+**Recommendation: do not stop to finish it.** Two things belong to it and land naturally here:
+(a) the coordinator rebuild in Rollout below ships its already-written `e0b12bf5f`, and
+(b) M5 gets rewritten with the corrected finding. Its AC3 and AC6 both still fail, so it stays in
+`planned/` — moving it to `implemented/` today would bank a false completion, which is the exact
+failure mode both documents exist to prevent.
 
 ## Rollout — nothing here reaches prod without a rebuild
 
@@ -319,7 +452,7 @@ is currently the only thing preventing a repeat of the 1,146-message amplificati
 
 ## Non-Goals
 
-- **The remaining M-MESSAGE-PLANE-TRUST rows** — marking a dispatched message read, reconciling job success against task success at the sweep layer. Same family, that doc's scope.
+- **The remaining M-MESSAGE-PLANE-TRUST rows** — marking a dispatched message read; reconciling job success against task success at the sweep layer; M4/M5. Same family, that doc's scope — see Predecessor status for their re-measured state and sequencing.
 - **Executor GitHub `422` on issue creation** — real (the agent burned ~2 of 15 minutes on it) but orthogonal; file separately.
 - **`ANTHROPIC_API_KEY` unset on the coordinator** (feedback-gate classifier fail-closed) — ops, not design.
 - **Re-filing the docparse redeploy message** — real, security-relevant, and tracked in that doc's "still owed" list.
@@ -331,7 +464,10 @@ is currently the only thing preventing a repeat of the 1,146-message amplificati
 | Risk | Impact | Mitigation |
 |---|---|---|
 | M1 is read as "weakening a security gate" | High | A4 argued explicitly above; the verifiable prerequisite is *kept*, only the self-attested ceremony is dropped, and the human-confirm path is untouched. D1(B) is a one-line alternative if the argument is rejected. |
-| D2 silently drops commit attribution | High | Conflict Surface #2 + MU-4. Split attribution **before** scoping the gate. |
+| ~~D2 silently drops commit attribution~~ | — | **Deleted by the D2 ruling** — the gate stays loaded everywhere, so the coupling is never broken. MU-7 keeps it that way. |
+| D2 enforces AILANG conventions on repos that never adopted them | High | Repo-declared prerequisite sets, AILANG as default (Conflict Surface #2b, MU-5). |
+| Tier-1 auto-disarm is read as removing the permission system | Med | It adds a floor beneath the ack, and tier 2 enforces a clause that is unenforced today (A4 rationale). MU-3 is the arm. |
+| Re-dispatch doubles cost on a bad day | Med | Hard cap of 2 executions per task, infra-class only (MU-12, MU-13). |
 | The two gate copies drift | Med | MU covered by `make pi-assets` in CI; V15 records they are in sync today. |
 | M3 re-creates a second routing table | Med | Chain semantics stay in `modelreg`; `TestCloudAgents_RegistryMatchesTheDeletedRoutingTable` is the guard. |
 | M3 ships correct and dead because every agent is pinned | High | D6 is a freeze-adjacent item and Metric 3 cannot pass without it. |
@@ -340,10 +476,11 @@ is currently the only thing preventing a repeat of the 1,146-message amplificati
 
 ## Quorum
 
-**Attended session. Triggers #2 and #3 fire** — M1 overrides machinery shared with interactive
-sessions (Conflict Surface #1), and D3 changes banked-data schema. Trigger #1 also fires: four
-design-freeze items await a human ruling. **Recommendation: run the quorum before planning**,
-after D1–D4 are ruled on, so reviewers see decided premises rather than open questions.
+**Attended session. Triggers #1, #2 and #3 fire** — M1 overrides machinery shared with interactive
+sessions (Conflict Surface #1), D3 changes banked-data schema, and a design-freeze item remains
+open. **D1, D2 and D4 are now ruled**, so reviewers would see decided premises. **Run the quorum
+once D3 is settled** — and point reviewers at the A4 rationale and Conflict Surface #2b, which are
+the two places this design is most attackable.
 
 ```bash
 ailang design-quorum design_docs/planned/m-coordinator-execution-trust.md \
@@ -366,6 +503,8 @@ ailang design-quorum design_docs/planned/m-coordinator-execution-trust.md \
 - Reconcile Cloud Run job success against task success at the sweep layer (the seam M2 makes visible but does not close).
 - Per-task cost attribution keyed on the recorded chain link (M3 makes this possible; nothing consumes it yet).
 - Extend the chain posture to the `codex` and `motoko` executor variants — M3 is scoped to the 32 `pi` agents.
+- **Strengthen the prerequisites.** They are substring checks: a `read` of a path containing `CLAUDE.md`, a bash command containing `ailang messages`. They prove the commands were issued, not that anything was understood. This is the real lever on gate strength — and under D2 it now guards every package repo, so it matters more than it did.
+- **Close `eval_suite` and `manual:mission` chains.** Neither producer has a closer; AC6 of the predecessor fails on them (see Predecessor status).
 
 ---
 
