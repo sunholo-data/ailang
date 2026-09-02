@@ -109,7 +109,34 @@ that needs to ask a question must either be `interactive`, or the NDJSON stream
 must carry its own equivalent — check what pi's event schema exposes before
 assuming the second.
 
-### D2 — herdr is the supervisor; the contract to the outside is A2A
+### D2 — A2A is the contract; herdr is optional and off the task path
+
+⚠️ **Revised 2026-09-02 after live testing.** herdr was originally the
+supervisor. It no longer is, because driving pi as a TUI does not work headless:
+
+- `agent.prompt` enters text without submitting it — context stayed at
+  `0.0%/1.3M`, so no model call was made. Passing the documented `wait` object
+  did not fix it.
+- Completion is undetectable: `idle`/`done` are UI-coupled, so a task sits at
+  `working` forever.
+- `session-protocol-gate` branches on `ctx.hasUI`; a TUI makes that true, so it
+  demands a human keypress that never comes.
+
+**Execution is now `pi --mode json` spawned directly** — the same invocation
+`internal/executor/pi/pi.go` uses — whose NDJSON carries an explicit `agent_end`
+and therefore a real terminal state. herdr stays installed for human attach
+(`herdr --remote`) but is **not started by default**
+(`RESIDENT_ENABLE_HERDR=1`), and the pi extension suite is moved aside unless
+`RESIDENT_PI_EXTENSIONS=1` — it is built for a developer in this repo, and
+`session-protocol-gate` would block a resident's tools.
+
+If herdr returns for attach, it belongs in **its own image** rather than beside
+the agent: co-locating them cost a process, memory and a class of silent
+failures for a feature the task path never used.
+
+The outward contract is unchanged. Only what happens inside the container did.
+
+### D2-original (superseded) — herdr as supervisor
 
 herdr supervises the pane and classifies agent state. It stays **inside** the
 container: the outside world talks **A2A**, not a bespoke REST API wrapping
@@ -122,6 +149,36 @@ This is what makes the estate question tractable: because the instance is an
 A2A peer, **which project hosts it is not an architectural question**. The
 Aitana platform reaches it over an authenticated protocol boundary, not by
 sharing identity.
+
+### D7 — Session persistence: the resident is not yet persistent
+
+**This is the gap between what exists and what the design promises.**
+
+`pi --mode json --no-session` is *stateless per call*: every `message/send`
+spawns a fresh pi with no memory of the last. So today there is a persistent
+**host** and an ephemeral **agent** — the box survives, the conversation does
+not. "Long-running context" was the premise of this design, and stream mode as
+first built discards it.
+
+`--no-session` is deliberate in the job executor, documented there as
+*"ephemeral run (avoids ~/.pi/sessions/ pollution)"* — correct for a one-shot
+job, wrong for a resident. pi keeps sessions in `~/.pi/sessions/` and emits a
+`session` event carrying the id, which `pi.go` already reads.
+
+**Design:**
+
+- Drop `--no-session` for resident runs; capture the session id from the first
+  `session` event and store it against the **agent**, not the task — the agent
+  is the thing with continuity.
+- Resume on subsequent calls. **Verify pi's resume flag against the installed
+  version** rather than assuming one exists in the shape we want.
+- ⚠️ **Sessions live on local disk, which does not survive the 7-day restart.**
+  Use the stage-in/stage-out pattern D3 already establishes for the workspace:
+  restore `~/.pi/sessions/` from `/agent-home` at boot, sync back after each
+  run. They must NOT be written directly to the mount — gcsfuse has no POSIX
+  locking and pi writes them actively, which is precisely the corruption case
+  D3 exists to avoid.
+- One session per agent per instance follows from D1.
 
 ### D3 — Code on local disk; the git remote is durability
 
