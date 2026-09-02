@@ -80,9 +80,9 @@
           }
         },
         {
-          "id": "z-ai/glm-4.7-flash",
+          "id": "z-ai/glm-5.3-flash",
           "maxTokens": 32000,
-          "contextWindow": 202752,
+          "contextWindow": 1310720,
           "reasoning": true,
           "thinkingLevelMap": {
             "off": null,
@@ -93,9 +93,9 @@
             "xhigh": null
           },
           "cost": {
-            "input": 0.06,
-            "output": 0.4,
-            "cacheRead": 0.01,
+            "input": 0.075,
+            "output": 0.25,
+            "cacheRead": 0.015,
             "cacheWrite": 0
           }
         },

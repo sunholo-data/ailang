@@ -136,8 +136,11 @@ Setting `reasoning: true` **alone makes it worse.** With `compat.thinkingFormat:
 *disabling* thinking that previously happened by default. The `thinkingLevelMap` here maps
 `off` to `null`, which suppresses that branch: no reasoning field is sent unless
 `--thinking <level>` is explicitly passed. Levels a model cannot honour are mapped to
-`null` too (glm-4.7-flash and gemma-4-26b do not list `reasoning_effort` in their
-OpenRouter `supported_parameters`).
+`null` too (gemma-4-26b does not list `reasoning_effort` in its OpenRouter
+`supported_parameters`). glm-5.3-flash **does** list it, and is still mapped to
+`null` deliberately: the same reasoning applies — with no effort passed, default
+thinking is preserved, and an explicit `--thinking <level>` is the only way to
+override it.
 
 Verified live 2026-08-13 after the change: `stopReason: stop`, a 358-char `thinking` block
 present in the response — thinking preserved, not disabled.
