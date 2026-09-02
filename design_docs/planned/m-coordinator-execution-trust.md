@@ -1,7 +1,7 @@
 # M-COORDINATOR-EXECUTION-TRUST: make "a job ran" mean "work was attempted, and we know the outcome"
 
 **Status**: Planned — attended, standalone critical-infrastructure work, deliberately off the mission queue (Mark, 2026-09-02).
-**Rulings**: D1, D2, D4 ruled by Mark 2026-09-02 (attended) — see Decisions. **D3 remains open.** D2 REVERSED the author's recommendation and improved the design.
+**Rulings**: **All of D1–D4 ruled by Mark 2026-09-02 (attended)** — see Decisions. D2 REVERSED the author's recommendation and improved the design. Design freeze is CLOSED; sprint may proceed.
 **Target**: v0.35.0
 **Priority**: P0. Every autonomous lane downstream — package agents, cascade, feedback triage, cross-repo handoffs — dispatches through this path and has been producing nothing for six days without saying so.
 **Estimated**: ~3 days (M1 ~0.5d, M2 ~0.5d, M3 ~1.5d, rollout ~0.5d)
@@ -181,7 +181,11 @@ packages as well."* Two consequences, one good and one new:
   **This changes what the doc is:** not a bug fix to an executor, but the permission layer for
   the AILANG package ecosystem.
 
-**D3 — OPEN.** Reframed for a decision, with a recommendation, in Solution Design M2 below.
+**D3 — RULED: the new status value (`no_changes`).** Mark took the fail-safe direction. A
+consumer that has never heard of this outcome reads it as *not* `completed` and therefore as
+not-success — which surfaces the problem instead of hiding it. The cost is real and accepted:
+every consumer that switches on status (the backstop sweep, the dashboard, `messages health`,
+the banked task corpus) needs a case, and M2 must enumerate them rather than discover them.
 
 **D4 — RULED: two-tier retry, cheapest first.**
 Mark: *"retry in container first, try one re-dispatch if they fail."* This maps exactly onto the
@@ -201,7 +205,7 @@ Every `high` row above. **sprint-executor must PAUSE if any is unchecked.**
 
 - [x] **D1** — tiered: ack stays as the recorded approval; auto-disarm is the tier-1 floor
 - [x] **D2** — gate applies everywhere; protocol becomes per-repo declared
-- [ ] **D3** — no-op outcome shape (**still open** — see M2)
+- [x] **D3** — new status value `no_changes` (fails safe; enumerate consumers, do not discover them)
 - [x] **D4** — in-container chain walk, then at most one re-dispatch; cap 2 executions/task
 
 ---
@@ -304,12 +308,12 @@ which way should it be wrong?
 | New status value `no_changes` | *not* `completed` → counts as not-success | **safe** |
 | Boolean flag on `completed` | `completed` → counts as success | **unsafe** |
 
-**Recommendation: the new status value.** It costs more — every consumer that switches on status
-(the sweep, the dashboard, `messages health`, the banked task corpus) needs a case — but it fails
-in the direction that surfaces the problem rather than hiding it, which is the entire thesis of
-this doc and its predecessor. A boolean would be ignored by exactly the queries that matter.
-**This is an agent-resolvable call if you would rather not spend a ruling on it** — say so and it
-ships as the enum.
+**RULED: the new status value `no_changes`.** It fails in the direction that surfaces the
+problem rather than hiding it, which is the entire thesis of this doc and its predecessor; a
+boolean would be ignored by exactly the queries that matter. **M2 must enumerate every consumer
+that switches on status and add a case to each** — the backstop sweep, the dashboard,
+`messages health`, and the banked task corpus. Discovering them at runtime is how a fail-safe
+value becomes a silent one.
 
 ### M3 — The fallback chain, cheapest tier first (D4)
 
@@ -478,9 +482,8 @@ is currently the only thing preventing a repeat of the 1,146-message amplificati
 
 **Attended session. Triggers #1, #2 and #3 fire** — M1 overrides machinery shared with interactive
 sessions (Conflict Surface #1), D3 changes banked-data schema, and a design-freeze item remains
-open. **D1, D2 and D4 are now ruled**, so reviewers would see decided premises. **Run the quorum
-once D3 is settled** — and point reviewers at the A4 rationale and Conflict Surface #2b, which are
-the two places this design is most attackable.
+open. **D1, D2 and D4 are now ruled**, so reviewers would see decided premises. **D3 is settled, so the quorum runs now**, before planning — and reviewers are pointed at the A4
+rationale and Conflict Surface #2b, the two places this design is most attackable.
 
 ```bash
 ailang design-quorum design_docs/planned/m-coordinator-execution-trust.md \
