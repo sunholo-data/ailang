@@ -1,6 +1,6 @@
 # M-MOTOKO-STUB-REFUSAL-ARM: pin the `(test stub)` refusal message behaviourally, symmetric with the other two branches
 
-**Status**: NEW — awaiting design quorum. One sprint-sized item, ~1 iteration.
+**Status**: LANDED 2026-09-02 (motoko iteration 33). Quorum: BLOCKED r1 (3/3), BLOCKED r2 (2 reject / 1 pass), resolved under the narrow-refinement carve-out. One sprint-sized item, ~1 iteration.
 **Target**: v0.34.x (next motoko iteration)
 **Priority**: P1 (loop-health — a hunk with no killer; the `(test stub)` suffix is held by a static grep and by nothing behavioural)
 **Estimated**: 1 iteration (~1-2 hours implementation + mutation validation)
@@ -258,3 +258,43 @@ appending around it.
 After the drill, the suite was re-run with `PROBE_UNDER_TEST` pointing at the pristine tree probe: rc=0,
 43 `ok`, 0 `not ok`, final line `PASS: 43 probe self-test arms ran`. The tree probe sha256 was still
 `f0b5e02493369099f123c42107850fe062bf60d56ccabb2a7e4690d654aabc99`, so no restore was needed.
+
+## Arm PLACEMENT — corrected after the evaluation, and this is the iteration's real finding
+
+The arm as first written sat immediately after the caller-message arm at `:358`, i.e. **ahead of every
+wall-clock-bounded arm in the suite**. The independent evaluator filed that as its one BLOCKING finding:
+adding a `run_live` arm there is one more fork/exec before the 4-second `refusing live path refuses with the
+control-void message` arm and before `production run_lane fixture readiness`, so under host contention it
+nudges those arms toward their bounds. It reproduced one of the controller's two intermittent reds
+**verbatim**, including the underlying `INSTRUMENT FAILURE: lane treatment exceeded 4s sampling deadline`,
+in its own worktree at load 39.1-39.5 (base 5/5 clean, arm-at-26 4/5).
+
+**Measured three ways, one probe, interleaved, five rounds** — variants driven identically via
+`PROBE_UNDER_TEST` so the only variable is the test file:
+
+| variant | arm position | result |
+|---|---|---|
+| A — base, no new arm | — | **5/5 green**, 42 ok |
+| B — arm after the caller arm (`:360`) | 26 of 43 | **4/5 green**; the red is `not ok - production run_lane fixture readiness failed (outer_rc=82)` |
+| C — arm after the node-ceiling arm | 42 of 43 | **5/5 green**, 43 ok |
+
+Pooled across this measurement, the controller's earlier runs and the evaluator's independent A/B:
+**base 0 reds in 17 runs, arm-at-26 4 reds in 19, arm-at-42 0 reds in 5.**
+
+**The disposition is C, and the reason is a mechanism rather than a rate.** With the arm placed after every
+wall-clock-bounded arm, those arms begin at the same wall-clock offset as they do at base, so the mechanism
+the evaluator identified is **unreachable by construction** — which is worth more than winning a
+significance argument on a 4-of-19 sample. The move costs nothing: the suite is 43 ok, and the D1 mutant
+still reds with the new arm as the sole failing arm by name (`rc=1`, 41 ok).
+
+**What this costs the doc's earlier argument, stated rather than hidden.** The BESIDE decision said the new
+arm sits *immediately after* the caller-message arm. Adjacency turns out to buy nothing: the evaluator
+established that under the fail-fast harness any mutant that reds the caller arm masks the later one
+regardless of distance, so the two arms were never independent in ordering terms, only in *what they
+assert*. BESIDE-not-INSTEAD-OF still holds and is still right — two distinct strings, two distinct pins —
+but "beside" now means "both present", not "adjacent".
+
+**And the honest residual: moving the arm does NOT make the suite flake-free.** One C-shaped run during
+setup also hit `production run_lane fixture readiness failed`. Placement removes one contributor to a
+pre-existing fragility whose real fix is row 6p's — derive these arms' bounds from a stimulus measured
+in-test rather than from wall-clock constants calibrated on a quiet machine. That is not this row's work.
