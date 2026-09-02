@@ -1145,18 +1145,43 @@ models:
   # Google Gemini 3.5 Flash (released May 19, 2026 at Google I/O 2026)
   # ⚠️  EXCLUDED FROM STANDARD EVAL ROTATION (v0.22.0, 2026-05-20).
   # The Vertex Managed Agents API path is cost-prohibitive due to a documented
-  # Google API limitation: implicit + explicit context caching are BOTH disabled
-  # when the request includes system_instruction, tools, or tool_config. The
-  # Antigravity agent harness uses all three by definition, so no caching is
-  # possible on this code path. Result: 15.7× more expensive per run than
-  # legacy gemini-cli/gemini-3-flash on the v0.20.0 baseline (avg $1.79 vs
-  # $0.11 per run; 93.5% of cost is input-token re-send across many turns).
+  # ⚠️  SUPERSEDED 2026-09-02 — THE PREMISE BELOW IS FALSIFIED BY MEASUREMENT.
+  # It read: "implicit + explicit context caching are BOTH disabled when the
+  # request includes system_instruction, tools, or tool_config. The Antigravity
+  # agent harness uses all three by definition, so no caching is possible on this
+  # code path. Result: 15.7x more expensive per run than legacy
+  # gemini-cli/gemini-3-flash on the v0.20.0 baseline (avg $1.79 vs $0.11 per
+  # run; 93.5% of cost is input-token re-send across many turns)."
+  #
+  # Caching DOES work on this path, with tools. Two live /interactions probes:
+  #   A: repeated prompt, 0 tool calls  -> 5,350 of 13,107 input cached (40.8%)
+  #   B: UNIQUE prompt, 6 tool calls    -> 28,378 of 41,332 input cached (68.7%)
+  # B is the load-bearing one: unique prompt (so not an artifact of repetition)
+  # AND tool-using (the exact condition the old note said forbade caching), and
+  # it cached MORE — because a multi-turn agent replays a stable prefix, which is
+  # precisely what caches well.
+  #
+  # Re-evaluation trigger (c) below is therefore MET: the usage payload exposes
+  # `total_cached_tokens` (+ cached_tokens_by_modality). It was unparsed until
+  # 2026-09-02 and the executor asserted "Not reported by Managed Agents API",
+  # so cached tokens were billed at the FULL input rate. Fixed in the same
+  # change (internal/executor/managed_agents): cache reads now priced at
+  # $0.15/1M. Measured overstatement on the two probes: 42.9% and 84.3%.
+  #
+  # CONSEQUENCE: the $1.79/run and 15.7x figures are NOT trustworthy — they were
+  # computed under a falsified no-caching premise AND with cache reads billed as
+  # fresh input. The true agent-mode cost of this lane is UNMEASURED and lower,
+  # possibly much lower. Do not quote them; re-measure before any cost argument.
+  #
+  # The agent-mode exclusion STANDS for now — not on the cost claim (which is
+  # void) but because nothing has re-measured it yet. Lift it on measurement,
+  # not on this correction alone.
   #
   # The exclusion above is AGENT-MODE ONLY: not in agent_suite, and not run
   # through the managed_agents path in any suite.
-  # Re-evaluate when Google ships either (a) a tools-compatible cache mode,
-  # (b) static-prefix caching for system_instruction + tool definitions, or
-  # (c) cachedContentTokenCount exposed in /interactions usage payloads.
+  # Remaining re-evaluate triggers: (a) a tools-compatible cache mode — now
+  # apparently shipped, see above; (b) static-prefix caching for
+  # system_instruction + tool definitions; (c) MET 2026-09-02.
   #
   # STANDARD mode (direct Vertex generateContent) is UNAFFECTED by all of the
   # above. Opt-in only as of 2026-07-21: gemini-3-6-flash took the extended_suite
@@ -1381,6 +1406,59 @@ models:
   # (tied on all three) plus a 42-48% thinking-token reduction at identical price.
   # The full gate record, including what was RETRACTED at N=3, is in the
   # extended_suite annotation — read that before re-litigating this row.
+  # Google Gemini 3.8 Flash (released September 2, 2026)
+  gemini-3-8-flash:
+    api_name: "gemini-3.8-flash"
+    provider: "google"
+    default_thinking: "on"
+    description: "Gemini 3.8 Flash - Sep 2026 Flash refresh; same $0.75/$3.75 introductory rate as 3.7 Flash"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    # VERIFIED empirically 2026-09-02 against the Vertex global endpoint, not assumed
+    # from 3.7: 65536 ACCEPTED, 65537 and 131072 both REJECTED ("supported range is
+    # from 1 (inclusive) to 65537 (exclusive)"). Same 64K ceiling as 3.7/3.6 Flash.
+    max_output_tokens: 65536
+    model_family: "gemini-3-flash"
+    pricing:
+      # ⚠️  INTRODUCTORY PRICING — identical schedule to 3.7 Flash. These constants
+      # EXPIRE 2026-12-31; on 2027-01-01 the rates DOUBLE to $1.50/$7.50 per 1M. If
+      # they are not updated then, every cost figure banked for this model is
+      # silently half the true spend.
+      input_per_1k: 0.00075    # $0.75 per 1M through 2026-12-31 → $1.50 from 2027-01-01
+      output_per_1k: 0.00375   # $3.75 per 1M through 2026-12-31 → $7.50 from 2027-01-01
+      expires: "2026-12-31"    # enforced by TestModels_PricingScheduleIsHonoured
+      next:
+        input_per_1k: 0.0015   # $1.50 per 1M from 2027-01-01
+        output_per_1k: 0.0075  # $7.50 per 1M from 2027-01-01
+    notes: |
+      Google's newest Flash model, listed 2026-09-02 (OpenRouter `created` 1788362056).
+      1M token input context, 64K max output (65536 ceiling, verified by API rejection
+      at 65537 — probed, not inherited from the 3.7 row).
+
+      Pricing quoted VERBATIM from ai.google.dev/gemini-api/docs/pricing on 2026-09-02
+      (Google first-party, not a blog or a mirror): "$0.75 through December 31, 2026.
+      $1.50 starting January 1, 2027" input; "$3.75 ... $7.50" output. Byte-identical
+      to 3.7 Flash's schedule, so 3.8 is a same-cost generational refresh — the
+      match-or-beat bar that justifies a price delta does not apply.
+
+      ⚠️  REASONING MODEL — thinks by default. Probed 2026-09-02 with NO reasoning
+      params, 3.8 and 3.7 on the SAME prompt in the same session (a fairer pairing
+      than comparing against the older logged figures):
+        3.8: thoughtsTokenCount=572, candidatesTokenCount=522  (52% of billed output)
+        3.7: thoughtsTokenCount=683, candidatesTokenCount=503  (58% of billed output)
+      Both finish=STOP, no truncation at 3000. So 3.8 spends ~16% fewer thinking
+      tokens for a comparable answer. Thinking bills at the OUTPUT rate, so any cost
+      projection must use candidates+thoughts, never candidates alone.
+
+      Vertex access VERIFIED 2026-09-02: generateContent on the global endpoint
+      returns HTTP 200 (project ailang-dev).
+
+      SMOKE + CORE GATES: PENDING at registration. Opt-in only, in NO suite, until
+      they run. Per model-manager §5.5 the placement is a CANDIDATE-ALONE run against
+      the anchored series — do NOT re-run gemini-3-7-flash as a comparator, it is
+      already banked.
+
   gemini-3-7-flash:
     api_name: "gemini-3.7-flash"
     provider: "google"
