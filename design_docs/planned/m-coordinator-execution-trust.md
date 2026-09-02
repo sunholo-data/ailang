@@ -1,7 +1,7 @@
 # M-COORDINATOR-EXECUTION-TRUST: make "a job ran" mean "work was attempted, and we know the outcome"
 
 **Status**: Planned — attended, standalone critical-infrastructure work, deliberately off the mission queue (Mark, 2026-09-02).
-**Scope**: **M1a + M2 + M3 (landed 2026-09-02) + M4 (queue visibility, added after the sprint — see "the goal behind the goal").** The general per-repo manifest system split to [M-PACKAGE-PROTOCOL-MANIFESTS](m-package-protocol-manifests.md) 2026-09-02 (Mark, attended) — three quorum rounds put every unresolved objection there, while M2/M3's closed and stayed closed.
+**Scope**: **M1a + M2 + M3 (landed 2026-09-02) + M4 (queue visibility) + M5 (send-path misrouting, found by the end-to-end test).** The general per-repo manifest system split to [M-PACKAGE-PROTOCOL-MANIFESTS](m-package-protocol-manifests.md) 2026-09-02 (Mark, attended) — three quorum rounds put every unresolved objection there, while M2/M3's closed and stayed closed.
 **Rulings**: **All of D1–D4 ruled by Mark 2026-09-02 (attended)** — see Decisions. D2 REVERSED the author's recommendation and improved the design. Design freeze is CLOSED; sprint may proceed.
 **Target**: v0.35.0
 **Priority**: P0. Every autonomous lane downstream — package agents, cascade, feedback triage, cross-repo handoffs — dispatches through this path and has been producing nothing for six days without saying so.
@@ -27,6 +27,7 @@ predecessor, one level up: **the parts work, the outcome is unobservable.**
 |---|---|---|---|
 | gate → executor | Agent reads the repo, diagnoses the bug correctly, writes nothing, exits 0 | The session-protocol gate is baked into the pi executor image at `/home/ailang/.pi` and arms in **every** workspace; the disarm is a tool call the pinned executor model never makes | **M1** |
 | executor → completion | 4 of 4 recent tasks report `completed` with `changed_files: null` and no pushed branch | A no-op path added for acknowledge-only probes returns `nil`, so `publishCompletion("completed", …)` fires for both "nothing to do" and "structurally prevented" | **M2** |
+| send → inbox | A message is delivered to a DIFFERENT inbox than addressed, and says `✓ Message sent` | a flag value starting with `-` is refused by `normalizeArgsForFlags`, shifting every later token (V29) | **M5** |
 | agent → model | A stalled provider kills the task outright — no second attempt | `ResolveModel` returns `chain[0]` and discards the rest; all 35 cloud agents carry a `model:` pin, so the chain never resolves at all | **M3** |
 
 **The unifying defect is the same one the sibling doc named, moved up a layer.** Each of the
@@ -77,6 +78,8 @@ Every load-bearing claim below was checked against the code or against prod
 | **V25** | **A sender chooses their own inbox.** `to_inbox` is a plain field on `ailang messages send <inbox> …`, persisted verbatim (`messaging/inbox.go:183`) | read the send path | **Confirms gpt5-6-sol.** Tier may NOT map from inbox. The trusted link is inbox → *registered agent* (coordinator config) → tier; the sender controls the first arrow only |
 | **V26** | **"Rebuild the images" is TWO pipelines, not one.** `cloudbuild-dev.yaml` in this repo builds coordinator, agent-base, agent, agent-go, agent-motoko — **no `agent-pi`**. The pi image is built by the *multivac* repo's `cloudbuild.yaml` (`-f /workspace/ailang/docker/Dockerfile.agent-pi`, cloning ailang `--branch dev`) | read both build configs; `gcloud artifacts docker images list` confirms agent-pi exists and is built elsewhere | **CORRECTS the first Rollout draft.** M1a lives in the pi image and 32 of 35 agents are provider=pi, so an ailang-repo build alone ships M1a to nobody |
 | **V27** | **`ailang-multivac` is PROD, and the automatic builds do not touch it.** `ailang-core-dev` runs with `_TARGET_PROJECT=ailang-multivac-dev`, `_PREFIX=ailang-dev`. A full parallel plane exists there (`ailang-dev-coordinator`, `ailang-dev-agent-executor-*`) with its own Firestore and an `ailang-dev` topic prefix. Prod updates via the `ailang-multivac-prod` trigger or `promote-to-prod` ("copy images, no rebuild") | `gcloud builds describe` substitutions; `gcloud run services/jobs list --project ailang-multivac-dev` | **CORRECTS the first Rollout draft**, which read as though a dev build reached the plane this doc audits. It does not — and the dev plane is therefore a safe place to test |
+| **V28** | **CORRECTION — the ack is INTERMITTENT, not never.** This doc said the pinned executor model "never makes" the `session_protocol_ack` call. Measured on the dev plane 2026-09-02 (`task-f8213acd`, same model `deepseek-v4-flash-0731`): the model hit the gate, then **called `session_protocol_ack` in turn 1** and unlocked. `task-4e415b46` on 08-31 never called it across twelve minutes | dev-plane executor logs, both runs | **Falsifies the doc's own wording.** The gate is a *flaky* blocker, not a deterministic one — which is worse for diagnosis, because the failure then looks like model variance rather than a harness defect. M1a's floor is still the right fix: it removes the coin-flip |
+| **V29** | **NEW DEFECT, same class as this doc's thesis: a message can be delivered to the WRONG INBOX while reporting success.** `normalizeArgsForFlags` (`cmd/ailang/messages_send.go:448`) refuses to consume a flag value beginning with `-`, so the value falls through to positional and every later token shifts. Minimal repro: `ailang messages send diag-argparse "body" --title "--help is inconsistent" --from "diag-sender"` → the message lands in inbox **`diag-sender`**, `from_agent` falls back to `cli`, `title` becomes the literal string `--from`, and the CLI prints `✓ Message sent`. Control with a title not starting with `-` routes correctly | reproduced 5×, isolated to the dash-prefixed flag VALUE (not the body) | **Found by the end-to-end test this doc motivated.** Any report whose title starts with `--help`, `-v`, `--json`… is silently misrouted |
 
 **Not verified, deliberately deferred:** why executor GitHub writes return `422` on every REST
 and GraphQL issue-create (token scopes read healthy). It cost the agent ~2 of its 15 minutes but
@@ -474,6 +477,25 @@ Scoped deliberately small: this is the difference between a loop that works and 
 
 **Not in scope:** a dashboard, alerting, or anything requiring a deploy of its own. A CLI that
 prints the truth is the whole ask.
+
+### M5 — A message reaches the inbox it was addressed to (V29)
+
+Found by the end-to-end test, and it belongs in this doc rather than a separate one because it is
+the same defect the whole document is about, one layer earlier: **the send path reports success
+and does something else.** Every other milestone here assumes the message arrived where it was
+sent; this is the assumption underneath them.
+
+`normalizeArgsForFlags` guards against consuming the *next flag* as a value by refusing any token
+starting with `-`. That guard is wrong for a legitimate value that happens to start with a dash,
+and dash-leading values are common in exactly this system — bug reports about flags.
+
+**Fix:** decide whether the next token is a value by checking it against the *known flag set*, not
+by a bare `-` prefix. Equally important: **an unconsumed flag must be an error, not a silent
+shift.** The routing outcome must never be a side effect of a parse that half-failed.
+
+**Arms:** a title beginning with `--help` routes to the addressed inbox, keeps its `--from`, and
+keeps its title; a genuinely missing flag value errors instead of shifting; the existing
+non-dash cases stay byte-identical.
 
 ### Files to Modify/Create
 
