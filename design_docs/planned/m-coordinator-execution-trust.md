@@ -1,10 +1,11 @@
 # M-COORDINATOR-EXECUTION-TRUST: make "a job ran" mean "work was attempted, and we know the outcome"
 
 **Status**: Planned — attended, standalone critical-infrastructure work, deliberately off the mission queue (Mark, 2026-09-02).
+**Scope**: **M1a + M2 + M3.** The general per-repo manifest system split to [M-PACKAGE-PROTOCOL-MANIFESTS](m-package-protocol-manifests.md) 2026-09-02 (Mark, attended) — three quorum rounds put every unresolved objection there, while M2/M3's closed and stayed closed.
 **Rulings**: **All of D1–D4 ruled by Mark 2026-09-02 (attended)** — see Decisions. D2 REVERSED the author's recommendation and improved the design. Design freeze is CLOSED; sprint may proceed.
 **Target**: v0.35.0
 **Priority**: P0. Every autonomous lane downstream — package agents, cascade, feedback triage, cross-repo handoffs — dispatches through this path and has been producing nothing for six days without saying so.
-**Estimated**: ~3 days (M1 ~0.5d, M2 ~0.5d, M3 ~1.5d, rollout ~0.5d)
+**Estimated**: ~3 days (M1a ~1d, M2 ~0.5d, M3 ~1.5d, rollout ~0.5d)
 **Dependencies**: none blocking. Builds directly on [m-message-plane-trust.md](m-message-plane-trust.md) M1–M3, which landed 2026-08-31 and fixed the layer below (delivery).
 
 ---
@@ -296,7 +297,7 @@ Any consumer treating `completed` as "work landed" was already wrong; after M2 i
 
 ## Solution Design
 
-### M1 — A permission system with a floor, applied everywhere (D1 + D2)
+### M1a — A permission system with a trusted tier and a built-in floor (D1 + D2)
 
 Two changes, one to each axis.
 
@@ -322,17 +323,25 @@ The tier is therefore **not** read from `classifyTaskType`:
 3. **Floor.** The gate always enforces a **centrally defined minimum prerequisite set**. There is
    none today (V21), so M1 creates it.
 
-**Generalisation (D2), bounded by that floor.** The gate stays loaded in every workspace, and a
-repo may publish a **versioned manifest that ADDS prerequisites — never removes or weakens the
-floor.** Without that bound, a repository we dispatch into could declare an empty protocol and
-unlock write access to itself: repository-controlled content deciding its own permission
-requirements. A malformed or unsupported-version manifest **blocks mutation** with a structured
-terminal reason rather than falling back to the default — no silent fallback (Principle 2).
+**Generalisation (D2) — scoped to M1a, with the manifest system split out.** After three quorum
+rounds landed every hard objection on repo-published manifests, that half is now
+[M-PACKAGE-PROTOCOL-MANIFESTS](m-package-protocol-manifests.md). **M1a contains no
+repo-controlled content at all**, which removes the entire "a repo declares an empty protocol and
+unlocks itself" surface from this sprint.
 
-The floor must also be **generic**, not AILANG-specific: a foreign workspace with no manifest and
-no `CLAUDE.md` must still be able to satisfy it. This resolves the conflict the reviewer spotted
-between the clean-foreign-workspace success criterion and inheriting an AILANG default that
-requires a file the repo does not have.
+M1a ships **two built-in prerequisite sets**, selected by trusted coordinator metadata:
+
+| Set | Applies when | Contents |
+|---|---|---|
+| **Generic floor** | default, and for every non-AILANG workspace | satisfiable with no `CLAUDE.md` and no AILANG-specific file — this is what makes Success Metric 1 reachable in a clean foreign repo |
+| **AILANG set** | the workspace is the AILANG repo, per the agent config's `workspace` field | today's behaviour exactly: a `CLAUDE.md` read plus an `ailang messages` call |
+
+Selection is by **trusted coordinator metadata, never by a file in the clone** — so no repo can
+influence which set governs it. The gate still loads in every workspace (D2 holds), and
+`shouldBlock` stops being AILANG-specific without anything becoming repo-controlled.
+
+**Tier 1 is refused outright on any dispatch where `PushBranch` is set (V24).** The direct-push
+path has no PR containment, so it never gets the auto-disarm floor — it gets tier 2.
 
 The failure M1 fixes remains the one measured in V6 — the model satisfied both prerequisites in
 three turns and stayed blocked for twelve minutes. Tier 1 is that floor. Tier 2, now that its
