@@ -215,7 +215,24 @@ log "build OK: ${BUILD_VERSION} (commit ${SHORT})"
 # the other 16 fall back to the fixed THRASH ceiling below until they accrue 5
 # passing samples. qwen3.5 registry entries are deliberately KEPT in models.yml:
 # 2,438 banked pass-trials are attributed to them.
-MODEL="opencode-qwen3-6-35b-a3b-mxfp8"
+#
+# qwen3.6 -> qwen3.8 on 2026-09-02. The rotation was migrated by Mark's directive
+# on 2026-08-18 (see os-rotation-filler.sh: "REPLACEMENT, never an addition" --
+# ollama holds OLLAMA_MAX_LOADED_MODELS=2 = ONE on-device LLM + ONE embedder), but
+# this driver was missed, and qwen3.6:35b-a3b-mxfp8 is no longer pulled. The two
+# harnesses failed DIFFERENTLY on the missing model, which is why it went unnoticed
+# for three nights: motoko's canary said so plainly ("model not found"), while
+# opencode degraded silently to 0 turns / 0 tool calls and banked 0/24 -- read as a
+# non-agentic executor bug, not an absent model. Nights 2026-08-31..09-02 were all
+# flagged INVALID (infra_outage) by the validity guard, so no 0% row entered the
+# baseline; newest VALID night is 2026-08-30.
+#
+# BASELINE CAVEAT: adaptive thresholds are keyed on (model, benchmark), so this
+# swap re-bases them. opencode-qwen3-8-27b carries banked rows from the OS rotation
+# (302 agent runs as of 2026-09-02), but benchmarks under 5 passing samples fall
+# back to the fixed THRASH ceiling below until they accrue them. Trailing-median
+# regression comparisons also span the model change for the next few nights.
+MODEL="opencode-qwen3-8-27b"
 BENCH_TIERS="smoke,core"   # display label for alerts/log
 # Thrash ceiling per benchmark (M-EVAL-OS-LONGITUDINAL). When eval_baselines has
 # >=5 passing samples for a (model, benchmark), the eval-suite uses an adaptive
@@ -276,7 +293,18 @@ RUN_AB_FMT=0
 [[ "${AILANG_FORCE_AB_FMT:-0}" == "1" ]] && RUN_AB_FMT=1
 # Opt OUT of one on its own night (e.g. to give the other the whole rig).
 [[ "${AILANG_AB_MICRORAG:-1}" == "0" ]] && RUN_AB_MICRORAG=0
-[[ "${AILANG_AB_FMT:-1}" == "0" ]] && RUN_AB_FMT=0
+# fmt A/B DEFAULT-OFF 2026-09-02: BOTH its arms are qwen3.6 entries and
+# qwen3.6:35b-a3b-mxfp8 is no longer pulled --
+#   ON  = motoko-local-qwen3-6-fmt           (api_name qwen3.6:35b-a3b-mxfp8)
+#   OFF = motoko-local-qwen3-6-35b-a3b-mxfp8 (api_name qwen3.6:35b-a3b-mxfp8)
+# so the experiment cannot run at all, and the arms cannot simply be repointed:
+# there is no ollama_fmt entry for qwen3.8 in models.yml (motoko-local-qwen3-6-fmt
+# is the ONLY ollama_fmt row). Restoring the A/B means onboarding a
+# motoko-local-qwen3-8-27b-fmt entry on the ollama_fmt profile and re-validating
+# the treatment, NOT flipping this default back. Until then the Wednesday slot
+# runs the plain regression guard rather than banking a broken half-experiment.
+# Override with AILANG_AB_FMT=1 once that entry exists.
+[[ "${AILANG_AB_FMT:-0}" == "0" ]] && RUN_AB_FMT=0
 
 # select_ab_benchmarks <model> <max> -- echo a comma-separated benchmark set chosen
 # by CONFIDENCE from the ratings DB, or nothing if selection is unavailable.

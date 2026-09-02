@@ -22,7 +22,11 @@ source "$(dirname "$0")/rig-lock.sh"
 LOG=/tmp/ailang-nightly-lang-eval.log
 DATE=$(date +%Y%m%d)
 RESULTS_DIR="/tmp/lang_eval_${DATE}"
-MODEL="${LANG_EVAL_MODEL:-opencode-qwen3-6-35b-a3b-mxfp8}"
+# qwen3.6 -> qwen3.8 on 2026-09-02: qwen3.6:35b-a3b-mxfp8 is no longer pulled on the
+# rig (single-on-device-LLM rule; see nightly-eval.sh). This script has no launchd
+# job today, so the stale default was dormant rather than failing nightly -- fixed
+# here so it does not fail the moment anyone schedules or hand-runs it.
+MODEL="${LANG_EVAL_MODEL:-opencode-qwen3-8-27b}"
 LANGS="${LANG_EVAL_LANGS:-ailang,python,javascript,go}"
 
 log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG"; }
