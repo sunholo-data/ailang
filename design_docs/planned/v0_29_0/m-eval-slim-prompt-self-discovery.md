@@ -1,6 +1,14 @@
 # M-EVAL-SLIM-PROMPT-SELF-DISCOVERY
 
-**Status**: Planned
+**Status**: RULED OUT (docs-8 sweep, 2026-09-02) — the slim prompt (`v0.10.0-slim.md`/`-v2.md`)
+was built, A/B-tested, and the result was mixed-to-negative (82%→65% pass rate across iterations),
+then the prompt files were deleted (commit `2de1ef963`, 2026-06-13). The live
+`local-ollama-eval` skill documents that progressive-disclosure "was tried and deliberately
+abandoned" and that opencode does not use the AILANG MCP server as a tool source, so the
+`prompt_get`/`stdlib_search` plumbing this doc's acceptance criteria depend on was never the path
+taken. None of this doc's "done" artifacts (a tagged `v0.10.0-slim` prompt, a committed A/B
+rotation report under `design_docs/implemented/`) exist at HEAD. Kept under `planned/` rather than
+moved, per this mission's convention for a negative result (see docs-mission-log.md ITERATION 5).
 **Target**: v0.23.0
 **Priority**: P1
 **Estimated**: 2 days (1 day prompt + harness; 1 day A/B measurement)

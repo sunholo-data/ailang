@@ -40,10 +40,25 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.1.34" \
 # init + fetch the exact commit directly (verified: fetch-by-SHA works while
 # clone-then-checkout does not). Bumping this pin requires also bumping it in
 # the in-repo adapter README and recapturing the testdata/ fixtures.
-RUN mkdir -p /opt/motoko_agent && cd /opt/motoko_agent \
+#
+# The fetch authenticates when the build passes a `github_token` secret
+# (docker buildx build --secret id=github_token,env=GITHUB_TOKEN — the
+# ailang-multivac pipelines and cloudbuild-dev.yaml do). GitHub throttles
+# anonymous git traffic from Cloud Build's egress; measured 2026-09-02 as
+# "could not read Username for 'https://github.com'", which names credentials
+# but is rate limiting. Without the secret the fetch is anonymous, so local
+# builds still work. The helper is passed with -c for this one command and
+# nothing is written to the image.
+RUN --mount=type=secret,id=github_token \
+    mkdir -p /opt/motoko_agent && cd /opt/motoko_agent \
     && git init -q \
     && git remote add origin https://github.com/sunholo-data/motoko_agent.git \
-    && git fetch --depth=1 origin ${MOTOKO_COMMIT} \
+    && if [ -s /run/secrets/github_token ]; then \
+         git -c credential.helper='!f() { echo username=x-access-token; echo "password=$(cat /run/secrets/github_token)"; }; f' \
+             fetch --depth=1 origin ${MOTOKO_COMMIT}; \
+       else \
+         git fetch --depth=1 origin ${MOTOKO_COMMIT}; \
+       fi \
     && git checkout FETCH_HEAD
 
 # Install bun deps for the TUI. The package.json lives in src/tui (the repo
@@ -71,7 +86,8 @@ ENV MOTOKO_COMMIT=${MOTOKO_COMMIT}
 USER ailang
 
 # NOTE for ailang-multivac PR authors:
-#   This image works against the public sunholo-data/motoko_agent repo.
-#   If you switch the pinned commit to one on a private branch, also bind
-#   a deploy key or switch to git+ssh in the clone above. The current setup
-#   assumes public-clone + frozen-version semantics.
+#   This image works against the public sunholo-data/motoko_agent repo, but
+#   the fetch should still be given the `github_token` build secret in Cloud
+#   Build (see above) or it will intermittently hit GitHub's anonymous-egress
+#   throttle. If you switch the pinned commit to one on a private branch, the
+#   same secret must carry a token with read access to that repo.

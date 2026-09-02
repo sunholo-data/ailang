@@ -39,8 +39,24 @@ RUN git config --system user.name "ailang-agent" \
 
 # Pre-clone shared skills plugin for faster cold starts (M-CLOUD-PLUGIN-SKILLS, v0.9.1).
 # Override at build time: --build-arg AILANG_PLUGIN_REPO=https://github.com/your-org/plugin.git
+#
+# This clone MUST succeed. The plugin carries the cloud agents' hooks — including
+# the git guardrails — so an image built without it runs agents unguarded. It
+# used to be `... 2>/dev/null || true`, which turned a throttled clone into a
+# silently hook-less image. GitHub throttles anonymous git traffic from Cloud
+# Build's egress (measured 2026-09-02), so the clone authenticates when the
+# build passes a `github_token` secret (docker buildx build
+# --secret id=github_token,env=GITHUB_TOKEN); without one it is anonymous, so
+# local builds still work. The helper is passed with -c for this one command
+# and nothing is written to the image.
 ARG AILANG_PLUGIN_REPO=https://github.com/sunholo-data/ailang_bootstrap.git
-RUN git clone --depth 1 ${AILANG_PLUGIN_REPO} /plugins/ailang_bootstrap 2>/dev/null || true
+RUN --mount=type=secret,id=github_token \
+    if [ -s /run/secrets/github_token ]; then \
+      git -c credential.helper='!f() { echo username=x-access-token; echo "password=$(cat /run/secrets/github_token)"; }; f' \
+          clone --depth 1 ${AILANG_PLUGIN_REPO} /plugins/ailang_bootstrap; \
+    else \
+      git clone --depth 1 ${AILANG_PLUGIN_REPO} /plugins/ailang_bootstrap; \
+    fi
 
 ENV COORDINATOR_MODE=cloud
 

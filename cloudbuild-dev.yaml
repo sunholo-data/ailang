@@ -111,9 +111,15 @@ steps:
   # agent-base → agent (FROM agent-base) → agent-go (FROM agent).
   # Pushes are embedded in --push so no intermediate push-* steps needed.
 
+  # Passes the GitHub token as a BuildKit secret: this Dockerfile fetches from
+  # GitHub at build time, and anonymous git traffic from Cloud Build's egress is
+  # throttled (2026-09-02 — the motoko step failed with "could not read Username"
+  # while allowFailure kept the build green and :latest silently stale). The
+  # Dockerfile falls back to an anonymous fetch when no secret is passed.
   - id: build-agent-base
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
+    secretEnv: ['GITHUB_TOKEN']
     args:
       - -c
       - |
@@ -121,6 +127,7 @@ steps:
         docker buildx build \
           --cache-from "type=registry,ref=$$AR/agent-base:cache" \
           --cache-to   "type=registry,ref=$$AR/agent-base:cache,mode=max" \
+          --secret id=github_token,env=GITHUB_TOKEN \
           -t "$$AR/agent-base:latest" \
           -f docker/Dockerfile.agent-base \
           --push \
@@ -169,9 +176,15 @@ steps:
   # agent-base (Dockerfile.agent-motoko inherits the AILANG runtime + bash).
   # The corresponding Cloud Run Job definition lives in ailang-multivac
   # (terraform/cloud_run_jobs.tf) — see docker/agent-motoko-multivac-prs.md.
+  # Passes the GitHub token as a BuildKit secret: this Dockerfile fetches from
+  # GitHub at build time, and anonymous git traffic from Cloud Build's egress is
+  # throttled (2026-09-02 — the motoko step failed with "could not read Username"
+  # while allowFailure kept the build green and :latest silently stale). The
+  # Dockerfile falls back to an anonymous fetch when no secret is passed.
   - id: build-agent-motoko
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
+    secretEnv: ['GITHUB_TOKEN']
     args:
       - -c
       - |
@@ -180,6 +193,7 @@ steps:
           --cache-from "type=registry,ref=$$AR/agent-motoko:cache" \
           --cache-from "type=registry,ref=$$AR/agent-base:cache" \
           --cache-to   "type=registry,ref=$$AR/agent-motoko:cache,mode=max" \
+          --secret id=github_token,env=GITHUB_TOKEN \
           --build-arg PROJECT=$_TARGET_PROJECT \
           -t "$$AR/agent-motoko:latest" \
           -f docker/Dockerfile.agent-motoko \
@@ -252,3 +266,13 @@ steps:
     # coordinator/dashboard/mcp + the default+go agent jobs; the motoko job is
     # managed separately by the multivac Terraform pipeline.
     waitFor: ['push-coordinator', 'build-agent-go', 'build-dashboard', 'build-mcp']
+
+# The GitHub connection's own OAuth token, already present in the deploy project
+# (every build here runs there as sa-cloudbuild). Used to authenticate the source
+# clones and the image builds whose Dockerfiles fetch from GitHub (agent-base
+# clones the bootstrap plugin, agent-motoko fetches motoko_agent): GitHub
+# throttles anonymous git traffic from Cloud Build's egress — measured 2026-09-02.
+availableSecrets:
+  secretManager:
+    - versionName: projects/ailang-multivac-deploy/secrets/github-github-oauthtoken-f8f84f/versions/latest
+      env: 'GITHUB_TOKEN'
