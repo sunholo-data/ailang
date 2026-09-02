@@ -152,26 +152,51 @@ if [ -n "${WORKSPACE_REPO:-}" ]; then
   fi
 fi
 
-# ─── 5. herdr ────────────────────────────────────────────────────────────────
-# NEVER `setsid herdr server`: it fails silently — no output, an empty log, and
-# a server that never starts (Phase 0 §10). Plain backgrounding works.
-# NEVER bare `herdr`: that launches the TUI, which in a container with no
-# terminal hangs.
-mkdir -p "$(dirname "$HERDR_SOCKET_PATH")"
-herdr server >/tmp/herdr-server.log 2>&1 &
-HERDR_PID=$!
-log "herdr server pid=$HERDR_PID socket=$HERDR_SOCKET_PATH"
+# ─── 5. pi extensions ────────────────────────────────────────────────────────
+# agent-pi bakes AILANG's dev extension suite in via `ailang pi install`:
+# sprint-steward, prepush-gate, microrag-context, session-protocol-gate and the
+# rest. They exist for a developer working in the ailang repo and are wrong for
+# a resident agent:
+#   * they cost startup time and memory on every container start;
+#   * session-protocol-gate blocks edit/write and fail-closes bash until
+#     `session_protocol_ack`, which a headless resident cannot satisfy the
+#     interactive way — it branches on ctx.hasUI and asks for a human keypress.
+# Off by default, opt back in with RESIDENT_PI_EXTENSIONS=1 when a resident is
+# genuinely doing ailang repo work and can satisfy the protocol.
+EXT_DIR="$PI_HOME/agent/extensions"
+if [ "${RESIDENT_PI_EXTENSIONS:-0}" = "1" ]; then
+  log "pi extensions: ENABLED (RESIDENT_PI_EXTENSIONS=1)"
+elif [ -d "$EXT_DIR" ]; then
+  mv "$EXT_DIR" "$EXT_DIR.disabled" 2>/dev/null || true
+  log "pi extensions: disabled (moved aside; set RESIDENT_PI_EXTENSIONS=1 to keep)"
+fi
 
-# Readiness is probed with `api snapshot`, NOT `herdr status`: status exits 0
-# whether or not the server is running and merely prints "status: not running"
-# in its body, so a loop keyed on its exit code never waits (Phase 0 §10).
-READY=0
-for i in $(seq 1 60); do
-  if herdr api snapshot >/tmp/herdr-snapshot.json 2>/dev/null; then READY=1; break; fi
-  sleep 1
-done
-[ "$READY" = "1" ] || { sed 's/^/boot |   /' /tmp/herdr-server.log; die "herdr server did not become ready in 60s"; }
-log "herdr ready after ${i}s: $(herdr --version 2>&1)"
+# ─── 6. herdr (optional) ─────────────────────────────────────────────────────
+# herdr is NOT on the task path any more: stream mode runs `pi --mode json`
+# directly, because driving pi as a TUI headless does not submit prompts and
+# cannot report completion. herdr remains installed for human attach
+# (`herdr --remote`), but starting it by default costs a process and memory for
+# nothing.
+#
+# NEVER `setsid herdr server` — it fails silently. NEVER bare `herdr` — that
+# launches the TUI and hangs with no terminal.
+if [ "${RESIDENT_ENABLE_HERDR:-0}" = "1" ]; then
+  mkdir -p "$(dirname "$HERDR_SOCKET_PATH")"
+  herdr server >/tmp/herdr-server.log 2>&1 &
+  HERDR_PID=$!
+  log "herdr server pid=$HERDR_PID socket=$HERDR_SOCKET_PATH"
+  # Readiness via `api snapshot`, NOT `herdr status`: status exits 0 whether or
+  # not the server runs.
+  READY=0
+  for i in $(seq 1 60); do
+    if herdr api snapshot >/tmp/herdr-snapshot.json 2>/dev/null; then READY=1; break; fi
+    sleep 1
+  done
+  [ "$READY" = "1" ] || { sed 's/^/boot |   /' /tmp/herdr-server.log; die "herdr server did not become ready in 60s"; }
+  log "herdr ready after ${i}s: $(herdr --version 2>&1)"
+else
+  log "herdr: not started (RESIDENT_ENABLE_HERDR=1 to enable for human attach)"
+fi
 
 # ─── 6. Hand over ────────────────────────────────────────────────────────────
 # The health endpoint owns the foreground. If it exits the container should

@@ -26,12 +26,16 @@ const rpcError = (res, id, code, message, httpCode = 200) =>
   json(res, httpCode, { jsonrpc: "2.0", id: id ?? null, error: { code, message } });
 
 async function health() {
+  const herdrEnabled = process.env.RESIDENT_ENABLE_HERDR === "1";
   let h;
-  try {
+  if (!herdrEnabled) h = { ok: true, disabled: true };
+  else try {
     const snap = await herdr.snapshot();
     const s = snap?.snapshot ?? {};
     h = { ok: true, protocol: s.protocol, version: s.version, agents: (s.agents || []).length, panes: (s.panes || []).length };
   } catch (e) { h = { ok: false, error: String(e.message).slice(0, 200) }; }
+  // herdr being off is a configuration, not a fault: it is no longer on the
+  // task path, so its absence must not make the instance look unhealthy.
   let models = null;
   try { models = a2a.registeredModels().map((m) => m.ref); } catch { models = null; }
   return {
