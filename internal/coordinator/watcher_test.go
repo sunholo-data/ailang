@@ -115,35 +115,59 @@ func TestMessageWatcherStart(t *testing.T) {
 		CreatedAt: time.Now(),
 	})
 
-	watcher := NewMessageWatcher(store, 100*time.Millisecond)
+	pollInterval := 100 * time.Millisecond
+	watcher := NewMessageWatcher(store, pollInterval)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// Start in goroutine
 	done := make(chan error, 1)
+	taskWaitStarted := time.Now()
 	go func() {
 		done <- watcher.Start(ctx)
 	}()
 
 	// Should receive a task
+	var schedulingLatency time.Duration
 	select {
 	case task := <-watcher.Tasks():
+		schedulingLatency = time.Since(taskWaitStarted)
 		if task == nil {
 			t.Error("received nil task")
 		}
 	case <-time.After(time.Second):
-		t.Error("timeout waiting for task")
+		t.Fatal("timeout waiting for task")
 	}
 
-	// Wait for watcher to stop
+	const (
+		stopBudgetFactor = 20
+		stopFloorPeriods = 10
+		maximumStimulus  = time.Second
+	)
+	// Defensive only: the surrounding select makes a latency at or above
+	// maximumStimulus unreachable by construction, and a positive elapsed time
+	// is an invariant of the monotonic clock rather than behavior under test.
+	if schedulingLatency <= 0 || schedulingLatency >= maximumStimulus {
+		t.Fatalf("instrument failure: initial task scheduling latency %v is outside (0, %v)", schedulingLatency, maximumStimulus)
+	}
+	absoluteFloor := stopFloorPeriods * pollInterval
+	stopBudget := stopBudgetFactor * schedulingLatency
+	if stopBudget < absoluteFloor {
+		stopBudget = absoluteFloor
+	}
+
+	// Cancellation is the stop stimulus. The budget never tightens the historical
+	// ten-poll-period bound; measured scheduling latency can only raise it when a
+	// slow machine makes the derived term larger.
+	cancel()
 	select {
 	case err := <-done:
 		if err != nil {
 			t.Errorf("watcher returned error: %v", err)
 		}
-	case <-time.After(time.Second):
-		t.Error("timeout waiting for watcher to stop")
+	case <-time.After(stopBudget):
+		t.Errorf("timeout waiting for watcher to stop within %v (20x measured scheduling latency %v)", stopBudget, schedulingLatency)
 	}
 }
 
