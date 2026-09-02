@@ -34,12 +34,10 @@ func (d *Daemon) cleanupWorktreesForTerminalTasks() {
 		return
 	}
 
-	terminalStatuses := []TaskStatus{
-		TaskStatusCancelled,
-		TaskStatusCompleted,
-		TaskStatusFailed,
-		TaskStatusRejected,
-	}
+	// Derived, not hand-listed: this slice used to be maintained separately and
+	// had already drifted from the real set (it omitted TaskStatusDuplicate, so
+	// those worktrees leaked). M-COORDINATOR-EXECUTION-TRUST M2.
+	terminalStatuses := TerminalStatuses()
 
 	cleanedTotal := 0
 

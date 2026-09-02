@@ -91,6 +91,7 @@ func TestDispatchEnvVarOverrides(t *testing.T) {
 	for _, name := range []string{
 		"AILANG_TASK_ID", "AILANG_AGENT_ID", "AILANG_WORKSPACE", "AILANG_PROVIDER",
 		"AILANG_DIRECTIVE", "AILANG_REPO_URL", "AILANG_BRANCH", "AILANG_WORK_TIER",
+		"AILANG_ACKNOWLEDGE_ONLY",
 	} {
 		if !hasEnvVar(envVars, name) {
 			t.Errorf("base env var %s not set", name)
@@ -109,6 +110,9 @@ func TestDispatchEnvVarOverrides(t *testing.T) {
 		// Unset on a bare DispatchParams — and empty is exactly what the gate
 		// reads as tier 2. The fail-closed default is the assertion here.
 		"AILANG_WORK_TIER": "",
+		// false on a bare DispatchParams — the Go zero value IS the loud
+		// direction, which is why the field is named acknowledge-only.
+		"AILANG_ACKNOWLEDGE_ONLY": "false",
 	}
 
 	for _, env := range envVars {

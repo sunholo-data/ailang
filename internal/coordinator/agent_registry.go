@@ -140,6 +140,13 @@ type AgentConfig struct {
 	// place this field may be read from.
 	WorkTier WorkTier `yaml:"work_tier" json:"work_tier,omitempty"`
 
+	// AcknowledgeOnly marks an agent whose dispatches are NOT expected to change
+	// files — probes and acknowledgement tasks (M-COORDINATOR-EXECUTION-TRUST
+	// M2). Default false: a dispatched task is normally meant to do something,
+	// so a no-diff run is reported as no_changes rather than as success. Like
+	// WorkTier this lives in the trusted registry, not in message content.
+	AcknowledgeOnly bool `yaml:"acknowledge_only" json:"acknowledge_only,omitempty"`
+
 	// EvaluatesParent marks an agent whose completions carry an
 	// EVALUATION_VERDICT: line to be attached to the PARENT task's pending
 	// approval (M2). Set on sprint-evaluator only.

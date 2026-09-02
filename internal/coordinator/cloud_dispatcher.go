@@ -40,6 +40,16 @@ type DispatchParams struct {
 	// from a sender-chosen inbox (V25). Empty is read as tier 2 by the gate.
 	WorkTier string
 
+	// AcknowledgeOnly marks a dispatch that is NOT expected to change files.
+	// Trusted metadata (from the agent registry), the same authority boundary as
+	// WorkTier, and deliberately NOT the content-derived task type (V18).
+	//
+	// Stated as "acknowledge-only" rather than "expect changes" so the Go zero
+	// value is the LOUD direction: a dispatch that forgets to set this reports a
+	// no-diff run as no_changes, instead of silently inheriting the lenient
+	// behaviour this milestone exists to remove.
+	AcknowledgeOnly bool
+
 	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope fields, propagated
 	// from TaskRecord so the Cloud Run Job wrapper can decide deterministic-
 	// bump vs AI-escalation without re-fetching the task. Empty/false for

@@ -204,6 +204,7 @@ func (d *Daemon) dispatchTasksCloud() error {
 				// ResolveWorkTier refuses tier 1 on a direct-push dispatch, which
 				// has no PR containment (design doc V24).
 				params.WorkTier = string(ResolveWorkTier(agent, params.PushBranch))
+				params.AcknowledgeOnly = agent.AcknowledgeOnly
 				// M5: resolve through the shared routing table (pin > role >
 				// default); a missing role is loud and skips the dispatch.
 				agentModel, mErr := ResolveModel(agent)

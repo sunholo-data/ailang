@@ -82,7 +82,7 @@ func (h *CompletionHandler) handleCompletion(ctx context.Context, completion pub
 	}
 
 	// Idempotency: skip if task is already in a terminal state.
-	if task.Status == "completed" || task.Status == "failed" || task.Status == "cancelled" {
+	if IsTerminalStatus(task.Status) {
 		h.logger.Printf("CompletionHandler: task %s already in terminal state %q, skipping",
 			completion.TaskID, task.Status)
 		return nil
@@ -92,7 +92,9 @@ func (h *CompletionHandler) handleCompletion(ctx context.Context, completion pub
 	var execResult *ExecuteResult
 	if completion.SessionID != "" || completion.NumTurns > 0 || completion.ToolCallCount > 0 || completion.ArtifactGCSPath != "" {
 		execResult = &ExecuteResult{
-			Success:         completion.Status == "completed",
+			// A no_changes run is not a success — that distinction is the whole
+			// point of the status (M-COORDINATOR-EXECUTION-TRUST M2).
+			Success:         TaskStatus(completion.Status) == TaskStatusCompleted,
 			SessionID:       completion.SessionID,
 			NumTurns:        completion.NumTurns,
 			ToolCallCount:   completion.ToolCallCount,
@@ -145,6 +147,18 @@ func (h *CompletionHandler) handleCompletion(ctx context.Context, completion pub
 			completion.TaskID, completion.ErrorMsg)
 
 		// Post failure notification too.
+		h.postCompletionNotification(ctx, task, completion)
+
+	case string(TaskStatusNoChanges):
+		// The run finished and produced nothing it was expected to produce.
+		// Terminal, but NOT a success — it never enters the approval flow,
+		// because there is nothing to approve.
+		task.Status = TaskStatusNoChanges
+		if err := h.taskStore.UpdateTask(ctx, task); err != nil {
+			return fmt.Errorf("mark task no_changes: %w", err)
+		}
+		h.logger.Printf("CompletionHandler: task %s → no_changes (ran, changed nothing, was expected to)",
+			completion.TaskID)
 		h.postCompletionNotification(ctx, task, completion)
 
 	default:

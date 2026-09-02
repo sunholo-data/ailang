@@ -243,18 +243,14 @@ func (s *ObservatorySync) getSourceRef(task *TaskRecord) string {
 
 // convertTaskStatus converts coordinator status to observatory status.
 func (s *ObservatorySync) convertTaskStatus(status TaskStatus) observatory.TaskStatus {
-	switch status {
-	case TaskStatusPending, TaskStatusQueued:
-		return observatory.TaskStatusPending
-	case TaskStatusRunning:
-		return observatory.TaskStatusRunning
-	case TaskStatusCompleted, TaskStatusPendingApproval:
-		return observatory.TaskStatusCompleted
-	case TaskStatusFailed, TaskStatusRejected, TaskStatusCancelled:
-		return observatory.TaskStatusFailed
-	default:
-		return observatory.TaskStatusPending
+	// Table-driven so a new status cannot silently land in a default arm and
+	// report as still-pending (M-COORDINATOR-EXECUTION-TRUST M2). The old switch
+	// had exactly that arm, and TaskStatusDuplicate was already falling through
+	// it. TestEveryStatusConsumerHandlesEveryStatus asserts the table's coverage.
+	if mapped, ok := observatoryByStatus[status]; ok {
+		return mapped
 	}
+	return observatory.TaskStatusPending
 }
 
 // convertPriority converts numeric priority to string.

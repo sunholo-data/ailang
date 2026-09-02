@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/coordinator"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -202,8 +203,27 @@ func coordinatorExecuteJob(args []string) error {
 		publishCompletion("failed", execErr.Error(), branchName, execResult, nil, artifactPath)
 		fmt.Printf("execute-job: task %s failed: %v\n", taskID, execErr)
 	} else {
-		publishCompletion("completed", "", branchName, execResult, changedFiles, artifactPath)
-		fmt.Printf("execute-job: task %s completed (branch=%s, files=%d)\n", taskID, branchName, len(changedFiles))
+		// M-COORDINATOR-EXECUTION-TRUST M2: "the executor exited 0" is not
+		// "work landed". A run that was expected to produce a diff and produced
+		// none reports no_changes — a terminal status that an old consumer reads
+		// as not-success, which is the safe direction.
+		//
+		// expectChanges is trusted dispatch metadata (AILANG_EXPECT_CHANGES,
+		// from the agent registry), NOT the content-derived task type: that
+		// classifier is a substring match over sender-controlled message text
+		// (design doc V18), and M2's first draft inherited exactly the hole M1a
+		// was rewritten to remove.
+		//
+		// A pushed branch implies commits, and commits imply discovered files,
+		// so changedFiles is the load-bearing signal here; branchPushed is
+		// passed for callers that can distinguish the two.
+		// Only an explicit "true" declares acknowledge-only. Unset, empty or
+		// malformed all mean "changes were expected", so a misconfigured or
+		// older dispatcher fails LOUD rather than silently lenient.
+		expectChanges := os.Getenv("AILANG_ACKNOWLEDGE_ONLY") != "true"
+		status := coordinator.ClassifyCompletionStatus(changedFiles, false, expectChanges)
+		publishCompletion(string(status), "", branchName, execResult, changedFiles, artifactPath)
+		fmt.Printf("execute-job: task %s %s (branch=%s, files=%d)\n", taskID, status, branchName, len(changedFiles))
 	}
 
 	return execErr
