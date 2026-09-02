@@ -129,17 +129,18 @@ poll_messages() {
   json_file=$JSON_FILE
   count=$(jq 'length' "$json_file")
   checked=$((checked + count))
-  while IFS=$'\t' read -r message_id title body; do
-    [ -n "$message_id" ] || die "message list ${inbox} contained an item without an ID"
-    item=$(jq -cn --arg id "$message_id" --arg title "$title" --arg body "$body" '{id:$id,title:$title,body:$body}')
-    if printf '%s\n' "$item" | is_doc_related; then
-      if forward_item "message:${inbox}|${message_id}" "$message_id" "doc-related traffic from ${inbox}"; then
-        forwarded=$((forwarded + 1))
+  rows=$(jq -r '.[] | [(.id // .message_id // .messageId // ""), (.title // ""), (.body // .content // "")] | @tsv' "$json_file") || die "message list ${inbox} item extraction failed"
+  if [ -n "$rows" ]; then
+    while IFS=$'\t' read -r message_id title body; do
+      [ -n "$message_id" ] || die "message list ${inbox} contained an item without an ID"
+      item=$(jq -cn --arg id "$message_id" --arg title "$title" --arg body "$body" '{id:$id,title:$title,body:$body}')
+      if printf '%s\n' "$item" | is_doc_related; then
+        if forward_item "message:${inbox}|${message_id}" "$message_id" "doc-related traffic from ${inbox}"; then
+          forwarded=$((forwarded + 1))
+        fi
       fi
-    fi
-  done <<EOF
-$(jq -r '.[] | [(.id // .message_id // .messageId // ""), (.title // ""), (.body // .content // "")] | @tsv' "$json_file")
-EOF
+    done <<<"$rows"
+  fi
   rm -f "$json_file"
 }
 
@@ -150,17 +151,18 @@ poll_github() {
   [ -f "$WATERMARK_FILE" ] && watermark=$(sed -n '1p' "$WATERMARK_FILE")
   checked=$((checked + $(jq --arg since "$watermark" '[.[] | select(.createdAt > $since)] | length' "$json_file")))
   new_watermark=$(jq -r --arg since "$watermark" '[.[] | select(.createdAt > $since) | .createdAt] | max // $since' "$json_file")
-  while IFS=$'\t' read -r number title body; do
-    issue=$(jq -cn --arg title "$title" --arg body "$body" '{title:$title,body:$body}')
-    if printf '%s\n' "$issue" | is_doc_related; then
-      if forward_item "github:sunholo-data/ailang|${number}" \
-        "github:sunholo-data/ailang#${number}" "doc-related GitHub issue #${number}"; then
-        forwarded=$((forwarded + 1))
+  rows=$(jq -r --arg since "$watermark" '.[] | select(.createdAt > $since) | [(.number|tostring), (.title // ""), (.body // "")] | @tsv' "$json_file") || die "GitHub issue item extraction failed"
+  if [ -n "$rows" ]; then
+    while IFS=$'\t' read -r number title body; do
+      issue=$(jq -cn --arg title "$title" --arg body "$body" '{title:$title,body:$body}')
+      if printf '%s\n' "$issue" | is_doc_related; then
+        if forward_item "github:sunholo-data/ailang|${number}" \
+          "github:sunholo-data/ailang#${number}" "doc-related GitHub issue #${number}"; then
+          forwarded=$((forwarded + 1))
+        fi
       fi
-    fi
-  done <<EOF
-$(jq -r --arg since "$watermark" '.[] | select(.createdAt > $since) | [(.number|tostring), (.title // ""), (.body // "")] | @tsv' "$json_file")
-EOF
+    done <<<"$rows"
+  fi
   tmp_file=$(mktemp "${WATERMARK_FILE}.XXXXXX") || die "cannot create watermark temporary"
   if ! printf '%s\n' "$new_watermark" >"$tmp_file"; then
     rm -f "$tmp_file"
@@ -200,6 +202,10 @@ selftest() {
   cat >"$fake_ailang" <<'EOF'
 #!/usr/bin/env bash
 if [ "$1" = messages ] && [ "$2" = list ]; then
+  if [ "${DOCS_ROUTER_EMPTY_POLL:-}" = 1 ]; then
+    printf '%s\n' '[]'
+    exit 0
+  fi
   case "$*" in
     *"--inbox public-feedback"*) printf '%s\n' '[{"id":"msg-positive","title":"Update the docs guide","body":"Please document this example"},{"id":"msg-negative","title":"Compiler crash","body":"Runtime failure"}]' ;;
     *"--inbox pkg:sunholo/example"*) printf '%s\n' '[{"id":"pkg-positive","title":"Published page typo","body":"Fix the reference page"}]' ;;
@@ -213,20 +219,28 @@ fi
 EOF
   cat >"$fake_gh" <<'EOF'
 #!/usr/bin/env bash
+if [ "${DOCS_ROUTER_EMPTY_POLL:-}" = 1 ]; then
+  printf '%s\n' '[]'
+  exit 0
+fi
 printf '%s\n' '[{"number":101,"title":"Improve examples","body":"Add a tutorial","labels":[],"createdAt":"2026-01-02T00:00:00Z"},{"number":102,"title":"Bug","body":"Crash on input","labels":[],"createdAt":"2026-01-03T00:00:00Z"}]'
 EOF
   chmod +x "$fake_ailang" "$fake_gh"
-  first=$(AILANG_CMD="$fake_ailang" GH_CMD="$fake_gh" DOCS_ROUTER_TEST_LOG="$log_file" \
+  first=$(env -u DOCS_ROUTER_EMPTY_POLL AILANG_CMD="$fake_ailang" GH_CMD="$fake_gh" DOCS_ROUTER_TEST_LOG="$log_file" \
     DOCS_ROUTER_STATE_DIR="$test_dir/state" "$0") || { rm -rf "$test_dir"; die "self-test first pass failed"; }
-  second=$(AILANG_CMD="$fake_ailang" GH_CMD="$fake_gh" DOCS_ROUTER_TEST_LOG="$log_file" \
+  second=$(env -u DOCS_ROUTER_EMPTY_POLL AILANG_CMD="$fake_ailang" GH_CMD="$fake_gh" DOCS_ROUTER_TEST_LOG="$log_file" \
     DOCS_ROUTER_STATE_DIR="$test_dir/state" "$0") || { rm -rf "$test_dir"; die "self-test second pass failed"; }
+  empty=$(AILANG_CMD="$fake_ailang" GH_CMD="$fake_gh" DOCS_ROUTER_EMPTY_POLL=1 \
+    DOCS_ROUTER_TEST_LOG="$log_file" DOCS_ROUTER_STATE_DIR="$test_dir/empty-state" "$0") || { rm -rf "$test_dir"; die "self-test empty pass failed"; }
   [ "$first" = checked=5\ forwarded=3 ] || { rm -rf "$test_dir"; die "self-test expected first pass checked=5 forwarded=3, got: $first"; }
   [ "$second" = checked=3\ forwarded=0 ] || { rm -rf "$test_dir"; die "self-test expected second pass checked=3 forwarded=0, got: $second"; }
+  [ "$empty" = checked=0\ forwarded=0 ] || { rm -rf "$test_dir"; die "self-test expected empty pass checked=0 forwarded=0, got: $empty"; }
   [ "$(wc -l <"$log_file" | tr -d ' ')" = 3 ] || { rm -rf "$test_dir"; die "self-test duplicate suppression failed"; }
   grep -Fq 'messages forward --to docs-mission --reason doc-related traffic from public-feedback msg-positive' "$log_file" || { rm -rf "$test_dir"; die "self-test forward ordering failed"; }
   printf 'selftest: known-positive matched; known-negative suppressed\n'
   printf 'selftest: first pass %s\n' "$first"
   printf 'selftest: second pass %s (duplicate suppression)\n' "$second"
+  printf 'selftest: empty poll %s (zero-result response)\n' "$empty"
   printf 'selftest: forward argument ordering and persisted ledger verified\n'
   rm -rf "$test_dir"
 }
