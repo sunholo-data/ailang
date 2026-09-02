@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestResolveAnthropicCredential(t *testing.T) {
@@ -46,7 +48,7 @@ func TestResolveAnthropicCredential(t *testing.T) {
 			// Isolate HOME: the resolver now falls back to the real
 			// ~/.claude/.credentials.json, which would make "no credential"
 			// cases pass or fail depending on whose machine runs the suite.
-			t.Setenv("HOME", t.TempDir())
+			testutil.SetHomeDir(t, t.TempDir())
 			t.Setenv(EnvClaudeCodeOAuthToken, "")
 			t.Setenv(EnvAnthropicAPIKey, tt.apiKey)
 			t.Setenv(EnvAnthropicAuthToken, tt.authToken)
@@ -81,7 +83,7 @@ func TestAnthropicLaneIsOAuth_AgreesWithResolver(t *testing.T) {
 		{"sk-ant-x", "oauth-tok"},
 	}
 	for _, c := range cases {
-		t.Setenv("HOME", t.TempDir())
+		testutil.SetHomeDir(t, t.TempDir())
 		t.Setenv(EnvClaudeCodeOAuthToken, "")
 		t.Setenv(EnvAnthropicAPIKey, c.apiKey)
 		t.Setenv(EnvAnthropicAuthToken, c.authToken)
@@ -112,7 +114,7 @@ func TestResolveAnthropicCredential_FallsBackToClaudeCredentialsFile(t *testing.
 	write := func(t *testing.T, body string) {
 		t.Helper()
 		home := t.TempDir()
-		t.Setenv("HOME", home)
+		testutil.SetHomeDir(t, home)
 		t.Setenv(EnvAnthropicAPIKey, "")
 		t.Setenv(EnvAnthropicAuthToken, "")
 		t.Setenv(EnvClaudeCodeOAuthToken, "")

@@ -8,6 +8,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestWarnSilentRatchet_WarnWhenVersionBumpsWithoutMessage(t *testing.T) {
@@ -27,9 +28,7 @@ func TestWarnSilentRatchet_WarnWhenVersionBumpsWithoutMessage(t *testing.T) {
 
 	// Point ~/.ailang to a temp dir with an empty DB (no upgrade-available messages).
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	testutil.SetHomeDir(t, tmpDir)
 
 	warnSilentRatchet(resolved, prevLF)
 
@@ -66,9 +65,7 @@ func TestWarnSilentRatchet_NoWarnWhenVersionUnchanged(t *testing.T) {
 	os.Stderr = w
 
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	testutil.SetHomeDir(t, tmpDir)
 
 	warnSilentRatchet(resolved, prevLF)
 
@@ -95,9 +92,7 @@ func TestWarnSilentRatchet_NoWarnWhenMessageExists(t *testing.T) {
 
 	// Create a temp DB and insert an upgrade-available message for 0.1.1.
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	testutil.SetHomeDir(t, tmpDir)
 
 	dbPath := messaging.GetDefaultDatabasePath()
 	store, err := messaging.OpenStore(dbPath)
@@ -160,9 +155,7 @@ func TestWarnSilentRatchet_SkipsRegistryDeps(t *testing.T) {
 	os.Stderr = w
 
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	testutil.SetHomeDir(t, tmpDir)
 
 	warnSilentRatchet(resolved, prevLF)
 

@@ -179,6 +179,13 @@ test-check-tmpfile-hygiene: ## Run the tmpfile-hygiene gate's own self-test (bas
 	@/bin/bash scripts/test_check_tmpfile_hygiene.sh
 	@/bin/bash -n scripts/check_tmpfile_hygiene.sh
 
+check-home-isolation: ## Refuse bare HOME overrides outside internal/testutil (CI gate)
+	@/bin/bash scripts/check_home_isolation.sh
+
+test-check-home-isolation: ## Run the home-isolation gate's own self-test (bash 3.2)
+	@/bin/bash scripts/test_check_home_isolation.sh
+	@/bin/bash -n scripts/check_home_isolation.sh
+
 check-changelog: ## Check root CHANGELOG.md stays an index, not a changelog (CI gate)
 	@bash scripts/check_changelog.sh
 
