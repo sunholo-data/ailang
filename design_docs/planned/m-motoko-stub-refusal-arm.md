@@ -241,3 +241,20 @@ was first ratified for this mission at iteration 29. Fixes applied, VERBATIM whe
 discriminate different strings. Under fail-fast ordering it cannot be. That claim now rests on V13/V14 —
 the controller's two-arm behavioural measurement — which is a measurement rather than a prediction, so the
 argument is stronger than it was, not weaker.
+
+## Mutation Evidence (executed, motoko iteration 33)
+
+Executed on darwin/arm64 against pristine probe sha256
+`f0b5e02493369099f123c42107850fe062bf60d56ccabb2a7e4690d654aabc99`. Every mutant was a separate `/tmp`
+copy, was made executable before the suite ran, and altered or removed the asserted substring rather than
+appending around it.
+
+| Mutant | Construction and hygiene | Observed effect | Suite verdict |
+|---|---|---|---|
+| D1 — strip test-stub suffix | `sed 's/process-tree discovery deadline expired (test stub)/process-tree discovery deadline expired/'`; sha256 `df45556cebcf36d32f0bea658d0130f43e3bed193f78c5d7957822c78889643c` (different from pristine); `/bin/bash -n` rc=0; mode `-rwxr-xr-x` | `(test stub)` count 1→0; `(wall clock)` stayed 1; echo-refusal count stayed 3 | rc=1, 25 `ok`, 1 `not ok`; `not ok - descendant discovery stub refusal carries its own message lacked expected message: process-tree discovery deadline expired (test stub)` |
+| D2 — reword test-stub suffix | `sed 's/process-tree discovery deadline expired (test stub)/process-tree discovery deadline expired (stub)/'`; sha256 `0e7f60cca36c85cff372f0b8794b3643b613a952a6eabe27bc6809d0a541815b` (different from pristine); `/bin/bash -n` rc=0; mode `-rwxr-xr-x` | `(test stub)` count 1→0; `(wall clock)` stayed 1; echo-refusal count stayed 3 | rc=1, 25 `ok`, 1 `not ok`; `not ok - descendant discovery stub refusal carries its own message lacked expected message: process-tree discovery deadline expired (test stub)` |
+| D3 — strip wall-clock suffix (known-positive control) | `sed 's/process-tree discovery deadline expired (wall clock)/process-tree discovery deadline expired/'`; sha256 `645fbfc044c72a09530757228bfbd3a81cbbcccac5e82609b17fef77e2583942` (different from pristine); `/bin/bash -n` rc=0; mode `-rwxr-xr-x` | `(wall clock)` count 1→0; `(test stub)` stayed 1; echo-refusal count stayed 3 | rc=1, 33 `ok`, 1 `not ok`; the new arm first passed as `ok 26 - descendant discovery stub refusal carries its own message`, then the control failed as `not ok - descendant discovery refuses on the real wall-clock deadline lacked expected message: process-tree discovery deadline expired (wall clock)` |
+
+After the drill, the suite was re-run with `PROBE_UNDER_TEST` pointing at the pristine tree probe: rc=0,
+43 `ok`, 0 `not ok`, final line `PASS: 43 probe self-test arms ran`. The tree probe sha256 was still
+`f0b5e02493369099f123c42107850fe062bf60d56ccabb2a7e4690d654aabc99`, so no restore was needed.
