@@ -82,6 +82,7 @@ Every load-bearing claim below was checked against the code or against prod
 | **V28** | **CORRECTION — the ack is INTERMITTENT, not never.** This doc said the pinned executor model "never makes" the `session_protocol_ack` call. Measured on the dev plane 2026-09-02 (`task-f8213acd`, same model `deepseek-v4-flash-0731`): the model hit the gate, then **called `session_protocol_ack` in turn 1** and unlocked. `task-4e415b46` on 08-31 never called it across twelve minutes | dev-plane executor logs, both runs | **Falsifies the doc's own wording.** The gate is a *flaky* blocker, not a deterministic one — which is worse for diagnosis, because the failure then looks like model variance rather than a harness defect. M1a's floor is still the right fix: it removes the coin-flip |
 | **V29** | **NEW DEFECT, same class as this doc's thesis: a message can be delivered to the WRONG INBOX while reporting success.** `normalizeArgsForFlags` (`cmd/ailang/messages_send.go:448`) refuses to consume a flag value beginning with `-`, so the value falls through to positional and every later token shifts. Minimal repro: `ailang messages send diag-argparse "body" --title "--help is inconsistent" --from "diag-sender"` → the message lands in inbox **`diag-sender`**, `from_agent` falls back to `cli`, `title` becomes the literal string `--from`, and the CLI prints `✓ Message sent`. Control with a title not starting with `-` routes correctly | reproduced 5×, isolated to the dash-prefixed flag VALUE (not the body) | **Found by the end-to-end test this doc motivated.** Any report whose title starts with `--help`, `-v`, `--json`… is silently misrouted |
 | **V30** | **BLOCKING: every pi executor task whose workspace is the AILANG repo dies at startup.** `ailang pi install` materialises the suite into `~/.pi/agent/extensions/` — its own help text says *"global — every repo on this machine"* — and the AILANG repo ALSO ships `.pi/extensions/` with the same files. pi loads both and refuses: `Failed to load extension ".../ailang-lsp-lite.ts": Tool "ailang_check" conflicts with /workspace/task-X/.pi/extensions/ailang-lsp-lite.ts`, then `exit status 1` | dev plane 2026-09-02: `task-6825b3fc` and `task-48a365bb` (workspace `sunholo-data/ailang`) both failed identically; `task-f8213acd` (workspace `sunholo-data/ailang-packages`) did not | **Structural, and pre-existing** — the Dockerfile has always run `ailang pi install`. It went unseen because prod pi tasks target package repos. It takes out `design-doc-creator`, `sprint-planner`, `sprint-evaluator` and `coordinator` — the whole AILANG-repo pipeline on the pi provider |
+| **V31** | **The sanctioned promote path CANNOT ship the pi executor to prod.** `cloudbuild-promote.yaml` in the multivac repo mentions `agent-pi` **zero times**. `_SERVICE=agent` promotes `agent:latest` and redeploys only `ailang-agent-executor`; even `_SERVICE=all` covers just coordinator, agent, dashboard, mcp, docparse, billing and website-builder. The codex, opencode, gemini, eval and **pi** variants have no promote case at all | read `cloudbuild-promote.yaml`; `grep -c agent-pi` → 0; promote run `2a66a519` failed at `validate` for a missing `_SERVICE` | **32 of the 35 prod agents run the pi variant.** The only route to prod for their image is a full `ailang-multivac-prod` build, which rebuilds and redeploys *everything* — so a one-image fix is not expressible as a one-image deploy |
 
 **Not verified, deliberately deferred:** why executor GitHub writes return `422` on every REST
 and GraphQL issue-create (token scopes read healthy). It cost the agent ~2 of its 15 minutes but
@@ -647,9 +648,15 @@ though one rebuild reached the plane this doc audits. It does not.
 gate lives in the pi image and 32 of the 35 cloud agents are `provider: pi`.
 
 **`ailang-multivac` is production.** The automatic dev builds do not touch it. Prod moves via the
-`ailang-multivac-prod` trigger (push to the multivac repo's `prod` branch) or `promote-to-prod`
-("copy images, no rebuild"). **That is a deliberate human step and this doc does not authorise
-it.**
+`ailang-multivac-prod` trigger or `promote-to-prod` ("copy images, no rebuild"). **That is a
+deliberate human step and this doc does not authorise it.**
+
+**And promote cannot carry this change (V31).** `promote-to-prod` has no case for `agent-pi` —
+nor for codex, opencode, gemini or eval. It can promote the coordinator (M2/M3) but not the gate
+(M1a), even though 32 of 35 prod agents run pi. Shipping M1a to prod today therefore means a full
+`ailang-multivac-prod` build: every image, every service. **That asymmetry is itself worth fixing
+— a promote path that omits the variant most agents use will keep forcing all-or-nothing prod
+deploys.**
 
 ### Order
 
