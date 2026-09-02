@@ -14,6 +14,7 @@ ok()   { echo "  PASS: $*"; PASS=$((PASS+1)); }
 bad()  { echo "  FAIL: $*"; FAIL=$((FAIL+1)); }
 have() { if eval "$2"; then ok "$1"; else bad "$1"; fi; }
 
+export AILANG_FS_SANDBOX=/workspace
 MODELS='{"providers":{"openrouter":{"baseUrl":"https://openrouter.ai/api/v1","api":"openai-completions","apiKey":"test-key","models":[{"id":"z-ai/glm-5.3-flash","maxTokens":32000,"contextWindow":1310720,"reasoning":true}]}}}'
 
 echo "=== 1. image contents ==="
@@ -39,6 +40,14 @@ have "refuses an empty registry" 'echo "$out" | grep -q "declares no models"'
 out=$(MODELS_JSON='not json' RESIDENT_PORT=8094 timeout 25 /usr/local/bin/boot.sh 2>&1)
 have "refuses invalid JSON" 'echo "$out" | grep -q "not valid JSON"'
 
+# AILANG treats an unset sandbox as NO sandbox, so an unset variable must be
+# refused rather than silently running effects unconfined.
+out=$(env -u AILANG_FS_SANDBOX MODELS_JSON="$MODELS" RESIDENT_PORT=8095 timeout 25 /usr/local/bin/boot.sh 2>&1)
+have "refuses an unset AILANG_FS_SANDBOX"     'echo "$out" | grep -q "AILANG_FS_SANDBOX is unset"'
+have "  ...and names the silent-unconfined risk" 'echo "$out" | grep -q "NO sandbox"'
+have "ailang sandbox-check REJECTS an escape"  '! AILANG_FS_SANDBOX=/workspace ailang sandbox-check /etc/passwd >/dev/null 2>&1'
+have "ailang sandbox-check ALLOWS inside root" 'AILANG_FS_SANDBOX=/workspace ailang sandbox-check /workspace/x.txt >/dev/null 2>&1'
+
 echo "=== 3. happy path ==="
 export MODELS_JSON="$MODELS" RESIDENT_PORT=8080 AGENT_HOME=/tmp/fake-home
 mkdir -p /tmp/fake-home
@@ -59,6 +68,7 @@ have "registry mode is 0600 (holds the key)" '[ "$(stat -c %a /home/ailang/.pi/a
 have "readiness probed via api snapshot"  'grep -q "api snapshot" /usr/local/bin/boot.sh'
 have "herdr socket at the explicit path"  '[ -S "${HERDR_SOCKET_PATH}" ]'
 have "agent home probe cleaned up"        '[ ! -f /tmp/fake-home/.boot-probe ]'
+have "boot reported the sandbox live"     'grep -q "effect sandbox live" /tmp/boot.log'
 
 echo "=== 4. A2A surface (Decision 2c) ==="
 RPC() { curl -s -X POST localhost:8080/a2a -H 'content-type: application/json' -d "$1"; }

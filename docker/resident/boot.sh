@@ -55,6 +55,38 @@ console.log(Object.values(c.providers||{}).reduce((n,p)=>n+((p.models||[]).lengt
 [ "${REG_COUNT:-0}" -gt 0 ] || die "model registry declares no models"
 log "model registry: $REG_COUNT models -> $PI_HOME/agent/models.json (0600, local disk)"
 
+# ─── 1b. AILANG effect sandbox ───────────────────────────────────────────────
+# The containment story for anything this agent PROGRAMS is AILANG's effect
+# system: capabilities are deny-by-default (`--caps`), and FS operations are
+# confined to AILANG_FS_SANDBOX with escapes rejected and traced.
+#
+# ⚠️ The default is the dangerous direction: `Sandbox string // (empty = no
+# sandbox)`. An unset variable does not fail — it removes the confinement
+# silently, which is the same shape as the MODELS_JSON trap above. So: refuse.
+#
+# ⚠️ SCOPE, stated so nobody over-trusts this: the sandbox bounds AILANG
+# PROGRAMS. It does not bound the agent CLI's own file-write or shell tools,
+# which reach the filesystem directly. The containment argument therefore holds
+# only if AILANG is the agent's sole write path — see the design doc.
+AILANG_FS_SANDBOX="${AILANG_FS_SANDBOX:-}"
+if [ -z "$AILANG_FS_SANDBOX" ]; then
+  die "AILANG_FS_SANDBOX is unset. AILANG treats an empty sandbox as NO sandbox, so effects would run unconfined. Refusing to start."
+fi
+export AILANG_FS_SANDBOX
+mkdir -p "$AILANG_FS_SANDBOX" || die "cannot create sandbox root $AILANG_FS_SANDBOX"
+
+# Prove the sandbox is LIVE rather than merely configured, using ailang's own
+# checker: a path outside must be rejected, a path inside must be allowed.
+# A misconfigured root that silently allows everything is the failure this
+# catches.
+if ailang sandbox-check /etc/passwd >/dev/null 2>&1; then
+  die "AILANG_FS_SANDBOX=$AILANG_FS_SANDBOX does not reject /etc/passwd — the sandbox is not confining. Refusing to start."
+fi
+if ! ailang sandbox-check "$AILANG_FS_SANDBOX/probe.txt" >/dev/null 2>&1; then
+  die "AILANG_FS_SANDBOX=$AILANG_FS_SANDBOX rejects its own root — misconfigured. Refusing to start."
+fi
+log "ailang effect sandbox live: $AILANG_FS_SANDBOX (escape rejected, root allowed)"
+
 # ─── 2. Bind the port ────────────────────────────────────────────────────────
 # Now that the config is known-good, bind before the slow work. Cloning a repo
 # and starting herdr take tens of seconds, and a startup probe that finds

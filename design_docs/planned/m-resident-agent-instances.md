@@ -46,6 +46,31 @@ Start with two variants, both already published in
 Neither carries the Go toolchain, so neither pays the compile tax below. The
 `-go` variants come later and either size up or delegate builds to Jobs.
 
+### D1b — The runtime is deployed twice; keep it configuration-driven
+
+Decided with Mark 2026-09-02. The same image runs in two estates:
+
+- **Internal** (here, `ailang-multivac-dev`): AILANG's own code work, pinned
+  `z-ai/glm-5.3-flash`, no customer content.
+- **Customer-facing** (Aitana estate): reads a user's documents over MCP under
+  that user's identity, with an **EU-resident model resolved through Aitana's
+  tier system** — their `MODEL_RESIDENCY_POLICY` defaults to `eu-strict` and
+  raises on a non-EU model, so our pinned GLM id would fail closed there, which
+  is the policy working.
+
+Consequences for this image, all of them "do not hardcode":
+
+- **No model may be baked in.** Already true — the model is a per-run parameter
+  and the registry is materialised at boot from `MODELS_JSON`.
+- **The MCP endpoint and any credential arrive as configuration**, never as
+  image content.
+- **Nothing may assume the AILANG estate** — no hardcoded bucket, project or
+  registry path.
+
+The subject-identity design for the customer-facing case is Aitana's to own and
+is security-critical: the agent must NOT be able to name the user it acts for.
+See their doc's Decision 5.
+
 ### D2 — herdr is the supervisor; the contract to the outside is A2A
 
 herdr supervises the pane and classifies agent state. It stays **inside** the

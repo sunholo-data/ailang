@@ -39,6 +39,7 @@ USER ailang
 ENV HERDR_SOCKET_PATH=/home/ailang/.herdr/herdr.sock \
     RESIDENT_PORT=8080 \
     AGENT_HOME=/agent-home \
+    AILANG_FS_SANDBOX=/workspace \
     PI_HOME=/home/ailang/.pi
 
 EXPOSE 8080
