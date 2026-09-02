@@ -1987,7 +1987,46 @@ the Repo Profile above):
    used and "the mutant does not build" cannot masquerade as "the guard fired" (the class the
    mutation-BUILDS rule above already names). A genuinely unreachable branch is an acceptable
    outcome **when declared in the code and in the AC**; an undeclared one is a guard nobody is
-   protecting. World's three instances, one iteration, three roles: a refusal term satisfiable by
+   protecting.
+   **⚠ BUT "UNREACHABLE" IS A CLAIM ABOUT A PLATFORM, NOT ABOUT A BRANCH — AND THE CLAUSE ABOVE
+   INVITES YOU TO DECLARE IT FROM THE ONE MACHINE THAT CANNOT TEST IT** (added 2026-09-02 V1
+   iteration 318; instance 1 is iteration 195, whose two negative arms set `t.Setenv("HOME")` to
+   drive a guard that on windows reads `USERPROFILE`, so the branch the test believed it was
+   exercising was never entered; instance 2 is this iteration, the same error in mirror image —
+   a branch declared UNREACHABLE that windows reached in minutes). Rule 3b(viii) already says the
+   host platform is a narrowing you never typed. It is written about **greens** — "the tests
+   pass" — and nothing points it at the opposite claim. That gap matters more, because a green is
+   provisional by nature while *unreachable* is stated as a property of the code, gets written
+   into a comment, and is then inherited by every later reader as settled.
+   Measured here, and note the shape: **three independent parties certified the same branch
+   unreachable and all three were wrong for the same reason.** The executor wrote "unreachable by
+   construction"; the independent sonnet judge was *explicitly asked to break it* and reported "I
+   could not devise a test-only way to trigger this"; the controller wrote "requires a
+   monotonic-clock anomaly". All three reasoned on darwin/arm64, where `time.Since` has nanosecond
+   granularity, so `schedulingLatency <= 0` looked impossible. On a coarse-clock platform a
+   sub-tick interval reads back as exactly `0s`, and CI reddened **both** windows jobs
+   deterministically — `--- FAIL: TestMessageWatcherStart (0.00s)` /
+   `instrument failure: initial task scheduling latency 0s is outside (0, 1s)` — on the first push.
+   **Adding reviewers did not help and could not have**: independence in the *reviewer* does not
+   buy independence in the *platform*, and the platform was the shared premise.
+   **Rules. (a)** Before declaring a branch unreachable, name WHY: **control flow** (a `t.Fatal`,
+   an early `return`, a type invariant) is platform-independent and may be declared; a **value
+   property** (a clock's granularity or monotonicity, a filesystem's case sensitivity, an env
+   var's name, a path separator, an integer width, a locale) is platform-scoped and may NOT be
+   declared from one host. Write the reason in the comment, because the reason is what a later
+   reader must re-check. **(b)** Where the reason is a value property, the declaration is
+   **PROVISIONAL until the matrix has run** — CI is the only instrument that sees it, so treat a
+   red there as the measurement rather than as noise (3b(viii)(d)), and say in the record which
+   legs certified it. **(c)** Prefer a design that makes the question moot: here the round-2 floor
+   ALREADY made a zero latency safe (`max(20 × 0, 1s)` = the historical bound), so the guard was
+   rejecting a value its own neighbour had handled — when a defensive branch and a fallback both
+   cover the same input, the branch is not defence, it is a second opinion that can disagree.
+   **(d)** A guard whose trigger condition is a property of the *measuring instrument* rather than
+   of the *system under test* is the highest-risk member of this class; ask what the instrument
+   reads on the least-precise platform in the matrix. Mission-independent; under `ailang-code` the
+   same axis is whatever `ailang check` resolves differently per host. The tell: you are about to
+   write "unreachable", "cannot happen", "by construction" or "defensive only" in a comment or an
+   AC, and every machine you have run on is the one under your desk. World's three instances, one iteration, three roles: a refusal term satisfiable by
    nothing an operator can mint (two quorum rounds read past it); its replacement left the ENTIRE
    `host/broker` package green under `if false && …`; and once the evaluator was handed that as a
    named target per rule 3h(c) it found six more, the executor's own audit twelve, and `AC9` ended
