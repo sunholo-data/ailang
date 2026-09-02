@@ -13,6 +13,21 @@ import (
 	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
+// shouldRecoverStaleTasksOnStartup reports whether startup recovery — which
+// cancels in-flight tasks — is safe for this mode.
+//
+// Only local. In cloud mode the executor is a separate Cloud Run Job that
+// outlives the coordinator, so a daemon restart says nothing about whether the
+// task is alive (M-COORDINATOR-EXECUTION-TRUST M7, V36).
+//
+// An unset or unrecognised mode recovers, like local: local is the documented
+// default, and the asymmetry favours it — recovering when you should not have
+// merely re-runs a task, while failing to recover a genuinely dead local task
+// leaves it running forever.
+func shouldRecoverStaleTasksOnStartup(mode string) bool {
+	return mode != CoordinatorModeCloud
+}
+
 // CoordinatorMode determines how the coordinator receives messages and broadcasts events.
 const (
 	CoordinatorModeLocal = "local" // Default: SQLite polling + HTTP broadcaster
@@ -305,9 +320,28 @@ func (d *Daemon) initTaskProcessing() error {
 		d.observatorySync = NewObservatorySync(d.obsBackend, d.logger)
 	}
 
-	// Recover stale tasks from previous daemon runs
-	// Tasks that were running/queued when daemon crashed are marked cancelled
-	if d.taskStore != nil {
+	// Recover stale tasks from previous daemon runs — LOCAL MODE ONLY.
+	//
+	// M-COORDINATOR-EXECUTION-TRUST M7 (design doc V36). This marks every
+	// running/queued task older than the threshold "cancelled" on startup. Its
+	// premise is "the daemon restarted, so anything still running must be dead",
+	// which holds in local mode where the daemon owns the worker process — and is
+	// FALSE in cloud mode, where the executor is a separate Cloud Run Job whose
+	// lifecycle is independent of the coordinator's.
+	//
+	// The cloud coordinator scales to zero, so every cold start was cancelling
+	// live work. Measured in prod 2026-09-02: task-c8126248 dispatched at
+	// 12:33:57, the coordinator scaled to zero at 12:49:05, the job finished and
+	// opened PR #56 at 12:50:40, a new instance cold-started and cancelled the
+	// task at 12:50:45, and the real completion was discarded one second later
+	// with "already in terminal state cancelled, skipping". The work succeeded
+	// and nobody was told.
+	//
+	// The split was already documented on StaleTaskDetector ("Only runs in cloud
+	// mode ... Local mode uses RecoverStaleTasks at startup instead") — nothing
+	// enforced it. In cloud mode the stale-task detector owns this, and it ages
+	// tasks from their own timeout rather than from the daemon's lifetime.
+	if d.taskStore != nil && shouldRecoverStaleTasksOnStartup(os.Getenv("COORDINATOR_MODE")) {
 		staleThreshold := 5 * time.Minute // Tasks idle for >5 min are considered stale
 		recovered, err := d.taskStore.RecoverStaleTasks(d.ctx, staleThreshold)
 		if err != nil {

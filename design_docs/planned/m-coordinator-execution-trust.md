@@ -1,7 +1,7 @@
 # M-COORDINATOR-EXECUTION-TRUST: make "a job ran" mean "work was attempted, and we know the outcome"
 
 **Status**: **M1a, M2, M3, M4, M5, M6 all LANDED on `dev`** (`79082a16f`, `b1ade7e6e`, `28002af1e`, `934b1f07a`, `5795a3c3f`, `44a5a0b84`). M6 verified running on the dev plane (V33). Shipping to test/prod in progress. Planned — attended, standalone critical-infrastructure work, deliberately off the mission queue (Mark, 2026-09-02).
-**Scope**: **M1a + M2 + M3 (landed 2026-09-02) + M4 (queue visibility) + M5 (send-path misrouting) + M6 (pi extension self-collision) — M5 and M6 both found by the end-to-end test.** The general per-repo manifest system split to [M-PACKAGE-PROTOCOL-MANIFESTS](m-package-protocol-manifests.md) 2026-09-02 (Mark, attended) — three quorum rounds put every unresolved objection there, while M2/M3's closed and stayed closed.
+**Scope**: **M1a + M2 + M3 (landed 2026-09-02) + M4 (queue visibility) + M5 (send-path misrouting) + M6 (pi extension self-collision) + M7 (startup recovery cancels live cloud work) — M5, M6 and M7 all found by end-to-end testing, not by reading code.** The general per-repo manifest system split to [M-PACKAGE-PROTOCOL-MANIFESTS](m-package-protocol-manifests.md) 2026-09-02 (Mark, attended) — three quorum rounds put every unresolved objection there, while M2/M3's closed and stayed closed.
 **Rulings**: **All of D1–D4 ruled by Mark 2026-09-02 (attended)** — see Decisions. D2 REVERSED the author's recommendation and improved the design. Design freeze is CLOSED; sprint may proceed.
 **Target**: v0.35.0
 **Priority**: P0. Every autonomous lane downstream — package agents, cascade, feedback triage, cross-repo handoffs — dispatches through this path and has been producing nothing for six days without saying so.
@@ -87,6 +87,7 @@ Every load-bearing claim below was checked against the code or against prod
 | **V33** | **M6 and V32 both VERIFIED on the dev plane.** With the clone authenticated, the multivac dev build went green and the collision resolver fired on the next AILANG-repo dispatch: `execute-job: workspace ships 12 pi extension(s) that shadow the global suite; using the workspace copies: [...]`, immediately followed by `claude-stream: [turn 1] started` | `task-1819ec2e` / execution `pi-t44hv`, 2026-09-02 10:20Z. The direct control is `pi-cklmt` an hour earlier: same agent, same repo, `exit status 1` before turn 1 | **The blocking defect is closed.** An AILANG-repo pi task now starts, which is the precondition for M1a's floor to matter on this repo at all |
 | **V34** | **M4's premise measured, then fixed.** `messages health` says its "routable, but never dispatched" count should always be zero. It never could be: in cloud mode the daemon called `MarkAsRead` on the Pub/Sub adapter, whose body is `return nil` — correct for the wire, but it never wrote the Firestore row | read `pubsub_adapter.go:268`; health flagged 7 messages on 2026-09-02, all of which had been dispatched | Fixed in M4. **A number that cannot reach zero stops being read**, and this one is the plane's only self-report |
 | **V35** | **M5 was two bugs, not one.** Deriving the flag set from the `*flag.FlagSet` instead of a hand-maintained name list exposed a second, latent defect in the same function: it could not distinguish a boolean flag from a value flag, so **a bool flag written before the positionals swallowed the inbox** (`ailang messages send --force my-inbox "body"`) | `TestBoolFlagDoesNotSwallowAPositional`, RED before the fix | The hand-maintained list was itself the drift class this doc keeps finding. `ailang exec` used the same function and had both defects |
+| **V36** | **THE LIVE PROD TEST'S HEADLINE FINDING: the coordinator cancels live work every time it cold-starts, then discards the real completion.** `RecoverStaleTasks` marks every running/queued task older than 5 minutes `cancelled` on daemon startup. Its premise — "the daemon restarted, so anything still running must be dead" — holds in LOCAL mode, where the daemon owns the worker process, and is FALSE in cloud mode, where the executor is a separate Cloud Run Job with an independent lifecycle. The cloud coordinator scales to zero, so **every cold start cancelled every in-flight task over five minutes old** | prod 2026-09-02, task-c8126248: dispatched 12:33:57 → coordinator scaled to zero 12:49:05 → job finished, opened **PR #56**, published `status=completed` 12:50:40 → new instance `Recovered 1 stale task(s)` 12:50:45 → `CompletionHandler: already in terminal state "cancelled", skipping` 12:50:46 | **The work succeeded and the requester was never told.** The intended split was already documented on `StaleTaskDetector` — *"Only runs in cloud mode … Local mode uses RecoverStaleTasks at startup instead"* — and nothing enforced it. Fixed in M7 |
 
 **Not verified, deliberately deferred:** why executor GitHub writes return `422` on every REST
 and GraphQL issue-create (token scopes read healthy). It cost the agent ~2 of its 15 minutes but
@@ -526,6 +527,33 @@ tasks all target package repos.
 
 **Arm:** a pi executor run whose workspace is the AILANG repo reaches turn 1. There is no such
 test today, which is precisely why four agents were dead on this provider without anyone knowing.
+
+### M7 — Startup recovery must not cancel work it does not own (V36)
+
+The single most damaging defect found all session, and it was invisible until a real task ran
+longer than the coordinator's idle window.
+
+`RecoverStaleTasks` exists to clean up after a crash: on startup, anything still marked running
+must have died with the daemon. That is sound **when the daemon owns the worker**. In cloud mode
+it does not — the executor is a separate Cloud Run Job, and the coordinator scales to zero
+between messages. So the premise inverts: a daemon restart is *evidence of nothing* about a
+running task, and acting on it destroys the task record of work that is still in progress.
+
+**Guarded to local mode only.** In cloud mode the stale-task detector already owns this
+question, and it does the right thing — it ages a task from its own timeout, not from the
+daemon's lifetime, and it refuses to act on an unknowable age.
+
+An unset or unrecognised mode recovers, like local: local is the documented default, and the
+asymmetry favours it. Recovering when you should not have merely re-runs a task; failing to
+recover a genuinely dead local task leaves it running forever.
+
+**Why this one matters most for the stated goal.** Agent-to-agent task passing is only worth
+having if a result comes back. Here the result *existed* — correct work, a pushed branch, an open
+PR — and the plane threw it away because it had already given up on the task. That is worse than
+a failure: a failure is visible.
+
+**Arms:** cloud mode does not recover on startup; local mode still does; an unset mode defaults to
+recovering. Plus the pre-existing `MU-13b` guard that an unknowable age never acts.
 
 ### Files to Modify/Create
 
