@@ -14,12 +14,15 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import * as herdr from "./herdr.mjs";
+import { runPi } from "./pi.mjs";
 
 const PI_HOME = process.env.PI_HOME || "/home/ailang/.pi";
 const STATE_DIR = process.env.TASK_STATE_DIR || "/home/ailang/.resident";
 const STATE_FILE = `${STATE_DIR}/tasks.json`;
 const AGENT_KIND = process.env.AGENT_KIND || "pi";
 const DEFAULT_MODEL = process.env.DEFAULT_MODEL || "";
+// stream = pi --mode json directly; interactive = pi as a TUI under herdr.
+const DEFAULT_MODE = process.env.DEFAULT_MODE || "stream";
 
 export const TaskState = {
   submitted: "submitted", working: "working", inputRequired: "input-required",
@@ -114,6 +117,17 @@ function mapStatus(agentStatus) {
  * caller has no way to see what the agent actually produced. Reading the pane
  * is the only honest source of truth about what happened.
  */
+/** Keep the task's transcript artifact current. */
+function attachText(task, text) {
+  if (!text) return;
+  task.artifacts = [{
+    artifactId: "response", name: "agent-response",
+    description: "Assistant output assembled from pi's NDJSON text deltas.",
+    parts: [{ kind: "text", text: String(text).slice(-16000) }],
+  }];
+  persist();
+}
+
 async function captureOutput(task, target) {
   try {
     const r = await herdr.agentRead({ target, lines: 200 });
@@ -190,6 +204,48 @@ export async function messageSend(params) {
   if (params?.configuration?.pushNotificationConfig) setPushConfig(id, params.configuration.pushNotificationConfig);
   persist();
 
+  // ── execution ───────────────────────────────────────────────────────────
+  // `stream` (default) runs pi directly in NDJSON mode. `interactive` drives it
+  // as a TUI under herdr, which is the mode a human can attach to but which
+  // cannot currently submit a prompt headless (M9) — so it is opt-in, not the
+  // default, until that is understood.
+  const mode = params?.metadata?.mode || msg.metadata?.mode || DEFAULT_MODE;
+  task.metadata.mode = mode;
+
+  if (mode === "stream") {
+    // Fire-and-forget: the A2A call returns a task immediately and the run
+    // continues in the background, reporting through task state and artifacts.
+    runPi({
+      model: model.replace(/^openrouter\//, ""),
+      prompt: text,
+      onEvent: (ev, st) => {
+        if (ev.type === "turn_start") setState(task, TaskState.working);
+        // Keep the artifact current as text arrives, so a caller polling
+        // tasks/get sees progress rather than nothing until the end.
+        if (st.text) attachText(task, st.text);
+      },
+    })
+      .then((r) => {
+        attachText(task, r.text);
+        task.metadata.usage = r.usage ?? null;
+        task.metadata.stopReason = r.stopReason ?? null;
+        task.metadata.toolCalls = r.toolCalls.length;
+        // agent_end gives a REAL terminal state — the thing herdr could not
+        // provide headless.
+        setState(task, r.exitCode === 0 ? TaskState.completed : TaskState.failed, {
+          role: "agent", messageId: randomUUID(), kind: "message",
+          parts: [{ kind: "text", text: r.text || `pi exited ${r.exitCode}` }],
+        });
+      })
+      .catch((e) => {
+        setState(task, TaskState.failed, {
+          role: "agent", messageId: randomUUID(), kind: "message",
+          parts: [{ kind: "text", text: `pi run failed: ${e.message}` }],
+        });
+      });
+    return task;
+  }
+
   const ws = await herdr.workspaceCreate({ cwd: process.env.WORKSPACE_DIR || "/workspace", label: id.slice(0, 12) });
   const workspaceId = ws?.workspace?.workspace_id;
   if (!workspaceId) throw new Error(`workspace.create returned no workspace_id: ${JSON.stringify(ws).slice(0, 200)}`);
@@ -198,17 +254,10 @@ export async function messageSend(params) {
 
   await herdr.agentStart({ name: agentName, kind: AGENT_KIND, paneId, args: ["--model", model] });
   setState(task, TaskState.working);
-  // Wait for the CLI to be able to take input: agent.start returns as soon as
-  // the process is launched, not when it is ready.
   await herdr.waitInteractive({ target: agentName });
-  // Submits AND waits in one request. Fire-and-forget so the A2A call returns
-  // a task promptly rather than holding the connection for the whole run.
   herdr
     .agentPrompt({ target: agentName, text })
-    .then(async () => {
-      await captureOutput(task, agentName);
-      watch(task, agentName);
-    })
+    .then(async () => { await captureOutput(task, agentName); watch(task, agentName); })
     .catch(async (e) => {
       await captureOutput(task, agentName).catch(() => {});
       setState(task, TaskState.failed, {
