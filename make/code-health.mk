@@ -2,8 +2,11 @@
 # CODE HEALTH & ORGANIZATION TARGETS
 # =============================================================================
 
-.PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze
+.PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-referenced-paths
 .PHONY: fmt fmt-check fmt-check-ail vet lint install-lint
+
+check-referenced-paths: ## Check that referenced tools/scripts paths exist and are tracked
+	@bash scripts/check_referenced_paths.sh
 
 # Code formatting
 fmt: ## Format all Go code

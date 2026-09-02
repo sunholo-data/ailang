@@ -132,6 +132,9 @@ jobs:
     - name: Check architecture boundaries
       run: make check-boundaries
 
+    - name: Check referenced paths
+      run: make check-referenced-paths
+
     - name: Check git exec sites
       run: make check-git-exec
 
@@ -209,6 +212,9 @@ jobs:
 
     - name: Issue autoclose gate self-test
       run: make test-check-autoclose
+
+    - name: Referenced-path gate self-test
+      run: make test-check-referenced-paths
 
     - name: Check skill frontmatter
       run: make check-skills
