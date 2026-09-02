@@ -97,8 +97,9 @@ func buildEnvironment(task *executor.Task) (json.RawMessage, error) {
 func (e *Executor) CostModel() *executor.CostModel {
 	return &executor.CostModel{
 		ProviderName:    "google-managed-agents",
-		InputTokenCost:  0.0015, // $1.50 per 1M tokens
-		OutputTokenCost: 0.009,  // $9.00 per 1M (includes reasoning/thought tokens)
+		InputTokenCost:  0.0015,  // $1.50 per 1M fresh input tokens
+		OutputTokenCost: 0.009,   // $9.00 per 1M (includes reasoning/thought tokens)
+		CacheReadCost:   0.00015, // $0.15 per 1M — 10% of fresh input, Gemini's standard cache-read rate
 	}
 }
 
@@ -265,9 +266,13 @@ func (e *Executor) ExecuteStreaming(
 		// Kept DISJOINT: thought tokens live in ReasonTokens, not folded into
 		// OutputTokens. Merging them made thinking invisible downstream and, now
 		// that TotalTokens counts reasoning, would double-count it.
-		OutputTokens:             state.Usage.TotalOutputTokens,
-		ReasonTokens:             state.Usage.TotalThoughtTokens,
-		CacheReadInputTokens:     0, // Not reported by Managed Agents API
+		OutputTokens: state.Usage.TotalOutputTokens,
+		ReasonTokens: state.Usage.TotalThoughtTokens,
+		// The API DOES report cache reads (total_cached_tokens); the previous
+		// "Not reported by Managed Agents API" comment here was false and made
+		// every cached token bill at the fresh rate. Cache CREATION is still
+		// genuinely unreported, so that one stays 0.
+		CacheReadInputTokens:     state.Usage.TotalCachedTokens,
 		CacheCreationInputTokens: 0,
 	}
 
@@ -278,9 +283,13 @@ func (e *Executor) ExecuteStreaming(
 	cm := executor.ResolveCostModel(task, e.CostModel())
 	// Vertex ADC bills a real GCP project — the one agent lane that is metered.
 	res.CostProvenance = executor.ResolveCostProvenance(task, executor.AuthLaneBilled)
+	// InputTokens here is the FRESH count: CalculateCost adds cache-read cost on
+	// top of input cost, so passing the cache-inclusive total would bill the
+	// cached tokens at both rates.
 	res.CostUSD = cm.CalculateCost(executor.TokenUsage{
-		InputTokens:  res.InputTokens,
-		OutputTokens: res.OutputTokens + res.ReasonTokens,
+		InputTokens:          state.Usage.FreshInputTokens(),
+		OutputTokens:         res.OutputTokens + res.ReasonTokens,
+		CacheReadInputTokens: res.CacheReadInputTokens,
 	})
 
 	// Stash multi-turn handles + unknown events into ProviderData for the

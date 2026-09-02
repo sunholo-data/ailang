@@ -56,12 +56,37 @@ type contentBlock struct {
 // Usage matches the "usage" object inside the interaction.completed event.
 // Field names follow the API's snake_case payload exactly.
 type Usage struct {
-	TotalTokens            int             `json:"total_tokens"`
-	TotalInputTokens       int             `json:"total_input_tokens"`
-	TotalOutputTokens      int             `json:"total_output_tokens"`
+	TotalTokens       int `json:"total_tokens"`
+	TotalInputTokens  int `json:"total_input_tokens"`
+	TotalOutputTokens int `json:"total_output_tokens"`
+	// TotalCachedTokens is the SUBSET of TotalInputTokens served from context
+	// cache, billed at roughly a tenth of the fresh input rate.
+	//
+	// This field was unparsed until 2026-09-02, and managed_agents.go carried
+	// "CacheReadInputTokens: 0, // Not reported by Managed Agents API". The API
+	// does report it — live-probed the same day: total_input_tokens 13107 of
+	// which total_cached_tokens 5350 (41%). Billing all of that at the fresh
+	// rate OVERSTATES managed-agents spend, which is how a lane acquires a
+	// reputation for being more expensive than it is.
+	TotalCachedTokens      int             `json:"total_cached_tokens"`
 	TotalThoughtTokens     int             `json:"total_thought_tokens"`
 	InputTokensByModality  []modalityCount `json:"input_tokens_by_modality,omitempty"`
+	CachedTokensByModality []modalityCount `json:"cached_tokens_by_modality,omitempty"`
 	OutputTokensByModality []modalityCount `json:"output_tokens_by_modality,omitempty"`
+}
+
+// FreshInputTokens is TotalInputTokens minus the cached subset — the tokens
+// actually billed at the full input rate.
+//
+// CostModel.CalculateCost adds cache-read cost ON TOP of input cost, so passing
+// the inclusive total as InputTokens would bill the cached tokens twice.
+// Clamped at zero: a malformed response reporting more cached than input must
+// not produce a negative charge.
+func (u Usage) FreshInputTokens() int {
+	if n := u.TotalInputTokens - u.TotalCachedTokens; n > 0 {
+		return n
+	}
+	return 0
 }
 
 type modalityCount struct {
