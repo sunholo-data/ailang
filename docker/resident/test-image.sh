@@ -70,6 +70,23 @@ have "herdr socket at the explicit path"  '[ -S "${HERDR_SOCKET_PATH}" ]'
 have "agent home probe cleaned up"        '[ ! -f /tmp/fake-home/.boot-probe ]'
 have "boot reported the sandbox live"     'grep -q "effect sandbox live" /tmp/boot.log'
 
+# The registry carries a placeholder rather than a second copy of the key.
+PLACEHOLDER='{"providers":{"openrouter":{"apiKey":"${OPENROUTER_API_KEY}","models":[{"id":"z-ai/glm-5.3-flash","maxTokens":32000,"contextWindow":1310720}]}}}'
+out=$(MODELS_JSON="$PLACEHOLDER" env -u OPENROUTER_API_KEY RESIDENT_PORT=8096 timeout 25 /usr/local/bin/boot.sh 2>&1)
+have "placeholder without a key is refused"   'echo "$out" | grep -q "OPENROUTER_API_KEY is unset"'
+have "  ...and names the consequence"         'echo "$out" | grep -q "literal placeholder"'
+
+MODELS_JSON="$PLACEHOLDER" OPENROUTER_API_KEY='sk-t3st/w1th+specials&chars' RESIDENT_PORT=8097 timeout 30 /usr/local/bin/boot.sh >/tmp/sub.log 2>&1 &
+sleep 12
+have "key substituted into the registry"      'grep -q "sk-t3st/w1th+specials&chars" /home/ailang/.pi/agent/models.json'
+have "  ...placeholder fully replaced"        '! grep -q "OPENROUTER_API_KEY" /home/ailang/.pi/agent/models.json'
+have "  ...and boot said so"                  'grep -q "provider key substituted" /tmp/sub.log'
+# Regression: awk/sed treat & in the replacement as the matched text, so a key
+# containing & was silently turned back into the placeholder. The fixture key
+# above contains & precisely to keep that fixed.
+have "  ...& in the key survives verbatim"    'grep -q "specials&chars" /home/ailang/.pi/agent/models.json'
+pkill -f "server.mjs" 2>/dev/null; pkill -f "herdr server" 2>/dev/null; sleep 2
+
 echo "=== 4. program allowlist (Decision 6) ==="
 # Default-deny: no manifest means nothing runs. An agent that can reason but not
 # act is degraded; one that runs anything because a file was missing is an

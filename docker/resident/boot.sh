@@ -45,7 +45,31 @@ case "$PI_HOME" in
     die "PI_HOME ($PI_HOME) is inside AGENT_HOME ($AGENT_HOME). The model registry holds the live provider key and the home is a GCS bucket. Refusing to start." ;;
 esac
 mkdir -p "$PI_HOME/agent" || die "cannot create $PI_HOME/agent"
-printf '%s' "$MODELS_JSON" > "$PI_HOME/agent/models.json" || die "cannot write model registry"
+
+# pi reads the provider key FROM the registry file, not the environment — its
+# own docs call that "headless-safe". Rather than storing a second copy of the
+# key inside MODELS_JSON, the registry carries the literal placeholder
+# ${OPENROUTER_API_KEY} and it is substituted here from the env var, which
+# Cloud Run injects from Secret Manager. One key, one secret, rotatable without
+# touching the registry.
+REGISTRY_BODY="$MODELS_JSON"
+case "$REGISTRY_BODY" in
+  *'${OPENROUTER_API_KEY}'*)
+    [ -n "${OPENROUTER_API_KEY:-}" ] || die "the model registry contains the \${OPENROUTER_API_KEY} placeholder but OPENROUTER_API_KEY is unset. pi would authenticate with the literal placeholder and every model call would fail. Refusing to start."
+    # Literal split/join, NOT sed/awk substitution. Both treat characters in
+    # the REPLACEMENT specially — awk's gsub reads `&` as "the matched text", so
+    # a key containing `&` silently becomes the placeholder again and every
+    # model call fails looking like a bad key. Caught by the test below, which
+    # is why its fixture key contains `&`. split/join interprets nothing.
+    REGISTRY_BODY=$(printf '%s' "$REGISTRY_BODY" | node -e '
+      const src = require("fs").readFileSync(0, "utf8");
+      const key = process.env.OPENROUTER_API_KEY;
+      process.stdout.write(src.split("${OPENROUTER_API_KEY}").join(key));
+    ') || die "provider key substitution failed"
+    log "provider key substituted into the model registry from OPENROUTER_API_KEY"
+    ;;
+esac
+printf '%s' "$REGISTRY_BODY" > "$PI_HOME/agent/models.json" || die "cannot write model registry"
 chmod 0600 "$PI_HOME/agent/models.json"
 node -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))' "$PI_HOME/agent/models.json" \
   || die "MODELS_JSON is not valid JSON"
