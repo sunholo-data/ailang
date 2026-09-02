@@ -57,7 +57,12 @@ log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 # gate (max_tokens_per_bench 3.0M), not wall-clock, is what bounds runs now.
 # CAVEAT at time of switching: the clean motoko A/B was still running. If motoko
 # regresses, revert this line to the qwen3-6 triple — banked qwen3.6 rows stay valid.
-MODELS="${OS_FILLER_MODELS:-${OS_FILLER_MODEL:-opencode-qwen3-8-27b,pi-qwen3-8-27b,motoko-local-qwen3-8-27b}}"
+# motoko PAUSED 2026-09-02 (Mark): the motoko_agent repo is under refactor, so its
+# rows would measure a moving harness rather than the model. pi + opencode continue
+# on the same single loaded qwen3.8 — dropping an arm never costs VRAM, it only
+# frees rig time. Banked motoko rows stay valid and stay on the leaderboard.
+# Re-add motoko-local-qwen3-8-27b here when the refactor lands.
+MODELS="${OS_FILLER_MODELS:-${OS_FILLER_MODEL:-opencode-qwen3-8-27b,pi-qwen3-8-27b}}"
 LANGS="${OS_FILLER_LANGS:-ailang,python,javascript,go}"
 CHUNK="${OS_FILLER_CHUNK:-3}"                  # benchmarks per cycle
 CHUNK_TIMEOUT="${OS_FILLER_TIMEOUT:-1500s}"    # ~25-min wall budget per chunk
@@ -274,20 +279,41 @@ else
     # Coverage signal: AILANG is "in" when EVERY full-tier benchmark has a banked
     # ailang result for EVERY local model (== what --skip-existing treats as done).
     # Min distinct-ailang-benches across models = the bottleneck harness.
-    FULL_SET=",$(IFS=,; printf '%s' "${BENCHES_FULL[*]}"),"
-    MIN_COV=999999
-    _OIFS="$IFS"; IFS=','
-    for m in $MODELS; do
-      IFS="$_OIFS"
-      cov=0
-      for b in $(ls "$VDIR"/*_ailang_"${m}"_*.json 2>/dev/null | sed -E "s#.*/##; s/_(trial[0-9]+_)?ailang_.*//" | sort -u); do
-        case "$FULL_SET" in *",$b,"*) cov=$((cov + 1));; esac
-      done
-      [ "$cov" -lt "$MIN_COV" ] && MIN_COV="$cov"
-      IFS=','
-    done
-    IFS="$_OIFS"
-    [ "$MIN_COV" = "999999" ] && MIN_COV=0
+    # Coverage counts a benchmark as done for a model only when it has at least one
+    # VALID ailang row. The previous version counted FILE EXISTENCE and its comment
+    # claimed that equalled "what --skip-existing treats as done" — which was false:
+    # eval_skip_existing.go only treats a row as done `if row.IsValid()`.
+    #
+    # The gap latched. A crash row counted as coverage, so v0.34.0 was declared
+    # "coverage COMPLETE", .ailang-full-lapped was written, and the AILANG pass
+    # short-circuited to cross-language FOREVER for this release — leaving 5
+    # (benchmark, model) tuples that had never actually been measured and could
+    # never be retried. Same bug class as the aggregator fix in c8c841e24: a
+    # non-measurement being read as a measurement, here in the coverage gate.
+    MIN_COV=$(python3 - "$VDIR" "$(IFS=,; printf '%s' "${BENCHES_FULL[*]}")" "$MODELS" <<'PYEOF'
+import glob, json, os, sys
+vdir, benches, models = sys.argv[1], sys.argv[2], sys.argv[3]
+want = {b for b in benches.split(",") if b}
+best = None
+for m in [x for x in models.split(",") if x]:
+    covered = set()
+    for path in glob.glob(os.path.join(vdir, "*_ailang_%s_*.json" % m)):
+        try:
+            d = json.load(open(path))
+        except Exception:
+            continue
+        v = d.get("validity")
+        if v is not None and not v.get("valid"):
+            continue          # a crash is not coverage
+        bid = d.get("id")
+        if bid in want:
+            covered.add(bid)
+    n = len(covered)
+    best = n if best is None else min(best, n)
+print(best if best is not None else 0)
+PYEOF
+)
+    case "$MIN_COV" in (''|*[!0-9]*) MIN_COV=0;; esac
 
     if [ "$MIN_COV" -ge "$FULL_TOTAL" ]; then
       AILANG_DONE=1
@@ -449,12 +475,32 @@ total = d.get("total_result_files", 0)
 if not inv or not total:
     sys.exit(0)
 pct = 100.0 * inv / total
-if pct < thresh:
+# A GLOBAL rate hides the thing worth alerting on. Measured 2026-09-02: motoko's
+# AILANG non-start rate was 11/86 = 12.8% — the failure that made it look like the
+# weakest AILANG harness — while the global rate was 2.0% and would not have
+# tripped a 5% threshold. So alert on the worst (model, lang) slice too.
+worst, worst_pct = None, 0.0
+slice_tot, slice_inv = {}, {}
+for bs in d.get("benchmarks", []):
+    k = (bs.get("model", "?"), bs.get("lang", "?"))
+    slice_tot[k] = slice_tot.get(k, 0) + bs.get("trials", 0) + bs.get("invalid_excluded", 0)
+    slice_inv[k] = slice_inv.get(k, 0) + bs.get("invalid_excluded", 0)
+for k, n in slice_tot.items():
+    if n < 20:
+        continue          # too few rows for a rate to mean anything
+    p = 100.0 * slice_inv[k] / n
+    if p > worst_pct:
+        worst, worst_pct = k, p
+if pct < thresh and worst_pct < thresh:
     sys.exit(0)
+hotspot = ""
+if worst and worst_pct >= thresh:
+    hotspot = (" WORST SLICE: %s/%s at %.1f%% (%d of %d rows)."
+               % (worst[0], worst[1], worst_pct, slice_inv[worst], slice_tot[worst]))
 reasons = ", ".join(f"{k}={v}" for k, v in sorted(d.get("invalid_reasons", {}).items()))
 unmeasured = d.get("unmeasured_tuples", 0)
 print(f"{inv}/{total} rows ({pct:.1f}%) were NOT measurements and are excluded from "
-      f"every published pass rate. reasons: {reasons or 'unspecified'}. "
+      f"every published pass rate.{hotspot} reasons: {reasons or 'unspecified'}. "
       f"unmeasured (benchmark,model,lang) tuples: {unmeasured}. "
       f"This is a HARNESS health signal, not a model result — the subject never ran. "
       f"Triage: grep the excluded rows' stderr in {path.rsplit('/',1)[0]}/agent for the "
