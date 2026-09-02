@@ -1,11 +1,11 @@
 # M-COORDINATOR-EXECUTION-TRUST: make "a job ran" mean "work was attempted, and we know the outcome"
 
 **Status**: Planned — attended, standalone critical-infrastructure work, deliberately off the mission queue (Mark, 2026-09-02).
-**Scope**: **M1a + M2 + M3.** The general per-repo manifest system split to [M-PACKAGE-PROTOCOL-MANIFESTS](m-package-protocol-manifests.md) 2026-09-02 (Mark, attended) — three quorum rounds put every unresolved objection there, while M2/M3's closed and stayed closed.
+**Scope**: **M1a + M2 + M3 (landed 2026-09-02) + M4 (queue visibility, added after the sprint — see "the goal behind the goal").** The general per-repo manifest system split to [M-PACKAGE-PROTOCOL-MANIFESTS](m-package-protocol-manifests.md) 2026-09-02 (Mark, attended) — three quorum rounds put every unresolved objection there, while M2/M3's closed and stayed closed.
 **Rulings**: **All of D1–D4 ruled by Mark 2026-09-02 (attended)** — see Decisions. D2 REVERSED the author's recommendation and improved the design. Design freeze is CLOSED; sprint may proceed.
 **Target**: v0.35.0
 **Priority**: P0. Every autonomous lane downstream — package agents, cascade, feedback triage, cross-repo handoffs — dispatches through this path and has been producing nothing for six days without saying so.
-**Estimated**: ~3 days (M1a ~1d, M2 ~0.5d, M3 ~1.5d, rollout ~0.5d)
+**Estimated**: ~3 days for M1a-M3 (**landed** `79082a16f`, `b1ade7e6e`, `28002af1e`) + ~0.5d for M4 + rollout
 **Dependencies**: none blocking. Builds directly on [m-message-plane-trust.md](m-message-plane-trust.md) M1–M3, which landed 2026-08-31 and fixed the layer below (delivery).
 
 ---
@@ -75,6 +75,8 @@ Every load-bearing claim below was checked against the code or against prod
 | **V23** | **Four independent components can already decide a task is dead**: `stale_task_detector.go`, `pubsub_completion_handler.go`, `daemon_stranded_approvals.go`, `daemon_tasks_worktrees.go` | grep across `internal/coordinator` for status-mutating recovery paths | Any two of them gaining re-dispatch would breach the cap — hence the single-owner rule in M3 |
 | **V24** | **The "always-PR containment" claim in Risks was FALSE as stated.** A direct-push path exists: `AILANG_PUSH_BRANCH` (`coordinator_cloud.go:220,294-296`) makes the agent work on the cloned branch with **no coordinator branch and no PR**. It is set by the dispatcher from `params.PushBranch` (`dispatch/cloudrun/dispatcher.go:206`), so it is coordinator-controlled, not sender-controlled — but containment is a property of that parameter, not of the system | read both sites | **REFUTES the risk-row mitigation.** Tier 1 must not be granted on any path where `PushBranch` is set |
 | **V25** | **A sender chooses their own inbox.** `to_inbox` is a plain field on `ailang messages send <inbox> …`, persisted verbatim (`messaging/inbox.go:183`) | read the send path | **Confirms gpt5-6-sol.** Tier may NOT map from inbox. The trusted link is inbox → *registered agent* (coordinator config) → tier; the sender controls the first arrow only |
+| **V26** | **"Rebuild the images" is TWO pipelines, not one.** `cloudbuild-dev.yaml` in this repo builds coordinator, agent-base, agent, agent-go, agent-motoko — **no `agent-pi`**. The pi image is built by the *multivac* repo's `cloudbuild.yaml` (`-f /workspace/ailang/docker/Dockerfile.agent-pi`, cloning ailang `--branch dev`) | read both build configs; `gcloud artifacts docker images list` confirms agent-pi exists and is built elsewhere | **CORRECTS the first Rollout draft.** M1a lives in the pi image and 32 of 35 agents are provider=pi, so an ailang-repo build alone ships M1a to nobody |
+| **V27** | **`ailang-multivac` is PROD, and the automatic builds do not touch it.** `ailang-core-dev` runs with `_TARGET_PROJECT=ailang-multivac-dev`, `_PREFIX=ailang-dev`. A full parallel plane exists there (`ailang-dev-coordinator`, `ailang-dev-agent-executor-*`) with its own Firestore and an `ailang-dev` topic prefix. Prod updates via the `ailang-multivac-prod` trigger or `promote-to-prod` ("copy images, no rebuild") | `gcloud builds describe` substitutions; `gcloud run services/jobs list --project ailang-multivac-dev` | **CORRECTS the first Rollout draft**, which read as though a dev build reached the plane this doc audits. It does not — and the dev plane is therefore a safe place to test |
 
 **Not verified, deliberately deferred:** why executor GitHub writes return `422` on every REST
 and GraphQL issue-create (token scopes read healthy). It cost the agent ~2 of its 15 minutes but
@@ -142,11 +144,33 @@ The interactive human-confirm path is untouched throughout.
 **Primary Goal:** A cloud task either does work, or says precisely why it could not — and a
 transport failure gets a second lane before it becomes a dead task.
 
+### The goal behind the goal (Mark, attended 2026-09-02)
+
+> *"I am trying to get to a state where you using `ailang messages` to fix background tasks is
+> the preferred way."*
+
+That is what this doc is ultimately for, and it changes what "done" means: not "the seams are
+fixed" but **"a person reaches for the message plane instead of an interactive session."** Three
+conditions have to hold for that, and naming them is what stops the work stopping one short:
+
+| # | Condition | State |
+|---|---|---|
+| 1 | A message reliably becomes a running job | **Done** — measured 2–8s, 4/4 (see the seam table) |
+| 2 | A finished job says honestly what it did | **M2**, once deployed. Today `completed` still means "exited 0" |
+| 3 | **You can see the queue without asking an agent to go and look** | **Not addressed — M4 below** |
+
+Condition 3 is the one this doc did not originally have, and it is the one that decides
+*preference*. Everything measured in this session was measured by a human-driven session running
+`gcloud` and `ailang` by hand. A plane you must ask an agent to inspect is not a plane you delegate
+to; it is one more thing to supervise. **M1a/M2/M3 make the loop correct. M4 is what makes it
+trustable without supervision.**
+
 **Success Metrics:**
 1. A pi executor run against a clean, non-AILANG workspace can write a file. (Today: cannot. No test asserts it either way.)
 2. Zero tasks report `completed` while having produced no diff and no branch; that outcome has its own terminal state and appears in `ailang messages list --json`.
 3. A task whose first model link stalls or 429s completes on the next link, and the completion records which link ran.
-4. At least one real inbound report from `mcp-public` / `aitana-platform` reaches a pushed branch, end to end, unattended.
+4. At least one real inbound report reaches a pushed branch, end to end, unattended — **proved on the dev plane first** (V27).
+5. **One command answers "what is in flight, what is stuck, and what did the fleet do overnight"**, and its "should be zero" number is actually reachable.
 
 ---
 
@@ -431,6 +455,26 @@ become `role:` wherever the pin is just "the default everyone got" — otherwise
 and dead (V13). Chain semantics stay in `modelreg.ResolveRole`; nothing here re-creates the
 routing table M-MODEL-REGISTRY-SINGLE-SOURCE deleted.
 
+### M4 — The queue is visible without an agent going to look (condition 3)
+
+Scoped deliberately small: this is the difference between a loop that works and a loop you
+*prefer*, not a new subsystem.
+
+1. **Make `messages health`'s headline number reachable.** It reports "routable and never
+   dispatched"; every one of the 7 it flagged this session had in fact been dispatched, because a
+   dispatch never marks its message read. A number that can never be zero stops being read — and
+   this one is the plane's only self-report.
+2. **A fleet activity view.** "In the last N hours: messages in, tasks created, executions,
+   outcomes by status (now including `no_changes`), and anything stuck past its timeout." Every
+   input already exists — this session assembled exactly this by hand from `gcloud run jobs
+   executions list`, coordinator logs and Firestore. The work is joining them, not gathering them.
+3. **Say which plane you are looking at.** `messages health` already prints its store; it must
+   also distinguish dev from prod, because V27 shows the two are separate and confusing them is
+   how a "nothing happened" conclusion gets drawn about the wrong plane.
+
+**Not in scope:** a dashboard, alerting, or anything requiring a deploy of its own. A CLI that
+prints the truth is the whole ask.
+
 ### Files to Modify/Create
 
 **Modified:**
@@ -542,18 +586,36 @@ cleanup chore.
 `planned/` — moving it to `implemented/` today would bank a false completion, which is the exact
 failure mode both documents exist to prevent.
 
-## Rollout — nothing here reaches prod without a rebuild
+## Rollout — two pipelines, two planes
 
-**Read before starting.** The latest coordinator image was built **2026-08-31T11:13:36Z** and
-already predates a fix we believe is live: prod (`ailang-coordinator-00064-4w6`) still counts
-outcome notices in the backstop sweep, which `e0b12bf5f` skips (V17). `AILANG_BACKSTOP_SWEEP=report`
-is currently the only thing preventing a repeat of the 1,146-message amplification incident.
+**The first draft of this section was wrong twice, and the corrections are V26/V27.** It read as
+though one rebuild reached the plane this doc audits. It does not.
 
-1. Rebuild **both** images — coordinator and `agent-executor-pi`. The gate lives in the executor image; M2/M3 live in the coordinator.
-2. Verify the sweep's notice filter in prod logs before flipping `AILANG_BACKSTOP_SWEEP` back to `dispatch`.
-3. Deploys here are flaky: revision `00065-spk` failed its startup probe on an image digest **identical** to the serving `00064`. Budget a retry; do not read one failed deploy as a bad build.
+| Change | Built by | Lands in | Reaches prod how |
+|---|---|---|---|
+| M2, M3 (coordinator) | `ailang-core-dev`, on push to this repo's `dev` — **automatic** | `ailang-multivac-dev` | promote |
+| **M1a (gate, `agent-pi`)** | **multivac repo's `cloudbuild.yaml`** — not this repo's pipeline at all | `ailang-multivac-dev` (dev trigger) | promote |
 
----
+**Consequence worth stating plainly: an ailang-repo build alone ships M1a to nobody**, because the
+gate lives in the pi image and 32 of the 35 cloud agents are `provider: pi`.
+
+**`ailang-multivac` is production.** The automatic dev builds do not touch it. Prod moves via the
+`ailang-multivac-prod` trigger (push to the multivac repo's `prod` branch) or `promote-to-prod`
+("copy images, no rebuild"). **That is a deliberate human step and this doc does not authorise
+it.**
+
+### Order
+
+1. Push to this repo's `dev` — coordinator (M2/M3) builds and deploys to the dev plane by itself.
+2. Run the multivac **dev** build — this is what carries M1a into `agent-pi`.
+3. **Test on the dev plane, not prod.** `ailang-dev-coordinator` reads `ailang-multivac-dev`
+   Firestore with topic prefix `ailang-dev`, so a probe there cannot touch the prod inbox or
+   dispatch against real package repos. This is the correct place to prove the loop end to end.
+4. Only then promote, and only on a human's call. The current prod coordinator image also
+   predates `e0b12bf5f`, so the promote ships that too — verify the sweep's notice filter in prod
+   logs before flipping `AILANG_BACKSTOP_SWEEP` back to `dispatch`.
+5. Budget a deploy retry: revision `00065-spk` failed a startup probe on an image digest
+   identical to the serving `00064`.
 
 ## Deferred Decisions
 
@@ -563,7 +625,7 @@ is currently the only thing preventing a repeat of the 1,146-message amplificati
 
 ## Non-Goals
 
-- **The remaining M-MESSAGE-PLANE-TRUST rows** — marking a dispatched message read; reconciling job success against task success at the sweep layer; M4/M5. Same family, that doc's scope — see Predecessor status for their re-measured state and sequencing.
+- **The remaining M-MESSAGE-PLANE-TRUST rows** — reconciling job success against task success at the sweep layer; its own M4/M5. Same family, that doc's scope — see Predecessor status. **Marking a dispatched message read has MOVED here**, into this doc's M4: it is not a tidy-up, it is what makes the plane's only self-report legible.
 - **Executor GitHub `422` on issue creation** — real (the agent burned ~2 of 15 minutes on it) but orthogonal; file separately.
 - **`ANTHROPIC_API_KEY` unset on the coordinator** (feedback-gate classifier fail-closed) — ops, not design.
 - **Re-filing the docparse redeploy message** — real, security-relevant, and tracked in that doc's "still owed" list.
