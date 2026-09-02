@@ -185,7 +185,10 @@ func coordinatorExecuteJob(args []string) error {
 	// Without this, the executor defaults to 5m which is too short for complex tasks.
 	timeoutStr := os.Getenv("AILANG_TIMEOUT")
 	if timeoutStr == "" {
-		timeoutStr = "30m" // Reasonable default for cloud tasks
+		// M-COORDINATOR-EXECUTION-TRUST M8: was 30m. Cloud Run Jobs allow 24h and
+		// were chosen for that; idle_timeout is the liveness guard, so a generous
+		// wall-clock costs nothing while an agent is making progress.
+		timeoutStr = coordinator.DefaultTaskTimeout.String()
 	}
 
 	fmt.Printf("execute-job: starting task %s (agent=%s, workspace=%s, model=%s, timeout=%s)\n", taskID, agentID, workspace, model, timeoutStr)
