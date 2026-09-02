@@ -83,7 +83,7 @@ Each needs a short doc (1–2 hours total).
 
 | Criterion | Reality | Path forward |
 |---|---|---|
-| `bus_factor` | One active human maintainer (mark@aitanalabs.com); one AI coordinator account (sunholo-voight-kampff). The "second human" doesn't exist. | Recruit a second co-maintainer with merge rights, OR mark Unmet with a written justification linking to the AI-autonomous thesis. |
+| `bus_factor` | One active human maintainer (MarkEdmondson1234); one AI coordinator account (sunholo-voight-kampff). The "second human" doesn't exist. | Recruit a second co-maintainer with merge rights, OR mark Unmet with a written justification linking to the AI-autonomous thesis. |
 | `test_statement_coverage80` | Current: **37.8%**. Silver requires ≥80%. | Coverage push as a separate sprint. ~6,000 lines of new tests across the lower-coverage packages. Worth doing for its own sake; not a quick win. |
 
 ### Unanswered higher-effort items (~5 fields)

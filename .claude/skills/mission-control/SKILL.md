@@ -363,7 +363,12 @@ abort, run `bash tools/launchd/mission-heartbeat.sh stamp abort <reason>` with a
    **(b) PROVENANCE IS THE WHOLE CONTRACT.** The commit that flipped the row must be authored by an
    attended identity, never the fleet account. For any ledger row that changed since your last
    watermark, check it first-party:
-   `git log -1 --format='%an <%ae>' -S'| D-nn |' -- <charter>`. If the flip was authored by
+   `git log -1 --format='%an <%ae>' -S'| D-nn |' -- <charter>`. **Use that output to COMPARE,
+   never to RECORD** (Mark, attended 2026-09-02): the verdict is "attended" or "fleet", and that
+   is all that goes in the row. Writing the author's ADDRESS into an evidence cell publishes it —
+   ledger rows are pasted verbatim into the public bookkeeping issue by every report, which is
+   exactly how a personal address reached 11 places across 9 tracked files before this rule
+   existed. `make check-no-personal-email` fails the build if one comes back. If the flip was authored by
    `sunholo-voight-kampff`, that is **SELF-RESOLUTION** — the exact failure `mission_directives.sh`'s
    self-direction guard exists to prevent, arriving through the other door. Re-open the row, FLAG it,
    and report it; do not action it.

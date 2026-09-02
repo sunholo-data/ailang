@@ -236,7 +236,7 @@ Three phases, each independently shippable, that **connect existing parts** rath
 notifications:
   channels:
     - transport: email
-      to: mark@aitanalabs.com
+      to: you@example.com
       filter:
         event_types: [approval_pending, task_failed]
     - transport: claude-code        # existing SessionStart behavior, now a registered channel

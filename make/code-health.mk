@@ -186,6 +186,13 @@ test-check-home-isolation: ## Run the home-isolation gate's own self-test (bash 
 	@/bin/bash scripts/test_check_home_isolation.sh
 	@/bin/bash -n scripts/check_home_isolation.sh
 
+check-no-personal-email: ## Refuse a personal email in the loop-written surface (CI gate)
+	@/bin/bash scripts/check_no_personal_email.sh
+
+test-check-no-personal-email: ## Run the personal-email gate's own self-test (bash 3.2)
+	@/bin/bash scripts/test_check_no_personal_email.sh
+	@/bin/bash -n scripts/check_no_personal_email.sh
+
 check-changelog: ## Check root CHANGELOG.md stays an index, not a changelog (CI gate)
 	@bash scripts/check_changelog.sh
 

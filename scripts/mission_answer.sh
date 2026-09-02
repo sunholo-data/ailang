@@ -63,10 +63,13 @@ done
 case "$ID" in D-*) ;; *) die "--id must look like D-… , got: $ID" ;; esac
 
 # THE ATTENDED IDENTITY. Overridable for another human, but never the fleet bot:
+# Uses a GitHub NOREPLY address on purpose (Mark, 2026-09-02): it is attributable to the
+# account, and it keeps a personal address out of public commits, charters, and the issue
+# comments the loop pastes ledger rows into verbatim. Never put a real address here.
 # a row resolved under the loop's own identity is self-direction, which is the one
 # failure this whole channel has to make impossible.
 ATT_NAME="${MISSION_ATTENDED_NAME:-Mark Edmondson}"
-ATT_EMAIL="${MISSION_ATTENDED_EMAIL:-mark@aitanalabs.com}"
+ATT_EMAIL="${MISSION_ATTENDED_EMAIL:-3155884+MarkEdmondson1234@users.noreply.github.com}"
 FLEET_PATTERN="${MISSION_FLEET_ACCOUNT:-sunholo-voight-kampff}"
 case "$ATT_EMAIL" in *"$FLEET_PATTERN"*) die "attended identity is the fleet bot ($ATT_EMAIL) — refusing; an attended ruling must not be authored by the loop" ;; esac
 case "$ATT_NAME" in *[Bb]ot*) die "attended identity looks like a bot ($ATT_NAME) — refusing" ;; esac

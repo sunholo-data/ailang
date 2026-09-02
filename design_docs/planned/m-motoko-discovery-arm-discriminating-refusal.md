@@ -538,7 +538,7 @@ spent and applying it unilaterally would have been a controller-invented resolut
 quorum.
 
 **Status: APPLIED in this revision (iteration 32), by attended human ruling D-MOTOKO-6N-1 — Mark
-Edmondson, 2026-09-01, commit `878e0a5a0` (author `mark@aitanalabs.com`, provenance verified by the
+Edmondson, 2026-09-01, commit `878e0a5a0` (author an attended identity, not the fleet bot, provenance verified by the
 controller as an attended identity, not the fleet bot). The ruling, verbatim:**
 
 > **(B) HOLD for D4. Scope `PROBE_MAX_TREE_NODES` to that one arm's env line and remove the race

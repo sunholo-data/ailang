@@ -3244,7 +3244,7 @@ merely fire. The Phase-0-gated migration epic (rows 10/11/12) is **unmoved**: up
 OPEN, last touched 2026-08-20, re-read as a command this iteration.
 
 **Pick.** Not the queue head. `D-MOTOKO-6N-1` was answered **attended** by Mark on 2026-09-01 — commit
-`878e0a5a0`, author `mark@aitanalabs.com`, provenance checked first-party per the attended-ledger
+`878e0a5a0`, author an attended identity, not the fleet bot, provenance checked first-party per the attended-ledger
 contract (an attended identity the fleet account does not hold and the loop may not author with). An
 attended ruling outranks the queue and unparks its item. The ruling: **(B) HOLD for D4** — scope
 `PROBE_MAX_TREE_NODES` to arm :449's own `env` line and remove the race structurally rather than betting
