@@ -55,6 +55,28 @@ export async function agentStart({ name, kind, paneId, args = [], timeoutMs = 30
 
 export async function agentPrompt({ target, text }) { return call("agent.prompt", { target, text }); }
 
+// agent.start RETURNS BEFORE THE AGENT CAN ACCEPT INPUT. Prompting straight
+// after it fails with "not an active named agent" — observed live 2026-09-02 on
+// the first real prompt, with herdr already reporting agents:1. AgentInfo
+// carries `interactive_ready` and `launch_pending` for exactly this, so wait on
+// them rather than sleeping a guessed interval.
+export async function waitInteractive({ target, timeoutMs = 90000 }) {
+  const deadline = Date.now() + timeoutMs;
+  let last = null;
+  while (Date.now() < deadline) {
+    try {
+      const r = await agentGet({ target });
+      const a = r?.agent ?? r;
+      last = { ready: a?.interactive_ready, pending: a?.launch_pending, status: a?.agent_status };
+      if (a?.interactive_ready === true && a?.launch_pending !== true) return last;
+    } catch (e) {
+      last = { error: e.message };          // the agent may not be listed yet
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  throw new Error(`agent ${target} never became interactive within ${timeoutMs}ms (last: ${JSON.stringify(last)})`);
+}
+
 // Blocks server-side until the agent reaches one of `until`. This is why the
 // watcher needs no polling loop.
 export async function agentWait({ target, until, timeoutMs = 3600000 }) {

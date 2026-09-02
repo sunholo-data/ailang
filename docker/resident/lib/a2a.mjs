@@ -174,6 +174,9 @@ export async function messageSend(params) {
 
   await herdr.agentStart({ name: agentName, kind: AGENT_KIND, paneId, args: ["--model", model] });
   setState(task, TaskState.working);
+  // Wait for the CLI to be able to take input: agent.start returns as soon as
+  // the process is launched, not when it is ready.
+  await herdr.waitInteractive({ target: agentName });
   await herdr.agentPrompt({ target: agentName, text });
   watch(task, agentName);
   return task;
