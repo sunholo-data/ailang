@@ -104,6 +104,15 @@ const server = createServer(async (req, res) => {
         return t ? json(res, 200, { jsonrpc: "2.0", id, result: t })
                  : rpcError(res, id, -32001, `task not found: ${params?.id}`);
       }
+      case "tasks/transcript": {
+        // Not an A2A method: an operator affordance for a Preview product where
+        // completion cannot be detected reliably. Namespaced so it is obvious
+        // it is ours, and it reads the pane rather than inventing state.
+        const t = a2a.getTask(params?.id);
+        if (!t) return rpcError(res, id, -32001, `task not found: ${params?.id}`);
+        const out = await a2a.readTranscript(t);
+        return json(res, 200, { jsonrpc: "2.0", id, result: { taskId: t.id, transcript: out } });
+      }
       case "tasks/list":
         return json(res, 200, { jsonrpc: "2.0", id, result: { tasks: a2a.listTasks() } });
       case "tasks/pushNotificationConfig/set":

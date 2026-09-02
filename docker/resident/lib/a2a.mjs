@@ -107,12 +107,36 @@ function mapStatus(agentStatus) {
   }
 }
 
+/** Attach the agent's recent output to the task as an A2A artifact.
+ *
+ * Without this a task can be started but never reports anything: herdr's
+ * `idle`/`done` are UI-coupled and degenerate headless (Phase 0 §3), so the
+ * caller has no way to see what the agent actually produced. Reading the pane
+ * is the only honest source of truth about what happened.
+ */
+async function captureOutput(task, target) {
+  try {
+    const r = await herdr.agentRead({ target, lines: 200 });
+    const text = r?.output ?? r?.text ?? r?.content ?? JSON.stringify(r).slice(0, 4000);
+    task.artifacts = [{
+      artifactId: "transcript",
+      name: "agent-transcript",
+      description: "Recent terminal output from the agent pane.",
+      parts: [{ kind: "text", text: String(text).slice(-8000) }],
+    }];
+    persist();
+  } catch (e) {
+    console.error(`a2a | WARN could not read transcript for ${task.id}: ${e.message}`);
+  }
+}
+
 async function watch(task, target) {
   try {
     const r = await herdr.agentWait({ target, until: ["blocked", "done", "idle"] });
     // AgentInfo's field is `agent_status` (schema protocol 20), not `status`.
     const status = r?.agent?.agent_status ?? r?.agent_status ?? "unknown";
     const mapped = mapStatus(status);
+    await captureOutput(task, target);
     if (mapped === TaskState.inputRequired) {
       const text = await herdr.agentRead({ target, lines: 80 }).catch(() => null);
       setState(task, TaskState.inputRequired, {
@@ -183,6 +207,13 @@ export async function messageSend(params) {
 }
 
 // ─── agent card ──────────────────────────────────────────────────────────────
+export async function readTranscript(task) {
+  const target = task?.metadata?.agentName;
+  if (!target) return "(no agent recorded for this task)";
+  const r = await herdr.agentRead({ target, lines: 200 });
+  return r?.output ?? r?.text ?? r?.content ?? JSON.stringify(r).slice(0, 4000);
+}
+
 export function agentCard(baseUrl) {
   const models = (() => { try { return registeredModels().map((m) => m.ref); } catch { return []; } })();
   return {
