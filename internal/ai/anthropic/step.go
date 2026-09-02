@@ -131,8 +131,11 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		TotalTokens:              result.Usage.InputTokens + result.Usage.OutputTokens,
 		CacheReadInputTokens:     result.Usage.CacheReadInputTokens,
 		CacheCreationInputTokens: result.Usage.CacheCreationInputTokens,
-		Model:                    result.Model,
-		FinishReason:             mapStopReason(result.StopReason),
+		// Thinking/answer split, same source as Generate. Included in
+		// OutputTokens, not additional to it.
+		ReasonTokens: result.Usage.OutputTokensDetails.ThinkingTokens,
+		Model:        result.Model,
+		FinishReason: mapStopReason(result.StopReason),
 	}
 
 	var textParts []string

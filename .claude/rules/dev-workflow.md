@@ -36,3 +36,18 @@ Use the `trace-debugger` skill. Quick: `ailang trace status`, `ailang trace list
 
 **For releases**: Use the `release-manager` skill
 **After release**: Use the `post-release` skill
+
+## Pushing dev — automatic, fast-forward only
+
+Commit straight to `dev` in the main checkout (never branch there). You do **not** need to
+remember to push: `scripts/hooks/push_dev_on_stop.sh` runs as a `Stop` hook and pushes when
+local `dev` is ahead of origin **and not behind**.
+
+It refuses when the branch is ahead *and* behind, because that needs a real merge and the
+conflicts land in the mission charter and changelog, where a careless resolution silently
+drops decision rows. Do that merge by hand, verify with
+`scripts/mission_decisions.sh --check`, then push. Opt out for a session with
+`AILANG_AUTOPUSH=0`.
+
+Why it exists: nothing used to push the attended path, and mission-control Gate 1 forbids
+the loop from touching the shared tree, so work stranded — 25 commits deep by 2026-09-02.

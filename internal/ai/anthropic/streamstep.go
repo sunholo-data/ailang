@@ -384,6 +384,10 @@ func dispatchAnthropicSSEEvent(
 				fmt.Sprintf("anthropic: failed to parse message_delta: %v", err), false)
 		}
 		out.OutputTokens = ev.Usage.OutputTokens
+		// The terminal message_delta carries the final usage, including the
+		// thinking split — without this the streaming path would report 0
+		// reasoning tokens while the non-streaming path reports the truth.
+		out.ReasonTokens = ev.Usage.OutputTokensDetails.ThinkingTokens
 		out.TotalTokens = out.InputTokens + out.OutputTokens
 		out.FinishReason = mapStopReason(ev.Delta.StopReason)
 		if onChunk != nil {
