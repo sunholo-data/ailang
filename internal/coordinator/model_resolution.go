@@ -1,12 +1,5 @@
 package coordinator
 
-import (
-	"fmt"
-	"strings"
-
-	"github.com/sunholo-data/ailang/internal/modelreg"
-)
-
 // M-MODEL-REGISTRY-SINGLE-SOURCE M7 (decisions D1(a)/D4(a), ratified 2026-08-27).
 //
 // This file was model_routing.go, which held a `ModelRouting` table loaded from
@@ -18,7 +11,7 @@ import (
 // The registry answers it now. Deleting the table was proven inert before it was
 // deleted: 33 of the 34 cloud agents carry an explicit `model:` pin and
 // ResolveModel takes the pin first, so the table never fired for them; the 34th
-// (motoko) was pinned by M5. TestCloudAgents_ResolveIdenticallyWithoutModelRouting
+// (motoko) was pinned by M5. TestCloudAgents_RegistryMatchesTheDeletedRoutingTable
 // measures that rather than assuming it.
 //
 // This is the coordinator's FIRST dependency on the registry package. V7 flagged
@@ -30,8 +23,11 @@ import (
 //  1. an explicit per-agent `model:` wins — it is a deliberate pin, and an
 //     operator naming a model outranks any table;
 //  2. else the agent's `role:` resolves through the registry, first entry of the
-//     chain (the coordinator's executor takes one model; retry chains are a
-//     driver concern);
+//     chain. The comment that used to sit here said retry chains were "a driver
+//     concern" — true when the mission driver was the only dispatcher, and
+//     false since the coordinator began dispatching unattended. The rest of the
+//     chain is no longer discarded: see ResolveModelChain (M-COORDINATOR-
+//     EXECUTION-TRUST M3);
 //  3. a role the REGISTRY does not know is loud — "the registry has no entry for
 //     this role" is a config gap, not a preference.
 //
@@ -40,30 +36,16 @@ import (
 // one. That split matters — the coordinator legitimately does not know the model
 // for an agent whose task carries its own.
 func ResolveModel(agent *AgentConfig) (string, error) {
-	if agent == nil {
-		return "", nil
-	}
-	if agent.Model != "" {
-		return agent.Model, nil
-	}
-	if agent.Role == "" {
-		return "", nil
-	}
-
-	if modelreg.GlobalModelsConfig == nil {
-		if err := modelreg.InitModelsConfig(); err != nil {
-			return "", fmt.Errorf("agent %q has role %q but the model registry could not be loaded: %w",
-				agent.ID, agent.Role, err)
-		}
-	}
-
-	// Cloud lane: the coordinator dispatches to Cloud Run, which cannot reach the
-	// local GPU rig. Offering an ollama row here would resolve to a model that
-	// host cannot run.
-	chain, err := modelreg.GlobalModelsConfig.ResolveRole(agent.Role, modelreg.LaneCloud)
+	// One source of truth: the head of the chain ResolveModelChain returns.
+	// Keeping a second resolution path here is how the two would drift, and a
+	// drifted head means M3 silently re-routes every existing agent
+	// (TestChainHeadMatchesResolveModel is the arm).
+	chain, err := ResolveModelChain(agent)
 	if err != nil {
-		return "", fmt.Errorf("agent %q: %w (roles the registry knows: %s)",
-			agent.ID, err, strings.Join(modelreg.GlobalModelsConfig.ListRoles(), ", "))
+		return "", err
 	}
-	return chain[0].ModelName, nil
+	if len(chain) == 0 {
+		return "", nil
+	}
+	return chain[0], nil
 }

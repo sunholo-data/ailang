@@ -29,10 +29,24 @@ type StaleTaskDetector struct {
 	logger        *log.Logger
 	interval      time.Duration // Check interval (default: 2 min)
 
+	// reDispatch, when set, re-runs an infra-class failure on the next chain
+	// link. Nil means "report only" — the detector then behaves exactly as it
+	// did before M3, which is the safe default for any caller that has not
+	// opted in. This detector is the only component that may hold it.
+	reDispatch func(ctx context.Context, task *TaskRecord) error
+
 	// TTL cache for stale task query results.
 	cacheMu     sync.RWMutex
 	cachedTasks []*TaskRecord
 	cacheExpiry time.Time
+}
+
+// WithReDispatcher opts this detector in as the sole re-dispatcher of
+// infra-class failures. The callback must compare-and-set AttemptCount so two
+// coordinator instances cannot both spend an execution.
+func (d *StaleTaskDetector) WithReDispatcher(f func(ctx context.Context, task *TaskRecord) error) *StaleTaskDetector {
+	d.reDispatch = f
+	return d
 }
 
 // WithObservatory attaches the observatory backend so a timed-out task also
@@ -94,6 +108,35 @@ func (d *StaleTaskDetector) detectAndMarkStale(ctx context.Context) {
 
 		if age <= timeout {
 			continue
+		}
+
+		// M-COORDINATOR-EXECUTION-TRUST M3: a task that timed out without ever
+		// publishing a completion is the INFRASTRUCTURE class — the container
+		// died, was OOM-killed or was preempted. In-container retry is
+		// impossible by definition here, which is exactly why this tier exists.
+		//
+		// This detector is the SOLE re-dispatcher. Three other components can
+		// also move a task toward a terminal state (the completion handler, the
+		// stranded-approval sweep, the worktree sweep — design doc V23); any
+		// second one gaining this power would breach the cap and duplicate work
+		// nondeterministically.
+		if ShouldReDispatch(task, age, known) {
+			if d.reDispatch != nil {
+				// Compare-and-set on the persisted counter: a loser LOGS and does
+				// nothing. Deliberately not a lock — a silent loser is
+				// indistinguishable from a component that never ran.
+				if err := d.reDispatch(ctx, task); err != nil {
+					d.logger.Printf("stale task detector: task %s not re-dispatched (attempt %d/%d): %v",
+						task.ID, task.AttemptCount+1, MaxTaskExecutions, err)
+				} else {
+					d.logger.Printf("stale task detector: task %s re-dispatched on chain link %d (attempt %d/%d)",
+						task.ID, task.ChainLinkIndex+1, task.AttemptCount+1, MaxTaskExecutions)
+					d.cacheMu.Lock()
+					d.cachedTasks = nil
+					d.cacheMu.Unlock()
+					continue
+				}
+			}
 		}
 
 		errMsg := fmt.Sprintf("task timed out: no completion received within %v of being queued (age=%v)", timeout, age)
