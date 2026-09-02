@@ -24,10 +24,21 @@
 # warm run, with go.sum untouched. The CI workflows keep `download all`: they
 # run on three OSes whose build constraints were not measured here, and their
 # checkout is ephemeral so the go.sum churn is harmless there.
-test: build ## Run all Go unit tests (builds bin/ailang first)
+test: build test-pi-extensions ## Run all Go unit tests + the pi extension suite (builds bin/ailang first)
 	@echo "Running tests..."
 	@$(GOCMD) mod download
 	@HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 NO_PROXY=localhost,127.0.0.1 GOPROXY=off $(GOTEST) -v $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
+
+# The pi extension suite carried ZERO automated coverage until
+# M-COORDINATOR-EXECUTION-TRUST M1a — 24 tests, none of them ever run by `make`
+# or CI, now including the arms that guard the permission tier. An arm that
+# cannot fail is not a guard, which is the whole thesis of that design doc.
+# Skips (rather than fails) where node is too old for --experimental-strip-types,
+# so the target is safe on any runner; CI's node is current.
+.PHONY: test-pi-extensions
+test-pi-extensions: ## Run the pi extension (TypeScript) test suite
+	@echo "Running pi extension tests..."
+	@if ! command -v node >/dev/null 2>&1; then 		echo "  node not found — skipping"; exit 0; 	fi; 	if ! node --experimental-strip-types -e '' >/dev/null 2>&1; then 		echo "  node $$(node -v) lacks --experimental-strip-types — skipping"; exit 0; 	fi; 	rc=0; 	for f in .pi/extensions/.*.test.ts; do 		[ -e "$$f" ] || continue; 		echo "  $$f"; 		node --experimental-strip-types --test "$$f" || rc=1; 	done; 	exit $$rc
 
 test-nightly-classifier: ## Run nightly variance-guard contract and replay tests
 	@python3 tools/test_nightly_classify.py -v

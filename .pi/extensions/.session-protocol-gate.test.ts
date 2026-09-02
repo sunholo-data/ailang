@@ -112,10 +112,15 @@ test("headlessPrerequisitesMet: requires both CLAUDE.md and ailang messages evid
 		},
 	};
 
-	// Nothing → missing both
+	// Nothing → every step missing. Assert on CONTENT, not on a count: the count
+	// broke when M1a made the AILANG set the generic floor PLUS a CLAUDE.md read
+	// (2 → 3), which is a correct change that a brittle length assertion flagged
+	// as a regression. What matters is WHICH steps are reported.
 	let r = headlessPrerequisitesMet([]);
 	assert.equal(r.met, false);
-	assert.equal(r.missing.length, 2);
+	assert.ok(r.missing.some((m) => m.includes("CLAUDE.md")), "must name the CLAUDE.md step");
+	assert.ok(r.missing.some((m) => m.includes("ailang messages")), "must name the inbox step");
+	assert.ok(r.missing.some((m) => m.includes("inspect the workspace")), "must name the orientation step");
 
 	// Block-reason noise must not satisfy the CLAUDE.md step
 	r = headlessPrerequisitesMet([blockNoise, messagesCall]);

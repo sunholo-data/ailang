@@ -83,11 +83,21 @@ func TestDispatchEnvVarOverrides(t *testing.T) {
 	}
 
 	envVars := overrides.ContainerOverrides[0].Env
-	if len(envVars) != 7 {
-		t.Fatalf("expected 7 env vars, got %d", len(envVars))
+
+	// Assert the base set is PRESENT rather than counting it. A count breaks
+	// every time a base var is legitimately added (it did, when
+	// M-COORDINATOR-EXECUTION-TRUST M1a added AILANG_WORK_TIER) and says
+	// nothing about which var is missing when it fails.
+	for _, name := range []string{
+		"AILANG_TASK_ID", "AILANG_AGENT_ID", "AILANG_WORKSPACE", "AILANG_PROVIDER",
+		"AILANG_DIRECTIVE", "AILANG_REPO_URL", "AILANG_BRANCH", "AILANG_WORK_TIER",
+	} {
+		if !hasEnvVar(envVars, name) {
+			t.Errorf("base env var %s not set", name)
+		}
 	}
 
-	// Verify all 7 env vars are set correctly
+	// Verify the base env vars carry the right values
 	expectedEnv := map[string]string{
 		"AILANG_TASK_ID":   "task-12345678",
 		"AILANG_AGENT_ID":  "design-doc-creator",
@@ -96,6 +106,9 @@ func TestDispatchEnvVarOverrides(t *testing.T) {
 		"AILANG_DIRECTIVE": "Fix the parser bug",
 		"AILANG_REPO_URL":  "https://github.com/sunholo-data/ailang",
 		"AILANG_BRANCH":    "dev",
+		// Unset on a bare DispatchParams — and empty is exactly what the gate
+		// reads as tier 2. The fail-closed default is the assertion here.
+		"AILANG_WORK_TIER": "",
 	}
 
 	for _, env := range envVars {
@@ -163,9 +176,11 @@ func TestDispatchPluginRepoEnvVar(t *testing.T) {
 	}
 
 	envVars := mock.lastReq.Overrides.ContainerOverrides[0].Env
-	// 7 base + PushBranch + PluginRepo = 9
-	if len(envVars) != 9 {
-		t.Fatalf("expected 9 env vars (7 base + PushBranch + PluginRepo), got %d", len(envVars))
+	// Presence, not arithmetic — see TestDispatchEnvVarOverrides.
+	for _, name := range []string{"AILANG_PUSH_BRANCH", "AILANG_PLUGIN_REPO", "AILANG_WORK_TIER"} {
+		if !hasEnvVar(envVars, name) {
+			t.Errorf("env var %s not set", name)
+		}
 	}
 
 	// Verify PluginRepo is set
@@ -492,4 +507,14 @@ func TestDispatchRefusesVariantProviderMismatch(t *testing.T) {
 	if runner.calls != 0 {
 		t.Errorf("Cloud Run API was called %d time(s); the mismatch must be refused before dispatch", runner.calls)
 	}
+}
+
+// hasEnvVar reports whether a Cloud Run env var of the given name is present.
+func hasEnvVar(envVars []*runpb.EnvVar, name string) bool {
+	for _, env := range envVars {
+		if env.Name == name {
+			return true
+		}
+	}
+	return false
 }

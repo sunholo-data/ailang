@@ -133,6 +133,13 @@ type AgentConfig struct {
 	// coordinator config's model_routing table.
 	Role string `yaml:"role" json:"role,omitempty"`
 
+	// WorkTier is the permission tier this agent's dispatches run under
+	// (M-COORDINATOR-EXECUTION-TRUST M1a). Trusted: it lives in the
+	// coordinator's own registry, which a message sender cannot write. Unset
+	// or unrecognised means tier 2 — see ResolveWorkTier, which is the only
+	// place this field may be read from.
+	WorkTier WorkTier `yaml:"work_tier" json:"work_tier,omitempty"`
+
 	// EvaluatesParent marks an agent whose completions carry an
 	// EVALUATION_VERDICT: line to be attached to the PARENT task's pending
 	// approval (M2). Set on sprint-evaluator only.
