@@ -7,7 +7,7 @@
 .PHONY: test-operator-assertions test-regression-guards test-builtin-consistency
 .PHONY: test-stdlib-canaries test-row-properties test-golden-types test-repl-smoke
 .PHONY: test-sim-stub test-stdlib-freeze verify-no-shim verify-lowering
-.PHONY: test-nightly-classifier test-launchd-drivers test-check-changelog test-check-protocol-closure test-check-autoclose
+.PHONY: test-nightly-classifier test-launchd-drivers test-check-changelog test-check-protocol-closure test-check-autoclose test-check-referenced-paths
 
 # Core tests. Depends on build so integration tests that shell out to the
 # ailang binary never see a stale bin/ailang — a stale binary caused phantom
@@ -79,6 +79,10 @@ test-check-protocol-closure: ## Run the protocol-closure gate's own self-test (b
 test-check-autoclose: ## Run the issue-autoclose gate's own self-test (bash 3.2)
 	@/bin/bash scripts/test_check_autoclose.sh
 	@/bin/bash -n scripts/check_autoclose.sh
+
+test-check-referenced-paths: ## Run the referenced-paths gate's own self-test (bash 3.2)
+	@/bin/bash scripts/test_check_referenced_paths.sh
+	@/bin/bash -n scripts/check_referenced_paths.sh
 
 test-parser: ## Run parser tests only
 	@echo "Testing parser..."
