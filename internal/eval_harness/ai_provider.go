@@ -58,7 +58,15 @@ func newProviderAdapter(model string, apiKey string, explicitProvider ai.Provide
 	case ai.ProviderOpenAI:
 		provider = openai.NewClient(apiKey)
 	case ai.ProviderAnthropic:
-		provider = anthropic.NewClient(apiKey)
+		// The credential's lane decides the header shape: an OAuth token in
+		// x-api-key is a 401, not a degraded run. ResolveAnthropicCredential is
+		// the single source of truth, so this cannot disagree with the cost
+		// classifier in metrics.go.
+		if cred, err := ai.ResolveAnthropicCredential(); err == nil && cred.OAuth {
+			provider = anthropic.NewClient(cred.Value, anthropic.WithOAuth())
+		} else {
+			provider = anthropic.NewClient(apiKey)
+		}
 	case ai.ProviderGoogle:
 		// Gemini uses ADC (Application Default Credentials) via Vertex AI
 		client, err := gemini.NewVertexAIClient("")
@@ -278,6 +286,17 @@ func getAPIKeyForProvider(provider string, model string) (string, error) {
 	envVar := ai.EnvVarForProvider(providerType)
 	if envVar == "" {
 		return "", fmt.Errorf("unsupported provider: %s (model: %s)", provider, model)
+	}
+
+	// Anthropic accepts EITHER lane: a metered API key or an OAuth access
+	// token drawing on a Claude subscription. Both are resolved in one place so
+	// the header shape and the cost label are decided by the same rule.
+	if providerType == ai.ProviderAnthropic {
+		cred, err := ai.ResolveAnthropicCredential()
+		if err != nil {
+			return "", fmt.Errorf("%w (required for model: %s)", err, model)
+		}
+		return cred.Value, nil
 	}
 
 	key := os.Getenv(envVar)

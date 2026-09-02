@@ -87,8 +87,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		return nil, e
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-api-key", c.apiKey)
-	httpReq.Header.Set("anthropic-version", c.apiVersion)
+	c.applyAuthHeaders(httpReq.Header)
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {

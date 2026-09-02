@@ -147,3 +147,67 @@ func TestAgentSuiteGatesAreConsistent(t *testing.T) {
 		t.Fatalf("expected at least 2 subscription-lane models in agent_suite, got %d", len(subWork))
 	}
 }
+
+// TestStandardModeCostProvenance_AnthropicOAuthIsNotMetered pins the billing
+// integrity rule added with standard-mode OAuth (M-EVAL-STANDARD-OAUTH).
+//
+// Standard mode can now authenticate to Anthropic with a subscription access
+// token. The token count and the arithmetic are identical either way, so the
+// ONLY thing distinguishing "we were charged $12" from "we spent quota" is this
+// label. Getting it wrong is not cosmetic: every cost-per-pass comparison and
+// every budget guard reads it, and a metered label on a subscription run
+// invents spend that never happened — the precise defect CostListPriceEquivalent
+// exists to prevent.
+func TestStandardModeCostProvenance_AnthropicOAuthIsNotMetered(t *testing.T) {
+	saved := modelreg.GlobalModelsConfig
+	t.Cleanup(func() { modelreg.GlobalModelsConfig = saved })
+
+	modelreg.GlobalModelsConfig = &ModelsConfig{Models: map[string]ModelConfig{
+		"claude-fable-5-1": {Provider: "anthropic", Pricing: Pricing{InputPer1K: 0.010, OutputPer1K: 0.050}},
+		// A non-Anthropic priced row must be unaffected by Anthropic env state.
+		"gpt5-6-luna": {Provider: "openai", Pricing: Pricing{InputPer1K: 0.0002, OutputPer1K: 0.0012}},
+	}}
+
+	tests := []struct {
+		name              string
+		apiKey, authToken string
+		model             string
+		want              string
+	}{
+		{
+			name:      "anthropic on OAuth is list-price-equivalent",
+			authToken: "oauth-tok", model: "claude-fable-5-1",
+			want: string(executor.CostListPriceEquivalent),
+		},
+		{
+			name:   "anthropic on an API key stays metered",
+			apiKey: "sk-ant-x", model: "claude-fable-5-1",
+			want: string(executor.CostMetered),
+		},
+		{
+			name:   "both set: metered key wins, so the cost is metered",
+			apiKey: "sk-ant-x", authToken: "oauth-tok", model: "claude-fable-5-1",
+			want: string(executor.CostMetered),
+		},
+		{
+			name:  "no credential at all does not silently become subscription",
+			model: "claude-fable-5-1",
+			want:  string(executor.CostMetered),
+		},
+		{
+			name:      "an OAuth token does not relabel a non-Anthropic row",
+			authToken: "oauth-tok", model: "gpt5-6-luna",
+			want: string(executor.CostMetered),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("ANTHROPIC_API_KEY", tt.apiKey)
+			t.Setenv("ANTHROPIC_AUTH_TOKEN", tt.authToken)
+			if got := standardModeCostProvenance(tt.model); got != tt.want {
+				t.Errorf("%s: got %q, want %q", tt.model, got, tt.want)
+			}
+		})
+	}
+}

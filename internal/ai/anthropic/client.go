@@ -25,7 +25,10 @@ const (
 
 // Client implements ai.Provider for Anthropic's Claude API.
 type Client struct {
+	// apiKey holds the credential. Which HEADER it goes in — and therefore
+	// whether the run is billed — depends on authMode; see auth.go.
 	apiKey     string
+	authMode   AuthMode
 	baseURL    string
 	apiVersion string
 	httpClient *http.Client
@@ -309,8 +312,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-api-key", c.apiKey)
-	httpReq.Header.Set("anthropic-version", c.apiVersion)
+	c.applyAuthHeaders(httpReq.Header)
 
 	// Execute request
 	resp, err := c.httpClient.Do(httpReq)
