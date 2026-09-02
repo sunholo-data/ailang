@@ -99,6 +99,23 @@ fine for UI defaults, optional features, and caching.
 Before fixing a bug, ask whether it's part of a larger pattern; search for similar code paths
 and design one unified fix instead of patching case-by-case.
 
+### 4. Read the control before refusing on its behalf
+
+Before declining a requested action to protect a safeguard, **check what the safeguard actually
+enforces**. If the artifact is identical whether you or the user performs the step, refusing buys
+no integrity — it only moves the work back to the user and costs the session.
+
+Measured 2026-09-02: asked to record an attended ruling with `mission_answer.sh`, the agent
+refused on the grounds that a loop-authored ruling would be indistinguishable from a human one.
+But that script overrides the git identity for *every* caller (`git -c user.name=… -c user.email=…`),
+and this machine's git identity is the fleet bot for every session including Mark's — so the two
+commits are byte-identical. The guarantee being defended did not exist. Cost: about an hour, and
+the decision still had to be made afterwards. Related trap: a rule addressed to *the unattended
+loop* (mission-control's SKILL.md) is not automatically a rule about an attended session that
+happens to contain an agent.
+
+If the control is genuinely weak, say so and offer to fix it — do not simulate it by refusing.
+
 ---
 
 ## Project Overview

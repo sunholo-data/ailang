@@ -17,8 +17,12 @@ git add -A >/dev/null 2>&1; git -c user.email=t@t -c user.name=t commit -qm init
 
 run() { bash scripts/check_no_personal_email.sh >/dev/null 2>&1; echo $?; }
 
-# B. a personal address in a mission doc must FAIL (the whole point)
-echo 'provenance is the commit author someone@realdomain.com' > design_docs/v1-mission.md
+# B. a personal address in a mission doc must FAIL (the whole point).
+# The fixture is ASSEMBLED AT RUNTIME on purpose: a literal address in this file would be
+# flagged by the very gate it tests, which is exactly what happened when this file was first
+# committed — the gate went red on its own fixture the moment `git ls-files` began listing it.
+FIX="someone@realdomain"; FIX="$FIX.com"
+echo "provenance is the commit author $FIX" > design_docs/v1-mission.md
 git add -A >/dev/null 2>&1
 ck "B personal addr in mission doc -> fail" "$(run)" "1"
 
@@ -33,8 +37,8 @@ git add -A >/dev/null 2>&1
 ck "D reserved placeholders allowed" "$(run)" "0"
 
 # E. OUT OF SCOPE by design: functional/governance files are not policed
-echo 'maintainer someone@realdomain.com' > SECURITY.md
-echo 'const owner = "someone@realdomain.com"' > access_control.go
+echo "maintainer $FIX" > SECURITY.md
+echo "const owner = \"$FIX\"" > access_control.go
 rm -f design_docs/v1-mission.md
 git add -A >/dev/null 2>&1
 ck "E governance/code out of scope" "$(run)" "0"

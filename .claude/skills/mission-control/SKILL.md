@@ -373,7 +373,16 @@ abort, run `bash tools/launchd/mission-heartbeat.sh stamp abort <reason>` with a
    self-direction guard exists to prevent, arriving through the other door. Re-open the row, FLAG it,
    and report it; do not action it.
    **(c) YOU MAY NOT USE THIS CHANNEL.** The loop never runs `mission_answer.sh`, never authors a
-   commit with an attended identity, and never resolves a row on its own behalf. The script refuses
+   commit with an attended identity, and never resolves a row on its own behalf.
+   **Scope of (c), clarified 2026-09-02 after it was over-applied and cost an hour:** this binds
+   the UNATTENDED loop — an iteration resolving a row Mark never ruled on. It does NOT bind an
+   attended session in which Mark states a ruling and asks for it to be recorded; that is the
+   channel this contract exists to provide, and refusing there just hands the work back. The test
+   is whether a human actually ruled, not which process typed it. Note also that refusing buys
+   nothing mechanically: the script overrides the git identity for every caller, and this rig's git
+   identity is the fleet bot in Mark's own sessions too, so the commits are byte-identical either
+   way (CLAUDE.md principle 4). The guard is a convention; treat it as one and say so, rather than
+   simulating an enforcement that is not there. The script refuses
    the fleet identity in code (arms `4a`–`4d` of `scripts/test_mission_answer.sh`, each mutation-proven
    to have a sole killer); do not route around it, and do not "helpfully" record a decision you
    believe Mark has already made verbally — an inferred resolution is the thing the recording

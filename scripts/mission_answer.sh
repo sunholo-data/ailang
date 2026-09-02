@@ -30,6 +30,23 @@
 #   scripts/mission_answer.sh --id D-51 --answer-file ruling.txt [--evidence-file ev.txt]
 #                             [--file design_docs/v1-mission.md] [--commit] [--dry-run]
 #
+# USAGE TRAPS, all three measured 2026-09-02 on the D-53 ruling:
+#   * THE ANSWER MUST BE ONE LINE. A ledger row is a single markdown table row, so a blank line
+#     or newline in --answer-file shatters it into fragments with empty fields. The validator
+#     catches this and refuses to commit ("empty decision/evidence field for D-nn") — believe it,
+#     collapse the file to one line, and re-run. It is not a false alarm.
+#   * DO NOT START THE ANSWER WITH "ANSWERED —". This script prepends its own, and you get
+#     "ANSWERED — ANSWERED —" in the permanent record.
+#   * WHO MAY RUN IT: an attended session, including one where Mark directs an agent and states
+#     the ruling. What the contract forbids is the UNATTENDED loop resolving a row on its own
+#     behalf. Do not refuse a ruling Mark has actually given — see CLAUDE.md principle 4.
+#
+# KNOWN WEAKNESS, recorded rather than papered over: ATT_NAME/ATT_EMAIL below are DEFAULTS, not
+# derived from whoever invokes the script, so it stamps the attended identity for any caller and
+# the identity guard only catches an explicit override to the fleet account. The real control is
+# the charter rule, not this code. Tightening it (an explicit --as, or checking the invoking
+# identity) is an open design question, not a lint.
+#
 # Exit codes: 0 = row rewritten (and validated), 1 = refused/error.
 set -uo pipefail
 
@@ -52,7 +69,7 @@ while [ $# -gt 0 ]; do
 		--file)     DOC="${2:-}";      shift 2 ;;
 		--commit)   COMMIT=1;          shift ;;
 		--dry-run)  DRYRUN=1;          shift ;;
-		-h|--help)  sed -n '2,32p' "$0"; exit 0 ;;
+		-h|--help)  sed -n '2,50p' "$0"; exit 0 ;;
 		*) die "unknown argument: $1" ;;
 	esac
 done
