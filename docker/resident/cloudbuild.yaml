@@ -1,0 +1,46 @@
+# Build and acceptance-test the resident agent image (v6.40.0 RESIDENT-P1).
+#
+# The test step runs the freshly built image against container/resident/
+# test-image.sh, so a broken boot path fails the build rather than being
+# discovered on a live instance where nobody is watching.
+# Images carry ${SHORT_SHA} as their immutable identity, per
+# backend/tests/unit/test_cloudbuild_image_identity.py — which globs EVERY
+# cloudbuild pipeline precisely so a new one cannot quietly opt out. A mutable
+# tag names "whatever built last" rather than a thing, and a concurrent build
+# can move it between push and deploy. The moving _TAG stays only as a
+# convenience pointer for local iteration; nothing deploys from it.
+substitutions:
+  _REGISTRY: europe-west4-docker.pkg.dev/ailang-dev/resident-spike
+  _IMAGE: resident-pi
+  _TAG: dev
+  # Pinned by digest in real deployments; :latest here while the base moves.
+  _BASE: europe-west1-docker.pkg.dev/ailang-multivac/ailang/agent-pi:latest
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --build-arg=BASE=${_BASE}
+      - -t=${_REGISTRY}/${_IMAGE}:${SHORT_SHA}
+      - -t=${_REGISTRY}/${_IMAGE}:${_TAG}
+      - -f=Dockerfile
+      - .
+
+  # Acceptance tests inside the image. Mounted rather than baked so the test
+  # script is not shipped to production instances.
+  - id: test
+    name: ${_REGISTRY}/${_IMAGE}:${_TAG}
+    entrypoint: bash
+    args: ['/workspace/test-image.sh']
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: [push, '--all-tags', '${_REGISTRY}/${_IMAGE}']
+
+images:
+  - '${_REGISTRY}/${_IMAGE}:${SHORT_SHA}'
+  - '${_REGISTRY}/${_IMAGE}:${_TAG}'
+timeout: 3600s
+options:
+  logging: CLOUD_LOGGING_ONLY
