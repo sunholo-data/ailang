@@ -236,7 +236,24 @@ func (p *providerAdapter) generate(ctx context.Context, cachedPrefix, prompt str
 //
 // This is the STANDARD-mode (direct HTTP) provider path — every caller into it
 // (0-shot benchmark generation, prompt-cache warm-up) genuinely needs a real API
-// key, since a raw HTTP client has no OAuth mechanism to fall back to. Do NOT
+// key, because the BUILT-IN anthropic client (internal/ai/anthropic/client.go)
+// sets exactly one auth header, `x-api-key`, and has no OAuth path.
+//
+// ⚠️ That is a property of THIS client, NOT of standard mode or of "raw HTTP"
+// (an earlier version of this comment said "a raw HTTP client has no OAuth
+// mechanism to fall back to", which is false and has misled at least one reader
+// into telling Mark that standard-mode OAuth is impossible). AILANG *does*
+// support standard-mode Anthropic over OAuth — via a config-driven provider
+// (`[[ai_provider]]` in ailang.toml: request_shape = "anthropic_messages" plus
+// auth = { type = "bearer", env = ... } or the auth_headers escape, which is how
+// you add `anthropic-beta: oauth-2025-04-20`). See
+// docs/docs/guides/custom-ai-providers.md and internal/ai/configdriven/auth.go.
+//
+// The real limitation is a WIRING gap: config-driven providers register into the
+// runtime AI-builtin registry (cmd/ailang/configdriven_init.go), and the eval
+// harness does not consult that registry — models.yml `provider: "anthropic"`
+// resolves to the built-in client. So eval-suite standard runs are metered-only
+// TODAY, and closing that gap is a feature, not an impossibility. Do NOT
 // generalize "ANTHROPIC_API_KEY not set" errors from here to agent mode: the
 // agent-mode Claude executor (internal/executor) is a completely different code
 // path that shells out to the `claude` CLI and authenticates via Keychain

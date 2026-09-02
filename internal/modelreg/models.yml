@@ -836,8 +836,14 @@ models:
       rather than a contested promotion — the usual match-or-beat-the-incumbent bar exists
       to justify a cost delta, and there is none.
       ⚠️ MEASUREMENT STATUS — HONEST: the core-tier head-to-head was NOT run before the
-      swap, and could not be: standard mode is direct HTTP (no OAuth path) and
-      ANTHROPIC_API_KEY is unset on this box, so NEITHER fable row can execute here.
+      swap. Reason, stated precisely: eval-suite resolves `provider: "anthropic"` to the
+      BUILT-IN client (internal/ai/anthropic/client.go), which sets only `x-api-key` — and
+      ANTHROPIC_API_KEY is unset on this box. That is a property of that client, NOT of
+      standard mode: AILANG supports standard-mode Anthropic over OAuth Bearer through a
+      config-driven `[[ai_provider]]` (request_shape "anthropic_messages" + auth type
+      "bearer" / auth_headers), but the eval harness does not consult the config-driven
+      registry, so that lane is unreachable from eval-suite today. A wiring gap, not a
+      hard limit.
       This row therefore carries ZERO first-party AILANG measurements. The only banked
       Fable-generation numbers belong to claude-fable-5 (28/31 core+frontier at v0.32.0,
       2026-08-03), retained opt-in as the longitudinal anchor.
@@ -4675,8 +4681,10 @@ extended_suite:
     # so the usual "does it beat the incumbent on core" bar is not what decided this — a
     # newer generation at an identical rate is the default-better choice, and 5.1's vendor
     # gains are concentrated in agentic coding / long-horizon work. ⚠️ The core-tier
-    # head-to-head was NOT run: standard mode is direct HTTP and ANTHROPIC_API_KEY is unset
-    # on this box, so neither row can execute here. Run it when a key is available:
+    # head-to-head was NOT run: eval-suite routes anthropic rows to the built-in x-api-key
+    # client and ANTHROPIC_API_KEY is unset here. (Standard-mode OAuth IS possible via a
+    # config-driven [[ai_provider]]; it is simply not wired into eval-suite yet.) Run it
+    # once either a key or that wiring exists:
     #   ailang eval-suite --models claude-fable-5-1 --tier core,frontier --langs ailang \
     #     --output /tmp/cf_fable_5_1 --parallel 4
     # then place it against the banked series (anchored) — do NOT re-run claude-fable-5 as a
