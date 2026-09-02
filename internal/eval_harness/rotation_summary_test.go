@@ -245,3 +245,86 @@ func TestSummarizeRotation_ExcludesUnaccountedFromTokenKPI(t *testing.T) {
 		t.Errorf("tokens_cache_unaccounted = %d, want 1 (a shrunken sample must be stated)", bs.TokensCacheUnaccounted)
 	}
 }
+
+// TestSummarizeRotation_ExcludesInvalidFromPassRate pins the distinction between
+// "the subject was measured and did badly" and "we failed to measure it".
+//
+// The fixture is the shape measured on the v0.34.0 rotation (2026-09-02):
+// motoko published 86.0% on AILANG against pi's 92.7% and was read as the
+// weakest AILANG harness, when 11 of its 12 failures were zero-token non-starts
+// banked as api_error. The backstop in validity.go already marked those rows
+// invalid; this aggregator counted them anyway, so the crash rate rode inside
+// the published pass rate.
+//
+// api_error goes through logger.Log, which applies applyValidityBackstop — so
+// these fixtures are marked invalid the same way real rows are, not by hand.
+func TestSummarizeRotation_ExcludesInvalidFromPassRate(t *testing.T) {
+	out := t.TempDir()
+	// 2 real measurements: one pass, one genuine model failure.
+	fixtureMetrics(t, out, "records_book", "ailang", "motoko-local-qwen3-8-27b", 1, true, 100000, "")
+	fixtureMetrics(t, out, "records_book", "ailang", "motoko-local-qwen3-8-27b", 2, false, 120000, "compile_error")
+	// 2 non-measurements: the harness never got the subject running.
+	fixtureMetrics(t, out, "records_book", "ailang", "motoko-local-qwen3-8-27b", 3, false, 0, "api_error")
+	fixtureMetrics(t, out, "records_book", "ailang", "motoko-local-qwen3-8-27b", 4, false, 0, "api_error")
+
+	rs, err := SummarizeRotation(out)
+	if err != nil {
+		t.Fatalf("SummarizeRotation: %v", err)
+	}
+	if len(rs.BenchmarkSummary) != 1 {
+		t.Fatalf("expected 1 benchmark summary, got %d", len(rs.BenchmarkSummary))
+	}
+	bs := rs.BenchmarkSummary[0]
+	// The denominator is the 2 SURVIVORS, not 4. Charging the 2 crashes to the
+	// model would publish 25% for a subject that actually went 1-for-2.
+	if bs.Trials != 2 {
+		t.Errorf("trials = %d, want 2 (invalid rows must not sit in the denominator)", bs.Trials)
+	}
+	if bs.Passed != 1 {
+		t.Errorf("passed = %d, want 1", bs.Passed)
+	}
+	if math.Abs(bs.PassRate-0.5) > 1e-9 {
+		t.Errorf("pass_rate = %v, want 0.5 (got the crash rate baked in?)", bs.PassRate)
+	}
+	if bs.InvalidExcluded != 2 {
+		t.Errorf("invalid_excluded = %d, want 2 — a shrunken sample must be stated, not silent", bs.InvalidExcluded)
+	}
+	if bs.InvalidReasons[ReasonHarnessError] != 2 {
+		t.Errorf("invalid_reasons[%s] = %d, want 2", ReasonHarnessError, bs.InvalidReasons[ReasonHarnessError])
+	}
+	if rs.InvalidExcluded != 2 {
+		t.Errorf("rotation invalid_excluded = %d, want 2", rs.InvalidExcluded)
+	}
+	// The model rollup reads from the summaries, so it must inherit the fix.
+	if r := rs.ModelRollup["motoko-local-qwen3-8-27b"]; r == nil {
+		t.Fatal("missing model rollup")
+	} else if math.Abs(r.PassAt1-0.5) > 1e-9 {
+		t.Errorf("rollup pass_at_1 = %v, want 0.5", r.PassAt1)
+	}
+}
+
+// TestSummarizeRotation_AllInvalidTupleIsUnmeasured covers the edge the guard
+// exists for: when EVERY row for a tuple is a non-measurement there is no
+// pass rate to report. Publishing 0/0 renders as 0% — the phantom-failure shape
+// validity.go was written to prevent — so the tuple is omitted and tallied.
+func TestSummarizeRotation_AllInvalidTupleIsUnmeasured(t *testing.T) {
+	out := t.TempDir()
+	fixtureMetrics(t, out, "quine", "ailang", "motoko-local-qwen3-8-27b", 1, false, 0, "api_error")
+	fixtureMetrics(t, out, "fizzbuzz", "ailang", "motoko-local-qwen3-8-27b", 1, true, 90000, "")
+
+	rs, err := SummarizeRotation(out)
+	if err != nil {
+		t.Fatalf("SummarizeRotation: %v", err)
+	}
+	for _, bs := range rs.BenchmarkSummary {
+		if bs.BenchmarkID == "quine" {
+			t.Errorf("quine was never measured but was published as %d/%d", bs.Passed, bs.Trials)
+		}
+	}
+	if rs.UnmeasuredTuples != 1 {
+		t.Errorf("unmeasured_tuples = %d, want 1", rs.UnmeasuredTuples)
+	}
+	if rs.InvalidExcluded != 1 {
+		t.Errorf("invalid_excluded = %d, want 1", rs.InvalidExcluded)
+	}
+}

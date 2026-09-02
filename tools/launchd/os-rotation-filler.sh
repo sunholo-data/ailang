@@ -418,6 +418,58 @@ if [ -d "$ROLL/$VERSION" ] && ailang eval-publish "rolling-$(date +%Y%m%d)" --ro
   fi
 fi
 
+# 7a. HARNESS-HEALTH ESCALATION. summary.json now separates "the subject was
+#     measured and did badly" from "we failed to measure it" (RunMetrics.IsValid,
+#     dominantly the api_error backstop). Those non-measurements are excluded from
+#     every published pass rate — which is correct, and which is exactly why they
+#     need a voice of their own: silently dropping them turns a harness outage
+#     into a quietly smaller sample instead of an alert.
+#
+#     WHY: before the aggregator filtered, motoko published 86.0% on AILANG vs
+#     pi's 92.7% and was read for weeks as the weakest AILANG harness. 11 of its
+#     12 failures were zero-token non-starts; on rows where it actually ran it was
+#     98.7%, the BEST of the three. The crash rate was being read as a model
+#     result. Nobody was told, because nothing escalated.
+#
+#     Threshold is a RATE, not a count: a big rotation legitimately accumulates a
+#     few transient ollama overloads. Fires to the controlplane inbox, which is
+#     where a human triages — Discord is reserved for pass-rate regressions.
+SUMMARY_JSON="$ROLL/$VERSION/summary.json"
+INVALID_ALERT_PCT="${OS_FILLER_INVALID_ALERT_PCT:-5}"
+if [ -f "$SUMMARY_JSON" ]; then
+  INVALID_REPORT=$(python3 - "$SUMMARY_JSON" "$INVALID_ALERT_PCT" <<'PYEOF'
+import json, sys
+path, thresh = sys.argv[1], float(sys.argv[2])
+try:
+    d = json.load(open(path))
+except Exception:
+    sys.exit(0)
+inv = d.get("invalid_excluded", 0)
+total = d.get("total_result_files", 0)
+if not inv or not total:
+    sys.exit(0)
+pct = 100.0 * inv / total
+if pct < thresh:
+    sys.exit(0)
+reasons = ", ".join(f"{k}={v}" for k, v in sorted(d.get("invalid_reasons", {}).items()))
+unmeasured = d.get("unmeasured_tuples", 0)
+print(f"{inv}/{total} rows ({pct:.1f}%) were NOT measurements and are excluded from "
+      f"every published pass rate. reasons: {reasons or 'unspecified'}. "
+      f"unmeasured (benchmark,model,lang) tuples: {unmeasured}. "
+      f"This is a HARNESS health signal, not a model result — the subject never ran. "
+      f"Triage: grep the excluded rows' stderr in {path.rsplit('/',1)[0]}/agent for the "
+      f"failure mode (motoko startup crash / ollama 'maximum pending requests' / stdlib "
+      f"type error), then re-run those tuples: --skip-existing retries invalid rows.")
+PYEOF
+)
+  if [ -n "$INVALID_REPORT" ]; then
+    log "HARNESS HEALTH: $INVALID_REPORT"
+    ailang messages send controlplane "$INVALID_REPORT" \
+      --title "OS rotation harness health: non-measurement rate >= ${INVALID_ALERT_PCT}% (${VERSION})" \
+      --from "os-rotation-filler" >>"$LOG" 2>&1 || true
+  fi
+fi
+
 # 7b. Version-trend: keep docs/static/benchmarks/os/history.json fresh for the
 #     CURRENT version EVERY cycle (idempotent append/replace of the $VERSION entry;
 #     NO --reset — that's a post-release-only action). This is what makes the

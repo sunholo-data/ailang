@@ -1,6 +1,6 @@
 {
-  "ailang_version": "v0.33.1",
-  "generated": "2026-08-24",
+  "ailang_version": "v0.34.0",
+  "generated": "2026-09-02",
   "languages": [
     "ailang",
     "go",
@@ -11,59 +11,74 @@
     {
       "harness": "motoko",
       "lang": {
-        "ailang": 0.5686274509803921
+        "ailang": 0.9736842105263158,
+        "go": 1,
+        "javascript": 0.9814814814814815,
+        "python": 1
       },
-      "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
+      "model": "motoko-local-qwen3-8-27b",
       "tiers": {
         "core": {
+          "ailang": 1,
+          "go": 1,
+          "javascript": 0.9333333333333333,
+          "python": 1
+        },
+        "frontier": {
           "ailang": 1
         },
-        "frontier": {
-          "ailang": 0.21428571428571427
+        "smoke": {
+          "ailang": 0.9130434782608695,
+          "go": 1,
+          "javascript": 1,
+          "python": 1
         },
         "stretch": {
-          "ailang": 0.4883720930232558
+          "ailang": 1,
+          "go": 1,
+          "javascript": 1,
+          "python": 1
+        },
+        "vision": {
+          "ailang": 1,
+          "go": 1,
+          "javascript": 1,
+          "python": 1
         }
       }
     },
     {
       "harness": "opencode",
       "lang": {
-        "ailang": 0.4
-      },
-      "model": "opencode-qwen3-6-35b-a3b-mxfp8",
-      "tiers": {
-        "core": {
-          "ailang": 0.5483870967741935
-        },
-        "frontier": {
-          "ailang": 0.07142857142857142
-        },
-        "stretch": {
-          "ailang": 0.4
-        }
-      }
-    },
-    {
-      "harness": "opencode",
-      "lang": {
-        "ailang": 1,
+        "ailang": 0.9423076923076923,
         "go": 1,
         "javascript": 1,
-        "python": 0.9090909090909091
+        "python": 0.9841269841269841
       },
       "model": "opencode-qwen3-8-27b",
       "tiers": {
         "core": {
+          "ailang": 0.96,
+          "go": 1,
+          "javascript": 1,
+          "python": 1
+        },
+        "frontier": {
+          "ailang": 0.625
+        },
+        "smoke": {
           "ailang": 1,
           "go": 1,
           "javascript": 1,
-          "python": 0.8333333333333334
-        },
-        "frontier": {
-          "ailang": 1
+          "python": 0.9696969696969697
         },
         "stretch": {
+          "ailang": 0.9333333333333333,
+          "go": 1,
+          "javascript": 1,
+          "python": 1
+        },
+        "vision": {
           "ailang": 1,
           "go": 1,
           "javascript": 1,
@@ -74,41 +89,35 @@
     {
       "harness": "pi",
       "lang": {
-        "ailang": 0.5641025641025641
-      },
-      "model": "pi-qwen3-6-35b-a3b-mxfp8",
-      "tiers": {
-        "core": {
-          "ailang": 0.7878787878787878
-        },
-        "frontier": {
-          "ailang": 0.07692307692307693
-        },
-        "stretch": {
-          "ailang": 0.53125
-        }
-      }
-    },
-    {
-      "harness": "pi",
-      "lang": {
-        "ailang": 1,
-        "go": 0.9090909090909091,
+        "ailang": 0.9351851851851852,
+        "go": 1,
         "javascript": 1,
-        "python": 1
+        "python": 0.9841269841269841
       },
       "model": "pi-qwen3-8-27b",
       "tiers": {
         "core": {
-          "ailang": 1,
-          "go": 0.8333333333333334,
+          "ailang": 0.9666666666666667,
+          "go": 1,
           "javascript": 1,
           "python": 1
         },
         "frontier": {
-          "ailang": 1
+          "ailang": 0.6
+        },
+        "smoke": {
+          "ailang": 1,
+          "go": 1,
+          "javascript": 1,
+          "python": 0.9714285714285714
         },
         "stretch": {
+          "ailang": 0.9285714285714286,
+          "go": 1,
+          "javascript": 1,
+          "python": 1
+        },
+        "vision": {
           "ailang": 1,
           "go": 1,
           "javascript": 1,
@@ -117,6 +126,6 @@
       }
     }
   ],
-  "trials": 9,
-  "version": "rolling-20260824"
+  "trials": 5,
+  "version": "rolling-20260902"
 }
