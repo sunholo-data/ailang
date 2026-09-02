@@ -54,7 +54,21 @@ for f in MERGE_HEAD REBASE_HEAD CHERRY_PICK_HEAD BISECT_LOG; do
     fi
 done
 
-bounded 10 git fetch origin dev --quiet 2>/dev/null || { log "skip: fetch failed or timed out"; exit 0; }
+# Fetch is bounded, retried once, and its failure is LOUD. A silent skip here would
+# re-open the exact hole this hook closes (Principle 2: no silent fallback on anything
+# affecting integrity). 10s proved too tight in the wild — this repo carries ~55 worktrees
+# and a cold fetch timed out at 10s on 2026-09-02, logging "skip" where nobody would see it.
+if ! bounded 20 git fetch origin dev --quiet 2>/dev/null; then
+    sleep 1
+    if ! bounded 20 git fetch origin dev --quiet 2>/dev/null; then
+        AHEAD_LOCAL=$(git rev-list --count origin/dev..dev 2>/dev/null || echo "?")
+        log "fetch FAILED twice — cannot verify; $AHEAD_LOCAL commit(s) ahead of last-known origin"
+        echo "⚠️  could not reach origin to check for unpushed work (fetch failed twice)."
+        echo "   local dev is $AHEAD_LOCAL commit(s) ahead of the last-known origin/dev."
+        echo "   Push manually so it does not strand: git push origin dev"
+        exit 0
+    fi
+fi
 
 COUNTS=$(git rev-list --left-right --count origin/dev...dev 2>/dev/null) || exit 0
 BEHIND=$(printf '%s' "$COUNTS" | awk '{print $1}')

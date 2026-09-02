@@ -47,6 +47,14 @@ touch "$(git rev-parse --git-dir)/MERGE_HEAD"
 out=$(bash "$HOOK" 2>&1); ck "E merge in flight: silent" "$out" ""
 rm -f "$(git rev-parse --git-dir)/MERGE_HEAD"
 
+# G. origin unreachable -> LOUD, never silent (regression pin: a silent skip here
+# re-opens the stranding hole; found live 2026-09-02 when a 10s fetch bound timed out).
+git remote set-url origin "$W/does-not-exist.git"
+out=$(bash "$HOOK" 2>&1)
+ck "G unreachable origin: warns loudly" "$(echo "$out" | grep -c 'fetch failed twice')" "1"
+ck "G unreachable origin: not silent" "$([ -n "$out" ] && echo nonempty || echo empty)" "nonempty"
+git remote set-url origin "$W/origin.git"
+
 # F. opt-out
 out=$(AILANG_AUTOPUSH=0 bash "$HOOK" 2>&1); ck "F opt-out: silent" "$out" ""
 
