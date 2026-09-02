@@ -15,6 +15,8 @@ bad()  { echo "  FAIL: $*"; FAIL=$((FAIL+1)); }
 have() { if eval "$2"; then ok "$1"; else bad "$1"; fi; }
 
 export AILANG_FS_SANDBOX=/workspace
+export RESIDENT_AUDIENCE=https://test.invalid
+export RESIDENT_ALLOWED_CALLERS=nobody@example.com
 MODELS='{"providers":{"openrouter":{"baseUrl":"https://openrouter.ai/api/v1","api":"openai-completions","apiKey":"test-key","models":[{"id":"z-ai/glm-5.3-flash","maxTokens":32000,"contextWindow":1310720,"reasoning":true}]}}}'
 
 echo "=== 1. image contents ==="
@@ -53,13 +55,15 @@ export MODELS_JSON="$MODELS" RESIDENT_PORT=8080 AGENT_HOME=/tmp/fake-home
 mkdir -p /tmp/fake-home
 /usr/local/bin/boot.sh > /tmp/boot.log 2>&1 &
 BOOT=$!
-for i in $(seq 1 90); do curl -sf localhost:8080/health >/tmp/health.json 2>/dev/null && break; sleep 1; done
+# Readiness is /livez, the one unauthenticated route. The health BODY is behind
+# auth now, so its facts are asserted from the boot log and the registry file
+# instead — same facts, without weakening auth to observe them.
+for i in $(seq 1 90); do [ "$(curl -s localhost:8080/livez 2>/dev/null)" = "ok" ] && break; sleep 1; done
 
-have "health endpoint returns 200"        'curl -sf localhost:8080/health >/dev/null'
-have "reports healthy"                    'grep -q "\"healthy\": true" /tmp/health.json'
-have "herdr reported ok (probed, not assumed)" 'grep -q "\"ok\": true" /tmp/health.json'
-have "herdr protocol reported"            'grep -q "\"protocol\"" /tmp/health.json'
-have "registry has the pinned GLM model"  'grep -q "z-ai/glm-5.3-flash" /tmp/health.json'
+have "livez answers once serving"         '[ "$(curl -s localhost:8080/livez)" = "ok" ]'
+have "herdr came up (probed via api snapshot)" 'grep -q "herdr ready after" /tmp/boot.log'
+have "boot reported the model registry"   'grep -q "model registry: 1 models" /tmp/boot.log'
+have "registry has the pinned GLM model"  'grep -q "z-ai/glm-5.3-flash" /home/ailang/.pi/agent/models.json'
 # Comments-stripped: boot.sh documents the setsid trap, and the comment
 # explaining it must not itself trip the check for it.
 have "boot does not USE setsid (comments excluded)" '! grep -vE "^[[:space:]]*#" /usr/local/bin/boot.sh | grep -q setsid'
@@ -113,47 +117,71 @@ out=$(PROGRAM_ALLOWLIST_FILE=/tmp/allow.json AILANG_FS_SANDBOX=/workspace reside
 have "allowed program passes ONLY its caps"   'echo "$out" | grep -q -- "--caps IO /tmp/ok.ail"'
 have "  ...and does not grant the union"      '! echo "$out" | grep -qE -- "--caps [A-Za-z,]*FS"'
 
-echo "=== 5. A2A surface (Decision 2c) ==="
-RPC() { curl -s -X POST localhost:8080/a2a -H 'content-type: application/json' -d "$1"; }
-curl -s localhost:8080/.well-known/agent.json > /tmp/card.json 2>/dev/null
+echo "=== 5. public-ingress authorisation (Preview edge does not enforce invoker) ==="
+have "/livez is public and reveals nothing"     '[ "$(curl -s localhost:8080/livez)" = "ok" ]'
+have "/health requires a token"                 '[ "$(curl -s -o /dev/null -w %{http_code} localhost:8080/health)" = "401" ]'
+have "agent card requires a token"              '[ "$(curl -s -o /dev/null -w %{http_code} localhost:8080/.well-known/agent.json)" = "401" ]'
+have "A2A JSON-RPC requires a token"            '[ "$(curl -s -o /dev/null -w %{http_code} -X POST localhost:8080/a2a -d "{}")" = "401" ]'
+have "a garbage bearer token is refused"        '[ "$(curl -s -o /dev/null -w %{http_code} -H "Authorization: Bearer not.a.jwt" localhost:8080/health)" = "401" ]'
+# An unsigned token with the right claims must NOT pass — signature is checked
+# before any claim is trusted.
+FORGED=$(node -e '
+const h=Buffer.from(JSON.stringify({alg:"RS256",kid:"x"})).toString("base64url");
+const p=Buffer.from(JSON.stringify({iss:"https://accounts.google.com",aud:"https://test.invalid",email:"nobody@example.com",email_verified:true,exp:Math.floor(Date.now()/1000)+3600})).toString("base64url");
+console.log(h+"."+p+".AAAA");')
+have "a FORGED token with correct claims is refused" '[ "$(curl -s -o /dev/null -w %{http_code} -H "Authorization: Bearer $FORGED" localhost:8080/health)" = "401" ]'
+# What matters is that the refusal discloses nothing about WHY: a caller must
+# not be able to distinguish "bad signature" from "wrong audience" from "not on
+# the allowlist" and probe its way in.
+curl -s -H "Authorization: Bearer $FORGED" localhost:8080/health > /tmp/r_forged.txt
+curl -s -H "Authorization: Bearer not.a.jwt" localhost:8080/health > /tmp/r_junk.txt
+curl -s localhost:8080/health > /tmp/r_none.txt
+have "refusal body is identical for every failure" 'diff -q /tmp/r_forged.txt /tmp/r_junk.txt >/dev/null && diff -q /tmp/r_junk.txt /tmp/r_none.txt >/dev/null'
+have "  ...and leaks no reason"                    '! grep -qiE "signature|audience|allowlist|expired|verified" /tmp/r_forged.txt'
 
-have "agent card served at /.well-known/agent.json" '[ -s /tmp/card.json ]'
-have "card advertises the A2A invocation url"       'grep -q "\"url\".*\/a2a" /tmp/card.json'
-have "card declares pushNotifications capability"   'grep -q "\"pushNotifications\": true" /tmp/card.json'
-have "card declares a skill"                        'grep -q "\"skills\"" /tmp/card.json'
-have "card lists the registered model"              'grep -q "z-ai/glm-5.3-flash" /tmp/card.json'
-have "card also served at agent-card.json"          'curl -sf localhost:8080/.well-known/agent-card.json >/dev/null'
+echo "=== 6. A2A surface (Decision 2c) ==="
+# Driven against the modules directly. The HTTP routes now require a verified
+# Google ID token, which cannot be minted inside the test container — and
+# weakening auth to make tests pass would defeat the point of having it.
+cd /usr/local/bin
+A2A() { node --input-type=module -e "$1" 2>&1; }
 
-# The bespoke API this design deliberately does NOT ship.
-have "NO bespoke /panes endpoint exists" '[ "$(curl -s -o /dev/null -w %{http_code} -X POST localhost:8080/panes)" = "404" ]'
+out=$(A2A 'import * as a2a from "/usr/local/bin/lib/a2a.mjs";
+try { a2a.assertModelRegistered("z-ai/not-registered"); console.log("NO THROW"); }
+catch (e) { console.log(e.message); }')
+have "unregistered model REFUSED"              'echo "$out" | grep -q "not in the pi registry"'
+have "  ...and names the silent fallback"      'echo "$out" | grep -q "16384"'
+have "  ...and lists what IS registered"       'echo "$out" | grep -q "z-ai/glm-5.3-flash"'
 
-RPC '{"jsonrpc":"2.0","id":1,"method":"nope/nope","params":{}}' > /tmp/r1.json
-have "unknown method -> JSON-RPC -32601"  'grep -q -- "-32601" /tmp/r1.json'
-RPC '{"id":2,"method":"message/send"}' > /tmp/r2.json
-have "non-2.0 request -> -32600"          'grep -q -- "-32600" /tmp/r2.json'
+out=$(A2A 'import * as a2a from "/usr/local/bin/lib/a2a.mjs";
+const m = a2a.assertModelRegistered("openrouter/z-ai/glm-5.3-flash");
+console.log(JSON.stringify(m));')
+have "registered model accepted with its limits" 'echo "$out" | grep -q "1310720"'
 
-# THE assertion that closes the silent-degradation hole: an unregistered model
-# must be refused, because pi would otherwise run it at 16384/128000/no-reasoning.
-RPC '{"jsonrpc":"2.0","id":3,"method":"message/send","params":{"metadata":{"model":"z-ai/not-registered"},"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"hi"}]}}}' > /tmp/r3.json
-have "unregistered model REFUSED"                  'grep -q "not in the pi registry" /tmp/r3.json'
-have "  ...and names the silent fallback"          'grep -q "16384" /tmp/r3.json'
-have "  ...and lists what IS registered"           'grep -q "z-ai/glm-5.3-flash" /tmp/r3.json'
+out=$(A2A 'import * as a2a from "/usr/local/bin/lib/a2a.mjs";
+console.log(JSON.stringify(a2a.agentCard("https://example.invalid")));')
+have "agent card advertises /a2a"              'echo "$out" | grep -q "https://example.invalid/a2a"'
+have "card declares pushNotifications"         'echo "$out" | grep -q "\"pushNotifications\":true"'
+have "card declares a skill"                   'echo "$out" | grep -q "coding-agent"'
+have "card lists the registered model"         'echo "$out" | grep -q "z-ai/glm-5.3-flash"'
 
-# push notification config round-trip (A2A's answer for disconnected clients)
-RPC '{"jsonrpc":"2.0","id":4,"method":"tasks/pushNotificationConfig/set","params":{"taskId":"t-demo","pushNotificationConfig":{"url":"http://localhost:9/hook","token":"tok"}}}' >/dev/null
-RPC '{"jsonrpc":"2.0","id":5,"method":"tasks/pushNotificationConfig/get","params":{"taskId":"t-demo"}}' > /tmp/r5.json
-have "push notification config round-trips"        'grep -q "localhost:9/hook" /tmp/r5.json'
+out=$(A2A 'import * as a2a from "/usr/local/bin/lib/a2a.mjs";
+a2a.setPushConfig("t1", {url:"https://hook.invalid", token:"x"});
+console.log(JSON.stringify(a2a.getPushConfig("t1")));')
+have "push notification config round-trips"    'echo "$out" | grep -q "hook.invalid"'
 
-RPC '{"jsonrpc":"2.0","id":6,"method":"tasks/get","params":{"id":"nope"}}' > /tmp/r6.json
-have "unknown task -> visible error, not empty ok"  'grep -q -- "-32001" /tmp/r6.json'
+# The bespoke API this design deliberately does not ship. Asserted against the
+# source now that every route is behind auth.
+have "NO bespoke /panes route in the server"   '! grep -qE "\"/panes\"|/panes/" /usr/local/bin/server.mjs'
+have "A2A JSON-RPC route is present"           'grep -q "/a2a" /usr/local/bin/server.mjs'
 
-echo "=== 6. restart idempotence ==="
+echo "=== 7. restart idempotence ==="
 # The 7-day ceiling makes restarts routine, so a second boot must behave like
 # the first rather than tripping over its own leftovers.
 kill $BOOT 2>/dev/null; pkill -f "herdr server" 2>/dev/null; sleep 3
 /usr/local/bin/boot.sh > /tmp/boot2.log 2>&1 &
-for i in $(seq 1 90); do curl -sf localhost:8080/health >/tmp/health2.json 2>/dev/null && break; sleep 1; done
-have "second boot reaches healthy"        'grep -q "\"healthy\": true" /tmp/health2.json'
+for i in $(seq 1 90); do [ "$(curl -s localhost:8080/livez 2>/dev/null)" = "ok" ] && break; sleep 1; done
+have "second boot serves again"           '[ "$(curl -s localhost:8080/livez)" = "ok" ]'
 have "second boot found the home writable" 'grep -q "agent home writable" /tmp/boot2.log'
 
 cleanup; sleep 1

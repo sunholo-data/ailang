@@ -11,6 +11,7 @@
 import { createServer } from "node:http";
 import * as herdr from "./lib/herdr.mjs";
 import * as a2a from "./lib/a2a.mjs";
+import { verify, authConfig } from "./lib/auth.mjs";
 
 const PORT = Number(process.env.RESIDENT_PORT || 8080);
 const STARTED = Date.now();
@@ -51,6 +52,28 @@ async function readBody(req) {
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   const base = process.env.PUBLIC_BASE_URL || `http://${req.headers.host || "localhost"}`;
+
+  // /livez is the ONLY unauthenticated route: a bare liveness signal carrying
+  // no information, so infrastructure probes work without a token. Everything
+  // else — including the agent card, which lists registered models — requires a
+  // verified caller.
+  if (req.method === "GET" && url.pathname === "/livez") {
+    res.writeHead(200, { "content-type": "text/plain" });
+    return res.end("ok");
+  }
+
+  // Cloud Run instances (Preview) do not enforce run.invoker at the edge, so
+  // this instance runs with public ingress and does the check itself. Failures
+  // are uniform: never reveal whether the audience, the signature or the
+  // allowlist was the problem.
+  let caller;
+  try {
+    caller = await verify(req.headers.authorization);
+  } catch (e) {
+    console.error(`server | auth refused: ${e.message}`);
+    res.writeHead(401, { "content-type": "application/json" });
+    return res.end(JSON.stringify({ error: "unauthorized" }));
+  }
 
   if (req.method === "GET" && (url.pathname === "/health" || url.pathname === "/")) {
     const h = await health();
@@ -99,4 +122,10 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, "0.0.0.0", () => console.log(`server | listening on ${PORT} (health, A2A card, A2A JSON-RPC)`));
+const cfg = authConfig();
+server.listen(PORT, "0.0.0.0", () =>
+  console.log(
+    `server | listening on ${PORT} (livez public; health, A2A card and JSON-RPC require OIDC) ` +
+      `| audience=${cfg.audience || "UNSET"} allowed=${cfg.allowed.length || "UNSET"}`,
+  ),
+);
