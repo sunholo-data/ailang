@@ -176,8 +176,8 @@ grep -q 'MISSION_EXECUTOR_FALLBACK:-[^}]*:floor' "$driver" \
   || ok "executor fallback is never price-pinned (:floor)"
 # opus-4.8 REMOVED from the controller ladder (Mark 2026-08-26). Negative
 # assertion so a silent reintroduction is RED, not merely unasserted.
-grep -q 'MISSION_MODEL_PREFS:-claude-opus-5,claude-fable-5}' "$driver" \
-  && ok "controller ladder is opus-5 -> fable-5 (no opus-4.8)" || bad "controller ladder is opus-5 -> fable-5 (no opus-4.8)" "wrong ladder"
+grep -q 'MISSION_MODEL_PREFS:-claude-opus-5,claude-fable-5-1}' "$driver" \
+  && ok "controller ladder is opus-5 -> fable-5-1 (no opus-4.8, no fable-5)" || bad "controller ladder is opus-5 -> fable-5-1 (no opus-4.8, no fable-5)" "wrong ladder"
 # ACTIVE lines only: a comment recording the removal must not trip the guard,
 # but a real reintroduction must. (This distinction is why the first version of
 # this assertion went red on its own changelog note.)
@@ -220,7 +220,7 @@ out=$(/bin/bash -c '
   _mc_probe() { return 1; }
   _mc_probe_codex() { [ "$1" = gpt-5.6-sol ]; }
   log() { :; }
-  PREFS="claude-opus-5,claude-fable-5"
+  PREFS="claude-opus-5,claude-fable-5-1"
   CONTROLLER_FALLBACK="codex:gpt-5.6-sol"
   OVERRIDE_FILE="$2/no-override"
   select_model || exit 1
@@ -247,7 +247,7 @@ out=$(/bin/bash -c '
   _mc_probe() { [ "$1" = claude-opus-5 ]; }
   _mc_probe_codex() { return 1; }
   log() { :; }
-  PREFS="claude-opus-5,claude-fable-5"
+  PREFS="claude-opus-5,claude-fable-5-1"
   CONTROLLER_FALLBACK="codex:gpt-5.6-sol"
   OVERRIDE_FILE="$2/no-override"
   select_model || exit 1

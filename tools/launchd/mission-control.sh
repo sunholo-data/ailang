@@ -16,7 +16,7 @@
 # GPU-touching sprint steps take it per-step inside the session).
 #
 # MODEL SELECTION (fleet Phase A, 2026-07-14): ordered preference probing.
-# MISSION_MODEL_PREFS (default "claude-opus-5,claude-fable-5"
+# MISSION_MODEL_PREFS (default "claude-opus-5,claude-fable-5-1"
 # — Opus 5 first since 2026-07-27 (Mark); the 4.8 rung was dropped 2026-08-26 — OPUS-FIRST
 # since 2026-07-16, Mark: Fable is reserved for high-cognition ROLES — design
 # synthesis + evaluation, both bounded pinned sub-agents — never the long
@@ -167,7 +167,7 @@ _mc_stalled() {
 # claude-opus-4-8 REMOVED 2026-08-26 (Mark, attended). The ladder keeps a
 # same-provider step (fable) and then crosses providers via CONTROLLER_FALLBACK
 # below, so dropping the middle Anthropic rung costs no cross-provider coverage.
-PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,claude-fable-5}"
+PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,claude-fable-5-1}"
 # CONTROLLER_FALLBACK is an ordered COMMA CHAIN walked left to right (Mark, attended
 # 2026-08-31: "a longer chain of redundancies after codex", explicitly NOT a new default —
 # codex keeps its rung; the pi rungs exist so a simultaneous Anthropic+codex dry-out no
@@ -467,8 +467,10 @@ fi
 
 # designer default is the claude-CLI lane (claude:<full-id>), NOT the bare "fable" alias: the
 # Agent tool pins only sonnet|opus|haiku (F1, iteration 31), so under an opus-first controller a
-# bare "fable" would silently fall back to opus. claude:claude-fable-5 = a REAL bounded Fable run.
-export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-fable-5}"
+# bare "fable" would silently fall back to opus. claude:claude-fable-5-1 = a REAL bounded Fable run.
+# Fable 5 -> 5.1 2026-09-02 (Mark, attended): same price ($10/$50 per 1M), newer generation,
+# vendor gains concentrated in long-horizon agentic work — which is exactly the designer role.
+export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-fable-5-1}"
 # Per-iteration METERED-spend ceiling (2026-07-18, Mark: "make sure costs don't go crazy"):
 # the sum of all metered-API spend (codex $ + gemini $) within ONE iteration must stay under
 # this. Enforced by the skill's Gate-3 metered ledger; quota-bucket (subscription) spend is

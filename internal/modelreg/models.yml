@@ -830,15 +830,23 @@ models:
       Eval policy: STANDARD eval only, mirroring claude-fable-5 — NOT in agent_suite
       (agent multi-turn loops are cost-prohibitive at $10/$50 per 1M).
       No smoke tier (smoke is the local OS-model iteration loop; cloud rows run core,stretch).
-      ⚠️ SUITE MEMBERSHIP: OPT-IN ONLY. Smoke is a floor, not a ranking (model-manager
-      skill §5.5) — and fable rows are exempt from smoke anyway. The question that
-      decides whether 5.1 takes claude-fable-5's extended_suite seat is a CORE-tier
-      head-to-head, which had NOT been run when this row was added:
-        ailang eval-suite --models claude-fable-5-1,claude-fable-5,claude-sonnet-4-6 \
-          --tier core --langs ailang --output /tmp/core_fable_5_1 --parallel 4
-      Cost ~$16/model/core sweep. Since pricing is identical, a core TIE is sufficient
-      to promote (newer generation at the same rate); a core LOSS keeps Fable 5.
-      Requires ANTHROPIC_API_KEY — standard mode is direct HTTP and has no OAuth path.
+      SUITE MEMBERSHIP: took claude-fable-5's extended_suite seat 2026-09-02 on Mark's
+      attended directive ("lets replace fable 5 with 5.1 in our suite evals executor etc").
+      Pricing is IDENTICAL ($10/$50 per 1M), so this is a same-cost generational refresh
+      rather than a contested promotion — the usual match-or-beat-the-incumbent bar exists
+      to justify a cost delta, and there is none.
+      ⚠️ MEASUREMENT STATUS — HONEST: the core-tier head-to-head was NOT run before the
+      swap, and could not be: standard mode is direct HTTP (no OAuth path) and
+      ANTHROPIC_API_KEY is unset on this box, so NEITHER fable row can execute here.
+      This row therefore carries ZERO first-party AILANG measurements. The only banked
+      Fable-generation numbers belong to claude-fable-5 (28/31 core+frontier at v0.32.0,
+      2026-08-03), retained opt-in as the longitudinal anchor.
+      When a key is available, place 5.1 against the anchored series — candidate ALONE,
+      never re-running claude-fable-5 as a comparator (M-EVAL-ROLLING-ELO; model-manager §5.5):
+        ailang eval-suite --models claude-fable-5-1 --tier core,frontier --langs ailang \
+          --output /tmp/cf_fable_5_1 --parallel 4
+        ailang eval-elo /tmp/cf_fable_5_1 --json
+      If 5.1 places BELOW claude-fable-5's banked placement, revisit this seat.
 
   # Anthropic Claude Opus 5 (released July 2026)
   claude-opus-5:
@@ -4662,7 +4670,18 @@ extended_suite:
     # Gate: core 23/26 at $0.73, LOST to gpt5-4-mini (25/26, $0.55) — in suite for longitudinal
     # visibility only; dev_models/lang_harness_suite keep mini. Revisit both at next OpenAI gen.
   - "gpt5-4-mini"       # OpenAI cheap (Mar 2026)
-  - "claude-fable-5"    # Anthropic most-capable (Jun 2026, Mythos-class, $10/$50 per 1M) — standard eval only, NEVER agent_suite
+  - "claude-fable-5-1"  # Anthropic most-capable (Sep 2026) — REPLACED claude-fable-5 2026-09-02
+    # (Mark, attended directive). Same-price generational swap: $10/$50 per 1M is UNCHANGED,
+    # so the usual "does it beat the incumbent on core" bar is not what decided this — a
+    # newer generation at an identical rate is the default-better choice, and 5.1's vendor
+    # gains are concentrated in agentic coding / long-horizon work. ⚠️ The core-tier
+    # head-to-head was NOT run: standard mode is direct HTTP and ANTHROPIC_API_KEY is unset
+    # on this box, so neither row can execute here. Run it when a key is available:
+    #   ailang eval-suite --models claude-fable-5-1 --tier core,frontier --langs ailang \
+    #     --output /tmp/cf_fable_5_1 --parallel 4
+    # then place it against the banked series (anchored) — do NOT re-run claude-fable-5 as a
+    # comparator (M-EVAL-ROLLING-ELO; see model-manager skill §5.5).
+    # Standard eval only, NEVER agent_suite (cost).
   - "claude-opus-5"     # Anthropic flagship (Jul 2026) — REPLACED claude-opus-4-8 2026-07-27 on a
     # core N=3 sweep: 57/57 (100%) vs 4.8's 53/57 (93.0%), at $13.35 vs $13.59. See the
     # benchmark_suite annotation for the full gate record. 4.8 retired to opt-in.
@@ -4826,7 +4845,11 @@ local_models:
 #                               # at equal cost). Kept opt-in for longitudinal comparison; it is the last
 #                               # Anthropic flagship whose omitted `thinking` field meant NO thinking, which
 #                               # makes it a useful thinking-off reference point against Opus 5 / Sonnet 5.
-# - claude-fable-5              # Opt-in only (~$7/smoke, ~$16/core) — smoke gate first: ailang eval-suite --models claude-fable-5 --tier smoke --langs ailang
+# - claude-fable-5              # RETIRED from extended_suite 2026-09-02 (Mark, attended), displaced by
+#                               # claude-fable-5-1 at IDENTICAL pricing ($10/$50 per 1M). Kept opt-in as the
+#                               # longitudinal anchor for the Fable generation — it holds the only banked
+#                               # Fable core+frontier numbers (28/31 at v0.32.0, 2026-08-03). Opt-in cost
+#                               # ~$7/smoke, ~$16/core.
 
 # - gpt5              # Superseded by gpt5-5
 # - gpt5-1            # Superseded by gpt5-5
