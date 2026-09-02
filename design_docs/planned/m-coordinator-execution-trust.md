@@ -70,6 +70,8 @@ Every load-bearing claim below was checked against the code or against prod
 | **V19** | **The real consumers of completion status are Go switch sites, not the four reporting surfaces the doc named.** `pubsub_completion_handler.go` :85 (terminality), :95 (`Success:`), :111 (`switch`), :169, :186; `observatory_sync.go` :66/:136/:138; `daemon_tasks_worktrees.go:103` (orphan-worktree cleanup); `event_handler.go:238`; `store_sqlite_queries.go` :185/:229 | `grep -rn "\.Status\b"` across `internal/coordinator`, `internal/pubsub`, `cmd/ailang` | **Corrects M2.** The named list was wrong *in kind* |
 | **V20** | The terminality check at `pubsub_completion_handler.go:85` is a **literal string comparison** — `task.Status == "completed" \|\| "failed" \|\| "cancelled"` — not an enum switch | read the site | A new `no_changes` would **not** register as terminal and the task could be re-processed. The exact silent failure D3 was chosen to avoid |
 | **V21** | There is **no central prerequisite floor** in the gate today — `headlessPrerequisitesMet` is a single hard-coded pair with nothing above it to inherit from | read `.pi/extensions/session-protocol-gate.ts` | **Confirmed (negative).** So "repo-declared protocol" as originally written had nothing to be bounded by |
+| **V22** | **No attempt counter exists on the task.** `grep -n "Attempt\|Retries\|RetryCount" internal/coordinator/store.go` → empty | read the Task struct | **Confirmed (negative).** D4's 2-execution cap has nowhere to persist; it must be added, not assumed |
+| **V23** | **Four independent components can already decide a task is dead**: `stale_task_detector.go`, `pubsub_completion_handler.go`, `daemon_stranded_approvals.go`, `daemon_tasks_worktrees.go` | grep across `internal/coordinator` for status-mutating recovery paths | Any two of them gaining re-dispatch would breach the cap — hence the single-owner rule in M3 |
 
 **Not verified, deliberately deferred:** why executor GitHub writes return `422` on every REST
 and GraphQL issue-create (token scopes read healthy). It cost the agent ~2 of its 15 minutes but
@@ -238,9 +240,19 @@ not available, and MU-4 stays as the guard.
 **2b. The protocol itself is AILANG-specific and now runs everywhere (new, from D2).**
 `headlessPrerequisitesMet()` hard-codes a `CLAUDE.md` read and an `ailang messages` call. Under
 D2 that convention is enforced on package repos that never adopted it — and a repo with no
-`CLAUDE.md` can satisfy the gate *only by accident*. The prerequisite set must become
-repo-declared with the AILANG set as the default.
-*Must still work:* a repo that declares nothing gets today's AILANG behaviour, unchanged.
+`CLAUDE.md` cannot satisfy it at all.
+
+**⚠ Corrected after quorum round 1 — the first revision left a contradiction here that would have
+guaranteed Success Metric 1 fails.** This section said a repo declaring nothing "gets today's
+AILANG behaviour, unchanged", while M1 said a foreign workspace with no manifest and no
+`CLAUDE.md` still satisfies the floor. Both cannot hold: an unconfigured foreign repo inheriting
+the AILANG default blocks forever looking for a file it does not have. **The AILANG prerequisite
+set is NOT the default — it is what the AILANG repo's own manifest declares.** The default is the
+generic floor.
+
+*Must still work:* (a) the AILANG repo, which ships a manifest declaring today's set, behaves
+exactly as it does now; (b) a foreign repo with no manifest satisfies the generic floor and can
+write.
 
 **3. There are two copies of the gate and a `make` target between them.**
 `.pi/extensions/` is the source; `cmd/ailang/pi_assets/` is what `ailang pi install` bakes into
@@ -255,6 +267,15 @@ branch. A naive "no diff ⇒ failed" re-creates the orphan-branch and `422` fail
 2026-08-26 fixed.
 *Must still work:* an acknowledge-only task completes cleanly, creates no branch, and is not
 reported as an error.
+
+**5b. The retry owner overlaps four existing recovery paths (added after quorum round 1).**
+`stale_task_detector.go`, `pubsub_completion_handler.go`, `daemon_stranded_approvals.go` and
+`daemon_tasks_worktrees.go` can each already move a task toward a terminal state (V23). The
+original Conflict Surface covered model routing and omitted this overlap entirely — the reviewer
+was right that "who may decide an execution is missing" is the load-bearing question, not "which
+model runs next".
+*Must still work:* exactly one component re-dispatches; the other three keep their current
+behaviour and gain nothing.
 
 **5. M3 must not resurrect the deleted routing table.**
 `model_routing` was removed by M-MODEL-REGISTRY-SINGLE-SOURCE M7 precisely because it answered
@@ -366,6 +387,29 @@ ruling, matched to the failure taxonomy:
   link. In-container retry is impossible by definition here, which is exactly why this tier
   exists. **Hard cap: 2 Cloud Run executions per task.**
 
+**The cap needs an owner and a place to live (quorum round 1, gpt5-6-sol — accepted).** A cap that
+is only a sentence is not a cap: **V22 confirms no attempt counter exists on the task today**, and
+**V23 lists four independent paths that can already decide a task is dead.** Two of them
+re-dispatching would exceed the cap and duplicate work nondeterministically. So:
+
+1. **Single owner.** The **stale-task detector** is the sole component permitted to re-dispatch.
+   The backstop sweep, the completion handler, the stranded-approval sweep and worktree cleanup
+   observe and report; none of them re-dispatch. Stated as a rule because today none of them
+   re-dispatch *by accident of not having the feature*, not by design.
+2. **Durable state.** `attempt_count` and `chain_link_index` are persisted **on the task row**, in
+   the same write that transitions its status, so the cap survives a coordinator restart and a
+   scale-to-zero. A task at `attempt_count >= 2` is never re-dispatched by anything.
+3. **A bounded definition of dead.** An execution is dead when it has published no completion and
+   its age exceeds the task timeout plus a declared grace. `getTaskAge` refuses to act on an
+   unknowable age (fixed in `e0b12bf5f`) — that refusal is the precondition this depends on, and
+   MU-13b asserts it still holds.
+4. **Serialized.** Re-dispatch is a compare-and-set on `attempt_count`; a loser logs and does
+   nothing. Not a lock — a losing writer must be observable.
+
+This moves reconciliation from the Non-Goals list *for the retry path specifically*. The general
+job-success-vs-task-success seam stays with the predecessor doc; **owning the cap does not mean
+owning that.**
+
 The completion records which link ran, in which tier. Per D6, the cloud config's `model:` pins
 become `role:` wherever the pin is just "the default everyone got" — otherwise M3 ships correct
 and dead (V13). Chain semantics stay in `modelreg.ResolveRole`; nothing here re-creates the
@@ -415,6 +459,10 @@ guard, and this doc exists because three code paths had none.
 | MU-11 | Treat a model refusal as retryable | `TestOnlyTransportFailuresAdvanceTheChain` (D5) |
 | MU-12 | Re-dispatch on a model-class failure | `TestOnlyInfraFailuresReDispatch` (D4 tier boundary) |
 | MU-13 | Allow a third Cloud Run execution | `TestTwoExecutionCapIsHard` (D4 cost cap) |
+| MU-13b | Let an unknowable task age trigger re-dispatch | `TestUnknownAgeNeverReDispatches` (**depends on `e0b12bf5f`; asserts that refusal still holds**) |
+| MU-13c | Give a second component the ability to re-dispatch | `TestStaleDetectorIsTheSoleReDispatcher` (**quorum round 1**) |
+| MU-13d | Keep `attempt_count` in memory instead of on the task row | `TestCapSurvivesCoordinatorRestart` (**V22**) |
+| MU-13e | Make the AILANG prerequisite set the default for unconfigured repos | `TestForeignRepoWithNoManifestCanWrite` (**quorum round 1, gemini — the contradiction**) |
 | MU-14 | Drop the link field from the completion | `TestCompletionRecordsWhichLinkRan` |
 
 **Integration (the one that would have caught all of this):** a pi executor run against a clean
