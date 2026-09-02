@@ -72,6 +72,8 @@ Every load-bearing claim below was checked against the code or against prod
 | **V21** | There is **no central prerequisite floor** in the gate today — `headlessPrerequisitesMet` is a single hard-coded pair with nothing above it to inherit from | read `.pi/extensions/session-protocol-gate.ts` | **Confirmed (negative).** So "repo-declared protocol" as originally written had nothing to be bounded by |
 | **V22** | **No attempt counter exists on the task.** `grep -n "Attempt\|Retries\|RetryCount" internal/coordinator/store.go` → empty | read the Task struct | **Confirmed (negative).** D4's 2-execution cap has nowhere to persist; it must be added, not assumed |
 | **V23** | **Four independent components can already decide a task is dead**: `stale_task_detector.go`, `pubsub_completion_handler.go`, `daemon_stranded_approvals.go`, `daemon_tasks_worktrees.go` | grep across `internal/coordinator` for status-mutating recovery paths | Any two of them gaining re-dispatch would breach the cap — hence the single-owner rule in M3 |
+| **V24** | **The "always-PR containment" claim in Risks was FALSE as stated.** A direct-push path exists: `AILANG_PUSH_BRANCH` (`coordinator_cloud.go:220,294-296`) makes the agent work on the cloned branch with **no coordinator branch and no PR**. It is set by the dispatcher from `params.PushBranch` (`dispatch/cloudrun/dispatcher.go:206`), so it is coordinator-controlled, not sender-controlled — but containment is a property of that parameter, not of the system | read both sites | **REFUTES the risk-row mitigation.** Tier 1 must not be granted on any path where `PushBranch` is set |
+| **V25** | **A sender chooses their own inbox.** `to_inbox` is a plain field on `ailang messages send <inbox> …`, persisted verbatim (`messaging/inbox.go:183`) | read the send path | **Confirms gpt5-6-sol.** Tier may NOT map from inbox. The trusted link is inbox → *registered agent* (coordinator config) → tier; the sender controls the first arrow only |
 
 **Not verified, deliberately deferred:** why executor GitHub writes return `422` on every REST
 and GraphQL issue-create (token scopes read healthy). It cost the agent ~2 of its 15 minutes but
@@ -341,8 +343,13 @@ input is trustworthy, is where the ack finally does work it was never doing.
 At `coordinator_cloud.go:465` and :475 the "no commits" path returns `nil`. Keep the branch and
 PR suppression exactly as-is (V9) and change only what is *reported*. The distinction that
 matters is **intent**: an acknowledge-only task is *supposed* to change nothing; a bug-fix task
-that changes nothing has failed. The task type is already on the record, so the classifier need
-not guess.
+that changes nothing has failed.
+
+**⚠ That intent may NOT come from `TaskType` (quorum round 2, gpt5-6-sol).** V18 proved
+`classifyTaskType` is sender-controlled, and M2 inherited the same mistake M1 was rewritten to
+remove: a sender writing "fix" in a message would classify their own task's expectations. The
+expectation must come from the same trusted dispatch metadata that carries `work_tier` — one
+authority boundary, used by both milestones.
 
 **D3, reframed as one question:** when a consumer that has never heard of this outcome reads it,
 which way should it be wrong?
@@ -570,7 +577,7 @@ is currently the only thing preventing a repeat of the 1,146-message amplificati
 | M3 re-creates a second routing table | Med | Chain semantics stay in `modelreg`; `TestCloudAgents_RegistryMatchesTheDeletedRoutingTable` is the guard. |
 | M3 ships correct and dead because every agent is pinned | High | D6 is a freeze-adjacent item and Metric 3 cannot pass without it. |
 | A new status value breaks existing queries | Med | D3 is a human decision precisely because it is banked schema; enumerate consumers (sweep, dashboard, `messages health`) before choosing. |
-| Fixing M1 reveals that agents now do *wrong* work unattended | Med | Every cloud task already opens a PR and never auto-merges — the always-PR posture is the existing containment, and it is unchanged here. |
+| Fixing M1 reveals that agents now do *wrong* work unattended | **High** | ~~Every cloud task already opens a PR and never auto-merges~~ — **FALSE, see V24.** A direct-push path exists (`AILANG_PUSH_BRANCH`). It is coordinator-set, not sender-set, but containment is a property of that parameter rather than of the system. **Tier 1 must be refused on any dispatch where `PushBranch` is set.** Found by quorum round 2 (gemini-3-1-pro). |
 
 ## Quorum
 
