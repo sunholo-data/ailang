@@ -3,6 +3,77 @@
 Append-only. Newest entry at the TOP (Gate 4 moves the 4th-newest charter stamp here, per
 `docs-mission.md`'s rotation rule). The charter itself always carries the newest 3.
 
+## STATUS 2026-08-28 — ITERATION 1: docs-2 LANDED; the sync tool it depends on was found broken, and fixing it needs two allowlist decisions
+
+First real sprint since ratification. Gate 0: kill switch armed; billing CLEAN; gh
+`sunholo-voight-kampff`. No docs-mission-specific inbox traffic (11 unread in the canonical inbox,
+all either V1's own reports, a stale coordinator task `task-a0628a5f` failing on a missing
+`opencode` binary — unreachable from this session's local coordinator, not this mission's doing,
+left unacked for its owner — or `mcp-public` package feedback for a different package); no
+directives on bookkeeping issue `#953` since the watermark. Gate 1: `origin/dev` HEAD `d8fc0e1e5`
+had one genuine red, `launchd drivers (bash 3.2)` failing on a wall-clock timing test
+(`descendant discovery … 600s arm cap`) — confirmed FLAKY, not ours: same test failed on 2 other
+unrelated commits in the preceding hour interspersed with passes, and it re-passed on this
+iteration's own PR. Flagged to V1 (repo owner) via controlplane; not actioned further.
+
+**PICK: `docs-2` (queue head), no design doc needed per Guardrails — brief `docs-2-brief.md`
+already existed from a prior session (Planner-Lane declaration only).** Baselined the five
+`docs-sync` diagnostics myself before routing (rule 3e): all rc=0, but `check_examples.sh`
+reported **12 passed / 29 failed** out of 41 verdicts — alarming, so I checked the instrument
+before trusting the result (rule 1's stale-binary-under-tests class). Root cause: the script
+invokes `ailang run` with ABSOLUTE paths (`find "$RUNNABLE_DIR" …`), and any example declaring
+`module examples/runnable/X` then fails `MOD010` because the module-path check compares against
+the absolute path, not a repo-relative one. Built a fresh ldflags-stamped scratch binary
+(`bin/ailang`, gitignored) and re-ran with RELATIVE paths: **166 pass / 9 genuine fail / 42
+no-module**, across all 217 `examples/runnable/*.ail` files. The script's own raw numbers are an
+INSTRUMENT ARTIFACT, not a language regression — handed to the planner as VERIFIED-BY-ME rather
+than something to re-derive from zero.
+
+**Routing**: controller `claude-sonnet-5` (session) · planner `codex:gpt-5.6-luna` (probe rc=0,
+worktree `.planner-wt-iter1-docs-2` off `origin/dev`) · executor `codex:gpt-5.6-luna` (same lane,
+per the mission's subscription-first ladder; own worktree `.wt-iter1-docs-2`, no git writes, per
+the cross-provider recipe) · evaluator `sonnet` (Agent-tool pin, own isolated worktree
+`.wt-iter1-docs-2-eval`) — generator≠judge holds (OpenAI codex vs Anthropic sonnet). Both codex
+runs are subscription-lane (rung 1), so **metered=$0.00** of $1.
+
+**EVALUATOR RE-DERIVED EVERY LOAD-BEARING CLAIM FROM SCRATCH, NOT FROM THE EXECUTOR'S REPORT.**
+Built its own binary, wrote an independent 217-file sweep script, and got the identical 166/9/42
+split with the identical 9 failing filenames; independently confirmed the `check_examples.sh`
+absolute-path mechanism by isolating it (`ailang run --caps IO $(pwd)/…` fails MOD010, the same
+command with a relative path succeeds); independently confirmed two further findings the executor
+made beyond my own baseline — `batch_processing.ail`/`cli_args_demo.ail` need an `Env` capability
+the generic checker never grants, and `audit_design_docs.sh` (159/1030) vs
+`derive_roadmap_versions.sh` (126/682) report different design-doc population totals. **PASS
+92/100, zero blocking.** Non-blocking: sprint JSON's `status` field left `"planned"` (hygiene),
+no CHANGELOG entry (debatable for an internal page), and the executor's "reproduction" of my
+pre-supplied baseline numbers restated rather than blind-derived them — true, and the evaluator's
+OWN from-scratch derivation is what makes that harmless here.
+
+**LANDED**: [PR #955](https://github.com/sunholo-data/ailang/pull/955) → squash `a8f904aac`. All
+20 checks green including `test` (23m), `docs-build` (10m), and — re-confirmed on the MERGE COMMIT
+itself, not just the PR head, per Gate 3b's squash-produces-a-new-commit rule — every check bar one
+non-required SonarCloud quality-gate red that is INHERITED (same failure on the immediate parent
+commit `8a993bb89`, before this PR ever merged; coverage/security-rating on new code, unrelated to
+a docs-only diff). Flagged to V1; not our domain.
+
+**THE ITERATION'S BEST FINDING WASN'T IN THE SPRINT'S SCOPE TO FIX.** Folding the findings into the
+queue (docs-5 through docs-8) surfaced that this mission's OWN blast-radius allowlist blocks it
+from fixing most of what it just found: `docs/*` is a single-level glob that excludes
+`docs/docs/**` (where the actual stale-version bug and nearly all published content live), and
+`.claude/skills/docs-sync/**` (where the checker's own bug lives) isn't covered at all. Filed as
+`D-1` and `D-2` in a newly-created Human Decision Ledger (this mission had none yet — Gate 0's
+`mission_decisions.sh --check` returned no block; created following V1's exact format, validated
+2 rows). Queue renumbered: docs-2 → LANDED, new docs-5 ([NEXT], in-scope examples hygiene for the
+9 genuine failures) / docs-6 / docs-7 (both PARKED on D-1/D-2) / docs-8 (PARKED, design-doc
+triage, doesn't need an allowlist change but needs docs-6/7 settled first) inserted before the
+renumbered docs-1/docs-3/docs-4.
+
+**RETRO — NO SKILL EDIT.** One friction (this iteration's own `${#pending}` numeric-check on
+`gh pr checks` output, handled inline with a `case … [!0-9]*)` guard per this file's own
+prescription — worked as documented, not a gap) — below the ≥2-instance bar for a skill change.
+
+Full record: `design_docs/docs-mission-log.md` §ITERATION 1.
+
 ## STATUS 2026-08-28 — **BAR RATIFIED ATTENDED**; queue reordered so the next fire touches the website
 
 Mark closed `docs-0` by human decision after reading iteration 0's result. Two changes, both his:

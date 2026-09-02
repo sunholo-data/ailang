@@ -457,3 +457,156 @@ documented). Process observation for this mission's own charter, not the shared 
 consecutive died-mid-flight fires in one short window (iteration 3, and the `docs-1` planner run
 recovered as PR #1016) is a pattern worth Mark's attention if it recurs a third time — not yet at
 the evidence bar for a charter change.
+
+## ITERATION 5 — 2026-09-02T17:00Z
+
+**Pick**: `docs-8` (126 overdue planned design docs, aggregate) — the natural next item per
+iteration 4's own note, the only `[PARKED]` row explicitly unblocked once docs-6/docs-7 resolved.
+Also credited a second orphaned fire for `docs-3` (bookkeeping, not this iteration's pick).
+
+**Gate 2 — orphaned fire credited first.** `gh pr list --author sunholo-voight-kampff --state
+open` returned PR #1031 (`docs/iter5-docs3-provenance-wiring`, `MERGEABLE`) alongside worktrees
+`.wt-docs-iter5-docs3`/`-eval` — zero "ITERATION 5" trace anywhere in charter/log/archive at pick
+time (0/0/0, known-present control `ITERATION 4` = 2/1). A prior fire ran docs-3's full inner loop
+(codex executor, sonnet evaluator independent worktree, PASS 85/100 zero blocking) and died before
+Gate 4/5. Re-verified rather than trusted: `gh pr diff --name-only` confirms exactly the 4 claimed
+files (`BenchmarkDashboard`, `BenchmarkExplorer`, `BenchmarkStandaloneGallery`,
+`EloLeaderboard`/`index.jsx`); `mergeStateStatus: BLOCKED` on required checks `test`/`build`, and
+this is base-inherited (SHA-addressed check-runs on `origin/dev` HEAD `50dd1a0aa` **and** its
+parent `251835e14` show the identical 6-check red: `Build windows/macos/ubuntu-latest`,
+`launchd drivers (bash 3.2)`, `test`) — a known, tracked, V1-owned issue (V1's own log:
+`grep -c "macos-latest"` = 10, `grep -c "launchd drivers (bash 3.2)"` = 22; motoko independently
+flagged the Windows half to V1 within the hour). `git diff --stat <PR base>..origin/dev -- <the 4
+files>` is empty, so a rebase would not change the outcome (the red is on origin/dev's own tip,
+not a stale base) — this is genuinely blocked on infrastructure outside this mission's domain, not
+a landing this iteration can force. Queue row updated to `[IN-SPRINT]`, PR left open as a resume
+point.
+
+**Gate 2 reality-check on the pick itself.** `docs-8`'s own charter text claimed "126 overdue
+planned design docs." Re-ran `.claude/skills/docs-sync/scripts/derive_roadmap_versions.sh` at
+this iteration's HEAD (v0.34.0): **54** docs currently target a version below v0.34.0. The 126
+figure had drifted since docs-2/docs-6 (which fixed a *different* population-count mismatch
+between this script and `audit_design_docs.sh`, DOCS-2-04) — the count itself kept moving as
+`design_docs/planned/` was edited by other work. Rule 3b(ix) applies: a count is only true in the
+scope it was taken in; 126 was never re-verified before being carried forward as this item's
+headline number.
+
+**Execution — controller-run triage, explicitly NOT routed through the sprint pipeline.** The
+charter's own docs-8 text says moving a doc to `implemented/` is CONTROLLER Gate-4 bookkeeping,
+and `design_docs/` sits outside `MISSION_PLANNER_ALLOWLIST` (confirmed:
+`echo $MISSION_PLANNER_ALLOWLIST` lists `tools/*|.claude/skills/mission-control/SKILL.md|
+.claude/skills/design-doc-creator/*|docs/*|examples/*|README.md|CHANGELOG.md|
+.claude/skills/docs-sync/scripts/*` — no `design_docs/*` entry), so a codex-executor lane would
+fail-closed to opus regardless. Delegated the 54-doc cross-reference to **6 parallel
+general-purpose/sonnet Agent-tool sub-agents**, 9 docs each, each required to grep for
+implementation evidence (function/type/CLI names, CHANGELOG entries, `implemented/` cross-refs)
+and pair every negative finding with a known-positive control in the same file (rule 3a).
+
+**Classification result (all 54)**:
+
+| Classification | Count | Docs |
+|---|---|---|
+| IMPLEMENTED (candidate move) | 20 | m-verify-stdlib-stale-path, m-coordinator-inbox-wildcards, m-mission-adaptive-multiprovider-routing, m-anthropic-cache-hit-rate, m-eval-fmt-weakmodel-ab-M5-hardset-prereg, m-eval-fmt-weakmodel-ab-M5-hardset-results, m-eval-token-headroom, m-parser-reserved-keyword-diagnostics, HANDOVER-mission-loop-unified-telemetry, m-mission-loop-unified-telemetry, m-stdlib-freeze-gate-path-mismatch, m-ollama-cloud-provider, m-property-generator-coverage, m-property-seed-determinism, m-recorded-stream-api-preread, m-recorded-stream-api, m-eval-rig-reliability, m-eval-slim-prompt-self-discovery*, m-eval-stream-health-retry*, m-pkg-feedback-loop |
+| RULED-OUT (candidate) | 2 | m-parser-block-let-separator, m-eval-fmt-weakmodel-ab-M6-motoko-ext* |
+| NEEDS-DEEPER-INVESTIGATION | 1 | m-fmt-deterministic-feedback (extension lives in an unvendored separate package repo) |
+| STILL-PLANNED | 31 | m-agent-step-cancellation, m-ailang-semantic-context, m-anthropic-sandbox, m-apple-container-local-eval-sandbox, m-cascade-observability, m-concurrency-leverage, m-contracts-as-code-vertical, m-coord-thinking-levels, m-dx27-docs-search-github-fallback, m-eval-openrouter-baseline-rotation, m-eval-results-folder-structure, m-motoko-ext-per-task, m-pure-prng, m-serve-api-live-tool-registry, m-stdlib-html-streaming, m-arch-boundaries-eval-exclusion-tighten, m-diag-primitive-field-suggestions, m-parmap-effectful, m-ai-structured-step, m-comments-for-ai-authors, m-decision-entropy-monitor, m-eval-experiment-registry, m-eval-kimi-k3-agentic, m-managed-agents-model-eval, m-mcp-2026-07-28-adoption, m-mem-budget-runtime, m-eval-standard-mode-input-files-gap, m-coverage-cross-package-attribution, m-named-test-body-check-semantics, m-net-effect-proxy-boundary (M1 of 4 landed), m-typeclass-int-fractional-dictionary-gap |
+
+(* = reclassified by the independent verifier below, see next section — these 3 did NOT get the
+listed disposition.)
+
+**Independent re-verification, before any file moved (generator≠judge).** The 6 classifier
+sub-agents are the "generator"; per this run's explicit mandate that no work lands on the
+controller's own verdict, a 7th, independent, adversarially-framed sonnet sub-agent re-ran every
+cited command itself against the 22 highest-stakes claims (the 20 IMPLEMENTED + 2 RULED-OUT —
+the ones that trigger an irreversible-ish file move or a rule-out stamp; the 31 STILL-PLANNED and
+1 NEEDS-DEEPER-INVESTIGATION were out of scope, since nothing was about to act on them). It did
+not see or trust the generator's transcriptions — every grep was re-run from the citation, every
+control re-verified.
+
+**Result: 19 of 22 CONFIRMED, 3 of 22 (14%) overturned — 2 outright reversals, 1 downgrade:**
+- **`m-eval-slim-prompt-self-discovery` — REFUTED (IMPLEMENTED → RULED-OUT).** The generator's
+  evidence (MCP `prompt_get`/`stdlib_search` plumbing exists; one runbook note recording a live
+  demo) was real but generic — it was not evidence that *this specific* experiment's proposal
+  shipped. The doc's own "done" criteria (a tagged `v0.10.0-slim` prompt, a committed A/B rotation
+  report) were never met. The slim prompt files were built, A/B-tested (mixed-to-negative,
+  82%→65% pass rate across iterations), and then **deleted** (`2de1ef963`, 2026-06-13); the live
+  `local-ollama-eval` skill documents progressive-disclosure as "tried and deliberately
+  abandoned," and states opencode does not use the AILANG MCP server as a tool source at all.
+  Moving this to `implemented/` would have misfiled a killed experiment as a shipped feature.
+  Header updated in place with the evidence (kept under `planned/`, matching this mission's
+  docs-9/docs-7 convention for a negative result rather than deletion).
+- **`m-eval-fmt-weakmodel-ab-M6-motoko-ext` — REFUTED (RULED-OUT → stays STILL-PLANNED).** The
+  generator read a `models.yml` "RETIRED 2026-09-02" comment as a settled negative verdict. Read
+  in full, the comment retires only the nightly *scheduling* because qwen3.6, its rig model arm,
+  was decommissioned under the single-on-device-LLM rule — the extension itself was never
+  measured (the doc's own status, "BUILT + INTEGRATED, firing not yet observed," is still
+  accurate; reviving needs onboarding a replacement model, "new work, not a flag flip" per the
+  doc). Marking this RULED-OUT would have misrepresented an open, unmeasured question as closed.
+  Left untouched.
+- **`m-eval-stream-health-retry` — WEAK (IMPLEMENTED → downgraded, stays STILL-PLANNED).** The
+  generator's specific citation (`internal/ai/ollama/idlereader.go`) is tagged for a different,
+  adjacently-numbered feature (`M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT`, #618) — a wrong-file error.
+  The *real*, relevant wiring does exist (TTFT/idle-timeout split threaded into the opencode and
+  pi executors, `ttft_timeout:` keys live per-model in `models.yml`) — Goals 1-2 of the doc. But
+  Goals 3-4 (retry on stream death before consuming trial budget; label the failure
+  `stream_death` instead of the generic `api_error` it still falls through to) are not built —
+  `error_categorizer.go` has zero handling for TTFT/idle-timeout strings. This is the doc's
+  actual point, un-shipped. Left untouched.
+
+**Outcome: LANDED.** 18 confirmed-implemented docs moved: `git mv` from
+`design_docs/planned/vX_Y/` to `design_docs/implemented/vX_Y/` (created `implemented/v0_33_2/`,
+did not previously exist), 27 files total (18 primary docs + 9 sprint-plan companions, per Mark's
+"plans travel with their doc" convention) — `m-eval-rig-reliability.md`'s companion is
+`m-rig-reliability-sprint-plan.md` (name doesn't match the doc's own stem; caught by reading the
+plan's own `Source design doc:` line rather than a naive filename match). Move targets, by
+version: v0_29_0 (`m-verify-stdlib-stale-path`, `m-coordinator-inbox-wildcards`,
+`m-eval-rig-reliability`+plan, `m-pkg-feedback-loop`+plan), v0_30_0
+(`m-mission-adaptive-multiprovider-routing`), v0_31_0 (`m-anthropic-cache-hit-rate`+plan,
+`m-eval-fmt-weakmodel-ab-M5-hardset-prereg`, `-results`, `m-eval-token-headroom`,
+`m-property-generator-coverage`+2 lane-plans, `m-property-seed-determinism`+plan), v0_32_0
+(`m-recorded-stream-api`+plan, `-preread`), v0_33_1 (`m-parser-reserved-keyword-diagnostics`),
+v0_33_2 (`HANDOVER-mission-loop-unified-telemetry`, `m-mission-loop-unified-telemetry`+plan),
+v0_33_4 (`m-stdlib-freeze-gate-path-mismatch`+plan), v0_34_0 (`m-ollama-cloud-provider`). 1 ruled
+out via header update (`m-eval-slim-prompt-self-discovery.md`). The 31 genuinely-still-planned
+docs are now this mission's accurate backlog — individually pickable from `design_docs/planned/`
+by any future iteration; no new aggregate queue item created, since a corrected, per-doc-evidenced
+list in this log entry is a better resource than a synthetic queue row would be.
+
+**Note on system load**: `git status`/`git mv` ran unusually slowly (one compound command hit the
+2-minute foreground cap; a follow-up `git status` backgrounded and took ~1 min) — load average
+36-37 on a 16-CPU box at measurement time. Verified the moves had actually landed via direct `ls`
+against the filesystem (independent of the slow `git status`) before concluding anything was
+wrong; all 27 renames were confirmed correct once `git status` finally returned. Not a bug in the
+commands, a symptom of concurrent fleet load — not actioned further.
+
+**Cost**: metered $0.00 of $1 ceiling — all 7 sub-agents (6 classifiers + 1 independent verifier)
+were Agent-tool sonnet spawns, Anthropic subscription quota, not metered $. Quota buckets: sonnet
+(7 sub-agents + controller session).
+
+**Next**: the 31 STILL-PLANNED docs listed above are individually pickable by any future
+iteration — no new item needed. `docs-3` ([PR #1031](https://github.com/sunholo-data/ailang/pull/1031))
+is verified and ready; merge it the moment `origin/dev`'s `test`/`build` red clears (V1's fix, not
+ours to chase). `docs-4` (taxonomy pass) remains `[PARKED]`, sequenced after docs-3 lands.
+`m-fmt-deterministic-feedback` (NEEDS-DEEPER-INVESTIGATION) would need a look at the separate
+`sunholo/motoko_ext_fmt` package repo, not this one — flagged, not queued (out of this repo's
+reach).
+
+**Ruled out**: `m-eval-slim-prompt-self-discovery` (evidence in its own header now). Two
+generator misclassifications refuted before landing (see above) — not "ruled out" in the queue
+sense, but recorded here as the loop's independent-review discipline working exactly as designed.
+
+**DECISIONS FOR MARK**: none — no new ask this iteration.
+
+**FLAGGED**: `origin/dev`'s `test`/`Build macos/windows/ubuntu-latest`/`launchd drivers (bash
+3.2)` red remains (inherited, V1's domain — same red Gate 1 has flagged in iterations 1/2/4, not
+newly discovered; blocks PR #1031 from merging). `m-fmt-deterministic-feedback` needs
+investigation in a different repo.
+
+**Retro — no skill edit.** No ≥2-instance friction against the shared skill itself this
+iteration — the died-mid-flight, generator≠judge, and rule-3a/3b disciplines all worked exactly
+as documented, and the one real friction (slow `git status` under system load) was environmental,
+not a skill defect. Process observation for this mission's own charter: the generator≠judge step
+this iteration was not a formality — it reversed 2 of 20 IMPLEMENTED verdicts and would have
+misfiled a killed experiment as shipped and a live, unmeasured extension as settled-negative had
+it not run. Worth noting for any future large-batch classification sweep in this mission: the
+independent-verification step is not optional overhead, it is where the real errors were caught.

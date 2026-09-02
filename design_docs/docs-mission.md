@@ -75,6 +75,83 @@ At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the arc
 iteration re-reads this charter — unbounded STATUS history is a per-read token tax on the scarcest
 model budget; the append-only history lives in the log + archive.
 
+## STATUS 2026-09-02 — ITERATION 5: docs-8's stale "126 overdue" corrected to a verified 54, 18 archived after independent re-verification caught 3 wrong claims; docs-3 credited from a second orphaned fire, blocked on a V1-owned inherited CI red
+
+Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Pin worktree at
+`origin/dev` tip (`50dd1a0aa`), clean. 0 directives on bookkeeping issue `#979` since the
+watermark (6 comments, none allowlisted). Decision ledger valid, 2 rows, both `RESOLVED` — no new
+ask. No docs-mission inbox traffic (20 unread canonical-inbox messages: motoko/V1 cross-mission
+notifications, pkg feedback for unrelated packages, eval-suite runs — none addressed to
+`mission-docs`).
+
+Gate 1: `origin/dev` HEAD SHA-addressed check-runs showed 6 NOT-GREEN: `Build windows/macos/
+ubuntu-latest` (cancelled/failure), `launchd drivers (bash 3.2)` (failure), `test` (failure) —
+confirmed **inherited** from the parent commit too (identical failure set on both), and V1's own
+mission log carries 10-22 prior mentions of these exact two check names, so this is known,
+tracked, and out of this mission's domain (V1 owns `sunholo-data/ailang` per Gate 1's
+repo-ownership scoping) — not actioned, only noted for the report.
+
+**Gate 2 — died-mid-flight check found a second orphaned fire.** Open PR
+[#1031](https://github.com/sunholo-data/ailang/pull/1031) (`docs/iter5-docs3-provenance-wiring`,
+`MERGEABLE`) plus worktrees `.wt-docs-iter5-docs3`/`-eval`, zero "ITERATION 5" trace anywhere
+(0/0/0 in charter/log/archive at pick time, known-present control `ITERATION 4` = 2/1 firing). A
+prior fire had run the full inner loop for `docs-3` — codex executor, sonnet evaluator PASS
+85/100 zero blocking, diff scope verified exactly 4 files — then died before Gate 4/5. Re-verified
+first-party: diff scope re-confirmed via `gh pr diff --name-only`, `mergeStateStatus` is
+`BLOCKED` on the same inherited red as Gate 1 found (not a stale-base problem — `git diff --stat
+<PR base>..origin/dev -- <the 4 touched files>` is empty, so a rebase would not produce a
+different check outcome; the red is on origin/dev's own current tip). **Credited, not re-run**;
+left open as a resume point (queue row `docs-3`, now `[IN-SPRINT]`) rather than force-merged or
+re-executed — not this mission's fix to make.
+
+**PICK: `docs-8`** (natural next per iteration 4's own note — the only PARKED item explicitly
+unblocked once docs-6/docs-7 resolved). **Reality-check first** (Gate 2 rule): re-ran
+`derive_roadmap_versions.sh` at HEAD — the charter's own "126 overdue" figure was stale (count
+drift since docs-2/docs-6 touched the same script family); the real, current overdue set (target
+version < v0.34.0) is **54** docs, not 126.
+
+**Execution — controller-run triage, not a sprint** (per this item's own charter text: moving a
+doc to `implemented/` is CONTROLLER Gate-4 bookkeeping, `design_docs/` is outside
+`MISSION_PLANNER_ALLOWLIST`, so this never was going to route through codex). Delegated the
+54-doc cross-reference to 6 parallel `general-purpose`/sonnet Agent-tool sub-agents (9 docs each:
+grep for implementation evidence, commit/changelog citations, known-positive controls on every
+negative finding per rule 3a). Result: 20 IMPLEMENTED, 2 RULED-OUT, 1 NEEDS-DEEPER-INVESTIGATION,
+31 STILL-PLANNED.
+
+**Independent re-verification BEFORE any file moved** (generator≠judge — the classifying agents
+were the "generator", a separate adversarial sonnet sub-agent was the judge, per this run's
+explicit operator mandate that no work lands on the controller's own verdict). Spawned one
+independent auditor to re-run every cited command itself against the 22 highest-stakes claims (20
+IMPLEMENTED + 2 RULED-OUT — the ones that trigger a file move or a rule-out stamp).
+**Caught 3 of 22 (14%) wrong, 2 of them outright reversals**: `m-eval-slim-prompt-self-discovery`
+was classified IMPLEMENTED on general MCP-plumbing evidence, but the doc's OWN specific artifacts
+(a tagged slim prompt, a committed A/B report) never existed — the experiment was built, A/B
+tested (mixed-to-negative, 82%→65%), and explicitly deleted (`2de1ef963`); the live
+`local-ollama-eval` skill documents the approach as "tried and deliberately abandoned." Moving it
+to `implemented/` would have misfiled an abandoned experiment as shipped — REFUTED, kept under
+`planned/`, header updated with the evidence instead. `m-eval-fmt-weakmodel-ab-M6-motoko-ext` was
+classified RULED-OUT on a `models.yml` "RETIRED" comment, but read in full that comment retires
+only the nightly *scheduling* because its model arm was decommissioned from the rig — the
+extension itself was never measured, so the doc's own "BUILT + INTEGRATED, firing not yet
+observed" status is still accurate; REFUTED, left untouched. `m-eval-stream-health-retry`
+downgraded IMPLEMENTED→WEAK: the cited evidence file was for a different, adjacently-named
+M-number; the real TTFT/idle-timeout detection genuinely landed in the opencode/pi executors, but
+the doc's actual point — retry-on-stream-death and correct `stream_death` labeling instead of
+generic `api_error` — did not; left untouched (STILL-PLANNED).
+
+**Outcome: LANDED.** 18 confirmed-implemented docs archived: `git mv` from `planned/vX_Y/` to
+`implemented/vX_Y/` (created `implemented/v0_33_2/`, didn't exist), 27 files total including
+sprint-plan companions (Mark's "plans travel with their doc" convention). 1 ruled out via header
+update with evidence (`m-eval-slim-prompt-self-discovery.md`). The 31 genuinely-still-planned docs
+are now this mission's accurate, individually-pickable backlog — no new aggregate queue item
+needed; a future iteration picks any one of them directly from `design_docs/planned/`.
+
+**Cost**: metered **$0.00** of $1 ceiling — all 7 sub-agents were Agent-tool sonnet spawns
+(Anthropic quota, not metered). Quota buckets: sonnet (6 classifier sub-agents + 1 independent
+verifier + controller session).
+
+Full record: `design_docs/docs-mission-log.md` §ITERATION 5.
+
 ## STATUS 2026-09-02 — ITERATION 4 (crediting ITERATION 3): docs-5/6/10 landed by an orphaned fire, credited retroactively; docs-1 LANDED after a real evaluator FAIL/fix/PASS cycle
 
 Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Main checkout `dev` diverges
@@ -170,77 +247,6 @@ controller-session verification + bookkeeping only. Quota buckets: sonnet (contr
 Bookkeeping issue rotated: `#953` → `#979` (Monday 07:00 boundary rule; `#953` had 16 comments,
 under the 80 threshold, but was created before this week's boundary).
 
-
-## STATUS 2026-08-28 — ITERATION 1: docs-2 LANDED; the sync tool it depends on was found broken, and fixing it needs two allowlist decisions
-
-First real sprint since ratification. Gate 0: kill switch armed; billing CLEAN; gh
-`sunholo-voight-kampff`. No docs-mission-specific inbox traffic (11 unread in the canonical inbox,
-all either V1's own reports, a stale coordinator task `task-a0628a5f` failing on a missing
-`opencode` binary — unreachable from this session's local coordinator, not this mission's doing,
-left unacked for its owner — or `mcp-public` package feedback for a different package); no
-directives on bookkeeping issue `#953` since the watermark. Gate 1: `origin/dev` HEAD `d8fc0e1e5`
-had one genuine red, `launchd drivers (bash 3.2)` failing on a wall-clock timing test
-(`descendant discovery … 600s arm cap`) — confirmed FLAKY, not ours: same test failed on 2 other
-unrelated commits in the preceding hour interspersed with passes, and it re-passed on this
-iteration's own PR. Flagged to V1 (repo owner) via controlplane; not actioned further.
-
-**PICK: `docs-2` (queue head), no design doc needed per Guardrails — brief `docs-2-brief.md`
-already existed from a prior session (Planner-Lane declaration only).** Baselined the five
-`docs-sync` diagnostics myself before routing (rule 3e): all rc=0, but `check_examples.sh`
-reported **12 passed / 29 failed** out of 41 verdicts — alarming, so I checked the instrument
-before trusting the result (rule 1's stale-binary-under-tests class). Root cause: the script
-invokes `ailang run` with ABSOLUTE paths (`find "$RUNNABLE_DIR" …`), and any example declaring
-`module examples/runnable/X` then fails `MOD010` because the module-path check compares against
-the absolute path, not a repo-relative one. Built a fresh ldflags-stamped scratch binary
-(`bin/ailang`, gitignored) and re-ran with RELATIVE paths: **166 pass / 9 genuine fail / 42
-no-module**, across all 217 `examples/runnable/*.ail` files. The script's own raw numbers are an
-INSTRUMENT ARTIFACT, not a language regression — handed to the planner as VERIFIED-BY-ME rather
-than something to re-derive from zero.
-
-**Routing**: controller `claude-sonnet-5` (session) · planner `codex:gpt-5.6-luna` (probe rc=0,
-worktree `.planner-wt-iter1-docs-2` off `origin/dev`) · executor `codex:gpt-5.6-luna` (same lane,
-per the mission's subscription-first ladder; own worktree `.wt-iter1-docs-2`, no git writes, per
-the cross-provider recipe) · evaluator `sonnet` (Agent-tool pin, own isolated worktree
-`.wt-iter1-docs-2-eval`) — generator≠judge holds (OpenAI codex vs Anthropic sonnet). Both codex
-runs are subscription-lane (rung 1), so **metered=$0.00** of $1.
-
-**EVALUATOR RE-DERIVED EVERY LOAD-BEARING CLAIM FROM SCRATCH, NOT FROM THE EXECUTOR'S REPORT.**
-Built its own binary, wrote an independent 217-file sweep script, and got the identical 166/9/42
-split with the identical 9 failing filenames; independently confirmed the `check_examples.sh`
-absolute-path mechanism by isolating it (`ailang run --caps IO $(pwd)/…` fails MOD010, the same
-command with a relative path succeeds); independently confirmed two further findings the executor
-made beyond my own baseline — `batch_processing.ail`/`cli_args_demo.ail` need an `Env` capability
-the generic checker never grants, and `audit_design_docs.sh` (159/1030) vs
-`derive_roadmap_versions.sh` (126/682) report different design-doc population totals. **PASS
-92/100, zero blocking.** Non-blocking: sprint JSON's `status` field left `"planned"` (hygiene),
-no CHANGELOG entry (debatable for an internal page), and the executor's "reproduction" of my
-pre-supplied baseline numbers restated rather than blind-derived them — true, and the evaluator's
-OWN from-scratch derivation is what makes that harmless here.
-
-**LANDED**: [PR #955](https://github.com/sunholo-data/ailang/pull/955) → squash `a8f904aac`. All
-20 checks green including `test` (23m), `docs-build` (10m), and — re-confirmed on the MERGE COMMIT
-itself, not just the PR head, per Gate 3b's squash-produces-a-new-commit rule — every check bar one
-non-required SonarCloud quality-gate red that is INHERITED (same failure on the immediate parent
-commit `8a993bb89`, before this PR ever merged; coverage/security-rating on new code, unrelated to
-a docs-only diff). Flagged to V1; not our domain.
-
-**THE ITERATION'S BEST FINDING WASN'T IN THE SPRINT'S SCOPE TO FIX.** Folding the findings into the
-queue (docs-5 through docs-8) surfaced that this mission's OWN blast-radius allowlist blocks it
-from fixing most of what it just found: `docs/*` is a single-level glob that excludes
-`docs/docs/**` (where the actual stale-version bug and nearly all published content live), and
-`.claude/skills/docs-sync/**` (where the checker's own bug lives) isn't covered at all. Filed as
-`D-1` and `D-2` in a newly-created Human Decision Ledger (this mission had none yet — Gate 0's
-`mission_decisions.sh --check` returned no block; created following V1's exact format, validated
-2 rows). Queue renumbered: docs-2 → LANDED, new docs-5 ([NEXT], in-scope examples hygiene for the
-9 genuine failures) / docs-6 / docs-7 (both PARKED on D-1/D-2) / docs-8 (PARKED, design-doc
-triage, doesn't need an allowlist change but needs docs-6/7 settled first) inserted before the
-renumbered docs-1/docs-3/docs-4.
-
-**RETRO — NO SKILL EDIT.** One friction (this iteration's own `${#pending}` numeric-check on
-`gh pr checks` output, handled inline with a `case … [!0-9]*)` guard per this file's own
-prescription — worked as documented, not a gap) — below the ≥2-instance bar for a skill change.
-
-Full record: `design_docs/docs-mission-log.md` §ITERATION 1.
 
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
@@ -345,13 +351,25 @@ Full record: `design_docs/docs-mission-log.md` §ITERATION 1.
    guarding is now `docs-9`. Kept as `[RULED OUT]` rather than deleted, because the interesting
    part is the mechanism: this item was created from a false sentence in this charter, which then
    got cited back as its own evidence — see the Guardrails correction for the rule that closes it.
-8. `[PARKED]` **docs-8 · clause 1 · 126 overdue planned design docs (aggregate).** Everything under
-   `design_docs/planned/` targeting v0.29.0 through v0.31.0 while the repo ships v0.34.0
-   (DOCS-2-03). `design_docs/` is also outside the current sprint allowlist — moving a doc to
-   `implemented/` is normally the mission CONTROLLER's own Gate-4 bookkeeping (as v1-mission does),
-   not a sprint-executor task, so this can proceed without an allowlist change, just not via the
-   automated inner loop. Sequence after docs-6/docs-7 land or are ruled out, since triaging 126
-   docs by hand is exactly the kind of large sweep worth doing once against settled tooling.
+8. `[LANDED]` **docs-8 · clause 1 · 126 overdue planned design docs (aggregate) — corrected and
+   triaged.** The "126" figure was itself stale (`derive_roadmap_versions.sh` count drift since
+   docs-2/docs-6): re-run at this iteration's HEAD, the real overdue set (target version <
+   v0.34.0) was **54** docs. All 54 were classified against the live codebase (grep evidence,
+   commit citations, changelog cross-refs), then independently re-verified by a second,
+   adversarial agent before any file moved — generator≠judge caught **3 of 22** high-stakes
+   claims wrong (2 outright reversals: an abandoned/deleted experiment mis-read as shipped, a
+   "retired" A/B mis-read as a settled negative when only its rig model was decommissioned; 1
+   downgraded to partial). Result: **18 docs confirmed genuinely implemented**, moved to
+   `design_docs/implemented/vX_Y/` with their sprint-plan companions (27 files total, git
+   renames); **1 ruled out** with evidence written into its own header
+   (`m-eval-slim-prompt-self-discovery.md`, PARKED, kept under `planned/` per this mission's
+   negative-result convention, matching docs-9/docs-7); **1 flagged NEEDS-DEEPER-INVESTIGATION**
+   (`m-fmt-deterministic-feedback` — its extension lives in a separate package repo not vendored
+   here); **1 flagged partial/WEAK** (`m-eval-stream-health-retry` — TTFT/idle detection landed,
+   the retry+correct-labeling half the doc is actually about did not); **31 confirmed genuinely
+   STILL-PLANNED** — this is now the mission's accurate backlog (down from an unverified 126),
+   individually pickable from `design_docs/planned/` by any future iteration without needing a
+   new aggregate item. Full 54-row and 22-row tables in iteration 5's log entry.
 9. `[LANDED]` **docs-1 · clause 7 · build the inbox-routing TRIGGER.** `send` and `forward` are
    verified working primitives (see clause 7's verification log) — no `internal/`/`cmd/` change is
    needed for those, and this item should not touch Go code. The missing piece is a **trigger**:
@@ -377,8 +395,22 @@ Full record: `design_docs/docs-mission-log.md` §ITERATION 1.
    not-this-mission's-domain `SonarCloud Code Analysis` red (confirmed inherited from the parent
    commit, V1's territory per Gate 1's repo-ownership scoping). No launchd wiring in this sprint
    (explicitly out of scope per the brief) — the router runs by hand or under a future job.
-10. `[PARKED]` **docs-3 · clause 6 · benchmark surface audit.** Blocked on nothing, but sequence it
-   after docs-2 so the drift picture is known first.
+10. `[IN-SPRINT]` **docs-3 · clause 6 · benchmark surface audit / provenance wiring.** Blocked on
+   nothing, sequenced after docs-2 so the drift picture is known first. **Landed by an orphaned
+   "iteration 5" fire** (a died-mid-flight run using `design_docs/docs-3-brief.md` +
+   `docs-3-sprint-plan.md`, brief+plan landed via [PR #1023](https://github.com/sunholo-data/ailang/pull/1023)):
+   wires `benchmarkFetchWithSource()` into the 4 `<DataProvenance>` call sites
+   (`EloLeaderboard`, `BenchmarkStandaloneGallery`, `BenchmarkDashboard`, `BenchmarkExplorer`)
+   that could never show the "⚠ stale (fallback copy)" badge, since only `ValueDashboard` passed
+   `source=`. Independent evaluator (sonnet, isolated worktree): PASS 85/100, zero blocking. Diff
+   scope verified exactly 4 files. [PR #1031](https://github.com/sunholo-data/ailang/pull/1031)
+   is `MERGEABLE` but `mergeStateStatus: BLOCKED` — required checks `test`/`build` are red, and
+   this is confirmed **inherited from `origin/dev`'s own current tip** (identical failures on
+   HEAD and its parent — Build macos/windows/ubuntu, `launchd drivers (bash 3.2)`, `test`), a
+   known V1-owned red (V1's own log carries 10+/22+ mentions of these two check names; motoko
+   independently flagged the Windows half to V1 in the last hour). Not this mission's domain or
+   fixable by a rebase (the red is on origin/dev's tip itself, not stale base). PR left open,
+   verified and ready to merge the moment V1's red clears — resume point, not a re-pick.
 11. `[PARKED]` **docs-4 · clause 5 · taxonomy pass.** The `docs/docs/guides/` directory holds 40+
    guides accreted over time. Deferred until clauses 1-3 are green — consolidating pages that are
    also factually stale does both jobs badly. Also blocked on docs-7's allowlist question, since
