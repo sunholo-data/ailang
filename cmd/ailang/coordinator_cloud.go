@@ -387,6 +387,22 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 			fmt.Printf("execute-job: CLAUDE_CONFIG_DIR=%s (session JSONL → GCS)\n", claudeConfigDir)
 		}
 
+		// M-COORDINATOR-EXECUTION-TRUST M6 (V30): the globally installed pi suite
+		// and a repo that ships .pi/extensions/ register the same tool names, and
+		// pi exits 1 before turn 1. Let the workspace's own copy win. No-op for a
+		// repo without .pi/extensions/, which is the common case and keeps the
+		// gate applying everywhere (D2).
+		if globalExt := piGlobalExtensionsDir(); globalExt != "" {
+			if removed, cErr := resolveExtensionCollisions(globalExt, execWorkDir); cErr != nil {
+				// Loud, but not fatal: a task that can still start is better than
+				// one killed by the mitigation for a crash.
+				fmt.Fprintf(os.Stderr, "execute-job: WARNING: could not resolve pi extension collisions: %v\n", cErr)
+			} else if len(removed) > 0 {
+				fmt.Printf("execute-job: workspace ships %d pi extension(s) that shadow the global suite; using the workspace copies: %v\n",
+					len(removed), removed)
+			}
+		}
+
 		fmt.Printf("execute-job: running %s executor (unified path)\n", provider)
 		execResult, execErr = runExecutor(ctx, execWorkDir, provider, directive, taskID, pluginDir, model, timeoutStr)
 		if execErr != nil {
