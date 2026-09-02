@@ -34,6 +34,38 @@ function RefusalNote({ rate }) {
   );
 }
 
+// RotationRateNote marks a Local GPU agent rate that came from the rotation
+// (os/latest.json, trial-normalised) instead of the release baseline
+// (latest.json, runs-normalised) — which happens whenever latest.json has not
+// been refreshed since the rotation moved to a newer AILANG version. The two
+// denominators differ, so the number must not read as directly comparable to the
+// cloud rows beside it. Visible on purpose: the alternative was the row silently
+// disappearing, which is what it did for two release cycles.
+function RotationRateNote({ baselineVersion, rotationVersion }) {
+  return (
+    <span
+      title={
+        'Rate from the continuous rig rotation (' + (rotationVersion || 'current') +
+        '), divided by TRIALS. The cloud rows come from the release baseline' +
+        (baselineVersion ? ' (' + baselineVersion + ')' : '') +
+        ', divided by RUNS. Same measurement, different denominator — so read this ' +
+        'as the on-device option existing and roughly where it lands, not as a ' +
+        'like-for-like number. It resolves to the canonical rate once the release ' +
+        'baseline is refreshed.'
+      }
+      style={{
+        marginLeft: 5, fontSize: '0.7em', whiteSpace: 'nowrap', verticalAlign: 'middle',
+        cursor: 'help', padding: '0 3px', borderRadius: 3,
+        color: 'var(--ifm-color-warning-darkest)',
+        background: 'var(--ifm-color-warning-lightest)',
+        border: '1px solid var(--ifm-color-warning-light)',
+      }}
+    >
+      ~rotation
+    </span>
+  );
+}
+
 function formatModelName(name) {
   // Surface harness + provider as explicit suffixes. See
   // BenchmarkExplorer/index.jsx::modelShort for the canonical version.
@@ -86,10 +118,53 @@ export default function ModelComparisonTable({ models, coverage, showLocalAgent 
           if (!canonical) continue;
           if (!best || canonical.rate > best.canonical.rate) best = { canonical, harness: row.harness, model: row.model };
         }
+        // FALLBACK to the rotation's own rate when latest.json carries no agent
+        // entry for ANY on-device model.
+        //
+        // WHY THIS EXISTS. latest.json is the RELEASE baseline: it is refreshed by
+        // post-release, while the rig's rotation rolls forward continuously. So
+        // between releases latest.json can sit versions behind the rotation and
+        // contain no local models at all — measured 2026-09-02, latest.json was
+        // v0.32.0 (2026-08-27) while the rotation was banking v0.34.0, and
+        // localRate() returned null for all three on-device models. `best` stayed
+        // null, setLocalRow was never called, and the row this component is
+        // explicitly asked to show (showLocalAgent) just VANISHED — for two whole
+        // release cycles, with nothing said anywhere.
+        //
+        // Omitting rather than inventing a number was the right instinct; making the
+        // omission SILENT was the bug (see "no silent fallbacks" in CLAUDE.md). The
+        // rotation rate is a real measurement — it is simply normalised differently
+        // (os/* divides by trials, latest.json by runs), so it is shown with a
+        // visible badge saying exactly that, never passed off as a cloud-comparable
+        // number.
+        let normalisation = 'canonical';
+        if (!best) {
+          for (const row of os.rows) {
+            const rate = row && row.lang && row.lang.ailang;
+            if (typeof rate !== 'number') continue;
+            if (!best || rate > best.canonical.rate) {
+              best = { canonical: { rate, runs: null }, harness: row.harness, model: row.model };
+            }
+          }
+          if (best) {
+            normalisation = 'rotation';
+            // Loud in the console: the row is degraded, and the remedy is a
+            // post-release refresh of latest.json, not a frontend change.
+            console.warn(
+              '[ModelComparisonTable] latest.json (version ' + (main.version || '?') +
+              ') has no agentModels entry for any on-device model; the Local GPU agent row ' +
+              'is falling back to the os/latest.json rotation rate (trial-normalised). ' +
+              'Refresh the release baseline via post-release to restore the canonical rate.'
+            );
+          }
+        }
         if (best) {
           setLocalRow({
             ailangSuccess: best.canonical.rate * 100,
             runs: best.canonical.runs,
+            normalisation,
+            baselineVersion: main.version || '',
+            rotationVersion: os.ailang_version || os.version || '',
             harness: best.harness || 'agent',
             modelId: best.model,
             model: formatLocalName(best.model),
@@ -245,11 +320,17 @@ export default function ModelComparisonTable({ models, coverage, showLocalAgent 
                                     'var(--ifm-color-danger)'
                 }}
                   title={localRow.provisional && localRow.benchmarks != null
-                    ? `Provisional: ran ${localRow.benchmarks}/${maxCoverage} benchmarks so far (${localRow.runs} runs) — not comparable to full-coverage rows.`
-                    : `${localRow.runs} runs`}>
+                    ? `Provisional: ran ${localRow.benchmarks}/${maxCoverage} benchmarks so far${localRow.runs != null ? ` (${localRow.runs} runs)` : ''} — not comparable to full-coverage rows.`
+                    : (localRow.runs != null ? `${localRow.runs} runs` : 'Trial-normalised rate from the rig rotation')}>
                   {localRow.ailangSuccess.toFixed(1)}
                   {localRow.provisional && <span style={{ marginLeft: 3 }}>⚠</span>}
                 </span>
+                {localRow.normalisation === 'rotation' && (
+                  <RotationRateNote
+                    baselineVersion={localRow.baselineVersion}
+                    rotationVersion={localRow.rotationVersion}
+                  />
+                )}
               </td>
               <td className={styles.tableNumber} title="No token data for on-device runs">—</td>
               <td className={styles.tableNumber} title="Local agent runs AILANG only">—</td>
@@ -325,6 +406,9 @@ export default function ModelComparisonTable({ models, coverage, showLocalAgent 
         {localRow && (
           <>
             {' · '}<strong>🖥️ Local GPU agent</strong> = best on-device config (qwen via an agentic harness), agent-mode + ~$0/run. Shown for the free-local-option thesis — <em>agent-mode, so not directly comparable to the 0-shot cloud rows</em>.
+            {localRow.normalisation === 'rotation' && (
+              <> Its rate is currently <strong>~rotation</strong>: taken from the live rig rotation{localRow.rotationVersion ? ` (${localRow.rotationVersion})` : ''} and divided by trials, because the release baseline{localRow.baselineVersion ? ` (${localRow.baselineVersion})` : ''} has not been refreshed since the rotation moved on.</>
+            )}
           </>
         )}
       </div>
