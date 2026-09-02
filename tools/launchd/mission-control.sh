@@ -138,29 +138,96 @@ _mc_etime_secs() {
   mm=${rest%%:*}; ss=${rest##*:}
   echo $(( 10#${dd:-0}*86400 + 10#${hh:-0}*3600 + 10#${mm:-0}*60 + 10#${ss:-0} ))
 }
-# _mc_stalled PID → true when the tree is IDLE (<2% CPU across the tree) AND has
-# a descendant that has itself been alive ≥ STALL_CHILD_AGE. That pair is the
-# fingerprint of a wedged tool call (iteration 13: a `until …; do sleep 30; done`
-# whose zsh child sat alive 4h+ at 0% CPU). We key on the LONG-LIVED CHILD, not a
-# live `sleep` — after hours of polling `gh` is rate-limited/slow, so a `sleep`
-# descendant is only intermittently present and a naive sleep-catcher misses it.
-# Errs safe: macOS `ps %cpu` is a lifetime-decaying average, so a session doing
-# real work reads non-idle and is NOT flagged (we miss late stalls, never kill
-# live work); and STALL_CHILD_AGE is set past the skill's 30-min bounded-wait cap
-# so a COMPLIANT wait can never trip it.
+# _mc_progress_bytes → a byte counter that GROWS while the controller works,
+# or non-zero rc when no such instrument exists for this provider.
+#
+# WHY THIS REPLACED THE CPU TEST (measured 2026-09-02). The old idleness arm was
+# instantaneous `ps %cpu` summed over the tree, and the comment above it claimed
+# "a session doing real work reads non-idle and is NOT flagged ... we miss late
+# stalls, never kill live work". That claim is false, and it was the load-bearing
+# one. Sampled against a LIVE v1 controller whose transcript was growing 15-45KB
+# per 30s, the same expression read 0.10 / 0.30 / 0.80 / 1.40 — under the 2%
+# floor on most samples, because an agent spends its wall-clock BLOCKED ON THE
+# MODEL API, not on CPU. Cost of the false premise in one day: 4 V1 and 3 world
+# iterations killed; the 21:13 kill landed on a session at Gate 5 that was
+# committing its own iteration-321 record, which is why 321 has no record.
+#
+# The session transcript is the one signal the controller cannot forget to emit —
+# the harness appends to it on every assistant message and every tool result. The
+# heartbeat cannot be the primary arm: it is stamped by the AGENT at gate
+# boundaries, and that same v1 slot reached Gate 5 having stamped only `gate-0`,
+# so a heartbeat-only test reads "dead" on a session writing its own record.
+_mc_progress_bytes() {
+  local dir newest total=0 got=0 sz
+  case "${CONTROLLER_PROVIDER:-claude}" in
+    claude)
+      # `claude -p` appends to ~/.claude/projects/<cwd, / and . mapped to ->/<uuid>.jsonl
+      dir="$HOME/.claude/projects/$(printf '%s' "$PWD" | tr '/.' '--')"
+      if [ -d "$dir" ]; then
+        newest=$(ls -t "$dir"/*.jsonl 2>/dev/null | head -1)
+        if [ -n "$newest" ] && [ -f "$newest" ]; then
+          sz=$(wc -c < "$newest" 2>/dev/null | tr -d ' ')
+          total=$((total + ${sz:-0})); got=1
+        fi
+      fi
+      ;;
+  esac
+  # The driver log is a second arm, and the ONLY one for codex/pi — both stream
+  # into it, while `claude -p` buffers to the end, which is exactly why claude
+  # needs the transcript above.
+  if [ -n "${LOG:-}" ] && [ -f "$LOG" ]; then
+    sz=$(wc -c < "$LOG" 2>/dev/null | tr -d ' ')
+    total=$((total + ${sz:-0})); got=1
+  fi
+  [ "$got" -eq 1 ] || return 1
+  echo "$total"
+}
+# _mc_stalled PID → true only when FOUR arms agree, sample over sample, that the
+# tree has made no progress: (1) a descendant alive ≥ STALL_CHILD_AGE (the wedged
+# tool call of iteration 13's `until COND; do sleep 30; done`), (2) the progress
+# counter above is unchanged since the previous sample, (3) the gate heartbeat is
+# unchanged since the previous sample, and (4) the tree is under STALL_CPU_PCT.
+# Any one arm showing movement resets the caller's hit counter, so live work is
+# never killed — and unlike the CPU-only predecessor, that is now a property the
+# suite can kill a mutant on rather than a claim in a comment.
+#
+# Fails OPEN: with no progress instrument we cannot tell a wedge from live work,
+# so we refuse to guess and say so in the log; HARD_TIMEOUT still bounds the slot.
 _mc_stalled() {
-  local root="$1" pids p secs cpu long=0
+  local root="$1" pids p secs cpu long=0 prog hb
   pids=$(_mc_descendants "$root")
   for p in $pids; do
     [ "$p" = "$root" ] && continue
     secs=$(_mc_etime_secs "$(ps -o etime= -p "$p" 2>/dev/null)")
     [ "${secs:-0}" -ge "${STALL_CHILD_AGE:-2400}" ] && { long=1; break; }
   done
-  [ "$long" -eq 1 ] || return 1
+  [ "$long" -eq 1 ] || { _MC_STALL_WHY="no-long-child"; return 1; }
+
+  if ! prog=$(_mc_progress_bytes); then
+    if [ "${_MC_STALL_NOPROG_LOGGED:-0}" != "1" ]; then
+      log "WARNING: stall watchdog has NO progress instrument (provider=${CONTROLLER_PROVIDER:-claude} pwd=$PWD) — early kill DISABLED for this attempt; HARD_TIMEOUT still applies"
+      _MC_STALL_NOPROG_LOGGED=1
+    fi
+    _MC_STALL_WHY="no-progress-instrument"
+    return 1
+  fi
+  hb=$(wc -c < "${_mc_heartbeat:-${AILANG_STATE_DIR:-$HOME/.ailang/state}/mission-${MISSION_NAME:-none}-heartbeat}" 2>/dev/null | tr -d ' '); hb="${hb:-0}"
+
+  # A first sample can prove nothing — seed the baseline and report live.
+  if [ -z "${_MC_PROG_PREV:-}" ]; then
+    _MC_PROG_PREV="$prog"; _MC_HB_PREV="$hb"; _MC_STALL_WHY="seeding"; return 1
+  fi
+  if [ "$prog" != "$_MC_PROG_PREV" ] || [ "$hb" != "${_MC_HB_PREV:-}" ]; then
+    _MC_STALL_WHY="progress prog=${_MC_PROG_PREV}->${prog} hb=${_MC_HB_PREV:-}->${hb}"
+    _MC_PROG_PREV="$prog"; _MC_HB_PREV="$hb"
+    return 1
+  fi
   cpu=$(ps -o %cpu= -p "$(echo $pids | tr ' ' ',')" 2>/dev/null | awk '{s+=$1} END{printf "%d", s+0}')
-  [ "${cpu:-0}" -lt 2 ] || return 1
+  [ "${cpu:-0}" -lt "${STALL_CPU_PCT:-2}" ] || { _MC_STALL_WHY="cpu=$cpu"; return 1; }
+  _MC_STALL_WHY="flat prog=$prog hb=$hb cpu=$cpu"
   return 0
 }
+
 # ----------------------------------------------------------------------------
 
 # --- model selection (fleet Phase A) -----------------------------------------
@@ -320,14 +387,18 @@ select_model() {
 HARD_TIMEOUT="${MISSION_TIMEOUT:-21600}"   # 6h wall-clock kill per iteration
 # Stall watchdog (2026-07-12): a wedged unbounded poll loop (iteration 13's
 # `until COND; do sleep 30; done`) otherwise burns the whole 6h slot before
-# HARD_TIMEOUT. Kill early once the session is IDLE (<2% CPU) with a descendant
-# that has itself been alive ≥ STALL_CHILD_AGE — a wedged tool call. Both the
-# grace and the child-age gate sit past the skill's 30-min bounded-wait cap so a
-# COMPLIANT wait can never trip it. All env-overridable.
+# HARD_TIMEOUT. Kill early once the tree has made NO PROGRESS — see _mc_stalled
+# for the four arms, and for why the original CPU-only test killed live work.
+# The grace and the child-age gate sit past the skill's 30-min bounded-wait cap so
+# a COMPLIANT wait can never trip it. All env-overridable.
 STALL_GRACE="${MISSION_STALL_GRACE:-2400}"       # 40m before the first check
 STALL_CHILD_AGE="${MISSION_STALL_CHILD_AGE:-2400}" # a descendant alive ≥40m = wedged
 STALL_INTERVAL="${MISSION_STALL_INTERVAL:-120}"  # 2m between samples
-STALL_SAMPLES="${MISSION_STALL_SAMPLES:-3}"      # consecutive idle+long-child hits → kill
+# 5 × 2m = 10 minutes of PROVEN no-progress before a kill. Was 3, on an arm that
+# could not see progress at all; with real arms the window is worth widening,
+# because what a wrong kill destroys is a whole iteration.
+STALL_SAMPLES="${MISSION_STALL_SAMPLES:-5}"      # consecutive no-progress hits → kill
+STALL_CPU_PCT="${MISSION_STALL_CPU_PCT:-2}"      # tree %cpu floor — the weakest of the four arms
 export STALL_CHILD_AGE
 
 # TRANSIENT-RETRY (2026-07-14): Anthropic capacity is flaky some evenings —
@@ -1000,16 +1071,17 @@ _mc_run_once() {
   WATCHDOG_PID=$!
 
   # Stall watchdog: after the grace window, sample for the wedged-tool fingerprint
-  # (idle tree + a descendant alive ≥ STALL_CHILD_AGE). STALL_SAMPLES consecutive
+  # (no progress + a descendant alive ≥ STALL_CHILD_AGE). STALL_SAMPLES consecutive
   # hits → kill early so the slot recycles instead of idling to HARD_TIMEOUT. hits
-  # resets on any non-idle/no-long-child sample, so live work is never killed.
+  # resets on ANY arm showing movement, so live work is never killed — and the
+  # progress arms make that a property the suite can kill a mutant on (2026-09-02).
   (
     sleep "$STALL_GRACE"
     hits=0
     while kill -0 "$CONTROLLER_PID" 2>/dev/null; do
       if _mc_stalled "$CONTROLLER_PID"; then hits=$((hits + 1)); else hits=0; fi
       if [ "$hits" -ge "$STALL_SAMPLES" ]; then
-        echo "[$(date '+%F %H:%M:%S')] STALL: $CONTROLLER_PROVIDER $CONTROLLER_PID idle with a descendant alive ≥${STALL_CHILD_AGE}s across $STALL_SAMPLES samples (unbounded poll loop?) — killing early" >>"$LOG"
+        echo "[$(date '+%F %H:%M:%S')] STALL: $CONTROLLER_PROVIDER $CONTROLLER_PID made NO PROGRESS across $STALL_SAMPLES samples ($((STALL_SAMPLES * STALL_INTERVAL))s) with a descendant alive ≥${STALL_CHILD_AGE}s — killing early [${_MC_STALL_WHY:-unknown}]" >>"$LOG"
         kill -TERM "$CONTROLLER_PID" 2>/dev/null; sleep 30; kill -KILL "$CONTROLLER_PID" 2>/dev/null
         break
       fi
