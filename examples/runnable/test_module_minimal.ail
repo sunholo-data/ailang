@@ -1,5 +1,10 @@
 module examples/runnable/test_module_minimal
+import std/io (println)
 
 export func hello() -> string {
   "hello"
+}
+
+export func main() -> () ! {IO} {
+  println(hello())
 }

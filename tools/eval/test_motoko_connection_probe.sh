@@ -255,6 +255,7 @@ cat > "$live_bin/pgrep" <<'EOF'
 #!/bin/bash
 [[ -z "${PROBE_TEST_MARKER:-}" ]] || printf 'pgrep %s\n' "$*" >> "$PROBE_TEST_MARKER"
 if [[ "${PROBE_TEST_PGREP_LOOP:-0}" == 1 ]]; then
+  sleep "${PROBE_TEST_PGREP_LOOP_DELAY:-0}"
   while [[ $# -gt 1 ]]; do shift; done
   echo "$1"
 fi
@@ -359,7 +360,7 @@ expect_failure "descendant discovery deadline refuses at the caller" "process-tr
 expect_failure "lane sampling deadline refuses" "exceeded 1s sampling deadline" \
   run_live PROBE_TEST_DRIVER_SLEEP=10 PROBE_TIMEOUT_SECS=1
 expect_failure "bounded termination deadline refuses" "bounded termination deadline" \
-  run_live PROBE_TEST_DRIVER_SLEEP=20 PROBE_TEST_IGNORE_TERM=1 PROBE_TIMEOUT_SECS=1
+  run_live PROBE_TEST_DRIVER_SLEEP=20 PROBE_TEST_IGNORE_TERM=1 PROBE_TIMEOUT_SECS=1 PROBE_TREE_DISCOVERY_SECS=30
 
 success_artifact="$tmp_dir/success/probe.json"
 mkdir -p "$tmp_dir/success"
@@ -435,21 +436,49 @@ fi
 # makes the process tree self-referential and never empties the queue — the only way to reach the
 # in-loop `date` check. The stub was written for this and no invocation used it, so the branch
 # that actually bounds the walk was unexercised while an arm claimed the deadline was pinned.
-# WIDER CAP FOR THIS ARM ONLY (deflake, 2026-08-27). The self-referential pgrep
-# walk normally trips the probe's 1s internal deadline in a second or two — but
-# each loop iteration SPAWNS a stub process, and on a contended shared CI runner
-# those spawns degrade until total wall time blows through the global 120s arm
-# cap long before the per-iteration date check accumulates to its limit. CI run
-# 33001432738 (2026-08-26) failed exactly here on a commit touching no related
-# files, and the identical suite passed on the next commit. The refusal itself
-# is what this arm proves and it still MUST happen — the generosity only widens
-# how long we wait for a degraded runner to get there, and stays bounded.
-_arm_cap_saved=$ARM_CAP_SECS
-ARM_CAP_SECS=$(( ARM_CAP_SECS * 5 ))
-expect_failure "descendant discovery refuses on the real wall-clock deadline" "process-tree discovery failed" \
-  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=1 PROBE_TEST_PGREP_LOOP=1 \
-    PROBE_STUB_STATE="$tmp_dir/lane-pgreploop" /bin/bash "$probe" treatment control "$tmp_dir/pgreploop.json"
-ARM_CAP_SECS=$_arm_cap_saved
+# DETERMINISTIC BY CONSTRUCTION (de-race, 2026-08-31): discovery and the lane deadline are now
+# independently bounded. This arm pins the discovery deadline to a 1s bound
+# (PROBE_TREE_DISCOVERY_SECS=1) so the process-tree walk trips its in-loop date check in about a
+# second no matter how fast or slow the machine is.
+#
+# THE LANE DEADLINE IS DELIBERATELY ABOVE THE ARM CAP, and that is the whole pin (iteration 319).
+# Derived from ARM_CAP_SECS rather than hardcoded, so the ordering survives an overridden cap.
+# On FIXED code discovery has its own 1s bound and this arm still refuses in about a second, so
+# the raised lane deadline costs no wall time. On code that has REGRESSED to the shared deadline,
+# discovery inherits the lane bound, which is now larger than the arm cap -- so the probe cannot
+# emit the asserted message before the harness kills the arm. Do NOT "tidy" this back down to a
+# small value: measured on origin/dev @ 9c6ae9646, a full revert of the de-race passed all 42
+# arms rc=0 (112s vs a 50s baseline), i.e. the fix was pinned by nothing at all.
+#
+# Known and accepted weakness: under the revert the arm dies on the ARM CAP, not on a message
+# mismatch, so any unrelated slowdown past ARM_CAP_SECS trips the same `not ok`. That is
+# structural -- the lane deadline is always ARM_CAP_SECS+N -- and is the cost of pinning a
+# regression whose only other symptom is "the suite got slower".
+#
+# THE STUB DRIVER IS KEPT ALIVE FOR THE SAME DURATION, AND THAT IS NOT OPTIONAL -- CI PROVED IT
+# (iteration 319). `run_lane` only calls `sample_tree` from inside its sampling loop, so if the
+# stub driver exits before the lane enters that loop, the discovery walk is never reached at all:
+# the lane completes with `driver_rc=0` and an empty peer set, and the arm fails with
+# `lacked expected message` instead of passing. That is invisible on a fast darwin/arm64 laptop --
+# measured 0 failures in 8 local runs, quiet and under 8x CPU contention, with and without this
+# override -- and it reproduced 100% on the GitHub macOS runner, whose scheduling is slower. Do
+# not remove this on the strength of local runs; the matrix is the only instrument that sees it.
+#
+# The one-second pgrep-stub delay is belt-and-braces on the same axis: it keeps the
+# self-referential walk from spending its node budget before `date +%s` ticks over the 1s
+# discovery deadline. Measured UNPINNED in isolation -- reverting only that line leaves the suite
+# 42/42 green here -- and retained anyway, because "green on this laptop" is exactly the evidence
+# that failed above.
+#
+# The scoped high node ceiling keeps the independent node-ceiling refusal structurally
+# unreachable during the arm's window.
+discovery_killer_lane_secs=$((ARM_CAP_SECS + 30))
+expect_failure "descendant discovery refuses on the real wall-clock deadline" "process-tree discovery deadline expired (wall clock)" \
+  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS="$discovery_killer_lane_secs" PROBE_TREE_DISCOVERY_SECS=1 \
+    PROBE_MAX_TREE_NODES=50000 PROBE_TEST_PGREP_LOOP=1 PROBE_TEST_PGREP_LOOP_DELAY=1 \
+    PROBE_TEST_DRIVER_SLEEP="$discovery_killer_lane_secs" \
+    PROBE_STUB_STATE="$tmp_dir/lane-pgreploop" \
+    /bin/bash "$probe" treatment control "$tmp_dir/pgreploop.json"
 
 cap_secs_fixture=2
 cap_start=$(date +%s)
@@ -695,24 +724,55 @@ expect_failure "tree node ceiling rejects invalid values" \
   "PROBE_MAX_TREE_NODES must be a positive integer" \
   env PROBE_MAX_TREE_NODES=invalid /bin/bash "$probe" treatment control "$tmp_dir/invalid-node-limit.json"
 
+expect_failure "tree discovery deadline rejects invalid values" \
+  "PROBE_TREE_DISCOVERY_SECS must be a positive integer" \
+  env PROBE_TREE_DISCOVERY_SECS=invalid /bin/bash "$probe" treatment control "$tmp_dir/invalid-tree-discovery.json"
+
 expect_failure "descendant discovery refuses on the node-count ceiling" "process-tree discovery exceeded 3 nodes" \
   env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=60 PROBE_MAX_TREE_NODES=3 \
     PROBE_TEST_PGREP_LOOP=1 PROBE_STUB_STATE="$tmp_dir/lane-node-limit" \
     /bin/bash "$probe" treatment control "$tmp_dir/node-limit.json"
 
+# The D4 ceiling override belongs on the wall-clock discovery arm's own env line and nowhere else. A per-command
+# env assignment never persists into this shell, so this is invariantly quiet on a correct
+# tree. It fires on exactly two leak shapes: an edit that promotes the override to a
+# file-global assignment or export, and an ambient PROBE_MAX_TREE_NODES in the caller's
+# environment — which would silently re-parameterise every arm that does not pin its own
+# ceiling. Both un-hermeticize the suite.
+if [[ -n "${PROBE_MAX_TREE_NODES:-}" ]]; then
+  echo "not ok - PROBE_MAX_TREE_NODES is set at suite scope; the ceiling override must stay on arm env lines" >&2
+  exit 1
+fi
+
+# Same discipline for the discovery deadline, which arms pin individually and in OPPOSITE
+# directions: the bounded-termination arm needs a long discovery bound, the wall-clock arm a 1s
+# one. A per-command env assignment never persists into this shell, so this is invariantly quiet
+# on a correct tree. It fires on exactly two leak shapes: an edit that promotes an arm's override
+# to a file-global assignment or export, and an ambient PROBE_TREE_DISCOVERY_SECS in the caller's
+# environment. Either would silently re-parameterise both arms and re-open the de-race the
+# discovery bound exists to close.
+if [[ -n "${PROBE_TREE_DISCOVERY_SECS:-}" ]]; then
+  echo "not ok - PROBE_TREE_DISCOVERY_SECS is set at suite scope; the discovery override must stay on arm env lines" >&2
+  exit 1
+fi
+
 # Refusal-branch drift gate. Every arm above proves a branch that EXISTS goes red when neutered —
 # a removal proves the check FIRES; only an addition proves it LOOKS. Adding a new refusal to the
 # probe passes the whole suite byte-identically, so the coverage claim is a one-time manual count
 # that silently rots on the next edit. Count the branches and refuse when the number moves.
-expected_refusal_branches=24
+expected_refusal_branches=28
+# Every counter below reads $probe. Assert it resolves to a file BEFORE any of them run, so
+# that no grep in this gate can fall through to reading stdin.
+[[ -f "$probe" ]] || { echo "not ok - refusal-branch gate: \$probe does not resolve to a file; instrument failure, not a verdict" >&2; exit 1; }
 actual_instrument_failures=$(grep -c 'instrument_failure "' "$probe")
 actual_usage_refusals=$(grep -cE '\|\| usage$' "$probe")
+actual_echo_refusals=$(grep -c 'echo "process-tree discovery' "$probe")
 # Anti-vacuity: a counter that returns zero is a broken instrument, not a clean result.
-if (( actual_instrument_failures == 0 || actual_usage_refusals == 0 )); then
+if (( actual_instrument_failures == 0 || actual_usage_refusals == 0 || actual_echo_refusals == 0 )); then
   echo "not ok - refusal-branch counter matched nothing; instrument failure, not a verdict" >&2
   exit 1
 fi
-actual_refusal_branches=$(( actual_instrument_failures + actual_usage_refusals ))
+actual_refusal_branches=$(( actual_instrument_failures + actual_usage_refusals + actual_echo_refusals ))
 if (( actual_refusal_branches != expected_refusal_branches )); then
   echo "not ok - refusal-branch drift: probe has $actual_refusal_branches refusal branches," >&2
   echo "         this suite is written for $expected_refusal_branches. Add an arm for the new" >&2

@@ -1,36 +1,32 @@
 # Mission Dashboard — V1
 
-*Snapshot, overwritten every iteration. History lives in the charter STATUS block and the log.*
+_Snapshot, overwritten each iteration. History lives in `v1-mission.md` STATUS + `v1-mission-log.md`._
 
-**Iteration 309** · 2026-08-31 · [REFUTATION] · evaluator `sonnet` **74/100 PASS**
-**dev:** GREEN at `c523a8c82`; standing **non-required** SonarCloud red, inherited
-**Thread:** [#972](https://github.com/sunholo-data/ailang/issues/972) · **Parked on Mark: none** (ledger 50 rows, 0 OPEN)
+**Last iteration:** 319 · 2026-09-02 · LANDED · [HARNESS]
+**Latest release:** v0.34.0
 
-## Headline
-Mark's D-50 authorized `execute sprint`. The loop measured the authorized unit and **did not land it**:
-`3500db0a7` cherry-picks rc=0 / 0 conflicts and would still make **39 of 104** routing cells
-permanently undispatchable — `managed_agents` 13, empty provider 13, `eval`/`eval-go` 12, `pi-go` 1.
-`ValidateExecutionRoute` runs *before* `checkVariantProviderAgreement` in `Dispatch`, so M1 becomes the
-outer gate on landing. Three independent instruments agree on 39/0. **Deployed blast radius is ZERO**
-(35 live agents, all inside the accept set) — a latent trap, not an outage.
+## Goal distance
+**N = 10 design docs remaining before v1.0.0** — unmoved this iteration (HARNESS work moves the goal by 0).
+D-53's **UNCLASSIFIED bucket of 4** (would make it 14) is still named and unruled.
 
-## Next
-1. `m-coordinator-config-route-preflight` — **gates the above.** `config diff` validates `local` only,
-   in the DIFFERS branch only, so deploy-code-with-unchanged-config validates nothing.
-2. `m-coordinator-child-env-opencode-retry-storm` — M1 **and** M1r as ONE commit. Evidence branch
-   `mission/iter309-route-authority-parity` @ `8c8c29864`, UNMERGED.
-3. `m-registry-interface-hash-blind-to-signatures` — PRODUCT, external report, REAL at HEAD:
-   `InterfaceHash` hashes no signature data, so a **breaking** change cascades as `patch`.
-4. `m-probe-discovery-arm-nondeterminism` (#975) — needs a CI runner, not this laptop.
+## Just landed
+`m-probe-derace-has-no-killer` — PR [#1020](https://github.com/sunholo-data/ailang/pull/1020) → `f5d031161`, 21 checks, zero not-green, CLEAN.
+The de-race that cleared a dev red at iteration 317 was pinned by **nothing**: a full revert passed all 42 arms rc=0 (112s vs a 50s baseline), and wall time is the only thing that moved. Now a sole killer. Also adds the missing suite-scope leak guard for `PROBE_TREE_DISCOVERY_SECS`.
 
-## Routing / cost
-controller `claude-opus-5` · designer ROTATION `claude:claude-fable-5` ⇄ `pi:ollama/deepseek-v4-flash`
-(fable pin ACCEPTED) · planner `opus` (`fail-closed:planner-lane-field-missing`) ·
-executor `codex:gpt-5.6-sol` · evaluator `sonnet`, own worktree. generator≠judge holds.
-metered **$0.2377** (two quorum rounds) of $5; all other lanes quota buckets.
+## Up next (banked queue head)
+1. `m-probe-discovery-default-30s-unpinned` — a production-path tightening nobody chose and no test pins (mutant 30→5 passes 42/42).
+2. `m-docparse-v0340-reports-2026-09-01` — VERIFY-then-route; a live consumer's silent export drop, already failed to reproduce in two shapes.
+3. `m-changeclass-unknown-consumers` — `U` is a fourth enum value in switches written for three; a PRE-CONDITION for Sprint 2.
 
-## Watch
-- **Goal block is PROVISIONAL** (iter-309): charter had no countable finish line. Placeholder =
-  open queue rows, **53 `[NEXT]` + 2 `[PARKED]`**. Mark to ratify or replace.
-- The shared skill tells controllers to read a quorum key (`absent_reviewers`) the artifact **never
-  writes**; absence really lives at `reviewers[].present`. Instance 1 of 2.
+## Loop health / routing
+- Controller `claude:claude-opus-5` · executor `codex:gpt-5.6-sol` (probe rc=0, one sandboxed run) · evaluator `sonnet` in its **own** worktree (generator≠judge holds) · designer rotation at `claude:claude-fable-5`, **did not run**.
+- Per-gate `mission-heartbeat.sh` stamps in use (D-52).
+- Running skill was **7 commits / 186 lines behind origin**, plus 64 uncommitted lines; delta read and both missing rules applied before proceeding.
+- **CI corrected this iteration once.** The judge and I removed two executor stabilizers as unnecessary on 8 local runs; the GitHub macOS runner reddened deterministically and both are restored. Iteration 318's lesson in mirror image — a scheduling property is platform-scoped and cannot be declared *unnecessary* from one host any more than *unreachable*.
+
+## Parked on Mark (both OPEN, neither answered)
+- **D-53** — rule on the 4 UNCLASSIFIED docs (N=10 vs N=14). Loop recommends N=12. Default: keep reporting 10 with the bucket named.
+- **D-54 — ESCALATED, re-measure it before quoting the row.** The main checkout went **9 ahead → 22 ahead** and **27 → 31 behind** *within this one iteration*: 13 new unpushed commits, including standard-mode Anthropic OAuth, Fable 5.1 registration and a full design doc through three quorum rounds. The row was written about 9 stranded bookkeeping commits; it is now 22 commits of substantive feature work that no unattended pick can see. Loop recommends option (b): authorise a PR from the main checkout's `dev`. Default: keep flagging and skipping.
+
+## Cost posture
+Metered **$0.00** of the $5 iteration ceiling. Every lane a quota bucket; no quorum round, no designer, no planner.

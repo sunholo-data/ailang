@@ -1,6 +1,6 @@
 # M-MOTOKO-CONNECTION-PROBE-RUN-LANE-HARNESS: behavioral pin for production lane process-group kill
 
-**Status**: Planned
+**Status**: IMPLEMENTED — landed 2026-08-31 as PR #985, merge commit 4bd58bef6 (motoko iteration 30). Evaluator PASS 87/100, zero blocking. Two gaps the acceptance bar could not see were filed as motoko queue row 6o rather than widening the PR.
 **Target**: v0.34.1
 **Priority**: P0 (High — loop-health guardrail; prevents false conclusions about local-model behavior)
 **Estimated**: 1 iteration (~4-6 hours implementation + mutation validation)

@@ -15,3 +15,7 @@ export func test() -> () ! {IO} {
     }
   }
 }
+
+export func main() -> () ! {IO} {
+  test()
+}

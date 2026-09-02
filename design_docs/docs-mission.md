@@ -75,6 +75,51 @@ At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the arc
 iteration re-reads this charter — unbounded STATUS history is a per-read token tax on the scarcest
 model budget; the append-only history lives in the log + archive.
 
+## STATUS 2026-09-02 — ITERATION 4 (crediting ITERATION 3): docs-5/6/10 landed by an orphaned fire, credited retroactively; docs-1 LANDED after a real evaluator FAIL/fix/PASS cycle
+
+Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Main checkout `dev` diverges
+from `origin/dev` by design (9 ahead / 20 behind — attended commits stranded, loop lands via
+worktree→PR; per this file's own note); the pin worktree this loop actually runs from was clean at
+`origin/dev`'s tip throughout. Running skill differs from `origin/dev` (missing heartbeat stamps
+and the attended-ledger-edits section added since) — read the delta, confirmed the pin worktree's
+own scripts (`tools/launchd/mission-heartbeat.sh`, `scripts/mission_decisions.sh`,
+`scripts/mission_answer.sh`) already exist, so followed the newer instructions rather than the
+stale loaded copy. 0 directives on bookkeeping issue `#979` since the watermark (4 comments, none
+allowlisted). Decision ledger valid, 2 rows, both `RESOLVED` — no new ask.
+
+Gate 1: `CI` and `Deploy Documentation to GitHub Pages` both `success` on `origin/dev` HEAD;
+SHA-addressed check-runs showed 16 checks, one non-green (`SonarCloud Code Analysis`), confirmed
+inherited from the parent commit too — V1's domain (repo owner), not actioned.
+
+**PICK: `docs-1`, after crediting a second died-mid-flight fire.** Gate 2 found `docs-5`/`docs-6`/
+`docs-10` all merged on `origin/dev` (PRs #997/#1004/#1010) while the charter still tagged them
+`[NEXT]` — see ITERATION 3's retroactive entry in the log for full detail and re-verification
+(fresh `make verify-examples`: 211/0/6, `check_examples.sh`: 173/2/42, both matching the landing
+PRs' own claimed counts). Also found PR #1016 (`MERGEABLE`) recovering a complete `docs-1` brief +
+sprint plan from a second orphaned worktree; merged it after re-running its one flaky failing check
+(`launchd drivers (bash 3.2)`, unrelated to a 2-file markdown PR, green on re-run — rule 3d).
+
+**Execution**: routed `docs-1` to `codex:gpt-5.6-luna` using the recovered plan verbatim.
+Round-1 delivery (`tools/messaging/docs_inbox_router.sh`) FAILED independent evaluation (sonnet,
+own worktree) 58/100 — a genuinely empty poll result crashed the router instead of reporting
+`checked=0 forwarded=0`, live-reproduced by the evaluator. Fix routed back to the same executor;
+controller independently reproduced both the original crash and the fix with hand-built fixtures
+before re-committing. Round-2 evaluation: PASS 90/100, zero blocking.
+
+**Outcome: LANDED.** [PR #1018](https://github.com/sunholo-data/ailang/pull/1018) squash-merged →
+`e65e96b15`. Polled the merge commit to full CI completion: 15/16 green, the same inherited
+SonarCloud red as Gate 1, not actioned.
+
+**Metered cost this iteration: $0.00** of $1 ceiling — codex and sonnet are both subscription-lane
+per this mission's routing table. Quota buckets: codex (executor, 2 rounds), sonnet (evaluator, 2
+rounds + controller session).
+
+Queue is now empty of `[NEXT]` items; `docs-8` (126 overdue planned docs) is the natural next pick
+once picked up (already unblocked per its own sequencing note) but was not started this iteration
+(Standing rule 1, one backlog item per iteration).
+
+Full record: `design_docs/docs-mission-log.md` §ITERATION 3, §ITERATION 4.
+
 ## STATUS 2026-08-31 — ITERATION 2: recovered a died-mid-flight fire (docs-9 RULED OUT, PR #973 landed); Gate-0 weekly sweep found docs-10
 
 Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. `dev` == `origin/dev` at
@@ -197,206 +242,6 @@ prescription — worked as documented, not a gap) — below the ≥2-instance ba
 
 Full record: `design_docs/docs-mission-log.md` §ITERATION 1.
 
-## STATUS 2026-08-28 — **BAR RATIFIED ATTENDED**; queue reordered so the next fire touches the website
-
-Mark closed `docs-0` by human decision after reading iteration 0's result. Two changes, both his:
-
-1. **The bar is ratified** — not by a passing quorum, but because the seven clauses are Mark's own
-   attended selection, so a quorum blocking them second-guesses the human it exists to represent.
-   The objections that survived measurement were about **queue items' implementation**, not the bar;
-   they are preserved and re-enter at each item's own design gate, where they are actionable.
-2. **`docs-2` promoted above `docs-1`.** The original ordering was an authoring error that put
-   clause-7 infrastructure ahead of every clause that changes a published page. The measurement that
-   forced this: after a full iteration, **files changed under `docs/` was zero**.
-
-**The mechanism-level lesson, routed to the shared skill rather than to this mission:** charter
-ratification and design review are different jobs. Running a backlog-bearing governance document
-through a design quorum blocks at the wrong gate — the reviewers keep finding new things to say
-about work that has not been designed yet, so each round raises *new* objections instead of
-converging. Three rounds, no convergence, **6 of 9 objections refuted by direct measurement**.
-
-Iteration 0's real yield is kept and was never the ratification: two corrections to the
-human-authored charter (the CI path-filter citation, the fail-closed framing), a refuted
-"silent fallback" claim, and one **fleet-wide** skill fix (`0e341cc57`) — the shared Gate-0
-Current-State block had been reading V1's kill switch, queue and log for *every* non-V1 mission.
-
-## CURRENT GOAL
-
-1. **Iteration 0 (definition)**: ratify the bar below with Mark through the design quorum, then
-   score the backlog against it into `required` / `nice` / `post`. Output: an ordered queue in this
-   doc. Standing up the `docs-mission` inbox-routing **trigger** that clause 7 depends on is queue
-   item **docs-1** (see Queue and clause 7) — a later, separate iteration, not part of iteration 0
-   itself. (Reconciled 2026-08-28 during quorum revision: this line previously said routing was
-   "also at iteration 0," contradicting the Queue's listing of docs-1 as its own 1-iteration item
-   after docs-0. The Queue is correct — docs-1 carries an open scope question, below, that must not
-   gate ratification.)
-2. **Then**: work the queue through the inner loop (design-doc → sprint-plan → execute → evaluate),
-   one sprint-sized item per iteration, recording routing evidence every time.
-
-## The bar — what "the website is up to date" means (RATIFY with Mark at iteration 0)
-
-Mark selected all seven clauses attended on 2026-08-28; clauses 5-7 are his additions.
-
-- **Clause 1 — Code/docs drift.** No page contradicts the shipped binary. Feature status pages match
-  actual implementation, version constants are current, and design docs that moved
-  `planned/` → `implemented/` are reflected on the site. The `docs-sync` skill's
-  `audit_design_docs.sh` / `check_versions.sh` are the instruments — use them.
-- **Clause 2 — Examples compile and run.** Every `.ail` under `examples/` still passes
-  `make verify-examples`, and every site page importing one via raw-loader resolves. A published
-  snippet that no longer runs is worse than no snippet: it teaches wrong syntax to both humans and
-  the models we benchmark. Website examples are IMPORTED from `examples/`, never inlined — a page
-  with an inline code block is itself a clause-2 defect.
-- **Clause 3 — Site build health.** `make docs-build` green, `Deploy Documentation to GitHub Pages`
-  passing, no broken internal links, no orphaned pages unreachable from the nav.
-- **Clause 4 — New features get pages.** Shipped features with no documentation page at all are
-  tracked and closed. Read `CHANGELOG.md` and the release history against the nav; the gap is the
-  work. This is the only generative clause — scope one page per iteration, not a batch.
-- **Clause 5 — Concision and anti-sprawl.** *(Mark, 2026-08-28.)* The site is organised and
-  categorised, and says each thing **once**. Redundant pages are merged or deleted, not left to rot
-  beside their replacement; overlapping guides are consolidated; the nav reflects a real taxonomy
-  rather than accretion order. **Deletion is in scope for this clause** — it is the only clause
-  whose work is usually *removal*, and the loop must not quietly substitute "add a clarifying note"
-  for "delete the duplicate". A page that exists only because nobody dared remove it fails this
-  clause.
-- **Clause 6 — Benchmark report maintenance.** *(Mark, 2026-08-28.)* The published benchmark
-  surface is current and honest: `docs/static/benchmarks/{latest,os/latest,os/history}.json` and the
-  pages that render them. **Beware the known traps, which are documented and must not be
-  rediscovered**: os-rolling data has been stale-but-plausible before (check dates *first*, a low
-  broad pass-rate is usually frozen pre-fix data and not a regression); baselines are NOT poolable
-  across the three local-model boundaries (07-21..08-03 untuned flags, 08-13 budgets+num_ctx,
-  08-17 ollama 0.32.1→0.32.14); and v0.30.0 cost data is INVALID (reasoning tokens unrecorded).
-  This clause maintains the *report*; it does not re-run or re-bank evals, and it takes no rig lock.
-- **Clause 7 — Doc-related requests are answered.** *(Mark, 2026-08-28.)* The mission owns its own
-  inbox and works it: doc-related GitHub issues on `sunholo-data/ailang`, and `ailang messages`
-  requests routed to the **`docs-mission`** inbox.
-  **This clause has no delivery mechanism (trigger) yet — building one is queue item docs-1, not an
-  assumption baked into this charter.**
-
-  **Verified before being written down** (2026-08-28, both rc=0, run live against prod Firestore,
-  not simulated):
-  ```
-  export AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT=ailang-multivac
-
-  # 1. send to a scratch inbox (simulating externally-originated traffic)
-  ailang messages send docs-quorum-test-scratch "iteration-0 quorum premise check..." \
-    --title "docs-mission premise check 20260828T063048Z" --from "docs-quorum-probe"
-  # => Message sent to 'docs-quorum-test-scratch' (ID: inbox_1787898648354_20138c15)
-
-  # 2. forward it to docs-mission — NOTE: flags must come BEFORE the message id, or you get
-  #    "Error: --to flag is required"
-  ailang messages forward --to docs-mission --reason "quorum premise verification" \
-    inbox_1787898648354_20138c15
-  # => Forwarded message from 'docs-quorum-test-scratch' to 'docs-mission'
-
-  # 3. confirm arrival with the CORRECT canonical-store read command (see this repo's root
-  #    CLAUDE.md — cited explicitly here so this clause doesn't leave it implicit):
-  ailang messages list --inbox docs-mission --unread --json
-  # => returned the forwarded message; acked as test cleanup
-  ```
-  Controls run alongside: a known-positive read (`--inbox "pkg:sunholo/ailang_parse"` returned a
-  real unread message) and a known-negative read (a made-up inbox name returned `null`) — so the
-  read instrument is confirmed not vacuously empty either way.
-
-  This confirms `ailang messages send <inbox>` takes a free-form inbox name (`docs-mission` needs
-  no registration) and `ailang messages forward --to <inbox> <id>` works — both **already-existing
-  CLI verbs, verified with no `internal/`/`cmd/` change involved**. What is NOT built is a
-  **trigger**: something that decides *when* to call `forward` for doc-related traffic sitting in
-  `public-feedback`, `pkg:<vendor>/<name>`, or GitHub issues. Public feedback dispatch has never
-  worked end-to-end (36/36 failures since 2026-04-27, ailang#900), so a trigger must **poll** those
-  sources — it cannot assume anything currently pushes traffic anywhere. See docs-1 in the Queue for
-  scope. The canonical store is prod Firestore; a bare `ailang messages list` (no env vars) reads
-  local SQLite and will show an empty, reassuring, wrong inbox.
-
-## Guardrails (mission-specific; the skill's Standing Rules always apply on top)
-
-- **Blast radius is `docs/`, `examples/`, `README.md`, `CHANGELOG.md`, plus `tools/`
-  (non-`internal/`, non-`cmd/`).** This is a **POLICY** guardrail — a rule this mission follows,
-  enforced by the loop reading it here. Widened from `tools/launchd/*` to `tools/*` on 2026-08-28
-  (Mark, attended — commit `29a467cac`) to unblock docs-1's inbox-routing trigger.
-
-  **⚠ CORRECTION 2026-08-28 (attended) — an earlier version of this bullet said the blast radius was
-  "enforced mechanically at the planner gate by `MISSION_PLANNER_ALLOWLIST`". That was FALSE, it was
-  authored by a human, and it cost the mission real work before anyone checked it.** Two facts,
-  each measured with a discriminating control:
-
-  1. **`MISSION_PLANNER_ALLOWLIST` is not a write gate and never was.** It appears in exactly two
-     places in the whole repo — `derive-planner-lane.sh` and the driver's `export` — and nowhere
-     else; there is no write-scope enforcement in `sprint-executor` at all. What it decides is
-     **which model may PLAN the work**: every declared path inside the list → the cheap pinned
-     planner; anything outside → `opus fail-closed:path-not-in-codex-allowlist`. A path outside the
-     list is *expensive to plan*, never *impossible to edit*.
-  2. **`docs/*` is NOT single-level.** These are `case` glob patterns, not shell pathname
-     expansion, so `*` matches `/`. Measured: `docs/docs/intro.mdx` routes to
-     `codex:gpt-5.6-luna declared:codex-ok`, while the `internal/` control is denied in the same
-     run. Nested pages under `docs/docs/**` and `docs/src/**` were always reachable.
-
-  **How this propagated, because the mechanism matters more than the fact.** The false sentence was
-  written into this charter by a human; iteration 1 read it, believed it, deferred DOCS-2-01 and
-  DOCS-2-02 as mechanically impossible, and then opened decision `D-2` **citing this very bullet as
-  its evidence**. A charter is read as ground truth by every iteration, so an unverified mechanical
-  claim in it does not merely mislead once — it becomes self-citing, and the loop cannot tell it
-  from a measurement. **Rule: a claim in this charter about what a mechanism DOES must carry the
-  command that demonstrates it, or must not be stated.** Where a restriction is a judgement rather
-  than a mechanism, say "policy" — as this bullet now does.
-  `internal/**` and `cmd/**` remain denied — if an item genuinely needs a change there, that is a
-  **V1 backlog item, not a docs item** — file it across and move on. Do not widen the allowlist
-  further to make an item fit; the allowlist is the definition of this mission's scope, not an
-  obstacle to it.
-- **No designer on Fable.** The shared skill's designer rotation is
-  `claude:claude-fable-5 → pi:ollama/deepseek-v4-flash:0731-cloud` (kimi removed fleet-wide
-  2026-08-28, V1 charter D-48); this mission seeds the rotation at sonnet (see Routing policy) and
-  must not fall to the Fable entry. Fable is reserved for high-cognition spec synthesis, and docs
-  items are drift repair. Most items here need **no design doc at all** — prefer a Gate-2 reality-check straight
-  into a sprint. If an item truly needs deep design, that is a signal it belongs in V1.
-- **Deleting published pages is an outward-facing change.** Clause 5 makes removal routine, which
-  makes it dangerous. Before deleting or merging a page: check inbound internal links, and leave a
-  redirect where the URL was public. "Nothing links to it" must be *measured*, not assumed — an
-  empty search is a claim, not a fact.
-- **Never re-run or re-bank evals.** Clause 6 maintains the report only. This mission takes **no
-  `rig.lock`** and must never start GPU work; the nightly eval rotation and three sibling missions
-  share that hardware.
-- **Verify before publishing a syntax claim.** Any AILANG syntax that lands on the website must
-  pass `ailang check` first. A wrong claim in published docs is worse than no claim: it trains both
-  readers and the models we benchmark against.
-
-## Routing policy
-
-Uses the **shared** per-role routing from `mission-control`, with this mission's overrides in
-`~/.config/ailang/mission-docs.env` (versioned copy:
-[tools/launchd/mission-env/mission-docs.env](../tools/launchd/mission-env/mission-docs.env)).
-
-The ladder is ordered by **cost type, not model quality** (Mark, attended 2026-08-28): spend the
-subscriptions already paid for, then the flat-rate route, and only reach metered dollars at the last
-rung. Every step down is cheaper in real money than the one above it.
-
-| Rung | Cost type | Lane |
-|---|---|---|
-| 1 | subscription (already paid for) | `claude-sonnet-5` / `codex:gpt-5.6-luna` |
-| 2 | flat-rate (Ollama Cloud pro) | `pi:ollama/<model>:cloud` |
-| 3 | metered, cheapest available | `pi:openrouter/<same weights>` |
-
-Rungs 2 and 3 are deliberately **the same weights on two routes**, so exhausting the flat-rate quota
-(whose denominator is unpublished) costs money and never capability.
-
-| Role | Chain | Notes |
-|---|---|---|
-| **Controller** | `claude-sonnet-5` → `codex:gpt-5.6-luna` | The driver's controller ladder speaks only Anthropic model IDs plus ONE codex fallback, so it cannot express rungs 2-3. Down from opus — this is the biggest line item, a long session re-reading a ~3.8k-line skill each fire. |
-| **Designer** | `claude:claude-sonnet-5` (seed) | Seed only: the designer is a skill-side **rotation**, not a chain — the driver has no `MISSION_DESIGNER_FALLBACK`. Seeded off the Fable default. Most docs items need no design doc at all (see Guardrails). |
-| **Planner** | `codex:gpt-5.6-luna` → `pi:ollama/glm-5.3-flash:cloud` → `pi:openrouter/z-ai/glm-5.3-flash` | Starts at rung 1b, **not** sonnet, and that is forced: `derive-planner-lane.sh` Step 0 accepts only `codex:*` or `pi:*`, so a bare `sonnet` pin emits the labeled fail-closed default `opus fail-closed:env-pin` and deliberately runs opus (a documented fail-closed-to-safety default, not a silent one — every exit path emits a distinct reason token precisely so the lane never reads as pinned in the driver log while actually running opus). Drops the fleet's kimi-k3 rung — free on flat-rate, but $3/$15 per M on its OpenRouter twin, i.e. 40x glm-5.3-flash and dearer than gpt-5.6-sol. As the last rung of a cost ladder that is backwards. |
-| **Executor** | `codex:gpt-5.6-luna` → `pi:ollama/glm-5.3-flash:cloud` → `pi:openrouter/z-ai/glm-5.3-flash` | The high-volume role, so the ladder pays most here. The driver dedupes the shared probe, so planner+executor cost one probe. |
-| **Evaluator** | `sonnet` → `pi:ollama/minimax-m3:cloud` → `pi:openrouter/minimax/minimax-m3` | **Deliberately vendor-disjoint from the executor at every rung.** Two reasons, the second structural: (1) on a mission whose generator is cheap on purpose, a cheap judge means nobody catches anything and the loop reports success it did not earn; (2) the executor chain is OpenAI → Z-AI → Z-AI, so an evaluator walking the *same* ladder would share a vendor at every rung — precisely the shared blind spot generator≠judge exists to prevent. |
-
-**Verified before being written down** (2026-08-28, both rc=0): `codex exec --model gpt-5.6-luna`
-returned "ok" on the subscription lane (7,930 tokens); `ollama run glm-5.3-flash:cloud` returned
-"ok". Live OpenRouter prices read the same day — `z-ai/glm-5.3-flash` $0.075/$0.250 per M at
-1,310,720 context. `deepseek/deepseek-v4-flash-0731` is marginally cheaper ($0.060/$0.120) but
-glm-5.3-flash is the newer generation at a trivial delta on this mission's volume; recorded so the
-choice reads as a decision rather than an oversight.
-
-**Metered ceiling**: `$1`/iteration (fleet default is `$5`). Rungs 1-2 are subscription and
-flat-rate, so a fire spending real dollars has already fallen to rung 3 — a low ceiling makes that a
-loud stop instead of a silent bill.
-
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
 1. `[LANDED]` **docs-0 · ratify this charter — RATIFIED ATTENDED 2026-08-28 (Mark).** Closed by
@@ -439,7 +284,7 @@ loud stop instead of a silent bill.
    the file doesn't have. Kept as `[RULED OUT]` rather than deleted, matching `docs-7`'s
    convention, because the interesting part is the mechanism: a queue item inherited a tool's raw
    `[STALE]` line without checking whether the tool's premise was sound.
-4. `[NEXT]` **docs-5 · clause 2 · examples hygiene — fix the 9 genuinely-failing runnable
+4. `[LANDED]` **docs-5 · clause 2 · examples hygiene — fix the 9 genuinely-failing runnable
    examples.** `block_demo.ail`, `test_module_minimal.ail`, `simple_func_match.ail`,
    `match_arm_block.ail`, `match_in_block.ail`, `nested_match_minimal.ail` have no `main`
    entrypoint (helper/library files being swept as if runnable); `batch_processing.ail` and
@@ -448,7 +293,11 @@ loud stop instead of a silent bill.
    capability-usage comments is a normal sprint. Do NOT touch
    `.claude/skills/docs-sync/scripts/check_examples.sh` itself (see docs-6). Source:
    `docs/docs-sync-findings.md` DOCS-2-05 through DOCS-2-13.
-5. `[NEXT]` **docs-6 · clause 1 · fix `check_examples.sh`'s
+   **Landed by an orphaned "iteration 3" fire that died before Gate 4/5**: `0e8314549`
+   ("docs(examples): docs-5 — add main entrypoints to 7 parser-regression fixtures", #997),
+   credited and re-verified by iteration 4 (see log). `batch_processing.ail`/`cli_args_demo.ail`
+   remain genuinely out of scope (Env-capability gap, not this item's job).
+5. `[LANDED]` **docs-6 · clause 1 · fix `check_examples.sh`'s
    absolute-path bug.** The instrument this mission's whole clause-1/2 sweep depends on has been
    silently over-reporting broken examples (see docs-2's findings, DOCS-2-01). Fixing it means
    editing `.claude/skills/docs-sync/scripts/check_examples.sh`, which sits outside this mission's
@@ -456,7 +305,11 @@ loud stop instead of a silent bill.
    `design-doc-creator/*`). Also folds in DOCS-2-04 (the audit_design_docs.sh vs
    derive_roadmap_versions.sh design-doc population-count mismatch — same script family, same
    scope question).
-6. `[NEXT]` **docs-10 · clause 1 · `make verify-examples` is vacuous on two independent axes —
+   **Landed by the same orphaned "iteration 3" fire**: `95396664b` ("fix(docs-sync): docs-6 —
+   check_examples.sh absolute-path bug + audit scope comments", #1004). Re-verified by iteration 4
+   with a fresh independent run: `173 passed / 2 failed (batch_processing.ail, cli_args_demo.ail —
+   the known Env-capability gap) / 42 skipped`, matching the commit's own claim exactly.
+6. `[LANDED]` **docs-10 · clause 1 · `make verify-examples` is vacuous on two independent axes —
    found by Gate 0's weekly external-issue sweep (2026-08-31), not by this mission's own tooling.**
    Docs-mission's Repo Profile names `make verify-examples` as one of its two verify-profile gates
    ("every published example still verifies"). Two open, unmentioned-anywhere-in-this-charter
@@ -473,6 +326,13 @@ loud stop instead of a silent bill.
    Guardrails' non-write-gate correction — it plans on `opus` rather than the cheap `codex` lane
    (not in `MISSION_PLANNER_ALLOWLIST`), which is a cost note, not a blocker. Sequenced after
    docs-6 since both are fixes to the sweep's own instruments, not to docs content.
+   **Landed by the same orphaned "iteration 3" fire**: `9c5deac58` ("fix(docs-sync): docs-10 —
+   verify-examples vacuous on two axes (#670, #654)", #1010) — indexed pinned `expected.stdout`
+   once in `main()`, compared trailing-newline-insensitively, and added an anti-vacuity floor
+   (atomic counter, race-checked under `--parallel`) that fails loudly if zero comparisons ran.
+   Re-verified by iteration 4 with a fresh independent run of `make verify-examples`:
+   **211 passed, 0 failed, 6 skipped**, manifest validator "193 modules checked, 0 drift" — a real,
+   non-vacuous green, not inherited from the pre-fix instrument.
 7. `[RULED OUT]` **docs-7 · "the mission cannot edit its own published content" — DISSOLVED
    2026-08-28 (attended): the premise was false, measured.** This item asserted that
    `MISSION_PLANNER_ALLOWLIST`'s `docs/*` is a single-level glob excluding `docs/docs/**` and
@@ -492,7 +352,7 @@ loud stop instead of a silent bill.
    not a sprint-executor task, so this can proceed without an allowlist change, just not via the
    automated inner loop. Sequence after docs-6/docs-7 land or are ruled out, since triaging 126
    docs by hand is exactly the kind of large sweep worth doing once against settled tooling.
-9. `[NEXT]` **docs-1 · clause 7 · build the inbox-routing TRIGGER.** `send` and `forward` are
+9. `[LANDED]` **docs-1 · clause 7 · build the inbox-routing TRIGGER.** `send` and `forward` are
    verified working primitives (see clause 7's verification log) — no `internal/`/`cmd/` change is
    needed for those, and this item should not touch Go code. The missing piece is a **trigger**:
    something that periodically decides doc-related traffic exists (in `public-feedback`,
@@ -504,6 +364,19 @@ loud stop instead of a silent bill.
    `tools/messaging/docs_inbox_router.sh` is in scope (see Guardrails). Deliverable: a message sent
    from outside, observed arriving via the verified read command in clause 7, acked. Est. 1
    iteration.
+   **Landed iteration 4**: a died-mid-flight "iteration 3" left a complete brief + sprint plan
+   unlanded (recovered as [PR #1016](https://github.com/sunholo-data/ailang/pull/1016)); iteration
+   4 executed the plan on `codex:gpt-5.6-luna`, producing `tools/messaging/docs_inbox_router.sh`
+   ([PR #1018](https://github.com/sunholo-data/ailang/pull/1018) → `e65e96b15`). Round-1 evaluator
+   (sonnet, independent worktree) FAILED it 58/100: a genuinely empty (valid, zero-item) poll
+   result crashed the router instead of reporting `checked=0 forwarded=0` — the ordinary,
+   most-common case for a low-traffic inbox. Fixed and independently reproduced by the controller
+   both broken (on the round-1 commit) and fixed (on the round-2 commit) with hand-built empty-
+   response fixtures, not taken on the executor's word. Round-2 evaluator PASSED 90/100, zero
+   blocking. CI green on the merge commit itself (`e65e96b15`) except the pre-existing,
+   not-this-mission's-domain `SonarCloud Code Analysis` red (confirmed inherited from the parent
+   commit, V1's territory per Gate 1's repo-ownership scoping). No launchd wiring in this sprint
+   (explicitly out of scope per the brief) — the router runs by hand or under a future job.
 10. `[PARKED]` **docs-3 · clause 6 · benchmark surface audit.** Blocked on nothing, but sequence it
    after docs-2 so the drift picture is known first.
 11. `[PARKED]` **docs-4 · clause 5 · taxonomy pass.** The `docs/docs/guides/` directory holds 40+

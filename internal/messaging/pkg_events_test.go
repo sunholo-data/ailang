@@ -65,6 +65,12 @@ func TestEmitUpgradeAvailable(t *testing.T) {
 	if env.Package.ChangeClass != "C" {
 		t.Errorf("change_class: got %q, want C (interface hash changed)", env.Package.ChangeClass)
 	}
+	// Legacy pair (neither side carries signatures): `breaking` must stay UNSET,
+	// byte-identical to the pre-M5 envelope. See breakingFlag's comment — a true
+	// flag here would flip live cascade routing from auto-apply to review.
+	if env.Package.Breaking != nil {
+		t.Errorf("breaking: got %v, want nil for a legacy pair", *env.Package.Breaking)
+	}
 }
 
 func TestEmitUpgradeAvailable_NoChange(t *testing.T) {
@@ -116,6 +122,72 @@ func TestEmitInterfaceChangeNotice(t *testing.T) {
 	}
 	if msgID2 != "" {
 		t.Error("expected no message for same interface hash")
+	}
+}
+
+// TestEmitUpgradeAvailable_V2PairCarriesBreaking is the other half of
+// breakingFlag's gate: once a side carries v2 signature metadata, a contract
+// change (C) DOES set `breaking`. Without this arm the gate would be
+// satisfiable by never setting the flag at all.
+func TestEmitUpgradeAvailable_V2PairCarriesBreaking(t *testing.T) {
+	store := newTestStore(t)
+	old := PackageVersionInfo{
+		Name: "sunholo/auth", Version: "0.1.0",
+		InterfaceHash: "sha256:aaa", ContentHash: "sha256:ccc",
+		Signatures: []string{"auth:func:login:String -> Bool", "auth:func:logout:Unit -> Unit"},
+	}
+	new := PackageVersionInfo{
+		Name: "sunholo/auth", Version: "0.2.0",
+		InterfaceHash: "sha256:bbb", ContentHash: "sha256:ddd",
+		Signatures: []string{"auth:func:login:String -> Bool"}, // logout REMOVED => C
+	}
+
+	if _, err := EmitUpgradeAvailable(store, old, new, []string{"workspace:docparse"}); err != nil {
+		t.Fatalf("EmitUpgradeAvailable failed: %v", err)
+	}
+	msgs, err := store.ListInboxMessages(InboxListOptions{Inbox: "workspace:docparse", Limit: 10})
+	if err != nil {
+		t.Fatalf("ListInboxMessages failed: %v", err)
+	}
+	env, err := ExtractPackageEnvelope(&msgs[0])
+	if err != nil {
+		t.Fatalf("ExtractPackageEnvelope failed: %v", err)
+	}
+	if env.Package.ChangeClass != "C" {
+		t.Fatalf("change_class: got %q, want C (signature removed)", env.Package.ChangeClass)
+	}
+	if env.Package.Breaking == nil || !*env.Package.Breaking {
+		t.Errorf("breaking: got %v, want true for a v2 pair classified C", env.Package.Breaking)
+	}
+}
+
+func TestEmitInterfaceChangeNotice_CarriesChangeClass(t *testing.T) {
+	store := newTestStore(t)
+	old := PackageVersionInfo{
+		Name: "sunholo/auth", Version: "0.1.0", InterfaceHash: "sha256:old",
+		Signatures: []string{"auth:func:login:String -> Bool"},
+	}
+	new := PackageVersionInfo{
+		Name: "sunholo/auth", Version: "0.2.0", InterfaceHash: "sha256:new",
+		Signatures: []string{"auth:func:login:String -> Result Bool Error"},
+	}
+
+	if _, err := EmitInterfaceChangeNotice(store, old, new, []string{"workspace:docparse"}); err != nil {
+		t.Fatalf("EmitInterfaceChangeNotice failed: %v", err)
+	}
+	msgs, err := store.ListInboxMessages(InboxListOptions{Inbox: "workspace:docparse", Limit: 10})
+	if err != nil {
+		t.Fatalf("ListInboxMessages failed: %v", err)
+	}
+	env, err := ExtractPackageEnvelope(&msgs[0])
+	if err != nil {
+		t.Fatalf("ExtractPackageEnvelope failed: %v", err)
+	}
+	if env.Package.ChangeClass != "C" {
+		t.Errorf("change_class: got %q, want C", env.Package.ChangeClass)
+	}
+	if env.Package.Breaking == nil || !*env.Package.Breaking {
+		t.Errorf("breaking: got %v, want true", env.Package.Breaking)
 	}
 }
 
@@ -188,15 +260,17 @@ func TestEmitFromLockfileDiff(t *testing.T) {
 	}
 }
 
-func TestClassifyChange(t *testing.T) {
+func TestClassifyChange_BothLegacy_UnchangedBehaviour(t *testing.T) {
 	tests := []struct {
 		name     string
 		old, new PackageVersionInfo
 		want     string
 	}{
 		{"interface changed", PackageVersionInfo{InterfaceHash: "a"}, PackageVersionInfo{InterfaceHash: "b"}, "C"},
-		{"content only", PackageVersionInfo{InterfaceHash: "same", ContentHash: "a"}, PackageVersionInfo{InterfaceHash: "same", ContentHash: "b"}, "A"},
-		{"no change", PackageVersionInfo{InterfaceHash: "same", ContentHash: "same"}, PackageVersionInfo{InterfaceHash: "same", ContentHash: "same"}, "A"},
+		{"same interface", PackageVersionInfo{InterfaceHash: "same"}, PackageVersionInfo{InterfaceHash: "same"}, "A"},
+		// Empty and nil both mean legacy. Pinning both forms prevents an accidental
+		// distinction during the migration window.
+		{"nil and empty", PackageVersionInfo{InterfaceHash: "same", Signatures: nil}, PackageVersionInfo{InterfaceHash: "same", Signatures: []string{}}, "A"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -205,6 +279,43 @@ func TestClassifyChange(t *testing.T) {
 				t.Errorf("got %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestClassifyChange_AdditiveVsBreaking(t *testing.T) {
+	old := PackageVersionInfo{Signatures: []string{"m:func:a:Int"}}
+	tests := []struct {
+		name       string
+		signatures []string
+		want       string
+	}{
+		{"equal", []string{"m:func:a:Int"}, "A"},
+		{"additive", []string{"m:func:b:String", "m:func:a:Int"}, "B"},
+		{"removed", []string{"m:func:b:String"}, "C"},
+		{"retyped", []string{"m:func:a:String"}, "C"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := classifyChange(old, PackageVersionInfo{Signatures: tc.signatures}); got != tc.want {
+				t.Errorf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestClassifyChange_UnknownOldSide(t *testing.T) {
+	old := PackageVersionInfo{Signatures: nil}
+	new := PackageVersionInfo{Signatures: []string{"m:func:a:Int"}}
+	if got := classifyChange(old, new); got != "U" {
+		t.Fatalf("got %q, want U", got)
+	}
+}
+
+func TestClassifyChange_UnknownNewSide(t *testing.T) {
+	old := PackageVersionInfo{Signatures: []string{"m:func:a:Int"}}
+	new := PackageVersionInfo{Signatures: []string{}}
+	if got := classifyChange(old, new); got != "U" {
+		t.Fatalf("got %q, want U", got)
 	}
 }
 

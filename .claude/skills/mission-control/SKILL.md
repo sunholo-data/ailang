@@ -199,6 +199,9 @@ as ITS kill switch; checking the bare path instead would have silently missed a 
 
 ## Gate 0 — PREFLIGHT (deterministic; abort = exit silently with a controlplane message)
 
+First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-0`. Before every silent Gate-0
+abort, run `bash tools/launchd/mission-heartbeat.sh stamp abort <reason>` with a short reason token.
+
 1. Kill switch set → STOP (no message needed; this is the intended off state).
 2. `gh auth status` must show `sunholo-voight-kampff` before any push. Wrong account → fix with
    `gh auth switch --user sunholo-voight-kampff` or park all push steps.
@@ -343,6 +346,64 @@ as ITS kill switch; checking the bare path instead would have silently missed a 
    infer resolution merely because related code landed. New decision IDs are append-only and MUST
    NOT reuse an existing ID. A report's `DECISIONS FOR MARK` section is generated from OPEN rows
    only; a resolved row must never be asked again unless a new, uniquely named decision supersedes it.
+   **ATTENDED LEDGER EDITS — THE SECOND HUMAN CHANNEL, EQUAL IN RANK TO A BOOKKEEPING-ISSUE
+   DIRECTIVE** (Mark, attended 2026-09-01; supersedes nothing — `mission_directives.sh` is unchanged
+   and the bookkeeping issue REMAINS the default, because it is how Mark answers from his email, away
+   from the terminal). Until now a decision could be answered only by commenting on the week's PUBLIC
+   issue as an allowlisted author, because that comment was the only artifact carrying human
+   provenance you could check. That made the FAST path the slow one: Mark sitting in the repo looking
+   at the ask had to leave the session, find the issue, and wait a whole fire for the answer to come
+   back. He may now ALSO answer by editing the ledger row directly from an attended session, via
+   `scripts/mission_answer.sh --id D-nn --answer-file ruling.txt`. Both channels write the SAME
+   ledger rows.
+   **Rules. (a)** A `RESOLVED` row carrying an **`Attended ruling <date>`** stamp is a human answer
+   with the SAME rank as a directive: it outranks the queue, it unparks its item, and it is NEVER
+   re-asked, re-opened, or "confirmed" by asking again on the issue. Acknowledge it in the report
+   exactly as you acknowledge a directive — Mark must see the channel worked.
+   **(b) PROVENANCE IS THE WHOLE CONTRACT.** The commit that flipped the row must be authored by an
+   attended identity, never the fleet account. For any ledger row that changed since your last
+   watermark, check it first-party:
+   `git log -1 --format='%an <%ae>' -S'| D-nn |' -- <charter>`. If the flip was authored by
+   `sunholo-voight-kampff`, that is **SELF-RESOLUTION** — the exact failure `mission_directives.sh`'s
+   self-direction guard exists to prevent, arriving through the other door. Re-open the row, FLAG it,
+   and report it; do not action it.
+   **(c) YOU MAY NOT USE THIS CHANNEL.** The loop never runs `mission_answer.sh`, never authors a
+   commit with an attended identity, and never resolves a row on its own behalf. The script refuses
+   the fleet identity in code (arms `4a`–`4d` of `scripts/test_mission_answer.sh`, each mutation-proven
+   to have a sole killer); do not route around it, and do not "helpfully" record a decision you
+   believe Mark has already made verbally — an inferred resolution is the thing the recording
+   contract above forbids.
+   **(d) Scope.** Attended edits cover decision rows and the charter text a ruling ratifies (a Goal
+   block, a bar clause). Code, gates and benchmark curation still route through the loop: the
+   2026-08-04 attended-side-session guardrail stands unchanged, and it is what this rule is careful
+   not to reopen — the reason curation was pulled INTO the loop was that an attended session moved 12
+   benchmarks without the gates that pin them, and doc-only ledger rows have no such gates to miss.
+   **(e) A mid-flight iteration can find the ledger changed under it.** You already re-read the ledger
+   after the origin fetch; keep doing that, and REBASE your record rather than forcing it. An attended
+   answer landing while you run is normal, not a conflict to resolve in your favour. **Rebase it, do
+   not let git auto-merge a whole-block rewrite** — the attended session that wrote this rule watched
+   a clean-exit rebase silently eat this charter's `decision-ledger:end` marker and its entire Goal
+   block, because a STATUS insert had shifted the context its replacement was anchored on. It exited
+   0. `scripts/mission_decisions.sh --check` caught it; nothing else would have.
+   **(f) Mission-independent** — all four missions run this one skill file, and every mission's
+   charter takes attended rulings the same way.
+   **(g) TWO CHANNELS, ONE LEDGER — SO THE SAME ASK CAN BE ANSWERED TWICE, AND YOU MUST NOT TREAT
+   THE SECOND ANSWER AS NOISE.** Both channels exist on purpose and BOTH stay live. Nothing about the
+   issue path changes: you still generate `DECISIONS FOR MARK` from OPEN rows, still post it, still
+   read directives with `mission_directives.sh`, and an attended answer simply removes that row from
+   the next report because the row is no longer OPEN. The collision is the case worth naming: a row
+   you find already `RESOLVED` by an attended edit, answered AGAIN by a directive (or the reverse — an
+   email answer Mark forgets he already gave in-session). **Reconcile, never silently drop.** If the
+   two answers AGREE, record that the ask was answered twice, cite both, and move on — no re-ask, no
+   re-open. If they DISAGREE, the LATER human statement wins by timestamp (compare the directive's
+   `createdAt` against the attended stamp's date and the commit time), and you must (1) record BOTH
+   answers in the row, (2) say plainly in the report which one you actioned and why, and (3) if the
+   disagreement is substantive rather than a rewording, file a NEW uniquely-named decision asking Mark
+   to confirm, rather than adjudicating between two things he said. Never resolve a disagreement by
+   picking the one that matches your recommendation. Note the honest failure this rule prevents: the
+   recording contract says a resolved row is never re-asked, so without this, a second answer arriving
+   through the other door reads as "already handled" and is discarded unread — including one that
+   CHANGES the ruling.
 7. **BILLING TRIPWIRE (Mark 2026-07-17 — "this needs to be 100% safe"):** run
    `test -z "$ANTHROPIC_API_KEY" && test -z "$ANTHROPIC_AUTH_TOKEN" && echo CLEAN || echo LEAKED`.
    If LEAKED, the `~/.zshenv` subscription-only guard has regressed: **all `claude:` CLI lanes are
@@ -357,6 +418,8 @@ as ITS kill switch; checking the bare path instead would have silently missed a 
    one line each — Mark must SEE the channel worked.
 
 ## Gate 1 — OBSERVE (cheap, read-only)
+
+First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-1`.
 
 **Sync to origin FIRST — the local checkout LIES when a prior run merged via GitHub** (added
 2026-07-12 iteration 12; second instance of the same gap — iteration 9's watch-list already flagged
@@ -593,6 +656,8 @@ this: you are reading a red run's logs and finding nothing, and reaching for `gi
 
 ## Gate 2 — PICK + REALITY-CHECK
 
+First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-2`.
+
 Take the top `[NEXT]` queue item. **Before any work, verify the doc's claimed status against repo
 reality**: `git log --grep`, does the code/test already exist, does `make test` already cover it.
 
@@ -651,6 +716,35 @@ is non-empty: re-run each absent reviewer alone with a raised cap
 re-run is cents against the $5 iteration ceiling and is the cheapest gate in this loop. If a
 reviewer genuinely cannot be restored, then everywhere the verdict is quoted downstream it reads
 "PROCEED at N−1, `<model>` absent (`<reason>`)" — never a bare "quorum passed".
+**⚠ BUT THE PATH THIS RULE NAMES IS WRONG, AND THE WRONG PATH FAILS IN THE EXACT DIRECTION THE
+RULE EXISTS TO PREVENT — `jq '.absent_reviewers'` RETURNS `null`, WHICH READS AS "NOBODY WAS
+ABSENT"** (fixed 2026-08-31 V1 iteration 311; instance 1 is iteration 309, instance 2 is iteration
+310, both of which recorded the friction as a queue row and could not spend their one Gate-5 skill
+edit on it, and this iteration measured the writer). The rule above says *"read `absent_reviewers`"*
+and the neighbouring rule says the verdicts are the reviewers'. **Both are one level off**, and a
+controller who types the documented path gets a confident `null` — the vacuous pass this whole rule
+was written to close, reached by following the rule.
+Measured across **22 of 22** artifacts in `.ailang/state/mission-quorum/` (complete enumeration, not
+a sample; control — `has("synthesis")` = **22**): top-level `has("absent_reviewers")` = **0**, and
+`[.reviewers[] | select(has("verdict"))] | length` > 0 in **0**. The keys DO exist, one level down
+— `Synthesis.AbsentReviewers` at `internal/mission/quorum/quorum.go:51` and the reviewer verdict
+under `.result`, the reviewer object's keys being `cost_usd, landed, model, present, result,
+tokens_in, tokens_out`. **This CORRECTS instances 1 and 2**, which both concluded *"there is no
+`absent_reviewers` key at all"*: there is, it is populated correctly, and it is `.synthesis`-nested
+— so the writer was never at fault and no code fix is owed.
+**The correct reads, all three verified first-party on live artifacts:**
+```bash
+jq -r '.synthesis.absent_reviewers'                        # absence, authoritative
+jq -r '[.reviewers[] | select(.present==false) | .model]'  # the same fact, cross-checked
+jq -r '[.reviewers[].result.verdict]'                      # per-reviewer verdicts
+```
+Cross-check confirms they agree: the one artifact on disk with a real absentee
+(`m-cohort-manifest-build-provenance-2026-08-23T04-06-…`) names `gpt5-6-sol` in BOTH.
+Mission-independent — every mission on this rig reads the same artifact schema — and the
+generalisation is this file's own recurring shape aimed at itself: **a rule that prescribes a
+QUERY is only as good as the query's path, and a wrong path returns `null` rather than an error.**
+Pair any documented `jq` read with a known-present sibling key in the same call (rule 3a aimed at a
+JSON path), so a `null` proves the key is absent rather than that you spelled it wrong.
 **And check `presentCount` has not been satisfied by YOU.** V1's artifacts carry three syntheses
 reading `proceed` with **zero of two** model reviewers present
 (`m-check-strict-fallbacks-2026-07-17T07-58-22Z`, `m-gemini-evaluator-diff-bridge-2026-07-16T23-03-39Z`,
@@ -1893,7 +1987,83 @@ the Repo Profile above):
    used and "the mutant does not build" cannot masquerade as "the guard fired" (the class the
    mutation-BUILDS rule above already names). A genuinely unreachable branch is an acceptable
    outcome **when declared in the code and in the AC**; an undeclared one is a guard nobody is
-   protecting. World's three instances, one iteration, three roles: a refusal term satisfiable by
+   protecting.
+   **⚠ BUT "UNREACHABLE" IS A CLAIM ABOUT A PLATFORM, NOT ABOUT A BRANCH — AND THE CLAUSE ABOVE
+   INVITES YOU TO DECLARE IT FROM THE ONE MACHINE THAT CANNOT TEST IT** (added 2026-09-02 V1
+   iteration 318; instance 1 is iteration 195, whose two negative arms set `t.Setenv("HOME")` to
+   drive a guard that on windows reads `USERPROFILE`, so the branch the test believed it was
+   exercising was never entered; instance 2 is this iteration, the same error in mirror image —
+   a branch declared UNREACHABLE that windows reached in minutes). Rule 3b(viii) already says the
+   host platform is a narrowing you never typed. It is written about **greens** — "the tests
+   pass" — and nothing points it at the opposite claim. That gap matters more, because a green is
+   provisional by nature while *unreachable* is stated as a property of the code, gets written
+   into a comment, and is then inherited by every later reader as settled.
+   Measured here, and note the shape: **three independent parties certified the same branch
+   unreachable and all three were wrong for the same reason.** The executor wrote "unreachable by
+   construction"; the independent sonnet judge was *explicitly asked to break it* and reported "I
+   could not devise a test-only way to trigger this"; the controller wrote "requires a
+   monotonic-clock anomaly". All three reasoned on darwin/arm64, where `time.Since` has nanosecond
+   granularity, so `schedulingLatency <= 0` looked impossible. On a coarse-clock platform a
+   sub-tick interval reads back as exactly `0s`, and CI reddened **both** windows jobs
+   deterministically — `--- FAIL: TestMessageWatcherStart (0.00s)` /
+   `instrument failure: initial task scheduling latency 0s is outside (0, 1s)` — on the first push.
+   **Adding reviewers did not help and could not have**: independence in the *reviewer* does not
+   buy independence in the *platform*, and the platform was the shared premise.
+   **Rules. (a)** Before declaring a branch unreachable, name WHY: **control flow** (a `t.Fatal`,
+   an early `return`, a type invariant) is platform-independent and may be declared; a **value
+   property** (a clock's granularity or monotonicity, a filesystem's case sensitivity, an env
+   var's name, a path separator, an integer width, a locale) is platform-scoped and may NOT be
+   declared from one host. Write the reason in the comment, because the reason is what a later
+   reader must re-check. **(b)** Where the reason is a value property, the declaration is
+   **PROVISIONAL until the matrix has run** — CI is the only instrument that sees it, so treat a
+   red there as the measurement rather than as noise (3b(viii)(d)), and say in the record which
+   legs certified it. **(c)** Prefer a design that makes the question moot: here the round-2 floor
+   ALREADY made a zero latency safe (`max(20 × 0, 1s)` = the historical bound), so the guard was
+   rejecting a value its own neighbour had handled — when a defensive branch and a fallback both
+   cover the same input, the branch is not defence, it is a second opinion that can disagree.
+   **(d)** A guard whose trigger condition is a property of the *measuring instrument* rather than
+   of the *system under test* is the highest-risk member of this class; ask what the instrument
+   reads on the least-precise platform in the matrix. Mission-independent; under `ailang-code` the
+   same axis is whatever `ailang check` resolves differently per host. The tell: you are about to
+   write "unreachable", "cannot happen", "by construction" or "defensive only" in a comment or an
+   AC, and every machine you have run on is the one under your desk.
+   **AND THE SYMMETRIC HALF, WHICH IS THE ONE THIS LOOP ACTUALLY BOUGHT NEXT: A PLATFORM-SCOPED
+   PROPERTY MAY NOT BE DECLARED *UNNECESSARY* FROM ONE HOST EITHER — AND THAT DIRECTION IS WORSE,
+   BECAUSE IT ARRIVES AS A DELETION THAT EVERY RULE IN THIS FILE APPLAUDS** (added 2026-09-02 V1
+   iteration 319; instance 1 is iteration 318 immediately above, instance 2 is this iteration, which
+   committed the mirror-image error **after reading 318's rule at Gate 1 the same iteration**). The
+   rule above is written entirely about *asserting* a branch cannot be reached. Nothing points it at
+   the opposite move — deciding a guard, a stabilizer, a sleep, a retry or a margin is surplus and
+   removing it. That move is strictly more attractive, because rule 3n(b) rewards deleting an
+   unpinned hunk, rule 3n(a) rewards removing nondeterminism rather than enlarging a margin, and a
+   judge that measures the hunk unpinned hands you the evidence. All three fire correctly, and all
+   three are silent about the axis that decides it.
+   Measured here. An executor added two arm-scoped stabilizers to a shell test and **self-reported**
+   that its directive was under-specified without them (rule 3h(d)). The independent judge then
+   measured one of them **unpinned** — reverting that hunk alone left the suite 42/42 green — and its
+   justifying comment demonstrably **false**. The controller measured the other unnecessary across
+   **8 local runs**, quiet and under 8× CPU contention. Both were deleted; the clean suite even got
+   *faster*, and the milestone's own killer mutant still killed. CI then reddened **deterministically
+   on the first push**: the stub driver exited before the lane entered its sampling loop, so the code
+   path under test was never entered at all. Fast darwin/arm64 always wins that race; the runner does
+   not. The executor had been right, and two independent reviewers on the same platform had overruled
+   it — **adding a reviewer cannot help, because the platform is the shared premise, not the
+   reasoner.**
+   **Rules. (a)** Before deleting a guard, margin, sleep, retry or ordering constraint as
+   unnecessary, name the property that makes it so — **control flow** (a `return`, a type invariant)
+   is host-independent and may be decided locally; a **value or timing property** (scheduling order,
+   clock granularity, process lifetime, filesystem or env-var semantics) is platform-scoped and the
+   deletion is **PROVISIONAL until the matrix has run**. **(b)** "N local runs came back green" is
+   the *identical* evidence 318's rule already rejects, wearing the opposite sign — count it as
+   evidence about your host, never about the code. **(c)** Weight a **self-reported** deviation
+   accordingly: rule 3h(d) already says it is better evidence than a silent one, and this is the case
+   that proves it — the executor knew something about the executing environment that neither reviewer
+   could see. Before overruling one, ask what the deviator observed that you have not. **(d)** When
+   you restore something CI forced back, write into the code *why local greenness was not enough*, or
+   the next reader deletes it for your exact reason. Mission-independent. The tell: you are about to
+   remove something as surplus, your evidence is that things stay green without it, and every one of
+   those runs was on the machine under your desk.
+   World's three instances, one iteration, three roles: a refusal term satisfiable by
    nothing an operator can mint (two quorum rounds read past it); its replacement left the ENTIRE
    `host/broker` package green under `if false && …`; and once the evaluator was handed that as a
    named target per rule 3h(c) it found six more, the executor's own audit twelve, and `AC9` ended
@@ -2190,6 +2360,41 @@ the Repo Profile above):
    the very lines its own drill had missed. **(e)** Mission-independent: under `ailang-code` the diff
    is still the enumeration and `ailang test` is still the killer. The tell: every mutant you ran was
    a sole killer, and you chose all of them by thinking about the bug.
+   **AND A MUTANT THAT REDS *SOMETIMES* IS NEITHER A KILLER NOR A MISS — IT IS A REPORT THAT YOUR
+   SYSTEM IS NONDETERMINISTIC, AND THE MOVE IT INVITES (ENLARGE THE SAMPLE UNTIL THE KILL LOOKS
+   RELIABLE) IS THE ONE MOVE THAT CANNOT WORK** (added 2026-09-01 V1 iteration 314; instance 1 is
+   rule 3m's World sequence, three rounds of adjusting a stress control's parameters where the fix
+   was to DERIVE the bound; instance 2 is this iteration, which made the mistake in a code comment
+   after the judge had already handed it the measurement). Every mutation rule above is binary: the
+   mutant reds or it does not, and 3n(b) offers exactly two dispositions for a hunk — declared
+   unreachable, or a queue row. Neither covers the middle case, and the middle case has a default
+   that feels like diligence: the arm *does* kill, just not every run, so you make the fixture
+   bigger. That treats variance as a sampling problem when it is a property of the code, and it
+   leaves the nondeterminism shipped.
+   Measured here. The judge found the `sort.Strings` mutant on a signature set killing ~**1 in 15**
+   runs, because the set was built by ranging a map. The controller widened the fixture from two
+   exports to six and wrote into a code comment that this bounded survival at `1/6! = 1/720`. Re-
+   measured: **4 kills in 8 runs** — no better than two elements. The probability model was simply
+   false (Go rotates single-bucket map iteration rather than permuting it), and it was a claim about
+   a mechanism nobody had measured, sitting in a comment no later reader would ever re-derive. The
+   real fix was to remove the nondeterminism — collect in encounter order behind a seen-set — after
+   which the arm is **0 failures in 10 runs**, the sort's mutant reds **nothing**, and the sort is an
+   honest declared residual with its three invariants written in the code. Note what the widening
+   would have bought if the arithmetic had been right: a *quieter* flake, i.e. the same defect with
+   a longer mean time to discovery.
+   **Rules. (a)** An intermittent kill is a finding about the SYSTEM, not about the drill — find the
+   nondeterminism (map iteration, goroutine scheduling, wall-clock, filesystem order, a random seed)
+   and remove it, then re-classify the hunk as sole-killer or declared residual. **(b)** Never quote
+   a probability you have not measured; a survival rate is an experiment (`for i in $(seq 1 N)`),
+   and a closed-form bound is a claim about a mechanism, which is rule 3f's discipline aimed at your
+   own reasoning. **(c)** Never write an unmeasured probability into code or a record — it is
+   unfalsifiable in place and will be inherited as fact. **(d)** Enlarging a sample is legitimate
+   only to MEASURE a rate, never to make a flaky assertion pass; if the honest outcome is "no
+   killer", say so, which is what 3n(b) already asks. **(e)** Mission-independent, and it
+   generalises past mutation to every flaky gate this loop meets: a re-run that goes green is
+   iteration 153's environment-divergence control, and a re-run that goes green *often enough* is
+   not a fix. The tell: you are about to make a fixture, timeout, or retry count bigger, and your
+   justification is a number you calculated rather than one you ran.
 
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
@@ -2204,6 +2409,8 @@ the Repo Profile above):
    rebuilt binary means the tree changed under you — rebuild inside the isolated worktree.
 
 ## Gate 3 — ROUTE + EXECUTE (the inner loop, with the routing policy)
+
+First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-3`.
 
 **Routing is ENFORCED per-role model pinning — NOT session-model inheritance.** Running every role
 on the controller's single session model is the routing-never-enforced bug: with the driver on
@@ -2791,6 +2998,45 @@ Sonnet, inline, is fine.
   named files, because the tree is not yours alone. Mission-independent; under `ailang-code` the same
   hazard is a judge re-running `ailang check` against a tree someone else is editing.
 
+  **AND ON ROUND 2+ THE DIRECTIVE YOU HAND THE NEXT JUDGE IS ITSELF AN INSTRUMENT, DESCRIBING A TREE
+  THAT NO LONGER EXISTS — EVERY MEASUREMENT AND EVERY HUNK LIST IN IT WAS TAKEN BEFORE YOU FIXED THE
+  THING IT IS ABOUT** (added 2026-09-01 V1 iteration 316; two first-party frictions in one iteration,
+  both caught by the judge rather than by the controller who wrote them). The three-round evaluator
+  loop is well covered above: independent worktree, generator≠judge, max 3 rounds, park on a
+  round-3 fail. All of it is about the JUDGE. Nothing is about the thing the controller writes
+  *between* rounds — and that artifact is load-bearing in a way a first-round directive is not,
+  because a fresh judge has no memory of round 1 and takes the summary as its starting map. Note the
+  asymmetry that makes this durable: the round-1 directive is written *about* a tree you are looking
+  at, while the round-N directive is written *about a tree you have just changed*, and the natural
+  way to write it is to copy forward the measurements you took while diagnosing.
+  Measured here, both by the round-N judge. **(a) An omitted hunk.** The round-2 summary listed five
+  changes and left out a 3-line production hunk the controller had itself shipped in round 1; the
+  judge found it only by re-walking the full `git diff` as instructed, and correctly filed the
+  omission as a process gap even though the hunk was fine. **(b) A stale red set.** The round-3
+  directive quoted a mutation's red set as two tests and "nothing else". The judge measured three.
+  Re-measuring on the current tree showed the judge was right and the controller's number was
+  **STALE, not wrong** — the set had grown because the round-2 fix ADDED a test after the reading was
+  taken. That is rule 3b(v)(b) with the usual roles reversed: not a value transcribed from someone
+  else's document, but the controller's own correct measurement, forwarded past its expiry.
+  **Rules. (a)** Before re-spawning, RE-RUN every measurement the new directive quotes, on the tree
+  the judge will actually see — mutation red sets, gate rc/`--- PASS:` counts, greps and their
+  controls. A measurement's validity is bounded by the tree it was taken on, and between rounds the
+  tree is exactly what changed. **(b)** Derive the "what changed" list from `git diff`, never from
+  memory of what you edited; state it as an exhaustive list and invite the judge to name anything you
+  missed — that framing is what converted (a) from a silent omission into a finding. **(c)** Where a
+  measurement genuinely cannot be re-taken, date it and name the tree
+  ("red set measured at `<sha>`, before the round-2 arm was added"), so a discrepancy reads as
+  staleness rather than as an error to argue about. **(d)** A judge that contradicts a number in your
+  directive is the loop WORKING — re-measure before replying, and record the correction in Ruled out
+  (Gate 2 rule (d), aimed at the controller's own arithmetic). **(e)** Carry forward the round-N−1
+  verdict and its findings by NAME, so the new judge can adjudicate each as closed or not rather than
+  re-deriving them; a finding silently dropped between rounds looks identical to one that was fixed.
+  Mission-independent — every mission on this rig runs the same multi-round evaluator — and the
+  generalisation is this file's own recurring shape aimed at its own hands: **a remedy is an
+  instrument too, so the document you write to fix a round is subject to every rule you apply to the
+  round.** The tell: you are writing "what changed since round 1" and the numbers in it were produced
+  by commands you ran before you made those changes.
+
 **METERED-SPEND LEDGER (Mark 2026-07-18 — "make sure costs don't go crazy"):** keep a running
 per-iteration tally of METERED dollars (every codex run's reported cost, every managed_agents
 `CostUSD`, every quorum reviewer bill — subscription/quota-bucket spend does NOT count). BEFORE
@@ -2887,6 +3133,8 @@ time: "does this step touch the GPU?" — never let a test reach it by accident.
 into sprint-sized design docs (≤3–4 days each), queued individually.
 
 ## Gate 3b — CI GREEN (an item is not LANDED until remote CI passes on its merge)
+
+First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-3b`.
 
 After any push to dev, wait for CI **with a hard deadline** (Standing rule 6). A headless run has
 no human to notice a hang, and a bare `gh run watch … --exit-status` blocks FOREVER if the run
@@ -3225,6 +3473,8 @@ failure, and you have not yet run the one-line check for the boring one.
 
 ## Gate 4 — RECORD (append-only; the log is the mission's memory)
 
+First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-4`.
+
 **FIRST: overwrite `design_docs/${MISSION_NAME}-mission-dashboard.md`** (Mark 2026-08-04: the
 30-second control context for fresh sessions — his long-lived thread was burning 14%/week of quota
 as cache-rebuild). Keep it ≤40 lines, OVERWRITE never append: latest release · in-flight/next
@@ -3487,6 +3737,10 @@ above), but "the destination gained what the source lost" is a property of every
 
 ## Gate 5 — RETRO + REPORT
 
+First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-5`.
+After every Gate-5 report has been sent and this iteration is fully complete, run
+`bash tools/launchd/mission-heartbeat.sh stamp complete` as the final gate action.
+
 1. Scan this iteration's friction (evaluator feedback, executor corrections, your own dead ends)
    plus unread `docs/sprint-retros/` material. Route each item to exactly ONE lane:
    - **skill fix** — edit the offending SKILL.md. Max ONE skill edit per iteration; requires ≥2
@@ -3680,6 +3934,8 @@ above), but "the destination gained what the source lost" is a property of every
    **2** in `/tmp/ailang-mission-world.log` — World's *only* two orphaned slots in 67 iterations.
    Both V1 hits sit immediately above a transcript reading "Gates 0–2 complete; sprint-planner
    running", i.e. the controller had just spawned a background role and stopped.
+   The per-gate `mission-heartbeat.sh` stamps above are the durable attribution contract for this
+   failure class; never skip or defer a gate's first-action stamp.
    **The rule:** while any background work you spawned is outstanding, keep the turn alive with
    *chained bounded waits* — a `Monitor`, a bounded `date +%s` poll, or repeated short status reads
    — so the harness never sees you stop. Rule 6 still binds each individual wait; what changes is
@@ -3822,6 +4078,37 @@ above), but "the destination gained what the source lost" is a property of every
    reused sink: a scratch directory, a database row, a fixed branch name, an `--out` target. The
    tell: you are about to read a path that a previous invocation also wrote, and nothing between
    the two runs removed it.
+   **⚠ AND EVERY WORD OF RULE 7 IS ADDRESSED TO THE CONTROLLER, SO THE SUB-AGENTS THIS SKILL SPAWNS
+   INHERIT NONE OF IT — A ROLE THAT ENDS ITS TURN ON A WAIT COSTS YOU A WHOLE RESUME CYCLE, AND ITS
+   REPORT IS SIMPLY ABSENT** (added 2026-09-01 motoko iteration 32; instance 1 is iteration 176's
+   controller, which read this very rule and then reasoned *"I'll wait for the next event"*, instance 2
+   is this iteration's EVALUATOR, which ended its turn with *"I'll pause here and wait for the Monitor
+   notification to arrive before compiling the report"*). Rule 7 and its four amendments are complete on
+   the question *"what must I not do while background work runs?"* — and every one of them is written in
+   the second person to the loop's own session. The designer, planner, executor and evaluator never read
+   this file. For a cross-provider role that is obvious; the trap is the **Agent-tool** roles, which run
+   on the same harness, hit the same `Monitor`-is-not-a-wait semantics, and are the ones you are most
+   likely to assume already know. Guard the helper, miss the call site — this file's own named shape,
+   aimed at the directives it tells you to write.
+   Note the failure is quiet in the direction that matters: the sub-agent does not crash and does not
+   report an error, it returns a *plausible* closing sentence announcing an intention. Iteration 32's
+   evaluator returned exactly one line of output after 37 minutes and 93 tool calls; the score, the
+   findings and the mutation drills existed nowhere. Recovering it cost a `SendMessage` resume, and the
+   resumed run then produced the single most valuable result of the iteration (the T3 drill neither the
+   executor nor the controller had run). Had the controller banked that one-line return as the
+   evaluation, the iteration would have landed with no judge — standing rule 7's vacuous pass, arriving
+   through a role rather than through the slot.
+   **Rule.** Every spawn directive for a role that may background work carries the operative half of
+   rule 7 in its own words: *poll the artifact inside a bounded `date +%s` loop; a `Monitor` is an event
+   stream, not a wait; nothing will re-invoke you when it fires, so do not end your turn announcing one.*
+   Two corollaries. **(a)** When a role returns a suspiciously short result — a single sentence, no
+   deliverable, a stated intention — treat it as **not finished** rather than as a verdict, and resume it
+   by name (`SendMessage` keeps its transcript, so nothing is re-run). **(b)** A resumed role must be
+   told what to do about the thing it was waiting for: recover the result from disk, or declare it
+   UNMEASURED — otherwise it waits again. Mission-independent: every mission on this rig spawns the same
+   four roles through the same harness. The tell: a sub-agent's last sentence contains the words "wait",
+   "pause" or "once it completes", and there is no deliverable attached to it.
+
 8. **THERE ARE TWO KINDS OF PARK AND THIS SKILL ONLY NAMES ONE — A DOC WAITING ON A QUOTA BUCKET IS
    NOT `needs-human-review`, AND FILING IT AS ONE MANUFACTURES A DECISION THE HUMAN DOES NOT HAVE**
    (added 2026-08-19 V1 iteration 229; two consecutive first-party frictions, 228 and 229). Every
