@@ -1,6 +1,13 @@
 package ai
 
-import "testing"
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
 
 func TestResolveAnthropicCredential(t *testing.T) {
 	tests := []struct {
@@ -36,6 +43,11 @@ func TestResolveAnthropicCredential(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Isolate HOME: the resolver now falls back to the real
+			// ~/.claude/.credentials.json, which would make "no credential"
+			// cases pass or fail depending on whose machine runs the suite.
+			t.Setenv("HOME", t.TempDir())
+			t.Setenv(EnvClaudeCodeOAuthToken, "")
 			t.Setenv(EnvAnthropicAPIKey, tt.apiKey)
 			t.Setenv(EnvAnthropicAuthToken, tt.authToken)
 
@@ -69,6 +81,8 @@ func TestAnthropicLaneIsOAuth_AgreesWithResolver(t *testing.T) {
 		{"sk-ant-x", "oauth-tok"},
 	}
 	for _, c := range cases {
+		t.Setenv("HOME", t.TempDir())
+		t.Setenv(EnvClaudeCodeOAuthToken, "")
 		t.Setenv(EnvAnthropicAPIKey, c.apiKey)
 		t.Setenv(EnvAnthropicAuthToken, c.authToken)
 
@@ -90,4 +104,62 @@ func TestAnthropicCredential_LaneNeverLeaksTheSecret(t *testing.T) {
 			t.Errorf("Lane() = %q must be a safe-to-log label, not the credential", lane)
 		}
 	}
+}
+
+// The credential FILE is what makes standard mode work with no setup wherever
+// agent mode already works — the `claude` CLI reads this same file.
+func TestResolveAnthropicCredential_FallsBackToClaudeCredentialsFile(t *testing.T) {
+	write := func(t *testing.T, body string) {
+		t.Helper()
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+		t.Setenv(EnvAnthropicAPIKey, "")
+		t.Setenv(EnvAnthropicAuthToken, "")
+		t.Setenv(EnvClaudeCodeOAuthToken, "")
+		dir := filepath.Join(home, ".claude")
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, ".credentials.json"), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	future := time.Now().Add(time.Hour).UnixMilli()
+	past := time.Now().Add(-time.Hour).UnixMilli()
+
+	t.Run("live token resolves as OAuth", func(t *testing.T) {
+		write(t, fmt.Sprintf(`{"claudeAiOauth":{"accessToken":"tok","expiresAt":%d}}`, future))
+		got, err := ResolveAnthropicCredential()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.Value != "tok" || !got.OAuth {
+			t.Errorf("got %+v, want the file's accessToken on the OAuth lane", got)
+		}
+	})
+
+	// An expired token must fail HERE, not as an opaque 401 that banks every
+	// benchmark in the run as api_error for an invisible cause.
+	t.Run("expired token errors with a refresh hint", func(t *testing.T) {
+		write(t, fmt.Sprintf(`{"claudeAiOauth":{"accessToken":"tok","expiresAt":%d}}`, past))
+		_, err := ResolveAnthropicCredential()
+		if err == nil {
+			t.Fatal("an expired token must not be sent")
+		}
+		if !strings.Contains(err.Error(), "expired") || !strings.Contains(err.Error(), "claude") {
+			t.Errorf("error should name the expiry and how to refresh; got %v", err)
+		}
+	})
+
+	t.Run("an explicit env credential still outranks the file", func(t *testing.T) {
+		write(t, fmt.Sprintf(`{"claudeAiOauth":{"accessToken":"file-tok","expiresAt":%d}}`, future))
+		t.Setenv(EnvAnthropicAPIKey, "sk-ant-x")
+		got, err := ResolveAnthropicCredential()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.Value != "sk-ant-x" || got.OAuth {
+			t.Errorf("got %+v, want the metered env key to win", got)
+		}
+	})
 }

@@ -2,10 +2,14 @@ package eval_harness
 
 import (
 	"encoding/json"
-	"github.com/sunholo-data/ailang/internal/modelreg"
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 )
 
 // TestStandardModeCostProvenance: standard mode reaches providers over metered
@@ -190,7 +194,7 @@ func TestStandardModeCostProvenance_AnthropicOAuthIsNotMetered(t *testing.T) {
 			want: string(executor.CostMetered),
 		},
 		{
-			name:  "no credential at all does not silently become subscription",
+			name:  "no credential anywhere stays metered rather than guessing",
 			model: "claude-fable-5-1",
 			want:  string(executor.CostMetered),
 		},
@@ -203,11 +207,46 @@ func TestStandardModeCostProvenance_AnthropicOAuthIsNotMetered(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Isolate HOME so the developer's real ~/.claude/.credentials.json
+			// cannot decide the outcome — the resolver falls back to it, so
+			// without this the "no credential" row passes or fails depending on
+			// whose machine runs the suite.
+			t.Setenv("HOME", t.TempDir())
+			t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
 			t.Setenv("ANTHROPIC_API_KEY", tt.apiKey)
 			t.Setenv("ANTHROPIC_AUTH_TOKEN", tt.authToken)
 			if got := standardModeCostProvenance(tt.model); got != tt.want {
 				t.Errorf("%s: got %q, want %q", tt.model, got, tt.want)
 			}
 		})
+	}
+}
+
+// The credential FILE is the lane most runs will actually take (it is what the
+// `claude` CLI reads), so it must drive the label too — otherwise the common
+// case reports subscription usage as money.
+func TestStandardModeCostProvenance_CredentialFileIsSubscription(t *testing.T) {
+	saved := modelreg.GlobalModelsConfig
+	t.Cleanup(func() { modelreg.GlobalModelsConfig = saved })
+	modelreg.GlobalModelsConfig = &ModelsConfig{Models: map[string]ModelConfig{
+		"claude-fable-5-1": {Provider: "anthropic", Pricing: Pricing{InputPer1K: 0.010, OutputPer1K: 0.050}},
+	}}
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("ANTHROPIC_API_KEY", "")
+	t.Setenv("ANTHROPIC_AUTH_TOKEN", "")
+	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
+	if err := os.MkdirAll(filepath.Join(home, ".claude"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	body := fmt.Sprintf(`{"claudeAiOauth":{"accessToken":"tok","expiresAt":%d}}`,
+		time.Now().Add(time.Hour).UnixMilli())
+	if err := os.WriteFile(filepath.Join(home, ".claude", ".credentials.json"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := standardModeCostProvenance("claude-fable-5-1"); got != string(executor.CostListPriceEquivalent) {
+		t.Errorf("got %q, want list-price-equivalent — a run on the CLI's own credential spends quota, not money", got)
 	}
 }
