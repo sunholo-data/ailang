@@ -57,12 +57,14 @@ log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 # gate (max_tokens_per_bench 3.0M), not wall-clock, is what bounds runs now.
 # CAVEAT at time of switching: the clean motoko A/B was still running. If motoko
 # regresses, revert this line to the qwen3-6 triple — banked qwen3.6 rows stay valid.
-# motoko PAUSED 2026-09-02 (Mark): the motoko_agent repo is under refactor, so its
-# rows would measure a moving harness rather than the model. pi + opencode continue
-# on the same single loaded qwen3.8 — dropping an arm never costs VRAM, it only
-# frees rig time. Banked motoko rows stay valid and stay on the leaderboard.
-# Re-add motoko-local-qwen3-8-27b here when the refactor lands.
-MODELS="${OS_FILLER_MODELS:-${OS_FILLER_MODEL:-opencode-qwen3-8-27b,pi-qwen3-8-27b}}"
+# The rotation trio is UNCHANGED through the motoko_agent refactor (Mark,
+# 2026-09-02). What is paused is motoko A/B TESTING — an A/B needs a stable
+# harness on both arms, so a treatment measured against a moving motoko would be
+# uninterpretable. The plain rotation has no such problem: it is a single-arm
+# capability measurement, its rows are stamped with resolved_profile /
+# resolved_extensions, and dropping motoko here would blank the harness-comparison
+# columns this filler exists to fill.
+MODELS="${OS_FILLER_MODELS:-${OS_FILLER_MODEL:-opencode-qwen3-8-27b,pi-qwen3-8-27b,motoko-local-qwen3-8-27b}}"
 LANGS="${OS_FILLER_LANGS:-ailang,python,javascript,go}"
 CHUNK="${OS_FILLER_CHUNK:-3}"                  # benchmarks per cycle
 CHUNK_TIMEOUT="${OS_FILLER_TIMEOUT:-1500s}"    # ~25-min wall budget per chunk
