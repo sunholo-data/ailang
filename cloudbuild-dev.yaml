@@ -204,6 +204,36 @@ steps:
     # fail the whole pipeline or block deploying the core services below.
     allowFailure: true
 
+  # Resident agent image (v6.40.0 Class B). Built HERE because its source lives
+  # in this repo — docker/resident/ — and this is the pipeline that fires on a
+  # push to this repo. That was the gap that produced a real incident on
+  # 2026-09-02: the resident step existed only in ailang-multivac's pipelines,
+  # which fire on THAT repo's pushes, so changing docker/resident/ here rebuilt
+  # nothing and a stale image without OIDC verification was deployed public.
+  #
+  # BASE comes from the registry rather than being built here: agent-pi is
+  # produced by ailang-multivac's pipeline, and this step deliberately consumes
+  # whatever :latest is current instead of duplicating that build.
+  - id: build-resident-pi
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/resident-pi:cache" \
+          --cache-to   "type=registry,ref=$$AR/resident-pi:cache,mode=max" \
+          --build-arg BASE="$$AR/agent-pi:latest" \
+          -t "$$AR/resident-pi:latest" \
+          -f docker/resident/Dockerfile \
+          --push \
+          docker/resident
+    waitFor: ['-']
+    # Experimental Preview-product image: a broken build must not block the
+    # core services below, same rationale as agent-motoko.
+    allowFailure: true
+
   # Push coordinator (buildpacks doesn't push automatically like buildx --push).
   - id: push-coordinator
     name: gcr.io/cloud-builders/docker
