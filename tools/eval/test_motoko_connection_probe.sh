@@ -357,6 +357,8 @@ expect_failure "empty pid scope fails loudly instead of widening lsof" "invalid 
   run_live PROBE_TEST_PID_SCOPE=
 expect_failure "descendant discovery deadline refuses at the caller" "process-tree discovery failed" \
   run_live PROBE_TEST_DESCENDANT_FAILURE=1
+expect_failure "descendant discovery stub refusal carries its own message" "process-tree discovery deadline expired (test stub)" \
+  run_live PROBE_TEST_DESCENDANT_FAILURE=1
 expect_failure "lane sampling deadline refuses" "exceeded 1s sampling deadline" \
   run_live PROBE_TEST_DRIVER_SLEEP=10 PROBE_TIMEOUT_SECS=1
 expect_failure "bounded termination deadline refuses" "bounded termination deadline" \
