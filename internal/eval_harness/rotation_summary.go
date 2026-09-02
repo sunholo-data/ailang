@@ -58,6 +58,28 @@ type BenchmarkSummary struct {
 	// fresh vs cached. Non-zero means the token means below rest on FEWER trials
 	// than Trials — a shrunken sample stated out loud rather than a silent one.
 	TokensCacheUnaccounted int `json:"tokens_cache_unaccounted,omitempty"`
+
+	// InvalidExcluded counts rows dropped from Trials because they are not
+	// measurements (RunMetrics.IsValid() == false — dominantly the api_error
+	// backstop in validity.go). Trials/Passed/PassRate above are computed over
+	// the SURVIVORS, so this is the same "shrunken sample stated out loud"
+	// contract as TokensCacheUnaccounted.
+	//
+	// WHY THIS EXISTS. validity.go shipped the producer and the consumers, but
+	// this aggregator — the one that feeds summary.json and from there the
+	// published OS/Local leaderboard — never filtered. Its own doc comment
+	// listed the consequence as known ("Published pass rates carried the crash
+	// rate inside them") and it stayed true. Measured on the v0.34.0 rotation
+	// (2026-09-02): motoko-local-qwen3-8-27b published 86.0% on AILANG against
+	// pi's 92.7%, and was read as the weakest AILANG harness. 11 of its 12
+	// failures were zero-token non-starts. On rows where the subject actually
+	// ran, motoko is 98.7% — the BEST of the three, not the worst. The entire
+	// reported gap was harness crash rate.
+	InvalidExcluded int `json:"invalid_excluded,omitempty"`
+	// InvalidReasons breaks InvalidExcluded down by Validity.Reason so an
+	// operator can tell an ollama overload from a motoko startup crash without
+	// opening the rows.
+	InvalidReasons map[string]int `json:"invalid_reasons,omitempty"`
 }
 
 // ModelRollupStats is the per-model headline rollup: pass@1 vs best-of-N across all of a model's benchmarks.
@@ -73,8 +95,18 @@ type ModelRollupStats struct {
 
 // RotationSummary is the top-level summary.json shape for an eval-suite run.
 type RotationSummary struct {
-	OutputDir        string                       `json:"output_dir"`
-	TotalResultFiles int                          `json:"total_result_files"`
+	OutputDir        string `json:"output_dir"`
+	TotalResultFiles int    `json:"total_result_files"`
+	// InvalidExcludedTotal counts result files that were read but are not
+	// measurements, so they are absent from every pass rate below. Non-zero is
+	// a HARNESS health signal, not a model signal — see BenchmarkSummary.
+	InvalidExcluded int `json:"invalid_excluded,omitempty"`
+	// InvalidReasons breaks that total down by Validity.Reason.
+	InvalidReasons map[string]int `json:"invalid_reasons,omitempty"`
+	// UnmeasuredTuples counts (benchmark, model, lang, condition) groups whose
+	// every row was invalid. They are omitted from BenchmarkSummary entirely
+	// rather than published as 0%.
+	UnmeasuredTuples int                          `json:"unmeasured_tuples,omitempty"`
 	TrialsPerBench   int                          `json:"trials_per_benchmark"` // max trial number seen
 	ModelRollup      map[string]*ModelRollupStats `json:"model_rollup,omitempty"`
 	BenchmarkSummary []BenchmarkSummary           `json:"benchmarks"`
@@ -157,6 +189,10 @@ func SummarizeRotation(outputDir string) (*RotationSummary, error) {
 		MaxTrial     int
 		ErrorCats    map[string]int
 		ThrashAborts int
+		// Invalid rows are counted but NOT appended to Trials: they are not
+		// measurements, so they must not sit in a pass-rate denominator.
+		Invalid        int
+		InvalidReasons map[string]int
 	}
 	groups := map[groupKey]*groupAccum{}
 	totalFiles := 0
@@ -180,8 +216,21 @@ func SummarizeRotation(outputDir string) (*RotationSummary, error) {
 		}
 		g := groups[key]
 		if g == nil {
-			g = &groupAccum{ErrorCats: map[string]int{}}
+			g = &groupAccum{ErrorCats: map[string]int{}, InvalidReasons: map[string]int{}}
 			groups[key] = g
+		}
+		// A row that is not a measurement is quarantined here rather than
+		// deleted: it stays on disk as evidence of the bug (validity.go), and it
+		// is still counted so the shrunken sample is visible — but it never
+		// reaches Trials, so it cannot be charged to the model as a failure.
+		if !m.IsValid() {
+			g.Invalid++
+			reason := m.InvalidReason()
+			if reason == "" {
+				reason = ReasonHarnessError
+			}
+			g.InvalidReasons[reason]++
+			continue
 		}
 		g.Trials = append(g.Trials, &m)
 		trial := m.Trial
@@ -204,7 +253,26 @@ func SummarizeRotation(outputDir string) (*RotationSummary, error) {
 
 	// Compute per-group summary.
 	var summaries []BenchmarkSummary
+	invalidTotal := 0
+	unmeasuredTuples := 0
+	invalidReasonTotals := map[string]int{}
+	for _, g := range groups {
+		invalidTotal += g.Invalid
+		for reason, n := range g.InvalidReasons {
+			invalidReasonTotals[reason] += n
+		}
+	}
 	for key, g := range groups {
+		// Every trial for this tuple was a non-measurement. Emitting a summary
+		// here would publish 0/0 — which renders as 0% and is exactly the
+		// phantom-failure shape validity.go exists to prevent. The tuple is
+		// simply UNMEASURED, so it is omitted from the leaderboard and surfaced
+		// in the top-level tally instead. It stays eligible for --skip-existing
+		// retry, because no valid row was ever banked for it.
+		if len(g.Trials) == 0 {
+			unmeasuredTuples++
+			continue
+		}
 		// Token KPIs count UNCACHED work only (Mark, 2026-08-11). A cache read
 		// costs ~20% of a fresh token, so charging it as a whole one makes a run
 		// that caches well look more expensive than one that does not — the metric
@@ -257,6 +325,10 @@ func SummarizeRotation(outputDir string) (*RotationSummary, error) {
 			s.TokensFailMean = mean(failTokens)
 		}
 		s.TokensCacheUnaccounted = unaccounted
+		s.InvalidExcluded = g.Invalid
+		if len(g.InvalidReasons) > 0 {
+			s.InvalidReasons = g.InvalidReasons
+		}
 		if len(s.ErrorCategories) == 0 {
 			s.ErrorCategories = nil
 		}
@@ -319,9 +391,14 @@ func SummarizeRotation(outputDir string) (*RotationSummary, error) {
 	rs := &RotationSummary{
 		OutputDir:        outputDir,
 		TotalResultFiles: totalFiles,
+		InvalidExcluded:  invalidTotal,
+		UnmeasuredTuples: unmeasuredTuples,
 		TrialsPerBench:   maxTrialSeen,
 		ModelRollup:      rollup,
 		BenchmarkSummary: summaries,
+	}
+	if len(invalidReasonTotals) > 0 {
+		rs.InvalidReasons = invalidReasonTotals
 	}
 
 	// Write summary.json at the root of outputDir.
