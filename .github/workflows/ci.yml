@@ -168,6 +168,12 @@ jobs:
     - name: Make recipe tmpfile hygiene gate self-test
       run: make test-check-tmpfile-hygiene
 
+    - name: Check test home-directory isolation
+      run: make check-home-isolation
+
+    - name: Home-directory isolation gate self-test
+      run: make test-check-home-isolation
+
     - name: Check changelog index hygiene
       run: make check-changelog
 
