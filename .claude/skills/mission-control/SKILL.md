@@ -2026,7 +2026,44 @@ the Repo Profile above):
    reads on the least-precise platform in the matrix. Mission-independent; under `ailang-code` the
    same axis is whatever `ailang check` resolves differently per host. The tell: you are about to
    write "unreachable", "cannot happen", "by construction" or "defensive only" in a comment or an
-   AC, and every machine you have run on is the one under your desk. World's three instances, one iteration, three roles: a refusal term satisfiable by
+   AC, and every machine you have run on is the one under your desk.
+   **AND THE SYMMETRIC HALF, WHICH IS THE ONE THIS LOOP ACTUALLY BOUGHT NEXT: A PLATFORM-SCOPED
+   PROPERTY MAY NOT BE DECLARED *UNNECESSARY* FROM ONE HOST EITHER — AND THAT DIRECTION IS WORSE,
+   BECAUSE IT ARRIVES AS A DELETION THAT EVERY RULE IN THIS FILE APPLAUDS** (added 2026-09-02 V1
+   iteration 319; instance 1 is iteration 318 immediately above, instance 2 is this iteration, which
+   committed the mirror-image error **after reading 318's rule at Gate 1 the same iteration**). The
+   rule above is written entirely about *asserting* a branch cannot be reached. Nothing points it at
+   the opposite move — deciding a guard, a stabilizer, a sleep, a retry or a margin is surplus and
+   removing it. That move is strictly more attractive, because rule 3n(b) rewards deleting an
+   unpinned hunk, rule 3n(a) rewards removing nondeterminism rather than enlarging a margin, and a
+   judge that measures the hunk unpinned hands you the evidence. All three fire correctly, and all
+   three are silent about the axis that decides it.
+   Measured here. An executor added two arm-scoped stabilizers to a shell test and **self-reported**
+   that its directive was under-specified without them (rule 3h(d)). The independent judge then
+   measured one of them **unpinned** — reverting that hunk alone left the suite 42/42 green — and its
+   justifying comment demonstrably **false**. The controller measured the other unnecessary across
+   **8 local runs**, quiet and under 8× CPU contention. Both were deleted; the clean suite even got
+   *faster*, and the milestone's own killer mutant still killed. CI then reddened **deterministically
+   on the first push**: the stub driver exited before the lane entered its sampling loop, so the code
+   path under test was never entered at all. Fast darwin/arm64 always wins that race; the runner does
+   not. The executor had been right, and two independent reviewers on the same platform had overruled
+   it — **adding a reviewer cannot help, because the platform is the shared premise, not the
+   reasoner.**
+   **Rules. (a)** Before deleting a guard, margin, sleep, retry or ordering constraint as
+   unnecessary, name the property that makes it so — **control flow** (a `return`, a type invariant)
+   is host-independent and may be decided locally; a **value or timing property** (scheduling order,
+   clock granularity, process lifetime, filesystem or env-var semantics) is platform-scoped and the
+   deletion is **PROVISIONAL until the matrix has run**. **(b)** "N local runs came back green" is
+   the *identical* evidence 318's rule already rejects, wearing the opposite sign — count it as
+   evidence about your host, never about the code. **(c)** Weight a **self-reported** deviation
+   accordingly: rule 3h(d) already says it is better evidence than a silent one, and this is the case
+   that proves it — the executor knew something about the executing environment that neither reviewer
+   could see. Before overruling one, ask what the deviator observed that you have not. **(d)** When
+   you restore something CI forced back, write into the code *why local greenness was not enough*, or
+   the next reader deletes it for your exact reason. Mission-independent. The tell: you are about to
+   remove something as surplus, your evidence is that things stay green without it, and every one of
+   those runs was on the machine under your desk.
+   World's three instances, one iteration, three roles: a refusal term satisfiable by
    nothing an operator can mint (two quorum rounds read past it); its replacement left the ENTIRE
    `host/broker` package green under `if false && …`; and once the evaluator was handed that as a
    named target per rule 3h(c) it found six more, the executor's own audit twelve, and `AC9` ended
