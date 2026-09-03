@@ -1,9 +1,10 @@
 # M-LYCEUM-PROVIDER: Lyceum as an EU-Hosted Third Route for Open-Weight Models
 
-**Status**: Planned
+**Status**: Planned — Phase 0 spike COMPLETE 2026-09-03 (V16-V22 recorded; all premises
+verified, one contingency carried into Phase 1). Ready for sprint planning.
 **Target**: v0.34.1
 **Priority**: P2 (Low) — a route-diversification hedge; no lane is blocked on it
-**Estimated**: ~6-8 hours across 4 phases (Phase 0 is ~1 hour and gates everything)
+**Estimated**: ~6-8 hours across 4 phases (Phase 0 COMPLETE — ~1 hour, 2026-09-03)
 **Dependencies**: A Lyceum API key (human action, Mark — key already generated). No code dependencies.
 
 ## Axiom Compliance
@@ -185,24 +186,47 @@ positively false "on-device, free" claim. The Phase 2 checklist enforces this.
 
 **Phase 0: Live API verification spike — falsify the premises** (~1 hour, GATES EVERYTHING)
 
-With Mark's key, record V-numbers for:
+Run against the live API with Mark's key (2026-09-03): all seven probes executed, results
+recorded in the Verification Log (V16-V22). Summary:
 
-- [ ] **V16**: Which of the three seed slugs resolve? Probe
-      `moonshotai/kimi-k3` (confirmed by the sample curl), plus `z-ai/glm-5.3-flash` and
-      `qwen/qwen3.8-flash` — Lyceum may use different vendor prefixes or its own slug space.
-      Rows are written ONLY for live-verified slugs.
-- [ ] **V17**: Basic completion round-trip (finish_reason, stop vs length).
-- [ ] **V18**: Streaming works (SSE shape compatible with the openai transport).
-- [ ] **V19**: Reasoning accounting: probe GLM-5.3-Flash — does the response carry
-      `reasoning_content` and/or `completion_tokens_details.reasoning_tokens`? If neither,
-      reason_tokens bank as 0 — record it in the row notes (compare-with-caution flag) and
-      probe the vendor docs before drawing capability conclusions.
-- [ ] **V20**: Usage shape (prompt/completion/total) — feeds cost banking.
-- [ ] **V21**: Error shapes: bad key (401), bad model (404/400), rate limit (429) — feeds
-      `error_category` correctness (AC7).
-- [ ] **V22**: Billing reconciliation: tokens × dashboard price vs Lyceum's own usage/billing
-      view (if exposed). If they disagree, dashboard numbers get corrected in the rows BEFORE
-      the smoke gate, not after.
+- [x] **V16**: ✅ PASSED — `GET /openai/v1/models` returns a 39-model catalogue; slugs follow
+      the OpenRouter convention. Seed slugs live-verified: `moonshotai/kimi-k3` ✅,
+      `z-ai/glm-5.3-flash` ✅, **`qwen/qwen3.8-flash-next`** ✅ (correction: the `-next`
+      suffix IS the slug — `qwen/qwen3.8-flash` 404s). Catalogue also carries models our rig
+      cannot host (`qwen/qwen3.8-2.4t-a95b`, `qwen/qwen3.5-397b-a17b`,
+      `deepseek/deepseek-v4-pro`, `nvidia/nemotron-3-ultra-550b-a55b`) — relevant to the
+      Phase 3 decision note. Vendor router models exist (`lyceum/complex|reasoning|simple`);
+      not registered.
+- [x] **V17**: ✅ PASSED — kimi-k3 and glm-5.3-flash both `finish=stop` with content at
+      max_tokens 2048 (at 32 the whole budget went to thinking — headroom matters, as always).
+- [x] **V18**: ✅ PASSED — standard SSE (`chat.completion.chunk`), `delta.reasoning_content`
+      thinking chunks, `data: [DONE]` sentinel, AND a final usage-bearing chunk sent WITHOUT
+      `stream_options.include_usage` being set (our client sets it anyway — harmless).
+- [x] **V19**: ✅ PASSED with one caveat — GLM-5.3-flash returns `reasoning_content`
+      (message field) AND `usage.completion_tokens_details.reasoning_tokens`; Kimi-K3 returns
+      thinking in a `reasoning` field (NOT `reasoning_content`) and NO reasoning_tokens in
+      usage. Our `ChatStepRespMessage` already parses BOTH fields (step.go:317-324) — zero
+      code needed for the thinking text. CAVEAT: `ChatStepUsage` (step.go:336) and the
+      streamstep usage struct do NOT parse `completion_tokens_details` — only the Generate
+      path (types.go:58-66) does. If banked reason_tokens come back 0 at the Phase 2 smoke
+      gate, extend both structs with `CompletionTokensDetails` (3 lines each, same shape as
+      types.go chatUsage) — added to Phase 1 as a contingency task.
+- [x] **V20**: ✅ PASSED — standard OpenAI usage shape; Lyceum extras: Kimi carries
+      `prompt_tokens_details.cached_tokens` + `created_cache_tokens`; GLM carries
+      `text_tokens` alongside `reasoning_tokens` (they sum to completion_tokens on a clean
+      finish; they DIVERGED on the finish=length probe — 32 completion vs 34 reasoning — do
+      not assume they sum). ALSO NOTED: kimi-k3 counted `prompt_tokens=93` for the same
+      6-word prompt GLM counted as 17 — possible hidden system prompt or chat-template
+      accounting; flag for the A/B (Lyceum kimi input costs may read high vs OR).
+- [x] **V21**: ✅ PASSED — standard OpenAI error envelopes: 401
+      `{"error":{"type":"unauthorized_error"}}`, 404
+      `{"error":{"type":"not_found_error","param":"model"}}`. Map cleanly onto the
+      existing error-category path (AC7).
+- [x] **V22**: ⚠️ PARTIAL — no self-serve billing endpoints exist under `/openai/v1`
+      (usage/billing/credits/user all 404). Reconciliation goes via the dashboard, manually.
+      Probe spend recorded for reconciliation: <1,000 tokens total (kimi ~287, glm ~345,
+      rest error/empty) — expected cost < $0.001 at dashboard prices. Mark can eyeball the
+      dashboard to confirm before the smoke gate.
 
 **Phase 1: Provider plumbing** (~3 hours)
 
@@ -216,6 +240,10 @@ With Mark's key, record V-numbers for:
 - [ ] `internal/modelreg/models.go`: `SupportsStandardEval` list.
 - [ ] `cmd/ailang/help.go` / CLI docs: `LYCEUM_API_KEY` env var + provider mention (the
       cli-doc-maintainer convention: help.go is the single source of truth).
+- [ ] CONTINGENCY (from V19): if banked reason_tokens are 0 on the GLM probe at smoke,
+      extend `ChatStepUsage` (step.go:336) and the streamstep usage struct with
+      `CompletionTokensDetails{ReasoningTokens}` — 3 lines each, mirroring the Generate
+      path's chatUsage (types.go:58-66).
 - [ ] Unit tests: `ProviderFromString("lyceum")` round-trip; dispatch with a stub server
       (the openai package's httptest pattern) proves the base URL lands on the wire; missing
       key → error naming `LYCEUM_API_KEY`; existing `OPENAI_BASE_URL` path untouched.
@@ -263,9 +291,9 @@ With Mark's key, record V-numbers for:
 
 ```yaml
   lyceum-glm-5-3-flash:
-    api_name: "z-ai/glm-5.3-flash"        # PENDING V16 — slug live-verified before row lands
+    api_name: "z-ai/glm-5.3-flash"        # V16-verified live 2026-09-03
     provider: "lyceum"
-    default_thinking: "unknown"            # resolved by the V19 probe, then updated
+    default_thinking: "always_on"          # V19 probe: reasoning_content on every response
     description: "GLM-5.3-Flash via Lyceum (EU-hosted) — same weights as or-glm-5-3-flash, different route/jurisdiction/price."
     env_var: "LYCEUM_API_KEY"
     max_output_tokens: 65536               # GLM-5.2 truncation lesson — headroom, not a cap
@@ -336,7 +364,13 @@ ailang eval-suite --models lyceum-glm-5-3-flash,or-glm-5-3-flash --tier smoke --
 | V13 | Lyceum price list | Dashboard screenshot 2026-09-03 (Kimi-K3 $3/$15; GLM-5.2 $1.50/$4.50; GLM-5.3 $1.75/$4.50; GLM-5.3-Flash $0.20/$0.50; Qwen3.8-Flash-Next $0.20/$0.50; Qwen3.8-27B $0.40/$2.40; K2.7-Code $1.25/$4.50 — row partially cut off in screenshot) | dashboard 2026-09-03 |
 | V14 | OR twin prices in our rows | models.yml pricing blocks verified 2026-08-27..31 (see or-* rows) | read 2026-09-03 |
 | V15 | `ResolveCostProvenance` maps 0/0 → `CostFreeLocal`; default lane for unknown models is `AuthLaneBilled` → `CostMetered` | `internal/executor/cost.go:140-153,217-222` | read 2026-09-03 |
-| V16-V22 | Live-API premises (slugs, streaming, reasoning exposure, usage shape, error shapes, billing reconciliation) | Phase 0 probes with Mark's key | **PENDING — gates row-writing** |
+| V16 | Slug resolution | `GET /openai/v1/models` + per-slug completions | ✅ 39-model catalogue; `moonshotai/kimi-k3`, `z-ai/glm-5.3-flash`, `qwen/qwen3.8-flash-next` all live-verified 2026-09-03 (`qwen/qwen3.8-flash` 404s — `-next` is part of the slug) |
+| V17 | Completion round-trip | max_tokens 2048 probes, both models | ✅ finish=stop with content; at 32 tokens the budget went entirely to thinking |
+| V18 | Streaming | SSE capture, head+tail | ✅ standard `chat.completion.chunk`, `delta.reasoning_content`, `data: [DONE]`, unprompted final usage chunk |
+| V19 | Reasoning exposure | GLM-5.3-flash + kimi-k3 probes + step.go:317-324 read | ✅ GLM: `reasoning_content` + `usage.completion_tokens_details.reasoning_tokens`; Kimi: `reasoning` field (both parsed by ChatStepRespMessage) but NO reasoning_tokens in kimi usage. ⚠️ step/stream usage structs lack `completion_tokens_details` — contingency task added to Phase 1 |
+| V20 | Usage shape | both models' usage blocks | ✅ standard shape + Lyceum extras (kimi: `cached_tokens`/`created_cache_tokens`; glm: `text_tokens`). kimi counted prompt_tokens=93 vs glm 17 for the same prompt — A/B flag |
+| V21 | Error shapes | bad-key + bad-model probes | ✅ 401 `unauthorized_error`, 404 `not_found_error` — standard OpenAI envelopes |
+| V22 | Billing reconciliation | probed `/usage`,`/billing/usage`,`/credits`,`/user` — all 404 | ⚠️ PARTIAL: no self-serve endpoints; reconcile via dashboard. Probe spend <1,000 tokens, expected cost < $0.001 |
 
 ## Conflict Surface
 
@@ -400,8 +434,8 @@ The following are intentionally left open for the implementer:
 
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
-| R1: Slug namespace differs from OpenRouter's (`z-ai/…` may not resolve) | Med | Phase 0 V16 gates row-writing; rows land only for live-verified slugs |
-| R2: Reasoning tokens not exposed by Lyceum's upstreams | Med | V19 probe; if absent, flag the row `compare-with-caution` — do not bank capability conclusions from a route that hides thinking (GLM-5.2 lesson) |
+| R1: Slug namespace differs from OpenRouter's | ~~Med~~ **RESOLVED (V16)** | Slugs follow the OpenRouter convention; all three seed slugs live-verified (`qwen3.8-flash-next` naming correction banked) |
+| R2: Reasoning tokens not exposed by Lyceum's upstreams | ~~Med~~ **RESOLVED (V19)** | GLM exposes reasoning_content + reasoning_tokens; Kimi exposes thinking text but no reasoning-token count — kimi rows get a `reason_tokens unavailable` note |
 | R3: Dashboard prices drift from actual billing | Low | V22 reconciliation before the smoke gate; rows carry verification date + provenance comments like the OR rows |
 | R4: Unknown concurrency limits / throttling on a smaller vendor | Med | Lyceum rows start opt-in (not in any suite); run them serially (`--parallel 1`) until Phase 0 observes the throttle behaviour |
 | R5: `0/0` pricing row banks as `free-local` (false provenance) | Med | Phase 2 checklist: every lyceum row carries real dashboard-reconciled prices (V15) |
