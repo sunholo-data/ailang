@@ -88,6 +88,10 @@ func newProviderAdapter(model string, apiKey string, explicitProvider ai.Provide
 		// is "vendor/model" (e.g., "anthropic/claude-sonnet-4.5").
 		model = strings.TrimPrefix(model, "openrouter:")
 		provider = openrouter.NewClient(apiKey)
+	case ai.ProviderLyceum:
+		// M-LYCEUM-PROVIDER: EU-hosted OpenAI-compatible route — same openai
+		// transport, Lyceum endpoint (ai.LyceumBaseURL honours LYCEUM_BASE_URL).
+		provider = openai.NewClient(apiKey, openai.WithBaseURL(ai.LyceumBaseURL()))
 	default:
 		return nil, fmt.Errorf("unsupported provider for model: %s", model)
 	}
