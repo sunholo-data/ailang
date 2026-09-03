@@ -427,4 +427,27 @@ func (b *JaegerBackend) GetSpanLitesByStageID(ctx context.Context, stageID strin
 }
 
 // Ensure JaegerBackend implements Backend
+
+// M-COMPLETION-PATH-PARITY M0b — finalisation writes.
+//
+// Unlike the Update* methods above, these do NOT return a silent nil. This
+// backend cannot store the chain hierarchy, and a finalisation that quietly
+// succeeds while writing nothing is the failure mode the milestone exists to
+// remove.
+func (b *JaegerBackend) SetStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error {
+	return ErrChainWritesUnsupported
+}
+
+func (b *JaegerBackend) SetStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64, costProvenance string) error {
+	return ErrChainWritesUnsupported
+}
+
+func (b *JaegerBackend) SetStageError(ctx context.Context, stageID, errorMessage string) error {
+	return ErrChainWritesUnsupported
+}
+
+func (b *JaegerBackend) RecomputeChainAggregates(ctx context.Context, chainID string) error {
+	return ErrChainWritesUnsupported
+}
+
 var _ Backend = (*JaegerBackend)(nil)

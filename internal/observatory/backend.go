@@ -147,6 +147,21 @@ type Backend interface {
 	GetStage(ctx context.Context, id string) (*ChainStage, error)
 	GetChainStages(ctx context.Context, chainID string, opts ChainReadOptions) ([]*ChainStage, error)
 	UpdateStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error
+
+	// Idempotent finalisation writes (M-COMPLETION-PATH-PARITY M0b).
+	//
+	// Task finalisation is replayed — Pub/Sub push is at-least-once — so it needs
+	// writes that are safe to apply twice. The Update* family above is not: the
+	// metrics accumulate, UpdateStageStatus increments the chain's
+	// stages_completed counter, and UpdateStageError increments error_count.
+	// These absolute-write counterparts exist for that path; the accumulating
+	// ones keep their semantics for importers and evaluators.
+	SetStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error
+	SetStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64, costProvenance string) error
+	SetStageError(ctx context.Context, stageID, errorMessage string) error
+	// RecomputeChainAggregates derives a chain's totals and stages_completed from
+	// its stage rows, so the value does not depend on who writes it or how often.
+	RecomputeChainAggregates(ctx context.Context, chainID string) error
 	UpdateStageSession(ctx context.Context, stageID, sessionID string) error
 	UpdateStageApproval(ctx context.Context, stageID string, status ApprovalStatus, approvalType ApprovalType, feedback string) error
 	// UpdateStageMetrics accumulates a stage's denormalized metrics.

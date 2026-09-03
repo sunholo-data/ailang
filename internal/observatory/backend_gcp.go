@@ -785,4 +785,27 @@ func (b *GCPTraceBackend) GetSpanLitesByStageID(ctx context.Context, stageID str
 }
 
 // Ensure GCPTraceBackend implements Backend
+
+// M-COMPLETION-PATH-PARITY M0b — finalisation writes.
+//
+// Unlike the Update* methods above, these do NOT return a silent nil. This
+// backend cannot store the chain hierarchy, and a finalisation that quietly
+// succeeds while writing nothing is the failure mode the milestone exists to
+// remove.
+func (b *GCPTraceBackend) SetStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error {
+	return ErrChainWritesUnsupported
+}
+
+func (b *GCPTraceBackend) SetStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64, costProvenance string) error {
+	return ErrChainWritesUnsupported
+}
+
+func (b *GCPTraceBackend) SetStageError(ctx context.Context, stageID, errorMessage string) error {
+	return ErrChainWritesUnsupported
+}
+
+func (b *GCPTraceBackend) RecomputeChainAggregates(ctx context.Context, chainID string) error {
+	return ErrChainWritesUnsupported
+}
+
 var _ Backend = (*GCPTraceBackend)(nil)

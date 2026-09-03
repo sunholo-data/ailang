@@ -523,4 +523,21 @@ func (b *SQLiteBackend) CountChatMessages(ctx context.Context, q ChatMessageQuer
 }
 
 // Ensure SQLiteBackend implements Backend
+// M-COMPLETION-PATH-PARITY M0b — idempotent finalisation writes.
+func (b *SQLiteBackend) SetStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error {
+	return b.store.SetStageStatus(ctx, stageID, status)
+}
+
+func (b *SQLiteBackend) SetStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64, costProvenance string) error {
+	return b.store.SetStageMetrics(ctx, stageID, cost, tokensIn, tokensOut, turns, toolCalls, durationMs, costProvenance)
+}
+
+func (b *SQLiteBackend) SetStageError(ctx context.Context, stageID, errorMessage string) error {
+	return b.store.SetStageError(ctx, stageID, errorMessage)
+}
+
+func (b *SQLiteBackend) RecomputeChainAggregates(ctx context.Context, chainID string) error {
+	return b.store.RecomputeChainAggregates(ctx, chainID)
+}
+
 var _ Backend = (*SQLiteBackend)(nil)

@@ -517,4 +517,22 @@ func (b *CompositeBackend) GetSpanLitesByStageID(ctx context.Context, stageID st
 }
 
 // Ensure CompositeBackend implements Backend
+// M-COMPLETION-PATH-PARITY M0b — idempotent finalisation writes, routed to the
+// local backend like every other chain/stage write on this composite.
+func (b *CompositeBackend) SetStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error {
+	return b.local.SetStageStatus(ctx, stageID, status)
+}
+
+func (b *CompositeBackend) SetStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64, costProvenance string) error {
+	return b.local.SetStageMetrics(ctx, stageID, cost, tokensIn, tokensOut, turns, toolCalls, durationMs, costProvenance)
+}
+
+func (b *CompositeBackend) SetStageError(ctx context.Context, stageID, errorMessage string) error {
+	return b.local.SetStageError(ctx, stageID, errorMessage)
+}
+
+func (b *CompositeBackend) RecomputeChainAggregates(ctx context.Context, chainID string) error {
+	return b.local.RecomputeChainAggregates(ctx, chainID)
+}
+
 var _ Backend = (*CompositeBackend)(nil)
