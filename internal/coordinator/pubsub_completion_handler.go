@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 )
 
@@ -20,7 +21,25 @@ type CompletionHandler struct {
 	taskStore     Store
 	msgStore      messaging.MessageStore // For posting completion notifications
 	agentRegistry *AgentRegistry         // For checking skip_approval config
-	logger        *log.Logger
+	// obsBackend lets a cloud completion advance its chain and stage. Without it
+	// this path wrote task status and nothing else, which is why every chain in
+	// production sat "active" with a stage frozen at "pending" — 315 of them, the
+	// oldest for four months (M-COMPLETION-PATH-PARITY).
+	obsBackend observatory.Backend
+	// instanceID names this coordinator on finalisation ledger claims.
+	instanceID string
+	logger     *log.Logger
+}
+
+// SetFinalizationDeps wires the collaborators cloud finalisation needs beyond the
+// task store. Both are optional for construction but the completion path is
+// materially degraded without them, and says so at startup rather than silently.
+func (h *CompletionHandler) SetFinalizationDeps(obsBackend observatory.Backend, instanceID string) {
+	h.obsBackend = obsBackend
+	h.instanceID = instanceID
+	if obsBackend == nil && h.logger != nil {
+		h.logger.Printf("CompletionHandler: no observatory backend — cloud completions will not advance their chain or stage")
+	}
 }
 
 // NewCompletionHandler creates a handler that processes task completions.
@@ -110,61 +129,53 @@ func (h *CompletionHandler) handleCompletion(ctx context.Context, completion pub
 		}
 	}
 
-	switch completion.Status {
-	case "completed":
-		// Check if agent is configured to skip approval.
-		skipApproval := false
-		if h.agentRegistry != nil {
-			if agent := h.agentRegistry.GetAgentByID(completion.AgentID); agent != nil {
-				skipApproval = agent.SkipApproval
-			}
-		}
-
-		if skipApproval {
-			// Skip approval — mark completed directly.
-			if err := h.taskStore.MarkTaskCompleted(ctx, completion.TaskID, execResult); err != nil {
-				return fmt.Errorf("mark task completed: %w", err)
-			}
-			h.logger.Printf("CompletionHandler: task %s → completed (skip_approval, branch=%s, turns=%d, tools=%d)",
-				completion.TaskID, completion.BranchName, completion.NumTurns, completion.ToolCallCount)
-		} else {
-			// Standard flow: mark pending_approval for human review.
-			if err := h.taskStore.MarkTaskPendingApproval(ctx, completion.TaskID, "", completion.BranchName, "", "", execResult); err != nil {
-				return fmt.Errorf("mark task pending_approval: %w", err)
-			}
-			h.logger.Printf("CompletionHandler: task %s → pending_approval (branch=%s, turns=%d, tools=%d)",
-				completion.TaskID, completion.BranchName, completion.NumTurns, completion.ToolCallCount)
-		}
-
-		// Post completion notification to the agent's inbox so the portal/sidecar can detect it.
-		h.postCompletionNotification(ctx, task, completion)
-
-	case "failed":
-		if err := h.taskStore.MarkTaskFailed(ctx, completion.TaskID, fmt.Errorf("%s", completion.ErrorMsg)); err != nil {
-			return fmt.Errorf("mark task failed: %w", err)
-		}
-		h.logger.Printf("CompletionHandler: task %s → failed (error=%s)",
-			completion.TaskID, completion.ErrorMsg)
-
-		// Post failure notification too.
-		h.postCompletionNotification(ctx, task, completion)
-
-	case string(TaskStatusNoChanges):
-		// The run finished and produced nothing it was expected to produce.
-		// Terminal, but NOT a success — it never enters the approval flow,
-		// because there is nothing to approve.
-		task.Status = TaskStatusNoChanges
-		if err := h.taskStore.UpdateTask(ctx, task); err != nil {
-			return fmt.Errorf("mark task no_changes: %w", err)
-		}
-		h.logger.Printf("CompletionHandler: task %s → no_changes (ran, changed nothing, was expected to)",
-			completion.TaskID)
-		h.postCompletionNotification(ctx, task, completion)
-
-	default:
-		h.logger.Printf("CompletionHandler: unknown completion status %q for task %s",
-			completion.Status, completion.TaskID)
+	// One finalisation path for both executors (M-COMPLETION-PATH-PARITY M1).
+	//
+	// This used to be a switch that set a status and posted a notification —
+	// two effects, against the daemon path's ten. Everything in that difference
+	// was dead in production: the approval record, the agent handoffs that
+	// depend on it, and all chain and stage progression. The configured pipeline
+	// design-doc-creator -> sprint-planner -> ... has therefore never advanced
+	// past its first stage.
+	outcome, ok := completionOutcome(completion.Status)
+	if !ok {
+		h.logger.Printf("CompletionHandler: unknown completion status %q for task %s", completion.Status, completion.TaskID)
+		return nil
 	}
+
+	skipApproval := false
+	if h.agentRegistry != nil {
+		if agent := h.agentRegistry.GetAgentByID(completion.AgentID); agent != nil {
+			skipApproval = agent.SkipApproval
+		}
+	}
+
+	deps := &FinalizeDeps{
+		TaskStore:     h.taskStore,
+		MsgStore:      h.msgStore,
+		ObsBackend:    h.obsBackend,
+		AgentRegistry: h.agentRegistry,
+		Logger:        h.logger,
+		Owner:         h.instanceID,
+	}
+	report, err := FinalizeTaskCompletion(ctx, deps, FinalizeInput{
+		Task:         task,
+		Result:       execResult,
+		Outcome:      outcome,
+		BranchName:   completion.BranchName,
+		SkipApproval: skipApproval,
+	}, &CloudStrategy{Completion: completion})
+	if err != nil {
+		return fmt.Errorf("finalize task %s: %w", completion.TaskID, err)
+	}
+	h.logger.Printf("CompletionHandler: task %s -> %s (branch=%s, turns=%d, tools=%d) applied=%v skipped=%v",
+		completion.TaskID, outcome, completion.BranchName, completion.NumTurns, completion.ToolCallCount,
+		report.Applied, report.Skipped)
+
+	// The agent's own inbox notice stays: the portal and sidecar poll for it.
+	// Note this is NOT a reply to whoever sent the original request — completions
+	// land in the agent's inbox and correlate home only via correlation_id.
+	h.postCompletionNotification(ctx, task, completion)
 
 	return nil
 }

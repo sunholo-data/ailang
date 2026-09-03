@@ -13,6 +13,7 @@ import (
 type MockStore struct {
 	approvalIDs map[string]bool // ids already created, so CreateApprovalIfAbsent models first-write-wins
 	ledgers     map[string]FinalizationLedger
+	statuses    map[string]TaskStatus
 	mu     sync.Mutex
 	tasks  map[string]*TaskRecord
 	stages map[string]TaskStage
@@ -476,4 +477,25 @@ func (m *MockStore) SetTaskFinalization(ctx context.Context, taskID string, ledg
 	}
 	m.ledgers[taskID] = ledger
 	return nil
+}
+
+// CompareAndSetTaskStatus models the real conditional write, so tests that rely
+// on supersession behave as production does rather than always succeeding.
+func (m *MockStore) CompareAndSetTaskStatus(ctx context.Context, id string, expected []TaskStatus, next TaskStatus) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.statuses == nil {
+		m.statuses = map[string]TaskStatus{}
+	}
+	current, ok := m.statuses[id]
+	if !ok {
+		current = TaskStatusRunning
+	}
+	for _, want := range expected {
+		if current == want {
+			m.statuses[id] = next
+			return true, nil
+		}
+	}
+	return false, nil
 }

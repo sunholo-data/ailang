@@ -256,6 +256,11 @@ type Store interface {
 	// of finalisation, written after each effect.
 	GetTaskFinalization(ctx context.Context, taskID string) (FinalizationLedger, error)
 	SetTaskFinalization(ctx context.Context, taskID string, ledger FinalizationLedger) error
+	// CompareAndSetTaskStatus writes a status only if the record still holds one
+	// of the expected values, so a stale replay cannot regress a task another
+	// step has advanced (M-COMPLETION-PATH-PARITY C1). A false return means
+	// superseded, not failed.
+	CompareAndSetTaskStatus(ctx context.Context, id string, expected []TaskStatus, next TaskStatus) (bool, error)
 	GetApprovalRequest(ctx context.Context, id string) (*ApprovalRequestRecord, error)                    // Get by approval ID
 	GetApprovalRequestByTask(ctx context.Context, taskID string) (*ApprovalRequestRecord, error)          // Get pending by task ID
 	GetApprovalRequestByTaskAnyStatus(ctx context.Context, taskID string) (*ApprovalRequestRecord, error) // Get approval regardless of status (for handoff triggering)

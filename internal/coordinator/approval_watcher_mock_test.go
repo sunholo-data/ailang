@@ -41,6 +41,7 @@ func (m *mockGitHubPoster) GetRecentHumanComments(issueNum int, since time.Time)
 type mockStore struct {
 	approvalIDs map[string]bool // ids already created, so CreateApprovalIfAbsent models first-write-wins
 	ledgers     map[string]FinalizationLedger
+	statuses    map[string]TaskStatus
 	tasks []*TaskRecord
 	err   error
 }
@@ -206,4 +207,24 @@ func (m *mockStore) SetTaskFinalization(ctx context.Context, taskID string, ledg
 	}
 	m.ledgers[taskID] = ledger
 	return nil
+}
+
+// CompareAndSetTaskStatus models the real conditional write, so tests that rely
+// on supersession behave as production does rather than always succeeding.
+func (m *mockStore) CompareAndSetTaskStatus(ctx context.Context, id string, expected []TaskStatus, next TaskStatus) (bool, error) {
+	
+	if m.statuses == nil {
+		m.statuses = map[string]TaskStatus{}
+	}
+	current, ok := m.statuses[id]
+	if !ok {
+		current = TaskStatusRunning
+	}
+	for _, want := range expected {
+		if current == want {
+			m.statuses[id] = next
+			return true, nil
+		}
+	}
+	return false, nil
 }

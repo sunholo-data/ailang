@@ -119,6 +119,17 @@ func (s *Store) PutMessageIfAbsent(ctx context.Context, msg *InboxMessage) (bool
 	if msg.ID == "" {
 		return false, fmt.Errorf("PutMessageIfAbsent requires an explicit message id: the whole point is that a replay collides")
 	}
+	// MessageID must be derived from the id, not from a timestamp plus an 8-char
+	// prefix. Finalisation writes several messages for one task under
+	// deterministic ids — "task-x:approval" and "task-x:handoff:sprint-planner" —
+	// which share their first eight characters, so within the same second the
+	// generated MessageIDs collide and the UNIQUE constraint on message_id
+	// rejects the second write. The whole point of a deterministic id is that
+	// only a genuine replay collides. This matches the Firestore backend, where
+	// MessageID already equals ID.
+	if msg.MessageID == "" {
+		msg.MessageID = msg.ID
+	}
 	return s.insertInbox(ctx, msg, " ON CONFLICT(id) DO NOTHING")
 }
 
