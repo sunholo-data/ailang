@@ -360,6 +360,18 @@ out=$(MISSION_PLANNER_ALLOWLIST="$PRE_SCRIPTS_AL" MISSION_PLANNER_MODEL=codex:gp
 want "arm12 pre-widening allowlist still denies top-level scripts" "$out" "opus fail-closed:path-not-in-codex-allowlist"
 rm -rf "$lab"
 
+# --- M4 SKILL DELIVERY GUARDS (M-SPAWN-PIN-ENFORCEMENT, 2026-09-03) ------------
+skill="$ROOT/.claude/skills/mission-control/SKILL.md"
+if grep -q 'resolve-role-spawn.sh' "$skill" && grep -q 'MISSION-ROLE:' "$skill"; then
+  ok "S1 mission-control skill invokes resolver and requires role tokens"
+else
+  bad "S1 mission-control skill invokes resolver and requires role tokens" "resolver call or MISSION-ROLE token missing"
+fi
+# The longer literal is line-wrapped and cannot be matched by line-oriented grep.
+grep -q 'enum in this build lists' "$skill" \
+  && ok "S2 fable capability paragraph survives the spawn-pattern edit" \
+  || bad "S2 fable capability paragraph survives the spawn-pattern edit" "capability control missing"
+
 echo ""
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]
