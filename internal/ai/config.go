@@ -15,6 +15,7 @@ const (
 	ProviderGoogle     ProviderType = "google"
 	ProviderOllama     ProviderType = "ollama"
 	ProviderOpenRouter ProviderType = "openrouter"
+	ProviderLyceum     ProviderType = "lyceum"
 )
 
 // openrouterVendorPrefixes lists known "vendor/" prefixes that identify a
@@ -99,6 +100,16 @@ func GuessProvider(modelName string) ProviderType {
 	return ""
 }
 
+// LyceumBaseURL returns the EU-hosted Lyceum OpenAI-compatible endpoint.
+// LYCEUM_BASE_URL overrides it for tests and proxies (M-LYCEUM-PROVIDER D2:
+// constant + env override, not a models.yml schema field).
+func LyceumBaseURL() string {
+	if v := strings.TrimSpace(os.Getenv("LYCEUM_BASE_URL")); v != "" {
+		return v
+	}
+	return "https://api.lyceum.technology/openai/v1"
+}
+
 // EnvVarForProvider returns the environment variable name that holds the
 // API key for the given provider. Returns empty string for providers that
 // don't need an API key (Google ADC, Ollama local).
@@ -114,6 +125,8 @@ func EnvVarForProvider(provider ProviderType) string {
 		return "" // Local, no API key
 	case ProviderOpenRouter:
 		return "OPENROUTER_API_KEY"
+	case ProviderLyceum:
+		return "LYCEUM_API_KEY"
 	default:
 		return ""
 	}
@@ -142,6 +155,8 @@ func GetAPIKey(provider ProviderType) (string, error) {
 		return "", nil
 	case ProviderOpenRouter:
 		envVar = "OPENROUTER_API_KEY"
+	case ProviderLyceum:
+		envVar = "LYCEUM_API_KEY"
 	default:
 		return "", fmt.Errorf("unknown provider: %s", provider)
 	}
@@ -166,6 +181,8 @@ func ProviderFromString(s string) ProviderType {
 		return ProviderOllama
 	case "openrouter":
 		return ProviderOpenRouter
+	case "lyceum":
+		return ProviderLyceum
 	default:
 		return ProviderType(s)
 	}

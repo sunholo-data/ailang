@@ -380,7 +380,7 @@ func (c *ModelsConfig) SupportsStandardEval(name string) bool {
 		return false
 	}
 	switch model.Provider {
-	case "anthropic", "openai", "google", "gemini", "vertex", "openrouter":
+	case "anthropic", "openai", "google", "gemini", "vertex", "openrouter", "lyceum":
 		return true
 	default:
 		// ollama (local) and unknown providers are agent-only in practice.

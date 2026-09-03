@@ -158,6 +158,16 @@ func setupAIHandlerFromConfig(effCtx *effects.EffContext, model *eval_harness.Mo
 		}
 		handler = client.NewHandler(model.APIName, opts...)
 
+	case ai.ProviderLyceum:
+		// M-LYCEUM-PROVIDER: EU-hosted OpenAI-compatible route. Same wire
+		// transport as the openai case, pointed at the Lyceum endpoint —
+		// the openrouter precedent (thin client over internal/ai/openai).
+		if apiKey == "" {
+			return fmt.Errorf("%s environment variable required for model %s", model.EnvVar, aiModel)
+		}
+		client := openai.NewClient(apiKey, openai.WithBaseURL(ai.LyceumBaseURL()))
+		handler = client.NewHandler(model.APIName, opts...)
+
 	default:
 		// M-AI-PROVIDER-CONFIG: consult the config-driven provider registry.
 		// Built-in dispatch above wins on collision (D4).
@@ -166,7 +176,7 @@ func setupAIHandlerFromConfig(effCtx *effects.EffContext, model *eval_harness.Mo
 		} else {
 			names := ai.GlobalProviderRegistry.Names()
 			if len(names) > 0 {
-				return fmt.Errorf("unsupported AI provider: %q (built-in: openai, anthropic, gemini, ollama, openrouter; config-driven: %v)", model.Provider, names)
+				return fmt.Errorf("unsupported AI provider: %q (built-in: openai, anthropic, gemini, ollama, openrouter, lyceum; config-driven: %v)", model.Provider, names)
 			}
 			return fmt.Errorf("unsupported AI provider: %s", model.Provider)
 		}

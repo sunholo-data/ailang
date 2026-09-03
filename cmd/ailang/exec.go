@@ -132,11 +132,11 @@ func runExec() {
 	// Validate provider
 	validProviders := map[string]bool{
 		"claude": true, "gemini": true, "openai": true,
-		"anthropic": true, "ollama": true, "openrouter": true,
+		"anthropic": true, "ollama": true, "openrouter": true, "lyceum": true,
 	}
 	if !validProviders[provider] {
 		fmt.Fprintf(os.Stderr, "%s: unknown provider %q\n", red("Error"), provider)
-		fmt.Fprintf(os.Stderr, "Valid providers: claude, gemini, openai, anthropic, ollama, openrouter\n")
+		fmt.Fprintf(os.Stderr, "Valid providers: claude, gemini, openai, anthropic, ollama, openrouter, lyceum\n")
 		os.Exit(1)
 	}
 
@@ -482,6 +482,14 @@ func executeAPI(ctx context.Context, provider, directive, model, systemPrompt st
 			return nil, fmt.Errorf("OPENROUTER_API_KEY environment variable required")
 		}
 		client = openrouter.NewClient(apiKey)
+	case "lyceum":
+		// M-LYCEUM-PROVIDER: EU-hosted OpenAI-compatible route — same openai
+		// transport, Lyceum endpoint (ai.LyceumBaseURL honours LYCEUM_BASE_URL).
+		apiKey := os.Getenv("LYCEUM_API_KEY")
+		if apiKey == "" {
+			return nil, fmt.Errorf("LYCEUM_API_KEY environment variable required")
+		}
+		client = openai.NewClient(apiKey, openai.WithBaseURL(ai.LyceumBaseURL()))
 	default:
 		// M-AI-PROVIDER-CONFIG: consult the config-driven provider registry.
 		// Built-ins are checked above first (D4 — built-ins win on collision).
