@@ -2,7 +2,7 @@
 
 **Type**: Fleet infrastructure fix (shared skill + launchd tooling + one per-mission env widening)
 **Raised**: 2026-09-01 (Mark, attended, after reviewing the docs mission's opus burns)
-**Status**: DRAFT — round-2 revision after quorum round 1 (3/3 reject: hook premise unverified, conflict surface, stale citations); design DIRECTION approved by Mark attended 2026-09-01
+**Status**: DRAFT — round-3 text after quorum rounds 1 and 2 (both 3/3 reject; round 2 localised on ONE surface: the hook's role mapping, plus one multi-hook platform premise — all fixes reviewer-authored and applied by the controller under the ratified narrow-refinement carve-out); design DIRECTION approved by Mark attended 2026-09-01
 **Traces to**: PROGRAM.md · mission-control SKILL.md Gate 3 · #493 (driver-side sibling) · #902 (executor-default sibling)
 **Planner-Lane**: codex-ok
 
@@ -87,18 +87,30 @@ prerequisite**, not an optional spike.
   same CI job covers it); wired in `.claude/settings.json` PreToolUse with matcher `"Agent|Task"`.
 - **Input**: the PreToolUse JSON on stdin (`tool_name`, `tool_input.model`, `tool_input.subagent_type`,
   `tool_input.prompt`, `tool_input.description`).
-- **ROLE MAPPING** (deterministic, no LLM judgment): the role is the mission role skill named in
-  `tool_input.prompt` or `tool_input.description` — exactly one of `{design-doc-creator,
-  sprint-planner, sprint-executor, sprint-evaluator}` (case-insensitive).
-  - Exactly one → that role.
-  - TWO OR MORE → deny `ambiguous-role`.
-  - NONE → not a mission role spawn (e.g. a read-only Explore reality-check) → allow. This is safe:
-    non-role spawns are outside the routing table and bill the session's own bucket, which is the
-    status quo this design does not touch. A controller could evade by omitting the skill name; the
-    skill edit (below) therefore requires role spawns to name the skill — the hook then makes the
-    NAMED path safe, and the resolver's Gate-4 routing row makes an unnamed spawn visible (a role
-    that ran with no resolver record is a routing FAILURE). The hook does not close evasion by
-    omission; it closes the documented, twice-measured path.
+- **ROLE MAPPING** (deterministic, machine-readable, no prompt inference): the role is declared by
+  an explicit token — a line `MISSION-ROLE: <role>` as the FIRST line of `tool_input.prompt` (or the
+  whole of `tool_input.description`), where `<role>` is exactly one of `{designer, planner,
+  executor, evaluator}`. The hook reads the token and nothing else: it does NOT infer a role from
+  skill names in prose (Verification Log M8 measured a false positive on exactly that — an
+  evaluator-flavoured prompt that mentioned `sprint-planner` mapped to the planner).
+  - The driver exports a trusted marker `MISSION_CONTROL_ACTIVE=1` (Layer 3). **When the marker is
+    present**, every Agent/Task call must map to exactly one role: a missing token → deny
+    `fail-closed:role-missing`; an unknown value → deny `fail-closed:role-unknown`. The ONE
+    machine-readable exception is `tool_input.subagent_type == "Explore"` with no token → allow,
+    because the Explore agent's tool set excludes Edit/Write/Agent by definition, so it cannot
+    author, plan, execute or judge — read-only reality-checks stay available during a mission
+    through an explicit field, not through prompt omission. **When the marker is absent**
+    (attended sessions, other repos), an unmapped call is allowed — the status quo is untouched.
+  - This closes evasion by omission while a mission is running: an unlabelled role spawn is denied
+    at the tool boundary, before any money is spent, and the denial reason names the token to add.
+  - **Residual surface, tracked**: a controller could LABEL a spawn with the wrong role (e.g. tag an
+    executor spawn `evaluator` to reach the sonnet alias). Compensating controls: (1) the hook
+    appends every decision (role, pin, model, subagent_type, verdict) to
+    `~/.ailang/state/mission-${MISSION_NAME}-spawn-hook.log`; (2) Gate 4's routing row is
+    cross-checked against that log and the resolver output — a role whose resolver says `recipe`
+    but whose only spawn record is an Agent-tool call is a routing FAILURE, not a FLAG; (3) the
+    evaluator arm still applies generator≠judge, so mislabelling an executor as `evaluator` to reach
+    the executor's own alias is denied by the re-route rule.
 - **DECISION**: for the mapped role read `MISSION_<ROLE>_MODEL` (upper-cased role, e.g.
   `MISSION_EXECUTOR_MODEL`).
   - If it contains `:` (a `provider:model` pin) and `tool_input.model` is absent or any bare alias →
@@ -120,14 +132,18 @@ prerequisite**, not an optional spike.
 `MISSION_<ROLE>_RESOLVED` and `MISSION_<ROLE>_PATH` so the controller derives nothing, the hook reads
 one source of truth, and the Gate-4 routing row is copied from the same bytes the driver verified.
 Layer 3's `MISSION_<ROLE>_RESOLVED/PATH` exports go beside the existing role exports (see
-Verification Log M4 for the current export line numbers).
+Verification Log M4 for the current export line numbers). The driver ALSO exports
+`MISSION_CONTROL_ACTIVE=1` for the whole controller session — the trusted marker the hook uses to
+decide whether an unlabelled Agent/Task call is a mission-role spawn (deny) or an attended-session
+call (allow).
 
 ### Skill edit (shrinks, not grows)
 
 SKILL.md Gate 3: replace the alias/fallback prose with *"for each role, run
 `resolve-role-spawn.sh` and spawn per its VERBATIM output; a denied spawn is a routing FAILURE,
-not a FLAG."* Keep the roles table as data. This is the same trust model as Step 1b. The edit also
-requires role spawns to NAME the skill in the Agent-tool prompt (the hook's role-mapping input).
+not a FLAG."* Keep the roles table as data. This is the same trust model as Step 1b. The spawn pattern gains
+one mechanical line: every role prompt begins `MISSION-ROLE: <role>` (the hook's only mapping
+input); read-only reality-checks are spawned as `subagent_type: Explore` and need no token.
 
 ### Per-mission env widening (separate knob; Mark's D-1 precedent)
 
@@ -168,8 +184,17 @@ invoked by `make test-launchd-drivers`. Keep the existing 36 arms green (Verific
 3. Unset `MISSION_EXECUTOR_MODEL` → deny `fail-closed:executor-model-missing`.
 4. Alias-pinned evaluator (sonnet) with executor resolved to sonnet → deny re-route (generator≠judge).
 5. Alias-pinned evaluator with codex executor → allow.
-6. Prompt naming two role skills → deny `ambiguous-role`.
-7. Prompt naming no role skill → allow (non-mission spawn).
+6. `MISSION_CONTROL_ACTIVE=1` + a prompt that names two role skills but carries no token → deny
+   `fail-closed:role-missing` (prose is not a role signal).
+7. `MISSION_CONTROL_ACTIVE=1` + no role token, `subagent_type: general-purpose` → deny
+   `fail-closed:role-missing`; **control**: the identical call with the marker ABSENT → allow.
+7a. `MISSION_CONTROL_ACTIVE=1` + no token + `subagent_type: Explore` → allow (the read-only path);
+   **control**: the same call with `subagent_type: general-purpose` → deny (arm 7).
+7b. `MISSION_CONTROL_ACTIVE=1` + token `MISSION-ROLE: judge` (unknown value) → deny
+   `fail-closed:role-unknown`.
+7c. Two overlapping PreToolUse hooks (a catch-all allow listed first, the spawn-pin deny second) →
+   the deny wins; asserted against the repo's real `.claude/settings.json`, not a `--settings` file
+   (closes the two "NOT measured" gaps below).
 8. Hook script must run under `/bin/bash 3.2` (the `launchd drivers (bash 3.2)` CI job,
    macos-latest).
 9. Resolver (Layer 1): `MISSION_EXECUTOR_MODEL=codex:gpt-5.6-luna` → `resolve-role-spawn.sh executor`
@@ -223,6 +248,12 @@ is a guard, not an expectation.
 - **Hook false positives**: the hook only fires when THAT role's env pin is a provider pin;
   alias-pinned roles (designer, evaluator) are unaffected.
 - **bash 3.2**: resolver mirrors `derive-planner-lane.sh`'s constraints; asserted in CI.
+- **Every non-Explore Agent spawn in a mission session must carry a role token.** A
+  `general-purpose` reality-check agent with no token is denied while `MISSION_CONTROL_ACTIVE=1`;
+  the remedy is the denial reason itself (use `subagent_type: Explore`, or label the role). Loud by
+  design; this is the behaviour change the fleet takes on.
+- **Wrong-label residual** (see Layer 2): tracked, with the spawn-hook log + Gate-4 cross-check +
+  generator≠judge as compensating controls; not claimed closed.
 
 ## Verification Log
 
@@ -238,11 +269,12 @@ is a claim, not a fact, so each row carries a known-positive control.
 | M4: driver lane-probe log format + export lines | read `/tmp/ailang-mission-control.log` (2026-09-03 16:54 fire); `grep -n MISSION_*_MODEL tools/launchd/mission-control.sh` | `[16:54:58] codex model 'gpt-5.6-sol' unusable: probe failed (rc=1)`; `[16:54:59] codex executor lane -> falling back to 'pi:ollama/deepseek-v4-flash:0731-cloud'`; `[16:59:30] LANE DEGRADED this fire: - planner: codex lane gpt-5.6-sol unusable (probe rc=1) → handed to pi:ollama/kimi-k3:cloud`; `[16:59:31] === mission iteration starting (controller=claude:claude-fable-5-1 ... roles: designer=... planner=... executor=... evaluator=sonnet) ===`; exports at lines 544 (DESIGNER), 569 (PLANNER), 586 (EXECUTOR), 630 (EXECUTOR_FALLBACK), 637 (PLANNER_FALLBACK), 793 (EVALUATOR), 821 (EVALUATOR_FALLBACK); per-fire degradation rewrites `MISSION_EXECUTOR_MODEL` at line 904 | the `roles:` line in the same log confirms the exports are the bytes the driver verified |
 | M5: existing PreToolUse hooks on the rig | `grep -n PreToolUse .claude/settings.json`; inspect `~/.claude/settings.json` | `.claude/settings.json` PreToolUse has ONE entry, matcher `"Bash\|Edit\|Write\|Read\|Agent\|WebFetch\|WebSearch\|mcp__.*"`, command `"$CLAUDE_PROJECT_DIR"/scripts/hooks/coordinator_hook.sh` (advisory, does not deny); `~/.claude/settings.json` has SessionStart hooks only, no PreToolUse | the existing matcher already includes `Agent`, so a new `Agent\|Task` deny hook runs alongside it; Claude Code runs all matching hooks and any deny wins |
 | M6: routing suite baseline | `bash tools/launchd/test_mission_routing.sh` on pristine tree (08ab6ba7c) | `==== 36 passed, 0 failed ====`, rc=0 | the 36 passing arms are the control that the suite is green before new assertions are added |
+| M7: two overlapping PreToolUse hooks — both run, deny wins | second live spike (2026-09-03T15:16:56Z), `--settings /tmp/spike2_settings_iter324.json` listing a catch-all ALLOW hook FIRST (matcher `Bash\|Edit\|Write\|Read\|Agent\|WebFetch\|WebSearch\|mcp__.*`, mirroring `coordinator_hook.sh`'s position) and an `Agent\|Task` DENY hook second; nested session asked to `echo spike2-ok` then spawn `subagent_type: Explore`, `model: opus` | hook log: `ALLOW-hook fired tool=Bash`, `ALLOW-hook fired tool=Agent`, `DENY-hook fired tool=Agent model=opus subagent_type=Explore`; nested report verbatim: "1. Bash `echo spike2-ok` — succeeded. 2. Agent (Explore, opus) — denied: `SPIKE2-DENY-iter324: second hook denies`." rc=0 | the allow hook fired on BOTH calls and returned an explicit `allow` decision, so the deny was not the only hook that ran; a SECOND alias (opus) and a different subagent_type were denied identically |
+| M8: role extraction — real prompts are not on disk; representative replay | `grep -ciE "invoke the (sprint-executor\|sprint-planner\|sprint-evaluator\|design-doc-creator)"` over `docs-mission-log.md`, `v1-mission-log.md`, `motoko-mission-log.md`; PR #973 and #1010 bodies grepped for the four skill names; then a prototype extractor (`grep -oiE` the four names, `sort -u`, count) over 8 representative prompts | **0 / 0 / 0** captured spawn prompts in the three logs and **0** skill-name mentions in either PR body — the ACTUAL docs-9/docs-10 prompts were never banked, so they cannot be replayed; replay: 4 of 4 role prompts → exactly one role, 2 of 2 read-only reality-check prompts → zero, 1 two-skill prompt → 2 (ambiguous), and **1 FALSE POSITIVE**: "Evaluate whether the sprint-planner's plan was followed by the executor" → `planner` | the four role prompts are the known-positive control for the extractor; the false positive is the measurement that retired prose-based mapping in favour of the explicit `MISSION-ROLE:` token |
 
-**What was NOT measured (must be asserted in the sprint's tests):** only ONE alias (sonnet) was
-tried in the M1 spike, and the hook was loaded via `--settings`, not from the repo's
-`.claude/settings.json`. The sprint must assert both: deny is identical across aliases, and the hook
-fires when wired through the repo settings file.
+**What was NOT measured (must be asserted in the sprint's tests):** the hooks in M1/M7 were loaded
+via `--settings`, not from the repo's `.claude/settings.json` (arm 7c); and `MISSION_CONTROL_ACTIVE`
+does not exist yet, so the marker-present/absent split (arms 7/7a) is design, not measurement.
 
 ## Quorum verification log
 
@@ -258,3 +290,25 @@ fires when wired through the repo settings file.
     anchors, M3), and EDIT 3 (Conflict Surface, M2).
   - Controller edit after the designer pass (iteration 324): restored test arms 9–12 (resolver and
     allowlist controls from round 1) that the revision had dropped; no other controller-authored change.
+- **Round 2** (2026-09-03T15:15Z): same three reviewers, all present, all reject — objections now
+  localised on ONE surface (Layer 2's role mapping) plus one platform premise. No design-direction
+  dispute; every objection carried a concrete reviewer-authored fix. Applied by the controller under
+  the narrow-refinement carve-out (ratified first use iter-95), no re-quorum:
+  - gpt5-6-sol: unlabelled spawns map to NONE and are allowed, so enforcement still rests on prose.
+    FIX (verbatim): "Have mission-control.sh export a trusted `MISSION_CONTROL_ACTIVE=1`. When that
+    marker is present, make the hook deny every Agent/Task call whose role mapping is NONE or
+    ambiguous ... Outside mission-control sessions, unmapped calls may remain allowed. Replace test 7
+    ... add a control showing the same unmapped call is allowed when the marker is absent. If
+    read-only Explore calls must remain available during missions, route them through a separately
+    enforced, explicit machine-readable path rather than prompt omission." → Layer 2 marker rule,
+    the `subagent_type: Explore` machine-readable path, Layer 3 export, test arms 7/7a.
+  - gemini-3-1-pro: "Claude Code runs all matching hooks and any deny wins" was unverified. FIX
+    (verbatim): "Add an M7 verification log row executing a spike with two overlapping PreToolUse
+    hooks (one allowing, one denying) to prove both execute and the deny takes precedence." →
+    Verification Log M7 (measured: both fired, deny won), test arm 7c.
+  - oc-glm-5-2: prose-based role extraction unverified and evadable. FIX (verbatim, the second
+    branch): "switch to ... a machine-readable role signal ... or accept that the hook can only
+    enforce on a NAMED spawn and document the residual evasion surface as a tracked risk with a
+    compensating control". → M8 measured the real prompts are not on disk and found a false
+    positive in prose matching; mapping switched to the explicit `MISSION-ROLE:` token; residual
+    wrong-label surface documented under Risks with three compensating controls.
