@@ -20922,3 +20922,90 @@ the masking finding, body read back and confirmed intact; their handoff acked.
 the only item here that prevents a recurrence rather than cleaning one up. It wants a design
 doc: the trade-off is CI minutes against observability, and the answer changes which gates are
 "required". `m-spawn-pin-enforcement` remains the queue head and is design-approved.
+
+## 324 — 2026-09-03 — The loop gated its own spawn path, and the judge blocked on the branch I had only asked about [HARNESS]
+
+**Pick**: the queue head, `m-spawn-pin-enforcement` — after first landing iteration 323's orphaned
+record (PR #1035, green and MERGEABLE, no report ever posted; the fourth of eight slots to die holding
+finished work).
+
+**Progress**: N = **12** design docs remaining before v1.0.0, **unmoved** — HARNESS iteration, goal
+moved by 0 in those words. (N went 10 → 12 by Mark's attended D-53 ruling, acknowledged this iteration.)
+
+**Outcome**: LANDED (M1+M2 of 4) · [HARNESS] · evaluator **round 1 FAIL 66/100 (one BLOCKING) →
+round 2 PASS 92/100, zero blocking** · PR [#1038](https://github.com/sunholo-data/ailang/pull/1038)
+→ squash [`70e453060`](https://github.com/sunholo-data/ailang/commit/70e453060) · Gate 3b `test`
+and CI `success` SHA-addressed; SonarCloud inherited (walked back to the parent).
+
+**What landed.** `tools/launchd/resolve-role-spawn.sh` (one line per role in the
+`derive-planner-lane.sh` convention; the planner role CONSUMES that script and copies its reason
+token through — measured 0/0/0/5 references, so the two compose rather than overlap) and
+`tools/launchd/spawn-pin-hook.sh`, a PreToolUse hook wired as a SECOND `Agent|Task` entry. While
+`MISSION_CONTROL_ACTIVE=1`: role by explicit first-line `MISSION-ROLE:` token only (prose
+inference measured to false-positive), `subagent_type: Explore` the one read-only exception, a
+`provider:model` pin denied on ANY alias, unset pin / unknown role / unparsable payload / evaluator
+alias == executor's resolved model all denied, every decision logged (7 tab fields). Marker absent:
+the hook prints NOTHING. Routing suite 36→45 arms; hook suite 17; `launchd drivers (bash 3.2)`
+green; end-to-end through the repo's real settings file in a nested session.
+
+**Two quorum rounds, both 3/3 reject, and the loop measured rather than forwarded.** Round 1 blocked
+on an unverified premise (hook→env inheritance), a Conflict Surface ask and stale line cites; I ran
+the spike myself (env inherited, `SPIKE_MARKER` control, deny honoured under `bypassPermissions`),
+counted the overlap, re-cited by text, then routed the revision to the rotation designer (pi
+deepseek, 61 s). Round 2 localised on ONE surface — evasion by omitting the skill name — with a
+platform premise beside it. Two more measurements (both overlapping hooks fire, deny wins, second
+alias; the real docs-9/10 prompts are NOT on disk) and the reviewers' own fixes applied under the
+ratified narrow-refinement carve-out. Note the design ended at round 3 text without a third quorum:
+that is the carve-out working as ratified, and the round count is data about scoping.
+
+**The judge earned its slot on my own question.** I handed it F1 as an open question ("does an
+explicit `allow` on the marker-absent branch change attended behaviour?"). It upgraded it to
+BLOCKING with the right frame: nothing exports the marker yet, so that branch is the ONLY one that
+fires today, on 100 % of Agent/Task calls in every attended session loading this repo's settings.
+Fixed by printing no decision; drilled (re-adding the allow kills 7ctl alone). It also found arm L
+checking 2 of 7 log fields — a role/pin argument swap survived — and a plan table row that
+under-counted a kill set. Both fixed and drilled.
+
+**Ruled out / corrected**
+- "Layer-3 exports go beside the role exports" (design) — WRONG: the codex/pi loops rewrite
+  `MISSION_<ROLE>_MODEL` in place at driver lines 722/770/779; the export anchor is before the
+  `roles:` log line at 1003. Planner finding, verified by me.
+- "line 904 is per-fire degradation" (design) — WRONG: it is the one-shot executor override.
+- "`make test-launchd-drivers` picks up a sibling suite" — WRONG: each script is named; arm W guards
+  the wiring.
+- "deleting the Explore exception kills 7a alone" (plan) — WRONG: 7a AND L. "dropping `-e` from the
+  payload gate kills 8n alone" (my own row) — WRONG: 8e AND 8n, `printf '' | jq .` exits 0.
+- "the docs-9/docs-10 Agent prompts can be replayed" (reviewer ask) — NOT POSSIBLE: 0 captured in
+  three mission logs and 0 skill names in either PR body; representative replay used instead.
+- The eval-suite "0/23 passed" inbox message — 23 benchmarks in 0.02 s is a lane failure, not a
+  regression; not the pick.
+
+**Routing evidence**: controller `claude:claude-fable-5-1` (driver: opus probe timed out ×2, then
+fable ok). Designer **`pi:ollama/deepseek-v4-flash:0731-cloud`** (rotation next after
+`claude:claude-fable-5`; pointer advanced; `mission_pi_run.sh` verdict `ok`, 61 s, 12 tool calls,
+1 file). Planner **opus** via Agent tool — `derive-planner-lane.sh` emitted
+`opus fail-closed:path-not-in-codex-allowlist` (used verbatim; 592 s, 26 tool calls). Executor
+**`pi:ollama/deepseek-v4-flash:0731-cloud`** (driver fallback, codex probe rc=1 `404` at the
+chatgpt backend; pi probe rc=0; two runs `ok` 488 s / 712 s, no git writes, snapshots faithful) —
+the DeepSeek promotion count is now **2 consecutive `ok` with non-empty diffs in one iteration**;
+the promotion rule says "two consecutive real sprint executions", which these are. Evaluator
+**sonnet** (Agent tool, own worktree; generator≠judge holds against pi/DeepSeek), rounds 1 and 2,
+1052 s + 360 s. Quorum reviewers `gpt5-6-sol`/`gemini-3-1-pro`/`oc-glm-5-2` all present both rounds.
+**metered=$0.10** (round 1 $0.0405, round 2 $0.0605); pi Ollama Cloud flat-rate; Anthropic quota
+buckets fable/opus/sonnet. The new resolver, run on this iteration's real env, reads
+`planner: agent-tool opus fail-closed:path-not-in-codex-allowlist` · `evaluator: agent-tool sonnet`
+· `executor: recipe pi:ollama/deepseek-v4-flash:0731-cloud` · `designer: recipe
+claude:claude-fable-5-1` — which is what actually ran, except the designer, which the rotation
+file (not the env seed) sent to deepseek.
+
+**Friction (one instance, recorded for the ≥2 bar)**: `scripts/mission_pi_run.sh` invokes pi
+WITHOUT the `-e sandbox/index.ts -e worktree-fence.ts` extensions the pi recipe calls mandatory;
+`~/.pi/extensions/` holds only the policy JSON, so designer and executor ran unfenced. The post-hoc
+main-checkout check held (7 dirty files before and after, none mine). Two rules disagree; the next
+instance is the skill-edit trigger.
+
+**Next**: `m-spawn-pin-enforcement` **M3** (driver exports `MISSION_CONTROL_ACTIVE=1`,
+`MISSION_<ROLE>_RESOLVED/PATH` immediately before the `roles:` log line; `scripts/*` appended to
+the versioned docs allowlist) and **M4** (the Gate-3 spawn-pattern paragraph) — M3 ARMS the hook
+fleet-wide, so its landing note must say that a controller running the stale main-checkout skill
+will be denied until it adds the token, with the denial reason naming the fix.
