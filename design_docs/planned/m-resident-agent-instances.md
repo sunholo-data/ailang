@@ -1,6 +1,6 @@
 # M-RESIDENT-AGENT-INSTANCES: a coding agent that keeps working when the laptop closes
 
-**Status**: **Live in dev.** M1 (image), M2 (A2A surface), M2b (platform client), M3 (terraform + instance script), M7-partial (direct pi execution), M10 (session persistence) and per-user provisioning are **built and verified against a running instance** — `resident-instance.sh verify` 12/12 including two-turn recall, and cross-tenant isolation 3/3. Phase 0 gate **passed on measurement** 2026-09-02. NOT built: streaming (M7 proper), the control plane and idle sweep (M4), notifications (M5), chaos/cost (M6), observability (M8).
+**Status**: **Live in dev.** M1, M2, M2b, M3, M7-partial (direct pi execution), M10 (session persistence), per-user provisioning and M4-most (idle reporting, sweep, lifecycle endpoint) are **built and verified against a running instance** — `resident-instance.sh verify` 12/12 including two-turn recall, cross-tenant isolation 3/3. Phase 0 gate **passed on measurement** 2026-09-02. NOT built: streaming (M7 proper), notifications (M5), chaos/cost (M6), observability (M8). M4 is code-complete but NOT ENABLED — it needs config on the coordinator and the platform, and the sweep refuses to act until it has it (D13).
 **Scope**: `docker/resident/` (image, boot, A2A server), `ailang-multivac/terraform/resident_agents.tf`, `ailang-multivac/scripts/resident-instance.sh`. Runs in `ailang-multivac-dev`, region `europe-west4`.
 **Target**: v0.35.0
 **Priority**: P2 — nothing autonomous is blocked on it. It replaces a laptop, not a pipeline.
@@ -395,6 +395,68 @@ Only **dev** has a resident instance (`resident-pi-ailang` in
 literal — `https://<instance>-<projectNumber>.<region>.run.app` — so the
 platform's Terraform should COMPUTE it per environment from that env's project
 number, not carry a pasted string per trigger.
+
+### D13 — Idle-stopping needs a way back, and the way back is the coordinator
+
+The economics of D11 rest on stopping idle instances: **~$25-30/month** running
+against **≤$6** idle-stopped, per user. Two measurements decided how that is
+built, both taken before anything was written:
+
+```
+stopped instance -> GET /livez      HTTP 404 in 0s   (frontend; URL unmapped)
+:start           -> serving after   ~30s             (NOT the 6-10s of a restart,
+                                                      which keeps the image warm)
+```
+
+**A stopped instance does not wake on a request.** So a sweep without a start
+path does not save money — it permanently strands the users who were idle
+longest, quietly. That inverts the build order: the way back comes first, and
+`resident-sweep.sh` **refuses `--apply`** until a start path is configured.
+
+**The sweep asks the instance, not a database.** The agent knows when it last
+did work; reading that from the platform's Firestore would couple two estates
+for a fact one of them holds, and would go stale the moment anything reached the
+agent by another route. `/health` reports `runs.idle_s`, counting **work rather
+than traffic** — a sweep that counted health probes would never stop anything,
+because the sweep's own probe is traffic. Idleness is seeded from the newest
+task on load, since restarts are routine at the 7-day ceiling and an instance
+that looked freshly idle after each one would be swept minutes after returning.
+
+**It never sweeps on missing information.** An instance whose token cannot be
+minted, or whose health does not report idleness, is skipped and the run exits
+non-zero. An instance we cannot assess might be mid-run, and stopping it would
+kill a user's work to save pennies. It declined twice on its first run — once
+for a deleted service account, once for an image predating the field.
+
+**The way back rides the coordinator** (`/instances/start`), because that
+service already runs in this estate with its own identity: no new thing to
+deploy or watch, and the platform still only *asks* (P2). Two deliberate
+departures from what was already there:
+
+- **Not behind `requireAPIKey`.** That middleware passes every request when
+  `COORDINATOR_API_KEY` is unset — right for read-only status in local mode,
+  wrong for a route that operates infrastructure, where a missing env var would
+  silently open it. The lifecycle route verifies Google-signed OIDC against an
+  explicit allowlist and fails **closed**.
+- **A custom IAM role, not `roles/run.developer`.** That is the narrowest
+  *predefined* role containing `run.instances.start`, and it also grants create,
+  delete, `sshRoot` and service deployment. Three permissions — get, start,
+  stop — is the whole job.
+
+The handler additionally accepts only `^resident-[a-z0-9-]+$`, so the
+coordinator's identity may reach more than this endpoint will ever touch. A
+capability is defined by what it refuses.
+
+**Asleep is not broken.** Once a sweep runs, stopped becomes the *normal* case,
+and it surfaces as a 404 — which as a transport error is indistinguishable from
+a crash. The platform now separates three outcomes: asleep and starting (~30s),
+asleep with no start path (said plainly), and genuinely broken (still reported
+as broken; trading one indistinguishable failure for another would be no gain).
+
+**Not enabled yet.** M4 is code-complete and switched off: it needs
+`RESIDENT_LIFECYCLE_{AUDIENCE,ALLOWED_CALLERS,PROJECT,REGION}` on the
+coordinator and `RESIDENT_START_ENDPOINT` on the platform, both by the usual
+branch-push route. The interlock means nothing sweeps until they land.
 
 ## Phase 0 findings (2026-09-02) — measured, not assumed
 
