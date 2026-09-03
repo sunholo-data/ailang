@@ -79,6 +79,47 @@ console.log(Object.values(c.providers||{}).reduce((n,p)=>n+((p.models||[]).lengt
 [ "${REG_COUNT:-0}" -gt 0 ] || die "model registry declares no models"
 log "model registry: $REG_COUNT models -> $PI_HOME/agent/models.json (0600, local disk)"
 
+# ─── 1a-bis. Vertex AI: a provider with NO KEY IN THE CONTAINER ──────────────
+# pi's google-vertex provider authenticates with Application Default
+# Credentials, which on Cloud Run is this instance's service account via the
+# metadata server. Its config comes from env, not from the registry file, so
+# it is set here — BEFORE the server starts in section 2, since pi inherits the
+# server's environment and nothing exported later would reach it.
+#
+# Why this is the preferred path (design P6): the alternative bakes one shared
+# provider key into every per-user instance, where a hostile prompt in ANY
+# user's thread exfiltrates a credential that works for everyone. An ADC token
+# is reachable too — the agent has bash — but it is scoped to THIS instance's
+# own account, so stealing it grants exactly the permissions its thief had.
+HAS_VERTEX=$(node -e '
+const c=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
+console.log(Object.values(c.providers||{}).some(p=>p.api==="google-vertex") ? "1" : "0");'   "$PI_HOME/agent/models.json")
+if [ "$HAS_VERTEX" = "1" ]; then
+  # Prefer explicit config; fall back to the metadata server rather than
+  # guessing, and fail closed if neither answers — a Vertex provider with no
+  # project would fail on every call, at call time, looking like a model fault.
+  if [ -z "${GOOGLE_CLOUD_PROJECT:-}" ]; then
+    GOOGLE_CLOUD_PROJECT=$(curl -s --max-time 5 -H "Metadata-Flavor: Google"       http://metadata.google.internal/computeMetadata/v1/project/project-id 2>/dev/null || true)
+  fi
+  [ -n "${GOOGLE_CLOUD_PROJECT:-}" ]     || die "the registry declares a google-vertex provider but GOOGLE_CLOUD_PROJECT is unset and the metadata server did not answer. Every model call would fail at call time looking like a model fault."
+  # `global` is the default because the current Flash generation is served ONLY
+  # there — probed 2026-09-03 across nine EU regions, all 404. Override with
+  # GOOGLE_CLOUD_LOCATION where a region does serve the model and residency
+  # matters more than the generation.
+  export GOOGLE_CLOUD_PROJECT
+  export GOOGLE_CLOUD_LOCATION="${GOOGLE_CLOUD_LOCATION:-global}"
+  log "vertex: ADC as $(curl -s --max-time 5 -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email 2>/dev/null || echo 'local ADC') project=$GOOGLE_CLOUD_PROJECT location=$GOOGLE_CLOUD_LOCATION"
+fi
+
+# State plainly whether a long-lived secret reached the container. This is the
+# assertion the design's self-verification asks for, and a regression to a
+# shared key should be visible in a log line rather than inferred.
+if grep -q '"apiKey"' "$PI_HOME/agent/models.json" 2>/dev/null; then
+  log "provider keys: PRESENT in the registry (per-instance secret material)"
+else
+  log "provider keys: NONE — every provider authenticates by ambient identity"
+fi
+
 # ─── 1b. AILANG effect sandbox ───────────────────────────────────────────────
 # The containment story for anything this agent PROGRAMS is AILANG's effect
 # system: capabilities are deny-by-default (`--caps`), and FS operations are

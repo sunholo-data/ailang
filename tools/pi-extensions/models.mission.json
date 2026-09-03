@@ -137,6 +137,27 @@
       "compat": {
         "thinkingFormat": "openrouter"
       }
+    },
+    "vertex": {
+      "api": "google-vertex",
+      "_note": "No apiKey by design (design P6): pi's google-vertex provider uses Application Default Credentials, which on Cloud Run is the instance's own service account. A shared key baked into every per-user instance is exfiltratable from any user's thread and works for everyone; an ADC token is scoped to the instance that minted it.",
+      "models": [
+        {
+          "id": "gemini-3.8-flash",
+          "maxTokens": 65536,
+          "contextWindow": 1048576,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "low": "low",
+            "medium": "medium",
+            "high": "high",
+            "xhigh": null,
+            "max": null
+          }
+        }
+      ]
     }
   }
 }

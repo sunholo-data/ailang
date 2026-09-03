@@ -305,6 +305,25 @@ have "a full agent refuses rather than OOMs"    'echo "$out" | grep -q "REFUSED"
 have "  ...and the refusal names the ceiling"   'echo "$out" | grep -q "maximum 0 concurrent"'
 have "  ...and says instances do not autoscale" 'echo "$out" | grep -q "do not autoscale"'
 
+echo "=== 6f. keyless providers (design P6) ==="
+# A registry whose providers authenticate by ambient identity must start with
+# NO key in the container. The shared-key path is what makes one hostile prompt
+# in any user's thread everyone's problem.
+VERTEX_REG='{"providers":{"vertex":{"api":"google-vertex","models":[{"id":"gemini-3.8-flash","maxTokens":65536,"contextWindow":1048576,"reasoning":true}]}}}'
+out=$(MODELS_JSON="$VERTEX_REG" GOOGLE_CLOUD_PROJECT=test-project RESIDENT_PORT=8094 \
+      timeout 40 /usr/local/bin/boot.sh 2>&1)
+have "a keyless registry boots"              'echo "$out" | grep -q "model registry: 1 models"'
+have "  ...and says no keys are present"     'echo "$out" | grep -q "provider keys: NONE"'
+have "  ...and configures vertex ADC"        'echo "$out" | grep -q "vertex: ADC as"'
+have "  ...defaulting to the global endpoint" 'echo "$out" | grep -q "location=global"'
+
+# Fail closed: a vertex provider with no project fails EVERY call at call time,
+# which reads as a model fault rather than a boot misconfiguration.
+out=$(MODELS_JSON="$VERTEX_REG" RESIDENT_PORT=8095 timeout 40 env -u GOOGLE_CLOUD_PROJECT \
+      /usr/local/bin/boot.sh 2>&1)
+have "vertex without a project refuses to start" 'echo "$out" | grep -q "GOOGLE_CLOUD_PROJECT is unset"'
+have "  ...and names the consequence"            'echo "$out" | grep -q "looking like a model fault"'
+
 echo "=== 7. restart idempotence ==="
 # The 7-day ceiling makes restarts routine, so a second boot must behave like
 # the first rather than tripping over its own leftovers.
