@@ -1,27 +1,43 @@
-# V1 Mission Dashboard
+# V1 Mission Dashboard — snapshot, overwritten every iteration
 
-*Snapshot, overwritten each iteration — history lives in the charter STATUS block and the log.*
-*Last written: 2026-09-03, iteration 325.*
+**Updated**: 2026-09-04 (iteration 326) · **Release**: v0.35.0 · **dev**: GREEN
 
-## Where we are
-- **Latest release**: v0.34.0. **Goal distance: N = 12 design docs remaining before v1.0.0** — unmoved this iteration (HARNESS). Ledger 54 rows, **0 OPEN**.
-- **dev CI**: GREEN on required contexts at `5e860afeb` (checks=20). Standing non-required red: `SonarCloud`, INHERITED on every walked-back commit (queue row `sonarcloud-new-code-gate-red`).
+## Where the goal stands
+**N = 12 design docs remaining before v1.0.0** — unmoved this iteration (HARNESS work).
 
-## This iteration (325)
-- **`m-spawn-pin-enforcement` is COMPLETE, 4/4 milestones.** M3 (`11aff5819`) exports `MISSION_CONTROL_ACTIVE=1` + `MISSION_<ROLE>_RESOLVED/_PATH` **after** the driver's lane degradation, so the published plan is the verified one; M4 (`e21c3f1bd`) points Gate 3 at `resolve-role-spawn.sh` and requires `MISSION-ROLE:` on every role prompt. Routing suite 45 → 51 arms. Judge sonnet **PASS 94/100, zero blocking**.
-- **THE HOOK IS NOW ARMED.** From the next fire on, a mission-session Agent/Task spawn with no `MISSION-ROLE:` line is DENIED at the tool boundary; `subagent_type: Explore` is the one read-only exception. A denial naming the fix is the design working, not a regression.
-- **Finding**: the plan's A3.2 — its only criterion aimed at M3's production code running — is vacuous *unconditionally* (dry-run `exit 0` at line 858, Layer-3 block at 1008), proven by running it against the base script for byte-identical output. Arm D2 is the real coverage. The plan's A4.4/S2 grep could never match either (line-wrapped literal); corrected before routing.
+## Last iteration (326) — LANDED [HARNESS]
+dev was red on `lint`/`make fmt-check`: `646bda1e1` put four unformatted `internal/observatory`
+files on origin/dev **15 seconds after commit**, via the Stop hook that auto-publishes dev. Root
+cause is a shape, not a slip — `format_go.sh` (which does run `gofmt -w`) is wired as a PostToolUse
+hook matching `Edit|Write`, so it fires for the Claude Edit/Write tools and for nothing else: not
+for bash/sed edits, not at all for codex/pi executors. The publish step had no gate.
+A **second instance landed mid-iteration** (`17a363ca6`, unsorted imports, auto-pushed 13 min later)
+— which is the argument for gating the publish step rather than any one editing path.
+Fixed both files; added a committed-blob gofmt gate to `push_dev_on_stop.sh` (18 test arms).
+Judge sonnet PASS 86/100, zero blocking. `lint` now `success` on `c5227e6d7`.
 
 ## Next picks
-1. **First ARMED fire** — bookkeeping-light; watch whether a stale-skill controller gets denied with a reason that names the fix.
-2. `m-ci-serial-gate-masking` — one early red hid 45 gates for a day (iter-323 finding).
-3. `m1b-nolint-suppression-owed` — debt with a named owner.
-4. `m-messages-send-type-misfiled` **[WORLD-DEMAND]** — `messages send --type` binds to `Category`, not `MessageType`; confirmed first-party. Approvals still reach Discord (routes on `ToInbox`), so this is aggregation/routing, not a lost human channel.
+1. `m-autopush-gate-followups` — five measured, non-blocking gaps in the new gate (start with the
+   test harness polluting the real shared `autopush.log`; it is cheap).
+2. `m-release-manager-skill-split` — the standing queue head: move the 18-image walkthrough out of
+   `release-manager/SKILL.md` and ratchet `check-context-docs` back down 625 → 596.
+3. `m-acceptance-criterion-green-at-base` — pre-registered; instance 2 is the Gate-5 skill-edit trigger.
 
 ## Loop cadence + routing
-- Controller **opus** (session). Executor **`codex:gpt-5.6-sol`** — lane UP this fire (probe rc=0, against iteration 324's 404). Evaluator **sonnet**, own worktree. **No designer, no planner**: both artifacts already existed, so spawning either would have re-authored a quorum'd document.
-- **Metered this iteration: $0.00** of the $5 ceiling — every lane a quota bucket, no quorum ran.
-- Friction logged: a `2>/dev/null` on my own `git add` swallowed a fatal pathspec error and produced a record commit containing no record (1st instance; caught by `git show --stat`).
+Controller `claude:claude-opus-5`. Executor `codex:gpt-5.6-sol` (probe rc=0 this fire).
+Evaluator `sonnet`, always in its own worktree. Designer rotation pointer:
+`pi:ollama/deepseek-v4-flash:0731-cloud` (untouched — no designer ran).
+Spawn-pin hook is ARMED (`MISSION_CONTROL_ACTIVE=1`): an Agent spawn without `MISSION-ROLE:` is denied.
 
 ## Parked on Mark
-- none.
+**Nothing.** Decision ledger: 54 rows, **0 OPEN**. No directives outstanding on #972.
+
+## Quota / cost posture
+metered **$0.00** of the $5 iteration ceiling this fire. codex + sonnet are quota buckets; no quorum
+ran (a dev-red fix-forward has no doc to review). Billing tripwire CLEAN.
+
+## Standing sore spots
+- **SonarCloud has been red on dev for several consecutive commits** and is unowned. Non-required,
+  so nothing blocks on it — which is exactly how a required check eventually gets missed.
+- `m-ci-serial-gate-masking`: one early red in a long sequential job hides every gate behind it
+  (45 gates on 2026-09-03, 21 again on 2026-09-04). Second instance in three days.

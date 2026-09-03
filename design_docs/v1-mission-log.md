@@ -21119,3 +21119,82 @@ Agent spawns are denied without a `MISSION-ROLE:` line. Watch for a controller r
 main-checkout skill being denied with a reason that names the fix — that is the design working, not
 a regression. Then `m-ci-serial-gate-masking` (one early red hid 45 gates for a day) and
 `m1b-nolint-suppression-owed`.
+
+---
+
+## 326 — 2026-09-04 — The gofmt hook only ever guarded one of the ways we write Go, and the publish step guarded none [HARNESS]
+
+**Pick**: NOT the queue head. dev HEAD `646bda1e1` was `lint: failure` with `lint: success` on all
+three parents — a new red, and V1 owns `sunholo-data/ailang`, so per Gate 1 it outranks
+`m-release-manager-skill-split`.
+
+**Progress**: N = **12** design docs remaining before v1.0.0, **goal unmoved** — HARNESS iteration.
+
+**Outcome**: LANDED · [HARNESS] · evaluator **PASS 86/100, zero blocking, round 1** · commits
+[`fdba98d32`](https://github.com/sunholo-data/ailang/commit/fdba98d32) (M1),
+[`d2ef77e09`](https://github.com/sunholo-data/ailang/commit/d2ef77e09) (M2),
+[`c5227e6d7`](https://github.com/sunholo-data/ailang/commit/c5227e6d7) (M1b).
+
+**What was actually wrong.** Not a careless commit — a hole with a shape. `scripts/hooks/format_go.sh`
+runs `gofmt -w`, and `.claude/settings.json:136` wires it as a **PostToolUse hook with matcher
+`Edit|Write`**. It therefore fires for the Claude Edit/Write tools and for nothing else: not for a
+bash/sed/heredoc edit (which this repo's own bypass-permissions guidance actively prefers), and not
+at all for a cross-provider executor, because codex and pi writes are not Claude tool calls.
+Downstream, `push_dev_on_stop.sh` — the Stop hook that publishes local dev to origin/dev — had zero
+correctness gates. So the formatting guarantee was **tool-shaped**, and the publish step, which is
+the one chokepoint every executor passes through, had nothing on it. Measured end to end:
+`646bda1e1` committed `00:14:14`, `autopush.log` records `[00:14:29] pushed 1 commit(s)`, `lint`
+failed `00:15:07`. Fifteen seconds from commit to a red on the branch four loops build from.
+
+**The second instance arrived mid-iteration, and it is the argument for the fix.** After the executor
+finished, origin/dev had moved five commits; rebasing turned `make fmt-check` red again on a
+different file — `cmd/ailang/coordinator_approvals_remote.go` from `17a363ca6` (`00:22:14`, unsorted
+imports), auto-pushed `[00:27:06]`. Different author, different violation class, thirteen minutes
+apart, identical mechanism. Fixed as its own commit (M1b) so the two causes stay separable.
+
+**The gate.** It judges the committed blobs in `origin/dev..dev` — never the working tree, because
+the shared checkout routinely holds other sessions' edits (8 of them during this iteration).
+Deletions and renames-away are excluded, so removing an unformatted file still pushes. A missing
+`gofmt`, or any check that cannot run, refuses **loudly** rather than passing silently (Principle 2).
+The hook still always exits 0 and still honours `AILANG_AUTOPUSH=0`. Arms H–M, 18 passed / 0 failed;
+I and J are the controls that stop it being a gate that refuses everything.
+
+**Ruled out / corrected.**
+- *"The first implementation was fine because its four arms passed."* **REFUTED by probing rather
+  than reading.** It compared two command substitutions, and command substitution strips all
+  trailing newlines, so violations living only in the trailing bytes were normalised away on both
+  sides. Probe with controls in both directions: no-trailing-newline and trailing-blank-lines were
+  both `UNFORMATTED` to `gofmt -l` and both **PUSHED**. Fixed with temp files + `cmp -s`; re-probed
+  7/7. The judge's drill reverting to the old comparison kills L and M and nothing else.
+- *"The judge's zero-byte finding is blocking."* **NARROWED, then ruled non-blocking.** The
+  gate/`gofmt -l` disagreement is specific to a **zero-byte** `.go` file; a non-empty unparseable
+  file returns rc=2 both ways and is correctly refused. And `make/code-health.mk:19` tests
+  `[ -n "$(gofmt -l .)" ]` — stdout only, never gofmt's rc — so **CI's own fmt gate has the same
+  blind spot**. The new gate is exactly as strong as the gate it mirrors; it cannot produce a false
+  LANDED. Queued, not patched here.
+- *"The harness returns rc=0 on 9 failures."* **My own instrument.** That reading came through a
+  `| tail` pipe; the harness ends `[ "$fail" -eq 0 ]` and is correct.
+- *"SonarCloud went red on my change."* **Inherited** — `failure` on `850f04189` and `ea6e0fbb6`
+  before my commits existed, and my diff is five whitespace/import lines plus two shell scripts.
+
+**Routing evidence**: controller `claude:claude-opus-5`. `resolve-role-spawn.sh` run for all four
+roles and used verbatim — executor `recipe codex:gpt-5.6-sol declared:provider-pin`, evaluator
+`agent-tool sonnet declared:alias-pin`, planner `agent-tool opus fail-closed:no-doc`, designer
+`recipe claude:claude-fable-5-1 declared:provider-pin`. **Designer and planner not spawned — routing
+call, not omission**: a Gate-1 red fix-forward has no doc to author and no plan to write, so neither
+role's condition fires, and a designer run would have spent the Fable diet on a four-blank-line
+deletion. Executor codex, probe rc=0, two bounded sandboxed 30-min-capped runs, zero git writes,
+snapshots `.snap/M1|M2|M2b`; it self-labelled two results `UNINFORMATIVE UNDER SANDBOX` and I re-ran
+every gate outside the sandbox. Evaluator sonnet in its **own** worktree at the landing commit
+(generator≠judge holds: codex vs Anthropic). Rotation pointer untouched. metered **$0.00** of $5.
+
+**Gate 1 health**: `lint` NEW-red at `646bda1e1` (control: `success` on ~1/~2/~3); after landing,
+`c5227e6d7` reads `total=20 completed=20`, **`lint: success`**, 19/20 green, one inherited SonarCloud.
+
+**FLAGGED**: the executor's sandboxed harness runs wrote four synthetic `[local] pushed …` /
+`[local] REFUSED …` rows into the **real** shared `~/.ailang/state/autopush.log`, because the harness
+does not override `$HOME` and codex ran with the real one. Every run of mine used a temp HOME. A
+later iteration could read those rows as fleet evidence. Queued.
+
+**Next**: `m-autopush-gate-followups` (the five findings below), then back to the queue head
+`m-release-manager-skill-split`. The standing SonarCloud red on dev remains unowned.
