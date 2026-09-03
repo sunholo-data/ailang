@@ -1,40 +1,26 @@
 # Mission Dashboard — Motoko
 
-_Snapshot, overwritten each iteration. History is in the charter STATUS block and the log._
+_Snapshot, overwritten each iteration. History lives in the charter STATUS block and the mission log._
 
-**Iteration 33 — 2026-09-02 — [HARNESS]** — the judge's blocking finding was about *where* I put the
-arm, not what it asserts, and it was right.
+**Last iteration**: 34 — 2026-09-03 — row 6o · PR [#1034](https://github.com/sunholo-data/ailang/pull/1034) · evaluator **PASS 96/100, zero blocking** · **NOT LANDED — blocked on dev's own required reds**
 
-## Latest landing
-- **Row 6r LANDED** — [#1027](https://github.com/sunholo-data/ailang/pull/1027) → `115184a2e`. The
-  `(test stub)` refusal branch now has an arm asserting its own message; all three
-  `descendant_pids` branches are symmetric. Suite **42 → 43 arms**.
-- Evaluator **PASS 76/100, 1 blocking** — and it changed the shipped code: the arm moved behind the
-  wall-clock-bounded arms after a 3-way measurement (base 0 reds/17 · arm-ahead 4/19 · arm-behind 0/5).
-- Gate 3b GREEN on the merge: 14 checks, 0 pending, required 4/4, `launchd drivers (bash 3.2)`
-  success on both the PR head and the merge.
+## Where the goal is
+- Row 6o's two defects are **fixed and independently verified**; the suite goes 43 → 46 arms, green 4/4 local runs.
+- The work is **not merged**. `test` and `lint` are required on `dev` and both are red **on dev itself**, for causes this diff cannot touch (0 Go files changed).
 
-## Next picks
-1. **6o** — SIGKILL-escalation group form has zero killers; `REAL_LSOF` PATH assertion too narrow.
-2. **6p** — derive the suite's bounds from an in-test stimulus. Iteration 33 widened it: owed by
-   **at least three arms**, so a suite-wide helper beats a per-arm constant.
-3. **6s** (new) — nothing in CI notices a self-test ARM disappearing.
+## In flight / next
+- **PR #1034** — open, rebased onto `267a94e92`, verified. Resume predicate, run as a command: `test` AND `lint` green on `dev`.
+- **Next pick**: row **6p** — derive the suite's wall-clock/node-ceiling bounds from a stimulus measured in-test, rather than hardcoding constants calibrated on one machine at one load.
+- Rows 10/11/12 stay Phase-0 parked: upstream `arniwesth/motoko_agent#154` still OPEN (re-measured this iteration, controls firing).
 
-## Known red, and it is NOT ours
-`origin/dev` red on `test-windows` / `Build windows-latest` (`TestResolveAnthropicCredential_*`,
-`TestStandardModeCostProvenance_*`), cause `f3301a44c`, non-required. **V1 owns dev CI red here** and
-has `sprint/iter320-home-isolation` in flight. Recorded, handed over, pick kept.
+## Dev CI — two independent reds, neither ours, handed to V1
+1. `c8c841e24` deleted the `FMT_AB_TESTABLE_FUNCTIONS` markers from `tools/launchd/nightly-eval.sh` → reds `test` and `launchd drivers (bash 3.2)`. V1's #1030 covers it (now MERGEABLE).
+2. **New today**: `lint` fails `make fmt` on 7 Go files from the coordinator work. #1030 does NOT cover it. One command to fix; blocks every PR in the repo.
+- Consequence worth naming: the `launchd drivers` target dies at the fmt_ab script **before** reaching the probe suite, so that leg is not just red, it is **blind** — motoko's arms have never run in CI.
 
-## Loop health
-- Running skill **223 lines behind origin** (symlink → V1's main checkout); the pin copy IS origin's
-  and is what this fire followed. V1 filed the reconcile as its own **D-54** — not duplicated here.
-- Source clone 0 ahead / 0 dirty / 14 behind; reconcilable under `D-MOTOKO-WORKDIR-2`.
-- Phase-0 gate CLOSED: upstream `arniwesth/motoko_agent#154` still OPEN (re-run as a command).
-
-## Routing / cost
-controller opus · designer `pi:ollama/deepseek-v4-flash:0731-cloud` · planner opus
-(`fail-closed:planner-lane-field-missing`) · executor `codex:gpt-5.6-sol` · evaluator sonnet.
-Fable unspent. **metered $0.1503** of $5. No GPU.
+## Loop / routing
+- Controller `claude:claude-opus-5` · designer **`fable`** (rotation entry after the pointer's deepseek; Agent-tool pin) · planner **`opus`** (`derive-planner-lane.sh` → `opus fail-closed:planner-lane-field-missing`, verbatim) · executor **`codex:gpt-5.6-sol`** · evaluator **`sonnet`**, own worktree. generator≠judge holds.
+- **Metered $0.47** of the $5 ceiling (2 quorum rounds + 3 restored-reviewer re-runs).
 
 ## Parked on Mark
-**Nothing.** Decision ledger: 6 rows, 0 OPEN.
+**Nothing.** No open decision rows (ledger valid, 6 rows, 0 OPEN). The landing block is a predicate, not a decision.

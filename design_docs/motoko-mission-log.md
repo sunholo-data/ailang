@@ -3489,3 +3489,147 @@ default limit silently halves the triage queue and nothing in the output says so
 evaluator's D4 as the candidate fix), then **6q** (the blind branch-count gate), then 6j and 6m.
 Decision ledger: **6** rows, **1 OPEN** — `D-MOTOKO-6N-1`, a ship-or-hold call with three lettered
 options, a recommendation and a dated default.
+
+---
+
+## 34 — 2026-09-03 — the work was done, verified and judged; it could not merge, and neither red was ours [HARNESS]
+
+**Picked**: Queue head, row **6o** — the two defects iteration 30's evaluator filed: the group
+SIGKILL escalation with no killer, and `REAL_LSOF` containment narrower than the code claimed. Named
+as Next by iteration 33. Both premises re-verified at HEAD before any routing: `kill -9 "-$pid"` at
+probe:261 and group `-TERM` at probe:252 (controls firing), and `REAL_LSOF=$(command -p -v lsof)` at
+test:16 with a `case` that checks only absolute-and-executable, never containment.
+
+**Progress**: the bar's clause 1 (the tree gates green from source) — the suite's arm count is its
+proxy: **43 → 46 arms**, and the two branches the row named now have their own discriminating
+killers. **Goal moved in the tree, NOT on dev**: the merge is blocked. Ungated queue now
+**6p → 6s → 7 → 8**, with 6o held open as a resume point rather than closed.
+
+**Reality check**: no design doc existed for 6o (`grep -ri` over `design_docs/`, controls firing), so
+this was a genuine NEW-DOC pick. No open motoko PR and no stale motoko worktree held unfinished work.
+The fleet-account open-PR filter returned four — `#1030`, `#1031`, `#1033`, `#945` — and **none** has
+a branch in this clone's 22-entry worktree list; `#1030`/`#945` carry V1's iteration numbering (321,
+296) against motoko's 34, so all four were attributed elsewhere, read, and left alone. Blocked-row
+predicates re-run **as commands**: upstream `arniwesth/motoko_agent#154` still **OPEN** (control
+`#175` **MERGED**; negative control `#999999` 404s), so rows 10/11/12 stay Phase-0 parked.
+
+**Shipped**: **parked: verified but unmergeable.** PR
+[#1034](https://github.com/sunholo-data/ailang/pull/1034), five commits, rebased onto `267a94e92`,
+head `db1996128`. Evaluator **PASS 96/100, ZERO blocking** (sonnet, its own worktree, distinct from
+the codex executor and the opus controller → generator≠judge holds). Local verification is complete
+and repeated: base **rc=0, 43 ok**; head **rc=0, 46 ok, 0 not ok** on **4** runs (62/62/58s
+pre-rebase, 59s post-rebase); gate green at **every** milestone boundary **43 → 44 → 46**, so
+bisectability is measured rather than hoped; the production probe is byte-unchanged
+(`f0b5e024…aabc99`, control: the test file hashes differently); and the commit reconstruction from
+the executor's snapshots is proven byte-identical by `shasum -c` rc=0.
+
+**Gate 3b: NOT GREEN, AND THE ATTRIBUTION IS THE DELIVERABLE.** `mergeable` was read FIRST, per the
+rule that missing/failing runs are a conflict until proven otherwise — and it was `CONFLICTING/DIRTY`
+on a changelog collision, resolved by rebase and force-push, after which all **20** checks completed.
+Required checks are `test`, `lint`, `build`, `docs-gate`; `docs-gate` passes, `build` skips, and
+**`test` and `lint` both fail — on dev's own HEAD, at the identical steps.** Two independent causes,
+neither reachable by this diff (**0 Go files changed**):
+(1) `c8c841e24` deleted the `# BEGIN/END FMT_AB_TESTABLE_FUNCTIONS` markers from
+`tools/launchd/nightly-eval.sh`, so `test_fmt_ab_schedule.sh` refuses `instrument failure: … produced
+no text`. Walked back over parents: red on **19+ consecutive commits**, green at `115184a2e` (63
+back). V1's `#1030` covers it and is now MERGEABLE.
+(2) **New today and NOT covered by #1030**: `lint` fails `Check code formatting` on **seven Go
+files**, all from the coordinator work — `cmd/ailang/coordinator_cloud.go`, five under
+`internal/coordinator/`, one under `internal/storage/firestore/`. A bare `make fmt`. It is a REQUIRED
+check, so it blocks every PR in the repo.
+Per the charter guardrail **V1 owns dev CI red on this anchor**: recorded, handed over on the
+cross-mission channel (delivery asserted by reading the message back, not by the exit code), pick
+kept. An armed auto-merge was deliberately NOT used — it is a prediction, and this gate's whole
+discipline is that a prediction is not an observation.
+
+**THE SCOPE STATEMENT THAT COST THE ITERATION, AND IT IS WIDER THAN A RED CHECK.** Because the
+`launchd drivers (bash 3.2)` make target dies at `test_fmt_ab_schedule.sh` **before** it reaches the
+probe suite, **my new arms have never executed in CI at all** — grep for their names in that job's
+log returns **0**, against a firing control. So that leg is not merely red, it is **blind**: nothing
+downstream of the fmt_ab script in that target is being exercised, for anyone. All evidence for this
+sprint is therefore **darwin/arm64, GNU bash 3.2.57, local** — the ubuntu and windows legs are unrun
+and unreadable. That is the honest scope of a 96/100 evaluation, and it is why the row stays open.
+
+**The quorum, and where the loop's own rules earned their keep.** BLOCKED both rounds.
+**`gpt5-6-sol` was recorded ABSENT (budget) in BOTH rounds** — the self-selecting degrade, since a
+reviewer drops on budget exactly when the doc has GROWN. Re-run alone at a raised cap both times, it
+**rejected both times**, so each synthesis's `proceed`-shaped machinery was hiding a real reject, and
+the quorum was 3/3 present rather than N−1. Every blocking premise was **measured, not forwarded**:
+R1's sha256 objection is **substantively refuted** (the hash is correct; control discriminates) and
+procedurally right, fixed by a V-row; R1's "the re-exec arms are not wall-clock bounded" is
+**refuted by construction** — `expect_failure` routes every arm through `run_bounded` with
+`ARM_CAP_SECS` (test:9) and a TERM→KILL escalation, and a `$0` re-exec precedent already exists at
+test:721 — but the doc, not the design, was at fault, and the real residual (a **2.07×** margin on a
+leaked full inner run against a 120s cap, on a host whose load moves a comparable stimulus 3.3–3.6×)
+was closed to ~5,000× by scoping an absent `PROBE_UNDER_TEST` onto the arms' own env lines.
+R2's surviving objections were **attribution** (four cited line boundaries with no V-row — measured,
+and **all four are correct, no drift**) and **determinism** (`getconf PATH` run outside `run_bounded`
+— **upheld**: `run_bounded` is defined at test:88 and the gate sat at test:28, so it *could not* have
+called it). Both carried concrete reviewer-authored `proposed_fix` text and neither disputed the
+design DIRECTION, so the **narrow-refinement carve-out** applied and the **controller** applied the
+reviewers' own text verbatim — which keeps the Fable diet intact at one doc, one authoring run, one
+revision run. Objection surfaces were tracked per round (R1 provenance + harness semantics; R2
+provenance + bounded-waits): **spread and shrinking**, with one reviewer passing both rounds, so this
+is a maturing doc and **not** a SPLIT signal.
+
+**THE PLANNER REFUTED THE DESIGN DOC TWICE AND WAS RIGHT BOTH TIMES.** `AC11` demanded
+`grep '/usr/bin/getconf PATH'` = **1 hit**; the relocated gate contains that literal **4** times, so
+the AC **would have failed a correct implementation** — it was never updated after the round-2
+relocation. And the doc's Overview still placed the gate at test:28, contradicting §(b). **Both were
+defects in text I had just written under the carve-out**, and both were reproduced first-party before
+being fixed. A sub-agent contradicting the controller is the loop working.
+
+**THE EXECUTOR WAS KILLED BY ITS OWN 30-MINUTE CAP AND THE WRAPPER STILL REPORTED `rc=0`.** The cap
+fired during M4 and `wait` on the killed child returned 0, so `rc=0` was a true statement about a
+dead process — the recipe's own false-green shape, live. It was caught by reading the ARTIFACTS
+rather than the code: no `.snap/M4`, no `-o` final-message file. The tree was nonetheless complete,
+and that was established rather than assumed — `.snap/M3` is **byte-identical** to the final test
+file, so M4 had touched only the changelog, which was present. The evaluator independently confirmed
+the same reasoning.
+
+**Routing evidence**: task-class=design model=`fable` (rotation entry after the pointer's
+`pi:ollama/deepseek-v4-flash:0731-cloud`; Agent-tool `model="fable"` pin ACCEPTED and ran to
+completion, twice — authoring 24m, revision 11m; pointer advanced; ONE doc, initial + one
+protocol-mandated revision = the diet, unbroken) · task-class=plan model=`opus`
+(`derive-planner-lane.sh` → `opus fail-closed:planner-lane-field-missing`, used VERBATIM, no codex
+probe fired) · task-class=execute model=`codex:gpt-5.6-sol` (probe rc=0; bounded 30-min background
+wrapper; cap FIRED; no git writes; `.snap/M1`–`M3`) · task-class=evaluate model=`sonnet` (own
+worktree at `a7b0002a3`) · task-class=mechanical model=`opus` inline (carve-out fixes, commit
+reconstruction, record). round1-score=96 rounds=1 corrections=3 (all non-blocking, all applied).
+provider=anthropic+openai agent=mission-control cost=**metered $0.47** of the $5 ceiling (quorum r1
+$0.0669 + r2 $0.1174 + three restored-`gpt5-6-sol` runs $0.0886/$0.1157/$0.1146); quota buckets
+opus + sonnet + fable. **Fable spent: 2 bounded designer runs on ONE doc — within the diet.** No GPU,
+no `rig.lock`.
+
+**Ruled out**:
+- *"The suite's re-exec arms are unbounded"* (`gpt5-6-sol`, R1) — **REFUTED by construction.** Every
+  arm goes through `run_bounded` with a `date +%s` deadline and a TERM→KILL group escalation; a `$0`
+  re-exec precedent already exists at test:721. Do not re-raise; the doc now carries the citation.
+- *"The doc's sha256 for the production probe may be stale or transcribed"* (`oc-glm-5-2`, R1) —
+  **REFUTED.** Measured `f0b5e024…aabc99`, exact, with a discriminating control.
+- *"The cited hoist boundaries may have drifted"* (`oc-glm-5-2`, R2) — **REFUTED.** All four line
+  claims measured correct via the reviewer's own `sed -n` commands. No drift to correct.
+- *"Inverting the containment comparison refuses at startup"* (the design doc's own T6 prediction) —
+  **REFUTED by the evaluator and reproduced by me.** The loop is a DISJUNCTION, so `!=` is satisfied
+  by 3 of this host's 4 `getconf PATH` entries regardless of `REAL_LSOF`: the gate is silently
+  **defeated**, not tripped. The mutation is still caught two arms later. It read as obvious because
+  it would be true on a single-entry `getconf PATH`. Corrected in the doc before promotion.
+- *"dev's red might be a dropped webhook event"* — **never entertained, because `mergeable` was read
+  first and returned `CONFLICTING`.** The boring cause, one call, before any dropped-event lever.
+- *"`test_fmt_ab_schedule.sh` exits 0"* — an artefact of my own instrument: `… | tail -5` swallowed
+  the exit code to 0. Un-piped it is **rc=1**. Verification rule 3, live, in this iteration.
+
+**Retro lane**: none — **no skill edit**. Every friction here was a rule the rulebook already carries
+and that FIRED: read `mergeable` before theorising about dropped events; measure a premise objection
+instead of forwarding it; read `absent_reviewers` and restore the absent reviewer; poll the artifact,
+not the process; `rc=0` from a launcher describes the fork; exit codes through pipes lie; a judge's
+finding is a claim in both directions; `gh --jq` takes exactly one expression. The one candidate gap
+(a shared-clone `git worktree list` is not proof of PR ownership) was already raised by
+`mission-v1` iter-321 and is not a second instance here — this clone IS mission-exclusive (22
+worktrees, all motoko), which is the control that makes the discriminator valid *for motoko* and
+invalid for V1's three pinned worktrees of one clone. Recorded, not spent.
+
+**Next**: **re-poll PR #1034 first**, on the predicate `test` AND `lint` green on `dev` — run as
+commands, not transcribed. If green, land it and close row 6o. Then row **6p**: derive the suite's
+wall-clock and node-ceiling bounds from a stimulus measured in-test, so the ratio holds by
+construction on any machine, rather than from constants calibrated on one host at one load.
