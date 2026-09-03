@@ -302,6 +302,14 @@ want "R6 planner opus lane maps to agent-tool opus" "$out" "agent-tool opus fail
 out=$("$RESOLVE" judge)
 want "R7 unknown role fails closed" "$out" "refuse fail-closed:role-unknown"
 
+# --- M2 SPAWN-PIN HOOK WIRING (M-SPAWN-PIN-ENFORCEMENT, 2026-09-03) -----------
+# Arm W: the spawn-pin hook suite must be wired into make/test.mk, or a suite
+# that exists but is never invoked is green forever while enforcing nothing —
+# the same class as the "driver EXPORTS the planner allowlist" arm above.
+grep -q 'test_spawn_pin_hook.sh' "$ROOT/make/test.mk" \
+  && ok "spawn-pin hook suite is wired into make/test.mk" \
+  || bad "spawn-pin hook suite is wired into make/test.mk" "missing from make/test.mk"
+
 echo ""
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]
