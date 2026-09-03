@@ -467,7 +467,9 @@ func executeAPI(ctx context.Context, provider, directive, model, systemPrompt st
 	case "ollama":
 		endpoint := os.Getenv("OLLAMA_HOST")
 		if endpoint == "" {
-			endpoint = "http://localhost:11434"
+			// IPv4-pinned: see defaultEndpoint in internal/ai/ollama/client.go —
+			// "localhost" can reach an uncapped Ollama.app server over ::1.
+			endpoint = "http://127.0.0.1:11434"
 		}
 		var ollamaErr error
 		client, ollamaErr = ollama.NewClient(ollama.WithEndpoint(endpoint))

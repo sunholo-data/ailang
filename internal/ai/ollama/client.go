@@ -20,7 +20,16 @@ import (
 var ollamaTracer = telemetry.Tracer("ai.ollama")
 
 const (
-	defaultEndpoint = "http://localhost:11434"
+	// 127.0.0.1, deliberately not "localhost". On the rig two ollama servers can
+	// listen on 11434 at once — ours from dev.ollama.serve.plist bound to
+	// 127.0.0.1 (IPv4, carrying OLLAMA_GPU_OVERHEAD and OLLAMA_CONTEXT_LENGTH),
+	// and the Ollama.app GUI bound to *:11434 (IPv6) with NO memory caps at all.
+	// "localhost" resolves to both and Go tries ::1 first, so the harness silently
+	// reached the UNCAPPED server: measured 2026-09-03, every eval request in the
+	// server log carries client address "::1". Pinning IPv4 makes the lane
+	// deterministic. Verify with `lsof -nP -iTCP:11434 -sTCP:LISTEN` — more than
+	// one listener means the GUI app is running and its server must be stopped.
+	defaultEndpoint = "http://127.0.0.1:11434"
 )
 
 // Client implements ai.Provider for local Ollama models.

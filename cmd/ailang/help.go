@@ -398,7 +398,7 @@ func printHelp() {
 	fmt.Println()
 	fmt.Println("  Anthropic (claude-*):       ANTHROPIC_API_KEY=sk-ant-...")
 	fmt.Println("  OpenAI (gpt-*):             OPENAI_API_KEY=sk-...")
-	fmt.Println("  Ollama (ollama:*):          No key needed (local, http://localhost:11434)")
+	fmt.Println("  Ollama (ollama:*):          No key needed (local, http://127.0.0.1:11434)")
 	fmt.Println("  OpenRouter (vendor/model):  OPENROUTER_API_KEY=sk-or-...  (e.g. anthropic/claude-sonnet-4.5, openrouter/auto)")
 	fmt.Println()
 	fmt.Println("  Google Gemini (gemini-*) supports TWO authentication methods:")
