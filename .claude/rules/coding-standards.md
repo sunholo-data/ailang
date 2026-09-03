@@ -1,3 +1,8 @@
+<!-- always-on: policy that binds every edit in the repo (test removal, the
+     never-delete-unused rule, file-size targets, the docs a change must carry).
+     Scoping it to code paths would hide it from the doc and design-doc edits it
+     also governs. Keep it short enough to earn the permanent slot. -->
+
 # Coding Standards
 
 ## Testing Policy

@@ -1,3 +1,8 @@
+<!-- always-on: how to build, test, and land work — needed before the session
+     knows which paths it will touch, so path-scoping cannot fire in time.
+     Detail lives behind pointers (debugging.md, local-models.md, the release
+     skills); only the operationally-biting lines belong in the file itself. -->
+
 # Development Workflow
 
 ## Building and Testing

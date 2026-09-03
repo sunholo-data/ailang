@@ -1,0 +1,21 @@
+# Context documents over their line cap, grandfathered by scripts/check_context_docs.sh.
+#
+# Format: <path> <line count at the time of baselining>
+#
+# These may SHRINK freely; the gate refuses growth, and refuses to keep an entry
+# once the doc drops back under its cap (an exemption nobody removes silently
+# re-authorises the next regression).
+#
+# Every line here is a document an agent reads in full before it does any work.
+# Retiring one means moving its war stories, tables and worked examples into
+# sibling files that SKILL.md links to — not deleting them.
+#
+# Ranked by what they cost, worst first:
+.claude/skills/mission-control/SKILL.md 4201
+.claude/skills/post-release/SKILL.md 895
+.claude/skills/sprint-executor/SKILL.md 835
+.claude/skills/model-manager/SKILL.md 644
+.claude/skills/eval-analyzer/SKILL.md 604
+.claude/skills/sprint-planner/SKILL.md 597
+.claude/skills/release-manager/SKILL.md 596
+.claude/skills/design-doc-creator/SKILL.md 578

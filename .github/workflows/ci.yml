@@ -213,6 +213,12 @@ jobs:
     - name: Check skill frontmatter
       run: make check-skills
 
+    - name: Check context docs respect progressive disclosure
+      run: make check-context-docs
+
+    - name: Context-doc gate self-test
+      run: make test-check-context-docs
+
     # `make ci` is a LOCAL aggregate: CI never invokes it (measured — 0 occurrences
     # in this file), so every gate reaches CI only via its own step. Adding a target
     # to `ci:` is necessary and NOT sufficient. This gate also needs `origin/dev` to

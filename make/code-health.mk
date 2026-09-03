@@ -203,6 +203,13 @@ check-autoclose: ## Refuse issue-closing phrases in docs-only commit/PR records 
 check-skills: ## Check .claude/skills/*/SKILL.md have name+description frontmatter (CI gate)
 	@bash scripts/check_skills.sh
 
+check-context-docs: ## Check CLAUDE.md/rules/skills respect progressive disclosure (CI gate)
+	@bash scripts/check_context_docs.sh
+
+test-check-context-docs: ## Run the context-doc gate's own self-test (bash 3.2)
+	@/bin/bash scripts/test_check_context_docs.sh
+	@/bin/bash -n scripts/check_context_docs.sh
+
 check-prompt-freeze: ## Check prompt registry integrity (all entries) + frozen immutability (CI gate)
 	@go run ./cmd/ailang prompt freeze --check
 
