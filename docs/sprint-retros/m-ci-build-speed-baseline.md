@@ -3,6 +3,12 @@
 **Captured:** 2026-04-28 (sprint M1)
 **Purpose:** "Before" numbers M6 will compare against. All times measured from real Cloud Build runs during M-PKG-FEEDBACK-LOOP M2 deploy.
 
+> **Retired 2026-09-03.** The `ailang-multivac-{dev,test,prod}` full-pipeline triggers and
+> `ailang-multivac/cloudbuild.yaml` measured here no longer exist: ailang's own
+> `cloudbuild-dev.yaml` (push → dev) and `cloudbuild-release.yaml` (`v*` tag → test) build
+> every image, and prod is a manual promote by version. Kept as a record of the
+> measurements, not as a description of the pipeline.
+
 ## Method
 
 Pulled real start→finish timestamps from successful builds via `gcloud builds describe <id> --format='value(startTime,finishTime)'`. These exclude trigger-fire latency and queue time, which can add 5-30s.

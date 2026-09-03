@@ -2,8 +2,12 @@
 # Acceptance tests for the resident image, run INSIDE it (v6.40.0 M1).
 #
 # Every assertion here corresponds to a trap that cost real time during the M0
-# spike, or to a fail-closed guarantee the design depends on. Run by
-# cloudbuild.yaml against the freshly built image.
+# spike, or to a fail-closed guarantee the design depends on.
+#
+# Run against the freshly built image by three pipelines: this directory's own
+# docker/resident/cloudbuild.yaml (standalone manual build), and the repo-root
+# cloudbuild-dev.yaml (push -> dev) and cloudbuild-release.yaml (v* tag -> test).
+# In dev the step carries allowFailure; in the release pipeline it is a hard gate.
 set -uo pipefail
 # Leave nothing running: a backgrounded health server or herdr would hold the
 # CI step's stdout open and hang the build rather than failing it.

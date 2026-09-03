@@ -1,5 +1,26 @@
 # M-MOTOKO-EXECUTOR-ADAPTER — ailang-multivac PR Checklist (Pillar 2)
 
+> **HISTORICAL — do not follow the commands below.** This is the record of the 2026-05-27
+> cross-repo PR set (v0.18.0 spec, re-activated for v0.23.0). The work landed: `agent-motoko`
+> is built by both of ailang's pipelines and runs as the `ailang-*-agent-executor-motoko`
+> Cloud Run Job. Every deployment instruction here describes the **retired** model — a push
+> to an `ailang-multivac` branch running `cloudbuild.yaml`, the `cloudbuild.yaml` ⇄
+> `cloudbuild-images.yaml` "lockstep" rule, and the `multivac-deploy` project (the real
+> project is `ailang-multivac-deploy`).
+>
+> **The current recipe for a new executor variant** is
+> [`docs/internal/EXECUTOR_SHAPE.md`](../docs/internal/EXECUTOR_SHAPE.md) §6: a build step in
+> this repo's `cloudbuild-dev.yaml` **and** `cloudbuild-release.yaml`, a bootstrap mirror in
+> `ailang-multivac/cloudbuild-images.yaml`, the job in
+> `ailang-multivac/terraform/cloud_run_jobs.tf`, and its `job:image` pair in
+> `ailang-multivac/scripts/cloudbuild-lib.sh` `AGENT_JOBS`. `ailang-multivac/cloudbuild.yaml`
+> was deleted on 2026-09-03; a branch push builds no images. The deployment model itself is
+> written down once, in `ailang-multivac/.claude/skills/release/SKILL.md`.
+>
+> The parts still worth reading are the **Dockerfile cascade discoveries** and the
+> **OpenRouter secret / prod-deferral rationale** below — those are about motoko, not about
+> the pipeline.
+
 This file documents the cross-repo PRs that complete Pillar 2 of M-MOTOKO-EXECUTOR-ADAPTER. The in-repo work (Dockerfile.agent-motoko + `knownVariants["motoko"] = true`) shipped with the main sprint commit. The two ailang-multivac PRs below are the cloud-deployment side and require ailang-multivac repo access.
 
 **Target dev project**: `ailang-multivac-dev` (matches pi/codex/opencode precedent).

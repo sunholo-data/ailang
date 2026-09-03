@@ -168,28 +168,32 @@ trigger** — that empty output is what produced an unplanned production deploy 
 
 **The two repos promote differently, and this change touches both.**
 
+> **Updated 2026-09-03 (later the same day): the migration landed, and this section's
+> two-repo split is gone.** One model everywhere — push → dev, `v*` tag → test, promote by
+> version → prod. `ailang-multivac/cloudbuild.yaml` and the three
+> `ailang-multivac-{dev,test,prod}` full-pipeline triggers were deleted; a branch push there
+> now carries terraform + config only and builds no image. Design:
+> [`v0_35_0/m-unified-release-model.md`](v0_35_0/m-unified-release-model.md); the model is
+> written down once, in `ailang-multivac/.claude/skills/release/SKILL.md`.
+
 | Repo | Trigger | Fires on | Builds |
 |---|---|---|---|
-| ailang | `ailang-core-dev` | branch `^dev$` | coordinator, agent-base, agent, agent-go, dashboard, mcp → **dev only** |
-| ailang | `ailang-core-test-release` | **tag `^v.*`** | `cloudbuild-dev.yaml` |
-| ailang | `ailang-core-release` | **tag `^v.*`** | `cloudbuild-release.yaml` |
-| multivac | `ailang-multivac-{dev,test,prod}` | branch `^dev$`/`^test$`/`^prod$` | `cloudbuild.yaml` — **this is what builds agent-pi** |
-| multivac | `ailang-multivac-config-{dev,test,prod}` | same branches, `config/**` + `terraform/**` | config + terraform apply |
-| multivac | `promote-to-prod` | **manual only** | image copy |
+| ailang | `ailang-core-dev` | branch `^dev$` | `cloudbuild-dev.yaml` — **all 18 images**, `agent-pi` included, + rolls dev's 4 services and 17 jobs |
+| ailang | `ailang-core-release` | **tag `^v.*`** | `cloudbuild-release.yaml` — the same 18 from the tagged tree, `:vX.Y.Z` + `:latest`, deploys **test**, then stops |
+| multivac | `ailang-multivac-config-{dev,test,prod}` | branch `^dev$`/`^test$`/`^prod$`, `config/**` + `terraform/**` | config + terraform apply. **No images.** |
+| multivac | `promote-to-prod` | **manual only** | image copy by version — refuses unless the release build SUCCEEDED and every image carries `:vX.Y.Z` in test |
 
-Mark 2026-09-03: multivac is migrating to tags as well, but not yet stable —
-until then it stays branch-led, and pushing its `prod` branch is a real
-production deploy.
+Retired 2026-09-03: `ailang-multivac-{dev,test,prod}` (branch pushes that rebuilt every
+image from whatever ailang `dev` head was current — the route that produced the unplanned
+production deploy on 2026-09-02) and `ailang-core-test-release`.
 
-**So this sprint ships in two pieces:**
+**So this sprint now ships in one piece:**
 
-1. **Coordinator** — M0b, M1, M2, M4, M5 and the consuming half of M3. Built by
-   `cloudbuild-dev.yaml`; already on **dev**. Reaching test/prod needs a `v*`
-   **tag** on the ailang repo.
-2. **Executor** — M3's producing half lives in `cmd/ailang/coordinator_cloud.go`,
-   which runs inside **agent-pi**. `cloudbuild-dev.yaml:214` takes agent-pi's base
-   *from the registry* and does not build it, so this needs a **multivac** build
-   as well.
+1. **Coordinator and executor together.** M0b, M1, M2, M4, M5 and both halves of M3 —
+   the producing half in `cmd/ailang/coordinator_cloud.go` runs inside **agent-pi**, which
+   `cloudbuild-dev.yaml` now builds itself. One push to ailang `dev` puts both on the dev
+   plane; reaching test needs a `v*` **tag** on the ailang repo, and prod a
+   `scripts/release.sh promote core vX.Y.Z`. No multivac build is involved.
 
 **Shipping half of M3 degrades safely but should not be left standing:** the
 coordinator would look for `BaseCommit`/`HeadCommit` that the executor is not yet
