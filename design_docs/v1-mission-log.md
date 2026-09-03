@@ -20903,6 +20903,21 @@ the masking finding, body read back and confirmed intact; their handoff acked.
   class as `ce05af862`'s own lesson, one layer up: check the resulting file list, not the
   paths you passed.
 
+- **The Gate-5 skill-edit contract now collides with a CI ratchet, and every future iteration
+  meets this wall.** My first attempt APPENDED the new rule to `SKILL.md`;
+  `make check-context-docs` refused it — *"grew to 2905 lines (baseline 2854) — baselined docs
+  may shrink, never grow. Split before you append."* Gate 5 says "edit the offending SKILL.md",
+  one edit per iteration, and says nothing about where the lines go. The convention's own answer
+  is *"write the pointer, not the payload"*, so this iteration followed it: a new on-demand
+  `resources/ci-health.md` carries the new rule **and** the existing CI-provider-outage war
+  story, with a 7-line pointer left in Gate 1, and `SKILL.md` went **2854 → 2819** — it shrank.
+  Proven a MOVE and not a rewrite (block present verbatim in the new file, absent from
+  `SKILL.md`, negative control not matching). **Worth saying plainly: the ratchet is right and
+  Gate 5 is the one that is now under-specified.** A skill whose gate forbids growth needs its
+  Gate-5 instruction to say "relocate a block of equal or greater size, or write to
+  `resources/`" — otherwise the next controller spends a slot rediscovering this, or worse,
+  baselines its way around the gate.
+
 **Next**: `m-ci-serial-gate-masking` — the job *shape* that hid five defects behind one, and
 the only item here that prevents a recurrence rather than cleaning one up. It wants a design
 doc: the trade-off is CI minutes against observability, and the answer changes which gates are
