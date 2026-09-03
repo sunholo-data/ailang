@@ -23,7 +23,23 @@ gaps, not direction disputes, each with a concrete `proposed_fix`: `gpt5-6-sol` 
 headings actually exist and are adjacent. The controller measured both directly (not re-routed
 through the designer, since both are single-command verifications with no design judgment):
 the 9th orphan (`evaluation/cost-and-speed-budgets`) also returns `200` (V6, corrected), and both
-heading pairs are exactly as asserted (new row V29). Re-quorum pending.
+heading pairs are exactly as asserted (new row V29).
+
+Round 2 (`docs-4-brief-2026-09-03T10-57-26Z.json`): BLOCKED again, all three reviewers present and
+reject (`oc-glm-5-2` returned this round). Per Gate 2's narrow-refinement carve-out: every
+remaining objection carried a concrete reviewer-authored `proposed_fix` and none disputed the
+design DIRECTION (clause 5's deletion authorization, the sidebar restructure, the five trims) —
+`gpt5-6-sol` flagged the "URL-stable" scope-language as overclaiming against the two intentional
+deletions (clause 5 already authorises deletion; the fix is precision of wording, not a design
+change); `gemini-3-1-pro` wanted B3's cut boundary verified with the same rigor V29 just gave
+B4/B5 (fixed: V30); `oc-glm-5-2` wanted the sync-registry side-effect cleanup encoded as an
+acceptance STEP rather than left as V23b prose (fixed: acceptance criterion 6 now states the
+`git checkout --` cleanup explicitly, criterion 7 ordered after it). **This is docs-mission's
+FIRST use of the carve-out** — applying the bounded 2nd revision (URL-stable wording, V30,
+acceptance 6/7) without a third quorum round, per the skill's ratification rule this is surfaced
+to Mark as a one-time-OK ask in this iteration's report; the SPRINT (planner/executor) does not
+run until that lands, so this item is left `[IN-SPRINT]` at design-ready rather than progressed
+further this iteration.
 
 ---
 
@@ -114,9 +130,18 @@ accretion order") and clause 3 ("no orphaned pages unreachable from the nav"), t
 
 ## Scope rules (the executor follows these; the evaluator scores against them)
 
-- **URL-stable.** No page is renamed or moved on disk. Categorisation changes are `sidebars.js`
-  edits only. Reason: the site has no redirects plugin (`@docusaurus/plugin-client-redirects` is
-  not in `docs/package.json`, V18), so a rename is a 404 for every external link.
+- **URL-stable for every page that survives.** No surviving page is renamed or moved on disk;
+  categorisation changes are `sidebars.js` edits only. Reason: the site has no redirects plugin
+  (`@docusaurus/plugin-client-redirects` is not in `docs/package.json`, V18), so a rename would be
+  a 404 for every external link to that page. **This does NOT extend to the two pages Phase B
+  deletes** (`cross-project-messaging`, `development`) — clause 5 explicitly authorises deletion
+  (Mark's 2026-08-28 ruling, see the header note above), and a delete necessarily 404s that page's
+  own URL for anyone who bookmarked or externally linked it directly, which no redirects plugin
+  can prevent short of leaving a stub page in its place (rejected: a stub is exactly the
+  "third copy" the deletion criterion exists to remove, and every REPO-internal inbound link is
+  retargeted in the same commit — the residual risk is external bookmarks/links this repo cannot
+  enumerate or fix, no different from any other page ever removed from this site). "URL-stable"
+  in the acceptance criteria below is scoped to categorisation/nav changes, not to deletions.
 - **Deletion criterion (clause 5 authorises deletion; this makes it checkable).** A page is deleted
   only when (i) every section is either already present on another live page, stale-false, or
   repo-internal policy, AND (ii) every inbound link is retargeted in the same commit. Both delete
@@ -165,12 +190,16 @@ B2. **Delete `docs/docs/guides/development.md`.** Retarget its four inbound link
     (already do — `ailang parse` does not exist, V15), the layer table lives in
     `architecture/index.md`, the operator recipe lives in `architecture/adding-operators.md`.
 
-B3. **Trim `getting-started.mdx` § *For AI Agents: CLI Integration*** (from that H2 up to, not
-    including, `## … For Human Developers: Manual Installation`) to a three-line pointer: "If you
-    installed manually, the agent onboarding path is [AI Agent Integration](/docs/guides/agent-integration):
-    load `ailang prompt`, write, `ailang check`, `ailang run`." This also removes the inline
-    ```` ```typescript ```` AILANG block and the "Best model" claim. Keep the preceding *MCP
-    Servers* section untouched — `agent-mcp.md` links *into* it for the comparison table (V16).
+B3. **Trim `getting-started.mdx` § *For AI Agents: CLI Integration*** — the literal boundary,
+    confirmed line-exact at V30 (round-2 quorum objection `gemini-3-1-pro`: V16 only regex-matched
+    the section, it never proved the heading was really an H2 or gave its exact text): from
+    line 180 `## <Icon name="bot" inline /> For AI Agents: CLI Integration` up to, not including,
+    line 253 `## <Icon name="user" inline /> For Human Developers: Manual Installation` — to a
+    three-line pointer: "If you installed manually, the agent onboarding path is
+    [AI Agent Integration](/docs/guides/agent-integration): load `ailang prompt`, write,
+    `ailang check`, `ailang run`." This also removes the inline ```` ```typescript ```` AILANG
+    block and the "Best model" claim. Keep the preceding *MCP Servers* section untouched —
+    `agent-mcp.md` links *into* it for the comparison table (V16).
 
 B4. **Trim `hooks-setup.mdx` § *Message System*** (its three H3s: Checking Inbox / Sending
     Messages / Message Storage) to a one-line pointer at `/docs/guides/agent-messaging`. The
@@ -212,7 +241,17 @@ rediscover them:
    (V18) this is what proves every retargeted link resolves. Run it exactly this way: the deploy
    workflow runs `sync-registry.sh` before `make docs-build`, and without it the build fails at
    HEAD on gitignored `packages/sunholo/*` sidebar ids regardless of this sprint (V23).
-7. `git diff --stat` touches only the files listed under *Files*.
+   **Mandatory cleanup step, not optional narrative (round-2 quorum objection `oc-glm-5-2`:**
+   **V23b's restore was stated in prose only and never encoded here, so an executor following**
+   **this list literally could commit the mutated files or fail criterion 7 believing the build**
+   **itself was the defect):** immediately after this command, before touching git at all, run
+   `git checkout -- docs/docs/design-docs.md docs/docs/prompts/current.md
+   docs/docs/roadmap/index.md docs/src/data/packages-sidebar.json` and confirm
+   `git status --short` shows none of those four paths. These four are build-time side effects of
+   `sync-registry.sh`/`make docs-build` on ANY invocation (V23b), not an artifact of this sprint's
+   changes, and must never be part of this sprint's commit.
+7. `git diff --stat` touches only the files listed under *Files* — run this AFTER step 6's cleanup,
+   not before; run before, it would still show the four sync-registry side-effect files as dirty.
 8. CHANGELOG entry not required (site structure + duplicate removal; same precedent as docs-1/-3).
 
 ## Files
@@ -420,3 +459,4 @@ is recorded as such (V4).
 | V27 | Coverage/duplicate gate: no existing design doc for this work; no clause-5 rows already queued | `grep -rli "taxonomy pass\|guides taxonomy\|consolidate.*guides\|sidebar.*restructur" design_docs/planned design_docs/implemented`; `grep -nE "clause 5\|taxonomy\|orphan\|duplicate" docs/docs-sync-findings.md` | both empty except findings line 55 stating no clause-5 findings were produced by docs-2 |
 | V28 | Sidebar tree today (for Appendix B's "unchanged" claims) | `grep -n "label:\|guides/" docs/sidebars.js` | full listing captured at authoring (63 guide ids across Learn AILANG 11, For AI Agents 4+3+5+9, Reference 1+5, Build & Operate 5+4+8+5, Contributors 3); `git log -1 -- docs/sidebars.js` → `6780f72c6 2026-08-26` |
 | V29 | B4/B5 cut boundaries exist and are adjacent in the asserted order (round-1 quorum objection `gemini-3-1-pro`) | `grep -nE '^##+ ' docs/docs/guides/hooks-setup.mdx docs/docs/guides/semantic-caching-how-to.mdx` | hooks-setup.mdx: `124:## Message System` immediately followed by its three named H3s (`126 Checking Inbox`, `146 Sending Messages`, `158 Message Storage`), then `162:## SessionStart Hook Behavior` — B4's boundary is exact. semantic-caching-how-to.mdx: `200:## Two-Tier Search Architecture` (with `204`/`217`/`230` H3s) immediately followed by `246:## Embeddings Doctrine` — B5's boundary is exact. |
+| V30 | B3's cut boundary is a real H2, exact text, and adjacent (round-2 quorum objection `gemini-3-1-pro`: V16's regex match never proved H2-ness or literal text) | `grep -nE '^##+ ' docs/docs/guides/getting-started.mdx` | `180:## <Icon name="bot" inline /> For AI Agents: CLI Integration` immediately followed by four owned H3s (`184`/`208`/`236`/`242`), then `253:## <Icon name="user" inline /> For Human Developers: Manual Installation` — both are genuine H2s (not H3/bold-text impostors), the heading text embeds an `<Icon>` component (the doc's "…" was standing in for that, not for omitted words), and B3's boundary (180 up to, not including, 253) is exact. |
