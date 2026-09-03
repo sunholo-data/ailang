@@ -20,6 +20,7 @@ Full flags table (DEBUG_*, tracing tiers, CLI profiling flags, all `AILANG_OLLAM
 | `AILANG_TRACE=off\|standard\|deep` | Tracing tier (default `standard`; `deep` ~2x overhead) |
 | `AILANG_OLLAMA_V1_STREAM=1` | Streaming ollama `/v1` (default off; flips the meaning of `HTTP_TIMEOUT_SEC` — 300 buffered / 3600 streaming) |
 | `AILANG_OLLAMA_NUM_CTX=N` | Pin ollama `num_ctx`; unset (default) sends none — ollama sizes from the model |
+| `OLLAMA_GPU_OVERHEAD` / `OLLAMA_CONTEXT_LENGTH` | Rig memory bound. Unset, ollama takes 84% of RAM and the model's full native context — this panicked the rig on 2026-09-03. See "Ollama Memory Budget on the Rig" in `docs/docs/guides/debugging.md` before changing either |
 
 **Rig gotcha:** `AILANG_OLLAMA_*` reaches a launchd job by TWO paths — the plist AND a
 `launchctl setenv` domain global that no plist edit or repo grep can see. Installed plists are

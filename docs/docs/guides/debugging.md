@@ -247,7 +247,8 @@ Both option maps in `internal/ai/ollama` previously hardcoded **8192**, below th
 Affects the non-tool paths only (`Generate`, tool-less chat, and the legacy
 native tool path incl. motoko's `compaction_ai`); motoko's tool-calling turns
 route via `/v1`, where `num_ctx` is not expressible. Raise or lower only for
-VRAM: the KV cache scales with it.
+VRAM: the KV cache scales with it — see **Ollama Memory Budget on the Rig**
+below for the machine-level bound and the panic that established it.
 
 When request logging is enabled — `AILANG_OLLAMA_LOG_REQUESTS=<path>`, or a path
 written to the `~/.ailang/state/ollama-log-requests` **sentinel file** whose
@@ -280,6 +281,75 @@ jq -c 'select(.kind=="stream_metrics" and .idle_window_sec==120)' "$LOG"
 Prefer an explicit `AILANG_OLLAMA_LOG_REQUESTS=<path>` per capture where the
 harness propagates env; reach for the sentinel only when it does not, and remove
 it when the capture ends.
+:::
+
+### Ollama Memory Budget on the Rig (`OLLAMA_GPU_OVERHEAD`, `OLLAMA_CONTEXT_LENGTH`)
+
+The section above tunes `num_ctx` per request for **quality** — don't truncate the
+28k–44k-token prompts the harness sends. These two **server-side** variables bound
+what ollama may consume on the *machine*, and they are what stands between a local
+eval and a kernel panic.
+
+Measured 2026-09-03, after the rig panicked at 02:23 (incident `561F0912`):
+
+- ollama claims **84% of unified memory** as VRAM — `total="107.5 GiB"` of 128 GiB —
+  and by default reserves nothing for anything else: `overhead="0 B"`.
+- Because that budget looks large, it auto-selects the model's full native context:
+  `msg="vram-based default context" total_vram="107.5 GiB" default_num_ctx=262144`.
+  This is not ollama over-reaching — 262144 *is* `qwen3.8:27b`'s trained maximum.
+- At 256k that runner peaked at **90.39 GiB** (max of 2,322 `peak memory` samples),
+  leaving ~38 GB for the desktop, the agent fleet and the eval harness. Memory ran
+  out, the pager stopped making progress (20 pages reclaimed of 3,088 wanted), and
+  the hardware watchdog panicked the machine.
+
+**`OLLAMA_GPU_OVERHEAD` is admission control, not a runtime limit.** It is a
+bookkeeping subtraction inside the scheduler, not an allocation — nothing is held,
+and every other process still sees the full machine:
+
+```
+available="45.3 GiB"   free="77.8 GiB"   overhead="32.0 GiB"
+```
+
+`free` is real free VRAM; `available = free − overhead` is only what ollama will
+*consider* when deciding whether a model fits. A model admitted under that budget
+can still grow past it as the KV cache fills — which is precisely what the 90 GiB
+peaks were.
+
+**`OLLAMA_CONTEXT_LENGTH` is the runtime bound**, because KV size is a direct
+function of context length. Both are required: the reservation stops ollama loading
+something too big, the context length stops what it *did* load from growing into
+the reservation.
+
+Current rig values (`~/Library/LaunchAgents/dev.ollama.serve.plist`):
+
+| Variable | Value | Why |
+|----------|-------|-----|
+| `OLLAMA_GPU_OVERHEAD` | `34359738368` (32 GiB) | headroom for desktop + agent fleet + harness |
+| `OLLAMA_CONTEXT_LENGTH` | `131072` | halves KV against the 256k native max; largest prompt ever observed was 108,738 tokens |
+| `OLLAMA_MAX_LOADED_MODELS` | `2` | keeps the embedder resident — see "Embedder evicts the eval LLM" |
+
+Sizing a new model is one inequality: `weights + KV(context) < available`. Raising
+context is safe only while that holds. A 1M-context model's KV alone would exceed
+this machine no matter how these are set — at that point it is hardware talking,
+not configuration.
+
+:::caution No swap on the rig — there is no warning phase
+
+`/private/var/vm` is empty and ollama logs `free_swap="0 B"` on every sample. A
+machine with swap thrashes audibly before it dies and someone notices; this one
+goes straight from healthy to wedged. The kernel's own `memoryPressure` flag also
+read **false** throughout the panic, so never key a guard to it — use free pages
+and reclaim rate instead.
+:::
+
+:::caution `OLLAMA_CONTEXT_LENGTH` is applied but UNPROVEN (2026-09-03)
+
+After the change ollama still logged `default_num_ctx=262144` against the reduced
+75.5 GiB budget, and small-prompt probes cannot discriminate — a 33-token prompt
+populates almost no KV, so load peak barely moves either way. The discriminating
+test is a real large-context eval: a peak near **59 GiB** means the cap is working,
+near **90 GiB** means it is not. Do not record this as fixed until that
+measurement exists.
 :::
 
 ### CLI Flags
