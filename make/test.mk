@@ -52,6 +52,7 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@/bin/bash tools/launchd/test_pin_root.sh
 	@/bin/bash tools/launchd/test_driver_notify.sh
 	@/bin/bash tools/launchd/test_mission_routing.sh
+	@/bin/bash tools/launchd/test_spawn_pin_hook.sh
 	@/bin/bash tools/launchd/test_hook_stdout.sh
 	@/bin/bash tools/launchd/test_controller_chain.sh
 	@/bin/bash tools/launchd/test_mission_heartbeat.sh
