@@ -87,6 +87,8 @@ cannot be re-checked from the repo** — they are the reason quorum trigger #4 f
 | V23 | Quorum reviewers are `gpt5-6-sol` (OpenAI) and `gemini-3-1-pro` (Google); `oc-glm-5-2` (**Z-AI**) is named as a reviewer elsewhere in the rotation rationale | `internal/mission/quorum/call.go:152`; SKILL.md | Confirmed — **vendor-collision risk for a GLM designer (D4)** |
 | V24 | Existing GLM-5.3-Flash rows across 4 routes; `opencode-or-glm-5-3-flash` carries **AGENT SMOKE GATE: PENDING** | `internal/modelreg/models.yml:2179+,4386,4700` | Confirmed |
 | V25 | Time-of-day pricing already deferred once as a distinct lever | `design_docs/planned/m-eval-batch-api.md:234,288` | Confirmed |
+| V27 | **Claude Code is ALREADY being driven by GLM-5.3-Flash in this fleet, on a flat-rate route** — a 2026-08-28 laptop session ran `claude --model glm-5.3-flash:cloud` (Ollama Cloud; `:cloud` is the `IsOllamaCloudRoute` grammar), recording `message.model=glm-5.3-flash` on 310 assistant turns | session transcript `392d39d5…`, captured `ps` output within it | Confirmed — **materially weakens the Lane A case (see D1)** |
+| V28 | A session's model pin **does not survive a machine transfer**: the transcript stores the *stripped* name (`glm-5.3-flash`), losing the `:cloud` route suffix, so the far side reports "could not be restored … using opus instead" and **continues silently** | reproduced laptop→studio 2026-09-03 | Confirmed — silent, expensive substitution |
 
 ---
 
@@ -114,7 +116,7 @@ invisible to the harness.
 
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |---|---|---|---|---|
-| **D1**: Buy a plan at all, and which tier | Everything after Phase 0 depends on it. V10 (the credit exchange rate) is unverified, so tier sizing rests on a blog number — Phase 0 must not pretend otherwise | **human (Mark)** | design | high |
+| **D1**: Buy a plan at all, and which tier | Everything after Phase 0 depends on it. V10 (the credit exchange rate) is unverified, so tier sizing rests on a blog number — Phase 0 must not pretend otherwise. **⚠️ V27 changes this question:** the headline Lane A benefit — a flat-rate GLM-5.3-Flash lane into Claude Code — **already exists in this fleet via Ollama Cloud** (`claude --model glm-5.3-flash:cloud`), on a route the repo already handles with correct cost provenance. So D1 is no longer "flat-rate GLM: yes or no" but the narrower "**is z.ai's plan better than the Ollama Cloud lane we already have?**" — and the honest baseline for that comparison is the incumbent, not OpenRouter list price | **human (Mark)** | design | high |
 | **D2**: Does the subscription lane enter **banked eval rotations**, or stay mission-loop-only | A resetting 5h/weekly credit bucket can starve a rotation mid-run and bank a cohort with a hole. M-OLLAMA-CLOUD D2 ruled *no* on the identical question | **human (Mark)** | design | high |
 | **D3**: Imputed prices for subscription GLM rows | `0/0` maps to the positively-false `free-local` (V12/V13). Mechanism already exists; only the numbers are open | **human (Mark)** | design | med |
 | **D4**: Is a GLM designer acceptable given `oc-glm-5-2` (Z-AI) sits in the reviewer set (V23) | The rotation rationale explicitly chose kimi for being independent of *all three* reviewers. A GLM designer re-introduces a vendor-level collision — not the model-level one the rule forbids, but the same hazard | **human (Mark)** | design | med |

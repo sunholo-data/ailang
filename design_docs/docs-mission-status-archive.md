@@ -3,6 +3,51 @@
 Append-only. Newest entry at the TOP (Gate 4 moves the 4th-newest charter stamp here, per
 `docs-mission.md`'s rotation rule). The charter itself always carries the newest 3.
 
+## STATUS 2026-09-02 — ITERATION 4 (crediting ITERATION 3): docs-5/6/10 landed by an orphaned fire, credited retroactively; docs-1 LANDED after a real evaluator FAIL/fix/PASS cycle
+
+Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Main checkout `dev` diverges
+from `origin/dev` by design (9 ahead / 20 behind — attended commits stranded, loop lands via
+worktree→PR; per this file's own note); the pin worktree this loop actually runs from was clean at
+`origin/dev`'s tip throughout. Running skill differs from `origin/dev` (missing heartbeat stamps
+and the attended-ledger-edits section added since) — read the delta, confirmed the pin worktree's
+own scripts (`tools/launchd/mission-heartbeat.sh`, `scripts/mission_decisions.sh`,
+`scripts/mission_answer.sh`) already exist, so followed the newer instructions rather than the
+stale loaded copy. 0 directives on bookkeeping issue `#979` since the watermark (4 comments, none
+allowlisted). Decision ledger valid, 2 rows, both `RESOLVED` — no new ask.
+
+Gate 1: `CI` and `Deploy Documentation to GitHub Pages` both `success` on `origin/dev` HEAD;
+SHA-addressed check-runs showed 16 checks, one non-green (`SonarCloud Code Analysis`), confirmed
+inherited from the parent commit too — V1's domain (repo owner), not actioned.
+
+**PICK: `docs-1`, after crediting a second died-mid-flight fire.** Gate 2 found `docs-5`/`docs-6`/
+`docs-10` all merged on `origin/dev` (PRs #997/#1004/#1010) while the charter still tagged them
+`[NEXT]` — see ITERATION 3's retroactive entry in the log for full detail and re-verification
+(fresh `make verify-examples`: 211/0/6, `check_examples.sh`: 173/2/42, both matching the landing
+PRs' own claimed counts). Also found PR #1016 (`MERGEABLE`) recovering a complete `docs-1` brief +
+sprint plan from a second orphaned worktree; merged it after re-running its one flaky failing check
+(`launchd drivers (bash 3.2)`, unrelated to a 2-file markdown PR, green on re-run — rule 3d).
+
+**Execution**: routed `docs-1` to `codex:gpt-5.6-luna` using the recovered plan verbatim.
+Round-1 delivery (`tools/messaging/docs_inbox_router.sh`) FAILED independent evaluation (sonnet,
+own worktree) 58/100 — a genuinely empty poll result crashed the router instead of reporting
+`checked=0 forwarded=0`, live-reproduced by the evaluator. Fix routed back to the same executor;
+controller independently reproduced both the original crash and the fix with hand-built fixtures
+before re-committing. Round-2 evaluation: PASS 90/100, zero blocking.
+
+**Outcome: LANDED.** [PR #1018](https://github.com/sunholo-data/ailang/pull/1018) squash-merged →
+`e65e96b15`. Polled the merge commit to full CI completion: 15/16 green, the same inherited
+SonarCloud red as Gate 1, not actioned.
+
+**Metered cost this iteration: $0.00** of $1 ceiling — codex and sonnet are both subscription-lane
+per this mission's routing table. Quota buckets: codex (executor, 2 rounds), sonnet (evaluator, 2
+rounds + controller session).
+
+Queue is now empty of `[NEXT]` items; `docs-8` (126 overdue planned docs) is the natural next pick
+once picked up (already unblocked per its own sequencing note) but was not started this iteration
+(Standing rule 1, one backlog item per iteration).
+
+Full record: `design_docs/docs-mission-log.md` §ITERATION 3, §ITERATION 4.
+
 ## STATUS 2026-08-31 — ITERATION 2: recovered a died-mid-flight fire (docs-9 RULED OUT, PR #973 landed); Gate-0 weekly sweep found docs-10
 
 Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. `dev` == `origin/dev` at
