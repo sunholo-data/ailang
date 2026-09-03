@@ -33,6 +33,12 @@ type TaskRecord struct {
 	WorktreePath string     `json:"worktree_path,omitempty"` // Path to git worktree (preserved until approval)
 	BaseBranch   string     `json:"base_branch,omitempty"`   // Base branch worktree was created from (for diff comparison)
 	BaseCommit   string     `json:"base_commit,omitempty"`   // Base commit hash at worktree creation (stable reference for diff)
+	// Finalization is the per-effect ledger (M-COMPLETION-PATH-PARITY C1). Stored
+	// as JSON in a single column. It MUST appear in every converter that maps a
+	// task to and from storage: the Firestore mapping is hand-written, so a field
+	// missing there is silently dropped on read, and finalisation would see an
+	// empty ledger on every redelivery and re-run every effect.
+	Finalization FinalizationLedger `json:"finalization,omitempty"`
 	SessionID    string     `json:"session_id,omitempty"`    // Claude Code/Gemini CLI session for resumption
 	Iteration    int        `json:"iteration,omitempty"`     // Iteration number (1 = first, 2+ = re-run with feedback)
 	Workspace    string     `json:"workspace,omitempty"`     // Source workspace from thread (not worktree)
@@ -240,6 +246,16 @@ type Store interface {
 
 	// Approval requests
 	CreateApprovalRequest(ctx context.Context, req *ApprovalRequestRecord) error
+	// CreateApprovalIfAbsent is the replay-safe counterpart: first write wins,
+	// and it reports whether it created the row. Finalisation uses this because
+	// the approval id is deterministic and Pub/Sub delivery is at-least-once
+	// (M-COMPLETION-PATH-PARITY M0b).
+	CreateApprovalIfAbsent(ctx context.Context, req *ApprovalRequestRecord) (bool, error)
+
+	// Finalisation ledger (M-COMPLETION-PATH-PARITY C1). Read once at the start
+	// of finalisation, written after each effect.
+	GetTaskFinalization(ctx context.Context, taskID string) (FinalizationLedger, error)
+	SetTaskFinalization(ctx context.Context, taskID string, ledger FinalizationLedger) error
 	GetApprovalRequest(ctx context.Context, id string) (*ApprovalRequestRecord, error)                    // Get by approval ID
 	GetApprovalRequestByTask(ctx context.Context, taskID string) (*ApprovalRequestRecord, error)          // Get pending by task ID
 	GetApprovalRequestByTaskAnyStatus(ctx context.Context, taskID string) (*ApprovalRequestRecord, error) // Get approval regardless of status (for handoff triggering)

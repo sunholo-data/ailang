@@ -38,6 +38,10 @@ func taskToMap(t *coordinator.TaskRecord) map[string]interface{} {
 		"worktree_path":    t.WorktreePath,
 		"base_branch":      t.BaseBranch,
 		"base_commit":      t.BaseCommit,
+		// M-COMPLETION-PATH-PARITY C1: the ledger must appear in BOTH directions
+		// of this hand-written map. Omitting it from either silently drops the
+		// ledger, and every redelivery would then re-run every effect.
+		"finalization": ledgerToMap(t.Finalization),
 		"session_id":       t.SessionID,
 		"iteration":        t.Iteration,
 		"workspace":        t.Workspace,
@@ -112,6 +116,7 @@ func mapToTask(data map[string]interface{}) *coordinator.TaskRecord {
 		WorktreePath:   getString(data, "worktree_path"),
 		BaseBranch:     getString(data, "base_branch"),
 		BaseCommit:     getString(data, "base_commit"),
+		Finalization:   ledgerFromMap(data["finalization"]),
 		SessionID:      getString(data, "session_id"),
 		Iteration:      getInt(data, "iteration"),
 		Workspace:      getString(data, "workspace"),

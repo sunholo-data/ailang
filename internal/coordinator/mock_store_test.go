@@ -11,6 +11,8 @@ import (
 // =============================================================================
 
 type MockStore struct {
+	approvalIDs map[string]bool // ids already created, so CreateApprovalIfAbsent models first-write-wins
+	ledgers     map[string]FinalizationLedger
 	mu     sync.Mutex
 	tasks  map[string]*TaskRecord
 	stages map[string]TaskStage
@@ -274,6 +276,26 @@ func (m *MockStore) CreateApprovalRequest(ctx context.Context, req *ApprovalRequ
 	return nil
 }
 
+// CreateApprovalIfAbsent models first-write-wins rather than returning a
+// constant: a mock that always reports "created" would make any idempotency
+// assertion against it vacuous.
+func (m *MockStore) CreateApprovalIfAbsent(ctx context.Context, req *ApprovalRequestRecord) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls["CreateApprovalIfAbsent"]++
+	if req == nil || req.ID == "" {
+		return false, nil
+	}
+	if m.approvalIDs == nil {
+		m.approvalIDs = map[string]bool{}
+	}
+	if m.approvalIDs[req.ID] {
+		return false, nil
+	}
+	m.approvalIDs[req.ID] = true
+	return true, nil
+}
+
 func (m *MockStore) GetApprovalRequest(ctx context.Context, id string) (*ApprovalRequestRecord, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -429,4 +451,29 @@ func newTestTaskWithGitHub(id string, issueNum int) *TaskRecord {
 	task := newTestTask(id)
 	task.GithubIssue = issueNum
 	return task
+}
+
+// Ledger accessors backed by a real map, so idempotency assertions against the
+// mock exercise the same first-write-wins logic the stores implement.
+func (m *MockStore) GetTaskFinalization(ctx context.Context, taskID string) (FinalizationLedger, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.ledgers == nil {
+		return FinalizationLedger{}, nil
+	}
+	l, ok := m.ledgers[taskID]
+	if !ok {
+		return FinalizationLedger{}, nil
+	}
+	return l, nil
+}
+
+func (m *MockStore) SetTaskFinalization(ctx context.Context, taskID string, ledger FinalizationLedger) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.ledgers == nil {
+		m.ledgers = map[string]FinalizationLedger{}
+	}
+	m.ledgers[taskID] = ledger
+	return nil
 }

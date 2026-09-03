@@ -3,6 +3,7 @@ package messaging
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/builtins"
 )
@@ -71,6 +72,13 @@ func MigrateDB(db *sql.DB) error {
 	if currentVersion == "1.7.0" {
 		if err := migrateV170ToV180(db); err != nil {
 			return fmt.Errorf("migration to v1.8.0 failed: %w", err)
+		}
+		currentVersion = "1.8.0"
+	}
+
+	if currentVersion == "1.8.0" {
+		if err := migrateV180ToV190(db); err != nil {
+			return fmt.Errorf("migration to v1.9.0 failed: %w", err)
 		}
 	}
 
@@ -454,4 +462,150 @@ func migrateV170ToV180(db *sql.DB) error {
 	}
 
 	return tx.Commit()
+}
+
+// migrateV180ToV190 widens the message_type CHECK constraint to the vocabulary
+// the code actually emits (M-COMPLETION-PATH-PARITY M0b).
+//
+// The constraint allowed only notification/request/response, while the
+// coordinator writes completion, handoff, info, audit and approval_request. Every
+// one of those was rejected here and silently accepted on Firestore, which has no
+// constraint — so the two backends disagreed about what a valid message even is.
+// Handoffs never exposed it because handoffs have never fired in production, and
+// a handoff insert is the first thing M1 will attempt on both paths.
+//
+// SQLite cannot alter a CHECK constraint, so the table is rebuilt. The copy uses
+// the intersection of columns present in BOTH tables, derived from pragma at run
+// time rather than a hand-written list: this table has gained columns in four
+// prior migrations, and a list that silently omitted one would lose that column's
+// data for every message in the store.
+func migrateV180ToV190(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	newTable := `CREATE TABLE inbox_messages_new (
+		id TEXT PRIMARY KEY,
+		message_id TEXT UNIQUE NOT NULL,
+		correlation_id TEXT,
+		from_agent TEXT NOT NULL,
+		to_inbox TEXT NOT NULL,
+		message_type TEXT NOT NULL DEFAULT 'notification',
+		title TEXT NOT NULL,
+		payload TEXT,
+		category TEXT,
+		github_issue_number INTEGER,
+		github_repo TEXT,
+		simhash INTEGER,
+		dup_of TEXT,
+		embedding TEXT,
+		embedding_model TEXT,
+		embedding_updated_at INTEGER,
+		parent_task_id TEXT,
+		chain_id TEXT,
+		envelope TEXT DEFAULT '{}',
+		status TEXT NOT NULL DEFAULT 'unread',
+		created_at TEXT NOT NULL,
+		read_at TEXT,
+		expires_at TEXT,
+		CHECK (message_type IN ('notification', 'request', 'response', 'completion', 'handoff', 'info', 'audit', 'approval_request')),
+		CHECK (status IN ('unread', 'read', 'archived', 'deleted'))
+	)`
+	if _, err := tx.Exec(newTable); err != nil {
+		return fmt.Errorf("failed to create new table: %w", err)
+	}
+
+	shared, err := sharedColumns(tx, "inbox_messages", "inbox_messages_new")
+	if err != nil {
+		return err
+	}
+	if len(shared) == 0 {
+		return fmt.Errorf("refusing to migrate: no columns in common between inbox_messages and its replacement")
+	}
+	cols := strings.Join(shared, ", ")
+	if _, err := tx.Exec(fmt.Sprintf(`INSERT INTO inbox_messages_new (%s) SELECT %s FROM inbox_messages`, cols, cols)); err != nil {
+		return fmt.Errorf("failed to copy data: %w", err)
+	}
+
+	// The copy must not lose rows. A CHECK violation would surface above as an
+	// error, but a silent row-count drop would not.
+	var before, after int
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM inbox_messages`).Scan(&before); err != nil {
+		return fmt.Errorf("failed to count source rows: %w", err)
+	}
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM inbox_messages_new`).Scan(&after); err != nil {
+		return fmt.Errorf("failed to count copied rows: %w", err)
+	}
+	if before != after {
+		return fmt.Errorf("refusing to migrate: copied %d of %d messages", after, before)
+	}
+
+	if _, err := tx.Exec(`DROP TABLE inbox_messages`); err != nil {
+		return fmt.Errorf("failed to drop old table: %w", err)
+	}
+	if _, err := tx.Exec(`ALTER TABLE inbox_messages_new RENAME TO inbox_messages`); err != nil {
+		return fmt.Errorf("failed to rename table: %w", err)
+	}
+
+	for _, idx := range []string{
+		inboxMessagesInboxIndex,
+		inboxMessagesCorrelationIndex,
+		inboxMessagesGitHubIndex,
+		inboxMessagesSimhashIndex,
+		inboxMessagesDupOfIndex,
+	} {
+		if _, err := tx.Exec(idx); err != nil {
+			return fmt.Errorf("failed to recreate index: %w", err)
+		}
+	}
+
+	if _, err := tx.Exec("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", "1.9.0"); err != nil {
+		return fmt.Errorf("failed to update schema version: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// sharedColumns returns the columns present in both tables, in the order the
+// source declares them. Deriving the copy list this way means a column added by
+// some future migration is carried across automatically instead of being dropped
+// by a stale hand-written list.
+func sharedColumns(tx *sql.Tx, src, dst string) ([]string, error) {
+	read := func(table string) (map[string]bool, []string, error) {
+		rows, err := tx.Query(fmt.Sprintf("SELECT name FROM pragma_table_info('%s')", table))
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to read columns of %s: %w", table, err)
+		}
+		defer func() { _ = rows.Close() }()
+		set := map[string]bool{}
+		var order []string
+		for rows.Next() {
+			var name string
+			if err := rows.Scan(&name); err != nil {
+				return nil, nil, err
+			}
+			set[name] = true
+			order = append(order, name)
+		}
+		return set, order, rows.Err()
+	}
+
+	_, srcOrder, err := read(src)
+	if err != nil {
+		return nil, err
+	}
+	dstSet, _, err := read(dst)
+	if err != nil {
+		return nil, err
+	}
+
+	var shared []string
+	for _, name := range srcOrder {
+		if dstSet[name] {
+			shared = append(shared, name)
+		}
+	}
+	return shared, nil
 }

@@ -419,7 +419,7 @@ CREATE TABLE IF NOT EXISTS inbox_messages (
     read_at TEXT,
     expires_at TEXT,
 
-    CHECK (message_type IN ('notification', 'request', 'response')),
+    CHECK (message_type IN ('notification', 'request', 'response', 'completion', 'handoff', 'info', 'audit', 'approval_request')),
     CHECK (status IN ('unread', 'read', 'archived', 'deleted'))
     -- category: any string allowed (bug/feature have special behavior)
 )`
