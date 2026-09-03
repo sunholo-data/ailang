@@ -10,6 +10,7 @@
 // container instead of leaking into a bespoke platform-facing protocol.
 import { createServer } from "node:http";
 import * as herdr from "./lib/herdr.mjs";
+import * as pi from "./lib/pi.mjs";
 import * as a2a from "./lib/a2a.mjs";
 import { verify, authConfig } from "./lib/auth.mjs";
 
@@ -43,6 +44,14 @@ async function health() {
     uptime_s: Math.round((Date.now() - STARTED) / 1000),
     herdr: h,
     models: models === null ? { error: "registry unreadable" } : { count: models.length, ids: models },
+    // Reported so persistence is OBSERVABLE rather than inferred. A resident
+    // whose conversation silently resets looks identical to one that works
+    // until someone asks it a second question, and "did it remember" is not a
+    // thing an operator should have to test by hand to find out.
+    session: (() => {
+      const c = pi.capabilities();
+      return { persistent: Boolean(c.sessionFlag), pi: c.piVersion || null, dir: c.sessionDir || null };
+    })(),
     tasks: a2a.listTasks().length,
   };
 }

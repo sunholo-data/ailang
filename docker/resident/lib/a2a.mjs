@@ -14,7 +14,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import * as herdr from "./herdr.mjs";
-import { runPi } from "./pi.mjs";
+import { runPi, capabilities } from "./pi.mjs";
 
 const PI_HOME = process.env.PI_HOME || "/home/ailang/.pi";
 const STATE_DIR = process.env.TASK_STATE_DIR || "/home/ailang/.resident";
@@ -28,6 +28,29 @@ export const TaskState = {
   submitted: "submitted", working: "working", inputRequired: "input-required",
   completed: "completed", failed: "failed", canceled: "canceled", rejected: "rejected",
 };
+
+// ─── conversation sessions (M10) ─────────────────────────────────────────────
+// A2A already has the right key: contextId is the spec's identifier for a
+// conversation spanning several tasks, which is exactly a chat thread. Keying
+// pi's session on it means two callers get two conversations on one instance
+// with no scheme of our own, and a caller that reuses its contextId is
+// resuming by definition rather than by convention.
+const sessionIdFor = (contextId) =>
+  `ctx-${String(contextId).toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 48)}`;
+
+// pi rewrites one file per session for the length of a run, so two concurrent
+// turns on the SAME conversation would interleave writes and lose history. Runs
+// are therefore chained per session — queued, not refused: a user sending a
+// second message before the first finishes is normal chat behaviour, and an
+// error there would be our problem presented as theirs. Different conversations
+// still run concurrently.
+const sessionChains = new Map();
+function onSession(sessionId, fn) {
+  const prev = sessionChains.get(sessionId) || Promise.resolve();
+  const next = prev.then(fn, fn);
+  sessionChains.set(sessionId, next.catch(() => {}));
+  return next;
+}
 
 // ─── task store ──────────────────────────────────────────────────────────────
 // Persisted to local disk so tasks survive the weekly auto-restart. NOT to
@@ -183,6 +206,16 @@ export async function messageSend(params) {
   // agent, so it needs no reply mechanism of our own.
   if (msg.taskId && tasks.has(msg.taskId)) {
     const task = tasks.get(msg.taskId);
+    // A follow-up on the SAME task id is A2A's mechanism for answering an
+    // agent that is input-required, and that only exists in interactive mode.
+    // A stream task is one turn; continuing the CONVERSATION means a new
+    // message carrying the same contextId. Saying so beats routing it to a
+    // herdr that is not running and letting the caller wait.
+    if (task.metadata?.mode === "stream") {
+      throw Object.assign(new Error(
+        `task ${task.id} ran in stream mode, which is a single turn. To continue this conversation send a new message with contextId ${JSON.stringify(task.contextId)}; the session resumes from it.`),
+        { code: -32602 });
+    }
     await herdr.agentPrompt({ target: task.metadata.agentName, text });
     setState(task, TaskState.working);
     return task;
@@ -213,18 +246,22 @@ export async function messageSend(params) {
   task.metadata.mode = mode;
 
   if (mode === "stream") {
+    const sessionId = sessionIdFor(contextId);
+    task.metadata.sessionId = sessionId;
+    task.metadata.persistent = Boolean(capabilities().sessionFlag);
     // Fire-and-forget: the A2A call returns a task immediately and the run
     // continues in the background, reporting through task state and artifacts.
-    runPi({
+    onSession(sessionId, () => runPi({
       model: model.replace(/^openrouter\//, ""),
       prompt: text,
+      sessionId,
       onEvent: (ev, st) => {
         if (ev.type === "turn_start") setState(task, TaskState.working);
         // Keep the artifact current as text arrives, so a caller polling
         // tasks/get sees progress rather than nothing until the end.
         if (st.text) attachText(task, st.text);
       },
-    })
+    }))
       .then((r) => {
         attachText(task, r.text);
         task.metadata.usage = r.usage ?? null;
@@ -293,6 +330,16 @@ export function agentCard(baseUrl) {
       tags: ["code", "resident", AGENT_KIND],
       examples: ["Refactor the billing module and open a PR"],
     }],
-    metadata: { registeredModels: models, agentKind: AGENT_KIND },
+    metadata: {
+      registeredModels: models,
+      agentKind: AGENT_KIND,
+      // How to hold a conversation with this agent, on the card rather than in
+      // our docs: reuse contextId and the session resumes.
+      conversation: {
+        key: "contextId",
+        note: "Reuse the same contextId across message/send calls to continue one conversation; a new contextId starts a fresh one.",
+        persistent: Boolean(capabilities().sessionFlag),
+      },
+    },
   };
 }

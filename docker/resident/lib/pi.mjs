@@ -17,13 +17,58 @@
 // herdr stays in the image for human attach (`herdr --remote`); it is simply
 // no longer on the task path.
 import { spawn } from "node:child_process";
+import { readFileSync, existsSync, mkdirSync, cpSync } from "node:fs";
+
+// Capabilities are probed by boot.sh and read per run, because the server
+// process was started before that probe ran and cannot have inherited it.
+// Re-read rather than cache: a boot that finishes after the first call should
+// still upgrade later calls from stateless to persistent.
+const CAP_FILE = `${process.env.TASK_STATE_DIR || "/home/ailang/.resident"}/capabilities.json`;
+export function capabilities() {
+  try { return JSON.parse(readFileSync(CAP_FILE, "utf8")); }
+  catch { return { sessionFlag: "", sessionDir: "", agentHome: process.env.AGENT_HOME || "" }; }
+}
+
+/** Stage the session store to the GCS mount so it survives the 7-day restart.
+ *
+ * Copied AFTER a run, never written to during one: gcsfuse has no POSIX
+ * locking and pi rewrites its session file continuously, so pointing
+ * --session-dir at the mount would corrupt exactly the state this exists to
+ * keep. Same rule as the workspace, for the same reason.
+ */
+export function stageSessions() {
+  const { sessionDir, agentHome } = capabilities();
+  if (!sessionDir || !agentHome || !existsSync(sessionDir)) return false;
+  try {
+    mkdirSync(`${agentHome}/sessions`, { recursive: true });
+    cpSync(sessionDir, `${agentHome}/sessions`, { recursive: true });
+    return true;
+  } catch (e) {
+    console.error(`pi | WARN could not stage sessions to ${agentHome}: ${e.message}`);
+    return false;
+  }
+}
 
 // Event vocabulary from ailang's own parser, so the two stay aligned:
 // session, turn_start, message_update, tool_execution_start,
 // tool_execution_end, message_end, turn_end, agent_end.
-export function runPi({ model, prompt, thinking, tools, cwd, onEvent,
+export function runPi({ model, prompt, thinking, tools, cwd, onEvent, sessionId,
                         timeoutMs = 900000, ttftMs = 60000, idleMs = 180000 }) {
-  const args = ["--mode", "json", "--model", model, "--no-session", "-p"];
+  const args = ["--mode", "json", "--model", model, "-p"];
+
+  // Session handling (M10). --no-session is right for ailang's one-shot job
+  // executor, which documents it as "ephemeral run (avoids ~/.pi/sessions/
+  // pollution)", and WRONG for a resident: it is what made this a persistent
+  // host with an amnesiac agent. --session-id creates the session if missing,
+  // so the same call both starts and resumes a conversation and the caller
+  // owns the identifier.
+  const cap = capabilities();
+  const persistent = Boolean(sessionId && cap.sessionFlag);
+  if (persistent) {
+    args.splice(4, 0, cap.sessionFlag, sessionId, "--session-dir", cap.sessionDir);
+  } else {
+    args.splice(4, 0, "--no-session");
+  }
   if (thinking) args.push("--thinking", thinking);
   if (Array.isArray(tools)) {
     // [] means no tools at all; a list restricts to it. Undefined leaves pi's
@@ -46,7 +91,7 @@ export function runPi({ model, prompt, thinking, tools, cwd, onEvent,
       cwd: cwd || process.env.WORKSPACE_DIR || "/workspace",
       stdio: ["ignore", "pipe", "pipe"],
     });
-    console.log(`pi | spawn model=${model} cwd=${cwd || process.env.WORKSPACE_DIR || "/workspace"} argc=${args.length}`);
+    console.log(`pi | spawn model=${model} session=${persistent ? sessionId : "(stateless)"} cwd=${cwd || process.env.WORKSPACE_DIR || "/workspace"}`);
     const state = { text: "", events: 0, toolCalls: [], usage: null, stopReason: null, stderr: "" };
     let buf = "";
 
@@ -125,6 +170,10 @@ export function runPi({ model, prompt, thinking, tools, cwd, onEvent,
       settled = true;
       clearAll();
       console.log(`pi | exit=${code} events=${state.events} chars=${state.text.length}`);
+      // Stage on the way out, including on a non-zero exit: a failed turn is
+      // still part of the conversation and losing it would silently rewrite
+      // history.
+      if (persistent) stageSessions();
       // A non-zero exit with no parsed events is a harness failure; with events
       // it is usually the model or a tool, and the text is still worth keeping.
       if (code !== 0 && state.events === 0) {

@@ -203,6 +203,40 @@ runPi({ model: "m", prompt: "hi", ttftMs: 2000 })
 have "a silent pi fails fast on the TTFT timer" 'echo "$out" | grep -q "no output within"'
 rm -rf "$STUB"
 
+echo "=== 6c. session persistence (M10) ==="
+# The design's whole premise. Until now the host persisted and the agent did
+# not, and nothing in this suite could tell the difference.
+have "boot probed pi for --session-id"      'grep -qE "session persistence: (ENABLED|DISABLED)" /tmp/boot.log'
+have "capabilities written for the server to read" '[ -f /home/ailang/.resident/capabilities.json ]'
+have "the pinned pi supports --session-id"  'grep -q "session persistence: ENABLED" /tmp/boot.log'
+
+# The executor must actually USE it. A stub pi records its argv, so this
+# asserts the command line rather than trusting the code to mean what it says.
+STUB=$(mktemp -d)
+printf '#!/bin/sh\necho "$@" > /tmp/pi-argv.txt\n' > "$STUB/pi"; chmod +x "$STUB/pi"
+PATH="$STUB:$PATH" timeout 30 node --input-type=module -e '
+import { runPi } from "/usr/local/bin/lib/pi.mjs";
+runPi({ model: "m", prompt: "hi", sessionId: "ctx-test", ttftMs: 5000 }).catch(() => {});
+' >/dev/null 2>&1
+have "a session run passes --session-id"    'grep -q -- "--session-id ctx-test" /tmp/pi-argv.txt'
+have "  ...and drops --no-session"          '! grep -q -- "--no-session" /tmp/pi-argv.txt'
+# THE CORRUPTION TRAP: gcsfuse has no POSIX locking and pi rewrites the session
+# file all through a run, so --session-dir must point at LOCAL disk. Staging to
+# the mount happens after the run, not during it.
+have "sessions live on local disk, not the GCS mount" \
+     '! grep -qE -- "--session-dir[ =]*/agent-home" /tmp/pi-argv.txt'
+
+PATH="$STUB:$PATH" timeout 30 node --input-type=module -e '
+import { runPi } from "/usr/local/bin/lib/pi.mjs";
+runPi({ model: "m", prompt: "hi", ttftMs: 5000 }).catch(() => {});
+' >/dev/null 2>&1
+have "a run with no session id stays ephemeral" 'grep -q -- "--no-session" /tmp/pi-argv.txt'
+rm -rf "$STUB" /tmp/pi-argv.txt
+
+out=$(A2A 'import * as a2a from "/usr/local/bin/lib/a2a.mjs";
+console.log(JSON.stringify(a2a.agentCard("https://example.invalid")));')
+have "the card tells clients how to hold a conversation" 'echo "$out" | grep -q "contextId"'
+
 echo "=== 7. restart idempotence ==="
 # The 7-day ceiling makes restarts routine, so a second boot must behave like
 # the first rather than tripping over its own leftovers.

@@ -189,6 +189,45 @@ else
   log "pi headless check: $PI_VERSION"
 fi
 
+# ─── 5c. session persistence (M10) ───────────────────────────────────────────
+# A resident whose conversation dies with every call is a host that persists
+# and an agent that does not. `--session-id <id>` is documented as "use exact
+# project session ID, CREATING IT IF MISSING", which makes resume idempotent
+# and lets the CALLER own the identifier — so nothing has to be captured from
+# the event stream and stored.
+#
+# But that flag is verified, never assumed. The image pins its own pi and this
+# boot has already been wrong once about what pi does headless. If the flag is
+# absent the agent still serves; it serves STATELESS AND SAYS SO, rather than
+# passing an unknown flag and having pi fail on every call.
+PI_SESSION_DIR="${PI_SESSION_DIR:-$PI_HOME/sessions}"
+mkdir -p "$PI_SESSION_DIR"
+# The result is written to a FILE, not exported: the server was started back in
+# section 2 so it could answer the startup probe before the slow work, which
+# means it long predates this env. It re-reads the file per run instead.
+CAP_FILE="${TASK_STATE_DIR:-/home/ailang/.resident}/capabilities.json"
+mkdir -p "$(dirname "$CAP_FILE")"
+if timeout 20 pi --help </dev/null 2>&1 | grep -q -- "--session-id"; then
+  SESSION_FLAG="--session-id"
+  log "session persistence: ENABLED via --session-id ($PI_SESSION_DIR)"
+else
+  SESSION_FLAG=""
+  log "WARN session persistence DISABLED: pi $PI_VERSION has no --session-id, so every call is stateless"
+fi
+printf '{"piVersion":"%s","sessionFlag":"%s","sessionDir":"%s","agentHome":"%s"}\n' \
+  "$PI_VERSION" "$SESSION_FLAG" "$PI_SESSION_DIR" "$AGENT_HOME" > "$CAP_FILE"
+
+# Sessions live on LOCAL disk and are staged to the mount, never written
+# straight to it: gcsfuse has no POSIX locking and pi rewrites a session file
+# throughout a run. Same rule as the workspace and for the same reason.
+if [ -d "$AGENT_HOME/sessions" ]; then
+  if cp -a "$AGENT_HOME/sessions/." "$PI_SESSION_DIR/" 2>/dev/null; then
+    log "sessions restored from $AGENT_HOME/sessions ($(find "$PI_SESSION_DIR" -type f 2>/dev/null | wc -l | tr -d ' ') files)"
+  else
+    log "WARN could not restore sessions from $AGENT_HOME/sessions — continuing with a fresh store"
+  fi
+fi
+
 # ─── 6. herdr (optional) ─────────────────────────────────────────────────────
 # herdr is NOT on the task path any more: stream mode runs `pi --mode json`
 # directly, because driving pi as a TUI headless does not submit prompts and
