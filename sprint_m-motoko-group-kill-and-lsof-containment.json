@@ -1,0 +1,530 @@
+{
+  "sprint_id": "M-MOTOKO-GROUP-KILL-AND-LSOF-CONTAINMENT",
+  "mission": "motoko",
+  "mission_iteration": 34,
+  "queue_row": "6o",
+  "created": "2026-09-03",
+  "design_doc": "design_docs/planned/m-motoko-group-kill-and-lsof-containment.md",
+  "sprint_plan": "design_docs/planned/m-motoko-group-kill-and-lsof-containment-sprint-plan.md",
+  "worktree": "/Users/voightkampff/dev/sunholo-data/.wt-motoko-iter34-sprint",
+  "branch": "sprint/motoko-iter34-group-kill-lsof",
+  "base_commit": "55891002f",
+  "risk_level": "low-medium",
+  "github_issues": [],
+  "executor_contract": {
+    "git_writes_permitted": false,
+    "note": "The executor performs NO git write operations: no add, commit, stash, checkout, branch, reset, clean or push. Read-only git (status/diff/show) is fine. The CONTROLLER builds the commits, reconstructing one commit per milestone and running the acceptance gate at each boundary. Every milestone must therefore leave the suite GREEN; a milestone that lands the tree red is a planning error.",
+    "files_the_executor_may_modify": [
+      "tools/eval/test_motoko_connection_probe.sh",
+      "changelogs/v0.32-current.md"
+    ],
+    "files_that_must_not_change": [
+      "tools/eval/motoko_connection_probe.sh"
+    ]
+  },
+  "invariants": {
+    "production_probe_sha256": "f0b5e02493369099f123c42107850fe062bf60d56ccabb2a7e4690d654aabc99",
+    "production_probe_sha256_control": {
+      "file": "tools/eval/test_motoko_connection_probe.sh",
+      "sha256": "e1d56346b08cd14dd16f2b826268f90c8b36a84f6399d8c1b8d7a4037ce71b58",
+      "why": "A different file hashes differently, so shasum -a 256 discriminates; the probe hash is a measurement, not a transcription."
+    },
+    "expected_refusal_branches": 28,
+    "expected_refusal_branches_must_not_move": true,
+    "all_mutants_live_in_tmp": true,
+    "probe_mutants_driven_by": "PROBE_UNDER_TEST=<copy>",
+    "suite_mutants_driven_by": "PROBE_UNDER_TEST=$PWD/tools/eval/motoko_connection_probe.sh (mandatory: a /tmp suite copy derives script_dir from $0, so its default $probe points at a nonexistent file)"
+  },
+  "acceptance_gate": {
+    "command": "/bin/bash tools/eval/test_motoko_connection_probe.sh",
+    "why": "The one gate measured green on a pristine base at 55891002f: rc=0, 43 ok, 0 not ok, final line 'PASS: 43 probe self-test arms ran'.",
+    "arm_count_by_milestone": {
+      "base": 43,
+      "M1": 43,
+      "M2": 44,
+      "M3": 46,
+      "M4": 46
+    },
+    "supporting_commands": [
+      "bash -n tools/eval/motoko_connection_probe.sh",
+      "bash -n tools/eval/test_motoko_connection_probe.sh",
+      "shasum -a 256 tools/eval/motoko_connection_probe.sh"
+    ]
+  },
+  "red_at_base_do_not_use": {
+    "commands": [
+      "make test-launchd-drivers",
+      "/bin/bash tools/launchd/test_fmt_ab_schedule.sh",
+      "CI check: test",
+      "CI check: launchd drivers (bash 3.2)"
+    ],
+    "cause": "One inherited defect: commit c8c841e24 deleted the '# BEGIN/END FMT_AB_TESTABLE_FUNCTIONS' markers from tools/launchd/nightly-eval.sh. Owned by V1; PR #1030 in flight.",
+    "rule": "Never hand an executor a gate already red at base. Nothing in this sprint may depend on any of these going green."
+  },
+  "relocation_ruling": {
+    "summary": "The containment gate is RELOCATED. It goes AFTER run_bounded's definition and BEFORE arm 1 -- not after test:28 -- and it runs /usr/bin/getconf PATH THROUGH run_bounded with an explicit PROBE_GETCONF_CAP_SECS cap and three distinct refusals (timeout / non-zero exit / empty output).",
+    "exact_insertion_point": "Between test:139 (run_bounded's closing brace) and test:141 (report_arm_cap's opening), measured by the planner on this worktree.",
+    "stale_text_in_design_doc": "Design doc line 175 (Solution Design > Overview, bullet 2) still says 'directly after the non-Darwin skip (test:28)'. That sentence is STALE. Where any part of the doc reads as though the gate sits at test:28, the RELOCATED version at doc lines 209-249 and 299 wins.",
+    "why_necessary_not_stylistic": "run_bounded is defined at test:88, so a gate at test:28 could not have called it; a hung getconf would hang the suite before arm 1 with no deadline. Handling empty/non-zero output does not handle non-termination (doc V45)."
+  },
+  "design_doc_findings": [
+    {
+      "id": "F1",
+      "severity": "medium",
+      "finding": "Design doc line 175 still places the containment gate at test:28, contradicting the quorum-round-2 relocation stated at doc lines 209-249 and 299.",
+      "impact": "An executor reading the Solution Design top-down implements the UNBOUNDED gate the round-2 objection was raised against.",
+      "disposition": "Ruled explicitly in plan section 2. Every milestone task references test:139/141 and never test:28. AC11a pins the resulting line-number range."
+    },
+    {
+      "id": "F2",
+      "severity": "high",
+      "finding": "AC11 is arithmetically wrong for the relocated gate. It requires grep -n '/usr/bin/getconf PATH' on the suite to yield 1 hit; the round-2 gate contains that literal 4 times (once as the run_bounded argument, three times inside the refusal messages at doc lines 222, 226, 231).",
+      "impact": "A correct implementation FAILS AC11 as written.",
+      "disposition": "Restated as AC11a (exactly one '-- /usr/bin/getconf PATH' run_bounded argument, at a line number >139 and <168) and AC11b (total count 4)."
+    },
+    {
+      "id": "F3",
+      "severity": "medium",
+      "finding": "T12's killer column names T13 and T14 as covering the empty-output and non-zero-exit branches, but neither row exists in the Test Plan. The round-2 gate adds THREE refusal branches; only the timeout branch has a specified drill, so two of three ship unpinned.",
+      "impact": "The doc's own Risks-table mitigation ('Explicit instrument-failure branch on empty output') would be an unpinned claim.",
+      "disposition": "T13 (non-zero exit) and T14 (empty output) are written out in full as plan test rows and are M3 acceptance. This discharges a promise the doc makes by name; it is not new scope."
+    },
+    {
+      "id": "F4",
+      "severity": "medium",
+      "finding": "PROBE_GETCONF_CAP_SECS has no validation, unlike ARM_CAP_SECS which is validated at test:10-13 for exactly this reason. Measured by the planner on this shell (GNU bash 3.2.57): a non-numeric operand in run_bounded's arithmetic under 'set -u' produces '/bin/bash: abc: unbound variable' and the shell EXITS.",
+      "impact": "PROBE_GETCONF_CAP_SECS=abc aborts the suite with a bare 'unbound variable' and NO 'not ok -' line -- the one failure shape this suite's conventions forbid.",
+      "disposition": "Planner addition, doc-silent and labelled as such: M3 adds a 4-line validation mirroring test:10-13. It adds NO arm, so arm counts, AC3, AC4 and AC12 are unchanged and the controller can delete it with zero re-planning. Pinning it with an arm would make the suite 47 arms and break three pinned ACs, so the pinning arm is a follow-up queue row, not this sprint."
+    }
+  ],
+  "arm_ordering": {
+    "rule": "All three new arms go BEHIND arm 42 ('descendant discovery stub refusal carries its own message', test:740-741) and ahead of the suite-scope env guards at test:743-752 and 754-764 and the refusal-branch gate at test:766-790.",
+    "evidence": "The suite is fail-fast and several arms are wall-clock bounded (the PROBE_TIMEOUT_SECS=4 run_live arms 26-34, arm 36's 5s readiness cap). Iteration 33 measured a forking arm inserted at position 26 giving 4 reds in 19 runs, against 0 in 5 at position 42 and 0 in 17 at base.",
+    "consequence": "Every wall-clock-bounded arm begins at exactly the offset it has at base; the flake mechanism is unreachable by construction rather than argued from a rate.",
+    "final_order": [
+      {
+        "arm": 43,
+        "name": "production run_lane SIGKILL escalation kills a TERM-immune wrapper grandchild",
+        "cost": "~9s (spends the probe's real 5s grace window)",
+        "why_here": "The only expensive new arm; last-but-three so it tips nothing else."
+      },
+      {
+        "arm": 44,
+        "name": "REAL_LSOF containment refuses an ambient lsof ahead of getconf PATH",
+        "cost": "~15ms",
+        "why_here": "After 43 so a kill-arm regression is named rather than masked."
+      },
+      {
+        "arm": 45,
+        "name": "REAL_LSOF containment accepts a leading directory without an lsof",
+        "cost": "~15ms",
+        "why_here": "Same-shape negative control for 44; must run after 44 so the informative (hostile) arm reds first."
+      },
+      {
+        "arm": 46,
+        "name": "refusal-branch count still matches the set this suite covers (28)",
+        "cost": "~0",
+        "why_here": "Pre-existing; renumbers 43 -> 46. That renumber is the only visible effect on an existing arm."
+      }
+    ],
+    "locality_note": "run_lane_fixture_arm is DEFINED where the 6i block lives today (~test:536); its second call is ~200 lines later. The function header comment must name the second call site and say why it is far away, or the next editor tidies the call up next to the first and silently re-creates the iteration-33 flake."
+  },
+  "mutation_drill_discipline": [
+    {
+      "rule": 1,
+      "name": "APPEND-shaped mutants are vacuous by construction",
+      "detail": "expect_failure's matcher is `grep -Fq -- \"$expected\"` over the WHOLE captured stderr (test:163). Appending text leaves the substring intact and the arm green. Every mutation must CHANGE or REMOVE matched text. T10 is the control that proves this on THIS suite and its expected result is GREEN. Sole exception: T9, where the oracle is a COUNT (grep -c 'instrument_failure \"'), so an addition is precisely what the gate is built to catch -- say so out loud when reporting T9."
+    },
+    {
+      "rule": 2,
+      "name": "cp -p, never sed > file",
+      "detail": "A `sed > file` mutant lands mode 644; the suite invokes the probe directly at test:201, so the run reds at ARM 1 on the file MODE, not on the mutation, and the drill measures nothing. Use cp -p (preserves 755), then sed -i '' in place, then assert `ls -l <mutant>` shows -rwxr-xr-x. Drive probe mutants with PROBE_UNDER_TEST=<copy> so the tree is never edited; drive suite mutants with PROBE_UNDER_TEST=$PWD/tools/eval/motoko_connection_probe.sh."
+    },
+    {
+      "rule": 3,
+      "name": "Read WHICH ARM failed, never the rc alone",
+      "detail": "rc=1 is produced by every arm, by the arm cap, by an instrument failure and by a startup refusal. Every test row names the exact `not ok` substring that must appear and, where relevant, the `ok` count that must precede it. Report the substring, not 'it went red'."
+    },
+    {
+      "rule": 4,
+      "name": "Assert the mutation took, with a same-family control that did NOT move",
+      "detail": "Before running any mutant: bash -n rc=0; the intended count moves; a sibling count stays put; diff shows only the intended lines. A mutant whose count did not move is a no-op run reported as a survivor."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 120,
+    "estimated_total_loc": 118,
+    "estimated_days": 1,
+    "estimated_hours": 3.0,
+    "note": "One shell file, +~100/-~10 LOC, plus ~8 changelog lines. Wall-clock is dominated by suite runs: base 46-49s, final ~60s, and roughly 14 drill/verification runs at ~50-70s each => ~50 min of pure suite time. The doc's '874 lines' figure was measured on the PRE-relocation prototype and is stale; expect ~890-900."
+  },
+  "features": [
+    {
+      "id": "M1_HOIST_RUN_LANE_FIXTURE_ARM",
+      "name": "Hoist the 6i fixture block into run_lane_fixture_arm, one call, behaviour-identical",
+      "description": "Pure refactor (design-doc D5). Wrap test:539-681 into `run_lane_fixture_arm <variant> <fixture_secs> <grace_allowance> <expected_refusal> <arm_name> [ENV=VAL...]` and call it once with 6i's parameters in arm 36's current position. The skip_run_lane_fixture guard at test:536-538 and the closing fi at test:682 STAY. 43 arms in, 43 arms out; arm 36 unchanged in name, message, fixture, evidence line and position. This exists so M2's kill arm is a second CALL, not a 145-line copy that gives the next edit two places to drift.",
+      "estimated_loc": 20,
+      "dependencies": [],
+      "files": [
+        "tools/eval/test_motoko_connection_probe.sh"
+      ],
+      "gate_command": "/bin/bash tools/eval/test_motoko_connection_probe.sh",
+      "gate_expectation": "rc=0, 43 ok, 0 not ok, 'PASS: 43 probe self-test arms ran'",
+      "acceptance_criteria": [
+        "M1-G1 GATE: /bin/bash tools/eval/test_motoko_connection_probe.sh -> rc=0, 43 ok, 0 not ok, final line 'PASS: 43 probe self-test arms ran'",
+        "M1-G2: grep -n '^ok 36' -> 'ok 36 - production run_lane timeout kills wrapper grandchild' (same number, same name)",
+        "M1-G3: exactly ONE 'run_lane evidence' line, containing fixture-2861, survivors=0, outer_cap_fired=no, cleanup=0, markers=yes",
+        "M1-G4: bash -n on both probe files -> rc=0, rc=0",
+        "M1-G5: shasum -a 256 tools/eval/motoko_connection_probe.sh -> f0b5e02493369099f123c42107850fe062bf60d56ccabb2a7e4690d654aabc99",
+        "M1-G6: grep -c 'run_lane_fixture_arm' >= 2; grep -c 'run_lane_fixture_secs=2861' == 0; grep -c 'run_lane_fixture_secs=$fixture_secs' == 1",
+        "M1-G7: T2 drill -> rc=1, 35 ok, sole not ok names arm 36 with survivors=1 (identical to base)",
+        "M1-G8: T3 drill -> rc=1, 35 ok, sole not ok names arm 36 with survivors=1"
+      ],
+      "gotchas": [
+        "${run_lane_extra_env[@]+\"${run_lane_extra_env[@]}\"} is MANDATORY: bash 3.2 under set -u treats a bare empty-array expansion as unbound, and M1's only call passes no extra env.",
+        "Do NOT local-ise the run_lane_* state vars or active_fixture_dir. The nested run_lane_fixture_harness and the EXIT trap read them; bash's dynamic scoping is what makes the six declared locals visible to the nested harness.",
+        "run_lane_timeout_secs=2 and run_lane_ready_cap_secs=5 stay literal inside the body."
+      ],
+      "kills_which_mutations": [
+        "T2",
+        "T3",
+        "T11 (optional)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_SIGKILL_ESCALATION_ARM",
+      "name": "The SIGKILL-escalation arm: second call to run_lane_fixture_arm, behind arm 42",
+      "description": "Completes design-doc sub-item (a). Insert immediately after test:741 and before the test:743 PROBE_MAX_TREE_NODES guard comment: a skip_run_lane_fixture guard printing 'UNINFORMATIVE: run_lane SIGKILL-escalation arm requires real lsof for cwd survivor checks', else `run_lane_fixture_arm kill 2863 5 \"INSTRUMENT FAILURE: lane treatment exceeded its bounded termination deadline\" \"production run_lane SIGKILL escalation kills a TERM-immune wrapper grandchild\" PROBE_TEST_IGNORE_TERM=1`. The TERM-immune fixture tree (existing stub knob at test:293) makes the production TERM at probe:252 a no-op, so the wrapper survives the 5s grace window and only the group kill -9 at probe:261 clears the grandchild. Suite goes 43 -> 44 arms. Also add a one-line comment at the stub noting PROBE_TEST_IGNORE_TERM now has two callers.",
+      "estimated_loc": 10,
+      "dependencies": [
+        "M1_HOIST_RUN_LANE_FIXTURE_ARM"
+      ],
+      "files": [
+        "tools/eval/test_motoko_connection_probe.sh"
+      ],
+      "gate_command": "/bin/bash tools/eval/test_motoko_connection_probe.sh",
+      "gate_expectation": "rc=0, 44 ok, 0 not ok, 'PASS: 44 probe self-test arms ran'",
+      "acceptance_criteria": [
+        "M2-G1 GATE: /bin/bash tools/eval/test_motoko_connection_probe.sh -> rc=0, 44 ok, 0 not ok, 'PASS: 44 probe self-test arms ran'",
+        "M2-G2: grep -n '^ok 4[34]' -> 'ok 43 - production run_lane SIGKILL escalation kills a TERM-immune wrapper grandchild' and 'ok 44 - refusal-branch count still matches the set this suite covers (28)'",
+        "M2-G3: the two run_lane evidence lines reduce to exactly 'fixture-2861 survivors=0 outer_cap_fired=no fixture-2863 survivors=0 outer_cap_fired=no', in that order",
+        "M2-G4: grep -c 'timeout=yes' == 2 (for fixture 2863, timeout=yes now means the probe:267 bounded-termination message, not the probe:272 sampling-deadline one)",
+        "M2-G5: T1 drill (THE headline) -> rc=1, 42 ok, SOLE not ok = 'production run_lane SIGKILL escalation kills a TERM-immune wrapper grandchild (outer_rc=0 survivors=1 cleanup=0 probe_rc='",
+        "M2-G6: T2 drill -> rc=1, 35 ok, sole not ok still arm 36 (6i's coverage intact; the new arm is masked by fail-fast)",
+        "M2-G7: T8 drill -> rc=1, 43 ok, sole not ok = arm 43 with survivors=0",
+        "M2-G8: shasum -a 256 on the probe unchanged; bash -n on both files rc=0"
+      ],
+      "gotchas": [
+        "Do NOT move this arm earlier to group it with arm 36. Placement behind arm 42 is the iteration-33 measurement (4 reds in 19 at position 26 vs 0 in 5 at position 42).",
+        "The 17s outer cap (2 + 5 + 10) must NOT fire; outer_cap_fired=no in M2-G3 is the check.",
+        "Suite wall-clock grows from ~49s to ~58-60s. That is the price of exercising the real 5s grace path rather than a copy of it."
+      ],
+      "kills_which_mutations": [
+        "T1",
+        "T2",
+        "T8"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_BOUNDED_LSOF_CONTAINMENT_GATE",
+      "name": "The bounded REAL_LSOF containment gate, the marker exit, and its two re-exec arms",
+      "description": "Completes design-doc sub-item (b), in its RELOCATED round-2 form. Between test:139 (run_bounded's closing brace) and test:141 (report_arm_cap) insert the Darwin-only gate: gate_cap_secs=${PROBE_GETCONF_CAP_SECS:-5}; run_bounded \"$tmp_dir/gate.out\" \"$tmp_dir/gate.err\" \"$gate_cap_secs\" -- /usr/bin/getconf PATH; three distinct refusals on rc==199 (timeout), rc!=0 (exited N) and empty output; then IFS=: read -ra split and string-equality of ${REAL_LSOF%/*} against the entries, refusing with 'REAL_LSOF resolved outside getconf PATH: ... is not in any of ...; an ambient lsof would serve as the survivor oracle'. Then, OUTSIDE the Darwin if, the PROBE_SELFTEST_LSOF_CONTAINMENT_ONLY marker early-exit. After M2's kill-arm block, insert the tail recursion guard and the hostile/benign $0 re-exec arms, each carrying PROBE_UNDER_TEST=\"$tmp_dir/no-probe\" on its OWN env line. Refresh the test:30-38 comment to name the gate. Suite goes 44 -> 46 arms.",
+      "estimated_loc": 80,
+      "dependencies": [],
+      "files": [
+        "tools/eval/test_motoko_connection_probe.sh"
+      ],
+      "gate_command": "/bin/bash tools/eval/test_motoko_connection_probe.sh",
+      "gate_expectation": "rc=0, 46 ok, 0 not ok, 'PASS: 46 probe self-test arms ran'",
+      "acceptance_criteria": [
+        "M3-G1 GATE: /bin/bash tools/eval/test_motoko_connection_probe.sh -> rc=0, 46 ok, 0 not ok, 'PASS: 46 probe self-test arms ran'",
+        "M3-G2: grep -n '^ok 4[3-6]' -> the four names: SIGKILL escalation / containment refuses an ambient lsof / containment accepts a leading directory without an lsof / refusal-branch count (28)",
+        "M3-G3: T4 drill -> rc=1, 43 ok, sole not ok = 'REAL_LSOF containment refuses an ambient lsof ahead of getconf PATH unexpectedly succeeded'; elapsed ~58s recorded as a post-hoc OBSERVATION that no inner run happened, NOT as a bound (the bound is run_bounded's 120s + 5s per arm)",
+        "M3-G4: T5 drill -> rc=1, 43 ok, sole not ok = '... ahead of getconf PATH lacked expected message: resolved outside getconf PATH'",
+        "M3-G5: T6 drill -> suite refuses BEFORE arm 1: zero '^ok ' lines, stderr 'not ok - REAL_LSOF resolved outside getconf PATH: /usr/sbin/lsof is not in any of /usr/bin:/bin:/usr/sbin:/sbin;'",
+        "M3-G6: T7 drill -> rc=1, 44 ok, sole not ok = 'REAL_LSOF containment accepts a leading directory without an lsof failed' with 'not ok - classification fixture: missing loopback' and 'no-probe: No such file or directory' in the captured stderr; arm 44 stays green; the tail guard is NOT reached",
+        "M3-G7: T12 drill -> zero '^ok ' lines; 'REAL_LSOF containment: /usr/bin/getconf PATH exceeded its 2s cap; instrument failure, not a verdict'; total elapsed < 10s",
+        "M3-G8: T13 drill -> zero '^ok ' lines; 'REAL_LSOF containment: /usr/bin/getconf PATH exited 3; instrument failure, not a verdict'",
+        "M3-G9: T14 drill -> zero '^ok ' lines; 'REAL_LSOF containment: /usr/bin/getconf PATH produced no text; instrument failure, not a verdict'",
+        "M3-G10: T10 vacuity control -> rc=0, 46 ok (the append-shaped mutant is VACUOUS and must be rejected as evidence)",
+        "M3-G11: grep -c 'PROBE_UNDER_TEST=\"$tmp_dir/no-probe\"' == 2 and grep -c 'no-probe' == 3 (two env lines plus the comment); the scoping stays on the arm lines, never at suite scope",
+        "M3-G12: shasum -a 256 on the probe unchanged; bash -n on both files rc=0"
+      ],
+      "gotchas": [
+        "RELOCATED: the gate goes between test:139 and test:141, NOT after test:28. Design doc line 175 is stale (finding F1).",
+        "The marker exit sits OUTSIDE the Darwin if, on purpose: a mutant that deletes the gate must still exit 0 there rather than run 43 arms one level deep (doc V25, drill T4).",
+        "PROBE_UNDER_TEST=\"$tmp_dir/no-probe\" stays on the two arm env lines and NEVER at suite scope. That is option A, the quorum-round-1 fix that moves the leaked-inner-run margin from 2.07x to ~5000x; the suite already polices exactly this discipline for PROBE_MAX_TREE_NODES at test:743-752.",
+        "The suite is `set -uo pipefail` with NO -e, so `gate_rc=$?` immediately after run_bounded is safe.",
+        "PLANNER ADDITION (doc-silent, finding F4): a 4-line PROBE_GETCONF_CAP_SECS positive-integer validation mirroring test:10-13, above the run_bounded call. It adds NO arm; deleting it changes no acceptance number in this plan.",
+        "V36 timed the PRE-relocation gate body (5ms, a direct getconf call). The relocated gate forks run_bounded. Re-time the green-path cost."
+      ],
+      "kills_which_mutations": [
+        "T4",
+        "T5",
+        "T6",
+        "T7",
+        "T10",
+        "T12",
+        "T13",
+        "T14"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_CHANGELOG_AND_FULL_ACCEPTANCE_SWEEP",
+      "name": "Changelog entry, full AC1-AC14 sweep, three consecutive green runs",
+      "description": "Discharge the design doc's acceptance table end to end (with finding F2's AC11 correction), run the drills the doc lists as sprint deliverables, and record the outputs. Touches only changelogs/v0.32-current.md, so the suite is green here by construction. One entry under the motoko/eval-tooling heading naming both sub-items, the three new arms, the ~+11s suite cost, and the fact that the production probe was not modified.",
+      "estimated_loc": 8,
+      "dependencies": [
+        "M1_HOIST_RUN_LANE_FIXTURE_ARM",
+        "M2_SIGKILL_ESCALATION_ARM",
+        "M3_BOUNDED_LSOF_CONTAINMENT_GATE"
+      ],
+      "files": [
+        "changelogs/v0.32-current.md"
+      ],
+      "gate_command": "/bin/bash tools/eval/test_motoko_connection_probe.sh",
+      "gate_expectation": "rc=0, 46 ok, 0 not ok, 'PASS: 46 probe self-test arms ran', three consecutive sequential runs",
+      "acceptance_criteria": [
+        "AC1: bash -n on both probe files -> rc=0, rc=0",
+        "AC2: shasum -a 256 tools/eval/motoko_connection_probe.sh -> f0b5e02493369099f123c42107850fe062bf60d56ccabb2a7e4690d654aabc99 (unchanged)",
+        "AC3 GATE: /bin/bash tools/eval/test_motoko_connection_probe.sh -> rc=0, 46 ok, 0 not ok, 'PASS: 46 probe self-test arms ran', THREE CONSECUTIVE SEQUENTIAL runs (never in parallel; the suite is load-sensitive), with sysctl -n vm.loadavg recorded per run",
+        "AC4: grep -n '^ok 4[3-6]' -> the four arm names in order",
+        "AC5: run_lane evidence reduces to 'fixture-2861 survivors=0 outer_cap_fired=no fixture-2863 survivors=0 outer_cap_fired=no'",
+        "AC6: T1 drill -> rc=1, 42 ok, sole not ok arm 43 with survivors=1",
+        "AC7: T2 drill -> rc=1, 35 ok, arm 36, unchanged from base",
+        "AC8: T4 drill -> rc=1, 43 ok, sole not ok arm 44 'unexpectedly succeeded'; elapsed ~58s recorded as an observation, not a bound",
+        "AC9: grep -c 'expected_refusal_branches=28' == 1",
+        "AC10: grep -c 'run_lane_fixture_arm' >= 3; grep -c 'run_lane_fixture_secs=2861' == 0; grep -c 'run_lane_fixture_secs=$fixture_secs' == 1",
+        "AC11a (RESTATED, finding F2): grep -n -- '-- /usr/bin/getconf PATH' -> exactly 1 hit, at a line number > 139 and < 168",
+        "AC11b (RESTATED, finding F2): grep -c '/usr/bin/getconf PATH' == 4 (one run_bounded argument plus three refusal-message literals). The design doc's '1 hit' is stale, written against the pre-relocation gate.",
+        "AC12: new arms appear in /tmp/s.out with line numbers strictly increasing 42 -> 43 -> 44 -> 45 -> 46",
+        "AC13: grep -c 'PROBE_UNDER_TEST=\"$tmp_dir/no-probe\"' == 2; grep -c 'no-probe' == 3",
+        "AC14 (planner): git status --short shows ONLY tools/eval/test_motoko_connection_probe.sh and changelogs/v0.32-current.md as modified (plus the design doc, this plan and this JSON), and NO commit was made by the executor",
+        "T9 drill -> rc=1, 45 ok, sole not ok = 'refusal-branch drift: probe has 29 refusal branches,'"
+      ],
+      "gotchas": [
+        "All suite runs strictly SEQUENTIAL. Never background two; the suite is load-sensitive and a concurrent run is how the wall-clock-bounded arms flake.",
+        "Record the ACTUAL final suite wall-clock and line count. The doc predicts ~60s and 874 lines; the 874 figure was measured on the pre-relocation prototype and is stale (expect ~890-900)."
+      ],
+      "kills_which_mutations": [
+        "T9"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "test_rows": [
+    {
+      "id": "T1",
+      "milestone": "M2_SIGKILL_ESCALATION_ARM",
+      "file_mutated": "tools/eval/motoko_connection_probe.sh (cp -p copy in /tmp)",
+      "mutation": "probe:261 `kill -9 \"-$pid\"` -> `kill -9 \"$pid\"`",
+      "mutation_assertions": "group -9 count 1->0; group TERM count stays 1; mode -rwxr-xr-x; diff = line 261 only; bash -n rc=0",
+      "run_as": "PROBE_UNDER_TEST=$m/probe-9only.sh /bin/bash tools/eval/test_motoko_connection_probe.sh",
+      "must_red_with": "production run_lane SIGKILL escalation kills a TERM-immune wrapper grandchild (outer_rc=0 survivors=1 cleanup=0 probe_rc=",
+      "ok_count_before": 42,
+      "killer_status": "SOLE killer. THE headline: at base this mutant SURVIVES (rc=0, 43 ok).",
+      "measured_before_sprint": "yes (doc V6 survives at base / V24 reds on the prototype)"
+    },
+    {
+      "id": "T2",
+      "milestone": "M1_HOIST_RUN_LANE_FIXTURE_ARM + M2_SIGKILL_ESCALATION_ARM",
+      "file_mutated": "tools/eval/motoko_connection_probe.sh (cp -p copy)",
+      "mutation": "probe:252 AND probe:261 both -> single-PID form",
+      "mutation_assertions": "both group counts -> 0; mode preserved; bash -n rc=0",
+      "run_as": "PROBE_UNDER_TEST=$m/probe-both.sh /bin/bash tools/eval/test_motoko_connection_probe.sh",
+      "must_red_with": "production run_lane timeout kills wrapper grandchild ( ... survivors=1",
+      "ok_count_before": 35,
+      "killer_status": "Arm 36 reds first and MASKS arm 43 by fail-fast. Proves 6i's coverage survives the hoist.",
+      "measured_before_sprint": "yes (doc V7, V26)"
+    },
+    {
+      "id": "T3",
+      "milestone": "M1_HOIST_RUN_LANE_FIXTURE_ARM",
+      "file_mutated": "tools/eval/motoko_connection_probe.sh (cp -p copy)",
+      "mutation": "probe:252 `kill -TERM \"-$pid\"` -> `kill -TERM \"$pid\"` only",
+      "mutation_assertions": "group TERM 1->0; group -9 stays 1",
+      "run_as": "PROBE_UNDER_TEST=$m/probe-termonly.sh /bin/bash tools/eval/test_motoko_connection_probe.sh",
+      "must_red_with": "production run_lane timeout kills wrapper grandchild ( ... survivors=1",
+      "ok_count_before": 35,
+      "killer_status": "Arm 36 is the TERM half's sole killer; arm 43 need not be. Arm 43 is unreached (fail-fast) and would be green by construction, since TERM is a no-op on a TERM-immune tree.",
+      "measured_before_sprint": "yes (doc V8)"
+    },
+    {
+      "id": "T4",
+      "milestone": "M3_BOUNDED_LSOF_CONTAINMENT_GATE",
+      "file_mutated": "tools/eval/test_motoko_connection_probe.sh (cp -p copy)",
+      "mutation": "Delete the containment gate block (the Darwin if containing 'resolved outside getconf PATH'); KEEP the marker exit",
+      "mutation_assertions": "grep -c 'resolved outside getconf PATH' 2->1 (the arm's expected-substring survives); bash -n rc=0",
+      "run_as": "PROBE_UNDER_TEST=$PWD/tools/eval/motoko_connection_probe.sh /bin/bash $s/suite-nocontain.sh",
+      "must_red_with": "REAL_LSOF containment refuses an ambient lsof ahead of getconf PATH unexpectedly succeeded",
+      "ok_count_before": 43,
+      "killer_status": "SOLE killer of the gate's existence. Elapsed ~58s proves no recursion happened.",
+      "measured_before_sprint": "yes (doc V25, on the pre-relocation gate)"
+    },
+    {
+      "id": "T5",
+      "milestone": "M3_BOUNDED_LSOF_CONTAINMENT_GATE",
+      "file_mutated": "tools/eval/test_motoko_connection_probe.sh (cp -p copy)",
+      "mutation": "Gate message text: 'resolved outside getconf PATH' -> 'resolved OUTSIDE the standard path', in the ECHO only",
+      "mutation_assertions": "the echo's literal moved; the arm's expected-string literal did NOT",
+      "run_as": "PROBE_UNDER_TEST=$PWD/tools/eval/motoko_connection_probe.sh /bin/bash $s/suite-msg.sh",
+      "must_red_with": "REAL_LSOF containment refuses an ambient lsof ahead of getconf PATH lacked expected message: resolved outside getconf PATH",
+      "ok_count_before": 43,
+      "killer_status": "Sole killer (arm 44) of the message text.",
+      "measured_before_sprint": "no - predicted from doc V20's matcher. RUN IT."
+    },
+    {
+      "id": "T6",
+      "milestone": "M3_BOUNDED_LSOF_CONTAINMENT_GATE",
+      "file_mutated": "tools/eval/test_motoko_connection_probe.sh (cp -p copy)",
+      "mutation": "Invert the containment predicate: [[ \"$standard_path_entry\" == \"$real_lsof_dir\" ]] -> !=",
+      "mutation_assertions": "== count in the loop 1->0; != count 0->1",
+      "run_as": "PROBE_UNDER_TEST=$PWD/tools/eval/motoko_connection_probe.sh /bin/bash $s/suite-invert.sh",
+      "must_red_with": "not ok - REAL_LSOF resolved outside getconf PATH: /usr/sbin/lsof is not in any of /usr/bin:/bin:/usr/sbin:/sbin;",
+      "ok_count_before": 0,
+      "killer_status": "NOT an arm killer - the gate's own startup refusal is the red, before arm 1. Listed so nobody expects arm 44/45 to name it.",
+      "measured_before_sprint": "no - predicted from doc V15. RUN IT."
+    },
+    {
+      "id": "T7",
+      "milestone": "M3_BOUNDED_LSOF_CONTAINMENT_GATE",
+      "file_mutated": "tools/eval/test_motoko_connection_probe.sh (cp -p copy)",
+      "mutation": "Remove the marker early-exit block alone (gate intact)",
+      "mutation_assertions": "grep -c 'REAL_LSOF containment check passed' 1->0; bash -n rc=0",
+      "run_as": "PROBE_UNDER_TEST=$PWD/tools/eval/motoko_connection_probe.sh /bin/bash $s/suite-nomarker.sh",
+      "must_red_with": "REAL_LSOF containment accepts a leading directory without an lsof failed -- with 'not ok - classification fixture: missing loopback' AND 'no-probe: No such file or directory' in the captured stderr",
+      "ok_count_before": 44,
+      "killer_status": "Arm 45 sole killer; arm 44 stays green. The leaked inner run costs ~20ms (V37) inside the arm's 120s run_bounded cap (V35) - this is option A earning its keep. The tail recursion guard is NOT reached.",
+      "measured_before_sprint": "mechanism yes (V37, on HEAD); the drill itself NO - the /tmp prototype did not survive. RUN IT; expected outer elapsed ~60s."
+    },
+    {
+      "id": "T8",
+      "milestone": "M2_SIGKILL_ESCALATION_ARM",
+      "file_mutated": "tools/eval/test_motoko_connection_probe.sh (cp -p copy)",
+      "mutation": "Drop PROBE_TEST_IGNORE_TERM=1 from arm 43's call line",
+      "mutation_assertions": "grep -c 'PROBE_TEST_IGNORE_TERM=1' 2->1 (test:363's copy survives)",
+      "run_as": "PROBE_UNDER_TEST=$PWD/tools/eval/motoko_connection_probe.sh /bin/bash $s/suite-noignore.sh",
+      "must_red_with": "production run_lane SIGKILL escalation kills a TERM-immune wrapper grandchild (outer_rc=0 survivors=0",
+      "ok_count_before": 43,
+      "killer_status": "Arm 43 sole killer of its own env line. Red because timeout=no: the probe emits the probe:272 sampling-deadline string, not probe:267's. Proves the arm really reaches the escalation rather than passing for the wrong reason.",
+      "measured_before_sprint": "no - predicted from doc V6 (that run IS this configuration on the base fixture). RUN IT."
+    },
+    {
+      "id": "T9",
+      "milestone": "M4_CHANGELOG_AND_FULL_ACCEPTANCE_SWEEP",
+      "file_mutated": "tools/eval/motoko_connection_probe.sh (cp -p copy)",
+      "mutation": "Append one line the counter matches but the runtime ignores, e.g. `: # instrument_failure \"synthetic drift probe\"`",
+      "mutation_assertions": "grep -c 'instrument_failure \"' 20->21; bash -n rc=0; mode 755",
+      "run_as": "PROBE_UNDER_TEST=$m/probe-drift.sh /bin/bash tools/eval/test_motoko_connection_probe.sh",
+      "must_red_with": "refusal-branch drift: probe has 29 refusal branches,",
+      "ok_count_before": 45,
+      "killer_status": "Arm 46 sole killer. THE ONE LEGITIMATE APPEND-SHAPED MUTATION: Rule 1's exception, because the oracle here is a COUNT, not a grep -Fq substring match.",
+      "measured_before_sprint": "no - the gate's anti-vacuity floor is at test:778-782. RUN IT."
+    },
+    {
+      "id": "T10",
+      "milestone": "M3_BOUNDED_LSOF_CONTAINMENT_GATE",
+      "file_mutated": "tools/eval/test_motoko_connection_probe.sh (cp -p copy)",
+      "mutation": "VACUITY CONTROL. APPEND ' (x)' to the gate's containment message: '...would serve as the survivor oracle (x)'",
+      "mutation_assertions": "the appended text is present; the original substring is still present",
+      "run_as": "PROBE_UNDER_TEST=$PWD/tools/eval/motoko_connection_probe.sh /bin/bash $s/suite-append.sh",
+      "must_red_with": "NOTHING - expected rc=0, 46 ok. The arm stays green because grep -Fq still finds the substring.",
+      "ok_count_before": 46,
+      "killer_status": "REJECTED AS EVIDENCE, by design. This row is the proof that Rule 1 holds on THIS suite rather than a story about it, and it is what makes T5 credible.",
+      "measured_before_sprint": "established in principle by iteration 33. RUN IT here anyway - it costs 60s."
+    },
+    {
+      "id": "T11",
+      "milestone": "M1_HOIST_RUN_LANE_FIXTURE_ARM (optional)",
+      "file_mutated": "tools/eval/motoko_connection_probe.sh (cp -p copy)",
+      "mutation": "Neuter set -m in the probe's run_lane",
+      "mutation_assertions": "set -m count moves; bash -n rc=0",
+      "run_as": "PROBE_UNDER_TEST=$m/probe-nomonitor.sh /bin/bash tools/eval/test_motoko_connection_probe.sh",
+      "must_red_with": "arm 36 via its INSTRUMENT DEGRADED branch, per 6i's IV3",
+      "ok_count_before": 35,
+      "killer_status": "Arm 36; unchanged by this design. Optional regression confirmation only.",
+      "measured_before_sprint": "no - cited from 6i's doc"
+    },
+    {
+      "id": "T12",
+      "milestone": "M3_BOUNDED_LSOF_CONTAINMENT_GATE",
+      "file_mutated": "tools/eval/test_motoko_connection_probe.sh (cp -p copy)",
+      "mutation": "Point the gate's run_bounded argument at a slow fixture: sed -i '' \"s#-- /usr/bin/getconf PATH#-- $g/getconf PATH#\", where $g/getconf is '#!/bin/sh' + 'sleep 30', mode 755",
+      "mutation_assertions": "grep -c -- '-- /usr/bin/getconf PATH' 1->0; grep -c -- \"-- $g/getconf PATH\" == 1; grep -c '/usr/bin/getconf PATH exceeded' STAYS 1 (the message literal must NOT move - that is what makes the expected text exact)",
+      "run_as": "PROBE_GETCONF_CAP_SECS=2 PROBE_UNDER_TEST=$PWD/tools/eval/motoko_connection_probe.sh /bin/bash $s/suite-slowgetconf.sh",
+      "must_red_with": "REAL_LSOF containment: /usr/bin/getconf PATH exceeded its 2s cap; instrument failure, not a verdict",
+      "ok_count_before": 0,
+      "killer_status": "SOLE killer of the TIMEOUT branch. Total elapsed must be < 10s, proving the cap terminated it rather than the 30s sleep completing. Distinguishes timeout from the non-zero and empty branches (T13/T14).",
+      "measured_before_sprint": "no - the doc specifies this drill as a sprint deliverable. RUN IT."
+    },
+    {
+      "id": "T13",
+      "milestone": "M3_BOUNDED_LSOF_CONTAINMENT_GATE",
+      "file_mutated": "tools/eval/test_motoko_connection_probe.sh (cp -p copy)",
+      "mutation": "PLANNER ROW (discharges finding F3). Same shape as T12 but the fixture is '#!/bin/sh' + 'exit 3'; no PROBE_GETCONF_CAP_SECS override",
+      "mutation_assertions": "same as T12: the run_bounded argument moved, the message literal did not",
+      "run_as": "PROBE_UNDER_TEST=$PWD/tools/eval/motoko_connection_probe.sh /bin/bash $s/suite-rc3getconf.sh",
+      "must_red_with": "REAL_LSOF containment: /usr/bin/getconf PATH exited 3; instrument failure, not a verdict",
+      "ok_count_before": 0,
+      "killer_status": "SOLE killer of the NON-ZERO branch. The design doc names T13 in T12's killer column but never writes it; this is that row.",
+      "measured_before_sprint": "no. RUN IT."
+    },
+    {
+      "id": "T14",
+      "milestone": "M3_BOUNDED_LSOF_CONTAINMENT_GATE",
+      "file_mutated": "tools/eval/test_motoko_connection_probe.sh (cp -p copy)",
+      "mutation": "PLANNER ROW (discharges finding F3). Same shape; fixture is '#!/bin/sh' + 'exit 0' printing nothing",
+      "mutation_assertions": "same as T12",
+      "run_as": "PROBE_UNDER_TEST=$PWD/tools/eval/motoko_connection_probe.sh /bin/bash $s/suite-emptygetconf.sh",
+      "must_red_with": "REAL_LSOF containment: /usr/bin/getconf PATH produced no text; instrument failure, not a verdict",
+      "ok_count_before": 0,
+      "killer_status": "SOLE killer of the EMPTY-OUTPUT branch. Without it the doc's own Risks-table mitigation ('Explicit instrument-failure branch on empty output') is an unpinned claim.",
+      "measured_before_sprint": "no. RUN IT."
+    }
+  ],
+  "unmeasured_must_measure_during_sprint": [
+    "T5 - the gate-message drill (M3-G4)",
+    "T6 - the inverted-predicate drill, startup refusal with zero ok lines (M3-G5)",
+    "T7 - the marker-removal drill on the real tree; only the MECHANISM is measured, on HEAD, at doc V37 (M3-G6)",
+    "T8 - the dropped-PROBE_TEST_IGNORE_TERM drill (M2-G7)",
+    "T9 - the refusal-branch-drift drill (M4)",
+    "T10 - the vacuity control (M3-G10)",
+    "T12, T13, T14 - all three bounded-gate refusal branches. NONE has ever been run: the bounded gate has never existed outside the design doc, since the surviving prototype predates the quorum-round-2 relocation.",
+    "The RELOCATED gate's green-path cost. Doc V36 timed the pre-relocation gate body at 5ms, a direct getconf call; the relocated gate forks run_bounded (background job, jobs -p check, poll loop). Re-time it.",
+    "Three consecutive green runs at the real arm count (46), sequential, with sysctl -n vm.loadavg recorded per run (AC3)",
+    "Final suite wall-clock (doc predicts ~60s, +11s over base) and final line count (doc's 874 is stale; expect ~890-900)"
+  ],
+  "predictions_not_measurable_in_this_sprint": [
+    "GitHub macos-latest runner behaviour: that /usr/bin/getconf PATH returns the same four entries and command -p -v behaves identically. If wrong, the gate refuses at startup with its own explicit message naming both strings - fail-loud, not silent. NOTE: the CI leg that would show this (launchd drivers (bash 3.2)) is RED at base for an unrelated reason, so this sprint gets no CI signal on it either way. Say so in the report rather than implying CI validated anything.",
+    "Non-Darwin behaviour: skipped by construction (host_os != Darwin); no Linux host was available.",
+    "The 'would be green' half of T3: fail-fast hides it; it follows from TERM being a no-op on a TERM-immune tree (doc V9), not from a run.",
+    "Arm 43's flake rate under heavy load: 3/3 at load <= 2.9 is not a rate. Iteration 33's readiness-cap red at load 39-46 applies to arm 43 as much as to arm 36.",
+    "Triple test-side mutant recursion (marker exit + absent-probe scoping + tail guard all removed): depth-unbounded, each level inside its parent's 120s + 5s cap. Not a drill; the same exposure the pre-existing test:721 re-exec has always had.",
+    "/bin/realpath on every supported macOS: present here (doc V40); its portability is why the gate is un-normalised by choice and normalisation is deferred."
+  ],
+  "follow_up_queue_rows": [
+    "Bound the four PRE-EXISTING unbounded external calls that run before arm 1 (dirname/pwd, mktemp -d, uname -s, command -p -v lsof) - filed by quorum round 2 as a queue row, explicitly NOT absorbed into this sprint.",
+    "Pin the PROBE_GETCONF_CAP_SECS validation added in M3 (finding F4) with its own arm. Deferred because adding an arm makes the suite 47 arms and breaks pinned AC3/AC4/AC12.",
+    "Row 6p: derive wall-clock bounds from an in-test stimulus. Arm 43 is one more arm that will benefit.",
+    "Row 6s: nothing in CI notices an arm disappearing. AC4 pins the new arms by name for this sprint's evaluator only, not for CI."
+  ],
+  "status": "planned",
+  "current_milestone": null,
+  "started": null,
+  "completed": null
+}

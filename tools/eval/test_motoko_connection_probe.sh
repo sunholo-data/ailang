@@ -35,7 +35,7 @@ fi
 # still consults the ambient PATH, so a shadowing lsof placed ahead of
 # `getconf PATH` BEFORE this script starts resolves as REAL_LSOF
 # (control: clean PATH and a hostile dir without lsof both give /usr/sbin/lsof).
-# Hardening that resolution against an ambient hijack is tracked as charter row 6o.
+# The bounded gate below refuses that hijack; hostile/benign PATH arms pin both outcomes.
 fixture_sleep_pids() {
   local fixture_dir=$1
   [[ -z "${FIXTURE_SLEEP_MARKER:-}" ]] ||
@@ -137,6 +137,46 @@ run_bounded() {
   rc=$?
   return "$rc"
 }
+
+if [[ "$host_os" == Darwin ]]; then
+  # BOUNDED: the gate is the only external process this design adds at startup, and it goes
+  # through the same run_bounded deadline every arm uses. The cap is small and explicit:
+  # getconf is a libc lookup, so anything above about one second is already pathological.
+  gate_cap_secs=${PROBE_GETCONF_CAP_SECS:-5}
+  if [[ ! "$gate_cap_secs" =~ ^[1-9][0-9]*$ ]]; then
+    echo "not ok - PROBE_GETCONF_CAP_SECS must be a positive integer" >&2
+    exit 1
+  fi
+  run_bounded "$tmp_dir/gate.out" "$tmp_dir/gate.err" "$gate_cap_secs" -- /usr/bin/getconf PATH
+  gate_rc=$?
+  if (( gate_rc == 199 )); then
+    echo "not ok - REAL_LSOF containment: /usr/bin/getconf PATH exceeded its ${gate_cap_secs}s cap; instrument failure, not a verdict" >&2
+    exit 1
+  fi
+  if (( gate_rc != 0 )); then
+    echo "not ok - REAL_LSOF containment: /usr/bin/getconf PATH exited ${gate_rc}; instrument failure, not a verdict" >&2
+    exit 1
+  fi
+  standard_path=$(cat "$tmp_dir/gate.out")
+  if [[ -z "$standard_path" ]]; then
+    echo "not ok - REAL_LSOF containment: /usr/bin/getconf PATH produced no text; instrument failure, not a verdict" >&2
+    exit 1
+  fi
+  real_lsof_dir=${REAL_LSOF%/*}
+  real_lsof_contained=0
+  IFS=: read -ra standard_path_entries <<< "$standard_path"
+  for standard_path_entry in "${standard_path_entries[@]}"; do
+    [[ "$standard_path_entry" == "$real_lsof_dir" ]] && real_lsof_contained=1
+  done
+  if (( ! real_lsof_contained )); then
+    echo "not ok - REAL_LSOF resolved outside getconf PATH: $REAL_LSOF is not in any of $standard_path; an ambient lsof would serve as the survivor oracle" >&2
+    exit 1
+  fi
+fi
+if [[ "${PROBE_SELFTEST_LSOF_CONTAINMENT_ONLY:-0}" == 1 ]]; then
+  echo "REAL_LSOF containment check passed: $REAL_LSOF"
+  exit 0
+fi
 
 report_arm_cap() {
   local name=$1 cap_secs=$2
@@ -757,6 +797,27 @@ if (( skip_run_lane_fixture )); then
 else
   run_lane_fixture_arm kill 2863 5 "INSTRUMENT FAILURE: lane treatment exceeded its bounded termination deadline" \
     "production run_lane SIGKILL escalation kills a TERM-immune wrapper grandchild" PROBE_TEST_IGNORE_TERM=1
+fi
+
+if [[ "${PROBE_SELFTEST_LSOF_CONTAINMENT_ONLY:-0}" == 1 ]]; then
+  echo "not ok - PROBE_SELFTEST_LSOF_CONTAINMENT_ONLY leaked into the arm section; refusing to recurse" >&2
+  exit 1
+fi
+if [[ "$host_os" == Darwin ]]; then
+  hostile_lsof_dir="$tmp_dir/hostile-lsof"
+  mkdir -p "$hostile_lsof_dir"
+  printf '#!/bin/bash\nexit 1\n' > "$hostile_lsof_dir/lsof"
+  chmod +x "$hostile_lsof_dir/lsof"
+  # Both inner runs are given an ABSENT probe (nothing creates $tmp_dir/no-probe): an inner
+  # run that ever passes the marker line reds at arm 1 instead of running the full suite.
+  expect_failure "REAL_LSOF containment refuses an ambient lsof ahead of getconf PATH" "resolved outside getconf PATH" \
+    env PATH="$hostile_lsof_dir:$PATH" PROBE_SELFTEST_LSOF_CONTAINMENT_ONLY=1 PROBE_UNDER_TEST="$tmp_dir/no-probe" /bin/bash "$0"
+  benign_dir="$tmp_dir/benign-dir"
+  mkdir -p "$benign_dir"
+  expect_success "REAL_LSOF containment accepts a leading directory without an lsof" \
+    env PATH="$benign_dir:$PATH" PROBE_SELFTEST_LSOF_CONTAINMENT_ONLY=1 PROBE_UNDER_TEST="$tmp_dir/no-probe" /bin/bash "$0"
+else
+  echo "UNINFORMATIVE: REAL_LSOF containment arms are Darwin-only, as is the gate they pin"
 fi
 
 # The D4 ceiling override belongs on the wall-clock discovery arm's own env line and nowhere else. A per-command
