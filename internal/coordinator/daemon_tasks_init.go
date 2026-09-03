@@ -122,18 +122,15 @@ func (d *Daemon) initTaskProcessing() error {
 	d.logger.Printf("Agent registry initialized with %d agent(s): %v",
 		d.agentRegistry.Count(), d.agentRegistry.ListInboxes())
 
-	// Name every agent that cannot dispatch, at startup, before anyone waits on
-	// one. The dispatcher's own guard reports these one at a time and only when
-	// a task is aimed at the agent — so two pipeline stages sat undispatchable
-	// and nothing said so until a task retried against one every five minutes.
-	planeDefault := ""
-	if coordConfig != nil {
-		planeDefault = coordConfig.DefaultProvider
-	}
-	if mismatches := AuditProviderMismatches(d.agentRegistry, planeDefault); len(mismatches) > 0 {
-		d.logger.Printf("CONFIG ERROR: %d agent(s) cannot dispatch — their executor CLI is not in the image their executor_variant selects. Every task routed to them will be refused:", len(mismatches))
-		for _, m := range mismatches {
-			d.logger.Printf("  %s", m)
+	// A `provider:` that contradicts its image is a CONFIG error, reported once
+	// at startup for the whole fleet — not a runtime refusal discovered one
+	// agent at a time when a task happens to be aimed at it. Two pipeline stages
+	// sat undispatchable and nothing said so until a task retried against one
+	// every five minutes for half an hour.
+	if declErrs := ValidateAgentProviders(d.agentRegistry.ListAgents()); len(declErrs) > 0 {
+		d.logger.Printf("CONFIG ERROR: %d agent(s) declare a provider their image cannot run:", len(declErrs))
+		for _, err := range declErrs {
+			d.logger.Printf("  %v", err)
 		}
 	}
 	if len(coordConfig.TriageOnlyInboxes) > 0 {

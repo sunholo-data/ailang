@@ -2,84 +2,126 @@ package coordinator
 
 import "testing"
 
-// The agent's declared provider must win over the plane default.
+// The image decides which CLI runs, because the image is the only thing that
+// determines which binaries exist.
 //
-// Measured on the dev plane 2026-09-03: sprint-executor declares provider
-// "codex" with executor_variant "codex-go"; the coordinator handed the
-// dispatcher "pi" (the plane default) and the variant/provider guard correctly
-// refused. The task retried every five minutes and never ran. Two of the four
-// pipeline stages were undispatchable this way, so the pipeline could not have
-// completed once regardless of what else was fixed.
+// Measured 2026-09-03: sprint-executor declared provider "codex" with
+// executor_variant "codex-go"; the dispatcher substituted the plane default
+// "pi"; the runtime guard correctly refused, and the task retried every five
+// minutes for half an hour without running. Two of four pipeline stages were
+// undispatchable this way.
+//
+// The earlier fix made that state detectable. Deriving makes it unrepresentable.
 
-func TestResolveDispatchProvider_AgentWinsOverPlaneDefault(t *testing.T) {
-	agent := &AgentConfig{ID: "sprint-executor", Provider: "codex", ExecutorVariant: "codex-go"}
-
-	got := ResolveDispatchProvider(agent, "pi")
-
-	if got != "codex" {
-		t.Errorf("provider = %q, want \"codex\" — the plane default overrode the agent that also chose the executor image, so the two can only disagree", got)
+func TestProviderForVariant_EachImageRunsExactlyOneCLI(t *testing.T) {
+	cases := map[string]string{
+		"":          "claude",
+		"default":   "claude",
+		"go":        "claude",
+		"codex":     "codex",
+		"codex-go":  "codex",
+		"gemini":    "gemini",
+		"gemini-go": "gemini",
+		"opencode":  "opencode",
+		"pi":        "pi",
+		"pi-go":     "pi",
+		"motoko":    "motoko",
 	}
-}
-
-func TestResolveDispatchProvider_FallsBackToPlaneDefault(t *testing.T) {
-	// Most agents declare nothing and must keep their existing behaviour.
-	agent := &AgentConfig{ID: "pkg-sunholo-auth"}
-
-	if got := ResolveDispatchProvider(agent, "pi"); got != "pi" {
-		t.Errorf("provider = %q, want \"pi\" for an agent that declares none", got)
-	}
-	if got := ResolveDispatchProvider(nil, "pi"); got != "pi" {
-		t.Errorf("provider = %q, want \"pi\" for an unknown agent", got)
-	}
-}
-
-func TestResolveDispatchProvider_LastResortIsClaude(t *testing.T) {
-	if got := ResolveDispatchProvider(nil, ""); got != "claude" {
-		t.Errorf("provider = %q, want \"claude\" when nothing is configured", got)
-	}
-}
-
-// TestResolveDispatchProvider_TheThreeAgentsThatWereBlocked pins the specific
-// configurations that could not dispatch, so a regression names them.
-func TestResolveDispatchProvider_TheThreeAgentsThatWereBlocked(t *testing.T) {
-	blocked := []struct {
-		id       string
-		provider string
-		variant  string
-	}{
-		{"sprint-planner", "codex", "codex"},
-		{"sprint-executor", "codex", "codex-go"},
-		{"motoko", "motoko", "motoko"},
-	}
-
-	for _, b := range blocked {
-		agent := &AgentConfig{ID: b.id, Provider: b.provider, ExecutorVariant: b.variant}
-		if got := ResolveDispatchProvider(agent, "pi"); got != b.provider {
-			t.Errorf("%s: provider = %q, want %q — this agent's variant %q requires it, and a mismatch is refused before the job starts",
-				b.id, got, b.provider, b.variant)
+	for variant, want := range cases {
+		got, ok := ProviderForVariant(variant)
+		if !ok {
+			t.Errorf("variant %q: no provider derived, but its image carries exactly one CLI", variant)
+			continue
+		}
+		if got != want {
+			t.Errorf("variant %q: derived %q, want %q", variant, got, want)
 		}
 	}
 }
 
-// TestResolveDispatchProvider_RegistryLookup covers the call-site helper,
-// including the nil-registry path the daemon can be in during startup.
-func TestResolveDispatchProvider_RegistryLookup(t *testing.T) {
-	reg := NewAgentRegistry()
-	if err := reg.Register(&AgentConfig{ID: "sprint-executor", Inbox: "sprint-executor", Provider: "codex", ExecutorVariant: "codex-go"}); err != nil {
-		t.Fatalf("register: %v", err)
+// TestProviderForVariant_MultiCLIImagesAreAChoice: agent-eval installs all five
+// CLIs, so nothing can derive the answer and it must be declared.
+func TestProviderForVariant_MultiCLIImagesAreAChoice(t *testing.T) {
+	for _, variant := range []string{"eval", "eval-go"} {
+		if _, ok := ProviderForVariant(variant); ok {
+			t.Errorf("variant %q carries several CLIs; deriving one would pick an executor by accident", variant)
+		}
 	}
-	cfg := &CoordinatorConfig{DefaultProvider: "pi"}
+}
 
-	if got := resolveDispatchProvider(reg, "sprint-executor", cfg); got != "codex" {
-		t.Errorf("registered agent: provider = %q, want \"codex\"", got)
+// TestResolveDispatchProvider_TheImageWinsOverAnyDeclaration is the core change.
+// A contradicting declaration cannot take effect, whatever it says.
+func TestResolveDispatchProvider_TheImageWinsOverAnyDeclaration(t *testing.T) {
+	agent := &AgentConfig{ID: "sprint-executor", Provider: "pi", ExecutorVariant: "codex-go"}
+
+	if got := ResolveDispatchProvider(agent, "pi"); got != "codex" {
+		t.Errorf("provider = %q, want \"codex\" — agent-codex-go has no pi binary, so no declaration can make pi correct", got)
 	}
-	if got := resolveDispatchProvider(reg, "not-registered", cfg); got != "pi" {
-		t.Errorf("unknown agent: provider = %q, want the plane default \"pi\"", got)
+}
+
+// TestResolveDispatchProvider_PlaneDefaultCannotOverrideTheImage is the original
+// defect, asserted directly.
+func TestResolveDispatchProvider_PlaneDefaultCannotOverrideTheImage(t *testing.T) {
+	for _, tc := range []struct{ id, variant, want string }{
+		{"sprint-planner", "codex", "codex"},
+		{"sprint-executor", "codex-go", "codex"},
+		{"motoko", "motoko", "motoko"},
+	} {
+		agent := &AgentConfig{ID: tc.id, ExecutorVariant: tc.variant}
+		if got := ResolveDispatchProvider(agent, "pi"); got != tc.want {
+			t.Errorf("%s: provider = %q, want %q — the plane default reached the dispatcher and the job was refused", tc.id, got, tc.want)
+		}
 	}
-	if got := resolveDispatchProvider(nil, "sprint-executor", cfg); got != "pi" {
-		t.Errorf("nil registry: provider = %q, want the plane default \"pi\"", got)
+}
+
+func TestResolveDispatchProvider_MultiCLIImageUsesTheDeclaration(t *testing.T) {
+	agent := &AgentConfig{ID: "evaluator", Provider: "opencode", ExecutorVariant: "eval"}
+	if got := ResolveDispatchProvider(agent, "pi"); got != "opencode" {
+		t.Errorf("provider = %q, want \"opencode\" — on an all-CLI image the declaration is the only signal", got)
 	}
-	if got := resolveDispatchProvider(reg, "sprint-executor", nil); got != "codex" {
-		t.Errorf("nil config: provider = %q, want the agent's own \"codex\"", got)
+}
+
+func TestResolveDispatchProvider_UnknownAgentKeepsThePlaneDefault(t *testing.T) {
+	if got := resolveDispatchProvider(NewAgentRegistry(), "not-registered", &CoordinatorConfig{DefaultProvider: "pi"}); got != "pi" {
+		t.Errorf("provider = %q, want \"pi\"", got)
+	}
+	if got := resolveDispatchProvider(nil, "x", nil); got != "claude" {
+		t.Errorf("provider = %q, want \"claude\" when nothing is configured", got)
+	}
+}
+
+// --- config-load validation ---
+
+func TestValidateAgentProviders_RejectsADeclarationTheImageCannotHonour(t *testing.T) {
+	errs := ValidateAgentProviders([]*AgentConfig{
+		{ID: "broken", Provider: "pi", ExecutorVariant: "codex-go"},
+	})
+	if len(errs) != 1 {
+		t.Fatalf("got %d errors, want 1: %v", len(errs), errs)
+	}
+	// Previously this shape dispatched, was refused at runtime, and retried forever.
+	t.Logf("reported as: %v", errs[0])
+}
+
+func TestValidateAgentProviders_RequiresADeclarationOnMultiCLIImages(t *testing.T) {
+	errs := ValidateAgentProviders([]*AgentConfig{
+		{ID: "evaluator", ExecutorVariant: "eval"},
+	})
+	if len(errs) != 1 {
+		t.Fatalf("an all-CLI image with no provider must be an error, got %v", errs)
+	}
+}
+
+// TestValidateAgentProviders_AllowsARedundantDeclaration: all 34 live agents
+// carry one. Redundant is not wrong, and failing on it would break every config
+// in the fleet on upgrade.
+func TestValidateAgentProviders_AllowsARedundantDeclaration(t *testing.T) {
+	errs := ValidateAgentProviders([]*AgentConfig{
+		{ID: "design-doc-creator", Provider: "pi", ExecutorVariant: "pi"},
+		{ID: "sprint-executor", Provider: "codex", ExecutorVariant: "codex-go"},
+		{ID: "pkg-auth", ExecutorVariant: "pi"}, // declares nothing — fine
+	})
+	if len(errs) != 0 {
+		t.Errorf("correct configs were rejected: %v", errs)
 	}
 }
