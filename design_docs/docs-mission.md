@@ -153,51 +153,6 @@ verifier + controller session).
 
 Full record: `design_docs/docs-mission-log.md` §ITERATION 5.
 
-## STATUS 2026-09-02 — ITERATION 4 (crediting ITERATION 3): docs-5/6/10 landed by an orphaned fire, credited retroactively; docs-1 LANDED after a real evaluator FAIL/fix/PASS cycle
-
-Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Main checkout `dev` diverges
-from `origin/dev` by design (9 ahead / 20 behind — attended commits stranded, loop lands via
-worktree→PR; per this file's own note); the pin worktree this loop actually runs from was clean at
-`origin/dev`'s tip throughout. Running skill differs from `origin/dev` (missing heartbeat stamps
-and the attended-ledger-edits section added since) — read the delta, confirmed the pin worktree's
-own scripts (`tools/launchd/mission-heartbeat.sh`, `scripts/mission_decisions.sh`,
-`scripts/mission_answer.sh`) already exist, so followed the newer instructions rather than the
-stale loaded copy. 0 directives on bookkeeping issue `#979` since the watermark (4 comments, none
-allowlisted). Decision ledger valid, 2 rows, both `RESOLVED` — no new ask.
-
-Gate 1: `CI` and `Deploy Documentation to GitHub Pages` both `success` on `origin/dev` HEAD;
-SHA-addressed check-runs showed 16 checks, one non-green (`SonarCloud Code Analysis`), confirmed
-inherited from the parent commit too — V1's domain (repo owner), not actioned.
-
-**PICK: `docs-1`, after crediting a second died-mid-flight fire.** Gate 2 found `docs-5`/`docs-6`/
-`docs-10` all merged on `origin/dev` (PRs #997/#1004/#1010) while the charter still tagged them
-`[NEXT]` — see ITERATION 3's retroactive entry in the log for full detail and re-verification
-(fresh `make verify-examples`: 211/0/6, `check_examples.sh`: 173/2/42, both matching the landing
-PRs' own claimed counts). Also found PR #1016 (`MERGEABLE`) recovering a complete `docs-1` brief +
-sprint plan from a second orphaned worktree; merged it after re-running its one flaky failing check
-(`launchd drivers (bash 3.2)`, unrelated to a 2-file markdown PR, green on re-run — rule 3d).
-
-**Execution**: routed `docs-1` to `codex:gpt-5.6-luna` using the recovered plan verbatim.
-Round-1 delivery (`tools/messaging/docs_inbox_router.sh`) FAILED independent evaluation (sonnet,
-own worktree) 58/100 — a genuinely empty poll result crashed the router instead of reporting
-`checked=0 forwarded=0`, live-reproduced by the evaluator. Fix routed back to the same executor;
-controller independently reproduced both the original crash and the fix with hand-built fixtures
-before re-committing. Round-2 evaluation: PASS 90/100, zero blocking.
-
-**Outcome: LANDED.** [PR #1018](https://github.com/sunholo-data/ailang/pull/1018) squash-merged →
-`e65e96b15`. Polled the merge commit to full CI completion: 15/16 green, the same inherited
-SonarCloud red as Gate 1, not actioned.
-
-**Metered cost this iteration: $0.00** of $1 ceiling — codex and sonnet are both subscription-lane
-per this mission's routing table. Quota buckets: codex (executor, 2 rounds), sonnet (evaluator, 2
-rounds + controller session).
-
-Queue is now empty of `[NEXT]` items; `docs-8` (126 overdue planned docs) is the natural next pick
-once picked up (already unblocked per its own sequencing note) but was not started this iteration
-(Standing rule 1, one backlog item per iteration).
-
-Full record: `design_docs/docs-mission-log.md` §ITERATION 3, §ITERATION 4.
-
 ## STATUS 2026-09-03 — ITERATION 6: docs-4 taxonomy pass designed and scoped to one sprint (62 files, near-zero literal duplication measured); quorum blocked twice, closed via this mission's first narrow-refinement carve-out — sprint held pending Mark's one-time OK
 
 Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Pin worktree at `origin/dev`
@@ -265,6 +220,83 @@ under the $1 ceiling and the $10/doc quorum cap.
 buckets: fable (designer, 1 bounded run), sonnet (controller session).
 
 Full record: `design_docs/docs-mission-log.md` §ITERATION 6.
+
+## STATUS 2026-09-03 — ITERATION 7: docs-3's "V1-owned inherited red" verdict RE-MEASURED and found stale — dev had already fixed it; rebased and landed [PR #1031](https://github.com/sunholo-data/ailang/pull/1031); docs-4 still held on D-3
+
+Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Pin worktree HEAD detached
+at `origin/dev` tip (`70e453060`), clean. 0 directives on bookkeeping issue `#979` since the
+watermark (8 comments, none allowlisted). Decision ledger valid, 3 rows — D-1/D-2 `RESOLVED`,
+**D-3 still `OPEN`** (the narrow-refinement-carve-out ask for `docs-4`, unanswered since
+iteration 6; last touch on that row is the fleet bot itself, not an attended ruling — correctly
+left open, not actioned). 20 unread canonical-inbox messages, none addressed to `mission-docs`
+(eval-suite run notifications, `mission-world`/`mission-v1` cross traffic, `pkg:*` package
+inboxes) — none acked, per the "ack --all sweeps outbound cross-mission inboxes" hazard, and none
+outrank the queue.
+
+Gate 1: `origin/dev` HEAD (`70e453060`) SHA-addressed check-runs: 14 checks, only `test`
+non-green and it was `pending` (CI genuinely in-flight, not red) — no dev-red to action.
+
+**PICK: `docs-3`** (item 10, `[IN-SPRINT]`), via the blocked-external-row re-verification rule
+(Gate 2): iterations 1/2/4/5/6 had each re-asserted "still V1-owned inherited red, not fixable by
+rebase" on [PR #1031](https://github.com/sunholo-data/ailang/pull/1031) without re-running the
+predicate. Re-measured this iteration: `test`/`Build ubuntu-latest`/`launchd drivers (bash 3.2)`
+were GREEN on two independent recent `dev` commits (`08ab6ba7c`, `5506424f8`), while the PR's own
+head (`178072e3f`) was ~40 commits behind `origin/dev` — the red was base-inherited and dev had
+already been fixed underneath it. The predicate had flipped; nobody had re-run it.
+
+**Execution (mechanical — no new design/plan/execute pass owed; the diff was already designed,
+executed, and independently evaluated PASS 85/100 in iteration 5).** Reused the existing
+`.wt-docs-iter5-docs3` worktree (already on the PR branch), fetched + `git rebase origin/dev`
+(clean, no conflicts — confirmed no overlapping files touched on `dev` since the PR's base),
+verified `git diff --stat origin/dev HEAD` was byte-for-byte the same 4 files as before the
+rebase, reverted incidental regenerated-file drift picked up while locally verifying
+`make docs-build` (`design-docs.md`, `current.md`, `roadmap/index.md`, `packages-sidebar.json` —
+sync-script byproducts, never meant to be committed — rule: a control you record is a control you
+spend, applied to accidental commits instead), force-pushed, watched all 16 PR checks go green
+(`test`, `docs-build`, `SonarCloud`, `build`, both `Build *-latest`, `launchd drivers`,
+`govulncheck`, `lint`, `CodeQL`, `docs-gate`, `docs-changes`, `test-windows`, `Analyze Go`),
+scanned the PR title/body for GitHub auto-close keywords (none, control fired correctly on a
+known-bad string), squash-merged → `663237dc7`. Re-polled CI on the **merge commit itself**
+(squash-merge produces a different commit than the tested PR head) to completion: 16/16 green
+except a `SonarCloud Code Analysis` red confirmed present on the merge commit's own parent
+(`41ea6e5ff`) — pre-existing, V1's domain, not caused by this diff.
+
+**generator≠judge — independent evaluator spawned post-hoc** (per this run's standing
+instruction that a judge is required even for a mechanical landing the controller itself
+verified): `Agent(subagent_type="general-purpose", model="sonnet")`, given none of the
+controller's own findings, independently re-pulled the merge commit's diff, re-pulled check-runs
+for both the merge commit and its parent, and independently confirmed the pre-rebase PR head was
+genuinely stale (91 commits behind `origin/dev`, not an ancestor after the rebase). **Verdict:
+PASS** — diff scoped to exactly the 4 files with content matching the stated purpose, no scope
+creep, CI check-runs match the controller's claim exactly, SonarCloud red independently confirmed
+pre-existing on the parent commit.
+
+**Local verification note (not blocking, filed as a follow-up):** `make docs-build` fails on ANY
+fresh checkout, including a pristine `origin/dev` — `docs/src/data/packages-sidebar.json` (tracked)
+references package doc pages that are gitignored/generated by `docs/scripts/sync-registry.sh`,
+which CI's `docusaurus-deploy.yml` runs before `make docs-build` but this mission's own `Makefile`
+target does not. Running `sync-registry.sh` first reproduces CI's real gate and the build then
+proceeds correctly (confirmed — hit a second, unrelated `Cannot read properties of undefined
+(reading 'id')` SSG error afterward that was not chased further, since CI's own `docs-build` job
+— which runs the full pipeline including a fresh registry sync — passed cleanly on both the PR
+and the merge commit). Iteration 5/6's evaluator had already flagged the symptom as "identical on
+baseline and branch" without finding the missing step; this iteration found it. Worth a
+`docs-sync`/Makefile fix so local verification is self-contained, out of scope for docs-3 itself.
+
+**Routing evidence**: no designer/planner/executor spawned (nothing to design/plan/execute — the
+code pre-existed from iteration 5's orphaned fire and was already evaluated); one evaluator spawn,
+`sonnet` (Agent tool, distinct from the controller's own session model) — PASS. Controller session:
+sonnet.
+
+**Cost**: metered $0.00 of $1 ceiling (no codex/pi/quorum calls this iteration — rebase, CI polling,
+merge, and evaluator spawn are all quota-bucket or free). Quota buckets: sonnet (controller session
++ evaluator sub-agent).
+
+**docs-4 unchanged**: still `[IN-SPRINT]`, design-ready, held on D-3 (unanswered). Not re-picked —
+Standing rule 1 (one backlog item per iteration) and D-3 is a judgment park, not a capacity one; no
+predicate to re-run, only Mark can answer it.
+
+Full record: `design_docs/docs-mission-log.md` §ITERATION 7.
 
 
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
@@ -414,7 +446,7 @@ Full record: `design_docs/docs-mission-log.md` §ITERATION 6.
    not-this-mission's-domain `SonarCloud Code Analysis` red (confirmed inherited from the parent
    commit, V1's territory per Gate 1's repo-ownership scoping). No launchd wiring in this sprint
    (explicitly out of scope per the brief) — the router runs by hand or under a future job.
-10. `[IN-SPRINT]` **docs-3 · clause 6 · benchmark surface audit / provenance wiring.** Blocked on
+10. `[LANDED]` **docs-3 · clause 6 · benchmark surface audit / provenance wiring.** Blocked on
    nothing, sequenced after docs-2 so the drift picture is known first. **Landed by an orphaned
    "iteration 5" fire** (a died-mid-flight run using `design_docs/docs-3-brief.md` +
    `docs-3-sprint-plan.md`, brief+plan landed via [PR #1023](https://github.com/sunholo-data/ailang/pull/1023)):
@@ -422,14 +454,32 @@ Full record: `design_docs/docs-mission-log.md` §ITERATION 6.
    (`EloLeaderboard`, `BenchmarkStandaloneGallery`, `BenchmarkDashboard`, `BenchmarkExplorer`)
    that could never show the "⚠ stale (fallback copy)" badge, since only `ValueDashboard` passed
    `source=`. Independent evaluator (sonnet, isolated worktree): PASS 85/100, zero blocking. Diff
-   scope verified exactly 4 files. [PR #1031](https://github.com/sunholo-data/ailang/pull/1031)
-   is `MERGEABLE` but `mergeStateStatus: BLOCKED` — required checks `test`/`build` are red, and
-   this is confirmed **inherited from `origin/dev`'s own current tip** (identical failures on
-   HEAD and its parent — Build macos/windows/ubuntu, `launchd drivers (bash 3.2)`, `test`), a
-   known V1-owned red (V1's own log carries 10+/22+ mentions of these two check names; motoko
-   independently flagged the Windows half to V1 in the last hour). Not this mission's domain or
-   fixable by a rebase (the red is on origin/dev's tip itself, not stale base). PR left open,
-   verified and ready to merge the moment V1's red clears — resume point, not a re-pick.
+   scope verified exactly 4 files.
+   **Landed iteration 7**: iterations 1/2/4/5/6 each re-confirmed the same "V1-owned inherited
+   red" verdict on [PR #1031](https://github.com/sunholo-data/ailang/pull/1031) without
+   re-measuring whether it was still true (Gate 2's blocked-external-row predicate rule) —
+   it wasn't. `origin/dev`'s tip had since been fixed for `test`/`Build ubuntu-latest`/
+   `launchd drivers (bash 3.2)` (confirmed green on two independent recent dev commits,
+   `08ab6ba7c` and `5506424f8`, while the PR's stale head (`178072e3f`, ~40 commits behind)
+   still showed all three red). Rebased the existing worktree
+   (`.wt-docs-iter5-docs3`, already on the PR branch) onto `origin/dev`, verified the diff scope
+   was unchanged (still exactly the 4 files), reverted incidental regenerated-artifact drift from
+   local verification (`design-docs.md`, `current.md`, `roadmap/index.md`,
+   `packages-sidebar.json` — sync-script byproducts, never meant to be committed), and
+   force-pushed. All 16 PR checks including `test`, `docs-build`, `SonarCloud` went green;
+   squash-merged as `663237dc7`. Re-verified CI green on the **merge commit itself** (not just
+   the PR head — squash-merge produces a different commit), 16/16 checks except a pre-existing
+   `SonarCloud Code Analysis` red confirmed present on the merge commit's own parent
+   (`41ea6e5ff`, not touched by this diff) — inherited, V1's domain, not blocking.
+   **Local verification note**: `make docs-build` alone fails on ANY fresh checkout (including a
+   pristine `origin/dev`) because the tracked `docs/src/data/packages-sidebar.json` references
+   package doc pages that are gitignored/generated (`docs/scripts/sync-registry.sh`, which CI's
+   `docusaurus-deploy.yml` runs before `make docs-build` and this mission's own Makefile target
+   does not) — a local-environment gap, not a code defect; running `sync-registry.sh` first
+   reproduces CI's real gate. Iteration 5/6's evaluator had already flagged the symptom as
+   "identical on baseline and branch"; this iteration found the actual missing step. Worth a
+   `docs-sync`/Makefile follow-up so `make docs-build` is self-contained for local verification,
+   but out of scope for docs-3 itself.
 11. `[IN-SPRINT]` **docs-4 · clause 5 · taxonomy pass — DESIGN-READY, sprint held on D-3.** Both
    original blockers cleared (clauses 1-3 green; docs-7's allowlist question dissolved). Design
    brief `design_docs/docs-4-brief.md` scopes it to ONE sprint (62 files, near-zero literal
