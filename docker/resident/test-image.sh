@@ -61,7 +61,10 @@ BOOT=$!
 for i in $(seq 1 90); do [ "$(curl -s localhost:8080/livez 2>/dev/null)" = "ok" ] && break; sleep 1; done
 
 have "livez answers once serving"         '[ "$(curl -s localhost:8080/livez)" = "ok" ]'
-have "herdr came up (probed via api snapshot)" 'grep -q "herdr ready after" /tmp/boot.log'
+# herdr is OFF by default since it left the task path: starting it cost a
+# process and ~memory for nothing. Assert the default rather than its presence.
+have "herdr is not started by default"    'grep -q "herdr: not started" /tmp/boot.log'
+have "pi extensions are off by default"   'grep -q "pi extensions: disabled" /tmp/boot.log'
 have "boot reported the model registry"   'grep -q "model registry: 1 models" /tmp/boot.log'
 have "registry has the pinned GLM model"  'grep -q "z-ai/glm-5.3-flash" /home/ailang/.pi/agent/models.json'
 # Comments-stripped: boot.sh documents the setsid trap, and the comment
@@ -174,6 +177,31 @@ have "push notification config round-trips"    'echo "$out" | grep -q "hook.inva
 # source now that every route is behind auth.
 have "NO bespoke /panes route in the server"   '! grep -qE "\"/panes\"|/panes/" /usr/local/bin/server.mjs'
 have "A2A JSON-RPC route is present"           'grep -q "/a2a" /usr/local/bin/server.mjs'
+
+echo "=== 6b. the executor runs pi HEADLESS ==="
+# THE 2026-09-03 BUG. pi spawned, produced no NDJSON, never exited and never
+# errored, so the A2A task sat at `submitted` and the instance looked healthy.
+# Cause: Node's spawn defaults stdin to an open pipe, where Go's exec.Cmd (which
+# internal/executor/pi/pi.go relies on) leaves it nil and gets /dev/null. These
+# three assertions are the regression guard, cheapest first.
+have "pi answers --version headless with stdin closed" \
+     'timeout 20 pi --version </dev/null >/dev/null 2>&1'
+have "the executor gives pi /dev/null on stdin, not a pipe" \
+     'grep -q "stdio: \[\"ignore\"" /usr/local/bin/lib/pi.mjs'
+have "boot proves pi runs headless"        'grep -q "pi headless check" /tmp/boot.log'
+
+# A hang must become a NAMED failure quickly, not a 15-minute silence. Proven
+# against a stub `pi` that never speaks: without the TTFT timer this assertion
+# hangs the build, which is precisely the behaviour being guarded.
+STUB=$(mktemp -d)
+printf '#!/bin/sh\nsleep 300\n' > "$STUB/pi"; chmod +x "$STUB/pi"
+out=$(PATH="$STUB:$PATH" timeout 30 node --input-type=module -e '
+import { runPi } from "/usr/local/bin/lib/pi.mjs";
+runPi({ model: "m", prompt: "hi", ttftMs: 2000 })
+  .then(() => console.log("RESOLVED"))
+  .catch((e) => console.log("REJECTED: " + e.message));' 2>&1)
+have "a silent pi fails fast on the TTFT timer" 'echo "$out" | grep -q "no output within"'
+rm -rf "$STUB"
 
 echo "=== 7. restart idempotence ==="
 # The 7-day ceiling makes restarts routine, so a second boot must behave like

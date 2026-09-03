@@ -171,6 +171,24 @@ elif [ -d "$EXT_DIR" ]; then
   log "pi extensions: disabled (moved aside; set RESIDENT_PI_EXTENSIONS=1 to keep)"
 fi
 
+# ─── 5b. prove pi runs headless ──────────────────────────────────────────────
+# A boot that reports "ready" while the agent binary cannot actually run is the
+# failure this design keeps repeating: on 2026-09-03 pi spawned, emitted
+# nothing, and never exited, and the instance looked perfectly healthy for the
+# fifteen minutes the hard timeout allowed. The cause was an inherited stdin
+# pipe rather than /dev/null, which `pi --version </dev/null` would have caught
+# in one second.
+#
+# So the boot proves it, with the SAME stdin discipline the executor uses. This
+# is a warning, not a die(): a resident that cannot run pi should still serve
+# /health so an operator can see why, rather than crash-looping silently.
+PI_VERSION=$(timeout 20 pi --version </dev/null 2>&1 | head -1 || true)
+if [ -z "$PI_VERSION" ]; then
+  log "WARN pi did not answer --version within 20s — the agent path will not work"
+else
+  log "pi headless check: $PI_VERSION"
+fi
+
 # ─── 6. herdr (optional) ─────────────────────────────────────────────────────
 # herdr is NOT on the task path any more: stream mode runs `pi --mode json`
 # directly, because driving pi as a TUI headless does not submit prompts and
