@@ -108,7 +108,7 @@ func coordinatorExecuteJob(args []string) error {
 	// The optional execResult carries metrics from the executor for parity with local.
 	// changedFiles lists files created/modified by the agent (discovered via git diff).
 	// artifactPath is the GCS path prefix where raw artifacts were uploaded (may be empty).
-	publishCompletion := func(status, errMsg, branchName string, execResult *executor.Result, changedFiles []string, artifactPath string) {
+	publishCompletion := func(status, errMsg, branchName string, execResult *executor.Result, ev gitEvidence, artifactPath string) {
 		if completionSent.Swap(true) {
 			return // Already sent — prevent double-publish.
 		}
@@ -118,7 +118,13 @@ func coordinatorExecuteJob(args []string) error {
 			Status:          status,
 			ErrorMsg:        errMsg,
 			BranchName:      branchName,
-			ChangedFiles:    changedFiles,
+			ChangedFiles:    ev.ChangedFiles,
+			// Approval evidence (M3). Two immutable SHAs, so the card renders
+			// identically however many times this completion is delivered.
+			BaseCommit: ev.BaseCommit,
+			HeadCommit: ev.HeadCommit,
+			DiffStat:   ev.DiffStat,
+			Diff:       ev.Diff,
 			ArtifactGCSPath: artifactPath,
 		}
 		// Populate executor metrics when available (same data as local coordinator)
@@ -153,24 +159,24 @@ func coordinatorExecuteJob(args []string) error {
 	// Defer guard: catches panics and any exit path that forgot to publish.
 	defer func() {
 		if r := recover(); r != nil {
-			publishCompletion("failed", fmt.Sprintf("panic: %v", r), "", nil, nil, "")
+			publishCompletion("failed", fmt.Sprintf("panic: %v", r), "", nil, gitEvidence{}, "")
 		} else if !completionSent.Load() {
 			// Should not happen — means we returned without publishing.
-			publishCompletion("failed", "unknown: exited without publishing completion", "", nil, nil, "")
+			publishCompletion("failed", "unknown: exited without publishing completion", "", nil, gitEvidence{}, "")
 		}
 	}()
 
 	// Validate required env vars (after Pub/Sub init so failures are reported).
 	if taskID == "" {
-		publishCompletion("failed", "AILANG_TASK_ID environment variable is required", "", nil, nil, "")
+		publishCompletion("failed", "AILANG_TASK_ID environment variable is required", "", nil, gitEvidence{}, "")
 		return fmt.Errorf("AILANG_TASK_ID environment variable is required")
 	}
 	if agentID == "" {
-		publishCompletion("failed", "AILANG_AGENT_ID environment variable is required", "", nil, nil, "")
+		publishCompletion("failed", "AILANG_AGENT_ID environment variable is required", "", nil, gitEvidence{}, "")
 		return fmt.Errorf("AILANG_AGENT_ID environment variable is required")
 	}
 	if projectID == "" {
-		publishCompletion("failed", "AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required", "", nil, nil, "")
+		publishCompletion("failed", "AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required", "", nil, gitEvidence{}, "")
 		return fmt.Errorf("AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required")
 	}
 
@@ -194,7 +200,7 @@ func coordinatorExecuteJob(args []string) error {
 	fmt.Printf("execute-job: starting task %s (agent=%s, workspace=%s, model=%s, timeout=%s)\n", taskID, agentID, workspace, model, timeoutStr)
 
 	// Execute the task
-	branchName, execResult, changedFiles, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider, pluginRepo, model, timeoutStr)
+	branchName, execResult, evidence, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider, pluginRepo, model, timeoutStr)
 
 	// Write artifact files to the GCS-mounted directory (/artifacts/tasks/{taskID}/).
 	// The artifact bucket is mounted read-write at /artifacts via Cloud Run volume mount.
@@ -203,7 +209,7 @@ func coordinatorExecuteJob(args []string) error {
 
 	// Publish completion with executor metrics (success or failure)
 	if execErr != nil {
-		publishCompletion("failed", execErr.Error(), branchName, execResult, nil, artifactPath)
+		publishCompletion("failed", execErr.Error(), branchName, execResult, gitEvidence{}, artifactPath)
 		fmt.Printf("execute-job: task %s failed: %v\n", taskID, execErr)
 	} else {
 		// M-COORDINATOR-EXECUTION-TRUST M2: "the executor exited 0" is not
@@ -224,9 +230,9 @@ func coordinatorExecuteJob(args []string) error {
 		// malformed all mean "changes were expected", so a misconfigured or
 		// older dispatcher fails LOUD rather than silently lenient.
 		expectChanges := os.Getenv("AILANG_ACKNOWLEDGE_ONLY") != "true"
-		status := coordinator.ClassifyCompletionStatus(changedFiles, false, expectChanges)
-		publishCompletion(string(status), "", branchName, execResult, changedFiles, artifactPath)
-		fmt.Printf("execute-job: task %s %s (branch=%s, files=%d)\n", taskID, status, branchName, len(changedFiles))
+		status := coordinator.ClassifyCompletionStatus(evidence.ChangedFiles, false, expectChanges)
+		publishCompletion(string(status), "", branchName, execResult, evidence, artifactPath)
+		fmt.Printf("execute-job: task %s %s (branch=%s, files=%d)\n", taskID, status, branchName, len(evidence.ChangedFiles))
 	}
 
 	return execErr
@@ -238,7 +244,7 @@ func coordinatorExecuteJob(args []string) error {
 // When AILANG_PUSH_BRANCH is set, the agent works directly on the cloned branch
 // and pushes to that branch (no coordinator/{taskID} branch creation). This is
 // used for skip_approval agents like website-builder that push directly to main.
-func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch, directive, provider, pluginRepo, model, timeoutStr string) (string, *executor.Result, []string, error) {
+func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch, directive, provider, pluginRepo, model, timeoutStr string) (string, *executor.Result, gitEvidence, error) {
 	workDir := fmt.Sprintf("/workspace/%s", taskID)
 	pushBranch := os.Getenv("AILANG_PUSH_BRANCH")
 
@@ -285,14 +291,14 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 
 	// Step 1: Clone the repository (required in cloud mode)
 	if repoURL == "" {
-		return "", nil, nil, fmt.Errorf("AILANG_REPO_URL is required: set workspace to GitHub org/repo (e.g., sunholo-data/ailang) in agent config")
+		return "", nil, gitEvidence{}, fmt.Errorf("AILANG_REPO_URL is required: set workspace to GitHub org/repo (e.g., sunholo-data/ailang) in agent config")
 	}
 	fmt.Printf("execute-job: cloning %s (branch=%s)\n", repoURL, baseBranch)
 	cloneCmd := exec.CommandContext(ctx, "git", "clone", "--branch", baseBranch, "--depth", "1", repoURL, workDir)
 	cloneCmd.Stdout = os.Stdout
 	cloneCmd.Stderr = os.Stderr
 	if err := cloneCmd.Run(); err != nil {
-		return "", nil, nil, fmt.Errorf("git clone failed: %w", err)
+		return "", nil, gitEvidence{}, fmt.Errorf("git clone failed: %w", err)
 	}
 
 	// M-HARNESS-COMMIT-CONTRACT: Capture clone point for artifact discovery.
@@ -325,7 +331,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		checkoutCmd.Stdout = os.Stdout
 		checkoutCmd.Stderr = os.Stderr
 		if err := checkoutCmd.Run(); err != nil {
-			return "", nil, nil, fmt.Errorf("git checkout -b failed: %w", err)
+			return "", nil, gitEvidence{}, fmt.Errorf("git checkout -b failed: %w", err)
 		}
 	}
 
@@ -409,7 +415,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		fmt.Printf("execute-job: running %s executor (unified path)\n", provider)
 		execResult, execErr = runExecutor(ctx, execWorkDir, provider, directive, taskID, pluginDir, model, timeoutStr)
 		if execErr != nil {
-			return branchName, execResult, nil, fmt.Errorf("executor failed: %w", execErr)
+			return branchName, execResult, gitEvidence{}, fmt.Errorf("executor failed: %w", execErr)
 		}
 
 		// Log executor metrics
@@ -425,14 +431,14 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	statusCmd := exec.CommandContext(ctx, "git", "-C", workDir, "status", "--porcelain")
 	statusOutput, err := statusCmd.Output()
 	if err != nil {
-		return branchName, execResult, nil, fmt.Errorf("git status failed: %w", err)
+		return branchName, execResult, gitEvidence{}, fmt.Errorf("git status failed: %w", err)
 	}
 
 	if len(strings.TrimSpace(string(statusOutput))) > 0 {
 		// Step 5a: Stage, commit uncommitted changes
 		addCmd := exec.CommandContext(ctx, "git", "-C", workDir, "add", "-A")
 		if err := addCmd.Run(); err != nil {
-			return branchName, execResult, nil, fmt.Errorf("git add failed: %w", err)
+			return branchName, execResult, gitEvidence{}, fmt.Errorf("git add failed: %w", err)
 		}
 
 		// M-HARNESS-COMMIT-CONTRACT: Use structured commit message when site metadata available.
@@ -462,7 +468,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		commitCmd.Stdout = os.Stdout
 		commitCmd.Stderr = os.Stderr
 		if err := commitCmd.Run(); err != nil {
-			return branchName, execResult, nil, fmt.Errorf("git commit failed: %w", err)
+			return branchName, execResult, gitEvidence{}, fmt.Errorf("git commit failed: %w", err)
 		}
 	} else {
 		fmt.Println("execute-job: no uncommitted changes (agent may have committed directly)")
@@ -502,15 +508,13 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		aheadCmd := gitexec.CommandContext(ctx, "-C", workDir, "log", clonePoint+"..HEAD", "--oneline")
 		if aheadOut, aheadErr := aheadCmd.Output(); aheadErr == nil && len(strings.TrimSpace(string(aheadOut))) == 0 {
 			fmt.Println("execute-job: no commits to push (agent made no changes) — not creating branch or PR")
-			changedFiles := discoverChangedFilesFromCommit(workDir, clonePoint)
-			return branchName, execResult, changedFiles, nil
+			return branchName, execResult, gitEvidence{BaseCommit: clonePoint, ChangedFiles: discoverChangedFilesFromCommit(workDir, clonePoint)}, nil
 		}
 	}
 
 	if !newBranch && len(strings.TrimSpace(string(logOutput))) == 0 {
 		fmt.Println("execute-job: no commits to push")
-		changedFiles := discoverChangedFilesFromCommit(workDir, clonePoint)
-		return branchName, execResult, changedFiles, nil
+		return branchName, execResult, gitEvidence{BaseCommit: clonePoint, ChangedFiles: discoverChangedFilesFromCommit(workDir, clonePoint)}, nil
 	}
 
 	fmt.Printf("execute-job: unpushed commits:\n%s", string(logOutput))
@@ -530,7 +534,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		pushCmd.Stdout = os.Stdout
 		pushCmd.Stderr = os.Stderr
 		if err := pushCmd.Run(); err != nil {
-			return branchName, execResult, nil, fmt.Errorf("git push failed: %w", err)
+			return branchName, execResult, gitEvidence{}, fmt.Errorf("git push failed: %w", err)
 		}
 		fmt.Printf("execute-job: pushed branch %s\n", branchName)
 
@@ -543,8 +547,9 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	}
 
 	// Step 6: Discover changed files for the completion message.
-	changedFiles := discoverChangedFilesFromCommit(workDir, clonePoint)
-	return branchName, execResult, changedFiles, nil
+	// After the push: HEAD is final, so the two SHAs bounding the diff are
+	// immutable and the approval card renders identically on every replay.
+	return branchName, execResult, collectGitEvidence(ctx, workDir, clonePoint), nil
 }
 
 // DispatchPath classifies how a cascade task should be handled.

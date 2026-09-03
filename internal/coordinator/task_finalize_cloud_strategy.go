@@ -23,14 +23,17 @@ type CloudStrategy struct {
 func (s *CloudStrategy) Kind() StrategyKind { return StrategyKindCloud }
 
 func (s *CloudStrategy) DiffSource(ctx context.Context, task *TaskRecord) (DiffResult, error) {
-	// M3 will populate this from BaseCommit/HeadCommit/DiffStat/Diff on the
-	// completion payload. The executor's ChangedFiles is already carried, so a
-	// partial answer is better than none: it names the files even before the
-	// patch is available.
-	if len(s.Completion.ChangedFiles) > 0 {
-		return DiffResult{ChangedFiles: s.Completion.ChangedFiles}, nil
+	// Both SHAs, or nothing. A diff bounded by a branch name is not replay-stable
+	// — the branch can move or be deleted between delivery attempts — so a
+	// completion missing either SHA cannot honour the contract and says so.
+	if s.Completion.BaseCommit == "" || s.Completion.HeadCommit == "" {
+		return DiffResult{}, ErrNoDiffSource
 	}
-	return DiffResult{}, ErrNoDiffSource
+	return DiffResult{
+		Stat:         s.Completion.DiffStat,
+		ChangedFiles: s.Completion.ChangedFiles,
+		Patch:        s.Completion.Diff,
+	}, nil
 }
 
 // completionOutcome maps the executor's reported status onto the finalisation

@@ -12,6 +12,17 @@ const (
 	ChainStatusPendingApproval ChainStatus = "pending_approval"
 	ChainStatusCompleted       ChainStatus = "completed"
 	ChainStatusFailed          ChainStatus = "failed"
+	// ChainStatusAbandoned marks a chain that can never progress: its task
+	// reached a terminal state while the chain was left active, because the
+	// cloud completion path performed no chain progression at all
+	// (M-COMPLETION-PATH-PARITY M4).
+	//
+	// It is deliberately NOT "completed" or "failed". Those assert an outcome,
+	// and 315 chains leaked this way over four months without anyone recording
+	// one. Backfilling a verdict would invent history — and poison the first
+	// dataset anyone uses to check whether the fix worked. Abandoned says only
+	// what is known: this stopped, and nothing is coming.
+	ChainStatusAbandoned ChainStatus = "abandoned"
 )
 
 // ChainSourceType represents the origin of a chain.
