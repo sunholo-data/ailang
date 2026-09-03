@@ -119,11 +119,23 @@ func (d *Daemon) dispatchTasksCloud() error {
 			continue
 		}
 
-		// Determine provider from coordinator config
-		provider := "claude"
-		if d.coordConfig != nil && d.coordConfig.DefaultProvider != "" {
-			provider = d.coordConfig.DefaultProvider
-		}
+		// Determine the provider: the AGENT's own declaration wins over the
+		// coordinator's default.
+		//
+		// This used to read the global default only, which made every agent's
+		// `provider:` field decorative. Measured on the dev plane 2026-09-03:
+		// sprint-executor declares provider "codex" with executor_variant
+		// "codex-go", the coordinator handed the dispatcher "pi" (the plane
+		// default), and checkVariantProviderAgreement correctly refused —
+		// "executor_variant \"codex-go\" runs image agent-codex-go, which has
+		// [codex] on $PATH, but provider is \"pi\"". The task retried every five
+		// minutes and never ran.
+		//
+		// Three of 34 agents declare a provider the plane default contradicts:
+		// sprint-planner (codex), sprint-executor (codex) and motoko (motoko).
+		// Two of those are the middle stages of the four-stage pipeline, so the
+		// pipeline could not have completed even once, whatever else was fixed.
+		provider := resolveDispatchProvider(d.agentRegistry, task.AgentID, d.coordConfig)
 
 		// Publish task to Pub/Sub for audit trail / event streaming.
 		if err := d.pubsubPublisher.PublishTask(d.ctx, task.ID, task.AgentID, task.Workspace, provider); err != nil {
