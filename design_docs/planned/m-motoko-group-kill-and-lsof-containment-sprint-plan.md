@@ -179,7 +179,7 @@ what make a subtle behaviour change visible; do not skip them to save 90 seconds
 |---|---|---|
 | M2-G1 (**gate**) | `/bin/bash tools/eval/test_motoko_connection_probe.sh` | rc=0, **44** `ok`, 0 `not ok`, `PASS: 44 probe self-test arms ran` |
 | M2-G2 | `grep -n '^ok 4[34]' /tmp/s.out` | `ok 43 - production run_lane SIGKILL escalation kills a TERM-immune wrapper grandchild`; `ok 44 - refusal-branch count still matches the set this suite covers (28)` |
-| M2-G3 | `grep 'run_lane evidence' /tmp/s.out \| grep -o 'fixture-[0-9]*\|survivors=[0-9]*\|outer_cap_fired=[a-z]*' \| paste -sd' ' -` | `fixture-2861 survivors=0 outer_cap_fired=no fixture-2863 survivors=0 outer_cap_fired=no` — in that order |
+| M2-G3 | `grep 'run_lane evidence' /tmp/s.out \| grep -o 'fixture-[0-9]*\|survivors=[0-9]*\|outer_cap_fired=[a-z]*' \| paste -sd' ' -` | `fixture-2861 outer_cap_fired=no … survivors=0 fixture-2863 outer_cap_fired=no … survivors=0` — in that order |
 | M2-G4 | `grep -c 'timeout=yes' /tmp/s.out` | 2 (both fixtures reached their refusal; for 2863 `timeout=yes` now means the **bounded-termination** message, not the sampling-deadline one) |
 | M2-G5 | **T1 drill** — the headline | rc=1, **42** `ok`, **sole** `not ok` = `production run_lane SIGKILL escalation kills a TERM-immune wrapper grandchild (outer_rc=0 survivors=1 cleanup=0 probe_rc=…)` |
 | M2-G6 | **T2 drill** | rc=1, 35 `ok`, sole `not ok` still arm 36 — 6i's coverage intact, new arm masked by fail-fast |
@@ -276,7 +276,7 @@ sub-items, the three new arms, the +11 s suite cost, and the fact that the produ
 | AC2 | `shasum -a 256 tools/eval/motoko_connection_probe.sh` | `f0b5e02493369099f123c42107850fe062bf60d56ccabb2a7e4690d654aabc99` — unchanged |
 | AC3 (**gate**) | `/bin/bash tools/eval/test_motoko_connection_probe.sh` | rc=0, 46 `ok`, 0 `not ok`, `PASS: 46 probe self-test arms ran`, **three consecutive runs, sequential (never in parallel — the suite is load-sensitive)**; record `sysctl -n vm.loadavg` with each |
 | AC4 | `grep -n '^ok 4[3-6]' /tmp/s.out` | the four names in M3-G2 |
-| AC5 | `grep 'run_lane evidence' /tmp/s.out \| grep -o 'fixture-[0-9]*\|survivors=[0-9]*\|outer_cap_fired=[a-z]*' \| paste -sd' ' -` | `fixture-2861 survivors=0 outer_cap_fired=no fixture-2863 survivors=0 outer_cap_fired=no` |
+| AC5 | `grep 'run_lane evidence' /tmp/s.out \| grep -o 'fixture-[0-9]*\|survivors=[0-9]*\|outer_cap_fired=[a-z]*' \| paste -sd' ' -` | `fixture-2861 outer_cap_fired=no … survivors=0 fixture-2863 outer_cap_fired=no … survivors=0` |
 | AC6 | T1 drill | rc=1, 42 `ok`, sole `not ok` arm 43 with `survivors=1` |
 | AC7 | T2 drill | rc=1, 35 `ok`, arm 36 — unchanged from base |
 | AC8 | T4 drill | rc=1, 43 `ok`, sole `not ok` arm 44 `unexpectedly succeeded`; elapsed ≈ 58 s recorded as an **observation**, not a bound |
