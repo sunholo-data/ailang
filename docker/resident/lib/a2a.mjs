@@ -221,8 +221,24 @@ export async function messageSend(params) {
     return task;
   }
 
-  const model = params?.metadata?.model || msg.metadata?.model || DEFAULT_MODEL;
-  if (!model) throw Object.assign(new Error("no model requested and DEFAULT_MODEL is unset"), { code: -32602 });
+  // When the registry holds exactly ONE model there is nothing to choose, so
+  // requiring every caller to name it is friction with no safety value — the
+  // registry is already the allowlist. Found live 2026-09-03: the platform's
+  // own client failed with "no model requested and DEFAULT_MODEL is unset",
+  // which is what ask_assistant would have done in production. Ambiguity is
+  // still refused: with two or more registered and none requested, the caller
+  // must say which.
+  const soleModel = (() => {
+    try { const m = registeredModels(); return m.length === 1 ? m[0].ref : ""; }
+    catch { return ""; }
+  })();
+  const model = params?.metadata?.model || msg.metadata?.model || DEFAULT_MODEL || soleModel;
+  if (!model) {
+    const known = (() => { try { return registeredModels().map((m) => m.ref).join(", "); } catch { return "(registry unreadable)"; } })();
+    throw Object.assign(new Error(
+      `no model requested, DEFAULT_MODEL is unset, and the registry does not hold exactly one to fall back to. Registered: ${known}`),
+      { code: -32602 });
+  }
   assertModelRegistered(model);
 
   const id = params?.metadata?.runId || msg.taskId || randomUUID();
@@ -321,7 +337,27 @@ export function agentCard(baseUrl) {
     description: `Resident ${AGENT_KIND} coding agent on a Cloud Run instance, supervised by herdr.`,
     url: `${baseUrl}/a2a`,
     version: process.env.AGENT_VERSION || "0.1.0",
-    capabilities: { streaming: false, pushNotifications: true, stateTransitionHistory: true },
+    capabilities: {
+      streaming: false, pushNotifications: true, stateTransitionHistory: true,
+      // A2A's AgentCard has NO `metadata` field — the a2a-sdk parses the card
+      // into a typed model and DROPS anything not in the schema, so everything
+      // we published there was invisible to every spec-compliant client,
+      // including our own. Found 2026-09-03 by running the platform's client
+      // against this agent for the first time. `capabilities.extensions` is
+      // the spec's extension point: a uri plus free-form params.
+      extensions: [
+        {
+          uri: "https://ailang.dev/a2a/ext/resident-registry/v1",
+          description: "Models this agent will run. Anything else is refused rather than silently downgraded.",
+          params: { registeredModels: models, agentKind: AGENT_KIND, defaultModel: models.length === 1 ? models[0] : (DEFAULT_MODEL || null) },
+        },
+        {
+          uri: "https://ailang.dev/a2a/ext/resident-conversation/v1",
+          description: "Reuse a contextId across message/send calls to continue one conversation; a new contextId starts a fresh one.",
+          params: { key: "contextId", persistent: Boolean(capabilities().sessionFlag) },
+        },
+      ],
+    },
     defaultInputModes: ["text/plain"],
     defaultOutputModes: ["text/plain"],
     skills: [{
@@ -330,16 +366,5 @@ export function agentCard(baseUrl) {
       tags: ["code", "resident", AGENT_KIND],
       examples: ["Refactor the billing module and open a PR"],
     }],
-    metadata: {
-      registeredModels: models,
-      agentKind: AGENT_KIND,
-      // How to hold a conversation with this agent, on the card rather than in
-      // our docs: reuse contextId and the session resumes.
-      conversation: {
-        key: "contextId",
-        note: "Reuse the same contextId across message/send calls to continue one conversation; a new contextId starts a fresh one.",
-        persistent: Boolean(capabilities().sessionFlag),
-      },
-    },
   };
 }

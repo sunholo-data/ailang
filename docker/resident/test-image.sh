@@ -246,7 +246,22 @@ rm -rf "$STUB" /tmp/pi-argv.txt
 
 out=$(A2A 'import * as a2a from "/usr/local/bin/lib/a2a.mjs";
 console.log(JSON.stringify(a2a.agentCard("https://example.invalid")));')
-have "the card tells clients how to hold a conversation" 'echo "$out" | grep -q "contextId"'
+# The A2A AgentCard schema has NO metadata field, and the a2a-sdk drops what it
+# does not know — so anything published there is invisible to every compliant
+# client. These assert the SPEC-LEGAL home instead.
+have "card extras live in capabilities.extensions" 'echo "$out" | grep -q "\"extensions\""'
+have "  ...advertising the model registry"        'echo "$out" | grep -q "resident-registry/v1"'
+have "  ...and how to hold a conversation"        'echo "$out" | grep -q "resident-conversation/v1"'
+have "the card has NO non-spec metadata field"    '! echo "$out" | grep -q "\"metadata\""'
+have "the conversation key is named"              'echo "$out" | grep -q "contextId"'
+
+# One registered model means nothing to choose, so a caller need not name it.
+out=$(A2A 'import * as a2a from "/usr/local/bin/lib/a2a.mjs";
+a2a.messageSend({ message: { role: "user", kind: "message", messageId: "m1",
+  parts: [{ kind: "text", text: "hi" }] } })
+  .then((t) => console.log("MODEL=" + t.metadata.model))
+  .catch((e) => console.log("THREW: " + e.message));')
+have "a sole registered model is used when none is requested" 'echo "$out" | grep -q "MODEL=openrouter/z-ai/glm-5.3-flash"'
 
 echo "=== 6d. tool policy (D8) ==="
 # pi enables read/bash/edit/write by default and said so nowhere. The point of
