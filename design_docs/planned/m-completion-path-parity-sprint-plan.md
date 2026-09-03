@@ -4,6 +4,7 @@
 **Sibling (NOT in this sprint)**: [m-coordinator-execution-trust.md](m-coordinator-execution-trust.md) — owns the tier model (D4)
 **Created**: 2026-09-03 · attended session, main checkout, commits straight to `dev`
 **Rulings in force**: D2 per-edge · D3 abandon · D5 terminal-nothing-follows (Mark, attended, 2026-09-03)
+**Status**: **M0, M0b, M1 (cloud half), M2, M3, M4, M5 LANDED on `dev`** (`b5dd366cb`, `d4aa5757c`, `092a27413`, `c22bf06b0`, `8e72dc630`). ~3,500 LOC, 60 test arms. **M1b — consolidating the DAEMON call site onto the orchestrator — is deliberately NOT done**; see below.
 **Risk**: **high** — the extraction touches the one completion path that currently works. Thirteen quorum rounds falsified fourteen claims about this code; assume the fifteenth is in here somewhere.
 **Estimated**: ~5 days, ~1,150 LOC across 5 milestones + reconciliation + rollout
 
@@ -128,6 +129,27 @@ backend swap would erase the chain model with no signal.
 returns.
 
 ---
+
+## What remains: M1b, and why it was left
+
+M1 wired the **cloud** call site only. That is the half that did nothing, so the
+blast radius was zero-to-positive: handoffs, approvals, chain and stage
+progression all start working where they previously did not, and the daemon path
+— the one that works today — was not touched. M0's structural matrix still guards
+it and still passes.
+
+Consolidating the daemon call site is a pure refactor of working code, and it is
+the single riskiest edit in the sprint. It also invalidates M0 as written: that
+test asserts which branch of `executeTask` each effect sits in, and after the
+extraction the effects live in the orchestrator instead. M0 would need retargeting
+to a call-site guard in the same commit — which is exactly the kind of "change the
+code and its test together" move that makes a regression invisible.
+
+**Until M1b lands, the parity guarantee is one-directional.** M5 asserts every
+daemon effect has an orchestrator counterpart, so consolidation cannot silently
+drop behaviour. It does NOT assert the daemon routes through the orchestrator, so
+a new effect added to the daemon alone would still diverge — more slowly, and now
+detectably, but the class is not fully closed.
 
 ## Method
 
