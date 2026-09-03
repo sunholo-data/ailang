@@ -2113,6 +2113,36 @@ models:
       routing a designer to a model that is also a reviewer of the same doc, and
       the rotation is fable-5 -> kimi-k3, neither of which is this model.
 
+  oc-glm-5-3-flash:
+    api_name: "glm-5.3-flash:cloud"                   # Ollama Cloud route (M-OLLAMA-CLOUD-PROVIDER); proxy strips :cloud (V21)
+    provider: "ollama"
+    default_thinking: "always_on"                      # same weights as or-glm-5-3-flash: reasoning mandatory (OR probe 2026-08-27: explicit disable → 400)
+    description: "GLM-5.3-Flash via Ollama Cloud — third route for the or-glm-5-3-flash route A/B (OpenRouter / Lyceum / Ollama Cloud), same weights, flat-rate subscription metering."
+    env_var: ""                                        # device key via `ollama signin`; OLLAMA_API_KEY is only for /api/usage
+    model_family: "glm-5"
+    max_output_tokens: 65536                           # always-thinking headroom, per the GLM-5.2 truncation lesson
+    pricing:
+      # PROVISIONAL — D1 UNRATIFIED. NOT 0/0 (that maps to the false `free-local`
+      # provenance). Imputed from the OpenRouter twin or-glm-5-3-flash per the
+      # model-manager D1 convention (flat-rate route banks list-price-equivalent).
+      # Ollama.com library list price (2026-09-03): $0.15/M in, $0.50/M out — do
+      # not confuse the banked OR-twin rate with the ollama list rate in reports.
+      input_per_1k: 0.000075
+      output_per_1k: 0.00025
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600                           # equal-work A/B: matches or-glm-5-3-flash and lyceum-glm-5-3-flash
+    notes: |
+      Added 2026-09-03 for the three-route GLM-5.3-flash A/B requested by Mark
+      (OpenRouter vs Lyceum vs Ollama Cloud, frontier tier, standard mode).
+      Access verified 2026-09-03 via test_model_access.sh: signed in, cloud
+      inference OK, /v1 usage reporting OK (V27), quota session=0.342
+      weekly=0.291. Real marginal cost is the flat-rate subscription (quota),
+      not the banked price. Route-faithfulness question: ollama.com hosts US/EU
+      with zero data retention; V20 showed ollama tokenization can differ from
+      other routes, so input-token counts are route-confounded — compare
+      pass-rate/latency primarily, tokens secondarily.
+
   motoko-cloud-kimi-k3:
     api_name: "kimi-k3:cloud"                          # untagged model -> `:cloud`
     provider: "ollama"                                 # local daemon proxies to ollama.com (M-OLLAMA-CLOUD-PROVIDER)
@@ -4653,6 +4683,92 @@ models:
       input_per_1k: 0.0
       output_per_1k: 0.0
     notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
+
+  # =============================================================================
+  # Lyceum (https://dashboard.lyceum.technology/inference) — EU-hosted
+  # =============================================================================
+  # Per-token metered, OpenAI-compatible (POST /openai/v1/chat/completions,
+  # Bearer auth). Slugs follow the OpenRouter "vendor/model" convention
+  # (V16: /openai/v1/models, 39-model catalogue, verified live 2026-09-03).
+  # WHY THIS ROUTE: EU data residency + a second metered vendor for models we
+  # already run on OpenRouter (429-fallback hedge; same-weights A/B control).
+  # PRICE CAVEAT: Lyceum is more expensive than OR on 7/8 shared models
+  # (glm-5.3-flash ~2.7x, kimi ~1.9x on input) — a route hedge, NOT a cost play.
+  # Auth: LYCEUM_API_KEY. Endpoint override for tests: LYCEUM_BASE_URL.
+  # No self-serve billing API exists (V22) — reconcile spend via the dashboard.
+
+  lyceum-glm-5-3-flash:
+    api_name: "z-ai/glm-5.3-flash"             # V16-verified live 2026-09-03
+    provider: "lyceum"
+    default_thinking: "always_on"               # V19 probe 2026-09-03: reasoning_content on EVERY response incl. trivial prompts
+    description: "GLM-5.3-Flash via Lyceum (EU-hosted) — same weights as or-glm-5-3-flash, different route/jurisdiction/price. Route A/B control."
+    env_var: "LYCEUM_API_KEY"
+    max_output_tokens: 65536                   # always-thinking headroom, per the GLM-5.2 truncation lesson
+    model_family: "glm-5"
+    pricing:
+      input_per_1k: 0.0002    # $0.20 per 1M — dashboard 2026-09-03; no billing API (V22),
+      output_per_1k: 0.0005   # $0.50 per 1M — reconcile against dashboard after first runs
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Added 2026-09-03 (M-LYCEUM-PROVIDER). OR twin: or-glm-5-3-flash
+      ($0.075/$0.25) — Lyceum is ~2.7x/~2x, the worst markup in their list.
+      OPT-IN: not in any suite; route-diversification probe. Smoke gate
+      PENDING (this row enters the rotation only if the route proves faithful
+      in the M3 A/B vs the OR twin).
+      V19: reasoning_content + usage.completion_tokens_details.reasoning_tokens
+      both present on the wire. V20: glm counted prompt_tokens=17 for a probe
+      kimi counted as 93 — input-side A/B reads are model-confounded.
+      ⚠️ If banked reason_tokens are 0, apply the M1 contingency (step/stream
+      usage structs lack completion_tokens_details) BEFORE comparing to OR.
+
+  lyceum-qwen3-8-flash-next:
+    api_name: "qwen/qwen3.8-flash-next"        # V16-verified 2026-09-03 — the '-next' suffix IS the slug
+    provider: "lyceum"
+    default_thinking: "on"                     # per or-qwen3-8-flash twin (default-on, disableable); Lyceum probe pending
+    description: "Qwen3.8-Flash-Next via Lyceum (EU-hosted) — same weights as or-qwen3-8-flash (qwen/qwen3.8-flash on OR). 429-fallback candidate."
+    env_var: "LYCEUM_API_KEY"
+    max_output_tokens: 65536                   # expected-thinking headroom (GLM-5.2 truncation lesson)
+    model_family: "qwen3-8-flash"
+    pricing:
+      input_per_1k: 0.0002    # $0.20 per 1M — dashboard 2026-09-03 (OR twin: $0.15/$0.47)
+      output_per_1k: 0.0005   # $0.50 per 1M
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Added 2026-09-03 (M-LYCEUM-PROVIDER). NAMING: the OR twin row is
+      or-qwen3-8-flash (slug qwen/qwen3.8-flash); Lyceum's slug carries
+      -next (qwen/qwen3.8-flash-next) — same open-weight release per the OR
+      row's naming note. This is the row that matters most operationally:
+      the OR row's first smoke gate was invalidated 19/23 by Alibaba-pool
+      429s (2026-08-31), so a second metered route is the fallback.
+      Smoke gate PENDING — after the glm-5-3-flash route check.
+
+  lyceum-kimi-k3:
+    api_name: "moonshotai/kimi-k3"             # V16-verified live 2026-09-03 (also the sample-curl slug)
+    provider: "lyceum"
+    default_thinking: "on"                     # reasoning field present on trivial probes (V19)
+    description: "Kimi K3 via Lyceum (EU-hosted) — same price as or-kimi-k3 ($3.00/$15.00); identical-price route control."
+    env_var: "LYCEUM_API_KEY"
+    max_output_tokens: 65536                   # thinking headroom, per the kimi/k3 OR-row precedent
+    model_family: "kimi"
+    pricing:
+      input_per_1k: 0.003     # $3.00 per 1M — dashboard 2026-09-03, IDENTICAL to OR
+      output_per_1k: 0.015    # $15.00 per 1M
+    budgets:
+      max_cost_usd: 0.60
+      hard_timeout_secs: 600
+    notes: |
+      Added 2026-09-03 (M-LYCEUM-PROVIDER). Only model where Lyceum matches
+      OR pricing exactly — the cleanest same-weights/same-price A/B in the
+      seed set. V19 CAVEAT: Lyceum's kimi-k3 returns thinking in a 'reasoning'
+      message field (parsed by our transport) but NO reasoning_tokens in usage
+      — bank reason_tokens as unavailable for this row; do not read its token
+      counts as efficiency data. V20 CAVEAT: prompt_tokens read ~5x higher
+      than the OR-equivalent prompt (93 vs 17 on the shared probe) — possible
+      hidden system prompt or chat-template accounting; flag any A/B delta.
 
 # Default model for benchmarks
 default: "claude-sonnet-4-6"
