@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -22,6 +23,12 @@ type GitHubConfig struct {
 	// ExpectedUser is the expected GitHub username (must match gh auth status)
 	// This prevents accidentally creating issues under the wrong account
 	ExpectedUser string `yaml:"expected_user"`
+
+	// ExecTimeout bounds every `gh` shell-out this client makes. Zero means
+	// defaultExecTimeout (30s), chosen to match the mission driver's existing
+	// `_mc_bounded 30`. Without it a hung `gh` blocks the caller forever, which
+	// on the mission path means a wedged fire (design doc V18 / objection P-1).
+	ExecTimeout time.Duration `yaml:"exec_timeout"`
 
 	// CreateLabels are labels to add when creating issues
 	CreateLabels []string `yaml:"create_labels"`
