@@ -89,6 +89,63 @@ if [ "$BEHIND" -gt 0 ] 2>/dev/null; then
     exit 0
 fi
 
+# Judge only the committed Go blobs that this push would add to origin/dev. The shared
+# checkout may contain unrelated edits, so neither the working tree nor deleted/renamed-away
+# paths are part of this integrity gate.
+if ! command -v gofmt >/dev/null 2>&1; then
+    log "REFUSED_FMT_TOOL: gofmt not found; refusing $AHEAD commit(s)"
+    echo "⚠️  local dev has $AHEAD unpushed commit(s), but gofmt is not on PATH."
+    echo "   Not auto-pushing: cannot verify committed Go formatting without gofmt."
+    echo "   Restore gofmt, run make fmt, commit, and let the next Stop push it."
+    exit 0
+fi
+
+GO_FILES=$(bounded 10 git diff --name-only --diff-filter=ACM origin/dev..dev -- '*.go' 2>/dev/null) || {
+    log "REFUSED_FMT_CHECK: could not list committed Go files; refusing $AHEAD commit(s)"
+    echo "⚠️  local dev has $AHEAD unpushed commit(s), but its committed Go files could not be checked."
+    echo "   Not auto-pushing: run make fmt, commit, and let the next Stop push it."
+    exit 0
+}
+
+BAD_GO_FILES=""
+if [ -n "$GO_FILES" ]; then
+    FMT_TMP=$(mktemp -d "${TMPDIR:-/tmp}/ailang-autopush-fmt.XXXXXX" 2>/dev/null) || {
+        log "REFUSED_FMT_CHECK: could not create formatting workspace; refusing $AHEAD commit(s)"
+        echo "⚠️  local dev has $AHEAD unpushed commit(s), but its committed Go files could not be checked."
+        echo "   Not auto-pushing: run make fmt, commit, and let the next Stop push it."
+        exit 0
+    }
+    trap 'rm -rf "$FMT_TMP"' EXIT
+    trap 'rm -rf "$FMT_TMP"; exit 0' HUP INT TERM
+
+    while IFS= read -r go_file; do
+        [ -n "$go_file" ] || continue
+        if ! bounded 10 git show "dev:$go_file" > "$FMT_TMP/committed" 2>/dev/null; then
+            BAD_GO_FILES="${BAD_GO_FILES}${go_file}
+"
+            continue
+        fi
+        if ! bounded 10 gofmt < "$FMT_TMP/committed" > "$FMT_TMP/formatted" 2>/dev/null; then
+            BAD_GO_FILES="${BAD_GO_FILES}${go_file}
+"
+            continue
+        fi
+        cmp -s "$FMT_TMP/committed" "$FMT_TMP/formatted" || BAD_GO_FILES="${BAD_GO_FILES}${go_file}
+"
+    done <<EOF
+$GO_FILES
+EOF
+fi
+
+if [ -n "$BAD_GO_FILES" ]; then
+    BAD_GO_LOG=$(printf '%s' "$BAD_GO_FILES" | tr '\n' ' ')
+    log "REFUSED_FMT: committed Go files are not gofmt-clean: $BAD_GO_LOG"
+    echo "⚠️  local dev has $AHEAD unpushed commit(s) with Go files that are not gofmt-clean:"
+    printf '   %s\n' "$BAD_GO_FILES"
+    echo "   Not auto-pushing: run make fmt, commit the result, and let the next Stop push it."
+    exit 0
+fi
+
 if bounded 25 git push origin dev >/dev/null 2>&1; then
     log "pushed $AHEAD commit(s) to origin/dev"
     echo "✅ pushed $AHEAD unpushed commit(s) from local dev to origin/dev."
