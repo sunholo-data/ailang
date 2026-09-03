@@ -328,6 +328,50 @@ arriving caller silently killed somebody else's run. Now capped by
 a 4 GiB box, given M0 found 1 GiB hosted one agent), refused with a message
 naming the ceiling, and the live count is in `/health`.
 
+**Partitioning one instance by folder was considered and REFUSED, on evidence.**
+Probed live 2026-09-03 by asking the agent to run it:
+
+```
+$ curl -H "Metadata-Flavor: Google" .../service-accounts/default/email
+ailang-dev-resident@ailang-multivac-dev.iam.gserviceaccount.com
+$ curl .../service-accounts/default/token        -> HTTP 200
+```
+
+The agent mints its instance's service-account token in one call, and that SA
+holds `roles/storage.objectAdmin` on the **whole** `ailang-dev-agent-home`
+bucket (`resident_agents.tf`), not on a prefix. So it can read and write every
+user's folder through the GCS API, with the `only-dir` mount never involved.
+Two independent reasons folder partitioning fails, either sufficient:
+
+1. **One container.** `bash` reaches other users' session files, their pi
+   process memory, and `~/.pi/agent/models.json` — which carries the live
+   provider key.
+2. **One identity.** The token above is bucket-wide, so the filesystem view is
+   irrelevant.
+
+This is D8's lesson a second time: `bash` bypassed the AILANG program
+allowlist; here it bypasses the mount. **A directory is not a security boundary
+when the tenant runs arbitrary code — the container and the IAM identity are.**
+
+**So per-user isolation needs a per-user IDENTITY, not only a per-user
+instance.** Giving every user their own instance while they share one service
+account leaves the bucket wide open exactly as above. The bootstrap is
+therefore three calls, all already scripted in shape:
+
+1. a service account per user;
+2. `roles/storage.objectAdmin` bound with an **IAM condition** scoping it to
+   that user's prefix (`resource.name.startsWith(".../objects/homes/<user>/")`),
+   so the grant matches the mount rather than merely resembling it;
+3. `resident-instance.sh create` with `--agent <user> --service-account <sa>`.
+
+Both ceilings are ~100 per project — instances *and* service accounts — so they
+scale together, and sharding by project moves both at once.
+
+**Open risk, not solved here:** each per-user instance materialises the shared
+OpenRouter key into its own `models.json`, so a hostile prompt in any user's
+thread can exfiltrate it. Per-user provider keys or an outbound proxy is the
+answer; it is not in this milestone.
+
 **Therefore the unit of tenancy is the instance.** One per user, started on
 dispatch and stopped when idle (M4) — which is affordable precisely because D7
 put the conversation on the GCS home, so a stopped instance loses nothing.
