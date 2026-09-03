@@ -1,7 +1,8 @@
 # M-COMPLETION-PATH-PARITY: a cloud task must end the same way a local task does
 
 **Status**: Planned — attended, standalone critical-infrastructure work, sibling to [M-COORDINATOR-EXECUTION-TRUST](m-coordinator-execution-trust.md). Written 2026-09-03 after a live end-to-end trial (`task-88a9fa95`) showed the agent-to-agent handoff chain has **never fired in production**.
-**Revision**: **r14** (last completed full quorum: round 12 — blocked 3/3; rounds 0–12 blocked, one pass recorded in round 10) — rounds 0–5 each blocked 3/3. Every objection accepted; none argued. Round 5 landed the most embarrassing finding of the series: **r6 verified the SQLite stores — the daemon path nobody runs — and asserted the Firestore ones, on a doc whose entire thesis is that the cloud path is the only one that matters.** Checked properly, Firestore differs from SQLite on two of three effects, and differs in a way that is **worse**, not better (V31fs, V34fs): it overwrites silently, so a redelivered completion would reset an already-resolved approval to `pending`.
+**Revision**: **r14** (last completed full quorum: round 12 — blocked 3/3; rounds 0–12 blocked, one pass recorded in round 10)
+**Rulings**: **D2, D3 and D5 ruled by Mark 2026-09-03 (attended). Design freeze CLOSED; sprint may proceed.** D1 and D4 recorded below. See [the sprint plan](m-completion-path-parity-sprint-plan.md). — rounds 0–5 each blocked 3/3. Every objection accepted; none argued. Round 5 landed the most embarrassing finding of the series: **r6 verified the SQLite stores — the daemon path nobody runs — and asserted the Firestore ones, on a doc whose entire thesis is that the cloud path is the only one that matters.** Checked properly, Firestore differs from SQLite on two of three effects, and differs in a way that is **worse**, not better (V31fs, V34fs): it overwrites silently, so a redelivered completion would reset an already-resolved approval to `pending`.
 **Scope**: The coordinator has **two** task-completion paths. The daemon path performs ten side effects; the cloud path — the only one prod uses — performs two. Everything in the difference is dead in prod: agent handoffs, chain/stage progression, GitHub stage routing, and the approval record itself.
 **Target**: v0.35.0
 **Priority**: **P0.** This is the load-bearing link for unsupervised AILANG package-ecosystem work. The pipeline is designed, configured and coded — and has produced zero handoffs in four months.
@@ -367,6 +368,29 @@ absence of failures here is not evidence of correctness.**
 ---
 
 ## High-Impact Decisions
+
+### Rulings — 2026-09-03, Mark, attended
+
+- **D2 — RULED: per-edge configuration.** *"we configure that per edge."* Reject-by-default stays
+  the global posture; `auto_approve_handoff_to` is the instrument, set per edge as each one earns it.
+  The existing `sprint-executor → sprint-evaluator` edge (`config.cloud.yaml:176`) is the precedent.
+  **C3 still binds:** an auto-approved edge behind a blind approval card is the worst available
+  combination, so M3 lands before any new edge is opened.
+- **D3 — RULED: abandon.** *"yes abandon."* The 315 stuck chains are marked terminal; **no synthetic
+  stage transitions are created.** Per V36 `execution_chains` has no `reason` column, so M4 carries a
+  one-column migration rather than dropping the reason.
+- **D5 — RULED: terminal, nothing follows.** A `no_changes` completion writes task/stage/chain
+  terminal plus metrics and session, and creates **no approval, no handoff, and no retry**. Rationale:
+  handing a sprint-planner an empty design doc is worse than stopping the chain, and `no_changes` is a
+  semantic outcome, not a transport failure — so the sibling doc's re-dispatch path (M3,
+  `MaxTaskExecutions = 2`) must not catch it. The chain is marked terminal so it does not join the
+  `active` leak this doc exists to close.
+- **D1 — author's recommendation stands** (orchestrator + explicitly-kinded strategy); no reviewer
+  objected to the shape across thirteen rounds, only to its details, all of which are now fixed.
+- **D4 — deferred to the sibling doc.** Whether `sprint-*` agents take `work_tier: tier1` belongs to
+  [M-COORDINATOR-EXECUTION-TRUST](m-coordinator-execution-trust.md) M1a, which owns the tier model.
+
+
 
 **D1 — How do the two paths become one?** *(restructured r2 after oc-glm-5-2; corrected r3 after
 oc-glm-5-2 and gemini-3-1-pro)*
