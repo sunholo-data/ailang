@@ -61,11 +61,28 @@ Line caps (`make check-context-docs`): 300 for `CLAUDE.md`, 200 per rule, 500 pe
 `SKILL.md` — the last being Anthropic's own guidance for a skill body.
 
 When a `SKILL.md` outgrows the cap the fix is **layering, not brevity**: keep the
-procedure in `SKILL.md`, move the detail into sibling files it links to.
-`mission-control/SKILL.md` reached 4,201 lines with zero reference files — roughly 96k
-tokens spent before the skill does anything — purely because appending was easier than
-filing. Existing breaches are grandfathered in `scripts/context_docs_baseline.txt`; they
-may shrink, never grow.
+procedure in `SKILL.md`, move the detail into `resources/` beside it — the layout every
+multi-file skill here already uses (`resources/` for reference, `scripts/` for
+executables). Existing breaches are grandfathered in `scripts/context_docs_baseline.txt`;
+they may shrink, never grow.
+
+**What splits and what stays.** `mission-control/SKILL.md` reached 4,201 lines with zero
+reference files — ~96k tokens before the skill does anything. Its Gate-2 verification
+protocol moved out whole (1,378 lines → `resources/verification-protocol.md`, 4,201 →
+2,854) because of its shape: 18 rules whose *titles state the rule* and whose *bodies
+carry the measured evidence*. The titles stayed in `SKILL.md` as a numbered index; the
+war stories, commands and tells went behind the link. Test a candidate section against
+that shape — if the agent needs it to take the next action, it stays; if it needs it to
+*justify or debug* an action, it splits. Move it **verbatim**, and diff the result: a
+split is a move, not a rewrite.
+
+**A pointer you cannot follow is worse than no pointer.** Once detail lives behind a
+link, that link is load-bearing. The gate checks every relative link in `CLAUDE.md`, the
+rules, and every `SKILL.md`; known-broken ones burn down through
+`scripts/context_docs_links_baseline.txt`, and an entry that starts resolving must be
+removed. This is not hypothetical: `parser-developer` advertised five `resources/*.md`
+files that were never written, so every agent it sent for the detail found nothing and
+carried on without it.
 
 ## Hook output is context too
 

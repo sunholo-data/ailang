@@ -11,7 +11,7 @@
 # sibling files that SKILL.md links to — not deleting them.
 #
 # Ranked by what they cost, worst first:
-.claude/skills/mission-control/SKILL.md 4201
+.claude/skills/mission-control/SKILL.md 2854
 .claude/skills/post-release/SKILL.md 895
 .claude/skills/sprint-executor/SKILL.md 835
 .claude/skills/model-manager/SKILL.md 644

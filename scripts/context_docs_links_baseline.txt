@@ -1,0 +1,25 @@
+# Broken relative links in context documents, grandfathered by
+# scripts/check_context_docs.sh. Format: <file> <link>
+#
+# This is a BURN-DOWN LIST, not configuration. Each line is a skill promising a
+# second layer of detail that does not exist — an agent told to "see
+# resources/X.md" for the discriminating command finds nothing and proceeds
+# without it. Retire a line by writing the target or dropping the promise; the
+# gate fails a line whose link resolves again, so entries cannot rot.
+#
+# No NEW dead pointer may land: that is what the gate is for.
+.claude/skills/agent-inbox/SKILL.md resources/troubleshooting.md
+.claude/skills/builtin-developer/SKILL.md ../../../M-DX1-FINAL-SUMMARY.md
+.claude/skills/design-doc-creator/SKILL.md ../CHANGELOG.md
+.claude/skills/eval-analyzer/SKILL.md ../../../design_docs/planned/v0_6_5/m-eval-gap-analysis.md
+.claude/skills/local-ollama-eval/SKILL.md resources/prompt_strategy_findings.md
+.claude/skills/parser-developer/SKILL.md ../../../docs/CONTRIBUTING.md
+.claude/skills/parser-developer/SKILL.md ../../../docs/guides/parser_development.md
+.claude/skills/parser-developer/SKILL.md resources/api_discovery.md
+.claude/skills/parser-developer/SKILL.md resources/ast_quick_reference.md
+.claude/skills/parser-developer/SKILL.md resources/common_patterns.md
+.claude/skills/parser-developer/SKILL.md resources/debug_mode.md
+.claude/skills/parser-developer/SKILL.md resources/token_positioning.md
+.claude/skills/sprint-executor/SKILL.md ../../docs/guides/parser_development.md
+.claude/skills/wasm-debugger/SKILL.md ../../../demos/debug-notes/wasm-citizen-stack-overflow.md
+.claude/skills/wasm-debugger/SKILL.md ../../design_docs/planned/v1_1_0/m-wasm-typecheck-iterative.md

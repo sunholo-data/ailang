@@ -19,6 +19,7 @@ cp "$ROOT/scripts/check_context_docs.sh" scripts/
 echo "package parser" > internal/parser/p.go
 echo "# Root" > CLAUDE.md
 : > scripts/context_docs_baseline.txt
+: > scripts/context_docs_links_baseline.txt
 
 # A well-formed scoped rule, reused as the clean control between arms.
 write_good_rule() {
@@ -76,6 +77,24 @@ printf -- '---\npaths:\n  - "internal/parser/**"\n---\n\nSee [x](../../docs/gone
 ck "L broken relative link -> fail" "$(run)" "1"
 write_good_rule
 ck "M links resolve -> pass" "$(run)" "0"
+
+# O-R: SKILL.md pointers. The mission-control split moved 1,378 lines behind one
+# resources/ link, so a dead pointer there is now a silent loss of the whole
+# verification protocol -- exactly the class this arm exists to catch.
+printf -- '---\nname: demo\ndescription: demo\n---\n\nSee [detail](resources/gone.md).\n' > .claude/skills/demo/SKILL.md
+ck "O broken SKILL.md resources link -> fail" "$(run)" "1"
+
+echo ".claude/skills/demo/SKILL.md resources/gone.md" > scripts/context_docs_links_baseline.txt
+ck "P baselined broken link -> pass" "$(run)" "0"
+
+mkdir -p .claude/skills/demo/resources; echo "# detail" > .claude/skills/demo/resources/gone.md
+ck "Q baselined link that resolves again -> fail (stale entry)" "$(run)" "1"
+: > scripts/context_docs_links_baseline.txt
+ck "R link resolves, baseline clean -> pass" "$(run)" "0"
+
+# S. placeholders inside worked examples are not pointers and must not fail.
+printf -- '---\nname: demo\ndescription: demo\n---\n\nRun it on [a doc](path/to/doc.md).\n' > .claude/skills/demo/SKILL.md
+ck "S placeholder link ignored" "$(run)" "0"
 
 # N. the gate must refuse to pass vacuously when there is nothing to check.
 rm -f .claude/rules/*.md

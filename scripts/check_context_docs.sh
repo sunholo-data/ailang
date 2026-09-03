@@ -181,23 +181,54 @@ while read -r path lines cap; do
 done < "$TMP_SIZES"
 
 # ----------------------------------------------- E: relative links must resolve
-# A pointer is the whole progressive-disclosure mechanism. A dead one turns
-# "read the detail when you need it" into "the detail does not exist".
-for f in CLAUDE.md .claude/rules/*.md; do
+# A pointer is the whole progressive-disclosure mechanism: moving detail out of a
+# SKILL.md is only safe because the link back to it works. A dead one converts
+# "read the detail when you need it" into "the detail does not exist", silently.
+#
+# Measured 2026-09-03 when this arm was extended to SKILL.md: parser-developer
+# advertised FIVE resources/*.md files that were never written, and agent-inbox
+# and local-ollama-eval one each. Those skills were promising a second layer and
+# delivering nothing.
+#
+# Known-broken links are ratcheted like sizes: the burn-down is real content
+# work (write the file, or drop the promise), but no NEW dead pointer may land.
+LINKS_BASELINE=${CONTEXT_LINKS_BASELINE:-scripts/context_docs_links_baseline.txt}
+[ -f "$LINKS_BASELINE" ] || { fail "missing links baseline: $LINKS_BASELINE"; exit 1; }
+
+for f in CLAUDE.md .claude/rules/*.md .claude/skills/*/SKILL.md; do
 	[ -f "$f" ] || continue
 	dir=$(dirname "$f")
 	grep -o '](\.\{0,2\}[^):]*\.md[^)]*)' "$f" 2>/dev/null \
 		| sed 's/^](//; s/)$//; s/#.*//' \
 		| while read -r link; do
 			[ -n "$link" ] || continue
-			case "$link" in http*|"") continue;; esac
-			if [ ! -e "$dir/$link" ] && [ ! -e "$link" ]; then
-				printf "${RED}✗ %s: broken link: %s${RESET}\n" "$f" "$link"
-				echo BROKEN >> "$TMP_LINKS"
-			fi
+			case "$link" in
+				http*|"") continue;;
+				# Illustrative placeholders inside worked examples are not pointers.
+				path/to/*|*'<'*|*'...'*) continue;;
+			esac
+			[ -e "$dir/$link" ] && continue
+			[ -e "$link" ] && continue
+			if grep -qxF "$f $link" "$LINKS_BASELINE"; then continue; fi
+			printf "${RED}✗ %s: broken link: %s${RESET}\n" "$f" "$link"
+			printf "    A pointer nobody can follow is a fact nobody can reach.\n"
+			printf "    Write the target, drop the promise, or baseline it in %s.\n" "$LINKS_BASELINE"
+			echo BROKEN >> "$TMP_LINKS"
 		done
 done
 [ -s "$TMP_LINKS" ] && FAILED=1
+
+# A baselined link that now RESOLVES must leave the baseline, for the same reason
+# a retired size exemption must: a stale entry re-authorises the next regression.
+while read -r bf blink; do
+	case "${bf:-}" in ''|'#'*) continue;; esac
+	[ -n "${blink:-}" ] || continue
+	bdir=$(dirname "$bf")
+	if [ -e "$bdir/$blink" ] || [ -e "$blink" ]; then
+		fail "$bf: link '$blink' resolves now but is still in $LINKS_BASELINE"
+		note "Delete its line — the baseline is a burn-down list, not a config file."
+	fi
+done < "$LINKS_BASELINE"
 
 # ------------------------------------------------------------------- verdict
 if [ "$FAILED" -ne 0 ]; then
