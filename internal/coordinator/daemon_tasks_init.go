@@ -121,6 +121,21 @@ func (d *Daemon) initTaskProcessing() error {
 
 	d.logger.Printf("Agent registry initialized with %d agent(s): %v",
 		d.agentRegistry.Count(), d.agentRegistry.ListInboxes())
+
+	// Name every agent that cannot dispatch, at startup, before anyone waits on
+	// one. The dispatcher's own guard reports these one at a time and only when
+	// a task is aimed at the agent — so two pipeline stages sat undispatchable
+	// and nothing said so until a task retried against one every five minutes.
+	planeDefault := ""
+	if coordConfig != nil {
+		planeDefault = coordConfig.DefaultProvider
+	}
+	if mismatches := AuditProviderMismatches(d.agentRegistry, planeDefault); len(mismatches) > 0 {
+		d.logger.Printf("CONFIG ERROR: %d agent(s) cannot dispatch — their executor CLI is not in the image their executor_variant selects. Every task routed to them will be refused:", len(mismatches))
+		for _, m := range mismatches {
+			d.logger.Printf("  %s", m)
+		}
+	}
 	if len(coordConfig.TriageOnlyInboxes) > 0 {
 		d.logger.Printf("Human-triage inboxes (no agent by design): %v", coordConfig.TriageOnlyInboxes)
 	}
