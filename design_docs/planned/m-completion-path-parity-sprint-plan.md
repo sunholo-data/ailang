@@ -159,15 +159,46 @@ detectably, but the class is not fully closed.
 - Verify the **artefact, not the pipeline** — and after r1's lesson, **not the aggregate either**:
   read chain *detail*, never the list, whose `stage_count` under-reports (O1/M6).
 
-## Rollout (~0.5 day, after the code lands)
+## Rollout — verified trigger mechanics, not remembered ones
 
-Coordinator-side change, so it ships on the coordinator image — but two pipelines exist and the
-ailang repo's own build does **not** build `agent-pi`. M3 touches the **executor**, so it needs the
-multivac pipeline too.
+Checked per-trigger with `gcloud builds triggers describe` on 2026-09-03.
+**`gcloud builds triggers list` prints the BRANCH and TAG columns EMPTY for every
+trigger** — that empty output is what produced an unplanned production deploy on
+2026-09-02, so `list` is never sufficient.
 
-Order: `dev` → `test` → `prod`, never prod ahead of test. **Verify the deployed revision, not the
-build status** — a green pipeline has meant "the thing I wanted is true" and been wrong three times
-in this programme (sibling doc V40).
+**The two repos promote differently, and this change touches both.**
+
+| Repo | Trigger | Fires on | Builds |
+|---|---|---|---|
+| ailang | `ailang-core-dev` | branch `^dev$` | coordinator, agent-base, agent, agent-go, dashboard, mcp → **dev only** |
+| ailang | `ailang-core-test-release` | **tag `^v.*`** | `cloudbuild-dev.yaml` |
+| ailang | `ailang-core-release` | **tag `^v.*`** | `cloudbuild-release.yaml` |
+| multivac | `ailang-multivac-{dev,test,prod}` | branch `^dev$`/`^test$`/`^prod$` | `cloudbuild.yaml` — **this is what builds agent-pi** |
+| multivac | `ailang-multivac-config-{dev,test,prod}` | same branches, `config/**` + `terraform/**` | config + terraform apply |
+| multivac | `promote-to-prod` | **manual only** | image copy |
+
+Mark 2026-09-03: multivac is migrating to tags as well, but not yet stable —
+until then it stays branch-led, and pushing its `prod` branch is a real
+production deploy.
+
+**So this sprint ships in two pieces:**
+
+1. **Coordinator** — M0b, M1, M2, M4, M5 and the consuming half of M3. Built by
+   `cloudbuild-dev.yaml`; already on **dev**. Reaching test/prod needs a `v*`
+   **tag** on the ailang repo.
+2. **Executor** — M3's producing half lives in `cmd/ailang/coordinator_cloud.go`,
+   which runs inside **agent-pi**. `cloudbuild-dev.yaml:214` takes agent-pi's base
+   *from the registry* and does not build it, so this needs a **multivac** build
+   as well.
+
+**Shipping half of M3 degrades safely but should not be left standing:** the
+coordinator would look for `BaseCommit`/`HeadCommit` that the executor is not yet
+sending, and record `diff_unavailable` on the approval — honest, but it is the
+absence #921 was written about, and D2's per-edge auto-approval must not be
+widened while it holds.
+
+**Verify the deployed revision, not the build status.** A green pipeline has meant
+"the thing I wanted is true" and been wrong three times in this programme.
 
 ## Live proof — the sprint's own success metric
 
