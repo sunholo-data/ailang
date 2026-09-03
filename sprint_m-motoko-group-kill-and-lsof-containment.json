@@ -192,7 +192,7 @@
       ],
       "passes": null,
       "started": null,
-      "completed": null,
+      "completed": true,
       "notes": null
     },
     {
@@ -230,7 +230,7 @@
       ],
       "passes": null,
       "started": null,
-      "completed": null,
+      "completed": true,
       "notes": null
     },
     {
@@ -278,7 +278,7 @@
       ],
       "passes": null,
       "started": null,
-      "completed": null,
+      "completed": true,
       "notes": null
     },
     {
@@ -323,7 +323,7 @@
       ],
       "passes": null,
       "started": null,
-      "completed": null,
+      "completed": true,
       "notes": null
     }
   ],
@@ -523,8 +523,8 @@
     "Row 6p: derive wall-clock bounds from an in-test stimulus. Arm 43 is one more arm that will benefit.",
     "Row 6s: nothing in CI notices an arm disappearing. AC4 pins the new arms by name for this sprint's evaluator only, not for CI."
   ],
-  "status": "planned",
+  "status": "completed",
   "current_milestone": null,
   "started": null,
-  "completed": null
+  "completed": true
 }
