@@ -540,7 +540,6 @@ func (b *SQLiteBackend) RecomputeChainAggregates(ctx context.Context, chainID st
 	return b.store.RecomputeChainAggregates(ctx, chainID)
 }
 
-
 // Chain reconciliation (M-COMPLETION-PATH-PARITY M4).
 func (b *SQLiteBackend) FindStrandedChains(ctx context.Context, minAge time.Duration) ([]StrandedChain, error) {
 	return b.store.FindStrandedChains(ctx, minAge)
