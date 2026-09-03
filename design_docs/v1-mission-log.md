@@ -21009,3 +21009,113 @@ instance is the skill-edit trigger.
 the versioned docs allowlist) and **M4** (the Gate-3 spawn-pattern paragraph) — M3 ARMS the hook
 fleet-wide, so its landing note must say that a controller running the stale main-checkout skill
 will be denied until it adds the token, with the denial reason naming the fix.
+
+## 325 — 2026-09-03 — The hook is ARMED, and the acceptance criterion meant to prove it was dead on arrival [HARNESS]
+
+**Pick**: the queue head, `m-spawn-pin-enforcement` — M3 + M4, the two milestones that ARM the
+Layer-1/Layer-2 machinery iteration 324 landed inert.
+
+**Progress**: N = **12** design docs remaining before v1.0.0, **goal unmoved** — HARNESS iteration.
+The sprint itself is now 4/4 milestones complete.
+
+**Outcome**: LANDED (M3+M4 of 4 — sprint complete) · [HARNESS] · evaluator **PASS 94/100, zero
+blocking, round 1** · commits `11aff5819` (M3) + `e21c3f1bd` (M4).
+
+**What landed.** M3: the driver now publishes the plan it VERIFIED rather than the one it declared —
+`export MISSION_CONTROL_ACTIVE=1` plus `MISSION_<ROLE>_RESOLVED` / `MISSION_<ROLE>_PATH` for all four
+roles, inserted immediately before the `=== mission iteration starting` log line, i.e. AFTER the
+codex lane loop (`:722`), the pi loop (`:770`/`:779`) and the one-shot override (`:904`) have all
+finished rewriting `MISSION_<ROLE>_MODEL` in place. Plus `|scripts/*` appended to the versioned
+docs-mission planner allowlist (the docs-10 / PR #1010 cost). M4: the Gate-3 spawn paragraph now
+names `resolve-role-spawn.sh` and requires every role prompt to open with `MISSION-ROLE: <role>`,
+with `subagent_type: Explore` as the one machine-readable read-only exception — +13/−3, one
+paragraph, the fable capability paragraph beside it untouched. Routing suite 45 → **51** arms
+(D1, D2, 12, 12-control, S1, S2); hook suite 17 unchanged; `launchd drivers (bash 3.2)` green.
+
+**THE FINDING: A3.2 IS A DEAD ACCEPTANCE CRITERION, AND IT IS DEAD UNCONDITIONALLY.** The plan's
+A3.2 is `MISSION_PROFILE=v1 MISSION_DRY_RUN=1 bash tools/launchd/mission-control.sh` → rc=0, and it
+is the only criterion aimed at M3's production code running. I noticed it returned rc=0 having taken
+the overlap-guard yield path, and handed that to the judge as my sharpest open question. The judge
+came back with a stronger answer than I had: the `MISSION_DRY_RUN=1` branch `exit 0`s at **line 858**
+and the Layer-3 block starts at **line 1008**, so the dry run can never reach it — with or without
+the overlap guard, on an idle machine or a busy one. It proved it by running the criterion against
+the BASE copy of the script: byte-identical output, rc=0, pre-M3. A criterion that passes identically
+whether or not the milestone exists measures nothing. Reproduced first-party (`grep -n 'DRY RUN ok:'`
+→ 858 with its `exit 0` on the same line; `grep -n 'export MISSION_CONTROL_ACTIVE=1'` → 1008). **Arm
+D2 is the real coverage** and is not vacuous: it extracts the live block by `awk` and asserts the
+four variables across a `/usr/bin/env` process boundary — mutation-drilled as a sole killer.
+
+**The plan's own control could not fire, which is why the executor got a corrected one.** A4.4 and
+test arm S2 both asserted a grep for ``the Agent tool's `model` enum in this build lists``. That
+string is LINE-WRAPPED in SKILL.md (1109 ends `…tool's `model``, 1110 begins `enum in this build
+lists`), so a line-oriented grep returns **0 on a healthy file** — the plan records "At base: 1",
+which is simply wrong. Measured at base before routing, and the executor was given
+`grep -c 'enum in this build lists'` (base 1, unique) instead, with a comment in the arm saying why.
+The judge confirmed the base value is 0 against the base commit rather than taking my word for it.
+
+**And the corrected control is narrower than it looks (non-blocking, recorded for the next reader).**
+The judge probed S2 with a *different* realistic damage — deleting the fable paragraph's evidentiary
+sentence (`model="fable"` was ACCEPTED and ran to completion) rather than the grepped line — and the
+suite stayed **51/0**. So S2 pins one line, not the paragraph's substance. That is inherent to every
+line-grep arm in this suite rather than a defect of this one, but it means "the fable paragraph
+survives" is a weaker guarantee than its arm name implies.
+
+**Ruled out / corrected**
+- "A3.2's rc=0 was an overlap-guard artifact" (my own framing to the judge) — WRONG, and the judge
+  said so: it is structural, `exit 0` at 858 precedes the block at 1008 on every path.
+- "the plan's A4.4 reads 1 at base" (plan) — WRONG: 0, the literal is line-wrapped.
+- "the plan's hook suite has 13 arms" (plan §7) — STALE: 17, the extra four (`NS`, `8p`, `8e`, `8n`)
+  are iteration 324's judge findings. Reported as the real number, no arm adjusted to match.
+- "`scripts/*` widens the allowlist into a traversal hole" (my adversarial ask) — REFUTED by the
+  judge: `derive-planner-lane.sh` applies a prefix-independent `/*|~*|*..*` deny before the allowlist
+  check; `scripts/../internal/foo.go` reads `opus fail-closed:path-not-in-codex-allowlist`.
+- "the M4 skill text promises enforcement the hook may not implement" (the worst defect available
+  here) — REFUTED: the judge read `spawn-pin-hook.sh` in full; the unlabelled-spawn deny
+  (`fail-closed:role-missing`) and the `Explore` allow are both present as shipped.
+- 3 bash-3.2 forbidden-construct grep hits in `mission-control.sh` — PRE-EXISTING at base (all three
+  are comments naming the constructs), not introduced.
+- SonarCloud red on dev HEAD — INHERITED: `failure` on every walked-back commit that has a Sonar run
+  at all; already the tracked queue row, not this iteration's pick.
+- `mission-world` iter-152's claim that `make check-no-personal-email` "does not exist in the V1
+  Makefile" — **REFUTED for this repo**: it exists at `make/code-health.mk:192` and is wired into the
+  `ci:` aggregate at `make/ci.mk:11`. World's grep was scoped to `Makefile` and missed the `make/*.mk`
+  includes. The skill's ATTENDED-LEDGER sentence citing it is TRUE here. World's own repo genuinely
+  lacks the gate; that is World's row, not ours.
+- `mission-world` iter-152's claim that `ailang messages send --type` is MISFILED —
+  **CONFIRMED first-party**: `cmd/ailang/messages_send.go:42` binds `--type` to `Category`
+  ("Message category") while `:132` hardcodes `MessageType: InboxTypeNotification`. Entered as a
+  queue row tagged [WORLD-DEMAND]; it does NOT outrank the queue (a sibling cannot set our
+  priorities) and it does not break the approvals channel — Discord routes on `ToInbox`.
+
+**Routing evidence**: controller `claude:claude-opus-5` (session). **Designer: NOT SPAWNED** — the
+design doc and its sprint plan both existed on disk (`design_docs/m-spawn-pin-enforcement.md`,
+`…-sprint-plan.md`), and Gate 3 routes by artifact state; spawning one would have spent the Fable
+diet on a document that was already written and already quorum'd (two rounds, iteration 324).
+Rotation pointer untouched. **Planner: NOT SPAWNED** — same reason: the plan covers all four
+milestones and M3/M4's sections are fully specified with frozen contracts. **Executor
+`codex:gpt-5.6-sol`** via the cross-provider recipe (the resolver's own output for this env is
+`recipe codex:gpt-5.6-sol declared:provider-pin`, so the Agent tool is not a valid path for it):
+probe rc=0 — the codex lane is UP this fire, against iteration 324's 404 — one sandboxed 30-min-capped
+run, zero git writes, `.snap/M3` + `.snap/M4` cumulative and `shasum -c` **4/4 OK** against the
+reconstructed commits. **Evaluator `sonnet`** via the Agent tool in its OWN worktree
+(`.wt-v1-iter325-eval`, detached at `e21c3f1bd`) — generator≠judge holds (OpenAI executor vs
+Anthropic judge), one round, PASS 94/100. Its directive carried standing rule 7's operative half in
+its own words, and it returned a complete report rather than an intention to wait. No quorum at pick
+(the doc carries iteration 324's artifacts and Mark's attended approval). **metered=$0.00** of the $5
+ceiling — codex and sonnet are both quota buckets, and no quorum ran. No GPU, no `rig.lock`.
+
+**Gate 1 health**: running skill byte-identical to origin (`cmp` rc=0 against the RESOLVED
+`readlink -f` target, main checkout inode `9992963`; the pin's own copy is `35318787`, a different
+file). Pin worktree, main checkout `dev` and `origin/dev` all at `5e860afeb` — zero divergence, the
+first clean three-way reading in some time. Main checkout dirty with 7 files, none mine, left alone
+(Principle 0).
+
+**Friction (one instance, recorded for the ≥2 bar) — I silenced stderr on my own `git add` and it swallowed a fatal, producing a record commit with no record in it.** The Gate-4 staging command listed the pre-move paths of two files `git mv` had already staged, so `git add` aborted the WHOLE add on `pathspec ... did not match any files` — and I had written `2>/dev/null`, so nothing printed. The commit then succeeded, with the right message, containing only the two renames: charter, log and archive were all still unstaged. Caught by reading `git show --stat` afterwards rather than by any error. This is verification-protocol rule 3 (exit codes through pipes lie) aimed at the commit step, and the tell is exact: **a `2>/dev/null` on a command whose failure mode is "did nothing".** Amended rather than re-committed. Gate 4 already mandates `git diff --stat` before `git add` on the charter; the gap is that it says nothing about reading `git show --stat` *after* the commit, which is the only thing that catches a staging failure.
+
+**Next**: the sprint is complete, so the deliverable is bookkeeping plus the first ARMED fire —
+`m-spawn-pin-enforcement` moves to `design_docs/implemented/` WITH its sprint plan, and the next
+iteration is the first to run with `MISSION_CONTROL_ACTIVE=1` exported, i.e. the first whose own
+Agent spawns are denied without a `MISSION-ROLE:` line. Watch for a controller running the stale
+main-checkout skill being denied with a reason that names the fix — that is the design working, not
+a regression. Then `m-ci-serial-gate-masking` (one early red hid 45 gates for a day) and
+`m1b-nolint-suppression-owed`.
