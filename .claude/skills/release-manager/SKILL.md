@@ -358,12 +358,16 @@ this step, the public MCP keeps serving the **previous** version and agents get
 `unknown_version` for the new release (this silently happened across v0.20–v0.24;
 prod was frozen at 0.19.1 for ~3 weeks).
 
-**This is now automatic and gated** (M-RELEASE-GATE, v0.25.0+): pushing the `v*` tag fires
-the `ailang-core-release` Cloud Build trigger → `cloudbuild-release.yaml`:
-`build → deploy test → SMOKE GATE → (only on pass) crane copy test→prod → deploy prod`.
-The smoke gate requires the **test** MCP to serve the released version, so **`std/VERSION`
-must equal the tag** (the gate fails the release otherwise — this is intentional: it catches
-tagging without bumping `std/VERSION`).
+**Test is automatic and gated; prod is a manual promote by version** (M-RELEASE-GATE
+v0.25.0, unified 2026-09-03 — `design_docs/planned/v0_35_0/m-unified-release-model.md`).
+Pushing the `v*` tag fires the `ailang-core-release` Cloud Build trigger →
+`cloudbuild-release.yaml`: `CI gate → build ALL 18 images (:vX.Y.Z + :latest) → deploy TEST
+(4 services + 17 executor jobs) → SMOKE GATE`, and it **stops there**. Prod is §7.7 below.
+No step in the release build may fail (a version names the whole deployment — motoko and
+resident-pi have no `allowFailure` here, unlike dev). The smoke gate requires the **test**
+MCP to serve the released version, so **`std/VERSION` must equal the tag** (the gate fails
+the release otherwise — this is intentional: it catches tagging without bumping `std/VERSION`;
+`ailang-multivac/scripts/release.sh tag ailang vX.Y.Z` refuses up front for the same reason).
 
 **Where the build actually runs — `europe-west3`.** Cloud Build triggers and builds live
 in **`europe-west3`**, in project `ailang-multivac-deploy`. This is NOT the same as
@@ -389,24 +393,27 @@ above with `--region=europe-west3`. (v0.31.0: a region-less search returned zero
 five other regions and produced a wrong root-cause report — the trigger was healthy and
 had fired.)
 
-**`ci-gate` can fail on a fast tag push.** Step 0 of `cloudbuild-release.yaml` polls GitHub
-for workflow `CI` (job `test`) on the tagged SHA, 60 × 15s = **15 min**, then fails closed.
-Recent CI runs take **19–23 min**, so the gate only passes when CI was already green for
-that SHA *before* the tag was pushed. Push `dev`, let CI finish, then push the tag — or the
-release fails at step 0 with `CI did not complete in ~15min` and prod is left on the previous
-version. Recovery is **Retry build** once CI is green (it re-runs the full gated pipeline,
-smoke gate included) — not the break-glass.
+**`ci-gate` fails closed on red or slow CI.** Step 0 of `cloudbuild-release.yaml` polls GitHub
+for workflow `CI` (job `test`) on the tagged SHA, 160 × 15s = **40 min**, then fails closed.
+CI on dev takes **19–23 min**, so a tag pushed together with its commit passes, but the
+clean habit is still: push `dev`, let CI finish, then push the tag. A red CI fails the
+release at step 0 and **test is left untouched** (deploy-test waits on the gate). Recovery
+is **Retry build** once CI is green (it re-runs the full pipeline, smoke gate included) — not
+the break-glass.
 
 **Per-environment:**
-- **dev** (`ailang-dev-mcp`) — `ailang-core-dev` trigger on every `dev` push. No action.
-- **test** (`ailang-test-mcp`) — deployed as step 2 of the gated release pipeline on each `v*`
-  tag. (The standalone `ailang-core-test-release` trigger is **disabled** — superseded.)
-- **prod** (`ailang-mcp` → `mcp.ailang.sunholo.com`) — deployed as the final step, **only if
-  the smoke gate passes**. No manual step in the happy path.
+- **dev** (`ailang-dev-mcp`) — `ailang-core-dev` trigger on every `dev` push builds all 18
+  images and rolls the 4 services + 17 jobs. No action.
+- **test** (`ailang-test-mcp`) — deployed by the release pipeline on each `v*` tag, all 18
+  images `:vX.Y.Z` + `:latest`. (The old `ailang-core-test-release` trigger is retired.)
+- **prod** (`ailang-mcp` → `mcp.ailang.sunholo.com`) — **manual**: §7.7. Nothing reaches
+  prod without a version that passed the release build.
 
 **Break-glass (gate/pipeline broken, need prod NOW):** build+deploy prod directly with the
-maintained `cloudbuild-dev.yaml` (core images only — NOT the docparse-coupled
-`cloudbuild-images.yaml`):
+maintained `cloudbuild-dev.yaml` (all 18 ailang images + 17 jobs; NOT the docparse-coupled
+`cloudbuild-images.yaml`). This tags `:latest` only and bypasses promote-by-version, so the
+registry will not record which version prod runs — last resort, and re-promote a real
+version afterwards:
 
 ```bash
 SA="projects/ailang-multivac-deploy/serviceAccounts/sa-cloudbuild@ailang-multivac-deploy.iam.gserviceaccount.com"
@@ -426,9 +433,31 @@ curl -s -X POST -H "Content-Type: application/json" -d '{}' \
 # Must print the version you just released.
 ```
 
-If `latest` is stale, the prod build/deploy didn't run or didn't roll the revision
-(`:latest` tag moves don't auto-roll Cloud Run — `cloudbuild-dev.yaml`'s
-`deploy-services` step force-rolls via `gcloud run services update`).
+If `latest` is stale, the promote didn't run or didn't roll the revision (`:latest` tag
+moves don't auto-roll Cloud Run — the shared library's `roll_service` force-rolls via
+`gcloud run services update`, and `finish` fails the build if any roll never landed).
+
+### 7.7. Promote to prod (REQUIRED, manual)
+
+Prod only ever receives images that exist in test, by version. From the ailang-multivac
+checkout:
+
+```bash
+# Guards + plan only: refuses unless the release build SUCCEEDED for the tag and every
+# one of the 18 images carries :vX.Y.Z in test. Copies nothing.
+scripts/release.sh promote core vX.Y.Z --dry-run
+
+# The real thing: crane copy test :vX.Y.Z → prod, move prod :latest to the same digests,
+# roll coordinator/dashboard/mcp and all 17 executor jobs.
+scripts/release.sh promote core vX.Y.Z
+```
+
+`core` is the whole ailang release. Narrower sets exist (`agents`, `agent-pi`, `mcp`, …)
+and docparse/billing/website-builder are promoted by their own repos' versions — see
+`ailang-multivac/.claude/skills/release/SKILL.md`. Terraform/config changes travel by
+branch (`dev → test → prod`) through the config-only triggers, never by this command; if
+a release needs new terraform, push that branch first. Rollback is
+`scripts/release.sh promote core v<previous>`.
 
 ### 8. Collect and Close Related Issues
 

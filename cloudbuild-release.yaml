@@ -1,66 +1,81 @@
-# Cloud Build — Gated release pipeline (M-RELEASE-GATE).
+# Cloud Build — Release pipeline: a `v*` tag builds EVERY image once and deploys TEST.
 #
-# Triggered by an ailang `v*` tag (trigger: ailang-core-release, file-based).
-# Sequence: build → deploy TEST → SMOKE GATE → (only on pass) promote+deploy PROD.
+# Triggered by an ailang `v*` tag (trigger: ailang-core-release, file-based, no
+# path filter — a tag push has no file diff). Sequence:
 #
 #   v* tag
-#     (1) build core images from the released source → push TEST registry (:latest + :TAG)
-#     (2) deploy TEST services + jobs
-#     (3) SMOKE GATE against test — fail here leaves PROD on the last known-good revision
-#     (4) crane copy images TEST → PROD registry        [waitFor: smoke-gate]
-#     (5) deploy PROD services + jobs                    [waitFor: promote-images]
+#     (0) CI gate — the GitHub `CI` workflow's `test` job must be green for the
+#         tagged SHA (polled up to 40 min; runs in parallel with the builds)
+#     (1) build all 18 images from the tagged source → TEST registry, each
+#         tagged :latest AND :vX.Y.Z — the version names the WHOLE deployment
+#     (2) deploy TEST: 4 core services + all 17 executor jobs, via the shared
+#         library in ailang-multivac (scripts/cloudbuild-lib.sh, cloned here)
+#     (3) SMOKE GATE against test
 #
-# Build steps mirror cloudbuild-dev.yaml (which correctly passes --build-arg PROJECT).
-# Promote steps mirror cloudbuild-promote.yaml (crane copy + gcloud run update).
-# Does NOT touch docparse/billing/website-builder (separate repos/pipelines).
+# It STOPS THERE. Prod is a manual, versioned promotion:
+#     ailang-multivac/scripts/release.sh promote core vX.Y.Z
+# which refuses unless this build SUCCEEDED for the tag and every one of the 18
+# images carries :vX.Y.Z in test, then copies exactly those images to prod.
+# (Until 2026-09-03 this file auto-promoted 5 images to prod after the smoke
+# gate; the other 13 were never versioned at all.)
+#
+# No step here is allowed to fail. In dev, motoko and resident-pi carry
+# allowFailure; a release does not get that pass, because promote-by-version
+# would otherwise ship whatever :vX happened to exist.
+#
+# The build steps are the same shapes as cloudbuild-dev.yaml (keep them in
+# lockstep); the only differences are the target registry, the extra version
+# tag, and the absence of allowFailure.
+#
+# Prerequisites the release-manager skill enforces before tagging: std/VERSION
+# equals the tag (GATE 1 asserts the MCP serves it), the release commit is on
+# dev, and CI is green for it.
 
 substitutions:
   _REGION: europe-west1
   _TEST_PROJECT: ailang-multivac-test
   _TEST_PREFIX: ailang-test
-  _PROD_PROJECT: ailang-multivac
-  _PROD_PREFIX: ailang
+  _MULTIVAC_REPO: https://github.com/sunholo-data/ailang-multivac.git
 
 options:
   logging: CLOUD_LOGGING_ONLY
   machineType: E2_HIGHCPU_8
 
+# ci-gate may wait 40 min while the builds take ~12; deploy + smoke follow.
+# The 3600s default was too tight to trust.
+timeout: 4500s
+
 steps:
   # ── (0) CI gate — require dev CI green for this commit (M-RELEASE-GATE) ──
-  # Do NOT re-run the suite here (re-running in the deploy path is flaky). Instead
-  # require the authoritative `CI` workflow (ci.yml, job `test`) to have concluded
-  # `success` for the tagged commit. Polls up to ~15 min. `promote-images` waitFor's
-  # this, so a red/absent CI leaves prod on the last known-good revision.
+  # Do NOT re-run the suite here (re-running in the deploy path is flaky).
+  # Require the authoritative `CI` workflow (ci.yml, job `test`) to have
+  # concluded `success` for the tagged commit. deploy-test waitFor's this, so a
+  # red or absent CI leaves TEST untouched. 160 polls x 15s = 40 min: CI on dev
+  # runs 19-23 min, so a tag pushed together with its commit still passes.
   - id: ci-gate
     name: gcr.io/cloud-builders/gcloud
     entrypoint: bash
+    secretEnv: ['GITHUB_TOKEN']
     args:
       - -c
       - |
         set -e
-        TOKEN=$$(gcloud secrets versions access latest --secret=${_PROD_PREFIX}-github-token --project=$_PROD_PROJECT)
         SHA="$COMMIT_SHA"
         API="https://api.github.com/repos/sunholo-data/ailang/commits/$$SHA/check-runs?per_page=100"
-        # 160 polls x 15s = 40min. CI on dev runs 19-23min, so the previous
-        # 60-poll (15min) budget could only pass when CI was already green for
-        # this SHA before the tag was pushed; pushing branch+tag together always
-        # failed here (v0.31.0). Build timeout is 3600s and steps 1-6 run in
-        # parallel with this gate (~16min), so 40min still leaves headroom.
         echo "CI gate: requiring workflow 'CI' (job 'test') == success for $$SHA"
         for i in $$(seq 1 160); do
-          RESP=$$(curl -fsS -H "Authorization: Bearer $$TOKEN" -H "Accept: application/vnd.github+json" "$$API")
+          RESP=$$(curl -fsS -H "Authorization: Bearer $$GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "$$API")
           VERDICT=$$(echo "$$RESP" | python3 -c "import sys,json; rs=[r for r in json.load(sys.stdin).get('check_runs',[]) if r.get('name')=='test']; print('pending' if not rs or rs[0].get('status')!='completed' else ('success' if rs[0].get('conclusion')=='success' else 'failed'))")
           echo "  [$$i] CI: $$VERDICT"
           case "$$VERDICT" in
             success) echo "CI GREEN — proceeding"; exit 0 ;;
-            failed)  echo "CI FAILED for $$SHA — aborting release (prod untouched)"; exit 1 ;;
+            failed)  echo "CI FAILED for $$SHA — aborting release (test untouched)"; exit 1 ;;
             *)       sleep 15 ;;
           esac
         done
         echo "CI did not complete in ~40min — aborting (fail-closed)"; exit 1
     waitFor: ['-']
 
-  # ── (1) Build core images → TEST registry ──────────────────────
   - id: setup-buildx
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -71,6 +86,23 @@ steps:
         docker buildx inspect --bootstrap
     waitFor: ['-']
 
+  # The deploy step sources ailang-multivac's scripts/cloudbuild-lib.sh (the one
+  # copy of the roll/job logic). Authenticated: anonymous git traffic from Cloud
+  # Build's egress is throttled (2026-09-02).
+  - id: clone-multivac
+    name: gcr.io/cloud-builders/git
+    entrypoint: bash
+    secretEnv: ['GITHUB_TOKEN']
+    args:
+      - -c
+      - |
+        set -e
+        git config --global credential.helper \
+          '!f() { echo username=x-access-token; echo "password=$$GITHUB_TOKEN"; }; f'
+        git clone --depth 1 --branch dev "${_MULTIVAC_REPO}" /workspace/multivac
+    waitFor: ['-']
+
+  # ── (1) Build all 18 images → TEST registry, :latest + :$TAG_NAME ──────────
   - id: build-coordinator
     name: gcr.io/k8s-skaffold/pack
     entrypoint: pack
@@ -86,9 +118,19 @@ steps:
       - --env=CGO_ENABLED=0
     waitFor: ['-']
 
+  # buildpacks neither push nor multi-tag; give the coordinator its version tag
+  # explicitly so it is promotable like everything else.
   - id: push-coordinator
     name: gcr.io/cloud-builders/docker
-    args: ['push', '${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang/coordinator:latest']
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -e
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker tag  "$$AR/coordinator:latest" "$$AR/coordinator:$TAG_NAME"
+        docker push "$$AR/coordinator:latest"
+        docker push "$$AR/coordinator:$TAG_NAME"
     waitFor: ['build-coordinator']
 
   - id: build-dashboard
@@ -101,10 +143,30 @@ steps:
         docker buildx build \
           --cache-from "type=registry,ref=$$AR/dashboard:cache" \
           --cache-to   "type=registry,ref=$$AR/dashboard:cache,mode=max" \
-          -t "$$AR/dashboard:latest" -t "$$AR/dashboard:$TAG_NAME" \
-          -f docker/Dockerfile.dashboard --push .
+          -t "$$AR/dashboard:latest" \
+          -t "$$AR/dashboard:$TAG_NAME" \
+          -f docker/Dockerfile.dashboard \
+          --push \
+          .
     waitFor: ['setup-buildx']
 
+  - id: build-ntfy
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          -t "$$AR/ntfy:latest" \
+          -t "$$AR/ntfy:$TAG_NAME" \
+          -f docker/Dockerfile.ntfy \
+          --push \
+          .
+    waitFor: ['setup-buildx']
+
+  # Dockerfile.mcp bakes the docs snapshot and std/VERSION from the tagged tree —
+  # GATE 1 below checks the result serves exactly this version.
   - id: build-mcp
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -115,13 +177,21 @@ steps:
         docker buildx build \
           --cache-from "type=registry,ref=$$AR/mcp:cache" \
           --cache-to   "type=registry,ref=$$AR/mcp:cache,mode=max" \
-          -t "$$AR/mcp:latest" -t "$$AR/mcp:$TAG_NAME" \
-          -f docker/Dockerfile.mcp --push .
+          -t "$$AR/mcp:latest" \
+          -t "$$AR/mcp:$TAG_NAME" \
+          -f docker/Dockerfile.mcp \
+          --push \
+          .
     waitFor: ['setup-buildx']
 
+  # ── Agent image DAG (same as cloudbuild-dev.yaml, no allowFailure) ─────────
+
+  # Clones the bootstrap plugin at build time (GitHub token as a BuildKit secret;
+  # the clone is mandatory — an image without the plugin runs agents unguarded).
   - id: build-agent-base
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
+    secretEnv: ['GITHUB_TOKEN']
     args:
       - -c
       - |
@@ -129,8 +199,12 @@ steps:
         docker buildx build \
           --cache-from "type=registry,ref=$$AR/agent-base:cache" \
           --cache-to   "type=registry,ref=$$AR/agent-base:cache,mode=max" \
+          --secret id=github_token,env=GITHUB_TOKEN \
           -t "$$AR/agent-base:latest" \
-          -f docker/Dockerfile.agent-base --push .
+          -t "$$AR/agent-base:$TAG_NAME" \
+          -f docker/Dockerfile.agent-base \
+          --push \
+          .
     waitFor: ['setup-buildx']
 
   - id: build-agent
@@ -145,8 +219,129 @@ steps:
           --cache-from "type=registry,ref=$$AR/agent-base:cache" \
           --cache-to   "type=registry,ref=$$AR/agent:cache,mode=max" \
           --build-arg PROJECT=$_TEST_PROJECT \
-          -t "$$AR/agent:latest" -t "$$AR/agent:$TAG_NAME" \
-          -f docker/Dockerfile.agent --push .
+          -t "$$AR/agent:latest" \
+          -t "$$AR/agent:$TAG_NAME" \
+          -f docker/Dockerfile.agent \
+          --push \
+          .
+    waitFor: ['build-agent-base']
+
+  - id: build-agent-pi
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-pi:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-pi:cache,mode=max" \
+          --build-arg PROJECT=$_TEST_PROJECT \
+          -t "$$AR/agent-pi:latest" \
+          -t "$$AR/agent-pi:$TAG_NAME" \
+          -f docker/Dockerfile.agent-pi \
+          --push \
+          .
+    waitFor: ['build-agent-base']
+
+  - id: build-agent-codex
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-codex:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-codex:cache,mode=max" \
+          --build-arg PROJECT=$_TEST_PROJECT \
+          -t "$$AR/agent-codex:latest" \
+          -t "$$AR/agent-codex:$TAG_NAME" \
+          -f docker/Dockerfile.agent-codex \
+          --push \
+          .
+    waitFor: ['build-agent-base']
+
+  - id: build-agent-opencode
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-opencode:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-opencode:cache,mode=max" \
+          --build-arg PROJECT=$_TEST_PROJECT \
+          -t "$$AR/agent-opencode:latest" \
+          -t "$$AR/agent-opencode:$TAG_NAME" \
+          -f docker/Dockerfile.agent-opencode \
+          --push \
+          .
+    waitFor: ['build-agent-base']
+
+  - id: build-agent-gemini
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-gemini:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-gemini:cache,mode=max" \
+          --build-arg PROJECT=$_TEST_PROJECT \
+          -t "$$AR/agent-gemini:latest" \
+          -t "$$AR/agent-gemini:$TAG_NAME" \
+          -f docker/Dockerfile.agent-gemini \
+          --push \
+          .
+    waitFor: ['build-agent-base']
+
+  - id: build-agent-eval
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-eval:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-eval:cache,mode=max" \
+          --build-arg PROJECT=$_TEST_PROJECT \
+          -t "$$AR/agent-eval:latest" \
+          -t "$$AR/agent-eval:$TAG_NAME" \
+          -f docker/Dockerfile.agent-eval \
+          --push \
+          .
+    waitFor: ['build-agent-base']
+
+  # Fetches the pinned motoko_agent commit from GitHub (same secret). Not optional
+  # here: a version that lacks it is not a version.
+  - id: build-agent-motoko
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    secretEnv: ['GITHUB_TOKEN']
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-motoko:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-motoko:cache,mode=max" \
+          --secret id=github_token,env=GITHUB_TOKEN \
+          --build-arg PROJECT=$_TEST_PROJECT \
+          -t "$$AR/agent-motoko:latest" \
+          -t "$$AR/agent-motoko:$TAG_NAME" \
+          -f docker/Dockerfile.agent-motoko \
+          --push \
+          .
     waitFor: ['build-agent-base']
 
   - id: build-agent-go
@@ -161,27 +356,155 @@ steps:
           --cache-from "type=registry,ref=$$AR/agent:cache" \
           --cache-to   "type=registry,ref=$$AR/agent-go:cache,mode=max" \
           --build-arg PROJECT=$_TEST_PROJECT \
-          -t "$$AR/agent-go:latest" -t "$$AR/agent-go:$TAG_NAME" \
-          -f docker/Dockerfile.agent-go --push .
+          -t "$$AR/agent-go:latest" \
+          -t "$$AR/agent-go:$TAG_NAME" \
+          -f docker/Dockerfile.agent-go \
+          --push \
+          .
     waitFor: ['build-agent']
 
-  # ── (2) Deploy TEST ────────────────────────────────────────────
+  - id: build-agent-pi-go
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-pi-go:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-pi:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-pi-go:cache,mode=max" \
+          --build-arg PROJECT=$_TEST_PROJECT \
+          -t "$$AR/agent-pi-go:latest" \
+          -t "$$AR/agent-pi-go:$TAG_NAME" \
+          -f docker/Dockerfile.agent-pi-go \
+          --push \
+          .
+    waitFor: ['build-agent-pi']
+
+  - id: build-agent-codex-go
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-codex-go:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-codex:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-codex-go:cache,mode=max" \
+          --build-arg PROJECT=$_TEST_PROJECT \
+          -t "$$AR/agent-codex-go:latest" \
+          -t "$$AR/agent-codex-go:$TAG_NAME" \
+          -f docker/Dockerfile.agent-codex-go \
+          --push \
+          .
+    waitFor: ['build-agent-codex']
+
+  - id: build-agent-gemini-go
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-gemini-go:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-gemini:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-gemini-go:cache,mode=max" \
+          --build-arg PROJECT=$_TEST_PROJECT \
+          -t "$$AR/agent-gemini-go:latest" \
+          -t "$$AR/agent-gemini-go:$TAG_NAME" \
+          -f docker/Dockerfile.agent-gemini-go \
+          --push \
+          .
+    waitFor: ['build-agent-gemini']
+
+  - id: build-agent-eval-go
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-eval-go:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-eval:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-eval-go:cache,mode=max" \
+          --build-arg PROJECT=$_TEST_PROJECT \
+          -t "$$AR/agent-eval-go:latest" \
+          -t "$$AR/agent-eval-go:$TAG_NAME" \
+          -f docker/Dockerfile.agent-eval-go \
+          --push \
+          .
+    waitFor: ['build-agent-eval']
+
+  # Resident agent image, FROM the agent-pi this very build tagged :$TAG_NAME
+  # (hermetic within the release). Context is docker/resident.
+  - id: build-resident-pi
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/resident-pi:cache" \
+          --cache-to   "type=registry,ref=$$AR/resident-pi:cache,mode=max" \
+          --build-arg BASE="$$AR/agent-pi:$TAG_NAME" \
+          -t "$$AR/resident-pi:latest" \
+          -t "$$AR/resident-pi:$TAG_NAME" \
+          -f docker/resident/Dockerfile \
+          --push \
+          docker/resident
+    waitFor: ['build-agent-pi']
+
+  # The resident image's acceptance suite, as a hard gate: a built-but-broken
+  # resident image fails the release rather than becoming a promotable :vX.
+  - id: test-resident-pi
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker run --rm --entrypoint bash "$$AR/resident-pi:$TAG_NAME" \
+          /usr/local/bin/test-image.sh
+    waitFor: ['build-resident-pi']
+
+  # ── (2) Deploy TEST: 4 core services + all 17 jobs ─────────────────────────
+  # :latest was moved to :$TAG_NAME by the builds above, and :latest is what
+  # Terraform pins by string — deploying it means the next config-only apply
+  # sees no drift. Waits on the CI gate so red code never reaches test.
   - id: deploy-test
     name: gcr.io/cloud-builders/gcloud
     entrypoint: bash
     args:
       - -c
       - |
-        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
-        gcloud run services update ${_TEST_PREFIX}-coordinator --region ${_REGION} --project $_TEST_PROJECT --image $$AR/coordinator:latest --quiet
-        gcloud run services update ${_TEST_PREFIX}-dashboard   --region ${_REGION} --project $_TEST_PROJECT --image $$AR/dashboard:latest   --quiet
-        gcloud run services update ${_TEST_PREFIX}-mcp         --region ${_REGION} --project $_TEST_PROJECT --image $$AR/mcp:latest         --quiet
-        gcloud run jobs update ${_TEST_PREFIX}-agent-executor    --region ${_REGION} --project $_TEST_PROJECT --image $$AR/agent:latest    --quiet
-        gcloud run jobs update ${_TEST_PREFIX}-agent-executor-go --region ${_REGION} --project $_TEST_PROJECT --image $$AR/agent-go:latest --quiet
-        echo "TEST deploy complete."
-    waitFor: ['push-coordinator', 'build-dashboard', 'build-mcp', 'build-agent-go']
+        set -e
+        export REGION="${_REGION}" PROJECT="$_TEST_PROJECT" PREFIX="${_TEST_PREFIX}" TAG=latest
+        . /workspace/multivac/scripts/cloudbuild-lib.sh
+        set_deploy core
+        finish "test deploy of $TAG_NAME"
+    waitFor:
+      - ci-gate
+      - clone-multivac
+      - push-coordinator
+      - build-dashboard
+      - build-mcp
+      - build-ntfy
+      - build-agent-go
+      - build-agent-pi-go
+      - build-agent-codex-go
+      - build-agent-gemini-go
+      - build-agent-eval-go
+      - build-agent-opencode
+      - build-agent-motoko
+      - test-resident-pi
 
-  # ── (3) SMOKE GATE (fail here => prod untouched) ───────────────
+  # ── (3) SMOKE GATE — a red gate leaves this build FAILED, so promote-to-prod
+  #        (which requires a SUCCESS build for the tag) refuses the version ───
   - id: smoke-gate
     name: gcr.io/cloud-builders/gcloud
     entrypoint: bash
@@ -189,9 +512,8 @@ steps:
       - -c
       - |
         set -e
-        # NOTE: $TAG_NAME is substituted by Cloud Build; strip the leading "v" in
-        # BASH (not CB) — use $$ so CB leaves ${TAG#v} for the shell. A bare
-        # ${TAG_NAME#v} is eaten by CB's substitution pass and yields "".
+        # $TAG_NAME is substituted by Cloud Build; strip the leading "v" in BASH
+        # (not CB) — use $$ so CB leaves ${TAG#v} for the shell.
         TAG="$TAG_NAME"
         VER="$${TAG#v}"
         echo "TAG_NAME=$TAG_NAME  VER=$$VER"
@@ -218,38 +540,15 @@ steps:
         echo "GATE 4/4: dashboard /health"
         curl -fsS -m 20 "$$DASH/health" >/dev/null || { echo "GATE FAIL: dashboard unhealthy"; exit 1; }
 
-        echo "SMOKE GATE PASSED — promoting to prod."
+        echo "SMOKE GATE PASSED — $TAG_NAME is on TEST and promotable:"
+        echo "  ailang-multivac/scripts/release.sh promote core $TAG_NAME"
     waitFor: ['deploy-test']
 
-  # ── (4) Promote images TEST → PROD (crane copy) ────────────────
-  - id: promote-images
-    name: gcr.io/go-containerregistry/crane:debug
-    entrypoint: sh
-    args:
-      - -c
-      - |
-        T=${_REGION}-docker.pkg.dev/${_TEST_PROJECT}/ailang
-        P=${_REGION}-docker.pkg.dev/${_PROD_PROJECT}/ailang
-        for img in coordinator dashboard mcp agent agent-go; do
-          echo "crane copy $$T/$$img:latest → $$P/$$img:latest"
-          crane copy "$$T/$$img:latest" "$$P/$$img:latest"
-        done
-        echo "Image promotion complete."
-    # Prod promotes only if BOTH the smoke gate AND the CI gate pass.
-    waitFor: ['smoke-gate', 'ci-gate']
-
-  # ── (5) Deploy PROD ────────────────────────────────────────────
-  - id: deploy-prod
-    name: gcr.io/cloud-builders/gcloud
-    entrypoint: bash
-    args:
-      - -c
-      - |
-        AR=${_REGION}-docker.pkg.dev/$_PROD_PROJECT/ailang
-        gcloud run services update ${_PROD_PREFIX}-coordinator --region ${_REGION} --project $_PROD_PROJECT --image $$AR/coordinator:latest --quiet
-        gcloud run services update ${_PROD_PREFIX}-dashboard   --region ${_REGION} --project $_PROD_PROJECT --image $$AR/dashboard:latest   --quiet
-        gcloud run services update ${_PROD_PREFIX}-mcp         --region ${_REGION} --project $_PROD_PROJECT --image $$AR/mcp:latest         --quiet
-        gcloud run jobs update ${_PROD_PREFIX}-agent-executor    --region ${_REGION} --project $_PROD_PROJECT --image $$AR/agent:latest    --quiet
-        gcloud run jobs update ${_PROD_PREFIX}-agent-executor-go --region ${_REGION} --project $_PROD_PROJECT --image $$AR/agent-go:latest --quiet
-        echo "PROD deploy complete."
-    waitFor: ['promote-images']
+# The GitHub connection's own OAuth token, already present in the deploy project
+# (every build here runs there as sa-cloudbuild). Used by the CI gate (check-runs
+# API), the multivac clone, and the image builds whose Dockerfiles fetch from
+# GitHub (agent-base, agent-motoko).
+availableSecrets:
+  secretManager:
+    - versionName: projects/ailang-multivac-deploy/secrets/github-github-oauthtoken-f8f84f/versions/latest
+      env: 'GITHUB_TOKEN'
