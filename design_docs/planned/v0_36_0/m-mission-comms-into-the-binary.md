@@ -1,10 +1,12 @@
 # M-MISSION-COMMS-INTO-THE-BINARY: Decisions Are Issues, Reports Are Links, Telemetry Leaves the Thread
 
-**Status**: Planned
+**Status**: Planned — **CONTINGENT on HD-1**. The execution plan below assumes HD-1(a)
+(charter canonical). If Mark rules (b) or (c), Phase 1's writer direction inverts and this
+doc requires revision, not merely re-planning. Nothing is executable until HD-1 is ratified.
 **Target**: v0.36.0
 **Priority**: P1
 **Estimated**: 4 days (Phase 1: 2d, Phase 2: 1d, Phase 3: 1d)
-**Dependencies**: None. Reuses `internal/messaging.GitHubClient` as-is (V8).
+**Dependencies**: None. Builds on `internal/messaging.GitHubClient` (V8), which must gain per-call deadlines as part of Phase 1 (V18).
 
 ## Axiom Compliance
 
@@ -25,9 +27,9 @@
 | A9: Cost Visibility | +1 | Per-iteration metered spend is prose inside a 1,951-char comment today; it becomes a structured field. |
 | A10: Composability | +1 | Rides the existing `ailang messages` plane and `GitHubClient` rather than adding a parallel channel. |
 | A11: Structured Failure | +1 | Replaces `&&`-chained shell-outs whose failure is silent (V11 — a measured, named incident class) with typed errors. |
-| A12: System Boundary | +1 | The GitHub boundary becomes one explicit, testable crossing instead of 8 implicit ones (7 write + 1 read, V7). |
+| A12: System Boundary | +1 | The GitHub boundary becomes one explicit, testable crossing instead of 7 implicit ones (6 write + 1 read, V7), five of which are unbounded today. |
 
-**Net Score: +10** → **Decision: Move forward**
+**Net Score: +10** → **Decision: Proceed TO RATIFICATION, then planning.** The axiom score clears the bar on the design's merits; it does not and cannot clear HD-1, which is a human ratification the score has no view over. Sprint planning starts after the Design Freeze checklist is complete, not after this table.
 
 ### Hard Violation Check
 
@@ -92,7 +94,7 @@ bugs. From `tools/launchd/mission-control.sh:670-676` (V11), verbatim:
 > World mission spent FIVE iterations (18/19/21/22) silently demoted from codex to opus, each
 > mis-attributed to a spent quota, before iter-23 found the real cause.
 
-Each time something was invisible, another `gh issue comment` site was added — four then, seven
+Each time something was invisible, another `gh issue comment` site was added — four then, six
 now (V7). So **the thread's noise is the scar tissue of Critical Principle 2** ("no silent
 fallbacks"). Deleting the telemetry comments without giving that telemetry somewhere else to go
 would re-create the exact class the comments were added to fix. Telemetry must **move**, not
@@ -107,7 +109,7 @@ The mission driver is 25 shell files / 6,148 lines, of which `mission-control.sh
 
 The comms surface is the **best-conditioned** slice to move first:
 
-1. It is a narrow, well-defined seam: 7 write sites plus 1 read site (V7).
+1. It is a narrow, well-defined seam: 6 write sites plus 1 read site, individually enumerated (V7).
 2. The Go capability **already exists and is tested** — `internal/messaging.GitHubClient` provides
    `CreateIssue`, `CloseIssue`, `AddComment`, `GetIssueComments`, `ListIssuesByLabel`,
    `EnsureLabel`, `AddLabelToIssue`, `ValidateUser`, `PreFlightChecks` (V8). This phase is
@@ -134,8 +136,8 @@ driver logic into the `ailang` binary.
    --open` lists them across all four missions in one call.
 3. **Zero** telemetry comments on the bookkeeping thread, with a demonstrated equivalent signal on
    the message plane (a lane demotion must still reach the human within one fire — the V11 bar).
-4. The 7 `gh issue comment` sites and the `gh issue view` reader in `mission_directives.sh` are
-   replaced by `ailang mission` subcommands; `grep -c "gh issue" tools/launchd/*.sh scripts/mission_*.sh` → **0**.
+4. The 6 `gh issue comment` sites and the `gh issue view` reader in `mission_directives.sh` are
+   replaced by `ailang mission` subcommands; `grep -n "gh issue" tools/launchd/*.sh scripts/mission_*.sh` returns no CALL sites (comment mentions permitted).
 5. Charter markdown remains the single source of truth; a divergence check proves issues are a
    projection, never a second writer.
 
@@ -196,9 +198,26 @@ resulting defect ambiguous between the two.
                [must satisfy the V11 bar: visible within one fire]
 ```
 
-**The dual-write guard is structural, not procedural.** `internal/mission/comms` exposes no path
-that reads an issue body back into charter state. Issue → charter is not a code path that exists,
-so it cannot be taken by accident.
+**The dual-write guard, restated correctly (round 2).** The first draft said "issue → charter is
+not a code path that exists" while *also* saying a decision is answered on the issue. Those are
+contradictory: an answer posted to an issue that can never reach the charter is silently lost
+input, which is worse than the thread it replaces. gpt5-6-sol blocked on this and was right.
+
+The resolution is that **a comment on a decision issue is an authorized INPUT EVENT, not canonical
+state**. The distinction is what keeps the charter canonical without making the channel one-way:
+
+1. `ailang mission directives` polls open `mission-decision` issues under a bounded timeout.
+2. A comment is accepted only if the author is on the **positive allowlist** (C6/V16 — not merely
+   "not a bot"), and the body carries an exact decision id plus valid answer syntax.
+3. It emits an **idempotent directive keyed by the GitHub comment id**, so re-polling cannot double-apply.
+4. That directive flows through the **existing validated answer path** (`mission_answer.sh` and the
+   `mission_decisions.sh` validator) which writes the charter row — the same path, and the same
+   validation, an attended ruling uses today.
+5. **Only after the charter row is confirmed RESOLVED** does projection close the issue.
+
+So there is still no path that treats issue text as truth: issue text is a *request* to run the
+existing writer, and the charter remains the only thing that decides. Unauthorized or malformed
+comments are rejected **loudly** (Critical Principle 2), never silently dropped.
 
 ### Implementation Plan
 
@@ -206,7 +225,7 @@ so it cannot be taken by accident.
 
 1. `internal/mission/comms/client.go` — thin façade over `GitHubClient` carrying mission identity (name, repo, issue number) so call sites stop passing `MISSION_GH_ISSUE` around as an env string.
 2. `cmd/ailang/mission_comms.go` — `ailang mission report`, `ailang mission directives`, `ailang mission telemetry`.
-3. Replace the 7 `gh issue comment` sites in `mission-control.sh` with `ailang mission report --…`. Preserve the existing bounded-call wrapper (`_mc_bounded 30`) semantics — a hung network call must still not wedge a fire.
+3. Replace the 6 `gh issue comment` sites (V7, enumerated by line) in `mission-control.sh` with `ailang mission report --…`. Preserve the existing bounded-call wrapper (`_mc_bounded 30`) semantics — a hung network call must still not wedge a fire.
 4. Replace `mission_directives.sh`'s `gh issue view` reader with `ailang mission directives --json`, **preserving the author gate byte-for-byte**.
 5. Go tests for each, including a mission-identity table so all four missions are covered.
 
@@ -214,7 +233,7 @@ so it cannot be taken by accident.
 
 6. `internal/mission/comms/decisions.go` — project OPEN ledger rows to labelled issues; close the issue when the row goes RESOLVED. Idempotent: re-running an iteration must not open duplicates (keyed on decision id).
 7. Report renderer capped at 400 chars: what landed, goal distance, cost, link to the log commit.
-8. Telemetry re-routed to `ailang messages` with type `mission-telemetry`; a lane demotion additionally raises its existing notification path so the V11 bar is met by construction.
+8. Telemetry re-routed to `ailang messages` with type `mission-telemetry`. Because the existing notification is conditional and warns-and-continues (V17), the telemetry path treats a disabled or failed notification as a **hard error** — a demotion that cannot be delivered must fail loudly rather than bank silently.
 9. `ailang mission decisions --open [--all-missions]`.
 
 **Phase 3 — the board (1 day)**
@@ -229,9 +248,41 @@ so it cannot be taken by accident.
 - `internal/mission/comms/report.go` — NEW, ~140 LOC. The ≤400-char renderer.
 - `internal/mission/comms/comms_test.go` — NEW, ~300 LOC. Table-driven across all four missions.
 - `cmd/ailang/mission_comms.go` — NEW, ~200 LOC. Subcommand wiring, matching `messages_*.go` conventions.
-- `tools/launchd/mission-control.sh` — MODIFY, −120/+40. Removes 7 `gh issue comment` sites; net reduction moves the file toward the 1200-line ceiling it currently exceeds (V6).
+- `tools/launchd/mission-control.sh` — MODIFY, −120/+40. Removes 6 `gh issue comment` sites; net reduction moves the file toward the 1200-line ceiling it currently exceeds (V6).
 - `scripts/mission_directives.sh` — MODIFY, −40/+15. Reader swapped; author gate untouched.
 - `make/code-health.mk` — MODIFY, +12. `check-mission-projection`; optionally widen `check-file-sizes` to shell (V9a gap).
+
+## Conflict Surface
+
+Round 1 of quorum rejected 3/3 on the absence of this section, and was right to. The original
+disclaimer applied the *narrow* trigger list (parser/typechecker/codegen) when the gate is about
+**any** machinery the change overlaps. Writing it surfaced two defects in the plan below, one of
+which would have been a security-shaped regression.
+
+**What positions does this change occupy, and what already lives in them?**
+
+| # | Existing machinery | Overlap | Decision | Why |
+|---|---|---|---|---|
+| C1 | `internal/messaging.GitHubClient` | The write path: issues, comments, labels | **REUSE the primitives, but NOT as-is — it must gain per-call deadlines** | Exports every needed primitive (V8), but has **no per-call timeout** (V18). Round 1-2 wording said "reuse as-is" while also promising uniformly bounded calls; those are incompatible, and gpt5-6-sol blocked on it in round 3. Bounding is now in scope for Phase 1. |
+| C2 | `internal/coordinator.GitHubPoster` **read side** — `GetRecentHumanComments`, `GetLatestHumanComment`, `IsBotUser` (V12) | Reads human comments off an issue since a timestamp, filtering bots | **REUSE for the directive reader** | This is a real reuse the first draft missed: `mission_directives.sh` hand-rolls a `since` cursor and bot filtering that already exist in tested Go. |
+| C3 | `internal/coordinator.GitHubPoster.PostFeedback` / `PostFeedbackInRepo` (V12) | Posts a comment to an issue | **DO NOT reuse for mission reports** | Signature is feedback-shaped (`iteration`, `channel`) and it cannot create or close issues, which decision projection requires. Using it would mean bending a coordinator concept to carry mission reports. Mission reports call `GitHubClient.AddComment` directly. |
+| C4 | `cmd/ailang/messages_send.go:108` — `syncToGitHub := *github \|\| knownGitHubTypes[category]`, where `knownGitHubTypes = {bug, feature}` (V13) | Decides whether a sent message is mirrored to GitHub | **DO NOT EXTEND — and assert it stays unextended** | **The defect this section caught.** `syncMessageToGitHub` creates a GitHub **ISSUE** per message (V14). Had `mission-telemetry` been added to that map, every lane demotion would open an issue — putting on GitHub, more loudly, exactly what this doc removes. A test asserts `mission-telemetry ∉ knownGitHubTypes`. |
+| C5 | Pub/Sub notification on send (`messages_send.go:171-185`) → notify daemon → macOS + Discord | The existing human-delivery path | **REUSE, but it does NOT meet the V11 bar as-is — the design must harden it** | **The defect gemini's objection exposed (V17).** The notify is conditional on `cfg.PubSub.Enabled`, and a notifier error prints to stderr and continues with `notified=false`. A loop's stderr goes to a `/tmp` file nobody reads, so telemetry could vanish exactly as silently as the pre-2026-08-12 lane demotions. Phase 2 therefore treats a disabled-or-failed notification **on the telemetry path** as a hard error, not a warning. |
+| C6 | `scripts/mission_directives.sh` author **allowlist** (`:74-82`, jq positive list, dies if empty) | The provenance root for human directives | **PRESERVE SEMANTICS EXACTLY — do not substitute `IsBotUser`** | **The second defect this section caught.** C2's `IsBotUser` is a *denylist* ("is this a bot"); the directive gate is an *allowlist* ("is this Mark"). They are not equivalent — swapping them would let any non-bot human author a directive. Reuse C2's fetching and cursor; keep the allowlist check. |
+| C7 | `scripts/mission_decisions.sh` ledger validator | Validates the charter's decision table | **REUSE, read-only** | The projection reads validated ledger state. It never writes the charter, which is what makes HD-1 structural. |
+| C8 | The 6 `gh issue comment` sites + 1 `gh issue view` reader (V7) | Today's entire mission↔GitHub surface | **REPLACE** | The extraction itself. Phase 1 is behaviour-preserving so a defect is attributable to the port. |
+| C9 | GitHub Projects automation | — | **NONE EXISTS** (V15) | Greenfield; nothing to conflict with. Phase 3 adds the first. |
+
+**Programs that MUST still work post-change:**
+
+1. `scripts/mission_directives.sh` — a directive from an allowlisted author is still ingested at Gate 0; a comment from a non-allowlisted human is still ignored (C6 is the regression bar).
+2. `ailang messages send --type bug` — still opens a GitHub issue. C4 must not disturb the existing `{bug, feature}` behaviour.
+3. `scripts/mission_answer.sh` — untouched; ledger rows keep their format and the validator keeps passing.
+4. All four mission drivers complete an iteration and write a slot verdict (the `START_EPOCH` path fixed in `8b6b4409c`).
+
+**What deliberately changes:** iteration reports stop being ~2KB of prose on the thread and become
+≤400-char links; open decisions gain a second representation as issues (a projection, never a
+second writer); telemetry leaves the thread for the message plane.
 
 ## Examples
 
@@ -255,8 +306,9 @@ $ ailang mission decisions --open --all-missions
 (2 open, 0 stale >7d)
 ```
 
-Answering closes the issue; `check-mission-projection` then proves the charter row moved to
-RESOLVED in the same iteration.
+Answering does **not** close the issue directly. The comment becomes an allowlisted, idempotent
+directive; the existing validated answer path writes the charter row; and only once that row reads
+RESOLVED does projection close the issue. `check-mission-projection` then proves the two agree.
 
 ### Example 2: A lane demotion — the V11 regression bar
 
@@ -278,10 +330,12 @@ assertion fails, Phase 2 is not shippable — telemetry has been deleted rather 
 
 ## Success Criteria
 
-- [ ] `grep -c "gh issue" tools/launchd/*.sh scripts/mission_*.sh` returns **0**.
+- [ ] `grep -n "gh issue" tools/launchd/*.sh scripts/mission_*.sh` returns no call sites, and all six ported paths are bounded (today only 1 of 6 is — V7).
 - [ ] Weekly human-relevant characters in the bookkeeping thread < 8,000 (from 52,677).
 - [ ] Every OPEN ledger row across all four missions has exactly one open labelled issue; `make check-mission-projection` green.
 - [ ] A simulated lane demotion is visible to the human within one fire with **zero** thread comments (the V11 bar).
+- [ ] `mission-telemetry` is absent from `knownGitHubTypes` and no telemetry message creates a GitHub issue (C4/V13/V14), asserted by test, not by inspection.
+- [ ] A comment from a non-allowlisted human is still ignored by the directive reader (C6/V16) — the allowlist semantics survive the port.
 - [ ] `mission_directives.sh`'s author gate is byte-identical pre/post — verified by diffing the gate block, not by asserting behaviour.
 - [ ] No code path exists from issue body → charter state (dual-write structurally impossible, HD-1).
 - [ ] All four mission drivers run one full iteration on the new path with no `stderr` output.
@@ -299,6 +353,10 @@ is tested for idempotence by running it twice against the same ledger and assert
 2. Drop the author gate in the directives reader → an unauthorised comment is accepted.
 3. Delete the telemetry notification raise → the V11 bar assertion fails.
 4. Let the report renderer exceed 400 chars → the cap assertion fails.
+5. Add `mission-telemetry` to `knownGitHubTypes` (C4) → the "telemetry never reaches GitHub" assertion fails. This arm is the guard on the defect the Conflict Surface caught: without it, a one-line map edit silently turns every lane demotion into a GitHub issue.
+6. Replace the directive allowlist check with `IsBotUser` (C6) → the "non-allowlisted human is ignored" assertion fails. Guards the provenance root against the denylist/allowlist substitution.
+7. Disable `cfg.PubSub.Enabled`, then emit telemetry (C5/V17) → the "a demotion that cannot be delivered fails loudly" assertion fails. Guards against reusing the warn-and-continue path unmodified.
+8. Feed a decision-issue comment from a NON-allowlisted author → the charter must not move and the issue must not close. Guards the input-event path from becoming an unauthenticated writer.
 
 **Explicit anti-vacuity requirement.** The existing heartbeat suite went green for ~10 iterations
 while production died every fire, because the harness supplied `START_EPOCH` — the exact variable
@@ -308,6 +366,22 @@ assert the production path supplies the same inputs — the guard arm added in `
 pattern to follow.
 
 **Integration**: one full dry-run iteration per mission against a scratch issue before cutover.
+
+## Open Objections Carried Out of Quorum (PENDING — not resolved)
+
+Three rounds were run (2026-09-03/04, $0.28 metered, 3/3 reviewers present every round, blocked
+each time). Rounds 1 and 2's objections are all closed. **Two from round 3 remain open and are
+recorded here rather than argued or hidden**, per the skill's rule for exhausted rounds:
+
+| # | Objection | Status | What closing it needs |
+|---|---|---|---|
+| P-1 | `GitHubClient` has no per-call deadline (gpt5-6-sol, round 3) | **ACCEPTED, scoped in** — V18 records it, C1 no longer says "as-is", Phase 1 now owns adding deadlines. Not independently re-reviewed. | A reviewer pass confirming the bounding design, or a spike adding `context.WithTimeout` to the six call paths. |
+| P-2 | The 5-step input-event flow names `mission_answer.sh` / `mission_decisions.sh` but neither is in Files to Modify, and how `mission_directives.sh` selects its source issue is unverified (oc-glm-5-2, round 3) | **ACCEPTED, UNRESOLVED.** The objection is correct: extending a reader that polls ONE bookkeeping issue into one that polls N open decision issues is unspecified work with no verification row. | Read `mission_directives.sh`'s issue-selection logic, add a verification row, and either add both scripts to Files to Modify or show why they need no change. This is the largest remaining gap and should be closed before planning. |
+
+**Consequence:** this doc is **not cleared for `sprint-planner`.** It is materially stronger than
+round 0 — quorum caught four defects that would otherwise have shipped (C4, C6, the decision-answer
+contradiction, V17) plus one factual error in the author's own Verification Log (V7's miscount) —
+but blocked is blocked, and P-2 in particular is real design work, not wording.
 
 ## Deferred Decisions
 
@@ -364,18 +438,25 @@ The executor may decide these without escalating:
 | V4 | The linear thread has already lost answered decisions | Comment titles "Retraction — iteration 308 re-asked two decisions you had already answered"; "Addendum — D-51 and D-52 were answered while this iteration was running" |
 | V5 | Open decisions fleet-wide are 0–3, not dozens | v1 54 rows / 0 open; motoko 6 / 0; world 18 / 1; docs 3 / 1 (ledger validator output) |
 | V6 | Shell surface 25 files / 6,148 lines; `mission-control.sh` alone 1,250 lines, over the repo's own 1200 MUST-split rule | `wc -l tools/launchd/*.sh tools/launchd/lib/*.sh scripts/mission_*.sh`; `.claude/rules/coding-standards.md` |
-| V7 | 7 `gh issue comment` write sites in the driver + 1 `gh issue view` reader in `mission_directives.sh` | `grep -c "gh issue comment" tools/launchd/mission-control.sh` → 7; `scripts/mission_directives.sh:79` |
+| V7 | **6** `gh issue comment` call sites + 1 `gh issue view` reader. **Corrected in round 2**: the first draft said 7, from a `grep -c` that counted a comment mention. Only ONE of the six is bounded | Enumerated, not counted: call sites at `mission-control.sh` **126, 886, 899, 1206, 1224, 1241**; `:672` is prose inside the LANE-DEGRADATION comment. Only `:1206` is wrapped in `_mc_bounded 30` — the other five are unbounded network calls that can hang a fire, which the Go port bounds uniformly. Reader: `scripts/mission_directives.sh:79` |
 | V8 | `GitHubClient` already provides every needed primitive | `grep -n "func (c \*GitHubClient)" internal/messaging/github.go` → `CreateIssue:251`, `CloseIssue:442`, `AddComment:545`, `GetIssueComments:499`, `ListIssuesByLabel:334`, `EnsureLabel:636`, `ValidateUser:144`, `PreFlightChecks:224` |
 | V9a | **NEGATIVE**: `check-file-sizes` cannot see shell files | `make/code-health.mk:150` globs `find internal cmd -name "*.go"` only |
 | V9b | **NEGATIVE**: no Go code posts mission reports to GitHub today | `grep -rln "MISSION_GH_ISSUE" --include="*.go" internal/ cmd/` → empty. **Positive control on the same instrument**: `grep -rln "syncMessageToGitHub" --include="*.go"` → 2 files, so the grep is not silently broken. Widened once: `IssueComment\|CreateComment` finds `internal/coordinator/github_comments.go` — comment *capability* exists in Go, but is not wired to the mission driver |
 | V9c | **NEGATIVE**: `internal/mission/` today holds only `quorum/` — the package is a natural, uncontested home | `find internal/mission -type f -name "*.go"` → all paths under `internal/mission/quorum/` |
 | V10 | The bash suites run only on a macOS CI job, deliberately pinned to bash 3.2 | `.github/workflows/ci.yml:559` `launchd-drivers` job |
 | V11 | Telemetry comments are the accumulated fix for a real silent-fallback incident — so telemetry must MOVE, not be deleted | `tools/launchd/mission-control.sh:670-676`, naming World iterations 18/19/21/22 silently demoted for five iterations |
+| V12 | `internal/coordinator.GitHubPoster` has BOTH a read side and a comment writer — but no issue create/close | `grep -n "^func " internal/coordinator/github_comments.go` → `IsBotUser:31`, `GetRecentHumanComments:54`, `GetLatestHumanComment:108`, `ExtractFeedbackFromComments:123`, `PostFeedback:141`, `PostFeedbackInRepo:148`. No `CreateIssue`/`CloseIssue`, so decision projection cannot use it (C2/C3) |
+| V13 | GitHub sync on send is CATEGORY-GATED, and the gated set is exactly `{bug, feature}` | `cmd/ailang/messages_send.go:104-108` — `knownGitHubTypes := map[string]bool{CategoryBug: true, CategoryFeature: true}`; `syncToGitHub := *github \|\| knownGitHubTypes[category]`. A new `mission-telemetry` type does NOT sync unless added there (C4) |
+| V14 | `syncMessageToGitHub` creates an **ISSUE**, not a comment — so a mistaken C4 extension would be worse than today's thread comments | `cmd/ailang/messages_github.go:265` comment "creates a GitHub issue for the message"; called only at `messages_send.go:233` under the C4 gate |
+| V15 | **NEGATIVE**: no GitHub Projects automation exists anywhere in the repo — Phase 3 is greenfield | `grep -rln "gh project\|projectsV2\|ProjectV2" --include="*.go" --include="*.sh" --include="*.yml" internal/ cmd/ tools/ scripts/ .github/` → empty. **Positive control**: the same instrument over `gh issue` returns `tools/launchd/mission-control.sh`, `tools/messaging/docs_inbox_router.sh`, `scripts/test_github_integration.sh` |
+| V16 | The directive gate is a positive AUTHOR ALLOWLIST, not a bot denylist — the two are not interchangeable (C6) | `scripts/mission_directives.sh:74-82` builds a jq allowlist array from a comma-separated env value and dies if it resolves to zero authors; `IsBotUser` (V12) tests bot-ness instead. Substituting it would admit any non-bot human |
+| V17 | The Pub/Sub notification C5 relies on is CONDITIONAL and degrades to a stderr warning — so reusing it unmodified would NOT satisfy the V11 bar | `cmd/ailang/messages_send.go:171-185`: guarded by `if cfg != nil && cfg.PubSub != nil && cfg.PubSub.Enabled`; both the constructor error and `notifier.Notify` error paths `fmt.Fprintf(os.Stderr, ...)` and fall through with `notified = false`, after which only `warnIfFiledButUndispatchable` runs. Raised by quorum round 2 (gemini-3-1-pro) against an UNVERIFIED premise in round 1's C5 — the check refuted the reuse-as-is plan rather than confirming it |
+| V18 | **NEGATIVE**: `GitHubClient` has NO per-call deadline — so "reuse as-is" and "uniformly bounded" could not both be true | `grep -n "context.WithTimeout\|Timeout\|deadline" internal/messaging/github.go` → empty. **Positive control**: the same instrument finds `context.WithTimeout` in `internal/projecteval/projecteval.go`, `internal/coordinator/daemon_lifecycle.go`, `internal/coordinator/provider_script.go`. Raised by quorum round 3 (gpt5-6-sol) as an A5 risk capable of wedging a fire |
 
 **No language claims.** This doc asserts nothing about AILANG syntax or semantics, so the
-`ailang check` gate does not apply. **No Conflict Surface section**: the change touches no
-parser, typechecker, elaborator, codegen, eval, VM or effects path — it adds a `cmd/ailang`
-subcommand and an `internal/mission` package, and modifies shell scripts.
+`ailang check` gate does not apply. **The Conflict Surface section is above** — the first draft
+wrongly disclaimed it by applying the narrow parser/typechecker trigger list; quorum round 1
+rejected 3/3 on exactly that, and writing the section caught two defects (C4, C6).
 
 **Quorum triggers (attended session):** trigger 1 fires (design-freeze items HD-1…HD-4 are for
 Mark to ratify) and trigger 2 fires (it overrides shared machinery — one driver used by all four
