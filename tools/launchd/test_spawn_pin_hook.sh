@@ -125,6 +125,15 @@ if [ "$DEC" = "deny" ] && contains "$REASON" "fail-closed:payload-unparsable" &&
 else
   bad "arm8e deny payload-unparsable (empty stdin), exit 0" "dec=$DEC reason=$REASON rc=$RC"
 fi
+# Arm 8n: a bare JSON `null` literal is valid JSON but carries no fields; the
+# payload gate must treat it as unparsable (jq -e exits 1 on null/false). The
+# round-2 judge found this surface correct but untested (iteration 324).
+run_hook "null" MISSION_CONTROL_ACTIVE=1 MISSION_EXECUTOR_MODEL=codex:gpt-5.6-luna
+if [ "$DEC" = "deny" ] && contains "$REASON" "fail-closed:payload-unparsable" && [ "$RC" -eq 0 ]; then
+  ok "arm8n deny payload-unparsable (bare null literal), exit 0"
+else
+  bad "arm8n deny payload-unparsable (bare null literal), exit 0" "dec=$DEC reason=$REASON rc=$RC"
+fi
 
 # --- Arm 7a: no token, subagent_type=Explore, marker present -> allow ----------
 payload7a=$(jq -nc '{hook_event_name:"PreToolUse",tool_name:"Agent",tool_input:{model:"sonnet",subagent_type:"Explore",prompt:"check something",description:"x"}}')

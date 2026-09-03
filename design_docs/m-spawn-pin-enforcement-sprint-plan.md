@@ -337,7 +337,7 @@ passes for the wrong reason the pair disagrees.
 
 | # | Command | Expected | At base |
 |---|---|---|---|
-| A2.1 | `bash tools/launchd/test_spawn_pin_hook.sh` | `==== 16 passed, 0 failed ====`, rc=0 (arms 1,2,3,4,5,6,7,7ctl,NS,8p,8e,7a,7b,8j,L,7c) | RED (file absent) |
+| A2.1 | `bash tools/launchd/test_spawn_pin_hook.sh` | `==== 17 passed, 0 failed ====`, rc=0 (arms 1,2,3,4,5,6,7,7ctl,NS,8p,8e,8n,7a,7b,8j,L,7c) | RED (file absent) |
 | A2.2 | `/bin/bash -n tools/launchd/spawn-pin-hook.sh` | rc=0 | RED |
 | A2.3 | `grep -c 'test_spawn_pin_hook.sh' make/test.mk` | `1` | `0` — **RED** |
 | A2.4 | `python3 -c "import json,sys; json.load(open('.claude/settings.json'))"` | rc=0 (settings.json stays valid JSON) | GREEN — must stay green |
@@ -364,6 +364,7 @@ Common env for arms 1–8: `MISSION_CONTROL_ACTIVE=1`, `MISSION_NAME=test`, `HOM
 | NS | marker present, `tool_name=Bash` | empty stdout, rc 0, log `passthrough`/`passthrough:not-a-spawn` | make the not-a-spawn branch emit an explicit allow → **only arm NS dies** |
 | 8p | marker present, stdin `not json` | `deny`, reason contains `fail-closed:payload-unparsable`, rc 0 | turn the payload gate into a passthrough → **8p and 8e die** |
 | 8e | marker present, stdin EMPTY | `deny`, reason contains `fail-closed:payload-unparsable`, rc 0 | same as 8p |
+| 8n | marker present, stdin `null` (valid JSON, no fields) | `deny`, reason contains `fail-closed:payload-unparsable`, rc 0 | drop `-e` from the payload gate's `jq -e .` (null then passes the gate) → **only arm 8n dies** (round-2 judge probe) |
 | 7b | prompt first line `MISSION-ROLE: judge`, marker present | `deny`, reason contains `fail-closed:role-unknown` | accept any token value → **only arm 7b dies** |
 | 8j | marker present, arm-1 payload, but `PATH` stubbed to a directory with **no `jq`** | `deny`, reason contains `fail-closed:jq-missing`, exit 0 | turn the missing-parser branch into an allow (or an early `exit 1`) → **only arm 8j dies** |
 | L | after arms 1 and 7a, read `$tmp/.ailang/state/mission-test-spawn-hook.log` | exactly 2 lines × 7 tab-separated fields, EVERY field asserted (ISO-8601Z timestamp shape, then `executor\|codex:gpt-5.6-luna\|sonnet\|general-purpose\|deny\|deny:provider-pin` and `-\|-\|sonnet\|Explore\|allow\|explore-readonly`) | drop the log append, change the field order/count, or swap the role/pin arguments to `log_line()` → **only arm L dies** (the round-1 judge found the arg-swap mutation survived when only the last two fields were checked) |
