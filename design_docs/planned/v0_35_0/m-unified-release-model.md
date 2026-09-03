@@ -1,6 +1,6 @@
 ## M-UNIFIED-RELEASE-MODEL: push → dev, tag → test, promote by version → prod
 
-**Status**: 🚧 Implemented, awaiting validation on v0.35.0 (the first tag through the new pipeline)
+**Status**: ✅ Implemented — validated on v0.35.0 (2026-09-03): tag build 2f4808aa SUCCESS in 11m48s, 61/61 test acceptance checks, promote 433127b0 to prod (18 images, 17 jobs), branch triggers deleted
 **Target**: v0.35.0
 **Priority**: P1 — prod received unreleased code on 2026-09-02 through a branch push, and most executor images were never versioned at all
 **Owner**: release-manager
