@@ -21,27 +21,27 @@ func taskToMap(t *coordinator.TaskRecord) map[string]interface{} {
 		t.CreatedAt = time.Now()
 	}
 	m := map[string]interface{}{
-		"id":               t.ID,
-		"message_id":       t.MessageID,
-		"thread_id":        t.ThreadID,
-		"parent_task_id":   t.ParentTaskID,
-		"title":            t.Title,
-		"content":          t.Content,
-		"type":             string(t.Type),
-		"kind":             t.Kind,
-		"source":           t.Source, // M-PKG-AUTONOMOUS-CASCADE-SAFE M1: Pub/Sub topic origin
-		"priority":         t.Priority,
-		"status":           string(t.Status),
-		"provider":         t.Provider,
-		"agent_id":         t.AgentID,
-		"worktree_id":      t.WorktreeID,
-		"worktree_path":    t.WorktreePath,
-		"base_branch":      t.BaseBranch,
-		"base_commit":      t.BaseCommit,
+		"id":             t.ID,
+		"message_id":     t.MessageID,
+		"thread_id":      t.ThreadID,
+		"parent_task_id": t.ParentTaskID,
+		"title":          t.Title,
+		"content":        t.Content,
+		"type":           string(t.Type),
+		"kind":           t.Kind,
+		"source":         t.Source, // M-PKG-AUTONOMOUS-CASCADE-SAFE M1: Pub/Sub topic origin
+		"priority":       t.Priority,
+		"status":         string(t.Status),
+		"provider":       t.Provider,
+		"agent_id":       t.AgentID,
+		"worktree_id":    t.WorktreeID,
+		"worktree_path":  t.WorktreePath,
+		"base_branch":    t.BaseBranch,
+		"base_commit":    t.BaseCommit,
 		// M-COMPLETION-PATH-PARITY C1: the ledger must appear in BOTH directions
 		// of this hand-written map. Omitting it from either silently drops the
 		// ledger, and every redelivery would then re-run every effect.
-		"finalization": ledgerToMap(t.Finalization),
+		"finalization":     ledgerToMap(t.Finalization),
 		"session_id":       t.SessionID,
 		"iteration":        t.Iteration,
 		"workspace":        t.Workspace,

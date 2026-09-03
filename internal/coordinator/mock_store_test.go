@@ -14,9 +14,9 @@ type MockStore struct {
 	approvalIDs map[string]bool // ids already created, so CreateApprovalIfAbsent models first-write-wins
 	ledgers     map[string]FinalizationLedger
 	statuses    map[string]TaskStatus
-	mu     sync.Mutex
-	tasks  map[string]*TaskRecord
-	stages map[string]TaskStage
+	mu          sync.Mutex
+	tasks       map[string]*TaskRecord
+	stages      map[string]TaskStage
 
 	// Error injection
 	getTaskErr            error

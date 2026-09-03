@@ -113,18 +113,18 @@ func coordinatorExecuteJob(args []string) error {
 			return // Already sent — prevent double-publish.
 		}
 		completion := pubsub.TaskCompletion{
-			TaskID:          taskID,
-			AgentID:         agentID,
-			Status:          status,
-			ErrorMsg:        errMsg,
-			BranchName:      branchName,
-			ChangedFiles:    ev.ChangedFiles,
+			TaskID:       taskID,
+			AgentID:      agentID,
+			Status:       status,
+			ErrorMsg:     errMsg,
+			BranchName:   branchName,
+			ChangedFiles: ev.ChangedFiles,
 			// Approval evidence (M3). Two immutable SHAs, so the card renders
 			// identically however many times this completion is delivered.
-			BaseCommit: ev.BaseCommit,
-			HeadCommit: ev.HeadCommit,
-			DiffStat:   ev.DiffStat,
-			Diff:       ev.Diff,
+			BaseCommit:      ev.BaseCommit,
+			HeadCommit:      ev.HeadCommit,
+			DiffStat:        ev.DiffStat,
+			Diff:            ev.Diff,
 			ArtifactGCSPath: artifactPath,
 		}
 		// Populate executor metrics when available (same data as local coordinator)

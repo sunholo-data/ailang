@@ -202,7 +202,7 @@ func (s *SQLiteStore) migrate() error {
 		"ALTER TABLE tasks ADD COLUMN effects_widened INTEGER DEFAULT 0",
 		"ALTER TABLE tasks ADD COLUMN prev_effect_ceiling TEXT", // JSON-encoded []string
 		"ALTER TABLE tasks ADD COLUMN new_effect_ceiling TEXT",  // JSON-encoded []string
-		"ALTER TABLE tasks ADD COLUMN finalization TEXT", // JSON-encoded FinalizationLedger (M-COMPLETION-PATH-PARITY C1)
+		"ALTER TABLE tasks ADD COLUMN finalization TEXT",        // JSON-encoded FinalizationLedger (M-COMPLETION-PATH-PARITY C1)
 	}
 	for _, q := range alterQueries {
 		_, _ = s.db.Exec(q) // Ignore errors - columns may already exist

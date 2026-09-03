@@ -120,8 +120,8 @@ func newFinalizeHarness(t *testing.T, agent *AgentConfig) *finalizeHarness {
 func (h *finalizeHarness) finalize(t *testing.T, outcome CompletionOutcome, skipApproval bool) *FinalizeReport {
 	t.Helper()
 	report, err := FinalizeTaskCompletion(context.Background(), h.deps, FinalizeInput{
-		Task:   h.task,
-		Result: &ExecuteResult{Success: outcome == OutcomeCompleted, SessionID: "sess-1", Cost: 0.42, InputTokens: 200, OutputTokens: 100, NumTurns: 5, ToolCallCount: 9, Duration: 3 * time.Second, Error: "pi idle for 3m0s"},
+		Task:         h.task,
+		Result:       &ExecuteResult{Success: outcome == OutcomeCompleted, SessionID: "sess-1", Cost: 0.42, InputTokens: 200, OutputTokens: 100, NumTurns: 5, ToolCallCount: 9, Duration: 3 * time.Second, Error: "pi idle for 3m0s"},
 		Outcome:      outcome,
 		SkipApproval: skipApproval,
 		BranchName:   "coordinator/task-matrix",
@@ -420,5 +420,3 @@ func TestFinalize_StageErrorOnlyOnFailure(t *testing.T) {
 		t.Errorf("a successful task recorded a stage error: %q", okStage.ErrorMessage)
 	}
 }
-
-
