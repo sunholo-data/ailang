@@ -536,31 +536,38 @@ pass_arm "arm cap kills a wrapper grandchild"
 if (( skip_run_lane_fixture )); then
   echo "UNINFORMATIVE: run_lane fixture arm requires real lsof for cwd survivor checks"
 else
+  # Arm 36 stays here; the SIGKILL-escalation caller is deliberately behind arm 42
+  # so this extra forking work cannot tip any existing wall-clock-bounded arm.
+  run_lane_fixture_arm() {
+  local variant=$1 fixture_secs=$2 grace_allowance=$3 expected_refusal=$4 arm_name=$5
+  shift 5
+  local run_lane_extra_env
+  run_lane_extra_env=("$@")
   run_lane_timeout_secs=2
   run_lane_ready_cap_secs=5
-  run_lane_outer_cap_secs=$(( run_lane_timeout_secs + 10 ))
-  run_lane_fixture_secs=2861
+  run_lane_outer_cap_secs=$(( run_lane_timeout_secs + grace_allowance + 10 ))
+  run_lane_fixture_secs=$fixture_secs
   run_lane_fixture_dir="$tmp_dir/run-lane-fixture-$run_lane_fixture_secs"
   mkdir "$run_lane_fixture_dir"
   run_lane_fixture_dir=$(CDPATH='' cd -- "$run_lane_fixture_dir" && pwd -P)
   run_lane_ready_file="$run_lane_fixture_dir/ready"
   run_lane_ready_tmp="$run_lane_fixture_dir/ready.tmp"
-  run_lane_marker="$tmp_dir/run-lane.marker"
-  run_lane_evidence="$tmp_dir/run-lane.evidence"
-  run_lane_stdout="$tmp_dir/run-lane.stdout"
-  run_lane_stderr="$tmp_dir/run-lane.stderr"
-  run_lane_outer_stdout="$tmp_dir/run-lane-outer.stdout"
-  run_lane_outer_stderr="$tmp_dir/run-lane-outer.stderr"
-  run_lane_artifact="$tmp_dir/run-lane.json"
+  run_lane_marker="$tmp_dir/run-lane-$variant.marker"
+  run_lane_evidence="$tmp_dir/run-lane-$variant.evidence"
+  run_lane_stdout="$tmp_dir/run-lane-$variant.stdout"
+  run_lane_stderr="$tmp_dir/run-lane-$variant.stderr"
+  run_lane_outer_stdout="$tmp_dir/run-lane-$variant-outer.stdout"
+  run_lane_outer_stderr="$tmp_dir/run-lane-$variant-outer.stderr"
+  run_lane_artifact="$tmp_dir/run-lane-$variant.json"
   active_fixture_dir=$run_lane_fixture_dir
   : > "$run_lane_marker"
   : > "$run_lane_evidence"
 
   run_lane_fixture_harness() {
     local probe_pid deadline probe_rc wrapper_pid child_pid ready_cwd ready_lines
-    env PATH="$live_bin" AILANG_BIN=ailang-stub \
+    env ${run_lane_extra_env[@]+"${run_lane_extra_env[@]}"} PATH="$live_bin" AILANG_BIN=ailang-stub \
       PROBE_TIMEOUT_SECS="$run_lane_timeout_secs" \
-      PROBE_STUB_STATE="$tmp_dir/lane-run-lane" \
+      PROBE_STUB_STATE="$tmp_dir/lane-run-lane-$variant" \
       PROBE_TEST_MARKER="$run_lane_marker" \
       PROBE_TEST_RUN_LANE_GRANDCHILD_CWD="$run_lane_fixture_dir" \
       PROBE_TEST_RUN_LANE_GRANDCHILD_READY="$run_lane_ready_file" \
@@ -655,7 +662,7 @@ else
   active_fixture_dir=""
 
   run_lane_timeout_observed=no
-  grep -Fq -- "INSTRUMENT FAILURE: lane treatment exceeded ${run_lane_timeout_secs}s sampling deadline" \
+  grep -Fq -- "$expected_refusal" \
     "$run_lane_stderr" && run_lane_timeout_observed=yes
   run_lane_markers_complete=yes
   for run_lane_expected_marker in "uname -sm" "dig +short +time=5 +tries=2 A openrouter.ai" \
@@ -675,10 +682,14 @@ else
         "$run_lane_timeout_observed" != yes || "$run_lane_markers_complete" != yes ]] ||
      [[ ! "$run_lane_probe_rc" =~ ^[1-9][0-9]*$ ]] || (( run_lane_survivor_count != 0 )) ||
      (( run_lane_cleanup_rc != 0 || run_lane_cleanup_count != 0 )); then
-    echo "not ok - production run_lane timeout kills wrapper grandchild (outer_rc=$run_lane_outer_cap_rc survivors=$run_lane_survivor_count cleanup=$run_lane_cleanup_count probe_rc=$run_lane_probe_rc)" >&2
+    echo "not ok - $arm_name (outer_rc=$run_lane_outer_cap_rc survivors=$run_lane_survivor_count cleanup=$run_lane_cleanup_count probe_rc=$run_lane_probe_rc)" >&2
     exit 1
   fi
-  pass_arm "production run_lane timeout kills wrapper grandchild"
+  pass_arm "$arm_name"
+  }
+
+  run_lane_fixture_arm term 2861 0 "INSTRUMENT FAILURE: lane treatment exceeded 2s sampling deadline" \
+    "production run_lane timeout kills wrapper grandchild"
 fi
 
 # report_arm_cap is the code that implements this milestone's headline promise — the
