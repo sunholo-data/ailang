@@ -1,6 +1,6 @@
 # M-RESIDENT-AGENT-INSTANCES: a coding agent that keeps working when the laptop closes
 
-**Status**: M1 (image), M2 (A2A surface) and M2b (platform-side client) **built and green**; M3 (terraform + instance script) **written and validated, not applied**. Phase 0 gate **passed on measurement** 2026-09-02.
+**Status**: **Live in dev.** M1 (image), M2 (A2A surface), M2b (platform client), M3 (terraform + instance script), M7-partial (direct pi execution), M10 (session persistence) and per-user provisioning are **built and verified against a running instance** — `resident-instance.sh verify` 12/12 including two-turn recall, and cross-tenant isolation 3/3. Phase 0 gate **passed on measurement** 2026-09-02. NOT built: streaming (M7 proper), the control plane and idle sweep (M4), notifications (M5), chaos/cost (M6), observability (M8).
 **Scope**: `docker/resident/` (image, boot, A2A server), `ailang-multivac/terraform/resident_agents.tf`, `ailang-multivac/scripts/resident-instance.sh`. Runs in `ailang-multivac-dev`, region `europe-west4`.
 **Target**: v0.35.0
 **Priority**: P2 — nothing autonomous is blocked on it. It replaces a laptop, not a pipeline.
@@ -458,9 +458,17 @@ a Node A2A server (`server.mjs` + `lib/`) speaking herdr's **socket API**
 directly — `herdr api schema --json` is authoritative where CLI flag spellings
 would be guesswork, and reading it prevented three wrong-field bugs.
 
-38 acceptance assertions run in Cloud Build against the built image, including
+95 acceptance assertions run in Cloud Build against the built image, including
 that `POST /panes` returns **404** — so the "no bespoke protocol" decision
 cannot silently regress.
+
+They run in a `test-resident-pi` step that did not exist until 2026-09-03: the
+suite was written on 2026-09-02 and wired into no pipeline, so two of its
+assertions had been failing unseen for a day. The step is `allowFailure: true`
+like the build it follows, which means **a green build still says nothing about
+this image** — the gate is `resident-instance.sh verify` against the deployed
+instance, and that is stated here because reading a green build as proof cost
+real time on 2026-09-03.
 
 `ailang-multivac/terraform/resident_agents.tf` declares identity, IAM, bucket
 and secret access; there is **no `google_cloud_run_v2_instance` resource** in
