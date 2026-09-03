@@ -290,6 +290,7 @@ done
 [[ -z "${PROBE_TEST_MARKER:-}" ]] || printf 'ailang-stub lane=%s args=%s\n' "$lane" "$args" >> "$PROBE_TEST_MARKER"
 echo "$lane" > "${PROBE_STUB_STATE}.$$"
 echo "stub driver lane=$lane"
+# Shared by the bounded-termination arm and the tail SIGKILL-escalation fixture arm.
 if [[ "${PROBE_TEST_IGNORE_TERM:-0}" == 1 ]]; then trap '' TERM; fi
 if [[ -n "${PROBE_TEST_RUN_LANE_GRANDCHILD_CWD:-}" ]]; then
   expected_cwd=$PROBE_TEST_RUN_LANE_GRANDCHILD_CWD
@@ -750,6 +751,13 @@ expect_failure "descendant discovery refuses on the node-count ceiling" "process
 # unreachable by construction rather than argue about a rate.
 expect_failure "descendant discovery stub refusal carries its own message" "process-tree discovery deadline expired (test stub)" \
   run_live PROBE_TEST_DESCENDANT_FAILURE=1
+
+if (( skip_run_lane_fixture )); then
+  echo "UNINFORMATIVE: run_lane SIGKILL-escalation arm requires real lsof for cwd survivor checks"
+else
+  run_lane_fixture_arm kill 2863 5 "INSTRUMENT FAILURE: lane treatment exceeded its bounded termination deadline" \
+    "production run_lane SIGKILL escalation kills a TERM-immune wrapper grandchild" PROBE_TEST_IGNORE_TERM=1
+fi
 
 # The D4 ceiling override belongs on the wall-clock discovery arm's own env line and nowhere else. A per-command
 # env assignment never persists into this shell, so this is invariantly quiet on a correct
