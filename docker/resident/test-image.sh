@@ -59,8 +59,14 @@ BOOT=$!
 # auth now, so its facts are asserted from the boot log and the registry file
 # instead — same facts, without weakening auth to observe them.
 for i in $(seq 1 90); do [ "$(curl -s localhost:8080/livez 2>/dev/null)" = "ok" ] && break; sleep 1; done
+# /livez answers from boot section 2, long before boot FINISHES — it is bound
+# early on purpose so a slow start cannot be killed by the startup probe. So
+# assertions about the boot log must wait for the end-of-boot marker, or they
+# race the very steps they are checking.
+for i in $(seq 1 60); do grep -q "resident agent ready" /tmp/boot.log && break; sleep 1; done
 
 have "livez answers once serving"         '[ "$(curl -s localhost:8080/livez)" = "ok" ]'
+have "boot ran to completion"             'grep -q "resident agent ready" /tmp/boot.log'
 # herdr is OFF by default since it left the task path: starting it cost a
 # process and ~memory for nothing. Assert the default rather than its presence.
 have "herdr is not started by default"    'grep -q "herdr: not started" /tmp/boot.log'
@@ -73,7 +79,12 @@ have "boot does not USE setsid (comments excluded)" '! grep -vE "^[[:space:]]*#"
 have "registry written to local disk"     '[ -f /home/ailang/.pi/agent/models.json ]'
 have "registry mode is 0600 (holds the key)" '[ "$(stat -c %a /home/ailang/.pi/agent/models.json)" = "600" ]'
 have "readiness probed via api snapshot"  'grep -q "api snapshot" /usr/local/bin/boot.sh'
-have "herdr socket at the explicit path"  '[ -S "${HERDR_SOCKET_PATH}" ]'
+# The herdr socket assertion that stood here is retired: herdr is no longer
+# started by default (D2), so a socket at the explicit path would mean
+# something had gone wrong rather than right. HERDR_SOCKET_PATH still matters
+# when herdr IS enabled, so the env is asserted instead of the socket.
+have "herdr socket path is set explicitly, not inherited from HOME" \
+     '[ "$HERDR_SOCKET_PATH" = "/home/ailang/.herdr/herdr.sock" ]'
 have "agent home probe cleaned up"        '[ ! -f /tmp/fake-home/.boot-probe ]'
 have "boot reported the sandbox live"     'grep -q "effect sandbox live" /tmp/boot.log'
 
