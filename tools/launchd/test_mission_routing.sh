@@ -257,6 +257,51 @@ want "controller pin is exported to child processes (#696)" "$out" \
   "CONTROLLER_ID=claude:claude-opus-5|MC_EXPORT_CONTROL=sentinel|MODEL=claude-opus-5|MODEL_WHY=probe ok|"
 rm -rf "$lab"
 
+# --- M1 RESOLVER (M-SPAWN-PIN-ENFORCEMENT, 2026-09-03) -------------------------
+# resolve-role-spawn.sh maps a role's spawn pin to a recipe or agent-tool alias.
+# Each arm sets its own env explicitly (env -u / explicit assignments) so no arm
+# inherits another's. MISSION_EXECUTOR_RESOLVED is unset in the evaluator arms so
+# they exercise the raw MISSION_EXECUTOR_MODEL path (M3 has not landed yet).
+RESOLVE="$ROOT/tools/launchd/resolve-role-spawn.sh"
+
+# R1: provider pin (contains ':') -> recipe. Kills a deleted `:`-detection branch.
+out=$(MISSION_EXECUTOR_MODEL=codex:gpt-5.6-luna "$RESOLVE" executor)
+want "R1 provider pin resolves to a recipe" "$out" "recipe codex:gpt-5.6-luna declared:provider-pin"
+
+# R2: bare alias -> agent-tool. Kills a "make every pin a recipe" mutation.
+out=$(MISSION_DESIGNER_MODEL=fable "$RESOLVE" designer)
+want "R2 bare alias resolves to an agent-tool" "$out" "agent-tool fable declared:alias-pin"
+
+# R3: evaluator alias != executor resolved -> no collision (R4's false-positive control).
+out=$(env -u MISSION_EXECUTOR_RESOLVED -u MISSION_EVALUATOR_FALLBACK \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=codex:gpt-5.6-sol "$RESOLVE" evaluator)
+want "R3 evaluator alias with distinct executor stays an agent-tool" "$out" "agent-tool sonnet declared:alias-pin"
+
+# R4: evaluator alias == executor resolved -> reroute to the fallback chain head.
+out=$(env -u MISSION_EXECUTOR_RESOLVED \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=sonnet \
+  MISSION_EVALUATOR_FALLBACK=pi:ollama/minimax-m3:cloud,pi:openrouter/minimax/minimax-m3 "$RESOLVE" evaluator)
+want "R4 evaluator collision reroutes to the fallback head" "$out" "reroute pi:ollama/minimax-m3:cloud generator-equals-judge"
+
+# R4b: same collision but no fallback -> fail closed.
+out=$(env -u MISSION_EXECUTOR_RESOLVED -u MISSION_EVALUATOR_FALLBACK \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=sonnet "$RESOLVE" evaluator)
+want "R4b evaluator collision with no fallback fails closed" "$out" "refuse fail-closed:evaluator-collision-no-fallback"
+
+# R5: planner consumes derive-planner-lane.sh; provider:model lane -> recipe, token copied through.
+out=$(MISSION_PLANNER_MODEL=pi:ollama/kimi-k3:cloud "$RESOLVE" planner \
+  "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
+want "R5 planner provider lane maps to a recipe" "$out" "recipe pi:ollama/kimi-k3:cloud declared:codex-ok"
+
+# R6: planner opus lane -> agent-tool opus, reason token copied through verbatim.
+out=$(MISSION_PLANNER_MODEL=codex:gpt-5.6-sol "$RESOLVE" planner \
+  "$ROOT/tools/launchd/testdata/planner-lane/a-unlisted-language-path.md")
+want "R6 planner opus lane maps to agent-tool opus" "$out" "agent-tool opus fail-closed:path-not-in-codex-allowlist"
+
+# R7: unknown role -> fail closed.
+out=$("$RESOLVE" judge)
+want "R7 unknown role fails closed" "$out" "refuse fail-closed:role-unknown"
+
 echo ""
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]
