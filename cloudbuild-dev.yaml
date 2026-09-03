@@ -1,29 +1,54 @@
 # Cloud Build — Triggered by push to sunholo-data/ailang dev branch.
 #
-# Source-of-truth for the ailang-core-dev trigger (was previously a stale
-# inline build in GCP, drifted from any repo file). Kept in this repo (not
-# ailang-multivac) because file-based Cloud Build triggers read from the
-# source repo that triggered the build — and this trigger fires on
-# ailang/dev pushes.
+# Source-of-truth for the ailang-core-dev trigger. Kept in this repo (not
+# ailang-multivac) because file-based Cloud Build triggers read from the repo
+# that triggered the build — and this trigger fires on ailang/dev pushes.
 #
-# Rebuilds all images using the ailang source tree:
-#   coordinator, agent-base → agent → agent-go, dashboard, mcp.
-# Website builder is NOT rebuilt (its source lives in ailang-demos).
+# THIS PIPELINE IS THE ONLY BUILDER OF AILANG'S IMAGES FOR DEV. Until
+# 2026-09-03 the executor variants (pi, codex, opencode, gemini, eval, their
+# -go flavours) and resident-pi were built only by ailang-multivac's full
+# pipeline, which fired on THAT repo's pushes from whatever ailang dev head was
+# current — so an ailang push could not rebuild the image most agents run on.
+# Every image now has one owner: this file for dev, cloudbuild-release.yaml
+# for the `v*` tag that reaches test (same 18 images, additionally tagged
+# :vX.Y.Z), and ailang-multivac's promote-to-prod for prod.
 #
-# M-CI-BUILD-SPEED M2/M3: docker buildx with registry-backed cache for
-# every Dockerfile, pushes embedded in the build step (no separate push-*
-# steps). Build graph is two-tier: agent-base → agent → agent-go (each
-# FROMs the prior); coordinator + dashboard + mcp + agent-base run in
-# parallel from the start.
+# The 18 images and their build DAG (children FROM the parent's :latest in
+# this project's registry, so they wait on it):
+#
+#   coordinator (buildpacks)   dashboard   mcp   ntfy        — no dependencies
+#   agent-base ─┬─ agent ───────── agent-go
+#               ├─ agent-pi ────── agent-pi-go
+#               │                └─ resident-pi (BASE build-arg, context docker/resident)
+#               ├─ agent-codex ─── agent-codex-go
+#               ├─ agent-gemini ── agent-gemini-go
+#               ├─ agent-eval ──── agent-eval-go
+#               ├─ agent-opencode
+#               └─ agent-motoko  (allowFailure: external fork, see below)
+#
+# Deploy: the shared library in ailang-multivac (scripts/cloudbuild-lib.sh,
+# cloned at run time) rolls the 4 core services and all 17 executor jobs. The
+# job -> image map lives there, mirroring terraform/cloud_run_jobs.tf; this
+# file does not carry a copy.
+#
+# M-CI-BUILD-SPEED M2/M3: docker buildx with registry-backed cache for every
+# Dockerfile, pushes embedded in the build step. Level-1 and level-2 variants
+# are thin layers over agent-base, so the added wall time is DAG depth, not
+# image count.
 
 substitutions:
   _REGION: europe-west1
   _TARGET_PROJECT: ailang-multivac-dev
   _PREFIX: ailang-dev
+  _MULTIVAC_REPO: https://github.com/sunholo-data/ailang-multivac.git
 
 options:
   logging: CLOUD_LOGGING_ONLY
   machineType: E2_HIGHCPU_8
+
+# Builds are usually ~10 min; the buildx cache being cold after a base-image
+# change is the slow case.
+timeout: 2700s
 
 steps:
   # Setup buildx builder (~5s; required for --cache-from registry).
@@ -35,6 +60,23 @@ steps:
       - |
         docker buildx create --name ci --driver docker-container --use
         docker buildx inspect --bootstrap
+    waitFor: ['-']
+
+  # The deploy step sources ailang-multivac's scripts/cloudbuild-lib.sh (the
+  # one copy of the roll/job logic). Authenticated: GitHub throttles anonymous
+  # git traffic from Cloud Build's egress (2026-09-02); the token is fed through
+  # a credential helper so it never appears in argv or logs.
+  - id: clone-multivac
+    name: gcr.io/cloud-builders/git
+    entrypoint: bash
+    secretEnv: ['GITHUB_TOKEN']
+    args:
+      - -c
+      - |
+        set -e
+        git config --global credential.helper \
+          '!f() { echo username=x-access-token; echo "password=$$GITHUB_TOKEN"; }; f'
+        git clone --depth 1 --branch dev "${_MULTIVAC_REPO}" /workspace/multivac
     waitFor: ['-']
 
   # Build coordinator (buildpacks — runs in parallel with everything else).
@@ -53,7 +95,13 @@ steps:
       - --env=CGO_ENABLED=0
     waitFor: ['-']
 
-  # Build dashboard with registry cache (parallel with mcp + agent chain).
+  # Push coordinator (buildpacks doesn't push automatically like buildx --push).
+  - id: push-coordinator
+    name: gcr.io/cloud-builders/docker
+    args: ['push', '${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/coordinator:latest']
+    waitFor: ['build-coordinator']
+
+  # Dashboard (parallel with mcp + the agent chain).
   - id: build-dashboard
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -70,8 +118,8 @@ steps:
           .
     waitFor: ['setup-buildx']
 
-  # Build ntfy approvals-push image (M-SECRET-EFFECT). Thin wrapper over the
-  # upstream ntfy image; build context is repo root for the Dockerfile only.
+  # ntfy approvals-push image (M-SECRET-EFFECT): thin wrapper over the upstream
+  # image, no cache worth keeping.
   - id: build-ntfy
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -86,11 +134,9 @@ steps:
           .
     waitFor: ['setup-buildx']
 
-  # Build MCP server image with registry cache (parallel with dashboard +
-  # agent chain). Build context is the ailang repo root because
-  # Dockerfile.mcp expects to bake in /srv/snapshot, /srv/mcp_tools,
-  # /srv/std from the source tree. Uses :latest tag only — this trigger is
-  # dev-only; the multivac full pipeline drives versioned tags.
+  # MCP server. Context is the repo root because Dockerfile.mcp bakes
+  # /srv/snapshot, /srv/mcp_tools and /srv/std from the source tree — which is why
+  # docs/** and design_docs/** are in this trigger's path filter.
   - id: build-mcp
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -107,15 +153,13 @@ steps:
           .
     waitFor: ['setup-buildx']
 
-  # ── Agent image DAG (M-EXECUTOR-VARIANTS + M-CI-BUILD-SPEED) ────
-  # agent-base → agent (FROM agent-base) → agent-go (FROM agent).
-  # Pushes are embedded in --push so no intermediate push-* steps needed.
+  # ── Agent image DAG ────────────────────────────────────────────────────────
 
-  # Passes the GitHub token as a BuildKit secret: this Dockerfile fetches from
-  # GitHub at build time, and anonymous git traffic from Cloud Build's egress is
-  # throttled (2026-09-02 — the motoko step failed with "could not read Username"
-  # while allowFailure kept the build green and :latest silently stale). The
-  # Dockerfile falls back to an anonymous fetch when no secret is passed.
+  # agent-base clones the bootstrap plugin (the cloud agents' hooks, including
+  # the git guardrails) at build time, so it receives the GitHub token as a
+  # BuildKit secret: anonymous git traffic from Cloud Build's egress is throttled
+  # (2026-09-02). The clone is mandatory — an image without the plugin runs agents
+  # unguarded.
   - id: build-agent-base
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -152,7 +196,7 @@ steps:
           .
     waitFor: ['build-agent-base']
 
-  - id: build-agent-go
+  - id: build-agent-pi
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
     args:
@@ -160,27 +204,93 @@ steps:
       - |
         AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
         docker buildx build \
-          --cache-from "type=registry,ref=$$AR/agent-go:cache" \
-          --cache-from "type=registry,ref=$$AR/agent:cache" \
-          --cache-to   "type=registry,ref=$$AR/agent-go:cache,mode=max" \
+          --cache-from "type=registry,ref=$$AR/agent-pi:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-pi:cache,mode=max" \
           --build-arg PROJECT=$_TARGET_PROJECT \
-          -t "$$AR/agent-go:latest" \
-          -f docker/Dockerfile.agent-go \
+          -t "$$AR/agent-pi:latest" \
+          -f docker/Dockerfile.agent-pi \
           --push \
           .
-    waitFor: ['build-agent']
+    waitFor: ['build-agent-base']
 
-  # M-COORD-TAG-ROUTING-LASTMILE (v0.23.0): build the motoko executor image
-  # so tag-routed `requires:["agent:motoko"]` messages have a cloud Job to
-  # dispatch to. Mirrors build-agent-go: registry-cached buildx, FROMs
-  # agent-base (Dockerfile.agent-motoko inherits the AILANG runtime + bash).
-  # The corresponding Cloud Run Job definition lives in ailang-multivac
-  # (terraform/cloud_run_jobs.tf) — see docker/agent-motoko-multivac-prs.md.
-  # Passes the GitHub token as a BuildKit secret: this Dockerfile fetches from
-  # GitHub at build time, and anonymous git traffic from Cloud Build's egress is
-  # throttled (2026-09-02 — the motoko step failed with "could not read Username"
-  # while allowFailure kept the build green and :latest silently stale). The
-  # Dockerfile falls back to an anonymous fetch when no secret is passed.
+  - id: build-agent-codex
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-codex:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-codex:cache,mode=max" \
+          --build-arg PROJECT=$_TARGET_PROJECT \
+          -t "$$AR/agent-codex:latest" \
+          -f docker/Dockerfile.agent-codex \
+          --push \
+          .
+    waitFor: ['build-agent-base']
+
+  - id: build-agent-opencode
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-opencode:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-opencode:cache,mode=max" \
+          --build-arg PROJECT=$_TARGET_PROJECT \
+          -t "$$AR/agent-opencode:latest" \
+          -f docker/Dockerfile.agent-opencode \
+          --push \
+          .
+    waitFor: ['build-agent-base']
+
+  - id: build-agent-gemini
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-gemini:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-gemini:cache,mode=max" \
+          --build-arg PROJECT=$_TARGET_PROJECT \
+          -t "$$AR/agent-gemini:latest" \
+          -f docker/Dockerfile.agent-gemini \
+          --push \
+          .
+    waitFor: ['build-agent-base']
+
+  - id: build-agent-eval
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-eval:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-eval:cache,mode=max" \
+          --build-arg PROJECT=$_TARGET_PROJECT \
+          -t "$$AR/agent-eval:latest" \
+          -f docker/Dockerfile.agent-eval \
+          --push \
+          .
+    waitFor: ['build-agent-base']
+
+  # motoko fetches the pinned motoko_agent commit from GitHub at build time (same
+  # secret as agent-base). It is an optional, externally maintained executor, so
+  # in DEV a broken build must not block the other 17 images: allowFailure keeps
+  # :latest unchanged and the job is rolled onto the digest it already runs. The
+  # RELEASE pipeline gives it no such pass — a version names the whole deployment.
   - id: build-agent-motoko
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -200,20 +310,108 @@ steps:
           --push \
           .
     waitFor: ['build-agent-base']
-    # motoko is an optional/experimental agent — a broken build here must NOT
-    # fail the whole pipeline or block deploying the core services below.
     allowFailure: true
 
-  # Resident agent image (v6.40.0 Class B). Built HERE because its source lives
-  # in this repo — docker/resident/ — and this is the pipeline that fires on a
-  # push to this repo. That was the gap that produced a real incident on
-  # 2026-09-02: the resident step existed only in ailang-multivac's pipelines,
-  # which fire on THAT repo's pushes, so changing docker/resident/ here rebuilt
-  # nothing and a stale image without OIDC verification was deployed public.
+  - id: build-agent-go
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-go:cache" \
+          --cache-from "type=registry,ref=$$AR/agent:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-go:cache,mode=max" \
+          --build-arg PROJECT=$_TARGET_PROJECT \
+          -t "$$AR/agent-go:latest" \
+          -f docker/Dockerfile.agent-go \
+          --push \
+          .
+    waitFor: ['build-agent']
+
+  - id: build-agent-pi-go
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-pi-go:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-pi:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-pi-go:cache,mode=max" \
+          --build-arg PROJECT=$_TARGET_PROJECT \
+          -t "$$AR/agent-pi-go:latest" \
+          -f docker/Dockerfile.agent-pi-go \
+          --push \
+          .
+    waitFor: ['build-agent-pi']
+
+  - id: build-agent-codex-go
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-codex-go:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-codex:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-codex-go:cache,mode=max" \
+          --build-arg PROJECT=$_TARGET_PROJECT \
+          -t "$$AR/agent-codex-go:latest" \
+          -f docker/Dockerfile.agent-codex-go \
+          --push \
+          .
+    waitFor: ['build-agent-codex']
+
+  - id: build-agent-gemini-go
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-gemini-go:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-gemini:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-gemini-go:cache,mode=max" \
+          --build-arg PROJECT=$_TARGET_PROJECT \
+          -t "$$AR/agent-gemini-go:latest" \
+          -f docker/Dockerfile.agent-gemini-go \
+          --push \
+          .
+    waitFor: ['build-agent-gemini']
+
+  - id: build-agent-eval-go
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-eval-go:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-eval:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-eval-go:cache,mode=max" \
+          --build-arg PROJECT=$_TARGET_PROJECT \
+          -t "$$AR/agent-eval-go:latest" \
+          -f docker/Dockerfile.agent-eval-go \
+          --push \
+          .
+    waitFor: ['build-agent-eval']
+
+  # Resident agent image (v6.40.0 Class B) — herdr, the A2A server and the program
+  # allowlist layered onto agent-pi, which is now built HERE, so BASE is the image
+  # this very build just pushed. Context is docker/resident (the Dockerfile COPYs
+  # server.mjs, lib/ and resident-run from beside itself).
   #
-  # BASE comes from the registry rather than being built here: agent-pi is
-  # produced by ailang-multivac's pipeline, and this step deliberately consumes
-  # whatever :latest is current instead of duplicating that build.
+  # allowFailure, written down because it misled someone on 2026-09-03: a failed
+  # step here still reports the BUILD as SUCCESS. The resident's pi pin once failed
+  # on `npm error EEXIST` and shipped an image with the old pi while the build went
+  # green. A green build says NOTHING about the resident image; the gate is
+  # test-resident-pi below and `resident-instance.sh verify` against the instance.
   - id: build-resident-pi
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -229,21 +427,11 @@ steps:
           -f docker/resident/Dockerfile \
           --push \
           docker/resident
-    waitFor: ['-']
-    # Experimental Preview-product image: a broken build must not block the
-    # core services below, same rationale as agent-motoko.
-    #
-    # THE COST OF THAT, WRITTEN DOWN BECAUSE IT MISLED SOMEONE ON 2026-09-03:
-    # a failed step here still reports the BUILD as SUCCESS. The resident's pi
-    # pin failed on `npm error EEXIST` and shipped an image with the old pi,
-    # while the build went green and was read as proof the image was good. So:
-    # a green build says NOTHING about the resident image. The gate is
-    # `resident-instance.sh verify` against the deployed instance.
+    waitFor: ['build-agent-pi']
     allowFailure: true
 
-  # Run the image's own acceptance suite. Same allowFailure rationale, but a
-  # BUILT-BUT-BROKEN image is now visible in the build record rather than only
-  # at deploy time, and the log names which assertion went.
+  # Run the resident image's own acceptance suite, so a built-but-broken image is
+  # visible in the build record rather than only at deploy time.
   - id: test-resident-pi
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -256,74 +444,38 @@ steps:
     waitFor: ['build-resident-pi']
     allowFailure: true
 
-  # Push coordinator (buildpacks doesn't push automatically like buildx --push).
-  - id: push-coordinator
-    name: gcr.io/cloud-builders/docker
-    args: ['push', '${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/coordinator:latest']
-    waitFor: ['build-coordinator']
-
-  # Redeploy Cloud Run services + jobs to pick up new image digests.
+  # ── Deploy: 4 core services + all 17 executor jobs, via the shared library ──
+  # Waits on every image, optional ones included, so each job is rolled after
+  # its image's build attempt (a failed optional build leaves :latest as it was).
   - id: deploy-services
     name: gcr.io/cloud-builders/gcloud
     entrypoint: bash
     args:
       - -c
       - |
-        echo "Redeploying coordinator..."
-        gcloud run services update ${_PREFIX}-coordinator \
-          --region ${_REGION} --project $_TARGET_PROJECT \
-          --image ${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/coordinator:latest \
-          --quiet
-
-        echo "Redeploying dashboard..."
-        gcloud run services update ${_PREFIX}-dashboard \
-          --region ${_REGION} --project $_TARGET_PROJECT \
-          --image ${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/dashboard:latest \
-          --quiet
-
-        # Force a Cloud Run revision update so the newly-pushed mcp:latest is
-        # actually picked up — :latest tag moves alone don't trigger a roll.
-        # Same pattern as M-AGENT-MCP-ONBOARDING M1 in the multivac pipeline
-        # (we hit this twice in M-AGENT-MCP before adding the explicit roll).
-        echo "Redeploying MCP..."
-        gcloud run services update ${_PREFIX}-mcp \
-          --region ${_REGION} --project $_TARGET_PROJECT \
-          --image ${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/mcp:latest \
-          --quiet
-
-        # ntfy approvals-push service (M-SECRET-EFFECT). The service must be
-        # created once manually (it needs --min-instances=1 + NTFY_* runtime
-        # config + an auth token); this update is best-effort until then so the
-        # core pipeline never blocks on it.
-        echo "Redeploying ntfy (best-effort until one-time create)..."
-        gcloud run services update ${_PREFIX}-ntfy \
-          --region ${_REGION} --project $_TARGET_PROJECT \
-          --image ${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/ntfy:latest \
-          --quiet || echo "  ntfy service not yet created — run the one-time 'gcloud run deploy ${_PREFIX}-ntfy --min-instances=1' (see docker/Dockerfile.ntfy)"
-
-        echo "Updating agent executor job (default)..."
-        gcloud run jobs update ${_PREFIX}-agent-executor \
-          --region ${_REGION} --project $_TARGET_PROJECT \
-          --image ${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/agent:latest \
-          --quiet
-
-        echo "Updating agent executor job (go variant)..."
-        gcloud run jobs update ${_PREFIX}-agent-executor-go \
-          --region ${_REGION} --project $_TARGET_PROJECT \
-          --image ${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/agent-go:latest \
-          --quiet
-
-        echo "Deploy complete."
-    # Core deploy must not wait on optional agent images (motoko). It deploys
-    # coordinator/dashboard/mcp + the default+go agent jobs; the motoko job is
-    # managed separately by the multivac Terraform pipeline.
-    waitFor: ['push-coordinator', 'build-agent-go', 'build-dashboard', 'build-mcp']
+        set -e
+        export REGION="${_REGION}" PROJECT="$_TARGET_PROJECT" PREFIX="${_PREFIX}" TAG=latest
+        . /workspace/multivac/scripts/cloudbuild-lib.sh
+        set_deploy core
+        finish "dev deploy"
+    waitFor:
+      - clone-multivac
+      - push-coordinator
+      - build-dashboard
+      - build-mcp
+      - build-ntfy
+      - build-agent-go
+      - build-agent-pi-go
+      - build-agent-codex-go
+      - build-agent-gemini-go
+      - build-agent-eval-go
+      - build-agent-opencode
+      - build-agent-motoko
+      - build-resident-pi
 
 # The GitHub connection's own OAuth token, already present in the deploy project
-# (every build here runs there as sa-cloudbuild). Used to authenticate the source
-# clones and the image builds whose Dockerfiles fetch from GitHub (agent-base
-# clones the bootstrap plugin, agent-motoko fetches motoko_agent): GitHub
-# throttles anonymous git traffic from Cloud Build's egress — measured 2026-09-02.
+# (every build here runs there as sa-cloudbuild). Used for the multivac clone and
+# the image builds whose Dockerfiles fetch from GitHub (agent-base, agent-motoko).
 availableSecrets:
   secretManager:
     - versionName: projects/ailang-multivac-deploy/secrets/github-github-oauthtoken-f8f84f/versions/latest
