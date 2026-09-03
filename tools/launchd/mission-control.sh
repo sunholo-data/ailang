@@ -40,6 +40,15 @@ set -uo pipefail
 REPO="${MISSION_WORKDIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 cd "$REPO" || exit 1
 
+# Slot clock. Read bare (no `$`) inside $(( )) by the RETRY HISTORY and SLOT VERDICT
+# blocks, so a missing assignment is fatal under `set -u` — and it WAS missing from
+# 10448bad5 (iter-315) until 2026-09-03: every v1/docs/motoko iteration died here
+# after its work had landed, so no slot verdict was ever recorded and no SLOT NOTIFY
+# ever fired. Set at script start, not at the attempt loop, so elapsed_s covers the
+# whole slot including the pin sync and controller probes — the preamble that burned
+# 240s of one v1 slot on opus probe timeouts is exactly what this number is for.
+START_EPOCH=$(date +%s)
+
 # launchd PATH is restricted; claude lives in ~/.local/bin, go tools in ~/go/bin.
 export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
 

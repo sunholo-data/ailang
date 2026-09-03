@@ -152,6 +152,40 @@ done
 if awk 'index($0,"## Gate 5")==1 {inspan=1; next} inspan && /^## Gate/ {exit} inspan && /stamp complete/ {found=1} END {exit !found}' "$skill"; then span_ok=$((span_ok + 1)); fi
 check "every gate section carries its own stamp instruction (8/8)" "[ '$span_ok' -eq 8 ] && grep -q 'stamp abort <reason>' '$skill'"
 
+# Every arm above extracts a block from the driver and supplies its variables by hand.
+# That seam cannot see a variable the DRIVER forgets to set: run_verdict assigned
+# START_EPOCH itself, so both the SLOT VERDICT and RETRY HISTORY arms stayed green
+# from iter-315 to 2026-09-03 while every real v1/docs/motoko iteration died on
+# `START_EPOCH: unbound variable` under `set -u`, after its work had landed.
+#
+# So: for each extracted block, assert the driver actually assigns every bare
+# variable it reads. Arithmetic matters — inside $(( )) a variable is named with no
+# `$`, which is how the original slipped past review and past shellcheck (SC2154 is
+# silent on ALL-CAPS names, verified against a positive control on this rig).
+unassigned=""
+for block in 'SLOT VERDICT' 'SLOT NOTIFY' 'RETRY HISTORY' 'ATTEMPT HEARTBEAT' 'HEARTBEAT STATE DIR' 'DRIVER PIN DECISION'; do
+  blk=$(awk -v s="# --- $block START ---" -v e="# --- $block END ---" \
+        'index($0,s){f=1} f{print} index($0,e){f=0}' "$DRIVER")
+  if [ -z "$blk" ]; then unassigned="$unassigned [$block:NOT-FOUND]"; continue; fi
+  # Drop nested $(...) so a command substitution's contents are not read as refs.
+  stripped=$(printf '%s\n' "$blk" | sed 's/\$([^()]*)//g')
+  # Match the MAXIMAL identifier, then keep only all-caps ones: matching
+  # [A-Z_]+ directly truncates `$_mc_slot_state` to a bare `_`.
+  refs=$(
+    { printf '%s\n' "$stripped" | grep -oE '\$\{?[A-Za-z_][A-Za-z0-9_]*' | tr -d '${'
+      printf '%s\n' "$stripped" | grep -F '$((' | sed 's/.*\$((//' | grep -oE '[A-Za-z_][A-Za-z0-9_]*'
+    } | grep -E '^[A-Z_][A-Z0-9_]*$' | grep -E '[A-Z]' | sort -u
+  )
+  for v in $refs; do
+    # ${VAR:-default} is safe under set -u even when unassigned.
+    printf '%s\n' "$blk" | grep -q "\${$v:-" && continue
+    grep -qE "(^|[[:space:]]|;|\()${v}=|export[[:space:]]+${v}\b" "$DRIVER" \
+      || unassigned="$unassigned $block:$v"
+  done
+done
+check "driver assigns every bare variable its extracted blocks read" "[ -z '$unassigned' ]"
+[ -n "$unassigned" ] && echo "   unassigned:$unassigned" >&2
+
 if [ "$fail" -eq 0 ]; then
   echo "PASS: $pass heartbeat arms ran"
   exit 0
