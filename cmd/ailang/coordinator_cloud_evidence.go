@@ -94,9 +94,18 @@ func gitEvidenceOutput(ctx context.Context, workDir string, args ...string) (str
 	return strings.TrimSpace(string(out)), nil
 }
 
-// diffResultFromCompletion is the coordinator side: read what the executor sent.
+// diffResultFromEvidence is the coordinator side: read what the executor sent.
 // Kept next to the producer so the two halves of the contract stay visible
 // together.
+//
+// Its consumer is M1b of M-COMPLETION-PATH-PARITY — consolidating the DAEMON call
+// site onto the orchestrator — which that sprint's plan records as deliberately
+// outstanding. So this is scaffolding with a named, dated owner, not dead code:
+// deleting it would remove half a contract whose other half is already on `dev`.
+// Suppressed rather than removed for that reason; the suppression should come off
+// with M1b, not survive it.
+//
+//nolint:unused // consumer lands with M-COMPLETION-PATH-PARITY M1b (see its sprint plan)
 func diffResultFromEvidence(ev gitEvidence) (coordinator.DiffResult, error) {
 	if ev.HeadCommit == "" || ev.BaseCommit == "" {
 		return coordinator.DiffResult{}, coordinator.ErrNoDiffSource
