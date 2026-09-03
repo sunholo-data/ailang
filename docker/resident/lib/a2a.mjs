@@ -69,7 +69,17 @@ function onSession(sessionId, fn) {
 // honest in a way an OOM is not.
 const MAX_CONCURRENT = Number(process.env.RESIDENT_MAX_CONCURRENT_RUNS || 3);
 let activeRuns = 0;
-export const runStats = () => ({ active: activeRuns, max: MAX_CONCURRENT });
+
+// Last time this agent did any WORK — not the last time anything touched the
+// process. An idle sweep that counted health probes would never stop anything,
+// because the sweep's own probe is traffic.
+let lastActivityAt = Date.now();
+export const noteActivity = () => { lastActivityAt = Date.now(); };
+export const runStats = () => ({
+  active: activeRuns,
+  max: MAX_CONCURRENT,
+  idle_s: activeRuns > 0 ? 0 : Math.round((Date.now() - lastActivityAt) / 1000),
+});
 
 // ─── task store ──────────────────────────────────────────────────────────────
 // Persisted to local disk so tasks survive the weekly auto-restart. NOT to
@@ -85,6 +95,13 @@ export function loadTasks() {
   if (!existsSync(STATE_FILE)) return 0;
   try {
     for (const t of JSON.parse(readFileSync(STATE_FILE, "utf8"))) tasks.set(t.id, t);
+    // Seed idleness from the newest task rather than from boot. A restart is
+    // routine (7-day ceiling), and an instance that looked freshly idle after
+    // every one would be swept minutes after coming back.
+    const newest = [...tasks.values()]
+      .map((t) => Date.parse(t?.status?.timestamp || "") || 0)
+      .reduce((a, b) => Math.max(a, b), 0);
+    if (newest > 0) lastActivityAt = newest;
     return tasks.size;
   } catch (e) { console.error(`a2a | WARN task state unreadable: ${e.message}`); return 0; }
 }
@@ -92,6 +109,7 @@ export const getTask = (id) => tasks.get(id);
 export const listTasks = () => [...tasks.values()];
 
 function setState(task, state, message) {
+  noteActivity();
   task.status = { state, timestamp: new Date().toISOString(), ...(message ? { message } : {}) };
   persist();
   notify(task).catch((e) => console.error(`a2a | WARN push failed for ${task.id}: ${e.message}`));
@@ -269,6 +287,7 @@ export async function messageSend(params) {
     history: [msg], metadata: { model, agentName },
   };
   tasks.set(id, task);
+  noteActivity();
   if (params?.configuration?.pushNotificationConfig) setPushConfig(id, params.configuration.pushNotificationConfig);
   persist();
 

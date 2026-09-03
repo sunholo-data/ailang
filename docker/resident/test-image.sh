@@ -324,6 +324,23 @@ out=$(MODELS_JSON="$VERTEX_REG" RESIDENT_PORT=8095 timeout 40 env -u GOOGLE_CLOU
 have "vertex without a project refuses to start" 'echo "$out" | grep -q "GOOGLE_CLOUD_PROJECT is unset"'
 have "  ...and names the consequence"            'echo "$out" | grep -q "looking like a model fault"'
 
+echo "=== 6g. idleness for the sweep (M4) ==="
+# Instances do not autoscale, do not stop themselves, and a stopped one does
+# NOT wake on a request — its URL 404s until something calls :start (probed
+# 2026-09-03). So idle time is billed in full until a sweep acts, and the sweep
+# can only act on a number the agent reports.
+out=$(A2A 'import * as a2a from "/usr/local/bin/lib/a2a.mjs";
+console.log(JSON.stringify(a2a.runStats()));')
+have "the agent reports its idle seconds"   'echo "$out" | grep -q "idle_s"'
+
+# The number must count WORK, not traffic. A sweep that counted health probes
+# would never stop anything, because the sweep's own probe is traffic.
+out=$(A2A 'import * as a2a from "/usr/local/bin/lib/a2a.mjs";
+const before = a2a.runStats().idle_s;
+a2a.noteActivity();
+console.log(JSON.stringify({before, after: a2a.runStats().idle_s}));')
+have "activity resets idleness"             'echo "$out" | grep -q "\"after\":0"'
+
 echo "=== 7. restart idempotence ==="
 # The 7-day ceiling makes restarts routine, so a second boot must behave like
 # the first rather than tripping over its own leftovers.
