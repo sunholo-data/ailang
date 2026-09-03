@@ -3596,7 +3596,7 @@ probe fired) · task-class=execute model=`codex:gpt-5.6-sol` (probe rc=0; bounde
 wrapper; cap FIRED; no git writes; `.snap/M1`–`M3`) · task-class=evaluate model=`sonnet` (own
 worktree at `a7b0002a3`) · task-class=mechanical model=`opus` inline (carve-out fixes, commit
 reconstruction, record). round1-score=96 rounds=1 corrections=3 (all non-blocking, all applied).
-provider=anthropic+openai agent=mission-control cost=**metered $0.47** of the $5 ceiling (quorum r1
+provider=anthropic+openai agent=mission-control cost=**metered $0.50** of the $5 ceiling (quorum r1
 $0.0669 + r2 $0.1174 + three restored-`gpt5-6-sol` runs $0.0886/$0.1157/$0.1146); quota buckets
 opus + sonnet + fable. **Fable spent: 2 bounded designer runs on ONE doc — within the diet.** No GPU,
 no `rig.lock`.

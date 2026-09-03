@@ -20,7 +20,7 @@ _Snapshot, overwritten each iteration. History lives in the charter STATUS block
 
 ## Loop / routing
 - Controller `claude:claude-opus-5` · designer **`fable`** (rotation entry after the pointer's deepseek; Agent-tool pin) · planner **`opus`** (`derive-planner-lane.sh` → `opus fail-closed:planner-lane-field-missing`, verbatim) · executor **`codex:gpt-5.6-sol`** · evaluator **`sonnet`**, own worktree. generator≠judge holds.
-- **Metered $0.47** of the $5 ceiling (2 quorum rounds + 3 restored-reviewer re-runs). Fable: 2 bounded designer runs on ONE doc — within the diet.
+- **Metered $0.50** of the $5 ceiling (2 quorum rounds + 3 restored-reviewer re-runs). Fable: 2 bounded designer runs on ONE doc — within the diet.
 
 ## Parked on Mark
 **Nothing.** No open decision rows (ledger valid, 6 rows, 0 OPEN).
