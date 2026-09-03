@@ -1,47 +1,42 @@
 # Docs Mission Dashboard (snapshot — history lives in the charter + log)
 
-**Last updated**: 2026-09-02T17:00Z, iteration 5.
+**Last updated**: 2026-09-03T10:57Z, iteration 6.
 
 ## Status
-`docs-8`'s stale "126 overdue planned docs" corrected to a verified **54** (count had drifted).
-All 54 classified against live codebase evidence by 6 parallel sonnet sub-agents; an independent
-7th, adversarial sub-agent re-verified the 22 highest-stakes claims before any file moved —
-**caught 3 wrong (14%), 2 outright reversals** (an abandoned/deleted experiment misread as
-shipped; a retired nightly A/B schedule misread as a settled negative). Result: **18 docs
-archived** (`planned/` → `implemented/vX_Y/`, 27 files incl. sprint-plans), **1 ruled out** with
-evidence in its own header, **31 confirmed still-planned** (this mission's accurate backlog now).
-Also credited a second orphaned fire: `docs-3` (benchmark provenance wiring) is fully verified
-and evaluator-passed (85/100) but its PR [#1031](https://github.com/sunholo-data/ailang/pull/1031)
-is blocked on an inherited, V1-owned CI red on `origin/dev`'s own tip (not a stale-base issue) —
-left open, ready to merge once V1 clears it.
+`docs-4` (taxonomy pass over `docs/docs/guides/`, 62 files) is **design-ready**: scoped to one
+sprint after measuring literal duplication is near-zero (2 of 1,830 pairs share ≥4 lines), every
+file gets an explicit disposition, 30-row Verification Log. Quorum blocked twice; both rounds'
+objections were narrow and concrete, closed via this mission's **first use of the narrow-
+refinement carve-out** rather than a 3rd quorum round. Per the carve-out's ratification rule, the
+sprint (planner/executor) is held for a one-time human OK — filed as **D-3**.
 
 ## Blocking on Mark
-None. Decision ledger: 2 rows, both `RESOLVED`. No new ask this iteration.
+**D-3 (OPEN)** — OK docs-mission's first carve-out use so `docs-4`'s sprint can run. Loop
+recommends OK. Default if unanswered: stays parked at design-ready, zero cost.
 
 ## Queue (top = next)
-1. `[LANDED]` docs-0 · charter ratified (attended).
-2. `[LANDED]` docs-2 · clauses 1+3 · first `docs-sync` sweep.
-3. `[RULED OUT]` docs-9 · intro.mdx version claim was a false positive.
-4-6. `[LANDED]` docs-5/6/10 · examples hygiene, `check_examples.sh` fix, verify-examples floor.
-7. `[RULED OUT]` docs-7 · "mission cannot edit its own content" — premise was false.
-8. `[LANDED]` docs-8 · 126→54 corrected, 18 archived, 1 ruled out, 31 accurate backlog remains.
-9. `[LANDED]` docs-1 · clause 7 · inbox-routing trigger built and verified.
-10. `[IN-SPRINT]` docs-3 · benchmark provenance wiring — verified, blocked on V1's CI red.
-11. `[PARKED]` docs-4 · taxonomy pass, sequenced after docs-3.
+1-9. `[LANDED]`/`[RULED OUT]` docs-0/1/2/5/6/7/8/9/10 — charter ratified, first sweep, examples
+hygiene, sync-tool fixes, verify-examples floor, inbox trigger, 126→54 backlog correction.
+10. `[IN-SPRINT]` docs-3 · benchmark provenance wiring — verified (PR #1031), blocked on V1's CI
+    red (`test`, `Build *-latest`, `launchd drivers`), unchanged since iteration 5.
+11. `[IN-SPRINT]` docs-4 · taxonomy pass — **design-ready, held on D-3** (see above).
 
-**Queue is empty of `[NEXT]` items.** 31 individually-evidenced docs in `design_docs/planned/`
-are the mission's real backlog now (see log §ITERATION 5 for the full list) — next fire picks one
-directly, or resumes docs-3 once V1's CI red clears.
+**Both resume points are externally blocked** (V1's CI red / D-3). Fallback: 31 individually-
+evidenced STILL-PLANNED docs from iteration 5's backlog sweep are directly pickable if both stay
+blocked next fire.
 
 ## Loop cadence + routing
 launchd `dev.ailang.mission-docs`, every 6h, staggered against v1/world/motoko. Routing ladder:
 subscription (`claude-sonnet-5`/`codex:gpt-5.6-luna`) → flat-rate (Ollama Cloud) → metered
-OpenRouter twin. Evaluator vendor-disjoint from executor at every rung. Metered ceiling $1/iter.
+OpenRouter twin. Evaluator vendor-disjoint from executor at every rung. Designer rotation pointer
+now at `claude:claude-fable-5` (this iteration's spawn); next spawn advances to
+`pi:ollama/deepseek-v4-flash:0731-cloud`. Metered ceiling $1/iter.
 
 ## Cost this iteration
-$0.00 of $1 — 7 sonnet Agent-tool sub-agents (6 classifiers + 1 independent verifier), all
-subscription-lane; no metered $ calls.
+$0.2516 of $1 — 2 quorum rounds (OpenRouter-billed reviewers, $0.1297 + $0.1219). Designer: 1
+Fable Agent-tool run, subscription lane, no metered $.
 
 ## Quota posture
 No fallback triggered. `origin/dev` red (`test`, 3× `Build *-latest`, `launchd drivers`)
-confirmed inherited/pre-existing, V1's domain — not re-flagged as new, blocks PR #1031 only.
+confirmed inherited/pre-existing, V1's domain — flagged again this iteration since it now blocks
+two resume points (docs-3's PR and docs-4's future sprint), not newly discovered.

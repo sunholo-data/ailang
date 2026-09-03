@@ -610,3 +610,173 @@ this iteration was not a formality — it reversed 2 of 20 IMPLEMENTED verdicts 
 misfiled a killed experiment as shipped and a live, unmeasured extension as settled-negative had
 it not run. Worth noting for any future large-batch classification sweep in this mission: the
 independent-verification step is not optional overhead, it is where the real errors were caught.
+
+---
+
+## ITERATION 6 — 2026-09-03T10:54Z
+
+**Gate 0.** Kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Pin worktree at
+`origin/dev` tip (`55891002f`), clean. Watermark check on bookkeeping issue `#979`: 0 directives
+from `MarkEdmondson1234` since `2026-09-02T06:29:45Z` (7 comments total, all non-allowlisted).
+Decision ledger valid, 2 rows, both `RESOLVED`, no OPEN rows — no unparking needed. 16 unread
+canonical-inbox messages: `design-doc-creator` self-completion, `pkg-sunholo-ailang-parse`/
+`pkg-sunholo-test-pkg`/`pkg-sunholo-external-backend` package task completions/failures,
+`mission-v1`/`mission-world` cross-mission traffic, `ailang-parse-claude`↔`aitana-platform`
+package feedback threads — none addressed to `mission-docs`, none actioned.
+
+**Gate 1.** `git fetch origin`; pin worktree HEAD (`55891002f`, detached) == `origin/dev`, no
+divergence to repair. SHA-addressed check-runs on `origin/dev` HEAD: 17 total, 6 NOT-GREEN —
+`Build windows-latest` (cancelled), `Build macos-latest` ×2 (cancelled), `Build ubuntu-latest`
+(failure), `launchd drivers (bash 3.2)` (failure), `test` (failure). Per-workflow read confirms:
+`CI` completed/failure @ `55891002f`; `Deploy Documentation to GitHub Pages` in_progress (docs
+mission's own watched deploy gate, unaffected so far). Failing job names (`test`, `launchd
+drivers (bash 3.2)`) are Go-test-suite and launchd-driver territory — not docs-mission's domain,
+and not caused by a docs-mission commit (the two most recent commits on `origin/dev`,
+`fix(resident)` and `fix(docker)`, are resident/A2A and docker-pi-pin work). Per Gate 1's
+repo-ownership scoping (V1 owns `sunholo-data/ailang`), this is V1's red to fix; sent a
+cross-mission heads-up to `mission-v1`'s inbox (`inbox_1788431686434_383803af`) naming the exact
+failing jobs and commits rather than actioning it here. Not re-flagged as new — same signature
+Gate 1 has recorded in iterations 1/2/4/5.
+
+**Gate 2 — pick.** Queue re-read: item 10 (`docs-3`, `[IN-SPRINT]`) re-checked —
+`gh pr view 1031` still `MERGEABLE`/`BLOCKED` on the identical failing-check set named above, not
+a stale-base problem (unchanged since iteration 5), so not actionable this iteration; left as the
+resume point it already was. Item 11 (`docs-4`, was `[PARKED]`): both stated blockers re-verified
+cleared — clauses 1-3 green (docs-2 covers 1+3 directly; docs-9/docs-6/docs-10/docs-8 close out
+clause 1's remaining findings; docs-5 closes clause 2), and docs-7 (the allowlist-blocks-nested-
+paths premise) was dissolved 2026-08-28. **Picked `docs-4`.**
+
+**Gate 3 — designer.** No existing design doc for docs-4 (`grep -ril` across `design_docs/`
+returns nothing but the charter/log/dashboard themselves). Spawned the rotation designer
+(`claude:claude-fable-5`, no prior rotation-pointer file → starts at `claude`, Agent tool
+`model="fable"`, run in background, ~1001s/67 tool calls/256.7k tokens) with an explicit brief:
+given 62 files under `docs/docs/guides/` (measured, matching the charter's own count), decide
+with evidence whether the taxonomy pass fits one sprint-sized doc or needs decomposition into
+2-4 smaller docs per the charter's standing multi-week-item rule, and produce accordingly.
+
+**Result: one sprint, not a decomposition** —
+`design_docs/docs-4-brief.md` (committed `7de9ca9ed` on new branch `docs-4-brief`, off detached
+HEAD `55891002f` = `origin/dev`; not pushed). The designer's own pairwise instrument (line-overlap
+≥4 identical non-heading/>40-char lines, all 1,830 guide-pair combinations) found only 2 pairs
+sharing ≥4 lines — literal page-level duplication is close to zero. The real redundancy is
+section-level: the same `ailang messages`/`make services-start`/`ailang coordinator status`
+command blocks recur across 4-7 files each, and six 2026-08-17 "audit pass" commits already did
+the page-level merges the charter's "40+ guides accreted" language implied still needed doing.
+What's left is nav + cruft: a tracked `.bak` file (since 2025-11-13, 404s live), 9 pages built and
+served but absent from `sidebars.js` (orphaned — unreachable from the nav), a coordinator cluster
+split across two top-level categories, ~5 pages in the wrong audience bucket. The brief enumerates
+every one of the 62 files' disposition (Appendix A) and the target sidebar tree (Appendix B):
+Phase A is mechanical (`git rm` the `.bak`, rewrite `sidebars.js` 63→70 guide ids); Phase B is 5
+enumerated redundancy removals (2 page deletions with inbound-link retargeting, 3 section trims to
+one-line pointers) — each justified against an explicit deletion criterion (every section already-
+present/stale-false/repo-internal AND every inbound link retargeted in the same commit) rather
+than asserted. 29-row Verification Log with commands; two self-caught instrument bugs recorded
+rather than hidden (BSD `sed` rejects `\?` in basic regex — first orphan-check pass reported all
+61 pages as orphans; zsh does not word-split an unquoted `$files` — first pairwise-duplication
+pass errored). One genuine baseline finding: bare `make docs-build` is red at HEAD regardless of
+this sprint (a tracked `packages-sidebar.json` points at gitignored `packages/sunholo/*` ids) —
+the deploy workflow's actual form, `sync-registry.sh && make docs-build`, is green; the brief's
+acceptance uses the workflow form and flags the `make/docs.mk` fix as a separate, out-of-allowlist
+row (Deferred section).
+
+**Quorum-at-pick** (mandatory — no prior artifact existed for this doc;
+`.ailang/state/mission-quorum/` had none matching `docs-4`). Round 1
+(`docs-4-brief-2026-09-03T10-54-51Z.json`, $0.1297): BLOCKED. `gpt5-6-sol` reject — V6 probed only
+8 of the 9 claimed orphan URLs, omitting `evaluation/cost-and-speed-budgets`. `gemini-3-1-pro`
+reject — no Verification Log row proved the B4/B5 section-cut headings (`Message System`,
+`SessionStart Hook Behavior`, `Two-Tier Search Architecture`, `Embeddings Doctrine`) actually
+exist or are adjacent. `oc-glm-5-2` absent (invalid), degraded to N-1, not silently passed. Both
+present objections carried a concrete, verbatim `proposed_fix` and disputed no design direction —
+per Gate 2's rule, the controller measured both directly (single commands, no design judgment,
+so not re-routed through the Fable designer): `curl` on the 9th orphan URL → `200` (matches the
+other 8); `grep -nE '^##+ '` on both files confirmed both heading pairs exactly as the phases
+assert. Committed as new Verification Log row (corrected V6) and a new row V29 (`141ffb5e9`).
+
+Round 2, the standard flow's mandatory single re-quorum
+(`docs-4-brief-2026-09-03T10-57-26Z.json`, $0.1219): BLOCKED again, all three reviewers present
+and reject. `gpt5-6-sol` — the doc's "URL-stable" scope claim overclaims against the two
+intentional, clause-5-authorised deletions (`cross-project-messaging`, `development`), which do
+404 their own URLs since no redirects plugin exists (V18). `gemini-3-1-pro` — B3's cut boundary
+(`getting-started.mdx` § *For AI Agents: CLI Integration*) was only regex-matched (V16), never
+proven to be a genuine H2 with exact text — the same rigor V29 had just given B4/B5, not yet
+given to B3. `oc-glm-5-2` — V23b documents that the build baseline mutates 4 tracked files
+(`design-docs.md`, `prompts/current.md`, `roadmap/index.md`, `packages-sidebar.json`) and that
+they must be `git checkout --`-restored before committing, but that restore lived only in prose,
+never as an encoded acceptance step — an executor following the numbered acceptance list literally
+could commit the mutated files or misdiagnose acceptance criterion 7's failure. All three
+objections: narrow, concrete (each carried its own verbatim `proposed_fix`), and none disputed the
+design direction (clause 5's deletion authorization, the restructure, the five trims) — meeting
+Gate 2's narrow-refinement carve-out criteria exactly. Applied the carve-out: reworded the
+URL-stable scope line to explicitly exempt the two authorised deletions; added row V30 (B3's
+boundary confirmed exact — line 180 `## <Icon name="bot" inline /> For AI Agents: CLI Integration`
+through, not including, line 253 `## <Icon name="user" inline /> For Human Developers: Manual
+Installation`, both genuine H2s); rewrote acceptance criteria 6-7 to encode the `git checkout --`
+cleanup as a mandatory step, ordered before the `git diff --stat` check. Committed `d3a87808e`.
+No third quorum round spent.
+
+**This is docs-mission's first use of the narrow-refinement carve-out.** Per the skill's
+ratification rule (a controller-authored gate change needs a one-time human OK on its first use
+per mission before the SPRINT it unblocks runs), `sprint-planner` and `sprint-executor` were **not
+spawned** this iteration — the design is ready but held. Filed as decision **D-3** (OPEN) in the
+charter's ledger. `sprint-evaluator` accordingly had nothing to independently judge (no code
+landed this iteration, so no generator≠judge step was owed — an evaluator spawned against zero
+diff would be theater, not review).
+
+**Gate 3b.** Not applicable — nothing pushed to `dev`. The design-doc commits (`7de9ca9ed`,
+`141ffb5e9`, `d3a87808e`) live on local branch `docs-4-brief` in the pin worktree, uncommitted to
+`dev`/`origin`, matching this mission's existing convention for design briefs (docs-2-brief was
+handled the same way — the doc is picked up by the sprint-planner from the worktree, not merged
+independently).
+
+**Gate 4.** Dashboard overwritten (`design_docs/docs-mission-dashboard.md`). STATUS rotation:
+adding iteration 6 pushed the charter to 4 stamps; moved iteration 2's stamp to
+`docs-mission-status-archive.md` (prepended after the file's 4-line header, ahead of iteration
+1's existing entry) — archive line-count grew by exactly the 49 lines removed from the charter
+(assertion run before commit). Queue item 11 (`docs-4`) retagged `[PARKED]` → `[IN-SPRINT]` with
+its design-ready state and D-3 pointer. Decision ledger: added D-3 (OPEN), validated
+(`scripts/mission_decisions.sh --check` → "decision ledger valid: 3 rows").
+
+**Routing evidence**: designer `claude:claude-fable-5` (rotation pointer was unset, this run is
+the mission's first — write `claude:claude-fable-5` to
+`~/.ailang/state/mission-docs-designer-rotation` at Gate 5 so the next designer spawn advances to
+`pi:ollama/deepseek-v4-flash:0731-cloud`); planner/executor/evaluator **not spawned** — blocked on
+D-3 ratification, not a probe failure, so no fallback chain was traversed and none is owed in this
+row. Fable diet: 1 doc, 1 initial run + 0 designer-spawned revisions (both quorum-response fixes
+were controller-measured single commands, per Gate 2's rule not to re-route trivial verification
+back through the designer) — within budget.
+
+**Cost**: metered $0.2516 of $1 ceiling (round-1 quorum $0.1297 + round-2 $0.1219, both
+OpenRouter-billed reviewer calls). Quota buckets: fable (1 designer run), sonnet (controller
+session, all Gate 0-2/4 work + both quorum-objection verifications).
+
+**Next**: `docs-4`'s sprint (planner → executor → evaluator) resumes the moment D-3 is answered —
+if OKed, it is next iteration's pick outright (no re-verification of the design needed, only a
+freshness check per Gate 2's standard reality-check); if unanswered, `docs-4` still ranks first
+in the queue at design-ready, zero cost accruing either way. `docs-3` (item 10, PR #1031) remains
+the other resume point, blocked on V1's inherited CI red — re-check `mergeable` fresh each
+iteration rather than assuming it is still true. 31 individually-evidenced STILL-PLANNED docs
+from iteration 5 remain available as a fallback pick if both docs-3 and docs-4 are still blocked
+next time.
+
+**Ruled out**: nothing this iteration — no hypothesis was refuted, only two designer premises
+were verification-completed (already true, not overturned).
+
+**DECISIONS FOR MARK**: **D-3** (OPEN, new this iteration) — one-time OK for docs-mission's first
+use of the narrow-refinement carve-out on `docs-4-brief.md`. See the ledger row for the full ask;
+loop recommends **(a) OK it**. Default if unanswered: `docs-4` stays parked at design-ready, no
+cost, no harm.
+
+**FLAGGED**: `origin/dev`'s `test`/`Build macos/windows/ubuntu-latest`/`launchd drivers (bash
+3.2)` red persists (inherited, V1's domain, same signature flagged in iterations 1/2/4/5 — sent a
+fresh cross-mission notice this iteration since it now also blocks a second PR, docs-4's future
+sprint in addition to docs-3's #1031).
+
+**Retro — no skill edit.** No ≥2-instance friction against the shared skill itself this
+iteration: the quorum-at-pick, narrow-refinement-carve-out, and Gate-1 repo-ownership-scoping
+disciplines all worked exactly as documented, and the ratification gate did exactly the job it
+exists to do (held a controller-authored bypass mechanism to a human check on its first live use
+in this mission, at zero cost while waiting). One process observation for this mission's own
+future iterations, not the shared skill: a controller-measured quorum-objection fix (a single
+`curl`/`grep`, no design judgment) is cheaper and just as valid as re-spawning the Fable designer
+for a one-line correction — worth keeping as the default rather than reflexively re-routing every
+objection back through the designer role.

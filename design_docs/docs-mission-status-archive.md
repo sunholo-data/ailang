@@ -3,6 +3,56 @@
 Append-only. Newest entry at the TOP (Gate 4 moves the 4th-newest charter stamp here, per
 `docs-mission.md`'s rotation rule). The charter itself always carries the newest 3.
 
+## STATUS 2026-08-31 — ITERATION 2: recovered a died-mid-flight fire (docs-9 RULED OUT, PR #973 landed); Gate-0 weekly sweep found docs-10
+
+Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. `dev` == `origin/dev` at
+pick time (`c16911e0b`), no divergence. 11 unread canonical-inbox messages, none docs-mission
+directives (V1's own controlplane traffic, `docparse`/`aitana-platform` package feedback for a
+different product, eval-suite run notifications) — same finding as iteration 1. Zero directives on
+bookkeeping issue `#953` since the watermark (`scripts/mission_directives.sh`, 0 of 16 comments).
+Decision ledger valid, 2 rows, both `RESOLVED` (D-1, D-2) — no new ask.
+
+Gate 1: `origin/dev` HEAD check-runs showed **two** non-green: `SonarCloud Code Analysis` and
+`launchd drivers (bash 3.2)`, both confirmed **inherited** from the immediate parent commit
+(`c16911e0b`, identical conclusions on both) — not caused by anything this mission is about to do,
+already flagged to V1 (repo owner) by iteration 1, not re-flagged. Skill copy confirmed matching
+`origin/dev` (`cmp` clean).
+
+**PICK: none fresh — Gate 2's died-mid-flight check found a complete, unlanded prior fire.** Open
+PR `#973` (`sprint/iter2-docs-9`) plus three orphaned worktrees, zero "ITERATION 2" trace anywhere
+in charter/log/archive (0/0/0, known-present control `ITERATION 1` = 1). The prior fire had run
+the full inner loop on `docs-9` to completion — `[RULED OUT]`, the intro.mdx staleness claim was a
+permanent false-positive of `check_versions.sh` Check 3 — and died before Gate 4/5. Re-verified
+first-party rather than trusted: intro.mdx's version annotations are ship-versions (5 bullets, 5
+different versions, confirmed by direct read); `prompts/v0.16.0.md` vs `v0.16.6.md` diff only the
+title line; all three worktrees clean (no uncommitted state — the fire finished, it just never
+landed); PR `#973` `MERGEABLE`/`CLEAN`, 21 checks, none non-green.
+
+**Outcome: LANDED.** Squash-merged [PR #973](https://github.com/sunholo-data/ailang/pull/973) →
+`ad7542ba5`. Local `dev` fast-forwarded. CI polled to completion on the merge commit itself:
+`Deploy Documentation to GitHub Pages` green; `CI` conclusion `failure` — but check-runs isolate it
+to the SAME two reds (`SonarCloud Code Analysis`, `launchd drivers (bash 3.2)`), both confirmed
+identical-conclusion on the parent commit — inherited, not introduced by this merge. Orphaned
+worktrees removed.
+
+**Gate 0 weekly external-issue sweep** (first iteration after the Monday 2026-08-31 07:00 CEST
+rotation boundary — `#953` created before it): 92 open issues enumerated (`--limit 100`, asserted
+against `jq length` = 92 — first attempt used `--limit 50` and silently truncated, caught before
+recording). Per-issue `#N\b` grep across charter/log/archive/dashboard, known-positive control
+(`#953` → 6) and known-absent control (`#88214` → 0) both firing. First pass read 92/92 orphaned —
+wrong, self-caught: a zsh 1-indexed-array bug (`${FILES[0]}` empty) made every grep run with no
+file argument. Corrected: **89/92 orphaned**, 87 plainly out of domain, **2 in-domain**:
+[#670](https://github.com/sunholo-data/ailang/issues/670)/[#654](https://github.com/sunholo-data/ailang/issues/654),
+both showing `make verify-examples` (this mission's own verify-profile gate) never actually
+verifies output and has no anti-vacuity floor. Re-confirmed live at HEAD (both defects still
+present). Filed as new queue item **`docs-10`**, positioned after `docs-6`.
+
+**Metered cost this iteration: $0.00** of $1 ceiling — no new model-role spawns; this iteration was
+controller-session verification + bookkeeping only. Quota buckets: sonnet (controller).
+
+Bookkeeping issue rotated: `#953` → `#979` (Monday 07:00 boundary rule; `#953` had 16 comments,
+under the 80 threshold, but was created before this week's boundary).
+
 ## STATUS 2026-08-28 — ITERATION 1: docs-2 LANDED; the sync tool it depends on was found broken, and fixing it needs two allowlist decisions
 
 First real sprint since ratification. Gate 0: kill switch armed; billing CLEAN; gh
