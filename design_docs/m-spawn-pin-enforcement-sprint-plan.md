@@ -172,12 +172,18 @@ jq accessors: `.tool_name`, `.tool_input.model // ""`, `.tool_input.subagent_typ
 ### 3.3 Hook decision order (implement in exactly this order)
 
 1. `PAYLOAD=$(cat)`.
-2. **Marker gate.** If `"${MISSION_CONTROL_ACTIVE:-}" != "1"` → **allow**, reason token
-   `passthrough:marker-absent`. (Status quo for attended sessions and other repos is untouched.)
+2. **Marker gate.** If `"${MISSION_CONTROL_ACTIVE:-}" != "1"` → **NO DECISION** (empty stdout,
+   exit 0), logged with verdict `passthrough` and token `passthrough:marker-absent`. (Status quo
+   for attended sessions and other repos is untouched — an explicit `allow` would BYPASS the
+   platform's permission flow for every Agent/Task call in every session loading this repo's
+   settings; judge finding F1, iteration 324.)
 3. **Parser gate.** `command -v jq >/dev/null 2>&1` fails → **deny**,
    token `fail-closed:jq-missing`.
-4. Parse the five fields. If `tool_name` is neither `Agent` nor `Task` → **allow**,
-   token `passthrough:not-a-spawn`.
+3b. **Payload gate.** `printf '%s' "$PAYLOAD" | jq -e . >/dev/null 2>&1` fails (empty stdin or
+   not valid JSON) → **deny**, token `fail-closed:payload-unparsable` (judge finding F2,
+   iteration 324: every `jq -r` below would read `""` and fall through to a passthrough).
+4. Parse the five fields. If `tool_name` is neither `Agent` nor `Task` → **NO DECISION** (as in
+   step 2), logged `passthrough` / `passthrough:not-a-spawn`.
 5. **Role token.** Match `^MISSION-ROLE:[[:space:]]*([A-Za-z-]+)[[:space:]]*$` against the FIRST
    line of `.tool_input.prompt`; if no match there, match the same pattern against the WHOLE of
    `.tool_input.description`. Lower-case the captured value with `tr 'A-Z' 'a-z'`.
@@ -207,7 +213,8 @@ Allow:
 ```json
 {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"<REASON>"}}
 ```
-One line on stdout, `exit 0`, in **every** branch. Build it with `printf '%s'` on a
+One line on stdout, `exit 0`, in every DECIDING branch; the two passthrough branches (steps 2
+and 4) print NOTHING and `exit 0` — no `hookSpecificOutput` at all — so the platform decides. Build it with `printf '%s'` on a
 jq-constructed string (`jq -nc --arg r "$REASON" '…'`) so a reason containing a quote cannot
 produce malformed JSON — malformed JSON is an allow.
 
@@ -241,7 +248,7 @@ the verdict (`… >> "$LOG" 2>/dev/null || true`):
 
 - timestamp: `date -u +%Y-%m-%dT%H:%M:%SZ`
 - empty/unknown fields are written as a single `-`
-- `<verdict>` is literally `allow` or `deny`
+- `<verdict>` is literally `allow`, `deny` or `passthrough` (the two no-decision branches)
 - example:
   `2026-09-03T17:04:11Z	executor	codex:gpt-5.6-luna	sonnet	general-purpose	deny	deny:provider-pin`
 
@@ -330,7 +337,7 @@ passes for the wrong reason the pair disagrees.
 
 | # | Command | Expected | At base |
 |---|---|---|---|
-| A2.1 | `bash tools/launchd/test_spawn_pin_hook.sh` | `==== 13 passed, 0 failed ====`, rc=0 (arms 1,2,3,4,5,6,7,7ctl,7a,7b,8j,L,7c) | RED (file absent) |
+| A2.1 | `bash tools/launchd/test_spawn_pin_hook.sh` | `==== 16 passed, 0 failed ====`, rc=0 (arms 1,2,3,4,5,6,7,7ctl,NS,8p,8e,7a,7b,8j,L,7c) | RED (file absent) |
 | A2.2 | `/bin/bash -n tools/launchd/spawn-pin-hook.sh` | rc=0 | RED |
 | A2.3 | `grep -c 'test_spawn_pin_hook.sh' make/test.mk` | `1` | `0` — **RED** |
 | A2.4 | `python3 -c "import json,sys; json.load(open('.claude/settings.json'))"` | rc=0 (settings.json stays valid JSON) | GREEN — must stay green |
@@ -352,11 +359,14 @@ Common env for arms 1–8: `MISSION_CONTROL_ACTIVE=1`, `MISSION_NAME=test`, `HOM
 | 5 | `MISSION_EVALUATOR_MODEL=sonnet`, `MISSION_EXECUTOR_RESOLVED=codex:gpt-5.6-sol`; prompt `MISSION-ROLE: evaluator` | `allow`, reason contains `allow:alias-pin` | make the collision check unconditional → **only arm 5 dies** (arm 4's false-positive control) |
 | 6 | `MISSION_EXECUTOR_MODEL=codex:gpt-5.6-luna`; prompt = `Evaluate whether the sprint-planner's plan was followed by the sprint-executor` (two role skills named, **no token**) | `deny`, reason contains `fail-closed:role-missing` | reintroduce prose-based role inference → **only arm 6 dies** (design M8's measured false positive) |
 | 7 | no token, `subagent_type=general-purpose`, marker **present** | `deny`, reason contains `fail-closed:role-missing` | delete the role-missing deny → **only arm 7 dies** |
-| 7ctl | byte-identical payload to arm 7, `MISSION_CONTROL_ACTIVE` **unset** | `allow`, reason contains `passthrough:marker-absent` | delete the `MISSION_CONTROL_ACTIVE` check → **only arm 7ctl dies** (the attended-session status quo) |
-| 7a | no token, `subagent_type=Explore`, marker present | `allow`, reason contains `explore-readonly` | delete the Explore exception → **only arm 7a dies**; arm 7 is its paired control (same call, `general-purpose`) |
+| 7ctl | byte-identical payload to arm 7, `MISSION_CONTROL_ACTIVE` **unset** | EMPTY stdout, rc 0, log line verdict `passthrough` token `passthrough:marker-absent` | delete the `MISSION_CONTROL_ACTIVE` check → **only arm 7ctl dies** (the attended-session status quo); make the branch emit an explicit `allow` → only arm 7ctl dies |
+| 7a | no token, `subagent_type=Explore`, marker present | `allow`, reason contains `explore-readonly` | delete the Explore exception → **arms 7a AND L die** (L's second log line is the Explore allow; corrected by the round-1 judge — the table had claimed 7a alone); arm 7 is its paired control (same call, `general-purpose`) |
+| NS | marker present, `tool_name=Bash` | empty stdout, rc 0, log `passthrough`/`passthrough:not-a-spawn` | make the not-a-spawn branch emit an explicit allow → **only arm NS dies** |
+| 8p | marker present, stdin `not json` | `deny`, reason contains `fail-closed:payload-unparsable`, rc 0 | turn the payload gate into a passthrough → **8p and 8e die** |
+| 8e | marker present, stdin EMPTY | `deny`, reason contains `fail-closed:payload-unparsable`, rc 0 | same as 8p |
 | 7b | prompt first line `MISSION-ROLE: judge`, marker present | `deny`, reason contains `fail-closed:role-unknown` | accept any token value → **only arm 7b dies** |
 | 8j | marker present, arm-1 payload, but `PATH` stubbed to a directory with **no `jq`** | `deny`, reason contains `fail-closed:jq-missing`, exit 0 | turn the missing-parser branch into an allow (or an early `exit 1`) → **only arm 8j dies** |
-| L | after arms 1 and 7a, read `$tmp/.ailang/state/mission-test-spawn-hook.log` | exactly 2 lines; line 1 has 7 tab-separated fields ending `deny\tdeny:provider-pin`; line 2 ends `allow\texplore-readonly` | drop the log append, or change the field order/count → **only arm L dies** |
+| L | after arms 1 and 7a, read `$tmp/.ailang/state/mission-test-spawn-hook.log` | exactly 2 lines × 7 tab-separated fields, EVERY field asserted (ISO-8601Z timestamp shape, then `executor\|codex:gpt-5.6-luna\|sonnet\|general-purpose\|deny\|deny:provider-pin` and `-\|-\|sonnet\|Explore\|allow\|explore-readonly`) | drop the log append, change the field order/count, or swap the role/pin arguments to `log_line()` → **only arm L dies** (the round-1 judge found the arg-swap mutation survived when only the last two fields were checked) |
 
 Plus, in `test_mission_routing.sh`:
 

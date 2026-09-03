@@ -21,6 +21,8 @@ run_hook() {
   tmp=$(mktemp -d)
   out=$(printf '%s' "$payload" | env HOME="$tmp" MISSION_NAME=test "$@" bash "$HOOK")
   RC=$?
+  OUT="$out"
+  LOGLINE=$(tail -1 "$tmp/.ailang/state/mission-test-spawn-hook.log" 2>/dev/null)
   DEC=$(printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecision')
   REASON=$(printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecisionReason')
   rm -rf "$tmp"
@@ -88,12 +90,40 @@ else
   bad "arm7 deny role-missing" "dec=$DEC reason=$REASON"
 fi
 
-# --- Arm 7ctl: byte-identical payload to arm 7, marker absent -> allow ---------
+# --- Arm 7ctl: byte-identical payload to arm 7, marker absent -> NO DECISION ---
+# Empty stdout + exit 0: the platform's own permission flow decides, exactly as
+# without the hook. An explicit "allow" here would bypass permissions for every
+# Agent/Task call in every attended session (judge finding F1, iteration 324).
 run_hook "$payload7" MISSION_CONTROL_ACTIVE=
-if [ "$DEC" = "allow" ] && contains "$REASON" "passthrough:marker-absent"; then
-  ok "arm7ctl allow marker-absent (attended-session status quo)"
+lv=$(printf '%s' "$LOGLINE" | awk -F'\t' '{print $6"/"$7}')
+if [ -z "$OUT" ] && [ "$RC" -eq 0 ] && [ "$lv" = "passthrough/passthrough:marker-absent" ]; then
+  ok "arm7ctl marker-absent emits NO decision (attended-session status quo), logged as passthrough"
 else
-  bad "arm7ctl allow marker-absent (attended-session status quo)" "dec=$DEC reason=$REASON"
+  bad "arm7ctl marker-absent emits NO decision (attended-session status quo), logged as passthrough" "out=$OUT rc=$RC log=$lv"
+fi
+
+# --- Arm NS: marker present but tool_name is not Agent/Task -> NO DECISION -----
+payloadNS=$(jq -nc '{hook_event_name:"PreToolUse",tool_name:"Bash",tool_input:{command:"echo hi"}}')
+run_hook "$payloadNS" MISSION_CONTROL_ACTIVE=1
+lv=$(printf '%s' "$LOGLINE" | awk -F'\t' '{print $6"/"$7}')
+if [ -z "$OUT" ] && [ "$RC" -eq 0 ] && [ "$lv" = "passthrough/passthrough:not-a-spawn" ]; then
+  ok "armNS not-a-spawn emits NO decision, logged as passthrough"
+else
+  bad "armNS not-a-spawn emits NO decision, logged as passthrough" "out=$OUT rc=$RC log=$lv"
+fi
+
+# --- Arm 8p / 8e: malformed or EMPTY payload while marker present -> deny -------
+run_hook "not json" MISSION_CONTROL_ACTIVE=1 MISSION_EXECUTOR_MODEL=codex:gpt-5.6-luna
+if [ "$DEC" = "deny" ] && contains "$REASON" "fail-closed:payload-unparsable" && [ "$RC" -eq 0 ]; then
+  ok "arm8p deny payload-unparsable (malformed JSON), exit 0"
+else
+  bad "arm8p deny payload-unparsable (malformed JSON), exit 0" "dec=$DEC reason=$REASON rc=$RC"
+fi
+run_hook "" MISSION_CONTROL_ACTIVE=1 MISSION_EXECUTOR_MODEL=codex:gpt-5.6-luna
+if [ "$DEC" = "deny" ] && contains "$REASON" "fail-closed:payload-unparsable" && [ "$RC" -eq 0 ]; then
+  ok "arm8e deny payload-unparsable (empty stdin), exit 0"
+else
+  bad "arm8e deny payload-unparsable (empty stdin), exit 0" "dec=$DEC reason=$REASON rc=$RC"
 fi
 
 # --- Arm 7a: no token, subagent_type=Explore, marker present -> allow ----------
@@ -135,20 +165,23 @@ printf '%s' "$payload1" | env HOME="$tmp" MISSION_NAME=test MISSION_CONTROL_ACTI
   MISSION_EXECUTOR_MODEL=codex:gpt-5.6-luna bash "$HOOK" >/dev/null
 printf '%s' "$payload7a" | env HOME="$tmp" MISSION_NAME=test MISSION_CONTROL_ACTIVE=1 bash "$HOOK" >/dev/null
 LOG="$tmp/.ailang/state/mission-test-spawn-hook.log"
+# All SEVEN fields of both lines are asserted (judge finding, iteration 324: checking
+# only the last two let a silent role/pin field swap in log_line() go unnoticed).
 if [ -f "$LOG" ]; then
   lines=$(wc -l < "$LOG" | tr -d ' ')
-  f1_6=$(awk -F'\t' 'NR==1{print $6}' "$LOG")
-  f1_7=$(awk -F'\t' 'NR==1{print $7}' "$LOG")
-  f2_6=$(awk -F'\t' 'NR==2{print $6}' "$LOG")
-  f2_7=$(awk -F'\t' 'NR==2{print $7}' "$LOG")
-  if [ "$lines" = "2" ] && [ "$f1_6" = "deny" ] && [ "$f1_7" = "deny:provider-pin" ] \
-    && [ "$f2_6" = "allow" ] && [ "$f2_7" = "explore-readonly" ]; then
-    ok "armL decision log has 2 lines with correct verdict/token endings"
+  nf1=$(awk -F'\t' 'NR==1{print NF}' "$LOG"); nf2=$(awk -F'\t' 'NR==2{print NF}' "$LOG")
+  ts_ok=$(awk -F'\t' '$1 ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z$/ {c++} END{print c+0}' "$LOG")
+  rest1=$(awk -F'\t' 'NR==1{print $2"|"$3"|"$4"|"$5"|"$6"|"$7}' "$LOG")
+  rest2=$(awk -F'\t' 'NR==2{print $2"|"$3"|"$4"|"$5"|"$6"|"$7}' "$LOG")
+  if [ "$lines" = "2" ] && [ "$nf1" = "7" ] && [ "$nf2" = "7" ] && [ "$ts_ok" = "2" ] \
+    && [ "$rest1" = "executor|codex:gpt-5.6-luna|sonnet|general-purpose|deny|deny:provider-pin" ] \
+    && [ "$rest2" = "-|-|sonnet|Explore|allow|explore-readonly" ]; then
+    ok "armL decision log: 2 lines x 7 fields, every field asserted"
   else
-    bad "armL decision log has 2 lines with correct verdict/token endings" "lines=$lines f1=$f1_6/$f1_7 f2=$f2_6/$f2_7"
+    bad "armL decision log: 2 lines x 7 fields, every field asserted" "lines=$lines nf=$nf1/$nf2 ts_ok=$ts_ok l1=$rest1 l2=$rest2"
   fi
 else
-  bad "armL decision log has 2 lines with correct verdict/token endings" "log missing"
+  bad "armL decision log: 2 lines x 7 fields, every field asserted" "log missing"
 fi
 rm -rf "$tmp"
 

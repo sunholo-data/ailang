@@ -123,7 +123,11 @@ prerequisite**, not an optional spike.
     alias equals the executor's RESOLVED model, deny with the re-route reason.
 - **Output**: the documented JSON
   `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"..."}}`;
-  exit 0 in every branch. A crashed hook must not become an allow — a hook error is an ALLOW in
+  exit 0 in every branch; the two PASSTHROUGH branches (marker absent; tool_name not Agent/Task)
+  print NO decision at all — an explicit `allow` would bypass the platform's permission flow in
+  every attended session, the opposite of "status quo untouched" (judge finding F1, iteration 324)
+  — and an empty/unparsable payload while the marker is set is a deny
+  (`fail-closed:payload-unparsable`, judge finding F2). A crashed hook must not become an allow — a hook error is an ALLOW in
   Claude Code's semantics, which is why the script must be defensive and tested for every branch.
 
 ### Layer 3 — driver exports the resolved plan (single source of truth)

@@ -29,6 +29,16 @@ emit_jq() {
   exit 0
 }
 
+# Passthrough: emit NO decision at all (empty stdout, exit 0), so the platform's
+# own permission flow decides exactly as it would without this hook. An explicit
+# "allow" here would BYPASS the permission system for every Agent/Task call in
+# every attended session that loads this repo's settings — the opposite of the
+# design's "status quo untouched". Logged with verdict `passthrough`. $1=token
+emit_pass() {
+  log_line "${ROLE:--}" "${PIN:--}" "${MODEL:--}" "${SUB:--}" "passthrough" "$1"
+  exit 0
+}
+
 # Emit JSON via printf (constant reason, no jq dependency). $1=verdict $2=reason $3=token
 emit_printf() {
   log_line "${ROLE:--}" "${PIN:--}" "${MODEL:--}" "${SUB:--}" "$1" "$3"
@@ -39,7 +49,7 @@ emit_printf() {
 # --- 2. Marker gate -----------------------------------------------------------
 # Attended sessions and other repos (marker absent) are untouched: allow.
 if [ "${MISSION_CONTROL_ACTIVE:-}" != "1" ]; then
-  emit_printf "allow" "passthrough:marker-absent — MISSION_CONTROL_ACTIVE is not 1 — spawn-pin enforcement inactive" "passthrough:marker-absent"
+  emit_pass "passthrough:marker-absent"
 fi
 
 # --- 3. Parser gate -----------------------------------------------------------
@@ -47,6 +57,14 @@ fi
 # checked BEFORE any jq call and emits valid deny JSON without jq.
 if ! command -v jq >/dev/null 2>&1; then
   emit_printf "deny" "fail-closed:jq-missing — the spawn-pin hook cannot parse the PreToolUse payload without jq; refusing to allow an unchecked mission spawn" "fail-closed:jq-missing"
+fi
+
+# --- 3b. Payload gate ---------------------------------------------------------
+# An empty or unparsable payload while a mission is running is a DENY, never an
+# allow: every jq -r below would read "" from it and the hook would otherwise
+# fall through to a passthrough (judge finding F2, iteration 324).
+if ! printf '%s' "$PAYLOAD" | jq -e . >/dev/null 2>&1; then
+  emit_jq "deny" "fail-closed:payload-unparsable — the PreToolUse payload is empty or not valid JSON; refusing to allow an unchecked mission spawn" "fail-closed:payload-unparsable"
 fi
 
 # --- 4. Parse the five fields we read; ignore everything else ----------------
@@ -57,7 +75,7 @@ PROMPT=$(printf '%s' "$PAYLOAD" | jq -r '.tool_input.prompt // ""')
 DESC=$(printf '%s' "$PAYLOAD" | jq -r '.tool_input.description // ""')
 
 if [ "$TOOL_NAME" != "Agent" ] && [ "$TOOL_NAME" != "Task" ]; then
-  emit_jq "allow" "passthrough:not-a-spawn — tool_name '$TOOL_NAME' is not Agent/Task" "passthrough:not-a-spawn"
+  emit_pass "passthrough:not-a-spawn"
 fi
 
 # --- 5. Role token ------------------------------------------------------------
