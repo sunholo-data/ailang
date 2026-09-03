@@ -25,6 +25,21 @@ import (
 //     its task is terminal is now a detectable condition rather than something
 //     that has to be noticed by hand four months later.
 
+// LiveStageWindow is how recently a pending or running stage must have started
+// for it to count as work still in flight.
+//
+// This exists because the first version of this reconciler found nothing. It
+// treated ANY pending stage as proof of life — a rule written for the daemon
+// world, where pending means "about to run". In the cloud world pending was the
+// FROZEN state left by a completion path that never advanced anything, so the
+// rule excluded precisely the population it was meant to find: 311 chains, every
+// one of them holding a pending stage, every one of them dead.
+//
+// The window is the platform task ceiling with headroom. Past it, a pending
+// stage cannot still be running, so it stops being a reason to leave the chain
+// alone.
+const LiveStageWindow = 6 * time.Hour
+
 // AbandonReasonPreFix is recorded on chains stranded by the pre-fix cloud path.
 const AbandonReasonPreFix = "stranded before M-COMPLETION-PATH-PARITY: the cloud completion path performed no chain progression"
 
@@ -38,10 +53,11 @@ type StrandedChain struct {
 // FindStrandedChains returns chains left active whose stages have all finished,
 // or which have no stages at all and are older than minAge.
 //
-// It is deliberately conservative: a chain with a stage still running is NOT
-// stranded, however old, because a legitimately long task must never be swept up
-// by a cleanup. The 2h task ceiling means a genuine run can look idle for a long
-// time.
+// Conservative where it matters: a chain with a RECENTLY started pending or
+// running stage is never stranded, because a legitimately long task must not be
+// swept up by a cleanup. "Recently" is LiveStageWindow — past that a pending
+// stage is a frozen record, not work in flight, and treating it as life is what
+// made the first version of this find nothing at all.
 func (s *Store) FindStrandedChains(ctx context.Context, minAge time.Duration) ([]StrandedChain, error) {
 	cutoff := time.Now().Add(-minAge)
 
@@ -54,9 +70,10 @@ func (s *Store) FindStrandedChains(ctx context.Context, minAge time.Duration) ([
 			SELECT 1 FROM chain_stages s
 			WHERE s.chain_id = c.id
 			  AND s.status IN ('pending', 'running')
+			  AND s.started_at > ?
 		  )
 		ORDER BY c.created_at ASC
-	`, string(ChainStatusActive), cutoff)
+	`, string(ChainStatusActive), cutoff, time.Now().Add(-LiveStageWindow))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find stranded chains: %w", err)
 	}

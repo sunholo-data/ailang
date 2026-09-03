@@ -450,4 +450,17 @@ func (b *JaegerBackend) RecomputeChainAggregates(ctx context.Context, chainID st
 	return ErrChainWritesUnsupported
 }
 
+
+// Chain reconciliation is unsupported here: this backend does not hold the chain
+// hierarchy. It returns a named error rather than an empty result, so a
+// reconciliation pass against the wrong backend reports nothing done instead of
+// silently reporting nothing to do.
+func (b *JaegerBackend) FindStrandedChains(ctx context.Context, minAge time.Duration) ([]StrandedChain, error) {
+	return nil, ErrChainWritesUnsupported
+}
+
+func (b *JaegerBackend) AbandonChain(ctx context.Context, chainID, reason string) error {
+	return ErrChainWritesUnsupported
+}
+
 var _ Backend = (*JaegerBackend)(nil)

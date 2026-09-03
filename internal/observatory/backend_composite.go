@@ -535,4 +535,14 @@ func (b *CompositeBackend) RecomputeChainAggregates(ctx context.Context, chainID
 	return b.local.RecomputeChainAggregates(ctx, chainID)
 }
 
+
+// Chain reconciliation (M-COMPLETION-PATH-PARITY M4).
+func (b *CompositeBackend) FindStrandedChains(ctx context.Context, minAge time.Duration) ([]StrandedChain, error) {
+	return b.local.FindStrandedChains(ctx, minAge)
+}
+
+func (b *CompositeBackend) AbandonChain(ctx context.Context, chainID, reason string) error {
+	return b.local.AbandonChain(ctx, chainID, reason)
+}
+
 var _ Backend = (*CompositeBackend)(nil)

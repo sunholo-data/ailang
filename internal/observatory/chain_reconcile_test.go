@@ -89,8 +89,11 @@ func TestReconcile_NeverAbandonsAChainWithLiveWork(t *testing.T) {
 			defer db.Close()
 			ctx := context.Background()
 
-			chainID := seedReconcileChain(t, store, 30*24*time.Hour) // a month old
+			// A month-old chain, but with a stage that started just now: this is
+			// live work on a long-lived chain and must never be swept.
+			chainID := seedReconcileChain(t, store, 30*24*time.Hour)
 			seedReconcileStage(t, store, chainID, live)
+			touchStageStart(t, store, chainID, time.Now())
 
 			n, err := store.ReconcileStrandedChains(ctx, time.Hour, AbandonReasonPreFix)
 			if err != nil {
@@ -224,5 +227,40 @@ func TestReconcile_IsIdempotent(t *testing.T) {
 	}
 	if first != 1 || second != 0 {
 		t.Errorf("passes reconciled %d then %d, want 1 then 0", first, second)
+	}
+}
+
+// touchStageStart sets a stage's started_at, so an arm can distinguish work in
+// flight from the frozen pending records the broken completion path left behind.
+func touchStageStart(t *testing.T, store *Store, chainID string, at time.Time) {
+	t.Helper()
+	if _, err := store.db.Exec(`UPDATE chain_stages SET started_at = ? WHERE chain_id = ?`, at, chainID); err != nil {
+		t.Fatalf("touch stage start: %v", err)
+	}
+}
+
+// TestReconcile_AFrozenPendingStageIsNotLiveWork is the arm that would have
+// caught the first version of this reconciler.
+//
+// It reported "nothing to reconcile" against 311 known-dead prod chains, because
+// it treated ANY pending stage as proof of life. Those chains were stranded
+// precisely BECAUSE their stages were frozen at pending — the rule excluded the
+// exact population it existed to find.
+func TestReconcile_AFrozenPendingStageIsNotLiveWork(t *testing.T) {
+	db, store := setupTestDB(t)
+	defer db.Close()
+	ctx := context.Background()
+
+	chainID := seedReconcileChain(t, store, 30*24*time.Hour)
+	seedReconcileStage(t, store, chainID, StageStatusPending)
+	// Frozen: started long before the live window.
+	touchStageStart(t, store, chainID, time.Now().Add(-30*24*time.Hour))
+
+	n, err := store.ReconcileStrandedChains(ctx, time.Hour, AbandonReasonPreFix)
+	if err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("reconciled %d chains; a stage pending for a month is a frozen record, not work in flight", n)
 	}
 }

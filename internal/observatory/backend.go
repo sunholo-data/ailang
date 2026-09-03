@@ -162,6 +162,12 @@ type Backend interface {
 	// RecomputeChainAggregates derives a chain's totals and stages_completed from
 	// its stage rows, so the value does not depend on who writes it or how often.
 	RecomputeChainAggregates(ctx context.Context, chainID string) error
+
+	// Chain reconciliation (M-COMPLETION-PATH-PARITY M4). A chain whose stages
+	// have all finished but which is still "active" can never progress; it is
+	// marked abandoned with a reason rather than given a verdict nobody observed.
+	FindStrandedChains(ctx context.Context, minAge time.Duration) ([]StrandedChain, error)
+	AbandonChain(ctx context.Context, chainID, reason string) error
 	UpdateStageSession(ctx context.Context, stageID, sessionID string) error
 	UpdateStageApproval(ctx context.Context, stageID string, status ApprovalStatus, approvalType ApprovalType, feedback string) error
 	// UpdateStageMetrics accumulates a stage's denormalized metrics.
