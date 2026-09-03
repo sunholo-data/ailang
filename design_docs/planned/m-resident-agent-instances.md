@@ -271,6 +271,63 @@ the provider, so the instance object itself comes from
 `scripts/resident-instance.sh` over REST, with `--validate-only` for CI. The
 IAM half never leaves terraform.
 
+## Self-verification
+
+Per `design_docs/README.md` §6 every design names the one command that proves
+the deployed thing works. For the resident agent:
+
+```bash
+scripts/resident-instance.sh verify --name resident-pi-ailang \
+  --project ailang-multivac-dev
+```
+
+It runs from a developer machine or from CI, needs **no platform backend, no
+Firestore and no CI runner**, and mints its identity by impersonating the
+instance's own runtime service account — read off the instance rather than
+passed in, since that account is by construction on its own allowlist. That
+isolation is the point: a failure here is the instance's, not four systems'
+between us and it.
+
+**Positive assertions**
+
+| | Proves |
+|---|---|
+| instance reports `CONDITION_SUCCEEDED` | it is running, not merely defined |
+| `/livez` serves | the process is up |
+| authenticated `/health` is healthy | a caller on the allowlist is admitted |
+| agent card advertises `<base>/a2a` | the A2A contract is published, not a bespoke route |
+| `message/send` → `tasks/get` reaches `completed` with a non-empty artifact | **the agent can actually think** |
+
+**Negative assertions** — the failures that would otherwise look healthy:
+
+| | Catches |
+|---|---|
+| unauthenticated `/health` is refused | the 2026-09-02 stale image that served 200 to anonymous callers for 96 seconds. Expects **401 when `invokerIamDisabled`** (the app owns auth) and **403 otherwise** (the edge does), read from the live spec — asserting a constant would report config drift as a test failure |
+| an unregistered model is refused | pi has no max-tokens flag, so an unknown model runs silently at 16384/128000/no-reasoning. "It worked" is exactly what this bug looks like |
+| the artifact contains no ANSI escapes | forwarding the TUI instead of text (D1c's trap). Asserted before streaming lands, not after |
+
+Everything above the last row of the positive table can pass on an agent that
+cannot think, which is why the round trip is in the suite and why it is the
+assertion that has failed most often.
+
+**What a green run does not prove**: durability across the 7-day restart,
+context retention between calls (D7 — it is currently `--no-session`, so a green
+run says nothing about memory), cost, or behaviour under concurrent callers.
+
+**Where it runs**: operator-invoked today; the post-deploy gate once M4 lands.
+The image's own 40+ assertions run in Cloud Build separately — those prove the
+build, this proves the deployment.
+
+### Why the boot proves pi runs headless
+
+`boot.sh` runs `pi --version </dev/null` and logs the result. On 2026-09-03 the
+round trip failed for fifteen minutes at a time with **no error and a healthy
+`/health`**: pi had been spawned with Node's default stdin, an open pipe that
+was never written to, where Go's `exec.Cmd` leaves `Stdin` nil and gets
+`/dev/null`. The invocations matched flag for flag; they differed in the one
+thing nobody had written down. One second at boot, with the same stdin
+discipline the executor uses, would have named it immediately.
+
 ## Open questions
 
 1. **Terminal detection.** `blocked` is the only state herdr classifies
