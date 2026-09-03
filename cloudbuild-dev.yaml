@@ -232,6 +232,28 @@ steps:
     waitFor: ['-']
     # Experimental Preview-product image: a broken build must not block the
     # core services below, same rationale as agent-motoko.
+    #
+    # THE COST OF THAT, WRITTEN DOWN BECAUSE IT MISLED SOMEONE ON 2026-09-03:
+    # a failed step here still reports the BUILD as SUCCESS. The resident's pi
+    # pin failed on `npm error EEXIST` and shipped an image with the old pi,
+    # while the build went green and was read as proof the image was good. So:
+    # a green build says NOTHING about the resident image. The gate is
+    # `resident-instance.sh verify` against the deployed instance.
+    allowFailure: true
+
+  # Run the image's own acceptance suite. Same allowFailure rationale, but a
+  # BUILT-BUT-BROKEN image is now visible in the build record rather than only
+  # at deploy time, and the log names which assertion went.
+  - id: test-resident-pi
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker run --rm --entrypoint bash "$$AR/resident-pi:latest" \
+          /usr/local/bin/test-image.sh
+    waitFor: ['build-resident-pi']
     allowFailure: true
 
   # Push coordinator (buildpacks doesn't push automatically like buildx --push).

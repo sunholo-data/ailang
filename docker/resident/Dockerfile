@@ -40,14 +40,29 @@ RUN curl -fsSL "$HERDR_URL" -o /usr/local/bin/herdr \
 # actually got and degrades visibly if a version lacks the flag.
 ARG PI_PACKAGE=@earendil-works/pi-coding-agent
 ARG PI_VERSION=0.84.4
-RUN npm install -g "${PI_PACKAGE}@${PI_VERSION}" \
-    && pi --version </dev/null
+#
+# The old package must be REMOVED first. Both publish a `pi` bin, and npm
+# refuses to clobber another package's link — `npm error EEXIST: file already
+# exists, path /usr/bin/pi`, which is how the first attempt at this failed.
+#
+# And the result is asserted on the CAPABILITY, not the version string: the
+# reason for this pin is that 0.73.1 cannot hold a conversation, so the build
+# should fail if a future bump loses `--session-id` even at a higher number.
+RUN npm uninstall -g @mariozechner/pi-coding-agent 2>/dev/null || true; \
+    npm install -g "${PI_PACKAGE}@${PI_VERSION}" \
+    && pi --version </dev/null \
+    && pi --help </dev/null | grep -q -- "--session-id" \
+    && echo "pi $(pi --version </dev/null) supports --session-id"
 
 COPY boot.sh /usr/local/bin/boot.sh
 COPY server.mjs /usr/local/bin/server.mjs
 COPY resident-run /usr/local/bin/resident-run
 COPY lib/ /usr/local/bin/lib/
-RUN chmod 0755 /usr/local/bin/boot.sh /usr/local/bin/server.mjs /usr/local/bin/resident-run
+# The acceptance suite ships INSIDE the image so it can be run against the
+# artefact that will actually be deployed, in CI or by hand later, rather than
+# against a checkout that may have moved on.
+COPY test-image.sh /usr/local/bin/test-image.sh
+RUN chmod 0755 /usr/local/bin/boot.sh /usr/local/bin/server.mjs /usr/local/bin/resident-run /usr/local/bin/test-image.sh
 
 USER ailang
 
