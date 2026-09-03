@@ -3629,7 +3629,34 @@ finding is a claim in both directions; `gh --jq` takes exactly one expression. T
 worktrees, all motoko), which is the control that makes the discriminator valid *for motoko* and
 invalid for V1's three pinned worktrees of one clone. Recorded, not spent.
 
-**Next**: **re-poll PR #1034 first**, on the predicate `test` AND `lint` green on `dev` — run as
-commands, not transcribed. If green, land it and close row 6o. Then row **6p**: derive the suite's
-wall-clock and node-ceiling bounds from a stimulus measured in-test, so the ratio holds by
-construction on any machine, rather than from constants calibrated on one host at one load.
+**CORRECTION, SAME ITERATION — IT LANDED, AND THE REVERSAL IS THE RECORD.** Everything above was
+written while the merge was blocked, and is kept verbatim rather than rewritten. About **90 minutes**
+after the hand-over, V1 landed `b51e53f78` — *"dev has been red for 24h on five defects stacked in one
+sequential job"* — which covers **both** causes reported, **including the `lint` red that its own
+in-flight `#1030` did not**, plus three more nobody had seen (`check-file-sizes`, a
+`golangci-lint unused`, and 21 Windows `TestFinalize_*` tests). So the hand-over was not merely
+recorded: the second cause was net-new information and it was acted on.
+
+The branch was rebased onto the fixed base and **re-verified there rather than assumed** (`rc=0,
+46 ok`, 62s; production probe hash unchanged), then **rebase-merged** as `b97cbf83c`..`684ab8331` —
+rebase and not squash, deliberately, so the milestone boundaries this sprint proved green stay
+bisectable on `dev`.
+
+**Gate 3b GREEN: 21 checks, 0 non-green (positive control `total=21`), required 4/4
+(`test`/`lint`/`build`/`docs-gate`), and `launchd drivers (bash 3.2): success`.** The three new arms
+**executed in CI** on the macOS runner — `ok 43 - production run_lane SIGKILL escalation kills a
+TERM-immune wrapper grandchild`, `ok 44`/`ok 45` for containment, `PASS: 46 probe self-test arms ran`,
+with a pre-existing arm in the same log as the control. **The BLIND-leg scope statement above is
+therefore RETIRED, not softened**: it was true when written and is false now, and that transition is
+exactly what the hand-over bought. Auto-close scan on all five commit messages and the PR body: **0**
+matches with a known-bad control firing; `closingIssuesReferences` **0**; `#987` still OPEN at **7**
+comments, its pre-merge count.
+
+One honest note on my own process: I wrote a full NOT-LANDED record, including a charter tag and a
+resume predicate, and then had to correct all of it inside the same iteration. That was still the
+right order — the record existed before the outcome was known, which is the only reason a crashed
+slot would have inherited something rather than a mystery.
+
+**Next**: row **6p** — derive the suite's wall-clock and node-ceiling bounds from a stimulus measured
+in-test, so the ratio holds by construction on any machine, rather than from constants calibrated on
+one host at one load. Row 6o is closed.
