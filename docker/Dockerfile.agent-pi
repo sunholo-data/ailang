@@ -4,9 +4,27 @@
 ARG PROJECT
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
-# pi CLI (npm package: @mariozechner/pi-coding-agent, binary: pi)
+# pi CLI — PINNED. The version is the one the fleet has been running and the
+# one every benchmark to date was measured on; this changes nothing except
+# that a rebuild now produces the same image twice.
+#
+# It was unpinned, and reproducible only by accident: @mariozechner/pi-coding-agent
+# is ABANDONED at 0.73.1 (development moved to @earendil-works/pi-coding-agent,
+# 0.84.4 as of 2026-09-03), so "latest" happened to be frozen. Publish a 0.73.2
+# and the whole fleet moves silently. herdr, three files away, is pinned by
+# version AND sha256 for exactly this reason.
+#
+# MIGRATING to @earendil-works is a separate, deliberate decision — see
+# design_docs/planned/m-resident-agent-instances.md D10. It is not a drop-in:
+# internal/executor/pi/pi.go's NDJSON parser was written against this version
+# and degrades silently on a schema change, `ailang pi install` pushes the
+# embedded extension suite across an API that may have moved, and changing the
+# harness mid-stream breaks comparison with every historical benchmark.
+ARG PI_PACKAGE=@mariozechner/pi-coding-agent
+ARG PI_VERSION=0.73.1
 USER root
-RUN npm install -g @mariozechner/pi-coding-agent
+RUN npm install -g "${PI_PACKAGE}@${PI_VERSION}" \
+    && pi --version </dev/null
 USER ailang
 
 # M-DX-PI-HARNESS Distribution v2 (F5): install the binary-embedded suite

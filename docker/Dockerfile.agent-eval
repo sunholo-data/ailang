@@ -4,11 +4,19 @@
 ARG PROJECT
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
+# pi is pinned for the reason given in Dockerfile.agent-pi: its package is
+# abandoned, so the version was frozen by accident rather than by intent. The
+# other four are left as they are — pinning them is the same good idea and a
+# separate change, not one to fold in silently here.
+ARG PI_PACKAGE=@mariozechner/pi-coding-agent
+ARG PI_VERSION=0.73.1
+
 # All five executor CLIs — order matters for npm install speed (largest first)
 USER root
 RUN npm install -g @anthropic-ai/claude-code \
     && npm install -g @google/gemini-cli \
     && npm install -g @openai/codex \
     && npm install -g opencode-ai \
-    && npm install -g @mariozechner/pi-coding-agent
+    && npm install -g "${PI_PACKAGE}@${PI_VERSION}" \
+    && pi --version </dev/null
 USER ailang

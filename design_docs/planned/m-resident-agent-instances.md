@@ -254,6 +254,51 @@ rather than reimplemented agent-side, and revocation is a platform decision.
 It also decides where the CLI sits: the resident does not run `aiplatform` with
 the user's token. It calls the platform, and the platform acts for the user.
 
+### D10 — The fleet's pi is abandoned and eleven versions behind; the resident moved alone
+
+Found while chasing D7: the resident could not hold a conversation because its
+pi had no `--session-id`. The version was 0.73.1, and the reason is structural
+rather than a stale bump.
+
+`docker/Dockerfile.agent-pi` (and `Dockerfile.agent-eval`) ran
+`npm install -g @mariozechner/pi-coding-agent` **unpinned**. That package is
+**abandoned at 0.73.1**; development moved to `@earendil-works/pi-coding-agent`,
+0.84.4 as of 2026-09-03. So the fleet was floating *and* reproducible only by
+the accident that its package stopped moving. Publish a 0.73.2 and every image
+changes silently. herdr, in the same directory, is pinned by version **and**
+sha256 precisely to prevent this.
+
+Since pi is the fleet default, this covers `agent-pi`, `agent-pi-go`,
+`agent-eval` and everything downstream — **including every benchmark number
+measured to date**.
+
+**Done now (no behaviour change):** both Dockerfiles pin `0.73.1` explicitly.
+The image is what it always was; a rebuild now produces it twice.
+
+**Not done — a deliberate decision, not a side effect:** moving the fleet to
+`@earendil-works`. Three reasons it is not a drop-in.
+
+1. `internal/executor/pi/pi.go`'s NDJSON parser was written against 0.73.1, and
+   an unrecognised event is *skipped*, so a schema change degrades **silently** —
+   the failure mode this repo's NEVER SILENT rule exists to forbid.
+2. `ailang pi install` pushes the binary's embedded extension suite across an
+   extension API that may have moved in eleven minor versions.
+3. **Eval comparability.** Changing the harness mid-stream breaks comparison
+   with every historical result. For a benchmarking repo that is a methodology
+   decision, not an infrastructure one.
+
+**Evidence that lowers the risk of (1):** `docker/resident/lib/pi.mjs` is
+written from ailang's own event vocabulary — `session`, `turn_start`,
+`message_update.assistantMessageEvent.text_delta`, `tool_execution_start`,
+`message_end`, `agent_end` — and it parsed **0.84.4** correctly live on
+2026-09-03: 35 events, clean text, a real terminal state, and a resumed session
+across two calls. The schema held for exactly the fields ailang reads. A
+migration should still re-baseline the evals rather than assume it.
+
+The resident moved alone because its requirement is different in kind: it needs
+`--session-id` to exist at all, whereas the job executor is a one-shot that
+`--no-session` suits and that has 0.73.1 numbers behind it.
+
 ## Phase 0 findings (2026-09-02) — measured, not assumed
 
 **Compute.** `go build -a std` on live `europe-west4` instances:
