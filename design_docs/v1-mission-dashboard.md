@@ -1,32 +1,33 @@
-# Mission Dashboard — V1
+# V1 Mission Dashboard
 
-_Snapshot, overwritten each iteration. History lives in `v1-mission.md` STATUS + `v1-mission-log.md`._
+*Snapshot, overwritten each iteration — history lives in the charter STATUS block and the log.*
+*Last written: 2026-09-03, iteration 323.*
 
-**Last iteration:** 320 · 2026-09-02 · LANDED · [HARNESS]
-**Latest release:** v0.34.0
+## Where we are
+- **Latest release**: v0.34.0. **Goal distance: N = 12 design docs remaining before v1.0.0** — unmoved this iteration (HARNESS).
+- **dev CI**: GREEN on required contexts as of `b51e53f78`, after ~24h red. One standing
+  non-required red remains: `SonarCloud` (new-code coverage), queue row `sonarcloud-new-code-gate-red`.
 
-## Goal distance
-**N = 10 design docs remaining before v1.0.0** — unmoved this iteration (HARNESS work moves the goal by 0).
-D-53's **UNCLASSIFIED bucket of 4** (would make it 14) is still named and unruled.
+## This iteration (323)
+- Landed [PR #1030](https://github.com/sunholo-data/ailang/pull/1030) → `b51e53f78`: **five** stacked CI defects,
+  only the first visible. Carried iterations **321 and 322**'s work — both slots died before landing it.
+- Evaluator (sonnet, own worktree): **PASS 93/100**, one blocking finding, reproduced and closed.
+- Key find: **a red early in a long ordered CI job suspends every gate behind it.** 45 gates read
+  `skipped` for a day; two files silently crossed the 800-line limit inside that window.
 
-## Just landed
-**dev was RED on both Windows jobs for four consecutive commits, and V1 owns this repo, so it outranked the queue.**
-`t.Setenv("HOME", dir)` does not redirect `os.UserHomeDir()` on windows — it reads USERPROFILE there, `$home` on plan9 — so four arms across `internal/ai` and `internal/eval_harness` failed **for the platform, not for the code**. The same private helper had already been written **three** times in this repo; the fourth call site went red anyway. Swept to one `testutil.SetHomeDir` (16 bare sites → 1) and gated with `make check-home-isolation`, wired into code-health.mk, `ci:` **and** ci.yml. PR [#1025](https://github.com/sunholo-data/ailang/pull/1025).
+## Up next (banked, ready)
+1. `m-spawn-pin-enforcement` — queue head, design APPROVED by Mark attended 2026-09-01. Fleet infra.
+2. `m-ci-serial-gate-masking` — NEW, iter-323. The job *shape* that hid four defects behind one. Wants a design doc.
+3. `m1b-nolint-suppression-owed` — NEW, iter-323. A suppression with a named owner and no gate to retire it.
 
-## Up next (banked queue head)
-1. `m-spawn-pin-enforcement` — **now visible to unattended picks for the first time**, since Mark's attended merge put it on origin (this is what D-54 was about). Design approved attended 2026-09-01.
-2. `m-probe-discovery-default-30s-unpinned` — a production-path tightening nobody chose and no test pins (mutant 30→5 passes 42/42).
-3. `m-docparse-v0340-reports-2026-09-01` — VERIFY-then-route; a live consumer's silent export drop, already failed to reproduce in two shapes.
-
-## Loop health / routing
-- Controller `claude:claude-opus-5` · executor `codex:gpt-5.6-sol` (probe rc=0, one sandboxed 30-min-capped run) · evaluator `sonnet` in its **own** worktree, two rounds (generator≠judge holds) · designer rotation at `claude:claude-fable-5`, **did not run** (a dev-red fix-forward needs no design doc).
-- Per-gate `mission-heartbeat.sh` stamps in use (D-52).
-- **The running skill is byte-identical to origin for the first time in at least four iterations** — Mark's attended merge cleared the main checkout's divergence (0 ahead / 0 behind, against 22/31 at iteration 319's Gate 4).
-- **The judge earned its slot twice.** It broke the new gate with a gofmt-canonical multi-line call the line-oriented matcher could not see, and it found a live unswept instance (four `os.Setenv("HOME")` sites reaching `os.UserHomeDir()`). Both closed in round 2.
+## Loop health
+- Cadence: unattended launchd fires. **Three consecutive slots (321, 322, and 317 before them) died
+  mid-flight holding finished work** — 321/322 left zero charter rows and zero log entries. Gate 2's
+  died-mid-flight trace is currently the only thing recovering them.
+- Routing: controller `claude:claude-opus-5` · executor `codex:gpt-5.6-sol` · evaluator `sonnet`
+  (own worktree) · designer rotation pointer `claude:claude-fable-5`, untouched (no designer ran).
+- Metered spend: **$0.00** of the $5/iteration ceiling. All lanes were quota buckets.
 
 ## Parked on Mark
-- **D-53 (OPEN)** — rule on the 4 UNCLASSIFIED docs (N=10 vs N=14). Loop recommends N=12. Default: keep reporting 10 with the bucket named.
-- **D-54 — RESOLVED**, answered "D-54 b" on #972 at `07:17:34Z`. The loop may now branch the main checkout's unpushed `dev`, push and open a PR. Mark then cleared the divergence himself 21 minutes later, so the grant is standing rather than pending.
-
-## Cost posture
-Metered **$0.00** of the $5 iteration ceiling. Every lane a quota bucket; no quorum round, no designer, no planner.
+- **Decision ledger: 54 rows, 0 OPEN.** Nothing is waiting on a human decision right now.
+- Directive channel: issue [#972](https://github.com/sunholo-data/ailang/issues/972), 22 comments, no rotation owed.
