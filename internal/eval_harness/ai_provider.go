@@ -239,6 +239,8 @@ func (p *providerAdapter) generate(ctx context.Context, cachedPrefix, prompt str
 		TotalTokens:              resp.TotalTokens,
 		FinishReason:             resp.FinishReason,
 		Model:                    resp.Model,
+		WallMS:                   resp.WallMS,
+		TTFTMS:                   resp.TTFTMS,
 	}, nil
 }
 

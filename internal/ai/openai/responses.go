@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 )
@@ -91,26 +92,28 @@ func (c *Client) generateResponses(ctx context.Context, req *ai.Request, reasoni
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 
-	// Execute request
+	// Execute request. Same wall-time + non-streaming-TTFT semantics as
+	// generateChat (M-LYCEUM-PROVIDER M3).
+	start := time.Now()
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		return nil, ai.NewProviderError("openai", 0, "request failed", err)
+		return nil, &ai.ProviderError{Provider: "openai", Message: "request failed", Err: err, WallMS: time.Since(start).Milliseconds()}
 	}
 	defer resp.Body.Close()
 
 	// Read response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, ai.NewProviderError("openai", resp.StatusCode, "failed to read response", err)
+		return nil, &ai.ProviderError{Provider: "openai", StatusCode: resp.StatusCode, Message: "failed to read response", Err: err, WallMS: time.Since(start).Milliseconds()}
 	}
 
 	// Handle errors
 	if resp.StatusCode != http.StatusOK {
 		var errResp errorResponse
 		if json.Unmarshal(body, &errResp) == nil && errResp.Error.Message != "" {
-			return nil, ai.NewProviderError("openai", resp.StatusCode, errResp.Error.Message, nil)
+			return nil, &ai.ProviderError{Provider: "openai", StatusCode: resp.StatusCode, Message: errResp.Error.Message, WallMS: time.Since(start).Milliseconds()}
 		}
-		return nil, ai.NewProviderError("openai", resp.StatusCode, string(body), nil)
+		return nil, &ai.ProviderError{Provider: "openai", StatusCode: resp.StatusCode, Message: string(body), WallMS: time.Since(start).Milliseconds()}
 	}
 
 	// Parse successful response
@@ -155,5 +158,6 @@ func (c *Client) generateResponses(ctx context.Context, req *ai.Request, reasoni
 		TotalTokens:          result.Usage.TotalTokens,
 		ReasonTokens:         reasoningTokens,
 		Model:                result.Model,
+		WallMS:               time.Since(start).Milliseconds(),
 	}, nil
 }

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	ollamaapi "github.com/ollama/ollama/api"
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -171,13 +172,23 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		}
 	}
 
-	// Use Generate API for instruction following
+	// Use Generate API for instruction following.
+	// M-LYCEUM-PROVIDER M3: this transport STREAMS, so both wall time and TTFT
+	// are observable client-side: TTFT = call start → first stream callback.
 	var tally tokenTally
+	start := time.Now()
+	var ttft time.Duration
+	firstChunk := true
 	err := c.client.Generate(ctx, genReq, func(resp ollamaapi.GenerateResponse) error {
+		if firstChunk {
+			ttft = time.Since(start)
+			firstChunk = false
+		}
 		response.WriteString(resp.Response)
 		tally.observe(resp.Metrics)
 		return nil
 	})
+	wallMS := time.Since(start).Milliseconds()
 
 	if err != nil {
 		span.SetAttributes(
@@ -186,14 +197,14 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, ai.NewProviderError("ollama", 0, err.Error(), err)
+		return nil, &ai.ProviderError{Provider: "ollama", Message: err.Error(), Err: err, WallMS: wallMS}
 	}
 	// Surface a swallowed ctx deadline/cancel (stalled native stream) explicitly —
 	// see the matching guard in Step (M-OLLAMA-NATIVE-TIMEOUT).
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		span.RecordError(ctxErr)
 		span.SetStatus(codes.Error, ctxErr.Error())
-		return nil, ai.NewProviderError("ollama", 0, ctxErr.Error(), ctxErr)
+		return nil, &ai.ProviderError{Provider: "ollama", Message: ctxErr.Error(), Err: ctxErr, WallMS: wallMS}
 	}
 
 	span.SetAttributes(
@@ -204,8 +215,10 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	)
 
 	out := &ai.Response{
-		Text:  response.String(),
-		Model: req.Model,
+		Text:   response.String(),
+		Model:  req.Model,
+		WallMS: wallMS,
+		TTFTMS: ttft.Milliseconds(),
 	}
 	tally.apply(out)
 	return out, nil

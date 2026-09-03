@@ -51,13 +51,24 @@ type RunMetrics struct {
 	// Added 2026-07-30. omitempty keeps earlier baselines parsing unchanged —
 	// but an ABSENT value means unmeasured, NOT metered. Any aggregate that
 	// claims metered dollars must filter on this, not assume it.
-	CostProvenance string    `json:"cost_provenance,omitempty"`
-	CompileOk      bool      `json:"compile_ok"`
-	RuntimeOk      bool      `json:"runtime_ok"`
-	StdoutOk       bool      `json:"stdout_ok"`
-	DurationMs     int64     `json:"duration_ms"`    // Total time (startup + compile + execution)
-	CompileMs      int64     `json:"compile_ms"`     // Time spent in compilation (if separate)
-	ExecuteMs      int64     `json:"execute_ms"`     // Time spent in execution (if measurable)
+	CostProvenance string `json:"cost_provenance,omitempty"`
+	CompileOk      bool   `json:"compile_ok"`
+	RuntimeOk      bool   `json:"runtime_ok"`
+	StdoutOk       bool   `json:"stdout_ok"`
+	DurationMs     int64  `json:"duration_ms"` // Total time (startup + compile + execution)
+	CompileMs      int64  `json:"compile_ms"`  // Time spent in compilation (if separate)
+	ExecuteMs      int64  `json:"execute_ms"`  // Time spent in execution (if measurable)
+
+	// LLM generation latency (M-LYCEUM-PROVIDER M3 route A/B). llm_wall_ms is
+	// the client-observed wall time of the generation HTTP call(s) behind this
+	// row — first attempt, PLUS the repair attempt when one produced the
+	// persisted code, and the FAILED call's wall time on api_error rows (the
+	// "did the gateway die at 30s or 5min?" datum). ttft_ms is
+	// time-to-first-token, only measurable on streaming transports (ollama);
+	// 0/absent means UNMEASURED, not instant. OpenRouter's server-side TTFT
+	// lives in the broadcast observatory instead.
+	LLMWallMs      int64     `json:"llm_wall_ms,omitempty"`
+	TTFTMs         int64     `json:"ttft_ms,omitempty"`
 	ErrorCategory  string    `json:"error_category"` // compile_error | runtime_error | logic_error | none
 	Stdout         string    `json:"stdout,omitempty"`
 	Stderr         string    `json:"stderr,omitempty"`

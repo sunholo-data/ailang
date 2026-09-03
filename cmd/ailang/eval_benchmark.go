@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/telemetry"
@@ -222,6 +224,14 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			PromptVersion:  actualPromptVersion,
 			Condition:      condition,
 			Trial:          trial, // M-EVAL-OS-LONGITUDINAL Phase 3
+		}
+		// M-LYCEUM-PROVIDER M3: carry the FAILED call's latency when the client
+		// measured it (provider clients stamp WallMS on their error paths). This
+		// is what distinguishes "gateway 504 after 30s" from "after 6 minutes"
+		// in the banked rows instead of only in the console log.
+		var pe *ai.ProviderError
+		if errors.As(err, &pe) && pe.WallMS > 0 {
+			apiErrorMetrics.LLMWallMs = pe.WallMS
 		}
 		_ = logger.Log(apiErrorMetrics) // Best effort - don't fail on logging error
 
