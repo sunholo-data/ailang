@@ -24,6 +24,11 @@ import { readFileSync, existsSync, mkdirSync, cpSync } from "node:fs";
 // Re-read rather than cache: a boot that finishes after the first call should
 // still upgrade later calls from stateless to persistent.
 const CAP_FILE = `${process.env.TASK_STATE_DIR || "/home/ailang/.resident"}/capabilities.json`;
+export function toolPolicy() {
+  return (process.env.RESIDENT_TOOLS ?? "read,edit,write,bash")
+    .split(",").map((t) => t.trim()).filter(Boolean);
+}
+
 export function capabilities() {
   try { return JSON.parse(readFileSync(CAP_FILE, "utf8")); }
   catch { return { sessionFlag: "", sessionDir: "", agentHome: process.env.AGENT_HOME || "" }; }
@@ -70,11 +75,24 @@ export function runPi({ model, prompt, thinking, tools, cwd, onEvent, sessionId,
     args.splice(4, 0, "--no-session");
   }
   if (thinking) args.push("--thinking", thinking);
-  if (Array.isArray(tools)) {
-    // [] means no tools at all; a list restricts to it. Undefined leaves pi's
-    // defaults alone.
-    args.push(...(tools.length === 0 ? ["--no-tools"] : ["--tools", tools.join(",")]));
-  }
+  // TOOL POLICY — always explicit, never pi's implicit default.
+  //
+  // pi ships read, bash, edit and write enabled. Leaving that implicit had two
+  // costs. It is invisible: nothing in /health or the logs said what the agent
+  // could do. And it quietly undercuts Decision 6 — the AILANG program
+  // allowlist governs what `resident-run` will execute, and pi's `bash` tool
+  // does not go anywhere near it. While bash is enabled the allowlist is a
+  // convenience, NOT a containment boundary; the container and the gcsfuse
+  // only-dir mount are what actually bound this agent.
+  //
+  // So the set is stated, reported, and narrowable per deployment via
+  // RESIDENT_TOOLS (or per run). The default matches what pi already did, so
+  // this buys observability and a control surface without changing behaviour.
+  const toolPolicy = Array.isArray(tools)
+    ? tools
+    : (process.env.RESIDENT_TOOLS ?? "read,edit,write,bash")
+        .split(",").map((t) => t.trim()).filter(Boolean);
+  args.push(...(toolPolicy.length === 0 ? ["--no-tools"] : ["--tools", toolPolicy.join(",")]));
   args.push(prompt);
 
   return new Promise((resolve, reject) => {
@@ -91,7 +109,7 @@ export function runPi({ model, prompt, thinking, tools, cwd, onEvent, sessionId,
       cwd: cwd || process.env.WORKSPACE_DIR || "/workspace",
       stdio: ["ignore", "pipe", "pipe"],
     });
-    console.log(`pi | spawn model=${model} session=${persistent ? sessionId : "(stateless)"} cwd=${cwd || process.env.WORKSPACE_DIR || "/workspace"}`);
+    console.log(`pi | spawn model=${model} session=${persistent ? sessionId : "(stateless)"} tools=[${toolPolicy.join(",") || "none"}] cwd=${cwd || process.env.WORKSPACE_DIR || "/workspace"}`);
     const state = { text: "", events: 0, toolCalls: [], usage: null, stopReason: null, stderr: "" };
     let buf = "";
 

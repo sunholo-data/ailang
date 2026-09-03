@@ -199,6 +199,61 @@ it silently falls back to `maxTokens` 16384, `contextWindow` 128000,
 of its 1.31M context with no error. The A2A server therefore **refuses**
 unregistered models, naming the fallback and listing what is registered.
 
+### D8 — The tool policy is pi's, and `bash` is outside Decision 6
+
+pi ships `read`, `bash`, `edit` and `write` enabled, and the resident passed no
+`--tools` restriction, so all four were live and **nothing said so**. Two
+consequences, one cosmetic and one not.
+
+The AILANG program allowlist (Decision 6) governs what `resident-run` will
+execute. **pi's `bash` tool does not go through `resident-run`.** So while
+`bash` is enabled the allowlist is a convenience and not a containment
+boundary, and the doc should not imply otherwise. What actually bounds this
+agent is the **container** and the **gcsfuse `only-dir` mount** — which is a
+real boundary, just a coarser one than Decision 6 sounded like.
+
+The policy is therefore explicit (`RESIDENT_TOOLS`, default
+`read,edit,write,bash` — what pi already did), logged at spawn, and reported in
+`/health`. Narrowing it is now a deployment choice rather than a code change.
+Extensions matter here too: they add tools, so an extension is a change to this
+policy and not only to behaviour.
+
+**Extensions now have a blast radius they lacked.** Under `--no-session` a
+misbehaving extension could ruin one call. With D7's sessions it rewrites the
+user's *conversation*, and that rewrite is staged to GCS. Compaction is the
+sharp case — it is genuinely wanted for long threads, and it edits history by
+design. Hence one rotated restore point (`$AGENT_HOME/sessions.prev`) per boot,
+and extensions still off by default.
+
+### D9 — Delegated authority: the agent must act AS the user, and the platform must stay the policy point
+
+Requirement (Mark, 2026-09-03): the resident should be able to drive the ADK
+platform through the `aiplatform` CLI **with the same permissions as the user**,
+to copilot for them.
+
+The trap is the confused deputy. If the agent calls the platform as **itself**,
+its rights are either broader than the user's — so a prompt-injected agent
+reads documents its user cannot — or narrower, so it is useless. Neither is
+"the same permissions as the user".
+
+Three ways to get there:
+
+| | Mechanism | Problem |
+|---|---|---|
+| a | Pass the user's Firebase ID token into the run | A live user credential in an agent's environment, one prompt injection away from exfiltration, and hard to keep out of the transcript |
+| b | Token exchange: platform mints a short-lived delegation token naming (user, agent, scope) | Better and revocable, but a new credential type to build and audit |
+| c | **No credential leaves the platform.** The agent calls back over MCP/A2A carrying only its `contextId`; the platform resolves that to the user it already knows and applies that user's permissions | The agent holds a capability handle, not an identity |
+
+**(c) is the recommendation.** The platform already owns the `contextId → user`
+mapping — `tools/resident_agent.py` derives the contextId from the ADK
+invocation precisely so the model cannot name someone else's thread — so the
+inbound side can resolve the caller without the agent ever holding a user
+credential. Permissions are then enforced by the platform's existing authz
+rather than reimplemented agent-side, and revocation is a platform decision.
+
+It also decides where the CLI sits: the resident does not run `aiplatform` with
+the user's token. It calls the platform, and the platform acts for the user.
+
 ## Phase 0 findings (2026-09-02) — measured, not assumed
 
 **Compute.** `go build -a std` on live `europe-west4` instances:

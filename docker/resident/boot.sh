@@ -220,6 +220,19 @@ printf '{"piVersion":"%s","sessionFlag":"%s","sessionDir":"%s","agentHome":"%s"}
 # Sessions live on LOCAL disk and are staged to the mount, never written
 # straight to it: gcsfuse has no POSIX locking and pi rewrites a session file
 # throughout a run. Same rule as the workspace and for the same reason.
+# One restore point, rotated per boot. Extensions have a blast radius they did
+# not have before M10: with --no-session a misbehaving extension could ruin one
+# call, whereas a compaction extension now rewrites the user's CONVERSATION and
+# that rewrite is staged to GCS. One previous generation costs a single copy per
+# boot and is the difference between "the assistant forgot last week" and a
+# recoverable mistake.
+if [ -d "$AGENT_HOME/sessions" ]; then
+  rm -rf "$AGENT_HOME/sessions.prev" 2>/dev/null || true
+  cp -a "$AGENT_HOME/sessions" "$AGENT_HOME/sessions.prev" 2>/dev/null \
+    && log "previous sessions kept at $AGENT_HOME/sessions.prev" \
+    || log "WARN could not snapshot sessions to sessions.prev"
+fi
+
 if [ -d "$AGENT_HOME/sessions" ]; then
   if cp -a "$AGENT_HOME/sessions/." "$PI_SESSION_DIR/" 2>/dev/null; then
     log "sessions restored from $AGENT_HOME/sessions ($(find "$PI_SESSION_DIR" -type f 2>/dev/null | wc -l | tr -d ' ') files)"

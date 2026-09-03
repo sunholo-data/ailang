@@ -237,6 +237,29 @@ out=$(A2A 'import * as a2a from "/usr/local/bin/lib/a2a.mjs";
 console.log(JSON.stringify(a2a.agentCard("https://example.invalid")));')
 have "the card tells clients how to hold a conversation" 'echo "$out" | grep -q "contextId"'
 
+echo "=== 6d. tool policy (D8) ==="
+# pi enables read/bash/edit/write by default and said so nowhere. The point of
+# these assertions is that the set is EXPLICIT: what an agent can do must be
+# readable from the command line and from /health, not inferred from pi's docs.
+STUB=$(mktemp -d)
+printf '#!/bin/sh\necho "$@" > /tmp/pi-argv.txt\n' > "$STUB/pi"; chmod +x "$STUB/pi"
+PATH="$STUB:$PATH" timeout 30 node --input-type=module -e '
+import { runPi } from "/usr/local/bin/lib/pi.mjs";
+runPi({ model: "m", prompt: "hi", ttftMs: 5000 }).catch(() => {});' >/dev/null 2>&1
+have "the tool set is always passed explicitly" 'grep -q -- "--tools" /tmp/pi-argv.txt'
+
+RESIDENT_TOOLS="read" PATH="$STUB:$PATH" timeout 30 node --input-type=module -e '
+import { runPi } from "/usr/local/bin/lib/pi.mjs";
+runPi({ model: "m", prompt: "hi", ttftMs: 5000 }).catch(() => {});' >/dev/null 2>&1
+have "RESIDENT_TOOLS narrows the policy"     'grep -q -- "--tools read" /tmp/pi-argv.txt'
+have "  ...and bash is then absent"          '! grep -q -- "bash" /tmp/pi-argv.txt'
+
+PATH="$STUB:$PATH" timeout 30 node --input-type=module -e '
+import { runPi } from "/usr/local/bin/lib/pi.mjs";
+runPi({ model: "m", prompt: "hi", tools: [], ttftMs: 5000 }).catch(() => {});' >/dev/null 2>&1
+have "an empty policy disables tools entirely" 'grep -q -- "--no-tools" /tmp/pi-argv.txt'
+rm -rf "$STUB" /tmp/pi-argv.txt
+
 echo "=== 7. restart idempotence ==="
 # The 7-day ceiling makes restarts routine, so a second boot must behave like
 # the first rather than tripping over its own leftovers.
