@@ -39,9 +39,9 @@ type TaskRecord struct {
 	// missing there is silently dropped on read, and finalisation would see an
 	// empty ledger on every redelivery and re-run every effect.
 	Finalization FinalizationLedger `json:"finalization,omitempty"`
-	SessionID    string     `json:"session_id,omitempty"`    // Claude Code/Gemini CLI session for resumption
-	Iteration    int        `json:"iteration,omitempty"`     // Iteration number (1 = first, 2+ = re-run with feedback)
-	Workspace    string     `json:"workspace,omitempty"`     // Source workspace from thread (not worktree)
+	SessionID    string             `json:"session_id,omitempty"` // Claude Code/Gemini CLI session for resumption
+	Iteration    int                `json:"iteration,omitempty"`  // Iteration number (1 = first, 2+ = re-run with feedback)
+	Workspace    string             `json:"workspace,omitempty"`  // Source workspace from thread (not worktree)
 	// Execution chain tracking (M-CHAINS-SIMPLIFY)
 	ChainID string `json:"chain_id,omitempty"` // ExecutionChain ID for unified hierarchy
 	StageID string `json:"stage_id,omitempty"` // ChainStage ID for this agent's execution

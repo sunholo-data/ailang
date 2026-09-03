@@ -42,8 +42,8 @@ type mockStore struct {
 	approvalIDs map[string]bool // ids already created, so CreateApprovalIfAbsent models first-write-wins
 	ledgers     map[string]FinalizationLedger
 	statuses    map[string]TaskStatus
-	tasks []*TaskRecord
-	err   error
+	tasks       []*TaskRecord
+	err         error
 }
 
 func (m *mockStore) GetTasksByStage(ctx context.Context, stage TaskStage) ([]*TaskRecord, error) {
@@ -189,7 +189,7 @@ func (m *mockStore) UpdateTaskChainInfo(ctx context.Context, id, chainID, stageI
 // Ledger accessors backed by a real map, so idempotency assertions against the
 // mock exercise the same first-write-wins logic the stores implement.
 func (m *mockStore) GetTaskFinalization(ctx context.Context, taskID string) (FinalizationLedger, error) {
-	
+
 	if m.ledgers == nil {
 		return FinalizationLedger{}, nil
 	}
@@ -201,7 +201,7 @@ func (m *mockStore) GetTaskFinalization(ctx context.Context, taskID string) (Fin
 }
 
 func (m *mockStore) SetTaskFinalization(ctx context.Context, taskID string, ledger FinalizationLedger) error {
-	
+
 	if m.ledgers == nil {
 		m.ledgers = map[string]FinalizationLedger{}
 	}
@@ -212,7 +212,7 @@ func (m *mockStore) SetTaskFinalization(ctx context.Context, taskID string, ledg
 // CompareAndSetTaskStatus models the real conditional write, so tests that rely
 // on supersession behave as production does rather than always succeeding.
 func (m *mockStore) CompareAndSetTaskStatus(ctx context.Context, id string, expected []TaskStatus, next TaskStatus) (bool, error) {
-	
+
 	if m.statuses == nil {
 		m.statuses = map[string]TaskStatus{}
 	}

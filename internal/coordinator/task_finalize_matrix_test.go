@@ -23,14 +23,13 @@ import (
 // that had appeared in no version of it.
 
 type finalizeHarness struct {
-	deps   *FinalizeDeps
-	store  *SQLiteStore
-	msgs   *messaging.Store
-	obs    *observatory.SQLiteBackend
-	task   *TaskRecord
-	stage  string
-	chain  string
-	cancel func()
+	deps  *FinalizeDeps
+	store *SQLiteStore
+	msgs  *messaging.Store
+	obs   *observatory.SQLiteBackend
+	task  *TaskRecord
+	stage string
+	chain string
 }
 
 // nilStrategy is a cloud-shaped strategy with no diff source yet: M3 supplies the
@@ -63,6 +62,13 @@ func newFinalizeHarness(t *testing.T, agent *AgentConfig) *finalizeHarness {
 	if err != nil {
 		t.Fatalf("observatory: %v", err)
 	}
+	// The two stores above register a closer and this one did not, so `observatory.db`
+	// stayed open past the test. On POSIX that is invisible — an open file unlinks
+	// fine — but Windows refuses to remove a file that is still held, so `t.TempDir()`
+	// cleanup failed and took 21 TestFinalize_* tests down with it. Windows was the
+	// only leg that could see it, and it had been `cancelled` by an unrelated red on
+	// the ubuntu leg, so nothing reported it for ~24h.
+	t.Cleanup(func() { _ = obs.Close() })
 
 	registry := NewAgentRegistry()
 	if agent != nil {
@@ -120,8 +126,8 @@ func newFinalizeHarness(t *testing.T, agent *AgentConfig) *finalizeHarness {
 func (h *finalizeHarness) finalize(t *testing.T, outcome CompletionOutcome, skipApproval bool) *FinalizeReport {
 	t.Helper()
 	report, err := FinalizeTaskCompletion(context.Background(), h.deps, FinalizeInput{
-		Task:   h.task,
-		Result: &ExecuteResult{Success: outcome == OutcomeCompleted, SessionID: "sess-1", Cost: 0.42, InputTokens: 200, OutputTokens: 100, NumTurns: 5, ToolCallCount: 9, Duration: 3 * time.Second, Error: "pi idle for 3m0s"},
+		Task:         h.task,
+		Result:       &ExecuteResult{Success: outcome == OutcomeCompleted, SessionID: "sess-1", Cost: 0.42, InputTokens: 200, OutputTokens: 100, NumTurns: 5, ToolCallCount: 9, Duration: 3 * time.Second, Error: "pi idle for 3m0s"},
 		Outcome:      outcome,
 		SkipApproval: skipApproval,
 		BranchName:   "coordinator/task-matrix",
@@ -420,5 +426,3 @@ func TestFinalize_StageErrorOnlyOnFailure(t *testing.T) {
 		t.Errorf("a successful task recorded a stage error: %q", okStage.ErrorMessage)
 	}
 }
-
-
