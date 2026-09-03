@@ -118,8 +118,9 @@ and a second route for models we already run, plus EU data residency OR cannot o
 
 Before implementation begins, these must be resolved:
 
-- [ ] **D4** — Mark ratifies the seed row set (agent proposes: `lyceum-glm-5-3-flash`,
-      `lyceum-qwen3-8-flash`, `lyceum-kimi-k3`; see Phase 2). May be ratified in-session.
+- [x] **D4 RATIFIED (Mark, attended session 2026-09-03)** — seed row set accepted:
+      `lyceum-glm-5-3-flash`, `lyceum-qwen3-8-flash`, `lyceum-kimi-k3`. Rows still land
+      only for slugs that pass the Phase 0 V16 live-verification gate.
 
 D1/D2/D3/D5/D6 are not freeze items: all are agent-resolvable and D6 is resolved by the Phase 0
 gate before any row is written.
