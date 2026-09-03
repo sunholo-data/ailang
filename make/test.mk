@@ -62,6 +62,10 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@/bin/bash -n tools/eval/motoko_connection_probe.sh
 	@/bin/bash -n tools/eval/test_motoko_connection_probe.sh
 	@/bin/bash -n scripts/mission_decisions.sh
+# Its sibling was ungated until 2026-09-04 (mission_decisions.sh had a line here,
+# mission_answer.sh did not) — so an edit to the attended-ruling writer reached the
+# ledger with no syntax check anywhere in CI.
+	@/bin/bash -n scripts/mission_answer.sh
 	@echo "launchd drivers: tests + bash 3.2 syntax OK"
 
 # `make check-changelog` is a refusal gate that shipped with no coverage of WHICH release-note
