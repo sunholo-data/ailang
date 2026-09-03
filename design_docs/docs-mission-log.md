@@ -655,7 +655,7 @@ with evidence whether the taxonomy pass fits one sprint-sized doc or needs decom
 2-4 smaller docs per the charter's standing multi-week-item rule, and produce accordingly.
 
 **Result: one sprint, not a decomposition** —
-`design_docs/docs-4-brief.md` (committed `7de9ca9ed` on new branch `docs-4-brief`, off detached
+`design_docs/docs-4-brief.md` (committed `1c74a4971` on new branch `docs-4-brief`, off detached
 HEAD `55891002f` = `origin/dev`; not pushed). The designer's own pairwise instrument (line-overlap
 ≥4 identical non-heading/>40-char lines, all 1,830 guide-pair combinations) found only 2 pairs
 sharing ≥4 lines — literal page-level duplication is close to zero. The real redundancy is
@@ -690,7 +690,7 @@ present objections carried a concrete, verbatim `proposed_fix` and disputed no d
 per Gate 2's rule, the controller measured both directly (single commands, no design judgment,
 so not re-routed through the Fable designer): `curl` on the 9th orphan URL → `200` (matches the
 other 8); `grep -nE '^##+ '` on both files confirmed both heading pairs exactly as the phases
-assert. Committed as new Verification Log row (corrected V6) and a new row V29 (`141ffb5e9`).
+assert. Committed as new Verification Log row (corrected V6) and a new row V29 (`fbc289f6a`).
 
 Round 2, the standard flow's mandatory single re-quorum
 (`docs-4-brief-2026-09-03T10-57-26Z.json`, $0.1219): BLOCKED again, all three reviewers present
@@ -711,7 +711,7 @@ URL-stable scope line to explicitly exempt the two authorised deletions; added r
 boundary confirmed exact — line 180 `## <Icon name="bot" inline /> For AI Agents: CLI Integration`
 through, not including, line 253 `## <Icon name="user" inline /> For Human Developers: Manual
 Installation`, both genuine H2s); rewrote acceptance criteria 6-7 to encode the `git checkout --`
-cleanup as a mandatory step, ordered before the `git diff --stat` check. Committed `d3a87808e`.
+cleanup as a mandatory step, ordered before the `git diff --stat` check. Committed `56acda30d`.
 No third quorum round spent.
 
 **This is docs-mission's first use of the narrow-refinement carve-out.** Per the skill's
@@ -722,11 +722,18 @@ charter's ledger. `sprint-evaluator` accordingly had nothing to independently ju
 landed this iteration, so no generator≠judge step was owed — an evaluator spawned against zero
 diff would be theater, not review).
 
-**Gate 3b.** Not applicable — nothing pushed to `dev`. The design-doc commits (`7de9ca9ed`,
-`141ffb5e9`, `d3a87808e`) live on local branch `docs-4-brief` in the pin worktree, uncommitted to
-`dev`/`origin`, matching this mission's existing convention for design briefs (docs-2-brief was
-handled the same way — the doc is picked up by the sprint-planner from the worktree, not merged
-independently).
+**Gate 3b.** Not the sprint-landing kind (no code, no PR, no required-check gate to wait on) — but
+this record's own push needed the discipline anyway. Before pushing, `git fetch origin dev` showed
+`origin/dev` had moved (`55891002f` → `e620929cd`, three new V1 commits, none touching
+`design_docs/**`); rebased `docs-4-brief` onto the new tip (clean, no conflicts — disjoint files),
+which **renumbered every commit SHA cited above** (`7de9ca9ed`→`1c74a4971`,
+`141ffb5e9`→`fbc289f6a`, `d3a87808e`→`56acda30d`; corrected everywhere in this log and the
+charter's D-3 row after the fact, per rule 3b(v)(b) — a SHA cited before it is final is a claim
+that expires). Re-checked `origin/dev`'s new tip: still red on the same signature (`test`,
+`launchd drivers`, `Build ubuntu-latest`) plus a newly-red `lint` — not improved, not this
+mission's fix either way. Pushed `docs-4-brief:dev` directly (matching this mission's established
+pattern — docs-2-brief and every prior iteration's record landed the same way, direct push, no
+PR), confirmed via a second `fetch` that `origin/dev` now equals the pushed tip.
 
 **Gate 4.** Dashboard overwritten (`design_docs/docs-mission-dashboard.md`). STATUS rotation:
 adding iteration 6 pushed the charter to 4 stamps; moved iteration 2's stamp to
