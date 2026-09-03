@@ -4714,14 +4714,25 @@ models:
     notes: |
       Added 2026-09-03 (M-LYCEUM-PROVIDER). OR twin: or-glm-5-3-flash
       ($0.075/$0.25) — Lyceum is ~2.7x/~2x, the worst markup in their list.
-      OPT-IN: not in any suite; route-diversification probe. Smoke gate
-      PENDING (this row enters the rotation only if the route proves faithful
-      in the M3 A/B vs the OR twin).
+      SMOKE GATE (floor) 2026-09-03: PASSED — 23/23, $0.15 metered, zero
+      finish=length, reasoning_tokens banked (V19 confirmed on real runs).
+      FRONTIER A/B (discriminator, 2026-09-03, three-route vs OR twin and
+      oc-glm-5-3-flash): route faithful on short-horizon calls; long-horizon
+      NOT faithful — 6/8 frontier calls 504'd at Lyceum's gateway
+      ("upstream request timeout"), 4/6 failures reproduced on retry. The one
+      survivor (quine PASS, 38k reason toks, finish=stop) shows the route CAN
+      carry long streams; the mode is per-request upstream instability at
+      frontier lengths. Full record: m-lyceum-provider-sprint-plan.md M3.
+      ROLE (Mark, attended 2026-09-03): **EU-only backup route.** NOT in the
+      default rotation or any suite; default remains the OpenRouter rows.
+      Proven for smoke/core-class requests; do NOT lean on it for
+      frontier-length generations until the gateway 504s are fixed. Any suite
+      entry requires Mark ratification.
       V19: reasoning_content + usage.completion_tokens_details.reasoning_tokens
       both present on the wire. V20: glm counted prompt_tokens=17 for a probe
       kimi counted as 93 — input-side A/B reads are model-confounded.
-      ⚠️ If banked reason_tokens are 0, apply the M1 contingency (step/stream
-      usage structs lack completion_tokens_details) BEFORE comparing to OR.
+      M3 latency fix: llm_wall_ms + ttft_ms now bank per row (this route's
+      504 latency was previously only visible in console logs).
 
   lyceum-qwen3-8-flash-next:
     api_name: "qwen/qwen3.8-flash-next"        # V16-verified 2026-09-03 — the '-next' suffix IS the slug

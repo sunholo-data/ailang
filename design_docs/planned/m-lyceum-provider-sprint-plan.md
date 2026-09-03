@@ -26,9 +26,9 @@ three rows and A/B the route against its OpenRouter twins.
 - This sprint is small by design: ~240 LOC total, one session
 
 ### Remaining from Design Doc
-- ⏳ M1 Provider plumbing: ~60 LOC impl + ~80 LOC tests
-- ⏳ M2 Seed rows + smoke gate: ~100 LOC models.yml (3 rows with provenance notes)
-- ⏳ M3 Route A/B + decision note: run + record (~0 LOC)
+- ✅ M1 Provider plumbing: built-in `lyceum` provider — committed 0c449b13b (dev)
+- ✅ M2 Seed rows + smoke gate: 3 rows committed; glm-5-3-flash smoke **PASSED 23/23** 2026-09-03 ($0.15 metered)
+- ✅ M3 Route A/B + decision note: A/B run + recorded 2026-09-03 (see M3 record below)
 
 ## Proposed Milestones
 
@@ -120,8 +120,42 @@ three rows and A/B the route against its OpenRouter twins.
    roster changes require Mark ratification per house rules
 
 **Acceptance Criteria:**
-- [ ] AC8: A/B banked with a keep/drop decision recorded in row notes
-- [ ] No suite displacement without core evidence + Mark ratification
+- [x] AC8: A/B banked with a keep/drop decision recorded in row notes
+- [x] No suite displacement without core evidence + Mark ratification
+
+## M3 Record — Route A/B + Decision (2026-09-03, executed with Mark attending)
+
+**Runs banked** (worktree binary v0.34.0-433-g5506424f8+, results in /tmp/glm53_ab on the studio,
+chains in the studio's local observatory):
+
+1. **Smoke (floor)** — `lyceum-glm-5-3-flash`, AILANG, N=1: **23/23 PASS**, $0.15 metered.
+   First attempt failed 0/23 in 0.02s (eval-harness explicitProvider dispatch gap) — fixed in
+   a868e76de, re-run clean.
+2. **Frontier (discriminator), three-route A/B** — or-glm-5-3-flash / lyceum-glm-5-3-flash /
+   oc-glm-5-3-flash (Ollama Cloud added as a third leg mid-flight), 8 benchmarks, N=1 + retry of
+   api_error cells: or 1/8, lyceum 2/8 (2 of 4 completed), oc 2/8. Tier difficulty dominated
+   (consensus fails: contract_rle_roundtrip, markdown_reimplement on all routes).
+
+**Route-faithfulness verdict:**
+- **Short-horizon (smoke/core-class): FAITHFUL.** 23/23, correct outputs, metered costs,
+  reasoning_tokens banked (V19 fix confirmed).
+- **Long-horizon (frontier): NOT YET FAITHFUL.** Lyceum's gateway returned 504
+  "upstream request timeout" on 6 of 8 frontier calls, and 4 of 6 failed cells 504'd AGAIN on
+  retry — systematic, not transient. The one surviving long generation (quine PASS, 38k reason
+  tokens, finish=stop) proves the route CAN carry long streams; the failure mode is per-request
+  upstream instability at frontier lengths.
+- Harness-side confounds measured and fixed during the A/B: ollama client had a 300s call
+  deadline vs 600s elsewhere (equalized via AILANG_OLLAMA_HTTP_TIMEOUT_SEC); per-call latency
+  was unbaked — llm_wall_ms + ttft_ms now banked in every result row.
+
+**Decision (Mark, attended 2026-09-03):** Lyceum = **EU-only backup route** —
+- NOT in the default rotation; no default-suite seat. Default remains the OpenRouter rows.
+- glm-5-3-flash row: keep/drop decision = **KEEP as opt-in backup**, gate record above.
+- qwen3-8-flash-next stays the priority EU fallback candidate for the OR Alibaba-429 problem —
+  its smoke gate is still PENDING and should be the next gate run on this provider.
+- Scope limit until Lyceum's gateway 504s are fixed: backup is proven for smoke/core-class
+  requests; do NOT lean on it for frontier-length generations.
+- Suite entry / any roster change still requires Mark ratification per house rules.
 
 ## Success Metrics
 - All tests passing: ✅
