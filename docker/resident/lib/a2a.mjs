@@ -52,6 +52,25 @@ function onSession(sessionId, fn) {
   return next;
 }
 
+// ─── concurrency ceiling ─────────────────────────────────────────────────────
+// The chain above serialises turns WITHIN one conversation. It does nothing
+// across conversations, and each message/send spawns its own pi process, so N
+// callers meant N processes on one box with nothing to stop them.
+//
+// This is a singleton product: Cloud Run instances do not autoscale, which is
+// the point — it is what buys the stable URL and the stateful box. So the
+// ceiling is real and fixed, and the only question is whether we hit it
+// politely or by OOM. M0 measured the cgroup killing the CHILD while the
+// container survived, so today the 5th caller silently kills somebody's run.
+//
+// The limit is a guess pending M6's measurement (1 GiB hosted one agent in M0;
+// this box is 4 GiB), which is why it is an env var and why /health reports
+// the live count. A number that refuses with its own value in the message is
+// honest in a way an OOM is not.
+const MAX_CONCURRENT = Number(process.env.RESIDENT_MAX_CONCURRENT_RUNS || 3);
+let activeRuns = 0;
+export const runStats = () => ({ active: activeRuns, max: MAX_CONCURRENT });
+
 // ─── task store ──────────────────────────────────────────────────────────────
 // Persisted to local disk so tasks survive the weekly auto-restart. NOT to
 // $AGENT_HOME: gcsfuse has no POSIX locking and this file is rewritten often.
@@ -262,12 +281,19 @@ export async function messageSend(params) {
   task.metadata.mode = mode;
 
   if (mode === "stream") {
+    if (activeRuns >= MAX_CONCURRENT) {
+      throw Object.assign(new Error(
+        `this agent is already running ${activeRuns} of a maximum ${MAX_CONCURRENT} concurrent turns. ` +
+        `Cloud Run instances do not autoscale, so retry shortly or give this caller its own instance. ` +
+        `Raise RESIDENT_MAX_CONCURRENT_RUNS only with the memory headroom to match.`),
+        { code: -32000 });
+    }
     const sessionId = sessionIdFor(contextId);
     task.metadata.sessionId = sessionId;
     task.metadata.persistent = Boolean(capabilities().sessionFlag);
     // Fire-and-forget: the A2A call returns a task immediately and the run
     // continues in the background, reporting through task state and artifacts.
-    onSession(sessionId, () => runPi({
+    onSession(sessionId, () => { activeRuns++; return runPi({
       model: model.replace(/^openrouter\//, ""),
       prompt: text,
       sessionId,
@@ -277,7 +303,7 @@ export async function messageSend(params) {
         // tasks/get sees progress rather than nothing until the end.
         if (st.text) attachText(task, st.text);
       },
-    }))
+    }).finally(() => { activeRuns--; }); })
       .then((r) => {
         attachText(task, r.text);
         task.metadata.usage = r.usage ?? null;

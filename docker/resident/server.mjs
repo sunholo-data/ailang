@@ -52,6 +52,10 @@ async function health() {
     // `bash` is in this list the AILANG program allowlist is a convenience and
     // not a containment boundary — the container and the only-dir mount are.
     tools: pi.toolPolicy(),
+    // Load, so an operator can see whether the ceiling is being reached before
+    // a user reports "it refused me". Instances do not autoscale, so this is
+    // the whole capacity there is.
+    runs: a2a.runStats(),
     extensions: process.env.RESIDENT_PI_EXTENSIONS === "1" ? "enabled" : "disabled",
     session: (() => {
       const c = pi.capabilities();

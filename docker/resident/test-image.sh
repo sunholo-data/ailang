@@ -286,6 +286,25 @@ runPi({ model: "m", prompt: "hi", tools: [], ttftMs: 5000 }).catch(() => {});' >
 have "an empty policy disables tools entirely" 'grep -q -- "--no-tools" /tmp/pi-argv.txt'
 rm -rf "$STUB" /tmp/pi-argv.txt
 
+echo "=== 6e. concurrency ceiling ==="
+# Instances are SINGLETONS and do not autoscale, so the box has a fixed
+# ceiling. The only choice is whether it is hit politely or by OOM — M0 saw the
+# cgroup kill the child while the container survived, i.e. one caller silently
+# killing another's run.
+out=$(A2A 'import * as a2a from "/usr/local/bin/lib/a2a.mjs";
+console.log(JSON.stringify(a2a.runStats()));')
+have "the agent reports its run ceiling"   'echo "$out" | grep -q "\"max\""'
+have "  ...and starts idle"                'echo "$out" | grep -q "\"active\":0"'
+
+out=$(RESIDENT_MAX_CONCURRENT_RUNS=0 A2A 'import * as a2a from "/usr/local/bin/lib/a2a.mjs";
+a2a.messageSend({ message: { role:"user", kind:"message", messageId:"m1",
+  parts:[{kind:"text",text:"hi"}] } })
+  .then(() => console.log("ACCEPTED"))
+  .catch((e) => console.log("REFUSED: " + e.message));')
+have "a full agent refuses rather than OOMs"    'echo "$out" | grep -q "REFUSED"'
+have "  ...and the refusal names the ceiling"   'echo "$out" | grep -q "maximum 0 concurrent"'
+have "  ...and says instances do not autoscale" 'echo "$out" | grep -q "do not autoscale"'
+
 echo "=== 7. restart idempotence ==="
 # The 7-day ceiling makes restarts routine, so a second boot must behave like
 # the first rather than tripping over its own leftovers.

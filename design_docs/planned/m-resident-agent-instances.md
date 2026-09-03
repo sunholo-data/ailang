@@ -299,6 +299,59 @@ The resident moved alone because its requirement is different in kind: it needs
 `--session-id` to exist at all, whereas the job executor is a one-shot that
 `--no-session` suits and that has 0.73.1 numbers behind it.
 
+### D11 — The singleton IS the unit of tenancy; one instance per user, not one instance for users
+
+Asked directly (Mark, 2026-09-03): what happens when several people connect,
+does the GCS mount take care of it, and does it autoscale? Answers, in order:
+they collide, no, and no.
+
+**It does not autoscale, and that is the product.** Cloud Run *instances* are
+singletons — exactly one container, no replicas. That property is what buys the
+stable URL, the stop/start, and a box that can hold state at all. Autoscaling
+belongs to Cloud Run *services*, which is the thing this design deliberately
+did not choose. So the ceiling is fixed and real.
+
+**The mount does not isolate users.** The live spec reads
+`only-dir=homes/mark` — ONE prefix for the whole instance, not one per caller.
+Everyone shares a home, a workspace and a `~/.pi/sessions/`. `contextId`
+separates transcripts *logically*, but the agent holds `read` and `bash`
+(D8), so it can read any session file in that directory. **Several users on one
+instance are not isolated, and the tool must not be offered to a skill handling
+one user's confidential material on behalf of another until they are.**
+
+**Concurrency was unbounded.** The per-session chain serialises turns within one
+conversation and does nothing across conversations, and every `message/send`
+spawns its own pi process. Nothing refused the Nth caller; it OOMed — and M0
+measured the cgroup killing the CHILD while the container survives, so the
+arriving caller silently killed somebody else's run. Now capped by
+`RESIDENT_MAX_CONCURRENT_RUNS` (default 3, a guess pending M6's measurement on
+a 4 GiB box, given M0 found 1 GiB hosted one agent), refused with a message
+naming the ceiling, and the live count is in `/health`.
+
+**Therefore the unit of tenancy is the instance.** One per user, started on
+dispatch and stopped when idle (M4) — which is affordable precisely because D7
+put the conversation on the GCS home, so a stopped instance loses nothing.
+Per-user isolation then comes free from the mechanism already in place: the
+`only-dir` prefix becomes the user's, not the deployment's.
+
+Two numbers that bound this: **~$25-30/month** per always-RUNNING instance at
+this size versus **≤$6** idle-stopped (M6's target), and a **quota of 100
+instances per project** (`run.googleapis.com/instances`, checked on
+`ailang-multivac-dev` 2026-09-03) — a hard ceiling on users per project before
+a quota increase or sharding.
+
+*(The delegated-authority follow-up Mark deferred — the agent acting on the
+platform as the user — is D12, not D11.)*
+
+### Environments
+
+Only **dev** has a resident instance (`resident-pi-ailang` in
+`ailang-multivac-dev`, europe-west4). `ailang-multivac-test` and
+`ailang-multivac` have none. The consuming URL is derivable rather than
+literal — `https://<instance>-<projectNumber>.<region>.run.app` — so the
+platform's Terraform should COMPUTE it per environment from that env's project
+number, not carry a pasted string per trigger.
+
 ## Phase 0 findings (2026-09-02) — measured, not assumed
 
 **Compute.** `go build -a std` on live `europe-west4` instances:
