@@ -1,6 +1,18 @@
 #!/bin/bash
-# Covers tools/ and scripts/ prefixes only. docs/scripts/... and generated paths
-# such as .stdlib-golden/option.sh are deliberately out of scope.
+# SCOPE, STATED IN FULL — an under-disclosed scope is how a gate gets quoted for a
+# sentence it does not support. This enumerator finds a reference only when ALL of:
+#   (a) the path is written LITERALLY, starting with `tools/` or `scripts/`; and
+#   (b) its extension is one of .sh .bash .py .pl (matched case-insensitively).
+# KNOWN BLIND SPOTS, deliberate and unfixable at this layer:
+#   - Make-variable composition. `$(TOOLS_DIR)/x.sh` does not start literally with
+#     `tools/`, so it is invisible here. Resolving it would mean evaluating make
+#     variables, which this gate does not do. Measured 2026-09-03 (iteration 323):
+#     a fixture with such a reference dangling passes rc=0.
+#   - Any other extension (.rb, .ts, .mjs, a bare interpreterless file).
+#   - Prefixes other than tools/ and scripts/ — docs/scripts/... and generated paths
+#     such as .stdlib-golden/option.sh are out of scope on purpose.
+# So a green here means "no LITERAL tools//scripts/ script reference dangles", never
+# "no reference dangles".
 set -u
 
 SCAN_ROOT="${REFERENCED_PATHS_SCAN_ROOT:-$(pwd)}"
@@ -49,13 +61,16 @@ if [ -s "$INPUTS" ]; then
 	# must not be truncated into an apparently in-scope token.
 	# shellcheck disable=SC2016 # The dollar expressions below belong to awk.
 	xargs awk '
+	BEGIN { split("sh bash py pl", e, " "); for (i in e) want[e[i]] = 1 }
 	{
 		line = $0
-		while (match(line, /(^|[^A-Za-z0-9_.\/-])((tools|scripts)\/[A-Za-z0-9_.\/-]+\.(sh|py))([^A-Za-z0-9_.\/-]|$)/)) {
+		while (match(line, /(^|[^A-Za-z0-9_.\/-])((tools|scripts)\/[A-Za-z0-9_.\/-]+\.[A-Za-z][A-Za-z0-9]*)([^A-Za-z0-9_.\/-]|$)/)) {
 			hit = substr(line, RSTART, RLENGTH)
 			if (hit !~ /^(tools|scripts)\//) hit = substr(hit, 2)
 			sub(/[^A-Za-z0-9_.\/-]$/, "", hit)
-			print hit
+			ext = hit
+			sub(/^.*\./, "", ext)
+			if (tolower(ext) in want) print hit
 			line = substr(line, RSTART + RLENGTH)
 		}
 	}' < "$INPUTS" | LC_ALL=C sort -u > "$PATHS"

@@ -64,10 +64,14 @@ A2="$WORK/a2"
 make_floor_fixture "$A2"
 printf '%s\n' 'missing: ; @bash tools/launchd/does_not_exist.sh' >> "$A2/Makefile"
 run_gate "$A2"
-if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -qF 'tools/launchd/does_not_exist.sh'; then
-	pass "A2 missing referenced path is refused"
+# The assertion names the MISSING branch specifically. Asserting only rc!=0 plus the
+# path substring was redundant with A6: the untracked `elif` catches the same fixture
+# and prints the same path, so neutering the missing-path branch left A2 green. Found
+# by iteration 323's evaluator, which neutered that branch and watched A2 pass anyway.
+if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -qF 'missing referenced path: tools/launchd/does_not_exist.sh'; then
+	pass "A2 missing referenced path is refused by the missing-path branch"
 else
-	fail "A2 missing referenced path is refused (rc=$RC)"
+	fail "A2 missing referenced path is refused by the missing-path branch (rc=$RC)"
 fi
 
 # Kills an enumerator that checks known make shapes but never looks at workflow additions.
@@ -121,6 +125,39 @@ if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -qF 'untracked referenced path
 	pass "A6 untracked-but-present path is refused"
 else
 	fail "A6 untracked-but-present path is refused (rc=$RC)"
+fi
+
+# A7 — extension and case coverage. Iteration 323's evaluator broke the first version of
+# this gate by writing dangling references in forms the matcher did not recognise: it
+# passed rc=0 with FOUR dangling paths. Three of those forms are now matched; each gets
+# its own arm, because a single combined arm cannot say WHICH form regressed.
+for a7ref in 'tools/launchd/does_not_exist_a7.bash' \
+             'scripts/does_not_exist_a7.pl' \
+             'tools/launchd/DOES_NOT_EXIST_A7.SH'; do
+	A7="$WORK/a7-$(printf '%s' "$a7ref" | tr -c 'A-Za-z0-9' '_')"
+	make_floor_fixture "$A7"
+	printf 'dangling: ; @bash %s\n' "$a7ref" >> "$A7/Makefile"
+	run_gate "$A7"
+	if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -qF "missing referenced path: $a7ref"; then
+		pass "A7 dangling reference is refused: $a7ref"
+	else
+		fail "A7 dangling reference is refused: $a7ref (rc=$RC)"
+	fi
+done
+
+# A8 — the ONE blind spot that survives must stay DISCLOSED. A make-variable-composed
+# path (`$(TOOLS_DIR)/x.sh`) does not start literally with `tools/`, so this gate cannot
+# see it without evaluating make variables, which it does not do. That is acceptable; a
+# SILENT version of it is not, because a reader would quote this gate's green for a
+# sentence it cannot support. This arm fails if the disclosure is ever deleted.
+A8="$WORK/a8"
+make_floor_fixture "$A8"
+printf 'TOOLS_DIR = tools/launchd\ndyn: ; @bash $(TOOLS_DIR)/deleted_dynamic_a8.sh\n' >> "$A8/Makefile"
+run_gate "$A8"
+if [ "$RC" -eq 0 ] && grep -qF 'Make-variable composition' "$GATE" && grep -qF 'never' "$GATE"; then
+	pass "A8 make-variable blind spot still passes AND is still disclosed in the gate"
+else
+	fail "A8 make-variable blind spot still passes AND is still disclosed in the gate (rc=$RC)"
 fi
 
 echo "==== $PASSED passed, $FAILED failed ===="
