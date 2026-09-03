@@ -49,6 +49,15 @@ func (d *Daemon) startHealthServer(port string) {
 	// M-REST-INGESTION: REST API for client message ingestion and retrieval (all modes).
 	mux.HandleFunc("/api/messages", d.requireAPIKey(d.handleMessages))
 
+	// v6.40.0 M4: start a stopped resident agent instance.
+	//
+	// Deliberately NOT behind requireAPIKey, which passes everything when
+	// COORDINATOR_API_KEY is unset. That default is fine for read-only status
+	// in local mode and wrong for a route that operates infrastructure, where
+	// a missing env var would silently open it. This handler verifies
+	// Google-signed OIDC against an explicit allowlist and fails CLOSED.
+	mux.HandleFunc("/instances/start", d.handleStartInstance)
+
 	// M-CLOUD-PUSH: Pub/Sub push endpoints for cloud mode.
 	// Pub/Sub delivers messages via HTTP POST instead of pull subscriptions.
 	if os.Getenv("COORDINATOR_MODE") == CoordinatorModeCloud {
