@@ -310,6 +310,56 @@ grep -q 'test_spawn_pin_hook.sh' "$ROOT/make/test.mk" \
   && ok "spawn-pin hook suite is wired into make/test.mk" \
   || bad "spawn-pin hook suite is wired into make/test.mk" "missing from make/test.mk"
 
+# --- M3 DRIVER EXPORTS + DOCS ALLOWLIST (M-SPAWN-PIN-ENFORCEMENT, 2026-09-03) --
+# D1: Layer 3 must publish the resolved plan only after lane degradation has
+# finished rewriting the role pins. Moving it beside the initial role exports
+# would publish stale values while the driver silently runs different ones.
+_res_line=$(grep -n 'export MISSION_CONTROL_ACTIVE=1' "$driver" | head -1 | cut -d: -f1)
+_deg_line=$(grep -nF 'codex ${role_lc} lane -> falling back to' "$driver" | head -1 | cut -d: -f1)
+if [ -n "$_res_line" ] && [ -n "$_deg_line" ] && [ "$_res_line" -gt "$_deg_line" ]; then
+  ok "D1 resolved-role exports come AFTER lane degradation (line $_res_line > $_deg_line)"
+else
+  bad "D1 resolved-role exports come AFTER lane degradation" "resolved=$_res_line degradation=$_deg_line"
+fi
+
+# D2: exercise the real Layer-3 block across a child-process boundary. As in
+# the #696 arm, unset ambient values and carry a known-positive export control
+# through the SAME /usr/bin/env call so a broken instrument cannot look green.
+lab=$(mktemp -d "${TMPDIR:-/tmp}/mission-layer3.XXXXXX") || exit 1
+awk '/^# Layer 3 \(M-SPAWN-PIN-ENFORCEMENT\):/,/^unset _role _mv _rv$/' "$driver" > "$lab/layer3.sh"
+out=$(/bin/bash -c '
+  set -uo pipefail
+  unset MISSION_DESIGNER_MODEL MISSION_PLANNER_MODEL MISSION_EXECUTOR_MODEL MISSION_EVALUATOR_MODEL
+  unset MISSION_DESIGNER_RESOLVED MISSION_PLANNER_RESOLVED MISSION_EXECUTOR_RESOLVED MISSION_EVALUATOR_RESOLVED
+  unset MISSION_DESIGNER_PATH MISSION_PLANNER_PATH MISSION_EXECUTOR_PATH MISSION_EVALUATOR_PATH
+  export MC_EXPORT_CONTROL=sentinel
+  MISSION_EXECUTOR_MODEL=codex:x
+  MISSION_EVALUATOR_MODEL=sonnet
+  . "$1"
+  /usr/bin/env | grep -E "^(MC_EXPORT_CONTROL|MISSION_(EXECUTOR|EVALUATOR)_(RESOLVED|PATH))=" | LC_ALL=C sort | tr "\n" "|"
+' _ "$lab/layer3.sh")
+want "D2 resolved role plan is exported to child processes" "$out" \
+  "MC_EXPORT_CONTROL=sentinel|MISSION_EVALUATOR_PATH=agent-tool|MISSION_EVALUATOR_RESOLVED=sonnet|MISSION_EXECUTOR_PATH=recipe|MISSION_EXECUTOR_RESOLVED=codex:x|"
+rm -rf "$lab"
+
+# Arm 12: the versioned docs allowlist admits top-level scripts/* while the
+# exact pre-widening list remains the fail-closed control.
+lab=$(mktemp -d "${TMPDIR:-/tmp}/mission-arm12.XXXXXX") || exit 1
+cat > "$lab/scripts-doc.md" <<'EOF'
+**Planner-Lane**: codex-ok
+
+## Files
+- `scripts/verify_examples.go`
+EOF
+out=$(/bin/bash -c 'unset MISSION_PLANNER_ALLOWLIST; . "$1"; export MISSION_PLANNER_ALLOWLIST; MISSION_PLANNER_MODEL=codex:gpt-5.6-luna "$2" "$3"' \
+  _ "$docsenv" "$DERIVE" "$lab/scripts-doc.md")
+want "arm12 docs allowlist admits top-level scripts" "$out" "codex:gpt-5.6-luna declared:codex-ok"
+PRE_SCRIPTS_AL='tools/*|.claude/skills/mission-control/SKILL.md|.claude/skills/design-doc-creator/*|docs/*|examples/*|README.md|CHANGELOG.md|.claude/skills/docs-sync/scripts/*'
+out=$(MISSION_PLANNER_ALLOWLIST="$PRE_SCRIPTS_AL" MISSION_PLANNER_MODEL=codex:gpt-5.6-luna \
+  "$DERIVE" "$lab/scripts-doc.md")
+want "arm12 pre-widening allowlist still denies top-level scripts" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+rm -rf "$lab"
+
 echo ""
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]
