@@ -1096,9 +1096,19 @@ because it is a routing-policy change on a shared file. Mission-independent: eve
 reads the same rotation list and the same reviewer defaults. The tell: you are about to abandon or
 force-pass a doc whose reviewers gave you a concrete fix, and the only reason is a budget line.
 
-Spawn pattern (heavy roles): `Agent(subagent_type="general-purpose", model="<the role's env value>",
-prompt="invoke the <skill> for <doc>/<worktree> …")` — resolve the env value first via
-`echo $MISSION_EXECUTOR_MODEL`. These are in-session Agent-tool model **aliases**.
+**Spawn pattern (heavy roles) — run the resolver, follow its output VERBATIM.** For each role run
+`tools/launchd/resolve-role-spawn.sh <role> [<design-doc>]`. Its output is exactly one line,
+`<path> <value> <reason-token>`; do not second-guess it. `agent-tool <alias>` → spawn
+`Agent(subagent_type="general-purpose", model="<alias>", …)`. `recipe <provider:model>` → the
+Agent tool is NOT a valid path for that role; use the cross-provider recipe below.
+`reroute <alias> generator-equals-judge` → spawn the named re-route target and say so in the
+Gate-4 row. `refuse …` → that role is a routing **FAILURE**, not a FLAG: record the reason token
+VERBATIM and continue the iteration without the role rather than spending un-budgeted opus.
+**Every role prompt MUST begin with the line `MISSION-ROLE: <designer|planner|executor|evaluator>`**
+— that token is the ONLY input the spawn-pin hook uses to map a spawn to a role, and while
+`MISSION_CONTROL_ACTIVE=1` an unlabelled Agent/Task call is DENIED at the tool boundary. A
+read-only reality-check needs no token: spawn it as `subagent_type: Explore`, the one
+machine-readable exception.
 
 **⚠ CORRECTED 2026-08-20 (V1 iteration 238) — THE AGENT TOOL NOW ACCEPTS A `fable` PIN, AND THE
 STALE RULE WAS SILENTLY COSTING EVERY MISSION ITS ROTATION'S FABLE DESIGNER SLOT.** From

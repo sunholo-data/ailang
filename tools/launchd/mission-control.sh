@@ -1000,6 +1000,24 @@ whose drift is 0 by construction. AILANG_DRIVER_SRC is the source clone."
   _mc_notify "Mission ${MISSION_NAME}: pinned source clone drifted (${_pin_drift_degraded} behind)" "$_pin_drift_body" "pin-drift"
 fi
 
+# Layer 3 (M-SPAWN-PIN-ENFORCEMENT): export the RESOLVED plan, post-degradation.
+# MUST be here and not beside the MISSION_<ROLE>_MODEL exports at 544/569/586/793:
+# the codex lane loop rewrites those vars in place at :722 and the pi loop at :770/:779,
+# and the one-shot override at :904 — exporting earlier would publish a plan the driver
+# then silently changed, which is the exact silent-degradation class this closes.
+export MISSION_CONTROL_ACTIVE=1
+for _role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
+  _mv="MISSION_${_role}_MODEL"; _rv="${!_mv:-}"
+  printf -v "MISSION_${_role}_RESOLVED" '%s' "$_rv"; export "MISSION_${_role}_RESOLVED"
+  case "$_rv" in
+    *:*) printf -v "MISSION_${_role}_PATH" '%s' 'recipe' ;;
+    "")  printf -v "MISSION_${_role}_PATH" '%s' 'unset'  ;;
+    *)   printf -v "MISSION_${_role}_PATH" '%s' 'agent-tool' ;;
+  esac
+  export "MISSION_${_role}_PATH"
+done
+unset _role _mv _rv
+
 log "=== mission iteration starting (controller=$CONTROLLER_ID via ${MODEL_WHY}, timeout=${HARD_TIMEOUT}s | bg-wait-ceiling=${CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS}ms | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL) ==="
 
 PROMPT="Run one mission-control iteration: invoke the mission-control skill for \

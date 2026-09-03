@@ -17,5 +17,14 @@
 .claude/skills/model-manager/SKILL.md 644
 .claude/skills/eval-analyzer/SKILL.md 604
 .claude/skills/sprint-planner/SKILL.md 597
-.claude/skills/release-manager/SKILL.md 596
+# release-manager: RATCHET DELIBERATELY LOOSENED 596 -> 625 by V1 iteration 325, which did
+# not write the growth. `5abe0411d` (2026-09-03 22:05, fleet account) added the 18-image
+# by-version tag build and its stop-at-test gate, +52/-23, and turned dev RED for every
+# mission on this rig within minutes. Bumping is the escape valve the gate itself names
+# ("Deliberate exception: add '<path> <lines>' to the baseline with a why"), and it is the
+# smallest change that unblocks four loops; it is NOT the right fix. The right fix is this
+# file's own header: move the added pipeline walkthrough into a sibling file that SKILL.md
+# links to, and ratchet this line back DOWN. Owed by whoever picks
+# `m-release-manager-skill-split` on the V1 queue.
+.claude/skills/release-manager/SKILL.md 625
 .claude/skills/design-doc-creator/SKILL.md 578

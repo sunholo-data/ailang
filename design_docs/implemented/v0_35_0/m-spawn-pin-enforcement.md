@@ -2,7 +2,7 @@
 
 **Type**: Fleet infrastructure fix (shared skill + launchd tooling + one per-mission env widening)
 **Raised**: 2026-09-01 (Mark, attended, after reviewing the docs mission's opus burns)
-**Status**: DRAFT — round-3 text after quorum rounds 1 and 2 (both 3/3 reject; round 2 localised on ONE surface: the hook's role mapping, plus one multi-hook platform premise — all fixes reviewer-authored and applied by the controller under the ratified narrow-refinement carve-out); design DIRECTION approved by Mark attended 2026-09-01
+**Status**: IMPLEMENTED 2026-09-03 (iteration 324 M1+M2, iteration 325 M3+M4 — 4/4 milestones) — round-3 text after quorum rounds 1 and 2 (both 3/3 reject; round 2 localised on ONE surface: the hook's role mapping, plus one multi-hook platform premise — all fixes reviewer-authored and applied by the controller under the ratified narrow-refinement carve-out); design DIRECTION approved by Mark attended 2026-09-01
 **Traces to**: PROGRAM.md · mission-control SKILL.md Gate 3 · #493 (driver-side sibling) · #902 (executor-default sibling)
 **Planner-Lane**: codex-ok
 
