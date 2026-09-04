@@ -552,6 +552,7 @@ jobs:
     # integrity gate: install only if it is genuinely missing. An unconditional
     # `apt-get update` is a known CI flake source and buys nothing here.
     - name: Ensure ShellCheck is available
+      timeout-minutes: 5
       run: command -v shellcheck || { sudo apt-get update && sudo apt-get install -y shellcheck; }
 
     - name: ShellCheck auto-push hooks
