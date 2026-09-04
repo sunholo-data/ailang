@@ -100,47 +100,42 @@ if ! command -v gofmt >/dev/null 2>&1; then
     exit 0
 fi
 
-GO_FILES=$(bounded 10 git diff --name-only --diff-filter=ACM origin/dev..dev -- '*.go' 2>/dev/null) || {
-    log "REFUSED_FMT_CHECK: could not list committed Go files; refusing $AHEAD commit(s)"
+FMT_TMP=$(mktemp -d "${TMPDIR:-/tmp}/ailang-autopush-fmt.XXXXXX" 2>/dev/null) || {
+    log "REFUSED_FMT_CHECK: could not create formatting workspace; refusing $AHEAD commit(s)"
     echo "⚠️  local dev has $AHEAD unpushed commit(s), but its committed Go files could not be checked."
     echo "   Not auto-pushing: run make fmt, commit, and let the next Stop push it."
     exit 0
 }
+trap 'rm -rf "$FMT_TMP"' EXIT
+trap 'rm -rf "$FMT_TMP"; exit 0' HUP INT TERM
+
+if ! bounded 10 git diff --name-only -z --diff-filter=ACM origin/dev..dev -- '*.go' > "$FMT_TMP/go-files" 2>/dev/null; then
+    log "REFUSED_FMT_CHECK: could not list committed Go files; refusing $AHEAD commit(s)"
+    echo "⚠️  local dev has $AHEAD unpushed commit(s), but its committed Go files could not be checked."
+    echo "   Not auto-pushing: run make fmt, commit, and let the next Stop push it."
+    exit 0
+fi
 
 BAD_GO_FILES=""
-if [ -n "$GO_FILES" ]; then
-    FMT_TMP=$(mktemp -d "${TMPDIR:-/tmp}/ailang-autopush-fmt.XXXXXX" 2>/dev/null) || {
-        log "REFUSED_FMT_CHECK: could not create formatting workspace; refusing $AHEAD commit(s)"
-        echo "⚠️  local dev has $AHEAD unpushed commit(s), but its committed Go files could not be checked."
-        echo "   Not auto-pushing: run make fmt, commit, and let the next Stop push it."
-        exit 0
-    }
-    trap 'rm -rf "$FMT_TMP"' EXIT
-    trap 'rm -rf "$FMT_TMP"; exit 0' HUP INT TERM
-
-    while IFS= read -r go_file; do
-        [ -n "$go_file" ] || continue
-        if ! bounded 10 git show "dev:$go_file" > "$FMT_TMP/committed" 2>/dev/null; then
-            BAD_GO_FILES="${BAD_GO_FILES}${go_file}
+while IFS= read -r -d '' go_file; do
+    if ! bounded 10 git show "dev:$go_file" > "$FMT_TMP/committed" 2>/dev/null; then
+        BAD_GO_FILES="${BAD_GO_FILES}${go_file}
 "
-            continue
-        fi
-        if [ ! -s "$FMT_TMP/committed" ]; then
-            BAD_GO_FILES="${BAD_GO_FILES}${go_file}
+        continue
+    fi
+    if [ ! -s "$FMT_TMP/committed" ]; then
+        BAD_GO_FILES="${BAD_GO_FILES}${go_file}
 "
-            continue
-        fi
-        if ! bounded 10 gofmt < "$FMT_TMP/committed" > "$FMT_TMP/formatted" 2>/dev/null; then
-            BAD_GO_FILES="${BAD_GO_FILES}${go_file}
+        continue
+    fi
+    if ! bounded 10 gofmt < "$FMT_TMP/committed" > "$FMT_TMP/formatted" 2>/dev/null; then
+        BAD_GO_FILES="${BAD_GO_FILES}${go_file}
 "
-            continue
-        fi
-        cmp -s "$FMT_TMP/committed" "$FMT_TMP/formatted" || BAD_GO_FILES="${BAD_GO_FILES}${go_file}
+        continue
+    fi
+    cmp -s "$FMT_TMP/committed" "$FMT_TMP/formatted" || BAD_GO_FILES="${BAD_GO_FILES}${go_file}
 "
-    done <<EOF
-$GO_FILES
-EOF
-fi
+done < "$FMT_TMP/go-files"
 
 if [ -n "$BAD_GO_FILES" ]; then
     BAD_GO_LOG=$(printf '%s' "$BAD_GO_FILES" | tr '\n' ' ')
