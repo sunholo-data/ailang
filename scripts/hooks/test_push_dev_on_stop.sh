@@ -30,6 +30,21 @@ git checkout -q -b dev; echo a > a; git add a; git commit -qm init; git push -q 
 export CLAUDE_PROJECT_DIR="$W/local"
 ORIGIN_SHA() { git -C "$W/origin.git" rev-parse dev; }
 
+# Q/R. The earliest precondition exits are quiet but leave distinct evidence.
+PRIVATE_LOG="$W/home/.ailang/state/autopush.log"
+q_before=$(grep -c 'SKIP_ROOT' "$PRIVATE_LOG" 2>/dev/null || true)
+out=$(CLAUDE_PROJECT_DIR="$W/absent-root" bash "$HOOK" 2>&1); q_rc=$?
+q_after=$(grep -c 'SKIP_ROOT' "$PRIVATE_LOG" 2>/dev/null || true)
+ck "Q missing root: logged, stdout quiet" "$((q_after - q_before)):${q_rc}:$([ -z "$out" ] && echo quiet || echo noisy)" "1:0:quiet"
+
+mkdir -p "$W/not-git" || exit 1
+r_before=$(grep -c 'SKIP_NOT_GIT' "$PRIVATE_LOG" 2>/dev/null || true)
+out=$(GIT_CEILING_DIRECTORIES="$W" CLAUDE_PROJECT_DIR="$W/not-git" bash "$HOOK" 2>&1); r_rc=$?
+r_after=$(grep -c 'SKIP_NOT_GIT' "$PRIVATE_LOG" 2>/dev/null || true)
+ck "R non-Git root: logged, stdout quiet" "$((r_after - r_before)):${r_rc}:$([ -z "$out" ] && echo quiet || echo noisy)" "1:0:quiet"
+qr_rows=$(tail -2 "$PRIVATE_LOG" | sed -n 's/.*\(SKIP_[A-Z_]*\):.*/\1/p' | tr '\n' ' ')
+ck "Q/R distinction assertion" "$qr_rows" "SKIP_ROOT SKIP_NOT_GIT "
+
 # A. clean — nothing ahead
 out=$(bash "$HOOK" 2>&1); ck "A clean: no output" "$out" ""
 ck "A clean: exit 0" "$?" "0"
@@ -149,7 +164,6 @@ ck "P setup: human Git output is quoted" "$([ "${quoted_path#\"}" != "$quoted_pa
 before=$(ORIGIN_SHA); out=$(bash "$HOOK" 2>&1); after=$(ORIGIN_SHA)
 ck "P non-ASCII Go pathname: pushed" "$([ "$before" != "$after" ] && echo yes || echo no)" "yes"
 
-PRIVATE_LOG="$W/home/.ailang/state/autopush.log"
 ck "N harness HOME: private log populated" "$([ -s "$PRIVATE_LOG" ] && grep -c '\[fmtlocal\]' "$PRIVATE_LOG" || echo 0)" "4"
 if [ -f "$CALLER_LOG" ]; then
     CALLER_LOG_SHA_AFTER=$(shasum "$CALLER_LOG" | awk '{print $1}')

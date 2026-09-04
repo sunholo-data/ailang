@@ -41,8 +41,14 @@ log() { printf '[%s] [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$REPO_NAME" "$*"
 # perl alarm — the portable bound this repo already uses (macOS ships no timeout/gtimeout).
 bounded() { local s="$1"; shift; perl -e 'alarm(shift @ARGV); exec @ARGV' "$s" "$@"; }
 
-cd "$ROOT" 2>/dev/null || exit 0
-git rev-parse --git-dir >/dev/null 2>&1 || exit 0
+if ! cd "$ROOT" 2>/dev/null; then
+    log "SKIP_ROOT: could not cd to resolved root: $ROOT"
+    exit 0
+fi
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    log "SKIP_NOT_GIT: resolved root is not a Git worktree: $ROOT"
+    exit 0
+fi
 
 # Only ever act on dev itself. Mission worktrees sit on sprint/* or docs/* and are skipped
 # here by construction — they land their work through PRs, which already works.
