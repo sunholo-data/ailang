@@ -29,6 +29,19 @@
 // event at the next tool call or at the end of the turn, which also keeps the
 // transcript in the order it happened.
 //
+// THREE ENDPOINTS, because the executors use three and parity is the point.
+//
+//   /api/observatory/hooks      the SESSIONS table. What OTel spans are
+//                               enriched against, and what makes this a
+//                               first-class session rather than a task record
+//                               that happens to exist. Its SessionStart 400s
+//                               without a workspace, so that is not optional.
+//   /api/exec/sessions          creates the coordinator.TaskRecord
+//   /api/exec/events            the transcript hung off it (the Chat History view)
+//
+// claude_telemetry.sh posts to all three for a Claude Code session; a resident
+// run posts the same shapes, from pi's events instead of Claude Code's hooks.
+//
 // Same failure posture as otel.mjs: unset URL is inert, an unreachable
 // observatory drops events and warns ONCE. Reporting must never be the reason a
 // turn fails.
@@ -105,17 +118,28 @@ export function startRun({ sessionId, workspace = "/workspace", provider = "pi" 
   // Queued rather than awaited: startRun is called on the request path and the
   // dashboard is not allowed to add latency to it. Ordering is preserved by
   // chaining every send onto this same promise.
-  let chain = post("/api/exec/sessions", { session_id: sessionId, workspace, provider }).then(() =>
-    send({ stream_type: "turn_start", text: "resident run started" }),
-  );
+  let chain = Promise.all([
+    post("/api/exec/sessions", { session_id: sessionId, workspace, provider }),
+    hook({ event: "SessionStart", workspace, claude_version: provider }),
+  ]).then(() => send({ stream_type: "turn_start", text: "resident run started" }));
   let pending = "";
   let turn = 0;
 
   function send(fields) {
     return post("/api/exec/events", { session_id: sessionId, turn_num: turn, ...fields });
   }
+  function hook(fields) {
+    return post("/api/observatory/hooks", {
+      session_id: sessionId,
+      timestamp: new Date().toISOString(),
+      ...fields,
+    });
+  }
   function enqueue(fields) {
     chain = chain.then(() => send(fields)).catch(() => {});
+  }
+  function enqueueHook(fields) {
+    chain = chain.then(() => hook(fields)).catch(() => {});
   }
   function flushText() {
     if (!pending) return;
@@ -142,12 +166,26 @@ export function startRun({ sessionId, workspace = "/workspace", provider = "pi" 
             tool_name: ev.toolName || "unknown",
             tool_input: JSON.stringify(ev.args ?? ev.toolInput ?? {}).slice(0, MAX_TOOL_INPUT),
           });
+          // tool_input/tool_response are json.RawMessage on the hooks handler,
+          // so they must be JSON VALUES, not the strings the exec API takes.
+          enqueueHook({
+            event: "PreToolUse",
+            tool_name: ev.toolName || "unknown",
+            tool_use_id: ev.toolCallId || "",
+            tool_input: ev.args ?? ev.toolInput ?? {},
+          });
           break;
         case "tool_execution_end":
           enqueue({
             stream_type: "tool_result",
             tool_name: ev.toolName || "unknown",
             tool_output: String(ev.result ?? ev.output ?? "").slice(0, MAX_TOOL_INPUT),
+          });
+          enqueueHook({
+            event: "PostToolUse",
+            tool_name: ev.toolName || "unknown",
+            tool_use_id: ev.toolCallId || "",
+            tool_response: String(ev.result ?? ev.output ?? "").slice(0, MAX_TOOL_INPUT),
           });
           break;
         case "message_end":
@@ -177,6 +215,9 @@ export function startRun({ sessionId, workspace = "/workspace", provider = "pi" 
           ? { stream_type: "turn_end", text: usage ? `usage: ${JSON.stringify(usage)}` : "run complete" }
           : { stream_type: "error", error_msg: String(error || "run failed") },
       );
+      // Stop closes the SESSION as well as the transcript. A session that never
+      // stops is a session still running, as far as the dashboard is concerned.
+      enqueueHook({ event: "Stop" });
       await chain;
     },
   };

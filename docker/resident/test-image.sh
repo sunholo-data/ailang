@@ -359,6 +359,8 @@ have "telemetry suites pass in the image"   'echo "$out" | grep -q "fail 0"'
 have "runs are reported as observatory sessions" 'grep -q "observatory.startRun" /usr/local/bin/lib/a2a.mjs'
 have "pi events are forwarded, not re-derived"   'grep -q "reported.event(ev)" /usr/local/bin/lib/a2a.mjs'
 have "a failed run still closes its session"     'grep -q "reported.finish({ ok: false" /usr/local/bin/lib/a2a.mjs'
+have "all THREE observatory planes are posted"   'grep -q "api/observatory/hooks" /usr/local/bin/lib/observatory.mjs && grep -q "api/exec/sessions" /usr/local/bin/lib/observatory.mjs && grep -q "api/exec/events" /usr/local/bin/lib/observatory.mjs'
+have "SessionStart always carries a workspace"   'grep -q "event: \"SessionStart\", workspace" /usr/local/bin/lib/observatory.mjs'
 have "the observatory URL is read"               'grep -q "AILANG_OBSERVATORY_URL" /usr/local/bin/server.mjs'
 
 # Wiring, asserted on the source: a tracer nothing calls is the failure this

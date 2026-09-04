@@ -41,6 +41,7 @@ function stubObservatory() {
   };
 }
 
+const hooksAt = (posts) => posts.filter((p) => p.url === "/api/observatory/hooks").map((p) => p.body);
 const eventsAt = (posts) => posts.filter((p) => p.url === "/api/exec/events").map((p) => p.body);
 const sessionsAt = (posts) => posts.filter((p) => p.url === "/api/exec/sessions").map((p) => p.body);
 
@@ -148,6 +149,33 @@ describe("observatory session reporting", () => {
     // still running, which is the state the whole dashboard exists to rule out.
     assert.ok(err, "a failed run reported no error event");
     assert.match(err.error_msg, /pi exited 1/);
+  });
+
+  it("registers as a session the observatory can enrich spans against", async () => {
+    const o = await import(`${obsPath}?case=hooks`);
+    o.configure({ url });
+    fresh();
+    const run = o.startRun({ sessionId: "t-hooks", workspace: "/workspace", provider: "pi" });
+    run.event({ type: "tool_execution_start", toolName: "bash", toolCallId: "c1", args: { command: "ls" } });
+    run.event({ type: "tool_execution_end", toolName: "bash", toolCallId: "c1", result: "a.txt" });
+    await run.finish({ ok: true });
+
+    // The SECOND plane the executors use. /api/exec/* is the transcript;
+    // /api/observatory/hooks is the sessions table OTel spans get enriched
+    // against, and it is what makes this a first-class session rather than a
+    // task record that happens to exist.
+    const hooks = hooksAt(obs.posts);
+    const start = hooks.find((h) => h.event === "SessionStart");
+    assert.ok(start, "no SessionStart was reported");
+    // The handler 400s without a workspace, so this is not optional.
+    assert.equal(start.workspace, "/workspace");
+    assert.equal(start.session_id, "t-hooks");
+
+    const pre = hooks.find((h) => h.event === "PreToolUse");
+    assert.equal(pre?.tool_name, "bash");
+    assert.equal(pre?.tool_use_id, "c1");
+    assert.ok(hooks.find((h) => h.event === "PostToolUse"), "no PostToolUse");
+    assert.ok(hooks.find((h) => h.event === "Stop"), "a session that never stops is a session still running");
   });
 
   it("survives an observatory that is not there, and says so ONCE", async () => {
