@@ -5,11 +5,13 @@ package coordinator
 // WHY THIS IS AN ENDPOINT AND NOT A SCRIPT
 //
 // The behaviour first existed as ailang-multivac/scripts/resident-sweep.sh,
-// driven by hand. A schedule cannot run a shell script without a job to host
-// it, and the way back (/instances/start) already lives here with the identity
-// and the narrow get/start/stop role the work needs. So the sweep rides the
-// same service for the same reason D13 gave the start path: no new thing to
-// deploy, and nothing to keep in step with a second copy of the rules.
+// driven by hand; that script was DELETED when this landed. A schedule cannot
+// run a shell script without a job to host it, and the way back
+// (/instances/start) already lives here with the identity and the narrow
+// get/start/stop role the work needs. So the sweep rides the same service for
+// the same reason D13 gave the start path: no new thing to deploy, and — since
+// the script is gone rather than kept "just in case" — no second copy of these
+// rules to drift out of step.
 //
 // WHAT IT REFUSES IS THE SPECIFICATION
 //

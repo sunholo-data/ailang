@@ -411,7 +411,28 @@ stopped instance -> GET /livez      HTTP 404 in 0s   (frontend; URL unmapped)
 **A stopped instance does not wake on a request.** So a sweep without a start
 path does not save money — it permanently strands the users who were idle
 longest, quietly. That inverts the build order: the way back comes first, and
-`resident-sweep.sh` **refuses `--apply`** until a start path is configured.
+the sweep **refuses `--apply`** until a start path is configured, answering
+`409` rather than quietly downgrading to a dry run a caller would record as
+done.
+
+**The sweep is a coordinator route, not a script (2026-09-04).** It began as
+`ailang-multivac/scripts/resident-sweep.sh`, run by hand. A schedule cannot
+drive a shell script without a job to host it, and `/instances/start` already
+lives in the coordinator with the narrow get/start/stop role the work needs — so
+`POST /instances/sweep` rides the same service, for the reason this decision
+already gave the start path: no new thing to deploy or watch. **The script was
+deleted rather than kept as a fallback**, because two implementations of these
+rules would drift and the rules are the whole safety argument.
+
+**The coordinator probes `/health` as ITSELF.** The script impersonated each
+instance's service account. Doing that here would need the coordinator to hold
+`serviceAccountTokenCreator` on every **per-user** agent SA — the exact power
+D11 established must not exist, since one identity could then act as any user's
+agent. Instead each instance lists the coordinator in `RESIDENT_ALLOWED_CALLERS`:
+permission to **ask**, never to **act as**. A per-user instance provisioned
+without it is unassessable, and the sweep — correctly refusing to act on missing
+information — would skip it forever while it ran at full price, so
+`resident-provision.sh` now prints that allowlist entry.
 
 **The sweep asks the instance, not a database.** The agent knows when it last
 did work; reading that from the platform's Firestore would couple two estates
