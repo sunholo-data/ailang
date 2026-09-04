@@ -57,6 +57,7 @@ func (d *Daemon) startHealthServer(port string) {
 	// a missing env var would silently open it. This handler verifies
 	// Google-signed OIDC against an explicit allowlist and fails CLOSED.
 	mux.HandleFunc("/instances/start", d.handleStartInstance)
+	mux.HandleFunc("/instances/sweep", d.handleSweepInstances)
 
 	// M-CLOUD-PUSH: Pub/Sub push endpoints for cloud mode.
 	// Pub/Sub delivers messages via HTTP POST instead of pull subscriptions.
