@@ -37,7 +37,7 @@ jobs:
     # Python is installed. Update PinnedPythonVersion in
     # internal/eval_harness/python.go if the target moves.
     - name: Set up uv
-      uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
 
     - name: Install dependencies
       run: make deps
@@ -411,7 +411,7 @@ jobs:
         cache: true
 
     - name: Set up uv (provides Python for eval-harness Python runner tests)
-      uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
 
     # Same ordering constraint as the Linux leg: prefetch BEFORE the binary is
     # installed, because `go mod download all` touches the tracked go.sum and the
