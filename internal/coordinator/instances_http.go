@@ -180,7 +180,23 @@ func (d *Daemon) handleStartInstance(w http.ResponseWriter, r *http.Request) {
 	// Return as soon as the start is ACCEPTED. Waiting out the ~30s boot would
 	// hold a user's chat turn open for the whole of it; the caller is told to
 	// ask again shortly instead.
-	_ = op
+	//
+	// But WATCH the operation, because "accepted" is not "started". Observed
+	// live 2026-09-04: a start was accepted at 12:11:24 and the instance was
+	// still stopped five minutes later, with nothing anywhere saying so — this
+	// function had discarded `op`. The user had already been told "starting,
+	// ask again shortly", so the one outcome that permanently strands somebody
+	// was the one outcome nothing watched. Not fatal to the request, so it does
+	// not change the response; it changes whether a human can ever find out.
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		if _, err := op.Wait(ctx); err != nil {
+			d.logger.Printf("lifecycle: start of %s was ACCEPTED but FAILED: %v", full, err)
+			return
+		}
+		d.logger.Printf("lifecycle: start of %s completed", full)
+	}()
 	d.logger.Printf("lifecycle: start requested for %s", full)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(startInstanceResponse{
