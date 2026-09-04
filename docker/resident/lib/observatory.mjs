@@ -90,6 +90,31 @@ async function post(path, body) {
   }
 }
 
+/**
+ * pi's tool result, as text.
+ *
+ * `tool_execution_end` carries `result.content[]` with `.text` per part, not a
+ * string — the same shape `flattenPiToolResult` handles in
+ * internal/executor/pi/pi.go. Reading it as a string produced a transcript that
+ * said a tool ran and refused to say what it returned: an empty `tool_output`
+ * in the dashboard, found on the first live run (2026-09-04).
+ */
+function toolOutputOf(ev) {
+  const r = ev.result ?? ev.output;
+  if (r == null) return "";
+  if (typeof r === "string") return r;
+  if (Array.isArray(r.content)) {
+    return r.content.map((c) => c?.text ?? "").filter(Boolean).join("\n");
+  }
+  // Something new. JSON beats "[object Object]", which is the shape of this
+  // bug and tells a reader nothing at all.
+  try {
+    return JSON.stringify(r);
+  } catch {
+    return "";
+  }
+}
+
 const INERT_RUN = {
   event() {},
   async flush() {},
@@ -176,17 +201,16 @@ export function startRun({ sessionId, workspace = "/workspace", provider = "pi" 
           });
           break;
         case "tool_execution_end":
-          enqueue({
-            stream_type: "tool_result",
-            tool_name: ev.toolName || "unknown",
-            tool_output: String(ev.result ?? ev.output ?? "").slice(0, MAX_TOOL_INPUT),
-          });
-          enqueueHook({
-            event: "PostToolUse",
-            tool_name: ev.toolName || "unknown",
-            tool_use_id: ev.toolCallId || "",
-            tool_response: String(ev.result ?? ev.output ?? "").slice(0, MAX_TOOL_INPUT),
-          });
+          {
+            const out = toolOutputOf(ev).slice(0, MAX_TOOL_INPUT);
+            enqueue({ stream_type: "tool_result", tool_name: ev.toolName || "unknown", tool_output: out });
+            enqueueHook({
+              event: "PostToolUse",
+              tool_name: ev.toolName || "unknown",
+              tool_use_id: ev.toolCallId || "",
+              tool_response: out,
+            });
+          }
           break;
         case "message_end":
           flushText();

@@ -151,6 +151,29 @@ describe("observatory session reporting", () => {
     assert.match(err.error_msg, /pi exited 1/);
   });
 
+  it("flattens pi's tool result instead of stringifying an object", async () => {
+    const o = await import(`${obsPath}?case=result`);
+    o.configure({ url });
+    fresh();
+    const run = o.startRun({ sessionId: "t-result", workspace: "/w", provider: "pi" });
+    // FOUND LIVE 2026-09-04: the first cut read `ev.result` as if it were a
+    // string, so the dashboard showed a tool_result row with an EMPTY output —
+    // a transcript that says a tool ran and refuses to say what it returned.
+    // pi's shape is result.content[].text (internal/executor/pi/pi.go
+    // flattenPiToolResult), and it can carry several parts.
+    run.event({
+      type: "tool_execution_end",
+      toolName: "bash",
+      toolCallId: "c1",
+      result: { content: [{ type: "text", text: "localhost" }, { type: "text", text: "M8-PROBE" }] },
+    });
+    await run.flush();
+    const res = eventsAt(obs.posts).find((e) => e.stream_type === "tool_result");
+    assert.equal(res.tool_output, "localhost\nM8-PROBE");
+    assert.ok(!res.tool_output.includes("object Object"));
+    await run.finish({ ok: true });
+  });
+
   it("registers as a session the observatory can enrich spans against", async () => {
     const o = await import(`${obsPath}?case=hooks`);
     o.configure({ url });
