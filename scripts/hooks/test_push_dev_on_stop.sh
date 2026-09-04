@@ -128,6 +128,15 @@ git add trailing_blank.go; git commit -qm 'go file with trailing blank lines'
 before=$(ORIGIN_SHA); out=$(bash "$HOOK" 2>&1); after=$(ORIGIN_SHA)
 ck "M trailing blank lines: refused" "$([ "$before" = "$after" ] && echo stayed || echo moved)" "stayed"
 
+# O. a committed empty Go blob is a formatter error, not a clean file.
+git clone -q "$W/origin.git" "$W/empty-go"; cd "$W/empty-go" || exit 1
+git config user.email t@t; git config user.name t; git checkout -q dev
+export CLAUDE_PROJECT_DIR="$W/empty-go"
+: > empty.go
+git add empty.go; git commit -qm 'empty go file'
+before=$(ORIGIN_SHA); out=$(bash "$HOOK" 2>&1); after=$(ORIGIN_SHA)
+ck "O empty committed Go: refused" "$([ "$before" = "$after" ] && echo stayed):$(echo "$out" | grep -c 'run make fmt')" "stayed:1"
+
 PRIVATE_LOG="$W/home/.ailang/state/autopush.log"
 ck "N harness HOME: private log populated" "$([ -s "$PRIVATE_LOG" ] && grep -c '\[fmtlocal\]' "$PRIVATE_LOG" || echo 0)" "4"
 if [ -f "$CALLER_LOG" ]; then

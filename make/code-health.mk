@@ -16,9 +16,17 @@ fmt: ## Format all Go code
 
 fmt-check: ## Check code formatting (CI gate)
 	@echo "Checking code formatting..."
-	@if [ -n "$$(gofmt -l .)" ]; then \
+	@err_file=$$(mktemp "$$PWD/.tmp-fmt-check.XXXXXX") || exit 1; \
+	trap 'rm -f "$$err_file"' EXIT HUP INT TERM; \
+	output=$$(gofmt -l . 2>"$$err_file"); rc=$$?; \
+	if [ "$$rc" -ne 0 ]; then \
+		cat "$$err_file"; \
+		echo "$(RED)$(CROSS) gofmt failed; fix invalid Go syntax before formatting$(RESET)"; \
+		exit 1; \
+	fi; \
+	if [ -n "$$output" ]; then \
 		echo "$(RED)$(CROSS) Go code is not formatted. Run 'make fmt'$(RESET)"; \
-		gofmt -l .; \
+		printf '%s\n' "$$output"; \
 		exit 1; \
 	fi
 	@echo "$(GREEN)$(CHECKMARK) Code formatting check passed$(RESET)"

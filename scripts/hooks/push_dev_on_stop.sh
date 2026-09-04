@@ -125,6 +125,11 @@ if [ -n "$GO_FILES" ]; then
 "
             continue
         fi
+        if [ ! -s "$FMT_TMP/committed" ]; then
+            BAD_GO_FILES="${BAD_GO_FILES}${go_file}
+"
+            continue
+        fi
         if ! bounded 10 gofmt < "$FMT_TMP/committed" > "$FMT_TMP/formatted" 2>/dev/null; then
             BAD_GO_FILES="${BAD_GO_FILES}${go_file}
 "

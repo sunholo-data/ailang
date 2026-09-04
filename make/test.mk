@@ -7,7 +7,7 @@
 .PHONY: test-operator-assertions test-regression-guards test-builtin-consistency
 .PHONY: test-stdlib-canaries test-row-properties test-golden-types test-repl-smoke
 .PHONY: test-sim-stub test-stdlib-freeze verify-no-shim verify-lowering
-.PHONY: test-nightly-classifier test-launchd-drivers test-check-changelog test-check-protocol-closure test-check-autoclose test-check-referenced-paths
+.PHONY: test-nightly-classifier test-launchd-drivers test-fmt-check test-check-changelog test-check-protocol-closure test-check-autoclose test-check-referenced-paths
 
 # Core tests. Depends on build so integration tests that shell out to the
 # ailang binary never see a stale bin/ailang — a stale binary caused phantom
@@ -42,6 +42,10 @@ test-pi-extensions: ## Run the pi extension (TypeScript) test suite
 
 test-nightly-classifier: ## Run nightly variance-guard contract and replay tests
 	@python3 tools/test_nightly_classify.py -v
+
+test-fmt-check: ## Run the Go formatting gate's self-test (bash 3.2)
+	@/bin/bash scripts/test_fmt_check.sh
+	@/bin/bash -n scripts/test_fmt_check.sh
 
 # The launchd drivers carried ZERO automated coverage until #558's second recurrence — a large
 # part of why two silent-staleness bugs shipped unnoticed. /bin/bash explicitly, not $$SHELL:
