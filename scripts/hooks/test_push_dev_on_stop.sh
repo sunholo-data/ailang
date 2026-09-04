@@ -2,12 +2,29 @@
 # Arms for push_dev_on_stop.sh, against a real bare origin. No network, no real repo.
 set -u
 HOOK="$1"
-W=$(mktemp -d); cd "$W" || exit 1
+W=$(mktemp -d "$PWD/.tmp-iter327.harness.XXXXXX") || exit 1
+# The caller's log is READ ONLY here. An earlier draft of this arm SEEDED a sentinel into it
+# (`printf ... > "$CALLER_LOG"`) and then asserted the sentinel was unchanged. That destroyed the
+# real fleet log the first time it ran outside a sandbox: 92 lines of cross-clone push evidence
+# replaced by one line. A test written to prove this harness never touches the caller's log must
+# not be the thing that touches it. Observe, never write; ABSENT is a legitimate reading.
+CALLER_HOME="$HOME"
+CALLER_LOG="$CALLER_HOME/.ailang/state/autopush.log"
+if [ -f "$CALLER_LOG" ]; then
+    CALLER_LOG_SHA_BEFORE=$(shasum "$CALLER_LOG" | awk '{print $1}')
+    CALLER_LOG_LINES_BEFORE=$(wc -l < "$CALLER_LOG" | tr -d ' ')
+else
+    CALLER_LOG_SHA_BEFORE=absent
+    CALLER_LOG_LINES_BEFORE=absent
+fi
+mkdir -p "$W/home" || exit 1
+export HOME="$W/home"
+cd "$W" || exit 1
 pass=0; fail=0
 ck() { if [ "$2" = "$3" ]; then echo "  PASS $1"; pass=$((pass+1)); else echo "  FAIL $1 (got '$2' want '$3')"; fail=$((fail+1)); fi; }
 
 git init -q --bare origin.git
-git clone -q origin.git local; cd local
+git clone -q origin.git local; cd local || exit 1
 git config user.email t@t; git config user.name t
 git checkout -q -b dev; echo a > a; git add a; git commit -qm init; git push -q origin dev
 export CLAUDE_PROJECT_DIR="$W/local"
@@ -26,8 +43,8 @@ ck "B ahead-only: pushed (origin moved)" "$([ "$before" != "$after" ] && echo ye
 ck "B ahead-only: reports 2" "$(echo "$out" | grep -c '2 unpushed')" "1"
 
 # C. 1 ahead AND 1 behind -> refuses
-git clone -q "$W/origin.git" "$W/other"; cd "$W/other"; git config user.email t@t; git config user.name t
-git checkout -q dev; echo z > z; git add z; git commit -qm z; git push -q origin dev; cd "$W/local"
+git clone -q "$W/origin.git" "$W/other"; cd "$W/other" || exit 1; git config user.email t@t; git config user.name t
+git checkout -q dev; echo z > z; git add z; git commit -qm z; git push -q origin dev; cd "$W/local" || exit 1
 echo d > d; git add d; git commit -qm d
 git fetch -q origin dev
 ck "C setup: really diverged (behind ahead)" "$(git rev-list --left-right --count origin/dev...dev | tr -d '\t' )" "11"
@@ -59,7 +76,7 @@ git remote set-url origin "$W/origin.git"
 out=$(AILANG_AUTOPUSH=0 bash "$HOOK" 2>&1); ck "F opt-out: silent" "$out" ""
 
 # Use a fresh checkout for formatting arms; C intentionally left the original diverged.
-git clone -q "$W/origin.git" "$W/fmtlocal"; cd "$W/fmtlocal"
+git clone -q "$W/origin.git" "$W/fmtlocal"; cd "$W/fmtlocal" || exit 1
 git config user.email t@t; git config user.name t; git checkout -q dev
 export CLAUDE_PROJECT_DIR="$W/fmtlocal"
 
@@ -84,17 +101,17 @@ ck "J uncommitted unformatted Go: pushed" "$([ "$before" != "$after" ] && echo y
 rm -f dirty.go
 
 # K. deleting an unformatted Go file is allowed: seed it directly, then test the hook.
-git clone -q "$W/origin.git" "$W/seed"; cd "$W/seed"
+git clone -q "$W/origin.git" "$W/seed"; cd "$W/seed" || exit 1
 git config user.email t@t; git config user.name t; git checkout -q dev
 printf 'package old\nfunc z( ){ }\n' > old.go
 git add old.go; git commit -qm 'seed unformatted go'; git push -q origin dev
-cd "$W/fmtlocal"; git pull -q --ff-only origin dev
+cd "$W/fmtlocal" || exit 1; git pull -q --ff-only origin dev
 git rm -q old.go; git commit -qm 'delete unformatted go'
 before=$(ORIGIN_SHA); out=$(bash "$HOOK" 2>&1); after=$(ORIGIN_SHA)
 ck "K deleted unformatted Go: pushed" "$([ "$before" != "$after" ] && echo yes || echo no)" "yes"
 
 # L. a committed Go blob with no trailing newline is not gofmt-clean.
-git clone -q "$W/origin.git" "$W/no-newline"; cd "$W/no-newline"
+git clone -q "$W/origin.git" "$W/no-newline"; cd "$W/no-newline" || exit 1
 git config user.email t@t; git config user.name t; git checkout -q dev
 export CLAUDE_PROJECT_DIR="$W/no-newline"
 printf 'package nonewline' > no_newline.go
@@ -103,13 +120,24 @@ before=$(ORIGIN_SHA); out=$(bash "$HOOK" 2>&1); after=$(ORIGIN_SHA)
 ck "L no trailing newline: refused" "$([ "$before" = "$after" ] && echo stayed || echo moved)" "stayed"
 
 # M. a committed Go blob with trailing blank lines is not gofmt-clean.
-git clone -q "$W/origin.git" "$W/trailing-blank"; cd "$W/trailing-blank"
+git clone -q "$W/origin.git" "$W/trailing-blank"; cd "$W/trailing-blank" || exit 1
 git config user.email t@t; git config user.name t; git checkout -q dev
 export CLAUDE_PROJECT_DIR="$W/trailing-blank"
 printf 'package trailing\n\n\n' > trailing_blank.go
 git add trailing_blank.go; git commit -qm 'go file with trailing blank lines'
 before=$(ORIGIN_SHA); out=$(bash "$HOOK" 2>&1); after=$(ORIGIN_SHA)
 ck "M trailing blank lines: refused" "$([ "$before" = "$after" ] && echo stayed || echo moved)" "stayed"
+
+PRIVATE_LOG="$W/home/.ailang/state/autopush.log"
+ck "N harness HOME: private log populated" "$([ -s "$PRIVATE_LOG" ] && grep -c '\[fmtlocal\]' "$PRIVATE_LOG" || echo 0)" "4"
+if [ -f "$CALLER_LOG" ]; then
+    CALLER_LOG_SHA_AFTER=$(shasum "$CALLER_LOG" | awk '{print $1}')
+    CALLER_LOG_LINES_AFTER=$(wc -l < "$CALLER_LOG" | tr -d ' ')
+else
+    CALLER_LOG_SHA_AFTER=absent
+    CALLER_LOG_LINES_AFTER=absent
+fi
+ck "N harness HOME: caller log unchanged" "${CALLER_LOG_SHA_AFTER}:${CALLER_LOG_LINES_AFTER}" "${CALLER_LOG_SHA_BEFORE}:${CALLER_LOG_LINES_BEFORE}"
 
 echo "  ---- $pass passed, $fail failed"
 rm -rf "$W"
