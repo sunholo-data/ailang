@@ -12,12 +12,22 @@ import { createServer } from "node:http";
 import * as herdr from "./lib/herdr.mjs";
 import * as pi from "./lib/pi.mjs";
 import * as a2a from "./lib/a2a.mjs";
+import * as otel from "./lib/otel.mjs";
 import { verify, authConfig } from "./lib/auth.mjs";
 
 const PORT = Number(process.env.RESIDENT_PORT || 8080);
 const STARTED = Date.now();
 const loaded = a2a.loadTasks();
 if (loaded) console.log(`server | restored ${loaded} task(s) across restart`);
+
+// M8: join the observability plane the agent jobs and the coordinator are
+// already on. Unset endpoint = inert, which is the normal state of a laptop
+// and of any environment that has not opted in.
+otel.configure({
+  endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "",
+  serviceName: process.env.OTEL_SERVICE_NAME || "resident-agent",
+  instance: process.env.RESIDENT_INSTANCE_NAME || "",
+});
 
 const json = (res, code, body) => {
   res.writeHead(code, { "content-type": "application/json" });
@@ -117,10 +127,28 @@ const server = createServer(async (req, res) => {
   const { id, method, params } = body || {};
   if (body?.jsonrpc !== "2.0" || !method) return rpcError(res, id, -32600, "invalid request");
 
+  // One span per A2A method, continuing the CALLER'S trace when it sent a
+  // traceparent — that is what puts a resident run in the same chain as the
+  // coordinator and job traces rather than in a trace of its own (M8).
+  const span = otel.startSpan(`a2a.${method}`, {
+    traceparent: req.headers.traceparent,
+    attributes: { "rpc.system": "jsonrpc", "rpc.method": method, "peer.identity": caller?.email || "unknown" },
+  });
+  // tasks/* address an existing task by id; message/send MAKES one, so its id
+  // is only known from the result and is attached there.
+  const inboundTaskId = params?.id ?? params?.taskId;
+  if (inboundTaskId) span.setAttribute("a2a.task.id", inboundTaskId);
+
   try {
     switch (method) {
-      case "message/send":
-        return json(res, 200, { jsonrpc: "2.0", id, result: await a2a.messageSend(params) });
+      case "message/send": {
+        // The caller's trace context is threaded into the TASK, not just this
+        // span: the run's later transitions happen after this request returns.
+        const result = await a2a.messageSend(params, { traceparent: span.traceparent() });
+        if (result?.id) span.setAttribute("a2a.task.id", result.id);
+        if (result?.status?.state) span.setAttribute("a2a.task.state", result.status.state);
+        return json(res, 200, { jsonrpc: "2.0", id, result });
+      }
       case "tasks/get": {
         const t = a2a.getTask(params?.id);
         return t ? json(res, 200, { jsonrpc: "2.0", id, result: t })
@@ -149,7 +177,10 @@ const server = createServer(async (req, res) => {
     // A herdr socket failure must surface as a visible JSON-RPC error, never a
     // hang and never a success with an empty result.
     console.error(`server | ${method} failed: ${e.stack || e.message}`);
+    span.recordError(e);
     return rpcError(res, id, e.code ?? -32603, e.message);
+  } finally {
+    span.end();
   }
 });
 

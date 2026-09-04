@@ -345,6 +345,35 @@ a2a.noteActivity();
 console.log(JSON.stringify({before, after: a2a.runStats().idle_s}));')
 have "activity resets idleness"             'echo "$out" | grep -q "\"after\":0"'
 
+echo "=== 6h. observability (M8) ==="
+# The tracer's own suite, run against the artefact that will be deployed rather
+# than against a checkout that may have moved on — same reason test-image.sh
+# ships inside the image at all.
+out=$(RESIDENT_LIB=/usr/local/bin/lib node --test /usr/local/bin/test-otel.mjs 2>&1)
+have "tracer suite passes in the image"     'echo "$out" | grep -q "^# fail 0$" || echo "$out" | grep -q "fail 0"'
+
+# Wiring, asserted on the source: a tracer nothing calls is the failure this
+# milestone is fixing, one layer up.
+have "the A2A dispatch is traced"           'grep -q "otel.startSpan(\`a2a." /usr/local/bin/server.mjs'
+have "the server configures a tracer"       'grep -q "OTEL_EXPORTER_OTLP_ENDPOINT" /usr/local/bin/server.mjs'
+have "task state changes emit spans"        'grep -q "a2a.task.\${state}" /usr/local/bin/lib/a2a.mjs'
+have "the caller's trace is continued"      'grep -q "req.headers.traceparent" /usr/local/bin/server.mjs'
+
+# The failure that matters more than any of the above: telemetry must never be
+# the reason a turn fails. Boot with an endpoint that cannot possibly answer
+# and assert the agent still serves.
+out=$(A2A 'process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://127.0.0.1:1";
+import * as otel from "/usr/local/bin/lib/otel.mjs";
+otel.configure({ endpoint: "http://127.0.0.1:1", serviceName: "t" });
+const s = otel.startSpan("a2a.message/send"); s.setAttribute("a2a.task.id","t"); s.end();
+await otel.flush();
+console.log("SURVIVED");')
+have "an unreachable collector does not throw" 'echo "$out" | grep -q "SURVIVED"'
+
+# And the boot log says which state it is in, so "invisible in the observatory"
+# is noticed rather than discovered later.
+have "boot states its observability posture" 'grep -q "observability:" /tmp/boot.log'
+
 echo "=== 7. restart idempotence ==="
 # The 7-day ceiling makes restarts routine, so a second boot must behave like
 # the first rather than tripping over its own leftovers.

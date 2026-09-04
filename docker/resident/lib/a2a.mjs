@@ -14,6 +14,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import * as herdr from "./herdr.mjs";
+import * as otel from "./otel.mjs";
 import { runPi, capabilities } from "./pi.mjs";
 
 const PI_HOME = process.env.PI_HOME || "/home/ailang/.pi";
@@ -112,6 +113,30 @@ function setState(task, state, message) {
   noteActivity();
   task.status = { state, timestamp: new Date().toISOString(), ...(message ? { message } : {}) };
   persist();
+  // M8: a transition is a fact about the run, and a run outlives the request
+  // that started it — `working` -> `input-required` -> `completed` all happen
+  // long after the message/send span has closed. So each is its own short span
+  // PARENTED to the caller's trace, which is what keeps a resident run in the
+  // same chain as the coordinator and job traces instead of beside them.
+  //
+  // A span rather than a log line because the acceptance criterion is that
+  // these are visible in the observatory, and grepping stdout is exactly what
+  // this milestone exists to stop.
+  const span = otel.startSpan(`a2a.task.${state}`, {
+    traceparent: task.metadata?.traceparent,
+    attributes: {
+      "a2a.task.id": task.id,
+      "a2a.task.state": state,
+      "a2a.context.id": task.contextId,
+      ...(task.metadata?.model ? { "a2a.model": task.metadata.model } : {}),
+      ...(task.metadata?.mode ? { "a2a.mode": task.metadata.mode } : {}),
+    },
+  });
+  if (state === TaskState.failed) {
+    const why = (message?.parts || []).filter((p) => p.kind === "text").map((p) => p.text).join(" ");
+    span.recordError(new Error(why || "task failed"));
+  }
+  span.end();
   notify(task).catch((e) => console.error(`a2a | WARN push failed for ${task.id}: ${e.message}`));
 }
 
@@ -234,7 +259,7 @@ async function watch(task, target) {
 }
 
 // ─── message/send ────────────────────────────────────────────────────────────
-export async function messageSend(params) {
+export async function messageSend(params, { traceparent = "" } = {}) {
   const msg = params?.message;
   if (!msg) throw Object.assign(new Error("params.message is required"), { code: -32602 });
   const text = (msg.parts || []).filter((p) => p.kind === "text").map((p) => p.text).join("\n");
@@ -284,7 +309,11 @@ export async function messageSend(params) {
   const task = {
     kind: "task", id, contextId,
     status: { state: TaskState.submitted, timestamp: new Date().toISOString() },
-    history: [msg], metadata: { model, agentName },
+    // `traceparent` is stored on the task, not held in a variable: the run
+    // continues after this request returns, and its later transitions must
+    // still land in the trace the caller started. Persisted with the task, so
+    // it survives the 7-day restart too.
+    history: [msg], metadata: { model, agentName, ...(traceparent ? { traceparent } : {}) },
   };
   tasks.set(id, task);
   noteActivity();

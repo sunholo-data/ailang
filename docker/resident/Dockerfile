@@ -62,6 +62,7 @@ COPY lib/ /usr/local/bin/lib/
 # artefact that will actually be deployed, in CI or by hand later, rather than
 # against a checkout that may have moved on.
 COPY test-image.sh /usr/local/bin/test-image.sh
+COPY test-otel.mjs /usr/local/bin/test-otel.mjs
 RUN chmod 0755 /usr/local/bin/boot.sh /usr/local/bin/server.mjs /usr/local/bin/resident-run /usr/local/bin/test-image.sh
 
 USER ailang

@@ -120,6 +120,22 @@ else
   log "provider keys: NONE — every provider authenticates by ambient identity"
 fi
 
+# ─── 1a-ter. Observability (M8) ──────────────────────────────────────────────
+# State plainly whether this instance is on the observability plane, for the
+# same reason the provider-key line above exists: "invisible in the observatory"
+# and "working but quiet" look identical from outside, and the first is a
+# regression somebody should notice in a boot log rather than discover while
+# trying to debug something else.
+#
+# NOT fail-closed, deliberately — unlike the model registry and the sandbox.
+# Telemetry going missing degrades our ability to see the agent; refusing to
+# boot over it would degrade the agent itself, which is a worse trade.
+if [ -n "${OTEL_EXPORTER_OTLP_ENDPOINT:-}" ]; then
+  log "observability: traces -> $OTEL_EXPORTER_OTLP_ENDPOINT (service=${OTEL_SERVICE_NAME:-resident-agent} instance=${RESIDENT_INSTANCE_NAME:-unset})"
+else
+  log "observability: NO OTEL_EXPORTER_OTLP_ENDPOINT — this instance emits stdout only and appears in no trace chain"
+fi
+
 # ─── 1b. AILANG effect sandbox ───────────────────────────────────────────────
 # The containment story for anything this agent PROGRAMS is AILANG's effect
 # system: capabilities are deny-by-default (`--caps`), and FS operations are
