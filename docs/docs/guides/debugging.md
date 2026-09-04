@@ -845,5 +845,5 @@ Measured: declaring 20000 sends 20000; declaring 65536 sends 32000.
 
 - [Telemetry & Tracing](/docs/guides/telemetry) - Distributed tracing for performance analysis and debugging
 - [Evaluation Framework](/docs/guides/evaluation) - Debugging failed AI benchmarks
-- [Development Guide](/docs/guides/development) - Full development workflow
+- [Development Guide](/docs/guides/development-workflow) - Full development workflow
 - [Known Limitations](/docs/reference/limitations) - Current limitations and workarounds
