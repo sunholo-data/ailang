@@ -3,7 +3,7 @@
 # =============================================================================
 
 .PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-referenced-paths
-.PHONY: fmt fmt-check fmt-check-ail vet lint install-lint
+.PHONY: fmt fmt-check fmt-check-ail shellcheck-autopush vet lint install-lint
 
 check-referenced-paths: ## Check that referenced tools/scripts paths exist and are tracked
 	@bash scripts/check_referenced_paths.sh
@@ -30,6 +30,15 @@ fmt-check: ## Check code formatting (CI gate)
 		exit 1; \
 	fi
 	@echo "$(GREEN)$(CHECKMARK) Code formatting check passed$(RESET)"
+
+AUTOPUSH_SHELL_SCRIPTS := scripts/hooks/push_dev_on_stop.sh scripts/hooks/test_push_dev_on_stop.sh
+
+shellcheck-autopush: ## ShellCheck the production auto-push hook and its harness
+	@if ! command -v shellcheck >/dev/null 2>&1; then \
+		echo "$(RED)$(CROSS) shellcheck is required for the auto-push integrity gate$(RESET)"; \
+		exit 1; \
+	fi
+	@shellcheck $(AUTOPUSH_SHELL_SCRIPTS)
 
 # AILANG canonical-form drift check (opt-in, standalone — NOT wired into `make ci`).
 # Reports `.ail` files under examples/ and std/ that are not in `ailang fmt`
