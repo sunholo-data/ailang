@@ -399,7 +399,15 @@ echo "=== 7b. surviving a STOP, not just a restart (M6) ==="
 # A restart keeps the writable layer; the idle sweep's stop/resume does not.
 # That distinction is the whole of M6, and it is only testable by destroying
 # the local layer the way Cloud Run does and booting onto the mount alone.
-kill $BOOT 2>/dev/null; pkill -f "herdr server" 2>/dev/null; sleep 3
+# Kill by PATTERN and wait for the port to actually free. `$BOOT` still names
+# the FIRST boot here — section 7 restarts without recapturing it — so killing
+# that pid leaves section 7's server holding 8080, the third boot never binds,
+# and the assertions below read as product failures. They did, on the first run
+# of this section.
+pkill -f "server.mjs" 2>/dev/null; pkill -f "boot.sh" 2>/dev/null
+pkill -f "herdr server" 2>/dev/null
+for i in $(seq 1 30); do curl -s localhost:8080/livez >/dev/null 2>&1 || break; sleep 1; done
+have "the previous server really stopped" '! curl -s localhost:8080/livez >/dev/null 2>&1'
 mkdir -p "$AGENT_HOME/.resident"
 cat > "$AGENT_HOME/.resident/tasks.json" <<'JSON'
 {"v":2,

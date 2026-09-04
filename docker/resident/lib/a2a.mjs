@@ -147,6 +147,12 @@ function persist() {
  * serve. Losing the checkpoint costs the notice on a later restart; refusing to
  * run costs the agent. */
 export function checkpoint() {
+  // An EMPTY store never overwrites a non-empty checkpoint. `loadTasks` returns
+  // nothing on an unreadable local file — it warns and carries on, by design —
+  // and without this guard the next shutdown would write that emptiness over
+  // the mount, turning a corrupt local file into permanent data loss. Nothing
+  // is lost by declining: an instance with no tasks has nothing to say.
+  if (tasks.size === 0 && pushConfigs.size === 0 && existsSync(CHECKPOINT_FILE)) return false;
   try { write(CHECKPOINT_FILE, CHECKPOINT_DIR); return true; }
   catch (e) { console.error(`a2a | WARN checkpoint to ${CHECKPOINT_DIR} failed: ${e.message}`); return false; }
 }

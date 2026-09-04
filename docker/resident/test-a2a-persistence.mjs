@@ -189,6 +189,31 @@ describe("push configs are durable, because a lost one fails silently", () => {
     assert.equal(second.getPushConfig("task-push-2")?.token, "tok-xyz");
   });
 
+  it("refuses to overwrite a good checkpoint with an empty store", async () => {
+    // The path that makes this matter: a corrupt local tasks.json makes
+    // loadTasks warn and return nothing, by design. Without the guard the next
+    // SIGTERM writes that emptiness over the mount and the corruption becomes
+    // permanent — the one file that existed to survive this.
+    const { stateDir, agentHome } = newRoots();
+    const first = await bootResident({ stateDir, agentHome });
+    first.adoptTask(workingTask("task-precious"));
+    first.setPushConfig("task-precious", { url: "https://example.invalid/h", token: "tok" });
+    first.checkpoint();
+
+    stopResume(stateDir);
+    writeFileSync(join(stateDir, "tasks.json"), "{ this is not json");
+
+    const second = await bootResident({ stateDir, agentHome });
+    assert.equal(second.loadTasks().count, 0, "a corrupt local file loads nothing, and warns");
+    assert.equal(second.checkpoint(), false, "and must not clobber the mount on the way out");
+
+    const third = await bootResident({ stateDir, agentHome });
+    rmSync(join(stateDir, "tasks.json"), { force: true });
+    third.loadTasks();
+    assert.ok(third.getTask("task-precious"), "the checkpoint should still hold the task");
+    assert.equal(third.getPushConfig("task-precious")?.token, "tok");
+  });
+
   it("writes the checkpoint 0600, because it carries a bearer token", async () => {
     const { stateDir, agentHome } = newRoots();
     const mod = await bootResident({ stateDir, agentHome });
