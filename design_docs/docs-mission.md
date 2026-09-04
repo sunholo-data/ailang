@@ -76,83 +76,6 @@ At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the arc
 iteration re-reads this charter — unbounded STATUS history is a per-read token tax on the scarcest
 model budget; the append-only history lives in the log + archive.
 
-## STATUS 2026-09-02 — ITERATION 5: docs-8's stale "126 overdue" corrected to a verified 54, 18 archived after independent re-verification caught 3 wrong claims; docs-3 credited from a second orphaned fire, blocked on a V1-owned inherited CI red
-
-Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Pin worktree at
-`origin/dev` tip (`50dd1a0aa`), clean. 0 directives on bookkeeping issue `#979` since the
-watermark (6 comments, none allowlisted). Decision ledger valid, 2 rows, both `RESOLVED` — no new
-ask. No docs-mission inbox traffic (20 unread canonical-inbox messages: motoko/V1 cross-mission
-notifications, pkg feedback for unrelated packages, eval-suite runs — none addressed to
-`mission-docs`).
-
-Gate 1: `origin/dev` HEAD SHA-addressed check-runs showed 6 NOT-GREEN: `Build windows/macos/
-ubuntu-latest` (cancelled/failure), `launchd drivers (bash 3.2)` (failure), `test` (failure) —
-confirmed **inherited** from the parent commit too (identical failure set on both), and V1's own
-mission log carries 10-22 prior mentions of these exact two check names, so this is known,
-tracked, and out of this mission's domain (V1 owns `sunholo-data/ailang` per Gate 1's
-repo-ownership scoping) — not actioned, only noted for the report.
-
-**Gate 2 — died-mid-flight check found a second orphaned fire.** Open PR
-[#1031](https://github.com/sunholo-data/ailang/pull/1031) (`docs/iter5-docs3-provenance-wiring`,
-`MERGEABLE`) plus worktrees `.wt-docs-iter5-docs3`/`-eval`, zero "ITERATION 5" trace anywhere
-(0/0/0 in charter/log/archive at pick time, known-present control `ITERATION 4` = 2/1 firing). A
-prior fire had run the full inner loop for `docs-3` — codex executor, sonnet evaluator PASS
-85/100 zero blocking, diff scope verified exactly 4 files — then died before Gate 4/5. Re-verified
-first-party: diff scope re-confirmed via `gh pr diff --name-only`, `mergeStateStatus` is
-`BLOCKED` on the same inherited red as Gate 1 found (not a stale-base problem — `git diff --stat
-<PR base>..origin/dev -- <the 4 touched files>` is empty, so a rebase would not produce a
-different check outcome; the red is on origin/dev's own current tip). **Credited, not re-run**;
-left open as a resume point (queue row `docs-3`, now `[IN-SPRINT]`) rather than force-merged or
-re-executed — not this mission's fix to make.
-
-**PICK: `docs-8`** (natural next per iteration 4's own note — the only PARKED item explicitly
-unblocked once docs-6/docs-7 resolved). **Reality-check first** (Gate 2 rule): re-ran
-`derive_roadmap_versions.sh` at HEAD — the charter's own "126 overdue" figure was stale (count
-drift since docs-2/docs-6 touched the same script family); the real, current overdue set (target
-version < v0.34.0) is **54** docs, not 126.
-
-**Execution — controller-run triage, not a sprint** (per this item's own charter text: moving a
-doc to `implemented/` is CONTROLLER Gate-4 bookkeeping, `design_docs/` is outside
-`MISSION_PLANNER_ALLOWLIST`, so this never was going to route through codex). Delegated the
-54-doc cross-reference to 6 parallel `general-purpose`/sonnet Agent-tool sub-agents (9 docs each:
-grep for implementation evidence, commit/changelog citations, known-positive controls on every
-negative finding per rule 3a). Result: 20 IMPLEMENTED, 2 RULED-OUT, 1 NEEDS-DEEPER-INVESTIGATION,
-31 STILL-PLANNED.
-
-**Independent re-verification BEFORE any file moved** (generator≠judge — the classifying agents
-were the "generator", a separate adversarial sonnet sub-agent was the judge, per this run's
-explicit operator mandate that no work lands on the controller's own verdict). Spawned one
-independent auditor to re-run every cited command itself against the 22 highest-stakes claims (20
-IMPLEMENTED + 2 RULED-OUT — the ones that trigger a file move or a rule-out stamp).
-**Caught 3 of 22 (14%) wrong, 2 of them outright reversals**: `m-eval-slim-prompt-self-discovery`
-was classified IMPLEMENTED on general MCP-plumbing evidence, but the doc's OWN specific artifacts
-(a tagged slim prompt, a committed A/B report) never existed — the experiment was built, A/B
-tested (mixed-to-negative, 82%→65%), and explicitly deleted (`2de1ef963`); the live
-`local-ollama-eval` skill documents the approach as "tried and deliberately abandoned." Moving it
-to `implemented/` would have misfiled an abandoned experiment as shipped — REFUTED, kept under
-`planned/`, header updated with the evidence instead. `m-eval-fmt-weakmodel-ab-M6-motoko-ext` was
-classified RULED-OUT on a `models.yml` "RETIRED" comment, but read in full that comment retires
-only the nightly *scheduling* because its model arm was decommissioned from the rig — the
-extension itself was never measured, so the doc's own "BUILT + INTEGRATED, firing not yet
-observed" status is still accurate; REFUTED, left untouched. `m-eval-stream-health-retry`
-downgraded IMPLEMENTED→WEAK: the cited evidence file was for a different, adjacently-named
-M-number; the real TTFT/idle-timeout detection genuinely landed in the opencode/pi executors, but
-the doc's actual point — retry-on-stream-death and correct `stream_death` labeling instead of
-generic `api_error` — did not; left untouched (STILL-PLANNED).
-
-**Outcome: LANDED.** 18 confirmed-implemented docs archived: `git mv` from `planned/vX_Y/` to
-`implemented/vX_Y/` (created `implemented/v0_33_2/`, didn't exist), 27 files total including
-sprint-plan companions (Mark's "plans travel with their doc" convention). 1 ruled out via header
-update with evidence (`m-eval-slim-prompt-self-discovery.md`). The 31 genuinely-still-planned docs
-are now this mission's accurate, individually-pickable backlog — no new aggregate queue item
-needed; a future iteration picks any one of them directly from `design_docs/planned/`.
-
-**Cost**: metered **$0.00** of $1 ceiling — all 7 sub-agents were Agent-tool sonnet spawns
-(Anthropic quota, not metered). Quota buckets: sonnet (6 classifier sub-agents + 1 independent
-verifier + controller session).
-
-Full record: `design_docs/docs-mission-log.md` §ITERATION 5.
-
 ## STATUS 2026-09-03 — ITERATION 6: docs-4 taxonomy pass designed and scoped to one sprint (62 files, near-zero literal duplication measured); quorum blocked twice, closed via this mission's first narrow-refinement carve-out — sprint held pending Mark's one-time OK
 
 Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Pin worktree at `origin/dev`
@@ -298,6 +221,133 @@ predicate to re-run, only Mark can answer it.
 
 Full record: `design_docs/docs-mission-log.md` §ITERATION 7.
 
+## STATUS 2026-09-04 — ITERATION 8: docs-4 LANDED — D-3's condition satisfied, sprint executed, an independent evaluator caught one real defect neither the controller nor the executor saw, fixed and re-verified PASS 97/100
+
+Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Pin worktree HEAD detached
+at `origin/dev` tip (`2b5750ad9`), clean. 0 directives on bookkeeping issue `#979` since the
+watermark. Decision ledger valid, 3 rows — D-1/D-2/D-3 all `RESOLVED` (D-3 answered by Mark,
+attended, 2026-09-03, in the prior iteration's window: APPROVED the narrow-refinement carve-out
+for docs-4, with ONE condition — close `gemini-3-1-pro`'s recurring section-boundary-verification
+objection class exhaustively, not only the B3/B4/B5 rounds happened to name). 16 unread
+canonical-inbox messages (mission-v1/mission-world cross traffic, `pkg:*` package-agent task
+events, an `ailang-parse-claude`↔`aitana-platform` thread) — none addressed to `mission-docs`,
+none outrank the queue.
+
+Gate 1: `origin/dev` HEAD (`2b5750ad9`) — `CI`/`Build and Release` both `success`;
+SHA-addressed check-runs: 16 checks, only `SonarCloud Code Analysis` non-green, confirmed
+inherited and already tracked by V1 (its own iteration-326 report names the same red as "1
+inherited SonarCloud") — not this mission's domain, not actioned.
+
+**PICK: docs-4** (item 11, `[IN-SPRINT]`, held on D-3 — now resolved). Before routing, satisfied
+D-3's condition: grepped the brief for every Phase-B section-cut boundary and found B1's carry-over
+(the `Automated Feedback (Advanced)` bash snippet moved from `cross-project-messaging.mdx` into
+`agent-messaging.md`) had no Verification Log row — B3/B4/B5 all had one (V29/V30), B1 didn't.
+Measured directly (`grep -nE '^##+ ' docs/docs/guides/cross-project-messaging.mdx`): line 232
+heading immediately followed by line 257's next H2, both genuine H2s, body matching the claimed
+~15-line bash block exactly. Added as V31, committed and pushed
+([`df36055ce`](https://github.com/sunholo-data/ailang/commit/df36055ce)), CI green.
+
+**Routing (Gate 3), full pipeline, per the routing table:**
+- **sprint-planner**: `codex:gpt-5.6-luna` (cross-provider recipe, ephemeral detached worktree,
+  30-min bounded run). First attempt died on a wrapper-script escaping bug (the directive's own
+  parentheses broke an unquoted heredoc that had interpolated it into the wrapper file) — caught by
+  `bash -n` syntax-checking the wrapper before every subsequent launch, never again by trusting a
+  launcher's own exit code (Standing rule 7's "a notification for a command containing `&` means
+  launched, not done" — this was the same class one level up, a malformed *script*, not a stale
+  read). Second attempt: rc=0, produced `design_docs/docs-4-sprint-plan.md` +
+  `sprint_docs-4.json`, 6 milestones (Phase A, B1-B5 in order), every brief acceptance check
+  encoded as a literal command including the mandatory sync-registry cleanup ordered before the
+  scope check — [`72902585d`](https://github.com/sunholo-data/ailang/commit/72902585d), CI green.
+- **sprint-executor**: same codex lane, isolated worktree, multi-milestone snapshot protocol
+  (`.snap/M<k>/`, zero git-write operations delegated). rc=0, all 6 `.snap/` directories present
+  and cumulative. Reconstructed 6 individual commits from the snapshots in the pin worktree
+  (sha256-verified byte-identical to the executor's own final tree before committing) —
+  [`2a336cfde`..`67a76e0a9`](https://github.com/sunholo-data/ailang/commit/67a76e0a9).
+  **The executor's own in-sandbox acceptance run reported 2 failures out of 8; both required
+  controller follow-up, for different reasons:**
+  - Check 6 (`sync-registry.sh && make docs-build`) failed in-sandbox
+    ("Could not fetch registry index") — a `codex --sandbox workspace-write` network restriction,
+    not a real defect: re-run unsandboxed by the controller (rule: in-sandbox verdicts are not
+    evidence, generator≠judge extends to the controller's own re-verification duty), both commands
+    succeeded cleanly. **But the SAME unsandboxed rebuild surfaced a genuine, different failure**:
+    `make docs-build` threw `Docusaurus found broken links!` — 4 dangling relative-path links
+    (`./cross-project-messaging.mdx` × 3 in `agent-workflows.mdx`/`claude-code-integration.mdx`/
+    `hooks-setup.mdx`, `./development.md` × 1 in `getting-started.mdx`) that acceptance check 4's
+    `guides/`-prefixed grep pattern never matches (a sibling-directory relative link inside
+    `docs/docs/guides/` carries no `guides/` prefix) — the exact same instrument gap V14's
+    inbound-link discovery had. Fixed as **M7**: retargeted the 3 cross-project-messaging
+    references to `agent-messaging.md` (B1's merge target) and the development.md reference to
+    `/docs/guides/development-workflow` (matching the precedent the brief already set for
+    `debugging.md`'s equivalent link). Both edited files sit under `docs/docs/guides/**`
+    (the brief's declared blast radius) though outside its Files-list enumeration — required by
+    B1/B2's own deletion criterion ("every inbound link is retargeted"), not scope creep. Rebuilt
+    clean (exit 0, only 3 pre-existing broken-anchor warnings confirmed present identically on
+    the pre-sprint base commit) —
+    [`1afa42f37`](https://github.com/sunholo-data/ailang/commit/1afa42f37), CI green.
+  - Check 5 (both halves: `ailang messages ack --all` count, `_ollama_embed` exclusion) failed
+    in-sandbox AND out-of-sandbox — investigated and found to be a defect in the BRIEF's own
+    acceptance criteria at authoring time, not an execution defect. First half: the brief claims
+    "was 4: hooks-setup and cross-project-messaging gone", but the brief's own V8 verification row
+    never listed `cross-project-messaging.mdx` among the 4 matching files, and `hooks-setup.mdx`
+    has TWO occurrences pre-sprint (one inside the trimmed `Message System` section, one inside a
+    separate, never-in-scope `Quick Start § 3. Check Messages` subsection) — so the count could
+    never drop to 2 regardless of correct execution; the real, achievable count is 4 (unchanged,
+    since 2 of the 4 files — `agent-workflows.mdx`, `claude-code-integration.mdx` — were never
+    in scope to edit at all). Second half: `_ollama_embed` legitimately survives in
+    `semantic-caching-how-to.mdx`'s `Embeddings Doctrine` section, which the brief explicitly
+    preserves (only `Two-Tier Search Architecture` is trimmed) — verified by comparing pre/post
+    heading positions of every occurrence. This is filed as a brief-authoring defect, not
+    force-passed or hidden: check 5 is unsatisfiable as literally written, and both corrected
+    expectations were independently re-derived by the round-1 evaluator (see below) before being
+    trusted.
+
+**generator≠judge — independent evaluator, `sonnet` (Agent tool, isolated worktree from the repo,
+distinct from the codex executor):**
+- **Round 1: FAIL 68/100.** One BLOCKING finding, found independently and not flagged by the
+  controller's own review: M1's sidebar rewrite silently dropped two NON-GUIDE ids —
+  `prompts/index`, `prompts/current` — while dissolving the `Prompts` category, violating Appendix
+  B's explicit "non-guide ids unchanged" rule and creating two fresh nav-orphaned pages (both still
+  exist on disk with live inbound links) — exactly the clause-3 orphan-page defect class this whole
+  sprint exists to eliminate, invisible to all 8 of the brief's `guides/`-scoped acceptance checks.
+  All other findings (the check-5 corrections, the M7 self-correction's scope, 3 pre-existing
+  broken-anchor warnings, B1-B5 boundary fidelity, 9-orphan wiring, 3-deletion count, no content
+  rewrites) verified clean.
+  Reproduced first-party before acting (rule: a judge's finding is a claim too): re-ran the
+  evaluator's exact sidebar-id diff command, confirmed both ids missing, confirmed both files exist
+  on disk with real inbound links from 4 other pages. Fixed as **M8**: restored both ids to their
+  original relative position (immediately before `guides/ai-prompt-guide`, their sole surviving
+  category sibling) — 2-line surgical diff. Rebuilt clean, cleanup step clean —
+  [`0750f8dbf`](https://github.com/sunholo-data/ailang/commit/0750f8dbf), CI green (20 checks,
+  only the same inherited SonarCloud red).
+- **Round 2: PASS 97/100** (fresh worktree, same evaluator model, carrying forward round 1's
+  findings by name per the multi-round protocol). Confirmed-fixed: the sidebar-id diff now shows
+  only the intended set; both restored ids reachable and wired at their original position; fix
+  commit surgical (2 insertions, 0 deletions, nothing else touched); full clean rebuild from a
+  fresh `npm install`, no new warnings; acceptance checks 1-4/6-8 re-spot-checked, no regressions.
+  3 points held back only for the still-open, already-disclaimed check-5 brief defect and the 3
+  pre-existing broken-anchor warnings — neither this sprint's nor this fix's responsibility.
+
+**Landed**: 8 commits total (`df36055ce` V31 → `72902585d` plan → `2a336cfde..67a76e0a9` M1-M6 →
+`1afa42f37` M7 link-fix → `0750f8dbf` M8 sidebar-restore), all CI-green on `origin/dev`. `docs-4`
+tag flipped `[IN-SPRINT]` → `[LANDED]` above.
+
+**Routing evidence**: designer NOT spawned (doc already existed, quorum-passed, only the D-3
+condition's one narrow gap needed closing — done by the controller directly, matching how V29/V30
+were closed in iteration 6, no design judgment involved); planner `codex:gpt-5.6-luna` (recipe
+path, 2 attempts, 1 wrapper-script bug, not a lane failure); executor same lane (1 attempt, clean);
+evaluator `sonnet` × 2 rounds (Agent tool, distinct provider from the codex executor — generator≠
+judge holds both rounds). Controller session: opus.
+
+**Cost**: metered **$0.00** of $1 ceiling — codex is quota-bucket, not billed per-token on this
+lane; both evaluator rounds were Anthropic-quota Agent-tool spawns. Quota buckets: opus
+(controller), codex (planner + executor, quota-bucket lane), sonnet (evaluator × 2).
+
+**Progress**: N = **11** design docs remaining before v1.0.0 backlog exhausted (down from 12 —
+docs-4 was the last `[IN-SPRINT]`/`[NEXT]` item; the queue's remaining rows are all `[LANDED]` or
+`[RULED OUT]`). Next iteration's pick is a fresh queue draw from `design_docs/planned/` (docs-8's
+31 confirmed still-planned docs) since this charter's own enumerated backlog is now exhausted.
+
+Full record: `design_docs/docs-mission-log.md` §ITERATION 8.
 
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
@@ -480,14 +530,50 @@ Full record: `design_docs/docs-mission-log.md` §ITERATION 7.
    "identical on baseline and branch"; this iteration found the actual missing step. Worth a
    `docs-sync`/Makefile follow-up so `make docs-build` is self-contained for local verification,
    but out of scope for docs-3 itself.
-11. `[IN-SPRINT]` **docs-4 · clause 5 · taxonomy pass — DESIGN-READY, sprint held on D-3.** Both
-   original blockers cleared (clauses 1-3 green; docs-7's allowlist question dissolved). Design
-   brief `design_docs/docs-4-brief.md` scopes it to ONE sprint (62 files, near-zero literal
-   duplication measured, every file dispositioned) and passed quorum via this mission's first
-   narrow-refinement carve-out (2 blocked rounds, both closed with the reviewers' own verbatim
-   fixes — see iteration 6's log). Per the carve-out's ratification rule, `sprint-planner` does
-   not run until Mark gives the one-time OK (D-3, below) — this is not a re-pick, it resumes the
-   moment D-3 answers.
+11. `[LANDED]` **docs-4 · clause 5 · taxonomy pass — LANDED iteration 8.** D-3's attended approval
+   (below) carried one condition: close `gemini-3-1-pro`'s recurring section-boundary-verification
+   objection class exhaustively (every Phase-B boundary, not only the B3/B4/B5 reviewers named).
+   Satisfied first: B1's carry-over boundary in `cross-project-messaging.mdx` had no Verification
+   Log row; added V31 (`232:## Automated Feedback (Advanced)` immediately followed by
+   `257:## Semantic Search`, both genuine H2s, body matching the claimed ~15-line bash block
+   exactly) — [`df36055ce`](https://github.com/sunholo-data/ailang/commit/df36055ce).
+   Routed to `sprint-planner` (`codex:gpt-5.6-luna`, cross-provider recipe): 6-milestone plan
+   faithfully translating Phase A + B1-B5 in order, every brief acceptance check encoded as a
+   literal command — [`72902585d`](https://github.com/sunholo-data/ailang/commit/72902585d).
+   Routed to `sprint-executor` (same codex lane, isolated worktree, snapshot-per-milestone
+   protocol, zero git writes): M1-M6 executed, 3 deletions + 9 orphans wired + 5 redundant
+   sections trimmed at their exact verified boundaries —
+   [`2a336cfde`..`67a76e0a9`](https://github.com/sunholo-data/ailang/commit/67a76e0a9) (6 commits).
+   **Two in-sandbox check failures were sandbox artifacts, not real defects** (re-verified
+   unsandboxed by the controller per generator≠judge discipline): `sync-registry.sh`'s network
+   fetch is blocked under codex's `workspace-write` sandbox; outside it, both `sync-registry.sh`
+   and `make docs-build` succeeded cleanly. **One in-sandbox check failure WAS real**: the
+   executor's own acceptance-check run correctly flagged both halves of check 5 (`ailang messages
+   ack --all` count, `_ollama_embed` exclusion) — investigated and found to be a defect in the
+   BRIEF's own acceptance criteria, not the execution: `cross-project-messaging.mdx` never
+   contained the ack-all string (contradicts its own "was 4: hooks-setup and cross-project-
+   messaging gone" reasoning — V8 never listed it), and `_ollama_embed` legitimately survives in
+   the explicitly-preserved `Embeddings Doctrine` section by the brief's own design. **A genuine,
+   independently-confirmed build-breaking defect was also found and fixed**: `make docs-build`
+   failed with 4 dangling relative-path links (`./cross-project-messaging.mdx` × 3,
+   `./development.md` × 1) that check 4's `guides/`-prefixed grep pattern never matched — fixed as
+   M7 (controller-authored, within the brief's declared `docs/docs/guides/**` blast radius, required
+   by B1/B2's own "retarget every inbound link" deletion criterion) —
+   [`1afa42f37`](https://github.com/sunholo-data/ailang/commit/1afa42f37).
+   **generator≠judge, independent evaluator (`sonnet`, isolated worktree) round 1: FAIL 68/100** —
+   one BLOCKING finding neither the controller nor the executor caught: M1's sidebar rewrite
+   silently dropped two NON-GUIDE ids (`prompts/index`, `prompts/current`) while dissolving the
+   `Prompts` category, violating Appendix B's explicit "non-guide ids unchanged" rule and creating
+   two fresh nav-orphaned pages — exactly the clause-3 defect class this sprint exists to
+   eliminate, invisible to all 8 of the brief's `guides/`-scoped acceptance checks. Verified
+   first-party before acting (full sidebar-id diff, confirmed both files still on disk with live
+   inbound links), fixed as M8 (2-line surgical restore to original relative position) —
+   [`0750f8dbf`](https://github.com/sunholo-data/ailang/commit/0750f8dbf). **Round 2 (fresh
+   worktree, same evaluator model): PASS 97/100**, blocking finding confirmed-fixed, fix commit
+   confirmed surgical (2 insertions, 0 deletions, nothing else touched), full rebuild clean, no
+   regressions. CI green on the merge tip (20 checks, only the pre-existing inherited SonarCloud
+   red — V1's domain). 8 commits total, zero metered spend (codex is quota-bucket, not billed
+   per-token on this lane).
 
 ---
 **Document created**: 2026-08-28 (attended, with Mark). **Bar RATIFIED attended 2026-08-28** after
