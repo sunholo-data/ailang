@@ -83,6 +83,8 @@ const sidebars = {
         'guides/three-camps-comparison',
         'guides/three-camps-self-audit',
         'guides/agent-integration',
+        'prompts/index',
+        'prompts/current',
         'guides/ai-prompt-guide',
         {
           type: 'category',
