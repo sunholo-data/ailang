@@ -63,6 +63,7 @@ COPY lib/ /usr/local/bin/lib/
 # against a checkout that may have moved on.
 COPY test-image.sh /usr/local/bin/test-image.sh
 COPY test-otel.mjs /usr/local/bin/test-otel.mjs
+COPY test-observatory.mjs /usr/local/bin/test-observatory.mjs
 RUN chmod 0755 /usr/local/bin/boot.sh /usr/local/bin/server.mjs /usr/local/bin/resident-run /usr/local/bin/test-image.sh
 
 USER ailang

@@ -15,6 +15,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import * as herdr from "./herdr.mjs";
 import * as otel from "./otel.mjs";
+import * as observatory from "./observatory.mjs";
 import { runPi, capabilities } from "./pi.mjs";
 
 const PI_HOME = process.env.PI_HOME || "/home/ailang/.pi";
@@ -341,12 +342,29 @@ export async function messageSend(params, { traceparent = "" } = {}) {
     task.metadata.persistent = Boolean(capabilities().sessionFlag);
     // Fire-and-forget: the A2A call returns a task immediately and the run
     // continues in the background, reporting through task state and artifacts.
+    // M8: report the run to the observatory as a SESSION with turns and tool
+    // calls, which is how an agent job and a Claude Code session appear there.
+    // pi's NDJSON event types and the exec API's stream types describe the same
+    // thing, so the events already flowing through onEvent are simply forwarded
+    // rather than re-derived. Keyed by the A2A task id so the dashboard record
+    // ties back to the task and to the a2a.task.id span attribute.
+    const reported = observatory.startRun({
+      sessionId: id,
+      workspace: process.env.WORKSPACE_DIR || "/workspace",
+      provider: `pi:${model}`,
+    });
+    task.metadata.reported = observatory.enabled();
+
     onSession(sessionId, () => { activeRuns++; return runPi({
       model: model.replace(/^openrouter\//, ""),
       prompt: text,
       sessionId,
       onEvent: (ev, st) => {
         if (ev.type === "turn_start") setState(task, TaskState.working);
+        // Reporting is inside the SAME try the runner already wraps this
+        // callback in ("a consumer must not kill the run"), so a dashboard
+        // fault cannot take the turn down with it.
+        reported.event(ev);
         // Keep the artifact current as text arrives, so a caller polling
         // tasks/get sees progress rather than nothing until the end.
         if (st.text) attachText(task, st.text);
@@ -363,12 +381,18 @@ export async function messageSend(params, { traceparent = "" } = {}) {
           role: "agent", messageId: randomUUID(), kind: "message",
           parts: [{ kind: "text", text: r.text || `pi exited ${r.exitCode}` }],
         });
+        reported.finish(r.exitCode === 0
+          ? { ok: true, usage: r.usage }
+          : { ok: false, error: `pi exited ${r.exitCode}` }).catch(() => {});
       })
       .catch((e) => {
         setState(task, TaskState.failed, {
           role: "agent", messageId: randomUUID(), kind: "message",
           parts: [{ kind: "text", text: `pi run failed: ${e.message}` }],
         });
+        // A run that fell over must still close its session, or the dashboard
+        // shows it running forever — the exact state it exists to rule out.
+        reported.finish({ ok: false, error: `pi run failed: ${e.message}` }).catch(() => {});
       });
     return task;
   }

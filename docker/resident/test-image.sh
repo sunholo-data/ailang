@@ -349,8 +349,17 @@ echo "=== 6h. observability (M8) ==="
 # The tracer's own suite, run against the artefact that will be deployed rather
 # than against a checkout that may have moved on — same reason test-image.sh
 # ships inside the image at all.
-out=$(RESIDENT_LIB=/usr/local/bin/lib node --test /usr/local/bin/test-otel.mjs 2>&1)
-have "tracer suite passes in the image"     'echo "$out" | grep -q "^# fail 0$" || echo "$out" | grep -q "fail 0"'
+out=$(RESIDENT_LIB=/usr/local/bin/lib node --test /usr/local/bin/test-otel.mjs /usr/local/bin/test-observatory.mjs 2>&1)
+have "telemetry suites pass in the image"   'echo "$out" | grep -q "fail 0"'
+
+# TWO planes, and only the second is what an operator reads. A resident that
+# emitted spans and no session would be "traced" and still absent from the view
+# that shows agent jobs and Claude Code sessions — which is the complaint M8
+# was written to fix.
+have "runs are reported as observatory sessions" 'grep -q "observatory.startRun" /usr/local/bin/lib/a2a.mjs'
+have "pi events are forwarded, not re-derived"   'grep -q "reported.event(ev)" /usr/local/bin/lib/a2a.mjs'
+have "a failed run still closes its session"     'grep -q "reported.finish({ ok: false" /usr/local/bin/lib/a2a.mjs'
+have "the observatory URL is read"               'grep -q "AILANG_OBSERVATORY_URL" /usr/local/bin/server.mjs'
 
 # Wiring, asserted on the source: a tracer nothing calls is the failure this
 # milestone is fixing, one layer up.
@@ -372,7 +381,8 @@ have "an unreachable collector does not throw" 'echo "$out" | grep -q "SURVIVED"
 
 # And the boot log says which state it is in, so "invisible in the observatory"
 # is noticed rather than discovered later.
-have "boot states its observability posture" 'grep -q "observability:" /tmp/boot.log'
+have "boot states its trace posture"        'grep -q "observability: .*trace" /tmp/boot.log'
+have "boot states its session posture"      'grep -q "observability: .*\(sessions\|observatory\)" /tmp/boot.log'
 
 echo "=== 7. restart idempotence ==="
 # The 7-day ceiling makes restarts routine, so a second boot must behave like

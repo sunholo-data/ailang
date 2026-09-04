@@ -13,6 +13,7 @@ import * as herdr from "./lib/herdr.mjs";
 import * as pi from "./lib/pi.mjs";
 import * as a2a from "./lib/a2a.mjs";
 import * as otel from "./lib/otel.mjs";
+import * as observatory from "./lib/observatory.mjs";
 import { verify, authConfig } from "./lib/auth.mjs";
 
 const PORT = Number(process.env.RESIDENT_PORT || 8080);
@@ -28,6 +29,12 @@ otel.configure({
   serviceName: process.env.OTEL_SERVICE_NAME || "resident-agent",
   instance: process.env.RESIDENT_INSTANCE_NAME || "",
 });
+// The plane an operator actually reads: runs appear as task records with turns
+// and tool calls, the same shape as an agent job and a Claude Code session.
+observatory.configure({ url: process.env.AILANG_OBSERVATORY_URL || "" });
+console.log(
+  `server | telemetry: traces=${otel.enabled() ? "on" : "OFF"} observatory=${observatory.enabled() ? "on" : "OFF"}`,
+);
 
 const json = (res, code, body) => {
   res.writeHead(code, { "content-type": "application/json" });

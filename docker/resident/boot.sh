@@ -130,10 +130,20 @@ fi
 # NOT fail-closed, deliberately — unlike the model registry and the sandbox.
 # Telemetry going missing degrades our ability to see the agent; refusing to
 # boot over it would degrade the agent itself, which is a worse trade.
+# TWO planes, stated separately because they fail separately and only one of
+# them is what an operator reads. Traces correlate services; the observatory
+# session is the task record with its turns and tool calls — the same shape an
+# agent job and a Claude Code session appear as. An instance with traces and no
+# session is "traced" and still invisible in the view anyone actually opens.
 if [ -n "${OTEL_EXPORTER_OTLP_ENDPOINT:-}" ]; then
   log "observability: traces -> $OTEL_EXPORTER_OTLP_ENDPOINT (service=${OTEL_SERVICE_NAME:-resident-agent} instance=${RESIDENT_INSTANCE_NAME:-unset})"
 else
-  log "observability: NO OTEL_EXPORTER_OTLP_ENDPOINT — this instance emits stdout only and appears in no trace chain"
+  log "observability: NO OTEL_EXPORTER_OTLP_ENDPOINT — this instance appears in no trace chain"
+fi
+if [ -n "${AILANG_OBSERVATORY_URL:-}" ]; then
+  log "observability: sessions -> $AILANG_OBSERVATORY_URL/api/exec/{sessions,events}"
+else
+  log "observability: NO AILANG_OBSERVATORY_URL — runs will NOT appear in the observatory alongside agent jobs"
 fi
 
 # ─── 1b. AILANG effect sandbox ───────────────────────────────────────────────
