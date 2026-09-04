@@ -42,5 +42,15 @@ ck "shellcheck-autopush known-bad harness mutation" "$([ "$rc" -ne 0 ] && echo r
 workflow_hits=$(grep -c 'run: make shellcheck-autopush' "$ROOT/.github/workflows/ci.yml" 2>/dev/null || true)
 ck "workflow wiring assertion" "$workflow_hits" "1"
 
+# `make ci` is a LOCAL aggregate that CI never invokes (ci.yml says so in its own words),
+# so a self-test reaches CI only via its own step. Without these two rows, the anti-vacuity
+# controls for the two auto-push gates could be silently unwired and every gate above would
+# still pass — which is exactly what the iteration-327 evaluator found. gate_wiring_test.go
+# cannot cover them: its classifier is prefixed on `check-`/`test-check-`.
+selftest_hits=$(grep -c 'run: make test-shellcheck-autopush' "$ROOT/.github/workflows/ci.yml" 2>/dev/null || true)
+ck "shellcheck self-test reaches CI as its own step" "$selftest_hits" "1"
+fmt_selftest_hits=$(grep -c 'run: make test-fmt-check' "$ROOT/.github/workflows/ci.yml" 2>/dev/null || true)
+ck "fmt-check self-test reaches CI as its own step" "$fmt_selftest_hits" "1"
+
 echo "  ---- $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

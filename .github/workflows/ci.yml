@@ -558,6 +558,19 @@ jobs:
     - name: ShellCheck auto-push hooks
       run: make shellcheck-autopush
 
+    # The two self-tests below are the ANTI-VACUITY controls for the two gates above:
+    # they mutate the hook scripts / the scoped file list and assert the gate reddens.
+    # They are wired as their own steps because `make ci` is a LOCAL aggregate CI never
+    # invokes (see the note above) — adding a target to `ci:` is necessary and NOT
+    # sufficient, and every one of the repo's other nine `test-check-*` self-tests is
+    # wired this way. Found by the iteration-327 evaluator; the `gate_wiring_test.go`
+    # classifier is prefixed on `check-`/`test-check-`, so it cannot see these two.
+    - name: Formatting gate self-test
+      run: make test-fmt-check
+
+    - name: ShellCheck auto-push gate self-test
+      run: make test-shellcheck-autopush
+
     - name: Run go vet
       run: make vet
 
