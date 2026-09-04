@@ -349,7 +349,7 @@ echo "=== 6h. observability (M8) ==="
 # The tracer's own suite, run against the artefact that will be deployed rather
 # than against a checkout that may have moved on — same reason test-image.sh
 # ships inside the image at all.
-out=$(RESIDENT_LIB=/usr/local/bin/lib node --test /usr/local/bin/test-otel.mjs /usr/local/bin/test-observatory.mjs 2>&1)
+out=$(RESIDENT_LIB=/usr/local/bin/lib node --test /usr/local/bin/test-otel.mjs /usr/local/bin/test-observatory.mjs /usr/local/bin/test-a2a-persistence.mjs 2>&1)
 have "telemetry suites pass in the image"   'echo "$out" | grep -q "fail 0"'
 
 # TWO planes, and only the second is what an operator reads. A resident that
@@ -394,6 +394,29 @@ kill $BOOT 2>/dev/null; pkill -f "herdr server" 2>/dev/null; sleep 3
 for i in $(seq 1 90); do [ "$(curl -s localhost:8080/livez 2>/dev/null)" = "ok" ] && break; sleep 1; done
 have "second boot serves again"           '[ "$(curl -s localhost:8080/livez)" = "ok" ]'
 have "second boot found the home writable" 'grep -q "agent home writable" /tmp/boot2.log'
+
+echo "=== 7b. surviving a STOP, not just a restart (M6) ==="
+# A restart keeps the writable layer; the idle sweep's stop/resume does not.
+# That distinction is the whole of M6, and it is only testable by destroying
+# the local layer the way Cloud Run does and booting onto the mount alone.
+kill $BOOT 2>/dev/null; pkill -f "herdr server" 2>/dev/null; sleep 3
+mkdir -p "$AGENT_HOME/.resident"
+cat > "$AGENT_HOME/.resident/tasks.json" <<'JSON'
+{"v":2,
+ "tasks":[{"kind":"task","id":"task-stopped","contextId":"ctx-stop",
+           "status":{"state":"working","timestamp":"2026-09-04T12:00:00.000Z"},
+           "history":[],"metadata":{"model":"z-ai/glm-5.3-flash"}}],
+ "push":[["task-stopped",{"url":"http://127.0.0.1:1/gone","token":"t"}]]}
+JSON
+rm -rf /home/ailang/.resident/tasks.json          # the stop resets the writable layer
+/usr/local/bin/boot.sh > /tmp/boot3.log 2>&1 &
+BOOT=$!
+for i in $(seq 1 90); do [ "$(curl -s localhost:8080/livez 2>/dev/null)" = "ok" ] && break; sleep 1; done
+have "a stop/resume restores from the mount"  'grep -q "restored 1 task(s) from checkpoint" /tmp/boot3.log'
+# The silent hang M6 closes: without this the caller was told an answer would
+# arrive, the poll had already given up, and nothing would ever speak again.
+have "an interrupted run is terminalised"     'grep -q "reaped 1 task(s) interrupted by a restart" /tmp/boot3.log'
+have "  ...and an unreachable webhook is survived" '[ "$(curl -s localhost:8080/livez)" = "ok" ]'
 
 cleanup; sleep 1
 echo

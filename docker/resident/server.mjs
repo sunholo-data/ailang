@@ -19,7 +19,12 @@ import { verify, authConfig } from "./lib/auth.mjs";
 const PORT = Number(process.env.RESIDENT_PORT || 8080);
 const STARTED = Date.now();
 const loaded = a2a.loadTasks();
-if (loaded) console.log(`server | restored ${loaded} task(s) across restart`);
+// The SOURCE is logged, not just the count. "local" means the process
+// restarted under a filesystem that survived; "checkpoint" means the writable
+// layer was reset — a stop/resume, which is what M4's sweep does — and the
+// mount is why anything came back at all. Told apart in the log because they
+// were indistinguishable while the second silently returned nothing.
+if (loaded.count) console.log(`server | restored ${loaded.count} task(s) from ${loaded.source} across restart`);
 
 // M8: join the observability plane the agent jobs and the coordinator are
 // already on. Unset endpoint = inert, which is the normal state of a laptop
@@ -192,9 +197,28 @@ const server = createServer(async (req, res) => {
 });
 
 const cfg = authConfig();
-server.listen(PORT, "0.0.0.0", () =>
+server.listen(PORT, "0.0.0.0", () => {
   console.log(
     `server | listening on ${PORT} (livez public; health, A2A card and JSON-RPC require OIDC) ` +
       `| audience=${cfg.audience || "UNSET"} allowed=${cfg.allowed.length || "UNSET"}`,
-  ),
-);
+  );
+  // M6: close out runs that died with the previous container. AFTER listen, so
+  // an instance woken by a caller is already answering while it does this —
+  // the reap posts outbound webhooks and must never delay readiness.
+  a2a.reapOrphans();
+});
+
+// M6: Cloud Run sends SIGTERM and gives roughly ten seconds before the
+// writable layer goes. That window is the last chance to stage anything a
+// caller is still waiting on. `checkpoint()` is best-effort and synchronous, so
+// a failure here costs the notice and never the shutdown.
+for (const sig of ["SIGTERM", "SIGINT"]) {
+  process.on(sig, () => {
+    console.log(`server | ${sig} — staging task state before shutdown`);
+    a2a.checkpoint();
+    server.close(() => process.exit(0));
+    // A connection that will not drain must not hold the instance past the
+    // window; the checkpoint is already written by this point either way.
+    setTimeout(() => process.exit(0), 5000).unref();
+  });
+}
