@@ -479,6 +479,67 @@ as broken; trading one indistinguishable failure for another would be no gain).
 coordinator and `RESIDENT_START_ENDPOINT` on the platform, both by the usual
 branch-push route. The interlock means nothing sweeps until they land.
 
+### D14 — The resident joins the observability plane on THREE endpoints, not one (M8, 2026-09-04)
+
+The resident emitted stdout to Cloud Logging, structured only by `boot|` /
+`server|` / `a2a|` prefixes. Every bug in this arc was found by grepping those
+logs, which is the argument for the milestone.
+
+**The first cut was traces, and traces were the wrong half.** OTLP spans
+correlate services; they are not what an operator reads. An agent job and a
+Claude Code session appear in the observatory as **task records with turns and
+tool calls**, and a resident emitting only spans satisfies "is it traced" while
+staying absent from the view anyone opens. `claude_telemetry.sh` — the hook that
+gives the executors and interactive sessions their visibility — posts to three
+endpoints, so parity is three:
+
+| Endpoint | What it is |
+|---|---|
+| `/api/observatory/hooks` | the **sessions table**; what spans are enriched against, and what makes a run a first-class session rather than a task record that happens to exist |
+| `/api/exec/sessions` | creates the `coordinator.TaskRecord` |
+| `/api/exec/events` | the transcript hung off it (the Chat History view) |
+| OTLP `/v1/traces` | cross-service correlation |
+
+**pi's NDJSON already IS the exec event stream.** `message_update` /
+`tool_execution_start` / `tool_execution_end` / `message_end` map onto
+`text` / `tool_use` / `tool_result` / `turn_end`. The events were flowing
+through `onEvent` and being discarded, so this forwards them rather than
+deriving anything second.
+
+**Text is coalesced.** pi emits one `message_update` per token; a POST each
+would make telemetry the bottleneck of the thing it measures and bury the tool
+calls — the events anyone is looking for — under thousands of one-character
+rows. Deltas flush at the next tool call or the end of the turn, which also
+keeps the transcript in the order it happened rather than showing the agent
+narrating its own past.
+
+**The tracer is hand-written OTLP/HTTP+JSON, ~200 lines, no dependencies.** The
+receiver accepts protobuf or JSON, and the image's Dockerfile pins herdr by
+checksum and pi by exact version precisely because it does not accept an
+unpinned supply chain; there is no `package.json` to hang a lockfile on. The
+trade is named in the module header: no auto-instrumentation, no metrics, no
+propagation beyond the one header we parse.
+
+**Not fail-closed, unlike `MODELS_JSON` and the effect sandbox.** Losing
+telemetry degrades what we can SEE of the agent; refusing to boot over it would
+degrade the agent. An unset endpoint is inert, an unreachable collector drops
+and warns ONCE — logging per span turns someone else's outage into a flood in
+the logs you are reading to diagnose it — and boot states which posture it is
+in, for both planes separately, because they fail separately.
+
+**⚠️ The dashboard record is keyed on `session_id[:8]`.** `handlers_exec.go`
+derives `task_id = "exec-" + session_id[:8]`, so two runs sharing a prefix
+collapse into ONE record — indistinguishable from healthy telemetry, showing one
+enormous fake session. Verified live: `m8probe-1788530540` → `exec-m8probe-`.
+Safe today only because an A2A task id defaults to `randomUUID()`. It is unsafe
+the moment a caller passes a prefixed `metadata.runId`, and the platform's
+thread ids are `aitana-<hash>` — every one of which truncates to
+`exec-aitana-`. `a2a_client.converse` already documents `run_id` as "offered to
+the peer as the task id", so the hazard is one plumbing change away. Left
+documented rather than fixed: the truncation is a shared contract that Claude
+Code sessions also write through, and changing it moves record ids for existing
+producers.
+
 ## Phase 0 findings (2026-09-02) — measured, not assumed
 
 **Compute.** `go build -a std` on live `europe-west4` instances:
