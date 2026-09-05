@@ -7,6 +7,7 @@ by Claude (refuse on a live pidfile, `--force` escape hatch). **HD-2 (de-fork or
 ratified and is not needed** — the ratified sprint is Phase 1 only. Quorum-blocked twice with all
 six objections addressed in-doc and unreviewed; Mark ratified with that stated.
 **Previously**: quorum-blocked twice, and SCOPE-CUT after review.
+**HD-2(b) ratified 2026-09-06 — Phase 3 unblocked.**
 **Scope cut 2026-09-05 (Mark: "is this in addition to the other mission design doc we have?"):**
 the answer was five live mission-machinery docs, not two, and this one had duplicated a ratified
 decision. The `[roles]` block is **removed** — role/model assignment belongs to the ratified
@@ -159,7 +160,7 @@ whose reach and effect are machine-checkable before they run.
 Sprint planning starts only when these are checked:
 
 - [x] **HD-1(a)** — one TOML per mission in `missions/` (Mark, attended 2026-09-05)
-- [ ] HD-2 — de-fork ordering. **Deliberately NOT ratified**: Phase 3 only, not in the ratified sprint.
+- [x] **HD-2(b)** — de-fork world AFTER the registry, i.e. now (Mark, attended 2026-09-06: *"go with your recommendations for the loop decisions"* — delegated to the doc's recommended option, not chosen option-by-option). **Phase 3 is unblocked.**
 - [x] **HD-3(c)** — refuse on un-registered edits; converges without discarding world's 65 divergent lines (Mark, attended 2026-09-05)
 - [x] **HD-4(b)** — refuse on a live pidfile, `--force` escape hatch (decided by Claude, low stakes, per the deferred-decisions latitude)
 - [x] **Role config passes through verbatim; M8 stays parked** (Mark, attended 2026-09-05)

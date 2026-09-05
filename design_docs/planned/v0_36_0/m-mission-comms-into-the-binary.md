@@ -1,8 +1,14 @@
 # M-MISSION-COMMS-INTO-THE-BINARY: Decisions Are Issues, Reports Are Links, Telemetry Leaves the Thread
 
-**Status**: Planned — **CONTINGENT on HD-1**. The execution plan below assumes HD-1(a)
-(charter canonical). If Mark rules (b) or (c), Phase 1's writer direction inverts and this
-doc requires revision, not merely re-planning. Nothing is executable until HD-1 is ratified.
+**Status**: **HD-1 RATIFIED — no longer contingent.** Mark, attended 2026-09-06
+(*"go with your recommendations for the loop decisions"*): **HD-1(a)** charter markdown
+canonical with issues as a one-way projection, plus the recommended options on HD-2(a)
+(telemetry via `ailang messages`, `mission-telemetry` type, weekly digest), **HD-3(a)**
+(one ≤400-char comment per iteration linking the log commit) and **HD-4(a)** (org-level
+Projects board spanning `ailang` and `ailang-world`). Delegated to the doc's own
+recommendations rather than chosen option-by-option — recorded that way deliberately, so
+a later reader knows the strength of the ratification. The doc assumed HD-1(a)
+throughout, so no revision is needed and it is executable as written.
 **Target**: v0.36.0
 **Priority**: P1
 **Estimated**: 4 days (Phase 1: 2d, Phase 2: 1d, Phase 3: 1d)
@@ -154,8 +160,8 @@ driver logic into the `ailang` binary.
 
 Before `sprint-executor` starts, these must be checked off:
 
-- [ ] **HD-1 ratified.** The doc assumes (a). If Mark picks (b) or (c), Phase 1's writer direction inverts and the doc needs revision, not just re-planning.
-- [ ] **HD-2 ratified**, including the explicit acceptance bar: a lane demotion is visible to the human within one fire (the V11 standard).
+- [x] **HD-1(a) ratified 2026-09-06.** The doc assumes (a). If Mark picks (b) or (c), Phase 1's writer direction inverts and the doc needs revision, not just re-planning.
+- [x] **HD-2(a) ratified 2026-09-06**, including the explicit acceptance bar: a lane demotion is visible to the human within one fire (the V11 standard).
 - [ ] **The `mission-decision` label schema is fixed** (`mission:v1|world|motoko|docs` + `mission-decision`), because `ListIssuesByLabel` and the Phase 3 board both key off it.
 - [ ] **Confirmed**: retiring the thread-comment channel does not break the directive path. Gate 0's directive read moves to `ailang mission directives`, and `mission_directives.sh`'s author gate must be preserved exactly (it is the provenance root — see `mission_answer.sh`'s contract).
 
