@@ -279,3 +279,130 @@ func TestGolden_EnumeratedNormalisationsHold(t *testing.T) {
 		t.Error("normalisation 2 broken: a generated plist must point at its source of truth")
 	}
 }
+
+// ── the doctor, against the LIVE rig ─────────────────────────────────────────
+
+// liveRegistry builds registry entries for the real fleet from what is INSTALLED,
+// so this test measures the rig rather than a fixture's opinion of it. M4 replaces
+// this with missions/*.toml; until then, this is what proves the doctor works on the
+// thing it was built for.
+func liveRegistry(t *testing.T) *Registry {
+	t.Helper()
+	home := os.Getenv("HOME")
+	type spec struct {
+		name, repo, doc, workdir string
+		sched                    Schedule
+	}
+	specs := []spec{
+		{"v1", "sunholo-data/ailang", "design_docs/v1-mission.md",
+			filepath.Join(home, "dev/sunholo-data/ailang"), Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 5400, BootOffset: 0}},
+		{"world", "sunholo-data/ailang-world", "design_docs/world-mission.md",
+			filepath.Join(home, "dev/sunholo-data/ailang-world"), Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 14400, BootOffset: 420}},
+		{"docs", "sunholo-data/ailang", "design_docs/docs-mission.md",
+			filepath.Join(home, "dev/sunholo-data/ailang-docs"), Schedule{Mode: ModeInterval, IntervalSeconds: 21600, BootOffset: 840}},
+		{"motoko", "sunholo-data/ailang", "design_docs/motoko-mission.md",
+			filepath.Join(home, "dev/sunholo-data/ailang-motoko"), Schedule{Mode: ModeInterval, IntervalSeconds: 46800, BootOffset: 1260}},
+	}
+	reg := &Registry{}
+	for _, s := range specs {
+		if _, err := os.Stat(s.workdir); err != nil {
+			continue // that mission is not on this machine
+		}
+		m := &Mission{Name: s.name, Repo: s.repo, Doc: s.doc, Workdir: s.workdir, Sched: s.sched, Path: "live:" + s.name}
+		if err := m.Validate(); err != nil {
+			t.Fatalf("live spec for %s is not a valid registry entry: %v", s.name, err)
+		}
+		reg.Missions = append(reg.Missions, m)
+	}
+	if err := reg.Validate(); err != nil {
+		t.Fatalf("live registry invalid: %v", err)
+	}
+	return reg
+}
+
+// THE GATE, ON THE REAL RIG. The design doc's own rule: a drift detector that
+// reports a clean fleet is indistinguishable from one that is not looking. This test
+// FAILS if the doctor comes back clean, because three divergences were measured on
+// this machine on 2026-09-05 and none of them has been fixed by Phase 1.
+func TestLive_DoctorReproducesTheMeasuredDivergences(t *testing.T) {
+	reg := liveRegistry(t)
+	if len(reg.Missions) == 0 {
+		t.Skip("no missions installed on this machine (expected off-rig)")
+	}
+	rep := Doctor(reg, DefaultPaths())
+	for _, f := range rep.Findings {
+		t.Logf("%s", f)
+	}
+
+	if !rep.HasDrift() {
+		t.Fatal("GATE FAILED: the doctor reports a clean fleet, but three divergences were " +
+			"measured on this rig and none is fixed. A clean report here means the doctor is not looking.")
+	}
+
+	// V8 — a plist setting a PATH without /usr/sbin. Measured on v1 and docs.
+	if got := findingsOfKind(rep, "path-no-sysctl"); len(got) == 0 {
+		t.Error("GATE: expected a path-no-sysctl finding (v1/docs plists omit /usr/sbin)")
+	} else {
+		for _, f := range got {
+			if f.Mission != "v1" && f.Mission != "docs" {
+				t.Errorf("unexpected mission %q flagged for PATH; motoko/world set no PATH key", f.Mission)
+			}
+		}
+	}
+
+	// V4/V5 — the reviewed copy is not what runs. Measured: docs differs by 4
+	// lines and world by 65. This is the check the registry-vs-installed
+	// comparison structurally CANNOT make, because the allowlist is passthrough
+	// and so renders identically on both sides.
+	src := findingsOfKind(rep, "env-source-drift")
+	if len(src) == 0 {
+		t.Error("GATE: expected env-source-drift — the reviewed mission-docs.env and " +
+			"mission-world.env still disagree with what the driver reads")
+	}
+	sawDocs := false
+	for _, f := range src {
+		if f.Mission == "docs" {
+			sawDocs = true
+			if !strings.Contains(f.Detail, "MISSION_PLANNER_ALLOWLIST") {
+				t.Errorf("GATE: the docs finding must name MISSION_PLANNER_ALLOWLIST — "+
+					"that is the key routing work to opus instead of codex; got: %s", f.Detail)
+			}
+		}
+	}
+	if !sawDocs {
+		t.Error("GATE: docs env-source-drift not reported (measured as a 4-line divergence)")
+	}
+
+	// The reach question: world is an unpinned fork. Both must be reported.
+	if _, ok := reg.Get("world"); ok {
+		if len(findingsOfKind(rep, "driver-fork")) == 0 {
+			t.Error("GATE: world's driver is a fork in sunholo-data/ailang-world and must be reported")
+		}
+		var worldRow *Row
+		for i := range rep.Rows {
+			if rep.Rows[i].Name == "world" {
+				worldRow = &rep.Rows[i]
+			}
+		}
+		if worldRow == nil {
+			t.Fatal("no row for world")
+		}
+		if worldRow.Pinned {
+			t.Error("world must be reported as UNPINNED — it has no lib/pin-root.sh")
+		}
+		if !worldRow.Fork {
+			t.Error("world must be reported as a fork")
+		}
+	}
+
+	// And the pinned missions must NOT be reported as unpinned — otherwise the
+	// check is a constant, not a measurement.
+	for _, row := range rep.Rows {
+		if row.Name == "world" {
+			continue
+		}
+		if !row.Pinned {
+			t.Errorf("%s should be pin-backed but was reported unpinned", row.Name)
+		}
+	}
+}
