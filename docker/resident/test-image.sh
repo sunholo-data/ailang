@@ -349,8 +349,22 @@ echo "=== 6h. observability (M8) ==="
 # The tracer's own suite, run against the artefact that will be deployed rather
 # than against a checkout that may have moved on — same reason test-image.sh
 # ships inside the image at all.
-out=$(RESIDENT_LIB=/usr/local/bin/lib node --test /usr/local/bin/test-otel.mjs /usr/local/bin/test-observatory.mjs /usr/local/bin/test-a2a-persistence.mjs 2>&1)
+out=$(RESIDENT_LIB=/usr/local/bin/lib node --test /usr/local/bin/test-otel.mjs /usr/local/bin/test-observatory.mjs /usr/local/bin/test-a2a-persistence.mjs /usr/local/bin/test-pi-staging.mjs 2>&1)
 have "telemetry suites pass in the image"   'echo "$out" | grep -q "fail 0"'
+
+# DURABILITY OF THE CONVERSATION, not of the task store — a separate mount
+# write that M6's fsync fix did not cover. The node suite above proves the
+# copy is faithful and CANNOT prove the fsync: a tmpdir has no upload gap,
+# which is exactly why every simulated restart passed before M6. So the
+# fsync is asserted here as a property of the shipped source, and as an
+# OBJECT in GCS by verify-resident-chaos.sh. A plain cpSync/writeFileSync
+# returns once the bytes reach the FUSE buffer, and the object may never
+# exist; the symptom is a resident that forgets a conversation after an
+# idle stop, which reads as a model problem rather than a storage one.
+have "staged sessions are fsynced to the mount" \
+     'grep -q "fsyncSync" /usr/local/bin/lib/pi.mjs'
+have "staging does not fall back to a plain cpSync" \
+     '! grep -q "cpSync" /usr/local/bin/lib/pi.mjs'
 
 # TWO planes, and only the second is what an operator reads. A resident that
 # emitted spans and no session would be "traced" and still absent from the view

@@ -17,7 +17,8 @@
 // herdr stays in the image for human attach (`herdr --remote`); it is simply
 // no longer on the task path.
 import { spawn } from "node:child_process";
-import { readFileSync, existsSync, mkdirSync, cpSync } from "node:fs";
+import { readFileSync, existsSync, mkdirSync, readdirSync,
+         openSync, writeSync, fsyncSync, closeSync } from "node:fs";
 
 // Capabilities are probed by boot.sh and read per run, because the server
 // process was started before that probe ran and cannot have inherited it.
@@ -34,19 +35,74 @@ export function capabilities() {
   catch { return { sessionFlag: "", sessionDir: "", agentHome: process.env.AGENT_HOME || "" }; }
 }
 
+/** Copy one file to the mount and FSYNC it before returning.
+ *
+ * `cpSync` and `writeFileSync` return once the bytes reach the FUSE buffer,
+ * NOT once gcsfuse has uploaded the object. M6 proved the difference on this
+ * exact mount: the task checkpoint's write logged success, the container was
+ * destroyed moments later, and GCS never received the object (fixed in ailang
+ * `ba5014074`). fsync is what makes gcsfuse finalise.
+ *
+ * The same fd that wrote the bytes is the one fsynced — opening a second
+ * handle to fsync someone else's buffered write is not a guarantee this code
+ * should be relying on.
+ */
+function copyFileSynced(src, dest) {
+  const body = readFileSync(src);
+  const fd = openSync(dest, "w");
+  try { writeSync(fd, body); fsyncSync(fd); } finally { closeSync(fd); }
+}
+
+/** Recursive copy of `srcDir` INTO `destDir`, fsyncing every file written.
+ *
+ * Returns the number of files written. Every file is copied every time, with
+ * no size/mtime skip heuristic: a false skip here means the assistant forgets
+ * a conversation, which is the exact failure this function exists to prevent,
+ * and it would be invisible. The cost is one fsync per session file per run —
+ * worth measuring if the store grows, not worth trading correctness for now.
+ */
+function copyTreeSynced(srcDir, destDir) {
+  mkdirSync(destDir, { recursive: true });
+  let files = 0;
+  for (const ent of readdirSync(srcDir, { withFileTypes: true })) {
+    const src = `${srcDir}/${ent.name}`;
+    const dest = `${destDir}/${ent.name}`;
+    if (ent.isDirectory()) { files += copyTreeSynced(src, dest); continue; }
+    // pi writes plain JSON here. A symlink or socket is unexpected, and not
+    // ours to carry onto a bucket: cpSync copied a link through as a link,
+    // which gcsfuse handles on its own terms and which boot.sh's `cp -a`
+    // restore would faithfully recreate pointing at a path that is gone.
+    // Skipped with a line in the log rather than copied invisibly.
+    if (!ent.isFile()) {
+      console.error(`pi | WARN skipping non-file in session store: ${src}`);
+      continue;
+    }
+    copyFileSynced(src, dest);
+    files++;
+  }
+  return files;
+}
+
 /** Stage the session store to the GCS mount so it survives the 7-day restart.
  *
  * Copied AFTER a run, never written to during one: gcsfuse has no POSIX
  * locking and pi rewrites its session file continuously, so pointing
  * --session-dir at the mount would corrupt exactly the state this exists to
  * keep. Same rule as the workspace, for the same reason.
+ *
+ * FSYNCED since 2026-09-05, for the reason on `copyFileSynced`. This ran as a
+ * plain `cpSync` through all of M6 — same mount, same exposure as the
+ * checkpoint bug that milestone found, and not covered by its fix. The symptom
+ * would have been a resident that forgets a conversation after an idle stop,
+ * which reads as a model problem rather than a storage one, so nobody would
+ * have looked here.
  */
 export function stageSessions() {
   const { sessionDir, agentHome } = capabilities();
   if (!sessionDir || !agentHome || !existsSync(sessionDir)) return false;
   try {
-    mkdirSync(`${agentHome}/sessions`, { recursive: true });
-    cpSync(sessionDir, `${agentHome}/sessions`, { recursive: true });
+    const files = copyTreeSynced(sessionDir, `${agentHome}/sessions`);
+    console.log(`pi | staged ${files} session file(s) to ${agentHome}/sessions (fsynced)`);
     return true;
   } catch (e) {
     console.error(`pi | WARN could not stage sessions to ${agentHome}: ${e.message}`);
