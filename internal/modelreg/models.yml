@@ -466,10 +466,17 @@ models:
       benchmark_ratings and trial_history were all EMPTY before this run, so
       gpt6-astra is the seed of the local standard series, not a ranked entry.
       A leaderboard position needs other models banked into the same anchored fit.
-      ⏳ SMOKE TIER NOT RUN (deferred for budget, per Mark) — this entry is opt-in
-      (`--models gpt6-astra`) and deliberately absent from every suite. Do NOT
-      promote it into benchmark_suite/extended_suite on the placement alone.
-      At 2x Sol's price the bar for promotion is a CLEAR core-tier win, not a tie.
+      IN extended_suite since 2026-09-05 (new-release longitudinal tracking, the
+      terra/luna precedent). NOT in benchmark_suite: that OpenAI seat is
+      gpt5-6-sol's at $5/$30, and a perfect core score against sol's own perfect
+      core gate is a TIE — which at 2x the price keeps the incumbent (§5.5).
+      Promote only on a same-panel win over sol, which does not exist yet.
+      NEVER agent_suite — that suite is the curated weak+reference set and
+      explicitly must not carry the expensive multi-turn cloud fleet.
+      ⏳ SMOKE TIER NOT RUN (deferred for budget, per Mark). Cloud rows do not
+      normally run smoke anyway (it is the local OS-model iteration loop), so
+      this is a smaller gap than it looks — but it means the model has cleared
+      core/frontier placement WITHOUT the canonical floor gate.
       💰 Cost note: that $9.76 is 87% input ($8.44 in / $1.32 out) and got ZERO
       prompt-cache reads — the run finished in 2m18s, inside OpenAI's ~5-10min
       cache write-availability latency. A warm repeat re-prices to ~$2.17.
@@ -4987,9 +4994,13 @@ benchmark_suite:
     # this seat does NOT contest 5.3-flash's extended_suite slot). If the flagship
     # loses to 5.2 on core, revisit this membership.
 
-# Extended suite - flagship frontier + modern open-source (16 models)
+# Extended suite - flagship frontier + modern open-source (17 models)
 # Use for: Release baselines, comprehensive comparisons, cloud-vs-OS cost/quality.
-# Cost: ~$3-6 per full benchmark run (+~$16 for fable on core,stretch)
+# Cost: ~$3-6 per full benchmark run (+~$16 each for the two $10/$50 rows, fable-5-1
+# and gpt6-astra, on core,stretch). Those two dominate the bill — drop them first when
+# a baseline needs trimming. Note a REPEAT baseline is far cheaper than the sticker:
+# prompt-cache reads make a warm re-run ~3x cheaper in real spend, though banked
+# cost_usd stays at the uncached ceiling and will not show it.
 # Standard mode only — cloud models never run the smoke tier (smoke is the local
 # OS-model iteration loop); release baselines run core,stretch.
 # OS roster: glm-5.3-flash (replaced 5.2 2026-08-27; 5.2 replaced 5.1 2026-07-19),
@@ -5018,6 +5029,18 @@ extended_suite:
     # Gate: core 23/26 at $0.73, LOST to gpt5-4-mini (25/26, $0.55) — in suite for longitudinal
     # visibility only; dev_models/lang_harness_suite keep mini. Revisit both at next OpenAI gen.
   - "gpt5-4-mini"       # OpenAI cheap (Mar 2026)
+  - "gpt6-astra"        # OpenAI GPT-6 generation (Aug 2026) — added 2026-09-05 for new-release
+    # tracking, the same basis as terra/luna. Placement N=2 (identical both runs): core 23/23,
+    # frontier 6/8, anchored standard ELO 2554.4. Only frontier docx_reimplement (runtime_error)
+    # and markdown_reimplement (compile_error) fail — finish_reason=stop, small reason counts,
+    # so capability not truncation.
+    # ⚠️ Deliberately NOT in benchmark_suite. That seat is gpt5-6-sol's at $5/$30; astra is
+    # $10/$50, and a perfect core score against sol's own perfect core gate is a TIE, which at
+    # 2x the price keeps the incumbent (model-manager §5.5 — the same rule by which sol only
+    # took gpt5-5's seat at IDENTICAL pricing). Nothing here beats sol; it has not been shown to.
+    # No same-panel head-to-head exists yet: the local ELO series was EMPTY before astra, and
+    # the historical "core 26/26" gates were run on a 26-benchmark core panel that is now 23.
+    # Promote only on a same-panel win over sol. Standard eval only, NEVER agent_suite (cost).
   - "claude-fable-5-1"  # Anthropic most-capable (Sep 2026) — REPLACED claude-fable-5 2026-09-02
     # (Mark, attended directive). Same-price generational swap: $10/$50 per 1M is UNCHANGED,
     # so the usual "does it beat the incumbent on core" bar is not what decided this — a
