@@ -20,3 +20,8 @@ RUN npm install -g @anthropic-ai/claude-code \
     && npm install -g "${PI_PACKAGE}@${PI_VERSION}" \
     && pi --version </dev/null
 USER ailang
+
+# This image carries SEVERAL executor CLIs, so it cannot answer "which one" —
+# "multi" tells execute-job the caller must name one via AILANG_PROVIDER, rather
+# than the image asserting an answer it does not have.
+ENV AILANG_IMAGE_PROVIDER=multi

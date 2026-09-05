@@ -71,10 +71,11 @@ func coordinatorExecuteJob(args []string) error {
 	if projectID == "" {
 		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
 	}
-	provider := os.Getenv("AILANG_PROVIDER")
-	if provider == "" {
-		provider = "claude"
-	}
+	// Resolved (and verified) below, once publishCompletion exists to report a
+	// bad answer. Deliberately not defaulted here — see resolveContainerProvider.
+	requestedProvider := os.Getenv("AILANG_PROVIDER")
+	imageProvider := os.Getenv("AILANG_IMAGE_PROVIDER")
+	var provider string
 	repoURL := os.Getenv("AILANG_REPO_URL")
 	branch := os.Getenv("AILANG_BRANCH")
 	if branch == "" {
@@ -178,6 +179,19 @@ func coordinatorExecuteJob(args []string) error {
 	if projectID == "" {
 		publishCompletion("failed", "AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required", "", nil, gitEvidence{}, "")
 		return fmt.Errorf("AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required")
+	}
+
+	// Settle which executor runs, and prove it can, BEFORE cloning the repo.
+	// Three prod runs on 2026-08-27/28 cloned 24,032 files and only then failed
+	// on a binary the image never installed.
+	var provErr error
+	if provider, provErr = resolveContainerProvider(requestedProvider, imageProvider); provErr != nil {
+		publishCompletion("failed", provErr.Error(), "", nil, gitEvidence{}, "")
+		return provErr
+	}
+	if err := preflightExecutor(ctx, provider); err != nil {
+		publishCompletion("failed", err.Error(), "", nil, gitEvidence{}, "")
+		return err
 	}
 
 	// Read plugin repo for shared skills (M-CLOUD-PLUGIN-SKILLS, v0.9.1)

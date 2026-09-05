@@ -30,3 +30,8 @@ USER ailang
 # M-DX-PI-HARNESS Distribution v2 (F5): install the binary-embedded suite
 # only after switching to the runtime user, so it lands in /home/ailang/.pi.
 RUN ailang pi install
+
+# The image declares the executor CLI it installs. cmd/ailang execute-job
+# refuses a task whose AILANG_PROVIDER disagrees, instead of cloning the repo
+# and then exec-failing on a binary that was never here (2026-08-27/28).
+ENV AILANG_IMAGE_PROVIDER=pi
