@@ -143,10 +143,11 @@ func missionInstall(args []string) error {
 		return fmt.Errorf("no mission %q in %s (have: %s)", args[0], missionRegistryDir, strings.Join(reg.Names(), ", "))
 	}
 	p := mission.DefaultPaths()
-	s, err := mission.RenderStaged(m, p.EnvPath(m.Name), p.PlistPath(m))
+	s, err := mission.RenderStagedFrom(m, p.EnvPath(m.Name), p.PlistPath(m), p.ReviewedEnvPath(m.Name))
 	if err != nil {
 		return err
 	}
+	fmt.Printf("passthrough source: %s\n", s.Source)
 	fmt.Printf("rendered (nothing that runs was touched):\n  %s\n  %s\n\n", s.EnvStaged, s.PlistStaged)
 	fmt.Printf("review with:\n  diff %s %s\n  diff %s %s\n", s.EnvTarget, s.EnvStaged, s.PlistTarget, s.PlistStaged)
 	return nil

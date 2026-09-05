@@ -442,3 +442,80 @@ boot_offset      = 0
 		t.Error("bare MISSION_WORKDIR assignment would clobber pin-root's export")
 	}
 }
+
+// M9: passthrough comes from the REVIEWED copy, not the installed one.
+//
+// Rendering from the installed file makes the output a copy of what already runs, so
+// an edit to the repo copy never reaches the fleet — V5 exactly, merely narrowed.
+// Rendering from the reviewed copy is what makes "edit the repo file, install, apply"
+// actually deploy.
+func TestRenderStagedFrom_PrefersTheReviewedCopy(t *testing.T) {
+	dir := t.TempDir()
+	envTarget := filepath.Join(dir, "installed.env")
+	reviewed := filepath.Join(dir, "reviewed.env")
+
+	// The two disagree exactly the way docs did: the reviewed copy carries a widened
+	// allowlist that was never deployed.
+	if err := os.WriteFile(envTarget, []byte("MISSION_NAME=docs\nMISSION_PLANNER_ALLOWLIST=\"tools/*\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(reviewed, []byte("MISSION_NAME=docs\nMISSION_PLANNER_ALLOWLIST=\"tools/*|scripts/*\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m := mustMission(t, `
+name    = "docs"
+repo    = "sunholo-data/ailang"
+workdir = "/tmp/docs"
+doc     = "d.md"
+[schedule]
+mode             = "interval"
+interval_seconds = 21600
+boot_offset      = 840
+`)
+	s, err := RenderStagedFrom(m, envTarget, filepath.Join(dir, "x.plist"), reviewed)
+	if err != nil {
+		t.Fatalf("RenderStagedFrom: %v", err)
+	}
+	if s.Source != reviewed {
+		t.Errorf("Source = %s, want the reviewed copy %s", s.Source, reviewed)
+	}
+	got, _ := os.ReadFile(s.EnvStaged)
+	if !strings.Contains(string(got), "scripts/*") {
+		t.Errorf("the REVIEWED allowlist must reach the staged render — this is the V5 workflow, fixed.\ngot:\n%s", got)
+	}
+	// And the installed file is still only read.
+	after, _ := os.ReadFile(envTarget)
+	if strings.Contains(string(after), "scripts/*") {
+		t.Error("the installed file must not be written by a render")
+	}
+}
+
+// A mission with no reviewed copy still renders, from the installed file.
+func TestRenderStagedFrom_FallsBackToInstalledWhenUnreviewed(t *testing.T) {
+	dir := t.TempDir()
+	envTarget := filepath.Join(dir, "installed.env")
+	if err := os.WriteFile(envTarget, []byte("MISSION_NAME=solo\nexport MISSION_X=keep\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m := mustMission(t, `
+name    = "solo"
+repo    = "r/x"
+workdir = "/tmp/solo"
+doc     = "d.md"
+[schedule]
+mode             = "keepalive"
+throttle_seconds = 900
+boot_offset      = 7
+`)
+	s, err := RenderStagedFrom(m, envTarget, filepath.Join(dir, "x.plist"), filepath.Join(dir, "absent.env"))
+	if err != nil {
+		t.Fatalf("RenderStagedFrom: %v", err)
+	}
+	if s.Source != envTarget {
+		t.Errorf("with no reviewed copy the source must be the installed file; got %s", s.Source)
+	}
+	got, _ := os.ReadFile(s.EnvStaged)
+	if !strings.Contains(string(got), "MISSION_X=keep") {
+		t.Error("fallback render lost the passthrough")
+	}
+}

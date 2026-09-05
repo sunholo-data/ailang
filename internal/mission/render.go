@@ -308,6 +308,10 @@ func writeAtomic(path string, data []byte, perm os.FileMode) (err error) {
 
 // Staged is the set of paths a render produced, and where each will be promoted to.
 type Staged struct {
+	// Source is the file passthrough content was read from — the reviewed copy when
+	// one exists, otherwise the installed file. Reported so an operator can see which,
+	// rather than having to infer it.
+	Source      string
 	EnvStaged   string
 	EnvTarget   string
 	PlistStaged string
@@ -316,13 +320,37 @@ type Staged struct {
 
 // RenderStaged renders both artifacts and writes them to STAGED paths only.
 //
-// It never opens a live target for writing. Promotion is `apply`'s job (Phase 2),
-// and pairing it with the launchd reload is the only point at which behaviour
-// changes.
+// It never opens a live target for writing. Promotion is `apply`'s job, and pairing it
+// with the launchd reload is the only point at which behaviour changes.
+//
+// PASSTHROUGH COMES FROM THE REVIEWED COPY when one exists, not from the installed
+// file. That inversion is the whole point of this function's `reviewedEnv` argument:
+//
+//   - Rendering from the INSTALLED file makes the generated output a copy of what
+//     already runs, so an edit to the reviewed copy in the repo never reaches the
+//     fleet — which is V5 exactly, merely narrowed. That is how the docs planner
+//     allowlist sat undeployed behind a green test.
+//   - Rendering from the REVIEWED copy makes `tools/launchd/mission-env/<name>.env`
+//     the thing you edit, and after an apply installed == reviewed BY CONSTRUCTION,
+//     so `env-source-drift` becomes unreportable rather than merely unreported.
+//
+// Falls back to the installed file when no reviewed copy exists, so a mission that has
+// not been brought under review still renders.
 func RenderStaged(m *Mission, envTarget, plistTarget string) (*Staged, error) {
-	live, err := os.ReadFile(envTarget) //nolint:gosec // caller-supplied mission path
+	return RenderStagedFrom(m, envTarget, plistTarget, "")
+}
+
+// RenderStagedFrom is RenderStaged with an explicit reviewed-copy path.
+func RenderStagedFrom(m *Mission, envTarget, plistTarget, reviewedEnv string) (*Staged, error) {
+	source := envTarget
+	if reviewedEnv != "" {
+		if _, statErr := os.Stat(reviewedEnv); statErr == nil {
+			source = reviewedEnv
+		}
+	}
+	live, err := os.ReadFile(source) //nolint:gosec // caller-supplied mission path
 	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("failed to read live env %s: %w", envTarget, err)
+		return nil, fmt.Errorf("failed to read env source %s: %w", source, err)
 	}
 	envBytes, err := RenderEnv(m, live)
 	if err != nil {
@@ -333,6 +361,7 @@ func RenderStaged(m *Mission, envTarget, plistTarget string) (*Staged, error) {
 		return nil, err
 	}
 	s := &Staged{
+		Source:      source,
 		EnvStaged:   envTarget + StagedSuffix,
 		EnvTarget:   envTarget,
 		PlistStaged: plistTarget + StagedSuffix,
