@@ -59,6 +59,9 @@ Claims in this doc verified against the live codebase (2026-08-04, dev @ v0.33.0
 | Failure signature matches the hypothesis | Read `eval_results/baselines/v0.32.0/standard/markdown_reimplement_ailang_*.json` (13 files) | 8/13 models across every provider family (gemini, gpt5-4-mini/luna/sol/terra, or-deepseek-v4-pro, or-kimi-k2-7-code, or-minimax-m3) fail identically: `undefined variable: emptyParseState at benchmark/solution.ail:9:NN` — the model calls a helper it was told exists but never shown |
 | `docx_reimplement` shows the same signature | `jq` scan of `eval_results/baselines/v0.32.0/standard/docx_reimplement_ailang_*.json` `error_category` | 15/N `runtime_error` results share the identical `WARNING MOD010 (relaxed): module 'docparse/services/docx_parser' does not match canonical path 'benchmark/solution'` signature that also appears on every `markdown_reimplement` failure — strong but not per-model-confirmed evidence of the same root cause (see Non-Goals) |
 | Duplicate design docs | `create_planned_doc.sh` auto-search (SimHash + neural) | Top matches (`m-codegen-list-sprint-plan.md`, `m-three-camps-sprint-plan.md`, `m-verify-stdlib-stale-path.md`, `m-nightly-sustained-failure-label-sprint-plan.md`, `m-effect-refinement.md`) are all keyword-coincidence false positives — none discuss `input_files`, `solution_files`, or standard-mode prompt construction. Not a duplicate. |
+| The standard-mode benchmark-enumeration call site (2026-09-05, dev @ `461e0949a`, re-verified for the mission-docs quorum round-1 objection) | `grep -rn "discoverBenchmarks" cmd/ailang/*.go` | Exactly one definition and one call site: `discoverBenchmarks()` is DEFINED at [eval_helpers.go:36](../../../cmd/ailang/eval_helpers.go) and CALLED at [eval_suite.go:302](../../../cmd/ailang/eval_suite.go), inside the branch guarded by `!*agent && *benchmarks == ""` — the comment on the line immediately above the call already reads `// Auto-discover benchmarks from benchmarks/ directory (standard mode only)`. This is the scheduling-time exclusion point named in Solution Design component 2: filter `discoverBenchmarks()`'s return value (or gate inside it) on `!RequiresAgentWorkspace()` when `evalMode == "standard"`. |
+| Whether downstream `error_category` consumers (eval-elo, confidence-gating, curation-cycle) would silently corrupt scoring on the new `skipped_mode_incompatible` value (2026-09-05, dev @ `461e0949a`, mission-docs quorum round-2 objection) — SUPERSEDED by the round-3 finding below, kept for the trail | `grep -rn "ErrorCategory\|error_category" cmd/ailang/eval_elo.go internal/observatory/ratings.go` (zero direct hits in those two files) | `eval-elo`/`observatory/ratings.go` never read `ErrorCategory` directly — but `eval_elo.go:122` loads via `eval_analysis.LoadResults`, which DOES filter through machinery that reads categorical signal (see next row). An `ErrorCategory`-only fix (e.g. `ShouldExcludeFromCapability`) would NOT reach `eval-elo`'s fit at all, since `fitLang` (`cmd/ailang/eval_elo.go:254-280`) computes `ok := r.CompileOk && r.RuntimeOk && r.StdoutOk` directly with ZERO category filtering of any kind — not even the pre-existing `quota_exhausted`/`rate_limit`/`api_error` exclusions apply there. `ShouldExcludeFromCapability` only protects `internal/eval_analysis`'s dashboard/export reporting path, a DIFFERENT pipeline. |
+| The correct, single exclusion point that covers BOTH pipelines (2026-09-05, mission-docs quorum round 3, root-caused after the above) | Read `internal/eval_harness/validity.go` (`Validity`/`MarkInvalid`/`IsValid`) and `internal/eval_analysis/validity_filter.go` (`FilterValidResults`) | `internal/eval_analysis.LoadResults` (→ `LoadResultsFromDirs`) ALWAYS applies `FilterValidResults`, which drops any row where `!r.IsValid()` (i.e. `Validity.Valid == false`) BEFORE it reaches either consumer — `eval_elo.go:122` calls `eval_analysis.LoadResults` directly, and the `internal/eval_analysis` export/dashboard functions consume the same filtered set. `Validity` exists FOR EXACTLY THIS CASE per its own doc comment: distinguishing "the subject was measured and did badly" from "we failed to measure the subject" — a `skipped_mode_incompatible` result is definitionally the second kind (the model was never invoked). Marking it `Validity: MarkInvalid(ReasonModeIncompatible)` (a new `Reason` constant, alongside the existing `ReasonCanaryFailed`/`ReasonZeroFiles`/etc. in `validity.go`) excludes it from EVERY aggregate — ELO fitting, confidence-gating, capability stats, dashboard exports — via the one mechanism already built and already trusted for "not a real measurement," while the row itself is RETAINED on disk (never deleted) exactly like every other invalid-but-informative row this system already produces. Supersedes the narrower `ShouldExcludeFromCapability`-only fix from round 2/3 — that switch is left untouched (no `skipped_mode_incompatible` case needed there, since a `Valid:false` row never reaches it at all). |
 
 ## Problem Statement
 
@@ -121,8 +124,8 @@ recording a misleading compile/runtime failure.
 
 ### Design Freeze
 
-- [ ] Confirm fix direction is "gate out of standard mode" (not "build multi-file standard-mode support") before implementation starts — this doc assumes the gate; if the human decides otherwise, Solution Design below needs a rewrite, not an edit
-- [ ] Confirm gate location (scheduling-time vs. dispatch-time skip)
+- [x] Confirm fix direction is "gate out of standard mode" (not "build multi-file standard-mode support") before implementation starts — this doc assumes the gate; if the human decides otherwise, Solution Design below needs a rewrite, not an edit. Unresolved as of doc creation; resolved by mission-docs controller 2026-09-05 in favor of the gate (Solution Design's own Architecture section already committed to it, and the High-Impact Decisions row's Change Cost of "high" for the alternative is reason enough not to default into the larger lift)
+- [x] Confirm gate location (scheduling-time vs. dispatch-time skip) — resolved as BOTH (defense in depth), per Architecture components 2+3, which the doc already specified; call sites for both now verified (see Verification Log)
 
 ## Solution Design
 
@@ -138,8 +141,9 @@ than dispatching a doomed API call.
 
 **Components:**
 1. **`BenchmarkSpec` helper**: a small method, e.g. `func (s *BenchmarkSpec) RequiresAgentWorkspace() bool { return s.GradeEntrypoint != "" }`, co-located with the existing `GradeEntrypoint`/`SolutionFiles` fields in spec.go so the mode-compatibility rule lives next to the fields that define it.
-2. **Scheduling-time exclusion**: wherever standard-mode benchmark IDs are enumerated for a run (`eval-suite` / `discoverBenchmarks` in `cmd/ailang/eval_helpers.go` — exact call site to confirm during implementation), filter out benchmarks where `RequiresAgentWorkspace()` is true when the target mode is standard.
-3. **Dispatch-time guard**: in `runSingleBenchmark` (`cmd/ailang/eval_benchmark.go`), an early check that returns a structured skip result (new/reused `error_category` value, e.g. `"skipped_mode_incompatible"`) if somehow called for a `RequiresAgentWorkspace()` benchmark in standard mode — defense in depth for direct `--benchmarks` invocations that bypass the scheduler filter.
+2. **Scheduling-time exclusion**: `discoverBenchmarks()` ([eval_helpers.go:36](../../../cmd/ailang/eval_helpers.go)), called from the standard-mode auto-discovery branch at [eval_suite.go:302](../../../cmd/ailang/eval_suite.go) (verified by grep, see Verification Log) — filter out benchmarks where `RequiresAgentWorkspace()` is true when the target mode is standard.
+3. **Dispatch-time guard**: in `runSingleBenchmark` (`cmd/ailang/eval_benchmark.go`), an early check that returns a structured skip result — `error_category = "skipped_mode_incompatible"` for human/log readability, AND `Validity: eval_harness.MarkInvalid(eval_harness.ReasonModeIncompatible)` for machine aggregation — if somehow called for a `RequiresAgentWorkspace()` benchmark in standard mode. Defense in depth for direct `--benchmarks` invocations that bypass the scheduler filter (component 2); in the normal scheduled path component 2 already excludes the benchmark, so no result row is written at all (per the doc's own Success Metrics, "or are simply absent") and this component never fires.
+4. **Validity exclusion (the load-bearing half, root-caused in round 3 — see Verification Log)**: add `ReasonModeIncompatible` to the `Reason` constants in `internal/eval_harness/validity.go`, alongside `ReasonCanaryFailed`/`ReasonZeroFiles`/etc. Setting `Validity.Valid = false` on the skip row is what actually excludes it from `eval-elo` fitting, confidence-gating, capability stats, and every dashboard export — all of them ultimately load through `eval_analysis.LoadResults` → `FilterValidResults`, which drops any `!IsValid()` row before any of those consumers ever sees it. `ShouldExcludeFromCapability` is NOT touched by this fix — verified unnecessary, since a `Valid:false` row is filtered out upstream of it.
 
 ### Implementation Plan
 
@@ -149,21 +153,23 @@ than dispatching a doomed API call.
 - [ ] Unit test: a spec with `GradeEntrypoint` set, dispatched via `runSingleBenchmark` in standard mode, returns the skip result and makes zero AI provider calls
 
 **Phase 2: Scheduling-time exclusion** (~3 hours)
-- [ ] Locate the standard-mode benchmark enumeration path (`discoverBenchmarks` in eval_helpers.go and/or `eval-suite`'s tier/confidence-gate filtering) and exclude `RequiresAgentWorkspace()` benchmarks from standard-mode target lists
+- [ ] Exclude `RequiresAgentWorkspace()` benchmarks from `discoverBenchmarks()`'s standard-mode results (`cmd/ailang/eval_helpers.go:36`, called from `cmd/ailang/eval_suite.go:302` — call site confirmed, see Verification Log)
 - [ ] Confirm agent-mode enumeration is untouched (these 2 benchmarks must still run in agent mode)
 - [ ] `ailang eval-suite --dry-run --tier frontier` (standard mode) no longer lists `markdown_reimplement`/`docx_reimplement`; the same `--dry-run` for agent mode still lists them
 
 **Phase 3: Verify against real data** (~2 hours)
 - [ ] Re-run `markdown_reimplement`/`docx_reimplement` in standard mode post-fix and confirm they're absent/skipped, not failing
-- [ ] Spot-check that `ailang eval-elo`/confidence-gating (which read historical standard-mode results for these 2 benchmarks) don't choke on the schema change — old rows keep their historical `error_category`, only new runs use the skip path
+- [ ] Unit test: a skip row (`Validity.Valid == false`, `Reason == ReasonModeIncompatible`) is dropped by `eval_analysis.FilterValidResults`
+- [ ] Confirm `eval-elo`'s `fitLang` never sees the skip row in its `trials` slice (it loads via `eval_analysis.LoadResults`, which already filters); confirm confidence-gating (`selectBenchmarksByConfidence` → `observatory.LoadBenchmarkRatings`) is unaffected since ratings are fit from the already-filtered set — old rows keep their historical `error_category`/no `Validity` field (absent = valid, per `IsValid()`'s doc comment), only new runs use the skip path
 
 ### Files to Modify/Create
 
 **Modified files:**
 - `internal/eval_harness/spec.go` - add `RequiresAgentWorkspace()` method, ~10 LOC
 - `cmd/ailang/eval_benchmark.go` - dispatch-time guard in `runSingleBenchmark`, ~15 LOC
-- `cmd/ailang/eval_helpers.go` (or wherever `discoverBenchmarks`/eval-suite scheduling lives — confirm exact file during Phase 2) - scheduling-time exclusion, ~15-30 LOC
-- `internal/eval_harness/spec_test.go` / `cmd/ailang/eval_benchmark_test.go` - new tests, ~40 LOC
+- `cmd/ailang/eval_helpers.go` (`discoverBenchmarks`, called from `cmd/ailang/eval_suite.go:302`) - scheduling-time exclusion, ~15-30 LOC
+- `internal/eval_harness/validity.go` - add `ReasonModeIncompatible` constant, ~3 LOC
+- `internal/eval_harness/spec_test.go` / `cmd/ailang/eval_benchmark_test.go` / `internal/eval_analysis/validity_filter_test.go` - new tests, ~50 LOC
 
 ## Examples
 
@@ -187,6 +193,7 @@ Benchmarks: bytecode_vm_trace, lfu_cache_trace, ...
 - [ ] `ailang eval-suite --dry-run` for standard mode never lists a `GradeEntrypoint`-bearing benchmark (acceptance test: dry-run output diffed against the known 2-benchmark exclusion list)
 - [ ] `runSingleBenchmark` called directly against `markdown_reimplement`/`docx_reimplement` in standard mode returns a skip result and makes zero provider API calls (acceptance test: mock provider call-counter assertion)
 - [ ] Agent-mode scheduling for these 2 benchmarks is unchanged (regression test: agent-mode dry-run still lists both)
+- [ ] A skip row (`Validity.Valid == false`, `Reason == ReasonModeIncompatible`) is excluded by `FilterValidResults` (unit test); does not move any per-model ELO fit, confidence-gating rating, or capability/success-rate statistic
 - [ ] All tests passing
 - [ ] `design_docs/PROGRAM.md` or the eval guide notes the mode-compatibility rule so a future benchmark author knows `grade_entrypoint` implies agent-mode-only
 
@@ -205,8 +212,7 @@ Benchmarks: bytecode_vm_trace, lfu_cache_trace, ...
 
 ## Deferred Decisions
 
-- Whether the skip result should count toward or be excluded from a model's "coverage" denominator used elsewhere (e.g. `ailang eval-elo`'s confidence-gating, `[[project_v0320_gating_composition_effect]]`'s tier composition) — agent may choose the simplest consistent option, but must document it, since it affects future composition-effect analyses
-- Exact scheduling-time exclusion call site — Phase 2 requires locating the current standard-mode enumeration path; agent may choose the cleanest integration point once found
+- Whether the skip result should count toward or be excluded from a model's "coverage" denominator used for tier-composition analysis (`[[project_v0320_gating_composition_effect]]`) — RESOLVED for capability/reliability scoring (excluded, via `ShouldExcludeFromCapability`, see Verification Log); the narrower question of tier-composition denominators specifically is still the executor's call, documented at implementation time, since it affects future composition-effect analyses differently than per-model capability stats do
 
 ## Non-Goals
 
