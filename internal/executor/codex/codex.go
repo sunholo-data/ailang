@@ -47,16 +47,10 @@ func New(cfg *executor.Config) (*CodexExecutor, error) {
 	// the point of USE (getModel) rather than construction — checking here would
 	// reject the normal path where the model arrives with the task.
 
-	// codex reads its credential from ~/.codex/auth.json, never from the
-	// environment, so a job handed only OPENAI_API_KEY has no credential at all.
-	// Writes only when no auth.json exists — see EnsureAPIKeyAuth.
-	if wrote, err := EnsureAPIKeyAuth(); err != nil {
-		// Not fatal: an existing auth.json is the common case and this path is
-		// only for the ones that have none. HealthCheck reports the real state.
-		fmt.Fprintf(os.Stderr, "[codex] could not materialise api-key auth.json: %v\n", err)
-	} else if wrote {
-		fmt.Fprintf(os.Stderr, "[codex] wrote api-key auth.json from OPENAI_API_KEY (no existing credential)\n")
-	}
+	// NOTE: constructing an executor deliberately does NOT materialise a
+	// credential. Writing ~/.codex/auth.json is a deployment action, not a
+	// library side effect — see EnsureAPIKeyAuth, called from the cloud job
+	// entry point where the job's own key is the intended credential.
 
 	return &CodexExecutor{
 		codexPath:      codexPath,

@@ -8,16 +8,14 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func authPath(home string) string { return filepath.Join(home, ".codex", "auth.json") }
 
 func TestEnsureAPIKeyAuth_WritesWhenAbsent(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("HOME semantics differ on windows")
-	}
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testutil.SetHomeDir(t, home)
 	t.Setenv("OPENAI_API_KEY", "sk-test-value")
 
 	wrote, err := EnsureAPIKeyAuth()
@@ -56,9 +54,6 @@ func TestEnsureAPIKeyAuth_WritesWhenAbsent(t *testing.T) {
 // OPENAI_API_KEY exported. Overwriting there would move flat-rate runs onto a
 // metered key with nothing in the output to say so.
 func TestEnsureAPIKeyAuth_NeverOverwrites(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("HOME semantics differ on windows")
-	}
 	for _, existing := range []string{
 		`{"auth_mode":"chatgpt","tokens":{"access_token":"real-subscription-token"}}`,
 		`{"auth_mode":"apikey","OPENAI_API_KEY":"sk-someone-elses-key"}`,
@@ -67,7 +62,7 @@ func TestEnsureAPIKeyAuth_NeverOverwrites(t *testing.T) {
 	} {
 		t.Run("", func(t *testing.T) {
 			home := t.TempDir()
-			t.Setenv("HOME", home)
+			testutil.SetHomeDir(t, home)
 			t.Setenv("OPENAI_API_KEY", "sk-env-key-that-must-not-win")
 
 			if err := os.MkdirAll(filepath.Join(home, ".codex"), 0o700); err != nil {
@@ -96,11 +91,8 @@ func TestEnsureAPIKeyAuth_NeverOverwrites(t *testing.T) {
 }
 
 func TestEnsureAPIKeyAuth_NoKeyWritesNothing(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("HOME semantics differ on windows")
-	}
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testutil.SetHomeDir(t, home)
 	t.Setenv("OPENAI_API_KEY", "")
 
 	wrote, err := EnsureAPIKeyAuth()
@@ -120,7 +112,7 @@ func TestEnsureAPIKeyAuth_FileIsOwnerOnly(t *testing.T) {
 		t.Skip("permission bits differ on windows")
 	}
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testutil.SetHomeDir(t, home)
 	t.Setenv("OPENAI_API_KEY", "sk-test-value")
 
 	if _, err := EnsureAPIKeyAuth(); err != nil {
