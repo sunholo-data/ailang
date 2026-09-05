@@ -3492,6 +3492,159 @@ options, a recommendation and a dated default.
 
 ---
 
+## 35 — 2026-09-05 — the absent reviewer was the one that found the defect at the bottom of the design, and the judge found its twin in the code [HARNESS]
+
+**Picked**: Row **6p**, named by iteration 34's Next — derive the suite's wall-clock and node-ceiling
+bounds from a stimulus measured in-test, so the ratio holds by construction on any machine.
+
+**Progress**: the bar's clause 1 (the tree gates green from source) — the probe self-test suite's arm
+count is its countable unit. **46 → 57 arms.** This iteration shipped **M1 of 3** of the row's design;
+the row itself stays OPEN with M2/M3 as its residual, and the epic is unmoved.
+
+**Reality check**: no design doc existed for 6p (`grep -ril` over `design_docs/` returned only the
+mission files and 6n's doc). Premises re-verified at HEAD before routing: `MAX_TREE_NODES=
+${PROBE_MAX_TREE_NODES:-4096}` at probe:126 checked at probe:196; `ARM_CAP_SECS=
+${PROBE_SELFTEST_ARM_CAP_SECS:-120}` at test:9; and **no bound-derivation helper existed** —
+`grep -cE 'derive_bound|measure_stimulus|calibrat'` **0**, known-positive control `run_bounded` **10**.
+
+**Shipped**: **PR [#1048](https://github.com/sunholo-data/ailang/pull/1048)** — four commits (design,
+plan, M1, judge-fix). M1 is **additive by construction**: the derived scale, arm cap and node ceiling
+are computed, validated and published, and consumed by nothing (`ARM_CAP_BASE=120` still feeds
+`ARM_CAP_SECS`; `$(bound_secs ` consumed **0** times; the node ceiling still literal at test:687; the
+`p_obs` gate absent — exactly the M1/M2/M3 split the plan specifies). Suite **rc=0, 57 ok, 0 not ok**
+against a base of 46. Published diag line: `r=489/s r_real=665/s p_obs=1.36 reference=400/s scale=1
+arm_cap=120s node_ceiling=7824 floor=DISABLED`, bookend `drift=none`.
+
+**THE DESIGNER LANE FAILED ON ITS FIRST REAL RUN AND THE WRAPPER SAID `rc=0`.** `codex:gpt-6-astra`
+— the rotation entry that landed this morning at `087fbea63` — probed rc=0 and then produced **zero
+artifact**: no `-o` final message, no worktree change, no `tokens used` summary (the probe's own log
+has one, so that is a control rather than an absence), dead after ~3 minutes against a 30-minute cap.
+Diagnosed by reading ARTIFACTS rather than the exit code, per the recipe's false-green list. This is
+the first real datapoint on that lane and it is a lane failure, not a model verdict.
+
+**AND THE FALLBACK COULD NOT BE SPAWNED THE DOCUMENTED WAY.** `Agent(model="fable")` — which the
+roles table's 2026-08-20 correction explicitly authorises — was DENIED by the spawn-pin hook:
+`deny:provider-pin — designer is pinned to codex:gpt-6-astra`. The hook enforces the DECLARED pin and
+has no notion of a fallback, so a role whose primary lane dies cannot be re-routed through the Agent
+tool at all. The fable run went through the `claude:` recipe via `claude-sub` instead (tripwire CLEAN,
+keys stripped at the call site). **The same hook contradicted `resolve-role-spawn.sh` for the
+planner**: resolver `agent-tool opus fail-closed:planner-lane-field-missing` (and
+`derive-planner-lane.sh` agreed, run from the worktree that holds the doc — iteration 33's scope trap
+avoided) against the hook's `planner is pinned to codex:gpt-5.6-sol`. Gate 3 says to use the resolver's
+line VERBATIM and not to second-guess it; the hook is what actually adjudicates, so that instruction is
+unfollowable whenever they disagree. Both roles took their configured provider fallback, FLAGGED. Filed
+as row **6u** — it is a defect in CODE, not in the rulebook, which is why it is not this iteration's
+skill edit.
+
+**The quorum, and the reviewer who was not in the room.** BLOCKED both rounds. R1 **3/3 reject**,
+`.synthesis.absent_reviewers` `[]` cross-checked two ways, $0.1587; two of three named ONE defect
+(§4.2's prototype unconditionally enforced the floor M1 requires be flag-disabled) and were applied as
+written. The third was `gpt5-6-sol`'s PREMISE objection about the stimulus proxy, so I **measured it
+rather than forwarding it** (rule 3f): under one identical load step, bash-script **1.27×** · `date`
+**2.04×** · `pgrep` **1.13×** · `true` **1.31×** — a spread of up to **1.8×** — and real `pgrep` runs
+at **76/s** against the stimulus's **564/s**, so the walk's per-node cost is set by the slowest op, not
+the chosen one. **UPHELD**: directionally right, not tight. The designer got the measurement and
+returned its own interleaved number (1.35×) beside mine, which is the correct behaviour.
+R2: `gemini-3-1-pro` **flipped to pass**, `oc-glm-5-2` reject, **`gpt6-astra` ABSENT (budget)** — the
+self-selecting degrade, since a reviewer drops on budget exactly when the doc has GROWN (527 → 774
+lines). Re-run alone at a raised cap ($0.2654) it **REJECTED**, so the synthesis was a
+pass-with-a-named-hole and R2 was really **1 pass / 2 reject, 3/3 present**.
+
+**Astra's objection is the sharpest either round produced, and the degrade would have buried it.**
+`measure_fork_rate` incremented its counter unconditionally after `|| true`, so a missing,
+non-executable or failing stimulus produced a **positive rate** that would then have determined every
+derived bound — a silent fallback on the single input the whole design rests on, contradicting the
+doc's own §4.5. Both survivors carried concrete reviewer-authored `proposed_fix` text and disputed no
+design DIRECTION, so the **narrow-refinement carve-out** applied and the CONTROLLER applied their own
+text VERBATIM (§4.8). Surfaces per round: R1 = prototype-flag consistency ×2 + proxy premise; R2 =
+proxy gating + measurement-helper error propagation — **spread and MOVING, neither R2 surface an R1
+surface**, one reviewer flipping to pass. A maturing doc, not a SPLIT signal.
+
+**THE PLANNER REFUTED THE DESIGN DOC ELEVEN TIMES AND I CONFIRMED THE LOAD-BEARING ONE MYSELF.** The
+doc said to insert new arms *"after line 793"*. Arms in fact run to **818** — `run_lane_fixture_arm` at
+798, `REAL_LSOF` containment at 813–818 — so the doc's placement would have put them AHEAD of bounded
+arms, which is precisely the change that took the wall-clock arms from **0-in-17** to **4-in-19** at
+iteration 33. The plan moves them after 821. It also caught two execution-order defects (`bound_secs`
+unreachable from pre-derivation EXIT paths; deriving `ARM_CAP_SECS` at line 9 would call it before
+definition), that the startup insertion point **cannot** measure `live_bin/pgrep` because that file is
+created much later, that M1's `46 + 8` arithmetic ignored AC-8's three arms, and that the base is
+**59 s**, not the doc's 57.
+
+**THE EXECUTOR WAS KILLED BY ITS OWN 30-MINUTE CAP AND THE WRAPPER STILL REPORTED `rc=0`** — the
+recipe's false-green, second consecutive iteration — **and no snapshots were written**, so the
+uncommitted worktree diff was the only artifact. Completeness was ESTABLISHED rather than assumed:
+`bash -n` clean, zero bash-4+ constructs (control `run_bounded` **19**), additivity confirmed by the
+three greps above, and the suite green. One milestone of three is the honest scope.
+
+**THE EVALUATOR'S BLOCKING FINDING IS REAL AND IT FOUND IT WITH OUR OWN PLAN.** Evaluator **PASS
+81/100** (sonnet, its own worktree at `cef2dae4b`, distinct from the codex executor and the opus
+controller → generator≠judge holds). `PROBE_SELFTEST_FORK_RATE` **short-circuits** the measurement
+rather than steering it, and was not cleared before the three AC-8 recursions, so an ambient value
+makes `measure_rate_or_refuse` unreachable and the injected fault is never exercised. The judge found
+it by running the sprint plan's **own M2 AC-1 boundary command**, which therefore already failed
+against shipped M1 for a reason unrelated to anything M2 adds. **Reproduced first-party before being
+believed**: `PROBE_SELFTEST_FORK_RATE=200 <suite>` → **rc=1, 53 ok**, arm `bound measurement refuses a
+stimulus that exits nonzero`, against a no-override control of **rc=0, 57 ok**. Fixed with `env -u` on
+that recursion — not a leak guard, because the overrides are legitimate at suite scope for every other
+arm — and verified BOTH ways: **rc=0, 57 ok** with the override, control unchanged. The judge also ran
+the astra mutant and it **REDS** (`expected_rc=72 refusal=0 derived=1`), so that gate LOOKS rather than
+merely fires. Its two non-blocking findings — a duplicated diag line and an ADDED arm both leave the
+suite green — are **corroboration, not new defects**: the second is row **6s**, filed by iteration 33's
+judge before this sprint and now independently reproduced by a different judge.
+
+**GATE 3b GREEN ON THE MERGE, AND THE RUNNER ANSWERED THE QUESTION THE QUORUM COULD NOT.** `0686d5b00`,
+**21** checks, **0** pending, **0** non-green, required **4/4**, and **`launchd drivers (bash 3.2):
+success`** — the only leg where this suite runs. Rebase-merged as `b4bfb04e1`..`137842bfd`, four commits
+kept so the milestone boundaries stay bisectable. The derivation **executed on the GitHub runner** and
+published `r=318/s r_real=251/s p_obs=1.27 reference=400/s scale=2 arm_cap=240s node_ceiling=5088
+floor=DISABLED` — **the first measurement of that runner row 6j has ever had.** Three consequences M2
+needed and nobody could previously state: the runner derives **scale=2**, i.e. it wants a **240s** arm
+cap, so the hardcoded **120s was too tight for it** — row 6j's blowout with a number attached;
+**`p_obs=1.27`** on the runner, inside the budgeted `P_PROXY=2` and far inside the 4.7 tolerance, which
+answers `oc-glm-5-2`'s objection (*"no CI runner has been measured"*) with a measurement; and
+`floor=DISABLED` with **no** `BOUND_FLOOR_NOT_ENFORCED` line (318 > the 100/s floor), so **M2's floor
+flip is measured-safe.** One instrument failure of my own, caught by its own control: a grep for the new
+arms BY NAME in the CI log returned **0**, and so did its known-positive control — the grep was broken,
+not the arms absent (rule 3a). The load-bearing evidence is `PASS: 57 probe self-test arms ran` in that
+job's log, present, with a shape-matched negative control at 0.
+
+**Routing evidence**: task-class=design model=`fable` via the `claude:` recipe (`claude-sub`, probe
+rc=0), **after** `codex:gpt-6-astra` (`resolve-role-spawn.sh designer` → `recipe codex:gpt-6-astra
+declared:provider-pin`, probe rc=0, real run rc=0 with **zero artifact**) — FLAGGED, and the
+Agent-tool fallback was DENIED by the spawn-pin hook, FLAGGED. task-class=plan model=`codex:gpt-5.6-sol`
+(resolver said `agent-tool opus`, hook said `codex:gpt-5.6-sol`, hook wins at the tool boundary →
+`MISSION_PLANNER_ANTHROPIC_FALLBACK`) — FLAGGED. task-class=execute model=`codex:gpt-5.6-sol` (probe
+rc=0, 30-min bounded background wrapper, no git writes; **capped after M1, no snapshots**).
+task-class=evaluate model=`sonnet` via the Agent tool, own worktree at `cef2dae4b`. Designer rotation
+pointer advanced. Fable diet intact: ONE doc, one authoring run, one revision run. **Metered $0.5256**
+of the $5 ceiling (R1 $0.1587 + R2 $0.1015 + astra re-run $0.2654). No GPU, no `rig.lock`.
+
+**Ruled out**:
+- *"The astra designer lane is unavailable"* — **not established.** The probe passed and the run
+  started and explored the repo for ~3 minutes. What is established is that ONE real run produced no
+  artifact. One datapoint on a lane that is one day old is not a verdict on the lane.
+- *"The 22 s suite-time gap is the new measurement's cost"* — **refuted.** The measurement alone is
+  3–4 s isolated; the evaluator reproduced only a 9–10 s gap at quiet load and attributed the
+  remainder to fork overhead across the new recursion arms. My 22 s was a loaded-host reading of the
+  same thing. Resolved in kind, not in exact magnitude.
+- *"dev's SonarCloud red is ours"* — **refuted** by walking it back: `failure` on all five most recent
+  commits, so inherited. Per the charter guardrail V1 owns dev CI red on this anchor; recorded, handed
+  over, pick kept.
+- *"A quorum synthesis reading BLOCKED tells you what the reviewers said"* — **refuted again, second
+  consecutive iteration.** R2's synthesis was computed over two present reviewers; the third's verdict
+  existed and cost $0.27 to recover, and it was the one that mattered.
+
+**Retro lane**: none — **no skill edit**. The two spawn-pin denials are a HARNESS defect in
+`resolve-role-spawn.sh` and the hook, not a rulebook gap: the rulebook's instruction is correct and
+merely unexecutable, so editing it would be writing around a bug. Filed as row **6u**. Every other
+friction was a rule that already exists and FIRED (read the artifact not the exit code; re-run an
+absent reviewer at a raised cap; measure a premise objection instead of forwarding it; reproduce a
+judge's finding before believing it; walk a red back over parents before blaming the merge).
+
+**Next**: row **6p M2/M3** — wire the wall-clock class, enforce the floor and gate `p_obs`; then derive
+the node ceiling on the discovery arm. Fully specified in the sprint plan, blocked on nothing but
+executor minutes.
+
 ## 34 — 2026-09-03 — the work was done, verified and judged; it could not merge, and neither red was ours [HARNESS]
 
 **Picked**: Queue head, row **6o** — the two defects iteration 30's evaluator filed: the group
