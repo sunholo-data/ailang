@@ -475,7 +475,22 @@ models:
       cache write-availability latency. A warm repeat re-prices to ~$2.17.
       Budget re-gates and N>=3 de-flakes at the warm number, not the cold one.
       Uses max_completion_tokens instead of max_tokens.
-      Codex CLI agent support assumed (OpenAI lineage) — unverified.
+      ✅ CODEX CLI SUPPORT VERIFIED 2026-09-05, and on the SUBSCRIPTION lane —
+      `codex exec --model gpt-6-astra` with OPENAI_API_KEY stripped (the state a
+      mission iteration runs in, mission-control.sh:110) returns rc=0 and prints
+      `model: gpt-6-astra`. Negative control: `gpt-9-nonexistent-zzz` 400s with
+      "not supported when using Codex with a ChatGPT account" AND warns that model
+      metadata was not found — astra emits neither, so the probe discriminates and
+      codex genuinely knows this model. Positive control: gpt-5.6-sol rc=0.
+      `-c model_reasoning_effort=high` is accepted (codex prints "reasoning effort:
+      none" by DEFAULT for gpt-5.6-sol too, so that display is codex's, not a sign
+      astra is being sent an effort value its API rejects).
+      ⚠️ CONSEQUENCE: this row's $10/$50 metered pricing does NOT apply on the codex
+      lane, which bills the ChatGPT subscription. Metered vs subscription is a lane
+      property here, not a model property — do not quote this row's per-1K cost for
+      a mission-loop iteration. What a 1-token probe CANNOT see is the subscription
+      QUOTA BURN RATE, which for a flagship is the real constraint; only a full
+      agent run reveals that.
 
   # OpenAI GPT-5.4 (released March 5, 2026)
   gpt5-4:
