@@ -1114,8 +1114,11 @@ machine-readable exception.
 was silently costing every mission its rotation's Fable designer slot.** Spawn a Fable role with an
 explicit `model="fable"` pin; session inheritance still works but is no longer the only route, so a
 non-Fable controller must NOT re-route away from a rotation's Fable entry on pinnability grounds.
-What is established is that the pin is **accepted** and the run **completes** — not that it is
-enforced end-to-end; do not quote it for the stronger claim, and the Fable diet is unchanged. If a
+Two independent first-party readings established it: the Agent tool's `model`
+enum in this build lists `sonnet`/`opus`/`haiku`/**`fable`**, and a role spawned with an explicit
+`model="fable"` was ACCEPTED and ran to completion — no `InputValidationError`. What is established
+is that the pin is **accepted** and the run **completes** — not that it is enforced end-to-end; do
+not quote it for the stronger claim, and the Fable diet is unchanged. If a
 pin is ever rejected again, re-probe with one bounded spawn and record the reading rather than
 restoring the old rule from memory: **a capability claim about the harness is a measurement with a
 date on it.** Evidence, scope and the two first-party readings:

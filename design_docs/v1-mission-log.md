@@ -21560,8 +21560,21 @@ iteration 325 loosened the `release-manager` ratchet 596 → 625 without writing
 still owed under `m-release-manager-skill-split`. So the edit was restructured instead: the new note
 AND the 2026-08-20 fable-pin correction both moved into a new linked
 `resources/role-spawn-routing.md`, with the operative rules kept inline. `SKILL.md` went **2790 →
-2778**, the baseline was ratcheted DOWN to match rather than up, and the gate is green. An iteration
+2781**, the baseline was ratcheted DOWN to match rather than up, and the gate is green. An iteration
 that wanted the space did the burn-down instead of deferring it.
+
+**And the layering was caught overreaching by a guard another sprint had written two days earlier.**
+The first restructure moved the whole 2026-08-20 fable-pin correction out, and
+`tools/launchd/test_mission_routing.sh` arm **S2** — *"fable capability paragraph survives the
+spawn-pattern edit"*, added by `M-SPAWN-PIN-ENFORCEMENT` on 2026-09-03 — went red, because it greps
+`SKILL.md` for the literal `enum in this build lists`. The guard is right and its intent is that the
+capability MEASUREMENT stays discoverable inline, so the measurement sentence was restored to
+`SKILL.md` rather than the guard being widened to accept the resources file: an unattended iteration
+does not relax a two-day-old guard to fit its own edit. Reproduced locally on `/bin/bash 3.2.57`
+before and after. The suite's one remaining local red (`run_lane fixture arm requires real lsof on
+Darwin CI target`) is **pre-existing and environmental** — identical on a pristine tree at
+`137842bfd`, and green on the real Darwin runner, which is why the previous head's `launchd drivers`
+check reads `success`.
 
 **Next.** Execute the sprint: M1 (2d) → M2 (0.75d) → M3 (0.5d) → M4 (0.75d), one commit per
 milestone, each boundary green on that milestone's named tests. The executor lane is
