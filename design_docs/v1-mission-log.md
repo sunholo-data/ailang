@@ -21825,7 +21825,36 @@ ran. No GPU, no `rig.lock`. **The planner resolver disagreement reproduces for a
 and `derive-planner-lane.sh` agrees — measured but not routed on, since no planner was owed. The row
 stays queued and the durable fix is still in the TOOL.
 
-**Next.** M3 — complete compilation-cache clearing (0.5 d), then M4. The cumulative runner already
+**AND `dev` IS RED — SIX JOBS, NONE OF THEM MINE, FOUND ONLY BECAUSE IT BLOCKED MY OWN RECORD.**
+Gate 1 read dev's HEAD as `checks=13, ZERO failures, CI mid-flight` and that was true at `5b73f8dcc`.
+While this iteration ran, a **concurrent attended session** landed a four-milestone
+`m-mission-loop-workbench` sprint (`a9de67fe6`…`6536cfb98`), and it landed red: `lint`, `docs-gate`,
+`docs-build`, `launchd drivers (bash 3.2)`, `test-windows` and `Build windows-latest` all fail. The
+attribution is unambiguous and the control is the commit before mine — the identical set is already
+red at `6536cfb98`, and workbench M1 was already red on both Windows jobs — while iteration 331's own
+PR was green on all five runs and all four required contexts at `ca3b63085`.
+
+I found it only because `lint` is a REQUIRED context, so an inherited red **stranded my own Gate-4
+record**. That is worth naming as a property of this loop rather than as an incident: Gate 1's health
+check runs ONCE, at the start, and an iteration that does real work is exactly the one during which
+the tree can change underneath it. Gate 3b's base-inherited-red rule is written about a PR's own
+staleness; nothing points it at a base that goes red *mid-iteration*. The tell here was benign —
+a required check failing on a docs-only PR — and it is the only reason the six were seen at all.
+
+Disposition: I fixed the `lint` red (one `ineffectual assignment to snap` at
+`internal/mission/doctor_test.go:229`; `make lint` 1 issue → **0 issues**) inside the record PR,
+because without it the record could not land, and stated that plainly in the PR rather than smuggling
+a production-test fix into a docs commit. I did NOT fix the rest: `go test ./internal/mission` fails
+`TestLive_DoctorReproducesTheMeasuredDivergences` with the negative control firing (identical failure
+at unmodified HEAD, so not a side effect of my one line), and the Docusaurus, launchd-driver and
+Windows reds are uncharacterised. All six are filed as `ci-red-mission-loop-workbench`, positioned at
+the TOP of the queue, since a red `dev` outranks the queue for the mission that owns the repo and V1
+owns this one. The row carries the failing STEP per job — read from `actions/jobs/<id>`, because
+`check-runs` reports the job and never its steps — and a handoff note that the authoring session may
+still be live, so the set must be re-measured before anyone starts.
+
+**Next.** The queue head is now `ci-red-mission-loop-workbench` — a red dev outranks the sprint. After
+it: M3 — complete compilation-cache clearing (0.5 d), then M4. The cumulative runner already
 accepts `M3` and `M4` as boundary arguments, so each milestone inherits every earlier one's named
 tests by construction. Three things to carry forward: M4's sandbox-viability claim still wants an
 out-of-sandbox confirmation at execution time; the Sonar row above will still be red when M3 lands

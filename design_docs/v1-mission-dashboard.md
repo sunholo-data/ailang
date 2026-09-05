@@ -19,6 +19,11 @@ publication" meant *fails to publish* — an arm now pins *never attempts*. **Ne
 
 ## Up next (banked, ranked)
 
+0. **`ci-red-mission-loop-workbench` — OUTRANKS EVERYTHING.** `dev` is red on SIX jobs (`lint`,
+   `docs-gate`, `docs-build`, `launchd drivers`, `test-windows`, `Build windows-latest`), all
+   inherited from a concurrent attended session's four workbench commits — the same set is red on
+   the commit before iteration 331's merge. `lint` is already fixed (one `ineffassign`); the rest
+   are not. A red dev is the owning mission's first deliverable and V1 owns this repo.
 1. **M3 then M4 of the in-flight sprint** — plan verified, cumulative gate already accepts both.
 2. `m-cachesrc-cognitive-complexity` — **new**: SonarCloud new-code maintainability red on M2's diff
    (rating 4, six `go:S3776`); non-required, but M3/M4 re-enter the same function and inherit it.
