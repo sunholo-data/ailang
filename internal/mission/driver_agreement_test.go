@@ -148,11 +148,13 @@ func TestDriverCopiesDoNotMultiply(t *testing.T) {
 	}
 	distinct := 1 // the shared one
 	var forks []string
+	observed := 0
 	for _, r := range roots[1:] {
 		body, rerr := os.ReadFile(r)
 		if rerr != nil {
 			continue // that clone is not on this machine
 		}
+		observed++
 		if string(body) == string(shared) {
 			continue // an exact mirror, kept in step by the pin
 		}
@@ -163,6 +165,17 @@ func TestDriverCopiesDoNotMultiply(t *testing.T) {
 		}
 		distinct++
 		forks = append(forks, r)
+	}
+	// The probe reads SIBLING directories of this checkout, so what it can see is a
+	// property of where the test runs, not of the fleet. From the main checkout the
+	// siblings are there; from any worktree — and from every CI runner, which clones
+	// one repo — none of them is, and `distinct` is 1 by construction. Reporting that
+	// as "a fork was removed" would be a fact about the filesystem wearing a finding's
+	// clothes, and lowering the ratchet to match would silently retire the invariant
+	// while world's fork is still on disk (measured: it is).
+	if observed == 0 {
+		t.Skipf("no sibling mission clone beside %s — the fleet is not observable from "+
+			"this checkout, so the ratchet cannot be evaluated here", filepath.Dir(roots[0]))
 	}
 	if distinct > knownDriverCopies {
 		t.Errorf("driver copies grew to %d (%v). A new fork is how world became invisible to "+
