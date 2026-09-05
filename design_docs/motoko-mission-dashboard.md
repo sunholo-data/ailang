@@ -1,26 +1,45 @@
 # Mission Dashboard — Motoko
 
-_Snapshot, overwritten each iteration. History lives in the charter STATUS block and the mission log._
+**Snapshot**: 2026-09-05, after iteration 35. Overwritten every iteration; history lives in
+`motoko-mission.md` (STATUS) and `motoko-mission-log.md`.
 
-**Last iteration**: 34 — 2026-09-03 — row 6o · **LANDED** as `b97cbf83c`..`684ab8331` (PR [#1034](https://github.com/sunholo-data/ailang/pull/1034), rebase-merged) · evaluator **PASS 96/100, zero blocking** · Gate 3b **GREEN 21/21**
+## Where the mission is
 
-## Where the goal is
-- Row 6o **CLOSED**. Its two defects are fixed, independently judged, and **CI-verified**: the suite goes 43 → 46 arms, and all three new arms run green on the macOS runner, not just locally.
-- The headline mutant (`kill -9 "-$pid"` → single-PID at probe:261) **survived at base** and is now the sole `not ok`. Row 6i's older coverage is intact.
+- **Epic**: `m-motoko-dst-refactor-migration` (gated; ungated work runs first). **Active thread**:
+  hardening `tools/eval/motoko_connection_probe.sh` + its self-test suite, rows 6a–6t.
+- **Bar clause 1** (the tree gates green from source): suite arm count **46 → 57** this iteration.
 
-## In flight / next
-- **Nothing in flight.** #1034 merged; the branch is deleted.
-- **Next pick**: row **6p** — derive the suite's wall-clock/node-ceiling bounds from a stimulus measured in-test, rather than hardcoding constants calibrated on one machine at one load.
-- Rows 10/11/12 stay Phase-0 parked: upstream `arniwesth/motoko_agent#154` still OPEN (re-measured this iteration, controls firing).
+## In flight
 
-## Dev CI — was red ~24h on five stacked defects; FIXED mid-iteration by V1 (`b51e53f78`)
-- Motoko blocked on it, handed both known causes to V1, and kept its own pick. The second cause (a `lint`/`make fmt` red on 7 Go files) was **net-new** — V1's in-flight #1030 did not cover it.
-- V1's fix found three further defects behind the first two. dev is green again; this iteration landed on the fixed base.
-- Retired: the `launchd drivers` leg is no longer blind — the probe suite is reached and motoko's arms run there.
+- **PR [#1048](https://github.com/sunholo-data/ailang/pull/1048)** — row 6p **M1 of 3**: the suite now
+  measures the host fork rate in-test and derives its bounds from it. Additive; nothing consumes the
+  scale yet. Evaluator PASS 81/100, its one blocking finding fixed in the PR.
 
-## Loop / routing
-- Controller `claude:claude-opus-5` · designer **`fable`** (rotation entry after the pointer's deepseek; Agent-tool pin) · planner **`opus`** (`derive-planner-lane.sh` → `opus fail-closed:planner-lane-field-missing`, verbatim) · executor **`codex:gpt-5.6-sol`** · evaluator **`sonnet`**, own worktree. generator≠judge holds.
-- **Metered $0.50** of the $5 ceiling (2 quorum rounds + 3 restored-reviewer re-runs). Fable: 2 bounded designer runs on ONE doc — within the diet.
+## Next picks (banked, ordered)
+
+1. **6p M2/M3** — wire the wall-clock class + enforce the floor + gate `p_obs` (M2); derive the node
+   ceiling on the discovery arm (M3). Both specified and unblocked; the executor's 30-min cap is the
+   only reason they are not in #1048.
+2. **6s** — no in-suite gate notices a self-test ARM disappearing; corroborated this iteration when
+   the evaluator added an arm and the suite stayed green.
+3. **6t** — Gate 3b's poll cannot reach its 30-min deadline inside a 10-min foreground tool call.
+
+## Loop cadence + routing
+
+- Controller `claude:claude-opus-5`. Designer **fable** (astra's first real run failed — see below).
+  Planner **codex:gpt-5.6-sol**. Executor **codex:gpt-5.6-sol**. Evaluator **sonnet**, own worktree.
+- **Two routing defects, both in the spawn-pin hook**: it enforces the DECLARED pin and knows nothing
+  about (a) fallbacks — a failed primary cannot be re-routed via the Agent tool at all — or (b)
+  `resolve-role-spawn.sh`'s derivation, which it contradicted for the planner.
+- **`codex:gpt-6-astra` failed its first real designer run**: rc=0, zero artifact, ~3 min, after a
+  passing probe. Fell back to fable, flagged.
 
 ## Parked on Mark
-**Nothing.** No open decision rows (ledger valid, 6 rows, 0 OPEN).
+
+**Nothing.** Decision ledger: 6 rows, **0 OPEN**.
+
+## Quota / cost posture
+
+Metered **$0.53** of the $5 iteration ceiling (2 quorum rounds + 1 absentee re-run). Quota buckets:
+opus (controller), fable (designer ×2 — the diet's one-doc allowance), sonnet (evaluator), codex
+subscription (planner, executor). No GPU, no `rig.lock`.
