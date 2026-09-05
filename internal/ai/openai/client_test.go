@@ -335,8 +335,8 @@ func TestUsesMaxCompletionTokens(t *testing.T) {
 		{"gpt-5.6-sol", true},
 		{"o1-preview", true},
 		{"o3-mini", true},
-		{"gpt-4", false},   // GPT-4 uses max_tokens
-		{"gpt-4o", false},  // 4o is generation 4, not "o"-series
+		{"gpt-4", false},  // GPT-4 uses max_tokens
+		{"gpt-4o", false}, // 4o is generation 4, not "o"-series
 		{"gpt-3.5-turbo", false},
 
 		// Regression: the gate must be generation-parsed, not a "gpt-5" literal.
