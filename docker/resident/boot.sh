@@ -115,8 +115,15 @@ if [ "$HAS_VERTEX" = "1" ]; then
   # Prefer explicit config; fall back to the metadata server rather than
   # guessing, and fail closed if neither answers — a Vertex provider with no
   # project would fail on every call, at call time, looking like a model fault.
+  # The metadata host is a SEAM, defaulted to the real one. The fail-closed
+  # branch below only happens when this lookup comes back empty, and inside
+  # Cloud Build the metadata server always answers — so without a way to point
+  # it at nothing, the assertion covering that branch could never pass in CI.
+  # It never did: added 2026-09-03, it failed every build from then on and the
+  # last green image predates it.
+  METADATA_HOST="${METADATA_HOST:-metadata.google.internal}"
   if [ -z "${GOOGLE_CLOUD_PROJECT:-}" ]; then
-    GOOGLE_CLOUD_PROJECT=$(curl -s --max-time 5 -H "Metadata-Flavor: Google"       http://metadata.google.internal/computeMetadata/v1/project/project-id 2>/dev/null || true)
+    GOOGLE_CLOUD_PROJECT=$(curl -s --max-time 5 -H "Metadata-Flavor: Google"       "http://${METADATA_HOST}/computeMetadata/v1/project/project-id" 2>/dev/null || true)
   fi
   [ -n "${GOOGLE_CLOUD_PROJECT:-}" ]     || die "the registry declares a google-vertex provider but GOOGLE_CLOUD_PROJECT is unset and the metadata server did not answer. Every model call would fail at call time looking like a model fault."
   # `global` is the default because the current Flash generation is served ONLY
@@ -125,7 +132,7 @@ if [ "$HAS_VERTEX" = "1" ]; then
   # matters more than the generation.
   export GOOGLE_CLOUD_PROJECT
   export GOOGLE_CLOUD_LOCATION="${GOOGLE_CLOUD_LOCATION:-global}"
-  log "vertex: ADC as $(curl -s --max-time 5 -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email 2>/dev/null || echo 'local ADC') project=$GOOGLE_CLOUD_PROJECT location=$GOOGLE_CLOUD_LOCATION"
+  log "vertex: ADC as $(curl -s --max-time 5 -H 'Metadata-Flavor: Google' "http://${METADATA_HOST}/computeMetadata/v1/instance/service-accounts/default/email" 2>/dev/null || echo 'local ADC') project=$GOOGLE_CLOUD_PROJECT location=$GOOGLE_CLOUD_LOCATION"
 fi
 
 # State plainly whether a long-lived secret reached the container. This is the

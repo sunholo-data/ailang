@@ -323,8 +323,13 @@ have "  ...defaulting to the global endpoint" 'echo "$out" | grep -q "location=g
 
 # Fail closed: a vertex provider with no project fails EVERY call at call time,
 # which reads as a model fault rather than a boot misconfiguration.
-out=$(MODELS_JSON="$VERTEX_REG" RESIDENT_PORT=8095 timeout 40 env -u GOOGLE_CLOUD_PROJECT \
-      /usr/local/bin/boot.sh 2>&1)
+# METADATA_HOST is pointed at a closed port, because unsetting the variable is
+# NOT enough: boot.sh falls back to the metadata server, and in Cloud Build the
+# metadata server answers, so the fail-closed branch is never reached and this
+# case asserted a state the environment could not produce. It failed every
+# build from the day it was added (2026-09-03) until the seam existed.
+out=$(MODELS_JSON="$VERTEX_REG" RESIDENT_PORT=8095 METADATA_HOST="127.0.0.1:1" \
+      timeout 40 env -u GOOGLE_CLOUD_PROJECT /usr/local/bin/boot.sh 2>&1)
 have "vertex without a project refuses to start" 'echo "$out" | grep -q "GOOGLE_CLOUD_PROJECT is unset"'
 have "  ...and names the consequence"            'echo "$out" | grep -q "looking like a model fault"'
 
@@ -363,8 +368,13 @@ have "telemetry suites pass in the image"   'echo "$out" | grep -q "fail 0"'
 # idle stop, which reads as a model problem rather than a storage one.
 have "staged sessions are fsynced to the mount" \
      'grep -q "fsyncSync" /usr/local/bin/lib/pi.mjs'
+# A CALL, not a mention. pi.mjs's comments necessarily NAME cpSync to explain
+# why it is gone — including inside /** */ blocks, which no `//` strip
+# reaches — so a bare grep matches the explanation and fails. That is the same
+# trap the "no setsid" assertion in section 6 already hit, twice now in one
+# file. Strip line and block comments, then look for an actual invocation.
 have "staging does not fall back to a plain cpSync" \
-     '! grep -q "cpSync" /usr/local/bin/lib/pi.mjs'
+     '! sed -e "s|//.*||" -e "/^[[:space:]]*[*]/d" /usr/local/bin/lib/pi.mjs | grep -qE "cpSync[[:space:]]*\("'
 
 # TWO planes, and only the second is what an operator reads. A resident that
 # emitted spans and no session would be "traced" and still absent from the view
