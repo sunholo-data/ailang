@@ -16,7 +16,24 @@ log() { echo "boot | $*"; }
 # runs under a command substitution, would hold its stdout open forever.
 die() { echo "boot | FATAL: $*" >&2; [ -n "${HEALTH_PID:-}" ] && kill "$HEALTH_PID" 2>/dev/null; exit 1; }
 HEALTH_PID=""
-cleanup() { [ -n "${HEALTH_PID:-}" ] && kill "$HEALTH_PID" 2>/dev/null; }
+# WAIT for the server to finish shutting down, do not just signal it.
+#
+# This script is PID 1, so Cloud Run's SIGTERM arrives HERE and the container is
+# torn down the moment this script exits. Signalling the child and returning
+# immediately gave the server no scheduling window at all: its SIGTERM handler
+# stages the task store to $AGENT_HOME, and a real stop mid-run recovered
+# NOTHING because the container died first. Signal, then wait — bounded, so a
+# server that will not go never holds the instance open (M6).
+cleanup() {
+  [ -n "${HEALTH_PID:-}" ] || return 0
+  kill "$HEALTH_PID" 2>/dev/null || return 0
+  for _ in $(seq 1 80); do
+    kill -0 "$HEALTH_PID" 2>/dev/null || return 0
+    sleep 0.1
+  done
+  log "WARN server did not exit within 8s of SIGTERM — killing"
+  kill -9 "$HEALTH_PID" 2>/dev/null
+}
 trap cleanup EXIT INT TERM
 
 PORT="${RESIDENT_PORT:-8080}"

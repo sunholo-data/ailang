@@ -223,11 +223,17 @@ export function reapOrphans() {
  * after a stop", which is only reachable if a test can seed the store. */
 export function adoptTask(task) { tasks.set(task.id, task); persist(); return task; }
 
+/** Drive a state transition without running pi. Same seam, same reason as
+ *  `adoptTask`: which transitions reach the mount is the thing M6 got wrong
+ *  live, so it has to be assertable without an agent. */
+export function setStateForTest(task, state, message) { setState(task, state, message); }
+
 export const getTask = (id) => tasks.get(id);
 export const listTasks = () => [...tasks.values()];
 
 function setState(task, state, message) {
   noteActivity();
+  const was = task.status?.state;
   task.status = { state, timestamp: new Date().toISOString(), ...(message ? { message } : {}) };
   persist();
   // M8: a transition is a fact about the run, and a run outlives the request
@@ -254,12 +260,23 @@ function setState(task, state, message) {
     span.recordError(new Error(why || "task failed"));
   }
   span.end();
-  // M6: stage the states worth surviving a stop. `working` is deliberately not
-  // one of them — the interactive watcher re-asserts it in a loop, and a
-  // gcsfuse write per iteration would make the checkpoint cost more than the
-  // run. Terminal states and `input-required` are the ones a caller may be
-  // waiting on for hours, which is exactly the window a sweep falls inside.
-  if (state !== TaskState.working && state !== TaskState.submitted) checkpoint();
+  // M6: stage the states worth surviving a stop.
+  //
+  // Terminal states and `input-required` are the ones a caller may wait hours
+  // on, which is exactly the window a sweep falls inside. Plus the FIRST
+  // transition into `working`, which is once per run and is what makes an
+  // in-flight run durable from the moment it starts.
+  //
+  // That last one was learned live: the first cut checkpointed only terminal
+  // states and SIGTERM, and a real stop mid-run recovered NOTHING. The shutdown
+  // flush is a race with the container teardown (boot.sh's TERM trap now waits
+  // for this process, which is the other half of the fix) — and a durability
+  // story whose only writer is the shutdown path is one signal away from
+  // nothing. Repeated `working` is still excluded: the interactive watcher
+  // re-asserts it in a loop and a gcsfuse write per iteration would cost more
+  // than the run.
+  const firstWorking = state === TaskState.working && was !== TaskState.working;
+  if ((state !== TaskState.working && state !== TaskState.submitted) || firstWorking) checkpoint();
   notify(task).catch((e) => console.error(`a2a | WARN push failed for ${task.id}: ${e.message}`));
 }
 

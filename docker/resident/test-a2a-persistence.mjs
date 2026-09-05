@@ -145,6 +145,47 @@ describe("task state survives the stop the sweep performs", () => {
     assert.ok(second.getTask("task-new"), "the local file is ahead of the checkpoint and wins");
   });
 
+  it("checkpoints a run the moment it starts working, not only at shutdown", async () => {
+    // Learned live, and the most important test here. The first cut staged only
+    // terminal states and SIGTERM; a real Cloud Run stop mid-run then recovered
+    // NOTHING, because PID 1 (boot.sh) exited before the server's handler could
+    // run. A durability story whose only writer is the shutdown path is one
+    // missed signal away from no durability at all.
+    const { stateDir, agentHome } = newRoots();
+    const mod = await bootResident({ stateDir, agentHome });
+    const t = mod.adoptTask({
+      kind: "task", id: "task-inflight", contextId: "ctx-i",
+      status: { state: "submitted", timestamp: new Date().toISOString() },
+      history: [], metadata: {},
+    });
+    mod.setStateForTest(t, "working");
+
+    // Nothing else has happened: no terminal state, no SIGTERM, no push config.
+    const file = join(agentHome, ".resident", "tasks.json");
+    assert.ok(existsSync(file), "an in-flight run must be on the mount already");
+    const onMount = JSON.parse(readFileSync(file, "utf8"));
+    assert.equal(onMount.tasks[0].id, "task-inflight");
+    assert.equal(onMount.tasks[0].status.state, "working");
+  });
+
+  it("does not re-checkpoint every working re-assertion", async () => {
+    // The interactive watcher sets `working` in a loop; a gcsfuse write per
+    // iteration would cost more than the run it is protecting.
+    const { stateDir, agentHome } = newRoots();
+    const mod = await bootResident({ stateDir, agentHome });
+    const t = mod.adoptTask({
+      kind: "task", id: "task-loop", contextId: "ctx-l",
+      status: { state: "submitted", timestamp: new Date().toISOString() },
+      history: [], metadata: {},
+    });
+    const file = join(agentHome, ".resident", "tasks.json");
+    mod.setStateForTest(t, "working");
+    const { statSync } = await import("node:fs");
+    const first = statSync(file).mtimeMs;
+    for (let i = 0; i < 5; i++) mod.setStateForTest(t, "working");
+    assert.equal(statSync(file).mtimeMs, first, "repeated `working` must not rewrite the mount");
+  });
+
   it("reads a pre-M6 bare-array state file", async () => {
     // The format gained a wrapper in M6. An instance restarting onto the new
     // image must not lose the tasks the old one left behind.
