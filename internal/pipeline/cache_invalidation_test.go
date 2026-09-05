@@ -15,6 +15,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/loader"
 	ailruntime "github.com/sunholo-data/ailang/internal/runtime"
+	"github.com/sunholo-data/ailang/internal/testutil"
 	"github.com/sunholo-data/ailang/internal/version"
 )
 
@@ -144,7 +145,7 @@ func TestCacheSource_ExactSnapshot(t *testing.T) {
 func TestCachePipeline_EmbeddedKeys(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
-	t.Setenv("HOME", filepath.Join(root, "home"))
+	testutil.SetHomeDir(t, filepath.Join(root, "home"))
 	t.Setenv("AILANG_STDLIB_PATH", filepath.Join(root, "missing-stdlib"))
 	t.Setenv("AILANG_CACHE_DIR", filepath.Join(root, "cache"))
 	if err := os.WriteFile("main.ail", []byte("module main\nexport pure func main() -> int = 1\n"), 0o644); err != nil {
