@@ -320,11 +320,21 @@ func liveRegistry(t *testing.T) *Registry {
 	return reg
 }
 
-// THE GATE, ON THE REAL RIG. The design doc's own rule: a drift detector that
-// reports a clean fleet is indistinguishable from one that is not looking. This test
-// FAILS if the doctor comes back clean, because three divergences were measured on
-// this machine on 2026-09-05 and none of them has been fixed by Phase 1.
-func TestLive_DoctorReproducesTheMeasuredDivergences(t *testing.T) {
+// THE LIVE CHECK. Its job is to verify the doctor reports the rig ACCURATELY — not to
+// require the rig stay broken.
+//
+// Both original gate assertions have now failed for the best possible reason: the
+// divergences they watched were fixed, by this tool finding them.
+//
+//	V4/V5 env-source-drift  — docs allowlist deployed 2026-09-05 (Phase 2)
+//	V8   path-no-sysctl     — all four plists regenerated with /usr/sbin (M6)
+//
+// The PERMANENT, deterministic proof that the doctor can find and name each class lives
+// in the fixture gates, which run in CI and cannot be fixed out from under themselves:
+// TestDoctor_GATE_V4_V5_EnvDriftIsFoundAndNamed and
+// TestDoctor_GATE_V8_PlistPATHWithoutSysctlIsFound. What remains here is conditional —
+// if a class returns, the finding must still be correct and specific.
+func TestLive_DoctorReportsTheRigAccurately(t *testing.T) {
 	reg := liveRegistry(t)
 	if len(reg.Missions) == 0 {
 		t.Skip("no missions installed on this machine (expected off-rig)")
@@ -334,68 +344,43 @@ func TestLive_DoctorReproducesTheMeasuredDivergences(t *testing.T) {
 		t.Logf("%s", f)
 	}
 
-	if !rep.HasDrift() {
-		t.Fatal("GATE FAILED: the doctor reports a clean fleet, but three divergences were " +
-			"measured on this rig and none is fixed. A clean report here means the doctor is not looking.")
-	}
-
-	// V8 — a plist setting a PATH without /usr/sbin. Measured on v1 and docs.
-	if got := findingsOfKind(rep, "path-no-sysctl"); len(got) == 0 {
-		t.Error("GATE: expected a path-no-sysctl finding (v1/docs plists omit /usr/sbin)")
-	} else {
-		for _, f := range got {
-			if f.Mission != "v1" && f.Mission != "docs" {
-				t.Errorf("unexpected mission %q flagged for PATH; motoko/world set no PATH key", f.Mission)
-			}
-		}
-	}
-
-	// V4/V5 — the reviewed copy is not what runs.
-	//
-	// FIXED 2026-09-05, BY THIS TOOL FINDING IT. The docs allowlist was deployed
-	// during Phase 2 and the finding disappeared, which broke this assertion — the
-	// most useful way a gate can fail. It is now CONDITIONAL: the permanent,
-	// deterministic proof that the doctor can find and name this class lives in
-	// TestDoctor_GATE_V4_V5_EnvDriftIsFoundAndNamed, which uses a fixture and cannot
-	// be silently fixed out from under itself. A live test that demands the fleet
-	// stay broken is not a gate, it is a hostage.
+	// Conditional: if env-source drift returns, it must still name the key.
 	for _, f := range findingsOfKind(rep, "env-source-drift") {
 		if f.Mission == "docs" && !strings.Contains(f.Detail, "MISSION_PLANNER_ALLOWLIST") {
-			t.Errorf("if docs drifts again the finding must still NAME the key that routes "+
-				"work to opus; got: %s", f.Detail)
+			t.Errorf("a returning docs drift must NAME the key that routes work to opus; got: %s", f.Detail)
+		}
+	}
+	// Conditional: if a PATH regression returns, it must only be on a mission that
+	// sets its own PATH, and must explain the consequence.
+	for _, f := range findingsOfKind(rep, "path-no-sysctl") {
+		if !strings.Contains(f.Detail, "sysctl") || !strings.Contains(f.Detail, "stagger") {
+			t.Errorf("%s: a PATH finding must explain the consequence; got: %s", f.Mission, f.Detail)
 		}
 	}
 
-	// The reach question: world is an unpinned fork. Both must be reported.
+	// STILL TRUE, and asserted so the check is not vacuous: world is an unpinned fork.
+	// This is Phase 3 work, gated on HD-2. When it is de-forked this assertion must be
+	// retired deliberately — the same way the two above were.
 	if _, ok := reg.Get("world"); ok {
 		if len(findingsOfKind(rep, "driver-fork")) == 0 {
-			t.Error("GATE: world's driver is a fork in sunholo-data/ailang-world and must be reported")
+			t.Error("world's driver is a fork in sunholo-data/ailang-world and must be reported")
 		}
-		var worldRow *Row
-		for i := range rep.Rows {
-			if rep.Rows[i].Name == "world" {
-				worldRow = &rep.Rows[i]
-			}
-		}
-		if worldRow == nil {
-			t.Fatal("no row for world")
-		}
-		if worldRow.Pinned {
-			t.Error("world must be reported as UNPINNED — it has no lib/pin-root.sh")
-		}
-		if !worldRow.Fork {
-			t.Error("world must be reported as a fork")
+		if len(findingsOfKind(rep, "no-pin")) == 0 {
+			t.Error("world has no lib/pin-root.sh and must be reported as unpinned")
 		}
 	}
 
-	// And the pinned missions must NOT be reported as unpinned — otherwise the
-	// check is a constant, not a measurement.
+	// The pinned missions must NOT be reported as unpinned, or the pin check is a
+	// constant rather than a measurement.
 	for _, row := range rep.Rows {
 		if row.Name == "world" {
 			continue
 		}
 		if !row.Pinned {
 			t.Errorf("%s should be pin-backed but was reported unpinned", row.Name)
+		}
+		if row.Fork {
+			t.Errorf("%s should not be a fork", row.Name)
 		}
 	}
 }
