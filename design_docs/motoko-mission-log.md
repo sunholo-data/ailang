@@ -3592,6 +3592,22 @@ merely fires. Its two non-blocking findings — a duplicated diag line and an AD
 suite green — are **corroboration, not new defects**: the second is row **6s**, filed by iteration 33's
 judge before this sprint and now independently reproduced by a different judge.
 
+**GATE 3b GREEN ON THE MERGE, AND THE RUNNER ANSWERED THE QUESTION THE QUORUM COULD NOT.** `0686d5b00`,
+**21** checks, **0** pending, **0** non-green, required **4/4**, and **`launchd drivers (bash 3.2):
+success`** — the only leg where this suite runs. Rebase-merged as `b4bfb04e1`..`137842bfd`, four commits
+kept so the milestone boundaries stay bisectable. The derivation **executed on the GitHub runner** and
+published `r=318/s r_real=251/s p_obs=1.27 reference=400/s scale=2 arm_cap=240s node_ceiling=5088
+floor=DISABLED` — **the first measurement of that runner row 6j has ever had.** Three consequences M2
+needed and nobody could previously state: the runner derives **scale=2**, i.e. it wants a **240s** arm
+cap, so the hardcoded **120s was too tight for it** — row 6j's blowout with a number attached;
+**`p_obs=1.27`** on the runner, inside the budgeted `P_PROXY=2` and far inside the 4.7 tolerance, which
+answers `oc-glm-5-2`'s objection (*"no CI runner has been measured"*) with a measurement; and
+`floor=DISABLED` with **no** `BOUND_FLOOR_NOT_ENFORCED` line (318 > the 100/s floor), so **M2's floor
+flip is measured-safe.** One instrument failure of my own, caught by its own control: a grep for the new
+arms BY NAME in the CI log returned **0**, and so did its known-positive control — the grep was broken,
+not the arms absent (rule 3a). The load-bearing evidence is `PASS: 57 probe self-test arms ran` in that
+job's log, present, with a shape-matched negative control at 0.
+
 **Routing evidence**: task-class=design model=`fable` via the `claude:` recipe (`claude-sub`, probe
 rc=0), **after** `codex:gpt-6-astra` (`resolve-role-spawn.sh designer` → `recipe codex:gpt-6-astra
 declared:provider-pin`, probe rc=0, real run rc=0 with **zero artifact**) — FLAGGED, and the
