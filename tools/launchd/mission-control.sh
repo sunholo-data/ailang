@@ -707,6 +707,15 @@ fi
 # This stays the rotation SEED. Astra (2026-09-05) is an ADDITIONAL fable-class ENTRY in the
 # skill's rotation, not a replacement for this slot, so nothing here moves.
 export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-fable-5-1}"
+# DESIGNER FALLBACK (2026-09-05). The seed above is Anthropic, and until now the
+# designer was the one role with NO chain behind it in this driver — the skill's
+# three-entry rotation (fable -> astra -> deepseek) is what actually spans providers,
+# and it is owned by the SKILL, not here. This chain therefore covers only the case
+# the rotation cannot: a designer PINNED via MISSION_DESIGNER_MODEL, where a dry
+# Anthropic bucket would otherwise leave the role with nowhere to go. Same rungs as
+# the rotation, in the same order, so a pinned designer degrades the way a rotating
+# one does.
+export MISSION_DESIGNER_FALLBACK="${MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra,pi:ollama/deepseek-v4-flash:0731-cloud,pi:openrouter/deepseek/deepseek-v4-flash-0731}"
 # Per-iteration METERED-spend ceiling (2026-07-18, Mark: "make sure costs don't go crazy"):
 # the sum of all metered-API spend (codex $ + gemini $) within ONE iteration must stay under
 # this. Enforced by the skill's Gate-3 metered ledger; quota-bucket (subscription) spend is
@@ -830,6 +839,53 @@ export MISSION_PLANNER_FALLBACK="${MISSION_PLANNER_FALLBACK:-pi:ollama/kimi-k3:c
 # wedging or silently inheriting the failed controller. derive-planner-lane.sh
 # applies this only when MISSION_ANTHROPIC_AVAILABLE=0.
 export MISSION_PLANNER_ANTHROPIC_FALLBACK="${MISSION_PLANNER_ANTHROPIC_FALLBACK:-codex:gpt-5.6-sol}"
+# evaluator default = sonnet (2026-07-16, Mark directive on #399: "default can be gemini (if able
+# to git clone the codebase etc)? otherwise sonnet-5"). gemini managed_agents is NOT viable as the
+# evaluator today — VERIFIED iteration 38: (1) architecturally the request body carries only
+# Directive+SystemPrompt over a server-side CapRemoteSandbox (managed_agents.go:164), so it cannot
+# see the sprint's UNCOMMITTED worktree changes nor re-run local tests — at most it could clone the
+# public origin/dev, which lacks the changes; (2) the backend live-timed-out (http2 timeout, same
+# class as iters 36-37). So the ladder resolves to sonnet-5: pinnable via the Agent tool (fable is
+# not — F1), distinct from the opus executor (generator≠judge holds), cheap, behavioral (re-runs
+# tests locally). This also RETIRES the per-iteration fable→sonnet re-route (iters 31/36) into a
+# standing default. gemini-as-evaluator is a queued follow-up (diff-bridge + backend reliability).
+export MISSION_EVALUATOR_MODEL="${MISSION_EVALUATOR_MODEL:-sonnet}"
+# NO-SINGLE-PROVIDER-ROLE (Mark 2026-08-26, attended: "make sure each role is not
+# only reliant on one provider"). The evaluator was the last role with no fallback
+# at all — sonnet or nothing — so an Anthropic outage wedged Gate 4 while every
+# other role had a cross-provider chain.
+#
+# minimax-m3, after TWO corrections in one session — both caught by a guard, not
+# by taste. First pick glm-5.2 (retracted-verdict narrative) carries the SMALLEST
+# headroom of the top tier: max_completion 262,144, and thinking-token truncation
+# is exactly what produced glm-5.2's bogus 78%. Second pick deepseek-v4-pro fixed
+# headroom (943,717) but shares VENDOR AND GENERATION with the executor
+# (deepseek-v4-flash) — different models, but a shared systematic blind spot is
+# precisely what generator!=judge exists to prevent, and the distinctness test
+# went red on it.
+#
+# minimax-m3 satisfies all three at once: independent vendor (MiniMax, distinct
+# from Moonshot/kimi-k3 planner and DeepSeek/deepseek-flash executor), 512,000
+# headroom (~2x glm-5.2), and the HIGHEST banked agent-mode score of any model we
+# have measured (95.6%, n=160) — which is the right instrument here, because it
+# measures driving our harness rather than raw capability.
+#
+# Runs LOCALLY via pi, so unlike gemini managed_agents it sees the sprint's
+# uncommitted worktree and can re-run tests — the requirement that disqualified
+# gemini at iteration 38. Both rungs probed rc=0, not assumed.
+#
+# HONEST LIMIT: the skill's generator!=judge guard compares PROVIDERS. If the
+# executor has ALSO degraded to a pi lane, the guard will FLAG the collision.
+# That is correct visible behaviour, and the guard stays the authority.
+# CODEX RUNG ADDED 2026-09-05 (Mark, attended: keep the loops running past the Friday
+# Anthropic exhaustion now that codex is paid for). Deliberately LAST, not first: the
+# executor is codex:gpt-5.6-sol, so an astra judge is the vendor-level generator==judge
+# collision. minimax (an independent vendor) keeps the first rung; astra stands only
+# between 'judged by the executor's own vendor' and NO JUDGE AT ALL, which is the
+# trade that buys a weekend. The skill's generator!=judge guard still FLAGS it when it
+# fires — that visibility is the point, and the guard stays the authority.
+export MISSION_EVALUATOR_FALLBACK="${MISSION_EVALUATOR_FALLBACK:-pi:ollama/minimax-m3:cloud,pi:openrouter/minimax/minimax-m3,codex:gpt-6-astra}"
+
 # Codex-lane pre-flight, ROLE-GENERIC (m-planner-codex-lane): probe once per DISTINCT
 # codex model, fall back per-role on ANY non-zero rc (#486: probe MUST carry --model;
 # an unusable pin is exactly as fatal as spent quota). Export AFTER fallback so the
@@ -874,7 +930,74 @@ _chain_tail() { case "$1" in *,*) printf '%s' "${1#*,}" ;; *) printf '' ;; esac;
 _lane_degraded=""   # newline-delimited markdown bullets, one per degraded role
 _cx_rcmap=""        # "model=rc;" so the emit site names the probe's exit code, not just the lane
 _pi_rcmap=""
-for role in PLANNER EXECUTOR; do
+# ANTHROPIC-LANE PRE-FLIGHT, ROLE-GENERIC (2026-09-05, Mark attended: "give me rotation
+# and fallbacks to codex so we can keep going on the missions ... before we usually ran out
+# of quota on friday"). THIS is the rung that was missing, and its absence is why a drought
+# did not pause the fleet so much as half-run it.
+#
+# The two loops below only ever look at `codex:*` and `pi:*` values, so a role pinned to an
+# ANTHROPIC model — the `sonnet` evaluator, a `claude:*` designer — was never probed by
+# anything. On a dry bucket the controller would fall to its own codex rung and the
+# iteration would START, then die at the first Anthropic-only gate. Continues the
+# NO-SINGLE-PROVIDER-ROLE directive (Mark 2026-08-26) from declaring chains to actually
+# walking them: MISSION_<ROLE>_FALLBACK existed for the evaluator since that day, and
+# nothing on any code path read it (the skill greps zero MISSION_*_FALLBACK, verified).
+#
+# Placed BEFORE the codex loop on purpose: a role handed from anthropic to `codex:gpt-6-astra`
+# is then probed by that loop, and on to pi by the next — one chain across three providers,
+# not three disconnected pre-flights.
+#
+# Cost is one `claude -p` per DISTINCT anthropic model per fire (deduped, same as the codex
+# and pi loops), and `_mc_probe` already distinguishes quota-limited (rc=1) from unusable
+# (rc=2) — a distinction the degradation ledger reports, because "Friday" and "broken pin"
+# have very different resume conditions.
+# BASH 3.2 (L19/L21): ':'-delimited string sets, no associative arrays, no ${var,,}.
+_an_probed=":"   # anthropic models probed this fire
+_an_failed=":"   # anthropic models whose probe failed
+_an_rcmap=""     # "model=rc;" so the emit site names the probe's exit code
+for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
+  var="MISSION_${role}_MODEL"; val="${!var:-}"
+  # Only anthropic-shaped values: a bare Agent alias (sonnet/opus) or an explicit claude: pin.
+  case "$val" in
+    ""|codex:*|pi:*) continue ;;
+  esac
+  an_model="${val#claude:}"
+  case "$_an_probed" in *":${an_model}:"*) : ;; *)   # not yet probed
+    _an_probed="${_an_probed}${an_model}:"
+    _mc_probe "$an_model"; an_rc=$?
+    if [ "$an_rc" -ne 0 ]; then
+      _an_failed="${_an_failed}${an_model}:"
+      if [ "$an_rc" -eq 1 ]; then an_why="quota-limited"; else an_why="unusable (rc=$an_rc)"; fi
+      log "anthropic model '$an_model' $an_why"
+      _an_rcmap="${_an_rcmap}${an_model}=${an_rc};"
+    fi
+  ;; esac
+  case "$_an_failed" in *":${an_model}:"*)
+    role_lc=$(printf '%s' "$role" | tr 'A-Z' 'a-z')   # ${role,,} is bash-4.0-only (L21)
+    fbvar="MISSION_${role}_FALLBACK"; _chain="${!fbvar:-}"
+    _an_rc_for=$(printf '%s' "$_an_rcmap" | tr ';' '\n' | grep "^${an_model}=" | head -1 | cut -d= -f2)
+    [ -n "$_an_rc_for" ] || _an_rc_for="unknown"
+    # NO implicit opus tail here, unlike the codex loop. Opus IS anthropic, so on the exact
+    # failure this loop exists for it is the one destination guaranteed to be dry too —
+    # handing to it would launder a drought into a second failure one gate later. A role
+    # with no chain keeps its pin and is reported, which the skill can see and act on.
+    if [ -z "$_chain" ]; then
+      log "anthropic ${role_lc} lane '$an_model' $an_why and NO fallback chain configured — pin kept, reported to the ledger"
+      _lane_degraded="${_lane_degraded}
+- \`${role_lc}\`: **anthropic** lane \`${an_model}\` unusable (probe rc=\`${_an_rc_for}\`) → NO fallback chain, pin kept"
+      continue
+    fi
+    fb=$(_chain_head "$_chain")
+    remvar="MISSION_${role}_CHAIN_REMAINING"
+    printf -v "$remvar" '%s' "$(_chain_tail "$_chain")"; export "$remvar"
+    log "anthropic ${role_lc} lane -> falling back to '$fb' for this fire (model '$an_model', $an_why)"
+    _lane_degraded="${_lane_degraded}
+- \`${role_lc}\`: **anthropic** lane \`${an_model}\` unusable (probe rc=\`${_an_rc_for}\` — ${an_why}) → handed to \`${fb}\`"
+    printf -v "$var" '%s' "$fb"; export "$var"
+  ;; esac
+done
+
+for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
   var="MISSION_${role}_MODEL"; val="${!var}"
   case "$val" in codex:*)
     cx_model="${val#codex:}"
@@ -899,7 +1022,12 @@ for role in PLANNER EXECUTOR; do
       # is probed by the pi loop below, which degrades to opus on its own failure —
       # that is what makes codex -> deepseek -> opus a real chain. `%s` rather than
       # a bare format string: the value is data, and a stray % would be a directive.
-      fbvar="MISSION_${role}_FALLBACK"; _chain="${!fbvar:-opus}"
+      # Continue an in-flight chain if the anthropic pre-flight already started one,
+      # otherwise start this role's chain from the top. Without this an
+      # anthropic->codex handoff whose codex rung then fails would RESTART at the
+      # head of _FALLBACK — i.e. hand back to the codex rung that just failed.
+      remvar="MISSION_${role}_CHAIN_REMAINING"; _chain="${!remvar:-}"
+      [ -n "$_chain" ] || { fbvar="MISSION_${role}_FALLBACK"; _chain="${!fbvar:-opus}"; }
       fb=$(_chain_head "$_chain")
       # Remember what is left so the pi loop can advance instead of jumping to opus.
       remvar="MISSION_${role}_CHAIN_REMAINING"
@@ -922,7 +1050,7 @@ done
 # ~/.pi/sessions. BASH 3.2 (L19): ':'-delimited string sets, NOT associative arrays.
 _pi_probed=":"   # models probed this fire (dedupe: planner+executor could share one)
 _pi_failed=":"   # models whose probe failed
-for role in PLANNER EXECUTOR; do
+for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
   var="MISSION_${role}_MODEL"
   # while-loop so a chain advance re-enters the probe for the NEW value; a
   # non-pi value (or a settled pi value) breaks out at the bottom.
@@ -970,45 +1098,6 @@ for role in PLANNER EXECUTOR; do
   break
   done
 done
-# evaluator default = sonnet (2026-07-16, Mark directive on #399: "default can be gemini (if able
-# to git clone the codebase etc)? otherwise sonnet-5"). gemini managed_agents is NOT viable as the
-# evaluator today — VERIFIED iteration 38: (1) architecturally the request body carries only
-# Directive+SystemPrompt over a server-side CapRemoteSandbox (managed_agents.go:164), so it cannot
-# see the sprint's UNCOMMITTED worktree changes nor re-run local tests — at most it could clone the
-# public origin/dev, which lacks the changes; (2) the backend live-timed-out (http2 timeout, same
-# class as iters 36-37). So the ladder resolves to sonnet-5: pinnable via the Agent tool (fable is
-# not — F1), distinct from the opus executor (generator≠judge holds), cheap, behavioral (re-runs
-# tests locally). This also RETIRES the per-iteration fable→sonnet re-route (iters 31/36) into a
-# standing default. gemini-as-evaluator is a queued follow-up (diff-bridge + backend reliability).
-export MISSION_EVALUATOR_MODEL="${MISSION_EVALUATOR_MODEL:-sonnet}"
-# NO-SINGLE-PROVIDER-ROLE (Mark 2026-08-26, attended: "make sure each role is not
-# only reliant on one provider"). The evaluator was the last role with no fallback
-# at all — sonnet or nothing — so an Anthropic outage wedged Gate 4 while every
-# other role had a cross-provider chain.
-#
-# minimax-m3, after TWO corrections in one session — both caught by a guard, not
-# by taste. First pick glm-5.2 (retracted-verdict narrative) carries the SMALLEST
-# headroom of the top tier: max_completion 262,144, and thinking-token truncation
-# is exactly what produced glm-5.2's bogus 78%. Second pick deepseek-v4-pro fixed
-# headroom (943,717) but shares VENDOR AND GENERATION with the executor
-# (deepseek-v4-flash) — different models, but a shared systematic blind spot is
-# precisely what generator!=judge exists to prevent, and the distinctness test
-# went red on it.
-#
-# minimax-m3 satisfies all three at once: independent vendor (MiniMax, distinct
-# from Moonshot/kimi-k3 planner and DeepSeek/deepseek-flash executor), 512,000
-# headroom (~2x glm-5.2), and the HIGHEST banked agent-mode score of any model we
-# have measured (95.6%, n=160) — which is the right instrument here, because it
-# measures driving our harness rather than raw capability.
-#
-# Runs LOCALLY via pi, so unlike gemini managed_agents it sees the sprint's
-# uncommitted worktree and can re-run tests — the requirement that disqualified
-# gemini at iteration 38. Both rungs probed rc=0, not assumed.
-#
-# HONEST LIMIT: the skill's generator!=judge guard compares PROVIDERS. If the
-# executor has ALSO degraded to a pi lane, the guard will FLAG the collision.
-# That is correct visible behaviour, and the guard stays the authority.
-export MISSION_EVALUATOR_FALLBACK="${MISSION_EVALUATOR_FALLBACK:-pi:ollama/minimax-m3:cloud,pi:openrouter/minimax/minimax-m3}"
 
 # 1. Kill switch — the intended "off" state, exit silently.
 if [ -f "$KILL_SWITCH" ]; then

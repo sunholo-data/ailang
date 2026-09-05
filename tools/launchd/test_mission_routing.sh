@@ -217,8 +217,32 @@ grep -v '^[[:space:]]*#' "$driver" | grep -q 'claude-opus-4-8' \
   || ok "opus-4.8 stays removed"
 # NO-SINGLE-PROVIDER-ROLE: the evaluator was the only role with no fallback at
 # all. Every role must now name at least two providers across its chain.
-grep -q 'MISSION_EVALUATOR_FALLBACK:-pi:ollama/minimax-m3:cloud,pi:openrouter/minimax/minimax-m3}' "$driver" \
-  && ok "evaluator chain is ollama -> openrouter twin" || bad "evaluator chain is ollama -> openrouter twin" "missing evaluator chain"
+grep -q 'MISSION_EVALUATOR_FALLBACK:-pi:ollama/minimax-m3:cloud,pi:openrouter/minimax/minimax-m3,codex:gpt-6-astra}' "$driver" \
+  && ok "evaluator chain is ollama -> openrouter twin -> codex tail" || bad "evaluator chain is ollama -> openrouter twin -> codex tail" "missing evaluator chain"
+# The codex rung must stay LAST. The executor is codex:gpt-5.6-sol, so promoting a codex
+# judge above minimax would make the vendor-level generator==judge collision the DEFAULT
+# rather than the last resort before having no judge at all (2026-09-05).
+grep -q 'MISSION_EVALUATOR_FALLBACK:-codex:' "$driver" \
+  && bad "codex is the evaluator's LAST rung" "a codex judge was promoted to the head of the chain" \
+  || ok "codex is the evaluator's LAST rung"
+# ANTHROPIC PRE-FLIGHT (2026-09-05). The codex and pi loops only ever inspect codex:*
+# and pi:* values, so before this existed an anthropic-pinned role (the sonnet evaluator,
+# a claude:* designer) was probed by NOTHING and a dry bucket killed it mid-iteration.
+grep -q '_an_probed' "$driver" && grep -q '_mc_probe "\$an_model"' "$driver" \
+  && ok "anthropic lanes get a role pre-flight" || bad "anthropic lanes get a role pre-flight" "no anthropic role probe"
+# It must NOT tail to opus. Opus is anthropic, so on the exact failure this loop exists for
+# it is guaranteed dry too — an opus tail would launder a drought into a later failure.
+grep -A40 '_an_probed=' "$driver" | grep -q "fbvar=\"MISSION_\${role}_FALLBACK\"; _chain=\"\${!fbvar:-}\"" \
+  && ok "anthropic pre-flight has no implicit opus tail" \
+  || bad "anthropic pre-flight has no implicit opus tail" "an opus default crept into the anthropic chain"
+# All four roles must be walked by ALL THREE provider loops (anthropic, codex, pi), or a
+# role's chain is decoration on whichever loop skipped it.
+[ "$(grep -c 'for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do' "$driver")" = "3" ] \
+  && ok "all three provider loops cover all four roles" \
+  || bad "all three provider loops cover all four roles" "a loop still covers only PLANNER EXECUTOR"
+# The designer needs a chain for the PINNED case; the rotation covers the rotating one.
+grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra' "$driver" \
+  && ok "pinned designer has a codex rung" || bad "pinned designer has a codex rung" "designer chain missing"
 # The chain walker must exist, or a comma value would be passed to pi as ONE
 # model name and every fallback would 404.
 grep -q '_chain_head()' "$driver" && grep -q 'CHAIN_REMAINING' "$driver" \
