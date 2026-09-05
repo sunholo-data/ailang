@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -113,9 +114,14 @@ const sharedDriverRepo = "sunholo-data/ailang"
 // world fork invisible to every routing fix landed upstream.
 const pinSentinel = `. "$REPO/tools/launchd/lib/pin-root.sh"`
 
-// Doctor inspects every registered mission. It is READ-ONLY by construction: it opens
-// no file for writing and shells out to nothing.
-func Doctor(reg *Registry, p Paths) *Report {
+// Doctor inspects every registered mission. It is READ-ONLY: it opens no file for
+// writing. It may READ launchd's loaded state via the injected LaunchCtl (print only),
+// which is how it sees the difference between a plist on disk and the job actually
+// running. Pass a nil LaunchCtl to skip that check.
+func Doctor(reg *Registry, p Paths) *Report { return DoctorWith(reg, p, nil) }
+
+// DoctorWith is Doctor plus the loaded-job check.
+func DoctorWith(reg *Registry, p Paths, lc LaunchCtl) *Report {
 	rep := &Report{}
 	for _, m := range reg.Missions {
 		row := Row{Name: m.Name, Repo: m.Repo, Schedule: describeSchedule(m.Sched), Driver: m.DriverPath()}
@@ -189,6 +195,29 @@ func Doctor(reg *Registry, p Paths) *Report {
 			if hasPATHKey(s) && !strings.Contains(s, "/usr/sbin") {
 				add("path-no-sysctl", Drift,
 					"%s sets a PATH without /usr/sbin — `sysctl` unreachable, boot stagger inert (mitigated in-driver, still wrong here)", plistPath)
+			}
+		}
+
+		// ── 2b. the FILE is not the JOB ──────────────────────────────────────
+		// The blind spot Phase 2 created, and it bit immediately: v1's plist was
+		// promoted with --no-reload while it was mid-iteration, so the file on disk
+		// is the generated one while launchd still holds the pre-adoption config.
+		// Every file-based check passes and the mission runs old settings.
+		//
+		// launchd reads a plist ONCE, at bootstrap. Editing the file afterwards
+		// changes nothing until a reload, so "installed" and "loaded" are two
+		// different questions and only one of them is about what is running.
+		if lc != nil && len(plistBody) > 0 {
+			loaded, lerr := lc.Print(m.Label())
+			switch {
+			case lerr != nil:
+				add("job-not-loaded", Drift, "%s is installed but launchd has no such job — it will not run until bootstrapped", m.Label())
+			default:
+				for _, mm := range loadedMismatches(string(plistBody), loaded) {
+					add("loaded-stale", Drift,
+						"launchd is running an OLDER config than %s: %s. The file changed but the job was never reloaded (`ailang mission apply %s`)",
+						plistPath, mm, m.Name)
+				}
 			}
 		}
 
@@ -274,4 +303,53 @@ func changedKeys(live, want string) []string {
 		return []string{"(comments/whitespace only)"}
 	}
 	return keys
+}
+
+// loadedPathRe pulls the stdout/stderr path out of `launchctl print` output.
+var loadedPathRe = regexp.MustCompile(`std(?:out|err) path = (\S+)`)
+
+// loadedMismatches compares the fields of a plist FILE against what launchd reports
+// as loaded. It deliberately checks only fields launchd prints verbatim and that this
+// package authors — comparing everything would produce noise from launchd's own
+// derived keys and train the reader to ignore the finding.
+func loadedMismatches(plistFile, loaded string) []string {
+	var out []string
+
+	// Log paths: the clearest tell, because this package changed them and launchd
+	// prints them plainly.
+	wantLog := ""
+	if m := regexp.MustCompile(`<key>StandardOutPath</key>\s*<string>([^<]+)</string>`).FindStringSubmatch(plistFile); m != nil {
+		wantLog = m[1]
+	}
+	if wantLog != "" {
+		found := false
+		for _, m := range loadedPathRe.FindAllStringSubmatch(loaded, -1) {
+			if m[1] == wantLog {
+				found = true
+				break
+			}
+		}
+		if !found {
+			got := "none"
+			if m := loadedPathRe.FindStringSubmatch(loaded); m != nil {
+				got = m[1]
+			}
+			out = append(out, fmt.Sprintf("stdout path is %s, file says %s", got, wantLog))
+		}
+	}
+
+	// PATH: the V8 surface. A loaded PATH without /usr/sbin means the boot stagger
+	// is still inert on that job however good the file is.
+	if strings.Contains(plistFile, "/usr/sbin") && !strings.Contains(loaded, "/usr/sbin") {
+		out = append(out, "loaded PATH has no /usr/sbin although the file does (boot stagger still inert on the running job)")
+	}
+
+	// Schedule: a loaded StartInterval where the file says KeepAlive means the
+	// cadence change never took effect.
+	fileKeepAlive := strings.Contains(plistFile, "<key>KeepAlive</key>")
+	loadedInterval := strings.Contains(loaded, "run interval =") || strings.Contains(loaded, "StartInterval")
+	if fileKeepAlive && loadedInterval {
+		out = append(out, "file says KeepAlive but the loaded job still has an interval — the cadence change has not taken effect")
+	}
+	return out
 }

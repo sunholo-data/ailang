@@ -119,7 +119,7 @@ func missionDoctor(args []string) error {
 		}
 		reg = &mission.Registry{Missions: []*mission.Mission{m}}
 	}
-	rep := mission.Doctor(reg, mission.DefaultPaths())
+	rep := mission.DoctorWith(reg, mission.DefaultPaths(), mission.NewLaunchCtl())
 	for _, f := range rep.Findings {
 		fmt.Println(f)
 	}

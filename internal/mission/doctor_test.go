@@ -1,6 +1,7 @@
 package mission
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -260,4 +261,126 @@ func findingStrings(r *Report) []string {
 		out = append(out, f.String())
 	}
 	return out
+}
+
+// ── the FILE is not the JOB ───────────────────────────────────────────────────
+// launchd reads a plist ONCE, at bootstrap. Editing the file afterwards changes
+// nothing until a reload, so every file-based check can pass while the mission runs
+// old settings. Phase 2 created this blind spot the moment it promoted v1's plist
+// with --no-reload, and these tests are what close it.
+
+// printingLaunchCtl returns canned `launchctl print` output.
+type printingLaunchCtl struct {
+	out string
+	err error
+}
+
+func (p *printingLaunchCtl) Bootout(string) error         { return nil }
+func (p *printingLaunchCtl) Bootstrap(string) error       { return nil }
+func (p *printingLaunchCtl) Print(string) (string, error) { return p.out, p.err }
+
+func TestDoctor_LoadedConfigOlderThanTheFileIsDrift(t *testing.T) {
+	f := newFleet(t)
+	env := "MISSION_NAME=alpha\nMISSION_REPO=sunholo-data/ailang\nMISSION_DOC=d.md\n"
+	m := f.addMission("alpha", sharedDriverRepo, Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 5400},
+		env, "<key>StandardOutPath</key><string>/tmp/new.launchd.log</string><key>PATH</key><string>/usr/bin:/usr/sbin</string>", true)
+	rendered, _ := RenderEnv(m, []byte(env))
+	_ = os.WriteFile(f.p.EnvPath("alpha"), rendered, 0o600)
+
+	// launchd still holds the PRE-adoption config: old log path, no /usr/sbin.
+	lc := &printingLaunchCtl{out: "\tstate = running\n\tstdout path = /tmp/old.stdout\n\tstderr path = /tmp/old.stderr\n\t\tPATH => /usr/bin:/bin\n"}
+
+	rep := DoctorWith(f.reg, f.p, lc)
+	got := findingsOfKind(rep, "loaded-stale")
+	if len(got) == 0 {
+		t.Fatalf("a loaded config older than the file must be DRIFT. Findings:\n%s", strings.Join(findingStrings(rep), "\n"))
+	}
+	d := got[0].Detail
+	if !strings.Contains(d, "/tmp/old.stdout") || !strings.Contains(d, "/tmp/new.launchd.log") {
+		t.Errorf("the finding must name BOTH sides of the disagreement; got: %s", d)
+	}
+	if !strings.Contains(d, "mission apply alpha") {
+		t.Errorf("the finding should name the command that fixes it; got: %s", d)
+	}
+}
+
+// The V8 surface specifically: a loaded PATH without /usr/sbin means the boot stagger
+// is still inert on the RUNNING job however good the file is.
+func TestDoctor_LoadedPATHWithoutSysctlIsDriftEvenWhenTheFileIsFixed(t *testing.T) {
+	f := newFleet(t)
+	env := "MISSION_NAME=alpha\nMISSION_REPO=sunholo-data/ailang\nMISSION_DOC=d.md\n"
+	m := f.addMission("alpha", sharedDriverRepo, Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 5400},
+		env, "<key>StandardOutPath</key><string>/tmp/x.launchd.log</string><key>PATH</key><string>/usr/bin:/usr/sbin</string>", true)
+	rendered, _ := RenderEnv(m, []byte(env))
+	_ = os.WriteFile(f.p.EnvPath("alpha"), rendered, 0o600)
+
+	lc := &printingLaunchCtl{out: "\tstate = running\n\tstdout path = /tmp/x.launchd.log\n\t\tPATH => /usr/bin:/bin\n"}
+	rep := DoctorWith(f.reg, f.p, lc)
+	found := false
+	for _, fi := range findingsOfKind(rep, "loaded-stale") {
+		if strings.Contains(fi.Detail, "/usr/sbin") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("a loaded PATH lacking /usr/sbin must be reported even though the FILE has it. Findings:\n%s",
+			strings.Join(findingStrings(rep), "\n"))
+	}
+}
+
+// The complement, and it carries the weight: a job whose loaded config MATCHES must
+// not be flagged, or the check is a constant and gets ignored.
+func TestDoctor_MatchingLoadedConfigIsNotFlagged(t *testing.T) {
+	f := newFleet(t)
+	env := "MISSION_NAME=alpha\nMISSION_REPO=sunholo-data/ailang\nMISSION_DOC=d.md\n"
+	m := f.addMission("alpha", sharedDriverRepo, Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 5400},
+		env, "<key>StandardOutPath</key><string>/tmp/match.launchd.log</string><key>PATH</key><string>/usr/bin:/usr/sbin</string>", true)
+	rendered, _ := RenderEnv(m, []byte(env))
+	_ = os.WriteFile(f.p.EnvPath("alpha"), rendered, 0o600)
+
+	lc := &printingLaunchCtl{out: "\tstate = running\n\tstdout path = /tmp/match.launchd.log\n\t\tPATH => /usr/bin:/usr/sbin\n"}
+	if got := findingsOfKind(DoctorWith(f.reg, f.p, lc), "loaded-stale"); len(got) != 0 {
+		t.Errorf("a matching loaded config must NOT be flagged; got %v", got)
+	}
+}
+
+// An installed plist that launchd has never bootstrapped will never run.
+func TestDoctor_InstalledButNotLoadedIsDrift(t *testing.T) {
+	f := newFleet(t)
+	env := "MISSION_NAME=alpha\nMISSION_REPO=sunholo-data/ailang\nMISSION_DOC=d.md\n"
+	m := f.addMission("alpha", sharedDriverRepo, Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 5400}, env, "", true)
+	rendered, _ := RenderEnv(m, []byte(env))
+	_ = os.WriteFile(f.p.EnvPath("alpha"), rendered, 0o600)
+
+	lc := &printingLaunchCtl{err: errors.New("could not find service")}
+	rep := DoctorWith(f.reg, f.p, lc)
+	got := findingsOfKind(rep, "job-not-loaded")
+	if len(got) == 0 {
+		t.Fatal("an installed-but-unloaded job must be reported — it will never run")
+	}
+	// SEVERITY IS THE POINT, and a mutation caught this assertion missing: a job
+	// launchd has never bootstrapped does not run at all. Downgrading that to a note
+	// would let `doctor` exit 0 on a mission that is simply absent.
+	if got[0].Severity != Drift {
+		t.Errorf("an unloaded job is %s, not %s — the mission is not running", Drift, got[0].Severity)
+	}
+	if !rep.HasDrift() || rep.ExitCode() != 1 {
+		t.Errorf("an unloaded job must fail the run: HasDrift=%v exit=%d", rep.HasDrift(), rep.ExitCode())
+	}
+}
+
+// Passing no LaunchCtl skips the check rather than inventing an answer.
+func TestDoctor_NilLaunchCtlSkipsTheLoadedCheck(t *testing.T) {
+	f := newFleet(t)
+	env := "MISSION_NAME=alpha\nMISSION_REPO=sunholo-data/ailang\nMISSION_DOC=d.md\n"
+	m := f.addMission("alpha", sharedDriverRepo, Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 5400}, env, "", true)
+	rendered, _ := RenderEnv(m, []byte(env))
+	_ = os.WriteFile(f.p.EnvPath("alpha"), rendered, 0o600)
+
+	rep := DoctorWith(f.reg, f.p, nil)
+	for _, k := range []string{"loaded-stale", "job-not-loaded"} {
+		if len(findingsOfKind(rep, k)) != 0 {
+			t.Errorf("a nil LaunchCtl must skip the loaded check, not report %q", k)
+		}
+	}
 }
