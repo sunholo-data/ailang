@@ -195,6 +195,15 @@ func TestCacheStore_ClearArtifacts(t *testing.T) {
 		if !errors.Is(err, saveErr) || !strings.Contains(err.Error(), "save empty compilation cache manifest") {
 			t.Fatalf("Clear error = %v, want contextual save error", err)
 		}
+		// Ordering is load-bearing, not incidental: the manifest is what
+		// authorises the artifacts, so a clear that cannot RECORD itself must
+		// not have already destroyed them. Removing first would leave a saved
+		// manifest still naming blobs that are gone. This arm pins Save before
+		// removeAll; without it, swapping the two halves of Clear passes the
+		// whole package.
+		if _, statErr := os.Stat(filepath.Join(cs.dir, "modules")); statErr != nil {
+			t.Fatalf("artifacts were removed despite the manifest save failing: %v", statErr)
+		}
 	})
 }
 
