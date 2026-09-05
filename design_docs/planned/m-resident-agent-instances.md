@@ -1,6 +1,6 @@
 # M-RESIDENT-AGENT-INSTANCES: a coding agent that keeps working when the laptop closes
 
-**Status**: **Live in dev.** M1, M2, M2b, M3, M7-partial (direct pi execution), M10 (session persistence), per-user provisioning and M4-most (idle reporting, sweep, lifecycle endpoint) are **built and verified against a running instance** — `resident-instance.sh verify` 12/12 including two-turn recall, cross-tenant isolation 3/3. Phase 0 gate **passed on measurement** 2026-09-02. NOT built: streaming (M7 proper), notifications (M5), chaos/cost (M6), observability (M8). M4 is code-complete but NOT ENABLED — it needs config on the coordinator and the platform, and the sweep refuses to act until it has it (D13).
+**Status**: **Live in dev; M4 is COMPLETE and PROVEN END TO END (2026-09-04).** M1, M2, M2b, M3, M7-partial (direct pi execution), M10 (session persistence), per-user provisioning and M4 are built and verified against a running instance — `resident-instance.sh verify` 12/12 including two-turn recall across a restart, cross-tenant isolation 3/3. Phase 0 gate **passed on measurement** 2026-09-02. The idle sweep is now the coordinator route `POST /instances/sweep` on a 15-minute Cloud Scheduler tick (`resident-sweep.sh` deleted, D13), and the way back was proven live: an Aitana chat turn detected the peer asleep, asked the coordinator, and the instance was serving again in 6.44s. Three latent bugs surfaced only by running it — a `/start` vs `/instances/start` mismatch, an unenforced eligibility gate, and an accepted-but-failed start that nothing observed. NOT built: streaming (M7 proper), notifications (M5), chaos/cost (M6), observability (M8) — **M8 is next**, and this session made the case for it by finding all three bugs through raw log grepping.
 **Scope**: `docker/resident/` (image, boot, A2A server), `ailang-multivac/terraform/resident_agents.tf`, `ailang-multivac/scripts/resident-instance.sh`. Runs in `ailang-multivac-dev`, region `europe-west4`.
 **Target**: v0.35.0
 **Priority**: P2 — nothing autonomous is blocked on it. It replaces a laptop, not a pipeline.
@@ -411,7 +411,28 @@ stopped instance -> GET /livez      HTTP 404 in 0s   (frontend; URL unmapped)
 **A stopped instance does not wake on a request.** So a sweep without a start
 path does not save money — it permanently strands the users who were idle
 longest, quietly. That inverts the build order: the way back comes first, and
-`resident-sweep.sh` **refuses `--apply`** until a start path is configured.
+the sweep **refuses `--apply`** until a start path is configured, answering
+`409` rather than quietly downgrading to a dry run a caller would record as
+done.
+
+**The sweep is a coordinator route, not a script (2026-09-04).** It began as
+`ailang-multivac/scripts/resident-sweep.sh`, run by hand. A schedule cannot
+drive a shell script without a job to host it, and `/instances/start` already
+lives in the coordinator with the narrow get/start/stop role the work needs — so
+`POST /instances/sweep` rides the same service, for the reason this decision
+already gave the start path: no new thing to deploy or watch. **The script was
+deleted rather than kept as a fallback**, because two implementations of these
+rules would drift and the rules are the whole safety argument.
+
+**The coordinator probes `/health` as ITSELF.** The script impersonated each
+instance's service account. Doing that here would need the coordinator to hold
+`serviceAccountTokenCreator` on every **per-user** agent SA — the exact power
+D11 established must not exist, since one identity could then act as any user's
+agent. Instead each instance lists the coordinator in `RESIDENT_ALLOWED_CALLERS`:
+permission to **ask**, never to **act as**. A per-user instance provisioned
+without it is unassessable, and the sweep — correctly refusing to act on missing
+information — would skip it forever while it ran at full price, so
+`resident-provision.sh` now prints that allowlist entry.
 
 **The sweep asks the instance, not a database.** The agent knows when it last
 did work; reading that from the platform's Firestore would couple two estates
@@ -457,6 +478,67 @@ as broken; trading one indistinguishable failure for another would be no gain).
 `RESIDENT_LIFECYCLE_{AUDIENCE,ALLOWED_CALLERS,PROJECT,REGION}` on the
 coordinator and `RESIDENT_START_ENDPOINT` on the platform, both by the usual
 branch-push route. The interlock means nothing sweeps until they land.
+
+### D14 — The resident joins the observability plane on THREE endpoints, not one (M8, 2026-09-04)
+
+The resident emitted stdout to Cloud Logging, structured only by `boot|` /
+`server|` / `a2a|` prefixes. Every bug in this arc was found by grepping those
+logs, which is the argument for the milestone.
+
+**The first cut was traces, and traces were the wrong half.** OTLP spans
+correlate services; they are not what an operator reads. An agent job and a
+Claude Code session appear in the observatory as **task records with turns and
+tool calls**, and a resident emitting only spans satisfies "is it traced" while
+staying absent from the view anyone opens. `claude_telemetry.sh` — the hook that
+gives the executors and interactive sessions their visibility — posts to three
+endpoints, so parity is three:
+
+| Endpoint | What it is |
+|---|---|
+| `/api/observatory/hooks` | the **sessions table**; what spans are enriched against, and what makes a run a first-class session rather than a task record that happens to exist |
+| `/api/exec/sessions` | creates the `coordinator.TaskRecord` |
+| `/api/exec/events` | the transcript hung off it (the Chat History view) |
+| OTLP `/v1/traces` | cross-service correlation |
+
+**pi's NDJSON already IS the exec event stream.** `message_update` /
+`tool_execution_start` / `tool_execution_end` / `message_end` map onto
+`text` / `tool_use` / `tool_result` / `turn_end`. The events were flowing
+through `onEvent` and being discarded, so this forwards them rather than
+deriving anything second.
+
+**Text is coalesced.** pi emits one `message_update` per token; a POST each
+would make telemetry the bottleneck of the thing it measures and bury the tool
+calls — the events anyone is looking for — under thousands of one-character
+rows. Deltas flush at the next tool call or the end of the turn, which also
+keeps the transcript in the order it happened rather than showing the agent
+narrating its own past.
+
+**The tracer is hand-written OTLP/HTTP+JSON, ~200 lines, no dependencies.** The
+receiver accepts protobuf or JSON, and the image's Dockerfile pins herdr by
+checksum and pi by exact version precisely because it does not accept an
+unpinned supply chain; there is no `package.json` to hang a lockfile on. The
+trade is named in the module header: no auto-instrumentation, no metrics, no
+propagation beyond the one header we parse.
+
+**Not fail-closed, unlike `MODELS_JSON` and the effect sandbox.** Losing
+telemetry degrades what we can SEE of the agent; refusing to boot over it would
+degrade the agent. An unset endpoint is inert, an unreachable collector drops
+and warns ONCE — logging per span turns someone else's outage into a flood in
+the logs you are reading to diagnose it — and boot states which posture it is
+in, for both planes separately, because they fail separately.
+
+**⚠️ The dashboard record is keyed on `session_id[:8]`.** `handlers_exec.go`
+derives `task_id = "exec-" + session_id[:8]`, so two runs sharing a prefix
+collapse into ONE record — indistinguishable from healthy telemetry, showing one
+enormous fake session. Verified live: `m8probe-1788530540` → `exec-m8probe-`.
+Safe today only because an A2A task id defaults to `randomUUID()`. It is unsafe
+the moment a caller passes a prefixed `metadata.runId`, and the platform's
+thread ids are `aitana-<hash>` — every one of which truncates to
+`exec-aitana-`. `a2a_client.converse` already documents `run_id` as "offered to
+the peer as the task id", so the hazard is one plumbing change away. Left
+documented rather than fixed: the truncation is a shared contract that Claude
+Code sessions also write through, and changing it moves record ids for existing
+producers.
 
 ## Phase 0 findings (2026-09-02) — measured, not assumed
 

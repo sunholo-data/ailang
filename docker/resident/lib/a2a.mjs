@@ -11,14 +11,24 @@
 //
 // Task ids are the platform's run ids, so the two systems share one identifier
 // rather than maintaining a correlation table.
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync,
+         openSync, writeSync, fsyncSync, closeSync, chmodSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import * as herdr from "./herdr.mjs";
+import * as otel from "./otel.mjs";
+import * as observatory from "./observatory.mjs";
 import { runPi, capabilities } from "./pi.mjs";
 
 const PI_HOME = process.env.PI_HOME || "/home/ailang/.pi";
 const STATE_DIR = process.env.TASK_STATE_DIR || "/home/ailang/.resident";
 const STATE_FILE = `${STATE_DIR}/tasks.json`;
+// M6: the durable half. Local disk is reset by a stop/resume — Cloud Run
+// documents the writable layer as deleted on shutdown, and M4's sweep performs
+// exactly that stop after 30 idle minutes — so the mount is the only place a
+// task can outlive the lifecycle the platform relies on.
+const AGENT_HOME = process.env.AGENT_HOME || "/agent-home";
+const CHECKPOINT_DIR = `${AGENT_HOME}/.resident`;
+const CHECKPOINT_FILE = `${CHECKPOINT_DIR}/tasks.json`;
 const AGENT_KIND = process.env.AGENT_KIND || "pi";
 const DEFAULT_MODEL = process.env.DEFAULT_MODEL || "";
 // stream = pi --mode json directly; interactive = pi as a TUI under herdr.
@@ -82,19 +92,98 @@ export const runStats = () => ({
 });
 
 // ─── task store ──────────────────────────────────────────────────────────────
-// Persisted to local disk so tasks survive the weekly auto-restart. NOT to
-// $AGENT_HOME: gcsfuse has no POSIX locking and this file is rewritten often.
+// TWO files, and the difference is the whole of M6.
+//
+// LOCAL DISK is the hot path: `persist()` runs on every state change and
+// gcsfuse has no POSIX locking, so the mount is the wrong place to rewrite
+// continuously — the same rule M10 applies to pi's sessions.
+//
+// But local disk does not survive what actually happens to this instance.
+// Cloud Run resets the writable layer on stop/resume, and M4's sweep stops the
+// instance after 30 idle minutes, so the routine lifecycle event wipes it. The
+// live evidence: resident-7e71c9b736f2 booted three times on 2026-09-04 and
+// logged "restored N task(s)" on none of them, the third being the boot
+// straight after the M5a proof run.
+//
+// So $AGENT_HOME carries a CHECKPOINT, written at the few moments that matter
+// (a state worth waking someone for, a webhook registration, shutdown) rather
+// than on every change. Read local first — it is the newer of the two whenever
+// the process merely restarted; fall back to the checkpoint when the layer
+// underneath it was reset.
 let tasks = new Map();
-function persist() {
-  try {
-    mkdirSync(STATE_DIR, { recursive: true });
-    writeFileSync(STATE_FILE, JSON.stringify([...tasks.values()], null, 2));
-  } catch (e) { console.error(`a2a | WARN persist failed: ${e.message}`); }
+
+function snapshot() {
+  // Wrapped in an object because pushConfigs has to travel with the tasks: a
+  // task restored without its webhook is worse than one lost outright, since
+  // the caller was told an answer would arrive and nothing will ever say
+  // otherwise. `v` so a later shape change can be read rather than guessed.
+  return JSON.stringify({ v: 2, tasks: [...tasks.values()], push: [...pushConfigs.entries()] }, null, 2);
 }
-export function loadTasks() {
-  if (!existsSync(STATE_FILE)) return 0;
+
+function readState(file) {
+  const raw = JSON.parse(readFileSync(file, "utf8"));
+  // Pre-M6 files are a bare array. An instance restarting onto this image must
+  // not lose what the previous one left behind.
+  if (Array.isArray(raw)) return { tasks: raw, push: [] };
+  return { tasks: raw.tasks || [], push: raw.push || [] };
+}
+
+function write(file, dir, { sync = false } = {}) {
+  mkdirSync(dir, { recursive: true });
+  const body = snapshot();
+  // 0600: this file carries the per-task push token, which is a bearer
+  // credential. It grants only "report on this one task", strictly less than
+  // the agent SA that owns the bucket already holds — but it is a credential
+  // at rest and is written as one.
+  if (!sync) { writeFileSync(file, body, { mode: 0o600 }); return; }
+  // FSYNC, on the mount only, and the live run is why.
+  //
+  // `writeFileSync` returns once the bytes are in the FUSE buffer, NOT once
+  // gcsfuse has uploaded the object. A real stop proved the difference: the
+  // shutdown handler logged "staging task state", the container was destroyed
+  // moments later, and GCS never received the object — the .resident/ prefix
+  // did not even exist afterwards. A write that returns success and leaves no
+  // object is the worst possible failure for the one file whose entire purpose
+  // is surviving that stop. fsync is what makes gcsfuse finalise it.
+  const fd = openSync(file, "w", 0o600);
   try {
-    for (const t of JSON.parse(readFileSync(STATE_FILE, "utf8"))) tasks.set(t.id, t);
+    writeSync(fd, body);
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+  chmodSync(file, 0o600);
+}
+
+function persist() {
+  try { write(STATE_FILE, STATE_DIR); }
+  catch (e) { console.error(`a2a | WARN persist failed: ${e.message}`); }
+}
+
+/** Stage the task store to the mount, so it outlives a stop.
+ *
+ * Best-effort by design: an instance that cannot reach its bucket should still
+ * serve. Losing the checkpoint costs the notice on a later restart; refusing to
+ * run costs the agent. */
+export function checkpoint() {
+  // An EMPTY store never overwrites a non-empty checkpoint. `loadTasks` returns
+  // nothing on an unreadable local file — it warns and carries on, by design —
+  // and without this guard the next shutdown would write that emptiness over
+  // the mount, turning a corrupt local file into permanent data loss. Nothing
+  // is lost by declining: an instance with no tasks has nothing to say.
+  if (tasks.size === 0 && pushConfigs.size === 0 && existsSync(CHECKPOINT_FILE)) return false;
+  try { write(CHECKPOINT_FILE, CHECKPOINT_DIR, { sync: true }); return true; }
+  catch (e) { console.error(`a2a | WARN checkpoint to ${CHECKPOINT_DIR} failed: ${e.message}`); return false; }
+}
+
+export function loadTasks() {
+  const source = existsSync(STATE_FILE) ? "local" : existsSync(CHECKPOINT_FILE) ? "checkpoint" : "";
+  if (!source) return { count: 0, source: "" };
+  const file = source === "local" ? STATE_FILE : CHECKPOINT_FILE;
+  try {
+    const state = readState(file);
+    for (const t of state.tasks) tasks.set(t.id, t);
+    for (const [id, cfg] of state.push) pushConfigs.set(id, cfg);
     // Seed idleness from the newest task rather than from boot. A restart is
     // routine (7-day ceiling), and an instance that looked freshly idle after
     // every one would be swept minutes after coming back.
@@ -102,16 +191,111 @@ export function loadTasks() {
       .map((t) => Date.parse(t?.status?.timestamp || "") || 0)
       .reduce((a, b) => Math.max(a, b), 0);
     if (newest > 0) lastActivityAt = newest;
-    return tasks.size;
-  } catch (e) { console.error(`a2a | WARN task state unreadable: ${e.message}`); return 0; }
+    return { count: tasks.size, source };
+  } catch (e) {
+    console.error(`a2a | WARN task state at ${file} unreadable: ${e.message}`);
+    return { count: 0, source: "" };
+  }
 }
+
+/** Terminalise runs whose executor died with the previous container.
+ *
+ * Called once at boot, where the reasoning is sound by construction: this
+ * process has only just started, so nothing it restored can still be running.
+ * A task left `working` is not merely untidy — M5a hands the caller off with
+ * "the output will appear once it finishes", and the poll has already given up.
+ * Nothing else will ever speak. That is CLAUDE.md #8's silent hang, and this is
+ * the only place it can be closed.
+ *
+ * The notice goes out through the ordinary push path, so it reaches the same
+ * receiver by the same gate as a real completion. */
+export function reapOrphans() {
+  const orphans = [...tasks.values()].filter(
+    (t) => t?.status?.state === TaskState.submitted || t?.status?.state === TaskState.working);
+  // `setState` notes activity, which is right for a live transition and wrong
+  // here: reaping is bookkeeping about a run that ALREADY died, not work. Left
+  // alone it would overwrite the idleness `loadTasks` deliberately seeded from
+  // the newest task, and every wake would hold the instance a further 30
+  // minutes for a run that had already finished.
+  const seeded = lastActivityAt;
+  for (const t of orphans) {
+    setState(t, TaskState.failed, {
+      role: "agent", messageId: randomUUID(), kind: "message",
+      parts: [{ kind: "text", text:
+        "This run was interrupted by a restart of the resident agent and cannot be resumed. " +
+        "The instance is running again — ask the question once more." }],
+    });
+  }
+  if (orphans.length) {
+    lastActivityAt = seeded;
+    console.log(`a2a | reaped ${orphans.length} task(s) interrupted by a restart`);
+    checkpoint();
+  }
+  return orphans.length;
+}
+
+/** Put a task into the store directly.
+ *
+ * The seam that makes restart behaviour testable: every other way of creating a
+ * task runs pi, and restart behaviour is precisely what cannot be exercised
+ * that way. Every M6 defect lived in the gap between "stored" and "still there
+ * after a stop", which is only reachable if a test can seed the store. */
+export function adoptTask(task) { tasks.set(task.id, task); persist(); return task; }
+
+/** Drive a state transition without running pi. Same seam, same reason as
+ *  `adoptTask`: which transitions reach the mount is the thing M6 got wrong
+ *  live, so it has to be assertable without an agent. */
+export function setStateForTest(task, state, message) { setState(task, state, message); }
+
 export const getTask = (id) => tasks.get(id);
 export const listTasks = () => [...tasks.values()];
 
 function setState(task, state, message) {
   noteActivity();
+  const was = task.status?.state;
   task.status = { state, timestamp: new Date().toISOString(), ...(message ? { message } : {}) };
   persist();
+  // M8: a transition is a fact about the run, and a run outlives the request
+  // that started it — `working` -> `input-required` -> `completed` all happen
+  // long after the message/send span has closed. So each is its own short span
+  // PARENTED to the caller's trace, which is what keeps a resident run in the
+  // same chain as the coordinator and job traces instead of beside them.
+  //
+  // A span rather than a log line because the acceptance criterion is that
+  // these are visible in the observatory, and grepping stdout is exactly what
+  // this milestone exists to stop.
+  const span = otel.startSpan(`a2a.task.${state}`, {
+    traceparent: task.metadata?.traceparent,
+    attributes: {
+      "a2a.task.id": task.id,
+      "a2a.task.state": state,
+      "a2a.context.id": task.contextId,
+      ...(task.metadata?.model ? { "a2a.model": task.metadata.model } : {}),
+      ...(task.metadata?.mode ? { "a2a.mode": task.metadata.mode } : {}),
+    },
+  });
+  if (state === TaskState.failed) {
+    const why = (message?.parts || []).filter((p) => p.kind === "text").map((p) => p.text).join(" ");
+    span.recordError(new Error(why || "task failed"));
+  }
+  span.end();
+  // M6: stage the states worth surviving a stop.
+  //
+  // Terminal states and `input-required` are the ones a caller may wait hours
+  // on, which is exactly the window a sweep falls inside. Plus the FIRST
+  // transition into `working`, which is once per run and is what makes an
+  // in-flight run durable from the moment it starts.
+  //
+  // That last one was learned live: the first cut checkpointed only terminal
+  // states and SIGTERM, and a real stop mid-run recovered NOTHING. The shutdown
+  // flush is a race with the container teardown (boot.sh's TERM trap now waits
+  // for this process, which is the other half of the fix) — and a durability
+  // story whose only writer is the shutdown path is one signal away from
+  // nothing. Repeated `working` is still excluded: the interactive watcher
+  // re-asserts it in a loop and a gcsfuse write per iteration would cost more
+  // than the run.
+  const firstWorking = state === TaskState.working && was !== TaskState.working;
+  if ((state !== TaskState.working && state !== TaskState.submitted) || firstWorking) checkpoint();
   notify(task).catch((e) => console.error(`a2a | WARN push failed for ${task.id}: ${e.message}`));
 }
 
@@ -143,7 +327,11 @@ export function assertModelRegistered(model) {
 // is every case that matters here, since an agent may block hours after the
 // caller disconnected.
 const pushConfigs = new Map();
-export function setPushConfig(taskId, cfg) { pushConfigs.set(taskId, cfg); persist(); }
+// Checkpointed as well as persisted. Registration is the moment M5a stops
+// watching and starts trusting this instance to call back, so a config that
+// does not survive the next stop is the promise broken silently — `notify()`
+// returns early on a missing config and logs nothing.
+export function setPushConfig(taskId, cfg) { pushConfigs.set(taskId, cfg); persist(); checkpoint(); }
 export function getPushConfig(taskId) { return pushConfigs.get(taskId); }
 async function notify(task) {
   const cfg = pushConfigs.get(task.id);
@@ -234,7 +422,7 @@ async function watch(task, target) {
 }
 
 // ─── message/send ────────────────────────────────────────────────────────────
-export async function messageSend(params) {
+export async function messageSend(params, { traceparent = "" } = {}) {
   const msg = params?.message;
   if (!msg) throw Object.assign(new Error("params.message is required"), { code: -32602 });
   const text = (msg.parts || []).filter((p) => p.kind === "text").map((p) => p.text).join("\n");
@@ -284,7 +472,11 @@ export async function messageSend(params) {
   const task = {
     kind: "task", id, contextId,
     status: { state: TaskState.submitted, timestamp: new Date().toISOString() },
-    history: [msg], metadata: { model, agentName },
+    // `traceparent` is stored on the task, not held in a variable: the run
+    // continues after this request returns, and its later transitions must
+    // still land in the trace the caller started. Persisted with the task, so
+    // it survives the 7-day restart too.
+    history: [msg], metadata: { model, agentName, ...(traceparent ? { traceparent } : {}) },
   };
   tasks.set(id, task);
   noteActivity();
@@ -312,12 +504,29 @@ export async function messageSend(params) {
     task.metadata.persistent = Boolean(capabilities().sessionFlag);
     // Fire-and-forget: the A2A call returns a task immediately and the run
     // continues in the background, reporting through task state and artifacts.
+    // M8: report the run to the observatory as a SESSION with turns and tool
+    // calls, which is how an agent job and a Claude Code session appear there.
+    // pi's NDJSON event types and the exec API's stream types describe the same
+    // thing, so the events already flowing through onEvent are simply forwarded
+    // rather than re-derived. Keyed by the A2A task id so the dashboard record
+    // ties back to the task and to the a2a.task.id span attribute.
+    const reported = observatory.startRun({
+      sessionId: id,
+      workspace: process.env.WORKSPACE_DIR || "/workspace",
+      provider: `pi:${model}`,
+    });
+    task.metadata.reported = observatory.enabled();
+
     onSession(sessionId, () => { activeRuns++; return runPi({
       model: model.replace(/^openrouter\//, ""),
       prompt: text,
       sessionId,
       onEvent: (ev, st) => {
         if (ev.type === "turn_start") setState(task, TaskState.working);
+        // Reporting is inside the SAME try the runner already wraps this
+        // callback in ("a consumer must not kill the run"), so a dashboard
+        // fault cannot take the turn down with it.
+        reported.event(ev);
         // Keep the artifact current as text arrives, so a caller polling
         // tasks/get sees progress rather than nothing until the end.
         if (st.text) attachText(task, st.text);
@@ -334,12 +543,18 @@ export async function messageSend(params) {
           role: "agent", messageId: randomUUID(), kind: "message",
           parts: [{ kind: "text", text: r.text || `pi exited ${r.exitCode}` }],
         });
+        reported.finish(r.exitCode === 0
+          ? { ok: true, usage: r.usage }
+          : { ok: false, error: `pi exited ${r.exitCode}` }).catch(() => {});
       })
       .catch((e) => {
         setState(task, TaskState.failed, {
           role: "agent", messageId: randomUUID(), kind: "message",
           parts: [{ kind: "text", text: `pi run failed: ${e.message}` }],
         });
+        // A run that fell over must still close its session, or the dashboard
+        // shows it running forever — the exact state it exists to rule out.
+        reported.finish({ ok: false, error: `pi run failed: ${e.message}` }).catch(() => {});
       });
     return task;
   }

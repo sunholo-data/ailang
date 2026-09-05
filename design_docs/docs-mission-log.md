@@ -902,3 +902,219 @@ and there is no skill gap here to point at). Recorded as a mission-log lesson in
 queue row's blocking reason names another mission's red, re-run the actual check before repeating
 the verdict, especially after several iterations have passed — the CI landscape moves out from
 under a stale note faster than the note gets re-read.
+
+## ITERATION 8 — 2026-09-04T02:19Z
+
+**Pick: docs-4** (item 11, `[IN-SPRINT]`, held on D-3). D-3 resolved by Mark (attended,
+2026-09-03, recorded directly in the decision ledger under the ATTENDED LEDGER EDITS contract) in
+the window since iteration 7: APPROVED the narrow-refinement carve-out for `docs-4-brief.md`, with
+one condition — close `gemini-3-1-pro`'s recurring section-boundary-verification objection class
+exhaustively (every Phase-B section-cut boundary the brief asserts, not only the B3/B4/B5 the
+reviewers happened to name across the two blocked rounds).
+
+**Satisfying D-3's condition.** Audited the brief's Phase B for every item that defines a boundary,
+not just a whole-page deletion: B1 (partial carry-over from a deleted page), B2 (whole-page
+deletion, no boundary), B3/B4/B5 (in-page trims). B3/B4/B5 already had Verification Log rows
+(V29, V30) from the quorum rounds; B1's carry-over boundary — the `Automated Feedback (Advanced)`
+section in `cross-project-messaging.mdx`, whose ~15-line bash block moves into `agent-messaging.md`
+— had none. Measured directly: `grep -nE '^##+ ' docs/docs/guides/cross-project-messaging.mdx` →
+`232:## Automated Feedback (Advanced)` immediately followed by `257:## Semantic Search`, both
+genuine H2s (`## `, not H3/bold), body = one intro line + a single ` ```bash ` fence spanning lines
+236-253 (15 lines of bash, matching the brief's own "~15-line bash block" description), then a
+`---` separator before the next heading. Boundary exact. Added as V31 to the Verification Log,
+committed and pushed directly from the pin worktree (detached HEAD, no local `dev` branch — that
+branch belongs to a different worktree; pushed via `git push origin <sha>:dev` rather than moving
+a local ref) — `df36055ce`. CI green (16 checks, only the pre-existing inherited SonarCloud red).
+
+**Routing — sprint-planner.** `tools/launchd/resolve-role-spawn.sh planner` → `recipe
+codex:gpt-5.6-luna declared:codex-ok`. Preflight probe rc=0. First real run: the wrapper script
+that launches the bounded `codex exec` subprocess embedded the directive text directly into an
+*unquoted* heredoc used to write the wrapper file to disk — the directive's own parentheses
+(`"Phase A (A1 sidebar cruft removal..."`) broke the wrapper's shell syntax, and the launched
+background process died instantly with `syntax error near unexpected token '('`. Caught by
+checking the rc-file artifact and the wrapper's own stderr log rather than trusting the tool's
+"command completed" notification (Standing rule 7's launcher-vs-work distinction — the notification
+was for a shell that forked-and-immediately-exited, not for codex actually running). Fixed by
+rewriting the wrapper with placeholder tokens substituted via `sed` after writing (never
+interpolating the directive text into the heredoc itself), and — new habit for the rest of the
+iteration — running `bash -n` on every generated wrapper before launching it. Second run: rc=0
+after ~13 minutes, produced `design_docs/docs-4-sprint-plan.md` (228 lines) and `sprint_docs-4.json`
+(6 milestones: M1 Phase A, M2 B1, M3 B2, M4 B3, M5 B4, M6 B5+final-gates), both well-formed
+(`jq -e .` valid, no placeholder/TODO strings), no files touched outside the two artifacts.
+Verified the plan faithfully translates the brief's own sequencing and acceptance checks before
+trusting it (read all 6 milestones' task lists against Appendix A/B and the brief's 8 acceptance
+commands — all present, in order, check 6's cleanup step correctly ordered before check 7).
+Copied into the main checkout (destination paths confirmed empty first, no clobber), committed,
+worktree removed — `72902585d`. CI green.
+
+**Routing — sprint-executor.** Same lane (`codex:gpt-5.6-luna`), fresh isolated worktree (sibling
+of the repo, never `/tmp`), preflight probe rc=0. Directive: execute M1-M6 in order, snapshot
+cumulative file state into `.snap/M<k>/` after each milestone (multi-milestone recipe — the
+executor cannot commit inside this sandbox at all, and the plan's own 6-milestone granularity
+called for per-milestone commits for bisectability), zero git-write operations delegated (the
+recipe's mandatory exception, the one `git checkout --` cleanup command in check 6, explicitly
+carved out). Real run: rc=0 after ~17 minutes, all 6 `.snap/M<k>/` directories present and
+cumulative (confirmed by listing each — DELETED markers correctly present for the 3 deletions,
+carried forward across subsequent snapshots).
+
+Reconstructed 6 individual commits in the pin worktree by copying each `.snap/M<k>/` over the tree
+in order and committing (handling DELETED markers as `git rm`). Verified byte-identity against the
+executor's own final worktree state before trusting the reconstruction: `git diff --name-only
+72902585d..HEAD` → exactly the 12 files the brief's Files section lists; per-file `diff` against
+the executor's live worktree → all MATCH (or consistently deleted in both). Commits:
+`2a336cfde` (M1) `01fc61531` (M2) `28957e86a` (M3) `72795d71b` (M4) `b4290838b` (M5) `67a76e0a9`
+(M6).
+
+**The executor's own in-sandbox acceptance run reported checks 5 and 6 as FAILED, out of 8.**
+Per this loop's standing rule that an in-sandbox gate verdict is not evidence (`codex
+--sandbox workspace-write` sees a different filesystem/network view than the real tree),
+re-ran all 8 checks myself, unsandboxed, in the pin worktree.
+
+*Check 6* (`sync-registry.sh && make docs-build`) — in-sandbox failure was
+`Could not fetch registry index — skipping package page generation`, then `make: ***
+[docs-build] Error 6`. Confirmed sandbox-only: unsandboxed, `sync-registry.sh` fetched 42
+packages cleanly (real network access), and `make docs-build` proceeded past that step —
+but then failed for a DIFFERENT, real reason: `[cause]: Error: Docusaurus found broken links!`
+— 4 dangling relative-path links: `./cross-project-messaging.mdx` referenced from
+`agent-workflows.mdx:377`, `claude-code-integration.mdx:90`, `hooks-setup.mdx:207` (all
+"Related Documentation" list/table entries); `./development.md` referenced from
+`getting-started.mdx:405` ("Next Steps" list). None of these were caught by acceptance check 4
+(`grep -rlE "guides/(cross-project-messaging|development)([^a-z0-9_-]|$)"`) because a
+sibling-directory relative link inside `docs/docs/guides/` never carries the `guides/` prefix
+that pattern requires — the identical instrument gap the brief's own V14 inbound-link discovery
+step had (V14 used the same `guides/`-prefixed pattern and consequently never found these 4
+either, at authoring time). Verified `agent-workflows.mdx`/`claude-code-integration.mdx` were
+never in the brief's declared blast radius by *enumeration* (Files list) but ARE within it by
+*rule* (`docs/docs/guides/**`), and B1/B2's own deletion criterion ("every inbound link is
+retargeted in the same commit") makes fixing them a completion of an already-specified hard
+requirement, not new scope. Fixed: retargeted the 3 cross-project-messaging references to
+`./agent-messaging.md` (the B1 merge target — already documents inter-project messaging per the
+brief's own V12) and the development.md reference to `/docs/guides/development-workflow`
+(matching the precedent the brief set for `debugging.md`'s equivalent link). Re-ran the build:
+`[SUCCESS] Generated static files in "build"`; only 3 remaining warnings (broken anchors on
+`notify-daemon`, `strict-fallbacks`, `wasm-ai-step-byo-key`), confirmed pre-existing by diffing
+against the pre-sprint base commit (`72902585d`) — none of the three target/source pages were
+touched by this sprint. Ran the mandatory cleanup, confirmed clean, committed — `1afa42f37`.
+
+*Check 5* (both halves) — failed in-sandbox AND unsandboxed, identically. Investigated rather
+than dismissed or force-fixed. First half (`ailang messages ack --all` count expected to drop
+from 4 to 2 "hooks-setup and cross-project-messaging gone"): the brief's OWN V8 verification row
+lists the pre-sprint 4 matching files as `agent-messaging, hooks-setup, agent-workflows,
+claude-code-integration` — `cross-project-messaging.mdx` was never among them (confirmed:
+`git show 2a336cfde:docs/docs/guides/cross-project-messaging.mdx | grep 'ailang messages
+ack --all'` → no match). And `hooks-setup.mdx` has the string TWICE pre-sprint: once inside the
+`Message System` section (removed by B4, correctly) and once inside a separate `Quick Start §
+3. Check Messages` subsection that was never in the brief's B4 scope and is never mentioned
+anywhere else in the brief — so the file can never fully disappear from `grep -l` regardless of
+correct execution. The achievable, correct count is 4 (unchanged) — `agent-workflows.mdx` and
+`claude-code-integration.mdx` were never edited by any milestone (Appendix A: "keep, unchanged"
+for both) and both legitimately still match. Second half (`_ollama_embed` expected to no longer
+list `semantic-caching-how-to.mdx`): checked heading positions of every occurrence pre- and
+post-trim (`git show b4290838b:...` vs current) — pre-sprint 5 occurrences, 2 inside `Two-Tier
+Search Architecture` (B5's scope, now gone) and 3 inside `Embeddings Doctrine`/`Killer Examples`
+(explicitly preserved by the brief: "Preserve `Embeddings Doctrine` and the remaining caching
+how-to content"); post-sprint exactly the 3 preserved ones remain. This half is unsatisfiable by
+the brief's own explicit design decision to keep Embeddings Doctrine. Filed both as measured
+brief-authoring defects (a test-plan row's expected value nobody checked at authoring time,
+same class this skill already names for mutation-kill claims) — not silently patched around, not
+force-passed; the corrected expected values were independently re-derived by the round-1 evaluator
+below before being trusted as more than the controller's own claim.
+
+**generator≠judge — independent evaluator, `sonnet`, isolated worktree (never shared with the
+controller's own verification tree).**
+
+*Round 1.* Directive: independently verify the full diff against the brief and plan, with specific
+instructions to independently re-derive (not take on faith) the controller's three self-flagged
+corrections — the check-5 analysis above (both halves) and the M7 fix's correctness/scope. Result:
+**FAIL, 68/100.** Confirmed the controller's three self-flagged items correct on independent
+re-derivation (re-ran the pre-sprint grep on the base commit directly, re-checked heading
+boundaries, re-ran the build from a clean worktree with its own `npm install`). But found ONE
+finding neither the controller's own verification pass nor the executor's acceptance run had
+caught, from doing an independent FULL pre/post sidebar-id-set diff (not scoped to `guides/` the
+way the brief's own check 3 is): `diff <(git show 72902585d:docs/sidebars.js | grep -oE
+"'[a-zA-Z0-9_/.-]+'" | sort -u) <(grep -oE "'[a-zA-Z0-9_/.-]+'" docs/sidebars.js | sort -u)` showed
+two unauthorized removals beyond the intended set — `'prompts/current'`, `'prompts/index'` — both
+NON-GUIDE ids that lived inside the dissolved `Prompts` category (which also held
+`guides/ai-prompt-guide`, correctly re-homed to the top level). Appendix B's own header states
+"non-guide ids unchanged"; the brief nowhere authorizes touching `docs/docs/prompts/*`. Both pages
+still exist on disk (`docs/docs/prompts/index.md`, `docs/docs/prompts/current.md`) with live
+inbound links from `why-ailang.mdx`, `start-here/for-ai-agents.mdx`, `agent-integration.mdx`,
+`ai-prompt-guide.mdx` — so they had become fresh nav-unreachable orphans, exactly the clause-3
+defect class this entire sprint exists to eliminate, created as collateral damage of the M1
+category-dissolution edit and invisible to all 8 of the brief's `guides/`-scoped acceptance checks.
+BLOCKING.
+
+Reproduced independently before acting (rule: a judge's finding is a claim too, however clean the
+rest of its report reads): re-ran the exact diff command myself, confirmed the two removals,
+confirmed both files exist on disk, confirmed the 4 inbound links via grep. Real, and not
+previously caught by anyone — the controller's own full-diff review (`git diff --stat`) only
+checked file *count and identity* against the brief's Files list, never the *sidebar-id content*
+of `sidebars.js` beyond the guide-id count check 3 already runs.
+
+Fixed as **M8**: restored `prompts/index` and `prompts/current` immediately before
+`guides/ai-prompt-guide` — their exact original relative position inside the now-dissolved
+category, now sitting beside their sole surviving former sibling. 2-line surgical diff. Re-ran
+the full sidebar-id diff (now shows only the intended set: 2 category labels removed, 2 guide ids
+removed, 9 orphans wired — no more unauthorized removals); re-ran the build (clean, same 3
+pre-existing warnings); guide-id count unchanged at 70 (non-guide ids don't count toward it);
+mandatory cleanup clean. Committed, pushed — `0750f8dbf`. CI green (20 checks, only the same
+inherited SonarCloud red).
+
+*Round 2.* Fresh isolated worktree, same evaluator model, directive carrying forward round 1's
+BLOCKING finding and all NON-BLOCKING items by name (per the multi-round protocol — a remedy
+directive is an instrument too, so every measurement in it was re-taken on the current tree rather
+than copied from round 1's reading). Instructed to re-run the exact diff command itself (not trust
+the fix commit's message), confirm the fix commit's surgicality via `git show --stat`, rebuild from
+a completely fresh `npm install`, and spot-check (not re-derive from scratch) 2-3 of round 1's
+already-clean findings. Result: **PASS, 97/100.** Blocking finding confirmed-fixed (diff now shows
+only the intended set, both ids reachable at their original-equivalent position, files exist on
+disk); fix commit confirmed surgical (`git show --stat`: 1 file, 2 insertions, 0 deletions); full
+clean rebuild reproduced independently (fresh `npm install`, no new warnings beyond the same 3
+pre-existing); acceptance checks 1-4/6-8 re-spot-checked with no regression. 3 points held back
+only for the still-open check-5 brief defect and the 3 pre-existing broken-anchor warnings, neither
+attributable to this sprint or this fix.
+
+**Outcome: LANDED.** `docs-4` (item 11) tagged `[LANDED]` in the charter, full record written
+above the queue. 8 commits total on `dev`, all individually CI-green: `df36055ce` (V31) →
+`72902585d` (plan) → `2a336cfde`..`67a76e0a9` (M1-M6, 6 commits) → `1afa42f37` (M7 link-fix) →
+`0750f8dbf` (M8 sidebar-restore).
+
+**Next**: the charter's own enumerated queue is now fully `[LANDED]`/`[RULED OUT]` — no `[NEXT]`
+or `[IN-SPRINT]` row remains. The next iteration's pick is a fresh draw from
+`design_docs/planned/`, specifically the 31 individually-evidenced STILL-PLANNED design docs
+iteration 5's docs-8 sweep already classified and left pickable (no new aggregate audit needed —
+that sweep is the mission's accurate, current backlog). Recommend the next iteration runs Gate 0's
+weekly external-issue sweep check (due-date dependent) before picking, since the charter's own
+queue no longer provides a default next item.
+
+**Ruled out**: nothing new this iteration beyond the two brief-authoring defects already filed
+under check 5 above (not "ruled out" in the sense of a refuted hypothesis — they're confirmed
+defects in the brief's acceptance text, just not ones warranting a fix-the-code response).
+
+**DECISIONS FOR MARK**: none — D-3 answered and consumed this iteration, ledger 3 rows, 0 OPEN.
+
+**FLAGGED**: none new. The known-inherited `SonarCloud Code Analysis` red remains V1's domain,
+unchanged, confirmed present on every commit this iteration's CI touched.
+
+**Retro — no skill edit.** Two frictions this iteration, both single-instance so far (below the
+≥2-instance bar for a skill edit), recorded here as watch-items rather than acted on:
+1. The wrapper-script heredoc-interpolation bug (directive text with parentheses breaking an
+   unquoted heredoc) is a NEW mechanism, distinct from every previously-documented codex-recipe
+   false-green (stdin, delivery-assertion, sandbox-socket-denial, gate-list-not-baselined). The
+   generalisable fix — never interpolate a multi-line directive into a heredoc used to author a
+   script; write placeholder tokens and `sed`-substitute after, then `bash -n` before launching —
+   is now this iteration's own applied practice but not yet promoted to the shared skill. If a
+   second mission hits the same class, that is the trigger.
+   2. The `guides/`-prefixed-only inbound-link grep pattern (both check 4's own acceptance command
+   AND the brief's V14 discovery step) is blind to sibling-directory relative links by
+   construction, and this is the SECOND time a design-doc author's link-discovery instrument in
+   this mission has under-enumerated inbound links this way (docs-3/docs-1 didn't hit it since
+   their edited pages had no sibling-relative-link carriers, but the underlying grep-pattern gap
+   is generic to any `docs/docs/guides/**` deletion). Worth surfacing to `design-doc-creator` as a
+   standard inbound-link-search snippet (both `guides/<name>` absolute AND `./<name>` relative,
+   scoped to the same directory) if a THIRD instance appears in this or another docs-taxonomy-style
+   sprint — one more instance from the ≥2 bar.
+
+Both frictions are now first-party-verified working practice for this iteration; recorded so the
+NEXT iteration (or a sibling mission reading this log) inherits the lesson even before either
+crosses the skill-edit bar.

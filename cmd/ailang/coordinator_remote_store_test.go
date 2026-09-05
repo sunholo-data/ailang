@@ -1,9 +1,6 @@
 package main
 
-import (
-	"os"
-	"testing"
-)
+import "testing"
 
 // The CLI must act on the plane the operator named.
 //
@@ -69,7 +66,9 @@ func TestRemoteCoordinatorSelected_FlagBeatsEnvironment(t *testing.T) {
 func TestOpenCoordinatorStore_LocalNeedsNoCloudConfig(t *testing.T) {
 	t.Setenv("AILANG_COORDINATOR_REMOTE", "")
 	t.Setenv("AILANG_STORAGE", "")
-	_ = os.Unsetenv("AILANG_CLOUD_PROJECT")
+	// t.Setenv, not os.Unsetenv: the latter is never restored and leaks into
+	// every test that runs afterwards in the same process.
+	t.Setenv("AILANG_CLOUD_PROJECT", "")
 
 	bundle, err := openCoordinatorStore(t.Context(), "", t.TempDir())
 	if err != nil {

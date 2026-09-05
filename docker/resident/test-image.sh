@@ -345,6 +345,47 @@ a2a.noteActivity();
 console.log(JSON.stringify({before, after: a2a.runStats().idle_s}));')
 have "activity resets idleness"             'echo "$out" | grep -q "\"after\":0"'
 
+echo "=== 6h. observability (M8) ==="
+# The tracer's own suite, run against the artefact that will be deployed rather
+# than against a checkout that may have moved on — same reason test-image.sh
+# ships inside the image at all.
+out=$(RESIDENT_LIB=/usr/local/bin/lib node --test /usr/local/bin/test-otel.mjs /usr/local/bin/test-observatory.mjs /usr/local/bin/test-a2a-persistence.mjs 2>&1)
+have "telemetry suites pass in the image"   'echo "$out" | grep -q "fail 0"'
+
+# TWO planes, and only the second is what an operator reads. A resident that
+# emitted spans and no session would be "traced" and still absent from the view
+# that shows agent jobs and Claude Code sessions — which is the complaint M8
+# was written to fix.
+have "runs are reported as observatory sessions" 'grep -q "observatory.startRun" /usr/local/bin/lib/a2a.mjs'
+have "pi events are forwarded, not re-derived"   'grep -q "reported.event(ev)" /usr/local/bin/lib/a2a.mjs'
+have "a failed run still closes its session"     'grep -q "reported.finish({ ok: false" /usr/local/bin/lib/a2a.mjs'
+have "all THREE observatory planes are posted"   'grep -q "api/observatory/hooks" /usr/local/bin/lib/observatory.mjs && grep -q "api/exec/sessions" /usr/local/bin/lib/observatory.mjs && grep -q "api/exec/events" /usr/local/bin/lib/observatory.mjs'
+have "SessionStart always carries a workspace"   'grep -q "event: \"SessionStart\", workspace" /usr/local/bin/lib/observatory.mjs'
+have "the observatory URL is read"               'grep -q "AILANG_OBSERVATORY_URL" /usr/local/bin/server.mjs'
+
+# Wiring, asserted on the source: a tracer nothing calls is the failure this
+# milestone is fixing, one layer up.
+have "the A2A dispatch is traced"           'grep -q "otel.startSpan(\`a2a." /usr/local/bin/server.mjs'
+have "the server configures a tracer"       'grep -q "OTEL_EXPORTER_OTLP_ENDPOINT" /usr/local/bin/server.mjs'
+have "task state changes emit spans"        'grep -q "a2a.task.\${state}" /usr/local/bin/lib/a2a.mjs'
+have "the caller's trace is continued"      'grep -q "req.headers.traceparent" /usr/local/bin/server.mjs'
+
+# The failure that matters more than any of the above: telemetry must never be
+# the reason a turn fails. Boot with an endpoint that cannot possibly answer
+# and assert the agent still serves.
+out=$(A2A 'process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://127.0.0.1:1";
+import * as otel from "/usr/local/bin/lib/otel.mjs";
+otel.configure({ endpoint: "http://127.0.0.1:1", serviceName: "t" });
+const s = otel.startSpan("a2a.message/send"); s.setAttribute("a2a.task.id","t"); s.end();
+await otel.flush();
+console.log("SURVIVED");')
+have "an unreachable collector does not throw" 'echo "$out" | grep -q "SURVIVED"'
+
+# And the boot log says which state it is in, so "invisible in the observatory"
+# is noticed rather than discovered later.
+have "boot states its trace posture"        'grep -q "observability: .*trace" /tmp/boot.log'
+have "boot states its session posture"      'grep -q "observability: .*\(sessions\|observatory\)" /tmp/boot.log'
+
 echo "=== 7. restart idempotence ==="
 # The 7-day ceiling makes restarts routine, so a second boot must behave like
 # the first rather than tripping over its own leftovers.
@@ -353,6 +394,47 @@ kill $BOOT 2>/dev/null; pkill -f "herdr server" 2>/dev/null; sleep 3
 for i in $(seq 1 90); do [ "$(curl -s localhost:8080/livez 2>/dev/null)" = "ok" ] && break; sleep 1; done
 have "second boot serves again"           '[ "$(curl -s localhost:8080/livez)" = "ok" ]'
 have "second boot found the home writable" 'grep -q "agent home writable" /tmp/boot2.log'
+
+echo "=== 7b. surviving a STOP, not just a restart (M6) ==="
+# A restart keeps the writable layer; the idle sweep's stop/resume does not.
+# That distinction is the whole of M6, and it is only testable by destroying
+# the local layer the way Cloud Run does and booting onto the mount alone.
+# This boot gets its OWN PORT rather than competing for 8080, because the
+# contention is not worth fighting and twice cost a false negative: `$BOOT`
+# still names the FIRST boot here (section 7 restarts without recapturing it),
+# so killing it left section 7's server holding the port, the third boot never
+# bound, and the two assertions below reported as PRODUCT failures on code the
+# node suite passed. Killing is still attempted, but nothing depends on it.
+pkill -f "server.mjs" 2>/dev/null; pkill -f "boot.sh" 2>/dev/null
+pkill -f "herdr server" 2>/dev/null
+# WAIT for it to be gone before seeding. pkill is asynchronous and the server's
+# own SIGTERM handler checkpoints on the way out, so seeding straight after the
+# signal races that write — and the loser is the fixture this section depends on.
+for i in $(seq 1 20); do pgrep -f "server.mjs" >/dev/null 2>&1 || break; sleep 1; done
+M6_PORT=8081
+mkdir -p "$AGENT_HOME/.resident"
+cat > "$AGENT_HOME/.resident/tasks.json" <<'JSON'
+{"v":2,
+ "tasks":[{"kind":"task","id":"task-stopped","contextId":"ctx-stop",
+           "status":{"state":"working","timestamp":"2026-09-04T12:00:00.000Z"},
+           "history":[],"metadata":{"model":"z-ai/glm-5.3-flash"}}],
+ "push":[["task-stopped",{"url":"http://127.0.0.1:1/gone","token":"t"}]]}
+JSON
+rm -rf /home/ailang/.resident/tasks.json          # the stop resets the writable layer
+RESIDENT_PORT=$M6_PORT /usr/local/bin/boot.sh > /tmp/boot3.log 2>&1 &
+BOOT=$!
+for i in $(seq 1 90); do [ "$(curl -s localhost:$M6_PORT/livez 2>/dev/null)" = "ok" ] && break; sleep 1; done
+# A boot that never bound proves nothing either way, so say WHICH it is rather
+# than letting the two greps below fail for a reason that is not the product's.
+have "the M6 boot came up on $M6_PORT" '[ "$(curl -s localhost:'"$M6_PORT"'/livez)" = "ok" ]'
+have "a stop/resume restores from the mount"  'grep -q "restored 1 task(s) from checkpoint" /tmp/boot3.log'
+# The silent hang M6 closes: without this the caller was told an answer would
+# arrive, the poll had already given up, and nothing would ever speak again.
+have "an interrupted run is terminalised"     'grep -q "reaped 1 task(s) interrupted by a restart" /tmp/boot3.log'
+# The webhook in the seeded task points at a dead port. Reaping must survive
+# that: the terminal state is not best-effort, only the notice is.
+have "  ...and an unreachable webhook is survived" '[ "$(curl -s localhost:'"$M6_PORT"'/livez)" = "ok" ]'
+grep -q "restored 1 task(s) from checkpoint" /tmp/boot3.log || { echo "  --- boot3.log ---"; sed 's/^/    /' /tmp/boot3.log | tail -25; }
 
 cleanup; sleep 1
 echo

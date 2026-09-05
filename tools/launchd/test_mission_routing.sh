@@ -24,10 +24,22 @@ driver="$ROOT/tools/launchd/mission-control.sh"
 # FLEET (Mark 2026-08-26, attended): codex KEEPS both primary roles; the Ollama
 # Cloud lanes sit at the FIRST FALLBACK. Asserting the primaries explicitly so a
 # future promotion has to be deliberate rather than accidental.
+# RE-AFFIRMED 2026-09-05 (Mark, attended): astra goes IN THE CHAIN and does NOT
+# take a primary. These two arms were briefly flipped to astra earlier the same
+# day and are restored — sol keeps both primaries on months of in-role track
+# record, against astra's single fizzbuzz round-trip and an rc=0 probe.
 grep -q 'MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol' "$driver" \
   && ok "executor primary remains Codex Sol" || bad "executor primary remains Codex Sol" "missing default"
 grep -q 'MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol' "$driver" \
   && ok "planner primary remains Codex Sol" || bad "planner primary remains Codex Sol" "missing default"
+# The fallback chains must stay `pi:*`-headed. A `codex:*` value here would run
+# UNPROBED — the codex loop hands off to a value that only the *pi* loop probes —
+# which is the "pin running unprobed on World" defect ailang#611 fixed. This is the
+# arm that dies if someone "helpfully" inserts sol as the first fallback rung.
+grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:' "$driver" \
+  && ok "executor fallback head is a probed pi lane" || bad "executor fallback head is a probed pi lane" "codex:* head runs unprobed (#611)"
+grep -q 'MISSION_PLANNER_FALLBACK:-pi:' "$driver" \
+  && ok "planner fallback head is a probed pi lane" || bad "planner fallback head is a probed pi lane" "codex:* head runs unprobed (#611)"
 # Executor fallback: SAME deepseek-v4-flash weights, flat-rate ollama route
 # instead of metered OpenRouter. The ratified codex->deepseek->opus chain is
 # preserved; only the route changed. Brace-anchored so a prefix cannot pass.
@@ -174,10 +186,29 @@ grep -qE '^MISSION_EVALUATOR_FALLBACK=.*(glm|deepseek|gpt-)' "$docsenv" \
 grep -q 'MISSION_EXECUTOR_FALLBACK:-[^}]*:floor' "$driver" \
   && bad "executor fallback is never price-pinned (:floor)" "fallback is :floor-pinned" \
   || ok "executor fallback is never price-pinned (:floor)"
+# CONTROLLER LADDER. Amended 2026-09-05 (Mark, attended): astra is inserted
+# BETWEEN opus and fable — "ahead of each fable instance, that falls back to fable".
+# The single exact-string arm this replaces bundled three separate guarantees, so
+# any one edit reddened it without saying which broke. Split, because two of the
+# three are negative assertions that must keep biting on their own.
+grep -q 'MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-6-astra,claude-fable-5-1}' "$driver" \
+  && ok "controller ladder is opus-5 -> astra -> fable-5-1" || bad "controller ladder is opus-5 -> astra -> fable-5-1" "wrong ladder"
+# The ORDER is the ruling, not just the membership: astra before fable, fable kept
+# as what it falls back to. An astra entry placed AFTER fable would satisfy a naive
+# membership check and invert the decision.
+grep -q 'MISSION_MODEL_PREFS:-[^}]*codex:gpt-6-astra,claude-fable' "$driver" \
+  && ok "astra sits AHEAD of fable in the ladder" || bad "astra sits AHEAD of fable in the ladder" "astra not immediately before fable"
 # opus-4.8 REMOVED from the controller ladder (Mark 2026-08-26). Negative
 # assertion so a silent reintroduction is RED, not merely unasserted.
-grep -q 'MISSION_MODEL_PREFS:-claude-opus-5,claude-fable-5-1}' "$driver" \
-  && ok "controller ladder is opus-5 -> fable-5-1 (no opus-4.8, no fable-5)" || bad "controller ladder is opus-5 -> fable-5-1 (no opus-4.8, no fable-5)" "wrong ladder"
+grep -q 'MISSION_MODEL_PREFS:-[^}]*opus-4-8' "$driver" \
+  && bad "controller ladder excludes opus-4.8" "opus-4-8 reintroduced" \
+  || ok "controller ladder excludes opus-4.8"
+# Fable 5 -> 5.1 (Mark 2026-09-02). The bracket class is load-bearing: plain
+# 'claude-fable-5' is a SUBSTRING of 'claude-fable-5-1', so an unanchored negative
+# would fire on the correct value and this arm would be permanently red.
+grep -q 'MISSION_MODEL_PREFS:-[^}]*claude-fable-5[,}]' "$driver" \
+  && bad "controller ladder uses fable-5-1, not bare fable-5" "bare fable-5 in the ladder" \
+  || ok "controller ladder uses fable-5-1, not bare fable-5"
 # ACTIVE lines only: a comment recording the removal must not trip the guard,
 # but a real reintroduction must. (This distinction is why the first version of
 # this assertion went red on its own changelog note.)
@@ -200,8 +231,16 @@ grep -q '_chain_head()' "$driver" && grep -q 'CHAIN_REMAINING' "$driver" \
 grep -q 'MISSION_EVALUATOR_FALLBACK:-pi:ollama/\(kimi\|deepseek\)' "$driver" \
   && bad "evaluator vendor is distinct from planner/executor" "evaluator shares a VENDOR with a generator" \
   || ok "evaluator vendor is distinct from planner/executor"
+# AMENDED 2026-09-05 (Mark, attended): astra is ADDED to the controller chain
+# BEHIND sol, not ahead of it. Two arms, and they are different claims: the first
+# is the pre-existing guarantee that sol still LEADS the chain (it must not be
+# displaced); the second is that astra sits immediately behind it. Order is the
+# whole point of this change — reversing them would make astra the effective
+# codex controller, which is exactly what Mark declined.
 grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol' "$driver" \
-  && ok "controller has Codex Sol fallback" || bad "controller has Codex Sol fallback" "missing fallback"
+  && ok "controller fallback still leads with Codex Sol" || bad "controller fallback still leads with Codex Sol" "sol displaced from the head"
+grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol,codex:gpt-6-astra' "$driver" \
+  && ok "Codex Astra is the rung directly behind Sol" || bad "Codex Astra is the rung directly behind Sol" "astra missing or out of order"
 
 "$ROOT/scripts/mission_decisions.sh" --check --file "$ROOT/design_docs/v1-mission.md" >/dev/null \
   && ok "decision ledger validates" || bad "decision ledger validates" "invalid"
@@ -371,6 +410,33 @@ fi
 grep -q 'enum in this build lists' "$skill" \
   && ok "S2 fable capability paragraph survives the spawn-pattern edit" \
   || bad "S2 fable capability paragraph survives the spawn-pattern edit" "capability control missing"
+
+# S3/S4/S5 — astra's placement, and the collision it creates. Rewritten 2026-09-05
+# after Mark corrected the first attempt: astra is an ADDITIONAL fable-class entry
+# to vary between, NOT a replacement for fable's slot.
+grep -q 'now `claude:claude-fable-5-1` → `codex:gpt-6-astra` → `pi:ollama/deepseek-v4-flash:0731-cloud` → repeat' "$skill" \
+  && ok "S3 designer rotation is fable -> astra -> deepseek (astra ADDED, fable kept)" \
+  || bad "S3 designer rotation is fable -> astra -> deepseek (astra ADDED, fable kept)" "rotation is not the three-entry list"
+# The driver seed must NOT have moved: astra is a rotation entry, so nothing pins it.
+# This is the arm that dies if someone re-applies the "astra takes the fable slot"
+# version, which looked identical in a role table and was not what was asked for.
+grep -q 'MISSION_DESIGNER_MODEL:-claude:claude-fable-5-1' "$driver" \
+  && ok "S4 designer seed is still fable (astra is an entry, not a pin)" \
+  || bad "S4 designer seed is still fable (astra is an entry, not a pin)" "seed moved off fable"
+# S5: astra sits in the designer rotation AND in the default quorum roster, so on
+# astra's turn the author is one of its own reviewers. That is a real defect with a
+# named workaround, not a footnote — this arm fails if the quorum default gains
+# astra while the skill stops carrying the substitution instruction, i.e. if the
+# collision ever becomes undocumented.
+if grep -q 'gpt6-astra,gemini-3-1-pro,oc-glm-5-2' cmd/ailang/design_quorum.go; then
+  if grep -q 'ASTRA IS ALSO A QUORUM REVIEWER' "$skill"; then
+    ok "S5 astra-in-quorum collision is documented where the designer is chosen"
+  else
+    bad "S5 astra-in-quorum collision is documented where the designer is chosen" "quorum names astra but the rotation row does not warn"
+  fi
+else
+  ok "S5 astra-in-quorum collision is documented where the designer is chosen"
+fi
 
 echo ""
 echo "==== $PASS passed, $FAIL failed ===="

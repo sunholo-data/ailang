@@ -1,5 +1,203 @@
 [
   {
+    "ailang_version": "v0.35.0",
+    "generated": "2026-09-04",
+    "trials": 0,
+    "languages": [],
+    "rows": []
+  },
+  {
+    "ailang_version": "v0.34.0",
+    "generated": "2026-09-03",
+    "trials": 8,
+    "languages": [
+      "ailang",
+      "go",
+      "javascript",
+      "python"
+    ],
+    "rows": [
+      {
+        "harness": "motoko",
+        "lang": {
+          "ailang": 0.9662921348314607,
+          "go": 1,
+          "javascript": 0.9836065573770492,
+          "python": 1
+        },
+        "model": "motoko-local-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 0.9333333333333333,
+            "python": 1
+          },
+          "frontier": {
+            "ailang": 0.75
+          },
+          "smoke": {
+            "ailang": 0.9333333333333333,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          },
+          "stretch": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          },
+          "vision": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          }
+        }
+      },
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 0.9345794392523364,
+          "go": 1,
+          "javascript": 0.9850746268656716,
+          "python": 0.9848484848484849
+        },
+        "model": "opencode-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 0.96,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          },
+          "frontier": {
+            "ailang": 0.625
+          },
+          "smoke": {
+            "ailang": 0.9736842105263158,
+            "go": 1,
+            "javascript": 1,
+            "python": 0.9722222222222222
+          },
+          "stretch": {
+            "ailang": 0.9333333333333333,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          },
+          "vision": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 0.8571428571428571,
+            "python": 1
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 0.9310344827586207,
+          "go": 1,
+          "javascript": 1,
+          "python": 0.9848484848484849
+        },
+        "model": "pi-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 0.9696969696969697,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          },
+          "frontier": {
+            "ailang": 0.5833333333333334
+          },
+          "smoke": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 0.9736842105263158
+          },
+          "stretch": {
+            "ailang": 0.9285714285714286,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          },
+          "vision": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          }
+        }
+      }
+    ]
+  },
+  {
+    "ailang_version": "v0.33.2",
+    "generated": "2026-08-26",
+    "trials": 2,
+    "languages": [
+      "ailang",
+      "go",
+      "javascript",
+      "python"
+    ],
+    "rows": [
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 0.9473684210526315,
+          "go": 1,
+          "javascript": 1,
+          "python": 1
+        },
+        "model": "opencode-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "frontier": {
+            "ailang": 0.6
+          },
+          "stretch": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 0.9333333333333333,
+          "go": 1,
+          "javascript": 1,
+          "python": 1
+        },
+        "model": "pi-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "frontier": {
+            "ailang": 0.875
+          },
+          "stretch": {
+            "ailang": 0.8888888888888888,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          }
+        }
+      }
+    ]
+  },
+  {
     "ailang_version": "v0.33.1",
     "generated": "2026-08-24",
     "trials": 9,
@@ -52,7 +250,7 @@
           "ailang": 1,
           "go": 1,
           "javascript": 1,
-          "python": 0.9090909090909091
+          "python": 0.9411764705882353
         },
         "model": "opencode-qwen3-8-27b",
         "tiers": {
@@ -64,6 +262,12 @@
           },
           "frontier": {
             "ailang": 1
+          },
+          "smoke": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
           },
           "stretch": {
             "ailang": 1,
@@ -95,7 +299,7 @@
         "harness": "pi",
         "lang": {
           "ailang": 1,
-          "go": 0.9090909090909091,
+          "go": 0.9411764705882353,
           "javascript": 1,
           "python": 1
         },
@@ -109,6 +313,12 @@
           },
           "frontier": {
             "ailang": 1
+          },
+          "smoke": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
           },
           "stretch": {
             "ailang": 1,

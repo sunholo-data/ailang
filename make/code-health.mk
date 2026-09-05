@@ -3,7 +3,7 @@
 # =============================================================================
 
 .PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-referenced-paths
-.PHONY: fmt fmt-check fmt-check-ail vet lint install-lint
+.PHONY: fmt fmt-check fmt-check-ail shellcheck-autopush vet lint install-lint
 
 check-referenced-paths: ## Check that referenced tools/scripts paths exist and are tracked
 	@bash scripts/check_referenced_paths.sh
@@ -16,12 +16,29 @@ fmt: ## Format all Go code
 
 fmt-check: ## Check code formatting (CI gate)
 	@echo "Checking code formatting..."
-	@if [ -n "$$(gofmt -l .)" ]; then \
+	@err_file=$$(mktemp "$$PWD/.tmp-fmt-check.XXXXXX") || exit 1; \
+	trap 'rm -f "$$err_file"' EXIT HUP INT TERM; \
+	output=$$(gofmt -l . 2>"$$err_file"); rc=$$?; \
+	if [ "$$rc" -ne 0 ]; then \
+		cat "$$err_file"; \
+		echo "$(RED)$(CROSS) gofmt failed; fix invalid Go syntax before formatting$(RESET)"; \
+		exit 1; \
+	fi; \
+	if [ -n "$$output" ]; then \
 		echo "$(RED)$(CROSS) Go code is not formatted. Run 'make fmt'$(RESET)"; \
-		gofmt -l .; \
+		printf '%s\n' "$$output"; \
 		exit 1; \
 	fi
 	@echo "$(GREEN)$(CHECKMARK) Code formatting check passed$(RESET)"
+
+AUTOPUSH_SHELL_SCRIPTS := scripts/hooks/push_dev_on_stop.sh scripts/hooks/test_push_dev_on_stop.sh
+
+shellcheck-autopush: ## ShellCheck the production auto-push hook and its harness
+	@if ! command -v shellcheck >/dev/null 2>&1; then \
+		echo "$(RED)$(CROSS) shellcheck is required for the auto-push integrity gate$(RESET)"; \
+		exit 1; \
+	fi
+	@shellcheck $(AUTOPUSH_SHELL_SCRIPTS)
 
 # AILANG canonical-form drift check (opt-in, standalone — NOT wired into `make ci`).
 # Reports `.ail` files under examples/ and std/ that are not in `ailang fmt`

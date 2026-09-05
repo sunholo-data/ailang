@@ -16,7 +16,24 @@ log() { echo "boot | $*"; }
 # runs under a command substitution, would hold its stdout open forever.
 die() { echo "boot | FATAL: $*" >&2; [ -n "${HEALTH_PID:-}" ] && kill "$HEALTH_PID" 2>/dev/null; exit 1; }
 HEALTH_PID=""
-cleanup() { [ -n "${HEALTH_PID:-}" ] && kill "$HEALTH_PID" 2>/dev/null; }
+# WAIT for the server to finish shutting down, do not just signal it.
+#
+# This script is PID 1, so Cloud Run's SIGTERM arrives HERE and the container is
+# torn down the moment this script exits. Signalling the child and returning
+# immediately gave the server no scheduling window at all: its SIGTERM handler
+# stages the task store to $AGENT_HOME, and a real stop mid-run recovered
+# NOTHING because the container died first. Signal, then wait — bounded, so a
+# server that will not go never holds the instance open (M6).
+cleanup() {
+  [ -n "${HEALTH_PID:-}" ] || return 0
+  kill "$HEALTH_PID" 2>/dev/null || return 0
+  for _ in $(seq 1 80); do
+    kill -0 "$HEALTH_PID" 2>/dev/null || return 0
+    sleep 0.1
+  done
+  log "WARN server did not exit within 8s of SIGTERM — killing"
+  kill -9 "$HEALTH_PID" 2>/dev/null
+}
 trap cleanup EXIT INT TERM
 
 PORT="${RESIDENT_PORT:-8080}"
@@ -118,6 +135,32 @@ if grep -q '"apiKey"' "$PI_HOME/agent/models.json" 2>/dev/null; then
   log "provider keys: PRESENT in the registry (per-instance secret material)"
 else
   log "provider keys: NONE — every provider authenticates by ambient identity"
+fi
+
+# ─── 1a-ter. Observability (M8) ──────────────────────────────────────────────
+# State plainly whether this instance is on the observability plane, for the
+# same reason the provider-key line above exists: "invisible in the observatory"
+# and "working but quiet" look identical from outside, and the first is a
+# regression somebody should notice in a boot log rather than discover while
+# trying to debug something else.
+#
+# NOT fail-closed, deliberately — unlike the model registry and the sandbox.
+# Telemetry going missing degrades our ability to see the agent; refusing to
+# boot over it would degrade the agent itself, which is a worse trade.
+# TWO planes, stated separately because they fail separately and only one of
+# them is what an operator reads. Traces correlate services; the observatory
+# session is the task record with its turns and tool calls — the same shape an
+# agent job and a Claude Code session appear as. An instance with traces and no
+# session is "traced" and still invisible in the view anyone actually opens.
+if [ -n "${OTEL_EXPORTER_OTLP_ENDPOINT:-}" ]; then
+  log "observability: traces -> $OTEL_EXPORTER_OTLP_ENDPOINT (service=${OTEL_SERVICE_NAME:-resident-agent} instance=${RESIDENT_INSTANCE_NAME:-unset})"
+else
+  log "observability: NO OTEL_EXPORTER_OTLP_ENDPOINT — this instance appears in no trace chain"
+fi
+if [ -n "${AILANG_OBSERVATORY_URL:-}" ]; then
+  log "observability: sessions -> $AILANG_OBSERVATORY_URL/api/exec/{sessions,events}"
+else
+  log "observability: NO AILANG_OBSERVATORY_URL — runs will NOT appear in the observatory alongside agent jobs"
 fi
 
 # ─── 1b. AILANG effect sandbox ───────────────────────────────────────────────

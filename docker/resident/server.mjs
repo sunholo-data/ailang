@@ -12,12 +12,34 @@ import { createServer } from "node:http";
 import * as herdr from "./lib/herdr.mjs";
 import * as pi from "./lib/pi.mjs";
 import * as a2a from "./lib/a2a.mjs";
+import * as otel from "./lib/otel.mjs";
+import * as observatory from "./lib/observatory.mjs";
 import { verify, authConfig } from "./lib/auth.mjs";
 
 const PORT = Number(process.env.RESIDENT_PORT || 8080);
 const STARTED = Date.now();
 const loaded = a2a.loadTasks();
-if (loaded) console.log(`server | restored ${loaded} task(s) across restart`);
+// The SOURCE is logged, not just the count. "local" means the process
+// restarted under a filesystem that survived; "checkpoint" means the writable
+// layer was reset — a stop/resume, which is what M4's sweep does — and the
+// mount is why anything came back at all. Told apart in the log because they
+// were indistinguishable while the second silently returned nothing.
+if (loaded.count) console.log(`server | restored ${loaded.count} task(s) from ${loaded.source} across restart`);
+
+// M8: join the observability plane the agent jobs and the coordinator are
+// already on. Unset endpoint = inert, which is the normal state of a laptop
+// and of any environment that has not opted in.
+otel.configure({
+  endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "",
+  serviceName: process.env.OTEL_SERVICE_NAME || "resident-agent",
+  instance: process.env.RESIDENT_INSTANCE_NAME || "",
+});
+// The plane an operator actually reads: runs appear as task records with turns
+// and tool calls, the same shape as an agent job and a Claude Code session.
+observatory.configure({ url: process.env.AILANG_OBSERVATORY_URL || "" });
+console.log(
+  `server | telemetry: traces=${otel.enabled() ? "on" : "OFF"} observatory=${observatory.enabled() ? "on" : "OFF"}`,
+);
 
 const json = (res, code, body) => {
   res.writeHead(code, { "content-type": "application/json" });
@@ -117,10 +139,28 @@ const server = createServer(async (req, res) => {
   const { id, method, params } = body || {};
   if (body?.jsonrpc !== "2.0" || !method) return rpcError(res, id, -32600, "invalid request");
 
+  // One span per A2A method, continuing the CALLER'S trace when it sent a
+  // traceparent — that is what puts a resident run in the same chain as the
+  // coordinator and job traces rather than in a trace of its own (M8).
+  const span = otel.startSpan(`a2a.${method}`, {
+    traceparent: req.headers.traceparent,
+    attributes: { "rpc.system": "jsonrpc", "rpc.method": method, "peer.identity": caller?.email || "unknown" },
+  });
+  // tasks/* address an existing task by id; message/send MAKES one, so its id
+  // is only known from the result and is attached there.
+  const inboundTaskId = params?.id ?? params?.taskId;
+  if (inboundTaskId) span.setAttribute("a2a.task.id", inboundTaskId);
+
   try {
     switch (method) {
-      case "message/send":
-        return json(res, 200, { jsonrpc: "2.0", id, result: await a2a.messageSend(params) });
+      case "message/send": {
+        // The caller's trace context is threaded into the TASK, not just this
+        // span: the run's later transitions happen after this request returns.
+        const result = await a2a.messageSend(params, { traceparent: span.traceparent() });
+        if (result?.id) span.setAttribute("a2a.task.id", result.id);
+        if (result?.status?.state) span.setAttribute("a2a.task.state", result.status.state);
+        return json(res, 200, { jsonrpc: "2.0", id, result });
+      }
       case "tasks/get": {
         const t = a2a.getTask(params?.id);
         return t ? json(res, 200, { jsonrpc: "2.0", id, result: t })
@@ -149,14 +189,36 @@ const server = createServer(async (req, res) => {
     // A herdr socket failure must surface as a visible JSON-RPC error, never a
     // hang and never a success with an empty result.
     console.error(`server | ${method} failed: ${e.stack || e.message}`);
+    span.recordError(e);
     return rpcError(res, id, e.code ?? -32603, e.message);
+  } finally {
+    span.end();
   }
 });
 
 const cfg = authConfig();
-server.listen(PORT, "0.0.0.0", () =>
+server.listen(PORT, "0.0.0.0", () => {
   console.log(
     `server | listening on ${PORT} (livez public; health, A2A card and JSON-RPC require OIDC) ` +
       `| audience=${cfg.audience || "UNSET"} allowed=${cfg.allowed.length || "UNSET"}`,
-  ),
-);
+  );
+  // M6: close out runs that died with the previous container. AFTER listen, so
+  // an instance woken by a caller is already answering while it does this —
+  // the reap posts outbound webhooks and must never delay readiness.
+  a2a.reapOrphans();
+});
+
+// M6: Cloud Run sends SIGTERM and gives roughly ten seconds before the
+// writable layer goes. That window is the last chance to stage anything a
+// caller is still waiting on. `checkpoint()` is best-effort and synchronous, so
+// a failure here costs the notice and never the shutdown.
+for (const sig of ["SIGTERM", "SIGINT"]) {
+  process.on(sig, () => {
+    console.log(`server | ${sig} — staging task state before shutdown`);
+    a2a.checkpoint();
+    server.close(() => process.exit(0));
+    // A connection that will not drain must not hold the instance past the
+    // window; the checkpoint is already written by this point either way.
+    setTimeout(() => process.exit(0), 5000).unref();
+  });
+}

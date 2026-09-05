@@ -243,7 +243,13 @@ _mc_stalled() {
 # claude-opus-4-8 REMOVED 2026-08-26 (Mark, attended). The ladder keeps a
 # same-provider step (fable) and then crosses providers via CONTROLLER_FALLBACK
 # below, so dropping the middle Anthropic rung costs no cross-provider coverage.
-PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,claude-fable-5-1}"
+# ASTRA AHEAD OF FABLE (Mark, attended 2026-09-05). Order is the point: opus stays
+# the first choice, astra is tried BEFORE fable, and fable remains directly behind
+# it as the fallback. Additive — nothing is removed and opus is not displaced.
+# Requires the provider dispatch in select_model step 3; before that change this
+# list was Anthropic-only and a codex entry here would have been sent to the
+# claude CLI probe and failed every fire.
+PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-6-astra,claude-fable-5-1}"
 # CONTROLLER_FALLBACK is an ordered COMMA CHAIN walked left to right (Mark, attended
 # 2026-08-31: "a longer chain of redundancies after codex", explicitly NOT a new default —
 # codex keeps its rung; the pi rungs exist so a simultaneous Anthropic+codex dry-out no
@@ -254,7 +260,19 @@ PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,claude-fable-5-1}"
 # Known residual, deliberately unsolved here: a codex 1-token probe cannot see a spent
 # bucket (reference measured 2026-07; the weekend's motoko rc=1s), so the codex rung can
 # still pass its probe and die mid-run — the chain below it is the mitigation, not a fix.
-CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3}"
+# ASTRA ADDED TO THE CHAIN, BEHIND SOL (Mark, attended 2026-09-05). Purely
+# ADDITIVE: sol keeps the rung it has always held and nothing is displaced —
+# astra is a new rung between sol and the GLM lanes, reached only when BOTH
+# Anthropic models AND sol have failed their probes. It costs no more dollars
+# than the rung above it: `codex exec --model gpt-6-astra` with OPENAI_API_KEY
+# stripped (the state a fire runs in, L110) returns rc=0 and prints
+# `model: gpt-6-astra`, so it bills the same ChatGPT subscription as sol.
+# Discriminating negative control: a nonexistent model 400s with "not supported
+# when using Codex with a ChatGPT account".
+# This chain is safe to extend with a `codex:*` entry — unlike the per-role
+# chains below — because the controller selector probes EVERY entry it walks
+# (_mc_probe_codex per codex:* rung), rather than handing off to a later loop.
+CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol,codex:gpt-6-astra,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3}"
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
 PROBE_TIMEOUT="${MISSION_PROBE_TIMEOUT:-120}"   # per-probe wall-clock cap, seconds
 
@@ -347,14 +365,42 @@ select_model() {
       _mc_set_controller "$ov_model" "override file"; return 0
     fi
   fi
-  # 3. ordered preference probing
+  # 3. ordered preference probing.
+  #
+  # PROVIDER-DISPATCHED since 2026-09-05 (Mark, attended: "put astra ahead of each
+  # fable instance, that falls back to fable"). This list used to be Anthropic-only —
+  # every entry went to `_mc_probe`, the claude CLI probe — so a non-Anthropic model
+  # could ONLY be expressed in CONTROLLER_FALLBACK, which is reached after EVERY
+  # Anthropic candidate has failed. There was therefore no way to say
+  # "opus, then astra, then fable": a codex entry could sit before opus (never) or
+  # after fable (too late), but not BETWEEN them. That ordering is the whole ask.
+  #
+  # Bare and `claude:`-prefixed entries keep the exact 0/1/2 quota-vs-unusable
+  # semantics they had; only the dispatch is new. _mc_set_controller already parses
+  # every prefix, so a matched entry needs no special-casing beyond its probe.
   local m why rcode
   for m in $(printf '%s' "$PREFS" | tr ',' ' '); do
-    _mc_probe "$m"; rcode=$?
-    case "$rcode" in
-      0) _mc_set_controller "$m" "probe ok"; return 0 ;;
-      1) log "model $m quota-limited — falling through" ;;
-      2) log "model $m unusable (auth/transient) — falling through" ;;
+    case "$m" in
+      codex:*)
+        if _mc_probe_codex "${m#codex:}"; then
+          _mc_set_controller "$m" "probe ok"; return 0
+        fi
+        log "controller preference $m unusable — falling through"
+        ;;
+      pi:*)
+        _mc_bounded "$PROBE_TIMEOUT" pi --mode json --no-session --no-tools --model "${m#pi:}" -p 'reply with exactly: ok'
+        rcode=$?
+        if [ "$rcode" -eq 0 ]; then _mc_set_controller "$m" "probe ok"; return 0; fi
+        log "controller preference $m probe failed (rc=$rcode within ${PROBE_TIMEOUT}s) — falling through"
+        ;;
+      *)
+        _mc_probe "$m"; rcode=$?
+        case "$rcode" in
+          0) _mc_set_controller "$m" "probe ok"; return 0 ;;
+          1) log "model $m quota-limited — falling through" ;;
+          2) log "model $m unusable (auth/transient) — falling through" ;;
+        esac
+        ;;
     esac
   done
   # 4. cross-provider fallback CHAIN, walked in order (Mark 2026-08-31 — see the
@@ -550,6 +596,13 @@ fi
 # bare "fable" would silently fall back to opus. claude:claude-fable-5-1 = a REAL bounded Fable run.
 # Fable 5 -> 5.1 2026-09-02 (Mark, attended): same price ($10/$50 per 1M), newer generation,
 # vendor gains concentrated in long-horizon agentic work — which is exactly the designer role.
+# designer default is the claude-CLI lane (claude:<full-id>), NOT the bare "fable" alias: the
+# Agent tool pins only sonnet|opus|haiku (F1, iteration 31), so under an opus-first controller a
+# bare "fable" would silently fall back to opus. claude:claude-fable-5-1 = a REAL bounded Fable run.
+# Fable 5 -> 5.1 2026-09-02 (Mark, attended): same price ($10/$50 per 1M), newer generation,
+# vendor gains concentrated in long-horizon agentic work — which is exactly the designer role.
+# This stays the rotation SEED. Astra (2026-09-05) is an ADDITIONAL fable-class ENTRY in the
+# skill's rotation, not a replacement for this slot, so nothing here moves.
 export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-fable-5-1}"
 # Per-iteration METERED-spend ceiling (2026-07-18, Mark: "make sure costs don't go crazy"):
 # the sum of all metered-API spend (codex $ + gemini $) within ONE iteration must stay under
@@ -573,8 +626,30 @@ export MISSION_METERED_BUDGET_USD="${MISSION_METERED_BUDGET_USD:-5}"
 # slot exercises them for real whenever the codex bucket is spent, so evidence
 # accumulates in the actual roles before anything is promoted.
 #
-# Same fleet for every mission: they all source THIS file and no plist overrides
-# these vars, so there is one definition, not four kept in sync.
+# ⚠️ "Same fleet for every mission ... one definition, not four kept in sync" —
+# that is what this comment used to claim, and it is FALSE for two of the four.
+# Measured 2026-09-05 by dry-running each job's REAL plist ProgramArguments path
+# (not this checkout's copy) after the astra change landed on origin/dev:
+#   v1      ailang/          -> astra ✅   re-execs from ~/.ailang-driver-pin/v1
+#   motoko  ailang-motoko/   -> astra ✅   clone is 232 behind, but re-execs from
+#                                          the pin, which refreshes to origin/dev
+#   docs    ailang-docs/     -> luna  ➖   deliberate per-mission pin, mission-docs.env
+#   world   ailang-world/    -> NO    ❌   a SEPARATE GITHUB REPO
+#                                          (sunholo-data/ailang-world) carrying its
+#                                          OWN copy of this driver, with no
+#                                          lib/pin-root.sh, so it never re-execs
+#                                          from a pin and never reads this file.
+#                                          Its own defaults are planner=opus,
+#                                          executor=codex:gpt-5.6-sol.
+# The pin is what makes a stale clone harmless (motoko), and its ABSENCE is what
+# makes world invisible to every edit here. So the reach of anything set below is
+# "whichever missions re-exec from a pin", never "all four" — verify with a
+# MISSION_PROFILE=<m> MISSION_DRY_RUN=1 run of that mission's own driver path
+# before claiming a fleet-wide change.
+# ASTRA IS NOT THE PRIMARY (Mark, attended 2026-09-05, correcting the same day's
+# earlier edit): astra goes IN THE CHAIN, it does not replace sol. Sol keeps the
+# planner primary it has held since iteration 136 — months of track record in this
+# specific role, against astra's one fizzbuzz round-trip and an rc=0 probe.
 export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol}"
 # MISSION_PLANNER_ALLOWLIST (M-DOCS-MISSION, 2026-08-28 docs iteration 1): the per-mission
 # env files (~/.config/ailang/mission-<name>.env) set this WITHOUT `export`, so sourcing
@@ -592,6 +667,9 @@ export MISSION_PLANNER_ALLOWLIST="${MISSION_PLANNER_ALLOWLIST:-tools/launchd/*|.
 #            to that metered twin if the ollama quota runs out. Draws 4.2x
 #            gpt-oss (0.029 units/M, measured), ~4x cheaper per token than the
 #            planner, which is what the high-volume role needs.
+# ASTRA IS NOT THE PRIMARY (Mark, attended 2026-09-05). Sol keeps the executor
+# primary; the ratified chain "codex as default, deepseek the replacement when
+# codex is out, opus last" (Mark 2026-08-06) is restored exactly as it was.
 export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol}"
 # EXECUTOR FALLBACK CHAIN — ailang#611 (2026-08-11).
 #
