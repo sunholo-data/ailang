@@ -1,0 +1,30 @@
+# The Docs mission — ailang-docs.
+#
+# ⚠ THIS MISSION IS THE STANDING PROOF THAT A REVIEWED FILE IS NOT A DEPLOYED FILE.
+# tools/launchd/mission-env/mission-docs.env widened MISSION_PLANNER_ALLOWLIST to admit
+# scripts/* (PR #1010) and its own comment declared itself "the sprint's only
+# deployment surface". It was never copied to ~/.config. Docs work has routed to opus
+# instead of codex ever since, with a green CI arm — the test asserts the repo copy
+# while the driver reads the installed one. `ailang mission doctor` reports it as
+# env-source-drift and names the key.
+name    = "docs"
+repo    = "sunholo-data/ailang"
+workdir = "/Users/voightkampff/dev/sunholo-data/ailang-docs"
+doc     = "design_docs/docs-mission.md"
+
+# ── SCHEDULE ─────────────────────────────────────────────────────────────────
+# 6h, RESTORED by Mark (attended 2026-09-02) after a one-day trial at 3h. The 3h case
+# was sound in isolation — 13-25min iterations against a 6h fire is ~23h/day idle, and
+# the controller is sonnet, not the opus that drains the weekly bucket — but it was not
+# taken in isolation: v1 and world were tightened the same hour, the fleet stall rate
+# went 5% -> 33%, and docs itself lost one of five fires.
+#
+#   "The cost of running this loop hot is not paid by this loop."
+#
+# Left on StartInterval deliberately: unlike v1, docs' duration (~50min mean) is far
+# below its interval, so the exit-re-arm costs it proportionally little, and it is not
+# one of the two loops Mark asked to accelerate.
+[schedule]
+mode             = "interval"
+interval_seconds = 21600
+boot_offset      = 840

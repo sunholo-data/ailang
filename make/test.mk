@@ -67,6 +67,7 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@/bin/bash tools/launchd/test_mission_stall.sh
 	@/bin/bash tools/launchd/test_mission_memgate.sh
 	@/bin/bash tools/launchd/test_cron_kicker.sh
+	@$(MAKE) --no-print-directory test-mission-registry
 	@/bin/bash tools/eval/test_motoko_connection_probe.sh
 	@for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n "$$f" || exit 1; done
 	@/bin/bash -n tools/eval/motoko_connection_probe.sh
@@ -345,3 +346,7 @@ test-stdlib-ail: build ## Run the .ail test suites + run-fixtures under tests/st
 	rm -f /tmp/ailang_stdlib_fixtures.$$$$; \
 	echo "  $$fixtures run-fixture(s) matched expected stdout"
 	@echo "$(GREEN)✓ stdlib .ail suites and run-fixtures pass$(NC)"
+
+.PHONY: test-mission-registry
+test-mission-registry: ## Run mission-registry tests (schema, renderer, doctor; live gates skip off-rig)
+	@go test ./internal/mission/...

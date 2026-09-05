@@ -1,0 +1,29 @@
+# The World mission — ailang-world.
+#
+# ⚠ WORLD IS A FORK. Its driver lives in a SEPARATE GitHub repo
+# (sunholo-data/ailang-world) with its own copy of mission-control.sh and no
+# lib/pin-root.sh, so it never re-execs from the driver pin and has silently missed
+# every routing fix landed in sunholo-data/ailang. `ailang mission doctor` reports this
+# as a note on every run. De-forking is Phase 3 of M-MISSION-LOOP-WORKBENCH and is
+# gated on HD-2, which is deliberately unratified.
+name    = "world"
+repo    = "sunholo-data/ailang-world"
+workdir = "/Users/voightkampff/dev/sunholo-data/ailang-world"
+doc     = "design_docs/world-mission.md"
+
+# ── SCHEDULE ─────────────────────────────────────────────────────────────────
+# KeepAlive (Mark, attended 2026-09-05), same reasoning as v1: StartInterval re-armed
+# from exit, so world's measured 14390s gap against a 14400s interval meant the period
+# was duration + interval and 19.0 of world's 24 hours were idle. Nominal 4h spacing
+# unchanged; only the wasted slot goes. Projected 4.75 -> 6.0 iterations/day on a mean
+# duration of 3785s (n=2 — thin; the durable slot-verdict log added the same day is
+# what turns that into a real number).
+#
+# Prerequisite that had to land first: world had NO memory gate and NO boot stagger.
+# Raising this loop's rate while it was the one mission with no admission control, on a
+# box that took three jetsam events in 48h, would have traded an idle problem for an
+# OOM problem.
+[schedule]
+mode             = "keepalive"
+throttle_seconds = 14400
+boot_offset      = 420

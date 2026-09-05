@@ -5,6 +5,24 @@ description: Point AILANG's autonomous mission loop at another repo — driver, 
 
 # Bootstrapping an autonomous mission loop
 
+> **⚠ SUPERSEDED IN PART (2026-09-05).** Missions are now described by a registry entry —
+> one TOML file per mission in `missions/` — and the artifacts are generated from it.
+>
+> ```bash
+> ailang mission list              # which missions exist, and how each is wired
+> ailang mission doctor            # does what is installed match what was reviewed?
+> ailang mission install <name>    # render this mission's artifacts to *.staged
+> ```
+>
+> `install` RENDERS ONLY; it writes nothing the fleet reads. Promotion (`apply`) is
+> Phase 2 of [M-MISSION-LOOP-WORKBENCH](../../../design_docs/planned/v0_36_0/m-mission-loop-workbench.md)
+> and is not implemented yet, so the manual steps below are still how a change reaches
+> the fleet. Read `doctor` first: on 2026-09-05 it reported that two of four missions
+> were running config that disagreed with the reviewed copy in the repo.
+>
+> Model and role assignment is NOT in the registry — see `ailang models role`.
+
+
 AILANG ships with a **mission loop**: a scheduled outer loop that picks the top item off a written
 backlog, routes it through a design → plan → execute → evaluate inner loop of specialised agents,
 records what happened, and reports to a human — then does it again, unattended, on a cadence. The
