@@ -411,6 +411,25 @@ grep -q 'enum in this build lists' "$skill" \
   && ok "S2 fable capability paragraph survives the spawn-pattern edit" \
   || bad "S2 fable capability paragraph survives the spawn-pattern edit" "capability control missing"
 
+# S3/S4 — the designer rotation lives in the SKILL, the designer's fallback lives
+# in the DRIVER, and nothing else makes them agree. Added 2026-09-05 with the astra
+# rotation edit, because that edit created the first case where they CAN disagree:
+# before it, the designer had no fallback at all and no probe, so there was nothing
+# for the two files to be inconsistent about.
+grep -q 'now `codex:gpt-6-astra` → `pi:ollama/deepseek-v4-flash:0731-cloud` → repeat' "$skill" \
+  && ok "S3 designer rotation leads with astra" \
+  || bad "S3 designer rotation leads with astra" "rotation head is not astra"
+# The two halves of "falls back to fable" must name the SAME fable. The skill says
+# astra's fallback is claude-fable-5-1; the driver is what actually sets it on a
+# failed probe. A silent drift here degrades the designer to a model the policy
+# never named, and the lane-degradation notice would report it as intended.
+skill_fable=$(grep -o 'demoted from rotation ENTRY to astra.s FALLBACK' "$skill")
+driver_fable=$(grep -o 'MISSION_DESIGNER_FALLBACK:-claude:claude-fable-5-1' "$driver")
+if [ -n "$skill_fable" ] && [ -n "$driver_fable" ]; then
+  ok "S4 designer fallback is fable in BOTH the skill and the driver"
+else
+  bad "S4 designer fallback is fable in BOTH the skill and the driver" "skill='$skill_fable' driver='$driver_fable'"
+fi
 echo ""
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]
