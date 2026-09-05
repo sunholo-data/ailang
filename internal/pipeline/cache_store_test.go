@@ -1,7 +1,10 @@
 package pipeline
 
 import (
+	"errors"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -88,6 +91,133 @@ func TestCacheStore_Clear(t *testing.T) {
 	entries, _ = cs.Stats()
 	if entries != 0 {
 		t.Errorf("expected 0 entries after clear, got %d", entries)
+	}
+}
+
+func TestCacheStore_ClearArtifacts(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		override bool
+	}{
+		{name: "default"},
+		{name: "override", override: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			testRoot := t.TempDir()
+			projectDir := filepath.Join(testRoot, "project")
+			if tc.override {
+				t.Setenv("AILANG_CACHE_DIR", filepath.Join(testRoot, "session-cache"))
+			} else {
+				t.Setenv("AILANG_CACHE_DIR", "")
+			}
+
+			cs, err := NewCacheStore(projectDir)
+			if err != nil {
+				t.Fatalf("NewCacheStore: %v", err)
+			}
+			seedClearArtifacts(t, cs)
+
+			compileSentinel := filepath.Join(cs.dir, "keep.txt")
+			if err := os.WriteFile(compileSentinel, []byte("keep compile sibling"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			cacheParentSentinel := filepath.Join(filepath.Dir(cs.dir), "package-cache", "keep.txt")
+			if err := os.MkdirAll(filepath.Dir(cacheParentSentinel), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(cacheParentSentinel, []byte("keep cache sibling"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			otherSessionSentinel := filepath.Join(testRoot, "other-session-cache", "compile", "modules", "keep.txt")
+			if err := os.MkdirAll(filepath.Dir(otherSessionSentinel), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(otherSessionSentinel, []byte("keep other session"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := cs.Clear(); err != nil {
+				t.Fatalf("Clear: %v", err)
+			}
+			if _, err := os.Stat(filepath.Join(cs.dir, "modules")); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("modules subtree still exists or stat failed: %v", err)
+			}
+			for _, sentinel := range []string{compileSentinel, cacheParentSentinel, otherSessionSentinel} {
+				if data, err := os.ReadFile(sentinel); err != nil || !strings.HasPrefix(string(data), "keep") {
+					t.Errorf("sentinel %s was changed or removed: data=%q err=%v", sentinel, data, err)
+				}
+			}
+
+			reopened, err := NewCacheStore(projectDir)
+			if err != nil {
+				t.Fatalf("reopen: %v", err)
+			}
+			if entries, _ := reopened.Stats(); entries != 0 {
+				t.Fatalf("reopened cache has %d entries, want 0", entries)
+			}
+			if reopened.manifest.Version != cacheKeyVersion {
+				t.Fatalf("manifest version = %q, want %q", reopened.manifest.Version, cacheKeyVersion)
+			}
+			if err := reopened.Clear(); err != nil {
+				t.Fatalf("idempotent Clear: %v", err)
+			}
+		})
+	}
+
+	t.Run("remove failure", func(t *testing.T) {
+		t.Setenv("AILANG_CACHE_DIR", filepath.Join(t.TempDir(), "cache"))
+		cs, err := NewCacheStore(t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		seedClearArtifacts(t, cs)
+		removeErr := errors.New("injected remove failure")
+		cs.artifactIO.removeAll = func(string) error { return removeErr }
+		err = cs.Clear()
+		if !errors.Is(err, removeErr) || !strings.Contains(err.Error(), "remove compilation cache artifacts") {
+			t.Fatalf("Clear error = %v, want contextual removal error", err)
+		}
+		if _, statErr := os.Stat(filepath.Join(cs.dir, "modules")); statErr != nil {
+			t.Fatalf("failed removal unexpectedly removed modules: %v", statErr)
+		}
+	})
+
+	t.Run("save failure", func(t *testing.T) {
+		t.Setenv("AILANG_CACHE_DIR", filepath.Join(t.TempDir(), "cache"))
+		cs, err := NewCacheStore(t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		seedClearArtifacts(t, cs)
+		saveErr := errors.New("injected save failure")
+		cs.writeManifest = func(string, []byte, os.FileMode) error { return saveErr }
+		err = cs.Clear()
+		if !errors.Is(err, saveErr) || !strings.Contains(err.Error(), "save empty compilation cache manifest") {
+			t.Fatalf("Clear error = %v, want contextual save error", err)
+		}
+	})
+}
+
+func seedClearArtifacts(t *testing.T, cs *CacheStore) {
+	t.Helper()
+	cs.Store("valid/module", &CacheEntry{CacheKey: "valid-key", Timestamp: time.Now()})
+	if err := cs.StoreArtifacts("valid/module", "valid-key", testCachedModule("valid/module", 42)); err != nil {
+		t.Fatalf("StoreArtifacts: %v", err)
+	}
+	if err := cs.Save(); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	for path, data := range map[string]string{
+		filepath.Join(cs.dir, "modules", "legacy__orphan", "core.gob"):          "legacy",
+		filepath.Join(cs.dir, "modules", "partial__module", "iface.json"):       "partial",
+		filepath.Join(cs.dir, "modules", "temp__module", ".artifacts-dead.tmp"): "temporary stamp",
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

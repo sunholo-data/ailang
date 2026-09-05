@@ -114,13 +114,19 @@ func (cs *CacheStore) Save() error {
 	return cs.writeManifest(path, data, 0644)
 }
 
-// Clear removes all cache entries.
+// Clear removes all cache entries and compiled module artifacts.
 func (cs *CacheStore) Clear() error {
 	cs.manifest = &CacheManifest{
 		Version: cacheKeyVersion,
 		Entries: make(map[string]*CacheEntry),
 	}
-	return cs.Save()
+	if err := cs.Save(); err != nil {
+		return fmt.Errorf("save empty compilation cache manifest: %w", err)
+	}
+	if err := cs.artifactIO.removeAll(filepath.Join(cs.dir, "modules")); err != nil {
+		return fmt.Errorf("remove compilation cache artifacts: %w", err)
+	}
+	return nil
 }
 
 // Stats returns cache statistics.
