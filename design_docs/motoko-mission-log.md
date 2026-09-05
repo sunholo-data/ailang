@@ -3948,3 +3948,32 @@ path). Both counts are asserted numeric before comparison, so a parse failure pr
 round and did show one `UNKNOWN/UNKNOWN` before resolving — not banked, per the async-mergeability
 caveat. The poller was killed and relaunched on each new head rather than left to expire on a
 superseded subject.
+
+**CORRECTION, written after two more rebases — the base moved three times while this iteration ran,
+and twice it moved the answer.** The attended session did not stop: after the record above was
+committed it landed **M8, M9, HD ratifications and "Phase 3 part 1"** (`fe9c08ffc`, `703c2f6a3`,
+`7d05a5f73`, `19d6b03c7`). Two consequences, both measured rather than assumed.
+**(a) M1 and M4 were dropped by `git rebase` as *patch contents already upstream*** — the human
+independently fixed the `ineffassign` initialiser and the docs link. Confirmed against the new
+origin/dev: both greps now return **0**, while M2's `filepath.IsAbs`, M3's Go-in-a-Go-less-job and
+M5's missing build tag still return **1/1/0** and remain this branch's work. Four of the five
+original defects were real; two stopped being ours to fix, which is the correct outcome and not a
+wasted commit — the rebase is what proved it, rather than a claim.
+**(b) A SEVENTH defect arrived in the base and this PR inherited it through the merge preview.**
+`19d6b03c7` added `TestDriverCopiesDoNotMultiply`, a ratchet counting driver copies across sibling
+checkouts (`../../../ailang-world` …) that exist **only on the rig**. On any CI runner `distinct` is
+1 by construction against `knownDriverCopies = 2`, so the FELL arm fires for an *environment*, not a
+change. Not ours and not caused by this branch: **dev's own head `19d6b03c7` is red on `test` for
+exactly this**, measured first-party. Fixed as **M7** — the down arm skips when no sibling checkout
+is present, the same off-rig convention `golden_live_test.go` already uses; the up arm is untouched,
+because it can only fire on a fork the checkout can actually see. Controls: from
+`~/dev/sunholo-data/ailang-motoko` all three siblings are VISIBLE, world's driver DIFFERS from shared
+and has no `lib/pin-root.sh` beside it, so `distinct=2` and the ratchet still holds there; from a
+worktree or a CI clone `observed=0` and it skips. The commit says plainly that this is the human's
+own 15-minute-old code and should be dropped if it is being fixed concurrently.
+**(c) The `internal/smt` red is not ours, and the SCOPE of the control is the only thing that proved
+it.** A full `go test ./...` on this branch fails `TestSolve_HardTimeout_FakeSolverIgnoringT`. Run
+*alone* on the pristine tree it PASSES — which would have licensed blaming the branch. Run with the
+*matched* command (`go test ./...`) on the pristine tree it fails identically, **9.02s vs 9.01s**. It
+is load-dependent and pre-existing. The first control was the wrong scope, and rule 3e is the only
+reason that did not become a false attribution.
