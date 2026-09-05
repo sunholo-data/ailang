@@ -349,7 +349,7 @@ echo "=== 6h. observability (M8) ==="
 # The tracer's own suite, run against the artefact that will be deployed rather
 # than against a checkout that may have moved on — same reason test-image.sh
 # ships inside the image at all.
-out=$(RESIDENT_LIB=/usr/local/bin/lib node --test /usr/local/bin/test-otel.mjs /usr/local/bin/test-observatory.mjs /usr/local/bin/test-a2a-persistence.mjs /usr/local/bin/test-pi-staging.mjs 2>&1)
+out=$(RESIDENT_LIB=/usr/local/bin/lib node --test /usr/local/bin/test-otel.mjs /usr/local/bin/test-observatory.mjs /usr/local/bin/test-a2a-persistence.mjs /usr/local/bin/test-pi-staging.mjs /usr/local/bin/test-agent-events.mjs 2>&1)
 have "telemetry suites pass in the image"   'echo "$out" | grep -q "fail 0"'
 
 # DURABILITY OF THE CONVERSATION, not of the task store — a separate mount
@@ -376,6 +376,31 @@ have "a failed run still closes its session"     'grep -q "reported.finish({ ok:
 have "all THREE observatory planes are posted"   'grep -q "api/observatory/hooks" /usr/local/bin/lib/observatory.mjs && grep -q "api/exec/sessions" /usr/local/bin/lib/observatory.mjs && grep -q "api/exec/events" /usr/local/bin/lib/observatory.mjs'
 have "SessionStart always carries a workspace"   'grep -q "event: \"SessionStart\", workspace" /usr/local/bin/lib/observatory.mjs'
 have "the observatory URL is read"               'grep -q "AILANG_OBSERVATORY_URL" /usr/local/bin/server.mjs'
+
+echo "=== 6i. the session story (M7) ==="
+# The customer who asked the question could not see the work; only a Sunholo
+# operator could, through the observatory. These assert the instance half: one
+# normalisation feeding both sinks, and an artifact that rides the task the
+# platform already polls.
+have "pi events are normalised ONCE for both sinks" \
+     'grep -q "from \"./agent-events.mjs\"" /usr/local/bin/lib/observatory.mjs && grep -q "from \"./agent-events.mjs\"" /usr/local/bin/lib/a2a.mjs'
+have "the events artifact is written from the run loop" \
+     'grep -q "pushEvents(task, story.drain())" /usr/local/bin/lib/a2a.mjs'
+have "a FAILED run still leaves its story" \
+     'grep -q "story.flush(); pushEvents" /usr/local/bin/lib/a2a.mjs'
+# The regression that two artifacts on one task invites. `task.artifacts = [x]`
+# reads as correct with one artifact and silently means "last writer wins" with
+# two — and the loser is the story, which updates less often than the text.
+have "artifacts are upserted, never assigned over" \
+     '! grep -qE "task\.artifacts = \[\{" /usr/local/bin/lib/a2a.mjs'
+out=$(A2A 'import * as a2a from "/usr/local/bin/lib/a2a.mjs";
+const t = { id: "img-story", artifacts: [] };
+a2a.attachTextForTest(t, "answer");
+a2a.pushEventsForTest(t, [{ t: 1, type: "tool_use", tool: "bash", toolCallId: "c", args: {a:1}, input: "{}" }]);
+console.log(JSON.stringify({ ids: t.artifacts.map(a=>a.artifactId).sort(), ev: t.artifacts.find(a=>a.artifactId==="events").parts[0].data.events[0] }));')
+have "response and events coexist on one task"  'echo "$out" | grep -q "\[\"events\",\"response\"\]"'
+have "the story carries no raw args"            'echo "$out" | grep -q "\"tool\":\"bash\"" && ! echo "$out" | grep -q "\"args\""'
+
 
 # Wiring, asserted on the source: a tracer nothing calls is the failure this
 # milestone is fixing, one layer up.

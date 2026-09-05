@@ -46,8 +46,11 @@
 // observatory drops events and warns ONCE. Reporting must never be the reason a
 // turn fails.
 
-const MAX_TOOL_INPUT = 8000; // bounded: a write tool's `content` can be a whole file
-const MAX_TEXT = 100_000;
+// The pi -> vocabulary mapping lives in agent-events.mjs, because M7's events
+// artifact reads the SAME stream to build the user's story. Two copies of it
+// could disagree about the same run, and the `result.content[]` lesson below
+// would have to be learned twice.
+import { createNormaliser } from "./agent-events.mjs";
 
 let cfg = { url: "" };
 let warned = false;
@@ -90,31 +93,6 @@ async function post(path, body) {
   }
 }
 
-/**
- * pi's tool result, as text.
- *
- * `tool_execution_end` carries `result.content[]` with `.text` per part, not a
- * string — the same shape `flattenPiToolResult` handles in
- * internal/executor/pi/pi.go. Reading it as a string produced a transcript that
- * said a tool ran and refused to say what it returned: an empty `tool_output`
- * in the dashboard, found on the first live run (2026-09-04).
- */
-function toolOutputOf(ev) {
-  const r = ev.result ?? ev.output;
-  if (r == null) return "";
-  if (typeof r === "string") return r;
-  if (Array.isArray(r.content)) {
-    return r.content.map((c) => c?.text ?? "").filter(Boolean).join("\n");
-  }
-  // Something new. JSON beats "[object Object]", which is the shape of this
-  // bug and tells a reader nothing at all.
-  try {
-    return JSON.stringify(r);
-  } catch {
-    return "";
-  }
-}
-
 const INERT_RUN = {
   event() {},
   async flush() {},
@@ -147,7 +125,7 @@ export function startRun({ sessionId, workspace = "/workspace", provider = "pi" 
     post("/api/exec/sessions", { session_id: sessionId, workspace, provider }),
     hook({ event: "SessionStart", workspace, claude_version: provider }),
   ]).then(() => send({ stream_type: "turn_start", text: "resident run started" }));
-  let pending = "";
+  const norm = createNormaliser();
   let turn = 0;
 
   function send(fields) {
@@ -166,64 +144,56 @@ export function startRun({ sessionId, workspace = "/workspace", provider = "pi" 
   function enqueueHook(fields) {
     chain = chain.then(() => hook(fields)).catch(() => {});
   }
-  function flushText() {
-    if (!pending) return;
-    const text = pending.slice(0, MAX_TEXT);
-    pending = "";
-    enqueue({ stream_type: "text", text });
-  }
-
-  return {
-    /** Feed pi's NDJSON events straight in; unknown types are ignored. */
-    event(ev) {
-      switch (ev?.type) {
-        case "message_update":
-          if (ev.assistantMessageEvent?.type === "text_delta" && ev.assistantMessageEvent.delta) {
-            pending += ev.assistantMessageEvent.delta;
-          }
+  // Post whatever the normaliser has produced. The mapping pi -> vocabulary is
+  // shared with M7's events artifact; what each sink does with a record is
+  // NOT, and this is that half.
+  function drain() {
+    for (const e of norm.drain()) {
+      switch (e.type) {
+        case "text":
+          enqueue({ stream_type: "text", text: e.text });
           break;
-        case "tool_execution_start":
-          // Text first, so the transcript reads in the order it happened rather
-          // than showing the agent narrating its own past.
-          flushText();
-          enqueue({
-            stream_type: "tool_use",
-            tool_name: ev.toolName || "unknown",
-            tool_input: JSON.stringify(ev.args ?? ev.toolInput ?? {}).slice(0, MAX_TOOL_INPUT),
-          });
+        case "tool_use":
+          enqueue({ stream_type: "tool_use", tool_name: e.tool, tool_input: e.input });
           // tool_input/tool_response are json.RawMessage on the hooks handler,
           // so they must be JSON VALUES, not the strings the exec API takes.
+          // This is why the normaliser carries both `args` and `input`.
           enqueueHook({
-            event: "PreToolUse",
-            tool_name: ev.toolName || "unknown",
-            tool_use_id: ev.toolCallId || "",
-            tool_input: ev.args ?? ev.toolInput ?? {},
+            event: "PreToolUse", tool_name: e.tool,
+            tool_use_id: e.toolCallId, tool_input: e.args,
           });
           break;
-        case "tool_execution_end":
-          {
-            const out = toolOutputOf(ev).slice(0, MAX_TOOL_INPUT);
-            enqueue({ stream_type: "tool_result", tool_name: ev.toolName || "unknown", tool_output: out });
-            enqueueHook({
-              event: "PostToolUse",
-              tool_name: ev.toolName || "unknown",
-              tool_use_id: ev.toolCallId || "",
-              tool_response: out,
-            });
-          }
+        case "tool_result":
+          enqueue({ stream_type: "tool_result", tool_name: e.tool, tool_output: e.output });
+          enqueueHook({
+            event: "PostToolUse", tool_name: e.tool,
+            tool_use_id: e.toolCallId, tool_response: e.output,
+          });
           break;
-        case "message_end":
-          flushText();
+        case "turn_end":
+          // NOT forwarded. This plane's `turn_end` is emitted once by finish()
+          // to close the transcript, and it carries the turn COUNTER that
+          // every subsequent event is stamped with. A per-message_end turn_end
+          // here would be a second terminal event on a run still going.
           turn += 1;
           break;
         default:
           break;
       }
+    }
+  }
+
+  return {
+    /** Feed pi's NDJSON events straight in; unknown types are ignored. */
+    event(ev) {
+      norm.push(ev);
+      drain();
     },
 
     /** Await everything queued so far. Used by tests and before finishing. */
     async flush() {
-      flushText();
+      norm.flush();
+      drain();
       await chain;
     },
 
@@ -233,7 +203,8 @@ export function startRun({ sessionId, workspace = "/workspace", provider = "pi" 
      * exists to rule out.
      */
     async finish({ ok = true, error = "", usage = null } = {}) {
-      flushText();
+      norm.flush();
+      drain();
       enqueue(
         ok
           ? { stream_type: "turn_end", text: usage ? `usage: ${JSON.stringify(usage)}` : "run complete" }

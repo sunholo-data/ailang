@@ -15,6 +15,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync,
          openSync, writeSync, fsyncSync, closeSync, chmodSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import * as herdr from "./herdr.mjs";
+import { createNormaliser } from "./agent-events.mjs";
 import * as otel from "./otel.mjs";
 import * as observatory from "./observatory.mjs";
 import { runPi, capabilities } from "./pi.mjs";
@@ -78,6 +79,15 @@ function onSession(sessionId, fn) {
 // the live count. A number that refuses with its own value in the message is
 // honest in a way an OOM is not.
 const MAX_CONCURRENT = Number(process.env.RESIDENT_MAX_CONCURRENT_RUNS || 3);
+// M7 story caps. DELIBERATELY tighter than the observatory's, because these
+// two sinks have different jobs: the observatory transcript is an operator's
+// full record, written once per event, while this artifact rides inside a task
+// that the platform re-fetches every 2 SECONDS for the length of the run. At
+// the observatory's 8000-char fields a 200-event run is a ~1.6MB download,
+// twice a second. The story is a UI summary and can say "truncated"; the
+// transcript cannot.
+const STORY_MAX_EVENTS = Number(process.env.RESIDENT_STORY_MAX_EVENTS || 120);
+const STORY_MAX_FIELD = Number(process.env.RESIDENT_STORY_MAX_FIELD || 2000);
 let activeRuns = 0;
 
 // Last time this agent did any WORK — not the last time anything touched the
@@ -246,6 +256,13 @@ export function adoptTask(task) { tasks.set(task.id, task); persist(); return ta
  *  `adoptTask`: which transitions reach the mount is the thing M6 got wrong
  *  live, so it has to be assertable without an agent. */
 export function setStateForTest(task, state, message) { setState(task, state, message); }
+// The run loop needs a live pi, so the two pure pieces of the M7 story — the
+// projection and the cap — are reachable on their own. Caps are arguments
+// rather than env reads at the call site because the module-level constants
+// freeze at import, and a test that sets the env afterwards would silently
+// assert against the defaults.
+export function pushEventsForTest(task, records, opts) { pushEvents(task, records, opts); }
+export function attachTextForTest(task, text) { attachText(task, text); }
 
 export const getTask = (id) => tasks.get(id);
 export const listTasks = () => [...tasks.values()];
@@ -366,13 +383,76 @@ function mapStatus(agentStatus) {
  * is the only honest source of truth about what happened.
  */
 /** Keep the task's transcript artifact current. */
+/** Upsert one artifact by id, leaving the others alone.
+ *
+ * This used to assign `task.artifacts = [one]`. With a single artifact that
+ * was the same thing; with two it silently means "whichever wrote last wins",
+ * and the loser here would be the events artifact — which updates less often
+ * than the text does, so the story would flicker in and out of existence as
+ * the answer streamed.
+ */
+function putArtifact(task, artifact) {
+  const list = task.artifacts || (task.artifacts = []);
+  const at = list.findIndex((a) => a.artifactId === artifact.artifactId);
+  if (at === -1) list.push(artifact); else list[at] = artifact;
+}
+
 function attachText(task, text) {
   if (!text) return;
-  task.artifacts = [{
+  putArtifact(task, {
     artifactId: "response", name: "agent-response",
     description: "Assistant output assembled from pi's NDJSON text deltas.",
     parts: [{ kind: "text", text: String(text).slice(-16000) }],
-  }];
+  });
+  persist();
+}
+
+/** Trim a field for the story, SAYING that it trimmed. */
+function clip(v, max) {
+  const t = String(v ?? "");
+  return t.length <= max ? t : `${t.slice(0, max)}\n… [${t.length - max} more characters]`;
+}
+
+/** Append normalised records to the run's `events` artifact (M7).
+ *
+ * The vocabulary is not invented: these are the records agent-events.mjs
+ * produces from pi's NDJSON, the same ones the observatory transcript is built
+ * from, so the operator's view and the user's story cannot disagree about what
+ * happened. `args` and `toolCallId` are dropped — the observatory's hooks
+ * handler needs them, a reader does not, and `args` is a whole second copy of
+ * `input`.
+ *
+ * Additive: a caller that does not know this artifact ignores it, and an older
+ * instance that never writes one leaves the platform rendering prose only.
+ */
+function pushEvents(task, records, { maxEvents = STORY_MAX_EVENTS, maxField = STORY_MAX_FIELD } = {}) {
+  if (!records || records.length === 0) return;
+  const at = (task.artifacts || []).find((a) => a.artifactId === "events");
+  const prev = at?.parts?.[0]?.data;
+  const events = prev?.events || [];
+  for (const e of records) {
+    switch (e.type) {
+      case "text":        events.push({ t: e.t, type: "text", text: clip(e.text, maxField) }); break;
+      case "tool_use":    events.push({ t: e.t, type: "tool_use", tool: e.tool, input: clip(e.input, maxField) }); break;
+      case "tool_result": events.push({ t: e.t, type: "tool_result", tool: e.tool, output: clip(e.output, maxField) }); break;
+      case "turn_end":    events.push({ t: e.t, type: "turn_end", usage: e.usage ?? null }); break;
+      default: break;
+    }
+  }
+  // OLDEST dropped, not newest. A run long enough to overflow is one whose
+  // recent activity is the part anyone is watching, and the WIP indicator
+  // reads from the tail.
+  const dropped = Math.max(0, events.length - maxEvents);
+  if (dropped) events.splice(0, dropped);
+  // STICKY. Truncation is a property of the run, not of the last append: a
+  // reader told "this is everything" after it stopped being everything is
+  // worse off than one told nothing.
+  const truncated = Boolean(dropped) || Boolean(prev?.truncated);
+  putArtifact(task, {
+    artifactId: "events", name: "session-events",
+    description: "Normalised agent events for this run, oldest first.",
+    parts: [{ kind: "data", data: { events, ...(truncated ? { truncated: true } : {}) } }],
+  });
   persist();
 }
 
@@ -380,12 +460,12 @@ async function captureOutput(task, target) {
   try {
     const r = await herdr.agentRead({ target, lines: 200 });
     const text = r?.output ?? r?.text ?? r?.content ?? JSON.stringify(r).slice(0, 4000);
-    task.artifacts = [{
+    putArtifact(task, {
       artifactId: "transcript",
       name: "agent-transcript",
       description: "Recent terminal output from the agent pane.",
       parts: [{ kind: "text", text: String(text).slice(-8000) }],
-    }];
+    });
     persist();
   } catch (e) {
     console.error(`a2a | WARN could not read transcript for ${task.id}: ${e.message}`);
@@ -517,6 +597,12 @@ export async function messageSend(params, { traceparent = "" } = {}) {
     });
     task.metadata.reported = observatory.enabled();
 
+    // M7: the SAME normalised stream the observatory consumes, kept on the
+    // task so the asking user can read the story of their own run. The
+    // platform already polls tasks/get every 2s and already throws away every
+    // intermediate task; this is what makes those polls worth something.
+    const story = createNormaliser();
+
     onSession(sessionId, () => { activeRuns++; return runPi({
       model: model.replace(/^openrouter\//, ""),
       prompt: text,
@@ -527,12 +613,20 @@ export async function messageSend(params, { traceparent = "" } = {}) {
         // callback in ("a consumer must not kill the run"), so a dashboard
         // fault cannot take the turn down with it.
         reported.event(ev);
+        // Same try, same reason: a story fault must not take the turn down.
+        story.push(ev);
+        pushEvents(task, story.drain());
         // Keep the artifact current as text arrives, so a caller polling
         // tasks/get sees progress rather than nothing until the end.
         if (st.text) attachText(task, st.text);
       },
     }).finally(() => { activeRuns--; }); })
       .then((r) => {
+        // Flush the tail: pi's last text deltas are still buffered in the
+        // normaliser if the run ended without a message_end, and a story
+        // missing its final paragraph looks like a run that stopped early.
+        story.flush();
+        pushEvents(task, story.drain());
         attachText(task, r.text);
         task.metadata.usage = r.usage ?? null;
         task.metadata.stopReason = r.stopReason ?? null;
@@ -548,6 +642,10 @@ export async function messageSend(params, { traceparent = "" } = {}) {
           : { ok: false, error: `pi exited ${r.exitCode}` }).catch(() => {});
       })
       .catch((e) => {
+        // A failed run has the MOST to say — the story is how a user sees what
+        // it got through before it fell over. Losing it here would leave the
+        // failure with no context at all.
+        try { story.flush(); pushEvents(task, story.drain()); } catch { /* never mask the failure */ }
         setState(task, TaskState.failed, {
           role: "agent", messageId: randomUUID(), kind: "message",
           parts: [{ kind: "text", text: `pi run failed: ${e.message}` }],
