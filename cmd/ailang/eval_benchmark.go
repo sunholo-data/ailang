@@ -112,6 +112,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 	// wire-identical to before.
 	if evalChain != nil {
 		agent.SetCorrelation(evalChain.ChainID, spec.ID, spec.Difficulty)
+		registerStandardEvalSession(ctx, evalChain, stageID, outputDir)
 	}
 
 	// Get runner with context for full telemetry hierarchy (TRACEPARENT + task ID)
@@ -354,4 +355,19 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 
 	benchSpan.SetStatus(codes.Ok, "benchmark passed")
 	return true, nil
+}
+
+// registerStandardEvalSession makes the OpenRouter session_id resolvable by the
+// observatory receiver. Session registration is telemetry-only and must never
+// prevent an evaluation from running.
+func registerStandardEvalSession(ctx context.Context, evalChain *EvalChainContext, stageID, workspace string) {
+	if evalChain == nil || stageID == "" {
+		return
+	}
+
+	_ = evalChain.Store.UpsertSessionWithCorrelation(ctx, evalChain.ChainID,
+		workspace, "", "eval-standard", &observatory.SessionCorrelation{
+			ChainID: evalChain.ChainID,
+			StageID: stageID,
+		})
 }
