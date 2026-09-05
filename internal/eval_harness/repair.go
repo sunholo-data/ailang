@@ -288,6 +288,18 @@ func (r *RepairRunner) populateMetrics(metrics *RunMetrics, result *attemptResul
 	// belong in both the billing total and the cost calculation. Recomputing
 	// in+out here used to silently drop them (reasoning models undercounted).
 	metrics.TotalTokens = result.InputTokens + result.OutputTokens + result.ReasonTokens
+	// CacheAccounted vouches for the two cache fields above: standard mode
+	// genuinely records them, so a 0 here means "no cache reads", not "nobody
+	// looked". Without the flag FreshTokens() refuses to report on the row.
+	//
+	// CostUSD stays at the UNCACHED list rate deliberately (Mark, 2026-09-05):
+	// it is a conservative ceiling that never understates spend, and because
+	// cache_read_input_tokens is banked alongside it, the true cached cost is
+	// always reconstructible from the row. Measured on gpt-6-astra: benchmark 2
+	// of a run read 26,988 of 26,991 input tokens from cache — real cost ~$0.033
+	// against the $0.276 recorded here. Discount before comparing a
+	// cache-friendly model against one that never hits.
+	metrics.CacheAccounted = true
 	metrics.CostUSD = CalculateCostWithBreakdown(metrics.Model, metrics.InputTokens, metrics.OutputTokens+metrics.ReasonTokens)
 
 	metrics.CompileOk = result.CompileOk
