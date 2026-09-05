@@ -275,6 +275,14 @@ func TestApply_BacksUpWhatItReplaces(t *testing.T) {
 		if _, err := os.Stat(b); err != nil {
 			t.Errorf("reported backup %s does not exist", b)
 		}
+		// A backup lands DIRECTLY in the backup dir. Stated platform-neutrally, but it
+		// only ever fires on windows: baseName used to split on "/" alone, so a
+		// C:\Users\...\mission-alpha.env came back whole and the join produced
+		// ...\bak\C:\Users\... — a second drive letter mid-path. Nothing on darwin
+		// can observe that, so test-windows is the sole safety net for this line.
+		if got := filepath.Dir(b); got != backups {
+			t.Errorf("backup %s landed in %s, want it directly in %s", b, got, backups)
+		}
 	}
 }
 

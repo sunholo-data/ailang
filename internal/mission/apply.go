@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -186,7 +187,7 @@ func Apply(m *Mission, p Paths, lc LaunchCtl, opts ApplyOpts) (*ApplyResult, err
 			if rerr != nil {
 				continue // nothing there to back up
 			}
-			dst := opts.BackupDir + "/" + baseName(src) + "." + stamp + ".bak"
+			dst := filepath.Join(opts.BackupDir, baseName(src)+"."+stamp+".bak")
 			if werr := writeAtomic(dst, body, 0o600); werr != nil {
 				return nil, werr
 			}
@@ -264,11 +265,14 @@ func until(deadline time.Duration, cond func() bool) error {
 	}
 }
 
+// baseName must split on the HOST's separator, not on "/" alone. A hand-rolled
+// LastIndex(p, "/") returns the WHOLE path for a windows path like
+// C:\Users\...\mission-alpha.env, and joining that under the backup dir produces
+// ...\bak\C:\Users\... — a second drive letter mid-path, which windows refuses
+// with "The filename, directory name, or volume label syntax is incorrect".
+// filepath.Base is identical to the old code for "/"-separated paths.
 func baseName(p string) string {
-	if i := strings.LastIndex(p, "/"); i >= 0 {
-		return p[i+1:]
-	}
-	return p
+	return filepath.Base(p)
 }
 
 func firstLines(s string, n int) string {
