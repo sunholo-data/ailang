@@ -162,7 +162,16 @@ function write(file, dir, { sync = false } = {}) {
   } finally {
     closeSync(fd);
   }
-  chmodSync(file, 0o600);
+  // The mode is already set by openSync's third argument on create. This
+  // chmod was belt-and-braces and gcsfuse REFUSES it — EPERM on every single
+  // checkpoint, logged as
+  //   "a2a | WARN checkpoint to /agent-home/.resident failed: EPERM …chmod"
+  // which reads as though the checkpoint failed. It did not: the object is in
+  // the bucket, written and fsynced, and only the redundant mode-set threw.
+  // A warning that misreports a success is worse than no warning, so the
+  // failure is now tolerated rather than raised — on a bucket the mode is not
+  // ours to set anyway, and object ACLs are what protect it there.
+  try { chmodSync(file, 0o600); } catch { /* gcsfuse: not a POSIX mode */ }
 }
 
 function persist() {
