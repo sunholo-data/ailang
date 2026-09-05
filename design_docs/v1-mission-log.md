@@ -21312,3 +21312,129 @@ which is not V1's to answer or to ack.
 `release-manager/SKILL.md`, and the `check-context-docs` ratchet back down 625 → 596), then
 `m-gate-wiring-classifier-prefix-blind` (the systemic half of this iteration's blocking finding), then
 `m-acceptance-criterion-green-at-base`.
+
+## 328 — 2026-09-05 — The compile cache verifies the receipt and never the goods, so a correct source file does not describe the program that runs [PRODUCT]
+
+**Pick.** NOT the queue head. Two downstream reports from `email-parse` sat unread in the canonical
+cloud inbox; one was a correctness bug, ghost-disciplined at HEAD, confirmed, and a confirmed
+correctness defect in a shipped surface outranks the queue. `m-gate-wiring-classifier-prefix-blind`
+stays [NEXT].
+
+**Progress.** N = **13** design docs remaining before v1.0.0 (was 12, **+1**): a new clause-2
+soundness doc entered the count. The unit going up is the unit working.
+
+**What was confirmed, all first-party at HEAD and all reproduced independently by the judge.**
+The compile cache has TWO keyspaces and verifies only one.
+
+- The **manifest** is content-keyed and IS checked (`pipeline_module.go:276-277` →
+  `cache_store.go:85-91`). That half is correct and was never the bug.
+- The **artifact blobs that actually execute** live in a path-derived directory and are loaded with
+  **no verification of any kind**: `LoadArtifacts(moduleID string)` (`cache_store.go:185`) receives
+  no key, and `grep -n "CacheKey" cache_store.go` returns exactly two lines — the struct field and
+  the manifest comparison — neither in the artifact path (known-positive control `modDir` = 11).
+- The two writes are neither ordered nor checked: `pipeline_module.go:369` writes the manifest
+  entry unconditionally, then `:377` does `_ = cacheStore.StoreArtifacts(...)` with the error
+  **discarded**. Any artifact-write failure advances the manifest to the new source's key while the
+  blobs stay from the previous compile; every later run then passes the lookup, loads the old blobs
+  and skips compilation.
+
+**The end-to-end reproduction, which is the whole iteration.** Source on disk says `99`; the manifest
+`cache_key` is the CORRECT key for the `99` source; the blobs are from the `42` compile;
+`ailang run` prints **42**, with no diagnostic. Negative control: ordinary edit-and-re-run
+invalidation works correctly (42 → 99), so this is not "invalidation is broken" — it is
+"the artifacts that execute are never checked against the key that authorises them". Script banked at
+`/tmp/iter328_repro_defectA.sh`; the judge re-ran it AND re-derived the mechanism from the call site
+rather than trusting the script, explicitly checking it was not rigged.
+
+This explains every one of the reporter's four elimination results, including the two that look like
+exculpation: a byte-identical copy at a NEW path works because it is a new module id with no entry,
+and `rm -rf` of that one directory works because it forces `loadErr != nil`.
+
+**Second defect, independent: the source read is a silent fallback.** `pipeline_module.go:269`
+swallows its `os.ReadFile` error, so a failed read leaves `sourceContent = ""` and the key collapses
+to f(cacheKeyVersion, commit, depDigests) — the module's own source contributes nothing and later
+edits are invisible. Measured: `ModuleCacheKey(commit, "", {})` =
+`b5149f5d2d7eac93707cf159b94ccdcc9f97b8d2960fe843a7eeb20c3e6f8136`, and **both** `std/option` and
+`std/result` carry that byte-identical key in a manifest generated at HEAD while their
+`iface_digest`s differ. Cause: `loader.go:203` gives embedded stdlib modules the synthetic path
+`<embedded>/std/<file>`. The judge reproduced this from scratch with an isolated binary that forces
+the embedded-fallback branch — a stronger construction than the controller's.
+**The comment three lines above the swallow records that this class was already found and fixed once**
+(`mod.Path` vs `mod.File.Path`). The path bug was fixed; the silent fallback that let it become a
+correctness bug was left in place. That is this loop's own *guard the helper, miss the call site*,
+in the compiler.
+
+**Third: `Clear()` never deletes `modules/`** (`cache_store.go:109-115`), so the documented remedy
+for a suspected cache problem leaves every stale artifact on disk.
+
+**Routing.** Resolver run for all four roles, output used verbatim.
+Designer `codex:gpt-6-astra` (probe rc=0) — the **first real astra designer run**. Two bounded
+sandboxed runs, zero git writes: the initial authoring run, then the ONE protocol-mandated revision.
+**The first authoring run was killed and restarted by the controller after ~4 minutes**, because a
+read-only reality-check agent returned a second, more severe mechanism (the unverified artifact load)
+than the directive had described — a doc scoped only to the swallowed read would not have closed the
+user's report. Restarting cost 4 minutes; a revision round would have cost a full run.
+Planner and executor **NOT spawned, and that is the routing call rather than an omission**: the doc
+is BLOCKED, so there is no approved design to plan or execute, and planning a blocked doc is work on
+an unapproved design. Evaluator `sonnet` in its OWN worktree — generator≠judge holds (OpenAI author,
+Anthropic judge).
+
+**Quorum: BLOCKED after one revision and one re-quorum, so the doc PARKS.** Round 1 PROCEED — but
+with `gpt5-6-sol` **ABSENT on budget**, the self-selecting degrade this skill warns about. Re-running
+that reviewer alone at a raised cap returned **reject**, and the objection was real: the doc claimed
+axiom A5 "Bounded Verification" on a fixed file COUNT (line 20) while deferring size limits to
+out-of-scope (line 457) — a measured internal contradiction, handed to the designer as a measurement
+rather than as an objection. The revision answered it well (16 MiB/64 KiB/32 MiB ceilings justified
+against a 27-module survey, TOCTOU-safe `Stat` + `io.ReadAll(io.LimitReader(f, limit+1))` with the
+extra byte as an overflow sentinel, over-limit always a MISS never a compile error).
+Round 2 still BLOCKED: `gpt5-6-sol` rejected a second time on the SAME A5 surface (hashes prove
+consistency, not compiler provenance; gob decode work unbounded), and `oc-glm-5-2` rejected on the
+doc's self-admitted V54 row. `gemini-3-1-pro` passed both rounds. **PARK is correct and the judge
+independently agreed**: objection A needs controller judgement about the threat model and carries no
+verbatim fix, which forecloses the narrow-refinement carve-out regardless of objection B.
+
+**Reviewer independence, and a policy that changed underneath this iteration.** `c4e692918` landed
+**four minutes after this iteration's Gate-0 stamp** and moved the quorum's OpenAI seat to astra —
+the model the rotation had just handed this iteration as its DESIGNER. The controller had already
+pinned `--reviewers gpt5-6-sol,gemini-3-1-pro,oc-glm-5-2` on round 2 for exactly that reason,
+independently, before reading the commit; both quorum artifacts confirm astra reviewed nothing.
+**The rulebook changed mid-flight** — the running skill was byte-identical to origin at Gate 1 and is
+byte-identical to a DIFFERENT origin now — and the same commit also restored fable as a rotation
+entry, so under the new list this iteration's next-entry would have been fable rather than astra.
+The pointer records what actually ran (`codex:gpt-6-astra`); fable simply comes round next cycle.
+
+**The judge corrected the controller twice, and both stand (Ruled out).**
+1. The controller wrote that `LoadArtifacts` performs "**5** unbounded `os.ReadFile` calls and then
+   `gob.Decode`". It performs **4**, only **2** of them gob-decoded; the 5th grep hit is an unrelated
+   JSON manifest read in `load()`. A whole-file grep count quoted as per-function behaviour — rule
+   3b's scope error, in the controller's own evidence for a routing decision.
+2. The controller's rebuttal of objection B restated the doc's own self-admittedly incomplete V54
+   row (flag NAMES present in source text) as though it settled CLI acceptance. The judge actually
+   invoked the binary — `serve-api --help` plus a live MCP `initialize` RPC — and settled it. The
+   flags are real and work; the controller's check was weaker than the claim it supported, and
+   closing it would have taken under a minute.
+The judge also **weakened objection A** on its own initiative by reading `encoding/gob`'s decoder:
+it does cap preallocation against remaining input, so a 16 MiB-capped blob cannot be amplified
+arbitrarily. And it sharpened the other side: a poisoned cache blob is decoded on every routine
+`ailang run` **without the victim knowingly compiling anything**, unlike a malicious `.ail` file.
+That asymmetry is the strongest argument for the objection and neither the controller nor the doc
+had made it.
+
+**Ruled out.** "Invalidation is broken" — REFUTED, ordinary edit-and-re-run works (42 → 99).
+"The degenerate stdlib key is itself the user's bug" — it is a real second defect but does NOT
+produce the reporter's frozen-artifact-mtime signature; defect A does.
+"Objection A is a defect this doc introduces" — REFUTED and measured: at HEAD `LoadArtifacts`
+already reads unbounded and gob-decodes with **0** byte ceilings and **0** hash checks anywhere in
+the file, so the doc strictly reduces that surface.
+
+**Landed.** Issue [#1046](https://github.com/sunholo-data/ailang/issues/1046) — the confirmed defect,
+public, with the workaround, filed independently of the doc's fate; body asserted present after
+posting. Reply to the reporter on the canonical cloud inbox, body asserted after sending. The design
+doc itself lands under `design_docs/planned/v0_35_2/` tagged PARKED with both quorum artifacts, so
+the work is not lost and Mark's decision has something to act on. Retargeted from `v0_35_1` because
+v0.35.1 shipped mid-iteration.
+
+**Next.** `D-55` is the only thing between this doc and a sprint. If Mark rules the
+accidental-corruption threat model sufficient, the doc goes straight to the planner next iteration
+with no further design work. If not, the doc needs an adversarial-decode section and a third round.
+Then `m-gate-wiring-classifier-prefix-blind`.
