@@ -65,6 +65,8 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@/bin/bash tools/launchd/test_controller_chain.sh
 	@/bin/bash tools/launchd/test_mission_heartbeat.sh
 	@/bin/bash tools/launchd/test_mission_stall.sh
+	@/bin/bash tools/launchd/test_mission_memgate.sh
+	@/bin/bash tools/launchd/test_cron_kicker.sh
 	@/bin/bash tools/eval/test_motoko_connection_probe.sh
 	@for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n "$$f" || exit 1; done
 	@/bin/bash -n tools/eval/motoko_connection_probe.sh
