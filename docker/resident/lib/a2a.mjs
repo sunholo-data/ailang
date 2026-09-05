@@ -11,7 +11,8 @@
 //
 // Task ids are the platform's run ids, so the two systems share one identifier
 // rather than maintaining a correlation table.
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync,
+         openSync, writeSync, fsyncSync, closeSync, chmodSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import * as herdr from "./herdr.mjs";
 import * as otel from "./otel.mjs";
@@ -127,13 +128,31 @@ function readState(file) {
   return { tasks: raw.tasks || [], push: raw.push || [] };
 }
 
-function write(file, dir) {
+function write(file, dir, { sync = false } = {}) {
   mkdirSync(dir, { recursive: true });
+  const body = snapshot();
   // 0600: this file carries the per-task push token, which is a bearer
   // credential. It grants only "report on this one task", strictly less than
   // the agent SA that owns the bucket already holds — but it is a credential
   // at rest and is written as one.
-  writeFileSync(file, snapshot(), { mode: 0o600 });
+  if (!sync) { writeFileSync(file, body, { mode: 0o600 }); return; }
+  // FSYNC, on the mount only, and the live run is why.
+  //
+  // `writeFileSync` returns once the bytes are in the FUSE buffer, NOT once
+  // gcsfuse has uploaded the object. A real stop proved the difference: the
+  // shutdown handler logged "staging task state", the container was destroyed
+  // moments later, and GCS never received the object — the .resident/ prefix
+  // did not even exist afterwards. A write that returns success and leaves no
+  // object is the worst possible failure for the one file whose entire purpose
+  // is surviving that stop. fsync is what makes gcsfuse finalise it.
+  const fd = openSync(file, "w", 0o600);
+  try {
+    writeSync(fd, body);
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+  chmodSync(file, 0o600);
 }
 
 function persist() {
@@ -153,7 +172,7 @@ export function checkpoint() {
   // the mount, turning a corrupt local file into permanent data loss. Nothing
   // is lost by declining: an instance with no tasks has nothing to say.
   if (tasks.size === 0 && pushConfigs.size === 0 && existsSync(CHECKPOINT_FILE)) return false;
-  try { write(CHECKPOINT_FILE, CHECKPOINT_DIR); return true; }
+  try { write(CHECKPOINT_FILE, CHECKPOINT_DIR, { sync: true }); return true; }
   catch (e) { console.error(`a2a | WARN checkpoint to ${CHECKPOINT_DIR} failed: ${e.message}`); return false; }
 }
 
