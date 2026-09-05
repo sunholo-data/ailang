@@ -21438,3 +21438,146 @@ v0.35.1 shipped mid-iteration.
 accidental-corruption threat model sufficient, the doc goes straight to the planner next iteration
 with no further design work. If not, the doc needs an adversarial-decode section and a third round.
 Then `m-gate-wiring-classifier-prefix-blind`.
+
+## 329 — 2026-09-05 — The parked compile-cache fix unparked itself on its own pre-registered default, and the acceptance gate it will be judged by was proven non-vacuous before a line of it was planned [ADMIN]
+
+**Pick.** The queue head, `m-compile-cache-unverified-artifacts` — [PARKED] since iteration 328 on
+ledger row `D-55`. The row's resume predicate is not a human answer but a **pre-registered default**:
+*"(a), applied at the next iteration, and recorded as a controller routing call rather than as a
+ruling."* This is that next iteration and `D-55` is still unanswered, so the default fired. The item
+unparked and routed straight to the planner with no further design work, exactly as the row predicted.
+
+**`D-55` REMAINS OPEN, and that is deliberate, not an oversight.** The loop may not resolve a ledger
+row on its own behalf (Gate 0's decision-recording contract, rule (c)), and a default is not a
+ruling. So the scope decision was applied and the question stays live and answerable: a later ruling
+of (b) or (c) supersedes this sprint's scope and the plan must then be revised. Both the plan and the
+report say so in those words. The first draft of the plan said *"the mission has resolved D-55 with
+default option (a)"* — the controller corrected that wording before the judge saw it, because a plan
+asserting a ruling that was never made would launder a controller routing call into a human decision,
+which is precisely what the contract exists to prevent.
+
+**Progress.** N = **13** design docs remaining before v1.0.0 (was 13, **±0**). **Goal unmoved.** By
+the unit's own definition sprint plans are not design docs and never count, so an iteration that
+plans rather than lands cannot move N — the doc leaves the count when it LANDS, is RULED OUT, or is
+re-scored off the bar. What moved is the doc's *state*: from PARKED-on-a-human-decision to
+[IN-SPRINT] with a verified 4-day plan, which is the step immediately before the count can fall.
+
+**What was verified first-party, and why it is the substance of this iteration.**
+
+The planner's most load-bearing claim was that the design doc's executable acceptance gate fails at
+baseline *for the right reason*. That claim was made from inside a `workspace-write` sandbox, and an
+in-sandbox gate verdict is not evidence. The controller re-ran it **outside the sandbox**, in a clean
+worktree at `137842bfd`:
+
+- M1 returns `go returncode=0` with **zero** selected passes. That zero-with-success is Go's vacuous
+  zero-selected-tests result — the failure mode the gate exists to reject — and the gate's
+  `assert set(names) <= passed` rejects it correctly. It fails on **missing test names**, not on a
+  compile error, a wrong package path, a python fault or a timeout, any one of which would have made
+  every milestone's acceptance vacuous.
+- Positive control on the same mechanism: run against an existing test
+  (`TestAliasPolyE2E_RecordSingleModule`, `./internal/pipeline`) it reports
+  `passed=['TestAliasPolyE2E_RecordSingleModule']`. The instrument can see a pass, so the zero above
+  is a fact about the tests rather than about the harness.
+
+This is the check that decides whether the next four days of work can be graded at all, and it is the
+one thing a plan cannot be trusted to self-report.
+
+**The judge's two findings, both reproduced before being acted on.**
+
+Evaluator `sonnet` returned **PASS 93/100, zero blocking**, having independently re-run the baseline
+gate, rebuilt a binary at `137842bfd` and reproduced the stale-execution defect end to end, and run
+**two live mutation drills** (T1 module-ID/key authorization; T9 `Clear()` error propagation). The T9
+drill is the more interesting result: with the mutant applied, the *entire existing suite* including
+`TestCacheStore_Clear` stayed green, and only a T9-shaped drill test caught it — so the plan's claim
+that the named test, not the existing suite, is the killer holds.
+
+- **F1 (non-blocking, CONFIRMED, fixed).** `cmd/ailang/serve_api_mcp_surface_test.go` receives
+  fixtures from **two** milestones (T10 in M3, T12 in M4) and had no size contingency, while the two
+  production files got a measured one. Reproduced: `make check-file-sizes` globs
+  `find internal cmd -name "*.go"` (`make/code-health.mk:167`) with the ceiling at `:169` and no
+  `_test.go` exclusion, and the file is **140** lines today. Real, and cheap: the plan now carries an
+  explicit contingency (split the M4 fixtures into a sibling test file in the same package past 650
+  lines; re-run the gate at the M3 *and* M4 boundaries, not only at the end).
+- **F2 (non-blocking, fixed).** The doc's M3 section says that commit is independent of the API
+  diagnostic work; the plan did not restate it. Now restated, with the reason the omission was
+  harmless — the shared test file is a *location*, not a dependency.
+
+**Ruled out.**
+
+- *"The planner's sandbox-viability claim can be banked."* Not banked. The planner reports nothing is
+  sandbox-blind, specifically that M4's fresh-binary bounded MCP stdio probe ran fine under
+  `workspace-write`. The judge read `TestServeAPI_MCPToolSurface` and `buildAilang(t)` in full and
+  found no network, socket or PATH-binary dependency, which is corroboration from a second reader —
+  but it remains an executor-time confirmation, not a controller measurement, and is recorded as such.
+- *"A quorum verdict of `proceed` in round 1 could have been banked."* It could not, and iteration 328
+  was right not to. Read with the corrected paths, round 1 reads `verdict: proceed` with
+  `absent_reviewers: [{model: gpt5-6-sol, reason: budget}]` — a pass with a named hole, and the absent
+  reviewer is the one that rejected twice when restored in round 2. The re-run is what produced `D-55`
+  at all.
+- *"The resolver's routing line can be followed."* It could not. See below.
+
+**Routing evidence.**
+
+| Role | Configured | Resolver said | ACTUAL | Note |
+|---|---|---|---|---|
+| Controller | `claude:claude-opus-5` | — | opus (session) | quota bucket |
+| Designer | rotation (`claude:claude-fable-5-1` next) | `recipe claude:claude-fable-5-1` | **not spawned** | doc already exists; Fable budget unspent, rotation pointer NOT advanced |
+| Planner | `codex:gpt-5.6-sol` | `agent-tool opus fail-closed:planner-lane-field-missing` | **`codex:gpt-5.6-sol`** | resolver/hook DISAGREED — see below |
+| Executor | `codex:gpt-5.6-sol` | `recipe codex:gpt-5.6-sol` | **not spawned** | deliverable is a plan; execution is the next iteration |
+| Evaluator | `sonnet` | `agent-tool sonnet declared:alias-pin` | **`sonnet`** | generator≠judge holds: codex/OpenAI wrote it, Anthropic judged it |
+
+`metered=$0.00` — every lane this iteration ran on a subscription or quota bucket (opus controller,
+codex `gpt-5.6-sol` planner, sonnet evaluator). No metered call was made; no quorum round was run,
+because the doc's quorum was already complete at two rounds and `D-55` is the disposition of its
+outcome, not a third round.
+
+**The routing defect, and it is a second instance.** `tools/launchd/resolve-role-spawn.sh planner`
+returned `agent-tool opus fail-closed:planner-lane-field-missing`, and this skill says an `opus`
+lane is spawned directly through the Agent tool. The spawn-pin **hook** refused it at the tool
+boundary: `deny:provider-pin — planner is pinned to codex:gpt-5.6-sol; Agent-tool alias spawn
+refused — use the cross-provider recipe (resolve-role-spawn.sh planner)`. Note the refusal message
+names, as its remedy, the very script whose answer it is rejecting. The hook reads
+`$MISSION_PLANNER_MODEL` directly; the resolver applies the lane-derivation fail-closed logic on top
+of it, and the two disagree whenever that derivation fires. The hook wins because it is the
+enforcement boundary, so the planner ran on codex as configured — the right outcome, reached by
+being denied rather than by routing. Queue row `m-resolver-hook-disagree-on-docless-pick` (iteration
+327) records instance 1 as a disagreement *on a doc-less pick*, and iteration **328 already recorded
+instance 2** in that same row, with a doc in hand and the root cause named: `derive-planner-lane.sh`
+requires a `planner_lane` field that only **2** design docs in the whole repo carry, so it returns
+`opus fail-closed` for essentially every real pick and the hook then denies opus. This iteration is
+**instance 3**, reproducing that mechanism exactly (`fail-closed:planner-lane-field-missing`). Three
+instances clears both Gate-5 bars — the ≥2 for a skill fix and the ≥3 for a routing-policy change —
+so the skill edit was spent here; the durable fix still belongs in the TOOL, as iteration 328 said,
+and stays queued.
+
+**The skill edit had to pay for its own space, and that is the more useful half.** The first form of
+it appended 38 lines to `SKILL.md` and turned CI **red** — step 40, `Check context docs respect
+progressive disclosure`, a **ratchet**: *"Baselined docs may shrink, never grow."* Attribution was
+unambiguous rather than assumed: `test` is `completed/success` on the base commit and `failure` on
+the PR head, and the diff is docs plus one markdown file. The escape valve is to bump the baseline,
+and the baseline file itself names that as the wrong answer — it carries a standing note that
+iteration 325 loosened the `release-manager` ratchet 596 → 625 without writing the growth, a debt
+still owed under `m-release-manager-skill-split`. So the edit was restructured instead: the new note
+AND the 2026-08-20 fable-pin correction both moved into a new linked
+`resources/role-spawn-routing.md`, with the operative rules kept inline. `SKILL.md` went **2790 →
+2781**, the baseline was ratcheted DOWN to match rather than up, and the gate is green. An iteration
+that wanted the space did the burn-down instead of deferring it.
+
+**And the layering was caught overreaching by a guard another sprint had written two days earlier.**
+The first restructure moved the whole 2026-08-20 fable-pin correction out, and
+`tools/launchd/test_mission_routing.sh` arm **S2** — *"fable capability paragraph survives the
+spawn-pattern edit"*, added by `M-SPAWN-PIN-ENFORCEMENT` on 2026-09-03 — went red, because it greps
+`SKILL.md` for the literal `enum in this build lists`. The guard is right and its intent is that the
+capability MEASUREMENT stays discoverable inline, so the measurement sentence was restored to
+`SKILL.md` rather than the guard being widened to accept the resources file: an unattended iteration
+does not relax a two-day-old guard to fit its own edit. Reproduced locally on `/bin/bash 3.2.57`
+before and after. The suite's one remaining local red (`run_lane fixture arm requires real lsof on
+Darwin CI target`) is **pre-existing and environmental** — identical on a pristine tree at
+`137842bfd`, and green on the real Darwin runner, which is why the previous head's `launchd drivers`
+check reads `success`.
+
+**Next.** Execute the sprint: M1 (2d) → M2 (0.75d) → M3 (0.5d) → M4 (0.75d), one commit per
+milestone, each boundary green on that milestone's named tests. The executor lane is
+`codex:gpt-5.6-sol` with the pi chain behind it; the judge must be non-codex. Two things to carry
+forward: the M4 sandbox-viability claim needs an out-of-sandbox confirmation at execution time, and
+if Mark answers `D-55` with (b) or (c) the plan's scope section is the thing to revise first.

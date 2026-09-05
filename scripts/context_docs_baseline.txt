@@ -11,7 +11,12 @@
 # sibling files that SKILL.md links to — not deleting them.
 #
 # Ranked by what they cost, worst first:
-.claude/skills/mission-control/SKILL.md 2790
+# mission-control: RATCHETED DOWN 2790 ->     2781 by V1 iteration 329, which needed to ADD a
+# routing rule and refused to bump. The added note and the 2026-08-20 fable-pin correction
+# both moved into resources/role-spawn-routing.md, which SKILL.md links to; the operative
+# rules stay inline. This is the burn-down this file's header asks for, done by the
+# iteration that wanted the space rather than deferred to whoever picks the split.
+.claude/skills/mission-control/SKILL.md     2781
 .claude/skills/post-release/SKILL.md 895
 .claude/skills/sprint-executor/SKILL.md 835
 .claude/skills/model-manager/SKILL.md 644
