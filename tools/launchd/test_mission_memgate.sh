@@ -191,5 +191,16 @@ _mc_mem_ok 100000 $((MEM_MAX_COMP_MB + 1)) && bad "one MB over the ceiling must 
                                            || ok "one MB over the ceiling must refuse"
 
 echo
+# The boot stagger reads kern.boottime via `sysctl`, which lives in /usr/sbin. The v1 and
+# docs plists set an EnvironmentVariables PATH that omits it, so the stagger shipped INERT
+# on those missions (2026-09-05) — it logged "kern.boottime unreadable" and passed straight
+# through. The driver must guarantee reachability itself rather than trusting the plist.
+if grep -q 'export PATH=.*:/usr/sbin' "$DRIVER"; then
+  echo "ok - driver puts /usr/sbin on PATH so sysctl (and the boot stagger) resolve"
+  PASS=$((PASS+1))
+else
+  echo "FAIL - /usr/sbin missing from the driver PATH: boot stagger is inert on any plist that sets PATH"
+  FAIL=$((FAIL+1))
+fi
 echo "PASS=$PASS FAIL=$FAIL"
 [ "$FAIL" -eq 0 ]

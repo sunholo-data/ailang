@@ -50,7 +50,14 @@ cd "$REPO" || exit 1
 START_EPOCH=$(date +%s)
 
 # launchd PATH is restricted; claude lives in ~/.local/bin, go tools in ~/go/bin.
-export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
+# /usr/sbin APPENDED 2026-09-05. The v1 and docs plists set an EnvironmentVariables PATH
+# that omits it, so `sysctl` was unreachable and _mc_uptime_secs could not read
+# kern.boottime — the BOOT STAGGER shipped inert on those two missions the day it
+# landed, logging "kern.boottime unreadable" every fire. Fixed HERE rather than in the
+# plists: the driver then works whatever a plist sets, which is the property the
+# prepend on this line already exists to give. motoko and world set no PATH key and
+# inherit launchd's default, which is why world could read it and v1 could not.
+export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH:/usr/sbin:/sbin"
 
 # --- MISSION PROFILE + STATE NAMESPACE (M1, 2026-07-21) ----------------------
 [ -n "${MISSION_PROFILE:-}" ] && [ -f "$HOME/.config/ailang/mission-${MISSION_PROFILE}.env" ] \
