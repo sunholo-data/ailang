@@ -466,11 +466,13 @@ models:
       benchmark_ratings and trial_history were all EMPTY before this run, so
       gpt6-astra is the seed of the local standard series, not a ranked entry.
       A leaderboard position needs other models banked into the same anchored fit.
-      IN extended_suite since 2026-09-05 (new-release longitudinal tracking, the
-      terra/luna precedent). NOT in benchmark_suite: that OpenAI seat is
-      gpt5-6-sol's at $5/$30, and a perfect core score against sol's own perfect
-      core gate is a TIE — which at 2x the price keeps the incumbent (§5.5).
-      Promote only on a same-panel win over sol, which does not exist yet.
+      IN benchmark_suite AND extended_suite since 2026-09-05. It BEAT gpt5-6-sol
+      on sol's banked v0.32.0 baseline rows — frontier 6/8 vs 3/8 as a strict
+      superset (astra additionally passes contract_sorted_merge, gauntlet_10,
+      quine; loses nothing sol wins), core 7/7 vs 6/7 on comparable cells
+      including explicit_dataflow_ssa. 4 wins to 0 across 15 comparable cells.
+      Comparison used BANKED sol rows, not a re-run (§5.5 / M-EVAL-ROLLING-ELO).
+      sol is kept alongside as the cheaper longitudinal anchor, not retired.
       NEVER agent_suite — that suite is the curated weak+reference set and
       explicitly must not carry the expensive multi-turn cloud fleet.
       ⏳ SMOKE TIER NOT RUN (deferred for budget, per Mark). Cloud rows do not
@@ -4979,7 +4981,25 @@ roles:
   evaluator: [opencode-or-minimax-m3, opencode-or-deepseek-v4-flash]
 
 benchmark_suite:
+  - "gpt6-astra"       # OpenAI GPT-6 flagship (Aug 2026) — PROMOTED 2026-09-05 (Mark) on a clean
+    # win over gpt5-6-sol, measured against sol's banked v0.32.0 baseline rows (the same corpus
+    # the ELO anchor was fitted from — no comparator re-run, per M-EVAL-ROLLING-ELO / §5.5):
+    #   frontier  astra 6/8  vs sol 3/8  — a STRICT SUPERSET: astra additionally passes
+    #             contract_sorted_merge, gauntlet_10 and quine, and loses nothing sol wins.
+    #             Both fail only docx_reimplement + markdown_reimplement.
+    #   core      astra 7/7  vs sol 6/7 over the comparable cells — astra passes
+    #             explicit_dataflow_ssa, the one this file long recorded as "every OpenAI
+    #             model fails it". Astra's full core panel is 23/23.
+    #   Across all 15 comparable cells: astra 4 wins, sol 0. N=2 for astra (identical runs).
+    # This is what §5.5 asks for and what an earlier pass in this session got WRONG: that pass
+    # read the models.yml prose ("core 26/26") instead of the banked rows, concluded "tie", and
+    # withheld promotion. A tie would have kept sol at 2x cheaper; a strict superset does not.
+    # ⚠️ Costs 2x sol ($10/$50 vs $5/$30) — it is the expensive seat in this suite, so trim it
+    # first if a run needs to shrink. sol is KEPT below as the cost-effective longitudinal
+    # anchor rather than being retired (the claude-sonnet-5 / sonnet-4-6 precedent).
   - "gpt5-6-sol"       # OpenAI flagship (Jul 2026) — replaced gpt5-5 (core tie 25/26 at identical $5/$30, newer gen)
+    # KEPT alongside gpt6-astra from 2026-09-05: astra beats it outright (see above) but at 2x
+    # the price, so this row stays as the cheaper OpenAI reference and longitudinal anchor.
   - "claude-opus-5"    # Anthropic flagship (Jul 2026) — REPLACED claude-opus-4-8 2026-07-27.
     # Gate: core N=1 19/19 vs 4.8's 18/19, then N=3 57/57 (100%) vs 53/57 (93.0%). Opus 5 did
     # not fail once in 76 core runs; 4.8 failed 5 times across 5 DIFFERENT benchmarks
@@ -5034,13 +5054,10 @@ extended_suite:
     # frontier 6/8, anchored standard ELO 2554.4. Only frontier docx_reimplement (runtime_error)
     # and markdown_reimplement (compile_error) fail — finish_reason=stop, small reason counts,
     # so capability not truncation.
-    # ⚠️ Deliberately NOT in benchmark_suite. That seat is gpt5-6-sol's at $5/$30; astra is
-    # $10/$50, and a perfect core score against sol's own perfect core gate is a TIE, which at
-    # 2x the price keeps the incumbent (model-manager §5.5 — the same rule by which sol only
-    # took gpt5-5's seat at IDENTICAL pricing). Nothing here beats sol; it has not been shown to.
-    # No same-panel head-to-head exists yet: the local ELO series was EMPTY before astra, and
-    # the historical "core 26/26" gates were run on a 26-benchmark core panel that is now 23.
-    # Promote only on a same-panel win over sol. Standard eval only, NEVER agent_suite (cost).
+    # ALSO in benchmark_suite since 2026-09-05 — it beat gpt5-6-sol outright on sol's banked
+    # v0.32.0 rows (frontier 6/8 vs 3/8, a strict superset; core 7/7 vs 6/7 comparable).
+    # See the benchmark_suite annotation for the full record.
+    # Standard eval only, NEVER agent_suite (cost).
   - "claude-fable-5-1"  # Anthropic most-capable (Sep 2026) — REPLACED claude-fable-5 2026-09-02
     # (Mark, attended directive). Same-price generational swap: $10/$50 per 1M is UNCHANGED,
     # so the usual "does it beat the incumbent on core" bar is not what decided this — a
