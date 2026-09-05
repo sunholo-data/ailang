@@ -21581,3 +21581,116 @@ milestone, each boundary green on that milestone's named tests. The executor lan
 `codex:gpt-5.6-sol` with the pi chain behind it; the judge must be non-codex. Two things to carry
 forward: the M4 sandbox-viability claim needs an out-of-sandbox confirmation at execution time, and
 if Mark answers `D-55` with (b) or (c) the plan's scope section is the thing to revise first.
+
+## 330 — 2026-09-05 — The compile cache now verifies the artifacts it executes, and the judge found the two guards the plan's own mutation table could not see [PRODUCT]
+
+**Pick.** The queue head, `m-compile-cache-unverified-artifacts`, [IN-SPRINT] since iteration 329
+with the resume predicate *"execute M1"*. No design work and no planning work was owed: the doc
+landed at iteration 328 and the verified 4-milestone plan at iteration 329, so this iteration is the
+first that could put code on disk. `D-55` is still `OPEN` and its default (a) was already applied as
+a controller routing call at 329; nothing about that changed here, and M1 has now shipped under it.
+
+**Outcome. LANDED — M1 of 4.** PR [#1051](https://github.com/sunholo-data/ailang/pull/1051) →
+squash [`3d7bbfad8`](https://github.com/sunholo-data/ailang/commit/3d7bbfad8), from two commits:
+[`9cb3e711b`](https://github.com/sunholo-data/ailang/commit/9cb3e711b) (the milestone) and
+[`726dd1866`](https://github.com/sunholo-data/ailang/commit/726dd1866) (the judge's two findings).
+Artifact loads now verify a v4 stamp binding the exact module ID, the caller-computed **expected**
+cache key and SHA-256 digests for all four payloads; blobs are read once under the design's byte
+ceilings and decoded only after every hash passes; publication writes the stamp last and the manifest
+entry after the artifacts, and optional-persistence failures are reported on stderr rather than
+discarded. Issue [#1046](https://github.com/sunholo-data/ailang/issues/1046) deliberately stays
+**OPEN** — M1 is one of four milestones, and the reporter's defect is not fully closed until M4.
+
+**Progress.** N = **13** design docs remaining before v1.0.0 (was 13, **±0**). **Goal unmoved.** A
+doc leaves the count when it LANDS, is ruled out, or is re-scored off the bar; this one is one of
+four milestones in. What moved is that the count can now fall in three more milestones rather than
+four, and that a confirmed, public, user-facing correctness defect is one quarter fixed in `dev`.
+
+**THE SUBSTANCE: THE JUDGE ANCHORED ITS MUTATION SET TO THE DIFF AND FOUND WHAT THE PLAN COULD NOT.**
+The plan's M1 table names six mutations, one per named test, and the executor reported all six
+killing. The judge independently reproduced all six — including one it had to re-aim, because the
+table's stated kill-mapping for T2 is imprecise (deleting the whole `validateArtifactDigests` call is
+caught by T1's `extra_digest` subtest, not by T2, since T2's missing-digest subtests are independently
+defended by the per-blob hash loop below it). That is a doc nit, not a coverage hole: both paths are
+defended and both are tested. But the six mutations are derived from what M1 **fixes**, and rule 3n
+says that systematically misses what M1 **ships** — so the directive required the judge to enumerate
+from `git show` instead, and that is where the two real findings came from:
+
+- **The write-side aggregate module ceiling had zero coverage.** The read path's aggregate ceiling is
+  covered by `stamp_and_aggregate_scopes`; the store path's is not. Replacing
+  `remaining := cs.artifactLimits.module - *accepted` in `checkArtifactSize` with an effectively
+  infinite budget left the **whole `internal/pipeline` package green**.
+- **The module-directory creation guard had zero coverage.** Replacing the `mkdirAll` error check
+  with `_ = cs.artifactIO.mkdirAll(...)` — the swallowed-error class this loop keeps finding, and the
+  exact class of the *original* bug one layer down — also left the whole package green.
+
+Both were reproduced first-party by the controller before being acted on (rule 3b: a judge's finding
+is a claim, and reproducing it before DISMISSING it matters as much as before acting). Both were then
+fixed with one arm each, and **each new arm was proven to be the sole killer of the mutation it was
+written for**: with the mutation applied the named arm fails and the package goes red; with the arm's
+own assertion the only new failure; source restored byte-identical by `shasum` both times. Note the
+shape — a milestone whose entire purpose is *"stop swallowing the artifact-write error"* shipped a new
+swallowed-error path of its own, and nothing but a diff-anchored enumeration would have seen it.
+
+**Ruled out / corrected.**
+
+- **`go build ./...` is NOT a valid acceptance gate on this host, and it was in my directive's first
+  draft.** Baselining it on the pristine tree (rule 3e(a)) returned rc=1: `cmd/wasm` is
+  `//go:build js && wasm`, so under darwin it has no `main` and the build fails with
+  *"runtime.main_main·f: function main is undeclared in the main package"*. CI builds it correctly
+  with `GOOS=js GOARCH=wasm` (`make/build.mk:103`). The narrowed `go build ./internal/... ./cmd/ailang`
+  is rc=0 at base and is the form that measures the change. Corrected in the directive **before** the
+  executor ran, so no time was spent chasing it — which is the whole point of baselining first.
+- **A coordinator codex 401 is NOT this loop's codex lane.** Gate-0 triage surfaced a
+  `sprint-planner` task failed at `2026-09-05T11:28Z` with `401 Unauthorized` on
+  `wss://api.openai.com/v1/responses`, repeated seven times. That is alarming for an iteration whose
+  executor is pinned to `codex:gpt-5.6-sol` — and this loop's own `codex exec` probe returned **rc=0**
+  twenty minutes later, and the real 30-minute executor run completed rc=0. Two different auth paths
+  (the coordinator's websocket API-key path vs. `codex exec`'s OAuth). Queued as its own row rather
+  than allowed to divert the pick.
+
+**Gate 3b: the poll's own numeric floor fired, and it was right.** The first CI poll extracted three
+counts with `set -- $res` and reported `INSTRUMENT FAILURE — not a verdict (raw=5 2 0)` on every
+round. The raw payload was fine; **zsh does not word-split unquoted parameter expansions**, so `$1`
+held the whole string `"5 2 0"` and no count was a number. This is instance 3 of the class iteration
+233 recorded (instance 1: a `jq` parse error on a control character; instance 2: iteration 154's
+vacuously-green aggregate) and the **first with a shell-semantics mechanism rather than a payload
+one**. The remedy iteration 233 landed — *assert every count is a NUMBER before comparing, and print
+`INSTRUMENT FAILURE` rather than a verdict* — is exactly what caught it, so the rule is not owed an
+edit; it is owed a note that the `set -- $res` shape this file's own iteration-107 war story warns
+about fails **silently and differently under zsh**, where it produces one argument instead of an
+error. Re-polled with each value read in its own `gh --jq` call: 5 runs, 5 completed, 0 failures,
+all four required contexts (`build` · `docs-gate` · `lint` · `test`) `pass`, `mergeStateStatus=CLEAN`.
+Merged on an **observed** green, never a predicted one, and never behind auto-merge.
+
+**Verification the controller did NOT delegate.** Every gate was re-run outside the executor's
+sandbox: the design's cumulative acceptance gate prints six `M1 PASS` lines here and fails at the
+parent with all six names missing and `go returncode=0` — Go's vacuous zero-selected-tests success,
+which the gate's `assert set(names) <= passed` correctly rejects, so the gate is non-vacuous in both
+directions. Whole-package `go test ./internal/pipeline` `ok` (and `ok` at the parent, so a red would
+have been attributable). `internal/loader` and `cmd/ailang` also `ok`. `make fmt-check`,
+`make check-file-sizes`, `go vet`, `gofmt -l` clean; `pipeline_module.go` is **776** lines against
+the 800 ceiling, which is why the plan created two new files rather than growing it. End-to-end smoke
+with a binary built from the branch: cold `42`, warm `42` from cache, `99` after editing the source —
+invalidation still correct, and the new verification does not break normal operation.
+
+**Routing evidence.** `resolve-role-spawn.sh` run for all four roles, output used verbatim.
+Designer `recipe claude:claude-fable-5-1` and planner both **NOT SPAWNED** — the doc and the plan
+both already exist, so there was nothing to author or to plan. That is a routing call, not an
+omission: the Fable budget is **unspent** and the rotation pointer stays at `codex:gpt-6-astra`.
+Executor `recipe codex:gpt-5.6-sol declared:provider-pin` (probe rc=0; one bounded sandboxed
+30-minute-capped run, zero git writes, `.snap/M1/` cumulative snapshot verified **byte-identical to
+the worktree for all eight files** before the controller built the commit). Evaluator
+`agent-tool sonnet declared:alias-pin`, in its **own** worktree at the exact sprint commit —
+generator≠judge holds by vendor as well as by model: OpenAI wrote the code, Anthropic judged it.
+`metered=$0.00` of the $5 ceiling; every lane rode a subscription or quota bucket and no quorum round
+ran. No GPU, no `rig.lock`. **The planner resolver disagreement reproduces for a fourth time** —
+`resolve-role-spawn.sh planner <doc>` still returns `agent-tool opus fail-closed:planner-lane-field-missing`
+— but it was measured and not routed on, because no planner was owed; the row stays queued and the
+durable fix is still in the TOOL.
+
+**Next.** M2 — loader-owned source identity (0.75 d), then M3 and M4. The plan's cumulative runner is
+already written to accept `M2`, `M3` and `M4` as boundary arguments with an otherwise identical body,
+so each milestone inherits every earlier milestone's named tests by construction. Two things to carry
+forward: M4's sandbox-viability claim still wants an out-of-sandbox confirmation at execution time,
+and if `D-55` is answered (b) or (c) the plan's scope section is revised before any further code.
