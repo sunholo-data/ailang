@@ -3977,3 +3977,53 @@ it.** A full `go test ./...` on this branch fails `TestSolve_HardTimeout_FakeSol
 *matched* command (`go test ./...`) on the pristine tree it fails identically, **9.02s vs 9.01s**. It
 is load-dependent and pre-existing. The first control was the wrong scope, and rule 3e is the only
 reason that did not become a false attribution.
+
+**SECOND CORRECTION — M5 unblocked the Windows build, and the very next layer was a defect I had
+introduced myself.** With `kill_unix.go` constrained, `test-windows` reached the *tests* for the first
+time and 23 of them failed in `internal/mission`, every one reading
+
+    fixture mission invalid: fixture:docs: workdir "C:\Users\RUNNER~1\...\repos\docs" must be absolute
+
+— **M2's own check refusing a genuinely absolute path.** The two fixture families disagree by
+construction: `registry_test.go` builds workdirs from POSIX literals, while the fleet fixtures in
+`doctor_test.go`/`apply_test.go` build theirs from `t.TempDir()`, which is `C:\Users\…` on a Windows
+runner. `filepath.IsAbs` alone rejects the first family there; a POSIX-only prefix check — what M2
+shipped — rejects the second. **Neither single arm is correct, and the original defect and my fix
+were the same mistake pointing in opposite directions.** M8 accepts either arm. On unix the two are
+literally the same function, so the rig sees no change; what the check still rejects is what it is
+*for* — a relative path, and the `~`-form above.
+
+Three things worth keeping from this. **(a)** The judge's M6 objection was the same defect seen from
+one level up: it said the test could not discriminate on darwin, and the reason it could not is that
+the property being asserted was *platform-shaped* rather than *invariant*. The test now targets the
+invariant (relative is refused everywhere) and uses `t.TempDir()` for the host-absolute row, which is
+host-absolute on every platform. Mutation-checked: deleting the check turns the relative and
+bare-name rows red on darwin, so it discriminates locally now — which M2's version never did.
+**(b) A build break hides every defect behind it.** These 23 failures existed from the moment the
+fleet fixtures were written; nobody could see them because the package did not compile on Windows, so
+the leg failed at `Install ailang to PATH` and never ran a test. Fixing a compile error is not a
+small win — it is what makes the next measurement possible, and the honest expectation after one is
+*more* red, not less.
+**(c) I shipped M2 with a passing local suite, a PASS 85/100 evaluation and my own out-of-sandbox
+gate sweep, and it was still wrong.** Every one of those instruments runs on darwin, where the bug is
+invisible by construction — the judge said so in its strongest objection and I fixed the *comment*
+rather than hearing it as a statement about the change. The only instrument that could see this was
+the Windows CI leg, and it could only see it after M5.
+
+**And the layer under THAT.** M8 took the windows leg from **23** failures to **1**:
+`TestApply_BacksUpWhatItReplaces`, failing with
+`...\bak\C:\Users\RUNNER~1\...: The filename, directory name, or volume label syntax is incorrect`.
+`Apply` built its backup path with a hand-rolled `baseName` splitting on `"/"` alone, so a
+backslash-separated windows path came back **whole** and the join produced a second drive letter
+mid-path. `filepath.Base` is identical to the old code for `/`-separated paths and correct on both;
+fixed as **M9**, with the invariant that would have caught it — a backup lands DIRECTLY in the backup
+dir — added to the test and labelled with the fact that only `test-windows` can ever fire it.
+
+**The shape of this iteration, which is the part worth carrying forward.** Six red checks became
+**nine** defects, and they came in *layers*: each fix made the next one observable. A compile error
+hid 23 test failures; fixing those exposed one more; and one of the nine was mine. That is not a sign
+the work went badly — it is what fixing a build break on a platform nobody develops on looks like,
+and the honest expectation after each green is *more* red, not less. The iteration also ran against a
+moving base the whole way: **five pushes, three rebases**, with an attended session landing M5 through
+Phase 3 part 1 while this ran. Two of my commits were dropped as already-upstream and two of my
+defects came from commits that did not exist when the iteration started.
