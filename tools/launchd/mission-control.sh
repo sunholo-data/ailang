@@ -243,7 +243,13 @@ _mc_stalled() {
 # claude-opus-4-8 REMOVED 2026-08-26 (Mark, attended). The ladder keeps a
 # same-provider step (fable) and then crosses providers via CONTROLLER_FALLBACK
 # below, so dropping the middle Anthropic rung costs no cross-provider coverage.
-PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,claude-fable-5-1}"
+# ASTRA AHEAD OF FABLE (Mark, attended 2026-09-05). Order is the point: opus stays
+# the first choice, astra is tried BEFORE fable, and fable remains directly behind
+# it as the fallback. Additive — nothing is removed and opus is not displaced.
+# Requires the provider dispatch in select_model step 3; before that change this
+# list was Anthropic-only and a codex entry here would have been sent to the
+# claude CLI probe and failed every fire.
+PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-6-astra,claude-fable-5-1}"
 # CONTROLLER_FALLBACK is an ordered COMMA CHAIN walked left to right (Mark, attended
 # 2026-08-31: "a longer chain of redundancies after codex", explicitly NOT a new default —
 # codex keeps its rung; the pi rungs exist so a simultaneous Anthropic+codex dry-out no
@@ -359,14 +365,42 @@ select_model() {
       _mc_set_controller "$ov_model" "override file"; return 0
     fi
   fi
-  # 3. ordered preference probing
+  # 3. ordered preference probing.
+  #
+  # PROVIDER-DISPATCHED since 2026-09-05 (Mark, attended: "put astra ahead of each
+  # fable instance, that falls back to fable"). This list used to be Anthropic-only —
+  # every entry went to `_mc_probe`, the claude CLI probe — so a non-Anthropic model
+  # could ONLY be expressed in CONTROLLER_FALLBACK, which is reached after EVERY
+  # Anthropic candidate has failed. There was therefore no way to say
+  # "opus, then astra, then fable": a codex entry could sit before opus (never) or
+  # after fable (too late), but not BETWEEN them. That ordering is the whole ask.
+  #
+  # Bare and `claude:`-prefixed entries keep the exact 0/1/2 quota-vs-unusable
+  # semantics they had; only the dispatch is new. _mc_set_controller already parses
+  # every prefix, so a matched entry needs no special-casing beyond its probe.
   local m why rcode
   for m in $(printf '%s' "$PREFS" | tr ',' ' '); do
-    _mc_probe "$m"; rcode=$?
-    case "$rcode" in
-      0) _mc_set_controller "$m" "probe ok"; return 0 ;;
-      1) log "model $m quota-limited — falling through" ;;
-      2) log "model $m unusable (auth/transient) — falling through" ;;
+    case "$m" in
+      codex:*)
+        if _mc_probe_codex "${m#codex:}"; then
+          _mc_set_controller "$m" "probe ok"; return 0
+        fi
+        log "controller preference $m unusable — falling through"
+        ;;
+      pi:*)
+        _mc_bounded "$PROBE_TIMEOUT" pi --mode json --no-session --no-tools --model "${m#pi:}" -p 'reply with exactly: ok'
+        rcode=$?
+        if [ "$rcode" -eq 0 ]; then _mc_set_controller "$m" "probe ok"; return 0; fi
+        log "controller preference $m probe failed (rc=$rcode within ${PROBE_TIMEOUT}s) — falling through"
+        ;;
+      *)
+        _mc_probe "$m"; rcode=$?
+        case "$rcode" in
+          0) _mc_set_controller "$m" "probe ok"; return 0 ;;
+          1) log "model $m quota-limited — falling through" ;;
+          2) log "model $m unusable (auth/transient) — falling through" ;;
+        esac
+        ;;
     esac
   done
   # 4. cross-provider fallback CHAIN, walked in order (Mark 2026-08-31 — see the
@@ -562,7 +596,15 @@ fi
 # bare "fable" would silently fall back to opus. claude:claude-fable-5-1 = a REAL bounded Fable run.
 # Fable 5 -> 5.1 2026-09-02 (Mark, attended): same price ($10/$50 per 1M), newer generation,
 # vendor gains concentrated in long-horizon agentic work — which is exactly the designer role.
-export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-fable-5-1}"
+# ASTRA AHEAD OF FABLE (Mark, attended 2026-09-05), same ruling as the controller
+# PREFS above. Fable is NOT removed — it becomes the designer's fallback, so a
+# failed astra probe lands on exactly the lane that ran this role yesterday.
+# This role had NO fallback and NO probe before today: the codex pre-flight loop
+# covered PLANNER and EXECUTOR only, so a `codex:*` designer would have run
+# unprobed with nothing behind it. DESIGNER is added to that loop below, which is
+# what makes this pin safe to set.
+export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-codex:gpt-6-astra}"
+export MISSION_DESIGNER_FALLBACK="${MISSION_DESIGNER_FALLBACK:-claude:claude-fable-5-1}"
 # Per-iteration METERED-spend ceiling (2026-07-18, Mark: "make sure costs don't go crazy"):
 # the sum of all metered-API spend (codex $ + gemini $) within ONE iteration must stay under
 # this. Enforced by the skill's Gate-3 metered ledger; quota-bucket (subscription) spend is
@@ -730,7 +772,15 @@ _chain_tail() { case "$1" in *,*) printf '%s' "${1#*,}" ;; *) printf '' ;; esac;
 _lane_degraded=""   # newline-delimited markdown bullets, one per degraded role
 _cx_rcmap=""        # "model=rc;" so the emit site names the probe's exit code, not just the lane
 _pi_rcmap=""
-for role in PLANNER EXECUTOR; do
+# DESIGNER added 2026-09-05 (Mark, attended) when astra took the designer pin ahead
+# of fable. Until today this loop was PLANNER+EXECUTOR only, so the designer was the
+# ONE role whose lane was never probed — harmless while it was a claude pin (a
+# `claude:*` value falls straight through both loops untouched, exactly as before),
+# and NOT harmless the moment it became `codex:*`. Adding the role here is what
+# gives the designer the same probe-and-degrade treatment the other lanes have, so
+# a failed astra probe hands the role to MISSION_DESIGNER_FALLBACK (fable) instead
+# of running an unprobed lane with nothing behind it.
+for role in PLANNER EXECUTOR DESIGNER; do
   var="MISSION_${role}_MODEL"; val="${!var}"
   case "$val" in codex:*)
     cx_model="${val#codex:}"
@@ -778,7 +828,12 @@ done
 # ~/.pi/sessions. BASH 3.2 (L19): ':'-delimited string sets, NOT associative arrays.
 _pi_probed=":"   # models probed this fire (dedupe: planner+executor could share one)
 _pi_failed=":"   # models whose probe failed
-for role in PLANNER EXECUTOR; do
+# DESIGNER included for the same reason as the codex loop above, and it matters
+# even though the designer's own fallback is a `claude:` value: the SKILL's designer
+# ROTATION has a `pi:ollama/deepseek-v4-flash:0731-cloud` entry (V1 charter D-48),
+# so a rotated designer really can be a pi lane, and it would otherwise be the only
+# pi lane on the rig running unprobed.
+for role in PLANNER EXECUTOR DESIGNER; do
   var="MISSION_${role}_MODEL"
   # while-loop so a chain advance re-enters the probe for the NEW value; a
   # non-pi value (or a settled pi value) breaks out at the bottom.

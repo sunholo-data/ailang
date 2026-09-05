@@ -186,10 +186,29 @@ grep -qE '^MISSION_EVALUATOR_FALLBACK=.*(glm|deepseek|gpt-)' "$docsenv" \
 grep -q 'MISSION_EXECUTOR_FALLBACK:-[^}]*:floor' "$driver" \
   && bad "executor fallback is never price-pinned (:floor)" "fallback is :floor-pinned" \
   || ok "executor fallback is never price-pinned (:floor)"
+# CONTROLLER LADDER. Amended 2026-09-05 (Mark, attended): astra is inserted
+# BETWEEN opus and fable — "ahead of each fable instance, that falls back to fable".
+# The single exact-string arm this replaces bundled three separate guarantees, so
+# any one edit reddened it without saying which broke. Split, because two of the
+# three are negative assertions that must keep biting on their own.
+grep -q 'MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-6-astra,claude-fable-5-1}' "$driver" \
+  && ok "controller ladder is opus-5 -> astra -> fable-5-1" || bad "controller ladder is opus-5 -> astra -> fable-5-1" "wrong ladder"
+# The ORDER is the ruling, not just the membership: astra before fable, fable kept
+# as what it falls back to. An astra entry placed AFTER fable would satisfy a naive
+# membership check and invert the decision.
+grep -q 'MISSION_MODEL_PREFS:-[^}]*codex:gpt-6-astra,claude-fable' "$driver" \
+  && ok "astra sits AHEAD of fable in the ladder" || bad "astra sits AHEAD of fable in the ladder" "astra not immediately before fable"
 # opus-4.8 REMOVED from the controller ladder (Mark 2026-08-26). Negative
 # assertion so a silent reintroduction is RED, not merely unasserted.
-grep -q 'MISSION_MODEL_PREFS:-claude-opus-5,claude-fable-5-1}' "$driver" \
-  && ok "controller ladder is opus-5 -> fable-5-1 (no opus-4.8, no fable-5)" || bad "controller ladder is opus-5 -> fable-5-1 (no opus-4.8, no fable-5)" "wrong ladder"
+grep -q 'MISSION_MODEL_PREFS:-[^}]*opus-4-8' "$driver" \
+  && bad "controller ladder excludes opus-4.8" "opus-4-8 reintroduced" \
+  || ok "controller ladder excludes opus-4.8"
+# Fable 5 -> 5.1 (Mark 2026-09-02). The bracket class is load-bearing: plain
+# 'claude-fable-5' is a SUBSTRING of 'claude-fable-5-1', so an unanchored negative
+# would fire on the correct value and this arm would be permanently red.
+grep -q 'MISSION_MODEL_PREFS:-[^}]*claude-fable-5[,}]' "$driver" \
+  && bad "controller ladder uses fable-5-1, not bare fable-5" "bare fable-5 in the ladder" \
+  || ok "controller ladder uses fable-5-1, not bare fable-5"
 # ACTIVE lines only: a comment recording the removal must not trip the guard,
 # but a real reintroduction must. (This distinction is why the first version of
 # this assertion went red on its own changelog note.)
