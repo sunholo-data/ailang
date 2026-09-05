@@ -1,6 +1,12 @@
 # M-MISSION-LOOP-WORKBENCH: One Registry, Generated Artifacts, and a Command That Answers "Does This Reach Mission X?"
 
-**Status**: Planned — **AWAITING RATIFICATION, quorum-blocked twice.** Both rounds returned
+**Status**: Planned — **AWAITING RATIFICATION, quorum-blocked twice, and SCOPE-CUT after review.**
+**Scope cut 2026-09-05 (Mark: "is this in addition to the other mission design doc we have?"):**
+the answer was five live mission-machinery docs, not two, and this one had duplicated a ratified
+decision. The `[roles]` block is **removed** — role/model assignment belongs to the ratified
+[M-MODEL-REGISTRY-SINGLE-SOURCE](../v0_35_0/m-model-registry-single-source.md) (V19). What
+remains is the surface nothing else owns: which missions exist, where they run, on what schedule,
+and whether the artifacts on disk match. The doc is smaller and better for it. Both rounds returned
 3/3 reject and **every objection was correct and is now addressed in-doc** (see Quorum History).
 Per the design-doc rule that the re-quorum guardrail is spent after one round, this doc is NOT
 re-submitted a third time: it goes to Mark with its gaps labelled rather than grinding rounds,
@@ -121,8 +127,9 @@ whose reach and effect are machine-checkable before they run.
 
 **Success metrics:**
 
-1. A new mission (e.g. `ailang-parse`) is added by one registry entry plus one command, with no
-   hand-edited plist and no hand-written env file.
+1. A new mission (e.g. `ailang-parse`) is added by one registry entry plus two commands
+   (`install`, `apply`), with no hand-edited plist and no hand-written env file. Its models come
+   from `models.yml`, not from the registry entry.
 2. `ailang mission doctor` exits non-zero on any drift between registry and installed artifacts —
    and, run today against `docs`, reproduces V5.
 3. The reach truth-table at `mission-control.sh:752` is deleted, because `doctor` computes it.
@@ -205,19 +212,29 @@ mode              = "keepalive"   # or "interval"
 throttle_seconds  = 10800
 boot_offset       = 1680          # today: a case arm inside the driver
 
-[roles]
-controller = ["claude-opus-5", "codex:gpt-6-astra", "claude-fable-5-1"]
-designer   = { primary = "claude:claude-fable-5-1", fallback = ["codex:gpt-6-astra", "pi:ollama/deepseek-v4-flash:0731-cloud"] }
-planner    = { primary = "codex:gpt-5.6-sol",       fallback = ["pi:ollama/kimi-k3:cloud"] }
-executor   = { primary = "codex:gpt-5.6-sol",       fallback = ["pi:ollama/deepseek-v4-flash:0731-cloud"] }
-evaluator  = { primary = "sonnet",                  fallback = ["pi:ollama/minimax-m3:cloud", "codex:gpt-6-astra"] }
+# NO [roles] BLOCK — DELIBERATELY. See below.
 ```
 
-**The registry is also what makes V7 impossible.** A `fallback` list in the registry is
-meaningless unless a loop walks it, so the generator emits the env var *and* a
-`schema_version`-guarded assertion that the driver's role list covers every role the registry
-declares a chain for. A declared-but-unwalked chain becomes a `doctor` failure rather than a
-ten-day silence.
+**⚠ The registry does NOT own model or role assignment, and an earlier draft of this doc wrongly
+gave it a `[roles]` block.** [M-MODEL-REGISTRY-SINGLE-SOURCE](../v0_35_0/m-model-registry-single-source.md)
+is **ratified** (D1(a)/D2(a)/D3(a), Mark 2026-08-27) and its problem statement already names
+`tools/launchd/mission-control.sh`'s *"7 role/fallback exports / 3 unattended mission loops"* as
+one of the four places model assignment lives. **D3(a) puts them in `models.yml`, read via
+`ailang models role <role>` — described there as "the mission driver's read path".** A `[roles]`
+block here would have been a competing fifth source: exactly the failure this doc is written
+against, committed by this doc (V19).
+
+So the boundary is: **that doc owns WHICH MODEL runs a role. This one owns WHICH MISSIONS EXIST,
+where they run, on what schedule, and whether the artifacts on disk match.** The registry names
+the mission; `models.yml` answers what it runs. Where a mission needs a genuine per-mission
+override, it uses the env-override escape hatch D3(a) already preserves — it does not restate the
+chain.
+
+**V7 (declared-but-unwalked config) therefore moves too.** It stays as evidence that config can
+be dead for ten days without anyone noticing, but the *fix* belongs with role assignment, not
+here. What `doctor` can still check without owning the data is the cheap structural half: that
+every role the driver's pre-flight loops iterate is a role `ailang models role` can answer for,
+and vice versa — a mismatch between the two lists is reportable without this doc deciding either.
 
 ### Existing Machinery — reuse, extend, or build new
 
@@ -355,6 +372,7 @@ seeds in the same pass.
 - **Changing scheduling or routing policy.** The registry describes what is already true. Any
   cadence change is a separate, measured decision — the 09-02 measurement (three loops tightened
   together, fleet stall rate 6% → 33%, no extra starts) stands.
+- **Owning role or model assignment.** Ratified to `models.yml` via `ailang models role` (D3(a), Mark 2026-08-27). The registry names missions; it does not name their models.
 - **Replacing launchd.**
 - **Managing missions on hosts other than the rig.**
 
@@ -380,6 +398,10 @@ seeds in the same pass.
 ## Related Documents
 
 - [M-MISSION-COMMS-INTO-THE-BINARY](m-mission-comms-into-the-binary.md) — the comms seam. Complementary in *purpose*: it leaves "the rest of the driver" alone and establishes the extraction pattern; this applies that pattern to configuration and topology. **The first draft claimed "no file overlap". That was false and unverified — `oc-glm-5-2` blocked on it, correctly.** The measured overlap and its ordering are in the Conflict Surface below.
+- [M-MODEL-REGISTRY-SINGLE-SOURCE](../v0_35_0/m-model-registry-single-source.md) — **RATIFIED, and it owns role/model assignment.** Found only after this doc's first draft: the create-script's neural search scored it 0.41, below the 0.45 review threshold, because the two docs share almost no vocabulary while sharing a surface. The `[roles]` block was cut in response (V19). **Ordering: that doc lands first**; this one then generates an env file with no model content at all.
+- [M-DRIVER-PIN-ROLLOUT](../m-driver-pin-rollout.md) — PARKED at the quorum gate after two blocked rounds. Adjacent to Phase 3, but **not overlapping**: its V18 audit explicitly scopes world OUT — *"`mission-world`: … explicitly not ours (world fork — Non-goals)"*. Phase 3 fills precisely the gap that doc declines. Worth reading before Phase 3 anyway: it is the prior art on pin semantics, and it is parked on a design choice a controller may not invent.
+- [M-MISSION-ELO-ROUTING](../m-mission-elo-routing.md) — PROPOSED. Consumes role assignment to choose lanes by rating; owns no config surface. No overlap.
+- [M-MISSION-SLOT-HEARTBEAT](../v1_0_0/m-mission-slot-heartbeat.md) — slot death attribution. Consumes the slot-verdict log this doc's world port started writing. No overlap.
 - [M-MISSION-PORTABILITY](../../implemented/v0_30_0/m-mission-portability.md) — shipped `MISSION_PROFILE` and the env-file convention this builds on. It made a second mission *possible*; it did not make a fifth *easy*.
 - [mission-bootstrap guide](../../../docs/docs/guides/mission-bootstrap.md) — the current 330-line manual procedure this replaces.
 
@@ -436,6 +458,10 @@ running fleet. HD-3(c) plus golden tests asserting byte-equality with what is in
 make the first `install` a no-op by construction; without both, this section would be the reason
 to reject the doc.
 
+**6. Role/model assignment is NOT this doc's surface.** `m-model-registry-single-source` is
+ratified and owns it. If both land, the generated env file must contain no `MISSION_*_MODEL` or
+`MISSION_*_FALLBACK` value that `models.yml` also declares. Ordering: model registry first.
+
 **What deliberately changes:** the docs planner allowlist (V5) starts routing `scripts/*` to
 codex instead of opus. That is the bug fix, and it is an intentional behaviour change on a live
 mission, not a regression.
@@ -484,6 +510,9 @@ Every claim below was measured on 2026-09-05 on the rig, not inferred.
 | V16 | Both docs add an `ailang mission` subcommand | Read both Files sections | Comms `cmd/ailang/mission_comms.go`; this `cmd/ailang/mission.go`. Shared command group, disjoint verbs |
 | V17 | The daemon plist template **cannot** render a mission plist | Read `internal/daemon/plist.tmpl` in full | Hardcodes `Label`, daemon `ProgramArguments`, `KeepAlive`, log paths, daemon-only env. Exposes only `{{.BinaryPath}}`, `{{.Env}}`, `{{.Project}}` — no label, schedule, profile or boot offset |
 | V18 | The driver re-sources the env file on **every** fire, so an in-place write applies without a reload | Read `mission-control.sh:63-64` and `:73-74` | Sourced TWICE per fire — once by `MISSION_PROFILE` (:63-64) and again by `MISSION_NAME` (:73-74). An in-place write is live on the next fire with no reload. This is why `install` must stage |
+
+| V19 | A **ratified** doc already owns mission role/model assignment | Read `m-model-registry-single-source.md` — status line, problem table row 2, D3(a) | "Ratified … D1(a)/D2(a)/D3(a) decided by Mark 2026-08-27"; table names `mission-control.sh` "7 role/fallback exports"; D3(a) makes `ailang models role` "the mission driver's read path". The `[roles]` block was cut |
+| V20 | The pin-rollout doc does **not** cover world | Read its V18 audit row | "`mission-world`: … explicitly not ours (world fork — Non-goals)" — Phase 3 fills that gap rather than duplicating it |
 
 ## References
 
