@@ -118,7 +118,7 @@ func (m *Mission) Validate() error {
 		return fmt.Errorf("%s: workdir %q must be an absolute path, not ~-relative — "+
 			"the driver runs under launchd, where ~ is not expanded", where, m.Workdir)
 	}
-	if !filepath.IsAbs(m.Workdir) {
+	if !strings.HasPrefix(m.Workdir, "/") {
 		return fmt.Errorf("%s: workdir %q must be absolute", where, m.Workdir)
 	}
 

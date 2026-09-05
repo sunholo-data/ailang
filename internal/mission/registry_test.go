@@ -120,6 +120,33 @@ func TestValidate_RejectsBadFields(t *testing.T) {
 	}
 }
 
+// This kills both mutations: reverting to filepath.IsAbs turns the POSIX case red
+// on Windows, while deleting the check turns the Windows-style case red everywhere.
+func TestValidate_WorkdirUsesPOSIXAbsoluteSemantics(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		workdir string
+		wantErr bool
+	}{
+		{"POSIX path", "/Users/x", false},
+		{"Windows path", `C:\Users\x`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := Mission{
+				Name:    "parse",
+				Repo:    "sunholo-data/ailang-parse",
+				Workdir: tc.workdir,
+				Doc:     "design_docs/parse-mission.md",
+				Sched:   Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 10800},
+			}
+			err := m.Validate()
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("Validate() error = %v, wantErr %v", err, tc.wantErr)
+			}
+		})
+	}
+}
+
 // The two schedule modes are mutually exclusive in their knobs. Accepting both
 // would let a plist render StartInterval AND ThrottleInterval, whose combined
 // launchd behaviour nobody has measured.
