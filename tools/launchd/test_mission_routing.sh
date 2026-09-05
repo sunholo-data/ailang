@@ -411,25 +411,33 @@ grep -q 'enum in this build lists' "$skill" \
   && ok "S2 fable capability paragraph survives the spawn-pattern edit" \
   || bad "S2 fable capability paragraph survives the spawn-pattern edit" "capability control missing"
 
-# S3/S4 — the designer rotation lives in the SKILL, the designer's fallback lives
-# in the DRIVER, and nothing else makes them agree. Added 2026-09-05 with the astra
-# rotation edit, because that edit created the first case where they CAN disagree:
-# before it, the designer had no fallback at all and no probe, so there was nothing
-# for the two files to be inconsistent about.
-grep -q 'now `codex:gpt-6-astra` → `pi:ollama/deepseek-v4-flash:0731-cloud` → repeat' "$skill" \
-  && ok "S3 designer rotation leads with astra" \
-  || bad "S3 designer rotation leads with astra" "rotation head is not astra"
-# The two halves of "falls back to fable" must name the SAME fable. The skill says
-# astra's fallback is claude-fable-5-1; the driver is what actually sets it on a
-# failed probe. A silent drift here degrades the designer to a model the policy
-# never named, and the lane-degradation notice would report it as intended.
-skill_fable=$(grep -o 'demoted from rotation ENTRY to astra.s FALLBACK' "$skill")
-driver_fable=$(grep -o 'MISSION_DESIGNER_FALLBACK:-claude:claude-fable-5-1' "$driver")
-if [ -n "$skill_fable" ] && [ -n "$driver_fable" ]; then
-  ok "S4 designer fallback is fable in BOTH the skill and the driver"
+# S3/S4/S5 — astra's placement, and the collision it creates. Rewritten 2026-09-05
+# after Mark corrected the first attempt: astra is an ADDITIONAL fable-class entry
+# to vary between, NOT a replacement for fable's slot.
+grep -q 'now `claude:claude-fable-5-1` → `codex:gpt-6-astra` → `pi:ollama/deepseek-v4-flash:0731-cloud` → repeat' "$skill" \
+  && ok "S3 designer rotation is fable -> astra -> deepseek (astra ADDED, fable kept)" \
+  || bad "S3 designer rotation is fable -> astra -> deepseek (astra ADDED, fable kept)" "rotation is not the three-entry list"
+# The driver seed must NOT have moved: astra is a rotation entry, so nothing pins it.
+# This is the arm that dies if someone re-applies the "astra takes the fable slot"
+# version, which looked identical in a role table and was not what was asked for.
+grep -q 'MISSION_DESIGNER_MODEL:-claude:claude-fable-5-1' "$driver" \
+  && ok "S4 designer seed is still fable (astra is an entry, not a pin)" \
+  || bad "S4 designer seed is still fable (astra is an entry, not a pin)" "seed moved off fable"
+# S5: astra sits in the designer rotation AND in the default quorum roster, so on
+# astra's turn the author is one of its own reviewers. That is a real defect with a
+# named workaround, not a footnote — this arm fails if the quorum default gains
+# astra while the skill stops carrying the substitution instruction, i.e. if the
+# collision ever becomes undocumented.
+if grep -q 'gpt6-astra,gemini-3-1-pro,oc-glm-5-2' cmd/ailang/design_quorum.go; then
+  if grep -q 'ASTRA IS ALSO A QUORUM REVIEWER' "$skill"; then
+    ok "S5 astra-in-quorum collision is documented where the designer is chosen"
+  else
+    bad "S5 astra-in-quorum collision is documented where the designer is chosen" "quorum names astra but the rotation row does not warn"
+  fi
 else
-  bad "S4 designer fallback is fable in BOTH the skill and the driver" "skill='$skill_fable' driver='$driver_fable'"
+  ok "S5 astra-in-quorum collision is documented where the designer is chosen"
 fi
+
 echo ""
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]

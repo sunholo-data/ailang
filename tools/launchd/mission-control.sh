@@ -596,15 +596,14 @@ fi
 # bare "fable" would silently fall back to opus. claude:claude-fable-5-1 = a REAL bounded Fable run.
 # Fable 5 -> 5.1 2026-09-02 (Mark, attended): same price ($10/$50 per 1M), newer generation,
 # vendor gains concentrated in long-horizon agentic work — which is exactly the designer role.
-# ASTRA AHEAD OF FABLE (Mark, attended 2026-09-05), same ruling as the controller
-# PREFS above. Fable is NOT removed — it becomes the designer's fallback, so a
-# failed astra probe lands on exactly the lane that ran this role yesterday.
-# This role had NO fallback and NO probe before today: the codex pre-flight loop
-# covered PLANNER and EXECUTOR only, so a `codex:*` designer would have run
-# unprobed with nothing behind it. DESIGNER is added to that loop below, which is
-# what makes this pin safe to set.
-export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-codex:gpt-6-astra}"
-export MISSION_DESIGNER_FALLBACK="${MISSION_DESIGNER_FALLBACK:-claude:claude-fable-5-1}"
+# designer default is the claude-CLI lane (claude:<full-id>), NOT the bare "fable" alias: the
+# Agent tool pins only sonnet|opus|haiku (F1, iteration 31), so under an opus-first controller a
+# bare "fable" would silently fall back to opus. claude:claude-fable-5-1 = a REAL bounded Fable run.
+# Fable 5 -> 5.1 2026-09-02 (Mark, attended): same price ($10/$50 per 1M), newer generation,
+# vendor gains concentrated in long-horizon agentic work — which is exactly the designer role.
+# This stays the rotation SEED. Astra (2026-09-05) is an ADDITIONAL fable-class ENTRY in the
+# skill's rotation, not a replacement for this slot, so nothing here moves.
+export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-fable-5-1}"
 # Per-iteration METERED-spend ceiling (2026-07-18, Mark: "make sure costs don't go crazy"):
 # the sum of all metered-API spend (codex $ + gemini $) within ONE iteration must stay under
 # this. Enforced by the skill's Gate-3 metered ledger; quota-bucket (subscription) spend is
@@ -772,15 +771,7 @@ _chain_tail() { case "$1" in *,*) printf '%s' "${1#*,}" ;; *) printf '' ;; esac;
 _lane_degraded=""   # newline-delimited markdown bullets, one per degraded role
 _cx_rcmap=""        # "model=rc;" so the emit site names the probe's exit code, not just the lane
 _pi_rcmap=""
-# DESIGNER added 2026-09-05 (Mark, attended) when astra took the designer pin ahead
-# of fable. Until today this loop was PLANNER+EXECUTOR only, so the designer was the
-# ONE role whose lane was never probed — harmless while it was a claude pin (a
-# `claude:*` value falls straight through both loops untouched, exactly as before),
-# and NOT harmless the moment it became `codex:*`. Adding the role here is what
-# gives the designer the same probe-and-degrade treatment the other lanes have, so
-# a failed astra probe hands the role to MISSION_DESIGNER_FALLBACK (fable) instead
-# of running an unprobed lane with nothing behind it.
-for role in PLANNER EXECUTOR DESIGNER; do
+for role in PLANNER EXECUTOR; do
   var="MISSION_${role}_MODEL"; val="${!var}"
   case "$val" in codex:*)
     cx_model="${val#codex:}"
@@ -828,12 +819,7 @@ done
 # ~/.pi/sessions. BASH 3.2 (L19): ':'-delimited string sets, NOT associative arrays.
 _pi_probed=":"   # models probed this fire (dedupe: planner+executor could share one)
 _pi_failed=":"   # models whose probe failed
-# DESIGNER included for the same reason as the codex loop above, and it matters
-# even though the designer's own fallback is a `claude:` value: the SKILL's designer
-# ROTATION has a `pi:ollama/deepseek-v4-flash:0731-cloud` entry (V1 charter D-48),
-# so a rotated designer really can be a pi lane, and it would otherwise be the only
-# pi lane on the rig running unprobed.
-for role in PLANNER EXECUTOR DESIGNER; do
+for role in PLANNER EXECUTOR; do
   var="MISSION_${role}_MODEL"
   # while-loop so a chain advance re-enters the probe for the NEW value; a
   # non-pi value (or a settled pi value) breaks out at the bottom.
