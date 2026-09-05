@@ -1071,8 +1071,18 @@ pass_arm "bound drift classifier is loud only when the end rate needs a higher s
 
 assert_measurement_failure() {
   local name=$1 mode=$2 expected_rc=$3 expected_text=$4 rc refusal_count derived_count
+  # The forced-rate overrides MUST be cleared for these arms. They are the one
+  # PROBE_SELFTEST_* pair that SHORT-CIRCUITS the measurement rather than steering it, so an
+  # ambient value makes measure_rate_or_refuse unreachable and the injected fault is never
+  # exercised — the arm then reports rc=0/derived=1 and reds for the wrong reason. Found by
+  # the iteration-35 evaluator via the sprint plan's OWN M2 AC-1 boundary command
+  # (PROBE_SELFTEST_FORK_RATE=200 <suite> was rc=1 ok=53 against rc=0 ok=57 unset), and
+  # reproduced first-party before the fix. `env -u` is used rather than a leak guard because
+  # these overrides are LEGITIMATE at suite scope for every other arm; only this recursion
+  # must not inherit them.
   run_bounded "$tmp_dir/measurement-$mode.out" "$tmp_dir/measurement-$mode.err" "$ARM_CAP_SECS" -- \
-    env PROBE_UNDER_TEST="$probe" PROBE_SELFTEST_MEASUREMENT_FAILURE="$mode" \
+    env -u PROBE_SELFTEST_FORK_RATE -u PROBE_SELFTEST_REAL_OP_RATE \
+      PROBE_UNDER_TEST="$probe" PROBE_SELFTEST_MEASUREMENT_FAILURE="$mode" \
       PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash "$0"
   rc=$?
   refusal_count=$(grep -Fc -- "$expected_text" "$tmp_dir/measurement-$mode.err" || true)
