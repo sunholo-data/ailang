@@ -28,7 +28,7 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	return runModuleWithCacheDependencies(ctx, cfg, src, productionCacheDependencies())
 }
 
-func runModuleWithCacheDependencies(ctx context.Context, cfg Config, src Source, cacheDeps cacheDependencies) (Result, error) {
+func runModuleWithCacheDependencies(ctx context.Context, cfg Config, src Source, cacheDeps cacheDependencies, afterLoad ...func(map[string]*loader.LoadedModule)) (Result, error) {
 	// DEBUG: if cfg.TraceDefaulting { fmt.Printf("DEBUG: runModule called for %s\n", src.Filename) }
 	result := Result{
 		PhaseTimings: make(map[string]int64),
@@ -147,6 +147,9 @@ func runModuleWithCacheDependencies(ctx context.Context, cfg Config, src Source,
 		pipelineSpan.RecordError(loadErr)
 		return result, loadErr
 	}
+	if len(afterLoad) > 0 && afterLoad[0] != nil {
+		afterLoad[0](modules)
+	}
 
 	loadSpan.SetAttributes(attribute.Int("modules.count", len(modules)))
 	loadSpan.End()
@@ -250,58 +253,46 @@ func runModuleWithCacheDependencies(ctx context.Context, cfg Config, src Source,
 		// M-PERF6: Compute cache key and check for hits
 		var moduleCacheKey string
 		if moduleCache != nil && moduleCache.store != nil {
-			// Build dep digests from already-compiled dependencies
-			depDigests := make(map[string]string)
-			for _, imp := range mod.Imports {
-				if cu, ok := compiledUnits[imp]; ok && cu.Iface != nil {
-					depDigests[imp] = cu.Iface.Digest
-				}
-			}
-			// Read source from disk for content hash.
-			// mod.Path is the canonical module identity (e.g. "benchmarks/workloads/warm_eval");
-			// the actual disk path lives on mod.File.Path. Using mod.Path here caused
-			// os.ReadFile to fail silently, leaving sourceContent="" so every module that
-			// shared the same imports collided on the same cache key — edits to .ail files
-			// were ignored after the first compile.
-			sourceContent := ""
-			srcPath := mod.Path
-			if mod.File != nil && mod.File.Path != "" {
-				srcPath = mod.File.Path
-			}
-			if srcBytes, err := os.ReadFile(srcPath); err == nil {
-				sourceContent = string(srcBytes)
-			}
-			// Use build commit (from internal/version) as the compiler-identity component
-			// of the cache key. Rebuilding `ailang` at a new commit invalidates cache,
-			// so bugfixes to elaboration / type-checking / op-lowering take effect without
-			// a manual cache nuke. The source hash and dep digests still catch edits.
-			moduleCacheKey = ModuleCacheKey(version.Commit, sourceContent, depDigests)
-			cached, entry, verified := moduleCache.load(string(modID), moduleCacheKey)
-			if verified {
-				cacheHits++
-				// M-INCREMENTAL-TYPECHECK: Skip only after the artifact stamp and all payloads verify.
-				if cached != nil {
-					if cfg.DebugCompile {
-						fmt.Fprintf(os.Stderr, "[CACHE] %s: SKIP (cached %s ago)\n", modID, time.Since(entry.Timestamp).Truncate(time.Second))
-					}
-					unit.Core = cached.Core
-					unit.CoreTI = cached.CoreTI
-					unit.Iface = cached.Iface
-					unit.Constructors = cached.Constructors
-					// Register interface with linker so downstream modules can resolve imports
-					if unit.Iface != nil {
-						modLinker.RegisterIface(unit.Iface)
-					}
-					compiledUnits[string(modID)] = unit
-					continue
-				}
+			if mod.SourceContent == nil {
+				moduleCache.warnSourceUnavailable(string(modID))
 			} else {
-				cacheMisses++
-				if cfg.DebugCompile {
-					if entry != nil {
-						fmt.Fprintf(os.Stderr, "[CACHE] %s: INVALID, recompiling (compiled %s ago)\n", modID, time.Since(entry.Timestamp).Truncate(time.Second))
-					} else {
-						fmt.Fprintf(os.Stderr, "[CACHE] %s: MISS\n", modID)
+				// Build dep digests from already-compiled dependencies
+				depDigests := make(map[string]string)
+				for _, imp := range mod.Imports {
+					if cu, ok := compiledUnits[imp]; ok && cu.Iface != nil {
+						depDigests[imp] = cu.Iface.Digest
+					}
+				}
+				// Use the immutable loader-owned snapshot so the key always describes
+				// the exact bytes parsed into this module's AST.
+				moduleCacheKey = ModuleCacheKey(version.Commit, *mod.SourceContent, depDigests)
+				cached, entry, verified := moduleCache.load(string(modID), moduleCacheKey)
+				if verified {
+					cacheHits++
+					// M-INCREMENTAL-TYPECHECK: Skip only after the artifact stamp and all payloads verify.
+					if cached != nil {
+						if cfg.DebugCompile {
+							fmt.Fprintf(os.Stderr, "[CACHE] %s: SKIP (cached %s ago)\n", modID, time.Since(entry.Timestamp).Truncate(time.Second))
+						}
+						unit.Core = cached.Core
+						unit.CoreTI = cached.CoreTI
+						unit.Iface = cached.Iface
+						unit.Constructors = cached.Constructors
+						// Register interface with linker so downstream modules can resolve imports
+						if unit.Iface != nil {
+							modLinker.RegisterIface(unit.Iface)
+						}
+						compiledUnits[string(modID)] = unit
+						continue
+					}
+				} else {
+					cacheMisses++
+					if cfg.DebugCompile {
+						if entry != nil {
+							fmt.Fprintf(os.Stderr, "[CACHE] %s: INVALID, recompiling (compiled %s ago)\n", modID, time.Since(entry.Timestamp).Truncate(time.Second))
+						} else {
+							fmt.Fprintf(os.Stderr, "[CACHE] %s: MISS\n", modID)
+						}
 					}
 				}
 			}
