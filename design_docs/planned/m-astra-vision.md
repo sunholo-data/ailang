@@ -7,6 +7,8 @@
 **Dependencies:** [PROGRAM](../PROGRAM.md), [v1 mission](../v1-mission.md), [Fable review](m-fable-strategy-review.md).
 **Estimated:** The review is complete. Follow-up experiments and designs are scoped below; no delivery-date commitment.
 
+> **World review, 2026-09-05:** The [addendum below](#ailang-world-review--routing-correction-2026-09-05) supersedes the suggestions to create a separate obligation protocol and decision-pane design. AILANG World already owns this architecture and has implemented substantial foundations. Extend its existing work.
+
 ## The proposal
 
 **Make AILANG the language in which an AI can make the most reliable progress per unit of attention, and a human can understand and redirect that progress without reconstructing the conversation.**
@@ -292,3 +294,50 @@ This was a focused strategic review, not an exhaustive compiler audit or a new b
 - [Ink & Switch: Malleable Software](https://www.inkandswitch.com/malleable-software/): precedent for treating user modification as a normal interaction. Applying that aim to an effect-governed AI pane is this proposal's inference.
 
 **Proposed product sentence:** AILANG lets humans and AI turn intent into programs whose assumptions, evidence, and actions remain inspectable as the work changes.
+
+
+## AILANG World review — routing correction (2026-09-05)
+
+**Verdict: yes, strongly. World is the intended home of much of this vision, and several proposals above independently rediscover its existing design.** The initial review should have included World before naming new protocol and pane documents. This addendum corrects that omission. It changes recommendations, not either mission's ratified charter or queue.
+
+Reviewed the local World checkout at `fe1e411` (clean), including its charter, coding standards, founding design, HUMAN-SURFACE, AI-EMPLOYEE, and selected implementation/test paths. Code observations below are about that checkout; historical design status tables were not treated as current implementation inventories.
+
+### What already exists
+
+| Astra proposal | World evidence | Assessment |
+|---|---|---|
+| Persistent intent, typed changes, evidence | [DESIGN §§1, 9, 11](https://github.com/sunholo-data/ailang-world/blob/fe1e411/design_docs/DESIGN.md), `world/types.ail`, `host/store` | Already the central World architecture; do not invent a parallel graph |
+| Same state for humans and agents | DESIGN §11 and [HUMAN-SURFACE P1–P7](https://github.com/sunholo-data/ailang-world/blob/fe1e411/design_docs/HUMAN-SURFACE.md) | Existing design includes decision packets, grounded prose, evidence grades, time navigation, attention budgets and speculation |
+| Evidence bound to its subject and checker | [Evidence validator](https://github.com/sunholo-data/ailang-world/blob/fe1e411/host/evidence/validator.go) | Implemented: authenticates report bytes, checks subject and compiler identity, proof outcome and required check identities; raw claims do not mint validated authority |
+| Approval for an exact outward action | [Publish approval validation](https://github.com/sunholo-data/ailang-world/blob/fe1e411/host/broker/approve.go), broker invoke pipeline | Implemented for Registry.Publish: binds package target, manifest, tarball/content/interface hashes and expiry; durable claim and intent are coupled before dispatch. This is a specific path, not a demonstrated universal policy engine |
+| Unknown outcomes after a crash | [Broker invoke/replay](https://github.com/sunholo-data/ailang-world/blob/fe1e411/host/broker/broker.go), recovery tests | Durable effect intent and explicit indeterminate outcomes; replay returns stored result bytes; the tested recovery path dispatches zero handlers |
+| Human provenance surface | [Workbench renderer](https://github.com/sunholo-data/ailang-world/blob/fe1e411/host/workbench/render.go), `host/daemon/workbench.go` | Implemented read-only HTML surface at `GET /workbench`, including world/log/object views, evidence display and unavailable edges. It is not the complete interactive decision pane |
+
+World's bar is also better aligned with this proposal than a benchmark-only account suggests: clause 4 is a resident-agent non-inferiority floor; clause 5 asks whether real provenance questions can be answered quickly, and R1 measures operational incidents and human attention. Preserve that distinction. Language-level fleet uplift and World-level operational value are complementary experiments.
+
+### What remains worth adding or sharpening
+
+**1. Make current validity explicit.** Content-addressed evidence already binds facts to artifacts. The next question is whether the requirement itself changed. In the inspected `Proposal`, `goal` and `plan` are strings; the proof report binds a subject and compiler, not an explicit requirement-version/assumption-set pair. That does not prove World lacks a solution elsewhere; it identifies the concrete surfaces a follow-up should trace. Try a domain package expressing requirement identity, dependency identity, validity conditions and supersession before touching the frozen kernel. Preserve old evidence as historically valid while marking it inapplicable to the current decision.
+
+**2. Treat evidence as several dimensions, not one confidence ladder.** HUMAN-SURFACE uses `PROVEN > TESTED > ATTESTED > CLAIMED`. Keep those familiar kind labels, but show verdict, scope, assumptions and freshness beside them. A failed test is still TESTED; the current renderer already requires a test verdict, which is a good precedent. A proof of a narrow or obsolete proposition is not stronger evidence about today's requested outcome than a directly relevant observation. A recorded human approval is authority within scope, not proof of factual correctness. Any change to the ratified interaction grammar needs its normal review; this is a refinement proposal, not an instruction to rewrite it.
+
+**3. Finish the connection to residents and the human.** The current queue already names `w-session-authority` (row 39), MCP/A2A projections, and `w-approval-inbox` (row 7). The daemon's registered routes confirm that the live workbench is currently read-only. `DecisionPacket` and timeout laws exist in the AILANG core; a search of host Go code for `DecisionPacket`, `timeoutOutcome`, `validDefer`, and `TimeoutOutcome` returned no call sites, consistent with HUMAN-SURFACE's explicit deferral of host enforcement to inbox work. That is an integration task, not a need for a second packet schema.
+
+**4. Make one changed-requirement episode the acceptance story.** A human changes an acceptance criterion on a proposed code fix; World identifies affected evidence, the model repairs only the necessary scope, the human sees the new result, and stale authority cannot authorize changed artifacts. Restart before completion, then explain the outcome through the ledger. This combines the strongest parts of Astra's repair-packet proposal with World's existing purpose and produces real clause-5 questions.
+
+**5. Connect World to AILANG's semantic repair tools through an extension.** AILANG should supply compiler-derived facts, diagnostics and verification results. World should retain goals, decisions, evidence and receipts. A resident extension should assemble the bounded repair packet and select model strategy. Keep task strategy out of both frozen cores.
+
+**6. Make status an evidence-backed projection.** World's README still says the kernel does not exist, while its source contains the daemon, store, broker and workbench. HUMAN-SURFACE also retains historical absence claims next to later completion notes. This review did not edit them. They are a direct product test for the thesis: ask World what is implemented, with source/test identities and observation dates, instead of relying on manually synchronized status prose. Documentation correction remains useful, but a generated inventory tied to evidence is the more durable experiment.
+
+### Revised next step
+
+Withdraw the initial suggestion to create standalone `m-obligation-evidence-lifecycle` and `m-human-ai-decision-pane` architectures in the language repo. First route the changed-requirement scenario through World's existing HUMAN-SURFACE and approval-inbox designs, then identify the smallest missing domain-package behavior. Reuse World's packet identities, proof validation, grants and effect receipts. Extend AILANG's existing semantic-context work only for compiler/tool facts that World cannot supply itself.
+
+The honest division is:
+
+- **AILANG:** make a candidate computation checkable and its effects explicit.
+- **World:** retain and govern the evolving work, authority and evidence.
+- **Resident extensions:** use those facilities to make models more effective.
+- **Human workbench:** expose that same state as understandable decisions and consequences.
+
+No World source, charter or queue changes were made. Fresh checks passed: `go test -count=1 ./host/evidence ./host/workbench` and the focused broker `TestRecoverCountingProbeDispatchesZeroHandlers`. These validate the inspected evidence/rendering packages and one recovery property, not the full World release bar, live resident integration, or usability. A complete replay campaign using World's pinned AILANG binary was not run.
