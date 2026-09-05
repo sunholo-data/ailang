@@ -1,3 +1,71 @@
+## STATUS 2026-09-03 — ITERATION 6: docs-4 taxonomy pass designed and scoped to one sprint (62 files, near-zero literal duplication measured); quorum blocked twice, closed via this mission's first narrow-refinement carve-out — sprint held pending Mark's one-time OK
+
+Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Pin worktree at `origin/dev`
+tip (`55891002f`), clean. 0 directives on bookkeeping issue `#979` since the watermark (7
+comments, none allowlisted). Decision ledger valid, 2 rows, both `RESOLVED` — no new ask at Gate
+0 (one added at Gate 4, see below). 16 unread canonical-inbox messages, none addressed to
+`mission-docs` (design-doc-creator/pkg-sunholo/mission-v1/mission-world cross traffic).
+
+Gate 1: `origin/dev` HEAD SHA-addressed check-runs showed 6 NOT-GREEN: `Build windows/macos/
+ubuntu-latest` (cancelled/failure), `launchd drivers (bash 3.2)` (failure), `test` (failure), same
+signature Gate 1 has flagged in iterations 1/2/4/5 — confirmed still V1's domain (owning mission
+per Gate 1's repo-ownership scoping), not actioned here beyond a cross-mission heads-up
+(`mission-v1` inbox, `inbox_1788431686434_383803af`) naming the two failing jobs and the two
+most-recent commits, since neither looked docs-shaped.
+
+**PICK: `docs-4`** (taxonomy pass, item 11). Both of its stated blockers are now cleared: clauses
+1-3 are green (docs-2 covers 1+3; docs-9/docs-6/docs-10/docs-8 cover clause 1 further; docs-5
+covers clause 2), and docs-7's allowlist question dissolved 2026-08-28. `docs-3` (item 10) stays
+`[IN-SPRINT]`, unpicked — still blocked on the same inherited red named above (its own PR #1031
+mergeability re-checked: still `MERGEABLE`/`BLOCKED` on identical failing jobs).
+
+**Gate 3 — designer.** No design doc existed for docs-4. Spawned this iteration's rotation
+designer (`claude:claude-fable-5`, Agent tool, `model="fable"`) with an explicit judgment call:
+given 62 files, decide with evidence whether this is one sprint or needs decomposition into
+sprint-sized sub-docs (the charter's standing multi-week-item rule). Result:
+`design_docs/docs-4-brief.md` (committed `1c74a4971` on branch `docs-4-brief` off `origin/dev`).
+**One sprint, not a decomposition** — a pairwise line-overlap instrument across all 1,830 guide
+pairs found only 2 pairs sharing ≥4 identical lines; the real redundancy is 5 recurring
+command-block sections across 4-7 files, not page-level duplication; six 2026-08-17 "audit pass"
+commits already did the page-level merging. Every one of the 62 files (+11 in `evaluation/`) gets
+an explicit disposition (Appendix A); the target sidebar tree is fully specified (Appendix B);
+29-row Verification Log with commands (two self-caught instrument bugs: BSD `sed` `\?`, zsh
+non-word-splitting).
+
+**Quorum-at-pick (mandatory, no prior artifact for this doc).** Round 1
+(`docs-4-brief-2026-09-03T10-54-51Z.json`): BLOCKED — `gpt5-6-sol` and `gemini-3-1-pro` both
+reject (`oc-glm-5-2` absent, degraded N-1, not silently passed), both objections narrow
+verification-completeness gaps with concrete `proposed_fix` (V6 probed only 8 of 9 orphan URLs;
+no row proved the B4/B5 section-cut headings actually exist/are adjacent). Controller measured
+both directly — single commands, no design judgment, so not re-routed through the designer per
+Gate 2's rule — both premises held (9th orphan also `200`; both heading pairs exact). Round 2
+(`docs-4-brief-2026-09-03T10-57-26Z.json`, the mandatory one re-quorum): BLOCKED again, all three
+reviewers present and reject — `gpt5-6-sol` (the "URL-stable" scope line overclaims against the
+two intentional clause-5-authorised deletions), `gemini-3-1-pro` (B3's cut boundary needed the
+same line-exact proof V29 just gave B4/B5), `oc-glm-5-2` (the `sync-registry.sh`/`make docs-build`
+side-effect cleanup was V23b prose, never an encoded acceptance step — an executor following the
+checklist literally could commit 4 mutated tracked files). All three narrow, concrete, no design-
+direction dispute → applied the **narrow-refinement carve-out** (bounded 2nd revision, reviewers'
+verbatim fixes, no 3rd quorum round): reworded URL-stable's scope, added V30 (B3 boundary
+confirmed at lines 180/253, genuine H2s), encoded the `git checkout --` cleanup as acceptance
+criterion 6/7 rather than prose. Committed `fbc289f6a` (round-1 fixes), `56acda30d` (round-2 +
+carve-out record). **This is docs-mission's first use of the carve-out** — per the skill's
+ratification rule the doc is design-ready, but the sprint (planner/executor) is held pending
+Mark's one-time OK rather than routed straight through, so `sprint-planner` and `sprint-executor`
+were not spawned this iteration. `sprint-evaluator` accordingly has nothing to independently
+judge yet — no code landed, so no generator≠judge step was owed this iteration.
+
+**Routing evidence**: designer `claude:claude-fable-5` (Fable diet: 1 doc, 0 revision-designer-
+runs — both quorum-response edits were controller-measured, not re-spawned); planner/executor/
+evaluator not spawned (blocked on ratification, not a probe failure — no fallback chain
+traversed). Quorum reviewer cost: round 1 $0.1297, round 2 $0.1219 = **$0.2516 metered**, well
+under the $1 ceiling and the $10/doc quorum cap.
+
+**Cost**: metered $0.2516 of $1 ceiling (2 quorum rounds, OpenRouter-billed reviewers). Quota
+buckets: fable (designer, 1 bounded run), sonnet (controller session).
+
+Full record: `design_docs/docs-mission-log.md` §ITERATION 6.
+
 ## STATUS 2026-09-02 — ITERATION 5: docs-8's stale "126 overdue" corrected to a verified 54, 18 archived after independent re-verification caught 3 wrong claims; docs-3 credited from a second orphaned fire, blocked on a V1-owned inherited CI red
 
 Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Pin worktree at

@@ -1118,3 +1118,197 @@ unchanged, confirmed present on every commit this iteration's CI touched.
 Both frictions are now first-party-verified working practice for this iteration; recorded so the
 NEXT iteration (or a sibling mission reading this log) inherits the lesson even before either
 crosses the skill-edit bar.
+
+## ITERATION 9 — 2026-09-05T11:19Z
+
+**Pick**: `docs-11` — `design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md`
+(GitHub code-search fallback for `ailang docs search` outside the source tree). Fresh draw from
+the 31-doc STILL-PLANNED backlog docs-8 (iteration 5) certified, since the charter's own
+enumerated queue (items 1-11) is now entirely `[LANDED]`/`[RULED OUT]`.
+
+**Gate 0**: kill switch armed; billing tripwire CLEAN; gh account `sunholo-voight-kampff`
+confirmed active. Bookkeeping issue `#979` — `scripts/mission_directives.sh` found 0 allowlisted
+directives since the watermark (`2026-09-03T18:44:06Z`, of 10 comments). Decision ledger valid
+(`scripts/mission_decisions.sh --check`), 3 rows, 0 OPEN at pick time. Canonical inbox (Firestore,
+`store: gcp` header confirmed) had 30 unread messages: 26 routine eval-suite/task-completion
+notifications, an `AILANG v0.35.0 Released` notice, and two user-submitted feedback items
+(a language feature request for process exit codes, a compile-cache staleness bug) both filed
+against core-language surfaces — out of docs-mission's scope, not actioned, left for whichever
+mission ingests general feedback. None addressed to `mission-docs`, none allowlisted, none a
+directive. Weekly external-issue sweep checked and found NOT due: `#979` created 2026-08-31, next
+Monday-07:00-CEST boundary is 2026-09-07.
+
+**Gate 1**: `git fetch origin` — local `dev` and `origin/dev` identical (`087fbea63`), no
+reconcile needed. Per-workflow check: `CI` success, `Deploy Documentation to GitHub Pages`
+success. SHA-addressed `commits/<sha>/check-runs` on `origin/dev` HEAD: `checks=13`, 4 NOT-GREEN,
+all `pending` — confirmed via `gh run list` these are genuinely in-flight `Build and Release` runs
+for the last 3 commits (`createdAt` 10:43:57Z/10:51:16Z/10:57:54Z, `status: in_progress`), not a
+red. Not actioned; not blocking.
+
+**Gate 2 — reality-check and cross-mission-ownership screen.** The charter's "Next" note (iteration
+8) pointed at the 31-doc backlog. Before picking, checked the one item flagged with partial
+progress — `m-net-effect-proxy-boundary` ("M1 of 4 landed") — for ownership, per Gate 1's
+repo-ownership scoping and Gate 2's PR/worktree-attribution rules for a shared repo:
+`git log --oneline --all --grep="net-effect-proxy"` returned commits citing "iteration 145/150/
+155/156" and "D-6", "AC10(d) tripwire", "CI-flake M2" — none of which are this mission's own
+numbering (docs-mission is at iteration 0-8) or vocabulary. This is V1's active, in-progress,
+multi-milestone item. RULED OUT as a pick before any routing cost was spent — not a refuted
+hypothesis, an attribution catch.
+Picked `m-dx27-docs-search-github-fallback.md` instead. Verified NOT already landed: `git log
+--all --grep="dx27\|docs-search-github"` shows only the original 2026-01-28 creation commit
+(`a111c5662`), no PR, no implementation activity. Verified the problem statement still reproduces
+at HEAD: `ailang --version` → `v0.35.0-61-g087fbea63`; `internal/docsearch/embed.go` exists but
+implements an unrelated semantic-search embedding cache, not the "embed docs in binary"
+alternative the doc considered and rejected; `cmd/ailang/docs_search.go`'s `findDocsDir()` (line
+183) still returns exactly `"no documentation directory found (tried design_docs/ and docs/)"` —
+the doc's quoted error, verbatim, at the current binary version.
+
+**Gate 2 — QUORUM-AT-PICK.** No quorum artifact existed for this doc (`ls
+.ailang/state/mission-quorum/ | grep dx27` → empty before this iteration; the doc predates the
+quorum gate). Ran `ailang design-quorum` with a controller pass verdict and note before any
+routing, per the standing rule for pre-quorum docs.
+
+**Round 1 — BLOCKED, 3/3 reject** (artifact
+`m-dx27-docs-search-github-fallback-2026-09-05T11-05-41Z.json`, cost $0.0456):
+- **gpt5-6-sol**: the doc's central success case (unauthenticated GitHub code search at
+  10 req/min) had no Verification Log entry — an unverified premise. Also: "fall back to
+  unauthenticated on invalid token" is a silent fallback, forbidden by the project's no-silent-
+  fallbacks axiom.
+- **gemini-3-1-pro**: ~600 LOC of new HTTP client / git-remote parser / cache layer proposed to
+  be wired directly into `internal/docsearch/search.go` and `cmd/ailang/docs_search.go`, violating
+  PROGRAM.md's "default bias: extension, not core change." No Conflict-Surface section existed.
+- **oc-glm-5-2**: a `github://` prefix sentinel hardcoded into the shared `Search()` function is
+  the same core-vs-extension violation from a different angle; repeats the silent-fallback
+  objection.
+
+None disputed that the feature itself was worth building — all three objected to premise
+verification, architecture placement, or fallback behavior. Routed to the designer role for a
+revision (Gate 3's ordinary any-reject path, not yet the narrow-refinement carve-out — round 1's
+objections spanned multiple surfaces and were not yet narrow).
+
+**Designer spawn** (`tools/launchd/resolve-role-spawn.sh designer <doc>` → `recipe
+claude:claude-sonnet-5 declared:provider-pin` — this mission's own env pin, distinct from the
+fleet designer rotation, per the Repo Profile note that a mission's own pin wins over the shared
+seed). Billing guard confirmed CLEAN (`test -z "$ANTHROPIC_API_KEY" && test -z
+"$ANTHROPIC_AUTH_TOKEN"`) before every `claude-sub` invocation. 1-token probe (`claude-sub -p
+--model claude-sonnet-5 'reply with exactly: ok'`, bounded 120s) → rc=0. Real run: directive file
+(4,716 bytes, well over the 200-byte delivery-assertion floor) naming all three objections
+verbatim and instructing live verification rather than argument; launched via `Bash
+run_in_background:true` wrapping a bounded 30-min `date +%s` deadline loop (single-level
+backgrounding — the outer call blocks on the inner work, so the harness's completion notification
+reflects real completion, not a launcher return). Completed in ~9 minutes, `rc=0`.
+
+**What the designer did** (verified first-party by the controller before accepting, not taken on
+the designer's word): live-`curl`'d GitHub's actual code-search API —
+`curl -sD - "https://api.github.com/search/code?q=contracts+repo:sunholo-data/ailang" -o /dev/null`
+→ `HTTP/2 401` ("Requires authentication"; no unauthenticated tier exists at all, falsifying the
+doc's central claim), and the same request with `Authorization: Bearer $(gh auth token)` →
+`HTTP/2 200` with `x-ratelimit-resource: code_search`, `x-ratelimit-limit: 10` (not the doc's
+claimed 30 — that number was the generic REST limit, never checked against the actual resource).
+Rewrote Success Case, Rate Limit Case, and Configuration around "authentication required,"
+removed all silent-fallback language project-wide in the doc, and redesigned the implementation
+around a `SearchBackend` interface (mirroring `internal/observatory/backend.go` and
+`internal/ai/provider.go`'s existing interface-selection patterns) so that
+`internal/docsearch/search.go`'s `Search()` function is not modified at all — backend selection
+moves entirely into the CLI layer. Added a Conflict Surface section (cache path, env var,
+`GITHUB_TOKEN` reuse, all grep-verified). Diff: `git diff --stat` → 1 file, +341/-133.
+
+**Round 2 — BLOCKED again, 3/3 reject** (artifact
+`m-dx27-docs-search-github-fallback-2026-09-05T11-11-47Z.json`, cost $0.0731):
+- **gpt5-6-sol**: the revised Conflict Surface checks only cache paths and env-var names, not
+  whether equivalent HTTP-client/git-remote-parsing code already exists elsewhere before
+  proposing new implementations — fails the route-to-extension/reuse gate despite the new
+  interface.
+- **gemini-3-1-pro**: independently named the same gap, specifically citing that
+  `coordinator_cloud_github.go` already handles GitHub PR creation and the doc never evaluates
+  reusing it before proposing a redundant ~210 LOC (150 LOC HTTP client + 60 LOC git-remote
+  parser) from scratch.
+- **oc-glm-5-2**: the doc asserts `internal/docsearch/search.go`'s actual `Search()` signature and
+  `SearchOptions`/`SearchResult`/`SearchStats` types as fact, with no Verification Log entry
+  proving they match reality — the Verification Log only covered the external GitHub API.
+
+**Controller-verified both claims directly** (single-command, no design judgment) before deciding
+how to route: `find . -iname "coordinator_cloud_github.go"` → `cmd/ailang/coordinator_cloud_github.go`
+(411 lines); `grep -n "^func "` shows `getGitHubOwnerRepo(ctx, workDir)` at line 87 — parses
+`git remote get-url origin`, matches both the HTTPS and SSH-style GitHub remote URL prefixes, splits
+`owner/repo` — functionally identical to what the doc's Phase 2 proposed writing from scratch; and
+`createGitHubPR`/`addGitHubLabels` in the same file establish an existing
+`Authorization: Bearer <token>` + `Accept: application/vnd.github+json` +
+`X-GitHub-Api-Version: 2022-11-28` request pattern. Separately, `grep -n "func Search\b|type
+SearchOptions|type SearchResult|type SearchStats" internal/docsearch/search.go` confirmed all four
+of the doc's claims (lines 18/31/38/62) match verbatim — oc-glm-5-2's underlying premise was
+correct, the objection was a valid process gap (no log entry), not a wrong claim.
+
+**Applied the narrow-refinement carve-out** (`.claude/skills/mission-control/SKILL.md` Gate 2):
+both round-2 objections carried a concrete, reviewer-named fix and neither disputed the
+`SearchBackend` design direction — a completeness/reuse-check gap and a verification-log gap, not
+an architecture dispute. The controller applied both fixes directly rather than spawning a second
+designer run or spending a third ~$0.07 quorum round: Phase 2 revised from "write
+`detectGitHubRepo`/`parseGitRemote` from scratch" to "extract `getGitHubOwnerRepo` into a new
+shared `internal/gitutil` package, update `coordinator_cloud_github.go`'s call site to use it,
+delete the private original" (net LOC estimate revised from ~510 to ~455 — the extraction removes
+more duplication than it adds); added the missing Verification Log row citing the grep above.
+Also noted, honestly, that the HTTP-client pattern is followed for header consistency but not
+extracted into a shared client, since each caller's request/response shape differs enough (PR
+creation vs. label POST vs. code-search GET) that a generic wrapper would only be a thin
+convenience, not a real dedup.
+
+This is docs-mission's **SECOND** use of the shared skill's narrow-refinement carve-out. The
+FIRST (iteration 6, `docs-4`) was explicitly scoped by Mark's own ratifying decision (D-3) to that
+item alone ("Precedent is scoped to `docs-4` alone and does not generalise to docs-mission") — so
+this is a fresh first-use-per-item ratification, not a re-application of an existing grant. Per
+the carve-out's own rule ("the FIRST doc to use the carve-out is surfaced to Mark for a one-time
+OK before its sprint runs"), the sprint is HELD — `sprint-planner` does not run this iteration.
+Filed as decision **D-4** in the ledger, modeled on D-3's format: two options with consequences, a
+loop recommendation ((a) OK it), and a safe unanswered-default (stays parked, no cost).
+
+**No planner, executor, or evaluator spawned this iteration.** This is a correct application of
+Standing rule 8 (a judgment park, not a capacity park — D-4 is answerable in one word) and
+Standing rule 2 (never force a guardrail through) — there is no sprint plan yet to execute and
+nothing to hand an independent judge, so spawning either role would either sit idle awaiting a
+plan that does not exist, or (worse) tempt the controller to fabricate a plan to give them
+something to do. The generator≠judge requirement is satisfied vacuously here in the correct
+sense: no generation happened outside the design-doc revision itself, which the quorum's three
+independent reviewers already judged (twice).
+
+**Outcome: PARKED.** `docs-11` added to the charter's queue as item 12, tagged `[PARKED]`, held on
+**D-4**. Design doc committed with both revision rounds and the controller's carve-out fixes.
+
+**Ruled out**: `m-net-effect-proxy-boundary` as a pick — it is V1's own item, not a hypothesis that
+was tested and refuted, but recorded here so a future iteration does not re-derive the same
+attribution check from scratch.
+
+**Cost**: metered **$0.119** of $1 ceiling — two quorum rounds ($0.0456 + $0.0731), both
+OpenRouter-billed reviewer calls. Quota buckets: sonnet (controller session), the designer's
+underlying model billed via `claude-sub`'s subscription-only path (billing guard confirmed CLEAN
+throughout, never touched the metered API key).
+
+**Routing evidence**: designer `claude:claude-sonnet-5` — recipe path (`declared:provider-pin`),
+1 bounded background run via `claude-sub`, ~9 minutes, rc=0, for the round-1 revision. Round-2
+fixes applied by the controller directly, per the carve-out's own allowance for single-command
+verification with no design judgment (matching how V29/V30 and `docs-4`'s D-3 condition were
+closed by the controller in prior iterations). Quorum: 2 rounds, `gpt5-6-sol`/`gemini-3-1-pro`/
+`oc-glm-5-2` all present both rounds (`absent_reviewers: []` both times) — no degrade. Planner,
+executor, evaluator: not spawned, per the park classification above. Controller session: sonnet.
+
+**DECISIONS FOR MARK**: **D-4** (NEW) — one-time OK to use the narrow-refinement carve-out for
+`m-dx27-docs-search-github-fallback.md`, docs-mission's second use of it. See the ledger row for
+the full ask, options, and recommendation. Default if unanswered: `docs-11` stays parked at
+design-ready, no sprint runs, no cost accrues.
+
+**FLAGGED**: none new. `Build and Release`'s 4 in-flight checks on `origin/dev` HEAD (Gate 1) are
+not yet resolved as of this iteration's Gate 5 — worth a glance next iteration only if they land
+non-green; not actioned here since they were `pending`, not red, at every point they were checked.
+
+**Retro — no skill edit.** One friction this iteration, below the ≥2-instance bar: the 31-doc
+STILL-PLANNED list docs-8 certified (iteration 5) mixes items this mission can freely pick
+(`m-dx27`, no other mission's activity) with items another mission actively owns
+(`m-net-effect-proxy-boundary`, V1's). The list itself carries no ownership annotation — the
+"M1 of 4 landed" note that flagged this one as worth checking was a lucky textual hint, not a
+structural signal, and a doc with no such hint (a clean `[STILL-PLANNED]` with zero visible
+progress markers) would need the same `git log --grep` check run blind, every time, with no cue to
+run it. Recorded as a watch-item rather than acted on: if a future iteration is caught by an
+UN-hinted collision from this same list, the fix is annotating docs-8's 31-doc table with an
+ownership/last-touched column at classification time (a one-time pass over 31 docs) rather than
+re-deriving attribution per pick indefinitely — that crosses the ≥2-instance bar for a skill or
+charter-table edit.
