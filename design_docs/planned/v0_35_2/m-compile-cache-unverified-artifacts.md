@@ -1,9 +1,20 @@
-> **STATUS: PARKED — needs-human-review (V1 mission ledger `D-55`), 2026-09-05, iteration 328.**
+> **STATUS: IN SPRINT — M1, M2 and M3 of 4 landed; M4 remains. Banner corrected 2026-09-05, iteration 332.**
 >
-> This design is NOT approved and MUST NOT be executed until `D-55` is answered. It went to a
-> 3-reviewer design quorum twice, was revised once between rounds, and is BLOCKED. It is landed here
-> rather than discarded because the defect it addresses is confirmed and public
-> ([#1046](https://github.com/sunholo-data/ailang/issues/1046)) and the design is otherwise complete.
+> **`D-55` REMAINS OPEN.** What unparked this design was not an answer to it but the row's OWN
+> pre-registered default — *"(a), applied at the next iteration ... as a controller routing call
+> rather than as a ruling"* — which fired at iteration 329 because `D-55` was still unanswered then.
+> The loop may not resolve a ledger row on its own behalf, so the scope decision is APPLIED while the
+> question stays answerable, and a later (b) or (c) answer supersedes this sprint's scope.
+>
+> This banner previously read *"NOT approved and MUST NOT be executed until `D-55` is answered"* and
+> was left standing for three iterations while M1 (`3d7bbfad8`), M2 (`f5edd569a`) and M3
+> (`d14bd42cc`) all shipped under that default — a tracked document contradicting the tree. The
+> executor of M3 flagged it; it is corrected here rather than left for a fourth.
+>
+> The design went to a 3-reviewer quorum twice, was revised once between rounds, and the round-2
+> synthesis was BLOCKED. The record below is kept verbatim: the one live objection is real and
+> unanswered, and it is exactly what `D-55` asks Mark to rule on. The defect addressed is confirmed
+> and public ([#1046](https://github.com/sunholo-data/ailang/issues/1046)), which stays OPEN until M4.
 >
 > **Quorum record** (the machine JSON lives at `.ailang/state/mission-quorum/` on the rig and is
 > **gitignored**, so this table is the tracked record — `.gitignore:82` ignores `.ailang/`):
@@ -31,7 +42,7 @@
 
 # M-COMPILE-CACHE-UNVERIFIED-ARTIFACTS — bind executable cache artifacts to their authorizing key
 
-**Status**: Planned — design proposal for controller review; implementation not authorized by this document
+**Status**: In sprint — M1-M3 of 4 landed under `D-55`'s pre-registered default (iteration 329), M4 remains; see the banner above for what that default is and is not
 **Target**: v0.35.1
 **Priority**: P0 — source edits must determine the program served
 **Estimated**: 4 working days, one sprint (four independently testable milestones)
