@@ -99,6 +99,14 @@ func TestCacheSource_ExactSnapshot(t *testing.T) {
 		if warning := warnings.String(); !strings.Contains(warning, "CACHE_SOURCE_UNAVAILABLE module=answer") {
 			t.Fatalf("nil snapshot diagnostic = %q", warning)
 		}
+		// The design says a module without a snapshot bypasses BOTH lookup and
+		// publication -- it must never ATTEMPT to publish, not merely fail to.
+		// Publication with the zero cache key is separately rejected one layer
+		// down by StoreArtifacts, which would emit a write diagnostic here; the
+		// bypass diagnostic must therefore be the only thing on stderr.
+		if warning := warnings.String(); strings.Contains(warning, "CACHE_WRITE_FAILED") {
+			t.Fatalf("nil snapshot attempted publication: stderr = %q", warning)
+		}
 		afterNil := readCacheManifest(t, manifestPath).Entries["answer"]
 		if afterNil == nil || afterNil.CacheKey != seed.CacheKey || !afterNil.Timestamp.Equal(seed.Timestamp) {
 			t.Fatalf("nil snapshot changed manifest entry: before=%#v after=%#v", seed, afterNil)
