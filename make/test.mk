@@ -348,5 +348,10 @@ test-stdlib-ail: build ## Run the .ail test suites + run-fixtures under tests/st
 	@echo "$(GREEN)✓ stdlib .ail suites and run-fixtures pass$(NC)"
 
 .PHONY: test-mission-registry
+# Deliberately NOT referenced by any other target or CI job: it needs Go, and the
+# only target that would naturally call it (test-launchd-drivers) is the Go-less
+# bash-3.2 job. The package is covered by `make test` and by CI's own
+# `go test ./...`; this target exists as a hand-run entry point. Do not delete it
+# as unused.
 test-mission-registry: ## Run mission-registry tests (schema, renderer, doctor; live gates skip off-rig)
 	@go test ./internal/mission/...

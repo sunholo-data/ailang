@@ -120,8 +120,15 @@ func TestValidate_RejectsBadFields(t *testing.T) {
 	}
 }
 
-// This kills both mutations: reverting to filepath.IsAbs turns the POSIX case red
-// on Windows, while deleting the check turns the Windows-style case red everywhere.
+// Mutation coverage, and read the platform qualifier — it is the whole point.
+// Deleting the check turns the Windows-path arm red EVERYWHERE, including here.
+// Reverting to filepath.IsAbs turns the POSIX arm red ONLY on a real Windows
+// runtime: on darwin and linux filepath.IsAbs IS strings.HasPrefix(p, "/") —
+// literally the same function — so this test is green under that mutation on
+// every machine a contributor develops on. Measured: reverted, both arms pass on
+// darwin. The safety net for that regression is `test-windows` and
+// `Build windows-latest`, and nothing else. A green local `go test ./...` after
+// touching the workdir check therefore proves nothing about Windows.
 func TestValidate_WorkdirUsesPOSIXAbsoluteSemantics(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
