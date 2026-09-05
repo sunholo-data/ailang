@@ -123,7 +123,9 @@ func TestCacheArtifacts_PartialWrite(t *testing.T) {
 
 	t.Run("publication_interruption_never_authorizes_B", func(t *testing.T) {
 		names := artifactPayloadNames()
-		stages := append(names[:], "stamp_close", "stamp_rename")
+		// "mkdir" covers the module-directory creation guard: without it, discarding
+		// mkdirAll's error leaves the whole package green.
+		stages := append(names[:], "stamp_close", "stamp_rename", "mkdir")
 		for _, stage := range stages {
 			t.Run(stage, func(t *testing.T) {
 				cs := newArtifactTestStore(t)
@@ -241,6 +243,43 @@ func TestCacheArtifacts_ByteLimits(t *testing.T) {
 		mustWriteArtifactTest(t, stampPath, stampData)
 		_, err = cs.LoadArtifacts("limits/module", "limits-key")
 		assertArtifactTooLarge(t, err, "module", 0)
+	})
+
+	t.Run("store_side_aggregate_module_ceiling", func(t *testing.T) {
+		// The read path's aggregate ceiling is covered by stamp_and_aggregate_scopes above;
+		// this arm covers the WRITE path, where checkArtifactSize charges each encoded blob
+		// against the same module budget. Without it, removing the aggregate term from
+		// checkArtifactSize leaves the whole package green.
+		measure := newArtifactTestStore(t)
+		mustStoreArtifacts(t, measure, "aggregate/module", "aggregate-key", testCachedModule("aggregate/module", 42))
+		var total int64
+		var largest int64
+		for _, name := range []string{artifactCoreName, artifactCoreTIName, artifactIfaceName, artifactConstructorsName} {
+			info, err := os.Stat(filepath.Join(measure.moduleArtifactDir("aggregate/module"), name))
+			if err != nil {
+				t.Fatalf("stat %s: %v", name, err)
+			}
+			total += info.Size()
+			if info.Size() > largest {
+				largest = info.Size()
+			}
+		}
+
+		cs := newArtifactTestStore(t)
+		// Every individual blob fits comfortably; only the sum exceeds the module budget.
+		cs.artifactLimits = artifactLimits{blob: largest * 2, stamp: maxArtifactStampBytes, module: total - 1}
+		err := cs.StoreArtifacts("aggregate/module", "aggregate-key", testCachedModule("aggregate/module", 42))
+		if err == nil {
+			t.Fatal("store accepted a module whose blobs collectively exceed the module ceiling")
+		}
+		assertArtifactTooLarge(t, err, "module", 0)
+		var artifactErr *cacheArtifactError
+		if errors.As(err, &artifactErr) && artifactErr.Stage != "encoding" {
+			t.Fatalf("aggregate overflow stage = %q, want encoding", artifactErr.Stage)
+		}
+		if _, ok := cs.Lookup("aggregate/module", "aggregate-key"); ok {
+			t.Fatal("rejected publication still produced a manifest entry")
+		}
 	})
 
 	t.Run("limit_reader_uses_extra_byte_sentinel", func(t *testing.T) {
@@ -460,6 +499,10 @@ func injectPublicationFailure(cs *CacheStore, stage string) {
 	}
 	if stage == "stamp_rename" {
 		cs.artifactIO.rename = func(string, string) error { return os.ErrPermission }
+		return
+	}
+	if stage == "mkdir" {
+		cs.artifactIO.mkdirAll = func(string, fs.FileMode) error { return os.ErrPermission }
 		return
 	}
 	write := cs.artifactIO.writeFile
