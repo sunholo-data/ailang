@@ -277,3 +277,39 @@ func TestApply_BacksUpWhatItReplaces(t *testing.T) {
 		}
 	}
 }
+
+// --no-reload must work on a BUSY mission — that is the case it exists for. The busy
+// check guards the RELOAD (bootout kills the running iteration), not the promotion:
+// the running iteration already sourced its env at start, and the new plist is inert
+// until launchd reloads it. Found by using --no-reload on a live mid-iteration v1 and
+// being refused.
+func TestApply_NoReloadWorksOnABusyMission(t *testing.T) {
+	m, p, lc := applyFixture(t, true)
+	pidDir := filepath.Join(p.Home, ".ailang", "state")
+	if err := os.MkdirAll(pidDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pidDir, "mission-alpha.pid"), []byte(fmt.Sprint(os.Getpid())), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	res, err := Apply(m, p, lc, ApplyOpts{SkipReload: true})
+	if err != nil {
+		t.Fatalf("--no-reload must be allowed on a busy mission: %v", err)
+	}
+	if len(res.Promoted) != 2 {
+		t.Errorf("expected both artifacts promoted, got %v", res.Promoted)
+	}
+	if lc.bootstraps.Load() != 0 {
+		t.Error("--no-reload must not touch launchd")
+	}
+	if !strings.Contains(strings.Join(res.Notes, " "), "keeps running") {
+		t.Errorf("must say the running iteration survives; notes=%v", res.Notes)
+	}
+	// And the reload path must STILL refuse without --force.
+	if _, err := RenderStaged(m, p.EnvPath(m.Name), p.PlistPath(m)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Apply(m, p, lc, ApplyOpts{}); !errors.Is(err, ErrBusy) {
+		t.Errorf("a RELOADING apply must still refuse on a busy mission; got %v", err)
+	}
+}

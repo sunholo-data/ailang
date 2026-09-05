@@ -130,8 +130,10 @@ boot_offset      = 1680
 	if err != nil {
 		t.Fatalf("RenderEnv: %v", err)
 	}
+	// MISSION_WORKDIR uses the override form even when appended — see
+	// TestRenderEnv_AppendedWorkdirCannotClobberThePin for why that is mandatory.
 	for _, want := range []string{"MISSION_NAME=parse", "MISSION_REPO=sunholo-data/ailang-parse",
-		"MISSION_DOC=design_docs/parse-mission.md", "MISSION_WORKDIR=/tmp/parse"} {
+		"MISSION_DOC=design_docs/parse-mission.md", `MISSION_WORKDIR="${MISSION_WORKDIR:-/tmp/parse}"`} {
 		if !strings.Contains(string(got), want) {
 			t.Errorf("new-mission render missing %q\ngot:\n%s", want, got)
 		}
@@ -384,5 +386,59 @@ func TestWriteAtomic_ReplacesContentAndLeavesNoTempFiles(t *testing.T) {
 	entries, _ := os.ReadDir(dir)
 	if len(entries) != 1 {
 		t.Errorf("temp files left behind: %d entries", len(entries))
+	}
+}
+
+// BUG FOUND BY DIFFING A STAGED PLIST BEFORE APPLYING IT. The driver writes its own
+// $LOG at /tmp/ailang-mission-<suffix>.log — the file mission-recovery.sh reads. An
+// earlier renderer pointed launchd's stdout AND stderr at that same path, which would
+// have interleaved launchd's spawn noise into the driver's own record.
+func TestRenderPlist_LaunchdStreamDoesNotShareTheDriversLogFile(t *testing.T) {
+	for _, name := range []string{"v1", "world", "docs", "motoko"} {
+		m := &Mission{Name: name, Repo: "r/x", Doc: "d.md", Workdir: "/tmp/w",
+			Sched: Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 100}, Path: "t"}
+		b, err := RenderPlist(m)
+		if err != nil {
+			t.Fatalf("RenderPlist(%s): %v", name, err)
+		}
+		driverLog := "/tmp/ailang-mission-" + m.launchdSuffix() + ".log"
+		if strings.Contains(string(b), "<string>"+driverLog+"</string>") {
+			t.Errorf("%s: launchd stdout/stderr points at the DRIVER's own log %s — "+
+				"both would append to the file mission-recovery reads", name, driverLog)
+		}
+		if !strings.Contains(string(b), ".launchd.log") {
+			t.Errorf("%s: expected launchd's stream on a .launchd.log path", name)
+		}
+	}
+}
+
+// BUG FOUND THE SAME WAY. pin-root.sh exports MISSION_WORKDIR as the PINNED worktree
+// and re-execs; the driver then re-sources the env file, so a BARE assignment clobbers
+// the pin back to the source clone. That was found and fixed by hand in
+// mission-world.env on 2026-08-18; a generator emitting a bare assignment would have
+// reintroduced it across every mission at once.
+func TestRenderEnv_AppendedWorkdirCannotClobberThePin(t *testing.T) {
+	m := mustMission(t, `
+name    = "v1"
+repo    = "sunholo-data/ailang"
+workdir = "/Users/x/dev/sunholo-data/ailang"
+doc     = "design_docs/v1-mission.md"
+[schedule]
+mode             = "keepalive"
+throttle_seconds = 5400
+boot_offset      = 0
+`)
+	// A comments-only live file, exactly like v1's: nothing to copy the idiom from.
+	got, err := RenderEnv(m, []byte("# nothing but comments\n"))
+	if err != nil {
+		t.Fatalf("RenderEnv: %v", err)
+	}
+	want := `MISSION_WORKDIR="${MISSION_WORKDIR:-/Users/x/dev/sunholo-data/ailang}"`
+	if !strings.Contains(string(got), want) {
+		t.Errorf("an APPENDED MISSION_WORKDIR must use the override form or it clobbers "+
+			"the pin's export.\nwant: %s\ngot:\n%s", want, got)
+	}
+	if strings.Contains(string(got), "\nMISSION_WORKDIR=/Users") {
+		t.Error("bare MISSION_WORKDIR assignment would clobber pin-root's export")
 	}
 }

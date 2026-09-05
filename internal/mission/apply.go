@@ -143,12 +143,20 @@ func Apply(m *Mission, p Paths, lc LaunchCtl, opts ApplyOpts) (*ApplyResult, err
 		}
 	}
 
-	// HD-4(b): never reload a mission mid-iteration. Promotion alone is survivable
-	// (the env is re-sourced next fire), but bootout would kill the running one.
-	if busy, pid := missionBusy(p, m); busy && !opts.Force {
+	// HD-4(b): never RELOAD a mission mid-iteration — bootout kills the running one.
+	//
+	// The check is scoped to the reload, not to the whole operation, and that
+	// distinction is the point of --no-reload: promotion alone is survivable,
+	// because the running iteration already sourced its env at start and the new
+	// plist is inert until launchd reloads it. Gating promotion on busy-ness made
+	// --no-reload useless for the one case it exists to serve — found by using it
+	// on a live mid-iteration v1.
+	if busy, pid := missionBusy(p, m); busy && !opts.Force && !opts.SkipReload {
 		return nil, fmt.Errorf("%w (pid %d) — wait for it to finish, or pass --force to kill it", ErrBusy, pid)
-	} else if busy {
+	} else if busy && !opts.SkipReload {
 		res.Notes = append(res.Notes, fmt.Sprintf("--force: proceeding while pid %d is mid-iteration; that iteration will be killed", pid))
+	} else if busy {
+		res.Notes = append(res.Notes, fmt.Sprintf("pid %d is mid-iteration but --no-reload was given: it keeps running, and the new plist takes effect at the next reload", pid))
 	}
 
 	// HD-3(c): a plist we did not generate may hold anything, so the first adoption

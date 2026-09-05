@@ -540,6 +540,14 @@ Every claim below was measured on 2026-09-05 on the rig, not inferred.
 
 ## Future Work
 
+- **Render passthrough from the REVIEWED copy, not the installed one.** Phase 2 renders
+  passthrough content out of `~/.config/ailang/mission-<name>.env` (what runs) and
+  promotes the result, which leaves `tools/launchd/mission-env/*.env` trailing until it
+  is synced by hand — the very drift class V5 belongs to, merely narrowed. Reading
+  passthrough from the reviewed copy instead makes reviewed-vs-installed drift
+  impossible after an apply and restores the repo copy's meaning as the thing you edit.
+  ~10 lines in `RenderStaged`; deliberately NOT done at the end of a live adoption.
+
 - Fold the `~/.ailang/state` seeds (gh-issue, designer-rotation pointer) into the registry so a
   mission's full identity is one file.
 - A `mission new <name>` scaffold that writes the registry entry, the charter skeleton and the

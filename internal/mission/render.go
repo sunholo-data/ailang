@@ -68,11 +68,22 @@ func assignmentKey(line string) string {
 // operator override a mission from the environment without editing the file — so
 // rewriting it to a bare assignment would quietly remove an escape hatch.
 func renderAssignment(key, value, prevLine string) string {
-	if strings.Contains(prevLine, "${"+key+":-") {
+	if strings.Contains(prevLine, "${"+key+":-") || overridable[key] {
 		return fmt.Sprintf("%s=\"${%s:-%s}\"", key, key, value)
 	}
 	return fmt.Sprintf("%s=%s", key, value)
 }
+
+// overridable names the vars that MUST use the ${VAR:-value} form even when the live
+// file had no prior line to copy the idiom from.
+//
+// MISSION_WORKDIR is the one that bites. pin-root.sh exports it as the PINNED worktree
+// and re-execs; the driver derives REPO from it, and then re-sources this env file —
+// so a BARE assignment clobbers the pin's export back to the source clone. That exact
+// bug was found and fixed by hand in mission-world.env on 2026-08-18 ("Now the pin
+// wins"), and a generator emitting a bare assignment would have reintroduced it on
+// every mission at once.
+var overridable = map[string]bool{"MISSION_WORKDIR": true}
 
 // RenderEnv produces the staged env file for m, given the CURRENT contents of its
 // live env file. Registry-owned assignments are replaced with the registry's values;
@@ -241,7 +252,15 @@ func RenderPlist(m *Mission) ([]byte, error) {
 		return nil, fmt.Errorf("%s: unrenderable schedule mode %q", m.Path, m.Sched.Mode)
 	}
 
-	log := "/tmp/ailang-mission-" + m.launchdSuffix() + ".log"
+	// LAUNCHD'S STREAM GETS ITS OWN FILE, and the suffix is load-bearing. The
+	// driver writes its own $LOG at /tmp/ailang-mission-<suffix>.log — the file
+	// mission-recovery.sh reads and the slot-verdict tooling greps. Pointing
+	// launchd's stdout/stderr at the same path would have both appending to it,
+	// interleaving launchd's spawn noise into the driver's record. world and
+	// motoko already use the .launchd.log convention; this makes it uniform.
+	// (Caught by diffing a staged plist against the installed one before applying,
+	// which is the entire reason install and apply are separate verbs.)
+	log := "/tmp/ailang-mission-" + m.launchdSuffix() + ".launchd.log"
 	b.WriteString("\t<key>StandardOutPath</key>\n\t<string>" + xmlEscape(log) + "</string>\n")
 	b.WriteString("\t<key>StandardErrorPath</key>\n\t<string>" + xmlEscape(log) + "</string>\n")
 	b.WriteString("</dict>\n</plist>\n")
