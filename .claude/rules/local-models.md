@@ -4,6 +4,8 @@ paths:
   - "tools/launchd/dev.ollama.serve.plist"
   - "tools/launchd/nightly-eval.sh"
   - "tools/launchd/nightly-lang-eval.sh"
+  - "tools/launchd/mission-control.sh"
+  - "tools/launchd/test_mission_memgate.sh"
 ---
 
 # Local Model Rules (ollama on the rig)
@@ -59,6 +61,46 @@ Full derivation, the panic numbers and the `free`/`available`/`overhead` distinc
 `AILANG_EVAL_MAX_RSS` (8 G default) bounds **only generated code under eval**. It
 never observes ollama, the agent processes, or the session population — so it cannot
 protect the machine from this class of failure.
+
+## Capping ollama moved the problem; it did not end it
+
+The caps above held. Measured across the three OOM events that followed
+(`JetsamEvent` 2026-09-04 05:08, 09-05 08:29, 09-05 09:23), ollama's physical
+footprint was **25.77 GB at every one of them, identical to two decimals** — flat,
+under load, days apart. It was no longer the growth term.
+
+The machine still filled: ~60 MB free, 46 GB wired, and a compressor holding
+**131 GB** of logical pages while only 37 GB was resident across 566 processes. The
+largest identifiable population was **ours** — 22 concurrent Claude Code processes,
+12.7 CPU-hours — because every mission plist carries `RunAtLoad=true` and a boot or
+GUI login fires all four missions within seconds. The motoko plist recorded this
+same alignment on 2026-08-17 and fixed only the steady-state half (non-harmonic
+`StartInterval`s); the boot half bit us on 09-05.
+
+`tools/launchd/mission-control.sh` now carries both halves of the answer:
+
+| Knob | Default | Does |
+|------|---------|------|
+| `MISSION_BOOT_WINDOW` | 900 | How long after boot the stagger applies (0 outside it, so steady-state phase is untouched) |
+| `MISSION_MIN_AVAIL_GB` | 16 | Refuse to start below this much **available** memory |
+| `MISSION_MAX_COMPRESSED_GB` | 48 | Refuse when the compressor already holds this much |
+| `MISSION_MEM_WAIT` / `MISSION_MEM_POLL` | 600 / 60 | Wait this long for room before yielding the slot |
+
+Offsets are v1 0s · world 420s · docs 840s · motoko 1260s (`_mc_boot_offset`).
+Full derivation and the jetsam numbers: **"Fleet Memory Admission"** in
+`docs/docs/guides/debugging.md`.
+
+**Available is `free + inactive + speculative + purgeable`, never `free` alone**:
+at the 09-23 event free was 66 MB while 7.7 GB sat reclaimable in `inactive`. The
+thresholds are *starting values* — nobody has profiled an iteration's peak — but
+they sit two orders of magnitude from both observed states (7.8 GB at each OOM,
+104 GB idle), and every fire logs the live numbers so the log can correct them.
+`tools/launchd/test_mission_memgate.sh` pins all of it.
+
+**The pin delays the fix.** The loops re-exec out of `~/.ailang-driver-pin/<mission>/`,
+a worktree at *committed origin/dev* — so a driver edit changes nothing until it is
+committed **and pushed**. Verify with
+`git -C ~/.ailang-driver-pin/v1 log --oneline -1`.
 
 ## The plist in this directory is the source of truth
 

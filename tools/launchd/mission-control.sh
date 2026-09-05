@@ -237,6 +237,109 @@ _mc_stalled() {
   return 0
 }
 
+# --- boot stagger + memory gate (2026-09-05, attended) -----------------------
+# WHY. Every mission plist carries RunAtLoad=true — deliberately: it is what
+# restores the cadence after a reboot (the 18h outage of 2026-07-20). The cost is
+# that a boot or GUI login fires ALL FOUR missions within seconds of each other.
+# The motoko plist already recorded this shape on 2026-08-17 (world 20:55:45, v1
+# 20:55:49, motoko 20:55:50) and fixed the STEADY-STATE half with non-harmonic
+# StartIntervals (5400/14400/21600/46800). The boot half was never fixed, and on
+# 2026-09-05 13:01 all four fired together again, 33 `claude` processes inside ten
+# minutes.
+#
+# That matters because the rig ran out of memory three times in two days —
+# JetsamEvent 09-04 05:08, 09-05 08:29, 09-05 09:23 — each at ~60 MB free, 46 GB
+# wired and a compressor holding 131 GB of logical pages. ollama was NOT the
+# growth term: its physical footprint was 25.77 GB at all three events, identical
+# to two decimals, because OLLAMA_GPU_OVERHEAD/OLLAMA_CONTEXT_LENGTH now hold it
+# (it peaked at 90.39 GiB before that fix). The largest identifiable population
+# was ours: 22 concurrent Claude Code processes, 12.7 CPU-hours accumulated.
+# Nothing bounded the fleet — AILANG_EVAL_MAX_RSS bounds only generated code
+# under eval, never the agent processes themselves.
+#
+# Two mechanisms, deliberately separate:
+#   * the stagger acts ONLY inside the post-boot window, so it cannot perturb the
+#     tuned non-harmonic phase in steady state;
+#   * the gate acts on EVERY fire, because a stampede is not the only way to fill
+#     128 GB.
+
+# _mc_uptime_secs — seconds since boot, or rc=1 where kern.boottime is absent.
+#
+# kern.boottime prints `{ sec = 1788604844, usec = 123456 } Fri Sep  5 13:00:44 2026`.
+# The obvious `sed 's/.*sec *= *\([0-9]*\).*/\1/'` captures **usec**, not sec —
+# `.*` is greedy, so it runs past `sec` to the `sec` inside `usec`. Written that
+# way first here on 2026-09-05 and caught only because the live value read
+# 1788394233s of uptime. Splitting on the separator cannot make that mistake:
+# field 2 is whatever followed the FIRST `sec =`.
+_mc_uptime_secs() {
+  local b now
+  b=$(sysctl -n kern.boottime 2>/dev/null | awk -F'sec *= *' 'NF>1 {printf "%d", $2+0; exit}')
+  [ -n "$b" ] && [ "$b" -gt 0 ] 2>/dev/null || return 1
+  now=$(date +%s)
+  echo $(( now - b ))
+}
+
+# _mc_boot_offset NAME — seconds this mission waits out of a boot stampede.
+# Spacing is 7 minutes, which is longer than a controller's probe+startup
+# preamble (the v1 slot that burned 240s on opus probes is the worst measured),
+# so each mission's spawn burst has finished before the next one begins. v1 is 0
+# because it has the shortest interval (90m) and the deepest ladder — it is the
+# loop we least want to delay. Unknown missions get 0: a new mission must be
+# added here deliberately, and defaulting it into someone else's slot would be
+# worse than leaving it at boot.
+_mc_boot_offset() {
+  case "${1:-}" in
+    v1)     echo 0    ;;
+    world)  echo 420  ;;
+    docs)   echo 840  ;;
+    motoko) echo 1260 ;;
+    *)      echo 0    ;;
+  esac
+}
+
+# _mc_mem_snapshot — echo "AVAIL_MB COMPRESSED_MB", rc=1 if vm_stat cannot answer.
+#
+# AVAIL = free + inactive + speculative + purgeable. NOT `free` alone: at the
+# 09-05 09:23 event free was 4030 pages (66 MB) while inactive held 506169
+# (7.7 GB) that the pager could still reclaim, so a free-only threshold would
+# have to sit absurdly low to avoid firing constantly. Measured separation with
+# this expression: ~7.8 GB at each of the three OOM events, ~104 GB on a healthy
+# idle box — two orders of magnitude apart, so the threshold is not delicate.
+#
+# The compressor arm is the second signal, for the case where `inactive` still
+# looks healthy but the machine is already paging hard: 66 GB compressed (holding
+# 131 GB) at every event, 0 on a fresh boot.
+#
+# NOT memoryPressure: the kernel's own flag read `false` throughout the 09-03
+# panic. .claude/rules/local-models.md carries that trap.
+_mc_mem_snapshot() {
+  command -v vm_stat >/dev/null 2>&1 || return 1
+  vm_stat 2>/dev/null | awk '
+    /page size of/ { for (i=1; i<=NF; i++) if ($i == "of") { ps=$(i+1); break } }
+    /^Pages free:/                    { free=$3 }
+    /^Pages inactive:/                { inact=$3 }
+    /^Pages speculative:/             { spec=$3 }
+    /^Pages purgeable:/               { purge=$3 }
+    /^Pages occupied by compressor:/  { comp=$5 }
+    END {
+      if (ps == "" || free == "") exit 1
+      gsub(/\./, "", free); gsub(/\./, "", inact); gsub(/\./, "", spec)
+      gsub(/\./, "", purge); gsub(/\./, "", comp)
+      printf "%d %d\n", (free+inact+spec+purge) * ps / 1048576, comp * ps / 1048576
+    }'
+}
+
+# _mc_mem_ok AVAIL_MB COMPRESSED_MB — 0 = there is room to start an iteration.
+# Thresholds are STARTING VALUES, not measured ones: nobody has profiled an
+# iteration's peak footprint. They are chosen to sit far from both observed
+# states (refuse at 7.8 GB avail / 66 GB compressed, pass at 104 GB / 0) and are
+# logged with the live numbers on every fire so the log tells us the real values.
+_mc_mem_ok() {
+  [ "${1:-0}" -ge "${MEM_MIN_AVAIL_MB:-16384}" ] || return 1
+  [ "${2:-0}" -le "${MEM_MAX_COMP_MB:-49152}" ]  || return 1
+  return 0
+}
+
 # ----------------------------------------------------------------------------
 
 # --- model selection (fleet Phase A) -----------------------------------------
@@ -944,6 +1047,55 @@ if [ "${MISSION_DRY_RUN:-0}" = "1" ]; then
   fi
   log "DRY RUN ok: mission=$MISSION_NAME repo-slug=$MISSION_REPO doc=$MISSION_DOC workdir=$REPO pidfile=$PIDFILE prefs=$PREFS timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL | lanes=$_dry_lanes | pin=$PIN_STATUS($PIN_DRIFT behind)"; exit 0
 fi
+
+# 3b. BOOT STAGGER (2026-09-05). See _mc_boot_offset for the measurement. Placed
+#     AFTER the kill switch, the overlap yield and the dry run — a disabled
+#     mission, a yielding one and a wiring check must all still be instant — and
+#     BEFORE the probes, so a staggered fire spends zero tokens while it waits.
+#     Holding the job for the offset is safe: launchd will not start a second
+#     copy of a StartInterval job while the first is still running, so the worst
+#     case is one skipped slot on a mission whose interval is 90m or longer.
+BOOT_WINDOW="${MISSION_BOOT_WINDOW:-900}"
+_up=$(_mc_uptime_secs || echo "")
+_off=$(_mc_boot_offset "$MISSION_NAME")
+if [ -z "$_up" ]; then
+  log "boot stagger: kern.boottime unreadable — stagger SKIPPED this fire (not silent: gate disabled, not passed)"
+elif [ "$_up" -lt "$BOOT_WINDOW" ] && [ "$_off" -gt 0 ]; then
+  log "boot stagger: up ${_up}s (< ${BOOT_WINDOW}s window) — waiting ${_off}s so $MISSION_NAME does not start alongside the other missions"
+  sleep "$_off"
+fi
+
+# 3c. MEMORY GATE (2026-09-05). Refuses to ADD an iteration to a box that is
+#     already out of memory. Waits rather than skipping outright, because a
+#     skipped slot costs motoko 13h — a transient spike should delay a fire, not
+#     cancel it. On expiry it yields exactly like the overlap guard above:
+#     exit 0, no notification, mission-recovery and the next interval retry.
+MEM_MIN_AVAIL_MB=$(( ${MISSION_MIN_AVAIL_GB:-16} * 1024 ))
+MEM_MAX_COMP_MB=$(( ${MISSION_MAX_COMPRESSED_GB:-48} * 1024 ))
+MEM_WAIT="${MISSION_MEM_WAIT:-600}"
+MEM_POLL="${MISSION_MEM_POLL:-60}"
+_mem_deadline=$(( $(date +%s) + MEM_WAIT ))
+while :; do
+  _snap=$(_mc_mem_snapshot || echo "")
+  if [ -z "$_snap" ]; then
+    # Fail OPEN, loudly. vm_stat is macOS-only; refusing on a box that cannot
+    # answer would wedge every mission rather than protect anything, and the
+    # gate is an admission control, not a correctness guarantee.
+    log "memory gate: vm_stat unavailable — gate DISABLED for this fire"
+    break
+  fi
+  _avail=${_snap%% *}; _comp=${_snap##* }
+  if _mc_mem_ok "$_avail" "$_comp"; then
+    log "memory gate: ok (avail=${_avail}MB >= ${MEM_MIN_AVAIL_MB}MB, compressed=${_comp}MB <= ${MEM_MAX_COMP_MB}MB)"
+    break
+  fi
+  if [ "$(date +%s)" -ge "$_mem_deadline" ]; then
+    log "memory gate: STILL SHORT after ${MEM_WAIT}s (avail=${_avail}MB, compressed=${_comp}MB) — yield (next interval retries)"
+    exit 0
+  fi
+  log "memory gate: low memory (avail=${_avail}MB, compressed=${_comp}MB) — waiting ${MEM_POLL}s"
+  sleep "$MEM_POLL"
+done
 
 # 4. Select the model (probe doubles as the subscription-auth check: API keys
 #    are stripped above, so a passing probe proves keychain/token auth too).

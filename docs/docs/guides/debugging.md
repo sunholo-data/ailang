@@ -352,6 +352,71 @@ near **90 GiB** means it is not. Do not record this as fixed until that
 measurement exists.
 :::
 
+### Fleet Memory Admission (`MISSION_MIN_AVAIL_GB`, `MISSION_BOOT_WINDOW`)
+
+Capping ollama moved the ceiling; it did not remove it. In the two days after the
+caps landed the rig hit `JetsamEvent` three times — 2026-09-04 05:08, 09-05 08:29,
+09-05 09:23 — at ~60 MB free each time.
+
+ollama was **not** the growth term any more. Its physical footprint was
+**25.77 GB at all three events, identical to two decimals**: flat, under load, days
+apart. What filled the machine was 46 GB wired plus a compressor holding **131 GB**
+of logical pages, while only 37 GB was resident across 566 processes. The largest
+identifiable population was ours — **22 concurrent Claude Code processes**, 12.7
+CPU-hours between them.
+
+The structural cause is in the plists. Every mission carries `RunAtLoad=true`,
+deliberately: it is what restores the cadence after a reboot (the 18h outage of
+2026-07-20). The cost is that a boot or GUI login fires **all four missions within
+seconds**. The motoko plist recorded exactly this on 2026-08-17 (world 20:55:45, v1
+20:55:49, motoko 20:55:50) and fixed the steady-state half with non-harmonic
+`StartInterval`s — 5400 / 14400 / 21600 / 46800. The boot half was never fixed, and
+on 09-05 all four fired together again: 33 `claude` processes inside ten minutes.
+
+`tools/launchd/mission-control.sh` now gates both, as two deliberately separate
+mechanisms:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `MISSION_BOOT_WINDOW` | `900` | Seconds after boot during which the stagger applies. Outside it the offset is not taken at all, so the tuned non-harmonic phase is untouched. |
+| `MISSION_MIN_AVAIL_GB` | `16` | Refuse to start an iteration below this much available memory. |
+| `MISSION_MAX_COMPRESSED_GB` | `48` | Refuse when the compressor already holds this much — the arm for a box that is paging hard while `inactive` still looks healthy. |
+| `MISSION_MEM_WAIT` | `600` | Wait this long for room before yielding the slot. A transient spike should delay a fire, not cancel it: skipping outright costs motoko 13h. |
+| `MISSION_MEM_POLL` | `60` | Re-check interval while waiting. |
+
+Boot offsets are v1 0s · world 420s · docs 840s · motoko 1260s. The 7-minute spacing
+exceeds the worst measured controller preamble (a v1 slot burned 240s on opus
+probes), so each mission's spawn burst finishes before the next begins. v1 is 0
+because it has the shortest interval and the deepest ladder.
+
+:::tip Available memory is not `free`
+
+The gate reads `free + inactive + speculative + purgeable`. A **free-only** threshold
+cannot be set sanely: at the 09-05 09:23 event free was 4,030 pages (66 MB) while
+506,169 pages (7.7 GB) sat reclaimable in `inactive`. With the full expression the
+two states are two orders of magnitude apart — **7.8 GB** at each OOM event, **104 GB**
+on a healthy idle box — so the threshold is not delicate.
+
+Do not use the kernel's `memoryPressure` flag: it read `false` throughout the 09-03
+panic.
+:::
+
+:::caution Thresholds are starting values, not measured ones
+
+Nobody has profiled an iteration's peak footprint. The numbers above are chosen to
+sit far from both observed states, and **every fire logs the live values** —
+`memory gate: ok (avail=…MB …)` — so the driver log is what should correct them.
+`tools/launchd/test_mission_memgate.sh` pins the parsers and both refusal arms.
+:::
+
+:::caution The driver pin delays any fix here
+
+The loops re-exec out of `~/.ailang-driver-pin/<mission>/`, a worktree at *committed
+`origin/dev`*. A driver edit therefore changes nothing until it is committed **and
+pushed** — a local-only commit leaves every mission running the old script. Check
+with `git -C ~/.ailang-driver-pin/v1 log --oneline -1`.
+:::
+
 ### CLI Flags
 
 | Flag | Purpose | Use When |
