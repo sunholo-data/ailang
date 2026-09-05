@@ -457,11 +457,23 @@ models:
       2x gpt-5.6-sol ($5/$30) and 4x gpt-5.4 ($2.50/$15). Same list price as
       Anthropic Fable 5.1. Cached input $1/M (90% off); cache writes $12.50/M.
       API access VERIFIED 2026-09-05 (chat/completions, finish_reason=stop).
-      ⏳ SMOKE GATE NOT YET RUN — this entry is opt-in (`--models gpt6-astra`)
-      and deliberately absent from every suite. Do NOT promote it into
-      benchmark_suite/extended_suite until it has cleared `--tier smoke` and
-      been placed on the anchored ELO series per model-manager §5.5.
+      PLACEMENT 2026-09-05: `--tier core,frontier` N=1, candidate alone per §5.5
+      → 29/31, anchored standard ELO 2554.4, banked $9.76 (2m18s). The two
+      failures are frontier-tier `docx_reimplement` (runtime_error) and
+      `markdown_reimplement` (compile_error); both finish_reason=stop with small
+      reasoning counts, so they are capability, NOT truncation (§2a checked).
+      ⚠️ That 2554.4 has NOTHING to compare against on this box: model_ratings,
+      benchmark_ratings and trial_history were all EMPTY before this run, so
+      gpt6-astra is the seed of the local standard series, not a ranked entry.
+      A leaderboard position needs other models banked into the same anchored fit.
+      ⏳ SMOKE TIER NOT RUN (deferred for budget, per Mark) — this entry is opt-in
+      (`--models gpt6-astra`) and deliberately absent from every suite. Do NOT
+      promote it into benchmark_suite/extended_suite on the placement alone.
       At 2x Sol's price the bar for promotion is a CLEAR core-tier win, not a tie.
+      💰 Cost note: that $9.76 is 87% input ($8.44 in / $1.32 out) and got ZERO
+      prompt-cache reads — the run finished in 2m18s, inside OpenAI's ~5-10min
+      cache write-availability latency. A warm repeat re-prices to ~$2.17.
+      Budget re-gates and N>=3 de-flakes at the warm number, not the cold one.
       Uses max_completion_tokens instead of max_tokens.
       Codex CLI agent support assumed (OpenAI lineage) — unverified.
 
