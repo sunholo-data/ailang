@@ -332,9 +332,19 @@ func TestUsesMaxCompletionTokens(t *testing.T) {
 		{"gpt-5.2", true},
 		{"gpt-5-1", true},
 		{"gpt-5-2", true},
+		{"gpt-5.6-sol", true},
 		{"o1-preview", true},
 		{"o3-mini", true},
-		{"gpt-4", false}, // GPT-4 uses max_tokens
+		{"gpt-4", false},  // GPT-4 uses max_tokens
+		{"gpt-4o", false}, // 4o is generation 4, not "o"-series
+		{"gpt-3.5-turbo", false},
+
+		// Regression: the gate must be generation-parsed, not a "gpt-5" literal.
+		// gpt-6-astra shipped 2026-08-27 and every eval call 400'd with
+		// "Unsupported parameter: 'max_tokens'" until this stopped being a prefix match.
+		{"gpt-6-astra", true},
+		{"gpt-6", true},
+		{"gpt-7-whatever", true}, // the next generation must not need a code change
 	}
 
 	for _, tt := range tests {

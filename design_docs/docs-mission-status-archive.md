@@ -1,3 +1,80 @@
+## STATUS 2026-09-02 — ITERATION 5: docs-8's stale "126 overdue" corrected to a verified 54, 18 archived after independent re-verification caught 3 wrong claims; docs-3 credited from a second orphaned fire, blocked on a V1-owned inherited CI red
+
+Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Pin worktree at
+`origin/dev` tip (`50dd1a0aa`), clean. 0 directives on bookkeeping issue `#979` since the
+watermark (6 comments, none allowlisted). Decision ledger valid, 2 rows, both `RESOLVED` — no new
+ask. No docs-mission inbox traffic (20 unread canonical-inbox messages: motoko/V1 cross-mission
+notifications, pkg feedback for unrelated packages, eval-suite runs — none addressed to
+`mission-docs`).
+
+Gate 1: `origin/dev` HEAD SHA-addressed check-runs showed 6 NOT-GREEN: `Build windows/macos/
+ubuntu-latest` (cancelled/failure), `launchd drivers (bash 3.2)` (failure), `test` (failure) —
+confirmed **inherited** from the parent commit too (identical failure set on both), and V1's own
+mission log carries 10-22 prior mentions of these exact two check names, so this is known,
+tracked, and out of this mission's domain (V1 owns `sunholo-data/ailang` per Gate 1's
+repo-ownership scoping) — not actioned, only noted for the report.
+
+**Gate 2 — died-mid-flight check found a second orphaned fire.** Open PR
+[#1031](https://github.com/sunholo-data/ailang/pull/1031) (`docs/iter5-docs3-provenance-wiring`,
+`MERGEABLE`) plus worktrees `.wt-docs-iter5-docs3`/`-eval`, zero "ITERATION 5" trace anywhere
+(0/0/0 in charter/log/archive at pick time, known-present control `ITERATION 4` = 2/1 firing). A
+prior fire had run the full inner loop for `docs-3` — codex executor, sonnet evaluator PASS
+85/100 zero blocking, diff scope verified exactly 4 files — then died before Gate 4/5. Re-verified
+first-party: diff scope re-confirmed via `gh pr diff --name-only`, `mergeStateStatus` is
+`BLOCKED` on the same inherited red as Gate 1 found (not a stale-base problem — `git diff --stat
+<PR base>..origin/dev -- <the 4 touched files>` is empty, so a rebase would not produce a
+different check outcome; the red is on origin/dev's own current tip). **Credited, not re-run**;
+left open as a resume point (queue row `docs-3`, now `[IN-SPRINT]`) rather than force-merged or
+re-executed — not this mission's fix to make.
+
+**PICK: `docs-8`** (natural next per iteration 4's own note — the only PARKED item explicitly
+unblocked once docs-6/docs-7 resolved). **Reality-check first** (Gate 2 rule): re-ran
+`derive_roadmap_versions.sh` at HEAD — the charter's own "126 overdue" figure was stale (count
+drift since docs-2/docs-6 touched the same script family); the real, current overdue set (target
+version < v0.34.0) is **54** docs, not 126.
+
+**Execution — controller-run triage, not a sprint** (per this item's own charter text: moving a
+doc to `implemented/` is CONTROLLER Gate-4 bookkeeping, `design_docs/` is outside
+`MISSION_PLANNER_ALLOWLIST`, so this never was going to route through codex). Delegated the
+54-doc cross-reference to 6 parallel `general-purpose`/sonnet Agent-tool sub-agents (9 docs each:
+grep for implementation evidence, commit/changelog citations, known-positive controls on every
+negative finding per rule 3a). Result: 20 IMPLEMENTED, 2 RULED-OUT, 1 NEEDS-DEEPER-INVESTIGATION,
+31 STILL-PLANNED.
+
+**Independent re-verification BEFORE any file moved** (generator≠judge — the classifying agents
+were the "generator", a separate adversarial sonnet sub-agent was the judge, per this run's
+explicit operator mandate that no work lands on the controller's own verdict). Spawned one
+independent auditor to re-run every cited command itself against the 22 highest-stakes claims (20
+IMPLEMENTED + 2 RULED-OUT — the ones that trigger a file move or a rule-out stamp).
+**Caught 3 of 22 (14%) wrong, 2 of them outright reversals**: `m-eval-slim-prompt-self-discovery`
+was classified IMPLEMENTED on general MCP-plumbing evidence, but the doc's OWN specific artifacts
+(a tagged slim prompt, a committed A/B report) never existed — the experiment was built, A/B
+tested (mixed-to-negative, 82%→65%), and explicitly deleted (`2de1ef963`); the live
+`local-ollama-eval` skill documents the approach as "tried and deliberately abandoned." Moving it
+to `implemented/` would have misfiled an abandoned experiment as shipped — REFUTED, kept under
+`planned/`, header updated with the evidence instead. `m-eval-fmt-weakmodel-ab-M6-motoko-ext` was
+classified RULED-OUT on a `models.yml` "RETIRED" comment, but read in full that comment retires
+only the nightly *scheduling* because its model arm was decommissioned from the rig — the
+extension itself was never measured, so the doc's own "BUILT + INTEGRATED, firing not yet
+observed" status is still accurate; REFUTED, left untouched. `m-eval-stream-health-retry`
+downgraded IMPLEMENTED→WEAK: the cited evidence file was for a different, adjacently-named
+M-number; the real TTFT/idle-timeout detection genuinely landed in the opencode/pi executors, but
+the doc's actual point — retry-on-stream-death and correct `stream_death` labeling instead of
+generic `api_error` — did not; left untouched (STILL-PLANNED).
+
+**Outcome: LANDED.** 18 confirmed-implemented docs archived: `git mv` from `planned/vX_Y/` to
+`implemented/vX_Y/` (created `implemented/v0_33_2/`, didn't exist), 27 files total including
+sprint-plan companions (Mark's "plans travel with their doc" convention). 1 ruled out via header
+update with evidence (`m-eval-slim-prompt-self-discovery.md`). The 31 genuinely-still-planned docs
+are now this mission's accurate, individually-pickable backlog — no new aggregate queue item
+needed; a future iteration picks any one of them directly from `design_docs/planned/`.
+
+**Cost**: metered **$0.00** of $1 ceiling — all 7 sub-agents were Agent-tool sonnet spawns
+(Anthropic quota, not metered). Quota buckets: sonnet (6 classifier sub-agents + 1 independent
+verifier + controller session).
+
+Full record: `design_docs/docs-mission-log.md` §ITERATION 5.
+
 # Docs Mission — STATUS archive
 
 Append-only. Newest entry at the TOP (Gate 4 moves the 4th-newest charter stamp here, per

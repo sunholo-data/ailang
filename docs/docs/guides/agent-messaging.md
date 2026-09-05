@@ -233,6 +233,29 @@ ailang messages send user "Add async/await syntax" \
 # GitHub sync is optional and fails gracefully
 ```
 
+### Automated Feedback (Advanced)
+
+Set up automatic feedback when your CI/CD detects AILANG issues:
+
+```bash
+#!/bin/bash
+# In your CI pipeline
+
+# Run AILANG tests
+if ! ailang run --caps IO --entry main tests/integration.ail 2>error.log; then
+    # Send failure report
+    ERROR=$(cat error.log | head -50)
+    VERSION=$(ailang --version)
+    OS=$(uname -a)
+
+    ailang messages send user "CI failure: $ERROR. Version: $VERSION, OS: $OS" \
+      --title "CI failure on $(git rev-parse --short HEAD)" \
+      --from "my-project-ci" \
+      --type bug \
+      --github
+fi
+```
+
 ## CLI Commands
 
 ### List Messages
@@ -884,6 +907,5 @@ ailang msg send ...    # Same as: ailang messages send ...
 - [Coordinator Guide](/docs/guides/coordinator) - Message routing and task execution
 - [Semantic Search](/docs/guides/semantic-search) - Deep dive on SimHash and neural embeddings
 - [Semantic Caching vs Vector DBs](/docs/guides/semantic-caching-vs-vectordb) - When to use semantic caching
-- [Cross-Project Messaging](/docs/guides/cross-project-messaging) - Send feedback from your projects
 - [Agent Workflows](/docs/guides/agent-workflows) - Automated agent workflows
 - [State System](/docs/guides/state-system-workflow) - Persistent state management

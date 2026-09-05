@@ -1208,57 +1208,18 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
        [ "$(date +%s)" -ge "$deadline" ] && { kill "$pid" 2>/dev/null; sleep 2; kill -9 "$pid" 2>/dev/null; echo "codex 30-min cap — FLAG"; break; }
        sleep 15; done; wait "$pid" 2>/dev/null; echo "codex rc=$?"
      ```
-     **THREE FALSE-GREENS this recipe used to carry** (all proposed by `world-coordinator` from
-     mission-world, which shares this skill but cannot edit it; each corroborated first-party before
-     being written in, rather than taken on trust — the sibling-claim ghost discipline).
-     **(1) stdin was never redirected**: `codex exec` reads stdin IN ADDITION to the positional
-     prompt, so under a backgrounded launch with an open (never-EOF) stdin it prints
-     `Reading additional input from stdin...` and blocks until the 30-min cap — a hang that *looks*
-     like normal long work (World: 39-byte log, zero diff, 6 minutes). That line appears in
-     iter-111's own `codex_out.log`; the run survived only because stdin happened to EOF.
-     **(2) delivery was never asserted**, as above. Both are the vacuous-pass class this mission has
-     closed twice elsewhere (silent z3 skip, silent `t.Skip`): *an exit code reporting success for
-     work never requested*. Iter-112 hit the near-miss live — its first `Write` of the directive file
-     FAILED (pre-existing file) and, unnoticed, would have produced exactly defect (2). *(Cheap
-     habit that closes it: give the directive file a per-iteration name, e.g.
-     `/tmp/codex_directive_iter<N>.txt` — `Write` refuses to overwrite a file this session has not
-     Read, so a fixed name collides with the previous iteration's leftover.)*
-     **(3) A GATE VERDICT FROM INSIDE THE SANDBOX IS NOT EVIDENCE.** `workspace-write` DENIES
-     loopback socket binds, so any suite touching `httptest`/servers fails with
-     `bind: operation not permitted` — an infrastructure denial that is **indistinguishable from a
-     real regression** in the exit code. V1 hit this three times (iters 110, 111, 113: `make test`
-     exit 2 each time, **rc=0 with zero FAIL** on the controller's re-run outside the sandbox), and
-     World hit the same wall from the other side — its sandbox panic on a loopback bind *masked* a
-     genuine `io.Pipe` startup deadlock. So it cuts BOTH ways: the sandbox invents failures **and
-     hides real ones**. Rule: the executor MUST label any such result
-     `UNINFORMATIVE UNDER SANDBOX` rather than reporting it as pass or fail (say so in the
-     directive), and the **controller MUST re-run the gates outside the sandbox** before recording
-     any Gate-4 verdict — mandatory whenever the diff touches `host/`, `daemon/`, `cmd/*`, or
-     anything serving a socket. Never bank an executor-reported gate result for those paths.
-     **(4) THE GATE LIST *YOU* WRITE INTO THE DIRECTIVE IS AN ACCEPTANCE LIST TOO, AND RULE 3e(a)
-     DOES NOT REACH IT — SO THE ONE GATE LIST NOBODY BASELINES IS THE CONTROLLER'S OWN** (added
-     2026-08-21 V1 iteration 245; instance 1 is iteration 147's `actionlint` plan gate, instance 2 is
-     this iteration's). Rule 3e(a) says to run each acceptance command on a pristine base before
-     routing, and every word of it is scoped to a **sprint plan's** acceptance list — written by a
-     planner, read at pick time. A direct-fix iteration has no plan and no planner: the controller
-     writes the gates straight into the directive, at which point no rule in this file has ever asked
-     whether they pass on untouched `dev`. That is this loop's own *guard the helper, miss the call
-     site* shape aimed at its own hands, and it is why 3e(a) can be documented, cited, and still
-     bought a third time. Measured here: my directive made `go build ./...` the mutant-BUILDS
-     assertion; it is **rc=1 on pristine dev** (`cmd/wasm` and `gen/main` have no native `main` —
-     the identical finding iteration 145 recorded), against `./cmd/ailang` rc=0 and
-     `./internal/builtins/...` rc=0. The executor stopped mid-sprint rather than assert a mutant
-     built, which cost a second run and was **the correct call**.
-     **Rules. (a)** Before sending any directive, run its gate list on the base and delete or repair
-     anything already red — the same discipline 3e(a) applies to a plan, applied to the list you just
-     typed. **(b)** Prefer the narrowest gate that can actually fail for your diff
-     (`go build ./internal/<pkg>/...`) over the widest that looks thorough (`./...`); a whole-repo
-     build is *more* likely to be red at base, not less. **(c)** Say in the directive that a gate the
-     executor finds red at base is a finding to REPORT, not an obstacle to work around — and treat
-     the report as the loop working (rule 3h(d)), never as non-compliance. **(d)**
-     Mission-independent: under `ailang-code` the same trap is an `ailang check` over a module set
-     that does not resolve on untouched `dev`. The tell: you are about to hand an executor a list of
-     commands and you have not run one of them yourself.
+     **FIVE FALSE-GREENS this recipe used to carry, plus the gate list you write yourself — all
+     moved to [`resources/codex-lane-false-greens.md`](resources/codex-lane-false-greens.md)
+     2026-09-04, nothing reworded.** Read it IN FULL before writing a directive for any `codex:` or
+     `pi:` role, and again before recording a Gate-4 verdict on that role's output. In one line
+     each so you know what you are missing if you skip it: (1) stdin was never redirected, so a
+     backgrounded run blocks until the cap looking like normal long work; (2) directive delivery was
+     never asserted, so an absent file yields rc=0 for work never requested; (3) a gate verdict from
+     inside the sandbox is not evidence — it invents failures AND hides real ones; (4) the gate list
+     YOU write into the directive is an acceptance list too, and rule 3e(a) does not reach it;
+     (5) a destructive WRITE outside the worktree is denied inside the sandbox, so the executor's
+     green says nothing about it and the controller's mandatory out-of-sandbox re-run is where the
+     damage lands — 92 lines of shared fleet evidence, unrecoverably, at iteration 327.
 
      **Hygiene, broadcast with it (not a recipe defect):** a shell "is this env var set?" probe
      written `${VAR:+YES}${VAR:-NO}` **prints the variable's value** — World leaked `OPENAI_API_KEY`

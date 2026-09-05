@@ -157,7 +157,6 @@ func (b *GCPTraceBackend) RecomputeChainAggregates(ctx context.Context, chainID 
 	return ErrChainWritesUnsupported
 }
 
-
 // Chain reconciliation is unsupported here: this backend does not hold the chain
 // hierarchy. It returns a named error rather than an empty result, so a
 // reconciliation pass against the wrong backend reports nothing done instead of
