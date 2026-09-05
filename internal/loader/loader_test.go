@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/sunholo-data/ailang/std"
 )
 
 func TestIsTempPath(t *testing.T) {
@@ -151,6 +153,56 @@ func TestLoad_EmbeddedStdlibFallback(t *testing.T) {
 		}
 		if loaded1 != loaded2 {
 			t.Error("expected same pointer from cache")
+		}
+	})
+}
+
+func TestCacheSource_ExactSnapshot(t *testing.T) {
+	t.Run("disk bytes", func(t *testing.T) {
+		root := t.TempDir()
+		content := []byte("module exact\n\nexport pure func answer() -> int = 42\n")
+		if err := os.WriteFile(filepath.Join(root, "exact.ail"), content, 0o644); err != nil {
+			t.Fatalf("write source: %v", err)
+		}
+
+		loaded, err := NewModuleLoader(root).Load("exact")
+		if err != nil {
+			t.Fatalf("load disk source: %v", err)
+		}
+		if loaded.SourceContent == nil {
+			t.Fatal("disk source snapshot is unavailable")
+		}
+		if got := *loaded.SourceContent; got != string(content) {
+			t.Fatalf("disk source snapshot = %q, want exact bytes %q", got, content)
+		}
+	})
+
+	t.Run("embedded stdlib bytes", func(t *testing.T) {
+		want, err := std.FS.ReadFile("option.ail")
+		if err != nil {
+			t.Fatalf("read embedded control: %v", err)
+		}
+		ml := NewModuleLoader(t.TempDir())
+		ml.stdlibResolver = &StdlibResolver{
+			searchPaths:   []string{filepath.Join(t.TempDir(), "missing")},
+			negativeCache: make(map[string][]string),
+		}
+
+		loaded, err := ml.Load("std/option")
+		if err != nil {
+			t.Fatalf("load embedded source: %v", err)
+		}
+		if loaded.File == nil {
+			t.Fatal("embedded module has no AST")
+		}
+		if filepath.ToSlash(loaded.File.Path) != "<embedded>/std/option.ail" {
+			t.Fatalf("embedded AST path = %q", loaded.File.Path)
+		}
+		if loaded.SourceContent == nil {
+			t.Fatal("embedded source snapshot is unavailable")
+		}
+		if got := *loaded.SourceContent; got != string(want) {
+			t.Fatalf("embedded source snapshot differs from std.FS bytes")
 		}
 	})
 }

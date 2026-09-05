@@ -114,6 +114,10 @@ func (runtime *cacheRuntime) warnInvalid(moduleID string, err error) {
 	fmt.Fprintln(runtime.stderr, "; recompiling")
 }
 
+func (runtime *cacheRuntime) warnSourceUnavailable(moduleID string) {
+	fmt.Fprintf(runtime.stderr, "CACHE_SOURCE_UNAVAILABLE module=%s; bypassing compilation cache\n", moduleID)
+}
+
 func (runtime *cacheRuntime) warnWrite(stage, moduleID, path string, err error) {
 	key := stage + "\x00" + moduleID
 	if runtime.writeWarned[key] {
