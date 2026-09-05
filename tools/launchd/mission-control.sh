@@ -254,7 +254,14 @@ PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,claude-fable-5-1}"
 # Known residual, deliberately unsolved here: a codex 1-token probe cannot see a spent
 # bucket (reference measured 2026-07; the weekend's motoko rc=1s), so the codex rung can
 # still pass its probe and die mid-run — the chain below it is the mitigation, not a fix.
-CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3}"
+# ASTRA AHEAD OF SOL 2026-09-05 (Mark, attended): gpt-6-astra is a GPT-6-generation
+# model on the SAME ChatGPT-subscription bucket as sol, so this rung costs no more
+# dollars than the one it precedes — verified by probing `codex exec --model
+# gpt-6-astra` with OPENAI_API_KEY stripped (the state a fire runs in, L110): rc=0,
+# prints `model: gpt-6-astra`. Discriminating negative control: a nonexistent model
+# 400s with "not supported when using Codex with a ChatGPT account". Sol is KEPT
+# directly behind it, so an astra outage degrades to exactly today's behaviour.
+CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-codex:gpt-6-astra,codex:gpt-5.6-sol,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3}"
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
 PROBE_TIMEOUT="${MISSION_PROBE_TIMEOUT:-120}"   # per-probe wall-clock cap, seconds
 
@@ -575,7 +582,18 @@ export MISSION_METERED_BUDGET_USD="${MISSION_METERED_BUDGET_USD:-5}"
 #
 # Same fleet for every mission: they all source THIS file and no plist overrides
 # these vars, so there is one definition, not four kept in sync.
-export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol}"
+# ASTRA 2026-09-05 (Mark, attended): sol -> gpt-6-astra. Same codex CLI, same
+# ChatGPT-subscription bucket, newer generation. Wired probe-guarded rather than
+# gated first, Mark's explicit call — the codex pre-flight loop below probes it
+# every fire and hands the role to MISSION_PLANNER_FALLBACK on any non-zero rc.
+# ROLLBACK is one word: put `gpt-5.6-sol` back here, or pin MISSION_PLANNER_MODEL
+# in ~/.config/ailang/mission-<name>.env for a single mission.
+# NOT changed, deliberately: MISSION_PLANNER_FALLBACK stays `pi:*`. Inserting
+# `codex:gpt-5.6-sol` as the first fallback rung looks safer and is NOT — the
+# codex loop hands off to a value that the *pi* loop then probes, so a `codex:*`
+# head would run UNPROBED, which is the "pin running unprobed on World" defect
+# ailang#611 exists to have fixed.
+export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-codex:gpt-6-astra}"
 # MISSION_PLANNER_ALLOWLIST (M-DOCS-MISSION, 2026-08-28 docs iteration 1): the per-mission
 # env files (~/.config/ailang/mission-<name>.env) set this WITHOUT `export`, so sourcing
 # them only defines a local shell variable in THIS script's process — it never reached the
@@ -592,7 +610,11 @@ export MISSION_PLANNER_ALLOWLIST="${MISSION_PLANNER_ALLOWLIST:-tools/launchd/*|.
 #            to that metered twin if the ollama quota runs out. Draws 4.2x
 #            gpt-oss (0.029 units/M, measured), ~4x cheaper per token than the
 #            planner, which is what the high-volume role needs.
-export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol}"
+# ASTRA 2026-09-05 (Mark, attended): sol -> gpt-6-astra, same reasoning as the
+# planner above. The ratified chain is unchanged in SHAPE — "codex as default,
+# deepseek the replacement when codex is out, opus last" (Mark 2026-08-06) — this
+# swaps which codex model sits at the head of it.
+export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-6-astra}"
 # EXECUTOR FALLBACK CHAIN — ailang#611 (2026-08-11).
 #
 # RATIFIED SEMANTICS (Mark 2026-08-06, restated attended 2026-08-10 and 2026-08-11):

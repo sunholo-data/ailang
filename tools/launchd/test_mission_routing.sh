@@ -24,10 +24,23 @@ driver="$ROOT/tools/launchd/mission-control.sh"
 # FLEET (Mark 2026-08-26, attended): codex KEEPS both primary roles; the Ollama
 # Cloud lanes sit at the FIRST FALLBACK. Asserting the primaries explicitly so a
 # future promotion has to be deliberate rather than accidental.
-grep -q 'MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol' "$driver" \
-  && ok "executor primary remains Codex Sol" || bad "executor primary remains Codex Sol" "missing default"
-grep -q 'MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol' "$driver" \
-  && ok "planner primary remains Codex Sol" || bad "planner primary remains Codex Sol" "missing default"
+# AMENDED 2026-09-05 (Mark, attended): the codex MODEL at the head of both roles
+# moves gpt-5.6-sol -> gpt-6-astra. The 08-26 shape is unchanged — codex still
+# keeps both primaries and the pi lanes still sit at the first fallback — so this
+# updates WHICH codex model, not the routing shape. The assertion above did its
+# job: this promotion had to come here and be deliberate.
+grep -q 'MISSION_EXECUTOR_MODEL:-codex:gpt-6-astra' "$driver" \
+  && ok "executor primary is Codex Astra" || bad "executor primary is Codex Astra" "missing default"
+grep -q 'MISSION_PLANNER_MODEL:-codex:gpt-6-astra' "$driver" \
+  && ok "planner primary is Codex Astra" || bad "planner primary is Codex Astra" "missing default"
+# The fallback chains must stay `pi:*`-headed. A `codex:*` value here would run
+# UNPROBED — the codex loop hands off to a value that only the *pi* loop probes —
+# which is the "pin running unprobed on World" defect ailang#611 fixed. This is the
+# arm that dies if someone "helpfully" inserts sol as the first fallback rung.
+grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:' "$driver" \
+  && ok "executor fallback head is a probed pi lane" || bad "executor fallback head is a probed pi lane" "codex:* head runs unprobed (#611)"
+grep -q 'MISSION_PLANNER_FALLBACK:-pi:' "$driver" \
+  && ok "planner fallback head is a probed pi lane" || bad "planner fallback head is a probed pi lane" "codex:* head runs unprobed (#611)"
 # Executor fallback: SAME deepseek-v4-flash weights, flat-rate ollama route
 # instead of metered OpenRouter. The ratified codex->deepseek->opus chain is
 # preserved; only the route changed. Brace-anchored so a prefix cannot pass.
@@ -200,8 +213,16 @@ grep -q '_chain_head()' "$driver" && grep -q 'CHAIN_REMAINING' "$driver" \
 grep -q 'MISSION_EVALUATOR_FALLBACK:-pi:ollama/\(kimi\|deepseek\)' "$driver" \
   && bad "evaluator vendor is distinct from planner/executor" "evaluator shares a VENDOR with a generator" \
   || ok "evaluator vendor is distinct from planner/executor"
-grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol' "$driver" \
-  && ok "controller has Codex Sol fallback" || bad "controller has Codex Sol fallback" "missing fallback"
+# AMENDED 2026-09-05 (Mark, attended): astra leads the controller fallback chain.
+# Both arms matter and they are NOT the same claim: the first pins the promotion,
+# the second pins that sol was RETAINED directly behind it. Sol's presence is what
+# makes the change reversible in behaviour — an astra outage degrades to exactly
+# the pre-09-05 controller, rather than skipping a generation to the GLM rungs.
+# Drop sol and the second arm reddens, which is the point.
+grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-6-astra' "$driver" \
+  && ok "controller fallback leads with Codex Astra" || bad "controller fallback leads with Codex Astra" "missing fallback"
+grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-6-astra,codex:gpt-5.6-sol' "$driver" \
+  && ok "Codex Sol retained directly behind Astra" || bad "Codex Sol retained directly behind Astra" "astra outage would skip sol"
 
 "$ROOT/scripts/mission_decisions.sh" --check --file "$ROOT/design_docs/v1-mission.md" >/dev/null \
   && ok "decision ledger validates" || bad "decision ledger validates" "invalid"
