@@ -65,6 +65,7 @@ answer changes the row to `RESOLVED` in the same iteration that consumes the dir
 | D-1 | RESOLVED | **ANSWERED (Mark, attended 2026-08-28): option (a) — fix `check_examples.sh` in this mission, and add `.claude/skills/docs-sync/scripts/*` to `MISSION_PLANNER_ALLOWLIST` so it plans on the cheap lane too.** Rationale: the defect is in docs-sync's OWN instrument, this mission is its only heavy consumer, and V1 has no stake in it — routing to V1 would add a handoff for no benefit. Note the ask was RE-FRAMED before being answered: the original wording ("widen the allowlist **so the mission can** fix its tooling") presumed the allowlist is a write gate. It is not — outside the list the work is fully editable, it just plans on `opus`. So the widening buys planner COST, not capability, and the fix was never blocked. **The finding**: `check_examples.sh` passes ABSOLUTE paths to `ailang`, tripping false `MOD010` failures — raw 12/29/176 against a corrected 166 pass / 9 genuine fail / 42 no-module. Unparks `docs-6`. | Measured first-party by the controller and independently re-derived from scratch by the sprint-evaluator across 217 `examples/runnable/*.ail`: same 9 failures, same mechanism, same corrected split. `docs/docs-sync-findings.md` DOCS-2-01 and DOCS-2-04. PR [#955](https://github.com/sunholo-data/ailang/pull/955) → `a8f904aac`. |
 | D-2 | RESOLVED | **MOOT — nothing to widen; the premise was false (measured, attended 2026-08-28).** The ask assumed `docs/*` is "a SINGLE-LEVEL glob" reaching only files directly under `docs/`. It is not. These are `case` glob patterns, not shell pathname expansion, so `*` matches `/` — `docs/docs/**` and `docs/src/**` were reachable the entire time. The second half of the premise was also false: the allowlist is not a write gate, so even a genuine miss would mean *plans on opus*, never *cannot fix*. **DOCS-2-02 (the stale `v0.16.0` reference in `docs/docs/intro.mdx`) and every nested-page item deferred on this basis are UNBLOCKED and should be picked up.** Note the failure mode for future iterations: this row cited the charter's own Guardrails bullet as its evidence, and that bullet was an unverified human-authored claim — so a false statement in the charter became self-citing. A charter claim about what a mechanism DOES now has to carry the command that demonstrates it. | Discriminating control, run against the live mission env and the real `derive-planner-lane.sh`: `docs/docs/intro.mdx` → `codex:gpt-5.6-luna declared:codex-ok`, while `internal/eval_harness/models.yml` → `opus fail-closed:path-not-in-codex-allowlist` in the same run. Separately, `grep -rn MISSION_PLANNER_ALLOWLIST tools/ .claude/` returns only `derive-planner-lane.sh` and the driver's `export` — no write-scope enforcement exists anywhere, including `sprint-executor`. |
 | D-3 | RESOLVED | **ASK (iteration 6, 2026-09-03): one-time OK to use the shared mission-control skill's narrow-refinement carve-out for `docs-4`'s design brief, docs-mission's first use of it.** The brief (`design_docs/docs-4-brief.md`) blocked quorum twice; both rounds' objections were narrow, concrete (each reviewer supplied a verbatim `proposed_fix`), and disputed no design direction — round 1: an unprobed 9th orphan URL, an unverified section-heading pair; round 2: imprecise "URL-stable" wording against two intentional clause-5-authorised deletions, an unverified 3rd heading boundary, a cleanup step left as prose instead of an encoded acceptance criterion. The controller applied all fixes verbatim (commits `fbc289f6a`, `56acda30d`) rather than spending a 3rd $0.12 quorum round. Options: **(a)** OK it — the doc is design-ready, `sprint-planner` runs next iteration. **(b)** Reject it — the item goes back to a normal 3rd quorum round (cost: ~$0.12, one more iteration). Loop recommendation: (a) — both rounds' objections read as the reviewers doing their job on a genuinely fixable doc, not as a doc that shouldn't ship. Default if unanswered: stays parked at design-ready: no sprint runs, no cost accrues, `docs-4` sits at the top of next iteration's queue exactly as now.  **ANSWERED — (a) APPROVED — use the narrow-refinement carve-out for `docs-4`, with ONE condition to satisfy before the sprint runs: close `gemini-3-1-pro`'s recurring objection class exhaustively. Verify EVERY section-cut boundary asserted in the brief and record each as a Verification Log row — not only the B3/B4/B5 that reviewers happened to name. Round 1 asked for B4/B5; round 2 asked for B3 "with the same rigor V29 just gave B4/B5". That is ONE class recurring at new instances, which is the shape that predicts a 3rd round finds a 4th. The check is a single-command verification with no design judgment (the controller already ran it twice, as V29 and V30), so it costs about nothing against the ~$0.12 plus one 6h iteration a 3rd quorum round would cost. Recorded against the carve-out rather than hidden: the skill's own discriminating test does NOT cleanly license it here — no reviewer started passing (round 2 was 3 of 3 reject) and the objections are spread across three surfaces (wording precision, verification, acceptance-criterion encoding), which the rule says means keep revising. Granted anyway for two reasons. First, round 2 is confounded: `oc-glm-5-2` was ABSENT in round 1, so its round-2 reject is a first look at the doc rather than a failure to converge, and both reviewers who saw BOTH rounds narrowed. Second, blast radius is low — a reversible docs taxonomy pass that still passes through the normal executor and evaluator gates. Precedent is scoped to `docs-4` alone and does not generalise to docs-mission.** (Mark Edmondson, attended 2026-09-03, recorded directly in this ledger.)| `design_docs/docs-4-brief.md` §"Quorum log"; quorum artifacts `docs-4-brief-2026-09-03T10-54-51Z.json`, `docs-4-brief-2026-09-03T10-57-26Z.json`; carve-out rule text in `.claude/skills/mission-control/SKILL.md` Gate 2.  **Attended ruling 2026-09-03** — recorded in-session under the ATTENDED LEDGER EDITS contract, not via the bookkeeping issue. Mark gave this ruling in an attended session; the agent transcribed it and the commit is authored by the fleet bot, because this machine's git identity is the fleet bot for every session including Mark's. Provenance is therefore the attended session, NOT the commit author — and nothing in `scripts/mission_decisions.sh` or the mission-control skill reads the commit author of a ledger resolution (verified 2026-09-03, positive-controlled), so no control is weakened by saying so plainly rather than asserting an authorship that did not happen. design_docs/docs-4-brief.md section "Quorum log" (lines 19-42); quorum artifacts docs-4-brief-2026-09-03T10-54-51Z.json (round 1, oc-glm-5-2 absent, degraded to N-1) and docs-4-brief-2026-09-03T10-57-26Z.json (round 2, 3 of 3 present, 3 of 3 reject); carve-out discriminating rule at .claude/skills/mission-control/SKILL.md lines 751-754 ("the signal is not the round COUNT, it is where the objections LAND"); attended session 2026-09-03, ruling given by Mark after review of both rounds objection-by-objection.|
+| D-4 | OPEN | **ASK (iteration 9, 2026-09-05): one-time OK to use the shared mission-control skill's narrow-refinement carve-out for `design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md` (docs-11), docs-mission's SECOND use of it (D-3's grant for `docs-4` was scoped to that item alone and does not generalise here — see D-3's own closing sentence).** The doc blocked quorum TWICE, 3/3 reject both rounds, but every round-2 objection was narrow and verification-class, none disputed the `SearchBackend` design direction: gpt5-6-sol and gemini-3-1-pro both flagged that the Conflict Surface never checked for reusable GitHub-API/git-remote code before proposing to write ~210 LOC from scratch — it exists (`getGitHubOwnerRepo()` at `cmd/ailang/coordinator_cloud_github.go:87`, plus an established Bearer-token request pattern in the same file); oc-glm-5-2 flagged that the doc's claims about `internal/docsearch/search.go`'s actual types/signature were asserted, not verified (they turned out correct, verified by grep). The controller applied all three fixes directly — extracting the git-remote logic into a new shared `internal/gitutil` package instead of duplicating it, and adding the missing Verification Log row — rather than spending a third quorum round. Options: **(a)** OK it — the doc is design-ready, `sprint-planner` runs next iteration (est. 3-4 hours per the doc's own estimate, executor lane `codex:gpt-5.6-luna`). **(b)** Reject it — a third quorum round runs instead (cost: ~$0.07, one more iteration before any code is written). Loop recommendation: **(a)** — round 2's objections were reviewers doing exactly their job (a real, previously-undetected duplication risk), the fixes are verified correct, and the feature itself is small, additive, and CLI-only (no core-path changes: `internal/docsearch/search.go` stays byte-unchanged per the redesign). Default if unanswered: stays parked at design-ready — no sprint runs, no cost accrues, `docs-11` sits at the top of next iteration's queue exactly as now. | `design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md` §"Revision History" (rounds 1 and 2); quorum artifacts `m-dx27-docs-search-github-fallback-2026-09-05T11-05-41Z.json` (round 1) and `m-dx27-docs-search-github-fallback-2026-09-05T11-11-47Z.json` (round 2) in `.ailang/state/mission-quorum/`; carve-out rule text in `.claude/skills/mission-control/SKILL.md` Gate 2 ("the signal is not the round COUNT, it is where the objections LAND"). |
 <!-- decision-ledger:end -->
 
 ---
@@ -75,74 +76,6 @@ Newest **3** STATUS stamps live here; older ones move to `docs-mission-status-ar
 At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the archive file. Every
 iteration re-reads this charter — unbounded STATUS history is a per-read token tax on the scarcest
 model budget; the append-only history lives in the log + archive.
-
-## STATUS 2026-09-03 — ITERATION 6: docs-4 taxonomy pass designed and scoped to one sprint (62 files, near-zero literal duplication measured); quorum blocked twice, closed via this mission's first narrow-refinement carve-out — sprint held pending Mark's one-time OK
-
-Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Pin worktree at `origin/dev`
-tip (`55891002f`), clean. 0 directives on bookkeeping issue `#979` since the watermark (7
-comments, none allowlisted). Decision ledger valid, 2 rows, both `RESOLVED` — no new ask at Gate
-0 (one added at Gate 4, see below). 16 unread canonical-inbox messages, none addressed to
-`mission-docs` (design-doc-creator/pkg-sunholo/mission-v1/mission-world cross traffic).
-
-Gate 1: `origin/dev` HEAD SHA-addressed check-runs showed 6 NOT-GREEN: `Build windows/macos/
-ubuntu-latest` (cancelled/failure), `launchd drivers (bash 3.2)` (failure), `test` (failure), same
-signature Gate 1 has flagged in iterations 1/2/4/5 — confirmed still V1's domain (owning mission
-per Gate 1's repo-ownership scoping), not actioned here beyond a cross-mission heads-up
-(`mission-v1` inbox, `inbox_1788431686434_383803af`) naming the two failing jobs and the two
-most-recent commits, since neither looked docs-shaped.
-
-**PICK: `docs-4`** (taxonomy pass, item 11). Both of its stated blockers are now cleared: clauses
-1-3 are green (docs-2 covers 1+3; docs-9/docs-6/docs-10/docs-8 cover clause 1 further; docs-5
-covers clause 2), and docs-7's allowlist question dissolved 2026-08-28. `docs-3` (item 10) stays
-`[IN-SPRINT]`, unpicked — still blocked on the same inherited red named above (its own PR #1031
-mergeability re-checked: still `MERGEABLE`/`BLOCKED` on identical failing jobs).
-
-**Gate 3 — designer.** No design doc existed for docs-4. Spawned this iteration's rotation
-designer (`claude:claude-fable-5`, Agent tool, `model="fable"`) with an explicit judgment call:
-given 62 files, decide with evidence whether this is one sprint or needs decomposition into
-sprint-sized sub-docs (the charter's standing multi-week-item rule). Result:
-`design_docs/docs-4-brief.md` (committed `1c74a4971` on branch `docs-4-brief` off `origin/dev`).
-**One sprint, not a decomposition** — a pairwise line-overlap instrument across all 1,830 guide
-pairs found only 2 pairs sharing ≥4 identical lines; the real redundancy is 5 recurring
-command-block sections across 4-7 files, not page-level duplication; six 2026-08-17 "audit pass"
-commits already did the page-level merging. Every one of the 62 files (+11 in `evaluation/`) gets
-an explicit disposition (Appendix A); the target sidebar tree is fully specified (Appendix B);
-29-row Verification Log with commands (two self-caught instrument bugs: BSD `sed` `\?`, zsh
-non-word-splitting).
-
-**Quorum-at-pick (mandatory, no prior artifact for this doc).** Round 1
-(`docs-4-brief-2026-09-03T10-54-51Z.json`): BLOCKED — `gpt5-6-sol` and `gemini-3-1-pro` both
-reject (`oc-glm-5-2` absent, degraded N-1, not silently passed), both objections narrow
-verification-completeness gaps with concrete `proposed_fix` (V6 probed only 8 of 9 orphan URLs;
-no row proved the B4/B5 section-cut headings actually exist/are adjacent). Controller measured
-both directly — single commands, no design judgment, so not re-routed through the designer per
-Gate 2's rule — both premises held (9th orphan also `200`; both heading pairs exact). Round 2
-(`docs-4-brief-2026-09-03T10-57-26Z.json`, the mandatory one re-quorum): BLOCKED again, all three
-reviewers present and reject — `gpt5-6-sol` (the "URL-stable" scope line overclaims against the
-two intentional clause-5-authorised deletions), `gemini-3-1-pro` (B3's cut boundary needed the
-same line-exact proof V29 just gave B4/B5), `oc-glm-5-2` (the `sync-registry.sh`/`make docs-build`
-side-effect cleanup was V23b prose, never an encoded acceptance step — an executor following the
-checklist literally could commit 4 mutated tracked files). All three narrow, concrete, no design-
-direction dispute → applied the **narrow-refinement carve-out** (bounded 2nd revision, reviewers'
-verbatim fixes, no 3rd quorum round): reworded URL-stable's scope, added V30 (B3 boundary
-confirmed at lines 180/253, genuine H2s), encoded the `git checkout --` cleanup as acceptance
-criterion 6/7 rather than prose. Committed `fbc289f6a` (round-1 fixes), `56acda30d` (round-2 +
-carve-out record). **This is docs-mission's first use of the carve-out** — per the skill's
-ratification rule the doc is design-ready, but the sprint (planner/executor) is held pending
-Mark's one-time OK rather than routed straight through, so `sprint-planner` and `sprint-executor`
-were not spawned this iteration. `sprint-evaluator` accordingly has nothing to independently
-judge yet — no code landed, so no generator≠judge step was owed this iteration.
-
-**Routing evidence**: designer `claude:claude-fable-5` (Fable diet: 1 doc, 0 revision-designer-
-runs — both quorum-response edits were controller-measured, not re-spawned); planner/executor/
-evaluator not spawned (blocked on ratification, not a probe failure — no fallback chain
-traversed). Quorum reviewer cost: round 1 $0.1297, round 2 $0.1219 = **$0.2516 metered**, well
-under the $1 ceiling and the $10/doc quorum cap.
-
-**Cost**: metered $0.2516 of $1 ceiling (2 quorum rounds, OpenRouter-billed reviewers). Quota
-buckets: fable (designer, 1 bounded run), sonnet (controller session).
-
-Full record: `design_docs/docs-mission-log.md` §ITERATION 6.
 
 ## STATUS 2026-09-03 — ITERATION 7: docs-3's "V1-owned inherited red" verdict RE-MEASURED and found stale — dev had already fixed it; rebased and landed [PR #1031](https://github.com/sunholo-data/ailang/pull/1031); docs-4 still held on D-3
 
@@ -348,6 +281,110 @@ docs-4 was the last `[IN-SPRINT]`/`[NEXT]` item; the queue's remaining rows are 
 31 confirmed still-planned docs) since this charter's own enumerated backlog is now exhausted.
 
 Full record: `design_docs/docs-mission-log.md` §ITERATION 8.
+
+## STATUS 2026-09-05 — ITERATION 9: fresh draw from the 31-doc backlog (`m-dx27` docs-search
+GitHub fallback), quorum-blocked twice on real objections, closed via this mission's SECOND
+narrow-refinement carve-out use — sprint held pending Mark's one-time OK (D-4)
+
+Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Pin worktree clean, `dev` ==
+`origin/dev` (`087fbea63`). 0 directives on bookkeeping issue `#979` since the watermark (of 10
+comments, none allowlisted). Decision ledger valid, 3 rows, 0 OPEN before this iteration. 30 unread
+canonical-inbox messages triaged: all routine (eval-suite run notifications, a release
+notification, two pkg-feedback task completions, two user-submitted feature/bug reports for
+core-language surfaces out of this mission's scope) — none addressed to `mission-docs`, none a
+directive, none actioned. Weekly external-issue sweep not due (`#979` created 2026-08-31, next
+Monday-07:00-CEST rotation boundary is 2026-09-07, not yet reached).
+
+Gate 1: `dev`/`origin/dev` in sync. `CI` and `Deploy Documentation to GitHub Pages` both green on
+recent commits; `Build and Release`'s SHA-addressed check-runs on `origin/dev` HEAD showed 4
+NOT-GREEN entries, all `pending` (in-flight runs for the last 3 commits, `createdAt` 10:43-10:57Z,
+`status: in_progress`) — not a red, not actioned.
+
+**Gate 2 — queue exhausted, fresh draw from the docs-8-certified 31-doc backlog.** The charter's
+own enumerated queue (items 1-11) is entirely `[LANDED]`/`[RULED OUT]` since iteration 8. Per
+iteration 8's own "Next" note, drew from `design_docs/planned/`'s 31 STILL-PLANNED docs.
+`m-net-effect-proxy-boundary` (listed as "M1 of 4 landed") was RULED OUT as a pick before any
+routing: `git log --grep` shows it is V1's own active item (commits reference "iteration 145/150/
+155/156" — V1's numbering, not this mission's 0-8), M1 landed by V1's iterations, picking it here
+would be a cross-mission collision. Picked `m-dx27-docs-search-github-fallback.md` instead: small,
+self-contained (~500 LOC estimate), zero git history beyond its 2026-01-28 creation commit (no
+other mission's fingerprints), and its problem statement still reproduces byte-for-byte at this
+iteration's HEAD (`ailang --version` → `v0.35.0-61-g087fbea63`; the exact "no documentation
+directory found" error the doc quotes still fires).
+
+**Gate 3 — two quorum rounds, one designer spawn, one controller-applied narrow revision.** No
+quorum artifact existed for this pre-quorum-era doc, so ran `ailang design-quorum` per the
+QUORUM-AT-PICK rule. **Round 1: 3/3 reject**, spread across three surfaces (gpt5-6-sol: unverified
+unauthenticated-rate-limit premise + a silent invalid-token fallback; gemini-3-1-pro: ~600 LOC
+wired directly into the shared `Search()` hot path, violating PROGRAM.md's extension-not-core
+bias; oc-glm-5-2: a `github://` sentinel repeating the same core-vs-extension violation).
+Spawned designer `claude:claude-sonnet-5` (recipe path per this mission's own env pin, routed via
+the billing-guarded `claude-sub` wrapper — probed rc=0, real run backgrounded with a 30-min cap,
+completed in ~9 min at rc=0). The designer live-verified the disputed premise rather than arguing
+with it: `curl`'d GitHub's actual code-search endpoint — unauthenticated returns `401` (no such
+tier exists at all, falsifying the doc's central claim), authenticated returns `200` with the real
+limit `10/min` on `x-ratelimit-resource: code_search` (not the doc's claimed `30/min`, which was
+the generic REST limit misapplied). Rewrote the doc's Success/Rate-Limit/Configuration sections
+around "token required," removed all silent-fallback language, and redesigned around a
+`SearchBackend` interface so `internal/docsearch/search.go`'s `Search()` is byte-unchanged — closing
+gemini-3-1-pro's and oc-glm-5-2's objections by construction.
+**Round 2: 3/3 reject again**, but every objection this time was narrow/verification-class with no
+design-direction dispute: gpt5-6-sol and gemini-3-1-pro both caught that the revised Conflict
+Surface never checked for reusable GitHub-API/git-remote code before proposing ~210 new LOC — it
+exists (`getGitHubOwnerRepo()` at `cmd/ailang/coordinator_cloud_github.go:87`, plus an established
+Bearer-token request pattern in the same file, both confirmed by the controller with a direct
+grep); oc-glm-5-2 flagged that the doc's claims about `internal/docsearch/search.go`'s actual
+types/signature were asserted without a Verification Log entry (verified correct by the controller
+via grep — the underlying claim held, the process gap was real). Per the shared skill's
+narrow-refinement carve-out, the controller applied both fixes directly rather than spending a
+third ~$0.07 round: Phase 2 revised from "write new git-remote parsing" to "extract
+`getGitHubOwnerRepo` into a shared `internal/gitutil` package, update both call sites, delete the
+private original"; added the missing Verification Log row (grep-confirmed `Search()` signature and
+`SearchOptions`/`SearchResult`/`SearchStats` types match the doc's claims verbatim).
+This is docs-mission's **second** use of the carve-out — D-3's grant for `docs-4` was explicitly
+scoped to that item alone (its own closing sentence: "does not generalise to docs-mission"), so
+this is a fresh first-use-per-item ratification, not a re-application of D-3. Per the carve-out's
+own rule, the sprint is HELD pending Mark's one-time OK rather than force-run — filed as **D-4**.
+No planner/executor/evaluator spawned this iteration: there is no sprint yet to plan, execute, or
+judge. This is a correct, protocol-required park (Standing rule 8: judgment park, not capacity
+park — the ask is answerable in one word, defaults safely to "stays parked" if unanswered).
+
+**Outcome: PARKED** (`docs-11`, item 12) at design-ready, held on **D-4** (OPEN).
+
+**Routing evidence**: designer `claude:claude-sonnet-5` (recipe/`claude-sub`, 1 bounded run, rc=0)
+for the round-1 revision; round-2 fixes applied by the controller directly per the carve-out's own
+allowance (no second designer spawn needed — single-command verifications, no design judgment).
+Quorum: 2 rounds, all 3 reviewers (`gpt5-6-sol`, `gemini-3-1-pro`, `oc-glm-5-2`) present both
+rounds, no absent-reviewer degrade. Planner/executor/evaluator: not spawned — nothing routable
+until D-4 resolves. Controller session: sonnet.
+
+**Cost**: metered **$0.119** of $1 ceiling (2 quorum rounds: $0.046 + $0.073). Quota buckets:
+sonnet (controller + designer's underlying model, billed via subscription through `claude-sub`,
+not the metered API key — billing guard confirmed CLEAN before and during the designer run).
+
+**Progress**: N = **30** design docs remaining in the docs-8-certified STILL-PLANNED backlog (down
+from 31 — `m-dx27` is now picked and design-ready, no longer an unpicked backlog row, though it has
+not yet landed). Goal unmoved on the charter's own finish line (no doc moved to `implemented/`
+this iteration) — this was a design-and-park iteration, not a landing one.
+
+**Ruled out**: nothing new. `m-net-effect-proxy-boundary` was never a live candidate — attributed
+to V1 before any routing cost was spent, not a refuted hypothesis.
+
+**DECISIONS FOR MARK**: **D-4** (NEW) — one-time OK for docs-mission's second use of the
+narrow-refinement carve-out on `m-dx27-docs-search-github-fallback.md`. See the ledger row for the
+full ask; loop recommends **(a) OK it**. Default if unanswered: `docs-11` stays parked at
+design-ready, no cost, no harm.
+
+**FLAGGED**: none new. `Build and Release`'s 4 pending checks on `origin/dev` HEAD are in-flight,
+not red — worth a look next iteration only if they resolve non-green.
+
+**Retro — no skill edit.** One friction this iteration (the docs-8 backlog list mixes items this
+mission can pick from items — like `m-net-effect-proxy-boundary` — that another mission already
+owns), below the ≥2-instance bar for a skill edit. Recorded as a watch-item: if a future iteration
+picks another already-owned item from that same 31-doc list, the fix is annotating docs-8's list
+with ownership at classification time, not re-deriving it per pick.
+
+Full record: `design_docs/docs-mission-log.md` §ITERATION 9.
 
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
@@ -574,6 +611,44 @@ Full record: `design_docs/docs-mission-log.md` §ITERATION 8.
    regressions. CI green on the merge tip (20 checks, only the pre-existing inherited SonarCloud
    red — V1's domain). 8 commits total, zero metered spend (codex is quota-bucket, not billed
    per-token on this lane).
+12. `[PARKED]` **docs-11 · clause 1 · `ailang docs search` GitHub-fallback — design-ready, held on
+    D-4.** First fresh draw from the 31-doc `design_docs/planned/` backlog docs-8 certified
+    (iteration 5) — picked because it is small, self-contained, has no other mission's fingerprints
+    on it (unlike `m-net-effect-proxy-boundary`, confirmed via `git log` to be V1's own active
+    multi-milestone item — M1 landed there, M2-4 still theirs, not ours to touch), and its problem
+    statement still reproduces verbatim at this iteration's HEAD (`ailang --version` →
+    `v0.35.0-61-g087fbea63`; `cd /tmp && ailang docs search "x"` → the exact "no documentation
+    directory found" error the 2026-01-28 doc quotes).
+    Quorum round 1: 3/3 reject, spread across three surfaces (unverified unauth-rate-limit premise
+    + silent invalid-token fallback; core-vs-extension violation, ~600 LOC wired into the shared
+    `Search()` hot path; a `github://` sentinel repeating the same violation). Designer
+    (`claude:claude-sonnet-5`, recipe path, `claude-sub` billing-guarded) revised: live-`curl`'d
+    GitHub's actual code-search endpoint (unauthenticated → `401`, no such tier exists at all;
+    authenticated → `200`, real limit `10/min` on `x-ratelimit-resource: code_search`, not the
+    doc's claimed `30/min`), rewrote the doc's success/failure framing around "token required,"
+    removed all silent-fallback language, and redesigned around a `SearchBackend` interface so
+    `internal/docsearch/search.go`'s `Search()` is byte-unchanged.
+    Quorum round 2: 3/3 reject again, but this time every objection was narrow/verification-class
+    with no design-direction dispute — gpt5-6-sol and gemini-3-1-pro both caught that the doc's own
+    Conflict Surface never checked whether reusable GitHub-API/git-remote code already existed
+    before proposing ~210 new LOC (it does: `getGitHubOwnerRepo()` at
+    `cmd/ailang/coordinator_cloud_github.go:87`, plus an established Bearer-token request pattern
+    in the same file); oc-glm-5-2 flagged that the doc's claims about `internal/docsearch/search.go`'s
+    actual types/signature were asserted, not verified (verified by grep afterward — correct, but
+    the log entry was missing). Controller applied all three fixes directly (docs-mission's
+    **second** use of the shared skill's narrow-refinement carve-out — D-3's grant was scoped to
+    `docs-4` alone): Phase 2 revised from "write new git-remote parsing" to "extract
+    `getGitHubOwnerRepo` into a shared `internal/gitutil` package, update both call sites"; added
+    the missing Verification Log row for the codebase-type claims.
+    Per the carve-out's own first-use ratification rule, **held — sprint-planner does NOT run until
+    Mark OKs it (D-4)**, same pattern as `docs-4`/D-3. No planner/executor/evaluator spawned this
+    iteration; nothing to judge yet.
+    Routing evidence: designer `claude:claude-sonnet-5` (recipe/`claude-sub`, 1 bounded run, ~9 min,
+    rc=0) for the round-1 revision; round-2 fixes applied by the controller directly per the
+    carve-out (no second designer spawn — matches the carve-out's own allowance, "the controller
+    already ran it twice, as V29 and V30"). Quorum: 2 rounds, `gpt5-6-sol`/`gemini-3-1-pro`/
+    `oc-glm-5-2` all present both rounds (no absent-reviewer degrade), total cost
+    **$0.119** ($0.046 + $0.073). Controller session: sonnet.
 
 ---
 **Document created**: 2026-08-28 (attended, with Mark). **Bar RATIFIED attended 2026-08-28** after
