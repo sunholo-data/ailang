@@ -580,8 +580,26 @@ export MISSION_METERED_BUDGET_USD="${MISSION_METERED_BUDGET_USD:-5}"
 # slot exercises them for real whenever the codex bucket is spent, so evidence
 # accumulates in the actual roles before anything is promoted.
 #
-# Same fleet for every mission: they all source THIS file and no plist overrides
-# these vars, so there is one definition, not four kept in sync.
+# ⚠️ "Same fleet for every mission ... one definition, not four kept in sync" —
+# that is what this comment used to claim, and it is FALSE for two of the four.
+# Measured 2026-09-05 by dry-running each job's REAL plist ProgramArguments path
+# (not this checkout's copy) after the astra change landed on origin/dev:
+#   v1      ailang/          -> astra ✅   re-execs from ~/.ailang-driver-pin/v1
+#   motoko  ailang-motoko/   -> astra ✅   clone is 232 behind, but re-execs from
+#                                          the pin, which refreshes to origin/dev
+#   docs    ailang-docs/     -> luna  ➖   deliberate per-mission pin, mission-docs.env
+#   world   ailang-world/    -> NO    ❌   a SEPARATE GITHUB REPO
+#                                          (sunholo-data/ailang-world) carrying its
+#                                          OWN copy of this driver, with no
+#                                          lib/pin-root.sh, so it never re-execs
+#                                          from a pin and never reads this file.
+#                                          Its own defaults are planner=opus,
+#                                          executor=codex:gpt-5.6-sol.
+# The pin is what makes a stale clone harmless (motoko), and its ABSENCE is what
+# makes world invisible to every edit here. So the reach of anything set below is
+# "whichever missions re-exec from a pin", never "all four" — verify with a
+# MISSION_PROFILE=<m> MISSION_DRY_RUN=1 run of that mission's own driver path
+# before claiming a fleet-wide change.
 # ASTRA 2026-09-05 (Mark, attended): sol -> gpt-6-astra. Same codex CLI, same
 # ChatGPT-subscription bucket, newer generation. Wired probe-guarded rather than
 # gated first, Mark's explicit call — the codex pre-flight loop below probes it
