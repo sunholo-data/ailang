@@ -21547,8 +21547,21 @@ requires a `planner_lane` field that only **2** design docs in the whole repo ca
 `opus fail-closed` for essentially every real pick and the hook then denies opus. This iteration is
 **instance 3**, reproducing that mechanism exactly (`fail-closed:planner-lane-field-missing`). Three
 instances clears both Gate-5 bars — the ≥2 for a skill fix and the ≥3 for a routing-policy change —
-so the skill edit was spent here (below); the durable fix still belongs in the TOOL, as iteration
-328 said, and stays queued.
+so the skill edit was spent here; the durable fix still belongs in the TOOL, as iteration 328 said,
+and stays queued.
+
+**The skill edit had to pay for its own space, and that is the more useful half.** The first form of
+it appended 38 lines to `SKILL.md` and turned CI **red** — step 40, `Check context docs respect
+progressive disclosure`, a **ratchet**: *"Baselined docs may shrink, never grow."* Attribution was
+unambiguous rather than assumed: `test` is `completed/success` on the base commit and `failure` on
+the PR head, and the diff is docs plus one markdown file. The escape valve is to bump the baseline,
+and the baseline file itself names that as the wrong answer — it carries a standing note that
+iteration 325 loosened the `release-manager` ratchet 596 → 625 without writing the growth, a debt
+still owed under `m-release-manager-skill-split`. So the edit was restructured instead: the new note
+AND the 2026-08-20 fable-pin correction both moved into a new linked
+`resources/role-spawn-routing.md`, with the operative rules kept inline. `SKILL.md` went **2790 →
+2778**, the baseline was ratcheted DOWN to match rather than up, and the gate is green. An iteration
+that wanted the space did the burn-down instead of deferring it.
 
 **Next.** Execute the sprint: M1 (2d) → M2 (0.75d) → M3 (0.5d) → M4 (0.75d), one commit per
 milestone, each boundary green on that milestone's named tests. The executor lane is
