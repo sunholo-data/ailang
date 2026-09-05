@@ -1158,6 +1158,44 @@ missing-script reason in the evidence row. This rule is mission-independent and 
 shared skill is resolved: the step-0 environment pin protects missions configured for opus, and
 the missing-script rule protects missions whose checkout has no derivation script.
 
+**⚠ BUT WHEN THAT ANSWER IS `fail-closed:*` AND THE ROLE CARRIES A `provider:model` PIN, THE
+SPAWN-PIN HOOK WILL *DENY* THE OPUS SPAWN THIS STEP JUST TOLD YOU TO MAKE — SO THE RESOLVER AND THE
+ENFORCEMENT BOUNDARY GIVE DIFFERENT ANSWERS, AND THIS FILE SAYS "DO NOT SECOND-GUESS IT" ABOUT THE
+ONE THAT LOSES** (added 2026-09-05 V1 iteration 329; instance 1 is iteration 327 on a doc-LESS pick,
+instance 2 is iteration 328 with a doc, instance 3 is this iteration, also with a doc — three
+iterations, each of which burned a spawn on a guaranteed denial before routing correctly by hand).
+The step above is complete on *deriving* a lane and says nothing about whether the lane it derives
+can be *spawned*. Two instruments read the same configuration and disagree: the **hook** reads
+`MISSION_<ROLE>_MODEL` directly and enforces it at the tool boundary, while the **resolver** layers
+`derive-planner-lane.sh`'s fail-closed logic on top and can return an alias that contradicts the pin.
+Note the denial message names, as its remedy, the very script whose answer it is refusing:
+`deny:provider-pin — planner is pinned to codex:gpt-5.6-sol; Agent-tool alias spawn refused — use the
+cross-provider recipe (resolve-role-spawn.sh planner)`.
+**This is not a rare edge — it is the DEFAULT for essentially every real pick.** Measured at
+iteration 328: `derive-planner-lane.sh` requires a `planner_lane` field that only **2** design docs
+in the whole repo carry (`m-feature-provenance-chains`, `m-mission-elo-routing`), and it returns
+`opus fail-closed:planner-lane-field-missing` even for the mission charter itself — so the resolver
+says `opus` for nearly every doc, and the hook then denies `opus` wherever the role is pinned to a
+`provider:model`. A third arm found the same iteration: run it from the driver's own CWD against a
+doc authored in a sprint worktree and it fails one step earlier with `design document is missing or
+unreadable`, because the path resolves against CWD — this file's own recurring shape, *a relative
+path is a claim about where you are standing*.
+**Rules. (a)** When the resolver's reason token begins `fail-closed:` **and** the role's
+`MISSION_<ROLE>_MODEL` is a `provider:model` value, do NOT spawn the alias — route straight to the
+pin under its own lane recipe (probe included), and record BOTH the resolver's answer and the pin you
+followed in the Gate-4 routing-evidence row. **(b)** If you spawn anyway and are denied, the denial is
+information, not an error: follow the pin, and do not retry the alias or treat the role as
+unavailable — this is neither a probe failure nor a capacity park (standing rule 8), because nothing
+is exhausted and nothing is waiting. **(c)** The hook is authoritative wherever the two disagree, for
+the plain reason that it is the boundary the spawn actually crosses; "do not second-guess the
+resolver" binds only where the hook has no opinion. **(d)** This is the SKILL half of the fix and it
+does not close the defect — the durable fix is in the TOOL (default the planner lane when the field
+is absent, or stop requiring a field almost no doc carries), tracked as
+`m-resolver-hook-disagree-on-docless-pick`, whose title understates it: the disagreement is not
+about doc-less picks. Mission-independent — every mission on this rig runs this resolver, this hook
+and this env contract. The tell: the resolver handed you an alias, the role's configured value names
+a provider, and you have not asked which of the two the tool boundary will believe.
+
 **Cross-provider spawn recipe (`provider:model`, M1b — currently `codex` only).** When a role's env
 value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER=${VAL%%:*}`,
 `MODEL=${VAL#*:}`) and route:
