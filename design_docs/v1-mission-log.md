@@ -21718,3 +21718,116 @@ and if `D-55` is answered (b) or (c) the plan's scope section is revised before 
   - gpt5-6-sol: The `mission reload` design violates the bounded-waits axiom: it promises `bootout + bootstrap + verify` but specifies no deadlines, polling bounds, or timeout failure semantics for launchd lifecycle and readiness verification. A lifecycle command that can wait indefinitely cannot proceed under A5.
   - gemini-3-1-pro: Architectural flaw violating A4 (Explicit Authority) and falsifying the core safety claim. The doc asserts that `install` 'renders only' and 'the fleet keeps running the OLD config until it runs reload'. However, because the bash driver dynamically sources `~/.config/ailang/mission-<name>.env` on every execution (as affirmed in 'Composability'), overwriting this file in-place during `install` causes the live fleet to pick up the new environment variables on its very next loop interval, silently bypassing `reload`. Config application is therefore not deferred.
   - oc-glm-5-2: The doc calls extending `internal/daemon/install.go` 'the single most important finding of the inventory' and claims 'the renderer and installer shrink to an extension of internal/daemon/install.go,' but V12 only verifies that install.go exists with certain exported functions — it does NOT verify that the embedded `plist.tmpl` can render a mission plist. A coordinator-daemon plist and a mission plist have structurally different requirements (StartInterval vs keepalive, mission-specific EnvironmentVariables, ProgramArguments pointing at mission-control.sh with per-mission args, boot-offset). The doc simultaneously lists `internal/mission/render.go` as 250 LOC of new code, contradicting the claim that 'the renderer ... shrinks to an extension.' The actual reuse is limited to the install/uninstall/status lifecycle, not the rendering path, which means the 'extend do not duplicate' decision is overclaimed and the premise driving it is unverified.
+
+## 331 — 2026-09-05 — The cache key now describes the bytes the lexer actually parsed, and the one red that stopped it was a CI gate my own gate list never contained [PRODUCT]
+
+**Pick.** The queue head, `m-compile-cache-unverified-artifacts`, [IN-SPRINT] since iteration 329
+with the resume predicate *"execute M2"*. No design and no planning work was owed — the doc landed
+at 328 and the verified 4-milestone plan at 329 — so the designer and the planner were **not
+spawned**. That is a routing call, not an omission: the Fable budget is unspent and the rotation
+pointer stays at `codex:gpt-6-astra`. `D-55` is still `OPEN` and its default (a) remains applied as a
+controller routing call, exactly as at 329 and 330.
+
+**Outcome. LANDED — M2 of 4.** PR [#1053](https://github.com/sunholo-data/ailang/pull/1053) → squash
+[`f5edd569a`](https://github.com/sunholo-data/ailang/commit/f5edd569a), from three commits:
+[`41320c8ff`](https://github.com/sunholo-data/ailang/commit/41320c8ff) (the milestone),
+[`089ae50f2`](https://github.com/sunholo-data/ailang/commit/089ae50f2) (the judge's finding) and
+[`ca3b63085`](https://github.com/sunholo-data/ailang/commit/ca3b63085) (the CI red). The loader
+retains the exact bytes it hands the lexer as an immutable `SourceContent *string`; the pipeline
+hashes `*mod.SourceContent` and the opportunistic second `os.ReadFile` with its empty-string default
+is gone. A module with no snapshot bypasses both cache lookup and publication, emits
+`CACHE_SOURCE_UNAVAILABLE`, and is never hashed as `""`. Issue
+[#1046](https://github.com/sunholo-data/ailang/issues/1046) deliberately stays **OPEN** — M2 is two
+of four.
+
+**Progress.** N = **13** design docs remaining before v1.0.0 (was 13, **±0**). **Goal unmoved.** A
+doc leaves the count when it LANDS, is ruled out, or is re-scored off the bar; this one is halfway
+through its milestones. What moved is that the confirmed, public, user-facing correctness defect is
+now half fixed in `dev`, and that the count can fall in two more milestones rather than three.
+
+**THE SUBSTANCE: BASELINING PROTECTS A GATE LIST FROM BEING RED; IT SAYS NOTHING ABOUT A GATE THE
+LIST DOES NOT CONTAIN.** I did the thing false-green (4) asks for — every command I wrote into the
+executor directive was run on the pristine base first, and I recorded which were expected-red
+(the cumulative M2 gate, failing on the missing test name) and which were expected-green
+(both single-test acceptance commands, i.e. regression controls rather than new proof). All of them
+passed on the milestone. CI then went red on **`make check-home-isolation`**, which was nowhere on
+my list: T7's fixture set `HOME` directly, and `os.UserHomeDir` reads `USERPROFILE` on Windows and
+`$home` on plan9, so a bare `HOME` override silently leaves those platforms pointed at the runner's
+real profile. The repo has a gate for exactly that and a helper (`testutil.SetHomeDir`) that does it
+properly.
+
+That is rule 3g — *your local gate sweep is a hand-picked subset* — and the pairing with 3e(a) is
+what is worth recording, because the two rules protect against opposite failures and I had only run
+one of them. 3e(a) asks *"is this command already red before I start?"*; 3g asks *"is this the set of
+commands that will judge me?"* A perfectly baselined list can still be a short list, and a short
+list is invisible: it produces an all-green sweep. The remedy is the one 3g already names and I had
+not applied — DERIVE the job's command list rather than remember it. Parsing `.github/workflows/ci.yml`
+for the `test` job's `run:` steps yields **57** entries; I then ran the eight the diff could
+plausibly break (`check-boundaries`, `check-referenced-paths`, `check-git-exec`,
+`check-no-personal-email`, `check-changelog`, `check-context-docs`, `test-coverage-gate`,
+`check-golden-drift`) — all green, and I had run none of them either. One CI cycle, ~24 minutes,
+bought for a `python3` one-liner I could have run before the executor started.
+
+**THE JUDGE'S FINDING: "BYPASSES PUBLICATION" MEANT *FAILS TO PUBLISH*, NOT *NEVER ATTEMPTS*.**
+Evaluator `sonnet`, in its own worktree at the exact sprint commit, **PASS 96/100 round 1, zero
+blocking**. It reproduced all four of the plan's named mutations, and then — anchoring its
+enumeration to `git show` rather than to the plan's table (rule 3n) — found that deleting
+`&& moduleCacheKey != ""` from the publication guard left the **whole `internal/pipeline` package
+green**. I reproduced that first-party before acting on it (rule 3b applies to a judge as much as to
+any other sub-agent): with the clause removed, the cumulative gate still prints all ten `PASS` lines.
+The system was safe anyway, but one layer below where the design describes the invariant — a
+nil-source module DOES reach `cacheRuntime.publish`, and only M1's `StoreArtifacts` empty-key
+rejection stops it, emitting `CACHE_WRITE_FAILED` on the way out. The design says such a module
+"bypasses BOTH cache lookup and publication", which means *never attempts*. One arm now pins that
+reading, and it was proven the **sole** killer of the mutation: with the clause removed the whole
+package fails on exactly one subtest, with it restored the package is green and `pipeline_module.go`
+is byte-identical (`sha256 62693b2f…`). Note the shape — the judge found the gap by asking what the
+milestone *ships*, and the four planned mutations all ask what it *fixes*. That is now two
+consecutive iterations where rule 3n produced the iteration's only real finding.
+
+**Ruled out / corrected.**
+
+- **A red that is non-required is not thereby inherited.** SonarCloud is `fail` on #1053:
+  `new_maintainability_rating` **4** against a threshold of 1, six `go:S3776` cognitive-complexity
+  smells, with zero bugs, zero vulnerabilities, zero duplication and **100.0%** coverage on new code.
+  My first instinct was the standing-red reading — Gate 1 records a period when Sonar was `failure`
+  for six consecutive commits — and the control refutes it: M1's PR `#1051` reads `pass` on the same
+  check and `dev`'s own branch gate reads `OK`. So this red is NEW and it is mine. It did not gate
+  the merge (`UNSTABLE` is not `BLOCKED`, and all four required contexts passed), and I filed it as
+  `m-cachesrc-cognitive-complexity` rather than fixing it, because five of the six smells are on test
+  functions and the sixth is `runModuleWithCacheDependencies` at **112** — a function already near
+  that ceiling before M2 touched it, which Sonar counts only because its lines changed. Extracting
+  its control flow after the judge has passed the code, in the exact function M3 and M4 both re-enter,
+  is a worse trade than a row carrying the measurement. The row says so explicitly, because the next
+  two milestones will inherit this red and cannot otherwise tell it from one of their own.
+- **The `.claude/skills/mission-control/resources/codex-lane-false-greens.md` resource carries
+  false-green (5) TWICE**, near-verbatim, ~35 lines apart (`grep -c 'FALSE-GREEN (3) SAYS A GATE
+  VERDICT FROM INSIDE THE SANDBOX IS NOT EVIDENCE'` = 2). Almost certainly an artifact of the
+  2026-09-04 split out of `SKILL.md`. Not spent as this iteration's skill edit: it is one friction,
+  not two, and the Gate-5 bar is ≥2 recorded frictions pointing at the same gap. Recorded here so a
+  second sighting clears the bar rather than being rediscovered.
+- **A concurrent attended session landed a four-milestone `m-mission-loop-workbench` sprint to `dev`
+  during this iteration** (`a9de67fe6`…`6536cfb98`, plus two blocked quorum records appended to this
+  very log). Not mine, not a sibling loop's, and no conflict — my record is an append and my code
+  touches no file it touches. Noted because a reader of this log will find two quorum blocks between
+  iteration 330's entry and this one that belong to neither.
+
+**Routing evidence.** `resolve-role-spawn.sh` run for all four roles and its output used verbatim.
+Designer `recipe claude:claude-fable-5-1` and planner both **NOT SPAWNED** — nothing to author, nothing
+to plan. Executor `recipe codex:gpt-5.6-sol declared:provider-pin`: probe rc=0, one bounded sandboxed
+run under the 30-minute cap, zero git writes, directive delivered with the ≥200-byte assertion and
+closed stdin, `.snap/M2/` verified **byte-identical to the worktree for all five files** before I
+built the commit. Evaluator `agent-tool sonnet declared:alias-pin`, in its **own** worktree —
+generator≠judge holds by vendor as well as by model: OpenAI wrote the code, Anthropic judged it.
+`metered=$0.00` of the $5 ceiling; every lane rode a subscription or quota bucket and no quorum round
+ran. No GPU, no `rig.lock`. **The planner resolver disagreement reproduces for a fifth time** —
+`resolve-role-spawn.sh planner <doc>` returns `agent-tool opus fail-closed:planner-lane-field-missing`
+and `derive-planner-lane.sh` agrees — measured but not routed on, since no planner was owed. The row
+stays queued and the durable fix is still in the TOOL.
+
+**Next.** M3 — complete compilation-cache clearing (0.5 d), then M4. The cumulative runner already
+accepts `M3` and `M4` as boundary arguments, so each milestone inherits every earlier one's named
+tests by construction. Three things to carry forward: M4's sandbox-viability claim still wants an
+out-of-sandbox confirmation at execution time; the Sonar row above will still be red when M3 lands
+unless it is picked up; and if `D-55` is answered (b) or (c) the plan's scope section is revised
+before any further code.
