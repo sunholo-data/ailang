@@ -120,23 +120,25 @@ func TestValidate_RejectsBadFields(t *testing.T) {
 	}
 }
 
-// Mutation coverage, and read the platform qualifier — it is the whole point.
-// Deleting the check turns the Windows-path arm red EVERYWHERE, including here.
-// Reverting to filepath.IsAbs turns the POSIX arm red ONLY on a real Windows
-// runtime: on darwin and linux filepath.IsAbs IS strings.HasPrefix(p, "/") —
-// literally the same function — so this test is green under that mutation on
-// every machine a contributor develops on. Measured: reverted, both arms pass on
-// darwin. The safety net for that regression is `test-windows` and
-// `Build windows-latest`, and nothing else. A green local `go test ./...` after
-// touching the workdir check therefore proves nothing about Windows.
-func TestValidate_WorkdirUsesPOSIXAbsoluteSemantics(t *testing.T) {
+// The workdir check exists to reject a RELATIVE path (and the ~-form, above). It must
+// do that identically on every platform, which is the part that broke: filepath.IsAbs
+// alone rejects "/Users/..." on Windows — every real rig workdir — and a POSIX-only
+// check alone rejects the fleet fixtures' own t.TempDir() there. Both arms are needed.
+//
+// Mutation coverage: deleting the check turns "relative" red on every platform, and
+// dropping EITHER arm turns one of the two absolute cases red on Windows only — which
+// no local run can observe. `test-windows` and `Build windows-latest` are the sole
+// safety net for that half; a green `go test ./...` on darwin proves nothing about it.
+func TestValidate_WorkdirAbsolutenessIsPlatformNeutral(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		workdir string
 		wantErr bool
 	}{
-		{"POSIX path", "/Users/x", false},
-		{"Windows path", `C:\Users\x`, true},
+		{"POSIX absolute — what the rig produces", "/Users/x", false},
+		{"host absolute — what the fleet fixtures build", t.TempDir(), false},
+		{"relative — the case the check is for", "repos/alpha", true},
+		{"bare name", "alpha", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			m := Mission{
@@ -146,8 +148,7 @@ func TestValidate_WorkdirUsesPOSIXAbsoluteSemantics(t *testing.T) {
 				Doc:     "design_docs/parse-mission.md",
 				Sched:   Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 10800},
 			}
-			err := m.Validate()
-			if (err != nil) != tc.wantErr {
+			if err := m.Validate(); (err != nil) != tc.wantErr {
 				t.Fatalf("Validate() error = %v, wantErr %v", err, tc.wantErr)
 			}
 		})
