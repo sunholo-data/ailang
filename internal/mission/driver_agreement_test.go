@@ -119,3 +119,58 @@ func TestDriverDoesNotReadoptTheHandMaintainedReachTable(t *testing.T) {
 		t.Error("the driver should point a reader at `ailang mission list` where the table used to be")
 	}
 }
+
+// knownDriverCopies is a RATCHET, not a target.
+//
+// There are two real copies of mission-control.sh today: the shared one, and world's
+// fork in a separate GitHub repo. The fork is what this programme exists to remove,
+// but removing it needs a decision about the pin (pin-root re-execs
+// $wt/tools/launchd/<script> from a worktree of the WORK repo, so pinning world at all
+// requires driver-root and work-dir to be decoupled — the same machinery
+// m-driver-pin-rollout is parked on). Until that lands, this test holds the line: the
+// count may FALL, never rise. A third copy is how this became a problem in the first
+// place.
+const knownDriverCopies = 2
+
+func TestDriverCopiesDoNotMultiply(t *testing.T) {
+	roots := []string{
+		filepath.Join("..", "..", "tools", "launchd", "mission-control.sh"),
+		filepath.Join("..", "..", "..", "ailang-world", "tools", "launchd", "mission-control.sh"),
+		filepath.Join("..", "..", "..", "ailang-docs", "tools", "launchd", "mission-control.sh"),
+		filepath.Join("..", "..", "..", "ailang-motoko", "tools", "launchd", "mission-control.sh"),
+	}
+	// A clone that merely MIRRORS the shared repo is not a separate copy — motoko and
+	// docs are clones of sunholo-data/ailang and re-exec from the pin, so their file
+	// is the same code by construction. Only a driver in a DIFFERENT repo counts.
+	shared, err := os.ReadFile(roots[0])
+	if err != nil {
+		t.Skipf("shared driver unreadable: %v", err)
+	}
+	distinct := 1 // the shared one
+	var forks []string
+	for _, r := range roots[1:] {
+		body, rerr := os.ReadFile(r)
+		if rerr != nil {
+			continue // that clone is not on this machine
+		}
+		if string(body) == string(shared) {
+			continue // an exact mirror, kept in step by the pin
+		}
+		// A clone of the SAME repo may legitimately lag; only count one that cannot
+		// be reached by the pin at all, i.e. has no pin-root helper beside it.
+		if _, herr := os.Stat(filepath.Join(filepath.Dir(r), "lib", "pin-root.sh")); herr == nil {
+			continue
+		}
+		distinct++
+		forks = append(forks, r)
+	}
+	if distinct > knownDriverCopies {
+		t.Errorf("driver copies grew to %d (%v). A new fork is how world became invisible to "+
+			"every routing fix; add it to the de-fork plan rather than raising this constant.",
+			distinct, forks)
+	}
+	if distinct < knownDriverCopies {
+		t.Errorf("driver copies FELL to %d — good, but lower knownDriverCopies to %d so the "+
+			"ratchet keeps holding at the new level", distinct, distinct)
+	}
+}

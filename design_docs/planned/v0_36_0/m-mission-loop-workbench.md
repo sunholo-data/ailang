@@ -279,11 +279,28 @@ from what is *installed* (not from the repo copies — the installed ones are wh
 each divergence deliberately under HD-3(c), then `install` each. Deletes the reach comment table.
 This phase is where V5 gets fixed on purpose rather than in passing.
 
-**Phase 3 — De-fork world + parameterise the suites (1d).** Point world's plist at the shared
-driver, settle the pinned-workdir question the dry run surfaced (the pin resolved
-`workdir=~/.ailang-driver-pin/world`, an ailang worktree, while world's mission repo is
-`ailang-world`), delete the fork, and add the invariant test. Rewrite the bash suites to iterate
-the registry.
+**Phase 3 — De-fork world + parameterise the suites.** The suites are parameterised
+(done); the de-fork needs one more decision, and the mechanism is now measured rather
+than assumed.
+
+**MEASURED 2026-09-06: de-forking world is not a plist repoint.** `pin-root.sh` ends in
+`exec /bin/bash "$wt/tools/launchd/$script"` — it re-execs the driver *from inside a
+pinned worktree of `$REPO`*, and `$REPO` is the mission's WORK repo. The pin therefore
+assumes driver-source and work-repo are the same, which for world they are not. Three
+options:
+
+| | Cost | Effect |
+|---|---|---|
+| **(a) Point world's plist at the shared driver with `MISSION_WORKDIR=<ailang-world>` — RECOMMENDED** | ~1 line + deleting a 1029-line fork | world inherits every shared fix automatically. It stays UNPINNED — but it is unpinned today too (no `pin-root.sh` in `ailang-world`), so this is **no regression**, and it makes the pin a later improvement rather than a prerequisite. Verified: the shared driver runs world's profile end to end, reaching the overlap guard. |
+| (b) Decouple driver-root from work-dir in `pin-root.sh` | touches the pin for all four missions | The correct end state, and world gets a pinned work tree. Same machinery `m-driver-pin-rollout` is parked on, which is a reason for caution, not for skipping it. |
+| (c) Move the world mission into the `ailang` repo | largest | Removes the two-repo problem at the root; relocates world's charter and logs. |
+
+Recommend **(a) now, (b) as its own doc**. (a) captures the value — no more hand-porting
+every driver fix to world — at low risk, and makes (b) a pure improvement.
+
+**Not executed 2026-09-06 because world was mid-iteration (pid 49355)**; swapping a
+driver out from under a running bash is the hazard Gate 3 of the mission-loop-change
+skill exists for.
 
 ### Files to Modify/Create
 

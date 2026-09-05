@@ -463,5 +463,32 @@ else
 fi
 
 echo ""
+# ─── REGISTRY-PARAMETERISED ARMS (M-MISSION-LOOP-WORKBENCH Phase 3) ──────────
+# Every mission in missions/ is checked here. Adding a mission adds its coverage with
+# NO new test file — which is the point: the suites used to hardcode one mission's env
+# path (docsenv), so a fifth mission would have been silently uncovered.
+for _mtoml in "$ROOT"/missions/*.toml; do
+  [ -e "$_mtoml" ] || continue
+  _mname=$(sed -n 's/^name[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' "$_mtoml" | head -1)
+  [ -n "$_mname" ] || { bad "registry entry $_mtoml declares a name" "no name field"; continue; }
+  ok "registry entry $_mname parses"
+
+  # Every entry must name a schedule mode the renderer can render.
+  _mmode=$(sed -n 's/^mode[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' "$_mtoml" | head -1)
+  case "$_mmode" in
+    keepalive|interval) ok "$_mname schedule mode is renderable ($_mmode)" ;;
+    *) bad "$_mname schedule mode is renderable" "got '$_mmode'" ;;
+  esac
+
+  # THE SCOPE CUT, enforced in the shell suite too: role/model assignment belongs to
+  # M-MODEL-REGISTRY-SINGLE-SOURCE, not here.
+  if grep -q '^\[roles\]' "$_mtoml"; then
+    bad "$_mname declares no [roles] block" "a [roles] block would be a second source of model assignment"
+  else
+    ok "$_mname declares no [roles] block"
+  fi
+done
+
+
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]
