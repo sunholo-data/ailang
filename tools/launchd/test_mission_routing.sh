@@ -24,15 +24,14 @@ driver="$ROOT/tools/launchd/mission-control.sh"
 # FLEET (Mark 2026-08-26, attended): codex KEEPS both primary roles; the Ollama
 # Cloud lanes sit at the FIRST FALLBACK. Asserting the primaries explicitly so a
 # future promotion has to be deliberate rather than accidental.
-# AMENDED 2026-09-05 (Mark, attended): the codex MODEL at the head of both roles
-# moves gpt-5.6-sol -> gpt-6-astra. The 08-26 shape is unchanged — codex still
-# keeps both primaries and the pi lanes still sit at the first fallback — so this
-# updates WHICH codex model, not the routing shape. The assertion above did its
-# job: this promotion had to come here and be deliberate.
-grep -q 'MISSION_EXECUTOR_MODEL:-codex:gpt-6-astra' "$driver" \
-  && ok "executor primary is Codex Astra" || bad "executor primary is Codex Astra" "missing default"
-grep -q 'MISSION_PLANNER_MODEL:-codex:gpt-6-astra' "$driver" \
-  && ok "planner primary is Codex Astra" || bad "planner primary is Codex Astra" "missing default"
+# RE-AFFIRMED 2026-09-05 (Mark, attended): astra goes IN THE CHAIN and does NOT
+# take a primary. These two arms were briefly flipped to astra earlier the same
+# day and are restored — sol keeps both primaries on months of in-role track
+# record, against astra's single fizzbuzz round-trip and an rc=0 probe.
+grep -q 'MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol' "$driver" \
+  && ok "executor primary remains Codex Sol" || bad "executor primary remains Codex Sol" "missing default"
+grep -q 'MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol' "$driver" \
+  && ok "planner primary remains Codex Sol" || bad "planner primary remains Codex Sol" "missing default"
 # The fallback chains must stay `pi:*`-headed. A `codex:*` value here would run
 # UNPROBED — the codex loop hands off to a value that only the *pi* loop probes —
 # which is the "pin running unprobed on World" defect ailang#611 fixed. This is the
@@ -213,16 +212,16 @@ grep -q '_chain_head()' "$driver" && grep -q 'CHAIN_REMAINING' "$driver" \
 grep -q 'MISSION_EVALUATOR_FALLBACK:-pi:ollama/\(kimi\|deepseek\)' "$driver" \
   && bad "evaluator vendor is distinct from planner/executor" "evaluator shares a VENDOR with a generator" \
   || ok "evaluator vendor is distinct from planner/executor"
-# AMENDED 2026-09-05 (Mark, attended): astra leads the controller fallback chain.
-# Both arms matter and they are NOT the same claim: the first pins the promotion,
-# the second pins that sol was RETAINED directly behind it. Sol's presence is what
-# makes the change reversible in behaviour — an astra outage degrades to exactly
-# the pre-09-05 controller, rather than skipping a generation to the GLM rungs.
-# Drop sol and the second arm reddens, which is the point.
-grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-6-astra' "$driver" \
-  && ok "controller fallback leads with Codex Astra" || bad "controller fallback leads with Codex Astra" "missing fallback"
-grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-6-astra,codex:gpt-5.6-sol' "$driver" \
-  && ok "Codex Sol retained directly behind Astra" || bad "Codex Sol retained directly behind Astra" "astra outage would skip sol"
+# AMENDED 2026-09-05 (Mark, attended): astra is ADDED to the controller chain
+# BEHIND sol, not ahead of it. Two arms, and they are different claims: the first
+# is the pre-existing guarantee that sol still LEADS the chain (it must not be
+# displaced); the second is that astra sits immediately behind it. Order is the
+# whole point of this change — reversing them would make astra the effective
+# codex controller, which is exactly what Mark declined.
+grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol' "$driver" \
+  && ok "controller fallback still leads with Codex Sol" || bad "controller fallback still leads with Codex Sol" "sol displaced from the head"
+grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol,codex:gpt-6-astra' "$driver" \
+  && ok "Codex Astra is the rung directly behind Sol" || bad "Codex Astra is the rung directly behind Sol" "astra missing or out of order"
 
 "$ROOT/scripts/mission_decisions.sh" --check --file "$ROOT/design_docs/v1-mission.md" >/dev/null \
   && ok "decision ledger validates" || bad "decision ledger validates" "invalid"
