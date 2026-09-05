@@ -1,6 +1,12 @@
 # M-MISSION-LOOP-WORKBENCH: One Registry, Generated Artifacts, and a Command That Answers "Does This Reach Mission X?"
 
-**Status**: Planned — **AWAITING RATIFICATION, quorum-blocked twice, and SCOPE-CUT after review.**
+**Status**: **RATIFIED for Phase 1 — HD-1, HD-3, HD-4 and the role-config question decided by
+Mark, attended 2026-09-05.** HD-1(a) one TOML per mission in `missions/`; HD-3(c) refuse on
+un-registered edits; role config **passes through verbatim** and M8 stays parked; HD-4(b) decided
+by Claude (refuse on a live pidfile, `--force` escape hatch). **HD-2 (de-fork ordering) is NOT
+ratified and is not needed** — the ratified sprint is Phase 1 only. Quorum-blocked twice with all
+six objections addressed in-doc and unreviewed; Mark ratified with that stated.
+**Previously**: quorum-blocked twice, and SCOPE-CUT after review.
 **Scope cut 2026-09-05 (Mark: "is this in addition to the other mission design doc we have?"):**
 the answer was five live mission-machinery docs, not two, and this one had duplicated a ratified
 decision. The `[roles]` block is **removed** — role/model assignment belongs to the ratified
@@ -152,11 +158,12 @@ whose reach and effect are machine-checkable before they run.
 
 Sprint planning starts only when these are checked:
 
-- [ ] HD-1 ratified (registry format and home)
-- [ ] HD-2 ratified (de-fork ordering)
-- [ ] HD-3 ratified (clobber semantics — note (c) is the only non-destructive first run)
-- [ ] HD-4 ratified (busy-mission policy for `reload`)
-- [ ] Confirmed: the driver's *runtime* behaviour is out of scope (see Non-Goals)
+- [x] **HD-1(a)** — one TOML per mission in `missions/` (Mark, attended 2026-09-05)
+- [ ] HD-2 — de-fork ordering. **Deliberately NOT ratified**: Phase 3 only, not in the ratified sprint.
+- [x] **HD-3(c)** — refuse on un-registered edits; converges without discarding world's 65 divergent lines (Mark, attended 2026-09-05)
+- [x] **HD-4(b)** — refuse on a live pidfile, `--force` escape hatch (decided by Claude, low stakes, per the deferred-decisions latitude)
+- [x] **Role config passes through verbatim; M8 stays parked** (Mark, attended 2026-09-05)
+- [x] Confirmed: the driver's *runtime* behaviour is out of scope (see Non-Goals)
 
 ## Solution Design
 
@@ -398,7 +405,18 @@ seeds in the same pass.
 ## Related Documents
 
 - [M-MISSION-COMMS-INTO-THE-BINARY](m-mission-comms-into-the-binary.md) — the comms seam. Complementary in *purpose*: it leaves "the rest of the driver" alone and establishes the extraction pattern; this applies that pattern to configuration and topology. **The first draft claimed "no file overlap". That was false and unverified — `oc-glm-5-2` blocked on it, correctly.** The measured overlap and its ordering are in the Conflict Surface below.
-- [M-MODEL-REGISTRY-SINGLE-SOURCE](../v0_35_0/m-model-registry-single-source.md) — **RATIFIED, and it owns role/model assignment.** Found only after this doc's first draft: the create-script's neural search scored it 0.41, below the 0.45 review threshold, because the two docs share almost no vocabulary while sharing a surface. The `[roles]` block was cut in response (V19). **Ordering: that doc lands first**; this one then generates an env file with no model content at all.
+- [M-MODEL-REGISTRY-SINGLE-SOURCE](../v0_35_0/m-model-registry-single-source.md) — **RATIFIED, and it owns role/model assignment.** Found only after this doc's first draft: the create-script's neural search scored it 0.41, below the 0.45 review threshold, because the two docs share almost no vocabulary while sharing a surface. The `[roles]` block was cut in response (V19). **Ordering CORRECTED 2026-09-05, and it is not what an earlier draft said.** That draft claimed
+"the model registry lands first". False in practice: M1–M7 have **landed** (`internal/modelreg`
+exists, `ailang models role executor` returns a working chain), but **M8 — mission driver
+adoption, the only milestone that would move role config — is PARKED** by Mark 2026-08-27 ("if it
+ain't broken won't fix"). The park note is right on the merits: the driver's routing is *richer*
+than the registry's, and a naive wiring would have silently downgraded the fable designer to opus
+on three live loops.
+
+So this doc cannot defer to a parked path. **Ratified 2026-09-05: the generated env file passes
+role/model lines through VERBATIM.** The registry owns schedule and topology; role config is
+copied, not authored, and carries a marker naming M8 as its future owner. Nothing here blocks on
+the model registry, and nothing here claims ownership of roles.
 - [M-DRIVER-PIN-ROLLOUT](../m-driver-pin-rollout.md) — PARKED at the quorum gate after two blocked rounds. Adjacent to Phase 3, but **not overlapping**: its V18 audit explicitly scopes world OUT — *"`mission-world`: … explicitly not ours (world fork — Non-goals)"*. Phase 3 fills precisely the gap that doc declines. Worth reading before Phase 3 anyway: it is the prior art on pin semantics, and it is parked on a design choice a controller may not invent.
 - [M-MISSION-ELO-ROUTING](../m-mission-elo-routing.md) — PROPOSED. Consumes role assignment to choose lanes by rating; owns no config surface. No overlap.
 - [M-MISSION-SLOT-HEARTBEAT](../v1_0_0/m-mission-slot-heartbeat.md) — slot death attribution. Consumes the slot-verdict log this doc's world port started writing. No overlap.
