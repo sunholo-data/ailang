@@ -341,3 +341,17 @@ The honest division is:
 - **Human workbench:** expose that same state as understandable decisions and consequences.
 
 No World source, charter or queue changes were made. Fresh checks passed: `go test -count=1 ./host/evidence ./host/workbench` and the focused broker `TestRecoverCountingProbeDispatchesZeroHandlers`. These validate the inspected evidence/rendering packages and one recovery property, not the full World release bar, live resident integration, or usability. A complete replay campaign using World's pinned AILANG binary was not run.
+
+
+## Scoped design follow-ups (2026-09-05)
+
+Requested by Mark after the World review; queue admission does not approve implementation.
+
+| Owner | Proposal | Scope |
+|---|---|---|
+| AILANG | [Semantic repair packet](m-semantic-repair-packet.md) | Bounded identity-bound compiler context; child of semantic-context R2–R6 |
+| AILANG | [Lifecycle eval pilot](m-lifecycle-eval-pilot.md) | Opt-in repair/change/restart corpus and controlled measurement |
+| World | `design_docs/planned/w-evidence-applicability.md` | Domain package for current requirement/evidence applicability; World queue 79 |
+| World | `design_docs/planned/w-requirement-change-vertical.md` | Existing inbox/workbench integration episode; World queue 80 |
+
+World owns the shared state and interaction protocol. AILANG supplies compiler facts and the measurement tools. Both World rows await design review/approval; no release bar or existing decision-packet schema changes here.
