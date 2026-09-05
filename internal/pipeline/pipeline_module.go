@@ -25,6 +25,10 @@ import (
 
 // runModuleWithContext runs the pipeline for a module with dependencies
 func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, error) {
+	return runModuleWithCacheDependencies(ctx, cfg, src, productionCacheDependencies())
+}
+
+func runModuleWithCacheDependencies(ctx context.Context, cfg Config, src Source, cacheDeps cacheDependencies) (Result, error) {
 	// DEBUG: if cfg.TraceDefaulting { fmt.Printf("DEBUG: runModule called for %s\n", src.Filename) }
 	result := Result{
 		PhaseTimings: make(map[string]int64),
@@ -225,13 +229,11 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	compiledUnits := make(map[string]*CompileUnit)
 
 	// M-PERF6: Load compilation cache for hit/miss tracking
-	var cacheStore *CacheStore
+	var moduleCache *cacheRuntime
 	var cacheHits, cacheMisses int
 	if !cfg.NoCache {
 		projectDir := filepath.Dir(src.Filename)
-		if cs, err := NewCacheStore(projectDir); err == nil {
-			cacheStore = cs
-		}
+		moduleCache = newCacheRuntime(projectDir, cacheDeps)
 	}
 
 	// M-DX11: Variables to capture root module's type checker and debug sink
@@ -247,7 +249,7 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 
 		// M-PERF6: Compute cache key and check for hits
 		var moduleCacheKey string
-		if cacheStore != nil {
+		if moduleCache != nil && moduleCache.store != nil {
 			// Build dep digests from already-compiled dependencies
 			depDigests := make(map[string]string)
 			for _, imp := range mod.Imports {
@@ -274,10 +276,11 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 			// so bugfixes to elaboration / type-checking / op-lowering take effect without
 			// a manual cache nuke. The source hash and dep digests still catch edits.
 			moduleCacheKey = ModuleCacheKey(version.Commit, sourceContent, depDigests)
-			if entry, ok := cacheStore.Lookup(string(modID), moduleCacheKey); ok {
+			cached, entry, verified := moduleCache.load(string(modID), moduleCacheKey)
+			if verified {
 				cacheHits++
-				// M-INCREMENTAL-TYPECHECK: Try to load cached artifacts and skip compilation
-				if cached, loadErr := cacheStore.LoadArtifacts(string(modID)); loadErr == nil {
+				// M-INCREMENTAL-TYPECHECK: Skip only after the artifact stamp and all payloads verify.
+				if cached != nil {
 					if cfg.DebugCompile {
 						fmt.Fprintf(os.Stderr, "[CACHE] %s: SKIP (cached %s ago)\n", modID, time.Since(entry.Timestamp).Truncate(time.Second))
 					}
@@ -292,14 +295,14 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 					compiledUnits[string(modID)] = unit
 					continue
 				}
-				// Fall through to normal compilation if load fails
-				if cfg.DebugCompile {
-					fmt.Fprintf(os.Stderr, "[CACHE] %s: HIT but load failed, recompiling (compiled %s ago)\n", modID, time.Since(entry.Timestamp).Truncate(time.Second))
-				}
 			} else {
 				cacheMisses++
 				if cfg.DebugCompile {
-					fmt.Fprintf(os.Stderr, "[CACHE] %s: MISS\n", modID)
+					if entry != nil {
+						fmt.Fprintf(os.Stderr, "[CACHE] %s: INVALID, recompiling (compiled %s ago)\n", modID, time.Since(entry.Timestamp).Truncate(time.Second))
+					} else {
+						fmt.Fprintf(os.Stderr, "[CACHE] %s: MISS\n", modID)
+					}
 				}
 			}
 		}
@@ -364,17 +367,18 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		}
 
 		// M-PERF6: Store cache entry after successful compilation
-		if cacheStore != nil && moduleCacheKey != "" {
+		if moduleCache != nil && moduleCache.store != nil && moduleCacheKey != "" {
 			ifaceJSON, _ := unit.Iface.ToNormalizedJSON()
-			cacheStore.Store(string(modID), &CacheEntry{
+			entry := &CacheEntry{
 				CacheKey:      moduleCacheKey,
 				IfaceDigest:   unit.Iface.Digest,
 				IfaceJSON:     ifaceJSON,
 				CompileTimeMs: 0, // TODO: per-module timing
 				Timestamp:     time.Now(),
-			})
-			// M-INCREMENTAL-TYPECHECK: Store full compiled artifacts for skip on next run
-			_ = cacheStore.StoreArtifacts(string(modID), &CachedModule{
+			}
+			// Publish the manifest entry only after all artifacts and their stamp are durable enough
+			// to be reopened and verified. Persistence remains an optional optimization.
+			moduleCache.publish(string(modID), moduleCacheKey, entry, &CachedModule{
 				Core:         unit.Core,
 				CoreTI:       unit.CoreTI,
 				Iface:        unit.Iface,
@@ -419,10 +423,10 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	link.RegisterAdtModule(modLinker)
 
 	// M-PERF6: Save cache and report stats
-	if cacheStore != nil {
-		_ = cacheStore.Save()
+	if moduleCache != nil && moduleCache.store != nil {
+		moduleCache.save()
 		if cfg.DebugCompile {
-			totalEntries, _ := cacheStore.Stats()
+			totalEntries, _ := moduleCache.store.Stats()
 			fmt.Fprintf(os.Stderr, "[CACHE] Summary: %d hits, %d misses (%d modules cached)\n",
 				cacheHits, cacheMisses, totalEntries)
 		}

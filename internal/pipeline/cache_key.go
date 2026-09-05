@@ -21,7 +21,11 @@ import (
 // (tolerant of new/missing fields), so this is a defensive guard against a
 // same-version dev/worktree build decoding a pre-AliasParams blob and treating a
 // parameterized alias as nullary.
-const cacheKeyVersion = "v3"
+//
+// v3 -> v4 (M-COMPILE-CACHE-UNVERIFIED-ARTIFACTS): executable blobs are
+// authorized by a versioned artifacts.json stamp that binds their hashes to the
+// exact module ID and caller-computed cache key.
+const cacheKeyVersion = "v4"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

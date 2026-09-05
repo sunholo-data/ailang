@@ -1,10 +1,9 @@
 package pipeline
 
 import (
-	"bytes"
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
@@ -25,8 +24,12 @@ import (
 
 // CacheStore manages the on-disk compilation cache.
 type CacheStore struct {
-	dir      string
-	manifest *CacheManifest
+	dir            string
+	manifest       *CacheManifest
+	artifactIO     cacheArtifactIO
+	artifactCodec  cacheArtifactCodec
+	artifactLimits artifactLimits
+	writeManifest  func(string, []byte, fs.FileMode) error
 }
 
 // CacheManifest tracks cached module compilation state.
@@ -70,7 +73,13 @@ func NewCacheStore(projectDir string) (*CacheStore, error) {
 		return nil, fmt.Errorf("create cache dir: %w", err)
 	}
 
-	cs := &CacheStore{dir: dir}
+	cs := &CacheStore{
+		dir:            dir,
+		artifactIO:     productionCacheArtifactIO(),
+		artifactCodec:  productionCacheArtifactCodec(),
+		artifactLimits: productionArtifactLimits(),
+		writeManifest:  os.WriteFile,
+	}
 	if err := cs.load(); err != nil {
 		// Corrupted cache — start fresh
 		cs.manifest = &CacheManifest{
@@ -102,7 +111,7 @@ func (cs *CacheStore) Save() error {
 		return fmt.Errorf("marshal manifest: %w", err)
 	}
 	path := filepath.Join(cs.dir, "manifest.json")
-	return os.WriteFile(path, data, 0644)
+	return cs.writeManifest(path, data, 0644)
 }
 
 // Clear removes all cache entries.
@@ -133,106 +142,14 @@ type CachedModule struct {
 }
 
 // StoreArtifacts serializes a CachedModule to disk alongside the manifest.
-// Core program is gob-encoded; CoreTypeInfo, Iface, and Constructors are JSON-encoded.
-func (cs *CacheStore) StoreArtifacts(moduleID string, cm *CachedModule) error {
-	modDir := filepath.Join(cs.dir, "modules", sanitizeModuleID(moduleID))
-	if err := os.MkdirAll(modDir, 0755); err != nil {
-		return fmt.Errorf("create module cache dir: %w", err)
-	}
-
-	// 1. Gob-encode core.Program
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	if err := enc.Encode(cm.Core); err != nil {
-		return fmt.Errorf("gob encode core.Program for %s: %w", moduleID, err)
-	}
-	if err := os.WriteFile(filepath.Join(modDir, "core.gob"), buf.Bytes(), 0644); err != nil {
-		return err
-	}
-
-	// 2. Gob-encode CoreTypeInfo (M-PERF6B: replaced JSON for 3-5x faster deserialization)
-	var ctiBuf bytes.Buffer
-	ctiEnc := gob.NewEncoder(&ctiBuf)
-	if err := ctiEnc.Encode(cm.CoreTI); err != nil {
-		return fmt.Errorf("gob encode CoreTypeInfo for %s: %w", moduleID, err)
-	}
-	if err := os.WriteFile(filepath.Join(modDir, "coretypeinfo.gob"), ctiBuf.Bytes(), 0644); err != nil {
-		return err
-	}
-
-	// 3. JSON-encode Iface (full reconstruction, not just digest)
-	ifaceData, err := marshalIfaceFull(cm.Iface)
-	if err != nil {
-		return fmt.Errorf("marshal Iface for %s: %w", moduleID, err)
-	}
-	if err := os.WriteFile(filepath.Join(modDir, "iface.json"), ifaceData, 0644); err != nil {
-		return err
-	}
-
-	// 4. JSON-encode Constructors
-	ctorData, err := marshalConstructors(cm.Constructors)
-	if err != nil {
-		return fmt.Errorf("marshal Constructors for %s: %w", moduleID, err)
-	}
-	if err := os.WriteFile(filepath.Join(modDir, "constructors.json"), ctorData, 0644); err != nil {
-		return err
-	}
-
-	return nil
+// Core and CoreTypeInfo are gob-encoded; Iface and Constructors are JSON-encoded.
+func (cs *CacheStore) StoreArtifacts(moduleID, cacheKey string, cm *CachedModule) error {
+	return cs.storeArtifacts(moduleID, cacheKey, cm)
 }
 
 // LoadArtifacts deserializes a CachedModule from disk.
-func (cs *CacheStore) LoadArtifacts(moduleID string) (*CachedModule, error) {
-	modDir := filepath.Join(cs.dir, "modules", sanitizeModuleID(moduleID))
-
-	// 1. Gob-decode core.Program
-	coreData, err := os.ReadFile(filepath.Join(modDir, "core.gob"))
-	if err != nil {
-		return nil, fmt.Errorf("read core.gob for %s: %w", moduleID, err)
-	}
-	var prog core.Program
-	dec := gob.NewDecoder(bytes.NewReader(coreData))
-	if err := dec.Decode(&prog); err != nil {
-		return nil, fmt.Errorf("gob decode core.Program for %s: %w", moduleID, err)
-	}
-
-	// 2. Gob-decode CoreTypeInfo (M-PERF6B: replaced JSON for 3-5x faster deserialization)
-	ctiData, err := os.ReadFile(filepath.Join(modDir, "coretypeinfo.gob"))
-	if err != nil {
-		return nil, fmt.Errorf("read coretypeinfo.gob for %s: %w", moduleID, err)
-	}
-	var cti types.CoreTypeInfo
-	ctiDec := gob.NewDecoder(bytes.NewReader(ctiData))
-	if err := ctiDec.Decode(&cti); err != nil {
-		return nil, fmt.Errorf("gob decode CoreTypeInfo for %s: %w", moduleID, err)
-	}
-
-	// 3. JSON-decode Iface
-	ifaceData, err := os.ReadFile(filepath.Join(modDir, "iface.json"))
-	if err != nil {
-		return nil, fmt.Errorf("read iface.json for %s: %w", moduleID, err)
-	}
-	ifc, err := unmarshalIfaceFull(ifaceData)
-	if err != nil {
-		return nil, fmt.Errorf("unmarshal Iface for %s: %w", moduleID, err)
-	}
-
-	// 4. JSON-decode Constructors
-	ctorData, err := os.ReadFile(filepath.Join(modDir, "constructors.json"))
-	if err != nil {
-		return nil, fmt.Errorf("read constructors.json for %s: %w", moduleID, err)
-	}
-	ctors, err := unmarshalConstructors(ctorData)
-	if err != nil {
-		return nil, fmt.Errorf("unmarshal Constructors for %s: %w", moduleID, err)
-	}
-
-	return &CachedModule{
-		Core:         &prog,
-		CoreTI:       cti,
-		Iface:        ifc,
-		Constructors: ctors,
-	}, nil
+func (cs *CacheStore) LoadArtifacts(moduleID, expectedCacheKey string) (*CachedModule, error) {
+	return cs.loadArtifacts(moduleID, expectedCacheKey)
 }
 
 // sanitizeModuleID converts a module ID (e.g., "std/list") to a safe directory name.

@@ -225,12 +225,12 @@ func TestCacheStore_ArtifactRoundTrip(t *testing.T) {
 	}
 
 	// Store
-	if err := cs.StoreArtifacts("test/module", cm); err != nil {
+	if err := cs.StoreArtifacts("test/module", "round-trip-key", cm); err != nil {
 		t.Fatalf("StoreArtifacts failed: %v", err)
 	}
 
 	// Load
-	got, err := cs.LoadArtifacts("test/module")
+	got, err := cs.LoadArtifacts("test/module", "round-trip-key")
 	if err != nil {
 		t.Fatalf("LoadArtifacts failed: %v", err)
 	}
@@ -363,11 +363,11 @@ func TestCacheStore_ArtifactRoundTrip_DiverseExprTypes(t *testing.T) {
 		Constructors: map[string]*ConstructorInfo{},
 	}
 
-	if err := cs.StoreArtifacts("test/diverse", cm); err != nil {
+	if err := cs.StoreArtifacts("test/diverse", "diverse-key", cm); err != nil {
 		t.Fatalf("StoreArtifacts failed: %v", err)
 	}
 
-	got, err := cs.LoadArtifacts("test/diverse")
+	got, err := cs.LoadArtifacts("test/diverse", "diverse-key")
 	if err != nil {
 		t.Fatalf("LoadArtifacts failed: %v", err)
 	}
