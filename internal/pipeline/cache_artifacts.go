@@ -72,6 +72,7 @@ type cacheArtifactIO struct {
 	createTemp func(string, string) (artifactTempFile, error)
 	rename     func(string, string) error
 	remove     func(string) error
+	removeAll  func(string) error
 }
 
 func productionCacheArtifactIO() cacheArtifactIO {
@@ -84,8 +85,9 @@ func productionCacheArtifactIO() cacheArtifactIO {
 		createTemp: func(dir, pattern string) (artifactTempFile, error) {
 			return os.CreateTemp(dir, pattern)
 		},
-		rename: os.Rename,
-		remove: os.Remove,
+		rename:    os.Rename,
+		remove:    os.Remove,
+		removeAll: os.RemoveAll,
 	}
 }
 

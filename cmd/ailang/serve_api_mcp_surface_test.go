@@ -5,10 +5,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -53,6 +55,85 @@ export pure func helper() -> string = "helper"
 			}
 		})
 	}
+}
+
+func TestCompileCacheClear_Artifacts(t *testing.T) {
+	binary := buildAilang(t)
+
+	t.Run("success", func(t *testing.T) {
+		root := t.TempDir()
+		cacheRoot := filepath.Join(root, "isolated-cache")
+		t.Setenv("AILANG_CACHE_DIR", cacheRoot)
+		compileRoot := filepath.Join(cacheRoot, "compile")
+		modulesRoot := filepath.Join(compileRoot, "modules")
+		if err := os.MkdirAll(filepath.Join(modulesRoot, "orphan", "nested"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(modulesRoot, "orphan", "nested", ".artifacts-dead.tmp"), []byte("partial"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		manifest := `{"version":"v4","entries":{"seed":{"cache_key":"key","iface_digest":"digest","compile_time_ms":1,"timestamp":"2026-01-01T00:00:00Z"}}}`
+		if err := os.WriteFile(filepath.Join(compileRoot, "manifest.json"), []byte(manifest), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		compileSentinel := filepath.Join(compileRoot, "keep.txt")
+		cacheSentinel := filepath.Join(cacheRoot, "package-cache", "keep.txt")
+		if err := os.WriteFile(compileSentinel, []byte("keep"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(filepath.Dir(cacheSentinel), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(cacheSentinel, []byte("keep"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		stdout, stderr, exitCode := runAilangBin(t, binary, "cache", "compile-clear")
+		if exitCode != 0 {
+			t.Fatalf("compile-clear exit=%d, want 0; stdout=%q stderr=%q", exitCode, stdout, stderr)
+		}
+		if !strings.Contains(stdout, "Cleared 1 cached compilation entries") {
+			t.Fatalf("success line missing from stdout %q; stderr=%q", stdout, stderr)
+		}
+		if _, err := os.Stat(modulesRoot); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("modules subtree still exists or stat failed: %v", err)
+		}
+		for _, sentinel := range []string{compileSentinel, cacheSentinel} {
+			if data, err := os.ReadFile(sentinel); err != nil || string(data) != "keep" {
+				t.Errorf("sentinel %s changed or removed: data=%q err=%v", sentinel, data, err)
+			}
+		}
+	})
+
+	t.Run("failure has no success line", func(t *testing.T) {
+		root := t.TempDir()
+		cacheRoot := filepath.Join(root, "isolated-cache")
+		t.Setenv("AILANG_CACHE_DIR", cacheRoot)
+		compileRoot := filepath.Join(cacheRoot, "compile")
+		modulesRoot := filepath.Join(compileRoot, "modules", "partial")
+		if err := os.MkdirAll(modulesRoot, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(modulesRoot, "core.gob"), []byte("partial"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		// A directory at the manifest path deterministically makes Save fail on
+		// every supported platform while keeping all writes under t.TempDir.
+		if err := os.Mkdir(filepath.Join(compileRoot, "manifest.json"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		stdout, stderr, exitCode := runAilangBin(t, binary, "cache", "compile-clear")
+		if exitCode == 0 {
+			t.Fatalf("compile-clear exit=0, want nonzero; stdout=%q stderr=%q", stdout, stderr)
+		}
+		if strings.Contains(stdout, "Cleared ") {
+			t.Fatalf("success line printed on failure: stdout=%q stderr=%q", stdout, stderr)
+		}
+		if !strings.Contains(stderr, "Error") {
+			t.Fatalf("failure diagnostic missing: stdout=%q stderr=%q", stdout, stderr)
+		}
+	})
 }
 
 func probeServeAPIMCPTools(t *testing.T, binary, modulePath string, suppress bool) map[string]bool {
