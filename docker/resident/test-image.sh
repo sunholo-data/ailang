@@ -399,15 +399,19 @@ echo "=== 7b. surviving a STOP, not just a restart (M6) ==="
 # A restart keeps the writable layer; the idle sweep's stop/resume does not.
 # That distinction is the whole of M6, and it is only testable by destroying
 # the local layer the way Cloud Run does and booting onto the mount alone.
-# Kill by PATTERN and wait for the port to actually free. `$BOOT` still names
-# the FIRST boot here — section 7 restarts without recapturing it — so killing
-# that pid leaves section 7's server holding 8080, the third boot never binds,
-# and the assertions below read as product failures. They did, on the first run
-# of this section.
+# This boot gets its OWN PORT rather than competing for 8080, because the
+# contention is not worth fighting and twice cost a false negative: `$BOOT`
+# still names the FIRST boot here (section 7 restarts without recapturing it),
+# so killing it left section 7's server holding the port, the third boot never
+# bound, and the two assertions below reported as PRODUCT failures on code the
+# node suite passed. Killing is still attempted, but nothing depends on it.
 pkill -f "server.mjs" 2>/dev/null; pkill -f "boot.sh" 2>/dev/null
 pkill -f "herdr server" 2>/dev/null
-for i in $(seq 1 30); do curl -s localhost:8080/livez >/dev/null 2>&1 || break; sleep 1; done
-have "the previous server really stopped" '! curl -s localhost:8080/livez >/dev/null 2>&1'
+# WAIT for it to be gone before seeding. pkill is asynchronous and the server's
+# own SIGTERM handler checkpoints on the way out, so seeding straight after the
+# signal races that write — and the loser is the fixture this section depends on.
+for i in $(seq 1 20); do pgrep -f "server.mjs" >/dev/null 2>&1 || break; sleep 1; done
+M6_PORT=8081
 mkdir -p "$AGENT_HOME/.resident"
 cat > "$AGENT_HOME/.resident/tasks.json" <<'JSON'
 {"v":2,
@@ -417,14 +421,20 @@ cat > "$AGENT_HOME/.resident/tasks.json" <<'JSON'
  "push":[["task-stopped",{"url":"http://127.0.0.1:1/gone","token":"t"}]]}
 JSON
 rm -rf /home/ailang/.resident/tasks.json          # the stop resets the writable layer
-/usr/local/bin/boot.sh > /tmp/boot3.log 2>&1 &
+RESIDENT_PORT=$M6_PORT /usr/local/bin/boot.sh > /tmp/boot3.log 2>&1 &
 BOOT=$!
-for i in $(seq 1 90); do [ "$(curl -s localhost:8080/livez 2>/dev/null)" = "ok" ] && break; sleep 1; done
+for i in $(seq 1 90); do [ "$(curl -s localhost:$M6_PORT/livez 2>/dev/null)" = "ok" ] && break; sleep 1; done
+# A boot that never bound proves nothing either way, so say WHICH it is rather
+# than letting the two greps below fail for a reason that is not the product's.
+have "the M6 boot came up on $M6_PORT" '[ "$(curl -s localhost:'"$M6_PORT"'/livez)" = "ok" ]'
 have "a stop/resume restores from the mount"  'grep -q "restored 1 task(s) from checkpoint" /tmp/boot3.log'
 # The silent hang M6 closes: without this the caller was told an answer would
 # arrive, the poll had already given up, and nothing would ever speak again.
 have "an interrupted run is terminalised"     'grep -q "reaped 1 task(s) interrupted by a restart" /tmp/boot3.log'
-have "  ...and an unreachable webhook is survived" '[ "$(curl -s localhost:8080/livez)" = "ok" ]'
+# The webhook in the seeded task points at a dead port. Reaping must survive
+# that: the terminal state is not best-effort, only the notice is.
+have "  ...and an unreachable webhook is survived" '[ "$(curl -s localhost:'"$M6_PORT"'/livez)" = "ok" ]'
+grep -q "restored 1 task(s) from checkpoint" /tmp/boot3.log || { echo "  --- boot3.log ---"; sed 's/^/    /' /tmp/boot3.log | tail -25; }
 
 cleanup; sleep 1
 echo
