@@ -226,7 +226,6 @@ func TestDoctor_IsReadOnly(t *testing.T) {
 	env := "MISSION_NAME=alpha\nMISSION_REPO=sunholo-data/ailang\nMISSION_DOC=d.md\n"
 	f.addMission("alpha", sharedDriverRepo, Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 5400}, env, "", true)
 
-	snap := map[string]os.FileInfo{}
 	walk := func() map[string]os.FileInfo {
 		out := map[string]os.FileInfo{}
 		_ = filepath.Walk(f.root, func(p string, fi os.FileInfo, err error) error {
@@ -237,7 +236,7 @@ func TestDoctor_IsReadOnly(t *testing.T) {
 		})
 		return out
 	}
-	snap = walk()
+	snap := walk()
 	f.run()
 	after := walk()
 	if len(after) != len(snap) {

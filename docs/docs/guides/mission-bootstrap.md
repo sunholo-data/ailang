@@ -15,7 +15,7 @@ description: Point AILANG's autonomous mission loop at another repo — driver, 
 > ```
 >
 > `install` RENDERS ONLY; it writes nothing the fleet reads. Promotion (`apply`) is
-> Phase 2 of [M-MISSION-LOOP-WORKBENCH](../../../design_docs/planned/v0_36_0/m-mission-loop-workbench.md)
+> Phase 2 of [M-MISSION-LOOP-WORKBENCH](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_36_0/m-mission-loop-workbench.md)
 > and is not implemented yet, so the manual steps below are still how a change reaches
 > the fleet. Read `doctor` first: on 2026-09-05 it reported that two of four missions
 > were running config that disagreed with the reviewed copy in the repo.
