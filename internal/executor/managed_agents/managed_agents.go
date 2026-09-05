@@ -258,11 +258,17 @@ func (e *Executor) ExecuteStreaming(
 		turns = 1
 	}
 	res := &executor.Result{
-		Output:      state.Text.String(),
-		DurationMS:  int(duration.Milliseconds()),
-		NumTurns:    turns,
-		SessionID:   state.InteractionID,
-		InputTokens: state.Usage.TotalInputTokens,
+		Output:     state.Text.String(),
+		DurationMS: int(duration.Milliseconds()),
+		NumTurns:   turns,
+		SessionID:  state.InteractionID,
+		// FRESH input, not the cache-inclusive total. executor.Result's contract
+		// (see eval_harness/agent_runner_multi.go: "result.InputTokens is FRESH
+		// input here ... the two arguments stay disjoint and no token is billed
+		// twice") requires InputTokens and CacheReadInputTokens to be DISJOINT.
+		// Reporting the inclusive total here would double-count every cached
+		// token downstream — the same defect this change fixes in the cost call.
+		InputTokens: state.Usage.FreshInputTokens(),
 		// Kept DISJOINT: thought tokens live in ReasonTokens, not folded into
 		// OutputTokens. Merging them made thinking invisible downstream and, now
 		// that TotalTokens counts reasoning, would double-count it.
@@ -287,7 +293,7 @@ func (e *Executor) ExecuteStreaming(
 	// top of input cost, so passing the cache-inclusive total would bill the
 	// cached tokens at both rates.
 	res.CostUSD = cm.CalculateCost(executor.TokenUsage{
-		InputTokens:          state.Usage.FreshInputTokens(),
+		InputTokens:          res.InputTokens, // already fresh, see above
 		OutputTokens:         res.OutputTokens + res.ReasonTokens,
 		CacheReadInputTokens: res.CacheReadInputTokens,
 	})

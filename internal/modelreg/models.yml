@@ -1407,6 +1407,63 @@ models:
   # The full gate record, including what was RETRACTED at N=3, is in the
   # extended_suite annotation — read that before re-litigating this row.
   # Google Gemini 3.8 Flash (released September 2, 2026)
+  # Vertex Managed Agents — DELIBERATELY VERSION-FREE (added 2026-09-02, Mark's design)
+  managed-agents-antigravity:
+    api_name: "antigravity-preview-05-2026"
+    provider: "google"
+    default_thinking: "unknown"   # the model is undiscoverable; see notes. NOT a guess-worthy field.
+    description: "Vertex Managed Agents (antigravity) — agent lane that tracks whatever model Google runs; version-free by design"
+    env_var: ""  # Vertex ADC (gcloud auth application-default login)
+    agent_cli: "managed_agents"
+    agent_model_name: "antigravity-preview-05-2026"
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    max_output_tokens: 65536
+    pricing:
+      # Billed as the model Google runs behind the agent. Rates below track
+      # gemini-3.5-flash, the last publicly stated model for this agent; they are
+      # a BEST-AVAILABLE proxy, not a verified rate for whatever runs today.
+      input_per_1k: 0.0015     # $1.50 per 1M fresh input
+      output_per_1k: 0.009     # $9.00 per 1M (thought tokens bill here too)
+      cache_read_per_1k: 0.00015  # $0.15 per 1M — measured live 2026-09-02; see notes
+    budgets:
+      max_cost_usd: 2.00
+      hard_timeout_secs: 900
+    notes: |
+      WHY THIS ROW HAS NO VERSION IN ITS NAME (the whole point):
+      `agent` is a stable SERVER-SIDE identity. Google upgrades the model behind
+      it without renaming, and the model is UNDISCOVERABLE by three independent
+      routes, all probed 2026-09-02:
+        1. The /interactions response carries NO model/version field anywhere
+           (recursive walk of the full JSON: zero matches).
+        2. `agent_config.model` is ACCEPTED BUT IGNORED — "bogus-model-xyz"
+           returns HTTP 200 and the interaction runs to completion. Contrast
+           `agent`, which IS validated: a bogus agent name returns 404 "Agent
+           not found". So acceptance of a model name proves nothing.
+        3. Asked to self-identify, the agent searched its own sandbox (env,
+           find / -name "*gemini*", model/metadata files), found nothing, and
+           answered "gemini-1.5-pro, November 2024" — certainly false.
+      Therefore any row claiming "<specific model> in agent mode" would be
+      labelling Google's choice with our guess, and its longitudinal series would
+      silently change meaning at every upgrade. This row measures THE LANE.
+      Read a jump in its series as "Google changed something", never as a
+      generational comparison.
+
+      Agent-name probe 2026-09-02: antigravity-preview-05-2026 is the ONLY public
+      agent. -08-2026, -09-2026, "antigravity" and "antigravity-latest" all 404.
+      The "05-2026" suffix looks stale but is current — it is the agent's
+      identity, not a model version.
+
+      CACHING WORKS ON THIS PATH, WITH TOOLS (falsifies the old gemini-3-5-flash
+      header claim; see that row). Live probes:
+        unique prompt + 6 tool calls -> 28,378 of 41,332 input cached (68.7%)
+        repeated prompt, no tools    -> 5,350 of 13,107 input cached (40.8%)
+      Multi-turn agents cache WELL because they replay a stable prefix. Cache
+      reads are now parsed and priced (executor fix 48c92640d); before that they
+      billed as fresh input, overstating cost by 42.9% / 84.3% on those probes.
+
+      GATE: cost + pass-rate measurement PENDING at registration. In NO suite.
+
   gemini-3-8-flash:
     api_name: "gemini-3.8-flash"
     provider: "google"
