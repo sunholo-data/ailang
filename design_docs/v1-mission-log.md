@@ -21841,13 +21841,22 @@ the tree can change underneath it. Gate 3b's base-inherited-red rule is written 
 staleness; nothing points it at a base that goes red *mid-iteration*. The tell here was benign —
 a required check failing on a docs-only PR — and it is the only reason the six were seen at all.
 
-Disposition: I fixed the `lint` red (one `ineffectual assignment to snap` at
-`internal/mission/doctor_test.go:229`; `make lint` 1 issue → **0 issues**) inside the record PR,
-because without it the record could not land, and stated that plainly in the PR rather than smuggling
-a production-test fix into a docs commit. I did NOT fix the rest: `go test ./internal/mission` fails
+Disposition: I fixed the **two required-context** reds inside the record PR, because without them the
+record could not land, and said so plainly in the PR and in the commit messages rather than smuggling
+production fixes into a docs commit. **`lint`**: one `ineffectual assignment to snap` at
+`internal/mission/doctor_test.go:229` — `make lint` 1 issue → **0 issues**. **`docs-gate`**, which
+adjudicates `docs-build`: a single broken link at `docs/docs/guides/mission-bootstrap.md:18`, a
+relative path escaping the docs tree, the only one of its shape in `docs/docs` (grep 1 → 0), now an
+absolute `blob/dev/` URL matching the repo's own precedent. That second one is the member of the set
+that actually mattered, and it is worth saying why: `docs-gate` is REQUIRED and fires for any diff
+touching a docs-relevant path, so one broken link had blocked **every pull request in the repo**. Its
+local verification is partial and I labelled it partial — `make docs-build` clears the design-doc sync
+and the stdlib-index check and then dies on `docusaurus: command not found`, because a fresh worktree
+has no `node_modules`; the remote gate is the verifier, and the failure it must clear named this exact
+link. I did NOT fix the remaining four: `go test ./internal/mission` fails
 `TestLive_DoctorReproducesTheMeasuredDivergences` with the negative control firing (identical failure
-at unmodified HEAD, so not a side effect of my one line), and the Docusaurus, launchd-driver and
-Windows reds are uncharacterised. All six are filed as `ci-red-mission-loop-workbench`, positioned at
+at unmodified HEAD, so not a side effect of my one line), and the launchd-driver and both Windows reds
+are uncharacterised. All six are filed as `ci-red-mission-loop-workbench`, positioned at
 the TOP of the queue, since a red `dev` outranks the queue for the mission that owns the repo and V1
 owns this one. The row carries the failing STEP per job — read from `actions/jobs/<id>`, because
 `check-runs` reports the job and never its steps — and a handoff note that the authoring session may
