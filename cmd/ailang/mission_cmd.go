@@ -33,11 +33,13 @@ func missionCommand(args []string) error {
 		return missionDoctor(args[1:])
 	case "install":
 		return missionInstall(args[1:])
+	case "apply":
+		return missionApply(args[1:])
 	case "help", "--help", "-h":
 		printMissionHelp()
 		return nil
 	default:
-		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install)", args[0])
+		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply)", args[0])
 	}
 }
 
@@ -48,12 +50,17 @@ func printMissionHelp() {
   ailang mission doctor [<name>]   does what is installed match what was reviewed?
                                    exit 0 clean, 1 drift, 2 registry error
   ailang mission install <name>    render this mission's artifacts to *.staged
+  ailang mission apply <name>      promote the staged artifacts, then reload launchd
+                                   --adopt  acknowledge replacing a hand-written plist
+                                   --force  proceed while an iteration is running
+                                   --no-reload  promote without touching launchd
 
 Source of truth: missions/<name>.toml
 
 install RENDERS ONLY. It writes nothing the fleet reads — the driver re-sources its
 env file on every fire, so writing that path in place would apply new config with
-nobody reloading anything. Promotion is a separate step (apply, not yet implemented).
+nobody reloading anything. apply is the only verb that changes what runs, and every
+wait inside it is bounded (bootout 10s, bootstrap 10s, verify 15s).
 
 Model and role assignment is NOT here: see ` + "`ailang models role`" + `.
 `)
@@ -143,4 +150,51 @@ func missionInstall(args []string) error {
 	fmt.Printf("rendered (nothing that runs was touched):\n  %s\n  %s\n\n", s.EnvStaged, s.PlistStaged)
 	fmt.Printf("review with:\n  diff %s %s\n  diff %s %s\n", s.EnvTarget, s.EnvStaged, s.PlistTarget, s.PlistStaged)
 	return nil
+}
+
+func missionApply(args []string) error {
+	var name string
+	opts := mission.ApplyOpts{BackupDir: filepath.Join(os.Getenv("HOME"), ".ailang", "state", "mission-backups")}
+	for _, a := range args {
+		switch a {
+		case "--adopt":
+			opts.Adopt = true
+		case "--force":
+			opts.Force = true
+		case "--no-reload":
+			opts.SkipReload = true
+		default:
+			if strings.HasPrefix(a, "-") {
+				return fmt.Errorf("unknown flag %q (want: --adopt, --force, --no-reload)", a)
+			}
+			name = a
+		}
+	}
+	if name == "" {
+		return fmt.Errorf("usage: ailang mission apply <name> [--adopt] [--force] [--no-reload]")
+	}
+	reg, err := loadMissionRegistry()
+	if err != nil {
+		return err
+	}
+	m, ok := reg.Get(name)
+	if !ok {
+		return fmt.Errorf("no mission %q in %s (have: %s)", name, missionRegistryDir, strings.Join(reg.Names(), ", "))
+	}
+	res, err := mission.Apply(m, mission.DefaultPaths(), mission.NewLaunchCtl(), opts)
+	if res != nil {
+		for _, b := range res.Backups {
+			fmt.Printf("backed up: %s\n", b)
+		}
+		for _, p := range res.Promoted {
+			fmt.Printf("promoted:  %s\n", p)
+		}
+		for _, n := range res.Notes {
+			fmt.Printf("note:      %s\n", n)
+		}
+		if res.Reloaded {
+			fmt.Printf("reloaded:  %s\n", m.Label())
+		}
+	}
+	return err
 }

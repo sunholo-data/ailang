@@ -350,27 +350,20 @@ func TestLive_DoctorReproducesTheMeasuredDivergences(t *testing.T) {
 		}
 	}
 
-	// V4/V5 — the reviewed copy is not what runs. Measured: docs differs by 4
-	// lines and world by 65. This is the check the registry-vs-installed
-	// comparison structurally CANNOT make, because the allowlist is passthrough
-	// and so renders identically on both sides.
-	src := findingsOfKind(rep, "env-source-drift")
-	if len(src) == 0 {
-		t.Error("GATE: expected env-source-drift — the reviewed mission-docs.env and " +
-			"mission-world.env still disagree with what the driver reads")
-	}
-	sawDocs := false
-	for _, f := range src {
-		if f.Mission == "docs" {
-			sawDocs = true
-			if !strings.Contains(f.Detail, "MISSION_PLANNER_ALLOWLIST") {
-				t.Errorf("GATE: the docs finding must name MISSION_PLANNER_ALLOWLIST — "+
-					"that is the key routing work to opus instead of codex; got: %s", f.Detail)
-			}
+	// V4/V5 — the reviewed copy is not what runs.
+	//
+	// FIXED 2026-09-05, BY THIS TOOL FINDING IT. The docs allowlist was deployed
+	// during Phase 2 and the finding disappeared, which broke this assertion — the
+	// most useful way a gate can fail. It is now CONDITIONAL: the permanent,
+	// deterministic proof that the doctor can find and name this class lives in
+	// TestDoctor_GATE_V4_V5_EnvDriftIsFoundAndNamed, which uses a fixture and cannot
+	// be silently fixed out from under itself. A live test that demands the fleet
+	// stay broken is not a gate, it is a hostage.
+	for _, f := range findingsOfKind(rep, "env-source-drift") {
+		if f.Mission == "docs" && !strings.Contains(f.Detail, "MISSION_PLANNER_ALLOWLIST") {
+			t.Errorf("if docs drifts again the finding must still NAME the key that routes "+
+				"work to opus; got: %s", f.Detail)
 		}
-	}
-	if !sawDocs {
-		t.Error("GATE: docs env-source-drift not reported (measured as a 4-line divergence)")
 	}
 
 	// The reach question: world is an unpinned fork. Both must be reported.
