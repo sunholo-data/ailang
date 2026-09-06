@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"fmt"
 	"log"
 	"path/filepath"
 	"strings"
@@ -29,7 +30,7 @@ import (
 // Idempotent: a repeat call with the same PhysicalPath is a no-op
 // (returns the existing key, false, nil).
 func (s *Server) registerModule(loaded *loader.LoadedModule) (string, bool, error) {
-	if loaded == nil || loaded.File == nil || loaded.Iface == nil {
+	if loaded == nil || loaded.File == nil {
 		return "", false, nil
 	}
 	if loaded.File.Path == "" {
@@ -76,6 +77,12 @@ func (s *Server) registerModule(loaded *loader.LoadedModule) (string, bool, erro
 	}
 
 	physicalPath := absFile
+	if err := validateRouteIfaceExports(loaded, absFile); err != nil {
+		return "", false, err
+	}
+	if loaded.Iface == nil {
+		return "", false, nil
+	}
 
 	// Idempotency check.
 	s.mu.RLock()
@@ -130,6 +137,28 @@ func (s *Server) registerModule(loaded *loader.LoadedModule) (string, bool, erro
 
 	log.Printf("  Registered: %s (%d exports)", rel, len(info.Exports))
 	return physicalPath, true, nil
+}
+
+func validateRouteIfaceExports(loaded *loader.LoadedModule, sourcePath string) error {
+	for _, fn := range loaded.File.Funcs {
+		if fn == nil || !fn.IsExport || fn.GetAnnotation("route") == nil {
+			continue
+		}
+		if loaded.Iface != nil {
+			if item, ok := loaded.Iface.Exports[fn.Name]; ok && item != nil {
+				continue
+			}
+		}
+		module := loaded.Path
+		if module == "" && loaded.File.Module != nil {
+			module = loaded.File.Module.Path
+		}
+		return fmt.Errorf(
+			"CACHE_ROUTE_IFACE_MISMATCH source=%s module=%s function=%s; run `ailang cache compile-clear` and restart serve-api",
+			sourcePath, module, fn.Name,
+		)
+	}
+	return nil
 }
 
 // recordDrop appends a DroppedModule entry to s.droppedModules. Called
