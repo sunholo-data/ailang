@@ -22301,3 +22301,71 @@ already a standing row at 7 instances.
 **Next.** Execute **M1** of `m-cache-module-id-encoding` (the pure `encodeModuleDirName` plus its
 unit table, 0.35 d) against the settled plan — and read the plan's non-vacuity ledger before
 touching M3 or M4, both of which it flags as shipping no production mutation of their own.
+
+## 335 — 2026-09-06 — Recover the stranded cache-encoding design and make its CI instructions executable [ADMIN]
+
+**Picked.** Recover iteration334's own open PR #1060 before starting M1. Its clean worktree and
+five commits existed, but the PR was still OPEN at `c2a9d8fb4`, despite dashboard prose saying
+landed. This is delivery recovery, not another design or implementation iteration.
+
+**Reality check.** Pin `e50066037` and original iteration334 worktree were clean. Main checkout
+had 14 pre-existing dirty paths; left untouched. Origin advanced to `294885901` through three
+sibling docs-mission files, disjoint from this recovery. Kill switch armed, billing tripwire clean,
+GitHub account `sunholo-voight-kampff`. Canonical inbox went from 12 to 13 unread when the sibling
+report arrived; package messages and D-55 left unacknowledged. No new Mark directives on issue972.
+Decision ledger validated at 56 rows/two OPEN. No current iteration334 worker remained.
+
+**Shipped.** PR #1060 recovered and merged at `d7eb07deb8eeeaa25e8ce08e652b1529b52a6366` from exact reviewed head `a52fbcad2833f0cdc08d7e516a679d30b2bf396c`.
+All five expected PR workflows completed (four success, Dependabot automation skipped), and
+merge CI plus Build and Release were observed success; documentation deployment was path-filtered
+on the dev push. This corrects the prior iteration's premature landing claim. Only docs changed.
+`a52fbcad2` adds the missing BOTH-platform package/regex/required-PASS-loop instructions and banks
+an initial four-milestone JSON. Runtime JSON was absent in all three checked worktrees; the tracked
+snapshot is recoverable, while runtime state stays ignored and must never overwrite an active sprint.
+No release, production code, milestone execution or human approval was manufactured.
+
+**Routing evidence.** Controller `codex:gpt-6-astra`; advisory explorer inspected inherited fixes.
+Planner resolver returned `recipe codex:gpt-5.6-sol anthropic-fallback:fail-closed:planner-lane-field-missing`.
+The explicitly requested Agent tool spawned native `gpt-5.6-sol` for the bounded plan/state correction;
+this is an Agent transport adapter rather than the CLI recipe, with the requested model pin retained.
+Designer NOT spawned: inherited design/quorum unchanged; no authoring phase on this recovery pick.
+Executor NOT spawned: no production milestone selected; its next work remains gated on M1 wording.
+Evaluator REQUIRED and spawned via Agent tool: Astra was only the orchestration wrapper; the actual
+independent judge was `pi:ollama/minimax-m3:cloud` in separate clean worktrees at each exact SHA.
+Generator≠judge holds across models and vendors. No judge fallback, no self-score, no new quorum.
+Round1 FAIL84/one blocker; round2 PASS91/zero blockers. Runner verdicts ok, rc0/pi_rc0, respectively
+486s/157 tools and 242s/58 tools. The evaluator's first probe failed rc1: missing `@anthropic-ai/sandbox-runtime`, repaired by
+loading the byte-identical canonical extension with dependencies through an invocation-only shim;
+subsequent probes rc0. The stuck round1 judge inbox-read child was terminated after >120s after
+PID lineage verification; judge continued. Sandbox-denied Go testing is uninformative, not product red.
+Fresh report files were the only changed files in each judge worktree. Raw reports and controller
+qualifications are retained under `docs/sprint-retros/iter335-cache-module-id-recovery-*`.
+MiniMax usage: R1 10,653,918 input/34,894 output; R2 2,334,785/20,886; probes 4,298/50.
+All are reported flat-rate usage, not metered bills. Codex/Agent token totals unavailable here;
+not invented. `metered=$0.00`; quota buckets Codex and Ollama Cloud; no GPU or rig lock.
+
+**Ruled out.**
+- Prior green checks did not prove PR1060 landed: GitHub OPEN plus no merge commit disproved it.
+- The prior CI plan fix was incomplete: both commands omitted `./internal/pipeline`. Adding only
+  regex names can omit the tests; adding required-PASS entries without the package fails loudly.
+  The corrected plan and JSON require all three edits on both platforms, preserving Z3 asymmetry.
+- The Windows slug finding is a design/plan wording ambiguity, not an implemented encoder failure.
+  Design run-collapse/table and plan per-byte/runs-allowed need designer clarification before M1.
+  The raw judge's no-example-fixture claim contradicts the plan's worked-example requirement.
+- Q3's outside-pipeline claim is too broad; M2 already owns the cmd/ailang fixture migration.
+- A substring OPEN search is not a ledger count: status-column validation gives two, not five.
+- The 1.35-day narrative estimate is stale: milestone sums and JSON equal 1.20 days/220 LOC.
+- Independent reports are evidence, not unquestionable truth: controller addendum preserves the
+  real findings and corrects unsupported validator, regex-only and harness-attribution claims.
+
+**Retro lane.** backlog — retain the existing runner revision-assertion and shared-ref-drift
+queue entries; add the nonblocking slug/Q3 wording clarification to M1's resume condition. No
+skill edit or routing-policy change. D-56's missing approval-spine notice was recovered as an
+operational action (message `inbox_1788668401999_50e12652`), and delivered body verified byte-exact.
+D-55 and D-56 remain OPEN; standing defaults are not human answers.
+
+**Progress**: N=12 design docs before v1.0; goal unmoved. Recovered design/plan; 0/4 milestones executed.
+
+**Next.** Designer clarification of slug run handling/example and Q3 wording, then M1 of
+`m-cache-module-id-encoding` against the corrected plan and pending snapshot. After this banked
+sprint: shared-clone-ref-drift and pi runner revision assertion, in current queue order.

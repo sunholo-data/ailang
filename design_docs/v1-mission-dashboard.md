@@ -1,43 +1,31 @@
 # Mission Dashboard — V1
-*Snapshot, overwritten every iteration. History: `v1-mission.md` (STATUS) + `v1-mission-log.md`.
-Last written: iteration 334, 2026-09-06.*
+*Iteration 335, 2026-09-06. History: v1-mission-log.md and charter STATUS.*
 
-## Where the mission is
-- **Goal (`D-51`)**: **N = 12** design docs before v1.0.0. Iteration 334 moved it **±0** — designed
-  and planned, zero milestones executed, and it ABSORBS two queue rows rather than adding a 13th.
-- **Release** v0.35.1 · `dev` CI **GREEN** at `e50066037` (16 checks, 0 not-green).
-- Last complete sprint: `m-compile-cache-unverified-artifacts`, 4/4, iter-330→333.
-
-## In flight
-- **`m-cache-module-id-encoding`** [IN-SPRINT, 0 of 4]. Design + plan landed and judged this
-  iteration (`sonnet` PASS 85/100, zero blocking). The compile artifact cache publishes **nothing
-  on Windows** (drive-letter colon survives into the directory name) and its mapping is not
-  injective anywhere (`a/b` = `a__b`). Encoding `m-<slug>-<16hex>`. **Resume: execute M1** (0.35 d).
-  ⚠ The plan flags **M3 and M4 as having no non-vacuous mutation of their own diff** — read its
-  non-vacuity ledger before executing either.
+## Goal and delivery
+- Release v0.35.1; **N=12 design docs before v1.0.0**, goal unmoved this iteration.
+- Recovered PR #1060: docs-only design/plan at `d7eb07deb`, independent MiniMax **PASS 91/100**.
+- PR exact head `a52fbcad2`: all five expected workflows settled, zero failures.
+- Merge CI and Build and Release observed green at `d7eb07deb`; Docs deploy path-filtered.
+- Cache module-ID encoding: **0/4 milestones executed**, four pending state entries banked.
 
 ## Up next (banked)
-1. `m-cache-module-id-encoding` **M1** — in-sprint, smallest, unblocks M2's wiring.
-2. `m-gate1-shared-clone-ref-drift` — Gate 1's sync verdict expires mid-iteration (one shared
-   `.git` across missions); 2 first-party instances.
-3. `m-pi-runner-worktree-assertion-vacuous-on-revision` — NEW: the pi runner returns `ok` for a run
-   that wrote nothing, whenever the target file was already dirty.
+1. `m-cache-module-id-encoding` M1 — clarify slug run wording/example with designer, then pure encoder.
+2. `m-gate1-shared-clone-ref-drift` — shared refs can invalidate sync measurements mid-iteration.
+3. `m-pi-runner-worktree-assertion-vacuous-on-revision` — prior dirty files can fake a deliverable.
+- M3/M4 have no new production mutation of their own; read the plan's non-vacuity ledger.
 
-## Loop and routing
-- launchd, pinned worktree `~/.ailang-driver-pin/v1`; iteration 334 ran ~04:33–06:00 CEST.
-- Designer **rotation** `claude-fable-5-1` → `gpt-6-astra` → `pi/deepseek-v4-flash` (pointer now
-  past deepseek). Planner + executor `codex:gpt-5.6-sol`, evaluator `sonnet`.
-- Quorum: `gpt6-astra`, `gemini-3-1-pro`, `oc-glm-5-2`.
-- Standing routing defect, **7 instances**: `resolve-role-spawn.sh planner` answers
-  `agent-tool opus fail-closed:planner-lane-field-missing` for essentially every real pick and the
-  spawn-pin hook then denies it. Route straight to the pin; the fix belongs in the TOOL.
+## Routing and cadence
+- launchd; authoritative `.claude/skills/mission-control/SKILL.md` followed by Codex controller.
+- Recovery reused inherited design/quorum; no new designer or production executor work was needed.
+- Planner: Agent tool `gpt-5.6-sol`; evaluator: Agent orchestrator invoking independent pi MiniMax.
+- Judge rounds: FAIL84/one blocker → PASS91/zero; reports retained with controller caveats.
+- Initial snapshot: `planned/v0_36_0/m-cache-module-id-encoding-sprint.json`; copy only if runtime absent.
 
 ## Parked on Mark
-- **`D-55`**, the only OPEN row of 55 — bound adversarial gob decode, or ship the correctness fix?
-  Its pre-registered default (a) already carried the whole compile-cache sprint to completion, so
-  **nothing is blocked on it**; it stays OPEN only because the loop may not resolve its own row.
+- **56 ledger rows, two OPEN**: D-55 accidental-corruption/adversarial scope; default(a) already applied.
+- D-56 permanent Astra author/reviewer independence; default skips Astra author turn pending answer.
+- Neither was self-approved. D-56 missing approvals notification recovered and body verified.
 
-## Quota posture
-- `metered=$0.28` of a $5/iteration ceiling, all of it quorum reviewers. Fable: ONE bounded
-  revision run (ceiling is one DOC; authoring ran on the flat-rate pi lane). codex + pi probed
-  rc=0. No GPU, no `rig.lock`.
+## Quota and workspace
+- Metered **$0.00**; Codex subscription and Ollama Cloud flat-rate, no new quorum spend.
+- Main checkout's 14 pre-existing dirty paths left untouched; original iteration334 worktree retained.
