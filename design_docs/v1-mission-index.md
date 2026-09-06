@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 340 | 2026-09-07 | Land the Pi evaluator session handshake and reject a protocol-invalid verdict [HARNESS] |
 | 339 | 2026-09-06 | Repair the pi shell-suite harness, then park at the independent round-three hard gate [HARNESS] |
 | 338 | 2026-09-06 | Pin shared-ref observations, recover the stranded sprint, and fix inherited CI red [HARNESS] |
 | 337 | 2026-09-06 | Bank the pi runner false-green evidence and park its unresolved snapshot contract [HARNESS] |

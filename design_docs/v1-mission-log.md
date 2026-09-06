@@ -37,34 +37,10 @@ section, write "none" rather than omitting:
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `v1-mission-index.md`.
 
-## 319 — 2026-09-02 — CI corrected me and the judge together, and the executor's self-reported deviation was the thing we both overruled [HARNESS]
-
-**Pick**: queue head `m-probe-derace-has-no-killer` — a full revert of iteration 317's process-tree de-race passes the whole suite, so CI cannot see that fix disappear. **The claim was CONFIRMED first-party before any routing**, not inherited from the judge who filed it: the full revert, asserted LANDED (sha256 `f0b5e024`→`e3cc8148`), BUILDS (`bash -n` rc=0) and intended-effect (`discovery_deadline` refs 1→0, with a control on the surviving validation line), passed **all 42 arms rc=0 in 112s against a 50s baseline**.
-
-**Progress**: N = **10** design docs remaining before v1.0.0, **unmoved** — this is a HARNESS iteration and it moved the goal by 0, in those words. D-53's UNCLASSIFIED bucket of 4 (which would make it 14) is still named and unruled.
-
-**Outcome**: LANDED · [HARNESS] · evaluator PASS 80/100, zero blocking · squash [`f5d031161`](https://github.com/sunholo-data/ailang/commit/f5d031161) via PR [#1020](https://github.com/sunholo-data/ailang/pull/1020), 21 checks, zero not-green, CLEAN. One file, +51/−7: the wall-clock arm's lane deadline derived as `ARM_CAP_SECS + 30` (from the knob, not hardcoded), and the missing suite-scope leak guard for `PROBE_TREE_DISCOVERY_SECS`.
-
-**The central finding — CI overruled the independent judge and the controller, and vindicated the executor.**
-The executor added two arm-scoped stabilizers (`PROBE_TEST_PGREP_LOOP_DELAY=1`, `PROBE_TEST_DRIVER_SLEEP=$discovery_killer_lane_secs`) and **said so**, reporting that its directive was under-specified without them. The judge then measured one of them **unpinned** — reverting that hunk alone left the suite 42/42 green — and identified its justifying comment as **false** (`date +%s` has 1s granularity, so the delay cannot make the discovery check fire sooner). I measured the other unnecessary across **8 local runs**, quiet and under 8× CPU contention. Removing both looked like textbook rule 3n(b): a deletion, not scope growth, and the clean suite even returned to its 51s baseline while MUT-1 stayed a sole killer.
-`launchd drivers (bash 3.2)` then reddened **deterministically on the first push**, step 4, read by arm NAME rather than exit code: `not ok - descendant discovery refuses on the real wall-clock deadline lacked expected message`, with `driver_rc=0` and an empty peer set. The mechanism is precisely the one the executor had named: `run_lane` calls `sample_tree` only from **inside its sampling loop**, so a stub driver that exits before the lane enters that loop means the discovery walk is never reached at all. Fast darwin/arm64 always wins that race; the GitHub macOS runner does not. Both stabilizers restored; the comment now records that *local greenness is exactly the evidence that failed*, so the next reader does not delete them for my reason.
-**This is iteration 318's rule in mirror image, and I had read that rule at Gate 1 this same iteration.** 318 established that a *value property* (a clock's granularity, a scheduler's timing) is platform-scoped and may not be declared **unreachable** from one host. The symmetric half was unwritten: it may not be declared **unnecessary** from one host either. Adding a reviewer did not help and could not have — the judge and I shared the platform, which was the premise.
-
-**Ruled out / corrected**
-- *"This change raises the CI flake rate and must not land"* — **my own finding, REFUTED by the judge.** I measured N=4 under 8× spinners: pristine 0/4, this commit 1/4, wall time 55–66s → 82–95s, and flagged it potentially blocking. At N=8 the judge measured pristine **0/8** and the commit **0/8** at comparable times, with the box's own load average swinging **66 → 47 → 42** across my three sequential blocks. On a shared rig a *blocked* A/B/C design cannot separate the diff from ambient load; the correct design is **interleaved**. My N=4 was flagged weak at the time and that caution was warranted.
-- *"The 150s driver sleep leaks an orphaned process"* — **CONFIRMED by the judge via `ps`**, not merely hypothesised: orphaned `ailang-stub`+`sleep 150` trees reparented to pid 1 and alive after the whole suite, a 75× widening of a ~2s default, because `run_lane`'s backgrounded driver is never killed on the `instrument_failure` path. Real, and **not** shown to move failure rates. Left as a queue row rather than fixed, since closing it means changing the probe's cleanup path, which this milestone deliberately did not touch.
-- *"MUT-3 reds, so the leak guard works"* — nearly banked, and **wrong**: rc=1 exactly as predicted, but the `not ok` was `hermetic live success path completes`, a different arm. Proven an ambient flake because MUT-5 applied the **identical** leak with the guard neutered and passed 42/42. Re-run, the guard kills **3/3 by name**. Rule 3j's corollary paid for itself: read which arm failed, never the exit code.
-- *"SonarCloud is a pick"* — `failure` on **7 of 7** commits walked back; inherited, not required, already tracked as `sonarcloud-new-code-gate-red`.
-- *"An open PR on my own account is mine"* — **#1016 is the DOCS mission's**, attributed via `git worktree list` before acting (`.ailang-driver-pin/docs`). `--author` is a fleet filter.
-
-**Routing evidence**: controller `claude:claude-opus-5` (session). **Designer not spawned** and the rotation pointer untouched at `claude:claude-fable-5` — the queue row was a fully-specified fix with a judge-ranked remedy in ONE test file, so authoring a design doc would have spent the one-doc Fable diet for nothing; recorded as a capability judgement, not a probe failure. **Planner not spawned** — no design doc exists for this row, so the "doc but no plan" condition never arose and `derive-planner-lane.sh` was not consulted. **Executor `codex:gpt-5.6-sol`** via the cross-provider recipe (probe rc=0; the `provider:model` form must NOT use the Agent tool), one sandboxed 30-min-capped run, delivery asserted ≥200B, stdin closed, no git writes, rc=0, one file. **Evaluator `sonnet`** via the Agent tool, in its **OWN** worktree (`.wt-iter319-eval`, detached at the sprint commit, 0 dirty files at handoff), one round, **PASS 80/100 zero blocking**, five named targets to attack. generator≠judge holds on provider: generator OpenAI, judge Anthropic, and the judge is distinct from the controller's model. Every spawn directive carried standing rule 7's operative half in its own words, per the rule the running skill was missing. Metered **$0.00** of the $5 ceiling; every lane a quota bucket; no quorum round.
-
-**Friction / process**
-- The **running skill was 7 commits / 186 lines behind origin** (3,929 vs 4,115), measured by `cmp` against the **resolved** symlink target (inode `60291442`; the pin's own copy is `63919825`, a different file). It lacks D-52's per-gate heartbeat contract **entirely** (`mission-heartbeat`: origin 10, running **0**) though the script exists — stamped every gate by hand. The drift is **not** a clean subset: 64 uncommitted lines in the main checkout duplicate work already on origin.
-- **D-54 escalated materially.** The main checkout went **9 ahead / 27 behind at Gate 1** to **22 ahead / 31 behind by Gate 4** — 13 new unpushed commits *within this one iteration*, because an attended session is working in that tree right now (M-COORDINATOR-EXECUTION-TRUST through three quorum rounds, standard-mode Anthropic OAuth, Fable 5.1). The row was written about 9 stranded bookkeeping commits; it is now 22 commits of substantive **feature** work invisible to every unattended pick. Containment held: exactly the 4 pre-existing dirty files, byte-identical at start and end.
-- A bare `ailang messages list --unread --json` returns only **20** of **48** unread; `--limit 200` is required for a complete enumeration. My first count used `grep -c '^ID:'` and read **0**, because the list view has no `ID:` lines — rule 3a fired on my own instrument.
-
-**Next**: the queue head is now `m-probe-discovery-default-30s-unpinned` (the 30s default is a production-path tightening nobody chose; a mutant 30→5 passes 42/42 — and note rule 3n's warning that enlarging it is not a fix), then the VERIFY-then-route `m-docparse-v0340-reports-2026-09-01` whose iface-cache half has already failed to reproduce in two shapes, then `m-changeclass-unknown-consumers` as a precondition for Sprint 2. Three residuals filed here rather than absorbed: both suite-scope leak guards fire only *retrospectively* after arm 41; the suite has a genuine ambient-contention flakiness independent of this diff (judge saw 3/8 under load at three unrelated arms); and `run_lane`'s backgrounded driver is never killed on the `instrument_failure` path.
+> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
+> iteration is in `v1-mission-log-archive.md`, and a one-line index of ALL of them —
+> the thing to grep before picking work, so the loop never repeats itself — is in
+> `v1-mission-index.md`.
 
 ## 320 — 2026-09-02 — dev was red on Windows for a defect this repo had already fixed three times, each fix private [HARNESS]
 
@@ -2090,3 +2066,90 @@ MiniMax report-timeout/session behavior remains covered by `m-pi-evaluator-sessi
 
 **Next.** Human disposition of the iteration339 park outranks its candidate. Otherwise pick
 `m-pi-evaluator-session-handshake`; cache encoding remains parked on D-57 and D-58/D-59 remain open.
+
+## 340 — 2026-09-07 — Land the Pi evaluator session handshake and reject a protocol-invalid verdict [HARNESS]
+
+**Picked.** Ready queue head `m-pi-evaluator-session-handshake`. Iteration336 recorded the first
+same-session protocol failure and iteration339 carried recurring MiniMax report/session friction
+under this named item. Canonical inbox triage found20 unread and no new trusted human directive;
+no row was acknowledged. Ledger stayed59 rows/five OPEN D-55–D-59. Gate1 base was
+`8590948be6dab18fdecbf3aefd6edc2d3aaf46b0` at `2026-09-06T20:25:30Z` and all expected checks
+on that base were green.
+
+**Reality check.** The runner really inherited ambient messaging values: actual-runner/fake-Pi
+arms delivered unset/unset and local/wrong-project to the child. The session predicate accepts the
+exact bare bounded command, but it scans attempted calls and does not inspect failed tool results.
+The preserved iteration336 transcript therefore proved local call history, not successful inbox
+execution. The design made success an explicit recipe obligation and kept the guard unchanged.
+
+**Shipped.** PR [#1069](https://github.com/sunholo-data/ailang/pull/1069) passed its complete PR
+check set and landed as [`aeeafc880`](https://github.com/sunholo-data/ailang/commit/aeeafc880dec8bb30215620332d938e96904aaf0).
+`scripts/mission_pi_run.sh` now command-scopes `AILANG_MESSAGES_STORE=gcp` and
+`AILANG_MESSAGES_PROJECT=ailang-multivac` at the Pi child while preserving `AILANG_STORAGE`.
+Gate3 carries exactly one source-bound evaluator preamble ordered read → bare bounded list →
+summarize/classify → protocol ack → judge. Focused tests grew7→12 and include two real-runner
+environment arms. Design and companion plan moved together to `implemented/v0_35_2/`; sprint state
+is complete. Exact merge-SHA workflows all succeeded: CI `34062146764`, Build and Release
+`34062146790`, docs `34062146736`.
+
+**Routing evidence.** Gate4 base=`aeeafc880dec8bb30215620332d938e96904aaf0@2026-09-06T22:13:01Z`.
+Controller `codex:gpt-5.6-sol` (tok: not reported). Scheduled preflight resolver outputs were:
+designer `recipe codex:gpt-6-astra declared:provider-pin`; planner
+`recipe codex:gpt-5.6-sol anthropic-fallback:fail-closed:no-doc`; executor
+`recipe codex:gpt-5.6-sol declared:provider-pin`; evaluator
+`recipe pi:ollama/minimax-m3:cloud declared:provider-pin`. Astra designer, Sol planner and Sol
+executor were all explicitly spawned through the Agent tool (each tok: not reported). The design
+quorum used Sol instead of Astra in the OpenAI seat because Astra authored the doc. R1 and R2 were
+both BLOCKED with all3 reviewers present. One designer revision addressed R1. Every R2 objection
+carried a concrete proposed fix and did not dispute direction, so the bounded narrow-refinement
+carve-out expanded only the two launcher environment bindings and exact probes; no third quorum.
+
+The required direct evaluator Agent spawn with model `pi:ollama/minimax-m3:cloud` failed exactly:
+`Unknown model`; the tool listed only `gpt-6-astra`, `gpt-5.6-sol`, `gpt-5.6-terra`,
+`gpt-5.6-luna`, `gpt-5.5`. Fallback was an explicitly spawned `gpt-5.5` Agent transport wrapper
+(tok: not reported), forbidden to judge. Its Ollama MiniMax child ran467s/96tools/4,532,187tokens
+and wrote PASS90, but its own transcript proved it prepended blocked `export` statements, received
+an error before ack, then acked anyway. Per the new preamble that is role transport failure, never
+a verdict; PASS90 was rejected. The same wrapper routed the ratified OpenRouter twin in a fresh
+judge worktree. `openrouter/minimax/minimax-m3` issued the exact bare command successfully before
+`session_protocol_ack`, then independently killed all13 mutations, restored byte-clean, and returned
+PASS99 in365s/97tools/4,796,786tokens. Generator Sol != judge MiniMax; no wrapper/controller score.
+
+A later ad-hoc resolver invocation without the scheduled driver's exported variables returned
+planner `agent-tool opus fail-closed:env-pin` and refused executor/evaluator as model-missing. That
+reading describes the stripped diagnostic shell, not a changed scheduled route; it is retained
+here rather than silently replacing the preflight provenance.
+
+**Ruled out.** A runner environment binding does not make assignment-prefixed commands admissible;
+the armed gate intentionally rejects them. A report file plus rc0 is not sufficient evidence of an
+admissible judge: the role's mandatory handshake is part of transport validity. The Ollama PASS90
+was therefore not an evaluation round and did not consume the evaluator's judgment budget.
+OpenRouter was not a different model judgment; it was the same MiniMax weights through the next
+ratified transport rung. The predicate's failed-result blindness was not silently described as
+fixed; tests and the accepted report preserve it as a documented textual-contract limitation.
+
+**Retro lane.** none — the landed recipe, explicit transport classification and existing fallback
+chain handled the observed primary noncompliance without a new policy or unreviewed guard change.
+
+**Progress.** N=12 design docs before v1.0.0 (was12, change0); this HARNESS item is outside the
+ratified clauses2–5 inventory, so the goal is unmoved.
+
+**Cost.** Actual metered $0.43507610: Sol+Gemini quorum $0.10882100 and OpenRouter MiniMax
+$0.32625510. GLM flat-rate imputation $0.01772879 is separate. Astra/Sol/Ollama/wrapper Agent
+lanes were subscription or quota buckets; no unreported cost was invented.
+
+**Next.** `m-cachesrc-cognitive-complexity`, then `m-coordinator-codex-401`, then
+`m-cache-artifact-adversarial-decode`. Cache encoding and Pi runner items remain parked on
+D-57–D-59; no unattended decision was inferred.
+
+**Independent evaluation.** The accepted OpenRouter MiniMax report is tracked at
+`docs/sprint-retros/iter340-pi-evaluator-session-handshake-evaluation-openrouter.md`: PASS99,
+zero hard failures, AC1–AC7 verified, all13 mutations killed with a green restoration after every
+arm. The primary Ollama report remains only in its isolated/raw transport evidence and supplied no
+accepted verdict.
+
+**Record verification.** Exact merge SHA `aeeafc880dec8bb30215620332d938e96904aaf0` settled green
+across all3 expected push workflows. STATUS rotation retains exactly3 structural rows and moved337
+to the bounded archive. Queue row remains present and is LANDED. Dashboard is30lines. Ledger,
+tracked-path, context-doc, file-size, reference, skill, whitespace and log-rotation checks run on
+the record branch before landing.
