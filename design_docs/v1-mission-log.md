@@ -32,43 +32,10 @@ section, write "none" rather than omitting:
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `v1-mission-index.md`.
 
-## 318 — 2026-09-02 — My fix turned a 2.5% Windows flake into a 100% Windows failure, and CI refuted the executor, the judge and me at once [HARNESS]
-
-**Pick**: queue head `m-message-watcher-windows-wallclock-flake` — `TestMessageWatcherStart` reds on the Windows runner from an absolute wall-clock bound. Confirmed unfixed first-party at a fresh `origin/dev`.
-
-**Progress**: N = **10** design docs remaining before v1.0.0, **unmoved** — this is a HARNESS iteration and it moved the goal by 0, in those words. D-53's UNCLASSIFIED bucket of 4 (which would make it 14) is still named and unruled.
-
-**Outcome**: LANDED · [HARNESS] · evaluator PASS 94/100 then PASS 93/100, zero blocking in both · squash [`bd28f845c`](https://github.com/sunholo-data/ailang/commit/bd28f845c) via PR [#1015](https://github.com/sunholo-data/ailang/pull/1015), 21 checks, zero not-green.
-
-**What happened.** The arm carried two unrelated absolute wall-clock constants — a 500 ms `WithTimeout` as the stop stimulus and a 1 s `time.After` as the bound. Fixed per rule 3m: explicit `cancel()` so the bound measures the property under test, and a budget of `max(20 × measured scheduling latency, 10 × pollInterval)`. **Three executor rounds, and the first two were both wrong in ways nothing local could see.**
-
-**Round 1 — I sent it back on my own measurement.** It derived the budget with only a 1 µs floor, giving **2.3–4.2 ms** where the old bound was **1000 ms**: a ~400× *tightening* on the only machine where the arm has ever flaked. Locally it looked fine (25 runs under 8× contention: budget 2.31–4.18 ms against an actual stop duration of **1.46–3.88 µs**). The argument that killed it is structural — the old bound failed on a runner that must therefore have stalled ~**680 ms**, and a machine capable of that blows 2.5 ms far more often. R1 also shipped a ratio assertion that was a **tautology by inspection** (the floor can only raise the value it compares against) added purely so a mutant would red.
-
-**Round 2 — correct direction, judged PASS 94/100, and CI destroyed it.** `9cf2765c8` reddened **both** Windows jobs deterministically: `--- FAIL: TestMessageWatcherStart (0.00s)` / `watcher_test.go:152: instrument failure: initial task scheduling latency 0s is outside (0, 1s)`. **0.00 s, not the 1.18 s timeout the milestone targets** — instant, and ours (`Build windows-latest` is `success` on the 3 most recent dev commits). The branch that fired is the degeneracy guard that **three independent parties certified unreachable**: the executor ("unreachable by construction"), the round-1 judge, which was *explicitly asked to break it* and reported *"I could not devise a test-only way to trigger this"*, and me ("requires a monotonic-clock anomaly"). All three reasoned on darwin/arm64. On a coarse-clock platform a sub-tick interval reads back as exactly `0s`, so zero is the **normal** reading there — and round 2's own floor already made it safe (`max(20×0, 1s)` = 1 s). The guard rejected a measurement its own floor had handled.
-
-**Round 3 — the first genuine local killer this milestone ever had.** Predicate narrowed to `< 0`; the `>= maximumStimulus` arm's unreachability re-cited to CONTROL FLOW rather than to a clock property that had just been falsified. Two arms on the identical tree, latency forced to zero, exit codes captured **without a pipe**: round-2 code **rc=1** (message byte-identical to CI), round-3 code **rc=0**. Arms DIFFER, so the predicate is the variable. Independently reproduced by the round-2 judge.
-
-**Ruled out / corrected**
-- **The queue row's own framing.** It says the flake "taxes every PR". Measured across the last **40** CI runs: `test-windows` failed **1** time (**2.5%**); the other 3 reds were the `launchd drivers (bash 3.2)` race, a different and now-fixed defect. Real defect, low frequency.
-- **Local reproduction: refuted, and recorded so nobody re-buys it.** 0 failures in 40 runs across quiet, `GOMAXPROCS=1`, 8× contention, and contention+`GOMAXPROCS=1`. I put this in the executor directive so it would not spend a slot hunting a repro I had already failed to find.
-- **`gen/main` does not exist** (judge finding, confirmed first-party). `go build ./...` is rc=1 on `cmd/wasm` **alone**; `ls gen` → No such file or directory. I transcribed that parenthetical from charter prose instead of measuring it — rule 3b(v)(b), committed inside the artifact I was most careful about, and the same stale phrase iterations 145 and 316 passed forward. It is now measured, and the charter's copy should be corrected the next time anyone touches it.
-- **The `testing.T` count is 1106, not the 1107 I asserted twice** (judge finding, confirmed). My pattern `'testing.T'` left the `.` unescaped, so it matched `testing T` — with a space — in `internal/coordinator/mock_store_test.go`, where the literal count is **0**. Proven by `comm` against `git grep -l 'testing\.T'`. **I defended 1107 once on "three independent methods" that all shared the same unescaped pattern** — three readings of one broken instrument, which is a control that cannot see the defect it controls for.
-- **The executor's claim that `gofmt -l <directory>` does not recurse: FALSE.** Control fired — `gofmt -l` on a directory printed a misformatted file living in a *sub*directory. Its glob was an equivalent, not a correction. Reporting it was still right.
-
-**Routing evidence**
-| role | pinned | actual | notes |
-|---|---|---|---|
-| controller | `$CONTROLLER_ID` | `claude:claude-opus-5` | session |
-| designer | rotation | **did not run** | queue row was a fully-specified fix with first-party CI evidence and a judge-ranked remedy; a design doc for a ~30-line test change would spend the Fable diet for nothing. Rotation pointer untouched at `claude:claude-fable-5`. |
-| planner | `codex:gpt-5.6-sol` | **did not run** | same reason — single-file, single-function, no milestones to sequence |
-| executor | `codex:gpt-5.6-sol` | `codex:gpt-5.6-sol` | probe rc=0; three sandboxed runs; no git writes; containment verified byte-identical (exactly the 4 pre-existing dirty files at start and end) |
-| evaluator | `sonnet` | `sonnet` | own worktree, both rounds; generator≠judge holds (OpenAI vs Anthropic) |
-
-metered=$0.00 of the $5 ceiling — every lane a quota bucket; no quorum round.
-
-**Scope held.** Single arm, all three rounds. The standing exposure stays a queue row and was NOT swept: **54** `_test.go` files under `internal/`+`cmd/` carry a hardcoded `N * time.Millisecond` bound (control — 56 mention `time.Millisecond` at all; fresh negative literal 0); **0** test files repo-wide vary `GOMAXPROCS` (control — 1106 mention `testing.T`).
-
-**Next**: the queue head is now `m-probe-derace-has-no-killer` (iter-317, judge-found: a full revert of the process-tree de-race passes all 42 arms, so CI cannot see that fix disappear), then `m-probe-discovery-default-30s-unpinned`, then the VERIFY-then-route `m-docparse-v0340-reports-2026-09-01` whose iface-cache half has already failed to reproduce in two shapes.
+> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
+> iteration is in `v1-mission-log-archive.md`, and a one-line index of ALL of them —
+> the thing to grep before picking work, so the loop never repeats itself — is in
+> `v1-mission-index.md`.
 
 ## 319 — 2026-09-02 — CI corrected me and the judge together, and the executor's self-reported deviation was the thing we both overruled [HARNESS]
 
@@ -2067,3 +2034,59 @@ with exactly three structural STATUS rows; moved335 is present in the bounded 20
 and moved313 is preserved in the old archive. Queue row survived and is LANDED. Dashboard31lines;
 log rotation kept20 full entries and regenerated the index. Ledger, tracked-path, context-doc,
 file-size, reference, changelog, personal-email, tmpfile, skill and whitespace checks passed.
+
+## 339 — 2026-09-06 — Repair the pi shell-suite harness, then park at the independent round-three hard gate [HARNESS]
+
+**Picked.** Ready queue head `m-pi-runner-shell-suite-coverage`: the existing runner suite was
+absent from the Make/CI graph and its default timing fixture passed only8/9. Gate 1 recorded base
+`01b186b977d9e0efb057efd13ca5dddbef1b339f`; the canonical inbox had20 unread, none outranking,
+and claim `inbox_1788707641904_d0b5c192` was sent before role work. No inbox row was acknowledged.
+
+**Reality check.** The absence was real: the suite had no Make edge. Default execution reproduced
+8 pass/1 fail, with the silent arm returning12 where stale expectation required11;50 sleeps cost
+9.22 seconds. Existing production runner and D-58 were explicitly frozen. The main checkout ended
+0 ahead/0 behind with its12 unrelated dirty paths untouched; every implementation/judge round used
+a separate worktree.
+
+**Shipped.** Parked `needs-human-review`; nothing pushed or merged. Candidate branch
+`sprint/v1-iter339-pi-runner-shell-suite-coverage` is preserved at
+`2eb17d026dee62649297a19d50f2943612a20438`. Final controller gates were syntax0, focused19/19,
+wiring37/37 with43 identities/0 survivors, full `make test`0, refs52/52 and clean frozen-surface
+diff. Independent round3 repeated focused19/19 and wiring37/37, plus TERM125/1s/0 survivors, but
+its own mandatory full `make test` failed on unchanged SMT startup race #602. The exact isolated
+SMT test then passed; the evaluator skill has no waiver. It also measured one pre-fork injected-
+mkfifo temp-directory residue. The independent verdict record is preserved at
+`docs/sprint-retros/iter339-pi-runner-shell-suite-eval-r3.md`.
+
+**Routing evidence.** Gate-4 base=`fce4fc02e5e67bbd594d5895ffe7ec0736d52e81@2026-09-06T19:27:28Z`.
+Controller `codex:gpt-5.6-sol`. Designer resolver `recipe codex:gpt-6-astra declared:provider-pin`,
+actual Astra Agent; planner `recipe codex:gpt-5.6-sol anthropic-fallback:fail-closed:no-doc`, actual
+Sol Agent; executor `recipe codex:gpt-5.6-sol declared:provider-pin`, actual Sol Agent. Evaluator
+resolver `recipe pi:ollama/minimax-m3:cloud declared:provider-pin`: the required Agent wrapper's
+actual Ollama MiniMax run timed out rc13/pi_rc143 after1802s and91 tools, no report. Configured
+OpenRouter MiniMax fallback timed out rc13/pi_rc143 after1207s and95 tools, no report. Final
+configured fallback Astra Agent supplied the independent verdicts; generator Sol != judge Astra,
+and no wrapper/controller score was substituted. Rounds FAIL83, FAIL88, FAIL70; corrections2;
+the three-round cap is spent. All designer/planner/executor/evaluator roles were spawned through
+the Agent tool as requested. Quorum R1/R2 both BLOCKED with all3 reviewers present; the one designer
+revision was followed by the authorized reviewer-authored narrow refinement, not a third quorum.
+Quorum metered cost $0.16659848; Ollama/Astra/Sol are quota lanes, and OpenRouter timeout cost was
+not reported rather than invented.
+
+**Ruled out.** Controller-local green is not an independent landing verdict. Numeric70 does not
+override an evaluator hard failure. The round1 ordinary-error/leader-gone defects, round2 startup
+orphan, and empty-identity wait are not still open: current W1/W8/W9/W10 and independent probes
+close them with zero survivors. The SMT red is not attributed to this shell diff (`internal/smt`
+diff0 and isolated pass), but attribution does not erase the mandatory observed failure. No fourth
+evaluation round is allowed unattended, and the small temp residue is not silently widened into
+this capped sprint.
+
+**Retro lane.** Backlog/park: D-59 records the human disposition required at the cap—authorize a
+fresh scoped iteration that closes temp cleanup after the existing SMT gate is green, or abandon/
+archive the candidate. Default is indefinite hold. No skill edit: the evaluator hard gate behaved exactly as written. The recurring
+MiniMax report-timeout/session behavior remains covered by `m-pi-evaluator-session-handshake`.
+
+**Progress.** N=12 design docs before v1.0.0 (was12, change0); this HARNESS item moved the goal by0.
+
+**Next.** Human disposition of the iteration339 park outranks its candidate. Otherwise pick
+`m-pi-evaluator-session-handshake`; cache encoding remains parked on D-57 and D-58/D-59 remain open.
