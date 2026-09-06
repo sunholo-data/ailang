@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"text/tabwriter"
 	"time"
@@ -17,18 +18,22 @@ import (
 
 // missionRollupJSON is the JSON shape for `chains stats --by-mission`.
 type missionRollupJSON struct {
-	Mission          string             `json:"mission"`
-	MeteredBudgetUSD *float64           `json:"metered_budget_usd,omitempty"` // nil => budget unset
-	ReportedCost     float64            `json:"reported_cost"`
-	EstimatedCost    float64            `json:"estimated_cost"`
-	KnownCost        float64            `json:"known_cost"` // reported + estimated (metered total)
-	OverBudget       bool               `json:"over_budget"`
-	ReportedStages   int                `json:"reported_stages"`
-	EstimatedStages  int                `json:"estimated_stages"`
-	QuotaStages      int                `json:"quota_stages"`
-	UnknownStages    int                `json:"unknown_stages"`
-	QuotaByBucket    map[string]int     `json:"quota_by_bucket"`
-	TopStages        []missionStageJSON `json:"top_stages"`
+	Mission          string   `json:"mission"`
+	MeteredBudgetUSD *float64 `json:"metered_budget_usd,omitempty"` // nil => budget unset
+	ReportedCost     float64  `json:"reported_cost"`
+	EstimatedCost    float64  `json:"estimated_cost"`
+	KnownCost        float64  `json:"known_cost"` // reported + estimated (metered total)
+	OverBudget       bool     `json:"over_budget"`
+	ReportedStages   int      `json:"reported_stages"`
+	EstimatedStages  int      `json:"estimated_stages"`
+	QuotaStages      int      `json:"quota_stages"`
+	UnknownStages    int      `json:"unknown_stages"`
+	// Canonical per-provider token totals — the only view a ration can be computed
+	// against. Counts are not a unit of quota, and the raw spellings cannot be summed.
+	QuotaTokensByBucket          map[string]int64   `json:"quota_tokens_by_bucket,omitempty"`
+	QuotaStagesByCanonicalBucket map[string]int     `json:"quota_stages_by_canonical_bucket,omitempty"`
+	QuotaByBucket                map[string]int     `json:"quota_by_bucket"`
+	TopStages                    []missionStageJSON `json:"top_stages"`
 }
 
 type missionStageJSON struct {
@@ -86,17 +91,19 @@ func chainsStatsByMission(sourcePrefix string, hours int, jsonOutput, strict boo
 			anyIncomplete = true
 		}
 		mj := missionRollupJSON{
-			Mission:          mr.Mission,
-			MeteredBudgetUSD: budget,
-			ReportedCost:     mr.Rollup.ReportedCost,
-			EstimatedCost:    mr.Rollup.EstimatedCost,
-			KnownCost:        known,
-			OverBudget:       over,
-			ReportedStages:   mr.Rollup.ReportedStages,
-			EstimatedStages:  mr.Rollup.EstimatedStages,
-			QuotaStages:      mr.Rollup.QuotaStages,
-			UnknownStages:    mr.Rollup.UnknownStages,
-			QuotaByBucket:    mr.QuotaByBucket,
+			Mission:                      mr.Mission,
+			MeteredBudgetUSD:             budget,
+			ReportedCost:                 mr.Rollup.ReportedCost,
+			EstimatedCost:                mr.Rollup.EstimatedCost,
+			KnownCost:                    known,
+			OverBudget:                   over,
+			ReportedStages:               mr.Rollup.ReportedStages,
+			EstimatedStages:              mr.Rollup.EstimatedStages,
+			QuotaStages:                  mr.Rollup.QuotaStages,
+			UnknownStages:                mr.Rollup.UnknownStages,
+			QuotaByBucket:                mr.QuotaByBucket,
+			QuotaTokensByBucket:          mr.QuotaTokensByBucket,
+			QuotaStagesByCanonicalBucket: mr.QuotaStagesByCanonicalBucket,
 		}
 		for _, ts := range mr.TopStages {
 			mj.TopStages = append(mj.TopStages, missionStageJSON{
@@ -146,8 +153,27 @@ func chainsStatsByMission(sourcePrefix string, hours int, jsonOutput, strict boo
 			fmt.Printf("  %s %d stages unattributed (tokens but no resolvable model) — metered total may be low\n",
 				yellow("⚠"), mj.UnknownStages)
 		}
+		// CANONICAL first: tokens per provider bucket, which is the only view a ration can
+		// be computed against. Counts cannot be rationed — an iteration is not a unit of
+		// quota — and the raw spellings cannot be summed, since one bucket is written four
+		// ways (codex / codex-chatgpt / Codex-OAuth / codex-oauth).
+		if len(mj.QuotaTokensByBucket) > 0 {
+			fmt.Printf("  Quota TOKENS by provider bucket (canonical):\n")
+			keys := make([]string, 0, len(mj.QuotaTokensByBucket))
+			for k := range mj.QuotaTokensByBucket {
+				keys = append(keys, k)
+			}
+			sort.Slice(keys, func(i, j int) bool {
+				return mj.QuotaTokensByBucket[keys[i]] > mj.QuotaTokensByBucket[keys[j]]
+			})
+			for _, b := range keys {
+				fmt.Printf("    %-12s %12d tok  (%d stages)\n", b, mj.QuotaTokensByBucket[b], mj.QuotaStagesByCanonicalBucket[b])
+			}
+		}
+		// RAW spellings retained: existing output is unchanged, and the raw record is what
+		// makes a canonicalisation auditable rather than trusted.
 		if len(mj.QuotaByBucket) > 0 {
-			fmt.Printf("  Quota stages by bucket:\n")
+			fmt.Printf("  Quota stages by bucket (raw agent_id spellings):\n")
 			for bucket, n := range mj.QuotaByBucket {
 				fmt.Printf("    %-12s %d\n", bucket, n)
 			}

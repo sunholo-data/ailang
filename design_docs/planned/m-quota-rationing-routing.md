@@ -224,10 +224,25 @@ them (V4). M1 removes it.
 
 ## Milestones
 
-**M1 — canonical buckets + token sums (~250 LOC).** Canonicalise the bucket label at read
-time; add `QuotaTokensByBucket` beside the existing counts. Revert the Gate-4 prose rule.
+**M1 — canonical buckets + token sums (~250 LOC). LANDED 2026-09-06.** Canonicalise the
+bucket label at read time; add `QuotaTokensByBucket` beside the existing counts. (The
+Gate-4 revert moves to M2 — see the M1 finding above.)
 *AC: the four codex spellings report as one; tokens sum per bucket; existing count output
 unchanged; `unlabeled`/`none` are reported, never silently folded.*
+
+**M1 FINDING, and it redirects M2.** Quota lanes post `TokensIn/TokensOut = 0` **by
+design**, not by omission. `iteration_post.go` states the contract: *"Quota lanes MUST post
+0/0 so M1's tokens>0 estimation gate excludes them structurally (no schema marker)."*
+`tokens > 0` IS the marker for "this stage is metered and can be priced" — so writing real
+token counts into those fields would make the cost estimator price a subscription run as if
+it were billed, corrupting the metered KPI to fix the quota one.
+
+So the ledger cannot reuse that field. M2 adds a **separate `QuotaTokens`** that the
+estimator ignores by construction, keeping the two accounting systems from contaminating
+each other. This also settles the earlier question about Gate 4's prose rule: the structured
+store is still the right home, but it needs a new field rather than the existing one, and
+until that field exists the routing-evidence row is the only record of per-role quota spend
+— so **Gate 4's rule stays until M2 lands**, then goes.
 
 **M2 — the fleet-wide ledger (~350 LOC).** `~/.ailang/state/quota-ledger.json` keyed by
 (bucket, window), fed from the chains store. Fleet-wide per D-3, guarded by `riglock` with a
