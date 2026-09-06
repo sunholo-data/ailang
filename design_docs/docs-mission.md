@@ -78,6 +78,37 @@ At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the arc
 iteration re-reads this charter — unbounded STATUS history is a per-read token tax on the scarcest
 model budget; the append-only history lives in the log + archive.
 
+## STATUS 2026-09-06 — ITERATION 12: fresh draw `m-ailang-semantic-context`; quorum blocked and both designer lanes failed, parked
+
+Gate 0: armed; GitHub account `sunholo-voight-kampff`; clean pin matched `origin/dev` at
+`c1212b3ca`. Canonical inbox triage found no `mission-docs` directive or genuine regression;
+D-4 and D-5 remain OPEN.
+
+Gate 2 drew the next docs-8-certified fresh backlog item after iteration 11's failed
+`m-agent-step-cancellation` attempt: `design_docs/planned/v0_29_0/m-ailang-semantic-context.md`.
+The item was not landed or already in flight. Its pick-time quorum was BLOCKED: all three external
+reviewers rejected the document because its own telemetry says compaction never fires for qwen3.6,
+while the proposed fixes still treat compaction as the cause and success metric. Metered quorum
+cost was $0.0898.
+
+Gate 3 attempted the required designer through the Agent tool as `codex:gpt-6-astra`; it remained
+running through bounded waits with no file change and was shut down. The configured fallback
+`codex:gpt-5.6-luna` was then spawned through the Agent tool and failed identically before its
+artifact was produced. Planner, executor, and evaluator were not spawned: no revised artifact
+reached re-quorum, so there was no valid generation for an independent evaluator to judge.
+This is a designer-lane failure and a correct park; generator-not-equal-judge remains intact.
+
+Outcome: PARKED. No implementation changes. D-4/D-5 remain the human decision asks.
+
+Routing evidence: controller `codex:gpt-5.6-luna`; designer `codex:gpt-6-astra` Agent-tool
+attempt, then fallback `codex:gpt-5.6-luna` Agent-tool attempt, both shut down after no artifact;
+planner `codex:gpt-5.6-luna` not spawned (no design-ready input); executor
+`codex:gpt-5.6-luna` not spawned (no plan); evaluator `pi:ollama/minimax-m3:cloud` not spawned
+(no generated implementation to review). No silent fallback was used.
+
+**Retro — no skill edit.** One designer-lane failure is below the shared-skill two-instance bar;
+retry/re-route is the next action. Full record: `design_docs/docs-mission-log.md` §ITERATION 12.
+
 ## STATUS 2026-09-06 — ITERATION 11: fresh draw `m-agent-step-cancellation`; designer lanes failed before revision, parked
 
 Gate 0: armed; GitHub account `sunholo-voight-kampff`; clean origin-pinned worktree. Inbox triage

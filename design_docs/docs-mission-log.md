@@ -1485,3 +1485,32 @@ not separately named either — worth a shared-skill watch-item if a second miss
 degrades every doc's review to 2 reviewers without ever surfacing as a "silent pass" (the existing
 `absent_reviewers` rule catches a false PROCEED; it does not catch a quorum that is quietly
 running permanently short-handed).
+
+## ITERATION 12 — 2026-09-06T10:11Z
+
+**Pick:** fresh docs-8 backlog draw `design_docs/planned/v0_29_0/m-ailang-semantic-context.md`,
+after docs-11/D-4 and docs-12/D-5 remained parked and iteration 11's
+`m-agent-step-cancellation` designer lane failed.
+
+**Quorum:** pick-time quorum BLOCKED 3/3. `gpt6-astra`, `gemini-3-1-pro`, and `oc-glm-5-2` all
+rejected the self-contradictory compaction premise: the document reports compaction never fires
+for qwen3.6 but still proposes compaction-causal fixes and a reduced fire-rate as the success
+metric. Controller also rejected because the document bundled multiple independent routes rather
+than one bounded sprint. Metered cost: $0.0898.
+
+**Routing / outcome:** designer `codex:gpt-6-astra` was spawned through the Agent tool and shut
+down after bounded waits with no file change. The configured fallback `codex:gpt-5.6-luna` was
+then spawned through the Agent tool and failed identically; its file artifact was absent. Planner
+`codex:gpt-5.6-luna` was not spawned because no revised design reached re-quorum. Executor
+`codex:gpt-5.6-luna` was not spawned because no plan existed. Evaluator
+`pi:ollama/minimax-m3:cloud` was not spawned because no generated implementation existed to
+judge. This preserves generator-not-equal-judge; no evaluator verdict was fabricated.
+
+**Outcome:** **PARKED.** No implementation changes. D-4 and D-5 remain OPEN. The two designer
+failures are recorded as retryable lane failures, not as a passing design.
+
+**Cost:** metered $0.0898; quota buckets: `codex:gpt-6-astra`, `codex:gpt-5.6-luna` designer
+attempts; no planner/executor/evaluator spend.
+
+**Decisions for Mark:** D-4 and D-5 unchanged. **Ruled out:** none. **Retro:** no skill edit;
+one designer-lane failure is below the shared-skill two-instance threshold.
