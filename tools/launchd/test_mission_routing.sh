@@ -191,13 +191,9 @@ grep -q 'MISSION_EXECUTOR_FALLBACK:-[^}]*:floor' "$driver" \
 # The single exact-string arm this replaces bundled three separate guarantees, so
 # any one edit reddened it without saying which broke. Split, because two of the
 # three are negative assertions that must keep biting on their own.
-grep -q 'MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-6-astra,claude-fable-5-1}' "$driver" \
-  && ok "controller ladder is opus-5 -> astra -> fable-5-1" || bad "controller ladder is opus-5 -> astra -> fable-5-1" "wrong ladder"
 # The ORDER is the ruling, not just the membership: astra before fable, fable kept
 # as what it falls back to. An astra entry placed AFTER fable would satisfy a naive
 # membership check and invert the decision.
-grep -q 'MISSION_MODEL_PREFS:-[^}]*codex:gpt-6-astra,claude-fable' "$driver" \
-  && ok "astra sits AHEAD of fable in the ladder" || bad "astra sits AHEAD of fable in the ladder" "astra not immediately before fable"
 # opus-4.8 REMOVED from the controller ladder (Mark 2026-08-26). Negative
 # assertion so a silent reintroduction is RED, not merely unasserted.
 grep -q 'MISSION_MODEL_PREFS:-[^}]*opus-4-8' "$driver" \
@@ -243,6 +239,22 @@ grep -A40 '_an_probed=' "$driver" | grep -q "fbvar=\"MISSION_\${role}_FALLBACK\"
 # The designer needs a chain for the PINNED case; the rotation covers the rotating one.
 grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra' "$driver" \
   && ok "pinned designer has a codex rung" || bad "pinned designer has a codex rung" "designer chain missing"
+# ASTRA IS OUT OF THE CONTROLLER LADDER (2026-09-06, on measurement). It was 60% of codex
+# spend: four overnight CONTROLLER fires cost 2,121,499 tokens, because a controller drives the
+# whole iteration and re-sends the fixed context on every turn. It remains the DESIGNER, where
+# the Fable diet bounds it to one run per iteration — which is exactly why that role never
+# showed up in the burn.
+grep -qE 'MISSION_(MODEL_PREFS|CONTROLLER_FALLBACK):-[^}]*gpt-6-astra' "$driver" \
+  && bad "astra is NOT a controller rung" "astra is back in a controller ladder" \
+  || ok "astra is NOT a controller rung"
+grep -q 'MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1}' "$driver" \
+  && ok "controller ladder is opus-5 -> sol -> fable-5-1" || bad "controller ladder is opus-5 -> sol -> fable-5-1" "wrong ladder"
+grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol,pi:ollama' "$driver" \
+  && ok "controller falls Sol -> pi directly" || bad "controller falls Sol -> pi directly" "missing"
+# The designer keeps its astra rung — the change is scoped to the controller.
+grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra' "$driver" \
+  && ok "designer keeps its astra rung" || bad "designer keeps its astra rung" "astra was removed from the designer too"
+
 # The chain walker must exist, or a comma value would be passed to pi as ONE
 # model name and every fallback would 404.
 grep -q '_chain_head()' "$driver" && grep -q 'CHAIN_REMAINING' "$driver" \
@@ -263,8 +275,6 @@ grep -q 'MISSION_EVALUATOR_FALLBACK:-pi:ollama/\(kimi\|deepseek\)' "$driver" \
 # codex controller, which is exactly what Mark declined.
 grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol' "$driver" \
   && ok "controller fallback still leads with Codex Sol" || bad "controller fallback still leads with Codex Sol" "sol displaced from the head"
-grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol,codex:gpt-6-astra' "$driver" \
-  && ok "Codex Astra is the rung directly behind Sol" || bad "Codex Astra is the rung directly behind Sol" "astra missing or out of order"
 
 "$ROOT/scripts/mission_decisions.sh" --check --file "$ROOT/design_docs/v1-mission.md" >/dev/null \
   && ok "decision ledger validates" || bad "decision ledger validates" "invalid"

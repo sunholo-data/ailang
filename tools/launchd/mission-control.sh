@@ -375,7 +375,25 @@ _mc_mem_ok() {
 # Requires the provider dispatch in select_model step 3; before that change this
 # list was Anthropic-only and a codex entry here would have been sent to the
 # claude CLI probe and failed every fire.
-PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-6-astra,claude-fable-5-1}"
+# ⚠️ ASTRA REMOVED FROM THE CONTROLLER LADDER 2026-09-06 (Mark, attended, on measurement).
+# This SUPERSEDES the 2026-09-05 ruling that put astra ahead of each fable instance — that
+# ruling was made before we had usage data, and the data changed it.
+#
+# MEASURED: on 2026-09-05 astra was 60% of all codex spend and the weekly bucket emptied in
+# a day. Four astra CONTROLLER fires overnight cost 2,121,499 tokens (v1: 511,180 + 527,910
+# + 399,933; world: 682,476). The cause is structural, not a bad model: a controller drives
+# the WHOLE iteration, so the fixed context prefix is re-sent on every turn — ~63k tokens of
+# this skill x ~50 turns is ~3.1M input tokens before it reads anything. A reasoning-heavy
+# model takes the most turns, so it pays that prefix the most times.
+#
+# The controller does NOT author: it delegates designer/planner/executor/evaluator and spends
+# its own turns on orchestration, git and verification. Two gates need real judgement (Gate 2's
+# reality-check, and adjudicating evaluator/quorum findings); five are plumbing. Sol is the
+# right tier for that mix and has months of track record in this fleet.
+#
+# ASTRA IS UNCHANGED AS DESIGNER — that role is BOUNDED to one run per iteration by the Fable
+# diet, which is exactly why it never showed up in the burn.
+PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1}"
 # CONTROLLER_FALLBACK is an ordered COMMA CHAIN walked left to right (Mark, attended
 # 2026-08-31: "a longer chain of redundancies after codex", explicitly NOT a new default —
 # codex keeps its rung; the pi rungs exist so a simultaneous Anthropic+codex dry-out no
@@ -398,7 +416,7 @@ PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-6-astra,claude-fable-5-1}"
 # This chain is safe to extend with a `codex:*` entry — unlike the per-role
 # chains below — because the controller selector probes EVERY entry it walks
 # (_mc_probe_codex per codex:* rung), rather than handing off to a later loop.
-CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol,codex:gpt-6-astra,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3}"
+CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3}"
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
 PROBE_TIMEOUT="${MISSION_PROBE_TIMEOUT:-120}"   # per-probe wall-clock cap, seconds
 
