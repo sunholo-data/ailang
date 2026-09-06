@@ -1,0 +1,189 @@
+{
+  "iteration": 337,
+  "mission": "v1",
+  "base": "374d8a4217358721b2bb2ad7fe52b7be5c93377d",
+  "pick": "m-pi-runner-worktree-assertion-vacuous-on-revision",
+  "class": "HARNESS",
+  "baseline": {
+    "build_rc": 0,
+    "make_test_rc": 0,
+    "top_level_go_passes": 8242,
+    "packages": 123,
+    "lint_rc": 0,
+    "pi_suite": {
+      "rc": 0,
+      "assertions": 9,
+      "env": {
+        "MISSION_PI_POLL_SECONDS": "1"
+      }
+    }
+  },
+  "repro": [
+    {
+      "arm": "clean",
+      "rc": 10,
+      "verdict": "empty_worktree",
+      "changed": 0
+    },
+    {
+      "arm": "dirty",
+      "rc": 0,
+      "verdict": "ok",
+      "changed": 1
+    },
+    {
+      "arm": "untracked",
+      "rc": 0,
+      "verdict": "ok",
+      "changed": 1
+    }
+  ],
+  "preflight": {
+    "gh_account": "sunholo-voight-kampff",
+    "billing_tripwire": "CLEAN",
+    "bookkeeping_issue": 972,
+    "comments": 41,
+    "new_directives": 0,
+    "open_decisions": [
+      "D-55",
+      "D-56",
+      "D-57"
+    ],
+    "main_dirty_paths": 14,
+    "running_skill_cmp": 0,
+    "dev_checks": 20,
+    "dev_failures": 0
+  },
+  "designer": {
+    "actual_model": "pi:ollama/deepseek-v4-flash:0731-cloud",
+    "runner_rc": 0,
+    "seconds": 538,
+    "tools": 39,
+    "files": 1,
+    "quota": "ollama-cloud",
+    "transport_failure": "missing sandbox-runtime dependency before model; canonical-byte-identical shim repaired",
+    "fable_probe_only": true
+  },
+  "quorum_r1": {
+    "verdict": "blocked",
+    "absent": [],
+    "reviewers": [
+      {
+        "model": "gpt6-astra",
+        "verdict": "reject",
+        "cost_usd": 0.08374000000000001,
+        "tokens_in": 6614,
+        "tokens_out": 352
+      },
+      {
+        "model": "gemini-3-1-pro",
+        "verdict": "reject",
+        "cost_usd": 0.017694,
+        "tokens_in": 7179,
+        "tokens_out": 278
+      },
+      {
+        "model": "oc-glm-5-2",
+        "verdict": "reject",
+        "cost_usd": 0.009347620000000001,
+        "tokens_in": 6554,
+        "tokens_out": 414
+      }
+    ]
+  },
+  "metered_usd": 0.10143400000000001,
+  "flat_rate_imputed_usd": 0.009347620000000001,
+  "controller_revision_checks": {
+    "tracked_regular_files": 24380,
+    "tracked_regular_bytes": 268361724,
+    "tracked_symlinks": 0,
+    "prototype_manifest_records": 24381,
+    "prototype_snapshot_seconds": 5.442,
+    "prototype_rc": 0,
+    "git_hash_object_without_w_writes": false,
+    "git_hash_object_with_w_writes": true
+  },
+  "disposition": "needs-human-review D-58",
+  "quorum_r2": {
+    "doc": "design_docs/planned/v0_35_2/m-pi-runner-worktree-assertion-vacuous-on-revision.md",
+    "iso_ts": "2026-09-06T07:33:44Z",
+    "reviewers": [
+      {
+        "model": "gpt6-astra",
+        "cost_usd": 0.09157,
+        "tokens_in": 7707,
+        "tokens_out": 290,
+        "present": true,
+        "result": {
+          "verdict": "reject",
+          "strongest_objection": "The proposed no-follow guarantee covers only a symlink at the final path component. If Git tracks d/f and the quiescent worktree replaces d with a symlink to an external directory, enumeration still yields d/f; leaf type checks and batched shasum can follow d and read external content. This violates the stated filesystem boundary without any concurrent writer.",
+          "catch": "V6/V9 test leaf symlinks, not symlinked ancestors of tracked paths. They do not establish the unconditional claims that symlinks are never dereferenced and snapshots never read outside the worktree.",
+          "proposed_fix": "Add this rule: 'Under the quiescent-tree assumption, validate every ancestor component of each eligible root-relative path beneath the physical worktree root before inspecting or hashing its leaf. Reject symlinked or non-directory ancestors with snapshot_error; genuinely missing ancestors represent an absent path. Only final-component symlinks may be hashed as link text.' Add a hermetic regression that commits d/f, replaces d with a symlink to an external directory containing f, and verifies rc 15 before external content is opened. Include an external blocking-target variant and an auditable verification-log row. Narrow the no-follow guarantee explicitly to the documented quiescent-tree assumption."
+        },
+        "landed": null
+      },
+      {
+        "model": "gemini-3-1-pro",
+        "cost_usd": 0.020202,
+        "tokens_in": 8445,
+        "tokens_out": 276,
+        "present": true,
+        "result": {
+          "verdict": "reject",
+          "strongest_objection": "The `worktree_changed_files` distinct path count algorithm is mathematically flawed as specified. Running `comm -23` and `comm -13` on the manifest files compares entire lines (path + tag). Since an edited file's tag changes, its entire line changes, causing `comm` to falsely count it as both deleted (old line unique to before) and created (new line unique to after). Summing this with the `join` output will incorrectly count a single edited file 3 times, contradicting the spec's claim that it reports 1.",
+          "catch": "The `comm` commands must strictly operate on path-only projections, whereas `join` must operate on the full manifests to compare tags.",
+          "proposed_fix": "Revise the distinct-path count definition to explicitly project paths: \"Extract path lists (`cut -f1 manifest > paths`). `comm -23 before.paths after.paths` (deleted) + `comm -13 before.paths after.paths` (created) + `join -t '\\t' -1 1 before.manifest after.manifest | awk -F'\\t' '$2 != $3'` (edited).\""
+        },
+        "landed": null
+      },
+      {
+        "model": "oc-glm-5-2",
+        "cost_usd": 0.017787780000000003,
+        "tokens_in": 7628,
+        "tokens_out": 2329,
+        "present": true,
+        "result": {
+          "verdict": "reject",
+          "strongest_objection": "The consumer-surface claim ('rc 15 needs no consumer code change') is under-verified. V13's grep only searched `.claude/skills/mission-control/`, but the doc itself references `nightly_classify.py`, `eval_harness/metrics.go`, and `.claude/skills/mission-control/resources/codex-lane-false-greens.md` \u2014 files that exist outside or at the edge of that scope. The doc asserts these are 'unrelated to the pi verdict' without a verification command proving they do not contain an explicit exit-code switch (case/if/elif) over `0/10/11/12/13/14` that would misclassify or crash on `15`. If any such consumer has a fall-through default that is not 'treat as LANE FAILURE' (e.g., log-and-continue, retry-on-unknown, or a hard `case` with no `*` arm), rc 15 silently changes behavior. The grep scope is insufficient to support a 'no consumer code change' conclusion.",
+          "catch": "V13 greps only `.claude/skills/mission-control/` for three patterns. It does not cover the full repo, does not grep the actual files it names (`nightly_classify.py`, `metrics.go`), and does not verify that `codex-lane-false-greens.md` (listed under Related Documents as documenting verdict behavior) lacks an explicit code enumeration that needs updating alongside the two 'source-of-truth' comments already identified.",
+          "proposed_fix": "Add a verification-log row (V14) that runs a repo-wide grep: `grep -rn 'mission_pi_run\\|empty_worktree\\|worktree_changed_files\\|snapshot_error' --include='*.py' --include='*.go' --include='*.sh' --include='*.md' .` and report every hit. For each hit outside the already-handled `SKILL.md:1403-1445`, add a row stating whether it contains an explicit exit-code switch over pi verdict codes and how rc 15 falls through. If `nightly_classify.py` or `metrics.go` parse the pi verdict JSON or exit code, either verify their default arm is 'treat as failure' or add them to the code-changes list. If `codex-lane-false-greens.md` enumerates the verdict codes, add it to the doc-comment update list alongside the two source-of-truth comments."
+        },
+        "landed": null
+      }
+    ],
+    "controller_in_session": {
+      "verdict": "reject",
+      "note": "Revision fixes actual distinct count, no-follow direction and explicit deadline, but still has load-bearing contradictions: compare/delta is said covered yet only snapshot helpers are wrapped; before-snapshot failure behavior and job-control before snapshot ordering unclear; physical parent normalization via pwd-P does not resolve final-component symlinks nor linked worktree aliases; link text via command substitution strips trailing newlines. git hash-object does not write without-w. Measured tracked regular bytes268361724 contradict stated3.7MB. New deterministic suite explicitly remains outside CI. Please provide concrete narrow fixes where possible; do not treat prototype claims as production evidence."
+    },
+    "synthesis": {
+      "verdict": "blocked",
+      "blocking_objections": [
+        "gpt6-astra: The proposed no-follow guarantee covers only a symlink at the final path component. If Git tracks d/f and the quiescent worktree replaces d with a symlink to an external directory, enumeration still yields d/f; leaf type checks and batched shasum can follow d and read external content. This violates the stated filesystem boundary without any concurrent writer.",
+        "gemini-3-1-pro: The `worktree_changed_files` distinct path count algorithm is mathematically flawed as specified. Running `comm -23` and `comm -13` on the manifest files compares entire lines (path + tag). Since an edited file's tag changes, its entire line changes, causing `comm` to falsely count it as both deleted (old line unique to before) and created (new line unique to after). Summing this with the `join` output will incorrectly count a single edited file 3 times, contradicting the spec's claim that it reports 1.",
+        "oc-glm-5-2: The consumer-surface claim ('rc 15 needs no consumer code change') is under-verified. V13's grep only searched `.claude/skills/mission-control/`, but the doc itself references `nightly_classify.py`, `eval_harness/metrics.go`, and `.claude/skills/mission-control/resources/codex-lane-false-greens.md` \u2014 files that exist outside or at the edge of that scope. The doc asserts these are 'unrelated to the pi verdict' without a verification command proving they do not contain an explicit exit-code switch (case/if/elif) over `0/10/11/12/13/14` that would misclassify or crash on `15`. If any such consumer has a fall-through default that is not 'treat as LANE FAILURE' (e.g., log-and-continue, retry-on-unknown, or a hard `case` with no `*` arm), rc 15 silently changes behavior. The grep scope is insufficient to support a 'no consumer code change' conclusion.",
+        "controller (in-session): Revision fixes actual distinct count, no-follow direction and explicit deadline, but still has load-bearing contradictions: compare/delta is said covered yet only snapshot helpers are wrapped; before-snapshot failure behavior and job-control before snapshot ordering unclear; physical parent normalization via pwd-P does not resolve final-component symlinks nor linked worktree aliases; link text via command substitution strips trailing newlines. git hash-object does not write without-w. Measured tracked regular bytes268361724 contradict stated3.7MB. New deterministic suite explicitly remains outside CI. Please provide concrete narrow fixes where possible; do not treat prototype claims as production evidence."
+      ],
+      "absent_reviewers": [],
+      "total_cost_usd": 0.12955978,
+      "total_tokens_in": 23780,
+      "total_tokens_out": 2895
+    }
+  },
+  "cost": {
+    "metered_api_usd": 0.213206,
+    "flat_rate_imputation_usd": 0.0271354
+  },
+  "designer_revision": {
+    "model": "pi:ollama/deepseek-v4-flash:0731-cloud",
+    "rc": 0,
+    "seconds": 667,
+    "tools": 39,
+    "total_tokens": 1717067
+  },
+  "controller_prototype_control": {
+    "rc": 0,
+    "seconds": 5.442,
+    "records": 24381,
+    "tracked_bytes": 268361724
+  }
+}
