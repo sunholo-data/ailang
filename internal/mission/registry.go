@@ -118,7 +118,15 @@ func (m *Mission) Validate() error {
 		return fmt.Errorf("%s: workdir %q must be an absolute path, not ~-relative — "+
 			"the driver runs under launchd, where ~ is not expanded", where, m.Workdir)
 	}
-	if !filepath.IsAbs(m.Workdir) {
+	// "Absolute" means POSIX-absolute OR host-absolute, and it needs both arms.
+	// filepath.IsAbs alone is wrong: on Windows it rejects "/Users/..." — every real
+	// rig workdir — so the whole package went red on test-windows. A POSIX-only check
+	// alone is wrong too: the fleet fixtures build their workdirs from t.TempDir(),
+	// which is C:\Users\... on a Windows runner. On unix the two arms are the SAME
+	// function (filepath.IsAbs is strings.HasPrefix(p, "/") there), so this is
+	// byte-identical to the old behaviour on the rig. What it still rejects is what
+	// the check is actually for: a relative path, and the ~-form handled above.
+	if !strings.HasPrefix(m.Workdir, "/") && !filepath.IsAbs(m.Workdir) {
 		return fmt.Errorf("%s: workdir %q must be absolute", where, m.Workdir)
 	}
 

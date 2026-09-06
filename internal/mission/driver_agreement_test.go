@@ -183,6 +183,15 @@ func TestDriverCopiesDoNotMultiply(t *testing.T) {
 			distinct, forks)
 	}
 	if distinct < knownDriverCopies {
+		// A fall is only news if the fleet was VISIBLE. On a fresh clone — every CI
+		// runner — none of the sibling checkouts exist, so distinct is 1 by
+		// construction and this branch fires for an environment, not for a change.
+		// The up-ratchet above is safe either way: it can only fire on a fork this
+		// checkout can actually see.
+		if observed == 0 {
+			t.Skip("no sibling checkout present — the fleet is not observable here, " +
+				"so a fall cannot be distinguished from a fresh clone (expected off-rig)")
+		}
 		t.Errorf("driver copies FELL to %d — good, but lower knownDriverCopies to %d so the "+
 			"ratchet keeps holding at the new level", distinct, distinct)
 	}

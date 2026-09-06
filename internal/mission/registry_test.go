@@ -120,6 +120,41 @@ func TestValidate_RejectsBadFields(t *testing.T) {
 	}
 }
 
+// The workdir check exists to reject a RELATIVE path (and the ~-form, above). It must
+// do that identically on every platform, which is the part that broke: filepath.IsAbs
+// alone rejects "/Users/..." on Windows — every real rig workdir — and a POSIX-only
+// check alone rejects the fleet fixtures' own t.TempDir() there. Both arms are needed.
+//
+// Mutation coverage: deleting the check turns "relative" red on every platform, and
+// dropping EITHER arm turns one of the two absolute cases red on Windows only — which
+// no local run can observe. `test-windows` and `Build windows-latest` are the sole
+// safety net for that half; a green `go test ./...` on darwin proves nothing about it.
+func TestValidate_WorkdirAbsolutenessIsPlatformNeutral(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		workdir string
+		wantErr bool
+	}{
+		{"POSIX absolute — what the rig produces", "/Users/x", false},
+		{"host absolute — what the fleet fixtures build", t.TempDir(), false},
+		{"relative — the case the check is for", "repos/alpha", true},
+		{"bare name", "alpha", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := Mission{
+				Name:    "parse",
+				Repo:    "sunholo-data/ailang-parse",
+				Workdir: tc.workdir,
+				Doc:     "design_docs/parse-mission.md",
+				Sched:   Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 10800},
+			}
+			if err := m.Validate(); (err != nil) != tc.wantErr {
+				t.Fatalf("Validate() error = %v, wantErr %v", err, tc.wantErr)
+			}
+		})
+	}
+}
+
 // The two schedule modes are mutually exclusive in their knobs. Accepting both
 // would let a plist render StartInterval AND ThrottleInterval, whose combined
 // launchd behaviour nobody has measured.

@@ -3813,3 +3813,217 @@ slot would have inherited something rather than a mystery.
 **Next**: row **6p** — derive the suite's wall-clock and node-ceiling bounds from a stimulus measured
 in-test, so the ratio holds by construction on any machine, rather than from constants calibrated on
 one host at one load. Row 6o is closed.
+
+## 36 — 2026-09-06 — an attended session turned dev red in six checks and left; the fire 37 minutes later inherited it, and found a fifth defect the CI logs could not yet show [HARNESS]
+
+**Picked**: NOT the queue head. Gate 1's red-outranks-the-queue rule fired. `dev` was red in six
+checks — `lint`, `test-windows`, `Build windows-latest`, `docs-build`, `docs-gate`,
+`launchd drivers (bash 3.2)` — and rule 3d's parent-walk attributed every one of them to
+M-MISSION-LOOP-WORKBENCH Phase 1: `ab3252109` (16 checks, all green) → `a9de67fe6` M1 (20 checks,
+windows pair red) → `6536cfb98` M2+M3+M4 tip (adds `lint`, `docs-*`, `launchd drivers`). The
+intra-push commits `6203266a3`/`07169cd68` read `total=0` by construction — only a push's tip gets a
+run — which is why the unit is the merge, not the commit.
+
+**Whose red it was, and why this mission fixed it.** `sunholo-data/ailang` is V1's repo and the
+owning-mission rule says a non-owning mission records a red and hands it over — EXCEPT where the red
+is its own doing or sits in territory the owner has no domain knowledge for. Both exceptions apply:
+mission-loop machinery is this charter's clause 6. **It was not an orphaned loop iteration.** The
+died-mid-flight traces were run and came back clean — the driver log shows only two motoko fires on
+2026-09-05 (13:01→16:21 = iteration 35, and 23:39 = this one), so nothing fired at 22:39. The design
+doc, the sprint plan and M1–M4 were landed by an **attended session** between 22:15 and 23:02 local,
+directly to `dev`, with **zero charter rows and zero log entries** (`grep -ci workbench` → **0** in
+both files). Iteration 35's own record is present (control: `ITERATION 35` → 4 in the charter,
+`ITERATION 34` → 5). The session was **still working while this iteration ran**: M5, M6 and M7
+(`cad2ecbdb`, `096d04020`, `7a0bbd5da`) landed mid-flight.
+
+**Progress**: goal unmoved. The epic (`m-motoko-dst-refactor-migration`) did not advance and row 6p
+M2/M3 were not touched. What moved is bar clause 1's precondition — a tree that gates green — from
+six red checks to a fix under review.
+
+**Outcome**: PR [#1055](https://github.com/sunholo-data/ailang/pull/1055), six commits.
+M1 `lint`: a map literal at `doctor_test.go:229` that `walk()` overwrites before any read.
+M2 `test-windows`/`Build windows-latest`: `registry.go:121` validated the workdir with
+`filepath.IsAbs`, which is **platform-dependent** — on Windows it rejects `/Users/...`, so every
+fixture failed validation and ~20 tests died at the gate (`workdir "/Users/x/dev/sunholo-data/ailang-parse" must be absolute`).
+The registry renders macOS launchd plists, so absoluteness here is POSIX absoluteness; the
+replacement is byte-identical to `filepath.IsAbs` on Unix and additionally rejects `C:\…`, which is
+meaningless in a plist. M3 `launchd drivers (bash 3.2)`: `test-launchd-drivers` called
+`test-mission-registry`, which runs `go test`, in a CI job that installs no Go toolchain by design.
+M4 `docs-build`/`docs-gate`: a repo-relative link escaping the docs tree.
+
+**The fifth defect, which no CI log could have named yet.** `GOOS=windows go vet` on the REBASED tree
+returned `internal/mission/kill_unix.go:6:51: undefined: syscall.Kill`. `kill_unix.go` had landed
+minutes earlier in M5/M6 with **no build constraint and no Windows counterpart** — and Go does not
+treat `_unix` as a GOOS suffix, only `_windows`/`_linux`/`_darwin` and friends are automatic. So the
+package did not COMPILE on Windows, and M2 alone would have left both Windows checks red while
+looking like it had fixed them. Filed as M5 here: `//go:build unix` plus a `kill_windows.go` stub.
+The stub reports the pid **live**, because `missionBusy` reads a non-nil error as "not busy" — the
+unsafe direction, which would let `apply` overwrite a running mission's artifacts. Mutation drill:
+stripping the `//go:build unix` line takes Windows back to red; restore is byte-identical by sha256.
+
+**M3a — the controller reviewing the executor.** The executor replaced the removed recipe line with a
+**tab-indented** comment, which make treats as a recipe: it echoes the line and hands it to `/bin/sh`
+to do nothing. Measured with `make -n`: **1 → 0** recipe-line hits after un-indenting, the 16 bash
+invocations unchanged, target still rc=0 with `go` masked. Found before the judge reported.
+
+**Verification, baseline-paired on the same machine and the same commands** (rule 3e). Baseline is
+the pristine tree at `origin/dev`: `make lint` → **1 issue (ineffassign)**; treatment → **0 issues**.
+`go test ./internal/mission/...` → `ok` both sides. `GOOS=windows go vet` → baseline
+**`undefined: syscall.Kill`**, treatment **rc=0**; `linux` and `darwin` rc=0 too.
+`make test-launchd-drivers` with `go` masked off `PATH` → **rc=0**, `PASS: 57 probe self-test arms
+ran`, control `command -v go` on that PATH rc=1 so `go` really was absent.
+
+**A pre-existing red that fixed itself, and the re-baseline that caught it.** Earlier in this
+iteration `TestLive_DoctorReproducesTheMeasuredDivergences` was **red on the pristine tree** at
+`f5edd569a` — identical failure text on treatment and baseline, so it was correctly ruled
+out-of-scope. After the rebase onto `7a0bbd5da` the same test is **green at baseline**: M6 ("all four
+missions adopted, V8 fixed at source") repaired the rig drift the gate asserts. The first reading was
+right when taken and wrong forty minutes later. It skips off-rig (`golden_live_test.go:330`), which is
+why CI never saw either state.
+
+**Ruled out**: (a) *the M1–M4 landing was an orphaned iteration* — refuted by the driver log, which
+records no motoko fire between 16:21 and 23:39; it was attended work. (b) *the red belongs to V1 as
+repo owner* — refuted by the owning-mission rule's own exception: it is this charter's territory.
+(c) *the four open PRs on the fleet account might be inherited work* — `--author` is a fleet filter,
+not a mission filter; none of `#1054`, `#1041`, `#1033`, `#945` has a branch in this clone's worktree
+list, so none is attributable here and none was touched. (d) *the live-doctor failure is ours* —
+refuted by the pristine baseline, twice, in both directions.
+
+**Blocked-row predicates re-run as commands, not transcribed**: upstream `#154` still **OPEN**
+(positive control `#175` **MERGED**, negative control `#424242` 404s), so rows 10/11/12 stay Phase-0
+parked.
+
+**Routing evidence**: controller `claude:claude-opus-5` (quota bucket, session).
+Executor `codex:gpt-5.6-sol` via the cross-provider recipe — probe rc=0 with a real artifact
+(`tokens used`), real run rc=0 in 30-min cap, non-empty worktree diff, `-o` final message 7,110 B.
+Evaluator **sonnet**, Agent tool, its own worktree — generator≠judge holds (OpenAI executor vs
+Anthropic judge). **No designer and no planner ran**, and that is the routing table applying rather
+than being skipped: both of its branches gate on artifacts a CI-red fix-forward does not have — there
+is no design doc to write and no plan to derive (`derive-planner-lane.sh` returned
+`opus fail-closed:no-doc`, and the planner's own pin is `codex:gpt-5.6-sol`, a `provider:model` value
+the spawn-pin hook would have denied an opus spawn for). Designer rotation pointer left untouched at
+`codex:gpt-6-astra`; **Fable unspent**. Commits reconstructed from the executor's per-milestone
+snapshots and proved byte-identical to its final tree (`shasum -c`, 5/5 OK); `.snap/` confirmed absent
+from every commit.
+
+**Metered**: **$0.00** of the $5 ceiling — no quorum ran (no design doc), and every lane used was a
+quota bucket or the codex subscription. No GPU, no `rig.lock`.
+
+**Next**: row **6p M2/M3** (wire the wall-clock class, enforce the floor, gate `p_obs`; derive the
+node ceiling) — iteration 35 landed M1 only because its executor was capped after one milestone.
+
+**Evaluator: PASS 85/100, ZERO blocking** (sonnet, its own worktree, distinct provider from the
+codex executor — generator≠judge holds). It ran the drills rather than reasoning about them, and two
+were causal rather than plausible: it **built the docs**, reverted M4's one line, and got the exact
+`Docusaurus found broken links` failure back, then restored; and it reintroduced M1's dead
+initialiser and got exactly 1 `ineffassign` finding. It also independently found M3's echoed comment
+— the same defect the controller had already fixed as **M3a** — which is two instruments agreeing.
+
+**The judge's strongest objection was right, and it was about a COMMENT, which is why it nearly
+survived.** The new M2 test's comment claimed it "kills both mutations". Reproduced first-party
+before acting (rule: reproduce before believing, and before dismissing): reverting `registry.go` to
+`filepath.IsAbs` leaves **both arms green on darwin**. The reason is stronger than "equivalent" — on
+unix `filepath.IsAbs` *is* `strings.HasPrefix(p, "/")`, the same shipped function
+(`path_unix.go:35-37`), so no POSIX input can distinguish them. Only the delete-the-check mutation is
+killed locally; the IsAbs revert is caught by `test-windows` and `Build windows-latest` **and by
+nothing else**. A contributor trusting a green local `go test ./...` after touching that check would
+ship the exact regression the test exists to prevent. Fixed in **M6**, which states the platform
+qualifier and names the two jobs that are the real safety net. The judge's other non-blocking find —
+`test-mission-registry` left referenced by nothing after M3 — is also M6, documented as a deliberate
+hand-run entry point rather than deleted, because this repo has scar tissue about removing things
+that merely look unused.
+
+**Judge finding NOT actioned, with its control.** It flagged the absence of a `CHANGELOG.md` entry
+against `coding-standards.md`'s "every change requires CHANGELOG.md". Deferred, and the control is
+what decides it: `git log --name-only f5edd569a~1..origin/dev -- changelogs/ CHANGELOG.md` is
+**empty** — the seven-commit workbench landing this fixes added no entry either, and the changelog is
+sectioned by released version (top entry `v0.35.1`, already out). Inventing a new unreleased section
+for the fix-forward while the feature itself has none would misdescribe both. CI's `make
+check-changelog` is an *index hygiene* gate, not a per-PR entry gate, and it is green. Filed as a
+queue row so the Phase 1 write-up covers both at once; recorded here rather than dropped.
+
+**Gate 3b**: bounded, SHA-pinned, subject-named poll (`ALL COMPLETE for <sha>`, per-invocation log
+path). Both counts are asserted numeric before comparison, so a parse failure prints
+`INSTRUMENT FAILURE — not a verdict` instead of a vacuous green. `mergeable` was read FIRST each
+round and did show one `UNKNOWN/UNKNOWN` before resolving — not banked, per the async-mergeability
+caveat. The poller was killed and relaunched on each new head rather than left to expire on a
+superseded subject.
+
+**CORRECTION, written after two more rebases — the base moved three times while this iteration ran,
+and twice it moved the answer.** The attended session did not stop: after the record above was
+committed it landed **M8, M9, HD ratifications and "Phase 3 part 1"** (`fe9c08ffc`, `703c2f6a3`,
+`7d05a5f73`, `19d6b03c7`). Two consequences, both measured rather than assumed.
+**(a) M1 and M4 were dropped by `git rebase` as *patch contents already upstream*** — the human
+independently fixed the `ineffassign` initialiser and the docs link. Confirmed against the new
+origin/dev: both greps now return **0**, while M2's `filepath.IsAbs`, M3's Go-in-a-Go-less-job and
+M5's missing build tag still return **1/1/0** and remain this branch's work. Four of the five
+original defects were real; two stopped being ours to fix, which is the correct outcome and not a
+wasted commit — the rebase is what proved it, rather than a claim.
+**(b) A SEVENTH defect arrived in the base and this PR inherited it through the merge preview.**
+`19d6b03c7` added `TestDriverCopiesDoNotMultiply`, a ratchet counting driver copies across sibling
+checkouts (`../../../ailang-world` …) that exist **only on the rig**. On any CI runner `distinct` is
+1 by construction against `knownDriverCopies = 2`, so the FELL arm fires for an *environment*, not a
+change. Not ours and not caused by this branch: **dev's own head `19d6b03c7` is red on `test` for
+exactly this**, measured first-party. Fixed as **M7** — the down arm skips when no sibling checkout
+is present, the same off-rig convention `golden_live_test.go` already uses; the up arm is untouched,
+because it can only fire on a fork the checkout can actually see. Controls: from
+`~/dev/sunholo-data/ailang-motoko` all three siblings are VISIBLE, world's driver DIFFERS from shared
+and has no `lib/pin-root.sh` beside it, so `distinct=2` and the ratchet still holds there; from a
+worktree or a CI clone `observed=0` and it skips. The commit says plainly that this is the human's
+own 15-minute-old code and should be dropped if it is being fixed concurrently.
+**(c) The `internal/smt` red is not ours, and the SCOPE of the control is the only thing that proved
+it.** A full `go test ./...` on this branch fails `TestSolve_HardTimeout_FakeSolverIgnoringT`. Run
+*alone* on the pristine tree it PASSES — which would have licensed blaming the branch. Run with the
+*matched* command (`go test ./...`) on the pristine tree it fails identically, **9.02s vs 9.01s**. It
+is load-dependent and pre-existing. The first control was the wrong scope, and rule 3e is the only
+reason that did not become a false attribution.
+
+**SECOND CORRECTION — M5 unblocked the Windows build, and the very next layer was a defect I had
+introduced myself.** With `kill_unix.go` constrained, `test-windows` reached the *tests* for the first
+time and 23 of them failed in `internal/mission`, every one reading
+
+    fixture mission invalid: fixture:docs: workdir "C:\Users\RUNNER~1\...\repos\docs" must be absolute
+
+— **M2's own check refusing a genuinely absolute path.** The two fixture families disagree by
+construction: `registry_test.go` builds workdirs from POSIX literals, while the fleet fixtures in
+`doctor_test.go`/`apply_test.go` build theirs from `t.TempDir()`, which is `C:\Users\…` on a Windows
+runner. `filepath.IsAbs` alone rejects the first family there; a POSIX-only prefix check — what M2
+shipped — rejects the second. **Neither single arm is correct, and the original defect and my fix
+were the same mistake pointing in opposite directions.** M8 accepts either arm. On unix the two are
+literally the same function, so the rig sees no change; what the check still rejects is what it is
+*for* — a relative path, and the `~`-form above.
+
+Three things worth keeping from this. **(a)** The judge's M6 objection was the same defect seen from
+one level up: it said the test could not discriminate on darwin, and the reason it could not is that
+the property being asserted was *platform-shaped* rather than *invariant*. The test now targets the
+invariant (relative is refused everywhere) and uses `t.TempDir()` for the host-absolute row, which is
+host-absolute on every platform. Mutation-checked: deleting the check turns the relative and
+bare-name rows red on darwin, so it discriminates locally now — which M2's version never did.
+**(b) A build break hides every defect behind it.** These 23 failures existed from the moment the
+fleet fixtures were written; nobody could see them because the package did not compile on Windows, so
+the leg failed at `Install ailang to PATH` and never ran a test. Fixing a compile error is not a
+small win — it is what makes the next measurement possible, and the honest expectation after one is
+*more* red, not less.
+**(c) I shipped M2 with a passing local suite, a PASS 85/100 evaluation and my own out-of-sandbox
+gate sweep, and it was still wrong.** Every one of those instruments runs on darwin, where the bug is
+invisible by construction — the judge said so in its strongest objection and I fixed the *comment*
+rather than hearing it as a statement about the change. The only instrument that could see this was
+the Windows CI leg, and it could only see it after M5.
+
+**And the layer under THAT.** M8 took the windows leg from **23** failures to **1**:
+`TestApply_BacksUpWhatItReplaces`, failing with
+`...\bak\C:\Users\RUNNER~1\...: The filename, directory name, or volume label syntax is incorrect`.
+`Apply` built its backup path with a hand-rolled `baseName` splitting on `"/"` alone, so a
+backslash-separated windows path came back **whole** and the join produced a second drive letter
+mid-path. `filepath.Base` is identical to the old code for `/`-separated paths and correct on both;
+fixed as **M9**, with the invariant that would have caught it — a backup lands DIRECTLY in the backup
+dir — added to the test and labelled with the fact that only `test-windows` can ever fire it.
+
+**The shape of this iteration, which is the part worth carrying forward.** Six red checks became
+**nine** defects, and they came in *layers*: each fix made the next one observable. A compile error
+hid 23 test failures; fixing those exposed one more; and one of the nine was mine. That is not a sign
+the work went badly — it is what fixing a build break on a platform nobody develops on looks like,
+and the honest expectation after each green is *more* red, not less. The iteration also ran against a
+moving base the whole way: **five pushes, three rebases**, with an attended session landing M5 through
+Phase 3 part 1 while this ran. Two of my commits were dropped as already-upstream and two of my
+defects came from commits that did not exist when the iteration started.

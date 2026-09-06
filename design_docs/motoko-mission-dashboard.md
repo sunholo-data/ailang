@@ -1,45 +1,50 @@
 # Mission Dashboard — Motoko
 
-**Snapshot**: 2026-09-05, after iteration 35. Overwritten every iteration; history lives in
+**Snapshot**: 2026-09-06, after iteration 36. Overwritten every iteration; history lives in
 `motoko-mission.md` (STATUS) and `motoko-mission-log.md`.
 
 ## Where the mission is
 
-- **Epic**: `m-motoko-dst-refactor-migration` (gated; ungated work runs first). **Active thread**:
-  hardening `tools/eval/motoko_connection_probe.sh` + its self-test suite, rows 6a–6t.
-- **Bar clause 1** (the tree gates green from source): suite arm count **46 → 57** this iteration.
+- **Epic**: `m-motoko-dst-refactor-migration` (gated; ungated work runs first). The thread before
+  this iteration was hardening `tools/eval/motoko_connection_probe.sh`, rows 6a–6t.
+- **This iteration did not advance the epic — goal unmoved.** M-MISSION-LOOP-WORKBENCH Phase 1 was
+  landed **attended**, straight to `dev`, 22:15–23:02 local, with no charter row and no log entry.
+  It left CI red in six checks. The loop fired 37 minutes later and Gate 1's red-outranks-the-queue
+  rule applied; the red is this charter's own territory (clause 6), so it was not handed to V1.
 
 ## In flight
 
-- **PR [#1048](https://github.com/sunholo-data/ailang/pull/1048)** — row 6p **M1 of 3**: the suite now
-  measures the host fork rate in-test and derives its bounds from it. Additive; nothing consumes the
-  scale yet. Evaluator PASS 81/100, its one blocking finding fixed in the PR.
+- **PR [#1055](https://github.com/sunholo-data/ailang/pull/1055)** — seven commits unbreaking `dev`.
+  Four defects from the CI logs, a **fifth found only by measurement** (`kill_unix.go` had no build
+  constraint, so `internal/mission` did not compile on Windows at all — fixing the validation alone
+  would have left both Windows checks red while looking fixed), plus two self-review commits.
+  Evaluator **PASS 85/100, zero blocking**.
 
 ## Next picks (banked, ordered)
 
-1. **6p M2/M3** — wire the wall-clock class + enforce the floor + gate `p_obs` (M2); derive the node
-   ceiling on the discovery arm (M3). Both specified and unblocked; the executor's 30-min cap is the
-   only reason they are not in #1048.
-2. **6s** — no in-suite gate notices a self-test ARM disappearing; corroborated this iteration when
-   the evaluator added an arm and the suite stayed green.
-3. **6t** — Gate 3b's poll cannot reach its 30-min deadline inside a 10-min foreground tool call.
+1. **Row 6p M2/M3** — wire the wall-clock class, enforce the floor, gate `p_obs` (M2); derive the
+   node ceiling (M3). Iteration 35 landed M1 only; its executor was capped after one milestone.
+2. **Row 16** — changelog debt for the whole Phase 1 arc (feature + fix in one entry). Bookkeeping,
+   ≤1 iteration. `make check-changelog` is index hygiene and will never surface it.
+3. **Row 7** — profile restoration design (5 profiles, 14 of 18 model entries).
 
-## Loop cadence + routing
+## Watch
 
-- Controller `claude:claude-opus-5`. Designer **fable** (astra's first real run failed — see below).
-  Planner **codex:gpt-5.6-sol**. Executor **codex:gpt-5.6-sol**. Evaluator **sonnet**, own worktree.
-- **Two routing defects, both in the spawn-pin hook**: it enforces the DECLARED pin and knows nothing
-  about (a) fallbacks — a failed primary cannot be re-routed via the Agent tool at all — or (b)
-  `resolve-role-spawn.sh`'s derivation, which it contradicted for the planner.
-- **`codex:gpt-6-astra` failed its first real designer run**: rc=0, zero artifact, ~3 min, after a
-  passing probe. Fell back to fable, flagged.
+- The attended session was **still landing commits while the loop ran** (M5/M6/M7 arrived
+  mid-iteration, forcing a rebase and a re-verify against fresh origin). Expect more Phase 2 work on
+  `dev` from outside the loop; re-check defects against fresh origin before acting on any of them.
+- `TestLive_DoctorReproducesTheMeasuredDivergences` was red on the rig earlier tonight and is **now
+  green** — M6 fixed the underlying drift. Rig-only; it skips off-rig, so CI never saw either state.
 
 ## Parked on Mark
 
-**Nothing.** Decision ledger: 6 rows, **0 OPEN**.
+- **None.** Decision ledger valid, 6 rows, **0 OPEN**.
 
-## Quota / cost posture
+## Loop posture
 
-Metered **$0.53** of the $5 iteration ceiling (2 quorum rounds + 1 absentee re-run). Quota buckets:
-opus (controller), fable (designer ×2 — the diet's one-doc allowance), sonnet (evaluator), codex
-subscription (planner, executor). No GPU, no `rig.lock`.
+- Controller `claude:claude-opus-5`; executor `codex:gpt-5.6-sol`; evaluator `sonnet` — distinct
+  providers, so generator≠judge holds. **No designer, no planner**: both routing-table branches gate
+  on artifacts a CI-red fix-forward has not got (`derive-planner-lane.sh` → `opus fail-closed:no-doc`).
+- Rotation pointer untouched at `codex:gpt-6-astra`; **Fable unspent**.
+- Metered **$0.00** of the $5 ceiling. No GPU, no `rig.lock`.
+- Bookkeeping issue **#987**; next weekly rotation Monday 2026-09-07.
