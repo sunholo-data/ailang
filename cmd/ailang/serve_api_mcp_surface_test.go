@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -243,6 +245,148 @@ func TestServeAPI_DivergentCacheTools(t *testing.T) {
 		!strings.Contains(poisoned.stderr, "reason=ARTIFACT_INVALID") {
 		t.Fatalf("single-blob hash-failure diagnostic missing; stderr:\n%s", poisoned.stderr)
 	}
+}
+
+// TestServeAPI_RouteIfaceMismatchFromCache is the M4 arm that
+// TestServeAPI_DivergentCacheTools cannot be: every divergence that test
+// constructs is caught by M1's per-blob hash verification before
+// registerModule ever runs, so it passes unchanged with M4's production
+// diagnostic reverted. This one hand-writes an artifact set that is
+// hash-VALID and logically incomplete — iface.json loses the export for a
+// function the source still declares with @route, and artifacts.json is
+// re-stamped to match the new bytes — so M1 accepts it and the route/iface
+// invariant is the only thing standing between the operator and a serve-api
+// that silently publishes a short tool surface.
+func TestServeAPI_RouteIfaceMismatchFromCache(t *testing.T) {
+	binary := buildAilang(t)
+	root := t.TempDir()
+	cacheRoot := filepath.Join(root, "isolated-cache")
+	modulePath := filepath.Join(root, "entry.ail")
+
+	var source strings.Builder
+	source.WriteString("module entry\n")
+	for i := 1; i <= 7; i++ {
+		fmt.Fprintf(&source, "\n@route(\"POST\", \"/f%d\")\nexport pure func f%d(x: float) -> float = x + %d.0\n", i, i, i)
+	}
+	if err := os.WriteFile(modulePath, []byte(source.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Warm the cache and pin the healthy control: seven tools, f7 callable.
+	warm := probeServeAPICacheMCP(t, binary, modulePath, cacheRoot, true)
+	want := []string{"f1", "f2", "f3", "f4", "f5", "f6", "f7"}
+	if strings.Join(warm.tools, ",") != strings.Join(want, ",") {
+		t.Fatalf("warm tools/list = %v, want exactly %v; stderr:\n%s", warm.tools, want, warm.stderr)
+	}
+	if warm.callText != "42" {
+		t.Fatalf("warm f7 call text = %q, want 42; stderr:\n%s", warm.callText, warm.stderr)
+	}
+
+	moduleID, _, _ := readCompileManifestEntry(t, cacheRoot)
+	moduleDir := compileArtifactDir(cacheRoot, moduleID)
+
+	// Drop f7 from the cached interface while leaving the source untouched.
+	ifacePath := filepath.Join(moduleDir, "iface.json")
+	ifaceRaw, err := os.ReadFile(ifacePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ifaceDoc map[string]json.RawMessage
+	if err := json.Unmarshal(ifaceRaw, &ifaceDoc); err != nil {
+		t.Fatal(err)
+	}
+	var exports map[string]json.RawMessage
+	if err := json.Unmarshal(ifaceDoc["exports"], &exports); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := exports["f7"]; !ok {
+		t.Fatalf("instrument failure: cached iface has no f7 export to remove: %s", ifaceRaw)
+	}
+	delete(exports, "f7")
+	if exports["f6"] == nil {
+		t.Fatal("instrument failure: removing f7 also removed the f6 control")
+	}
+	patchedExports, err := json.Marshal(exports)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ifaceDoc["exports"] = patchedExports
+	patchedIface, err := json.Marshal(ifaceDoc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(ifacePath, patchedIface, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Re-stamp so the tampering is invisible to M1's hash verification. Without
+	// this the run would fail as ARTIFACT_INVALID and prove nothing about M4.
+	stampPath := filepath.Join(moduleDir, "artifacts.json")
+	stampRaw, err := os.ReadFile(stampPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stamp struct {
+		Version  string            `json:"version"`
+		ModuleID string            `json:"module_id"`
+		CacheKey string            `json:"cache_key"`
+		SHA256   map[string]string `json:"sha256"`
+	}
+	if err := json.Unmarshal(stampRaw, &stamp); err != nil {
+		t.Fatal(err)
+	}
+	previous, ok := stamp.SHA256["iface.json"]
+	if !ok {
+		t.Fatalf("instrument failure: stamp records no iface.json hash: %s", stampRaw)
+	}
+	sum := sha256.Sum256(patchedIface)
+	updated := hex.EncodeToString(sum[:])
+	if updated == previous {
+		t.Fatal("instrument failure: patched iface.json hashes to the original value")
+	}
+	stamp.SHA256["iface.json"] = updated
+	patchedStamp, err := json.MarshalIndent(stamp, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stampPath, patchedStamp, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stderr, exitErr := runServeAPIMCPExpectingExit(t, binary, modulePath, cacheRoot)
+	if exitErr == nil {
+		t.Fatalf("serve-api started on a route/interface mismatch; stderr:\n%s", stderr)
+	}
+	for _, needle := range []string{"CACHE_ROUTE_IFACE_MISMATCH", "f7", "compile-clear"} {
+		if !strings.Contains(stderr, needle) {
+			t.Fatalf("mismatch diagnostic missing %q; stderr:\n%s", needle, stderr)
+		}
+	}
+	// The failure must be the route invariant, not M1's hash gate: the
+	// re-stamped artifacts are internally consistent by construction.
+	if strings.Contains(stderr, "reason=ARTIFACT_INVALID") {
+		t.Fatalf("re-stamped artifacts still failed hash verification; stderr:\n%s", stderr)
+	}
+}
+
+// runServeAPIMCPExpectingExit starts serve-api with stdin closed and returns
+// its stderr plus the process error. A healthy server blocks on stdin, so the
+// bounded context is what stops it; a refusing server exits on its own.
+func runServeAPIMCPExpectingExit(t *testing.T, binary, modulePath, cacheRoot string) (string, error) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binary, "serve-api", "--mcp", "--routes-only", "--no-feedback-tool", modulePath)
+	cmd.Env = appendEnvOverride(os.Environ(), "AILANG_CACHE_DIR", cacheRoot)
+	cmd.Stdin = strings.NewReader("")
+	var stderr, stdout bytes.Buffer
+	cmd.Stderr = &stderr
+	cmd.Stdout = &stdout
+	err := cmd.Run()
+	if ctx.Err() != nil {
+		t.Fatalf("serve-api did not exit within the bound; stderr:\n%s", stderr.String())
+	}
+	return stderr.String(), err
 }
 
 type mcpProbeResult struct {

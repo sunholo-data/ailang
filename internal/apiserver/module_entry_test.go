@@ -239,6 +239,26 @@ func TestRegisterModule_RouteIfaceMismatch(t *testing.T) {
 		}
 	})
 
+	t.Run("iface export present but nil is the same mismatch", func(t *testing.T) {
+		// A hash-valid but logically-incomplete iface can carry the key with a
+		// nil item. Downstream extractModuleInfo dereferences item.Purity with
+		// no nil check, so "key present" is not the invariant — "non-nil item"
+		// is, exactly as the design states.
+		root := t.TempDir()
+		path := filepath.Join(root, "entry.ail")
+		if err := os.WriteFile(path, []byte("module entry\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		srv := New(root, Config{Port: "0"})
+		defer srv.Close()
+		loaded := newLoaded(path, true)
+		loaded.Iface.Exports["f7"] = nil
+		assertMismatch(t, srv, loaded)
+		if got := len(srv.modules); got != 0 {
+			t.Fatalf("published %d modules for a nil iface item, want 0", got)
+		}
+	})
+
 	t.Run("private annotated function is outside invariant", func(t *testing.T) {
 		root := t.TempDir()
 		path := filepath.Join(root, "entry.ail")
