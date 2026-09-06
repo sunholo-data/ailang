@@ -1,6 +1,6 @@
 # M-PI-EVALUATOR-SESSION-HANDSHAKE — satisfy the judge's local protocol before review
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.35.2
 **Priority**: P1 (next ready mission queue item)
 **Estimated**: 0.5 day, one milestone including review and mutation checks
@@ -189,17 +189,17 @@ implementation. The runner's only edit is the two launch bindings specified abov
 
 ## Acceptance Criteria
 
-- [ ] **AC1 — Delivery contract.** The actual route resource contains exactly one canonical
+- [x] **AC1 — Delivery contract.** The actual route resource contains exactly one canonical
   delimited evaluator preamble. Its first line is `MISSION-ROLE: evaluator`; read, list,
   summarize/classify, ack and judge steps appear in that order. The test reads the resource
   from a path derived from its own module location, not the caller's CWD.
-- [ ] **AC2 — Guard-compatible command.** The command extracted from that actual preamble
+- [x] **AC2 — Guard-compatible command.** The command extracted from that actual preamble
   equals `ailang messages list --unread --json --limit 1`; `bashAllowed` and armed
   `shouldBlock` admit it. Assignment-prefixed and `env`-prefixed replacements fail the test.
   Extract its JSON tool arguments and assert numeric `timeout: 30`; omitted timeout and
   changed values fail. The recipe distinguishes cardinality from elapsed time and treats
   timeout expiry as transport failure requiring stop/fallback, never an evaluation verdict.
-- [ ] **AC3 — Local evidence and explicit success.** Tests derive the read/list tool history
+- [x] **AC3 — Local evidence and explicit success.** Tests derive the read/list tool history
   array from the extracted steps and call `headlessPrerequisitesMet(branch: unknown[])`,
   asserting the returned object's `met` field is true. This pure function takes an array,
   not a session context; the registered ack tool obtains that array with
@@ -210,20 +210,20 @@ implementation. The runner's only edit is the two launch bindings specified abov
   the exact read/list branch followed by an `isError:true` tool result still returns
   `.met=true` (V16). The existing predicate does not distinguish success from failure;
   neither this AC nor the handshake claims to add enforcement of execution success.
-- [ ] **AC4 — Authority and failure text.** The recipe instructs launcher-side canonical
+- [x] **AC4 — Authority and failure text.** The recipe instructs launcher-side canonical
   store/project configuration without changing `AILANG_STORAGE`, distinguishes protocol ack
   from inbox-message ack, and requires error reporting/stop rather than repeated denied writes
   or guard bypass. Bounded listing is not represented as full mission triage.
-- [ ] **AC5 — Non-vacuity.** In isolated evaluator copies, every named mutation below makes
+- [x] **AC5 — Non-vacuity.** In isolated evaluator copies, every named mutation below makes
   the relevant new test fail; restoring the file recovers green. Removing only this
   milestone's recipe addition must fail the new acceptance test while leaving the pre-existing
   guard tests green. Record mutation name, landed diff, command, exit status and red test name.
-- [ ] **AC6 — Validation and scope.** All seven pre-existing gate tests and the new tests
+- [x] **AC6 — Validation and scope.** All seven pre-existing gate tests and the new tests
   pass; repository-required document/skill/whitespace checks pass. Documentation is updated
   through the canonical route resource. Diff proves the runner changed only at its two
   child environment bindings, and the gate implementation/parked iteration339 candidate
   were not modified by this milestone.
-- [ ] **AC7 — Real launch environment.** Invoke the actual checked-out runner with a fake pi
+- [x] **AC7 — Real launch environment.** Invoke the actual checked-out runner with a fake pi
   executable first in PATH and a fresh temporary git workdir. In one arm remove both caller
   messaging variables; in the other supply `local` and `wrong-project`. The fake child must
   report `gcp`/`ailang-multivac` in both arms. With AILANG_STORAGE absent it stays absent;

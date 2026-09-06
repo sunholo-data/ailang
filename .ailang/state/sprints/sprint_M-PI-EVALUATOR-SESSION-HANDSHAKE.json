@@ -1,9 +1,10 @@
 {
   "sprint_id": "M-PI-EVALUATOR-SESSION-HANDSHAKE",
-  "status": "in_progress",
+  "status": "completed",
+  "completed": "2026-09-06T21:24:26Z",
   "created": "2026-09-06T20:51:28Z",
-  "design_doc": "design_docs/planned/v0_35_2/m-pi-evaluator-session-handshake.md",
-  "sprint_plan": "design_docs/planned/v0_35_2/m-pi-evaluator-session-handshake-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_35_2/m-pi-evaluator-session-handshake.md",
+  "sprint_plan": "design_docs/implemented/v0_35_2/m-pi-evaluator-session-handshake-sprint-plan.md",
   "github_issues": [],
   "velocity": {
     "target_loc_per_day": 460,
@@ -60,7 +61,7 @@
       "passes": true,
       "started": "2026-09-06T20:58:00Z",
       "completed": "2026-09-06T21:01:44Z",
-      "notes": "Added one module-relative, duplicate-sensitive evaluator handshake contract and canonical Gate 3 preamble. Focused 12/12, aggregate pi extensions, context docs, skill metadata, checkpoint make test/lint, fmt, file-size, whitespace, frozen-file, and exact five-file scope checks passed. AC5 mutation execution and overall sprint completion remain pending the required independent evaluator."
+      "notes": "Added one module-relative, duplicate-sensitive evaluator handshake contract and canonical Gate 3 preamble. Focused 12/12, aggregate pi extensions, context docs, skill metadata, checkpoint make test/lint, fmt, file-size, whitespace, frozen-file, and exact five-file scope checks passed. Independent OpenRouter MiniMax evaluation killed all 13 mutations with green restoration controls and passed at 99/100."
     }
   ]
 }

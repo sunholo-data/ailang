@@ -192,7 +192,7 @@ git diff --exit-code 13ac9c21a6135e3c4640ece3f84b9b86683702f5 -- \
 - [x] AC4: the recipe separates protocol ack from inbox ack, supplies canonical launcher
   authority without `AILANG_STORAGE`, and requires exact error reporting, stop, and existing
   fallback rather than denied-write loops or bypass.
-- [ ] AC5: every mutation in the independent-evaluator matrix below goes red on the relevant
+- [x] AC5: every mutation in the independent-evaluator matrix below goes red on the relevant
   new test and returns green after restoration.
 - [x] AC6: all pre-existing and new tests pass; context-doc, skill, and whitespace checks pass;
   only the three frozen implementation files differ from the design commit.
