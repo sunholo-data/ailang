@@ -400,6 +400,69 @@ controller outside the executor sandbox (mandatory — the loopback-owning rows 
   lane" claim with no cost-per-verified-success comparison is prose, not evidence — the mission's
   own standard.
 
+## Field measurements, 2026-09-06 (attended session — evidence, not design)
+
+Contributed from an attended session that spent a day on mission-loop cost. **Nothing here
+changes a design decision in this doc**; it is data the investigation would otherwise have
+to re-derive, plus one gap the measurements exposed.
+
+### The role-qualified rating key is right, and here is its magnitude
+
+D-«rating key» keeps the key role-qualified. Measured, that choice is not a refinement —
+it is the dominant term. The SAME model in two roles, same day:
+
+| model | role | cost |
+|---|---|---|
+| `codex:gpt-6-astra` | **controller** | 511,180 · 527,910 · 399,933 (v1) · 682,476 (world) — mean **394,254**, 2,121,499 total over four fires |
+| `codex:gpt-6-astra` | designer | never material — bounded to one run per iteration by the Fable diet |
+
+Astra became **60% of all codex spend and emptied a weekly bucket inside a day**, and it
+was not a bad model: a controller drives the WHOLE iteration, so its cost scales with
+iteration length, while designer/planner/executor are bounded spawns. A rating key that
+was model-only would have concluded the model was expensive. The role-qualified key is
+what lets it conclude the ROLE is.
+
+### The context prefix is a routing-relevant cost term
+
+The controller's skill file was 251 KB (~63k tokens), loaded every session. Reducing it to
+48 KB and dropping the controller tier astra→sol together moved world's cost:
+
+| world, same mission, same day | cost |
+|---|---|
+| 11:40 pre-change (astra controller, 63k prefix) | 454,310 |
+| 12:44 post-change (sol controller, 12k prefix) | **256,656** (−44%) |
+
+Two variables moved at once, so this does not attribute the split — it establishes that
+per-run cost is steerable by roughly half without changing the work, which any router
+optimising cost should know before it starts trading quality for tokens.
+
+**A correction, so it is not inherited:** during that session I modelled the prefix cost as
+`63k × ~50 turns ≈ 3.1M input tokens/iteration`. The measured totals do not support that —
+docs' pre-change run was 178k *total*. Caching and real turn counts mean the prefix is not
+paid in full every turn. The reduction is still worth having; the multiplier was an upper
+bound presented as a mechanism, and it was not one.
+
+### GAP: the cost channel has no notion of bucket scarcity
+
+The cost channel (M4b, D-26/D-44) measures cost-per-verified-success in price terms. It has
+no concept of **refill period**, and this doc's own grep confirms it: no mention of weekly
+buckets, rolling windows or resets.
+
+That is not an academic gap. On 2026-09-05→06:
+
+- **codex** is a WEEKLY bucket. Exhausted, it returned *"try again at Sep 12th"* — six days.
+- **Anthropic** is a ~5-hour rolling window. It emptied overnight and had refilled by 11:10.
+
+So a codex token and an Anthropic token of equal price are **not** equally scarce: Anthropic
+refills ~30 times before codex does. A router optimising price-per-success would have
+picked astra-as-controller exactly as we did — it was the right *quality* call and the wrong
+*bucket* call — and the fleet fell through to pi/ollama lanes for hours.
+
+Suggested shape, for the quorum rather than for the loop to adopt unilaterally: the cost
+channel needs a **scarcity multiplier** — remaining-bucket-fraction ÷ time-to-refill — so
+"cheap" means cheap *relative to what that bucket has left before it refills*. Availability
+probing already answers "is it up?"; this answers "can it afford to be used?".
+
 ## Quorum questions (parked for Mark — the loop cannot choose these)
 
 - **Q1**: the executor default divergence — charter table (`opus`, 2026-07-10) vs driver default
