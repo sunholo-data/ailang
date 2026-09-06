@@ -1,31 +1,30 @@
 # Mission Dashboard — V1
-*Iteration 335, 2026-09-06. History: v1-mission-log.md and charter STATUS.*
+*Iteration 336, 2026-09-06. History: v1-mission-log.md and charter STATUS.*
 
 ## Goal and delivery
-- Release v0.35.1; **N=12 design docs before v1.0.0**, goal unmoved this iteration.
-- Recovered PR #1060: docs-only design/plan at `d7eb07deb`, independent MiniMax **PASS 91/100**.
-- PR exact head `a52fbcad2`: all five expected workflows settled, zero failures.
-- Merge CI and Build and Release observed green at `d7eb07deb`; Docs deploy path-filtered.
-- Cache module-ID encoding: **0/4 milestones executed**, four pending state entries banked.
+- Release v0.35.1; **N=12 design docs before v1.0.0**, unchanged.
+- Cache encoding implementation **PARKED on D-57**, 0/4 milestones executed.
+- Design byte mapping/examples corrected; both quorum rounds BLOCKED (2 reject/1 pass, none absent).
+- Independent MiniMax **PASS 14/15**: docs-only correction/park review; not design or execution approval.
+- PR #1061 banks design, blocked plan/snapshot, quorum and evaluator evidence.
 
 ## Up next (banked)
-1. `m-cache-module-id-encoding` M1 — clarify slug run wording/example with designer, then pure encoder.
+1. `m-pi-runner-worktree-assertion-vacuous-on-revision` — prior dirty content can fake a deliverable.
 2. `m-gate1-shared-clone-ref-drift` — shared refs can invalidate sync measurements mid-iteration.
-3. `m-pi-runner-worktree-assertion-vacuous-on-revision` — prior dirty files can fake a deliverable.
-- M3/M4 have no new production mutation of their own; read the plan's non-vacuity ledger.
+- Encoding resumes only after D-57, design gate, and planner synchronization; no runtime copy while blocked.
+- M3/M4 have no new production mutation of their own; the inherited plan labels this explicitly.
 
 ## Routing and cadence
 - launchd; authoritative `.claude/skills/mission-control/SKILL.md` followed by Codex controller.
-- Recovery reused inherited design/quorum; no new designer or production executor work was needed.
-- Planner: Agent tool `gpt-5.6-sol`; evaluator: Agent orchestrator invoking independent pi MiniMax.
-- Judge rounds: FAIL84/one blocker → PASS91/zero; reports retained with controller caveats.
-- Initial snapshot: `planned/v0_36_0/m-cache-module-id-encoding-sprint.json`; copy only if runtime absent.
+- All four Agent roles dispatched: Astra designer; Sol planner and executor; MiniMax evaluator via wrapper.
+- Planner corrected blocking metadata; executor performed read-only gate audit, no implementation.
+- Actual judge pi Ollama MiniMax is a different model/vendor from OpenAI generators; no self-score.
 
 ## Parked on Mark
-- **56 ledger rows, two OPEN**: D-55 accidental-corruption/adversarial scope; default(a) already applied.
-- D-56 permanent Astra author/reviewer independence; default skips Astra author turn pending answer.
-- Neither was self-approved. D-56 missing approvals notification recovered and body verified.
+- **57 ledger rows, three OPEN:** D-55 threat model; default(a) already applied, row remains open.
+- D-56 permanent Astra designer/quorum independence; skill's interim Sol quorum substitution used.
+- D-57 hybrid vs pure hash vs basename/parent redesign; recommendation hybrid, default HOLD.
 
 ## Quota and workspace
-- Metered **$0.00**; Codex subscription and Ollama Cloud flat-rate, no new quorum spend.
-- Main checkout's 14 pre-existing dirty paths left untouched; original iteration334 worktree retained.
+- API-priced quorum cost **$0.224037**; GLM flat-rate imputed value $0.05664417 excluded from metered spend.
+- Codex subscription and Ollama Cloud quota; no GPU/rig lock. Shared main14dirty paths untouched.

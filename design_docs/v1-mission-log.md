@@ -22369,3 +22369,93 @@ D-55 and D-56 remain OPEN; standing defaults are not human answers.
 **Next.** Designer clarification of slug run handling/example and Q3 wording, then M1 of
 `m-cache-module-id-encoding` against the corrected plan and pending snapshot. After this banked
 sprint: shared-clone-ref-drift and pi runner revision assertion, in current queue order.
+
+## 336 — 2026-09-06 — Correct the cache encoding specification and park the disputed naming direction [REFUTATION]
+
+**Picked.** Resume `m-cache-module-id-encoding` at the iteration335 designer-clarification gate,
+then intended M1 only. The pure encoder does not exist at base; the old separator-only mapping
+and sole production consumer still do. The design gate remained blocked, so no milestone ran.
+
+**Reality check.** Pin/origin base `e30904f71d59b8a6b93f10c3b8d77bc28bce4f48`, all 20 check runs
+settled without a failure; CI, Build and Release, and Docs workflows present and successful.
+Kill switch armed, Anthropic billing tripwire clean, gh account `sunholo-voight-kampff`.
+Canonical inbox 15 unread at start; relevant prior report/approval notices triaged, no ack or
+human answer inferred. CLAIM sent as `inbox_1788673087485_008bda3e`. Issue 972 had 40 comments,
+zero new Mark directives; watermark unchanged. No weekly rotation/sweep owed. Ledger 56 / two OPEN
+before D-57. Main dev0 ahead / 19 behind with 14 pre-existing dirty paths, incoming overlap; left parked.
+Running skill resolved-target bytes matched origin. Fleet PRs1041/1033/945 unrelated; left alone.
+Worktree `.wt-v1-iter336`, branch `sprint/v1-iter336-cache-encoder`, isolated from shared main.
+
+**Shipped.** PR [#1061](https://github.com/sunholo-data/ailang/pull/1061) merged at `de529cb5f852d38cf625d9f91e90aa7e54fa1491` after observed complete green checks: 21 checks, zero pending/failures; all 5 expected workflows settled (4 success, Dependabot skipped), including Windows and SonarCloud, MERGEABLE/CLEAN. It banks a docs-only correction
+and explicit park, not an implemented encoder. `ca2aff468` clarifies byte mapping, trimming,
+38-byte truncation, full-original-ID hash and 16 hex suffix; all 16 reference rows reproduce exactly
+(output SHA256 `de01bb14d1e5c6008b8b3f4c3a2d1637e4767eb8a6531fcd92e10757c1056b0d`).
+It withdraws universal injectivity and captured-Windows-outage claims. `b2f31b154` marks the plan
+and initial snapshot blocked, labels criteria historical, and forbids copying runtime state until
+D-57 + design gate + planner resynchronization. All 4 features false/pending with null timestamps;
+runtime snapshot absent. Independent review: **PASS 14/15**, exact covered record `b2f31b154f2024fa1494092b1f37ff018030fcc8`.
+Evaluator reports retained; this verdict evaluates correction/parking, not the disputed direction.
+Baseline make build, make test (8,242 top-level Go PASS events across 123 packages), pipeline tests
+(9.557s) and make lint (0 issues) passed. No production diff, mutation claim, Windows execution
+claim, completed milestone or release manufactured. The final digest records delivery of this bookkeeping commit separately.
+
+**Routing evidence.** Controller `codex:gpt-6-astra`. User explicitly required Agent roles;
+all four dispatched. Designer resolver `recipe codex:gpt-6-astra declared:provider-pin`; native
+Agent Astra authored/revised design. Rotation advanced to Astra after actual run. D-56 interim
+workaround substituted Sol for Astra in quorum; OpenAI/Google/Z-AI external reviewers all present.
+R1 BLOCKED 2 rejects / 1 pass ($0.14160532 reported), bounded revision, R2 BLOCKED 2 rejects / 1 pass
+($0.13907585 reported). Raw JSON preserved. Sol’s R1 injectivity objection corrected; R2 exact
+source-provenance request satisfied with zero diff over its 8 named files between prior worktree
+`c2a9d8fb4abfadb472a5c05461f10a506f4a8013` and base. GLM’s remaining choice of naming scheme
+is a direction dispute; narrow-refinement carve-out does not apply and no third quorum ran.
+Planner resolver `recipe codex:gpt-5.6-sol anthropic-fallback:fail-closed:planner-lane-field-missing`;
+native Sol Agent audited option impact, then fixed blocked metadata only. Executor resolver
+`recipe codex:gpt-5.6-sol declared:provider-pin`; native Sol Agent performed read-only execution-
+gate audit: encoder 0 code hits, old production call present, four pending milestones. Neither role
+advanced the blocked plan into implementation. These were gated readiness tasks, not a new sprint.
+Evaluator resolver `recipe pi:ollama/minimax-m3:cloud declared:provider-pin`; requested Agent tool
+spawned an Astra transport wrapper that invoked actual independent pi MiniMax in isolated exact-
+commit worktrees. Wrapper never scored. Judge probe rc0 with requested model identity; byte-identical
+canonical sandbox extension supplied dependencies via invocation-only shim. No model fallback.
+First judge attempt could not write: repeated session-protocol denials, then verified-process
+termination; runner rc10 empty_worktree/pi143,446 s, 226 tools, zero changed files and no report.
+The same model was restarted at b2f31 after reading the guard source; bounded inbox list plus
+session_protocol_ack returned acked:true, without disabling safeguards. Successful runner rc0,
+pi 0, 182 s, 37 tools,exactly one fresh report. Reported flat-rate input/output: failed attempt
+12,436,856/22,899; successful review 1,270,501/10,635. Judge verifies 11 explicit rows; the heading
+claiming 16 is overbroad. Controller’s separate 16/16 check is not attributed to the judge.
+Raw score 14/15 is retained without manufacturing a normalized 100-point score. Historical judge
+prose mislabels PR1060 as iteration336; it was recovered in 335, as the controller addendum notes.
+Native model pins were retained via Agent adapters to resolver CLI recipes. Workdir changes dropped
+MISSION env during preliminary resolver calls; corrected by resolving in the pinned controller cwd,
+not misclassified as provider failure. No role spawn failed. Quota lanes: Codex, Ollama Cloud;
+no Anthropic, GPU or rig lock. API-priced quorum cost **$0.224037**; raw total **$0.28068117** also
+includes **$0.05664417 imputed GLM flat-rate value** from registry pricing, not metered billing.
+Actual per-reviewer tokens retained in raw artifacts; quota usage is not invented as metered cost.
+
+**Ruled out.**
+- Universal injectivity from a bounded 64-bit hash suffix: impossible; exact-ID stamp validation
+  provides rejection of wrong-module artifacts, not freedom from all possible directory contention.
+- GLM’s single-separator-to-two-underscores claim: false under one-byte-to-one-underscore mapping.
+  Lossiness does not imply zero readable prefix value; neither observation overrides its direction rejection.
+- Earlier worktree evidence automatically current: now proved by exact 8-file source diff, not assumed.
+- Windows diagnostic captured on CI: not substantiated by fetched job 101410083473 log; reconstructed
+  illustration now labeled, actual Windows publication proof remains M3’s obligation.
+- Snapshot `not_started` safe while prose says parked: planner flagged the automation hazard and
+  changed it to blocked. Historical acceptance text remains explicitly unapproved until resynchronized.
+- Failing quorum means no independent judge needed: rejected. Actual MiniMax reviewed the park;
+  no generator verdict substitutes for that review.
+
+**Retro lane.** backlog — D-57 is the single new human decision and updates the existing encoding
+row rather than creating duplicate work. The evaluator session-protocol denial gets one new
+pre-registered handshake row; first recorded instance, so no skill edit spent. Keep banked
+pi-runner revision assertion and shared-ref drift next. Workdir environment loss was repaired
+within the invocation by resolving in the controller cwd, not by changing routing policy. D-55/D-56 remain OPEN with standing defaults;
+D-57 defaults HOLD immediately until answered. Cost provenance separated from flat-rate imputation.
+
+**Progress**: N=12 design docs before v1.0.0 (was 12, change 0); no doc left the bar inventory.
+
+**Next.** `m-pi-runner-worktree-assertion-vacuous-on-revision`, then
+`m-gate1-shared-clone-ref-drift`; encoding resumes only after D-57/design/planner gates.
+
+**Record verification.** Dashboard 30 lines; ledger 57 rows / 3 OPEN; STATUS arithmetic 4777→4777 before ledger/queue edits, moved 333 present in archive with 332 control. All 3 decision-bearing artifacts copied byte-identically and not ignored (ignored-path control fired). Context-docs/file-size gates passed; referenced-paths 47 enumerated / 47 checked; diff whitespace clean.
