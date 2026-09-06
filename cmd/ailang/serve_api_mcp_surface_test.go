@@ -357,6 +357,11 @@ func TestServeAPI_RouteIfaceMismatchFromCache(t *testing.T) {
 	if exitErr == nil {
 		t.Fatalf("serve-api started on a route/interface mismatch; stderr:\n%s", stderr)
 	}
+	// The refusal must precede the transport. A clean EOF shutdown after startup
+	// is what a HEALTHY server does, so reaching this line is the whole point.
+	if strings.Contains(stderr, "Starting MCP server") {
+		t.Fatalf("serve-api announced its transport before refusing; stderr:\n%s", stderr)
+	}
 	for _, needle := range []string{"CACHE_ROUTE_IFACE_MISMATCH", "f7", "compile-clear"} {
 		if !strings.Contains(stderr, needle) {
 			t.Fatalf("mismatch diagnostic missing %q; stderr:\n%s", needle, stderr)
@@ -370,8 +375,16 @@ func TestServeAPI_RouteIfaceMismatchFromCache(t *testing.T) {
 }
 
 // runServeAPIMCPExpectingExit starts serve-api with stdin closed and returns
-// its stderr plus the process error. A healthy server blocks on stdin, so the
-// bounded context is what stops it; a refusing server exits on its own.
+// its stderr plus the process error.
+//
+// The discriminator is NOT that a healthy server blocks: measured, a healthy
+// --mcp server also exits on its own the moment stdin reaches EOF, in ~1s,
+// with rc=0. What separates the two is WHERE the exit happens. A route/iface
+// mismatch is fatal inside LoadModules, so the process dies with a non-zero
+// status BEFORE the stdio transport is ever announced, while a healthy server
+// prints "Starting MCP server on stdio transport..." and then shuts down
+// cleanly at EOF. Callers must therefore check both the status AND that
+// startup was never reached; do not "simplify" this to a bare exit check.
 func runServeAPIMCPExpectingExit(t *testing.T, binary, modulePath, cacheRoot string) (string, error) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
