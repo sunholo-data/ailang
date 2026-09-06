@@ -1,40 +1,28 @@
 # Docs Mission Dashboard (snapshot — history lives in the charter + log)
 
-**Last updated**: 2026-09-06, iteration 12.
+**Last updated**: 2026-09-06, iteration 13.
 
 ## Status
-`docs-11` remains parked on D-4 and `docs-12` on D-5. Fresh draw: `m-ailang-semantic-context`,
-whose fresh quorum is blocked 3/3 on a self-refuted compaction premise. Astra designer and Codex
-fallback were both spawned through the Agent tool but produced no revision before shutdown.
-**Parked; no sprint ran.**
+`m-anthropic-sandbox` fresh-pick quorum blocked 3/3; the required Astra Agent-tool designer
+attempt timed out twice with no artifact and was shut down. **Parked; no sprint ran.**
 
 ## Blocking on Mark
-**D-4** (OPEN, iteration 9) — one-time OK to run the `m-dx27` sprint under the narrow-refinement
-carve-out. Recommend (a) OK it. Default if unanswered: stays parked, no cost.
-**D-5** (NEW, OPEN, iteration 10) — how to resolve `m-eval-standard-mode-input-files-gap`'s two
-live round-4 objections (Axiom-11 wording accuracy; `docx_reimplement`'s shared-root-cause claim is
-impact-inflating while unconfirmed — NOT a design defect in the fix itself). Recommend (a) accept
-as wording fixes, route straight to `sprint-planner` without a 5th round. Default if unanswered:
-stays parked `needs-human-review`. Ledger: 5 rows, 2 OPEN (D-4, D-5).
+D-4 and D-5 remain OPEN and unchanged. No new human decision was inferred.
 
 ## Queue (top = next)
-1-11. `[LANDED]`/`[RULED OUT]` docs-0 through docs-10 — all exhausted.
-12. `[PARKED]` docs-11 — `m-dx27` GitHub docs-search fallback, design-ready, held on D-4.
-13. `[PARKED]` docs-12 — `m-eval-standard-mode-input-files-gap`, blocked at quorum round 4, held
-    on D-5 (`needs-human-review`).
-
-**Next pick if D-4 or D-5 resolves**: `sprint-planner` runs on the unparked item. If both remain
-unanswered, retry or re-route the `m-ailang-semantic-context` designer lane.
+1-11. `[LANDED]`/`[RULED OUT]` docs-0 through docs-10 — exhausted.
+12. `[PARKED]` docs-11 — held on D-4.
+13. `[PARKED]` docs-12 — held on D-5.
+Next fresh draw: retry or re-route `m-anthropic-sandbox`'s designer lane.
 
 ## Loop cadence + routing
-launchd `dev.ailang.mission-docs`, every 6h, staggered against v1/world/motoko. Designer: this
-`codex:gpt-6-astra`, then fallback `codex:gpt-5.6-luna`; both Agent-tool attempts failed to produce
-a revision. Planner/executor: `codex:gpt-5.6-luna`, not reached. Evaluator: independent non-Codex
-lane, not reached because no generation passed quorum; no judge verdict was invented.
+Every 6h. Designer `codex:gpt-6-astra` via Agent tool timed out and was shut down; no fallback
+used because the resolver route was a recipe. Planner/executor were not reached. Evaluator
+`pi:ollama/minimax-m3:cloud` was not spawned because no implementation existed to judge.
 
 ## Cost this iteration
-$0.0898 metered for the fresh quorum. No planner, executor, evaluator, or implementation ran.
+$0.0735 metered for quorum; no sprint-role spend.
 
 ## Quota posture
-Fallback designer was triggered after the Astra attempt failed. The pin matched `origin/dev` at
-preflight; canonical inbox had no docs directive.
+Canonical inbox had no docs directive; D-4/D-5 remain the only human asks. Gate 4 base was
+`6c03639f5` at `2026-09-06T16:29:19Z`.

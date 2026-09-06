@@ -1519,3 +1519,19 @@ attempts; no planner/executor/evaluator spend.
 
 **Decisions for Mark:** D-4 and D-5 unchanged. **Ruled out:** none. **Retro:** no skill edit;
 one designer-lane failure is below the shared-skill two-instance threshold.
+
+## 13 — 2026-09-06
+
+**Pick**: `m-anthropic-sandbox` — next fresh docs-8 backlog item after docs-11/D-4 and docs-12/D-5 remained parked, and iteration 12's fresh designer draw produced no revision.
+
+**Quorum**: pick-time quorum BLOCKED 3/3, metered **$0.0735**. Reviewers rejected missing session-selective worker isolation, unverified bounded termination/timeout behavior, and unverified live API/event and pricing premises. Controller also rejected the fresh design on those grounds.
+
+**Routing / outcome**: designer `codex:gpt-6-astra` was spawned through the required Agent tool. It remained `running` through two bounded 120-second waits with no change to the design file and was explicitly shut down. The resolver reported `recipe codex:gpt-6-astra`; the Agent attempt was made under the unattended operator's explicit Agent-tool instruction. No fallback designer was spawned because no Agent-tool-compatible fallback was authorized. Planner `codex:gpt-5.6-luna` was not spawned because no revised design reached re-quorum. Executor `codex:gpt-5.6-luna` was not spawned because no plan existed. Evaluator `pi:ollama/minimax-m3:cloud` was not spawned because no generated implementation existed to judge. This is a correct park; no evaluator verdict was fabricated and generator-not-equal-judge remains intact. Gate 4 base=`6c03639f518fa45569b879bfa73c2d31e5b3d62f`@`2026-09-06T16:29:19Z`.
+
+**Outcome**: **PARKED** · **HARNESS**. No implementation changes. D-4 and D-5 remain OPEN.
+**Progress**: goal unmoved; no sprint milestone executed.
+**Decisions for Mark**: D-4 and D-5 unchanged and still open.
+**Ruled out**: none.
+**Next**: retry or re-route the designer for `m-anthropic-sandbox`; if design-ready, re-quorum once before planning.
+
+**Retro**: no skill edit. This is the second consecutive docs-mission designer-lane failure; surface it as a routing-policy signal for human review, without changing the shared skill.

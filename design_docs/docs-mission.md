@@ -78,6 +78,39 @@ At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the arc
 iteration re-reads this charter — unbounded STATUS history is a per-read token tax on the scarcest
 model budget; the append-only history lives in the log + archive.
 
+## STATUS 2026-09-06 — ITERATION 13: fresh draw `m-anthropic-sandbox`; designer Agent-tool lane timed out, parked [HARNESS]
+
+Gate 0/1: armed; GitHub account `sunholo-voight-kampff`; canonical inbox triaged with no docs
+directive or genuine regression. Fresh origin was checked; the observed base was
+`6c03639f518fa45569b879bfa73c2d31e5b3d62f` at `2026-09-06T16:29:19Z`; D-4 and D-5 remain OPEN.
+
+Gate 2 picked `design_docs/planned/v0_29_0/m-anthropic-sandbox.md`, the next still-planned item
+after the parked docs-11/docs-12 decisions and iteration 12's failed fresh draw. Its pick-time
+quorum was BLOCKED 3/3: session-selective worker isolation, bounded termination/timeout evidence,
+and live API/pricing verification were all missing. Metered cost was $0.0735.
+
+Gate 3 attempted the required designer through the Agent tool as `codex:gpt-6-astra`; after two
+bounded 120-second waits it was still running with no design-file change and was explicitly shut
+down. The resolver labelled the route `recipe codex:gpt-6-astra`; the Agent attempt was made under
+the unattended operator instruction. No fallback designer was spawned because no Agent-tool-
+compatible fallback was authorized by the configured routing table. Planner and executor were not
+spawned because no revised design reached re-quorum. Evaluator `pi:ollama/minimax-m3:cloud` was not
+spawned because no generated implementation existed to judge; no verdict is invented, so
+generator-not-equal-judge remains intact.
+
+Outcome: PARKED. No implementation changes. D-4/D-5 remain the human decision asks.
+
+Routing evidence: controller `codex:gpt-5.6-luna`; designer `codex:gpt-6-astra` Agent-tool attempt,
+error `running after 2 x 120s bounded waits, no artifact`, then shutdown; fallback not used for the
+resolver/Agent-path mismatch. Planner `codex:gpt-5.6-luna` not spawned (no design-ready input);
+executor `codex:gpt-5.6-luna` not spawned (no plan); evaluator `pi:ollama/minimax-m3:cloud` not
+spawned (no generated implementation). Gate 4 base=`6c03639f518fa45569b879bfa73c2d31e5b3d62f`@
+`2026-09-06T16:29:19Z`.
+
+**Retro — no skill edit.** This is the second consecutive docs-mission designer-lane failure;
+surface it as a routing-policy signal for human review, without changing the shared skill during
+this parked run. Full record: `design_docs/docs-mission-log.md` §ITERATION 13.
+
 ## STATUS 2026-09-06 — ITERATION 12: fresh draw `m-ailang-semantic-context`; quorum blocked and both designer lanes failed, parked
 
 Gate 0: armed; GitHub account `sunholo-voight-kampff`; clean pin matched `origin/dev` at
