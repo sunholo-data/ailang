@@ -383,7 +383,7 @@ recorded here rather than argued or hidden**, per the skill's rule for exhausted
 
 | # | Objection | Status | What closing it needs |
 |---|---|---|---|
-| P-1 | `GitHubClient` has no per-call deadline (gpt5-6-sol, round 3) | **ACCEPTED, scoped in** — V18 records it, C1 no longer says "as-is", Phase 1 now owns adding deadlines. Not independently re-reviewed. | A reviewer pass confirming the bounding design, or a spike adding `context.WithTimeout` to the six call paths. |
+| P-1 | `GitHubClient` has no per-call deadline (gpt5-6-sol, round 3) | **CLOSED 2026-09-04.** Fixed in `761b81371`: `ErrExecTimeout` sentinel, 30s default taken from the driver's own `_mc_bounded 30`, all 14 call sites routed through `execCommandCtx`. Mutation-tested against a REAL child process. | Nothing. |
 | P-2 | The 5-step input-event flow names `mission_answer.sh` / `mission_decisions.sh` but neither is in Files to Modify, and how `mission_directives.sh` selects its source issue is unverified (oc-glm-5-2, round 3) | **CLOSED 2026-09-04 (V19, V20).** The objection was right to demand the check; the check shows the three scripts need **no modification**. `mission_directives.sh` is already parameterised by `--issue`, so N issues is N invocations — a caller concern. `mission_answer.sh` and `mission_decisions.sh` are *invoked unchanged*, which is precisely the point of routing through the existing validated path: reusing a writer means not editing it. Files to Modify is therefore correct as written. | Nothing. The port must, however, preserve the three security properties recorded in V20 — especially the self-direction guard. |
 
 **Consequence:** this doc is **not cleared for `sprint-planner`.** It is materially stronger than

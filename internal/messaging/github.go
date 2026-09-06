@@ -1,6 +1,7 @@
 package messaging
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ErrAccountMismatch is returned when the active gh user doesn't match expected_user.
@@ -56,16 +58,58 @@ type ghIssueResponse struct {
 
 // NewGitHubClient creates a new GitHub client with the given configuration.
 func NewGitHubClient(config *GitHubConfig) *GitHubClient {
+	// execCommand is deliberately left nil: nil MEANS "use the bounded real exec"
+	// (execCommandCtx). Pre-filling it here was the original defect — it made the
+	// injected-stub branch the PRODUCTION branch, so the deadline never applied to
+	// a real `gh` call and the first timeout test failed. Tests set the field
+	// explicitly to inject, so nothing depends on this default.
 	return &GitHubClient{
-		config:      config,
-		execCommand: defaultExecCommand,
+		config: config,
 	}
 }
 
-// defaultExecCommand executes a command and returns its output.
-func defaultExecCommand(name string, arg ...string) ([]byte, error) {
-	cmd := exec.Command(name, arg...)
-	return cmd.CombinedOutput()
+// defaultExecTimeout bounds a single `gh` invocation. 30s is not arbitrary: it is
+// the value the mission driver already uses for the one call site it bothered to
+// bound (`_mc_bounded 30` at mission-control.sh:1206), so the Go port inherits a
+// deadline the operators have already lived with rather than inventing a new one.
+const defaultExecTimeout = 30 * time.Second
+
+// ErrExecTimeout marks a `gh` call that exceeded its deadline. It is a distinct
+// sentinel so callers can separate "GitHub is slow" from "gh is broken" — the two
+// need different responses, and collapsing them into one opaque exec failure is
+// the silent-fallback shape Critical Principle 2 forbids.
+var ErrExecTimeout = errors.New("gh command timed out")
+
+// execTimeout resolves the configured deadline, falling back to the default.
+// Safe on a zero-value client and on a nil config.
+func (c *GitHubClient) execTimeout() time.Duration {
+	if c != nil && c.config != nil && c.config.ExecTimeout > 0 {
+		return c.config.ExecTimeout
+	}
+	return defaultExecTimeout
+}
+
+// execCommandCtx runs a command under the client's deadline.
+//
+// If a test has injected execCommand, that stub wins and is NOT bounded — the
+// stub is synchronous test code, and wrapping it would change the behaviour every
+// existing test in this package depends on.
+func (c *GitHubClient) execCommandCtx(name string, arg ...string) ([]byte, error) {
+	if c != nil && c.execCommand != nil {
+		return c.execCommand(name, arg...) //nolint:staticcheck // the injected stub, not a recursive call
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), c.execTimeout())
+	defer cancel()
+
+	out, err := exec.CommandContext(ctx, name, arg...).CombinedOutput()
+	// Check the context rather than sniffing the error: a killed child reports a
+	// plain "signal: killed" ExitError, which is indistinguishable from a genuine
+	// failure without asking the context what happened.
+	if ctx.Err() != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return out, fmt.Errorf("%w after %s: %s", ErrExecTimeout, c.execTimeout(), name)
+	}
+	return out, err
 }
 
 // GetConfig returns the GitHub configuration (may be nil if not configured).
@@ -90,7 +134,7 @@ func (c *GitHubClient) SetAutoSwitch(enabled bool) {
 // CheckGHInstalled verifies that the gh CLI is installed and returns the version.
 // Returns an error with installation instructions if not found.
 func (c *GitHubClient) CheckGHInstalled() (string, error) {
-	output, err := c.execCommand("gh", "--version")
+	output, err := c.execCommandCtx("gh", "--version")
 	if err != nil {
 		return "", fmt.Errorf("gh CLI not installed. Install it with:\n"+
 			"  macOS:   brew install gh\n"+
@@ -111,7 +155,7 @@ func (c *GitHubClient) CheckGHInstalled() (string, error) {
 // CheckGHAuth verifies that gh is authenticated and returns the active username.
 // Returns an error with authentication instructions if not logged in.
 func (c *GitHubClient) CheckGHAuth() (string, error) {
-	output, err := c.execCommand("gh", "auth", "status")
+	output, err := c.execCommandCtx("gh", "auth", "status")
 	if err != nil {
 		return "", fmt.Errorf("gh CLI not authenticated. Run:\n"+
 			"  gh auth login\n\nError: %w", err)
@@ -214,7 +258,7 @@ func (c *GitHubClient) validateUserInternal(autoSwitch bool) error {
 // tryAutoSwitch attempts to switch to the target GitHub account.
 // Returns nil on success, error on failure.
 func (c *GitHubClient) tryAutoSwitch(targetUser string) error {
-	_, err := c.execCommand("gh", "auth", "switch", "--user", targetUser)
+	_, err := c.execCommandCtx("gh", "auth", "switch", "--user", targetUser)
 	return err
 }
 
@@ -303,7 +347,7 @@ func (c *GitHubClient) CreateIssue(input CreateIssueInput) (int, error) {
 		args = append(args, "--label", label)
 	}
 
-	output, err := c.execCommand("gh", args...)
+	output, err := c.execCommandCtx("gh", args...)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create issue: %w\nOutput: %s", err, string(output))
 	}
@@ -359,7 +403,7 @@ func (c *GitHubClient) ListIssuesByLabel(repo string, labels []string) ([]GitHub
 		args = append(args, "--label", label)
 	}
 
-	output, err := c.execCommand("gh", args...)
+	output, err := c.execCommandCtx("gh", args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list issues: %w\nOutput: %s", err, string(output))
 	}
@@ -411,7 +455,7 @@ func (c *GitHubClient) GetIssue(repo string, number int) (*GitHubIssue, error) {
 		"--json", "number,title,body,state,labels,createdAt,author,url",
 	}
 
-	output, err := c.execCommand("gh", args...)
+	output, err := c.execCommandCtx("gh", args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get issue #%d: %w\nOutput: %s", number, err, string(output))
 	}
@@ -458,7 +502,7 @@ func (c *GitHubClient) CloseIssue(repo string, number int, comment string) error
 			strconv.Itoa(number),
 			"--body", comment,
 		}
-		if output, err := c.execCommand("gh", commentArgs...); err != nil {
+		if output, err := c.execCommandCtx("gh", commentArgs...); err != nil {
 			return fmt.Errorf("failed to add comment to issue #%d: %w\nOutput: %s", number, err, string(output))
 		}
 	}
@@ -469,7 +513,7 @@ func (c *GitHubClient) CloseIssue(repo string, number int, comment string) error
 		strconv.Itoa(number),
 	}
 
-	output, err := c.execCommand("gh", args...)
+	output, err := c.execCommandCtx("gh", args...)
 	if err != nil {
 		return fmt.Errorf("failed to close issue #%d: %w\nOutput: %s", number, err, string(output))
 	}
@@ -514,7 +558,7 @@ func (c *GitHubClient) GetIssueComments(repo string, number int) ([]GitHubCommen
 		"--json", "comments",
 	}
 
-	output, err := c.execCommand("gh", args...)
+	output, err := c.execCommandCtx("gh", args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get comments for issue #%d: %w\nOutput: %s", number, err, string(output))
 	}
@@ -560,7 +604,7 @@ func (c *GitHubClient) AddComment(repo string, number int, body string) error {
 		"--body", body,
 	}
 
-	output, err := c.execCommand("gh", args...)
+	output, err := c.execCommandCtx("gh", args...)
 	if err != nil {
 		return fmt.Errorf("failed to add comment to issue #%d: %w\nOutput: %s", number, err, string(output))
 	}
@@ -587,7 +631,7 @@ func (c *GitHubClient) AddLabelToIssue(repo string, number int, label string) er
 		"--add-label", label,
 	}
 
-	output, err := c.execCommand("gh", args...)
+	output, err := c.execCommandCtx("gh", args...)
 	if err != nil {
 		return fmt.Errorf("failed to add label to issue #%d: %w\nOutput: %s", number, err, string(output))
 	}
@@ -614,7 +658,7 @@ func (c *GitHubClient) RemoveLabelFromIssue(repo string, number int, label strin
 		"--remove-label", label,
 	}
 
-	output, err := c.execCommand("gh", args...)
+	output, err := c.execCommandCtx("gh", args...)
 	if err != nil {
 		return fmt.Errorf("failed to remove label from issue #%d: %w\nOutput: %s", number, err, string(output))
 	}
@@ -650,7 +694,7 @@ func (c *GitHubClient) EnsureLabel(repo, name, description, color string) error 
 		"--force", // Create or update label
 	}
 
-	_, err := c.execCommand("gh", args...)
+	_, err := c.execCommandCtx("gh", args...)
 	if err != nil {
 		// Log but don't fail - label might exist with different permissions
 		// The issue creation will fail later if the label truly doesn't exist
