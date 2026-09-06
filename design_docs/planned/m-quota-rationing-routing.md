@@ -17,18 +17,39 @@ The concrete failure: astra's controller probe returned rc=0 at 09:03; the itera
 gate-5 after 5,421s and 399,933 tokens on *"try again at Sep 12th"*. The probe answered the
 **5-hour window's** question while the **longer cap** was already spent.
 
-## The three buckets are not commensurable, and that is the crux
+## The buckets are not commensurable, and that is the crux
+
+**CORRECTED 2026-09-06 (Mark, attended): Claude has a weekly cap AND a 5-hour window, same
+as codex.** The first draft of this doc said Claude was 5-hourly and codex 5-hourly-plus-
+weekly, and used that asymmetry as a reason to prefer Anthropic. The asymmetry does not
+exist, and the evidence was in our own mission log the whole time:
+
+> *"the 16-hour silence from 2026-08-16 15:00 to 2026-08-17 07:19 was **45 fires refused
+> before starting**, every Anthropic preference `quota-limited`"*
+
+A 5-hour-only window refills three times in sixteen hours. That drought was a longer cap.
 
 | bucket | monthly | how it is capped | refills |
 |---|---|---|---|
-| Claude | $200 | usage-limit units, **~5-hour rolling window** | ~4–5×/day |
-| Codex | $100 | usage-limit units, **5-hour window AND a longer cap** | short: ~4–5×/day; long: measured resets on Aug 20, Sep 12 |
-| OpenRouter | $200 | **metered dollars**, monthly | not at all until the month rolls |
+| Claude | $200 | usage units — **5-hour window AND a weekly cap** | short ~4–5×/day; weekly |
+| Codex | $100 | usage units — **5-hour window AND a longer cap** | short ~4–5×/day; measured resets Aug 20, Sep 12 |
+| OpenRouter | $200 | **metered dollars**, monthly | not until the month rolls |
+
+**The correction makes the design SIMPLER, not more complex.** Every subscription bucket has
+two windows, so there is no special case: the rule is uniform — *ration per (bucket, window),
+and the binding constraint is the tighter of them*. The first draft was about to encode codex
+as the exception, which would have been wrong the moment Anthropic's weekly cap bound first.
 
 **Two are subscriptions and one is metered.** A "cost" in Claude or codex is a fraction of a
 *window*; a cost in OpenRouter is money. They cannot be added, and any design that puts them
 in one currency is inventing a conversion. The honest common unit is
 **fraction-of-this-bucket's-period-capacity consumed**.
+
+**What DOES differ, and is the real basis for ordering:** Claude is $200/month against
+codex's $100 — roughly twice the capacity for the same class of work. That, not a refill
+rate, is why the controller ladder should exhaust Anthropic before crossing to codex. The
+ladder reorder landed on 2026-09-06 with the wrong reason attached and has been corrected in
+the driver.
 
 That distinction is also why the fleet's existing KPI cannot help: `ailang chains stats`
 measures metered dollars, so it reports v1 at **$11.34 all-time** while v1 burned half a
@@ -49,10 +70,11 @@ Mark's target was *"~17% a day (100/7?)"*. Worth settling the arithmetic before 
 encoded: **100/7 = 14.3%/day**, 100/6 = 16.7%. A 7-day ration is the one that makes a weekly
 bucket last a week; 6 days builds in a slack day. **Open question D-1 below.**
 
-Codex needs **two** rations because it has two windows, and the binding one is the tighter:
-`over_ration = over(5h window) OR over(long cap)`. A single-window model would have called
-codex healthy all through 09-06, because its 5-hour window kept refilling while the long cap
-stayed spent until the 12th.
+**Every subscription bucket needs two rations**, because every one has two windows, and the
+binding constraint is the tighter: `over_ration = over(5h window) OR over(weekly cap)`. This
+applies to Claude exactly as it does to codex. A single-window model would have called codex
+healthy all through 09-06 while its long cap stayed spent until the 12th — and would equally
+have called Anthropic healthy through the 16-hour drought of 08-16.
 
 ### 2. Lane selection consults budget position, not just liveness
 
