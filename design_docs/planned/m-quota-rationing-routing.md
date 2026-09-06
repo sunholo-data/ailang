@@ -1,6 +1,8 @@
 # M-QUOTA-RATIONING-ROUTING: route by budget position, not just availability
 
-**Status**: **PROPOSAL — not actioned, for Mark's review.** Nothing here is implemented.
+**Status**: **PROPOSAL — D-1..D-5 RATIFIED by Mark (attended, 2026-09-06); not yet
+implemented.** The design questions are settled; the build is not started and needs review
+of the revised doc first.
 **Author**: Claude Opus 5 (attended session, Mark), 2026-09-06
 **Related**: [M-MISSION-ELO-ROUTING](m-mission-elo-routing.md) — this is the *scarcity term*
 that doc's cost channel lacks. If both proceed, this supplies the budget signal and that
@@ -134,20 +136,26 @@ day** — which it did.
 3. **Window start times.** Recoverable from the reset timestamps the providers already print
    in their errors ("resets 05:34", "try again at Sep 12th").
 
-## Open questions for Mark (this doc cannot choose these)
+## Decisions (RATIFIED by Mark, attended 2026-09-06)
 
-- **D-1 — the daily ration.** 100/7 = 14.3%, or 100/6 = 16.7% with a slack day? A weekly
-  bucket lasting exactly a week has no margin for a bad day.
-- **D-2 — capacity estimation.** Infer capacity from observed exhaustion, or find a provider
-  endpoint? Inference is available today and self-corrects; an endpoint is exact if it exists.
-- **D-3 — ration scope.** Per mission, or fleet-wide? Fleet-wide is what the bucket actually
-  is; per-mission is what stops one loop starving three others.
-- **D-4 — behaviour when EVERY rung is over ration.** Take the least-over rung and log it, or
-  stop the fire? Stopping is honest but idles the fleet; proceeding spends a bucket you said
-  you would not.
-- **D-5 — does the ration gate the CONTROLLER too?** It is the role that commits to a whole
-  iteration up front, so it is the one where "affordable now" and "affordable in four hours"
-  differ most — and the one where a mid-run exhaustion crashes at gate-5, as it did.
+- **D-1 — daily ration: 14%** (100/7). A weekly bucket lasting exactly a week, no slack day.
+- **D-2 — capacity: use the PROVIDER ENDPOINT**, not inference from observed exhaustion.
+  Exact beats self-correcting, and it removes the need to guess a capacity we have never
+  measured. *Implementation note: the endpoint must be found and verified first — the
+  OpenRouter account key is inference-only and `/api/v1/activity` 403s, so a provider
+  usage endpoint is an assumption until one is confirmed reachable for each of the three.*
+- **D-3 — scope: FLEET-WIDE.** That is what the bucket physically is. Consequence to design
+  for: one loop can starve three others, so per-mission fairness has to come from somewhere
+  else (cadence, or a per-mission share of the fleet ration) rather than from the ration.
+- **D-4 — every rung over ration: PAUSE.** Not "take the least-over rung". A paused fleet is
+  a visible, recoverable state; a fleet quietly spending past its own ration is the thing
+  this doc exists to stop.
+- **D-5 — the controller gets RESERVED HEADROOM.** Mark: *"we need enough left over to always
+  be available."* The controller is the role that commits to a whole iteration up front and
+  crashes at gate-5 when a bucket empties mid-run, so the ration must hold back a controller
+  reserve that other roles cannot draw on. This is the one place where "affordable now" and
+  "affordable in four hours" genuinely differ, and it is the strongest argument in the doc
+  for rationing at all.
 
 ## Non-goals
 
