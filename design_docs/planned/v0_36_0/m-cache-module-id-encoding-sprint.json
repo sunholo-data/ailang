@@ -1,0 +1,95 @@
+{
+  "sprint_id": "m-cache-module-id-encoding",
+  "status": "not_started",
+  "created": "2026-09-06T04:13:39Z",
+  "design_doc": "design_docs/planned/v0_36_0/m-cache-module-id-encoding.md",
+  "sprint_plan": "design_docs/planned/v0_36_0/m-cache-module-id-encoding-sprint-plan.md",
+  "github_issues": [],
+  "risk_level": "medium",
+  "target_release": "v0.36.0",
+  "velocity": {
+    "target_loc_per_day": 183,
+    "estimated_total_loc": 220,
+    "estimated_days": 1.2
+  },
+  "features": [
+    {
+      "id": "M1_PURE_ENCODER_AND_UNIT_TESTS",
+      "description": "Introduce the pure m-<slug>-<16hex> module-directory encoder and its injectivity, determinism, worked-example, and length tests without wiring production yet.",
+      "estimated_loc": 80,
+      "estimated_days": 0.35,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "encodeModuleDirName implements the approved lowercase ASCII slug, 38-byte slug cap, and first 16 lowercase SHA-256 hex characters over the full original module ID",
+        "TestEncodeModuleDirName_InjectivityAndDeterminism covers the approved examples, repeatability, a/b versus a__b, Foo versus foo, and the 57-character ceiling",
+        "Deleting the full-ID hash suffix makes the named M1 test fail",
+        "go test ./internal/pipeline/... -count=1 passes"
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_PRODUCTION_WIRING_AND_FIXTURE_MIGRATION",
+      "description": "Wire CacheStore.moduleArtifactDir to the real encoder, delete the old mapping, expose the narrow test-visible API, and migrate every discovered encoding-dependent fixture.",
+      "estimated_loc": 55,
+      "estimated_days": 0.35,
+      "dependencies": [
+        "M1_PURE_ENCODER_AND_UNIT_TESTS"
+      ],
+      "acceptance_criteria": [
+        "CacheStore.moduleArtifactDir uses encodeModuleDirName and the old encoder is removed",
+        "The collision subtest asserts distinct production directories and retains exact-module-ID stamp rejection",
+        "All three hard-coded production modules/answer paths use the real directory resolver",
+        "The cmd/ailang compileArtifactDir fixture invokes the real exported encoder rather than copying it",
+        "Reverting production moduleArtifactDir wiring to the old mapping makes the rewritten collision integration subtest fail",
+        "go test ./internal/pipeline/... ./cmd/ailang/... -count=1 passes"
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_WINDOWS_LEGALITY_AND_SKIP_RETIREMENT",
+      "description": "Prove Windows legality and real artifact publication, remove the temporary empty-manifest skip, and wire both no-silent-skip CI gates to execute and require PASS events from both pipeline tests.",
+      "estimated_loc": 60,
+      "estimated_days": 0.3,
+      "dependencies": [
+        "M2_PRODUCTION_WIRING_AND_FIXTURE_MIGRATION"
+      ],
+      "acceptance_criteria": [
+        "TestEncodeModuleDirName_AllLegalOnWindows covers the approved fixtures, forbidden and control bytes, trailing dot or space, reserved basenames, and real os.MkdirAll on Windows",
+        "TestCacheArtifacts_WindowsModuleIDPublication stores and reloads C:/Users/runneradmin/x through the real encoded directory and emits an explicit named pass event",
+        "requireCompileArtifactCache no longer skips Windows empty manifests; an empty manifest fails everywhere",
+        "Both no-silent-skip CI go test package lists include ./internal/pipeline, both -run regexes name both new tests, and both required-PASS loops name both tests while preserving existing platform-specific entries",
+        "Windows CI reports explicit PASS events for both new tests",
+        "go test ./internal/pipeline/... ./cmd/ailang/... -count=1 passes locally before the remote Windows gate"
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_STALE_SCHEME_SWEEP_AND_VERSION_NOTE",
+      "description": "Pin Clear() sweeping old- and new-scheme artifact directories and document why the directory rename does not require a cache-key version bump.",
+      "estimated_loc": 25,
+      "estimated_days": 0.2,
+      "dependencies": [
+        "M3_WINDOWS_LEGALITY_AND_SKIP_RETIREMENT"
+      ],
+      "acceptance_criteria": [
+        "TestClear_SweepsArtifactDirectories uses a real store and persisted manifest, creates old- and new-scheme directories, calls Clear(), reopens, and verifies directories plus persisted and in-memory entries are gone",
+        "The note adjacent to cacheKeyVersion explains that directory renaming is self-invalidating and changes neither blob nor stamp format",
+        "The test does not duplicate broader scope or error-ordering arms already covered by TestCacheStore_ClearArtifacts",
+        "go test ./internal/pipeline/... ./cmd/ailang/... -count=1 passes"
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}

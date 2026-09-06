@@ -17,6 +17,11 @@ evidence make omission risk material
 **Design:** `design_docs/planned/v0_36_0/m-cache-module-id-encoding.md`  
 **Issue:** None
 
+**Initial sprint state:** `design_docs/planned/v0_36_0/m-cache-module-id-encoding-sprint.json`
+contains the four pending milestones. Before execution, copy it to
+`.ailang/state/sprints/sprint_m-cache-module-id-encoding.json` only if that runtime state is
+absent; never overwrite an active sprint. The tracked file is the initial snapshot, not live progress.
+
 The approved M1–M4 decomposition is preserved. Estimates are deliberately small: M1 0.35 day,
 M2 0.35 day, M3 0.30 day, and M4 0.20 day. The seven-day repository diff (523 files, 71,516
 insertions, 6,123 deletions) spans unrelated mission lanes and is not a credible velocity sample
@@ -198,15 +203,21 @@ turn red for that wiring mutation; M1's unit test cannot.
 > **Added after the iteration-334 judge review (non-blocking finding 3).** M3 MUST also edit the
 > hand-maintained no-silent-skip `-run` allow-list in `.github/workflows/ci.yml` to include
 > `TestEncodeModuleDirName_AllLegalOnWindows` and `TestCacheArtifacts_WindowsModuleIDPublication`.
-> That list is a literal set of test names — `ci.yml:111` (unix, 5 names) and `ci.yml:480`
-> (windows, 4 names) — so a new test that silently skips on the Windows runner is invisible to it
-> by construction. Without this edit M3's "cannot masquerade as green" property is aspirational
-> rather than enforced, which is the same class of gap as the milestone's own vacuity flag.
+> Add `./internal/pipeline` to the package list in BOTH `go test` invocations, add both names to
+> BOTH `-run` regexes, and add both names to EACH required-PASS loop. The current commands at
+> `ci.yml:111` (unix, 5 names) and `ci.yml:480` (windows, 4 names) include `./cmd/ailang` but omit
+> `./internal/pipeline`. Adding the names to both lists without the package would select no
+> pipeline tests and make the required-PASS loop fail; adding them only to the regex cannot enforce
+> execution. Without all three edits on both platforms, M3's "cannot masquerade as green" property
+> remains aspirational rather than enforced, which is the same class of gap as the milestone's own
+> vacuity flag.
 > (Both line numbers verified first-party by the controller before this note was written; note the
 > two lists are ALREADY asymmetric — the unix one carries `TestZ3VerifyEndToEnd` and the Windows
-> one does not — so add to BOTH deliberately rather than copying one over the other.)
+> one does not — so preserve every existing platform-specific package, regex name, and PASS-loop
+> entry while adding the pipeline package and the two new names to BOTH gates.)
 
-**Estimate:** 0.30 day; approximately 60 LOC, all tests/comments.  
+**Estimate:** 0.30 day; approximately 60 LOC across tests, comments, and planned CI workflow
+wiring.
 **Dependency:** green M2 commit.  
 **Commit:** one M3 commit after both affected package trees are green locally; Windows evidence
 remains a remote gate.
@@ -221,8 +232,10 @@ remains a remote gate.
   artifacts back, and emit an explicit named pass event.
 - Delete the Windows/empty-manifest skip in `requireCompileArtifactCache`; an empty manifest is now
   a failure everywhere. Replace the stale comment block with the new invariant.
-- In Windows CI evidence, require explicit PASS events for the legality and publication tests so a
-  missing test or skip cannot masquerade as green.
+- In both no-silent-skip CI gates, add `./internal/pipeline` to the `go test` package list, add both
+  legality/publication test names to the `-run` regex, and add both names to the required-PASS
+  loop. Preserve all existing platform-specific entries. The Windows evidence must contain both
+  explicit PASS events so a missing test or skip cannot masquerade as green.
 
 ### Boundary
 
@@ -268,7 +281,7 @@ Informational/allowed-to-fail steps are called out separately.
 
 **CI-LINUX-REST (`test` job):** `make deps`; `go mod download all`; `make install`;
 `tools/ci/motoko_smoke.sh`; install z3 and jq; network-poisoned `go test -timeout 300s ./...`;
-the five-test no-silent-skip PASS-event gate; `make test-parser`; `make test-stdlib-ail`;
+the planned seven-test no-silent-skip PASS-event gate; `make test-parser`; `make test-stdlib-ail`;
 `make check-file-sizes`; `make check-boundaries`; `make check-referenced-paths`;
 `make check-git-exec`; `make test-check-git-exec`; `make verify-install-guide`;
 `make verify-pi-assets`; `make verify-mcp-tools`; `make verify-stdlib`;
@@ -289,9 +302,9 @@ the five-test no-silent-skip PASS-event gate; `make test-parser`; `make test-std
 
 **CI-WINDOWS (`test-windows` job):** module download; `go install ./cmd/ailang` and version smoke;
 PowerShell `-args-file` smoke; PowerShell stdin `-args-json -` smoke; network-poisoned
-`go test -timeout 300s ./...`; and the four-test Windows no-silent-skip PASS-event gate. For this
-sprint it must additionally show explicit PASS events for the M3 legality and real-publication
-tests; local macOS/Linux green cannot establish the `os.MkdirAll` Windows leg.
+`go test -timeout 300s ./...`; and the planned six-test Windows no-silent-skip PASS-event gate.
+For this sprint it must additionally show explicit PASS events for the M3 legality and
+real-publication tests; local macOS/Linux green cannot establish the `os.MkdirAll` Windows leg.
 
 **CI-BUILD (`build` job):** `make build` after the Linux test job.
 
