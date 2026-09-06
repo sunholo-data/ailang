@@ -448,20 +448,40 @@ The cost channel (M4b, D-26/D-44) measures cost-per-verified-success in price te
 no concept of **refill period**, and this doc's own grep confirms it: no mention of weekly
 buckets, rolling windows or resets.
 
-That is not an academic gap. On 2026-09-05→06:
+That is not an academic gap, and the shape of it is not the obvious one.
 
-- **codex** is a WEEKLY bucket. Exhausted, it returned *"try again at Sep 12th"* — six days.
-- **Anthropic** is a ~5-hour rolling window. It emptied overnight and had refilled by 11:10.
+**CORRECTED 2026-09-06 (Mark, attended): codex is NOT weekly-only. It has a 5-hour rolling
+window AND a longer cap, stacked.** An earlier draft of this section said codex was weekly
+and Anthropic 5-hourly, which was wrong and would have sent the investigation looking for a
+difference in KIND where the real difference is in NUMBER OF CONSTRAINTS. Both providers
+have a short rolling window; codex carries a second, longer one on top.
 
-So a codex token and an Anthropic token of equal price are **not** equally scarce: Anthropic
-refills ~30 times before codex does. A router optimising price-per-success would have
-picked astra-as-controller exactly as we did — it was the right *quality* call and the wrong
-*bucket* call — and the fleet fell through to pi/ollama lanes for hours.
+Our own logs record both codex resets side by side:
+
+| evidence in the mission logs | which limit |
+|---|---|
+| `resets 05:34`, `resets 11:24` — hours away, same day | the **5-hour rolling** window |
+| `try again at Aug 20th, 2026 5:34 AM`, `try again at Sep 12th, 2026 12:05 PM` | the **longer cap** |
+
+**The consequence for routing is sharper than a scarcity multiplier alone.** A provider with
+stacked limits can be healthy on the short window and dead on the long one *at the same
+moment* — so a pre-flight probe passes and the real run dies. Measured on 2026-09-06: the
+astra controller's 1-token probe returned rc=0 at 09:03, and the iteration died at gate-5
+after 5,421s and 399,933 tokens on *"try again at Sep 12th"*. That is the known
+"probe cannot see a near-empty bucket" trap with its mechanism named: the probe was
+answering the SHORT window's question while the LONG one was already spent.
 
 Suggested shape, for the quorum rather than for the loop to adopt unilaterally: the cost
-channel needs a **scarcity multiplier** — remaining-bucket-fraction ÷ time-to-refill — so
-"cheap" means cheap *relative to what that bucket has left before it refills*. Availability
-probing already answers "is it up?"; this answers "can it afford to be used?".
+channel needs a **scarcity term taken over EVERY window a provider has, not one** — for each
+limit, remaining-fraction ÷ time-to-refill, and the binding constraint is the minimum. So
+"cheap" means cheap relative to whichever bucket runs out first. A single-window model would
+have rated codex healthy all through 2026-09-06, because its 5-hour window kept refilling
+while the long cap stayed spent until the 12th.
+
+Availability probing answers "is it up?". A scarcity term answers "can it afford to be
+used?". Neither answers "will it still be affordable in an hour", which is what an
+unbounded role like the controller actually needs — worth naming as an open question rather
+than pretending the multiplier closes it.
 
 ## Quorum questions (parked for Mark — the loop cannot choose these)
 
