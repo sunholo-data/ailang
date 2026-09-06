@@ -1,31 +1,30 @@
 # Mission Dashboard — V1
-*Iteration 338, 2026-09-06. History: v1-mission-log.md and charter STATUS.*
+*Iteration 339, 2026-09-06. History: v1-mission-log.md and charter STATUS.*
 
 ## Goal and delivery
 - Release v0.35.1; N=12 design docs before v1.0.0; goal unmoved.
-- Shared-ref observation protocol LANDED in #1063; inherited CI ratchet repaired in #1064.
-- Gate 1 records one full-SHA/UTC snapshot before worktree creation; later gates distinguish
-  missing evidence from measured drift.
-- Independent MiniMax evaluations PASS92/PASS93/PASS95, zero hard failures.
+- `m-pi-runner-shell-suite-coverage` is PARKED at the three-round evaluator cap.
+- Candidate branch `sprint/v1-iter339-pi-runner-shell-suite-coverage` is preserved at
+  `2eb17d026dee62649297a19d50f2943612a20438`; nothing was pushed or merged.
+- Shell evidence is green: focused19/19, wiring37/37,43 identities/0 survivors.
 
 ## Up next (banked)
-1. m-pi-runner-shell-suite-coverage — unwired suite and inherited timing flake.
+1. Human review of the iter339 park: mandatory aggregate test red plus temp-dir residue.
 2. m-pi-evaluator-session-handshake — judge must perform its own session protocol.
 3. m-cache-module-id-encoding — parked on D-57; 0/4 milestones.
 
 ## Routing and cadence
 - Authoritative .claude mission-control skill; scheduled Codex Sol controller.
-- All four Agent roles spawned: Astra designer, Sol planner/executor, independent MiniMax judge.
-- Generator OpenAI Sol != judge MiniMax; wrapper transported only and supplied no verdict.
-- Quorum stayed BLOCKED; concrete reviewer fixes used only under narrow refinement.
+- All four Agent roles spawned: Astra designer, Sol planner/executor, independent judge.
+- MiniMax primary and fallback timed out without reports; configured Astra fallback judged.
+- Generator Sol != judge Astra. Independent scores: FAIL83, FAIL88, FAIL70 hard gate.
 
 ## Parked on Mark
-- 58 ledger rows, four OPEN: D-55 threat scope; D-56 reviewer independence;
-  D-57 cache naming; D-58 pi-runner snapshot-contract direction.
-- No unattended answer was fabricated and no live approval request was acknowledged.
+- 59 ledger rows, five OPEN: D-55 threat scope; D-56 reviewer independence;
+  D-57 cache naming; D-58 pi-runner snapshot direction; D-59 iter339 cap disposition.
+- No unattended answer was inferred; D-59 defaults to indefinite hold.
 
 ## CI, quota and workspace
-- #1063 passed its full PR checks; #1064 passed all 20 PR checks before merge.
-- Exact #1064 merge-SHA CI/Build/Docs settlement is recorded in the iteration log.
-- Metered API $1.48796278; GLM flat-rate imputation $0.06206547 excluded.
-- No GPU/rig lock; main checkout 11 dirty paths untouched, 0 ahead/1 behind.
+- No PR or remote CI: independent evaluation failed before Gate 3b.
+- Quorum metered API $0.16659848; MiniMax fallback cost unavailable; quota lanes separate.
+- Main checkout 12 dirty paths untouched and 0 ahead/0 behind at Gate 4.

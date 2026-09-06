@@ -12,6 +12,8 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 336 | 2026-09-06 | **Cache encoding PARKED on D-57; independent MiniMax PASS 14/15, docs-only correction/park review.** Astra designer clarified byte mapping and repr... |
+| 335 | 2026-09-06 | **Recovered PR #1060; independent docs-only PASS91, no implementation milestones executed.** Prior iteration334 record said landed while its PR rem... |
 | 334 | 2026-09-06 | **A designer, a quorum, a planner and a judge all ran — and the two most valuable things any of them produced were a refusal and a negative result.... |
 | 333 | 2026-09-06 | **M4/4 landed — the sprint is COMPLETE and `#1046` is closed — and the judge proved the milestone's own headline test was measuring the milestone b... |
 | 332 | 2026-09-05 | **M3/4 landed — clearing the compile cache now removes the artifacts it authorised — and the required-context red that blocked the whole repo was a... |
@@ -272,15 +274,15 @@ confidently and wrongly is worse than none.
 | 34 | 2026-07-16 | fleet item (c) m-mission-quorum-agentic-verify **PARKED needs-human-review** at Gate-2 quorum-at-pick (dogfood: text quorum blocked the AGENTIC-quo... |
 | 32 | 2026-07-16 | FIRST cross-provider codex live-fire — `20251013_auto_caps` M1 (`--caps auto`) LANDED (PR #397 → `e542065c0`); executor = OpenAI codex gpt-5.6-sol,... |
 | 31 | 2026-07-16 | m-mission-agentic-provider-routing M1b+M2 LANDED (direct-on-dev `956fda55c`+`8d12e8e9c`, eval PASS 87/100 round 1, hardening `1c964aae2`); M3 PARKE... |
-| 30 | 2026-07-14 | m-dx-ai-discovery LANDED (PR #393 `c07c36b25`, eval PASS 93/100 round 1) — a RESUMED iteration; interleave: dev-red from two sibling merges fixed f... |
-| 29 | 2026-07-14 | m-dx-examples-coverage LANDED (PR #392 `3d451947c`, all 3 workflows green observed) + FIRST LIVE QUORUM (5 rounds, 5 real catches, ~$0.16) |
+| 30 | 2026-07-14 | (evening) m-dx-ai-discovery LANDED (PR #393 `c07c36b25`, eval PASS 93/100 round 1) — a RESUMED iteration; interleave: dev-red from two sibling merg... |
+| 29 | 2026-07-14 | (midday) m-dx-examples-coverage LANDED (PR #392 `3d451947c`, all 3 workflows green observed) + FIRST LIVE QUORUM (5 rounds, 5 real catches, ~$0.16) |
 | 28 | 2026-07-14 | fleet Phases A+B LANDED (Mark's mission-infra interleave) → PR #383 `1186a48e6`, eval PASS 94/100 round 1; design-doc QUORUM live (`ailang design-r... |
-| 27 | 2026-07-14 | `m-prelude-option-result` VERIFIED REAL + EXECUTED + LANDED (round-1 PASS 98/100, mission high) → PR #382 `d26215341`; Option/Result now prelude in... |
+| 27 | 2026-07-14 | (night) `m-prelude-option-result` VERIFIED REAL + EXECUTED + LANDED (round-1 PASS 98/100, mission high) → PR #382 `d26215341`; Option/Result now pr... |
 | 26 | 2026-07-14 | `m-xmod-alias-poly` VERIFIED REAL + EXECUTED + LANDED (round-1 PASS 93/100, first zero-correction pass) → PR #381 `fd1b11a47`; parameterized type a... |
-| 25 | 2026-07-13 | R4a+R4b exposed as GHOSTS at Gate-2 (guards PR #379 `ea8116f83`) + `m-lambda-open-record-pattern` EXECUTED + LANDED (round-1 PASS 92/100 + hardenin... |
+| 25 | 2026-07-13 | (evening) R4a+R4b exposed as GHOSTS at Gate-2 (guards PR #379 `ea8116f83`) + `m-lambda-open-record-pattern` EXECUTED + LANDED (round-1 PASS 92/100 ... |
 | 24 | 2026-07-13 | `m-public-feedback-delivery-audit` (Mark's NEXT-FIRST) EXECUTED + LANDED (round-1 clean, eval PASS 97/100) → PR #378 `4fee247a8`; live prod verific... |
-| 23 | 2026-07-13 | `m-module-let-func-resolution` EXECUTED + LANDED (round-1 clean, eval PASS 98/100) → PR #368 `fd38ec14e`; dev CI-red (gofmt) fixed forward; ⚠ NEXT-... |
-| 22 | 2026-07-13 | nightly-regression triage → REAL resolver gap found (#366); `m-module-let-func-resolution` DOC-READY → PR #367 `7c0d91c4c` |
+| 23 | 2026-07-13 | (earlier) `m-module-let-func-resolution` EXECUTED + LANDED (round-1 clean, eval PASS 98/100) → PR #368 `fd38ec14e`; dev CI-red (gofmt) fixed forwar... |
+| 22 | 2026-07-13 | (earliest) nightly-regression triage → REAL resolver gap found (#366); `m-module-let-func-resolution` DOC-READY → PR #367 `7c0d91c4c` |
 | 21 | 2026-07-13 | clause-3 R4c `m-arity-style-diagnostic` EXECUTED + LANDED (full inner loop, round-1 clean) → PR #363 `5b54509d1` |
 | 20 | 2026-07-13 | clause-3 R4c `m-arity-style-diagnostic` DESIGN DOC (full inner-loop NEW-DOC, design stage) → PR #361; also unwedged a broken main-tree autostash le... |
 | 18 | 2026-07-13 | m-dx-record-cons-pattern + m-dx-tapp-trecord-unification BOTH GHOSTS — verified-closed + CI-regression-guarded (clause 3, VERIFY-then-route) |
@@ -290,17 +292,17 @@ confidently and wrongly is worse than none.
 | 14 | 2026-07-12 | m-module-less-run-fail-loud BUILT + LANDED (queue #13, clause 3 — footgun burn-down opened, MOD014) |
 | 13 | 2026-07-12 | m-stdlib-url-parse BUILT + LANDED (queue #12, clause 4 — URL-parse half CLOSED) |
 | 12 | 2026-07-12 | m-stdlib-url-parse DESIGN DOC CREATED (NEW-DOC stage, queue #12, clause 4) |
-| 11 | 2026-07-11 | m-stdlib-regex LANDED (AILANG now has linear-time RE2 regex; bar clause 4's regex half closed) |
-| 10 | 2026-07-11 | m-stdlib-regex DESIGN DOC CREATED (clause-4 regex, NEW-DOC stage) |
-| 9 | 2026-07-11 | M-SYNTAX-AI-FORGIVING LANDED (the ~32% small-model parse-failure class is dead) |
-| 8 | 2026-07-11 | EFFECT SPRINT 1/4 LANDED (closed mode set ENFORCED) |
-| 7 | 2026-07-11 | EVAL-BAR CLAUSE MACHINERY LANDED (frontier tier + curation) |
-| 6 | 2026-07-11 | EFFECT-REFINEMENT DECOMPOSED (last strategic v1.0 item now sprint-sized) |
-| 4 | 2026-07-10 | LAST SPRINT-SIZED P0 CLOSED FOR V1 |
-| 3 | 2026-07-10 | P0 OPERATIONALLY CLOSED (CODE-SIDE), DEV UN-REDDED |
-| 2 | 2026-07-10 | FIRST HEADLESS FULL-LOOP RUN, P0 GATE LANDED |
-| 1 | 2026-07-10 | FIRST FULL INNER-LOOP RUN, 2 QUEUE ITEMS LANDED |
-| 0 | 2026-07-10 | BAR RATIFIED, BACKLOG RE-SCORED |
+| 11 | 2026-07-11 | COMPLETE: (night) m-stdlib-regex LANDED (AILANG now has linear-time RE2 regex; bar clause 4's regex half closed) |
+| 10 | 2026-07-11 | (night) m-stdlib-regex DESIGN DOC CREATED (clause-4 regex, NEW-DOC stage) |
+| 9 | 2026-07-11 | COMPLETE: (evening) M-SYNTAX-AI-FORGIVING LANDED (the ~32% small-model parse-failure class is dead) |
+| 8 | 2026-07-11 | COMPLETE: (afternoon) EFFECT SPRINT 1/4 LANDED (closed mode set ENFORCED) |
+| 7 | 2026-07-11 | COMPLETE: (day) EVAL-BAR CLAUSE MACHINERY LANDED (frontier tier + curation) |
+| 6 | 2026-07-11 | COMPLETE: (morning) EFFECT-REFINEMENT DECOMPOSED (last strategic v1.0 item now sprint-sized) |
+| 4 | 2026-07-10 | COMPLETE: (night) LAST SPRINT-SIZED P0 CLOSED FOR V1 |
+| 3 | 2026-07-10 | COMPLETE: (evening) P0 OPERATIONALLY CLOSED (CODE-SIDE), DEV UN-REDDED |
+| 2 | 2026-07-10 | COMPLETE: (afternoon) FIRST HEADLESS FULL-LOOP RUN, P0 GATE LANDED |
+| 1 | 2026-07-10 | COMPLETE: (evening) FIRST FULL INNER-LOOP RUN, 2 QUEUE ITEMS LANDED |
+| 0 | 2026-07-10 | COMPLETE: (later) BAR RATIFIED, BACKLOG RE-SCORED |
 | — | 2026-07-12 | v1.0 SCOPE SET via full backlog triage (Mark, interactive) |
 | — | 2026-07-11 | CONTROLLER MODEL: Fable → Opus (quota relief, Mark) |
 | — | 2026-07-11 | v1.0 BAR v2 RATIFIED (product-shaped): "the verified AI-orchestration language". Cutoff rule live: gates-v1 ⟺ serves an open clause. Queue re-deriv... |
