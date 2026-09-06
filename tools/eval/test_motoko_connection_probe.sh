@@ -694,10 +694,17 @@ if (( discovery_killer_lane_secs <= ARM_CAP_SECS )); then
 fi
 expect_failure "descendant discovery refuses on the real wall-clock deadline" "process-tree discovery deadline expired (wall clock)" \
   env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS="$discovery_killer_lane_secs" PROBE_TREE_DISCOVERY_SECS=1 \
-    PROBE_MAX_TREE_NODES=50000 PROBE_TEST_PGREP_LOOP=1 PROBE_TEST_PGREP_LOOP_DELAY=1 \
+    PROBE_MAX_TREE_NODES="$NODE_CEILING" PROBE_TEST_PGREP_LOOP=1 PROBE_TEST_PGREP_LOOP_DELAY=1 \
+    PROBE_TEST_MARKER="$tmp_dir/pgreploop.marker" \
     PROBE_TEST_DRIVER_SLEEP="$discovery_killer_lane_secs" \
     PROBE_STUB_STATE="$tmp_dir/lane-pgreploop" \
     /bin/bash "$probe" treatment control "$tmp_dir/pgreploop.json"
+discovery_marker_count=$(grep -c '^pgrep ' "$tmp_dir/pgreploop.marker" || true)
+if (( discovery_marker_count == 0 || discovery_marker_count >= 800 )); then
+  echo "not ok - descendant discovery wall-clock deadline: marker_count=$discovery_marker_count expected 1-799 with node_ceiling=$NODE_CEILING" >&2
+  exit 1
+fi
+echo "# discovery walk marker_count=$discovery_marker_count node_ceiling=$NODE_CEILING"
 
 cap_secs_fixture=2
 cap_start=$(date +%s)
@@ -1034,7 +1041,8 @@ expect_failure "bound derivation rejects an empty fork rate" \
   env PROBE_UNDER_TEST="$probe" PROBE_SELFTEST_FORK_RATE= PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash "$0"
 
 run_bounded "$tmp_dir/floor-disabled.out" "$tmp_dir/floor-disabled.err" "$ARM_CAP_SECS" -- \
-  env PROBE_UNDER_TEST="$probe" PROBE_SELFTEST_FORK_RATE=99 PROBE_SELFTEST_BOUND_FLOOR_ENFORCED=0 PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash "$0"
+  env -u PROBE_SELFTEST_REAL_OP_RATE PROBE_UNDER_TEST="$probe" PROBE_SELFTEST_FORK_RATE=99 \
+    PROBE_SELFTEST_BOUND_FLOOR_ENFORCED=0 PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash "$0"
 floor_disabled_rc=$?
 floor_disabled_line="# BOUND_FLOOR_NOT_ENFORCED: fork rate 99/s is under the floor 100/s (needs scale 5 > 4); running at scale 4 because BOUND_FLOOR_ENFORCED=0; the design ratio is NOT held on this run"
 floor_disabled_count=$(grep -Fxc -- "$floor_disabled_line" "$tmp_dir/floor-disabled.out" || true)
@@ -1051,7 +1059,8 @@ floor_enforced_rc=$?
 floor_enforced_refusal=$(grep -Fc 'fork rate 99/s needs scale 5 > 4 (floor 100/s); host too slow to hold the ratio inside the CI budget; instrument failure, not a verdict' "$tmp_dir/floor-enforced.err" || true)
 floor_enforced_disabled=$(grep -c 'BOUND_FLOOR_NOT_ENFORCED' "$tmp_dir/floor-enforced.out" || true)
 run_bounded "$tmp_dir/floor-boundary.out" "$tmp_dir/floor-boundary.err" "$ARM_CAP_SECS" -- \
-  env PROBE_UNDER_TEST="$probe" PROBE_SELFTEST_FORK_RATE=100 PROBE_SELFTEST_BOUND_FLOOR_ENFORCED=1 PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash "$0"
+  env -u PROBE_SELFTEST_REAL_OP_RATE PROBE_UNDER_TEST="$probe" PROBE_SELFTEST_FORK_RATE=100 \
+    PROBE_SELFTEST_BOUND_FLOOR_ENFORCED=1 PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash "$0"
 floor_boundary_rc=$?
 floor_boundary_diag=$(grep -Ec '^# bound derivation: r=100/s r_real=100/s p_obs=1\.00 reference=400/s scale=4 arm_cap=480s node_ceiling=1600 floor=enforced$' "$tmp_dir/floor-boundary.out" || true)
 if (( floor_enforced_rc == 0 || floor_enforced_refusal != 1 || floor_enforced_disabled != 0 || floor_boundary_rc != 0 || floor_boundary_diag != 1 )); then
@@ -1176,15 +1185,17 @@ pass_arm "refusal-branch count still matches the set this suite covers ($actual_
 
 timeout_literal_count=$(grep -Ec 'PROBE_TIMEOUT_SECS=[0-9]+' "$0" || true)
 bound_secs_match_count=$(grep -c 'bound_secs ' "$0" || true)
-if (( timeout_literal_count == 0 || bound_secs_match_count == 0 )); then
-  echo "not ok - wall-clock literal census matched nothing (timeout_literals=$timeout_literal_count bound_secs=$bound_secs_match_count); instrument failure, not a verdict" >&2
+node_literal_count=$(grep -Ec 'PROBE_MAX_TREE_NODES=[0-9]+' "$0" || true)
+node_reference_count=$(grep -c 'PROBE_MAX_TREE_NODES=' "$0" || true)
+if (( timeout_literal_count == 0 || bound_secs_match_count == 0 || node_literal_count == 0 || node_reference_count == 0 )); then
+  echo "not ok - wall-clock literal census matched nothing (timeout_literals=$timeout_literal_count bound_secs=$bound_secs_match_count node_literals=$node_literal_count node_references=$node_reference_count); instrument failure, not a verdict" >&2
   exit 1
 fi
-if (( timeout_literal_count != 5 || bound_secs_match_count < 8 )); then
-  echo "not ok - wall-clock literal census drift (timeout_literals=$timeout_literal_count expected=5 bound_secs=$bound_secs_match_count minimum=8)" >&2
+if (( timeout_literal_count != 5 || bound_secs_match_count < 8 || node_literal_count != 1 || node_reference_count < 3 )); then
+  echo "not ok - wall-clock literal census drift (timeout_literals=$timeout_literal_count expected=5 bound_secs=$bound_secs_match_count minimum=8 node_literals=$node_literal_count expected=1 node_references=$node_reference_count minimum=3)" >&2
   exit 1
 fi
-pass_arm "wall-clock literal census preserves five fixed timeout pins and scaled capacity bounds"
+pass_arm "wall-clock literal census preserves fixed timeout/node pins and scaled capacity bounds"
 
 if [[ "${PROBE_SELFTEST_FORK_RATE+x}" == x ]]; then
   bookend_rate=$PROBE_SELFTEST_FORK_RATE
