@@ -228,14 +228,22 @@ func DoctorWith(reg *Registry, p Paths, lc LaunchCtl) *Report {
 			add("driver-missing", Drift, "%s: %v", m.DriverPath(), derr)
 		default:
 			row.Pinned = strings.Contains(string(driver), pinSentinel)
-			row.Fork = m.Repo != sharedDriverRepo
+			// A FORK IS NOW A DECLARED CHOICE, not an inference from the repo name.
+			// Before the driver location was decoupled from the workdir, any mission
+			// working in another repo NECESSARILY had its own driver, so "different repo"
+			// implied "fork". It no longer does: a mission elsewhere just has a different
+			// Workdir and runs the shared driver. Only an explicit `driver = "..."` is a
+			// fork now, which means the report says what someone chose rather than what
+			// the layout forced.
+			row.Fork = m.Driver != ""
 			if !row.Pinned {
 				add("no-pin", Drift,
 					"%s does not source pin-root.sh — it runs whatever its working tree holds, so upstream driver fixes never reach it", m.DriverPath())
 			}
 			if row.Fork {
 				add("driver-fork", Note,
-					"driver lives in %s, not %s — every shared-driver change must be ported by hand until it is de-forked", m.Repo, sharedDriverRepo)
+					"this mission declares its OWN driver (%s) instead of the shared one — every shared-driver change must be ported to it by hand, which is how a fork goes stale unseen",
+					m.Driver)
 			}
 		}
 		rep.Rows = append(rep.Rows, row)

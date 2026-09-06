@@ -282,42 +282,30 @@ func TestGolden_EnumeratedNormalisationsHold(t *testing.T) {
 
 // ── the doctor, against the LIVE rig ─────────────────────────────────────────
 
-// liveRegistry builds registry entries for the real fleet from what is INSTALLED,
-// so this test measures the rig rather than a fixture's opinion of it. M4 replaces
-// this with missions/*.toml; until then, this is what proves the doctor works on the
-// thing it was built for.
+// liveRegistry loads the REAL registry from missions/.
+//
+// It used to build entries in code, which was right before missions/*.toml existed and
+// wrong the moment they did: a hand-built registry tests this package's opinion of the
+// fleet rather than the fleet's own configuration, so a wrong or stale entry would sail
+// past. Loading the real files means these assertions are about what actually runs.
 func liveRegistry(t *testing.T) *Registry {
 	t.Helper()
-	home := os.Getenv("HOME")
-	type spec struct {
-		name, repo, doc, workdir string
-		sched                    Schedule
+	dir := filepath.Join("..", "..", "missions")
+	if _, err := os.Stat(dir); err != nil {
+		t.Skipf("no mission registry on this machine: %v", err)
 	}
-	specs := []spec{
-		{"v1", "sunholo-data/ailang", "design_docs/v1-mission.md",
-			filepath.Join(home, "dev/sunholo-data/ailang"), Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 5400, BootOffset: 0}},
-		{"world", "sunholo-data/ailang-world", "design_docs/world-mission.md",
-			filepath.Join(home, "dev/sunholo-data/ailang-world"), Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 14400, BootOffset: 420}},
-		{"docs", "sunholo-data/ailang", "design_docs/docs-mission.md",
-			filepath.Join(home, "dev/sunholo-data/ailang-docs"), Schedule{Mode: ModeInterval, IntervalSeconds: 21600, BootOffset: 840}},
-		{"motoko", "sunholo-data/ailang", "design_docs/motoko-mission.md",
-			filepath.Join(home, "dev/sunholo-data/ailang-motoko"), Schedule{Mode: ModeInterval, IntervalSeconds: 46800, BootOffset: 1260}},
+	reg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("the real registry does not load: %v", err)
 	}
-	reg := &Registry{}
-	for _, s := range specs {
-		if _, err := os.Stat(s.workdir); err != nil {
-			continue // that mission is not on this machine
+	// Keep only missions whose workdir exists here, so this runs on a partial checkout.
+	var present []*Mission
+	for _, m := range reg.Missions {
+		if _, err := os.Stat(m.Workdir); err == nil {
+			present = append(present, m)
 		}
-		m := &Mission{Name: s.name, Repo: s.repo, Doc: s.doc, Workdir: s.workdir, Sched: s.sched, Path: "live:" + s.name}
-		if err := m.Validate(); err != nil {
-			t.Fatalf("live spec for %s is not a valid registry entry: %v", s.name, err)
-		}
-		reg.Missions = append(reg.Missions, m)
 	}
-	if err := reg.Validate(); err != nil {
-		t.Fatalf("live registry invalid: %v", err)
-	}
-	return reg
+	return &Registry{Missions: present}
 }
 
 // THE LIVE CHECK. Its job is to verify the doctor reports the rig ACCURATELY — not to

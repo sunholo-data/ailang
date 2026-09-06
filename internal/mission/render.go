@@ -165,7 +165,24 @@ func (m *Mission) launchdSuffix() string {
 }
 
 // DriverPath is the script launchd executes for this mission.
+//
+// THE SHARED DRIVER BY DEFAULT, wherever the mission's work repo is. A mission working in
+// another repo entirely is just a different Workdir; it does not get, and must not need,
+// its own copy of the driver. That is the centralized point: change mission-control.sh
+// once and every loop picks it up.
+//
+// An explicit Driver is an escape hatch for a mission that genuinely must run its own
+// copy. `ailang mission doctor` reports any such mission as a fork, because that is what
+// it is, and world spent weeks proving how a fork goes stale unseen.
 func (m *Mission) DriverPath() string {
+	if m.Driver != "" {
+		return m.Driver
+	}
+	if m.root != "" {
+		return filepath.Join(m.root, "tools", "launchd", "mission-control.sh")
+	}
+	// No registry root (a hand-built Mission in a test): fall back to the old
+	// workdir-relative shape rather than returning something empty.
 	return filepath.Join(m.Workdir, "tools", "launchd", "mission-control.sh")
 }
 

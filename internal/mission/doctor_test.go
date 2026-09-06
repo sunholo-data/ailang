@@ -178,7 +178,11 @@ func TestDoctor_ReportsForkAndMissingPin(t *testing.T) {
 	f := newFleet(t)
 	env := "MISSION_NAME=world\nMISSION_REPO=sunholo-data/ailang-world\nMISSION_DOC=d.md\n"
 	m := f.addMission("world", "sunholo-data/ailang-world", Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 14400},
-		env, "", false) // unpinned fork, exactly like the real world mission
+		env, "", false) // unpinned, exactly like the real world mission
+	// A FORK IS A DECLARED CHOICE since the driver location was decoupled from the
+	// workdir. Working in another repo no longer implies running your own driver — that
+	// is the whole point of the decoupling — so the fixture must SAY it forks.
+	m.Driver = m.DriverPath()
 	rendered, _ := RenderEnv(m, []byte(env))
 	_ = os.WriteFile(f.p.EnvPath("world"), rendered, 0o600)
 
