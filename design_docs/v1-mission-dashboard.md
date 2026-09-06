@@ -1,30 +1,30 @@
 # Mission Dashboard — V1
-*Iteration 336, 2026-09-06. History: v1-mission-log.md and charter STATUS.*
+*Iteration 337, 2026-09-06. History: v1-mission-log.md and charter STATUS.*
 
 ## Goal and delivery
-- Release v0.35.1; **N=12 design docs before v1.0.0**, unchanged.
-- Cache encoding implementation **PARKED on D-57**, 0/4 milestones executed.
-- Design byte mapping/examples corrected; both quorum rounds BLOCKED (2 reject/1 pass, none absent).
-- Independent MiniMax **PASS 14/15**: docs-only correction/park review; not design or execution approval.
-- PR #1061 banks design, blocked plan/snapshot, quorum and evaluator evidence.
+- Release v0.35.1; N=12 design docs before v1.0.0; goal unmoved.
+- Pi runner content-delta design PARKED on D-58; no production implementation.
+- Two complete quorum rounds, all three reviewers reject, none absent.
+- Independent MiniMax docs-only park review PASS82/100.
+- Cache encoding remains PARKED D-57, 0/4 milestones.
 
 ## Up next (banked)
-1. `m-pi-runner-worktree-assertion-vacuous-on-revision` — prior dirty content can fake a deliverable.
-2. `m-gate1-shared-clone-ref-drift` — shared refs can invalidate sync measurements mid-iteration.
-- Encoding resumes only after D-57, design gate, and planner synchronization; no runtime copy while blocked.
-- M3/M4 have no new production mutation of their own; the inherited plan labels this explicitly.
+1. m-gate1-shared-clone-ref-drift — shared refs invalidate point-in-time sync measurements.
+2. m-pi-runner-shell-suite-coverage — unwired suite and inherited timing flake.
+3. m-pi-evaluator-session-handshake — judge must perform its own session protocol.
 
 ## Routing and cadence
-- launchd; authoritative `.claude/skills/mission-control/SKILL.md` followed by Codex controller.
-- All four Agent roles dispatched: Astra designer; Sol planner and executor; MiniMax evaluator via wrapper.
-- Planner corrected blocking metadata; executor performed read-only gate audit, no implementation.
-- Actual judge pi Ollama MiniMax is a different model/vendor from OpenAI generators; no self-score.
+- Authoritative .claude mission-control skill; scheduled Codex Astra controller.
+- All four Agent roles spawned: DeepSeek designer via transport, Sol planner/executor,
+  independent MiniMax evaluator via transport in its own worktree.
+- Planner/executor read-only audits only; design gate prevented further work.
+- Narrow-refinement considered and declined; unresolved contract requires judgment.
 
 ## Parked on Mark
-- **57 ledger rows, three OPEN:** D-55 threat model; default(a) already applied, row remains open.
-- D-56 permanent Astra designer/quorum independence; skill's interim Sol quorum substitution used.
-- D-57 hybrid vs pure hash vs basename/parent redesign; recommendation hybrid, default HOLD.
+- 58 ledger rows, four OPEN: D-55 threat scope; D-56 reviewer independence;
+  D-57 cache naming; D-58 fresh snapshot-contract revision/quorum vs alternative design.
+- D-58 default HOLD immediately, approval message delivered and body verified.
 
 ## Quota and workspace
-- API-priced quorum cost **$0.224037**; GLM flat-rate imputed value $0.05664417 excluded from metered spend.
-- Codex subscription and Ollama Cloud quota; no GPU/rig lock. Shared main14dirty paths untouched.
+- Metered API $0.213206; GLM flat-rate imputation $0.0271354 excluded.
+- Codex and Ollama Cloud quota; no GPU/rig lock; main14dirty paths untouched.
