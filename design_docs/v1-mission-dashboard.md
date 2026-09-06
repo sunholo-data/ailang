@@ -1,30 +1,30 @@
 # Mission Dashboard — V1
-*Iteration 339, 2026-09-06. History: v1-mission-log.md and charter STATUS.*
+*Iteration 340, 2026-09-07. History: v1-mission-log.md and charter STATUS.*
 
 ## Goal and delivery
 - Release v0.35.1; N=12 design docs before v1.0.0; goal unmoved.
-- `m-pi-runner-shell-suite-coverage` is PARKED at the three-round evaluator cap.
-- Candidate branch `sprint/v1-iter339-pi-runner-shell-suite-coverage` is preserved at
-  `2eb17d026dee62649297a19d50f2943612a20438`; nothing was pushed or merged.
-- Shell evidence is green: focused19/19, wiring37/37,43 identities/0 survivors.
+- `m-pi-evaluator-session-handshake` LANDED via PR #1069 at `aeeafc880`.
+- Pi children receive canonical messaging store/project values; `AILANG_STORAGE` is preserved.
+- Gate 3 now carries one source-bound evaluator read/list/summarize/ack/judge preamble.
 
 ## Up next (banked)
-1. Human review of the iter339 park: mandatory aggregate test red plus temp-dir residue.
-2. m-pi-evaluator-session-handshake — judge must perform its own session protocol.
-3. m-cache-module-id-encoding — parked on D-57; 0/4 milestones.
+1. m-cachesrc-cognitive-complexity — attributable Sonar maintainability red on cache M2.
+2. m-coordinator-codex-401 — coordinator websocket auth diverges from healthy OAuth CLI.
+3. m-cache-artifact-adversarial-decode — separate hardening after correctness work.
 
 ## Routing and cadence
 - Authoritative .claude mission-control skill; scheduled Codex Sol controller.
-- All four Agent roles spawned: Astra designer, Sol planner/executor, independent judge.
-- MiniMax primary and fallback timed out without reports; configured Astra fallback judged.
-- Generator Sol != judge Astra. Independent scores: FAIL83, FAIL88, FAIL70 hard gate.
+- Agent roles: Astra designer; Sol planner/executor; gpt-5.5 evaluator transport wrapper.
+- Ollama MiniMax violated the bare-command handshake; its PASS90 was rejected as transport.
+- OpenRouter MiniMax obeyed the handshake and independently passed 99/100; generator != judge.
 
 ## Parked on Mark
 - 59 ledger rows, five OPEN: D-55 threat scope; D-56 reviewer independence;
   D-57 cache naming; D-58 pi-runner snapshot direction; D-59 iter339 cap disposition.
-- No unattended answer was inferred; D-59 defaults to indefinite hold.
+- No unattended answer was inferred; recorded defaults remain in force.
 
 ## CI, quota and workspace
-- No PR or remote CI: independent evaluation failed before Gate 3b.
-- Quorum metered API $0.16659848; MiniMax fallback cost unavailable; quota lanes separate.
-- Main checkout 12 dirty paths untouched and 0 ahead/0 behind at Gate 4.
+- PR #1069 and merge SHA `aeeafc880`: CI, Build and Release, and docs all green.
+- Metered $0.43507610; GLM flat-rate imputation $0.01772879 reported separately.
+- Role tokens: designer/planner/executor/wrapper not reported; Pi 4,532,187 invalid +
+  4,796,786 accepted tokens. Gate-4 base `aeeafc880` at 2026-09-06T22:13:01Z.
