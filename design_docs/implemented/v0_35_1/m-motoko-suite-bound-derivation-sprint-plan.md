@@ -1,6 +1,8 @@
 # Sprint plan: M-MOTOKO-SUITE-BOUND-DERIVATION
 
-**Design:** `design_docs/planned/m-motoko-suite-bound-derivation.md`
+**Status**: COMPLETE — M1 landed in PR #1048; residual M2/M3 landed in PR #1066 on 2026-09-06. Independent evaluator PASS 84/100.
+
+**Design:** `design_docs/implemented/v0_35_1/m-motoko-suite-bound-derivation.md`
 
 **Residual execution base verified (iteration 37):** branch `sprint/motoko-iter37-suite-bound-m2-m3` at pristine `0b7f3e3afbdaee91ead44fe8a555661f95719c04` (`origin/dev`). M1 landed in PR #1048; only M2 and M3 remain. The production probe is byte-identical to the design base, while the self-test suite contains the accepted M1 implementation.
 

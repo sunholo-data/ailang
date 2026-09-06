@@ -1,50 +1,31 @@
 # Mission Dashboard — Motoko
 
-**Snapshot**: 2026-09-06, after iteration 36. Overwritten every iteration; history lives in
-`motoko-mission.md` (STATUS) and `motoko-mission-log.md`.
+**Snapshot**: 2026-09-06, after iteration 37. History lives in the mission charter and log.
 
 ## Where the mission is
 
-- **Epic**: `m-motoko-dst-refactor-migration` (gated; ungated work runs first). The thread before
-  this iteration was hardening `tools/eval/motoko_connection_probe.sh`, rows 6a–6t.
-- **This iteration did not advance the epic — goal unmoved.** M-MISSION-LOOP-WORKBENCH Phase 1 was
-  landed **attended**, straight to `dev`, 22:15–23:02 local, with no charter row and no log entry.
-  It left CI red in six checks. The loop fired 37 minutes later and Gate 1's red-outranks-the-queue
-  rule applied; the red is this charter's own territory (clause 6), so it was not handed to V1.
+- **Epic**: `m-motoko-dst-refactor-migration` remains gated; goal unmoved this iteration.
+- **Landed**: row **6p**, M2/M3 of suite-bound derivation, PR [#1066](https://github.com/sunholo-data/ailang/pull/1066), merge [`6c03639f5`](https://github.com/sunholo-data/ailang/commit/6c03639f518fa45569b879bfa73c2d31e5b3d62f).
+- The self-test suite now consumes measured wall-clock bounds, enforces the rate floor and `p_obs` gate, and derives the discovery node ceiling. Production probe hash stayed unchanged.
+- Merge SHA has **20/20 green checks**, including `launchd drivers (bash 3.2)`.
 
 ## In flight
 
-- **PR [#1055](https://github.com/sunholo-data/ailang/pull/1055)** — seven commits unbreaking `dev`.
-  Four defects from the CI logs, a **fifth found only by measurement** (`kill_unix.go` had no build
-  constraint, so `internal/mission` did not compile on Windows at all — fixing the validation alone
-  would have left both Windows checks red while looking fixed), plus two self-review commits.
-  Evaluator **PASS 85/100, zero blocking**.
+- **None for Motoko.** Implementation and record are complete or in the bookkeeping lane.
 
 ## Next picks (banked, ordered)
 
-1. **Row 6p M2/M3** — wire the wall-clock class, enforce the floor, gate `p_obs` (M2); derive the
-   node ceiling (M3). Iteration 35 landed M1 only; its executor was capped after one milestone.
-2. **Row 16** — changelog debt for the whole Phase 1 arc (feature + fix in one entry). Bookkeeping,
-   ≤1 iteration. `make check-changelog` is index hygiene and will never surface it.
-3. **Row 7** — profile restoration design (5 profiles, 14 of 18 model entries).
-
-## Watch
-
-- The attended session was **still landing commits while the loop ran** (M5/M6/M7 arrived
-  mid-iteration, forcing a rebase and a re-verify against fresh origin). Expect more Phase 2 work on
-  `dev` from outside the loop; re-check defects against fresh origin before acting on any of them.
-- `TestLive_DoctorReproducesTheMeasuredDivergences` was red on the rig earlier tonight and is **now
-  green** — M6 fixed the underlying drift. Rig-only; it skips off-rig, so CI never saw either state.
+1. **Row 16** — one changelog entry for workbench Phase 1 plus its repair arc.
+2. **Row 7** — profile restoration design (5 profiles, 14 of 18 model entries).
+3. **Row 6s** — self-test arm-count anti-vacuity gate, if still ahead after re-reading the queue.
 
 ## Parked on Mark
 
-- **None.** Decision ledger valid, 6 rows, **0 OPEN**.
+- **None.** Decision ledger valid: 6 rows, 0 OPEN.
 
 ## Loop posture
 
-- Controller `claude:claude-opus-5`; executor `codex:gpt-5.6-sol`; evaluator `sonnet` — distinct
-  providers, so generator≠judge holds. **No designer, no planner**: both routing-table branches gate
-  on artifacts a CI-red fix-forward has not got (`derive-planner-lane.sh` → `opus fail-closed:no-doc`).
-- Rotation pointer untouched at `codex:gpt-6-astra`; **Fable unspent**.
-- Metered **$0.00** of the $5 ceiling. No GPU, no `rig.lock`.
+- Designer `codex:gpt-6-astra`; planner/executor `codex:gpt-5.6-sol`; final evaluator `codex:gpt-6-astra`, distinct agent/model but same-provider fallback **FLAGGED**.
+- Evaluator primary `pi:ollama/minimax-m3:cloud` timed out; OpenRouter MiniMax produced PASS 90 but its ignored-path artifact failed the runner guard; final independent verdict PASS **84/100**.
+- Metered OpenRouter evaluation cost **$0.19**; no GPU and no `rig.lock`.
 - Bookkeeping issue **#987**; next weekly rotation Monday 2026-09-07.

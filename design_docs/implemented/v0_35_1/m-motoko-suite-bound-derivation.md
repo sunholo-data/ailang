@@ -1,6 +1,6 @@
 # M-MOTOKO-SUITE-BOUND-DERIVATION: derive the suite's wall-clock and node-ceiling bounds from a stimulus measured in-test
 
-**Status**: PLANNED (design, not yet started)
+**Status**: IMPLEMENTED — M1 landed 2026-09-05 in PR #1048; M2/M3 landed 2026-09-06 in PR #1066 (`6c03639f518fa45569b879bfa73c2d31e5b3d62f`). Evaluator PASS 84/100.
 **Mission**: motoko · charter row **6p** (corroborated by rows 6j and 6r)
 **Iteration**: 35 · designer role
 **Base**: origin/dev `087fbea631a0b80556baa034b499fbdae33e76d2`
