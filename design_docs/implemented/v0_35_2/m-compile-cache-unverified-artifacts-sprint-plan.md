@@ -13,7 +13,7 @@ interface.
 **Milestones:** 4; one green, independently verifiable commit per milestone  
 **Risk:** High correctness impact; medium implementation risk  
 **Dependencies:** None  
-**Design:** design_docs/planned/v0_35_2/m-compile-cache-unverified-artifacts.md  
+**Design:** design_docs/implemented/v0_35_2/m-compile-cache-unverified-artifacts.md  
 **Issue:** #1046
 
 The design's four-milestone decomposition and estimates are preserved exactly: M1 2 days, M2
