@@ -641,19 +641,35 @@ to the bounded, LOUD, fail-soft Go subcommand — NEVER inline shell spooling:
 
 ```bash
 # stages: metered lanes carry $ + model + tokens; quota lanes carry quota_bucket
-# (fable|opus|sonnet) and ZERO tokens/cost (subscription burn is bucket-visible, not dollar-faked).
+# (fable|opus|sonnet|codex) and ZERO tokens/cost (subscription burn is bucket-visible, not
+# dollar-faked) — their token count goes in "quota_tokens" instead.
 # EVERY stage carries "status" — its REAL outcome (completed|failed|running|awaiting_approval).
 cat <<JSON | ailang chains post-iteration || true   # `|| true`: telemetry NEVER blocks the loop
 {
   "source": "mission:${MISSION_NAME:-v1}/iter-${ITER}",
   "stages": [
     {"role":"executor","provider":"codex","model":"<model>","cost_usd":<metered $>,"tokens_in":<n>,"tokens_out":<n>,"status":"completed"},
-    {"role":"controller","quota_bucket":"opus","status":"completed"},
-    {"role":"evaluator","quota_bucket":"sonnet","status":"failed"}
+    {"role":"controller","quota_bucket":"opus","quota_tokens":<n>,"status":"completed"},
+    {"role":"evaluator","quota_bucket":"sonnet","quota_tokens":<n>,"status":"failed"}
   ]
 }
 JSON
 ```
+
+**`quota_tokens` — the ration's only input (M-QUOTA-RATIONING-ROUTING M2, 2026-09-06).** Every
+quota lane posts its token count in `quota_tokens`, NOT in `tokens_in`/`tokens_out`. Those stay
+zero, and the reason is structural: `tokens > 0` is what the cost estimator uses to mean "this
+stage was metered and can be priced" — there is no schema flag — so a real count there would
+invoice a subscription run nobody paid for and corrupt the metered KPI in the act of fixing the
+quota one. The CLI REJECTS a stage carrying `quota_tokens` without a `quota_bucket`, because such
+a stage would be counted once by each system as if it were two runs.
+
+Measured 2026-09-06: 4,979 quota stages recorded zero tokens by design, so nothing in the fleet
+could answer *"how much of the codex bucket have we spent this window?"* — the one question a
+ration exists to answer, and the reason half a codex bucket went in a single day. Posting this
+field is what feeds `~/.ailang/state/quota-ledger.json`; read it back with `ailang mission quota`.
+**A quota stage posted without `quota_tokens` is invisible to the ration**, which then paces the
+fleet on an undercount. The number is the same one you already write into the Gate-4 evidence row.
 
 **TOKENS AND STATUS ARE YOURS TO SUPPLY, and both were missing** (M-MISSION-LOOP-UNIFIED-TELEMETRY
 M2, 2026-08-13). Measured on `mission:v1/iter-190`: four stages across three providers, all reading
@@ -663,7 +679,7 @@ handed — those zeros came from this skill. So:
 
 - **Tokens**: every metered stage posts `tokens_in`/`tokens_out` from the provider's own usage
   report (quorum reviewers included — a reviewer bill without tokens is what produced iter-190).
-  Quota lanes still post zero, as they always have.
+  Quota lanes still post ZERO there, and their real count in `quota_tokens` (above).
 - **awaiting_approval also posts to the DECISION SPINE** (M-PIPELINE-RECONCILIATION M6, D4,
   ratified 2026-08-26). Any stage you record as `awaiting_approval` — a design frozen pending
   ratification, an executor result parked for a human — ALSO sends one message to the `approvals`

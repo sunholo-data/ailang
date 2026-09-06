@@ -63,6 +63,12 @@ func (b *GCPTraceBackend) UpdateStageError(ctx context.Context, stageID, errorMe
 	return nil
 }
 
+// UpdateStageQuotaTokens is a no-op here, like every other chain-stage write on
+// this backend.
+func (b *GCPTraceBackend) UpdateStageQuotaTokens(ctx context.Context, stageID string, tokens int64) error {
+	return nil
+}
+
 // UpdateStageEvalAssessment is a no-op here, like every other chain-stage write on
 // this backend: GCP Cloud Trace holds spans, not the chain hierarchy.
 func (b *GCPTraceBackend) UpdateStageEvalAssessment(ctx context.Context, stageID string, assessment *EvalAssessment) error {

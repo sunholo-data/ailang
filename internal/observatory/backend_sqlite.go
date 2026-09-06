@@ -482,6 +482,10 @@ func (b *SQLiteBackend) UpdateStageEvalAssessment(ctx context.Context, stageID s
 	return b.store.UpdateStageEvalAssessment(ctx, stageID, assessment)
 }
 
+func (b *SQLiteBackend) UpdateStageQuotaTokens(ctx context.Context, stageID string, tokens int64) error {
+	return b.store.UpdateStageQuotaTokens(ctx, stageID, tokens)
+}
+
 func (b *SQLiteBackend) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error) {
 	return b.store.GetSpanLitesByStageID(ctx, stageID, limit, offset)
 }

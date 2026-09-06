@@ -47,7 +47,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/sunholo-data/ailang/internal/mission"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/storage"
 )
@@ -135,6 +137,14 @@ func chainsPostIterationCommand() {
 		fmt.Fprintf(os.Stderr, "chains post-iteration: %s buffered for retry, nothing written\n", post.Source)
 		return
 	}
+
+	// 3b. Record subscription spend in the fleet quota ledger.
+	//
+	// UNCONDITIONAL, and deliberately not gated on the write above: the tokens were
+	// consumed whether or not telemetry accepted the record, and a ration fed only by
+	// successful writes would under-count exactly during an outage. The ledger append
+	// takes no lock and cannot block, so this cannot delay the iteration.
+	recordQuotaSpend(post)
 
 	cost, tokens, unreported := postTotals(post)
 	fmt.Printf("Posted iteration chain %s (source %s, %d stages, $%.4f, %d tokens)\n",
@@ -243,6 +253,49 @@ func flushSpool(ctx context.Context, t *postTarget) {
 			fmt.Fprintf(os.Stderr, "chains post-iteration: re-post of spooled %q to %s failed (%v); re-buffering\n", p.Source, t.name, err)
 			_ = t.spool.Append(p)
 		}
+	}
+}
+
+// recordQuotaSpend appends this iteration's subscription spend to the fleet-wide quota
+// ledger, folded to canonical buckets.
+//
+// Folding matters: the agent_id bucket is free text and four spellings of codex already
+// exist in v1 alone, so a ledger keyed on the raw value would see two half-full buckets
+// where there is one full one — and conclude both were within ration.
+//
+// Failures are reported and swallowed. A telemetry or bookkeeping problem must never fail
+// a mission iteration; the cost of a missed append is a ration that measures low for one
+// fire, which is strictly better than a fleet that stops.
+func recordQuotaSpend(post *observatory.IterationPost) {
+	byBucket := map[string]int64{}
+	stages := map[string]int{}
+	for _, st := range post.Stages {
+		if st.QuotaTokens <= 0 {
+			continue
+		}
+		ck := observatory.CanonicalQuotaBucket(st.QuotaBucket)
+		if ck == "" {
+			// Validate already rejects quota tokens without a bucket, so this is
+			// unreachable via the CLI; keep the spend visible rather than dropping it.
+			ck = "unlabeled"
+		}
+		byBucket[ck] += st.QuotaTokens
+		stages[ck]++
+	}
+	if len(byBucket) == 0 {
+		return
+	}
+	paths := mission.DefaultPaths()
+	now := time.Now().UTC()
+	for bucket, tok := range byBucket {
+		if err := mission.AppendSpend(paths, bucket, tok, stages[bucket], now); err != nil {
+			fmt.Fprintf(os.Stderr, "chains post-iteration: quota ledger append failed for %s (%v); ration will measure low\n", bucket, err)
+		}
+	}
+	// Best-effort compaction. Skipped silently when another process holds the lock —
+	// the journal is already durable and every reader folds it.
+	if _, err := mission.Consolidate(paths, now); err != nil {
+		fmt.Fprintf(os.Stderr, "chains post-iteration: quota ledger consolidation: %v\n", err)
 	}
 }
 

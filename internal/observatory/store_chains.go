@@ -368,6 +368,7 @@ func (s *Store) GetChainStages(ctx context.Context, chainID string, opts ChainRe
 		       handoff_to, iteration, human_feedback,
 		       started_at, completed_at,
 		       cost, tokens_in, tokens_out, turns, tool_calls, duration_ms,
+		       COALESCE(quota_tokens, 0),
 		       COALESCE(cost_provenance, ''),
 		       error_message, error_count,
 		       eval_assessment
@@ -396,6 +397,7 @@ func (s *Store) GetChainStages(ctx context.Context, chainID string, opts ChainRe
 			&handoffTo, &stage.Iteration, &humanFeedback,
 			&startedAt, &completedAt,
 			&stage.Cost, &stage.TokensIn, &stage.TokensOut, &stage.Turns, &stage.ToolCalls, &stage.DurationMs,
+			&stage.QuotaTokens,
 			&stage.CostProvenance,
 			&errorMessage, &stage.ErrorCount,
 			&evalAssessmentJSON,
@@ -485,6 +487,7 @@ func (s *Store) GetStage(ctx context.Context, id string) (*ChainStage, error) {
 		       handoff_to, iteration, human_feedback,
 		       started_at, completed_at,
 		       cost, tokens_in, tokens_out, turns, tool_calls, duration_ms,
+		       COALESCE(quota_tokens, 0),
 		       COALESCE(cost_provenance, ''),
 		       error_message, error_count
 		FROM chain_stages WHERE id = ?
@@ -495,6 +498,7 @@ func (s *Store) GetStage(ctx context.Context, id string) (*ChainStage, error) {
 		&handoffTo, &stage.Iteration, &humanFeedback,
 		&startedAt, &completedAt,
 		&stage.Cost, &stage.TokensIn, &stage.TokensOut, &stage.Turns, &stage.ToolCalls, &stage.DurationMs,
+		&stage.QuotaTokens,
 		&stage.CostProvenance,
 		&errorMessage, &stage.ErrorCount,
 	)

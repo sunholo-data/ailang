@@ -29,8 +29,8 @@ func TestCanonicalBucket_FoldsEverySpellingSeenLive(t *testing.T) {
 		{"ollama-minimax-m3-cloud", "ollama"},
 	}
 	for _, tc := range cases {
-		if got := canonicalBucket(tc.raw); got != tc.want {
-			t.Errorf("canonicalBucket(%q) = %q, want %q", tc.raw, got, tc.want)
+		if got := CanonicalQuotaBucket(tc.raw); got != tc.want {
+			t.Errorf("CanonicalQuotaBucket(%q) = %q, want %q", tc.raw, got, tc.want)
 		}
 	}
 }
@@ -39,16 +39,16 @@ func TestCanonicalBucket_FoldsEverySpellingSeenLive(t *testing.T) {
 // is how a ration ends up measuring the wrong thing and saying nothing about it.
 func TestCanonicalBucket_UnknownStaysItself(t *testing.T) {
 	for _, raw := range []string{"some-new-provider", "mistral", "none"} {
-		got := canonicalBucket(raw)
+		got := CanonicalQuotaBucket(raw)
 		if got != raw {
-			t.Errorf("canonicalBucket(%q) = %q — an unknown bucket must not be folded into a neighbour", raw, got)
+			t.Errorf("CanonicalQuotaBucket(%q) = %q — an unknown bucket must not be folded into a neighbour", raw, got)
 		}
 	}
-	if got := canonicalBucket(""); got != "" {
+	if got := CanonicalQuotaBucket(""); got != "" {
 		t.Errorf("empty must stay empty, got %q", got)
 	}
 	// Case and whitespace are normalised, which is not the same as folding.
-	if got := canonicalBucket("  Mistral  "); got != "mistral" {
+	if got := CanonicalQuotaBucket("  Mistral  "); got != "mistral" {
 		t.Errorf("expected trim+lower, got %q", got)
 	}
 }
@@ -58,7 +58,7 @@ func TestCanonicalBucket_UnknownStaysItself(t *testing.T) {
 func TestCanonicalBucket_DistinctProvidersStayDistinct(t *testing.T) {
 	seen := map[string]string{}
 	for _, raw := range []string{"codex", "opus", "openrouter-flat-rate", "ollama-minimax-m3-cloud"} {
-		c := canonicalBucket(raw)
+		c := CanonicalQuotaBucket(raw)
 		if prev, dup := seen[c]; dup {
 			t.Errorf("%q and %q both canonicalise to %q — two providers merged", prev, raw, c)
 		}

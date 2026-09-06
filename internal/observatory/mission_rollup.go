@@ -59,6 +59,7 @@ func (s *Store) GetMissionRollups(ctx context.Context, createdAfter *time.Time, 
 
 	query := `
 		SELECT c.source_ref, cs.agent_id, cs.cost, cs.tokens_in, cs.tokens_out,
+		       COALESCE(cs.quota_tokens, 0) AS quota_tokens,
 		       COALESCE(json_extract(cs.eval_assessment, '$.model'), '') AS ea_model,
 		       COALESCE((
 		           SELECT sp.model FROM spans sp
@@ -96,8 +97,9 @@ func (s *Store) GetMissionRollups(ctx context.Context, createdAfter *time.Time, 
 		var sourceRef, agentID, eaModel, spanModel string
 		var cost float64
 		var tokensIn, tokensOut int
+		var quotaTokens int64
 		var sourceRefNull, agentIDNull sql.NullString
-		if err := rows.Scan(&sourceRefNull, &agentIDNull, &cost, &tokensIn, &tokensOut, &eaModel, &spanModel); err != nil {
+		if err := rows.Scan(&sourceRefNull, &agentIDNull, &cost, &tokensIn, &tokensOut, &quotaTokens, &eaModel, &spanModel); err != nil {
 			return nil, fmt.Errorf("failed to scan mission rollup row: %w", err)
 		}
 		sourceRef = sourceRefNull.String
@@ -131,11 +133,14 @@ func (s *Store) GetMissionRollups(ctx context.Context, createdAfter *time.Time, 
 			// "unlabeled" rather than dropped or attributed to a neighbour: it still
 			// consumed a bucket, and a ration that cannot see it is measuring low. 43
 			// such stages exist in v1 alone.
-			ck := canonicalBucket(bucket)
+			ck := CanonicalQuotaBucket(bucket)
 			if ck == "" {
 				ck = "unlabeled"
 			}
-			a.canonTok[ck] += int64(stage.TokensIn) + int64(stage.TokensOut)
+			// QuotaTokens, NOT TokensIn+TokensOut: a quota stage posts 0/0 by
+			// contract, so summing those measured zero for all 4,979 of them. The
+			// two sums stay separate on purpose — see ChainStage.QuotaTokens.
+			a.canonTok[ck] += quotaTokens
 			a.canonN[ck]++
 		}
 		a.allStages = append(a.allStages, MissionStageCost{
@@ -199,7 +204,7 @@ func parseQuotaBucket(agentID string) string {
 	return strings.TrimSpace(rest[:end])
 }
 
-// canonicalBucket folds the spellings of one subscription bucket into a single key.
+// CanonicalQuotaBucket folds the spellings of one subscription bucket into a single key.
 //
 // The bucket is parsed out of a FREE-TEXT agent_id, so nothing has ever constrained how it
 // is written, and four spellings of codex accumulated in the v1 mission alone:
@@ -214,7 +219,7 @@ func parseQuotaBucket(agentID string) string {
 // Unrecognised values are returned trimmed-and-lowercased rather than folded into a
 // neighbour. An unknown bucket must stay visible as itself; quietly attaching it to the
 // nearest real one is how a ration ends up measuring the wrong thing and saying nothing.
-func canonicalBucket(raw string) string {
+func CanonicalQuotaBucket(raw string) string {
 	b := strings.ToLower(strings.TrimSpace(raw))
 	if b == "" {
 		return ""

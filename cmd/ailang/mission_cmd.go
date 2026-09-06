@@ -40,11 +40,13 @@ func missionCommand(args []string) error {
 		return missionRotateLog(args[1:])
 	case "normalize":
 		return missionNormalize(args[1:])
+	case "quota":
+		return missionQuota(args[1:])
 	case "help", "--help", "-h":
 		printMissionHelp()
 		return nil
 	default:
-		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize)", args[0])
+		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize, quota)", args[0])
 	}
 }
 
@@ -56,6 +58,9 @@ func printMissionHelp() {
                                    exit 0 clean, 1 drift, 2 registry error
   ailang mission install <name>    render this mission's artifacts to *.staged
   ailang mission apply <name>      promote the staged artifacts, then reload launchd
+  ailang mission quota [--bucket B] [--json] [--consolidate]
+                                   fleet-wide subscription spend per (bucket, window),
+                                   against the 10%/day ration
   ailang mission rotate-log <name> [--keep N]
                                    trim the live log, archive the rest, and regenerate
                                    the COMPLETE one-line index (default keep 20)

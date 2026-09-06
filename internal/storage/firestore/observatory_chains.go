@@ -414,6 +414,26 @@ func (s *ObservatoryStore) UpdateStageEvalAssessment(ctx context.Context, stageI
 	return err
 }
 
+// UpdateStageQuotaTokens records SUBSCRIPTION token spend on the remote store.
+//
+// It writes its own field and never tokens_in/tokens_out: the cost classifier reads
+// `tokens > 0` as "metered", so putting a quota lane's real count there would price a
+// subscription run as billed (M-QUOTA-RATIONING-ROUTING M2). A zero is rejected
+// because every quota stage already reads zero, so writing one is indistinguishable
+// from never having reported.
+func (s *ObservatoryStore) UpdateStageQuotaTokens(ctx context.Context, stageID string, tokens int64) error {
+	if stageID == "" {
+		return fmt.Errorf("stage_id is required")
+	}
+	if tokens <= 0 {
+		return fmt.Errorf("quota_tokens must be positive (got %d); a zero write is indistinguishable from never reporting", tokens)
+	}
+	_, err := s.client.Doc(collObsChainStages, stageID).Update(ctx, []firestore.Update{
+		{Path: "quota_tokens", Value: tokens},
+	})
+	return err
+}
+
 func (s *ObservatoryStore) UpdateStageError(ctx context.Context, stageID, errorMessage string) error {
 	_, err := s.client.Doc(collObsChainStages, stageID).Update(ctx, []firestore.Update{
 		{Path: "error_message", Value: errorMessage},

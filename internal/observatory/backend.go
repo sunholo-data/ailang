@@ -182,6 +182,12 @@ type Backend interface {
 	// the cost classifier cannot resolve a rate cloud-side (M-MISSION-LOOP-UNIFIED-
 	// TELEMETRY M3).
 	UpdateStageEvalAssessment(ctx context.Context, stageID string, assessment *EvalAssessment) error
+	// UpdateStageQuotaTokens records SUBSCRIPTION token spend, which cannot ride on
+	// UpdateStageMetrics: the cost estimator reads `tokens > 0` as "metered", so a
+	// quota lane's real count in tokens_in/out would be priced as if it were billed
+	// (M-QUOTA-RATIONING-ROUTING M2). On the interface for the same reason as
+	// UpdateStageEvalAssessment — a remote-posted iteration must carry it too.
+	UpdateStageQuotaTokens(ctx context.Context, stageID string, tokens int64) error
 	GetSpansByStageID(ctx context.Context, stageID string) ([]*Span, error)
 	// GetSpanLitesByStageID returns lightweight spans without attributes (M-PERF-OBSERVATORY).
 	GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error)

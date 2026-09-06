@@ -452,6 +452,11 @@ func (b *CompositeBackend) UpdateStageEvalAssessment(ctx context.Context, stageI
 	return b.local.UpdateStageEvalAssessment(ctx, stageID, assessment)
 }
 
+// UpdateStageQuotaTokens delegates to local, like every other chain-stage write.
+func (b *CompositeBackend) UpdateStageQuotaTokens(ctx context.Context, stageID string, tokens int64) error {
+	return b.local.UpdateStageQuotaTokens(ctx, stageID, tokens)
+}
+
 func (b *CompositeBackend) GetSpansByStageID(ctx context.Context, stageID string) ([]*Span, error) {
 	return b.local.GetSpansByStageID(ctx, stageID)
 }

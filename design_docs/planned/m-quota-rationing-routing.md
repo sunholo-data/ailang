@@ -69,9 +69,9 @@ allowance(t) = C × (elapsed(t) / P)
 over_ration   = consumed(t) > allowance(t) × tolerance
 ```
 
-Mark's target was *"~17% a day (100/7?)"*. Worth settling the arithmetic before it is
-encoded: **100/7 = 14.3%/day**, 100/6 = 16.7%. A 7-day ration is the one that makes a weekly
-bucket last a week; 6 days builds in a slack day. **Open question D-1 below.**
+**Ratified at 10%/day (D-1).** 100/7 = 14.3% would spend a weekly bucket exactly, with no
+margin; 10% leaves 30% of the week in reserve. The reserve is not decoration — on 2026-09-06
+the fleet consumed half a codex bucket in a single day.
 
 **Every subscription bucket needs two rations**, because every one has two windows, and the
 binding constraint is the tighter: `over_ration = over(5h window) OR over(weekly cap)`. This
@@ -139,7 +139,11 @@ day** — which it did.
 
 ## Decisions (RATIFIED by Mark, attended 2026-09-06)
 
-- **D-1 — daily ration: 14%** (100/7). A weekly bucket lasting exactly a week, no slack day.
+- **D-1 — daily ration: 10%** (revised from 14% by Mark, attended 2026-09-06: *"give
+  headroom"*). 100/7 = 14.3% spends a weekly bucket exactly, leaving nothing for a bad day —
+  and a bad day is the measured case, not the hypothetical one: 2026-09-06 consumed 50% of
+  codex in a day. At 10%/day a full week costs 70%, so **30% is reserve** for a spike, a
+  retried sprint, or an outage that concentrates load on one provider.
 - **D-2 — capacity: use the PROVIDER ENDPOINT**, not inference from observed exhaustion.
   Exact beats self-correcting, and it removes the need to guess a capacity we have never
   measured. *Implementation note: the endpoint must be found and verified first — the
@@ -258,7 +262,7 @@ bucket", loudly — never to a guessed capacity.
 left unrationed rather than rationed on a guess.*
 
 **M4 — the ration gate (~300 LOC).** In the pre-flight loops: skip a rung whose bucket is
-over its 14%/day pro-rata allowance when a lower rung exists; PAUSE the fire when every rung
+over its 10%/day pro-rata allowance when a lower rung exists; PAUSE the fire when every rung
 is over (D-4).
 *AC: an over-ration rung is skipped and logged with its numbers; a fire pauses rather than
 proceeding when all rungs are over; the pause is visible on the message plane.*
