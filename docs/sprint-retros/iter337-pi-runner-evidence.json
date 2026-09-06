@@ -185,5 +185,19 @@
     "seconds": 5.442,
     "records": 24381,
     "tracked_bytes": 268361724
+  },
+  "evaluator": {
+    "actual_model": "pi:ollama/minimax-m3:cloud",
+    "reviewed_sha": "a46e4c015cecb26ad06a3b44d5b6f8895a2d111e",
+    "scope": "docs-only park",
+    "verdict": "PASS",
+    "score": 82,
+    "runner_rc": 0,
+    "seconds": 223,
+    "tool_executions": 41,
+    "input_tokens": 1340910,
+    "output_tokens": 8795,
+    "reported_cost_usd": 0,
+    "own_inbox": "unavailable; wrapper terminated verified child at100s"
   }
 }

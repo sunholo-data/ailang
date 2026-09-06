@@ -22556,3 +22556,6 @@ mechanically checked and does not change the design or raw verdict.
 arithmetic and all3blocks, moved334 confirmed in archive with prior333 control. Decision-bearing
 artifacts tracked (ignored bin control fired). Context-docs, file-size and referenced-path gates
 passed (47enumerated/47checked), whitespace clean. Shared main untouched. Remote gate pending.
+
+Judge telemetry: runner rc0/pi_rc0,223seconds,41tools,one fresh report. Provider-reported
+1,340,910input/8,795output tokens; cost0 on Ollama Cloud quota. No wrapper inference billed.
