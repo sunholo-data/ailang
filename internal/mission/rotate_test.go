@@ -255,3 +255,36 @@ func TestRotateLog_IndexIsValidUTF8WhenTitlesAreTruncated(t *testing.T) {
 		t.Error("a long title should be truncated")
 	}
 }
+
+// The fleet uses THREE heading formats. A parser that knows only v1's rotates nothing for
+// docs (it refused loudly, which was right) and would mis-parse world's. All three are
+// real, copied from the live logs on 2026-09-06.
+func TestParseLog_HandlesEveryFormatTheFleetActuallyUses(t *testing.T) {
+	cases := []struct {
+		name, heading string
+		wantNum       int
+		wantDate      string
+	}{
+		{"v1", "## 337 — 2026-09-06 — Bank the pi runner evidence [HARNESS]", 337, "2026-09-06"},
+		{"docs", "## ITERATION 11 — 2026-09-06T06:00Z", 11, "2026-09-06"},
+		{"docs with note", "## ITERATION 0 — 2026-08-28T06:41Z (first unattended fire)", 0, "2026-08-28"},
+		{"world", "## Iteration 2 — 2026-07-23 — queue HUMAN-BLOCKED on D1", 2, "2026-07-23"},
+		{"v1 date range", "## 6 — 2026-07-10/11 — Iteration 5 landed", 6, "2026-07-10"},
+		{"v1 combined", "## 321 & 322 — 2026-09-02 — NO ENTRY: both slots died", 321, "2026-09-02"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, entries := parseLog(tc.heading + "\n\nbody\n")
+			if len(entries) != 1 {
+				t.Fatalf("parsed %d entries from %q, want 1 — an unparsed heading means this "+
+					"mission's log never rotates and never indexes", len(entries), tc.heading)
+			}
+			if entries[0].Num != tc.wantNum {
+				t.Errorf("Num = %d, want %d", entries[0].Num, tc.wantNum)
+			}
+			if entries[0].Date != tc.wantDate {
+				t.Errorf("Date = %q, want %q", entries[0].Date, tc.wantDate)
+			}
+		})
+	}
+}

@@ -28,15 +28,21 @@ import (
 // The index is generated from the entries' own headings, so it cannot drift from them and
 // can be regenerated from scratch at any time.
 
-// entryHeadingRe matches a log entry heading: "## 337 — 2026-09-06 — Title [TAG]".
+// entryHeadingRe matches a log entry heading.
 //
-// DELIBERATELY TOLERANT, because a strict version silently under-indexed. Measured on
-// v1's real log: 335 headings, of which a strict `\d+ — YYYY-MM-DD` matched only 331 and
-// left three REAL records out of the index — "## 6 — 2026-07-10/11" (a date range),
-// "## 321 & 322" (one entry covering two slots) and an "## ATTENDED NOTE". No bytes were
-// lost, but an index that quietly omits three iterations is exactly the failure it exists
-// to prevent: the loop would look, not find, and redo the work.
-var entryHeadingRe = regexp.MustCompile(`^## (\d+)(?:\s*&\s*\d+)?\s+—\s+(\d{4}-\d{2}-\d{2}(?:/\d{1,2})?)\s+—\s+(.*)$`)
+// THE FLEET USES THREE FORMATS, and a parser that knows only one silently rotates nothing
+// (or, worse, mis-parses). Measured 2026-09-06 across the four live logs:
+//
+//	v1      ## 337 — 2026-09-06 — Title [TAG]
+//	docs    ## ITERATION 11 — 2026-09-06T06:00Z (optional note)
+//	world   ## Iteration 0 — 2026-07-23 — title
+//
+// Plus the awkward real cases a strict pattern dropped from v1's index: a date RANGE
+// ("2026-07-10/11") and a combined entry ("321 & 322"). Deliberately tolerant, because
+// under-matching here does not fail loudly — it produces a short index, and an index that
+// quietly omits iterations is exactly what lets the loop repeat work.
+var entryHeadingRe = regexp.MustCompile(
+	`^## (?i:iteration\s+)?(\d+)(?:\s*&\s*\d+)?\s+—\s+(\d{4}-\d{2}-\d{2})(?:T[0-9:]+Z?)?(?:/\d{1,2})?\s*(?:—\s*)?(.*)$`)
 
 // noteHeadingRe matches a non-iteration record that still belongs in the index, e.g. an
 // attended note. These carry no iteration number, so they sort by date.

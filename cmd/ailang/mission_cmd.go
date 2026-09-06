@@ -239,7 +239,22 @@ func missionRotateLog(args []string) error {
 	if !ok {
 		return fmt.Errorf("no mission %q (have: %s)", name, strings.Join(reg.Names(), ", "))
 	}
-	logPath := filepath.Join(m.Workdir, "design_docs", m.Name+"-mission-log.md")
+	// ROTATE WHERE THE FILE IS CANONICAL, NOT WHERE THE MISSION WORKS.
+	//
+	// docs and motoko work in CLONES of sunholo-data/ailang — ailang-docs and
+	// ailang-motoko — which are hundreds of commits behind and are never pushed from
+	// (they re-exec from the driver pin, so their working trees are irrelevant). Writing
+	// a rotated log there would be thrown away by the next fetch, silently.
+	//
+	// Caught by doing exactly that to motoko's clone. The canonical copy for any mission
+	// on the shared repo is the checkout this registry lives in.
+	logDir := m.Workdir
+	if m.Repo == sharedRepoSlug {
+		if root, rerr := repoRootFor(missionRegistryDir); rerr == nil {
+			logDir = root
+		}
+	}
+	logPath := filepath.Join(logDir, "design_docs", m.Name+"-mission-log.md")
 	res, err := mission.RotateLog(logPath, keep)
 	if err != nil {
 		return err
@@ -249,4 +264,25 @@ func missionRotateLog(args []string) error {
 	fmt.Printf("archive    %s\n  %d entries rotated out (full bodies retained)\n", res.ArchivePath, res.Archived)
 	fmt.Printf("INDEX      %s\n  %d iterations, complete history — grep this before picking work\n", res.IndexPath, res.IndexEntries)
 	return nil
+}
+
+// sharedRepoSlug is the repo whose checkout holds the registry and the canonical
+// design_docs for every mission that lives in it.
+const sharedRepoSlug = "sunholo-data/ailang"
+
+// repoRootFor returns the directory containing the registry dir, i.e. the checkout root.
+func repoRootFor(regDir string) (string, error) {
+	if _, err := os.Stat(regDir); err == nil {
+		return filepath.Abs(filepath.Join(regDir, ".."))
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	for d := wd; d != "/" && d != "."; d = filepath.Dir(d) {
+		if _, err := os.Stat(filepath.Join(d, missionRegistryDir)); err == nil {
+			return d, nil
+		}
+	}
+	return "", fmt.Errorf("no %s directory found from %s upward", missionRegistryDir, wd)
 }
