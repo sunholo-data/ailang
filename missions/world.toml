@@ -11,12 +11,6 @@ repo    = "sunholo-data/ailang-world"
 workdir = "/Users/voightkampff/dev/sunholo-data/ailang-world"
 doc     = "design_docs/world-mission.md"
 
-# ⚠ DECLARED FORK — REMOVE THIS LINE TO DE-FORK (Mark ratified option (a) 2026-09-06).
-# World still runs its OWN copy of the driver. Leaving this unset would make `doctor`
-# report world as running the shared driver, which would be a comfortable lie: the
-# registry must describe what IS, not what we intend. Deleting this line, repointing the
-# plist and deleting ailang-world/tools/launchd/mission-control.sh are one change.
-driver = "/Users/voightkampff/dev/sunholo-data/ailang-world/tools/launchd/mission-control.sh"
 
 # ── SCHEDULE ─────────────────────────────────────────────────────────────────
 # KeepAlive (Mark, attended 2026-09-05), same reasoning as v1: StartInterval re-armed

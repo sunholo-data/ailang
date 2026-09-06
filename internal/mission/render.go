@@ -250,6 +250,19 @@ func RenderPlist(m *Mission) ([]byte, error) {
 	b.WriteString("\t<key>EnvironmentVariables</key>\n\t<dict>\n")
 	b.WriteString("\t\t<key>HOME</key>\n\t\t<string>" + xmlEscape(os.Getenv("HOME")) + "</string>\n")
 	b.WriteString("\t\t<key>MISSION_PROFILE</key>\n\t\t<string>" + xmlEscape(m.Name) + "</string>\n")
+	// MISSION_WORKDIR MUST BE SET IN THE PLIST, not left to the env file.
+	//
+	// The driver computes REPO at line 40 as ${MISSION_WORKDIR:-<script's ../..>} and
+	// sources the env file only at line 63 — twenty lines too late. So for a mission whose
+	// workdir differs from the driver's own repo, an unset MISSION_WORKDIR makes REPO the
+	// DRIVER's repo, and pin-root then pins THAT and hands the mission a worktree of the
+	// wrong repository.
+	//
+	// Caught live on 2026-09-06 the moment world was repointed at the shared driver: it
+	// came up with workdir=~/.ailang-driver-pin/world, a worktree of ailang, for a mission
+	// whose entire job is the ailang-world repo. The dry run had missed it because
+	// AILANG_DRIVER_PIN=0 skips the re-exec that causes it.
+	b.WriteString("\t\t<key>MISSION_WORKDIR</key>\n\t\t<string>" + xmlEscape(m.Workdir) + "</string>\n")
 	b.WriteString("\t\t<key>PATH</key>\n\t\t<string>" + missionPATH + "</string>\n")
 	b.WriteString("\t</dict>\n")
 

@@ -46,6 +46,16 @@ func (f *fakeFleet) addMission(name, repo string, sched Schedule, env, plistExtr
 	if err := os.WriteFile(filepath.Join(workdir, "tools", "launchd", "mission-control.sh"), []byte(driver), 0o600); err != nil {
 		f.t.Fatal(err)
 	}
+	// PINNING DEPENDS ON THE WORKDIR: the driver sources
+	// $REPO/tools/launchd/lib/pin-root.sh at runtime, so a pinned fixture needs the
+	// helper beside its workdir, not just the sentinel in the driver.
+	if pinned {
+		_ = os.MkdirAll(filepath.Join(workdir, "tools", "launchd", "lib"), 0o750)
+		if err := os.WriteFile(filepath.Join(workdir, "tools", "launchd", "lib", "pin-root.sh"),
+			[]byte("# pin helper\n"), 0o600); err != nil {
+			f.t.Fatal(err)
+		}
+	}
 	m := &Mission{Name: name, Repo: repo, Doc: "d.md", Workdir: workdir, Sched: sched, Path: "fixture:" + name}
 	if err := m.Validate(); err != nil {
 		f.t.Fatalf("fixture mission invalid: %v", err)

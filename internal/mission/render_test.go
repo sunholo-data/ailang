@@ -623,3 +623,52 @@ boot_offset      = 3
 		t.Error("the error should point at the shared-driver default, which is what they want")
 	}
 }
+
+// MISSION_WORKDIR must be in the PLIST, not left to the env file.
+//
+// The driver computes REPO at line 40 as ${MISSION_WORKDIR:-<script's ../..>} and sources
+// the env file only at line 63. For a mission whose workdir differs from the driver's own
+// repo, an unset MISSION_WORKDIR therefore makes REPO the DRIVER's repo — and pin-root
+// then pins THAT and hands the mission a worktree of the wrong repository.
+//
+// Caught live: repointing world at the shared driver brought it up with
+// workdir=~/.ailang-driver-pin/world, a worktree of ailang, for a mission whose entire job
+// is ailang-world. The dry run missed it because AILANG_DRIVER_PIN=0 skips the re-exec.
+func TestRenderPlist_SetsMissionWorkdirSoThePinCannotHijackIt(t *testing.T) {
+	dir := t.TempDir()
+	regDir := filepath.Join(dir, "sharedrepo", "missions")
+	if err := os.MkdirAll(regDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	foreign := filepath.Join(dir, "another-repo")
+	if err := os.MkdirAll(foreign, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	writeEntry(t, regDir, "far.toml", `
+name    = "far"
+repo    = "someone/far"
+workdir = "`+foreign+`"
+doc     = "d.md"
+[schedule]
+mode             = "keepalive"
+throttle_seconds = 3600
+boot_offset      = 17
+`)
+	reg, err := Load(regDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, _ := reg.Get("far")
+	b, err := RenderPlist(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "<key>MISSION_WORKDIR</key>\n\t\t<string>" + foreign + "</string>"
+	if !strings.Contains(string(b), want) {
+		t.Fatalf("the plist must set MISSION_WORKDIR, or the pin hijacks it to the DRIVER's repo.\nwant %s\ngot:\n%s", want, b)
+	}
+	// It must name the MISSION's repo, never the driver's.
+	if strings.Contains(string(b), "<key>MISSION_WORKDIR</key>\n\t\t<string>"+filepath.Join(dir, "sharedrepo")) {
+		t.Error("MISSION_WORKDIR points at the driver's repo — that is the hijack itself")
+	}
+}

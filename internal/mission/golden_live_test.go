@@ -346,15 +346,24 @@ func TestLive_DoctorReportsTheRigAccurately(t *testing.T) {
 		}
 	}
 
-	// STILL TRUE, and asserted so the check is not vacuous: world is an unpinned fork.
-	// This is Phase 3 work, gated on HD-2. When it is de-forked this assertion must be
-	// retired deliberately — the same way the two above were.
+	// WORLD IS DE-FORKED (2026-09-06). These two assertions demanded world stay a fork
+	// and stay unpinned; the first is now false and is retired DELIBERATELY, which is the
+	// discipline this file has followed each time a gate closed — the V4/V5 and V8 gates
+	// went the same way, and each retirement is recorded rather than quietly deleted.
+	//
+	// The second is still true and stays: world runs the shared driver but remains
+	// UNPINNED, because pin-root re-execs from a worktree of $REPO — the mission's own
+	// repo — which has no lib/pin-root.sh. That is option (a)'s accepted trade, loud on
+	// every fire, and no worse than before. It retires when driver-root and work-dir are
+	// decoupled inside pin-root.sh itself.
 	if _, ok := reg.Get("world"); ok {
-		if len(findingsOfKind(rep, "driver-fork")) == 0 {
-			t.Error("world's driver is a fork in sunholo-data/ailang-world and must be reported")
+		if len(findingsOfKind(rep, "driver-fork")) != 0 {
+			t.Error("world was de-forked and must no longer be reported as a fork — " +
+				"if this fires, something re-declared a driver in missions/world.toml")
 		}
 		if len(findingsOfKind(rep, "no-pin")) == 0 {
-			t.Error("world has no lib/pin-root.sh and must be reported as unpinned")
+			t.Error("world is still unpinned (ailang-world has no lib/pin-root.sh) and that " +
+				"must stay visible — silence here would be the fork problem in a new costume")
 		}
 	}
 

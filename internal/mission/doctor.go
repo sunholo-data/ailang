@@ -227,7 +227,15 @@ func DoctorWith(reg *Registry, p Paths, lc LaunchCtl) *Report {
 		case derr != nil:
 			add("driver-missing", Drift, "%s: %v", m.DriverPath(), derr)
 		default:
-			row.Pinned = strings.Contains(string(driver), pinSentinel)
+			// PINNING DEPENDS ON THE WORKDIR, NOT THE DRIVER — and getting this wrong made
+			// doctor lie the moment world was de-forked. The driver contains the sentinel
+			// line, but what it actually executes is
+			// `. "$REPO/tools/launchd/lib/pin-root.sh"`, and $REPO is the MISSION's repo.
+			// So a mission running the shared (pin-aware) driver is still UNPINNED if its
+			// own workdir has no helper — which is exactly world today. Checking the
+			// driver reported world as pinned while every fire logged DRIVER PIN FAILED.
+			row.Pinned = strings.Contains(string(driver), pinSentinel) &&
+				fileExists(filepath.Join(m.Workdir, "tools", "launchd", "lib", "pin-root.sh"))
 			// A FORK IS NOW A DECLARED CHOICE, not an inference from the repo name.
 			// Before the driver location was decoupled from the workdir, any mission
 			// working in another repo NECESSARILY had its own driver, so "different repo"
@@ -238,7 +246,7 @@ func DoctorWith(reg *Registry, p Paths, lc LaunchCtl) *Report {
 			row.Fork = m.Driver != ""
 			if !row.Pinned {
 				add("no-pin", Drift,
-					"%s does not source pin-root.sh — it runs whatever its working tree holds, so upstream driver fixes never reach it", m.DriverPath())
+					"%s has no tools/launchd/lib/pin-root.sh, so this mission runs its WORKING TREE rather than committed code (the driver is pin-aware; the workdir is what it sources the helper from)", m.Workdir)
 			}
 			if row.Fork {
 				add("driver-fork", Note,
@@ -360,4 +368,11 @@ func loadedMismatches(plistFile, loaded string) []string {
 		out = append(out, "file says KeepAlive but the loaded job still has an interval — the cadence change has not taken effect")
 	}
 	return out
+}
+
+// fileExists is a readability shim: the pin check reads better as a question than as a
+// stat-and-compare inline.
+func fileExists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
 }
