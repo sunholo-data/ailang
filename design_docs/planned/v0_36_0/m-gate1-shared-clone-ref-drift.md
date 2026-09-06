@@ -1,8 +1,20 @@
 # M-GATE1-SHARED-CLONE-REF-DRIFT: A shared `.git` makes `origin/dev` a moving floor, so every gate that reads it must record what it read, when
 
-**Status**: PLANNED — quorum-cleared by narrow-refinement carve-out (rev 2; both R2 objections verbatim-fixed), awaiting sprint planning.
+**Status**: PLANNED — quorum-cleared by narrow-refinement carve-out (rev 2; both R2 objections verbatim-fixed); M1 implemented; recovery amendment below requires the existing sprint plan's M2/M3 file map to be refreshed before execution resumes.
 
 **Quorum verification**: R1 (2026-09-06T08:49Z): BLOCKED — gemini (premise gaps), glm (double-snap race); revision applied 2026-09-06. R2 (2026-09-06T08:54Z): BLOCKED — gemini + glm independently on one surface, the `drift()` no-record path (`last` exits 0 with an empty string when the file exists but has no matching label, so the `\|\| return 2` guard never fires → false DRIFT with an empty old SHA). NARROW-REFINEMENT CARVE-OUT applied (both objections concrete, reviewer-authored, non-directional): gemini's verbatim fix (explicit `-n "$old"` check in `drift`) + glm's verbatim fixes (`last()` awk exits 1 on no-match; `git update-ref refs/remotes/origin/dev HEAD` as the primary mutation in the test recipe). No re-quorum run (carve-out routes straight to sprint-planner); the applied fixes are recorded here per the carve-out's contract.
+
+**Recovery amendment (2026-09-06, post-quorum base drift):** the iteration branch is based on `034cdd02f`, while the shared `origin/dev` advanced through `c1212b3c` → `b5a5c45b` → `bdc5fbf7`. Commit `c1212b3c` mechanically split the operational 2,781-line skill into a 560-line index plus authoritative per-gate resources. This changes the M2/M3 **edit locations**, not the reviewed behavior, helper contract, conflict direction, or acceptance semantics. The authoritative recovery map is now:
+
+| Reviewed concern | Current authoritative target on `origin/dev` |
+|---|---|
+| Gate 1 record | `.claude/skills/mission-control/resources/gate-1-observe.md` |
+| Gate 3 pre-worktree re-read/drift | `.claude/skills/mission-control/resources/gate-3-route.md` |
+| Gate 3b poll-target record | `.claude/skills/mission-control/resources/gate-3b-ci-green.md` |
+| Gate 4 base record + routing evidence | `.claude/skills/mission-control/resources/gate-4-record.md` |
+| Progressive-disclosure rationale | `.claude/skills/mission-control/resources/ref-drift.md` (new, linked from the relevant gate resources) |
+
+The root `.claude/skills/mission-control/SKILL.md` is no longer an implementation target for M2/M3. Its 2,781-line historical ratchet remains a no-growth upper bound, but the operative gate is now link integrity plus the existing per-file context checks. This is a bounded recovery refinement: the upstream move only narrows each edit to the file that now owns the already-reviewed gate text. It neither answers nor overrides a reviewer objection; both R2 verbatim fixes remain unchanged and are already implemented in M1. The R1/R2 receipts therefore remain valid for the design direction and reviewer findings; no duplicate quorum or receipt rewrite is warranted. Verification rows 14–16 record the new first-party facts.
 
 **Target**: v0.36.0
 **Priority**: P1 (process-correctness; prevents a silent verdict-expiry class that has struck V1's own loop twice, iterations 331 and 332)
@@ -48,13 +60,13 @@ A **measurement-and-record discipline** (helper + minimal prose) so that (a) eve
 2. **Record SHA + read time, durably and per-mission.** A quoted base is `SHA@<ISO8601-UTC>`, written to a **dedicated per-mission append-only state file (`mission-${MISSION_NAME}-base`, via a `base-<label>` stamp — NOT the heartbeat, which the driver's slot-verdict reader owns)** **and** to the iteration's log **Routing evidence** row at Gate 4.
 3. **Disagreements classify as drift, not error.** A later reading that differs from the recorded one is reported as `DRIFT <old> -> <new> (n commits)`, attributed to "shared-clone sibling/session," and the controller **re-reads → re-runs the affected gate** — aborting only when the drift invalidates a worktree/provenance (not on a benign advance).
 4. **Measured, not prose-only.** A bash-3.2 `mission-base.sh` helper plus a CI test (`test_mission_base.sh`, wired into `make test-launchd-drivers`/the CI `launchd-drivers` job) that simulates a ref advance with **no real sibling**, so the guard is proven non-vacuous on every push.
-5. **Ratchet-clean and S-guard-safe.** SKILL.md ends at **≤ 2781 lines** (never bump the baseline); S1–S5 guard literals stay exactly inline; all additions are bash-3.2/portable and mission-independent.
+5. **Context-clean and S-guard-safe.** The 560-line root SKILL index does not grow; every new resource link resolves; S1–S5 guard literals remain present in their current authoritative files; all additions are bash-3.2/portable and mission-independent.
 
 ## High-Impact Decisions
 
 | # | Decision | Answer | Rationale |
 |---|---|---|---|
-| HD-1 | Where does the defense live? | **Option C (Hybrid): a testable `mission-base.sh` measurement helper + minimal SKILL.md prose that names it, paid for by restructuring (prose moved to `resources/ref-drift.md`).** | A tool nobody invokes is as useless as prose nobody measures. The helper gives a CI-provable instrument (non-vacuity test); the skill prose is what tells the controller to invoke it. Pure prose (A) can't be tested and pays the ratchet un-tested; pure tooling (B) is never called. See Rejected Options. |
+| HD-1 | Where does the defense live? | **Option C (Hybrid): a testable `mission-base.sh` measurement helper + minimal authoritative gate-resource prose that names it, with rationale in `resources/ref-drift.md`.** | A tool nobody invokes is as useless as prose nobody measures. The helper gives a CI-provable instrument (non-vacuity test); the gate resources tell the controller to invoke it. Pure prose (A) can't be tested; pure tooling (B) is never called. See Rejected Options and the recovery amendment. |
 | HD-2 | Which artifact carries "SHA + read time"? | **A dedicated per-mission state file `mission-${MISSION_NAME}-base`** (machine record, `base-<label>` stamp carrying the SHA in the 5th/note column) **+ the Gate-4 log Routing-evidence row** (human record, `base=<sha>@<iso>`) **+ the worktree's own HEAD** (provenance, already the base by construction). | A separate file keeps `base-*` rows OFF the heartbeat, whose **last row drives the driver's slot-verdict classifier** — measured: a trailing `base-*` row at a quiet rc=0 death flips REAPED→CRASHED (Verif. 10). Namespaced per-mission like every other state key, append-only, ISO-stamped. Routing-evidence is the loop's memory; the worktree HEAD *is* the base it was created from. |
 | HD-3 | On a recorded disagreement, what does the controller do? | **Re-read once; if still different, classify DRIFT; re-run the affected gate against the fresh base. Abort only if the drift invalidates the action (e.g. the worktree/provenance must match a reviewed commit).** | A sibling advance is expected and benign; only a *consequence* can be harmful. Re-read-only risks re-validating against the same drifted ref; the affected gate must be re-run so its derived decisions (worktree creation, poll-target pin, record base) are against the fresh value. |
 | HD-4 | Does Gate 3b re-read for the poll target? | **Yes, and the target is pinned to the fresh SHA (not `--limit 1`), exactly as the existing war-story mandates** — but the *poll target* and the *recorded base* are now the same re-read value, made explicit. | Gate 3b already has the SHA-pin war story; this extends the *base* to the same discipline and records it with a time. |
@@ -74,13 +86,13 @@ A **measurement-and-record discipline** (helper + minimal prose) so that (a) eve
 
 ### Overview
 
-Introduce one tiny, bash-3.2, portable measurement helper (`tools/launchd/mission-base.sh`) with three verbs — `snap`, `record`, `drift` — plus the **minimum** SKILL.md prose that tells each gate when to call it, paid for by moving the war-story/rationale into a new `resources/ref-drift.md`. The helper writes the durable record to a **dedicated per-mission state file (`mission-${MISSION_NAME}-base`), separate from the heartbeat**, and uses the driver's `log` for visibility; it introduces no new timestamp scheme.
+Introduce one tiny, bash-3.2, portable measurement helper (`tools/launchd/mission-base.sh`) with three verbs — `snap`, `record`, `drift` — plus the **minimum** prose in each authoritative gate resource that tells that gate when to call it, with the war-story/rationale in a new `resources/ref-drift.md`. The helper writes the durable record to a **dedicated per-mission state file (`mission-${MISSION_NAME}-base`, separate from the heartbeat)** and introduces no new timestamp scheme. The recovery amendment supersedes the pre-`c1212b3c` monolith file map below wherever they conflict.
 
 ### Chosen option: C (Hybrid). Rejected options with reasons
 
 - **A — Pure SKILL.md prose.** Add the re-read instruction + "record SHA with time" discipline in prose only. *Rejected:* (1) it pays the full ratchet tax (each added line must be offset by a line moved to `resources/`) *without* adding an instrument that CI can prove; (2) it recreates the exact failure it fixes — a controller that skips an unmeasured instruction reproduces "prose nobody measures." The queue row's own caveat names this.
 - **B — Pure tooling.** A `mission-base.sh` that gates "call" but with no prose telling them to. *Rejected:* the skill is what the controller reads; a helper with no prose call-site is *exactly* "a tool nobody invokes." The one-line SKILL.md reference B permits is the same prose A wanted, just under-accounted.
-- **C — Hybrid (CHOSEN).** Helper for the *measurement* + minimal prose that *names it* at each gate, with the explanatory bulk moved to `resources/ref-drift.md` so SKILL.md stays ≤ 2781. This satisfies "consider whether a tool nobody invokes is better than prose nobody measures" by making the tool *invoked by* the prose and *measured by* CI.
+- **C — Hybrid (CHOSEN).** Helper for the *measurement* + minimal prose that *names it* in each authoritative gate resource, with the explanatory bulk in `resources/ref-drift.md`. This satisfies "consider whether a tool nobody invokes is better than prose nobody measures" by making the tool *invoked by* the prose and *measured by* CI.
 
 ### The helper — `tools/launchd/mission-base.sh` (new, bash-3.2, portable)
 
@@ -213,19 +225,19 @@ The controller compares a **fresh `mission-base.sh snap`** (the current shared `
 - Commit per milestone (M1).
 
 ### M2 — Gate 1 + Gate 3 wiring + ratchet-clean prose (~1 day)
-- SKILL.md: Gate 1 `base=…record gate1`; Gate 3 pre-`worktree add` re-read + drift + create-from-fresh; echo base into pick/evidence notes.
-- **Move the war-story/rationale bulk** (the two instances + "why silent" + the drift-on-mismatch protocol) into a new `resources/ref-drift.md`; SKILL.md links to it. **Net SKILL.md delta ≤ 0 → ends ≤ 2781 lines.**
+- `resources/gate-1-observe.md`: Gate 1 `base=…record gate1`; `resources/gate-3-route.md`: pre-`worktree add` re-read + drift + create-from-fresh; echo base into pick/evidence notes.
+- **Create the war-story/rationale resource** (the two instances + "why silent" + the drift-on-mismatch protocol) at `resources/ref-drift.md`; link it from the gate resources that invoke the helper. Do not edit the root SKILL index.
 - **Boundary:**
-  - `wc -l .claude/skills/mission-control/SKILL.md` **≤ 2781**; `make check-context-docs` exits 0 (rc=0).
+  - Root SKILL remains **560 lines** at the rebased start (and in all cases ≤ 2781); `make check-context-docs` exits 0 and all new links resolve.
   - S1–S5 guard literals still match (grep each; see Verif. 2).
   - `make test-launchd-drivers` green (the guard suite + M1 test).
 - Commit.
 
 ### M3 — Gate 3b pin + Gate 4 evidence + live-iteration observation (~1 day)
-- SKILL.md: Gate 3b routes the poll target through `mission-base.sh record gate3b` + drift note; Gate 4 reuses its existing re-confirmation, adds `base=<sha>@<iso>` to the Routing-evidence row, and stamps `base-gate4`.
+- `resources/gate-3b-ci-green.md`: route the poll target through `mission-base.sh record gate3b` + drift note; `resources/gate-4-record.md`: reuse the existing re-confirmation, add `base=<sha>@<iso>` to the Routing-evidence row, and stamp `base-gate4`.
 - Optionally stamp `base-gate2` (observation arm) after one live iteration proves its value.
 - **Boundary:**
-  - SKILL.md ≤ 2781, `make check-context-docs` rc=0, S-guards green.
+  - Root SKILL unchanged from the rebased start and ≤ 2781, `make check-context-docs` rc=0, new resource links resolve, S-guards green.
   - `make test-launchd-drivers` green.
   - **Non-vacuity mutation (repeat of M1's):** kill the guard by a simulated ref advance between Gate 1 and the worktree step (below) and show `drift` catches it — the exact mutation the reviewer asked the executor to be able to run.
 - Commit.
@@ -257,16 +269,17 @@ This avoids depending on a real sibling by constructing the advance **in the tes
 - **Create** `tools/launchd/test_mission_base.sh` — non-vacuity test (M1).
 - **Create** `.claude/skills/mission-control/resources/ref-drift.md` — war-stories + drift protocol + test recipe (M2; pays the ratchet).
 - **Modify** `make/test.mk` — add `@/bin/bash tools/launchd/test_mission_base.sh` and `/bin/bash -n` for the helper (M1).
-- **Modify** `.claude/skills/mission-control/SKILL.md` — Gate 1/3/3b/4 wording + link to `resources/ref-drift.md`; **net growth ≤ 0 (≤ 2781 lines)** (M2, M3).
+- **Modify** `.claude/skills/mission-control/resources/gate-1-observe.md`, `gate-3-route.md`, `gate-3b-ci-green.md`, and `gate-4-record.md` — the four authoritative post-`c1212b3c` gate locations (M2, M3).
+- **Do not modify** `.claude/skills/mission-control/SKILL.md` — it is now the 560-line index, and the gate bodies live in resources.
 - **Not touched** `.agents/skills/mission-control/SKILL.md` (distinct 551-line stub; HD-5 — no sync mechanism, out of scope).
 
 ## Conflict Surface
 
 This doc touches several shared mechanisms; each is enumerated with its reuse/override stance so a reviewer can check it deliberately.
 
-1. **`.claude/skills/mission-control/SKILL.md` — shared by 4 missions (v1, docs, world, motoko).** The additions use only `$MISSION_NAME`/`$MISSION_BASE_REF`/`$AILANG_STATE_DIR`; no V1-specific literal is introduced. The base record is already per-mission by construction (`mission-${MISSION_NAME}-base`). A SKILL.md edit is live for every mission the moment it saves — the change must and does hold for all 4 (it is *more* correct for them, since they share the same `.git`). Override: none — additive + parameterised.
+1. **The four authoritative gate resources — shared by 4 missions (v1, docs, world, motoko).** The additions use only `$MISSION_NAME`/`$MISSION_BASE_REF`/`$AILANG_STATE_DIR`; no V1-specific literal is introduced. The base record is already per-mission by construction (`mission-${MISSION_NAME}-base`). Resource edits are live for every mission the moment they save — the change must and does hold for all 4 (it is *more* correct for them, since they share the same `.git`). Override: none — additive + parameterised.
 2. **`tools/launchd/test_mission_routing.sh` guard suite (S1–S5).** Not modified. The new prose must not move or reword the S1–S5 literals (S1 `resolve-role-spawn.sh`+`MISSION-ROLE:`, S2 `enum in this build lists`, S3 the designer-rotation string, S5 `ASTRA IS ALSO A QUORUM REVIEWER`). The new helper/Gate-1/3/3b/4 edits are in entirely different regions (Gate 1 sync, Gate 3 worktree, Gate 3b poll, Gate 4 record) and touch none of them. Verification gate: re-grep all four literals after M2/M3.
-3. **`scripts/check_context_docs.sh` / `scripts/context_docs_baseline.txt` ratchet (line 19 pins mission-control SKILL.md @ 2781).** The design **never bumps the baseline** (the baseline file itself calls that the wrong answer). Any added SKILL.md line is paid by moving an equal-or-greater number of lines into `resources/ref-drift.md`, which is a *linked sibling* (progressive disclosure), exactly the escape the baseline's own standing note endorses. Verification: `make check-context-docs` rc=0.
+3. **`scripts/check_context_docs.sh` / progressive-disclosure links.** The design **never bumps the historical 2,781-line baseline** and no longer adds root-SKILL lines. The root is 560 lines on current `origin/dev`; gate prose belongs in the existing authoritative resources, and every new `ref-drift.md` link must resolve. Verification: `make check-context-docs` rc=0.
 4. **`tools/launchd/mission-control.sh` (driver) + `tools/launchd/lib/pin-root.sh`.** Reuse (not duplicate): `mission-base.sh` reuses `$REPO`/`$MISSION_NAME`/`$AILANG_STATE_DIR` conventions and the driver's pin-banner SHA as a cross-check; it does **not** merge with the pin/re-exec machinery (different concern). Not modified to make this land.
 5. **`tools/launchd/mission-heartbeat.sh` + `test_mission_heartbeat.sh`.** **Not consumed by this doc** — the base rows go to the separate `mission-${MISSION_NAME}-base` file, so the heartbeat's gate-label set and its whitelist (lines 11–14) are entirely untouched. `test_mission_heartbeat.sh` (§8 "every gate section stamps", the sigkill `tail -1` last-label arm, the verdict arms) is unaffected because the heartbeat never sees a `base-<label>` row.
 6. **`tools/launchd/mission-control.sh` slot-verdict reader.** The driver classifies every slot from the heartbeat's **last row**: `_mc_slot_line=$(tail -1 …heartbeat)` (1486), `_mc_slot_last=$(…awk -F '\t' '{print $3}')` (1491), `case "$RC:$_mc_slot_last"` (1492), where `0:gate-*→REAPED` (1496) and `*:*→CRASHED` (1498), plus `wc -l` stamp count (1485). A trailing `base-*` row at a quiet rc=0 death flips REAPED→CRASHED, degrades the crash-site `at=` label, and inflates `stamps=` — this attribution is the loop's died-mid-flight trace (used this morning to locate iteration 337's crash). **The separate base file is the fix: the heartbeat gains no rows, so this reader is never misclassified.** The retry-resume reader (1461, `tail -1` last label) shares the sensitivity and is likewise protected. Override: none — the base file is a newly-created, unread state key.
@@ -280,7 +293,7 @@ Measurable, one per goal:
 2. **Record SHA+time:** the dedicated `mission-${MISSION_NAME}-base` file contains `base-gate1`/`base-gate3b`/`base-gate4` rows with `<full-sha>` in the `note` field, the heartbeat contains **no** `base-*` rows, and the iteration's Gate-4 Routing-evidence row carries `base=<sha>@<iso>`.
 3. **Drift not error:** `mission-base.sh drift` exits 0 on steady, 1 with a `DRIFT base <label> old -> new (n commits)` message on disagreement, and a live/fabricated advance never reads as an operator error.
 4. **Measured, not prose-only:** `tools/launchd/test_mission_base.sh` runs in `make test-launchd-drivers`, and the **non-vacuity mutation** (scratch-clone ref advance between Gate 1 and the worktree step) turns the guard red — an executor can run it and show the fix detects it, with a positive control (`last`/`drift` steady) proving the instrument fires.
-5. **Ratchet/S-guard clean:** `wc -l .claude/skills/mission-control/SKILL.md` ≤ 2781; `make check-context-docs` rc=0; all four S-guard literals still grep-match; `make test-launchd-drivers` green.
+5. **Context/S-guard clean:** root SKILL remains unchanged from the rebased start and ≤ 2781; `make check-context-docs` rc=0; every new resource link resolves; all four S-guard literals still grep-match in their current authoritative files; `make test-launchd-drivers` green.
 
 ## Verification Log
 
@@ -312,6 +325,10 @@ Every codebase claim below was measured in this worktree (commit `034cdd02f`, br
     - `test_mission_heartbeat.sh` — **TEST FIXTURE**: asserts last-label on sigkill (§34), verdict arms (COMPLETED/ABORTED), "every gate section stamps" (§8). **LABEL-SENSITIVE**; unaffected because base rows are off-heartbeat.
     - `test_mission_stall.sh:87–216` — **STALL TEST**: a gate stamp counts as progress (`grow … gate-3`, §127). **LABEL-INSENSITIVE** to extra rows; unaffected.
     Net: no consumer wants `base-*` rows on the heartbeat; the separate-file design serves every one.
+
+14. **Recovery ref sequence and ancestry.** `git reflog show --date=iso refs/remotes/origin/dev -12` records `c1212b3c` at 12:02, `b5a5c45b` at 12:17, and `bdc5fbf7` at 12:26 local time. `git merge-base --is-ancestor 034cdd02f c1212b3c`, then `c1212b3c b5a5c45b`, then `b5a5c45b bdc5fbf7` each exit **0**. The iteration branch's design base is therefore a strict ancestor of all three observed readings; this is monotonic shared-ref drift, not a rewrite.
+15. **The upstream drift changed the implementation file map.** `git show origin/dev:.claude/skills/mission-control/SKILL.md | wc -l` → **560**, while this pre-rebase branch's committed root skill is 2,781 lines (2,770 after the uncommitted M2 attempt). `git cat-file -e origin/dev:.claude/skills/mission-control/resources/{gate-1-observe,gate-3-route,gate-3b-ci-green,gate-4-record}.md` exits **0** for all four; same-scope negative control: those four files do not exist at branch `HEAD`, while positive control `.claude/skills/mission-control/SKILL.md` exists at both refs. `git show origin/dev:.claude/skills/mission-control/SKILL.md` identifies each resource as the authoritative full rules for its gate. Therefore the old monolith-targeted M2 diff cannot be carried forward as-is.
+16. **The reviewed artifacts themselves did not drift.** `git diff --name-only 034cdd02f..bdc5fbf7 | rg 'm-gate1-shared-clone-ref-drift|iter338-gate1-ref-drift-quorum'` is empty; same-scope positive control finds `.claude/skills/mission-control/SKILL.md` in that diff. SHA-256 comparison of the design and both committed receipts against commit `7870f40a0` matched byte-for-byte before this recovery amendment; `git status --short` showed no owned-path changes. The receipt JSONs remain immutable records of R1/R2 and are not rewritten by this amendment.
 
 R1 revision note: rows 10–13 were added/measured during this revision pass with the controller's prior readings cited where re-run here (lines 1742, 794, 1480–1502).
 
