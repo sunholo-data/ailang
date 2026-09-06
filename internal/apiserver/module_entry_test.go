@@ -120,6 +120,160 @@ func TestRegisterModule_Idempotent(t *testing.T) {
 	}
 }
 
+func TestRegisterModule_RouteIfaceMismatch(t *testing.T) {
+	newLoaded := func(path string, exported bool, annotations ...string) *loader.LoadedModule {
+		anns := []*ast.Annotation{{Name: "route", Args: []ast.Expr{
+			&ast.Literal{Kind: ast.StringLit, Value: "POST"},
+			&ast.Literal{Kind: ast.StringLit, Value: "/f7"},
+		}}}
+		for _, name := range annotations {
+			anns = append(anns, &ast.Annotation{Name: name})
+		}
+		return &loader.LoadedModule{
+			Path: "api/entry",
+			File: &ast.File{
+				Path:   path,
+				Module: &ast.ModuleDecl{Path: "api/entry"},
+				Funcs: []*ast.FuncDecl{{
+					Name:        "f7",
+					IsExport:    exported,
+					Annotations: anns,
+				}},
+			},
+			Iface: iface.NewIface("api/entry"),
+		}
+	}
+	assertMismatch := func(t *testing.T, srv *Server, loaded *loader.LoadedModule) {
+		t.Helper()
+		key, created, err := srv.registerModule(loaded)
+		if err == nil {
+			t.Fatal("registerModule returned nil; want route/interface mismatch")
+		}
+		if key != "" || created {
+			t.Fatalf("mismatch returned key=%q created=%v, want empty/false", key, created)
+		}
+		for _, want := range []string{
+			"CACHE_ROUTE_IFACE_MISMATCH", loaded.File.Path, "api/entry", "f7", "compile-clear",
+		} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("diagnostic missing %q: %v", want, err)
+			}
+		}
+	}
+
+	t.Run("missing export is rejected before publication", func(t *testing.T) {
+		root := t.TempDir()
+		path := filepath.Join(root, "api", "entry.ail")
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("module api/entry\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		for _, annotations := range [][]string{nil, {"nomcp"}, {"noexpose"}} {
+			srv := New(root, Config{Port: "0"})
+			loaded := newLoaded(path, true, annotations...)
+			assertMismatch(t, srv, loaded)
+			if got := len(srv.modules); got != 0 {
+				t.Errorf("published %d modules after mismatch, want 0", got)
+			}
+			srv.Close()
+		}
+	})
+
+	t.Run("nil iface is the same inconsistency", func(t *testing.T) {
+		root := t.TempDir()
+		path := filepath.Join(root, "entry.ail")
+		if err := os.WriteFile(path, []byte("module entry\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		srv := New(root, Config{Port: "0"})
+		defer srv.Close()
+		loaded := newLoaded(path, true)
+		loaded.Iface = nil
+		assertMismatch(t, srv, loaded)
+		if got := len(srv.modules); got != 0 {
+			t.Fatalf("published %d modules with nil iface, want 0", got)
+		}
+	})
+
+	t.Run("repeat registration cannot bypass validation", func(t *testing.T) {
+		root := t.TempDir()
+		path := filepath.Join(root, "entry.ail")
+		if err := os.WriteFile(path, []byte("module entry\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		srv := New(root, Config{Port: "0"})
+		defer srv.Close()
+		loaded := newLoaded(path, true)
+		loaded.Iface.AddExport("f7", nil, true)
+		key, created, err := srv.registerModule(loaded)
+		if err != nil || !created {
+			t.Fatalf("control registration = key %q created %v err %v", key, created, err)
+		}
+		before := srv.modules[key]
+		loaded.Iface = iface.NewIface("api/entry")
+		assertMismatch(t, srv, loaded)
+		if len(srv.modules) != 1 || srv.modules[key] != before {
+			t.Fatalf("repeat mismatch changed published map: %#v", srv.modules)
+		}
+	})
+
+	t.Run("matched iface and exposure filters remain downstream", func(t *testing.T) {
+		root := t.TempDir()
+		path := filepath.Join(root, "entry.ail")
+		if err := os.WriteFile(path, []byte("module entry\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		srv := New(root, Config{Port: "0"})
+		defer srv.Close()
+		loaded := newLoaded(path, true, "nomcp", "noexpose")
+		loaded.Iface.AddExport("f7", nil, true)
+		key, created, err := srv.registerModule(loaded)
+		if err != nil || !created {
+			t.Fatalf("matched registration = key %q created %v err %v", key, created, err)
+		}
+		got := srv.modules[key].Exports
+		if len(got) != 1 || !got[0].IsNoMCP || got[0].IsNoExpose {
+			t.Fatalf("downstream exposure flags changed: %#v", got)
+		}
+	})
+
+	t.Run("private annotated function is outside invariant", func(t *testing.T) {
+		root := t.TempDir()
+		path := filepath.Join(root, "entry.ail")
+		if err := os.WriteFile(path, []byte("module entry\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		srv := New(root, Config{Port: "0"})
+		defer srv.Close()
+		loaded := newLoaded(path, false)
+		loaded.Iface = nil
+		key, created, err := srv.registerModule(loaded)
+		if err != nil || key != "" || created || len(srv.modules) != 0 {
+			t.Fatalf("private route = key %q created %v err %v modules %d", key, created, err, len(srv.modules))
+		}
+	})
+
+	t.Run("outside base path keeps drop behavior", func(t *testing.T) {
+		root := t.TempDir()
+		outside := filepath.Join(t.TempDir(), "entry.ail")
+		if err := os.WriteFile(outside, []byte("module entry\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		srv := New(root, Config{Port: "0"})
+		defer srv.Close()
+		loaded := newLoaded(outside, true)
+		key, created, err := srv.registerModule(loaded)
+		if err != nil || key != "" || created || len(srv.modules) != 0 {
+			t.Fatalf("outside route = key %q created %v err %v modules %d", key, created, err, len(srv.modules))
+		}
+		if len(srv.droppedModules) != 1 {
+			t.Fatalf("outside route drops=%d, want 1", len(srv.droppedModules))
+		}
+	})
+}
+
 // TestRecordDrop_TracksOutsideBasePath asserts that recordDrop appends
 // a DroppedModule entry with the correct PhysicalPath, DeclaredPath, and
 // FileBaseName. M-SERVEAPI-SURFACE-DROPS M1.

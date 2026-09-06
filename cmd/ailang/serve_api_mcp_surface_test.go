@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -134,6 +135,307 @@ func TestCompileCacheClear_Artifacts(t *testing.T) {
 			t.Fatalf("failure diagnostic missing: stdout=%q stderr=%q", stdout, stderr)
 		}
 	})
+}
+
+func TestServeAPI_DivergentCacheTools(t *testing.T) {
+	binary := buildAilang(t)
+	root := t.TempDir()
+	cacheRoot := filepath.Join(root, "isolated-cache")
+	modulePath := filepath.Join(root, "entry.ail")
+
+	writeRoutes := func(count int) {
+		t.Helper()
+		var source strings.Builder
+		source.WriteString("module entry\n")
+		for i := 1; i <= count; i++ {
+			fmt.Fprintf(&source, "\n@route(\"POST\", \"/f%d\")\nexport pure func f%d(x: float) -> float = x + %d.0\n", i, i, i)
+		}
+		if err := os.WriteFile(modulePath, []byte(source.String()), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	wantNames := func(count int) []string {
+		names := make([]string, count)
+		for i := range names {
+			names[i] = fmt.Sprintf("f%d", i+1)
+		}
+		return names
+	}
+	assertSurface := func(want []string, got mcpProbeResult) {
+		t.Helper()
+		if strings.Join(got.tools, ",") != strings.Join(want, ",") {
+			t.Fatalf("tools/list = %v, want exactly %v; stderr:\n%s", got.tools, want, got.stderr)
+		}
+	}
+
+	writeRoutes(6)
+	first := probeServeAPICacheMCP(t, binary, modulePath, cacheRoot, false)
+	assertSurface(wantNames(6), first)
+	moduleID, oldKey, _ := readCompileManifestEntry(t, cacheRoot)
+	moduleDir := compileArtifactDir(cacheRoot, moduleID)
+	oldFiles := snapshotRegularFiles(t, moduleDir)
+	if _, ok := oldFiles["artifacts.json"]; !ok {
+		t.Fatal("six-route artifact snapshot omitted old artifacts.json stamp")
+	}
+
+	writeRoutes(7)
+	fresh := probeServeAPICacheMCP(t, binary, modulePath, cacheRoot, true)
+	assertSurface(wantNames(7), fresh)
+	if fresh.callText != "42" {
+		t.Fatalf("fresh f7 call text = %q, want 42; stderr:\n%s", fresh.callText, fresh.stderr)
+	}
+	gotModuleID, freshKey, _ := readCompileManifestEntry(t, cacheRoot)
+	if gotModuleID != moduleID || freshKey == oldKey {
+		t.Fatalf("source edit manifest = module %q key %q, want module %q and key different from %q", gotModuleID, freshKey, moduleID, oldKey)
+	}
+
+	// Restore the complete six-route artifact set, including its old stamp,
+	// while deliberately retaining the seven-route manifest entry.
+	restoreRegularFiles(t, moduleDir, oldFiles)
+	_, retainedKey, _ := readCompileManifestEntry(t, cacheRoot)
+	if retainedKey != freshKey {
+		t.Fatalf("artifact restoration changed manifest key: got %q want %q", retainedKey, freshKey)
+	}
+	repaired := probeServeAPICacheMCP(t, binary, modulePath, cacheRoot, true)
+	assertSurface(wantNames(7), repaired)
+	if repaired.callText != "42" {
+		t.Fatalf("repaired f7 call text = %q, want 42; stderr:\n%s", repaired.callText, repaired.stderr)
+	}
+	if !strings.Contains(repaired.stderr, "CACHE_INVALID module="+moduleID) ||
+		!strings.Contains(repaired.stderr, "reason=ARTIFACT_INVALID") ||
+		!strings.Contains(repaired.stderr, "artifacts.json") {
+		t.Fatalf("old-stamp authorization diagnostic missing; stderr:\n%s", repaired.stderr)
+	}
+
+	// A second restart must consume the repaired, verified artifacts rather
+	// than compiling again. The cache entry timestamp is written only when a
+	// compilation is published, so byte equality pins the verified-hit path.
+	_, _, repairedTimestamp := readCompileManifestEntry(t, cacheRoot)
+	warm := probeServeAPICacheMCP(t, binary, modulePath, cacheRoot, true)
+	assertSurface(wantNames(7), warm)
+	if warm.callText != "42" {
+		t.Fatalf("warm f7 call text = %q, want 42; stderr:\n%s", warm.callText, warm.stderr)
+	}
+	_, _, warmTimestamp := readCompileManifestEntry(t, cacheRoot)
+	if warmTimestamp != repairedTimestamp {
+		t.Fatalf("second restart republished cache entry: timestamp %q -> %q", repairedTimestamp, warmTimestamp)
+	}
+	if strings.Contains(warm.stderr, "CACHE_INVALID") {
+		t.Fatalf("verified restart reported invalid cache; stderr:\n%s", warm.stderr)
+	}
+
+	// Poison exactly one payload with its old six-route bytes while retaining
+	// the fresh seven-route stamp. This isolates per-blob hash verification.
+	freshFiles := snapshotRegularFiles(t, moduleDir)
+	if bytes.Equal(oldFiles["core.gob"], freshFiles["core.gob"]) {
+		t.Fatal("instrument failure: six-route and seven-route core.gob are identical")
+	}
+	if err := os.WriteFile(filepath.Join(moduleDir, "core.gob"), oldFiles["core.gob"], 0o644); err != nil {
+		t.Fatal(err)
+	}
+	poisoned := probeServeAPICacheMCP(t, binary, modulePath, cacheRoot, true)
+	assertSurface(wantNames(7), poisoned)
+	if poisoned.callText != "42" {
+		t.Fatalf("hash-repaired f7 call text = %q, want 42; stderr:\n%s", poisoned.callText, poisoned.stderr)
+	}
+	if !strings.Contains(poisoned.stderr, "CACHE_INVALID module="+moduleID) ||
+		!strings.Contains(poisoned.stderr, "core.gob") ||
+		!strings.Contains(poisoned.stderr, "reason=ARTIFACT_INVALID") {
+		t.Fatalf("single-blob hash-failure diagnostic missing; stderr:\n%s", poisoned.stderr)
+	}
+}
+
+type mcpProbeResult struct {
+	tools    []string
+	callText string
+	stderr   string
+}
+
+func probeServeAPICacheMCP(t *testing.T, binary, modulePath, cacheRoot string, callF7 bool) mcpProbeResult {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binary, "serve-api", "--mcp", "--routes-only", "--no-feedback-tool", modulePath)
+	cmd.Env = appendEnvOverride(os.Environ(), "AILANG_CACHE_DIR", cacheRoot)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	cleanup := func() {
+		_ = stdin.Close()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	}
+	cleaned := false
+	defer func() {
+		if !cleaned {
+			cleanup()
+		}
+	}()
+
+	scanner := bufio.NewScanner(stdout)
+	send := func(value any) {
+		t.Helper()
+		data, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := fmt.Fprintf(stdin, "%s\n", data); err != nil {
+			t.Fatalf("write MCP request: %v; stderr:\n%s", err, stderr.String())
+		}
+	}
+	rpc := func(id int, method string, params any) json.RawMessage {
+		t.Helper()
+		send(map[string]any{"jsonrpc": "2.0", "id": id, "method": method, "params": params})
+		for scanner.Scan() {
+			var response struct {
+				ID     json.RawMessage `json:"id"`
+				Result json.RawMessage `json:"result"`
+				Error  json.RawMessage `json:"error"`
+			}
+			if err := json.Unmarshal(scanner.Bytes(), &response); err != nil {
+				continue
+			}
+			var gotID int
+			if json.Unmarshal(response.ID, &gotID) != nil || gotID != id {
+				continue
+			}
+			if len(response.Error) != 0 && string(response.Error) != "null" {
+				t.Fatalf("MCP %s error: %s; stderr:\n%s", method, response.Error, stderr.String())
+			}
+			return response.Result
+		}
+		if ctx.Err() != nil {
+			t.Fatalf("MCP %s timeout: %v; stderr:\n%s", method, ctx.Err(), stderr.String())
+		}
+		t.Fatalf("MCP stdout closed during %s: %v; stderr:\n%s", method, scanner.Err(), stderr.String())
+		return nil
+	}
+
+	rpc(1, "initialize", map[string]any{
+		"protocolVersion": "2025-06-18",
+		"capabilities":    map[string]any{},
+		"clientInfo":      map[string]any{"name": "cache-divergence-test", "version": "1"},
+	})
+	send(map[string]any{"jsonrpc": "2.0", "method": "notifications/initialized"})
+	var listed struct {
+		Tools []struct {
+			Name string `json:"name"`
+		} `json:"tools"`
+	}
+	if err := json.Unmarshal(rpc(2, "tools/list", map[string]any{}), &listed); err != nil {
+		t.Fatalf("decode tools/list: %v", err)
+	}
+	result := mcpProbeResult{tools: make([]string, 0, len(listed.Tools))}
+	for _, tool := range listed.Tools {
+		result.tools = append(result.tools, tool.Name)
+	}
+	sort.Strings(result.tools)
+	if callF7 {
+		var called struct {
+			Content []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"content"`
+			IsError bool `json:"isError"`
+		}
+		if err := json.Unmarshal(rpc(3, "tools/call", map[string]any{
+			"name": "f7", "arguments": map[string]any{"x": 35},
+		}), &called); err != nil {
+			t.Fatalf("decode tools/call: %v", err)
+		}
+		if called.IsError || len(called.Content) != 1 || called.Content[0].Type != "text" {
+			t.Fatalf("f7 call result = %#v", called)
+		}
+		result.callText = called.Content[0].Text
+	}
+	cleanup()
+	cleaned = true
+	result.stderr = stderr.String()
+	return result
+}
+
+func appendEnvOverride(env []string, key, value string) []string {
+	prefix := key + "="
+	result := make([]string, 0, len(env)+1)
+	for _, item := range env {
+		if !strings.HasPrefix(item, prefix) {
+			result = append(result, item)
+		}
+	}
+	return append(result, prefix+value)
+}
+
+func readCompileManifestEntry(t *testing.T, cacheRoot string) (moduleID, cacheKey, timestamp string) {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(cacheRoot, "compile", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest struct {
+		Entries map[string]struct {
+			CacheKey  string `json:"cache_key"`
+			Timestamp string `json:"timestamp"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Entries) != 1 {
+		t.Fatalf("manifest entries = %d, want 1: %s", len(manifest.Entries), data)
+	}
+	for id, entry := range manifest.Entries {
+		return id, entry.CacheKey, entry.Timestamp
+	}
+	panic("unreachable")
+}
+
+func compileArtifactDir(cacheRoot, moduleID string) string {
+	name := strings.NewReplacer("/", "__", "\\", "__").Replace(moduleID)
+	return filepath.Join(cacheRoot, "compile", "modules", name)
+}
+
+func snapshotRegularFiles(t *testing.T, dir string) map[string][]byte {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := make(map[string][]byte)
+	for _, entry := range entries {
+		if entry.Type().IsRegular() {
+			data, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			files[entry.Name()] = data
+		}
+	}
+	return files
+}
+
+func restoreRegularFiles(t *testing.T, dir string, files map[string][]byte) {
+	t.Helper()
+	if err := os.RemoveAll(dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, data := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func probeServeAPIMCPTools(t *testing.T, binary, modulePath string, suppress bool) map[string]bool {
