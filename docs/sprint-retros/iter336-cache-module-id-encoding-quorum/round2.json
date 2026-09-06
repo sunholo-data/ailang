@@ -1,0 +1,63 @@
+{
+  "doc": "/Users/voightkampff/.ailang-driver-pin/.wt-v1-iter336/design_docs/planned/v0_36_0/m-cache-module-id-encoding.md",
+  "iso_ts": "2026-09-06T05:47:18Z",
+  "reviewers": [
+    {
+      "model": "gpt5-6-sol",
+      "cost_usd": 0.08411,
+      "tokens_in": 14710,
+      "tokens_out": 352,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The premise verification is not tied to the reviewed codebase. Most repository claims were measured in `$R=/Users/voightkampff/dev/sunholo-data/.wt-v1-iter334`, while the requested document and later checks are under `/Users/voightkampff/.ailang-driver-pin/.wt-v1-iter336`. The doc provides no commit hashes or diff proving that the relevant files are identical across those worktrees, so the iter-334 observations do not verify current iter-336 APIs, call sites, line references, or behavior.",
+        "catch": "Verify every implementation-dependent claim against the exact iter-336 worktree, especially the sole-consumer/call-site claims, miss-to-recompile control flow, stamp comparison, `Clear()` behavior, manifest schema, version semantics, and Windows skip/duplicate encoder locations.",
+        "proposed_fix": "Replace the iter-334 Verification Log with commands run from `/Users/voightkampff/.ailang-driver-pin/.wt-v1-iter336`, and add a header row recording `pwd`, `git rev-parse HEAD`, and `git status --short`. Alternatively, record both worktree commit hashes and a command such as `git diff --exit-code \u003citer334-commit\u003e..\u003citer336-commit\u003e -- internal/pipeline/cache_store.go internal/pipeline/cache_artifacts.go internal/pipeline/cache_runtime.go internal/pipeline/pipeline_module.go internal/pipeline/cache_key.go internal/loader/loader.go internal/loader/stdlib_resolver.go cmd/ailang/serve_api_mcp_surface_test.go`; only reuse old observations if that diff proves the relevant sources unchanged."
+      },
+      "landed": null
+    },
+    {
+      "model": "gemini-3-1-pro",
+      "cost_usd": 0.035228,
+      "tokens_in": 16312,
+      "tokens_out": 217,
+      "present": true,
+      "result": {
+        "verdict": "pass",
+        "strongest_objection": "The closest concern is a minor test implementation ambiguity in M2: since `a/b` and `a__b` are explicitly separated by the new encoding, they no longer collide organically on disk. Retaining the stamp-backstop assertion in the same test requires artificially simulating a collision (e.g., manually placing a mismatched stamp into the new directory) rather than relying on natural pipeline contention.",
+        "catch": "In M2, explicitly clarify how the test fixture should trigger the stamp-backstop failure now that the natural directory collision between `a/b` and `a__b` is eliminated.",
+        "proposed_fix": "In M2, append to the rewrite instruction: '... then (b) keep the stamp-backstop assertion that a stamp from one module is refused under the other (by having the fixture artificially write a mismatched artifact stamp into the separated directory, since the new encoding prevents them from organically colliding).' "
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-glm-5-2",
+      "cost_usd": 0.01973785,
+      "tokens_in": 14751,
+      "tokens_out": 584,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The slug algorithm drops `.` and maps every non-`[a-z0-9_-]` byte to `_`, but this means a UTF-8 multibyte character like `é` produces two consecutive `_` bytes — indistinguishable from a path separator `/` or `\\` which also produce `__`. The worked example confirms this: `aéB` → slug `a__b` (23 bytes), identical to what `a//b` or `a\\\\b` would produce. Combined with the 38-byte truncation and the fact that the slug feeds into no collision-resistant structure (only the 64-bit hash does), the slug provides zero debuggability value for any module ID containing non-ASCII or path-separator-dense inputs — the exact class of absolute-path IDs (e.g. `C:/Users/runneradmin/AppData/...`) that motivated Defect 1. The doc claims the slug is a 'readability aid' but never verifies that it actually aids readability for the production module ID distribution, which the Verification Log confirms are absolute paths on Windows runners.",
+        "catch": "The slug's collision behavior under the normative algorithm is self-contradictory with its stated purpose. The doc says the slug 'may also separate some hash collisions' (Option C rationale) but the algorithm guarantees that multibyte UTF-8 sequences and path separators produce identical slug bytes, so for the exact class of IDs this design targets (Windows absolute paths with separators), the slug is maximally lossy. No test in M1–M4 asserts that a human can distinguish two different absolute-path module IDs by their slugs alone. The design's core tradeoff (slug readability vs. pure hash) is unverified for the production input distribution.",
+        "proposed_fix": "Either (a) restrict the slug to a deterministic, collision-resistant encoding of the path's final two components (basename + parent dir) rather than the full path — preserving debuggability for the common case without claiming the slug separates hash collisions it provably cannot — and add an M1 test asserting that two distinct absolute-path IDs from the Windows fixture set produce distinct slugs; or (b) drop the slug entirely (Option B) and accept the pure-hash readability cost, which the doc already acknowledges is the mathematically honest choice. If (a) is chosen, add a Verification Log row showing the slug output for the full `C:/Users/runneradmin/AppData/Local/...` fixture path from the Windows runner, not the truncated `C:/Users/runneradmin/x` proxy, and confirm a human can identify the module from the slug."
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Revised specification accurately limits the bounded 64-bit directory suffix to collision resistance, retains existing exact-ID stamp validation and recompilation, and records the stronger hash/new diagnostic proposal as contested. Independent reviewers must decide whether the corrected existing direction is acceptable; no objection is overridden."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "gpt5-6-sol: The premise verification is not tied to the reviewed codebase. Most repository claims were measured in `$R=/Users/voightkampff/dev/sunholo-data/.wt-v1-iter334`, while the requested document and later checks are under `/Users/voightkampff/.ailang-driver-pin/.wt-v1-iter336`. The doc provides no commit hashes or diff proving that the relevant files are identical across those worktrees, so the iter-334 observations do not verify current iter-336 APIs, call sites, line references, or behavior.",
+      "oc-glm-5-2: The slug algorithm drops `.` and maps every non-`[a-z0-9_-]` byte to `_`, but this means a UTF-8 multibyte character like `é` produces two consecutive `_` bytes — indistinguishable from a path separator `/` or `\\` which also produce `__`. The worked example confirms this: `aéB` → slug `a__b` (23 bytes), identical to what `a//b` or `a\\\\b` would produce. Combined with the 38-byte truncation and the fact that the slug feeds into no collision-resistant structure (only the 64-bit hash does), the slug provides zero debuggability value for any module ID containing non-ASCII or path-separator-dense inputs — the exact class of absolute-path IDs (e.g. `C:/Users/runneradmin/AppData/...`) that motivated Defect 1. The doc claims the slug is a 'readability aid' but never verifies that it actually aids readability for the production module ID distribution, which the Verification Log confirms are absolute paths on Windows runners."
+    ],
+    "absent_reviewers": [],
+    "total_cost_usd": 0.13907585,
+    "total_tokens_in": 45773,
+    "total_tokens_out": 1153
+  }
+}

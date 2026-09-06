@@ -1,28 +1,36 @@
 # Sprint Plan: M-CACHE-MODULE-ID-ENCODING
 
+> **Execution blocked (iteration 336, D-57):** quorum rejected the naming-scheme direction after the bounded re-quorum. This is an inherited plan, not current execution authorization. M1–M4 remain pending. Before execution, a human ruling and design gate must settle the scheme, then the planner must synchronize the plan and initial snapshot, replacing the overbroad injectivity claim and correcting the M1 mutation example: `Foo`/`foo` collapse without the suffix; `a/b`/`a__b` do not under the clarified slug.
+
 ## Summary
 
-Replace the compile-artifact cache's illegal and collision-prone module-directory mapping with
-the approved bounded `m-<slug>-<16hex>` encoding, wire every production and test consumer to the
-one real encoder, prove Windows legality, remove the temporary Windows skip, and pin the existing
-whole-tree clear behavior for both directory schemes.
+The inherited plan proposed replacing the compile-artifact cache's illegal and collision-prone
+module-directory mapping with the bounded `m-<slug>-<16hex>` encoding, wiring every production
+and test consumer to one encoder, proving Windows legality, removing the temporary Windows skip,
+and pinning the existing whole-tree clear behavior for both directory schemes. That direction is
+not currently approved; D-57 must be decided and the design gate and planner resynchronization
+must complete before this summary becomes executable.
 
 **Target:** v0.36.0  
 **Planned at:** 8cd3bc7831e30a1a9f981539bd351acf1d3d70e3 (`std/VERSION` = v0.35.1)  
 **Duration:** 1.2 working days  
-**Milestones:** 4; one green, independently verifiable commit per approved milestone  
+**Milestones:** 4 inherited pending milestones; commit boundaries require post-D-57 approval
+
 **Risk:** Medium; small implementation, but a cross-package fixture and Windows-only filesystem
 evidence make omission risk material  
-**Dependencies:** None  
+**Dependencies:** Human D-57 decision, completed design gate, and planner resynchronization
+
 **Design:** `design_docs/planned/v0_36_0/m-cache-module-id-encoding.md`  
 **Issue:** None
 
 **Initial sprint state:** `design_docs/planned/v0_36_0/m-cache-module-id-encoding-sprint.json`
-contains the four pending milestones. Before execution, copy it to
-`.ailang/state/sprints/sprint_m-cache-module-id-encoding.json` only if that runtime state is
-absent; never overwrite an active sprint. The tracked file is the initial snapshot, not live progress.
+contains the four pending milestones as a blocked historical snapshot. Do not copy it to
+`.ailang/state/sprints/sprint_m-cache-module-id-encoding.json` while blocked. After D-57, the
+design gate, and planner resynchronization are complete, the planner must replace this instruction
+with the authorized initialization procedure. The tracked file is not live progress.
 
-The approved M1–M4 decomposition is preserved. Estimates are deliberately small: M1 0.35 day,
+The inherited M1–M4 decomposition is preserved for historical planning context and is not current
+execution authorization. Estimates were deliberately small: M1 0.35 day,
 M2 0.35 day, M3 0.30 day, and M4 0.20 day. The seven-day repository diff (523 files, 71,516
 insertions, 6,123 deletions) spans unrelated mission lanes and is not a credible velocity sample
 for this single-function change. Approximately 220 changed LOC, mostly tests, is the useful
@@ -30,15 +38,17 @@ forecasting unit.
 
 ## Scope and execution rules
 
-In scope is exactly the approved hybrid encoder, production wiring, the discovered test-surface
+The inherited scope describes the hybrid encoder, production wiring, the discovered test-surface
 tail, Windows legality and real-directory evidence, removal of the temporary Windows skip, and a
-regression guard for `Clear()` sweeping both naming schemes. There is no cache-key version bump,
-stamp-schema change, automatic garbage collection, path canonicalisation change, or adversarial
-cache hardening.
+regression guard for `Clear()` sweeping both naming schemes. It is historical until D-57 selects a
+direction and the design gate and planner resynchronization establish current scope. The inherited
+exclusions were a cache-key version bump, stamp-schema change, automatic garbage collection, path
+canonicalisation change, and adversarial cache hardening.
 
-The executor must close one green commit at each milestone boundary and must not begin the next
-milestone from a red tree. The controller owns all git writes. If implementation requires a scope
-change, stop at the last green boundary and return to design review.
+If execution is authorized after resynchronization, the executor must close one green commit at
+each milestone boundary and must not begin the next milestone from a red tree. The controller owns
+all git writes. If implementation requires a scope change, stop at the last green boundary and
+return to design review.
 
 ## Reality checks
 

@@ -1,0 +1,63 @@
+{
+  "doc": "/Users/voightkampff/.ailang-driver-pin/.wt-v1-iter336/design_docs/planned/v0_36_0/m-cache-module-id-encoding.md",
+  "iso_ts": "2026-09-06T05:39:39Z",
+  "reviewers": [
+    {
+      "model": "gpt5-6-sol",
+      "cost_usd": 0.07405500000000001,
+      "tokens_in": 12957,
+      "tokens_out": 309,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The chosen 64-bit hash suffix does not satisfy the document’s hard injectivity requirement. A bounded 57-byte, lossy slug-plus-64-bit-hash mapping over arbitrary module-ID strings must have collisions; the doc simultaneously calls it “injective,” “guaranteed distinct,” and only “injective in practice.” Therefore Defect 2 is made improbable, not fixed, and the claimed equivalence with pure hashing is false.",
+        "catch": "Reconcile constraints (b) and (d), which are mathematically incompatible for unbounded module IDs, and stop describing truncated SHA-256 as injective. Also verify the asserted observed Windows outage and drive-letter module-ID behavior directly; the log only confirms that a diagnostic string exists in source, not that the quoted CI failure occurred.",
+        "proposed_fix": "Replace requirement (b) with “collision-resistant, with collisions explicitly detected and handled,” use the full 256-bit lowercase SHA-256 digest if the 64-character component fits the path budget, and revise all “injective,” “guaranteed distinctness,” and “Defect 2 fixed” claims accordingly. Add a deterministic collision path: when an existing stamp has a different module_id, emit an explicit CACHE_DIRECTORY_COLLISION diagnostic and recompile or select a bounded alternate directory without silently overwriting/churning. Add verification-log rows showing the actual Windows module ID reaching moduleArtifactDir and the observed publication failure on Windows."
+      },
+      "landed": null
+    },
+    {
+      "model": "gemini-3-1-pro",
+      "cost_usd": 0.030643999999999998,
+      "tokens_in": 14344,
+      "tokens_out": 163,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The document claims that the manifest (CacheManifest and CacheEntry) is independent of the directory encoding and needs no schema change, but it never verifies this premise by inspecting the CacheEntry struct. If CacheEntry explicitly stores the encoded directory name or path, changing the encoding will corrupt the manifest or break path resolution for existing entries.",
+        "catch": "Missing verification of the CacheEntry struct schema to prove it does not store directory paths or encoded names.",
+        "proposed_fix": "Add a Verification Log row running `sed -n '/type CacheEntry struct/,/}/p' internal/pipeline/cache_store.go` to confirm its fields are strictly independent of the directory encoding."
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-glm-5-2",
+      "cost_usd": 0.03690632,
+      "tokens_in": 12980,
+      "tokens_out": 5738,
+      "present": true,
+      "result": {
+        "verdict": "pass",
+        "strongest_objection": "The Problem section quotes a specific Windows CI error message ('CACHE_WRITE_FAILED module=C:/Users/... stage=publication path=...\\compile\\modules\\C:__Users__runneradmin__... : ARTIFACT_INVALID') as observed on the CI runner, but the Verification Log only confirms the string 'CACHE_WRITE_FAILED' exists in test fixtures — there is no log row showing this error was actually produced by a real Windows CI run. The deduction from verified premises (colon passes through encoder; colon illegal on Windows) is sound, but the specific quoted diagnostic is an unverified runtime observation presented as fact.",
+        "catch": "The doc uses validateModuleName (in stdlib_resolver.go) to claim defence-in-depth against '..' and null bytes for all module IDs, but validateModuleName likely only governs stdlib-style names, not the absolute-path module IDs that are the doc's primary subject. If absolute-path IDs bypass validateModuleName, the 'already rejects' framing overstates the existing protection. Verify whether validateModuleName is applied to absolute-path module IDs or only to stdlib resolution, and qualify the Non-goals bullet accordingly.",
+        "proposed_fix": "Add a Verification Log row that either (a) runs the two serve_api_mcp_surface_test.go callers on a Windows runner and captures the actual CACHE_WRITE_FAILED output, or (b) explicitly marks the quoted CI error as an inferred reconstruction with the note: 'The exact diagnostic string is reconstructed from the verified facts that sanitizeModuleID passes ':' through and Windows rejects ':' in path components; no Windows CI log excerpt was captured.' Additionally, qualify the Non-goals bullet to read: 'validateModuleName (in stdlib_resolver.go) rejects .., null bytes, and restricts to [a-zA-Z0-9_/-] for stdlib-style names; absolute-path module IDs may not pass through this validator — defence in depth for those remains the adversarial row's job.'"
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Bounded clarification preserves existing plan per-byte ASCII semantics, fixes contradictory Windows example and Q3 consumer claim. Existing hybrid design direction retained; M1 remains unwired pure encoder. Astra authored revision so Sol occupies OpenAI seat under interim independence workaround."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "gpt5-6-sol: The chosen 64-bit hash suffix does not satisfy the document’s hard injectivity requirement. A bounded 57-byte, lossy slug-plus-64-bit-hash mapping over arbitrary module-ID strings must have collisions; the doc simultaneously calls it “injective,” “guaranteed distinct,” and only “injective in practice.” Therefore Defect 2 is made improbable, not fixed, and the claimed equivalence with pure hashing is false.",
+      "gemini-3-1-pro: The document claims that the manifest (CacheManifest and CacheEntry) is independent of the directory encoding and needs no schema change, but it never verifies this premise by inspecting the CacheEntry struct. If CacheEntry explicitly stores the encoded directory name or path, changing the encoding will corrupt the manifest or break path resolution for existing entries."
+    ],
+    "absent_reviewers": [],
+    "total_cost_usd": 0.14160532,
+    "total_tokens_in": 40281,
+    "total_tokens_out": 6210
+  }
+}
