@@ -78,6 +78,41 @@ At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the arc
 iteration re-reads this charter — unbounded STATUS history is a per-read token tax on the scarcest
 model budget; the append-only history lives in the log + archive.
 
+## STATUS 2026-09-07 — ITERATION 14: retry of `m-anthropic-sandbox`; Astra Agent lane timed out again, parked-on-lane [HARNESS]
+
+Gate 0/1: armed; GitHub account `sunholo-voight-kampff`; canonical inbox triaged with no docs
+directive or genuine regression. Fresh origin was checked; the observed base was
+`aeeafc880dec8bb30215620332d938e96904aaf0` at `2026-09-06T22:41:03Z`; D-4 and D-5 remain OPEN.
+
+Gate 2 re-selected `design_docs/planned/v0_29_0/m-anthropic-sandbox.md`, the retryable fresh
+draw after iteration 13's failed designer attempt. Its existing pick-time quorum remains BLOCKED
+3/3 on session-selective worker isolation, bounded termination/timeout evidence, and live API /
+pricing verification. No new quorum spend was incurred.
+
+Gate 3 spawned the required designer through the Agent tool as `gpt-6-astra` (resolver:
+`recipe codex:gpt-6-astra`). After two bounded 120-second waits the design artifact was unchanged;
+the Agent was explicitly shut down. No compatible Agent-tool fallback was authorized by the
+resolved route, so no fallback designer was used. Planner and executor were not spawned because
+no revised design reached re-quorum. Evaluator `pi:ollama/minimax-m3:cloud` was not spawned:
+there was no generated implementation or valid plan to judge. This is a lane park, not a passing
+verdict; generator-not-equal-judge remains intact.
+
+Outcome: PARKED-ON-LANE. No implementation changes. D-4/D-5 remain the human decision asks.
+
+Routing evidence: controller `codex:gpt-5.6-luna` (tok: not reported); designer Agent
+`gpt-6-astra` (tok: not reported), error `running after 2 x 120s bounded waits, target unchanged,
+then shutdown`; fallback not used because the resolver returned a recipe route with no compatible
+Agent-tool fallback. Planner `codex:gpt-5.6-luna` (not spawned: no design-ready artifact); executor
+`codex:gpt-5.6-luna` (not spawned: no plan); evaluator `pi:ollama/minimax-m3:cloud` (not spawned:
+no generated implementation). Resume predicate: re-probe the designer lane next iteration; proceed
+only if it produces a revised artifact, then re-quorum before planning. Gate 4 base=`aeeafc880dec8bb30215620332d938e96904aaf0`@`2026-09-06T22:41:03Z`.
+
+**Progress**: goal unmoved; no sprint milestone executed.
+
+**Retro — no skill edit.** This is the third consecutive docs-mission designer-lane failure for
+fresh draws (iterations 12–14); it is surfaced as a routing-policy signal for human review. The
+shared skill was not edited during this parked run.
+
 ## STATUS 2026-09-06 — ITERATION 13: fresh draw `m-anthropic-sandbox`; designer Agent-tool lane timed out, parked [HARNESS]
 
 Gate 0/1: armed; GitHub account `sunholo-voight-kampff`; canonical inbox triaged with no docs
@@ -141,28 +176,6 @@ planner `codex:gpt-5.6-luna` not spawned (no design-ready input); executor
 
 **Retro — no skill edit.** One designer-lane failure is below the shared-skill two-instance bar;
 retry/re-route is the next action. Full record: `design_docs/docs-mission-log.md` §ITERATION 12.
-
-## STATUS 2026-09-06 — ITERATION 11: fresh draw `m-agent-step-cancellation`; designer lanes failed before revision, parked
-
-Gate 0: armed; GitHub account `sunholo-voight-kampff`; clean origin-pinned worktree. Inbox triage
-found no `mission-docs` directive or genuine regression; D-4 and D-5 remain open. Gate 1 found the
-running pin at `origin/dev` (`e50066037`), with no local changes.
-
-Gate 2 re-confirmed docs-11 parked on D-4 and docs-12 parked on D-5, then drew the next eligible
-docs-8 backlog item: `design_docs/planned/v0_29_0/m-agent-step-cancellation.md`. Its existing quorum
-artifact (`m-agent-step-cancellation-2026-09-05T21-45-11Z.json`) is blocked 3/3 with concrete,
-revision-shaped objections about mid-step concurrency, request-context/signal ownership, and
-existing cancellation machinery.
-
-Gate 3 spawned the required designer through the Agent tool as `codex:gpt-6-astra`; it remained
-running without producing a file and was shut down. The configured final Codex fallback
-`codex:gpt-5.6-luna` was also spawned through the Agent tool; it likewise timed out without a
-revision and was shut down. No planner, executor, or evaluator was spawned because no revised,
-quorum-ready design existed. This is a parked designer-lane failure, not a passing design or a
-completed sprint; generator-not-equal-judge therefore has no execution result to judge.
-
-Outcome: PARKED. No implementation changes. D-4/D-5 remain the human decision asks; the designer
-failure is reported for retry on the next scheduled run.
 
 ## STATUS 2026-09-04 — ITERATION 8: docs-4 LANDED — D-3's condition satisfied, sprint executed, an independent evaluator caught one real defect neither the controller nor the executor saw, fixed and re-verified PASS 97/100
 

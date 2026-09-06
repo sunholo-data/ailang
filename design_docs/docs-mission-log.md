@@ -1535,3 +1535,40 @@ one designer-lane failure is below the shared-skill two-instance threshold.
 **Next**: retry or re-route the designer for `m-anthropic-sandbox`; if design-ready, re-quorum once before planning.
 
 **Retro**: no skill edit. This is the second consecutive docs-mission designer-lane failure; surface it as a routing-policy signal for human review, without changing the shared skill.
+
+## 14 — 2026-09-07 — retry of `m-anthropic-sandbox`; designer lane failed, parked-on-lane [HARNESS]
+
+**Pick**: `m-anthropic-sandbox` — retry of the next fresh draw after docs-11/D-4 and docs-12/D-5
+remained parked and iteration 13's designer attempt produced no artifact.
+
+**Outcome**: PARKED-ON-LANE · HARNESS · evaluator not applicable (no generated implementation) ·
+no implementation commits.
+
+**Progress**: goal unmoved; no sprint milestone executed.
+
+**Key find**: The existing quorum remains blocked 3/3 on session-selective worker isolation,
+bounded termination/timeout evidence, and live API/pricing verification. The required Agent-tool
+designer `gpt-6-astra` timed out twice with the design file unchanged and was shut down; this is a
+capacity/routing park, not a design pass.
+
+**Cost**: no new metered spend · quota buckets: `gpt-6-astra` Agent-tool attempt; prior pick-time
+quorum cost remains $0.0735.
+
+**Routing evidence**:
+| Role | Model | Outcome |
+|---|---|---|
+| Controller | `codex:gpt-5.6-luna` | Gate 0–5; tokens not reported |
+| Designer | `gpt-6-astra` via Agent tool | Spawned; still running after two bounded 120-second waits, target unchanged; explicitly shut down; tokens not reported |
+| Planner | `codex:gpt-5.6-luna` | Not spawned — no revised design reached re-quorum |
+| Executor | `codex:gpt-5.6-luna` | Not spawned — no plan |
+| Evaluator | `pi:ollama/minimax-m3:cloud` | Not spawned — no generated implementation to judge; no verdict invented |
+| generator≠judge | N/A | Preserved: no generation occurred outside the blocked designer lane |
+
+Resolver evidence: `tools/launchd/resolve-role-spawn.sh designer design_docs/planned/v0_29_0/m-anthropic-sandbox.md` returned `recipe codex:gpt-6-astra declared:provider-pin`. No compatible Agent-tool fallback was authorized or used. Resume predicate: re-probe the designer lane next iteration; proceed only after a revised artifact exists and re-quorum passes. Gate 4 base=`aeeafc880dec8bb30215620332d938e96904aaf0`@`2026-09-06T22:41:03Z`.
+
+**Ruled out**: none.
+
+**DECISIONS FOR MARK**: D-4 and D-5 remain OPEN and unchanged; no new decision inferred.
+
+**Retro**: third consecutive fresh-draw designer-lane failure across iterations 12–14. Surface as
+a routing-policy signal for human review; no shared skill edit this iteration.
