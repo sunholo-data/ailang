@@ -144,12 +144,34 @@ check "phase-2 notifies HEARTBEAT-MISSING through _mc_bounded" "[ \"\$(wc -l < '
 rm -rf "$t"
 
 skill="$ROOT/.claude/skills/mission-control/SKILL.md"
+# THE SKILL IS CORE + RESOURCES since the 2026-09-06 context split: each gate's rules —
+# including its stamp instruction — moved to resources/gate-*.md so the always-loaded
+# prefix fell 63k -> 12k tokens. The per-gate stamp rules still exist; asserting them
+# against the core alone would report their ABSENCE when they merely moved, which is a
+# test failing for the wrong reason. Concatenate, and keep asserting all eight.
+skill=$(mktemp -t skill_all_hb) || exit 1
+cat "$(dirname "$0")/../../.claude/skills/mission-control/SKILL.md" \
+    "$(dirname "$0")/../../.claude/skills/mission-control/resources"/gate-*.md > "$skill" 2>/dev/null
+trap 'rm -f "$skill"' EXIT
+# EACH GATE NOW OWNS A FILE (2026-09-06 context split), so the old "scan the span between
+# two ## Gate headings" logic is obsolete — and worse than obsolete: the concatenation has
+# a stub AND a real section per gate, so a span scan stops at the stub and reports the rule
+# missing when it is merely one file over. Check each gate's own resource instead, which is
+# both simpler and says what it means.
+_res="$ROOT/.claude/skills/mission-control/resources"
 span_ok=0
-for pair in 'Gate 0:gate-0' 'Gate 1:gate-1' 'Gate 2:gate-2' 'Gate 3 —:gate-3' 'Gate 3b:gate-3b' 'Gate 4:gate-4' 'Gate 5:gate-5'; do
-  heading=${pair%%:*}; label=${pair#*:}
-  if awk -v h="$heading" -v l="stamp $label" 'index($0,"## " h)==1 {inspan=1; next} inspan && /^## Gate/ {exit} inspan && index($0,l) {found=1} END {exit !found}' "$skill"; then span_ok=$((span_ok + 1)); fi
+for pair in 'gate-0-preflight:gate-0' 'gate-1-observe:gate-1' 'gate-2-pick:gate-2' \
+            'gate-3-route:gate-3' 'gate-3b-ci-green:gate-3b' 'gate-4-record:gate-4' \
+            'gate-5-retro:gate-5'; do
+  file=${pair%%:*}; label=${pair#*:}
+  if grep -q "stamp $label" "$_res/$file.md" 2>/dev/null; then
+    span_ok=$((span_ok + 1))
+  else
+    echo "    $file.md carries no 'stamp $label' instruction"
+  fi
 done
-if awk 'index($0,"## Gate 5")==1 {inspan=1; next} inspan && /^## Gate/ {exit} inspan && /stamp complete/ {found=1} END {exit !found}' "$skill"; then span_ok=$((span_ok + 1)); fi
+# Gate 5 additionally stamps completion.
+grep -q 'stamp complete' "$_res/gate-5-retro.md" 2>/dev/null && span_ok=$((span_ok + 1))
 check "every gate section carries its own stamp instruction (8/8)" "[ '$span_ok' -eq 8 ] && grep -q 'stamp abort <reason>' '$skill'"
 
 # Every arm above extracts a block from the driver and supplies its variables by hand.

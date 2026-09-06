@@ -434,21 +434,31 @@ want "arm12 pre-widening allowlist still denies top-level scripts" "$out" "opus 
 rm -rf "$lab"
 
 # --- M4 SKILL DELIVERY GUARDS (M-SPAWN-PIN-ENFORCEMENT, 2026-09-03) ------------
+# THE SKILL IS NOW CORE + RESOURCES (2026-09-06 context split). Gate rules moved to
+# resources/ so the always-loaded prefix fell 63k -> 12k tokens; the RULES did not move
+# out of existence, so an arm that asserts a rule exists must look in both places.
+# Concatenating is deliberate: an arm that silently stopped matching because its text
+# moved one file over would be a test passing for the wrong reason, which is the failure
+# class this suite exists to catch.
 skill="$ROOT/.claude/skills/mission-control/SKILL.md"
-if grep -q 'resolve-role-spawn.sh' "$skill" && grep -q 'MISSION-ROLE:' "$skill"; then
+skill_all=$(mktemp -t skill_all) || exit 1
+cat "$ROOT/.claude/skills/mission-control/SKILL.md" \
+    "$ROOT"/.claude/skills/mission-control/resources/*.md > "$skill_all" 2>/dev/null
+trap 'rm -f "$skill_all"' EXIT
+if grep -q 'resolve-role-spawn.sh' "$skill_all" && grep -q 'MISSION-ROLE:' "$skill_all"; then
   ok "S1 mission-control skill invokes resolver and requires role tokens"
 else
   bad "S1 mission-control skill invokes resolver and requires role tokens" "resolver call or MISSION-ROLE token missing"
 fi
 # The longer literal is line-wrapped and cannot be matched by line-oriented grep.
-grep -q 'enum in this build lists' "$skill" \
+grep -q 'enum in this build lists' "$skill_all" \
   && ok "S2 fable capability paragraph survives the spawn-pattern edit" \
   || bad "S2 fable capability paragraph survives the spawn-pattern edit" "capability control missing"
 
 # S3/S4/S5 — astra's placement, and the collision it creates. Rewritten 2026-09-05
 # after Mark corrected the first attempt: astra is an ADDITIONAL fable-class entry
 # to vary between, NOT a replacement for fable's slot.
-grep -q 'now `claude:claude-fable-5-1` → `codex:gpt-6-astra` → `pi:ollama/deepseek-v4-flash:0731-cloud` → repeat' "$skill" \
+grep -q 'now `claude:claude-fable-5-1` → `codex:gpt-6-astra` → `pi:ollama/deepseek-v4-flash:0731-cloud` → repeat' "$skill_all" \
   && ok "S3 designer rotation is fable -> astra -> deepseek (astra ADDED, fable kept)" \
   || bad "S3 designer rotation is fable -> astra -> deepseek (astra ADDED, fable kept)" "rotation is not the three-entry list"
 # The driver seed must NOT have moved: astra is a rotation entry, so nothing pins it.
@@ -463,7 +473,7 @@ grep -q 'MISSION_DESIGNER_MODEL:-claude:claude-fable-5-1' "$driver" \
 # astra while the skill stops carrying the substitution instruction, i.e. if the
 # collision ever becomes undocumented.
 if grep -q 'gpt6-astra,gemini-3-1-pro,oc-glm-5-2' cmd/ailang/design_quorum.go; then
-  if grep -q 'ASTRA IS ALSO A QUORUM REVIEWER' "$skill"; then
+  if grep -q 'ASTRA IS ALSO A QUORUM REVIEWER' "$skill_all"; then
     ok "S5 astra-in-quorum collision is documented where the designer is chosen"
   else
     bad "S5 astra-in-quorum collision is documented where the designer is chosen" "quorum names astra but the rotation row does not warn"
@@ -473,6 +483,46 @@ else
 fi
 
 echo ""
+# ─── CONTEXT BUDGET (2026-09-06) ─────────────────────────────────────────────
+# The controller's SKILL.md is loaded into every session and RE-SENT ON EVERY TURN, so
+# its size multiplies by turn count. Measured 2026-09-05: at 251,637 B (~63k tokens) it
+# cost ~3.1M input tokens per iteration before reading a single file, and astra — which
+# takes the most turns — became 60% of all codex spend and emptied the weekly bucket in
+# a day. Split to ~47k B (~12k tokens) with each gate's rules in resources/, read on
+# arrival. This budget is what stops it growing back one paragraph at a time.
+_skill=".claude/skills/mission-control/SKILL.md"
+_skill_b=$(wc -c < "$_skill" | tr -d ' ')
+if [ "$_skill_b" -le 60000 ]; then
+  ok "controller skill is within the context budget (${_skill_b} B <= 60000)"
+else
+  bad "controller skill is within the context budget" "${_skill_b} B > 60000 — move a section to resources/, do not raise the budget"
+fi
+
+# Every gate must have its rules SOMEWHERE, and the stub must point at a file that exists.
+# A stub pointing at a missing file is worse than inline text: the gate silently runs with
+# no rules at all.
+_gate_missing=0
+for _g in $(grep -oE 'resources/gate-[a-z0-9-]+\.md' "$_skill" | sort -u); do
+  [ -f ".claude/skills/mission-control/$_g" ] || { _gate_missing=1; echo "    missing: $_g"; }
+done
+[ "$_gate_missing" -eq 0 ] && ok "every gate stub points at a resource that exists" \
+  || bad "every gate stub points at a resource that exists" "a stub references a missing file"
+
+# All seven gates must still be reachable.
+_gate_count=$(grep -cE '^## Gate [0-9]' "$_skill")
+[ "$_gate_count" -ge 7 ] && ok "all seven gate stubs are present (${_gate_count})" \
+  || bad "all seven gate stubs are present" "only ${_gate_count} — a gate was dropped in the split"
+
+# CACHING: the volatile Current State block must stay LAST. Prompt caching keys on a
+# byte-identical prefix, so any stable text placed after it can never be cached.
+_first_dyn=$(grep -n "!'" "$_skill" | head -1 | cut -d: -f1)
+_total=$(wc -l < "$_skill" | tr -d ' ')
+if [ -n "$_first_dyn" ] && [ "$_first_dyn" -gt $(( _total * 9 / 10 )) ]; then
+  ok "volatile Current State stays in the last 10% (cacheable prefix preserved)"
+else
+  bad "volatile Current State stays in the last 10%" "first dynamic block at line ${_first_dyn} of ${_total} — everything after it is uncacheable"
+fi
+
 # ─── REGISTRY-PARAMETERISED ARMS (M-MISSION-LOOP-WORKBENCH Phase 3) ──────────
 # Every mission in missions/ is checked here. Adding a mission adds its coverage with
 # NO new test file — which is the point: the suites used to hardcode one mission's env
