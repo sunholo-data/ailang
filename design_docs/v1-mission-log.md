@@ -22459,3 +22459,103 @@ D-57 defaults HOLD immediately until answered. Cost provenance separated from fl
 `m-gate1-shared-clone-ref-drift`; encoding resumes only after D-57/design/planner gates.
 
 **Record verification.** Dashboard 30 lines; ledger 57 rows / 3 OPEN; STATUS arithmetic 4777→4777 before ledger/queue edits, moved 333 present in archive with 332 control. All 3 decision-bearing artifacts copied byte-identically and not ignored (ignored-path control fired). Context-docs/file-size gates passed; referenced-paths 47 enumerated / 47 checked; diff whitespace clean.
+
+
+## 337 — 2026-09-06 — Bank the pi runner false-green evidence and park its unresolved snapshot contract [HARNESS]
+
+**Picked.** `m-pi-runner-worktree-assertion-vacuous-on-revision`, the ready queue head after
+D-57 parked cache encoding. The requested outcome was one unattended mission iteration.
+
+**Reality check.** Base `374d8a4217358721b2bb2ad7fe52b7be5c93377d`; existing main checkout14dirty
+paths left untouched. Isolated sibling worktree used; charter/log re-confirmed byte-identical to
+origin immediately before Gate4. Kill switch armed, billing tripwire CLEAN, GitHub account
+sunholo-voight-kampff; current dev20checks/zero failure, no red preemption. Canonical inbox20unread
+triaged without acknowledgement; own reports/approvals and sibling/package items were not human
+directives. Issue972 no new allowlisted directives, no rotation or weekly sweep due. D-55–D-57
+remain OPEN. A sibling World credential owner request was not V1 implementation authority.
+CLAIM inbox_1788678433169_c8d970e2 sent before routing.
+
+The writeless stub returns clean rc10/empty_worktree but dirty and preexisting-untracked rc0/ok.
+A second edit to an already-dirty file preserves its porcelain status/name while changing bytes;
+before/after porcelain comparison is therefore insufficient. Baseline make build, make test
+(8,242 top-level Go PASS records,123packages), and make lint passed. Existing runner suite passed
+9/9 with MISSION_PI_POLL_SECONDS=1; planner default8/9 exposed an inherited T3 timing flake.
+No production regression is claimed from that flake.
+
+**Shipped.** PARKED needs-human-review D-58. Design and two complete quorum artifacts are banked
+at `a46e4c015cecb26ad06a3b44d5b6f8895a2d111e`; rejected draft retained with authoritative
+controller qualifications, not presented as an approved contract. No sprint plan or production
+implementation; no milestone claimed. Independent MiniMax docs-only evaluation PASS82/100; zero blocking evidence/park defects.
+No third quorum, no narrow-refinement invocation, no self-approval. D-58 approval spine message
+inbox_1788680529734_00877707 delivered and body verified via canonical list without acking others.
+
+**Routing evidence.** Controller codex:gpt-6-astra; all FOUR explicitly requested Agent roles
+spawned. Designer native Astra wrapper was transport only, actual author
+pi:ollama/deepseek-v4-flash:0731-cloud, next after Astra in the namespaced rotation. Initial
+pre-model launch failed from missing sandbox-runtime dependency, rc10/zero model records; repaired
+with an invocation-only shim loading byte-identical canonical extension files with dependencies.
+Fable probe rc0 was only a probe; no Fable author fallback. Actual designer rc0,538seconds,39tools,
+1,433,715 reported total tokens; one revision rc0,667seconds,39tools,1,717,067tokens. Both quota
+runs billed reported0; this is flat-rate usage, not invented API spend. Revision content SHA was
+checked separately because this iteration's own bug makes the runner's dirty-tree assertion vacuous.
+
+Planner and executor were native Agent gpt-5.6-sol, matching resolver pins via the user-requested
+Agent transport adapter. Both performed read-only readiness audits; neither planning nor execution
+could pass the blocked design gate. This is a gated non-execution, not a spawn failure or fallback.
+Evaluator native Astra wrapper invokes actual pi:ollama/minimax-m3:cloud in a separate completed
+worktree at the exact evidence SHA; generator≠judge by model and vendor. Judge results recorded
+below when complete; wrapper never supplies a score. No role silently omitted.
+
+Quorum R1 and R2 each rejected3/3, absent_reviewers empty. R1 API-priced Astra$0.083740
+(6614in/352out), Gemini$0.017694(7179/278); GLM$0.00934762 flat-rate imputation(6554/414).
+R2 API Astra$0.091570(7707/290), Gemini$0.020202(8445/276); GLM$0.01778778 imputation(7628/2329).
+Metered API total$0.213206; flat-rate imputation$0.0271354 separate. Quota buckets Codex,
+Ollama Cloud, plus a Fable probe; Codex tool token totals unavailable, not invented. No GPU lock.
+
+**Ruled out.**
+- A clean runner exit does not prove work: dirty no-op repro is a firing counterexample.
+- A content manifest must validate ancestors: replacing tracked d with an external-directory
+  symlink makes leaf-only checks read external d/f bytes. Astra's R2 objection reproduced.
+- Gemini's R2 distinct-count objection is a prose clarification: prototype already cuts paths
+  before comm, and one edited dirty file reports1. It is not evidence of a prototype count3 bug.
+- `git hash-object` writes the object DB only with `-w`; negative/positive synthetic controls
+  disproved the designer's blanket assertion. Alternative design remains open, not dismissed.
+- The initial revised cost trial was invalid (WD not exported, killed after177seconds, later
+  syntax error); all children ended. Independent controller prototype: rc0,5.442seconds,
+  24,381records. Tracked bytes268,361,724; doc's3.7MB claim false and explicitly corrected.
+- Narrow-refinement allows ONLY reviewer-authored verbatim fixes. All three external R2 fixes
+  are concrete, but remaining controller objections still need design judgment: before-snapshot
+  failure vs finished-only precedence, comparison outside shown watchdog, final-component output
+  aliases, newline-preserving link text. Declined carve-out; did not buy a third round.
+- Consumer census106hits/14files has runner/test positive controls; no other executable pi-verdict
+  consumer was found in that census. No broad claim that every error parser supports rc15.
+- Readiness audits and baseline green do not make an unimplemented design an evaluated sprint.
+
+**Retro lane.** backlog — existing pi runner row parked D-58; add the separately measured inherited
+shell-suite coverage/timing row, below shared-clone-ref-drift. No skill edit or routing-policy change.
+D-58 asks A fresh designer revision/quorum (recommended) vs B commission Git-native alternative;
+default HOLD immediately. Existing three decisions retained without fabricated answers.
+
+**Progress**: N=12 design docs before v1.0.0 (was12, change0); goal unmoved. No bar doc landed.
+
+**Next.** `m-gate1-shared-clone-ref-drift`, then `m-pi-runner-shell-suite-coverage`, then
+`m-pi-evaluator-session-handshake`. Pi runner implementation waits for D-58/design/planner gates;
+cache encoding waits for D-57/design/planner gates.
+
+
+**Independent evaluation and controller qualifications.** Actual MiniMax PASS82/100, docs-only
+park, at exact `a46e4c015`; raw report preserved byte-identically. Judge inspected runner/test
+source, quorum, census and corrections independently; no implementation acceptance was claimed.
+Sandbox inbox attempt stalled despite its45s alarm. Wrapper verified lineage and terminated only
+the inbox child at100s; judge resumed, with no fallback or self-score. Controller addendum corrects
+the raw Method's bound claim and distinguishes banked controller repros from judge-owned checks.
+Review applies to evidence at the named SHA; later mission bookkeeping is controller-authored,
+mechanically checked and does not change the design or raw verdict.
+
+**Record verification.** Dashboard30lines; ledger58rows/four OPEN; STATUS rotation preserved line
+arithmetic and all3blocks, moved334 confirmed in archive with prior333 control. Decision-bearing
+artifacts tracked (ignored bin control fired). Context-docs, file-size and referenced-path gates
+passed (47enumerated/47checked), whitespace clean. Shared main untouched. Remote gate pending.
+
+Judge telemetry: runner rc0/pi_rc0,223seconds,41tools,one fresh report. Provider-reported
+1,340,910input/8,795output tokens; cost0 on Ollama Cloud quota. No wrapper inference billed.
