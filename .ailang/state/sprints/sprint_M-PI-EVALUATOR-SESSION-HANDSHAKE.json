@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-PI-EVALUATOR-SESSION-HANDSHAKE",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-09-06T20:51:28Z",
   "design_doc": "design_docs/planned/v0_35_2/m-pi-evaluator-session-handshake.md",
   "sprint_plan": "design_docs/planned/v0_35_2/m-pi-evaluator-session-handshake-sprint-plan.md",
@@ -28,10 +28,10 @@
         "AC6: scripts/mission_pi_run.sh changes only by the two command-scoped child messaging bindings; arguments, stdin, awk pipeline, watchdogs, typed verdicts, and retries are unchanged",
         "node --experimental-strip-types --test .pi/extensions/.session-protocol-gate.test.ts, make test-pi-extensions, and git diff --check pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-06T20:55:12Z",
+      "completed": "2026-09-06T20:57:42Z",
+      "notes": "Added hermetic actual-runner/fake-pi coverage with unset and hostile caller environments, then added exactly the two command-scoped messaging bindings. Focused 8/8, aggregate pi extensions, checkpoint make test/lint, whitespace, exact runner diff, and storage preservation checks passed."
     },
     {
       "id": "M2_EVALUATOR_HANDSHAKE_CONTRACT",

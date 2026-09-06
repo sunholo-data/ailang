@@ -109,13 +109,13 @@ git diff -- scripts/mission_pi_run.sh
 
 **Acceptance Criteria:**
 
-- [ ] AC7: both actual-runner arms return rc 0, record child invocation, and receive
+- [x] AC7: both actual-runner arms return rc 0, record child invocation, and receive
   store=`gcp` plus project=`ailang-multivac`.
-- [ ] AC7: `AILANG_STORAGE` remains absent in the unset arm and remains `local` in the caller
+- [x] AC7: `AILANG_STORAGE` remains absent in the unset arm and remains `local` in the caller
   storage arm.
-- [ ] AC6: the runner diff is exactly the two child environment bindings; its arguments,
+- [x] AC6: the runner diff is exactly the two child environment bindings; its arguments,
   stdin closure, awk pipeline, watchdogs, typed verdicts, and retry semantics are unchanged.
-- [ ] The integration test contacts neither a real model nor the inbox and cleans only its
+- [x] The integration test contacts neither a real model nor the inbox and cleans only its
   owned temporary fixture after the child exits.
 
 **Risks:** A test could accidentally create its output inside the git worktree and manufacture

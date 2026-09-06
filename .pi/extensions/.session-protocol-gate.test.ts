@@ -5,12 +5,124 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import {
+	chmodSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
 	shouldBlock,
 	bashAllowed,
 	headlessPrerequisitesMet,
 	BLOCK_REASON,
 } from "./session-protocol-gate.ts";
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+
+test(
+	"mission_pi_run: child receives canonical messaging environment and preserves storage",
+	{ skip: process.platform === "win32" },
+	() => {
+		const fixture = mkdtempSync(join(tmpdir(), "ailang-mission-pi-env-"));
+		try {
+			const binDir = join(fixture, "bin");
+			mkdirSync(binDir);
+			const fakePi = join(binDir, "pi");
+			writeFileSync(
+				fakePi,
+				`#!/usr/bin/env bash
+set -u
+printf '%s\\n' "\${AILANG_MESSAGES_STORE-__UNSET__}" "\${AILANG_MESSAGES_PROJECT-__UNSET__}" "\${AILANG_STORAGE-__UNSET__}" > child-env.txt
+printf '%s\\n' '{"type":"agent_end"}'
+`,
+			);
+			chmodSync(fakePi, 0o755);
+
+			const directive = join(fixture, "directive.txt");
+			writeFileSync(directive, "MISSION-ROLE: evaluator\n");
+			const runner = join(repoRoot, "scripts", "mission_pi_run.sh");
+
+			const arms = [
+				{
+					name: "unset caller",
+					caller: {},
+					expectedStorage: "__UNSET__",
+				},
+				{
+					name: "hostile caller",
+					caller: {
+						AILANG_MESSAGES_STORE: "local",
+						AILANG_MESSAGES_PROJECT: "wrong-project",
+						AILANG_STORAGE: "local",
+					},
+					expectedStorage: "local",
+				},
+			];
+
+			for (const arm of arms) {
+				const worktree = join(fixture, `worktree-${arm.name.replaceAll(" ", "-")}`);
+				mkdirSync(worktree);
+				const init = spawnSync("git", ["init", "-q", worktree], { encoding: "utf8" });
+				assert.equal(init.status, 0, `${arm.name}: git init: ${init.stderr}`);
+
+				const out = join(fixture, `${arm.name.replaceAll(" ", "-")}.ndjson`);
+				const env = {
+					...process.env,
+					PATH: `${binDir}:${process.env.PATH ?? ""}`,
+					MISSION_PI_POLL_SECONDS: "1",
+				};
+				delete env.AILANG_MESSAGES_STORE;
+				delete env.AILANG_MESSAGES_PROJECT;
+				delete env.AILANG_STORAGE;
+				Object.assign(env, arm.caller);
+
+				const run = spawnSync(
+					"bash",
+					[
+						runner,
+						"--model",
+						"fake/provider",
+						"--directive",
+						directive,
+						"--workdir",
+						worktree,
+						"--out",
+						out,
+						"--max-seconds",
+						"5",
+						"--stall-seconds",
+						"5",
+					],
+					{ encoding: "utf8", env, timeout: 15_000 },
+				);
+				assert.equal(
+					run.status,
+					0,
+					`${arm.name}: runner rc=${run.status}, signal=${run.signal}, stderr=${run.stderr}`,
+				);
+
+				const receipt = readFileSync(join(worktree, "child-env.txt"), "utf8")
+					.trimEnd()
+					.split("\n");
+				assert.deepEqual(
+					receipt,
+					["gcp", "ailang-multivac", arm.expectedStorage],
+					`${arm.name}: exact child environment receipt`,
+				);
+				assert.match(readFileSync(out, "utf8"), /"type":"agent_end"/);
+			}
+		} finally {
+			rmSync(fixture, { recursive: true, force: true });
+		}
+	},
+);
 
 test("shouldBlock: edit/write blocked absolutely while armed", () => {
 	assert.equal(shouldBlock("edit", undefined, false), BLOCK_REASON);
