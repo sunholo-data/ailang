@@ -2,37 +2,37 @@
 
 **Design:** `design_docs/planned/m-motoko-suite-bound-derivation.md`
 
-**Execution base verified:** detached HEAD `5f425d35568cc8b2f04c849ee34635dce8ec7f30`; the only difference from design base `087fbea631a0b80556baa034b499fbdae33e76d2` is the committed design document. The suite is byte-identical at both commits (`sha256 c46f07d50457653d6453b76cf6501127c914320275e7f050c42db511beaae417`).
+**Residual execution base verified (iteration 37):** branch `sprint/motoko-iter37-suite-bound-m2-m3` at pristine `0b7f3e3afbdaee91ead44fe8a555661f95719c04` (`origin/dev`). M1 landed in PR #1048; only M2 and M3 remain. The production probe is byte-identical to the design base, while the self-test suite contains the accepted M1 implementation.
 
 **Implementation scope:** `tools/eval/test_motoko_connection_probe.sh` only. `tools/eval/motoko_connection_probe.sh` is a read-only test dependency and must not be edited.
 
-**Milestones:** 3, each independently green and controller-committable.
+**Milestones:** M1 landed; execute residual M2 then M3 sequentially, each independently green and controller-committable.
 
 **Risk:** high: this is a timing-sensitive Bash 3.2 suite and the two last quorum fixes are not integrated consistently in the design.
 
 ## Non-negotiable execution protocol
 
 - The executor runs **no git write operations**: no `git add`, `git commit`, `git stash`, `git checkout`, `git switch`, `git branch`, `git push`, or reset/clean operation. Commits are the **CONTROLLER'S job**, exactly one commit after each milestone.
-- At every milestone boundary the executor runs the syntax check, the bounded full suite, the milestone-specific checks, then snapshots the full post-milestone implementation file. It then stops for the controller to inspect, commit, and run the suite again.
+- At every residual milestone boundary the executor runs the syntax check, the bounded full suite, the milestone-specific checks, then snapshots the full post-milestone implementation file. It then stops for the controller to inspect, commit, and run the suite again.
 - Snapshots are cumulative representations of every sprint-owned implementation file modified so far. Since the implementation scope contains one file, each boundary must contain `.snap/M<k>/tools/eval/test_motoko_connection_probe.sh`. Do not recursively snapshot `.snap/` itself. Preserve mode with `cp -p`.
-- New self-test arms go **after** the last existing containment arm (`expect_success "REAL_LSOF containment accepts..."`, current lines 817-818) and **before** the suite-scope `PROBE_MAX_TREE_NODES` guard (current line 823). This is after all existing wall-clock-bounded work, including the SIGKILL-escalation arm at current lines 798-799. No new arm may be inserted ahead of those arms.
+- New residual self-test arms go after M1's measurement-failure arms (currently ending at line 1100) and before the existing suite-scope `PROBE_MAX_TREE_NODES` guard (currently lines 1108-1111). This remains after all wall-clock-bounded work. No new arm may be inserted ahead of those arms.
 - Any socket/network observation made in the sandbox is **UNINFORMATIVE UNDER SANDBOX**. The fixture-backed assertions and all non-socket timing/derivation assertions remain usable; never report the live socket sub-arm as a network result.
-- M1 has a controller/CI hold point. After the M1 commit, the controller must read the `launchd drivers (bash 3.2)` log. M2 must not start until its measured `r`, floor state, `r_real`, `p_obs`, and bookend line are recorded. If `r < 100/s`, the controller must decide whether to change `SCALE_MAX`/the 15-minute job budget before authorizing M2.
+- The M1 controller/CI hold is satisfied by PR #1048: the remote `launchd drivers (bash 3.2)` leg was green and recorded `r=318/s r_real=251/s p_obs=1.27 ... scale=2 ... floor=DISABLED`, with no under-floor line. M2's floor flip is therefore unblocked without a `SCALE_MAX`/CI-budget decision.
 
 ## Verified current state
 
 | Fact | Command actually run at planning time | Observation |
 |---|---|---|
-| Base suite | bounded artifact-poll loop around `/bin/bash tools/eval/test_motoko_connection_probe.sh` | `rc=0`; `46` `ok` lines; `0` `not ok` lines with `PASS: 46 probe self-test arms ran` as the same-block positive control; `59` wall seconds; one socket line labelled `UNINFORMATIVE UNDER SANDBOX` |
+| Residual base suite | `/bin/bash tools/eval/test_motoko_connection_probe.sh` (bounded by the runner below during execution) | `rc=0`; `57` `ok` lines; `0` `not ok` lines with `PASS: 57 probe self-test arms ran`; 71 wall seconds in the iteration-37 planner audit; diagnostic `r=604/s r_real=643/s p_obs=1.06 ... scale=1 ... floor=DISABLED`; one bookend `drift=none` |
 | Shell floor | `/bin/bash --version` | `GNU bash, version 3.2.57(1)-release (arm64-apple-darwin25)` |
 | Syntax | `/bin/bash -n` on the suite and production probe | rc 0 for both |
 | CI reachability | `rg -n 'make test-launchd-drivers' .github/workflows/*.yml`; inspect `.github/workflows/ci.yml:583-602` and `make/test.mk:59-74` | exactly one workflow call, from job `launchd drivers (bash 3.2)`; `runs-on: macos-latest`; `timeout-minutes: 15`; target invokes this suite and `/bin/bash -n` |
 | No direct workflow invocation | `rg -l --fixed-strings 'test_motoko_connection_probe.sh' .github/workflows \| wc -l`, with the `make test-launchd-drivers` hit above as positive control | `0`: the single CI path is indirect through `make/test.mk` |
 | Current literals | `rg -c 'PROBE_TIMEOUT_SECS=[0-9]+' ...`; `rg -c 'PROBE_MAX_TREE_NODES=[0-9]+' ...` | `9`; `2` |
-| Helper absent | `rg -c 'derive_bound\|measure_fork_rate\|bound_secs\|classify_drift' ... || true`, with `rg -c run_bounded ...` in the same block | no helper matches; positive control `run_bounded=10` |
+| M1 helpers present, consumers absent | `rg -c '^bound_secs\(\)' ...`; `rg -c '\$\(bound_secs ' ... || true`; `rg -c run_bounded ...` | helper `1`; capacity consumers `0`; positive control `run_bounded=19` |
 | Production probe unchanged from design base | SHA-256 and `git diff 087fbea...HEAD -- tools/eval/motoko_connection_probe.sh` | hash `f0b5e02493369099f123c42107850fe062bf60d56ccabb2a7e4690d654aabc99`; empty diff |
 
-The measured base for all milestone comparisons is therefore **rc 0 / 46 ok / 59 wall seconds**, not the design log's exact 57-second observation.
+The residual measured base is therefore **rc 0 / 57 ok / 71 wall seconds** on darwin/arm64 with Bash 3.2.57. M2 and M3 acceptance remains arm/verdict based, not tied to that wall-time sample.
 
 ## Design corrections the executor must follow
 
@@ -181,10 +181,10 @@ Expected `cmp` rc 0; positive control: both files exist, are executable, and hav
 All edits remain in `tools/eval/test_motoko_connection_probe.sh`.
 
 1. Flip only the literal default to `BOUND_FLOOR_ENFORCED=${PROBE_SELFTEST_BOUND_FLOOR_ENFORCED:-1}`. Update the existing disabled-floor arm to pass explicit `...ENFORCED=0`; update the enforced-floor arm so its 99 refusal has no flag override. This flip and the first consumer below are one milestone/controller commit.
-2. Leave the pre-derivation line-9/base assignment in place. Immediately after `derive_bounds` returns successfully, reassign `ARM_CAP_SECS=${PROBE_SELFTEST_ARM_CAP_SECS:-$(bound_secs "$ARM_CAP_BASE")}`. This is the first scaled consumer; it executes only after `BOUND_SCALE` exists. Preserve the already-validated explicit override verbatim. The derivation-only early exit follows this reassignment.
-3. Apply `$(bound_secs 5)` to both `cleanup_fixture_sleeps` deadlines (current lines 56 and 66), and to `run_bounded`'s terminate grace (current line 118). These functions can execute before derivation or from the EXIT trap, so `bound_secs` must retain `${BOUND_SCALE:-1}`.
-4. Replace only the four must-not-fire lane literals at current lines 361, 409, 422, and 435 with `PROBE_TIMEOUT_SECS="$(bound_secs 4)"`. Leave literal pins 0, 2, 1, 1, and 60 unchanged.
-5. Scale `cap_elapsed > 10` (current line 533), `run_lane_ready_cap_secs=5` (588), and the outer `+ 10` margin (589). Keep `cap_secs_fixture=2`, `run_lane_timeout_secs=2`, orphan cap 1, report-path cap 2, socket 5s caps, and getconf cap literal.
+2. Leave the pre-derivation base assignment at current lines 9-10 in place. Immediately after `derive_bounds` returns successfully (current line 346), reassign `ARM_CAP_SECS=${PROBE_SELFTEST_ARM_CAP_SECS:-$(bound_secs "$ARM_CAP_BASE")}`. This is the first scaled consumer; it executes only after `BOUND_SCALE` exists. Preserve the already-validated explicit override verbatim. The derivation-only early exit follows this reassignment.
+3. Apply `$(bound_secs 5)` to both `cleanup_fixture_sleeps` deadlines (current lines 61 and 71), and to `run_bounded`'s terminate grace (current line 123). These functions can execute before derivation or from the EXIT trap, so `bound_secs` must retain `${BOUND_SCALE:-1}`.
+4. Replace only the four must-not-fire lane literals at current lines 529, 577, 590, and 603 with `PROBE_TIMEOUT_SECS="$(bound_secs 4)"`. Leave literal pins 0, 2, 1, 1, and 60 unchanged.
+5. Scale `cap_elapsed > 10` (current line 701), `run_lane_ready_cap_secs=5` (756), and the outer `+ 10` margin (757). Keep `cap_secs_fixture=2`, `run_lane_timeout_secs=2`, orphan cap 1, report-path cap 2, socket 5s caps, and getconf cap literal.
 6. Immediately after computing `discovery_killer_lane_secs=$((ARM_CAP_SECS + 30))`, add an assertion that it is strictly greater than `ARM_CAP_SECS`; on violation print the exact lane/arm values and exit 1. Do not increment `arms` separately: this assertion belongs to the existing discovery arm.
 7. Add `P_PROXY_MAX_HUNDREDTHS=470`. After validating/calculating both rates but **before** setting/printing a derived bound, refuse when `P_OBS_HUNDREDTHS > P_PROXY_MAX_HUNDREDTHS` with `instrument failure, not a verdict: observed proxy spread <d.dd> exceeds 4.70`. Equality is allowed. No derived line may be emitted on refusal.
 8. In the post-wall-clock self-arm section, add one counted arm which runs two bounded derivation-only recursions: `800/100` must refuse with `8.00 exceeds 4.70` and zero derived lines; `400/100` must exit 0 and emit exactly one diagnostic containing `p_obs=4.00`.
@@ -324,7 +324,7 @@ Expected: current file equals M2 snapshot; M1 and M2 snapshots differ, with both
 
 ### Exact edits
 
-1. On the discovery arm's existing per-command env line (current line 519), replace only `PROBE_MAX_TREE_NODES=50000` with `PROBE_MAX_TREE_NODES="$NODE_CEILING"`. Keep it on that env line; never assign/export `PROBE_MAX_TREE_NODES` at suite scope. Keep `PROBE_TEST_PGREP_LOOP_DELAY=1` unchanged. Add `PROBE_TEST_MARKER="$tmp_dir/pgreploop.marker"` on that same arm and, immediately after the arm, count `^pgrep ` marker lines, refuse on zero or `>= 800`, and print `# discovery walk marker_count=<n> node_ceiling=<n>`. This makes the required delay-less manual control observable without persisting another arm.
+1. On the discovery arm's existing per-command env line (current line 687), replace only `PROBE_MAX_TREE_NODES=50000` with `PROBE_MAX_TREE_NODES="$NODE_CEILING"`. Keep it on that env line; never assign/export `PROBE_MAX_TREE_NODES` at suite scope. Keep `PROBE_TEST_PGREP_LOOP_DELAY=1` unchanged. Add `PROBE_TEST_MARKER="$tmp_dir/pgreploop.marker"` on that same arm and, immediately after the arm, count `^pgrep ` marker lines, refuse on zero or `>= 800`, and print `# discovery walk marker_count=<n> node_ceiling=<n>`. This makes the required delay-less manual control observable without persisting another arm.
 2. Extend M2's literal census arm: numeric `PROBE_MAX_TREE_NODES` literals must equal exactly 1, the must-fire `PROBE_MAX_TREE_NODES=3` arm. Add a same-block positive control that total `PROBE_MAX_TREE_NODES=` references are at least 3 before accepting a zero/changed literal result.
 3. Do not edit `tools/eval/motoko_connection_probe.sh`. Its expected SHA-256 remains `f0b5e02493369099f123c42107850fe062bf60d56ccabb2a7e4690d654aabc99`, and the refusal-branch suite arm remains `(28)`.
 
@@ -396,9 +396,15 @@ fi
 
 Expected: current file equals M3 snapshot; M2 and M3 differ; M1/M2/M3 snapshot files all exist with full post-boundary content. Executor stops. Controller inspects, commits M3, and runs the final bounded suite at that commit.
 
+## Residual iteration-37 executor handoff
+
+Start from pristine `0b7f3e3afbdaee91ead44fe8a555661f95719c04`. Before editing, create `.snap/M1/tools/eval/test_motoko_connection_probe.sh` from the accepted current suite and verify it is executable, non-empty, and byte-identical; this reconstructs the missing M1 handoff artifact without changing implementation. Execute M2 completely, run every ordinary M2 boundary and the bounded loaded A/B, snapshot `.snap/M2`, and stop for controller inspection/commit. Resume on that accepted M2 commit, execute M3, run every M3 boundary including both temporary-copy delay-less legs, snapshot `.snap/M3`, and stop for controller inspection/commit. This is one bounded sequential executor run with a mandatory controller boundary between milestones; M3 depends on M2's scaled consumers and census arm and must not be implemented first or squashed into M2.
+
+Pristine-base gates intentionally red-before-fix: M2's no-override `FORK_RATE=99` floor refusal (base instead exits 0 with the loud disabled-floor line), the forced `p_obs=8.00` high refusal (base instead exits 0 and publishes a bound), the counted two-sided proxy arm itself, the expected 59-arm PASS, the final timeout-literal count 5, and M3's final node-literal count 1. The direct `p_obs=4.00` low-side control is already green at base but is not yet paired with a rejecting high side. Already green at pristine base: Bash 3.2 syntax, ordinary suite `rc=0 ok=57 not_ok=0`, production-probe hash/diff, and the existing ambient `PROBE_MAX_TREE_NODES` scope refusal. All local evidence is darwin/arm64. The M2 loaded A/B is host/load-dependent local evidence; live socket observations are sandbox-uninformative. The only remote-only acceptance leg is `launchd drivers (bash 3.2)` on GitHub `macos-latest`; ubuntu/windows jobs do not invoke this suite.
+
 ## Final success conditions
 
-- Three controller commits, one per milestone; zero executor git writes.
+- M1 remains the landed PR #1048 boundary; iteration 37 adds two controller commits, M2 then M3; zero executor git writes.
 - `.snap/M1`, `.snap/M2`, and `.snap/M3` each contain the full corresponding version of the sole modified implementation file.
 - Final suite: Bash 3.2 syntax green, rc 0, 59 ok arms, exact PASS line; any socket result still labelled uninformative under sandbox.
 - M1 CI observation recorded before M2; M2 loaded evidence reported pass only with a red k1 control and zero derived reds, otherwise explicitly uninformative.
