@@ -1343,6 +1343,45 @@ the Repo Profile above):
    the very lines its own drill had missed. **(e)** Mission-independent: under `ailang-code` the diff
    is still the enumeration and `ailang test` is still the killer. The tell: every mutant you ran was
    a sole killer, and you chose all of them by thinking about the bug.
+3o. **IN A MULTI-MILESTONE SPRINT, A NAMED ACCEPTANCE TEST CAN BE FILED UNDER THE WRONG MILESTONE —
+   IT PASSES, IT EXERCISES REAL MACHINERY, IT KILLS THE MUTATION ITS OWN ROW NAMES, AND IT IS STILL
+   VACUOUS FOR THE MILESTONE IT IS SUPPOSED TO GATE** (added 2026-09-06 V1 iteration 333; instance 1
+   is iteration 330, whose judge re-aimed the plan's T2 kill-mapping as *"imprecise"* and whose
+   finding was recorded and then dropped, instance 2 is this iteration, where the same defect was
+   total rather than partial). Rule 3i already makes you run a test-plan row's named mutation
+   *against the row that names it* rather than against the suite, and 3n already makes you enumerate
+   from the DIFF because a set derived from what a milestone FIXES misses what it SHIPS. Both are
+   correct, and **neither asks which milestone's diff the mutation belongs to.** So a row whose
+   mutation an EARLIER milestone's code already defends satisfies 3i perfectly: apply it, the test
+   reddens, the row is signed off. The milestone under review contributed nothing to that kill, and
+   no instrument in this protocol can tell.
+   Note why it survives review: the test is not broken, not skipped, not weak. It builds a real
+   binary, drives a real protocol, asserts real behaviour — it is simply gated one layer upstream of
+   the code it is filed against, and everything reports it green.
+   Measured on V1's `m-compile-cache-unverified-artifacts`, whose plan names T12 as **M4's** headline
+   end-to-end acceptance test. With M4's entire production hunk reverted to the parent, T12 stays
+   **PASS** (`ok cmd/ailang 8.062s`) while the same tree reddens T11 on four subtests — control
+   firing, so the instrument works. The cause is structural rather than sloppy: every divergence T12
+   constructs is caught by **M1's** per-blob hash verification before M4's check is reached, so M4's
+   invariant cannot be exercised that way at all. The plan's stated T12 mutation — *"trust manifest
+   alone or omit one blob hash"* — is, read plainly, an M1 mutation. The replacement had to construct
+   a state M1 ACCEPTS (a hash-**valid**, logically-incomplete artifact set) before M4's guard could be
+   reached.
+   **Rules. (a)** For milestone `k`, non-vacuity is measured against **that milestone's own
+   production diff**, never the sprint's: revert exactly `git show <Mk>`'s production hunks over the
+   current tree, run each of `Mk`'s named tests, and require every one to redden. A named test that
+   stays green under that revert is filed under the wrong milestone. **(b)** Put this in the
+   EVALUATOR directive explicitly — a judge handed the whole sprint's diff will reasonably measure
+   against the whole sprint's diff, which is exactly the reading that hides this. **(c)** Do it per
+   milestone as it lands, not at the end: the later a milestone, the more of its plan's mutations an
+   earlier one already defends, so the failure is *most* likely on the last milestone and *least*
+   likely to be noticed there. **(d)** The disposition is a CORRECTED test, not a dropped one —
+   re-file the row against the milestone that does defend it, leave the test alone, and write the one
+   `Mk` actually needs. T12 remains a perfectly good M1 regression test and was not touched.
+   **(e)** Say which milestone the row belongs to in the record: it is data about the PLANNER's
+   decomposition, not about the executor. Mission-independent — every mission here runs
+   multi-milestone sprints with per-milestone acceptance tables. The tell: a milestone's headline
+   acceptance test passes, and you have only ever reverted the whole sprint to check it.
    **AND A MUTANT THAT REDS *SOMETIMES* IS NEITHER A KILLER NOR A MISS — IT IS A REPORT THAT YOUR
    SYSTEM IS NONDETERMINISTIC, AND THE MOVE IT INVITES (ENLARGE THE SAMPLE UNTIL THE KILL LOOKS
    RELIABLE) IS THE ONE MOVE THAT CANNOT WORK** (added 2026-09-01 V1 iteration 314; instance 1 is

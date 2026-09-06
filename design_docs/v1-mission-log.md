@@ -22015,3 +22015,157 @@ me. Not a defect, but worth the line — three writers were active in this repo 
 0.75 d); `#1046` closes with it. Then `m-cachesrc-cognitive-complexity`, which M3 and M4 both
 inherit. `ci-red-mission-loop-workbench` is handed over and resumes only as a close: check
 `#1055` merged, re-read the check set, close the row.
+
+## 333 — 2026-09-06 — The sprint is complete, and the judge proved the milestone's own headline test was measuring the milestone before it [PRODUCT]
+
+**Pick.** `m-compile-cache-unverified-artifacts` **M4 of 4** — the [IN-SPRINT] item, resume
+predicate *"execute M4"*. The queue head, `ci-red-mission-loop-workbench`, was handed to motoko at
+iteration 332 and its resume predicate was *"#1055 merged"*; that predicate was RUN as a command
+rather than transcribed, and at Gate 1 it was still `OPEN`/`BLOCKED`. It merged on its own at
+`00:03:40Z` as [`45bbcf625`](https://github.com/sunholo-data/ailang/commit/45bbcf625) while this
+iteration worked, so the row is now RESOLVED.
+
+**dev was RED at Gate 1, and it was not this mission's to take.** HEAD `353082b1c` carried three
+non-required reds, all read first-party from `actions/jobs/<id>` rather than from the check name:
+`launchd drivers (bash 3.2)` at step *Run launchd driver tests* with
+`make[1]: go: No such file or directory` — `test-launchd-drivers` had acquired a
+`test-mission-registry` dependency that runs `go test ./internal/mission/...` inside a job whose own
+comment says *"No Go, no cache: these are shell + git tests and nothing else"*; and `test-windows`
+plus `Build windows-latest` on `internal\mission\kill_unix.go:6:51: undefined: syscall.Kill`, because
+`unix` is a build TAG and has never been a recognised filename suffix, so the file compiles on
+Windows. Negative control: the identical set is red at `dev~1` and `dev~2`, and `dev~3`/`dev~4` have
+`total=0` runs. All three were already fixed in motoko's open `#1055`, whose file list
+(`kill_unix.go`, a new `kill_windows.go`, `make/test.mk`) covers both causes exactly, and whose
+branch `git worktree list` attributes to motoko's clone at the exact head `5f7a9c476`. Recorded,
+diagnosed, left alone.
+
+**Outcome. LANDED — M4 of 4; the sprint is COMPLETE.** PR
+[#1058](https://github.com/sunholo-data/ailang/pull/1058) → squash
+[`761b37e64`](https://github.com/sunholo-data/ailang/commit/761b37e64), from five commits:
+`3554a7fd1` (the milestone), `0b4c4fe13` (round-1 judge, two blocking), `801201828` (round-2 judge,
+one non-blocking), `79a63c4de` and `944b3a5ef` (two Windows-only reds).
+
+`registerModule` walked the AST, found an exported `@route` function, looked for a matching entry in
+`loaded.Iface.Exports`, found none, and fell out of the inner loop with **no branch to take** — so
+the route was dropped silently and serve-api published a tool surface missing a function the source
+plainly declares. Validation now runs after the under-basePath filter and **before** both the
+idempotent-return path and map publication, so a repeat registration cannot bypass it. Every
+exported `@route` function must have a **non-nil** `loaded.Iface.Exports[fn.Name]`; a nil iface with
+an exported annotated route reports the same inconsistency rather than returning silently; the error
+names source path, module and function, carries `CACHE_ROUTE_IFACE_MISMATCH` and states the
+compile-clear remedy. Nothing is retried, no name is added to the export list, `@nomcp`/`@noexpose`
+do not excuse a missing export, and private annotated functions stay outside the invariant.
+
+**The substance is the round-1 judge, and it is the sharpest finding this sprint produced.**
+Evaluator `sonnet`, own worktree, at the milestone commit: **FAIL 68/100, two blocking**, both
+reproduced first-party before anything was done about them.
+
+*(1) T12 — the milestone's own headline acceptance test — is VACUOUS with respect to the entire M4
+diff.* With `module_entry.go` reverted to the parent, `TestServeAPI_DivergentCacheTools` stays green
+(`ok cmd/ailang 8.062s`) while T11 correctly reddens on three subtests; the control fires, so this is
+not a broken instrument. The cause is structural rather than sloppy, which is what makes it worth
+recording: **every divergence T12 constructs — old artifacts under a fresh stamp, one stale blob — is
+caught by M1's per-blob SHA-256 verification before `registerModule` is ever reached**, so the M4
+invariant cannot be exercised that way at all. The sprint plan's T12 row ("trust manifest alone or
+omit one blob hash") is an M1 mutation wearing M4's clothes, and nobody noticed because the test does
+pass and does exercise real machinery. `TestServeAPI_RouteIfaceMismatchFromCache` is the arm T12
+could not be: it hand-writes an artifact set that is hash-**VALID** and logically incomplete —
+delete `f7` from the cached `iface.json`, re-stamp `artifacts.json` to the patched bytes so M1
+accepts them — and requires serve-api to REFUSE to start, naming the token, `f7` and the remedy, and
+**not** reporting `reason=ARTIFACT_INVALID`. Its non-vacuity proof is the reported bug itself: with
+the M4 hunk reverted it fails at *"serve-api started on a route/interface mismatch"* and its captured
+log reads `Registered: entry (6 exports)` then `Starting MCP server on stdio transport...` — six
+tools published for a source declaring seven, which is `#1046` live.
+
+*(2) The `item != nil` half of the export lookup had NO killer.* Dropping it left the whole
+`internal/apiserver` package and T12 green. It is load-bearing: `extractModuleInfo`
+(`internal/apiserver/server.go:479`) ranges `Exports` and dereferences `item.Purity` with no nil
+check, and a key present with a nil item is reachable from a corrupted `iface.json` inside this
+design's own accidental-corruption threat model. One subtest pins it and is the **SOLE killer** —
+under the mutation exactly one subtest reddens across the package, `module_entry.go` restored
+byte-identical (`sha256 3a7711e5…`).
+
+**Round 2: PASS 93/100, zero blocking**, all three round-1 findings adjudicated CLOSED by name. The
+round-2 judge then attacked the NEW fixture four ways — wrong key deleted, `f6` control also
+deleted, hash forced unchanged, re-stamp skipped — and every instrument-failure guard fired. The
+skipped-re-stamp attack is the one to keep: the test fails with a *different, correctly attributed*
+message (M1's hash gate recompiling from source) rather than passing for the wrong reason, which is
+what proves the re-stamp step load-bearing. Its one non-blocking finding became the third commit:
+the helper's comment claimed *"a healthy server blocks on stdin"*, and that is false — a healthy
+`serve-api --mcp` exits rc=0 at EOF in **0.9s**, measured. The assertion was sound for a reason
+nobody had written down (the mismatch is fatal *before* the transport is announced), so the comment
+now names the real discriminator and the test asserts it explicitly.
+
+**Two Windows reds, and the first is a real product defect this milestone only surfaced.**
+`test-windows` reddened at `manifest entries = 0, want 1`. On the runner **every** artifact
+publication fails `CACHE_WRITE_FAILED … ARTIFACT_INVALID`, and the diagnostic's own path says why:
+`…\compile\modules\C:__Users__runneradmin__…`. `sanitizeModuleID`
+(`internal/pipeline/cache_store.go:162`) maps only `/` and `\`, so a module ID beginning `C:/Users/…`
+yields a directory component containing a **colon**, which Windows forbids. **The compile artifact
+cache is non-functional on Windows.** Pre-existing: `internal/pipeline` is untouched by this PR and
+`sanitizeModuleID` predates the sprint at `d96de92f5`; M1 only made the failure audible. Every
+existing Windows test tolerates a cache miss, so M4's two MCP fixtures — the first that require a
+PUBLISHED artifact — are the first to see it. Filed as its own queue row rather than absorbed
+(iteration 257's rule), because adding `:` changes artifact-directory identity on every platform and
+collides with the already-filed `a/b` vs `a__b` row. `requireCompileArtifactCache` gates both
+fixtures on the OBSERVED empty manifest **AND** Windows, so on any platform where publication works
+an empty manifest is still a hard failure — a skip that cannot hide a regression. The second red is
+ordinary: T11 asserted `loaded.File.Path` while `registerModule` emits the path it RESOLVED, and
+`t.TempDir()` returns the 8.3 short form (`C:\Users\RUNNER~1\…`) that `EvalSymlinks` expands. Fixed
+by resolving the expected path the same two ways, not by weakening the assertion to a basename.
+
+**Verification the controller did not delegate.** Every gate baselined on the pristine parent FIRST
+(rule 3e(a)) — all rc=0 there, and both named tests returned `no tests to run`, which is the
+non-vacuity control — then re-run outside the sandbox at each commit: scoped build
+(`./internal/... ./cmd/ailang`, never `./...`, since `cmd/wasm` is `js && wasm`), `go vet`,
+`gofmt -l` empty, the four-package suite (`internal/pipeline`, `internal/loader`,
+`internal/apiserver`, `cmd/ailang`) all `ok`, and **eleven** further gates DERIVED from `ci.yml`
+rather than remembered: `check-boundaries`, `check-file-sizes`, `check-referenced-paths`,
+`check-git-exec`, `check-home-isolation`, `check-no-personal-email`, `check-context-docs`,
+`check-changelog`, `check-golden-drift`, `check-tmpfile-hygiene`, `fmt-check`. `.snap/M4/`
+byte-identical 3/3 before the milestone commit.
+
+**Gate 3b on an observed green, never a predicted one.** `mergeable` read FIRST each round (the
+boring cause). Final head `944b3a5ef`: **5 runs, 5 completed, 0 not-green**, `total=21` checks with
+`pending=0`, all four required contexts (`build` · `docs-gate` · `lint` · `test`) pass,
+`MERGEABLE/CLEAN`. Worth naming: `SonarCloud`, `test-windows`, `Build windows-latest` and
+`launchd drivers (bash 3.2)` are **all success** on that head — the branch merged GREENER than the
+base it started from, because `pull_request` checks build on the updated base and motoko's `#1055`
+had landed in between. Autoclose scan over all five commit messages and the PR title/body: **0**
+hits, known-bad control matching **1**. `#1046` was then CLOSED with the verdict posted as its own
+`--body-file` comment first and the comment count asserted to have grown, per the mechanism-B rule.
+
+**Ruled out / corrected.**
+- *"The three dev reds are this mission's to fix."* Refuted. V1 owns the repo, so a red does outrank
+  the queue — but the entire fix was already in flight on a sibling's PR whose file list covers both
+  causes. Duplicating it is the `#758`/`#759` collision; the correct action was to record and wait,
+  and it merged unaided.
+- *"T12 verifies M4."* Refuted by mutation, and it had passed two rounds of human-free review before
+  the judge asked the question. A test that exercises real machinery and passes is not thereby
+  testing the thing it is filed under.
+- *"The Windows red is our tests being sloppy."* Half true. One of the two was (the short-path
+  assertion). The other is a product defect that makes the compile cache unusable on an entire
+  platform, and it was found only because a test finally demanded that publication SUCCEED.
+
+**Routing evidence.** `resolve-role-spawn.sh` run for all four roles, output used verbatim.
+Designer → `recipe claude:claude-fable-5-1`, **NOT SPAWNED** (doc landed at 328; nothing to author),
+so the **Fable budget is UNSPENT for a fourth consecutive iteration** and the rotation pointer stays
+at `codex:gpt-6-astra`. Planner → `agent-tool opus fail-closed:planner-lane-field-missing`, **NOT
+SPAWNED** (the verified 4-milestone plan landed at 329); `derive-planner-lane.sh` returns the same
+`opus fail-closed:planner-lane-field-missing` for the **sixth** consecutive iteration while the
+spawn-pin hook would deny that spawn — measured, not routed on, and the fix still belongs in the
+TOOL. Executor → `recipe codex:gpt-5.6-sol`, probe rc=0, one bounded sandboxed 30-minute-capped run,
+zero git writes, `.snap/M4/` verified byte-identical before the commit. Evaluator →
+`agent-tool sonnet`, in its OWN worktree, both rounds; generator≠judge holds by vendor as well as
+model, and round 2 judged code the CONTROLLER had written. `metered=$0.00` of the $5 ceiling; no
+quorum spend (the doc was already through the gate), no GPU, no `rig.lock`.
+
+**Progress.** N = **12** design docs remaining before v1.0.0 (was 13, **−1**):
+`m-compile-cache-unverified-artifacts` LANDED complete and left the count, its doc and sprint plan
+moved to `design_docs/implemented/v0_35_2/`, and `#1046` is closed.
+
+**Next.** `m-cachesrc-cognitive-complexity` — the SonarCloud new-code maintainability red iteration
+331 filed against itself, which M3 and M4 have both now inherited; it is NEW and ours, and the gate
+is green on this PR only because the diff is test-heavy. Then the new
+`m-cache-sanitize-module-id-windows-colon` row, which should be designed together with the existing
+`m-cache-sanitize-module-id-collision` row rather than patched twice.

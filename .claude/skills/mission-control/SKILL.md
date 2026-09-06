@@ -1629,7 +1629,7 @@ Sonnet, inline, is fine.
   generalisation is this file's own recurring shape aimed at its own hands: **a remedy is an
   instrument too, so the document you write to fix a round is subject to every rule you apply to the
   round.** The tell: you are writing "what changed since round 1" and the numbers in it were produced
-  by commands you ran before you made those changes.
+  by commands you ran before you made those changes. **And in a multi-milestone sprint, non-vacuity is measured against the MILESTONE's own production diff, never the sprint's — a named acceptance test whose mutation an EARLIER milestone already defends passes with the milestone under review entirely reverted, and every instrument in this protocol reports it green: rule 3o, added 2026-09-06 after V1's `m-compile-cache-unverified-artifacts` M4 headline test did exactly that. Put it in the evaluator directive; a judge handed the whole sprint's diff will measure against the whole sprint's diff.**
 
 **METERED-SPEND LEDGER (Mark 2026-07-18 — "make sure costs don't go crazy"):** keep a running
 per-iteration tally of METERED dollars (every codex run's reported cost, every managed_agents
