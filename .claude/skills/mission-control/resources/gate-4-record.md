@@ -1,5 +1,19 @@
 ## Gate 4 — RECORD (append-only; the log is the mission's memory)
 
+**ROTATE THE LOG WHEN IT PASSES ~40 ENTRIES.** After appending this iteration's entry:
+
+```bash
+ailang mission rotate-log ${MISSION_NAME} --keep 20
+```
+
+It keeps the newest 20 full entries live, appends the rest to
+`<name>-mission-log-archive.md` with their FULL bodies, and REGENERATES
+`<name>-mission-index.md` — one line per iteration across live + archive, which is what
+Gate 2 greps before picking. Nothing is deleted; the command is verified lossless by test.
+
+Regenerated, never appended: an append-only index drifts the moment an entry is edited,
+and an index that answers "already tried?" confidently and wrongly is worse than none.
+
 First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-4`.
 
 **FIRST: overwrite `design_docs/${MISSION_NAME}-mission-dashboard.md`** (Mark 2026-08-04: the

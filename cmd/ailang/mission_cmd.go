@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/mission"
@@ -35,11 +36,13 @@ func missionCommand(args []string) error {
 		return missionInstall(args[1:])
 	case "apply":
 		return missionApply(args[1:])
+	case "rotate-log":
+		return missionRotateLog(args[1:])
 	case "help", "--help", "-h":
 		printMissionHelp()
 		return nil
 	default:
-		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply)", args[0])
+		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log)", args[0])
 	}
 }
 
@@ -51,6 +54,9 @@ func printMissionHelp() {
                                    exit 0 clean, 1 drift, 2 registry error
   ailang mission install <name>    render this mission's artifacts to *.staged
   ailang mission apply <name>      promote the staged artifacts, then reload launchd
+  ailang mission rotate-log <name> [--keep N]
+                                   trim the live log, archive the rest, and regenerate
+                                   the COMPLETE one-line index (default keep 20)
                                    --adopt  acknowledge replacing a hand-written plist
                                    --force  proceed while an iteration is running
                                    --no-reload  promote without touching launchd
@@ -198,4 +204,49 @@ func missionApply(args []string) error {
 		}
 	}
 	return err
+}
+
+func missionRotateLog(args []string) error {
+	keep := 20
+	var name string
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--keep":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--keep needs a number")
+			}
+			n, err := strconv.Atoi(args[i+1])
+			if err != nil {
+				return fmt.Errorf("--keep %q is not a number", args[i+1])
+			}
+			keep = n
+			i++
+		default:
+			if strings.HasPrefix(args[i], "-") {
+				return fmt.Errorf("unknown flag %q", args[i])
+			}
+			name = args[i]
+		}
+	}
+	if name == "" {
+		return fmt.Errorf("usage: ailang mission rotate-log <name> [--keep N]")
+	}
+	reg, err := loadMissionRegistry()
+	if err != nil {
+		return err
+	}
+	m, ok := reg.Get(name)
+	if !ok {
+		return fmt.Errorf("no mission %q (have: %s)", name, strings.Join(reg.Names(), ", "))
+	}
+	logPath := filepath.Join(m.Workdir, "design_docs", m.Name+"-mission-log.md")
+	res, err := mission.RotateLog(logPath, keep)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("live log   %s\n  %d -> %d bytes (~%dk -> ~%dk tokens), %d of %d entries kept\n",
+		res.LogPath, res.LogBefore, res.LogAfter, res.LogBefore/4000, res.LogAfter/4000, res.Kept, res.Total)
+	fmt.Printf("archive    %s\n  %d entries rotated out (full bodies retained)\n", res.ArchivePath, res.Archived)
+	fmt.Printf("INDEX      %s\n  %d iterations, complete history — grep this before picking work\n", res.IndexPath, res.IndexEntries)
+	return nil
 }

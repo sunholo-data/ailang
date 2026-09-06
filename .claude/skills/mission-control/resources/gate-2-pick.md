@@ -1,5 +1,22 @@
 ## Gate 2 — PICK + REALITY-CHECK
 
+**⚠ BEFORE PICKING, GREP THE ITERATION INDEX. This is how the loop avoids redoing work.**
+
+```bash
+grep -i '<keyword>' design_docs/${MISSION_NAME}-mission-index.md
+```
+
+`design_docs/<name>-mission-index.md` is ONE LINE PER ITERATION covering the entire
+history — live log and archive together — and it is small enough (~13k tokens for 331
+iterations) to read whole. The live log holds only the newest 20 entries; the rest are in
+`<name>-mission-log-archive.md`, retrievable but never loaded.
+
+Why this rule exists: the v1 log reached 2.86 MB / ~715k tokens / 334 entries with no
+rotation anywhere in this protocol, so "has this been tried?" had no cheap answer — the
+only complete record was a file too big to read. Rotation without an index would have made
+that worse, not better: it would have moved the history out of reach entirely. Grep the
+index first; open the archive only when the index says something relevant happened.
+
 First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-2`.
 
 Take the top `[NEXT]` queue item. **Before any work, verify the doc's claimed status against repo
