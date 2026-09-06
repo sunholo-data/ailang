@@ -1,6 +1,8 @@
 {
   "sprint_id": "m-cache-module-id-encoding",
-  "status": "not_started",
+  "status": "blocked",
+  "blocked_reason": "D-57 requires a human naming-direction decision, followed by design-gate completion and planner resynchronization; do not initialize runtime sprint state or execute any milestone before all three are complete.",
+  "criteria_status": "historical_inherited_not_currently_approved",
   "created": "2026-09-06T04:13:39Z",
   "design_doc": "design_docs/planned/v0_36_0/m-cache-module-id-encoding.md",
   "sprint_plan": "design_docs/planned/v0_36_0/m-cache-module-id-encoding-sprint-plan.md",
