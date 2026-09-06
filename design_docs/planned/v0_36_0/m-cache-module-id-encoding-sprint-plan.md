@@ -1,5 +1,7 @@
 # Sprint Plan: M-CACHE-MODULE-ID-ENCODING
 
+> **Execution blocked (iteration 336, D-57):** quorum rejected the naming-scheme direction after the bounded re-quorum. This is an inherited plan, not current execution authorization. M1–M4 remain pending. Before execution, a human ruling and design gate must settle the scheme, then the planner must synchronize the plan and initial snapshot, replacing the overbroad injectivity claim and correcting the M1 mutation example: `Foo`/`foo` collapse without the suffix; `a/b`/`a__b` do not under the clarified slug.
+
 ## Summary
 
 Replace the compile-artifact cache's illegal and collision-prone module-directory mapping with
