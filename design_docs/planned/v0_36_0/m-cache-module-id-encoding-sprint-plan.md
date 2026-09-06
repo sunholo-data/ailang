@@ -195,6 +195,17 @@ turn red for that wiring mutation; M1's unit test cannot.
 
 ## M3 — prove Windows legality and retire the skip
 
+> **Added after the iteration-334 judge review (non-blocking finding 3).** M3 MUST also edit the
+> hand-maintained no-silent-skip `-run` allow-list in `.github/workflows/ci.yml` to include
+> `TestEncodeModuleDirName_AllLegalOnWindows` and `TestCacheArtifacts_WindowsModuleIDPublication`.
+> That list is a literal set of test names — `ci.yml:111` (unix, 5 names) and `ci.yml:480`
+> (windows, 4 names) — so a new test that silently skips on the Windows runner is invisible to it
+> by construction. Without this edit M3's "cannot masquerade as green" property is aspirational
+> rather than enforced, which is the same class of gap as the milestone's own vacuity flag.
+> (Both line numbers verified first-party by the controller before this note was written; note the
+> two lists are ALREADY asymmetric — the unix one carries `TestZ3VerifyEndToEnd` and the Windows
+> one does not — so add to BOTH deliberately rather than copying one over the other.)
+
 **Estimate:** 0.30 day; approximately 60 LOC, all tests/comments.  
 **Dependency:** green M2 commit.  
 **Commit:** one M3 commit after both affected package trees are green locally; Windows evidence
