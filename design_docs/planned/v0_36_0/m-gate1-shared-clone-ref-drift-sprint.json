@@ -3,92 +3,90 @@
   "design_doc": "design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift.md",
   "plan_path": "design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift-sprint-plan.md",
   "created": "2026-09-06",
-  "status": "planned",
+  "updated": "2026-09-06",
+  "status": "in_progress",
   "risk_level": "low",
-  "scope_note": "Quorum-cleared via narrow-refinement carve-out (rev 2; both R2 verbatim fixes baked into the design doc's helper code). Process-correctness sprint: a bash-3.2 helper (tools/launchd/mission-base.sh: snap/record/last/drift) records each gate's origin/dev READING (SHA+ISO time) into a NEW per-mission state file mission-${MISSION_NAME}-base (never the heartbeat — the driver's slot-verdict classifier reads the heartbeat's LAST row, mission-control.sh 1484-1505, and a trailing base-* row would flip REAPED->CRASHED), plus minimal SKILL.md prose wiring at Gates 1/3/3b/4 paid for by moving war-story prose into .claude/skills/mission-control/resources/ref-drift.md so SKILL.md stays <= 2781. Do NOT re-run quorum.",
-  "hard_constraints": [
-    "RATCHET: .claude/skills/mission-control/SKILL.md must END at <= 2781 lines after EVERY milestone touching it (M2, M3); gate at each boundary: wc -l .claude/skills/mission-control/SKILL.md <= 2781 AND make check-context-docs exits 0. Baseline scripts/context_docs_baseline.txt:19 pins EXACTLY 2781 and is NEVER bumped; added lines are paid by moving prose into the linked resources/ref-drift.md.",
-    "S-GUARDS: these literals must remain greppable in SKILL.md after M2/M3 (each grep -c/-cF >= 1): 'resolve-role-spawn.sh'; 'MISSION-ROLE:'; 'enum in this build lists'; 'now `claude:claude-fable-5-1` → `codex:gpt-6-astra` → `pi:ollama/deepseek-v4-flash:0731-cloud` → repeat'; 'ASTRA IS ALSO A QUORUM REVIEWER'. Armed by tools/launchd/test_mission_routing.sh S1-S5.",
-    "SUITE GATE / EXEMPTION: canonical CI-parity gate is `env -i HOME=\"$HOME\" PATH=\"/usr/bin:/bin:/usr/sbin:/sbin\" TERM=dumb make test-launchd-drivers` (must exit 0). Executor treats ONLY reds ABSENT from the Day-0 baseline capture (.snap/H0-test-baseline.txt) as failures. Pre-existing environmental classes at HEAD 7870f40a0: (a) under runner-polluted ambient env (MISSION_*/CONTROLLER_* exports) test_mission_routing.sh shows 6 R6/arm12-class reds — env-induced, 77/77 green scrubbed; (b) the 'run_lane fixture arm requires real lsof on Darwin CI target' arm (tools/eval/test_motoko_connection_probe.sh:28) fires only on a Darwin host WITHOUT lsof and is GREEN on this rig (/usr/sbin/lsof present) — if seen on the executor machine it is likewise pre-existing and exempt. Never fix pre-existing reds in-sprint.",
-    "BASH 3.2: no associative arrays, no ${v,,}, no GNU timeout; /bin/bash -n clean on every created/modified script (rig /bin/bash = 3.2.57(1) arm64; CI launchd-drivers job .github/workflows/ci.yml:582 asserts bash 3.x).",
-    "VERBATIM HELPER: M1 implements EXACTLY the design doc Solution Design code block for mission-base.sh (copy verbatim) — it carries the two R2 fixes: record() single-read invariant (snap once into $rec), last() awk exits 1 on no-match, drift() explicit [ -n \"$old\" ] no-record guard returning 2.",
-    "SNAPSHOTS: executor CANNOT commit. After EACH milestone, snapshot cumulative FULL post-milestone content of every created/modified file into .snap/M1/ .snap/M2/ .snap/M3/ at RELATIVE worktree paths; controller builds ONE commit per milestone from the snapshots (3 commits total). Executor MUST NOT run git add/commit/checkout.",
-    "NO FETCH IN snap (deferred decision): snap is read-only git rev-parse of the current shared ref; a --fetch flag is reserved, not built."
+  "scope_note": "Post-c1212b3c recovery plan. M1 remains complete at 20201e1d9. M2/M3 must be authored afresh in the authoritative split gate resources; the abandoned old-monolith M2 diff and .snap/M2 material are evidence only and must never be copied, merged, applied, restored, or used as implementation input. Reviewed behavior and both quorum-R2 fixes are unchanged; do not rerun quorum.",
+  "execution_preconditions": [
+    "Controller provides a clean base containing the c1212b3c gate-resource split (or descendant) and M1 commit 20201e1d9.",
+    "The old uncommitted root-SKILL.md M2 diff is cleared or quarantined before executor spawn; root SKILL.md is not an M2/M3 implementation target.",
+    "The existing stale .snap/M2 material is cleared or quarantined; executor creates a fresh split-resource .snap/M2 snapshot.",
+    "All four authoritative gate resources exist before executor spawn: gate-1-observe.md, gate-3-route.md, gate-3b-ci-green.md, gate-4-record.md."
   ],
-  "non_goals": [
-    "No changes to .agents/skills/mission-control/SKILL.md (distinct 551-line hand-maintained stub; HD-5; no sync mechanism exists — install-skill.sh installs only ailang-feedback).",
-    "No baseline bumps: scripts/context_docs_baseline.txt and scripts/context_docs_links_baseline.txt untouched.",
-    "No S-guard edits: tools/launchd/test_mission_routing.sh untouched; S1-S5 literals not moved or reworded.",
-    "No tools/launchd/mission-heartbeat.sh edits: label whitelist (lines 11-14) untouched; base rows bypass it via the new separate mission-${MISSION_NAME}-base file.",
-    "No tools/launchd/mission-control.sh driver edits: the base record goes to the new separate state file precisely so the slot-verdict (1484-1505) and retry-resume (~1461) readers are untouched.",
-    "No tools/launchd/lib/pin-root.sh / pin-reexec machinery changes (complementary concern; reuse only).",
-    "No Gate-2 full base- stamp unless M3's observation arm adopts it (default: defer).",
-    "No new timestamp scheme: reuse date -u '+%Y-%m-%dT%H:%M:%SZ' exactly as the heartbeat."
+  "hard_constraints": [
+    "M1 is complete and immutable at 20201e1d9; preserve record() single-snap, last() exit-1-on-no-match, and drift() explicit non-empty-old guard returning 2 for both no-record cases.",
+    "M2/M3 edit only authoritative resources under .claude/skills/mission-control/resources plus new ref-drift.md; root .claude/skills/mission-control/SKILL.md stays byte-identical to the clean execution base and <= 2781 lines (expected 560).",
+    "Never bump scripts/context_docs_baseline.txt or scripts/context_docs_links_baseline.txt; make check-context-docs and link resolution must pass.",
+    "S1-S5 literals remain in resources/gate-3-route.md: resolve-role-spawn.sh; MISSION-ROLE:; enum in this build lists; now `claude:claude-fable-5-1` → `codex:gpt-6-astra` → `pi:ollama/deepseek-v4-flash:0731-cloud` → repeat; ASTRA IS ALSO A QUORUM REVIEWER.",
+    "No changes to .agents/skills/mission-control/SKILL.md, mission-heartbeat.sh, mission-control.sh, pin-root.sh, test_mission_routing.sh, quorum receipts, mission charter/log, or implementation outside the named resource files.",
+    "Bash 3.2 only; snap performs no fetch; no associative arrays, ${v,,}, or GNU timeout.",
+    "Executor does not run git add, git commit, git checkout, or git push."
   ],
   "features": [
     {
       "id": "M1_mission_base_helper_and_non_vacuity_test",
-      "description": "Create tools/launchd/mission-base.sh (snap/record/last/drift) by copying the design doc's Solution Design code block VERBATIM (both R2 fixes included); create tools/launchd/test_mission_base.sh modeled on test_mission_heartbeat.sh's scratch-state pattern with named arms snap-format, record-last-roundtrip, heartbeat-untouched, nonvacuity-drift-fires, steady-control, no-record-absent-file, no-record-missing-label; wire '@/bin/bash tools/launchd/test_mission_base.sh' into the test-launchd-drivers target in make/test.mk (the existing 'for f in tools/launchd/*.sh tools/launchd/lib/*.sh' syntax loop at make/test.mk:65 already /bin/bash -n-covers the new helper — no separate -n line needed). Day-0 baseline capture (.snap/H0-test-baseline.txt, ambient + env-i scrubbed runs) precedes edits.",
-      "estimated_loc": 260,
+      "description": "Committed helper, eight-arm non-vacuity test, and make test-launchd-drivers wiring. Verify after base alignment; do not regenerate or edit.",
+      "estimated_loc": 152,
+      "actual_loc": 152,
       "dependencies": [],
       "files": [
-        "tools/launchd/mission-base.sh (new, ~55 LOC verbatim from design doc)",
-        "tools/launchd/test_mission_base.sh (new, ~200 LOC; grounded on test_mission_heartbeat.sh=194 / test_mission_memgate.sh=206 / test_mission_stall.sh=221)",
-        "make/test.mk (+1 test-invocation line in test-launchd-drivers)",
-        ".snap/H0-test-baseline.txt (new; pre-edit baseline, not committed unless controller decides)"
+        "tools/launchd/mission-base.sh",
+        "tools/launchd/test_mission_base.sh",
+        "make/test.mk"
       ],
       "acceptance_criteria": [
-        "tools/launchd/mission-base.sh content equals the design doc Solution Design code block (verbs snap/record/last/drift; record() single-read invariant comment; last() awk END exit-1-on-no-match; drift() explicit [ -n \"$old\" ] guard returning 2); /bin/bash -n clean under rig bash 3.2.57 for both new scripts.",
-        "grep -n 'test_mission_base.sh' make/test.mk hits inside the test-launchd-drivers target; suite remains shell-only (no Go toolchain in that CI job).",
-        "Test arms pass under /bin/bash: snap prints <40-hex-sha><TAB><ISO8601-UTC> exit 0; record gate1 appends exactly one base-gate1 row to temp mission-test-base and last gate1 returns that SHA; temp mission-test-heartbeat stays empty (heartbeat-untouched).",
-        "Non-vacuity mutation (design doc recipe, verbatim): scratch clone, MISSION_NAME=test mission-base.sh record gate1 at commit A; git update-ref refs/remotes/origin/dev HEAD moves the shared ref to B; mission-base.sh drift gate1 exits 1 and prints DRIFT with A -> B; control with no advance exits 0; BOTH no-record cases (state file absent; file present with no matching base- row) exit 2 with 'no base-gate1 record yet' — never a false DRIFT with an empty old SHA.",
-        "CI-parity gate exits 0: env -i HOME=\"$HOME\" PATH=\"/usr/bin:/bin:/usr/sbin:/sbin\" TERM=dumb make test-launchd-drivers (now including test_mission_base.sh).",
-        "Snapshot written: .snap/M1/{tools/launchd/mission-base.sh,tools/launchd/test_mission_base.sh,make/test.mk} full content, relative paths; controller builds commit 1/3 'feat(mission): add mission-base.sh base recorder + non-vacuity drift test (M-GATE1-SHARED-CLONE-REF-DRIFT M1)'."
+        "Commit 20201e1d9 is an ancestor of the execution HEAD.",
+        "Both scripts pass /bin/bash -n and test_mission_base.sh reports all eight arms green.",
+        "make/test.mk contains the test_mission_base.sh invocation.",
+        "Both quorum-R2 fixes remain present exactly in behavior: last no-match exits 1; drift empty-old returns 2; record snaps once."
+      ],
+      "passes": true,
+      "started": "2026-09-06",
+      "completed": "2026-09-06T11:22:34+02:00",
+      "notes": "Committed as 20201e1d9; 55 + 96 + 1 = 152 added LOC. No M1 work remains."
+    },
+    {
+      "id": "M2_gate1_gate3_split_resource_wiring",
+      "description": "Fresh implementation against the c1212b3c resource split: Gate 1 records the full SHA/read time; Gate 3 re-reads, classifies drift, creates from the fresh SHA, and records provenance; new ref-drift.md carries rationale and protocol. Never reuse the abandoned monolith diff or stale M2 snapshot.",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1_mission_base_helper_and_non_vacuity_test"
+      ],
+      "files": [
+        ".claude/skills/mission-control/resources/gate-1-observe.md",
+        ".claude/skills/mission-control/resources/gate-3-route.md",
+        ".claude/skills/mission-control/resources/ref-drift.md"
+      ],
+      "acceptance_criteria": [
+        "gate-1-observe.md records gate1 immediately after the existing sync block and echoes the full SHA/read time.",
+        "gate-3-route.md snaps immediately before origin/dev-based worktree creation, compares with last gate1, invokes drift gate1 on disagreement, creates from the fresh full SHA, and carries base into provenance/routing evidence.",
+        "gate-1-observe.md and gate-3-route.md both link to an existing ref-drift.md containing the two-instance rationale, drift protocol, and non-vacuity recipe.",
+        "Root SKILL.md is byte-identical to the clean execution base, remains <= 2781 lines, and make check-context-docs exits 0.",
+        "All five S-guard literals remain in gate-3-route.md and the scrubbed make test-launchd-drivers gate exits 0.",
+        "Fresh .snap/M2 is built from split-resource content and contains no root SKILL.md or abandoned-snapshot content."
       ],
       "passes": null,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "Gate 2 durable stamp remains deferred; do not edit gate-2-pick.md in this milestone."
     },
     {
-      "id": "M2_gate1_gate3_skill_wiring_ratchet_clean",
-      "description": "Wire .claude/skills/mission-control/SKILL.md Gate 1 (after the existing sync block at lines 446-447: base=$(bash tools/launchd/mission-base.sh record gate1) + echo) and Gate 3 (immediately before any 'git worktree add ... origin/dev' in the Gate-3 region, section head line 1043: fresh snap, compare vs last gate1, '|| mission-base.sh drift gate1', create the worktree from the FRESH $newsha, record base=$base in provenance/routing evidence) using the design doc's verbatim snippets; MOVE the two-instance war stories + why-silent + drift-on-mismatch protocol prose OUT of SKILL.md into NEW .claude/skills/mission-control/resources/ref-drift.md (header convention per resources/role-spawn-routing.md: moved verbatim under the progressive-disclosure gate); SKILL.md links it with one line. Net SKILL.md delta <= 0. Do not touch the S-guard regions (lines ~1059, 1100, 1107, 1118).",
-      "estimated_loc": 130,
-      "dependencies": ["M1_mission_base_helper_and_non_vacuity_test"],
+      "id": "M3_gate3b_gate4_split_resource_wiring_and_reproof",
+      "description": "Gate 3b records and pins the poll target from the same fresh read; Gate 4 reuses its existing fetch/re-confirmation, records gate4, and requires base=<sha>@<iso> in Routing evidence; final mutation re-proof runs last.",
+      "estimated_loc": 40,
+      "dependencies": [
+        "M2_gate1_gate3_split_resource_wiring"
+      ],
       "files": [
-        ".claude/skills/mission-control/SKILL.md (modified; +~22 wiring/link lines, -~40 moved prose lines, net <= 0, ends <= 2781)",
-        ".claude/skills/mission-control/resources/ref-drift.md (new, ~85 LOC: moved prose + drift protocol + non-vacuity test recipe)"
+        ".claude/skills/mission-control/resources/gate-3b-ci-green.md",
+        ".claude/skills/mission-control/resources/gate-4-record.md"
       ],
       "acceptance_criteria": [
-        "Greppable anchors: grep -c 'mission-base.sh record gate1' .claude/skills/mission-control/SKILL.md >= 1 and grep -c 'mission-base.sh drift gate1' .claude/skills/mission-control/SKILL.md >= 1; existing Gate-1 lines 446-447 content preserved.",
-        "test -f .claude/skills/mission-control/resources/ref-drift.md and grep -c 'resources/ref-drift.md' .claude/skills/mission-control/SKILL.md >= 1 (dead-link arm of scripts/check_context_docs.sh passes).",
-        "Ratchet: wc -l .claude/skills/mission-control/SKILL.md <= 2781 AND make check-context-docs exits 0; net-delta <= 0 accounting recorded in milestone notes (added wiring lines vs moved prose lines).",
-        "All five S-guard literals still grep-match in SKILL.md (each count >= 1): resolve-role-spawn.sh; MISSION-ROLE:; enum in this build lists; the full S3 rotation string 'now `claude:claude-fable-5-1` → `codex:gpt-6-astra` → `pi:ollama/deepseek-v4-flash:0731-cloud` → repeat' (grep -F, exactly one full-line hit at HEAD); ASTRA IS ALSO A QUORUM REVIEWER.",
-        "CI-parity gate exits 0: env -i HOME=\"$HOME\" PATH=\"/usr/bin:/bin:/usr/sbin:/sbin\" TERM=dumb make test-launchd-drivers (S1-S5 arms live in test_mission_routing.sh).",
-        "Snapshot written: .snap/M2/ cumulative (M1's three files + SKILL.md + resources/ref-drift.md, full post-M2 content); controller builds commit 2/3 'feat(mission): wire Gate 1/3 base record+drift; move war stories to resources/ref-drift.md (M2)'."
-      ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
-    },
-    {
-      "id": "M3_gate3b_gate4_wiring_and_mutation_reproof",
-      "description": "Wire SKILL.md Gate 3b (around the EXISTING full-SHA poll-target pin at line 1742: route the target through mission-base.sh record gate3b and add the drift-from-gate1 note — the design ADDS record+drift around the existing SHA-pin, it does not introduce SHA-pinning) and Gate 4 (reuse the existing fetch+rev-parse re-confirmation at lines 2196-2200, route the value through mission-base.sh record gate4, add base=<sha>@<iso> to the Routing-evidence row wording; no NEW re-read before Gate 4 — the existing re-confirmation IS the read at record time). Gate-2 base-gate2 stamp: default DEFER (design doc deferred decision) unless the executor judges the first live iteration proved value; record the decision. Final non-vacuity re-proof is the milestone's LAST check.",
-      "estimated_loc": 50,
-      "dependencies": ["M1_mission_base_helper_and_non_vacuity_test", "M2_gate1_gate3_skill_wiring_ratchet_clean"],
-      "files": [
-        ".claude/skills/mission-control/SKILL.md (modified; +~20 lines paid from M2 headroom or further moved prose; ends <= 2781)",
-        ".claude/skills/mission-control/resources/ref-drift.md (optional ~10-line observation addendum)"
-      ],
-      "acceptance_criteria": [
-        "Greppable anchors: grep -c 'mission-base.sh record gate3b' .claude/skills/mission-control/SKILL.md >= 1 and grep -c 'mission-base.sh record gate4' .claude/skills/mission-control/SKILL.md >= 1; existing pin still greps (grep -c 'target=$(git rev-parse origin/dev)' SKILL.md >= 1) and the Gate-4 fetch/rev-parse re-confirmation at ~2199-2200 is preserved verbatim.",
-        "Gate-4 Routing-evidence wording carries the base stamp: grep -c 'base=<sha>@' .claude/skills/mission-control/SKILL.md >= 1 (or the exact literal landed, noted in milestone notes).",
-        "Ratchet re-checked: wc -l .claude/skills/mission-control/SKILL.md <= 2781 AND make check-context-docs exits 0; all five S-guard literal greps re-run (counts >= 1 each).",
-        "CI-parity gate exits 0: env -i HOME=\"$HOME\" PATH=\"/usr/bin:/bin:/usr/sbin:/sbin\" TERM=dumb make test-launchd-drivers (test_mission_base.sh included and green).",
-        "FINAL non-vacuity re-proof (repeat of M1's recipe): scratch clone, record gate1 at A, git update-ref refs/remotes/origin/dev HEAD to move the ref to B, drift gate1 exits 1 with a DRIFT line A -> B; steady control exits 0; BOTH no-record cases (file absent; file present without matching base- row) exit 2 with 'no base-gate1 record yet'. This runs as the milestone's last check before the snapshot.",
-        "Gate-2 stamp decision recorded (adopted light snap-echo OR deferred-with-reason).",
-        "Snapshot written: .snap/M3/ cumulative full final content of every sprint-touched file; controller builds commit 3/3 'feat(mission): wire Gate 3b/4 base record+drift + Routing-evidence base= stamp (M3)'."
+        "gate-3b-ci-green.md contains record gate3b, derives the full-SHA poll target from that same read, preserves SHA-addressed bounded polling, compares against Gate 1, and links ref-drift.md.",
+        "gate-4-record.md preserves the existing fetch/rev-parse re-confirmation, contains record gate4, requires base=<sha>@<iso> in Routing evidence, and links ref-drift.md without adding a redundant second fetch.",
+        "Root SKILL.md is unchanged; make check-context-docs, link resolution, S1-S5 checks in gate-3-route.md, and scrubbed make test-launchd-drivers all pass.",
+        "Final non-vacuity check runs last: steady=0, update-ref mutation drift=1 with old->new, absent-file=2, missing-label=2.",
+        "Gate-2 durable stamp is recorded as deferred-with-reason; fresh cumulative .snap/M3 contains all sprint files except root SKILL.md."
       ],
       "passes": null,
       "started": null,
@@ -97,23 +95,25 @@
     }
   ],
   "velocity": {
-    "target_loc_per_day": 147,
-    "estimated_total_loc": 440,
-    "estimated_days": 3
+    "target_loc_per_day": 101,
+    "estimated_total_loc": 302,
+    "estimated_days": 3,
+    "remaining_loc": 150,
+    "remaining_days": 2
   },
   "velocity_evidence": {
-    "command": "git log --oneline --since=\"2 weeks ago\"",
-    "commits_last_15_days": 677,
-    "commits_per_day": 45,
-    "raw_additions_all_files": 167018,
-    "scoped_additions_tools_claude_design_docs": 65414,
-    "scoped_additions_per_day": 4361,
-    "design_doc_estimate": "3 days (M1 1d, M2 1d, M3 1d), quorum-reviewed",
-    "derivation": "440 total LOC / 3 days = 147 LOC/day target ~= 3.4% of demonstrated scoped-tree raw throughput; risk is ratchet arithmetic and verbatim-copy discipline, not volume."
+    "m1_actual": "Commit 20201e1d9 adds 55 lines in mission-base.sh, 96 in test_mission_base.sh, and 1 in make/test.mk: 152 actual LOC.",
+    "m2_estimate": "Approximately 110 LOC across two narrow gate-resource edits and the new rationale resource.",
+    "m3_estimate": "Approximately 40 LOC across Gate 3b and Gate 4 resource edits.",
+    "derivation": "302 total LOC / 3 design-approved milestone-days = about 101 LOC/day; 150 LOC / 2 remaining days = 75 LOC/day."
   },
-  "premise_corrections": [
-    "Prompt premise NOT reproduced: the claimed pre-existing red 'run_lane fixture arm requires real lsof on Darwin CI target' (tools/eval/test_motoko_connection_probe.sh:28) is GREEN in this worktree at HEAD 7870f40a0 — the arm fires only when Darwin lacks lsof and this rig has /usr/sbin/lsof; scrubbed-env run of the full suite is all-green. The actually-observed pre-existing reds are 6 R6/arm12-class failures in test_mission_routing.sh induced ONLY by the runner's ambient MISSION_*/CONTROLLER_* env exports (77/77 green under env -i). Plan generalizes the exemption: Day-0 baseline capture + only-new-reds-fail, both classes named.",
-    "make/test.mk:65 syntax loop is a glob ('for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n ...') — it auto-covers the new mission-base.sh, so the design doc's 'add /bin/bash -n mission-base.sh to the syntax loop' needs no edit; M1 adds only the test-invocation line.",
-    "Slot-verdict reader line numbers drifted between the design doc's measurement commit (034cdd02f: 1480-1502) and this worktree (7870f40a0: mechanism at 1484-1505 — same code: wc -l stamps 1488, tail -1 1489, awk label 1491, case 1492-1498). All other doc line citations (baseline:19=2781, Gate-1 446-447, Gate-2 794, Gate-3b pin 1742, Gate-4 2196-2200, heartbeat whitelist 11-14, .agents stub 551) reproduced exactly."
-  ]
+  "executor_handoff": {
+    "ready": false,
+    "blocked_until": "Controller proves a clean post-split base containing M1 and neutralizes the abandoned monolith diff and stale M2 snapshot.",
+    "sequence": [
+      "Verify M1 unchanged on the clean post-split base.",
+      "Implement and validate M2 in gate-1-observe.md, gate-3-route.md, and new ref-drift.md; emit fresh split-resource M2 snapshot.",
+      "Implement and validate M3 in gate-3b-ci-green.md and gate-4-record.md; run final mutation re-proof last; emit fresh cumulative M3 snapshot."
+    ]
+  }
 }
