@@ -58,7 +58,7 @@ cleanup_fixture_sleeps() {
   for survivor_pid in $(fixture_sleep_pids "$fixture_dir"); do
     kill -TERM "$survivor_pid" 2>/dev/null || true
   done
-  deadline=$(( $(date +%s) + 5 ))
+  deadline=$(( $(date +%s) + $(bound_secs 5) ))
   remaining=$(fixture_sleep_count "$fixture_dir")
   while (( remaining != 0 && $(date +%s) <= deadline )); do
     sleep 0.05
@@ -68,7 +68,7 @@ cleanup_fixture_sleeps() {
     for survivor_pid in $(fixture_sleep_pids "$fixture_dir"); do
       kill -9 "$survivor_pid" 2>/dev/null || true
     done
-    deadline=$(( $(date +%s) + 5 ))
+    deadline=$(( $(date +%s) + $(bound_secs 5) ))
     while (( remaining != 0 && $(date +%s) <= deadline )); do
       sleep 0.05
       remaining=$(fixture_sleep_count "$fixture_dir")
@@ -120,7 +120,7 @@ run_bounded() {
         echo "instrument failure: refusing process-group TERM for pid $pid because it does not lead a distinct job group" >&2
         kill "$pid" 2>/dev/null || true
       fi
-      terminate_deadline=$(( $(date +%s) + 5 ))
+      terminate_deadline=$(( $(date +%s) + $(bound_secs 5) ))
       while kill -0 "$pid" 2>/dev/null && (( $(date +%s) <= terminate_deadline )); do
         sleep 1
       done
@@ -297,11 +297,16 @@ else
 fi
 P_OBS_HUNDREDTHS=$(( (p_obs_max * 100 + p_obs_min / 2) / p_obs_min ))
 P_OBS=$(printf '%d.%02d' "$((P_OBS_HUNDREDTHS / 100))" "$((P_OBS_HUNDREDTHS % 100))")
+P_PROXY_MAX_HUNDREDTHS=470
+if (( P_OBS_HUNDREDTHS > P_PROXY_MAX_HUNDREDTHS )); then
+  echo "instrument failure, not a verdict: observed proxy spread ${P_OBS} exceeds 4.70" >&2
+  exit 1
+fi
 
 FORK_RATE_REF=400
 SCALE_MAX=4
 NODE_CEILING_FACTOR=16
-BOUND_FLOOR_ENFORCED=${PROBE_SELFTEST_BOUND_FLOOR_ENFORCED:-0}
+BOUND_FLOOR_ENFORCED=${PROBE_SELFTEST_BOUND_FLOOR_ENFORCED:-1}
 if [[ ! "$BOUND_FLOOR_ENFORCED" =~ ^[01]$ ]]; then
   echo "not ok - PROBE_SELFTEST_BOUND_FLOOR_ENFORCED must be 0 or 1" >&2
   exit 1
@@ -344,6 +349,7 @@ classify_drift() {
 }
 
 derive_bounds "$FORK_RATE"
+ARM_CAP_SECS=${PROBE_SELFTEST_ARM_CAP_SECS:-$(bound_secs "$ARM_CAP_BASE")}
 if [[ "${PROBE_SELFTEST_DERIVATION_ONLY:-0}" == 1 ]]; then
   exit 0
 fi
@@ -526,7 +532,7 @@ EOF
 chmod +x "$live_bin/uname" "$live_bin/dig" "$live_bin/pgrep" "$live_bin/lsof" "$live_bin/ailang-stub"
 
 run_live() {
-  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=4 \
+  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS="$(bound_secs 4)" \
     PROBE_STUB_STATE="$tmp_dir/lane" "$@" /bin/bash "$probe" treatment control "$tmp_dir/live.json"
 }
 
@@ -574,7 +580,7 @@ expect_failure "bounded termination deadline refuses" "bounded termination deadl
 success_artifact="$tmp_dir/success/probe.json"
 mkdir -p "$tmp_dir/success"
 expect_success "hermetic live success path completes" \
-  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=4 \
+  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS="$(bound_secs 4)" \
     PROBE_STUB_STATE="$tmp_dir/lane-success" /bin/bash "$probe" treatment control "$success_artifact"
 for retained in treatment.driver.log treatment.lsof control.driver.log control.lsof; do
   [[ -s "$success_artifact.$retained" ]] || { echo "not ok - missing retained $retained" >&2; exit 1; }
@@ -587,7 +593,7 @@ pass_arm "success path retains both lanes driver logs and lsof captures"
 refusal_artifact="$tmp_dir/refusal/probe.json"
 mkdir -p "$tmp_dir/refusal"
 expect_failure "refusing live path refuses with the control-void message" "treatment verdict is void" \
-  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=4 \
+  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS="$(bound_secs 4)" \
     PROBE_STUB_STATE="$tmp_dir/lane-refusal" \
     /bin/bash "$probe" treatment treatment "$refusal_artifact"
 for retained in treatment.driver.log treatment.lsof control.driver.log control.lsof; do
@@ -600,7 +606,7 @@ pass_arm "refusal path retains both lanes driver logs and lsof captures"
 unwritable="$tmp_dir/not-a-directory"
 : > "$unwritable"
 expect_failure "JSON artifact write failure refuses" "could not write JSON artifact" \
-  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS=4 \
+  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS="$(bound_secs 4)" \
     PROBE_STUB_STATE="$tmp_dir/lane-write" /bin/bash "$probe" treatment control "$unwritable/probe.json"
 
 if [[ $(uname -s) == Darwin ]] && command -v nc >/dev/null && command -v lsof >/dev/null; then
@@ -682,6 +688,10 @@ fi
 # The scoped high node ceiling keeps the independent node-ceiling refusal structurally
 # unreachable during the arm's window.
 discovery_killer_lane_secs=$((ARM_CAP_SECS + 30))
+if (( discovery_killer_lane_secs <= ARM_CAP_SECS )); then
+  echo "not ok - descendant discovery wall-clock deadline: lane deadline $discovery_killer_lane_secs is not above arm cap $ARM_CAP_SECS" >&2
+  exit 1
+fi
 expect_failure "descendant discovery refuses on the real wall-clock deadline" "process-tree discovery deadline expired (wall clock)" \
   env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS="$discovery_killer_lane_secs" PROBE_TREE_DISCOVERY_SECS=1 \
     PROBE_MAX_TREE_NODES=50000 PROBE_TEST_PGREP_LOOP=1 PROBE_TEST_PGREP_LOOP_DELAY=1 \
@@ -698,7 +708,7 @@ cap_elapsed=$(( $(date +%s) - cap_start ))
 # The 199 alone does NOT discriminate: a fixture that exits 199 of its own accord
 # satisfies it without any TERM/KILL ever happening. Require the elapsed time to reach
 # the cap as well, so only a command the cap actually STOPPED can pass this arm.
-if (( cap_rc != 199 || cap_elapsed < cap_secs_fixture || cap_elapsed > 10 )); then
+if (( cap_rc != 199 || cap_elapsed < cap_secs_fixture || cap_elapsed > $(bound_secs 10) )); then
   echo "not ok - arm cap terminates a hung command and reports it (rc=$cap_rc elapsed=${cap_elapsed}s)" >&2
   exit 1
 fi
@@ -753,8 +763,8 @@ else
   local run_lane_extra_env
   run_lane_extra_env=("$@")
   run_lane_timeout_secs=2
-  run_lane_ready_cap_secs=5
-  run_lane_outer_cap_secs=$(( run_lane_timeout_secs + grace_allowance + 10 ))
+  run_lane_ready_cap_secs=$(bound_secs 5)
+  run_lane_outer_cap_secs=$(( run_lane_timeout_secs + grace_allowance + $(bound_secs 10) ))
   run_lane_fixture_secs=$fixture_secs
   run_lane_fixture_dir="$tmp_dir/run-lane-fixture-$run_lane_fixture_secs"
   mkdir "$run_lane_fixture_dir"
@@ -1024,7 +1034,7 @@ expect_failure "bound derivation rejects an empty fork rate" \
   env PROBE_UNDER_TEST="$probe" PROBE_SELFTEST_FORK_RATE= PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash "$0"
 
 run_bounded "$tmp_dir/floor-disabled.out" "$tmp_dir/floor-disabled.err" "$ARM_CAP_SECS" -- \
-  env PROBE_UNDER_TEST="$probe" PROBE_SELFTEST_FORK_RATE=99 PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash "$0"
+  env PROBE_UNDER_TEST="$probe" PROBE_SELFTEST_FORK_RATE=99 PROBE_SELFTEST_BOUND_FLOOR_ENFORCED=0 PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash "$0"
 floor_disabled_rc=$?
 floor_disabled_line="# BOUND_FLOOR_NOT_ENFORCED: fork rate 99/s is under the floor 100/s (needs scale 5 > 4); running at scale 4 because BOUND_FLOOR_ENFORCED=0; the design ratio is NOT held on this run"
 floor_disabled_count=$(grep -Fxc -- "$floor_disabled_line" "$tmp_dir/floor-disabled.out" || true)
@@ -1036,7 +1046,7 @@ fi
 pass_arm "bound floor disabled is loud, not silent"
 
 run_bounded "$tmp_dir/floor-enforced.out" "$tmp_dir/floor-enforced.err" "$ARM_CAP_SECS" -- \
-  env PROBE_UNDER_TEST="$probe" PROBE_SELFTEST_FORK_RATE=99 PROBE_SELFTEST_BOUND_FLOOR_ENFORCED=1 PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash "$0"
+  env PROBE_UNDER_TEST="$probe" PROBE_SELFTEST_FORK_RATE=99 PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash "$0"
 floor_enforced_rc=$?
 floor_enforced_refusal=$(grep -Fc 'fork rate 99/s needs scale 5 > 4 (floor 100/s); host too slow to hold the ratio inside the CI budget; instrument failure, not a verdict' "$tmp_dir/floor-enforced.err" || true)
 floor_enforced_disabled=$(grep -c 'BOUND_FLOOR_NOT_ENFORCED' "$tmp_dir/floor-enforced.out" || true)
@@ -1053,6 +1063,23 @@ pass_arm "bound floor enforced refuses under the floor and accepts its boundary"
 expect_failure "bound floor flag rejects values other than zero or one" \
   "PROBE_SELFTEST_BOUND_FLOOR_ENFORCED must be 0 or 1" \
   env PROBE_UNDER_TEST="$probe" PROBE_SELFTEST_FORK_RATE=800 PROBE_SELFTEST_BOUND_FLOOR_ENFORCED=2 PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash "$0"
+
+run_bounded "$tmp_dir/proxy-high.out" "$tmp_dir/proxy-high.err" "$ARM_CAP_SECS" -- \
+  env PROBE_UNDER_TEST="$probe" PROBE_SELFTEST_FORK_RATE=800 PROBE_SELFTEST_REAL_OP_RATE=100 \
+    PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash "$0"
+proxy_high_rc=$?
+proxy_high_refusal=$(grep -Fxc 'instrument failure, not a verdict: observed proxy spread 8.00 exceeds 4.70' "$tmp_dir/proxy-high.err" || true)
+proxy_high_derived=$(grep -c '^# bound derivation:' "$tmp_dir/proxy-high.out" || true)
+run_bounded "$tmp_dir/proxy-low.out" "$tmp_dir/proxy-low.err" "$ARM_CAP_SECS" -- \
+  env PROBE_UNDER_TEST="$probe" PROBE_SELFTEST_FORK_RATE=400 PROBE_SELFTEST_REAL_OP_RATE=100 \
+    PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash "$0"
+proxy_low_rc=$?
+proxy_low_diag=$(grep -Ec '^# bound derivation: r=400/s r_real=100/s p_obs=4\.00 reference=400/s scale=1 arm_cap=120s node_ceiling=6400 floor=enforced$' "$tmp_dir/proxy-low.out" || true)
+if (( proxy_high_rc == 0 || proxy_high_refusal != 1 || proxy_high_derived != 0 || proxy_low_rc != 0 || proxy_low_diag != 1 )); then
+  echo "not ok - observed proxy spread refuses above 4.70 and accepts below it (high_rc=$proxy_high_rc high_refusal=$proxy_high_refusal high_derived=$proxy_high_derived low_rc=$proxy_low_rc low_diag=$proxy_low_diag)" >&2
+  exit 1
+fi
+pass_arm "observed proxy spread refuses above 4.70 and accepts below it"
 
 run_bounded "$tmp_dir/drift-normal.out" "$tmp_dir/drift-normal.err" 10 -- classify_drift 1 800
 drift_normal_rc=$?
@@ -1146,6 +1173,18 @@ if (( actual_refusal_branches != expected_refusal_branches )); then
   exit 1
 fi
 pass_arm "refusal-branch count still matches the set this suite covers ($actual_refusal_branches)"
+
+timeout_literal_count=$(grep -Ec 'PROBE_TIMEOUT_SECS=[0-9]+' "$0" || true)
+bound_secs_match_count=$(grep -c 'bound_secs ' "$0" || true)
+if (( timeout_literal_count == 0 || bound_secs_match_count == 0 )); then
+  echo "not ok - wall-clock literal census matched nothing (timeout_literals=$timeout_literal_count bound_secs=$bound_secs_match_count); instrument failure, not a verdict" >&2
+  exit 1
+fi
+if (( timeout_literal_count != 5 || bound_secs_match_count < 8 )); then
+  echo "not ok - wall-clock literal census drift (timeout_literals=$timeout_literal_count expected=5 bound_secs=$bound_secs_match_count minimum=8)" >&2
+  exit 1
+fi
+pass_arm "wall-clock literal census preserves five fixed timeout pins and scaled capacity bounds"
 
 if [[ "${PROBE_SELFTEST_FORK_RATE+x}" == x ]]; then
   bookend_rate=$PROBE_SELFTEST_FORK_RATE
