@@ -152,8 +152,21 @@ func TestRegisterModule_RouteIfaceMismatch(t *testing.T) {
 		if key != "" || created {
 			t.Fatalf("mismatch returned key=%q created=%v, want empty/false", key, created)
 		}
+		// The diagnostic names the path registerModule RESOLVED, not the one the
+		// fixture wrote. On windows t.TempDir() hands back the 8.3 short form
+		// (C:\Users\RUNNER~1\...) while EvalSymlinks expands it to the long one,
+		// so asserting on the raw literal reddens for the platform rather than for
+		// the code. Resolve it the same two ways registerModule does.
+		wantPath := loaded.File.Path
+		if abs, absErr := filepath.Abs(wantPath); absErr == nil {
+			wantPath = abs
+			if resolved, symErr := filepath.EvalSymlinks(abs); symErr == nil {
+				wantPath = resolved
+			}
+		}
+		wantPath = filepath.Clean(wantPath)
 		for _, want := range []string{
-			"CACHE_ROUTE_IFACE_MISMATCH", loaded.File.Path, "api/entry", "f7", "compile-clear",
+			"CACHE_ROUTE_IFACE_MISMATCH", wantPath, "api/entry", "f7", "compile-clear",
 		} {
 			if !strings.Contains(err.Error(), want) {
 				t.Errorf("diagnostic missing %q: %v", want, err)
