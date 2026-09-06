@@ -55,7 +55,7 @@ are IN; rig/cloud/motoko stay OUT. v1.0 queue ~14 → ~33 open items (clause-gro
 10 confirmed ghosts reconciled to implemented/; 2 conflicted docs kept OPEN pending repro. Full
 evidence: log entry 10.
 
-## STATUS 2026-07-10 (later) — ITERATION 0 COMPLETE: BAR RATIFIED, BACKLOG RE-SCORED
+## STATUS 2026-07-10 — ITERATION 0: COMPLETE: (later) BAR RATIFIED, BACKLOG RE-SCORED
 
 Mark ratified the v1.0 bar (interactive session) and made the scope calls:
 - **Effect refinement IN** (public docs promise; decompose ~90h into sprints before executing);
@@ -70,7 +70,7 @@ Mark ratified the v1.0 bar (interactive session) and made the scope calls:
   Reduced to a closeout item. m-feedback-triage-gate confirmed genuinely open (the shipped
   M-MCP-EDGE-THROTTLE rate limit is its precondition, not its scope).
 
-## STATUS 2026-07-10 (evening) — ITERATION 1 COMPLETE: FIRST FULL INNER-LOOP RUN, 2 QUEUE ITEMS LANDED
+## STATUS 2026-07-10 — ITERATION 1: COMPLETE: (evening) FIRST FULL INNER-LOOP RUN, 2 QUEUE ITEMS LANDED
 
 - **1a** m-named-test-blocks closed out (shipped 2026-07-09, verified live incl. duckdb's
   formerly-silent-skipped tests now 2/2; deontic criterion deferred — package absent locally).
@@ -87,7 +87,7 @@ Mark ratified the v1.0 bar (interactive session) and made the scope calls:
 - Routing evidence rows 1–2 recorded (Opus plan + execute: both high quality; 1 attribution
   correction at evaluation).
 
-## STATUS 2026-07-10 (afternoon) — ITERATION 2 COMPLETE: FIRST HEADLESS FULL-LOOP RUN, P0 GATE LANDED
+## STATUS 2026-07-10 — ITERATION 2: COMPLETE: (afternoon) FIRST HEADLESS FULL-LOOP RUN, P0 GATE LANDED
 
 m-feedback-triage-gate landed via the full inner loop with NO human present — the friction
 flagged at 13:30 (headless run reached planning without routing evidence) is answered: both
@@ -100,7 +100,7 @@ ships the Firestore adapters — the P0 is not operationally closed yet. New "De
 guardrail honored: merge pushed, remote CI verified before tagging [LANDED] (result recorded in
 the queue entry).
 
-## STATUS 2026-07-10 (evening) — ITERATION 3 COMPLETE: P0 OPERATIONALLY CLOSED (CODE-SIDE), DEV UN-REDDED
+## STATUS 2026-07-10 — ITERATION 3: COMPLETE: (evening) P0 OPERATIONALLY CLOSED (CODE-SIDE), DEV UN-REDDED
 
 m-feedback-gate-cloud-adapter landed via the full loop headless: Fable design doc (all 6
 premises later verified accurate by the Opus planner — zero discrepancies, a first), Opus
@@ -115,7 +115,7 @@ now complete INCLUDING cloud adapters, still off by default; production activati
 HUMAN ops (terraform TTL + ANTHROPIC_API_KEY secret in sibling repo, then DRY_RUN week 1) —
 parked in #329.
 
-## STATUS 2026-07-10 (night) — ITERATION 4 COMPLETE: LAST SPRINT-SIZED P0 CLOSED FOR V1
+## STATUS 2026-07-10 — ITERATION 4: COMPLETE: (night) LAST SPRINT-SIZED P0 CLOSED FOR V1
 
 m-diagnostic-coverage reality-check found its "Planned" status STALE (M1–M3 shipped 2026-07-09,
 ff58a3259/e59197554 — second stale-status catch of the mission); the genuinely open remainder ran
@@ -132,7 +132,7 @@ deletable lines < the ≥100 gate — widen coverage first); PARKED for human: h
 the ratified bar are closed; the critical path is now the stability promise + effect-refinement
 decomposition + eval-frontier tier.
 
-## STATUS 2026-07-11 (morning) — ITERATION 6 COMPLETE: EFFECT-REFINEMENT DECOMPOSED (last strategic v1.0 item now sprint-sized)
+## STATUS 2026-07-11 — ITERATION 6: COMPLETE: (morning) EFFECT-REFINEMENT DECOMPOSED (last strategic v1.0 item now sprint-sized)
 
 Queue #7 executed as a decomposition iteration (standing rule for multi-week items; Fable lane —
 no Opus sprint needed). Reality check found the parent doc's ~90h claim STALE by more than
@@ -168,7 +168,7 @@ ASSIGNMENTS parked for Mark at the v1.0.0 release gate — not a merge blocker).
 non-regression twice). Critical path remaining: effect-refinement decomposition (#7, [NEXT]) →
 eval-frontier-tier (#8).
 
-## STATUS 2026-07-11 (day) — ITERATION 7 COMPLETE: EVAL-BAR CLAUSE MACHINERY LANDED (frontier tier + curation)
+## STATUS 2026-07-11 — ITERATION 7: COMPLETE: (day) EVAL-BAR CLAUSE MACHINERY LANDED (frontier tier + curation)
 
 m-eval-frontier-tier landed via the full loop headless, round-1 clean (third consecutive
 round-1-clean full loop). The suite regains discrimination structure: `frontier` tier exists
@@ -184,7 +184,7 @@ frontier 8 / vision 9. **The eval-bar clause is NOT fully closed**: frontier-fai
 human/next frontier rotation; 4 sketched benchmarks remain unauthored. Next: #9
 m-effect-mode-validation (effect-refinement sprint 1/4).
 
-## STATUS 2026-07-11 (afternoon) — ITERATION 8 COMPLETE: EFFECT SPRINT 1/4 LANDED (closed mode set ENFORCED)
+## STATUS 2026-07-11 — ITERATION 8: COMPLETE: (afternoon) EFFECT SPRINT 1/4 LANDED (closed mode set ENFORCED)
 
 m-effect-mode-validation landed via the full loop headless, round-1 clean (FOURTH consecutive).
 The public guide's "typechecker rejects unknown values" claim is now TRUE: frozen `effectSchema`
@@ -197,7 +197,7 @@ scope-params). EN ROUTE: dev-health issue #341 — 5 runnable examples fail type
 (pre-existing, proven twice independently; verify-examples is NOT a remote CI gate — same
 invisibility class as iteration 3's gofmt miss). Next: #10 m-syntax-ai-forgiving.
 
-## STATUS 2026-07-11 (evening) — ITERATION 9 COMPLETE: M-SYNTAX-AI-FORGIVING LANDED (the ~32% small-model parse-failure class is dead)
+## STATUS 2026-07-11 — ITERATION 9: COMPLETE: (evening) M-SYNTAX-AI-FORGIVING LANDED (the ~32% small-model parse-failure class is dead)
 
 m-syntax-ai-forgiving landed via the full loop — the first iteration split across two scheduled
 runs (run A: reality-check + Opus plan + Opus execute, died pre-evaluation; run B resumed cleanly
@@ -215,7 +215,7 @@ compile_error Δ (GPU; rotation held the rig) — the real success metric, measu
 Skill fix (2 frictions, its 8+9): sprint-executor completion gate for sprint artifacts.
 Next: #11 m-stdlib-regex (NEW-DOC, clause 4).
 
-## STATUS 2026-07-11 (night) — ITERATION 10: m-stdlib-regex DESIGN DOC CREATED (clause-4 regex, NEW-DOC stage)
+## STATUS 2026-07-11 — ITERATION 10: (night) m-stdlib-regex DESIGN DOC CREATED (clause-4 regex, NEW-DOC stage)
 
 Queue #11 (NEW-DOC) routed to design-doc-creator; deliverable is the verified design doc, next
 scheduled iteration plans+executes. `planned/v0_30_0/m-stdlib-regex.md` created — a linear-time
@@ -230,7 +230,7 @@ no grammar); Axiom net +8. Dev CI green per-workflow on HEAD (the two prior tier
 fixed by c423490d8, included in the green HEAD run). No skill fix (clean stage). Next: #11
 sprint-planner → executor → evaluator.
 
-## STATUS 2026-07-11 (night) — ITERATION 11 COMPLETE: m-stdlib-regex LANDED (AILANG now has linear-time RE2 regex; bar clause 4's regex half closed)
+## STATUS 2026-07-11 — ITERATION 11: COMPLETE: (night) m-stdlib-regex LANDED (AILANG now has linear-time RE2 regex; bar clause 4's regex half closed)
 
 Full loop headless, round-1 clean (sixth consecutive). `std/regex` ships — `compile → Result[Regex,
 string]` + total `isMatch`/`findFirst`/`findAll`/`replaceAll`/`split`, backed by Go's `regexp` (RE2,
@@ -390,7 +390,7 @@ class 3 (cited regression fixtures must exist; test-behavior claims read from th
 same-class frictions this iteration). Next: R4a `m-dx-match-hof` (design-doc-creator). Detail:
 log entry 22.
 
-## STATUS 2026-07-13 (earliest) — ITERATION 22: nightly-regression triage → REAL resolver gap found (#366); `m-module-let-func-resolution` DOC-READY → PR #367 `7c0d91c4c`
+## STATUS 2026-07-13 — ITERATION 22: (earliest) nightly-regression triage → REAL resolver gap found (#366); `m-module-let-func-resolution` DOC-READY → PR #367 `7c0d91c4c`
 
 Gate 0.4 fired: 2 fresh nightly regressions (opencode-qwen3-5) outranked the queue. Triage
 (data-led, error-stream first): `adt_option` = thrash_aborted ~8% over token cap, 2-trial noise,
@@ -408,7 +408,7 @@ schedule). Neural doc-search skipped (qwen3.6 eval-suite held the GPU — iterat
 Next: EXECUTE m-module-let-func-resolution (Phase-1 spike gates approach), then R4a. Detail: log
 entry 23.
 
-## STATUS 2026-07-13 (earlier) — ITERATION 23: `m-module-let-func-resolution` EXECUTED + LANDED (round-1 clean, eval PASS 98/100) → PR #368 `fd38ec14e`; dev CI-red (gofmt) fixed forward; ⚠ NEXT-FIRST missed at pick — iteration 24 HARD-PINNED to m-public-feedback-delivery-audit
+## STATUS 2026-07-13 — ITERATION 23: (earlier) `m-module-let-func-resolution` EXECUTED + LANDED (round-1 clean, eval PASS 98/100) → PR #368 `fd38ec14e`; dev CI-red (gofmt) fixed forward; ⚠ NEXT-FIRST missed at pick — iteration 24 HARD-PINNED to m-public-feedback-delivery-audit
 
 Full inner loop headless: CI-red fix first (gofmt miss from `366c5bbb2`, 2 red runs → `39171a4f9`
 observed green) → Opus plan (caught the doc's wrong #327-matrix test path: `internal/pipeline/`,
@@ -441,7 +441,7 @@ confirmed pre-existing but re-rooted: CI-generated `packages/sunholo/*` pages, n
 reload, then the 2 prod test-sends — exact checklist in the sprint plan §Parked-for-human and
 docs/docs/guides/notify-daemon.md. Detail: log entry 25.
 
-## STATUS 2026-07-13 (evening) — ITERATION 25: R4a+R4b exposed as GHOSTS at Gate-2 (guards PR #379 `ea8116f83`) + `m-lambda-open-record-pattern` EXECUTED + LANDED (round-1 PASS 92/100 + hardening) → PR #380 `47576e25d`; `{name, ...}` in lambda params now truly OPEN
+## STATUS 2026-07-13 — ITERATION 25: (evening) R4a+R4b exposed as GHOSTS at Gate-2 (guards PR #379 `ea8116f83`) + `m-lambda-open-record-pattern` EXECUTED + LANDED (round-1 PASS 92/100 + hardening) → PR #380 `47576e25d`; `{name, ...}` in lambda params now truly OPEN
 
 Gate-2 reality check paid for the whole iteration: the clause-3 "NEW-DOC footgun" cluster was
 sourced from a strategy review whose own Verification Log said the rows were never individually
@@ -468,7 +468,7 @@ Opus execute (3 milestone commits, 25 new tests, 0 deletions) → independent Fa
 needed, a mission first). Bonus DX: wrong-body programs now get precise field-level type errors.
 Detail: log entry 27.
 
-## STATUS 2026-07-14 (night) — ITERATION 27: `m-prelude-option-result` VERIFIED REAL + EXECUTED + LANDED (round-1 PASS 98/100, mission high) → PR #382 `d26215341`; Option/Result now prelude in entry modules
+## STATUS 2026-07-14 — ITERATION 27: (night) `m-prelude-option-result` VERIFIED REAL + EXECUTED + LANDED (round-1 PASS 98/100, mission high) → PR #382 `d26215341`; Option/Result now prelude in entry modules
 
 The #1 structural AI-DX friction (6% of recent compile failures, "forgot `import std/option`")
 is CLOSED: entry modules get implicit lowest-precedence std/option + std/result imports at ONE
@@ -496,7 +496,7 @@ E). Full quorum live test: $0.0074. Evaluator round-1 PASS 94/100 (independent l
 spend figures reproduced within 3%, prompt-injection probe held); 4 warts hardened pre-merge
 (`027523b44`). Phases C/D/E remain queued opt-in. Detail: log entry 31.
 
-## STATUS 2026-07-14 (midday) — ITERATION 29: m-dx-examples-coverage LANDED (PR #392 `3d451947c`, all 3 workflows green observed) + FIRST LIVE QUORUM (5 rounds, 5 real catches, ~$0.16)
+## STATUS 2026-07-14 — ITERATION 29: (midday) m-dx-examples-coverage LANDED (PR #392 `3d451947c`, all 3 workflows green observed) + FIRST LIVE QUORUM (5 rounds, 5 real catches, ~$0.16)
 
 The clause-3 queue head shipped end-to-end headless: the stale v0.10.1-era doc was re-scoped on
 live HEAD data, then became the **first live Tier-1 design-quorum subject** — 5 reject-by-default
@@ -517,7 +517,7 @@ passing solution compiles clean at HEAD. Quorum frictions recorded: no terminati
 (reject-by-default can block forever; controller synthesized after round 5 with recorded
 dissent), gemini-3-1-pro unreachable 3/5 calls. Detail: log entry 32.
 
-## STATUS 2026-07-14 (evening) — ITERATION 30: m-dx-ai-discovery LANDED (PR #393 `c07c36b25`, eval PASS 93/100 round 1) — a RESUMED iteration; interleave: dev-red from two sibling merges fixed forward (3 causes)
+## STATUS 2026-07-14 — ITERATION 30: (evening) m-dx-ai-discovery LANDED (PR #393 `c07c36b25`, eval PASS 93/100 round 1) — a RESUMED iteration; interleave: dev-red from two sibling merges fixed forward (3 causes)
 
 The last clause-3 Prelude/discovery starter is in: `ailang docs --all-functions [filter]`
 (one grep-able line per stdlib export, AST-rendered signatures — also fixing the V16

@@ -8,7 +8,7 @@ Created 2026-08-28. Iteration 0 (charter ratification) has not yet run.
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `docs-mission-index.md`.
 
-## ITERATION 0 — 2026-08-28T06:41Z (first unattended fire)
+## 0 — 2026-08-28 — first unattended fire
 
 **Pick**: `docs-0` (queue head; unattended run, no allowlisted directive or genuine regression to
 outrank it — Gate 0 found zero docs-mission-specific inbox traffic and zero comments on
@@ -106,7 +106,7 @@ before editing). No role fell back, no routing-policy violation, no billing anom
   - gemini-3-1-pro: Clause 1 asserts the existence and utility of 'audit_design_docs.sh' and 'check_versions.sh' within the 'docs-sync' skill without providing any verification evidence. This violates the premise verification hard gate, as these critical codebase instruments are asserted as working tools but entirely lack execution traces or proof of existence, contrasting sharply with the rigorously verified CLI commands in Clause 7.
   - oc-glm-5-2: The doc's own STATUS section records that iteration 0 quorum was BLOCKED twice and the charter is 'still not ratified,' yet the Queue and CURRENT GOAL already treat clauses 1-7 as the binding bar. The doc is simultaneously an unratified draft and an operational charter with a live launchd job, 5 clauses already tagged to queue items, and a cost ladder claimed as 'verified before being written down.' A self-admittedly unratified document cannot also be the source of truth for its own ratification — the doc pre-commits to its own bar before the quorum that exists to check it has run.
 
-## ITERATION 1 — 2026-08-28T07:26Z
+## 1 — 2026-08-28
 
 **Pick**: `docs-2` (queue head, `[NEXT]`). No allowlisted directive and no genuine regression
 outranked it — 11 unread inbox messages, all triaged as non-directive (V1's own reports/approvals,
@@ -180,7 +180,7 @@ pre-existing on the parent commit). Neither actioned further; outside this missi
 is numeric before comparing it) was already covered by this skill's existing `case … [!0-9]*)`
 prescription and worked as documented; not a gap.
 
-## ITERATION 2 — 2026-08-31T07:58Z (recovering a died-mid-flight prior fire)
+## 2 — 2026-08-31 — recovering a died-mid-flight prior fire
 
 **Pick**: none picked fresh — Gate 2's died-mid-flight check found a complete, unlanded iteration
 already sitting on the repo: an open PR (`sprint/iter2-docs-9`, #973), three orphaned worktrees
@@ -345,7 +345,7 @@ died-mid-flight rule warns about (skipping a number silently). Two consecutive d
 fires (this one, and the docs-1 planner run recovered as PR #1016) in the same short window is a
 pattern worth naming for whoever reviews mission health, not a single-instance skill gap.
 
-## ITERATION 4 — 2026-09-02T04:08Z
+## 4 — 2026-09-02
 
 **Pick**: Gate 2's died-mid-flight check found an open, `MERGEABLE` PR
 ([#1016](https://github.com/sunholo-data/ailang/pull/1016)) recovering iteration 3's complete
@@ -439,7 +439,7 @@ consecutive died-mid-flight fires in one short window (iteration 3, and the `doc
 recovered as PR #1016) is a pattern worth Mark's attention if it recurs a third time — not yet at
 the evidence bar for a charter change.
 
-## ITERATION 5 — 2026-09-02T17:00Z
+## 5 — 2026-09-02
 
 **Pick**: `docs-8` (126 overdue planned design docs, aggregate) — the natural next item per
 iteration 4's own note, the only `[PARKED]` row explicitly unblocked once docs-6/docs-7 resolved.
@@ -594,7 +594,7 @@ independent-verification step is not optional overhead, it is where the real err
 
 ---
 
-## ITERATION 6 — 2026-09-03T10:54Z
+## 6 — 2026-09-03
 
 **Gate 0.** Kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Pin worktree at
 `origin/dev` tip (`55891002f`), clean. Watermark check on bookkeeping issue `#979`: 0 directives
@@ -769,7 +769,7 @@ future iterations, not the shared skill: a controller-measured quorum-objection 
 for a one-line correction — worth keeping as the default rather than reflexively re-routing every
 objection back through the designer role.
 
-## ITERATION 7 — 2026-09-03T17:20Z
+## 7 — 2026-09-03
 
 **Gate 0.** Kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Pin worktree HEAD
 detached at `origin/dev` tip (`70e453060`), clean working tree. Watermark check on bookkeeping
@@ -884,7 +884,7 @@ queue row's blocking reason names another mission's red, re-run the actual check
 the verdict, especially after several iterations have passed — the CI landscape moves out from
 under a stale note faster than the note gets re-read.
 
-## ITERATION 8 — 2026-09-04T02:19Z
+## 8 — 2026-09-04
 
 **Pick: docs-4** (item 11, `[IN-SPRINT]`, held on D-3). D-3 resolved by Mark (attended,
 2026-09-03, recorded directly in the decision ledger under the ATTENDED LEDGER EDITS contract) in
@@ -1100,7 +1100,7 @@ Both frictions are now first-party-verified working practice for this iteration;
 NEXT iteration (or a sibling mission reading this log) inherits the lesson even before either
 crosses the skill-edit bar.
 
-## ITERATION 9 — 2026-09-05T11:19Z
+## 9 — 2026-09-05
 
 **Pick**: `docs-11` — `design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md`
 (GitHub code-search fallback for `ailang docs search` outside the source tree). Fresh draw from
@@ -1294,7 +1294,7 @@ ownership/last-touched column at classification time (a one-time pass over 31 do
 re-deriving attribution per pick indefinitely — that crosses the ≥2-instance bar for a skill or
 charter-table edit.
 
-## ITERATION 10 — 2026-09-05T19:29Z
+## 10 — 2026-09-05
 
 **Class**: HARNESS/PRODUCT-adjacent (design-only; no code shipped — the quorum blocked before any
 sprint ran, same as iteration 9).
@@ -1444,7 +1444,7 @@ degrades every doc's review to 2 reviewers without ever surfacing as a "silent p
 `absent_reviewers` rule catches a false PROCEED; it does not catch a quorum that is quietly
 running permanently short-handed).
 
-## ITERATION 11 — 2026-09-06T06:00Z
+## 11 — 2026-09-06
 
 **Gate 0:** armed; `sunholo-voight-kampff`; clean origin-pinned worktree at `e50066037`.
 Inbox triage found no `mission-docs` directive or genuine regression. D-4 and D-5 remain open.
@@ -1491,7 +1491,7 @@ failed to produce a revision; retry/re-route before another fresh draw. **Ruled 
   - gemini-3-1-pro: The document violates the 'no silent fallbacks' axiom by acknowledging a silent fallback in derive-planner-lane.sh ('a bare sonnet pin emits opus fail-closed:env-pin and silently runs opus') and choosing to work around it via pin selection instead of fixing the script. A script that silently runs the fleet's most expensive model on an invalid pin is a critical hazard that must be fixed, not routed around.
   - oc-glm-5-2: Premise verification is systematically asserted, not verified. The doc claims CI workflow behavior — 'this repo has no push paths filter, so a docs-only commit still runs full CI' — without citing or linking the actual workflow YAML. The claim that `Deploy Documentation to GitHub Pages` is path-filtered on `docs/**, prompts/**, llms.txt, CHANGELOG.md` is presented as fact but the workflow file is never shown or referenced by path. If either premise is wrong, the entire Gate 3b polling strategy (wait for CI vs. read its absence as 'not applicable') is built on sand. This is the exact failure mode Gate 1 exists to prevent.
 
-## ITERATION 12 — 2026-09-06T10:11Z
+## 12 — 2026-09-06
 
 **Pick:** fresh docs-8 backlog draw `design_docs/planned/v0_29_0/m-ailang-semantic-context.md`,
 after docs-11/D-4 and docs-12/D-5 remained parked and iteration 11's

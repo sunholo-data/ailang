@@ -38,11 +38,13 @@ func missionCommand(args []string) error {
 		return missionApply(args[1:])
 	case "rotate-log":
 		return missionRotateLog(args[1:])
+	case "normalize":
+		return missionNormalize(args[1:])
 	case "help", "--help", "-h":
 		printMissionHelp()
 		return nil
 	default:
-		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log)", args[0])
+		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize)", args[0])
 	}
 }
 
@@ -58,6 +60,9 @@ func printMissionHelp() {
                                    trim the live log, archive the rest, and regenerate
                                    the COMPLETE one-line index (default keep 20)
                                    --status rotates the STATUS-stamp archive instead
+  ailang mission normalize [<name>] [--apply]
+                                   rewrite mission-doc headings to the ONE canonical shape
+                                   (dry run by default; reports what it will not convert)
                                    --adopt  acknowledge replacing a hand-written plist
                                    --force  proceed while an iteration is running
                                    --no-reload  promote without touching launchd
@@ -294,4 +299,93 @@ func repoRootFor(regDir string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("no %s directory found from %s upward", missionRegistryDir, wd)
+}
+
+// canonicalDocs are the mission documents whose headings are records and therefore
+// normalisable. Charters are excluded: they are curated prose, not a record stream.
+func canonicalDocs(dir, name string) []string {
+	return []string{
+		filepath.Join(dir, "design_docs", name+"-mission-log.md"),
+		filepath.Join(dir, "design_docs", name+"-mission-log-archive.md"),
+		filepath.Join(dir, "design_docs", name+"-mission-status-archive.md"),
+		filepath.Join(dir, "design_docs", name+"-mission-status-archive-old.md"),
+	}
+}
+
+func missionNormalize(args []string) error {
+	apply := false
+	var only string
+	for _, a := range args {
+		switch a {
+		case "--apply":
+			apply = true
+		default:
+			if strings.HasPrefix(a, "-") {
+				return fmt.Errorf("unknown flag %q (want: --apply)", a)
+			}
+			only = a
+		}
+	}
+	reg, err := loadMissionRegistry()
+	if err != nil {
+		return err
+	}
+	root, rerr := repoRootFor(missionRegistryDir)
+	if rerr != nil {
+		return rerr
+	}
+	totalRe, totalUn := 0, 0
+	for _, m := range reg.Missions {
+		if only != "" && m.Name != only {
+			continue
+		}
+		dir := root
+		if m.Repo != sharedRepoSlug {
+			dir = m.Workdir
+		}
+		for _, doc := range canonicalDocs(dir, m.Name) {
+			if _, serr := os.Stat(doc); serr != nil {
+				continue
+			}
+			res, nerr := mission.Normalize(doc, apply)
+			if nerr != nil {
+				return nerr
+			}
+			if len(res.Rewrites) == 0 && len(res.Unhandled) == 0 {
+				continue
+			}
+			fmt.Printf("%s\n", doc)
+			if len(res.Rewrites) > 0 {
+				fmt.Printf("  %d heading(s) %s\n", len(res.Rewrites), map[bool]string{true: "REWRITTEN", false: "would be rewritten"}[apply])
+				for i, r := range res.Rewrites {
+					if i == 3 {
+						fmt.Printf("    ... and %d more\n", len(res.Rewrites)-3)
+						break
+					}
+					fmt.Printf("    - %s\n    + %s\n", trunc(r.From), trunc(r.To))
+				}
+			}
+			for _, u := range res.Unhandled {
+				fmt.Printf("  UNCONVERTIBLE line %d (reported, never guessed at):\n    %s\n", u.Line, trunc(u.From))
+			}
+			totalRe += len(res.Rewrites)
+			totalUn += len(res.Unhandled)
+		}
+	}
+	verb := "would be rewritten"
+	if apply {
+		verb = "rewritten"
+	}
+	fmt.Printf("\n%d heading(s) %s, %d unconvertible\n", totalRe, verb, totalUn)
+	if !apply && totalRe > 0 {
+		fmt.Println("re-run with --apply to write them")
+	}
+	return nil
+}
+
+func trunc(s string) string {
+	if r := []rune(s); len(r) > 96 {
+		return string(r[:93]) + "..."
+	}
+	return s
 }

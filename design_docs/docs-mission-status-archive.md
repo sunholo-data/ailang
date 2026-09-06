@@ -205,7 +205,7 @@ choice reads as a decision rather than an oversight.
 flat-rate, so a fire spending real dollars has already fallen to rung 3 — a low ceiling makes that a
 loud stop instead of a silent bill.
 
-## STATUS 2026-08-28 — ITERATION 0 RUN: quorum BLOCKED 3x across 2 revisions (1 human-directed mid-flight), **still not ratified** — parked for Mark
+## STATUS 2026-08-28 — ITERATION 0: RUN: quorum BLOCKED 3x across 2 revisions (1 human-directed mid-flight), **still not ratified** — parked for Mark
 
 First unattended fire of `dev.ailang.mission-docs` (kill switch had been removed since the prior
 stamp). Gate 0 found no docs-mission-specific inbox traffic and no comments on bookkeeping issue
@@ -308,7 +308,7 @@ log-path preflight literals were V1-only and silently wrong for every other miss
 **Metered cost this iteration: $0.119** of the $1 ceiling (two quorum rounds, $0.057 + $0.062).
 Quota buckets: sonnet (controller + designer sub-agent).
 
-## STATUS 2026-08-28 — ITERATION 0 PENDING: charter written, **not yet ratified**, loop armed-but-silent
+## STATUS 2026-08-28 — ITERATION 0: PENDING: charter written, **not yet ratified**, loop armed-but-silent
 
 Charter drafted attended with Mark 2026-08-28. Bar clauses 1-7 are Mark's own selection and must
 still be **ratified through the design quorum at iteration 0** before any sprint routes.
@@ -463,7 +463,7 @@ controller-session verification + bookkeeping only. Quota buckets: sonnet (contr
 Bookkeeping issue rotated: `#953` → `#979` (Monday 07:00 boundary rule; `#953` had 16 comments,
 under the 80 threshold, but was created before this week's boundary).
 
-## STATUS 2026-09-02 — ITERATION 4 (crediting ITERATION 3): docs-5/6/10 landed by an orphaned fire, credited retroactively; docs-1 LANDED after a real evaluator FAIL/fix/PASS cycle
+## STATUS 2026-09-02 — ITERATION 4: (crediting ITERATION 3): docs-5/6/10 landed by an orphaned fire, credited retroactively; docs-1 LANDED after a real evaluator FAIL/fix/PASS cycle
 
 Gate 0: kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Main checkout `dev` diverges
 from `origin/dev` by design (9 ahead / 20 behind — attended commits stranded, loop lands via
