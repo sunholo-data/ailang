@@ -15,6 +15,15 @@ git rev-parse dev origin/dev                  # differ? origin is ground truth. 
 git log --oneline dev..origin/dev             # commits your working tree is missing
 ```
 
+Record the exact shared-ref reading immediately after that sync block. The dedicated base file is
+separate from the heartbeat; see the shared-clone rationale and disagreement protocol in
+[`resources/ref-drift.md`](ref-drift.md).
+
+```bash
+base=$(bash tools/launchd/mission-base.sh record gate1)   # records SHA + read-time; echoes them
+echo "Gate 1 base: $base"                                # full SHA<TAB>ISO8601-UTC
+```
+
 **`git rev-parse --short` accepts exactly ONE revision** (fixed 2026-07-27 iteration 108). This
 snippet carried `--short dev origin/dev` for months; it fails `fatal: Needed a single revision`
 (rc=128) **100% of the time, in every repo** — `--short HEAD HEAD` fails identically, so it is the

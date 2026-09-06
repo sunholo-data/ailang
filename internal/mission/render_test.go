@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -541,7 +542,7 @@ func TestDriverPath_ForeignRepoMissionStillRunsTheSharedDriver(t *testing.T) {
 	writeEntry(t, regDir, "elsewhere.toml", `
 name    = "elsewhere"
 repo    = "someone-else/another-repo"
-workdir = "`+foreign+`"
+workdir = `+strconv.Quote(foreign)+`
 doc     = "design_docs/elsewhere-mission.md"
 [schedule]
 mode             = "keepalive"
@@ -580,12 +581,13 @@ func TestDriverPath_ExplicitDriverIsHonouredAndIsAFork(t *testing.T) {
 	dir := t.TempDir()
 	regDir := filepath.Join(dir, "repo", "missions")
 	_ = os.MkdirAll(regDir, 0o750)
+	explicitDriver := filepath.Join(dir, "custom", "mission-control.sh")
 	writeEntry(t, regDir, "odd.toml", `
 name    = "odd"
 repo    = "x/y"
 workdir = "/tmp/odd"
 doc     = "d.md"
-driver  = "/opt/custom/mission-control.sh"
+driver  = `+strconv.Quote(explicitDriver)+`
 [schedule]
 mode             = "interval"
 interval_seconds = 600
@@ -596,8 +598,8 @@ boot_offset      = 13
 		t.Fatalf("Load: %v", err)
 	}
 	m, _ := reg.Get("odd")
-	if m.DriverPath() != "/opt/custom/mission-control.sh" {
-		t.Errorf("an explicit driver must be honoured; got %s", m.DriverPath())
+	if got := m.DriverPath(); got != explicitDriver {
+		t.Errorf("an explicit driver must be honoured; want %s, got %s", explicitDriver, got)
 	}
 }
 
@@ -647,7 +649,7 @@ func TestRenderPlist_SetsMissionWorkdirSoThePinCannotHijackIt(t *testing.T) {
 	writeEntry(t, regDir, "far.toml", `
 name    = "far"
 repo    = "someone/far"
-workdir = "`+foreign+`"
+workdir = `+strconv.Quote(foreign)+`
 doc     = "d.md"
 [schedule]
 mode             = "keepalive"

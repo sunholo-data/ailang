@@ -9,9 +9,23 @@ unbounded poll — an `until COND; do sleep 30; done` whose condition never came
 6h driver watchdog reclaimed the slot. Use a BOUNDED poll that fails loudly on expiry (portable;
 there is no GNU `timeout` on the rig):
 
+Record the full-SHA poll target and its read time from the same shared-ref read. The comparison and
+missing-evidence protocol are explained in [`resources/ref-drift.md`](ref-drift.md).
+
 ```bash
 # PIN THE POLL TARGET TO THE SHA YOU PUSHED — never `--limit 1` (see the war story below).
-target=$(git rev-parse origin/dev)            # FULL sha; no `--short` (Gate 1's rev-parse lesson)
+target_is=$(bash tools/launchd/mission-base.sh record gate3b) || exit 2
+target=${target_is%%$'\t'*}                   # FULL sha from the SAME recorded read; no `--short`
+if bash tools/launchd/mission-base.sh drift gate1; then
+  : # Gate 1 and the fresh Gate-3b reading agree
+else
+  drift_rc=$?
+  case "$drift_rc" in
+    1) echo "DRIFT: base moved Gate1->Gate3b; poll remains pinned to recorded $target" ;;
+    2) echo "no base recorded — abort, Gate 1 did not stamp" >&2; exit 2 ;;
+    *) echo "Gate 3b: base comparison failed (rc=$drift_rc) — abort" >&2; exit "$drift_rc" ;;
+  esac
+fi
 rid=$(gh run list --branch dev --workflow CI --limit 10 --json databaseId,headSha \
       | jq -r --arg t "$target" '[.[] | select(.headSha == $t)][0].databaseId // empty')
 [ -n "$rid" ] || echo "Gate 3b: no CI run for $target yet — re-list a few times, still bounded"

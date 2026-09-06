@@ -475,6 +475,39 @@ Sonnet, inline, is fine.
 - Plan exists → **sprint-executor** as a `$MISSION_EXECUTOR_MODEL`-pinned Agent sub-agent, in an
   isolated worktree (coordinator-managed or `git worktree add` — NEVER the shared main tree;
   concurrent agents stomp uncommitted work).
+  Immediately before an `origin/dev`-based worktree is created, measure the shared ref again and
+  use that full SHA as the worktree base. A sibling worktree's fetch can move this ref silently;
+  [`resources/ref-drift.md`](ref-drift.md) records the two measured instances and the complete
+  disagreement protocol.
+
+  ```bash
+  while :; do
+    base=$(bash tools/launchd/mission-base.sh snap) || exit 2 # full SHA<TAB>read-time, no fetch
+    newsha=${base%%$'\t'*}
+    oldsha=$(bash tools/launchd/mission-base.sh last gate1) || {
+      echo "no base recorded — abort, Gate 1 did not stamp" >&2
+      exit 2
+    }
+    [ "$newsha" != "$oldsha" ] || break
+    if bash tools/launchd/mission-base.sh drift gate1; then
+      continue # ref changed during comparison; restart Gate 3 from a fresh paired read
+    else
+      drift_rc=$?
+      [ "$drift_rc" -eq 1 ] || exit "$drift_rc"
+      echo "DRIFT: shared-clone base moved after Gate 1; re-run Gate 3 against $newsha"
+      break
+    fi
+  done
+  echo "Worktree provenance: base=$base"
+  git worktree add -b "$BRANCH" "$WT" "$newsha"   # submit in background as required below
+  ```
+
+  The comparison re-reads once through `drift gate1` and classifies disagreement as DRIFT, not an
+  operator error. Re-run the affected Gate-3 checks against `$newsha`; a benign advance does not
+  abort, but park when the move invalidates reviewed worktree/provenance integrity. Carry
+  `base=$base` into the iteration's provenance and later Routing-evidence row. Never substitute
+  `origin/dev` back into the `git worktree add` command after taking this reading.
+
   **NEVER PLACE A WORKTREE UNDER `/tmp` — the suite goes red for the LOCATION, not the code**
   (added 2026-08-03 iteration 133, executing the remedy iteration 127 pre-committed to on a second
   instance: *"If a second iteration hits it, the fix is to standardise the worktree location off
