@@ -181,22 +181,22 @@ git diff --exit-code 13ac9c21a6135e3c4640ece3f84b9b86683702f5 -- \
 
 **Acceptance Criteria:**
 
-- [ ] AC1: the actual route resource has exactly one non-empty delimited preamble, role marker
+- [x] AC1: the actual route resource has exactly one non-empty delimited preamble, role marker
   first, with the five steps in the frozen order; its path is module-relative.
-- [ ] AC2: the exact bare command and numeric 30-second tool timeout are extracted and admitted
+- [x] AC2: the exact bare command and numeric 30-second tool timeout are extracted and admitted
   by the real guard; prefix, unbounded-command, missing-JSON, missing-limit, omitted-timeout,
   and changed-timeout controls are detected.
-- [ ] AC3: real predicate calls prove local read/list history, omission and controller-prose
+- [x] AC3: real predicate calls prove local read/list history, omission and controller-prose
   negatives, and the failed-tool-result limitation; source text explicitly requires successful
   execution and acked=true before judge work.
-- [ ] AC4: the recipe separates protocol ack from inbox ack, supplies canonical launcher
+- [x] AC4: the recipe separates protocol ack from inbox ack, supplies canonical launcher
   authority without `AILANG_STORAGE`, and requires exact error reporting, stop, and existing
   fallback rather than denied-write loops or bypass.
 - [ ] AC5: every mutation in the independent-evaluator matrix below goes red on the relevant
   new test and returns green after restoration.
-- [ ] AC6: all pre-existing and new tests pass; context-doc, skill, and whitespace checks pass;
+- [x] AC6: all pre-existing and new tests pass; context-doc, skill, and whitespace checks pass;
   only the three frozen implementation files differ from the design commit.
-- [ ] AC7 remains green after the Gate 3 resource addition.
+- [x] AC7 remains green after the Gate 3 resource addition.
 
 **Risks:** Whole-file greps could pass on unrelated prose. Mitigation: extraction is delimited,
 duplicate-sensitive, non-empty, module-relative, and exercised by both full-block-removal and

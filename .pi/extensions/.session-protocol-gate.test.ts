@@ -25,6 +25,44 @@ import {
 } from "./session-protocol-gate.ts";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const routeResource = join(
+	repoRoot,
+	".claude",
+	"skills",
+	"mission-control",
+	"resources",
+	"gate-3-route.md",
+);
+const handshakeStart = "<!-- PI_EVALUATOR_SESSION_HANDSHAKE_START -->";
+const handshakeEnd = "<!-- PI_EVALUATOR_SESSION_HANDSHAKE_END -->";
+
+function countOccurrences(haystack: string, needle: string): number {
+	return haystack.split(needle).length - 1;
+}
+
+function extractEvaluatorHandshake(): { section: string; preamble: string } {
+	const source = readFileSync(routeResource, "utf8");
+	assert.equal(countOccurrences(source, handshakeStart), 1, "one handshake start delimiter");
+	assert.equal(countOccurrences(source, handshakeEnd), 1, "one handshake end delimiter");
+	const start = source.indexOf(handshakeStart) + handshakeStart.length;
+	const end = source.indexOf(handshakeEnd, start);
+	assert.ok(end > start, "ordered, non-empty handshake delimiters");
+	const section = source.slice(start, end).trim();
+	const fences = [...section.matchAll(/```text\n([\s\S]*?)\n```/g)];
+	assert.equal(fences.length, 1, "handshake section contains exactly one text preamble");
+	const preamble = fences[0]?.[1]?.trim();
+	assert.ok(preamble, "handshake preamble is non-empty");
+	return { section, preamble };
+}
+
+function assistantToolCall(name: string, arguments_: Record<string, unknown>): unknown {
+	return {
+		message: {
+			role: "assistant",
+			content: [{ type: "toolCall", name, arguments: arguments_ }],
+		},
+	};
+}
 
 test(
 	"mission_pi_run: child receives canonical messaging environment and preserves storage",
@@ -123,6 +161,109 @@ printf '%s\\n' '{"type":"agent_end"}'
 		}
 	},
 );
+
+test("evaluator handshake: source-bound preamble has the frozen five-step order", () => {
+	const { preamble } = extractEvaluatorHandshake();
+	const lines = preamble.split("\n");
+	assert.equal(lines[0], "MISSION-ROLE: evaluator");
+
+	const orderedSteps = [
+		"1. Use the read tool",
+		"2. Use the bash tool",
+		"3. Summarize that bounded inbox result",
+		"4. Call the session_protocol_ack tool",
+		"5. Only after that success",
+	];
+	let previous = -1;
+	for (const step of orderedSteps) {
+		const position = preamble.indexOf(step);
+		assert.ok(position > previous, `ordered preamble step: ${step}`);
+		previous = position;
+	}
+	assert.match(preamble, /read CLAUDE\.md completely/);
+});
+
+test("evaluator handshake: exact bounded inbox command is admitted by the armed guard", () => {
+	const { preamble } = extractEvaluatorHandshake();
+	const argsMatch = preamble.match(/arguments (\{[^\n]+\})/);
+	assert.ok(argsMatch?.[1], "step 2 contains JSON bash arguments");
+	const args = JSON.parse(argsMatch[1]) as { command?: string; timeout?: number };
+	assert.deepEqual(args, {
+		command: "ailang messages list --unread --json --limit 1",
+		timeout: 30,
+	});
+	assert.equal(bashAllowed(args.command), true);
+	assert.equal(shouldBlock("bash", args.command, false), null);
+	for (const prefixed of [
+		`env AILANG_MESSAGES_STORE=gcp ${args.command}`,
+		`AILANG_MESSAGES_STORE=gcp ${args.command}`,
+	]) {
+		assert.equal(bashAllowed(prefixed), false, `must reject prefix: ${prefixed}`);
+		assert.equal(shouldBlock("bash", prefixed, false), BLOCK_REASON);
+	}
+	assert.match(preamble, /--limit 1 bounds result cardinality only/);
+	assert.match(preamble, /timeout is 30 seconds/);
+});
+
+test("evaluator handshake: extracted local calls satisfy the predicate but failed results remain visible as a limitation", () => {
+	const { preamble } = extractEvaluatorHandshake();
+	const argsMatch = preamble.match(/arguments (\{[^\n]+\})/);
+	assert.ok(argsMatch?.[1]);
+	const args = JSON.parse(argsMatch[1]) as { command: string; timeout: number };
+	const readCall = assistantToolCall("read", { path: "/evaluator-worktree/CLAUDE.md" });
+	const listCall = assistantToolCall("bash", args);
+
+	assert.equal(headlessPrerequisitesMet([readCall, listCall]).met, true);
+	assert.equal(headlessPrerequisitesMet([readCall]).met, false);
+	assert.equal(headlessPrerequisitesMet([listCall]).met, false);
+	assert.equal(
+		headlessPrerequisitesMet([
+			{
+				message: {
+					role: "user",
+					content: [{ type: "text", text: "Controller already read CLAUDE.md and triaged ailang messages" }],
+				},
+			},
+		]).met,
+		false,
+	);
+
+	const failedResult = {
+		message: {
+			role: "toolResult",
+			toolName: "bash",
+			isError: true,
+			content: [{ type: "text", text: "timed out" }],
+		},
+	};
+	assert.equal(
+		headlessPrerequisitesMet([readCall, listCall, failedResult]).met,
+		true,
+		"current predicate counts attempted calls; source text must require success",
+	);
+
+	const success = preamble.indexOf("Require a successful tool result before continuing.");
+	const ack = preamble.indexOf("session_protocol_ack tool with {}");
+	const acked = preamble.indexOf("acked=true");
+	const judge = preamble.indexOf("perform the supplied independent evaluation");
+	assert.ok(success >= 0 && success < ack, "successful listing is required before protocol ack");
+	assert.ok(ack < acked && acked < judge, "acked=true is required before judge work");
+	assert.match(preamble, /Do not acknowledge inbox messages\./);
+});
+
+test("evaluator handshake: launcher authority and failure semantics are explicit", () => {
+	const { section, preamble } = extractEvaluatorHandshake();
+	assert.match(section, /scripts\/mission_pi_run\.sh/);
+	assert.match(section, /AILANG_MESSAGES_STORE=gcp/);
+	assert.match(section, /AILANG_MESSAGES_PROJECT=ailang-multivac/);
+	assert.match(section, /leaves\s+`AILANG_STORAGE` unchanged/);
+	assert.match(section, /not full mission inbox triage/);
+	assert.match(section, /protocol acknowledgement is not inbox-message\s+acknowledgement/);
+	assert.match(preamble, /report the exact missing step or tool error and stop this attempt/);
+	assert.match(preamble, /role transport failure/);
+	assert.match(preamble, /never a judge verdict/);
+	assert.match(preamble, /Do not loop on denied writes, remove extensions, or bypass the guard\./);
+});
 
 test("shouldBlock: edit/write blocked absolutely while armed", () => {
 	assert.equal(shouldBlock("edit", undefined, false), BLOCK_REASON);

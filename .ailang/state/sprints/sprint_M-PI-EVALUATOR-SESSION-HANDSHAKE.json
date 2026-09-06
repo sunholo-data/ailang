@@ -57,10 +57,10 @@
         "AC7: both actual-runner fake-pi environment arms remain green after the route-resource change",
         "The evaluator runs in a separate sibling worktree at the reviewed sprint commit; generator is not judge, and absent report or failed handshake is routing failure rather than a verdict"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-06T20:58:00Z",
+      "completed": "2026-09-06T21:01:44Z",
+      "notes": "Added one module-relative, duplicate-sensitive evaluator handshake contract and canonical Gate 3 preamble. Focused 12/12, aggregate pi extensions, context docs, skill metadata, checkpoint make test/lint, fmt, file-size, whitespace, frozen-file, and exact five-file scope checks passed. AC5 mutation execution and overall sprint completion remain pending the required independent evaluator."
     }
   ]
 }
