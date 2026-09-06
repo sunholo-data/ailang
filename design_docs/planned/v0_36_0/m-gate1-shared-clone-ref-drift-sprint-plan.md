@@ -1,8 +1,8 @@
 # M-GATE1-SHARED-CLONE-REF-DRIFT Sprint Plan — post-split recovery
 
 **Design**: `design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift.md`
-**Status**: IN PROGRESS — M1 complete at recovered commit `8fcc1560d` (patch-equivalent to original `20201e1d9`); M2/M3 replanned after upstream `c1212b3c` split the operational mission-control skill
-**Duration**: 3 days total (1 complete, 2 remaining)
+**Status**: IN PROGRESS — M1 complete at recovered commit `8fcc1560d`; M2 complete in the fresh split-resource executor snapshot and awaiting controller commit; M3 pending
+**Duration**: 3 days total (2 complete, 1 remaining)
 **Estimated size**: 302 LOC total (152 actual M1 + 110 M2 + 40 M3), about 101 LOC/day
 **Risk**: low implementation risk; recovery/base-alignment is the primary execution risk
 
@@ -24,7 +24,7 @@ No quorum rerun is permitted: the design amendment is a file-map recovery, not a
 | Milestone | State | Size | Dependency | Authoritative files |
 |---|---:|---:|---|---|
 | M1 — measurement helper and non-vacuity test | COMPLETE (`8fcc1560d`, recovered) | 152 actual LOC | none | `tools/launchd/mission-base.sh`, `tools/launchd/test_mission_base.sh`, `make/test.mk` |
-| M2 — Gate 1/Gate 3 wiring and rationale | PENDING | ~110 LOC | M1 + clean post-split base | `resources/gate-1-observe.md`, `resources/gate-3-route.md`, new `resources/ref-drift.md` |
+| M2 — Gate 1/Gate 3 wiring and rationale | COMPLETE (executor snapshot; awaiting controller commit) | 110 actual LOC | M1 + clean post-split base | `resources/gate-1-observe.md`, `resources/gate-3-route.md`, new `resources/ref-drift.md` |
 | M3 — Gate 3b/Gate 4 wiring and final re-proof | PENDING | ~40 LOC | M2 | `resources/gate-3b-ci-green.md`, `resources/gate-4-record.md` |
 
 M1 remains complete and unchanged. Its implementation must not be regenerated. Verify it after base alignment, but do not reopen its reviewed code unless a check proves the committed content was lost.
@@ -49,7 +49,7 @@ grep -n 'test_mission_base.sh' make/test.mk
 
 Expected: ancestry check succeeds, both syntax checks succeed, the test reports all eight arms green, and the make target contains the test invocation.
 
-## M2 — Gate 1/Gate 3 wiring + rationale (~110 LOC)
+## M2 — COMPLETE: Gate 1/Gate 3 wiring + rationale (110 actual LOC)
 
 ### Files
 

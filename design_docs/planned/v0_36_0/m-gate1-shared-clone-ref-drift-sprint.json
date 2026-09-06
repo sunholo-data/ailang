@@ -65,10 +65,11 @@
         "All five S-guard literals remain in gate-3-route.md and the scrubbed make test-launchd-drivers gate exits 0.",
         "Fresh .snap/M2 is built from split-resource content and contains no root SKILL.md or abandoned-snapshot content."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "Gate 2 durable stamp remains deferred; do not edit gate-2-pick.md in this milestone."
+      "actual_loc": 110,
+      "passes": true,
+      "started": "2026-09-06T11:02:43Z",
+      "completed": "2026-09-06T11:08:50Z",
+      "notes": "Fresh split-resource implementation: Gate 1 records full SHA/read time after sync; Gate 3 snaps and compares immediately before worktree creation, diagnoses drift, uses the fresh full SHA, and carries provenance; ref-drift.md records both measured instances, the protocol, and non-vacuity recipe. Context docs, links, S1-S5 literals, and scrubbed test-launchd-drivers pass. Gate 2 durable stamp remains deferred; gate-2-pick.md was not edited. Fresh cumulative .snap/M2 contains the three M1 files and three M2 resources, with no root SKILL.md."
     },
     {
       "id": "M3_gate3b_gate4_split_resource_wiring_and_reproof",
@@ -98,8 +99,8 @@
     "target_loc_per_day": 101,
     "estimated_total_loc": 302,
     "estimated_days": 3,
-    "remaining_loc": 150,
-    "remaining_days": 2
+    "remaining_loc": 40,
+    "remaining_days": 1
   },
   "velocity_evidence": {
     "m1_actual": "Recovered commit 8fcc1560d is patch-equivalent to original 20201e1d9 and adds 55 lines in mission-base.sh, 96 in test_mission_base.sh, and 1 in make/test.mk: 152 actual LOC.",
