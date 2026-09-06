@@ -393,7 +393,17 @@ _mc_mem_ok() {
 #
 # ASTRA IS UNCHANGED AS DESIGNER — that role is BOUNDED to one run per iteration by the Fable
 # diet, which is exactly why it never showed up in the burn.
-PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1}"
+# ⚠️ EXHAUST THE ANTHROPIC LADDER BEFORE CROSSING TO CODEX (2026-09-06).
+# The order was opus-5 -> codex:sol -> fable-5-1, which crossed providers while an
+# Anthropic rung was still available: if opus was rate-limited but fable was not, the
+# controller took a codex slot it did not need.
+#
+# That is the wrong way round for bucket health. Anthropic here is a ~5-hour rolling
+# window that refills; codex carries a 5-hour window AND a longer cap on top (measured:
+# "resets 05:34" alongside "try again at Sep 12th"). So an Anthropic token is the cheaper
+# one to spend — it comes back roughly 30x more often — and codex should be reached only
+# when Anthropic has nothing left to offer.
+PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,claude-fable-5-1,codex:gpt-5.6-sol}"
 # CONTROLLER_FALLBACK is an ordered COMMA CHAIN walked left to right (Mark, attended
 # 2026-08-31: "a longer chain of redundancies after codex", explicitly NOT a new default —
 # codex keeps its rung; the pi rungs exist so a simultaneous Anthropic+codex dry-out no

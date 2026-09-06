@@ -247,8 +247,14 @@ grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra' "$driver" \
 grep -qE 'MISSION_(MODEL_PREFS|CONTROLLER_FALLBACK):-[^}]*gpt-6-astra' "$driver" \
   && bad "astra is NOT a controller rung" "astra is back in a controller ladder" \
   || ok "astra is NOT a controller rung"
-grep -q 'MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1}' "$driver" \
-  && ok "controller ladder is opus-5 -> sol -> fable-5-1" || bad "controller ladder is opus-5 -> sol -> fable-5-1" "wrong ladder"
+grep -q 'MISSION_MODEL_PREFS:-claude-opus-5,claude-fable-5-1,codex:gpt-5.6-sol}' "$driver" \
+  && ok "controller exhausts Anthropic before crossing to codex" || bad "controller exhausts Anthropic before crossing to codex" "wrong ladder"
+# The ORDER is the point: a codex rung ahead of an Anthropic one spends the scarcer bucket
+# while the cheaper one still has rungs left. Anthropic refills ~5-hourly; codex carries a
+# 5-hour window AND a longer cap.
+grep -qE 'MISSION_MODEL_PREFS:-[^}]*codex:[^}]*claude-' "$driver" \
+  && bad "no codex rung sits ahead of an Anthropic one" "a codex rung precedes an Anthropic rung in PREFS" \
+  || ok "no codex rung sits ahead of an Anthropic one"
 grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol,pi:ollama' "$driver" \
   && ok "controller falls Sol -> pi directly" || bad "controller falls Sol -> pi directly" "missing"
 # The designer keeps its astra rung — the change is scoped to the controller.
