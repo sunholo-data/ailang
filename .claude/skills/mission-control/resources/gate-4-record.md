@@ -1,5 +1,32 @@
 ## Gate 4 — RECORD (append-only; the log is the mission's memory)
 
+**RECORD PER-ROLE TOKEN COST IN THE ROUTING-EVIDENCE ROW. Every role, every iteration.**
+
+For each role you spawned, add its provider-reported token count beside the model:
+
+```
+Controller `codex:gpt-5.6-sol` (999,376 tok) · designer `codex:gpt-6-astra` (N tok) ·
+planner `codex:gpt-5.6-sol` (N tok) · executor `codex:gpt-5.6-sol` (N tok) ·
+evaluator `pi:ollama/minimax-m3:cloud` (N tok)
+```
+
+A `codex exec` run prints `tokens used` followed by the count as its last output — capture
+it from the run you already made. If a lane reports nothing, write `(tok: not reported)`
+rather than omitting the role; a silent gap reads as zero and is worse than a stated
+unknown.
+
+**Why this is mandatory, and why nothing else can supply it.** `ailang chains stats` measures
+METERED dollars, and every codex and Anthropic role is a subscription bucket that bills $0
+metered — so the fleet's own cost KPI cannot see quota consumption at all. The driver logs
+`tokens used` for the CONTROLLER's session only; planner and executor run as separate
+`codex exec` processes whose totals reach no log. Measured on iteration 338: one token
+report for a five-hour iteration that ran four codex roles.
+
+That gap is why "which role should move off codex?" currently has no evidence behind it.
+The routing-evidence row is the only place that already knows which model ran which role,
+so it is the only place the number can be joined to the role. Recording it here turns a
+guess into a measurement within a few iterations.
+
 **ROTATE THE LOG WHEN IT PASSES ~40 ENTRIES.** After appending this iteration's entry:
 
 ```bash

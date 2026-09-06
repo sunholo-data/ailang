@@ -489,6 +489,18 @@ else
 fi
 
 echo ""
+# PER-ROLE TOKEN ATTRIBUTION (2026-09-06). The fleet's cost KPI measures METERED dollars,
+# and every codex/Anthropic role is a subscription bucket billing $0 metered — so it cannot
+# see quota burn. The driver logs the CONTROLLER's tokens only; planner and executor are
+# separate `codex exec` processes whose totals reach no log. The routing-evidence row is the
+# only place that knows which model ran which role, so it is where the number has to land.
+grep -q 'RECORD PER-ROLE TOKEN COST' "$skill_all" \
+  && ok "Gate 4 requires per-role token cost in the routing-evidence row" \
+  || bad "Gate 4 requires per-role token cost in the routing-evidence row" "the rule is missing — 'which role should move off codex' has no evidence without it"
+grep -q 'tok: not reported' "$skill_all" \
+  && ok "an unreported lane must be stated, not omitted" \
+  || bad "an unreported lane must be stated, not omitted" "a silent gap reads as zero"
+
 # ─── CONTEXT BUDGET (2026-09-06) ─────────────────────────────────────────────
 # The controller's SKILL.md is loaded into every session and RE-SENT ON EVERY TURN, so
 # its size multiplies by turn count. Measured 2026-09-05: at 251,637 B (~63k tokens) it
