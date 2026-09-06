@@ -22169,3 +22169,135 @@ moved to `design_docs/implemented/v0_35_2/`, and `#1046` is closed.
 is green on this PR only because the diff is test-heavy. Then the new
 `m-cache-sanitize-module-id-windows-colon` row, which should be designed together with the existing
 `m-cache-sanitize-module-id-collision` row rather than patched twice.
+
+## 334 — 2026-09-06 — A designer, a quorum, a planner and a judge all ran, and the two most valuable things any of them produced were a refusal and a negative result [PRODUCT]
+
+**Picked.** The queue head, `m-cache-sanitize-module-id-windows-colon` (filed by iteration 333
+from the Windows runner) — and the first routing call was to **merge it with
+`m-cache-sanitize-module-id-collision`** (iter-328) into ONE design. They are two symptoms of one
+function. `sanitizeModuleID` (`internal/pipeline/cache_store.go:161`) maps only `/` and `\` to
+`__`, so a Windows drive-letter module ID yields a directory component containing a **colon** and
+the compile artifact cache publishes nothing at all on that platform, while on every platform
+`a/b` and `a__b` collide onto one directory and evict each other. Iteration 333's own row said the
+two "want one design, not two one-liners"; this is that design.
+
+**Reality check.** Both defects confirmed first-party at HEAD before any routing: the function
+body read at `cache_store.go:161-174`; the sole production call site
+`moduleArtifactDir` (`cache_artifacts.go:403`) established by grep with a fabricated-symbol
+negative control at 0 and a 4-file positive control; the repo's own
+`sanitized_collision_uses_exact_module_id` subtest read at `cache_artifacts_test.go:64-73`, where
+it asserts the collision and then proves the stamp backstop holds. `grep -ri` across
+`design_docs/` found no existing doc, so the NEW-DOC tag was a fact rather than a claim. Base gate
+GREEN out-of-sandbox at the design commit: `ok internal/pipeline 5.300s`, `ok cmd/ailang 29.801s`,
+rc=0.
+
+**Shipped.** PR #1060 → three commits: `8cd3bc783` (design), `5ef1058ef` (plan), `6ebc71a54`
+(judge findings). Chosen encoding `m-<slug>-<16hex>` — the `m-` prefix is the Windows
+reserved-device-name guard, the 16-hex SHA-256 prefix over the full module ID is the uniqueness
+authority, the slug is a truncated readability aid carrying no correctness weight; max component
+57 chars, independent of input length. Judge `sonnet`, own worktree: **PASS 85/100, zero
+blocking, three non-blocking**, all reproduced first-party before being acted on.
+
+**The quorum earned its money twice, and the second time was a refusal.** Round 1: `gpt6-astra`
+was **ABSENT on `budget`** — a pre-flight refusal, `estimated cost $0.1170 … exceeds cap
+$0.1000`, zero spend. The absent-reviewer rule says re-run it alone at a raised cap before acting
+on any synthesis, and **it was the reviewer whose objection mattered**: the doc's legality
+argument — "the output always ends in `-<hex>` so it is never a reserved device name" — is
+**FALSE**, because Windows reserves the basename *before the first dot*, so `con.txt-<hex>` still
+has basename `con`. A two-reviewer reading would have shipped that hole. `gemini-3-1-pro` and
+`oc-glm-5-2` both rejected on the SAME unverified premise, and rule 3f says the controller
+measures an objection rather than forwarding it: both were measured and **both held** —
+`pipeline_module.go:269-296`'s only early exit is the `continue` inside
+`verified && cached != nil`, so a `LoadArtifacts` error falls through to the ordinary compile path
+with no error, panic or silent fallback; `maxModuleArtifactBytes` is exactly `32 << 20` at
+`cache_artifacts.go:29`, test-pinned at `cache_artifacts_test.go:193` (control `cacheKeyVersion` =
+14 hits). Round 2: all three PRESENT, `absent_reviewers` empty, **3/3 reject on three different
+surfaces**, each with a concrete reviewer-authored `proposed_fix` and none disputing the
+direction — the Gate-2 narrow-refinement carve-out exactly, so the reviewers' own fixes were
+applied instead of parking. gemini's premise was measured and **REFUTED in the doc's favour**
+(`Clear()` resets the manifest and `Save()`s it before `removeAll`, so M4's assertion needs no
+weakening). **`oc-glm-5-2`'s objection found the defect nobody had**: it noticed the Conflict
+Surface conflated *"no other package"* with *"no other call site"*, and measuring that turned up
+`cmd/ailang/serve_api_mcp_surface_test.go:601` — `compileArtifactDir`, a **named helper in another
+package that reimplements the old mapping**, invisible to every `grep sanitizeModuleID` the doc
+ran.
+
+**The designer rotation fell through, and the runner's own load-bearing assertion is what hid
+it.** The pointer read `codex:gpt-6-astra`, so the next entry was
+`pi:ollama/deepseek-v4-flash:0731-cloud`. It authored the doc well (verdict `ok`, 214s, 34 tool
+executions, a real Verification Log with a firing negative control, and eleven worked-example
+SHA-256 prefixes that the controller re-derived byte-exact). Its REVISION pass then returned
+verdict **`ok` with `worktree_changed_files: 1` and wrote nothing** — 9 tool executions, all reads
+of a file the directive had already quoted verbatim, and the doc's mtime predated the run.
+`mission_pi_run.sh`'s worktree-diff assertion — the one its own header calls load-bearing,
+*because* `stopReason` is evadable — is **vacuous on a revision**: the file was already untracked
+from round 1, so `git status --porcelain` counts the PREVIOUS run's output as this run's proof.
+Filed as its own queue row. The lane then fell to the NEXT rotation entry,
+`claude:claude-fable-5-1` via `claude-sub` (probe rc=0, subscription-only by construction), which
+applied astra's fix verbatim, dropped `.` from the slug alphabet as a second independent guard,
+and computed four new suffixes with a real `shasum`.
+
+**The planner's best output is a negative result.** `codex:gpt-5.6-sol`, ephemeral detached
+worktree at the design commit, 4 milestones / 1.35 days. Applying rule 3o it flags **M3 and M4 as
+having NO non-vacuous mutation of their own diff** — M3 ships a legality table plus a skip
+deletion, M4 a regression guard over `Clear()` behaviour that already exists at base, and both
+production hunks land in M1/M2 — and says so plainly rather than naming a green test. The judge
+independently confirmed it by reading the pre-existing `TestCacheStore_ClearArtifacts`, which
+already kills M4's named mutation. The planner also extended the Conflict Surface by three more
+sites, each verified first-party before the commit: `cache_invalidation_test.go:313,328` and
+`cache_artifacts_test.go:363` hard-code `filepath.Join(…, "compile", "modules", "answer", …)`.
+
+**The judge's finding (1) is mine, and it is the same shape as the defect it was about.** Round 2
+made me WITHDRAW the 32 MiB orphan-footprint guarantee from the Migration prose — and I left the
+Verification Log row asserting it standing, still bolded *"Orphan disk bound is a real
+constant"*. The doc withdrew a claim in one section and cited it as settled fact in another. I had
+applied the reviewer's fix exactly where the reviewer pointed and never swept the document for the
+same claim's echo, which is precisely what the reviewers were complaining about in the first
+place. (2) The doc and the plan used *"not vacuous"* to mean two different things for the same
+test/mutation pair and neither flagged it; the plan's stricter reading is right and the doc now
+concedes it. (3) The plan required M3 to "show explicit PASS events" on Windows without
+instructing anyone to wire it — the no-silent-skip gate is a hand-maintained literal list at
+`ci.yml:111` (unix, 5 names) and `:480` (windows, 4), already asymmetric — so M3 now carries an
+explicit work item to edit both.
+
+**Routing evidence.** model=`pi:ollama/deepseek-v4-flash:0731-cloud` task-class=design (authoring,
+verdict `ok`); model=`claude:claude-fable-5-1` task-class=design (revision, after the pi lane
+returned a false green; **ONE** Fable run — the diet's unit is one DOC and the authoring half was
+not Fable, so this is inside the ceiling; rotation pointer advanced past deepseek);
+model=`codex:gpt-5.6-sol` task-class=plan (probe rc=0, sandboxed, ephemeral detached worktree,
+zero git writes); model=`sonnet` task-class=evaluate (Agent tool, its OWN worktree, killed at 48
+tool calls by a transient API/DNS drop and **resumed by name** per standing rule 7's sub-agent
+amendment rather than re-run); model=`claude-opus-5` task-class=controller. Quorum reviewers
+`gpt6-astra` / `gemini-3-1-pro` / `oc-glm-5-2`. generator≠judge holds by model on every pair.
+**Executor NOT spawned** — a deliberate routing call: the plan came into existence in this
+iteration and was materially amended by its own judge minutes before Gate 3b, so M1 executes next
+iteration against a plan that has settled. **Planner resolver disagreement reproduces a 7th time**
+(`agent-tool opus fail-closed:planner-lane-field-missing`, for a pick WITH a complete design doc);
+routed straight to the configured `codex:gpt-5.6-sol` pin without burning a spawn on a guaranteed
+hook denial, as the amendment requires. `metered=$0.28014` of the $5 ceiling (quorum R1
+`$0.03115`, astra solo re-run `$0.08279`, quorum R2 `$0.16619`); pi is flat-rate and fable is
+subscription, both $0. No GPU, no `rig.lock`.
+
+**Ruled out.**
+- *"The pi designer lane failed a probe"* — REFUTED. Probe rc=0, run rc=0, verdict `ok`. It is a
+  **deliverable** failure the runner cannot see, not a lane outage, which is why re-probing would
+  have cleared nothing and why it is a queue row rather than a `PARKED-ON-LANE`.
+- *"astra's reserved-device-name objection is a ghost"* — NOT refuted, and deliberately not
+  overclaimed either. `validateModuleName` permits no `.` in stdlib module names, but module IDs
+  for user files are resolved paths and the Windows CI evidence shows absolute paths becoming
+  module IDs; the controller did not establish first-party that a dot reaches the encoder. The
+  `m-` prefix costs nothing either way, so the fix was applied without inflating the claim.
+- *"`Clear()` might not reset the manifest, so M4's test would fail on its own assertions"*
+  (gemini R2) — REFUTED by measurement at `cache_store.go:117-132`.
+- *"A wider replacement set is the small fix"* — refuted in the design: it leaves the reserved-name
+  hazard, makes collisions strictly worse, and does nothing about the component-length limit.
+
+**Retro lane.** backlog — one new queue row,
+`m-pi-runner-worktree-assertion-vacuous-on-revision`, on first-party evidence. No skill edit
+spent: the two frictions this iteration produced (the vacuous runner assertion; the resolver
+disagreement) both have their fix in TOOLS rather than in the skill, and the resolver one is
+already a standing row at 7 instances.
+
+**Next.** Execute **M1** of `m-cache-module-id-encoding` (the pure `encodeModuleDirName` plus its
+unit table, 0.35 d) against the settled plan — and read the plan's non-vacuity ledger before
+touching M3 or M4, both of which it flags as shipping no production mutation of their own.
