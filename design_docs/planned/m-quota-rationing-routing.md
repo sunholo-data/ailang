@@ -1,8 +1,9 @@
 # M-QUOTA-RATIONING-ROUTING: route by budget position, not just availability
 
-**Status**: **PROPOSAL — D-1..D-5 RATIFIED by Mark (attended, 2026-09-06); not yet
-implemented.** The design questions are settled; the build is not started and needs review
-of the revised doc first.
+**Status**: **RATIFIED — D-1..D-5 decided by Mark (attended, 2026-09-06). Approved to plan
+and execute.**
+**Target**: v0.36.0 · **Priority**: P1 — codex reached 50% of a bucket in a day
+**Estimated**: 5 milestones, ~1,400 LOC, 3 days
 **Author**: Claude Opus 5 (attended session, Mark), 2026-09-06
 **Related**: [M-MISSION-ELO-ROUTING](m-mission-elo-routing.md) — this is the *scarcity term*
 that doc's cost channel lacks. If both proceed, this supplies the budget signal and that
@@ -156,6 +157,101 @@ day** — which it did.
   reserve that other roles cannot draw on. This is the one place where "affordable now" and
   "affordable in four hours" genuinely differ, and it is the strongest argument in the doc
   for rationing at all.
+
+## Axiom Compliance
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | +1 | A lane choice becomes a function of declared ration + measured consumption, not of whichever probe happened to answer first. |
+| A2: Replayability | +1 | The ledger records consumption per (bucket, window), so a routing decision can be re-derived after the fact. |
+| A3: Effect Legibility | +1 | Spending a subscription bucket is currently an undeclared side effect of picking a lane; it becomes a measured, logged one. |
+| A4: Explicit Authority | +1 | The controller reserve (D-5) is an explicit grant: other roles may not draw on it. |
+| A5: Bounded Verification | +1 | The ration check is arithmetic over a local ledger — no network call on the hot path once capacity is cached. |
+| A6: Safe Concurrency | +1 | Fleet-wide scope (D-3) means one shared ledger; concurrent missions read/write it under `internal/riglock`, which already has stale/dead-holder semantics. |
+| A7: Machines First | +2 | "Can this lane afford to be used?" has no machine-readable answer today. It becomes one. |
+| A8: Minimal Syntax | 0 | No language surface. |
+| A9: Cost Visibility | +2 | The core of the doc. `chains` currently reports v1 at $11.34 all-time while it burned half a codex bucket in a day, because subscription lanes bill $0 metered. |
+| A10: Composability | +1 | Rides the existing `chains` stage store and the existing pre-flight loops rather than adding a parallel path. |
+| A11: Structured Failure | +1 | "Over ration" becomes a typed, logged lane state alongside quota-limited and unusable. |
+| A12: System Boundary | +1 | Provider usage endpoints become one declared crossing with a cached result, not an ambient assumption. |
+
+**Net: +13** → proceed.
+
+### Hard Violation Check
+- [x] A1 — removes nondeterminism (probe-order dependence) rather than adding it.
+- [x] A3 — the point is to make an existing hidden effect explicit.
+- [x] A4 — the controller reserve narrows what other roles may spend; it grants nothing.
+- [x] A7 — the doc exists to make a human-only question machine-answerable.
+
+## Verification Log
+
+| # | Claim | How verified | Result |
+|---|---|---|---|
+| V1 | The bucket label is parsed from FREE TEXT, so it is not canonical | Read `mission_rollup.go:161-164` — `parseQuotaBucket` scans `agent_id` for a `quota:` marker | Confirmed; comment says "parsed from the free-text agent_id" |
+| V2 | That produces four spellings of one bucket | `ailang chains stats --by-source-prefix 'mission:v1/'` | `codex 70`, `codex-chatgpt 6`, `Codex-OAuth 1`, `codex-oauth 4`, plus `unlabeled 43`, `none 2` |
+| V3 | The rollup counts stages, it does not sum tokens | Read `MissionRollup.QuotaByBucket map[string]int` | `int` count per bucket; no token field |
+| V4 | Stages DO carry token counts | Read `mission_rollup.go:102` | `ChainStage{Cost, TokensIn, TokensOut, AgentID}` |
+| V5 | `chains` cannot see subscription burn in DOLLARS | `ailang chains stats --by-mission` | v1 `$11.3380` metered all-time while burning ~50% of a codex bucket in one day; 4,972 quota stages `$0-by-design` |
+| V6 | Anthropic's limit is ACCOUNT-WIDE, not per-model | 08-16 drought record; today's probe log | `claude-opus-5`/`opus-4-8`/`fable-5` all quota-limited, 45 each; opus-5 and fable-5-1 failed 24s apart |
+| V7 | Both providers have a 5-hour AND a longer window | Provider error text in our logs | `resets 05:34`/`11:24` alongside `try again at Aug 20th`/`Sep 12th`; a 16-hour Anthropic drought a 5h window cannot produce |
+| V8 | A provider usage endpoint is NOT yet proven reachable | CLAUDE.md; OpenRouter key is inference-only | `/api/v1/activity` 403s. **D-2 depends on Mark's new key; the other two providers are unverified.** |
+
+## Conflict Surface
+
+**1. `internal/observatory/mission_rollup.go` is shared.** `parseQuotaBucket` and
+`QuotaByBucket` are consumed by `chains stats --by-mission`/`--by-source-prefix`. Changing
+the map's value type from `int` to a struct breaks any caller reading it as a count.
+Mitigation: add a parallel `QuotaTokensByBucket` rather than changing the existing field, so
+existing output is untouched.
+
+**2. Canonicalising labels changes historical output.** `codex-chatgpt` and `Codex-OAuth`
+folding into `codex` makes past rollups read differently. That is the point — but it means a
+number quoted from a previous run will not reproduce. Mitigation: canonicalise at READ time,
+leaving stored `agent_id` untouched, so the raw record is still auditable.
+
+**3. The pre-flight loops are the hot path.** A ration check that makes a network call per
+rung per fire would add latency to every iteration. Mitigation: capacity is fetched on a
+cadence and cached in the ledger; the hot path reads local state only.
+
+**4. `internal/riglock` is reused for the fleet-wide ledger** (D-3). It already has
+stale-lock and dead-holder semantics, so this adds a caller rather than a mechanism — but a
+held lock now blocks a mission's pre-flight, so the acquire must be bounded and fail OPEN
+(proceed unrationed, loudly) rather than wedge a fire.
+
+**5. Gate 4's per-role token rule (landed 2026-09-06) is SUPERSEDED by M1.** Recording
+tokens in prose in the routing-evidence row duplicates a structured store that already has
+them (V4). M1 removes it.
+
+## Milestones
+
+**M1 — canonical buckets + token sums (~250 LOC).** Canonicalise the bucket label at read
+time; add `QuotaTokensByBucket` beside the existing counts. Revert the Gate-4 prose rule.
+*AC: the four codex spellings report as one; tokens sum per bucket; existing count output
+unchanged; `unlabeled`/`none` are reported, never silently folded.*
+
+**M2 — the fleet-wide ledger (~350 LOC).** `~/.ailang/state/quota-ledger.json` keyed by
+(bucket, window), fed from the chains store. Fleet-wide per D-3, guarded by `riglock` with a
+bounded acquire that fails open.
+*AC: consumption per bucket per window is queryable; concurrent missions do not corrupt it;
+a held lock never wedges a fire.*
+
+**M3 — capacity from the provider endpoint (~300 LOC, D-2).** One adapter per provider,
+cached. **Gated on V8**: each endpoint must be proven reachable before its adapter is
+trusted, and an unreachable provider degrades to "capacity unknown → do not ration this
+bucket", loudly — never to a guessed capacity.
+*AC: a reachable endpoint yields capacity; an unreachable one is reported and that bucket is
+left unrationed rather than rationed on a guess.*
+
+**M4 — the ration gate (~300 LOC).** In the pre-flight loops: skip a rung whose bucket is
+over its 14%/day pro-rata allowance when a lower rung exists; PAUSE the fire when every rung
+is over (D-4).
+*AC: an over-ration rung is skipped and logged with its numbers; a fire pauses rather than
+proceeding when all rungs are over; the pause is visible on the message plane.*
+
+**M5 — controller reserve (~200 LOC, D-5).** A fraction of each bucket that only the
+controller may draw on.
+*AC: a non-controller role is refused a lane whose bucket is inside the reserve; the
+controller is not; the reserve is reported in the ledger.*
 
 ## Non-goals
 
