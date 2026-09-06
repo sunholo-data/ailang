@@ -125,10 +125,26 @@ log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 # dependency of every fire. A failed post is LOUD in the driver log instead — the one thing the
 # silent-fallback class never was (Critical Principle 2).
 _mc_notify() {
-  local title="$1" body="$2" label="$3"
-  ailang messages send controlplane "$body" \
-    --title "$title" --from "$MSG_FROM" 2>/dev/null \
-    || log "WARNING: ${label} notice FAILED to send via ailang messages"
+  local title="$1" body="$2" label="$3" _try rc=1
+  # RETRY, briefly. Measured 2026-09-06: the lane-degradation notice for the fire that
+  # dropped the whole fleet to pi lanes failed to send — and the same send succeeded by
+  # hand minutes later, so it was a blip. The consequence was not a lost log line: it
+  # was that the LARGEST degradation this fleet has had was invisible on the message
+  # plane and a human found it by looking. A one-shot send on a transient channel is
+  # how the silent-fallback class comes back wearing a warning.
+  for _try in 1 2 3; do
+    if ailang messages send controlplane "$body" --title "$title" --from "$MSG_FROM" 2>/dev/null; then
+      rc=0; break
+    fi
+    [ "$_try" -lt 3 ] && sleep $(( _try * 5 ))
+  done
+  if [ "$rc" -ne 0 ]; then
+    log "WARNING: ${label} notice FAILED to send via ailang messages after 3 attempts"
+    # Spool it. The next fire's preflight drains this, so a notice survives a channel
+    # outage instead of existing only in a log nobody is tailing.
+    printf '%s\t%s\t%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$title" "$(printf '%s' "$body" | tr '\n' ' ')" \
+      >> "$STATE_DIR/mission-${MISSION_NAME}-notice-spool.tsv" 2>/dev/null || true
+  fi
   if [ -n "${MISSION_GH_ISSUE:-}" ]; then
     gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" --body "$body" >/dev/null 2>&1 \
       || log "WARNING: ${label} notice FAILED to post to issue #${MISSION_GH_ISSUE}"
