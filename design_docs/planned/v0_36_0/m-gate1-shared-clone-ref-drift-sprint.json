@@ -4,7 +4,7 @@
   "plan_path": "design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift-sprint-plan.md",
   "created": "2026-09-06",
   "updated": "2026-09-06",
-  "status": "in_progress",
+  "status": "completed",
   "risk_level": "low",
   "scope_note": "Post-c1212b3c recovery plan. M1 remains complete at recovered commit 8fcc1560d, which is patch-equivalent to original 20201e1d9. M2/M3 must be authored afresh in the authoritative split gate resources; the abandoned old-monolith M2 diff and .snap/M2 material are evidence only and must never be copied, merged, applied, restored, or used as implementation input. Reviewed behavior and both quorum-R2 fixes are unchanged; do not rerun quorum.",
   "execution_preconditions": [
@@ -89,24 +89,27 @@
         "Final non-vacuity check runs last: steady=0, update-ref mutation drift=1 with old->new, absent-file=2, missing-label=2.",
         "Gate-2 durable stamp is recorded as deferred-with-reason; fresh cumulative .snap/M3 contains all sprint files except root SKILL.md."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "actual_loc": 29,
+      "passes": true,
+      "started": "2026-09-06T11:12:00Z",
+      "completed": "2026-09-06T11:17:52Z",
+      "notes": "Gate 3b records gate3b and pins the poll target to the same full-SHA read; drift exit 1 remains diagnostic while missing Gate-1 evidence exit 2 aborts. Gate 4 retains one fetch, records gate4 as its origin-side re-confirmation, reuses that SHA for diffing, and requires base=<sha>@<iso> in Routing evidence. Gate 2's durable stamp is explicitly deferred because its item-level check already fetches immediately before deciding. Context docs, links, S1-S5 literals, scrubbed test-launchd-drivers, and the final steady/drift/absent/missing-label mutation re-proof pass. Fresh cumulative .snap/M3 contains the three M1 files and all five split resources, with no root SKILL.md."
     }
   ],
   "velocity": {
     "target_loc_per_day": 101,
     "estimated_total_loc": 302,
     "estimated_days": 3,
-    "remaining_loc": 40,
-    "remaining_days": 1
+    "remaining_loc": 0,
+    "remaining_days": 0,
+    "actual_total_loc": 291,
+    "actual_days": 3
   },
   "velocity_evidence": {
     "m1_actual": "Recovered commit 8fcc1560d is patch-equivalent to original 20201e1d9 and adds 55 lines in mission-base.sh, 96 in test_mission_base.sh, and 1 in make/test.mk: 152 actual LOC.",
     "m2_estimate": "Approximately 110 LOC across two narrow gate-resource edits and the new rationale resource.",
-    "m3_estimate": "Approximately 40 LOC across Gate 3b and Gate 4 resource edits.",
-    "derivation": "302 total LOC / 3 design-approved milestone-days = about 101 LOC/day; 150 LOC / 2 remaining days = 75 LOC/day."
+    "m3_estimate": "Approximately 40 LOC across Gate 3b and Gate 4 resource edits; actual was 29 added LOC (15 Gate 3b + 14 Gate 4).",
+    "derivation": "291 actual LOC / 3 completed design-approved milestone-days = 97 LOC/day, versus 302 estimated."
   },
   "executor_handoff": {
     "ready": true,

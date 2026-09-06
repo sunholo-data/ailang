@@ -1,9 +1,9 @@
 # M-GATE1-SHARED-CLONE-REF-DRIFT Sprint Plan — post-split recovery
 
 **Design**: `design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift.md`
-**Status**: IN PROGRESS — M1 complete at recovered commit `8fcc1560d`; M2 complete in the fresh split-resource executor snapshot and awaiting controller commit; M3 pending
-**Duration**: 3 days total (2 complete, 1 remaining)
-**Estimated size**: 302 LOC total (152 actual M1 + 110 M2 + 40 M3), about 101 LOC/day
+**Status**: COMPLETE — M1 at `8fcc1560d`, M2 at `9f691824f`, and M3 complete in the fresh cumulative executor snapshot awaiting controller commit/evaluation
+**Duration**: 3 days total (3 complete, 0 remaining)
+**Actual size**: 291 LOC total (152 M1 + 110 M2 + 29 M3), versus 302 estimated
 **Risk**: low implementation risk; recovery/base-alignment is the primary execution risk
 
 ## Recovery boundary
@@ -24,8 +24,8 @@ No quorum rerun is permitted: the design amendment is a file-map recovery, not a
 | Milestone | State | Size | Dependency | Authoritative files |
 |---|---:|---:|---|---|
 | M1 — measurement helper and non-vacuity test | COMPLETE (`8fcc1560d`, recovered) | 152 actual LOC | none | `tools/launchd/mission-base.sh`, `tools/launchd/test_mission_base.sh`, `make/test.mk` |
-| M2 — Gate 1/Gate 3 wiring and rationale | COMPLETE (executor snapshot; awaiting controller commit) | 110 actual LOC | M1 + clean post-split base | `resources/gate-1-observe.md`, `resources/gate-3-route.md`, new `resources/ref-drift.md` |
-| M3 — Gate 3b/Gate 4 wiring and final re-proof | PENDING | ~40 LOC | M2 | `resources/gate-3b-ci-green.md`, `resources/gate-4-record.md` |
+| M2 — Gate 1/Gate 3 wiring and rationale | COMPLETE (`9f691824f`) | 110 actual LOC | M1 + clean post-split base | `resources/gate-1-observe.md`, `resources/gate-3-route.md`, new `resources/ref-drift.md` |
+| M3 — Gate 3b/Gate 4 wiring and final re-proof | COMPLETE (executor snapshot; awaiting controller commit) | 29 actual LOC | M2 | `resources/gate-3b-ci-green.md`, `resources/gate-4-record.md` |
 
 M1 remains complete and unchanged. Its implementation must not be regenerated. Verify it after base alignment, but do not reopen its reviewed code unless a check proves the committed content was lost.
 
@@ -81,7 +81,7 @@ env -i HOME="$HOME" PATH="/usr/bin:/bin:/usr/sbin:/sbin" TERM=dumb make test-lau
 
 - A fresh `.snap/M2/` is produced from the split-resource implementation. It must contain the cumulative M1 files plus `gate-1-observe.md`, `gate-3-route.md`, and `ref-drift.md`; it must not contain the root `SKILL.md` or content recovered from the abandoned snapshot.
 
-## M3 — Gate 3b/Gate 4 wiring + final re-proof (~40 LOC)
+## M3 — COMPLETE: Gate 3b/Gate 4 wiring + final re-proof (29 actual LOC)
 
 ### Files
 

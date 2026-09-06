@@ -140,13 +140,24 @@ rotate the 4th out", the literal instruction above, would have committed a chart
 arithmetic is self-consistent against the wrong base. Same shape as the STATUS-rotation bug (a
 destructive edit reports success exactly like a correct one), but the corruption arrives from the
 BASE rather than from the edit, so no amount of care inside the edit can catch it. Before the first
-Gate-4 write, re-confirm the base:
+Gate-4 write, re-confirm and record the base. This is the Gate-4 call site for the shared-clone
+protocol in [`resources/ref-drift.md`](ref-drift.md); the helper supplies the `origin/dev` side of
+the existing re-confirmation, so do not add another fetch or ref read:
 
 ```bash
 git fetch origin
-git rev-parse dev origin/dev                     # differ at all? the working tree is NOT the base
-git diff --stat origin/dev -- "$MISSION_DOC" design_docs/*-mission-log.md
+base=$(bash tools/launchd/mission-base.sh record gate4) || exit 2
+base_sha=${base%%$'\t'*}; base_iso=${base#*$'\t'}
+git rev-parse dev "$base_sha"                    # same dev/origin re-confirmation; origin recorded once
+git diff --stat "$base_sha" -- "$MISSION_DOC" design_docs/*-mission-log.md
+echo "Gate 4 Routing evidence field: base=$base_sha@$base_iso"
 ```
+
+The human log's **Routing evidence** row MUST contain `base=<sha>@<iso>` from that same `record
+gate4` result, with the full 40-character SHA. Gate 2's durable `base-gate2` stamp remains deferred:
+its item-level check already fetches immediately before deciding, and a separate durable stamp has
+not yet proved useful;
+it may quote `mission-base.sh snap` in the pick note, but this sprint writes no `base-gate2` row.
 
 If charter/log differ from `origin/dev`, do **not** edit them in the shared checkout: write the
 record in a worktree branched from `origin/dev` (`git worktree add -b … <path> origin/dev`) and land
