@@ -57,6 +57,7 @@ func printMissionHelp() {
   ailang mission rotate-log <name> [--keep N]
                                    trim the live log, archive the rest, and regenerate
                                    the COMPLETE one-line index (default keep 20)
+                                   --status rotates the STATUS-stamp archive instead
                                    --adopt  acknowledge replacing a hand-written plist
                                    --force  proceed while an iteration is running
                                    --no-reload  promote without touching launchd
@@ -208,9 +209,11 @@ func missionApply(args []string) error {
 
 func missionRotateLog(args []string) error {
 	keep := 20
-	var name string
+	var name, stream string
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
+		case "--status":
+			stream = "status"
 		case "--keep":
 			if i+1 >= len(args) {
 				return fmt.Errorf("--keep needs a number")
@@ -223,13 +226,13 @@ func missionRotateLog(args []string) error {
 			i++
 		default:
 			if strings.HasPrefix(args[i], "-") {
-				return fmt.Errorf("unknown flag %q", args[i])
+				return fmt.Errorf("unknown flag %q (want: --keep N, --status)", args[i])
 			}
 			name = args[i]
 		}
 	}
 	if name == "" {
-		return fmt.Errorf("usage: ailang mission rotate-log <name> [--keep N]")
+		return fmt.Errorf("usage: ailang mission rotate-log <name> [--keep N] [--status]")
 	}
 	reg, err := loadMissionRegistry()
 	if err != nil {
@@ -255,6 +258,12 @@ func missionRotateLog(args []string) error {
 		}
 	}
 	logPath := filepath.Join(logDir, "design_docs", m.Name+"-mission-log.md")
+	if stream == "status" {
+		// The STATUS-stamp archive is append-only and unbounded exactly like the log —
+		// v1's reached 1.69 MB / ~423k tokens across 295 entries — so it rotates the same
+		// way, into its own archive and its own index.
+		logPath = filepath.Join(logDir, "design_docs", m.Name+"-mission-status-archive.md")
+	}
 	res, err := mission.RotateLog(logPath, keep)
 	if err != nil {
 		return err

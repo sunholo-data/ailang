@@ -288,3 +288,135 @@ func TestParseLog_HandlesEveryFormatTheFleetActuallyUses(t *testing.T) {
 		})
 	}
 }
+
+// A FOURTH shape: the STATUS-stamp archive inverts the field order, putting the date
+// first and the iteration number second. v1's is 1.69 MB / ~423k tokens across 295
+// entries — append-only and unbounded, exactly like a log, so it rotates the same way.
+func TestRotateLog_HandlesStatusStampArchives(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "v1-mission-status-archive.md")
+	var b strings.Builder
+	b.WriteString("# V1 Mission — STATUS stamp archive (rotated out of the charter)\n")
+	for i := 1; i <= 30; i++ {
+		fmt.Fprintf(&b, "\n## STATUS 2026-09-%02d — ITERATION %d: **headline %d**\n\nstatus body %d\n", (i%28)+1, i, i, i)
+	}
+	// All FOUR real variants, copied from the live archives 2026-09-06. A parser that
+	// knows only the current one left 23 of v1's 295 entries and ALL of motoko's out.
+	b.WriteString("\n## STATUS 2026-09-02 — ITERATION 91 COMPLETE: **motoko's variant**\n\nstatus body 91\n")
+	b.WriteString("\n## STATUS 2026-07-14 (midday) — ITERATION 92: v1's early variant\n\nstatus body 92\n")
+	b.WriteString("\n## STATUS 2026-07-12 (morning) — v1.0 SCOPE SET, no iteration number\n\nstatus body 93\n")
+	if err := os.WriteFile(p, []byte(b.String()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	res, err := RotateLog(p, 10)
+	if err != nil {
+		t.Fatalf("a status archive must rotate like a log: %v", err)
+	}
+	idxAll, _ := os.ReadFile(res.IndexPath)
+	for _, want := range []string{"| 91 |", "| 92 |", "SCOPE SET"} {
+		if !strings.Contains(string(idxAll), want) {
+			t.Errorf("status variant %q missing from the index", want)
+		}
+	}
+	for _, want := range []string{"status body 91", "status body 92", "status body 93"} {
+		lv, _ := os.ReadFile(p)
+		av, _ := os.ReadFile(res.ArchivePath)
+		if !strings.Contains(string(lv)+string(av), want) {
+			t.Errorf("%q survived neither file", want)
+		}
+	}
+	if res.Total != 33 || res.Kept != 10 {
+		t.Errorf("total/kept = %d/%d, want 33/10", res.Total, res.Kept)
+	}
+	// Its index must not collide with the LOG's index for the same mission.
+	if strings.HasSuffix(res.IndexPath, "v1-mission-index.md") {
+		t.Errorf("the status index collided with the log index: %s", res.IndexPath)
+	}
+	if !strings.Contains(res.IndexPath, "status") {
+		t.Errorf("index path should name the status stream; got %s", res.IndexPath)
+	}
+	idx, _ := os.ReadFile(res.IndexPath)
+	for _, n := range []int{1, 15, 30} {
+		if !strings.Contains(string(idx), fmt.Sprintf("| %d |", n)) {
+			t.Errorf("status iteration %d missing from the index", n)
+		}
+	}
+	// Nothing lost.
+	live, _ := os.ReadFile(p)
+	arch, _ := os.ReadFile(res.ArchivePath)
+	both := string(live) + string(arch)
+	for i := 1; i <= 30; i++ {
+		if !strings.Contains(both, fmt.Sprintf("status body %d\n", i)) {
+			t.Fatalf("status entry %d survived neither file", i)
+		}
+	}
+}
+
+// Rotation assumes every "## " heading after the first entry IS an entry. A file that
+// interleaves STRUCTURAL sections breaks that: the section becomes part of the preceding
+// entry's body and is archived away with it.
+//
+// Measured on motoko's status archive, which carries eight — a Backlog, a Routing rule, a
+// Skill section, "How the mission runs". Rotating it moved live reference material into an
+// archive nothing loads. The tool cannot tell a record from structure, so it refuses.
+func TestRotateLog_RefusesAFileWithInterleavedStructure(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "m-mission-log.md")
+	body := `# Log
+
+## 1 — 2026-09-01 — first [OK]
+
+body 1
+
+## Backlog (prioritized — top = next)
+
+This is live reference material, not a record. It must not be archived.
+
+## 2 — 2026-09-02 — second [OK]
+
+body 2
+`
+	if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := RotateLog(p, 1)
+	if err == nil {
+		t.Fatal("a file with interleaved structural sections must be REFUSED — rotating it " +
+			"silently relocates live reference material into an archive")
+	}
+	if !strings.Contains(err.Error(), "Backlog") {
+		t.Errorf("the refusal must NAME the offending heading so it can be moved; got: %v", err)
+	}
+	// And it must have changed nothing.
+	after, _ := os.ReadFile(p)
+	if string(after) != body {
+		t.Error("a refused rotation must leave the file untouched")
+	}
+}
+
+// A heading BEFORE the first entry is preamble, not structure-in-the-stream, and must not
+// trip the guard — otherwise no real log would ever rotate, since they all have a title.
+func TestRotateLog_PreambleHeadingsDoNotTripTheGuard(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "m-mission-log.md")
+	body := `# Log
+
+## How to read this file
+
+Preamble prose, above every entry.
+
+## 1 — 2026-09-01 — first [OK]
+
+body 1
+
+## 2 — 2026-09-02 — second [OK]
+
+body 2
+`
+	if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RotateLog(p, 1); err != nil {
+		t.Fatalf("a preamble heading must not block rotation: %v", err)
+	}
+}

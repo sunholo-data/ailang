@@ -44,6 +44,24 @@ import (
 var entryHeadingRe = regexp.MustCompile(
 	`^## (?i:iteration\s+)?(\d+)(?:\s*&\s*\d+)?\s+—\s+(\d{4}-\d{2}-\d{2})(?:T[0-9:]+Z?)?(?:/\d{1,2})?\s*(?:—\s*)?(.*)$`)
 
+// statusHeadingRe matches a STATUS-stamp archive entry. These put the DATE first and the
+// iteration number second, and the fleet writes FOUR variants of them:
+//
+//	## STATUS 2026-09-06 — ITERATION 333: **headline**            (v1, current)
+//	## STATUS 2026-09-02 — ITERATION 33 COMPLETE: **headline**    (motoko)
+//	## STATUS 2026-07-14 (midday) — ITERATION 29: headline        (v1, early — 23 of these)
+//	## STATUS 2026-07-12 (morning) — v1.0 SCOPE SET ...           (no iteration number)
+//
+// Given its own patterns rather than contorted into entryHeadingRe: the field ORDER is
+// inverted, and a regex trying to accept both orders accepts nonsense in between.
+var statusHeadingRe = regexp.MustCompile(
+	`^## STATUS\s+(\d{4}-\d{2}-\d{2})(?:\s*\([^)]*\))?\s+—\s+ITERATION\s+(\d+)(?:\s+[A-Za-z]+)?\s*:?\s*(.*)$`)
+
+// statusNoteRe is the fallback for a STATUS stamp carrying no iteration number — a scope
+// decision, a controller-model change. They are real records and belong in the index; they
+// sort by date, like any other note.
+var statusNoteRe = regexp.MustCompile(`^## STATUS\s+(\d{4}-\d{2}-\d{2})(?:\s*\([^)]*\))?\s+—\s+(.*)$`)
+
 // noteHeadingRe matches a non-iteration record that still belongs in the index, e.g. an
 // attended note. These carry no iteration number, so they sort by date.
 var noteHeadingRe = regexp.MustCompile(`^## ([A-Z][A-Z ]+)\s+—\s+(\d{4}-\d{2}-\d{2})\s*(.*)$`)
@@ -84,6 +102,19 @@ func parseLog(body string) (preamble string, entries []LogEntry) {
 				title = strings.TrimSpace(strings.SplitN(l, "—", 2)[0][3:]) + ": " + title
 			}
 			cur = &LogEntry{Num: n, Date: m[2], Title: title}
+			buf = []string{l}
+			continue
+		}
+		if m := statusHeadingRe.FindStringSubmatch(l); m != nil {
+			flush()
+			n, _ := strconv.Atoi(m[2])
+			cur = &LogEntry{Num: n, Date: m[1], Title: strings.TrimSpace(m[3])}
+			buf = []string{l}
+			continue
+		}
+		if m := statusNoteRe.FindStringSubmatch(l); m != nil {
+			flush()
+			cur = &LogEntry{Num: -1, Date: m[1], Title: strings.TrimSpace(m[2])}
 			buf = []string{l}
 			continue
 		}
@@ -152,11 +183,36 @@ func RotateLog(logPath string, keep int) (*RotateResult, error) {
 	if len(entries) == 0 {
 		return nil, fmt.Errorf("%s: no iteration entries found (expected headings like '## 337 — 2026-09-06 — ...')", logPath)
 	}
+	// REFUSE A FILE THAT IS NOT A PURE RECORD STREAM.
+	//
+	// Rotation assumes every "## " heading after the first entry IS an entry, so an entry's
+	// body runs to the next one. A file that interleaves STRUCTURAL sections — a Backlog, a
+	// Routing rule, a Skill section — breaks that: those sections become part of the
+	// preceding entry's body and get archived away with it.
+	//
+	// Measured on motoko's status archive, which carries eight such sections. Rotating it
+	// moved "## Backlog (prioritized — top = next)" and "## How the mission runs" into an
+	// archive nothing loads. Reverted, and refused here instead: the tool cannot tell a
+	// record from structure, and guessing wrong silently relocates live reference material.
+	if stray := strayHeadings(string(raw), entries); len(stray) > 0 {
+		return nil, fmt.Errorf("%s: %d non-entry '## ' heading(s) are interleaved with the "+
+			"entries, so rotation would archive them as part of an entry's body — refusing. "+
+			"First: %q. Move structural sections above the first entry, or rotate a file that "+
+			"holds records only", logPath, len(stray), stray[0])
+	}
 
 	dir, base := filepath.Dir(logPath), filepath.Base(logPath)
 	stem := strings.TrimSuffix(base, ".md")
 	archivePath := filepath.Join(dir, stem+"-archive.md")
-	indexPath := filepath.Join(dir, strings.TrimSuffix(stem, "-log")+"-index.md")
+	// Index name drops a trailing "-log" or "-status-archive", so v1-mission-log.md and
+	// v1-mission-status-archive.md produce v1-mission-index.md and
+	// v1-mission-status-index.md rather than colliding or growing silly suffixes.
+	base2 := strings.TrimSuffix(stem, "-log")
+	if strings.HasSuffix(stem, "-status-archive") {
+		base2 = strings.TrimSuffix(stem, "-archive") // -> "<name>-mission-status"
+		archivePath = filepath.Join(dir, stem+"-old.md")
+	}
+	indexPath := filepath.Join(dir, base2+"-index.md")
 
 	// Entries already archived stay in the index — the index is the COMPLETE history or
 	// it does not do its job.
@@ -254,4 +310,30 @@ func RotateLog(logPath string, keep int) (*RotateResult, error) {
 		return nil, werr
 	}
 	return res, nil
+}
+
+// strayHeadings returns "## " headings that appear at or after the first parsed entry but
+// are not themselves entries. Headings BEFORE the first entry are the file's preamble and
+// are preserved verbatim, so they are not stray.
+func strayHeadings(body string, entries []LogEntry) []string {
+	if len(entries) == 0 {
+		return nil
+	}
+	firstLine := strings.Split(entries[0].Body, "\n")[0]
+	idx := strings.Index(body, firstLine)
+	if idx < 0 {
+		return nil
+	}
+	var out []string
+	for _, l := range strings.Split(body[idx:], "\n") {
+		if !strings.HasPrefix(l, "## ") {
+			continue
+		}
+		if entryHeadingRe.MatchString(l) || statusHeadingRe.MatchString(l) ||
+			statusNoteRe.MatchString(l) || noteHeadingRe.MatchString(l) {
+			continue
+		}
+		out = append(out, strings.TrimSpace(l))
+	}
+	return out
 }
