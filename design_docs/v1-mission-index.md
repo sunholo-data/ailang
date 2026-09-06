@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 338 | 2026-09-06 | Pin shared-ref observations, recover the stranded sprint, and fix inherited CI red [HARNESS] |
 | 337 | 2026-09-06 | Bank the pi runner false-green evidence and park its unresolved snapshot contract [HARNESS] |
 | 336 | 2026-09-06 | Correct the cache encoding specification and park the disputed naming direction [REFUTATION] |
 | 335 | 2026-09-06 | Recover the stranded cache-encoding design and make its CI instructions executable [ADMIN] |
@@ -335,11 +336,10 @@ confidently and wrongly is worse than none.
 | 9 | 2026-07-11 | v1.0 SHAPE ratified: product-thesis bar v2 replaces the hygiene bar |
 | 8 | 2026-07-11 | Iteration 7: m-eval-frontier-tier LANDED — the eval-bar clause's machinery shipped (full loop headless, round-1 clean) |
 | 7 | 2026-07-11 | Iteration 6: m-effect-refinement DECOMPOSED — last strategic v1.0 item is now sprint-sized queue items |
-| 6 | 2026-07-10/11 | Iteration 5: m-v1-stability-promise landed — the v1.0 bar's stability clause closed (design→plan→execute→evaluate all in one headless pass) |
+| 6 | 2026-07-10 | Iteration 5: m-v1-stability-promise landed — the v1.0 bar's stability clause closed (design→plan→execute→evaluate all in one headless pass) |
 | 5 | 2026-07-10 | Iteration 4: m-diagnostic-coverage closed for v1 (stale-status found, 4 footgun rows promoted to covered); first PR-route integration around a cont... |
 | 4 | 2026-07-10 | Iteration 3: cloud-adapter P0 completion landed (first round-1 eval FAIL, caught a fail-open bug) + dev un-redded (3 pre-existing CI breaks fixed) |
 | 3 | 2026-07-10 | Iteration 2: m-feedback-triage-gate landed via full loop (first unsupervised nightly-mode run) |
 | 2 | 2026-07-10 | Iteration 1: first full inner-loop run; 2 items landed; the loop's honesty held |
 | 1 | 2026-07-10 | Iteration 0: bar ratified, backlog re-scored, queue rewritten |
 | 0 | 2026-07-10 | Mission initialized (exploration census; no sprint run) |
-| — | 2026-08-27 | ATTENDED NOTE (Mark + interactive Claude Code session; not an iteration retro) |

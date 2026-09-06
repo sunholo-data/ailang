@@ -27,19 +27,10 @@ section, write "none" rather than omitting:
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `v1-mission-index.md`.
 
-## 317 — 2026-09-02 — dev was red, V1 owns the repo, and the fix was already sitting in a PR whose slot died before it could land it [HARNESS]
-**Pick**: **the dev CI red**, not the queue head. `CI: failure` on `origin/dev` HEAD `75a2b8b40`, checks=16, two not-green. Gate 1's owning-mission rule makes a red outrank the queue for the mission that owns `sunholo-data/ailang`, which is V1; `mission-motoko` recorded it, declined to let it displace its own pick, and handed it over on the cross-mission channel — the contract working exactly as written.
-**Progress**: **N = 10 design docs remaining before v1.0.0 (was 10, ±0 — goal unmoved).** This is a HARNESS iteration: it restored a CI gate that had gone red and pinned nothing new against the v1.0 bar. The named UNCLASSIFIED bucket of 4 (ledger `D-53`) is still open and would make it 14.
-**Outcome**: LANDED. PR [#1013](https://github.com/sunholo-data/ailang/pull/1013) merged as `20cce785e` — `PROBE_TREE_DISCOVERY_SECS` (default 30, validated like its sibling), computed inside `sample_tree` at call time so process-tree discovery no longer shares the lane's deadline; both racing arms pin their own knobs; the `ARM_CAP_SECS * 5` deflake widening retired. 2 files, +24/−20. PR [#971](https://github.com/sunholo-data/ailang/pull/971) closed as SUPERSEDED with the reconcile explained.
-**Routing evidence**: controller `claude:claude-opus-5` (session). Designer **not spawned** and rotation pointer untouched — no doc was authored. Planner **not spawned** — no plan was written, so `derive-planner-lane.sh` was not consulted. Executor **not spawned**: the work was INHERITED from a dead slot of this same iteration number, whose commit credits `codex:gpt-5.6-sol`; per the verify-and-land rule the deliverable was verification, not re-execution. Evaluator `sonnet` via the Agent tool, **one round**, in its OWN worktree (`.wt-v1-iter317-eval`, detached at the PR head, 0 dirty files at handoff) — **PASS 87/100, zero blocking, LAND-WITH-FOLLOWUP**. generator≠judge holds on provider: the generator was OpenAI (codex), the judge Anthropic (sonnet), and the judge is distinct from the controller's own model. Metered **$0.00** of the $5 ceiling; every lane a quota bucket; no quorum round.
-**The running skill was 147 lines behind origin — the largest drift this loop has recorded — and I read the delta before proceeding.** `cmp` against the **RESOLVED** symlink target (`readlink` → the main checkout; inode `60291442`, while the pin worktree's own copy is `63169509`, a **different file** — which is precisely why the relative-path form of this check reads green from a copy nothing executes). 3,929 lines against origin's 4,076: **147 added, 0 removed**, a strict subset, so nothing had been reverted and four whole rules were simply absent. All four were applied here: D-52's per-gate `mission-heartbeat.sh` stamps (stamped at every gate); the ATTENDED LEDGER EDITS contract (checked — no row flipped since the watermark, so no provenance check was owed); the round-2+ evaluator-directive staleness rule; and the rule that **sub-agents inherit none of standing rule 7**, which is why the evaluator directive opened by restating rule 7's operative half in its own words. The main checkout is **22 behind / 9 ahead with 4 dirty files**, one of them an uncommitted `SKILL.md` edit — the standing one-way divergence, now at its largest, and still a human decision to reconcile.
-**The red was a race, and the commit it appeared on could not have caused it.** `launchd drivers (bash 3.2)` is `success` on all **7** parents walked back and `failure` only on HEAD — and HEAD is a **docs-only** commit touching `design_docs/` and `.claude/` alone. Confirmed by blob identity rather than by inspection: `tools/eval/motoko_connection_probe.sh` and `tools/eval/test_motoko_connection_probe.sh` are byte-identical between the green parent `ef55ed075` and the red `75a2b8b40` (`dcc91a1eb` and `5b00f4edb` on both sides), with a control on a blob that commit *did* change correctly differing. The failing assertion was read by NAME, never by exit code: `not ok - bounded termination deadline refuses lacked expected message`, the probe having emitted `process-tree discovery failed` instead.
-**Mechanism.** `run_lane()` computed ONE deadline from `PROBE_TIMEOUT_SECS` and used it for TWO bounds — the lane's own sampling/termination check, and the process-tree discovery bound threaded into `descendant_pids`. Two arms need opposite branches to win: `bounded termination deadline refuses` needs the termination branch, `descendant discovery refuses on the real wall-clock deadline` needs the discovery branch. They were separated only by machine speed. Motoko's `#1008` changed only the diagnostic *strings* in those branches, so it made the race legible; it did not create it. This is rule 3m's shape — a bound and its stimulus both scaling with the machine — arriving in a shell script instead of a Go test.
-**The iteration was already done, by a slot that died before it could land it.** The died-mid-flight sweep found three open PRs on the shared fleet account; `--author` is a **fleet** filter, not a mission filter, so each was attributed before anything was touched. **#1013**, branch `mission/iter317-probe-deadline-rebase`, created 20:31Z: a prior slot carrying *this iteration's own number* had diagnosed the race, written the fix, opened it 21/21 green and MERGEABLE/CLEAN, and died before Gate 3b — leaving **zero** charter rows and **zero** log entries, so the loop's memory would simply have skipped 317. The deliverable was therefore to verify and land, not to redo: `expected_refusal_branches` 27→28 was re-derived by running the gate's own three counting expressions (20+5+3=28 on the reconciled probe, 19+5+3=27 at the old base), and the +1 is exactly the new knob's validation refusal.
-**The judge refuted my own measurement and found the mechanism I had missed.** I ran the probe self-test 12 times on unmodified `origin/dev` intending a flake rate; **12/12 exited rc=1 at an earlier arm** (`run_lane fixture arm requires real lsof on Darwin CI target`) and never reached the arm under test, so I had no rate at all — and I said so in the directive rather than letting the number stand. The judge found why: ambient `PATH` lacks `/usr/sbin`. Reproduced first-party — `/usr/sbin` occurrences in `$PATH` **0** while `getconf PATH` contains it, `command -p -v lsof` rc=1 and empty against the control `command -p -v grep` rc=0 → `/usr/bin/grep`. With `/usr/sbin` prepended the suite is **42/42 rc=0** on the merged tree. The PR body documented that caveat and I had not read it before running: my instrument was broken by something the artifact under review had already warned about.
-**Two real findings became queue rows rather than a quietly widened sprint.** The core de-race hunk has **no mutation killer** — reverting `sample_tree`'s signature change and the `run_lane` call site together still passes 42/42, distinguished only by suite wall time (147 s against 47–90 s), because pre-fix code still reaches the identical wall-clock message at t≈60 s, inside the 120 s arm cap. And the new `PROBE_TREE_DISCOVERY_SECS=30` default is unpinned (mutant 30→5 passes 42/42) while measuring 57–66 nodes/s quiet and 26–28 under 8-way contention, so 30 s reaches ~800–2000 nodes against a 4096 ceiling and tightens the production discovery budget. Rule 3n(b) is explicit that a hunk with no killer is a queue row, not a sprint to widen, so both were filed with the judge's proposed fixes attached.
-**Ruled out**: (a) *"the red is inherited like the Sonar one"* — REFUTED by the parent walk: `success` on 7 of 7 parents. (b) *"the docs-only merge broke it"* — REFUTED by blob identity, control firing. (c) *"motoko's #1008 introduced the race"* — REFUTED: its probe diff is two lines and both are diagnostic strings; the wall-clock check pre-dates it. (d) *"the probe self-test cannot run on this rig"* — **my own claim, REFUTED by the judge**: it runs 42/42 once `/usr/sbin` is on `PATH`. (e) *"SonarCloud is this iteration's problem too"* — it is red on **8 of 8** commits walked back, inherited, not required, and not a pick; recorded and left, as motoko did.
-**Next**: the queue head is `m-docparse-v0340-reports-2026-09-01` (VERIFY-then-route — finish the cache-bug repro before any sprint). The two rows filed here are small and one of them protects the fix that just cleared this red, so `m-probe-derace-has-no-killer` should land soon rather than sit. `m-message-watcher-windows-wallclock-flake` is the same class as this iteration's red — an absolute wall-clock bound on a machine-speed-dependent stimulus — and the two would be cheaper to fix together than apart.
+> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
+> iteration is in `v1-mission-log-archive.md`, and a one-line index of ALL of them —
+> the thing to grep before picking work, so the loop never repeats itself — is in
+> `v1-mission-index.md`.
 
 ## 318 — 2026-09-02 — My fix turned a 2.5% Windows flake into a 100% Windows failure, and CI refuted the executor, the judge and me at once [HARNESS]
 
@@ -1964,3 +1955,115 @@ passed (47enumerated/47checked), whitespace clean. Shared main untouched. Remote
 
 Judge telemetry: runner rc0/pi_rc0,223seconds,41tools,one fresh report. Provider-reported
 1,340,910input/8,795output tokens; cost0 on Ollama Cloud quota. No wrapper inference billed.
+
+## 338 — 2026-09-06 — Pin shared-ref observations, recover the stranded sprint, and fix inherited CI red [HARNESS]
+
+**Picked.** `m-gate1-shared-clone-ref-drift`, the ready queue head. Gate 2 found the prior
+iteration338 attempt dead mid-flight in `.wt-v1-iter338`; its committed design, plan and M1 plus
+stale uncommitted monolithic M2 were preserved. A clean recovery worktree was built from the
+commits instead of continuing or discarding the stale tree. Claim
+`inbox_1788691105959_885c997f` was sent before routing. The unattended standing request explicitly
+required Agent-tool designer, planner, executor and evaluator roles; all four ran.
+
+**Reality check.** Gate 1 began at `927d0dec086fc506173784c16d01b2a3373256ce` and the shared
+remote-tracking ref advanced during setup, reproducing the queue row's premise. Kill switch armed;
+billing tripwire clean; GitHub account `sunholo-voight-kampff`. Canonical inbox was triaged without
+acknowledging any row; no new Mark directive was inferred. Ledger remained 58 rows/four OPEN
+D-55–D-58. Main checkout ended 0 ahead/1 behind with exactly 11 pre-existing dirty paths, all
+untouched. Separate worktrees held implementation and every judge round.
+
+**Shipped.** PR [#1063](https://github.com/sunholo-data/ailang/pull/1063) landed as
+[`0b7f3e3af`](https://github.com/sunholo-data/ailang/commit/0b7f3e3af). `mission-base.sh` records
+one full-SHA/UTC snapshot and has eight non-vacuous arms; Gate 1 records/re-reads the base before
+worktree creation; Gates 3, 3b and 4 distinguish missing evidence from measured drift and carry
+the observation time into routing evidence. The root mission-control skill stayed within its
+split-resource ratchet. R1 independent MiniMax: PASS92, no hard failures.
+
+The first PR check set exposed three Windows failures already present on the pinned parent:
+unescaped `t.TempDir()` backslashes in TOML and a POSIX-only explicit-driver fixture. The same
+Sol executor changed only `internal/mission/render_test.go`; R2 MiniMax PASS93. PR #1063 then
+passed its complete check set, including both Windows jobs, before merge.
+
+After merge, exact-SHA Gate 3b observed `Build and Release` and `CI` red on one inherited test,
+while docs deploy was green. Attribution was first-party: base `aebf8bb73` was already red before
+#1063 on `TestMissionDocHeadingsStayCanonical`; Linux/macOS counted 12, Windows 22, and the local
+checkout counted 30 when a sibling world repository existed. The ratchet mixed three ambient
+inputs: sibling checkout presence, CRLF materialisation and repo-local headings. Sol made the
+corpus repository-local, trims the CR delimiter, lowers the stable count 30→12, fails reads loudly,
+and adds sibling/line-ending regression arms. R3 MiniMax PASS95. PR
+[#1064](https://github.com/sunholo-data/ailang/pull/1064) passed all 20 checks and landed as
+[`b50bb366e`](https://github.com/sunholo-data/ailang/commit/b50bb366e).
+
+**Routing evidence.** Controller `codex:gpt-5.6-sol`. Resolver outputs were recorded verbatim:
+designer `recipe codex:gpt-6-astra declared:provider-pin`; planner
+`recipe codex:gpt-5.6-sol anthropic-fallback:fail-closed:planner-lane-field-missing`; executor
+`recipe codex:gpt-5.6-sol declared:provider-pin`; evaluator
+`recipe pi:ollama/minimax-m3:cloud declared:provider-pin`. The first recovered designer/planner
+Agent launches inherited an ambiguous adapter model, so they were not silently accepted: designer
+was re-spawned explicitly as Astra and planner explicitly as Sol. Astra designer audited the
+recovered doc and found the Gate-3b exit-2 omission. Both quorum rounds were BLOCKED with Astra
+ABSENT (`OPENAI_API_KEY` unavailable), Gemini and GLM present/rejecting; every applied change was
+reviewer-authored concrete text under the already-ratified narrow-refinement carve-out, followed
+by the explicit Astra designer audit. No force-pass or controller approval.
+
+Planner and executor ran as explicitly pinned Sol Agent roles. Executor delivered M1/M2/M3 and
+both inherited-CI corrections; controller committed each bounded change and re-ran gates outside
+the executor. Evaluator was an explicitly pinned Astra Agent transport wrapper only. Actual R1
+judge was `pi:ollama/minimax-m3:cloud`. In R2 the same primary probe succeeded but launch failed
+before judging: typed rc10 `empty_worktree`, pi_rc0, zero tools, sandbox extension could not resolve
+`@anthropic-ai/sandbox-runtime`. The locked dependency was restored with `npm ci`; per chain rule
+the failed lane was not retried, and configured fallback `pi:openrouter/minimax/minimax-m3` judged
+R2. R3 went directly to that successful fallback. Its first report emission ended provider
+`stopReason:error` with response `gen-1788700729-R3LTzVPDDPf1TueU8Hgq`; runner rc0 was rejected as
+a scratch-file false-ok. Same-round MiniMax continuation wrote PASS95 and MiniMax itself corrected
+transport metadata. Wrapper supplied no score or prose. Generator OpenAI Sol != judge MiniMax in
+all accepted rounds. No role omitted; evaluator failures and fallbacks are explicit.
+
+**Verification.** Controller: `make test-launchd-drivers` 54+27+82+17 plus heartbeat/base/stall/
+memgate/kicker/probe arms green; `make check-context-docs`; `make build`; `make lint`; focused and
+full `internal/mission` tests. First local `make test` returned a truncated, non-reproducing red;
+immediate cached rerun was rc0 and remote `test` was green. `.snap/M2` six files and `.snap/M3`
+eight files were byte-identical to their worktree mutations, retained untracked. PR #1063 final
+head `725aa5b74` was all green; PR #1064 final head `322a9f05a` was 20/20 green. Autoclose scans
+over both PR title/body/commits found zero matches; known-bad controls matched.
+
+**Ruled out.**
+- The post-merge red was not caused by #1063: both workflows were already red on its immediate
+  base `aebf8bb73`; #1063 removed the three pre-existing Windows fixture failures.
+- A single lowered constant is not portable: the old count depended on sibling checkout presence
+  and Windows line endings. The regression fix removes both ambient inputs.
+- GOOS Windows compilation and string simulation are not Windows runtime proof; actual PR Windows
+  jobs are the banked runtime evidence.
+- Quorum `blocked` was not erased. Only its concrete proposed fixes were used under the narrow
+  carve-out; missing-reviewer and design-audit facts remain in the record.
+- A typed pi rc0 was not treated as judgment when the provider errored and only scratch changed.
+
+**Retro lane.** skill — the landed Gate 1/3/3b/4 shared-ref protocol makes the observation time
+and drift explicit. Backlog remains `m-pi-runner-shell-suite-coverage`; evaluator soft gaps remain
+the missing dedicated double-snap race arm and a combined sibling+CRLF production fixture. No
+extra feature scope was absorbed.
+
+**Progress.** N=12 design docs before v1.0.0 (was12, change0); this HARNESS item moved the goal by
+0 while making every later mission iteration's ref provenance auditable.
+
+**Cost.** Actual metered API $1.48796278: Gemini quorum $0.057238; R2 MiniMax/OpenRouter
+$0.69360648; R3 MiniMax/OpenRouter $0.73711830. GLM quorum $0.06206547 is flat-rate imputation,
+reported separately. Astra/Sol/Ollama were quota lanes; no invented token cost. No GPU/rig lock.
+
+**Next.** `m-pi-runner-shell-suite-coverage`, then `m-pi-evaluator-session-handshake`. Cache
+encoding remains parked on D-57; pi runner revision remains parked on D-58. No unattended answer
+was fabricated for D-55–D-58.
+
+**Independent evaluation.** Actual MiniMax reports are tracked at
+`docs/sprint-retros/iter338-gate1-ref-drift-eval-r{1,2,3}.md`: PASS92, PASS93 and PASS95, all with
+zero hard failures. R2/R3 name sandbox/runtime limitations and carry-forward scope; each names its
+exact evaluated SHA. The Agent wrappers were transport and containment only.
+
+**Record verification.** Exact merge SHA `b50bb366e02e82a971bada39acf080b26b192161`
+settled GREEN: CI run 34037385262, Build and Release 34037385268, and docs deploy 34037385203.
+Gate 4 recorded `base=578e8c3008c576826baaf2198f9b25afa61abf4a@2026-09-06T14:16:01Z`;
+the record branch was reconciled onto that observation before review. Charter remains 4783 lines
+with exactly three structural STATUS rows; moved335 is present in the bounded 20-entry archive,
+and moved313 is preserved in the old archive. Queue row survived and is LANDED. Dashboard31lines;
+log rotation kept20 full entries and regenerated the index. Ledger, tracked-path, context-doc,
+file-size, reference, changelog, personal-email, tmpfile, skill and whitespace checks passed.
