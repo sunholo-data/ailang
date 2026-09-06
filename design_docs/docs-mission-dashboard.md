@@ -1,17 +1,11 @@
 # Docs Mission Dashboard (snapshot — history lives in the charter + log)
 
-**Last updated**: 2026-09-05T19:29Z, iteration 10.
+**Last updated**: 2026-09-06, iteration 11.
 
 ## Status
-Charter's enumerated queue (docs-0..docs-10) fully `[LANDED]`/`[RULED OUT]`. `docs-11` (`m-dx27`
-GitHub docs-search fallback) unchanged, still parked on D-4, unanswered since iteration 9. Drew a
-second fresh item from the 31-doc STILL-PLANNED backlog (docs-8, iteration 5):
-`m-eval-standard-mode-input-files-gap` (gates 2 frontier-tier eval benchmarks out of standard mode
-where they cannot pass, plus fixes a cross-pipeline scoring gap the quorum itself surfaced). Ran
-4 quorum rounds — every objection real, every fix applied by the controller directly (rule 3f, no
-design-direction disputes, no designer spawn needed). Stopped at round 4 per the shared skill's own
-rule ("a doc past round 4 is data about this loop's scoping") rather than spending a 5th ~$0.03
-round. **Both items parked; no sprint ran this iteration.**
+`docs-11` remains parked on D-4 and `docs-12` on D-5. Fresh draw: `m-agent-step-cancellation`,
+whose existing quorum is blocked 3/3. Astra designer and Codex fallback were both spawned through
+the Agent tool but produced no revision before shutdown. **Parked; no sprint ran.**
 
 ## Blocking on Mark
 **D-4** (OPEN, iteration 9) — one-time OK to run the `m-dx27` sprint under the narrow-refinement
@@ -28,22 +22,17 @@ stays parked `needs-human-review`. Ledger: 5 rows, 2 OPEN (D-4, D-5).
 13. `[PARKED]` docs-12 — `m-eval-standard-mode-input-files-gap`, blocked at quorum round 4, held
     on D-5 (`needs-human-review`).
 
-**Next pick if D-4 or D-5 resolved (a)**: `sprint-planner` runs on whichever unparks first —
-`m-dx27` (est. 3-4h, `codex:gpt-5.6-luna`) or `m-eval-standard-mode-input-files-gap` (est. 1-2
-days, same lane). **If both still unanswered**: another fresh draw from the remaining 29
-STILL-PLANNED docs (skip anything showing another mission's fingerprints in `git log`).
+**Next pick if D-4 or D-5 resolves**: `sprint-planner` runs on the unparked item. If both remain
+unanswered, retry or re-route the parked `m-agent-step-cancellation` designer lane.
 
 ## Loop cadence + routing
 launchd `dev.ailang.mission-docs`, every 6h, staggered against v1/world/motoko. Designer: this
-mission's own env pin (`claude:claude-sonnet-5`, recipe/`claude-sub`), not the fleet rotation —
-not spawned this iteration (no round disputed design direction). Planner/executor:
-`codex:gpt-5.6-luna`. Evaluator: `sonnet`, vendor-disjoint from executor — not spawned this
-iteration (nothing reached design-ready to execute or judge).
+`codex:gpt-6-astra`, then fallback `codex:gpt-5.6-luna`; both Agent-tool attempts failed to produce
+a revision. Planner/executor: `codex:gpt-5.6-luna`, not reached. Evaluator: independent non-Codex
+lane, not reached because no generation passed quorum; no judge verdict was invented.
 
 ## Cost this iteration
-$0.1123 of $1 — 4 design-quorum rounds on `docs-12` ($0.0260 + $0.0306 + $0.0273 + $0.0284),
-OpenRouter-billed reviewers. `gpt6-astra` absent (budget) all 4 rounds — flagged as a watch-item,
-not yet at the skill-edit bar.
+$0.00 newly metered. No planner, executor, evaluator, or new quorum call ran.
 
 ## Quota posture
 No fallback triggered. `origin/dev` HEAD (`93c952d94`): `CI` and `Deploy Documentation to GitHub

@@ -3,6 +3,29 @@
 Append-only. One entry per iteration, newest at the BOTTOM.
 Created 2026-08-28. Iteration 0 (charter ratification) has not yet run.
 
+## ITERATION 11 — 2026-09-06T06:00Z
+
+**Gate 0:** armed; `sunholo-voight-kampff`; clean origin-pinned worktree at `e50066037`.
+Inbox triage found no `mission-docs` directive or genuine regression. D-4 and D-5 remain open.
+
+**Pick:** docs-11 remains parked on D-4 and docs-12 remains parked on D-5. Fresh eligible draw was
+`m-agent-step-cancellation`; its existing quorum artifact is blocked 3/3 on concrete objections
+covering mid-step concurrency, request-context/signal ownership, and existing cancellation APIs.
+
+**Routing / outcome:** designer `codex:gpt-6-astra` was spawned with the Agent tool but stayed
+running without changing the design file and was shut down. Required fallback `codex:gpt-5.6-luna`
+was then spawned with the Agent tool and likewise produced no revision before shutdown. Planner,
+executor, and evaluator were not spawned: no revised artifact reached quorum-ready state. This is
+a designer-lane failure and a correct park; no evaluator verdict was fabricated, so
+generator-not-equal-judge remains intact.
+
+**Cost:** $0.00 newly metered; quota-lane attempts only.
+
+**Decisions for Mark:** D-4 and D-5 unchanged and still open. **Flagged:** both designer attempts
+failed to produce a revision; retry/re-route before another fresh draw. **Ruled out:** none.
+
+**Retro:** no skill edit; one observed designer-lane timeout is below the two-instance threshold.
+
 #### Design-quorum review — `design_docs/docs-mission.md` (2026-08-28T06:29:56Z)
 
 - **Synthesis: BLOCKED** (total $0.0569, 15839 in / 990 out tok)
