@@ -6,15 +6,15 @@
   "updated": "2026-09-06",
   "status": "in_progress",
   "risk_level": "low",
-  "scope_note": "Post-c1212b3c recovery plan. M1 remains complete at 20201e1d9. M2/M3 must be authored afresh in the authoritative split gate resources; the abandoned old-monolith M2 diff and .snap/M2 material are evidence only and must never be copied, merged, applied, restored, or used as implementation input. Reviewed behavior and both quorum-R2 fixes are unchanged; do not rerun quorum.",
+  "scope_note": "Post-c1212b3c recovery plan. M1 remains complete at recovered commit 8fcc1560d, which is patch-equivalent to original 20201e1d9. M2/M3 must be authored afresh in the authoritative split gate resources; the abandoned old-monolith M2 diff and .snap/M2 material are evidence only and must never be copied, merged, applied, restored, or used as implementation input. Reviewed behavior and both quorum-R2 fixes are unchanged; do not rerun quorum.",
   "execution_preconditions": [
-    "Controller provides a clean base containing the c1212b3c gate-resource split (or descendant) and M1 commit 20201e1d9.",
+    "Controller provides a clean base containing the c1212b3c gate-resource split (or descendant) and recovered M1 commit 8fcc1560d.",
     "The old uncommitted root-SKILL.md M2 diff is cleared or quarantined before executor spawn; root SKILL.md is not an M2/M3 implementation target.",
     "The existing stale .snap/M2 material is cleared or quarantined; executor creates a fresh split-resource .snap/M2 snapshot.",
     "All four authoritative gate resources exist before executor spawn: gate-1-observe.md, gate-3-route.md, gate-3b-ci-green.md, gate-4-record.md."
   ],
   "hard_constraints": [
-    "M1 is complete and immutable at 20201e1d9; preserve record() single-snap, last() exit-1-on-no-match, and drift() explicit non-empty-old guard returning 2 for both no-record cases.",
+    "M1 is complete and immutable at recovered commit 8fcc1560d (patch-equivalent to original 20201e1d9); preserve record() single-snap, last() exit-1-on-no-match, and drift() explicit non-empty-old guard returning 2 for both no-record cases.",
     "M2/M3 edit only authoritative resources under .claude/skills/mission-control/resources plus new ref-drift.md; root .claude/skills/mission-control/SKILL.md stays byte-identical to the clean execution base and <= 2781 lines (expected 560).",
     "Never bump scripts/context_docs_baseline.txt or scripts/context_docs_links_baseline.txt; make check-context-docs and link resolution must pass.",
     "S1-S5 literals remain in resources/gate-3-route.md: resolve-role-spawn.sh; MISSION-ROLE:; enum in this build lists; now `claude:claude-fable-5-1` → `codex:gpt-6-astra` → `pi:ollama/deepseek-v4-flash:0731-cloud` → repeat; ASTRA IS ALSO A QUORUM REVIEWER.",
@@ -35,7 +35,7 @@
         "make/test.mk"
       ],
       "acceptance_criteria": [
-        "Commit 20201e1d9 is an ancestor of the execution HEAD.",
+        "Recovered commit 8fcc1560d is an ancestor of the execution HEAD.",
         "Both scripts pass /bin/bash -n and test_mission_base.sh reports all eight arms green.",
         "make/test.mk contains the test_mission_base.sh invocation.",
         "Both quorum-R2 fixes remain present exactly in behavior: last no-match exits 1; drift empty-old returns 2; record snaps once."
@@ -43,7 +43,7 @@
       "passes": true,
       "started": "2026-09-06",
       "completed": "2026-09-06T11:22:34+02:00",
-      "notes": "Committed as 20201e1d9; 55 + 96 + 1 = 152 added LOC. No M1 work remains."
+      "notes": "Recovered as 8fcc1560d with the same stable patch ID and file blobs as original 20201e1d9; 55 + 96 + 1 = 152 added LOC. No M1 work remains."
     },
     {
       "id": "M2_gate1_gate3_split_resource_wiring",
@@ -72,7 +72,7 @@
     },
     {
       "id": "M3_gate3b_gate4_split_resource_wiring_and_reproof",
-      "description": "Gate 3b records and pins the poll target from the same fresh read; Gate 4 reuses its existing fetch/re-confirmation, records gate4, and requires base=<sha>@<iso> in Routing evidence; final mutation re-proof runs last.",
+      "description": "Gate 3b records and pins the poll target from the same fresh read, reports real drift, and aborts when Gate-1 evidence is missing; Gate 4 reuses its existing fetch/re-confirmation, records gate4, and requires base=<sha>@<iso> in Routing evidence; final mutation re-proof runs last.",
       "estimated_loc": 40,
       "dependencies": [
         "M2_gate1_gate3_split_resource_wiring"
@@ -82,7 +82,7 @@
         ".claude/skills/mission-control/resources/gate-4-record.md"
       ],
       "acceptance_criteria": [
-        "gate-3b-ci-green.md contains record gate3b, derives the full-SHA poll target from that same read, preserves SHA-addressed bounded polling, compares against Gate 1, and links ref-drift.md.",
+        "gate-3b-ci-green.md contains record gate3b, derives the full-SHA poll target from that same read, preserves SHA-addressed bounded polling, compares against Gate 1, reports drift on exit 1, aborts on exit 2 rather than treating missing Gate-1 evidence as benign drift, and links ref-drift.md.",
         "gate-4-record.md preserves the existing fetch/rev-parse re-confirmation, contains record gate4, requires base=<sha>@<iso> in Routing evidence, and links ref-drift.md without adding a redundant second fetch.",
         "Root SKILL.md is unchanged; make check-context-docs, link resolution, S1-S5 checks in gate-3-route.md, and scrubbed make test-launchd-drivers all pass.",
         "Final non-vacuity check runs last: steady=0, update-ref mutation drift=1 with old->new, absent-file=2, missing-label=2.",
@@ -102,14 +102,15 @@
     "remaining_days": 2
   },
   "velocity_evidence": {
-    "m1_actual": "Commit 20201e1d9 adds 55 lines in mission-base.sh, 96 in test_mission_base.sh, and 1 in make/test.mk: 152 actual LOC.",
+    "m1_actual": "Recovered commit 8fcc1560d is patch-equivalent to original 20201e1d9 and adds 55 lines in mission-base.sh, 96 in test_mission_base.sh, and 1 in make/test.mk: 152 actual LOC.",
     "m2_estimate": "Approximately 110 LOC across two narrow gate-resource edits and the new rationale resource.",
     "m3_estimate": "Approximately 40 LOC across Gate 3b and Gate 4 resource edits.",
     "derivation": "302 total LOC / 3 design-approved milestone-days = about 101 LOC/day; 150 LOC / 2 remaining days = 75 LOC/day."
   },
   "executor_handoff": {
-    "ready": false,
-    "blocked_until": "Controller proves a clean post-split base containing M1 and neutralizes the abandoned monolith diff and stale M2 snapshot.",
+    "ready": true,
+    "blocked_until": null,
+    "readiness_evidence": "Planner audit on 2026-09-06: clean worktree before this plan-only correction; c1212b3c and recovered M1 8fcc1560d are ancestors; M1 files match original 20201e1d9 byte-for-byte and all eight helper tests pass; root SKILL.md matches the clean base; no .snap content exists.",
     "sequence": [
       "Verify M1 unchanged on the clean post-split base.",
       "Implement and validate M2 in gate-1-observe.md, gate-3-route.md, and new ref-drift.md; emit fresh split-resource M2 snapshot.",

@@ -182,7 +182,13 @@ The existing snippet already pins `target=$(git rev-parse origin/dev)` (full SHA
 
 ```bash
 target_is="$(bash tools/launchd/mission-base.sh record gate3b)"; target=${target_is%%$'\t'*}
-bash tools/launchd/mission-base.sh drift gate1 2>/dev/null || echo "DRIFT: base moved Gate1->Gate3b; re-verified poll target above"
+if bash tools/launchd/mission-base.sh drift gate1; then
+  : # steady
+else
+  drift_rc=$?
+  [ "$drift_rc" -ne 2 ] || { echo "no base recorded — abort, Gate 1 did not stamp" >&2; exit 2; }
+  echo "DRIFT: base moved Gate1->Gate3b; re-verified poll target above"
+fi
 rid=$(gh run list --branch dev --workflow CI --limit 10 --json databaseId,headSha \
       | jq -r --arg t "$target" '[.[] | select(.headSha == $t)][0].databaseId // empty')
 ```
@@ -341,5 +347,7 @@ R1 revision note: rows 10–13 were added/measured during this revision pass wit
 3. Corrected the false "whitelist already accepts arbitrary strings" claim: the whitelist applies to the LABEL field; written rows now bypass it via the separate file (Relations; Conflict Surface 5).
 4. Added Verification Log rows 10–13 (driver slot-verdict 1480–1502, premises a=1742/b=794, full heartbeat-consumer audit) and a new Conflict Surface row 6.
 5. Doc stays sprint-sized (3 milestones, one helper + one test) and ratchet-clean — heartbeat, its whitelist, and the S-guard suite untouched.
+
+Recovery designer audit (2026-09-06): applied the remaining R1 GLM call-site fix in the Gate-3b snippet: retain `drift` diagnostics and explicitly abort on exit 2 (missing Gate-1 record), rather than reporting missing evidence as benign drift. This implements the reviewer's existing `proposed_fix`; R1/R2 receipts remain unchanged.
 
 DESIGN_DOC_PATH: design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift.md

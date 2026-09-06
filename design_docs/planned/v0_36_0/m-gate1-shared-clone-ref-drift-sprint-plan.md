@@ -1,7 +1,7 @@
 # M-GATE1-SHARED-CLONE-REF-DRIFT Sprint Plan — post-split recovery
 
 **Design**: `design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift.md`
-**Status**: IN PROGRESS — M1 complete at `20201e1d9`; M2/M3 replanned after upstream `c1212b3c` split the operational mission-control skill
+**Status**: IN PROGRESS — M1 complete at recovered commit `8fcc1560d` (patch-equivalent to original `20201e1d9`); M2/M3 replanned after upstream `c1212b3c` split the operational mission-control skill
 **Duration**: 3 days total (1 complete, 2 remaining)
 **Estimated size**: 302 LOC total (152 actual M1 + 110 M2 + 40 M3), about 101 LOC/day
 **Risk**: low implementation risk; recovery/base-alignment is the primary execution risk
@@ -13,7 +13,7 @@ Commit `c1212b3c` replaced the operational 2,781-line `.claude/skills/mission-co
 Before the executor starts, the controller must provide one clean execution base containing both:
 
 - the upstream gate-resource split (`c1212b3c` or a descendant), including `gate-1-observe.md`, `gate-3-route.md`, `gate-3b-ci-green.md`, and `gate-4-record.md`; and
-- committed M1 `20201e1d9`, including `mission-base.sh`, its non-vacuity test, and the `make test-launchd-drivers` wiring.
+- recovered M1 commit `8fcc1560d` (patch-equivalent to original `20201e1d9`), including `mission-base.sh`, its non-vacuity test, and the `make test-launchd-drivers` wiring.
 
 The uncommitted old-monolith M2 diff and the existing `.snap/M2/` material are **abandoned evidence, not implementation input**. The executor must not copy, merge, apply, restore, or otherwise carry either forward. The controller must clear or quarantine them before execution; M2 must be authored afresh against the split resources and produce a fresh split-resource snapshot. Do not edit the root `SKILL.md` to salvage any old hunk.
 
@@ -23,7 +23,7 @@ No quorum rerun is permitted: the design amendment is a file-map recovery, not a
 
 | Milestone | State | Size | Dependency | Authoritative files |
 |---|---:|---:|---|---|
-| M1 — measurement helper and non-vacuity test | COMPLETE (`20201e1d9`) | 152 actual LOC | none | `tools/launchd/mission-base.sh`, `tools/launchd/test_mission_base.sh`, `make/test.mk` |
+| M1 — measurement helper and non-vacuity test | COMPLETE (`8fcc1560d`, recovered) | 152 actual LOC | none | `tools/launchd/mission-base.sh`, `tools/launchd/test_mission_base.sh`, `make/test.mk` |
 | M2 — Gate 1/Gate 3 wiring and rationale | PENDING | ~110 LOC | M1 + clean post-split base | `resources/gate-1-observe.md`, `resources/gate-3-route.md`, new `resources/ref-drift.md` |
 | M3 — Gate 3b/Gate 4 wiring and final re-proof | PENDING | ~40 LOC | M2 | `resources/gate-3b-ci-green.md`, `resources/gate-4-record.md` |
 
@@ -31,7 +31,7 @@ M1 remains complete and unchanged. Its implementation must not be regenerated. V
 
 ## M1 — COMPLETE: helper + test
 
-Commit `20201e1d9` added 55 lines in `mission-base.sh`, 96 lines in `test_mission_base.sh`, and one makefile line. It preserves the two R2 fixes:
+Recovered commit `8fcc1560d` has the same stable patch ID and M1 file blobs as original commit `20201e1d9`; it adds 55 lines in `mission-base.sh`, 96 lines in `test_mission_base.sh`, and one makefile line. It preserves the two R2 fixes:
 
 - `record()` snaps exactly once into `rec`;
 - `last()` exits 1 when no matching label exists; and
@@ -40,7 +40,7 @@ Commit `20201e1d9` added 55 lines in `mission-base.sh`, 96 lines in `test_missio
 Post-alignment verification only:
 
 ```bash
-git merge-base --is-ancestor 20201e1d9 HEAD
+git merge-base --is-ancestor 8fcc1560d HEAD
 /bin/bash -n tools/launchd/mission-base.sh
 /bin/bash -n tools/launchd/test_mission_base.sh
 /bin/bash tools/launchd/test_mission_base.sh
@@ -91,13 +91,13 @@ env -i HOME="$HOME" PATH="/usr/bin:/bin:/usr/sbin:/sbin" TERM=dumb make test-lau
 
 ### Work
 
-1. In `gate-3b-ci-green.md`, replace the direct poll-target read with the reviewed `record gate3b` form, derive the full SHA from the returned record, compare against Gate 1, and retain the existing SHA-addressed CI lookup and bounded poll. Link to `ref-drift.md` near this rule.
+1. In `gate-3b-ci-green.md`, replace the direct poll-target read with the reviewed `record gate3b` form, derive the full SHA from the returned record, compare against Gate 1, retain the drift diagnostic on exit 1, and abort explicitly on exit 2 (missing Gate-1 record). Retain the existing SHA-addressed CI lookup and bounded poll. Link to `ref-drift.md` near this rule.
 2. In `gate-4-record.md`, retain the existing fetch plus `git rev-parse dev origin/dev` re-confirmation. Route the record-time base through `mission-base.sh record gate4`, and require the human log's Routing-evidence row to contain `base=<full-sha>@<iso>`. Link to `ref-drift.md` near this rule. Do not add a redundant second fetch/re-read.
 3. Record the Gate-2 decision as deferred-with-reason; no `base-gate2` durable stamp is added in this sprint.
 
 ### Acceptance
 
-- `gate-3b-ci-green.md` contains `mission-base.sh record gate3b`, derives the poll target from that same read, retains full-SHA selection, and links to `ref-drift.md`.
+- `gate-3b-ci-green.md` contains `mission-base.sh record gate3b`, derives the poll target from that same read, retains full-SHA selection, reports drift on exit 1, aborts on exit 2 rather than treating missing Gate-1 evidence as benign drift, and links to `ref-drift.md`.
 - `gate-4-record.md` contains `mission-base.sh record gate4`, preserves its existing fetch/re-confirmation, requires `base=<sha>@<iso>` in Routing evidence, and links to `ref-drift.md`.
 - The root index is unchanged from the clean execution base; `make check-context-docs` exits 0; every new link resolves.
 - All five S-guard literals still match in `gate-3-route.md`, and the scrubbed `make test-launchd-drivers` gate exits 0.
