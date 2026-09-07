@@ -4906,6 +4906,75 @@ models:
       than the OR-equivalent prompt (93 vs 17 on the shared probe) — possible
       hidden system prompt or chat-template accounting; flag any A/B delta.
 
+  # =============================================================================
+  # z.ai first-party (https://api.z.ai/api/paas/v4) — PAYG
+  # =============================================================================
+  # M-ZAI-WINDOW-ROUTING Phase 1. Per-token metered against a PREPAID PAYG
+  # balance, OpenAI-compatible (POST /chat/completions, Bearer auth).
+  # Auth: ZAI_API_KEY. Endpoint override for tests: ZAI_BASE_URL.
+  #
+  # SLUG GRAMMAR: api_name is the NATIVE slug — "glm-5.3-flash", NOT OpenRouter's
+  # "z-ai/glm-5.3-flash". The vendor prefix is a router convention; sending it
+  # here is a 404. (Catalogue read live 2026-09-05, GET /api/paas/v4/models:
+  # glm-4.5, glm-4.5-air, glm-4.6, glm-4.7, glm-5, glm-5-turbo, glm-5.1,
+  # glm-5.2, glm-5.3, glm-5.3-flash.)
+  #
+  # WHY THIS ROUTE: it is where Mark's prepaid z.ai credits are drawn from. Every
+  # other GLM-Flash row in this file spends someone else's meter — OpenRouter
+  # (or-/opencode-or-/motoko-or-), Lyceum, or the Ollama Cloud subscription.
+  #
+  # LANE SEPARATION (M-ZAI-WINDOW-ROUTING V5, non-negotiable): this is the PAYG
+  # endpoint. The GLM Coding Plan (/api/coding/paas/v4) is contractually usable
+  # ONLY in officially supported tools — driving it from this harness risks rate
+  # limiting, account freezing, and a ban after three violations. Plan credits
+  # belong in opencode/claude/ZCode lanes; harness evals belong here.
+
+  zai-glm-5-3-flash:
+    api_name: "glm-5.3-flash"                  # native slug — verified live 2026-09-05
+    provider: "zai"
+    default_thinking: "always_on"              # same weights as or-/lyceum-glm-5-3-flash; probe 2026-09-05 returned a thinking block on a 16-token "say ok"
+    description: "GLM-5.3-Flash direct from z.ai (first-party PAYG) — the route that spends our prepaid z.ai credits instead of OpenRouter's meter. Route control for or-glm-5-3-flash: same weights, one hop fewer."
+    env_var: "ZAI_API_KEY"
+    max_output_tokens: 65536                   # always-thinking headroom, per the GLM-5.2 truncation lesson
+    model_family: "glm-5"                      # joins the glm-5 failover chain (M-PROVIDER-FAILOVER)
+    pricing:
+      input_per_1k: 0.000075   # $0.075 per 1M — z.ai PAYG list, 2026-09-03 (docs.z.ai/guides/overview/pricing)
+      output_per_1k: 0.00025   # $0.25 per 1M
+      expires: "2026-09-09"    # 50% launch promo ends 24:00 SGT 2026-09-09; enforced by tools/verify-model-pricing
+      next:
+        # INFERRED, NOT VERIFIED: "50% off" read literally → 2x on 2026-09-10.
+        # z.ai publishes the promo end date but not the post-promo card. Re-read
+        # docs.z.ai/guides/overview/pricing on 2026-09-10 and replace these two
+        # numbers with the observed rates. They are a placeholder that fails
+        # SAFE (overstates spend) rather than a measured price.
+        input_per_1k: 0.00015  # $0.15 per 1M
+        output_per_1k: 0.0005  # $0.50 per 1M
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600   # equal-work A/B: matches or-glm-5-3-flash, lyceum-glm-5-3-flash and oc-glm-5-3-flash
+    notes: |
+      Added 2026-09-05 (M-ZAI-WINDOW-ROUTING Phase 1) after Mark bought PAYG
+      credits. FIFTH route for these weights, joining or-glm-5-3-flash (OpenRouter),
+      lyceum-glm-5-3-flash (EU), oc-glm-5-3-flash (Ollama Cloud) and the two agent
+      twins. Unlike those, this one is FIRST-PARTY: no router fan-out, so a result
+      here is attributable to z.ai's own serving stack rather than to whichever of
+      OpenRouter's 16 upstreams answered.
+      OPT-IN ONLY — in no suite. Suite entry requires Mark's ratification (the
+      M-LYCEUM-PROVIDER and M-OLLAMA-CLOUD D2 precedent: a new route proves itself
+      on a smoke gate before it can bank a cohort).
+      SMOKE GATE: PENDING. Until it runs, treat this row as a wired route with an
+      unmeasured pass rate — do NOT read the or- twin's 22/23 as this row's number.
+      TRANSPORT VERIFIED 2026-09-05: GET /api/paas/v4/models → 200 (catalogue
+      above); POST /api/anthropic/v1/messages with glm-5.3-flash → 200, thinking
+      block present, usage banked. The harness uses the OpenAI-compatible path,
+      not the anthropic-shaped one.
+      PRICE CAVEAT: identical LIST price to or-glm-5-3-flash ($0.075/$0.25), so
+      this is a credit-utilisation and attribution play, not a cost cut. The
+      saving is that the spend comes out of credits already paid for.
+      Phase 2 (subscription lane) and Phase 3 (time-window routing) are NOT in
+      this row — no window multipliers are modelled here, and this row must
+      never bank cost_provenance other than `metered`.
+
 # Default model for benchmarks
 default: "claude-sonnet-4-6"
 

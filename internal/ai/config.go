@@ -16,6 +16,7 @@ const (
 	ProviderOllama     ProviderType = "ollama"
 	ProviderOpenRouter ProviderType = "openrouter"
 	ProviderLyceum     ProviderType = "lyceum"
+	ProviderZAI        ProviderType = "zai"
 )
 
 // openrouterVendorPrefixes lists known "vendor/" prefixes that identify a
@@ -110,6 +111,24 @@ func LyceumBaseURL() string {
 	return "https://api.lyceum.technology/openai/v1"
 }
 
+// ZAIBaseURL returns z.ai's first-party OpenAI-compatible endpoint — the
+// PAYG lane (M-ZAI-WINDOW-ROUTING Phase 1). ZAI_BASE_URL overrides it for
+// tests and proxies, mirroring LYCEUM_BASE_URL (M-LYCEUM-PROVIDER D2:
+// constant + env override, not a models.yml schema field).
+//
+// NOT the coding-plan endpoint (/api/coding/paas/v4). The GLM Coding Plan is
+// contractually restricted to officially supported tools, and driving it from
+// this harness is a usage-policy violation with account-level consequences
+// (M-ZAI-WINDOW-ROUTING V5). Keep the two lanes separate: PAYG here, plan in
+// opencode/claude only. An operator who points ZAI_BASE_URL at the coding
+// endpoint has crossed that line deliberately.
+func ZAIBaseURL() string {
+	if v := strings.TrimSpace(os.Getenv("ZAI_BASE_URL")); v != "" {
+		return v
+	}
+	return "https://api.z.ai/api/paas/v4"
+}
+
 // EnvVarForProvider returns the environment variable name that holds the
 // API key for the given provider. Returns empty string for providers that
 // don't need an API key (Google ADC, Ollama local).
@@ -127,6 +146,8 @@ func EnvVarForProvider(provider ProviderType) string {
 		return "OPENROUTER_API_KEY"
 	case ProviderLyceum:
 		return "LYCEUM_API_KEY"
+	case ProviderZAI:
+		return "ZAI_API_KEY"
 	default:
 		return ""
 	}
@@ -157,6 +178,8 @@ func GetAPIKey(provider ProviderType) (string, error) {
 		envVar = "OPENROUTER_API_KEY"
 	case ProviderLyceum:
 		envVar = "LYCEUM_API_KEY"
+	case ProviderZAI:
+		envVar = "ZAI_API_KEY"
 	default:
 		return "", fmt.Errorf("unknown provider: %s", provider)
 	}
@@ -183,6 +206,8 @@ func ProviderFromString(s string) ProviderType {
 		return ProviderOpenRouter
 	case "lyceum":
 		return ProviderLyceum
+	case "zai", "z-ai", "z.ai":
+		return ProviderZAI
 	default:
 		return ProviderType(s)
 	}

@@ -133,10 +133,11 @@ func runExec() {
 	validProviders := map[string]bool{
 		"claude": true, "gemini": true, "openai": true,
 		"anthropic": true, "ollama": true, "openrouter": true, "lyceum": true,
+		"zai": true,
 	}
 	if !validProviders[provider] {
 		fmt.Fprintf(os.Stderr, "%s: unknown provider %q\n", red("Error"), provider)
-		fmt.Fprintf(os.Stderr, "Valid providers: claude, gemini, openai, anthropic, ollama, openrouter, lyceum\n")
+		fmt.Fprintf(os.Stderr, "Valid providers: claude, gemini, openai, anthropic, ollama, openrouter, lyceum, zai\n")
 		os.Exit(1)
 	}
 
@@ -490,6 +491,14 @@ func executeAPI(ctx context.Context, provider, directive, model, systemPrompt st
 			return nil, fmt.Errorf("LYCEUM_API_KEY environment variable required")
 		}
 		client = openai.NewClient(apiKey, openai.WithBaseURL(ai.LyceumBaseURL()))
+	case "zai":
+		// M-ZAI-WINDOW-ROUTING Phase 1: z.ai first-party PAYG route — same
+		// openai transport, z.ai endpoint (ai.ZAIBaseURL honours ZAI_BASE_URL).
+		apiKey := os.Getenv("ZAI_API_KEY")
+		if apiKey == "" {
+			return nil, fmt.Errorf("ZAI_API_KEY environment variable required")
+		}
+		client = openai.NewClient(apiKey, openai.WithBaseURL(ai.ZAIBaseURL()))
 	default:
 		// M-AI-PROVIDER-CONFIG: consult the config-driven provider registry.
 		// Built-ins are checked above first (D4 — built-ins win on collision).

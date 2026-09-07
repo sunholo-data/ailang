@@ -401,6 +401,7 @@ func printHelp() {
 	fmt.Println("  Ollama (ollama:*):          No key needed (local, http://127.0.0.1:11434)")
 	fmt.Println("  OpenRouter (vendor/model):  OPENROUTER_API_KEY=sk-or-...  (e.g. anthropic/claude-sonnet-4.5, openrouter/auto)")
 	fmt.Println("  Lyceum (EU-hosted):         LYCEUM_API_KEY=lk_...       (models.yml rows with provider: lyceum; LYCEUM_BASE_URL overrides the endpoint)")
+	fmt.Println("  z.ai (first-party PAYG):    ZAI_API_KEY=...            (models.yml rows with provider: zai; ZAI_BASE_URL overrides the endpoint. PAYG only — the GLM Coding Plan is restricted to supported tools)")
 	fmt.Println()
 	fmt.Println("  Google Gemini (gemini-*) supports TWO authentication methods:")
 	fmt.Println("    Option 1 - API Key (AI Studio, simplest):")
