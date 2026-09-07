@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"time"
 
@@ -31,6 +32,23 @@ import (
 type orphanedApproval struct {
 	Task   *coordinator.TaskRecord
 	Reason string // why it is unactionable, in the operator's terms
+	// HasCode is whether the worktree is STILL THERE, not merely recorded. A
+	// path to a directory that no longer exists protects nothing, and treating
+	// it as precious leaves a row nobody can clear without --force.
+	HasCode bool
+}
+
+// worktreeStillExists reports whether a recorded worktree path is real.
+//
+// Worktrees are swept, machines change, and the task record keeps the path
+// either way. Both prod rows that survived the first --clear-orphans pass
+// pointed at directories deleted long ago (2026-09-07).
+func worktreeStillExists(path string) bool {
+	if path == "" {
+		return false
+	}
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
 
 // findOrphanedApprovals returns pending_approval tasks with no PENDING approval
@@ -60,7 +78,11 @@ func findOrphanedApprovals(ctx context.Context, store coordinator.Store) ([]orph
 		if prior, err := store.GetApprovalRequestByTaskAnyStatus(ctx, t.ID); err == nil && prior != nil {
 			reason = fmt.Sprintf("approval already %s, but the task status never followed", prior.Status)
 		}
-		out = append(out, orphanedApproval{Task: t, Reason: reason})
+		out = append(out, orphanedApproval{
+			Task:    t,
+			Reason:  reason,
+			HasCode: worktreeStillExists(t.WorktreePath),
+		})
 	}
 
 	sort.Slice(out, func(i, j int) bool {
@@ -83,12 +105,13 @@ func reportOrphanedApprovals(orphans []orphanedApproval, planeWord string) {
 			fmt.Printf("      %q\n", truncateOrphanTitle(title, 66))
 		}
 		// Say what approving would release, so "clear" is an informed choice.
-		// WorktreePath is the tree preserved FOR the approval, so its absence
-		// means there is no code behind this row.
-		if o.Task.WorktreePath == "" {
+		switch {
+		case o.HasCode:
+			fmt.Printf("      worktree PRESENT: %s\n", o.Task.WorktreePath)
+		case o.Task.WorktreePath != "":
+			fmt.Printf("      worktree recorded but GONE (%s) — nothing to merge\n", o.Task.WorktreePath)
+		default:
 			fmt.Printf("      no worktree — this task left no code to merge\n")
-		} else {
-			fmt.Printf("      worktree: %s\n", o.Task.WorktreePath)
 		}
 		fmt.Println()
 	}
@@ -99,12 +122,14 @@ func reportOrphanedApprovals(orphans []orphanedApproval, planeWord string) {
 // clearOrphanedApprovals cancels orphaned tasks, and refuses to touch one that
 // still has code nobody has looked at.
 //
-// A task with a worktree may hold real work; cancelling it silently discards
-// the only pointer to it. Those are listed and skipped unless --force is given.
+// A task whose worktree STILL EXISTS may hold real work; cancelling it silently
+// discards the only pointer to it. Those are skipped unless --force. A path that
+// no longer resolves is not protected — the guard would otherwise strand rows
+// forever over code that was swept months ago.
 func clearOrphanedApprovals(ctx context.Context, store coordinator.Store, orphans []orphanedApproval, force bool) (cleared, skipped int, err error) {
 	for _, o := range orphans {
-		if o.Task.WorktreePath != "" && !force {
-			fmt.Printf("  SKIP  %s — has a worktree at %s (pass --force to cancel anyway)\n",
+		if o.HasCode && !force {
+			fmt.Printf("  SKIP  %s — worktree still present at %s (pass --force to cancel anyway)\n",
 				o.Task.ID, o.Task.WorktreePath)
 			skipped++
 			continue
