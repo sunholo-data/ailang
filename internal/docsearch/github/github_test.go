@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/docsearch"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestNewBackendDefaultsOutsideGitRepository(t *testing.T) {
@@ -128,8 +129,7 @@ func TestStatusErrorOnlyClassifiesZeroRemainingAsRateLimit(t *testing.T) {
 
 func TestCacheHitMissExpiryIsolationAndNoTokenPersistence(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home) // os.UserHomeDir() reads USERPROFILE, not HOME, on Windows
+	testutil.SetHomeDir(t, home)
 	results := []docsearch.SearchResult{{Path: "a.md", Title: "a", Score: 1}}
 	stats := docsearch.SearchStats{TotalDocs: 1}
 	now := time.Now().UTC()
