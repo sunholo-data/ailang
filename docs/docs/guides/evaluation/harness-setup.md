@@ -291,6 +291,23 @@ This gives Δ delta comparison between same-model, different-harness pairs (Sonn
 claude vs opencode; Flash via gemini vs opencode). Results appear in
 `/docs/benchmarks/by-harness` once `ailang eval-report --format=json` is re-run.
 
+## Benchmark mode compatibility: `grade_entrypoint` is agent-mode-only
+
+A benchmark that sets `grade_entrypoint` (with `solution_files`) grades the agent's
+preserved multi-file workspace — something only agent mode constructs. Standard mode
+(0-shot) never honours it: its prompt omits `input_files` content and its execution
+runs a fixed single `solution.ail`. Such benchmarks are therefore **agent-mode-only**:
+
+- Standard-mode scheduling (`eval-suite` auto-discovery) excludes them, so they produce
+  no rows and burn no API budget there.
+- If one is forced through standard mode anyway (explicit `--benchmarks` list),
+  `runSingleBenchmark` short-circuits before any provider call and banks a labelled skip
+  row (`error_category: skipped_mode_incompatible`, validity reason `mode_incompatible`)
+  that every aggregate — ELO fitting, confidence gating, capability stats — excludes.
+
+When authoring a benchmark that needs multi-file grading, plan to run it with
+`eval-suite --agent --benchmarks <id>` (M-EVAL-STANDARD-MODE-INPUT-FILES-GAP).
+
 ## Troubleshooting
 
 **"non-agentic result: 0 turns, 0 tool calls"**
