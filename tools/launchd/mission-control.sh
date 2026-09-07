@@ -150,8 +150,8 @@ _mc_drain_notices() {
   mv "$spool" "$tmp" 2>/dev/null || return 0
   while IFS="$(printf '\t')" read -r ts title body; do
     [ -z "${title:-}" ] && continue
-    if AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
-       ailang messages send controlplane "[spooled $ts] $body" --title "$title" --from "$MSG_FROM" >/dev/null 2>&1; then
+    if _mc_bounded "$NOTIFY_TIMEOUT" env AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
+       ailang messages send controlplane "[spooled $ts] $body" --title "$title" --from "$MSG_FROM"; then
       sent=$((sent + 1))
     else
       printf '%s\t%s\t%s\n' "$ts" "$title" "$body" >> "$spool"
@@ -180,9 +180,18 @@ _mc_notify() {
     # 2026-09-07: the same send is `inbox_...` with them and `msg_...` (local) without.
     # Scoped to THIS command, never exported: AILANG_STORAGE must not move, or the
     # coordinator and observatory follow it to Firestore too (backend.go:83).
-    _out=$(AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
-      ailang messages send controlplane "$body" --title "$title" --from "$MSG_FROM" 2>&1)
-    if [ $? -eq 0 ]; then rc=0; break; fi
+    # The D-60 paths stay bounded: a dangling send must be cut off at NOTIFY_TIMEOUT
+    # instead of hanging the preflight or a retry. _mc_bounded forks a background subshell
+    # (`( exec "$@" )`), so `env` carries the two store vars down to the child with the same
+    # per-command scoping (never exported; AILANG_STORAGE untouched) while a `VAR=x` prefix
+    # would make exec treat VAR=x as the command name.
+    _mc_bounded "$NOTIFY_TIMEOUT" env AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
+      ailang messages send controlplane "$body" --title "$title" --from "$MSG_FROM"; _rc=$?; _out="$MC_BOUNDED_OUT"
+    # G5 ARM B: a TIMED-OUT command produced no output, so MC_BOUNDED_OUT is empty and the
+    # failure WARNING would degrade to `FAILED ... after 3 attempts:` with nothing after it —
+    # the exact blindness _mc_notify's own comment exists to prevent. Synthesise the reason.
+    [ "$_rc" -eq 124 ] && _out="timed out after ${NOTIFY_TIMEOUT}s (no output)"
+    if [ "$_rc" -eq 0 ]; then rc=0; break; fi
     [ "$_try" -lt 3 ] && sleep $(( _try * 5 ))
   done
   if [ "$rc" -ne 0 ]; then
@@ -195,7 +204,9 @@ _mc_notify() {
       >> "$STATE_DIR/mission-${MISSION_NAME}-notice-spool.tsv" 2>/dev/null || true
   fi
   if [ -n "${MISSION_GH_ISSUE:-}" ]; then
-    gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" --body "$body" >/dev/null 2>&1 \
+    # GH is one-shot (not retried): bounding only caps the wall-clock; a hang or
+    # failure still yields the loud WARNING below (non-aborting).
+    _mc_bounded "$NOTIFY_TIMEOUT" gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" --body "$body" \
       || log "WARNING: ${label} notice FAILED to post to issue #${MISSION_GH_ISSUE}"
   else
     log "WARNING: ${label} notice needed but MISSION_GH_ISSUE is unset — no issue notice possible"
@@ -483,6 +494,7 @@ PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1}"
 CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3}"
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
 PROBE_TIMEOUT="${MISSION_PROBE_TIMEOUT:-120}"   # per-probe wall-clock cap, seconds
+NOTIFY_TIMEOUT="${MISSION_NOTIFY_TIMEOUT:-30}"   # per-notify wall-clock cap, seconds (D-60)
 
 # _mc_bounded SECONDS CMD... — run CMD with a hard wall-clock cap.
 # rc = CMD's rc, or 124 on expiry (mirrors GNU `timeout`, which this rig does not have).
