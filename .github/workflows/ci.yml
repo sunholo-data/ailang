@@ -83,6 +83,9 @@ jobs:
       timeout-minutes: 5
       run: sudo apt-get install -y -qq --no-install-recommends jq && jq --version
 
+    - name: Build headroom instrument
+      run: go build -o "$RUNNER_TEMP/headroom" ./tools/ci/headroom
+
     # -timeout 416s is a DERIVED, PROVISIONAL operational budget (right-censored
     # input — see design_docs/planned/v0_36_0/m-coordinator-windows-package-timeout-headroom.md):
     #   budget = worst steady-state package x runner variance x safety factor
@@ -106,7 +109,13 @@ jobs:
         [[ "$HTTPS_PROXY" == "http://127.0.0.1:9" ]] || { echo "::error::HTTPS_PROXY poison is not configured"; exit 1; }
         [[ "$NO_PROXY" == "localhost,127.0.0.1" ]] || { echo "::error::NO_PROXY loopback bypass is not configured"; exit 1; }
         [[ "$GOPROXY" == "off" ]] || { echo "::error::GOPROXY is not disabled"; exit 1; }
-        go test -timeout 416s ./...
+        go_rc=0
+        hr_rc=0
+        go test -timeout 416s ./... > go_test_headroom.log 2>&1 || go_rc=$?
+        cat go_test_headroom.log                      # panic and FAIL/ok lines stay visible
+        "$RUNNER_TEMP/headroom" go_test_headroom.log 416 || hr_rc=$?
+        if [ $go_rc -ne 0 ]; then exit $go_rc; fi     # a failing suite still fails the job
+        exit $hr_rc
 
     # `go test ./...` output is non-verbose: a t.Skip is invisible and CI
     # stays green while integration coverage silently evaporates (e.g. if
@@ -459,6 +468,12 @@ jobs:
         if ($output -notcontains 'World') { Write-Error "expected 'World' in output, got: $output"; exit 1 }
         Write-Host "OK: -args-json - (stdin)"
 
+    - name: Build headroom instrument
+      shell: pwsh
+      run: |
+        go build -o "$env:RUNNER_TEMP/headroom.exe" ./tools/ci/headroom
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
     - name: Run Go test suite
       shell: pwsh
       # -timeout 416s: same DERIVED PROVISIONAL budget as the Linux test job —
@@ -479,7 +494,15 @@ jobs:
         if ($env:HTTPS_PROXY -ne 'http://127.0.0.1:9') { Write-Error "HTTPS_PROXY poison is not configured"; exit 1 }
         if ($env:NO_PROXY -ne 'localhost,127.0.0.1') { Write-Error "NO_PROXY loopback bypass is not configured"; exit 1 }
         if ($env:GOPROXY -ne 'off') { Write-Error "GOPROXY is not disabled"; exit 1 }
-        go test -timeout 416s ./...
+        $ErrorActionPreference = 'Continue'
+        $PSNativeCommandUseErrorActionPreference = $false
+        go test -timeout 416s ./... *> go_test_headroom.log
+        $go_rc = $LASTEXITCODE
+        Get-Content go_test_headroom.log
+        & "$env:RUNNER_TEMP/headroom.exe" go_test_headroom.log 416
+        $hr_rc = $LASTEXITCODE
+        if ($go_rc -ne 0) { exit $go_rc }
+        exit $hr_rc
 
     # Same anti-silent-skip gate as the Linux job (minus z3, which isn't
     # installed here): tests that shell out to ailang t.Skip when it's
