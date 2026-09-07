@@ -482,6 +482,18 @@ _mc_probe() {
   [ "$rc" -eq 0 ] && return 0
   [ "$rc" -eq 124 ] && log "model $m probe timed out after ${PROBE_TIMEOUT}s (retry) — captured output: '$(printf '%s' "$out" | tail -c 200 | tr '\n' ' ')'"
   printf '%s' "$out" | grep -qiE "$QUOTA_SIG" && return 1
+  # rc=2 is where the fleet loses a lane, so it is the ONE outcome that must not
+  # be silent. Until now the output was logged only on a timeout, so an rc=2
+  # meant "anthropic unusable (rc=2)" and nothing else — no status, no message,
+  # no way to tell an expired token from an overloaded API from a quota reply
+  # whose wording QUOTA_SIG does not match.
+  #
+  # Measured 2026-09-06: that blindness cost a full week of codex. Anthropic
+  # started returning rc=2 at 05:52, every role fell through to codex, and codex
+  # went from ~13M tokens/day to 713M in eighteen hours — spending a weekly
+  # bucket in under fifteen. The probe reproduced clean the next morning, so
+  # whatever the cause was, it was transient and it is now unknowable.
+  log "model $m UNUSABLE after 2 attempts (rc=$rc, no quota signature) — captured output: '$(printf '%s' "$out" | tail -c 300 | tr '\n' ' ')'"
   return 2
 }
 
