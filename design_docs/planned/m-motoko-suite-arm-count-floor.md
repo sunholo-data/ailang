@@ -271,5 +271,6 @@ FLAGGED.
    arms...`, rc=1.
 4. Delete the gate's OWN `pass_arm` line, run → `not ok - arm-count drift: suite ran 59 arms...`,
    rc=1 (objection 1 regression).
-5. `grep -c 'pass_arm ' tools/eval/test_motoko_connection_probe.sh` → `19` (18 + the gate's own arm).
+5. `grep -n 'pass_arm ' tools/eval/test_motoko_connection_probe.sh | grep -vc ':[[:space:]]*#'` → `19` (18 + the gate's own arm).
+   The bare `grep -c` counts the gate's own explanatory comment as well as its call, returning 20; the criterion is about executable call sites, so the command must exclude comment lines (measured: 20 bare / 19 executable / 18 at base).
 6. `git status --porcelain` clean after restoring the tree; `sha256sum` byte-identical to base.

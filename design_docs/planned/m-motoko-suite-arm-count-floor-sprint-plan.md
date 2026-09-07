@@ -67,7 +67,8 @@ snapshot.
 
 - `bash tools/eval/test_motoko_connection_probe.sh` returns 0 and ends with
   `PASS: 60 probe self-test arms ran` on the Darwin rig.
-- `grep -c 'pass_arm ' tools/eval/test_motoko_connection_probe.sh` prints `19`.
+- `grep -n 'pass_arm ' tools/eval/test_motoko_connection_probe.sh | grep -vc ':[[:space:]]*#'` prints `19`.
+  The bare `grep -c` counts the gate's own explanatory comment as well as its call, returning 20; the criterion is about executable call sites, so the command must exclude comment lines (measured: 20 bare / 19 executable / 18 at base).
 - The checked `$arms` and terminal `$arms` are the same fully observed value; comparison is exact
   equality expressed as `!=`, not a floor.
 - The existing zero guard remains before the new gate, with no redundant zero guard added.

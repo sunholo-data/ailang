@@ -1209,4 +1209,24 @@ if (( arms == 0 )); then
   echo "not ok - zero test arms ran" >&2
   exit 1
 fi
+# Arm-count drift gate. Every arm above proves a branch that EXISTS goes red when neutered —
+# a removal proves the check FIRES; only an addition proves it LOOKS. Deleting any single arm
+# leaves the suite rc=0 and green, so the coverage claim is a one-time manual count that
+# silently rots on the next edit. Count the arms and refuse when the number moves.
+# Host-scoped: four arms are Darwin-only (see Host-scoping), so the expected count differs
+# off-Darwin. This mirrors the suite's own skip_run_lane_fixture / Darwin-only discipline.
+if [[ "$host_os" == Darwin ]]; then
+  expected_arms=60
+else
+  expected_arms=56   # 60 - 4 Darwin-only arms (run_lane fixture, SIGKILL-escalation, 2 REAL_LSOF)
+fi
+# This gate's own pass_arm is itself an arm. It runs BEFORE the check below, so by the time the
+# comparison executes, $arms already includes this arm: the check is a bare equality against a
+# fully-observed count, never a count plus an assumption about a line that might be deleted.
+pass_arm "arm-count still matches the set this suite covers ($((arms + 1)))"
+if (( arms != expected_arms )); then
+  echo "not ok - arm-count drift: suite ran $arms arms, this suite is written for $expected_arms." >&2
+  echo "         Add an arm for the new case (or delete a stale one), then update expected_arms." >&2
+  exit 1
+fi
 echo "PASS: $arms probe self-test arms ran"
