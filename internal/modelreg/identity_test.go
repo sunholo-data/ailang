@@ -22,3 +22,18 @@ func TestOriginVendor(t *testing.T) {
 		}
 	}
 }
+
+func TestDispatchOriginRejectsWireContradictions(t *testing.T) {
+	pi := "pi"
+	for _, wire := range []string{"openrouter/openai/gpt", "openai/gpt", "unqualified", "unknown/model"} {
+		c := &ModelsConfig{Models: map[string]ModelConfig{"judge": {Provider: "openrouter", APIName: "anthropic/claude", AgentCLI: &pi, AgentModelName: &wire}}}
+		if _, err := c.DispatchOriginVendor("judge"); err == nil {
+			t.Errorf("accepted conflicting/ambiguous wire %q", wire)
+		}
+	}
+	wire := "openrouter/anthropic/claude"
+	c := &ModelsConfig{Models: map[string]ModelConfig{"judge": {Provider: "openrouter", APIName: "anthropic/claude", AgentCLI: &pi, AgentModelName: &wire}}}
+	if got, err := c.DispatchOriginVendor("judge"); err != nil || got != "anthropic" {
+		t.Fatalf("consistent identity: %q %v", got, err)
+	}
+}

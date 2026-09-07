@@ -15,7 +15,8 @@ func TestRequestValidationAndDigest(t *testing.T) {
 	if err := r.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if r.Digest() != r.Digest() {
+	firstDigest := r.Digest()
+	if firstDigest != r.Digest() {
 		t.Fatal("unstable digest")
 	}
 	changed := r

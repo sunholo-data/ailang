@@ -33,10 +33,10 @@
         "Synced exclusive receipt and execution-not-verification outcome",
         "Real Pi adapter protocol fixture"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-07",
+      "completed": "2026-09-07",
+      "notes": "Dispatch, synced exclusive receipts, qualified wire identity, adapter admission and actual Pi protocol fixture pass. Pi cumulative token guard regression fixed."
     },
     {
       "id": "M3",

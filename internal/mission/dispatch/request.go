@@ -3,6 +3,7 @@
 package dispatch
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -35,7 +36,14 @@ type Request struct {
 
 func DecodeRequest(r io.Reader) (Request, error) {
 	var req Request
-	d := json.NewDecoder(io.LimitReader(r, 1024*1024+1))
+	body, err := io.ReadAll(io.LimitReader(r, 1024*1024+1))
+	if err != nil {
+		return req, err
+	}
+	if len(body) > 1024*1024 {
+		return req, fmt.Errorf("role request exceeds 1 MiB")
+	}
+	d := json.NewDecoder(bytes.NewReader(body))
 	d.DisallowUnknownFields()
 	if err := d.Decode(&req); err != nil {
 		return req, fmt.Errorf("decode role request: %w", err)

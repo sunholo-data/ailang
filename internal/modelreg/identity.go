@@ -40,3 +40,46 @@ func (c *ModelsConfig) OriginVendor(name string) (string, error) {
 	}
 	return v, nil
 }
+
+// DispatchOriginVendor rejects known wire-route contradictions before a role
+// can use registry identity as independence evidence.
+func (c *ModelsConfig) DispatchOriginVendor(name string) (string, error) {
+	vendor, err := c.OriginVendor(name)
+	if err != nil {
+		return "", err
+	}
+	m, err := c.GetModel(name)
+	if err != nil {
+		return "", err
+	}
+	if m.AgentCLI == nil || *m.AgentCLI == "" {
+		return vendor, nil
+	}
+	cli, wire, err := c.GetExecutorForModel(name)
+	if err != nil {
+		return "", err
+	}
+	var wireVendor string
+	switch cli {
+	case "claude":
+		wireVendor = "anthropic"
+	case "codex":
+		wireVendor = "openai"
+	case "pi":
+		provider, id, ok := strings.Cut(wire, "/")
+		if !ok || id == "" {
+			return "", fmt.Errorf("model %q requires a qualified Pi wire route", name)
+		}
+		probe := &ModelsConfig{Models: map[string]ModelConfig{"wire": {Provider: provider, APIName: id}}}
+		wireVendor, err = probe.OriginVendor("wire")
+		if err != nil {
+			return "", fmt.Errorf("model %q wire origin unresolved: %w", name, err)
+		}
+	default:
+		return vendor, nil // Unsupported harnesses are rejected by dispatch admission.
+	}
+	if vendor != wireVendor {
+		return "", fmt.Errorf("model %q origin %q conflicts with %s wire origin %q", name, vendor, cli, wireVendor)
+	}
+	return vendor, nil
+}

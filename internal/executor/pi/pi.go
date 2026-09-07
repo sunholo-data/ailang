@@ -187,6 +187,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 	toolCalls := map[string]int{} // per-tool-name histogram (alongside toolCallCount)
 	// pi emits per-turn deltas in message_end (role=assistant); sum across turns.
 	var inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens int
+	var thrashKilledAt int
 	var totalCostUSD float64
 	var sessionID string
 	var turnSpan trace.Span
@@ -309,6 +310,10 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 					cacheReadTokens += u.CacheRead
 					cacheWriteTokens += u.CacheWrite
 					totalCostUSD += u.Cost.Total
+					if task.MaxTokensPerBench > 0 && thrashKilledAt == 0 && inputTokens+outputTokens > task.MaxTokensPerBench {
+						thrashKilledAt = inputTokens + outputTokens
+						_ = cmd.Process.Kill()
+					}
 					// M-EVAL-COST-AND-SPEED-BUDGETS: incremental cost tally on per-turn delta.
 					if task.Budget != nil && (u.Input > 0 || u.Output > 0) {
 						if _, exceeded := task.Budget.Add(u.Input, u.Output); exceeded {
@@ -372,6 +377,10 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 				// stream event said, because CategorizeAgentError trusts
 				// FinishReason over the Error string.
 				finishReason := executor.FinishError
+				if thrashKilledAt > 0 {
+					finishReason = executor.FinishThrashAborted
+					errMsg = fmt.Sprintf("token budget exceeded (%d > %d) — %s", thrashKilledAt, task.MaxTokensPerBench, errMsg)
+				}
 				if costKilled {
 					errMsg = fmt.Sprintf("cost budget exceeded ($%.4f) — %s", task.Budget.KilledAt(), errMsg)
 					finishReason = executor.FinishCostExhausted
@@ -379,6 +388,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 				return &executor.Result{
 					Success:                  false,
 					FinishReason:             finishReason,
+					ThrashKilledAt:           thrashKilledAt,
 					Output:                   transcriptBuf.String(),
 					Error:                    errMsg,
 					DurationMS:               int(duration.Milliseconds()),
@@ -412,11 +422,16 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 				success = false
 				finishReason = executor.FinishCostExhausted
 			}
+			if thrashKilledAt > 0 && !costKilled {
+				success = false
+				finishReason = executor.FinishThrashAborted
+			}
 
 			span.SetStatus(codes.Ok, "")
 			return &executor.Result{
 				Success:                  success,
 				FinishReason:             finishReason,
+				ThrashKilledAt:           thrashKilledAt,
 				Output:                   output,
 				DurationMS:               int(duration.Milliseconds()),
 				InputTokens:              inputTokens,
