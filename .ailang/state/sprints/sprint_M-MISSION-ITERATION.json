@@ -129,8 +129,8 @@
       "passes": false,
       "started": "2026-09-07",
       "completed": null,
-      "notes": "Implementation verification retained. Refreshed ownership: legacy Docs running, docs-12 next in its queue; Codex route over ration. Proposed separate work-item guide task and Claude/Pi routes in design_docs/planned/m-docs-mission-work-item-guide.md. Scope approval, plan/check freeze, bound authority and dry-run remain; no live activation."
+      "notes": "Approved guide task, authority, base, hash, routes, caps, checks and rollback committed. Actual dry-run passes after missing M5 registry-env wiring repaired (ad1bf98d3); CLI/mission tests, lint/build pass. Waiter /private/tmp/ailang-docs-canary/run-when-idle.py awaits legacy Docs, then invokes runtime. Live adoption not yet claimed."
     }
   ],
-  "last_checkpoint": "2026-09-07: M6 continuation found legacy Docs active and Codex over ration; replacement work-item guide scope prepared for approval."
+  "last_checkpoint": "2026-09-07T20:21Z: approved bound canary passed actual CLI dry-run; waiter active for legacy Docs idle. Registry env omission repaired and regression tested."
 }
