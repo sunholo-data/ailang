@@ -2393,7 +2393,7 @@ rc=0 — **still green** — tree restored sha256-identical, `git status` clean.
 **Progress**: goal unmoved. Both picks are `[HARNESS]`; neither is a milestone of the gated
 `m-motoko-dst-refactor-migration` epic.
 
-**Shipped**: row 16 in PR [#1076](https://github.com/sunholo-data/ailang/pull/1076) — one
+**Shipped**: row 16 in PR [#1076](https://github.com/sunholo-data/ailang/pull/1076), squash-merged as [`a329fdb4f`](https://github.com/sunholo-data/ailang/commit/a329fdb4f) with **Gate 3b required 4/4 green** (21 checks, 0 pending; the one non-green, `launchd drivers (bash 3.2)`, is non-required and inherited — the identical check is `failure` on `origin/dev`'s own HEAD) — one
 `### Added`/`### Fixed` pair in `changelogs/v0.32-current.md`'s `## [Unreleased]` section covering
 the `M-MISSION-LOOP-WORKBENCH` command surface (`ailang mission list|doctor|install|apply`, the four
 `missions/*.toml` entries, the staged-vs-applied boundary, the two bugs the staged diff caught on

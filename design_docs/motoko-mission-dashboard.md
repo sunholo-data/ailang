@@ -2,7 +2,7 @@
 
 *Snapshot, overwritten every iteration. History lives in the charter and the log.*
 
-**Last iteration**: 38 · 2026-09-07 · `[HARNESS]` · row 16 **LANDED**, row 6s **PARKED**
+**Last iteration**: 38 · 2026-09-07 · `[HARNESS]` · row 16 **LANDED** (`a329fdb4f`, Gate 3b required 4/4), row 6s **PARKED**
 **Latest release**: v0.35.1 · repo `sunholo-data/ailang` (shared with V1, which OWNS dev CI red)
 
 ## In flight / next
