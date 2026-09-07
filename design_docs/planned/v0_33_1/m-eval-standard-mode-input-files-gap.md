@@ -24,7 +24,7 @@
 | A8: Minimal Syntax | 0 | No language syntax change — this is eval-tooling only |
 | A9: Cost Visibility | +1 | Stops silently spending API budget on 0-shot calls that cannot possibly pass, for every model, every release |
 | A10: Composability | 0 | Not touched |
-| A11: Structured Failure | +1 | Skipped benchmarks report a clear `skip_reason` instead of a misleading `compile_error`/`runtime_error` |
+| A11: Structured Failure | +1 | On the dispatch-time bypass path (a direct `--benchmarks` invocation that reaches `runSingleBenchmark` for one of these benchmarks in standard mode), the skip reports a clear `skip_reason` instead of a misleading `compile_error`/`runtime_error`. On the normal scheduled path, component 2 excludes the benchmark before dispatch and writes no result row at all — no misleading category, but also no `skip_reason` row is produced there |
 | A12: System Boundary | 0 | Not touched |
 
 **Net Score: +4** → **Decision: Move forward**
@@ -86,7 +86,9 @@ direct-API-call path used for every model, every release), none of this is honor
   `undefined variable: emptyParseState` compile error — a 62% failure rate driven entirely by a
   prompt that references content the model was never shown.
 - `docx_reimplement` (same docparse family, also frontier tier) shows the matching failure
-  signature across 15 results.
+  signature across 15 results; per-model root cause is not independently confirmed (see
+  Verification Log) — the fix applies regardless, since both benchmarks qualify for the gate via
+  `grade_entrypoint` independent of root-cause attribution.
 - This is not new to v0.32.0 — the benchmarks and the harness gap both predate this release. Every
   prior release's frontier-tier standard-mode score has been depressed by the same mechanism.
 
@@ -94,7 +96,9 @@ direct-API-call path used for every model, every release), none of this is honor
 - AILANG's frontier-tier standard-mode pass rate (currently ~23-24%, see
   [[project_v0320_gating_composition_effect]]) is partly an artifact of running two
   agent-mode-only benchmarks through a mode that cannot pass them, not a measure of real
-  frontier-tier difficulty.
+  frontier-tier difficulty — verified for `markdown_reimplement` (8/13 models, identical
+  `undefined variable: emptyParseState` signature); `docx_reimplement` shows a matching signature
+  across 15 results but its per-model root cause is not independently confirmed.
 - Every standard-mode run burns real API budget calling every model against 2 benchmarks with a
   ceiling near 0% regardless of model capability — pure waste under the M-EVAL-STANDARD-CONFIDENCE-GATING
   budget discipline.
