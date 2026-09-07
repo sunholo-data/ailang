@@ -346,33 +346,30 @@ func TestLive_DoctorReportsTheRigAccurately(t *testing.T) {
 		}
 	}
 
-	// WORLD IS DE-FORKED (2026-09-06). These two assertions demanded world stay a fork
-	// and stay unpinned; the first is now false and is retired DELIBERATELY, which is the
-	// discipline this file has followed each time a gate closed — the V4/V5 and V8 gates
-	// went the same way, and each retirement is recorded rather than quietly deleted.
+	// WORLD IS DE-FORKED (2026-09-06). Two assertions here demanded world stay a fork and
+	// stay unpinned. BOTH are now retired, each when its gate actually closed, which is
+	// the discipline this file has followed throughout — the V4/V5 and V8 gates went the
+	// same way, and every retirement is recorded rather than quietly deleted.
 	//
-	// The second is still true and stays: world runs the shared driver but remains
-	// UNPINNED, because pin-root re-execs from a worktree of $REPO — the mission's own
-	// repo — which has no lib/pin-root.sh. That is option (a)'s accepted trade, loud on
-	// every fire, and no worse than before. It retires when driver-root and work-dir are
-	// decoupled inside pin-root.sh itself.
+	// The fork assertion retired on 2026-09-06 with the de-fork itself.
+	//
+	// The unpinned assertion retired on 2026-09-07, on the condition it named: "it
+	// retires when driver-root and work-dir are decoupled". The driver now sources the
+	// helper from MC_DRIVER_ROOT — where it ships — instead of from $REPO, so world is
+	// pinned like every other mission. Until that fix, EVERY world fire since the de-fork
+	// logged DRIVER PIN FAILED and ran its working tree.
 	if _, ok := reg.Get("world"); ok {
 		if len(findingsOfKind(rep, "driver-fork")) != 0 {
 			t.Error("world was de-forked and must no longer be reported as a fork — " +
 				"if this fires, something re-declared a driver in missions/world.toml")
 		}
-		if len(findingsOfKind(rep, "no-pin")) == 0 {
-			t.Error("world is still unpinned (ailang-world has no lib/pin-root.sh) and that " +
-				"must stay visible — silence here would be the fork problem in a new costume")
-		}
 	}
 
-	// The pinned missions must NOT be reported as unpinned, or the pin check is a
-	// constant rather than a measurement.
+	// EVERY mission must be pin-backed, world included. world is no longer excused, and
+	// that is the point: the exemption was the bug's hiding place, so removing it is what
+	// makes a regression of the MC_DRIVER_ROOT lookup fail here instead of silently
+	// returning the fleet to running uncommitted code.
 	for _, row := range rep.Rows {
-		if row.Name == "world" {
-			continue
-		}
 		if !row.Pinned {
 			t.Errorf("%s should be pin-backed but was reported unpinned", row.Name)
 		}

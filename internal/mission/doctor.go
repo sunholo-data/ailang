@@ -112,7 +112,11 @@ const sharedDriverRepo = "sunholo-data/ailang"
 // pinSentinel is the line that makes a clone re-exec from the committed driver pin
 // rather than running whatever its working tree holds. Its ABSENCE is what made the
 // world fork invisible to every routing fix landed upstream.
-const pinSentinel = `. "$REPO/tools/launchd/lib/pin-root.sh"`
+//
+// It reads MC_DRIVER_ROOT, not $REPO, since 2026-09-07: the helper ships beside the
+// DRIVER, and sourcing it from the mission's work repo meant every world fire since the
+// de-fork ran unpinned, because ailang-world has no lib/pin-root.sh and never will.
+const pinSentinel = `. "$MC_DRIVER_ROOT/tools/launchd/lib/pin-root.sh"`
 
 // Doctor inspects every registered mission. It is READ-ONLY: it opens no file for
 // writing. It may READ launchd's loaded state via the injected LaunchCtl (print only),
@@ -227,15 +231,20 @@ func DoctorWith(reg *Registry, p Paths, lc LaunchCtl) *Report {
 		case derr != nil:
 			add("driver-missing", Drift, "%s: %v", m.DriverPath(), derr)
 		default:
-			// PINNING DEPENDS ON THE WORKDIR, NOT THE DRIVER — and getting this wrong made
-			// doctor lie the moment world was de-forked. The driver contains the sentinel
-			// line, but what it actually executes is
-			// `. "$REPO/tools/launchd/lib/pin-root.sh"`, and $REPO is the MISSION's repo.
-			// So a mission running the shared (pin-aware) driver is still UNPINNED if its
-			// own workdir has no helper — which is exactly world today. Checking the
-			// driver reported world as pinned while every fire logged DRIVER PIN FAILED.
+			// PINNING DEPENDS ON THE DRIVER'S OWN ROOT, not on the mission's workdir.
+			//
+			// This check was the exact inverse until 2026-09-07, and it was RIGHT to be:
+			// the driver really did source `. "$REPO/.../pin-root.sh"`, so a mission whose
+			// workdir lacked the helper was genuinely unpinned, and checking the driver
+			// instead reported world as pinned while every fire logged DRIVER PIN FAILED.
+			//
+			// The DRIVER was then fixed rather than the report: the helper ships beside the
+			// driver, so world could never satisfy a workdir-based lookup. Both the sentinel
+			// and the file check now follow the driver, which is where the helper lives for
+			// every mission whether or not it works in the same repo.
+			driverDir := filepath.Dir(m.DriverPath())
 			row.Pinned = strings.Contains(string(driver), pinSentinel) &&
-				fileExists(filepath.Join(m.Workdir, "tools", "launchd", "lib", "pin-root.sh"))
+				fileExists(filepath.Join(driverDir, "lib", "pin-root.sh"))
 			// A FORK IS NOW A DECLARED CHOICE, not an inference from the repo name.
 			// Before the driver location was decoupled from the workdir, any mission
 			// working in another repo NECESSARILY had its own driver, so "different repo"
@@ -246,7 +255,8 @@ func DoctorWith(reg *Registry, p Paths, lc LaunchCtl) *Report {
 			row.Fork = m.Driver != ""
 			if !row.Pinned {
 				add("no-pin", Drift,
-					"%s has no tools/launchd/lib/pin-root.sh, so this mission runs its WORKING TREE rather than committed code (the driver is pin-aware; the workdir is what it sources the helper from)", m.Workdir)
+					"%s has no lib/pin-root.sh beside it, so this mission runs its WORKING TREE rather than committed code (the helper ships with the DRIVER, not with the mission's work repo)",
+					filepath.Dir(m.DriverPath()))
 			}
 			if row.Fork {
 				add("driver-fork", Note,
