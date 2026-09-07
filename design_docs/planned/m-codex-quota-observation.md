@@ -57,4 +57,7 @@ policy. Reservation/concurrency enforcement remains separate mission-runtime wor
 - Extracted real-driver admission test proves blocked probes make zero calls and planner/executor select configured fallbacks.
 - Existing routing suite: 84 assertions pass; controller-chain suite passes. Both existing suites emit missing-stub warnings; do not represent them as clean stderr.
 - Lint: zero issues. Initial full make test failed four subprocess-startup cases across Codex executor, Pi integration and SMT. Serial full-suite retry (`GOFLAGS=-p=1 make test`) passed. Focused race tests also passed.
-- Installed binary and saved mission pins have not yet been changed for this increment.
+- Installed binary and all four saved next-fire pins updated at 12:55 Copenhagen time to `8e5899aff`; installed CLI verified 20% used / 10% allowed, state over. Exact hashes and rollback backups: `design_docs/verification/mission-recovery-2026-09-07/codex-quota-deployment.json`.
+- Upstream merge preserved all attended rulings and brought in a pipeline refactor; affected pipeline, mission and full CLI package tests passed after merge, then the exact revision was rebuilt.
+- Current iterations were not interrupted. Next-fire admission is configured; no completed live iteration on the quota-aware pin is claimed. Earlier iterations retain their initial role decisions. This is not fleet adoption of durable role-run.
+- The quota-related CLI and driver are published on the existing review branch, not merged to origin/dev. Saved pins are immutable while under review.
