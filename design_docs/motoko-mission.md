@@ -1282,6 +1282,29 @@ are ordered so the UNGATED work runs first.
     validation alone would have left both windows checks red while appearing to fix them.
     Evaluator PASS **85/100**, zero blocking; its strongest objection (M2's test comment overclaimed
     its mutation coverage — the revert is invisible on darwin) was reproduced and fixed in M6.
+17. [NEW — filed by iteration 38's Gate-5 retro, from a first-party CI red this iteration caused and fixed]
+    **Gate 4's STATUS-rotation step and the canonical-heading lint disagree BY CONSTRUCTION, so every mission's
+    rotation raises the ratchet by one** · loop health · The lint
+    (`internal/mission/canonical_test.go`, `TestMissionDocHeadingsStayCanonical`) deliberately EXCLUDES charters —
+    *"they are curated prose, and a lint that demanded canonical headings there would be linting an essay"* — and
+    lints `*-mission-log.md`, `*-mission-log-archive.md`, `*-mission-status-archive.md` and
+    `*-mission-status-archive-old.md`. But the canonical STATUS shape is
+    `^## STATUS \d{4}-\d{2}-\d{2} — ITERATION \d+: \S` (`normalize.go:37`), while every mission's charter house
+    style is `## STATUS <date> — ITERATION N COMPLETE:` — which is NOT canonical. Gate 4's rotation step moves a
+    stamp from the UNLINTED charter into the LINTED archive, so a heading that was fine becomes an offender at the
+    moment it is rotated, and the ratchet (`knownNonCanonical = 12`, may fall but never rise) reds.
+    **Measured first-party, iteration 38**: rotating iteration 35's stamp took the count 12 → **13** and turned the
+    REQUIRED `test` context red on this iteration's own record PR ([#1077](https://github.com/sunholo-data/ailang/pull/1077));
+    the row-16 PR on the same base was green, so the docs edit was the cause and not the base. Fixed as the test
+    instructs — `ailang mission normalize --apply`, one heading rewritten, count back to 12, package green in 25.9s —
+    and NOT by raising the constant. **Note the normaliser's own output is ugly and that is a second-order finding**:
+    it emits `## STATUS 2026-09-05 — ITERATION 35: COMPLETE: …`, a double colon, because it inserts the canonical
+    colon and leaves the house style's `COMPLETE:` where it stands.
+    **Scope**: change Gate 4 to WRITE the canonical shape, so rotation is a no-op for the lint — not to weaken the
+    lint and not to raise the ratchet. That is a shared-skill edit affecting all four missions, which is why it is a
+    queue row rather than this iteration's one Gate-5 edit. **This will bite V1, World and docs on their next
+    rotations too**, and none of them has hit it yet only because none has rotated a stamp since the lint landed
+    (`aebf8bb73`, 2026-09-06) · 1 iteration
 16. [**LANDED 2026-09-07 · iteration 38 · PR [#1076](https://github.com/sunholo-data/ailang/pull/1076) → [`a329fdb4f`](https://github.com/sunholo-data/ailang/commit/a329fdb4f) · Gate 3b required 4/4 green** — one `### Added`/`### Fixed` pair in `changelogs/v0.32-current.md`'s `## [Unreleased]` section covering the `M-MISSION-LOOP-WORKBENCH` command surface and the PR #1055 repair. **The row's own premise had moved and is corrected in the commit**: it said a new unreleased section "would misdescribe both halves" because the top entry is the shipped `v0.35.1` — an `## [Unreleased]` section now exists, so both halves land together as the row asked. The independent evaluator verified the entry against all ten cited commits, confirmed `ailang mission list|doctor|install|apply` and the four `missions/*.toml` entries, and passed the `[Unreleased]` placement; its one non-blocking note is that "all six originally-red checks" counts check NAMES (as row 15 does) where PR #1055's own table groups them into four rows. The executor also overruled the controller's directive and was right: M8 `a427154c8` supersedes M2 on workdir absoluteness, so the entry says "POSIX or host-absolute", not "POSIX".] **Changelog debt for the workbench Phase 1 arc** · clause 6 ·
     `coding-standards.md` requires a `CHANGELOG.md` entry per change; the seven-commit Phase 1
     landing added none, and neither did iteration 36's fix-forward — measured, `git log --name-only
