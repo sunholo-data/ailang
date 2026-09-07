@@ -41,7 +41,9 @@ func TestMsgIDSuffix_Idempotent(t *testing.T) {
 		"inbox_1788806422072_c871949f",
 		"short",
 	} {
-		if msgIDSuffix(id, 8) != msgIDSuffix(id, 8) {
+		first := msgIDSuffix(id, 8)
+		second := msgIDSuffix(id, 8)
+		if first != second {
 			t.Errorf("msgIDSuffix(%q) is not deterministic", id)
 		}
 	}

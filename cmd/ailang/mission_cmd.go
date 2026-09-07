@@ -28,6 +28,8 @@ func missionCommand(args []string) error {
 		return nil
 	}
 	switch args[0] {
+	case "iterate", "status", "resume", "cancel":
+		return missionIterationCommand(args[0], args[1:])
 	case "list":
 		return missionList()
 	case "doctor":
@@ -50,12 +52,28 @@ func missionCommand(args []string) error {
 		printMissionHelp()
 		return nil
 	default:
-		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize, quota, role-run, attempt)", args[0])
+		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize, quota, role-run, attempt, iterate, status, resume, cancel)", args[0])
 	}
 }
 
 func printMissionHelp() {
 	fmt.Print(`ailang mission — the mission-loop registry
+
+  ailang mission iterate --work-item FILE [--dry-run]
+                                   one frozen work item through validated completion
+  ailang mission status NAME --work-item ID [--json]
+                                   read existing state; never creates or migrates a DB
+  ailang mission resume NAME --work-item ID
+                                   continue saved input/routes after ownership expires
+  ailang mission cancel NAME --work-item ID --version N
+                                   fence parent/child; unknown processes retain admission
+  Runtime placement: ~/.config/ailang/mission-runtime.toml
+    version=1; absolute state_db and workspace_root (outside source checkout).
+    macOS/Linux execution only; no per-command DB override.
+    AILANG_MISSION_REGISTRY: optional absolute existing missions/ directory,
+    for first admission from a foreign project. Resume uses the saved snapshot.
+    Exit: 0 complete/read-only, 2 invalid, 3 waiting, 4 reconciliation,
+          5 execution/verification failure, 130 cancelled.
 
   ailang mission role-run --request FILE --receipt NEW_FILE [--state-db FILE] [--dry-run]
                                    execute one explicit role; output is not acceptance

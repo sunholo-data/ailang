@@ -66,6 +66,7 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@/bin/bash tools/launchd/test_mission_heartbeat.sh
 	@/bin/bash tools/launchd/test_mission_stall.sh
 	@/bin/bash tools/launchd/test_mission_memgate.sh
+	@/bin/bash tools/launchd/test_mission_iteration.sh
 	@/bin/bash tools/launchd/test_cron_kicker.sh
 	@/bin/bash tools/launchd/test_mission_base.sh
 # Keep this shell-only: the bash-3.2 CI job deliberately has no Go toolchain.
