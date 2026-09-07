@@ -106,12 +106,12 @@ func (s *SQLiteStore) ClaimMissionAttempt(ctx context.Context, spec MissionAttem
 	owner := hex.EncodeToString(token)
 	result, err := s.db.ExecContext(ctx, `INSERT INTO mission_attempts
  (mission_id,work_item_id,stage_id,attempt_id,request_digest,request_json,state,owner_token,lease_until)
- VALUES (?,?,?,?,?,?,'prepared',?,`+missionNow+`+?)
+ SELECT ?,?,?,?,?,?,'prepared',?,`+missionNow+`+? WHERE NOT EXISTS (SELECT 1 FROM mission_work_items WHERE mission_id=? AND work_item_id=?) AND NOT EXISTS (SELECT 1 FROM mission_admissions WHERE mission_id=?)
  ON CONFLICT(mission_id,work_item_id,stage_id) DO UPDATE SET
  owner_token=excluded.owner_token,lease_until=excluded.lease_until,version=mission_attempts.version+1
  WHERE mission_attempts.state='prepared' AND mission_attempts.lease_until<=`+missionNow+`
  AND mission_attempts.attempt_id=excluded.attempt_id AND mission_attempts.request_digest=excluded.request_digest
- AND mission_attempts.request_json=excluded.request_json`, spec.MissionID, spec.WorkItemID, spec.StageID, spec.AttemptID, spec.RequestDigest, spec.RequestJSON, owner, leaseSeconds)
+ AND mission_attempts.request_json=excluded.request_json`, spec.MissionID, spec.WorkItemID, spec.StageID, spec.AttemptID, spec.RequestDigest, spec.RequestJSON, owner, leaseSeconds, spec.MissionID, spec.WorkItemID, spec.MissionID)
 	if err := missionChanged(result, err); err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func (s *SQLiteStore) StartMissionAttempt(ctx context.Context, key MissionAttemp
 		return err
 	}
 	args := append(key.args(), owner)
-	return missionChanged(s.db.ExecContext(ctx, `UPDATE mission_attempts SET state='running',version=version+1 WHERE `+missionWhere+` AND owner_token=? AND state='prepared' AND lease_until>`+missionNow, args...))
+	return missionChanged(s.db.ExecContext(ctx, `UPDATE mission_attempts SET state='running',version=version+1 WHERE `+missionWhere+` AND owner_token=? AND state='prepared' AND lease_until>`+missionNow+` AND NOT EXISTS (SELECT 1 FROM mission_work_items w WHERE w.mission_id=mission_attempts.mission_id AND w.work_item_id=mission_attempts.work_item_id)`, args...))
 }
 func (s *SQLiteStore) RenewMissionAttempt(ctx context.Context, key MissionAttemptKey, owner string, seconds int) error {
 	if err := key.validate(); err != nil {

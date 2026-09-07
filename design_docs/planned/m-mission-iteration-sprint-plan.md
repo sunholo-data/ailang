@@ -163,11 +163,11 @@ by production callers. Missing policy errors, including standalone role-run; pur
 Example: `cmd/ailang/testdata/mission-iteration/work-item.json`, rendered with temp-repo commits
 by fixtures; companion malformed and quota-blocked cases.
 
-- [ ] Strict input/result limits and role ordering reject malformed, ambiguous or unsupported input.
-- [ ] Existing Codex/Ollama/ledger policy is reused before construction/health and before dispatch.
-- [ ] Unknown/over quota, wire aliases and explicit pins cannot leak a protected provider call.
-- [ ] Dry-run creates no DB/worktree/receipt and makes zero provider calls.
-- [ ] Focused spec/admission/dispatch tests and lint pass.
+- [x] Strict input/result limits and role ordering reject malformed, ambiguous or unsupported input.
+- [x] Existing Codex/Ollama/ledger policy is reused before construction/health and before dispatch.
+- [x] Unknown/over quota, wire aliases and explicit pins cannot leak a protected provider call.
+- [x] Dry-run creates no DB/worktree/receipt and makes zero provider calls.
+- [x] Focused spec/admission/dispatch tests and lint pass.
 
 ### M2: Parent ownership and atomic child fences (~900 LOC)
 
@@ -175,11 +175,11 @@ by fixtures; companion malformed and quota-blocked cases.
 Own coordinator `mission_work_item*.go`, migration hook, parent-aware attempt APIs and acceptance
 schema. Example fixtures: concurrent starts, parent loss, prepared quota wait, acceptance replay.
 
-- [ ] Two DB connections racing identical/different work IDs produce one active mission admission.
-- [ ] Parent cancellation and lease loss fence child start and accept-and-advance transactionally.
-- [ ] Quota-blocked prepared attempts resume same request without terminalizing or replacing work.
-- [ ] Accepted stages remain immutable; altered input/digest/outcome and stale owners fail.
-- [ ] Existing standalone attempt recovery/cancellation tests pass unchanged in meaning.
+- [x] Two DB connections racing identical/different work IDs produce one active mission admission.
+- [x] Parent cancellation and lease loss fence child start and accept-and-advance transactionally.
+- [x] Quota-blocked prepared attempts resume same request without terminalizing or replacing work.
+- [x] Accepted stages remain immutable; altered input/digest/outcome and stale owners fail.
+- [x] Existing standalone attempt recovery/cancellation tests pass unchanged in meaning.
 
 ### M3: Git artifacts and stage acceptance (~850 LOC)
 

@@ -23,10 +23,10 @@
         "Dry-run creates no DB/worktree/receipt and makes zero provider calls.",
         "Focused spec/admission/dispatch tests and lint pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-09-07T19:09:59.731640+00:00",
+      "notes": "Focused tests and lint/vet passed; M2 also full coordinator/race/crash fixtures. Initial global baseline lint SA4000 in msg_id_suffix_test.go is inherited; sandbox socket failures rerun with permitted loopback."
     },
     {
       "id": "M2",
@@ -42,10 +42,10 @@
         "Accepted stages remain immutable; altered input/digest/outcome and stale owners fail.",
         "Existing standalone attempt recovery/cancellation tests pass unchanged in meaning."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-09-07T19:09:59.731640+00:00",
+      "notes": "Focused tests and lint/vet passed; M2 also full coordinator/race/crash fixtures. Initial global baseline lint SA4000 in msg_id_suffix_test.go is inherited; sandbox socket failures rerun with permitted loopback."
     },
     {
       "id": "M3",
