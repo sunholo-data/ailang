@@ -69,6 +69,191 @@ The runtime requires committed, scoped artifacts and the reserved untracked
 commits and records acceptance evidence outside author worktrees. The evaluator
 must be independent of the actual author routes and preserve the candidate tree.
 
+### A complete example
+
+Every field below is present so the JSON decodes, but every revision, SHA-256,
+repository and path is a fabricated, syntactically valid placeholder — **this
+example is illustrative only**. It is not an approval record, and iterate must
+never be pointed at it. It mirrors the structure of the strict decoder's own
+fixture (`cmd/ailang/testdata/mission-iteration/work-item.json`) with two
+supplied prerequisites (`designer`, `planner`) so the work item starts at
+`executor`, matching `full-v1`'s four ordered roles.
+
+```json
+{
+  "version": 1,
+  "mission_id": "docs",
+  "work_item_id": "item-1",
+  "repository": "github.com/example-org/example-docs",
+  "base_revision": "aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111",
+  "brief": "Illustrative only: add one example page under docs/ following the design and plan bound by the authority reference below.",
+  "allowed_paths": ["docs/"],
+  "workflow": "full-v1",
+  "stages": [
+    {
+      "id": "executor",
+      "role": "executor",
+      "instructions": "Follow the frozen brief. Change only paths under docs/. Write the untracked stage-result.json protocol file before finishing.",
+      "required_artifacts": ["docs/example-guide.md"],
+      "authority_refs": [
+        {
+          "revision": "dddd4444dddd4444dddd4444dddd4444dddd4444",
+          "path": "docs/approval.md",
+          "locator": "example-operator-approved-20260101",
+          "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+          "artifact_digest": "2222222222222222222222222222222222222222222222222222222222222222"
+        }
+      ],
+      "limits": { "timeout_seconds": 1800, "max_tokens": 70000, "max_cost_usd": 3 }
+    },
+    {
+      "id": "evaluator",
+      "role": "evaluator",
+      "instructions": "Check the exact candidate commit against every frozen acceptance criterion. Preserve candidate HEAD. Write the untracked stage-result.json protocol file.",
+      "required_artifacts": ["docs/example-guide.md"],
+      "authority_refs": [
+        {
+          "revision": "dddd4444dddd4444dddd4444dddd4444dddd4444",
+          "path": "docs/approval.md",
+          "locator": "example-operator-approved-20260101",
+          "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+          "artifact_digest": "2222222222222222222222222222222222222222222222222222222222222222"
+        }
+      ],
+      "limits": { "timeout_seconds": 1200, "max_tokens": 30000, "max_cost_usd": 2 }
+    }
+  ],
+  "prerequisites": [
+    {
+      "role": "designer",
+      "artifact": {
+        "commit": "bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222",
+        "path": "docs/designer.md",
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "authority_refs": [
+        {
+          "revision": "dddd4444dddd4444dddd4444dddd4444dddd4444",
+          "path": "docs/approval.md",
+          "locator": "example-operator-approved-20260101",
+          "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+          "artifact_digest": "1111111111111111111111111111111111111111111111111111111111111111"
+        }
+      ],
+      "author_models": ["claude-sonnet-5"]
+    },
+    {
+      "role": "planner",
+      "artifact": {
+        "commit": "cccc3333cccc3333cccc3333cccc3333cccc3333",
+        "path": "docs/planner.md",
+        "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "authority_refs": [
+        {
+          "revision": "dddd4444dddd4444dddd4444dddd4444dddd4444",
+          "path": "docs/approval.md",
+          "locator": "example-operator-approved-20260101",
+          "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+          "artifact_digest": "2222222222222222222222222222222222222222222222222222222222222222"
+        }
+      ],
+      "author_models": ["claude-sonnet-5"]
+    }
+  ],
+  "verification": [
+    {
+      "id": "whitespace",
+      "argv": ["git", "diff", "--check", "aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111"],
+      "cwd": ".",
+      "timeout_seconds": 30
+    }
+  ],
+  "limits": { "timeout_seconds": 3600, "max_tokens": 100000, "max_cost_usd": 5 },
+  "acceptance_criteria": [
+    { "id": "example-complete", "text": "The illustrative artifact demonstrates every required WorkItem v1 field." }
+  ]
+}
+```
+
+### Replace every illustrative value with a real committed input
+
+- **`mission_id`/`work_item_id`/`repository`** — the real registry mission ID and
+  the exact normalized Git origin (`ValidateRepository` compares `git remote
+  get-url origin`, lower-cased host, `.git`/trailing-slash stripped) of the
+  checkout iterate will actually run in. A mismatch fails before dispatch.
+- **`base_revision`, prerequisite `artifact.commit`, and every `authority_refs[].revision`**
+  — full commit IDs from the real history, via `git rev-parse <ref>`. `iterate`
+  requires the prerequisite and authority revisions to be ancestors of
+  `base_revision` (`merge-base --is-ancestor`); an unrelated or future commit fails.
+- **every `sha256` and `artifact_digest`** — the SHA-256 of the committed file's
+  raw bytes, via `git show <rev>:<path> | shasum -a 256`. This is **not** a Git
+  object ID: `git rev-parse <rev>:<path>` (or `git hash-object`) hashes a
+  `blob <len>\0`-prefixed object under SHA-1 (or SHA-256 for a sha256-format
+  repo), a different value from `sha256(content bytes)` computed here. Use
+  `git show`, not `git rev-parse` or `git ls-tree`'s blob column, to get the
+  field this schema wants.
+- **`author_models`** — the exact registry model identity that actually
+  produced each prerequisite, not an aspiration. `iterate` binds a stage's
+  accepted result to the one dispatch attempt that completed
+  (`completedRoute`), and rejects a route whose model was never in the
+  requested list — you cannot backfill this field with a guess after the fact.
+- **every `path`** (`artifact.path`, `authority_refs[].path`, `required_artifacts`)
+  — the real repository-relative path of that role's actual committed
+  deliverable or approval document, e.g. the real design doc instead of
+  `docs/designer.md`. Every `required_artifacts` entry must already fall under
+  `allowed_paths`.
+
+### How authority binds, and what it never does
+
+An `authority_refs[]` entry has two hashes that mean different things:
+`sha256` is the content hash of the **approval document itself** at
+`revision`+`path`; `artifact_digest` is the content hash of the **artifact
+being authorized** — for a prerequisite, the decoder itself requires
+`artifact_digest` to equal that prerequisite's own `artifact.sha256`
+(`Spec.Validate`), before any Git call runs.
+
+Stages have no `artifact` field, so the decoder does not force a stage's
+`artifact_digest` to match anything; above, both stages reuse the planner's
+digest because executing the approved plan is what their authority actually
+covers — bind each stage reference to whichever already-approved digest your
+project's authority record genuinely authorizes, not to this example's choice.
+
+At verification time `VerifyPrerequisites`/`verifyAuthorities` re-derive both
+hashes from real Git blobs, and additionally require the approval document to
+be **byte-identical between the cited `revision` and the work item's own
+`base_revision`** (a stale or edited approval fails), and require the
+`locator` string to appear **literally inside that document's committed
+text** — the locator is not a label you invent afterward; it must already be
+words in a real commit. None of this manufactures approval: an unreachable
+revision, a changed hash, or an absent locator fails verification instead of
+producing one. Recording a locator that matches nothing committed is not
+authority; it is a validation failure waiting to happen.
+
+### Evaluator independence
+
+Independence is judged by the actual completed route's vendor and model, the
+same provenance `author_models` is checked against — not by which client
+library or endpoint carried the request. Routing the same underlying model
+through a second transport does not make the evaluator independent of an
+author who used that vendor; choose an evaluator with a genuinely different
+model/vendor pairing from every author role it reviews.
+
+### What you will actually see
+
+Invalid local input or configuration exits `2` immediately, before any quota
+or dispatch check. An unknown or exhausted protected quota leaves the item
+`waiting` (exit `3`) for a later retry rather than failing it. An
+unconfirmed cancellation or an interrupted stage leaves it
+`needs_reconciliation` (exit `4`) with mission admission retained, never an
+automatic rerun. Status reports which of these applies:
+
+```text
+# illustrative status excerpt, not a command or real output
+{"phase": "waiting", "reason": "quota_exhausted", "next_action": "retry_after_quota"}
+{"phase": "needs_reconciliation", "reason": "owner_fence_lost", "next_action": "operator_review"}
+```
+
 ## Inspect, resume, and cancel
 
 ```bash
