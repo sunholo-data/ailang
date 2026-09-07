@@ -83,11 +83,39 @@ new binary the ledger reads zero, so the prose row stays as the only record — 
 - [ ] An UNREACHABLE one leaves that bucket unrationed and says so — never a guessed capacity
 - [ ] OpenRouter blocked until Mark's key lands; Anthropic and codex probed independently
 
-### M4 — the ration gate (~300 LOC)
-- [ ] An over-ration rung is SKIPPED when a lower rung exists, with its numbers logged
-- [ ] Every rung over ration ⇒ the fire PAUSES (D-4), visibly on the message plane
-- [ ] 10%/day pro-rata (D-1), computed per (bucket, window), binding = the tighter
-- [ ] A bucket with unknown capacity is never treated as over ration
+### M4 — the ration gate — **LANDED 2026-09-07**
+- [x] An over-ration rung is SKIPPED when a lower rung exists, with its numbers logged
+- [x] Every rung over ration ⇒ the fire PAUSES (D-4), visibly on the message plane
+- [x] 10%/day pro-rata (D-1), computed per (bucket, window), binding = the tighter
+- [x] A bucket with unknown capacity is never treated as over ration
+
+Landed in two parts, and the SECOND one was not in the plan.
+
+*Part 1 — the false green (`38103124b`).* Building the gate surfaced a failure the
+plan had not accounted for: **a start-probe cannot see a spent bucket.** The probe is
+one tiny request; the limit is on the agent-sized request behind it, so a rung probes
+green and dies on its first real call — and because the walk stopped there, every rung
+BELOW it is never reached. Measured 2026-09-07 04:47: world's `pi:ollama/glm-5.3:cloud`
+probed rc=0, then died with `429: you (marked) have reached your session usage limit`,
+and the fleet crash-looped for hours while `pi:openrouter/z-ai/glm-5.3` — the next rung,
+verified healthy with $93.33 of credit — was never tried. A runtime quota signal now
+demotes the rung for that fire and re-walks the chain; when nothing is left, the fire
+PAUSES with its own `PAUSED-NO-CAPACITY` verdict rather than crash-looping.
+
+*Part 2 — the ration itself (`20248273c`).* `ailang mission quota --over` is the seam;
+the driver skips any rung whose canonical bucket is listed. When every rung is skipped
+the EXISTING "NO usable controller" refusal is the pause — it already announces once
+per episode and spends zero tokens beyond probes, so no second pause path was added.
+
+**The gate is INERT until M3, by design.** `--over` lists only PROVEN exceedances, and
+with no capacities known that is nothing at all. Silence from it means "nothing is
+proven over", never "all fine" — and the driver says so out loud when it cannot read
+the ledger. This is the ordering the plan intended; it is worth stating plainly that
+M4 landing does NOT mean the fleet is rationed yet.
+
+**Not built: role-lane demotion.** designer/planner/executor/evaluator can hit the same
+false green, but their failures surface inside the controller session rather than in the
+driver's own rc, so detecting them needs a different mechanism.
 
 ### M5 — controller reserve (~200 LOC)
 - [ ] A non-controller role is refused a lane whose bucket is inside the reserve
