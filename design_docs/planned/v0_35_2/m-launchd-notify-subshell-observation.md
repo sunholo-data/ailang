@@ -1,262 +1,381 @@
-# M-LAUNCHD-NOTIFY-SUBSHELL-OBSERVATION: Restore Notification Test Observability
+# M-LAUNCHD-NOTIFY-SUBSHELL-OBSERVATION: Restore Notification Test Observability and Bound Production Notification Calls
 
-**Status**: Planned — mission iteration 344, single revision after quorum round 1
-**Target**: v0.35.2
-**Priority**: P0 (inherited dev-CI regression)
-**Estimated**: 2 hours, including mutation validation and independent evaluation
-**Dependencies**: Existing notification repair `63a0d2b32`; base `c308b2a0a84edb593609af5e7f4bb3b7bc402014`
-**Lane**: Mission harness; test-only correction, with the production notification contract preserved
-**Created**: 2026-09-07
+**Status**: Planned — mission iteration 347, revision under human ruling **D-60** (attended 2026-09-07, Mark Edmondson). This is **NO LONGER test-only**: the ruling overrides the earlier "separate production follow-up" deferral and folds production bounding INTO this design. **Lane:** Mission harness; test-observation repair **and** production bounded-call repair, both required by D-60.
+**Target**: v0.35.2 · **Priority**: P0 (inherited dev-CI regression RED on `dev`) · **Estimated**: 4 hours (test repair + production bounding + mutation + evaluation)
+**Dependencies**: existing notification repair `63a0d2b32`; base commit `81abc956d` (origin/dev).
+**Created**: 2026-09-07 · **Revision**: iter-347, per D-60.
 
 ## Problem Statement
 
-At the exact base, `make test-launchd-drivers` passes all 54 pin-root checks and then fails
-with **20 passing / 7 failing** notification checks. The actual fixture is
-`tools/launchd/test_driver_notify.sh`; the reported name
-`test_mission_control_notifications.sh` does not exist at this base.
+At base `81abc956d`, `make test-launchd-drivers` passes all 54 pin-root checks then fails the
+`launchd drivers (bash 3.2)` notify suite **20 passed / 7 failed**, rc=1 (M1). The fixture is
+`tools/launchd/test_driver_notify.sh`; the reported name `test_mission_control_notifications.sh`
+does not exist at this base.
 
 Commit `63a0d2b32` retained direct sends, added canonical message-store environment settings,
-captured their diagnostic output, and added a drain for previously spooled failures. It did
-**not** replace direct notification with spool-only delivery. Its `_out=$(ailang ... 2>&1)`
-executes the test's `ailang()` function in a subshell. That stub records calls by assigning to
-`TRACE`, so the record disappears when the subshell exits. The unchanged GitHub stub still
-records successfully. All seven red checks depend on the missing AILANG call or its title.
+captured their diagnostic output, and added a drain for previously spooled failures. Its
+`_out=$(ailang ... 2>&1)` executes the test's `ailang()` function in a subshell; that stub records
+calls by assigning to `TRACE`, so the record disappears when the subshell exits (V5, G3). All seven
+red checks depend on the missing AILANG call or its title.
 
-The product's diagnostic capture is legitimate. The test observation mechanism is wrong;
-weakening call/title assertions or removing product output capture would hide the defect.
-The broader pattern is incomplete standalone-driver labs: `9f267cf1f` repaired missing
-`STATE_DIR` inputs in this same suite. Repair the common spy boundary and cover the newly
-introduced retry/store/drain behavior in this existing CI fixture.
+This design has **two halves** that D-60 rules must land together:
+1. **Test-observation repair** (retained from the iter-344 design): restore the seven assertions by
+   making the fixture observe sends across shell boundaries via a file-backed trace, with the
+   `ailang()`/`gh()` stubs made reachable through the production bounding helper (see Conflict
+   Surface M3).
+2. **Production bounding** (NEW, folded in by D-60): bound the three notification paths D-60 names —
+   the drain-time send, the direct send, and the GitHub notice — with the existing `_mc_bounded`
+   helper, so a hanging `ailang`/`gh` cannot stall a notification retry chain, a spool drain, or a
+   fire's wrap-up.
 
 ## Verification Log
 
-Measured first-party in the isolated iteration-344 worktree at the base above. Tests use
-stubbed channels; these measurements did not send production notifications.
+Rows M1–M5 are the controller's first-party measurements at `81abc956d`, reused verbatim; rows
+V16+ are measured first-party in this iter-347 session at the same tree. All channel calls are
+stubbed; no production notification was sent.
 
 | ID | Claim / command or read | Observed |
 |---|---|---|
-| V1 | `git status --short`; `cat std/VERSION`; `/bin/bash --version` | Clean before design creation; v0.35.1; Bash 3.2.57 on arm64 Darwin. |
-| V2 | `make test-launchd-drivers` | Exit 2: pin-root 54/0; driver-notify 20/7; make stops before the remaining suites. |
-| V3 | Read `make/test.mk:59-83` and all of `tools/launchd/test_driver_notify.sh` | Target invokes `test_driver_notify.sh`; 27 existing assertions. `test_mission_control_notifications.sh` read fails with ENOENT; existing fixture is the positive control. |
-| V4 | Read `git diff 63a0d2b32^ 63a0d2b32 -- tools/launchd/mission-control.sh` | Only production file changed. Direct send changed to command substitution; canonical environment, error-tail capture, drain function and post-pin call were added. |
-| V5 | `/bin/bash -c 'TRACE="parent"; ailang() { TRACE="sent"; }; result=$(ailang); printf "capture: %s\n" "$TRACE"; ailang; printf "direct: %s\n" "$TRACE"'` | `capture: parent`, then `direct: sent`; independent shell-mechanism reproduction. |
-| V6 | Read suite `run()`, `run_drift()`, drift-j lab; `rg -n 'TRACE=|ailang\(\)' tools/launchd/test_*.sh` | These three labs in `test_driver_notify.sh` use mutable TRACE spies. The seven failures are pin AILANG/title, lane AILANG/title, drift-a, drift-c, drift-g. Healthy silence and GitHub checks pass. |
-| V7 | Read `_mc_notify` at driver lines 167-203 | Three attempts, sleeps 5 then 10 seconds; output captured with stderr; final failure logged with last 300 bytes, newline-flattened; failed payload appended to mission spool; GitHub handled separately. Existing test executes real backoff. |
-| V8 | Read `_mc_drain_notices` at lines 145-165 and call at 972 | Moves current spool to a draining file, delivers each entry with original timestamp prefix, re-appends failed rows, removes draining file, logs sent/kept counts; direct call follows pin-decision block. |
-| V9 | `rg -n 'spool|drain' tools/launchd/test*.sh` | Zero matches; positive controls are `_mc_drain_notices` definition/call and spool references in production driver. Existing launchd test bodies contain no spool/drain assertions. |
-| V10 | `git log -5 --oneline -- tools/launchd/test_driver_notify.sh`; read `git show 9f267cf1f` | Prior test-only repair addressed missing lab state, preserved per-arm isolation, and demonstrated mutation controls. Its removed drift-j change was dead code: avoid incidental drift-j refactoring here. |
-| V11 | `ailang docs search --stream planned/implemented --neural --timeout 15s --limit 5 'launchd notification spool tests'` (separate invocations with actual stream names) | Partial searches timed out after 27/187 planned and 44/200 implemented embeddings. Best planned 0.45 (motoko discovery refusal plan); best implemented 0.43. No returned duplicate threshold reached. Targeted text search supplied relevant driver/workbench docs below; search is not claimed exhaustive. |
-| V12 | Read numbered driver lines 153-154 and 183-184 | Both drain and direct-send sites set `AILANG_MESSAGES_STORE=gcp` and `AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}"` on the command. Thus unset **or empty** project selects `ailang-multivac`; nonempty caller project is retained. Neither site assigns `AILANG_STORAGE`. Tests will observe these values inside the stub, not infer them from its exit code. |
-| V13 | Read numbered fixture lines 52-55, 87-88, 125-130; `/bin/bash -c 'false; actual=$?; printf "%s" ""; printf "actual=%s fixture_after_printf=%s\n" "$actual" "$?"'` | `run()` sources the emit block, then `printf`, then expands `RC:$?`; the two “block still exits 0” assertions therefore inspect printf's status. Shell control prints `actual=1 fixture_after_printf=0`. `run_drift()` expands `DECISION_RC:$?` immediately after the decision block and does not have this masking defect. |
-| V14 | In `/bin/bash`, `eval` the unchanged `_mc_notify` obtained with `awk '/^_mc_notify\(\) \{/,/^\}/' tools/launchd/mission-control.sh` and unchanged fixture stubs obtained with `sed -n '38,43p' tools/launchd/test_driver_notify.sh`; call notify with title `Mission v1: driver ran UNPINNED`, body `body`, normal fixture GH/repo/sender variables; then reset TRACE and call the **same** AILANG stub directly with the same send arguments | Real notify records only `GH:issue comment 635 --repo sunholo-data/ailang --body body`; direct control records `AILANG:messages send controlplane body --title Mission v1: driver ran UNPINNED --from mission-control`. Both use the actual source/stub, not a retyped notification implementation; neither invokes a real external command. Together with V2 and the call-site mapping below, this isolates lost observation in the real fixture. |
-| V15 | Read complete driver functions 145-203; `rg -n '_mc_bounded|_mc_notify|_mc_drain_notices' tools/launchd/mission-control.sh`; read helper 496 onward and `git show 63a0d2b32^:tools/launchd/mission-control.sh` notify body | Direct AILANG send, drain AILANG send, and notify GitHub post have **no driver-level per-call timeout**. Notify/drain call sites are direct. Positive control: `_mc_bounded` exists and wraps other messaging calls at 1817/1820. Parent commit already has unbounded direct sends/posts; the new drain at base is also unbounded. Three retries bound the count, not each call's duration. This is a separate existing production defect, not an effect of the proposed test edits. No claim is made about internal CLI/network-library deadlines. |
+| M1 | (controller) `bash tools/launchd/test_driver_notify.sh` at 81abc956d | **20 passed, 7 failed**, rc=1. Seven named failures = the causal-mapping set: fires on both channels (ailang), titled as UNPINNED, lane fires on ailang, lane keeps its own title, drift-a, drift-c, drift-g. |
+| M2 | (controller) `grep -n "ailang messages send\|gh issue comment" tools/launchd/mission-control.sh` | Drains send P:154 (`_mc_drain_notices`), direct send P:184 (`_mc_notify`), GH post P:198 (`_mc_notify`); **seven further unbounded sites** P:1470,1473,1486,1835,1838,1852,1855. Positive control of a bounded site: P:1817/1820 already read `_mc_bounded 30 ailang messages send …` and `_mc_bounded 30 gh issue comment …`. |
+| M3 | (controller) `_mc_bounded` at P:496 runs `( exec "$@" ) >"$out_f" 2>&1 &` — `exec` bypasses shell functions, resolves an external binary. Measured: `f() { echo FUNCTION-CALLED; }; ( exec f )` → `/bin/bash: exec: f: not found` rc=127; direct `f` → `FUNCTION-CALLED` rc=0. | **THE COLLISION**: wrapping the notifies in `_mc_bounded` makes the suite's `ailang()`/`gh()` **function** stubs unreachable; the driver would exec the REAL binaries. `_mc_bounded` also runs in a background subshell, so it does NOT fix the lost-`TRACE` observation (a file spy is still required). `_mc_bounded` returns 124 on expiry, combined output in `$MC_BOUNDED_OUT` (`_mc_notify` today reads send output from command substitution). |
+| M4 | (controller) read `_mc_bounded` P:487-512 | `PROBE_TIMEOUT` defaults to 120 (model probes, not messaging); the two existing bounded notification sites use **30s**; 124 on expiry (mirrors GNU `timeout`); combined stdout+stderr → `$MC_BOUNDED_OUT`; kill then SIGKILL after +2s. |
+| M5 | (controller) read `_mc_notify` P:167-203 | Retries three times, `sleep 5` then `sleep 10`; per-call bound and retry count are different guarantees. |
+| V1 | `git rev-parse HEAD`; `/bin/bash --version` | 81abc956dace8a9e297d26b232da3f0ce56b31a3; Bash 3.2.57 on arm64 Darwin. |
+| V2 | re-ran `bash tools/launchd/test_driver_notify.sh` | 20 passed, 7 failed, rc=1; the seven named rows identical to M1. |
+| V3 | re-ran M2 grep; read `_mc_drain_notices` P:145-165, `_mc_notify` P:167-203, `_mc_bounded` P:496-512, slot-notify P:1817/1820 | Line numbers and semantics match M2/M4/M5; refusal block P:1470/1473 ends in `exit 1`; model-change P:1486; post-record P:1835/1838 and rc-fail P:1852/1855 are episode-gated by marker files; slot-notify P:1808-1827 is the only already-bounded notify path. |
+| V4 | M3 mechanism prototype: PATH executable stub + `_mc_bounded 30 env AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT=ailang-multivac stub …` (full helper reproduced) | rc=0; env vars reach the stub (`STORE=<gcp> PROJ=<ailang-multivac>`); stub's combined output lands in `MC_BOUNDED_OUT`; stub appends an `AILANG:` record to a file trace. Positive control that the exec chain and env passthrough both survive `_mc_bounded`. |
+| V5 | V4 with a never-returning stub (`while :; do sleep 1; done`), `secs=2` | rc=124 after ~3s (designer reading). **CONTROLLER RE-MEASURED (V5c, below): 5s, not ~3s** — the designer's number is optimistic; use V5c. |
+| V5c | (controller, first-party re-measure of V4/V5 at this tree) reproduced `_mc_bounded` verbatim via `awk '/^_mc_bounded\(\) \{/,/^\}/'`; ran (a) a PATH executable stub through `_mc_bounded 30 env AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT=ailang-multivac fakeailang …`, (b) a never-returning PATH stub with `secs=2`, (c) a shell FUNCTION as the command | (a) rc=0, `MC_BOUNDED_OUT=[STORE=<gcp> PROJ=<ailang-multivac>]`, file trace `AILANG:messages send controlplane body --title T` — V4 CONFIRMED. (b) rc=124 in **5 s wall-clock**, not ~3 s: `_mc_bounded`'s poll loop sleeps 2 s per turn and then grants a further 2 s before SIGKILL, so the observed cutoff is `bound + up to ~2 s poll granularity + 2 s grace`. **Any acceptance budget must be `bound + 4 s` at minimum, not `bound + 1 s`.** (c) rc=127, `exec: f: not found` — negative control, M3 CONFIRMED. |
+| V6 | read `run()`/`run_drift()` in `test_driver_notify.sh` P:30-95 and assertions P:105-165 | Labs define `ailang()`/`gh()`/`log()` functions appending to `TRACE`, source `notify.sh` then the block in a subshell. log() is never wrapped in `_mc_bounded` (only `ailang`/`gh` are) — so log() need not route through the helper, but per G1 it must still append to `MC_TRACE_FILE` so the observation medium stays unified. 27 assertions include the seven red rows. |
+| G1 | (controller, objection 1) `grep -n 'checkno' tools/launchd/test_driver_notify.sh` | **Two negative AILANG assertions read the captured trace `$T`:** T:121 `checkno "no ailang call" "$T" "AILANG:"` and T:144 `checkno "lane SILENT when healthy" "$T" "AILANG:"`. Both currently PASS (in the 20 green). Under a split trace (ailang/gh records → `MC_TRACE_FILE`, log-only → `$T`), they would keep reading `$T` and pass vacuously even if the AILANG record genuinely fired into the file — hiding a regression. Mandates exactly ONE unified observation medium. |
+| G2 | (controller; RC-after-`printf` defect, re-measured at this base) `sed -n '45,57p' tools/launchd/test_driver_notify.sh`; shell control | `run()`'s emit sequence ends `. "$2"` then `printf "%s" "$TRACE"` then `echo "` / `RC:$?` (T:52-55) — so `RC:$?` is expanded AFTER `printf`. `/bin/bash -c 'false; actual=$?; printf "%s" ""; printf "actual=%s after_printf=%s\n" "$actual" "$?"'` → `actual=1 after_printf=0`: the block's real status is 1, the value the fixture records is 0. CONFIRMED. Positive control: `run_drift()` expands `DECISION_RC:$?` immediately after the decision block (T:88, :196) — the correct form already exists in this same file. |
+| G3 | (controller; subshell `TRACE` loss, re-measured at this base) `/bin/bash -c 'TRACE=parent; ailang() { TRACE="sent"; }; r=$(ailang); printf "capture:[%s]\n" "$TRACE"; ailang; printf "direct:[%s]\n" "$TRACE"'` | `capture:[parent]` then `direct:[sent]`: an assignment made inside command substitution does NOT survive to the parent shell, while the identical direct call does. Positive control = the direct call. |
 
 ### Exact causal mapping of the seven baseline failures
 
-Line numbers below are at the recorded base. `T` means `tools/launchd/test_driver_notify.sh`;
-`P` means `tools/launchd/mission-control.sh`. All rows use P:183-184, the captured direct send
-inside `_mc_notify`; P:185 accepts the stub's successful exit. The only AILANG observation
-in the relevant fixture stubs is assignment to `TRACE` (T:40-41 or T:71-72). Capture loses
-that assignment as measured in V14; each row's failed predicate requires that lost record.
+Line numbers at base. `T`=`tools/launchd/test_driver_notify.sh`, `P`=`tools/launchd/mission-control.sh`. All rows use P:183-184, the captured direct send inside `_mc_notify`; P:185 accepts the stub's successful exit. The only AILANG observation in the relevant stubs is assignment to `TRACE` (T:40-41 / T:71-72). Capture loses that assignment as measured in G3 (subshell), so each failed predicate requires that lost record. Surviving controls in V2 pass because they read TRACE that survives (log, GH) or negate.
 
-| Exact failing assertion / source | Lab and production emit call | Lost value required by assertion; surviving control in V2 |
+| Exact failing assertion | Lab / production emit | Lost value required; surviving control in V2 |
 |---|---|---|
-| `fires on both channels (ailang)` — T:114, pin section | `run(pin_block)`; P:1578 | `AILANG:messages send controlplane`; adjacent GitHub post check passes |
-| `titled as UNPINNED` — T:116, pin section | `run(pin_block)`; P:1578 | Exact lowercase `driver ran UNPINNED` in AILANG title; GH body has differently capitalized `Driver ran UNPINNED`, so does not satisfy this predicate |
-| `lane fires on ailang` — T:139 | `run(lane_block)`; P:1549 | `AILANG:messages send controlplane`; lane GitHub and log checks pass |
-| `lane keeps its own title` — T:141 | `run(lane_block)`; P:1549 | Exact lowercase `executor/planner lane degraded` in AILANG title; GH body's initial `Executor/planner` differs |
-| `drift-a: first threshold notice reaches both channels with path/count` — T:148 | `run_drift(pinned,170,25,absent)`; P:1596 | Ordered AILANG record before GH; decision rc 0, state 170, GH/path/count survive |
-| `drift-c: doubling notifies` — T:152 | `run_drift(pinned,340,25,170)`; P:1596 | AILANG call record; decision rc 0 and state 340 survive |
-| `drift-g: STALE keeps original notice only` — T:160 | `run_drift(STALE,170,25,absent)`; P:1578 | Exact lowercase `driver ran UNPINNED` title; decision rc 0 and GH body survive |
-
-V2 supplies the actual failed rows and surviving trace contents; V4 identifies the changed
-capture site; V14 reproduces the causal boundary with the actual notify function and fixture
-stub. This establishes a test-observation defect without claiming production delivery was
-measured against live services.
+| `fires on both channels (ailang)` — T:114 | `run(pin_block)`; P:1578 | `AILANG:messages send controlplane`; adjacent GH post passes |
+| `titled as UNPINNED` — T:116 | `run(pin_block)`; P:1578 | lowercase `driver ran UNPINNED` in AILANG title; GH body capitals differ so does not satisfy |
+| `lane fires on ailang` — T:139 | `run(lane_block)`; P:1549 | `AILANG:messages send controlplane`; lane GH and log pass |
+| `lane keeps its own title` — T:141 | `run(lane_block)`; P:1549 | lowercase `executor/planner lane degraded`; GH body initial caps differ |
+| `drift-a` — T:148 | `run_drift(pinned,170,25,absent)`; P:1596 | ordered AILANG record before GH; DECISION_RC/state/GH/path survive |
+| `drift-c` — T:152 | `run_drift(pinned,340,25,170)`; P:1596 | AILANG call record; DECISION_RC and state 340 survive |
+| `drift-g` — T:160 | `run_drift(STALE,170,25,absent)`; P:1578 | lowercase `driver ran UNPINNED`; DECISION_RC and GH body survive |
 
 ## Goals and High-Impact Decisions
 
-Primary goal: make the existing suite observe real notification calls across shell boundaries,
-restore its original 27 checks, and prevent regressions in the repaired notification path.
+Two goals: (1) make the suite observe real notification calls across shell boundaries and restore its
+27 checks incl. the seven red; (2) bound the three D-60 notification paths in production so a hang
+cannot stall a retry/spool/wrap-up.
 
-| Decision | Reason | Owner | Freeze / cost |
-|---|---|---|---|
-| Preserve current production behavior | The red set is explained by the observation boundary, not failed sends | Agent designer, reviewed by evaluator | Design / low |
-| Persist test observations in per-arm files | Works through command substitution and stdout/stderr redirection | Executor | Design / low |
-| Extend the existing suite | Already wired into the Bash 3.2, Go-less CI target | Executor | Design / low |
-
-- [x] Production changes are outside this fix unless new evidence demonstrates a separate defect; report and re-scope such evidence.
-- [x] Keep all original behavior assertions and their meaning, including healthy silence and source-clone paths.
-- [x] Preserve per-arm temporary state; all channel calls remain stubbed and sleep is observed without waiting.
+| Decision | Reason | Owner |
+|---|---|---|
+| Fold production bounding into THIS design (D-60) | Ruling overrules the iter-344 deferral; both halves must land together | Designer |
+| Bound the three D-60 paths with `_mc_bounded`; use `NOTIFY_TIMEOUT=30` (env `MISSION_NOTIFY_TIMEOUT`) | Matches the two existing bounded notify sites (P:1817/1820); message-send/gh-comment lands well within 30s; `PROBE_TIMEOUT=120` is for model probes, not messaging (M4) | Designer |
+| Convert the fixture's `ailang()`/`gh()` function stubs to executable PATH scripts, prefixed with a leading `env` for the store vars | `_mc_bounded` `( exec "$@" )` cannot reach function stubs and cannot parse `VAR=val` prefixes; PATH scripts + `env` are dependency-free and exercise the real background-subshell bounded path (V4) | Designer |
+| Keep `log()` as a function, but unify it onto `MC_TRACE_FILE` | `_mc_notify` calls `log` directly, never via `_mc_bounded`, so it stays a function — but it must append to `MC_TRACE_FILE` and teardown must load the file into `TRACE` before the assertions, or the negative `checkno`s read a LOG-only `$T` and pass vacuously (G1) | Designer |
+| Retain the file-backed trace (iter-344) | `_mc_bounded` runs sends in a background subshell; a var-based `TRACE` cannot survive (M3, G3) | Designer |
+| Defer the seven non-D-60 call sites to a named queue row | They are episodic/terminal notices (marker-gated or immediate `exit`), not on the steady-state notify path, and each needs its own hanging-stub test (see Deferred) | Designer |
 
 ## Solution Design
 
-Modify **only `tools/launchd/test_driver_notify.sh`** for implementation (approximately
-100–180 added/changed lines; executor may organize helpers to keep it smaller). Documentation
-and sprint metadata accompany it. `mission-control.sh` and `make/test.mk` require no landed edit.
+### Half 1 — Production bounding (per D-60)
 
-1. Introduce a file-backed call trace inside the suite's temporary lab. In the send-capable
-   `run()` and `run_drift()` labs, make `ailang`, `gh`, and `log` append ordered observations
-   to this file; replay it after the block. Preserve `AILANG:`, `GH:`, and `LOG:` records used
-   by the existing checks. Keep stub command output separate from its trace, because production
-   intentionally captures or discards command output. The drift-j path does not send at base;
-   leave it alone unless sharing the helper eliminates duplication without weakening coverage.
-2. Record messaging environment **inside** the AILANG stub, alongside command arguments.
-   Verify direct and drained sends see `AILANG_MESSAGES_STORE=gcp`, default project
-   `ailang-multivac` for both unset and empty input, and the caller's nonempty explicit project
-   override when supplied (V12). Verify the
-   caller's store/project values and `AILANG_STORAGE` are unchanged after each function.
-3. Add a `sleep` stub that logs requested durations and returns immediately. For retry scenarios,
-   maintain attempt state in a file as well: a shell counter has the same subshell defect.
-   Cover success first try, failure then success, and all three failures. On permanent failure,
-   assert the error-tail content, exactly one spool row, flattened multiline body, and continued
-   GitHub attempt. Capture the block's actual status immediately after sourcing; the current
-   `RC:$?` after `printf` measures `printf`, not the block.
-4. Extract `_mc_drain_notices` from the real driver using the established guarded awk pattern.
-   Cover absent/empty spool, all-success delivery, mixed success/failure, all-failed retention,
-   and recovery on the next drain. Assert original timestamps, titles, bodies, sender, exact
-   retained row set, sent/kept counts, and cleanup of the draining artifact. A second successful
-   drain must not resend delivered rows. Verify v1 and one non-v1 namespace do not collide.
-   Keep GitHub out of drain assertions except a negative assertion: drains are controlplane-only.
-5. Assert the live driver has exactly one top-level `_mc_drain_notices` invocation after the
-   pin-decision end marker. This narrowly scoped wiring check complements behavioral function
-   tests and detects deletion of the preflight call without starting a live mission.
+1. Add `NOTIFY_TIMEOUT="${MISSION_NOTIFY_TIMEOUT:-30}"` next to `PROBE_TIMEOUT` (P:492). 30s matches
+   the two established bounded notify sites (M2/M4); overridable for the hang-control test.
+2. Wrap the **direct send** in `_mc_notify` (P:184). Replace the unbounded command substitution with
+   `_mc_bounded "$NOTIFY_TIMEOUT" env AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" ailang messages send …`, then set `_out="$MC_BOUNDED_OUT"` and test the returned rc. Payload, retry count (3), and sleeps (5/10) are unchanged.
+   **Error-tail diagnostic (G5):** on a NORMAL final failure the command returned output, so `_out`
+   (from `MC_BOUNDED_OUT`) still holds it and the tail-300 log and the spool row are unchanged. BUT the
+   earlier claim is WRONG for `rc=124`: a timed-out command produced no output, so `MC_BOUNDED_OUT` is
+   empty and the WARNING would degrade to `FAILED … after 3 attempts:` with nothing after it — the
+   exact blindness the `_mc_notify` comment (P:190) exists to prevent. So on `rc=124` the diagnostic is
+   SYNTHESISED into the tail-300 log: `timed out after ${NOTIFY_TIMEOUT}s (no output)`. `rc=124` stays
+   non-zero → a failed attempt → retried and spooled exactly like today.
+3. Wrap the **drain-time send** in `_mc_drain_notices` (P:154) the same way: `_mc_bounded "$NOTIFY_TIMEOUT" env AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT=… ailang messages send …`. On `rc=124` the row is treated as failed → re-appended to the spool (unchanged retention path).
+4. Wrap the **GitHub notice** in `_mc_notify` (P:198) with `_mc_bounded "$NOTIFY_TIMEOUT" gh issue comment …`. GH is already one-shot (not retried); bounding does not change retry semantics.
+5. `env` is required because `_mc_bounded` executes `( exec "$@" )`, and a `$@` prefixed with `VAR=x`
+   would make `exec` treat `VAR=x` as the command name. `env` carries the two store vars down to the
+   child while preserving the current scoping (the vars are never exported to the driver/coordinator;
+   `AILANG_STORAGE` untouched).
+6. **Aggregate drain budget (G4) and corrected worst-case latency (M5, G5).** Per-notice worst case,
+   measured with polling/grace overhead: AILANG leg = `3×(bound+overhead) + sleeps + SIGKILL grace =
+   3×(30+4) + 5 + 10 = 117 s` (G5: ~4s overhead per attempt — a 2s poll plus a further 2s pre-kill
+   grace; V5c measured 5s for a 2s bound), NOT 105 s; per notice with the GH leg = `117 + (30+4) =
+   ~151 s`, NOT ~135 s. This hard per-notice bound already beats today's unbounded form, but a DRAIN of
+   `N` hanging rows must not cost `N × (bound + overhead)` inside the one preflight phase whose only
+   backstop is the whole-slot `HARD_TIMEOUT` (G4). So the drain gets an explicit AGGREGATE budget
+   `DRAIN_BUDGET` (env `MISSION_DRAIN_BUDGET`, default 90 s), justified by verification row G4: the
+   preflight has NO phase-specific deadline — only `HARD_TIMEOUT=6 h` (P:795) — and the stall watchdog
+   cannot rescue it (no controller child exists yet; slow-but-progressing is not "no progress").
+   Before EACH drain attempt, require enough REMAINING budget for `NOTIFY_TIMEOUT` + termination
+   overhead (~2 s SIGKILL grace); if insufficient, STOP draining, PRESERVE all unattempted rows in the
+   spool, and emit an explicit DEFERRED-drain diagnostic (`notice spool: deferred <k> row(s), aggregate
+   budget <BUDGET>s exhausted`) rather than starting a send certain to be cut off. Individual attempts
+   keep reusing `_mc_bounded`; failed rows are re-appended exactly as today. A large-backlog acceptance
+   case (hanging send stubs over an N-row spool) proves the whole drain returns within `DRAIN_BUDGET`
+   and preserves both failed and unattempted rows; the mutation that removes the aggregate guard kills
+   that assertion.
 
-Use `mktemp -d` and cleanup traps for suite-owned artifacts. Avoid parallel arms sharing trace
-or retry state. A trace-write failure must produce a test failure, not an apparent successful
-stub. Product functions and emit blocks must remain extracted from source, never copied into tests.
+### Half 2 — Test-observation repair (retained, incl. M3 resolution)
+
+1. In the send-capable `run()` and `run_drift()` labs, write the fixture stubs as executable scripts in
+   a suite-owned temp `bin/` dir and prepend it to an **exported `PATH`** so `_mc_bounded`'s background
+   `exec` resolves the fake `ailang` and `gh` instead of the real binaries (M3). `log()` stays a function (called directly, never through `_mc_bounded`) but, per G1, it also
+   appends its records to `MC_TRACE_FILE`.
+2. Each `ailang`/`gh` PATH script appends one ordered `AILANG:`/`GH:` record to a **per-arm trace FILE**
+   (path via exported `MC_TRACE_FILE`), preserving every existing record prefix/argument form the checks
+   consume. The stub also emits the env values (via a fake stdout line captured into `MC_BOUNDED_OUT`)
+   so store/project assertions read `AILANG_MESSAGES_STORE=gcp` and the default `ailang-multivac`
+   reaching the child (V4). This is where the subshell-lost-`TRACE` fix lands: `_mc_bounded` runs sends
+   in a background subshell (M3), so only a file survives. `log()` appends to this SAME file, and the
+   `run()`/`run_drift()` teardown loads `MC_TRACE_FILE` into the `TRACE` variable before the 27
+   assertions evaluate, so positive and negative checks both read one unified medium (G1).
+3. Add the sleep stub, retry/file-counter for attempt state, error-tail, spool, and drain coverage
+   (direct-send retry/spool, `_mc_drain_notices` extraction via the guarded awk pattern) exactly as the
+   iter-344 Solution Design specified — the drain/extraction tests are unchanged in intent.
+4. Restore all seven assertions; add the production-bound assertions (next section). Capture the
+   block's actual status immediately after sourcing (the `RC:$?`-after-`printf` defect, G2).
+5. Wire check: exactly one top-level `_mc_drain_notices` invocation after the pin-decision end marker.
 
 ## Conflict Surface
 
-| Surface | Existing occupant / behavior to preserve | Verification |
+| Surface | Occupant to preserve | Resolution / verification |
 |---|---|---|
-| Captured AILANG stdout/stderr | `_out` contains provider output; caller cannot rely on it being printed | Separate file spy and diagnostic-tail assertions |
-| Shell state and episode markers | Fresh pin/lane arms avoid accidental dedupe; drift state persists only within its arm | All original checks; per-arm trace/state paths |
-| Ordered trace output | drift-a expects decision, AILANG then GitHub; titles appear in AILANG arguments | Replay file after decision/state output, preserving channel order |
-| Retry state | Each command substitution forks; first-attempt failure must advance across forks | File counter, exact attempt/backoff checks |
-| Message environment | Per-command canonical store; project override; separate `AILANG_STORAGE` | Inspect inside stub and after calls |
-| Spool filesystem | Mission names select distinct TSV files; failures survive next drain | Exact content/count and cross-namespace controls |
-| Go-less Bash 3.2 CI | Target executes shell suites then syntax-checks drivers | `/bin/bash`, no Go or new dependencies |
+| **exec-vs-function collision (M3)** | `_mc_bounded` `( exec "$@" )` bypasses functions | **PATH executable stubs** in the fixture (Half 2); `env` prefix in production (Half 1, step 5). Verified V4. Alternatives rejected: `export -f` (unreliable across `exec` in Bash 3.2; changes the shared helper), watcher-on-command-substitution (duplicates helper, does not fix function-bypass). |
+| **split-trace / vacuous checkno (G1)** | `ailang`/`gh` records to `MC_TRACE_FILE` but `$T` comes from `log()`-only `TRACE` | Unify the medium: `log()` appends to `MC_TRACE_FILE`; teardown loads the file into `TRACE` before the 27 assertions; a positive-control arm forces the same `no ailang call`/`lane SILENT when healthy` checkno to FAIL (see Acceptance / Mutation). |
+| **error-tail / `MC_BOUNDED_OUT` (M3)** | `_mc_notify` warns with last-300-bytes on send failure (assertions + spool depend on it) | `_out="$MC_BOUNDED_OUT"` after the bounded call; rc=124 → failure arm unchanged. Error-tail content is captured in the failing-send lab. |
+| **env-prefix through `exec`** | per-command store/project scoping; `AILANG_STORAGE` untouched | leading `env` argument; verified reaching child (V4); scoping preserved (never exported). |
+| **worst-case latency (M5)** | three retries + 5/10s sleeps, non-aborting | bounded ≤ ~151s/notice (corrected, G5); bounded drain per-row AND per-aggregate (step 6); budget-acceptable (see Design step 6). |
+| **seven out-of-D-60 sites (M2)** | refusal P:1470/1473, model-change P:1486, post-record P:1835/1838, rc-fail P:1852/1855 | **Deferred to named queue row** with reasons (see Deferred); not left silent. |
+| Captured stdout/stderr | `_out` (or `MC_BOUNDED_OUT`) holds provider output | separate file spy + diagnostic-tail assertions |
+| Retry state | each bounded send forks a subshell | file counter; exact attempt/backoff checks |
+| Spool filesystem | failures survive next drain | exact content/count, cross-namespace controls |
+| Go-less Bash 3.2 CI | `/bin/bash`, no new deps | `/bin/bash`, `mktemp -d`, no `declare -A`/`timeout` |
 
-Fixtures that must still work: pin notice healthy/degraded/failed-channel/unset-issue,
-lane healthy/degraded, and drift-a through drift-j in `test_driver_notify.sh`; all 54
-`test_pin_root.sh` checks; every remaining suite in `make test-launchd-drivers`.
-Intentional changes are limited to test instrumentation and added assertions. No language
-syntax, runtime behavior, notification payload, retry timing, or mission policy is changed.
-
-## Examples
-
-Before: `_out=$(ailang ...)` sends successfully, but the stub's `TRACE` assignment vanishes;
-the pin arm reports “fires on both channels (ailang)” as failed.
-
-After: the same production call appends an AILANG record to an isolated trace file; the pin
-arm observes its recipient/title, while the captured stdout remains available for diagnostics.
-During a simulated outage the trace records three sends and backoffs `5`, `10`; one spool
-row remains and a later successful drain removes it after asserting timestamped delivery.
+Fixtures still work: pin/lane healthy/degraded, drift-a..j; all 54 `test_pin_root.sh`; every other
+suite in `make test-launchd-drivers`. Intentional production change is bounded calls + `env` transport
+only; no payload, retry count, message-store semantics, policy, or language/runtime change.
 
 ## Acceptance Criteria and Test Plan
 
-- [ ] Original 27 assertions pass with the unchanged production driver; record exact new total.
-- [ ] New direct-send/store/retry/error/spool/drain/wiring cases above pass; every spy is local.
-- [ ] Failed send and failed GitHub delivery remain non-aborting, measured from the actual block status.
-- [ ] All tests in `make test-launchd-drivers` pass, including Bash 3.2 syntax checks; record duration and exit code.
-- [ ] Mutation controls below produce named behavioral failures; clean copies parse and all applied mutations are proven absent afterward.
-- [ ] Documentation updated with observed counts, results, limitations, and scope; no implementation claim based solely on a future test plan.
+**RED at base (non-vacuity controls):**
+- Test half: `bash tools/launchd/test_driver_notify.sh` is RED at base (M1: 20 passed / 7 failed,
+  rc=1) — the other twenty checks already pass, so the suite is not trivially all-fail and the seven
+  named rows are the exact regression set.
+- **Vacuous-checkno guard (unified medium, G1):** a positive-control arm in which the AILANG call
+  genuinely fires (a live `ailang` PATH script) — the SAME `no ailang call`/`lane SILENT when healthy`
+  checkno assertions MUST FAIL against it. This is how a vacuous `checkno` is DETECTED: it proves those
+  negative assertions read `MC_TRACE_FILE` (loaded into `TRACE`), not an empty half of a split trace.
+- Production half, **hang-cutoff control (separate from the test half):** a fixture `ailang`/`gh` stub
+  that never returns (no output, `while :; do sleep 1; done`), with `MISSION_NOTIFY_TIMEOUT=2`, must be
+  cut off at the bound. The bounded-notify lab runs the hang-stub through the real `_mc_bounded` and
+  asserts the call returns within a **7 s** budget (`bound 2 s + ~2 s poll granularity + 2 s SIGKILL grace`, measured 5 s in V5c, +2 s headroom) with rc=124, and that the
+  notify's failure arm spools a row after three retries. **This assertion FAILS if the `_mc_bounded`
+  wrapper/timeout is removed** (the hang would not be cut off). An outer test-level date-loop deadline
+  guards the lab so a removed bound fails cleanly rather than hanging CI.
 
-Run the focused suite first, then these small independent mutants against temporary copies
-of the driver/fixture tree (or a fixture-supported source override). Keep the production
-worktree untouched and prove each mutation landed by diff/hash and `bash -n`:
+**GREEN after implementation:**
+- [ ] Original 27 assertions pass, including all seven restored rows; record new exact total.
+- [ ] Negative `checkno` controls read the unified medium: `no ailang call` and `lane SILENT when
+      healthy` FAIL on the genuine-fire positive-control arm and pass only when AILANG truly did not
+      fire (G1).
+- [ ] All `make test-launchd-drivers` suites pass; record exit code and elapsed time.
+- [ ] New direct-send/store/retry/error-tail/spool/drain/wiring cases pass; every spy is local (file).
+- [ ] **Production bound asserted:** for each of the three D-60 paths (direct, drain, GH), a
+  never-returning stub with `MISSION_NOTIFY_TIMEOUT=2` is cut off at the bound (rc=124, measured 5 s — assert ≤7 s, V5c) and the
+  failure path (spool / WARNING) still executes. Must fail if the bound is removed.
+- [ ] **Synthesised timeout diagnostic (G5):** a bounded direct send whose command times out (rc=124,
+      no output — ARM B) yields a WARNING whose tail reads `timed out after ${NOTIFY_TIMEOUT}s (no
+      output)`, NOT an empty `FAILED … after 3 attempts:`; the assertion FAILS if the synthesis is
+      reverted to the raw (empty) `MC_BOUNDED_OUT` tail.
+- [ ] **Aggregate drain budget (G4):** a large-backlog drain against hanging send stubs returns within
+      the aggregate `DRAIN_BUDGET`, emits the deferred-drain diagnostic, and preserves BOTH the failed
+      and the unattempted rows; FAILS if the aggregate guard is removed.
+- [ ] Failed send and failed GH stay non-aborting, measured from the actual block status.
+- [ ] Mutation controls below produce the named failures; clean copies parse; all applied mutations
+  proven absent afterward; driver hash equals its initial value after re-run.
 
-| Mutant | Required failure |
+## Mutation Table
+
+Run each mutation in a bounded temp copy; keep the production tree untouched; prove each landed by
+diff/hash and `bash -n`.
+
+| Mutant | Specific assertion it must kill |
 |---|---|
-| Replace actual AILANG send command with a successful no-op, retaining function/block extraction markers | Named send/call-count/title assertion fails; extraction failure is insufficient |
-| Change canonical store assignment to `local` in direct and/or drain send | Corresponding inside-stub environment assertion fails |
-| Suppress re-appending a failed drain row | Retained-row/recovery assertion fails |
-| Delete only top-level drain invocation | Wiring assertion fails, with function extraction still valid |
+| Remove `_mc_bounded`/`NOTIFY_TIMEOUT` on the direct send (revert to unbounded command substitution) | `production: direct send retries 3x then spools on timeout` AND `production: synthesised timeout diagnostic` — **corrected iter-347 by the independent judge (N1)**: it does NOT kill `production: hanging direct send is cut off at the bound`, which this row originally claimed. The mutation is still non-vacuous; only its named victim was wrong. |
+| Move `run()`'s `_blk_rc=$?` back to after the printfs (reintroduce the G2 defect in the harness that drives 20+ assertions) | `RC capture: run() itself surfaces a failing block, not printf's status` — **added iter-347 (judge B1)**. Before that arm existed this mutation left the suite fully green at 37/0, because the dedicated G2 check exercised a standalone reimplementation and never `run()` itself. |
+| Delete the `env` prefix from the direct send **with `AILANG_MESSAGES_STORE`/`_PROJECT` exported in the ambient shell** | `direct send reaches child with store=gcp` — **hermeticity fix iter-347 (judge B2)**. `_mc_bounded` runs `( exec "$@" )`, and a subshell inherits the caller's exports regardless of the prefix, so in the CLAUDE.md-mandated session environment this mutation was invisible (green 37/0 with the vars set, red 36/1 without). The suite now `unset`s both at the top, making the prefix the only possible source. |
+| Remove `_mc_bounded` on the drain-time send | `production: hanging drain send is cut off and row retained` |
+| Remove `_mc_bounded` on the GH notice | `production: hanging gh comment is cut off and warns` |
+| Replace `env AILANG_MESSAGES_STORE=gcp …` with no store / `local` in the direct send | `direct send reaches child with store=gcp` (env/store assertion fails) |
+| Keep the in-shell `ailang()` function stub instead of the PATH script | `fires on both channels (ailang)` AND `titled as UNPINNED` AND `lane fires on ailang` AND `lane keeps its own title` AND `drift-a` AND `drift-c` AND `drift-g` — all fail because `exec` cannot reach a function (M3 positive-proof) |
+| Revert to a split trace: `ailang`/`gh` on `MC_TRACE_FILE`, `log()` on the `TRACE` var, and skip loading the file into `TRACE` in the teardown | `no ailang call` AND `lane SILENT when healthy` pass vacuously despite a genuinely fired AILANG record; the positive-control arm is the tripwire that flags the regression (G1) |
+| Suppress re-appending a failed drain row | `drain: retained-row/recovery` assertion |
+| Delete only the top-level drain invocation | `wiring: exactly one preflight drain call` |
+| Replace file counter with a shell var for retry state | `retry: attempt-2/3 recorded across subshells` |
+| Remove the aggregate drain-budget guard (`DRAIN_BUDGET` remaining-budget check before each row) | `drain: whole drain returns within aggregate budget and preserves unattempted rows` (a large-backlog hang exceeds budget and rows are neither attempted-bounded nor preserved) |
+| Revert the `rc=124` SYNTHESISED diagnostic to the raw (possibly empty) `MC_BOUNDED_OUT` tail | `synthesised timeout diagnostic` — the `timed out after ${NOTIFY_TIMEOUT}s (no output)` text vanishes (G5, ARM B) |
 
-Record exact outcomes, not predicted counts. Return to the unmutated suite and rerun once;
-verify production driver hash equals its initial value. Each focused run gets a bounded
-30-second budget after sleep stubbing; full target gets a bounded 10-minute budget with
-progress reporting, because pin-root/probe suites do real work. An exhausted budget is an
-explicit incomplete check. These budgets bound **test executions only**; they do not add a
-production timeout or establish a production duration guarantee (V15). Tests must not contact
-Firestore, GitHub, model providers, or launchd.
+Record exact outcomes, not predictions; re-run the clean suite; verify the driver hash is unchanged.
+
+## Controller First-Party Rows G4, G5 (round-3 evidence)
+
+Controller-measured at base `81abc956d`; production tree untouched. G4 justifies the aggregate drain
+budget (Half 1 step 6); G5 is the load-bearing evidence for the `rc=124` synthesised diagnostic (Half 1
+step 2) and the corrected latency arithmetic.
+
+**G4 — the drain sits in the one phase with no preflight-specific deadline (controller, verified):**
+- `_mc_drain_notices` is defined at `tools/launchd/mission-control.sh:145` and has exactly ONE top-level
+  call, at `:972`, immediately after the `# --- DRIVER PIN DECISION END ---` marker — i.e. in the
+  driver's PREFLIGHT, before the controller session starts.
+- The ONLY deadline covering that phase is `HARD_TIMEOUT="${MISSION_TIMEOUT:-21600}"` (P:795 — 6 h for
+  the whole slot). There is NO preflight-specific deadline at all.
+- The stall watchdog cannot rescue it: `STALL_GRACE=2400` / `STALL_CHILD_AGE=2400` (`:802-803`); P:289
+  *"stall watchdog has NO progress instrument … early kill DISABLED … HARD_TIMEOUT still applies"* —
+  the preflight's situation (no controller child yet); slow-but-progressing is not "no progress".
+- `notice-spool` has exactly two references (`:147` read, `:195` append). **No size cap, no row cap, no
+  rotation** — unbounded by construction.
+- **Failure mode (concrete):** an N-row spool of hanging sends costs `N × (bound + overhead)` inside the
+  one phase whose only backstop kills the ENTIRE fire six hours later. Hence the aggregate budget.
+
+**G5 — wrapping `_mc_notify`'s direct send (P:184) and GH notice (P:198) preserves retry/spool/error-tail
+semantics under the real control flow (controller, verified).** Method: extracted `_mc_bounded` +
+`_mc_notify` via the guarded `awk '/^_mc_notify\(\) \{/,/^\}/'` pattern, substitution on the EXTRACTED
+copy only, PATH `ailang`/`gh` stubs + temp `STATE_DIR` + `log()` capture, real body run end to end. Two
+arms:
+
+- **ARM A** — `ailang` stub exits 1 immediately, `NOTIFY_TIMEOUT=30`: ELAPSED=24s · ailang attempts=**3**
+  · gh calls=**1** · spool rows=**1**; spool row `2026-09-07T12:59:09Z<TAB>Test title<TAB>line one line
+  two` (multiline body flattened); log `WARNING: testlabel notice FAILED to send via ailang messages
+  after 3 attempts: stdout-noise SIMULATED-SEND-ERROR store=<gcp> proj=<ailang-multivac>` → (a) all
+  three retries execute ✓, (b) error-tail carries `MC_BOUNDED_OUT` incl. the env reaching the child ✓,
+  (c) spool row written on final failure ✓, (d) rc=124 flows into the retry/spool arm identically to a
+  non-zero send rc ✓.
+- **ARM B** — `ailang` stub never returns, `NOTIFY_TIMEOUT=2`: ELAPSED=28s · attempts=**3** · gh calls=**1**
+  · spool rows=**1**; log = `WARNING: testlabel notice FAILED to send via ailang messages after 3
+  attempts: ` — **the error tail is EMPTY**.
+
+**THE DEFECT:** on a timeout the command produced no output, so `MC_BOUNDED_OUT` is empty and the WARNING
+degrades to `FAILED … after 3 attempts:` with nothing after it — today's unbounded form cannot hit this,
+because it only reaches the failure arm when the command actually returned and said something.
+`_mc_notify`'s own comment (`P:190`) keeps the reason precisely because discarding the error is "the same
+blindness that made an Anthropic rc=2 unexplainable for a whole day" — so the bounded substitution
+silently reintroduces that blindness in exactly the case the bound was added for, and `rc=124` therefore
+SYNTHESISES the `timed out after ${NOTIFY_TIMEOUT}s (no output)` diagnostic.
+
+**Cosmetic (recorded, not designed around):** each cutoff prints `…/bounded.sh: line 1: <pid> Terminated:
+15 ( exec "$@" ) > "$out_f" 2>&1` to stderr — job-control noise, three lines per timed-out notice.
+
+### Post-evaluation corrections (iteration 347, independent judge `sonnet`, LAND 80/100)
+
+Three findings were reproduced first-party by the controller and fixed in-iteration; two were BLOCKING.
+
+- **B1** `run()`'s own `_blk_rc` capture had zero coverage — the G2 fix could be reverted with the suite
+  fully green. A new arm drives `run()` itself with a failing block. Proven non-vacuous: the mutation now
+  kills exactly `RC capture: run() itself surfaces a failing block, not printf's status`.
+- **B2** the store/project guard was not hermetic — `( exec "$@" )` inherits the caller's exports, so the
+  documented AILANG session environment defeated it. The suite now unsets both vars. Proven non-vacuous:
+  the env-prefix mutation now fails **with the ambient vars deliberately exported**.
+- **N2** the synthesised diagnostic was gated on `rc=124` alone, so a `mktemp` failure (`rc=125`) reproduced
+  the same empty-tail blindness. It is now gated on an EMPTY tail with any non-zero rc, which is the property
+  that actually matters; measured `no output (rc=1)` where the tail was previously blank.
+- **N3** `_rc` is now `local` in `_mc_notify`.
+
+Suite: **38 passed, 0 failed**, rc=0 (was 37 before the B1 arm).
 
 ## Timeline, Risks, and Deferred Decisions
 
-One coherent milestone: roughly 30 minutes instrumentation, 30 minutes new cases, 30 minutes
-mutations, and 30 minutes full verification/evaluation buffer. Executor may choose helper
-names and whether a test-only source override is cleaner than a temporary tree for mutants.
+One milestone: ~40m production bounding + env transport, ~40m fixture PATH-stub/trace migration, ~40m
+new cases, ~40m mutations (incl. hang controls), ~40m full verification and evaluation buffer.
 
-Main risks are a spy still relying on subshell-local counters, dropped trace ordering, and
-an accidentally vacuous mutant. File state, the original ordered checks, and named red sets
-address them. Retry timing is asserted rather than slept. Crash recovery for an interrupted
-drain, concurrent spool writers, TSV-format redesign, bounded production network calls, and
-episode-gating expansion are outside this regression and are not claimed solved here.
+Risks: env passthrough regressing (guarded by store/project inside-stub assertions, V4); a hang-control
+lab hanging CI after a bound is removed (guarded by an outer test-level deadline); accidentally vacuous
+mutants (named assertions in the table). Sleep timing is asserted, not slept.
 
-### Separate production follow-up for the controller's queue
-
-**Candidate: bound mission notification network calls.** V15 establishes that existing direct
-send/post calls and the base's spool drain have no driver-level per-call deadline. A stuck
-command can therefore prevent its next retry or next spool row from being reached; finite
-retry count is insufficient. This is a production defect acknowledged by this design, not
-an accepted duration guarantee. The existing `_mc_bounded` helper is relevant prior art,
-but choosing timeout values, handling process termination, and preserving failed spool records
-need their own design and hanging-command tests.
-
-Disposition under the controller's Gate-2 rule 3f/c: **queue that follow-up separately while
-keeping this CI-red repair test-only**. The baseline seven failures arise with immediate,
-successful local stubs (V14), so production timeout changes are unnecessary to resolve them.
-The controller owns adding this candidate to mission queue/log; this designer is authorized
-to change only this document and has not claimed an external queue write. A5 below receives
-no improvement credit for production boundedness. This follow-up is not an acceptance
-criterion requiring production edits in the current sprint.
+**Deferred — named queue row `M-LAUNCHD-NOTIFY-REMAINING-BOUNDING`** (controller adds to mission queue),
+NOT silent: the seven non-D-60 call sites (M2) are out of scope for THIS milestone for stated reasons —
+they are episodic/terminal, not the per-fire steady-state notify path:
+- Refusal P:1470/1473 — guarded by `$BLOCKED_FILE` and immediately followed by `exit 1`; a hung send
+  delays an intentional shutdown, not a continuing loop.
+- Model-change P:1486 — fires only on controller-model transitions (rare), guarded by model-change
+  logging; a hang delays only the announce.
+- Post-record P:1835/1838 — fires only when rc≠0 AND a mission-log record landed (rare terminal case).
+- rc-fail P:1852/1855 — episode-gated on rc value; at most once per identical-failure episode.
+Each needs its own hanging-stub test and adds no CI gate to enforce it (none is exercised by the red
+notify suite); bounding them is a coherent follow-up. This design does not claim them fixed.
 
 ## Axiom Compliance
 
-Harness-scoped scoring; no language-support claim is made.
+Harness-scoped scoring; no language-support claim.
 
 | Axiom | Score | Justification |
 |---|---|---|
-| A1 Determinism | +1 | Stable observations independent of subshell variable lifetime |
+| A1 Determinism | +1 | Stable observations from file state, independent of subshell variable lifetime |
 | A2 Replayability | 0 | Existing production replay contract preserved |
-| A3 Effect Legibility | +1 | Tests distinguish captured output from observable channel calls |
-| A4 Explicit Authority | 0 | All external channels remain stubbed |
-| A5 Bounded Verification | 0 | Test runs have explicit budgets, but production network calls remain unbounded at driver level (V15); no production boundedness improvement is claimed |
-| A6 Safe Concurrency | 0 | Per-arm isolation retained; no production concurrency change |
-| A7 Machines First | +1 | CI failures identify broken behavior rather than hidden spy state |
+| A3 Effect Legibility | +1 | Tests distinguish captured output from observable channel calls; bound rc=124 is legible |
+| A4 Explicit Authority | 0 | All external channels remain stubbed (now via PATH scripts) |
+| A5 Bounded Verification | **+1** | Production notification calls bounded (D-60); test runs have explicit budgets; hang-cutoff asserted |
+| A6 Safe Concurrency | 0 | Per-arm isolation retained; `_mc_bounded` already background-safe |
+| A7 Machines First | +1 | CI identifies broken behavior, not hidden spy state; bound regression is caught |
 | A8 Minimal Syntax | 0 | No language change |
 | A9 Cost Visibility | 0 | No billing change |
 | A10 Composability | 0 | Existing test target retained |
-| A11 Structured Failure | 0 | Production failure contract preserved and checked |
-| A12 System Boundary | 0 | Production boundaries unchanged |
+| A11 Structured Failure | 0 | Failure contract preserved and checked (error-tail, spool) |
+| A12 System Boundary | 0 | Notification payloads, retries, policy unchanged |
 
-**Net +3**; hard gates A1/A3/A4/A7 have no negative score. This score describes the proposed
-test-only change, not certification that the existing production driver meets every axiom.
+**Net +4** (A5 moved 0→+1 via D-60's production bounding). Hard gates A1/A3/A4/A7 have no negative
+score.
 
-## Related Documents and Duplication Check
+## Quorum Verification Log
 
-- [Driver pin rollout](../m-driver-pin-rollout.md): defines the existing caller-emits contract
-  and references this test lane; its parked rollout policy is not reopened.
-- [Mission loop workbench](../v0_36_0/m-mission-loop-workbench.md): configuration/topology
-  registry work, distinct from repairing the notification spy in an existing suite.
-- [Motoko refusal sprint plan](../m-motoko-discovery-arm-discriminating-refusal-sprint-plan.md):
-  neural match 0.45; relevant mutation discipline, but a different process-discovery instrument.
-- Historical commits `63a0d2b32` and `9f267cf1f` are the production change and closest prior
-  fixture repair. The sampled search had no duplicate-threshold match; targeted driver search
-  and source history establish this correction's distinct scope.
+Round 1 of independent review BLOCKED this revision. Both objections were reproduced first-party by the
+controller at base `81abc956d`; neither disputes the design direction, so this revision fixes both and
+stops.
 
-## Handoff
+- **gemini-3-1-pro** — REJECT (split-brain trace). Surfaced on the Solution Design Half-2 (log-vs-file
+  trace split), the Goals/Decisions `log()`-stub row, the Conflict Surface, the Acceptance Criteria, and
+  the Verification Log (G1). **Response:** applied the reviewer's fix verbatim — `log()` now also appends
+  to `MC_TRACE_FILE`, teardown loads the file into `TRACE` before the 27 assertions, the stale
+  `log()`-stub decision row was replaced, and a vacuous-`checkno` positive-control detection arm was added
+  to the Acceptance Criteria plus a matching Mutation Table row.
+- **oc-glm-5-2** — REJECT (unverified V13/V14 dependency). Surfaced on the Problem Statement, the causal
+  mapping, and Solution Design Half-2 step 4. **Response:** added controller-attributed first-party rows
+  G2 (RC-after-`printf` defect) and G3 (subshell `TRACE` loss) measured at this base, and removed every
+  remaining V13/V14/iter-344-as-evidence citation, replacing each with the new row IDs.
+- **gpt6-astra** — ABSENT on budget; no verdict recorded.
 
-Design author changes only this document and makes no Git writes. Route to planner, executor,
-and independent evaluator under mission-control's unattended authority after the design gate.
-Quorum round 1 was blocked by all three reviewers: Sol raised production boundedness, Gemini
-requested project-default and status-capture evidence, and GLM requested real-fixture causal
-correlation. This is the single permitted revision: V12-V15, the exact causal table, the
-separate production follow-up, and corrected A5/net score address those objections. Re-review
-must supply the verdict; this document does not self-approve. The measurements support keeping
-the test-only correction separate from production timeout work.
+**Round 2** — **gemini-3-1-pro**: **PASS** (flipped from round-1 REJECT; its round-1 fix worked and the
+revision now passes). **gpt6-astra**: **REJECT** on the drain-budget surface (no aggregate drain bound;
+a spool that is unbounded by construction drains inside a phase with no preflight-specific deadline —
+see G4). **oc-glm-5-2**: **REJECT** on the real-call-site evidence surface (V4/V5c ran only a standalone
+PATH-stub reproduction through a verbatim `_mc_bounded` copy, never the real `_mc_notify` body — see
+G5). Note: glm's round-2 response failed to parse and was re-run alone at a raised cap.
 
+**Round 3 — this narrow refinement**, applied under the mission's narrow-refinement carve-out: the two
+reviewer-authored fixes were applied VERBATIM — astra's explicit AGGREGATE drain budget + before-each-row
+remaining-budget check + stop-and-preserve-unattempted behaviour + deferred-drain diagnostic (+ row G4),
+and glm's real-call-site evidence (row G5, both arms), the corrected error-tail claim, the synthesised
+`rc=124` diagnostic, and the corrected latency arithmetic. The mechanism, the two-half structure, the
+`env`-through-`exec` transport, the PATH-stub fixture migration, the unified `MC_TRACE_FILE` medium, and
+rows M1–M5/V1–V6/V5c/G1–G3 are unchanged. **No further quorum round follows** — this revision routes
+directly to the sprint planner.
+
+## Related Documents and Handoff
+
+- [Driver pin rollout](../m-driver-pin-rollout.md): caller-emits contract; not reopened.
+- [Mission loop workbench](../v0_36_0/m-mission-loop-workbench.md): configuration registry, distinct.
+- [Motoko refusal sprint plan](../m-motoko-discovery-arm-discriminating-refusal-sprint-plan.md): neural
+  match 0.45; mutation discipline, different instrument.
+- Historical commits `63a0d2b32` (production capture change) and `9f267cf1f` (prior fixture repair).
+
+Design author changes only this document and makes no Git writes. Route to planner, executor, and
+independent evaluator after quorum under D-60, which prefers this reliability repair early in the week.
+Re-quorum must run against this revision; this document does not self-approve.
 
 ## Attended merge repair, 2026-09-07
 
@@ -266,3 +385,14 @@ spies in both send-capable labs, actual block return-code capture, and a no-wait
 stub. All original 27 assertions pass; independent review PASS. Production driver is
 unchanged. This resolves the seven observed failures but does not claim completion
 of the broader retry/drain/environment coverage planned above.
+
+**Superseded by iteration 347, and the sequence matters.** That attended repair landed on `dev` inside
+PR #1082 at 14:15Z while V1 iteration 347 was mid-flight on the same item under human ruling **D-60**,
+and the two are not composable: it keeps `ailang()`/`gh()` as in-shell FUNCTION stubs, which
+`_mc_bounded` cannot reach at all (`( exec "$@" )` bypasses functions — row M3). So the fixture work in
+this sprint SUPERSEDES it rather than duplicating it: PATH-executable stubs are a precondition of the
+production bounding D-60 mandates, not a stylistic preference. Its two substantive additions are
+carried forward: the `sleep` stub and file-backed `run_drift` spies. The same PR (`063df9917`) also
+repaired the nine `test_mission_heartbeat.sh` arms this iteration had measured failing at base
+`81abc956d`, so `make test-launchd-drivers` is rc=0 on `dev` — see the correction in the iteration-347
+log entry.
