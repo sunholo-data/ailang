@@ -431,25 +431,11 @@ func (tc *TaskChain) OnAgentApproved(ctx context.Context, event *ApprovalEvent, 
 		}
 
 		if tc.msgStore != nil {
-			handoffContent := fmt.Sprintf("**Handoff from %s**\n\n"+
-				"Task: %s\n"+
-				"GitHub Issue: #%d\n"+
-				"Original Request: %s\n\n"+
-				"Previous work has been approved. Please continue.",
-				agent.Label, event.TaskID, event.IssueNumber, task.Content)
-
-			metadata := fmt.Sprintf(`{"parent_task_id":"%s","source_agent":"%s","target_agent":"%s","github_issue":%d}`,
-				event.TaskID, agentID, targetAgentID, event.IssueNumber)
-
-			_, err := tc.msgStore.CreateMessage(
-				"",                               // New thread
-				"ailang_instance", "coordinator", // from
-				targetAgent.Inbox, targetAgent.ID, // to
-				"handoff",
-				handoffContent,
-				metadata,
-			)
-			if err != nil {
+			// One definition of what a handoff message IS, shared with the
+			// approval path in approval_handoff.go. Two copies of this shape
+			// would let the daemon and the CLI hand off differently for the
+			// same edge.
+			if err := sendAgentHandoffMessage(tc.msgStore, agent, targetAgent, task, event.IssueNumber); err != nil {
 				log.Printf("[TaskChain] Warning: failed to send handoff message: %v", err)
 			}
 		}

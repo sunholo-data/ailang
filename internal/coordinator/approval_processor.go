@@ -52,6 +52,10 @@ type ApprovalResult struct {
 	ConflictFiles []string // Files with conflicts (if merge failed)
 	NewTaskID     string   // ID of new task if re-triggered
 	Error         string   // Error message if failed
+	// HandoffTargets are the agents this approval actually dispatched. Reported
+	// so a caller can SEE the chain advance; "approved" with nothing dispatched
+	// was indistinguishable from "approved and handed off" for twelve days.
+	HandoffTargets []string
 }
 
 // ProcessApprovalRequest handles approval/rejection from any channel (CLI, dashboard, daemon).
@@ -187,6 +191,33 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 	}
 
 	result.Message = fmt.Sprintf("Task approved: %s", taskID)
+
+	// 2.5. Fire the handoffs that were WAITING on this approval.
+	//
+	// Placed after the approval resolves and before every later branch, because
+	// the CLI's SkipMerge path returns immediately below — the previous position
+	// for anything like this would have been skipped for exactly the callers that
+	// needed it. Auto edges are excluded (they dispatched at completion), so a
+	// target fires once, at one moment.
+	//
+	// A handoff failure does NOT fail the approval: the approval is already
+	// durably resolved and cannot be retried, so returning an error here would
+	// report failure for work that succeeded. It is surfaced in the result
+	// instead, which is what callers print.
+	handedOff, hErr := dispatchApprovalHandoffs(ctx, params.AgentRegistry, params.MsgStore, task)
+	switch {
+	case hErr != nil:
+		span.AddEvent("warning: approval handoff failed", trace.WithAttributes(
+			attribute.String("error", hErr.Error()),
+		))
+		result.Message += fmt.Sprintf(" — HANDOFF FAILED: %v", hErr)
+	case len(handedOff) > 0:
+		span.AddEvent("approval handoffs dispatched", trace.WithAttributes(
+			attribute.StringSlice("handoff.targets", handedOff),
+		))
+		result.Message += fmt.Sprintf(" — dispatched %s", strings.Join(handedOff, ", "))
+		result.HandoffTargets = handedOff
+	}
 
 	// 3. Skip merge if requested or no worktree
 	if params.SkipMerge {
