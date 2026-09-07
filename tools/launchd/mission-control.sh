@@ -143,13 +143,25 @@ log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 # A notice that still cannot be sent is KEPT, not dropped, so an outage costs a delay
 # rather than the record.
 _mc_drain_notices() {
-  local spool tmp line ts title body sent=0 kept=0
+  local spool tmp line ts title body sent=0 kept=0 deferred=0 drain_start remaining lineno=0 total=0 DRAIN_BUDGET
   spool="$STATE_DIR/mission-${MISSION_NAME}-notice-spool.tsv"
   [ -s "$spool" ] || return 0
   tmp="${spool}.draining.$$"
   mv "$spool" "$tmp" 2>/dev/null || return 0
+  drain_start=$(date +%s)
+  DRAIN_BUDGET="${MISSION_DRAIN_BUDGET:-90}"
+  total=$(wc -l < "$tmp" | tr -d ' ')
   while IFS="$(printf '\t')" read -r ts title body; do
+    lineno=$((lineno + 1))
     [ -z "${title:-}" ] && continue
+    remaining=$(( DRAIN_BUDGET - ( $(date +%s) - drain_start ) ))
+    if [ "$remaining" -le $(( NOTIFY_TIMEOUT + 2 )) ]; then
+      sed -n "${lineno},\$p" "$tmp" >> "$spool"
+      rm -f "$tmp"
+      deferred=$(( total - sent - kept ))
+      log "notice spool: deferred ${deferred} row(s), aggregate budget ${DRAIN_BUDGET}s exhausted"
+      return 0
+    fi
     if _mc_bounded "$NOTIFY_TIMEOUT" env AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
        ailang messages send controlplane "[spooled $ts] $body" --title "$title" --from "$MSG_FROM"; then
       sent=$((sent + 1))
