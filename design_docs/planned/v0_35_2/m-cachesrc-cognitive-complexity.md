@@ -496,3 +496,73 @@ report observations, not runtime proof; planned tests are explicitly future work
 Any additional historical complexity cleanup or cache policy change requires its
 own scoped evidence and routing. This refactor intentionally leaves those choices
 to their existing workstreams.
+
+## Implementation Evidence (controller-appended, iteration 342, 2026-09-07)
+
+Landed as commits `7d9660862` (M1) and `8108aa6c2` (M2) on branch
+`sprint/v1-iter341-cachesrc-cognitive`, rebuilt by the controller from the executor's
+per-milestone `.snap/` snapshots with gates re-run at every boundary and byte-identity
+of the final tree proven by sha256 manifest before and after reconstruction.
+
+**Provenance.** Design authored by iteration 341's Astra-lane designer (base `d794cac25`),
+revised by the pi `deepseek-v4-flash:0731-cloud` designer after quorum R1 (two premise
+objections measured by the controller first-party) and R2 (narrow gemini objection,
+satisfied by the ratified narrow-refinement carve-out at N−1 with `gpt5-6-sol` absent
+(auth); no third quorum round). Plan authored by the pi `kimi-k3` planner. Execution by
+the pi `deepseek-v4-flash:0731-cloud` executor across the three milestones; iteration
+341's fire was killed by the driver after M2 with the executor child completing M3
+posthumously, and iteration 342 verified and landed the inherited work.
+
+**Measured complexity (controller, gocognit@latest, `-over -1 -json`, 65 functions).**
+All five Sonar targets ≤15: `runModuleWithCacheDependencies` 103→**0** (thin delegate);
+`TestCacheSource_ExactSnapshot` 29→**0** (pipeline) and 16→**0** (loader);
+`TestCachePipeline_EmbeddedKeys` 19→**3**; `TestCachePipeline_SourceEditBehavior` 24→**0**.
+Every function in the two new files ≤13 (max `modulePipelineState.evaluateAndAssemble` 13).
+Exactly **3** functions remain >15 across the five files — the Non-Goal rule helpers
+`detectModulePathCollisions` (30), `validateModulePath` (25), `detectModulePrefixOverlap`
+(20) — verified byte-identical to base by sha256; the design's Non-Goals forbid changing
+them, so they are declared residuals, not misses.
+
+**Deviations adjudicated by measurement (verification rules 3h/3b(vii)/3e(a)).**
+
+1. *Plan M3 gate literal.* The sprint-JSON gocognit literal asserts whole-file
+   `select(.CognitiveComplexity > 15) | length == 0` over five files. Measured: the
+   field this gocognit emits is `.Complexity` (the plan's field is absent), and the
+   whole-file form is unachievable by construction because the three Non-Goal helpers
+   remain >15 in `pipeline_module.go`. The design doc (reviewed artifact) wins over the
+   plan/JSON literal per rule 3b(vii): its Goals bind the five targets and every
+   new/materially-edited helper, which the corrected scoped gate measures at 0. The
+   gate literal, not the code, was the defect.
+2. *Executor scope expansion (self-reported).* The executor also extracted scenario
+   helpers for `TestCacheArtifacts_Migration` (27→1) and `TestCachePipeline_WriteFailure`
+   (unmeasured→low; both outside the five-finding target) so both test files are ≤15.
+   Measured: same frozen file set, all assertions preserved, focused/full/race/make-test
+   green. Recorded as an adjudicated deviation from the design's "no historical S3776
+   cleanup" Non-Goal — kept because it is behavior-preserving and within the already-
+   authorized test-helper extraction surface; handed to the independent evaluator as a
+   named target to attack.
+3. *`make ci` red is pre-existing.* `make ci` exits rc=2 at `verify-examples-toplevel` on
+   `examples/ai_modes.ail` (`summarize_routeable` effect-check failure). Two-arm control
+   by the controller: **identical** failure (same single example, same error) on the
+   pristine base `d794cac25` and on the sprint tree — the sprint did not cause it; the
+   repo's CI matrix does not run this leg, so dev's green checks are unaffected. The
+   example failure is outside this sprint's scope (design: "report — do not fix") and
+   is filed as a queue row.
+4. *`make test` first-run flake.* `internal/smt TestSolve_HardTimeout_FakeSolverIgnoringT`
+   (documented ailang#602 timing race, ~0.3% under `./...` load) failed once and passed
+   on retry; `internal/smt` is untouched by and independent of this sprint.
+
+**Mutation proof (executor, controller spot-checked, evaluator to re-drill).** All ten
+named mutations killed: each mutant built (rc=0 — no compile-error kills), its named
+oracle failed with the named assertion (evidence banked per mutation under
+`.snap/M3/mutations/<ID>/evidence.txt`), tracked tree restored green after each.
+
+**Gates.** Focused command rc=0 (pipeline 0.733s / loader 0.647s); full packages rc=0;
+race rc=0 (19.082s / 1.385s); gofmt/vet/build clean at every milestone boundary;
+`make lint` rc=0; `make test` rc=0 (retry after the documented flake); `make ci` rc=2
+from the pre-existing example failure only.
+
+**Success Criterion 1 (exact-revision Sonar re-analysis) is PENDING controller
+verification** on the PR/landing per the design's fallback clause; local gocognit
+evidence above is supporting, not sufficient. No suppression, marking, threshold, or
+new-code-period change was made.

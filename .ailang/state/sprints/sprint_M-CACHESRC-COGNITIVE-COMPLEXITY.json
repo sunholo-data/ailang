@@ -22,10 +22,10 @@
         "No parallelism introduced into the cwd/environment-mutating fixtures: ! grep -q 't\\.Parallel' internal/pipeline/cache_invalidation_test.go internal/loader/loader_test.go exits 0 (the search must find nothing)",
         "Package-scoped static gates: gofmt -l internal/pipeline internal/loader prints nothing AND go vet ./internal/pipeline ./internal/loader exits 0"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": true,
+      "completed": true,
+      "notes": "M1 done. Baseline rc=0 (.snap/M1/baseline.txt). Created internal/pipeline/pipeline_module_phases_test.go (8 characterization tests: ModeCheck no-eval, ModeEval first-decl value, root resolution, nil/provided config, afterLoad[0]-only, debug CACHE forms/counters, warm warning parity, mixed verified-cached-dep/fresh-importer). characterize_pre rc=0, characterize_post rc=0, focused_post rc=0 (.snap/M1/). Extracted test helpers in cache_invalidation_test.go and loader_test.go; all test funcs <=15 gocognit; 4 named entry points preserved; no t.Parallel; gofmt+vet clean. NOTE: root-not-found error branch is unreachable via public pipeline API (compiling always registers root); characterized observable root-resolution success instead."
     },
     {
       "id": "M2_PRODUCTION_EXTRACTION",
@@ -42,10 +42,10 @@
         "Frozen file-set guard: git status --short -- internal/pipeline internal/loader sonar-project.properties .github/workflows lists only pipeline_module.go modified, the two new production files and M1 test files untracked/modified -- any other entry (parser/type/lowering/cache-store/artifact-schema/Sonar settings) fails the milestone",
         "Coordinator retained and thinned: grep -n 'func.*runModuleWithCacheDependencies' internal/pipeline/pipeline_module.go matches (signature kept) AND test \"$(awk '/func.*runModuleWithCacheDependencies/,/^}/' internal/pipeline/pipeline_module.go | grep -cE '^[[:space:]]+(if|for|switch|select)[[:space:]]')\" -le 15 exits 0"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": true,
+      "completed": true,
+      "notes": "M2 done. runModuleWithCacheDependencies now a thin delegate (gocognit 1; AC6 coordinator control-stmt count=0). Extracted orchestration into pipeline_module_phases.go (modulePipelineState + run() + phase methods loadModules/validateAndSort/compileAllAndFinalize/registerResolver/evaluateAndAssemble + compileFreshModule, complex 13/12/7/6/6/5/6 all <=15) and pipeline_module_cache.go (prepareCacheLookup/serveFromCache/debugCacheMiss/publishFreshModule/saveCacheAndReportStats, all <=15). Signatures runModuleWithContext & runModuleWithCacheDependencies kept identical. Stage ordering, cache accounting (verified-hit count BEFORE nil-payload check; nil warns+bypasses lookup+publication; pointer-to-empty cacheable; publish requires live store+nonempty key; sorted post-compile warnings; ModeEval first-decl eval) preserved exactly. focused rc=0 (.snap/M2/focused.txt), full packages rc=0 (.snap/M2/full_packages.txt), gofmt/vet/build clean (.snap/M2/static_gates.txt). Scoped gocognit (coordinator + 2 new files) >15 count = 0 (.snap/M2/gocognit.json). DEVIATION/FINDING: M2 AC4 & M3 gocognit literal whole-file jq 'length==0' is UNACHIEVABLE because the 3 UNCHANGED Non-Goal rule helpers remain >15 under gocognit (detectModulePathCollisions=30, validateModulePath=25, detectModulePrefixOverlap=20); design Non-Goal forbids changing them. Assessed gate on the named targets + new/changed helpers (coordinator + all functions in the two new files = all <=15). File-set guard AC5 clean."
     },
     {
       "id": "M3_PRESERVATION_PROOF_ANALYSIS",
@@ -70,10 +70,10 @@
         "Final local complexity report over all five files: go run github.com/uudashr/gocognit/cmd/gocognit@latest -json internal/pipeline/pipeline_module.go internal/pipeline/pipeline_module_phases.go internal/pipeline/pipeline_module_cache.go internal/pipeline/cache_invalidation_test.go internal/loader/loader_test.go > .snap/M3/gocognit.json THEN jq -e '[.[] | select(.CognitiveComplexity > 15)] | length == 0' .snap/M3/gocognit.json returns true (all five named targets and every new helper <= 15)",
         "Final cumulative focused command exits 0: go test ./internal/pipeline ./internal/loader -run 'TestCacheSource_ExactSnapshot|TestCachePipeline_(EmbeddedKeys|SourceEditBehavior|WriteFailure)|TestCacheArtifacts_Migration|TestCacheKey_InvalidatesOnSourceEdit|TestContractExpressionsFullyLowered|TestSplitArgWarning_Integration' -count=1; controller then performs the exact-revision Sonar API verification and appends implementation evidence/deviations to the design doc before handoff to independent evaluation"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": true,
+      "completed": true,
+      "notes": "M3 done. All 10 mutations KILLED (each built rc=0 in disposable copy, named oracle failed rc=1, mutation landed verified by grep, tracked tree restored green rc=0). Evidence per-mutation in .snap/M3/mutations/<MUT>/evidence.txt + SUMMARY.md; snapshots of all changed files in .snap/M3/.Race gate rc=0 (.snap/M3/race.txt). make lint rc=0 (.snap/M3/make_lint.txt). Final cumulative focused command rc=0 (.snap/M3/cumulative_focused.txt). Final gocognit over the 5 files (.snap/M3/gocognit.json): scoped to the five named targets + all new/changed helpers = 0 funcs >15 (all 5 targets <=15; coordinator + all new phase/cache/test helpers <=13). FINDING 1 (report, not fix): make ci rc=2, failing ONLY at verify-examples-toplevel on examples/ai_modes.ail (effect checking failed for 'summarize_routeable'); 42/43 examples type-checked clean; this is an AI-mode example needing AI capability; effect-checking code (typeCheckAndLowerModule) is UNCHANGED by this sprint (call relocated in identical order), so this is pre-existing/unrelated. .snap/M3/make_ci.txt. FINDING 2 (report, not fix): make test rc=0 on retry (.snap/M3/make_test_retry.txt); the first run (.snap/M3/make_test.txt) flaked on internal/smt TestSolve_HardTimeout_FakeSolverIgnoringT (9.01s), a documented ailang#602 timing race (~0.3% under ./... load) that passes in isolation (rc=0); internal/smt has no dependency on pipeline/loader. DEVIATION 3 (documented): the milestone jq `select(.CognitiveComplexity > 15)` field is not emitted by this gocognit version (it emits `.Complexity`); literal whole-file filter is non-empty ONLY for the three Non-Goal-unchanged rule helpers detectModulePathCollisions(30)/validateModulePath(25)/detectModulePrefixOverlap(20). Design Non-Goals forbid changing them; scoped gate (5 targets + new helpers) is fully <=15. Exact-revision Sonar re-analysis remains a CONTROLLER-verified post-PR step (outside this executor's gates); if Sonar unavailable it stays pending per design."
     }
   ],
   "velocity": {
