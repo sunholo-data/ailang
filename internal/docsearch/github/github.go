@@ -70,6 +70,9 @@ func (b *Backend) Search(ctx context.Context, opts docsearch.SearchOptions) ([]d
 	if limit <= 0 {
 		limit = 10
 	}
+	if results, cachedStats, ok := readCache(b.Repo, opts.Query, opts.Subdir, limit, time.Now()); ok {
+		return results, cachedStats, nil
+	}
 	perPage := limit
 	if perPage > 100 {
 		perPage = 100
@@ -126,6 +129,7 @@ func (b *Backend) Search(ctx context.Context, opts docsearch.SearchOptions) ([]d
 		page++
 	}
 	stats.SearchTimeMs = 0
+	_ = writeCache(b.Repo, opts.Query, opts.Subdir, limit, results, stats, time.Now())
 	return results, stats, nil
 }
 
