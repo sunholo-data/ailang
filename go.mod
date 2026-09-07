@@ -7,22 +7,22 @@ require (
 	cloud.google.com/go/kms v1.33.0
 	cloud.google.com/go/pubsub v1.51.1
 	cloud.google.com/go/run v1.22.0
-	cloud.google.com/go/storage v1.66.0
+	cloud.google.com/go/storage v1.67.0
 	cloud.google.com/go/trace v1.16.0
 	firebase.google.com/go/v4 v4.21.0
 	github.com/BurntSushi/toml v1.6.0
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.36.0
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.37.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/fatih/color v1.19.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/google/go-cmp v0.7.0
 	github.com/google/jsonschema-go v0.4.3
 	github.com/google/uuid v1.6.0
-	github.com/googleapis/gax-go/v2 v2.24.0
+	github.com/googleapis/gax-go/v2 v2.24.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/mattn/go-sqlite3 v1.14.50
 	github.com/modelcontextprotocol/go-sdk v1.7.0
-	github.com/ollama/ollama v0.33.2
+	github.com/ollama/ollama v0.33.3
 	github.com/peterh/liner v1.2.2
 	github.com/petermattis/goid v0.0.0-20260330135022-df67b199bc81
 	github.com/stretchr/testify v1.12.1
@@ -41,7 +41,7 @@ require (
 	golang.org/x/net v0.58.0
 	golang.org/x/term v0.45.0
 	golang.org/x/text v0.41.0
-	google.golang.org/api v0.294.0
+	google.golang.org/api v0.297.0
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
@@ -59,7 +59,7 @@ require (
 	cloud.google.com/go/pubsub/v2 v2.6.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.33.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.57.0 // indirect
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.60.0 // indirect
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.61.0 // indirect
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
