@@ -132,6 +132,38 @@ log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 # NOT fail-closed: aborting on a failed post would make GitHub/controlplane availability a hard
 # dependency of every fire. A failed post is LOUD in the driver log instead — the one thing the
 # silent-fallback class never was (Critical Principle 2).
+# _mc_drain_notices — deliver notices spooled by a previous fire.
+#
+# _mc_notify's spool comment has always said "the next fire's preflight drains this",
+# and NOTHING DID. Measured 2026-09-07: three spool files, the oldest from 2026-09-06
+# 15:29, holding the notices for the largest degradation this fleet has had — written,
+# never sent, and invisible except to someone reading the file. A promised delivery that
+# does not exist is worse than no spool, because the log says the notice was preserved.
+#
+# A notice that still cannot be sent is KEPT, not dropped, so an outage costs a delay
+# rather than the record.
+_mc_drain_notices() {
+  local spool tmp line ts title body sent=0 kept=0
+  spool="$STATE_DIR/mission-${MISSION_NAME}-notice-spool.tsv"
+  [ -s "$spool" ] || return 0
+  tmp="${spool}.draining.$$"
+  mv "$spool" "$tmp" 2>/dev/null || return 0
+  while IFS="$(printf '\t')" read -r ts title body; do
+    [ -z "${title:-}" ] && continue
+    if AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
+       ailang messages send controlplane "[spooled $ts] $body" --title "$title" --from "$MSG_FROM" >/dev/null 2>&1; then
+      sent=$((sent + 1))
+    else
+      printf '%s\t%s\t%s\n' "$ts" "$title" "$body" >> "$spool"
+      kept=$((kept + 1))
+    fi
+  done < "$tmp"
+  rm -f "$tmp"
+  [ "$sent" -gt 0 ] && log "notice spool: delivered $sent notice(s) held from an earlier fire"
+  [ "$kept" -gt 0 ] && log "notice spool: $kept notice(s) still undeliverable — kept for the next fire"
+  return 0
+}
+
 _mc_notify() {
   local title="$1" body="$2" label="$3" _try rc=1
   # RETRY, briefly. Measured 2026-09-06: the lane-degradation notice for the fire that
@@ -140,14 +172,23 @@ _mc_notify() {
   # was that the LARGEST degradation this fleet has had was invisible on the message
   # plane and a human found it by looking. A one-shot send on a transient channel is
   # how the silent-fallback class comes back wearing a warning.
+  local _out=""
   for _try in 1 2 3; do
-    if ailang messages send controlplane "$body" --title "$title" --from "$MSG_FROM" 2>/dev/null; then
-      rc=0; break
-    fi
+    # The canonical inbox is prod Firestore. WITHOUT these two the CLI falls back to
+    # this machine's private SQLite and still exits 0 — so every degradation notice
+    # this driver has ever sent under launchd landed somewhere nobody reads. Measured
+    # 2026-09-07: the same send is `inbox_...` with them and `msg_...` (local) without.
+    # Scoped to THIS command, never exported: AILANG_STORAGE must not move, or the
+    # coordinator and observatory follow it to Firestore too (backend.go:83).
+    _out=$(AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
+      ailang messages send controlplane "$body" --title "$title" --from "$MSG_FROM" 2>&1)
+    if [ $? -eq 0 ]; then rc=0; break; fi
     [ "$_try" -lt 3 ] && sleep $(( _try * 5 ))
   done
   if [ "$rc" -ne 0 ]; then
-    log "WARNING: ${label} notice FAILED to send via ailang messages after 3 attempts"
+    # Keep the reason. "FAILED after 3 attempts" with the error discarded is the same
+    # blindness that made an Anthropic rc=2 unexplainable for a whole day.
+    log "WARNING: ${label} notice FAILED to send via ailang messages after 3 attempts: $(printf '%s' "$_out" | tail -c 300 | tr '\n' ' ')"
     # Spool it. The next fire's preflight drains this, so a notice survives a channel
     # outage instead of existing only in a log nobody is tailing.
     printf '%s\t%s\t%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$title" "$(printf '%s' "$body" | tr '\n' ' ')" \
@@ -925,6 +966,10 @@ else
   fi
 fi
 # --- DRIVER PIN DECISION END ---
+
+# Deliver anything a previous fire could not. Placed after the pin decision so a
+# drained notice is reported by the same driver the rest of this fire runs.
+_mc_drain_notices
 
 # designer default is the claude-CLI lane (claude:<full-id>), NOT the bare "fable" alias: the
 # Agent tool pins only sonnet|opus|haiku (F1, iteration 31), so under an opus-first controller a
