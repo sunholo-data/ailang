@@ -41,8 +41,12 @@ func TestMsgIDSuffix_Idempotent(t *testing.T) {
 		"inbox_1788806422072_c871949f",
 		"short",
 	} {
-		if msgIDSuffix(id, 8) != msgIDSuffix(id, 8) {
-			t.Errorf("msgIDSuffix(%q) is not deterministic", id)
+		first := msgIDSuffix(id, 8)
+		for i := 0; i < 3; i++ {
+			if got := msgIDSuffix(id, 8); got != first {
+				t.Errorf("msgIDSuffix(%q) returned %q then %q — a redelivery would create a second task",
+					id, first, got)
+			}
 		}
 	}
 }
