@@ -1,6 +1,6 @@
 # M-DOCS-MISSION-WORK-ITEM-GUIDE
 
-**Status:** Proposed canary task; awaiting Mark's scope approval. No execution authority recorded.
+**Status:** Scope and execution approved by Mark, attended 2026-09-07: “yep approved - proceed and execute”.
 **Created:** 2026-09-07. **Target:** mission-iteration branch, release unassigned.
 **Priority:** P1. **Estimate:** one bounded documentation edit, about 150–220 lines.
 **Dependency:** M-MISSION-ITERATION implementation at `77dc7287e7bce225e64062452598f0694ac361fc`.
@@ -120,7 +120,7 @@ A12 System Boundary: 0 (no runtime changes). Net +3; no hard violations.
 
 ## Approval boundary
 
-This document is a proposal, not an approved prerequisite or an execution request.
-After Mark approves this scope, use sprint-planner to freeze the checks and remaining
-stages, then record actual execution authorization before building the bound input.
-M6 remains partial until an unowned approved task and validated activation packet exist.
+Mark approved this scope and execution in the attended session on 2026-09-07.
+The bounded plan is in m-docs-mission-work-item-guide-sprint-plan.md. Content-bound
+approval references are recorded separately after these prerequisite artifacts commit.
+Live execution still requires idle ownership and successful admission.
