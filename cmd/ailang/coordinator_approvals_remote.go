@@ -26,6 +26,8 @@ func coordinatorApprovalsCommand(args []string) error {
 	remote := fs.String("remote", "", "plane: local|gcp (default $AILANG_COORDINATOR_REMOTE, then $AILANG_STORAGE)")
 	stateDir := fs.String("state-dir", "", "local state dir (local mode only)")
 	full := fs.Bool("full", false, "print the whole diff rather than a summary")
+	clearOrphans := fs.Bool("clear-orphans", false, "cancel tasks awaiting an approval that does not exist")
+	force := fs.Bool("force", false, "with --clear-orphans, also cancel tasks that still have a worktree")
 	_ = fs.Parse(args)
 
 	ctx := context.Background()
@@ -43,16 +45,41 @@ func coordinatorApprovalsCommand(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to list pending approvals: %w", err)
 	}
-	if len(pending) == 0 {
-		fmt.Println("No pending approvals.")
-		return nil
+
+	// Orphans are looked up EVERY time, not behind a flag. A task stuck in
+	// pending_approval with no record is invisible to this view and refused by
+	// approve/reject, so the old "No pending approvals." was a lie told to an
+	// operator with 16 stuck tasks in prod.
+	orphans, oErr := findOrphanedApprovals(ctx, bundle.Store)
+	if oErr != nil {
+		// Loud, not fatal: the real approvals below are still worth showing.
+		fmt.Printf("⚠ could not check for orphaned approvals: %v\n\n", oErr)
 	}
 
-	for _, req := range pending {
-		printApprovalCard(req, *full)
+	if *clearOrphans {
+		if len(orphans) == 0 {
+			fmt.Println("No orphaned approvals to clear.")
+			return nil
+		}
+		cleared, skipped, cErr := clearOrphanedApprovals(ctx, bundle.Store, orphans, *force)
+		fmt.Printf("\ncleared %d, skipped %d\n", cleared, skipped)
+		return cErr
 	}
-	fmt.Printf("\n%d pending. Approve with:\n", len(pending))
-	fmt.Printf("  ailang coordinator approve <task-id> --remote %s\n", firstWord(bundle.Mode))
+
+	switch {
+	case len(pending) == 0 && len(orphans) == 0:
+		fmt.Println("No pending approvals.")
+	case len(pending) == 0:
+		fmt.Println("No actionable approvals.")
+	default:
+		for _, req := range pending {
+			printApprovalCard(req, *full)
+		}
+		fmt.Printf("\n%d pending. Approve with:\n", len(pending))
+		fmt.Printf("  ailang coordinator approve <task-id> --remote %s\n", firstWord(bundle.Mode))
+	}
+
+	reportOrphanedApprovals(orphans, firstWord(bundle.Mode))
 	return nil
 }
 
