@@ -114,6 +114,23 @@ Model and role assignment is NOT here: see ` + "`ailang models role`" + `.
 }
 
 func loadMissionRegistry() (*mission.Registry, error) {
+	if dir := os.Getenv("AILANG_MISSION_REGISTRY"); dir != "" {
+		if !filepath.IsAbs(dir) {
+			return nil, fmt.Errorf("AILANG_MISSION_REGISTRY must be an absolute existing directory")
+		}
+		info, err := os.Stat(dir)
+		if err != nil {
+			return nil, fmt.Errorf("AILANG_MISSION_REGISTRY: %w", err)
+		}
+		if !info.IsDir() {
+			return nil, fmt.Errorf("AILANG_MISSION_REGISTRY must name a directory")
+		}
+		reg, err := mission.Load(dir)
+		if err != nil {
+			return nil, fmt.Errorf("AILANG_MISSION_REGISTRY: %w", err)
+		}
+		return reg, nil
+	}
 	dir := missionRegistryDir
 	if _, err := os.Stat(dir); err != nil {
 		// Allow running from anywhere inside the repo.
