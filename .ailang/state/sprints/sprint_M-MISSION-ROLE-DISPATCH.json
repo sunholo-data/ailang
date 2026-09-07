@@ -1,0 +1,63 @@
+{
+  "sprint_id": "M-MISSION-ROLE-DISPATCH",
+  "status": "in_progress",
+  "created": "2026-09-07",
+  "design_doc": "design_docs/planned/m-mission-runtime-contract.md",
+  "sprint_plan": "design_docs/planned/m-mission-role-dispatch-sprint-plan.md",
+  "authorization": "Mark attended 2026-09-07: git commit and get work up and running; first slice only",
+  "github_issues": [],
+  "features": [
+    {
+      "id": "M1",
+      "description": "Request validation and origin identity",
+      "estimated_loc": 360,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Strict request/digest validation",
+        "Conservative vendor resolution and author independence inputs"
+      ],
+      "passes": true,
+      "started": "2026-09-07",
+      "completed": "2026-09-07",
+      "notes": "Strict request validation and origin-vendor contracts pass."
+    },
+    {
+      "id": "M2",
+      "description": "Bounded dispatch and exclusive receipts",
+      "estimated_loc": 480,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Preflight fallback only; failure after start never retries",
+        "Synced exclusive receipt and execution-not-verification outcome",
+        "Real Pi adapter protocol fixture"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Opt-in CLI and independent evaluation",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Strict CLI and zero-spend dry-run",
+        "Example, documentation, checks and independent review"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 347,
+    "estimated_total_loc": 1040,
+    "estimated_days": 3
+  }
+}

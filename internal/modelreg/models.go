@@ -17,6 +17,7 @@ var embeddedModelsYAML []byte
 type ModelConfig struct {
 	APIName                  string  `yaml:"api_name"`
 	Provider                 string  `yaml:"provider"`
+	ModelVendor              string  `yaml:"model_vendor,omitempty"` // Origin vendor, distinct from a hosting transport such as Ollama.
 	Description              string  `yaml:"description"`
 	EnvVar                   string  `yaml:"env_var"`
 	AgentCLI                 *string `yaml:"agent_cli"`            // CLI command for agent eval (e.g., "claude", "openai", "gemini"), nil if not supported
