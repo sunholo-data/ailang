@@ -58,6 +58,14 @@ chmod +x "$LAB/bin/gh"
 
 export PATH="$LAB/bin${PATH:+:$PATH}"
 
+# HERMETICITY (evaluator B2): `_mc_bounded` runs `( exec "$@" )`, and a subshell inherits
+# whatever the CALLING shell exported — independent of any `env VAR=val` prefix. CLAUDE.md
+# tells every machine doing AILANG work to export AILANG_MESSAGES_STORE/PROJECT at session
+# start, so in the documented operating environment the store/project guard below would stay
+# green with the production `env` prefix DELETED. Measured: mutation green 37/0 with the vars
+# ambient, red 36/1 without. Unset them here so the prefix is the only possible source.
+unset AILANG_MESSAGES_STORE AILANG_MESSAGES_PROJECT
+
 awk '/^_mc_notify\(\) \{/,/^\}/' "$DRV"                        > "$LAB/notify.sh"
 awk '/^# --- DRIVER PIN DECISION START ---/,/^# --- DRIVER PIN DECISION END ---/' "$DRV" > "$LAB/pin_decision.sh"
 awk '/^if \[ -n "\$_pin_degraded" \]; then/,/^fi$/' "$DRV"     > "$LAB/pin_block.sh"
@@ -107,7 +115,15 @@ run() { # $1=block  $2=degraded-value  -> prints trace; env AILANG_RC/GH_RC/ISSU
     _pin_degraded=""; _lane_degraded=""
     . "$1"            # _mc_notify
     eval "$3=\"$4\""  # set the ledger under test
-    . "$2"            # the block
+    if [ "${MC_RUN_UNSET_STATE:-0}" = "1" ]; then
+      # B1 guard (evaluator finding): every other arm runs a block that exits 0, so the
+      # OWN capture position of run() was untested and the G2 defect could come back silently.
+      # Unsetting STATE_DIR makes the block abort under `set -u`; the subshell keeps that
+      # abort from killing this script, so a non-zero rc must reach _blk_rc.
+      ( unset STATE_DIR; . "$2" )
+    else
+      . "$2"          # the block
+    fi
     _blk_rc=$?        # capture rc BEFORE any printf (G2: the old `$?` after `printf`
                       # read the rc that printf left behind, masking the block failure)
     TRACE="$(cat "$MC_TRACE_FILE" 2>/dev/null || true)"
@@ -231,6 +247,15 @@ T=$(AILANG_RC=1 MC_TRACE_FILE="$_rc_trace" /bin/bash -c '
   ' _ "$LAB/notify.sh" "$LAB/pin_block.sh" 2>&1)
 rm -f "$_rc_trace"
 check "RC capture: block failure visible, not masked by printf" "$T" "RC:1"
+
+# The check above exercises a standalone reimplementation. This one exercises run() ITSELF —
+# the harness behind 20+ of this suite's assertions, and the only place the G2 fix actually
+# ships. Without it, moving run()'s `_blk_rc=$?` back after the printfs leaves the suite
+# fully green (measured 37/0 before this arm existed).
+export MC_RUN_UNSET_STATE=1
+_rc_run=$(run pin_block "- x")
+unset MC_RUN_UNSET_STATE
+check "RC capture: run() itself surfaces a failing block, not printf's status" "$_rc_run" "RC:1"
 
 echo "== held pin source-clone drift =="
 T=$(run_drift pinned 170 25 absent)

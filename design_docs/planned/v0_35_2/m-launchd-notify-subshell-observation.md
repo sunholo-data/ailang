@@ -207,7 +207,9 @@ diff/hash and `bash -n`.
 
 | Mutant | Specific assertion it must kill |
 |---|---|
-| Remove `_mc_bounded`/`NOTIFY_TIMEOUT` on the direct send (revert to unbounded command substitution) | `production: hanging direct send is cut off at the bound` (hang not cut off; outer guard trips) |
+| Remove `_mc_bounded`/`NOTIFY_TIMEOUT` on the direct send (revert to unbounded command substitution) | `production: direct send retries 3x then spools on timeout` AND `production: synthesised timeout diagnostic` — **corrected iter-347 by the independent judge (N1)**: it does NOT kill `production: hanging direct send is cut off at the bound`, which this row originally claimed. The mutation is still non-vacuous; only its named victim was wrong. |
+| Move `run()`'s `_blk_rc=$?` back to after the printfs (reintroduce the G2 defect in the harness that drives 20+ assertions) | `RC capture: run() itself surfaces a failing block, not printf's status` — **added iter-347 (judge B1)**. Before that arm existed this mutation left the suite fully green at 37/0, because the dedicated G2 check exercised a standalone reimplementation and never `run()` itself. |
+| Delete the `env` prefix from the direct send **with `AILANG_MESSAGES_STORE`/`_PROJECT` exported in the ambient shell** | `direct send reaches child with store=gcp` — **hermeticity fix iter-347 (judge B2)**. `_mc_bounded` runs `( exec "$@" )`, and a subshell inherits the caller's exports regardless of the prefix, so in the CLAUDE.md-mandated session environment this mutation was invisible (green 37/0 with the vars set, red 36/1 without). The suite now `unset`s both at the top, making the prefix the only possible source. |
 | Remove `_mc_bounded` on the drain-time send | `production: hanging drain send is cut off and row retained` |
 | Remove `_mc_bounded` on the GH notice | `production: hanging gh comment is cut off and warns` |
 | Replace `env AILANG_MESSAGES_STORE=gcp …` with no store / `local` in the direct send | `direct send reaches child with store=gcp` (env/store assertion fails) |
@@ -268,6 +270,23 @@ SYNTHESISES the `timed out after ${NOTIFY_TIMEOUT}s (no output)` diagnostic.
 
 **Cosmetic (recorded, not designed around):** each cutoff prints `…/bounded.sh: line 1: <pid> Terminated:
 15 ( exec "$@" ) > "$out_f" 2>&1` to stderr — job-control noise, three lines per timed-out notice.
+
+### Post-evaluation corrections (iteration 347, independent judge `sonnet`, LAND 80/100)
+
+Three findings were reproduced first-party by the controller and fixed in-iteration; two were BLOCKING.
+
+- **B1** `run()`'s own `_blk_rc` capture had zero coverage — the G2 fix could be reverted with the suite
+  fully green. A new arm drives `run()` itself with a failing block. Proven non-vacuous: the mutation now
+  kills exactly `RC capture: run() itself surfaces a failing block, not printf's status`.
+- **B2** the store/project guard was not hermetic — `( exec "$@" )` inherits the caller's exports, so the
+  documented AILANG session environment defeated it. The suite now unsets both vars. Proven non-vacuous:
+  the env-prefix mutation now fails **with the ambient vars deliberately exported**.
+- **N2** the synthesised diagnostic was gated on `rc=124` alone, so a `mktemp` failure (`rc=125`) reproduced
+  the same empty-tail blindness. It is now gated on an EMPTY tail with any non-zero rc, which is the property
+  that actually matters; measured `no output (rc=1)` where the tail was previously blank.
+- **N3** `_rc` is now `local` in `_mc_notify`.
+
+Suite: **38 passed, 0 failed**, rc=0 (was 37 before the B1 arm).
 
 ## Timeline, Risks, and Deferred Decisions
 

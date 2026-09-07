@@ -165,7 +165,7 @@ _mc_drain_notices() {
 }
 
 _mc_notify() {
-  local title="$1" body="$2" label="$3" _try rc=1
+  local title="$1" body="$2" label="$3" _try rc=1 _rc=1
   # RETRY, briefly. Measured 2026-09-06: the lane-degradation notice for the fire that
   # dropped the whole fleet to pi lanes failed to send — and the same send succeeded by
   # hand minutes later, so it was a blip. The consequence was not a lost log line: it
@@ -190,7 +190,12 @@ _mc_notify() {
     # G5 ARM B: a TIMED-OUT command produced no output, so MC_BOUNDED_OUT is empty and the
     # failure WARNING would degrade to `FAILED ... after 3 attempts:` with nothing after it —
     # the exact blindness _mc_notify's own comment exists to prevent. Synthesise the reason.
+    # A cut-off command produced no output (rc=124), and so did a helper that could not
+    # even start (rc=125, mktemp failure) — in BOTH cases an empty tail reproduces exactly
+    # the blindness this diagnostic exists to prevent, so synthesise on emptiness, not on a
+    # single rc value.
     [ "$_rc" -eq 124 ] && _out="timed out after ${NOTIFY_TIMEOUT}s (no output)"
+    [ "$_rc" -ne 0 ] && [ -z "$_out" ] && _out="no output (rc=$_rc)"
     if [ "$_rc" -eq 0 ]; then rc=0; break; fi
     [ "$_try" -lt 3 ] && sleep $(( _try * 5 ))
   done
