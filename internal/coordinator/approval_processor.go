@@ -219,23 +219,31 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 		result.HandoffTargets = handedOff
 	}
 
-	// 3. Skip merge if requested or no worktree
-	if params.SkipMerge {
-		result.Message += " (merge skipped)"
-		span.SetStatus(codes.Ok, "approved, merge skipped")
-		return result, nil
-	}
-
-	if task.WorktreePath == "" {
-		result.Message += " (no worktree to merge)"
-		span.SetStatus(codes.Ok, "approved, no worktree")
-		return result, nil
-	}
-
-	// Check worktree exists
-	if _, err := os.Stat(task.WorktreePath); os.IsNotExist(err) {
-		result.Message += " (worktree no longer exists)"
-		span.SetStatus(codes.Ok, "approved, worktree missing")
+	// 3. No local merge to do. Three ways that happens — and all three used to
+	// return success WITHOUT moving the task off pending_approval, because the
+	// only status write lives in finalizeApprovedTask below, which merging
+	// reaches and these do not.
+	//
+	// The task then sat approved-but-pending forever: `approvals` could not show
+	// it (no pending record) and approve/reject refused it (already resolved).
+	// Every successful cloud chain left its own stage behind that way — the same
+	// state as two eval-rig tasks stranded since 2026-08-26 — so an operator's
+	// queue filled with rows that look actionable and are not. That matters most
+	// for an unattended approver, whose only view of "what needs me" is this list.
+	//
+	// Approved with nothing to merge IS completion: the work is done and the
+	// branch is already pushed. Say so.
+	if params.SkipMerge || task.WorktreePath == "" || worktreeGone(task.WorktreePath) {
+		switch {
+		case params.SkipMerge:
+			result.Message += " (merge skipped)"
+		case task.WorktreePath == "":
+			result.Message += " (no worktree to merge)"
+		default:
+			result.Message += " (worktree no longer exists)"
+		}
+		completeApprovedTaskWithoutMerge(ctx, span, params, task, taskID, result)
+		span.SetStatus(codes.Ok, "approved, no merge")
 		return result, nil
 	}
 
@@ -714,4 +722,54 @@ func triggerHandoffsFromApprovalRecord(ctx context.Context, span trace.Span, par
 	}
 
 	return triggered, nil
+}
+
+// worktreeGone reports whether a recorded worktree path no longer resolves.
+func worktreeGone(path string) bool {
+	if path == "" {
+		return false
+	}
+	_, err := os.Stat(path)
+	return os.IsNotExist(err)
+}
+
+// completeApprovedTaskWithoutMerge moves an approved task off pending_approval
+// when there is no local merge to perform.
+//
+// Mirrors the status writes finalizeApprovedTask does after a merge — task,
+// stage and chain — because "approved, nothing to merge" is a completed task and
+// leaving it pending is what produced a growing list of rows nobody can action.
+//
+// Every failure here is a warning, never fatal: the approval is already durably
+// resolved, so returning an error would report failure for work that succeeded.
+func completeApprovedTaskWithoutMerge(
+	ctx context.Context,
+	span trace.Span,
+	params *ApprovalParams,
+	task *TaskRecord,
+	taskID string,
+	result *ApprovalResult,
+) {
+	output := "Approved; no local merge required (branch already pushed)"
+	if len(result.HandoffTargets) > 0 {
+		output = fmt.Sprintf("%s; handed off to %s", output, strings.Join(result.HandoffTargets, ", "))
+	}
+	if err := params.Store.MarkTaskCompleted(ctx, taskID, &ExecuteResult{
+		Success: true,
+		Output:  output,
+	}); err != nil {
+		span.AddEvent("warning: failed to complete approved task", trace.WithAttributes(
+			attribute.String("error", err.Error()),
+		))
+		result.Message += fmt.Sprintf(" — WARNING: task left in %s: %v", task.Status, err)
+		return
+	}
+
+	if params.ObsBackend != nil && task.StageID != "" {
+		if err := params.ObsBackend.UpdateStageStatus(ctx, task.StageID, observatory.StageStatusCompleted); err != nil {
+			span.AddEvent("warning: failed to update stage status", trace.WithAttributes(
+				attribute.String("error", err.Error()),
+			))
+		}
+	}
 }
