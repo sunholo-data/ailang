@@ -1,6 +1,9 @@
 # M-CLOUD-PLANE-FALLBACK-LANES
 
-**Status:** planned
+**Status:** planned — **ANALYSIS TRUSTED, PROPOSAL NOT. Do not plan a sprint from §6 as it
+stands.** Seven quorum rounds, never passed. §§1–5 (measurement, constraints, conflict surface)
+were never challenged on substance and are the durable part. §6 has been patched seven times and
+round 7 showed the patching itself is now generating defects — see §9.
 **Created:** 2026-09-07
 **Problem:** the cloud agent plane has no working model fallback. Every one of 34 agents
 resolves to a chain of one, and the retry module that would walk a chain is unwired.
@@ -331,10 +334,15 @@ reasons to. So:
 
 Add quota signatures **only once P4 gives them somewhere to go.**
 
-**P4 — cross-harness re-dispatch.** Derive the fallback link's `ExecutorVariant` from its
-`Executor`, and target that Job. Applies to fallback links only (index ≥ 1); the head always
-keeps the agent's declared variant, so no current behaviour changes and 3.1(a) is not
-silently resolved.
+**P4 — cross-harness re-dispatch.** Choose the fallback link's `ExecutorVariant`, and target
+that Job. Applies to fallback links only (index ≥ 1); the head always keeps the agent's declared
+variant, so no current behaviour changes.
+
+*Round 7, gemini-3-1-pro: this paragraph opened by mandating derivation "from its `Executor`"
+(round-2 text) and the next paragraph mandated deriving from capability "not by reading
+`RoleEntry.Executor`" (round-3 text). Both were left in — mutually exclusive instructions in
+adjacent paragraphs. Pure patch residue: the round-3 fix was appended without deleting what it
+replaced.*
 
 **P4 derives from CAPABILITY, not from the registry's preference.** The variant for a
 fallback link is chosen by asking *can the agent's current harness reach this model?* — not by
@@ -505,3 +513,31 @@ to fail.
 
 **Stopped here at Mark's instruction (round 6 was the agreed limit). NOT converged** — the doc
 is materially better but has never passed, and the honest read is below.
+
+**Round 7 (2026-09-07) — BLOCKED, 3/3 reject. STOPPING POINT, and the reason is the objections'
+provenance, not their count.** Two of the three were *caused by round 6's own fix*:
+
+- **gpt6-astra:** unifying *who* computes the target did not make it applied *once*. The handler
+  advances the stored index and writes `retry_requested` at link *t*; the detector then calls
+  `advance` again and seeks *t+1*. On a two-link chain the handler moves 0→1 and the detector
+  seeks link 2, terminates as exhausted, and the single fallback never runs. Round 6 unified the
+  selector; it did not specify a pending-target or consume-without-advancing transition.
+- **oc-glm-5-2:** routing both triggers through `advance(task, class)` created a parameter the
+  detector cannot supply — it never observed the failure, and P3.5's schema work adds only
+  `AttemptID`, not the class. The round-6 restructure made the design uncallable on one of its
+  two paths.
+- **gemini-3-1-pro:** P4 opened with the round-2 derivation rule and immediately contradicted it
+  with the round-3 rule, both left in place. Patch residue, fixed above.
+
+**Assessment.** Rounds 1–5 found defects that pre-existed the review. Round 7 found defects
+*introduced by round 6*, plus a contradiction from layering fixes without removing what they
+replaced. That is the signature of patching past its useful point: the document is accumulating
+scars faster than it is resolving objections.
+
+**Recommendation:** keep §§1–5 — the measurement is verified, cited, and unchallenged across
+seven rounds, and the pins-are-redundant and harness-disagreement findings are independently
+useful. **Re-derive §6 from scratch** against the constraints now understood (single
+application per failure, class must be persisted or re-derivable by every caller, no phase
+shipping a known-broken lane, one accounting model). A fresh derivation by an author without
+seven rounds of investment in this particular shape is more likely to succeed than an eighth
+patch by this one.
