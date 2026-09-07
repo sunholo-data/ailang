@@ -2,12 +2,6 @@
 
 For the latest version, see [changelogs/v0.32-current.md](changelogs/v0.32-current.md).
 
-## Unreleased
-
-- `ailang docs search` can use authenticated GitHub code search when local docs are unavailable.
-  Set `GITHUB_TOKEN` or use `gh auth login`; disable the fallback with `--no-github` or
-  `AILANG_NO_GITHUB_SEARCH`. Results are cached for one hour without storing credentials.
-
 ## Changelog Archives
 
 The full changelog has been split into themed files for searchability and readability:
