@@ -181,18 +181,18 @@ schema. Example fixtures: concurrent starts, parent loss, prepared quota wait, a
 - [x] Accepted stages remain immutable; altered input/digest/outcome and stale owners fail.
 - [x] Existing standalone attempt recovery/cancellation tests pass unchanged in meaning.
 
-### M3: Git artifacts and stage acceptance (~850 LOC)
+### M3: ✅ Git artifacts and stage acceptance (~850 LOC)
 
 **Dependencies:** M1, M2. **Duration:** days 3–4. **Estimate:** 400 implementation + 450 tests.
 Own iteration `artifacts*.go`, `verify*.go`, `authority*.go`; reuse bounded Git command facilities
 after checking existing helpers. Example repositories: clean committed result, wrong-origin result,
 dirty output, stale evaluator and tampered check policy. All generated under temporary roots.
 
-- [ ] Clean committed work is recognized; ancestry/scope/required artifacts are verified from Git.
-- [ ] Runtime accepts only the reserved protocol file as untracked result output.
-- [ ] Frozen checks execute at the recorded commit with bounded output and deadlines.
-- [ ] Wrong revision, changed authority, failed hard checks, mutated candidate or stale judge fails.
-- [ ] Actual prior author receipts determine evaluator independence, including fallback routes.
+- [x] Clean committed work is recognized; ancestry/scope/required artifacts are verified from Git.
+- [x] Runtime accepts only the reserved protocol file as untracked result output.
+- [x] Frozen checks execute at the recorded commit with bounded output and deadlines.
+- [x] Wrong revision, changed authority, failed hard checks, mutated candidate or stale judge fails.
+- [x] Actual prior author receipts determine evaluator independence, including fallback routes.
 
 ### M4: Iteration execution and process recovery (~900 LOC)
 

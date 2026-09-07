@@ -62,10 +62,10 @@
         "Wrong revision, changed authority, failed hard checks, mutated candidate or stale judge fails.",
         "Actual prior author receipts determine evaluator independence, including fallback routes."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-07",
+      "completed": "2026-09-07T19:31:16.128821+00:00",
+      "notes": "Strict Git/protocol/authority and isolated bounded verification pass, including decision evidence and aggregate output bound; exact actual route determines evaluation independence."
     },
     {
       "id": "M4",

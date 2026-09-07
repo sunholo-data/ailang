@@ -80,6 +80,13 @@ func checkValue(d *json.Decoder, t reflect.Type) error {
 				return fmt.Errorf("%s: %w", name, err)
 			}
 		}
+		if t.Kind() == reflect.Struct {
+			for field := range fields {
+				if !seen[field] {
+					return fmt.Errorf("missing required JSON field %q", field)
+				}
+			}
+		}
 		_, err = d.Token()
 		return err
 	case reflect.Slice:
