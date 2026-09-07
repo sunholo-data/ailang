@@ -66,7 +66,8 @@ func printMissionHelp() {
                                    exit 0 clean, 1 drift, 2 registry error
   ailang mission install <name>    render this mission's artifacts to *.staged
   ailang mission apply <name>      promote the staged artifacts, then reload launchd
-  ailang mission quota [--bucket B] [--json] [--consolidate]
+  ailang mission quota [--bucket B] [--json] [--consolidate] [--over]
+    Codex: local CODEX_HOME (default ~/.codex) provider usage; stale/missing blocks routing.
                                    fleet-wide subscription spend per (bucket, window),
                                    against the 10%/day ration
   ailang mission rotate-log <name> [--keep N]

@@ -550,6 +550,11 @@ _mc_probe() {
 # stripped above, so a pass proves the ChatGPT-subscription OAuth lane works.
 _mc_probe_codex() {
   local m="$1" rc
+  if _mc_is_over_ration "codex:$m"; then
+    MC_BOUNDED_OUT="Codex quota admission blocked (over ration or observation unavailable)"
+    log "codex:$m quota admission blocked; skipping inference probe"
+    return 75
+  fi
   _mc_bounded "$PROBE_TIMEOUT" codex exec --skip-git-repo-check --model "$m" 'reply with exactly: ok'
   rc=$?
   [ "$rc" -eq 124 ] && log "controller fallback codex:$m probe timed out after ${PROBE_TIMEOUT}s"
@@ -1271,7 +1276,7 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
     cx_model="${val#codex:}"
     case "$_cx_probed" in *":${cx_model}:"*) : ;; *)   # not yet probed
       _cx_probed="${_cx_probed}${cx_model}:"
-      _mc_bounded "$PROBE_TIMEOUT" codex exec --skip-git-repo-check --model "$cx_model" 'reply with exactly: ok'
+      _mc_probe_codex "$cx_model"
       cx_rc=$?; cx_out="$MC_BOUNDED_OUT"
       if [ "$cx_rc" -ne 0 ]; then
         _cx_failed="${_cx_failed}${cx_model}:"
