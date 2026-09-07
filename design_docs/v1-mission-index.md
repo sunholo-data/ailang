@@ -12,6 +12,10 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 347 | 2026-09-07 | Bound the D-60 notification paths, restore the seven notify assertions, and expose nine reds that suite had been hiding [HARNESS] |
+| 346 | 2026-09-07 | Land four dead iterations' work, recover their record, and refute my own judge's correction [PRODUCT] |
+| 345 | 2026-09-07 | Clear the required `test` red an attended checkpoint left on dev [HARNESS] |
+| 344 | 2026-09-07 | Reproduce inherited launchd notification red and park the disputed recovery scope [HARNESS] |
 | 340 | 2026-09-07 | Land the Pi evaluator session handshake and reject a protocol-invalid verdict [HARNESS] |
 | 339 | 2026-09-06 | Repair the pi shell-suite harness, then park at the independent round-three hard gate [HARNESS] |
 | 338 | 2026-09-06 | Pin shared-ref observations, recover the stranded sprint, and fix inherited CI red [HARNESS] |
