@@ -6,7 +6,49 @@ set -uo pipefail
 SP="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 DRV="$REPO_ROOT/tools/launchd/mission-control.sh"
-LAB="${TMPDIR:-/tmp}/emitlab.$$"; rm -rf "$LAB"; mkdir -p "$LAB"
+LAB="${TMPDIR:-/tmp}/emitlab.$$"; rm -rf "$LAB"; mkdir -p "$LAB" "$LAB/bin"
+
+# --- M1: suite-owned PATH notifier stubs ---------------------------------------
+# _mc_bounded runs `( exec "$@" )`; exec resolves EXTERNAL binaries only — a shell
+# function is invisible to it (measured: `( exec f )` on a function -> rc=127). So
+# the notifier stubs MUST be PATH executables, or the bounded production sends would
+# exec the REAL ailang/gh and hit prod Firestore + GitHub from CI (forbidden). Each
+# stub appends one ordered record to $MC_TRACE_FILE (per-arm, unified medium G1),
+# honours AILANG_RC/GH_RC, and the ailang one prints the store/project env it saw so
+# the child's env is observable (V4). STUB_HANG=1 selects a never-returning variant
+# for the bounded-cutoff arms.
+cat > "$LAB/bin/ailang" <<'STUB'
+#!/bin/bash
+if [ "${STUB_HANG:-0}" = "1" ]; then
+  while :; do sleep 1; done
+fi
+if [ -n "${MC_TRACE_FILE:-}" ]; then
+  printf 'AILANG:%s\n' "$*" >> "$MC_TRACE_FILE"
+fi
+if [ -n "${MC_ATTEMPT_FILE:-}" ]; then
+  n=0
+  [ -f "$MC_ATTEMPT_FILE" ] && n=$(cat "$MC_ATTEMPT_FILE" 2>/dev/null || echo 0)
+  n=$(( 10#$n + 1 ))
+  printf '%s\n' "$n" > "$MC_ATTEMPT_FILE"
+fi
+printf 'store=<%s> proj=<%s>\n' "${AILANG_MESSAGES_STORE:-}" "${AILANG_MESSAGES_PROJECT:-}"
+exit "${AILANG_RC:-0}"
+STUB
+chmod +x "$LAB/bin/ailang"
+
+cat > "$LAB/bin/gh" <<'STUB'
+#!/bin/bash
+if [ "${STUB_HANG:-0}" = "1" ]; then
+  while :; do sleep 1; done
+fi
+if [ -n "${MC_TRACE_FILE:-}" ]; then
+  printf 'GH:%s\n' "$*" >> "$MC_TRACE_FILE"
+fi
+exit "${GH_RC:-0}"
+STUB
+chmod +x "$LAB/bin/gh"
+
+export PATH="$LAB/bin${PATH:+:$PATH}"
 
 awk '/^_mc_notify\(\) \{/,/^\}/' "$DRV"                        > "$LAB/notify.sh"
 awk '/^# --- DRIVER PIN DECISION START ---/,/^# --- DRIVER PIN DECISION END ---/' "$DRV" > "$LAB/pin_decision.sh"
@@ -25,8 +67,6 @@ bad(){ FAIL=$((FAIL+1)); echo "  FAIL: $1"; echo "        trace: $2"; }
 check(){ case "$2" in *"$3"*) ok "$1";; *) bad "$1" "$(printf '%s' "$2"|tr '\n' '|')";; esac; }
 checkno(){ case "$2" in *"$3"*) bad "$1" "$(printf '%s' "$2"|tr '\n' '|')";; *) ok "$1";; esac; }
 
-# File-backed spies survive the production command substitution used to capture
-# notification diagnostics. Shell-variable writes disappear in that subshell.
 run() { # $1=block  $2=degraded-value  -> prints trace; env AILANG_RC/GH_RC/ISSUE tweak it
   local block="$1" val="$2"
   # A FRESH state dir per arm, not a shared one: the blocks now episode-GATE on files under
@@ -34,13 +74,15 @@ run() { # $1=block  $2=degraded-value  -> prints trace; env AILANG_RC/GH_RC/ISSU
   # suppress the second's notice — an arm passing because it was deduped, not because the
   # code is right.
   local state_dir; state_dir=$(mktemp -d)
-  /bin/bash -c '
+  local mc_trace; mc_trace=$(mktemp)
+  local attempt_file; attempt_file=$(mktemp)
+  MC_TRACE_FILE="$mc_trace" MC_ATTEMPT_FILE="$attempt_file" /bin/bash -c '
     set -uo pipefail
-    TRACE_FILE="$5/trace"; : > "$TRACE_FILE"
-    log() { printf "LOG:%s\n" "$*" >> "$TRACE_FILE"; }
-    ailang() { printf "AILANG:%s\n" "$*" >> "$TRACE_FILE"; return ${AILANG_RC:-0}; }
-    gh() { printf "GH:%s\n" "$*" >> "$TRACE_FILE"; return ${GH_RC:-0}; }
-    sleep() { :; }
+    # log() stays a function (called directly, never through _mc_bounded) but appends to
+    # the SAME unified medium the PATH stubs write, so positive AND negative checks both
+    # read one trace (G1). The old split-trace medium lost AILANG records inside the
+    # command-substitution subshell, so checkno assertions could pass vacuously.
+    log() { printf "LOG:%s\n" "$*" >> "$MC_TRACE_FILE"; }
     MISSION_NAME=v1; MISSION_REPO=sunholo-data/ailang; MSG_FROM=mission-control
     MISSION_GH_ISSUE="${ISSUE-635}"; LOG=/tmp/x.log; REPO=/tmp/repo
     MODEL=claude-opus-5; MODEL_WHY="probe ok"
@@ -50,12 +92,15 @@ run() { # $1=block  $2=degraded-value  -> prints trace; env AILANG_RC/GH_RC/ISSU
     . "$1"            # _mc_notify
     eval "$3=\"$4\""  # set the ledger under test
     . "$2"            # the block
-    block_rc=$?
-    cat "$TRACE_FILE"
-    echo "RC:$block_rc"
+    _blk_rc=$?        # capture rc BEFORE any printf (G2: the old `$?` after `printf`
+                      # read the rc that printf left behind, masking the block failure)
+    TRACE="$(cat "$MC_TRACE_FILE" 2>/dev/null || true)"
+    printf "%s" "$TRACE"
+    printf "\nATTEMPTS:%s" "$(cat "$MC_ATTEMPT_FILE" 2>/dev/null || printf 0)"
+    printf "\nRC:%s\n" "$_blk_rc"
   ' _ "$LAB/notify.sh" "$LAB/$block.sh" \
     "$( [ "$block" = pin_block ] && echo _pin_degraded || echo _lane_degraded )" "$val" "$state_dir" 2>&1
-  rm -rf "$state_dir"
+  rm -rf "$state_dir" "$mc_trace" "$attempt_file"
 }
 
 run_drift() { # $1=status $2=drift $3=threshold $4=state-value (absent for no file)
@@ -63,12 +108,11 @@ run_drift() { # $1=status $2=drift $3=threshold $4=state-value (absent for no fi
   RUN_SEQ=$((${RUN_SEQ:-0}+1))
   rm -rf "$state_dir"; mkdir -p "$state_dir"
   if [ "$4" != absent ]; then printf '%s\n' "$4" > "$state_dir/pin-drift"; fi
-  /bin/bash -c '
+  local mc_trace; mc_trace=$(mktemp)
+  local attempt_file; attempt_file=$(mktemp)
+  MC_TRACE_FILE="$mc_trace" MC_ATTEMPT_FILE="$attempt_file" /bin/bash -c '
     set -uo pipefail
-    TRACE_FILE="$4/trace"; : > "$TRACE_FILE"
-    log() { printf "LOG:%s\n" "$*" >> "$TRACE_FILE"; }
-    ailang() { printf "AILANG:%s\n" "$*" >> "$TRACE_FILE"; return 0; }
-    gh() { printf "GH:%s\n" "$*" >> "$TRACE_FILE"; return 0; }
+    log() { printf "LOG:%s\n" "$*" >> "$MC_TRACE_FILE"; }
     MISSION_NAME=motoko; MISSION_REPO=sunholo-data/ailang; MSG_FROM=mission-motoko
     MISSION_GH_ISSUE=635; LOG=/tmp/x.log; REPO=/pinned/driver-worktree
     AILANG_DRIVER_SRC=/source/ailang-motoko
@@ -85,14 +129,15 @@ run_drift() { # $1=status $2=drift $3=threshold $4=state-value (absent for no fi
     echo "DECISION_RC:$?"
     . "$7"
     . "$8"
+    TRACE="$(cat "$MC_TRACE_FILE" 2>/dev/null || true)"
     if [ -f "$PIN_DRIFT_FILE" ]; then
       echo "STATE:$(cat "$PIN_DRIFT_FILE")"
     else
       echo "STATE:absent"
     fi
-    cat "$TRACE_FILE"
+    printf "%s" "$TRACE"
   ' _ "$1" "$2" "$3" "$state_dir" "$LAB/notify.sh" "$LAB/pin_decision.sh" "$LAB/pin_drift_block.sh" "$LAB/pin_block.sh" 2>&1
-  rm -rf "$state_dir"
+  rm -rf "$state_dir" "$mc_trace" "$attempt_file"
 }
 
 arm_ok() { # $1=name $2=trace $3=required substring; remaining args are forbidden substrings
@@ -112,6 +157,9 @@ check "fires on both channels (ailang)"     "$T" "AILANG:messages send controlpl
 check "posts to the bookkeeping issue"      "$T" "GH:issue comment 635"
 check "titled as UNPINNED"                  "$T" "driver ran UNPINNED"
 check "names the tracking issue"            "$T" "#558"
+# M1 G1 tripwire: this fires genuinely, so the SAME "no ailang call" checkno assertions
+# below MUST be able to see AILANG: here — proves they read the unified medium.
+check "positive control: unified medium shows genuine AILANG fire (checkno would FAIL)" "$T" "AILANG:"
 
 echo "== pin notice: SILENT when healthy (the control) =="
 T=$(run pin_block "")
@@ -122,6 +170,7 @@ echo "== failed post is LOUD, and never aborts =="
 T=$(AILANG_RC=1 run pin_block "- x")
 check "warns on send failure"               "$T" "LOG:WARNING: driver-pin notice FAILED to send"
 check "block still exits 0"                 "$T" "RC:0"
+check "retry: attempts recorded across subshells (file counter)" "$T" "ATTEMPTS:3"
 T=$(GH_RC=1 run pin_block "- x")
 check "warns on issue failure"              "$T" "LOG:WARNING: driver-pin notice FAILED to post"
 check "block still exits 0"                 "$T" "RC:0"
@@ -139,6 +188,29 @@ check "lane keeps its own title"            "$T" "executor/planner lane degraded
 check "lane logs its summary"               "$T" "LOG:LANE DEGRADED this fire"
 T=$(run lane_block "")
 checkno "lane SILENT when healthy"          "$T" "AILANG:"
+
+echo "== RC capture: not masked by printf (G2) =="
+# Drop the STATE_DIR assignment; the sourced pin_block reads $STATE_DIR for spool/episode
+# gating, so under `set -u` it aborts rc=1. With the old code the `$?`-after-`printf`
+# masked this as RC:0; the capture-before-printf fix must surface RC:1.
+_rc_trace=$(mktemp)
+T=$(AILANG_RC=1 MC_TRACE_FILE="$_rc_trace" /bin/bash -c '
+    set -uo pipefail
+    log() { printf "LOG:%s\n" "$*" >> "$MC_TRACE_FILE"; }
+    MISSION_NAME=v1; MISSION_REPO=sunholo-data/ailang; MSG_FROM=mission-control
+    MISSION_GH_ISSUE=635; LOG=/tmp/x.log; REPO=/tmp/repo
+    MODEL=claude-opus-5; MODEL_WHY="probe ok"
+    # STATE_DIR deliberately NOT set => the block aborts under `set -u`. Source it in a
+    # subshell so the abort returns rc=1 to us instead of killing this whole shell
+    # before we can capture it.
+    _pin_degraded="- x"; _lane_degraded="- x"
+    . "$1"
+    ( . "$2" )
+    _rc=$?
+    printf "RC:%s\n" "$_rc"
+  ' _ "$LAB/notify.sh" "$LAB/pin_block.sh" 2>&1)
+rm -f "$_rc_trace"
+check "RC capture: block failure visible, not masked by printf" "$T" "RC:1"
 
 echo "== held pin source-clone drift =="
 T=$(run_drift pinned 170 25 absent)
@@ -174,15 +246,10 @@ arm_ok "drift-i: a non-positive threshold is floored, not obeyed" "$T" "using 25
 # drift-j: PIN_DRIFT unset under `set -u` must be handled, not abort. Unreachable through
 # pin-root.sh today (it sets PIN_STATUS and PIN_DRIFT on consecutive lines) — pinned here so the
 # invariant is enforced rather than assumed, per the evaluator's finding 4.
-T=$(/bin/bash -c '
+_drj_trace=$(mktemp)
+T=$(MC_TRACE_FILE="$_drj_trace" /bin/bash -c '
     set -uo pipefail
-    TRACE=""
-    log() { TRACE="$TRACE
-LOG:$*"; }
-    ailang() { TRACE="$TRACE
-AILANG:$*"; return 0; }
-    gh()     { TRACE="$TRACE
-GH:$*"; return 0; }
+    log() { printf "LOG:%s\n" "$*" >> "$MC_TRACE_FILE"; }
     MISSION_NAME=motoko; MISSION_REPO=sunholo-data/ailang; MSG_FROM=mission-motoko
     MISSION_GH_ISSUE=635; LOG=/tmp/x.log; REPO=/pinned/driver-worktree
     AILANG_DRIVER_SRC=/source/ailang-motoko
@@ -192,8 +259,10 @@ GH:$*"; return 0; }
     . "$2"
     echo "DECISION_RC:$?"
     . "$3"
+    TRACE="$(cat "$MC_TRACE_FILE" 2>/dev/null || true)"
     printf "%s" "$TRACE"
   ' _ "$LAB/notify.sh" "$LAB/pin_decision.sh" "$LAB/pin_drift_block.sh" 2>&1)
+rm -f "$_drj_trace"
 arm_ok "drift-j: unset PIN_DRIFT is log-only, not a set -u abort" "$T" "LOG:driver pin drift: unknown" "AILANG:" "GH:"
 
 echo ""
