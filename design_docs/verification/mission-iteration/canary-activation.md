@@ -1,6 +1,6 @@
 # Mission iteration canary activation packet
 
-Status: **NOT ACTIVATED; task selection/approval pending.** Prepared 2026-09-07.
+Status: **NOT ACTIVATED; replacement task proposed, scope approval pending.** Refreshed 2026-09-07 at 19:54 UTC.
 Implementation evidence is separate from a successful live adoption demonstration.
 
 ## Concrete placement and limits
@@ -39,3 +39,29 @@ For a reviewed ID `docs-canary-1`, inspect and cancel using a fresh printed vers
 Do not treat cancellation as proof that a process stopped. An ambiguous child keeps admission held; inspect the recorded owner process tree and use the store's explicit confirmed-stop reconciliation only after termination is established. The current CLI does not expose that attestation API, which is an operational limitation to resolve before unattended adoption.
 
 No candidate is merged by iterate. Retain the database, receipts and worktrees for review; do not delete them as rollback. After confirming the attended invocation and descendants stopped, restore the saved binding. If the canary created the Docs disable marker (it was absent in the recorded baseline), remove that marker with `rm "$HOME/.ailang/state/mission-docs.disabled"`; if it already existed, leave it in place. This restores the previous schedule state without changing the interval or fleet binary. If the one-shot driver env opt-in is later approved, remove only `AILANG_MISSION_WORK_ITEM` from the exact env file changed and restore its saved version; do not stop unrelated missions.
+
+## Attended continuation — 19:54 UTC
+
+Mark authorized continuation and preparation of the canary. Read-only checks found
+legacy Docs active (launchd PID 11260, latest inspected heartbeat gate-3 at 19:46 UTC);
+its previous completion named docs-12 as its next task. Do not borrow that work item.
+Coordinator is running (PID 763); its pending command returned no pending task approvals,
+which does not establish that the separate legacy Docs controller is idle.
+
+The original proposed Codex route is presently inadmissible: quota observation at
+19:54 UTC returned `over`, weekly usage 50% against allowance 10%. The binary hash
+was rechecked and matches checks.md. No runtime binding file existed at the inspected
+installed path; repeat the check before writing anything there.
+
+A concrete replacement scope is prepared in
+[the work-item guide proposal](../../planned/m-docs-mission-work-item-guide.md):
+complete the operator walkthrough in `docs/docs/guides/mission-iteration.md` only.
+Proposed executor is `claude-sonnet-5`, evaluator `pi-or-deepseek-v4-flash`, retaining
+the same caps. These are explicit proposed route changes, not silent fallbacks.
+Use a dedicated source worktree from this sprint history and an isolated reviewed
+registry copy, rather than switching the older live Docs checkout.
+
+Pending: task scope approval, sprint-planner/check freeze, execution authority, committed
+prerequisite/approval hashes, exact source base and registry snapshots, input dry-run,
+then idle/ownership recheck and reviewed activation. No provider inference, installation,
+scheduler mutation, outbound message, acknowledgement or live adoption occurred.

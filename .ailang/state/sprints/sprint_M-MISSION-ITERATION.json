@@ -129,7 +129,8 @@
       "passes": false,
       "started": "2026-09-07",
       "completed": null,
-      "notes": "Code/fault/check/evaluation work complete. Canary activation packet is concrete about paths/routes/caps/rollback but lacks an unowned execution-approved Docs item; user clarification requested, no approval fabricated. Live activation not performed. See verification/mission-iteration/checks.md."
+      "notes": "Implementation verification retained. Refreshed ownership: legacy Docs running, docs-12 next in its queue; Codex route over ration. Proposed separate work-item guide task and Claude/Pi routes in design_docs/planned/m-docs-mission-work-item-guide.md. Scope approval, plan/check freeze, bound authority and dry-run remain; no live activation."
     }
-  ]
+  ],
+  "last_checkpoint": "2026-09-07: M6 continuation found legacy Docs active and Codex over ration; replacement work-item guide scope prepared for approval."
 }
