@@ -105,3 +105,11 @@ admission and Codex fallback regressions, full `GOFLAGS=-p=1 make test`, `make l
 observation at 13:32 UTC: state OK, session 0.019, weekly 0.359, no metadata needed.
 Launchd inspection found the existing session gauge key absent from shared secrets;
 deployment adds that same credential without logging it, preserving a private backup.
+
+
+Correction deployed 2026-09-07 15:34 Copenhagen: binary and all four next-fire pins
+select `48c4a6e4975632e1ac3c1452ebbb55e2de52c80f`. Shared mission secrets now export
+the existing gauge credential. Installed verification sourced those secrets with the
+session key removed: state OK, session 0.020, weekly 0.359. No active iteration restarted.
+See `design_docs/verification/mission-recovery-2026-09-07/ollama-gauge-deployment.json`
+for rollback backups and hashes. Reset-aware pacing remains optional and unconfigured.

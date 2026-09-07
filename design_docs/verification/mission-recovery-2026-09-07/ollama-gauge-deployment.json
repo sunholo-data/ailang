@@ -1,0 +1,39 @@
+{
+  "revision": "48c4a6e4975632e1ac3c1452ebbb55e2de52c80f",
+  "time": "20260907T153406",
+  "active_iterations_restarted": false,
+  "configs": [
+    {
+      "mission": "v1",
+      "backup": "/Users/voightkampff/.config/ailang/mission-v1.env.pre-ollama-gauge-20260907T153406",
+      "sha256": "16bfa4f046dc68de6888c045fbd281afe3c200b411b73914a271992cfde18ab8"
+    },
+    {
+      "mission": "world",
+      "backup": "/Users/voightkampff/.config/ailang/mission-world.env.pre-ollama-gauge-20260907T153406",
+      "sha256": "367255b51a422db93239acf7948168461c245ac07a5fe2cebd9ea3612b923665"
+    },
+    {
+      "mission": "motoko",
+      "backup": "/Users/voightkampff/.config/ailang/mission-motoko.env.pre-ollama-gauge-20260907T153406",
+      "sha256": "ceaac444f136a9aceb146b281d77d524fa6febbe646a32729ae1518c7e5bf26d"
+    },
+    {
+      "mission": "docs",
+      "backup": "/Users/voightkampff/.config/ailang/mission-docs.env.pre-ollama-gauge-20260907T153406",
+      "sha256": "46a864cde987f098c86dcae83162f3706c96c9163787760fa2f55d30635358e1"
+    }
+  ],
+  "secrets_backup": "/Users/voightkampff/.config/ailang/secrets.env.pre-ollama-gauge-20260907T153406",
+  "binary_before_sha256": "24e062d2951d94a274da530f6df757c86866fbfa254b67a7fb370d3f9a8d4f12",
+  "binary_backup": "/Users/voightkampff/go/bin/ailang.pre-ollama-gauge-20260907T153406",
+  "binary_after_sha256": "179c4f42cd27f8ae7225ff0b9b1dcb280459d2d37942df2e80dddb54130d55b4",
+  "installed_observation": {
+    "gauge_status": "OK",
+    "state": "ok",
+    "reason": "Ollama Cloud gauge below 80%; reset-aware pacing unavailable without metadata",
+    "observed_at": "2026-09-07T13:34:07.552697Z",
+    "session_usage": 0.02,
+    "weekly_usage": 0.359
+  }
+}
