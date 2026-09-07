@@ -2327,3 +2327,127 @@ but it bounds what these green gates are worth and is queued below.
 **Record verification.** Exact merge SHA `16f0cb741`: **20 checks**, all green except the parked
 `launchd drivers (bash 3.2)`. The four REQUIRED contexts — `test`, `lint`, `build`, `docs-gate` —
 are all `success`, and `test` is the one this iteration set out to clear.
+
+## 346 — 2026-09-07 — Land four dead iterations' work, recover their record, and refute my own judge's correction [PRODUCT]
+
+**Picked.** Gate 1 found `dev` red on `launchd drivers (bash 3.2)`, and V1 owns this repo, so a red
+outranks the queue — but that red is **legitimately parked** on `D-60` by iteration 344, and the
+correct disposition of a parked red is to leave it parked. The queue head was
+`m-exec-event-handler-untested`. Neither became the pick, because Gate 2's died-mid-flight traces
+found something that outranks a queue row: **four consecutive iterations — 341, 342, 343, 344 — had
+died between doing their work and landing it**, and the charter could not see any of them. The
+STATUS stack read 345 → 340 with no gap marker. Their work was not lost, it was stranded:
+
+| iter | produced | stranded in |
+|---|---|---|
+| 341 | design doc + sprint plan + M1–M3 executor work | commits on `sprint/v1-iter341-cachesrc-cognitive`, no record |
+| 342 | opened PR #1071, adjudicated a Windows CI red | PR #1071, no record |
+| 343 | an independent evaluation (`minimax-m3`, PASS, zero blocking) | **uncommitted** in `.eval-wt-v1-iter343`, no record |
+| 344 | reproduced the launchd red, two quorums, parked scope on `D-60` | PR #1073 (CONFLICTING), no record |
+
+Iteration 343's evaluation was found only by Gate 2's trace (c) — `git status --porcelain` in the
+stale worktree — which is the one trace that sees content rather than the existence of an attempt.
+Neither the open-PR trace nor `git worktree list` would have surfaced it: both report that iteration
+343 *ran*, and both are silent on the fact that it produced a finished 286-line judgement.
+
+**Reality check.** Verified first-party before routing, not inherited:
+- The rebase onto current `dev` is **content-neutral**: `git diff origin/dev..508a96939` is
+  **byte-identical** to `git diff d794cac25..f407d187a` — 206,803 bytes both, `diff -q` silent. So
+  the content two prior judges looked at is preserved exactly.
+- File overlap between the PR's 9 files and the 32 files `dev` changed since the merge-base is
+  **EMPTY** (control: the dev list intersected with itself returns 32, so the instrument ran).
+- `gocognit` on the base copy of `pipeline_module.go`: `runModuleWithCacheDependencies` = **106**;
+  at head = **0**. The three Non-Goal helpers read 30/25/20 at BOTH ends — unchanged, as claimed.
+- Local gates on the rebased tree: `go build` 0, `go vet` 0, `gofmt -l` empty, package tests 0,
+  `-race` 0, `make check-file-sizes` 0.
+
+**Shipped.** PR [#1071](https://github.com/sunholo-data/ailang/pull/1071) →
+[`202358fd3`](https://github.com/sunholo-data/ailang/commit/202358fd3d4af042b369432a1dd8d7b01c9e5e76).
+`runModuleWithCacheDependencies` becomes a two-line delegate; the ~500-line orchestration moves to a
+per-call `modulePipelineState` in `pipeline_module_phases.go` (max 13) and
+`pipeline_module_cache.go` (max 7). Four test targets extracted to named scenario helpers.
+Record PR [#1081](https://github.com/sunholo-data/ailang/pull/1081) recovers iteration 344's
+`D-60`, its park row, its STATUS stamp, its log entry and its 258-line design doc onto `dev` —
+the ledger goes 59 → **60 rows**, `mission_decisions.sh --check` valid.
+
+**Why the recovery mattered more than it looks.** With `D-60` absent from `dev`, the
+`launchd drivers (bash 3.2)` red reads as *unparked* to every future iteration, so the next
+controller re-chases a question a human has already been asked. Iteration 345's own STATUS names
+the problem exactly — "D-60 parked in unmerged #1073" — which is a correct description of a record
+nothing could act on. A park that exists only in a conflicting PR is not a park.
+
+**Ruled out.** *The design doc's `103` base-complexity figure is wrong* — **REFUTED, and it was my
+own claim.** I measured `gocognit` = 106, handed that to the judge as a thing to check, and the
+judge independently "confirmed" the doc was wrong by 3. Both of us compared a **gocognit** reading
+against a number the doc attributes to **SonarCloud**, with its issue key (`AaBzgnbFBD7wArG_Hhqs`)
+and the exact `curl` that produced it. The discriminating test is the other four targets, and it is
+unambiguous — every single one differs between the two instruments:
+
+| target | SonarCloud (doc) | gocognit |
+|---|---|---|
+| `pipeline` `TestCacheSource_ExactSnapshot` | 29 | 47 |
+| `TestCachePipeline_EmbeddedKeys` | 19 | 21 |
+| `TestCachePipeline_SourceEditBehavior` | 24 | 38 |
+| `loader` `TestCacheSource_ExactSnapshot` | 16 | 20 |
+| `runModuleWithCacheDependencies` | **103** | **106** |
+
+Confirmed against the live API: SonarCloud reports `Cognitive Complexity from 103` for that exact
+key. The doc was right and correctly sourced; the "defect" was rule 3c aimed at a metric instead of
+a service — *a probe identifies the instrument you REACHED, never the quantity you NAMED*. The
+sharp part is that a **judge agreeing with the controller is not a second measurement** when both
+ran the same wrong instrument: independence of *agent* is not independence of *method*. Nothing was
+edited in the doc as a result. (Enumeration caveat, rule 3a: the API returned `total=756` against
+`ps=500`, so that listing is truncated and proves presence, not absence.)
+
+*The surviving mutations mean the shipped code is wrong* — refuted; all three survivors are
+coverage gaps at spots where the shipped code is correct, queued rather than blocking.
+
+**Routing evidence.** Gate4 base=`1fd1c7a706f2f089b6d6b5a1f3211de0a33e5cf1@2026-09-07T09:24:43Z`.
+Controller `claude:claude-opus-5`. Resolver answers recorded verbatim:
+`designer -> recipe claude:claude-fable-5-1 declared:provider-pin`,
+`planner -> agent-tool opus fail-closed:no-doc`,
+`executor -> recipe codex:gpt-5.6-sol declared:provider-pin`,
+`evaluator -> agent-tool sonnet declared:alias-pin`.
+**Designer, planner and executor deliberately NOT spawned** — this is a verify-and-land: the design
+doc exists and carries its R1/R2 quorum record, the sprint plan exists, and the executor's work
+existed and was already committed. Spawning any of the three would have re-run finished work, which
+is precisely what Gate 2's verify-and-land rule forbids. This is a routing call, not a lane failure;
+no lane was probed and no lane refused. **Evaluator: spawned**, `agent-tool sonnet`, 140,805 tokens
+/ 59 tool uses / 566s. Generator (pi `deepseek-v4-flash` and `glm-5.3`, iterations 341–343) ≠ judge
+(sonnet), and the judge had no prior context on any of it.
+
+**Independent evaluation.** Judge `sonnet`, **LAND, 91/100, ZERO blocking findings**, four
+non-blocking. It re-derived the rebase byte-identity to a matching sha256, re-ran every local gate,
+and adversarially diffed both extracted test files against their base blobs — `t.Fatal` 81→81,
+`if err != nil` 19→19, `func Test` 6→6, no assertion dropped or weakened. It ran a **six-mutation
+drill anchored to the diff**, plus the one sprint-plan-named row it could identify precisely:
+
+| # | mutation | result |
+|---|---|---|
+| 1 | drop the nil-cached-payload fallthrough guard in `serveFromCache` | **SURVIVED** |
+| 2 | invert `!verified` → `verified` in `serveFromCache` | KILLED |
+| 3 | swallow the elaboration error in `compileFreshModule` | KILLED (SIGSEGV) |
+| 4 | `MUT-IFACE-REGISTER-OMIT` (the plan's own named row) | KILLED, matching the plan's oracle |
+| 5 | reorder `registerResolver()` before `compileAllAndFinalize()` | **SURVIVED** |
+| 6 | flip the nil-source `cacheable` flag in `prepareCacheLookup` | **SURVIVED** |
+
+All six restored byte-clean, sha256-verified, `git status --porcelain` empty after each.
+**I reproduced survivor #5 first-party** in my own worktree — mutation applied, `go build` rc=0,
+`go test ./internal/pipeline ./internal/loader` rc=0, restored and sha256-checked — because a
+judge's non-blocking label is its opinion of severity, not a measurement. It survives: reordering
+two phases so the resolver iterates an empty `compiledUnits` map is invisible to both packages'
+suites, including their `ModeEval` tests. That is a genuine test-scope gap and it is now queued.
+The judge also declared what it did **not** measure: 9 of the sprint's 10 named mutation rows are
+**UNMEASURED** — no `.snap/M3/mutations/` evidence tree exists anywhere on disk or in git history,
+so that claim is hearsay from iterations that no longer exist.
+
+**Progress.** N=12 design docs before v1.0.0 (was 12, change 0). This is compile-path maintainability
+work inside the ratified inventory's existing rows, so the goal is unmoved.
+
+**Cost.** No metered spend. Controller and evaluator both on the Anthropic subscription; no designer,
+planner or executor lane was spawned or probed, so no flat-rate or metered lane was touched. Fable
+budget: **unspent** — no design doc was authored this iteration.
+
+**Next.** `m-exec-event-handler-untested` (queue head, still), then the three coverage gaps this
+iteration's drill measured, then `m-coordinator-codex-401`. `D-60` and `D-55`–`D-59` stay parked;
+`D-60` is now actually readable on `dev`, which it was not this morning.
