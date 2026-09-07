@@ -65,7 +65,7 @@ func TestOllamaQuotaHTTPAndCredentialBinding(t *testing.T) {
 	if o := observeOllamaQuota(paths, "", now, client); !o.Blocked() || calls != 0 {
 		t.Fatal(o)
 	}
-	if o := observeOllamaQuota(paths, key, now, client); !o.Blocked() || o.WeeklyUsage == nil {
+	if o := observeOllamaQuota(paths, key, now, client); o.Blocked() || o.WeeklyUsage == nil {
 		t.Fatal(o)
 	}
 	dir := filepath.Join(paths.Home, ".ailang", "state")
@@ -107,5 +107,36 @@ func TestOllamaQuotaRejectsOversizedResponse(t *testing.T) {
 	o := observeOllamaQuota(Paths{Home: t.TempDir()}, "key", time.Now(), client)
 	if !o.Blocked() || !strings.Contains(o.Reason, "1 MiB") {
 		t.Fatal(o)
+	}
+}
+
+func TestOllamaGaugeThresholdsWithoutMetadata(t *testing.T) {
+	for _, tc := range []struct {
+		session, weekly float64
+		status          string
+		blocked         bool
+	}{
+		{0.006, 0.357, "OK", false}, {0.799, 0, "OK", false},
+		{0.8, 0, "WARN", false}, {0, 0.8, "WARN", false},
+		{0.949, 0.949, "WARN", false}, {0.95, 0, "CRITICAL", true},
+		{0, 0.95, "CRITICAL", true}, {1, 0, "CRITICAL", true}, {0, 1.1, "CRITICAL", true},
+	} {
+		body, _ := json.Marshal(map[string]any{"limits": map[string]any{"session": map[string]any{"usage": tc.session}, "weekly": map[string]any{"usage": tc.weekly}}})
+		client := &http.Client{Transport: quotaRoundTrip(func(*http.Request) (*http.Response, error) {
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(string(body)))}, nil
+		})}
+		o := observeOllamaQuota(Paths{Home: t.TempDir()}, "fixture", time.Now(), client)
+		if o.Blocked() != tc.blocked || o.GaugeStatus != tc.status || len(o.Windows) != 0 {
+			t.Fatalf("%+v: %+v", tc, o)
+		}
+	}
+}
+
+func TestOllamaMetadataCannotRelaxGaugeCutoff(t *testing.T) {
+	now := time.Now()
+	o := parseOllamaUsage([]byte(`{"limits":{"session":{"usage":0.95},"weekly":{"usage":0}}}`), now)
+	limits := OllamaQuotaLimits{SessionCapacity: 100, WeeklyCapacity: 100, SessionResetsAt: now.Add(time.Hour), WeeklyResetsAt: now.Add(time.Hour)}
+	if v := evaluateOllamaQuota(o, limits, now); !v.Blocked() || v.GaugeStatus != "CRITICAL" {
+		t.Fatal(v)
 	}
 }

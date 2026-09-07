@@ -1,5 +1,7 @@
 # M-OLLAMA-QUOTA-OBSERVATION
 
+> The correction at the end of this document supersedes the original mandatory-metadata design.
+
 Attended scope authorized 2026-09-07: add Ollama accounting and role admission, extending
 M-QUOTA-RATIONING-ROUTING and M-CODEX-QUOTA-OBSERVATION. Use the same design/sprint/evaluation flow.
 
@@ -74,3 +76,32 @@ state unknown because verified capacities/reset times are absent. No metadata fa
 No active iterations restarted; live next-fire fallback remains to be observed. Rollback hashes
 and backups are in `design_docs/verification/mission-recovery-2026-09-07/ollama-quota-deployment.json`.
 Account metadata remains an outstanding configuration dependency, not completed allowance pacing.
+
+
+## Correction approved 2026-09-07: reuse Pi's measured gauge
+
+The attended user approved using the existing Pi quota extension. V50 in
+`design_docs/implemented/v0_34_0/m-ollama-cloud-provider.md` records session usage
+0.613 → 0.792 → 0.972 → 1 followed by HTTP 429. This supersedes the earlier
+numerator-only premise above. Pi already applies the same fractional interpretation to
+weekly usage; weekly exhaustion was not independently measured in V50. Preserve that
+existing interpretation explicitly as policy, rather than claiming a new measurement.
+
+Plan: (1) reuse Pi's 80% warning / 95% admission cutoff for either legacy window;
+(2) make account reset metadata optional for basic admission, retaining strict validation
+when explicitly configured and applying pacing in addition to the cutoff; (3) reconcile
+CLI/Pi documentation, test boundaries/failures, independently review and deploy next-fire pins.
+
+Acceptance: valid low usage admits with no metadata; either window at 80% warns but admits,
+95% or higher blocks; missing key, missing fields, negative values and HTTP errors block;
+optional metadata cannot relax the cutoff; no invented resets or daily pacing claims when
+metadata is absent. Existing local Ollama exemption and guarded role fallback remain intact.
+Only usage HTTP reads are used for live verification. No model inference or active-run restart.
+
+
+Correction verification: all three planned steps completed. Focused quota tests, cloud/local
+admission and Codex fallback regressions, full `GOFLAGS=-p=1 make test`, `make lint`,
+`make check-file-sizes`, scratch build and independent review all PASS. Usage-only live
+observation at 13:32 UTC: state OK, session 0.019, weekly 0.359, no metadata needed.
+Launchd inspection found the existing session gauge key absent from shared secrets;
+deployment adds that same credential without logging it, preserving a private backup.

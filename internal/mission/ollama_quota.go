@@ -14,8 +14,9 @@ import (
 	"time"
 )
 
-// OllamaQuotaObservation retains provider usage units when no denominator is known.
+// OllamaQuotaObservation retains the legacy session/weekly fractional usage gauge.
 type OllamaQuotaObservation struct {
+	GaugeStatus  string             `json:"gauge_status,omitempty"`
 	State        string             `json:"state"`
 	Reason       string             `json:"reason"`
 	ObservedAt   time.Time          `json:"observed_at"`
@@ -81,8 +82,11 @@ func observeOllamaQuota(paths Paths, key string, now time.Time, client *http.Cli
 		return o
 	}
 	f, err := os.Open(metadataPath)
+	if os.IsNotExist(err) {
+		return evaluateOllamaGauge(o)
+	}
 	if err != nil {
-		o.Reason = "Ollama usage recorded, but verified account capacities/reset times are missing; cloud routing blocked"
+		o.Reason = "Ollama quota metadata cannot be read"
 		return o
 	}
 	defer f.Close()
@@ -129,7 +133,36 @@ func parseOllamaUsage(data []byte, now time.Time) OllamaQuotaObservation {
 	o.Reason = "provider usage units recorded; capacity and reset metadata required"
 	return o
 }
+
+// evaluateOllamaGauge uses the existing Pi extension policy: V50 measured session
+// exhaustion at 1.0; weekly uses Pi's same fractional interpretation. Reset times
+// are not supplied by this endpoint, so this verdict does not claim daily pacing.
+func evaluateOllamaGauge(o OllamaQuotaObservation) OllamaQuotaObservation {
+	if o.SessionUsage == nil || o.WeeklyUsage == nil {
+		return o
+	}
+	o.State, o.GaugeStatus = "ok", "OK"
+	o.Reason = "Ollama Cloud gauge below 80%; reset-aware pacing unavailable without metadata"
+	for _, usage := range []float64{*o.SessionUsage, *o.WeeklyUsage} {
+		if usage >= 0.95 {
+			o.State, o.GaugeStatus = "over", "CRITICAL"
+			o.Reason = "Ollama Cloud session or weekly gauge reached 95%; new cloud routing blocked"
+			return o
+		}
+		if usage >= 0.8 {
+			o.GaugeStatus = "WARN"
+			o.Reason = "Ollama Cloud session or weekly gauge reached 80%; admission allowed below 95%; reset-aware pacing unavailable without metadata"
+		}
+	}
+	return o
+}
+
 func evaluateOllamaQuota(o OllamaQuotaObservation, limits OllamaQuotaLimits, now time.Time) OllamaQuotaObservation {
+	gauge := evaluateOllamaGauge(o)
+	if gauge.Blocked() {
+		return gauge
+	}
+	o.GaugeStatus = gauge.GaugeStatus
 	if o.SessionUsage == nil || o.WeeklyUsage == nil {
 		return o
 	}
@@ -161,7 +194,7 @@ func evaluateOllamaQuota(o OllamaQuotaObservation, limits OllamaQuotaLimits, now
 	verdict.evaluate(now)
 	o.State = verdict.State
 	o.Windows = verdict.Windows
-	o.Reason = "Ollama Cloud usage is within the verified account ration"
+	o.Reason = "Ollama Cloud usage is within the verified account ration; gauge " + o.GaugeStatus
 	if verdict.Blocked() {
 		o.Reason = "Ollama Cloud usage exceeds its verified ration or exhausts a window"
 	}

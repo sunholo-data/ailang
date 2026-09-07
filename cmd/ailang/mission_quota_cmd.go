@@ -26,7 +26,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 	asJSON := fs.Bool("json", false, "Emit the ledger as JSON")
 	bucket := fs.String("bucket", "", "Report only this bucket (codex, anthropic, openrouter, ollama)")
 	consolidate := fs.Bool("consolidate", false, "Compact the journal into the ledger cache before reporting")
-	over := fs.Bool("over", false, "Print buckets unavailable for quota routing, one per line. Codex uses local provider percentages. Ollama reads its usage endpoint with OLLAMA_API_KEY and verified account metadata. Both block unknown quota; other buckets require proven ledger exceedance.")
+	over := fs.Bool("over", false, "Print buckets unavailable for quota routing, one per line. Codex uses local provider percentages. Ollama uses its OLLAMA_API_KEY usage gauge (95% cutoff), with optional verified pacing metadata. Both block unknown quota; other buckets require proven ledger exceedance.")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 	if ollama != nil {
 		fmt.Printf("ollama provider usage: %s — %s\n", ollama.State, ollama.Reason)
 		if ollama.SessionUsage != nil && ollama.WeeklyUsage != nil {
-			fmt.Printf("  provider units: session %.6g; weekly %.6g (not assumed percentages)\n", *ollama.SessionUsage, *ollama.WeeklyUsage)
+			fmt.Printf("  fractional gauge: session %.1f%%; weekly %.1f%%\n", 100**ollama.SessionUsage, 100**ollama.WeeklyUsage)
 		}
 	}
 	for _, u := range ledger.Usage {
