@@ -5,6 +5,28 @@
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `docs-mission-status-index.md`.
 
+## STATUS 2026-09-06 — ITERATION 11: fresh draw `m-agent-step-cancellation`; designer lanes failed before revision, parked
+
+Gate 0: armed; GitHub account `sunholo-voight-kampff`; clean origin-pinned worktree. Inbox triage
+found no `mission-docs` directive or genuine regression; D-4 and D-5 remain open. Gate 1 found the
+running pin at `origin/dev` (`e50066037`), with no local changes.
+
+Gate 2 re-confirmed docs-11 parked on D-4 and docs-12 parked on D-5, then drew the next eligible
+docs-8 backlog item: `design_docs/planned/v0_29_0/m-agent-step-cancellation.md`. Its existing quorum
+artifact (`m-agent-step-cancellation-2026-09-05T21-45-11Z.json`) is blocked 3/3 with concrete,
+revision-shaped objections about mid-step concurrency, request-context/signal ownership, and
+existing cancellation machinery.
+
+Gate 3 spawned the required designer through the Agent tool as `codex:gpt-6-astra`; it remained
+running without producing a file and was shut down. The configured final Codex fallback
+`codex:gpt-5.6-luna` was also spawned through the Agent tool; it likewise timed out without a
+revision and was shut down. No planner, executor, or evaluator was spawned because no revised,
+quorum-ready design existed. This is a parked designer-lane failure, not a passing design or a
+completed sprint; generator-not-equal-judge therefore has no execution result to judge.
+
+Outcome: PARKED. No implementation changes. D-4/D-5 remain the human decision asks; the designer
+failure is reported for retry on the next scheduled run.
+
 ## STATUS 2026-08-28 — **BAR RATIFIED ATTENDED**; queue reordered so the next fire touches the website
 
 Mark closed `docs-0` by human decision after reading iteration 0's result. Two changes, both his:
