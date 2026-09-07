@@ -37,7 +37,15 @@
 # Portable to macOS bash 3.2. No GNU timeout on this rig → bash watchdog below.
 set -uo pipefail
 
-REPO="${MISSION_WORKDIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
+# MC_DRIVER_ROOT is the repo the DRIVER ships from; REPO is the repo the mission
+# WORKS in. For v1/docs/motoko they are the same checkout. For a de-forked mission
+# they are NOT: world runs this shared driver out of the ailang repo while its
+# charter, log and worktrees live in ailang-world.
+#
+# Captured HERE, before the `cd`, because $0 is only reliably resolvable relative to
+# the invoking directory and everything below runs from $REPO.
+MC_DRIVER_ROOT=$(cd "$(dirname "$0")/../.." 2>/dev/null && pwd)
+REPO="${MISSION_WORKDIR:-$MC_DRIVER_ROOT}"
 cd "$REPO" || exit 1
 
 # Slot clock. Read bare (no `$`) inside $(( )) by the RETRY HISTORY and SLOT VERDICT
@@ -833,10 +841,19 @@ export MISSION_GH_ISSUE
 #   * AFTER the state block, so a failed pin has LOG, log(), MSG_FROM and MISSION_GH_ISSUE
 #     available to report with. Reporting a stale driver on a channel that needs the stale
 #     driver's own config to be resolved is not reporting.
-# Sourced from $REPO, which on the first pass is the UNPINNED clone: the stale helper re-execs
-# into the pinned driver, which then sources the pinned helper. Two passes by construction.
-if [ -f "$REPO/tools/launchd/lib/pin-root.sh" ]; then
-  . "$REPO/tools/launchd/lib/pin-root.sh"
+# Sourced from MC_DRIVER_ROOT — the repo the DRIVER ships from — which on the first pass is the
+# UNPINNED clone: the stale helper re-execs into the pinned driver, which then sources the pinned
+# helper. Two passes by construction.
+#
+# NOT from $REPO. That was the bug: after world was de-forked it runs this shared driver while
+# $REPO points at ailang-world, which has no lib/pin-root.sh — so EVERY world fire since the
+# de-fork logged `DRIVER PIN FAILED ... is absent — this clone predates the driver pin` and ran
+# the WORKING TREE instead of committed code, which is the one thing the pin exists to prevent.
+# The helper ships beside the driver, so the driver's own root is where it always is; the helper
+# then derives what to pin from its own $0, and MISSION_WORKDIR keeps $REPO pointing at the
+# mission's work repo across the re-exec.
+if [ -f "$MC_DRIVER_ROOT/tools/launchd/lib/pin-root.sh" ]; then
+  . "$MC_DRIVER_ROOT/tools/launchd/lib/pin-root.sh"
   pin_root_to_committed_ref "$@"
 else
   # PIN_DRIFT is normally initialised by the helper. It must be set HERE too: this branch is the
@@ -844,7 +861,7 @@ else
   # abort at the DRY RUN line below — the fallback crashing only on the fallback path.
   PIN_STATUS="STALE"
   PIN_DRIFT="?"
-  PIN_NOTE="$REPO/tools/launchd/lib/pin-root.sh is absent — this clone predates the driver pin (#558)"
+  PIN_NOTE="$MC_DRIVER_ROOT/tools/launchd/lib/pin-root.sh is absent — this clone predates the driver pin (#558)"
 fi
 # --- DRIVER PIN DECISION START ---
 _pin_degraded=""
