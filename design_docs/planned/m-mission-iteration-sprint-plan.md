@@ -1,6 +1,6 @@
 # M-MISSION-ITERATION — one durable work item through validated completion
 
-**Status:** In progress; Mark authorized execution on 2026-09-07: “lets go! spritn execute”.
+**Status:** M1–M5 implemented and verified; M6 partial pending approved canary task. Mark authorized execution on 2026-09-07: “lets go! spritn execute”.
 **Design:** [Runtime contract, next increment](m-mission-runtime-contract.md#next-increment-proposal--binary-owned-work-item-iteration-7-september-2026).
 **Duration:** 8 engineering days including integration buffer; not a calendar promise.
 **Estimate:** 4,000 implementation/test lines. **Priority:** P0. **Risk:** High at crash,
@@ -232,12 +232,12 @@ Own remaining cross-boundary fixtures and `design_docs/verification/mission-iter
 Load sprint-evaluator for independent assessment after implementation. Docs and review text are
 excluded from the LOC estimate. Example: runnable hermetic end-to-end command plus durable report.
 
-- [ ] Fault matrix and all preceding acceptance criteria pass with provider call counts recorded.
-- [ ] Required tests/lint/build/boundary checks and relevant CI asset/shell checks pass.
-- [ ] Independent evaluation passes with zero blocking findings; repairs are rechecked.
+- [x] Fault matrix and all preceding acceptance criteria pass with provider call counts recorded.
+- [x] Required tests/lint/build/boundary checks and relevant CI asset/shell checks pass.
+- [x] Independent evaluation passes with zero blocking findings; repairs are rechecked.
 - [ ] Canary packet identifies an unowned approved Docs item, base, binary hash, routes, token caps,
       at most $5 metered spend/60 minutes, isolated paths, idle check and exact rollback commands.
-- [ ] Canary remains unactivated until reviewed; implementation status and live adoption are separate.
+- [x] Canary remains unactivated until reviewed; implementation status and live adoption are separate.
 
 ## Test execution and tracking
 

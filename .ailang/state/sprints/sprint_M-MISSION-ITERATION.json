@@ -8,7 +8,11 @@
   "velocity": {
     "target_loc_per_day": 500,
     "estimated_total_loc": 4000,
-    "estimated_days": 8
+    "estimated_days": 8,
+    "actual_elapsed_hours": 0.68,
+    "actual_added_implementation_test_lines": 5962,
+    "actual_removed_implementation_test_lines": 155,
+    "estimate_note": "Boundary/fault tests exceeded the original 4000-line estimate; documentation excluded."
   },
   "features": [
     {
@@ -122,10 +126,10 @@
         "Canary packet identifies an unowned approved Docs item, base, binary hash, routes, token caps, at most $5 metered spend/60 minutes, isolated paths, idle check and exact rollback commands.",
         "Canary remains unactivated until reviewed; implementation status and live adoption are separate."
       ],
-      "passes": null,
-      "started": null,
+      "passes": false,
+      "started": "2026-09-07",
       "completed": null,
-      "notes": null
+      "notes": "Code/fault/check/evaluation work complete. Canary activation packet is concrete about paths/routes/caps/rollback but lacks an unowned execution-approved Docs item; user clarification requested, no approval fabricated. Live activation not performed. See verification/mission-iteration/checks.md."
     }
   ]
 }

@@ -337,7 +337,7 @@ an assertion that those parent delivery criteria are complete.
 
 **Status:** Scope and additive-schema direction approved by Mark, attended 2026-09-07:
 “yep please proceed”, in response to the design approval request. Sprint planning authorized;
-execution and live canary activation remain separate gates. **Priority:** P0. **Target:** next runtime
+execution subsequently authorized by “lets go! spritn execute”. **Implementation:** M1–M5 implemented and verified at `77dc7287e`; M6 remains partial pending a concrete approved Docs item. Live canary activation remains separate. See [verification evidence](../verification/mission-iteration/checks.md). **Priority:** P0. **Target:** next runtime
 increment; release assignment at sprint planning. **Estimate:** 5–8 engineering days including
 fault tests and canary preparation, provisional until sprint decomposition.
 
@@ -400,7 +400,7 @@ No new permission is inferred from an old message or from an executor's PASS.
 
 ### Work-item input and CLI
 
-Proposed commands (not implemented):
+Commands implemented by M-MISSION-ITERATION (live activation remains pending):
 
 ```text
 ailang mission iterate --work-item FILE --dry-run
