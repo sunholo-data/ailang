@@ -1,0 +1,84 @@
+{
+  "sprint_id": "M-CACHESRC-COGNITIVE-COMPLEXITY",
+  "design_doc": "design_docs/planned/v0_35_2/m-cachesrc-cognitive-complexity.md",
+  "target_release": "v0.35.2",
+  "status": "planned",
+  "risk_level": "medium",
+  "created": "2026-09-07",
+  "github_issues": [],
+  "criteria_status": {},
+  "blocked_reason": null,
+  "features": [
+    {
+      "id": "M1_CHARACTERIZE_AND_TEST_EXTRACTION",
+      "description": "Design Phase 1 (freeze executable behavior, ~3h). Reconfirm the green focused baseline; author the missing characterization assertions for moved entry-point boundaries in the NEW internal/pipeline/pipeline_module_phases_test.go against pre-extraction production code (ModeCheck does not evaluate; ModeEval first-declaration value; root lookup fallback/error text; nil/provided config behavior; afterLoad[0]-only post-load callback position; warning order across fresh and verified warm modules; debug CACHE hit/miss/invalid/summary forms and counters; mixed verified-cached-dependency/fresh-importer case with fixed expected result); then extract scenario/setup/assertion helpers in internal/pipeline/cache_invalidation_test.go (+100/-140) and disk/embedded snapshot scenarios in internal/loader/loader_test.go (+20/-15), preserving the four named top-level entry points, all observable assertions (including non-publication = absence of CACHE_WRITE_FAILED plus unchanged seeded timestamp/key), t.Helper(), and sequential subtests. No production code changes.",
+      "estimated_loc": 475,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Pre-extraction focused baseline exits 0, recorded to .snap/M1/baseline.txt: go test ./internal/pipeline ./internal/loader -run 'TestCacheSource_ExactSnapshot|TestCachePipeline_(EmbeddedKeys|SourceEditBehavior|WriteFailure)|TestCacheArtifacts_Migration|TestCacheKey_InvalidatesOnSourceEdit|TestContractExpressionsFullyLowered|TestSplitArgWarning_Integration' -count=1 (controller-measured green at baseline d794cac: rc=0, pipeline 0.586s / loader 0.409s)",
+        "Characterization file internal/pipeline/pipeline_module_phases_test.go exists and passes against PRE-extraction production code: go test ./internal/pipeline ./internal/loader -count=1 exits 0, recorded to .snap/M1/characterize_pre.txt",
+        "After test-helper extraction, identical behavior: go test ./internal/pipeline ./internal/loader -count=1 exits 0 AND the criterion-1 focused command exits 0 again, recorded to .snap/M1/characterize_post.txt",
+        "Four top-level entry points preserved in name: test \"$(grep -c '^func TestCacheSource_ExactSnapshot\\|^func TestCachePipeline_EmbeddedKeys\\|^func TestCachePipeline_SourceEditBehavior' internal/pipeline/cache_invalidation_test.go)\" = \"3\" && test \"$(grep -c '^func TestCacheSource_ExactSnapshot' internal/loader/loader_test.go)\" = \"1\" exits 0",
+        "No parallelism introduced into the cwd/environment-mutating fixtures: ! grep -q 't\\.Parallel' internal/pipeline/cache_invalidation_test.go internal/loader/loader_test.go exits 0 (the search must find nothing)",
+        "Package-scoped static gates: gofmt -l internal/pipeline internal/loader prints nothing AND go vet ./internal/pipeline ./internal/loader exits 0"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_PRODUCTION_EXTRACTION",
+      "description": "Design Phase 2 (extract production responsibilities, ~5h). Reduce internal/pipeline/pipeline_module.go's runModuleWithCacheDependencies (Sonar complexity 103) to an ordered coordinator with a small number of error checks (+60/-420), keeping runModuleWithContext/runModuleWithCacheDependencies signatures unchanged; create internal/pipeline/pipeline_module_phases.go (~250) with the load/validate/compile-loop/finalization/root/evaluate phase helpers and the optional package-private per-call state struct; create internal/pipeline/pipeline_module_cache.go (~180) with eligibility/key, verified-lookup accounting, hydration + interface registration, publication and reporting helpers reusing cacheRuntime unchanged. Preserve the frozen sequencing map: verified-hit counting BEFORE the nil-payload check; nil SourceContent warns and bypasses lookup+publication while pointer-to-empty stays cacheable; publish requires live cache/store + nonempty computed key with artifacts before manifest authorization; guard clauses inside helpers; current Result on each early return; no new deferred child-span endings or error wrapping. No parser/type/lowering/cache-schema/Sonar-setting edits.",
+      "estimated_loc": 910,
+      "dependencies": [
+        "M1_CHARACTERIZE_AND_TEST_EXTRACTION"
+      ],
+      "acceptance_criteria": [
+        "Focused equivalence command exits 0, recorded to .snap/M2/focused.txt: go test ./internal/pipeline ./internal/loader -run 'TestCacheSource_ExactSnapshot|TestCachePipeline_(EmbeddedKeys|SourceEditBehavior|WriteFailure)|TestCacheArtifacts_Migration|TestCacheKey_InvalidatesOnSourceEdit|TestContractExpressionsFullyLowered|TestSplitArgWarning_Integration' -count=1",
+        "Complete touched packages green including the M1 characterization file against the new coordinator: go test ./internal/pipeline ./internal/loader -count=1 exits 0",
+        "Package-scoped static gates: gofmt -l internal/pipeline internal/loader prints nothing AND go vet ./internal/pipeline ./internal/loader exits 0 AND go build ./internal/pipeline ./internal/loader exits 0",
+        "Local cognitive-complexity evidence: go run github.com/uudashr/gocognit/cmd/gocognit@latest -json internal/pipeline/pipeline_module.go internal/pipeline/pipeline_module_phases.go internal/pipeline/pipeline_module_cache.go > .snap/M2/gocognit.json THEN jq -e '[.[] | select(.CognitiveComplexity > 15)] | length == 0' .snap/M2/gocognit.json returns true (runModuleWithCacheDependencies and every function in the two new files <= 15; authoritative exact-function Sonar confirmation is the controller-verified post-PR step, outside this executor gate)",
+        "Frozen file-set guard: git status --short -- internal/pipeline internal/loader sonar-project.properties .github/workflows lists only pipeline_module.go modified, the two new production files and M1 test files untracked/modified -- any other entry (parser/type/lowering/cache-store/artifact-schema/Sonar settings) fails the milestone",
+        "Coordinator retained and thinned: grep -n 'func.*runModuleWithCacheDependencies' internal/pipeline/pipeline_module.go matches (signature kept) AND test \"$(awk '/func.*runModuleWithCacheDependencies/,/^}/' internal/pipeline/pipeline_module.go | grep -cE '^[[:space:]]+(if|for|switch|select)[[:space:]]')\" -le 15 exits 0"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_PRESERVATION_PROOF_ANALYSIS",
+      "description": "Design Phase 3 (prove preservation and analyze, ~4h). Run the design's ten named mutation probes, EACH in its own isolated disposable execution worktree (a filesystem copy of the tree under .snap/M3/mutations/, one directory per probe named after its mutation ID, e.g. .snap/M3/mutations/MUT-SOURCE-EMPTY/; the design's Non-Goals confine mutation probing to that disposable tree -- the tracked tree is never mutated), banking each required failing oracle plus the restored-green result; a surviving mutation requires strengthening the corresponding observable assertion before preservation is declared (a compile error or unrelated environment failure is not a kill). Then run the focused packages under -race, the repository aggregate gates (make test / make lint / make ci) as landing evidence, and the final five-file gocognit report. Exact-revision Sonar re-analysis (first-party /api/issues/search scoped by project + analysis branch/PR + go:S3776, pinning the analysis commit SHA, with positive component controls and all five old->new function mappings) and PR-level evidence are CONTROLLER-verified steps outside the executor's gates; if Sonar is unavailable the exact-function criterion remains pending and is reported to the controller.",
+      "estimated_loc": 30,
+      "dependencies": [
+        "M2_PRODUCTION_EXTRACTION"
+      ],
+      "acceptance_criteria": [
+        "MUT-SOURCE-EMPTY (hash empty text for every available snapshot): in disposable copy .snap/M3/mutations/MUT-SOURCE-EMPTY the deleted-after-load key comparison and embedded expected/nonempty-key comparison fail -- go -C .snap/M3/mutations/MUT-SOURCE-EMPTY test ./internal/pipeline -run 'TestCacheSource_ExactSnapshot|TestCachePipeline_EmbeddedKeys' -count=1 exits non-zero; after restore the same command in the tracked tree exits 0 (restored controls publish real keys)",
+        "MUT-SOURCE-REREAD (replace retained text with a filesystem reread; may touch its original loader location solely inside the disposable copy): go -C .snap/M3/mutations/MUT-SOURCE-REREAD test ./internal/pipeline -run 'TestCacheSource_ExactSnapshot' -count=1 exits non-zero (source identity or compilation failure; deletion verified) while ordinary source still compiles; restored tracked tree run exits 0",
+        "MUT-NIL-PUBLISH (remove the nonempty-key publication guard): go -C .snap/M3/mutations/MUT-NIL-PUBLISH test ./internal/pipeline -run 'TestCacheSource_ExactSnapshot' -count=1 exits non-zero (nil-source case detects CACHE_WRITE_FAILED/publication attempt; seeded key/timestamp and zero-IO assertions remain); restored run exits 0",
+        "MUT-EMPTY-BYPASS (treat pointer-to-empty as unavailable): go -C .snap/M3/mutations/MUT-EMPTY-BYPASS test ./internal/pipeline -run 'TestCacheSource_ExactSnapshot' -count=1 exits non-zero (known-empty case fails its real manifest-entry/key assertion; nil case still demonstrates the opposite arm); restored run exits 0",
+        "MUT-WARM-OFF (force verified cached payload to take fresh compilation): go -C .snap/M3/mutations/MUT-WARM-OFF test ./internal/pipeline -run 'TestCachePipeline_SourceEditBehavior' -count=1 exits non-zero (positive dependency artifact reads and zero warm encodes distinguish real reuse from merely equal output); restored run exits 0",
+        "MUT-CACHED-CORE-OMIT (omit copying cached Core during hydration): go -C .snap/M3/mutations/MUT-CACHED-CORE-OMIT test ./internal/pipeline -run 'TestCachePipeline_SourceEditBehavior' -count=1 exits non-zero (warm execution or required Core assertion fails after positive artifact reads); restored run exits 0",
+        "MUT-IFACE-REGISTER-OMIT (skip cached interface registration): go -C .snap/M3/mutations/MUT-IFACE-REGISTER-OMIT test ./internal/pipeline -count=1 exits non-zero (the M1 mixed cached-dependency/fresh-importer characterization fails resolving or executing the imported call; positive artifact reads and fresh-importer compilation prove both branches were reached -- full-package run guarantees inclusion regardless of the new test's final name); restored run exits 0",
+        "MUT-NOCACHE-PERSIST (initialize/use cache despite NoCache): go -C .snap/M3/mutations/MUT-NOCACHE-PERSIST test ./internal/pipeline -run 'TestCachePipeline_SourceEditBehavior' -count=1 exits non-zero (NoCache compile-directory absence fails; cached control produces a manifest); restored run exits 0",
+        "MUT-SNAPSHOT-LEAK (copy source into assembled runtime LoadedModule; may touch result assembly solely inside the disposable copy): go -C .snap/M3/mutations/MUT-SNAPSHOT-LEAK test ./internal/pipeline -run 'TestCachePipeline_EmbeddedKeys|TestCachePipeline_SourceEditBehavior' -count=1 exits non-zero (runtime snapshot-omission assertion fails on an actually executed module); restored run exits 0",
+        "MUT-WARNING-SKIP (omit post-compile warning collection): go -C .snap/M3/mutations/MUT-WARNING-SKIP test ./internal/pipeline -run 'TestSplitArgWarning_Integration' -count=1 exits non-zero AND the full-package run go -C .snap/M3/mutations/MUT-WARNING-SKIP test ./internal/pipeline -count=1 exits non-zero (M1 warm-parity characterization fails; correct-order negative control still has zero target warnings); restored runs exit 0",
+        "Race gate on the focused packages after all changes: go test -race ./internal/pipeline ./internal/loader -count=1 exits 0, recorded to .snap/M3/race.txt",
+        "Aggregate landing evidence per the design's Testing Strategy: make test exits 0, make lint exits 0, make ci exits 0, recorded to .snap/M3/ (report -- do not fix -- any unrelated sub-gate failure to the controller)",
+        "Final local complexity report over all five files: go run github.com/uudashr/gocognit/cmd/gocognit@latest -json internal/pipeline/pipeline_module.go internal/pipeline/pipeline_module_phases.go internal/pipeline/pipeline_module_cache.go internal/pipeline/cache_invalidation_test.go internal/loader/loader_test.go > .snap/M3/gocognit.json THEN jq -e '[.[] | select(.CognitiveComplexity > 15)] | length == 0' .snap/M3/gocognit.json returns true (all five named targets and every new helper <= 15)",
+        "Final cumulative focused command exits 0: go test ./internal/pipeline ./internal/loader -run 'TestCacheSource_ExactSnapshot|TestCachePipeline_(EmbeddedKeys|SourceEditBehavior|WriteFailure)|TestCacheArtifacts_Migration|TestCacheKey_InvalidatesOnSourceEdit|TestContractExpressionsFullyLowered|TestSplitArgWarning_Integration' -count=1; controller then performs the exact-revision Sonar API verification and appends implementation evidence/deviations to the design doc before handoff to independent evaluation"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 708,
+    "estimated_total_loc": 1415,
+    "estimated_days": 2.0
+  }
+}
