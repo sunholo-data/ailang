@@ -20,6 +20,7 @@ type Runner struct {
 	Executors Factory
 	Record    func(Event) error
 	LookupEnv func(string) string
+	Admit     func(context.Context, Candidate) (Admission, error)
 }
 
 type Attempt struct {
@@ -46,8 +47,8 @@ func (r *Runner) Run(ctx context.Context, req Request) (*Report, error) {
 	if err != nil {
 		return nil, err
 	}
-	if r.Executors == nil || r.Record == nil {
-		return nil, fmt.Errorf("executor factory and durable receipt recorder are required")
+	if r.Executors == nil || r.Record == nil || r.Admit == nil {
+		return nil, fmt.Errorf("executor factory, admission policy and durable receipt recorder are required")
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(req.TimeoutSeconds)*time.Second)
 	defer cancel()
@@ -73,6 +74,14 @@ func (r *Runner) Run(ctx context.Context, req Request) (*Report, error) {
 		}
 		if err := ctx.Err(); err != nil {
 			return r.finish(report, err)
+		}
+		if reason := r.admission(ctx, c); reason != "" {
+			a.Reason = reason
+			report.Attempts = append(report.Attempts, a)
+			if err := r.Record(Event{Kind: "candidate_skipped", RequestDigest: p.RequestDigest, Attempt: &a}); err != nil {
+				return report, err
+			}
+			continue
 		}
 		a.Status = "executing"
 		report.Attempts = append(report.Attempts, a)
@@ -112,6 +121,9 @@ func (r *Runner) finish(report *Report, runErr error) (*Report, error) {
 func (r *Runner) preflight(ctx context.Context, c Candidate) (executor.Executor, string) {
 	if c.SkipReason != "" {
 		return nil, c.SkipReason
+	}
+	if reason := r.admission(ctx, c); reason != "" {
+		return nil, reason
 	}
 	e, err := r.Executors.GetExecutor(c.Executor)
 	if err != nil {
@@ -161,7 +173,7 @@ func taskFor(r Request, c Candidate) *executor.Task {
 	return &executor.Task{
 		ID:           strings.Join([]string{r.MissionID, r.WorkItemID, r.StageID, r.AttemptID}, "/"),
 		ParentTaskID: r.WorkItemID, Directive: r.Instructions,
-		SystemPrompt: fmt.Sprintf("Mission role contract v1. Role: %s. Input revision declared by caller: %s. Produce the requested artifact; execution success is not acceptance or permission to publish.", r.Role, r.InputRevision),
+		SystemPrompt: fmt.Sprintf("Mission role contract v1. Role: %s. Input revision declared by caller: %s. Request digest: %s. Produce the requested artifact; execution success is not acceptance or permission to publish.", r.Role, r.InputRevision, r.Digest()),
 		Workspace:    r.Workspace, Model: c.WireModel, Timeout: time.Duration(r.TimeoutSeconds) * time.Second,
 		MaxTokensPerBench: r.MaxTokens, MaxOutputTokens: m.MaxOutputTokens, ReasoningEffort: m.ReasoningEffort,
 		TTFTTimeout: time.Duration(m.TTFTTimeoutSeconds) * time.Second, IdleTimeout: time.Duration(m.GenerationTimeoutSeconds) * time.Second,

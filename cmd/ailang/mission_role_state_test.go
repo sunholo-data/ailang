@@ -48,6 +48,7 @@ func (e *stateRoleExecutor) GetExecutor(string) (executor.Executor, error) { ret
 func stateRoleFixture(t *testing.T) (dispatch.Request, *modelreg.ModelsConfig, string, string) {
 	t.Helper()
 	dir := t.TempDir()
+	t.Setenv("HOME", dir)
 	cli, wire := "pi", "openrouter/deepseek/model"
 	cfg := &modelreg.ModelsConfig{Models: map[string]modelreg.ModelConfig{"writer": {Provider: "openrouter", APIName: "deepseek/model", AgentCLI: &cli, AgentModelName: &wire, Pricing: modelreg.Pricing{InputPer1K: .001, OutputPer1K: .002}}}}
 	r := dispatch.Request{Version: 1, MissionID: "m", WorkItemID: "w", StageID: "s", AttemptID: "a", Role: "executor", Workspace: dir, InputRevision: "source", Instructions: "implement", Models: []string{"writer"}, TimeoutSeconds: 20, MaxTokens: 1000, MaxCostUSD: 1}

@@ -9,14 +9,15 @@ import (
 )
 
 type Event struct {
-	Version       int       `json:"version"`
-	Time          time.Time `json:"time"`
-	Kind          string    `json:"kind"`
-	Plan          *Plan     `json:"plan,omitempty"`
-	Request       *Request  `json:"request,omitempty"`
-	RequestDigest string    `json:"request_digest"`
-	Attempt       *Attempt  `json:"attempt,omitempty"`
-	Report        *Report   `json:"report,omitempty"`
+	Version       int        `json:"version"`
+	Time          time.Time  `json:"time"`
+	Kind          string     `json:"kind"`
+	Plan          *Plan      `json:"plan,omitempty"`
+	Request       *Request   `json:"request,omitempty"`
+	RequestDigest string     `json:"request_digest"`
+	Attempt       *Attempt   `json:"attempt,omitempty"`
+	Admission     *Admission `json:"admission,omitempty"`
+	Report        *Report    `json:"report,omitempty"`
 }
 
 // Journal is an exclusive per-attempt receipt, not a coordinator task store.

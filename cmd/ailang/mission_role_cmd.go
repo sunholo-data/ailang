@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/mission"
 	"github.com/sunholo-data/ailang/internal/mission/dispatch"
 	"github.com/sunholo-data/ailang/internal/modelreg"
 )
@@ -81,7 +82,7 @@ func runMissionRole(ctx context.Context, args []string, out io.Writer, models *m
 	if factory == nil {
 		factory = executor.GlobalFactory()
 	}
-	runner := dispatch.Runner{Models: models, Executors: factory, Record: journal.Record}
+	runner := dispatch.Runner{Admit: mission.NewAdmissionPolicy(mission.DefaultPaths()).Check, Models: models, Executors: factory, Record: journal.Record}
 	report, runErr := runner.Run(ctx, req)
 	closeErr = journal.Close()
 	var outputErr error

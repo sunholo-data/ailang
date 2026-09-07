@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/mission"
 	"github.com/sunholo-data/ailang/internal/mission/dispatch"
 	"github.com/sunholo-data/ailang/internal/modelreg"
 )
@@ -70,7 +71,7 @@ func runMissionRoleWithHeartbeat(ctx context.Context, req dispatch.Request, rece
 	}()
 	stopHeartbeat := func() { once.Do(func() { close(stop) }); <-done }
 	defer stopHeartbeat()
-	runner := dispatch.Runner{Models: models, Executors: factory, Record: func(event dispatch.Event) error {
+	runner := dispatch.Runner{Admit: mission.NewAdmissionPolicy(mission.DefaultPaths()).Check, Models: models, Executors: factory, Record: func(event dispatch.Event) error {
 		if err := journal.Record(event); err != nil {
 			return err
 		}
