@@ -52,11 +52,18 @@ func approvalHandoffTargets(agent *AgentConfig) []string {
 	return out
 }
 
-// sendAgentHandoffMessage delivers one handoff into the target agent's inbox.
+// sendAgentHandoffMessage delivers one handoff into the target agent's INBOX.
 //
-// A handoff IS a message: dispatch then picks it up and creates the next task,
-// so this is the whole mechanism. Shared by OnAgentApproved and the approval
-// path so the two cannot produce different handoffs for the same edge.
+// It must be an InboxMessage, not a thread message. `CreateMessage` writes to the
+// thread-message collection, which dispatch never polls — so OnAgentApproved's
+// handoffs were being written somewhere nothing reads, and the CLI reported
+// "dispatched" for a message that could never become a task (measured
+// 2026-09-07 on task-4082add5: approval said dispatched, no inbox message
+// existed, no task appeared). The daemon's own deliverHandoffToInbox always used
+// InsertInboxMessage; there were two mechanisms and only one worked.
+//
+// Shared by OnAgentApproved and the approval path so the two cannot diverge
+// again — which is exactly how one of them ended up on the wrong collection.
 func sendAgentHandoffMessage(
 	msgStore messaging.MessageStore,
 	sourceAgent, targetAgent *AgentConfig,
@@ -67,7 +74,7 @@ func sendAgentHandoffMessage(
 		return fmt.Errorf("no message store: a handoff cannot be delivered")
 	}
 	if targetAgent == nil || targetAgent.Inbox == "" {
-		return fmt.Errorf("target agent has no inbox")
+		return fmt.Errorf("target agent %q has no inbox to deliver to", targetAgentID(targetAgent))
 	}
 
 	content := fmt.Sprintf("**Handoff from %s**\n\n"+
@@ -77,18 +84,25 @@ func sendAgentHandoffMessage(
 		"Previous work has been approved. Please continue.",
 		sourceAgent.Label, task.ID, issueNumber, task.Content)
 
-	metadata := fmt.Sprintf(`{"parent_task_id":"%s","source_agent":"%s","target_agent":"%s","github_issue":%d}`,
-		task.ID, sourceAgent.ID, targetAgent.ID, issueNumber)
+	return msgStore.InsertInboxMessage(&messaging.InboxMessage{
+		FromAgent:     "coordinator",
+		ToInbox:       targetAgent.Inbox,
+		MessageType:   "handoff",
+		Title:         fmt.Sprintf("Handoff: %s", task.Title),
+		Payload:       content,
+		CorrelationID: task.ID,
+		ParentTaskID:  task.ID,
+		ChainID:       task.ChainID,
+		Status:        messaging.InboxStatusUnread,
+	})
+}
 
-	_, err := msgStore.CreateMessage(
-		"", // new thread
-		"ailang_instance", "coordinator",
-		targetAgent.Inbox, targetAgent.ID,
-		"handoff",
-		content,
-		metadata,
-	)
-	return err
+// targetAgentID is nil-safe, for an error message that must not panic.
+func targetAgentID(a *AgentConfig) string {
+	if a == nil {
+		return "<nil>"
+	}
+	return a.ID
 }
 
 // dispatchApprovalHandoffs fires the edges that were waiting on this approval.
